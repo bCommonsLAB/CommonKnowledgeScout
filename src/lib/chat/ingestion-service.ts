@@ -264,23 +264,84 @@ export class IngestionService {
             })
           }
           
-          // Verarbeite Cover-Bild
-          coverImageUrl = await ImageProcessor.processCoverImage(
-            provider,
-            shadowTwinFolderId,
-            libraryId,
-            fileId,
-            jobId,
-            isSessionMode
-          )
-          if (coverImageUrl) {
-            docMetaJsonObj.coverImageUrl = coverImageUrl
-            FileLogger.info('ingestion', 'Cover-Bild verarbeitet', { fileId, coverImageUrl, isSessionMode })
-            if (jobId) {
-              bufferLog(jobId, {
-                phase: 'cover_image_processed',
-                message: `Cover-Bild erfolgreich verarbeitet: ${coverImageUrl}`,
+          // PRIORITÄT 1: Prüfe ob coverImageUrl explizit im Frontmatter gesetzt ist
+          const frontmatterCoverImageUrl = (metaEffective as { coverImageUrl?: string })?.coverImageUrl
+          if (frontmatterCoverImageUrl && typeof frontmatterCoverImageUrl === 'string' && frontmatterCoverImageUrl.trim().length > 0) {
+            FileLogger.info('ingestion', 'Verwende coverImageUrl aus Frontmatter', {
+              fileId,
+              coverImageUrl: frontmatterCoverImageUrl,
+            })
+            
+            // Lade das explizit gesetzte Cover-Bild aus dem Shadow-Twin-Verzeichnis
+            try {
+              const baseItem = await provider.getItemById(fileId)
+              if (baseItem) {
+                const { findShadowTwinImage } = await import('@/lib/storage/shadow-twin')
+                const imageItem = await findShadowTwinImage(baseItem, frontmatterCoverImageUrl, provider, shadowTwinFolderId)
+                
+                if (imageItem) {
+                  // Verarbeite das explizit gesetzte Cover-Bild (lade auf Azure hoch)
+                  coverImageUrl = await ImageProcessor.processCoverImage(
+                    provider,
+                    shadowTwinFolderId,
+                    libraryId,
+                    fileId,
+                    jobId,
+                    isSessionMode,
+                    frontmatterCoverImageUrl // NEU: Expliziter Dateiname
+                  )
+                  
+                  if (coverImageUrl) {
+                    docMetaJsonObj.coverImageUrl = coverImageUrl
+                    FileLogger.info('ingestion', 'Cover-Bild aus Frontmatter verarbeitet', { fileId, coverImageUrl, frontmatterCoverImageUrl, isSessionMode })
+                    if (jobId) {
+                      bufferLog(jobId, {
+                        phase: 'cover_image_processed',
+                        message: `Cover-Bild aus Frontmatter erfolgreich verarbeitet: ${coverImageUrl}`,
+                      })
+                    }
+                  } else {
+                    FileLogger.warn('ingestion', 'Cover-Bild aus Frontmatter konnte nicht verarbeitet werden', {
+                      fileId,
+                      frontmatterCoverImageUrl,
+                    })
+                  }
+                } else {
+                  FileLogger.warn('ingestion', 'Cover-Bild aus Frontmatter nicht gefunden', {
+                    fileId,
+                    frontmatterCoverImageUrl,
+                    shadowTwinFolderId,
+                  })
+                }
+              }
+            } catch (error) {
+              FileLogger.warn('ingestion', 'Fehler beim Verarbeiten des Cover-Bildes aus Frontmatter', {
+                fileId,
+                frontmatterCoverImageUrl,
+                error: error instanceof Error ? error.message : String(error),
               })
+            }
+          }
+          
+          // PRIORITÄT 2: Fallback auf automatische Cover-Bild-Erkennung (nur wenn kein explizites coverImageUrl vorhanden)
+          if (!coverImageUrl) {
+            coverImageUrl = await ImageProcessor.processCoverImage(
+              provider,
+              shadowTwinFolderId,
+              libraryId,
+              fileId,
+              jobId,
+              isSessionMode
+            )
+            if (coverImageUrl) {
+              docMetaJsonObj.coverImageUrl = coverImageUrl
+              FileLogger.info('ingestion', 'Cover-Bild automatisch erkannt', { fileId, coverImageUrl, isSessionMode })
+              if (jobId) {
+                bufferLog(jobId, {
+                  phase: 'cover_image_processed',
+                  message: `Cover-Bild automatisch erkannt: ${coverImageUrl}`,
+                })
+              }
             }
           }
           

@@ -12,6 +12,7 @@ import {
 
 interface SplitPagesRequestBody {
   sourceFileId: string
+  originalFileId?: string
   targetLanguage?: string
   outputFolderName?: string
 }
@@ -74,6 +75,7 @@ export async function POST(
     const { libraryId } = await params
     const body = (await request.json().catch(() => ({}))) as Partial<SplitPagesRequestBody>
     const sourceFileId = typeof body.sourceFileId === 'string' ? body.sourceFileId : ''
+    const originalFileId = typeof body.originalFileId === 'string' ? body.originalFileId : sourceFileId
     const targetLanguage = typeof body.targetLanguage === 'string' ? body.targetLanguage : 'de'
     const outputFolderName = typeof body.outputFolderName === 'string' ? body.outputFolderName : ''
 
@@ -84,24 +86,35 @@ export async function POST(
     // Storage-Provider initialisieren (inkl. Base-URL + User-Email)
     const provider = await getServerProvider(userEmail, libraryId)
 
-    // Source-Datei laden, um Name/Parent zu kennen (für deterministischen Ordnernamen)
+    // Source-Datei laden (kann Transcript-Datei sein, wenn direkt aufgerufen)
     const sourceItem = await provider.getItemById(sourceFileId)
     if (!sourceItem || sourceItem.type !== 'file') {
       return NextResponse.json({ error: 'Quelle ist keine Datei' }, { status: 400 })
     }
 
     const sourceFileName = sourceItem.metadata.name
-    const parentId = sourceItem.parentId || 'root'
     const sourceBaseName = path.parse(sourceFileName).name
+
+    // Original-Datei laden, um parentId zu kennen (für Verzeichnis-Erstellung neben dem Original)
+    const originalItem = originalFileId !== sourceFileId 
+      ? await provider.getItemById(originalFileId).catch(() => null)
+      : sourceItem
+    if (!originalItem || originalItem.type !== 'file') {
+      return NextResponse.json({ error: 'Original-Datei nicht gefunden' }, { status: 400 })
+    }
+
+    // parentId vom Original verwenden, damit das Verzeichnis neben dem Original erstellt wird
+    const parentId = originalItem.parentId || 'root'
 
     // 1) Wenn die Quelle schon Markdown ist: direkt verwenden
     // 2) Sonst: Transcript per Shadow‑Twin Resolver suchen (Marker sind dort verlässlich)
+    //    Verwende originalFileId für die Suche, falls sourceFileId bereits die Transcript-Datei ist
     const resolvedMarkdown = isMarkdownFileName(sourceFileName) || isMarkdownMimeType(sourceItem.metadata.mimeType)
       ? { fileId: sourceFileId }
       : await resolveArtifact(provider, {
-          sourceItemId: sourceFileId,
-          sourceName: sourceFileName,
-          parentId,
+          sourceItemId: originalFileId,
+          sourceName: originalItem.metadata.name,
+          parentId: originalItem.parentId || 'root',
           targetLanguage,
           preferredKind: 'transcript',
         })

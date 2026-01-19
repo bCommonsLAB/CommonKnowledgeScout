@@ -850,7 +850,8 @@ export async function POST(
       const { setJobCompleted } = await import('@/lib/external-jobs/complete')
       await setJobCompleted({
         ctx: ctxPreUpdated,
-        result: {},
+        // Template-Only: savedItemId aus der Template-Phase weiterreichen (Contract: completed ⇒ savedItemId).
+        result: { savedItemId: templateResult.savedItemId },
       })
 
       return NextResponse.json({ ok: true, jobId, kind: 'template_only' })

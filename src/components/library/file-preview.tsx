@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, ExternalLink, FileText, RefreshCw, Rss, Wand2 } from "lucide-react";
 import { VideoPlayer } from './video-player';
 import { MarkdownPreview } from './markdown-preview';
 import { MarkdownMetadata } from './markdown-metadata';
@@ -11,7 +11,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import './markdown-audio';
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { activeLibraryIdAtom, selectedFileAtom, librariesAtom } from "@/atoms/library-atom";
-import { TextEditor } from './text-editor';
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
 import { extractFrontmatter } from './markdown-metadata';
 import { ImagePreview } from './image-preview';
@@ -27,16 +26,17 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner'
 import { resolveArtifactClient } from '@/lib/shadow-twin/artifact-client';
-import { ExternalLink, RefreshCw } from "lucide-react";
 import { SourceAndTranscriptPane } from "@/components/library/shared/source-and-transcript-pane"
 import { useResolvedTranscriptItem } from "@/components/library/shared/use-resolved-transcript-item"
 import { ArtifactInfoPanel } from "@/components/library/shared/artifact-info-panel"
 import { useStoryStatus } from "@/components/library/shared/use-story-status"
-import { StoryStatusIcons } from "@/components/library/shared/story-status-icons"
 import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { StoryView } from "@/components/library/shared/story-view"
 import { IngestionDataProvider } from "@/components/library/shared/ingestion-data-context"
+import type { StoryStepStatus, StoryStepState } from "@/components/library/shared/story-status"
+import { ArtifactMarkdownPanel } from "@/components/library/shared/artifact-markdown-panel"
+import { ArtifactEditDialog } from "@/components/library/shared/artifact-edit-dialog"
+import { IngestionDetailPanel } from "@/components/library/shared/ingestion-detail-panel"
 
 // Explizite React-Komponenten-Deklarationen für den Linter
 const ImagePreviewComponent = ImagePreview;
@@ -105,6 +105,34 @@ function getFileType(fileName: string): string {
   }
 }
 
+function getStoryStep(steps: StoryStepStatus[], id: StoryStepStatus["id"]): StoryStepStatus | null {
+  return steps.find((step) => step.id === id) ?? null
+}
+
+function stepStateClass(state: StoryStepState | null): string {
+  if (state === "present") return "text-green-600"
+  if (state === "running") return "text-amber-600"
+  if (state === "error") return "text-destructive"
+  return "text-muted-foreground"
+}
+
+function ArtifactTabLabel({
+  icon: Icon,
+  label,
+  state,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  state: StoryStepState | null
+}) {
+  return (
+    <span className="inline-flex items-center gap-2">
+      <Icon className={cn("h-4 w-4", stepStateClass(state))} />
+      <span>{label}</span>
+    </span>
+  )
+}
+
 // Komponente, die JobReportTab mit Shadow-Twin-Unterstützung umschließt
 // Verwendet jetzt den zentralen resolveArtifactClient statt lokaler Heuristik
 function JobReportTabWithShadowTwin({
@@ -112,13 +140,21 @@ function JobReportTabWithShadowTwin({
   fileId,
   fileName,
   parentId,
-  provider
+  provider,
+  ingestionTabMode = "status",
+  onEditClick,
+  onPublishClick,
+  effectiveMdIdRef,
 }: {
   libraryId: string;
   fileId: string;
   fileName: string;
   parentId: string;
   provider: StorageProvider | null;
+  ingestionTabMode?: 'status' | 'preview';
+  onEditClick?: () => void;
+  onPublishClick?: () => void;
+  effectiveMdIdRef?: React.MutableRefObject<string | null>;
 }) {
   const [mdFileId, setMdFileId] = React.useState<string | null>(null);
   const [baseFileId, setBaseFileId] = React.useState<string>(fileId);
@@ -207,6 +243,10 @@ function JobReportTabWithShadowTwin({
       fileName={fileName} 
       provider={provider}
       mdFileId={mdFileId}
+      ingestionTabMode={ingestionTabMode}
+      onEditClick={onEditClick}
+      onPublishClick={onPublishClick}
+      effectiveMdIdRef={effectiveMdIdRef}
       sourceMode="frontmatter"
       viewMode="metaOnly"
     />
@@ -360,7 +400,11 @@ function PreviewContent({
   provider,
   contentCache,
   onContentUpdated,
-  onRefreshFolder
+  onRefreshFolder,
+  storySteps,
+  editHandlerRef,
+  publishHandlerRef,
+  effectiveMdIdRef,
 }: {
   item: StorageItem;
   fileType: string;
@@ -371,16 +415,24 @@ function PreviewContent({
   contentCache: React.MutableRefObject<Map<string, { content: string; hasMetadata: boolean }>>;
   onContentUpdated: (content: string) => void;
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
+  storySteps: StoryStepStatus[];
+  editHandlerRef?: React.MutableRefObject<(() => void) | null>;
+  publishHandlerRef?: React.MutableRefObject<(() => Promise<void>) | null>;
+  effectiveMdIdRef?: React.MutableRefObject<string | null>;
 }) {
-  const [infoTab, setInfoTab] = React.useState<"original" | "story" | "info">("original")
+  const [infoTab, setInfoTab] = React.useState<"original" | "transcript" | "transform" | "story" | "overview">("original")
   const transcript = useResolvedTranscriptItem({
     provider,
     libraryId: activeLibraryId,
     sourceFile: fileType === "audio" || fileType === "pdf" ? item : null,
     targetLanguage: "de",
   })
+  const [transformItem, setTransformItem] = React.useState<StorageItem | null>(null)
+  const [transformError, setTransformError] = React.useState<string | null>(null)
+  const [isEditOpen, setIsEditOpen] = React.useState(false)
+  const [isSplittingPages, setIsSplittingPages] = React.useState(false)
+  const [isPublishing, setIsPublishing] = React.useState(false)
 
-  const [activeTab, setActiveTab] = React.useState<string>("preview");
   // Statusabfrage-States (derzeit nicht genutzt – bei Bedarf aktivieren)
   // const [ragLoading, setRagLoading] = React.useState(false);
   // const [ragError, setRagError] = React.useState<string | null>(null);
@@ -439,9 +491,41 @@ function PreviewContent({
   }, [item.id, item.metadata.name, fileType, content.length, error, provider, activeLibraryId, currentFolderId, shadowTwinState?.shadowTwinFolderId, item.parentId, shadowTwinState]);
   
   React.useEffect(() => {
-    setActiveTab("preview");
     setInfoTab("original");
   }, [item.id]);
+
+  React.useEffect(() => {
+    let cancelled = false
+
+    async function loadTransformItem() {
+      if (!provider) {
+        setTransformItem(null)
+        setTransformError(null)
+        return
+      }
+      if (!shadowTwinState?.transformed?.id) {
+        setTransformItem(null)
+        setTransformError(null)
+        return
+      }
+      try {
+        const loaded = await provider.getItemById(shadowTwinState.transformed.id)
+        if (cancelled) return
+        setTransformItem(loaded)
+        setTransformError(null)
+      } catch (e) {
+        if (cancelled) return
+        const message = e instanceof Error ? e.message : String(e)
+        setTransformItem(null)
+        setTransformError(message)
+      }
+    }
+
+    void loadTransformItem()
+    return () => {
+      cancelled = true
+    }
+  }, [provider, shadowTwinState?.transformed?.id])
 
   // async function loadRagStatus() {
   //   try {
@@ -487,6 +571,9 @@ function PreviewContent({
       const docModifiedAt = shadowTwinState?.transformed?.metadata.modifiedAt
         ? new Date(shadowTwinState.transformed.metadata.modifiedAt).toISOString()
         : undefined
+      const textStep = getStoryStep(storySteps, "text")
+      const transformStep = getStoryStep(storySteps, "transform")
+      const publishStep = getStoryStep(storySteps, "publish")
 
       return (
         <IngestionDataProvider
@@ -495,11 +582,20 @@ function PreviewContent({
           docModifiedAt={docModifiedAt}
           includeChapters={true}
         >
-          <Tabs value={infoTab} onValueChange={(v) => setInfoTab(v === "original" ? "original" : v === "story" ? "story" : "info")} className="flex h-full flex-col">
+          <Tabs value={infoTab} onValueChange={(v) => setInfoTab(v as typeof infoTab)} className="flex h-full flex-col">
+            {/* Tabs folgen dem Artefakt-Lebenszyklus (Original -> Transcript -> Transform -> Story -> Uebersicht). */}
             <TabsList className="mx-3 mt-3 w-fit">
               <TabsTrigger value="original">Original</TabsTrigger>
-              <TabsTrigger value="story">Story View</TabsTrigger>
-              <TabsTrigger value="info">Story Info</TabsTrigger>
+              <TabsTrigger value="transcript">
+                <ArtifactTabLabel label="Transkript" icon={FileText} state={textStep?.state || null} />
+              </TabsTrigger>
+              <TabsTrigger value="transform">
+                <ArtifactTabLabel label="Transformation" icon={Wand2} state={transformStep?.state || null} />
+              </TabsTrigger>
+              <TabsTrigger value="story">
+                <ArtifactTabLabel label="Story" icon={Rss} state={publishStep?.state || null} />
+              </TabsTrigger>
+              <TabsTrigger value="overview">Übersicht</TabsTrigger>
             </TabsList>
 
             <TabsContent value="original" className="min-h-0 flex-1 overflow-hidden p-3">
@@ -514,16 +610,150 @@ function PreviewContent({
               </div>
             </TabsContent>
 
+            <TabsContent value="transcript" className="min-h-0 flex-1 overflow-hidden p-3">
+              <div className="h-full overflow-hidden rounded border p-3">
+                <ArtifactMarkdownPanel
+                  title="Transcript (aus dem Original transkribiert)"
+                  titleClassName="text-xs text-muted-foreground font-normal"
+                  item={transcript.transcriptItem}
+                  provider={provider}
+                  emptyHint="Noch kein Transkript vorhanden."
+                  additionalActions={
+                    transcript.transcriptItem && ['pdf', 'audio', 'markdown'].includes(fileType) ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isSplittingPages || !provider}
+                        onClick={async () => {
+                          if (!activeLibraryId || !transcript.transcriptItem?.id) return
+                          // Erklärung: Split läuft serverseitig, weil große PDFs im Browser zu schwer sind.
+                          // Verarbeitet die Transcript-Datei und splittet sie in einzelne Seiten-Dateien in einem Unterverzeichnis.
+                          setIsSplittingPages(true)
+                          try {
+                            const res = await fetch(`/api/library/${encodeURIComponent(activeLibraryId)}/markdown/split-pages`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                sourceFileId: transcript.transcriptItem.id,
+                                originalFileId: item.id,
+                                targetLanguage: 'de',
+                              }),
+                            })
+                            const json = (await res.json().catch(() => ({}))) as { error?: unknown; folderName?: string; created?: number }
+                            if (!res.ok) {
+                              const msg = typeof json.error === 'string' ? json.error : `HTTP ${res.status}`
+                              throw new Error(msg)
+                            }
+                            toast.success("Seiten gesplittet", {
+                              description: `${json.created ?? 0} Seiten in Ordner "${json.folderName || 'pages'}" gespeichert.`
+                            })
+                            // UI-Liste aktualisieren, damit der neue Ordner sichtbar wird.
+                            // Verwende die parentId des Originals, nicht die der Transcript-Datei
+                            if (onRefreshFolder && item.parentId) {
+                              const refreshed = await provider?.listItemsById(item.parentId)
+                              if (refreshed) onRefreshFolder(item.parentId, refreshed)
+                            }
+                          } catch (error) {
+                            toast.error("Split fehlgeschlagen", {
+                              description: error instanceof Error ? error.message : "Unbekannter Fehler"
+                            })
+                          } finally {
+                            setIsSplittingPages(false)
+                          }
+                        }}
+                      >
+                        Seiten splitten
+                      </Button>
+                    ) : null
+                  }
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="transform" className="min-h-0 flex-1 overflow-auto p-3">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-muted-foreground">
+                    Story-Inhalte und Metadaten (aus dem Transkript transformiert)
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setIsEditOpen(true)}
+                      disabled={!provider || !transformItem}
+                    >
+                      Bearbeiten
+                    </Button>
+                    {effectiveMdIdRef?.current && publishHandlerRef?.current && (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={async () => {
+                          if (publishHandlerRef.current) {
+                            setIsPublishing(true)
+                            try {
+                              await publishHandlerRef.current()
+                            } finally {
+                              setIsPublishing(false)
+                            }
+                          }
+                        }}
+                        disabled={isPublishing || !provider || !effectiveMdIdRef.current}
+                      >
+                        {isPublishing ? 'Wird veröffentlicht...' : 'Story veröffentlichen'}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                {transformError ? (
+                  <Alert variant="destructive">
+                    <AlertDescription>{transformError}</AlertDescription>
+                  </Alert>
+                ) : !transformItem ? (
+                  <div className="rounded border p-3 text-sm text-muted-foreground">
+                    Keine Transformationsdaten vorhanden. Bitte stellen Sie sicher, dass die Datei verarbeitet wurde.
+                  </div>
+                ) : (
+                  <div className="rounded border">
+                    <JobReportTabWithShadowTwin 
+                      libraryId={activeLibraryId} 
+                      fileId={item.id} 
+                      fileName={item.metadata.name}
+                      parentId={item.parentId}
+                      provider={provider}
+                      ingestionTabMode="preview"
+                      onEditClick={editHandlerRef as unknown as () => void}
+                      onPublishClick={publishHandlerRef as unknown as () => void}
+                      effectiveMdIdRef={effectiveMdIdRef}
+                    />
+                  </div>
+                )}
+                <ArtifactEditDialog
+                  open={isEditOpen}
+                  onOpenChange={setIsEditOpen}
+                  item={transformItem}
+                  provider={provider}
+                  onSaved={(saved) => {
+                    if (saved) setTransformItem(saved)
+                  }}
+                />
+              </div>
+            </TabsContent>
+
             <TabsContent value="story" className="min-h-0 flex-1 overflow-auto p-3">
               {infoTab === "story" ? (
                 <div className="h-full overflow-auto rounded border p-3">
-                  <StoryView libraryId={activeLibraryId} />
+                  <div className="mb-2 text-xs text-muted-foreground">
+                    veröffentlichte Story (aus den Artefakten der Transformation erstellt) · Diese Ansicht entspricht der Gallery-Detail Ansicht.
+                  </div>
+                  <IngestionDetailPanel libraryId={activeLibraryId} fileId={item.id} />
                 </div>
               ) : null}
             </TabsContent>
 
-            <TabsContent value="info" className="min-h-0 flex-1 overflow-auto p-3">
-              {infoTab === "info" ? (
+            <TabsContent value="overview" className="min-h-0 flex-1 overflow-auto p-3">
+              {infoTab === "overview" ? (
                 <div className="rounded border">
                   <ArtifactInfoPanel
                     libraryId={activeLibraryId}
@@ -562,261 +792,16 @@ function PreviewContent({
         itemName: item.metadata.name
       });
       return <VideoPlayer provider={provider} activeLibraryId={activeLibraryId} onRefreshFolder={onRefreshFolder} showTransformControls={false} />;
-    case 'markdown':
-      FileLogger.debug('PreviewContent', 'Markdown-Editor wird gerendert', {
-        itemId: item.id,
-        itemName: item.metadata.name,
-        contentLength: content.length
-      });
-      
-      // Prüfe, ob es eine Creation-Datei ist (mit Frontmatter-Metadaten)
-      const parsed = parseFrontmatter(content);
-      const meta = parsed.meta || {};
-      const body = parsed.body || '';
-      const creationTypeId = typeof meta.creationTypeId === 'string' ? meta.creationTypeId.trim() : undefined;
-      
-      // Bestimme detailViewType aus Frontmatter mit Fallback auf Library-Config
-      const activeLibrary = activeLibraryId ? libraries.find(lib => lib.id === activeLibraryId) : undefined;
-      const libraryConfig = activeLibrary?.config?.chat;
-      const detailViewType = getDetailViewType(meta, libraryConfig);
-      
-      // Filtere System-Keys aus Metadaten (nur Template-Metadaten für DetailView)
-      const templateMetadata: Record<string, unknown> = {};
-      const systemKeys = new Set(['creationTypeId', 'creationTemplateId', 'creationDetailViewType', 'detailViewType', 'textSources', 'templateName']);
-      for (const [key, value] of Object.entries(meta)) {
-        if (!systemKeys.has(key)) {
-          templateMetadata[key] = value;
-        }
-      }
-      
-      // Creation-Datei: wenn creationTypeId vorhanden ist (auch wenn detailViewType aus Fallback kommt)
-      const isCreationFile = !!creationTypeId;
-      
-      // Prüfe, ob es ein Dialograum ist (für Button "Dialograum Ergebnis erstellen")
-      const dialograumId = typeof meta.dialograum_id === 'string' ? meta.dialograum_id.trim() : undefined;
-      const isDialograum = dialograumId && (
-        creationTypeId === 'dialograum-creation-de' || 
-        (typeof meta.creationTemplateId === 'string' && meta.creationTemplateId.includes('dialograum-creation'))
-      );
-      
-      return (
-        <div className="h-full flex flex-col">
-          <Tabs defaultValue="preview" value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-            <TabsList className="mx-4 mt-2 flex-shrink-0">
-              <TabsTrigger value="preview">Vorschau</TabsTrigger>
-              <TabsTrigger value="metadata">Metadaten</TabsTrigger>
-              <TabsTrigger value="edit">Bearbeiten</TabsTrigger>
-              <TabsTrigger value="report">Report</TabsTrigger>
-            </TabsList>
-            <div className="flex-1 min-h-0">
-              <TabsContent value="preview" className="h-full mt-0">
-                {isCreationFile ? (
-                  <div className="h-full overflow-auto">
-                    <DetailViewRenderer
-                      detailViewType={detailViewType}
-                      metadata={templateMetadata}
-                      markdown={body}
-                      libraryId={activeLibraryId}
-                      showBackLink={false}
-                    />
-                  </div>
-                ) : (
-                  <MarkdownPreview 
-                    content={content}
-                    currentFolderId={currentFolderId}
-                    provider={provider}
-                    className="h-full"
-                    compact
-                    onTransform={() => setActiveTab("edit")}
-                    onRefreshFolder={onRefreshFolder}
-                  />
-                )}
-              </TabsContent>
-              <TabsContent value="metadata" className="h-full mt-0">
-                <div className="h-full overflow-auto px-4 py-2">
-                  <MarkdownMetadata content={content} libraryId={activeLibraryId} />
-                </div>
-              </TabsContent>
-              <TabsContent value="report" className="h-full mt-0">
-                <JobReportTabWithShadowTwin 
-                  libraryId={activeLibraryId} 
-                  fileId={item.id} 
-                  fileName={item.metadata.name}
-                  parentId={item.parentId}
-                  provider={provider}
-                />
-              </TabsContent>
-              <TabsContent value="edit" className="h-full mt-0 flex flex-col">
-                {/* Button zum Öffnen im Creation-Flow (nur wenn creationTypeId vorhanden) */}
-                {isCreationFile && creationTypeId && (
-                  <div className="px-4 py-2 border-b space-y-2">
-                    <Button
-                      onClick={() => {
-                        if (!creationTypeId) return;
-                        
-                        const creationTemplateId = typeof meta.creationTemplateId === 'string' 
-                          ? meta.creationTemplateId.trim()
-                          : undefined;
-                        const params = new URLSearchParams();
-                        params.set('resumeFileId', item.id);
-                        if (creationTemplateId) {
-                          params.set('templateIdOverride', creationTemplateId);
-                        }
-                        // Trimme creationTypeId und encode für URL
-                        const trimmedTypeId = creationTypeId.trim();
-                        router.push(`/library/create/${encodeURIComponent(trimmedTypeId)}?${params.toString()}`);
-                      }}
-                      variant="outline"
-                      className="w-full"
-                    >
-                      Im Creation-Flow öffnen
-                    </Button>
-                    
-                    {/* Button für Dialograum Ergebnis (nur wenn Dialograum erkannt) */}
-                    {isDialograum && dialograumId && (
-                      <Button
-                        onClick={() => {
-                          const params = new URLSearchParams();
-                          params.set('seedFileId', item.id);
-                          // Type-ID für Dialograum-Ergebnis (wird aus Template-Namen abgeleitet)
-                          const ergebnisTypeId = 'dialograum-ergebnis-de';
-                          router.push(`/library/create/${encodeURIComponent(ergebnisTypeId)}?${params.toString()}`);
-                        }}
-                        variant="default"
-                        className="w-full"
-                      >
-                        Dialograum Ergebnis erstellen
-                      </Button>
-                    )}
-                  </div>
-                )}
-                <div className="flex-1 min-h-0">
-                  <TextEditor 
-                    content={content}
-                    provider={provider}
-                    onSaveAction={async (newContent: string) => {
-                FileLogger.info('FilePreview', 'onSaveAction gestartet', {
-                  itemId: item.id,
-                  itemName: item.metadata.name,
-                  contentLength: newContent.length,
-                  hasProvider: !!provider,
-                  hasOnRefreshFolder: !!onRefreshFolder
-                });
-                
-                if (provider && onRefreshFolder) {
-                  try {
-                    // Aktualisiere den lokalen State sofort
-                    FileLogger.debug('FilePreview', 'Aktualisiere lokalen Content-State', {
-                      oldContentLength: content.length,
-                      newContentLength: newContent.length
-                    });
-                    onContentUpdated(newContent);
-                    
-                    const blob = new Blob([newContent], { type: 'text/markdown' });
-                    const file = new File([blob], item.metadata.name, { type: 'text/markdown' });
-                    
-                    // Lösche die alte Datei
-                    FileLogger.info('FilePreview', 'Lösche alte Datei', {
-                      itemId: item.id,
-                      itemName: item.metadata.name
-                    });
-                    await provider.deleteItem(item.id);
-                    
-                    // Lade die neue Datei hoch
-                    FileLogger.info('FilePreview', 'Lade neue Datei hoch', {
-                      fileName: file.name,
-                      fileSize: file.size,
-                      parentId: item.parentId
-                    });
-                    const updatedItem = await provider.uploadFile(item.parentId, file);
-                    
-                    FileLogger.info('FilePreview', 'Upload abgeschlossen', {
-                      success: !!updatedItem,
-                      newItemId: updatedItem?.id,
-                      newItemName: updatedItem?.metadata.name
-                    });
-                    
-                    // Aktualisiere den Cache mit dem neuen Inhalt und der neuen ID
-                    if (updatedItem) {
-                      // Lösche den alten Cache-Eintrag
-                      FileLogger.debug('FilePreview', 'Cache-Update: Lösche alten Eintrag', {
-                        oldItemId: item.id,
-                        cacheSize: contentCache.current.size
-                      });
-                      contentCache.current.delete(item.id);
-                      
-                      // Füge den neuen Inhalt zum Cache hinzu
-                      const hasMetadata = !!extractFrontmatter(newContent);
-                      FileLogger.debug('FilePreview', 'Cache-Update: Füge neuen Eintrag hinzu', {
-                        newItemId: updatedItem.id,
-                        hasMetadata,
-                        contentLength: newContent.length
-                      });
-                      contentCache.current.set(updatedItem.id, { 
-                        content: newContent, 
-                        hasMetadata 
-                      });
-                      
-                      // Aktualisiere das selectedFileAtom mit der neuen Datei
-                      FileLogger.info('FilePreview', 'Aktualisiere selectedFileAtom', {
-                        oldId: item.id,
-                        newId: updatedItem.id
-                      });
-                      setSelectedFile(updatedItem);
-                    }
-                    
-                    // Hole die aktualisierten Items
-                    FileLogger.debug('FilePreview', 'Hole aktualisierte Dateiliste', {
-                      parentId: item.parentId
-                    });
-                    const updatedItems = await provider.listItemsById(item.parentId);
-                    
-                    FileLogger.info('FilePreview', 'Dateiliste aktualisiert', {
-                      itemCount: updatedItems.length
-                    });
-                    
-                    // Wechsle zur Vorschau
-                    FileLogger.debug('FilePreview', 'Wechsle zu Vorschau-Tab');
-                    setActiveTab("preview");
-                    
-                    // Informiere die übergeordnete Komponente
-                    FileLogger.info('FilePreview', 'Rufe onRefreshFolder auf', {
-                      parentId: item.parentId,
-                      updatedItemsCount: updatedItems.length,
-                      updatedItemId: updatedItem?.id
-                    });
-                    onRefreshFolder(item.parentId, updatedItems, updatedItem);
-                  } catch (error) {
-                    FileLogger.error('FilePreview', 'Fehler beim Aktualisieren der Datei', {
-                      error,
-                      itemId: item.id,
-                      itemName: item.metadata.name
-                    });
-                    throw error; // Werfe den Fehler weiter, damit TextEditor ihn anzeigen kann
-                  }
-                } else {
-                  FileLogger.warn('FilePreview', 'Speichern nicht möglich', {
-                    hasProvider: !!provider,
-                    hasOnRefreshFolder: !!onRefreshFolder
-                  });
-                  // Werfe einen Fehler, damit TextEditor ihn anzeigen kann
-                  throw new Error('Speichern nicht möglich: onRefreshFolder Callback fehlt');
-                }
-              }}
-                    />
-                  </div>
-              </TabsContent>
-            </div>
-          </Tabs>
-        </div>
-      );
-    case 'pdf': {
+    case 'markdown': {
       if (!provider) {
         return <div className="text-sm text-muted-foreground">Kein Provider verfügbar.</div>;
       }
       const docModifiedAt = shadowTwinState?.transformed?.metadata.modifiedAt
         ? new Date(shadowTwinState.transformed.metadata.modifiedAt).toISOString()
         : undefined
+      const textStep = getStoryStep(storySteps, "text")
+      const transformStep = getStoryStep(storySteps, "transform")
+      const publishStep = getStoryStep(storySteps, "publish")
 
       return (
         <IngestionDataProvider
@@ -825,11 +810,213 @@ function PreviewContent({
           docModifiedAt={docModifiedAt}
           includeChapters={true}
         >
-          <Tabs value={infoTab} onValueChange={(v) => setInfoTab(v === "original" ? "original" : v === "story" ? "story" : "info")} className="flex h-full flex-col">
+          <Tabs value={infoTab} onValueChange={(v) => setInfoTab(v as typeof infoTab)} className="flex h-full flex-col">
+            {/* Tabs folgen dem Artefakt-Lebenszyklus (Original -> Transcript -> Transform -> Story -> Uebersicht). */}
             <TabsList className="mx-3 mt-3 w-fit">
               <TabsTrigger value="original">Original</TabsTrigger>
-              <TabsTrigger value="story">Story View</TabsTrigger>
-              <TabsTrigger value="info">Story Info</TabsTrigger>
+              <TabsTrigger value="transcript">
+                <ArtifactTabLabel label="Transkript" icon={FileText} state={textStep?.state || null} />
+              </TabsTrigger>
+              <TabsTrigger value="transform">
+                <ArtifactTabLabel label="Transformation" icon={Wand2} state={transformStep?.state || null} />
+              </TabsTrigger>
+              <TabsTrigger value="story">
+                <ArtifactTabLabel label="Story" icon={Rss} state={publishStep?.state || null} />
+              </TabsTrigger>
+              <TabsTrigger value="overview">Übersicht</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="original" className="min-h-0 flex-1 overflow-hidden p-3">
+              <div className="h-full overflow-hidden rounded border p-3">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-xs text-muted-foreground font-normal">
+                    Original (Markdown-Datei)
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => setIsEditOpen(true)} disabled={!provider}>
+                    Bearbeiten
+                  </Button>
+                </div>
+                <div className="rounded border">
+                  <MarkdownPreview 
+                    content={content}
+                    currentFolderId={currentFolderId}
+                    provider={provider}
+                    className="max-h-[70vh]"
+                    compact
+                    onRefreshFolder={onRefreshFolder}
+                    onTransform={() => {
+                      // Transform-Button wurde geklickt - wechsle zum Transform-Tab
+                      setInfoTab("transform")
+                    }}
+                  />
+                </div>
+                <ArtifactEditDialog
+                  open={isEditOpen}
+                  onOpenChange={setIsEditOpen}
+                  item={item}
+                  provider={provider}
+                  onSaved={(saved) => {
+                    if (!provider) return
+                    const loadSavedContent = async () => {
+                      const { blob } = await provider.getBinary(saved.id)
+                      const text = await blob.text()
+                      contentCache.current.delete(item.id)
+                      contentCache.current.set(saved.id, { content: text, hasMetadata: !!extractFrontmatter(text) })
+                      onContentUpdated(text)
+                      setSelectedFile(saved)
+                      if (onRefreshFolder) {
+                        const updatedItems = await provider.listItemsById(saved.parentId)
+                        onRefreshFolder(saved.parentId, updatedItems, saved)
+                      }
+                    }
+                    loadSavedContent().catch((error) => {
+                      FileLogger.error('FilePreview', 'Fehler beim Aktualisieren nach Edit', { error })
+                    })
+                  }}
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="transcript" className="min-h-0 flex-1 overflow-hidden p-3">
+              <div className="h-full overflow-hidden rounded border p-3">
+                <div className="text-sm text-muted-foreground">
+                  Für Markdown-Dateien ist kein separates Transkript erforderlich, da das Original bereits Text ist.
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="transform" className="min-h-0 flex-1 overflow-auto p-3">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-muted-foreground">
+                    Story-Inhalte und Metadaten (aus dem Original transformiert)
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setIsEditOpen(true)}
+                      disabled={!provider || !transformItem}
+                    >
+                      Bearbeiten
+                    </Button>
+                    {effectiveMdIdRef?.current && publishHandlerRef?.current && (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={async () => {
+                          if (publishHandlerRef.current) {
+                            setIsPublishing(true)
+                            try {
+                              await publishHandlerRef.current()
+                            } finally {
+                              setIsPublishing(false)
+                            }
+                          }
+                        }}
+                        disabled={isPublishing || !provider || !effectiveMdIdRef.current}
+                      >
+                        {isPublishing ? 'Wird veröffentlicht...' : 'Story veröffentlichen'}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                {transformError ? (
+                  <Alert variant="destructive">
+                    <AlertDescription>{transformError}</AlertDescription>
+                  </Alert>
+                ) : !transformItem ? (
+                  <div className="rounded border p-3 text-sm text-muted-foreground">
+                    Keine Transformationsdaten vorhanden. Bitte stellen Sie sicher, dass die Datei verarbeitet wurde.
+                  </div>
+                ) : (
+                  <div className="rounded border">
+                    <JobReportTabWithShadowTwin 
+                      libraryId={activeLibraryId} 
+                      fileId={item.id} 
+                      fileName={item.metadata.name}
+                      parentId={item.parentId}
+                      provider={provider}
+                      ingestionTabMode="preview"
+                      onEditClick={editHandlerRef as unknown as () => void}
+                      onPublishClick={publishHandlerRef as unknown as () => void}
+                      effectiveMdIdRef={effectiveMdIdRef}
+                    />
+                  </div>
+                )}
+                <ArtifactEditDialog
+                  open={isEditOpen}
+                  onOpenChange={setIsEditOpen}
+                  item={transformItem}
+                  provider={provider}
+                  onSaved={(saved) => {
+                    if (saved) setTransformItem(saved)
+                  }}
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="story" className="min-h-0 flex-1 overflow-auto p-3">
+              {infoTab === "story" ? (
+                <div className="h-full overflow-auto rounded border p-3">
+                  <div className="mb-2 text-xs text-muted-foreground">
+                    veröffentlichte Story (aus den Artefakten der Transformation erstellt) · Diese Ansicht entspricht der Gallery-Detail Ansicht.
+                  </div>
+                  <IngestionDetailPanel libraryId={activeLibraryId} fileId={item.id} />
+                </div>
+              ) : null}
+            </TabsContent>
+
+            <TabsContent value="overview" className="min-h-0 flex-1 overflow-auto p-3">
+              {infoTab === "overview" ? (
+                <div className="rounded border">
+                  <ArtifactInfoPanel
+                    libraryId={activeLibraryId}
+                    sourceFile={item}
+                    shadowTwinFolderId={shadowTwinState?.shadowTwinFolderId || null}
+                    transcriptFiles={shadowTwinState?.transcriptFiles}
+                    transformed={shadowTwinState?.transformed}
+                    targetLanguage="de"
+                  />
+                </div>
+              ) : null}
+            </TabsContent>
+          </Tabs>
+        </IngestionDataProvider>
+      )
+    }
+    case 'pdf': {
+      if (!provider) {
+        return <div className="text-sm text-muted-foreground">Kein Provider verfügbar.</div>;
+      }
+      const docModifiedAt = shadowTwinState?.transformed?.metadata.modifiedAt
+        ? new Date(shadowTwinState.transformed.metadata.modifiedAt).toISOString()
+        : undefined
+      const textStep = getStoryStep(storySteps, "text")
+      const transformStep = getStoryStep(storySteps, "transform")
+      const publishStep = getStoryStep(storySteps, "publish")
+
+      return (
+        <IngestionDataProvider
+          libraryId={activeLibraryId}
+          fileId={item.id}
+          docModifiedAt={docModifiedAt}
+          includeChapters={true}
+        >
+          <Tabs value={infoTab} onValueChange={(v) => setInfoTab(v as typeof infoTab)} className="flex h-full flex-col">
+            {/* Tabs folgen dem Artefakt-Lebenszyklus (Original -> Transcript -> Transform -> Story -> Uebersicht). */}
+            <TabsList className="mx-3 mt-3 w-fit">
+              <TabsTrigger value="original">Original</TabsTrigger>
+              <TabsTrigger value="transcript">
+                <ArtifactTabLabel label="Transkript" icon={FileText} state={textStep?.state || null} />
+              </TabsTrigger>
+              <TabsTrigger value="transform">
+                <ArtifactTabLabel label="Transformation" icon={Wand2} state={transformStep?.state || null} />
+              </TabsTrigger>
+              <TabsTrigger value="story">
+                <ArtifactTabLabel label="Story" icon={Rss} state={publishStep?.state || null} />
+              </TabsTrigger>
+              <TabsTrigger value="overview">Übersicht</TabsTrigger>
             </TabsList>
 
             <TabsContent value="original" className="min-h-0 flex-1 overflow-hidden p-3">
@@ -844,16 +1031,150 @@ function PreviewContent({
               </div>
             </TabsContent>
 
+            <TabsContent value="transcript" className="min-h-0 flex-1 overflow-hidden p-3">
+              <div className="h-full overflow-hidden rounded border p-3">
+                <ArtifactMarkdownPanel
+                  title="Transcript (aus dem Original transkribiert)"
+                  titleClassName="text-xs text-muted-foreground font-normal"
+                  item={transcript.transcriptItem}
+                  provider={provider}
+                  emptyHint="Noch kein Transkript vorhanden."
+                  additionalActions={
+                    transcript.transcriptItem && ['pdf', 'audio', 'markdown'].includes(fileType) ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isSplittingPages || !provider}
+                        onClick={async () => {
+                          if (!activeLibraryId || !transcript.transcriptItem?.id) return
+                          // Erklärung: Split läuft serverseitig, weil große PDFs im Browser zu schwer sind.
+                          // Verarbeitet die Transcript-Datei und splittet sie in einzelne Seiten-Dateien in einem Unterverzeichnis.
+                          setIsSplittingPages(true)
+                          try {
+                            const res = await fetch(`/api/library/${encodeURIComponent(activeLibraryId)}/markdown/split-pages`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                sourceFileId: transcript.transcriptItem.id,
+                                originalFileId: item.id,
+                                targetLanguage: 'de',
+                              }),
+                            })
+                            const json = (await res.json().catch(() => ({}))) as { error?: unknown; folderName?: string; created?: number }
+                            if (!res.ok) {
+                              const msg = typeof json.error === 'string' ? json.error : `HTTP ${res.status}`
+                              throw new Error(msg)
+                            }
+                            toast.success("Seiten gesplittet", {
+                              description: `${json.created ?? 0} Seiten in Ordner "${json.folderName || 'pages'}" gespeichert.`
+                            })
+                            // UI-Liste aktualisieren, damit der neue Ordner sichtbar wird.
+                            // Verwende die parentId des Originals, nicht die der Transcript-Datei
+                            if (onRefreshFolder && item.parentId) {
+                              const refreshed = await provider?.listItemsById(item.parentId)
+                              if (refreshed) onRefreshFolder(item.parentId, refreshed)
+                            }
+                          } catch (error) {
+                            toast.error("Split fehlgeschlagen", {
+                              description: error instanceof Error ? error.message : "Unbekannter Fehler"
+                            })
+                          } finally {
+                            setIsSplittingPages(false)
+                          }
+                        }}
+                      >
+                        Seiten splitten
+                      </Button>
+                    ) : null
+                  }
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="transform" className="min-h-0 flex-1 overflow-auto p-3">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-muted-foreground">
+                    Story-Inhalte und Metadaten (aus dem Transkript transformiert)
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setIsEditOpen(true)}
+                      disabled={!provider || !transformItem}
+                    >
+                      Bearbeiten
+                    </Button>
+                    {effectiveMdIdRef?.current && publishHandlerRef?.current && (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={async () => {
+                          if (publishHandlerRef.current) {
+                            setIsPublishing(true)
+                            try {
+                              await publishHandlerRef.current()
+                            } finally {
+                              setIsPublishing(false)
+                            }
+                          }
+                        }}
+                        disabled={isPublishing || !provider || !effectiveMdIdRef.current}
+                      >
+                        {isPublishing ? 'Wird veröffentlicht...' : 'Story veröffentlichen'}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                {transformError ? (
+                  <Alert variant="destructive">
+                    <AlertDescription>{transformError}</AlertDescription>
+                  </Alert>
+                ) : !transformItem ? (
+                  <div className="rounded border p-3 text-sm text-muted-foreground">
+                    Keine Transformationsdaten vorhanden. Bitte stellen Sie sicher, dass die Datei verarbeitet wurde.
+                  </div>
+                ) : (
+                  <div className="rounded border">
+                    <JobReportTabWithShadowTwin 
+                      libraryId={activeLibraryId} 
+                      fileId={item.id} 
+                      fileName={item.metadata.name}
+                      parentId={item.parentId}
+                      provider={provider}
+                      ingestionTabMode="preview"
+                      onEditClick={editHandlerRef as unknown as () => void}
+                      onPublishClick={publishHandlerRef as unknown as () => void}
+                      effectiveMdIdRef={effectiveMdIdRef}
+                    />
+                  </div>
+                )}
+                <ArtifactEditDialog
+                  open={isEditOpen}
+                  onOpenChange={setIsEditOpen}
+                  item={transformItem}
+                  provider={provider}
+                  onSaved={(saved) => {
+                    if (saved) setTransformItem(saved)
+                  }}
+                />
+              </div>
+            </TabsContent>
+
             <TabsContent value="story" className="min-h-0 flex-1 overflow-auto p-3">
               {infoTab === "story" ? (
                 <div className="h-full overflow-auto rounded border p-3">
-                  <StoryView libraryId={activeLibraryId} />
+                  <div className="mb-2 text-xs text-muted-foreground">
+                    veröffentlichte Story (aus den Artefakten der Transformation erstellt) · Diese Ansicht entspricht der Gallery-Detail Ansicht.
+                  </div>
+                  <IngestionDetailPanel libraryId={activeLibraryId} fileId={item.id} />
                 </div>
               ) : null}
             </TabsContent>
 
-            <TabsContent value="info" className="min-h-0 flex-1 overflow-auto p-3">
-              {infoTab === "info" ? (
+            <TabsContent value="overview" className="min-h-0 flex-1 overflow-auto p-3">
+              {infoTab === "overview" ? (
                 <div className="rounded border">
                   <ArtifactInfoPanel
                     libraryId={activeLibraryId}
@@ -932,6 +1253,12 @@ export function FilePreview({
     shadowTwinState,
   })
   
+  // Refs für Handler von JobReportTab (für Header-Buttons)
+  const editHandlerRef = React.useRef<(() => void) | null>(null)
+  const publishHandlerRef = React.useRef<(() => Promise<void>) | null>(null)
+  const effectiveMdIdRef = React.useRef<string | null>(null)
+  const [isPublishing, setIsPublishing] = React.useState(false)
+  
   // Debug-Log für FilePreview-Hauptkomponente
   React.useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -971,8 +1298,6 @@ export function FilePreview({
     error: null,
     hasMetadata: false
   });
-  // Erklärung: separater State, damit der Split-Button sauber deaktiviert werden kann.
-  const [isSplittingPages, setIsSplittingPages] = React.useState(false)
 
   // Memoize computed values
   const fileType = React.useMemo(() => 
@@ -1050,7 +1375,6 @@ export function FilePreview({
           <div className="truncate text-sm font-medium">{displayFile.metadata.name}</div>
         </div>
         <div className="flex items-center gap-2">
-          <StoryStatusIcons steps={storyStatus.steps} />
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -1076,49 +1400,6 @@ export function FilePreview({
           >
             Story Creator
           </Button>
-          {(fileType === 'pdf' || fileType === 'markdown') ? (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={isSplittingPages}
-              onClick={async () => {
-                if (!activeLibraryId || !displayFile.id) return
-                // Erklärung: Split läuft serverseitig, weil große PDFs im Browser zu schwer sind.
-                setIsSplittingPages(true)
-                try {
-                  const res = await fetch(`/api/library/${encodeURIComponent(activeLibraryId)}/markdown/split-pages`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      sourceFileId: displayFile.id,
-                      targetLanguage: 'de',
-                    }),
-                  })
-                  const json = (await res.json().catch(() => ({}))) as { error?: unknown; folderName?: string; created?: number }
-                  if (!res.ok) {
-                    const msg = typeof json.error === 'string' ? json.error : `HTTP ${res.status}`
-                    throw new Error(msg)
-                  }
-                  toast.success("Seiten gesplittet", {
-                    description: `${json.created ?? 0} Seiten in Ordner "${json.folderName || 'pages'}" gespeichert.`
-                  })
-                  // UI-Liste aktualisieren, damit der neue Ordner sichtbar wird.
-                  if (onRefreshFolder && displayFile.parentId) {
-                    const refreshed = await provider?.listItemsById(displayFile.parentId)
-                    if (refreshed) onRefreshFolder(displayFile.parentId, refreshed)
-                  }
-                } catch (error) {
-                  toast.error("Split fehlgeschlagen", {
-                    description: error instanceof Error ? error.message : "Unbekannter Fehler"
-                  })
-                } finally {
-                  setIsSplittingPages(false)
-                }
-              }}
-            >
-              Seiten splitten
-            </Button>
-          ) : null}
           {provider ? (
             <Button
               size="sm"
@@ -1154,6 +1435,10 @@ export function FilePreview({
           contentCache={contentCache}
           onContentUpdated={handleContentUpdated}
           onRefreshFolder={onRefreshFolder}
+          storySteps={storyStatus.steps}
+          editHandlerRef={editHandlerRef}
+          publishHandlerRef={publishHandlerRef}
+          effectiveMdIdRef={effectiveMdIdRef}
         />
       </div>
     </div>

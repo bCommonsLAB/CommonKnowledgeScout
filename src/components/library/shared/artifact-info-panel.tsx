@@ -114,7 +114,7 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
       </div>
 
       <div className="space-y-2">
-        <div className="text-sm font-semibold">Phase 1 · Extract</div>
+        <div className="text-sm font-semibold">Phase 1 · Original transkribieren</div>
         {transcripts.length === 0 ? (
           <div className="text-sm text-muted-foreground">Kein Transcript gefunden.</div>
         ) : (
@@ -130,7 +130,7 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
       </div>
 
       <div className="space-y-2">
-        <div className="text-sm font-semibold">Phase 2 · Template</div>
+        <div className="text-sm font-semibold">Phase 2 · Metadaten & Storyinhalte transformieren</div>
         {transformations.length === 0 ? (
           <div className="text-sm text-muted-foreground">Keine Transformation gefunden.</div>
         ) : (
@@ -146,7 +146,7 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
       </div>
 
       <div className="space-y-2">
-        <div className="text-sm font-semibold">Phase 3 · Ingestion</div>
+        <div className="text-sm font-semibold">Phase 3 · Story veröffentlichen</div>
         {!newestTransformation ? (
           <div className="text-sm text-muted-foreground">Keine Transformation → kein Ingestion‑Status.</div>
         ) : (

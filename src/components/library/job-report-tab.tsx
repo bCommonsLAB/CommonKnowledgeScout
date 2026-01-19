@@ -1,15 +1,25 @@
 "use client";
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useAtomValue } from 'jotai'
 import { IngestionBookDetail } from './ingestion-book-detail'
 import { UILogger } from '@/lib/debug/logger'
-import type { StorageProvider } from '@/lib/storage/types'
+import type { StorageProvider, StorageItem } from '@/lib/storage/types'
 import { MarkdownPreview } from '@/components/library/markdown-preview'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser'
 import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom'
+import { librariesAtom } from '@/atoms/library-atom'
+import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
+import { DetailViewRenderer } from '@/components/library/detail-view-renderer'
+import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { toast } from 'sonner'
+import { patchFrontmatter } from '@/lib/markdown/frontmatter-patch'
+import { findShadowTwinImage, resolveShadowTwinImageUrl } from '@/lib/storage/shadow-twin'
+import { CoverImageGeneratorDialog } from './cover-image-generator-dialog'
+import { ArtifactEditDialog } from './shared/artifact-edit-dialog'
 
 interface JobReportTabProps {
   libraryId: string
@@ -28,6 +38,13 @@ interface JobReportTabProps {
   // NEU: Rohinhalt (Markdown). Wenn gesetzt und sourceMode='frontmatter', wird direkt dieser Text geparst (ohne Datei/JOB).
   rawContent?: string
   forcedTab?: 'markdown' | 'meta' | 'chapters' | 'ingestion' | 'process'
+  // Steuert den Tab "ingestion": Statusanzeige oder Story-Vorschau.
+  ingestionTabMode?: 'status' | 'preview'
+  // Callbacks für Header-Buttons (Bearbeiten und Story veröffentlichen)
+  onEditClick?: () => void
+  onPublishClick?: () => void
+  // Exponiert die Transformationsdatei-ID für Header-Buttons
+  effectiveMdIdRef?: React.MutableRefObject<string | null>
 }
 
 interface JobDto {
@@ -47,9 +64,30 @@ interface JobDto {
   cumulativeMeta?: Record<string, unknown>
 }
 
-export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode = 'merged', viewMode = 'full', mdFileId, onJumpTo, rawContent, forcedTab }: JobReportTabProps) {
+export function JobReportTab({
+  libraryId,
+  fileId,
+  fileName,
+  provider,
+  sourceMode = 'merged',
+  viewMode = 'full',
+  mdFileId,
+  onJumpTo,
+  rawContent,
+  forcedTab,
+  ingestionTabMode = 'status',
+  onEditClick,
+  onPublishClick,
+  effectiveMdIdRef,
+}: JobReportTabProps) {
+  const libraries = useAtomValue(librariesAtom)
+  const activeLibrary = libraries.find((lib) => lib.id === libraryId)
+  const libraryConfig = activeLibrary?.config?.chat
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [isPublishing, setIsPublishing] = useState(false)
+  const [editItem, setEditItem] = useState<StorageItem | null>(null)
   
   // Hole Shadow-Twin-State für die aktuelle Datei, um das Bildverzeichnis zu bestimmen
   const shadowTwinStates = useAtomValue(shadowTwinStateAtom)
@@ -98,12 +136,65 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
   const [parseErrors, setParseErrors] = useState<string[]>([])
   const [fullContent, setFullContent] = useState<string>('')
   const [debouncedContent, setDebouncedContent] = useState<string>('')
-  const [activeTab, setActiveTab] = useState<'markdown' | 'meta' | 'chapters' | 'ingestion' | 'process'>(forcedTab || 'markdown')
+  const [activeTab, setActiveTab] = useState<'markdown' | 'meta' | 'chapters' | 'image' | 'ingestion' | 'process'>(forcedTab || 'markdown')
   const [displayedFileName, setDisplayedFileName] = useState<string | null>(null)
+  // State für aufgelöste coverImageUrl in Story-Vorschau
+  const [resolvedCoverImageUrl, setResolvedCoverImageUrl] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     if (forcedTab) setActiveTab(forcedTab)
   }, [forcedTab])
+
+  // Resolve coverImageUrl für Story-Vorschau wenn es ein relativer Pfad ist
+  useEffect(() => {
+    const base: Record<string, unknown> = sourceMode === 'frontmatter'
+      ? {}
+      : ((job?.cumulativeMeta as unknown as Record<string, unknown>) || {})
+    const cm = frontmatterMeta ? { ...base, ...frontmatterMeta } : base
+    const coverImageUrl = cm.coverImageUrl as string | undefined
+    
+    if (!coverImageUrl || !provider || !fileId) {
+      setResolvedCoverImageUrl(coverImageUrl)
+      return
+    }
+    
+    // Wenn bereits absolute URL, verwende direkt
+    if (coverImageUrl.startsWith('http://') || coverImageUrl.startsWith('https://') || coverImageUrl.startsWith('/api/storage/')) {
+      setResolvedCoverImageUrl(coverImageUrl)
+      return
+    }
+    
+    // Relativer Pfad: Auflösen zu Storage-API-URL
+    let cancelled = false
+    async function resolveCoverImage() {
+      try {
+        const baseItem = await provider.getItemById(fileId)
+        if (!baseItem || cancelled) return
+        
+        const shadowTwinFolderId = shadowTwinState?.shadowTwinFolderId || fallbackFolderId || undefined
+        const resolvedUrl = await resolveShadowTwinImageUrl(
+          baseItem,
+          coverImageUrl,
+          provider,
+          libraryId,
+          shadowTwinFolderId
+        )
+        if (!cancelled) {
+          setResolvedCoverImageUrl(resolvedUrl)
+        }
+      } catch (error) {
+        UILogger.warn('JobReportTab', 'Fehler beim Auflösen des Cover-Bildes für Story-Vorschau', {
+          coverImageUrl,
+          error: error instanceof Error ? error.message : String(error)
+        })
+        if (!cancelled) {
+          setResolvedCoverImageUrl(coverImageUrl) // Fallback auf Original
+        }
+      }
+    }
+    void resolveCoverImage()
+    return () => { cancelled = true }
+  }, [frontmatterMeta?.coverImageUrl, job?.cumulativeMeta, sourceMode, provider, fileId, libraryId, shadowTwinState?.shadowTwinFolderId, fallbackFolderId])
 
   // Debounce Content-Änderungen, um unnötige Re-Renders während der Job-Verarbeitung zu vermeiden
   // WICHTIG: Wenn der Job abgeschlossen ist, rendere sofort (kein Debounce)
@@ -317,6 +408,116 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
       : ((job?.result?.savedItemId as string | undefined) || fileId)
   })()
 
+  // Handler für Bearbeiten-Button (nach effectiveMdId Berechnung)
+  const handleEditClick = useCallback(() => {
+    if (!provider || !effectiveMdId) {
+      toast.error('Fehler: Provider oder Datei-ID nicht verfügbar')
+      return
+    }
+    setIsEditOpen(true)
+  }, [provider, effectiveMdId])
+  
+  // Handler für Story-Veröffentlichung (nach effectiveMdId Berechnung)
+  const handlePublishClick = useCallback(async () => {
+    if (!provider || !effectiveMdId) {
+      toast.error('Fehler: Provider oder Datei-ID nicht verfügbar')
+      return
+    }
+    
+    setIsPublishing(true)
+    try {
+      UILogger.info('JobReportTab', 'Starte Story-Veröffentlichung', {
+        fileId: effectiveMdId,
+        libraryId
+      })
+      
+      // Hole Dateiname der Transformationsdatei
+      const currentItem = await provider.getItemById(effectiveMdId)
+      const fileName = currentItem?.metadata.name || 'document.md'
+      
+      // Rufe Ingestion-API auf
+      const response = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/ingest-markdown`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          fileId: effectiveMdId,
+          fileName
+        })
+      })
+      
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error')
+        UILogger.error('JobReportTab', 'Fehler bei Story-Veröffentlichung', {
+          status: response.status,
+          error: errorText
+        })
+        toast.error(`Fehler bei der Veröffentlichung: ${response.statusText}`)
+        return
+      }
+      
+      const result = await response.json()
+      UILogger.info('JobReportTab', 'Story erfolgreich veröffentlicht', {
+        fileId: effectiveMdId,
+        chunksUpserted: result.chunksUpserted,
+        imageErrors: result.imageErrors?.length ?? 0
+      })
+      
+      toast.success('Story erfolgreich veröffentlicht')
+    } catch (error) {
+      UILogger.error('JobReportTab', 'Unerwarteter Fehler bei Story-Veröffentlichung', error)
+      toast.error('Fehler: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'))
+    } finally {
+      setIsPublishing(false)
+    }
+  }, [provider, effectiveMdId, libraryId])
+  
+  // Exponiere Handler über Callbacks
+  useEffect(() => {
+    if (onEditClick) {
+      // Speichere Handler in Callback-Ref
+      const callbackRef = onEditClick as unknown as React.MutableRefObject<(() => void) | undefined>
+      callbackRef.current = handleEditClick
+    }
+    if (onPublishClick) {
+      const callbackRef = onPublishClick as unknown as React.MutableRefObject<(() => Promise<void>) | undefined>
+      callbackRef.current = handlePublishClick
+    }
+  }, [onEditClick, onPublishClick, handleEditClick, handlePublishClick])
+  
+  // Aktualisiere Ref für effectiveMdId, damit FilePreview darauf zugreifen kann
+  useEffect(() => {
+    if (effectiveMdIdRef) {
+      effectiveMdIdRef.current = effectiveMdId
+    }
+  }, [effectiveMdId, effectiveMdIdRef])
+  
+  // Lade Edit-Item wenn Dialog geöffnet wird
+  useEffect(() => {
+    if (!isEditOpen || !provider || !effectiveMdId) {
+      setEditItem(null)
+      return
+    }
+    
+    let cancelled = false
+    async function loadEditItem() {
+      try {
+        const item = await provider.getItemById(effectiveMdId)
+        if (!cancelled) {
+          setEditItem(item)
+        }
+      } catch (error) {
+        UILogger.error('JobReportTab', 'Fehler beim Laden des Edit-Items', error)
+        if (!cancelled) {
+          setEditItem(null)
+        }
+      }
+    }
+    void loadEditItem()
+    return () => { cancelled = true }
+  }, [isEditOpen, provider, effectiveMdId])
+
   useEffect(() => {
     async function loadFrontmatter() {
       try {
@@ -435,22 +636,15 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
             <TabsTrigger value="markdown" className="px-2 py-1 text-xs">Markdown</TabsTrigger>
             <TabsTrigger value="meta" className="px-2 py-1 text-xs">Metadaten</TabsTrigger>
             <TabsTrigger value="chapters" className="px-2 py-1 text-xs">Kapitel</TabsTrigger>
-            <TabsTrigger value="ingestion" className="px-2 py-1 text-xs">Ingestion-Status</TabsTrigger>
-            {(() => {
-              const base: Record<string, unknown> = sourceMode === 'frontmatter' ? {} : ((job?.cumulativeMeta as unknown as Record<string, unknown>) || {})
-              const cm = frontmatterMeta ? { ...base, ...frontmatterMeta } : base
-              const processFields = new Set([
-                'job_id','extract_status','template_status','ingest_status','summary_language',
-                'source_file','source_file_id','source_file_size','source_file_type',
-                'filename','path','pathHints','isScan'
-              ])
-              const hasProcess = Object.keys(cm).some(k => processFields.has(k))
-              return hasProcess ? <TabsTrigger value="process" className="px-2 py-1 text-xs">Prozessinfo</TabsTrigger> : null
-            })()}
+            <TabsTrigger value="image" className="px-2 py-1 text-xs">Bild</TabsTrigger>
+            <TabsTrigger value="ingestion" className="px-2 py-1 text-xs">
+              {ingestionTabMode === 'preview' ? 'Story Vorschau' : 'Ingestion-Status'}
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="markdown" className="mt-3">
-            <div className="border rounded-md">
+          <TabsContent value="markdown" className="mt-3 min-h-0">
+            {/* Begrenze die Hoehe der Markdown-Vorschau, damit der Seiten-Scroll nicht uebernimmt. */}
+            <div className="border rounded-md max-h-[70vh] overflow-hidden">
               {(() => {
                 // Zeige Fehler beim Laden der Datei an
                 if (error) {
@@ -486,9 +680,10 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
                 if (debouncedContent && debouncedContent.trim().length > 0 && isReady) {
                   return (
                 <MarkdownPreview 
-                      content={stripFrontmatter(debouncedContent)} 
+                  content={stripFrontmatter(debouncedContent)} 
                   currentFolderId={currentFolderId}
                   provider={provider}
+                  className="h-[70vh]"
                 />
                   );
                 }
@@ -630,74 +825,365 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
             })()}
           </TabsContent>
 
-          <TabsContent value="ingestion" className="mt-3">
+          <TabsContent value="image" className="mt-3">
             {(() => {
-              const effectiveFileId = fileId
-              const modifiedAt = (() => {
-                const d = (job?.cumulativeMeta as unknown as { source_file_modified?: unknown })?.source_file_modified
-                if (d instanceof Date) return d.toISOString()
-                if (typeof d === 'string') { const dt = new Date(d); return Number.isNaN(dt.getTime()) ? undefined : dt.toISOString() }
-                return undefined
+              // Extrahiere coverImageUrl aus Frontmatter
+              const coverImageUrl = frontmatterMeta?.coverImageUrl as string | undefined
+              const [isUploading, setIsUploading] = useState(false)
+              const [coverImageDisplayUrl, setCoverImageDisplayUrl] = useState<string | null>(null)
+              const [isGeneratorDialogOpen, setIsGeneratorDialogOpen] = useState(false)
+
+              // Lade Bild-URL wenn coverImageUrl vorhanden ist
+              useEffect(() => {
+                if (!coverImageUrl || !provider || !effectiveMdId) {
+                  setCoverImageDisplayUrl(null)
+                  return
+                }
+
+                let cancelled = false
+                async function loadImageUrl() {
+                  try {
+                    // Prüfe ob es bereits eine absolute URL ist
+                    if (coverImageUrl.startsWith('http://') || coverImageUrl.startsWith('https://') || coverImageUrl.startsWith('/api/storage/')) {
+                      if (!cancelled) setCoverImageDisplayUrl(coverImageUrl)
+                      return
+                    }
+
+                    // Relativer Pfad: Finde Bild im Shadow-Twin-Verzeichnis
+                    const baseItem = await provider.getItemById(fileId)
+                    if (!baseItem || cancelled) return
+
+                    const shadowTwinFolderId = shadowTwinState?.shadowTwinFolderId || fallbackFolderId || undefined
+                    const resolvedUrl = await resolveShadowTwinImageUrl(
+                      baseItem,
+                      coverImageUrl,
+                      provider,
+                      libraryId,
+                      shadowTwinFolderId
+                    )
+                    if (!cancelled) setCoverImageDisplayUrl(resolvedUrl)
+                  } catch (error) {
+                    UILogger.warn('JobReportTab', 'Fehler beim Laden des Cover-Bildes', {
+                      coverImageUrl,
+                      error: error instanceof Error ? error.message : String(error)
+                    })
+                    if (!cancelled) setCoverImageDisplayUrl(null)
+                  }
+                }
+                void loadImageUrl()
+                return () => { cancelled = true }
+              }, [coverImageUrl, provider, effectiveMdId, fileId, libraryId, shadowTwinState?.shadowTwinFolderId, fallbackFolderId])
+
+              // Gemeinsame Funktion zum Speichern eines Coverbildes (für Upload und Generierung)
+              const saveCoverImage = async (file: File) => {
+                if (!provider || !effectiveMdId) return
+
+                setIsUploading(true)
+                try {
+                  // Bestimme Shadow-Twin-Verzeichnis für Upload
+                  const shadowTwinFolderId = shadowTwinState?.shadowTwinFolderId || fallbackFolderId
+                  if (!shadowTwinFolderId) {
+                    toast.error('Shadow-Twin-Verzeichnis nicht gefunden')
+                    return
+                  }
+
+                  // Speichere Bild im Shadow-Twin-Verzeichnis
+                  const uploadedItem = await provider.uploadFile(shadowTwinFolderId, file)
+                  
+                  // Setze coverImageUrl im Frontmatter auf den Dateinamen
+                  const imageFileName = uploadedItem.metadata.name
+                  const updatedMarkdown = patchFrontmatter(debouncedContent || fullContent, {
+                    coverImageUrl: imageFileName
+                  })
+
+                  // Hole das aktuelle Item, um parentId und Dateinamen zu bekommen
+                  // WICHTIG: Muss VOR dem Löschen erfolgen, damit wir parentId und Dateinamen haben
+                  const currentItem = await provider.getItemById(effectiveMdId)
+                  if (!currentItem) {
+                    toast.error('Markdown-Datei nicht gefunden')
+                    return
+                  }
+
+                  // Verwende den ursprünglichen Dateinamen aus currentItem.metadata.name
+                  // WICHTIG: effectiveMdId ist eine Base64-ID, kein Pfad - daher nicht split('/').pop() verwenden
+                  const originalFileName = currentItem.metadata.name || 'document.md'
+                  let parentId = currentItem.parentId || 'root'
+                  
+                  // WICHTIG: Prüfe ob parentId auf einen Ordner zeigt, nicht auf eine Datei
+                  // Die API-Route extrahiert den Dateinamen aus fileId, wenn dieser auf eine Datei zeigt
+                  // Daher müssen wir sicherstellen, dass parentId auf einen Ordner zeigt
+                  try {
+                    const parentItem = await provider.getItemById(parentId)
+                    if (parentItem && parentItem.type === 'file') {
+                      // parentId zeigt auf eine Datei statt auf einen Ordner - verwende dessen parentId
+                      UILogger.warn('JobReportTab', 'parentId zeigt auf Datei statt Ordner, verwende dessen parentId', {
+                        parentId,
+                        parentItemName: parentItem.metadata.name,
+                        correctedParentId: parentItem.parentId
+                      })
+                      parentId = parentItem.parentId || 'root'
+                    }
+                  } catch (error) {
+                    UILogger.warn('JobReportTab', 'Fehler beim Prüfen des parentId', {
+                      parentId,
+                      error: error instanceof Error ? error.message : String(error)
+                    })
+                    // Fallback: Verwende 'root' wenn parentId ungültig ist
+                    parentId = 'root'
+                  }
+                  
+                  UILogger.info('JobReportTab', 'Speichere aktualisierte Markdown-Datei', {
+                    effectiveMdId,
+                    originalFileName,
+                    parentId,
+                    currentItemName: currentItem.metadata.name,
+                    fileSize: updatedMarkdown.length
+                  })
+                  
+                  // Speichere aktualisierte Markdown-Datei
+                  // WICHTIG: Dateiname muss explizit gesetzt werden, damit die API-Route ihn verwendet
+                  const blob = new Blob([updatedMarkdown], { type: 'text/markdown' })
+                  const markdownFile = new File([blob], originalFileName, { type: 'text/markdown' })
+                  
+                  // Prüfe ob file.name korrekt gesetzt wurde
+                  if (markdownFile.name !== originalFileName) {
+                    UILogger.error('JobReportTab', 'File.name wurde nicht korrekt gesetzt', {
+                      expected: originalFileName,
+                      actual: markdownFile.name
+                    })
+                    toast.error('Fehler: Dateiname konnte nicht gesetzt werden')
+                    return
+                  }
+                  
+                  // Lösche alte Datei und lade neue hoch
+                  await provider.deleteItem(effectiveMdId)
+                  const savedItem = await provider.uploadFile(parentId, markdownFile)
+                  
+                  UILogger.info('JobReportTab', 'Markdown-Datei erfolgreich gespeichert', {
+                    savedItemId: savedItem.id,
+                    savedItemName: savedItem.metadata.name,
+                    expectedName: originalFileName,
+                    parentId
+                  })
+                  
+                  // Prüfe ob der gespeicherte Dateiname korrekt ist
+                  if (savedItem.metadata.name !== originalFileName) {
+                    UILogger.error('JobReportTab', 'Gespeicherter Dateiname stimmt nicht überein', {
+                      expected: originalFileName,
+                      actual: savedItem.metadata.name,
+                      savedItemId: savedItem.id
+                    })
+                    toast.error(`Warnung: Dateiname wurde geändert zu: ${savedItem.metadata.name}`)
+                  }
+
+                  // Aktualisiere State
+                  setFullContent(updatedMarkdown)
+                  setCoverImageDisplayUrl(`/api/storage/filesystem?action=binary&fileId=${encodeURIComponent(uploadedItem.id)}&libraryId=${encodeURIComponent(libraryId)}`)
+
+                  // Lade Frontmatter neu
+                  const { meta } = parseSecretaryMarkdownStrict(updatedMarkdown)
+                  setFrontmatterMeta(meta)
+                  
+                  // Trigger Refresh: Lade Markdown-Datei neu, um sicherzustellen, dass der State konsistent ist
+                  try {
+                    const refreshedContent = await provider.getBinary(savedItem.id)
+                    const refreshedText = await refreshedContent.blob.text()
+                    setFullContent(refreshedText)
+                    const { meta: refreshedMeta } = parseSecretaryMarkdownStrict(refreshedText)
+                    setFrontmatterMeta(refreshedMeta)
+                  } catch (refreshError) {
+                    UILogger.warn('JobReportTab', 'Fehler beim Neuladen der aktualisierten Datei', {
+                      error: refreshError instanceof Error ? refreshError.message : String(refreshError)
+                    })
+                  }
+                } catch (error) {
+                  UILogger.error('JobReportTab', 'Fehler beim Speichern des Cover-Bildes', error)
+                  throw error // Re-throw für Caller
+                } finally {
+                  setIsUploading(false)
+                }
+              }
+
+              const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+                const file = event.target.files?.[0]
+                if (!file || !provider || !effectiveMdId) return
+
+                // Prüfe ob es ein Bild ist
+                if (!file.type.startsWith('image/')) {
+                  toast.error('Nur Bilddateien sind erlaubt')
+                  return
+                }
+
+                try {
+                  await saveCoverImage(file)
+                  toast.success('Coverbild hochgeladen und gespeichert')
+                } catch (error) {
+                  toast.error('Fehler beim Hochladen: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'))
+                } finally {
+                  // Reset file input
+                  event.target.value = ''
+                }
+              }
+
+              const handleGeneratedImage = async (file: File) => {
+                try {
+                  await saveCoverImage(file)
+                  // Toast wird bereits in saveCoverImage nicht mehr gesetzt, da es von handleFileUpload kommt
+                  // Aber für Generierung wollen wir eine eigene Nachricht
+                  toast.success('Bild generiert und gespeichert')
+                } catch (error) {
+                  toast.error('Fehler beim Speichern: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'))
+                  throw error // Re-throw damit Dialog offen bleibt
+                }
+              }
+
+              // Default-Prompt aus Metadaten ableiten (z.B. aus title oder summary)
+              const defaultPrompt = (() => {
+                const base: Record<string, unknown> = sourceMode === 'frontmatter'
+                  ? {}
+                  : ((job?.cumulativeMeta as unknown as Record<string, unknown>) || {})
+                const cm = frontmatterMeta ? { ...base, ...frontmatterMeta } : base
+                const title = cm.title as string | undefined
+                const summary = cm.summary as string | undefined
+                if (title && typeof title === 'string' && title.trim().length > 0) {
+                  return title.trim()
+                }
+                if (summary && typeof summary === 'string' && summary.trim().length > 0) {
+                  // Kürze Summary auf max. 100 Zeichen für Prompt
+                  return summary.trim().substring(0, 100)
+                }
+                return ''
               })()
+
               return (
-                <div className="border rounded-md p-3">
-                  <IngestionBookDetail libraryId={libraryId} fileId={effectiveFileId} docModifiedAt={modifiedAt} />
+                <div className="space-y-3">
+                  <div className="text-xs text-muted-foreground mb-2">
+                    Coverbild für die Ingestion. Das Bild wird im Shadow-Twin-Verzeichnis gespeichert und als <code className="text-xs bg-muted px-1 py-0.5 rounded">coverImageUrl</code> in den Metadaten gespeichert.
+                  </div>
+                  
+                  {coverImageDisplayUrl ? (
+                    <div className="space-y-2">
+                      <div className="border rounded-md p-3">
+                        <img 
+                          src={coverImageDisplayUrl} 
+                          alt="Coverbild" 
+                          className="max-w-full max-h-[400px] object-contain rounded"
+                          onError={() => {
+                            UILogger.warn('JobReportTab', 'Fehler beim Laden des Cover-Bildes', { coverImageDisplayUrl })
+                            setCoverImageDisplayUrl(null)
+                          }}
+                        />
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Dateiname: {coverImageUrl}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="border rounded-md p-6 text-center text-sm text-muted-foreground">
+                      Kein Coverbild vorhanden. Bitte laden Sie ein Bild hoch.
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      disabled={isUploading || !provider || !effectiveMdId || (!shadowTwinState?.shadowTwinFolderId && !fallbackFolderId)}
+                      className="hidden"
+                      id="cover-image-upload"
+                    />
+                    <label htmlFor="cover-image-upload">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={isUploading || !provider || !effectiveMdId || (!shadowTwinState?.shadowTwinFolderId && !fallbackFolderId)}
+                        className="w-full cursor-pointer"
+                        asChild
+                      >
+                        <span>
+                          {isUploading ? 'Wird hochgeladen...' : coverImageDisplayUrl ? 'Coverbild ersetzen' : 'Coverbild hochladen'}
+                        </span>
+                      </Button>
+                    </label>
+                    
+                    {/* Button "Bild generieren" - erscheint wenn kein Coverbild vorhanden ist oder zusätzlich */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsGeneratorDialogOpen(true)}
+                      disabled={isUploading || !provider || !effectiveMdId || (!shadowTwinState?.shadowTwinFolderId && !fallbackFolderId)}
+                      className="w-full"
+                    >
+                      {coverImageDisplayUrl ? 'Neues Bild generieren' : 'Bild generieren'}
+                    </Button>
+                  </div>
+
+                  {(!shadowTwinState?.shadowTwinFolderId && !fallbackFolderId) && (
+                    <Alert>
+                      <AlertDescription className="text-xs">
+                        Shadow-Twin-Verzeichnis nicht gefunden. Bitte stellen Sie sicher, dass die Datei verarbeitet wurde.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* Dialog für Bildgenerierung */}
+                  <CoverImageGeneratorDialog
+                    open={isGeneratorDialogOpen}
+                    onOpenChange={setIsGeneratorDialogOpen}
+                    onGenerated={handleGeneratedImage}
+                    defaultPrompt={defaultPrompt}
+                  />
                 </div>
               )
             })()}
           </TabsContent>
 
-          <TabsContent value="process" className="mt-3">
-            {(() => {
-              const base: Record<string, unknown> = sourceMode === 'frontmatter'
-                ? {}
-                : ((job?.cumulativeMeta as unknown as Record<string, unknown>) || {})
-              const cm = frontmatterMeta ? { ...base, ...frontmatterMeta } : base
-              const processOrder = [
-                'job_id','extract_status','template_status','ingest_status','summary_language',
-                'source_file','source_file_id','source_file_size','source_file_type',
-                'filename','path','pathHints','isScan'
-              ]
-              const keys = processOrder.filter(k => k in cm)
-              if (keys.length === 0) return <div className="text-xs text-muted-foreground">Keine Prozessinformationen vorhanden.</div>
-              return (
-                <div className="overflow-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="text-left text-muted-foreground">
-                        <th className="py-1 pr-2 sticky left-0 bg-background z-10">Feld</th>
-                        <th className="py-1 pr-2">Wert</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {keys.map(k => {
-                        const val = cm[k]
-                        const valueStr = val === null || val === undefined ? '' : Array.isArray(val) ? (val as Array<unknown>).map(v => typeof v === 'string' ? v : JSON.stringify(v)).join(', ') : typeof val === 'string' ? val : JSON.stringify(val)
-                        return (
-                          <tr key={k} className="border-t border-muted/40">
-                            <td className="py-1 pr-2 align-top font-medium sticky left-0 bg-background z-10 whitespace-nowrap">{k}</td>
-                            <td className="py-1 pr-2 align-top">
-                              {valueStr ? (
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <span className="inline-block max-w-[40vw] overflow-hidden text-ellipsis whitespace-nowrap align-top" title="">{valueStr}</span>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <div className="max-w-[80vw] whitespace-pre-wrap break-words">{valueStr}</div>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              ) : ''}
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )
-            })()}
+          <TabsContent value="ingestion" className="mt-3">
+            {ingestionTabMode === 'preview' ? (
+              (() => {
+                const base: Record<string, unknown> = sourceMode === 'frontmatter'
+                  ? {}
+                  : ((job?.cumulativeMeta as unknown as Record<string, unknown>) || {})
+                const cm = frontmatterMeta ? { ...base, ...frontmatterMeta } : base
+                const previewType = getDetailViewType(cm, libraryConfig)
+                const body = debouncedContent ? stripFrontmatter(debouncedContent) : ''
+                
+                // Metadaten mit aufgelöster coverImageUrl (wird durch useEffect aktualisiert)
+                const cmWithResolvedImage = resolvedCoverImageUrl !== undefined
+                  ? { ...cm, coverImageUrl: resolvedCoverImageUrl }
+                  : cm
+                
+                return (
+                  <div className="border rounded-md p-3">
+                    <DetailViewRenderer
+                      detailViewType={previewType}
+                      metadata={cmWithResolvedImage}
+                      markdown={body}
+                      libraryId={libraryId}
+                      provider={provider}
+                      currentFolderId={currentFolderId}
+                      showBackLink={false}
+                    />
+                  </div>
+                )
+              })()
+            ) : (
+              (() => {
+                const effectiveFileId = fileId
+                const modifiedAt = (() => {
+                  const d = (job?.cumulativeMeta as unknown as { source_file_modified?: unknown })?.source_file_modified
+                  if (d instanceof Date) return d.toISOString()
+                  if (typeof d === 'string') { const dt = new Date(d); return Number.isNaN(dt.getTime()) ? undefined : dt.toISOString() }
+                  return undefined
+                })()
+                return (
+                  <div className="border rounded-md p-3">
+                    <IngestionBookDetail libraryId={libraryId} fileId={effectiveFileId} docModifiedAt={modifiedAt} />
+                  </div>
+                )
+              })()
+            )}
           </TabsContent>
 
           <TabsContent value="chapters" className="mt-3">
@@ -1085,6 +1571,29 @@ export function JobReportTab({ libraryId, fileId, fileName, provider, sourceMode
           <div className="font-medium mb-1">Parameter</div>
           <pre className="bg-muted/40 rounded p-2 max-h-32 overflow-auto whitespace-pre-wrap break-words">{JSON.stringify(job.parameters, null, 2)}</pre>
         </div>
+      )}
+
+      {/* Edit-Dialog für Transformationsdatei */}
+      {editItem && (
+        <ArtifactEditDialog
+          open={isEditOpen}
+          onOpenChange={setIsEditOpen}
+          item={editItem}
+          provider={provider}
+          onSaved={async (saved) => {
+            // Lade aktualisierten Inhalt
+            try {
+              const refreshedContent = await provider.getBinary(saved.id)
+              const refreshedText = await refreshedContent.blob.text()
+              setFullContent(refreshedText)
+              const { meta } = parseSecretaryMarkdownStrict(refreshedText)
+              setFrontmatterMeta(meta)
+              toast.success('Änderungen gespeichert')
+            } catch (error) {
+              UILogger.error('JobReportTab', 'Fehler beim Neuladen nach Speichern', error)
+            }
+          }}
+        />
       )}
     </div>
   )

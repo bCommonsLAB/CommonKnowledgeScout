@@ -340,14 +340,20 @@ export class ImageProcessor {
     libraryId: string,
     fileId: string,
     jobId?: string,
-    isSessionMode: boolean = false
+    isSessionMode: boolean = false,
+    explicitImageFileName?: string
   ): Promise<string | null> {
     const azureStorage = await this.ensureAzureStorage(fileId, jobId)
     if (!azureStorage) {
       return null
     }
 
-    const coverCandidates = ['preview_001.jpg']
+    // PRIORITÄT 1: Wenn expliziter Dateiname übergeben wurde, verwende nur diesen
+    // PRIORITÄT 2: Sonst unterstütze beide Varianten: preview_001.jpg (mit Unterstrich) und preview001.jpg (ohne Unterstrich)
+    // preview_001.jpg hat Priorität, da es der Standard ist
+    const coverCandidates = explicitImageFileName 
+      ? [explicitImageFileName]
+      : ['preview_001.jpg', 'preview001.jpg']
     const baseItem = await provider.getItemById(fileId)
     if (!baseItem) {
       FileLogger.warn('ingestion', 'Base-Item nicht gefunden für Cover-Bild', { fileId })

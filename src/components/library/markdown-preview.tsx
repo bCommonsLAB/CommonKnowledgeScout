@@ -5,7 +5,7 @@ import hljs from 'highlight.js';
 import 'highlight.js/styles/vs2015.css';
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
 import { Button } from '@/components/ui/button';
-import { Wand2, Search, Maximize2, X as CloseIcon } from 'lucide-react';
+import { Wand2, Search, Maximize2, X as CloseIcon, ChevronDown, ChevronUp } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import 'highlight.js/styles/github-dark.css';
@@ -23,6 +23,106 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { FileLogger } from "@/lib/debug/logger"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+/**
+ * Separate Komponente für den Search-Popover, um Re-Rendering der Hauptkomponente zu vermeiden
+ * Der State wird hier intern verwaltet, damit Änderungen nicht die MarkdownPreview-Komponente neu rendern
+ */
+const SearchPopover = React.memo(({ 
+  onSearchFirst, 
+  onSearchNext, 
+  onSearchPrev 
+}: { 
+  onSearchFirst: (query: string) => void;
+  onSearchNext: (query: string) => void;
+  onSearchPrev: (query: string) => void;
+}) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [query, setQuery] = React.useState("");
+
+  const handleSearch = React.useCallback(() => {
+    if (query.trim()) {
+      onSearchFirst(query);
+    }
+  }, [query, onSearchFirst]);
+
+  const handleNext = React.useCallback(() => {
+    if (query.trim()) onSearchNext(query);
+  }, [query, onSearchNext]);
+
+  const handlePrev = React.useCallback(() => {
+    if (query.trim()) onSearchPrev(query);
+  }, [query, onSearchPrev]);
+
+  const handleKeyDown = React.useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    } else if (e.key === 'Escape') {
+      setIsOpen(false);
+    }
+  }, [handleSearch]);
+
+  return (
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label="Schnellsuche"
+          title="Schnellsuche"
+          onMouseEnter={() => setIsOpen(true)}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md border bg-background/80 hover:bg-muted text-muted-foreground"
+        >
+          <Search className="h-4 w-4" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent 
+        className="w-80 p-3"
+        side="left"
+        align="start"
+        onMouseLeave={() => setIsOpen(false)}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        // Verhindert Fokus-Return auf den Trigger, der sonst den Scroll-Container nach oben ziehen kann
+        onCloseAutoFocus={(e) => e.preventDefault()}
+      >
+        <div className="flex items-center gap-2">
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Schnellsuche… (Enter)"
+            className="h-8 text-xs"
+            autoFocus
+          />
+          <Button variant="outline" size="sm" className="h-8" onClick={handleSearch}>
+            Suchen
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0"
+            aria-label="Vorheriges Suchergebnis"
+            onClick={handlePrev}
+            disabled={!query.trim()}
+          >
+            <ChevronUp className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0"
+            aria-label="Naechstes Suchergebnis"
+            onClick={handleNext}
+            disabled={!query.trim()}
+          >
+            <ChevronDown className="h-4 w-4" />
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+});
+SearchPopover.displayName = "SearchPopover";
 import { SUPPORTED_LANGUAGES } from "@/lib/secretary/constants";
 import { stripAllFrontmatter, parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { replacePlaceholdersInMarkdown } from '@/lib/markdown/placeholder-replacement'
@@ -1189,9 +1289,10 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
   const [activeTab, setActiveTab] = React.useState<string>("preview");
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const contentRef = React.useRef<HTMLDivElement | null>(null);
-  const [query, setQuery] = React.useState<string>("");
-  const [showSearch, setShowSearch] = React.useState<boolean>(false);
-  const [hoverTop, setHoverTop] = React.useState<boolean>(false);
+  // Merkt sich die letzte Zielposition der Suche, um Scroll-Resets abzufangen
+  const lastSearchScrollRef = React.useRef<{ top: number; timestamp: number } | null>(null);
+  // Merkt sich die aktuelle Suchposition, um vor/zurueck navigieren zu koennen
+  const searchStateRef = React.useRef<{ query: string; index: number } | null>(null);
   const [isFullscreen, setIsFullscreen] = React.useState<boolean>(false);
   
   // Logging in useEffect verschieben, um State-Updates während des Renderns zu vermeiden
@@ -1354,69 +1455,125 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
     }
   };
 
+  const ensureScrollPosition = React.useCallback((top: number) => {
+    const root = containerRef.current;
+    if (!root) return;
+    // Direkt setzen, um "zurueckspringen" durch spaetere Reflows zu verhindern
+    lastSearchScrollRef.current = { top, timestamp: Date.now() };
+    root.scrollTop = top;
+    // Zwei kurze Nachkorrekturen fuer spaete Reflows/State-Updates
+    requestAnimationFrame(() => {
+      const currentRoot = containerRef.current;
+      if (!currentRoot) return;
+      if (Math.abs(currentRoot.scrollTop - top) > 2) currentRoot.scrollTop = top;
+    });
+    setTimeout(() => {
+      const currentRoot = containerRef.current;
+      if (!currentRoot) return;
+      if (Math.abs(currentRoot.scrollTop - top) > 2) currentRoot.scrollTop = top;
+    }, 120);
+  }, []);
+
   const scrollContainerTo = React.useCallback((el: HTMLElement) => {
     const root = containerRef.current;
     if (!root) return;
-    const top = el.offsetTop - 16;
-    root.scrollTo({ top, behavior: 'smooth' });
-  }, []);
+    // Verwende requestAnimationFrame, um sicherzustellen, dass das DOM vollständig aktualisiert ist
+    requestAnimationFrame(() => {
+      // Nochmal prüfen, ob das Element noch existiert
+      if (!root.contains(el)) return;
+      const top = el.offsetTop - 16;
+      // Stabiler als smooth scroll, weil smooth durch Re-Renders leicht abgebrochen wird
+      ensureScrollPosition(top);
+    });
+  }, [ensureScrollPosition]);
 
   const scrollToPage = React.useCallback((n: number | string) => {
     const el = contentRef.current?.querySelector(`[data-page-marker="${String(n)}"]`) as HTMLElement | null;
     if (el) scrollContainerTo(el);
   }, [scrollContainerTo]);
 
-  const scrollToText = React.useCallback((q: string) => {
+  const findMatches = React.useCallback((q: string) => {
     const root = contentRef.current;
-    if (!root || !q) return;
+    if (!root || !q) return [];
+    // Alte Markierung entfernen, bevor wir neue Treffer berechnen
     removeOldHit();
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     const lower = q.toLowerCase();
+    const matches: Array<{ node: Node; idx: number; length: number }> = [];
     let node: Node | null = walker.nextNode();
     while (node) {
       const text = (node.textContent || '').toLowerCase();
-      const idx = text.indexOf(lower);
-      if (idx >= 0) {
-        // Prüfe, ob der Knoten noch existiert und ein Kind des Parent-Elements ist
-        // Dies verhindert Fehler auf mobilen Geräten, wo React schneller neu rendern kann
-        if (!node.parentNode || !node.parentNode.contains(node)) {
-          // Knoten wurde bereits entfernt, überspringe diesen
-          node = walker.nextNode();
-          continue;
-        }
-        
-        const orig = node.textContent || '';
-        const before = orig.slice(0, idx);
-        const hit = orig.slice(idx, idx + q.length);
-        const after = orig.slice(idx + q.length);
-        const span = document.createElement('span');
-        span.setAttribute('data-search-hit', '1');
-        span.className = 'bg-yellow-200 dark:bg-yellow-600/40 rounded px-0.5';
-        span.textContent = hit;
-        const frag = document.createDocumentFragment();
-        if (before) frag.appendChild(document.createTextNode(before));
-        frag.appendChild(span);
-        if (after) frag.appendChild(document.createTextNode(after));
-        
-        try {
-          // Prüfe erneut vor replaceChild, da React die Komponente während der Suche neu rendern kann
-          if (node.parentNode && node.parentNode.contains(node)) {
-            node.parentNode.replaceChild(frag, node);
-            scrollContainerTo(span);
-            return;
-          }
-        } catch (error) {
-          // Fallback: Wenn replaceChild fehlschlägt, logge den Fehler und breche ab
-          // Dies kann passieren, wenn React die Komponente während der Manipulation neu rendert
-          FileLogger.debug('MarkdownPreview', 'replaceChild in scrollToText fehlgeschlagen', { error });
-          return;
-        }
+      if (!text) {
+        node = walker.nextNode();
+        continue;
+      }
+      let idx = text.indexOf(lower);
+      while (idx >= 0) {
+        matches.push({ node, idx, length: q.length });
+        idx = text.indexOf(lower, idx + lower.length);
       }
       node = walker.nextNode();
     }
-  }, [scrollContainerTo]);
+    return matches;
+  }, [removeOldHit]);
 
-  const setQueryAndSearch = React.useCallback((q: string) => { setQuery(q); scrollToText(q); }, [scrollToText]);
+  const highlightMatchAtIndex = React.useCallback((q: string, targetIndex: number) => {
+    const root = contentRef.current;
+    if (!root || !q) return;
+    const matches = findMatches(q);
+    if (matches.length === 0) return;
+    const normalizedIndex = ((targetIndex % matches.length) + matches.length) % matches.length;
+    const match = matches[normalizedIndex];
+    // Suche speichern, damit Vor/Zurueck funktioniert
+    searchStateRef.current = { query: q, index: normalizedIndex };
+
+    const node = match.node;
+    if (!node.parentNode || !node.parentNode.contains(node)) return;
+
+    const orig = node.textContent || '';
+    const before = orig.slice(0, match.idx);
+    const hit = orig.slice(match.idx, match.idx + match.length);
+    const after = orig.slice(match.idx + match.length);
+    const span = document.createElement('span');
+    span.setAttribute('data-search-hit', '1');
+    span.className = 'bg-yellow-200 dark:bg-yellow-600/40 rounded px-0.5';
+    span.textContent = hit;
+    const frag = document.createDocumentFragment();
+    if (before) frag.appendChild(document.createTextNode(before));
+    frag.appendChild(span);
+    if (after) frag.appendChild(document.createTextNode(after));
+
+    try {
+      if (node.parentNode && node.parentNode.contains(node)) {
+        node.parentNode.replaceChild(frag, node);
+        // Scroll mit kurzer Verzoegerung, damit DOM und Layout stabil sind
+        setTimeout(() => {
+          if (root.contains(span)) scrollContainerTo(span);
+        }, 50);
+      }
+    } catch (error) {
+      FileLogger.debug('MarkdownPreview', 'replaceChild in highlightMatchAtIndex fehlgeschlagen', { error });
+    }
+  }, [findMatches, scrollContainerTo]);
+
+  const scrollToText = React.useCallback((q: string) => {
+    // Startet immer beim ersten Treffer
+    highlightMatchAtIndex(q, 0);
+  }, [highlightMatchAtIndex]);
+
+  const scrollToNextMatch = React.useCallback((q: string) => {
+    const state = searchStateRef.current;
+    const startIndex = state && state.query === q ? state.index + 1 : 0;
+    highlightMatchAtIndex(q, startIndex);
+  }, [highlightMatchAtIndex]);
+
+  const scrollToPrevMatch = React.useCallback((q: string) => {
+    const state = searchStateRef.current;
+    const startIndex = state && state.query === q ? state.index - 1 : -1;
+    highlightMatchAtIndex(q, startIndex);
+  }, [highlightMatchAtIndex]);
+
+  const setQueryAndSearch = React.useCallback((q: string) => { scrollToText(q); }, [scrollToText]);
 
   const getVisiblePage = (): number | null => {
     const root = containerRef.current;
@@ -1487,32 +1644,9 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
         </TabsList>
         
         <TabsContent value="preview" className="flex-1 overflow-auto relative pt-0" data-markdown-scroll-root="true" ref={!isFullscreen ? containerRef : undefined}>
-          {/* Hover-Zone und Suchleiste (immer verfügbar, nimmt verborgen keinen Platz ein) */}
-          <div
-            className="sticky top-0 z-20 h-3 w-full"
-            onMouseEnter={() => setHoverTop(true)}
-            onMouseLeave={() => setHoverTop(false)}
-          />
-          <div
-            className={cn(
-              "sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center gap-2 transition-all",
-              (showSearch || hoverTop)
-                ? "px-4 pt-3 pb-2 border-b opacity-100 translate-y-0 pointer-events-auto"
-                : "h-0 p-0 border-0 opacity-0 -translate-y-2 pointer-events-none overflow-hidden"
-            )}
-          >
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') scrollToText(query); if (e.key === 'Escape') setShowSearch(false); }}
-              placeholder="Schnellsuche… (Enter)"
-              className="h-8 text-xs"
-            />
-            <Button variant="outline" size="sm" className="h-8" onClick={() => scrollToText(query)}>Suchen</Button>
-          </div>
-          {/* Schwebende Icon-Leiste rechts oben */}
-          <div className="absolute top-2 right-2 z-20">
-            <div className="hidden md:flex flex-col gap-2">
+          {/* Fixierte Icon-Leiste rechts oben, bleibt beim Scrollen sichtbar */}
+          <div className="sticky top-2 z-20 flex justify-end px-2 pointer-events-none">
+            <div className="hidden md:flex flex-row gap-2 pointer-events-auto">
               {onTransform && (
                 <button
                   type="button"
@@ -1533,15 +1667,7 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
               >
                 <Maximize2 className="h-4 w-4" />
               </button>
-              <button
-                type="button"
-                aria-label="Schnellsuche"
-                title="Schnellsuche"
-                onClick={() => setShowSearch(v => !v)}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-md border bg-background/80 hover:bg-muted text-muted-foreground"
-              >
-                <Search className="h-4 w-4" />
-              </button>
+              <SearchPopover onSearchFirst={scrollToText} onSearchNext={scrollToNextMatch} onSearchPrev={scrollToPrevMatch} />
             </div>
           </div>
           <div 
@@ -1553,30 +1679,8 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
         {isFullscreen && (
           <div className="fixed inset-0 z-[100] bg-background">
             <div className="h-full overflow-auto relative" data-markdown-scroll-root="true" ref={containerRef}>
-              <div
-                className="sticky top-0 z-20 h-3 w-full"
-                onMouseEnter={() => setHoverTop(true)}
-                onMouseLeave={() => setHoverTop(false)}
-              />
-              <div
-                className={cn(
-                  "sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center gap-2 transition-all",
-                  (showSearch || hoverTop)
-                    ? "px-4 pt-3 pb-2 border-b opacity-100 translate-y-0 pointer-events-auto"
-                    : "h-0 p-0 border-0 opacity-0 -translate-y-2 pointer-events-none overflow-hidden"
-                )}
-              >
-                <Input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') scrollToText(query); if (e.key === 'Escape') setShowSearch(false); }}
-                  placeholder="Schnellsuche… (Enter)"
-                  className="h-8 text-xs"
-                />
-                <Button variant="outline" size="sm" className="h-8" onClick={() => scrollToText(query)}>Suchen</Button>
-              </div>
-              <div className="absolute top-2 right-2 z-20">
-                <div className="hidden md:flex flex-col gap-2">
+              <div className="sticky top-2 z-20 flex justify-end px-2 pointer-events-none">
+                <div className="hidden md:flex flex-row gap-2 pointer-events-auto">
                   {onTransform && (
                     <button
                       type="button"
@@ -1597,15 +1701,7 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
                   >
                     <CloseIcon className="h-4 w-4" />
                   </button>
-                  <button
-                    type="button"
-                    aria-label="Schnellsuche"
-                    title="Schnellsuche"
-                    onClick={() => setShowSearch(v => !v)}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border bg-background/80 hover:bg-muted text-muted-foreground"
-                  >
-                    <Search className="h-4 w-4" />
-                  </button>
+                  <SearchPopover onSearchFirst={scrollToText} onSearchNext={scrollToNextMatch} onSearchPrev={scrollToPrevMatch} />
                 </div>
               </div>
               <div 
