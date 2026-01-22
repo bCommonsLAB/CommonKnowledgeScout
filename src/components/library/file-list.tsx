@@ -585,6 +585,20 @@ interface FileListProps {
 }
 
 export const FileList = React.memo(function FileList({ compact = false }: FileListProps): JSX.Element {
+  // Performance-Messung: Gesamter Render-Zyklus
+  const renderStartRef = React.useRef<number | null>(null);
+  React.useEffect(() => {
+    renderStartRef.current = performance.now();
+    return () => {
+      if (renderStartRef.current !== null) {
+        const duration = performance.now() - renderStartRef.current;
+        if (duration > 100) {
+          console.log(`[FileList Performance] Gesamter Render-Zyklus: ${duration.toFixed(2)}ms`);
+        }
+      }
+    };
+  });
+  
   const { provider, refreshItems, currentLibrary } = useStorage();
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
@@ -624,8 +638,27 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   // Shadow-Twin-Analyse für alle Dateien im Ordner
   // Shadow-Twin-Analyse mit Trigger für manuelles Neustarten
   const [shadowTwinAnalysisTrigger, setShadowTwinAnalysisTrigger] = useAtom(shadowTwinAnalysisTriggerAtom);
+  
+  // Performance-Messung: Shadow-Twin-Analyse Start
+  const shadowTwinAnalysisStartRef = React.useRef<number | null>(null);
+  React.useEffect(() => {
+    if (allItemsInFolder && allItemsInFolder.length > 0) {
+      shadowTwinAnalysisStartRef.current = performance.now();
+      console.log(`[FileList Performance] Shadow-Twin-Analyse gestartet für ${allItemsInFolder.length} Dateien`);
+    }
+  }, [allItemsInFolder?.length]);
+  
   useShadowTwinAnalysis(allItemsInFolder ?? [], provider, shadowTwinAnalysisTrigger);
   const shadowTwinStates = useAtomValue(shadowTwinStateAtom);
+  
+  // Performance-Messung: Shadow-Twin-Analyse Ende
+  React.useEffect(() => {
+    if (shadowTwinAnalysisStartRef.current !== null && shadowTwinStates.size > 0) {
+      const duration = performance.now() - shadowTwinAnalysisStartRef.current;
+      console.log(`[FileList Performance] Shadow-Twin-Analyse abgeschlossen: ${duration.toFixed(2)}ms für ${shadowTwinStates.size} analysierte Dateien`);
+      shadowTwinAnalysisStartRef.current = null;
+    }
+  }, [shadowTwinStates.size]);
 
   // Kein mobiles Flag mehr notwendig
 
@@ -734,6 +767,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
 
   // Gruppiere die Dateien nach Basename (verwendet zentrale Shadow-Twin-Analyse)
   const fileGroups = useMemo(() => {
+    const perfStart = performance.now();
     if (!items) return new Map<string, FileGroup>();
 
     // Schritt 1: Gruppiere alle Dateien nach Basename
@@ -779,6 +813,13 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
         }
       }
     }
+    
+    const perfEnd = performance.now();
+    const perfDuration = perfEnd - perfStart;
+    if (perfDuration > 10) {
+      console.log(`[FileList Performance] fileGroups Berechnung: ${perfDuration.toFixed(2)}ms für ${items.length} Items`);
+    }
+    
     return fileGroupsMap;
   }, [items, shadowTwinStates]);
 
@@ -1533,8 +1574,10 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
 
           {/* File Rows */}
           <div className="divide-y">
-            {Array.from((fileGroupsWithShadowTwinFolders ?? new Map()).values())
-              .map((group) => {
+            {(() => {
+              const renderStart = performance.now();
+              const groups = Array.from((fileGroupsWithShadowTwinFolders ?? new Map()).values());
+              const rows = groups.map((group) => {
                 // Zeige nur die Hauptdatei (baseItem) an
                 const item = group.baseItem;
                 if (!item) return null;
@@ -1555,7 +1598,14 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                     compact={compact}
                   />
                 );
-              })}
+              });
+              const renderEnd = performance.now();
+              const renderDuration = renderEnd - renderStart;
+              if (renderDuration > 50) {
+                console.log(`[FileList Performance] FileRow Rendering: ${renderDuration.toFixed(2)}ms für ${groups.length} Dateien`);
+              }
+              return rows;
+            })()}
           </div>
         </div>
       </div>

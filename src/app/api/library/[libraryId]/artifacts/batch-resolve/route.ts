@@ -139,10 +139,58 @@ export async function POST(
     const provider = await getServerProvider(userEmail, libraryId);
     const preferredKind = body.preferredKind || 'transformation';
 
-    // Löse alle Artefakte parallel auf und hole vollständige StorageItem-Objekte
-    const resolvePromises = body.sources.map(async (source) => {
+    // PERFORMANCE-OPTIMIERUNG: Cache für listItemsById-Aufrufe
+    // Viele Quellen haben den gleichen parentId - vermeide doppelte Storage-Calls
+    const folderItemsCache = new Map<string, StorageItem[]>();
+    const cacheStartTime = performance.now();
+
+    // Preload: Lade alle benötigten Ordner-Inhalte einmalig
+    const uniqueParentIds = Array.from(new Set(body.sources.map(s => s.parentId)));
+    const preloadPromises = uniqueParentIds.map(async (parentId) => {
       try {
-        const resolved = await resolveArtifact(provider, {
+        const items = await provider.listItemsById(parentId);
+        folderItemsCache.set(parentId, items);
+      } catch (error) {
+        FileLogger.warn('artifacts/batch-resolve', 'Fehler beim Preload von Ordner-Inhalten', {
+          parentId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        folderItemsCache.set(parentId, []); // Leeres Array als Fallback
+      }
+    });
+    await Promise.all(preloadPromises);
+    const cacheDuration = performance.now() - cacheStartTime;
+    FileLogger.info('artifacts/batch-resolve', 'Ordner-Cache geladen', {
+      uniqueParentIds: uniqueParentIds.length,
+      cacheDuration: `${cacheDuration.toFixed(2)}ms`,
+      avgTimePerFolder: uniqueParentIds.length > 0 ? `${(cacheDuration / uniqueParentIds.length).toFixed(2)}ms` : '0ms',
+    });
+
+    // Erstelle einen optimierten Resolver mit Cache
+    const resolveArtifactWithCache = async (
+      source: typeof body.sources[0]
+    ): Promise<{ sourceId: string; artifact: ResolvedArtifactWithItem | null }> => {
+      try {
+        // Verwende gecachte Ordner-Inhalte statt direkter Storage-Calls
+        const cachedSiblings = folderItemsCache.get(source.parentId) || [];
+        
+        // Erstelle einen temporären Provider-Wrapper, der den Cache nutzt
+        // PERFORMANCE: Alle listItemsById-Aufrufe werden gecacht
+        const cachedProvider = {
+          ...provider,
+          listItemsById: async (folderId: string): Promise<StorageItem[]> => {
+            // Prüfe Cache zuerst
+            if (folderItemsCache.has(folderId)) {
+              return folderItemsCache.get(folderId)!;
+            }
+            // Lade und cache für zukünftige Verwendung
+            const items = await provider.listItemsById(folderId);
+            folderItemsCache.set(folderId, items);
+            return items;
+          },
+        } as StorageProvider;
+
+        const resolved = await resolveArtifact(cachedProvider, {
           sourceItemId: source.sourceId,
           sourceName: source.sourceName,
           parentId: source.parentId,
@@ -155,31 +203,38 @@ export async function POST(
         }
 
         // Hole vollständiges StorageItem-Objekt für das Artefakt
-        try {
-          const artifactItem = await provider.getItemById(resolved.fileId);
-          if (!artifactItem) {
+        // OPTIMIERUNG: Versuche zuerst aus Cache zu holen
+        const cachedItem = cachedSiblings.find(item => item.id === resolved.fileId);
+        let artifactItem: StorageItem | null = cachedItem || null;
+        
+        if (!artifactItem) {
+          try {
+            artifactItem = await provider.getItemById(resolved.fileId);
+          } catch (itemError) {
             FileLogger.warn('artifacts/batch-resolve', 'Artefakt-Item nicht gefunden', {
               sourceId: source.sourceId,
               fileId: resolved.fileId,
+              error: itemError instanceof Error ? itemError.message : String(itemError),
             });
             return { sourceId: source.sourceId, artifact: null };
           }
+        }
 
-          return {
-            sourceId: source.sourceId,
-            artifact: {
-              ...resolved,
-              item: artifactItem,
-            } as ResolvedArtifactWithItem,
-          };
-        } catch (itemError) {
-          FileLogger.error('artifacts/batch-resolve', 'Fehler beim Laden des Artefakt-Items', {
+        if (!artifactItem) {
+          FileLogger.warn('artifacts/batch-resolve', 'Artefakt-Item nicht gefunden', {
             sourceId: source.sourceId,
             fileId: resolved.fileId,
-            error: itemError instanceof Error ? itemError.message : String(itemError),
           });
           return { sourceId: source.sourceId, artifact: null };
         }
+
+        return {
+          sourceId: source.sourceId,
+          artifact: {
+            ...resolved,
+            item: artifactItem,
+          } as ResolvedArtifactWithItem,
+        };
       } catch (error) {
         FileLogger.error('artifacts/batch-resolve', 'Fehler bei Artefakt-Auflösung', {
           sourceId: source.sourceId,
@@ -188,9 +243,21 @@ export async function POST(
         });
         return { sourceId: source.sourceId, artifact: null };
       }
-    });
+    };
 
+    // Löse alle Artefakte parallel auf (nutzt jetzt Cache)
+    const resolveStartTime = performance.now();
+    const resolvePromises = body.sources.map(resolveArtifactWithCache);
     const results = await Promise.all(resolvePromises);
+    const resolveDuration = performance.now() - resolveStartTime;
+    
+    FileLogger.info('artifacts/batch-resolve', 'Artefakt-Auflösung abgeschlossen', {
+      totalSources: body.sources.length,
+      resolveDuration: `${resolveDuration.toFixed(2)}ms`,
+      cacheHits: uniqueParentIds.length,
+      cacheSize: folderItemsCache.size,
+      avgTimePerSource: `${(resolveDuration / body.sources.length).toFixed(2)}ms`,
+    });
 
     // Konvertiere zu Record für einfachen Zugriff
     const artifacts: Record<string, ResolvedArtifactWithItem | null> = {};

@@ -214,13 +214,21 @@ export function Library() {
         return;
       }
 
+      // Performance-Messung: API-Call für Items
+      const apiCallStart = performance.now();
       const items = await listItems(currentFolderId);
+      const apiCallDuration = performance.now() - apiCallStart;
       
       console.log('[Library] ✅ Items geladen:', {
         itemCount: items.length,
         folderId: currentFolderId,
+        apiCallDuration: `${apiCallDuration.toFixed(2)}ms`,
         timestamp: new Date().toISOString()
       });
+      
+      if (apiCallDuration > 500) {
+        console.warn(`[Library Performance] ⚠️ Langsamer API-Call: ${apiCallDuration.toFixed(2)}ms für ${items.length} Items`);
+      }
 
       // Falls während des Ladens die Library oder der Ordner wechselte: Ergebnis verwerfen
       if (expectedLibraryId !== activeLibraryId || expectedFolderId !== currentFolderId) {

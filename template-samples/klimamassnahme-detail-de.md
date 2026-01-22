@@ -2,8 +2,17 @@
 title: {{title|Kurzer, verständlicher Titel für die Bevölkerung (max. 80 Zeichen, ohne Fachjargon)}}
 shortTitle: {{shortTitle|Kurze Variante des Titels (max. 50 Zeichen) für Listenansichten; optional, falls Titel zu lang}}
 slug: {{slug|URL-freundlicher Slug aus dem Titel generiert (lowercase, Bindestriche statt Leerzeichen, Sonderzeichen entfernt; z. B. "nachhaltiger-schwerverkehr-und-warentransport")}}
-teaser: {{teaser|Kurzer Einleitungstext (1-2 Sätze, max. 200 Zeichen) für Vorschauansichten; aus dem Intro des bodyInText extrahieren}}
-summary: {{summary|Zusammenfassung der Maßnahme (2-3 Sätze, Markdown-formatiert) für Übersichtsansichten; aus dem Intro und "Worum geht es?" Abschnitt extrahieren}}
+teaser: {{teaser|Kurzer Einleitungstext (1-2 Sätze, max. 200 Zeichen) für Vorschauansichten; aus intro extrahieren}}
+summary: {{summary|Zusammenfassung der Maßnahme (2-3 Sätze, Markdown-formatiert) für Übersichtsansichten; aus intro + worum extrahieren}}
+intro: {{intro|Blogtext: Intro, 2-3 Sätze. Warum betrifft diese Maßnahme den Alltag? Welches Grundproblem steht dahinter?}}
+worum: {{worum|Blogtext: Ziel der Maßnahme, 2-3 Sätze. Gesellschaftlicher/klimatischer Kontext.}}
+was: {{was|Blogtext: Konkrete Idee, was geändert werden soll.}}
+warum: {{warum|Blogtext: Problem, das gelöst wird. Langfristige Wirkung.}}
+wer: {{wer|Blogtext: Öffentliche Stelle. Rolle von Verwaltung/Politik?}}
+umsetzungsgrad: {{umsetzungsgrad|Blogtext: geplant/in Umsetzung/umgesetzt. Was wurde bereits getan? Nächste Schritte.}}
+vorteile: {{vorteile|Blogtext: Vorteile für Bürger:innen, Gemeinden, Initiativen.}}
+bestpraxis: {{bestpraxis|Blogtext: Ähnliche Ansätze. Erfolgreiche Umsetzung. Vorbilder.}}
+cta: {{cta|Blogtext: Wer kann sich einbringen? Wie nutzen/adaptieren? Raum für Austausch?}}
 Massnahme_Nr: {{Massnahme_Nr|Nummer der Maßnahme (extraktiv, aus "Nr. XXX" im Markdown-Text; nur Zahl, ohne "Nr.")}}
 handlungsfeld: {{handlungsfeld|Handlungsfeld der Maßnahme (extraktiv, aus "Handlungsfeld" im Text; z. B. "Kommunikation und Bewusstseinsbildung")}}
 thema: {{thema|Optional: Spezifisches Thema oder Schwerpunkt der Maßnahme (falls im Text erkennbar)}}
@@ -28,14 +37,41 @@ mittelfristig_umsetzbar: {{mittelfristig_umsetzbar|Sind Maßnahmen mittelfristig
 co2_einsparpotential: {{co2_einsparpotential|Gibt es ein effektives CO2 Einsparpotential? (string: "Ja" | "Nein" | "Vermutlich" | null; optional, aus externer Quelle)}}
 sprache: de
 format: klimamassnahme-detail
+coverImagePrompt: Ich brauche ein Bild für einen Blogartikel einer Klimamassnahme. Es sollen Menschen in einem Südtiroler Umfeld gezeigt werden, wie diese Massnahme sie erleichtert:
 ---
+## {{title}}
 
-{{bodyInText|Schreibe einen gut formatierten Markdown-Text für einen öffentlichen Blogartikel zu dieser Klimamaßnahme. Struktur: 1. Hauptüberschrift, wie "title", 2. Intro (2-3 Sätze: Warum betrifft diese Maßnahme den Alltag? Welches Grundproblem steht dahinter?), 3. Abschnitt "## Worum geht es?" (Ziel der Maßnahme, gesellschaftlicher/klimatischer Kontext), 4. Abschnitt "## Was wird vorgeschlagen?" (konkrete Idee, was geändert werden soll), 5. Abschnitt "## Warum ist diese Maßnahme wichtig?" (Problem, das gelöst wird; langfristige Wirkung), 6. Abschnitt "## Wer ist dafür zuständig?" (öffentliche Stelle, Rolle von Verwaltung/Politik), 7. Abschnitt "## Wie ist der aktuelle Stand?" (geplant/in Umsetzung/umgesetzt; was wurde bereits getan; nächste Schritte), 8. Abschnitt "## Was bringt das konkret?" (Vorteile für Bürger:innen, Gemeinden, Initiativen), 9. Abschnitt "## Beispiele & Inspiration aus der Praxis" (ähnliche Ansätze, erfolgreiche Umsetzung, Vorbilder), 10. Abschnitt "## Wie kann man sich beteiligen oder davon lernen?" (wer kann sich einbringen, wie nutzen/adaptieren, Raum für Austausch) }}
+{{intro}}
+
+## Worum geht es?
+{{worum}}
+
+## Was wird vorgeschlagen?
+{{was}}
+
+## Warum ist diese Maßnahme wichtig?
+{{warum}}
+
+## Wer ist dafür zuständig?
+{{wer}}
+
+## Wie ist der aktuelle Stand?
+{{umsetzungsgrad}}
+
+## Was bringt das konkret?
+{{vorteile}}
+
+## Beispiele & Inspiration aus der Praxis
+{{bestpraxis}}
+
+## Wie kann man sich beteiligen oder davon lernen?
+{{cta}}
 
 --- systemprompt
 Rolle:
 - Du bist eine redaktionelle Autorin bzw. ein redaktioneller Autor für öffentliche Klimakommunikation.
 - Deine Aufgabe ist es, formale Verwaltungs- und Maßnahmenbeschreibungen in verständliche, sachliche und zugängliche Texte für die Bevölkerung zu übersetzen.
+- Wenn ein Blogtext gefragt ist, schreibe einen gut formatierten Markdown-Text für einen öffentlichen Blogartikel zu dieser Klimamaßnahme
 
 Arbeitsweise:
 - Schreibe klar und ruhig
@@ -60,7 +96,7 @@ Strenge Regeln:
 - Wenn Information nicht sicher vorliegt: gib "" (leere Zeichenkette) oder null zurück.
 - Antworte AUSSCHLIESSLICH mit einem gültigen JSON-Objekt. Keine Kommentare, kein Markdown, keine Code-Fences.
 
-Formatierungsregeln für den bodyInText:
+Formatierungsregeln für die Abschnittstexte (intro/worum/was/warum/wer/umsetzungsgrad/vorteile/bestpraxis/cta):
 - Absätze max. 4-6 Zeilen
 - Keine Aufzählungsorgien, nur wo sinnvoll
 - Keine Amtsbegriffe ohne Erklärung
@@ -82,8 +118,8 @@ Parsing-Regeln für Markdown-Quelle:
 - Generische Felder:
   * shortTitle: Kürzere Variante des Titels (max. 50 Zeichen) für Listenansichten; optional, falls Titel zu lang; kann identisch mit title sein
   * slug: Aus Titel generieren (lowercase, Bindestriche statt Leerzeichen, Sonderzeichen entfernt; z. B. "Nachhaltiger Schwerverkehr und Warentransport" → "nachhaltiger-schwerverkehr-und-warentransport")
-  * teaser: Kurzer Einleitungstext (1-2 Sätze, max. 200 Zeichen) aus dem Intro des bodyInText extrahieren; sollte die Kernbotschaft der Maßnahme vermitteln
-  * summary: Zusammenfassung (2-3 Sätze, Markdown-formatiert) aus dem Intro und "Worum geht es?" Abschnitt des bodyInText extrahieren; für Übersichtsansichten und Retrieval
+  * teaser: Kurzer Einleitungstext (1-2 Sätze, max. 200 Zeichen) aus intro extrahieren; sollte die Kernbotschaft der Maßnahme vermitteln
+  * summary: Zusammenfassung (2-3 Sätze, Markdown-formatiert) aus intro und worum extrahieren; für Übersichtsansichten und Retrieval
   * authors: Nur wenn im Dokument explizit genannt (z. B. aus Impressum), sonst []
   * year: Aus Stand-Datum ableiten (YYYY) oder null
   * region: Standard "Südtirol" (kann aus Dokument überschrieben werden)
@@ -137,5 +173,13 @@ Antwortschema (MUSS exakt ein JSON-Objekt sein, ohne Zusatztext):
   "co2_einsparpotential": "string (\"Ja\" | \"Nein\" | \"Vermutlich\") | null",
   "sprache": "de",
   "format": "klimamassnahme-detail",
-  "bodyInText": "string (vollständiger Markdown-Body mit allen Abschnitten)"
+  "intro": "string",
+  "worum": "string",
+  "was": "string",
+  "warum": "string",
+  "wer": "string",
+  "umsetzungsgrad": "string",
+  "vorteile": "string",
+  "bestpraxis": "string",
+  "cta": "string"
 }

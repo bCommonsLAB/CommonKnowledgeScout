@@ -169,8 +169,10 @@ async function resolveArtifactV2(
   }
 
   // 1. Prüfe Shadow-Twin-Verzeichnis (falls vorhanden)
+  // PERFORMANCE: findShadowTwinFolder nutzt bereits den gecachten Provider
   const shadowTwinFolder = await findShadowTwinFolder(parentId, sourceName, provider);
   if (shadowTwinFolder) {
+    // PERFORMANCE: provider.listItemsById wird durch cachedProvider gecacht
     const items = await provider.listItemsById(shadowTwinFolder.id);
     const artifactFile = expectedFileName
       ? items.find(item => item.type === 'file' && item.metadata.name === expectedFileName)

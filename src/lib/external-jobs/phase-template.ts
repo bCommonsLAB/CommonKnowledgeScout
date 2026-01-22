@@ -26,6 +26,7 @@ import type { LibraryChatConfig } from '@/types/library'
 import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
 import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver'
+import { buildTransformationBody } from '@/lib/external-jobs/template-body-builder'
 
 export interface TemplatePhaseArgs {
   ctx: RequestContext
@@ -1142,8 +1143,26 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
   if (!templateSkipped) {
     const transcriptBody = stripAllFrontmatter(textSource)
     const metaForFrontmatter = omitTranscriptFromFrontmatter(mergedMeta)
-    const transformedBody = buildTemplateBodyFromMeta(metaForFrontmatter)
+    const built = buildTransformationBody({
+      meta: metaForFrontmatter,
+      templateContent: picked?.templateContent,
+      templateNameForParsing: picked?.templateName || preferredTemplate || (job.parameters?.template as string | undefined) || 'unknown',
+    })
+    const transformedBody = built.body
     const bodyOnly = transformedBody || transcriptBody
+    // Trace: sichtbar machen, welche Body-Strategie gewählt wurde (ohne Inhalte zu loggen)
+    try {
+      await repo.traceAddEvent(jobId, {
+        spanId: 'template',
+        name: 'template_body_built',
+        attributes: {
+          strategy: built.strategy,
+          hasBodyInText: typeof metaForFrontmatter.bodyInText === 'string' && metaForFrontmatter.bodyInText.trim().length > 0,
+          hasTemplateContent: typeof picked?.templateContent === 'string' && picked.templateContent.trim().length > 0,
+          hasTemplateMarkdownBody: typeof picked?.templateContent === 'string' && picked.templateContent.includes('\n---\n') && picked.templateContent.includes('--- systemprompt'),
+        }
+      })
+    } catch {}
     const { createMarkdownWithFrontmatter } = await import('@/lib/markdown/compose')
     const markdown = createMarkdownWithFrontmatter(bodyOnly, metaForFrontmatter)
     // Zielordner prüfen
@@ -1246,32 +1265,6 @@ function omitTranscriptFromFrontmatter(meta: Record<string, unknown>): Record<st
   const next: Record<string, unknown> = { ...meta }
   delete next['transcript']
   return next
-}
-
-function buildTemplateBodyFromMeta(meta: Record<string, unknown>): string {
-  function getString(key: string): string {
-    const v = meta[key]
-    if (typeof v === 'string') return v.trim()
-    if (Array.isArray(v)) {
-      const parts = v.map(x => (typeof x === 'string' ? x.trim() : '')).filter(s => s.length > 0)
-      return parts.join('\n')
-    }
-    return ''
-  }
-
-  const title = getString('title')
-  const summary = getString('summary')
-  const messages = getString('messages')
-  // historischer Tippfehler: `nexsSteps`
-  const nextSteps = getString('nextSteps') || getString('nexsSteps')
-
-  const blocks: string[] = []
-  if (title) blocks.push(`# ${title}`)
-  if (summary) blocks.push(`## Zusammenfassung\n${summary}`)
-  if (messages) blocks.push(`## Inhalte\n${messages}`)
-  if (nextSteps) blocks.push(`## Nächste Schritte\n${nextSteps}`)
-
-  return blocks.join('\n\n').trim()
 }
 
 

@@ -161,6 +161,9 @@ export interface StorageConfig {
       /** Standard-Template-Name für Phase 2 (ohne .md) */
       template?: string;
     };
+
+    /** Coverbild-Generierung: Standard-Prompt für alle Coverbilder in dieser Library */
+    coverImagePrompt?: string;
   };
 
   /** Chat-/RAG-Konfiguration pro Library (öffentlich sichere Inhalte) */
@@ -310,6 +313,9 @@ export interface ClientLibrary {
         extractionMethod?: 'native' | 'ocr' | 'both' | 'preview' | 'preview_and_native' | 'llm' | 'llm_and_ocr' | 'mistral_ocr';
         template?: string;
       };
+
+      /** Coverbild-Generierung: Standard-Prompt für alle Coverbilder in dieser Library */
+      coverImagePrompt?: string;
     };
     /** Chat-/RAG-Konfiguration für die UI */
     chat?: LibraryChatConfig;

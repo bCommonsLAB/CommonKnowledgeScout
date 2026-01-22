@@ -43,6 +43,10 @@ function normalizeStructuredData(raw: unknown): Frontmatter | null {
   return out as Frontmatter
 }
 
+function isNonEmptyString(v: unknown): v is string {
+  return typeof v === 'string' && v.trim().length > 0
+}
+
 export async function runTemplateTransform(args: TemplateRunArgs): Promise<TemplateRunResult> {
   const { ctx, extractedText, templateContent, targetLanguage } = args
   const repo = new ExternalJobsRepository()
@@ -98,8 +102,56 @@ export async function runTemplateTransform(args: TemplateRunArgs): Promise<Templ
     
     if (resp.ok && data && typeof data === 'object' && !Array.isArray(data)) {
       const d = (data as { data?: unknown }).data as { structured_data?: unknown } | undefined
-      const normalized = normalizeStructuredData(d?.structured_data)
+      const structuredRaw = d?.structured_data
+      const normalized = normalizeStructuredData(structuredRaw)
       if (normalized) {
+        // Debug/Trace: Wir loggen NUR Keys + Längen, keine Inhalte (PII/Größe).
+        // Ziel: sichtbar machen, ob Secretary z.B. `intro`, `worum`, `was` etc. tatsächlich liefert.
+        try {
+          const keys = Object.keys(normalized)
+          const keysLimited = keys.slice(0, 50)
+          const expectedBodyKeys = ['bodyInText', 'intro', 'worum', 'was', 'warum', 'wer', 'umsetzungsgrad', 'vorteile', 'bestpraxis', 'cta'] as const
+          const keyPresence: Record<string, boolean> = {}
+          const valueLengths: Record<string, number> = {}
+          for (const k of expectedBodyKeys) {
+            const v = normalized[k]
+            keyPresence[k] = isNonEmptyString(v)
+            valueLengths[k] = typeof v === 'string' ? v.length : 0
+          }
+          await repo.traceAddEvent(jobId, {
+            spanId: 'template',
+            name: 'template_response_structured_data',
+            attributes: {
+              keysCount: keys.length,
+              keys: keysLimited,
+              keysTruncated: keys.length > keysLimited.length,
+              hasBodyInText: keyPresence.bodyInText,
+              hasIntro: keyPresence.intro,
+              hasWorum: keyPresence.worum,
+              hasWas: keyPresence.was,
+              hasWarum: keyPresence.warum,
+              hasWer: keyPresence.wer,
+              hasUmsetzungsgrad: keyPresence.umsetzungsgrad,
+              hasVorteile: keyPresence.vorteile,
+              hasBestpraxis: keyPresence.bestpraxis,
+              hasCta: keyPresence.cta,
+              bodyInTextLen: valueLengths.bodyInText,
+              introLen: valueLengths.intro,
+              worumLen: valueLengths.worum,
+              wasLen: valueLengths.was,
+              warumLen: valueLengths.warum,
+              werLen: valueLengths.wer,
+              umsetzungsgradLen: valueLengths.umsetzungsgrad,
+              vorteileLen: valueLengths.vorteile,
+              bestpraxisLen: valueLengths.bestpraxis,
+              ctaLen: valueLengths.cta,
+              // Extra: um zu sehen, ob Secretary überhaupt structured_data geliefert hat
+              structuredDataType: structuredRaw === null ? 'null' : Array.isArray(structuredRaw) ? 'array' : typeof structuredRaw,
+            }
+          })
+        } catch {
+          // Trace-Logging darf die Pipeline nicht brechen
+        }
         bufferLog(jobId, { phase: 'transform_meta', message: 'Metadaten via Template berechnet' })
         return { meta: normalized }
       } else {

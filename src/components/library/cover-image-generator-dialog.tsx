@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
@@ -193,8 +193,10 @@ export function CoverImageGeneratorDialog({
       const mimeType = `image/${selectedImage.image_format}`
       const blob = new Blob([bytes], { type: mimeType })
       
-      // Dateiname: cover_generated.png (überschreibt bewusst vorherige Generierungen)
-      const fileName = `cover_generated.${selectedImage.image_format}`
+      // Dateiname mit Datum und Uhrzeit: cover_generated_YYYY-MM-DD_HH-MM-SS.png
+      const now = new Date()
+      const dateStr = now.toISOString().replace(/T/, '_').replace(/:/g, '-').substring(0, 19) // Format: 2026-01-20_12-35-45
+      const fileName = `cover_generated_${dateStr}.${selectedImage.image_format}`
       const file = new File([blob], fileName, { type: mimeType })
 
       UILogger.info('CoverImageGeneratorDialog', 'Bild ausgewählt und wird gespeichert', {
@@ -249,18 +251,14 @@ export function CoverImageGeneratorDialog({
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="prompt">Was soll auf dem Bild zu sehen sein? *</Label>
-              <Input
+              <Textarea
                 id="prompt"
                 placeholder="z.B. Ein modernes Bürogebäude bei Sonnenuntergang"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 disabled={isGenerating}
-                className="w-full text-base"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !isGenerating && prompt.trim()) {
-                    handleGenerate(4) // Standard: 4 Varianten bei Enter
-                  }
-                }}
+                className="w-full text-base min-h-[100px]"
+                rows={4}
               />
             </div>
 

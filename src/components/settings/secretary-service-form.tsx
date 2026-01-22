@@ -17,6 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
 import { mergeTemplateNames } from "@/lib/templates/template-options"
 
@@ -30,6 +31,7 @@ const secretaryServiceFormSchema = z.object({
     'native','ocr','both','preview','preview_and_native','llm','llm_and_ocr','mistral_ocr'
   ]).optional(),
   pdfTemplate: z.string().optional(),
+  coverImagePrompt: z.string().optional(),
 })
 
 type SecretaryServiceFormValues = z.infer<typeof secretaryServiceFormSchema>
@@ -51,6 +53,7 @@ export function SecretaryServiceForm() {
       apiKey: '',
       pdfExtractionMethod: 'native',
       pdfTemplate: '',
+      coverImagePrompt: '',
     },
   })
 
@@ -62,6 +65,7 @@ export function SecretaryServiceForm() {
         apiKey: activeLibrary.config?.secretaryService?.apiKey || '',
         pdfExtractionMethod: activeLibrary.config?.secretaryService?.pdfDefaults?.extractionMethod || 'mistral_ocr',
         pdfTemplate: activeLibrary.config?.secretaryService?.pdfDefaults?.template || '',
+        coverImagePrompt: activeLibrary.config?.secretaryService?.coverImagePrompt || '',
       })
     }
   }, [activeLibrary, form])
@@ -138,7 +142,8 @@ export function SecretaryServiceForm() {
             pdfDefaults: {
               extractionMethod: data.pdfExtractionMethod,
               template: data.pdfTemplate?.trim() || undefined,
-            }
+            },
+            ...(data.coverImagePrompt?.trim() ? { coverImagePrompt: data.coverImagePrompt.trim() } : {}),
           }
         }
       }
@@ -170,7 +175,8 @@ export function SecretaryServiceForm() {
               pdfDefaults: {
                 extractionMethod: data.pdfExtractionMethod,
                 template: data.pdfTemplate?.trim() || undefined,
-              }
+              },
+              ...(data.coverImagePrompt?.trim() ? { coverImagePrompt: data.coverImagePrompt.trim() } : {}),
             }
           }
         }
@@ -342,6 +348,28 @@ export function SecretaryServiceForm() {
             )}
           />
         </div>
+        <FormField
+          control={form.control}
+          name="coverImagePrompt"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Coverbild-Prompt (Standard)</FormLabel>
+              <FormControl>
+                <Textarea
+                  placeholder="z. B. Ich brauche ein Bild für einen Blogartikel einer Klimamassnahme..."
+                  value={typeof field.value === 'string' ? field.value : ''}
+                  onChange={e => field.onChange(e.target.value)}
+                  rows={4}
+                  className="font-mono text-sm"
+                />
+              </FormControl>
+              <FormDescription>
+                Standard-Prompt für alle Coverbild-Generierungen in dieser Library. Wird vorangestellt, bevor Title und Teaser hinzugefügt werden.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <div className="flex justify-end">
           <Button 
             type="submit" 

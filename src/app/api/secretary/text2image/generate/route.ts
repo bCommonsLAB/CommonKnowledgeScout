@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
       method: 'POST',
       headers,
       body: JSON.stringify(requestBody),
-      timeoutMs: 120000 // 2 Minuten Timeout für Bildgenerierung
+      timeoutMs: 180000 // 3 Minuten Timeout für Bildgenerierung (4 Varianten können länger dauern)
     })
 
     if (!response.ok) {
@@ -276,7 +276,7 @@ export async function POST(request: NextRequest) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     if (errorMessage.includes('Timeout') || errorMessage.includes('timeout')) {
       return NextResponse.json(
-        { error: 'Timeout bei der Bildgenerierung (max. 2 Minuten)', code: 'TIMEOUT' },
+        { error: 'Timeout bei der Bildgenerierung (max. 3 Minuten)', code: 'TIMEOUT' },
         { status: 504 }
       )
     }

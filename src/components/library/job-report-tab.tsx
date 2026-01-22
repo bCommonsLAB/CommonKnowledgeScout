@@ -1037,22 +1037,47 @@ export function JobReportTab({
                 }
               }
 
-              // Default-Prompt aus Metadaten ableiten (z.B. aus title oder summary)
+              // Default-Prompt aus Metadaten ableiten: Library-Config coverImagePrompt + Frontmatter coverImagePrompt + Title + Teaser (getrennt durch Zeilenumbrüche)
               const defaultPrompt = (() => {
                 const base: Record<string, unknown> = sourceMode === 'frontmatter'
                   ? {}
                   : ((job?.cumulativeMeta as unknown as Record<string, unknown>) || {})
                 const cm = frontmatterMeta ? { ...base, ...frontmatterMeta } : base
-                const title = cm.title as string | undefined
-                const summary = cm.summary as string | undefined
+                
+                // Priorität 1: Library-Config coverImagePrompt (Standard für alle Coverbilder in dieser Library)
+                const libraryCoverImagePrompt = activeLibrary?.config?.secretaryService?.coverImagePrompt
+                
+                // Priorität 2: Frontmatter coverImagePrompt (dokumentenspezifisch)
+                const frontmatterCoverImagePrompt = cm.coverImagePrompt as string | undefined
+                
+                // Unterstütze sowohl Title/Teaser (großgeschrieben) als auch title/teaser (kleingeschrieben) für Kompatibilität
+                const title = (cm.Title as string | undefined) || (cm.title as string | undefined)
+                const teaser = (cm.Teaser as string | undefined) || (cm.teaser as string | undefined)
+                
+                const parts: string[] = []
+                
+                // 1. Library-Config coverImagePrompt voranstellen (höchste Priorität, falls vorhanden)
+                if (libraryCoverImagePrompt && typeof libraryCoverImagePrompt === 'string' && libraryCoverImagePrompt.trim().length > 0) {
+                  parts.push(libraryCoverImagePrompt.trim())
+                }
+                
+                // 2. Frontmatter coverImagePrompt hinzufügen (falls vorhanden und nicht bereits durch Library-Config gesetzt)
+                if (frontmatterCoverImagePrompt && typeof frontmatterCoverImagePrompt === 'string' && frontmatterCoverImagePrompt.trim().length > 0) {
+                  parts.push(frontmatterCoverImagePrompt.trim())
+                }
+                
+                // 3. Title hinzufügen (falls vorhanden)
                 if (title && typeof title === 'string' && title.trim().length > 0) {
-                  return title.trim()
+                  parts.push(title.trim())
                 }
-                if (summary && typeof summary === 'string' && summary.trim().length > 0) {
-                  // Kürze Summary auf max. 100 Zeichen für Prompt
-                  return summary.trim().substring(0, 100)
+                
+                // 4. Teaser hinzufügen (falls vorhanden)
+                if (teaser && typeof teaser === 'string' && teaser.trim().length > 0) {
+                  parts.push(teaser.trim())
                 }
-                return ''
+                
+                // Alle Teile durch Zeilenumbrüche verbinden
+                return parts.join('\n')
               })()
 
               return (

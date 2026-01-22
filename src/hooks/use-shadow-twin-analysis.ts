@@ -84,8 +84,10 @@ export function useShadowTwinAnalysis(
     }
 
     // PERFORMANCE-OPTIMIERUNG: Debouncing und Lazy Loading
-    // Warte 500ms bevor die Analyse startet (Lazy Loading)
+    // Warte 2000ms bevor die Analyse startet (Lazy Loading)
     // Dies verhindert unnötige Analysen bei schnellen Ordnerwechseln
+    // UND gibt der UI Zeit, zuerst zu rendern, bevor die Analyse startet
+    // WICHTIG: Die Dateiliste sollte sofort sichtbar sein, Shadow-Twin-Icons können später erscheinen
     const analysisTimeoutId = setTimeout(() => {
       // Prüfe erneut, ob die Analyse noch benötigt wird
       // (Items könnten sich während der Wartezeit geändert haben)
@@ -266,7 +268,7 @@ export function useShadowTwinAnalysis(
       };
 
       void processBulkAnalysis();
-    }, 500); // 500ms Lazy Loading Delay
+    }, 2000); // 2000ms Lazy Loading Delay - gibt UI Zeit zuerst zu rendern, Shadow-Twin-Icons erscheinen später
 
     // Cleanup: Setze isAnalyzingRef zurück bei Unmount und cancel Timeout
     return () => {
