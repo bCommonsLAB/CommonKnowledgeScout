@@ -33,6 +33,12 @@ import { clearWatchdog } from '@/lib/external-jobs-watchdog'
 import { getJobEventBus } from '@/lib/events/job-event-bus'
 import { writeArtifact } from '@/lib/shadow-twin/artifact-writer'
 import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
+import { LibraryService } from '@/lib/services/library-service'
+import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
+import { persistShadowTwinToMongo } from '@/lib/shadow-twin/shadow-twin-mongo-writer'
+import { FileLogger } from '@/lib/debug/logger'
+import { getSecretaryConfig } from '@/lib/env'
+import { buildMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
 
 /**
  * Runs extract-only mode processing. This mode is activated when both template
@@ -103,6 +109,16 @@ export async function runExtractOnly(
   // Jeder Job hat seinen eigenen isolierten Kontext - keine gegenseitige Beeinflussung
   const shadowTwinFolderId: string | undefined = job.shadowTwinState?.shadowTwinFolderId
 
+  // Prüfe Shadow-Twin-Konfiguration (Mongo oder Filesystem) - einmalig für den gesamten Extract-Only-Lauf
+  const library = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
+  const shadowTwinConfig = getShadowTwinConfig(library)
+  // WICHTIG: persistShadowTwinToMongo verwendet bereits intern den ShadowTwinService,
+  // daher ist die Store-Entscheidung dort zentralisiert.
+  // Hier prüfen wir nur die Konfiguration für Logging und Entscheidungen.
+  const persistToFilesystem = shadowTwinConfig.persistToFilesystem ?? true
+  // useMongo wird nur für Logging verwendet - die eigentliche Persistierung entscheidet der Service
+  const useMongo = shadowTwinConfig.primaryStore === 'mongo'
+
   // Save Markdown with frontmatter if extracted text is available
   // Jetzt kann es im Shadow-Twin-Verzeichnis gespeichert werden, falls vorhanden
   let savedItemId: string | undefined
@@ -145,17 +161,21 @@ export async function runExtractOnly(
       // Wenn parentId bereits das Shadow-Twin-Verzeichnis ist, würde createFolder=true zu Verschachtelung führen.
       const createFolder = !shadowTwinFolderId
       
-      // Nutze zentrale writeArtifact() Logik
-      const writeResult = await writeArtifact(provider, {
-        key: artifactKey,
-        sourceName,
-        parentId,
-        content: cleanText,
-        createFolder,
-      })
-      
-      savedItemId = writeResult.file.id
-      if (savedItemId) savedItems.push(savedItemId)
+      // Speichere ins Filesystem, wenn aktiviert
+      let writeResult: Awaited<ReturnType<typeof writeArtifact>> | null = null
+      if (persistToFilesystem) {
+        // Nutze zentrale writeArtifact() Logik
+        writeResult = await writeArtifact(provider, {
+          key: artifactKey,
+          sourceName,
+          parentId,
+          content: cleanText,
+          createFolder,
+        })
+        
+        savedItemId = writeResult.file.id
+        if (savedItemId) savedItems.push(savedItemId)
+      }
       
       bufferLog(jobId, {
         phase: 'extract_only_markdown_saved',
@@ -163,7 +183,7 @@ export async function runExtractOnly(
         parentId,
         shadowTwinFolderId: shadowTwinFolderId || null,
         savedItemId,
-        fileName: writeResult.file.metadata.name,
+        fileName: writeResult?.file.metadata.name || 'unknown',
       })
       
       // WICHTIG: Shadow-Twin-State nach dem Speichern neu berechnen
@@ -171,8 +191,11 @@ export async function runExtractOnly(
       // Verwende bereits erstellten Provider (wurde oben erstellt)
       if (savedItemId && job.correlation?.source?.itemId) {
         try {
-          const { analyzeShadowTwin } = await import('@/lib/shadow-twin/analyze-shadow-twin')
-          const updatedShadowTwinState = await analyzeShadowTwin(job.correlation.source.itemId, provider)
+          const { analyzeShadowTwinWithService } = await import('@/lib/shadow-twin/analyze-shadow-twin')
+          const { LibraryService } = await import('@/lib/services/library-service')
+          const library = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
+          const lang = (job.correlation?.options as { targetLanguage?: string } | undefined)?.targetLanguage || 'de'
+          const updatedShadowTwinState = await analyzeShadowTwinWithService(job.correlation.source.itemId, provider, job.userEmail, library, lang)
           if (updatedShadowTwinState) {
             // Im Extract-Only-Fall gilt: Sobald das Transcript erfolgreich im Shadow-Twin-Verzeichnis
             // gespeichert wurde, betrachten wir den Shadow-Twin als "ready". Template- und Ingest-Phasen
@@ -207,65 +230,83 @@ export async function runExtractOnly(
   }
 
   // Process images if enabled
+  // WICHTIG: Wenn persistToFilesystem=false, überspringe Filesystem-Schreibvorgänge
+  // und lade Bilder direkt aus dem ZIP nach Azure hoch (ohne Filesystem-Zwischenschritt)
   if (imagesPhaseEnabled) {
-    try {
-      const provider = await buildProvider({
-        userEmail: job.userEmail,
-        libraryId: job.libraryId,
-        jobId,
-        repo,
-      })
-      const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
-      const parentId = job.correlation?.source?.parentId || 'root'
+    if (persistToFilesystem) {
+      // Standard-Pfad: Bilder ins Filesystem schreiben
+      try {
+        const provider = await buildProvider({
+          userEmail: job.userEmail,
+          libraryId: job.libraryId,
+          jobId,
+          repo,
+        })
+        const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
+        const parentId = job.correlation?.source?.parentId || 'root'
 
+        bufferLog(jobId, {
+          phase: 'extract_only_images_start',
+          message: 'Starte Bilder-Verarbeitung im Extract-Only Fall (mit Filesystem)',
+          hasPagesArchiveData: !!pagesArchiveData,
+          hasPagesArchiveUrl: !!pagesArchiveUrl,
+          hasImagesArchiveData: !!imagesArchiveData,
+          hasImagesArchiveUrl: !!imagesArchiveUrlFromWorker,
+          hasMistralOcrImages,
+          hasMistralOcrImagesUrl: !!mistralOcrImagesUrl,
+          mistralOcrRawType: typeof mistralOcrRaw,
+          mistralOcrRawKeys: mistralOcrRaw && typeof mistralOcrRaw === 'object' ? Object.keys(mistralOcrRaw as Record<string, unknown>) : [],
+        })
+
+        const { processAllImageSources } = await import('./images')
+        const imageResult = await processAllImageSources(ctx, provider, {
+          pagesArchiveData,
+          pagesArchiveUrl,
+          pagesArchiveFilename: (body?.data as { pages_archive_filename?: string })?.pages_archive_filename,
+          imagesArchiveData,
+          imagesArchiveFilename: (body?.data as { images_archive_filename?: string })?.images_archive_filename,
+          imagesArchiveUrl: imagesArchiveUrlFromWorker,
+          mistralOcrRaw,
+          hasMistralOcrImages,
+          mistralOcrImagesUrl,
+          extractedText,
+          lang,
+          targetParentId: parentId,
+          imagesPhaseEnabled,
+          shadowTwinFolderId, // Übergebe bereits erstelltes Shadow-Twin-Verzeichnis
+        })
+
+        if (imageResult) {
+          savedItems.push(...imageResult.savedItemIds)
+          bufferLog(jobId, {
+            phase: 'extract_only_images_completed',
+            message: `Bilder-Verarbeitung abgeschlossen, ${imageResult.savedItemIds.length} Items gespeichert`
+          })
+        } else {
+          bufferLog(jobId, {
+            phase: 'extract_only_images_no_result',
+            message: 'Keine Bilder verarbeitet - imageResult ist undefined'
+          })
+        }
+      } catch (error) {
+        bufferLog(jobId, {
+          phase: 'extract_only_images_error',
+          message: `Fehler bei der Bilder-Verarbeitung: ${error instanceof Error ? error.message : String(error)}`,
+          errorStack: error instanceof Error ? error.stack : undefined,
+        })
+      }
+    } else {
+      // Optimierter Pfad: Bilder direkt aus ZIP nach Azure hochladen (ohne Filesystem)
+      // ZIP-Daten werden unten gesammelt und an persistShadowTwinToMongo() übergeben
       bufferLog(jobId, {
-        phase: 'extract_only_images_start',
-        message: 'Starte Bilder-Verarbeitung im Extract-Only Fall',
+        phase: 'extract_only_images_direct_azure',
+        message: 'Bilder werden direkt aus ZIP nach Azure hochgeladen (ohne Filesystem-Zwischenschritt)',
         hasPagesArchiveData: !!pagesArchiveData,
         hasPagesArchiveUrl: !!pagesArchiveUrl,
         hasImagesArchiveData: !!imagesArchiveData,
         hasImagesArchiveUrl: !!imagesArchiveUrlFromWorker,
         hasMistralOcrImages,
         hasMistralOcrImagesUrl: !!mistralOcrImagesUrl,
-        mistralOcrRawType: typeof mistralOcrRaw,
-        mistralOcrRawKeys: mistralOcrRaw && typeof mistralOcrRaw === 'object' ? Object.keys(mistralOcrRaw as Record<string, unknown>) : [],
-      })
-
-      const { processAllImageSources } = await import('./images')
-      const imageResult = await processAllImageSources(ctx, provider, {
-        pagesArchiveData,
-        pagesArchiveUrl,
-        pagesArchiveFilename: (body?.data as { pages_archive_filename?: string })?.pages_archive_filename,
-        imagesArchiveData,
-        imagesArchiveFilename: (body?.data as { images_archive_filename?: string })?.images_archive_filename,
-        imagesArchiveUrl: imagesArchiveUrlFromWorker,
-        mistralOcrRaw,
-        hasMistralOcrImages,
-        mistralOcrImagesUrl,
-        extractedText,
-        lang,
-        targetParentId: parentId,
-        imagesPhaseEnabled,
-        shadowTwinFolderId, // Übergebe bereits erstelltes Shadow-Twin-Verzeichnis
-      })
-
-      if (imageResult) {
-        savedItems.push(...imageResult.savedItemIds)
-        bufferLog(jobId, {
-          phase: 'extract_only_images_completed',
-          message: `Bilder-Verarbeitung abgeschlossen, ${imageResult.savedItemIds.length} Items gespeichert`
-        })
-      } else {
-        bufferLog(jobId, {
-          phase: 'extract_only_images_no_result',
-          message: 'Keine Bilder verarbeitet - imageResult ist undefined'
-        })
-      }
-    } catch (error) {
-      bufferLog(jobId, {
-        phase: 'extract_only_images_error',
-        message: `Fehler bei der Bilder-Verarbeitung: ${error instanceof Error ? error.message : String(error)}`,
-        errorStack: error instanceof Error ? error.stack : undefined,
       })
     }
   } else {
@@ -275,9 +316,324 @@ export async function runExtractOnly(
     })
   }
 
+  // WICHTIG: Speichere Shadow-Twin in MongoDB NACH der Bilder-Verarbeitung
+  // (damit alle Bilder bereits im Shadow-Twin-Ordner vorhanden sind)
+  bufferLog(jobId, {
+    phase: 'extract_only_mongo_check',
+    message: 'Prüfe Bedingungen für MongoDB-Upsert',
+    hasExtractedText: !!extractedText,
+    useMongo,
+    hasSourceItemId: !!job.correlation?.source?.itemId,
+    primaryStore: shadowTwinConfig.primaryStore,
+    persistToFilesystem,
+  })
+  
+  // Schreibe auch in Trace für bessere Sichtbarkeit
+  try {
+    await repo.traceAddEvent(jobId, {
+      spanId: 'extract',
+      name: 'extract_only_mongo_check',
+      attributes: {
+        hasExtractedText: !!extractedText,
+        useMongo,
+        hasSourceItemId: !!job.correlation?.source?.itemId,
+        primaryStore: shadowTwinConfig.primaryStore,
+        persistToFilesystem,
+      },
+    })
+  } catch {
+    // Trace-Fehler nicht kritisch
+  }
+  
+  if (extractedText && useMongo && job.correlation?.source?.itemId) {
+    try {
+      bufferLog(jobId, {
+        phase: 'extract_only_mongo_start',
+        message: 'Starte MongoDB-Upsert für Shadow-Twin',
+        sourceItemId: job.correlation.source.itemId,
+      })
+      
+      const provider = await buildProvider({
+        userEmail: job.userEmail,
+        libraryId: job.libraryId,
+        jobId,
+        repo,
+      })
+      
+      bufferLog(jobId, {
+        phase: 'extract_only_mongo_provider_ready',
+        message: 'Provider erstellt, lade sourceItem',
+        sourceItemId: job.correlation.source.itemId,
+      })
+      
+      const sourceItem = await provider.getItemById(job.correlation.source.itemId)
+      
+      if (!sourceItem) {
+        throw new Error(`SourceItem nicht gefunden: ${job.correlation.source.itemId}`)
+      }
+      
+      bufferLog(jobId, {
+        phase: 'extract_only_mongo_source_item_loaded',
+        message: 'SourceItem geladen',
+        sourceItemId: sourceItem.id,
+        sourceItemName: sourceItem.metadata.name,
+      })
+      
+      // Lade aktuelles Markdown aus dem Filesystem (falls vorhanden)
+      // oder verwende das ursprüngliche extractedText
+      let markdownToSave = extractedText
+      if (savedItemId && persistToFilesystem) {
+        try {
+          const { blob } = await provider.getBinary(savedItemId)
+          markdownToSave = await blob.text()
+        } catch {
+          // Falls Laden fehlschlägt, verwende originales extractedText
+        }
+      }
+      
+      const { stripAllFrontmatter } = await import('@/lib/markdown/frontmatter')
+      const cleanText = stripAllFrontmatter(markdownToSave)
+      
+      const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
+      const artifactKey: ArtifactKey = {
+        sourceId: job.correlation.source.itemId,
+        kind: 'transcript',
+        targetLanguage: lang,
+      }
+      
+      // Aktualisiere shadowTwinFolderId nach Bilder-Verarbeitung
+      const currentShadowTwinFolderId = job.shadowTwinState?.shadowTwinFolderId || shadowTwinFolderId
+      
+      // Sammle ZIP-Daten für direkten Upload (wenn persistToFilesystem=false)
+      const zipArchives: Array<{ base64Data: string; fileName: string }> = []
+      if (!persistToFilesystem && imagesPhaseEnabled) {
+        // Hilfsfunktion: Lade ZIP von URL herunter und konvertiere zu Base64
+        const downloadZipAsBase64 = async (url: string): Promise<string | undefined> => {
+          try {
+            // URL-Auflösung: ähnlich wie in images.ts
+            const { baseUrl: baseRaw } = getSecretaryConfig()
+            const isAbsolute = /^https?:\/\//i.test(url)
+            let archiveUrl = url
+            if (!isAbsolute) {
+              const base = baseRaw.replace(/\/$/, '')
+              const rel = url.startsWith('/') ? url : `/${url}`
+              archiveUrl = base.endsWith('/api') && rel.startsWith('/api/') 
+                ? `${base}${rel.substring(4)}` 
+                : `${base}${rel}`
+            }
+            
+            // Headers für Authentifizierung (falls benötigt)
+            const headers: Record<string, string> = {}
+            const { apiKey } = getSecretaryConfig()
+            if (apiKey) {
+              headers['Authorization'] = `Bearer ${apiKey}`
+              headers['X-Secretary-Api-Key'] = apiKey
+            }
+            
+            bufferLog(jobId, {
+              phase: 'extract_only_downloading_zip',
+              message: `Lade ZIP von URL: ${archiveUrl}`,
+            })
+            
+            const response = await fetch(archiveUrl, { method: 'GET', headers })
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+            }
+            const arrayBuffer = await response.arrayBuffer()
+            const buffer = Buffer.from(arrayBuffer)
+            return buffer.toString('base64')
+          } catch (error) {
+            FileLogger.warn('extract-only', 'Fehler beim Herunterladen von ZIP-URL', {
+              url,
+              error: error instanceof Error ? error.message : String(error),
+            })
+            bufferLog(jobId, {
+              phase: 'extract_only_zip_download_error',
+              message: `Fehler beim Herunterladen von ZIP: ${error instanceof Error ? error.message : String(error)}`,
+              url,
+            })
+            return undefined
+          }
+        }
+        
+        // Sammle ZIP-Daten: zuerst Base64-Daten, dann URLs herunterladen
+        if (imagesArchiveData) {
+          zipArchives.push({
+            base64Data: imagesArchiveData,
+            fileName: (body?.data as { images_archive_filename?: string })?.images_archive_filename || 'images.zip',
+          })
+        }
+        if (pagesArchiveData) {
+          zipArchives.push({
+            base64Data: pagesArchiveData,
+            fileName: (body?.data as { pages_archive_filename?: string })?.pages_archive_filename || 'pages.zip',
+          })
+        }
+        
+        // Lade ZIP-Daten von URLs herunter (falls nicht als Base64 vorhanden)
+        if (pagesArchiveUrl && !pagesArchiveData) {
+          const base64Data = await downloadZipAsBase64(pagesArchiveUrl)
+          if (base64Data) {
+            zipArchives.push({
+              base64Data,
+              fileName: (body?.data as { pages_archive_filename?: string })?.pages_archive_filename || 'pages.zip',
+            })
+          }
+        }
+        
+        if (imagesArchiveUrlFromWorker && !imagesArchiveData) {
+          const base64Data = await downloadZipAsBase64(imagesArchiveUrlFromWorker)
+          if (base64Data) {
+            zipArchives.push({
+              base64Data,
+              fileName: (body?.data as { images_archive_filename?: string })?.images_archive_filename || 'images.zip',
+            })
+          }
+        }
+        
+        // Mistral OCR Images: Lade von URL herunter (falls vorhanden)
+        if (mistralOcrImagesUrl) {
+          const base64Data = await downloadZipAsBase64(mistralOcrImagesUrl)
+          if (base64Data) {
+            zipArchives.push({
+              base64Data,
+              fileName: 'mistral_ocr_images.zip',
+            })
+          }
+        }
+        
+        bufferLog(jobId, {
+          phase: 'extract_only_zip_archives_collected',
+          message: `${zipArchives.length} ZIP-Archive für direkten Upload gesammelt`,
+          zipCount: zipArchives.length,
+          zipFileNames: zipArchives.map(z => z.fileName),
+        })
+      }
+      
+      const mongoResult = await persistShadowTwinToMongo({
+        libraryId: job.libraryId,
+        userEmail: job.userEmail,
+        sourceItem,
+        provider,
+        artifactKey,
+        markdown: cleanText,
+        shadowTwinFolderId: currentShadowTwinFolderId || undefined,
+        zipArchives: zipArchives.length > 0 ? zipArchives : undefined,
+        jobId,
+      })
+
+      // WICHTIG (Global Contract):
+      // In Mongo-only Mode (persistToFilesystem=false) gibt es keine Provider-File-ID.
+      // Wir müssen daher eine virtuelle Mongo-Shadow-Twin-ID als savedItemId setzen,
+      // sonst ist der Job zwar "completed", aber result.savedItemId fehlt (Race/Contract-Bruch).
+      if (!persistToFilesystem && !savedItemId) {
+        savedItemId = buildMongoShadowTwinId({
+          libraryId: job.libraryId,
+          sourceId: job.correlation.source.itemId,
+          kind: 'transcript',
+          targetLanguage: lang,
+        })
+      }
+      
+      bufferLog(jobId, {
+        phase: 'extract_only_mongo_saved',
+        message: `Shadow-Twin in MongoDB gespeichert (${mongoResult.imageCount} Bilder verarbeitet)`,
+        imageCount: mongoResult.imageCount,
+        imageErrorsCount: mongoResult.imageErrorsCount,
+      })
+      
+      // Schreibe auch in Trace für bessere Sichtbarkeit
+      try {
+        await repo.traceAddEvent(jobId, {
+          spanId: 'extract',
+          name: 'extract_only_mongo_saved',
+          attributes: {
+            imageCount: mongoResult.imageCount,
+            imageErrorsCount: mongoResult.imageErrorsCount,
+          },
+        })
+      } catch {
+        // Trace-Fehler nicht kritisch
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorStack = error instanceof Error ? error.stack : undefined
+      
+      bufferLog(jobId, {
+        phase: 'extract_only_mongo_error',
+        message: `Mongo-Upsert fehlgeschlagen: ${errorMessage}`,
+        error: errorMessage,
+        errorStack,
+      })
+      
+      // Schreibe auch in Trace für bessere Sichtbarkeit
+      try {
+        await repo.traceAddEvent(jobId, {
+          spanId: 'extract',
+          name: 'extract_only_mongo_error',
+          level: 'error',
+          attributes: {
+            message: `Mongo-Upsert fehlgeschlagen: ${errorMessage}`,
+            error: errorMessage,
+          },
+        })
+      } catch {
+        // Trace-Fehler nicht kritisch
+      }
+      
+      FileLogger.error('extract-only', 'MongoDB-Upsert fehlgeschlagen', {
+        jobId,
+        sourceItemId: job.correlation?.source?.itemId,
+        error: errorMessage,
+        errorStack,
+      })
+
+      // WICHTIG:
+      // - Wenn persistToFilesystem=true, können wir den Job trotzdem abschließen (Fallback ist Filesystem).
+      // - Wenn persistToFilesystem=false (Mongo-only), ist ein Mongo-Fehler fatal, weil es sonst keinen savedItemId gibt.
+      if (!persistToFilesystem) {
+        throw error instanceof Error ? error : new Error(String(error))
+      }
+    }
+  } else {
+    // MongoDB-Upsert wurde übersprungen - logge Grund
+    const reasons: string[] = []
+    if (!extractedText) reasons.push('kein extractedText')
+    if (!useMongo) reasons.push(`useMongo=false (primaryStore=${shadowTwinConfig.primaryStore})`)
+    if (!job.correlation?.source?.itemId) reasons.push('kein sourceItemId')
+    
+    bufferLog(jobId, {
+      phase: 'extract_only_mongo_skipped',
+      message: `MongoDB-Upsert übersprungen: ${reasons.join(', ')}`,
+      reasons,
+      primaryStore: shadowTwinConfig.primaryStore,
+    })
+    
+    // Schreibe auch in Trace für bessere Sichtbarkeit
+    try {
+      await repo.traceAddEvent(jobId, {
+        spanId: 'extract',
+        name: 'extract_only_mongo_skipped',
+        attributes: {
+          message: `MongoDB-Upsert übersprungen: ${reasons.join(', ')}`,
+          reasons,
+          primaryStore: shadowTwinConfig.primaryStore,
+        },
+      })
+    } catch {
+      // Trace-Fehler nicht kritisch
+    }
+  }
+
   // Complete extract phase
   try {
-    await repo.updateStep(jobId, 'extract_pdf', { status: 'completed', endedAt: new Date() })
+    const extractStepName =
+      job.job_type === 'audio'
+        ? 'extract_audio'
+        : job.job_type === 'video'
+          ? 'extract_video'
+          : 'extract_pdf'
+    await repo.updateStep(jobId, extractStepName, { status: 'completed', endedAt: new Date() })
   } catch {}
   try {
     await repo.traceEndSpan(jobId, 'extract', 'completed', {})

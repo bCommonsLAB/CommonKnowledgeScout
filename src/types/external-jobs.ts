@@ -114,6 +114,10 @@ export interface SaveMarkdownArgs {
   fileName: string
   markdown: string
   artifactKey?: ArtifactKey // Optional: Expliziter ArtifactKey für zentrale Logik (verhindert Parsing aus Dateinamen)
+  /** Optional: ZIP-Daten für direkten Upload nach Azure (ohne Filesystem) */
+  zipArchives?: Array<{ base64Data: string; fileName: string }>
+  /** Optional: Job-ID für Logging */
+  jobId?: string
 }
 
 export interface SaveMarkdownResult {

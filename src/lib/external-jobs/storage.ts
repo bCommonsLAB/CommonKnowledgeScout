@@ -28,13 +28,19 @@ import { bufferLog } from '@/lib/external-jobs-log-buffer'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { getJobEventBus } from '@/lib/events/job-event-bus'
 import { writeArtifact } from '@/lib/shadow-twin/artifact-writer'
+import type { StorageItem } from '@/lib/storage/types'
 import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
 import { parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import { loadTemplateFromMongoDB } from '@/lib/templates/template-service-mongodb'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
+import { LibraryService } from '@/lib/services/library-service'
+import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
+import { persistShadowTwinToMongo } from '@/lib/shadow-twin/shadow-twin-mongo-writer'
+import { buildMongoShadowTwinItem } from '@/lib/shadow-twin/mongo-shadow-twin-item'
+import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 
 export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdownResult> {
-  const { ctx, parentId, fileName, markdown, artifactKey: explicitArtifactKey } = args
+  const { ctx, parentId, fileName, markdown, artifactKey: explicitArtifactKey, zipArchives, jobId } = args
   const repo = new ExternalJobsRepository()
   const provider = await getServerProvider(ctx.job.userEmail, ctx.job.libraryId)
 
@@ -55,18 +61,6 @@ export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdown
     shadowTwinFolderId: shadowTwinFolderId || null,
     isParentShadowTwinFolder
   })
-
-  // Starte Postprocessing-Span für Markdown-Speicherung
-  // Dieser Span ist unabhängig von Template-Phase und wird auch im Extract-Only-Modus verwendet
-  try {
-    await repo.traceStartSpan(ctx.jobId, {
-      spanId: 'postprocessing',
-      parentSpanId: 'job',
-      name: 'postprocessing',
-    })
-  } catch {
-    // Span könnte bereits existieren (nicht kritisch)
-  }
 
   // WICHTIG: Verwende expliziten ArtifactKey, falls übergeben (verhindert fehleranfälliges Parsing)
   // Falls nicht übergeben, parse aus fileName (Legacy-Fallback für Rückwärtskompatibilität)
@@ -178,21 +172,95 @@ export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdown
     }
   }
 
-  // Nutze zentrale writeArtifact() Logik
-  const writeResult = await writeArtifact(provider, {
-    key: artifactKey,
-    sourceName,
-    parentId: targetParentId,
-    content: finalMarkdown,
-    createFolder,
-  })
+  // Shadow-Twin-Konfiguration laden (Mongo oder Filesystem).
+  const library = await LibraryService.getInstance().getLibrary(ctx.job.userEmail, ctx.job.libraryId)
+  const shadowTwinConfig = getShadowTwinConfig(library)
+  const persistToFilesystem = shadowTwinConfig.persistToFilesystem ?? true
 
-  const saved = writeResult.file
+  let mongoMarkdown = finalMarkdown
+  let virtualItem: StorageItem | null = null
+  
+  // Verwende ShadowTwinService für zentrale Store-Entscheidung
+  if (ctx.job.correlation?.source?.itemId) {
+    try {
+      const sourceItem = await provider.getItemById(ctx.job.correlation.source.itemId)
+      
+      // Prüfe über Service, ob Mongo verwendet wird
+      const service = new ShadowTwinService({
+        library,
+        userEmail: ctx.job.userEmail,
+        sourceId: sourceItem.id,
+        sourceName: sourceItem.metadata.name,
+        parentId: sourceItem.parentId,
+        provider,
+      })
+      
+      // persistShadowTwinToMongo verwendet intern bereits den Service
+      const mongoResult = await persistShadowTwinToMongo({
+        libraryId: ctx.job.libraryId,
+        userEmail: ctx.job.userEmail,
+        sourceItem,
+        provider,
+        artifactKey,
+        markdown: finalMarkdown,
+        shadowTwinFolderId: shadowTwinFolderId || undefined,
+        zipArchives: zipArchives && zipArchives.length > 0 ? zipArchives : undefined,
+        jobId: jobId || ctx.jobId,
+      })
+      mongoMarkdown = mongoResult.markdown
+      
+      // Erstelle virtuelles Item für Mongo (wenn primaryStore === 'mongo')
+      if (shadowTwinConfig.primaryStore === 'mongo') {
+        virtualItem = buildMongoShadowTwinItem({
+          libraryId: ctx.job.libraryId,
+          sourceId: sourceItem.id,
+          sourceName: sourceItem.metadata.name,
+          parentId: sourceItem.parentId,
+          kind: artifactKey.kind,
+          targetLanguage: artifactKey.targetLanguage,
+          templateName: artifactKey.templateName,
+          markdownLength: mongoMarkdown.length,
+          updatedAt: new Date().toISOString(),
+        })
+      }
+    } catch (error) {
+      bufferLog(ctx.jobId, {
+        phase: 'markdown_save_mongo_error',
+        message: `Mongo-Upsert fehlgeschlagen: ${error instanceof Error ? error.message : String(error)}`,
+      })
+      if (!persistToFilesystem) {
+        throw error
+      }
+    }
+  }
+
+  let writeResult: Awaited<ReturnType<typeof writeArtifact>> | null = null
+  if (persistToFilesystem) {
+    writeResult = await writeArtifact(provider, {
+      key: artifactKey,
+      sourceName,
+      parentId: targetParentId,
+      content: mongoMarkdown,
+      createFolder,
+    })
+  }
+
+  const saved = writeResult?.file || virtualItem
+  if (!saved) {
+    throw new Error('Shadow-Twin konnte nicht gespeichert werden')
+  }
+  
+  // Bestimme den richtigen Span basierend auf Artifact-Kind
+  // Transcript gehört zu extract, Transformation zu template
+  // WICHTIG: Wir eliminieren "postprocessing" als separaten Span und schreiben die Speicher-Events
+  // direkt in die entsprechenden Phasen-Spans, damit die Zeiten korrekt zugeordnet werden.
+  const targetSpanId = artifactKey.kind === 'transcript' ? 'extract' : 'template'
   
   try {
     await repo.traceAddEvent(ctx.jobId, {
-      spanId: 'postprocessing',
-      name: 'postprocessing_save',
+      spanId: targetSpanId,
+      // Neutraler Event-Name: Speichern ist Teil der Phase (extract/template), kein eigener "postprocessing"-Block.
+      name: 'artifact_saved',
       attributes: {
         name: saved.metadata.name,
         parentId: targetParentId,
@@ -200,13 +268,17 @@ export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdown
         artifactKind: artifactKey.kind,
         targetLanguage: artifactKey.targetLanguage,
         templateName: artifactKey.templateName || null,
+        markdownLength: mongoMarkdown.length,
+        hasFrontmatter: mongoMarkdown.trimStart().startsWith('---'),
+        storedInMongo: !!virtualItem,
+        storedInFilesystem: !!writeResult,
       },
     })
   } catch {}
   try {
     await repo.traceAddEvent(ctx.jobId, {
-      spanId: 'postprocessing',
-      name: 'stored_local',
+      spanId: targetSpanId,
+      name: 'artifact_stored',
       attributes: {
         savedItemId: saved.id,
         name: saved.metadata?.name,
@@ -221,37 +293,38 @@ export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdown
   })
 
   try {
-    const p = await provider.getPathById(targetParentId)
     const uniqueName = (saved.metadata?.name as string | undefined) || fileName
 
-    // WICHTIG: `appendLog()` mappt "stored_path" historisch auf den `template`-Span.
-    // Da wir hier explizit im Postprocessing speichern (auch im Extract-Only-Modus),
-    // schreiben wir das Event direkt in den `postprocessing`-Span.
-    try {
-      await repo.traceAddEvent(ctx.jobId, {
-        spanId: 'postprocessing',
-        name: 'stored_path',
-        message: `${p}/${uniqueName}`,
-        attributes: {
-          path: `${p}/${uniqueName}`,
-          parentId: targetParentId,
-          shadowTwinFolderId: shadowTwinFolderId || null,
-        },
-      })
-    } catch {}
+    if (writeResult) {
+      const p = await provider.getPathById(targetParentId)
+      // Schreibe stored_path Event in den richtigen Span (extract für transcript, template für transformation)
+      try {
+        await repo.traceAddEvent(ctx.jobId, {
+          spanId: targetSpanId,
+          name: 'artifact_stored_path',
+          message: `${p}/${uniqueName}`,
+          attributes: {
+            path: `${p}/${uniqueName}`,
+            parentId: targetParentId,
+            shadowTwinFolderId: shadowTwinFolderId || null,
+          },
+        })
+      } catch {}
+    }
+
     // WICHTIG: Refresh sowohl Parent als auch Shadow-Twin-Verzeichnis (falls vorhanden)
     // Dies stellt sicher, dass beide Ordner aktualisiert werden und die Shadow-Twin-Analyse neu läuft
     const refreshFolderIds = shadowTwinFolderId && shadowTwinFolderId !== parentId
       ? [parentId, shadowTwinFolderId]
       : [parentId]
-    
+
     getJobEventBus().emitUpdate(ctx.job.userEmail, {
       type: 'job_update',
       jobId: ctx.jobId,
       status: 'running',
       progress: 98,
       updatedAt: new Date().toISOString(),
-      message: 'stored_local',
+      message: writeResult ? 'stored_local' : 'stored_mongo',
       jobType: ctx.job.job_type,
       fileName: uniqueName,
       sourceItemId: ctx.job.correlation?.source?.itemId,
@@ -259,20 +332,8 @@ export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdown
       refreshFolderIds, // Array mit allen zu refreshenden Ordnern (Parent + Shadow-Twin)
       shadowTwinFolderId: shadowTwinFolderId || null, // Shadow-Twin-Verzeichnis-ID für Client-Analyse
     } as unknown as import('@/lib/events/job-event-bus').JobUpdateEvent)
-    
-    // Beende Postprocessing-Span nach erfolgreichem Speichern
-    try {
-      await repo.traceEndSpan(ctx.jobId, 'postprocessing', 'completed', {})
-    } catch {
-      // Span-Fehler nicht kritisch
-    }
   } catch {
-    // Bei Fehlern: Postprocessing-Span als failed markieren
-    try {
-      await repo.traceEndSpan(ctx.jobId, 'postprocessing', 'failed', {})
-    } catch {
-      // Span-Fehler nicht kritisch
-    }
+    // Fehler beim Event-Emit nicht kritisch
   }
   return { savedItemId: saved.id }
 }

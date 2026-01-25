@@ -34,7 +34,41 @@ dotenv.config();
 // Module-Export deklarieren
 export {};
 
-let client: MongoClient | null = null;
+type MongoGlobalState = {
+  client: MongoClient | null
+  dbPromise: Promise<Db> | null
+}
+
+// WICHTIG (DEV/HMR):
+// In `next dev` wird dieses Modul durch Hot-Reload mehrfach evaluiert.
+// Ein Modul-lokales `client` führt dann zu "Topology is closed" / Race Conditions.
+// Deshalb halten wir Client + Promise als Singleton auf `globalThis`.
+const globalKey = '__commonKnowledgeScoutMongoClient__'
+const g = globalThis as unknown as Record<string, unknown>
+if (!g[globalKey]) {
+  g[globalKey] = { client: null, dbPromise: null } satisfies MongoGlobalState
+}
+
+function getMongoState(): MongoGlobalState {
+  return g[globalKey] as MongoGlobalState
+}
+
+async function resetMongoState(reason: unknown): Promise<void> {
+  const state = getMongoState()
+  const c = state.client
+  state.client = null
+  state.dbPromise = null
+  if (c) {
+    try {
+      await c.close()
+    } catch {
+      // ignore
+    }
+  }
+  console.error('MongoDB Verbindung zurückgesetzt:', {
+    reason: reason instanceof Error ? reason.message : String(reason),
+  })
+}
 
 /**
  * Stellt eine Verbindung zur MongoDB-Datenbank her
@@ -47,9 +81,24 @@ export async function connectToDatabase(): Promise<Db> {
       throw new Error('MongoDB-Verbindung während des Builds nicht verfügbar');
     }
 
-    // Prüfen, ob Client existiert und verbunden ist
-    if (client?.connect && client.db(process.env.MONGODB_DATABASE_NAME)) {
-      return client.db(process.env.MONGODB_DATABASE_NAME);
+    const state = getMongoState()
+    const dbName = process.env.MONGODB_DATABASE_NAME
+    if (!dbName) {
+      throw new Error('MONGODB_DATABASE_NAME ist nicht definiert')
+    }
+
+    // Wenn bereits ein Connect-Lauf aktiv ist, denselben awaiten (verhindert parallele connect()).
+    if (state.dbPromise) {
+      return await state.dbPromise
+    }
+
+    // Wenn Client existiert, DB zurückgeben. (Wenn Topology geschlossen ist, fangen wir das unten ab.)
+    if (state.client) {
+      try {
+        return state.client.db(dbName)
+      } catch (e) {
+        await resetMongoState(e)
+      }
     }
 
     // Wenn keine Verbindung besteht, neue aufbauen
@@ -65,9 +114,9 @@ export async function connectToDatabase(): Promise<Db> {
       throw new Error('MONGODB_URI ist nicht definiert');
     }
 
-    console.log(`Verbindung zu MongoDB wird hergestellt... (Datenbank: ${process.env.MONGODB_DATABASE_NAME})`);
-    
-    client = new MongoClient(uri, {
+    console.log(`Verbindung zu MongoDB wird hergestellt... (Datenbank: ${dbName})`);
+
+    const client = new MongoClient(uri, {
       maxPoolSize: 10,
       minPoolSize: 5,
       serverSelectionTimeoutMS: 30000,
@@ -77,26 +126,30 @@ export async function connectToDatabase(): Promise<Db> {
       retryReads: true
     });
 
-    await client.connect();
-    
-    const dbName = process.env.MONGODB_DATABASE_NAME;
-    if (!dbName) {
-      throw new Error('MONGODB_DATABASE_NAME ist nicht definiert');
-    }
-    
-    return client.db(dbName);
+    state.client = client
+    state.dbPromise = (async () => {
+      try {
+        await client.connect()
+        return client.db(dbName)
+      } catch (e) {
+        // Wichtig: bei ECONNRESET/TopologyClosed sofort resetten, sonst bleibt ein kaputter Client im Singleton hängen.
+        await resetMongoState(e)
+        throw e
+      }
+    })()
+
+    return await state.dbPromise
   } catch (error) {
-    console.error('MongoDB Verbindungsfehler:', error);
-    
-    // Verbindung bei Fehler zurücksetzen
-    if (client) {
-      await client.close();
-      client = null;
+    console.error('MongoDB Verbindungsfehler:', error)
+
+    // Defensive: Falls eine Topology-Closed / Netzwerk-Exception hochkommt, State zurücksetzen,
+    // damit der nächste Request sauber neu verbinden kann.
+    const msg = error instanceof Error ? error.message : String(error)
+    if (/Topology is closed|ECONNRESET|ETIMEDOUT|ECONNREFUSED|EAI_AGAIN|ENOTFOUND/i.test(msg)) {
+      await resetMongoState(error)
     }
-    
-    throw new Error(
-      `Datenbankverbindung fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`
-    );
+
+    throw new Error(`Datenbankverbindung fehlgeschlagen: ${msg || 'Unbekannter Fehler'}`)
   }
 }
 
@@ -117,10 +170,12 @@ export async function getCollection<T extends Document = Document>(collectionNam
  * Optional: Cleanup-Funktion für die Verbindung
  */
 export async function closeDatabaseConnection(): Promise<void> {
-  if (client) {
-    await client.close();
-    client = null;
+  const state = getMongoState()
+  if (state.client) {
+    await state.client.close()
   }
+  state.client = null
+  state.dbPromise = null
 }
 
 // Prozess-Beendigung behandeln

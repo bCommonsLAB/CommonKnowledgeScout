@@ -50,6 +50,7 @@ import { setJobCompleted } from '@/lib/external-jobs/complete'
 import { handleJobError, handleJobErrorWithDetails } from '@/lib/external-jobs/error-handler'
 import { runTemplatePhase } from '@/lib/external-jobs/phase-template'
 import { runIngestPhase } from '@/lib/external-jobs/phase-ingest'
+import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 // parseSecretaryMarkdownStrict ungenutzt entfernt
 
 // OneDrive-Utilities entfernt: Provider übernimmt Token/Uploads.
@@ -127,6 +128,23 @@ export async function POST(
     const { job, body, internalBypass } = ctx
     const repo = new ExternalJobsRepository();
 
+    // Helper: robustes Auslesen der Secretary-Timing-Felder aus `job.parameters`.
+    // (Vermeidet fragile `?.['x']`-Ausdrücke und hält die Route kompilierbar.)
+    const getSecretaryAckAt = (): string | undefined => {
+      try {
+        const params = (job as { parameters?: unknown }).parameters
+        if (!params || typeof params !== 'object') return undefined
+        const timings = (params as Record<string, unknown>)['timings']
+        if (!timings || typeof timings !== 'object') return undefined
+        const secretary = (timings as Record<string, unknown>)['secretary']
+        if (!secretary || typeof secretary !== 'object') return undefined
+        const ackAt = (secretary as Record<string, unknown>)['ackAt']
+        return typeof ackAt === 'string' ? ackAt : undefined
+      } catch {
+        return undefined
+      }
+    }
+
     // entfernt
 
     // Prozess‑Guard (VOR Auth + VOR Status-Änderungen):
@@ -162,6 +180,36 @@ export async function POST(
     if (body?.process?.id) await repo.setProcess(jobId, body.process.id);
     // Prozess‑Guard ist bewusst bereits VOR Auth/Status-Änderungen (siehe oben).
 
+    // Secretary-Timing: Erster Callback nach ACK messen (idempotent).
+    // Ziel: "Warum dauert der Start so lange?" sauber attribuieren (Queue/Warmup vs. App-Overhead).
+    try {
+      const firstCallbackAt = new Date().toISOString()
+      const ackAt = getSecretaryAckAt()
+      const ackToFirstCallbackMs = ackAt ? Math.max(0, Date.parse(firstCallbackAt) - Date.parse(ackAt)) : undefined
+
+      const didSet = await repo.setSecretaryTimingIfMissing(
+        jobId,
+        {
+          firstCallbackAt,
+          ...(typeof ackToFirstCallbackMs === 'number' ? { ackToFirstCallbackMs } : {}),
+        },
+        'firstCallbackAt'
+      )
+      if (didSet) {
+        try {
+          await repo.traceAddEvent(jobId, {
+            spanId: 'extract',
+            name: 'secretary_first_callback',
+            attributes: {
+              firstCallbackAt,
+              ...(typeof ackToFirstCallbackMs === 'number' ? { ackToFirstCallbackMs } : {}),
+              phaseInBody: typeof body?.phase === 'string' ? body.phase : null,
+            },
+          })
+        } catch {}
+      }
+    } catch {}
+
     // Progress-Handling (Short-Circuit)
     const short = await handleProgressIfAny(ctx, repo, workerId)
     // entfernt
@@ -181,6 +229,36 @@ export async function POST(
       (body as { status?: unknown })?.status === 'completed' || 
       body?.phase === 'template_completed'
     );
+
+    // Secretary-Timing: Finaler Payload empfangen (idempotent).
+    try {
+      if (hasFinalPayload) {
+        const finalPayloadAt = new Date().toISOString()
+        const ackAt = getSecretaryAckAt()
+        const ackToFinalPayloadMs = ackAt ? Math.max(0, Date.parse(finalPayloadAt) - Date.parse(ackAt)) : undefined
+
+        const didSet = await repo.setSecretaryTimingIfMissing(
+          jobId,
+          {
+            finalPayloadAt,
+            ...(typeof ackToFinalPayloadMs === 'number' ? { ackToFinalPayloadMs } : {}),
+          },
+          'finalPayloadAt'
+        )
+        if (didSet) {
+          try {
+            await repo.traceAddEvent(jobId, {
+              spanId: 'extract',
+              name: 'secretary_final_payload_received',
+              attributes: {
+                finalPayloadAt,
+                ...(typeof ackToFinalPayloadMs === 'number' ? { ackToFinalPayloadMs } : {}),
+              },
+            })
+          } catch {}
+        }
+      }
+    } catch {}
     // Diagnose: Eingang loggen (erweitert für Debugging)
     try {
       const bodyDataKeys = body?.data && typeof body.data === 'object' ? Object.keys(body.data as Record<string, unknown>) : []
@@ -524,17 +602,6 @@ export async function POST(
 
     const extractStepName = getExtractStepName(job.job_type)
 
-    // Schrittstatus extract_* auf completed setzen, sobald Ergebnis vorliegt
-    // WICHTIG: nicht überschreiben, wenn bereits zuvor (z. B. im Retry-Gate) als completed markiert
-    if (extractedText) {
-      try {
-        const latest = await repo.get(jobId)
-        const st = Array.isArray(latest?.steps) ? latest!.steps!.find(s => s?.name === extractStepName) : undefined
-        const alreadyCompleted = !!st && st.status === 'completed'
-        if (!alreadyCompleted) await repo.updateStep(jobId, extractStepName, { status: 'completed', endedAt: new Date() })
-      } catch {}
-    }
-
     if (lib) {
       const policies = readPhasesAndPolicies(ctx);
       const autoSkip = true;
@@ -559,8 +626,9 @@ export async function POST(
         // Die Schritte sollten unabhängig voneinander ihre Ergebnisse speichern.
         if (extractedText) {
           try {
-            const { writeArtifact } = await import('@/lib/shadow-twin/artifact-writer')
+            const { saveMarkdown } = await import('@/lib/external-jobs/storage')
             const { stripAllFrontmatter } = await import('@/lib/markdown/frontmatter')
+            const { buildArtifactName } = await import('@/lib/shadow-twin/artifact-naming')
             const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
             const sourceItemId = job.correlation.source?.itemId || 'unknown'
             const sourceName = job.correlation.source?.name || 'output'
@@ -572,31 +640,115 @@ export async function POST(
               targetLanguage: lang,
             }
             
+            // Generiere Dateinamen mit zentraler Logik
+            const transcriptFileName = buildArtifactName(artifactKey, sourceName)
+            
             // Speichere Markdown OHNE Frontmatter (reines Transcript)
             // Frontmatter wird erst bei Template-Phase hinzugefügt
             const cleanText = stripAllFrontmatter(extractedText)
             
-            // WICHTIG: Wenn shadowTwinFolderId vorhanden ist, ist parentId bereits das Shadow-Twin-Verzeichnis.
-            // In diesem Fall sollte createFolder false sein, da das Verzeichnis bereits existiert.
-            const createFolder = !shadowTwinFolderId
+            // Sammle ZIP-Daten für direkten Upload (wenn persistToFilesystem=false)
+            // WICHTIG: Bilder müssen hier gesammelt werden, damit sie mit dem Transcript in MongoDB gespeichert werden
+            const library = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
+            const shadowTwinConfig = getShadowTwinConfig(library)
+            const persistToFilesystem = shadowTwinConfig.persistToFilesystem ?? true
             
-            // Nutze zentrale writeArtifact() Logik
-            const writeResult = await writeArtifact(provider, {
-              key: artifactKey,
-              sourceName,
+            const zipArchives: Array<{ base64Data: string; fileName: string }> = []
+            if (!persistToFilesystem && imagesPhaseEnabled) {
+              // Hilfsfunktion: Lade ZIP von URL herunter und konvertiere zu Base64
+              const downloadZipAsBase64 = async (url: string): Promise<string | undefined> => {
+                try {
+                  const { getSecretaryConfig } = await import('@/lib/env')
+                  const { baseUrl: baseRaw } = getSecretaryConfig()
+                  const isAbsolute = /^https?:\/\//i.test(url)
+                  let archiveUrl = url
+                  if (!isAbsolute) {
+                    const base = baseRaw.replace(/\/$/, '')
+                    const rel = url.startsWith('/') ? url : `/${url}`
+                    archiveUrl = base.endsWith('/api') && rel.startsWith('/api/') 
+                      ? `${base}${rel.substring(4)}` 
+                      : `${base}${rel}`
+                  }
+                  
+                  const headers: Record<string, string> = {}
+                  const { apiKey } = getSecretaryConfig()
+                  if (apiKey) {
+                    headers['Authorization'] = `Bearer ${apiKey}`
+                    headers['X-Secretary-Api-Key'] = apiKey
+                  }
+                  
+                  const response = await fetch(archiveUrl, { method: 'GET', headers })
+                  if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+                  }
+                  const arrayBuffer = await response.arrayBuffer()
+                  const buffer = Buffer.from(arrayBuffer)
+                  return buffer.toString('base64')
+                } catch (error) {
+                  FileLogger.warn('callback-route', 'Fehler beim Herunterladen von ZIP-URL', {
+                    url,
+                    error: error instanceof Error ? error.message : String(error),
+                  })
+                  return undefined
+                }
+              }
+              
+              // Sammle ZIP-Daten von URLs herunter
+              if (pagesArchiveUrl && !pagesArchiveData) {
+                const base64Data = await downloadZipAsBase64(pagesArchiveUrl)
+                if (base64Data) {
+                  zipArchives.push({
+                    base64Data,
+                    fileName: (body?.data as { pages_archive_filename?: string })?.pages_archive_filename || 'pages.zip',
+                  })
+                }
+              }
+              
+              if (imagesArchiveUrlFromWorker && !imagesArchiveData) {
+                const base64Data = await downloadZipAsBase64(imagesArchiveUrlFromWorker)
+                if (base64Data) {
+                  zipArchives.push({
+                    base64Data,
+                    fileName: (body?.data as { images_archive_filename?: string })?.images_archive_filename || 'images.zip',
+                  })
+                }
+              }
+              
+              if (mistralOcrImagesUrl) {
+                const base64Data = await downloadZipAsBase64(mistralOcrImagesUrl)
+                if (base64Data) {
+                  zipArchives.push({
+                    base64Data,
+                    fileName: 'mistral_ocr_images.zip',
+                  })
+                }
+              }
+            }
+            
+            // Nutze saveMarkdown() für MongoDB-Unterstützung
+            const savedResult = await saveMarkdown({
+              ctx,
               parentId: targetParentId,
-              content: cleanText,
-              createFolder,
+              fileName: transcriptFileName,
+              markdown: cleanText,
+              artifactKey,
+              zipArchives: zipArchives.length > 0 ? zipArchives : undefined,
+              jobId,
             })
 
             // If the transcript write created/used a dot-folder, use it for all subsequent phases in this callback.
             // This ensures transformations are stored next to the transcript (Shadow‑Twin truth).
-            if (!shadowTwinFolderId && writeResult.shadowTwinFolderId) {
-              shadowTwinFolderId = writeResult.shadowTwinFolderId
-              targetParentId = shadowTwinFolderId
+            // WICHTIG: Bei MongoDB-only wird kein shadowTwinFolderId erstellt, daher prüfen wir den Job-State
+            if (!shadowTwinFolderId) {
+              const updatedJob = await repo.get(jobId)
+              const updatedShadowTwinFolderId = updatedJob?.shadowTwinState?.shadowTwinFolderId
+              if (updatedShadowTwinFolderId) {
+                shadowTwinFolderId = updatedShadowTwinFolderId
+                targetParentId = shadowTwinFolderId
+              }
             }
 
-            // Trace: Transcript-Speicherung explizit als Event persistieren (bufferLog allein ist im Trace nicht sichtbar).
+            // Trace: Transcript-Speicherung explizit als Event persistieren
             try {
               const parentPath = await provider.getPathById(targetParentId).catch(() => null)
               await repo.traceAddEvent(jobId, {
@@ -608,12 +760,11 @@ export async function POST(
                   templateName: (artifactKey as { templateName?: string }).templateName || null,
                   parentId: targetParentId,
                   shadowTwinFolderId: shadowTwinFolderId || null,
-                  location: writeResult.location,
-                  wasUpdated: writeResult.wasUpdated,
-                  fileId: writeResult.file.id,
-                  fileName: writeResult.file.metadata.name,
+                  fileId: savedResult.savedItemId,
+                  fileName: transcriptFileName,
                   contentLength: cleanText.length,
-                  path: parentPath ? `${parentPath}/${writeResult.file.metadata.name}` : null,
+                  path: parentPath ? `${parentPath}/${transcriptFileName}` : null,
+                  zipArchivesCount: zipArchives.length,
                 },
               })
             } catch {
@@ -625,17 +776,20 @@ export async function POST(
               message: `Transcript-Markdown gespeichert${shadowTwinFolderId ? ' im Shadow-Twin-Verzeichnis' : ' direkt im Parent'}`,
               parentId: targetParentId,
               shadowTwinFolderId: shadowTwinFolderId || null,
-              savedItemId: writeResult.file.id,
-              fileName: writeResult.file.metadata.name,
+              savedItemId: savedResult.savedItemId,
+              fileName: transcriptFileName,
             })
             
             // WICHTIG: Shadow-Twin-State nach dem Speichern aktualisieren
             // Dies stellt sicher, dass das Shadow-Twin-State im Job-Dokument aktualisiert wird
-            if (writeResult.file.id && job.correlation?.source?.itemId) {
+            if (savedResult.savedItemId && job.correlation?.source?.itemId) {
               try {
-                const { analyzeShadowTwin } = await import('@/lib/shadow-twin/analyze-shadow-twin')
+                const { analyzeShadowTwinWithService } = await import('@/lib/shadow-twin/analyze-shadow-twin')
                 const { toMongoShadowTwinState } = await import('@/lib/shadow-twin/shared')
-                const updatedShadowTwinState = await analyzeShadowTwin(job.correlation.source.itemId, provider)
+                const { LibraryService } = await import('@/lib/services/library-service')
+                const library = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
+                const lang = (job.correlation?.options as { targetLanguage?: string } | undefined)?.targetLanguage || 'de'
+                const updatedShadowTwinState = await analyzeShadowTwinWithService(job.correlation.source.itemId, provider, job.userEmail, library, lang)
                 if (updatedShadowTwinState) {
                   const mongoState = toMongoShadowTwinState({
                     ...updatedShadowTwinState,
@@ -671,11 +825,20 @@ export async function POST(
           }
         }
 
-        // WICHTIG: Bilder werden in Phase 1 (Extract) verarbeitet, nicht in Phase 2 (Template)
-        // Die Bilder werden beim Extract erstellt und sollten dort auch gespeichert werden
+        // WICHTIG: Bilder-Verarbeitung hängt von persistToFilesystem ab:
+        // - persistToFilesystem=true: Bilder werden in Phase 1 verarbeitet (Filesystem)
+        // - persistToFilesystem=false: Bilder werden beim Transcript-Speichern verarbeitet (direkt nach Azure/MongoDB)
         // Für Audio/Video: Images-Phase ist irrelevant und wird als disabled behandelt.
         const imagesPhaseEnabledEffective = (job.job_type === 'pdf') ? imagesPhaseEnabled : false
-        if (extractedText && imagesPhaseEnabledEffective) {
+        
+        // Prüfe Shadow-Twin-Konfiguration für Bilder-Verarbeitung
+        const libraryForImages = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
+        const shadowTwinConfigForImages = getShadowTwinConfig(libraryForImages)
+        const persistToFilesystemForImages = shadowTwinConfigForImages.persistToFilesystem ?? true
+        
+        // Bilder nur in Phase 1 verarbeiten, wenn persistToFilesystem=true
+        // Wenn persistToFilesystem=false, werden Bilder beim Transcript-Speichern verarbeitet (via zipArchives)
+        if (extractedText && imagesPhaseEnabledEffective && persistToFilesystemForImages) {
           try {
             const { processAllImageSources } = await import('@/lib/external-jobs/images')
             const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
@@ -699,7 +862,7 @@ export async function POST(
             
             bufferLog(jobId, {
               phase: 'extract_images_processed',
-              message: 'Bilder-Verarbeitung in Phase 1 (Extract) abgeschlossen'
+              message: 'Bilder-Verarbeitung in Phase 1 (Extract) abgeschlossen (Filesystem)'
             })
           } catch (error) {
             bufferLog(jobId, {
@@ -708,14 +871,37 @@ export async function POST(
             })
             // Fehler nicht kritisch - Template-Phase kann trotzdem fortgesetzt werden
           }
+        } else if (extractedText && imagesPhaseEnabledEffective && !persistToFilesystemForImages) {
+          bufferLog(jobId, {
+            phase: 'extract_images_skipped',
+            message: 'Bilder-Verarbeitung in Phase 1 übersprungen (persistToFilesystem=false) - Bilder werden beim Transcript-Speichern direkt nach Azure/MongoDB hochgeladen'
+          })
+        }
+
+        // Schrittstatus extract_* erst nach lokaler Persistenz setzen.
+        // Motivation: Speichern (MongoDB/Blob/Filesystem) ist Teil unserer Extract-Pipeline und soll
+        // zeitlich dem Extract-Span zugerechnet werden (statt als eigener "postprocessing"-Block aufzutauchen).
+        if (extractedText) {
+          try {
+            const latest = await repo.get(jobId)
+            const st = Array.isArray(latest?.steps) ? latest!.steps!.find(s => s?.name === extractStepName) : undefined
+            const alreadyCompleted = !!st && st.status === 'completed'
+            if (!alreadyCompleted) await repo.updateStep(jobId, extractStepName, { status: 'completed', endedAt: new Date() })
+          } catch {}
         }
 
         // Optionale Template-Verarbeitung (Phase 2) - vereinfacht via runTemplatePhase
         const fmFromBodyUnknown = (body?.data?.metadata as unknown) || null
         const fmFromBody = (fmFromBodyUnknown && typeof fmFromBodyUnknown === 'object' && !Array.isArray(fmFromBodyUnknown)) ? (fmFromBodyUnknown as Record<string, unknown>) : null
 
-        // WICHTIG: Bilder werden nicht mehr in der Template-Phase verarbeitet
-        // Sie wurden bereits in Phase 1 (Extract) verarbeitet
+        // WICHTIG: ZIP-Daten gehören zur Phase 1 (Extract) und wurden bereits dort hochgeladen.
+        // ZIP-Daten können jedoch für Template-Information benötigt werden (z.B. Seiten-Metadaten).
+        // Daher werden ZIP-Daten an Phase 2 übergeben, aber imagesPhaseEnabled=false gesetzt,
+        // damit keine Bilder mehr hochgeladen werden (Bilder wurden bereits in Phase 1 hochgeladen).
+        // Phase 2 speichert nur das transformierte Markdown (ohne Bilder hochzuladen).
+        // Falls Phase 2 eigene Assets erzeugt, werden diese am Ende von Phase 2 gespeichert.
+        // Das Shadow-Twin reichert sich von Phase zu Phase an.
+        
         const templateResult = await runTemplatePhase({
           ctx,
           provider,
@@ -724,16 +910,17 @@ export async function POST(
           bodyMetadata: fmFromBody || undefined,
           policies: { metadata: policies.metadata as 'force' | 'skip' | 'auto' | 'ignore' | 'do' },
           autoSkip,
-          imagesPhaseEnabled: false, // Bilder werden nicht mehr in Template-Phase verarbeitet
-          pagesArchiveData: undefined, // Nicht mehr benötigt - Bilder wurden bereits in Phase 1 verarbeitet
-          pagesArchiveUrl: undefined,
-          pagesArchiveFilename: undefined,
-          imagesArchiveData: undefined,
-          imagesArchiveFilename: undefined,
-          imagesArchiveUrl: undefined,
-          mistralOcrRaw: undefined,
-          hasMistralOcrImages: false,
-          mistralOcrImagesUrl: undefined,
+          imagesPhaseEnabled: false, // Keine Bilder hochladen - wurden bereits in Phase 1 hochgeladen
+          // ZIP-Daten können für Template-Info benötigt werden, aber nicht für Bild-Upload
+          pagesArchiveData: pagesArchiveData, // Für Template-Info verfügbar
+          pagesArchiveUrl: pagesArchiveUrl, // Für Template-Info verfügbar
+          pagesArchiveFilename: (body?.data as { pages_archive_filename?: string })?.pages_archive_filename,
+          imagesArchiveData: imagesArchiveData, // Für Template-Info verfügbar
+          imagesArchiveFilename: (body?.data as { images_archive_filename?: string })?.images_archive_filename,
+          imagesArchiveUrl: imagesArchiveUrlFromWorker, // Für Template-Info verfügbar
+          mistralOcrRaw: mistralOcrRaw, // Für Template-Info verfügbar
+          hasMistralOcrImages: hasMistralOcrImages,
+          mistralOcrImagesUrl: mistralOcrImagesUrl, // Für Template-Info verfügbar
           targetParentId,
           libraryConfig: undefined, // libraryConfig wird derzeit nicht verwendet
         })
@@ -766,7 +953,7 @@ export async function POST(
 
         // WICHTIG (Global Contract / HITL):
         // In seltenen Duplicate-Callback/Retry-Fällen kann `templateResult.savedItemId` leer sein,
-        // obwohl die Transformationsdatei bereits gespeichert wurde (siehe Trace: postprocessing_saved).
+        // obwohl die Transformationsdatei bereits gespeichert wurde (siehe Trace: artifact_saved).
         // Dann leiten wir die Datei deterministisch über den Artifact-Resolver aus dem Shadow‑Twin ab.
         if (!savedItemId) {
           try {
@@ -908,20 +1095,41 @@ export async function POST(
       : 400);
     const message = (anyErr && typeof anyErr.message === 'string') ? anyErr.message : (status === 401 ? 'Unauthorized' : status === 404 ? 'Not Found' : status === 409 ? 'Conflict' : 'Invalid payload');
     const code = codeRaw || (status === 401 ? 'unauthorized' : status === 404 ? 'not_found' : status === 409 ? 'conflict' : 'invalid_payload');
+    // WICHTIG:
+    // Transiente Netzwerkfehler dürfen einen Job nicht dauerhaft als failed markieren.
+    // Sonst "endet" der Job-Span frühzeitig (setStatus() beendet root-span) und spätere erfolgreiche
+    // Callbacks können die Timeline nicht mehr korrigieren (endedAt wird nur einmal gesetzt).
+    const isTransientNetworkError =
+      /ECONNRESET|ETIMEDOUT|ECONNREFUSED|EAI_AGAIN|ENOTFOUND|fetch failed/i.test(message)
+      || /ECONNRESET|ETIMEDOUT|ECONNREFUSED|EAI_AGAIN|ENOTFOUND/i.test(code);
 
     try {
       const { jobId } = await params;
       const repo = new ExternalJobsRepository();
       const job = await repo.get(jobId);
       if (job) {
-        bufferLog(jobId, { phase: 'failed', message });
-        await repo.appendLog(jobId, { phase: 'failed', message, details: { code, status } } as unknown as Record<string, unknown>);
+        if (isTransientNetworkError) {
+          bufferLog(jobId, { phase: 'transient_error', message });
+          await repo.appendLog(jobId, { phase: 'transient_error', message, details: { code, status } } as unknown as Record<string, unknown>);
+          try {
+            await repo.traceAddEvent(jobId, {
+              spanId: 'template',
+              name: 'transient_error',
+              level: 'warn',
+              message,
+              attributes: { code, status },
+            })
+          } catch {}
+        } else {
+          bufferLog(jobId, { phase: 'failed', message });
+          await repo.appendLog(jobId, { phase: 'failed', message, details: { code, status } } as unknown as Record<string, unknown>);
+        }
         // WICHTIG:
         // 401/unauthorized sind i.d.R. Auth-/Token-Themen (z.B. falscher Bearer-Token oder alte Callbacks).
         // Das darf einen bereits laufenden Job NICHT dauerhaft als failed markieren, sonst "flippt"
         // der Job-Status kurz auf failed und Tests/UI brechen ab, obwohl der korrekte Prozess später
         // erfolgreich fertig wird.
-        if (status !== 401) {
+        if (status !== 401 && !isTransientNetworkError) {
           await handleJobErrorWithDetails(
             new Error(message),
             {

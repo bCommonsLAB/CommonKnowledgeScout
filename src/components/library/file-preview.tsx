@@ -602,6 +602,7 @@ function PreviewContent({
               <div className="h-full overflow-hidden rounded border">
                 <SourceAndTranscriptPane
                   provider={provider}
+                  libraryId={activeLibraryId}
                   sourceFile={item}
                   streamingUrl={null}
                   transcriptItem={transcript.transcriptItem}
@@ -617,6 +618,7 @@ function PreviewContent({
                   titleClassName="text-xs text-muted-foreground font-normal"
                   item={transcript.transcriptItem}
                   provider={provider}
+                  libraryId={activeLibraryId || undefined}
                   emptyHint="Noch kein Transkript vorhanden."
                   additionalActions={
                     transcript.transcriptItem && ['pdf', 'audio', 'markdown'].includes(fileType) ? (
@@ -734,6 +736,7 @@ function PreviewContent({
                   onOpenChange={setIsEditOpen}
                   item={transformItem}
                   provider={provider}
+                  libraryId={activeLibraryId || undefined}
                   onSaved={(saved) => {
                     if (saved) setTransformItem(saved)
                   }}
@@ -855,6 +858,7 @@ function PreviewContent({
                   onOpenChange={setIsEditOpen}
                   item={item}
                   provider={provider}
+                  libraryId={activeLibraryId || undefined}
                   onSaved={(saved) => {
                     if (!provider) return
                     const loadSavedContent = async () => {
@@ -889,6 +893,7 @@ function PreviewContent({
                       titleClassName="text-xs text-muted-foreground font-normal"
                       item={item}
                       provider={provider}
+                      libraryId={activeLibraryId || undefined}
                       emptyHint="Kein Inhalt verfügbar"
                       stripFrontmatter={false}
                       onSaved={(saved) => {
@@ -979,6 +984,7 @@ function PreviewContent({
                   onOpenChange={setIsEditOpen}
                   item={transformItem}
                   provider={provider}
+                  libraryId={activeLibraryId || undefined}
                   onSaved={(saved) => {
                     if (saved) setTransformItem(saved)
                   }}
@@ -1053,6 +1059,7 @@ function PreviewContent({
               <div className="h-full overflow-hidden rounded border">
                 <SourceAndTranscriptPane
                   provider={provider}
+                  libraryId={activeLibraryId}
                   sourceFile={item}
                   streamingUrl={null}
                   transcriptItem={transcript.transcriptItem}
@@ -1068,6 +1075,7 @@ function PreviewContent({
                   titleClassName="text-xs text-muted-foreground font-normal"
                   item={transcript.transcriptItem}
                   provider={provider}
+                  libraryId={activeLibraryId || undefined}
                   emptyHint="Noch kein Transkript vorhanden."
                   additionalActions={
                     transcript.transcriptItem && ['pdf', 'audio', 'markdown'].includes(fileType) ? (
@@ -1185,6 +1193,7 @@ function PreviewContent({
                   onOpenChange={setIsEditOpen}
                   item={transformItem}
                   provider={provider}
+                  libraryId={activeLibraryId || undefined}
                   onSaved={(saved) => {
                     if (saved) setTransformItem(saved)
                   }}

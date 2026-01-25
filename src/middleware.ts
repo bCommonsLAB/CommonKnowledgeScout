@@ -169,6 +169,21 @@ export default clerkMiddleware(async (auth, req) => {
 
   }
 
+  // Dynamische Ausnahme (Agent/CI): /api/integration-tests/* nur mit validem Internal Token zulassen.
+  // Hintergrund: Clerk maskiert private API-Routen für anonyme Requests als 404.
+  // Der Integrationstest-Runner arbeitet absichtlich ohne Browser-Session.
+  if (!isPublic) {
+    const path = req.nextUrl.pathname;
+    const isIntegrationTestsApi = path.startsWith('/api/integration-tests/');
+    if (isIntegrationTestsApi) {
+      const internalToken = String(req.headers.get('X-Internal-Token') || '').trim();
+      const expected = String(process.env.INTERNAL_TEST_TOKEN || '').trim();
+      if (expected.length > 0 && internalToken === expected) {
+        isPublic = true;
+      }
+    }
+  }
+
   // console.debug(`[Middleware] isPublicRoute: ${isPublic}`);
   
   if (isPublic) return response;

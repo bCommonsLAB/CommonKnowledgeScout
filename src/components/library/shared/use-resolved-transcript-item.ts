@@ -4,6 +4,7 @@ import * as React from "react"
 
 import type { StorageItem, StorageProvider } from "@/lib/storage/types"
 import { resolveArtifactClient } from "@/lib/shadow-twin/artifact-client"
+import { isMongoShadowTwinId } from "@/lib/shadow-twin/mongo-shadow-twin-id"
 
 export interface ResolvedTranscriptItemResult {
   transcriptItem: StorageItem | null
@@ -46,6 +47,24 @@ export function useResolvedTranscriptItem(args: {
         if (cancelled) return
         if (!resolved?.fileId) {
           setState({ transcriptItem: null, isLoading: false, error: null })
+          return
+        }
+
+        if (isMongoShadowTwinId(resolved.fileId)) {
+          const virtualItem: StorageItem = {
+            id: resolved.fileId,
+            parentId: sourceFile.parentId,
+            type: "file",
+            metadata: {
+              name: resolved.fileName,
+              size: 0,
+              modifiedAt: new Date(),
+              mimeType: "text/markdown",
+              isTwin: true,
+            },
+          }
+          if (cancelled) return
+          setState({ transcriptItem: virtualItem, isLoading: false, error: null })
           return
         }
 

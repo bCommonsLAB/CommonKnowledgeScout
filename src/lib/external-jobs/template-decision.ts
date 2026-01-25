@@ -41,8 +41,8 @@ export async function decideTemplateRun(args: TemplateDecisionArgs): Promise<Tem
     void (await provider.getPathById(parentId))
     const rawName = ctx.job.correlation?.source?.name || 'document.pdf'
     const lang = (ctx.job.correlation.options?.targetLanguage as string | undefined) || 'de'
-    const baseName = rawName.replace(/\.[^./\\]+$/, '')
-    const uniqueName = `${baseName}.${lang}.md`
+    const sourceItemId = ctx.job.correlation?.source?.itemId || 'unknown'
+    const uniqueName = buildArtifactName({ sourceId: sourceItemId, kind: 'transcript', targetLanguage: lang }, rawName)
     const siblings = await provider.listItemsById(parentId)
     const existing = siblings.find(it => it.type === 'file' && (it as { metadata: { name: string } }).metadata.name === uniqueName) as { id: string } | undefined
     if (existing) {

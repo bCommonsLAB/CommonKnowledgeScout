@@ -6,12 +6,15 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { TextEditor } from "@/components/library/text-editor"
 import type { StorageItem, StorageProvider } from "@/lib/storage/types"
 import { FileLogger } from "@/lib/debug/logger"
+import { isMongoShadowTwinId, parseMongoShadowTwinId } from "@/lib/shadow-twin/mongo-shadow-twin-id"
+import { fetchShadowTwinMarkdown, updateShadowTwinMarkdown } from "@/lib/shadow-twin/shadow-twin-mongo-client"
 
 interface ArtifactEditDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   item: StorageItem | null
   provider: StorageProvider | null
+  libraryId?: string
   onSaved?: (item: StorageItem) => void
 }
 
@@ -20,6 +23,7 @@ export function ArtifactEditDialog({
   onOpenChange,
   item,
   provider,
+  libraryId,
   onSaved,
 }: ArtifactEditDialogProps) {
   const [content, setContent] = React.useState("")
@@ -32,7 +36,7 @@ export function ArtifactEditDialog({
 
     async function load() {
       if (!open) return
-      if (!provider || !item?.id) {
+      if (!item?.id) {
         setContent("")
         setError(null)
         return
@@ -41,6 +45,22 @@ export function ArtifactEditDialog({
       try {
         setIsLoading(true)
         setError(null)
+
+        if (isMongoShadowTwinId(item.id)) {
+          const parts = parseMongoShadowTwinId(item.id)
+          if (!parts || !libraryId) {
+            throw new Error("Mongo-ID ohne Library-Kontext.")
+          }
+          const text = await fetchShadowTwinMarkdown(libraryId, parts)
+          if (cancelled) return
+          setContent(text)
+          return
+        }
+
+        if (!provider) {
+          throw new Error("Storage-Provider fehlt.")
+        }
+
         const { blob } = await provider.getBinary(item.id)
         const text = await blob.text()
         if (cancelled) return
@@ -59,7 +79,7 @@ export function ArtifactEditDialog({
     return () => {
       cancelled = true
     }
-  }, [open, provider, item?.id])
+  }, [open, provider, item?.id, libraryId])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -77,16 +97,30 @@ export function ArtifactEditDialog({
               content={content}
               provider={provider}
               onSaveAction={async (nextContent: string) => {
-                if (!provider || !item) throw new Error("Provider oder Datei fehlt.")
-                if (!item.parentId) throw new Error("Parent-Ordner fehlt.")
-
-                const blob = new Blob([nextContent], { type: "text/markdown" })
-                const file = new File([blob], item.metadata.name, { type: "text/markdown" })
+                if (!item) throw new Error("Datei fehlt.")
 
                 FileLogger.info("ArtifactEditDialog", "Speichern gestartet", {
                   itemId: item.id,
                   itemName: item.metadata.name,
                 })
+
+                if (isMongoShadowTwinId(item.id)) {
+                  const parts = parseMongoShadowTwinId(item.id)
+                  if (!parts || !libraryId) {
+                    throw new Error("Mongo-ID ohne Library-Kontext.")
+                  }
+                  await updateShadowTwinMarkdown(libraryId, parts, nextContent)
+                  setContent(nextContent)
+                  onSaved?.(item)
+                  onOpenChange(false)
+                  return
+                }
+
+                if (!provider) throw new Error("Storage-Provider fehlt.")
+                if (!item.parentId) throw new Error("Parent-Ordner fehlt.")
+
+                const blob = new Blob([nextContent], { type: "text/markdown" })
+                const file = new File([blob], item.metadata.name, { type: "text/markdown" })
 
                 // Storage-Provider bieten kein In-Place-Update, daher replace via delete+upload.
                 await provider.deleteItem(item.id)

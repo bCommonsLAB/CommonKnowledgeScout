@@ -3,6 +3,8 @@ import { FileLogger } from '@/lib/debug/logger'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
 import { AzureStorageService, calculateImageHash } from '@/lib/services/azure-storage-service'
 import { getAzureStorageConfig } from '@/lib/config/azure-storage'
+import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
+import { getShadowTwinBinaryFragments } from '@/lib/repositories/shadow-twin-repo'
 
 export interface ImageProcessingError {
   imagePath?: string
@@ -180,6 +182,66 @@ export class ImageProcessor {
             
             if (!containerCheck.containerName) {
               return { success: false, match, pattern, imagePath, error: 'Container-Name nicht verfügbar' }
+            }
+
+            // OPTIMIERUNG: Prüfe zuerst MongoDB binaryFragments, ob das Bild bereits vorhanden ist
+            // Dies vermeidet unnötige Uploads, wenn Bilder bereits in Phase 1 hochgeladen wurden
+            let sourceId: string | null = null
+            if (isMongoShadowTwinId(fileId)) {
+              // MongoDB Shadow-Twin ID: Extrahiere sourceId
+              const parts = parseMongoShadowTwinId(fileId)
+              if (parts) {
+                sourceId = parts.sourceId
+              }
+            } else {
+              // Normale fileId: Verwende baseItem.id als sourceId
+              sourceId = baseItem.id
+            }
+
+            // Prüfe MongoDB binaryFragments, wenn sourceId verfügbar ist
+            if (sourceId) {
+              try {
+                const binaryFragments = await getShadowTwinBinaryFragments(libraryId, sourceId)
+                if (binaryFragments) {
+                  // Extrahiere Dateiname aus normalizedPath (z.B. "img-0.jpeg" aus "img-0.jpeg" oder "page-001.png")
+                  const fileName = normalizedPath.path.split('/').pop() || normalizedPath.path
+                  
+                  // Suche nach passendem Fragment (anhand Dateiname)
+                  const fragment = binaryFragments.find(f => f.name === fileName || f.name.endsWith(fileName))
+                  
+                  if (fragment && fragment.url) {
+                    // Bild bereits in MongoDB vorhanden - verwende URL direkt
+                    FileLogger.info('ingestion', 'Bild aus MongoDB binaryFragments gefunden', {
+                      fileId,
+                      sourceId,
+                      fileName,
+                      azureUrl: fragment.url,
+                      imagePath: normalizedPath.path,
+                    })
+                    if (jobId) {
+                      bufferLog(jobId, {
+                        phase: 'markdown_image_from_mongo',
+                        message: `Bild ${fileName}: URL aus MongoDB verwendet (kein Upload nötig)`,
+                      })
+                    }
+                    
+                    // Cache die URL für zukünftige Verwendungen
+                    if (fragment.hash) {
+                      const cacheKey = this.getImageCacheKey(libraryId, scope, fragment.hash, extension)
+                      this.imageCache.set(cacheKey, fragment.url)
+                    }
+                    
+                    return { success: true, match, pattern, imagePath, azureUrl: fragment.url }
+                  }
+                }
+              } catch (mongoError) {
+                // MongoDB-Prüfung fehlgeschlagen - nicht kritisch, verwende normalen Upload-Pfad
+                FileLogger.warn('ingestion', 'Fehler beim Prüfen von MongoDB binaryFragments', {
+                  fileId,
+                  sourceId,
+                  error: mongoError instanceof Error ? mongoError.message : String(mongoError),
+                })
+              }
             }
 
             // Performance-Optimierung: Prüfe zuerst, ob wir das Bild bereits kennen

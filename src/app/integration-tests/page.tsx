@@ -32,12 +32,40 @@ interface TestSummary {
   skipped: number;
 }
 
+interface UiRunListItem {
+  runId: string;
+  createdAt: string;
+  userEmail: string;
+  libraryId: string;
+  folderId: string;
+  testCaseIds: string[];
+  fileIds?: string[];
+  jobTimeoutMs?: number;
+  templateName?: string;
+  notesCount?: number;
+  summary: TestSummary;
+}
+
+interface UiRunNote {
+  noteId: string;
+  createdAt: string;
+  authorType: 'auto' | 'agent' | 'user';
+  authorEmail?: string;
+  title?: string;
+  analysisMarkdown: string;
+  nextStepsMarkdown: string;
+}
+
 export default function IntegrationTestsPage() {
   const [activeLibrary] = useAtom(activeLibraryAtom);
   const [currentFolderId] = useAtom(currentFolderIdAtom);
   const currentPathItems = useAtomValue(currentPathAtom);
 
   const [selectedIds, setSelectedIds] = useState<string[]>(integrationTestCases.map(tc => tc.id));
+  const [suiteFilter, setSuiteFilter] = useState<'all' | 'pdf' | 'audio'>('all');
+  const [fileKind, setFileKind] = useState<'pdf' | 'audio'>('pdf');
+  const [availableFiles, setAvailableFiles] = useState<Array<{ id: string; name: string; mimeType?: string }>>([]);
+  const [selectedFileId, setSelectedFileId] = useState<string>('');
   const [fileIdsInput, setFileIdsInput] = useState('');
   const [timeoutMs, setTimeoutMs] = useState('600000');
   const [running, setRunning] = useState(false);
@@ -46,6 +74,15 @@ export default function IntegrationTestsPage() {
   const [summary, setSummary] = useState<TestSummary | null>(null);
   const [templates, setTemplates] = useState<Array<{ name: string; id?: string }>>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('auto');
+  const [recentRuns, setRecentRuns] = useState<UiRunListItem[]>([]);
+  const [recentRunsError, setRecentRunsError] = useState<string | null>(null);
+  const [loadingRecentRuns, setLoadingRecentRuns] = useState(false);
+  const [lastRunId, setLastRunId] = useState<string | null>(null);
+  const [runNotes, setRunNotes] = useState<UiRunNote[]>([]);
+  const [noteTitle, setNoteTitle] = useState('Analyse & Next Steps');
+  const [noteAnalysis, setNoteAnalysis] = useState('');
+  const [noteNextSteps, setNoteNextSteps] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
 
   const allSelected = useMemo(
     () => selectedIds.length === integrationTestCases.length,
@@ -89,6 +126,181 @@ export default function IntegrationTestsPage() {
     }
     void loadTemplates();
   }, [activeLibrary?.id]);
+
+  // Suite-Filter: schnelle Umschaltung PDF/AUDIO (überschreibt die manuelle Auswahl)
+  useEffect(() => {
+    if (suiteFilter === 'all') {
+      setSelectedIds(integrationTestCases.map(tc => tc.id));
+      return;
+    }
+    setSelectedIds(integrationTestCases.filter(tc => tc.target === suiteFilter).map(tc => tc.id));
+  }, [suiteFilter]);
+
+  // Datei-Liste für den aktuellen Ordner + Dateityp laden (UI Vereinfachung)
+  useEffect(() => {
+    async function loadFiles() {
+      if (!activeLibrary?.id) {
+        setAvailableFiles([]);
+        return;
+      }
+      try {
+        const qs = new URLSearchParams();
+        qs.set('libraryId', activeLibrary.id);
+        qs.set('folderId', currentFolderId || 'root');
+        qs.set('kind', fileKind);
+        const res = await fetch(`/api/integration-tests/files?${qs.toString()}`);
+        if (!res.ok) {
+          setAvailableFiles([]);
+          return;
+        }
+        const json = (await res.json()) as { files?: Array<{ id: string; name: string; mimeType?: string }> };
+        setAvailableFiles(Array.isArray(json.files) ? json.files : []);
+      } catch {
+        setAvailableFiles([]);
+      }
+    }
+    void loadFiles();
+  }, [activeLibrary?.id, currentFolderId, fileKind]);
+
+  // Wenn in der UI eine Datei gewählt wurde, füllen wir die (legacy) File-IDs Eingabe automatisch.
+  useEffect(() => {
+    if (!selectedFileId) return;
+    setFileIdsInput(selectedFileId);
+  }, [selectedFileId]);
+
+  async function refreshRecentRuns(): Promise<void> {
+    setLoadingRecentRuns(true);
+    setRecentRunsError(null);
+    try {
+      const qs = new URLSearchParams();
+      qs.set('limit', '25');
+      // Filter: In der UI macht es Sinn, nur Runs für die aktuell gewählte Library/Folder zu zeigen.
+      if (activeLibrary?.id) qs.set('libraryId', activeLibrary.id);
+      // Folder-Filter nur anwenden, wenn wirklich ein konkreter Folder gewählt ist.
+      // Viele Sessions sind initial auf "root" → dann wollen wir trotzdem die letzten Runs sehen.
+      if (currentFolderId && currentFolderId !== 'root') qs.set('folderId', currentFolderId);
+      const res = await fetch(`/api/integration-tests/runs?${qs.toString()}`);
+      if (!res.ok) {
+        setRecentRunsError(`HTTP ${res.status} ${res.statusText}`);
+        setRecentRuns([]);
+        return;
+      }
+      const json = (await res.json()) as { runs?: UiRunListItem[] };
+      setRecentRuns(Array.isArray(json.runs) ? json.runs : []);
+    } catch (e) {
+      setRecentRunsError(e instanceof Error ? e.message : String(e));
+      setRecentRuns([]);
+    } finally {
+      setLoadingRecentRuns(false);
+    }
+  }
+
+  async function loadRun(runId: string): Promise<void> {
+    setRunning(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/integration-tests/runs/${encodeURIComponent(runId)}`);
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: unknown };
+        const msg =
+          data && typeof data.error === 'string'
+            ? data.error
+            : `HTTP ${res.status} ${res.statusText}`;
+        setError(msg);
+        return;
+      }
+      const json = (await res.json()) as {
+        results?: UiResultItem[];
+        summary?: TestSummary;
+        notes?: UiRunNote[];
+      };
+      const list = Array.isArray(json.results) ? json.results : [];
+      setResults(list);
+      setSummary(
+        json.summary || {
+          total: list.length,
+          passed: list.filter(r => r.ok).length,
+          failed: list.filter(r => !r.ok).length,
+          skipped: 0,
+        }
+      );
+      setLastRunId(runId);
+      setRunNotes(Array.isArray(json.notes) ? json.notes : []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  async function createAutoAnalysis(runId: string): Promise<void> {
+    setSavingNote(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/integration-tests/runs/${encodeURIComponent(runId)}/analyze`, {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: unknown };
+        const msg =
+          data && typeof data.error === 'string'
+            ? data.error
+            : `HTTP ${res.status} ${res.statusText}`;
+        setError(msg);
+        return;
+      }
+      // Reload run to show new note
+      await loadRun(runId);
+      await refreshRecentRuns();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSavingNote(false);
+    }
+  }
+
+  async function saveManualNoteForRun(runId: string): Promise<void> {
+    if (!noteAnalysis.trim() && !noteNextSteps.trim()) {
+      setError('Bitte Analyse oder Next Steps ausfüllen.');
+      return;
+    }
+    setSavingNote(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/integration-tests/runs/${encodeURIComponent(runId)}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: noteTitle,
+          analysisMarkdown: noteAnalysis,
+          nextStepsMarkdown: noteNextSteps,
+        }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: unknown };
+        const msg =
+          data && typeof data.error === 'string'
+            ? data.error
+            : `HTTP ${res.status} ${res.statusText}`;
+        setError(msg);
+        return;
+      }
+      setNoteAnalysis('');
+      setNoteNextSteps('');
+      await loadRun(runId);
+      await refreshRecentRuns();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSavingNote(false);
+    }
+  }
+
+  // History laden, damit der Agent-Modus transparent wird ("was lief wann mit welchem Ergebnis?")
+  useEffect(() => {
+    void refreshRecentRuns();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeLibrary?.id, currentFolderId]);
 
   function toggleAll(): void {
     if (allSelected) setSelectedIds([]);
@@ -136,6 +348,7 @@ export default function IntegrationTestsPage() {
           folderId: currentFolderId,
           testCaseIds: selectedIds,
           fileIds,
+          fileKind,
           jobTimeoutMs,
           templateName,
         }),
@@ -150,11 +363,13 @@ export default function IntegrationTestsPage() {
         return;
       }
       const json = (await res.json()) as {
+        runId?: string;
         results?: UiResultItem[];
         summary?: TestSummary;
       };
       const list = Array.isArray(json.results) ? json.results : [];
       setResults(list);
+      setLastRunId(typeof json.runId === 'string' && json.runId.trim() ? json.runId.trim() : null);
       if (json.summary) {
         setSummary(json.summary);
       } else {
@@ -171,6 +386,7 @@ export default function IntegrationTestsPage() {
       setError(msg);
     } finally {
       setRunning(false);
+      void refreshRecentRuns();
     }
   }
 
@@ -202,7 +418,7 @@ export default function IntegrationTestsPage() {
     <div className="container mx-auto py-6 space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>PDF Transformation – Integrationstests</CardTitle>
+          <CardTitle>PDF & Audio – Integrationstests</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           <p>
@@ -245,6 +461,24 @@ export default function IntegrationTestsPage() {
             <span className="text-xs text-muted-foreground">
               ({selectedIds.length}/{integrationTestCases.length} ausgewählt)
             </span>
+
+            <div className="ml-auto flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Suite</span>
+              <Select
+                value={suiteFilter}
+                onValueChange={(v) => setSuiteFilter(v === 'audio' ? 'audio' : v === 'pdf' ? 'pdf' : 'all')}
+                disabled={running}
+              >
+                <SelectTrigger className="h-8 w-[160px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Alle</SelectItem>
+                  <SelectItem value="pdf">Nur PDF</SelectItem>
+                  <SelectItem value="audio">Nur Audio</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="border rounded-md overflow-hidden">
             <table className="w-full border-collapse text-xs">
@@ -317,11 +551,52 @@ export default function IntegrationTestsPage() {
           <CardTitle>Einstellungen & Start</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="template-select">
-                Template (Override) – Auto = UseCase Default
-              </Label>
+              <Label htmlFor="file-kind">Dateityp</Label>
+              <Select
+                value={fileKind}
+                onValueChange={(v) => {
+                  const next = v === 'audio' ? 'audio' : 'pdf'
+                  setFileKind(next)
+                  // Usability: wenn der User den Dateityp umstellt, ist ein passender Suite-Filter meist gewünscht.
+                  setSuiteFilter(next)
+                  // Auswahl leeren (sonst "alte" ID im Input)
+                  setSelectedFileId('')
+                }}
+                disabled={running}
+              >
+                <SelectTrigger id="file-kind">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pdf">PDF</SelectItem>
+                  <SelectItem value="audio">Audio</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="file-select">Datei (optional)</Label>
+              <Select
+                value={selectedFileId || 'all'}
+                onValueChange={(v) => setSelectedFileId(v === 'all' ? '' : v)}
+                disabled={running || !activeLibrary?.id}
+              >
+                <SelectTrigger id="file-select">
+                  <SelectValue placeholder="Alle Dateien (vom Typ) im Ordner" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Alle Dateien (vom Typ) im Ordner</SelectItem>
+                  {availableFiles.map(f => (
+                    <SelectItem key={f.id} value={f.id}>
+                      {f.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="template-select">Template (Override) – Auto = UseCase Default</Label>
               <Select value={selectedTemplate} onValueChange={setSelectedTemplate} disabled={running}>
                 <SelectTrigger id="template-select">
                   <SelectValue placeholder="Template wählen" />
@@ -337,21 +612,7 @@ export default function IntegrationTestsPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="file-ids">
-                Optionale File-IDs (kommagetrennt) – leer = alle PDFs im Ordner
-              </Label>
-              <Input
-                id="file-ids"
-                value={fileIdsInput}
-                onChange={e => setFileIdsInput(e.target.value)}
-                placeholder="z.B. id1,id2,id3"
-                disabled={running}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="timeout">
-                Timeout pro Job (ms) – Standard 600000 (10 Minuten)
-              </Label>
+              <Label htmlFor="timeout">Timeout pro Job (ms) – Standard 600000 (10 Minuten)</Label>
               <Input
                 id="timeout"
                 type="number"
@@ -360,6 +621,19 @@ export default function IntegrationTestsPage() {
                 disabled={running}
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="file-ids">
+              File-IDs (Advanced, kommagetrennt) – leer = alle Dateien des Dateityps im Ordner
+            </Label>
+            <Input
+              id="file-ids"
+              value={fileIdsInput}
+              onChange={e => setFileIdsInput(e.target.value)}
+              placeholder="z.B. id1,id2,id3"
+              disabled={running}
+            />
           </div>
 
           {error && (
@@ -384,6 +658,12 @@ export default function IntegrationTestsPage() {
               <>Tests starten</>
             )}
           </Button>
+
+          {lastRunId ? (
+            <div className="text-xs text-muted-foreground">
+              Letzter Run: <span className="font-mono">{lastRunId}</span>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 
@@ -479,6 +759,199 @@ export default function IntegrationTestsPage() {
                 ))}
               </div>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-3">
+          <CardTitle>Letzte Testläufe (History)</CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void refreshRecentRuns()}
+            disabled={loadingRecentRuns}
+          >
+            {loadingRecentRuns ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Laden…
+              </span>
+            ) : (
+              'Aktualisieren'
+            )}
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-xs text-muted-foreground">
+            Persistent (MongoDB). Runs bleiben auch nach Server‑Restart verfügbar.
+          </p>
+
+          {recentRunsError ? (
+            <div className="text-sm text-red-600">{recentRunsError}</div>
+          ) : null}
+
+          <div className="border rounded-md overflow-hidden">
+            <table className="w-full border-collapse text-xs">
+              <thead className="bg-muted">
+                <tr>
+                  <th className="w-44 px-2 py-1 text-left">Zeit</th>
+                  <th className="w-56 px-2 py-1 text-left">Run</th>
+                  <th className="w-24 px-2 py-1 text-left">Summary</th>
+                  <th className="w-20 px-2 py-1 text-left">Tests</th>
+                  <th className="w-20 px-2 py-1 text-left">Files</th>
+                  <th className="px-2 py-1 text-left">Template</th>
+                  <th className="w-16 px-2 py-1 text-left">Notes</th>
+                  <th className="w-24 px-2 py-1 text-left">Aktion</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentRuns.length === 0 ? (
+                  <tr>
+                    <td className="px-2 py-2 text-muted-foreground" colSpan={8}>
+                      Keine Runs gespeichert.
+                    </td>
+                  </tr>
+                ) : (
+                  recentRuns.map((r) => {
+                    const failed = r.summary?.failed || 0;
+                    const passed = r.summary?.passed || 0;
+                    const total = r.summary?.total || 0;
+                    const ok = failed === 0 && total > 0;
+                    return (
+                      <tr key={r.runId} className="border-t">
+                        <td className="px-2 py-2 font-mono whitespace-nowrap">
+                          {new Date(r.createdAt).toLocaleString()}
+                        </td>
+                        <td className="px-2 py-2 font-mono break-all">{r.runId}</td>
+                        <td className="px-2 py-2">
+                          <Badge variant={ok ? 'default' : 'destructive'}>
+                            {passed}/{total}
+                          </Badge>
+                        </td>
+                        <td className="px-2 py-2">{r.testCaseIds?.length || 0}</td>
+                        <td className="px-2 py-2">{r.fileIds?.length || 0}</td>
+                        <td className="px-2 py-2">{r.templateName || 'auto'}</td>
+                        <td className="px-2 py-2">{typeof r.notesCount === 'number' ? r.notesCount : 0}</td>
+                        <td className="px-2 py-2">
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => void loadRun(r.runId)}
+                              disabled={running}
+                            >
+                              Laden
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => void createAutoAnalysis(r.runId)}
+                              disabled={savingNote || running}
+                            >
+                              Analyse
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Analyse & Next Steps (pro Run)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {!lastRunId ? (
+            <p className="text-sm text-muted-foreground">
+              Wähle in der History einen Run und klicke „Laden“ (oder „Analyse“), um Notes zu sehen/zu speichern.
+            </p>
+          ) : (
+            <>
+              <div className="text-xs text-muted-foreground">
+                Aktiver Run: <span className="font-mono">{lastRunId}</span>
+              </div>
+
+              {runNotes.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Noch keine Notes gespeichert. Du kannst „Analyse“ in der History drücken oder unten manuell speichern.
+                </p>
+              ) : (
+                <div className="border rounded-md p-3 space-y-3">
+                  {runNotes
+                    .slice()
+                    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+                    .map((n) => (
+                      <div key={n.noteId} className="border-b last:border-b-0 pb-3 last:pb-0">
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                          <Badge variant="outline">{n.authorType}</Badge>
+                          <span className="font-mono">{new Date(n.createdAt).toLocaleString()}</span>
+                          {n.authorEmail ? <span className="text-muted-foreground">{n.authorEmail}</span> : null}
+                          {n.title ? <span className="font-semibold">{n.title}</span> : null}
+                        </div>
+                        <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                          <div>
+                            <div className="font-semibold mb-1">Analyse</div>
+                            <pre className="whitespace-pre-wrap text-muted-foreground">{n.analysisMarkdown}</pre>
+                          </div>
+                          <div>
+                            <div className="font-semibold mb-1">Next Steps</div>
+                            <pre className="whitespace-pre-wrap text-muted-foreground">{n.nextStepsMarkdown}</pre>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+
+              <div className="border rounded-md p-3 space-y-3">
+                <div className="text-xs font-semibold">Neue Note speichern</div>
+                <div className="space-y-2">
+                  <Label htmlFor="note-title">Titel</Label>
+                  <Input
+                    id="note-title"
+                    value={noteTitle}
+                    onChange={(e) => setNoteTitle(e.target.value)}
+                    disabled={savingNote}
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="note-analysis">Analyse (Markdown)</Label>
+                    <textarea
+                      id="note-analysis"
+                      className="w-full min-h-32 rounded-md border bg-background p-2 text-xs"
+                      value={noteAnalysis}
+                      onChange={(e) => setNoteAnalysis(e.target.value)}
+                      disabled={savingNote}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="note-next">Next Steps (Markdown)</Label>
+                    <textarea
+                      id="note-next"
+                      className="w-full min-h-32 rounded-md border bg-background p-2 text-xs"
+                      value={noteNextSteps}
+                      onChange={(e) => setNoteNextSteps(e.target.value)}
+                      disabled={savingNote}
+                    />
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => lastRunId && void saveManualNoteForRun(lastRunId)}
+                  disabled={!lastRunId || savingNote}
+                >
+                  {savingNote ? 'Speichern…' : 'Note speichern'}
+                </Button>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

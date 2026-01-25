@@ -62,6 +62,22 @@ export interface ExpectedOutcome {
   expectFacetMetadataInChunks?: boolean;
   /** Nach dem Testlauf existiert ein Shadow-Twin-Verzeichnis */
   expectShadowTwinExists?: boolean;
+
+  /**
+   * Transcript-Qualitätschecks (typisch: Audio Extract-only).
+   *
+   * Motivation:
+   * In der Praxis kann ein Job "completed" sein, obwohl im Shadow‑Twin ein leeres Transcript gespeichert wurde.
+   * Das ist für den Nutzer meistens nicht akzeptabel und soll in Integrationstests auffallen.
+   */
+  expectTranscriptNonEmpty?: boolean;
+  /** Mindestanzahl an Zeichen im Transcript (trimmed). */
+  minTranscriptChars?: number;
+  /**
+   * Optionaler, strengerer Check: Transcript enthält nicht nur Frontmatter.
+   * Wenn true, erwarten wir nach dem Frontmatter einen nicht-leeren Body.
+   */
+  expectTranscriptHasBody?: boolean;
   /** @deprecated Verwende expectMetaDocument statt expectMongoUpsert */
   expectMongoUpsert?: boolean;
 }
@@ -69,6 +85,11 @@ export interface ExpectedOutcome {
 export interface IntegrationTestCase {
   /** Eindeutige ID, z.B. "pdf_mistral_report.happy_path" (UseCaseId.ScenarioId) */
   id: string;
+  /**
+   * Ziel-Dateityp für den Test.
+   * Wird genutzt, um die Test-Targets im Ordner zu filtern und die UI zu vereinfachen.
+   */
+  target: 'pdf' | 'audio';
   /** UseCase-ID aus docs/architecture/use-cases-and-personas.md, z.B. "pdf_mistral_report" */
   useCaseId: string;
   /** Szenario-ID innerhalb des UseCases, z.B. "happy_path", "gate_skip", "force_recompute" */
@@ -108,6 +129,7 @@ export const integrationTestCases: IntegrationTestCase[] = [
   // PDF UseCase: pdf_mistral_report
   {
     id: 'pdf_mistral_report.happy_path',
+    target: 'pdf',
     useCaseId: 'pdf_mistral_report',
     scenarioId: 'happy_path',
     label: 'PDF – Happy Path (Extract → Template → Ingest)',
@@ -135,6 +157,7 @@ export const integrationTestCases: IntegrationTestCase[] = [
   },
   {
     id: 'pdf_mistral_report.gate_skip_extract',
+    target: 'pdf',
     useCaseId: 'pdf_mistral_report',
     scenarioId: 'gate_skip_extract',
     label: 'PDF – Gate Skip Extract (Shadow-Twin existiert)',
@@ -165,6 +188,7 @@ export const integrationTestCases: IntegrationTestCase[] = [
   },
   {
     id: 'pdf_mistral_report.force_recompute',
+    target: 'pdf',
     useCaseId: 'pdf_mistral_report',
     scenarioId: 'force_recompute',
     label: 'PDF – Force Recompute (Shadow-Twin existiert, aber forciert)',
@@ -194,6 +218,7 @@ export const integrationTestCases: IntegrationTestCase[] = [
   },
   {
     id: 'pdf_mistral_report.repair_frontmatter',
+    target: 'pdf',
     useCaseId: 'pdf_mistral_report',
     scenarioId: 'repair_frontmatter',
     label: 'PDF – Repair Frontmatter (unvollständiges Frontmatter)',
@@ -219,6 +244,7 @@ export const integrationTestCases: IntegrationTestCase[] = [
   },
   {
     id: 'pdfanalyse.hitl_publish',
+    target: 'pdf',
     useCaseId: 'pdfanalyse',
     scenarioId: 'hitl_publish',
     label: 'PDFAnalyse – HITL Publish (2 Jobs + Publish-Step)',
@@ -243,6 +269,86 @@ export const integrationTestCases: IntegrationTestCase[] = [
     expected: {
       shouldComplete: true,
       expectShadowTwinExists: true,
+    },
+  },
+  // AUDIO UseCase: audio_transcription
+  {
+    id: 'audio_transcription.happy_path',
+    target: 'audio',
+    useCaseId: 'audio_transcription',
+    scenarioId: 'happy_path',
+    label: 'Audio – Happy Path (Extract-only: Transkription)',
+    description:
+      'Einfachster Audio-Flow: Extract läuft, Template/Ingest sind deaktiviert. ' +
+      'Am Ende existiert result.savedItemId (Transcript).',
+    category: 'usecase',
+    phases: { extract: true, template: false, ingest: false },
+    policies: {
+      extract: 'do',
+      metadata: 'ignore',
+      ingest: 'ignore',
+    },
+    shadowTwinState: 'clean',
+    expected: {
+      shouldComplete: true,
+      expectExtractRun: true,
+      expectShadowTwinExists: true,
+      // Der Transcript muss sinnvoll gefüllt sein (nicht leer).
+      // Schwelle bewusst niedrig: wir wollen leere/fehlerhafte Writes finden, nicht "Qualität" bewerten.
+      expectTranscriptNonEmpty: true,
+      minTranscriptChars: 20,
+    },
+  },
+  {
+    id: 'audio_transcription.gate_skip_extract',
+    target: 'audio',
+    useCaseId: 'audio_transcription',
+    scenarioId: 'gate_skip_extract',
+    label: 'Audio – Gate Skip Extract (Transcript existiert)',
+    description:
+      'Transcript existiert bereits als Shadow‑Twin. Extract läuft im Auto-Mode; Gate/Policies sollen Extract überspringen. ' +
+      'Am Ende existiert result.savedItemId (Transcript).',
+    category: 'usecase',
+    phases: { extract: true, template: false, ingest: false },
+    policies: {
+      extract: 'auto',
+      metadata: 'ignore',
+      ingest: 'ignore',
+    },
+    shadowTwinState: 'exists',
+    expected: {
+      shouldComplete: true,
+      expectExtractRun: false,
+      expectExtractSkip: true,
+      expectShadowTwinExists: true,
+      expectTranscriptNonEmpty: true,
+      minTranscriptChars: 20,
+    },
+  },
+  {
+    id: 'audio_transcription.force_recompute',
+    target: 'audio',
+    useCaseId: 'audio_transcription',
+    scenarioId: 'force_recompute',
+    label: 'Audio – Force Recompute (Transcript existiert, aber forciert)',
+    description:
+      'Transcript existiert bereits, Extract wird aber via Policy forciert. ' +
+      'Am Ende existiert result.savedItemId (Transcript).',
+    category: 'usecase',
+    phases: { extract: true, template: false, ingest: false },
+    policies: {
+      extract: 'force',
+      metadata: 'ignore',
+      ingest: 'ignore',
+    },
+    shadowTwinState: 'exists',
+    expected: {
+      shouldComplete: true,
+      expectExtractRun: true,
+      expectExtractSkip: false,
+      expectShadowTwinExists: true,
+      expectTranscriptNonEmpty: true,
+      minTranscriptChars: 20,
     },
   },
 ]

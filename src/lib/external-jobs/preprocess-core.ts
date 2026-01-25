@@ -16,7 +16,7 @@ import type { StorageProvider } from '@/lib/storage/types'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { parseFacetDefs } from '@/lib/chat/dynamic-facets'
 import { LibraryService } from '@/lib/services/library-service'
-import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver'
+import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import type { Library } from '@/types/library'
 
 export interface FoundMarkdown {
@@ -24,6 +24,17 @@ export interface FoundMarkdown {
   fileId?: string;
   fileName?: string;
   text?: string;
+}
+
+export interface FindPdfMarkdownOptions {
+  /**
+   * Welches Artefakt soll gesucht werden?
+   * - transcript: {base}.{lang}.md
+   * - transformation: {base}.{template}.{lang}.md
+   */
+  preferredKind?: 'transcript' | 'transformation'
+  /** Nur für transformation relevant */
+  templateName?: string
 }
 
 export interface FrontmatterAnalysis {
@@ -46,38 +57,97 @@ export async function findPdfMarkdown(
   lang: string,
   _library?: Library | null,
   sourceItemId?: string,
-  sourceName?: string
+  sourceName?: string,
+  options?: FindPdfMarkdownOptions,
+  userEmail?: string
 ): Promise<FoundMarkdown> {
   const originalName = sourceName || `${baseName}.pdf` // Annahme: Original ist PDF
+  const preferredKind = options?.preferredKind || 'transcript'
+  const templateName = options?.templateName
 
-  // v2-only: Primär über Resolver (dotFolder + sibling, deterministisch)
-  if (sourceItemId) {
-    const resolved = await resolveArtifact(provider, {
-      sourceItemId,
-      sourceName: originalName,
-      parentId,
-      targetLanguage: lang,
-      preferredKind: 'transcript',
-    })
-    
-    if (resolved) {
-      try {
-        const bin = await provider.getBinary(resolved.fileId)
-        const text = await bin.blob.text()
+  // Zentrale Shadow-Twin-Service-Prüfung
+  if (_library && sourceItemId && userEmail) {
+    try {
+      if (preferredKind === 'transformation' && !templateName) {
+        // Ohne TemplateName ist eine Transformation nicht deterministisch adressierbar.
+        // Wir bleiben konservativ und melden "nicht gefunden".
+        return { hasMarkdown: false }
+      }
+
+      const service = new ShadowTwinService({
+        library: _library,
+        userEmail,
+        sourceId: sourceItemId,
+        sourceName: originalName,
+        parentId,
+        provider,
+      })
+
+      const result = await service.getMarkdown({
+        kind: preferredKind,
+        targetLanguage: lang,
+        templateName,
+      })
+
+      if (result) {
         return {
           hasMarkdown: true,
-          fileId: resolved.fileId,
-          fileName: resolved.fileName,
-          text,
+          fileId: result.id,
+          fileName: result.name,
+          text: result.markdown,
         }
-      } catch {
-        // Fallback zu Legacy bei Fehler
       }
+    } catch {
+      // Fehler beim Service-Call → Fallback zu Provider-basierter Suche unten
+    }
+  }
+
+  // Fallback: Provider-basierte Suche (für Legacy oder wenn Service nicht verfügbar)
+  // Dies ist hauptsächlich für den Fall, dass userEmail fehlt oder Library nicht verfügbar ist
+  if (sourceItemId) {
+    try {
+      const { resolveArtifact } = await import('@/lib/shadow-twin/artifact-resolver')
+      const resolved = await resolveArtifact(provider, {
+        sourceItemId,
+        sourceName: originalName,
+        parentId,
+        targetLanguage: lang,
+        preferredKind,
+        ...(preferredKind === 'transformation' ? { templateName } : {}),
+      })
+      
+      if (resolved) {
+        try {
+          const bin = await provider.getBinary(resolved.fileId)
+          const text = await bin.blob.text()
+          return {
+            hasMarkdown: true,
+            fileId: resolved.fileId,
+            fileName: resolved.fileName,
+            text,
+          }
+        } catch {
+          // Fallback zu Legacy bei Fehler
+        }
+      }
+    } catch {
+      // ignore
     }
   }
 
   // Fallback (v2-only, ohne sourceItemId): deterministischer Name im Parent-Verzeichnis
-  const expectedFileName = `${baseName}.${lang}.md`
+  const sourceNameForFallback = sourceName || `${baseName}.pdf`
+  const sourceItemIdForFallback = sourceItemId || 'unknown'
+  const { buildArtifactName } = await import('@/lib/shadow-twin/artifact-naming')
+  const expectedFileName = buildArtifactName(
+    {
+      sourceId: sourceItemIdForFallback,
+      kind: preferredKind,
+      targetLanguage: lang,
+      ...(preferredKind === 'transformation' ? { templateName } : {}),
+    },
+    sourceNameForFallback
+  )
   const siblings = await provider.listItemsById(parentId)
 
   const twin = siblings.find(

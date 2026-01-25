@@ -20,6 +20,8 @@ import { patchFrontmatter } from '@/lib/markdown/frontmatter-patch'
 import { findShadowTwinImage, resolveShadowTwinImageUrl } from '@/lib/storage/shadow-twin'
 import { CoverImageGeneratorDialog } from './cover-image-generator-dialog'
 import { ArtifactEditDialog } from './shared/artifact-edit-dialog'
+import { fetchShadowTwinMarkdown } from '@/lib/shadow-twin/shadow-twin-mongo-client'
+import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
 
 interface JobReportTabProps {
   libraryId: string
@@ -448,16 +450,42 @@ export function JobReportTab({
       })
       
       if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error')
+        let errorText = 'Unknown error'
+        try {
+          const errorData = await response.json().catch(() => null)
+          if (errorData && typeof errorData === 'object' && 'error' in errorData) {
+            errorText = typeof errorData.error === 'string' ? errorData.error : JSON.stringify(errorData.error)
+          } else {
+            errorText = await response.text().catch(() => `HTTP ${response.status}: ${response.statusText}`)
+          }
+        } catch {
+          errorText = `HTTP ${response.status}: ${response.statusText}`
+        }
         UILogger.error('JobReportTab', 'Fehler bei Story-Veröffentlichung', {
           status: response.status,
-          error: errorText
+          statusText: response.statusText,
+          error: errorText,
+          fileId: effectiveMdId,
+          libraryId
         })
-        toast.error(`Fehler bei der Veröffentlichung: ${response.statusText}`)
+        toast.error(`Fehler bei der Veröffentlichung: ${errorText}`)
         return
       }
       
-      const result = await response.json()
+      let result
+      try {
+        result = await response.json()
+      } catch (jsonError) {
+        UILogger.error('JobReportTab', 'Fehler beim Parsen der Response', {
+          error: jsonError instanceof Error ? jsonError.message : String(jsonError),
+          status: response.status,
+          statusText: response.statusText,
+          fileId: effectiveMdId
+        })
+        toast.error('Fehler: Ungültige Antwort vom Server')
+        return
+      }
+      
       UILogger.info('JobReportTab', 'Story erfolgreich veröffentlicht', {
         fileId: effectiveMdId,
         chunksUpserted: result.chunksUpserted,
@@ -560,7 +588,8 @@ export function JobReportTab({
           setDisplayedFileName(null); 
           return 
         }
-        if (!provider) return // Type guard für TypeScript
+        const isMongoId = isMongoShadowTwinId(mdId)
+        if (!provider && !isMongoId) return // Type guard fuer Filesystem
         
         // Ermittle den Dateinamen: zuerst aus shadowTwinState, dann aus dem Item
         let fileName: string | null = null
@@ -570,7 +599,7 @@ export function JobReportTab({
         } else if (shadowTwinState?.transcriptFiles && shadowTwinState.transcriptFiles.length > 0) {
           // Nur Transcript vorhanden (keine transformierte Datei)
           fileName = shadowTwinState.transcriptFiles[0].metadata?.name || null
-        } else {
+        } else if (!isMongoId) {
           // Fallback: Lade Item-Name direkt
           try {
             const item = await provider.getItemById(mdId)
@@ -579,12 +608,21 @@ export function JobReportTab({
             UILogger.warn('JobReportTab', 'Fehler beim Laden des Item-Namens', { mdId, error })
             fileName = null
           }
+        } else {
+          fileName = fileName || 'Shadow-Twin (Mongo)'
         }
         setDisplayedFileName(fileName)
         
         try {
-        const bin = await provider.getBinary(mdId)
-        const text = await bin.blob.text()
+        let text = ''
+        if (isMongoId) {
+          const parts = parseMongoShadowTwinId(mdId)
+          if (!parts) throw new Error('Mongo-ID ungueltig')
+          text = await fetchShadowTwinMarkdown(libraryId, parts)
+        } else {
+          const bin = await provider.getBinary(mdId)
+          text = await bin.blob.text()
+        }
           UILogger.info('JobReportTab', 'Datei erfolgreich geladen', { mdId, textLength: text.length, fileName })
         setFullContent(text)
         const { frontmatter, meta, errors } = parseSecretaryMarkdownStrict(text)
@@ -986,8 +1024,15 @@ export function JobReportTab({
                   
                   // Trigger Refresh: Lade Markdown-Datei neu, um sicherzustellen, dass der State konsistent ist
                   try {
-                    const refreshedContent = await provider.getBinary(savedItem.id)
-                    const refreshedText = await refreshedContent.blob.text()
+                    let refreshedText = ''
+                    if (isMongoShadowTwinId(savedItem.id)) {
+                      const parts = parseMongoShadowTwinId(savedItem.id)
+                      if (!parts) throw new Error('Mongo-ID ungueltig')
+                      refreshedText = await fetchShadowTwinMarkdown(libraryId, parts)
+                    } else {
+                      const refreshedContent = await provider.getBinary(savedItem.id)
+                      refreshedText = await refreshedContent.blob.text()
+                    }
                     setFullContent(refreshedText)
                     const { meta: refreshedMeta } = parseSecretaryMarkdownStrict(refreshedText)
                     setFrontmatterMeta(refreshedMeta)
@@ -1605,11 +1650,20 @@ export function JobReportTab({
           onOpenChange={setIsEditOpen}
           item={editItem}
           provider={provider}
+          libraryId={libraryId}
           onSaved={async (saved) => {
             // Lade aktualisierten Inhalt
             try {
-              const refreshedContent = await provider.getBinary(saved.id)
-              const refreshedText = await refreshedContent.blob.text()
+              let refreshedText = ''
+              if (isMongoShadowTwinId(saved.id)) {
+                const parts = parseMongoShadowTwinId(saved.id)
+                if (!parts) throw new Error('Mongo-ID ungueltig')
+                refreshedText = await fetchShadowTwinMarkdown(libraryId, parts)
+              } else {
+                if (!provider) throw new Error('Storage-Provider fehlt')
+                const refreshedContent = await provider.getBinary(saved.id)
+                refreshedText = await refreshedContent.blob.text()
+              }
               setFullContent(refreshedText)
               const { meta } = parseSecretaryMarkdownStrict(refreshedText)
               setFrontmatterMeta(meta)

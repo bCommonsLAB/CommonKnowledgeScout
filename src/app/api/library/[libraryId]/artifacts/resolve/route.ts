@@ -14,6 +14,8 @@ import { FileLogger } from '@/lib/debug/logger';
 import { getServerProvider } from '@/lib/storage/server-provider';
 import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver';
 import { LibraryService } from '@/lib/services/library-service';
+import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service';
+import { isMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id';
 
 /**
  * GET /api/library/[libraryId]/artifacts/resolve
@@ -68,7 +70,51 @@ export async function GET(
     }
 
     const provider = await getServerProvider(userEmail, libraryId);
+    
+    // Verwende ShadowTwinService für zentrale Artefakt-Auflösung
+    const resolvedKind = preferredKind || (templateName ? 'transformation' : 'transcript');
+    
+    try {
+      const service = new ShadowTwinService({
+        library,
+        userEmail,
+        sourceId,
+        sourceName,
+        parentId,
+        provider,
+      });
 
+      // Versuche zuerst über Service zu lösen
+      const serviceResult = await service.getMarkdown({
+        kind: resolvedKind,
+        targetLanguage,
+        templateName,
+      });
+
+      if (serviceResult) {
+        // Konvertiere Service-Ergebnis zu ResolvedArtifact-Format
+        const location = isMongoShadowTwinId(serviceResult.id) ? 'dotFolder' : 'sibling';
+        
+        return NextResponse.json(
+          {
+            artifact: {
+              kind: resolvedKind,
+              fileId: serviceResult.id,
+              fileName: serviceResult.name,
+              location,
+            },
+          },
+          { status: 200 }
+        );
+      }
+    } catch (error) {
+      // Service-Fehler → Fallback zu Provider-basierter Auflösung unten
+      FileLogger.warn('artifacts/resolve', 'ShadowTwinService-Fehler, Fallback zu Provider', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    // Fallback: Provider-basierte Auflösung (für Legacy oder wenn Service fehlschlägt)
     const resolved = await resolveArtifact(provider, {
       sourceItemId: sourceId,
       sourceName,
@@ -91,6 +137,10 @@ export async function GET(
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     FileLogger.error('artifacts/resolve', 'Fehler bei Artefakt-Auflösung', { error: msg });
+    // DB/Netzwerk ist temporär weg → 503 statt generischem 500, damit UI das korrekt einordnen kann.
+    if (/Topology is closed|Datenbankverbindung fehlgeschlagen|ECONNRESET|ETIMEDOUT|ECONNREFUSED|EAI_AGAIN|ENOTFOUND/i.test(msg)) {
+      return NextResponse.json({ error: msg, code: 'mongo_unavailable' }, { status: 503 });
+    }
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

@@ -155,6 +155,46 @@ export class ExternalJobsRepository {
     );
   }
 
+  /**
+   * Schreibt Timing-/Diagnose-Felder für den Secretary-Service in das Job-Dokument.
+   *
+   * WICHTIG:
+   * `mergeParameters()` ist nur ein shallow merge. Für verschachtelte Strukturen (timings.secretary.*)
+   * würden wir sonst versehentlich bereits vorhandene Felder überschreiben.
+   * Deshalb setzen wir hier gezielt MongoDB-Pfade via `$set`.
+   */
+  async setSecretaryTiming(jobId: string, patch: Record<string, unknown>): Promise<void> {
+    const col = await this.getCollection()
+    const now = new Date()
+    const set: Record<string, unknown> = { updatedAt: now }
+    for (const [k, v] of Object.entries(patch)) {
+      set[`parameters.timings.secretary.${k}`] = v
+    }
+    await col.updateOne({ jobId }, { $set: set } as unknown as Record<string, unknown>)
+  }
+
+  /**
+   * Setzt Secretary-Timing-Felder nur, wenn ein Guard-Key noch nicht existiert.
+   * Damit loggen wir "first_*" Ereignisse idempotent (keine Duplikate bei Retry/Callbacks).
+   */
+  async setSecretaryTimingIfMissing(
+    jobId: string,
+    patch: Record<string, unknown>,
+    guardKey: string
+  ): Promise<boolean> {
+    const col = await this.getCollection()
+    const now = new Date()
+    const set: Record<string, unknown> = { updatedAt: now }
+    for (const [k, v] of Object.entries(patch)) {
+      set[`parameters.timings.secretary.${k}`] = v
+    }
+    const res = await col.updateOne(
+      { jobId, [`parameters.timings.secretary.${guardKey}`]: { $exists: false } },
+      { $set: set } as unknown as Record<string, unknown>
+    )
+    return res.modifiedCount > 0
+  }
+
   async initializeSteps(jobId: string, steps: ExternalJobStep[], parameters?: Record<string, unknown>): Promise<void> {
     const col = await this.getCollection();
     await col.updateOne(
@@ -170,10 +210,27 @@ export class ExternalJobsRepository {
     const spanId = mapStepToSpanId(name);
     const setBase: Record<string, unknown> = { ...setObj, updatedAt: now };
     if (patch.status === 'running' && spanId) setBase['trace.currentSpanId'] = spanId;
-    await col.updateOne(
-      { jobId, 'steps.name': name },
-      { $set: setBase }
-    );
+    // Idempotency:
+    // Doppelte Status-Transitions (z.B. duplicate callbacks / retries) sollen keine doppelten
+    // Trace-Events erzeugen. Insbesondere `completed` wurde in der UI als Duplikat sichtbar.
+    // Wir patchen daher nur, wenn der Step noch nicht im Zielstatus ist.
+    //
+    // KRITISCH (MongoDB Arrays):
+    // Filter wie { 'steps.name': X, 'steps.status': { $ne: 'completed' } } können auf *verschiedene*
+    // Array-Elemente matchen (kein $elemMatch) → Update wird fälschlich blockiert oder zugelassen.
+    // Das kann zu genau deiner Beobachtung führen: Job wird completed (grün), aber ein Step-Span bleibt "running".
+    //
+    // Lösung: $elemMatch garantiert, dass name+status auf dasselbe Step-Element zutreffen.
+    const elem: Record<string, unknown> = { name }
+    if (patch.status === 'completed') elem.status = { $ne: 'completed' }
+    if (patch.status === 'failed') elem.status = { $ne: 'failed' }
+    if (patch.status === 'running') elem.status = { $ne: 'running' }
+
+    const filter: Record<string, unknown> = { jobId, steps: { $elemMatch: elem } }
+    const res = await col.updateOne(filter, { $set: setBase });
+    if (res.modifiedCount === 0) {
+      return
+    }
     // Trace: Spans/Events automatisch synchronisieren
     try {
       const spanId = mapStepToSpanId(name);
@@ -493,7 +550,7 @@ function mapPhaseToSpanId(phase?: string): 'extract' | 'template' | 'ingest' | u
   // Extract callbacks
   if (['callback_received', 'progress', 'request_ack', 'secretary_request_start', 'secretary_request_ack', 'secretary_request_accepted', 'postprocessing', 'initializing', 'running'].includes(p)) return 'extract';
   // Template
-  if (p.startsWith('template') || p.startsWith('transform_') || ['transform_gate_plan', 'transform_meta', 'transform_meta_completed', 'transform_meta_failed', 'template_request_sent', 'template_request_ack', 'postprocessing_save', 'stored_local', 'stored_path'].includes(p)) return 'template';
+  if (p.startsWith('template') || p.startsWith('transform_') || ['transform_gate_plan', 'transform_meta', 'transform_meta_completed', 'transform_meta_failed', 'template_request_sent', 'template_request_ack'].includes(p)) return 'template';
   // Ingest
   if (p.startsWith('ingest') || p.startsWith('chapters') || p.startsWith('doc_meta') || p === 'indextidy') return 'ingest';
   return undefined;

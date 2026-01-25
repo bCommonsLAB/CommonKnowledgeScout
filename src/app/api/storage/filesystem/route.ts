@@ -284,6 +284,27 @@ async function statsToStorageItem(library: LibraryType, absolutePath: string, st
   };
 }
 
+/**
+ * Prüft, ob ein Pfad ein Shadow-Twin-Ordner ist (beginnt mit Punkt)
+ */
+function isShadowTwinFolderPath(absolutePath: string, libraryPath: string): boolean {
+  // Normalisiere Pfade für Vergleich
+  const normalizedPath = pathLib.normalize(absolutePath).replace(/\\/g, '/');
+  const normalizedLibraryPath = pathLib.normalize(libraryPath).replace(/\\/g, '/');
+  
+  // Prüfe, ob der Pfad innerhalb der Bibliothek liegt
+  if (!normalizedPath.startsWith(normalizedLibraryPath)) {
+    return false;
+  }
+  
+  // Extrahiere den relativen Pfad zur Bibliothek
+  const relativePath = normalizedPath.slice(normalizedLibraryPath.length).replace(/^\/+/, '');
+  
+  // Prüfe, ob ein Ordner-Name im Pfad mit Punkt beginnt (Shadow-Twin-Ordner)
+  const pathParts = relativePath.split('/');
+  return pathParts.some(part => part.startsWith('.') && part.length > 1);
+}
+
 // Listet Items in einem Verzeichnis
 async function listItems(library: LibraryType, fileId: string): Promise<StorageItem[]> {
   const absolutePath = getPathFromId(library, fileId);
@@ -323,9 +344,27 @@ async function listItems(library: LibraryType, fileId: string): Promise<StorageI
       const nodeError = error as Error & { code?: string };
       if (nodeError.code === 'ENOENT') {
         // Verzeichnis existiert nicht
-        const specificError = new Error(`Die Bibliothek "${library.label}" konnte nicht gefunden werden. Pfad: "${library.path}"`);
-        specificError.name = 'LibraryPathNotFoundError';
-        throw specificError;
+        // Prüfe, ob es ein Shadow-Twin-Ordner ist (kann nach Migration gelöscht worden sein)
+        if (isShadowTwinFolderPath(absolutePath, library.path)) {
+          // Shadow-Twin-Ordner wurde wahrscheinlich nach Migration gelöscht
+          // Gebe leeres Array zurück statt Fehler zu werfen
+          console.log(`[API] Shadow-Twin-Ordner nicht gefunden (wahrscheinlich nach Migration gelöscht): "${absolutePath}"`);
+          return [];
+        }
+        
+        // Prüfe, ob es der Bibliotheks-Pfad selbst ist
+        const normalizedPath = pathLib.normalize(absolutePath).replace(/\\/g, '/');
+        const normalizedLibraryPath = pathLib.normalize(library.path).replace(/\\/g, '/');
+        if (normalizedPath === normalizedLibraryPath) {
+          // Bibliothek selbst nicht gefunden - echter Fehler
+          const specificError = new Error(`Die Bibliothek "${library.label}" konnte nicht gefunden werden. Pfad: "${library.path}"`);
+          specificError.name = 'LibraryPathNotFoundError';
+          throw specificError;
+        }
+        
+        // Anderes Verzeichnis nicht gefunden - gebe leeres Array zurück
+        console.log(`[API] Verzeichnis nicht gefunden: "${absolutePath}"`);
+        return [];
       } else if (nodeError.code === 'EACCES') {
         // Keine Berechtigung
         const specificError = new Error(`Keine Berechtigung für den Zugriff auf die Bibliothek "${library.label}". Pfad: "${library.path}"`);

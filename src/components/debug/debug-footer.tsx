@@ -17,6 +17,7 @@ import { useStorage } from '@/contexts/storage-context';
 import { galleryFiltersAtom } from '@/atoms/gallery-filters';
 import { usePathname, useRouter } from 'next/navigation';
 import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom';
+import { ShadowTwinArtifactsTable } from '@/components/library/shared/shadow-twin-artifacts-table';
 
 interface IngestionBreakdown {
   doc: number;
@@ -635,6 +636,7 @@ export default function DebugFooter() {
 function ShadowTwinDebugContent() {
   const shadowTwinStates = useAtomValue(shadowTwinStateAtom);
   const selectedFile = useAtomValue(selectedFileAtom);
+  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
 
   if (!selectedFile) {
     return (
@@ -658,11 +660,62 @@ function ShadowTwinDebugContent() {
   const hasTransform = Boolean(state.transformed)
   const isEmptyButChecked = !hasTranscript && !hasTransform
 
+  // Extrahiere Artefakte aus dem State für die Tabellenansicht
+  const artifacts: Array<{
+    sourceId: string
+    sourceName: string
+    artifactFileName: string
+    kind: 'transcript' | 'transformation'
+    targetLanguage: string
+    templateName?: string
+    mongoUpserted: boolean
+    filesystemDeleted?: boolean
+  }> = []
+
+  // Füge Transcript-Artefakte hinzu
+  if (state.transcriptFiles && state.transcriptFiles.length > 0) {
+    for (const file of state.transcriptFiles) {
+      // Extrahiere targetLanguage aus dem Dateinamen (z.B. "transcript.de.md" -> "de")
+      const langMatch = file.metadata.name.match(/\.([a-z]{2})\.md$/i)
+      const targetLanguage = langMatch ? langMatch[1] : 'de'
+      
+      artifacts.push({
+        sourceId: selectedFile.id,
+        sourceName: selectedFile.metadata.name,
+        artifactFileName: file.metadata.name,
+        kind: 'transcript',
+        targetLanguage,
+        mongoUpserted: false, // Wird von der Komponente aus MongoDB geladen
+        filesystemDeleted: false,
+      })
+    }
+  }
+
+  // Füge Transformation-Artefakte hinzu
+  if (state.transformed) {
+    // Extrahiere templateName und targetLanguage aus dem Dateinamen
+    // Format: "{templateName}.{targetLanguage}.md" oder "{sourceName}.{templateName}.{targetLanguage}.md"
+    const fileName = state.transformed.metadata.name
+    const parts = fileName.replace(/\.md$/i, '').split('.')
+    const targetLanguage = parts.length >= 2 ? parts[parts.length - 1] : 'de'
+    const templateName = parts.length >= 3 ? parts[parts.length - 2] : undefined
+
+    artifacts.push({
+      sourceId: selectedFile.id,
+      sourceName: selectedFile.metadata.name,
+      artifactFileName: fileName,
+      kind: 'transformation',
+      targetLanguage,
+      templateName,
+      mongoUpserted: false, // Wird von der Komponente aus MongoDB geladen
+      filesystemDeleted: false,
+    })
+  }
+
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-4">
-        {/* Linke Spalte: Alle Informationen */}
-        <div className="space-y-3">
+    <div className="space-y-4">
+      {/* State-Informationen */}
+      <div className="space-y-3">
           {isEmptyButChecked ? (
             <div className="rounded border bg-muted/30 p-2 text-xs text-muted-foreground">
               Analysiert: keine Artefakte gefunden (noch nicht verarbeitet).
@@ -726,15 +779,25 @@ function ShadowTwinDebugContent() {
               <div className="text-xs text-red-600 break-all">{state.analysisError}</div>
             </div>
           )}
-        </div>
-
-        {/* Rechte Spalte: JSON aufgeklappt */}
-        <div>
-          <pre className="p-2 bg-muted rounded text-[10px] overflow-auto max-h-[600px]">
-            {JSON.stringify(state, null, 2)}
-          </pre>
-        </div>
       </div>
+
+      {/* Artefakte-Tabelle (aus MongoDB) */}
+      {activeLibraryId && (
+        <div className="border-t pt-4">
+          <div className="mb-2">
+            <div className="text-sm font-medium">Alle Artefakte (aus MongoDB)</div>
+            <div className="text-xs text-muted-foreground mt-1">
+              Zeigt alle Dateien (Markdown-Artefakte und Binary-Fragmente wie Bilder, Audio, Video) aus MongoDB.
+            </div>
+          </div>
+          <ShadowTwinArtifactsTable
+            libraryId={activeLibraryId}
+            sourceId={selectedFile.id}
+            artifacts={artifacts}
+            filesystemDeleted={false}
+          />
+        </div>
+      )}
     </div>
   );
 } 

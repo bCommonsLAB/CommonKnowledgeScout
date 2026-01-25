@@ -30,7 +30,7 @@ import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
 import { getServerProvider } from '@/lib/storage/server-provider';
 import type { StorageProvider } from '@/lib/storage/types';
 import type { Library } from '@/types/library';
-import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver';
+import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 
 export interface GateContext {
   repo: ExternalJobsRepository;
@@ -38,7 +38,7 @@ export interface GateContext {
   userEmail: string;
   library: Library | null | undefined;
   source: { itemId?: string; parentId?: string; name?: string } | undefined;
-  options: { targetLanguage?: string } | undefined;
+  options: { targetLanguage?: string; templateName?: string } | undefined;
   /**
    * Optional: Re-use an already created storage provider (request-local),
    * to avoid redundant provider creation and repeated list/get calls.
@@ -62,67 +62,61 @@ function getBaseName(name: string | undefined): string | undefined {
 
 export async function gateExtractPdf(ctx: GateContext): Promise<GateResult> {
   const { repo, userEmail, library, source, options } = ctx;
-  
-  // 1) Shadow‑Twin per Namensschema prüfen (erweiterte Suche: Verzeichnis oder Datei)
-  if (library && source?.parentId && source?.name && source?.itemId) {
+  const lang = (options?.targetLanguage || 'de').toLowerCase();
+  const templateName = typeof options?.templateName === 'string' && options.templateName.trim().length > 0
+    ? options.templateName.trim()
+    : undefined;
+
+  // Zentrale Shadow-Twin-Service-Prüfung
+  if (library && source?.itemId && source?.name && source?.parentId) {
     try {
-      // Re-use provider if provided by caller (reduces redundant storage calls)
       const provider = ctx.provider ?? await getServerProvider(userEmail, library.id);
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const base = getBaseName(source.name);
-      const lang = (options?.targetLanguage || 'de').toLowerCase();
-      
-      // v2-only: Prüfe zuerst Transcript (häufigster Fall)
-      const resolvedTranscript = await resolveArtifact(provider, {
-        sourceItemId: source.itemId,
+      const service = new ShadowTwinService({
+        library,
+        userEmail,
+        sourceId: source.itemId,
         sourceName: source.name,
         parentId: source.parentId,
-        targetLanguage: lang,
-        preferredKind: 'transcript',
+        provider,
       });
 
-      if (resolvedTranscript) {
+      // Prüfe Transcript (mit Superset-Check: Transformation impliziert Extract)
+      const existsTranscript = await service.exists({
+        kind: 'transcript',
+        targetLanguage: lang,
+        includeSupersets: !!templateName, // Wenn templateName vorhanden, prüfe auch Transformation
+      });
+
+      if (existsTranscript) {
         return {
           exists: true,
           reason: 'shadow_twin_exists',
-          details: {
-            type: resolvedTranscript.location === 'dotFolder' ? 'folder' : 'file',
-            fileId: resolvedTranscript.fileId,
-            fileName: resolvedTranscript.fileName,
-            location: resolvedTranscript.location,
-            shadowTwinFolderId: resolvedTranscript.shadowTwinFolderId,
-          },
+          details: { kind: 'transcript', includeSupersets: !!templateName },
         };
       }
 
-      // Prüfe Transformation (falls kein Transcript gefunden)
-      const resolvedTransformation = await resolveArtifact(provider, {
-        sourceItemId: source.itemId,
-        sourceName: source.name,
-        parentId: source.parentId,
-        targetLanguage: lang,
-        preferredKind: 'transformation',
-      });
+      // Prüfe Transformation (falls templateName vorhanden)
+      if (templateName) {
+        const existsTransformation = await service.exists({
+          kind: 'transformation',
+          targetLanguage: lang,
+          templateName,
+        });
 
-      if (resolvedTransformation) {
-        return {
-          exists: true,
-          reason: 'shadow_twin_exists',
-          details: {
-            type: resolvedTransformation.location === 'dotFolder' ? 'folder' : 'file',
-            fileId: resolvedTransformation.fileId,
-            fileName: resolvedTransformation.fileName,
-            location: resolvedTransformation.location,
-            shadowTwinFolderId: resolvedTransformation.shadowTwinFolderId,
-          },
-        };
+        if (existsTransformation) {
+          return {
+            exists: true,
+            reason: 'shadow_twin_exists',
+            details: { kind: 'transformation', templateName },
+          };
+        }
       }
     } catch {
-      // ignore
+      // Fehler beim Service-Call → ignore, Fallback unten
     }
   }
   
-  // 2) Fallback: letzter Job, der bereits einen Shadow‑Twin gespeichert hat
+  // Fallback: letzter Job, der bereits einen Shadow‑Twin gespeichert hat
   if (source?.itemId && library?.id) {
     try {
       const latest = await repo.findLatestBySourceItem(userEmail, library.id, source.itemId);

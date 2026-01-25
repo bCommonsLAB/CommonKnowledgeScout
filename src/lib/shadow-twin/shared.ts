@@ -57,6 +57,12 @@ export interface ShadowTwinState {
    * - 'error': Job fehlgeschlagen (status: 'failed') oder Analyse-Fehler
    */
   processingStatus?: ShadowTwinProcessingStatus;
+  /** Ingestion-Status (Story/Veröffentlichung) - nur im Frontend verfügbar */
+  ingestionStatus?: {
+    exists: boolean;
+    chunkCount?: number;
+    chaptersCount?: number;
+  };
 }
 
 /**

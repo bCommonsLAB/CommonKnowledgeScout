@@ -19,6 +19,7 @@ import { handleJobError } from '@/lib/external-jobs/error-handler'
 import { FileLogger } from '@/lib/debug/logger'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { loadShadowTwinMarkdown } from '@/lib/external-jobs/phase-shadow-twin-loader'
+import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
 
 export interface IngestPhaseArgs {
   ctx: RequestContext
@@ -168,7 +169,10 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
       }
       // Aktualisiere fileId und fileName aus gefundener Datei
       const actualFileId = shadowTwinResult.fileId || fileId
-      const actualFileName = shadowTwinResult.fileName || `${(job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '')}.${(job.correlation.options?.targetLanguage as string | undefined) || 'de'}.md`
+      const sourceNameForFallback = job.correlation.source?.name || 'output'
+      const sourceItemIdForFallback = job.correlation.source?.itemId || 'unknown'
+      const langForFallback = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
+      const actualFileName = shadowTwinResult.fileName || buildArtifactName({ sourceId: sourceItemIdForFallback, kind: 'transcript', targetLanguage: langForFallback }, sourceNameForFallback)
       
       FileLogger.info('phase-ingest', 'Markdown aus Shadow-Twin geladen', {
         jobId,
@@ -204,7 +208,10 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
     }
   }
   
-  const fileName = `${(job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '')}.${(job.correlation.options?.targetLanguage as string | undefined) || 'de'}.md`
+  const sourceNameForFileName = job.correlation.source?.name || 'output'
+  const sourceItemIdForFileName = job.correlation.source?.itemId || 'unknown'
+  const langForFileName = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
+  const fileName = buildArtifactName({ sourceId: sourceItemIdForFileName, kind: 'transcript', targetLanguage: langForFileName }, sourceNameForFileName)
 
   let res
   try {

@@ -12,6 +12,8 @@ import { ChapterAccordion, type Chapter } from "@/components/library/chapter-acc
 import { IngestionStatus } from "@/components/library/ingestion-status"
 import type { ShadowTwinTransformationEntry } from "@/components/library/flow/use-shadow-twin-artifacts"
 import { SourceAndTranscriptPane } from "@/components/library/shared/source-and-transcript-pane"
+import { fetchShadowTwinMarkdown } from "@/lib/shadow-twin/shadow-twin-mongo-client"
+import { isMongoShadowTwinId, parseMongoShadowTwinId } from "@/lib/shadow-twin/mongo-shadow-twin-id"
 
 interface ShadowTwinViewerProps {
   libraryId: string
@@ -96,6 +98,14 @@ export function ShadowTwinViewer(props: ShadowTwinViewerProps) {
 
       try {
         setIsTransformationLoading(true)
+        if (isMongoShadowTwinId(selectedTransformation.item.id)) {
+          const parts = parseMongoShadowTwinId(selectedTransformation.item.id)
+          if (!parts) throw new Error("Ungültige Mongo-Shadow-Twin-ID (Transformation).")
+          const text = await fetchShadowTwinMarkdown(props.libraryId, parts)
+          if (cancelled) return
+          setTransformationText(text)
+          return
+        }
         const { blob } = await props.provider.getBinary(selectedTransformation.item.id)
         const text = await blob.text()
         if (cancelled) return
@@ -147,6 +157,14 @@ export function ShadowTwinViewer(props: ShadowTwinViewerProps) {
 
       try {
         setIsTranscriptLoading(true)
+        if (isMongoShadowTwinId(props.transcriptItem.id)) {
+          const parts = parseMongoShadowTwinId(props.transcriptItem.id)
+          if (!parts) throw new Error("Ungültige Mongo-Shadow-Twin-ID (Transcript).")
+          const text = await fetchShadowTwinMarkdown(props.libraryId, parts)
+          if (cancelled) return
+          setTranscriptText(text)
+          return
+        }
         const { blob } = await props.provider.getBinary(props.transcriptItem.id)
         const text = await blob.text()
         if (cancelled) return
@@ -173,6 +191,7 @@ export function ShadowTwinViewer(props: ShadowTwinViewerProps) {
         <div className="flex h-full flex-col">
           <SourceAndTranscriptPane
             provider={props.provider}
+            libraryId={props.libraryId}
             sourceFile={props.sourceFile}
             streamingUrl={props.streamingUrl}
             transcriptItem={props.transcriptItem}

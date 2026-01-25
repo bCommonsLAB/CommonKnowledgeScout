@@ -4,6 +4,10 @@ import * as z from 'zod'
 import { FileLogger } from '@/lib/debug/logger'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { IngestionService } from '@/lib/chat/ingestion-service'
+import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
+import { getShadowTwinArtifact, toArtifactKey } from '@/lib/repositories/shadow-twin-repo'
+import { LibraryService } from '@/lib/services/library-service'
+import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 
 const bodySchema = z.object({
   fileId: z.string().min(1),
@@ -33,12 +37,69 @@ export async function POST(
 
     const { fileId, fileName, docMeta } = parsed.data
 
-    FileLogger.info('ingest-markdown', 'Request', { libraryId, fileId, hasDocMeta: !!docMeta })
+    FileLogger.info('ingest-markdown', 'Request', { libraryId, fileId, hasDocMeta: !!docMeta, isMongoId: isMongoShadowTwinId(fileId) })
 
-    const provider = await getServerProvider(userEmail, libraryId)
-    const item = await provider.getItemById(fileId)
-    const bin = await provider.getBinary(fileId)
-    const markdown = await bin.blob.text()
+    // WICHTIG: Prüfe, ob es sich um eine MongoDB Shadow-Twin ID handelt
+    // Wenn ja, lade direkt aus MongoDB, anstatt über den Filesystem-Provider
+    let markdown: string
+    let item: { metadata: { name: string } }
+    
+    if (isMongoShadowTwinId(fileId)) {
+      const parts = parseMongoShadowTwinId(fileId)
+      if (!parts) {
+        return NextResponse.json({ error: 'Ungültige MongoDB Shadow-Twin ID' }, { status: 400 })
+      }
+      
+      // Prüfe, ob MongoDB als primärer Store aktiviert ist
+      const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
+      if (!library) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
+      
+      const shadowTwinConfig = getShadowTwinConfig(library)
+      if (shadowTwinConfig.primaryStore !== 'mongo') {
+        return NextResponse.json({ error: 'MongoDB ist nicht als primärer Store aktiviert' }, { status: 400 })
+      }
+      
+      // Lade Artefakt direkt aus MongoDB
+      const artifact = await getShadowTwinArtifact({
+        libraryId,
+        sourceId: parts.sourceId,
+        artifactKey: toArtifactKey({
+          sourceId: parts.sourceId,
+          kind: parts.kind,
+          targetLanguage: parts.targetLanguage,
+          templateName: parts.templateName,
+        }),
+      })
+      
+      if (!artifact) {
+        return NextResponse.json({ error: 'Artefakt nicht gefunden in MongoDB' }, { status: 404 })
+      }
+      
+      markdown = artifact.markdown
+      item = {
+        metadata: {
+          name: fileName || `${parts.sourceId}.${parts.kind}.${parts.targetLanguage}.md`
+        }
+      }
+      
+      FileLogger.info('ingest-markdown', 'Markdown aus MongoDB geladen', {
+        fileId,
+        sourceId: parts.sourceId,
+        kind: parts.kind,
+        markdownLength: markdown.length
+      })
+    } else {
+      // Standard-Pfad: Lade über Provider (Filesystem)
+      const provider = await getServerProvider(userEmail, libraryId)
+      item = await provider.getItemById(fileId)
+      const bin = await provider.getBinary(fileId)
+      markdown = await bin.blob.text()
+      
+      FileLogger.info('ingest-markdown', 'Markdown aus Filesystem geladen', {
+        fileId,
+        markdownLength: markdown.length
+      })
+    }
 
     // DEBUG: Prüfe ob Frontmatter vorhanden ist
     const hasFrontmatter = markdown.trim().startsWith('---')
@@ -86,6 +147,9 @@ export async function POST(
       FileLogger.error('ingest-markdown', 'Fehler beim Parsen des Frontmatters', { fileId, error: err instanceof Error ? err.message : String(err) })
     }
 
+    // Provider nur laden, wenn nicht bereits vorhanden (für MongoDB Shadow-Twin IDs)
+    const provider = await getServerProvider(userEmail, libraryId)
+    
     const res = await IngestionService.upsertMarkdown(
       userEmail,
       libraryId,

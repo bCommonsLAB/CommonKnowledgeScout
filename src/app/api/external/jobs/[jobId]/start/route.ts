@@ -41,7 +41,7 @@ import { checkJobStartability } from '@/lib/external-jobs/job-status-check'
 import { prepareSecretaryRequest } from '@/lib/external-jobs/secretary-request'
 import { tracePreprocessEvents } from '@/lib/external-jobs/trace-helpers'
 import { handleJobError } from '@/lib/external-jobs/error-handler'
-import { analyzeShadowTwin } from '@/lib/shadow-twin/analyze-shadow-twin'
+import { analyzeShadowTwinWithService } from '@/lib/shadow-twin/analyze-shadow-twin'
 import { toMongoShadowTwinState } from '@/lib/shadow-twin/shared'
 import { gateExtractPdf } from '@/lib/processing/gates'
 import { getPolicies, shouldRunExtract } from '@/lib/processing/phase-policy'
@@ -52,6 +52,7 @@ import { runIngestPhase } from '@/lib/external-jobs/phase-ingest'
 import { runTemplatePhase } from '@/lib/external-jobs/phase-template'
 import { readPhasesAndPolicies } from '@/lib/external-jobs/policies'
 import { generateShadowTwinFolderName } from '@/lib/storage/shadow-twin'
+import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { withRequestStorageCache } from '@/lib/storage/provider-request-cache'
 
 /**
@@ -351,14 +352,20 @@ export async function POST(
     // Shadow-Twin-State beim Job-Start analysieren und im Job-Dokument speichern
     // WICHTIG: Deterministische Erstellung des Shadow-Twin-Verzeichnisses, wenn benötigt
     // Jeder Job hat seinen eigenen isolierten Kontext - keine gegenseitige Beeinflussung
+    let libraryForShadowTwin: Awaited<ReturnType<typeof LibraryService.getInstance>['getLibrary']> = null
     FileLogger.info('start-route', 'Starte Shadow-Twin-Analyse', {
       jobId,
       itemId: src.itemId,
       fileName: src.name
     })
-    let shadowTwinState: Awaited<ReturnType<typeof analyzeShadowTwin>> | null = null
+    let shadowTwinState: Awaited<ReturnType<typeof analyzeShadowTwinWithService>> | null = null
     try {
-      shadowTwinState = await analyzeShadowTwin(src.itemId, provider);
+      // WICHTIG:
+      // Wir analysieren Shadow-Twins Mongo-aware (via ShadowTwinService), weil `primaryStore=mongo`
+      // in vielen Libraries aktiv ist. Ohne das würden wir Mongo-Artefakte über den Provider "übersehen".
+      libraryForShadowTwin = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
+      const lang = (job.correlation?.options as { targetLanguage?: string } | undefined)?.targetLanguage || 'de'
+      shadowTwinState = await analyzeShadowTwinWithService(src.itemId, provider, job.userEmail, libraryForShadowTwin, lang)
       FileLogger.info('start-route', 'Shadow-Twin-Analyse abgeschlossen', {
         jobId,
         itemId: src.itemId,
@@ -396,14 +403,19 @@ export async function POST(
     // Shadow-Twin-Verzeichnis wird benötigt, wenn Bilder verarbeitet werden sollen
     const needsShadowTwinFolder = includeOcrImages || includePageImages || includeImages
     
+    // Prüfe Shadow-Twin-Konfiguration: Verzeichnis nur erstellen, wenn persistToFilesystem=true
+    const shadowTwinConfig = getShadowTwinConfig(libraryForShadowTwin)
+    const shouldCreateFolder = needsShadowTwinFolder && shadowTwinConfig.persistToFilesystem
+    
     // Wenn Verzeichnis benötigt wird, aber noch nicht existiert, erstelle es deterministisch
-    if (needsShadowTwinFolder && !shadowTwinState?.shadowTwinFolderId) {
+    // ABER: Nur wenn persistToFilesystem=true (bei MongoDB-only wird kein Verzeichnis erstellt)
+    if (shouldCreateFolder && !shadowTwinState?.shadowTwinFolderId) {
       try {
         const parentId = src.parentId || 'root'
         const originalName = src.name || 'output'
         const folderName = generateShadowTwinFolderName(originalName)
 
-        // OPTIMIERUNG: Wir haben eben `analyzeShadowTwin()` gemacht und wissen, dass kein Folder existiert.
+        // OPTIMIERUNG: Wir haben eben `analyzeShadowTwinWithService()` gemacht und wissen, dass kein Folder existiert.
         // Daher erzeugen wir deterministisch direkt, ohne nochmal `findShadowTwinFolder()` aufzurufen.
         // Falls zwischenzeitlich ein Folder entstanden ist, fällt `createFolder` ggf. fehl → dann fallback.
         let folderId: string | undefined
@@ -438,7 +450,8 @@ export async function POST(
             folderId,
             parentId,
             originalName,
-            reason: 'Bilder werden verarbeitet'
+            reason: 'Bilder werden verarbeitet',
+            persistToFilesystem: shadowTwinConfig.persistToFilesystem
           });
         }
       } catch (error) {
@@ -448,6 +461,14 @@ export async function POST(
         });
         // Fehler nicht kritisch - Job kann trotzdem fortgesetzt werden
       }
+    } else if (needsShadowTwinFolder && !shadowTwinConfig.persistToFilesystem) {
+      // Bilder werden verarbeitet, aber persistToFilesystem=false - kein Verzeichnis erstellen
+      FileLogger.info('start-route', 'Shadow-Twin-Verzeichnis wird nicht erstellt (persistToFilesystem=false)', {
+        jobId,
+        originalName: src.name || 'output',
+        reason: 'Bilder werden direkt nach Azure/MongoDB hochgeladen, kein Filesystem-Verzeichnis benötigt',
+        primaryStore: shadowTwinConfig.primaryStore
+      });
     }
 
     const extractStepName = getExtractStepName(job.job_type)
@@ -550,7 +571,10 @@ export async function POST(
           userEmail: job.userEmail,
           library,
           source: job.correlation?.source,
-          options: job.correlation?.options as { targetLanguage?: string } | undefined,
+          options: {
+            ...(job.correlation?.options as { targetLanguage?: string } | undefined),
+            templateName: (job.parameters as { template?: unknown } | undefined)?.template as string | undefined,
+          },
           provider,
         })
         
@@ -784,8 +808,8 @@ export async function POST(
       try {
         const libraryService = LibraryService.getInstance()
         const email = userEmail || job.userEmail
-        const library = await libraryService.getLibrary(email, job.libraryId)
-        libraryConfig = library?.config?.chat
+        const libraryForConfig = await libraryService.getLibrary(email, job.libraryId)
+        libraryConfig = libraryForConfig?.config?.chat
       } catch (error) {
         FileLogger.warn('start-route', 'Fehler beim Laden der Library-Config', {
           jobId,
@@ -973,8 +997,9 @@ export async function POST(
             // analysiere es und setze den Status auf "ready"
             if (job.correlation?.source?.itemId && library) {
               try {
-                const { analyzeShadowTwin } = await import('@/lib/shadow-twin/analyze-shadow-twin')
-                const shadowTwinState = await analyzeShadowTwin(job.correlation.source.itemId, provider)
+                const { analyzeShadowTwinWithService } = await import('@/lib/shadow-twin/analyze-shadow-twin')
+                const lang = (job.correlation?.options as { targetLanguage?: string } | undefined)?.targetLanguage || 'de'
+                const shadowTwinState = await analyzeShadowTwinWithService(job.correlation.source.itemId, provider, job.userEmail, library, lang)
                 if (shadowTwinState) {
                   const { toMongoShadowTwinState } = await import('@/lib/shadow-twin/shared')
                   const mongoState = toMongoShadowTwinState({
@@ -1019,6 +1044,8 @@ export async function POST(
     // Bereite Secretary-Service-Request vor
     const requestConfig = prepareSecretaryRequest(job, file, callbackUrl, secret)
     const { url, formData: formForRequest, headers } = requestConfig
+    const submitAtIso = new Date().toISOString()
+    const submitAtMs = Date.now()
     
     FileLogger.info('start-route', 'Sende Request an Secretary Service', {
       jobId,
@@ -1026,6 +1053,27 @@ export async function POST(
       method: 'POST',
       hasApiKey: !!requestConfig.headers['Authorization']
     });
+
+    // Trace + Timing: Request wird an Secretary gesendet
+    try {
+      await repo.traceAddEvent(jobId, {
+        spanId: 'preprocess',
+        name: 'secretary_request_sent',
+        attributes: {
+          url,
+          method: 'POST',
+          submitAt: submitAtIso,
+          extractionMethod,
+        },
+      })
+    } catch {}
+    try {
+      await repo.setSecretaryTiming(jobId, {
+        submitAt: submitAtIso,
+        requestUrl: url,
+        requestMethod: 'POST',
+      })
+    } catch {}
     
     let resp: Response
     try {
@@ -1047,16 +1095,20 @@ export async function POST(
       ok: resp.ok,
       headers: Object.fromEntries(resp.headers.entries())
     });
+    const ackAtIso = new Date().toISOString()
+    const submitToAckMs = Math.max(0, Date.now() - submitAtMs)
     
     try {
       await repo.traceAddEvent(jobId, {
         spanId: 'preprocess',
-        name: 'request_ack',
+        name: 'secretary_request_ack',
         attributes: {
           status: resp.status,
           statusText: resp.statusText,
           url,
           extractionMethod,
+          ackAt: ackAtIso,
+          submitToAckMs,
           // Duplicate-Diagnose:
           startRequestId: request.headers.get('x-start-request-id') || request.headers.get('x-request-id') || undefined,
           workerId: request.headers.get('x-worker-id') || undefined,
@@ -1071,6 +1123,14 @@ export async function POST(
       })
       // Trace-Fehler nicht kritisch - Job kann trotzdem fortgesetzt werden
     }
+    try {
+      await repo.setSecretaryTiming(jobId, {
+        ackAt: ackAtIso,
+        ackStatus: resp.status,
+        ackStatusText: resp.statusText,
+        submitToAckMs,
+      })
+    } catch {}
 
     // UX: Step sofort auf "running" setzen, sobald der Request zum Worker ack'ed wurde.
     // Ohne dieses Update bleibt der Step in der UI lange auf "pending", obwohl der Job bereits läuft

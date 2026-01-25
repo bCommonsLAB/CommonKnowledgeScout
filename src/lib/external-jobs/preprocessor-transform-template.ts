@@ -65,7 +65,20 @@ export async function preprocessorTransformTemplate(
   const sourceItemId = job.correlation?.source?.itemId
   const sourceName = job.correlation?.source?.name
 
-  const found = await findPdfMarkdown(provider, parentId, baseName, lang, library, sourceItemId, sourceName)
+  // Für die Template-Phase suchen wir primär die Transformation (nicht das Transcript),
+  // da nur die Transformationsdatei Frontmatter enthalten soll.
+  const desiredTemplate = job.parameters?.template as string | undefined
+  const found = await findPdfMarkdown(
+    provider,
+    parentId,
+    baseName,
+    lang,
+    library,
+    sourceItemId,
+    sourceName,
+    { preferredKind: 'transformation', templateName: desiredTemplate },
+    userEmail
+  )
 
   if (!found.hasMarkdown || !found.text) {
     return {
@@ -86,7 +99,6 @@ export async function preprocessorTransformTemplate(
   const validation = await validateFrontmatter(analysis.meta, userEmail, libraryId)
   
   // Prüfe, ob Template-Name im Frontmatter gespeichert ist und mit gewünschtem Template übereinstimmt
-  const desiredTemplate = job.parameters?.template as string | undefined
   const existingTemplate = typeof analysis.meta?.template === 'string' ? analysis.meta.template : undefined
   
   // Template-Vergleich: Wenn gewünschtes Template angegeben ist und nicht mit bestehendem übereinstimmt,

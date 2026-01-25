@@ -39,10 +39,28 @@ export async function POST(request: NextRequest) {
     const jobSecret = crypto.randomBytes(24).toString('base64url')
     const jobSecretHash = repo.hashSecret(jobSecret)
 
+    // Media-Type + Job-Type ableiten (für PDF und Audio Integrationstests).
+    // WICHTIG:
+    // - Diese Route wird von Integrationstests genutzt und muss daher mehrere Medientypen unterstützen.
+    // - Für unknown Types bleiben wir beim bisherigen Default "pdf".
+    const explicitMediaType = typeof body.mediaType === 'string' ? body.mediaType : undefined
+    const inferredMediaType =
+      explicitMediaType
+        ? explicitMediaType
+        : (mimeType.startsWith('audio/') ? 'audio' : 'pdf')
+
+    const jobType: ExternalJob['job_type'] =
+      inferredMediaType === 'audio'
+        ? 'audio'
+        : 'pdf'
+
+    const extractStepName =
+      jobType === 'audio' ? 'extract_audio' : 'extract_pdf'
+
     const correlation = {
       jobId,
       libraryId,
-      source: { mediaType: 'pdf', mimeType, name: fileName, parentId, itemId },
+      source: { mediaType: inferredMediaType, mimeType, name: fileName, parentId, itemId },
       options: { 
         targetLanguage, 
         extractionMethod, 
@@ -55,7 +73,7 @@ export async function POST(request: NextRequest) {
     const job: ExternalJob = {
       jobId,
       jobSecretHash,
-      job_type: 'pdf',
+      job_type: jobType,
       operation: 'extract',
       worker: 'secretary',
       status: 'queued',
@@ -65,7 +83,8 @@ export async function POST(request: NextRequest) {
       createdAt: new Date(),
       updatedAt: new Date(),
       steps: [
-        { name: 'extract_pdf', status: 'completed', startedAt: new Date(), endedAt: new Date() },
+        // Start-Route initialisiert Steps erneut. Dieser Eintrag ist nur ein Platzhalter.
+        { name: extractStepName, status: 'completed', startedAt: new Date(), endedAt: new Date() },
         { name: 'transform_template', status: 'pending' },
         { name: 'store_shadow_twin', status: 'pending' },
         { name: 'ingest_rag', status: 'pending' },

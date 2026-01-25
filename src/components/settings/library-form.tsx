@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { v4 as uuidv4 } from "uuid"
 import { useAtom } from "jotai"
 import { useUser } from "@clerk/nextjs"
@@ -52,6 +52,18 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 import { librariesAtom, activeLibraryIdAtom } from "@/atoms/library-atom"
 import { StorageProviderType } from "@/types/library"
 
@@ -101,6 +113,68 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
   const [activeLibraryId, setActiveLibraryId] = useAtom(activeLibraryIdAtom);
   const [shadowTwinMode, setShadowTwinMode] = useState<'legacy' | 'v2'>('legacy');
   const [isUpgradingShadowTwinMode, setIsUpgradingShadowTwinMode] = useState(false);
+  // Shadow-Twin-Config (neue Flags) - bewusst lokal gehalten, da sie nicht Teil des Form-Schemas sind.
+  const [shadowTwinPrimaryStore, setShadowTwinPrimaryStore] = useState<'filesystem' | 'mongo'>('filesystem');
+  const [shadowTwinPersistToFilesystem, setShadowTwinPersistToFilesystem] = useState(true);
+  const [shadowTwinAllowFilesystemFallback, setShadowTwinAllowFilesystemFallback] = useState(true);
+  const shadowTwinConfigRef = useRef({
+    primaryStore: 'filesystem' as 'filesystem' | 'mongo',
+    persistToFilesystem: true,
+    allowFilesystemFallback: true,
+  });
+  const [isDryRunOpen, setIsDryRunOpen] = useState(false);
+  const [dryRunRecursive, setDryRunRecursive] = useState(true);
+  const [dryRunCleanupFilesystem, setDryRunCleanupFilesystem] = useState(false);
+  const [dryRunRunning, setDryRunRunning] = useState(false);
+  const [dryRunError, setDryRunError] = useState<string | null>(null);
+  const [migrationRuns, setMigrationRuns] = useState<Array<{
+    runId: string
+    status: 'running' | 'completed' | 'failed'
+    params: {
+      folderId?: string
+      recursive?: boolean
+      dryRun?: boolean
+      cleanupFilesystem?: boolean
+      limit?: number
+    }
+    startedAt: string
+    finishedAt?: string
+    steps?: Array<{ name: string; at: string; meta?: Record<string, unknown> }>
+    report?: {
+      upsertedArtifacts?: Array<{
+        sourceId: string
+        sourceName: string
+        artifactFileName: string
+        kind: 'transcript' | 'transformation'
+        targetLanguage: string
+        templateName?: string
+        mongoUpserted: boolean
+        blobImages?: number
+        blobErrors?: number
+        binaryFragmentsCount?: number
+        markdownFiles?: number
+        imageFiles?: number
+        audioFiles?: number
+        videoFiles?: number
+        otherFiles?: number
+        filesystemDeleted: boolean
+      }>
+      upsertedArtifactsTruncated?: boolean
+    }
+  }>>([]);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [binaryFragments, setBinaryFragments] = useState<Array<{
+    sourceId: string
+    sourceName: string
+    name: string
+    kind: string
+    url?: string
+    hash?: string
+    mimeType?: string
+    size?: number
+    createdAt: string
+  }>>([]);
+  const [loadingFragments, setLoadingFragments] = useState(false);
   
   // Aktuelle Bibliothek aus dem globalen Zustand
   const activeLibrary = libraries.find(lib => lib.id === activeLibraryId);
@@ -112,6 +186,27 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
       : undefined;
 
     setShadowTwinMode(modeFromLibrary === 'v2' ? 'v2' : 'legacy');
+
+    // Shadow-Twin-Flags aus der Library-Config ableiten.
+    const configShadowTwin = activeLibrary?.config?.shadowTwin as {
+      primaryStore?: 'filesystem' | 'mongo';
+      persistToFilesystem?: boolean;
+      allowFilesystemFallback?: boolean;
+    } | undefined;
+
+    const primaryStore = configShadowTwin?.primaryStore || 'filesystem';
+    const nextSnapshot = {
+      primaryStore,
+      persistToFilesystem:
+        typeof configShadowTwin?.persistToFilesystem === 'boolean'
+          ? configShadowTwin.persistToFilesystem
+          : primaryStore === 'filesystem',
+      allowFilesystemFallback: configShadowTwin?.allowFilesystemFallback ?? true,
+    };
+    shadowTwinConfigRef.current = nextSnapshot;
+    setShadowTwinPrimaryStore(primaryStore);
+    setShadowTwinPersistToFilesystem(nextSnapshot.persistToFilesystem);
+    setShadowTwinAllowFilesystemFallback(nextSnapshot.allowFilesystemFallback);
   }, [activeLibrary?.id, activeLibrary?.config]);
   
   const defaultValues = useMemo<LibraryFormValues>(() => ({
@@ -141,7 +236,25 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
     // Wichtig: activeLibraryId zurücksetzen, damit keine bestehende Bibliothek überschrieben wird
     setActiveLibraryId("");
     form.reset(defaultValues);
+    // Defaults fuer neue Library (konservativ).
+    setShadowTwinPrimaryStore('filesystem');
+    setShadowTwinPersistToFilesystem(true);
+    setShadowTwinCleanupFilesystemOnMigrate(false);
+    setShadowTwinAllowFilesystemFallback(true);
   }, [form, defaultValues, setActiveLibraryId]);
+
+  const isShadowTwinConfigDirty = useMemo(() => {
+    const current = shadowTwinConfigRef.current;
+    return (
+      shadowTwinPrimaryStore !== current.primaryStore ||
+      shadowTwinPersistToFilesystem !== current.persistToFilesystem ||
+      shadowTwinAllowFilesystemFallback !== current.allowFilesystemFallback
+    );
+  }, [
+    shadowTwinPrimaryStore,
+    shadowTwinPersistToFilesystem,
+    shadowTwinAllowFilesystemFallback,
+  ]);
 
   // Funktion zum Zurückkehren zur Bearbeitung der aktiven Bibliothek
   const handleCancelNew = useCallback(() => {
@@ -202,6 +315,192 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
     }
   }, [activeLibrary, isNew, form]);
 
+  // Dry-Run: Shadow-Twin Migration (UI-Test)
+  const runShadowTwinMigration = useCallback(async () => {
+    if (!activeLibraryId) {
+      toast({
+        title: "Fehler",
+        description: "Keine aktive Library gewählt.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setDryRunRunning(true);
+    setDryRunError(null);
+    try {
+      const res = await fetch(`/api/library/${activeLibraryId}/shadow-twins/migrate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          folderId: 'root',
+          recursive: dryRunRecursive,
+          dryRun: false,
+          cleanupFilesystem: dryRunCleanupFilesystem,
+        }),
+      });
+
+      const json = await res.json().catch(() => ({})) as { report?: Record<string, unknown>; runId?: string; error?: string };
+      if (!res.ok) {
+        throw new Error(json.error || `HTTP ${res.status}`);
+      }
+
+      // Nach erfolgreichem Upsert: Migration-Runs neu laden und den neuen Run auswählen
+      if (json.runId) {
+        // Lade die Migration-Runs neu, um den neuen Run zu sehen
+        const runsRes = await fetch(`/api/library/${activeLibraryId}/shadow-twins/migrations?limit=10`);
+        if (runsRes.ok) {
+          const runsJson = await runsRes.json() as { runs?: Array<{
+            runId: string
+            status: 'running' | 'completed' | 'failed'
+            params?: {
+              folderId?: string
+              recursive?: boolean
+              dryRun?: boolean
+              cleanupFilesystem?: boolean
+              limit?: number
+            }
+            startedAt: string
+          }> };
+          const runsArray = Array.isArray(runsJson.runs) ? runsJson.runs : [];
+          const runs = runsArray.filter((run) => !run?.params?.dryRun);
+          setMigrationRuns(runs);
+          // Wähle den neuen Run automatisch aus
+          setSelectedRunId(json.runId as string);
+        }
+      }
+      toast({
+        title: "Upsert abgeschlossen",
+        description: "Migration erfolgreich durchgeführt. Der Report wird in der Tabelle angezeigt.",
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setDryRunError(message);
+      toast({
+        title: "Upsert fehlgeschlagen",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setDryRunRunning(false);
+    }
+  }, [activeLibraryId, dryRunRecursive, dryRunCleanupFilesystem]);
+
+  useEffect(() => {
+    if (!isDryRunOpen || !activeLibraryId) return;
+
+    let cancelled = false;
+    async function loadRuns() {
+      try {
+        const res = await fetch(`/api/library/${activeLibraryId}/shadow-twins/migrations?limit=10`);
+        const json = await res.json().catch(() => ({})) as { 
+          runs?: Array<{ 
+            runId: string
+            status: 'running' | 'completed' | 'failed'
+            params?: {
+              folderId?: string
+              recursive?: boolean
+              dryRun?: boolean
+              cleanupFilesystem?: boolean
+              limit?: number
+            }
+            startedAt: string
+          }> 
+        };
+        if (!res.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+        if (cancelled) return;
+        // Stelle sicher, dass runs ein Array ist
+        const runsArray = Array.isArray(json.runs) ? json.runs : [];
+        const runs = runsArray
+          .filter((run) => !run?.params?.dryRun);
+        setMigrationRuns(runs);
+        if (runs.length > 0 && runs[0]?.runId) {
+          setSelectedRunId(runs[0].runId);
+        } else {
+          setSelectedRunId(null);
+        }
+      } catch (error) {
+        if (cancelled) return;
+        setMigrationRuns([]);
+        setSelectedRunId(null);
+      }
+    }
+
+    void loadRuns();
+    return () => {
+      cancelled = true;
+    };
+  }, [isDryRunOpen, activeLibraryId]);
+
+  // Stelle sicher, dass migrationRuns immer ein Array ist
+  const migrationRunsArray = Array.isArray(migrationRuns) ? migrationRuns : [];
+  const selectedRun = migrationRunsArray.find((run) => run.runId === selectedRunId) || null;
+
+  // Lade binaryFragments aus MongoDB, wenn ein Run ausgewählt ist
+  useEffect(() => {
+    if (!selectedRun || !activeLibraryId || !selectedRun.report?.upsertedArtifacts) {
+      setBinaryFragments([]);
+      return;
+    }
+
+    let cancelled = false;
+    async function loadFragments() {
+      setLoadingFragments(true);
+      try {
+        // Sammle alle eindeutigen sourceIds aus dem Report
+        const sourceIds = Array.from(
+          new Set(
+            (selectedRun.report?.upsertedArtifacts || []).map((a) => a.sourceId).filter(Boolean)
+          )
+        );
+
+        if (sourceIds.length === 0) {
+          setBinaryFragments([]);
+          return;
+        }
+
+        // Lade binaryFragments aus MongoDB
+        const res = await fetch(`/api/library/${activeLibraryId}/shadow-twins/binary-fragments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sourceIds }),
+        });
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+
+        const json = await res.json() as { fragments?: Array<{
+          sourceId: string
+          sourceName: string
+          name: string
+          kind: string
+          url?: string
+          hash?: string
+          mimeType?: string
+          size?: number
+          createdAt: string
+        }> };
+
+        if (cancelled) return;
+        setBinaryFragments(json.fragments || []);
+      } catch (error) {
+        if (cancelled) return;
+        console.error('Fehler beim Laden der binaryFragments:', error);
+        setBinaryFragments([]);
+      } finally {
+        if (!cancelled) {
+          setLoadingFragments(false);
+        }
+      }
+    }
+
+    void loadFragments();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedRun?.runId, activeLibraryId]);
+
   // Bibliothek speichern (neu erstellen oder aktualisieren)
   async function onSubmit(data: LibraryFormValues) {
     if (!user?.primaryEmailAddress?.emailAddress) {
@@ -250,6 +549,13 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
           description: data.description,
           transcription: data.transcription,
           templateDirectory: data.templateDirectory,
+          // Shadow-Twin-Konfiguration explizit persistieren.
+          shadowTwin: {
+            mode: shadowTwinMode,
+            primaryStore: shadowTwinPrimaryStore,
+            persistToFilesystem: shadowTwinPersistToFilesystem,
+            allowFilesystemFallback: shadowTwinAllowFilesystemFallback,
+          },
           ...storageConfig,
         }
       };
@@ -687,6 +993,460 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                       </p>
                     )}
                   </div>
+                  <div className="border-t pt-4 space-y-3">
+                    <div>
+                      <h4 className="text-sm font-medium">Shadow‑Twin Speicher (Mongo/Filesystem)</h4>
+                      <p className="text-xs text-muted-foreground">
+                        Diese Flags steuern den primären Store und optionale Filesystem‑Writes.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <FormLabel>Primary Store</FormLabel>
+                      <Select
+                        value={shadowTwinPrimaryStore}
+                        onValueChange={(value) => setShadowTwinPrimaryStore(value as 'filesystem' | 'mongo')}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Store auswählen" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="filesystem">Filesystem (Legacy)</SelectItem>
+                          <SelectItem value="mongo">MongoDB (primär)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Legt fest, ob Shadow‑Twins primär aus dem Filesystem oder aus MongoDB gelesen werden.
+                      </FormDescription>
+                    </div>
+                    <div className="flex items-center justify-between rounded border p-3">
+                      <div>
+                        <FormLabel className="text-sm">Persist to Filesystem</FormLabel>
+                        <FormDescription>Shadow‑Twins zusätzlich ins Filesystem schreiben.</FormDescription>
+                      </div>
+                      <Switch
+                        checked={shadowTwinPersistToFilesystem}
+                        onCheckedChange={setShadowTwinPersistToFilesystem}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between rounded border p-3">
+                      <div>
+                        <FormLabel className="text-sm">Filesystem Fallback</FormLabel>
+                        <FormDescription>Fallback lesen, wenn Mongo‑Eintrag fehlt.</FormDescription>
+                      </div>
+                      <Switch
+                        checked={shadowTwinAllowFilesystemFallback}
+                        onCheckedChange={setShadowTwinAllowFilesystemFallback}
+                      />
+                    </div>
+                  </div>
+                  <div className="border-t pt-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h4 className="text-sm font-medium">Migration (Upsert)</h4>
+                        <p className="text-xs text-muted-foreground">
+                          Upsert nach MongoDB und Report anzeigen. Cleanup kann unten aktiviert werden.
+                        </p>
+                      </div>
+                      <Dialog open={isDryRunOpen} onOpenChange={setIsDryRunOpen}>
+                        <DialogTrigger asChild>
+                          <Button type="button" variant="outline" disabled={!activeLibraryId}>
+                            Migration starten
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-7xl w-[95vw] max-h-[90vh] overflow-auto !grid-cols-1">
+                          <DialogHeader>
+                            <DialogTitle>Shadow‑Twin Migration (Upsert)</DialogTitle>
+                            <DialogDescription className="space-y-2">
+                              <div>
+                                <strong>Absicht:</strong> Dieser Dialog ermöglicht die Migration von Shadow-Twins (abgeleitete Markdown-Dateien und zugehörige Assets) vom Dateisystem nach MongoDB als primärem Speicher. 
+                                Sie können Migrationsläufe starten und detaillierte Berichte über jeden verarbeiteten Datei einsehen.
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1 space-y-1">
+                                <div>
+                                  <strong>Aktuelles Ziel:</strong> Shadow-Twins werden primär in <span className="font-mono">{shadowTwinPrimaryStore === 'mongo' ? 'MongoDB' : 'Filesystem'}</span> gespeichert.
+                                </div>
+                                {shadowTwinPrimaryStore === 'mongo' ? (
+                                  <div className="text-green-600 dark:text-green-400">
+                                    ✓ Ziel erreicht: MongoDB ist als primärer Store aktiviert.
+                                  </div>
+                                ) : (
+                                  <div className="text-amber-600 dark:text-amber-400">
+                                    ⚠ Bitte setze "Primary Store" auf "MongoDB" in den Library-Einstellungen, bevor du die Migration startest.
+                                  </div>
+                                )}
+                                <div>
+                                  Dieser Lauf verwendet die Library‑Root.
+                                </div>
+                              </div>
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-3 min-w-0">
+                            <div className="flex items-center justify-between rounded border p-3">
+                              <div>
+                                <FormLabel className="text-sm">Recursive</FormLabel>
+                                <FormDescription>Unterordner einschließen.</FormDescription>
+                              </div>
+                              <Switch checked={dryRunRecursive} onCheckedChange={setDryRunRecursive} />
+                            </div>
+                            <div className="flex items-center justify-between rounded border p-3">
+                              <div>
+                                <FormLabel className="text-sm">Filesystem Cleanup</FormLabel>
+                                <FormDescription>Filesystem‑Shadow‑Twins nach erfolgreichem Upsert löschen.</FormDescription>
+                              </div>
+                              <Switch checked={dryRunCleanupFilesystem} onCheckedChange={setDryRunCleanupFilesystem} />
+                            </div>
+                            {dryRunError ? (
+                              <p className="text-xs text-destructive">{dryRunError}</p>
+                            ) : null}
+                            <div className="border-t pt-3">
+                              <div className="text-sm font-medium">Upsert‑Lauf auswählen</div>
+                              {migrationRunsArray.length === 0 ? (
+                                <div className="mt-2 text-xs text-muted-foreground">Keine Upserts vorhanden.</div>
+                              ) : (
+                                <div className="mt-2 space-y-2">
+                                  <Select
+                                    value={selectedRunId || undefined}
+                                    onValueChange={(value) => setSelectedRunId(value)}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Upsert‑Lauf auswählen" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {migrationRunsArray.map((run) => {
+                                        const params = run.params || {}
+                                        const paramParts: string[] = []
+                                        // Zeige recursive nur wenn explizit gesetzt (nicht default)
+                                        if (typeof params.recursive === 'boolean') {
+                                          paramParts.push(`recursive: ${params.recursive}`)
+                                        }
+                                        // Zeige cleanup nur wenn explizit gesetzt (nicht default)
+                                        if (typeof params.cleanupFilesystem === 'boolean') {
+                                          paramParts.push(`cleanup: ${params.cleanupFilesystem}`)
+                                        }
+                                        // Zeige folderId wenn nicht 'root'
+                                        if (params.folderId && params.folderId !== 'root') {
+                                          paramParts.push(`folder: ${params.folderId.slice(0, 20)}...`)
+                                        }
+                                        const paramsStr = paramParts.length > 0 ? ` (${paramParts.join(', ')})` : ''
+                                        return (
+                                          <SelectItem key={run.runId} value={run.runId}>
+                                            {new Date(run.startedAt).toLocaleString()} · {run.runId.slice(0, 8)} · {run.status}{paramsStr}
+                                          </SelectItem>
+                                        )
+                                      })}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              )}
+
+                              {selectedRun ? (
+                                <div className="mt-3">
+                                  <div className="mb-2">
+                                    <div className="text-xs font-medium">Bearbeitete Dateien</div>
+                                    <div className="mt-1 text-[11px] text-muted-foreground">
+                                      Diese Tabelle zeigt alle Dateien, die im ausgewählten Migrationslauf verarbeitet wurden. 
+                                      Gruppiert nach Quellen. Jede Zeile entspricht einer einzelnen Datei (Markdown-Artefakte oder Binary-Fragmente wie Bilder, Audio, Video).
+                                    </div>
+                                  </div>
+                                  {(() => {
+                                    // Clientseitige Gruppierung nach sourceId
+                                    const artifacts = selectedRun.report?.upsertedArtifacts || []
+                                    
+                                    if (artifacts.length === 0 && binaryFragments.length === 0) {
+                                      if (loadingFragments) {
+                                        return <div className="mt-2 text-xs text-muted-foreground">Lade Dateien...</div>
+                                      }
+                                      return <div className="mt-2 text-xs text-muted-foreground">Keine Dateien gelistet.</div>
+                                    }
+
+                                    // Hilfsfunktion: Versucht sourceId als Base64 zu dekodieren, um den Pfad zu erhalten
+                                    const tryDecodePath = (sourceId: string): string => {
+                                      if (!sourceId || sourceId === 'root' || sourceId === 'undefined' || sourceId === 'null') {
+                                        return ''
+                                      }
+                                      // Prüfe, ob es wie Base64 aussieht
+                                      if (!/^[A-Za-z0-9+/=]+$/.test(sourceId) || sourceId.length % 4 !== 0) {
+                                        return ''
+                                      }
+                                      try {
+                                        // Browser-seitige Base64-Dekodierung
+                                        const decoded = atob(sourceId)
+                                        if (decoded && decoded.includes('/') && !decoded.includes('..')) {
+                                          return decoded.replace(/\\/g, '/')
+                                        }
+                                      } catch {
+                                        // Ignoriere Dekodierungsfehler
+                                      }
+                                      return ''
+                                    }
+
+                                    // Kombiniere Artefakte und binaryFragments zu einer flachen Liste von Dateien
+                                    type FileEntry = {
+                                      sourceId: string
+                                      sourceName: string
+                                      fileName: string
+                                      kind: string
+                                      mimeType?: string
+                                      size?: number
+                                      url?: string
+                                      hash?: string
+                                      mongoUpserted: boolean
+                                      filesystemDeleted: boolean
+                                      // Artefakt-spezifische Felder (nur für Markdown-Artefakte)
+                                      artifactKind?: 'transcript' | 'transformation'
+                                      targetLanguage?: string
+                                      templateName?: string
+                                    }
+
+                                    const allFiles: FileEntry[] = []
+
+                                    // Füge Artefakte hinzu (Markdown-Dateien)
+                                    for (const artifact of artifacts) {
+                                      allFiles.push({
+                                        sourceId: artifact.sourceId,
+                                        sourceName: artifact.sourceName || 'Unbekannt',
+                                        fileName: artifact.artifactFileName,
+                                        kind: 'markdown',
+                                        mimeType: 'text/markdown',
+                                        mongoUpserted: artifact.mongoUpserted,
+                                        filesystemDeleted: artifact.filesystemDeleted,
+                                        artifactKind: artifact.kind,
+                                        targetLanguage: artifact.targetLanguage,
+                                        templateName: artifact.templateName,
+                                      })
+                                    }
+
+                                    // Füge binaryFragments hinzu (nur wenn nicht bereits als Artefakt vorhanden)
+                                    // Erstelle Set von Artefakt-Dateinamen für schnellen Lookup
+                                    const artifactFileNames = new Set(
+                                      artifacts.map((a) => a.artifactFileName.toLowerCase())
+                                    )
+
+                                    for (const fragment of binaryFragments) {
+                                      // Überspringe Markdown-Dateien, die bereits als Artefakte vorhanden sind
+                                      if (
+                                        fragment.kind === 'markdown' &&
+                                        artifactFileNames.has(fragment.name.toLowerCase())
+                                      ) {
+                                        continue
+                                      }
+
+                                      allFiles.push({
+                                        sourceId: fragment.sourceId,
+                                        sourceName: fragment.sourceName,
+                                        fileName: fragment.name,
+                                        kind: fragment.kind,
+                                        mimeType: fragment.mimeType,
+                                        size: fragment.size,
+                                        url: fragment.url,
+                                        hash: fragment.hash,
+                                        mongoUpserted: !!fragment.url, // Wenn URL vorhanden, wurde es erfolgreich hochgeladen
+                                        filesystemDeleted: selectedRun.params?.cleanupFilesystem || false,
+                                      })
+                                    }
+
+                                    // Gruppiere Dateien nach sourceId
+                                    const grouped = allFiles.reduce((acc, file) => {
+                                      const sourceId = file.sourceId || 'unknown'
+                                      if (!acc[sourceId]) {
+                                        const decodedPath = tryDecodePath(sourceId)
+                                        acc[sourceId] = {
+                                          sourceId,
+                                          sourceName: file.sourceName || 'Unbekannt',
+                                          path: decodedPath,
+                                          files: []
+                                        }
+                                      }
+                                      acc[sourceId].files.push(file)
+                                      return acc
+                                    }, {} as Record<string, { sourceId: string; sourceName: string; path: string; files: FileEntry[] }>)
+
+                                    const groups = Object.values(grouped).sort((a, b) => {
+                                      // Sortiere nach Pfad, dann nach sourceName
+                                      if (a.path && b.path) {
+                                        return a.path.localeCompare(b.path)
+                                      }
+                                      if (a.path) return -1
+                                      if (b.path) return 1
+                                      return a.sourceName.localeCompare(b.sourceName)
+                                    })
+
+                                    return (
+                                      <div className="mt-2 max-h-[45vh] overflow-y-auto rounded border w-full">
+                                        <Accordion type="multiple" className="w-full">
+                                          {groups.map((group) => {
+                                            const displayPath = group.path || 'Unbekanntes Verzeichnis'
+                                            const displayName = group.sourceName
+                                            const fileCount = group.files.length
+                                            
+                                            return (
+                                              <AccordionItem key={group.sourceId} value={group.sourceId} className="border-b">
+                                                <AccordionTrigger className="px-3 py-2 text-xs hover:no-underline">
+                                                  <div className="flex items-center justify-between w-full pr-4">
+                                                    <div className="flex flex-col items-start gap-0.5 flex-1 min-w-0">
+                                                      <span className="font-medium text-left truncate max-w-full" title={displayPath}>
+                                                        {displayPath}
+                                                      </span>
+                                                      <span className="text-muted-foreground text-[11px] truncate max-w-full" title={displayName}>
+                                                        {displayName}
+                                                      </span>
+                                                    </div>
+                                                    <span className="text-muted-foreground text-[11px] ml-2 shrink-0">
+                                                      {fileCount} {fileCount === 1 ? 'Datei' : 'Dateien'}
+                                                    </span>
+                                                  </div>
+                                                </AccordionTrigger>
+                                                <AccordionContent className="px-0 pb-0">
+                                                  <div className="overflow-x-auto">
+                                                    <div style={{ minWidth: '1000px' }}>
+                                                      <table className="w-full text-xs" style={{ minWidth: '1000px' }}>
+                                                        <thead className="sticky top-0 bg-muted/60">
+                                                          <tr className="text-left">
+                                                            <TooltipProvider>
+                                                              <th className="px-2 py-1 font-medium">
+                                                                <Tooltip>
+                                                                  <TooltipTrigger className="cursor-help underline decoration-dotted">
+                                                                    Dateiname
+                                                                  </TooltipTrigger>
+                                                                  <TooltipContent>
+                                                                    <p className="max-w-xs">Name der verarbeiteten Datei (Markdown-Artefakt oder Binary-Fragment).</p>
+                                                                  </TooltipContent>
+                                                                </Tooltip>
+                                                              </th>
+                                                              <th className="px-2 py-1 font-medium">
+                                                                <Tooltip>
+                                                                  <TooltipTrigger className="cursor-help underline decoration-dotted">
+                                                                    Typ
+                                                                  </TooltipTrigger>
+                                                                  <TooltipContent>
+                                                                    <p className="max-w-xs">Art der Datei: "markdown" (Artefakt), "image", "audio", "video" oder "binary".</p>
+                                                                  </TooltipContent>
+                                                                </Tooltip>
+                                                              </th>
+                                                              <th className="px-2 py-1 font-medium">
+                                                                <Tooltip>
+                                                                  <TooltipTrigger className="cursor-help underline decoration-dotted">
+                                                                    Größe
+                                                                  </TooltipTrigger>
+                                                                  <TooltipContent>
+                                                                    <p className="max-w-xs">Dateigröße in Bytes.</p>
+                                                                  </TooltipContent>
+                                                                </Tooltip>
+                                                              </th>
+                                                              <th className="px-2 py-1 font-medium">
+                                                                <Tooltip>
+                                                                  <TooltipTrigger className="cursor-help underline decoration-dotted">
+                                                                    Azure URL
+                                                                  </TooltipTrigger>
+                                                                  <TooltipContent>
+                                                                    <p className="max-w-xs">Azure Blob Storage URL (für Binary-Fragmente).</p>
+                                                                  </TooltipContent>
+                                                                </Tooltip>
+                                                              </th>
+                                                              <th className="px-2 py-1 font-medium">
+                                                                <Tooltip>
+                                                                  <TooltipTrigger className="cursor-help underline decoration-dotted">
+                                                                    Hash
+                                                                  </TooltipTrigger>
+                                                                  <TooltipContent>
+                                                                    <p className="max-w-xs">SHA-256 Hash (erste 16 Zeichen) für Deduplizierung.</p>
+                                                                  </TooltipContent>
+                                                                </Tooltip>
+                                                              </th>
+                                                              <th className="px-2 py-1 font-medium">
+                                                                <Tooltip>
+                                                                  <TooltipTrigger className="cursor-help underline decoration-dotted">
+                                                                    Mongo
+                                                                  </TooltipTrigger>
+                                                                  <TooltipContent>
+                                                                    <p className="max-w-xs">Status der MongoDB-Speicherung: "upserted" = erfolgreich gespeichert/aktualisiert, "nein" = nicht gespeichert.</p>
+                                                                  </TooltipContent>
+                                                                </Tooltip>
+                                                              </th>
+                                                              <th className="px-2 py-1 font-medium">
+                                                                <Tooltip>
+                                                                  <TooltipTrigger className="cursor-help underline decoration-dotted">
+                                                                    FS gelöscht
+                                                                  </TooltipTrigger>
+                                                                  <TooltipContent>
+                                                                    <p className="max-w-xs">Ob die Dateisystemkopie nach erfolgreicher MongoDB-Migration gelöscht wurde: "ja" = gelöscht, "nein" = noch vorhanden oder Cleanup deaktiviert.</p>
+                                                                  </TooltipContent>
+                                                                </Tooltip>
+                                                              </th>
+                                                            </TooltipProvider>
+                                                          </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                          {group.files.map((file, idx) => (
+                                                            <tr key={`${file.sourceId}-${file.fileName}-${idx}`} className="border-t align-top">
+                                                              <td className="px-2 py-1 font-medium max-w-[300px] break-words">{file.fileName}</td>
+                                                              <td className="px-2 py-1">
+                                                                {file.artifactKind ? `${file.kind} (${file.artifactKind})` : file.kind}
+                                                              </td>
+                                                              <td className="px-2 py-1">
+                                                                {file.size ? `${(file.size / 1024).toFixed(1)} KB` : '-'}
+                                                              </td>
+                                                              <td className="px-2 py-1 max-w-[400px] break-all text-[10px]">
+                                                                {file.url ? (
+                                                                  <a href={file.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                                                    {file.url.length > 50 ? `${file.url.substring(0, 50)}...` : file.url}
+                                                                  </a>
+                                                                ) : '-'}
+                                                              </td>
+                                                              <td className="px-2 py-1 font-mono text-[10px]">{file.hash || '-'}</td>
+                                                              <td className="px-2 py-1">{file.mongoUpserted ? 'upserted' : 'nein'}</td>
+                                                              <td className="px-2 py-1">{file.filesystemDeleted ? 'ja' : 'nein'}</td>
+                                                            </tr>
+                                                          ))}
+                                                        </tbody>
+                                                      </table>
+                                                    </div>
+                                                  </div>
+                                                </AccordionContent>
+                                              </AccordionItem>
+                                            )
+                                          })}
+                                        </Accordion>
+                                      </div>
+                                    )
+                                  })()}
+                                  {selectedRun.report?.upsertedArtifactsTruncated ? (
+                                    <div className="mt-2 text-[11px] text-muted-foreground">
+                                      Liste gekürzt (max. 500 Einträge).
+                                    </div>
+                                  ) : null}
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                          <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setIsDryRunOpen(false)}>
+                              Schließen
+                            </Button>
+                            <Button
+                              type="button"
+                              onClick={() => {
+                                const cleanupText = dryRunCleanupFilesystem 
+                                  ? '(mit Cleanup - Filesystem-Dateien werden gelöscht)' 
+                                  : '(ohne Cleanup)'
+                                const confirmed = window.confirm(
+                                  `Upsert startet die Migration nach MongoDB ${cleanupText}. Fortfahren?`
+                                )
+                                if (confirmed) void runShadowTwinMigration()
+                              }}
+                              disabled={dryRunRunning}
+                            >
+                              {dryRunRunning ? 'Läuft…' : 'Upsert ausführen'}
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </div>
                 </div>
               )}
               
@@ -876,6 +1636,24 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                       templateDirectory: activeLibrary.config?.templateDirectory as string || "/templates",
                       storageConfig,
                     });
+                    const configShadowTwin = activeLibrary?.config?.shadowTwin as {
+                      primaryStore?: 'filesystem' | 'mongo';
+                      persistToFilesystem?: boolean;
+                      allowFilesystemFallback?: boolean;
+                    } | undefined;
+                    const primaryStore = configShadowTwin?.primaryStore || 'filesystem';
+                    const nextSnapshot = {
+                      primaryStore,
+                      persistToFilesystem:
+                        typeof configShadowTwin?.persistToFilesystem === 'boolean'
+                          ? configShadowTwin.persistToFilesystem
+                          : primaryStore === 'filesystem',
+                      allowFilesystemFallback: configShadowTwin?.allowFilesystemFallback ?? true,
+                    };
+                    shadowTwinConfigRef.current = nextSnapshot;
+                    setShadowTwinPrimaryStore(nextSnapshot.primaryStore);
+                    setShadowTwinPersistToFilesystem(nextSnapshot.persistToFilesystem);
+                    setShadowTwinAllowFilesystemFallback(nextSnapshot.allowFilesystemFallback);
                   }
                 }}
                 disabled={isLoading}
@@ -885,7 +1663,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
             )}
             <Button 
               type="submit" 
-              disabled={isLoading || (!isNew && !form.formState.isDirty)}
+              disabled={isLoading || (!isNew && !form.formState.isDirty && !isShadowTwinConfigDirty)}
             >
               {isLoading ? "Wird gespeichert..." : (isNew ? "Bibliothek erstellen" : "Änderungen speichern")}
             </Button>

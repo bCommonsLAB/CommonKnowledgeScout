@@ -69,6 +69,40 @@ export async function handleProgressIfAny(
   )
 
   if (!hasFinalPayload && !hasError && (progressValue !== undefined || phase || message)) {
+    // Timing: erstes Progress-Event nach Secretary-ACK messen (idempotent).
+    // WICHTIG: Wir setzen nur einmal (guardKey), damit keine Duplikate bei vielen progress callbacks entstehen.
+    try {
+      const firstProgressAt = new Date().toISOString()
+      const ackAtRaw = (job.parameters as Record<string, unknown> | undefined)?.timings
+        && typeof (job.parameters as Record<string, unknown>)?.timings === 'object'
+        ? (((job.parameters as Record<string, unknown>).timings as Record<string, unknown>)?.secretary as Record<string, unknown> | undefined)?.ackAt
+        : undefined
+      const ackAt = typeof ackAtRaw === 'string' ? ackAtRaw : undefined
+      const ackToFirstProgressMs = ackAt ? Math.max(0, Date.parse(firstProgressAt) - Date.parse(ackAt)) : undefined
+      const didSet = await repo.setSecretaryTimingIfMissing(
+        jobId,
+        {
+          firstProgressAt,
+          ...(typeof ackToFirstProgressMs === 'number' ? { ackToFirstProgressMs } : {}),
+        },
+        'firstProgressAt'
+      )
+      if (didSet) {
+        try {
+          await repo.traceAddEvent(jobId, {
+            spanId: 'extract',
+            name: 'secretary_first_progress',
+            attributes: {
+              firstProgressAt,
+              phase: phase || 'progress',
+              progress: progressValue,
+              ...(typeof ackToFirstProgressMs === 'number' ? { ackToFirstProgressMs } : {}),
+            },
+          })
+        } catch {}
+      }
+    } catch {}
+
     // Sicherstellen, dass die Extract-Phase als running markiert ist (Span-Erzeugung)
     try {
       const extractStepName =

@@ -16,28 +16,33 @@ import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { getPublicAppUrl } from '@/lib/env'
 import { FileLogger } from '@/lib/debug/logger'
 import { integrationTestCases, type IntegrationTestCase, type PhasePoliciesValue } from './test-cases'
-import { listPdfTestFiles, prepareShadowTwinForTestCase, type PdfTestFile } from './pdf-upload'
+import { listIntegrationTestFiles, prepareShadowTwinForTestCase, type IntegrationTestFile, type IntegrationTestFileKind } from './pdf-upload'
 import { validateExternalJobForTestCase, type JobValidationResult } from './validators'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { findShadowTwinFolder } from '@/lib/storage/shadow-twin'
 import { IngestionService } from '@/lib/chat/ingestion-service'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
+import { isMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
+import { LibraryService } from '@/lib/services/library-service'
+import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 
 export interface RunIntegrationTestsArgs {
   userEmail: string;
   libraryId: string;
   /**
    * Ordner-ID in der aktiven Library, die als Testverzeichnis dient.
-   * Alle PDFs in diesem Ordner werden als Test-Targets betrachtet.
+   * Alle Testdateien (PDF/AUDIO) in diesem Ordner werden als Test-Targets betrachtet.
    */
   folderId: string;
   /** IDs der gewünschten Testfälle (z.B. ['pdf_mistral_report.happy_path']) */
   testCaseIds: string[];
   /**
    * Optionale Einschränkung auf bestimmte Files (Storage-Item-IDs).
-   * Wenn leer/undefined, werden alle PDFs im Ordner verwendet.
+   * Wenn leer/undefined, werden alle Dateien des gewählten fileKind im Ordner verwendet.
    */
   fileIds?: string[];
+  /** Optional: Dateityp-Filter (UI/CLI). Wenn nicht gesetzt, wird aus den Testcases abgeleitet. */
+  fileKind?: IntegrationTestFileKind;
   /**
    * Maximaler Zeitrahmen pro Job (Millisekunden).
    * Standard: 10 Minuten.
@@ -53,7 +58,7 @@ export interface RunIntegrationTestsArgs {
 
 export interface SingleTestExecutionResult {
   testCase: IntegrationTestCase;
-  file: PdfTestFile;
+  file: IntegrationTestFile;
   jobId: string;
   validation: JobValidationResult;
 }
@@ -263,6 +268,7 @@ async function runPdfHitlPublishWorkflow(args: {
       source: file,
       state: 'clean',
       lang: 'de',
+      templateName,
     })
 
     // 1) Job1: Extract-only
@@ -326,14 +332,83 @@ async function runPdfHitlPublishWorkflow(args: {
 
     // 4) Publish: Frontmatter overwrite + Ingestion (kein extra finales MD)
     const provider = await getServerProvider(userEmail, libraryId)
+    const baseStem = file.name.replace(/\.[^/.]+$/, '')
+    const effectiveTemplateName = (templateName || 'pdfanalyse').trim()
+    const expectedTransformName = `${baseStem}.${effectiveTemplateName}.de.md`
+
+    // Mongo-only Publish:
+    // Wenn die Transformationsdatei eine virtuelle Mongo-ID ist, können wir weder Folder noch Provider-File overwrite nutzen.
+    // Stattdessen überschreiben wir direkt das Mongo-Artefakt und ingestieren anschließend den neuen Markdown-Text.
+    if (isMongoShadowTwinId(transformFileId)) {
+      const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
+      if (!library) {
+        pushValidationMessage(validation, 'error', 'Publish: Library nicht gefunden (Mongo-only Publish)')
+        return { jobId: templateJobId, validation }
+      }
+
+      const service = new ShadowTwinService({
+        library,
+        userEmail,
+        sourceId: file.itemId,
+        sourceName: file.name,
+        parentId: file.parentId,
+        provider,
+      })
+
+      const current = await service.getMarkdown({
+        kind: 'transformation',
+        targetLanguage: 'de',
+        templateName: effectiveTemplateName,
+      })
+      if (!current) {
+        pushValidationMessage(validation, 'error', 'Publish: Transformations-Artefakt nicht gefunden (Mongo-only Publish)')
+        return { jobId: templateJobId, validation }
+      }
+
+      const { body } = parseFrontmatter(current.markdown)
+
+      // Deterministischer Marker: wir setzen 2 Felder, die sicher im PDFAnalyse-Schema existieren.
+      const publishMeta: Record<string, unknown> = {
+        title: 'Integration Test – HITL Publish',
+        slug: 'integration-test-hitl-publish',
+      }
+      const overwrittenMarkdown = `---\n${serializeFrontmatter(publishMeta)}\n---\n\n${body}`
+
+      const upserted = await service.upsertMarkdown({
+        kind: 'transformation',
+        targetLanguage: 'de',
+        templateName: effectiveTemplateName,
+        markdown: overwrittenMarkdown,
+      })
+
+      pushValidationMessage(validation, 'info', `Publish (Mongo): Transformationsartefakt überschrieben: ${upserted.id}`)
+      pushValidationMessage(validation, 'info', 'Publish Contract: savedItemId==transformFileId (Mongo-ID)')
+
+      const ingestRes = await IngestionService.upsertMarkdown(
+        userEmail,
+        libraryId,
+        upserted.id,
+        expectedTransformName,
+        overwrittenMarkdown,
+        undefined,
+        undefined,
+        provider
+      )
+      if (ingestRes.chunksUpserted <= 0) {
+        pushValidationMessage(validation, 'error', 'Publish: Ingestion erwartete chunksUpserted > 0, war aber 0')
+      } else {
+        pushValidationMessage(validation, 'info', `Publish: Ingestion OK (chunksUpserted=${ingestRes.chunksUpserted})`)
+      }
+
+      return { jobId: templateJobId, validation }
+    }
+
+    // Filesystem Publish:
     const shadowTwinFolder = await findShadowTwinFolder(file.parentId, file.name, provider)
     if (!shadowTwinFolder) {
       pushValidationMessage(validation, 'error', 'Publish: Shadow‑Twin-Verzeichnis nicht gefunden')
       return { jobId: templateJobId, validation }
     }
-
-    const baseStem = file.name.replace(/\.[^/.]+$/, '')
-    const expectedTransformName = `${baseStem}.${(templateName || 'pdfanalyse').trim()}.de.md`
 
     const transformItem = await provider.getItemById(transformFileId).catch(() => null)
     if (!transformItem || transformItem.type !== 'file') {
@@ -406,19 +481,46 @@ export async function runIntegrationTests(args: RunIntegrationTestsArgs): Promis
     throw new Error('Keine gültigen Testfall-IDs übergeben')
   }
 
-  const allPdfs = await listPdfTestFiles({ userEmail, libraryId, folderId })
-  const targetFiles = Array.isArray(fileIds) && fileIds.length > 0
-    ? allPdfs.filter(f => fileIds.includes(f.itemId))
-    : allPdfs
+  const derivedKind: IntegrationTestFileKind = (() => {
+    const explicit = args.fileKind
+    if (explicit === 'pdf' || explicit === 'audio') return explicit
+    const targets = new Set(selectedCases.map(tc => tc.target))
+    if (targets.size === 1) return Array.from(targets)[0] as IntegrationTestFileKind
+    // Fallback: historisch war das Feature PDF-zentriert.
+    return 'pdf'
+  })()
+
+  const provider = await getServerProvider(userEmail, libraryId)
+  const targetFiles: IntegrationTestFile[] = await (async () => {
+    if (Array.isArray(fileIds) && fileIds.length > 0) {
+      // Wenn explizite File-IDs übergeben wurden, müssen wir die Metadaten via Provider laden.
+      const out: IntegrationTestFile[] = []
+      for (const id of fileIds) {
+        const item = await provider.getItemById(id).catch(() => null)
+        if (!item || item.type !== 'file') continue
+        out.push({
+          itemId: item.id,
+          parentId: item.parentId,
+          name: String(item.metadata?.name || ''),
+          mimeType: typeof item.metadata?.mimeType === 'string' ? String(item.metadata.mimeType) : undefined,
+          kind: derivedKind,
+        })
+      }
+      return out
+    }
+    return await listIntegrationTestFiles({ userEmail, libraryId, folderId, kind: derivedKind })
+  })()
 
   if (targetFiles.length === 0) {
-    throw new Error('Im gewählten Ordner wurden keine PDF-Dateien gefunden')
+    throw new Error(`Im gewählten Ordner wurden keine ${derivedKind.toUpperCase()}-Dateien gefunden`)
   }
 
   const results: SingleTestExecutionResult[] = []
 
   for (const file of targetFiles) {
     for (const testCase of selectedCases) {
+      // Safety: Falls gemischte Suites ausgewählt wurden, nur passende Testcases ausführen.
+      if (testCase.target !== file.kind) continue
       try {
         FileLogger.info('integration-tests', 'Starte Testfall', {
           testCaseId: testCase.id,
@@ -445,6 +547,7 @@ export async function runIntegrationTests(args: RunIntegrationTestsArgs): Promis
             source: file,
             state: testCase.shadowTwinState,
             lang: 'de',
+            templateName,
           })
 
           // 2) Job erstellen

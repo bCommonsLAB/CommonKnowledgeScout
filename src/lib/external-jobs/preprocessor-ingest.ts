@@ -62,9 +62,21 @@ export async function preprocessorIngest(
   const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
   const sourceItemId = job.correlation?.source?.itemId
   const sourceName = job.correlation?.source?.name
+  const desiredTemplate = job.parameters?.template as string | undefined
 
   // Versuche zuerst mit der angeforderten Sprache
-  let found = await findPdfMarkdown(provider, parentId, baseName, lang, library, sourceItemId, sourceName)
+  // Ingestion arbeitet auf der transformierten Datei (mit Frontmatter).
+  let found = await findPdfMarkdown(
+    provider,
+    parentId,
+    baseName,
+    lang,
+    library,
+    sourceItemId,
+    sourceName,
+    { preferredKind: 'transformation', templateName: desiredTemplate },
+    userEmail
+  )
 
   // Wenn nicht gefunden und shadowTwinState verfügbar: Versuche die tatsächlich vorhandene Datei zu finden
   if (!found.hasMarkdown && job.shadowTwinState?.transformed?.id) {
@@ -83,7 +95,17 @@ export async function preprocessorIngest(
         actualLang,
         transformedFileName,
       })
-      found = await findPdfMarkdown(provider, parentId, baseName, actualLang, library, sourceItemId, sourceName)
+      found = await findPdfMarkdown(
+        provider,
+        parentId,
+        baseName,
+        actualLang,
+        library,
+        sourceItemId,
+        sourceName,
+        { preferredKind: 'transformation', templateName: desiredTemplate },
+        userEmail
+      )
     }
     
     // Fallback: Versuche direkt die Datei aus shadowTwinState zu laden

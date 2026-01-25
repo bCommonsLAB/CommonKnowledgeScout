@@ -37,6 +37,8 @@ import { buildArtifactName } from "@/lib/shadow-twin/artifact-naming";
 import { replacePlaceholdersInMarkdown } from "@/lib/markdown/placeholder-replacement";
 import { writeArtifact } from "@/lib/shadow-twin/artifact-writer";
 import type { ArtifactKey } from "@/lib/shadow-twin/artifact-types";
+import type { ShadowTwinConfigDefaults } from "@/lib/shadow-twin/shadow-twin-config";
+import { isMongoShadowTwinId } from "@/lib/shadow-twin/mongo-shadow-twin-id";
 
 export interface TransformSaveOptions {
   targetLanguage: string;
@@ -125,6 +127,8 @@ interface TransformMetadata {
  * - Bereitstellen einer einheitlichen Schnittstelle für alle Transformationstypen
  */
 export class TransformService {
+  // Cache fuer Shadow-Twin-Config pro Library (verhindert wiederholte API-Calls).
+  private static shadowTwinConfigCache = new Map<string, ShadowTwinConfigDefaults>();
   /**
    * Transformiert eine Audio-Datei in Text
    * @param file Die zu transformierende Audio-Datei
@@ -1024,32 +1028,107 @@ export class TransformService {
     // WICHTIG: Entferne Anführungszeichen aus sourceName, falls vorhanden
     let cleanSourceName = originalItem.metadata.name;
     cleanSourceName = cleanSourceName.replace(/^["']|["']$/g, '').trim();
-    
-    const writeResult = await writeArtifact(provider, {
-      key,
-      sourceName: cleanSourceName,
-      parentId: targetParentId,
-      content,
-      createFolder,
-    });
-    
-    // Aktualisierte Dateiliste holen (für UI-Update)
-    const finalParentId = writeResult.location === 'dotFolder' && writeResult.shadowTwinFolderId 
-      ? writeResult.shadowTwinFolderId 
-      : targetParentId;
-    const updatedItems = await refreshItems(finalParentId);
-    
-    FileLogger.info('TransformService', 'Shadow-Twin gespeichert via writeArtifact', {
-      fileId: writeResult.file.id,
-      fileName: writeResult.file.metadata.name,
-      location: writeResult.location,
-      wasUpdated: writeResult.wasUpdated,
-    });
-    
-    return {
-      savedItem: writeResult.file,
-      updatedItems
-    };
+
+    const shadowTwinConfig = await TransformService.getShadowTwinConfig(libraryId);
+    const useMongo = shadowTwinConfig?.primaryStore === 'mongo';
+    const persistToFilesystem = shadowTwinConfig?.persistToFilesystem ?? true;
+
+    // Mongo-Path: Speichere zuerst in Mongo, um konsistenten Content zu erhalten.
+    let mongoMarkdown = content;
+    let virtualItem: StorageItem | undefined = undefined;
+    if (useMongo && libraryId) {
+      const shadowTwinFolderId = parentId && parentId !== originalItem.parentId ? parentId : undefined;
+      try {
+        const res = await fetch(`/api/library/${libraryId}/shadow-twins/upsert`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sourceId: originalItem.id,
+            artifactKey: {
+              kind: key.kind,
+              targetLanguage: key.targetLanguage,
+              templateName: key.templateName,
+            },
+            markdown: content,
+            shadowTwinFolderId,
+          }),
+        });
+        const json = await res.json().catch(() => ({})) as { markdown?: string; item?: StorageItem; error?: string };
+        if (!res.ok) {
+          throw new Error(json.error || `HTTP ${res.status}`);
+        }
+        if (typeof json.markdown === 'string') {
+          mongoMarkdown = json.markdown;
+        }
+        if (json.item && json.item.id) {
+          virtualItem = json.item;
+        }
+      } catch (error) {
+        FileLogger.error('TransformService', 'Mongo-Upsert fehlgeschlagen', { error });
+        if (!persistToFilesystem) {
+          throw error;
+        }
+      }
+    }
+
+    // Optionaler Filesystem-Write (z. B. Sharing-Modus).
+    if (persistToFilesystem) {
+      const writeResult = await writeArtifact(provider, {
+        key,
+        sourceName: cleanSourceName,
+        parentId: targetParentId,
+        content: mongoMarkdown,
+        createFolder,
+      });
+
+      // Aktualisierte Dateiliste holen (für UI-Update)
+      const finalParentId = writeResult.location === 'dotFolder' && writeResult.shadowTwinFolderId
+        ? writeResult.shadowTwinFolderId
+        : targetParentId;
+      const updatedItems = await refreshItems(finalParentId);
+
+      FileLogger.info('TransformService', 'Shadow-Twin gespeichert via writeArtifact', {
+        fileId: writeResult.file.id,
+        fileName: writeResult.file.metadata.name,
+        location: writeResult.location,
+        wasUpdated: writeResult.wasUpdated,
+      });
+
+      return {
+        savedItem: writeResult.file,
+        updatedItems
+      };
+    }
+
+    // Kein Filesystem-Write: Rueckgabe des virtuellen Items (falls vorhanden).
+    const updatedItems = await refreshItems(originalItem.parentId);
+    if (virtualItem && isMongoShadowTwinId(virtualItem.id)) {
+      return { savedItem: virtualItem, updatedItems };
+    }
+
+    return { updatedItems };
+  }
+
+  private static async getShadowTwinConfig(
+    libraryId?: string
+  ): Promise<ShadowTwinConfigDefaults | null> {
+    if (!libraryId) return null;
+    const cached = TransformService.shadowTwinConfigCache.get(libraryId);
+    if (cached) return cached;
+    if (typeof window === 'undefined') return null;
+
+    try {
+      const res = await fetch(`/api/library/${libraryId}/shadow-twins/config`);
+      if (!res.ok) return null;
+      const data = await res.json() as { config?: ShadowTwinConfigDefaults };
+      if (data?.config) {
+        TransformService.shadowTwinConfigCache.set(libraryId, data.config);
+        return data.config;
+      }
+    } catch {
+      // Fehler ignorieren, falls API nicht erreichbar ist.
+    }
+    return null;
   }
   
   /**

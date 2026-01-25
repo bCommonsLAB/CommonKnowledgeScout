@@ -41,9 +41,10 @@ export function useShadowTwinAnalysis(
 ): Map<string, ShadowTwinState> {
   const setShadowTwinState = useSetAtom(shadowTwinStateAtom);
   const libraryId = useAtomValue(activeLibraryIdAtom);
-  const previousItemsRef = useRef<Map<string, { modifiedAt?: Date }>>(new Map());
+  const previousItemsRef = useRef<Map<string, { modifiedAt?: Date; parentId?: string }>>(new Map());
   const isAnalyzingRef = useRef(false);
   const lastForceRefreshRef = useRef(forceRefresh ?? 0);
+  const previousParentIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     // Prüfe Voraussetzungen
@@ -55,11 +56,7 @@ export function useShadowTwinAnalysis(
         });
       }
       setShadowTwinState(new Map());
-      return;
-    }
-
-    // Verhindere parallele Analysen
-    if (isAnalyzingRef.current) {
+      previousParentIdRef.current = null;
       return;
     }
 
@@ -68,6 +65,42 @@ export function useShadowTwinAnalysis(
     
     if (fileItems.length === 0) {
       setShadowTwinState(new Map());
+      previousParentIdRef.current = null;
+      return;
+    }
+
+    // WICHTIG: Prüfe ob sich der Ordner geändert hat (parentId der ersten Datei)
+    // Wenn ja, Cache und State sofort zurücksetzen, damit alle Dateien neu analysiert werden
+    const currentParentId = fileItems[0]?.parentId || null;
+    const parentIdChanged = previousParentIdRef.current !== null && 
+                            previousParentIdRef.current !== currentParentId;
+    
+    if (parentIdChanged) {
+      FileLogger.info('useShadowTwinAnalysis', 'Ordnerwechsel erkannt - Cache und State zurücksetzen', {
+        previousParentId: previousParentIdRef.current,
+        currentParentId,
+        fileCount: fileItems.length,
+      });
+      previousItemsRef.current.clear();
+      // Setze State sofort zurück, damit alte Einträge entfernt werden
+      // Dies stellt sicher, dass beim Ordnerwechsel keine alten Icons angezeigt werden
+      setShadowTwinState((prev) => {
+        const next = new Map<string, FrontendShadowTwinState>();
+        // Nur States für Dateien im aktuellen Ordner behalten
+        const currentFileIds = new Set(fileItems.map(it => it.id));
+        for (const [fileId, state] of prev.entries()) {
+          if (currentFileIds.has(fileId)) {
+            next.set(fileId, state);
+          }
+        }
+        return next;
+      });
+    }
+    
+    previousParentIdRef.current = currentParentId;
+
+    // Verhindere parallele Analysen
+    if (isAnalyzingRef.current) {
       return;
     }
 
@@ -84,7 +117,7 @@ export function useShadowTwinAnalysis(
     }
 
     // PERFORMANCE-OPTIMIERUNG: Debouncing und Lazy Loading
-    // Warte 2000ms bevor die Analyse startet (Lazy Loading)
+    // Warte 500ms bevor die Analyse startet (Lazy Loading)
     // Dies verhindert unnötige Analysen bei schnellen Ordnerwechseln
     // UND gibt der UI Zeit, zuerst zu rendern, bevor die Analyse startet
     // WICHTIG: Die Dateiliste sollte sofort sichtbar sein, Shadow-Twin-Icons können später erscheinen
@@ -127,7 +160,7 @@ export function useShadowTwinAnalysis(
       }
 
       // Performance-Optimierung: Analysiere nur Dateien, die noch nicht analysiert wurden
-      // oder deren modifiedAt sich geändert hat (außer bei erzwungener Neu-Analyse)
+      // oder deren modifiedAt/parentId sich geändert hat (außer bei erzwungener Neu-Analyse)
       const itemsToAnalyze = currentFileItems.filter(item => {
         // Bei erzwungener Neu-Analyse alle Dateien analysieren
         if (currentForceRefreshRequested) {
@@ -136,6 +169,12 @@ export function useShadowTwinAnalysis(
         
         const previous = previousItemsRef.current.get(item.id);
         const currentModifiedAt = item.metadata.modifiedAt;
+        const currentParentId = item.parentId;
+        
+        // Prüfe ob parentId sich geändert hat (Datei wurde in anderen Ordner verschoben)
+        if (previous && previous.parentId && previous.parentId !== currentParentId) {
+          return true; // parentId geändert = neu analysieren
+        }
         
         // Konvertiere modifiedAt zu Date-Objekt für Vergleich
         const currentDate = currentModifiedAt instanceof Date 
@@ -181,21 +220,19 @@ export function useShadowTwinAnalysis(
             return;
           }
 
-          // Führe zwei Bulk-Calls durch:
-          // 1. Transformation (bevorzugt)
-          // 2. Transcript (Fallback)
-          const [transformationResults, transcriptResults] = await Promise.all([
-            batchResolveArtifactsClient({
-              libraryId,
-              sources,
-              preferredKind: 'transformation',
-            }),
-            batchResolveArtifactsClient({
-              libraryId,
-              sources,
-              preferredKind: 'transcript',
-            }),
-          ]);
+          // OPTIMIERUNG: Ein einziger Bulk-Call für beide Artefakt-Typen + Ingestion-Status
+          const allResults = await batchResolveArtifactsClient({
+            libraryId,
+            sources,
+            preferredKind: 'transformation',
+            includeBoth: true, // Lade sowohl Transformation als auch Transcript
+            includeIngestionStatus: true, // Lade auch Ingestion-Status
+          });
+          
+          // Extrahiere Ergebnisse aus dem kombinierten Response
+          const transformationResults = allResults.artifacts || new Map();
+          const transcriptResults = allResults.transcripts || new Map();
+          const ingestionStatusMap = allResults.ingestionStatus || new Map();
 
           // Konvertiere ResolvedArtifactWithItem-Ergebnisse zu ShadowTwinState.
           // WICHTIG: Wir schreiben **für alle Dateien** einen Eintrag (auch wenn keine Artefakte existieren),
@@ -207,19 +244,28 @@ export function useShadowTwinAnalysis(
           setShadowTwinState((prev) => {
             const next = new Map<string, FrontendShadowTwinState>()
 
-            // Nur States für aktuelle Folder-Files behalten/aktualisieren.
+            // WICHTIG: Nur States für aktuelle Folder-Files behalten/aktualisieren.
+            // Entferne alle Einträge, die nicht mehr im aktuellen Ordner sind.
+            // Dies stellt sicher, dass beim Ordnerwechsel alte Einträge entfernt werden.
+            const currentFileIds = new Set(currentFileItems.map(it => it.id));
+            
+            // Initialisiere States für alle aktuellen Dateien (auch wenn sie noch nicht analysiert wurden)
             for (const it of currentFileItems) {
               const prevState = prev.get(it.id)
-              next.set(it.id, {
-                ...prevState,
-                baseItem: it,
-                analysisTimestamp: prevState?.analysisTimestamp ?? analyzedAt,
-              })
+              // Nur State behalten, wenn die Datei noch in der aktuellen Liste ist
+              if (currentFileIds.has(it.id)) {
+                next.set(it.id, {
+                  ...prevState,
+                  baseItem: it,
+                  analysisTimestamp: prevState?.analysisTimestamp ?? analyzedAt,
+                })
+              }
             }
 
             for (const it of itemsToAnalyze) {
               const transformation = transformationResults.get(it.id)
               const transcript = transcriptResults.get(it.id)
+              const ingestionStatus = allResults.ingestionStatus?.get(it.id)
               const hasArtifacts = Boolean(transformation || transcript)
 
               const transformed =
@@ -235,14 +281,22 @@ export function useShadowTwinAnalysis(
                 shadowTwinFolderId,
                 analysisTimestamp: analyzedAt,
                 processingStatus: hasArtifacts ? 'ready' : 'pending',
+                // Speichere Ingestion-Status für Status-Anzeige
+                ingestionStatus: ingestionStatus ? {
+                  exists: ingestionStatus.exists,
+                  chunkCount: ingestionStatus.chunkCount,
+                  chaptersCount: ingestionStatus.chaptersCount,
+                } : undefined,
               }
 
               next.set(it.id, merged)
 
               // Aktualisiere previousItemsRef (auch wenn keine Artefakte existieren)
+              // Speichere auch parentId, um Ordnerwechsel zu erkennen
               const modifiedAt = it.metadata.modifiedAt
               previousItemsRef.current.set(it.id, {
                 modifiedAt: modifiedAt instanceof Date ? modifiedAt : (modifiedAt ? new Date(modifiedAt) : undefined),
+                parentId: it.parentId,
               })
             }
 
@@ -268,12 +322,26 @@ export function useShadowTwinAnalysis(
       };
 
       void processBulkAnalysis();
-    }, 2000); // 2000ms Lazy Loading Delay - gibt UI Zeit zuerst zu rendern, Shadow-Twin-Icons erscheinen später
+    }, 500); // 500ms Lazy Loading Delay - gibt UI Zeit zuerst zu rendern, Shadow-Twin-Icons erscheinen später
 
     // Cleanup: Setze isAnalyzingRef zurück bei Unmount und cancel Timeout
+    // WICHTIG: Beim Ordnerwechsel wird der Timeout gecancelt und der State bereinigt
     return () => {
       clearTimeout(analysisTimeoutId);
       isAnalyzingRef.current = false;
+      // Wenn items sich ändert (z.B. Ordnerwechsel), bereinige State für nicht mehr vorhandene Dateien
+      if (items && items.length > 0) {
+        const currentFileIds = new Set(items.filter(item => item.type === 'file').map(it => it.id));
+        setShadowTwinState((prev) => {
+          const next = new Map<string, FrontendShadowTwinState>();
+          for (const [fileId, state] of prev.entries()) {
+            if (currentFileIds.has(fileId)) {
+              next.set(fileId, state);
+            }
+          }
+          return next;
+        });
+      }
     };
   }, [items, libraryId, setShadowTwinState, forceRefresh]);
 

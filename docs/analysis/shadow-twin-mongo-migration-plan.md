@@ -81,6 +81,110 @@ Ein Dokument pro Quelle (`sourceId`). Einbettung der Fragmente in einem Dokument
 7. **Write‑Pfad ändern:** Neue Shadow‑Twins zuerst in Mongo speichern; Filesystem optional.
 8. **Validieren:** Stichproben, Counts, Checksummen (z. B. Anzahl Artefakte je Quelle).
 
+## Strategie (Variante A: Library‑weit)
+Diese Variante setzt auf einen klaren Library‑Modus, damit Verhalten deterministisch bleibt:
+- `shadowTwin.primaryStore = "mongo"`
+- `shadowTwin.persistToFilesystem = false` (Default)
+
+## Feature‑Flags (Library‑Konfiguration)
+Empfohlene Flags für eine kontrollierte Umstellung:
+- `shadowTwin.primaryStore: "mongo" | "filesystem"`  
+  Legt fest, aus welcher Quelle **primär** gelesen wird.
+- `shadowTwin.persistToFilesystem: boolean`  
+  Steuert, ob Shadow‑Twins zusätzlich ins Filesystem geschrieben werden.
+- `shadowTwin.cleanupFilesystemOnMigrate: boolean`  
+  Löscht Shadow‑Twins aus dem Filesystem, **nachdem** sie erfolgreich in MongoDB persistiert wurden.
+- `shadowTwin.allowFilesystemFallback: boolean`  
+  Erlaubt Legacy‑Fallback, falls MongoDB‑Eintrag fehlt.
+
+## Konkrete Feldnamen (src/types/library.ts)
+Die Feature‑Flags sind als Felder unter `Library.config.shadowTwin` vorgesehen:
+- `config.shadowTwin.mode?: "legacy" | "v2"`
+- `config.shadowTwin.primaryStore?: "filesystem" | "mongo"`
+- `config.shadowTwin.persistToFilesystem?: boolean`
+- `config.shadowTwin.cleanupFilesystemOnMigrate?: boolean`
+- `config.shadowTwin.allowFilesystemFallback?: boolean`
+
+Default‑Logik (effektiv):
+- `primaryStore = "filesystem"` (wenn nicht gesetzt)
+- `persistToFilesystem = true` wenn `primaryStore = "filesystem"`, sonst `false`
+- `cleanupFilesystemOnMigrate = false`
+- `allowFilesystemFallback = true`
+
+**Ablauf (Migration):**
+1. MongoDB als primären Store aktivieren.
+2. Shadow‑Twins in MongoDB schreiben (inkl. Azure‑URLs für Binary Assets).
+3. Filesystem‑Shadow‑Twins nach erfolgreicher Persistierung löschen.
+4. UI liest ab sofort aus Mongo (Filesystem nur fallback).
+
+**Ablauf (Sharing):**
+1. `persistToFilesystem = true` setzen.
+2. Batch‑Job schreibt alle Mongo‑Shadow‑Twins ins Filesystem (Original‑Layout).
+3. Optional: bei `persistToFilesystem = false` wieder bereinigen.
+
+## Tests (Validierung der Umstellung)
+1. **Zielzustand nach Migration**  
+   - Keine Shadow‑Twin‑Dateien im Filesystem  
+   - Mongo enthält vollständige Artefakte  
+   - UI lädt Shadow‑Twins ohne Filesystem‑Scan
+
+2. **Round‑trip Test (Sharing an/aus)**  
+   - `persistToFilesystem = true` ⇒ Filesystem‑Artefakte vorhanden  
+   - `persistToFilesystem = false` ⇒ Filesystem wieder bereinigt  
+   - Dateinamen und Markdown‑Inhalte stimmen deterministisch überein
+
+3. **Binary‑Assets**  
+   - URLs entsprechen exakt der bestehenden Azure‑Logik  
+   - Keine doppelten Uploads bei wiederholter Migration
+
+## Migrations‑Checkliste (Pre‑Run / Run / Post‑Run)
+**Pre‑Run**
+- Library‑Scope fixiert (IDs, Anzahl Quellen, Umfang)
+- Backup / Snapshot der betroffenen Shadow‑Twin‑Ordner
+- Feature‑Flags gesetzt (Planwerte dokumentiert)
+- Test‑Library für Dry‑Run definiert
+
+**Run**
+- Batch‑Import gestartet (Logging aktiv)
+- Azure‑Upload aktiv (Bild‑URLs werden ersetzt)
+- Mongo‑Upserts erfolgreich (Counts validieren)
+- Optional: Filesystem‑Cleanup nach erfolgreichem Upsert
+
+**Post‑Run**
+- Stichprobe: Artefakte aus Mongo lesen
+- UI‑Smoke‑Test: Ordner öffnen, Icons sichtbar
+- Round‑trip (Sharing an/aus) für Stichprobe
+- Report archivieren (Counts, Fehler, Differenzen)
+
+## Testprotokoll‑Template (Minimal)
+**Ziel:** Round‑trip Validierung (Mongo ↔ Filesystem)
+
+**Setup**
+- Library ID:
+- Datum:
+- Tester:
+- Flags: `primaryStore=`, `persistToFilesystem=`, `cleanupFilesystemOnMigrate=`
+
+**Durchlauf**
+- Schritt 1: Migration gestartet (Zeit: )
+- Schritt 2: Mongo‑Count geprüft (Anzahl Artefakte: )
+- Schritt 3: Filesystem‑Cleanup geprüft (Anzahl Shadow‑Twins: )
+- Schritt 4: Sharing aktiviert (persistToFilesystem=true)
+- Schritt 5: Round‑trip Vergleich (Dateiname/Frontmatter/Body/URLs)
+
+**Ergebnis**
+- Bestanden: Ja/Nein
+- Abweichungen (falls vorhanden):
+- Notizen:
+
+## Round‑trip‑Checkliste (Vergleichskriterien)
+Damit der Test aussagekräftig ist, müssen die Artefakte **deterministisch** gleich sein:
+- Dateiname exakt gleich (inkl. Template‑Name und Sprachsuffix)
+- Frontmatter‑Felder identisch (Key‑Order egal, Werte gleich)
+- Markdown‑Body identisch (Zeilenumbrüche normalisieren)
+- Asset‑URLs identisch (Azure‑Pfad + Hash)
+- Transkript/Transformation korrekt zugeordnet
+
 ## Risiken und Gegenmaßnahmen
 1. **Dateninkonsistenz (Mongo vs Filesystem)**  
    - Risiko: Unterschiedliche Stände nach Migration.  
@@ -105,6 +209,12 @@ Ein Dokument pro Quelle (`sourceId`). Einbettung der Fragmente in einem Dokument
 6. **Rollback‑Strategie**  
    - Risiko: Migration erzeugt fehlerhafte Mongo‑Daten.  
    - Gegenmaßnahme: Mongo‑Writes über Version‑Feld; mit Flag deaktivierbar.
+
+## Rollback‑Pfad (Library‑weit)
+1. `shadowTwin.primaryStore = "filesystem"`
+2. `shadowTwin.persistToFilesystem = true`
+3. Batch‑Job „Rehydrate FS“ aus Mongo (oder Legacy‑FS als Quelle)
+4. `allowFilesystemFallback = true` für Stabilität in Übergangszeit
 
 ## Konkrete nächste Schritte (Planung)
 1. **Schema fixieren** (finale Felder + Indexe).

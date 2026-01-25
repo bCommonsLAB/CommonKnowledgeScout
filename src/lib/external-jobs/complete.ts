@@ -26,8 +26,10 @@ import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { drainBufferedLogs } from '@/lib/external-jobs-log-buffer'
 import { clearWatchdog } from '@/lib/external-jobs-watchdog'
 import { buildProvider } from '@/lib/external-jobs/provider'
-import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver'
 import { parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
+import { parseMongoShadowTwinId, isMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
+import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
+import { LibraryService } from '@/lib/services/library-service'
 import path from 'path'
 
 export async function setJobCompleted(args: CompleteArgs): Promise<JobResult> {
@@ -126,38 +128,76 @@ export async function setJobCompleted(args: CompleteArgs): Promise<JobResult> {
 
     // 1) Wenn savedItemId existiert: validieren, ob es zum erwarteten Artefakt-Typ passt.
     if (savedItemId) {
-      try {
-        const it = await provider.getItemById(savedItemId)
-        const candidateName = String(it?.metadata?.name || '')
-        const parsed = parseArtifactName(candidateName, sourceBaseName)
-
-        const isExpectedKind = parsed.kind === expectedKind
-        const isExpectedTemplate = expectedKind === 'transformation'
-          ? (!templateName || (parsed.templateName && parsed.templateName.toLowerCase() === templateName.toLowerCase()))
-          : true
-
-        if (!isExpectedKind || !isExpectedTemplate) {
-          // Zentral: Nicht akzeptieren → deterministisch neu auflösen.
+      // MongoDB-Shadow-Twin-IDs direkt akzeptieren (ohne Provider-Validierung)
+      if (isMongoShadowTwinId(savedItemId)) {
+        // MongoDB-ID direkt akzeptieren - Validierung erfolgt über ID-Struktur
+        // Die ID enthält bereits kind, targetLanguage und templateName
+        const parsed = parseMongoShadowTwinId(savedItemId)
+        if (parsed) {
+          const isExpectedKind = parsed.kind === expectedKind
+          const isExpectedTemplate = expectedKind === 'transformation'
+            ? (!templateName || !parsed.templateName || parsed.templateName.toLowerCase() === templateName.toLowerCase())
+            : true
+          
+          if (!isExpectedKind || !isExpectedTemplate) {
+            // MongoDB-ID passt nicht zum erwarteten Typ → deterministisch neu auflösen
+            savedItemId = undefined
+          }
+          // Wenn Validierung erfolgreich, savedItemId beibehalten
+        } else {
+          // Ungültige MongoDB-ID-Struktur → deterministisch neu auflösen
           savedItemId = undefined
         }
-      } catch {
-        // Kann nicht validiert werden → deterministisch neu auflösen.
-        savedItemId = undefined
+      } else {
+        // Filesystem-basierte ID: Validierung über Provider
+        try {
+          const it = await provider.getItemById(savedItemId)
+          const candidateName = String(it?.metadata?.name || '')
+          const parsed = parseArtifactName(candidateName, sourceBaseName)
+
+          const isExpectedKind = parsed.kind === expectedKind
+          const isExpectedTemplate = expectedKind === 'transformation'
+            ? (!templateName || (parsed.templateName && parsed.templateName.toLowerCase() === templateName.toLowerCase()))
+            : true
+
+          if (!isExpectedKind || !isExpectedTemplate) {
+            // Zentral: Nicht akzeptieren → deterministisch neu auflösen.
+            savedItemId = undefined
+          }
+        } catch {
+          // Kann nicht validiert werden → deterministisch neu auflösen.
+          savedItemId = undefined
+        }
       }
     }
 
-    // 2) Deterministischer Resolver (v2-only)
+    // 2) Zentrale Shadow-Twin-Service-Auflösung (ersetzt Provider-Resolver + Mongo-Fallback)
     if (!savedItemId) {
-      const preferredKind = expectedKind
-      const resolved = await resolveArtifact(provider, {
-        sourceItemId,
-        sourceName,
-        parentId: sourceParentId,
-        targetLanguage: lang,
-        templateName,
-        preferredKind,
-      })
-      if (resolved?.fileId && (await isExpectedSavedItem(resolved.fileId))) savedItemId = resolved.fileId
+      try {
+        const library = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
+        if (library) {
+          const service = new ShadowTwinService({
+            library,
+            userEmail: job.userEmail,
+            sourceId: sourceItemId,
+            sourceName,
+            parentId: sourceParentId,
+            provider,
+          })
+
+          const resolvedId = await service.resolveSavedItemIdForContract({
+            expectedKind,
+            targetLanguage: lang,
+            templateName,
+          })
+
+          if (resolvedId) {
+            savedItemId = resolvedId
+          }
+        }
+      } catch {
+        // best effort – Contract wird ggf. unten enforced
+      }
     }
 
     // 3) Enforce: Template-Job darf nicht completed werden, wenn keine Transformation referenzierbar ist.

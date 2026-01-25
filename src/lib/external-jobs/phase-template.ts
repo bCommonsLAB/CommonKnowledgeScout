@@ -27,6 +27,10 @@ import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
 import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver'
 import { buildTransformationBody } from '@/lib/external-jobs/template-body-builder'
+import { getSecretaryConfig } from '@/lib/env'
+import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
+import { LibraryService } from '@/lib/services/library-service'
+import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 
 export interface TemplatePhaseArgs {
   ctx: RequestContext
@@ -73,26 +77,17 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     bodyMetadata,
     policies,
     autoSkip,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    imagesPhaseEnabled: _imagesPhaseEnabled,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    pagesArchiveData: _pagesArchiveData,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    pagesArchiveUrl: _pagesArchiveUrl,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    pagesArchiveFilename: _pagesArchiveFilename,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    imagesArchiveData: _imagesArchiveData,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    imagesArchiveFilename: _imagesArchiveFilename,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    imagesArchiveUrl: _imagesArchiveUrl,
+    imagesPhaseEnabled,
+    pagesArchiveData,
+    pagesArchiveUrl,
+    pagesArchiveFilename,
+    imagesArchiveData,
+    imagesArchiveFilename,
+    imagesArchiveUrl,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     mistralOcrRaw: _mistralOcrRaw,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    hasMistralOcrImages: _hasMistralOcrImages,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    mistralOcrImagesUrl: _mistralOcrImagesUrl,
+    hasMistralOcrImages,
+    mistralOcrImagesUrl,
     targetParentId,
     // libraryConfig wird derzeit nicht verwendet
   } = args
@@ -100,6 +95,11 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
   const { jobId, job } = ctx
   const { getShadowTwinMode } = await import('@/lib/shadow-twin/mode-helper')
   const mode = getShadowTwinMode(undefined)
+  
+  // Shadow-Twin-Konfiguration laden (für persistToFilesystem-Prüfung)
+  const library = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
+  const shadowTwinConfig = getShadowTwinConfig(library)
+  const persistToFilesystem = shadowTwinConfig.persistToFilesystem ?? true
   
   // Erweitere policies um ingest, falls nicht vorhanden
   const fullPolicies: PhasePolicies = {
@@ -180,10 +180,44 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
 
       // WICHTIG:
       // Chapters gehören zur Transformation (nicht zum Transcript).
-      // Wenn ein Template gesetzt ist, prüfen wir daher die Transformationsdatei `{base}.{template}.{lang}.md`.
-      const uniqueName = templateName
-        ? buildArtifactName({ sourceId: sourceItemId, kind: 'transformation', targetLanguage: lang, templateName }, sourceName)
-        : `${baseName}.${lang}.md`
+      // Bei Mongo-only kann es keine `.md` Datei im Filesystem geben (persistToFilesystem=false).
+      // Daher prüfen wir über ShadowTwinService (storage-agnostisch).
+      const library = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
+      const service = new ShadowTwinService({
+        library,
+        userEmail: job.userEmail,
+        sourceId: sourceItemId,
+        sourceName,
+        parentId: targetParentId,
+        provider,
+      })
+
+      // 1) Primär: Transformation (mit TemplateName, falls gesetzt)
+      // 2) Wenn kein Template gesetzt ist: versuche "beste" Transformation (templateName undefined)
+      // 3) Fallback: Transcript (legacy)
+      const candidates: Array<{ kind: 'transformation' | 'transcript'; templateName?: string }> = []
+      if (templateName) candidates.push({ kind: 'transformation', templateName })
+      candidates.push({ kind: 'transformation', templateName: undefined })
+      candidates.push({ kind: 'transcript' })
+
+      let chosen: { kind: 'transformation' | 'transcript'; templateName?: string; md: string; fileId: string; fileName: string } | null = null
+      for (const c of candidates) {
+        const res = await service.getMarkdown({
+          kind: c.kind,
+          targetLanguage: lang,
+          templateName: c.templateName,
+        })
+        if (res?.markdown) {
+          chosen = { kind: c.kind, templateName: c.templateName, md: res.markdown, fileId: res.id, fileName: res.name }
+          break
+        }
+      }
+
+      const uniqueName = chosen
+        ? chosen.fileName
+        : (templateName
+          ? buildArtifactName({ sourceId: sourceItemId, kind: 'transformation', targetLanguage: lang, templateName }, sourceName)
+          : buildArtifactName({ sourceId: sourceItemId, kind: 'transcript', targetLanguage: lang }, sourceName))
       
       bufferLog(jobId, {
         phase: 'template_check_chapters_before',
@@ -193,48 +227,48 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
         hasChaptersInBody
       })
       
-      const siblings = await provider.listItemsById(targetParentId)
-      const existing = siblings.find(it => it.type === 'file' && (it as { metadata: { name: string } }).metadata.name === uniqueName) as { id: string } | undefined
-      if (existing) {
-        const bin = await provider.getBinary(existing.id)
-        const text = await bin.blob.text()
-        const parsed = parseSecretaryMarkdownStrict(text)
-        const existingMetaCheck = parsed?.meta && typeof parsed.meta === 'object' && !Array.isArray(parsed.meta) ? parsed.meta as Record<string, unknown> : null
+      if (chosen) {
+        const parsed = parseSecretaryMarkdownStrict(chosen.md)
+        const existingMetaCheck =
+          parsed?.meta && typeof parsed.meta === 'object' && !Array.isArray(parsed.meta) ? parsed.meta as Record<string, unknown> : null
         const existingChaptersCheck = Array.isArray(existingMetaCheck?.chapters) && (existingMetaCheck.chapters as Array<unknown>).length > 0
-        // Prüfe alle Quellen: bestehende Datei, bodyMetadata, oder fmFromBody
+        // Prüfe alle Quellen: bestehende Datei (aus beliebigem Store), bodyMetadata, oder fmFromBody
         hasChaptersBeforeDecision = existingChaptersCheck || hasChaptersOnlyInBody || Array.isArray((fmFromBody as { chapters?: unknown })?.chapters)
-        
+
         bufferLog(jobId, {
           phase: 'template_check_chapters_result',
           message: `Chapters-Prüfung abgeschlossen`,
           existingChaptersCheck,
           hasChaptersInBody,
           hasChaptersBeforeDecision,
-          fileId: existing.id,
-          fileName: uniqueName
+          fileId: chosen.fileId,
+          fileName: chosen.fileName,
+          kind: chosen.kind,
+          templateName: chosen.templateName || ''
         })
-        
+
         try {
           await repo.traceAddEvent(jobId, {
             spanId: 'template',
             name: 'template_check_chapters_before',
             attributes: {
               targetParentId,
-              uniqueName,
+              uniqueName: chosen.fileName,
               existingChaptersCheck,
               hasChaptersInBody,
               hasChaptersBeforeDecision,
-              fileId: existing.id
+              fileId: chosen.fileId,
+              kind: chosen.kind,
+              templateName: chosen.templateName || ''
             }
           })
         } catch {}
       } else {
         bufferLog(jobId, {
           phase: 'template_check_chapters_result',
-          message: `Keine bestehende Datei gefunden`,
+          message: `Kein bestehendes Artefakt gefunden`,
           uniqueName,
           targetParentId,
-          siblingsCount: siblings.length
         })
       }
     } catch (error) {
@@ -296,6 +330,24 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     shouldRunTemplate = false
   }
 
+  // WICHTIG (Mongo-PrimaryStore):
+  // Wenn `preprocessorTransformTemplate()` bereits eine valide Transformation (inkl. chapters)
+  // aus MongoDB geladen hat, dann ist das ein starkes Signal, dass Template NICHT erneut laufen soll.
+  // Der bisherige `hasChaptersBeforeDecision`-Check über den StorageProvider sieht Mongo-Artefakte
+  // nicht – deshalb ergänzen wir den Check hier direkt aus `preTemplate.meta`.
+  if (!hasChaptersBeforeDecision && preTemplate?.frontmatterValid) {
+    const chaptersFromPre = (preTemplate.meta as { chapters?: unknown } | undefined)?.chapters
+    if (Array.isArray(chaptersFromPre) && chaptersFromPre.length > 0) {
+      hasChaptersBeforeDecision = true
+    }
+  }
+
+  // Wenn die Entscheidung noch "run" ist, aber chapters laut Preprocessor vorhanden sind,
+  // überspringen wir Template (außer force).
+  if (shouldRunTemplate && hasChaptersBeforeDecision && policies.metadata !== 'force') {
+    shouldRunTemplate = false
+  }
+
   /**
    * TEMPLATE ÜBERSPRUNGEN:
    * 
@@ -338,6 +390,33 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
           })
         } catch {}
       } else {
+        // Mongo-PrimaryStore-Fallback: preprocessorTransformTemplate kann die Transformation direkt aus Mongo geladen haben.
+        // Dann haben wir bereits eine deterministische `markdownFileId` (mongo-shadow-twin:...) und können den Contract erfüllen.
+        const preId = typeof preTemplate?.markdownFileId === 'string' ? preTemplate.markdownFileId : undefined
+        const preName = typeof preTemplate?.markdownFileName === 'string' ? preTemplate.markdownFileName : undefined
+        if (preId && preId.trim().length > 0) {
+          savedItemId = preId
+          bufferLog(jobId, {
+            phase: 'template_skip_saved_item_id',
+            message: 'savedItemId aus Preprocessor übernommen (Template übersprungen)',
+            savedItemId: preId,
+            fileName: preName,
+            source: 'preprocessorTransformTemplate',
+          })
+          try {
+            await repo.traceAddEvent(jobId, {
+              spanId: 'template',
+              name: 'template_skip_saved_item_id_set',
+              attributes: {
+                savedItemId: preId,
+                fileName: preName,
+                reason: 'chapters_already_exist',
+                source: 'preprocessorTransformTemplate',
+              },
+            })
+          } catch {}
+        }
+
         // Fallback: versuche, die transformierte Datei über Artifact-Resolver zu finden (z.B. *.pdfanalyse.de.md)
         const sourceItemId = job.correlation?.source?.itemId || ''
         const sourceName = job.correlation?.source?.name || ''
@@ -425,9 +504,10 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     
     if (hasChaptersInSkippedMeta && !hasPagesInSkippedMeta) {
       // Lade textSource für Pages-Rekonstruktion
-      const baseName = (job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '')
+      const sourceItemIdForRepair = job.correlation?.source?.itemId || 'unknown'
+      const sourceNameForRepair = job.correlation?.source?.name || 'output'
       const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
-      const uniqueName = `${baseName}.${lang}.md`
+      const uniqueName = buildArtifactName({ sourceId: sourceItemIdForRepair, kind: 'transcript', targetLanguage: lang }, sourceNameForRepair)
       let textSourceForRepair: string = extractedText || ''
       if (!textSourceForRepair) {
         try {
@@ -1190,6 +1270,12 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
         skipped: false,
       }
     }
+    // WICHTIG: ZIP-Daten gehören zur Phase 1 (Extract) und wurden bereits dort hochgeladen.
+    // ZIP-Daten können jedoch für Template-Information benötigt werden (z.B. Seiten-Metadaten).
+    // Phase 2 speichert nur das transformierte Markdown (ohne Bilder hochzuladen).
+    // Falls Phase 2 eigene Assets erzeugt, werden diese am Ende von Phase 2 gespeichert.
+    // Das Shadow-Twin reichert sich von Phase zu Phase an.
+    
     // Speichern via Modul
     // WICHTIG: Wir speichern die transformierte Datei mit Template-Namen und Sprachkürzel (z.B. Livique_Sørensen.Besprechung.de.md)
     // Diese Datei enthält Frontmatter und wird im Shadow-Twin-Verzeichnis gespeichert
@@ -1200,6 +1286,8 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
       fileName: uniqueName, 
       markdown,
       artifactKey, // Expliziter ArtifactKey für Transformation
+      zipArchives: undefined, // Keine ZIP-Daten für Bild-Upload - Bilder wurden bereits in Phase 1 hochgeladen
+      jobId,
     })
     savedItemId = saved.savedItemId
     bufferLog(jobId, {
@@ -1211,19 +1299,6 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
       markdownLength: markdown.length,
       hasFrontmatter: markdown.trimStart().startsWith('---')
     })
-    try {
-      await repo.traceAddEvent(jobId, {
-        spanId: 'template',
-        name: 'postprocessing_saved',
-        attributes: {
-          savedItemId,
-          fileName: uniqueName,
-          targetParentId,
-          markdownLength: markdown.length,
-          hasFrontmatter: markdown.trimStart().startsWith('---')
-        }
-      })
-    } catch {}
     await repo.appendMeta(jobId, metaForFrontmatter, 'template_transform')
   }
 

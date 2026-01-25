@@ -8,12 +8,15 @@ import type { StorageItem, StorageProvider } from "@/lib/storage/types"
 import { FileLogger } from "@/lib/debug/logger"
 import { ArtifactEditDialog } from "@/components/library/shared/artifact-edit-dialog"
 import { cn } from "@/lib/utils"
+import { fetchShadowTwinMarkdown } from "@/lib/shadow-twin/shadow-twin-mongo-client"
+import { isMongoShadowTwinId, parseMongoShadowTwinId } from "@/lib/shadow-twin/mongo-shadow-twin-id"
 
 interface ArtifactMarkdownPanelProps {
   title: string
   titleClassName?: string
   item: StorageItem | null
   provider: StorageProvider | null
+  libraryId?: string
   emptyHint: string
   stripFrontmatter?: boolean
   onSaved?: (item: StorageItem) => void
@@ -30,6 +33,7 @@ export function ArtifactMarkdownPanel({
   titleClassName,
   item,
   provider,
+  libraryId,
   emptyHint,
   stripFrontmatter = false,
   onSaved,
@@ -45,12 +49,14 @@ export function ArtifactMarkdownPanel({
     setCurrentItem(item || null)
   }, [item])
 
-  // Laedt den aktuellen Artefakt-Inhalt (nur wenn Provider + Item vorhanden).
+  // Laedt den aktuellen Artefakt-Inhalt:
+  // - Mongo-ID: per API
+  // - Filesystem-ID: per Provider
   React.useEffect(() => {
     let cancelled = false
 
     async function load() {
-      if (!provider || !currentItem?.id) {
+      if (!currentItem?.id) {
         setContent("")
         setError(null)
         return
@@ -59,6 +65,22 @@ export function ArtifactMarkdownPanel({
       try {
         setIsLoading(true)
         setError(null)
+
+        if (isMongoShadowTwinId(currentItem.id)) {
+          const parts = parseMongoShadowTwinId(currentItem.id)
+          if (!parts || !libraryId) {
+            throw new Error("Mongo-ID ohne Library-Kontext.")
+          }
+          const text = await fetchShadowTwinMarkdown(libraryId, parts)
+          if (cancelled) return
+          setContent(text)
+          return
+        }
+
+        if (!provider) {
+          throw new Error("Storage-Provider fehlt.")
+        }
+
         const { blob } = await provider.getBinary(currentItem.id)
         const text = await blob.text()
         if (cancelled) return
@@ -77,7 +99,7 @@ export function ArtifactMarkdownPanel({
     return () => {
       cancelled = true
     }
-  }, [provider, currentItem?.id])
+  }, [provider, currentItem?.id, libraryId])
 
   if (!currentItem) {
     return <div className="text-sm text-muted-foreground">{emptyHint}</div>
@@ -105,7 +127,12 @@ export function ArtifactMarkdownPanel({
         {hasTitle ? <div className={cn("text-sm font-medium", titleClassName)}>{title}</div> : <div />}
         <div className="flex items-center gap-2">
           {additionalActions}
-          <Button size="sm" variant="outline" onClick={() => setIsEditOpen(true)} disabled={!provider}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setIsEditOpen(true)}
+            disabled={!provider && !(libraryId && currentItem?.id && isMongoShadowTwinId(currentItem.id))}
+          >
             Bearbeiten
           </Button>
         </div>
@@ -124,6 +151,7 @@ export function ArtifactMarkdownPanel({
         onOpenChange={setIsEditOpen}
         item={currentItem}
         provider={provider}
+        libraryId={libraryId}
         onSaved={(saved) => {
           setCurrentItem(saved)
           onSaved?.(saved)

@@ -49,10 +49,16 @@ export function logArtifactResolve(
       sourceName: options.sourceName,
     });
   } else if (action === 'error') {
+    // WICHTIG:
+    // In der Browser-Konsole (Next.js dev overlay) werden `undefined`-Felder beim Serialisieren oft "verschluckt"
+    // und erscheinen dann als `{}`. Daher stellen wir hier sicher, dass die Felder immer Strings sind.
+    const safeDetails = {
+      sourceId: options.sourceId || 'unknown',
+      sourceName: options.sourceName || 'unknown',
+      error: options.error || 'unknown error',
+    };
     FileLogger.error('artifact-resolver', 'Fehler bei Artefakt-Auflösung', {
-      sourceId: options.sourceId,
-      sourceName: options.sourceName,
-      error: options.error,
+      ...safeDetails,
     });
   }
 }

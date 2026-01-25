@@ -21,6 +21,10 @@ import {
 } from '@/lib/storage/shadow-twin';
 import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver';
 import { extractBaseName, parseArtifactName } from '@/lib/shadow-twin/artifact-naming';
+import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service';
+import type { Library } from '@/types/library';
+import { buildMongoShadowTwinItem } from '@/lib/shadow-twin/mongo-shadow-twin-item';
+import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id';
 
 /**
  * Prüft, ob eine Datei eine Markdown-Datei ist
@@ -189,6 +193,216 @@ export async function analyzeShadowTwin(
     }
 
     // 4. Erstelle ShadowTwinState-Objekt
+    const state: ShadowTwinState = {
+      baseItem,
+      transformed,
+      transcriptFiles: transcriptFiles && transcriptFiles.length > 0 ? transcriptFiles : undefined,
+      shadowTwinFolderId,
+      mediaFiles: mediaFiles && mediaFiles.length > 0 ? mediaFiles : undefined,
+      analysisTimestamp
+    };
+
+    return state;
+  } catch (error) {
+    // Bei Fehlern: Erstelle State mit Fehlerinformation
+    try {
+      const baseItem = await provider.getItemById(fileId);
+      return {
+        baseItem: baseItem as StorageItem,
+        analysisTimestamp,
+        analysisError: error instanceof Error ? error.message : 'Unknown error during analysis'
+      };
+    } catch {
+      // Wenn auch das Laden des baseItem fehlschlägt, geben wir null zurück
+      return null;
+    }
+  }
+}
+
+/**
+ * Analysiert eine Datei mit ShadowTwinService (mongo-aware).
+ * 
+ * Diese Funktion verwendet den ShadowTwinService, um Artefakte sowohl aus MongoDB
+ * als auch aus dem Filesystem/Provider zu finden. Sie ist konsistent mit der
+ * Store-Konfiguration der Library.
+ * 
+ * @param fileId ID der zu analysierenden Datei
+ * @param provider Storage Provider
+ * @param userEmail Benutzer-E-Mail (für Service-Erstellung)
+ * @param library Library-Objekt (für Service-Erstellung)
+ * @param targetLanguage Optional: Zielsprache (Standard: 'de')
+ * @returns ShadowTwinState-Objekt oder null bei Fehler
+ */
+export async function analyzeShadowTwinWithService(
+  fileId: string,
+  provider: StorageProvider,
+  userEmail: string,
+  library: Library | null | undefined,
+  targetLanguage: string = 'de'
+): Promise<ShadowTwinState | null> {
+  const analysisTimestamp = Date.now();
+  
+  try {
+    // 1. Lade baseItem
+    const baseItem = await provider.getItemById(fileId);
+    if (!baseItem) {
+      return {
+        baseItem: baseItem as StorageItem,
+        analysisTimestamp,
+        analysisError: 'Base item not found'
+      };
+    }
+
+    const baseName = extractBaseName(baseItem.metadata.name);
+    const parentId = baseItem.parentId;
+    const sourceItemId = baseItem.id;
+    const sourceName = baseItem.metadata.name;
+
+    // 2. Erstelle ShadowTwinService für zentrale Artefakt-Suche
+    let service: ShadowTwinService | null = null
+    if (library) {
+      try {
+        service = new ShadowTwinService({
+          library,
+          userEmail,
+          sourceId: sourceItemId,
+          sourceName,
+          parentId,
+          provider,
+        })
+      } catch (error) {
+        // Service-Erstellung fehlgeschlagen → Fallback zu Provider-only unten
+      }
+    }
+
+    let transformed: StorageItem | undefined;
+    let transcriptFiles: StorageItem[] | undefined;
+    let mediaFiles: StorageItem[] | undefined;
+    let shadowTwinFolderId: string | undefined;
+
+    // 3. Prüfe auf Shadow-Twin-Verzeichnis (Provider-basiert)
+    const shadowTwinFolder = await findShadowTwinFolder(
+      parentId,
+      baseItem.metadata.name,
+      provider
+    );
+    shadowTwinFolderId = shadowTwinFolder?.id;
+
+    // 4. Suche Artefakte über Service (Mongo + Provider-Fallback)
+    if (service) {
+      try {
+        // Suche Transcript
+        const transcriptResult = await service.getMarkdown({
+          kind: 'transcript',
+          targetLanguage,
+        })
+        if (transcriptResult) {
+          // Erstelle virtuelles StorageItem für Mongo-Artefakte
+          if (isMongoShadowTwinId(transcriptResult.id)) {
+            const parsed = parseMongoShadowTwinId(transcriptResult.id)
+            if (parsed && library) {
+              const virtualItem = buildMongoShadowTwinItem({
+                libraryId: library.id,
+                sourceId: sourceItemId,
+                sourceName,
+                parentId,
+                kind: 'transcript',
+                targetLanguage,
+                markdownLength: transcriptResult.markdown.length,
+                updatedAt: new Date().toISOString(),
+              })
+              transcriptFiles = [virtualItem]
+            }
+          } else {
+            // Provider-basiertes Artefakt: Lade vollständiges Item
+            try {
+              const item = await provider.getItemById(transcriptResult.id)
+              if (item) transcriptFiles = [item]
+            } catch {
+              // ignore
+            }
+          }
+        }
+
+        // Suche Transformation (ohne templateName - wir nehmen die erste gefundene)
+        // WICHTIG: Für präzise Suche müsste templateName bekannt sein, hier nehmen wir "beste" Transformation
+        const transformationResult = await service.getMarkdown({
+          kind: 'transformation',
+          targetLanguage,
+          // templateName wird nicht übergeben - Service sollte "beste" finden oder null zurückgeben
+        })
+        if (transformationResult) {
+          if (isMongoShadowTwinId(transformationResult.id)) {
+            const parsed = parseMongoShadowTwinId(transformationResult.id)
+            if (parsed && library) {
+              const virtualItem = buildMongoShadowTwinItem({
+                libraryId: library.id,
+                sourceId: sourceItemId,
+                sourceName,
+                parentId,
+                kind: 'transformation',
+                targetLanguage,
+                templateName: parsed.templateName,
+                markdownLength: transformationResult.markdown.length,
+                updatedAt: new Date().toISOString(),
+              })
+              transformed = virtualItem
+            }
+          } else {
+            try {
+              const item = await provider.getItemById(transformationResult.id)
+              if (item) transformed = item
+            } catch {
+              // ignore
+            }
+          }
+        }
+      } catch (error) {
+        // Service-Fehler → Fallback zu Provider-only unten
+      }
+    }
+
+    // 5. Fallback: Provider-basierte Suche (wenn Service nicht verfügbar oder fehlgeschlagen)
+    if (!transformed && !transcriptFiles) {
+      const resolvedTranscript = await resolveArtifact(provider, {
+        sourceItemId,
+        sourceName,
+        parentId,
+        targetLanguage,
+        preferredKind: 'transcript',
+      });
+      
+      const resolvedTransformation = await resolveArtifact(provider, {
+        sourceItemId,
+        sourceName,
+        parentId,
+        targetLanguage,
+        preferredKind: 'transformation',
+      });
+      
+      const transcriptFile = resolvedTranscript 
+        ? await provider.getItemById(resolvedTranscript.fileId).catch(() => undefined)
+        : undefined;
+      
+      const transformedFile = resolvedTransformation
+        ? await provider.getItemById(resolvedTransformation.fileId).catch(() => undefined)
+        : undefined;
+
+      if (transformedFile) {
+        transformed = transformedFile;
+      }
+      
+      if (transcriptFile) {
+        transcriptFiles = [transcriptFile];
+      }
+    }
+
+    // Für Audio/Video: Finde Media-Dateien
+    if (isMediaFile(baseItem)) {
+      mediaFiles = [baseItem];
+    }
+
+    // 6. Erstelle ShadowTwinState-Objekt
     const state: ShadowTwinState = {
       baseItem,
       transformed,

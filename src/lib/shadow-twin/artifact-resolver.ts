@@ -15,7 +15,7 @@
 import type { StorageItem, StorageProvider } from '@/lib/storage/types';
 import type { ArtifactKind } from './artifact-types';
 import { findShadowTwinFolder } from '@/lib/storage/shadow-twin';
-import { parseArtifactName } from './artifact-naming';
+import { parseArtifactName, buildArtifactName } from './artifact-naming';
 import { logArtifactResolve } from './artifact-logger';
 import path from 'path';
 
@@ -115,17 +115,21 @@ async function resolveArtifactV2(
   provider: StorageProvider,
   options: ResolveArtifactOptions
 ): Promise<ResolvedArtifact | null> {
-  const { sourceName, parentId, targetLanguage, templateName, preferredKind } = options;
+  const { sourceItemId, sourceName, parentId, targetLanguage, templateName, preferredKind } = options;
+  // WICHTIG:
+  // Der Basisname der Quelle muss ohne Extension übergeben werden (z.B. "audio" statt "audio.mp3"),
+  // damit parseArtifactName() Transformationen korrekt erkennt und BaseNames mit Punkten stabil bleiben.
+  const sourceBaseName = path.parse(sourceName).name;
 
   // Bestimme ArtifactKind
   const kind: ArtifactKind = preferredKind || (templateName ? 'transformation' : 'transcript');
 
-  const sourceBaseName = path.parse(sourceName).name;
+  // Verwende zentrale buildArtifactName() Funktion für konsistente Namensgenerierung
   const expectedFileName = kind === 'transformation'
     ? (templateName
-      ? `${sourceBaseName}.${templateName}.${targetLanguage}.md`
+      ? buildArtifactName({ sourceId: sourceItemId, kind: 'transformation', targetLanguage, templateName }, sourceName)
       : null)
-    : `${sourceBaseName}.${targetLanguage}.md`;
+    : buildArtifactName({ sourceId: sourceItemId, kind: 'transcript', targetLanguage }, sourceName);
 
   /**
    * WICHTIG (v2): Transformationen benötigen i.d.R. `templateName` (Dateiformat: base.template.lang.md).

@@ -5,6 +5,8 @@ import * as React from "react"
 import type { StorageItem, StorageProvider } from "@/lib/storage/types"
 import { MarkdownPreview } from "@/components/library/markdown-preview"
 import { SourceRenderer } from "@/components/library/flow/source-renderer"
+import { fetchShadowTwinMarkdown } from "@/lib/shadow-twin/shadow-twin-mongo-client"
+import { isMongoShadowTwinId, parseMongoShadowTwinId } from "@/lib/shadow-twin/mongo-shadow-twin-id"
 
 type MediaType = "pdf" | "audio" | "video" | "image" | "markdown" | "unknown"
 
@@ -24,6 +26,10 @@ export interface SourceAndTranscriptPaneProps {
   provider: StorageProvider
   sourceFile: StorageItem
   streamingUrl: string | null
+  /**
+   * Wird benötigt, um Mongo-Shadow-Twins (virtuelle IDs) per API aufzulösen.
+   */
+  libraryId?: string
   /**
    * Wird optional übergeben (Flow kennt es via Shadow‑Twin Analyse).
    * In der File‑Liste wird es via Resolver gesucht.
@@ -59,6 +65,19 @@ export function SourceAndTranscriptPane(props: SourceAndTranscriptPaneProps) {
 
       try {
         setIsTranscriptLoading(true)
+        // Mongo-Shadow-Twins sind virtuelle IDs und existieren nicht als Datei im Provider.
+        // Daher muss der Inhalt über die Mongo-Content-API geladen werden.
+        if (isMongoShadowTwinId(props.transcriptItem.id)) {
+          const parts = parseMongoShadowTwinId(props.transcriptItem.id)
+          if (!parts || !props.libraryId) {
+            throw new Error("Mongo-Shadow-Twin kann ohne libraryId nicht geladen werden.")
+          }
+          const text = await fetchShadowTwinMarkdown(props.libraryId, parts)
+          if (cancelled) return
+          setTranscriptText(text)
+          return
+        }
+
         const { blob } = await props.provider.getBinary(props.transcriptItem.id)
         const text = await blob.text()
         if (cancelled) return
@@ -75,7 +94,7 @@ export function SourceAndTranscriptPane(props: SourceAndTranscriptPaneProps) {
     return () => {
       cancelled = true
     }
-  }, [props.provider, props.transcriptItem, shouldLoadTranscript])
+  }, [props.provider, props.transcriptItem, props.libraryId, shouldLoadTranscript])
 
   if (mediaType === "pdf") {
     if (leftMode === "transcript") {

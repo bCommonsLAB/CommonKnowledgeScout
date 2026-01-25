@@ -221,8 +221,11 @@ export function TraceViewer({ jobId }: { jobId: string }) {
     const duration = getSpanDuration(span);
     const position = getTimePosition(span.startedAt);
     const width = getSpanWidth(span);
+    // Eindeutiger Key: Kombiniere spanId mit startedAt, um Duplikate zu vermeiden
+    // Falls mehrere Spans dieselbe spanId haben (z.B. "postprocessing"), wird startedAt verwendet
+    const uniqueKey = span.startedAt ? `${span.spanId}-${span.startedAt}` : `${span.spanId}-${Math.random()}`;
     return (
-      <div key={span.spanId} className="relative">
+      <div key={uniqueKey} className="relative">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>

@@ -18,6 +18,7 @@ import type { RequestContext } from '@/types/external-jobs'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { buildProvider } from '@/lib/external-jobs/provider'
 import { findPdfMarkdown, decideNeedExtract } from '@/lib/external-jobs/preprocess-core'
+import { LibraryService } from '@/lib/services/library-service'
 
 export interface PreprocessPdfExtractResult {
   hasMarkdown: boolean
@@ -49,7 +50,20 @@ export async function preprocessorPdfExtract(
   const repo = new ExternalJobsRepository()
   const provider = await buildProvider({ userEmail, libraryId, jobId, repo })
 
-  const found = await findPdfMarkdown(provider, parentId, baseName, lang)
+  const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
+  const sourceItemId = job.correlation?.source?.itemId
+  const sourceName = job.correlation?.source?.name
+  const found = await findPdfMarkdown(
+    provider,
+    parentId,
+    baseName,
+    lang,
+    library,
+    sourceItemId,
+    sourceName,
+    { preferredKind: 'transcript' },
+    userEmail
+  )
   const needExtract = decideNeedExtract(found.hasMarkdown)
 
   return {

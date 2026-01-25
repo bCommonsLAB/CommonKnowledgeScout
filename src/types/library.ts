@@ -173,6 +173,14 @@ export interface StorageConfig {
   shadowTwin?: {
     /** Modus: 'legacy' (alte Heuristik) oder 'v2' (neue Namenskonventionen) */
     mode?: 'legacy' | 'v2';
+    /** Primärer Store fuer Shadow-Twins */
+    primaryStore?: 'filesystem' | 'mongo';
+    /** Shadow-Twins zusaetzlich ins Filesystem schreiben */
+    persistToFilesystem?: boolean;
+    /** Nach Migration Shadow-Twins aus dem Filesystem entfernen */
+    cleanupFilesystemOnMigrate?: boolean;
+    /** Legacy-Fallback lesen, falls Mongo-Eintrag fehlt */
+    allowFilesystemFallback?: boolean;
   };
 
   /** Creation-Flow-Konfiguration pro Library */

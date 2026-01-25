@@ -45,6 +45,7 @@
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "test:package": "node test-package.js",
+    "test:integration:api": "node scripts/run-integration-tests.mjs",
     "export:cursor-chats": "node --import tsx scripts/export-cursor-chats.ts",
     "docs:history:merge": "node --import tsx scripts/merge-history.ts",
     "docs:history": "pnpm run docs:history:merge",

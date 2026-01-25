@@ -57,6 +57,34 @@ export interface BatchResolveArtifactsClientOptions {
   }>;
   /** Optional: Bevorzugte Art des Artefakts (Standard: 'transformation') */
   preferredKind?: ArtifactKind;
+  /** Optional: Wenn true, werden beide Artefakt-Typen (transcript + transformation) zurückgegeben */
+  includeBoth?: boolean;
+  /** Optional: Wenn true, wird auch der Ingestion-Status geprüft */
+  includeIngestionStatus?: boolean;
+}
+
+/**
+ * Ingestion-Status für eine Quelle.
+ */
+export interface IngestionStatus {
+  /** Ob das Dokument in der Story/Ingestion vorhanden ist */
+  exists: boolean;
+  /** Anzahl der Chunks */
+  chunkCount?: number;
+  /** Anzahl der Kapitel */
+  chaptersCount?: number;
+}
+
+/**
+ * Erweiterte Response für Bulk-Auflösung.
+ */
+export interface BatchResolveArtifactsClientResponse {
+  /** Map von sourceId -> ResolvedArtifactWithItem (oder null wenn nicht gefunden) */
+  artifacts: Map<string, ResolvedArtifactWithItem | null>;
+  /** Map von sourceId -> Transcript-Artefakt (nur wenn includeBoth=true) */
+  transcripts?: Map<string, ResolvedArtifactWithItem | null>;
+  /** Map von sourceId -> Ingestion-Status (nur wenn includeIngestionStatus=true) */
+  ingestionStatus?: Map<string, IngestionStatus>;
 }
 
 /**
@@ -93,7 +121,8 @@ export async function resolveArtifactClient(
   }
 
   try {
-    const response = await fetch(`/api/library/${libraryId}/artifacts/resolve?${params.toString()}`);
+    const url = `/api/library/${encodeURIComponent(libraryId)}/artifacts/resolve?${params.toString()}`;
+    const response = await fetch(url, { cache: 'no-store' });
 
     if (!response.ok) {
       if (response.status === 404) {
@@ -103,7 +132,28 @@ export async function resolveArtifactClient(
         });
         return null;
       }
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      // Versuche, serverseitige Fehlerdetails zu lesen (z.B. { error: "..." }).
+      // Ohne das bleibt im Debug-Panel oft nur "HTTP 500", was die Analyse erschwert.
+      let serverDetail: string | null = null;
+      try {
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const json = (await response.json().catch(() => null)) as { error?: unknown; code?: unknown } | null;
+          if (json && (json.error !== undefined || json.code !== undefined)) {
+            const errText = json.error instanceof Error ? json.error.message : (json.error !== undefined ? String(json.error) : '');
+            const codeText = json.code !== undefined ? String(json.code) : '';
+            serverDetail = [codeText ? `code=${codeText}` : null, errText || null].filter(Boolean).join(' ');
+          }
+        } else {
+          const text = await response.text().catch(() => '');
+          serverDetail = text ? text.slice(0, 500) : null;
+        }
+      } catch {
+        // Ignoriere Detail-Parse-Fehler, wir haben Fallback unten.
+      }
+
+      const suffix = serverDetail ? ` - ${serverDetail}` : '';
+      throw new Error(`HTTP ${response.status}: ${response.statusText}${suffix} (${url})`);
     }
 
     const data = await response.json() as { artifact: ResolvedArtifact | null };
@@ -133,7 +183,9 @@ export async function resolveArtifactClient(
       sourceName,
       error: errorMsg,
     });
-    console.error('Fehler bei Artefakt-Auflösung:', error);
+    // Kein zusätzliches console.error hier:
+    // - der FileLogger schreibt bereits in die Konsole
+    // - doppelte Errors triggern unnötig das Next.js Error-Overlay
     return null;
   }
 }
@@ -158,12 +210,12 @@ const MAX_SOURCES_PER_BATCH = 100;
  * um das API-Limit zu respektieren.
  * 
  * @param options Bulk-Auflösungsoptionen
- * @returns Map von sourceId -> ResolvedArtifactWithItem (oder null wenn nicht gefunden)
+ * @returns Erweiterte Response mit Artefakten, Transcripts und Ingestion-Status
  */
 export async function batchResolveArtifactsClient(
   options: BatchResolveArtifactsClientOptions
-): Promise<Map<string, ResolvedArtifactWithItem | null>> {
-  const { libraryId, sources, preferredKind } = options;
+): Promise<BatchResolveArtifactsClientResponse> {
+  const { libraryId, sources, preferredKind, includeBoth, includeIngestionStatus } = options;
 
   if (!sources || sources.length === 0) {
     return new Map();
@@ -195,6 +247,8 @@ export async function batchResolveArtifactsClient(
       const requestBody = {
         sources: batch,
         preferredKind: preferredKind || 'transformation',
+        includeBoth: includeBoth === true,
+        includeIngestionStatus: includeIngestionStatus === true,
       };
 
       FileLogger.debug('batchResolveArtifactsClient', `Sende Batch ${batchIndex + 1}/${batches.length}`, {
@@ -235,26 +289,56 @@ export async function batchResolveArtifactsClient(
         throw new Error(`Batch ${batchIndex + 1}/${batches.length}: ${errorMessage}`);
       }
 
-      const data = await response.json() as { artifacts: Record<string, ResolvedArtifactWithItem | null> };
-      return data.artifacts || {};
+      const data = await response.json() as {
+        artifacts: Record<string, ResolvedArtifactWithItem | null>;
+        transcripts?: Record<string, ResolvedArtifactWithItem | null>;
+        ingestionStatus?: Record<string, IngestionStatus>;
+      };
+      return {
+        artifacts: data.artifacts || {},
+        transcripts: data.transcripts,
+        ingestionStatus: data.ingestionStatus,
+      };
     });
 
     // Warte auf alle Batches und merge Ergebnisse
     const batchResults = await Promise.all(batchPromises);
     const artifacts: Record<string, ResolvedArtifactWithItem | null> = {};
+    const transcripts: Record<string, ResolvedArtifactWithItem | null> = {};
+    const ingestionStatus: Record<string, IngestionStatus> = {};
     
-    for (const batchArtifacts of batchResults) {
-      Object.assign(artifacts, batchArtifacts);
+    for (const batchResult of batchResults) {
+      Object.assign(artifacts, batchResult.artifacts);
+      if (batchResult.transcripts) {
+        Object.assign(transcripts, batchResult.transcripts);
+      }
+      if (batchResult.ingestionStatus) {
+        Object.assign(ingestionStatus, batchResult.ingestionStatus);
+      }
     }
 
-    // Konvertiere zu Map
-    const result = new Map<string, ResolvedArtifactWithItem | null>();
+    // Konvertiere zu Maps
+    const artifactsMap = new Map<string, ResolvedArtifactWithItem | null>();
     for (const [sourceId, artifact] of Object.entries(artifacts)) {
-      result.set(sourceId, artifact);
+      artifactsMap.set(sourceId, artifact);
+    }
+
+    const transcriptsMap = includeBoth ? new Map<string, ResolvedArtifactWithItem | null>() : undefined;
+    if (includeBoth && transcriptsMap) {
+      for (const [sourceId, transcript] of Object.entries(transcripts)) {
+        transcriptsMap.set(sourceId, transcript);
+      }
+    }
+
+    const ingestionStatusMap = includeIngestionStatus ? new Map<string, IngestionStatus>() : undefined;
+    if (includeIngestionStatus && ingestionStatusMap) {
+      for (const [sourceId, status] of Object.entries(ingestionStatus)) {
+        ingestionStatusMap.set(sourceId, status);
+      }
     }
 
     // Logging: Ergebnis (client-seitig)
-    const resolvedCount = Array.from(result.values()).filter(a => a !== null).length;
+    const resolvedCount = Array.from(artifactsMap.values()).filter(a => a !== null).length;
     logArtifactResolve('success', {
       sourceId: 'batch',
       sourceName: `Bulk-Auflösung abgeschlossen: ${resolvedCount}/${sources.length} gefunden (${batches.length} Batches)`,
@@ -265,7 +349,19 @@ export async function batchResolveArtifactsClient(
       totalSources: sources.length,
       resolvedCount,
       batchCount: batches.length,
+      includeBoth,
+      includeIngestionStatus,
     });
+
+    const result: BatchResolveArtifactsClientResponse = {
+      artifacts: artifactsMap,
+    };
+    if (includeBoth && transcriptsMap) {
+      result.transcripts = transcriptsMap;
+    }
+    if (includeIngestionStatus && ingestionStatusMap) {
+      result.ingestionStatus = ingestionStatusMap;
+    }
 
     return result;
   } catch (error) {
@@ -281,6 +377,8 @@ export async function batchResolveArtifactsClient(
       sourcesCount: sources.length,
     });
     console.error('Fehler bei Bulk-Artefakt-Auflösung:', error);
-    return new Map();
+    return {
+      artifacts: new Map(),
+    };
   }
 }

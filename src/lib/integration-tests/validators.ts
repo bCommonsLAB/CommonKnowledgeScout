@@ -15,6 +15,10 @@ import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver'
 import type { IntegrationTestCase, ExpectedOutcome } from './test-cases'
 import type { ExternalJob } from '@/types/external-job'
 import { parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
+import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
+import { LibraryService } from '@/lib/services/library-service'
+import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
+import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import path from 'path'
 
 export interface ValidationMessage {
@@ -151,13 +155,6 @@ async function validateShadowTwin(
   if (!expected.expectShadowTwinExists) return
 
   const state = job.shadowTwinState
-  if (expected.expectShadowTwinExists) {
-    if (!state?.shadowTwinFolderId) {
-      pushMessage(messages, 'error', 'Shadow‑Twin wird erwartet, aber shadowTwinFolderId fehlt im Job-Dokument')
-    } else {
-      pushMessage(messages, 'info', `Shadow‑Twin-Verzeichnis vorhanden: ${state.shadowTwinFolderId}`)
-    }
-  }
 
   // Optional: Sicherstellen, dass im Shadow‑Twin-Verzeichnis ein transformiertes File existiert
   // (bei v2-only prüfen wir über resolveArtifact(), nicht über legacy Parent-Heuristiken)
@@ -172,6 +169,69 @@ async function validateShadowTwin(
   const templateName = typeof templateRaw === 'string' && templateRaw.trim().length > 0
     ? templateRaw.trim()
     : undefined
+
+  // Für Extract-only Runs (template=false) validieren wir Transcript statt Transformation.
+  const phases = (job.parameters as { phases?: { template?: boolean } } | undefined)?.phases
+  const templateEnabled = phases ? phases.template !== false : true
+  const expectedKind: 'transcript' | 'transformation' = templateEnabled ? 'transformation' : 'transcript'
+
+  // Mongo-only: Shadow‑Twin kann existieren, ohne dass ein Dot-Folder im Provider angelegt wird.
+  // In diesem Fall ist `shadowTwinFolderId` optional und die Existenz muss via ShadowTwinService geprüft werden.
+  try {
+    const library = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
+    const cfg = getShadowTwinConfig(library)
+    if (cfg.primaryStore === 'mongo' && !cfg.persistToFilesystem) {
+      if (!state?.shadowTwinFolderId) {
+        pushMessage(messages, 'info', 'Mongo-only Shadow‑Twin: shadowTwinFolderId ist optional (persistToFilesystem=false)')
+      } else {
+        pushMessage(messages, 'info', `Shadow‑Twin-Verzeichnis vorhanden: ${state.shadowTwinFolderId}`)
+      }
+
+      const service = new ShadowTwinService({
+        library,
+        userEmail: job.userEmail,
+        sourceId: source.itemId,
+        sourceName: source.name,
+        parentId: source.parentId,
+        provider, // erlaubt Fallbacks, falls aktiviert
+      })
+
+      const found = await service.getMarkdown({
+        kind: expectedKind,
+        targetLanguage: lang,
+        templateName: expectedKind === 'transformation' ? templateName : undefined,
+      })
+
+      if (!found) {
+        pushMessage(
+          messages,
+          'error',
+          expectedKind === 'transformation'
+            ? 'Im Shadow‑Twin wurde keine transformierte Markdown-Datei gefunden (Mongo)'
+            : 'Im Shadow‑Twin wurde keine Transcript-Markdown-Datei gefunden (Mongo)'
+        )
+      } else {
+        pushMessage(
+          messages,
+          'info',
+          expectedKind === 'transformation'
+            ? `Transformierte Markdown-Datei gefunden (Mongo): ${found.name}`
+            : `Transcript-Markdown-Datei gefunden (Mongo): ${found.name}`
+        )
+      }
+
+      return
+    }
+  } catch {
+    // Fallback: Provider-basierte Validierung unten
+  }
+
+  // Nicht-Mongo-only: Folder-ID ist Pflicht, weil der kanonische Pfad der Dot-Folder ist.
+  if (!state?.shadowTwinFolderId) {
+    pushMessage(messages, 'error', 'Shadow‑Twin wird erwartet, aber shadowTwinFolderId fehlt im Job-Dokument')
+  } else {
+    pushMessage(messages, 'info', `Shadow‑Twin-Verzeichnis vorhanden: ${state.shadowTwinFolderId}`)
+  }
 
   // Legacy-Policy (Siblings):
   // Wir tolerieren Siblings als Read-Only Fallback, aber wollen sie sichtbar machen,
@@ -197,19 +257,33 @@ async function validateShadowTwin(
     sourceName: source.name,
     parentId: source.parentId,
     targetLanguage: lang,
-    templateName,
-    preferredKind: 'transformation',
+    templateName: expectedKind === 'transformation' ? templateName : undefined,
+    preferredKind: expectedKind,
   })
 
   if (!resolved) {
-    pushMessage(messages, 'error', 'Im Shadow‑Twin wurde keine transformierte Markdown-Datei gefunden')
+    pushMessage(
+      messages,
+      'error',
+      expectedKind === 'transformation'
+        ? 'Im Shadow‑Twin wurde keine transformierte Markdown-Datei gefunden'
+        : 'Im Shadow‑Twin wurde keine Transcript-Markdown-Datei gefunden'
+    )
   } else {
-    pushMessage(messages, 'info', `Transformierte Markdown-Datei gefunden: ${resolved.fileName}`)
+    pushMessage(
+      messages,
+      'info',
+      expectedKind === 'transformation'
+        ? `Transformierte Markdown-Datei gefunden: ${resolved.fileName}`
+        : `Transcript-Markdown-Datei gefunden: ${resolved.fileName}`
+    )
     if (resolved.location === 'sibling') {
       pushMessage(
         messages,
         'warn',
-        `Legacy Sibling-Transformation gefunden: ${resolved.fileName} (Zielbild: Dot-Folder als kanonischer Write-Pfad)`
+        expectedKind === 'transformation'
+          ? `Legacy Sibling-Transformation gefunden: ${resolved.fileName} (Zielbild: Dot-Folder als kanonischer Write-Pfad)`
+          : `Legacy Sibling-Transcript gefunden: ${resolved.fileName} (Zielbild: Dot-Folder als kanonischer Write-Pfad)`
       )
     }
   }
@@ -235,6 +309,91 @@ async function validateIngestion(
       `Ingestion erfolgreich: ${ingestion.vectorsUpserted} Vektoren upserted (Index: ${
         ingestion.index || 'unbekannt'
       })`
+    )
+  }
+}
+
+function stripFrontmatter(markdown: string): { hasFrontmatter: boolean; body: string } {
+  const s = String(markdown || '')
+  // sehr simple Parser-Logik (ausreichend für Tests):
+  // Frontmatter wird als erster Block zwischen '---' ... '---' am Dateianfang erkannt.
+  if (!s.startsWith('---')) return { hasFrontmatter: false, body: s }
+  const endIdx = s.indexOf('\n---', 3)
+  if (endIdx < 0) return { hasFrontmatter: true, body: '' }
+  const after = s.slice(endIdx + '\n---'.length)
+  // optionales direktes Newline entfernen
+  return { hasFrontmatter: true, body: after.replace(/^\s*\n?/, '') }
+}
+
+async function validateTranscriptContent(
+  job: import('@/types/external-job').ExternalJob,
+  expected: ExpectedOutcome,
+  messages: ValidationMessage[]
+): Promise<void> {
+  const minChars = typeof expected.minTranscriptChars === 'number' ? expected.minTranscriptChars : undefined
+  const requireNonEmpty = expected.expectTranscriptNonEmpty === true
+  const requireBody = expected.expectTranscriptHasBody === true
+
+  if (!minChars && !requireNonEmpty && !requireBody) return
+
+  // Für Nicht-Audio UseCases ist das optional, aber wir validieren nur, wenn wir eine Quelle haben.
+  const source = job.correlation?.source
+  if (!source?.parentId || !source.name || !source.itemId) {
+    pushMessage(messages, 'warn', 'Transcript-Check übersprungen: source (parentId/name/itemId) fehlt')
+    return
+  }
+
+  const langRaw = (job.correlation?.options as { targetLanguage?: unknown } | undefined)?.targetLanguage
+  const lang = typeof langRaw === 'string' && langRaw.trim() ? langRaw.trim() : 'de'
+
+  try {
+    const library = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
+    const provider = await getServerProvider(job.userEmail, job.libraryId)
+    const service = new ShadowTwinService({
+      library,
+      userEmail: job.userEmail,
+      sourceId: source.itemId,
+      sourceName: source.name,
+      parentId: source.parentId,
+      provider,
+    })
+
+    const md = await service.getMarkdown({ kind: 'transcript', targetLanguage: lang })
+    const content = (md?.markdown ?? '').trim()
+
+    if (!md) {
+      pushMessage(messages, 'error', 'Transcript-Check: Transcript-Markdown konnte nicht geladen werden')
+      return
+    }
+
+    if (requireNonEmpty && content.length === 0) {
+      pushMessage(messages, 'error', 'Transcript-Check: Transcript-Markdown ist leer (trim==0)')
+      return
+    }
+
+    if (minChars && content.length < minChars) {
+      pushMessage(messages, 'error', `Transcript-Check: Transcript-Markdown ist zu kurz (${content.length} < ${minChars})`)
+    } else {
+      pushMessage(messages, 'info', `Transcript-Check: Transcript-Markdown Länge ok (${content.length} Zeichen)`)
+    }
+
+    if (requireBody) {
+      const { hasFrontmatter, body } = stripFrontmatter(md.markdown)
+      const bodyTrim = body.trim()
+      if (hasFrontmatter && bodyTrim.length === 0) {
+        pushMessage(messages, 'error', 'Transcript-Check: Transcript enthält nur Frontmatter, aber keinen Body')
+      } else if (!hasFrontmatter) {
+        // Nicht zwingend falsch, aber auffällig wenn wir explizit Body erwarten.
+        pushMessage(messages, 'warn', 'Transcript-Check: Kein Frontmatter erkannt (Body-Check aktiv)')
+      } else {
+        pushMessage(messages, 'info', `Transcript-Check: Body vorhanden (${bodyTrim.length} Zeichen)`)
+      }
+    }
+  } catch (error) {
+    pushMessage(
+      messages,
+      'warn',
+      `Transcript-Check konnte nicht ausgeführt werden: ${error instanceof Error ? error.message : String(error)}`
     )
   }
 }
@@ -510,6 +669,23 @@ function validateGlobalContracts(
     }
   }
 
+  // Contract 2b: completed ⇒ kein step.status === 'running'
+  // Motivation: Ein completed Job mit laufenden Steps ist ein inkonsistenter Zustand (UI/Tests werden sonst "grün" aber technisch falsch).
+  if (job.status === 'completed') {
+    const steps = Array.isArray(job.steps) ? job.steps : []
+    const runningSteps = steps.filter(s => s?.status === 'running')
+    if (runningSteps.length > 0) {
+      const runningStepNames = runningSteps.map(s => s?.name || 'unknown').join(', ')
+      pushMessage(
+        messages,
+        'error',
+        `Global Contract verletzt: Job ist completed, aber ${runningSteps.length} Step(s) haben Status "running": ${runningStepNames}`
+      )
+    } else {
+      pushMessage(messages, 'info', 'Global Contract: Keine running Steps bei completed Job')
+    }
+  }
+
   // Contract 3: Policy/Step-Konsistenz
   // Wenn eine Phase auf 'ignore' gesetzt ist, sollte der entsprechende Step skipped/completed sein (nicht pending/running)
   const policies = job.parameters?.policies as
@@ -518,15 +694,19 @@ function validateGlobalContracts(
 
   if (policies) {
     const steps = Array.isArray(job.steps) ? job.steps : []
+    const extractStepName =
+      job.job_type === 'audio' ? 'extract_audio'
+      : job.job_type === 'video' ? 'extract_video'
+      : 'extract_pdf'
 
     // Extract-Policy prüfen
     if (policies.extract === 'ignore') {
-      const extractStep = steps.find(s => s?.name === 'extract_pdf')
+      const extractStep = steps.find(s => s?.name === extractStepName)
       if (extractStep && extractStep.status !== 'completed') {
         pushMessage(
           messages,
           'warn',
-          `Policy/Step-Inkonsistenz: extract=ignore, aber extract_pdf Step hat Status "${extractStep.status}" (erwarte completed)`
+          `Policy/Step-Inkonsistenz: extract=ignore, aber ${extractStepName} Step hat Status "${extractStep.status}" (erwarte completed)`
         )
       }
     }
@@ -576,6 +756,39 @@ async function validateSavedItemIdKindContract(
   const templateName = typeof templateNameRaw === 'string' && templateNameRaw.trim().length > 0 ? templateNameRaw.trim() : undefined
 
   try {
+    // Mongo-Shadow-Twin IDs direkt validieren (ohne Provider-Calls).
+    if (isMongoShadowTwinId(savedItemId)) {
+      const parsedId = parseMongoShadowTwinId(savedItemId)
+      if (!parsedId) {
+        pushMessage(messages, 'error', 'Global Contract verletzt: savedItemId ist eine ungültige mongo-shadow-twin ID')
+        return
+      }
+
+      if (parsedId.kind !== expectedKind) {
+        pushMessage(
+          messages,
+          'error',
+          `Global Contract verletzt: mongo savedItemId kind="${parsedId.kind}" – erwarte "${expectedKind}"`
+        )
+        return
+      }
+
+      if (expectedKind === 'transformation' && templateName) {
+        const parsedTemplate = parsedId.templateName || ''
+        if (!parsedTemplate || parsedTemplate.toLowerCase() !== templateName.toLowerCase()) {
+          pushMessage(
+            messages,
+            'error',
+            `Global Contract verletzt: mongo Transformation hat templateName="${parsedTemplate || 'leer'}", erwarte "${templateName}"`
+          )
+          return
+        }
+      }
+
+      pushMessage(messages, 'info', `Global Contract: mongo savedItemId Artefakt-Typ ok (${expectedKind})`)
+      return
+    }
+
     const provider = await getServerProvider(job.userEmail, job.libraryId)
     const it = await provider.getItemById(savedItemId)
     const candidateName = String(it?.metadata?.name || '')
@@ -647,9 +860,14 @@ export async function validateExternalJobForTestCase(
 
   // Extract-Step (falls relevant)
   if (testCase.phases.extract) {
-    checkStepStatus(job, 'extract_pdf', 'completed', messages)
+    const extractStepName =
+      job.job_type === 'audio' ? 'extract_audio'
+      : job.job_type === 'video' ? 'extract_video'
+      : 'extract_pdf'
+
+    checkStepStatus(job, extractStepName, 'completed', messages)
     const extractStep = Array.isArray(job.steps)
-      ? job.steps.find(s => s?.name === 'extract_pdf')
+      ? job.steps.find(s => s?.name === extractStepName)
       : undefined
     const skipped =
       !!extractStep &&
@@ -722,7 +940,10 @@ export async function validateExternalJobForTestCase(
   // Template-Phase: Welche Markdown-Dateien wurden geladen/verwendet?
   const templateLoadExistingEvent = traceEvents.find(e => e?.name === 'template_load_existing_file')
   const templateLoadTextSourceEvent = traceEvents.find(e => e?.name === 'template_load_text_source')
-  const templateSaveEvent = traceEvents.find(e => e?.name === 'postprocessing_saved')
+  // Seit 2026-01: Speichern ist Teil des Template-Spans → neutrales Event `artifact_saved`
+  const templateSaveEvent = traceEvents.find(
+    (e) => e?.name === 'artifact_saved' && (e?.attributes as { artifactKind?: unknown } | undefined)?.artifactKind === 'transformation'
+  )
   
   if (templateLoadExistingEvent?.attributes) {
     const attrs = templateLoadExistingEvent.attributes
@@ -970,6 +1191,7 @@ export async function validateExternalJobForTestCase(
   // Shadow‑Twin / Legacy-Markdown / Ingestion-Details
   summarizeShadowTwinState(job, testCase.expected, messages)
   await validateShadowTwin(job, testCase.expected, messages)
+  await validateTranscriptContent(job, testCase.expected, messages)
   await validateIngestion(job, testCase.expected, messages)
   await validateMongoVectorUpsert(job, testCase.expected, messages)
 

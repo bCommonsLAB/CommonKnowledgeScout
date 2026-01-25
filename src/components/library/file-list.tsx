@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useSearchParams } from "next/navigation"
-import { File, FileText, FileVideo, FileAudio, Plus, RefreshCw, ChevronUp, ChevronDown, Trash2, Folder as FolderIcon } from "lucide-react"
+import { File, FileText, FileVideo, FileAudio, Plus, RefreshCw, ChevronUp, ChevronDown, Trash2, Folder as FolderIcon, Wand2, Rss } from "lucide-react"
 import { StorageItem } from "@/lib/storage/types"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -137,7 +137,6 @@ interface FileRowProps {
   onCreateTranscript: (e: React.MouseEvent) => void;
   onDelete: (e: React.MouseEvent<HTMLButtonElement>, item: StorageItem) => void;
   fileGroup?: FileGroup;
-  onSelectRelatedFile?: (file: StorageItem) => void;
   onRename?: (item: StorageItem, newName: string) => Promise<void>;
   compact?: boolean;
 }
@@ -150,7 +149,6 @@ const FileRow = React.memo(function FileRow({
   onCreateTranscript,
   onDelete,
   fileGroup,
-  onSelectRelatedFile,
   onRename,
   compact = false
 }: FileRowProps) {
@@ -496,40 +494,58 @@ const FileRow = React.memo(function FileRow({
         {formatDate(metadata.modifiedAt)}
       </span>
       <div className="flex items-center justify-start gap-1">
-        {/* Shadow-Twin-Icon: Zeigt an ob Shadow-Twin existiert (Datei oder Verzeichnis) */}
-        {(fileGroup?.transcriptFiles && fileGroup.transcriptFiles.length > 0) || fileGroup?.transformed || fileGroup?.shadowTwinFolderId ? (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 p-0 hover:bg-muted"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // Wenn transformierte Datei vorhanden, diese öffnen, sonst erstes Transkript
-                    if (fileGroup?.transformed && onSelectRelatedFile) {
-                      onSelectRelatedFile(fileGroup.transformed);
-                    } else if (fileGroup?.transcriptFiles && fileGroup.transcriptFiles.length > 0 && onSelectRelatedFile) {
-                      onSelectRelatedFile(fileGroup.transcriptFiles[0]);
-                    }
-                  }}
-                >
-                  <FileText className="h-4 w-4 text-blue-500" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>
-                  {fileGroup?.transformed 
-                    ? `Transformierte Datei anzeigen: ${fileGroup.transformed.metadata.name}`
-                    : fileGroup?.transcriptFiles && fileGroup.transcriptFiles.length > 0
-                    ? `Shadow-Twin anzeigen: ${fileGroup.transcriptFiles[0].metadata.name}`
-                    : 'Shadow-Twin vorhanden'}
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ) : null}
+        {/* Status-Icon: Zeigt Fortschritt der Story-Ingestion (Transcript → Transformation → Story) */}
+        {(() => {
+          // Bestimme Status: Story (höchste Priorität) > Transformation > Transcript
+          const hasIngestion = fileGroup?.ingestionStatus?.exists === true;
+          const hasTransformation = !!fileGroup?.transformed;
+          const hasTranscript = !!(fileGroup?.transcriptFiles && fileGroup.transcriptFiles.length > 0);
+          
+          if (!hasTranscript && !hasTransformation && !hasIngestion) {
+            return null; // Kein Status vorhanden
+          }
+
+          // Bestimme Icon und Tooltip basierend auf höchstem Status
+          let StatusIcon: typeof FileText;
+          let statusText: string;
+          let iconColor: string;
+
+          if (hasIngestion) {
+            // Story/Ingestion vorhanden (höchste Stufe)
+            // Wichtig: Icon muss mit Tabs übereinstimmen (siehe `file-preview.tsx`)
+            StatusIcon = Rss;
+            const chunks = fileGroup.ingestionStatus?.chunkCount ?? '?';
+            const chapters = fileGroup.ingestionStatus?.chaptersCount ?? '?';
+            statusText = `Story veröffentlicht (Chunks: ${chunks}, Kapitel: ${chapters})`;
+            iconColor = 'text-purple-500';
+          } else if (hasTransformation) {
+            // Transformation vorhanden (mittlere Stufe)
+            // Wichtig: Icon muss mit Tabs übereinstimmen (siehe `file-preview.tsx`)
+            StatusIcon = Wand2;
+            statusText = `Transformation vorhanden: ${fileGroup.transformed.metadata.name}`;
+            iconColor = 'text-green-500';
+          } else {
+            // Nur Transcript vorhanden (niedrigste Stufe)
+            StatusIcon = FileText;
+            statusText = `Transcript vorhanden: ${fileGroup.transcriptFiles[0].metadata.name}`;
+            iconColor = 'text-blue-500';
+          }
+
+          return (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className={`h-6 w-6 flex items-center justify-center ${iconColor}`}>
+                    <StatusIcon className="h-4 w-4" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{statusText}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          );
+        })()}
         {/* Plus-Symbol nur anzeigen, wenn kein Shadow-Twin vorhanden und transkribierbar */}
         {(!fileGroup?.transcriptFiles || fileGroup.transcriptFiles.length === 0) && !fileGroup?.transformed && isTranscribable && !metadata.hasTranscript ? (
           <TooltipProvider>
@@ -646,7 +662,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
       shadowTwinAnalysisStartRef.current = performance.now();
       console.log(`[FileList Performance] Shadow-Twin-Analyse gestartet für ${allItemsInFolder.length} Dateien`);
     }
-  }, [allItemsInFolder?.length]);
+  }, [allItemsInFolder, allItemsInFolder?.length]);
   
   useShadowTwinAnalysis(allItemsInFolder ?? [], provider, shadowTwinAnalysisTrigger);
   const shadowTwinStates = useAtomValue(shadowTwinStateAtom);
@@ -801,6 +817,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
           transcriptFiles: shadowTwinState?.transcriptFiles || (shadowTwins.length > 0 ? shadowTwins : undefined),
           transformed: shadowTwinState?.transformed,
           shadowTwinFolderId: shadowTwinState?.shadowTwinFolderId,
+          ingestionStatus: shadowTwinState?.ingestionStatus,
         });
       } else {
         // Keine Hauptdatei: Jede ShadowTwin einzeln anzeigen
@@ -1593,7 +1610,6 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                     onCreateTranscript={handleCreateTranscript}
                     onDelete={(e) => handleDeleteClick(e, item)}
                     fileGroup={group}
-                    onSelectRelatedFile={handleSelectRelatedFile}
                     onRename={handleRename}
                     compact={compact}
                   />
