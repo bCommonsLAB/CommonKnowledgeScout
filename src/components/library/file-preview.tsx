@@ -233,7 +233,6 @@ function JobReportTabWithShadowTwin({
   provider,
   ingestionTabMode = "status",
   onEditClick,
-  onPublishClick,
   effectiveMdIdRef,
 }: {
   libraryId: string;
@@ -243,7 +242,6 @@ function JobReportTabWithShadowTwin({
   provider: StorageProvider | null;
   ingestionTabMode?: 'status' | 'preview';
   onEditClick?: () => void;
-  onPublishClick?: () => void;
   effectiveMdIdRef?: React.MutableRefObject<string | null>;
 }) {
   const [mdFileId, setMdFileId] = React.useState<string | null>(null);
@@ -335,7 +333,6 @@ function JobReportTabWithShadowTwin({
       mdFileId={mdFileId}
       ingestionTabMode={ingestionTabMode}
       onEditClick={onEditClick}
-      onPublishClick={onPublishClick}
       effectiveMdIdRef={effectiveMdIdRef}
       sourceMode="frontmatter"
       viewMode="metaOnly"
@@ -493,7 +490,6 @@ function PreviewContent({
   onRefreshFolder,
   storySteps,
   editHandlerRef,
-  publishHandlerRef,
   effectiveMdIdRef,
 }: {
   item: StorageItem;
@@ -507,7 +503,6 @@ function PreviewContent({
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
   storySteps: StoryStepStatus[];
   editHandlerRef?: React.MutableRefObject<(() => void) | null>;
-  publishHandlerRef?: React.MutableRefObject<(() => Promise<void>) | null>;
   effectiveMdIdRef?: React.MutableRefObject<string | null>;
 }) {
   const [infoTab, setInfoTab] = React.useState<"original" | "transcript" | "transform" | "story" | "overview">("original")
@@ -521,7 +516,6 @@ function PreviewContent({
   const [transformError, setTransformError] = React.useState<string | null>(null)
   const [isEditOpen, setIsEditOpen] = React.useState(false)
   const [isSplittingPages, setIsSplittingPages] = React.useState(false)
-  const [isPublishing, setIsPublishing] = React.useState(false)
 
   // Statusabfrage-States (derzeit nicht genutzt – bei Bedarf aktivieren)
   // const [ragLoading, setRagLoading] = React.useState(false);
@@ -974,7 +968,6 @@ function PreviewContent({
                       provider={provider}
                       ingestionTabMode="preview"
                       onEditClick={editHandlerRef as unknown as () => void}
-                      onPublishClick={publishHandlerRef as unknown as () => void}
                       effectiveMdIdRef={effectiveMdIdRef}
                     />
                   </div>
@@ -1279,7 +1272,6 @@ function PreviewContent({
                       provider={provider}
                       ingestionTabMode="preview"
                       onEditClick={editHandlerRef as unknown as () => void}
-                      onPublishClick={publishHandlerRef as unknown as () => void}
                       effectiveMdIdRef={effectiveMdIdRef}
                     />
                   </div>
@@ -1566,7 +1558,6 @@ function PreviewContent({
                       provider={provider}
                       ingestionTabMode="preview"
                       onEditClick={editHandlerRef as unknown as () => void}
-                      onPublishClick={publishHandlerRef as unknown as () => void}
                       effectiveMdIdRef={effectiveMdIdRef}
                     />
                   </div>
@@ -1748,9 +1739,7 @@ export function FilePreview({
   
   // Refs für Handler von JobReportTab (für Header-Buttons)
   const editHandlerRef = React.useRef<(() => void) | null>(null)
-  const publishHandlerRef = React.useRef<(() => Promise<void>) | null>(null)
   const effectiveMdIdRef = React.useRef<string | null>(null)
-  const [isPublishing, setIsPublishing] = React.useState(false)
   
   // Debug-Log für FilePreview-Hauptkomponente
   React.useEffect(() => {
@@ -1920,7 +1909,6 @@ export function FilePreview({
           onRefreshFolder={onRefreshFolder}
           storySteps={storyStatus.steps}
           editHandlerRef={editHandlerRef}
-          publishHandlerRef={publishHandlerRef}
           effectiveMdIdRef={effectiveMdIdRef}
         />
       </div>

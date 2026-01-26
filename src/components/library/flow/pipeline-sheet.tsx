@@ -2,7 +2,8 @@
 
 import * as React from "react"
 import { toast } from "sonner"
-import { FileText, Sparkles, Upload, Check, ChevronDown } from "lucide-react"
+import { FileText, Sparkles, Upload, Check, ChevronDown, Settings } from "lucide-react"
+import Link from "next/link"
 
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
@@ -376,7 +377,13 @@ export function PipelineSheet(props: PipelineSheetProps) {
                                   </SelectContent>
                                 </Select>
                               )}
+                              {/* Link zu den Vorlagen-Einstellungen */}
+                              <Link href="/templates" title="Vorlagen verwalten">
+                                <Settings className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors cursor-pointer" />
+                              </Link>
                             </div>
+                            {/* Abstand zwischen Vorlage und Sprache */}
+                            <div className="w-4" />
                             <div className="flex items-center gap-2">
                               <Label htmlFor="language" className="text-xs text-muted-foreground whitespace-nowrap">
                                 Sprache

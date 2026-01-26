@@ -42,9 +42,8 @@ interface JobReportTabProps {
   forcedTab?: 'markdown' | 'meta' | 'chapters' | 'ingestion' | 'process'
   // Steuert den Tab "ingestion": Statusanzeige oder Story-Vorschau.
   ingestionTabMode?: 'status' | 'preview'
-  // Callbacks für Header-Buttons (Bearbeiten und Story veröffentlichen)
+  // Callback für Header-Buttons (Bearbeiten)
   onEditClick?: () => void
-  onPublishClick?: () => void
   // Exponiert die Transformationsdatei-ID für Header-Buttons
   effectiveMdIdRef?: React.MutableRefObject<string | null>
 }
@@ -79,7 +78,6 @@ export function JobReportTab({
   forcedTab,
   ingestionTabMode = 'status',
   onEditClick,
-  onPublishClick,
   effectiveMdIdRef,
 }: JobReportTabProps) {
   const libraries = useAtomValue(librariesAtom)
@@ -88,7 +86,6 @@ export function JobReportTab({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isEditOpen, setIsEditOpen] = useState(false)
-  const [isPublishing, setIsPublishing] = useState(false)
   const [editItem, setEditItem] = useState<StorageItem | null>(null)
   
   // Hole Shadow-Twin-State für die aktuelle Datei, um das Bildverzeichnis zu bestimmen
@@ -419,88 +416,6 @@ export function JobReportTab({
     setIsEditOpen(true)
   }, [provider, effectiveMdId])
   
-  // Handler für Story-Veröffentlichung (nach effectiveMdId Berechnung)
-  const handlePublishClick = useCallback(async () => {
-    if (!provider || !effectiveMdId) {
-      toast.error('Fehler: Provider oder Datei-ID nicht verfügbar')
-      return
-    }
-    
-    setIsPublishing(true)
-    try {
-      UILogger.info('JobReportTab', 'Starte Story-Veröffentlichung', {
-        fileId: effectiveMdId,
-        libraryId
-      })
-      
-      // Hole Dateiname der Transformationsdatei
-      const currentItem = await provider.getItemById(effectiveMdId)
-      const fileName = currentItem?.metadata.name || 'document.md'
-      
-      // Rufe Ingestion-API auf
-      const response = await fetch(`/api/chat/${encodeURIComponent(libraryId)}/ingest-markdown`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          fileId: effectiveMdId,
-          fileName
-        })
-      })
-      
-      if (!response.ok) {
-        let errorText = 'Unknown error'
-        try {
-          const errorData = await response.json().catch(() => null)
-          if (errorData && typeof errorData === 'object' && 'error' in errorData) {
-            errorText = typeof errorData.error === 'string' ? errorData.error : JSON.stringify(errorData.error)
-          } else {
-            errorText = await response.text().catch(() => `HTTP ${response.status}: ${response.statusText}`)
-          }
-        } catch {
-          errorText = `HTTP ${response.status}: ${response.statusText}`
-        }
-        UILogger.error('JobReportTab', 'Fehler bei Story-Veröffentlichung', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorText,
-          fileId: effectiveMdId,
-          libraryId
-        })
-        toast.error(`Fehler bei der Veröffentlichung: ${errorText}`)
-        return
-      }
-      
-      let result
-      try {
-        result = await response.json()
-      } catch (jsonError) {
-        UILogger.error('JobReportTab', 'Fehler beim Parsen der Response', {
-          error: jsonError instanceof Error ? jsonError.message : String(jsonError),
-          status: response.status,
-          statusText: response.statusText,
-          fileId: effectiveMdId
-        })
-        toast.error('Fehler: Ungültige Antwort vom Server')
-        return
-      }
-      
-      UILogger.info('JobReportTab', 'Story erfolgreich veröffentlicht', {
-        fileId: effectiveMdId,
-        chunksUpserted: result.chunksUpserted,
-        imageErrors: result.imageErrors?.length ?? 0
-      })
-      
-      toast.success('Story erfolgreich veröffentlicht')
-    } catch (error) {
-      UILogger.error('JobReportTab', 'Unerwarteter Fehler bei Story-Veröffentlichung', error)
-      toast.error('Fehler: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'))
-    } finally {
-      setIsPublishing(false)
-    }
-  }, [provider, effectiveMdId, libraryId])
-  
   // Exponiere Handler über Callbacks
   useEffect(() => {
     if (onEditClick) {
@@ -508,11 +423,7 @@ export function JobReportTab({
       const callbackRef = onEditClick as unknown as React.MutableRefObject<(() => void) | undefined>
       callbackRef.current = handleEditClick
     }
-    if (onPublishClick) {
-      const callbackRef = onPublishClick as unknown as React.MutableRefObject<(() => Promise<void>) | undefined>
-      callbackRef.current = handlePublishClick
-    }
-  }, [onEditClick, onPublishClick, handleEditClick, handlePublishClick])
+  }, [onEditClick, handleEditClick])
   
   // Aktualisiere Ref für effectiveMdId, damit FilePreview darauf zugreifen kann
   useEffect(() => {
