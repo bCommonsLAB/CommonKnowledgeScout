@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useSearchParams } from "next/navigation"
-import { File, FileText, FileVideo, FileAudio, Plus, RefreshCw, ChevronUp, ChevronDown, Trash2, Folder as FolderIcon, Wand2, Rss } from "lucide-react"
+import { File, FileText, FileVideo, FileAudio, Plus, RefreshCw, ChevronUp, ChevronDown, Trash2, Folder as FolderIcon, Sparkles, Upload } from "lucide-react"
 import { StorageItem } from "@/lib/storage/types"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -512,23 +512,24 @@ const FileRow = React.memo(function FileRow({
 
           if (hasIngestion) {
             // Story/Ingestion vorhanden (höchste Stufe)
-            // Wichtig: Icon muss mit Tabs übereinstimmen (siehe `file-preview.tsx`)
-            StatusIcon = Rss;
+            // Wichtig: Icon und Farbe müssen mit Tabs übereinstimmen (siehe `file-preview.tsx` stepStateClass)
+            StatusIcon = Upload;
             const chunks = fileGroup.ingestionStatus?.chunkCount ?? '?';
             const chapters = fileGroup.ingestionStatus?.chaptersCount ?? '?';
             statusText = `Story veröffentlicht (Chunks: ${chunks}, Kapitel: ${chapters})`;
-            iconColor = 'text-purple-500';
+            iconColor = 'text-green-600';
           } else if (hasTransformation) {
             // Transformation vorhanden (mittlere Stufe)
-            // Wichtig: Icon muss mit Tabs übereinstimmen (siehe `file-preview.tsx`)
-            StatusIcon = Wand2;
+            // Wichtig: Icon und Farbe müssen mit Tabs übereinstimmen (siehe `file-preview.tsx` stepStateClass)
+            StatusIcon = Sparkles;
             statusText = `Transformation vorhanden: ${fileGroup.transformed.metadata.name}`;
-            iconColor = 'text-green-500';
+            iconColor = 'text-green-600';
           } else {
             // Nur Transcript vorhanden (niedrigste Stufe)
+            // Wichtig: Icon und Farbe müssen mit Tabs übereinstimmen (siehe `file-preview.tsx` stepStateClass)
             StatusIcon = FileText;
             statusText = `Transcript vorhanden: ${fileGroup.transcriptFiles[0].metadata.name}`;
-            iconColor = 'text-blue-500';
+            iconColor = 'text-green-600';
           }
 
           return (

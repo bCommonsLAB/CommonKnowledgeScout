@@ -9,7 +9,7 @@ interface RunRequestBody {
   folderId?: string;
   testCaseIds?: string[];
   fileIds?: string[];
-  fileKind?: 'pdf' | 'audio';
+  fileKind?: 'pdf' | 'audio' | 'markdown' | 'txt' | 'website';
   jobTimeoutMs?: number;
   templateName?: string;
   /**
@@ -58,7 +58,13 @@ export async function POST(request: NextRequest) {
     const selectedIdsRaw = Array.isArray(body.testCaseIds) ? body.testCaseIds : []
     const selectedIds = selectedIdsRaw.length ? selectedIdsRaw : integrationTestCases.map(tc => tc.id)
     const fileIds = Array.isArray(body.fileIds) ? body.fileIds : undefined
-    const fileKind = body.fileKind === 'audio' ? 'audio' : body.fileKind === 'pdf' ? 'pdf' : undefined
+    const fileKind =
+      body.fileKind === 'audio' ? 'audio'
+      : body.fileKind === 'pdf' ? 'pdf'
+      : body.fileKind === 'markdown' ? 'markdown'
+      : body.fileKind === 'txt' ? 'txt'
+      : body.fileKind === 'website' ? 'website'
+      : undefined
 
     if (!libraryId) {
       return NextResponse.json({ error: 'libraryId erforderlich' }, { status: 400 })

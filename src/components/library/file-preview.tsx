@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, ExternalLink, FileText, RefreshCw, Rss, Wand2 } from "lucide-react";
+import { AlertCircle, ExternalLink, FileText, RefreshCw, Sparkles, Upload } from "lucide-react";
 import { VideoPlayer } from './video-player';
 import { MarkdownPreview } from './markdown-preview';
 import { MarkdownMetadata } from './markdown-metadata';
@@ -37,10 +37,100 @@ import type { StoryStepStatus, StoryStepState } from "@/components/library/share
 import { ArtifactMarkdownPanel } from "@/components/library/shared/artifact-markdown-panel"
 import { ArtifactEditDialog } from "@/components/library/shared/artifact-edit-dialog"
 import { IngestionDetailPanel } from "@/components/library/shared/ingestion-detail-panel"
+import { PipelineSheet, type PipelinePolicies } from "@/components/library/flow/pipeline-sheet"
+import { runPipelineForFile, getMediaKind, type MediaKind } from "@/lib/pipeline/run-pipeline"
+import { activeLibraryAtom } from "@/atoms/library-atom"
+import { loadPdfDefaults } from "@/lib/pdf-defaults"
+import { getEffectivePdfDefaults } from "@/atoms/pdf-defaults"
+import { TARGET_LANGUAGE_DEFAULT, type TargetLanguage } from "@/lib/chat/constants"
+import { jobInfoByItemIdAtom } from "@/atoms/job-status"
+import { Progress } from "@/components/ui/progress"
 
 // Explizite React-Komponenten-Deklarationen für den Linter
 const ImagePreviewComponent = ImagePreview;
 const DocumentPreviewComponent = DocumentPreview;
+
+// Job-Progress-Anzeige fuer laufende Jobs
+interface JobProgressBarProps {
+  status: 'queued' | 'running' | 'completed' | 'failed';
+  progress?: number;
+  message?: string;
+  phase?: string;
+}
+
+// Mapping von Phase-Codes zu lesbaren Labels
+function getPhaseLabel(phase?: string): string {
+  if (!phase) return '';
+  const normalized = phase.toLowerCase();
+  
+  // Ignoriere generische Status-Phasen (kommen vom Secretary-Service)
+  const ignoredPhases = ['running', 'initializing', 'postprocessing', 'completed', 'progress'];
+  if (ignoredPhases.includes(normalized)) return '';
+  
+  const phaseLabels: Record<string, string> = {
+    extract: 'Transkript',
+    extract_pdf: 'Transkript',
+    extraction: 'Transkript',
+    transcribe: 'Transkript',
+    transcription: 'Transkript',
+    transform: 'Transformation',
+    transform_template: 'Transformation',
+    transformation: 'Transformation',
+    template: 'Transformation',
+    metadata: 'Transformation',
+    ingest: 'Story',
+    ingest_rag: 'Story',
+    ingestion: 'Story',
+    publish: 'Story',
+  };
+  return phaseLabels[normalized] || '';
+}
+
+function JobProgressBar({ status, progress, message, phase }: JobProgressBarProps) {
+  const phaseLabel = getPhaseLabel(phase);
+  
+  // Status-Label mit optionaler Phase
+  const getStatusLabel = (): string => {
+    if (status === 'queued') return 'In Warteschlange...';
+    if (status === 'completed') return 'Abgeschlossen';
+    if (status === 'failed') return 'Fehlgeschlagen';
+    // running
+    if (phaseLabel) {
+      return `${phaseLabel} wird verarbeitet...`;
+    }
+    return 'Wird verarbeitet...';
+  };
+  
+  // Bereinigte Message (entferne technische Details, zeige nur relevante Info)
+  const getCleanMessage = (): string | undefined => {
+    if (!message) return undefined;
+    // Technische Messages filtern
+    if (message.startsWith('Mistral-OCR:')) {
+      // Extrahiere den relevanten Teil nach dem Doppelpunkt
+      const parts = message.split(' - Args:');
+      return parts[0].replace('Mistral-OCR: ', '');
+    }
+    return message;
+  };
+
+  const progressValue = typeof progress === 'number' ? Math.max(0, Math.min(100, progress)) : 0;
+  const cleanMessage = getCleanMessage();
+
+  return (
+    <div className="mx-3 mt-3 rounded-md border bg-muted/30 p-3">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm font-medium">{getStatusLabel()}</span>
+        {status === 'running' && (
+          <span className="text-xs text-muted-foreground">{progressValue}%</span>
+        )}
+      </div>
+      <Progress value={status === 'running' ? progressValue : status === 'queued' ? 0 : 100} className="h-2" />
+      {cleanMessage && (
+        <p className="mt-2 text-xs text-muted-foreground truncate">{cleanMessage}</p>
+      )}
+    </div>
+  );
+}
 
 interface FilePreviewProps {
   className?: string;
@@ -527,6 +617,130 @@ function PreviewContent({
     }
   }, [provider, shadowTwinState?.transformed?.id])
 
+  // Pipeline-Sheet State und Logik
+  const [isPipelineOpen, setIsPipelineOpen] = React.useState(false)
+  const [pipelineDefaultSteps, setPipelineDefaultSteps] = React.useState<{ extract: boolean; metadata: boolean; ingest: boolean } | undefined>(undefined)
+  const [pipelineDefaultForce, setPipelineDefaultForce] = React.useState(false)
+  const [targetLanguage, setTargetLanguage] = React.useState<string>("de")
+  const [templateName, setTemplateName] = React.useState<string>("")
+  const [templates, setTemplates] = React.useState<string[]>([])
+  const [isLoadingTemplates, setIsLoadingTemplates] = React.useState(false)
+  const [isRunningPipeline, setIsRunningPipeline] = React.useState(false)
+
+  // Job-Status fuer diese Datei aus dem globalen Atom lesen
+  const jobInfoByItemId = useAtomValue(jobInfoByItemIdAtom)
+  const currentJobInfo = jobInfoByItemId[item.id]
+  const hasActiveJob = currentJobInfo?.status === 'queued' || currentJobInfo?.status === 'running'
+
+  const activeLibrary = useAtomValue(activeLibraryAtom)
+  const libraryConfigChatTargetLanguage = activeLibrary?.config?.chat?.targetLanguage
+  const libraryConfigPdfTemplate = activeLibrary?.config?.secretaryService?.pdfDefaults?.template
+
+  const kind: MediaKind = React.useMemo(() => getMediaKind(item), [item])
+  const defaults = React.useMemo(() => {
+    if (!activeLibraryId) return null
+    return getEffectivePdfDefaults(
+      activeLibraryId,
+      loadPdfDefaults(activeLibraryId),
+      {},
+      libraryConfigChatTargetLanguage,
+      libraryConfigPdfTemplate
+    )
+  }, [activeLibraryId, libraryConfigChatTargetLanguage, libraryConfigPdfTemplate])
+  
+  const effectiveTargetLanguage = React.useMemo(() => {
+    if (targetLanguage) return targetLanguage
+    return typeof defaults?.targetLanguage === "string" ? defaults.targetLanguage : TARGET_LANGUAGE_DEFAULT
+  }, [targetLanguage, defaults])
+
+  // Templates laden wenn Pipeline-Sheet geöffnet ist
+  React.useEffect(() => {
+    let cancelled = false
+    async function loadTemplates() {
+      if (!activeLibraryId) return
+      if (!isPipelineOpen) return
+      setIsLoadingTemplates(true)
+      try {
+        const { listAvailableTemplates } = await import("@/lib/templates/template-service-client")
+        const names = await listAvailableTemplates(activeLibraryId)
+        if (cancelled) return
+        setTemplates(Array.isArray(names) ? names : [])
+      } catch (err) {
+        FileLogger.warn("file-preview", "Templates konnten nicht geladen werden", {
+          error: err instanceof Error ? err.message : String(err),
+        })
+        if (!cancelled) setTemplates([])
+      } finally {
+        if (!cancelled) setIsLoadingTemplates(false)
+      }
+    }
+    void loadTemplates()
+    return () => {
+      cancelled = true
+    }
+  }, [activeLibraryId, isPipelineOpen])
+
+  // Öffne Pipeline-Sheet mit Defaults basierend auf fehlender Phase
+  // force=true oeffnet die Maske mit aktiviertem "Bestehende Assets ueberschreiben"
+  const openPipelineForPhase = React.useCallback((phase: "transcript" | "transform" | "story", force = false) => {
+    if (phase === "transcript") {
+      // Nur Extract aktiv
+      setPipelineDefaultSteps({ extract: true, metadata: false, ingest: false })
+    } else if (phase === "transform") {
+      // Nur Transformation aktiv
+      setPipelineDefaultSteps({ extract: false, metadata: true, ingest: false })
+    } else if (phase === "story") {
+      // Nur Ingestion aktiv
+      setPipelineDefaultSteps({ extract: false, metadata: false, ingest: true })
+    }
+    setPipelineDefaultForce(force)
+    setIsPipelineOpen(true)
+  }, [])
+
+  // Pipeline starten
+  const runPipeline = React.useCallback(
+    async (args: { templateName?: string; targetLanguage: string; policies: PipelinePolicies }) => {
+      if (!activeLibraryId) {
+        toast.error("Fehler", { description: "libraryId fehlt" })
+        return
+      }
+      if (item.type !== "file") {
+        toast.error("Fehler", { description: "Quelle ist keine Datei" })
+        return
+      }
+      if (!item.parentId) {
+        toast.error("Fehler", { description: "parentId fehlt" })
+        return
+      }
+
+      setIsRunningPipeline(true)
+      try {
+        const { jobId } = await runPipelineForFile({
+          libraryId: activeLibraryId,
+          sourceFile: item,
+          parentId: item.parentId,
+          kind,
+          targetLanguage: args.targetLanguage,
+          templateName: args.templateName,
+          policies: args.policies,
+          libraryConfigChatTargetLanguage,
+          libraryConfigPdfTemplate,
+        })
+
+        toast.success("Job angelegt", { description: `Job ${jobId} wurde enqueued.` })
+        toast.success("Job in Warteschlange", { description: "Worker startet den Job automatisch. Ergebnisse erscheinen im Shadow‑Twin." })
+        setIsPipelineOpen(false)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        FileLogger.error("file-preview", "Pipeline fehlgeschlagen", { msg })
+        toast.error("Fehler", { description: msg })
+      } finally {
+        setIsRunningPipeline(false)
+      }
+    },
+    [activeLibraryId, item, kind, libraryConfigChatTargetLanguage, libraryConfigPdfTemplate]
+  )
+
   // async function loadRagStatus() {
   //   try {
   //     setRagLoading(true);
@@ -582,6 +796,15 @@ function PreviewContent({
           docModifiedAt={docModifiedAt}
           includeChapters={true}
         >
+          {/* Job-Progress-Anzeige wenn ein Job laeuft */}
+          {hasActiveJob && currentJobInfo && (
+            <JobProgressBar 
+              status={currentJobInfo.status} 
+              progress={currentJobInfo.progress} 
+              message={currentJobInfo.message}
+              phase={currentJobInfo.phase}
+            />
+          )}
           <Tabs value={infoTab} onValueChange={(v) => setInfoTab(v as typeof infoTab)} className="flex h-full flex-col">
             {/* Tabs folgen dem Artefakt-Lebenszyklus (Original -> Transcript -> Transform -> Story -> Uebersicht). */}
             <TabsList className="mx-3 mt-3 w-fit">
@@ -590,10 +813,10 @@ function PreviewContent({
                 <ArtifactTabLabel label="Transkript" icon={FileText} state={textStep?.state || null} />
               </TabsTrigger>
               <TabsTrigger value="transform">
-                <ArtifactTabLabel label="Transformation" icon={Wand2} state={transformStep?.state || null} />
+                <ArtifactTabLabel label="Transformation" icon={Sparkles} state={transformStep?.state || null} />
               </TabsTrigger>
               <TabsTrigger value="story">
-                <ArtifactTabLabel label="Story" icon={Rss} state={publishStep?.state || null} />
+                <ArtifactTabLabel label="Story" icon={Upload} state={publishStep?.state || null} />
               </TabsTrigger>
               <TabsTrigger value="overview">Übersicht</TabsTrigger>
             </TabsList>
@@ -621,51 +844,72 @@ function PreviewContent({
                   libraryId={activeLibraryId || undefined}
                   emptyHint="Noch kein Transkript vorhanden."
                   additionalActions={
-                    transcript.transcriptItem && ['pdf', 'audio', 'markdown'].includes(fileType) ? (
+                    !transcript.transcriptItem ? (
                       <Button
                         size="sm"
-                        variant="outline"
-                        disabled={isSplittingPages || !provider}
-                        onClick={async () => {
-                          if (!activeLibraryId || !transcript.transcriptItem?.id) return
-                          // Erklärung: Split läuft serverseitig, weil große PDFs im Browser zu schwer sind.
-                          // Verarbeitet die Transcript-Datei und splittet sie in einzelne Seiten-Dateien in einem Unterverzeichnis.
-                          setIsSplittingPages(true)
-                          try {
-                            const res = await fetch(`/api/library/${encodeURIComponent(activeLibraryId)}/markdown/split-pages`, {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({
-                                sourceFileId: transcript.transcriptItem.id,
-                                originalFileId: item.id,
-                                targetLanguage: 'de',
-                              }),
-                            })
-                            const json = (await res.json().catch(() => ({}))) as { error?: unknown; folderName?: string; created?: number }
-                            if (!res.ok) {
-                              const msg = typeof json.error === 'string' ? json.error : `HTTP ${res.status}`
-                              throw new Error(msg)
-                            }
-                            toast.success("Seiten gesplittet", {
-                              description: `${json.created ?? 0} Seiten in Ordner "${json.folderName || 'pages'}" gespeichert.`
-                            })
-                            // UI-Liste aktualisieren, damit der neue Ordner sichtbar wird.
-                            // Verwende die parentId des Originals, nicht die der Transcript-Datei
-                            if (onRefreshFolder && item.parentId) {
-                              const refreshed = await provider?.listItemsById(item.parentId)
-                              if (refreshed) onRefreshFolder(item.parentId, refreshed)
-                            }
-                          } catch (error) {
-                            toast.error("Split fehlgeschlagen", {
-                              description: error instanceof Error ? error.message : "Unbekannter Fehler"
-                            })
-                          } finally {
-                            setIsSplittingPages(false)
-                          }
-                        }}
+                        variant="default"
+                        onClick={() => openPipelineForPhase("transcript")}
+                        disabled={isRunningPipeline || hasActiveJob}
                       >
-                        Seiten splitten
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Jetzt erstellen
                       </Button>
+                    ) : transcript.transcriptItem && ['pdf', 'audio', 'markdown'].includes(fileType) ? (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={isSplittingPages || !provider}
+                          onClick={async () => {
+                            if (!activeLibraryId || !transcript.transcriptItem?.id) return
+                            // Erklärung: Split läuft serverseitig, weil große PDFs im Browser zu schwer sind.
+                            // Verarbeitet die Transcript-Datei und splittet sie in einzelne Seiten-Dateien in einem Unterverzeichnis.
+                            setIsSplittingPages(true)
+                            try {
+                              const res = await fetch(`/api/library/${encodeURIComponent(activeLibraryId)}/markdown/split-pages`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  sourceFileId: transcript.transcriptItem.id,
+                                  originalFileId: item.id,
+                                  targetLanguage: 'de',
+                                }),
+                              })
+                              const json = (await res.json().catch(() => ({}))) as { error?: unknown; folderName?: string; created?: number }
+                              if (!res.ok) {
+                                const msg = typeof json.error === 'string' ? json.error : `HTTP ${res.status}`
+                                throw new Error(msg)
+                              }
+                              toast.success("Seiten gesplittet", {
+                                description: `${json.created ?? 0} Seiten in Ordner "${json.folderName || 'pages'}" gespeichert.`
+                              })
+                              // UI-Liste aktualisieren, damit der neue Ordner sichtbar wird.
+                              // Verwende die parentId des Originals, nicht die der Transcript-Datei
+                              if (onRefreshFolder && item.parentId) {
+                                const refreshed = await provider?.listItemsById(item.parentId)
+                                if (refreshed) onRefreshFolder(item.parentId, refreshed)
+                              }
+                            } catch (error) {
+                              toast.error("Split fehlgeschlagen", {
+                                description: error instanceof Error ? error.message : "Unbekannter Fehler"
+                              })
+                            } finally {
+                              setIsSplittingPages(false)
+                            }
+                          }}
+                        >
+                          Seiten splitten
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openPipelineForPhase("transcript", true)}
+                          disabled={isRunningPipeline || hasActiveJob}
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Neu generieren
+                        </Button>
+                      </>
                     ) : null
                   }
                 />
@@ -679,32 +923,36 @@ function PreviewContent({
                     Story-Inhalte und Metadaten (aus dem Transkript transformiert)
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setIsEditOpen(true)}
-                      disabled={!provider || !transformItem}
-                    >
-                      Bearbeiten
-                    </Button>
-                    {effectiveMdIdRef?.current && publishHandlerRef?.current && (
+                    {!transformItem ? (
                       <Button
                         size="sm"
                         variant="default"
-                        onClick={async () => {
-                          if (publishHandlerRef.current) {
-                            setIsPublishing(true)
-                            try {
-                              await publishHandlerRef.current()
-                            } finally {
-                              setIsPublishing(false)
-                            }
-                          }
-                        }}
-                        disabled={isPublishing || !provider || !effectiveMdIdRef.current}
+                        onClick={() => openPipelineForPhase("transform")}
+                        disabled={isRunningPipeline || hasActiveJob}
                       >
-                        {isPublishing ? 'Wird veröffentlicht...' : 'Story veröffentlichen'}
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Jetzt erstellen
                       </Button>
+                    ) : (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setIsEditOpen(true)}
+                          disabled={!provider || !transformItem}
+                        >
+                          Bearbeiten
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openPipelineForPhase("transform", true)}
+                          disabled={isRunningPipeline || hasActiveJob}
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Neu generieren
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -747,8 +995,31 @@ function PreviewContent({
             <TabsContent value="story" className="min-h-0 flex-1 overflow-auto p-3">
               {infoTab === "story" ? (
                 <div className="h-full overflow-auto rounded border p-3">
-                  <div className="mb-2 text-xs text-muted-foreground">
-                    veröffentlichte Story (aus den Artefakten der Transformation erstellt) · Diese Ansicht entspricht der Gallery-Detail Ansicht.
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="text-xs text-muted-foreground">
+                      veröffentlichte Story (aus den Artefakten der Transformation erstellt) · Diese Ansicht entspricht der Gallery-Detail Ansicht.
+                    </div>
+                    {publishStep?.state === "missing" ? (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => openPipelineForPhase("story")}
+                        disabled={isRunningPipeline || hasActiveJob}
+                      >
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Jetzt erstellen
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openPipelineForPhase("story", true)}
+                        disabled={isRunningPipeline || hasActiveJob}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Erneut publizieren
+                      </Button>
+                    )}
                   </div>
                   <IngestionDetailPanel libraryId={activeLibraryId} fileId={item.id} />
                 </div>
@@ -770,6 +1041,27 @@ function PreviewContent({
               ) : null}
             </TabsContent>
           </Tabs>
+          <PipelineSheet
+            isOpen={isPipelineOpen}
+            onOpenChange={setIsPipelineOpen}
+            libraryId={activeLibraryId}
+            sourceFileName={item.metadata.name}
+            kind={kind === "pdf" || kind === "audio" || kind === "video" || kind === "markdown" ? kind : "other"}
+            targetLanguage={effectiveTargetLanguage}
+            onTargetLanguageChange={setTargetLanguage}
+            templateName={templateName}
+            onTemplateNameChange={setTemplateName}
+            templates={templates}
+            isLoadingTemplates={isLoadingTemplates}
+            onStart={runPipeline}
+            defaultSteps={pipelineDefaultSteps}
+            defaultForce={pipelineDefaultForce}
+            existingArtifacts={{
+              hasTranscript: !!transcript.transcriptItem,
+              hasTransformed: !!shadowTwinState?.transformed,
+              hasIngested: publishStep?.state !== "missing",
+            }}
+          />
         </IngestionDataProvider>
       )
     }
@@ -813,6 +1105,15 @@ function PreviewContent({
           docModifiedAt={docModifiedAt}
           includeChapters={true}
         >
+          {/* Job-Progress-Anzeige wenn ein Job laeuft */}
+          {hasActiveJob && currentJobInfo && (
+            <JobProgressBar 
+              status={currentJobInfo.status} 
+              progress={currentJobInfo.progress} 
+              message={currentJobInfo.message}
+              phase={currentJobInfo.phase}
+            />
+          )}
           <Tabs value={infoTab} onValueChange={(v) => setInfoTab(v as typeof infoTab)} className="flex h-full flex-col">
             {/* Tabs folgen dem Artefakt-Lebenszyklus (Original -> Transcript -> Transform -> Story -> Uebersicht). */}
             <TabsList className="mx-3 mt-3 w-fit">
@@ -821,10 +1122,10 @@ function PreviewContent({
                 <ArtifactTabLabel label="Transkript" icon={FileText} state={textStep?.state || null} />
               </TabsTrigger>
               <TabsTrigger value="transform">
-                <ArtifactTabLabel label="Transformation" icon={Wand2} state={transformStep?.state || null} />
+                <ArtifactTabLabel label="Transformation" icon={Sparkles} state={transformStep?.state || null} />
               </TabsTrigger>
               <TabsTrigger value="story">
-                <ArtifactTabLabel label="Story" icon={Rss} state={publishStep?.state || null} />
+                <ArtifactTabLabel label="Story" icon={Upload} state={publishStep?.state || null} />
               </TabsTrigger>
               <TabsTrigger value="overview">Übersicht</TabsTrigger>
             </TabsList>
@@ -927,32 +1228,36 @@ function PreviewContent({
                     Story-Inhalte und Metadaten (aus dem Original transformiert)
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setIsEditOpen(true)}
-                      disabled={!provider || !transformItem}
-                    >
-                      Bearbeiten
-                    </Button>
-                    {effectiveMdIdRef?.current && publishHandlerRef?.current && (
+                    {!transformItem ? (
                       <Button
                         size="sm"
                         variant="default"
-                        onClick={async () => {
-                          if (publishHandlerRef.current) {
-                            setIsPublishing(true)
-                            try {
-                              await publishHandlerRef.current()
-                            } finally {
-                              setIsPublishing(false)
-                            }
-                          }
-                        }}
-                        disabled={isPublishing || !provider || !effectiveMdIdRef.current}
+                        onClick={() => openPipelineForPhase("transform")}
+                        disabled={isRunningPipeline || hasActiveJob}
                       >
-                        {isPublishing ? 'Wird veröffentlicht...' : 'Story veröffentlichen'}
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Jetzt erstellen
                       </Button>
+                    ) : (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setIsEditOpen(true)}
+                          disabled={!provider || !transformItem}
+                        >
+                          Bearbeiten
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openPipelineForPhase("transform", true)}
+                          disabled={isRunningPipeline || hasActiveJob}
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Neu generieren
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -995,8 +1300,31 @@ function PreviewContent({
             <TabsContent value="story" className="min-h-0 flex-1 overflow-auto p-3">
               {infoTab === "story" ? (
                 <div className="h-full overflow-auto rounded border p-3">
-                  <div className="mb-2 text-xs text-muted-foreground">
-                    veröffentlichte Story (aus den Artefakten der Transformation erstellt) · Diese Ansicht entspricht der Gallery-Detail Ansicht.
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="text-xs text-muted-foreground">
+                      veröffentlichte Story (aus den Artefakten der Transformation erstellt) · Diese Ansicht entspricht der Gallery-Detail Ansicht.
+                    </div>
+                    {publishStep?.state === "missing" ? (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => openPipelineForPhase("story")}
+                        disabled={isRunningPipeline || hasActiveJob}
+                      >
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Jetzt erstellen
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openPipelineForPhase("story", true)}
+                        disabled={isRunningPipeline || hasActiveJob}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Erneut publizieren
+                      </Button>
+                    )}
                   </div>
                   <IngestionDetailPanel libraryId={activeLibraryId} fileId={item.id} />
                 </div>
@@ -1018,6 +1346,27 @@ function PreviewContent({
               ) : null}
             </TabsContent>
           </Tabs>
+          <PipelineSheet
+            isOpen={isPipelineOpen}
+            onOpenChange={setIsPipelineOpen}
+            libraryId={activeLibraryId}
+            sourceFileName={item.metadata.name}
+            kind={kind === "pdf" || kind === "audio" || kind === "video" || kind === "markdown" ? kind : "other"}
+            targetLanguage={effectiveTargetLanguage}
+            onTargetLanguageChange={setTargetLanguage}
+            templateName={templateName}
+            onTemplateNameChange={setTemplateName}
+            templates={templates}
+            isLoadingTemplates={isLoadingTemplates}
+            onStart={runPipeline}
+            defaultSteps={pipelineDefaultSteps}
+            defaultForce={pipelineDefaultForce}
+            existingArtifacts={{
+              hasTranscript: !!transcript.transcriptItem,
+              hasTransformed: !!shadowTwinState?.transformed,
+              hasIngested: publishStep?.state !== "missing",
+            }}
+          />
         </IngestionDataProvider>
       )
     }
@@ -1039,6 +1388,15 @@ function PreviewContent({
           docModifiedAt={docModifiedAt}
           includeChapters={true}
         >
+          {/* Job-Progress-Anzeige wenn ein Job laeuft */}
+          {hasActiveJob && currentJobInfo && (
+            <JobProgressBar 
+              status={currentJobInfo.status} 
+              progress={currentJobInfo.progress} 
+              message={currentJobInfo.message}
+              phase={currentJobInfo.phase}
+            />
+          )}
           <Tabs value={infoTab} onValueChange={(v) => setInfoTab(v as typeof infoTab)} className="flex h-full flex-col">
             {/* Tabs folgen dem Artefakt-Lebenszyklus (Original -> Transcript -> Transform -> Story -> Uebersicht). */}
             <TabsList className="mx-3 mt-3 w-fit">
@@ -1047,10 +1405,10 @@ function PreviewContent({
                 <ArtifactTabLabel label="Transkript" icon={FileText} state={textStep?.state || null} />
               </TabsTrigger>
               <TabsTrigger value="transform">
-                <ArtifactTabLabel label="Transformation" icon={Wand2} state={transformStep?.state || null} />
+                <ArtifactTabLabel label="Transformation" icon={Sparkles} state={transformStep?.state || null} />
               </TabsTrigger>
               <TabsTrigger value="story">
-                <ArtifactTabLabel label="Story" icon={Rss} state={publishStep?.state || null} />
+                <ArtifactTabLabel label="Story" icon={Upload} state={publishStep?.state || null} />
               </TabsTrigger>
               <TabsTrigger value="overview">Übersicht</TabsTrigger>
             </TabsList>
@@ -1078,51 +1436,72 @@ function PreviewContent({
                   libraryId={activeLibraryId || undefined}
                   emptyHint="Noch kein Transkript vorhanden."
                   additionalActions={
-                    transcript.transcriptItem && ['pdf', 'audio', 'markdown'].includes(fileType) ? (
+                    !transcript.transcriptItem ? (
                       <Button
                         size="sm"
-                        variant="outline"
-                        disabled={isSplittingPages || !provider}
-                        onClick={async () => {
-                          if (!activeLibraryId || !transcript.transcriptItem?.id) return
-                          // Erklärung: Split läuft serverseitig, weil große PDFs im Browser zu schwer sind.
-                          // Verarbeitet die Transcript-Datei und splittet sie in einzelne Seiten-Dateien in einem Unterverzeichnis.
-                          setIsSplittingPages(true)
-                          try {
-                            const res = await fetch(`/api/library/${encodeURIComponent(activeLibraryId)}/markdown/split-pages`, {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({
-                                sourceFileId: transcript.transcriptItem.id,
-                                originalFileId: item.id,
-                                targetLanguage: 'de',
-                              }),
-                            })
-                            const json = (await res.json().catch(() => ({}))) as { error?: unknown; folderName?: string; created?: number }
-                            if (!res.ok) {
-                              const msg = typeof json.error === 'string' ? json.error : `HTTP ${res.status}`
-                              throw new Error(msg)
-                            }
-                            toast.success("Seiten gesplittet", {
-                              description: `${json.created ?? 0} Seiten in Ordner "${json.folderName || 'pages'}" gespeichert.`
-                            })
-                            // UI-Liste aktualisieren, damit der neue Ordner sichtbar wird.
-                            // Verwende die parentId des Originals, nicht die der Transcript-Datei
-                            if (onRefreshFolder && item.parentId) {
-                              const refreshed = await provider?.listItemsById(item.parentId)
-                              if (refreshed) onRefreshFolder(item.parentId, refreshed)
-                            }
-                          } catch (error) {
-                            toast.error("Split fehlgeschlagen", {
-                              description: error instanceof Error ? error.message : "Unbekannter Fehler"
-                            })
-                          } finally {
-                            setIsSplittingPages(false)
-                          }
-                        }}
+                        variant="default"
+                        onClick={() => openPipelineForPhase("transcript")}
+                        disabled={isRunningPipeline || hasActiveJob}
                       >
-                        Seiten splitten
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Jetzt erstellen
                       </Button>
+                    ) : transcript.transcriptItem && ['pdf', 'audio', 'markdown'].includes(fileType) ? (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={isSplittingPages || !provider}
+                          onClick={async () => {
+                            if (!activeLibraryId || !transcript.transcriptItem?.id) return
+                            // Erklärung: Split läuft serverseitig, weil große PDFs im Browser zu schwer sind.
+                            // Verarbeitet die Transcript-Datei und splittet sie in einzelne Seiten-Dateien in einem Unterverzeichnis.
+                            setIsSplittingPages(true)
+                            try {
+                              const res = await fetch(`/api/library/${encodeURIComponent(activeLibraryId)}/markdown/split-pages`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  sourceFileId: transcript.transcriptItem.id,
+                                  originalFileId: item.id,
+                                  targetLanguage: 'de',
+                                }),
+                              })
+                              const json = (await res.json().catch(() => ({}))) as { error?: unknown; folderName?: string; created?: number }
+                              if (!res.ok) {
+                                const msg = typeof json.error === 'string' ? json.error : `HTTP ${res.status}`
+                                throw new Error(msg)
+                              }
+                              toast.success("Seiten gesplittet", {
+                                description: `${json.created ?? 0} Seiten in Ordner "${json.folderName || 'pages'}" gespeichert.`
+                              })
+                              // UI-Liste aktualisieren, damit der neue Ordner sichtbar wird.
+                              // Verwende die parentId des Originals, nicht die der Transcript-Datei
+                              if (onRefreshFolder && item.parentId) {
+                                const refreshed = await provider?.listItemsById(item.parentId)
+                                if (refreshed) onRefreshFolder(item.parentId, refreshed)
+                              }
+                            } catch (error) {
+                              toast.error("Split fehlgeschlagen", {
+                                description: error instanceof Error ? error.message : "Unbekannter Fehler"
+                              })
+                            } finally {
+                              setIsSplittingPages(false)
+                            }
+                          }}
+                        >
+                          Seiten splitten
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openPipelineForPhase("transcript", true)}
+                          disabled={isRunningPipeline || hasActiveJob}
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Neu generieren
+                        </Button>
+                      </>
                     ) : null
                   }
                 />
@@ -1136,32 +1515,36 @@ function PreviewContent({
                     Story-Inhalte und Metadaten (aus dem Transkript transformiert)
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setIsEditOpen(true)}
-                      disabled={!provider || !transformItem}
-                    >
-                      Bearbeiten
-                    </Button>
-                    {effectiveMdIdRef?.current && publishHandlerRef?.current && (
+                    {!transformItem ? (
                       <Button
                         size="sm"
                         variant="default"
-                        onClick={async () => {
-                          if (publishHandlerRef.current) {
-                            setIsPublishing(true)
-                            try {
-                              await publishHandlerRef.current()
-                            } finally {
-                              setIsPublishing(false)
-                            }
-                          }
-                        }}
-                        disabled={isPublishing || !provider || !effectiveMdIdRef.current}
+                        onClick={() => openPipelineForPhase("transform")}
+                        disabled={isRunningPipeline || hasActiveJob}
                       >
-                        {isPublishing ? 'Wird veröffentlicht...' : 'Story veröffentlichen'}
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Jetzt erstellen
                       </Button>
+                    ) : (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setIsEditOpen(true)}
+                          disabled={!provider || !transformItem}
+                        >
+                          Bearbeiten
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openPipelineForPhase("transform", true)}
+                          disabled={isRunningPipeline || hasActiveJob}
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Neu generieren
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -1204,8 +1587,31 @@ function PreviewContent({
             <TabsContent value="story" className="min-h-0 flex-1 overflow-auto p-3">
               {infoTab === "story" ? (
                 <div className="h-full overflow-auto rounded border p-3">
-                  <div className="mb-2 text-xs text-muted-foreground">
-                    veröffentlichte Story (aus den Artefakten der Transformation erstellt) · Diese Ansicht entspricht der Gallery-Detail Ansicht.
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="text-xs text-muted-foreground">
+                      veröffentlichte Story (aus den Artefakten der Transformation erstellt) · Diese Ansicht entspricht der Gallery-Detail Ansicht.
+                    </div>
+                    {publishStep?.state === "missing" ? (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => openPipelineForPhase("story")}
+                        disabled={isRunningPipeline || hasActiveJob}
+                      >
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Jetzt erstellen
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openPipelineForPhase("story", true)}
+                        disabled={isRunningPipeline || hasActiveJob}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Erneut publizieren
+                      </Button>
+                    )}
                   </div>
                   <IngestionDetailPanel libraryId={activeLibraryId} fileId={item.id} />
                 </div>
@@ -1227,6 +1633,27 @@ function PreviewContent({
               ) : null}
             </TabsContent>
           </Tabs>
+          <PipelineSheet
+            isOpen={isPipelineOpen}
+            onOpenChange={setIsPipelineOpen}
+            libraryId={activeLibraryId}
+            sourceFileName={item.metadata.name}
+            kind={kind === "pdf" || kind === "audio" || kind === "video" || kind === "markdown" ? kind : "other"}
+            targetLanguage={effectiveTargetLanguage}
+            onTargetLanguageChange={setTargetLanguage}
+            templateName={templateName}
+            onTemplateNameChange={setTemplateName}
+            templates={templates}
+            isLoadingTemplates={isLoadingTemplates}
+            onStart={runPipeline}
+            defaultSteps={pipelineDefaultSteps}
+            defaultForce={pipelineDefaultForce}
+            existingArtifacts={{
+              hasTranscript: !!transcript.transcriptItem,
+              hasTransformed: !!shadowTwinState?.transformed,
+              hasIngested: publishStep?.state !== "missing",
+            }}
+          />
         </IngestionDataProvider>
       )
     }
@@ -1256,11 +1683,38 @@ function PreviewContent({
       );
     default:
       return (
-        <div className="text-center text-muted-foreground">
-          Keine Vorschau verfügbar für diesen Dateityp.
-        </div>
+        <>
+          <div className="text-center text-muted-foreground">
+            Keine Vorschau verfügbar für diesen Dateityp.
+          </div>
+          <PipelineSheet
+            isOpen={isPipelineOpen}
+            onOpenChange={setIsPipelineOpen}
+            libraryId={activeLibraryId}
+            sourceFileName={item.metadata.name}
+            kind={kind === "pdf" || kind === "audio" || kind === "video" || kind === "markdown" ? kind : "other"}
+            targetLanguage={effectiveTargetLanguage}
+            onTargetLanguageChange={setTargetLanguage}
+            templateName={templateName}
+            onTemplateNameChange={setTemplateName}
+            templates={templates}
+            isLoadingTemplates={isLoadingTemplates}
+            onStart={runPipeline}
+            defaultSteps={pipelineDefaultSteps}
+            defaultForce={pipelineDefaultForce}
+            existingArtifacts={{
+              hasTranscript: false,
+              hasTransformed: false,
+              hasIngested: false,
+            }}
+          />
+        </>
       );
   }
+
+  // Pipeline-Sheet für alle Dateitypen verfügbar (wird nach dem Switch gerendert)
+  // Da wir verschiedene Returns haben, müssen wir das PipelineSheet in jedem Case hinzufügen
+  // oder eine Wrapper-Komponente verwenden. Für jetzt fügen wir es am Ende hinzu.
 }
 
 // Definiere einen Typ für den State
@@ -1429,16 +1883,6 @@ export function FilePreview({
               <TooltipContent>Status aktualisieren</TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => {
-              const url = `/library/story-creator?libraryId=${encodeURIComponent(activeLibraryId)}&fileId=${encodeURIComponent(displayFile.id)}&parentId=${encodeURIComponent(displayFile.parentId)}&left=off`
-              router.push(url)
-            }}
-          >
-            Story Creator
-          </Button>
           {provider ? (
             <Button
               size="sm"

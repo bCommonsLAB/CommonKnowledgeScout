@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useSetAtom, useAtomValue } from 'jotai';
-import { upsertJobStatusAtom } from '@/atoms/job-status';
+import { upsertJobStatusAtom, upsertJobInfoAtom, clearJobInfoAtom } from '@/atoms/job-status';
 import { activeLibraryIdAtom } from "@/atoms/library-atom";
+import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom";
 import { cn } from "@/lib/utils";
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useFolderNavigation } from '@/hooks/use-folder-navigation';
@@ -97,7 +98,13 @@ export function JobMonitorPanel() {
   const lastEventTsRef = useRef<number>(Date.now());
   const sseRetryAttemptRef = useRef<number>(0);
   const isFetchingRef = useRef(false);
+  // Ref fuer isOpen, damit SSE-Handler immer aktuellen Wert haben
+  const isOpenRef = useRef(isOpen);
+  isOpenRef.current = isOpen;
   const upsertJobStatus = useSetAtom(upsertJobStatusAtom);
+  const upsertJobInfo = useSetAtom(upsertJobInfoAtom);
+  const clearJobInfo = useSetAtom(clearJobInfoAtom);
+  const triggerShadowTwinAnalysis = useSetAtom(shadowTwinAnalysisTriggerAtom);
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -403,9 +410,10 @@ export function JobMonitorPanel() {
     }
   }, [isRefreshing, statusFilter, batchFilter, activeLibraryId]);
 
-  // SSE verbinden nur wenn Panel geöffnet ist und Live-Updates aktiv sind; bei Schließen sofort beenden
+  // SSE verbinden IMMER wenn Live-Updates aktiv sind (global fuer Job-Status-Tracking)
+  // UI-Liste wird nur aktualisiert wenn Panel geoeffnet ist
   useEffect(() => {
-    if (!isOpen || !liveUpdates) {
+    if (!liveUpdates) {
       if (eventRef.current) { try { eventRef.current.close(); } catch {} eventRef.current = null; }
       sseRetryAttemptRef.current = 0;
       return;
@@ -431,22 +439,50 @@ export function JobMonitorPanel() {
           lastEventTsRef.current = Date.now();
           // Terminal: failed sofort anwenden und weitere Progress-Events für diesen Job ignorieren (durch Statusüberschreibung)
           if (evt.status === 'failed' || evt.phase === 'failed') {
-            setItems(prev => {
-              const idx = prev.findIndex(p => p.jobId === evt.jobId);
-              if (idx < 0) return prev;
-              const updated = { ...prev[idx], status: 'failed', lastMessage: evt.message ?? prev[idx].lastMessage, updatedAt: evt.updatedAt };
-              const next = [...prev];
-              next[idx] = updated;
-              next.sort((a, b) => (new Date(b.updatedAt || 0).getTime()) - (new Date(a.updatedAt || 0).getTime()));
-              return next;
-            });
+            // UI-Liste nur aktualisieren wenn Panel geoeffnet
+            if (isOpenRef.current) {
+              setItems(prev => {
+                const idx = prev.findIndex(p => p.jobId === evt.jobId);
+                if (idx < 0) return prev;
+                const updated = { ...prev[idx], status: 'failed', lastMessage: evt.message ?? prev[idx].lastMessage, updatedAt: evt.updatedAt };
+                const next = [...prev];
+                next[idx] = updated;
+                next.sort((a, b) => (new Date(b.updatedAt || 0).getTime()) - (new Date(a.updatedAt || 0).getTime()));
+                return next;
+              });
+            }
+            // Atom-Updates passieren IMMER (fuer globales Job-Status-Tracking)
             if (evt.sourceItemId && evt.status) {
               upsertJobStatus({ itemId: evt.sourceItemId, status: 'failed' });
+              upsertJobInfo({ 
+                itemId: evt.sourceItemId, 
+                status: 'failed',
+                progress: evt.progress,
+                message: evt.message,
+                jobId: evt.jobId,
+                updatedAt: evt.updatedAt,
+                phase: evt.phase,
+              });
             }
             return;
           }
           if (evt.sourceItemId && evt.status) {
             upsertJobStatus({ itemId: evt.sourceItemId, status: evt.status });
+            upsertJobInfo({ 
+              itemId: evt.sourceItemId, 
+              status: evt.status as 'queued' | 'running' | 'completed' | 'failed',
+              progress: evt.progress,
+              message: evt.message,
+              jobId: evt.jobId,
+              updatedAt: evt.updatedAt,
+              phase: evt.phase,
+            });
+            // Bei completed: Shadow-Twin-Analyse triggern und Job-Info nach kurzer Zeit entfernen
+            if (evt.status === 'completed') {
+              // Shadow-Twin-Analyse mit kurzem Delay triggern, damit MongoDB-Operationen abgeschlossen sind
+              setTimeout(() => triggerShadowTwinAnalysis((v) => v + 1), 400);
+              setTimeout(() => clearJobInfo(evt.sourceItemId), 5000);
+            }
           }
           // Refresh der Dateiliste triggern, falls serverseitig Ordner-ID mitgeliefert wird
           // WICHTIG: Refresh sowohl Parent als auch Shadow-Twin-Verzeichnis (falls vorhanden)
@@ -465,49 +501,52 @@ export function JobMonitorPanel() {
               })
             } catch {}
           }
-          setItems(prev => {
-            const idx = prev.findIndex(p => p.jobId === evt.jobId);
-            const patch: Partial<JobListItem> = {
-              status: evt.status,
-              lastMessage: evt.message ?? prev[idx]?.lastMessage,
-              lastProgress: evt.progress ?? prev[idx]?.lastProgress,
-              updatedAt: evt.updatedAt,
-              jobType: evt.jobType ?? prev[idx]?.jobType,
-              fileName: evt.fileName ?? prev[idx]?.fileName,
-              sourceItemId: evt.sourceItemId ?? prev[idx]?.sourceItemId,
-              libraryId: evt.libraryId ?? prev[idx]?.libraryId,
-              resultItemId: evt.result?.savedItemId ?? prev[idx]?.resultItemId,
-            };
-            if (idx >= 0) {
-              const updated = { ...prev[idx], ...patch };
-              const next = [...prev];
-              next[idx] = updated;
-              // bei Update nach oben reihen (neueste zuerst)
-              next.sort((a, b) => (new Date(b.updatedAt || 0).getTime()) - (new Date(a.updatedAt || 0).getTime()));
-              return next;
-            }
-            // Neuer Job: nur einfügen wenn Filter passt; bei Batch-Filter immer via Refresh laden
-            if (statusFilter && statusFilter !== 'all' && evt.status !== statusFilter) {
-              return prev;
-            }
-            if (batchFilter) {
-              void refreshNow();
-              return prev;
-            }
-            const inserted: JobListItem = {
-              jobId: evt.jobId,
-              status: evt.status,
-              updatedAt: evt.updatedAt,
-              lastMessage: evt.message,
-              lastProgress: evt.progress,
-              jobType: evt.jobType,
-              fileName: evt.fileName,
-              sourceItemId: evt.sourceItemId,
-              libraryId: evt.libraryId,
-              resultItemId: evt.result?.savedItemId,
-            };
-            return [inserted, ...prev];
-          });
+          // UI-Liste nur aktualisieren wenn Panel geoeffnet
+          if (isOpenRef.current) {
+            setItems(prev => {
+              const idx = prev.findIndex(p => p.jobId === evt.jobId);
+              const patch: Partial<JobListItem> = {
+                status: evt.status,
+                lastMessage: evt.message ?? prev[idx]?.lastMessage,
+                lastProgress: evt.progress ?? prev[idx]?.lastProgress,
+                updatedAt: evt.updatedAt,
+                jobType: evt.jobType ?? prev[idx]?.jobType,
+                fileName: evt.fileName ?? prev[idx]?.fileName,
+                sourceItemId: evt.sourceItemId ?? prev[idx]?.sourceItemId,
+                libraryId: evt.libraryId ?? prev[idx]?.libraryId,
+                resultItemId: evt.result?.savedItemId ?? prev[idx]?.resultItemId,
+              };
+              if (idx >= 0) {
+                const updated = { ...prev[idx], ...patch };
+                const next = [...prev];
+                next[idx] = updated;
+                // bei Update nach oben reihen (neueste zuerst)
+                next.sort((a, b) => (new Date(b.updatedAt || 0).getTime()) - (new Date(a.updatedAt || 0).getTime()));
+                return next;
+              }
+              // Neuer Job: nur einfügen wenn Filter passt; bei Batch-Filter immer via Refresh laden
+              if (statusFilter && statusFilter !== 'all' && evt.status !== statusFilter) {
+                return prev;
+              }
+              if (batchFilter) {
+                void refreshNow();
+                return prev;
+              }
+              const inserted: JobListItem = {
+                jobId: evt.jobId,
+                status: evt.status,
+                updatedAt: evt.updatedAt,
+                lastMessage: evt.message,
+                lastProgress: evt.progress,
+                jobType: evt.jobType,
+                fileName: evt.fileName,
+                sourceItemId: evt.sourceItemId,
+                libraryId: evt.libraryId,
+                resultItemId: evt.result?.savedItemId,
+              };
+              return [inserted, ...prev];
+            });
+          }
         } catch {}
       };
       es.addEventListener('job_update', onUpdate as unknown as EventListener);
@@ -522,7 +561,7 @@ export function JobMonitorPanel() {
         // 0 → 1s, 1 → 2s, 2 → 4s ... bis max 30s.
         sseRetryAttemptRef.current = Math.min(sseRetryAttemptRef.current + 1, 6);
         const delayMs = Math.min(1000 * (2 ** (sseRetryAttemptRef.current - 1)), 30_000);
-        retryTimer = setTimeout(() => { if (isOpen && liveUpdates) connect(); }, delayMs);
+        retryTimer = setTimeout(() => { if (liveUpdates) connect(); }, delayMs);
       });
     }
     connect();
@@ -531,40 +570,61 @@ export function JobMonitorPanel() {
       const detail = (e as CustomEvent).detail as JobUpdateEvent;
       if (!detail?.jobId) return;
       lastEventTsRef.current = Date.now();
-      setItems(prev => {
-        const idx = prev.findIndex(p => p.jobId === detail.jobId);
-        const patch: Partial<JobListItem> = {
-          status: detail.status,
-          lastMessage: detail.message ?? prev[idx]?.lastMessage,
-          lastProgress: detail.progress ?? prev[idx]?.lastProgress,
-          updatedAt: detail.updatedAt,
-          jobType: detail.jobType ?? prev[idx]?.jobType,
-          fileName: detail.fileName ?? prev[idx]?.fileName,
-          sourceItemId: detail.sourceItemId ?? prev[idx]?.sourceItemId,
-          libraryId: detail.libraryId ?? prev[idx]?.libraryId,
-          resultItemId: detail.result?.savedItemId ?? prev[idx]?.resultItemId,
-        };
-        if (idx >= 0) {
-          const updated = { ...prev[idx], ...patch };
-          const next = [...prev];
-          next[idx] = updated;
-          next.sort((a, b) => (new Date(b.updatedAt || 0).getTime()) - (new Date(a.updatedAt || 0).getTime()));
-          return next;
-        }
-        const inserted: JobListItem = {
+      // Atom-Updates passieren IMMER (fuer globales Job-Status-Tracking)
+      if (detail.sourceItemId && detail.status) {
+        upsertJobStatus({ itemId: detail.sourceItemId, status: detail.status });
+        upsertJobInfo({ 
+          itemId: detail.sourceItemId, 
+          status: detail.status as 'queued' | 'running' | 'completed' | 'failed',
+          progress: detail.progress,
+          message: detail.message,
           jobId: detail.jobId,
-          status: detail.status,
           updatedAt: detail.updatedAt,
-          lastMessage: detail.message,
-          lastProgress: detail.progress,
-          jobType: detail.jobType,
-          fileName: detail.fileName,
-          sourceItemId: detail.sourceItemId,
-          libraryId: detail.libraryId,
-          resultItemId: detail.result?.savedItemId,
-        };
-        return [inserted, ...prev];
-      });
+          phase: detail.phase,
+        });
+        if (detail.status === 'completed') {
+          // Shadow-Twin-Analyse mit kurzem Delay triggern, damit MongoDB-Operationen abgeschlossen sind
+          setTimeout(() => triggerShadowTwinAnalysis((v) => v + 1), 400);
+          setTimeout(() => clearJobInfo(detail.sourceItemId), 5000);
+        }
+      }
+      // UI-Liste nur aktualisieren wenn Panel geoeffnet
+      if (isOpenRef.current) {
+        setItems(prev => {
+          const idx = prev.findIndex(p => p.jobId === detail.jobId);
+          const patch: Partial<JobListItem> = {
+            status: detail.status,
+            lastMessage: detail.message ?? prev[idx]?.lastMessage,
+            lastProgress: detail.progress ?? prev[idx]?.lastProgress,
+            updatedAt: detail.updatedAt,
+            jobType: detail.jobType ?? prev[idx]?.jobType,
+            fileName: detail.fileName ?? prev[idx]?.fileName,
+            sourceItemId: detail.sourceItemId ?? prev[idx]?.sourceItemId,
+            libraryId: detail.libraryId ?? prev[idx]?.libraryId,
+            resultItemId: detail.result?.savedItemId ?? prev[idx]?.resultItemId,
+          };
+          if (idx >= 0) {
+            const updated = { ...prev[idx], ...patch };
+            const next = [...prev];
+            next[idx] = updated;
+            next.sort((a, b) => (new Date(b.updatedAt || 0).getTime()) - (new Date(a.updatedAt || 0).getTime()));
+            return next;
+          }
+          const inserted: JobListItem = {
+            jobId: detail.jobId,
+            status: detail.status,
+            updatedAt: detail.updatedAt,
+            lastMessage: detail.message,
+            lastProgress: detail.progress,
+            jobType: detail.jobType,
+            fileName: detail.fileName,
+            sourceItemId: detail.sourceItemId,
+            libraryId: detail.libraryId,
+            resultItemId: detail.result?.savedItemId,
+          };
+          return [inserted, ...prev];
+        });
+      }
     };
     window.addEventListener('job_update_local', onLocal as unknown as EventListener);
     return () => {
@@ -572,7 +632,8 @@ export function JobMonitorPanel() {
       if (eventRef.current) try { eventRef.current.close(); } catch {}
       window.removeEventListener('job_update_local', onLocal as unknown as EventListener);
     };
-  }, [isOpen, liveUpdates, upsertJobStatus, statusFilter, batchFilter, refreshNow]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveUpdates, upsertJobStatus, upsertJobInfo, clearJobInfo, triggerShadowTwinAnalysis]);
 
   const handleToggle = () => setIsOpen(v => !v);
   const queuedCount = items.filter(i => i.status === 'queued').length;

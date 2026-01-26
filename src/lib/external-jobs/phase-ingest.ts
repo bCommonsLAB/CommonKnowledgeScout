@@ -77,6 +77,22 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
   // Dies ist die zentrale Logik, die auch Template-Phase verwendet
   const shadowTwinFolderId = freshJob.shadowTwinState?.shadowTwinFolderId
 
+  // SSE-Event: Ingest-Phase gestartet
+  try {
+    getJobEventBus().emitUpdate(job.userEmail, {
+      type: 'job_update',
+      jobId,
+      status: 'running',
+      phase: 'ingest',
+      progress: 50,
+      updatedAt: new Date().toISOString(),
+      message: 'Story-Ingestion gestartet',
+      jobType: job.job_type,
+      fileName: job.correlation?.source?.name,
+      sourceItemId: job.correlation?.source?.itemId,
+    })
+  } catch {}
+
   // Gate-Prüfung für RAG-Ingestion (nur bei 'auto' Policy relevant)
   let ingestGateExists = false
   if (policies.ingest === 'auto') {
@@ -263,9 +279,10 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
       type: 'job_update',
       jobId,
       status: 'running',
+      phase: 'ingest',
       progress: 60,
       updatedAt: new Date().toISOString(),
-      message: 'ingest_chunking_done',
+      message: 'Chunks erstellt',
       jobType: job.job_type,
       fileName: job.correlation?.source?.name,
       sourceItemId: job.correlation?.source?.itemId,
@@ -304,9 +321,10 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
       type: 'job_update',
       jobId,
       status: 'running',
+      phase: 'ingest',
       progress: 90,
       updatedAt: new Date().toISOString(),
-      message: 'ingest_mongodb_upserted',
+      message: 'Vektoren gespeichert',
       jobType: job.job_type,
       fileName: job.correlation?.source?.name,
       sourceItemId: job.correlation?.source?.itemId,
@@ -318,9 +336,10 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
       type: 'job_update',
       jobId,
       status: 'running',
+      phase: 'ingest',
       progress: 95,
       updatedAt: new Date().toISOString(),
-      message: 'ingest_rag_finished',
+      message: 'Story-Ingestion abgeschlossen',
       jobType: job.job_type,
       fileName: job.correlation?.source?.name,
       sourceItemId: job.correlation?.source?.itemId,

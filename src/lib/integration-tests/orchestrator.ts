@@ -97,7 +97,7 @@ function buildPoliciesObject(testCase: IntegrationTestCase): {
 async function createExternalJobForFile(args: {
   userEmail: string;
   libraryId: string;
-  file: PdfTestFile;
+  file: IntegrationTestFile;
   testCase: IntegrationTestCase;
 }): Promise<{ jobId: string }> {
   const { userEmail, libraryId, file, testCase } = args
@@ -139,6 +139,248 @@ async function createExternalJobForFile(args: {
   const json = (await createRes.json()) as { jobId: string }
   if (!json.jobId) throw new Error('Antwort von /internal/create enthält keine jobId')
   return { jobId: json.jobId }
+}
+
+async function runMarkdownIngestWorkflow(args: {
+  userEmail: string
+  libraryId: string
+  file: IntegrationTestFile
+  testCase: IntegrationTestCase
+  templateName?: string
+}): Promise<{ jobId: string; validation: JobValidationResult }> {
+  const { userEmail, libraryId, file, testCase, templateName } = args
+  const provider = await getServerProvider(userEmail, libraryId)
+
+  const jobId = `text_pipeline_${Date.now()}_${Math.random().toString(16).slice(2)}`
+  const validation: JobValidationResult = { jobId, testCaseId: testCase.id, ok: true, messages: [] }
+
+  try {
+    // 1) Normalize: Konvertiere Quelle zu Canonical Markdown (Format-spezifisch)
+    let canonicalResult: import('@/lib/external-jobs/sources/types').CanonicalMarkdownResult
+
+    if (file.kind === 'markdown') {
+      const { MarkdownAdapter } = await import('@/lib/external-jobs/sources')
+      const adapter = new MarkdownAdapter()
+      canonicalResult = await adapter.normalize(
+        {
+          id: file.itemId,
+          parentId: file.parentId,
+          type: 'file',
+          metadata: { name: file.name, mimeType: file.mimeType },
+        } as import('@/lib/storage/types').StorageItem,
+        {
+          userEmail,
+          libraryId,
+          targetLanguage: 'de',
+          provider,
+        }
+      )
+    } else if (file.kind === 'txt') {
+      const { TxtAdapter } = await import('@/lib/external-jobs/sources')
+      const adapter = new TxtAdapter()
+      canonicalResult = await adapter.normalize(
+        {
+          id: file.itemId,
+          parentId: file.parentId,
+          type: 'file',
+          metadata: { name: file.name, mimeType: file.mimeType },
+        } as import('@/lib/storage/types').StorageItem,
+        {
+          userEmail,
+          libraryId,
+          targetLanguage: 'de',
+          provider,
+        }
+      )
+    } else if (file.kind === 'website') {
+      const { WebsiteAdapter } = await import('@/lib/external-jobs/sources')
+      const adapter = new WebsiteAdapter()
+      
+      // URL-Modus: file.itemId beginnt mit "url:"
+      if (file.itemId.startsWith('url:')) {
+        const url = file.itemId.slice(4) // Entferne "url:"-Präfix
+        canonicalResult = await adapter.normalize(
+          { url, type: 'url' },
+          {
+            userEmail,
+            libraryId,
+            targetLanguage: 'de',
+            provider,
+          }
+        )
+      } else {
+        // Normaler Modus: HTML-Datei aus Storage
+        canonicalResult = await adapter.normalize(
+          {
+            id: file.itemId,
+            parentId: file.parentId,
+            type: 'file',
+            metadata: { name: file.name, mimeType: file.mimeType },
+          } as import('@/lib/storage/types').StorageItem,
+          {
+            userEmail,
+            libraryId,
+            targetLanguage: 'de',
+            provider,
+          }
+        )
+      }
+    } else {
+      pushValidationMessage(validation, 'error', `Unsupported file kind for text pipeline: ${file.kind}`)
+      return { jobId, validation }
+    }
+
+    // Validierung: Canonical Markdown non-empty (globaler Contract)
+    if (!canonicalResult.canonicalMarkdown || canonicalResult.canonicalMarkdown.trim().length === 0) {
+      pushValidationMessage(validation, 'error', 'Canonical Markdown ist leer – Verarbeitung wird abgebrochen')
+      return { jobId, validation }
+    }
+
+    // Validierung: Frontmatter required (globaler Contract)
+    if (!canonicalResult.canonicalMeta.source || !canonicalResult.canonicalMeta.title || !canonicalResult.canonicalMeta.date) {
+      pushValidationMessage(validation, 'error', 'Canonical Markdown fehlt erforderliche Frontmatter-Felder (source, title, date)')
+      return { jobId, validation }
+    }
+
+    pushValidationMessage(validation, 'info', `Normalize OK: Canonical Markdown erzeugt (${canonicalResult.canonicalMarkdown.length} Zeichen)`)
+
+    // Extrahiere Body aus Canonical Markdown für Template-Transformation
+    const { meta: _fmMeta, body: bodyOnly } = parseFrontmatter(canonicalResult.canonicalMarkdown)
+    const extractedText = bodyOnly && bodyOnly.trim().length > 0 ? bodyOnly : canonicalResult.canonicalMarkdown
+
+    // 1) Template-Transformation (serverseitig, analog zu /api/secretary/process-text aber ohne Clerk-Abhängigkeit)
+    // Hinweis: Wir verwenden Template-Content aus MongoDB (kein Standard-Template-Name-only Call),
+    // damit der Run deterministisch ist und ohne UI/Auth funktioniert.
+    const chosenTemplate = (templateName && templateName.trim()) || 'pdfanalyse'
+    const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
+    if (!library) {
+      pushValidationMessage(validation, 'error', `Library nicht gefunden: ${libraryId}`)
+      return { jobId, validation }
+    }
+
+    const { loadTemplateFromMongoDB, serializeTemplateToMarkdown } = await import('@/lib/templates/template-service-mongodb')
+    const tpl = await loadTemplateFromMongoDB(chosenTemplate, libraryId, userEmail, false)
+    if (!tpl) {
+      pushValidationMessage(validation, 'error', `Template nicht gefunden in MongoDB: ${chosenTemplate}`)
+      return { jobId, validation }
+    }
+    const templateContent = serializeTemplateToMarkdown(tpl, false)
+
+    const { callTemplateTransform } = await import('@/lib/secretary/adapter')
+    const { getSecretaryConfig } = await import('@/lib/env')
+    const { baseUrl, apiKey } = getSecretaryConfig()
+    const resp = await callTemplateTransform({
+      url: `${baseUrl}/transformer/template`,
+      text: extractedText,
+      targetLanguage: 'de',
+      templateContent,
+      apiKey,
+      timeoutMs: Number(process.env.EXTERNAL_TEMPLATE_TIMEOUT_MS || process.env.EXTERNAL_REQUEST_TIMEOUT_MS || 600000),
+    })
+
+    const data = await resp.json().catch(() => null) as any
+    const structured = data?.data?.structured_data
+    const metaForFrontmatter: Record<string, unknown> =
+      structured && typeof structured === 'object' && !Array.isArray(structured)
+        ? { ...(structured as Record<string, unknown>), template: chosenTemplate }
+        : { template: chosenTemplate }
+
+    const { createMarkdownWithFrontmatter } = await import('@/lib/markdown/compose')
+    const transformedMarkdown = createMarkdownWithFrontmatter(bodyOnly || extractedText, metaForFrontmatter)
+
+    const st = new ShadowTwinService({
+      library,
+      userEmail,
+      sourceId: file.itemId,
+      sourceName: file.name,
+      parentId: file.parentId,
+      provider,
+    })
+
+    const saved = await st.upsertMarkdown({
+      kind: 'transformation',
+      targetLanguage: 'de',
+      templateName: chosenTemplate,
+      markdown: transformedMarkdown,
+    })
+
+    pushValidationMessage(validation, 'info', `Transformation gespeichert: ${saved.name}`)
+
+    // 2) Ingestion der transformierten Datei (wie UI: ingest-markdown, aber direkt via Service)
+    const ing = await IngestionService.upsertMarkdown(
+      userEmail,
+      libraryId,
+      saved.id,
+      saved.name,
+      transformedMarkdown,
+      metaForFrontmatter,
+      undefined,
+      provider
+    )
+
+    if (ing.chunksUpserted <= 0) {
+      pushValidationMessage(validation, 'error', `Ingestion erwartete chunksUpserted > 0, war aber ${ing.chunksUpserted}`)
+    } else {
+      pushValidationMessage(validation, 'info', `Ingestion OK (chunksUpserted=${ing.chunksUpserted}, index=${ing.index})`)
+    }
+
+    // Optional: Vector/Meta-Checks
+    const { getMetaByFileId, findVectorsByFilter } = await import('@/lib/repositories/vector-repo')
+
+    if (testCase.expected.expectMetaDocument) {
+      const metaDoc = await getMetaByFileId(ing.index, saved.id)
+      if (!metaDoc) {
+        pushValidationMessage(validation, 'error', 'Meta-Dokument wird erwartet, aber nicht gefunden')
+      } else {
+        pushValidationMessage(validation, 'info', `Meta-Dokument gefunden (chunkCount=${metaDoc.chunkCount ?? 'n/a'})`)
+      }
+    }
+
+    if (testCase.expected.expectChunkVectors) {
+      const chunks = await findVectorsByFilter(
+        ing.index,
+        { kind: 'chunk', libraryId, user: userEmail, fileId: saved.id },
+        50
+      )
+      if (chunks.length === 0) {
+        pushValidationMessage(validation, 'error', 'Chunk-Vektoren werden erwartet, aber keine gefunden')
+      } else {
+        pushValidationMessage(validation, 'info', `${chunks.length} Chunk-Vektoren gefunden (sample)`)
+      }
+    }
+
+    // Validierung: Canonical Markdown non-empty (für Textquellen)
+    if (testCase.expected.expectTranscriptNonEmpty) {
+      const canonicalLength = canonicalResult.canonicalMarkdown.trim().length
+      if (canonicalLength === 0) {
+        pushValidationMessage(validation, 'error', 'Canonical Markdown ist leer (expectTranscriptNonEmpty=true)')
+      } else {
+        pushValidationMessage(validation, 'info', `Canonical Markdown non-empty OK (${canonicalLength} Zeichen)`)
+      }
+
+      if (testCase.expected.minTranscriptChars !== undefined) {
+        if (canonicalLength < testCase.expected.minTranscriptChars) {
+          pushValidationMessage(
+            validation,
+            'error',
+            `Canonical Markdown hat nur ${canonicalLength} Zeichen, erwartet mindestens ${testCase.expected.minTranscriptChars}`
+          )
+        } else {
+          pushValidationMessage(
+            validation,
+            'info',
+            `Canonical Markdown Länge OK (${canonicalLength} >= ${testCase.expected.minTranscriptChars})`
+          )
+        }
+      }
+    }
+
+    return { jobId, validation }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    pushValidationMessage(validation, 'error', `Markdown Pipeline Exception: ${msg}`)
+    return { jobId, validation }
+  }
 }
 
 async function configureJobParameters(args: {
@@ -243,7 +485,7 @@ function serializeFrontmatter(meta: Record<string, unknown>): string {
 async function runPdfHitlPublishWorkflow(args: {
   userEmail: string
   libraryId: string
-  file: PdfTestFile
+  file: IntegrationTestFile
   testCase: IntegrationTestCase
   timeoutMs: number
   templateName?: string
@@ -483,7 +725,14 @@ export async function runIntegrationTests(args: RunIntegrationTestsArgs): Promis
 
   const derivedKind: IntegrationTestFileKind = (() => {
     const explicit = args.fileKind
-    if (explicit === 'pdf' || explicit === 'audio') return explicit
+    if (
+      explicit === 'pdf' ||
+      explicit === 'audio' ||
+      explicit === 'markdown' ||
+      explicit === 'txt' ||
+      explicit === 'website'
+    )
+      return explicit
     const targets = new Set(selectedCases.map(tc => tc.target))
     if (targets.size === 1) return Array.from(targets)[0] as IntegrationTestFileKind
     // Fallback: historisch war das Feature PDF-zentriert.
@@ -494,8 +743,28 @@ export async function runIntegrationTests(args: RunIntegrationTestsArgs): Promis
   const targetFiles: IntegrationTestFile[] = await (async () => {
     if (Array.isArray(fileIds) && fileIds.length > 0) {
       // Wenn explizite File-IDs übergeben wurden, müssen wir die Metadaten via Provider laden.
+      // Unterstützung für URLs: fileId kann auch "url:https://..." sein
       const out: IntegrationTestFile[] = []
       for (const id of fileIds) {
+        // URL-Modus: fileId beginnt mit "url:"
+        if (id.startsWith('url:')) {
+          const url = id.slice(4) // Entferne "url:"-Präfix
+          try {
+            new URL(url) // Validierung
+            out.push({
+              itemId: id, // Behalte "url:..." als ID
+              parentId: 'root',
+              name: new URL(url).hostname + '.html',
+              mimeType: 'text/html',
+              kind: 'website',
+            })
+          } catch {
+            FileLogger.warn('runIntegrationTests', 'Ungültige URL ignoriert', { url })
+          }
+          continue
+        }
+        
+        // Normaler Modus: StorageItem laden
         const item = await provider.getItemById(id).catch(() => null)
         if (!item || item.type !== 'file') continue
         out.push({
@@ -528,6 +797,18 @@ export async function runIntegrationTests(args: RunIntegrationTestsArgs): Promis
           libraryId,
           folderId,
         })
+
+        if (testCase.workflow === 'markdown_ingest') {
+          const res = await runMarkdownIngestWorkflow({
+            userEmail,
+            libraryId,
+            file,
+            testCase,
+            templateName,
+          })
+          results.push({ testCase, file, jobId: res.jobId, validation: res.validation })
+          continue
+        }
 
         if (testCase.workflow === 'pdf_hitl_publish') {
           const res = await runPdfHitlPublishWorkflow({

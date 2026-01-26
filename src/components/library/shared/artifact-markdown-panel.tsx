@@ -102,7 +102,21 @@ export function ArtifactMarkdownPanel({
   }, [provider, currentItem?.id, libraryId])
 
   if (!currentItem) {
-    return <div className="text-sm text-muted-foreground">{emptyHint}</div>
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          {typeof title === "string" && title.trim().length > 0 ? (
+            <div className={cn("text-sm font-medium", titleClassName)}>{title}</div>
+          ) : (
+            <div />
+          )}
+          <div className="flex items-center gap-2">
+            {additionalActions}
+          </div>
+        </div>
+        <div className="text-sm text-muted-foreground">{emptyHint}</div>
+      </div>
+    )
   }
 
   if (isLoading) {

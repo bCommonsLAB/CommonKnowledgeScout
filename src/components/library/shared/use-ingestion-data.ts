@@ -1,6 +1,8 @@
 "use client"
 
 import * as React from "react"
+import { useAtomValue } from "jotai"
+import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom"
 
 /**
  * Gemeinsamer Hook für Ingestion-Daten (MongoDB).
@@ -74,6 +76,9 @@ export function useIngestionData(
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
+  // Trigger-Atom abonnieren, um bei Job-Abschluss neu zu laden
+  const shadowTwinTrigger = useAtomValue(shadowTwinAnalysisTriggerAtom)
+
   const load = React.useCallback(async () => {
     try {
       setLoading(true)
@@ -108,7 +113,8 @@ export function useIngestionData(
 
   React.useEffect(() => {
     void load()
-  }, [load])
+    // shadowTwinTrigger: Bei Job-Abschluss werden die Ingestion-Daten neu geladen
+  }, [load, shadowTwinTrigger, fileId])
 
   return { data, loading, error, refetch: load }
 }

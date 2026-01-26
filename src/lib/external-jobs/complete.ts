@@ -30,6 +30,7 @@ import { parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import { parseMongoShadowTwinId, isMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import { LibraryService } from '@/lib/services/library-service'
+import { getJobEventBus } from '@/lib/events/job-event-bus'
 import path from 'path'
 
 export async function setJobCompleted(args: CompleteArgs): Promise<JobResult> {
@@ -228,6 +229,25 @@ export async function setJobCompleted(args: CompleteArgs): Promise<JobResult> {
       error: error instanceof Error ? error.message : String(error)
     })
   }
+  
+  // SSE-Event fuer Job-Abschluss senden (fuer UI-Aktualisierung)
+  try {
+    getJobEventBus().emitUpdate(job?.userEmail || ctx.job?.userEmail || '', {
+      type: 'job_update',
+      jobId: ctx.jobId,
+      status: 'completed',
+      progress: 100,
+      updatedAt: new Date().toISOString(),
+      message: 'completed',
+      jobType: job?.job_type || ctx.job?.job_type,
+      fileName: job?.correlation?.source?.name || ctx.job?.correlation?.source?.name,
+      sourceItemId: sourceItemId || ctx.job?.correlation?.source?.itemId,
+      result: { savedItemId },
+    })
+  } catch {
+    // SSE-Fehler nicht kritisch - Job ist bereits abgeschlossen
+  }
+  
   return { status: 'ok', jobId: ctx.jobId }
 }
 

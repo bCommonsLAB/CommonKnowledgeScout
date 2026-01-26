@@ -89,7 +89,7 @@ export interface IntegrationTestCase {
    * Ziel-Dateityp für den Test.
    * Wird genutzt, um die Test-Targets im Ordner zu filtern und die UI zu vereinfachen.
    */
-  target: 'pdf' | 'audio';
+  target: 'pdf' | 'audio' | 'markdown' | 'txt' | 'website';
   /** UseCase-ID aus docs/architecture/use-cases-and-personas.md, z.B. "pdf_mistral_report" */
   useCaseId: string;
   /** Szenario-ID innerhalb des UseCases, z.B. "happy_path", "gate_skip", "force_recompute" */
@@ -115,7 +115,7 @@ export interface IntegrationTestCase {
    * - 'single_job' (default): ein External Job (extract/template/ingest per Flags)
    * - 'pdf_hitl_publish': 2 Jobs + expliziter Publish-Schritt (Shadow‑Twin overwrite + Ingestion)
    */
-  workflow?: 'single_job' | 'pdf_hitl_publish';
+  workflow?: 'single_job' | 'pdf_hitl_publish' | 'markdown_ingest';
 }
 
 /**
@@ -349,6 +349,88 @@ export const integrationTestCases: IntegrationTestCase[] = [
       expectShadowTwinExists: true,
       expectTranscriptNonEmpty: true,
       minTranscriptChars: 20,
+    },
+  },
+  // MARKDOWN UseCase: markdown_ingest
+  {
+    id: 'markdown_ingest.happy_path',
+    target: 'markdown',
+    useCaseId: 'markdown_ingest',
+    scenarioId: 'happy_path',
+    label: 'Markdown – Template + Ingestion (Happy Path)',
+    description:
+      'Liest eine Markdown-Datei aus dem Ordner, erzeugt via Template-Transformation ein frontmatter-basiertes Markdown ' +
+      '(Transformation-Artefakt) und führt anschließend Ingestion (Chunks + Meta) in MongoDB Vector Search aus. ' +
+      'Validiert, dass Meta-Dokument und Chunk-Vektoren existieren.',
+    category: 'usecase',
+    workflow: 'markdown_ingest',
+    phases: { extract: false, template: true, ingest: true },
+    policies: {
+      extract: 'ignore',
+      metadata: 'do',
+      ingest: 'do',
+    },
+    expected: {
+      shouldComplete: true,
+      expectIngestionRun: true,
+      expectMetaDocument: true,
+      expectChunkVectors: true,
+    },
+  },
+  // TXT UseCase: txt_normalize
+  {
+    id: 'txt_normalize.happy_path',
+    target: 'txt',
+    useCaseId: 'txt_normalize',
+    scenarioId: 'happy_path',
+    label: 'TXT – Normalize + Template + Ingestion (Happy Path)',
+    description:
+      'Liest eine TXT-Datei aus dem Ordner, normalisiert sie zu Canonical Markdown (mit Frontmatter), ' +
+      'erzeugt via Template-Transformation ein strukturiertes Markdown und führt anschließend Ingestion aus. ' +
+      'Validiert, dass Canonical Markdown non-empty ist, Meta-Dokument und Chunk-Vektoren existieren.',
+    category: 'usecase',
+    workflow: 'markdown_ingest', // Verwendet denselben Workflow wie Markdown
+    phases: { extract: false, template: true, ingest: true },
+    policies: {
+      extract: 'ignore',
+      metadata: 'do',
+      ingest: 'do',
+    },
+    expected: {
+      shouldComplete: true,
+      expectIngestionRun: true,
+      expectMetaDocument: true,
+      expectChunkVectors: true,
+      expectTranscriptNonEmpty: true, // Canonical Markdown non-empty
+      minTranscriptChars: 10,
+    },
+  },
+  // WEBSITE UseCase: website_normalize
+  {
+    id: 'website_normalize.happy_path',
+    target: 'website',
+    useCaseId: 'website_normalize',
+    scenarioId: 'happy_path',
+    label: 'Website – Normalize + Template + Ingestion (Happy Path)',
+    description:
+      'Liest eine HTML-Datei oder URL aus dem Ordner, normalisiert sie zu Canonical Markdown (HTML→MD, Frontmatter), ' +
+      'erzeugt via Template-Transformation ein strukturiertes Markdown und führt anschließend Ingestion aus. ' +
+      'Validiert, dass Canonical Markdown non-empty ist, Meta-Dokument und Chunk-Vektoren existieren.',
+    category: 'usecase',
+    workflow: 'markdown_ingest', // Verwendet denselben Workflow wie Markdown
+    phases: { extract: false, template: true, ingest: true },
+    policies: {
+      extract: 'ignore',
+      metadata: 'do',
+      ingest: 'do',
+    },
+    expected: {
+      shouldComplete: true,
+      expectIngestionRun: true,
+      expectMetaDocument: true,
+      expectChunkVectors: true,
+      expectTranscriptNonEmpty: true, // Canonical Markdown non-empty
+      minTranscriptChars: 10,
     },
   },
 ]

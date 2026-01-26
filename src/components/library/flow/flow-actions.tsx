@@ -18,24 +18,11 @@ import { loadPdfDefaults } from "@/lib/pdf-defaults"
 import { getEffectivePdfDefaults } from "@/atoms/pdf-defaults"
 import { activeLibraryAtom } from "@/atoms/library-atom"
 import { TARGET_LANGUAGE_DEFAULT, type TargetLanguage } from "@/lib/chat/constants"
-
-type MediaKind = "pdf" | "audio" | "video" | "image" | "markdown" | "unknown"
+import { runPipelineForFile, getMediaKind, type MediaKind } from "@/lib/pipeline/run-pipeline"
 
 const PdfPhaseSettings = React.lazy(() =>
   import("@/components/library/pdf-phase-settings").then(m => ({ default: m.PdfPhaseSettings }))
 )
-
-function getMediaKind(file: StorageItem): MediaKind {
-  const name = (file.metadata?.name || "").toLowerCase()
-  const mime = (file.metadata?.mimeType || "").toLowerCase()
-
-  if (mime.includes("pdf") || name.endsWith(".pdf")) return "pdf"
-  if (mime.startsWith("audio/") || /\.(mp3|m4a|wav|ogg|opus|flac)$/.test(name)) return "audio"
-  if (mime.startsWith("video/") || /\.(mp4|mov|avi|webm|mkv)$/.test(name)) return "video"
-  if (mime.startsWith("image/") || /\.(png|jpg|jpeg|gif|webp|svg|bmp|ico)$/.test(name)) return "image"
-  if (mime.includes("markdown") || /\.(md|mdx|txt)$/.test(name)) return "markdown"
-  return "unknown"
-}
 
 interface FlowActionsProps {
   libraryId: string
@@ -62,131 +49,6 @@ interface JobUpdateWire {
 
 function isNonEmptyString(v: unknown): v is string {
   return typeof v === "string" && v.trim().length > 0
-}
-
-async function enqueuePdfJob(args: {
-  libraryId: string
-  sourceFile: StorageItem
-  parentId: string
-  targetLanguage: string
-  templateName?: string
-  policies: { extract: string; metadata: string; ingest: string }
-  libraryConfigChatTargetLanguage?: TargetLanguage
-  libraryConfigPdfTemplate?: string
-}): Promise<string> {
-  // Lade PDF-Defaults für diese Library (inkl. globaler Default mistral_ocr)
-  const defaults = getEffectivePdfDefaults(
-    args.libraryId,
-    loadPdfDefaults(args.libraryId),
-    {},
-    args.libraryConfigChatTargetLanguage,
-    args.libraryConfigPdfTemplate
-  )
-  const extractionMethod = typeof defaults.extractionMethod === 'string' ? defaults.extractionMethod : 'mistral_ocr'
-  const isMistralOcr = extractionMethod === 'mistral_ocr'
-  
-  const fd = new FormData()
-  fd.append("originalItemId", args.sourceFile.id)
-  fd.append("parentId", args.parentId)
-  fd.append("fileName", args.sourceFile.metadata.name)
-  fd.append("mimeType", args.sourceFile.metadata.mimeType || "application/pdf")
-  fd.append("targetLanguage", args.targetLanguage)
-  fd.append("extractionMethod", extractionMethod)
-  // Bei Mistral OCR: includePageImages immer true (erzwungen)
-  if (isMistralOcr) {
-    const includePageImages = defaults.includePageImages !== undefined ? defaults.includePageImages : true
-    const includeOcrImages = defaults.includeOcrImages !== undefined ? defaults.includeOcrImages : true
-    if (includePageImages) fd.append("includePageImages", "true")
-    if (includeOcrImages) fd.append("includeOcrImages", "true")
-  }
-  fd.append("useCache", String(defaults.useCache ?? true))
-  if (isNonEmptyString(args.templateName)) fd.append("template", args.templateName)
-  fd.append("policies", JSON.stringify(args.policies))
-
-  const res = await fetch("/api/secretary/process-pdf", {
-    method: "POST",
-    headers: { "X-Library-Id": args.libraryId },
-    body: fd,
-  })
-  const json = (await res.json().catch(() => ({} as Record<string, unknown>))) as {
-    error?: unknown
-    job?: { id?: unknown }
-  }
-  if (!res.ok) throw new Error(typeof json.error === "string" ? json.error : `HTTP ${res.status}`)
-  const jobId = typeof json.job?.id === "string" ? json.job.id : ""
-  if (!jobId) throw new Error("Job-ID fehlt in Response")
-  return jobId
-}
-
-async function enqueueMediaJob(args: {
-  endpoint: "/api/secretary/process-audio/job" | "/api/secretary/process-video/job"
-  libraryId: string
-  sourceFile: StorageItem
-  parentId: string
-  targetLanguage: string
-  templateName?: string
-  policies: { extract: string; metadata: string; ingest: string }
-}): Promise<string> {
-  const res = await fetch(args.endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Library-Id": args.libraryId,
-    },
-    body: JSON.stringify({
-      originalItemId: args.sourceFile.id,
-      parentId: args.parentId,
-      fileName: args.sourceFile.metadata.name,
-      mimeType: args.sourceFile.metadata.mimeType,
-      targetLanguage: args.targetLanguage,
-      sourceLanguage: "auto",
-      useCache: true,
-      ...(isNonEmptyString(args.templateName) ? { template: args.templateName } : {}),
-      policies: args.policies,
-    }),
-  })
-  const json = (await res.json().catch(() => ({} as Record<string, unknown>))) as {
-    error?: unknown
-    job?: { id?: unknown }
-  }
-  if (!res.ok) throw new Error(typeof json.error === "string" ? json.error : `HTTP ${res.status}`)
-  const jobId = typeof json.job?.id === "string" ? json.job.id : ""
-  if (!jobId) throw new Error("Job-ID fehlt in Response")
-  return jobId
-}
-
-async function enqueueTextJob(args: {
-  libraryId: string
-  sourceFile: StorageItem
-  parentId: string
-  targetLanguage: string
-  templateName?: string
-  policies: { extract: string; metadata: string; ingest: string }
-}): Promise<string> {
-  const res = await fetch("/api/secretary/process-text/job", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Library-Id": args.libraryId,
-    },
-    body: JSON.stringify({
-      originalItemId: args.sourceFile.id,
-      parentId: args.parentId,
-      fileName: args.sourceFile.metadata.name,
-      mimeType: args.sourceFile.metadata.mimeType,
-      targetLanguage: args.targetLanguage,
-      ...(isNonEmptyString(args.templateName) ? { template: args.templateName } : {}),
-      policies: args.policies,
-    }),
-  })
-  const json = (await res.json().catch(() => ({} as Record<string, unknown>))) as {
-    error?: unknown
-    job?: { id?: unknown }
-  }
-  if (!res.ok) throw new Error(typeof json.error === "string" ? json.error : `HTTP ${res.status}`)
-  const jobId = typeof json.job?.id === "string" ? json.job.id : ""
-  if (!jobId) throw new Error("Job-ID fehlt in Response")
-  return jobId
 }
 
 export function FlowActions({
@@ -357,58 +219,17 @@ export function FlowActions({
 
       setIsRunning(true)
       try {
-        let jobId = ""
-        if (kind === "pdf") {
-          jobId = await enqueuePdfJob({
-            libraryId,
-            sourceFile,
-            parentId,
-            targetLanguage: args.targetLanguage,
-            templateName: args.templateName,
-            policies: args.policies,
-            libraryConfigChatTargetLanguage,
-            libraryConfigPdfTemplate,
-          })
-        } else if (kind === "audio") {
-          jobId = await enqueueMediaJob({
-            endpoint: "/api/secretary/process-audio/job",
-            libraryId,
-            sourceFile,
-            parentId,
-            targetLanguage: args.targetLanguage,
-            templateName: args.templateName,
-            policies: args.policies,
-          })
-        } else if (kind === "video") {
-          jobId = await enqueueMediaJob({
-            endpoint: "/api/secretary/process-video/job",
-            libraryId,
-            sourceFile,
-            parentId,
-            targetLanguage: args.targetLanguage,
-            templateName: args.templateName,
-            policies: args.policies,
-          })
-        } else if (kind === "markdown") {
-          // Bei Markdown: extract immer "ignore" erzwingen (Textquelle bereits vorhanden)
-          const markdownPolicies = {
-            ...args.policies,
-            extract: "ignore" as const,
-          }
-          jobId = await enqueueTextJob({
-            libraryId,
-            sourceFile,
-            parentId,
-            targetLanguage: args.targetLanguage,
-            templateName: args.templateName,
-            policies: markdownPolicies,
-          })
-        } else {
-          toast.error("Nicht unterstützt", {
-            description: `Flow Actions sind aktuell nur für PDF/Audio/Video/Markdown vorgesehen (Dateityp: ${kind}).`,
-          })
-          return
-        }
+        const { jobId } = await runPipelineForFile({
+          libraryId,
+          sourceFile,
+          parentId,
+          kind,
+          targetLanguage: args.targetLanguage,
+          templateName: args.templateName,
+          policies: args.policies,
+          libraryConfigChatTargetLanguage,
+          libraryConfigPdfTemplate,
+        })
 
         setActiveJob({ jobId, status: "queued", progress: 0, message: "queued" })
         toast.success("Job angelegt", { description: `Job ${jobId} wurde enqueued.` })
@@ -625,7 +446,7 @@ export function FlowActions({
                 Transformieren
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">Story Creator öffnen</TooltipContent>
+            <TooltipContent side="bottom">Pipeline öffnen</TooltipContent>
           </Tooltip>
 
           {activeJob ? (

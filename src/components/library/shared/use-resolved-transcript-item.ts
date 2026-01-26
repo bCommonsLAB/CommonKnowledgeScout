@@ -1,10 +1,12 @@
 "use client"
 
 import * as React from "react"
+import { useAtomValue } from "jotai"
 
 import type { StorageItem, StorageProvider } from "@/lib/storage/types"
 import { resolveArtifactClient } from "@/lib/shadow-twin/artifact-client"
 import { isMongoShadowTwinId } from "@/lib/shadow-twin/mongo-shadow-twin-id"
+import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom"
 
 export interface ResolvedTranscriptItemResult {
   transcriptItem: StorageItem | null
@@ -24,6 +26,9 @@ export function useResolvedTranscriptItem(args: {
     isLoading: false,
     error: null,
   })
+  
+  // Trigger-Atom abonnieren, um bei Shadow-Twin-Aenderungen neu zu laden
+  const shadowTwinTrigger = useAtomValue(shadowTwinAnalysisTriggerAtom)
 
   React.useEffect(() => {
     let cancelled = false
@@ -85,7 +90,8 @@ export function useResolvedTranscriptItem(args: {
     return () => {
       cancelled = true
     }
-  }, [provider, libraryId, sourceFile, targetLanguage])
+    // shadowTwinTrigger: Wenn sich die Shadow-Twin-Analyse aendert, wird das Transkript neu geladen
+  }, [provider, libraryId, sourceFile, targetLanguage, shadowTwinTrigger])
 
   return state
 }

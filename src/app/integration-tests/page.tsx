@@ -62,11 +62,13 @@ export default function IntegrationTestsPage() {
   const currentPathItems = useAtomValue(currentPathAtom);
 
   const [selectedIds, setSelectedIds] = useState<string[]>(integrationTestCases.map(tc => tc.id));
-  const [suiteFilter, setSuiteFilter] = useState<'all' | 'pdf' | 'audio'>('all');
-  const [fileKind, setFileKind] = useState<'pdf' | 'audio'>('pdf');
+  const [suiteFilter, setSuiteFilter] = useState<'all' | 'pdf' | 'audio' | 'markdown' | 'txt' | 'website'>('all');
+  const [fileKind, setFileKind] = useState<'pdf' | 'audio' | 'markdown' | 'txt' | 'website'>('pdf');
   const [availableFiles, setAvailableFiles] = useState<Array<{ id: string; name: string; mimeType?: string }>>([]);
   const [selectedFileId, setSelectedFileId] = useState<string>('');
   const [fileIdsInput, setFileIdsInput] = useState('');
+  const [urlInput, setUrlInput] = useState<string>('');
+  const [autoDetectEnabled, setAutoDetectEnabled] = useState<boolean>(true);
   const [timeoutMs, setTimeoutMs] = useState('600000');
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<UiResultItem[]>([]);
@@ -127,14 +129,49 @@ export default function IntegrationTestsPage() {
     void loadTemplates();
   }, [activeLibrary?.id]);
 
-  // Suite-Filter: schnelle Umschaltung PDF/AUDIO (überschreibt die manuelle Auswahl)
+  // Suite-Filter: schnelle Umschaltung PDF/AUDIO/MARKDOWN/TXT/WEBSITE (überschreibt die manuelle Auswahl)
   useEffect(() => {
     if (suiteFilter === 'all') {
       setSelectedIds(integrationTestCases.map(tc => tc.id));
       return;
     }
+    // Automatisch alle Testcases für den gewählten Typ auswählen
     setSelectedIds(integrationTestCases.filter(tc => tc.target === suiteFilter).map(tc => tc.id));
   }, [suiteFilter]);
+
+  // Automatische Dateityp-Erkennung: Scannt Ordner und erkennt ersten unterstützten Typ
+  useEffect(() => {
+    async function detectFileType() {
+      if (!activeLibrary?.id || !autoDetectEnabled) {
+        return;
+      }
+      try {
+        const qs = new URLSearchParams();
+        qs.set('libraryId', activeLibrary.id);
+        qs.set('folderId', currentFolderId || 'root');
+        const res = await fetch(`/api/integration-tests/detect-type?${qs.toString()}`);
+        if (!res.ok) {
+          return;
+        }
+        const json = (await res.json()) as { 
+          detectedKind?: 'pdf' | 'audio' | 'markdown' | 'txt' | 'website' | null;
+          firstFile?: { id: string; name: string; mimeType?: string };
+        };
+        if (json.detectedKind && json.detectedKind !== fileKind) {
+          setFileKind(json.detectedKind);
+          // Automatisch Suite-Filter setzen
+          setSuiteFilter(json.detectedKind);
+          // Erste Datei automatisch auswählen
+          if (json.firstFile) {
+            setSelectedFileId(json.firstFile.id);
+          }
+        }
+      } catch {
+        // Fehler ignorieren (z.B. wenn API nicht verfügbar)
+      }
+    }
+    void detectFileType();
+  }, [activeLibrary?.id, currentFolderId, autoDetectEnabled]);
 
   // Datei-Liste für den aktuellen Ordner + Dateityp laden (UI Vereinfachung)
   useEffect(() => {
@@ -328,11 +365,31 @@ export default function IntegrationTestsPage() {
     setResults([]);
     setSummary(null);
 
-    const rawIds = fileIdsInput
-      .split(',')
-      .map(v => v.trim())
-      .filter(v => v.length > 0);
-    const fileIds = rawIds.length > 0 ? rawIds : undefined;
+    // URLs als Website-Quellen unterstützen
+    const urlInputTrimmed = urlInput.trim();
+    let fileIds: string[] | undefined;
+    let effectiveFileKind = fileKind;
+
+    if (urlInputTrimmed.length > 0) {
+      // URL-Modus: Website-Tests mit URL
+      try {
+        new URL(urlInputTrimmed); // Validierung
+        effectiveFileKind = 'website';
+        // Für URLs verwenden wir einen speziellen Marker
+        fileIds = [`url:${urlInputTrimmed}`];
+      } catch {
+        setError(`Ungültige URL: ${urlInputTrimmed}`);
+        setRunning(false);
+        return;
+      }
+    } else {
+      // Normaler Modus: Dateien aus Input oder automatisch erste Datei
+      const rawIds = fileIdsInput
+        .split(',')
+        .map(v => v.trim())
+        .filter(v => v.length > 0);
+      fileIds = rawIds.length > 0 ? rawIds : (selectedFileId ? [selectedFileId] : undefined);
+    }
 
     const parsedTimeout = Number(timeoutMs);
     const jobTimeoutMs =
@@ -348,7 +405,7 @@ export default function IntegrationTestsPage() {
           folderId: currentFolderId,
           testCaseIds: selectedIds,
           fileIds,
-          fileKind,
+          fileKind: effectiveFileKind,
           jobTimeoutMs,
           templateName,
         }),
@@ -466,7 +523,7 @@ export default function IntegrationTestsPage() {
               <span className="text-xs text-muted-foreground">Suite</span>
               <Select
                 value={suiteFilter}
-                onValueChange={(v) => setSuiteFilter(v === 'audio' ? 'audio' : v === 'pdf' ? 'pdf' : 'all')}
+                onValueChange={(v) => setSuiteFilter(v === 'audio' ? 'audio' : v === 'pdf' ? 'pdf' : v === 'markdown' ? 'markdown' : 'all')}
                 disabled={running}
               >
                 <SelectTrigger className="h-8 w-[160px]">
@@ -476,6 +533,9 @@ export default function IntegrationTestsPage() {
                   <SelectItem value="all">Alle</SelectItem>
                   <SelectItem value="pdf">Nur PDF</SelectItem>
                   <SelectItem value="audio">Nur Audio</SelectItem>
+                  <SelectItem value="markdown">Nur Markdown</SelectItem>
+                  <SelectItem value="txt">Nur TXT</SelectItem>
+                  <SelectItem value="website">Nur Website</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -557,12 +617,18 @@ export default function IntegrationTestsPage() {
               <Select
                 value={fileKind}
                 onValueChange={(v) => {
-                  const next = v === 'audio' ? 'audio' : 'pdf'
+                  const next = v === 'audio' ? 'audio' 
+                    : v === 'markdown' ? 'markdown'
+                    : v === 'txt' ? 'txt'
+                    : v === 'website' ? 'website'
+                    : 'pdf'
                   setFileKind(next)
                   // Usability: wenn der User den Dateityp umstellt, ist ein passender Suite-Filter meist gewünscht.
                   setSuiteFilter(next)
                   // Auswahl leeren (sonst "alte" ID im Input)
                   setSelectedFileId('')
+                  // URL-Input leeren wenn Dateityp geändert wird
+                  setUrlInput('')
                 }}
                 disabled={running}
               >
@@ -572,6 +638,9 @@ export default function IntegrationTestsPage() {
                 <SelectContent>
                   <SelectItem value="pdf">PDF</SelectItem>
                   <SelectItem value="audio">Audio</SelectItem>
+                  <SelectItem value="markdown">Markdown</SelectItem>
+                  <SelectItem value="txt">TXT</SelectItem>
+                  <SelectItem value="website">Website</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -624,6 +693,23 @@ export default function IntegrationTestsPage() {
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="url-input">
+              URL (optional) – Website-Quelle als URL statt Datei
+            </Label>
+            <Input
+              id="url-input"
+              type="url"
+              value={urlInput}
+              onChange={e => setUrlInput(e.target.value)}
+              placeholder="https://example.com/article"
+              disabled={running}
+            />
+            <p className="text-xs text-muted-foreground">
+              Wenn eine URL eingegeben wird, wird diese als Website-Quelle verwendet (überschreibt Datei-Auswahl).
+            </p>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="file-ids">
               File-IDs (Advanced, kommagetrennt) – leer = alle Dateien des Dateityps im Ordner
             </Label>
@@ -632,8 +718,22 @@ export default function IntegrationTestsPage() {
               value={fileIdsInput}
               onChange={e => setFileIdsInput(e.target.value)}
               placeholder="z.B. id1,id2,id3"
-              disabled={running}
+              disabled={running || urlInput.trim().length > 0}
             />
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="auto-detect"
+              checked={autoDetectEnabled}
+              onChange={e => setAutoDetectEnabled(e.target.checked)}
+              disabled={running}
+              className="h-4 w-4"
+            />
+            <Label htmlFor="auto-detect" className="text-sm">
+              Automatische Dateityp-Erkennung aktivieren (erkennt ersten unterstützten Typ im Ordner)
+            </Label>
           </div>
 
           {error && (

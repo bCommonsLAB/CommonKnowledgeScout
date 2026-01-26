@@ -2,18 +2,34 @@
 
 import * as React from "react"
 import { toast } from "sonner"
+import { FileText, Sparkles, Upload, Check, ChevronDown } from "lucide-react"
 
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Switch } from "@/components/ui/switch"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { cn } from "@/lib/utils"
 
 export interface PipelinePolicies {
   extract: "ignore" | "do" | "force"
   metadata: "ignore" | "do" | "force"
   ingest: "ignore" | "do" | "force"
+}
+
+/**
+ * Informationen ueber bereits vorhandene Artefakte.
+ * Ermoeglicht intelligente Vorauswahl und Abhaengigkeits-Logik.
+ */
+export interface ExistingArtifacts {
+  /** Transcript/Extraktion ist vorhanden */
+  hasTranscript: boolean
+  /** Transformierte Version ist vorhanden */
+  hasTransformed: boolean
+  /** Bereits indexiert/ingested */
+  hasIngested: boolean
 }
 
 interface PipelineSheetProps {
@@ -29,6 +45,24 @@ interface PipelineSheetProps {
   templates: string[]
   isLoadingTemplates: boolean
   onStart: (args: { templateName?: string; targetLanguage: string; policies: PipelinePolicies }) => Promise<void>
+  /**
+   * Optionale Default-Werte fuer die Pipeline-Schritte.
+   * Wenn gesetzt, werden die Switches beim Oeffnen des Sheets entsprechend initialisiert.
+   */
+  defaultSteps?: {
+    extract: boolean
+    metadata: boolean
+    ingest: boolean
+  }
+  /**
+   * Optionale Default-Wert fuer "Erzwingen"-Switch.
+   */
+  defaultForce?: boolean
+  /**
+   * Informationen ueber bereits vorhandene Artefakte.
+   * Ermoeglicht intelligente Vorauswahl und visuelle Hinweise.
+   */
+  existingArtifacts?: ExistingArtifacts
 }
 
 function isNonEmptyString(v: unknown): v is string {
@@ -38,42 +72,104 @@ function isNonEmptyString(v: unknown): v is string {
 export function PipelineSheet(props: PipelineSheetProps) {
   // Bei Markdown: Extract immer deaktiviert (Textquelle bereits vorhanden)
   const isMarkdown = props.kind === "markdown"
-  const [shouldExtract, setShouldExtract] = React.useState(!isMarkdown)
-  const [shouldTransform, setShouldTransform] = React.useState(true)
-  const [shouldIngest, setShouldIngest] = React.useState(true)
-  const [shouldForce, setShouldForce] = React.useState(false)
+  
+  // Artefakt-Status fuer intelligente UI-Logik
+  const hasTranscript = props.existingArtifacts?.hasTranscript ?? false
+  const hasTransformed = props.existingArtifacts?.hasTransformed ?? false
+  const hasIngested = props.existingArtifacts?.hasIngested ?? false
+  
+  const [shouldExtract, setShouldExtract] = React.useState(false)
+  const [shouldTransform, setShouldTransform] = React.useState(false)
+  const [shouldIngest, setShouldIngest] = React.useState(false)
+  const [shouldForce, setShouldForce] = React.useState(props.defaultForce ?? false)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
-  // Default: alle Schritte aktiv, aber beim Öffnen (auto-open) nicht unerwartet resetten.
-  // Bei Markdown: Extract bleibt immer deaktiviert.
+  // Beim Oeffnen des Sheets: Initialisiere basierend auf defaultSteps und existingArtifacts
   React.useEffect(() => {
     if (!props.isOpen) return
-    // Bei Markdown: Extract immer false setzen
-    if (isMarkdown && shouldExtract) {
+    
+    // Reset beim Oeffnen
+    const forceMode = props.defaultForce ?? false
+    setShouldForce(forceMode)
+    
+    if (props.defaultSteps) {
+      // defaultSteps respektieren
+      // Wenn Force aktiv, dann auch vorhandene Artefakte ueberschreiben -> Step aktivieren
+      // Sonst: nur aktivieren wenn Artefakt nicht vorhanden
+      // Bei Markdown: Extract immer false
+      if (isMarkdown) {
+        setShouldExtract(false)
+      } else {
+        // Wenn Force aktiv oder Transcript nicht vorhanden -> aktivieren wenn in defaultSteps
+        setShouldExtract(props.defaultSteps.extract && (forceMode || !hasTranscript))
+      }
+      // Wenn Force aktiv oder Transformed nicht vorhanden -> aktivieren wenn in defaultSteps
+      setShouldTransform(props.defaultSteps.metadata && (forceMode || !hasTransformed))
+      // Wenn Force aktiv oder Ingested nicht vorhanden -> aktivieren wenn in defaultSteps
+      setShouldIngest(props.defaultSteps.ingest && (forceMode || !hasIngested))
+    } else {
+      // Keine defaultSteps: Alles aus
       setShouldExtract(false)
+      setShouldTransform(false)
+      setShouldIngest(false)
     }
-    // Wenn alle drei aus sind (z.B. nach Back/Forward), setze auf Default.
-    if (!shouldExtract && !shouldTransform && !shouldIngest && !isMarkdown) {
+  }, [props.isOpen, props.defaultSteps, props.defaultForce, isMarkdown, hasTranscript, hasTransformed, hasIngested])
+
+  // Abhaengigkeits-Logik: Wenn Transformation gewaehlt und kein Transcript vorhanden -> Extract automatisch mit
+  React.useEffect(() => {
+    if (shouldTransform && !hasTranscript && !isMarkdown && !shouldExtract) {
       setShouldExtract(true)
-      setShouldTransform(true)
-      setShouldIngest(true)
     }
-  }, [props.isOpen, shouldExtract, shouldTransform, shouldIngest, isMarkdown])
+  }, [shouldTransform, hasTranscript, isMarkdown, shouldExtract])
 
-  const step1Label = props.kind === "audio" || props.kind === "video" ? "Transkription" : "Extraktion"
+  // Abhaengigkeits-Logik: Wenn Ingestion gewaehlt und kein Transform vorhanden -> Transform automatisch mit
+  React.useEffect(() => {
+    if (shouldIngest && !hasTransformed && !shouldTransform) {
+      setShouldTransform(true)
+    }
+  }, [shouldIngest, hasTransformed, shouldTransform])
 
-  const templateSelectValue = props.templateName || "__none__"
-  const canTransform = shouldTransform
-  const canStart = shouldExtract || shouldTransform || shouldIngest
+  // Wenn "Erzwingen" aktiviert wird, aktiviere alle Schritte die vorher vorhanden waren
+  const handleForceChange = React.useCallback((checked: boolean) => {
+    setShouldForce(checked)
+    // Wenn Force aktiviert und defaultSteps vorhanden, setze entsprechend
+    if (checked && props.defaultSteps) {
+      if (!isMarkdown) setShouldExtract(props.defaultSteps.extract)
+      setShouldTransform(props.defaultSteps.metadata)
+      setShouldIngest(props.defaultSteps.ingest)
+    }
+  }, [props.defaultSteps, isMarkdown])
+
+  // Automatisch erstes Template auswaehlen, wenn keines ausgewaehlt und Templates verfuegbar
+  React.useEffect(() => {
+    if (!props.templateName && props.templates.length > 0 && !props.isLoadingTemplates) {
+      props.onTemplateNameChange(props.templates[0])
+    }
+  }, [props.templates, props.templateName, props.isLoadingTemplates, props.onTemplateNameChange])
+
+  const templateSelectValue = props.templateName || (props.templates.length > 0 ? props.templates[0] : "__none__")
+  
+  // Berechne ob ein Schritt deaktiviert sein sollte (vorhanden und nicht erzwingen)
+  const extractDisabled = isMarkdown || (hasTranscript && !shouldForce)
+  const transformDisabled = hasTransformed && !shouldForce
+  const ingestDisabled = hasIngested && !shouldForce
+  
+  // Button nur aktivieren wenn mindestens ein Schritt gewaehlt UND keine Ladeoperation laeuft
+  const isTemplateLoading = shouldTransform && props.isLoadingTemplates
+  const canStart = (shouldExtract || shouldTransform || shouldIngest) && !isTemplateLoading
+
+  // Zaehle aktive Schritte
+  const enabledCount = [shouldExtract, shouldTransform, shouldIngest].filter(Boolean).length
+  const totalSteps = isMarkdown ? 2 : 3
 
   const start = React.useCallback(async () => {
     if (!canStart) {
-      toast.error("Keine Schritte ausgewählt", { description: "Bitte mindestens einen Schritt auswählen." })
+      toast.error("Keine Schritte ausgewaehlt", { description: "Bitte mindestens einen Schritt auswaehlen." })
       return
     }
 
-    if (canTransform && !isNonEmptyString(props.templateName)) {
-      toast.error("Template fehlt", { description: "Bitte ein Template auswählen, oder Transformation deaktivieren." })
+    if (shouldTransform && !isNonEmptyString(props.templateName)) {
+      toast.error("Template fehlt", { description: "Bitte ein Template auswaehlen, oder Transformation deaktivieren." })
       return
     }
 
@@ -95,115 +191,247 @@ export function PipelineSheet(props: PipelineSheetProps) {
     } finally {
       setIsSubmitting(false)
     }
-  }, [canStart, canTransform, props, shouldExtract, shouldForce, shouldIngest, shouldTransform, isMarkdown])
+  }, [canStart, props, shouldExtract, shouldForce, shouldIngest, shouldTransform, isMarkdown])
+
+  // Step-Definitionen fuer das Rendering
+  const steps = [
+    {
+      id: 1,
+      key: "extract",
+      title: "Transkript erstellen",
+      description: isMarkdown 
+        ? "Textquelle vorhanden, Transkript wird uebersprungen." 
+        : hasTranscript && !shouldForce
+          ? "Bereits vorhanden (wird uebersprungen)."
+          : "Erzeugt ein moeglichst originalgetreues Transkript aus der Quelle.",
+      icon: <FileText className="size-5" />,
+      enabled: shouldExtract,
+      setEnabled: setShouldExtract,
+      disabled: extractDisabled,
+      hasExisting: hasTranscript && !isMarkdown,
+      hidden: isMarkdown,
+    },
+    {
+      id: 2,
+      key: "transform",
+      title: "Artefakte generieren",
+      description: hasTransformed && !shouldForce
+        ? "Bereits vorhanden. Aktiviere Ueberschreiben um neu zu erstellen."
+        : "Erzeugt aus dem Transkript publizierbare Metadaten und Inhalte.",
+      icon: <Sparkles className="size-5" />,
+      enabled: shouldTransform,
+      setEnabled: setShouldTransform,
+      disabled: transformDisabled,
+      hasOptions: true,
+      hasExisting: hasTransformed,
+    },
+    {
+      id: 3,
+      key: "ingest",
+      title: "Story publizieren",
+      description: hasIngested && !shouldForce
+        ? "Bereits vorhanden. Aktiviere Ueberschreiben um neu zu erstellen."
+        : "Veroeffentlicht aus den Artefakten eine Story und indiziert Inhalte fuer RAG und Chat.",
+      icon: <Upload className="size-5" />,
+      enabled: shouldIngest,
+      setEnabled: setShouldIngest,
+      disabled: ingestDisabled,
+      hasExisting: hasIngested,
+    },
+  ]
+
+  // Filtere versteckte Schritte (z.B. Markdown hat keinen Extract-Schritt)
+  const visibleSteps = steps.filter(s => !s.hidden)
 
   return (
     <Sheet open={props.isOpen} onOpenChange={props.onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-lg">
+      <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
         <SheetHeader className="pr-10">
-          <SheetTitle>Aufbereiten &amp; Publizieren</SheetTitle>
-          <SheetDescription className="truncate">
+          <SheetTitle className="text-xl">Aufbereiten &amp; Publizieren</SheetTitle>
+          <SheetDescription className="text-primary font-medium truncate">
             {props.sourceFileName}
           </SheetDescription>
         </SheetHeader>
 
-        <div className="mt-5 space-y-5">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Zielsprache</Label>
-              <Select value={props.targetLanguage} onValueChange={props.onTargetLanguageChange}>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="de" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="de">de</SelectItem>
-                  <SelectItem value="en">en</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Template (optional)</Label>
-              {props.isLoadingTemplates ? (
-                <Skeleton className="h-9 w-full" />
-              ) : (
-                <Select value={templateSelectValue} onValueChange={(v) => props.onTemplateNameChange(v === "__none__" ? "" : v)}>
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="—" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {/* Radix Select: value must not be empty string. Use sentinel for "no template". */}
-                    <SelectItem value="__none__">—</SelectItem>
-                    {props.templates.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {t}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
+        <div className="py-4">
+          {/* Steps Header */}
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-foreground">Umsetzungsschritte</h3>
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+              {enabledCount} von {totalSteps} aktiv
+            </span>
           </div>
 
-          <div className="space-y-3 rounded-md border p-3">
-            <div className="text-sm font-medium">Pipeline</div>
-            <div className="space-y-3">
-              <div className={`flex items-start gap-3 ${isMarkdown ? "opacity-50" : ""}`}>
-                <Checkbox 
-                  checked={shouldExtract} 
-                  onCheckedChange={(v) => !isMarkdown && setShouldExtract(v === true)} 
-                  id="step-extract"
-                  disabled={isMarkdown}
+          {/* Steps Container with Timeline */}
+          <div>
+            {/* Steps - Timeline-Linie ist relativ zu diesem Container */}
+            <div className="relative space-y-3">
+              {/* Timeline line - durchgehend, verbindet alle Kreise */}
+              {visibleSteps.length > 1 && (
+                <div 
+                  className="absolute w-0.5 bg-border pointer-events-none"
+                  style={{ 
+                    left: '37px', // p-4 (16px) + halbe Kreisbreite (22px) - halbe Linienbreite (1px) = 37px
+                    top: '38px', // p-4 (16px) + halber Kreis (22px) = Mitte erster Kreis
+                    bottom: '54px' // p-4 (16px) + halber Kreis (22px) + extra Padding = Mitte letzter Kreis
+                  }} 
                 />
-                <div className="space-y-0.5">
-                  <Label htmlFor="step-extract" className={isMarkdown ? "cursor-not-allowed" : ""}>{step1Label}</Label>
-                  <div className="text-xs text-muted-foreground">
-                    {isMarkdown 
-                      ? "Textquelle vorhanden, Extraktion übersprungen." 
-                      : "Erzeugt ein Transcript/Markdown aus der Quelle (Shadow‑Twin)."}
+              )}
+              {visibleSteps.map((step, index) => (
+                <Collapsible key={step.key} defaultOpen={step.hasOptions && step.enabled}>
+                  <div
+                    className={cn(
+                      "relative rounded-lg border transition-all duration-200",
+                      step.enabled 
+                        ? "bg-transparent border-border shadow-sm" 
+                        : "bg-transparent border-transparent opacity-60",
+                      step.disabled && "cursor-not-allowed"
+                    )}
+                  >
+                    {/* Step Header */}
+                    <div className="flex items-start gap-4 p-4">
+                      {/* Step Number Circle - solider Hintergrund und Border damit Linie nicht durchscheint */}
+                      <div
+                        className={cn(
+                          "relative z-10 flex size-11 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                          step.enabled
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-white dark:bg-zinc-900 text-muted-foreground border-gray-300 dark:border-zinc-600"
+                        )}
+                      >
+                        <span className="text-sm font-bold">{isMarkdown ? index + 1 : step.id}</span>
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0 pt-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={cn(
+                            "transition-colors",
+                            step.enabled ? "text-primary" : "text-muted-foreground"
+                          )}>
+                            {step.icon}
+                          </span>
+                          <h4 className={cn(
+                            "font-semibold transition-colors",
+                            step.enabled ? "text-foreground" : "text-muted-foreground"
+                          )}>
+                            {step.title}
+                          </h4>
+                          {step.hasExisting && (
+                            <span className="flex items-center gap-1 text-xs text-green-600">
+                              <Check className="h-3 w-3" /> Vorhanden
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {step.description}
+                        </p>
+                      </div>
+
+                      {/* Toggle */}
+                      <div className="flex items-center gap-2 pt-1">
+                        {step.hasOptions && step.enabled && (
+                          <CollapsibleTrigger asChild>
+                            <Button variant="ghost" size="sm" className="size-8 p-0">
+                              <ChevronDown className="size-4 transition-transform [[data-state=open]_&]:rotate-180" />
+                              <span className="sr-only">Optionen anzeigen</span>
+                            </Button>
+                          </CollapsibleTrigger>
+                        )}
+                        <Switch
+                          checked={step.enabled}
+                          onCheckedChange={(v) => !step.disabled && step.setEnabled(v)}
+                          disabled={step.disabled}
+                          aria-label={`${step.title} ${step.enabled ? "deaktivieren" : "aktivieren"}`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Collapsible Options for Transform step - kompaktes Layout, buendig mit Text */}
+                    {step.hasOptions && (
+                      <CollapsibleContent>
+                        <div className={cn(
+                          "pb-3 pt-0",
+                          !step.enabled && "pointer-events-none"
+                        )}>
+                          {/* ml-[76px] = p-4 (16px) + Kreis (44px) + gap-4 (16px) = buendig mit Text */}
+                          <div className="flex items-center gap-3 ml-[76px] pr-4">
+                            <div className="flex items-center gap-2">
+                              <Label htmlFor="template" className="text-xs text-muted-foreground whitespace-nowrap">
+                                Vorlage
+                              </Label>
+                              {props.isLoadingTemplates ? (
+                                <Skeleton className="h-8 w-28" />
+                              ) : (
+                                <Select value={templateSelectValue} onValueChange={(v) => props.onTemplateNameChange(v === "__none__" ? "" : v)}>
+                                  <SelectTrigger id="template" className="h-8 w-32 text-xs">
+                                    <SelectValue placeholder="Waehlen..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {props.templates.map((t) => (
+                                      <SelectItem key={t} value={t} className="text-xs">
+                                        {t}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Label htmlFor="language" className="text-xs text-muted-foreground whitespace-nowrap">
+                                Sprache
+                              </Label>
+                              <Select value={props.targetLanguage} onValueChange={props.onTargetLanguageChange}>
+                                <SelectTrigger id="language" className="h-8 w-24 text-xs">
+                                  <SelectValue placeholder="de" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="de" className="text-xs">Deutsch</SelectItem>
+                                  <SelectItem value="en" className="text-xs">English</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        </div>
+                      </CollapsibleContent>
+                    )}
                   </div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <Checkbox checked={shouldTransform} onCheckedChange={(v) => setShouldTransform(v === true)} id="step-transform" />
-                <div className="space-y-0.5">
-                  <Label htmlFor="step-transform">Transformation</Label>
-                  <div className="text-xs text-muted-foreground">Wendet ein Template an und erzeugt eine publizierbare Fassung.</div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <Checkbox checked={shouldIngest} onCheckedChange={(v) => setShouldIngest(v === true)} id="step-ingest" />
-                <div className="space-y-0.5">
-                  <Label htmlFor="step-ingest">Ingestion</Label>
-                  <div className="text-xs text-muted-foreground">Indexiert/aktualisiert Inhalte für RAG/Chat.</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-3 flex items-start gap-3 border-t pt-3">
-              <Checkbox checked={shouldForce} onCheckedChange={(v) => setShouldForce(v === true)} id="step-force" />
-              <div className="space-y-0.5">
-                <Label htmlFor="step-force">Erzwingen</Label>
-                <div className="text-xs text-muted-foreground">Ignoriert Cache/„already done“ und führt ausgewählte Schritte erneut aus.</div>
-              </div>
+                </Collapsible>
+              ))}
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2">
-            <Button variant="outline" onClick={() => props.onOpenChange(false)}>
-              Schließen
-            </Button>
-            <Button onClick={() => void start()} disabled={isSubmitting}>
-              Jetzt starten
-            </Button>
+          {/* Force Overwrite Option */}
+          <div className="mt-6 flex items-center justify-between rounded-lg border bg-muted/30 p-4">
+            <div className="space-y-0.5">
+              <Label htmlFor="force-overwrite" className="text-sm font-medium cursor-pointer">
+                Bestehende Assets ueberschreiben
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {shouldForce 
+                  ? "Werden neu generiert (ueberschrieben)." 
+                  : "Wenn vorhanden, diesen Schritt ueberspringen."}
+              </p>
+            </div>
+            <Switch
+              id="force-overwrite"
+              checked={shouldForce}
+              onCheckedChange={handleForceChange}
+            />
           </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 pt-4 border-t">
+          <Button variant="outline" onClick={() => props.onOpenChange(false)}>
+            Schliessen
+          </Button>
+          <Button onClick={() => void start()} disabled={isSubmitting || !canStart}>
+            <Check className="size-4 mr-2" />
+            {isTemplateLoading ? "Lade..." : "Jetzt starten"}
+          </Button>
         </div>
       </SheetContent>
     </Sheet>
   )
 }
-
-
-

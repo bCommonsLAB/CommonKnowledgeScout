@@ -7,6 +7,8 @@
  * Namenskonventionen:
  * - Transcript: {baseName}.{language}.md (z.B. "audio.de.md")
  * - Transformation: {baseName}.{templateName}.{language}.md (z.B. "audio.Besprechung.de.md")
+ * - Canonical: {baseName}.canonical.{language}.md (z.B. "document.canonical.de.md")
+ * - Raw: {baseName}.raw.{ext} (z.B. "document.raw.html", "document.raw.csv")
  * 
  * WICHTIG: Diese Konventionen gelten sowohl für Sibling-Dateien als auch für Dateien im Dot-Folder.
  * 
@@ -90,10 +92,36 @@ export function parseArtifactName(
   // Entferne Extension
   const withoutExt = fileName.replace(/\.md$/i, '');
   
-  // Prüfe Pattern: .{template}.{lang} oder .{lang}
+  // Prüfe Pattern: .{template}.{lang}, .canonical.{lang}, .{lang}, oder .raw.{ext}
   let targetLanguage: string | null = null;
   let templateName: string | null = null;
   let kind: ArtifactKind | null = null;
+  
+  // Prüfe zuerst auf Raw-Artefakt: {baseName}.raw.{ext}
+  if (withoutExt.endsWith('.raw') || withoutExt.includes('.raw.')) {
+    kind = 'raw';
+    // targetLanguage bleibt null für Raw-Artefakte
+    return {
+      kind,
+      targetLanguage,
+      templateName,
+      baseName,
+    };
+  }
+  
+  // Prüfe auf Canonical-Artefakt: {baseName}.canonical.{lang}
+  const canonicalPattern = /\.canonical\.([a-z]{2})$/i;
+  const canonicalMatch = withoutExt.match(canonicalPattern);
+  if (canonicalMatch) {
+    kind = 'canonical';
+    targetLanguage = canonicalMatch[1].toLowerCase();
+    return {
+      kind,
+      targetLanguage,
+      templateName,
+      baseName,
+    };
+  }
   
   // Suche nach Language-Suffix (von hinten)
   for (const lang of KNOWN_LANGUAGES) {
@@ -160,12 +188,22 @@ export function buildArtifactName(
   if (key.kind === 'transcript') {
     // Transcript: {baseName}.{language}.md
     return `${sourceBaseName}.${key.targetLanguage}.md`;
-  } else {
+  } else if (key.kind === 'transformation') {
     // Transformation: {baseName}.{templateName}.{language}.md
     if (!key.templateName) {
       throw new Error('templateName is required for transformation artifacts');
     }
     return `${sourceBaseName}.${key.templateName}.${key.targetLanguage}.md`;
+  } else if (key.kind === 'canonical') {
+    // Canonical: {baseName}.canonical.{language}.md
+    return `${sourceBaseName}.canonical.${key.targetLanguage}.md`;
+  } else if (key.kind === 'raw') {
+    // Raw: {baseName}.raw.{ext}
+    // Extension wird aus sourceFileName extrahiert oder als Parameter übergeben
+    const sourceExt = path.parse(sourceFileName).ext || '.txt';
+    return `${sourceBaseName}.raw${sourceExt}`;
+  } else {
+    throw new Error(`Unsupported artifact kind: ${key.kind}`);
   }
 }
 

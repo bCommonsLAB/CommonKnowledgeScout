@@ -23,7 +23,7 @@ import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import { deleteShadowTwinBySourceId } from '@/lib/repositories/shadow-twin-repo'
 
-export type IntegrationTestFileKind = 'pdf' | 'audio'
+export type IntegrationTestFileKind = 'pdf' | 'audio' | 'markdown' | 'txt' | 'website'
 
 export interface PdfTestFile {
   itemId: string;
@@ -97,10 +97,19 @@ export async function listPdfTestFiles(args: ListPdfTestFilesArgs): Promise<PdfT
     }))
 }
 
-function detectFileKind(name: string, mimeType: string | undefined): IntegrationTestFileKind | null {
+export function detectFileKind(name: string, mimeType: string | undefined): IntegrationTestFileKind | null {
   const n = (name || '').toLowerCase()
   const mt = (mimeType || '').toLowerCase()
   if (n.endsWith('.pdf') || mt === 'application/pdf') return 'pdf'
+
+  // Markdown
+  if (n.endsWith('.md') || n.endsWith('.mdx') || mt === 'text/markdown' || mt === 'application/markdown') return 'markdown'
+
+  // TXT (Plain Text)
+  if (n.endsWith('.txt') || n.endsWith('.log') || mt === 'text/plain') return 'txt'
+
+  // Website/HTML
+  if (n.endsWith('.html') || n.endsWith('.htm') || mt === 'text/html' || mt === 'application/xhtml+xml') return 'website'
 
   // Audio (minimaler Satz, erweiterbar)
   if (mt.startsWith('audio/')) return 'audio'

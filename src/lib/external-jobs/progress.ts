@@ -125,11 +125,15 @@ export async function handleProgressIfAny(
     bumpWatchdog(jobId, extendedTimeout)
     bufferLog(jobId, { phase: phase || 'progress', progress: typeof progressValue === 'number' ? Math.max(0, Math.min(100, progressValue)) : undefined, message })
     try { await repo.traceAddEvent(jobId, { spanId: 'extract', name: 'progress', attributes: { phase: phase || 'progress', progress: progressValue, message, workerId } }) } catch {}
+    
+    // SSE-Event: Verwende 'extract' als logische Phase (nicht den Secretary-Status wie 'running')
+    // Die Secretary-Status-Werte (running, initializing, postprocessing) sind fuer Trace-Logging,
+    // aber fuer SSE-Events verwenden wir die logische Phase
     getJobEventBus().emitUpdate(job.userEmail, {
       type: 'job_update',
       jobId,
       status: 'running',
-      phase: phase || 'progress',
+      phase: 'extract', // Logische Phase, nicht Secretary-Status
       progress: typeof progressValue === 'number' ? Math.max(0, Math.min(100, progressValue)) : undefined,
       message,
       updatedAt: new Date().toISOString(),

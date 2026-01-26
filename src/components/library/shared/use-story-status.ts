@@ -1,8 +1,10 @@
 "use client"
 
 import * as React from "react"
+import { useAtomValue } from "jotai"
 
 import type { FrontendShadowTwinState } from "@/atoms/shadow-twin-atom"
+import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom"
 import type { StorageItem } from "@/lib/storage/types"
 import { getStoryMediaType, getTextStepLabel, type StoryStepStatus } from "@/components/library/shared/story-status"
 
@@ -53,6 +55,9 @@ export function useStoryStatus(args: UseStoryStatusArgs): UseStoryStatusResult {
     return transformed ? toIso(transformed.metadata.modifiedAt) : undefined
   }, [args.shadowTwinState?.transformed])
 
+  // Trigger-Atom abonnieren, um bei Job-Abschluss neu zu laden
+  const shadowTwinTrigger = useAtomValue(shadowTwinAnalysisTriggerAtom)
+
   const shouldFetchPublish = Boolean(args.file && (hasTransform || hasText))
   const [publishData, setPublishData] = React.useState<IngestionStatusCompactDto | null>(null)
   const [publishError, setPublishError] = React.useState<string | null>(null)
@@ -70,7 +75,8 @@ export function useStoryStatus(args: UseStoryStatusArgs): UseStoryStatusResult {
       if (!args.libraryId) return
       if (!args.file) return
 
-      const cacheKey = `${args.libraryId}:${args.file.id}:${docModifiedAt || ""}`
+      // Cache-Key enthaelt auch den Trigger-Wert, damit bei Job-Abschluss neu geladen wird
+      const cacheKey = `${args.libraryId}:${args.file.id}:${docModifiedAt || ""}:${shadowTwinTrigger}`
       const cached = ingestionCache.get(cacheKey)
       if (cached && Date.now() - cached.at < INGESTION_CACHE_TTL_MS) {
         setPublishData(cached.value)
@@ -104,7 +110,8 @@ export function useStoryStatus(args: UseStoryStatusArgs): UseStoryStatusResult {
     return () => {
       cancelled = true
     }
-  }, [args.libraryId, args.file, docModifiedAt, shouldFetchPublish])
+    // shadowTwinTrigger: Bei Job-Abschluss wird die Ingestion-Status neu geladen
+  }, [args.libraryId, args.file, docModifiedAt, shouldFetchPublish, shadowTwinTrigger])
 
   const steps = React.useMemo<StoryStepStatus[]>(() => {
     const textLabel = getTextStepLabel(mediaType)

@@ -13,6 +13,7 @@ import type { ExternalJob } from '@/types/external-job'
 import type { StorageProvider } from '@/lib/storage/types'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
+import { getJobEventBus } from '@/lib/events/job-event-bus'
 import { preprocessorTransformTemplate } from '@/lib/external-jobs/preprocessor-transform-template'
 import { decideTemplateRun } from '@/lib/external-jobs/template-decision'
 import { runTemplateTransform } from '@/lib/external-jobs/template-run'
@@ -630,6 +631,22 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
 
   try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_step_start' }) } catch {}
   await repo.updateStep(jobId, 'transform_template', { status: 'running', startedAt: new Date() })
+  
+  // SSE-Event: Template-Phase gestartet
+  try {
+    getJobEventBus().emitUpdate(job.userEmail, {
+      type: 'job_update',
+      jobId,
+      status: 'running',
+      phase: 'transform',
+      progress: 20,
+      updatedAt: new Date().toISOString(),
+      message: 'Template-Transformation gestartet',
+      jobType: job.job_type,
+      fileName: job.correlation?.source?.name,
+      sourceItemId: job.correlation?.source?.itemId,
+    })
+  } catch {}
 
   let metadataFromTemplate: Record<string, unknown> | null = null
   let picked: { templateContent: string; templateName: string; isPreferred: boolean } | null = null
@@ -710,6 +727,23 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     }
 
     const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
+    
+    // SSE-Event: Transformation wird durchgefuehrt
+    try {
+      getJobEventBus().emitUpdate(job.userEmail, {
+        type: 'job_update',
+        jobId,
+        status: 'running',
+        phase: 'transform',
+        progress: 35,
+        updatedAt: new Date().toISOString(),
+        message: 'Transformation wird durchgefuehrt...',
+        jobType: job.job_type,
+        fileName: job.correlation?.source?.name,
+        sourceItemId: job.correlation?.source?.itemId,
+      })
+    } catch {}
+    
     const tr = await runTemplateTransform({ ctx, extractedText: extractedText || '', templateContent, targetLanguage: lang })
     metadataFromTemplate = tr.meta as unknown as Record<string, unknown> | null
     if (metadataFromTemplate) {
@@ -722,6 +756,22 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
       throw new Error(errorMsg)
     }
     try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_step_after_transform', attributes: { hasMeta: !!metadataFromTemplate } }) } catch {}
+    
+    // SSE-Event: Transformation abgeschlossen
+    try {
+      getJobEventBus().emitUpdate(job.userEmail, {
+        type: 'job_update',
+        jobId,
+        status: 'running',
+        phase: 'transform',
+        progress: 70,
+        updatedAt: new Date().toISOString(),
+        message: 'Transformation abgeschlossen, speichere Artefakt...',
+        jobType: job.job_type,
+        fileName: job.correlation?.source?.name,
+        sourceItemId: job.correlation?.source?.itemId,
+      })
+    } catch {}
   } catch (err) {
     // Prüfe ob es ein Template-Not-Found-Fehler ist
     const errorMessage = err instanceof Error ? err.message : String(err)
@@ -1318,6 +1368,22 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
       }
     } catch {}
     try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'template_step_completed' }) } catch {}
+    
+    // SSE-Event: Template-Phase abgeschlossen
+    try {
+      getJobEventBus().emitUpdate(job.userEmail, {
+        type: 'job_update',
+        jobId,
+        status: 'running',
+        phase: 'transform',
+        progress: 90,
+        updatedAt: new Date().toISOString(),
+        message: 'Artefakt gespeichert',
+        jobType: job.job_type,
+        fileName: job.correlation?.source?.name,
+        sourceItemId: job.correlation?.source?.itemId,
+      })
+    } catch {}
   }
 
   // WICHTIG: Bilder-Verarbeitung wurde in Phase 1 (Extract) verschoben

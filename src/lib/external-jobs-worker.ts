@@ -71,6 +71,19 @@ class ExternalJobsWorkerSingleton {
     FileLogger.info('jobs-worker', 'Worker gestoppt', { workerId: this.workerId });
   }
 
+  /**
+   * Triggert sofort einen Tick, um wartende Jobs ohne Verzoegerung zu verarbeiten.
+   * Startet den Worker automatisch, wenn er nicht laeuft.
+   */
+  async tickNow(): Promise<void> {
+    // Worker starten falls nicht laeuft
+    if (this.state !== 'running') {
+      this.start();
+    }
+    // Sofort einen Tick ausfuehren
+    await this.tick();
+  }
+
   private async tick(): Promise<void> {
     if (this.state !== 'running') return;
     this.stats.lastTickAt = Date.now();

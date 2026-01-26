@@ -64,7 +64,7 @@ async function main() {
     // Wenn keine testCaseIds übergeben werden, interpretiert die API das als "alle Testfälle".
     testCaseIds: testCaseIds,
     fileIds,
-    fileKind: (fileKind === 'audio' || fileKind === 'pdf') ? fileKind : undefined,
+    fileKind: (fileKind === 'audio' || fileKind === 'pdf' || fileKind === 'markdown' || fileKind === 'txt' || fileKind === 'website') ? fileKind : undefined,
     jobTimeoutMs: Number.isFinite(jobTimeoutMs) ? jobTimeoutMs : undefined,
     templateName: templateName === 'auto' ? undefined : templateName,
   }

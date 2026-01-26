@@ -18,9 +18,14 @@
  * Art des Artefakts.
  * 
  * - 'transcript': Authentisches Abbild der Quelle (UC-A), Autor = Quelle
+ *   - Für Audio/PDF: Transkription/Extraktion → Markdown
+ *   - Für Textquellen: wird zu 'canonical' (Normalisierung)
  * - 'transformation': User-autored, Template-basierte Interpretation (UC-B)
+ * - 'canonical': Normalisiertes Markdown mit Frontmatter (Output von Normalize-Schritt)
+ *   - Für Textquellen (Markdown/TXT/Website/CSV): Normalisierung → Canonical Markdown
+ * - 'raw': Original-Rohdaten als lossless Backup (HTML, CSV, TXT, etc.)
  */
-export type ArtifactKind = 'transcript' | 'transformation';
+export type ArtifactKind = 'transcript' | 'transformation' | 'canonical' | 'raw';
 
 /**
  * ID der Quelle (Storage-Item-ID).

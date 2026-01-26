@@ -6,6 +6,7 @@ import { useAtomValue } from "jotai"
 import { IngestionBookDetail } from "@/components/library/ingestion-book-detail"
 import { IngestionSessionDetail } from "@/components/library/ingestion-session-detail"
 import { librariesAtom } from "@/atoms/library-atom"
+import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom"
 import { getDetailViewType } from "@/lib/templates/detail-view-type-utils"
 
 interface IngestionDetailPanelProps {
@@ -21,6 +22,9 @@ export function IngestionDetailPanel({ libraryId, fileId }: IngestionDetailPanel
   const libraries = useAtomValue(librariesAtom)
   const activeLibrary = libraries.find((lib) => lib.id === libraryId)
   const libraryConfig = activeLibrary?.config?.chat
+
+  // Trigger-Atom abonnieren, um bei Job-Abschluss neu zu laden
+  const shadowTwinTrigger = useAtomValue(shadowTwinAnalysisTriggerAtom)
 
   const [meta, setMeta] = React.useState<Record<string, unknown>>({})
   const [loading, setLoading] = React.useState(false)
@@ -57,7 +61,8 @@ export function IngestionDetailPanel({ libraryId, fileId }: IngestionDetailPanel
     return () => {
       cancelled = true
     }
-  }, [libraryId, fileId])
+    // shadowTwinTrigger: Bei Job-Abschluss werden die Daten neu geladen
+  }, [libraryId, fileId, shadowTwinTrigger])
 
   const viewType = React.useMemo(() => getDetailViewType(meta, libraryConfig), [meta, libraryConfig])
   const hasMeta = React.useMemo(() => Object.keys(meta).length > 0, [meta])
