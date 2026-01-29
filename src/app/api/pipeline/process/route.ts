@@ -103,54 +103,47 @@ async function createJobForItem(args: {
   }
   
   // Job erstellen
-  const job: ExternalJob = {
-    jobId,
-    jobSecretHash,
-    job_type: jobType,
-    operation: 'extract',
-    worker: 'secretary',
-    status: 'queued',
-    libraryId,
-    userEmail,
-    correlation,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    parameters: {
-      targetLanguage: config.targetLanguage,
-      ...(config.templateName ? { template: config.templateName } : {}),
-      phases: {
-        extract: mediaKind !== 'markdown' && config.phases.extract,
-        template: config.phases.template,
-        ingest: config.phases.ingest,
-      },
-      policies: finalPolicies,
-      generateCoverImage: config.generateCoverImage,
-      coverImagePrompt: config.coverImagePrompt,
-      // PDF-spezifische Optionen
-      ...(mediaKind === 'pdf' ? {
-        extractionMethod: request.extractionMethod || 'mistral_ocr',
-        includeOcrImages: request.includeOcrImages ?? true,
-        includePageImages: request.includePageImages ?? true,
-        useCache: request.useCache ?? true,
-      } : {}),
-    },
-    steps: [],
-    trace: { events: [], currentSpanId: 'job', spans: [] },
-    shadowTwinState: null,
-    ingestion: null,
-    payload: {},
-  }
+  // Steps basierend auf Medientyp festlegen
+  const extractStepName = getExtractStepName(jobType)
   
   try {
-    await repo.create(job)
-    
-    // Steps initialisieren
-    const extractStepName = getExtractStepName(jobType)
-    await repo.initializeSteps(jobId, [
-      { name: extractStepName, status: 'pending' },
-      { name: 'transform_template', status: 'pending' },
-      { name: 'ingest_rag', status: 'pending' },
-    ], job.parameters)
+    await repo.create({
+      jobId,
+      jobSecretHash,
+      job_type: jobType,
+      operation: 'extract',
+      worker: 'secretary',
+      status: 'queued',
+      libraryId,
+      userEmail,
+      correlation,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      steps: [
+        { name: extractStepName, status: 'pending' },
+        { name: 'transform_template', status: 'pending' },
+        { name: 'ingest_rag', status: 'pending' },
+      ],
+      parameters: {
+        targetLanguage: config.targetLanguage,
+        ...(config.templateName ? { template: config.templateName } : {}),
+        phases: {
+          extract: mediaKind !== 'markdown' && config.phases.extract,
+          template: config.phases.template,
+          ingest: config.phases.ingest,
+        },
+        policies: finalPolicies,
+        generateCoverImage: config.generateCoverImage,
+        coverImagePrompt: config.coverImagePrompt,
+        // PDF-spezifische Optionen
+        ...(mediaKind === 'pdf' ? {
+          extractionMethod: request.extractionMethod || 'mistral_ocr',
+          includeOcrImages: request.includeOcrImages ?? true,
+          includePageImages: request.includePageImages ?? true,
+          useCache: request.useCache ?? true,
+        } : {}),
+      },
+    } as unknown as Parameters<ExternalJobsRepository['create']>[0])
     
     return { jobId, mediaKind, jobType }
   } catch (error) {

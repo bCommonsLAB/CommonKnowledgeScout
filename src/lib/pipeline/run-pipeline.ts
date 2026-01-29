@@ -1,13 +1,22 @@
 /**
- * @fileoverview Pipeline Runner - Wiederverwendbare Funktionen zum Starten von Verarbeitungs-Pipelines
+ * @fileoverview Pipeline Runner - Funktionen zum Starten von Verarbeitungs-Pipelines
  * 
  * @description
- * Extrahiert die Pipeline-Start-Logik aus FlowActions, damit sie sowohl im Story Creator
- * als auch im Preview-Mode verwendet werden kann.
+ * Zentraler Einstiegspunkt für alle Pipeline-Operationen. Verwendet den
+ * Unified Endpoint `/api/pipeline/process` für alle Medientypen.
  * 
- * Unterstützt zwei Modi:
- * 1. Legacy-Modus: Einzelne Endpoints pro Medientyp (process-pdf, process-audio, etc.)
- * 2. Unified-Modus: Zentraler /api/pipeline/process Endpoint für alle Medientypen
+ * @example
+ * // Einzeldatei verarbeiten
+ * const { jobId } = await runPipelineForFile({
+ *   libraryId: 'xxx',
+ *   sourceFile: file,
+ *   parentId: 'yyy',
+ *   kind: 'pdf',
+ *   targetLanguage: 'de',
+ *   policies: { extract: 'do', metadata: 'do', ingest: 'do' }
+ * })
+ * 
+ * // Batch-Verarbeitung erfolgt direkt über /api/pipeline/process mit items[]
  * 
  * @module pipeline
  */
@@ -21,17 +30,20 @@ import type { PipelinePolicies } from "@/lib/pipeline/pipeline-config"
 import type { PipelineRequest, PipelineResponse, PipelineConfig } from "@/lib/pipeline/pipeline-config"
 // Zentrale Medientyp-Definitionen - Re-Export für Rückwärtskompatibilität
 export { type MediaKind, getMediaKind } from "@/lib/media-types"
-import { type MediaKind, getMediaKind } from "@/lib/media-types"
+import { type MediaKind } from "@/lib/media-types"
 
 // =============================================================================
-// UNIFIED ENDPOINT (NEU)
+// UNIFIED PIPELINE ENDPOINT
 // =============================================================================
 
 /**
  * Startet eine Pipeline über den Unified Endpoint
  * 
+ * Dieser Endpoint unterstützt alle Medientypen (PDF, Audio, Video, Markdown)
+ * und kann sowohl Einzeldateien als auch Batches verarbeiten.
+ * 
  * @param args Pipeline-Konfiguration
- * @returns Job-ID des erstellten Jobs
+ * @returns Job-ID und erkannter Medientyp
  */
 export async function runPipelineUnified(args: {
   libraryId: string
@@ -93,161 +105,18 @@ export async function runPipelineUnified(args: {
 }
 
 // =============================================================================
-// LEGACY ENDPOINTS (für Rückwärtskompatibilität)
+// CONVENIENCE WRAPPER
 // =============================================================================
 
-function isNonEmptyString(v: unknown): v is string {
-  return typeof v === "string" && v.trim().length > 0
-}
-
 /**
- * Enqueued einen PDF-Verarbeitungs-Job
- */
-async function enqueuePdfJob(args: {
-  libraryId: string
-  sourceFile: StorageItem
-  parentId: string
-  targetLanguage: string
-  templateName?: string
-  policies: PipelinePolicies
-  libraryConfigChatTargetLanguage?: TargetLanguage
-  libraryConfigPdfTemplate?: string
-  generateCoverImage?: boolean
-  coverImagePrompt?: string
-}): Promise<string> {
-  // Lade PDF-Defaults für diese Library (inkl. globaler Default mistral_ocr)
-  const defaults = getEffectivePdfDefaults(
-    args.libraryId,
-    loadPdfDefaults(args.libraryId),
-    {},
-    args.libraryConfigChatTargetLanguage,
-    args.libraryConfigPdfTemplate
-  )
-  const extractionMethod = typeof defaults.extractionMethod === 'string' ? defaults.extractionMethod : 'mistral_ocr'
-  const isMistralOcr = extractionMethod === 'mistral_ocr'
-  
-  const fd = new FormData()
-  fd.append("originalItemId", args.sourceFile.id)
-  fd.append("parentId", args.parentId)
-  fd.append("fileName", args.sourceFile.metadata.name)
-  fd.append("mimeType", args.sourceFile.metadata.mimeType || "application/pdf")
-  fd.append("targetLanguage", args.targetLanguage)
-  fd.append("extractionMethod", extractionMethod)
-  // Bei Mistral OCR: includePageImages immer true (erzwungen)
-  if (isMistralOcr) {
-    const includePageImages = defaults.includePageImages !== undefined ? defaults.includePageImages : true
-    const includeOcrImages = defaults.includeOcrImages !== undefined ? defaults.includeOcrImages : true
-    if (includePageImages) fd.append("includePageImages", "true")
-    if (includeOcrImages) fd.append("includeOcrImages", "true")
-  }
-  fd.append("useCache", String(defaults.useCache ?? true))
-  if (isNonEmptyString(args.templateName)) fd.append("template", args.templateName)
-  fd.append("policies", JSON.stringify(args.policies))
-  // Cover-Bild-Generierung (als Job-Parameter)
-  if (args.generateCoverImage) fd.append("generateCoverImage", "true")
-  if (isNonEmptyString(args.coverImagePrompt)) fd.append("coverImagePrompt", args.coverImagePrompt)
-
-  const res = await fetch("/api/secretary/process-pdf", {
-    method: "POST",
-    headers: { "X-Library-Id": args.libraryId },
-    body: fd,
-  })
-  const json = (await res.json().catch(() => ({} as Record<string, unknown>))) as {
-    error?: unknown
-    job?: { id?: unknown }
-  }
-  if (!res.ok) throw new Error(typeof json.error === "string" ? json.error : `HTTP ${res.status}`)
-  const jobId = typeof json.job?.id === "string" ? json.job.id : ""
-  if (!jobId) throw new Error("Job-ID fehlt in Response")
-  return jobId
-}
-
-/**
- * Enqueued einen Audio- oder Video-Verarbeitungs-Job
- */
-async function enqueueMediaJob(args: {
-  endpoint: "/api/secretary/process-audio/job" | "/api/secretary/process-video/job"
-  libraryId: string
-  sourceFile: StorageItem
-  parentId: string
-  targetLanguage: string
-  templateName?: string
-  policies: PipelinePolicies
-}): Promise<string> {
-  const res = await fetch(args.endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Library-Id": args.libraryId,
-    },
-    body: JSON.stringify({
-      originalItemId: args.sourceFile.id,
-      parentId: args.parentId,
-      fileName: args.sourceFile.metadata.name,
-      mimeType: args.sourceFile.metadata.mimeType,
-      targetLanguage: args.targetLanguage,
-      sourceLanguage: "auto",
-      useCache: true,
-      ...(isNonEmptyString(args.templateName) ? { template: args.templateName } : {}),
-      policies: args.policies,
-    }),
-  })
-  const json = (await res.json().catch(() => ({} as Record<string, unknown>))) as {
-    error?: unknown
-    job?: { id?: unknown }
-  }
-  if (!res.ok) throw new Error(typeof json.error === "string" ? json.error : `HTTP ${res.status}`)
-  const jobId = typeof json.job?.id === "string" ? json.job.id : ""
-  if (!jobId) throw new Error("Job-ID fehlt in Response")
-  return jobId
-}
-
-/**
- * Enqueued einen Text/Markdown-Verarbeitungs-Job
- */
-async function enqueueTextJob(args: {
-  libraryId: string
-  sourceFile: StorageItem
-  parentId: string
-  targetLanguage: string
-  templateName?: string
-  policies: PipelinePolicies
-  generateCoverImage?: boolean
-  coverImagePrompt?: string
-}): Promise<string> {
-  const res = await fetch("/api/secretary/process-text/job", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Library-Id": args.libraryId,
-    },
-    body: JSON.stringify({
-      originalItemId: args.sourceFile.id,
-      parentId: args.parentId,
-      fileName: args.sourceFile.metadata.name,
-      mimeType: args.sourceFile.metadata.mimeType,
-      targetLanguage: args.targetLanguage,
-      ...(isNonEmptyString(args.templateName) ? { template: args.templateName } : {}),
-      policies: args.policies,
-      // Cover-Bild-Generierung
-      ...(args.generateCoverImage ? { generateCoverImage: true } : {}),
-      ...(isNonEmptyString(args.coverImagePrompt) ? { coverImagePrompt: args.coverImagePrompt } : {}),
-    }),
-  })
-  const json = (await res.json().catch(() => ({} as Record<string, unknown>))) as {
-    error?: unknown
-    job?: { id?: unknown }
-  }
-  if (!res.ok) throw new Error(typeof json.error === "string" ? json.error : `HTTP ${res.status}`)
-  const jobId = typeof json.job?.id === "string" ? json.job.id : ""
-  if (!jobId) throw new Error("Job-ID fehlt in Response")
-  return jobId
-}
-
-/**
- * Startet eine Pipeline für eine Datei basierend auf deren Typ
+ * Startet eine Pipeline für eine einzelne Datei
  * 
- * @returns Job-ID des enqueued Jobs
+ * Diese Funktion ist ein Wrapper um runPipelineUnified() mit einer
+ * vereinfachten API, die Legacy-Parameter akzeptiert und in das
+ * PipelineConfig-Format konvertiert.
+ * 
+ * @param args Datei und Verarbeitungsoptionen
+ * @returns Job-ID des erstellten Jobs
  * @throws Error wenn die Pipeline nicht gestartet werden kann
  */
 export async function runPipelineForFile(args: {
@@ -265,67 +134,74 @@ export async function runPipelineForFile(args: {
   /** Optionaler Prompt für Cover-Bild-Generierung */
   coverImagePrompt?: string
 }): Promise<{ jobId: string }> {
-  const { libraryId, sourceFile, parentId, kind, targetLanguage, templateName, policies, libraryConfigChatTargetLanguage, libraryConfigPdfTemplate, generateCoverImage, coverImagePrompt } = args
+  const { libraryId, sourceFile, parentId, kind, targetLanguage, templateName, policies, generateCoverImage, coverImagePrompt } = args
 
   if (sourceFile.type !== "file") {
     throw new Error("Quelle ist keine Datei")
   }
 
-  let jobId = ""
-  if (kind === "pdf") {
-    jobId = await enqueuePdfJob({
-      libraryId,
-      sourceFile,
-      parentId,
-      targetLanguage,
-      templateName,
-      policies,
-      libraryConfigChatTargetLanguage,
-      libraryConfigPdfTemplate,
-      generateCoverImage,
-      coverImagePrompt,
-    })
-  } else if (kind === "audio") {
-    jobId = await enqueueMediaJob({
-      endpoint: "/api/secretary/process-audio/job",
-      libraryId,
-      sourceFile,
-      parentId,
-      targetLanguage,
-      templateName,
-      policies,
-    })
-  } else if (kind === "video") {
-    jobId = await enqueueMediaJob({
-      endpoint: "/api/secretary/process-video/job",
-      libraryId,
-      sourceFile,
-      parentId,
-      targetLanguage,
-      templateName,
-      policies,
-    })
-  } else if (kind === "markdown") {
-    // Bei Markdown: extract immer "ignore" erzwingen (Textquelle bereits vorhanden)
-    const markdownPolicies: PipelinePolicies = {
-      ...policies,
-      extract: "ignore",
-    }
-    jobId = await enqueueTextJob({
-      libraryId,
-      sourceFile,
-      parentId,
-      targetLanguage,
-      templateName,
-      policies: markdownPolicies,
-      generateCoverImage,
-      coverImagePrompt,
-    })
-  } else {
-    throw new Error(`Flow Actions sind aktuell nur für PDF/Audio/Video/Markdown vorgesehen (Dateityp: ${kind}).`)
+  // Unified Endpoint für alle Medientypen
+  // Konvertiere Legacy-Parameter in PipelineConfig-Format
+  const config: PipelineConfig = {
+    targetLanguage: targetLanguage as TargetLanguage,
+    templateName,
+    phases: {
+      // Bei Markdown ist Extract immer deaktiviert
+      extract: kind !== "markdown",
+      template: policies.metadata !== "ignore",
+      ingest: policies.ingest !== "ignore",
+    },
+    policies: {
+      extract: kind === "markdown" ? "ignore" : policies.extract,
+      metadata: policies.metadata,
+      ingest: policies.ingest,
+    },
+    generateCoverImage,
+    coverImagePrompt,
   }
 
-  // Worker-Tick triggern fuer sofortige Verarbeitung (best-effort, kein Fehler bei Misserfolg)
+  FileLogger.info('run-pipeline', 'Pipeline starten (Unified Endpoint)', {
+    libraryId,
+    fileName: sourceFile.metadata.name,
+    kind,
+    config,
+  })
+
+  // PDF-spezifische Optionen
+  let extractionMethod: string | undefined
+  let includeOcrImages: boolean | undefined
+  let includePageImages: boolean | undefined
+  let useCache: boolean | undefined
+
+  if (kind === "pdf") {
+    const defaults = getEffectivePdfDefaults(
+      libraryId,
+      loadPdfDefaults(libraryId),
+      {},
+      args.libraryConfigChatTargetLanguage,
+      args.libraryConfigPdfTemplate
+    )
+    extractionMethod = typeof defaults.extractionMethod === 'string' ? defaults.extractionMethod : 'mistral_ocr'
+    const isMistralOcr = extractionMethod === 'mistral_ocr'
+    if (isMistralOcr) {
+      includePageImages = defaults.includePageImages !== undefined ? defaults.includePageImages : true
+      includeOcrImages = defaults.includeOcrImages !== undefined ? defaults.includeOcrImages : true
+    }
+    useCache = defaults.useCache ?? true
+  }
+
+  const result = await runPipelineUnified({
+    libraryId,
+    sourceFile,
+    parentId,
+    config,
+    extractionMethod,
+    includeOcrImages,
+    includePageImages,
+    useCache,
+  })
+
+  // Worker-Tick triggern für sofortige Verarbeitung (best-effort, kein Fehler bei Misserfolg)
   try {
     void fetch("/api/external/jobs/worker", {
       method: "POST",
@@ -336,5 +212,5 @@ export async function runPipelineForFile(args: {
     // Worker-Trigger ist optional - Fehler ignorieren
   }
 
-  return { jobId }
+  return { jobId: result.jobId }
 }

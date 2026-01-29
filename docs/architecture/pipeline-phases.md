@@ -17,6 +17,81 @@ Die Dokumentenverarbeitung erfolgt in drei Phasen, die über External Jobs orche
 └──────────────────┴──────────────────────┴──────────────────────────────┘
 ```
 
+## Unified Pipeline Endpoint
+
+Alle Pipeline-Operationen laufen über einen zentralen Endpoint:
+
+```
+POST /api/pipeline/process
+```
+
+### Request-Format
+
+```typescript
+interface PipelineRequest {
+  libraryId: string
+  
+  // Einzeldatei ODER Batch
+  item?: PipelineItem           // Einzeldatei
+  items?: PipelineItem[]        // Batch (mehrere Dateien)
+  
+  config: PipelineConfig
+  batchName?: string            // Optional: Name für Batch-Verarbeitung
+  
+  // PDF-spezifische Optionen
+  extractionMethod?: string
+  includeOcrImages?: boolean
+  includePageImages?: boolean
+  useCache?: boolean
+}
+
+interface PipelineConfig {
+  targetLanguage: TargetLanguage
+  templateName?: string
+  phases: { extract: boolean; template: boolean; ingest: boolean }
+  policies: { extract: PhasePolicy; metadata: PhasePolicy; ingest: PhasePolicy }
+  generateCoverImage?: boolean
+  coverImagePrompt?: string
+}
+```
+
+### Response-Format
+
+```typescript
+interface PipelineResponse {
+  successCount: number
+  failureCount: number
+  jobs: Array<{ jobId: string; mediaKind: MediaKind }>
+  failures: Array<{ itemId: string; error: string }>
+}
+```
+
+### Verwendung im Code
+
+```typescript
+import { runPipelineForFile, runPipelineUnified } from "@/lib/pipeline/run-pipeline"
+
+// Einzeldatei (mit Convenience-Wrapper)
+const { jobId } = await runPipelineForFile({
+  libraryId,
+  sourceFile,
+  parentId,
+  kind: 'pdf',
+  targetLanguage: 'de',
+  policies: { extract: 'do', metadata: 'do', ingest: 'do' }
+})
+
+// Batch (direkter Endpoint-Aufruf)
+const response = await fetch('/api/pipeline/process', {
+  method: 'POST',
+  body: JSON.stringify({
+    libraryId,
+    items: files.map(f => ({ fileId: f.id, parentId, name: f.name })),
+    config: { targetLanguage: 'de', phases: { extract: true, template: true, ingest: true }, ... }
+  })
+})
+```
+
 ## Medientypen
 
 Die Pipeline unterstützt verschiedene Medientypen (definiert in `src/lib/media-types.ts`):
@@ -26,8 +101,13 @@ Die Pipeline unterstützt verschiedene Medientypen (definiert in `src/lib/media-
 | `pdf` | OCR via Secretary Service | Template-Transformation | RAG-Ingestion | PDF-Dokumente |
 | `audio` | Whisper-Transkription | Template-Transformation | RAG-Ingestion | Audio-Dateien |
 | `video` | Video-zu-Audio + Whisper | Template-Transformation | RAG-Ingestion | Video-Dateien |
-| `markdown` | **SKIP** (Text existiert) | Template-Transformation | RAG-Ingestion | Markdown/Text |
+| `markdown` | **SKIP** (Quelle = Transkript) | Template-Transformation | RAG-Ingestion | Markdown/Text |
 | `image` | OCR (geplant) | Template-Transformation | RAG-Ingestion | Bild-Dateien |
+
+### Markdown-Sonderfall
+
+Bei Markdown-Dateien ist die Quelldatei selbst das "Transkript". Die Extract-Phase wird übersprungen,
+und die Quelldatei wird direkt als Input für die Template-Transformation verwendet.
 
 ## Route-Architektur
 
@@ -170,7 +250,30 @@ interface ExternalJob {
 
 | Komponente | Beschreibung |
 |------------|--------------|
-| `PipelineSheet` | Dialog zur Pipeline-Konfiguration |
-| `FlowActions` | Pipeline-Steuerung im Flow-View |
-| `FilePreview` | Pipeline-Steuerung in der Datei-Vorschau |
-| `PdfBulkImportDialog` | Batch-Verarbeitung von Verzeichnissen |
+| `PipelineSheet` | Dialog zur Pipeline-Konfiguration (Phasen, Policies, Cover-Bild) |
+| `FlowActions` | Pipeline-Steuerung im Flow-View (Experten-Modus) |
+| `FilePreview` | Pipeline-Steuerung in der Datei-Vorschau (Einzeldatei) |
+| `MediaBatchDialog` | Batch-Verarbeitung von Verzeichnissen (alle Medientypen) |
+
+### MediaBatchDialog (ehemals PdfBulkImportDialog)
+
+Der Dialog für Batch-Verarbeitung unterstützt jetzt alle Medientypen:
+
+- Scannt Verzeichnisse nach unterstützten Dateien (PDF, Audio, Video, Markdown)
+- Verwendet die Library-Standardwerte für Template und Sprache
+- Ruft `/api/pipeline/process` mit `items[]` für Batch-Verarbeitung auf
+- Zeigt Fortschritt und Ergebnisse (Erfolge/Fehler) an
+
+## Legacy-Endpoints (Deprecated)
+
+Die folgenden Endpoints existieren noch, werden aber nicht mehr primär verwendet:
+
+| Endpoint | Medientyp | Status |
+|----------|-----------|--------|
+| `/api/secretary/process-pdf` | PDF | Deprecated |
+| `/api/secretary/process-audio/job` | Audio | Deprecated |
+| `/api/secretary/process-video/job` | Video | Deprecated |
+| `/api/secretary/process-text/job` | Markdown | Deprecated |
+| `/api/secretary/process-pdf/batch` | PDF (Batch) | Deprecated |
+
+**Empfehlung:** Für neue Entwicklungen immer `/api/pipeline/process` verwenden.

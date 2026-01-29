@@ -254,6 +254,30 @@ export async function loadShadowTwinMarkdown(
       }
     }
 
+    // Priorität 4: Fallback für Markdown-Quellen
+    // Bei Markdown-Dateien ist die Quelldatei selbst das "Transkript" - 
+    // kein separates Artefakt erforderlich
+    const sourceMediaType = job.correlation?.source?.mediaType
+    const isMarkdownSource = sourceMediaType === 'markdown' || 
+                             originalName.toLowerCase().endsWith('.md') ||
+                             job.job_type === 'text'
+    
+    if (isMarkdownSource && sourceItemId) {
+      FileLogger.info('phase-shadow-twin-loader', 'Markdown-Quelle als Transkript-Fallback verwenden', {
+        jobId,
+        purpose,
+        sourceItemId,
+        sourceName: originalName,
+        sourceMediaType,
+      })
+      
+      // Lade die Quelldatei direkt als "Transkript"
+      const result = await loadMarkdownById(ctx, provider, sourceItemId, originalName, originalName, lang, sourceItemId, parentId)
+      if (result) {
+        return { ...result, loadedArtifactKind: 'transcript' }
+      }
+    }
+
     // Kein Transkript gefunden
     FileLogger.warn('phase-shadow-twin-loader', 'Transkript nicht gefunden (forTemplateTransformation)', {
       jobId,
@@ -263,6 +287,8 @@ export async function loadShadowTwinMarkdown(
       lang,
       hasShadowTwinState: !!job.shadowTwinState,
       transcriptFilesCount: transcriptFiles?.length || 0,
+      isMarkdownSource,
+      sourceMediaType,
     })
     return null
 

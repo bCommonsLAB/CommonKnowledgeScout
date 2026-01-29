@@ -25,14 +25,18 @@ import { pdfOverridesAtom, getEffectivePdfDefaults } from '@/atoms/pdf-defaults'
 import { PdfPhaseSettings } from '@/components/library/pdf-phase-settings';
 import { Settings } from 'lucide-react';
 import { TARGET_LANGUAGE_DEFAULT } from '@/lib/chat/constants';
+// Zentrale Medientyp-Erkennung für alle unterstützten Dateitypen
+import { getMediaKind, isPipelineSupported, type MediaKind } from '@/lib/media-types';
 
+// Rückwärtskompatible Props-Benennung (Dialog unterstützt jetzt alle Medientypen)
 interface PdfBulkImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 interface ScanStats {
-  totalPdfs: number;
+  // Umbenannt für Medientyp-Neutralität
+  totalFiles: number;
   skippedExisting: number;
   toProcess: number;
 }
@@ -53,7 +57,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
   const [isEnqueuing, setIsEnqueuing] = useState(false);
   const [candidates, setCandidates] = useState<Array<{ file: StorageItem; parentId: string }>>([]);
   const [previewItems, setPreviewItems] = useState<Array<{ id: string; name: string; relPath: string; pages?: number }>>([]);
-  const [stats, setStats] = useState<ScanStats>({ totalPdfs: 0, skippedExisting: 0, toProcess: 0 });
+  const [stats, setStats] = useState<ScanStats>({ totalFiles: 0, skippedExisting: 0, toProcess: 0 });
   const [batchName, setBatchName] = useState<string>('');
 
   // Phasensteuerung: Standard nur Phase 1 (Extraktion)
@@ -101,7 +105,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
       try {
         items = await provider.listItemsById(current);
       } catch (error) {
-        FileLogger.error('PdfBulkImportDialog', 'Fehler beim Listen eines Ordners', { folderId: current, error });
+        FileLogger.error('MediaBatchDialog', 'Fehler beim Listen eines Ordners', { folderId: current, error });
         continue;
       }
 
@@ -110,9 +114,10 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
 
       const files = items.filter((i) => i.type === 'file');
       for (const file of files) {
-        const name = file.metadata.name.toLowerCase();
-        const isPdf = name.endsWith('.pdf') || file.metadata.mimeType?.toLowerCase() === 'application/pdf';
-        if (!isPdf) continue;
+        // Zentrale Medientyp-Erkennung: unterstützt PDF, Audio, Video, Markdown
+        const mediaKind = getMediaKind(file);
+        const isSupported = isPipelineSupported(mediaKind);
+        if (!isSupported) continue;
         total++;
 
         const base = getBaseName(file.metadata.name);
@@ -157,7 +162,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
         details.push({ id: file.id, name: file.metadata.name, relPath });
       }
       setPreviewItems(details);
-      setStats({ totalPdfs: result.total, skippedExisting: result.skipped, toProcess: result.selected.length });
+      setStats({ totalFiles: result.total, skippedExisting: result.skipped, toProcess: result.selected.length });
     } finally {
       setIsScanning(false);
     }
@@ -207,36 +212,48 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
         libraryConfigChatTargetLanguage,
         libraryConfigPdfTemplate
       );
+      
+      // Neues Unified Pipeline Payload-Format
       const payload = {
         libraryId: activeLibraryId,
         batchName: (batchName || '').trim() || undefined,
-        options: {
-          // targetLanguage wird bereits in getEffectivePdfDefaults bestimmt (inkl. Library-Config)
-          targetLanguage: typeof defaults.targetLanguage === 'string' ? defaults.targetLanguage : TARGET_LANGUAGE_DEFAULT,
-          // Globaler Default: mistral_ocr (wird bereits in getEffectivePdfDefaults angewendet)
-          extractionMethod: typeof defaults.extractionMethod === 'string' ? defaults.extractionMethod : 'mistral_ocr',
-          // Für Mistral OCR: Beide Parameter standardmäßig true (werden bereits in getEffectivePdfDefaults angewendet)
-          includeOcrImages: defaults.includeOcrImages,
-          includePageImages: defaults.includePageImages,
-          includeImages: defaults.includeImages ?? false, // Rückwärtskompatibilität
-          useCache: defaults.useCache ?? true,
-          template: typeof defaults.template === 'string' ? defaults.template : undefined,
-          // Neue Policies (explizit)
-          // Phase 1 ist immer 'do' im Batch; force via Checkbox
-          // Phase 2 abhängig von runMetaPhase und forceMeta, Phase 3 abhängig von runIngestionPhase
-          policies: {
-            extract: !!forceExtract ? 'force' : 'do',
-            metadata: !!runMetaPhase ? (forceMeta ? 'force' : 'do') : 'ignore',
-            ingest: !!runIngestionPhase ? 'do' : 'ignore',
+        // Pipeline-Konfiguration
+        config: {
+          // Phasen-Aktivierung
+          phases: {
+            extract: true, // Phase 1 immer aktiv im Batch
+            template: runMetaPhase,
+            ingest: runIngestionPhase,
           },
-          // Cover-Bild-Generierung (nur wenn Phase 2 aktiv)
+          // Policies
+          policies: {
+            extract: forceExtract ? 'force' : 'do',
+            metadata: runMetaPhase ? (forceMeta ? 'force' : 'do') : 'ignore',
+            ingest: runIngestionPhase ? 'do' : 'ignore',
+          },
+          // Template und Sprache
+          templateName: typeof defaults.template === 'string' ? defaults.template : undefined,
+          targetLanguage: typeof defaults.targetLanguage === 'string' ? defaults.targetLanguage : TARGET_LANGUAGE_DEFAULT,
+          // Cover-Bild (nur wenn Phase 2 aktiv)
           generateCoverImage: runMetaPhase && generateCoverImage,
-          // Cover-Bild-Prompt aus Library-Config (optional)
           coverImagePrompt: activeLibrary?.config?.chat?.coverImagePrompt,
         },
-        items: candidates.map(({ file, parentId }) => ({ fileId: file.id, parentId, name: file.metadata.name, mimeType: file.metadata.mimeType })),
+        // Items für Batch-Verarbeitung
+        items: candidates.map(({ file, parentId }) => ({ 
+          fileId: file.id, 
+          parentId, 
+          name: file.metadata.name, 
+          mimeType: file.metadata.mimeType 
+        })),
+        // PDF-spezifische Optionen (werden nur für PDFs verwendet)
+        extractionMethod: typeof defaults.extractionMethod === 'string' ? defaults.extractionMethod : 'mistral_ocr',
+        includeOcrImages: defaults.includeOcrImages ?? true,
+        includePageImages: defaults.includePageImages ?? true,
+        useCache: defaults.useCache ?? true,
       };
-      const requestPromise = fetch('/api/secretary/process-pdf/batch', {
+      
+      // Neuer Unified Pipeline Endpoint (unterstützt alle Medientypen)
+      const requestPromise = fetch('/api/pipeline/process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -249,9 +266,10 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
         toast({ title: 'Batch fehlgeschlagen', description: msg, variant: 'destructive' });
       } else {
         const json = await res.json().catch(() => ({} as Record<string, unknown>));
-        const okCount = Number((json as { okCount?: number }).okCount || 0);
-        const failCount = Number((json as { failCount?: number }).failCount || 0);
-        toast({ title: 'Batch gestartet', description: `Gestartet: ${okCount}, fehlgeschlagen: ${failCount}` });
+        // Neues Response-Format vom Unified Endpoint
+        const successCount = Number((json as { successCount?: number }).successCount || 0);
+        const failureCount = Number((json as { failureCount?: number }).failureCount || 0);
+        toast({ title: 'Batch gestartet', description: `Gestartet: ${successCount}, fehlgeschlagen: ${failureCount}` });
       }
     } finally {
       setIsEnqueuing(false);
@@ -263,13 +281,13 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
-            <span>PDF-Verzeichnis verarbeiten</span>
-            <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)} title="PDF-Standardwerte öffnen">
+            <span>Verzeichnis verarbeiten</span>
+            <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)} title="Standardwerte öffnen">
               <Settings className="h-4 w-4" />
             </Button>
           </DialogTitle>
           <DialogDescription>
-            Verwendet die PDF-Standardwerte der aktiven Library. Parameter können über das Zahnrad angepasst werden.
+            Verarbeitet alle unterstützten Dateitypen (PDF, Audio, Video, Markdown) im aktuellen Verzeichnis.
           </DialogDescription>
         </DialogHeader>
 
@@ -340,7 +358,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
             </div>
           </div>
 
-          {/* PDF-Standardwerte werden aus der Library geladen; Anpassung über das Zahnrad oben */}
+          {/* Standardwerte werden aus der Library geladen; Anpassung über das Zahnrad oben */}
 
           <div className="rounded-md border p-3">
             <div className="mb-2">
@@ -350,7 +368,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
             <div className="flex items-center justify-between text-sm">
               <div className="flex gap-4">
                 <div>
-                  <span className="text-muted-foreground">Gesamt PDFs:</span> <span className="font-medium">{stats.totalPdfs}</span>
+                  <span className="text-muted-foreground">Gesamt Dateien:</span> <span className="font-medium">{stats.totalFiles}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Ignoriert:</span> <span className="font-medium">{stats.skippedExisting}</span>
