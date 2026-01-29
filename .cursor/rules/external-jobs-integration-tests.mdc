@@ -1,0 +1,376 @@
+---
+description: External Jobs Pipeline und Integrationstests - Architektur, Phasen, Contracts
+globs: src/lib/external-jobs/**/*,src/lib/integration-tests/**/*,src/app/api/external/jobs/**/*,tests/unit/external-jobs/**/*
+alwaysApply: false
+---
+
+# External Jobs & Integrationstests
+
+## Was ist ein External Job?
+
+Ein **External Job** ist ein asynchroner Verarbeitungsauftrag, der Quelldateien (PDF, Audio, Markdown, etc.) durch eine Pipeline führt. Jobs werden in MongoDB persistiert und können über die UI oder CLI gestartet werden.
+
+## Pipeline-Phasen
+
+Jeder Job durchläuft bis zu 3 Phasen:
+
+### 1. Extract (Normalize)
+- **Ziel**: Quelldatei → Canonical Markdown
+- **PDF**: Mistral OCR → Markdown
+- **Audio**: Secretary Service → Transcript-Markdown
+- **Markdown/TXT**: Normalisierung (Frontmatter erzwingen)
+- **Website**: HTML → Markdown + Frontmatter
+
+### 2. Template (Transform by Template)
+- **Ziel**: Canonical Markdown → Strukturiertes Markdown mit Frontmatter
+- **Input**: Transcript/Extract aus Phase 1
+- **Prozess** (Secretary Service):
+  1. **Metadaten-Extraktion**: Aus Originaltext strukturierte Daten extrahieren
+  2. **Frage-Antwort-Generierung**: Template definiert Fragen, LLM generiert Antworten
+  3. **Textkomponenten erstellen**: Aus Antworten werden Story-Bausteine (Teaser, Summary, Intro, etc.)
+- **Output**: Vollständiges Markdown mit Frontmatter für Publikation
+
+```yaml
+# Beispiel Template-Output (Frontmatter)
+title: "Lokale Logistikzentren für Warenzustellung"
+teaser: "Ein neues System könnte den Verkehr beruhigen..."
+summary: "Die Maßnahme schlägt vor..."
+worum: "Es geht darum, die Logistik neu zu ordnen..."
+was: "Die private Warenzustellung soll..."
+warum: "Durch die Bündelung können Fahrten eingespart..."
+```
+
+### 3. Ingest (Publikation + Vector Search)
+- **Ziel**: Markdown → Vector Search + Publikation
+- **Zwei Aspekte**:
+
+#### 3a. Vector Search (RAG)
+- **Chunking**: Text in semantische Chunks aufteilen
+- **Embedding**: Chunks vektorisieren (OpenAI/Azure)
+- **Upsert**: In MongoDB Vector Search speichern
+- **Verwendung**: Chat-RAG für Frage-Antwort
+
+#### 3b. Publikation (Explorer Mode)
+- **Story/Artikel erstellen**: Aus Template-Output wird publizierbare Story
+- **Explorer Mode**: Finale Inhalte im Frontend anzeigen
+- **Kapitel-Struktur**: Chapters + TOC aus Markdown extrahieren
+- **Cover-Image**: Generiert oder hochgeladen via Shadow-Twin Binary Fragments
+
+## Secretary Service (Externer LLM-Dienst)
+
+Der **Secretary Service** ist ein separater Microservice, der LLM-Aufgaben ausführt:
+
+| Endpoint | Verwendung |
+|----------|------------|
+| `/transcribe` | Audio → Transcript (Whisper) |
+| `/extract` | PDF/Image → Markdown (Mistral OCR) |
+| `/transform-by-template` | Markdown + Template → Strukturiertes Markdown |
+
+**Wichtig**: Der Secretary Service ist stateless. Alle Persistenz erfolgt im CommonKnowledgeScout Backend.
+
+```
+┌─────────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  External Job API   │────▶│ Secretary Service │────▶│  LLM Provider   │
+│  (Orchestrierung)   │◀────│  (Verarbeitung)   │◀────│ (OpenAI/Mistral)│
+└─────────────────────┘     └──────────────────┘     └─────────────────┘
+         │
+         ▼
+┌─────────────────────┐
+│  Shadow-Twin Store  │
+│  (Persistenz)       │
+└─────────────────────┘
+```
+
+## Wann wird was generiert? (Entscheidungslogik)
+
+Die Generierung von Transkript/Transformation hängt von mehreren Faktoren ab:
+
+### 1. Dateityp → Adapter-Auswahl
+
+| Dateityp | Adapter | Extract-Phase |
+|----------|---------|---------------|
+| PDF | Mistral OCR | Ja (OCR → Markdown) |
+| Audio/Video | Secretary Whisper | Ja (Transcribe → Markdown) |
+| Markdown | MarkdownAdapter | Nein (nur Normalisierung) |
+| TXT | TxtAdapter | Nein (nur Wrap → Markdown) |
+| Website/URL | WebsiteAdapter | Ja (Fetch HTML → Markdown) |
+
+### 2. Job-Phasen-Konfiguration
+
+```typescript
+// Bei Job-Erstellung oder über UI/API konfiguriert
+interface JobPhases {
+  extract: boolean    // OCR/Transkription ausführen?
+  template: boolean   // Template-Transformation ausführen?
+  ingest: boolean     // Vector Search + Publikation?
+}
+```
+
+### 3. Policies → Skip-Logik
+
+```typescript
+interface JobPolicies {
+  skipExtractIfArtifactExists: boolean  // Überspringe wenn Transcript existiert
+  forceRecompute: boolean               // Ignoriere alles, berechne neu
+}
+```
+
+### 4. Preprocessor-Ergebnisse
+
+Der Preprocessor prüft VOR dem Job-Start:
+
+| Prüfung | Ergebnis | Aktion |
+|---------|----------|--------|
+| Shadow-Twin existiert mit Transcript | `gateExists = true` | Extract übersprungen |
+| Frontmatter bereits vollständig | `needTemplate = false` | Template übersprungen |
+| Hash unverändert | `skipIngest = true` | Ingest übersprungen |
+
+### 5. Template-Auswahl
+
+Für die Template-Phase muss ein Template ausgewählt werden:
+
+```typescript
+// Template-Auswahl bei Job-Erstellung
+interface JobOptions {
+  templateId?: string       // Explizit gewähltes Template
+  templateSlug?: string     // Template per Slug
+  autoSelectTemplate?: boolean  // Automatische Auswahl basierend auf Dateityp
+}
+```
+
+### Entscheidungsbaum (Markdown-Datei)
+
+```
+Markdown-Datei ausgewählt
+    │
+    ▼
+┌───────────────────────────────────────┐
+│ Extract-Phase benötigt?               │
+│ → NEIN (Markdown ist bereits Text)    │
+│ → MarkdownAdapter normalisiert nur    │
+└───────────────────────────────────────┘
+    │
+    ▼
+┌───────────────────────────────────────┐
+│ Template-Phase aktiviert?             │
+│ phases.template = true?               │
+└───────────────────────────────────────┘
+    │
+    ├── JA + Template gewählt
+    │   → Secretary transformiert
+    │   → Output: Strukturiertes MD + Frontmatter
+    │
+    └── NEIN oder kein Template
+        → Markdown bleibt wie es ist
+        → Nur Ingest (falls aktiviert)
+```
+
+### Entscheidungsbaum (PDF/Audio)
+
+```
+PDF oder Audio ausgewählt
+    │
+    ▼
+┌───────────────────────────────────────┐
+│ Extract-Phase aktiviert?              │
+│ phases.extract = true?                │
+└───────────────────────────────────────┘
+    │
+    ├── JA
+    │   ▼
+    │   ┌───────────────────────────────┐
+    │   │ Artefakt existiert bereits?   │
+    │   │ skipExtractIfArtifactExists?  │
+    │   └───────────────────────────────┘
+    │       │
+    │       ├── JA + skip → Extract übersprungen
+    │       └── NEIN oder force → Extract ausgeführt
+    │                            → Output: Transcript/OCR-Markdown
+    │
+    └── NEIN
+        → Kein Transcript generiert
+        → Job vermutlich sinnlos (Fehler?)
+```
+
+## Job-Status und Steps
+
+```typescript
+// Job-Status
+type JobStatus = 'queued' | 'running' | 'completed' | 'failed'
+
+// Step-Status
+type StepStatus = 'pending' | 'running' | 'completed' | 'skipped' | 'failed'
+
+// Phasen-Konfiguration
+interface JobPhases {
+  extract: boolean    // Phase 1 aktiviert?
+  template: boolean   // Phase 2 aktiviert?
+  ingest: boolean     // Phase 3 aktiviert?
+}
+```
+
+## Globale Contracts (KRITISCH)
+
+Diese Regeln MÜSSEN immer erfüllt sein:
+
+### 1. Leeres Markdown ist ein Fehler
+```typescript
+// ShadowTwinService.upsertMarkdown() wirft bei leerem Markdown
+if (!markdown || markdown.trim() === '') {
+  throw new Error('Markdown darf nicht leer sein')
+}
+```
+
+### 2. Completed = Keine pending Steps
+```typescript
+// Ein completed Job darf keine pending Steps haben
+if (job.status === 'completed') {
+  const hasPending = job.steps.some(s => s.status === 'pending')
+  if (hasPending) throw new Error('Contract-Verletzung: completed mit pending Steps')
+}
+```
+
+### 3. Aktivierte Phase = Step muss completed sein
+```typescript
+// Wenn phases.extract = true, muss der Extract-Step completed sein
+if (job.phases.extract && extractStep.status !== 'completed') {
+  throw new Error('Contract-Verletzung: Extract aktiviert aber nicht completed')
+}
+```
+
+### 4. savedItemId Contract
+```typescript
+// Nach Template-Phase muss result.savedItemId gesetzt sein
+if (job.phases.template && job.status === 'completed') {
+  if (!job.result?.savedItemId) {
+    throw new Error('Contract-Verletzung: savedItemId fehlt nach Template')
+  }
+}
+```
+
+## Explorer Mode (Publikation)
+
+Nach erfolgreicher Ingestion sind Inhalte im **Explorer Mode** sichtbar:
+
+```
+┌────────────────────────────────────────────────────────────┐
+│                    Explorer Mode                            │
+├────────────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │ Story Card   │  │ Story Card   │  │ Story Card   │ ...  │
+│  │ - Cover      │  │ - Cover      │  │ - Cover      │      │
+│  │ - Title      │  │ - Title      │  │ - Title      │      │
+│  │ - Teaser     │  │ - Teaser     │  │ - Teaser     │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
+└────────────────────────────────────────────────────────────┘
+                           │
+                           ▼
+┌────────────────────────────────────────────────────────────┐
+│                    Story Detail                             │
+├────────────────────────────────────────────────────────────┤
+│  Cover Image                                                │
+│  Title                                                      │
+│  Summary                                                    │
+│  ─────────────────────────────────────────────────────────  │
+│  Worum geht es?                                             │
+│  Was wird vorgeschlagen?                                    │
+│  Warum ist das wichtig?                                     │
+│  ...                                                        │
+└────────────────────────────────────────────────────────────┘
+```
+
+**Datenfluss**:
+- Story-Metadaten kommen aus dem Frontmatter (Template-Phase)
+- Cover-Image kommt aus Shadow-Twin Binary Fragments
+- Chunks für RAG-Chat kommen aus Vector Search (Ingest-Phase)
+
+## Policies (Gate-Entscheidungen)
+
+Policies steuern, ob eine Phase übersprungen werden kann:
+
+```typescript
+interface JobPolicies {
+  skipExtractIfArtifactExists: boolean  // Überspringe Extract wenn Transcript existiert
+  forceRecompute: boolean               // Erzwinge Neuberechnung (ignoriere Policies)
+  skipIngestIfNoChanges: boolean        // Überspringe Ingest wenn Hash gleich
+}
+```
+
+**Wichtig**: `forceRecompute: true` überschreibt alle anderen Policies.
+
+## Integrationstests
+
+### Zweck
+- **Regression-Schutz**: Prüft, dass Jobs korrekt durchlaufen
+- **Contract-Validierung**: Globale Contracts automatisch geprüft
+- **Storage-Agnostik**: Tests funktionieren für Mongo und Filesystem
+
+### Testcase-Struktur
+
+```typescript
+// src/lib/integration-tests/test-cases.ts
+interface TestCase {
+  id: string                    // z.B. 'audio_transcription.happy_path'
+  target: 'pdf' | 'audio'       // Welche Dateien im Ordner testen
+  phases: JobPhases             // Welche Phasen aktivieren
+  policies: JobPolicies         // Gate-Policies
+  shadowTwinState?: 'clean' | 'exists' | 'incomplete_frontmatter'  // Pre-Condition
+  expected: {
+    status: JobStatus
+    extractCompleted?: boolean
+    templateCompleted?: boolean
+    ingestCompleted?: boolean
+    // Audio-spezifisch:
+    minTranscriptChars?: number
+  }
+}
+```
+
+### Verfügbare Testcases
+
+| ID | Beschreibung |
+|----|--------------|
+| `audio_transcription.happy_path` | Einfache Audio → Transcript |
+| `audio_transcription.gate_skip_extract` | Skip wenn Transcript existiert |
+| `audio_transcription.force_recompute` | Erzwingt Neuberechnung |
+| `pdf_mistral_report.happy_path` | PDF → OCR → Template |
+| `pdf_mistral_report.gate_skip_extract` | Skip wenn Extract existiert |
+
+### Test-Loop (Agent-Workflow)
+
+1. **Tests starten**
+   ```bash
+   pnpm -s test:integration:api -- \
+     --libraryId <ID> --folderId <ID> --userEmail <EMAIL> \
+     --fileKind audio --testCaseIds audio_transcription.happy_path
+   ```
+
+2. **Ergebnis prüfen**
+   - `summary.failed = 0` → Alle Tests grün
+   - `summary.failed > 0` → Fehler analysieren
+
+3. **Bei Fehlern**
+   - Fehler clustern (nach Message-Text)
+   - Root-Cause identifizieren
+   - Minimalen Fix implementieren (1 Fehler → 1 Fix)
+   - Unit-Tests ausführen: `pnpm test`
+
+4. **Wiederholen** bis `failed = 0`
+
+## Wichtige Dateien
+
+| Datei | Beschreibung |
+|-------|--------------|
+| `src/lib/external-jobs/phase-*.ts` | Phasen-Implementierungen |
+| `src/lib/external-jobs/policies.ts` | Gate-Entscheidungen |
+| `src/lib/integration-tests/test-cases.ts` | Testcase-Definitionen |
+| `src/lib/integration-tests/validators.ts` | Contract-Validierung |
+| `src/lib/integration-tests/orchestrator.ts` | Test-Orchestrierung |
+
+## Checkliste bei Änderungen
+
+- [ ] Neue Phase hinzugefügt? → Entsprechenden Testcase ergänzen
+- [ ] Policy-Logik geändert? → Alle `gate_skip_*` Testcases prüfen
+- [ ] Contract-Verletzung gefunden? → Validator erweitern
+- [ ] Neuer Dateityp unterstützt? → Source-Adapter + Testcases ergänzen
+- [ ] Änderung an Step-Status-Logik? → Globale Contracts prüfen

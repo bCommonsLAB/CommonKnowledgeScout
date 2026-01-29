@@ -902,6 +902,12 @@ export async function POST(
         // Falls Phase 2 eigene Assets erzeugt, werden diese am Ende von Phase 2 gespeichert.
         // Das Shadow-Twin reichert sich von Phase zu Phase an.
         
+        // Cover-Bild-Generierung aus Job-Parametern lesen
+        const jobParams = (job.parameters && typeof job.parameters === 'object') ? job.parameters as { 
+          generateCoverImage?: boolean
+          coverImagePrompt?: string 
+        } : {}
+        
         const templateResult = await runTemplatePhase({
           ctx,
           provider,
@@ -922,7 +928,10 @@ export async function POST(
           hasMistralOcrImages: hasMistralOcrImages,
           mistralOcrImagesUrl: mistralOcrImagesUrl, // Für Template-Info verfügbar
           targetParentId,
-          libraryConfig: undefined, // libraryConfig wird derzeit nicht verwendet
+          // Library-Chat-Config für Cover-Bild-Prompt-Fallback
+          libraryConfig: lib.config?.chat,
+          generateCoverImage: jobParams.generateCoverImage,
+          coverImagePrompt: jobParams.coverImagePrompt,
         })
 
         // Fatal: Wenn Template-Transformation fehlgeschlagen ist, abbrechen
@@ -1026,7 +1035,20 @@ export async function POST(
             return NextResponse.json({ status: 'error', jobId, kind: 'failed_ingestion', reason: ingestResult.error }, { status: 500 })
           }
         } else if (hardDisableIngest) {
-          await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true } })
+          await repo.updateStep(jobId, 'ingest_rag', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'phase_disabled' } })
+        } else if (!docMetaForIngestion) {
+          // BUG-FIX: Wenn docMetaForIngestion fehlt, muss der Step als skipped markiert werden.
+          // Vorher blieb der Step auf "pending", was den Global Contract verletzte.
+          FileLogger.warn('external-jobs', 'Ingest-Phase übersprungen: docMetaForIngestion fehlt', { jobId })
+          await repo.updateStep(jobId, 'ingest_rag', { 
+            status: 'completed', 
+            endedAt: new Date(), 
+            details: { 
+              skipped: true, 
+              reason: 'no_metadata_for_ingestion',
+              message: 'Template-Phase hat keine Metadaten für Ingestion geliefert'
+            } 
+          })
         }
       } catch (err) {
         const reason = (() => {

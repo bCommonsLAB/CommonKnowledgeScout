@@ -620,14 +620,40 @@ export async function POST(
     // Finale Entscheidung: Extract nur wenn Phase enabled UND Gate/Policy es erlaubt
     // WICHTIG: shouldRunExtractPhase ist bereits die finale Gate+Policy-Entscheidung
     const runExtract = extractEnabled && shouldRunExtractPhase
-    const runTemplate = templateEnabled && needTemplate
+    
+    // =========================================================================
+    // TEMPLATE: Policy-basierte Entscheidung (analog zu Extract)
+    // =========================================================================
+    // Die `policies.metadata` Policy bestimmt, ob Template ausgeführt wird:
+    // - 'force' → IMMER ausführen (auch wenn needTemplate=false)
+    // - 'ignore'/'skip' → NIE ausführen
+    // - 'auto'/'do' → basierend auf needTemplate (Preprocessor-Ergebnis)
+    //
+    // WICHTIG: Bei 'force' wird das Transkript als Quelle verwendet,
+    // NICHT die bestehende Transformation (siehe loadShadowTwinMarkdown).
+    // =========================================================================
+    const templateDirective: 'ignore' | 'do' | 'force' = 
+      policies.metadata === 'force' ? 'force' :
+      policies.metadata === 'ignore' || policies.metadata === 'skip' ? 'ignore' :
+      templateEnabled ? 'do' : 'ignore'
+    
+    const runTemplate = templateEnabled && (
+      templateDirective === 'force' ? true :
+      templateDirective === 'ignore' ? false :
+      needTemplate // 'do' → basierend auf Preprocessor
+    )
     
     // Prüfe, ob Template übersprungen werden sollte (z.B. chapters_already_exist)
     // Dies kann passieren, wenn eine transformierte Datei bereits im Shadow-Twin existiert
     // oder wenn Template-Step bereits als skipped markiert wurde
+    //
+    // WICHTIG: Bei 'force' Policy wird Template NIEMALS übersprungen!
     let templateWillBeSkipped = false
-    if (templateEnabled && !runTemplate) {
-      // Template wird nicht ausgeführt (needTemplate = false)
+    if (templateDirective === 'force') {
+      // 'force' → Template wird IMMER ausgeführt, nie übersprungen
+      templateWillBeSkipped = false
+    } else if (templateEnabled && !runTemplate) {
+      // Template wird nicht ausgeführt (needTemplate = false, kein force)
       templateWillBeSkipped = true
     } else if (templateEnabled && runTemplate) {
       // Prüfe, ob Template-Step bereits als skipped markiert wurde (z.B. durch Preprocessor)
@@ -640,6 +666,7 @@ export async function POST(
       
       // Prüfe, ob bereits eine transformierte Datei im Shadow-Twin existiert
       // Dies bedeutet, dass Template übersprungen werden sollte (chapters_already_exist)
+      // ABER: Nur wenn NICHT 'force'
       if (!templateWillBeSkipped && shadowTwinState?.transformed) {
         templateWillBeSkipped = true
       }
@@ -666,6 +693,18 @@ export async function POST(
       } catch {}
     }
     
+    // Logging für Template-Entscheidung (hilfreich für Debugging)
+    if (templateDirective === 'force') {
+      FileLogger.info('start-route', 'Template wird mit force-Policy ausgeführt', {
+        jobId,
+        templateDirective,
+        needTemplate,
+        runTemplate,
+        templateWillBeSkipped,
+        hasTransformed: !!shadowTwinState?.transformed,
+      })
+    }
+    
     // Logging nur bei unerwarteten Situationen (z.B. Gate gefunden, aber trotzdem ausgeführt)
     
     // Wenn Gate gefunden wurde, aber trotzdem ausgeführt wird (z.B. force), logge Warnung
@@ -687,7 +726,8 @@ export async function POST(
       const ctxPre: RequestContext = { request, jobId, job, body: {}, callbackToken: undefined, internalBypass: true }
 
       // Shadow-Twin-Markdown-Datei laden (v2-only)
-      const shadowTwinData = await loadShadowTwinMarkdown(ctxPre, provider)
+      // Ingest-only-Pfad: Braucht das transformierte Markdown mit Metadaten
+      const shadowTwinData = await loadShadowTwinMarkdown(ctxPre, provider, 'forIngestOrPassthrough')
       if (!shadowTwinData) {
         await repo.updateStep(jobId, 'ingest_rag', { status: 'failed', endedAt: new Date(), error: { message: 'Shadow‑Twin nicht gefunden' } })
         await repo.setStatus(jobId, 'failed', { error: { code: 'shadow_twin_missing', message: 'Shadow‑Twin nicht gefunden' } })
@@ -777,9 +817,13 @@ export async function POST(
       // Ohne Reload sieht loadShadowTwinMarkdown u.U. kein shadowTwinState und sucht "blind" im Storage.
       const refreshedJob = await repo.get(jobId)
 
-      // Shadow-Twin-Markdown-Datei laden (bevorzugt shadowTwinState.transformed.id)
+      // =========================================================================
+      // WICHTIG - DETERMINISTISCHE QUELLENWAHL:
+      // Template-Phase wird AUSGEFÜHRT → Lade TRANSKRIPT (Phase 1 Ergebnis)
+      // Der Transformer darf NIEMALS seine eigenen Daten als Quelle verwenden!
+      // =========================================================================
       const ctxPre: RequestContext = { request, jobId, job: refreshedJob || job, body: {}, callbackToken: undefined, internalBypass: true }
-      const shadowTwinData = await loadShadowTwinMarkdown(ctxPre, provider)
+      const shadowTwinData = await loadShadowTwinMarkdown(ctxPre, provider, 'forTemplateTransformation')
       if (!shadowTwinData) {
         // Job als failed markieren, da Shadow-Twin nicht gefunden wurde
         try {
@@ -831,6 +875,12 @@ export async function POST(
       const ctxPreUpdated: RequestContext = { request, jobId, job: updatedJob || job, body: {}, callbackToken: undefined, internalBypass: true }
       const { stripAllFrontmatter } = await import('@/lib/markdown/frontmatter')
       const extractedText = stripAllFrontmatter(shadowTwinData.markdown)
+      // Cover-Bild-Generierung aus Job-Parametern lesen
+      const jobParams = (job.parameters && typeof job.parameters === 'object') ? job.parameters as { 
+        generateCoverImage?: boolean
+        coverImagePrompt?: string 
+      } : {}
+      
       const templateResult = await runTemplatePhase({
         ctx: ctxPreUpdated,
         provider,
@@ -842,6 +892,8 @@ export async function POST(
         imagesPhaseEnabled: false, // Template-Only: keine Bilder verarbeiten
         targetParentId,
         libraryConfig,
+        generateCoverImage: jobParams.generateCoverImage,
+        coverImagePrompt: jobParams.coverImagePrompt,
       })
 
       if (templateResult.status === 'failed') {
@@ -852,13 +904,13 @@ export async function POST(
       // v2-only: Keine Legacy-Cleanup/Reparatur in Phase A.
 
       // Shadow-Twin-State aktualisieren: processingStatus auf 'ready' setzen
-      // Template-Only: Nach erfolgreichem Template-Lauf ist der Shadow-Twin vollständig
+      // HINWEIS: Falls Ingest noch ausgeführt wird, wird das State danach erneut aktualisiert
       try {
-        const updatedJob = await repo.get(jobId)
-        if (updatedJob?.shadowTwinState) {
+        const updatedJobForState = await repo.get(jobId)
+        if (updatedJobForState?.shadowTwinState) {
           const mongoState = toMongoShadowTwinState({
-            ...updatedJob.shadowTwinState,
-            processingStatus: 'ready' as const,
+            ...updatedJobForState.shadowTwinState,
+            processingStatus: ingestEnabled ? 'processing' as const : 'ready' as const,
           })
           await repo.setShadowTwinState(jobId, mongoState)
         }
@@ -866,19 +918,88 @@ export async function POST(
         FileLogger.error('start-route', 'Fehler beim Aktualisieren des Shadow-Twin-States', {
           jobId,
           error: error instanceof Error ? error.message : String(error)
-      })
+        })
         // Fehler nicht kritisch - Job kann trotzdem abgeschlossen werden
       }
 
-      // Job als completed markieren (Template-Only: keine weiteren Phasen)
+      // BUG-FIX: Wenn Ingest-Phase aktiviert ist, muss sie auch im Template-only-Pfad ausgeführt werden!
+      // Vorher wurde Ingest komplett ignoriert, obwohl phases.ingest = true war.
+      if (ingestEnabled) {
+        try {
+          await repo.updateStep(jobId, 'ingest_rag', { status: 'running', startedAt: new Date() })
+          try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'ingest_start', attributes: { libraryId: job.libraryId, source: 'template_only_path' } }) } catch {}
+
+          // Ingest-Phase ausführen
+          // WICHTIG: Lade das frisch transformierte Markdown aus dem Shadow-Twin
+          // Ingest braucht das transformierte Markdown mit Metadaten
+          const ingestShadowTwinData = await loadShadowTwinMarkdown(ctxPreUpdated, provider, 'forIngestOrPassthrough')
+          
+          if (!ingestShadowTwinData) {
+            FileLogger.warn('start-route', 'Ingest-Phase übersprungen: Shadow-Twin-Markdown nicht gefunden nach Template', { jobId })
+            await repo.updateStep(jobId, 'ingest_rag', { 
+              status: 'completed', 
+              endedAt: new Date(), 
+              details: { skipped: true, reason: 'shadow_twin_not_found_after_template' } 
+            })
+          } else {
+            const ingestResult = await runIngestPhase({
+              ctx: ctxPreUpdated,
+              provider,
+              repo,
+              markdown: ingestShadowTwinData.markdown,
+              meta: ingestShadowTwinData.meta || templateResult.metadata,
+              savedItemId: ingestShadowTwinData.fileId || templateResult.savedItemId || '',
+              policies: { ingest: phasePolicies.ingest as 'force' | 'skip' | 'auto' | 'ignore' | 'do' },
+            })
+
+            if (ingestResult.error) {
+              FileLogger.error('start-route', 'Ingest-Phase fehlgeschlagen im Template-only-Pfad', {
+                jobId,
+                error: ingestResult.error,
+              })
+              // Nicht abbrechen - Job kann trotzdem als completed markiert werden, wenn Template erfolgreich war
+            }
+          }
+        } catch (ingestError) {
+          FileLogger.error('start-route', 'Exception in Ingest-Phase (Template-only-Pfad)', {
+            jobId,
+            error: ingestError instanceof Error ? ingestError.message : String(ingestError),
+          })
+          await repo.updateStep(jobId, 'ingest_rag', { 
+            status: 'failed', 
+            endedAt: new Date(), 
+            error: { message: ingestError instanceof Error ? ingestError.message : String(ingestError) } 
+          })
+        }
+
+        // Shadow-Twin-State auf 'ready' setzen nach Ingest
+        try {
+          const finalJob = await repo.get(jobId)
+          if (finalJob?.shadowTwinState) {
+            const mongoState = toMongoShadowTwinState({
+              ...finalJob.shadowTwinState,
+              processingStatus: 'ready' as const,
+            })
+            await repo.setShadowTwinState(jobId, mongoState)
+          }
+        } catch {}
+      } else {
+        // Ingest deaktiviert - Step als skipped markieren
+        await repo.updateStep(jobId, 'ingest_rag', { 
+          status: 'completed', 
+          endedAt: new Date(), 
+          details: { skipped: true, reason: 'phase_disabled' } 
+        })
+      }
+
+      // Job als completed markieren
       const { setJobCompleted } = await import('@/lib/external-jobs/complete')
       await setJobCompleted({
         ctx: ctxPreUpdated,
-        // Template-Only: savedItemId aus der Template-Phase weiterreichen (Contract: completed ⇒ savedItemId).
         result: { savedItemId: templateResult.savedItemId },
       })
 
-      return NextResponse.json({ ok: true, jobId, kind: 'template_only' })
+      return NextResponse.json({ ok: true, jobId, kind: ingestEnabled ? 'template_and_ingest' : 'template_only' })
     }
 
     // Secretary-Flow (Extract/Template)

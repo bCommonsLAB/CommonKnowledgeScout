@@ -42,18 +42,23 @@ export interface UpsertArtifactResult {
 
 /**
  * Binary-Fragment (z.B. Bild, Audio).
+ * Enthält entweder url (Azure, bevorzugt) oder fileId (Dateisystem-Fallback).
  */
 export interface BinaryFragment {
   /** Dateiname des Fragments */
   name: string
-  /** Optional: URL (z.B. Azure Blob Storage URL) */
+  /** Optional: Azure Blob Storage URL (bevorzugt) */
   url?: string
+  /** Optional: Dateisystem-Referenz (Fallback, wenn keine Azure-URL) */
+  fileId?: string
   /** Optional: Hash des Inhalts */
   hash?: string
   /** Optional: MIME-Typ */
   mimeType?: string
   /** Optional: Größe in Bytes */
   size?: number
+  /** Optional: Art des Fragments (image, audio, video, etc.) */
+  kind?: string
 }
 
 /**

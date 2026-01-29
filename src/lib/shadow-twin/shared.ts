@@ -63,6 +63,103 @@ export interface ShadowTwinState {
     chunkCount?: number;
     chaptersCount?: number;
   };
+  /**
+   * Gibt an, ob Binary-Uploads (z.B. Cover-Bilder) für dieses Shadow-Twin möglich sind.
+   * 
+   * Diese Information abstrahiert die Storage-Implementierung:
+   * - MongoDB-Modus: true (Upload geht direkt nach Azure, kein lokales Verzeichnis nötig)
+   * - Filesystem-Modus: true wenn shadowTwinFolderId vorhanden
+   * 
+   * Die UI sollte nur dieses Feld prüfen, nicht die Storage-Implementierung.
+   */
+  binaryUploadEnabled?: boolean;
+  
+  /**
+   * Validierungsfehler, falls die Daten inkonsistent sind.
+   * 
+   * Wenn gesetzt, sind schreibende Features (Upload, Generieren) blockiert.
+   * Das "Bearbeiten"-Feature bleibt aktiv für manuelle Reparatur.
+   * 
+   * Beispiele:
+   * - "templateName fehlt für Transformation"
+   * - "targetLanguage fehlt"
+   */
+  validationError?: string;
+  
+  /**
+   * Zeigt an, ob eine automatische Reparatur durchgeführt wurde.
+   * Falls true, wird eine Info-Meldung angezeigt.
+   */
+  wasAutoRepaired?: boolean;
+  
+  /**
+   * Details zur automatischen Reparatur (für Logging/UI).
+   */
+  autoRepairInfo?: string;
+}
+
+/**
+ * Validiert und repariert einen Shadow-Twin-State.
+ * 
+ * Prüft auf Pflichtfelder und versucht fehlende Daten zu rekonstruieren.
+ * Wenn eine Reparatur nicht möglich ist, wird ein Fehler gesetzt.
+ * 
+ * @param state Der zu validierende State
+ * @param frontmatter Frontmatter aus dem Markdown (falls verfügbar)
+ * @param libraryConfig Library-Konfiguration (für Fallback-Werte)
+ * @returns Der validierte/reparierte State (Mutation des Inputs)
+ */
+export function validateAndRepairShadowTwin(
+  state: ShadowTwinState,
+  frontmatter?: Record<string, unknown>,
+  libraryConfig?: { templateName?: string; targetLanguage?: string }
+): ShadowTwinState {
+  // Reset vorheriger Validierung
+  state.validationError = undefined;
+  state.wasAutoRepaired = false;
+  state.autoRepairInfo = undefined;
+  
+  // Nur Transformationen validieren (haben transformed-Feld)
+  if (!state.transformed) {
+    // Kein Shadow-Twin mit Transformation → keine Validierung nötig
+    return state;
+  }
+  
+  // Prüfe: Ist die transformed-ID eine Mongo-Shadow-Twin-ID?
+  const transformedId = state.transformed.id;
+  const isMongoId = transformedId.startsWith('mongo-shadow-twin:');
+  
+  if (isMongoId) {
+    // Parse die ID um templateName zu prüfen
+    // Format: mongo-shadow-twin:libraryId::sourceId::kind::lang::templateName
+    const parts = transformedId.split('::');
+    const kind = parts[2]; // 'transformation' oder 'transcript'
+    const templateName = parts[4]; // templateName (kann leer sein)
+    
+    if (kind === 'transformation' && (!templateName || templateName.trim() === '')) {
+      // templateName fehlt - versuche Reparatur
+      const repairedTemplateName = 
+        (frontmatter?.template_used as string) ||
+        libraryConfig?.templateName;
+      
+      if (repairedTemplateName) {
+        // Reparatur möglich - aber wir können die ID nicht ändern
+        // Markiere als repariert für Logging, aber der Fix muss serverseitig passieren
+        state.wasAutoRepaired = true;
+        state.autoRepairInfo = `templateName="${repairedTemplateName}" aus ${frontmatter?.template_used ? 'Frontmatter' : 'Library-Config'} rekonstruiert`;
+        
+        // TODO: Server-seitige Reparatur implementieren
+        // Für jetzt: Warnung setzen, Features erlauben
+      } else {
+        // Reparatur nicht möglich
+        state.validationError = 
+          'Template-Name fehlt für Transformation. ' +
+          'Bitte bearbeiten Sie das Dokument und setzen Sie "template_used" im Frontmatter.';
+      }
+    }
+  }
+  
+  return state;
 }
 
 /**
@@ -90,7 +187,8 @@ export function toMongoShadowTwinState(state: ShadowTwinState): ShadowTwinState 
     })),
     analysisTimestamp: state.analysisTimestamp,
     analysisError: state.analysisError,
-    processingStatus: state.processingStatus
+    processingStatus: state.processingStatus,
+    binaryUploadEnabled: state.binaryUploadEnabled,
   };
 }
 

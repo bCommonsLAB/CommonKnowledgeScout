@@ -57,6 +57,9 @@ const chatFormSchema = z.object({
     chunkOverlap: z.coerce.number().int().nonnegative().optional(),
     dimensions: z.coerce.number().int().positive().optional(),
   }).optional(),
+  // Cover-Bild-Generierung
+  generateCoverImage: z.boolean().optional(),
+  coverImagePrompt: z.string().optional(),
   targetLanguage: z.preprocess(
     (val) => {
       if (val === '' || val === undefined || val === null) return TARGET_LANGUAGE_DEFAULT
@@ -148,6 +151,9 @@ export function ChatForm() {
         detailViewType: 'book',
         facets: getDefaultFacets().slice(0, 6) // Nur die ersten 6 sichtbaren Facetten als Default
       },
+      // Cover-Bild-Generierung Defaults
+      generateCoverImage: false,
+      coverImagePrompt: '',
     },
   })
 
@@ -240,6 +246,9 @@ export function ChatForm() {
             ? (c.embeddings as { dimensions?: number })!.dimensions
             : defaultEmbeddings.dimensions,
         },
+        // Cover-Bild-Generierung
+        generateCoverImage: typeof c.generateCoverImage === 'boolean' ? c.generateCoverImage : false,
+        coverImagePrompt: typeof c.coverImagePrompt === 'string' ? c.coverImagePrompt : '',
         targetLanguage: finalTargetLanguage,
         character: finalCharacter,
         socialContext: finalSocialContext,
@@ -689,6 +698,57 @@ export function ChatForm() {
             <FormDescription>{t('settings.chatForm.galleryFacetsDescription')}</FormDescription>
             <FacetDefsEditor value={form.watch("gallery.facets") || []} onChange={(v) => form.setValue("gallery.facets", v, { shouldDirty: true })} />
           </div>
+        </div>
+
+        {/* Cover-Bild-Generierung */}
+        <div className="grid gap-6">
+          <div className="text-lg font-semibold">Cover-Bild-Generierung</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="generateCoverImage"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">
+                      Automatisch generieren
+                    </FormLabel>
+                    <FormDescription>
+                      Bei Transformation automatisch ein Cover-Bild generieren (Default für Job-Erstellung)
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <input
+                      type="checkbox"
+                      checked={field.value || false}
+                      onChange={field.onChange}
+                      className="h-4 w-4"
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+          </div>
+          <FormField
+            control={form.control}
+            name="coverImagePrompt"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Cover-Bild Prompt</FormLabel>
+                <FormControl>
+                  <Input 
+                    placeholder="Erstelle ein Coverbild für: {{title}}. Inhalt: {{summary}}" 
+                    {...field} 
+                    value={field.value || ""} 
+                  />
+                </FormControl>
+                <FormDescription>
+                  Standard-Prompt für Cover-Bild-Generierung. Variablen: {`{{title}}`}, {`{{summary}}`}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
 
         <div className="flex items-center justify-between gap-4">

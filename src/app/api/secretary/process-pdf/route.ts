@@ -136,6 +136,10 @@ export async function POST(request: NextRequest) {
     await repo.create(job);
 
     const phases = { extract: policies.extract !== 'ignore', template: policies.metadata !== 'ignore', ingest: policies.ingest !== 'ignore' };
+    // Cover-Bild-Generierung aus FormData lesen
+    const generateCoverImage = formData.get('generateCoverImage') === 'true'
+    const coverImagePrompt = (formData.get('coverImagePrompt') as string) || undefined
+    
     await repo.initializeSteps(jobId, [
       { name: 'extract_pdf', status: 'pending' },
       { name: 'transform_template', status: 'pending' },
@@ -150,6 +154,9 @@ export async function POST(request: NextRequest) {
       template: (formData.get('template') as string) || undefined,
       phases,
       policies,
+      // Cover-Bild-Generierung
+      generateCoverImage,
+      coverImagePrompt,
     });
 
     // Trace initialisieren und Eingangsparameter protokollieren

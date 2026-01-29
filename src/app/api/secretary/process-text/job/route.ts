@@ -35,6 +35,10 @@ interface Body {
   policies?: PhasePolicies
   batchId?: string
   batchName?: string
+  /** Cover-Bild automatisch generieren */
+  generateCoverImage?: boolean
+  /** Optionaler Prompt für Cover-Bild-Generierung */
+  coverImagePrompt?: string
 }
 
 export async function POST(request: NextRequest) {
@@ -120,6 +124,10 @@ export async function POST(request: NextRequest) {
       batchName: typeof body.batchName === 'string' ? body.batchName : undefined,
     }
 
+    // Cover-Bild-Generierung aus Body lesen
+    const generateCoverImage = body.generateCoverImage === true
+    const coverImagePrompt = typeof body.coverImagePrompt === 'string' ? body.coverImagePrompt : undefined
+
     const job: ExternalJob = {
       jobId,
       jobSecretHash,
@@ -141,6 +149,9 @@ export async function POST(request: NextRequest) {
           ingest: finalPolicies.ingest !== 'ignore',
           images: false, // Text has no images phase
         },
+        // Cover-Bild-Generierung
+        ...(generateCoverImage ? { generateCoverImage } : {}),
+        ...(coverImagePrompt ? { coverImagePrompt } : {}),
       },
     }
 
@@ -163,6 +174,9 @@ export async function POST(request: NextRequest) {
           ingest: finalPolicies.ingest !== 'ignore',
         },
         policies: finalPolicies,
+        // Cover-Bild-Generierung
+        generateCoverImage,
+        coverImagePrompt,
       }
     )
 

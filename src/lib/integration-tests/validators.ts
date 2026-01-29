@@ -632,6 +632,111 @@ async function validateMongoUpsert(
 
 
 /**
+ * Validiert Phase-Input-Validierung über Trace-Events.
+ *
+ * Prüft, ob jede aktive Phase valides Eingangsmaterial erhalten hat.
+ * Diese Validierung erfolgt über die `phase_input_validation` Trace-Events,
+ * die von den Phasen (Template, Ingest) geschrieben werden.
+ *
+ * @param job Job-Dokument
+ * @param testCase Test-Case mit Phase-Aktivierungen
+ * @param expected Erwartete Outcomes
+ * @param messages Validation-Messages Array
+ */
+function validatePhaseInputOutput(
+  job: import('@/types/external-job').ExternalJob,
+  testCase: IntegrationTestCase,
+  expected: ExpectedOutcome,
+  messages: ValidationMessage[]
+): void {
+  // Trace-Events aus Job-Dokument extrahieren
+  const jobWithTrace = job as import('@/types/external-job').ExternalJob & {
+    trace?: { events?: Array<{ name?: string; spanId?: string; attributes?: Record<string, unknown> }> }
+  }
+  const traceEvents = jobWithTrace.trace?.events || []
+
+  // Phase-Input-Validation Events finden
+  const inputValidationEvents = traceEvents.filter(e => e?.name === 'phase_input_validation')
+
+  // Wenn keine Events gefunden → Warnung (sollte bei aktivierten Phasen vorhanden sein)
+  if (inputValidationEvents.length === 0 && (testCase.phases.template || testCase.phases.ingest)) {
+    // Nur warnen wenn Input-Validierung explizit erwartet wird
+    if (expected.expectTemplateInputNonEmpty || expected.expectIngestInputNonEmpty || expected.expectPhaseInputNonEmpty) {
+      pushMessage(
+        messages,
+        'warn',
+        'Keine phase_input_validation Trace-Events gefunden (erwartet bei aktivierten Phasen mit Input-Validierung)'
+      )
+    }
+    return
+  }
+
+  // Jedes Event prüfen
+  for (const event of inputValidationEvents) {
+    const attrs = event.attributes || {}
+    const phase = attrs.phase as string | undefined
+    const inputLength = typeof attrs.inputLength === 'number' ? attrs.inputLength : 0
+    const inputBodyLength = typeof attrs.inputBodyLength === 'number' ? attrs.inputBodyLength : inputLength
+    const minRequiredChars = typeof attrs.minRequiredChars === 'number' ? attrs.minRequiredChars : 10
+    const inputValid = attrs.inputValid === true
+    const inputOrigin = attrs.inputOrigin as string | undefined
+
+    // Phase-spezifische Prüfung
+    if (phase === 'template') {
+      // Template-Input-Validierung
+      if (expected.expectTemplateInputNonEmpty !== false && testCase.phases.template) {
+        if (!inputValid) {
+          pushMessage(
+            messages,
+            'error',
+            `Phase-Input-Validierung fehlgeschlagen: Template-Phase erhielt leeren/zu kurzen Input ` +
+            `(${inputBodyLength} Zeichen, Minimum: ${minRequiredChars}, Origin: ${inputOrigin || 'unknown'})`
+          )
+        } else {
+          pushMessage(
+            messages,
+            'info',
+            `Phase-Input-Validierung OK: Template-Phase erhielt validen Input ` +
+            `(${inputBodyLength} Zeichen, Origin: ${inputOrigin || 'unknown'})`
+          )
+        }
+
+        // Prüfe Mindestlänge aus TestCase (falls spezifiziert)
+        if (expected.minPhaseInputChars !== undefined && inputBodyLength < expected.minPhaseInputChars) {
+          pushMessage(
+            messages,
+            'error',
+            `Phase-Input unter Mindestlänge: Template-Phase erhielt nur ${inputBodyLength} Zeichen ` +
+            `(erwarte mindestens ${expected.minPhaseInputChars})`
+          )
+        }
+      }
+    }
+
+    if (phase === 'ingest') {
+      // Ingest-Input-Validierung
+      if (expected.expectIngestInputNonEmpty !== false && testCase.phases.ingest) {
+        if (!inputValid) {
+          pushMessage(
+            messages,
+            'error',
+            `Phase-Input-Validierung fehlgeschlagen: Ingest-Phase erhielt leeren/zu kurzen Input ` +
+            `(${inputLength} Zeichen, Minimum: ${minRequiredChars})`
+          )
+        } else {
+          pushMessage(
+            messages,
+            'info',
+            `Phase-Input-Validierung OK: Ingest-Phase erhielt validen Input (${inputLength} Zeichen)`
+          )
+        }
+      }
+    }
+  }
+}
+
+
+/**
  * Globale Contract-Validatoren: Diese Regeln gelten für ALLE UseCases.
  * Sie werden vor den UseCase-spezifischen Validierungen ausgeführt.
  */
@@ -732,6 +837,64 @@ function validateGlobalContracts(
           'warn',
           `Policy/Step-Inkonsistenz: ingest=ignore, aber ingest_rag Step hat Status "${ingestStep.status}" (erwarte completed)`
         )
+      }
+    }
+  }
+
+  // Contract 4: Phase aktiviert ⇒ Step muss abgeschlossen sein
+  // Wenn phases.X === true (oder nicht explizit false), muss der Step completed/failed sein bei completed Job.
+  // Dieses Contract verhindert, dass aktivierte Phasen "vergessen" werden (Bug: Template-only ignorierte Ingest).
+  if (job.status === 'completed') {
+    const phases = (job.parameters as { phases?: { extract?: boolean; template?: boolean; ingest?: boolean } } | undefined)?.phases
+    const steps = Array.isArray(job.steps) ? job.steps : []
+
+    // Ingest-Phase-Aktivierung prüfen
+    // phases.ingest !== false bedeutet "aktiviert" (default: true)
+    const ingestEnabled = phases ? phases.ingest !== false : true
+    if (ingestEnabled) {
+      const ingestStep = steps.find(s => s?.name === 'ingest_rag')
+      if (ingestStep && ingestStep.status === 'pending') {
+        pushMessage(
+          messages,
+          'error',
+          `Global Contract verletzt: phases.ingest ist aktiviert, aber ingest_rag Step hat Status "pending" bei completed Job. ` +
+          `Mögliche Ursache: Orchestrierungs-Bug (z.B. Template-only-Pfad führt Ingest nicht aus).`
+        )
+      }
+    }
+
+    // Template-Phase-Aktivierung prüfen
+    const templateEnabled = phases ? phases.template !== false : true
+    if (templateEnabled) {
+      const templateStep = steps.find(s => s?.name === 'transform_template')
+      if (templateStep && templateStep.status === 'pending') {
+        pushMessage(
+          messages,
+          'error',
+          `Global Contract verletzt: phases.template ist aktiviert, aber transform_template Step hat Status "pending" bei completed Job.`
+        )
+      }
+    }
+
+    // Extract-Phase-Aktivierung prüfen (nur wenn nicht durch Gate übersprungen)
+    // Hinweis: Extract kann durch Gate legitim übersprungen werden, daher nur warnen bei pending ohne skipped-Details
+    const extractEnabled = phases ? phases.extract !== false : true
+    if (extractEnabled) {
+      const extractStepName =
+        job.job_type === 'audio' ? 'extract_audio'
+        : job.job_type === 'video' ? 'extract_video'
+        : 'extract_pdf'
+      const extractStep = steps.find(s => s?.name === extractStepName)
+      if (extractStep && extractStep.status === 'pending') {
+        // Bei Extract ist pending ohne Gate-Skip ein echter Fehler
+        const hasSkipDetails = extractStep.details && typeof extractStep.details === 'object' && 'skipped' in extractStep.details
+        if (!hasSkipDetails) {
+          pushMessage(
+            messages,
+            'error',
+            `Global Contract verletzt: phases.extract ist aktiviert, aber ${extractStepName} Step hat Status "pending" bei completed Job (ohne skipped-Details).`
+          )
+        }
       }
     }
   }
@@ -1194,6 +1357,9 @@ export async function validateExternalJobForTestCase(
   await validateTranscriptContent(job, testCase.expected, messages)
   await validateIngestion(job, testCase.expected, messages)
   await validateMongoVectorUpsert(job, testCase.expected, messages)
+
+  // Phase-Input-Output-Validierung (prüft Trace-Events für Input-Längen)
+  validatePhaseInputOutput(job, testCase, testCase.expected, messages)
 
   const hasError = messages.some(m => m.type === 'error')
   return {

@@ -173,6 +173,23 @@ export async function getShadowTwinArtifact(args: {
 }
 
 /**
+ * Binary Fragment aus MongoDB
+ * Enthält entweder url (Azure) oder fileId (Dateisystem-Referenz)
+ */
+export interface MongoBinaryFragment {
+  name: string
+  /** Azure Blob Storage URL (bevorzugt) */
+  url?: string
+  /** Dateisystem-Referenz (Fallback, wenn keine Azure-URL) */
+  fileId?: string
+  hash?: string
+  mimeType?: string
+  size?: number
+  kind?: string
+  createdAt?: string
+}
+
+/**
  * Lädt binaryFragments aus MongoDB Shadow-Twin Dokument
  * @param libraryId Library-ID
  * @param sourceId Source-Datei-ID
@@ -181,22 +198,70 @@ export async function getShadowTwinArtifact(args: {
 export async function getShadowTwinBinaryFragments(
   libraryId: string,
   sourceId: string
-): Promise<Array<{ name: string; url?: string; hash?: string; mimeType?: string; size?: number }> | null> {
+): Promise<MongoBinaryFragment[] | null> {
   const col = await getShadowTwinCollection(libraryId)
   const doc = await col.findOne({ libraryId, sourceId })
   if (!doc || !doc.binaryFragments) return null
   
   // Konvertiere binaryFragments zu typisiertem Array
+  // Unterstützt sowohl url (Azure) als auch fileId (Dateisystem-Fallback)
   return doc.binaryFragments.map(fragment => {
     const f = fragment as Record<string, unknown>
     return {
       name: typeof f.name === 'string' ? f.name : '',
       url: typeof f.url === 'string' ? f.url : undefined,
+      fileId: typeof f.fileId === 'string' ? f.fileId : undefined,
       hash: typeof f.hash === 'string' ? f.hash : undefined,
       mimeType: typeof f.mimeType === 'string' ? f.mimeType : undefined,
       size: typeof f.size === 'number' ? f.size : undefined,
+      kind: typeof f.kind === 'string' ? f.kind : undefined,
+      createdAt: typeof f.createdAt === 'string' ? f.createdAt : undefined,
     }
   })
+}
+
+/**
+ * Fügt ein Binary-Fragment zu einem Shadow-Twin hinzu oder ersetzt es bei gleichem Namen.
+ * 
+ * Verwendet $push mit $each und $slice für atomare Updates.
+ * Bei gleichem Fragment-Namen wird das vorhandene ersetzt.
+ * 
+ * @param libraryId Library-ID
+ * @param sourceId Source-Datei-ID
+ * @param fragment Binary-Fragment zum Speichern
+ */
+export async function upsertShadowTwinBinaryFragment(
+  libraryId: string,
+  sourceId: string,
+  fragment: MongoBinaryFragment
+): Promise<void> {
+  const col = await getShadowTwinCollection(libraryId)
+  const now = new Date().toISOString()
+
+  // Schritt 1: Entferne vorhandenes Fragment mit gleichem Namen (falls vorhanden)
+  await col.updateOne(
+    { libraryId, sourceId },
+    {
+      $pull: { binaryFragments: { name: fragment.name } }
+    }
+  )
+
+  // Schritt 2: Füge neues Fragment hinzu
+  await col.updateOne(
+    { libraryId, sourceId },
+    {
+      $push: { binaryFragments: fragment },
+      $set: { updatedAt: now },
+      $setOnInsert: {
+        libraryId,
+        sourceId,
+        createdAt: now,
+        artifacts: {},
+        filesystemSync: { enabled: false, shadowTwinFolderId: null, lastSyncedAt: null },
+      }
+    },
+    { upsert: true }
+  )
 }
 
 export function toArtifactKey(args: {

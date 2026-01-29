@@ -53,6 +53,10 @@ export interface TemplatePhaseArgs {
   mistralOcrImagesUrl?: string
   targetParentId: string
   libraryConfig?: LibraryChatConfig
+  /** Cover-Bild automatisch generieren (Job-Parameter) */
+  generateCoverImage?: boolean
+  /** Optionaler Prompt für Cover-Bild-Generierung (Job-Parameter oder Library-Config) */
+  coverImagePrompt?: string
 }
 
 export interface TemplatePhaseResult {
@@ -1124,6 +1128,69 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
       textLength: textSource.length
     })
   }
+
+  /**
+   * PHASE-INPUT-VALIDIERUNG (Global Contract):
+   *
+   * Wenn Template-Phase aktiv ist (!templateSkipped), muss textSource nicht leer sein.
+   * Ein leerer Input führt zu einer leeren Transformation, die fälschlicherweise als Erfolg markiert wird.
+   *
+   * Mindestlänge: 10 Zeichen (nach trim) – das ist absichtlich niedrig, um nur echte Leer-Fälle zu fangen.
+   */
+  const MIN_TEXT_SOURCE_CHARS = 10
+  const textSourceTrimmed = textSource.trim()
+  const textSourceBody = stripAllFrontmatter(textSource).trim()
+
+  // Trace-Event für Input-Validierung (immer loggen, auch bei leerem Input)
+  try {
+    await repo.traceAddEvent(jobId, {
+      spanId: 'template',
+      name: 'phase_input_validation',
+      attributes: {
+        phase: 'template',
+        inputOrigin: textSourceOrigin,
+        inputLength: textSourceTrimmed.length,
+        inputBodyLength: textSourceBody.length,
+        minRequiredChars: MIN_TEXT_SOURCE_CHARS,
+        inputValid: textSourceBody.length >= MIN_TEXT_SOURCE_CHARS,
+      }
+    })
+  } catch {}
+
+  // Harte Validierung: Wenn Template aktiv und Input leer → Fehler
+  if (!templateSkipped && textSourceBody.length < MIN_TEXT_SOURCE_CHARS) {
+    const errorMessage = `Template-Phase Input-Validierung fehlgeschlagen: textSource ist leer oder zu kurz (${textSourceBody.length} Zeichen, Minimum: ${MIN_TEXT_SOURCE_CHARS}). ` +
+      `Origin: ${textSourceOrigin}. Mögliche Ursache: Extract-Phase hat keinen Text produziert.`
+
+    FileLogger.error('phase-template', errorMessage, {
+      jobId,
+      textSourceOrigin,
+      textSourceLength: textSourceTrimmed.length,
+      textSourceBodyLength: textSourceBody.length,
+    })
+
+    bufferLog(jobId, {
+      phase: 'template_input_validation_failed',
+      message: errorMessage,
+      textSourceOrigin,
+      textSourceLength: textSourceTrimmed.length,
+      textSourceBodyLength: textSourceBody.length,
+    })
+
+    // Job als failed markieren mit klarer Fehlermeldung
+    await repo.setError(jobId, new Error(errorMessage))
+    await flushLogs(jobId, repo)
+    
+    // Rückgabe entspricht TemplatePhaseResult Interface
+    return {
+      metadata: {},
+      savedItemId: undefined,
+      status: 'failed',
+      skipped: false,
+      errorMessage,
+    }
+  }
+
   /**
    * KAPITEL-ANALYSE (wenn Template ausgeführt wurde):
    * 
@@ -1389,6 +1456,322 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
   // WICHTIG: Bilder-Verarbeitung wurde in Phase 1 (Extract) verschoben
   // Die Bilder werden beim Extract erstellt und sollten dort auch gespeichert werden
   // Daher wird die Bild-Verarbeitung hier nicht mehr durchgeführt
+
+  // ============================================================================
+  // COVER-BILD-GENERIERUNG (optional, wenn generateCoverImage=true)
+  // ============================================================================
+  // Nur ausführen wenn:
+  // 1. generateCoverImage ist true (Job-Parameter)
+  // 2. Transformation wurde ausgeführt (nicht übersprungen)
+  // 3. Noch kein coverImageUrl vorhanden ODER force-Policy
+  // ============================================================================
+  if (args.generateCoverImage && !templateSkipped && savedItemId) {
+    // WICHTIG: Bei paralleler Ausführung (route.ts + start/route.ts) kann es sein,
+    // dass ein anderer Prozess bereits ein Cover-Bild generiert hat.
+    // Daher: Frische Prüfung aus MongoDB, ob coverImageUrl inzwischen gesetzt wurde.
+    let existingCoverImage = mergedMeta.coverImageUrl as string | undefined
+    try {
+      const freshJob = await repo.get(jobId)
+      const freshMeta = freshJob?.cumulativeMeta as Record<string, unknown> | undefined
+      if (freshMeta?.coverImageUrl && typeof freshMeta.coverImageUrl === 'string') {
+        existingCoverImage = freshMeta.coverImageUrl
+        bufferLog(jobId, {
+          phase: 'cover_image_generation_race_check',
+          message: 'Frische Prüfung: Cover-Bild wurde von anderem Prozess bereits gesetzt',
+          coverImageUrl: existingCoverImage,
+        })
+      }
+    } catch (error) {
+      // Frische Prüfung fehlgeschlagen - mit lokalen Daten fortfahren
+      bufferLog(jobId, {
+        phase: 'cover_image_generation_race_check_error',
+        message: 'Frische Prüfung fehlgeschlagen - fahre mit lokalen Daten fort',
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+    
+    const shouldGenerate = policies.metadata === 'force' || !existingCoverImage
+    
+    if (shouldGenerate) {
+      const title = (mergedMeta.title as string | undefined) || ''
+      const summary = (mergedMeta.summary as string | undefined) || ''
+      
+      // Mindestens Title oder Summary muss vorhanden sein
+      if (title || summary) {
+        bufferLog(jobId, {
+          phase: 'cover_image_generation_start',
+          message: 'Starte Cover-Bild-Generierung',
+          hasTitle: !!title,
+          hasSummary: !!summary,
+          forceOverride: policies.metadata === 'force',
+          existingCoverImage: existingCoverImage || null,
+        })
+        
+        try {
+          // SSE-Event: Cover-Bild wird generiert
+          try {
+            getJobEventBus().emitUpdate(job.userEmail, {
+              type: 'job_update',
+              jobId,
+              status: 'running',
+              phase: 'transform',
+              progress: 92,
+              updatedAt: new Date().toISOString(),
+              message: 'Cover-Bild wird generiert...',
+              jobType: job.job_type,
+              fileName: job.correlation?.source?.name,
+              sourceItemId: job.correlation?.source?.itemId,
+            })
+          } catch {}
+          
+          // Prompt erstellen
+          // Priorität: 1. Job-Prompt, 2. Library-Config-Prompt, 3. Standard-Prompt
+          const basePrompt = args.coverImagePrompt || 
+            args.libraryConfig?.coverImagePrompt ||
+            'Erstelle ein professionelles Cover-Bild für ein Dokument mit folgendem Titel und Inhalt:'
+          
+          // Variablen ersetzen
+          const prompt = basePrompt
+            .replace(/\{\{title\}\}/g, title)
+            .replace(/\{\{summary\}\}/g, summary)
+          
+          // Finaler Prompt: Wenn keine Variablen, dann Titel und Summary anhängen
+          const finalPrompt = basePrompt.includes('{{') 
+            ? prompt 
+            : `${prompt}\n\nTitel: ${title}\n\nZusammenfassung: ${summary}`
+          
+          // Secretary Service direkt aufrufen (gleiche Logik wie der Proxy /api/secretary/text2image/generate)
+          const { getSecretaryConfig } = await import('@/lib/env')
+          const { baseUrl, apiKey } = getSecretaryConfig()
+          
+          if (!baseUrl) {
+            throw new Error('Cover-Bild-Generierung: SECRETARY_SERVICE_URL ist nicht konfiguriert')
+          }
+          if (!apiKey) {
+            throw new Error('Cover-Bild-Generierung: SECRETARY_SERVICE_API_KEY ist nicht konfiguriert')
+          }
+          
+          // URL: baseUrl enthält bereits /api, daher nur /text2image/generate anhängen
+          const text2imageUrl = `${baseUrl}/text2image/generate`
+          
+          bufferLog(jobId, {
+            phase: 'cover_image_generation',
+            message: 'Rufe Secretary Service für Bildgenerierung auf',
+            url: text2imageUrl,
+            promptLength: finalPrompt.length,
+            // Prompt für Debugging loggen (erste 500 Zeichen)
+            promptPreview: finalPrompt.substring(0, 500),
+          })
+          
+          // Trace-Event für Cover-Bild-Anfrage
+          try {
+            await repo.traceAddEvent(jobId, {
+              spanId: 'template',
+              name: 'cover_image_request',
+              attributes: {
+                url: text2imageUrl,
+                promptLength: finalPrompt.length,
+                promptPreview: finalPrompt.substring(0, 300),
+                title: title.substring(0, 100),
+                summaryLength: summary.length,
+              },
+            })
+          } catch {}
+          
+          const response = await fetch(text2imageUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`,
+              'X-Secretary-Api-Key': apiKey,
+            },
+            body: JSON.stringify({
+              prompt: finalPrompt,
+              size: '1024x1024',
+              quality: 'standard',
+              n: 1,
+              useCache: false, // Keine Cache für Job-Generierung
+            }),
+          })
+          
+          if (!response.ok) {
+            const errorText = await response.text()
+            throw new Error(`Cover-Bild-Generierung fehlgeschlagen: HTTP ${response.status} - ${errorText}`)
+          }
+          
+          // Secretary Service Response-Format:
+          // { status: 'success', data: { image_base64: string, image_format: string, size: string, images?: [...] } }
+          const result = await response.json() as { 
+            status: string
+            data?: {
+              image_base64?: string
+              image_format?: string
+              images?: Array<{ image_base64: string; image_format: string }>
+            }
+            error?: { code: string; message: string }
+          }
+          
+          // Fehlerprüfung
+          if (result.status === 'error' || result.error) {
+            throw new Error(`Cover-Bild-Generierung: ${result.error?.message || 'Unbekannter Fehler'}`)
+          }
+          
+          if (!result.data) {
+            throw new Error('Cover-Bild-Generierung: Keine data in API-Antwort')
+          }
+          
+          // Bild-Daten extrahieren (einzelnes Bild oder erstes aus Array)
+          const imageBase64 = result.data.images?.[0]?.image_base64 || result.data.image_base64
+          if (!imageBase64) {
+            throw new Error('Cover-Bild-Generierung: Keine Bilddaten (image_base64) in API-Antwort')
+          }
+          
+          // Base64-Daten zu Buffer konvertieren
+          const imageBuffer = Buffer.from(imageBase64, 'base64')
+          
+          // Dateiname generieren
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+          const coverFileName = `cover_generated_${timestamp}.png`
+          
+          // Bild via ShadowTwinService hochladen
+          const service = await ShadowTwinService.create({
+            library,
+            userEmail: job.userEmail,
+            sourceId: sourceItemId,
+            sourceName: job.correlation?.source?.name || baseName,
+            parentId: targetParentId,
+          })
+          
+          // uploadCoverImageAndPatchFrontmatter verwenden
+          const uploadResult = await service.uploadCoverImageAndPatchFrontmatter({
+            buffer: imageBuffer,
+            fileName: coverFileName,
+            mimeType: 'image/png',
+            kind: 'transformation',
+            targetLanguage: lang,
+            templateName: usedTemplate,
+          })
+          
+          // Metadaten aktualisieren
+          mergedMeta.coverImageUrl = uploadResult.fragment.name
+          
+          bufferLog(jobId, {
+            phase: 'cover_image_generation_success',
+            message: 'Cover-Bild erfolgreich generiert und gespeichert',
+            fileName: uploadResult.fragment.name,
+            resolvedUrl: uploadResult.fragment.resolvedUrl,
+            artifactId: uploadResult.artifactId,
+          })
+          
+          try {
+            await repo.traceAddEvent(jobId, {
+              spanId: 'template',
+              name: 'cover_image_generated',
+              attributes: {
+                fileName: uploadResult.fragment.name,
+                resolvedUrl: uploadResult.fragment.resolvedUrl,
+                promptLength: finalPrompt.length,
+                // Prompt-Preview für Debugging im Trace
+                promptPreview: finalPrompt.substring(0, 200),
+                title: title.substring(0, 100),
+                artifactId: uploadResult.artifactId,
+              },
+            })
+          } catch {}
+          
+          // Meta im Job aktualisieren
+          await repo.appendMeta(jobId, { coverImageUrl: uploadResult.fragment.name }, 'cover_image')
+          
+          // SSE-Event: Cover-Bild generiert
+          try {
+            getJobEventBus().emitUpdate(job.userEmail, {
+              type: 'job_update',
+              jobId,
+              status: 'running',
+              phase: 'transform',
+              progress: 95,
+              updatedAt: new Date().toISOString(),
+              message: 'Cover-Bild generiert',
+              jobType: job.job_type,
+              fileName: job.correlation?.source?.name,
+              sourceItemId: job.correlation?.source?.itemId,
+            })
+          } catch {}
+          
+        } catch (error) {
+          // Cover-Bild-Fehler = Job-Fehler (kein Fallback)
+          const errorMessage = error instanceof Error ? error.message : String(error)
+          
+          FileLogger.error('phase-template', 'Cover-Bild-Generierung fehlgeschlagen', {
+            jobId,
+            error: errorMessage,
+          })
+          
+          bufferLog(jobId, {
+            phase: 'cover_image_generation_failed',
+            message: errorMessage,
+          })
+          
+          try {
+            await repo.traceAddEvent(jobId, {
+              spanId: 'template',
+              name: 'cover_image_failed',
+              attributes: {
+                error: errorMessage,
+              },
+            })
+          } catch {}
+          
+          // Job als failed markieren
+          await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date() })
+          await handleJobError(
+            new Error(`Cover-Bild-Generierung fehlgeschlagen: ${errorMessage}`),
+            {
+              jobId,
+              userEmail: job.userEmail,
+              jobType: job.job_type,
+              fileName: job.correlation?.source?.name,
+              sourceItemId: job.correlation?.source?.itemId,
+            },
+            repo,
+            'cover_image_failed',
+            'template'
+          )
+          
+          return {
+            metadata: mergedMeta,
+            savedItemId,
+            status: 'failed',
+            skipped: false,
+            errorMessage: `Cover-Bild-Generierung fehlgeschlagen: ${errorMessage}`,
+          }
+        }
+      } else {
+        // Kein Title und Summary → Warnung, aber kein Fehler
+        bufferLog(jobId, {
+          phase: 'cover_image_generation_skipped',
+          message: 'Cover-Bild-Generierung übersprungen: Kein Titel und keine Zusammenfassung verfügbar',
+        })
+        
+        try {
+          await repo.traceAddEvent(jobId, {
+            spanId: 'template',
+            name: 'cover_image_skipped',
+            attributes: {
+              reason: 'no_title_and_no_summary',
+            },
+          })
+        } catch {}
+      }
+    } else {
+      // Bild existiert bereits
+      bufferLog(jobId, {
+        phase: 'cover_image_generation_skipped',
+        message: 'Cover-Bild-Generierung übersprungen: Bild existiert bereits',
+        existingCoverImage,
+      })
+    }
+  }
 
   return {
     metadata: mergedMeta,

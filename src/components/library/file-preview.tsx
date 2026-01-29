@@ -37,7 +37,7 @@ import type { StoryStepStatus, StoryStepState } from "@/components/library/share
 import { ArtifactMarkdownPanel } from "@/components/library/shared/artifact-markdown-panel"
 import { ArtifactEditDialog } from "@/components/library/shared/artifact-edit-dialog"
 import { IngestionDetailPanel } from "@/components/library/shared/ingestion-detail-panel"
-import { PipelineSheet, type PipelinePolicies } from "@/components/library/flow/pipeline-sheet"
+import { PipelineSheet, type PipelinePolicies, type CoverImageOptions } from "@/components/library/flow/pipeline-sheet"
 import { runPipelineForFile, getMediaKind, type MediaKind } from "@/lib/pipeline/run-pipeline"
 import { activeLibraryAtom } from "@/atoms/library-atom"
 import { loadPdfDefaults } from "@/lib/pdf-defaults"
@@ -693,7 +693,7 @@ function PreviewContent({
 
   // Pipeline starten
   const runPipeline = React.useCallback(
-    async (args: { templateName?: string; targetLanguage: string; policies: PipelinePolicies }) => {
+    async (args: { templateName?: string; targetLanguage: string; policies: PipelinePolicies; coverImage?: CoverImageOptions }) => {
       if (!activeLibraryId) {
         toast.error("Fehler", { description: "libraryId fehlt" })
         return
@@ -719,6 +719,9 @@ function PreviewContent({
           policies: args.policies,
           libraryConfigChatTargetLanguage,
           libraryConfigPdfTemplate,
+          // Cover-Bild-Generierung
+          generateCoverImage: args.coverImage?.generateCoverImage,
+          coverImagePrompt: args.coverImage?.coverImagePrompt,
         })
 
         toast.success("Job angelegt", { description: `Job ${jobId} wurde enqueued.` })
@@ -1054,6 +1057,7 @@ function PreviewContent({
               hasTransformed: !!shadowTwinState?.transformed,
               hasIngested: publishStep?.state !== "missing",
             }}
+            defaultGenerateCoverImage={activeLibrary?.config?.chat?.generateCoverImage}
           />
         </IngestionDataProvider>
       )
@@ -1358,6 +1362,7 @@ function PreviewContent({
               hasTransformed: !!shadowTwinState?.transformed,
               hasIngested: publishStep?.state !== "missing",
             }}
+            defaultGenerateCoverImage={activeLibrary?.config?.chat?.generateCoverImage}
           />
         </IngestionDataProvider>
       )
@@ -1644,6 +1649,7 @@ function PreviewContent({
               hasTransformed: !!shadowTwinState?.transformed,
               hasIngested: publishStep?.state !== "missing",
             }}
+            defaultGenerateCoverImage={activeLibrary?.config?.chat?.generateCoverImage}
           />
         </IngestionDataProvider>
       )
@@ -1698,6 +1704,7 @@ function PreviewContent({
               hasTransformed: false,
               hasIngested: false,
             }}
+            defaultGenerateCoverImage={activeLibrary?.config?.chat?.generateCoverImage}
           />
         </>
       );

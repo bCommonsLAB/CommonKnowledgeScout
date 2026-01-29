@@ -13,7 +13,7 @@ import { FileLogger } from "@/lib/debug/logger"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { ArrowLeft, ExternalLink, FileText, PanelLeftClose, ScrollText, Settings, Sparkles } from "lucide-react"
 import type { ShadowTwinTransformationEntry } from "@/components/library/flow/use-shadow-twin-artifacts"
-import { PipelineSheet, type PipelinePolicies } from "@/components/library/flow/pipeline-sheet"
+import { PipelineSheet, type PipelinePolicies, type CoverImageOptions } from "@/components/library/flow/pipeline-sheet"
 import { loadPdfDefaults } from "@/lib/pdf-defaults"
 import { getEffectivePdfDefaults } from "@/atoms/pdf-defaults"
 import { activeLibraryAtom } from "@/atoms/library-atom"
@@ -83,6 +83,7 @@ export function FlowActions({
   const activeLibrary = useAtomValue(activeLibraryAtom)
   const libraryConfigChatTargetLanguage = activeLibrary?.config?.chat?.targetLanguage
   const libraryConfigPdfTemplate = activeLibrary?.config?.secretaryService?.pdfDefaults?.template
+  
 
   const kind = getMediaKind(sourceFile)
   const transformationSelectValue = activeTransformationId || "__latest__"
@@ -203,7 +204,7 @@ export function FlowActions({
   }, [activeJob?.jobId])
 
   const runPipeline = React.useCallback(
-    async (args: { templateName?: string; targetLanguage: string; policies: PipelinePolicies }) => {
+    async (args: { templateName?: string; targetLanguage: string; policies: PipelinePolicies; coverImage?: CoverImageOptions }) => {
       if (!libraryId) {
         toast.error("Fehler", { description: "libraryId fehlt" })
         return
@@ -229,6 +230,9 @@ export function FlowActions({
           policies: args.policies,
           libraryConfigChatTargetLanguage,
           libraryConfigPdfTemplate,
+          // Cover-Bild-Generierung
+          generateCoverImage: args.coverImage?.generateCoverImage,
+          coverImagePrompt: args.coverImage?.coverImagePrompt,
         })
 
         setActiveJob({ jobId, status: "queued", progress: 0, message: "queued" })
@@ -479,6 +483,7 @@ export function FlowActions({
         templates={templates}
         isLoadingTemplates={isLoadingTemplates}
         onStart={runPipeline}
+        defaultGenerateCoverImage={activeLibrary?.config?.chat?.generateCoverImage}
       />
     </div>
   )

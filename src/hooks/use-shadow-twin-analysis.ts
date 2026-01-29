@@ -22,7 +22,7 @@ import { ShadowTwinState } from '@/lib/shadow-twin/shared';
 import { batchResolveArtifactsClient } from '@/lib/shadow-twin/artifact-client';
 import { FileLogger } from '@/lib/debug/logger';
 import { useAtomValue } from 'jotai';
-import { activeLibraryIdAtom } from '@/atoms/library-atom';
+import { activeLibraryIdAtom, librariesAtom } from '@/atoms/library-atom';
 
 /**
  * Hook für automatische Shadow-Twin-Analyse aller Dateien im Ordner
@@ -41,6 +41,14 @@ export function useShadowTwinAnalysis(
 ): Map<string, ShadowTwinState> {
   const setShadowTwinState = useSetAtom(shadowTwinStateAtom);
   const libraryId = useAtomValue(activeLibraryIdAtom);
+  const libraries = useAtomValue(librariesAtom);
+  
+  // Ermittle, ob Binary-Uploads möglich sind (basierend auf Library-Konfiguration)
+  // MongoDB-Modus: Binary-Uploads sind immer möglich (Upload geht nach Azure)
+  // Filesystem-Modus: Binary-Uploads benötigen ein shadowTwinFolderId
+  const activeLibrary = libraries.find(lib => lib.id === libraryId);
+  const isMongoMode = activeLibrary?.config?.shadowTwin?.primaryStore === 'mongo';
+  
   const previousItemsRef = useRef<Map<string, { modifiedAt?: Date; parentId?: string }>>(new Map());
   const isAnalyzingRef = useRef(false);
   const lastForceRefreshRef = useRef(forceRefresh ?? 0);
@@ -274,6 +282,11 @@ export function useShadowTwinAnalysis(
                 transcript?.kind === 'transcript' && transcript.item ? [transcript.item] : undefined
               const shadowTwinFolderId = transformation?.shadowTwinFolderId || transcript?.shadowTwinFolderId
 
+              // Binary-Uploads sind möglich wenn:
+              // - MongoDB-Modus aktiv ist (Upload geht direkt nach Azure), ODER
+              // - Ein shadowTwinFolderId vorhanden ist (Filesystem-Modus)
+              const binaryUploadEnabled = isMongoMode || Boolean(shadowTwinFolderId)
+              
               const merged: FrontendShadowTwinState = {
                 baseItem: it,
                 transformed,
@@ -287,6 +300,8 @@ export function useShadowTwinAnalysis(
                   chunkCount: ingestionStatus.chunkCount,
                   chaptersCount: ingestionStatus.chaptersCount,
                 } : undefined,
+                // Binary-Upload-Fähigkeit (abstrahiert Storage-Implementierung)
+                binaryUploadEnabled,
               }
 
               next.set(it.id, merged)

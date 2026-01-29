@@ -149,19 +149,10 @@ export function CoverImageGeneratorDialog({
         }
         setGeneratedImages([singleImage])
         
-        // Bei Einzelbild direkt auswählen und speichern
-        if (variantCount === 1) {
-          UILogger.info('CoverImageGeneratorDialog', 'Einzelbild generiert, wird automatisch gespeichert')
-          // Automatisch das einzige Bild auswählen und speichern
-          setSelectedImageIndex(0)
-          // Kurze Verzögerung für visuelles Feedback, dann speichern
-          setTimeout(async () => {
-            await handleSelectImage(0)
-          }, 500)
-        } else {
-          // Bei mehreren Varianten, aber nur ein Bild zurückgekommen: trotzdem anzeigen
-          setSelectedImageIndex(null)
-        }
+        // Bild zur Vorschau anzeigen, Benutzer muss explizit bestätigen
+        // (auch bei Einzelbild - damit der Benutzer das Ergebnis prüfen kann)
+        UILogger.info('CoverImageGeneratorDialog', 'Einzelbild generiert, zeige zur Bestätigung an')
+        setSelectedImageIndex(null)
         return
       }
 
@@ -292,61 +283,57 @@ export function CoverImageGeneratorDialog({
             </div>
           </div>
         ) : (
-          // Schritt 2: Bildauswahl
+          // Schritt 2: Bildauswahl (sowohl für 1 als auch für mehrere Bilder)
           <div className="space-y-4 py-4">
-            {generatedImages.length === 1 ? (
-              <div className="text-sm text-muted-foreground text-center">
-                Ihr Bild wurde generiert und wird gespeichert...
-              </div>
-            ) : (
-              <>
-                <div className="text-sm text-muted-foreground">
-                  Wählen Sie das Bild aus, das Sie verwenden möchten:
-                </div>
+            <div className="text-sm text-muted-foreground">
+              {generatedImages.length === 1 
+                ? 'Ihr Bild wurde generiert. Klicken Sie darauf, um es zu verwenden:'
+                : 'Wählen Sie das Bild aus, das Sie verwenden möchten:'}
+            </div>
+            
+            <div className={cn(
+              "grid gap-4",
+              generatedImages.length === 1 ? "grid-cols-1 max-w-md mx-auto" : "grid-cols-2"
+            )}>
+              {generatedImages.map((image, index) => {
+                const imageUrl = getImageUrl(image)
+                const isSelected = selectedImageIndex === index
                 
-                <div className={cn(
-                  "grid gap-4",
-                  generatedImages.length === 1 ? "grid-cols-1" : "grid-cols-2"
-                )}>
-                  {generatedImages.map((image, index) => {
-                    const imageUrl = getImageUrl(image)
-                    const isSelected = selectedImageIndex === index
-                    
-                    return (
-                      <div
-                        key={index}
-                        className={cn(
-                          "relative border-2 rounded-lg overflow-hidden cursor-pointer transition-all",
-                          isSelected ? "border-primary ring-2 ring-primary ring-offset-2" : "border-border hover:border-primary/50"
-                        )}
-                        onClick={() => handleSelectImage(index)}
-                      >
-                        <img
-                          src={imageUrl}
-                          alt={`Variante ${index + 1}`}
-                          className="w-full h-auto object-contain bg-muted"
-                          style={{ aspectRatio: '1/1', maxHeight: '300px' }}
-                        />
-                        {isSelected && (
-                          <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1.5">
-                            <Check className="h-4 w-4" />
-                          </div>
-                        )}
-                        {generatedImages.length > 1 && (
-                          <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs px-2 py-1 text-center">
-                            Variante {index + 1}
-                          </div>
-                        )}
+                return (
+                  <div
+                    key={index}
+                    className={cn(
+                      "relative border-2 rounded-lg overflow-hidden cursor-pointer transition-all",
+                      isSelected ? "border-primary ring-2 ring-primary ring-offset-2" : "border-border hover:border-primary/50"
+                    )}
+                    onClick={() => handleSelectImage(index)}
+                  >
+                    <img
+                      src={imageUrl}
+                      alt={generatedImages.length === 1 ? 'Generiertes Bild' : `Variante ${index + 1}`}
+                      className="w-full h-auto object-contain bg-muted"
+                      style={{ aspectRatio: '1/1', maxHeight: '300px' }}
+                    />
+                    {isSelected && (
+                      <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1.5">
+                        <Check className="h-4 w-4" />
                       </div>
-                    )
-                  })}
-                </div>
+                    )}
+                    {generatedImages.length > 1 && (
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs px-2 py-1 text-center">
+                        Variante {index + 1}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
 
-                <div className="text-xs text-muted-foreground text-center">
-                  Klicken Sie auf ein Bild, um es auszuwählen und zu speichern
-                </div>
-              </>
-            )}
+            <div className="text-xs text-muted-foreground text-center">
+              {generatedImages.length === 1 
+                ? 'Klicken Sie auf das Bild, um es zu speichern'
+                : 'Klicken Sie auf ein Bild, um es auszuwählen und zu speichern'}
+            </div>
           </div>
         )}
 

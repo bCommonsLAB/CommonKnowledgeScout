@@ -174,12 +174,15 @@ export class MongoShadowTwinStore implements ShadowTwinStore {
     const fragments = await getShadowTwinBinaryFragments(this.libraryId, sourceId)
     if (!fragments) return null
 
+    // Mappe alle Felder, inkl. fileId als Fallback für url
     return fragments.map((f) => ({
       name: f.name,
       url: f.url,
+      fileId: f.fileId,
       hash: f.hash,
       mimeType: f.mimeType,
       size: f.size,
+      kind: f.kind,
     }))
   }
 }

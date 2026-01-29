@@ -13,11 +13,15 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { cn } from "@/lib/utils"
+// Zentrale Pipeline-Konfigurationstypen - Re-Export für Rückwärtskompatibilität
+import { type PipelinePolicies as PipelinePoliciesType } from "@/lib/pipeline/pipeline-config"
+export type PipelinePolicies = PipelinePoliciesType
 
-export interface PipelinePolicies {
-  extract: "ignore" | "do" | "force"
-  metadata: "ignore" | "do" | "force"
-  ingest: "ignore" | "do" | "force"
+export interface CoverImageOptions {
+  /** Cover-Bild automatisch generieren */
+  generateCoverImage: boolean
+  /** Optionaler Prompt (überschreibt Library-Default) */
+  coverImagePrompt?: string
 }
 
 /**
@@ -45,7 +49,7 @@ interface PipelineSheetProps {
   onTemplateNameChange: (value: string) => void
   templates: string[]
   isLoadingTemplates: boolean
-  onStart: (args: { templateName?: string; targetLanguage: string; policies: PipelinePolicies }) => Promise<void>
+  onStart: (args: { templateName?: string; targetLanguage: string; policies: PipelinePolicies; coverImage?: CoverImageOptions }) => Promise<void>
   /**
    * Optionale Default-Werte fuer die Pipeline-Schritte.
    * Wenn gesetzt, werden die Switches beim Oeffnen des Sheets entsprechend initialisiert.
@@ -59,6 +63,10 @@ interface PipelineSheetProps {
    * Optionale Default-Wert fuer "Erzwingen"-Switch.
    */
   defaultForce?: boolean
+  /**
+   * Default-Wert fuer Cover-Bild-Generierung (aus Library-Config).
+   */
+  defaultGenerateCoverImage?: boolean
   /**
    * Informationen ueber bereits vorhandene Artefakte.
    * Ermoeglicht intelligente Vorauswahl und visuelle Hinweise.
@@ -83,6 +91,7 @@ export function PipelineSheet(props: PipelineSheetProps) {
   const [shouldTransform, setShouldTransform] = React.useState(false)
   const [shouldIngest, setShouldIngest] = React.useState(false)
   const [shouldForce, setShouldForce] = React.useState(props.defaultForce ?? false)
+  const [shouldGenerateCoverImage, setShouldGenerateCoverImage] = React.useState(props.defaultGenerateCoverImage ?? false)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
   // Beim Oeffnen des Sheets: Initialisiere basierend auf defaultSteps und existingArtifacts
@@ -92,6 +101,7 @@ export function PipelineSheet(props: PipelineSheetProps) {
     // Reset beim Oeffnen
     const forceMode = props.defaultForce ?? false
     setShouldForce(forceMode)
+    setShouldGenerateCoverImage(props.defaultGenerateCoverImage ?? false)
     
     if (props.defaultSteps) {
       // defaultSteps respektieren
@@ -114,7 +124,17 @@ export function PipelineSheet(props: PipelineSheetProps) {
       setShouldTransform(false)
       setShouldIngest(false)
     }
-  }, [props.isOpen, props.defaultSteps, props.defaultForce, isMarkdown, hasTranscript, hasTransformed, hasIngested])
+  }, [props.isOpen, props.defaultSteps, props.defaultForce, props.defaultGenerateCoverImage, isMarkdown, hasTranscript, hasTransformed, hasIngested])
+
+  // Separater Effect: Cover-Bild-Generierung aktualisieren, wenn der Wert spaeter verfuegbar wird
+  // (activeLibrary wird asynchron geladen, deshalb kann der Wert beim ersten Oeffnen noch undefined sein)
+  React.useEffect(() => {
+    if (!props.isOpen) return
+    // Nur setzen wenn der Wert explizit true ist (nicht bei undefined -> false)
+    if (props.defaultGenerateCoverImage === true) {
+      setShouldGenerateCoverImage(true)
+    }
+  }, [props.isOpen, props.defaultGenerateCoverImage])
 
   // Abhaengigkeits-Logik: Wenn Transformation gewaehlt und kein Transcript vorhanden -> Extract automatisch mit
   React.useEffect(() => {
@@ -188,11 +208,15 @@ export function PipelineSheet(props: PipelineSheetProps) {
         templateName: isNonEmptyString(props.templateName) ? props.templateName : undefined,
         targetLanguage: props.targetLanguage,
         policies,
+        // Cover-Bild-Generierung nur wenn Transform aktiv
+        coverImage: shouldTransform ? {
+          generateCoverImage: shouldGenerateCoverImage,
+        } : undefined,
       })
     } finally {
       setIsSubmitting(false)
     }
-  }, [canStart, props, shouldExtract, shouldForce, shouldIngest, shouldTransform, isMarkdown])
+  }, [canStart, props, shouldExtract, shouldForce, shouldIngest, shouldTransform, shouldGenerateCoverImage, isMarkdown])
 
   // Step-Definitionen fuer das Rendering
   const steps = [
@@ -352,7 +376,7 @@ export function PipelineSheet(props: PipelineSheetProps) {
                     {step.hasOptions && (
                       <CollapsibleContent>
                         <div className={cn(
-                          "pb-3 pt-0",
+                          "pb-3 pt-0 space-y-2",
                           !step.enabled && "pointer-events-none"
                         )}>
                           {/* ml-[76px] = p-4 (16px) + Kreis (44px) + gap-4 (16px) = buendig mit Text */}
@@ -398,6 +422,19 @@ export function PipelineSheet(props: PipelineSheetProps) {
                                 </SelectContent>
                               </Select>
                             </div>
+                          </div>
+                          {/* Cover-Bild-Generierung */}
+                          <div className="flex items-center gap-2 ml-[76px] pr-4">
+                            <input
+                              type="checkbox"
+                              id="generate-cover-image"
+                              checked={shouldGenerateCoverImage}
+                              onChange={(e) => setShouldGenerateCoverImage(e.target.checked)}
+                              className="h-4 w-4 rounded border-gray-300"
+                            />
+                            <Label htmlFor="generate-cover-image" className="text-xs text-muted-foreground cursor-pointer">
+                              Cover-Bild generieren
+                            </Label>
                           </div>
                         </div>
                       </CollapsibleContent>

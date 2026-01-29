@@ -27,6 +27,9 @@ interface BatchRequestBody {
     useCache?: boolean;
     template?: string;
     policies?: import('@/lib/processing/phase-policy').PhasePolicies;
+    // Cover-Bild-Generierung
+    generateCoverImage?: boolean;
+    coverImagePrompt?: string;
   };
   items: BatchItemInput[];
 }
@@ -140,6 +143,9 @@ export async function POST(request: NextRequest) {
             policies: policiesEffective,
             batchId,
             batchName,
+            // Cover-Bild-Generierung
+            generateCoverImage: options?.generateCoverImage ?? false,
+            coverImagePrompt: options?.coverImagePrompt,
           }
         } as unknown as Parameters<ExternalJobsRepository['create']>[0]);
         // Diagnose: Übernommene Policies protokollieren

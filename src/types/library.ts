@@ -124,6 +124,21 @@ export interface LibraryChatConfig {
       buckets?: Array<{ label: string; min: number; max: number }>;
     }>;
   };
+
+  /**
+   * Cover-Bild-Generierung: Automatisch generieren bei Transformation.
+   * Wenn true, wird bei der Template-Phase automatisch ein Cover-Bild generiert,
+   * sofern noch keines existiert.
+   */
+  generateCoverImage?: boolean;
+
+  /**
+   * Cover-Bild-Generierung: Standard-Prompt für alle Coverbilder in dieser Library.
+   * Variablen: {{title}}, {{summary}} werden ersetzt.
+   * 
+   * @example "Erstelle ein Coverbild für: {{title}}. Inhalt: {{summary}}"
+   */
+  coverImagePrompt?: string;
 }
 
 /**

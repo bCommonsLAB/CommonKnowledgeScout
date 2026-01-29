@@ -2,7 +2,11 @@
 
 import * as React from "react"
 import { useSearchParams } from "next/navigation"
-import { File, FileText, FileVideo, FileAudio, Plus, RefreshCw, ChevronUp, ChevronDown, Trash2, Folder as FolderIcon, Sparkles, Upload } from "lucide-react"
+import { 
+  File, FileText, FileVideo, FileAudio, FileSpreadsheet, Presentation, Globe,
+  Image as ImageIcon, FileType2, Plus, RefreshCw, ChevronUp, ChevronDown, 
+  Trash2, Folder as FolderIcon, Sparkles, Upload 
+} from "lucide-react"
 import { StorageItem } from "@/lib/storage/types"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -50,20 +54,169 @@ interface FileGroup {
   shadowTwinFolderId?: string; // Optional: ID des Shadow-Twin-Verzeichnisses
 }
 
-// Memoized file icon component
-const FileIconComponent = React.memo(function FileIconComponent({ item }: { item: StorageItem }) {
-  const mimeType = item.metadata.mimeType || '';
-  if (!mimeType) return <File className="h-4 w-4" />;
-
-  if (mimeType.startsWith('video/')) {
-    return <FileVideo className="h-4 w-4" />;
-  } else if (mimeType.startsWith('audio/')) {
-    return <FileAudio className="h-4 w-4" />;
-  } else if (mimeType.startsWith('text/')) {
-    return <FileText className="h-4 w-4" />;
+/**
+ * Ermittelt den Dateityp basierend auf der Dateiendung.
+ * Unterstützt: PDF, Word, Excel, PowerPoint, Markdown, Audio, Video, Bild, URL/Website
+ */
+function getFileTypeFromName(fileName: string): string {
+  const extension = fileName.split('.').pop()?.toLowerCase();
+  
+  switch(extension) {
+    // Textdateien & Markdown
+    case 'txt':
+    case 'md':
+    case 'mdx':
+      return 'markdown';
+    // Video
+    case 'mp4':
+    case 'avi':
+    case 'mov':
+    case 'webm':
+    case 'mkv':
+    case 'wmv':
+    case 'flv':
+      return 'video';
+    // Audio
+    case 'mp3':
+    case 'm4a':
+    case 'wav':
+    case 'ogg':
+    case 'opus':
+    case 'flac':
+    case 'aac':
+      return 'audio';
+    // Bilder
+    case 'jpg':
+    case 'jpeg':
+    case 'png':
+    case 'gif':
+    case 'webp':
+    case 'svg':
+    case 'bmp':
+    case 'ico':
+    case 'tiff':
+    case 'tif':
+      return 'image';
+    // PDF
+    case 'pdf':
+      return 'pdf';
+    // Word-Dokumente
+    case 'doc':
+    case 'docx':
+    case 'odt':
+    case 'rtf':
+      return 'docx';
+    // PowerPoint-Präsentationen
+    case 'ppt':
+    case 'pptx':
+    case 'odp':
+      return 'pptx';
+    // Excel-Tabellen
+    case 'xls':
+    case 'xlsx':
+    case 'ods':
+    case 'csv':
+      return 'xlsx';
+    // URL/Website-Verknüpfungen
+    case 'url':
+    case 'webloc':
+      return 'website';
+    // Code & Config-Dateien als Text behandeln
+    case 'json':
+    case 'xml':
+    case 'yaml':
+    case 'yml':
+    case 'ini':
+    case 'cfg':
+    case 'conf':
+    case 'log':
+    case 'html':
+    case 'htm':
+    case 'css':
+    case 'js':
+    case 'ts':
+    case 'jsx':
+    case 'tsx':
+    case 'py':
+    case 'java':
+    case 'c':
+    case 'cpp':
+    case 'h':
+    case 'hpp':
+    case 'cs':
+    case 'php':
+    case 'rb':
+    case 'go':
+    case 'rs':
+    case 'swift':
+    case 'kt':
+    case 'scala':
+    case 'r':
+    case 'sh':
+    case 'bash':
+    case 'ps1':
+    case 'bat':
+    case 'cmd':
+      return 'code';
+    default:
+      return 'unknown';
   }
+}
 
-  return <File className="h-4 w-4" />;
+/**
+ * Memoized file icon component.
+ * Zeigt passende Icons basierend auf Dateityp (ermittelt aus Dateiendung).
+ * 
+ * Icon-Mapping:
+ * - PDF → FileType2 (spezielles Dokument-Icon)
+ * - Word/RTF → FileText
+ * - Excel/CSV → FileSpreadsheet
+ * - PowerPoint → Presentation
+ * - Markdown/Text → FileText
+ * - Audio → FileAudio
+ * - Video → FileVideo
+ * - Bilder → ImageIcon
+ * - URL/Website → Globe
+ * - Code → FileText
+ * - Unbekannt → File (generisch)
+ */
+const FileIconComponent = React.memo(function FileIconComponent({ item }: { item: StorageItem }) {
+  const fileName = item.metadata.name || '';
+  const fileType = getFileTypeFromName(fileName);
+  
+  // Icon-Mapping basierend auf Dateityp
+  switch(fileType) {
+    case 'pdf':
+      // PDF: FileType2 als visuell unterscheidbares Icon
+      return <FileType2 className="h-4 w-4 text-red-600" />;
+    case 'docx':
+      // Word-Dokumente: FileText mit blauer Farbe (Word-typisch)
+      return <FileText className="h-4 w-4 text-blue-600" />;
+    case 'xlsx':
+      // Excel-Tabellen: FileSpreadsheet mit grüner Farbe (Excel-typisch)
+      return <FileSpreadsheet className="h-4 w-4 text-green-600" />;
+    case 'pptx':
+      // PowerPoint: Presentation mit oranger Farbe (PowerPoint-typisch)
+      return <Presentation className="h-4 w-4 text-orange-600" />;
+    case 'markdown':
+      // Markdown/Text: FileText (neutral)
+      return <FileText className="h-4 w-4" />;
+    case 'code':
+      // Code-Dateien: FileText mit violetter Farbe
+      return <FileText className="h-4 w-4 text-violet-600" />;
+    case 'video':
+      return <FileVideo className="h-4 w-4 text-purple-600" />;
+    case 'audio':
+      return <FileAudio className="h-4 w-4 text-pink-600" />;
+    case 'image':
+      return <ImageIcon className="h-4 w-4 text-cyan-600" />;
+    case 'website':
+      // URL/Website: Globe-Icon (Web-Symbol)
+      return <Globe className="h-4 w-4 text-sky-600" />;
+    default:
+      // Fallback: generisches File-Icon
+      return <File className="h-4 w-4" />;
+  }
 });
 
 // Pure function for file size formatting

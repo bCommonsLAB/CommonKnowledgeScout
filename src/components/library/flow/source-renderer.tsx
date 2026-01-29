@@ -5,20 +5,7 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import type { StorageItem, StorageProvider } from "@/lib/storage/types"
 import { FileLogger } from "@/lib/debug/logger"
-
-type MediaKind = "pdf" | "audio" | "video" | "image" | "markdown" | "unknown"
-
-function getMediaKind(file: StorageItem): MediaKind {
-  const name = (file.metadata?.name || "").toLowerCase()
-  const mime = (file.metadata?.mimeType || "").toLowerCase()
-
-  if (mime.includes("pdf") || name.endsWith(".pdf")) return "pdf"
-  if (mime.startsWith("audio/") || /\.(mp3|m4a|wav|ogg|opus|flac)$/.test(name)) return "audio"
-  if (mime.startsWith("video/") || /\.(mp4|mov|avi|webm|mkv)$/.test(name)) return "video"
-  if (mime.startsWith("image/") || /\.(png|jpg|jpeg|gif|webp|svg|bmp|ico)$/.test(name)) return "image"
-  if (mime.includes("markdown") || /\.(md|mdx|txt)$/.test(name)) return "markdown"
-  return "unknown"
-}
+import { getMediaKind } from "@/lib/media-types"
 
 interface SourceRendererProps {
   provider: StorageProvider

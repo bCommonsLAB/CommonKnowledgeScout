@@ -7,20 +7,7 @@ import { MarkdownPreview } from "@/components/library/markdown-preview"
 import { SourceRenderer } from "@/components/library/flow/source-renderer"
 import { fetchShadowTwinMarkdown } from "@/lib/shadow-twin/shadow-twin-mongo-client"
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from "@/lib/shadow-twin/mongo-shadow-twin-id"
-
-type MediaType = "pdf" | "audio" | "video" | "image" | "markdown" | "unknown"
-
-function getMediaType(file: StorageItem): MediaType {
-  const name = (file.metadata?.name || "").toLowerCase()
-  const mime = (file.metadata?.mimeType || "").toLowerCase()
-
-  if (mime.includes("pdf") || name.endsWith(".pdf")) return "pdf"
-  if (mime.startsWith("audio/") || /\.(mp3|m4a|wav|ogg|opus|flac)$/.test(name)) return "audio"
-  if (mime.startsWith("video/") || /\.(mp4|mov|avi|webm|mkv)$/.test(name)) return "video"
-  if (mime.startsWith("image/") || /\.(png|jpg|jpeg|gif|webp|svg|bmp|ico)$/.test(name)) return "image"
-  if (mime.includes("markdown") || /\.(md|mdx|txt)$/.test(name)) return "markdown"
-  return "unknown"
-}
+import { getMediaKind } from "@/lib/media-types"
 
 export interface SourceAndTranscriptPaneProps {
   provider: StorageProvider
@@ -46,7 +33,7 @@ export interface SourceAndTranscriptPaneProps {
 }
 
 export function SourceAndTranscriptPane(props: SourceAndTranscriptPaneProps) {
-  const mediaType = getMediaType(props.sourceFile)
+  const mediaType = getMediaKind(props.sourceFile)
   const leftMode = props.leftPaneMode
 
   const [transcriptText, setTranscriptText] = React.useState<string>("")

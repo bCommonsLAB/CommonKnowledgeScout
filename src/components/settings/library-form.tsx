@@ -66,6 +66,7 @@ import {
 } from "@/components/ui/accordion"
 import { librariesAtom, activeLibraryIdAtom } from "@/atoms/library-atom"
 import { StorageProviderType } from "@/types/library"
+import { CreateLibraryDialog } from "@/components/library/create-library-dialog"
 
 // Hauptschema für das Formular mit erweiterter Konfiguration
 const libraryFormSchema = z.object({
@@ -109,6 +110,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
   const [isNew, setIsNew] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [libraries, setLibraries] = useAtom(librariesAtom);
   const [activeLibraryId, setActiveLibraryId] = useAtom(activeLibraryIdAtom);
   const [shadowTwinMode, setShadowTwinMode] = useState<'legacy' | 'v2'>('legacy');
@@ -840,7 +842,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
             </Button>
           ) : (
             <Button 
-              onClick={handleCreateNew} 
+              onClick={() => setIsCreateDialogOpen(true)} 
               disabled={isLoading}
               size="sm"
             >
@@ -1724,6 +1726,17 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
           </Card>
         </div>
       )}
+
+      {/* Dialog zum Erstellen einer neuen Bibliothek */}
+      <CreateLibraryDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        onCreated={(libraryId) => {
+          // Nach Erstellung bleibt man auf der Settings-Seite
+          // Die neue Library ist bereits aktiv (durch den Dialog)
+          setIsNew(false);
+        }}
+      />
     </div>
   )
 }

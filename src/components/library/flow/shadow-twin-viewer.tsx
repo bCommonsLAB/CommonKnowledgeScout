@@ -4,6 +4,7 @@ import * as React from "react"
 
 import type { StorageItem, StorageProvider } from "@/lib/storage/types"
 import { parseFrontmatter } from "@/lib/markdown/frontmatter"
+import { getMediaKind } from "@/lib/media-types"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MarkdownPreview } from "@/components/library/markdown-preview"
@@ -29,18 +30,6 @@ interface ShadowTwinViewerProps {
   shadowTwinFolderId: string | null
   shadowTwinLoading: boolean
   shadowTwinError: string | null
-}
-
-function getMediaType(file: StorageItem): "pdf" | "audio" | "video" | "image" | "markdown" | "unknown" {
-  const name = (file.metadata?.name || "").toLowerCase()
-  const mime = (file.metadata?.mimeType || "").toLowerCase()
-
-  if (mime.includes("pdf") || name.endsWith(".pdf")) return "pdf"
-  if (mime.startsWith("audio/") || /\.(mp3|m4a|wav|ogg|opus|flac)$/.test(name)) return "audio"
-  if (mime.startsWith("video/") || /\.(mp4|mov|avi|webm|mkv)$/.test(name)) return "video"
-  if (mime.startsWith("image/") || /\.(png|jpg|jpeg|gif|webp|svg|bmp|ico)$/.test(name)) return "image"
-  if (mime.includes("markdown") || /\.(md|mdx|txt)$/.test(name)) return "markdown"
-  return "unknown"
 }
 
 
@@ -69,7 +58,7 @@ function coerceChapters(meta: Record<string, unknown>): Chapter[] {
 
 export function ShadowTwinViewer(props: ShadowTwinViewerProps) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const mediaType = getMediaType(props.sourceFile)
+  const mediaType = getMediaKind(props.sourceFile)
   const leftMode = props.leftPaneMode
   const isLeftHidden = leftMode === "off"
 

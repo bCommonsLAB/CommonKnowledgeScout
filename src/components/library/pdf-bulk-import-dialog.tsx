@@ -62,6 +62,8 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
   // Erzwingen pro Phase
   const [forceExtract, setForceExtract] = useState<boolean>(false);
   const [forceMeta, setForceMeta] = useState<boolean>(false);
+  // Cover-Bild-Generierung (aus Library-Config initialisiert)
+  const [generateCoverImage, setGenerateCoverImage] = useState<boolean>(false);
 
   // Shadow-Twin Erkennung (z. B. name.de.md)
   const shadowTwinRegex = useMemo(() => /^(.+)\.(de|en|fr|es|it)\.md$/i, []);
@@ -168,6 +170,8 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
       setRunIngestionPhase(true);
       setForceExtract(false);
       setForceMeta(false);
+      // Cover-Bild aus Library-Config initialisieren
+      setGenerateCoverImage(activeLibrary?.config?.chat?.generateCoverImage === true);
       // Bei Öffnen initial Scannen
       void handleScan();
       // Batch-Name vorbelegen: relativer Pfad des aktuellen Ordners (ohne führenden '/')
@@ -225,6 +229,10 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
             metadata: !!runMetaPhase ? (forceMeta ? 'force' : 'do') : 'ignore',
             ingest: !!runIngestionPhase ? 'do' : 'ignore',
           },
+          // Cover-Bild-Generierung (nur wenn Phase 2 aktiv)
+          generateCoverImage: runMetaPhase && generateCoverImage,
+          // Cover-Bild-Prompt aus Library-Config (optional)
+          coverImagePrompt: activeLibrary?.config?.chat?.coverImagePrompt,
         },
         items: candidates.map(({ file, parentId }) => ({ fileId: file.id, parentId, name: file.metadata.name, mimeType: file.metadata.mimeType })),
       };
@@ -248,7 +256,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
     } finally {
       setIsEnqueuing(false);
     }
-  }, [activeLibraryId, candidates, runMetaPhase, runIngestionPhase, forceExtract, forceMeta, batchName, onOpenChange, pdfOverrides]);
+  }, [activeLibraryId, activeLibrary, candidates, runMetaPhase, runIngestionPhase, forceExtract, forceMeta, generateCoverImage, batchName, onOpenChange, pdfOverrides]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -318,6 +326,17 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
                 <Checkbox id="phase-3" checked={runIngestionPhase} onCheckedChange={(v) => setRunIngestionPhase(Boolean(v))} />
                 <Label htmlFor="phase-3">Phase 3: RAG-Ingestion</Label>
               </div>
+              {/* Cover-Bild-Generierung - nur relevant wenn Phase 2 aktiv */}
+              {runMetaPhase && (
+                <div className="flex items-center gap-2 mt-2 pl-6 border-l-2 border-muted">
+                  <Checkbox 
+                    id="generate-cover-image" 
+                    checked={generateCoverImage} 
+                    onCheckedChange={(v) => setGenerateCoverImage(Boolean(v))} 
+                  />
+                  <Label htmlFor="generate-cover-image">Cover-Bild generieren</Label>
+                </div>
+              )}
             </div>
           </div>
 

@@ -47,12 +47,16 @@ export async function POST(
     })
 
     // Extrahiere binaryFragments mit sourceId-Information
+    // Enthält resolvedUrl: entweder Azure-URL oder generierte Storage-API-URL
     const fragments: Array<{
       sourceId: string
       sourceName: string
       name: string
       kind: string
       url?: string
+      fileId?: string
+      /** Aufgelöste URL: Azure-URL (bevorzugt) oder Storage-API-URL (Fallback) */
+      resolvedUrl?: string
       hash?: string
       mimeType?: string
       size?: number
@@ -121,15 +125,30 @@ export async function POST(
         }
       }
 
-      // Extrahiere binaryFragments
+      // Extrahiere binaryFragments mit resolvedUrl
       if (doc.binaryFragments && Array.isArray(doc.binaryFragments)) {
         for (const fragment of doc.binaryFragments) {
+          const url = fragment.url as string | undefined
+          const fileId = fragment.fileId as string | undefined
+          
+          // Generiere resolvedUrl: Azure-URL (bevorzugt) oder Storage-API-URL (Fallback)
+          let resolvedUrl: string | undefined
+          if (url) {
+            // Azure Blob Storage URL vorhanden
+            resolvedUrl = url
+          } else if (fileId) {
+            // Dateisystem-Referenz: Generiere Storage-API-URL
+            resolvedUrl = `/api/storage/filesystem?action=binary&fileId=${encodeURIComponent(fileId)}&libraryId=${encodeURIComponent(libraryId)}`
+          }
+          
           fragments.push({
             sourceId,
             sourceName: doc.sourceName,
             name: (fragment.name as string) || 'Unbekannt',
             kind: (fragment.kind as string) || 'binary',
-            url: fragment.url as string | undefined,
+            url,
+            fileId,
+            resolvedUrl,
             hash: fragment.hash as string | undefined,
             mimeType: fragment.mimeType as string | undefined,
             size: fragment.size as number | undefined,

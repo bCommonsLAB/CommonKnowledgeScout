@@ -630,6 +630,18 @@ export default function DebugFooter() {
 }
 
 /**
+ * Binary Fragment aus MongoDB
+ */
+interface BinaryFragmentInfo {
+  name: string
+  kind: string
+  url?: string
+  mimeType?: string
+  size?: number
+  createdAt?: string
+}
+
+/**
  * Shadow-Twin-Debug-Content-Komponente
  * Zeigt den Shadow-Twin-State der ausgewählten Datei an
  */
@@ -637,6 +649,50 @@ function ShadowTwinDebugContent() {
   const shadowTwinStates = useAtomValue(shadowTwinStateAtom);
   const selectedFile = useAtomValue(selectedFileAtom);
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
+  
+  // State für binaryFragments aus MongoDB
+  const [binaryFragments, setBinaryFragments] = React.useState<BinaryFragmentInfo[]>([]);
+  const [loadingFragments, setLoadingFragments] = React.useState(false);
+
+  // Lade binaryFragments aus MongoDB, wenn Datei ausgewählt ist
+  React.useEffect(() => {
+    if (!activeLibraryId || !selectedFile) {
+      setBinaryFragments([]);
+      return;
+    }
+
+    let cancelled = false;
+    async function loadFragments() {
+      setLoadingFragments(true);
+      try {
+        const res = await fetch(`/api/library/${activeLibraryId}/shadow-twins/binary-fragments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sourceIds: [selectedFile.id] }),
+        });
+
+        if (!res.ok) {
+          // Ignoriere Fehler (z.B. wenn Mongo nicht aktiv ist)
+          if (!cancelled) setBinaryFragments([]);
+          return;
+        }
+
+        const json = await res.json() as { fragments?: BinaryFragmentInfo[] };
+        if (cancelled) return;
+
+        // Filtere nur echte Binärdateien (keine Markdown)
+        const binaries = (json.fragments || []).filter(f => f.kind !== 'markdown');
+        setBinaryFragments(binaries);
+      } catch {
+        if (!cancelled) setBinaryFragments([]);
+      } finally {
+        if (!cancelled) setLoadingFragments(false);
+      }
+    }
+
+    void loadFragments();
+    return () => { cancelled = true; };
+  }, [activeLibraryId, selectedFile]);
 
   if (!selectedFile) {
     return (
@@ -767,6 +823,44 @@ function ShadowTwinDebugContent() {
               </div>
             </div>
           )}
+
+          {/* Binary Fragments aus MongoDB (Cover-Bilder, Audio, etc.) */}
+          <div>
+            <div className="text-xs font-medium text-muted-foreground mb-1">
+              Binary Files (MongoDB) {loadingFragments && <span className="text-[10px]">(lädt...)</span>}
+            </div>
+            {binaryFragments.length > 0 ? (
+              <div className="space-y-1">
+                {binaryFragments.map((fragment, idx) => (
+                  <div key={`${fragment.name}-${idx}`} className="flex items-start gap-2">
+                    <span className="text-xs text-muted-foreground shrink-0">[{fragment.kind}]</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs break-all">{fragment.name}</div>
+                      {fragment.url && (
+                        <a 
+                          href={fragment.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-[10px] text-blue-600 hover:underline break-all"
+                        >
+                          {fragment.url.length > 60 ? `${fragment.url.substring(0, 60)}...` : fragment.url}
+                        </a>
+                      )}
+                      {fragment.size && (
+                        <span className="text-[10px] text-muted-foreground ml-2">
+                          ({(fragment.size / 1024).toFixed(1)} KB)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-xs text-muted-foreground">
+                {loadingFragments ? '...' : 'Keine Binärdateien'}
+              </div>
+            )}
+          </div>
 
           <div>
             <div className="text-xs font-medium text-muted-foreground mb-1">Analysis Timestamp</div>

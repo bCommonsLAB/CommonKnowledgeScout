@@ -1,0 +1,108 @@
+---
+description: Architekturprinzipien für Shadow-Twin-System und Storage-Abstraktion
+globs: src/lib/shadow-twin/**/*,src/components/library/**/*,src/hooks/use-shadow-twin*,src/atoms/shadow-twin*
+alwaysApply: false
+---
+
+# Shadow-Twin Architektur
+
+## Was ist ein Shadow-Twin?
+
+Ein **Shadow-Twin** ist eine Metadaten-Struktur, die zu einer Quelldatei (PDF, Audio, Video, Markdown) gehört. Es speichert:
+
+- **Artefakte**: Transformierte Inhalte (Transkripte, Zusammenfassungen, formatierte Markdown-Dateien)
+- **Binary Fragments**: Binärdateien (Cover-Bilder, Audio-Clips, generierte Assets)
+- **Metadaten**: Verarbeitungsstatus, Zeitstempel, Verweise
+
+Ein Shadow-Twin existiert **unabhängig vom Storage-Backend** (MongoDB oder Filesystem).
+
+## Storage-Abstraktion (KRITISCH)
+
+### Prinzip: UI kennt NICHT das Storage-Backend
+
+Die **UI-Schicht** darf NIEMALS direkt wissen, ob:
+- MongoDB als Primary Store verwendet wird
+- Dateien im Filesystem liegen
+- Azure Blob Storage für Binärdaten verwendet wird
+
+**FALSCH:**
+```typescript
+// UI prüft Storage-Modus direkt - VERBOTEN!
+const isMongoMode = activeLibrary?.config?.shadowTwin?.primaryStore === 'mongo'
+if (isMongoMode) { /* ... */ }
+```
+
+**RICHTIG:**
+```typescript
+// UI fragt nur abstrakte Fähigkeiten ab
+const canUpload = shadowTwinState?.binaryUploadEnabled
+if (canUpload) { /* ... */ }
+```
+
+### Abstraktionsebenen
+
+1. **UI-Komponenten** (`src/components/`)
+   - Verwenden nur Daten aus Jotai-Atoms oder API-Responses
+   - Fragen nur abstrakte Fähigkeiten ab (z.B. `binaryUploadEnabled`)
+   - Kennen keine Storage-Implementierungsdetails
+
+2. **Hooks** (`src/hooks/`)
+   - Orchestrieren API-Calls
+   - Setzen abstrakte Flags basierend auf Library-Konfiguration
+   - Berechnen `binaryUploadEnabled` aus Storage-Konfiguration
+
+3. **Shadow-Twin-Service** (`src/lib/shadow-twin/store/shadow-twin-service.ts`)
+   - Kapselt ALLE Storage-Operationen
+   - Entscheidet basierend auf `primaryStore`, wohin Daten gehen
+   - Bietet einheitliche API für alle Storage-Backends
+
+4. **Shadow-Twin-Stores** (`src/lib/shadow-twin/store/*-store.ts`)
+   - Implementieren konkrete Storage-Operationen
+   - `MongoShadowTwinStore`: MongoDB + Azure Blob Storage
+   - `ProviderShadowTwinStore`: Filesystem via Storage Provider
+
+## ShadowTwinState Interface
+
+Das `ShadowTwinState` Interface (in `src/lib/shadow-twin/shared.ts`) enthält **abstrakte Fähigkeiten**:
+
+```typescript
+interface ShadowTwinState {
+  // Identifikation
+  baseItem: StorageItem;
+  transformed?: StorageItem;
+  
+  // Abstrakte Fähigkeiten (UI-relevant)
+  binaryUploadEnabled?: boolean;  // Kann ich Bilder hochladen?
+  processingStatus?: 'pending' | 'processing' | 'ready' | 'error';
+  
+  // Implementierungsdetails (nur für Service-Layer)
+  shadowTwinFolderId?: string;  // Nur für Filesystem-Modus relevant
+}
+```
+
+## API-Design
+
+APIs sollten **storage-agnostisch** sein:
+
+**FALSCH:**
+```typescript
+// Unterschiedliche Endpoints für unterschiedliche Storage-Modi
+POST /api/library/{id}/shadow-twins/upload-to-azure
+POST /api/library/{id}/shadow-twins/upload-to-filesystem
+```
+
+**RICHTIG:**
+```typescript
+// Ein Endpoint, Service entscheidet intern
+POST /api/library/{id}/shadow-twins/upload-binary
+// Service entscheidet: Azure oder Filesystem basierend auf Library-Config
+```
+
+## Checkliste bei Änderungen
+
+Vor jeder Änderung im Shadow-Twin-Bereich prüfen:
+
+- [ ] Enthält meine UI-Komponente `isMongoMode` oder `primaryStore`? → REFACTOREN!
+- [ ] Fragt die UI direkt einen Storage-Typ ab? → Abstraktion über State/Hook
+- [ ] Gibt es unterschiedliche Code-Pfade in der UI für verschiedene Storage-Backends? → In Service-Layer verschieben
+- [ ] Wird `shadowTwinFolderId` in der UI für Entscheidungslogik verwendet? → Durch `binaryUploadEnabled` ersetzen

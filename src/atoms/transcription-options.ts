@@ -1,5 +1,7 @@
 import { atom } from 'jotai';
 import { StorageItem } from '@/lib/storage/types';
+// Zentrale Medientyp-Definitionen für Konvertierung
+import { getMediaKind, mediaKindToFileCategory, type MediaKind, type FileCategory as CentralFileCategory } from '@/lib/media-types';
 
 // Basis-Optionen für alle Medientypen
 export interface BaseTransformOptions {
@@ -58,52 +60,48 @@ export interface BatchResult {
   }>;
 }
 
-// Hilfsfunktion zum Bestimmen des Medientyps
+/**
+ * Konvertiert MediaKind zu MediaType für Batch-Auswahl-UI
+ * 
+ * MediaType verwendet 'document' und 'text' statt 'pdf', 'image', 'markdown'
+ * für die Kategorisierung in der Dateiliste.
+ */
+function mediaKindToMediaType(kind: MediaKind): MediaType {
+  switch (kind) {
+    case 'audio':
+      return 'audio';
+    case 'video':
+      return 'video';
+    case 'pdf':
+    case 'image':
+      return 'document';
+    case 'markdown':
+      return 'text';
+    default:
+      return 'unknown';
+  }
+}
+
+/**
+ * Bestimmt den Medientyp für Batch-Auswahl-UI
+ * 
+ * Basiert auf der zentralen getMediaKind Funktion aus media-types.ts
+ */
 export const getMediaType = (item: StorageItem): MediaType => {
-  const mimeType = item.metadata.mimeType.toLowerCase();
-  
-  // Audio-Dateien
-  if (mimeType.startsWith('audio/')) return 'audio';
-  
-  // Video-Dateien
-  if (mimeType.startsWith('video/')) return 'video';
-  
-  // Bilddateien
-  if (mimeType.startsWith('image/')) return 'document';
-  
-  // Textdateien
-  if (mimeType.startsWith('text/') || 
-      mimeType === 'application/json' ||
-      mimeType === 'application/xml') {
-    return 'text';
-  }
-  
-  // Dokumente
-  if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-      mimeType === 'application/msword' ||
-      mimeType === 'application/pdf') {
-    return 'document';
-  }
-  
-  // Unbekannte Dateitypen
-  return 'unknown';
+  const kind = getMediaKind(item);
+  return mediaKindToMediaType(kind);
 };
 
-// Hilfsfunktion zum Bestimmen der Dateikategorie
+/**
+ * Bestimmt die Dateikategorie für Filter-UI
+ * 
+ * Basiert auf der zentralen mediaKindToFileCategory Funktion aus media-types.ts
+ */
 export const getFileCategory = (item: StorageItem): FileCategory => {
-  const mediaType = getMediaType(item);
-  
-  switch (mediaType) {
-    case 'audio':
-    case 'video':
-      return 'media';
-    case 'text':
-      return 'text';
-    case 'document':
-      return 'documents';
-    default:
-      return 'all';
-  }
+  const category = mediaKindToFileCategory(getMediaKind(item));
+  // Mapping von CentralFileCategory zu lokaler FileCategory
+  // (sind identisch, aber TypeScript braucht explizites Mapping)
+  return category as FileCategory;
 };
 
 // Atom für die Basis-Transformationsoptionen

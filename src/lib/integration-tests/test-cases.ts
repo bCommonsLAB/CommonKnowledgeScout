@@ -80,6 +80,36 @@ export interface ExpectedOutcome {
   expectTranscriptHasBody?: boolean;
   /** @deprecated Verwende expectMetaDocument statt expectMongoUpsert */
   expectMongoUpsert?: boolean;
+
+  /**
+   * Phase-Input-Output-Validierung (Global Contract für alle aktiven Phasen).
+   *
+   * Motivation:
+   * Wenn eine Phase aktiviert ist, muss sie valides Eingangsmaterial erhalten.
+   * Ein leerer Input (z.B. leeres extractedText für Template-Phase) führt zu leeren Ergebnissen,
+   * die der Job fälschlicherweise als "completed" markiert.
+   *
+   * Default: true für alle Tests (jede aktive Phase muss validen Input haben)
+   */
+  expectPhaseInputNonEmpty?: boolean;
+
+  /**
+   * Minimale Input-Länge pro Phase (in Zeichen).
+   * Falls gesetzt, wird geprüft, ob jede aktive Phase mindestens diese Anzahl Zeichen als Input erhält.
+   */
+  minPhaseInputChars?: number;
+
+  /**
+   * Explizite Prüfung, dass Template-Phase validen Input erhält.
+   * Wenn true (default für template-aktivierte Tests), muss extractedText oder textSource nicht leer sein.
+   */
+  expectTemplateInputNonEmpty?: boolean;
+
+  /**
+   * Explizite Prüfung, dass Ingestion-Phase validen Input erhält.
+   * Wenn true (default für ingest-aktivierte Tests), muss das Markdown für Ingestion nicht leer sein.
+   */
+  expectIngestInputNonEmpty?: boolean;
 }
 
 export interface IntegrationTestCase {
@@ -153,6 +183,9 @@ export const integrationTestCases: IntegrationTestCase[] = [
       expectExtractRun: true,
       expectTemplateRun: true,
       expectShadowTwinExists: true,
+      // Phase-Input-Validierung: Template muss validen extractedText erhalten
+      expectTemplateInputNonEmpty: true,
+      minPhaseInputChars: 50,
     },
   },
   {
@@ -214,6 +247,9 @@ export const integrationTestCases: IntegrationTestCase[] = [
       expectExtractSkip: false,
       expectTemplateRun: true,
       expectShadowTwinExists: true,
+      // Phase-Input-Validierung: Template muss validen extractedText erhalten
+      expectTemplateInputNonEmpty: true,
+      minPhaseInputChars: 50,
     },
   },
   {
@@ -269,6 +305,10 @@ export const integrationTestCases: IntegrationTestCase[] = [
     expected: {
       shouldComplete: true,
       expectShadowTwinExists: true,
+      // Phase-Input-Validierung: Jede Phase muss validen Input erhalten
+      expectTemplateInputNonEmpty: true,
+      expectIngestInputNonEmpty: true,
+      minPhaseInputChars: 50,
     },
   },
   // AUDIO UseCase: audio_transcription
@@ -297,6 +337,8 @@ export const integrationTestCases: IntegrationTestCase[] = [
       // Schwelle bewusst niedrig: wir wollen leere/fehlerhafte Writes finden, nicht "Qualität" bewerten.
       expectTranscriptNonEmpty: true,
       minTranscriptChars: 20,
+      // Transcript-Body (nicht nur Frontmatter) muss vorhanden sein
+      expectTranscriptHasBody: true,
     },
   },
   {
@@ -323,6 +365,8 @@ export const integrationTestCases: IntegrationTestCase[] = [
       expectShadowTwinExists: true,
       expectTranscriptNonEmpty: true,
       minTranscriptChars: 20,
+      // Transcript-Body (nicht nur Frontmatter) muss vorhanden sein
+      expectTranscriptHasBody: true,
     },
   },
   {
@@ -349,6 +393,41 @@ export const integrationTestCases: IntegrationTestCase[] = [
       expectShadowTwinExists: true,
       expectTranscriptNonEmpty: true,
       minTranscriptChars: 20,
+      // Transcript-Body (nicht nur Frontmatter) muss vorhanden sein
+      expectTranscriptHasBody: true,
+    },
+  },
+  {
+    id: 'audio_transcription.template_and_ingest',
+    target: 'audio',
+    useCaseId: 'audio_transcription',
+    scenarioId: 'template_and_ingest',
+    label: 'Audio – Template + Ingest (Shadow-Twin existiert)',
+    description:
+      'Testet das Szenario, bei dem ein Audio-Transcript bereits als Shadow-Twin existiert. ' +
+      'Extract wird übersprungen (Gate). Template kann übersprungen werden, wenn Frontmatter bereits valide ist. ' +
+      'Ingest MUSS ausgeführt werden. ' +
+      'Dieser Testcase deckt den Bug ab, bei dem der "Template-only"-Pfad die Ingest-Phase ignoriert hat. ' +
+      'Contract: Wenn phases.ingest=true, muss ingest_rag Step completed sein (nicht pending).',
+    category: 'usecase',
+    phases: { extract: true, template: true, ingest: true },
+    policies: {
+      extract: 'auto', // Gate soll Extract überspringen, wenn Shadow-Twin existiert
+      metadata: 'do',
+      ingest: 'do',
+    },
+    shadowTwinState: 'exists', // Transcript existiert bereits
+    expected: {
+      shouldComplete: true,
+      expectExtractRun: false, // Extract wird übersprungen (Gate)
+      expectExtractSkip: true,
+      // Template kann übersprungen werden, wenn Frontmatter bereits valide ist (preprocess_frontmatter_valid)
+      // Daher expectTemplateRun: false - wir prüfen nur, dass der Step completed ist (egal ob skipped oder run)
+      expectTemplateRun: false,
+      expectIngestionRun: true, // Ingest MUSS ausgeführt werden (Bug-Fix-Validation!)
+      expectShadowTwinExists: true,
+      // Ingest-Input muss valide sein
+      expectIngestInputNonEmpty: true,
     },
   },
   // MARKDOWN UseCase: markdown_ingest
@@ -375,6 +454,9 @@ export const integrationTestCases: IntegrationTestCase[] = [
       expectIngestionRun: true,
       expectMetaDocument: true,
       expectChunkVectors: true,
+      // Canonical Markdown (normalisiert aus Quelldatei) muss non-empty sein
+      expectTranscriptNonEmpty: true,
+      minTranscriptChars: 20,
     },
   },
   // TXT UseCase: txt_normalize
@@ -401,8 +483,11 @@ export const integrationTestCases: IntegrationTestCase[] = [
       expectIngestionRun: true,
       expectMetaDocument: true,
       expectChunkVectors: true,
-      expectTranscriptNonEmpty: true, // Canonical Markdown non-empty
+      // Canonical Markdown (normalisiert aus TXT) muss non-empty sein
+      expectTranscriptNonEmpty: true,
       minTranscriptChars: 10,
+      // Body (nicht nur Frontmatter) muss vorhanden sein
+      expectTranscriptHasBody: true,
     },
   },
   // WEBSITE UseCase: website_normalize
@@ -429,8 +514,11 @@ export const integrationTestCases: IntegrationTestCase[] = [
       expectIngestionRun: true,
       expectMetaDocument: true,
       expectChunkVectors: true,
-      expectTranscriptNonEmpty: true, // Canonical Markdown non-empty
+      // Canonical Markdown (normalisiert aus HTML) muss non-empty sein
+      expectTranscriptNonEmpty: true,
       minTranscriptChars: 10,
+      // Body (nicht nur Frontmatter) muss vorhanden sein
+      expectTranscriptHasBody: true,
     },
   },
 ]

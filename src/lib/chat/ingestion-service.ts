@@ -16,6 +16,7 @@ import { buildMetaDocument } from '@/lib/ingestion/meta-document-builder'
 import { hashId } from '@/lib/utils/string-utils'
 import { AzureStorageService } from '@/lib/services/azure-storage-service'
 import { getAzureStorageConfig } from '@/lib/config/azure-storage'
+import { getShadowTwinBinaryFragments } from '@/lib/repositories/shadow-twin-repo'
 import * as fs from 'fs/promises'
 
 /**
@@ -264,10 +265,51 @@ export class IngestionService {
             })
           }
           
-          // PRIORITÄT 1: Prüfe ob coverImageUrl explizit im Frontmatter gesetzt ist
+          // PRIORITÄT 0: Prüfe ob Azure-URL bereits in binaryFragments vorhanden ist
+          // Dies verhindert Doppelverarbeitung: Wenn das Bild bereits hochgeladen wurde,
+          // verwenden wir die vorhandene URL direkt ohne erneutes Laden/Hochladen
           const frontmatterCoverImageUrl = (metaEffective as { coverImageUrl?: string })?.coverImageUrl
           if (frontmatterCoverImageUrl && typeof frontmatterCoverImageUrl === 'string' && frontmatterCoverImageUrl.trim().length > 0) {
-            FileLogger.info('ingestion', 'Verwende coverImageUrl aus Frontmatter', {
+            try {
+              // Lade binaryFragments aus MongoDB
+              const binaryFragments = await getShadowTwinBinaryFragments(libraryId, fileId)
+              if (binaryFragments && binaryFragments.length > 0) {
+                // Suche nach Fragment mit dem Dateinamen aus Frontmatter
+                const coverFragment = binaryFragments.find(f => 
+                  f.name === frontmatterCoverImageUrl && f.url
+                )
+                
+                if (coverFragment?.url) {
+                  // URL direkt verwenden - kein erneutes Laden/Hochladen!
+                  coverImageUrl = coverFragment.url
+                  docMetaJsonObj.coverImageUrl = coverImageUrl
+                  FileLogger.info('ingestion', 'Cover-Bild URL aus binaryFragments übernommen (keine Doppelverarbeitung)', {
+                    fileId,
+                    coverImageUrl,
+                    fragmentName: coverFragment.name,
+                  })
+                  if (jobId) {
+                    bufferLog(jobId, {
+                      phase: 'cover_image_processed',
+                      message: `Cover-Bild aus MongoDB binaryFragments übernommen: ${coverImageUrl}`,
+                    })
+                  }
+                }
+              }
+            } catch (error) {
+              FileLogger.warn('ingestion', 'Fehler beim Prüfen der binaryFragments', {
+                fileId,
+                frontmatterCoverImageUrl,
+                error: error instanceof Error ? error.message : String(error),
+              })
+              // Fallback auf normale Verarbeitung
+            }
+          }
+          
+          // PRIORITÄT 1: Prüfe ob coverImageUrl explizit im Frontmatter gesetzt ist
+          // Nur ausführen, wenn noch keine URL aus binaryFragments gefunden wurde
+          if (!coverImageUrl && frontmatterCoverImageUrl && typeof frontmatterCoverImageUrl === 'string' && frontmatterCoverImageUrl.trim().length > 0) {
+            FileLogger.info('ingestion', 'Verwende coverImageUrl aus Frontmatter (Fallback auf Dateisystem)', {
               fileId,
               coverImageUrl: frontmatterCoverImageUrl,
             })

@@ -164,19 +164,23 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
   // Stabiler Schlüssel: Original-Quell-Item (PDF) bevorzugen, sonst Shadow‑Twin, sonst Fallback
   const fileId = (job.correlation.source?.itemId as string | undefined) || savedItemId || `${jobId}-md`
   
-  // Lade Markdown-Inhalt: Verwende zentrale loadShadowTwinMarkdown() Funktion (wie Template-Phase)
-  // Diese Funktion findet automatisch die richtige Shadow-Twin-Datei (Verzeichnis oder Parent)
-  // WICHTIG: Bevorzuge immer das transformierte Markdown aus dem Shadow-Twin, nicht das rohe extractedText
-  // Das transformierte Markdown enthält Frontmatter mit Metadaten und ist für RAG-Ingestion optimiert
+  // =========================================================================
+  // Lade Markdown-Inhalt: Verwende zentrale loadShadowTwinMarkdown() Funktion
+  //
+  // WICHTIG - DETERMINISTISCHE QUELLENWAHL:
+  // Ingest-Phase braucht das TRANSFORMIERTE Markdown (Phase 2 Ergebnis):
+  // - Enthält Frontmatter mit Metadaten
+  // - Ist für RAG-Ingestion optimiert
+  // - Falls keine Transformation existiert, wird Transkript als Fallback verwendet
+  // =========================================================================
   let markdownForIngestion = markdown || ''
   let metaForIngestion = meta
   
   // Versuche immer zuerst das transformierte Markdown aus dem Shadow-Twin zu laden
   // Nur wenn das fehlschlägt, verwende das übergebene markdown als Fallback
   try {
-    // Verwende zentrale Shadow-Twin-Loader-Funktion
-    // Diese bevorzugt das transformierte Markdown (shadowTwinState.transformed.id)
-    const shadowTwinResult = await loadShadowTwinMarkdown(ctx, ingestionProvider)
+    // Verwende zentrale Shadow-Twin-Loader-Funktion mit explizitem Purpose
+    const shadowTwinResult = await loadShadowTwinMarkdown(ctx, ingestionProvider, 'forIngestOrPassthrough')
     if (shadowTwinResult) {
       markdownForIngestion = shadowTwinResult.markdown
       // Meta aus Shadow-Twin überschreibt übergebenes Meta (falls vorhanden)
@@ -228,6 +232,65 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
   const sourceItemIdForFileName = job.correlation.source?.itemId || 'unknown'
   const langForFileName = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
   const fileName = buildArtifactName({ sourceId: sourceItemIdForFileName, kind: 'transcript', targetLanguage: langForFileName }, sourceNameForFileName)
+
+  /**
+   * PHASE-INPUT-VALIDIERUNG (Global Contract):
+   *
+   * Ingestion benötigt valides Markdown als Input.
+   * Ein leerer Input führt zu leeren Chunks/Vektoren, die fälschlicherweise als Erfolg markiert werden.
+   *
+   * Mindestlänge: 10 Zeichen (nach trim) – das ist absichtlich niedrig, um nur echte Leer-Fälle zu fangen.
+   */
+  const MIN_INGEST_INPUT_CHARS = 10
+  const markdownTrimmed = markdownForIngestion.trim()
+
+  // Trace-Event für Input-Validierung (immer loggen, auch bei leerem Input)
+  try {
+    await repo.traceAddEvent(jobId, {
+      spanId: 'ingest',
+      name: 'phase_input_validation',
+      attributes: {
+        phase: 'ingest',
+        inputLength: markdownTrimmed.length,
+        minRequiredChars: MIN_INGEST_INPUT_CHARS,
+        inputValid: markdownTrimmed.length >= MIN_INGEST_INPUT_CHARS,
+        inputSource: markdownForIngestion === markdown ? 'passed_markdown' : markdownForIngestion === extractedText ? 'extracted_text' : 'shadow_twin',
+      },
+    })
+  } catch {}
+
+  // Harte Validierung: Wenn Input leer → Fehler
+  if (markdownTrimmed.length < MIN_INGEST_INPUT_CHARS) {
+    const errorMessage = `Ingest-Phase Input-Validierung fehlgeschlagen: Markdown ist leer oder zu kurz (${markdownTrimmed.length} Zeichen, Minimum: ${MIN_INGEST_INPUT_CHARS}). ` +
+      `Mögliche Ursache: Vorherige Phase (Template/Extract) hat keinen Text produziert.`
+
+    FileLogger.error('phase-ingest', errorMessage, {
+      jobId,
+      markdownLength: markdownTrimmed.length,
+      fileId,
+    })
+
+    bufferLog(jobId, {
+      phase: 'ingest_input_validation_failed',
+      message: errorMessage,
+      markdownLength: markdownTrimmed.length,
+    })
+
+    await repo.updateStep(jobId, 'ingest_rag', {
+      status: 'failed',
+      endedAt: new Date(),
+      error: { message: errorMessage },
+    })
+
+    // Job als failed markieren
+    await repo.setError(jobId, new Error(errorMessage))
+
+    return {
+      completed: false,
+      skipped: false,
+      error: errorMessage,
+    }
+  }
 
   let res
   try {
