@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { StorageFactory } from '@/lib/storage/storage-factory';
 import { LibraryService } from '@/lib/services/library-service';
+import { getSelfBaseUrl } from '@/lib/env';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -49,9 +50,8 @@ export async function GET(request: NextRequest) {
     storageFactory.setLibraries(clientLibraries);
     
     // Im Server-Kontext: Setze die Basis-URL für API-Aufrufe
-    // Verwende die Request-URL als Basis, damit fetch() absolute URLs erhält
-    const requestUrl = new URL(request.url);
-    const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
+    // Verwende getSelfBaseUrl() für korrekte URL in Docker/Reverse-Proxy-Umgebungen
+    const baseUrl = getSelfBaseUrl();
     storageFactory.setApiBaseUrl(baseUrl);
     storageFactory.setUserEmail(userEmail);
     
@@ -166,9 +166,8 @@ export async function POST(request: NextRequest) {
     storageFactory.setLibraries(clientLibraries);
     
     // Im Server-Kontext: Setze die Basis-URL für API-Aufrufe
-    // Verwende die Request-URL als Basis, damit fetch() absolute URLs erhält
-    const requestUrl = new URL(request.url);
-    const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
+    // Verwende getSelfBaseUrl() für korrekte URL in Docker/Reverse-Proxy-Umgebungen
+    const baseUrl = getSelfBaseUrl();
     storageFactory.setApiBaseUrl(baseUrl);
     storageFactory.setUserEmail(userEmail);
     
@@ -238,9 +237,8 @@ export async function DELETE(request: NextRequest) {
     storageFactory.setLibraries(clientLibraries);
     
     // Im Server-Kontext: Setze die Basis-URL für API-Aufrufe
-    // Verwende die Request-URL als Basis, damit fetch() absolute URLs erhält
-    const requestUrl = new URL(request.url);
-    const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
+    // Verwende getSelfBaseUrl() für korrekte URL in Docker/Reverse-Proxy-Umgebungen
+    const baseUrl = getSelfBaseUrl();
     storageFactory.setApiBaseUrl(baseUrl);
     storageFactory.setUserEmail(userEmail);
     
@@ -330,9 +328,8 @@ export async function PATCH(request: NextRequest) {
     storageFactory.setLibraries(clientLibraries);
     
     // Im Server-Kontext: Setze die Basis-URL für API-Aufrufe
-    // Verwende die Request-URL als Basis, damit fetch() absolute URLs erhält
-    const requestUrl = new URL(request.url);
-    const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
+    // Verwende getSelfBaseUrl() für korrekte URL in Docker/Reverse-Proxy-Umgebungen
+    const baseUrl = getSelfBaseUrl();
     storageFactory.setApiBaseUrl(baseUrl);
     storageFactory.setUserEmail(userEmail);
     
