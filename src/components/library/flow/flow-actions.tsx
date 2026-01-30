@@ -17,8 +17,8 @@ import { PipelineSheet, type PipelinePolicies, type CoverImageOptions } from "@/
 import { loadPdfDefaults } from "@/lib/pdf-defaults"
 import { getEffectivePdfDefaults } from "@/atoms/pdf-defaults"
 import { activeLibraryAtom } from "@/atoms/library-atom"
-import { TARGET_LANGUAGE_DEFAULT, type TargetLanguage } from "@/lib/chat/constants"
-import { runPipelineForFile, getMediaKind, type MediaKind } from "@/lib/pipeline/run-pipeline"
+import { TARGET_LANGUAGE_DEFAULT } from "@/lib/chat/constants"
+import { runPipelineForFile, getMediaKind } from "@/lib/pipeline/run-pipeline"
 
 const PdfPhaseSettings = React.lazy(() =>
   import("@/components/library/pdf-phase-settings").then(m => ({ default: m.PdfPhaseSettings }))

@@ -77,7 +77,7 @@ export async function POST(
     for (const [sourceId, doc] of docs.entries()) {
       // Extrahiere Transcript-Artefakte
       if (doc.artifacts?.transcript) {
-        for (const [targetLanguage, record] of Object.entries(doc.artifacts.transcript)) {
+        for (const [targetLanguage] of Object.entries(doc.artifacts.transcript)) {
           const { buildArtifactName } = await import('@/lib/shadow-twin/artifact-naming')
           const artifactFileName = buildArtifactName(
             {
@@ -101,7 +101,7 @@ export async function POST(
       // Extrahiere Transformation-Artefakte
       if (doc.artifacts?.transformation) {
         for (const [templateName, langRecords] of Object.entries(doc.artifacts.transformation)) {
-          for (const [targetLanguage, record] of Object.entries(langRecords)) {
+          for (const [targetLanguage] of Object.entries(langRecords)) {
             const { buildArtifactName } = await import('@/lib/shadow-twin/artifact-naming')
             const artifactFileName = buildArtifactName(
               {

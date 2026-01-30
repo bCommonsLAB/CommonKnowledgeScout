@@ -131,7 +131,8 @@ export async function persistShadowTwinToMongo(args: {
   const imageUrls = extractImageUrls(processed.markdown)
   
   // Extrahiere ursprüngliche relative Pfade (für Bilder, die noch nicht verarbeitet wurden)
-  const originalPaths = extractOriginalImagePaths(markdown)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _originalPaths = extractOriginalImagePaths(markdown)
 
   // Erstelle binaryFragments mit Hash und Size
   const binaryFragments: Array<{

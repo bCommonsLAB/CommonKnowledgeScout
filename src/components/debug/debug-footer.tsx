@@ -662,13 +662,14 @@ function ShadowTwinDebugContent() {
     }
 
     let cancelled = false;
+    const fileId = selectedFile.id; // Lokale Kopie für Closure
     async function loadFragments() {
       setLoadingFragments(true);
       try {
         const res = await fetch(`/api/library/${activeLibraryId}/shadow-twins/binary-fragments`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sourceIds: [selectedFile.id] }),
+          body: JSON.stringify({ sourceIds: [fileId] }),
         });
 
         if (!res.ok) {

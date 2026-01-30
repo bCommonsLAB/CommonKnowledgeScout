@@ -1,0 +1,1732 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="http://localhost:3000/docs/architecture/pipeline-phases.html">
+      
+      
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.16">
+    
+    
+      
+        <title>Pipeline-Phasen Architektur - Common Knowledge Scout</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.7e37652d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../css/print-site.css">
+    
+      <link rel="stylesheet" href="../css/print-site-material.css">
+    
+      <link rel="stylesheet" href="../assets/stylesheets/print.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#pipeline-phasen-architektur" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../index.html" title="Common Knowledge Scout" class="md-header__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Common Knowledge Scout
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Pipeline-Phasen Architektur
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../index.html" title="Common Knowledge Scout" class="md-nav__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Common Knowledge Scout
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Architecture
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="module-hierarchy.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Module Hierarchy
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="dependency-graph.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Dependency Graph
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="shadow-twin.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shadow-Twin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="pdf-transformation-phases.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PDF Transformation Phases
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="mongodb-vector-search.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MongoDB Vector Search
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Analysis
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Analysis
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/shadow-twin-v2-only.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shadow-Twin (v2-only)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/wizard-and-jobs.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Wizard & External Jobs
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/audio-jobs-transcript-only.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Audio/Video (no template)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/ingestion.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Ingestion
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/storage.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/markdown-page-splitting.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Markdown Page Splitting
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Use Cases
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Use Cases
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/library-setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Library Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/file-transformation-pdf.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PDF Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/file-transformation-media.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Media Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/file-to-story.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    File → Story (End-to-End)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/web-scraping.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Web Scraping
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/publishing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Publishing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/chat-exploration.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Chat & Story Mode
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/batch-operations.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Batch Operations
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/file-index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    File Index
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Modules
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            Modules
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/modules/library.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Library
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/modules/storage.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/modules/chat.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Chat
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ubersicht" class="md-nav__link">
+    <span class="md-ellipsis">
+      Übersicht
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#unified-pipeline-endpoint" class="md-nav__link">
+    <span class="md-ellipsis">
+      Unified Pipeline Endpoint
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Unified Pipeline Endpoint">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#request-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      Request-Format
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#response-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      Response-Format
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verwendung-im-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      Verwendung im Code
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#medientypen" class="md-nav__link">
+    <span class="md-ellipsis">
+      Medientypen
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Medientypen">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#markdown-sonderfall" class="md-nav__link">
+    <span class="md-ellipsis">
+      Markdown-Sonderfall
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#route-architektur" class="md-nav__link">
+    <span class="md-ellipsis">
+      Route-Architektur
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Route-Architektur">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-start-route-apiexternaljobsjobidstart" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Start-Route (/api/external/jobs/[jobId]/start)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-callback-route-apiexternaljobsjobid" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Callback-Route (/api/external/jobs/[jobId])
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#unterschiedliche-flows-nach-medientyp" class="md-nav__link">
+    <span class="md-ellipsis">
+      Unterschiedliche Flows nach Medientyp
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#policies" class="md-nav__link">
+    <span class="md-ellipsis">
+      Policies
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cover-bild-generierung" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cover-Bild-Generierung
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cover-Bild-Generierung">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#parameter" class="md-nav__link">
+    <span class="md-ellipsis">
+      Parameter
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ablauf" class="md-nav__link">
+    <span class="md-ellipsis">
+      Ablauf
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#route-trennung-race-condition-fix" class="md-nav__link">
+    <span class="md-ellipsis">
+      Route-Trennung (Race-Condition-Fix)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#job-struktur" class="md-nav__link">
+    <span class="md-ellipsis">
+      Job-Struktur
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dateien" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dateien
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ui-komponenten" class="md-nav__link">
+    <span class="md-ellipsis">
+      UI-Komponenten
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="UI-Komponenten">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mediabatchdialog-ehemals-pdfbulkimportdialog" class="md-nav__link">
+    <span class="md-ellipsis">
+      MediaBatchDialog (ehemals PdfBulkImportDialog)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#legacy-endpoints-deprecated" class="md-nav__link">
+    <span class="md-ellipsis">
+      Legacy-Endpoints (Deprecated)
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="pipeline-phasen-architektur">Pipeline-Phasen Architektur<a class="headerlink" href="#pipeline-phasen-architektur" title="Permanent link">&para;</a></h1>
+<h2 id="ubersicht">Übersicht<a class="headerlink" href="#ubersicht" title="Permanent link">&para;</a></h2>
+<p>Die Dokumentenverarbeitung erfolgt in drei Phasen, die über External Jobs orchestriert werden:</p>
+<div class="highlight"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────────────┐
+│                        Pipeline-Phasen                                   │
+├──────────────────┬──────────────────────┬──────────────────────────────┤
+│   Phase 1        │   Phase 2            │   Phase 3                    │
+│   EXTRACT        │   TRANSFORM          │   INGEST                     │
+├──────────────────┼──────────────────────┼──────────────────────────────┤
+│ - OCR/Transkript │ - Template anwenden  │ - RAG-Vektoren erstellen     │
+│ - Text extrah.   │ - Metadaten gener.   │ - MongoDB-Index aktualis.    │
+│ - Bilder laden   │ - Cover-Bild gener.  │ - Chat-Suche ermöglichen     │
+└──────────────────┴──────────────────────┴──────────────────────────────┘
+</code></pre></div>
+<h2 id="unified-pipeline-endpoint">Unified Pipeline Endpoint<a class="headerlink" href="#unified-pipeline-endpoint" title="Permanent link">&para;</a></h2>
+<p>Alle Pipeline-Operationen laufen über einen zentralen Endpoint:</p>
+<div class="highlight"><pre><span></span><code>POST /api/pipeline/process
+</code></pre></div>
+<h3 id="request-format">Request-Format<a class="headerlink" href="#request-format" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="kd">interface</span><span class="w"> </span><span class="nx">PipelineRequest</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">libraryId</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span>
+
+<span class="w">  </span><span class="c1">// Einzeldatei ODER Batch</span>
+<span class="w">  </span><span class="nx">item?</span><span class="o">:</span><span class="w"> </span><span class="kt">PipelineItem</span><span class="w">           </span><span class="c1">// Einzeldatei</span>
+<span class="w">  </span><span class="nx">items?</span><span class="o">:</span><span class="w"> </span><span class="kt">PipelineItem</span><span class="p">[]</span><span class="w">        </span><span class="c1">// Batch (mehrere Dateien)</span>
+
+<span class="w">  </span><span class="nx">config</span><span class="o">:</span><span class="w"> </span><span class="kt">PipelineConfig</span>
+<span class="w">  </span><span class="nx">batchName?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w">            </span><span class="c1">// Optional: Name für Batch-Verarbeitung</span>
+
+<span class="w">  </span><span class="c1">// PDF-spezifische Optionen</span>
+<span class="w">  </span><span class="nx">extractionMethod?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span>
+<span class="w">  </span><span class="nx">includeOcrImages?</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span>
+<span class="w">  </span><span class="nx">includePageImages?</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span>
+<span class="w">  </span><span class="nx">useCache?</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span>
+<span class="p">}</span>
+
+<span class="kd">interface</span><span class="w"> </span><span class="nx">PipelineConfig</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">targetLanguage</span><span class="o">:</span><span class="w"> </span><span class="kt">TargetLanguage</span>
+<span class="w">  </span><span class="nx">templateName?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span>
+<span class="w">  </span><span class="nx">phases</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">extract</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span><span class="p">;</span><span class="w"> </span><span class="nx">template</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span><span class="p">;</span><span class="w"> </span><span class="nx">ingest</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="nx">policies</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">extract</span><span class="o">:</span><span class="w"> </span><span class="kt">PhasePolicy</span><span class="p">;</span><span class="w"> </span><span class="nx">metadata</span><span class="o">:</span><span class="w"> </span><span class="kt">PhasePolicy</span><span class="p">;</span><span class="w"> </span><span class="nx">ingest</span><span class="o">:</span><span class="w"> </span><span class="kt">PhasePolicy</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="nx">generateCoverImage?</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span>
+<span class="w">  </span><span class="nx">coverImagePrompt?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="response-format">Response-Format<a class="headerlink" href="#response-format" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="kd">interface</span><span class="w"> </span><span class="nx">PipelineResponse</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">successCount</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span>
+<span class="w">  </span><span class="nx">failureCount</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span>
+<span class="w">  </span><span class="nx">jobs</span><span class="o">:</span><span class="w"> </span><span class="kt">Array</span><span class="o">&lt;</span><span class="p">{</span><span class="w"> </span><span class="nx">jobId</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w"> </span><span class="nx">mediaKind</span><span class="o">:</span><span class="w"> </span><span class="kt">MediaKind</span><span class="w"> </span><span class="p">}</span><span class="o">&gt;</span>
+<span class="w">  </span><span class="nx">failures</span><span class="o">:</span><span class="w"> </span><span class="kt">Array</span><span class="o">&lt;</span><span class="p">{</span><span class="w"> </span><span class="nx">itemId</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w"> </span><span class="nx">error</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">}</span><span class="o">&gt;</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="verwendung-im-code">Verwendung im Code<a class="headerlink" href="#verwendung-im-code" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">runPipelineForFile</span><span class="p">,</span><span class="w"> </span><span class="nx">runPipelineUnified</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@/lib/pipeline/run-pipeline&quot;</span>
+
+<span class="c1">// Einzeldatei (mit Convenience-Wrapper)</span>
+<span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">jobId</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">runPipelineForFile</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">libraryId</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">sourceFile</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">parentId</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">kind</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;pdf&#39;</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">targetLanguage</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;de&#39;</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">policies</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">extract</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;do&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">metadata</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;do&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">ingest</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;do&#39;</span><span class="w"> </span><span class="p">}</span>
+<span class="p">})</span>
+
+<span class="c1">// Batch (direkter Endpoint-Aufruf)</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">response</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="s1">&#39;/api/pipeline/process&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;POST&#39;</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="kt">JSON.stringify</span><span class="p">({</span>
+<span class="w">    </span><span class="nx">libraryId</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">items</span><span class="o">:</span><span class="w"> </span><span class="kt">files.map</span><span class="p">(</span><span class="nx">f</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">({</span><span class="w"> </span><span class="nx">fileId</span><span class="o">:</span><span class="w"> </span><span class="kt">f.id</span><span class="p">,</span><span class="w"> </span><span class="nx">parentId</span><span class="p">,</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="kt">f.name</span><span class="w"> </span><span class="p">})),</span>
+<span class="w">    </span><span class="nx">config</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">targetLanguage</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;de&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">phases</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">extract</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span><span class="w"> </span><span class="nx">template</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span><span class="w"> </span><span class="nx">ingest</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="p">})</span>
+<span class="p">})</span>
+</code></pre></div>
+<h2 id="medientypen">Medientypen<a class="headerlink" href="#medientypen" title="Permanent link">&para;</a></h2>
+<p>Die Pipeline unterstützt verschiedene Medientypen (definiert in <code>src/lib/media-types.ts</code>):</p>
+<table>
+<thead>
+<tr>
+<th>MediaKind</th>
+<th>Phase 1</th>
+<th>Phase 2</th>
+<th>Phase 3</th>
+<th>Beschreibung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pdf</code></td>
+<td>OCR via Secretary Service</td>
+<td>Template-Transformation</td>
+<td>RAG-Ingestion</td>
+<td>PDF-Dokumente</td>
+</tr>
+<tr>
+<td><code>audio</code></td>
+<td>Whisper-Transkription</td>
+<td>Template-Transformation</td>
+<td>RAG-Ingestion</td>
+<td>Audio-Dateien</td>
+</tr>
+<tr>
+<td><code>video</code></td>
+<td>Video-zu-Audio + Whisper</td>
+<td>Template-Transformation</td>
+<td>RAG-Ingestion</td>
+<td>Video-Dateien</td>
+</tr>
+<tr>
+<td><code>markdown</code></td>
+<td><strong>SKIP</strong> (Quelle = Transkript)</td>
+<td>Template-Transformation</td>
+<td>RAG-Ingestion</td>
+<td>Markdown/Text</td>
+</tr>
+<tr>
+<td><code>image</code></td>
+<td>OCR (geplant)</td>
+<td>Template-Transformation</td>
+<td>RAG-Ingestion</td>
+<td>Bild-Dateien</td>
+</tr>
+</tbody>
+</table>
+<h3 id="markdown-sonderfall">Markdown-Sonderfall<a class="headerlink" href="#markdown-sonderfall" title="Permanent link">&para;</a></h3>
+<p>Bei Markdown-Dateien ist die Quelldatei selbst das "Transkript". Die Extract-Phase wird übersprungen,
+und die Quelldatei wird direkt als Input für die Template-Transformation verwendet.</p>
+<h2 id="route-architektur">Route-Architektur<a class="headerlink" href="#route-architektur" title="Permanent link">&para;</a></h2>
+<p>Zwei API-Routen orchestrieren die Phasen:</p>
+<h3 id="1-start-route-apiexternaljobsjobidstart">1. Start-Route (<code>/api/external/jobs/[jobId]/start</code>)<a class="headerlink" href="#1-start-route-apiexternaljobsjobidstart" title="Permanent link">&para;</a></h3>
+<p><strong>Wann aufgerufen:</strong> Vom Worker, um einen Job zu starten</p>
+<p><strong>Verantwortlich für:</strong>
+- Datei aus Storage laden
+- Shadow-Twin-Analyse durchführen
+- Bei PDF/Audio/Video: Request an Secretary Service senden
+- Bei Markdown: <strong>Direkt</strong> Template-Phase ausführen (kein Secretary-Aufruf)</p>
+<h3 id="2-callback-route-apiexternaljobsjobid">2. Callback-Route (<code>/api/external/jobs/[jobId]</code>)<a class="headerlink" href="#2-callback-route-apiexternaljobsjobid" title="Permanent link">&para;</a></h3>
+<p><strong>Wann aufgerufen:</strong> Vom Secretary Service nach Abschluss der Extraktion</p>
+<p><strong>Verantwortlich für:</strong>
+- Ergebnis von Phase 1 verarbeiten
+- Template-Phase ausführen (für PDF/Audio/Video)
+- Ingest-Phase ausführen
+- Job abschließen</p>
+<h3 id="unterschiedliche-flows-nach-medientyp">Unterschiedliche Flows nach Medientyp<a class="headerlink" href="#unterschiedliche-flows-nach-medientyp" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>PDF/Audio/Video:
+  start/route.ts ──► Secretary Service ──► route.ts (Callback)
+                                              │
+                                              ├─► Template-Phase
+                                              └─► Ingest-Phase
+
+Markdown:
+  start/route.ts ──► Template-Phase (direkt)
+                       │
+                       └─► Ingest-Phase
+</code></pre></div>
+<h2 id="policies">Policies<a class="headerlink" href="#policies" title="Permanent link">&para;</a></h2>
+<p>Jede Phase kann mit einer Policy gesteuert werden:</p>
+<table>
+<thead>
+<tr>
+<th>Policy</th>
+<th>Bedeutung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ignore</code></td>
+<td>Phase überspringen</td>
+</tr>
+<tr>
+<td><code>do</code></td>
+<td>Ausführen, wenn Gate nicht existiert</td>
+</tr>
+<tr>
+<td><code>force</code></td>
+<td>Immer ausführen (Gate ignorieren)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Gates</strong> prüfen, ob das Ergebnis einer Phase bereits existiert:
+- Extract-Gate: Existiert ein Transcript im Shadow-Twin?
+- Template-Gate: Existiert eine Transformation im Shadow-Twin?
+- Ingest-Gate: Ist das Dokument bereits im RAG-Index?</p>
+<h2 id="cover-bild-generierung">Cover-Bild-Generierung<a class="headerlink" href="#cover-bild-generierung" title="Permanent link">&para;</a></h2>
+<p>Die Cover-Bild-Generierung ist Teil der Template-Phase (Phase 2):</p>
+<h3 id="parameter">Parameter<a class="headerlink" href="#parameter" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Quelle</th>
+<th>Beschreibung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>generateCoverImage</code></td>
+<td>Job-Parameter oder Library-Config</td>
+<td>Boolean: Bild generieren?</td>
+</tr>
+<tr>
+<td><code>coverImagePrompt</code></td>
+<td>Job-Parameter oder Library-Config</td>
+<td>Custom Prompt (optional)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ablauf">Ablauf<a class="headerlink" href="#ablauf" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Template-Transformation abgeschlossen</li>
+<li>Prüfung: <code>generateCoverImage === true</code> UND kein Cover-Bild existiert</li>
+<li>Prompt erstellen aus Title + Summary der Transformation</li>
+<li>API-Aufruf an Secretary Service (<code>/text2image/generate</code>)</li>
+<li>Bild als Base64 empfangen</li>
+<li>Upload nach Azure Blob Storage</li>
+<li>URL im Shadow-Twin speichern (<code>coverImageUrl</code>)</li>
+</ol>
+<h3 id="route-trennung-race-condition-fix">Route-Trennung (Race-Condition-Fix)<a class="headerlink" href="#route-trennung-race-condition-fix" title="Permanent link">&para;</a></h3>
+<p>Cover-Bilder werden nur in EINER Route generiert:</p>
+<table>
+<thead>
+<tr>
+<th>Job-Typ</th>
+<th>Cover-Bild-Route</th>
+<th>Grund</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>text</code> (Markdown)</td>
+<td><code>start/route.ts</code></td>
+<td>Template wird direkt ausgeführt</td>
+</tr>
+<tr>
+<td><code>pdf</code>, <code>audio</code>, <code>video</code></td>
+<td><code>route.ts</code> (Callback)</td>
+<td>Template wird nach Secretary-Callback ausgeführt</td>
+</tr>
+</tbody>
+</table>
+<p>Dies verhindert Race Conditions bei paralleler Ausführung.</p>
+<h2 id="job-struktur">Job-Struktur<a class="headerlink" href="#job-struktur" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="kd">interface</span><span class="w"> </span><span class="nx">ExternalJob</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">jobId</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span>
+<span class="w">  </span><span class="nx">job_type</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;pdf&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;audio&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;video&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;text&quot;</span>
+<span class="w">  </span><span class="nx">status</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;queued&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;running&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;completed&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;failed&quot;</span>
+
+<span class="w">  </span><span class="nx">parameters</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">targetLanguage</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span>
+<span class="w">    </span><span class="nx">template?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span>
+<span class="w">    </span><span class="nx">phases</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nx">extract</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span>
+<span class="w">      </span><span class="nx">template</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span>
+<span class="w">      </span><span class="nx">ingest</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="nx">policies</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nx">extract</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;ignore&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;do&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;force&quot;</span>
+<span class="w">      </span><span class="nx">metadata</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;ignore&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;do&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;force&quot;</span>
+<span class="w">      </span><span class="nx">ingest</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;ignore&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;do&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;force&quot;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="nx">generateCoverImage?</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span>
+<span class="w">    </span><span class="nx">coverImagePrompt?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="nx">steps</span><span class="o">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;extract_pdf&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;extract_audio&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;extract_video&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">status</span><span class="o">:</span><span class="w"> </span><span class="kt">StepStatus</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;transform_template&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">status</span><span class="o">:</span><span class="w"> </span><span class="kt">StepStatus</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;ingest_rag&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">status</span><span class="o">:</span><span class="w"> </span><span class="kt">StepStatus</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+
+<span class="w">  </span><span class="nx">shadowTwinState</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">baseItem</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">metadata</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="nx">transcriptFiles</span><span class="o">:</span><span class="w"> </span><span class="kt">Array</span><span class="o">&lt;</span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">metadata</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span><span class="o">&gt;</span>
+<span class="w">    </span><span class="nx">transformed</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">metadata</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span>
+<span class="w">    </span><span class="nx">shadowTwinFolderId</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h2 id="dateien">Dateien<a class="headerlink" href="#dateien" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Datei</th>
+<th>Beschreibung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src/lib/media-types.ts</code></td>
+<td>Zentrale Medientyp-Definitionen</td>
+</tr>
+<tr>
+<td><code>src/lib/pipeline/run-pipeline.ts</code></td>
+<td>Pipeline-Start-Funktionen</td>
+</tr>
+<tr>
+<td><code>src/lib/external-jobs/phase-template.ts</code></td>
+<td>Template-Phase + Cover-Bild</td>
+</tr>
+<tr>
+<td><code>src/lib/external-jobs/phase-ingest.ts</code></td>
+<td>Ingest-Phase</td>
+</tr>
+<tr>
+<td><code>src/app/api/external/jobs/[jobId]/route.ts</code></td>
+<td>Callback-Route</td>
+</tr>
+<tr>
+<td><code>src/app/api/external/jobs/[jobId]/start/route.ts</code></td>
+<td>Start-Route</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ui-komponenten">UI-Komponenten<a class="headerlink" href="#ui-komponenten" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Komponente</th>
+<th>Beschreibung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PipelineSheet</code></td>
+<td>Dialog zur Pipeline-Konfiguration (Phasen, Policies, Cover-Bild)</td>
+</tr>
+<tr>
+<td><code>FlowActions</code></td>
+<td>Pipeline-Steuerung im Flow-View (Experten-Modus)</td>
+</tr>
+<tr>
+<td><code>FilePreview</code></td>
+<td>Pipeline-Steuerung in der Datei-Vorschau (Einzeldatei)</td>
+</tr>
+<tr>
+<td><code>MediaBatchDialog</code></td>
+<td>Batch-Verarbeitung von Verzeichnissen (alle Medientypen)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mediabatchdialog-ehemals-pdfbulkimportdialog">MediaBatchDialog (ehemals PdfBulkImportDialog)<a class="headerlink" href="#mediabatchdialog-ehemals-pdfbulkimportdialog" title="Permanent link">&para;</a></h3>
+<p>Der Dialog für Batch-Verarbeitung unterstützt jetzt alle Medientypen:</p>
+<ul>
+<li>Scannt Verzeichnisse nach unterstützten Dateien (PDF, Audio, Video, Markdown)</li>
+<li>Verwendet die Library-Standardwerte für Template und Sprache</li>
+<li>Ruft <code>/api/pipeline/process</code> mit <code>items[]</code> für Batch-Verarbeitung auf</li>
+<li>Zeigt Fortschritt und Ergebnisse (Erfolge/Fehler) an</li>
+</ul>
+<h2 id="legacy-endpoints-deprecated">Legacy-Endpoints (Deprecated)<a class="headerlink" href="#legacy-endpoints-deprecated" title="Permanent link">&para;</a></h2>
+<p>Die folgenden Endpoints existieren noch, werden aber nicht mehr primär verwendet:</p>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Medientyp</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/api/secretary/process-pdf</code></td>
+<td>PDF</td>
+<td>Deprecated</td>
+</tr>
+<tr>
+<td><code>/api/secretary/process-audio/job</code></td>
+<td>Audio</td>
+<td>Deprecated</td>
+</tr>
+<tr>
+<td><code>/api/secretary/process-video/job</code></td>
+<td>Video</td>
+<td>Deprecated</td>
+</tr>
+<tr>
+<td><code>/api/secretary/process-text/job</code></td>
+<td>Markdown</td>
+<td>Deprecated</td>
+</tr>
+<tr>
+<td><code>/api/secretary/process-pdf/batch</code></td>
+<td>PDF (Batch)</td>
+<td>Deprecated</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Empfehlung:</strong> Für neue Entwicklungen immer <code>/api/pipeline/process</code> verwenden.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.50899def.min.js"></script>
+      
+        <script src="../js/print-site.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js"></script>
+      
+        <script src="../assets/javascripts/mermaid-init.js"></script>
+      
+    
+  </body>
+</html>

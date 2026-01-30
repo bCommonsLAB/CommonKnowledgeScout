@@ -26,8 +26,7 @@ import { MongoShadowTwinStore } from './mongo-shadow-twin-store'
 import { ProviderShadowTwinStore } from './provider-shadow-twin-store'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { getServerProvider } from '@/lib/storage/server-provider'
-import { toArtifactKey, upsertShadowTwinBinaryFragment } from '@/lib/repositories/shadow-twin-repo'
-import { buildMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
+import { upsertShadowTwinBinaryFragment } from '@/lib/repositories/shadow-twin-repo'
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
 import { AzureStorageService, calculateImageHash } from '@/lib/services/azure-storage-service'
 import { getAzureStorageConfig } from '@/lib/config/azure-storage'
@@ -270,7 +269,7 @@ export class ShadowTwinService {
       // Hinweis: Dies könnte zu Duplikaten führen, daher optional
       try {
         await this.fallbackStore.upsertArtifact(key, opts.markdown, opts.binaryFragments, context)
-      } catch (error) {
+      } catch {
         // Fehler beim Filesystem-Write nicht kritisch, wenn Primary erfolgreich war
         // Logging könnte hier sinnvoll sein
       }
@@ -488,8 +487,8 @@ export class ShadowTwinService {
     }
 
     // Suche oder erstelle Shadow-Twin-Verzeichnis
-    const shadowTwinItems = await this.options.provider.listContents(this.options.parentId)
-    let shadowTwinFolder = shadowTwinItems.items.find(
+    const shadowTwinItems = await this.options.provider.listItemsById(this.options.parentId)
+    let shadowTwinFolder = shadowTwinItems.find(
       item => item.type === 'folder' && item.metadata.name === shadowTwinFolderName
     )
 

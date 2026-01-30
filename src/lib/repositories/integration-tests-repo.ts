@@ -91,7 +91,8 @@ export async function upsertIntegrationTestRun(doc: IntegrationTestRunDoc): Prom
   // - Sonst riskieren wir Konflikte ($set vs $setOnInsert) und Datenverlust bei Notes.
   // Zusätzlich: `notes` wird hier *gar nicht* angefasst. `$push` kann das Feld später anlegen.
   // Das macht den Upsert robust gegen Mongo "path conflict" Fehler.
-  const { _id, ...rest } = doc
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { _id: _removedId, ...rest } = doc
   await col.updateOne(
     { runId: doc.runId },
     {

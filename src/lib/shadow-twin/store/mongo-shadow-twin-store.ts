@@ -15,7 +15,6 @@ import {
   getShadowTwinsBySourceIds,
   upsertShadowTwinArtifact,
   getShadowTwinBinaryFragments,
-  toArtifactKey,
 } from '@/lib/repositories/shadow-twin-repo'
 import { buildMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
 import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'

@@ -16,6 +16,8 @@ import type {
   SourceAdapterOptions,
   CanonicalMarkdownResult,
 } from './types'
+// StorageProvider wird für zukünftige Erweiterungen importiert
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { StorageProvider } from '@/lib/storage/types'
 import { createMarkdownWithFrontmatter } from '@/lib/markdown/compose'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'

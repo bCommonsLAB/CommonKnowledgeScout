@@ -23,7 +23,7 @@ import { getJobEventBus } from '@/lib/events/job-event-bus'
 import { LibraryService } from '@/lib/services/library-service'
 import { getMediaKind, mediaKindToJobType, isPipelineSupported } from '@/lib/media-types'
 import type { MediaKind, JobType } from '@/lib/media-types'
-import type { PipelineRequest, PipelineResponse, PipelineItem, configToJobParameters } from '@/lib/pipeline/pipeline-config'
+import type { PipelineRequest, PipelineResponse, PipelineItem } from '@/lib/pipeline/pipeline-config'
 import type { ExternalJob } from '@/types/external-job'
 import { FileLogger } from '@/lib/debug/logger'
 
@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Ungültiger Request-Body' }, { status: 400 })
     }
     
-    const { libraryId, item, items, config, batchName } = body
+    const { libraryId, item, items, config } = body
     
     // Validierung
     if (!libraryId) {

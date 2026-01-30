@@ -149,14 +149,14 @@ export function TransformationDialog({ onRefreshFolder }: TransformationDialogPr
 
         if (pdfSources.length > 0) {
           try {
-            const resolvedMap = await batchResolveArtifactsClient({
+            const resolvedResult = await batchResolveArtifactsClient({
               libraryId: activeLibraryId,
               sources: pdfSources,
               preferredKind: 'transcript',
             })
 
             for (const src of pdfSources) {
-              const resolved = resolvedMap.get(src.sourceId) || null
+              const resolved = resolvedResult.artifacts.get(src.sourceId) || null
               if (resolved?.item) results.push({ item: resolved.item, type: 'text' })
               else skipped += 1
             }

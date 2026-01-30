@@ -97,7 +97,8 @@ async function collectAllFilesInFolder(
  */
 function determineScope(
   markdownContent: string,
-  artifactKey: ArtifactKey
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _artifactKey: ArtifactKey
 ): 'books' | 'sessions' {
   // Prüfe Frontmatter für detailViewType
   try {
@@ -310,7 +311,8 @@ export async function persistShadowTwinFilesToMongo(args: {
           kind: fileKind,
           mimeType,
           size: file.metadata.size,
-          createdAt: file.metadata.createdAt || new Date().toISOString(),
+          // StorageItemMetadata hat nur modifiedAt, nicht createdAt
+          createdAt: file.metadata.modifiedAt?.toISOString() || new Date().toISOString(),
         })
         break
       case 'audio':
@@ -321,7 +323,8 @@ export async function persistShadowTwinFilesToMongo(args: {
           kind: fileKind,
           mimeType,
           size: file.metadata.size,
-          createdAt: file.metadata.createdAt || new Date().toISOString(),
+          // StorageItemMetadata hat nur modifiedAt, nicht createdAt
+          createdAt: file.metadata.modifiedAt?.toISOString() || new Date().toISOString(),
         })
         break
       case 'video':
@@ -332,7 +335,8 @@ export async function persistShadowTwinFilesToMongo(args: {
           kind: fileKind,
           mimeType,
           size: file.metadata.size,
-          createdAt: file.metadata.createdAt || new Date().toISOString(),
+          // StorageItemMetadata hat nur modifiedAt, nicht createdAt
+          createdAt: file.metadata.modifiedAt?.toISOString() || new Date().toISOString(),
         })
         break
       default:
@@ -343,7 +347,8 @@ export async function persistShadowTwinFilesToMongo(args: {
           kind: fileKind,
           mimeType,
           size: file.metadata.size,
-          createdAt: file.metadata.createdAt || new Date().toISOString(),
+          // StorageItemMetadata hat nur modifiedAt, nicht createdAt
+          createdAt: file.metadata.modifiedAt?.toISOString() || new Date().toISOString(),
         })
         break
     }

@@ -47,7 +47,9 @@ export function useShadowTwinAnalysis(
   // MongoDB-Modus: Binary-Uploads sind immer möglich (Upload geht nach Azure)
   // Filesystem-Modus: Binary-Uploads benötigen ein shadowTwinFolderId
   const activeLibrary = libraries.find(lib => lib.id === libraryId);
-  const isMongoMode = activeLibrary?.config?.shadowTwin?.primaryStore === 'mongo';
+  // Prüfe Shadow-Twin-Konfiguration (shadowTwin ist Teil von StorageConfig, nicht ClientLibrary)
+  const shadowTwinConfig = activeLibrary?.config?.shadowTwin as { primaryStore?: 'filesystem' | 'mongo' } | undefined;
+  const isMongoMode = shadowTwinConfig?.primaryStore === 'mongo';
   
   const previousItemsRef = useRef<Map<string, { modifiedAt?: Date; parentId?: string }>>(new Map());
   const isAnalyzingRef = useRef(false);
@@ -240,7 +242,8 @@ export function useShadowTwinAnalysis(
           // Extrahiere Ergebnisse aus dem kombinierten Response
           const transformationResults = allResults.artifacts || new Map();
           const transcriptResults = allResults.transcripts || new Map();
-          const ingestionStatusMap = allResults.ingestionStatus || new Map();
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const _ingestionStatusMap = allResults.ingestionStatus || new Map();
 
           // Konvertiere ResolvedArtifactWithItem-Ergebnisse zu ShadowTwinState.
           // WICHTIG: Wir schreiben **für alle Dateien** einen Eintrag (auch wenn keine Artefakte existieren),

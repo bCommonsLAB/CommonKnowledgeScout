@@ -9,6 +9,12 @@ Explore your knowledge base using natural language queries. The Chat interface u
 - Active library selected
 - Documents transformed and ingested into the library
 
+## How the data gets there (quick link)
+
+If you want the full “file → story → askable” pipeline explained end-to-end (including Shadow‑Twin, ingestion, storage backends and typical failure modes), see:
+
+- `use-cases/file-to-story.md`
+
 ## Steps
 
 1. Open the **Library** view

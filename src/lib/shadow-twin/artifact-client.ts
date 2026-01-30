@@ -99,10 +99,12 @@ export async function resolveArtifactClient(
   const { libraryId, sourceId, sourceName, parentId, targetLanguage, templateName, preferredKind } = options;
 
   // Logging: Start (client-seitig)
+  // Nur 'transcript' und 'transformation' an den Logger übergeben (kein 'raw')
+  const logKind = preferredKind === 'transcript' || preferredKind === 'transformation' ? preferredKind : undefined;
   logArtifactResolve('start', {
     sourceId,
     sourceName,
-    kind: preferredKind,
+    kind: logKind,
   });
 
   const params = new URLSearchParams({
@@ -161,10 +163,12 @@ export async function resolveArtifactClient(
 
     // Logging: Ergebnis (client-seitig)
     if (artifact) {
+      // Nur 'transcript' und 'transformation' an den Logger übergeben (kein 'raw')
+      const artifactLogKind = artifact.kind === 'transcript' || artifact.kind === 'transformation' ? artifact.kind : undefined;
       logArtifactResolve('success', {
         sourceId,
         sourceName,
-        kind: artifact.kind,
+        kind: artifactLogKind,
         location: artifact.location,
         fileName: artifact.fileName,
       });
@@ -218,14 +222,16 @@ export async function batchResolveArtifactsClient(
   const { libraryId, sources, preferredKind, includeBoth, includeIngestionStatus } = options;
 
   if (!sources || sources.length === 0) {
-    return new Map();
+    return { artifacts: new Map() };
   }
 
   // Logging: Start (client-seitig)
+  // Nur 'transcript' und 'transformation' an den Logger übergeben (kein 'raw')
+  const batchLogKind = preferredKind === 'transcript' || preferredKind === 'transformation' ? preferredKind : undefined;
   logArtifactResolve('start', {
     sourceId: 'batch',
     sourceName: `Bulk-Auflösung für ${sources.length} Quellen`,
-    kind: preferredKind,
+    kind: batchLogKind,
   });
 
   try {

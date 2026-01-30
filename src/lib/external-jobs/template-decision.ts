@@ -27,6 +27,7 @@ import type { TemplateDecisionArgs, TemplateDecisionResult } from '@/types/exter
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
 import { gateTransformTemplate } from '@/lib/processing/gates'
+import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
 
 export async function decideTemplateRun(args: TemplateDecisionArgs): Promise<TemplateDecisionResult> {
   const { ctx, policies, isFrontmatterCompleteFromBody, autoSkip, isTemplateCompletedCallback } = args

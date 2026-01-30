@@ -242,8 +242,9 @@ export async function POST(
         
         // Haupt-Artefakt (preferredKind)
         const selected = selectShadowTwinArtifact(doc, preferredKind, targetLanguage);
-        if (selected) {
-          artifacts[source.sourceId] = createArtifactItem(source, selected);
+        // selectShadowTwinArtifact gibt nur 'transcript' oder 'transformation' zurück, nie 'raw'
+        if (selected && (selected.kind === 'transcript' || selected.kind === 'transformation')) {
+          artifacts[source.sourceId] = createArtifactItem(source, selected as { kind: 'transcript' | 'transformation'; record: typeof selected.record; templateName?: string });
         } else {
           artifacts[source.sourceId] = null;
         }
@@ -251,8 +252,9 @@ export async function POST(
         // Transcript-Artefakt (wenn includeBoth=true)
         if (shouldIncludeBoth) {
           const transcriptSelected = selectShadowTwinArtifact(doc, 'transcript', targetLanguage);
-          if (transcriptSelected) {
-            transcripts[source.sourceId] = createArtifactItem(source, transcriptSelected);
+          // selectShadowTwinArtifact gibt nur 'transcript' oder 'transformation' zurück, nie 'raw'
+          if (transcriptSelected && (transcriptSelected.kind === 'transcript' || transcriptSelected.kind === 'transformation')) {
+            transcripts[source.sourceId] = createArtifactItem(source, transcriptSelected as { kind: 'transcript' | 'transformation'; record: typeof transcriptSelected.record; templateName?: string });
           } else {
             transcripts[source.sourceId] = null;
           }

@@ -253,7 +253,8 @@ export async function analyzeShadowTwinWithService(
       };
     }
 
-    const baseName = extractBaseName(baseItem.metadata.name);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _baseName = extractBaseName(baseItem.metadata.name);
     const parentId = baseItem.parentId;
     const sourceItemId = baseItem.id;
     const sourceName = baseItem.metadata.name;
@@ -270,7 +271,7 @@ export async function analyzeShadowTwinWithService(
           parentId,
           provider,
         })
-      } catch (error) {
+      } catch {
         // Service-Erstellung fehlgeschlagen → Fallback zu Provider-only unten
       }
     }
@@ -278,7 +279,6 @@ export async function analyzeShadowTwinWithService(
     let transformed: StorageItem | undefined;
     let transcriptFiles: StorageItem[] | undefined;
     let mediaFiles: StorageItem[] | undefined;
-    let shadowTwinFolderId: string | undefined;
 
     // 3. Prüfe auf Shadow-Twin-Verzeichnis (Provider-basiert)
     const shadowTwinFolder = await findShadowTwinFolder(
@@ -286,7 +286,7 @@ export async function analyzeShadowTwinWithService(
       baseItem.metadata.name,
       provider
     );
-    shadowTwinFolderId = shadowTwinFolder?.id;
+    const shadowTwinFolderId = shadowTwinFolder?.id;
 
     // 4. Suche Artefakte über Service (Mongo + Provider-Fallback)
     if (service) {
@@ -357,7 +357,7 @@ export async function analyzeShadowTwinWithService(
             }
           }
         }
-      } catch (error) {
+      } catch {
         // Service-Fehler → Fallback zu Provider-only unten
       }
     }

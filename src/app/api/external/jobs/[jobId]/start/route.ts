@@ -352,7 +352,7 @@ export async function POST(
     // Shadow-Twin-State beim Job-Start analysieren und im Job-Dokument speichern
     // WICHTIG: Deterministische Erstellung des Shadow-Twin-Verzeichnisses, wenn benötigt
     // Jeder Job hat seinen eigenen isolierten Kontext - keine gegenseitige Beeinflussung
-    let libraryForShadowTwin: Awaited<ReturnType<typeof LibraryService.getInstance>['getLibrary']> = null
+    let libraryForShadowTwin: Awaited<ReturnType<LibraryService['getLibrary']>> | null = null
     FileLogger.info('start-route', 'Starte Shadow-Twin-Analyse', {
       jobId,
       itemId: src.itemId,
@@ -634,7 +634,7 @@ export async function POST(
     // =========================================================================
     const templateDirective: 'ignore' | 'do' | 'force' = 
       policies.metadata === 'force' ? 'force' :
-      policies.metadata === 'ignore' || policies.metadata === 'skip' ? 'ignore' :
+      policies.metadata === 'ignore' ? 'ignore' :
       templateEnabled ? 'do' : 'ignore'
     
     const runTemplate = templateEnabled && (

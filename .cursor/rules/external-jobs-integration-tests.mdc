@@ -199,7 +199,7 @@ PDF oder Audio ausgewählt
 type JobStatus = 'queued' | 'running' | 'completed' | 'failed'
 
 // Step-Status
-type StepStatus = 'pending' | 'running' | 'completed' | 'skipped' | 'failed'
+type StepStatus = 'pending' | 'running' | 'completed' | 'failed'
 
 // Phasen-Konfiguration
 interface JobPhases {
@@ -208,6 +208,15 @@ interface JobPhases {
   ingest: boolean     // Phase 3 aktiviert?
 }
 ```
+
+### Skip-Semantik (wichtig für Contracts/Validatoren)
+
+In der aktuellen Codebasis wird „übersprungen“ typischerweise so modelliert:
+
+- Step bleibt **`status: 'completed'`**
+- und bekommt `details: { skipped: true, reason: '...' }`
+
+Das bedeutet: **kein eigener StepStatus `'skipped'` als Pflicht**. (Wenn du doch `'skipped'` siehst, behandle es als legacy/inkonsistent und prüfe, ob der Validator angepasst werden muss.)
 
 ## Globale Contracts (KRITISCH)
 
@@ -247,6 +256,20 @@ if (job.phases.template && job.status === 'completed') {
   }
 }
 ```
+
+### 5. Policy-Contract (phases vs policies)
+
+Es gibt **zwei Ebenen**, die zusammen die Entscheidung steuern:
+
+- **phases**: aktiviert/deaktiviert die Phase grundsätzlich (`extract/template/ingest`)
+- **policies**: bestimmt *wie* entschieden wird (z.B. `force`, `auto`, `ignore`, …)
+
+Wichtig: Die Policy-Namen in älteren Dokumenten (`skipExtractIfArtifactExists`, `forceRecompute`, …) sind nicht zwangsläufig 1:1 die aktuellen Felder im Job-Parameterobjekt.
+Wenn du an der Orchestrierung arbeitest, orientiere dich an:
+
+- `src/app/api/pipeline/process/route.ts` (Job-Erstellung + Parameter)
+- `src/app/api/external/jobs/[jobId]/start/route.ts` (Entscheidungen: Gates/Directives)
+- `src/lib/external-jobs/phase-ingest.ts` (Ingestion: Gate+Policy)
 
 ## Explorer Mode (Publikation)
 

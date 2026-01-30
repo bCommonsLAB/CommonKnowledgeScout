@@ -283,7 +283,7 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
     })
 
     // Job als failed markieren
-    await repo.setError(jobId, new Error(errorMessage))
+    await repo.setStatus(jobId, 'failed', { error: { code: 'INGEST_FAILED', message: errorMessage } })
 
     return {
       completed: false,

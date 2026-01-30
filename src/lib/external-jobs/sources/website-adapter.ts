@@ -18,6 +18,8 @@ import type {
   SourceAdapterOptions,
   CanonicalMarkdownResult,
 } from './types'
+// StorageProvider wird für zukünftige Erweiterungen importiert
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { StorageProvider } from '@/lib/storage/types'
 import { createMarkdownWithFrontmatter } from '@/lib/markdown/compose'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
@@ -178,7 +180,7 @@ export class WebsiteAdapter implements SourceAdapter {
       date: fetchedAt,
       type: 'website',
       fetchedAt: fetchedAt,
-      originRef: source.type === 'url' ? `url:${url}` : `raw:${(source as any).id}`,
+      originRef: source.type === 'url' ? `url:${url}` : `raw:${(source as { id: string }).id}`,
     }
 
     // Erzeuge Canonical Markdown mit Frontmatter
@@ -197,9 +199,9 @@ export class WebsiteAdapter implements SourceAdapter {
         const shadowTwinService = new ShadowTwinService({
           library,
           userEmail,
-          sourceId: source.type === 'url' ? `url:${url}` : (source as any).id,
+          sourceId: source.type === 'url' ? `url:${url}` : (source as { id: string }).id,
           sourceName: sourceFileName,
-          parentId: source.type === 'url' ? 'root' : (source as any).parentId || 'root',
+          parentId: source.type === 'url' ? 'root' : (source as { parentId?: string }).parentId || 'root',
           provider,
         })
 
@@ -216,7 +218,7 @@ export class WebsiteAdapter implements SourceAdapter {
 
         FileLogger.info('WebsiteAdapter', 'Raw origin stored', {
           url: source.type === 'url' ? url : undefined,
-          sourceId: source.type === 'url' ? undefined : (source as any).id,
+          sourceId: source.type === 'url' ? undefined : (source as { id: string }).id,
           rawFileId: rawResult.id,
         })
       }

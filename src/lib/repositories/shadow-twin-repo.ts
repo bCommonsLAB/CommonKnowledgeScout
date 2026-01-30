@@ -250,7 +250,7 @@ export async function upsertShadowTwinBinaryFragment(
   await col.updateOne(
     { libraryId, sourceId },
     {
-      $push: { binaryFragments: fragment },
+      $push: { binaryFragments: fragment as unknown as Record<string, unknown> },
       $set: { updatedAt: now },
       $setOnInsert: {
         libraryId,

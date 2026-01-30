@@ -54,7 +54,8 @@ export interface GateResult {
   details?: Record<string, unknown>;
 }
 
-function getBaseName(name: string | undefined): string | undefined {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _getBaseName(name: string | undefined): string | undefined {
   if (!name) return undefined;
   const idx = name.lastIndexOf('.');
   return idx >= 0 ? name.substring(0, idx) : name;

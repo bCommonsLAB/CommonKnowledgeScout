@@ -17,6 +17,8 @@ import type {
   SourceAdapterOptions,
   CanonicalMarkdownResult,
 } from './types'
+// StorageProvider wird für zukünftige Erweiterungen importiert
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { StorageProvider } from '@/lib/storage/types'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { createMarkdownWithFrontmatter } from '@/lib/markdown/compose'
@@ -102,7 +104,8 @@ export class MarkdownAdapter implements SourceAdapter {
           provider,
         })
 
-        const rawFileName = `${storageItem.metadata?.name || 'document.md'}.raw.md`
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const _rawFileName = `${storageItem.metadata?.name || 'document.md'}.raw.md`
         const rawResult = await shadowTwinService.upsertMarkdown({
           kind: 'raw',
           targetLanguage: targetLanguage,

@@ -9,6 +9,8 @@
 import { AzureStorageService } from '@/lib/services/azure-storage-service'
 import { getAzureStorageConfig } from '@/lib/config/azure-storage'
 import { calculateImageHash } from '@/lib/services/azure-storage-service'
+// ImageProcessor wird für zukünftige Erweiterungen importiert
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { ImageProcessor } from '@/lib/ingestion/image-processor'
 import { FileLogger } from '@/lib/debug/logger'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
@@ -167,10 +169,9 @@ export async function uploadImagesFromZipDirectly(
           
           // Pattern 1: Markdown image syntax: ![alt](path)
           const markdownPattern = new RegExp(`(!\\[[^\\]]*?\\]\\()(?!http)([^)]*${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})(\\))`, 'gi')
-          const beforeMarkdown = updatedMarkdown
-          updatedMarkdown = updatedMarkdown.replace(markdownPattern, (match, prefix, path, suffix) => {
+          updatedMarkdown = updatedMarkdown.replace(markdownPattern, (fullMatch, prefix, path, suffix) => {
             if (path.startsWith('http')) {
-              return match // Bereits eine absolute URL
+              return fullMatch // Bereits eine absolute URL
             }
             replacedCount++
             return `${prefix}${azureUrl}${suffix}`
@@ -188,7 +189,7 @@ export async function uploadImagesFromZipDirectly(
           
           // Pattern 3: Obsidian-style: <img-0.jpeg>
           const obsidianPattern = new RegExp(`(<img-)(${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})(>)`, 'gi')
-          updatedMarkdown = updatedMarkdown.replace(obsidianPattern, (match, prefix, path, suffix) => {
+          updatedMarkdown = updatedMarkdown.replace(obsidianPattern, (_match, _prefix, path) => {
             replacedCount++
             return `<img src="${azureUrl}" alt="${path}">`
           })

@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { 
   File, FileText, FileVideo, FileAudio, FileSpreadsheet, Presentation, Globe,
   Image as ImageIcon, FileType2, Plus, RefreshCw, ChevronUp, ChevronDown, 
-  Trash2, Folder as FolderIcon, Sparkles, Upload 
+  Trash2, Folder as FolderIcon, Sparkles 
 } from "lucide-react"
 import { StorageItem } from "@/lib/storage/types"
 import { cn } from "@/lib/utils"
@@ -649,40 +649,35 @@ const FileRow = React.memo(function FileRow({
       <div className="flex items-center justify-start gap-1">
         {/* Status-Icon: Zeigt Fortschritt der Story-Ingestion (Transcript → Transformation → Story) */}
         {(() => {
-          // Bestimme Status: Story (höchste Priorität) > Transformation > Transcript
-          const hasIngestion = fileGroup?.ingestionStatus?.exists === true;
+          // Bestimme Status: Transformation > Transcript
+          // (ingestionStatus ist nicht Teil von FileGroup - nur shadwTwinState)
           const hasTransformation = !!fileGroup?.transformed;
           const hasTranscript = !!(fileGroup?.transcriptFiles && fileGroup.transcriptFiles.length > 0);
           
-          if (!hasTranscript && !hasTransformation && !hasIngestion) {
+          if (!hasTranscript && !hasTransformation) {
             return null; // Kein Status vorhanden
           }
 
           // Bestimme Icon und Tooltip basierend auf höchstem Status
+          // Hinweis: ingestionStatus ist nicht Teil von FileGroup und wird hier nicht angezeigt
           let StatusIcon: typeof FileText;
           let statusText: string;
           let iconColor: string;
 
-          if (hasIngestion) {
-            // Story/Ingestion vorhanden (höchste Stufe)
-            // Wichtig: Icon und Farbe müssen mit Tabs übereinstimmen (siehe `file-preview.tsx` stepStateClass)
-            StatusIcon = Upload;
-            const chunks = fileGroup.ingestionStatus?.chunkCount ?? '?';
-            const chapters = fileGroup.ingestionStatus?.chaptersCount ?? '?';
-            statusText = `Story veröffentlicht (Chunks: ${chunks}, Kapitel: ${chapters})`;
-            iconColor = 'text-green-600';
-          } else if (hasTransformation) {
+          if (hasTransformation && fileGroup?.transformed) {
             // Transformation vorhanden (mittlere Stufe)
             // Wichtig: Icon und Farbe müssen mit Tabs übereinstimmen (siehe `file-preview.tsx` stepStateClass)
             StatusIcon = Sparkles;
             statusText = `Transformation vorhanden: ${fileGroup.transformed.metadata.name}`;
             iconColor = 'text-green-600';
-          } else {
+          } else if (hasTranscript && fileGroup?.transcriptFiles?.[0]) {
             // Nur Transcript vorhanden (niedrigste Stufe)
             // Wichtig: Icon und Farbe müssen mit Tabs übereinstimmen (siehe `file-preview.tsx` stepStateClass)
             StatusIcon = FileText;
             statusText = `Transcript vorhanden: ${fileGroup.transcriptFiles[0].metadata.name}`;
             iconColor = 'text-green-600';
+          } else {
+            return null;
           }
 
           return (
@@ -971,7 +966,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
           transcriptFiles: shadowTwinState?.transcriptFiles || (shadowTwins.length > 0 ? shadowTwins : undefined),
           transformed: shadowTwinState?.transformed,
           shadowTwinFolderId: shadowTwinState?.shadowTwinFolderId,
-          ingestionStatus: shadowTwinState?.ingestionStatus,
+          // Hinweis: ingestionStatus ist nicht Teil von FileGroup (nur in ShadowTwinState)
         });
       } else {
         // Keine Hauptdatei: Jede ShadowTwin einzeln anzeigen
@@ -1175,7 +1170,8 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   }, [setSelectedFile, setSelectedShadowTwin]);
   
   // Erweiterte handleSelectRelatedFile Funktion für Review-Mode
-  const handleSelectRelatedFile = useCallback((shadowTwin: StorageItem) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _handleSelectRelatedFile = useCallback((shadowTwin: StorageItem) => {
     StateLogger.info('FileList', 'Shadow-Twin ausgewählt', {
       shadowTwinId: shadowTwin.id,
       shadowTwinName: shadowTwin.metadata.name

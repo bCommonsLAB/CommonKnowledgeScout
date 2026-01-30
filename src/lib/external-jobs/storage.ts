@@ -186,7 +186,8 @@ export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdown
       const sourceItem = await provider.getItemById(ctx.job.correlation.source.itemId)
       
       // Prüfe über Service, ob Mongo verwendet wird
-      const service = new ShadowTwinService({
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const _service = new ShadowTwinService({
         library,
         userEmail: ctx.job.userEmail,
         sourceId: sourceItem.id,

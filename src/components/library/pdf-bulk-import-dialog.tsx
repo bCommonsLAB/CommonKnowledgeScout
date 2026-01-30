@@ -26,7 +26,7 @@ import { PdfPhaseSettings } from '@/components/library/pdf-phase-settings';
 import { Settings } from 'lucide-react';
 import { TARGET_LANGUAGE_DEFAULT } from '@/lib/chat/constants';
 // Zentrale Medientyp-Erkennung für alle unterstützten Dateitypen
-import { getMediaKind, isPipelineSupported, type MediaKind } from '@/lib/media-types';
+import { getMediaKind, isPipelineSupported } from '@/lib/media-types';
 
 // Rückwärtskompatible Props-Benennung (Dialog unterstützt jetzt alle Medientypen)
 interface PdfBulkImportDialogProps {

@@ -16,6 +16,24 @@ Ein **Shadow-Twin** ist eine Metadaten-Struktur, die zu einer Quelldatei (PDF, A
 
 Ein Shadow-Twin existiert **unabhängig vom Storage-Backend** (MongoDB oder Filesystem).
 
+## Determinismus: ArtifactKey (KRITISCH)
+
+Ein Shadow‑Twin ist nur dann robust, wenn seine Artefakte **deterministisch** adressierbar sind.
+Dazu verwenden wir einen **ArtifactKey** (implizit/konzeptionell), der die Identität eines Artefakts vollständig beschreibt:
+
+- `sourceId` (PFLICHT): ID der Quelldatei
+- `kind` (PFLICHT): z.B. `transcript` oder `transformation`
+- `targetLanguage` (PFLICHT): z.B. `de`, `en`
+- `templateName` (**PFLICHT für `kind='transformation'`**)
+
+### Regel: `templateName` ist für Transformationen PFLICHT
+
+- **Transformation ohne `templateName` ist ungültig**.
+- In Call‑Sites/UI bedeutet das: wenn du eine Transformation referenzierst oder patchst, musst du `templateName` *explizit* mitgeben.
+- **Kein „pick latest/best transformation“ als Fallback**: das ist nicht deterministisch (ändert sich je nach Reihenfolge/Upserts).
+
+Hinweis: Es gibt eine defensive Notfall-Logik, die `templateName` aus einer Mongo‑Shadow‑Twin‑ID parst. Diese ist **nur** als „Crash‑Guard“ gedacht – nicht als Architektur‑Pattern.
+
 ## Storage-Abstraktion (KRITISCH)
 
 ### Prinzip: UI kennt NICHT das Storage-Backend
@@ -60,6 +78,14 @@ if (canUpload) { /* ... */ }
    - Implementieren konkrete Storage-Operationen
    - `MongoShadowTwinStore`: MongoDB + Azure Blob Storage
    - `ProviderShadowTwinStore`: Filesystem via Storage Provider
+
+## Mongo-Shadow-Twin IDs (virtuelle IDs)
+
+Wenn `primaryStore='mongo'` aktiv ist, kann die UI Artefakte als **virtuelle StorageItems** sehen,
+deren `id` eine **Mongo‑Shadow‑Twin‑ID** ist. Diese ID existiert nicht als Datei im Provider.
+
+- **UI-Rule**: Virtuelle IDs dürfen in UI/Hooks existieren, aber der Inhalt muss dann über eine passende API geladen werden (nicht via Provider-Binary).
+- **Service-Rule**: Die Auflösung (Mongo vs Provider) passiert im Service/Route‑Layer.
 
 ## ShadowTwinState Interface
 
@@ -106,3 +132,4 @@ Vor jeder Änderung im Shadow-Twin-Bereich prüfen:
 - [ ] Fragt die UI direkt einen Storage-Typ ab? → Abstraktion über State/Hook
 - [ ] Gibt es unterschiedliche Code-Pfade in der UI für verschiedene Storage-Backends? → In Service-Layer verschieben
 - [ ] Wird `shadowTwinFolderId` in der UI für Entscheidungslogik verwendet? → Durch `binaryUploadEnabled` ersetzen
+- [ ] Erzeugt/patcht Code `kind='transformation'` ohne `templateName`? → Contract-Verletzung (fixen, nicht „raten“)

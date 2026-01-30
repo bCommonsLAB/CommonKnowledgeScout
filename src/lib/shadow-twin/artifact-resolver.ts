@@ -67,10 +67,12 @@ export async function resolveArtifact(
   const { sourceItemId, sourceName, preferredKind } = options;
 
   // Logging: Start
+  // Nur 'transcript' und 'transformation' an den Logger übergeben (kein 'raw')
+  const logKind = preferredKind === 'transcript' || preferredKind === 'transformation' ? preferredKind : undefined;
   logArtifactResolve('start', {
     sourceId: sourceItemId,
     sourceName,
-    kind: preferredKind,
+    kind: logKind,
   });
 
   let result: ResolvedArtifact | null = null;
@@ -82,10 +84,12 @@ export async function resolveArtifact(
 
     // Logging: Ergebnis
     if (result) {
+      // Nur 'transcript' und 'transformation' an den Logger übergeben (kein 'raw')
+      const resultLogKind = result.kind === 'transcript' || result.kind === 'transformation' ? result.kind : undefined;
       logArtifactResolve('success', {
         sourceId: sourceItemId,
         sourceName,
-        kind: result.kind,
+        kind: resultLogKind,
         location: result.location,
         fileName: result.fileName,
       });

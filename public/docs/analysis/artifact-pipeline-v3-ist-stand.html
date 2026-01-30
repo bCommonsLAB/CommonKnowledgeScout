@@ -1,0 +1,1598 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="http://localhost:3000/docs/analysis/artifact-pipeline-v3-ist-stand.html">
+      
+      
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.16">
+    
+    
+      
+        <title>Artifact pipeline v3 ist stand - Common Knowledge Scout</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.7e37652d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../css/print-site.css">
+    
+      <link rel="stylesheet" href="../css/print-site-material.css">
+    
+      <link rel="stylesheet" href="../assets/stylesheets/print.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#ziel-und-kontext" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../index.html" title="Common Knowledge Scout" class="md-header__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Common Knowledge Scout
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Artifact pipeline v3 ist stand
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../index.html" title="Common Knowledge Scout" class="md-nav__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Common Knowledge Scout
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Architecture
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/module-hierarchy.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Module Hierarchy
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/dependency-graph.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Dependency Graph
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/shadow-twin.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shadow-Twin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/pdf-transformation-phases.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PDF Transformation Phases
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/mongodb-vector-search.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MongoDB Vector Search
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Analysis
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Analysis
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="shadow-twin-v2-only.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shadow-Twin (v2-only)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="wizard-and-jobs.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Wizard & External Jobs
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="audio-jobs-transcript-only.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Audio/Video (no template)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ingestion.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Ingestion
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="storage.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="markdown-page-splitting.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Markdown Page Splitting
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Use Cases
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Use Cases
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/library-setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Library Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/file-transformation-pdf.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PDF Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/file-transformation-media.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Media Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/file-to-story.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    File → Story (End-to-End)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/web-scraping.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Web Scraping
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/publishing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Publishing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/chat-exploration.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Chat & Story Mode
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-cases/batch-operations.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Batch Operations
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/file-index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    File Index
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Modules
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            Modules
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/modules/library.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Library
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/modules/storage.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/modules/chat.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Chat
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ziel-und-kontext" class="md-nav__link">
+    <span class="md-ellipsis">
+      Ziel und Kontext
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#executive-summary-iststand" class="md-nav__link">
+    <span class="md-ellipsis">
+      Executive Summary (Ist‑Stand)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#begriffe-kurz" class="md-nav__link">
+    <span class="md-ellipsis">
+      Begriffe (kurz)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#datenfluss-iststand-high-level" class="md-nav__link">
+    <span class="md-ellipsis">
+      Datenfluss (Ist‑Stand, High Level)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#was-ist-generisch-medienunabhangig" class="md-nav__link">
+    <span class="md-ellipsis">
+      Was ist generisch (medienunabhängig)?
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Was ist generisch (medienunabhängig)?">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-external-jobs-orchestrierung" class="md-nav__link">
+    <span class="md-ellipsis">
+      1) External Jobs Orchestrierung
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-policies-gates-konzept" class="md-nav__link">
+    <span class="md-ellipsis">
+      2) Policies / Gates (Konzept)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-shadowtwin-contracts-namingresolverwriter" class="md-nav__link">
+    <span class="md-ellipsis">
+      3) Shadow‑Twin Contracts: Naming/Resolver/Writer
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#was-ist-mediumspezifisch" class="md-nav__link">
+    <span class="md-ellipsis">
+      Was ist medium‑spezifisch?
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Was ist medium‑spezifisch?">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pdf-heute-am-starksten-ausgebaut" class="md-nav__link">
+    <span class="md-ellipsis">
+      PDF (heute am stärksten ausgebaut)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#audiovideo-aktueller-fokus-transcript-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      Audio/Video (aktueller Fokus: Transcript-Contract)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#was-wurde-konkret-repariert-delta" class="md-nav__link">
+    <span class="md-ellipsis">
+      Was wurde konkret repariert (Delta)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Was wurde konkret repariert (Delta)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-audiovideo-transcript-wurde-mit-template-output-uberschrieben" class="md-nav__link">
+    <span class="md-ellipsis">
+      1) Audio/Video: Transcript wurde mit Template-Output überschrieben
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-artefaktwrites-falscher-parent-nicht-dotfolder" class="md-nav__link">
+    <span class="md-ellipsis">
+      2) Artefakt‑Writes: falscher Parent (nicht Dot‑Folder)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-doppelstarts-unauthorized-callback-hash-mismatch" class="md-nav__link">
+    <span class="md-ellipsis">
+      3) Doppelstarts / Unauthorized Callback Hash Mismatch
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-ui-autoopen-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      4) UI Auto‑Open Loop
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architekturbewertung-ist-das-fundament-sinnvoll-fur-mehrere-medien" class="md-nav__link">
+    <span class="md-ellipsis">
+      Architektur‑Bewertung: Ist das Fundament sinnvoll für mehrere Medien?
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verbesserungen-3-varianten" class="md-nav__link">
+    <span class="md-ellipsis">
+      Verbesserungen (3 Varianten)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Verbesserungen (3 Varianten)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#variante-a-minimal-kurzfristig" class="md-nav__link">
+    <span class="md-ellipsis">
+      Variante A (minimal, kurzfristig)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#variante-b-mittel-strukturell" class="md-nav__link">
+    <span class="md-ellipsis">
+      Variante B (mittel, strukturell)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#variante-c-strikt-langfristig" class="md-nav__link">
+    <span class="md-ellipsis">
+      Variante C (strikt, langfristig)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tests-breaking-changes-fruh-erkennen-iststand-empfehlung" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tests: Breaking Changes früh erkennen (Ist‑Stand + Empfehlung)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tests: Breaking Changes früh erkennen (Ist‑Stand + Empfehlung)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#unit-tests-vorhanden" class="md-nav__link">
+    <span class="md-ellipsis">
+      Unit Tests (vorhanden)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integration-tests-vorhanden-pdf" class="md-nav__link">
+    <span class="md-ellipsis">
+      Integration Tests (vorhanden, PDF)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#empfehlung-erweiterung" class="md-nav__link">
+    <span class="md-ellipsis">
+      Empfehlung (Erweiterung)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#konkreter-testplan-minimal-aber-effektiv" class="md-nav__link">
+    <span class="md-ellipsis">
+      Konkreter Testplan (minimal, aber effektiv)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Konkreter Testplan (minimal, aber effektiv)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#unit-tests-schnell-citauglich" class="md-nav__link">
+    <span class="md-ellipsis">
+      Unit Tests (schnell, CI‑tauglich)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integration-tests-realistisch-langsam" class="md-nav__link">
+    <span class="md-ellipsis">
+      Integration Tests (realistisch, langsam)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+  <h1>Artifact pipeline v3 ist stand</h1>
+
+<h2 id="ziel-und-kontext">Ziel und Kontext<a class="headerlink" href="#ziel-und-kontext" title="Permanent link">&para;</a></h2>
+<p>Dieses Dokument beschreibt den <strong>Ist‑Stand</strong> der aktuellen Implementierung der artefakt‑zentrierten Pipeline (V3) im Repo und gleicht ihn mit den Architektur‑Dokumenten ab:</p>
+<ul>
+<li><code>docs/architecture/artifact-pipeline-v3-design.md</code></li>
+<li><code>docs/architecture/requirements-artifact-pipeline-v3.md</code></li>
+<li><code>docs/architecture/shadow-twin.md</code></li>
+<li><code>docs/architecture/use-cases-and-personas.md</code></li>
+</ul>
+<p>Fokus: <strong>medienunabhängiger Flow</strong>, klare Trennung <strong>generisch vs. medium‑spezifisch</strong>, sowie eine Liste von <strong>Verbesserungen</strong> und <strong>Test-Guardrails</strong>, um Breaking Changes früh zu erkennen.</p>
+<p>Status: Ist‑Stand (Code gelesen), keine produktive Verifikation durch reale Runs in diesem Dokument.</p>
+<h2 id="executive-summary-iststand">Executive Summary (Ist‑Stand)<a class="headerlink" href="#executive-summary-iststand" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Orchestrierung ist generisch</strong>: Ein externer Job läuft immer über Worker → <code>/start</code> → Secretary → <code>/callback</code> und führt danach optional Template‑Phase und Ingest‑Phase aus.</li>
+<li><strong>Artefaktmodell ist konsistent</strong> (Naming + Resolver/Writer): Transcript <code>{base}.{lang}.md</code>, Transformation <code>{base}.{template}.{lang}.md</code>.</li>
+<li><strong>Medium‑Spezifika sind heute v.a. PDF‑lastig</strong> (Mistral OCR Assets, Pages/Images, chapters/pages Heuristiken).</li>
+<li><strong>Audio/Video wurden repariert</strong>: Secretary darf bei aktivierter Template‑Phase <strong>kein Template</strong> im Extract liefern → Transcript bleibt roh.</li>
+<li><strong>Dot‑Folder ist Zielzustand</strong>, Siblings sind Legacy‑Read und sollen später durch einen Repair‑Run eliminiert werden.</li>
+</ul>
+<h2 id="begriffe-kurz">Begriffe (kurz)<a class="headerlink" href="#begriffe-kurz" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Source</strong>: Originaldatei (PDF/Audio/Video/…)</li>
+<li><strong>Shadow‑Twin</strong>: abgeleitete Artefakte (Markdown + ggf. Assets) zur Source</li>
+<li><strong>Transcript</strong>: roher Extract/Transkript‑Text als Markdown (typisch ohne Frontmatter)</li>
+<li><strong>Transformation</strong>: template-basiertes Markdown mit Frontmatter/Metadata</li>
+<li><strong>Dot‑Folder</strong>: <code>.{originalName}/</code> als kanonische Ablage für Artefakte</li>
+</ul>
+<h2 id="datenfluss-iststand-high-level">Datenfluss (Ist‑Stand, High Level)<a class="headerlink" href="#datenfluss-iststand-high-level" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>flowchart TD
+  UI[FlowView_UI] --&gt;|enqueue_job| CreateJob[SecretaryJobRoute]
+  CreateJob --&gt;|jobId| ExternalJob[Mongo_external_jobs]
+  Worker[ExternalJobsWorker] --&gt;|POST /start| StartRoute[StartRoute]
+  StartRoute --&gt;|POST formData| Secretary[SecretaryService]
+  Secretary --&gt;|POST callback| CallbackRoute[CallbackRoute]
+  CallbackRoute --&gt; ExtractSave[SaveTranscriptArtifact]
+  CallbackRoute --&gt;|optional| TemplatePhase[runTemplatePhase]
+  CallbackRoute --&gt;|optional| IngestPhase[runIngestPhase]
+  ExtractSave --&gt; ShadowTwin[ShadowTwin_DotFolder]
+  TemplatePhase --&gt; ShadowTwin
+  IngestPhase --&gt; MongoVector[Mongo_VectorSearch]</code></pre>
+<h2 id="was-ist-generisch-medienunabhangig">Was ist generisch (medienunabhängig)?<a class="headerlink" href="#was-ist-generisch-medienunabhangig" title="Permanent link">&para;</a></h2>
+<h3 id="1-external-jobs-orchestrierung">1) External Jobs Orchestrierung<a class="headerlink" href="#1-external-jobs-orchestrierung" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Worker</strong>: <code>src/lib/external-jobs-worker.ts</code></li>
+<li>claimt atomar queued Jobs aus Mongo</li>
+<li>triggert <code>POST /api/external/jobs/{jobId}/start</code></li>
+<li>
+<p>fügt Trace-Header hinzu (<code>X-Worker-Id</code>, <code>X-Worker-Tick-Id</code>, <code>X-Start-Request-Id</code>) für Debugging.</p>
+</li>
+<li>
+<p><strong>StartRoute</strong>: <code>src/app/api/external/jobs/[jobId]/start/route.ts</code></p>
+</li>
+<li>lädt Source Binary aus Storage</li>
+<li>prüft Policies/Gates und entscheidet, ob Secretary aufgerufen wird</li>
+<li>startet Watchdog und schreibt Trace Events</li>
+<li>
+<p><strong>Duplicate Start Requests werden geloggt, nicht blockiert</strong> (Observability statt harte Idempotenz‑Sperre).</p>
+</li>
+<li>
+<p><strong>CallbackRoute</strong>: <code>src/app/api/external/jobs/[jobId]/route.ts</code></p>
+</li>
+<li>prüft Callback Auth + Prozess‑Guard</li>
+<li>verarbeitet Progress Events (Short‑Circuit)</li>
+<li>erkennt Final Payload und orchestriert:<ul>
+<li>Extract‑Artefakt speichern</li>
+<li>Template‑Phase (falls aktiv/benötigt)</li>
+<li>Ingest‑Phase (falls aktiv)</li>
+</ul>
+</li>
+</ul>
+<h3 id="2-policies-gates-konzept">2) Policies / Gates (Konzept)<a class="headerlink" href="#2-policies-gates-konzept" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Policies kommen aus <code>job.parameters.policies</code> (oder Legacy Flags) und steuern:</li>
+<li>extract</li>
+<li>metadata (Template)</li>
+<li>ingest</li>
+</ul>
+<p>Relevante Dateien:
+- <code>src/lib/processing/phase-policy.ts</code>
+- <code>src/lib/processing/gates.ts</code></p>
+<p>Hinweis: <code>gateExtractPdf()</code> ist historisch PDF‑benannt, wird aber semantisch als „Shadow‑Twin existiert?“ genutzt. Für neue Medien sollte die Namensgebung/Abstraktion vereinheitlicht werden (siehe Verbesserungen).</p>
+<h3 id="3-shadowtwin-contracts-namingresolverwriter">3) Shadow‑Twin Contracts: Naming/Resolver/Writer<a class="headerlink" href="#3-shadowtwin-contracts-namingresolverwriter" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Naming/Parsing: <code>src/lib/shadow-twin/artifact-naming.ts</code></li>
+<li>Resolver: <code>src/lib/shadow-twin/artifact-resolver.ts</code></li>
+<li>Writer: <code>src/lib/shadow-twin/artifact-writer.ts</code></li>
+</ul>
+<p>Eigenschaften:
+- Deterministische Namen und „overwrite statt duplizieren“ (delete+upload).
+- Resolver kann Dot‑Folder <strong>und</strong> (legacy) Siblings finden.</p>
+<h2 id="was-ist-mediumspezifisch">Was ist medium‑spezifisch?<a class="headerlink" href="#was-ist-mediumspezifisch" title="Permanent link">&para;</a></h2>
+<h3 id="pdf-heute-am-starksten-ausgebaut">PDF (heute am stärksten ausgebaut)<a class="headerlink" href="#pdf-heute-am-starksten-ausgebaut" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Secretary Request: <code>src/lib/external-jobs/secretary-request.ts</code></li>
+<li>unterstützt <code>mistral_ocr</code> / <code>native</code></li>
+<li>Asset‑Parameter: <code>includePageImages</code>, <code>includeImages</code>, URLs/ZIP handling</li>
+<li>Callback: erkennt <code>pages_archive_url</code>, <code>mistral_ocr_raw_url</code> etc.</li>
+<li>Template‑Phase enthält PDF‑spezifische Logik rund um <code>pages</code>/<code>chapters</code> Rekonstruktion/Repair (muss perspektivisch abstrahiert werden).</li>
+</ul>
+<h3 id="audiovideo-aktueller-fokus-transcript-contract">Audio/Video (aktueller Fokus: Transcript-Contract)<a class="headerlink" href="#audiovideo-aktueller-fokus-transcript-contract" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Secretary Request: <code>src/lib/external-jobs/secretary-request.ts</code></li>
+<li><strong>Fix</strong>: wenn Template‑Phase aktiv ist, wird bei Audio/Video <strong>kein</strong> <code>template</code> an den Secretary gesendet.</li>
+<li>Resultat: Transcript <code>{base}.{lang}.md</code> bleibt <strong>roh</strong>.</li>
+</ul>
+<h2 id="was-wurde-konkret-repariert-delta">Was wurde konkret repariert (Delta)<a class="headerlink" href="#was-wurde-konkret-repariert-delta" title="Permanent link">&para;</a></h2>
+<h3 id="1-audiovideo-transcript-wurde-mit-template-output-uberschrieben">1) Audio/Video: Transcript wurde mit Template-Output überschrieben<a class="headerlink" href="#1-audiovideo-transcript-wurde-mit-template-output-uberschrieben" title="Permanent link">&para;</a></h3>
+<p>Ursache (alt):
+- UI/Job sendet <code>template</code> direkt an <code>/audio/process</code> → Secretary liefert schon transformierten Text → wir speichern ihn als Transcript.</p>
+<p>Fix (neu):
+- In <code>prepareSecretaryRequest()</code> wird <code>template</code> bei Audio/Video <strong>nur</strong> gesendet, wenn Template‑Phase deaktiviert wäre. In unserem Zielbild („never“) bedeutet das: <strong>Audio/Video Extract liefert immer nur Transcript</strong>.</p>
+<h3 id="2-artefaktwrites-falscher-parent-nicht-dotfolder">2) Artefakt‑Writes: falscher Parent (nicht Dot‑Folder)<a class="headerlink" href="#2-artefaktwrites-falscher-parent-nicht-dotfolder" title="Permanent link">&para;</a></h3>
+<p>Fix:
+- In Callback/Storage Pfaden wird <code>shadowTwinFolderId</code> nach dem Transcript‑Save korrekt weitergereicht/aktualisiert, sodass subsequent Phasen im richtigen Dot‑Folder schreiben.</p>
+<h3 id="3-doppelstarts-unauthorized-callback-hash-mismatch">3) Doppelstarts / Unauthorized Callback Hash Mismatch<a class="headerlink" href="#3-doppelstarts-unauthorized-callback-hash-mismatch" title="Permanent link">&para;</a></h3>
+<p>Fix:
+- Client‑seitiger Start wurde entfernt; Start erfolgt über Worker.
+- StartRoute blockiert Duplicate Requests nicht mehr hart, sondern schreibt Trace Events (<code>start_duplicate_request</code>) zur Ursachenanalyse.</p>
+<h3 id="4-ui-autoopen-loop">4) UI Auto‑Open Loop<a class="headerlink" href="#4-ui-autoopen-loop" title="Permanent link">&para;</a></h3>
+<p>Fix:
+- Pipeline Sheet Auto‑Open unterscheidet „nicht gesetzt“ vs „vom Nutzer geschlossen“ über Query‑Param <code>pipeline</code> (<code>'' | '1' | '0'</code>).</p>
+<h2 id="architekturbewertung-ist-das-fundament-sinnvoll-fur-mehrere-medien">Architektur‑Bewertung: Ist das Fundament sinnvoll für mehrere Medien?<a class="headerlink" href="#architekturbewertung-ist-das-fundament-sinnvoll-fur-mehrere-medien" title="Permanent link">&para;</a></h2>
+<p>Ja – <strong>wenn</strong> wir 2 Dinge konsequent halten:</p>
+<p>1) <strong>Phasen‑Interfaces bleiben medium‑agnostisch</strong> (Extract → Template → Ingest), aber „Adapter“ kapseln medien-spezifische Details (Secretary endpoint, Asset‑Handling).
+2) <strong>Artefakt‑Contracts</strong> (Naming/Storage/Dot‑Folder, Transcript vs Transformation) sind die stabile Schnittstelle zwischen Medien.</p>
+<p>Aktuelles Risiko: PDF‑spezifische Kapitel/Pages‑Heuristiken sitzen in <code>phase-template.ts</code> und können unbeabsichtigt auf andere Medien „durchbluten“, wenn nicht sauber per UseCase/JobType gegated wird.</p>
+<h2 id="verbesserungen-3-varianten">Verbesserungen (3 Varianten)<a class="headerlink" href="#verbesserungen-3-varianten" title="Permanent link">&para;</a></h2>
+<h3 id="variante-a-minimal-kurzfristig">Variante A (minimal, kurzfristig)<a class="headerlink" href="#variante-a-minimal-kurzfristig" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Dokumentation konsolidieren (Dot‑Folder kanonisch; Siblings nur Legacy‑Read).</li>
+<li>Integration Tests: <strong>Warnung</strong>, wenn Resolver ein Sibling‑Artefakt liefert.</li>
+<li>Ergänzende Unit Tests: SecretaryRequest‑Contract „Audio/Video niemals Template“.</li>
+</ul>
+<h3 id="variante-b-mittel-strukturell">Variante B (mittel, strukturell)<a class="headerlink" href="#variante-b-mittel-strukturell" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>gateExtractPdf</code> in <code>gateExtract</code> umbenennen + Gate‑Logik so formulieren, dass sie nicht PDF‑spezifisch wirkt.</li>
+<li>Template‑Phase trennt klar:</li>
+<li>generisches Template Transform</li>
+<li>PDF‑spezifische Post‑Processing Schritte (pages/images/chapters) in ein separates Modul.</li>
+</ul>
+<h3 id="variante-c-strikt-langfristig">Variante C (strikt, langfristig)<a class="headerlink" href="#variante-c-strikt-langfristig" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Ein echtes „UseCase Adapter“ Interface:</li>
+<li><code>buildSecretaryRequest(job)</code> (pro medium/job_type)</li>
+<li><code>normalizeExtractPayload(payload)</code> (pro medium)</li>
+<li><code>postprocessArtifacts()</code> (optional, pro medium)</li>
+<li>Contract Tests pro Adapter, plus E2E Integration Suites pro UseCaseId (pdf/audio/video).</li>
+</ul>
+<h2 id="tests-breaking-changes-fruh-erkennen-iststand-empfehlung">Tests: Breaking Changes früh erkennen (Ist‑Stand + Empfehlung)<a class="headerlink" href="#tests-breaking-changes-fruh-erkennen-iststand-empfehlung" title="Permanent link">&para;</a></h2>
+<h3 id="unit-tests-vorhanden">Unit Tests (vorhanden)<a class="headerlink" href="#unit-tests-vorhanden" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>tests/unit/shadow-twin/*</code>: Naming/Resolver/Writer</li>
+<li><code>tests/unit/external-jobs/secretary-request.test.ts</code>: Request‑Kontrakte</li>
+<li><code>tests/unit/external-jobs/progress.test.ts</code>: Progress handling (Basis)</li>
+</ul>
+<h3 id="integration-tests-vorhanden-pdf">Integration Tests (vorhanden, PDF)<a class="headerlink" href="#integration-tests-vorhanden-pdf" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>src/lib/integration-tests/*</code>: Job orchestrieren, Artefakte + Mongo validieren.</li>
+</ul>
+<h3 id="empfehlung-erweiterung">Empfehlung (Erweiterung)<a class="headerlink" href="#empfehlung-erweiterung" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Kurzfristig: Integration Validators sollen <strong>warnen</strong>, wenn transformation/transcript als <code>location === 'sibling'</code> gefunden werden.</li>
+<li>Mittelfristig: zusätzliche UseCases <code>audio_transcript_report.*</code> und <code>video_transcript_report.*</code> analog zu PDF‑Suite.</li>
+</ul>
+<h2 id="konkreter-testplan-minimal-aber-effektiv">Konkreter Testplan (minimal, aber effektiv)<a class="headerlink" href="#konkreter-testplan-minimal-aber-effektiv" title="Permanent link">&para;</a></h2>
+<h3 id="unit-tests-schnell-citauglich">Unit Tests (schnell, CI‑tauglich)<a class="headerlink" href="#unit-tests-schnell-citauglich" title="Permanent link">&para;</a></h3>
+<p>1) <strong>Secretary Request Contract</strong> (bereits teilweise vorhanden)
+   - Audio/Video: <strong>niemals <code>template</code></strong> an Secretary senden, wenn Template‑Phase aktiv (Zielbild).
+   - PDF: <code>mistral_ocr</code> Parameter + Asset Flags bleiben stabil.</p>
+<p>2) <strong>Shadow‑Twin Contract Tests</strong>
+   - <code>buildArtifactName</code>/<code>parseArtifactName</code> für Basenames mit Punkten.
+   - Resolver bevorzugt Dot‑Folder; Siblings nur Fallback.</p>
+<p>3) <strong>Writer Contract Tests</strong>
+   - deterministische Updates (delete+upload) bleiben update-semantisch.
+   - (Zielbild) Dot‑Folder als Write‑Pfad: sobald umgesetzt, Tests auf „keine Siblings erzeugt“.</p>
+<h3 id="integration-tests-realistisch-langsam">Integration Tests (realistisch, langsam)<a class="headerlink" href="#integration-tests-realistisch-langsam" title="Permanent link">&para;</a></h3>
+<p>1) <strong>PDF</strong> (vorhanden)
+   - happy path, gate skip, force recompute, repair frontmatter, HITL publish.</p>
+<p>2) <strong>Audio/Video (geplant)</strong>
+   - Happy path: Extract (Transcript) → Template → optional Ingest.
+   - Contract Checks:
+     - <code>{base}.{lang}.md</code> = rohes Transcript (kein Template‑Output).
+     - <code>{base}.{template}.{lang}.md</code> = strukturierter Template‑Text.
+   - Gate skip / force: analog zur PDF‑Suite.</p>
+<p>3) <strong>Legacy Warning (sofort)</strong>
+   - Wenn Validator ein Artefakt als <code>location=sibling</code> findet: <strong>WARN</strong>, nicht FAIL.
+   - Nach Migration/Repair‑Run kann die Policy auf FAIL umgestellt werden.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.50899def.min.js"></script>
+      
+        <script src="../js/print-site.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js"></script>
+      
+        <script src="../assets/javascripts/mermaid-init.js"></script>
+      
+    
+  </body>
+</html>

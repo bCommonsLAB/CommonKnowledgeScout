@@ -1,0 +1,74 @@
+---
+description: Globale Contracts für „Datei → Shadow‑Twin → Ingestion → Story/Explorer → Chat (RAG)“
+globs: src/app/api/pipeline/**/*,src/app/api/external/jobs/**/*,src/app/api/chat/**/*,src/lib/external-jobs/**/*,src/lib/shadow-twin/**/*,src/lib/chat/**/*,src/lib/repositories/vector-repo.ts,src/components/library/**/*
+alwaysApply: false
+---
+
+# Contracts: Datei → Story Pipeline
+
+Diese Regel bündelt die **harten Invarianten** (Contracts), die über Shadow‑Twin, External Jobs, Ingestion und Chat gelten.
+Sie ist bewusst kurz. Details gehören in die jeweiligen Modul-Regeln oder in `docs/`.
+
+## 0) Quellen der Wahrheit (bitte zuerst lesen)
+
+- Job‑Orchestrierung: `src/app/api/pipeline/process/route.ts`, `src/app/api/external/jobs/[jobId]/start/route.ts`
+- Shadow‑Twin Persistenz: `src/lib/shadow-twin/store/shadow-twin-service.ts`
+- Ingestion Orchestrierung: `src/lib/external-jobs/phase-ingest.ts`, `src/lib/chat/ingestion-service.ts`
+- Vector Search: `src/lib/repositories/vector-repo.ts`
+- Bulk‑Artifact‑Auflösung (UI‑Performance): `src/app/api/library/[libraryId]/artifacts/batch-resolve/route.ts`
+
+## 1) Determinismus‑Contract (Shadow‑Twin ArtifactKey)
+
+- **ArtifactKey ist deterministisch**: `(sourceId, kind, targetLanguage, templateName?)`
+- **`templateName` ist PFLICHT für `kind='transformation'`**
+  - Caller/Route/UI muss es explizit kennen und übergeben.
+  - **Kein** „pick latest/best transformation“ als Standard‑Fallback.
+- Mongo‑IDs sind **virtuell**:
+  - Wenn `id` eine Mongo‑Shadow‑Twin‑ID ist, existiert kein Provider‑Binary dafür.
+  - Inhalte müssen dann über eine passende API geladen werden (nicht via Provider).
+
+## 2) Storage‑Abstraktions‑Contract (UI vs Service Layer)
+
+- **UI kennt kein Storage‑Backend** (`primaryStore`, Azure vs Filesystem etc.):
+  - Keine UI‑Branches nach `library.config.shadowTwin.primaryStore`.
+  - Keine direkten Storage‑Details in Komponenten/Hooks als Entscheidungslogik.
+- Storage‑Entscheidungen passieren im **Service/Route‑Layer** (ShadowTwinService / APIs).
+- Für Binary‑Assets gilt:
+  - **Bevorzugt**: persistierte Azure‑URL (wenn vorhanden)
+  - **Fallback**: Storage‑API URL (`/api/storage/filesystem?...`) wenn nur `fileId` existiert
+
+## 3) External Jobs Contracts (Status, Steps, Phasen)
+
+- **completed ⇒ keine pending Steps**
+- **completed ⇒ keine running Steps**
+- **phases.X=true ⇒ entsprechender Step muss am Ende `completed` sein**
+- Skip‑Semantik:
+  - „Übersprungen“ wird typischerweise als `status: 'completed'` + `details.skipped=true` modelliert.
+  - Das ist wichtig, damit Validatoren/UX nicht an „pending“ hängen bleiben.
+
+## 4) Ingestion Input Contract (RAG)
+
+- **Leeres oder zu kurzes Ingestion‑Markdown ist ein Fehler** (kein „success mit 0 Chunks“).
+- Ingestion verwendet als Input bevorzugt:
+  - **Transformation** (falls vorhanden, wegen Frontmatter‑Meta)
+  - sonst Transcript/Extract (Fallback)
+- Ergebnis muss deterministisch upsertbar sein:
+  - `fileId` (Vektor‑Namespace) muss stabil sein (i.d.R. Source‑ItemId)
+  - Meta‑Doc `_id` ist davon abgeleitet (z.B. `${fileId}-meta`)
+
+## 5) Vector Search / Index Contract (MongoDB Atlas)
+
+- Vector Search muss über `$vectorSearch` mit korrekter `dimension` laufen.
+- Wenn Filter auf Array‑Felder gehen (authors/tags/topics/…), benötigt der Index Token‑Indexe.
+  - Fehlermeldungen wie „needs to be indexed as token“ sind **Index‑Definition/Status** Probleme, nicht Retriever‑Bugs.
+
+## 6) Doku‑/Code‑Review Checkliste (minimal)
+
+Wenn du Pipeline/Shadow‑Twin/Ingestion/Chat anfasst:
+
+- [ ] Wird irgendwo `kind='transformation'` ohne `templateName` verarbeitet? (Fixen)
+- [ ] Enthält UI/Hooks Storage‑Backend‑Branches? (In Service/Route verschieben)
+- [ ] Kann ein Job „completed“ werden, während ein Step noch `pending` ist? (Fixen/Validator)
+- [ ] Kann Ingestion mit leerem Input laufen? (Fixen, harte Validierung)
+- [ ] Werden Binary‑URLs immer „resolved“ (Azure bevorzugt, Storage‑API fallback)? (Fixen)
+

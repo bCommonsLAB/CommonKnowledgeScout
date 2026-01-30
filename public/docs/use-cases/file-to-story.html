@@ -1,0 +1,1916 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="http://localhost:3000/docs/use-cases/file-to-story.html">
+      
+      
+        <link rel="prev" href="file-transformation-media.html">
+      
+      
+        <link rel="next" href="web-scraping.html">
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.16">
+    
+    
+      
+        <title>File → Story (End-to-End) - Common Knowledge Scout</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.7e37652d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../css/print-site.css">
+    
+      <link rel="stylesheet" href="../css/print-site-material.css">
+    
+      <link rel="stylesheet" href="../assets/stylesheets/print.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#file-story-askable-end-to-end" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../index.html" title="Common Knowledge Scout" class="md-header__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Common Knowledge Scout
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              File → Story (End-to-End)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../index.html" title="Common Knowledge Scout" class="md-nav__button md-logo" aria-label="Common Knowledge Scout" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Common Knowledge Scout
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Architecture
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/module-hierarchy.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Module Hierarchy
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/dependency-graph.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Dependency Graph
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/shadow-twin.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shadow-Twin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/pdf-transformation-phases.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PDF Transformation Phases
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/mongodb-vector-search.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MongoDB Vector Search
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Analysis
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Analysis
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/shadow-twin-v2-only.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Shadow-Twin (v2-only)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/wizard-and-jobs.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Wizard & External Jobs
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/audio-jobs-transcript-only.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Audio/Video (no template)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/ingestion.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Ingestion
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/storage.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/markdown-page-splitting.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Markdown Page Splitting
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Use Cases
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Use Cases
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="library-setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Library Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="file-transformation-pdf.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PDF Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="file-transformation-media.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Media Transformation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    File → Story (End-to-End)
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="file-to-story.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    File → Story (End-to-End)
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#file-story-askable-end-to-end" class="md-nav__link">
+    <span class="md-ellipsis">
+      File → Story → Askable (End-to-End)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="File → Story → Askable (End-to-End)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-goal-from-file-story-askable" class="md-nav__link">
+    <span class="md-ellipsis">
+      1) Goal: “From file → story → askable”
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-terms-quick-glossary" class="md-nav__link">
+    <span class="md-ellipsis">
+      2) Terms (quick glossary)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-end-to-end-flow-numbered" class="md-nav__link">
+    <span class="md-ellipsis">
+      3) End-to-end flow (numbered)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3) End-to-end flow (numbered)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-0-the-file-exists-in-a-library-storage-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 0 — The file exists in a Library (Storage Provider)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-1-start-a-pipeline-job-unified-endpoint" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 1 — Start a pipeline job (Unified endpoint)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-job-start-load-source-binary-analyze-shadowtwin" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 2 — Job start: load source binary + analyze Shadow‑Twin
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-extract-transcribeocr-transcript-artifact" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 3 — Extract (transcribe/OCR) → Transcript artifact
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-transform-template-transformation-artifact-story-ready-markdown" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 4 — Transform (template) → Transformation artifact (story-ready markdown)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-5-ingest-rag-mongodb-vector-search-meta-chunks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 5 — Ingest (RAG) → MongoDB Vector Search (meta + chunks)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-6-explorer-chat-askable-story" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 6 — Explorer &amp; Chat (askable story)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mermaid-sequence-overview-systems-apis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Mermaid: Sequence overview (systems + APIs)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-storage-matrix-what-lives-where" class="md-nav__link">
+    <span class="md-ellipsis">
+      4) Storage matrix (what lives where?)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-typical-failure-modes-and-how-to-recognize-them" class="md-nav__link">
+    <span class="md-ellipsis">
+      5) Typical failure modes (and how to recognize them)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5) Typical failure modes (and how to recognize them)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-missing-templatename-for-transformations-determinism-break" class="md-nav__link">
+    <span class="md-ellipsis">
+      A) Missing templateName for transformations (determinism break)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b-azure-container-missing-misconfigured" class="md-nav__link">
+    <span class="md-ellipsis">
+      B) Azure container missing / misconfigured
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c-ingestion-input-empty-too-short" class="md-nav__link">
+    <span class="md-ellipsis">
+      C) Ingestion input empty / too short
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d-vector-search-index-not-ready-missing-token-index-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      D) Vector Search index not READY / missing token-index fields
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-debug-entry-points-fastest-way-to-locate-the-break" class="md-nav__link">
+    <span class="md-ellipsis">
+      6) Debug entry points (fastest way to locate the break)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6) Debug entry points (fastest way to locate the break)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#external-job-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      External Job steps
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ingestion-status-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      Ingestion status API
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#chat-stream-processing-steps-live" class="md-nav__link">
+    <span class="md-ellipsis">
+      Chat stream processing steps (live)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#related-docs-deep-dives" class="md-nav__link">
+    <span class="md-ellipsis">
+      Related docs (deep dives)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="web-scraping.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Web Scraping
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="publishing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Publishing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="chat-exploration.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Chat & Story Mode
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="batch-operations.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Batch Operations
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/file-index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    File Index
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Modules
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            Modules
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/modules/library.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Library
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/modules/storage.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/modules/chat.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Chat
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#file-story-askable-end-to-end" class="md-nav__link">
+    <span class="md-ellipsis">
+      File → Story → Askable (End-to-End)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="File → Story → Askable (End-to-End)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-goal-from-file-story-askable" class="md-nav__link">
+    <span class="md-ellipsis">
+      1) Goal: “From file → story → askable”
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-terms-quick-glossary" class="md-nav__link">
+    <span class="md-ellipsis">
+      2) Terms (quick glossary)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-end-to-end-flow-numbered" class="md-nav__link">
+    <span class="md-ellipsis">
+      3) End-to-end flow (numbered)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3) End-to-end flow (numbered)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-0-the-file-exists-in-a-library-storage-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 0 — The file exists in a Library (Storage Provider)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-1-start-a-pipeline-job-unified-endpoint" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 1 — Start a pipeline job (Unified endpoint)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-job-start-load-source-binary-analyze-shadowtwin" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 2 — Job start: load source binary + analyze Shadow‑Twin
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-extract-transcribeocr-transcript-artifact" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 3 — Extract (transcribe/OCR) → Transcript artifact
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-transform-template-transformation-artifact-story-ready-markdown" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 4 — Transform (template) → Transformation artifact (story-ready markdown)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-5-ingest-rag-mongodb-vector-search-meta-chunks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 5 — Ingest (RAG) → MongoDB Vector Search (meta + chunks)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-6-explorer-chat-askable-story" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 6 — Explorer &amp; Chat (askable story)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mermaid-sequence-overview-systems-apis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Mermaid: Sequence overview (systems + APIs)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-storage-matrix-what-lives-where" class="md-nav__link">
+    <span class="md-ellipsis">
+      4) Storage matrix (what lives where?)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-typical-failure-modes-and-how-to-recognize-them" class="md-nav__link">
+    <span class="md-ellipsis">
+      5) Typical failure modes (and how to recognize them)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5) Typical failure modes (and how to recognize them)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-missing-templatename-for-transformations-determinism-break" class="md-nav__link">
+    <span class="md-ellipsis">
+      A) Missing templateName for transformations (determinism break)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b-azure-container-missing-misconfigured" class="md-nav__link">
+    <span class="md-ellipsis">
+      B) Azure container missing / misconfigured
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c-ingestion-input-empty-too-short" class="md-nav__link">
+    <span class="md-ellipsis">
+      C) Ingestion input empty / too short
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d-vector-search-index-not-ready-missing-token-index-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      D) Vector Search index not READY / missing token-index fields
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-debug-entry-points-fastest-way-to-locate-the-break" class="md-nav__link">
+    <span class="md-ellipsis">
+      6) Debug entry points (fastest way to locate the break)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6) Debug entry points (fastest way to locate the break)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#external-job-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      External Job steps
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ingestion-status-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      Ingestion status API
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#chat-stream-processing-steps-live" class="md-nav__link">
+    <span class="md-ellipsis">
+      Chat stream processing steps (live)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#related-docs-deep-dives" class="md-nav__link">
+    <span class="md-ellipsis">
+      Related docs (deep dives)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+  <h1>File → Story (End-to-End)</h1>
+
+<h2 id="file-story-askable-end-to-end">File → Story → Askable (End-to-End)<a class="headerlink" href="#file-story-askable-end-to-end" title="Permanent link">&para;</a></h2>
+<h3 id="1-goal-from-file-story-askable">1) Goal: “From file → story → askable”<a class="headerlink" href="#1-goal-from-file-story-askable" title="Permanent link">&para;</a></h3>
+<p>This page explains the <strong>end-to-end path</strong> of a file (PDF / audio / video / markdown) through:</p>
+<ul>
+<li><strong>Shadow‑Twin</strong> (transcript + transformation artifacts)</li>
+<li><strong>Ingestion</strong> (MongoDB Vector Search: meta + chunks)</li>
+<li><strong>Explorer / Chat</strong> (story UI + RAG Q&amp;A)</li>
+</ul>
+<p>It is designed as an <strong>operational overview</strong> and links to the deeper architecture docs where needed.</p>
+<h3 id="2-terms-quick-glossary">2) Terms (quick glossary)<a class="headerlink" href="#2-terms-quick-glossary" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Source</strong>: the original file in a library (PDF/audio/video/markdown).</li>
+<li><strong>Shadow‑Twin</strong>: derived artifacts for a source (markdown artifacts + binary fragments).</li>
+<li><strong>Transcript</strong>: extracted text as markdown (often minimal frontmatter).</li>
+<li><strong>Transformation</strong>: template-based markdown with frontmatter/metadata (structured “story input”).</li>
+<li><strong>Ingestion</strong>: converting transformation/transcript into:</li>
+<li><strong>meta doc</strong> (for gallery/explorer + facets)</li>
+<li><strong>chunk docs</strong> (for semantic retrieval)</li>
+<li><strong>MetaDoc</strong>: the per-document “metadata record” stored in the vector collection (<code>kind: 'meta'</code>).</li>
+<li><strong>Chunk</strong>: a text segment with an embedding (<code>kind: 'chunk'</code>).</li>
+</ul>
+<h3 id="3-end-to-end-flow-numbered">3) End-to-end flow (numbered)<a class="headerlink" href="#3-end-to-end-flow-numbered" title="Permanent link">&para;</a></h3>
+<h4 id="step-0-the-file-exists-in-a-library-storage-provider">Step 0 — The file exists in a Library (Storage Provider)<a class="headerlink" href="#step-0-the-file-exists-in-a-library-storage-provider" title="Permanent link">&para;</a></h4>
+<p>The source file lives in your library storage (filesystem / OneDrive / … via a provider abstraction).</p>
+<h4 id="step-1-start-a-pipeline-job-unified-endpoint">Step 1 — Start a pipeline job (Unified endpoint)<a class="headerlink" href="#step-1-start-a-pipeline-job-unified-endpoint" title="Permanent link">&para;</a></h4>
+<p>You trigger processing via the unified endpoint:</p>
+<ul>
+<li><code>POST /api/pipeline/process</code></li>
+</ul>
+<p>This creates an <strong>External Job</strong> with steps:</p>
+<ul>
+<li><code>extract_*</code> (pdf/audio/video)</li>
+<li><code>transform_template</code></li>
+<li><code>ingest_rag</code></li>
+</ul>
+<p>Reference: <code>docs/architecture/pipeline-phases.md</code></p>
+<h4 id="step-2-job-start-load-source-binary-analyze-shadowtwin">Step 2 — Job start: load source binary + analyze Shadow‑Twin<a class="headerlink" href="#step-2-job-start-load-source-binary-analyze-shadowtwin" title="Permanent link">&para;</a></h4>
+<p>The worker starts the job:</p>
+<ul>
+<li>loads source bytes from the provider (<code>getBinary</code>)</li>
+<li>analyzes existing Shadow‑Twin state (so gates can skip redundant work)</li>
+</ul>
+<h4 id="step-3-extract-transcribeocr-transcript-artifact">Step 3 — Extract (transcribe/OCR) → Transcript artifact<a class="headerlink" href="#step-3-extract-transcribeocr-transcript-artifact" title="Permanent link">&para;</a></h4>
+<p>For PDFs/audio/video, phase 1 creates a <strong>transcript</strong> artifact (markdown).</p>
+<p>For markdown sources, “extract” is effectively skipped: the source is already text.</p>
+<h4 id="step-4-transform-template-transformation-artifact-story-ready-markdown">Step 4 — Transform (template) → Transformation artifact (story-ready markdown)<a class="headerlink" href="#step-4-transform-template-transformation-artifact-story-ready-markdown" title="Permanent link">&para;</a></h4>
+<p>Template transformation generates the “story-ready” markdown:</p>
+<ul>
+<li>validated/extended frontmatter</li>
+<li>chapters / summary / teaser / facets, etc.</li>
+</ul>
+<p>This is the best ingestion input because it includes structured metadata.</p>
+<p>Reference: <code>docs/architecture/shadow-twin.md</code>, <code>docs/architecture/template-system.md</code></p>
+<h4 id="step-5-ingest-rag-mongodb-vector-search-meta-chunks">Step 5 — Ingest (RAG) → MongoDB Vector Search (meta + chunks)<a class="headerlink" href="#step-5-ingest-rag-mongodb-vector-search-meta-chunks" title="Permanent link">&para;</a></h4>
+<p>Ingestion turns the (preferably transformed) markdown into:</p>
+<ul>
+<li><code>kind: 'meta'</code> document: for gallery/explorer + facets</li>
+<li><code>kind: 'chunk'</code> documents: for semantic retrieval</li>
+<li><code>kind: 'chapterSummary'</code> docs (optional) for chapter-focused retrieval</li>
+</ul>
+<p>Reference: <code>docs/analysis/ingestion.md</code>, <code>docs/architecture/mongodb-vector-search.md</code></p>
+<h4 id="step-6-explorer-chat-askable-story">Step 6 — Explorer &amp; Chat (askable story)<a class="headerlink" href="#step-6-explorer-chat-askable-story" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Explorer/Gallery reads meta documents to render cards (title, teaser, cover, etc.)</li>
+<li>Chat retrieves relevant chunks using <code>$vectorSearch</code> and generates answers (RAG)</li>
+</ul>
+<p>Reference: <code>docs/use-cases/chat-exploration.md</code></p>
+<h3 id="mermaid-sequence-overview-systems-apis">Mermaid: Sequence overview (systems + APIs)<a class="headerlink" href="#mermaid-sequence-overview-systems-apis" title="Permanent link">&para;</a></h3>
+<pre class="mermaid"><code>sequenceDiagram
+  autonumber
+  actor User
+  participant UI as Library UI
+  participant API as Next.js API
+  participant Jobs as External Jobs (MongoDB)
+  participant Provider as Storage Provider
+  participant ST as Shadow‑Twin Store (Mongo/FS)
+  participant Sec as Secretary Service
+  participant V as Vector Store (MongoDB Vector Search)
+
+  User-&gt;&gt;UI: Choose file + start processing
+  UI-&gt;&gt;API: POST /api/pipeline/process
+  API-&gt;&gt;Jobs: create job (steps: extract, transform, ingest)
+
+  API-&gt;&gt;API: best-effort trigger worker tick
+  API-&gt;&gt;API: POST /api/external/jobs/{jobId}/start (worker)
+
+  API-&gt;&gt;Provider: getBinary(sourceId)
+  API-&gt;&gt;ST: analyze existing artifacts (gates)
+
+  alt extract needed (pdf/audio/video)
+    API-&gt;&gt;Sec: submit extract/transcribe request
+    Sec--&gt;&gt;API: callback with transcript markdown
+    API-&gt;&gt;ST: upsert transcript artifact
+  else extract skipped
+    API-&gt;&gt;ST: (use existing transcript/source text)
+  end
+
+  alt template enabled
+    API-&gt;&gt;Sec: transform-by-template
+    Sec--&gt;&gt;API: callback with transformation markdown
+    API-&gt;&gt;ST: upsert transformation artifact
+  end
+
+  alt ingest enabled
+    API-&gt;&gt;V: upsert meta + chunks (+ chapterSummary)
+  end
+
+  UI-&gt;&gt;API: Load artifacts + ingestion status
+  UI-&gt;&gt;API: POST /api/library/{libraryId}/artifacts/batch-resolve
+  UI-&gt;&gt;API: GET /api/chat/{libraryId}/ingestion-status?fileId=...
+  User-&gt;&gt;UI: Ask question
+  UI-&gt;&gt;API: POST /api/chat/{libraryId}/stream
+  API-&gt;&gt;V: $vectorSearch (retrieve chunks)
+  API--&gt;&gt;UI: streamed answer + citations</code></pre>
+<h3 id="4-storage-matrix-what-lives-where">4) Storage matrix (what lives where?)<a class="headerlink" href="#4-storage-matrix-what-lives-where" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Data</th>
+<th>What it is</th>
+<th style="text-align: right;">File Storage (Provider)</th>
+<th style="text-align: right;">MongoDB (Shadow‑Twin)</th>
+<th style="text-align: right;">Azure Blob (Binary)</th>
+<th style="text-align: right;">MongoDB Vector Search</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Source file</td>
+<td>PDF/audio/video/markdown</td>
+<td style="text-align: right;">✅</td>
+<td style="text-align: right;">✖️</td>
+<td style="text-align: right;">(optional)</td>
+<td style="text-align: right;">✖️</td>
+</tr>
+<tr>
+<td>Transcript artifact</td>
+<td>extracted markdown</td>
+<td style="text-align: right;">✅ (FS mode)</td>
+<td style="text-align: right;">✅ (mongo mode)</td>
+<td style="text-align: right;">✖️</td>
+<td style="text-align: right;">✖️</td>
+</tr>
+<tr>
+<td>Transformation artifact</td>
+<td>template markdown + frontmatter</td>
+<td style="text-align: right;">✅ (FS mode)</td>
+<td style="text-align: right;">✅ (mongo mode)</td>
+<td style="text-align: right;">✖️</td>
+<td style="text-align: right;">✖️</td>
+</tr>
+<tr>
+<td>Binary fragments metadata</td>
+<td>image references (cover, slides, etc.)</td>
+<td style="text-align: right;">(possible)</td>
+<td style="text-align: right;">✅</td>
+<td style="text-align: right;">✖️</td>
+<td style="text-align: right;">✖️</td>
+</tr>
+<tr>
+<td>Binary fragments bytes</td>
+<td>images, PDFs (optional)</td>
+<td style="text-align: right;">✅ (FS fallback)</td>
+<td style="text-align: right;">✖️</td>
+<td style="text-align: right;">✅</td>
+<td style="text-align: right;">✖️</td>
+</tr>
+<tr>
+<td>MetaDoc</td>
+<td><code>kind: 'meta'</code></td>
+<td style="text-align: right;">✖️</td>
+<td style="text-align: right;">✖️</td>
+<td style="text-align: right;">✖️</td>
+<td style="text-align: right;">✅</td>
+</tr>
+<tr>
+<td>Chunks</td>
+<td><code>kind: 'chunk'</code></td>
+<td style="text-align: right;">✖️</td>
+<td style="text-align: right;">✖️</td>
+<td style="text-align: right;">✖️</td>
+<td style="text-align: right;">✅</td>
+</tr>
+<tr>
+<td>Chapter summaries</td>
+<td><code>kind: 'chapterSummary'</code></td>
+<td style="text-align: right;">✖️</td>
+<td style="text-align: right;">✖️</td>
+<td style="text-align: right;">✖️</td>
+<td style="text-align: right;">✅</td>
+</tr>
+</tbody>
+</table>
+<p>Notes:</p>
+<ul>
+<li>Shadow‑Twin “primary store” is configurable per library (<code>filesystem</code> vs <code>mongo</code>).</li>
+<li>In mongo mode, binaries are typically served via <strong>Azure URLs</strong> (fallback exists via <code>/api/storage/filesystem</code> when a <code>fileId</code> exists).</li>
+</ul>
+<h3 id="5-typical-failure-modes-and-how-to-recognize-them">5) Typical failure modes (and how to recognize them)<a class="headerlink" href="#5-typical-failure-modes-and-how-to-recognize-them" title="Permanent link">&para;</a></h3>
+<h4 id="a-missing-templatename-for-transformations-determinism-break">A) Missing <code>templateName</code> for transformations (determinism break)<a class="headerlink" href="#a-missing-templatename-for-transformations-determinism-break" title="Permanent link">&para;</a></h4>
+<p>Symptoms:</p>
+<ul>
+<li>transformation not found / wrong transformation chosen</li>
+<li>cover upload/frontmatter patch fails or updates “the wrong one”</li>
+</ul>
+<p>Fix direction:</p>
+<ul>
+<li>treat <code>templateName</code> as required input for transformation operations</li>
+<li>avoid “pick newest transformation” as a default behavior in new call-sites</li>
+</ul>
+<h4 id="b-azure-container-missing-misconfigured">B) Azure container missing / misconfigured<a class="headerlink" href="#b-azure-container-missing-misconfigured" title="Permanent link">&para;</a></h4>
+<p>Symptoms:</p>
+<ul>
+<li>cover/slides/pdf upload fails with “container does not exist”</li>
+<li>ingestion completes but without expected URLs</li>
+</ul>
+<p>Fix direction:</p>
+<ul>
+<li>ensure Azure storage configuration is present and the container exists</li>
+<li>keep FS fallback for development where Azure is unavailable</li>
+</ul>
+<h4 id="c-ingestion-input-empty-too-short">C) Ingestion input empty / too short<a class="headerlink" href="#c-ingestion-input-empty-too-short" title="Permanent link">&para;</a></h4>
+<p>Symptoms:</p>
+<ul>
+<li><code>ingest_rag</code> fails early, or results in “no chunks”</li>
+</ul>
+<p>Fix direction:</p>
+<ul>
+<li>treat empty ingestion input as a hard error (pipeline should not mark success)</li>
+<li>verify transformation/transcript output first</li>
+</ul>
+<h4 id="d-vector-search-index-not-ready-missing-token-index-fields">D) Vector Search index not READY / missing token-index fields<a class="headerlink" href="#d-vector-search-index-not-ready-missing-token-index-fields" title="Permanent link">&para;</a></h4>
+<p>Symptoms:</p>
+<ul>
+<li><code>$vectorSearch</code> errors</li>
+<li>errors like “Path 'authors' needs to be indexed as token”</li>
+</ul>
+<p>Fix direction:</p>
+<ul>
+<li>check index status (can take time: INITIAL_SYNC)</li>
+<li>ensure the index definition includes token indexing for array fields used in filters</li>
+</ul>
+<h3 id="6-debug-entry-points-fastest-way-to-locate-the-break">6) Debug entry points (fastest way to locate the break)<a class="headerlink" href="#6-debug-entry-points-fastest-way-to-locate-the-break" title="Permanent link">&para;</a></h3>
+<h4 id="external-job-steps">External Job steps<a class="headerlink" href="#external-job-steps" title="Permanent link">&para;</a></h4>
+<p>Look at job steps for:</p>
+<ul>
+<li><code>extract_pdf</code> / <code>extract_audio</code> / <code>extract_video</code></li>
+<li><code>transform_template</code></li>
+<li><code>ingest_rag</code></li>
+</ul>
+<p>Key contract:</p>
+<ul>
+<li>job <code>completed</code> must not have any step still <code>pending</code> or <code>running</code></li>
+</ul>
+<h4 id="ingestion-status-api">Ingestion status API<a class="headerlink" href="#ingestion-status-api" title="Permanent link">&para;</a></h4>
+<ul>
+<li><code>GET /api/chat/{libraryId}/ingestion-status?fileId=...</code></li>
+</ul>
+<p>Use it to verify:</p>
+<ul>
+<li>meta doc exists</li>
+<li>chunkCount / chaptersCount make sense</li>
+<li>doc is not stale compared to your current artifact</li>
+</ul>
+<h4 id="chat-stream-processing-steps-live">Chat stream processing steps (live)<a class="headerlink" href="#chat-stream-processing-steps-live" title="Permanent link">&para;</a></h4>
+<ul>
+<li><code>POST /api/chat/{libraryId}/stream</code> emits structured steps such as:</li>
+<li>retriever selection</li>
+<li>retrieval start/progress</li>
+<li>(optional) cache checks</li>
+<li>completion or error</li>
+</ul>
+<p>Use these steps to decide whether the failure is:</p>
+<ul>
+<li>“retrieval” (Vector Search) vs</li>
+<li>“generation” (LLM) vs</li>
+<li>“missing ingestion” (no indexed docs)</li>
+</ul>
+<h3 id="related-docs-deep-dives">Related docs (deep dives)<a class="headerlink" href="#related-docs-deep-dives" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Pipeline phases: <code>docs/architecture/pipeline-phases.md</code></li>
+<li>Shadow‑Twin model: <code>docs/architecture/shadow-twin.md</code></li>
+<li>Ingestion runtime: <code>docs/analysis/ingestion.md</code></li>
+<li>Vector search architecture: <code>docs/architecture/mongodb-vector-search.md</code></li>
+<li>Chat use case: <code>docs/use-cases/chat-exploration.md</code></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.50899def.min.js"></script>
+      
+        <script src="../js/print-site.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js"></script>
+      
+        <script src="../assets/javascripts/mermaid-init.js"></script>
+      
+    
+  </body>
+</html>

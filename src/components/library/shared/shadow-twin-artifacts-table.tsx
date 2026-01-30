@@ -299,7 +299,7 @@ export function ShadowTwinArtifactsTable({
                                   Typ
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p className="max-w-xs">Art der Datei: "markdown" (Artefakt), "image", "audio", "video" oder "binary".</p>
+                                  <p className="max-w-xs">Art der Datei: &quot;markdown&quot; (Artefakt), &quot;image&quot;, &quot;audio&quot;, &quot;video&quot; oder &quot;binary&quot;.</p>
                                 </TooltipContent>
                               </Tooltip>
                             </th>
@@ -339,7 +339,7 @@ export function ShadowTwinArtifactsTable({
                                   Mongo
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p className="max-w-xs">Status der MongoDB-Speicherung: "upserted" = erfolgreich gespeichert/aktualisiert, "nein" = nicht gespeichert.</p>
+                                  <p className="max-w-xs">Status der MongoDB-Speicherung: &quot;upserted&quot; = erfolgreich gespeichert/aktualisiert, &quot;nein&quot; = nicht gespeichert.</p>
                                 </TooltipContent>
                               </Tooltip>
                             </th>
@@ -349,7 +349,7 @@ export function ShadowTwinArtifactsTable({
                                   FS gelöscht
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p className="max-w-xs">Ob die Dateisystemkopie nach erfolgreicher MongoDB-Migration gelöscht wurde: "ja" = gelöscht, "nein" = noch vorhanden oder Cleanup deaktiviert.</p>
+                                  <p className="max-w-xs">Ob die Dateisystemkopie nach erfolgreicher MongoDB-Migration gelöscht wurde: &quot;ja&quot; = gelöscht, &quot;nein&quot; = noch vorhanden oder Cleanup deaktiviert.</p>
                                 </TooltipContent>
                               </Tooltip>
                             </th>

@@ -2,170 +2,322 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>http://localhost:3000/docs/index.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/Frage%20stellung.html</loc>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/github-branch-protection-setup.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/mongodb-indexes.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
-         <loc>http://localhost:3000/docs/mongodb-vector-search-index.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <loc>http://localhost:3000/docs/_analysis/event-filesystem-contract.html</loc>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
-         <loc>http://localhost:3000/docs/_analysis/chat-orchestration-flow.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <loc>http://localhost:3000/docs/_analysis/event-testimonials-wizards.html</loc>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
-         <loc>http://localhost:3000/docs/_analysis/cleanup-summary.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <loc>http://localhost:3000/docs/_analysis/event-wizard-smoke-test.html</loc>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
-         <loc>http://localhost:3000/docs/_analysis/dependencies.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <loc>http://localhost:3000/docs/_analysis/template-transformation-test-dialog.html</loc>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
-         <loc>http://localhost:3000/docs/_analysis/documentation-progress.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <loc>http://localhost:3000/docs/_analysis/testimonial-flow-consolidation.html</loc>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
-         <loc>http://localhost:3000/docs/_analysis/documentation-updates-linter-fixes.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <loc>http://localhost:3000/docs/_analysis/testimonial-variant-b-editor-flow.html</loc>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
-         <loc>http://localhost:3000/docs/_analysis/email-service-provider-examples.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <loc>http://localhost:3000/docs/_analysis/website-import-session-feature-map.html</loc>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
-         <loc>http://localhost:3000/docs/_analysis/file-inventory.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <loc>http://localhost:3000/docs/_secretary-service-docu/audio.html</loc>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
-         <loc>http://localhost:3000/docs/_analysis/ingestion-service-refactoring.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <loc>http://localhost:3000/docs/_secretary-service-docu/overview.html</loc>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
-         <loc>http://localhost:3000/docs/_analysis/integration-tests-phase3-analysis.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <loc>http://localhost:3000/docs/_secretary-service-docu/pdf.html</loc>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
-         <loc>http://localhost:3000/docs/_analysis/mongodb-vector-search-ingestion-analysis.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <loc>http://localhost:3000/docs/_secretary-service-docu/text2image.html</loc>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
-         <loc>http://localhost:3000/docs/_analysis/mongodb-vector-search-migration-docs.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <loc>http://localhost:3000/docs/_secretary-service-docu/transformer.html</loc>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
-         <loc>http://localhost:3000/docs/_analysis/pdf-transformation-phases-ist.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <loc>http://localhost:3000/docs/analysis/artifact-pipeline-v3-ist-stand.html</loc>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
-         <loc>http://localhost:3000/docs/_analysis/story-mode-initial-load-analysis.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <loc>http://localhost:3000/docs/analysis/artifact-ui-unification.html</loc>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
-         <loc>http://localhost:3000/docs/_analysis/terminal-logs-analysis.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <loc>http://localhost:3000/docs/analysis/audio-integration-tests.html</loc>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
-         <loc>http://localhost:3000/docs/_analysis/unused-code-analysis.html</loc>
-         <lastmod>2025-12-02</lastmod>
-    </url>
-    <url>
-         <loc>http://localhost:3000/docs/_analysis/unused-components-explore.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <loc>http://localhost:3000/docs/analysis/audio-jobs-transcript-only.html</loc>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/analysis/browser-test-analysis-latest.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
-         <loc>http://localhost:3000/docs/analysis/browser-test-analysis.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <loc>http://localhost:3000/docs/analysis/docs-cleanup-delete-list.html</loc>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
-         <loc>http://localhost:3000/docs/analysis/library-root-loading-analysis.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <loc>http://localhost:3000/docs/analysis/docs-cleanup-inventory.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/finalize-wizard-comparison.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/finalize-wizard-event-context.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/ingestion.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/integration-tests-agent-mode.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/integration-tests-storage-agnostic.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/markdown-page-splitting.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/markdown-processing-pipeline.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/markdown-search-scroll-issue.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/mongo-gates-vs-filesystem-gates.html</loc>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/analysis/performance-analysis-loading.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
-         <loc>http://localhost:3000/docs/analysis/shadow-twin-processing-status.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <loc>http://localhost:3000/docs/analysis/pipeline-sheet-autoopen-loop.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/shadow-twin-deterministic-architecture.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/shadow-twin-migration-logging.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/shadow-twin-migration-ui-dry-run.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/shadow-twin-mongo-migration-plan.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/shadow-twin-mongo-target-structure.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/shadow-twin-settings-ui.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/shadow-twin-source-selection.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/shadow-twin-storage-abstraction.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/shadow-twin-v2-only.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/storage.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/template-only-job-completion.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/testimonial-transformation-concept.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/trace-timeline-postprocessing-elimination.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/unified-pipeline-architecture.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/analysis/wizard-and-jobs.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/architecture/artifact-pipeline-v3-design.html</loc>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/architecture/dependency-graph.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/architecture/finalize-wizard-requirements.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/architecture/generic-finalize-wizard.html</loc>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/architecture/module-hierarchy.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/architecture/mongodb-vector-search.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/architecture/pdf-transformation-phases.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/architecture/pipeline-phases.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/architecture/requirements-artifact-pipeline-v3.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/architecture/secretary-format-interfaces.html</loc>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/architecture/shadow-twin.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/architecture/template-system.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/architecture/testimonial-artifacts.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/architecture/use-cases-and-personas.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/decisions/remove-story-creator.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/guides/integration-tests.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/guides/shadow-twin.html</loc>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/implementation/generic-finalize-wizard-plan.html</loc>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/reference/file-index.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/reference/modules/chat.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/reference/modules/library.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/reference/modules/storage.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/use-cases/index.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/use-cases/batch-operations.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/use-cases/chat-exploration.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <lastmod>2026-01-30</lastmod>
+    </url>
+    <url>
+         <loc>http://localhost:3000/docs/use-cases/file-to-story.html</loc>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/use-cases/file-transformation-media.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/use-cases/file-transformation-pdf.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/use-cases/library-setup.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/use-cases/publishing.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <lastmod>2026-01-30</lastmod>
     </url>
     <url>
          <loc>http://localhost:3000/docs/use-cases/web-scraping.html</loc>
-         <lastmod>2025-12-02</lastmod>
+         <lastmod>2026-01-30</lastmod>
     </url>
 </urlset>

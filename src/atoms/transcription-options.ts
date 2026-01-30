@@ -1,7 +1,7 @@
 import { atom } from 'jotai';
 import { StorageItem } from '@/lib/storage/types';
 // Zentrale Medientyp-Definitionen für Konvertierung
-import { getMediaKind, mediaKindToFileCategory, type MediaKind, type FileCategory as CentralFileCategory } from '@/lib/media-types';
+import { getMediaKind, mediaKindToFileCategory, type MediaKind } from '@/lib/media-types';
 
 // Basis-Optionen für alle Medientypen
 export interface BaseTransformOptions {

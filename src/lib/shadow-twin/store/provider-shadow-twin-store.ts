@@ -70,7 +70,7 @@ export class ProviderShadowTwinStore implements ShadowTwinStore {
         markdown,
         frontmatter,
       }
-    } catch (error) {
+    } catch {
       // Fehler beim Laden → null zurückgeben
       return null
     }
@@ -120,19 +120,23 @@ export class ProviderShadowTwinStore implements ShadowTwinStore {
 
       if (resolved) {
         fileId = resolved.fileId
-        // Aktualisiere Inhalt
-        await this.provider.updateBinary(fileId, new Blob([markdown], { type: 'text/markdown' }))
+        // Aktualisiere Inhalt: Lösche alte Datei und erstelle neue
+        await this.provider.deleteItem(fileId)
+        // Erstelle die Datei neu mit uploadFile
+        const newFile = await this.provider.uploadFile(
+          targetParentId,
+          new File([markdown], fileName, { type: 'text/markdown' })
+        )
+        fileId = newFile.id
       } else {
         throw new Error(`Artefakt existiert, konnte aber nicht aufgelöst werden: ${fileName}`)
       }
     } else {
-      // Create: Neue Datei erstellen
-      const item = await this.provider.createFile({
-        parentId: targetParentId,
-        name: fileName,
-        mimeType: 'text/markdown',
-        content: new Blob([markdown], { type: 'text/markdown' }),
-      })
+      // Create: Neue Datei erstellen mit uploadFile
+      const item = await this.provider.uploadFile(
+        targetParentId,
+        new File([markdown], fileName, { type: 'text/markdown' })
+      )
       fileId = item.id
     }
 
@@ -142,7 +146,8 @@ export class ProviderShadowTwinStore implements ShadowTwinStore {
     }
   }
 
-  async getBinaryFragments(sourceId: string): Promise<BinaryFragment[] | null> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async getBinaryFragments(_sourceId: string): Promise<BinaryFragment[] | null> {
     // Provider-Stores haben keine zentrale Binary-Fragment-Verwaltung.
     // Binary-Fragmente sind normalerweise als separate Dateien im Shadow-Twin-Verzeichnis gespeichert.
     // Diese Implementierung gibt null zurück, da wir keine strukturierte Fragment-Liste haben.

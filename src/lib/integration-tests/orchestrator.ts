@@ -245,7 +245,7 @@ async function runMarkdownIngestWorkflow(args: {
     pushValidationMessage(validation, 'info', `Normalize OK: Canonical Markdown erzeugt (${canonicalResult.canonicalMarkdown.length} Zeichen)`)
 
     // Extrahiere Body aus Canonical Markdown für Template-Transformation
-    const { meta: _fmMeta, body: bodyOnly } = parseFrontmatter(canonicalResult.canonicalMarkdown)
+    const { body: bodyOnly } = parseFrontmatter(canonicalResult.canonicalMarkdown)
     const extractedText = bodyOnly && bodyOnly.trim().length > 0 ? bodyOnly : canonicalResult.canonicalMarkdown
 
     // 1) Template-Transformation (serverseitig, analog zu /api/secretary/process-text aber ohne Clerk-Abhängigkeit)
@@ -278,7 +278,7 @@ async function runMarkdownIngestWorkflow(args: {
       timeoutMs: Number(process.env.EXTERNAL_TEMPLATE_TIMEOUT_MS || process.env.EXTERNAL_REQUEST_TIMEOUT_MS || 600000),
     })
 
-    const data = await resp.json().catch(() => null) as any
+    const data = await resp.json().catch(() => null) as { data?: { structured_data?: Record<string, unknown> } } | null
     const structured = data?.data?.structured_data
     const metaForFrontmatter: Record<string, unknown> =
       structured && typeof structured === 'object' && !Array.isArray(structured)

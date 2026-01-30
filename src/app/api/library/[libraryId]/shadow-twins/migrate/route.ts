@@ -43,12 +43,8 @@ interface MigrationReport {
     targetLanguage: string
     templateName?: string
     mongoUpserted: boolean
-    binaryFragmentsCount: number
-    markdownFiles: number
-    imageFiles: number
-    audioFiles: number
-    videoFiles: number
-    otherFiles: number
+    blobImages: number
+    blobErrors: number
     filesystemDeleted: boolean
   }>
   upsertedArtifactsTruncated?: boolean
@@ -115,6 +111,8 @@ function collectArtifactsForSource(args: {
     if (seen.has(item.id)) return
     const parsed = parseArtifactName(item.metadata.name, sourceBaseName)
     if (!parsed.kind || !parsed.targetLanguage) return
+    // Nur 'transcript' und 'transformation' Artefakte migrieren, 'raw' überspringen
+    if (parsed.kind !== 'transcript' && parsed.kind !== 'transformation') return
     seen.add(item.id)
     artifacts.push({
       item,
@@ -250,12 +248,9 @@ export async function POST(
                 targetLanguage: artifact.key.targetLanguage,
                 templateName: artifact.key.templateName,
                 mongoUpserted: true,
-                binaryFragmentsCount: mongoResult.binaryFragmentsCount,
-                markdownFiles: mongoResult.markdownFiles,
-                imageFiles: mongoResult.imageFiles,
-                audioFiles: mongoResult.audioFiles,
-                videoFiles: mongoResult.videoFiles,
-                otherFiles: mongoResult.otherFiles,
+                // Konvertiere detaillierte Statistiken zu vereinfachtem Format
+                blobImages: mongoResult.imageFiles,
+                blobErrors: 0, // Keine Fehler während der Migration
                 filesystemDeleted: !!body.cleanupFilesystem,
               })
             } else if (report.upsertedArtifacts && report.upsertedArtifacts.length >= MAX_UPSERT_DETAILS) {

@@ -6,11 +6,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, ExternalLink, FileText, RefreshCw, Sparkles, Upload } from "lucide-react";
 import { VideoPlayer } from './video-player';
 import { MarkdownPreview } from './markdown-preview';
-import { MarkdownMetadata } from './markdown-metadata';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import './markdown-audio';
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { activeLibraryIdAtom, selectedFileAtom, librariesAtom } from "@/atoms/library-atom";
+import { activeLibraryIdAtom, selectedFileAtom } from "@/atoms/library-atom";
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
 import { extractFrontmatter } from './markdown-metadata';
 import { ImagePreview } from './image-preview';
@@ -19,10 +18,6 @@ import { FileLogger } from "@/lib/debug/logger"
 import { JobReportTab } from './job-report-tab';
 // PdfPhasesView ist bewusst NICHT mehr Teil der File-Preview (zu heavy). Flow-View ist der Expertenmodus.
 import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom';
-import { parseFrontmatter } from '@/lib/markdown/frontmatter';
-import { DetailViewRenderer } from './detail-view-renderer';
-import { getDetailViewType } from '@/lib/templates/detail-view-type-utils';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner'
 import { resolveArtifactClient } from '@/lib/shadow-twin/artifact-client';
@@ -42,7 +37,7 @@ import { runPipelineForFile, getMediaKind, type MediaKind } from "@/lib/pipeline
 import { activeLibraryAtom } from "@/atoms/library-atom"
 import { loadPdfDefaults } from "@/lib/pdf-defaults"
 import { getEffectivePdfDefaults } from "@/atoms/pdf-defaults"
-import { TARGET_LANGUAGE_DEFAULT, type TargetLanguage } from "@/lib/chat/constants"
+import { TARGET_LANGUAGE_DEFAULT } from "@/lib/chat/constants"
 import { jobInfoByItemIdAtom } from "@/atoms/job-status"
 import { Progress } from "@/components/ui/progress"
 
@@ -532,14 +527,10 @@ function PreviewContent({
   //   analyze?: { chapters?: Array<Record<string, unknown>>; toc?: Array<Record<string, unknown>> };
   // } | null>(null);
   const setSelectedFile = useSetAtom(selectedFileAtom);
-  const router = useRouter();
   
   // Hole Shadow-Twin-State für die aktuelle Datei
   const shadowTwinStates = useAtomValue(shadowTwinStateAtom);
   const shadowTwinState = shadowTwinStates.get(item.id);
-  
-  // Hole Libraries-Atom für Markdown-Preview (muss vor allen frühen Returns sein)
-  const libraries = useAtomValue(librariesAtom);
   
   // Bestimme das Verzeichnis für Bild-Auflösung im Markdown-Viewer:
   // 
@@ -1729,7 +1720,6 @@ export function FilePreview({
   file,
   onRefreshFolder
 }: FilePreviewProps) {
-  const router = useRouter()
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const selectedFileFromAtom = useAtomValue(selectedFileAtom);
   const shadowTwinStates = useAtomValue(shadowTwinStateAtom)

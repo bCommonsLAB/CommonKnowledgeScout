@@ -241,7 +241,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
     // Defaults fuer neue Library (konservativ).
     setShadowTwinPrimaryStore('filesystem');
     setShadowTwinPersistToFilesystem(true);
-    setShadowTwinCleanupFilesystemOnMigrate(false);
+    // Hinweis: cleanupFilesystemOnMigrate ist kein separater State mehr
     setShadowTwinAllowFilesystemFallback(true);
   }, [form, defaultValues, setActiveLibraryId]);
 
@@ -365,7 +365,10 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
             startedAt: string
           }> };
           const runsArray = Array.isArray(runsJson.runs) ? runsJson.runs : [];
-          const runs = runsArray.filter((run) => !run?.params?.dryRun);
+          // Filtere Runs ohne params und Dry-Runs heraus
+          const runs = runsArray.filter((run): run is typeof run & { params: NonNullable<typeof run.params> } => 
+            !!run?.params && !run.params.dryRun
+          );
           setMigrationRuns(runs);
           // Wähle den neuen Run automatisch aus
           setSelectedRunId(json.runId as string);
@@ -396,6 +399,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
       try {
         const res = await fetch(`/api/library/${activeLibraryId}/shadow-twins/migrations?limit=10`);
         const json = await res.json().catch(() => ({})) as { 
+          error?: string
           runs?: Array<{ 
             runId: string
             status: 'running' | 'completed' | 'failed'
@@ -413,15 +417,17 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
         if (cancelled) return;
         // Stelle sicher, dass runs ein Array ist
         const runsArray = Array.isArray(json.runs) ? json.runs : [];
-        const runs = runsArray
-          .filter((run) => !run?.params?.dryRun);
+        // Filtere Runs ohne params und Dry-Runs heraus
+        const runs = runsArray.filter((run): run is typeof run & { params: NonNullable<typeof run.params> } => 
+          !!run?.params && !run.params.dryRun
+        );
         setMigrationRuns(runs);
         if (runs.length > 0 && runs[0]?.runId) {
           setSelectedRunId(runs[0].runId);
         } else {
           setSelectedRunId(null);
         }
-      } catch (error) {
+      } catch {
         if (cancelled) return;
         setMigrationRuns([]);
         setSelectedRunId(null);
@@ -446,13 +452,15 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
     }
 
     let cancelled = false;
+    // selectedRun ist hier garantiert nicht null (wird oben geprüft)
+    const currentRun = selectedRun!;
     async function loadFragments() {
       setLoadingFragments(true);
       try {
         // Sammle alle eindeutigen sourceIds aus dem Report
         const sourceIds = Array.from(
           new Set(
-            (selectedRun.report?.upsertedArtifacts || []).map((a) => a.sourceId).filter(Boolean)
+            (currentRun.report?.upsertedArtifacts || []).map((a) => a.sourceId).filter(Boolean)
           )
         );
 
@@ -1075,7 +1083,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                                   </div>
                                 ) : (
                                   <div className="text-amber-600 dark:text-amber-400">
-                                    ⚠ Bitte setze "Primary Store" auf "MongoDB" in den Library-Einstellungen, bevor du die Migration startest.
+                                    ⚠ Bitte setze &quot;Primary Store&quot; auf &quot;MongoDB&quot; in den Library-Einstellungen, bevor du die Migration startest.
                                   </div>
                                 )}
                                 <div>
@@ -1325,7 +1333,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                                                                     Typ
                                                                   </TooltipTrigger>
                                                                   <TooltipContent>
-                                                                    <p className="max-w-xs">Art der Datei: "markdown" (Artefakt), "image", "audio", "video" oder "binary".</p>
+                                                                    <p className="max-w-xs">Art der Datei: &quot;markdown&quot; (Artefakt), &quot;image&quot;, &quot;audio&quot;, &quot;video&quot; oder &quot;binary&quot;.</p>
                                                                   </TooltipContent>
                                                                 </Tooltip>
                                                               </th>
@@ -1365,7 +1373,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                                                                     Mongo
                                                                   </TooltipTrigger>
                                                                   <TooltipContent>
-                                                                    <p className="max-w-xs">Status der MongoDB-Speicherung: "upserted" = erfolgreich gespeichert/aktualisiert, "nein" = nicht gespeichert.</p>
+                                                                    <p className="max-w-xs">Status der MongoDB-Speicherung: &quot;upserted&quot; = erfolgreich gespeichert/aktualisiert, &quot;nein&quot; = nicht gespeichert.</p>
                                                                   </TooltipContent>
                                                                 </Tooltip>
                                                               </th>
@@ -1375,7 +1383,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                                                                     FS gelöscht
                                                                   </TooltipTrigger>
                                                                   <TooltipContent>
-                                                                    <p className="max-w-xs">Ob die Dateisystemkopie nach erfolgreicher MongoDB-Migration gelöscht wurde: "ja" = gelöscht, "nein" = noch vorhanden oder Cleanup deaktiviert.</p>
+                                                                    <p className="max-w-xs">Ob die Dateisystemkopie nach erfolgreicher MongoDB-Migration gelöscht wurde: &quot;ja&quot; = gelöscht, &quot;nein&quot; = noch vorhanden oder Cleanup deaktiviert.</p>
                                                                   </TooltipContent>
                                                                 </Tooltip>
                                                               </th>
@@ -1731,7 +1739,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
       <CreateLibraryDialog
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
-        onCreated={(libraryId) => {
+        onCreated={() => {
           // Nach Erstellung bleibt man auf der Settings-Seite
           // Die neue Library ist bereits aktiv (durch den Dialog)
           setIsNew(false);

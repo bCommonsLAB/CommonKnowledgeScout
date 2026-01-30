@@ -67,6 +67,7 @@ nav:
       - Library Setup: use-cases/library-setup.md
       - PDF Transformation: use-cases/file-transformation-pdf.md
       - Media Transformation: use-cases/file-transformation-media.md
+      - File → Story (End-to-End): use-cases/file-to-story.md
       - Web Scraping: use-cases/web-scraping.md
       - Publishing: use-cases/publishing.md
       - Chat & Story Mode: use-cases/chat-exploration.md

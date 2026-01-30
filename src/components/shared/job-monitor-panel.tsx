@@ -481,7 +481,9 @@ export function JobMonitorPanel() {
             if (evt.status === 'completed') {
               // Shadow-Twin-Analyse mit kurzem Delay triggern, damit MongoDB-Operationen abgeschlossen sind
               setTimeout(() => triggerShadowTwinAnalysis((v) => v + 1), 400);
-              setTimeout(() => clearJobInfo(evt.sourceItemId), 5000);
+              if (evt.sourceItemId) {
+                setTimeout(() => clearJobInfo(evt.sourceItemId!), 5000);
+              }
             }
           }
           // Refresh der Dateiliste triggern, falls serverseitig Ordner-ID mitgeliefert wird
@@ -585,7 +587,9 @@ export function JobMonitorPanel() {
         if (detail.status === 'completed') {
           // Shadow-Twin-Analyse mit kurzem Delay triggern, damit MongoDB-Operationen abgeschlossen sind
           setTimeout(() => triggerShadowTwinAnalysis((v) => v + 1), 400);
-          setTimeout(() => clearJobInfo(detail.sourceItemId), 5000);
+          if (detail.sourceItemId) {
+            setTimeout(() => clearJobInfo(detail.sourceItemId!), 5000);
+          }
         }
       }
       // UI-Liste nur aktualisieren wenn Panel geoeffnet

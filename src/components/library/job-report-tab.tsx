@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { toast } from 'sonner'
 import { validateAndRepairShadowTwin } from '@/lib/shadow-twin/shared'
-import { findShadowTwinImage, resolveShadowTwinImageUrl } from '@/lib/storage/shadow-twin'
+import { resolveShadowTwinImageUrl } from '@/lib/storage/shadow-twin'
 import { CoverImageGeneratorDialog } from './cover-image-generator-dialog'
 import { ArtifactEditDialog } from './shared/artifact-edit-dialog'
 import { fetchShadowTwinMarkdown } from '@/lib/shadow-twin/shadow-twin-mongo-client'
@@ -140,6 +140,10 @@ export function JobReportTab({
   const [displayedFileName, setDisplayedFileName] = useState<string | null>(null)
   // State für aufgelöste coverImageUrl in Story-Vorschau
   const [resolvedCoverImageUrl, setResolvedCoverImageUrl] = useState<string | undefined>(undefined)
+  // State für Cover-Bild-Upload im "image" Tab
+  const [isUploading, setIsUploading] = useState(false)
+  const [coverImageDisplayUrl, setCoverImageDisplayUrl] = useState<string | null>(null)
+  const [isGeneratorDialogOpen, setIsGeneratorDialogOpen] = useState(false)
 
   useEffect(() => {
     if (forcedTab) setActiveTab(forcedTab)
@@ -194,9 +198,10 @@ export function JobReportTab({
           const baseItem = await provider.getItemById(fileId)
           if (baseItem && !cancelled) {
             const shadowTwinFolderId = shadowTwinState?.shadowTwinFolderId || fallbackFolderId || undefined
+            // coverImageUrl ist hier immer ein String (wird oben geprüft)
             const fallbackUrl = await resolveShadowTwinImageUrl(
               baseItem,
-              coverImageUrl,
+              coverImageUrl!,
               provider,
               libraryId,
               shadowTwinFolderId
@@ -471,9 +476,12 @@ export function JobReportTab({
     }
     
     let cancelled = false
+    // provider und effectiveMdId sind hier garantiert definiert (werden oben geprüft)
+    const currentProvider = provider!
+    const currentMdId = effectiveMdId!
     async function loadEditItem() {
       try {
-        const item = await provider.getItemById(effectiveMdId)
+        const item = await currentProvider.getItemById(currentMdId)
         if (!cancelled) {
           setEditItem(item)
         }
@@ -601,6 +609,295 @@ export function JobReportTab({
     }
     void loadFrontmatter()
   }, [provider, effectiveMdId, sourceMode, rawContent, shadowTwinState?.transformed?.metadata?.name, job?.result?.savedItemId, mdFileId, shadowTwinState])
+
+  // Validiere Shadow-Twin-Daten für schreibende Operationen
+  // Prüft ob templateName für Transformationen vorhanden ist
+  const validationResult = useMemo(() => {
+    if (!shadowTwinState?.transformed) {
+      return { valid: true, error: undefined, wasRepaired: false, repairInfo: undefined }
+    }
+    
+    // Kopiere State und validiere
+    const stateCopy = { ...shadowTwinState }
+    validateAndRepairShadowTwin(
+      stateCopy,
+      frontmatterMeta ?? undefined,
+      {
+        // templateName ist nicht mehr Teil von LibraryChatConfig
+        templateName: undefined,
+        targetLanguage: 'de',
+      }
+    )
+    
+    return {
+      valid: !stateCopy.validationError,
+      error: stateCopy.validationError,
+      wasRepaired: stateCopy.wasAutoRepaired,
+      repairInfo: stateCopy.autoRepairInfo,
+    }
+  // Hinweis: templateName wurde aus LibraryChatConfig entfernt
+  }, [shadowTwinState, frontmatterMeta])
+
+  // Lade Bild-URL wenn coverImageUrl vorhanden ist (für "image" Tab)
+  // Verwendet den ShadowTwinService via API für Storage-Abstraktion
+  const coverImageUrl = frontmatterMeta?.coverImageUrl as string | undefined
+  useEffect(() => {
+    if (!coverImageUrl || !libraryId || !fileId) {
+      setCoverImageDisplayUrl(null)
+      return
+    }
+
+    let cancelled = false
+    // coverImageUrl ist hier garantiert definiert (wird oben geprüft)
+    const currentCoverImageUrl = coverImageUrl!
+    async function loadImageUrl() {
+      try {
+        // Prüfe ob es bereits eine absolute URL ist
+        if (currentCoverImageUrl.startsWith('http://') || currentCoverImageUrl.startsWith('https://') || currentCoverImageUrl.startsWith('/api/storage/')) {
+          if (!cancelled) setCoverImageDisplayUrl(currentCoverImageUrl)
+          return
+        }
+
+        // Relativer Pfad: Verwende ShadowTwinService API zur Auflösung
+        // Dies funktioniert unabhängig vom Storage (Dateisystem oder MongoDB/Azure)
+        UILogger.info('JobReportTab', 'Lade Cover-Bild via ShadowTwinService API', {
+          libraryId,
+          fileId,
+          coverImageUrl: currentCoverImageUrl,
+        })
+        
+        const res = await fetch(`/api/library/${encodeURIComponent(libraryId)}/shadow-twins/resolve-binary-url`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sourceId: fileId,
+            sourceName: '',  // Optional, Service holt es aus MongoDB
+            parentId: '',    // Optional, Service holt es aus MongoDB
+            fragmentName: currentCoverImageUrl,
+          }),
+        })
+
+        if (!res.ok) {
+          const errorJson = await res.json().catch(() => ({})) as { availableFragments?: string[] }
+          UILogger.warn('JobReportTab', 'ShadowTwinService API Fehler', {
+            status: res.status,
+            fileId,
+            coverImageUrl: currentCoverImageUrl,
+            availableFragments: errorJson.availableFragments,
+          })
+          // Fallback: Versuche Dateisystem-Auflösung (für Kompatibilität)
+          if (provider) {
+            const baseItem = await provider.getItemById(fileId)
+            if (baseItem && !cancelled) {
+              const shadowTwinFolderId = shadowTwinState?.shadowTwinFolderId || fallbackFolderId || undefined
+              const fallbackUrl = await resolveShadowTwinImageUrl(
+                baseItem,
+                currentCoverImageUrl,
+                provider,
+                libraryId,
+                shadowTwinFolderId
+              )
+              if (!cancelled) setCoverImageDisplayUrl(fallbackUrl)
+              return
+            }
+          }
+          if (!cancelled) setCoverImageDisplayUrl(null)
+          return
+        }
+
+        const json = await res.json() as { resolvedUrl?: string }
+        if (!cancelled && json.resolvedUrl) {
+          setCoverImageDisplayUrl(json.resolvedUrl)
+        } else if (!cancelled) {
+          setCoverImageDisplayUrl(null)
+        }
+      } catch (error) {
+        UILogger.warn('JobReportTab', 'Fehler beim Laden des Cover-Bildes', {
+          coverImageUrl,
+          error: error instanceof Error ? error.message : String(error)
+        })
+        if (!cancelled) setCoverImageDisplayUrl(null)
+      }
+    }
+    void loadImageUrl()
+    return () => { cancelled = true }
+  }, [coverImageUrl, libraryId, fileId, provider, shadowTwinState?.shadowTwinFolderId, fallbackFolderId])
+
+  // Gemeinsame Funktion zum Speichern eines Coverbildes (für Upload und Generierung)
+  // Verwendet die Shadow-Twin API - alle Logik liegt im ShadowTwinService
+  const saveCoverImage = useCallback(async (file: File) => {
+    if (!libraryId || !fileId) return
+
+    setIsUploading(true)
+    try {
+      // Ermittle templateName aus verfügbaren Quellen (deterministische Architektur)
+      // Für Transformationen ist templateName PFLICHT - kein Fallback/Raten!
+      // Quellen in Prioritätsreihenfolge:
+      // 1. Frontmatter (template_used)
+      // 2. Job-Metadaten (cumulativeMeta.template_used)
+      // 3. Mongo-ID (falls effectiveMdId eine mongo-shadow-twin ID ist)
+      const templateName = 
+        (frontmatterMeta?.template_used as string | undefined) ||
+        (job?.cumulativeMeta?.template_used as string | undefined) ||
+        (() => {
+          // Letzte Möglichkeit: Aus der effectiveMdId extrahieren
+          if (effectiveMdId && isMongoShadowTwinId(effectiveMdId)) {
+            const parsed = parseMongoShadowTwinId(effectiveMdId)
+            return parsed?.templateName
+          }
+          return undefined
+        })()
+
+      // WICHTIG: Für Transformationen ist templateName PFLICHT
+      // Ohne templateName kann das Artefakt nicht eindeutig identifiziert werden
+      if (!templateName) {
+        const errorMsg = 'Template-Name nicht verfügbar. ' +
+          'Das Dokument wurde möglicherweise nicht mit einem Template verarbeitet. ' +
+          'Bitte verarbeiten Sie das Dokument zuerst mit einem Template.'
+        UILogger.error('JobReportTab', errorMsg, {
+          libraryId,
+          fileId,
+          effectiveMdId,
+          hasFrontmatter: !!frontmatterMeta,
+          hasJob: !!job,
+        })
+        toast.error(errorMsg)
+        return
+      }
+
+      UILogger.info('JobReportTab', 'Starte Cover-Bild-Upload via ShadowTwinService', {
+        libraryId,
+        sourceId: fileId,
+        fileName: file.name,
+        mimeType: file.type,
+        templateName,
+      })
+
+      // Kombinierte API: Upload + Frontmatter-Patch
+      // Der ShadowTwinService kümmert sich um alles (Azure/MongoDB oder Dateisystem)
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('sourceId', fileId)
+      formData.append('kind', 'transformation') // Cover-Bilder gehören zur Transformation
+      formData.append('targetLanguage', 'de')
+      formData.append('templateName', templateName) // PFLICHT für Transformationen
+
+      const uploadRes = await fetch(`/api/library/${encodeURIComponent(libraryId)}/shadow-twins/upload-cover-image`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!uploadRes.ok) {
+        const errorJson = await uploadRes.json().catch(() => ({})) as { error?: string }
+        throw new Error(errorJson.error || `Upload fehlgeschlagen: ${uploadRes.status}`)
+      }
+
+      const result = await uploadRes.json() as { 
+        fragment: { 
+          name: string
+          resolvedUrl: string 
+        }
+        markdown: string
+        artifactId: string
+      }
+
+      UILogger.info('JobReportTab', 'Cover-Bild erfolgreich gespeichert', {
+        fileName: result.fragment.name,
+        resolvedUrl: result.fragment.resolvedUrl,
+        artifactId: result.artifactId,
+      })
+
+      // Aktualisiere lokalen State mit dem neuen Markdown
+      setFullContent(result.markdown)
+      setCoverImageDisplayUrl(result.fragment.resolvedUrl)
+      
+      // Parse aktualisiertes Frontmatter
+      const { meta } = parseSecretaryMarkdownStrict(result.markdown)
+      setFrontmatterMeta(meta)
+    } catch (error) {
+      UILogger.error('JobReportTab', 'Fehler beim Speichern des Cover-Bildes', error)
+      throw error // Re-throw für Caller
+    } finally {
+      setIsUploading(false)
+    }
+  }, [libraryId, fileId, frontmatterMeta, job, effectiveMdId])
+
+  const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !provider || !effectiveMdId) return
+
+    // Prüfe ob es ein Bild ist
+    if (!file.type.startsWith('image/')) {
+      toast.error('Nur Bilddateien sind erlaubt')
+      return
+    }
+
+    try {
+      await saveCoverImage(file)
+      toast.success('Coverbild hochgeladen und gespeichert')
+    } catch (error) {
+      toast.error('Fehler beim Hochladen: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'))
+    } finally {
+      // Reset file input
+      event.target.value = ''
+    }
+  }, [saveCoverImage, provider, effectiveMdId])
+
+  const handleGeneratedImage = useCallback(async (file: File) => {
+    try {
+      await saveCoverImage(file)
+      // Toast wird bereits in saveCoverImage nicht mehr gesetzt, da es von handleFileUpload kommt
+      // Aber für Generierung wollen wir eine eigene Nachricht
+      toast.success('Bild generiert und gespeichert')
+    } catch (error) {
+      toast.error('Fehler beim Speichern: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'))
+      throw error // Re-throw damit Dialog offen bleibt
+    }
+  }, [saveCoverImage])
+
+  // Default-Prompt aus Metadaten ableiten: Library-Config coverImagePrompt + Frontmatter coverImagePrompt + Title + Teaser (getrennt durch Zeilenumbrüche)
+  const defaultPrompt = useMemo(() => {
+    const base: Record<string, unknown> = sourceMode === 'frontmatter'
+      ? {}
+      : ((job?.cumulativeMeta as unknown as Record<string, unknown>) || {})
+    const cm = frontmatterMeta ? { ...base, ...frontmatterMeta } : base
+    
+    // Priorität 1: Library-Config coverImagePrompt (Standard für alle Coverbilder in dieser Library)
+    // NEU: coverImagePrompt ist jetzt in config.chat (statt config.secretaryService)
+    const libraryCoverImagePrompt = activeLibrary?.config?.chat?.coverImagePrompt
+    
+    // Priorität 2: Frontmatter coverImagePrompt (dokumentenspezifisch)
+    const frontmatterCoverImagePrompt = cm.coverImagePrompt as string | undefined
+    
+    // Unterstütze sowohl Title/Teaser (großgeschrieben) als auch title/teaser (kleingeschrieben) für Kompatibilität
+    const title = (cm.Title as string | undefined) || (cm.title as string | undefined)
+    const teaser = (cm.Teaser as string | undefined) || (cm.teaser as string | undefined)
+    
+    const parts: string[] = []
+    
+    // 1. Library-Config coverImagePrompt voranstellen (höchste Priorität, falls vorhanden)
+    if (libraryCoverImagePrompt && typeof libraryCoverImagePrompt === 'string' && libraryCoverImagePrompt.trim().length > 0) {
+      parts.push(libraryCoverImagePrompt.trim())
+    }
+    
+    // 2. Frontmatter coverImagePrompt hinzufügen (falls vorhanden und nicht bereits durch Library-Config gesetzt)
+    if (frontmatterCoverImagePrompt && typeof frontmatterCoverImagePrompt === 'string' && frontmatterCoverImagePrompt.trim().length > 0) {
+      parts.push(frontmatterCoverImagePrompt.trim())
+    }
+    
+    // 3. Title hinzufügen (falls vorhanden)
+    if (title && typeof title === 'string' && title.trim().length > 0) {
+      parts.push(title.trim())
+    }
+    
+    // 4. Teaser hinzufügen (falls vorhanden)
+    if (teaser && typeof teaser === 'string' && teaser.trim().length > 0) {
+      parts.push(teaser.trim())
+    }
+    
+    // Alle Teile durch Zeilenumbrüche verbinden
+    return parts.join('\n')
+  }, [sourceMode, job, frontmatterMeta, activeLibrary])
 
   if (sourceMode !== 'frontmatter') {
     if (loading) return <div className="p-4 text-sm text-muted-foreground">Lade Job…</div>
@@ -806,402 +1103,94 @@ export function JobReportTab({
           </TabsContent>
 
           <TabsContent value="image" className="mt-3">
-            {(() => {
-              // Extrahiere coverImageUrl aus Frontmatter
-              const coverImageUrl = frontmatterMeta?.coverImageUrl as string | undefined
-              const [isUploading, setIsUploading] = useState(false)
-              const [coverImageDisplayUrl, setCoverImageDisplayUrl] = useState<string | null>(null)
-              const [isGeneratorDialogOpen, setIsGeneratorDialogOpen] = useState(false)
+            <div className="space-y-3">
+              <div className="text-xs text-muted-foreground mb-2">
+                Coverbild für die Ingestion. Das Bild wird im Shadow-Twin-Verzeichnis gespeichert und als <code className="text-xs bg-muted px-1 py-0.5 rounded">coverImageUrl</code> in den Metadaten gespeichert.
+              </div>
               
-              // Validiere Shadow-Twin-Daten für schreibende Operationen
-              // Prüft ob templateName für Transformationen vorhanden ist
-              const validationResult = useMemo(() => {
-                if (!shadowTwinState?.transformed) {
-                  return { valid: true, error: undefined, wasRepaired: false, repairInfo: undefined }
-                }
-                
-                // Kopiere State und validiere
-                const stateCopy = { ...shadowTwinState }
-                validateAndRepairShadowTwin(
-                  stateCopy,
-                  frontmatterMeta ?? undefined,
-                  {
-                    templateName: activeLibrary?.config?.chat?.templateName,
-                    targetLanguage: 'de',
-                  }
-                )
-                
-                return {
-                  valid: !stateCopy.validationError,
-                  error: stateCopy.validationError,
-                  wasRepaired: stateCopy.wasAutoRepaired,
-                  repairInfo: stateCopy.autoRepairInfo,
-                }
-              }, [shadowTwinState, frontmatterMeta, activeLibrary?.config?.chat?.templateName])
-
-              // Lade Bild-URL wenn coverImageUrl vorhanden ist
-              // Verwendet den ShadowTwinService via API für Storage-Abstraktion
-              useEffect(() => {
-                if (!coverImageUrl || !libraryId || !fileId) {
-                  setCoverImageDisplayUrl(null)
-                  return
-                }
-
-                let cancelled = false
-                async function loadImageUrl() {
-                  try {
-                    // Prüfe ob es bereits eine absolute URL ist
-                    if (coverImageUrl.startsWith('http://') || coverImageUrl.startsWith('https://') || coverImageUrl.startsWith('/api/storage/')) {
-                      if (!cancelled) setCoverImageDisplayUrl(coverImageUrl)
-                      return
-                    }
-
-                    // Relativer Pfad: Verwende ShadowTwinService API zur Auflösung
-                    // Dies funktioniert unabhängig vom Storage (Dateisystem oder MongoDB/Azure)
-                    UILogger.info('JobReportTab', 'Lade Cover-Bild via ShadowTwinService API', {
-                      libraryId,
-                      fileId,
-                      coverImageUrl,
-                    })
-                    
-                    const res = await fetch(`/api/library/${encodeURIComponent(libraryId)}/shadow-twins/resolve-binary-url`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        sourceId: fileId,
-                        sourceName: '',  // Optional, Service holt es aus MongoDB
-                        parentId: '',    // Optional, Service holt es aus MongoDB
-                        fragmentName: coverImageUrl,
-                      }),
-                    })
-
-                    if (!res.ok) {
-                      const errorJson = await res.json().catch(() => ({})) as { availableFragments?: string[] }
-                      UILogger.warn('JobReportTab', 'ShadowTwinService API Fehler', {
-                        status: res.status,
-                        fileId,
-                        coverImageUrl,
-                        availableFragments: errorJson.availableFragments,
-                      })
-                      // Fallback: Versuche Dateisystem-Auflösung (für Kompatibilität)
-                      if (provider) {
-                        const baseItem = await provider.getItemById(fileId)
-                        if (baseItem && !cancelled) {
-                          const shadowTwinFolderId = shadowTwinState?.shadowTwinFolderId || fallbackFolderId || undefined
-                          const fallbackUrl = await resolveShadowTwinImageUrl(
-                            baseItem,
-                            coverImageUrl,
-                            provider,
-                            libraryId,
-                            shadowTwinFolderId
-                          )
-                          if (!cancelled) setCoverImageDisplayUrl(fallbackUrl)
-                          return
-                        }
-                      }
-                      if (!cancelled) setCoverImageDisplayUrl(null)
-                      return
-                    }
-
-                    const json = await res.json() as { resolvedUrl?: string }
-                    if (!cancelled && json.resolvedUrl) {
-                      setCoverImageDisplayUrl(json.resolvedUrl)
-                    } else if (!cancelled) {
-                      setCoverImageDisplayUrl(null)
-                    }
-                  } catch (error) {
-                    UILogger.warn('JobReportTab', 'Fehler beim Laden des Cover-Bildes', {
-                      coverImageUrl,
-                      error: error instanceof Error ? error.message : String(error)
-                    })
-                    if (!cancelled) setCoverImageDisplayUrl(null)
-                  }
-                }
-                void loadImageUrl()
-                return () => { cancelled = true }
-              }, [coverImageUrl, libraryId, fileId, provider, shadowTwinState?.shadowTwinFolderId, fallbackFolderId])
-
-              // Gemeinsame Funktion zum Speichern eines Coverbildes (für Upload und Generierung)
-              // Verwendet die Shadow-Twin API - alle Logik liegt im ShadowTwinService
-              const saveCoverImage = async (file: File) => {
-                if (!libraryId || !fileId) return
-
-                setIsUploading(true)
-                try {
-                  // Ermittle templateName aus verfügbaren Quellen (deterministische Architektur)
-                  // Für Transformationen ist templateName PFLICHT - kein Fallback/Raten!
-                  // Quellen in Prioritätsreihenfolge:
-                  // 1. Frontmatter (template_used)
-                  // 2. Job-Metadaten (cumulativeMeta.template_used)
-                  // 3. Mongo-ID (falls effectiveMdId eine mongo-shadow-twin ID ist)
-                  const templateName = 
-                    (frontmatterMeta?.template_used as string | undefined) ||
-                    (job?.cumulativeMeta?.template_used as string | undefined) ||
-                    (() => {
-                      // Letzte Möglichkeit: Aus der effectiveMdId extrahieren
-                      if (effectiveMdId && isMongoShadowTwinId(effectiveMdId)) {
-                        const parsed = parseMongoShadowTwinId(effectiveMdId)
-                        return parsed?.templateName
-                      }
-                      return undefined
-                    })()
-
-                  // WICHTIG: Für Transformationen ist templateName PFLICHT
-                  // Ohne templateName kann das Artefakt nicht eindeutig identifiziert werden
-                  if (!templateName) {
-                    const errorMsg = 'Template-Name nicht verfügbar. ' +
-                      'Das Dokument wurde möglicherweise nicht mit einem Template verarbeitet. ' +
-                      'Bitte verarbeiten Sie das Dokument zuerst mit einem Template.'
-                    UILogger.error('JobReportTab', errorMsg, {
-                      libraryId,
-                      fileId,
-                      effectiveMdId,
-                      hasFrontmatter: !!frontmatterMeta,
-                      hasJob: !!job,
-                    })
-                    toast.error(errorMsg)
-                    return
-                  }
-
-                  UILogger.info('JobReportTab', 'Starte Cover-Bild-Upload via ShadowTwinService', {
-                    libraryId,
-                    sourceId: fileId,
-                    fileName: file.name,
-                    mimeType: file.type,
-                    templateName,
-                  })
-
-                  // Kombinierte API: Upload + Frontmatter-Patch
-                  // Der ShadowTwinService kümmert sich um alles (Azure/MongoDB oder Dateisystem)
-                  const formData = new FormData()
-                  formData.append('file', file)
-                  formData.append('sourceId', fileId)
-                  formData.append('kind', 'transformation') // Cover-Bilder gehören zur Transformation
-                  formData.append('targetLanguage', 'de')
-                  formData.append('templateName', templateName) // PFLICHT für Transformationen
-
-                  const uploadRes = await fetch(`/api/library/${encodeURIComponent(libraryId)}/shadow-twins/upload-cover-image`, {
-                    method: 'POST',
-                    body: formData,
-                  })
-
-                  if (!uploadRes.ok) {
-                    const errorJson = await uploadRes.json().catch(() => ({})) as { error?: string }
-                    throw new Error(errorJson.error || `Upload fehlgeschlagen: ${uploadRes.status}`)
-                  }
-
-                  const result = await uploadRes.json() as { 
-                    fragment: { 
-                      name: string
-                      resolvedUrl: string 
-                    }
-                    markdown: string
-                    artifactId: string
-                  }
-
-                  UILogger.info('JobReportTab', 'Cover-Bild erfolgreich gespeichert', {
-                    fileName: result.fragment.name,
-                    resolvedUrl: result.fragment.resolvedUrl,
-                    artifactId: result.artifactId,
-                  })
-
-                  // Aktualisiere lokalen State mit dem neuen Markdown
-                  setFullContent(result.markdown)
-                  setCoverImageDisplayUrl(result.fragment.resolvedUrl)
-                  
-                  // Parse aktualisiertes Frontmatter
-                  const { meta } = parseSecretaryMarkdownStrict(result.markdown)
-                  setFrontmatterMeta(meta)
-                } catch (error) {
-                  UILogger.error('JobReportTab', 'Fehler beim Speichern des Cover-Bildes', error)
-                  throw error // Re-throw für Caller
-                } finally {
-                  setIsUploading(false)
-                }
-              }
-
-              const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-                const file = event.target.files?.[0]
-                if (!file || !provider || !effectiveMdId) return
-
-                // Prüfe ob es ein Bild ist
-                if (!file.type.startsWith('image/')) {
-                  toast.error('Nur Bilddateien sind erlaubt')
-                  return
-                }
-
-                try {
-                  await saveCoverImage(file)
-                  toast.success('Coverbild hochgeladen und gespeichert')
-                } catch (error) {
-                  toast.error('Fehler beim Hochladen: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'))
-                } finally {
-                  // Reset file input
-                  event.target.value = ''
-                }
-              }
-
-              const handleGeneratedImage = async (file: File) => {
-                try {
-                  await saveCoverImage(file)
-                  // Toast wird bereits in saveCoverImage nicht mehr gesetzt, da es von handleFileUpload kommt
-                  // Aber für Generierung wollen wir eine eigene Nachricht
-                  toast.success('Bild generiert und gespeichert')
-                } catch (error) {
-                  toast.error('Fehler beim Speichern: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'))
-                  throw error // Re-throw damit Dialog offen bleibt
-                }
-              }
-
-              // Default-Prompt aus Metadaten ableiten: Library-Config coverImagePrompt + Frontmatter coverImagePrompt + Title + Teaser (getrennt durch Zeilenumbrüche)
-              const defaultPrompt = (() => {
-                const base: Record<string, unknown> = sourceMode === 'frontmatter'
-                  ? {}
-                  : ((job?.cumulativeMeta as unknown as Record<string, unknown>) || {})
-                const cm = frontmatterMeta ? { ...base, ...frontmatterMeta } : base
-                
-                // Priorität 1: Library-Config coverImagePrompt (Standard für alle Coverbilder in dieser Library)
-                // NEU: coverImagePrompt ist jetzt in config.chat (statt config.secretaryService)
-                const libraryCoverImagePrompt = activeLibrary?.config?.chat?.coverImagePrompt
-                
-                // Priorität 2: Frontmatter coverImagePrompt (dokumentenspezifisch)
-                const frontmatterCoverImagePrompt = cm.coverImagePrompt as string | undefined
-                
-                // Unterstütze sowohl Title/Teaser (großgeschrieben) als auch title/teaser (kleingeschrieben) für Kompatibilität
-                const title = (cm.Title as string | undefined) || (cm.title as string | undefined)
-                const teaser = (cm.Teaser as string | undefined) || (cm.teaser as string | undefined)
-                
-                const parts: string[] = []
-                
-                // 1. Library-Config coverImagePrompt voranstellen (höchste Priorität, falls vorhanden)
-                if (libraryCoverImagePrompt && typeof libraryCoverImagePrompt === 'string' && libraryCoverImagePrompt.trim().length > 0) {
-                  parts.push(libraryCoverImagePrompt.trim())
-                }
-                
-                // 2. Frontmatter coverImagePrompt hinzufügen (falls vorhanden und nicht bereits durch Library-Config gesetzt)
-                if (frontmatterCoverImagePrompt && typeof frontmatterCoverImagePrompt === 'string' && frontmatterCoverImagePrompt.trim().length > 0) {
-                  parts.push(frontmatterCoverImagePrompt.trim())
-                }
-                
-                // 3. Title hinzufügen (falls vorhanden)
-                if (title && typeof title === 'string' && title.trim().length > 0) {
-                  parts.push(title.trim())
-                }
-                
-                // 4. Teaser hinzufügen (falls vorhanden)
-                if (teaser && typeof teaser === 'string' && teaser.trim().length > 0) {
-                  parts.push(teaser.trim())
-                }
-                
-                // Alle Teile durch Zeilenumbrüche verbinden
-                return parts.join('\n')
-              })()
-
-              return (
-                <div className="space-y-3">
-                  <div className="text-xs text-muted-foreground mb-2">
-                    Coverbild für die Ingestion. Das Bild wird im Shadow-Twin-Verzeichnis gespeichert und als <code className="text-xs bg-muted px-1 py-0.5 rounded">coverImageUrl</code> in den Metadaten gespeichert.
-                  </div>
-                  
-                  {coverImageDisplayUrl ? (
-                    <div className="space-y-2">
-                      <div className="border rounded-md p-3">
-                        <img 
-                          src={coverImageDisplayUrl} 
-                          alt="Coverbild" 
-                          className="max-w-full max-h-[400px] object-contain rounded"
-                          onError={() => {
-                            UILogger.warn('JobReportTab', 'Fehler beim Laden des Cover-Bildes', { coverImageDisplayUrl })
-                            setCoverImageDisplayUrl(null)
-                          }}
-                        />
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Dateiname: {coverImageUrl}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="border rounded-md p-6 text-center text-sm text-muted-foreground">
-                      Kein Coverbild vorhanden. Bitte laden Sie ein Bild hoch.
-                    </div>
-                  )}
-
-                  {/* Validierungsfehler anzeigen - blockiert schreibende Features */}
-                  {validationResult.error && (
-                    <Alert variant="destructive">
-                      <AlertDescription className="text-xs">
-                        <strong>Daten inkonsistent:</strong> {validationResult.error}
-                        <br />
-                        <span className="text-muted-foreground">
-                          Nutzen Sie &quot;Bearbeiten&quot;, um das Problem manuell zu beheben.
-                        </span>
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  {/* Info wenn Auto-Reparatur durchgeführt wurde */}
-                  {validationResult.wasRepaired && validationResult.repairInfo && (
-                    <Alert>
-                      <AlertDescription className="text-xs">
-                        <strong>Automatisch repariert:</strong> {validationResult.repairInfo}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  <div className="flex flex-col gap-2">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileUpload}
-                      disabled={isUploading || !effectiveMdId || !shadowTwinState?.binaryUploadEnabled || !validationResult.valid}
-                      className="hidden"
-                      id="cover-image-upload"
+              {coverImageDisplayUrl ? (
+                <div className="space-y-2">
+                  <div className="border rounded-md p-3">
+                    <img 
+                      src={coverImageDisplayUrl} 
+                      alt="Coverbild" 
+                      className="max-w-full max-h-[400px] object-contain rounded"
+                      onError={() => {
+                        UILogger.warn('JobReportTab', 'Fehler beim Laden des Cover-Bildes', { coverImageDisplayUrl })
+                        setCoverImageDisplayUrl(null)
+                      }}
                     />
-                    <label htmlFor="cover-image-upload">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={isUploading || !effectiveMdId || !shadowTwinState?.binaryUploadEnabled || !validationResult.valid}
-                        className="w-full cursor-pointer"
-                        asChild
-                      >
-                        <span>
-                          {isUploading ? 'Wird hochgeladen...' : coverImageDisplayUrl ? 'Coverbild ersetzen' : 'Coverbild hochladen'}
-                        </span>
-                      </Button>
-                    </label>
-                    
-                    {/* Button "Bild generieren" - erscheint wenn kein Coverbild vorhanden ist oder zusätzlich */}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsGeneratorDialogOpen(true)}
-                      disabled={isUploading || !effectiveMdId || !shadowTwinState?.binaryUploadEnabled || !validationResult.valid}
-                      className="w-full"
-                    >
-                      {coverImageDisplayUrl ? 'Neues Bild generieren' : 'Bild generieren'}
-                    </Button>
                   </div>
-
-                  {/* Warnung anzeigen wenn Binary-Uploads nicht möglich sind */}
-                  {!shadowTwinState?.binaryUploadEnabled && validationResult.valid && (
-                    <Alert>
-                      <AlertDescription className="text-xs">
-                        Binary-Uploads nicht verfügbar. Bitte stellen Sie sicher, dass die Datei verarbeitet wurde.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  {/* Dialog für Bildgenerierung */}
-                  <CoverImageGeneratorDialog
-                    open={isGeneratorDialogOpen}
-                    onOpenChange={setIsGeneratorDialogOpen}
-                    onGenerated={handleGeneratedImage}
-                    defaultPrompt={defaultPrompt}
-                  />
+                  <div className="text-xs text-muted-foreground">
+                    Dateiname: {coverImageUrl}
+                  </div>
                 </div>
-              )
-            })()}
+              ) : (
+                <div className="border rounded-md p-6 text-center text-sm text-muted-foreground">
+                  Kein Coverbild vorhanden. Bitte laden Sie ein Bild hoch.
+                </div>
+              )}
+
+              {/* Validierungsfehler anzeigen - blockiert schreibende Features */}
+              {validationResult.error && (
+                <Alert variant="destructive">
+                  <AlertDescription className="text-xs">
+                    <strong>Daten inkonsistent:</strong> {validationResult.error}
+                    <br />
+                    <span className="text-muted-foreground">
+                      Nutzen Sie &quot;Bearbeiten&quot;, um das Problem manuell zu beheben.
+                    </span>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Info wenn Auto-Reparatur durchgeführt wurde */}
+              {validationResult.wasRepaired && validationResult.repairInfo && (
+                <Alert>
+                  <AlertDescription className="text-xs">
+                    <strong>Automatisch repariert:</strong> {validationResult.repairInfo}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Upload-Button */}
+              <div className="flex gap-2">
+                <label className="cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    disabled={isUploading || !!validationResult.error}
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isUploading || !!validationResult.error}
+                    className="text-xs"
+                  >
+                    {isUploading ? 'Lädt...' : 'Bild hochladen'}
+                  </Button>
+                </label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsGeneratorDialogOpen(true)}
+                  disabled={isUploading || !!validationResult.error}
+                  className="text-xs"
+                >
+                  Bild generieren
+                </Button>
+              </div>
+
+              {/* Cover-Image-Generator-Dialog */}
+              <CoverImageGeneratorDialog
+                open={isGeneratorDialogOpen}
+                onOpenChange={setIsGeneratorDialogOpen}
+                onGenerated={handleGeneratedImage}
+                defaultPrompt={defaultPrompt}
+              />
+            </div>
           </TabsContent>
 
           <TabsContent value="ingestion" className="mt-3">
@@ -1644,7 +1633,7 @@ export function JobReportTab({
           open={isEditOpen}
           onOpenChange={setIsEditOpen}
           item={editItem}
-          provider={provider}
+          provider={provider ?? null}
           libraryId={libraryId}
           onSaved={async (saved) => {
             // Lade aktualisierten Inhalt

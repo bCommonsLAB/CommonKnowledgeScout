@@ -13,6 +13,7 @@
  */
 
 import { FileLogger } from '@/lib/debug/logger';
+import type { ArtifactKind } from './artifact-types';
 
 /**
  * Loggt eine Artefakt-Auflösung.
@@ -22,7 +23,7 @@ export function logArtifactResolve(
   options: {
     sourceId: string;
     sourceName: string;
-    kind?: 'transcript' | 'transformation';
+    kind?: ArtifactKind;
     location?: 'sibling' | 'dotFolder';
     fileName?: string;
     error?: string;
@@ -71,7 +72,7 @@ export function logArtifactWrite(
   options: {
     sourceId: string;
     sourceName: string;
-    kind: 'transcript' | 'transformation';
+    kind: ArtifactKind;
     location?: 'sibling' | 'dotFolder';
     fileName?: string;
     wasUpdated?: boolean;

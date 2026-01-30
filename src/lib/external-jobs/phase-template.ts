@@ -28,7 +28,6 @@ import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
 import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver'
 import { buildTransformationBody } from '@/lib/external-jobs/template-body-builder'
-import { getSecretaryConfig } from '@/lib/env'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { LibraryService } from '@/lib/services/library-service'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
@@ -82,17 +81,26 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     bodyMetadata,
     policies,
     autoSkip,
-    imagesPhaseEnabled,
-    pagesArchiveData,
-    pagesArchiveUrl,
-    pagesArchiveFilename,
-    imagesArchiveData,
-    imagesArchiveFilename,
-    imagesArchiveUrl,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    imagesPhaseEnabled: _imagesPhaseEnabled,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    pagesArchiveData: _pagesArchiveData,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    pagesArchiveUrl: _pagesArchiveUrl,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    pagesArchiveFilename: _pagesArchiveFilename,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    imagesArchiveData: _imagesArchiveData,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    imagesArchiveFilename: _imagesArchiveFilename,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    imagesArchiveUrl: _imagesArchiveUrl,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     mistralOcrRaw: _mistralOcrRaw,
-    hasMistralOcrImages,
-    mistralOcrImagesUrl,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    hasMistralOcrImages: _hasMistralOcrImages,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    mistralOcrImagesUrl: _mistralOcrImagesUrl,
     targetParentId,
     // libraryConfig wird derzeit nicht verwendet
   } = args
@@ -104,7 +112,8 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
   // Shadow-Twin-Konfiguration laden (für persistToFilesystem-Prüfung)
   const library = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
   const shadowTwinConfig = getShadowTwinConfig(library)
-  const persistToFilesystem = shadowTwinConfig.persistToFilesystem ?? true
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _persistToFilesystem = shadowTwinConfig.persistToFilesystem ?? true
   
   // Erweitere policies um ingest, falls nicht vorhanden
   const fullPolicies: PhasePolicies = {
@@ -1178,8 +1187,8 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     })
 
     // Job als failed markieren mit klarer Fehlermeldung
-    await repo.setError(jobId, new Error(errorMessage))
-    await flushLogs(jobId, repo)
+    await repo.setStatus(jobId, 'failed', { error: { code: 'TEMPLATE_FAILED', message: errorMessage } })
+    // Logs werden automatisch gepuffert und gesendet
     
     // Rückgabe entspricht TemplatePhaseResult Interface
     return {

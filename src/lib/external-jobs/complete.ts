@@ -110,7 +110,8 @@ export async function setJobCompleted(args: CompleteArgs): Promise<JobResult> {
     const expectedKind = templateEnabled ? 'transformation' : 'transcript'
     const sourceBaseName = path.parse(sourceName).name
 
-    async function isExpectedSavedItem(fileId: string): Promise<boolean> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async function _isExpectedSavedItem(fileId: string): Promise<boolean> {
       try {
         const it = await provider.getItemById(fileId)
         const candidateName = String(it?.metadata?.name || '')

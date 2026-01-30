@@ -47,7 +47,7 @@ export function buildMongoShadowTwinId(parts: MongoShadowTwinIdParts): string {
 /**
  * Prueft, ob es sich um eine Mongo-Shadow-Twin-ID handelt.
  */
-export function isMongoShadowTwinId(value: string | null | undefined): boolean {
+export function isMongoShadowTwinId(value: string | null | undefined): value is string {
   return typeof value === 'string' && value.startsWith(MONGO_SHADOW_TWIN_PREFIX)
 }
 
