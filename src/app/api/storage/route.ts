@@ -88,13 +88,32 @@ export async function GET(request: NextRequest) {
         const { blob, mimeType } = await provider.getBinary(fileId);
         const buffer = await blob.arrayBuffer();
         
-        return new NextResponse(buffer, {
-          headers: {
-            'Content-Type': mimeType,
-            'Content-Length': blob.size.toString(),
-            'Cache-Control': 'no-store'
+        // Headers für die Response
+        const headers: HeadersInit = {
+          'Content-Type': mimeType,
+          'Content-Length': blob.size.toString(),
+          'Cache-Control': 'no-store'
+        };
+        
+        // Für PDFs: Content-Disposition auf inline setzen, damit sie im Browser
+        // angezeigt werden statt heruntergeladen zu werden
+        // WICHTIG: Dies behebt das Problem bei OneDrive, wo die direkte Microsoft-URL
+        // standardmäßig einen Download auslöst
+        if (mimeType === 'application/pdf') {
+          // Versuche den Dateinamen zu ermitteln für einen sauberen Dateinamen-Header
+          try {
+            const item = await provider.getItemById(fileId);
+            const filename = item?.metadata?.name || 'document.pdf';
+            // RFC 5987-konforme Kodierung für Dateinamen mit Sonderzeichen
+            const encodedFilename = encodeURIComponent(filename).replace(/'/g, "%27");
+            headers['Content-Disposition'] = `inline; filename="${filename}"; filename*=UTF-8''${encodedFilename}`;
+          } catch {
+            // Fallback: Einfacher inline-Header ohne Dateiname
+            headers['Content-Disposition'] = 'inline';
           }
-        });
+        }
+        
+        return new NextResponse(buffer, { headers });
       }
 
       case 'path': {

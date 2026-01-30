@@ -69,19 +69,18 @@ export async function GET(
       return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 });
     }
 
-    const provider = await getServerProvider(userEmail, libraryId);
-    
     // Verwende ShadowTwinService für zentrale Artefakt-Auflösung
+    // WICHTIG: ShadowTwinService.create() erstellt den Provider nur bei Bedarf
+    // (nicht bei Mongo-Modus ohne Fallback), um unnötige Auth-Fehler zu vermeiden
     const resolvedKind = preferredKind || (templateName ? 'transformation' : 'transcript');
     
     try {
-      const service = new ShadowTwinService({
+      const service = await ShadowTwinService.create({
         library,
         userEmail,
         sourceId,
         sourceName,
         parentId,
-        provider,
       });
 
       // Versuche zuerst über Service zu lösen
@@ -107,33 +106,42 @@ export async function GET(
           { status: 200 }
         );
       }
+      // Kein Artefakt im Service gefunden
+      return NextResponse.json({ artifact: null }, { status: 200 });
     } catch (error) {
-      // Service-Fehler → Fallback zu Provider-basierter Auflösung unten
-      FileLogger.warn('artifacts/resolve', 'ShadowTwinService-Fehler, Fallback zu Provider', {
-        error: error instanceof Error ? error.message : String(error),
+      // Service-Fehler → Fallback zu Provider-basierter Auflösung (nur wenn Provider verfügbar)
+      const serviceError = error instanceof Error ? error.message : String(error);
+      FileLogger.warn('artifacts/resolve', 'ShadowTwinService-Fehler, versuche Provider-Fallback', {
+        error: serviceError,
       });
-    }
 
-    // Fallback: Provider-basierte Auflösung (für Legacy oder wenn Service fehlschlägt)
-    const resolved = await resolveArtifact(provider, {
-      sourceItemId: sourceId,
-      sourceName,
-      parentId,
-      targetLanguage,
-      templateName,
-      preferredKind: preferredKind || undefined,
-    });
+      // Provider-Fallback: Nur versuchen, wenn der Fehler nicht auth-bezogen ist
+      // Bei Mongo-only Libraries ohne Provider würde getServerProvider fehlschlagen
+      try {
+        const provider = await getServerProvider(userEmail, libraryId);
+        const resolved = await resolveArtifact(provider, {
+          sourceItemId: sourceId,
+          sourceName,
+          parentId,
+          targetLanguage,
+          templateName,
+          preferredKind: preferredKind || undefined,
+        });
 
-    // Events werden bereits im resolveArtifact geloggt (serverseitig)
-    // Für Frontend-Anzeige: Events werden über artifact-logger.ts Callbacks gesendet
-    // Da wir serverseitig sind, können wir die Events nicht direkt an den Client senden
-    // Die Events werden nur angezeigt, wenn sie client-seitig ausgelöst werden (über artifact-client.ts)
+        if (resolved) {
+          return NextResponse.json({ artifact: resolved }, { status: 200 });
+        }
+      } catch (providerError) {
+        // Provider-Fallback fehlgeschlagen - ursprünglichen Service-Fehler melden
+        FileLogger.warn('artifacts/resolve', 'Provider-Fallback auch fehlgeschlagen', {
+          serviceError,
+          providerError: providerError instanceof Error ? providerError.message : String(providerError),
+        });
+      }
 
-    if (!resolved) {
+      // Kein Artefakt gefunden
       return NextResponse.json({ artifact: null }, { status: 200 });
     }
-
-    return NextResponse.json({ artifact: resolved }, { status: 200 });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     FileLogger.error('artifacts/resolve', 'Fehler bei Artefakt-Auflösung', { error: msg });

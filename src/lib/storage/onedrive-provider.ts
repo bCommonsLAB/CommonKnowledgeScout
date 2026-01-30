@@ -2034,33 +2034,29 @@ export class OneDriveProvider implements StorageProvider {
   }
 
   async getStreamingUrl(itemId: string): Promise<string> {
-    try {
-      const accessToken = await this.ensureAccessToken();
-      
-      const response = await this.fetchWithRetry(
-        `https://graph.microsoft.com/v1.0/me/drive/items/${itemId}?select=@microsoft.graph.downloadUrl`,
-        {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Accept': 'application/json'
-          }
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      if (!data['@microsoft.graph.downloadUrl']) {
-        throw new Error('Keine Streaming-URL in der API-Antwort');
-      }
-
-      return data['@microsoft.graph.downloadUrl'];
-    } catch (error) {
-      console.error('[OneDriveProvider] getStreamingUrl Fehler:', error);
-      throw new StorageError('Fehler beim Abrufen der Streaming-URL: ' + (error instanceof Error ? error.message : String(error)));
+    // WICHTIG: Für die Anzeige von PDFs (und anderen Dateien) im Browser verwenden wir
+    // eine Proxy-Route statt der direkten Microsoft-URL. Die Microsoft Graph API URL
+    // (`@microsoft.graph.downloadUrl`) hat standardmäßig `Content-Disposition: attachment`,
+    // was einen Download statt einer inline-Anzeige auslöst.
+    //
+    // Die Proxy-Route `/api/storage?action=binary` lädt die Datei über `getBinary` und
+    // setzt für PDFs `Content-Disposition: inline`, damit sie im Browser angezeigt werden.
+    //
+    // Hinweis: Die direkte URL wäre schneller, aber für PDFs in iframes funktioniert sie nicht.
+    // Falls Performance kritisch ist und keine inline-Anzeige benötigt wird, kann man
+    // getDownloadUrl() verwenden, die weiterhin die direkte Microsoft-URL zurückgibt.
+    const libraryId = this.library?.id;
+    if (!libraryId) {
+      throw new StorageError('Library-ID fehlt für Streaming-URL');
     }
+    
+    // Verwende die baseUrl (API-Basis) oder baue eine relative URL
+    // Die baseUrl wird vom StorageFactory gesetzt und zeigt auf das API-Root
+    const baseApiUrl = this.baseUrl || '';
+    
+    // Baue die Proxy-URL, die über die generische Storage-Route läuft
+    // Diese Route lädt die Datei und setzt korrekte Headers für inline-Anzeige
+    return `${baseApiUrl}/api/storage?action=binary&fileId=${encodeURIComponent(itemId)}&libraryId=${encodeURIComponent(libraryId)}`;
   }
 
   async getPathItemsById(itemId: string): Promise<StorageItem[]> {

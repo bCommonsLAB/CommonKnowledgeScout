@@ -573,18 +573,34 @@ function PreviewContent({
     let cancelled = false
 
     async function loadTransformItem() {
-      if (!provider) {
-        setTransformItem(null)
-        setTransformError(null)
-        return
-      }
       if (!shadowTwinState?.transformed?.id) {
         setTransformItem(null)
         setTransformError(null)
         return
       }
+      
+      const transformedId = shadowTwinState.transformed.id
+      
+      // Prüfe, ob die ID eine Mongo-Shadow-Twin-ID ist
+      // Diese IDs haben das Format: "mongo-shadow-twin:..."
+      // In diesem Fall brauchen wir keinen Provider-Aufruf, da das Artefakt in MongoDB liegt
+      if (transformedId.startsWith('mongo-shadow-twin:')) {
+        // Für Mongo-Artefakte: Verwende die Metadaten aus shadowTwinState direkt
+        // Das Artefakt wird über /api/library/.../shadow-twins/content geladen
+        if (cancelled) return
+        setTransformItem(shadowTwinState.transformed)
+        setTransformError(null)
+        return
+      }
+      
+      // Für Filesystem-Artefakte: Lade über Provider
+      if (!provider) {
+        setTransformItem(null)
+        setTransformError(null)
+        return
+      }
       try {
-        const loaded = await provider.getItemById(shadowTwinState.transformed.id)
+        const loaded = await provider.getItemById(transformedId)
         if (cancelled) return
         setTransformItem(loaded)
         setTransformError(null)
