@@ -928,8 +928,8 @@ export async function POST(
           hasMistralOcrImages: hasMistralOcrImages,
           mistralOcrImagesUrl: mistralOcrImagesUrl, // Für Template-Info verfügbar
           targetParentId,
-          // Library-Chat-Config für Cover-Bild-Prompt-Fallback
-          libraryConfig: lib.config?.chat,
+          // Secretary-Service-Config für Cover-Bild-Prompt-Fallback
+          libraryConfig: lib.config?.secretaryService,
           generateCoverImage: jobParams.generateCoverImage,
           coverImagePrompt: jobParams.coverImagePrompt,
         })

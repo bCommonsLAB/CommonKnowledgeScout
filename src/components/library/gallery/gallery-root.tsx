@@ -29,6 +29,7 @@ import { useGalleryFacets } from '@/hooks/gallery/use-gallery-facets'
 import { useGalleryEvents } from '@/hooks/gallery/use-gallery-events'
 import { useTranslation } from '@/lib/i18n/hooks'
 import type { DocCardMeta } from '@/lib/gallery/types'
+import type { TemplatePreviewDetailViewType } from '@/lib/templates/template-types'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ReferencesSheet } from './references-sheet'
@@ -84,7 +85,9 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
   const initialDetailViewType = useMemo(() => {
     const galleryConfig = activeLibrary?.config?.chat?.gallery
     const vt = galleryConfig?.detailViewType
-    const result = (vt === 'book' || vt === 'session') ? vt : 'book'
+    // Alle gültigen DetailViewTypes akzeptieren
+    const validTypes = ['book', 'session', 'climateAction', 'testimonial', 'blog'] as const
+    const result = validTypes.includes(vt as typeof validTypes[number]) ? vt as typeof validTypes[number] : 'book'
     return result
   }, [activeLibrary?.config?.chat?.gallery])
 
@@ -162,17 +165,15 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
 
   // Bestimme viewType für DetailOverlay:
   // - Primär: pro Dokument über `detailViewType` (Wizard/Frontmatter)
-  // - Fallback: Library-Config (book/session)
-  const detailViewTypeForDoc = React.useMemo<'book' | 'session'>(() => {
-    if (!selectedDoc) return detailViewType // Fallback auf Library-Config
+  // - Fallback: Library-Config
+  const validDetailViewTypes: TemplatePreviewDetailViewType[] = ['book', 'session', 'climateAction', 'testimonial', 'blog']
+  const detailViewTypeForDoc = React.useMemo<TemplatePreviewDetailViewType>(() => {
+    if (!selectedDoc) return detailViewType as TemplatePreviewDetailViewType // Fallback auf Library-Config
 
     // 1) Dokument-spezifisch (Wizard/Frontmatter)
     const perDoc = typeof selectedDoc.detailViewType === 'string' ? selectedDoc.detailViewType : ''
-    if (perDoc) {
-      // DetailOverlay unterstützt aktuell nur 'book' und 'session'.
-      // Alles andere (testimonial/blog) fällt bewusst auf den Library-Fallback zurück.
-      if (perDoc === 'session') return 'session'
-      if (perDoc === 'book') return 'book'
+    if (perDoc && validDetailViewTypes.includes(perDoc as TemplatePreviewDetailViewType)) {
+      return perDoc as TemplatePreviewDetailViewType
     }
 
     // 2) Fallback: library settings
@@ -180,7 +181,9 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
     const activeLibrary = libraries.find(lib => lib.id === libraryId)
     const libraryConfig = activeLibrary?.config?.chat
     const result = getDetailViewType({}, libraryConfig)
-    return result === 'session' ? 'session' : 'book'
+    return validDetailViewTypes.includes(result as TemplatePreviewDetailViewType) 
+      ? result as TemplatePreviewDetailViewType 
+      : 'book'
   }, [selectedDoc, detailViewType, libraries, libraryId])
 
   // selectedDoc wird automatisch über React State verwaltet
@@ -583,6 +586,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
           queryId={chatReferences.queryId}
           libraryId={libraryId || ''}
           onOpenDocument={handleOpenDocument}
+          libraryDetailViewType={detailViewType}
         />
       )
     }
@@ -597,6 +601,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
       hasMore={hasMore}
       isLoadingMore={isLoadingMore}
       onDocumentDeleted={handleDocumentDeleted}
+      libraryDetailViewType={detailViewType}
     />
   }
 

@@ -70,6 +70,10 @@ export interface PipelineConfig {
   // --- Force-Override ---
   /** Bestehende Assets überschreiben? (setzt alle Policies auf 'force') */
   forceOverride?: boolean
+  
+  // --- LLM-Modell ---
+  /** LLM-Modell für Template-Transformation (z.B. 'google/gemini-2.5-flash') */
+  llmModel?: string
 }
 
 // =============================================================================
@@ -193,5 +197,7 @@ export function configToJobParameters(config: PipelineConfig): Record<string, un
     policies: config.policies,
     generateCoverImage: config.generateCoverImage,
     coverImagePrompt: config.coverImagePrompt,
+    // LLM-Modell für Template-Transformation
+    llmModel: config.llmModel,
   }
 }

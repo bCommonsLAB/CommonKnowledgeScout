@@ -485,6 +485,16 @@ async function loadMarkdownById(
         return null
       }
 
+      FileLogger.info('phase-shadow-twin-loader', 'Mongo-Shadow-Twin-ID geparst', {
+        jobId,
+        fileId,
+        parsedSourceId: parts.sourceId,
+        parsedKind: parts.kind,
+        parsedTargetLanguage: parts.targetLanguage,
+        parsedTemplateName: parts.templateName,
+        parsedLibraryId: parts.libraryId,
+      })
+
       const library = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
       if (!library) {
         FileLogger.warn('phase-shadow-twin-loader', 'Library nicht gefunden für Mongo-Shadow-Twin', { jobId, libraryId: job.libraryId })
@@ -500,6 +510,15 @@ async function loadMarkdownById(
         provider,
       })
 
+      FileLogger.info('phase-shadow-twin-loader', 'ShadowTwinService erstellt, rufe getMarkdown auf', {
+        jobId,
+        libraryId: library.id,
+        serviceSourceId: parts.sourceId,
+        kind: parts.kind,
+        targetLanguage: parts.targetLanguage || lang,
+        templateName: parts.templateName,
+      })
+
       const result = await service.getMarkdown({
         kind: parts.kind,
         targetLanguage: parts.targetLanguage || lang,
@@ -507,7 +526,12 @@ async function loadMarkdownById(
       })
 
       if (!result) {
-        FileLogger.warn('phase-shadow-twin-loader', 'Markdown nicht gefunden im Mongo-Store', { jobId, fileId, parts })
+        FileLogger.warn('phase-shadow-twin-loader', 'Markdown nicht gefunden im Mongo-Store', { 
+          jobId, 
+          fileId, 
+          parts,
+          libraryId: library.id,
+        })
         return null
       }
 

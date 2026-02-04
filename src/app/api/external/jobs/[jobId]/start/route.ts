@@ -45,7 +45,7 @@ import { analyzeShadowTwinWithService } from '@/lib/shadow-twin/analyze-shadow-t
 import { toMongoShadowTwinState } from '@/lib/shadow-twin/shared'
 import { gateExtractPdf } from '@/lib/processing/gates'
 import { getPolicies, shouldRunExtract } from '@/lib/processing/phase-policy'
-import type { Library, LibraryChatConfig } from '@/types/library'
+import type { Library } from '@/types/library'
 import { LibraryService } from '@/lib/services/library-service'
 import { loadShadowTwinMarkdown } from '@/lib/external-jobs/phase-shadow-twin-loader'
 import { runIngestPhase } from '@/lib/external-jobs/phase-ingest'
@@ -729,9 +729,24 @@ export async function POST(
       // Ingest-only-Pfad: Braucht das transformierte Markdown mit Metadaten
       const shadowTwinData = await loadShadowTwinMarkdown(ctxPre, provider, 'forIngestOrPassthrough')
       if (!shadowTwinData) {
-        await repo.updateStep(jobId, 'ingest_rag', { status: 'failed', endedAt: new Date(), error: { message: 'Shadow‑Twin nicht gefunden' } })
-        await repo.setStatus(jobId, 'failed', { error: { code: 'shadow_twin_missing', message: 'Shadow‑Twin nicht gefunden' } })
-        return NextResponse.json({ error: 'Shadow‑Twin nicht gefunden' }, { status: 404 })
+        // Detaillierte Fehlermeldung: Erklärt warum Shadow-Twin fehlt und was zu tun ist
+        const errorMessage = 'Shadow-Twin nicht gefunden. ' +
+          'Die Ingestion wurde versucht, aber es existiert kein transformiertes Markdown. ' +
+          'Mögliche Ursachen: (1) Die Template-Transformation wurde übersprungen, weil das Frontmatter als "valid" erkannt wurde, aber kein Shadow-Twin gespeichert wurde. ' +
+          '(2) Das Dokument wurde noch nie mit einer Template-Transformation verarbeitet. ' +
+          'Lösung: Führen Sie die Pipeline erneut mit aktivierter Template-Phase aus (Policy: "force" oder "do").'
+        
+        FileLogger.error('start-route', 'Shadow-Twin für Ingest-Only nicht gefunden', {
+          jobId,
+          fileId: job.correlation?.source?.itemId,
+          fileName: job.correlation?.source?.name,
+          shadowTwinState: job.shadowTwinState,
+          templateSkipReason,
+        })
+        
+        await repo.updateStep(jobId, 'ingest_rag', { status: 'failed', endedAt: new Date(), error: { message: errorMessage } })
+        await repo.setStatus(jobId, 'failed', { error: { code: 'shadow_twin_missing', message: errorMessage } })
+        return NextResponse.json({ error: errorMessage }, { status: 404 })
       }
       
       // Policies lesen
@@ -847,13 +862,14 @@ export async function POST(
       // Policies lesen
       const phasePolicies = readPhasesAndPolicies(job.parameters)
       
-      // Library-Config für Template-Auswahl laden
-      let libraryConfig: LibraryChatConfig | undefined = undefined
+      // Library-Config für Template-Auswahl laden (secretaryService-Config, nicht chat-Config)
+      // runTemplatePhase erwartet config.secretaryService mit apiUrl, apiKey etc.
+      let libraryConfig: NonNullable<Library['config']>['secretaryService'] | undefined = undefined
       try {
         const libraryService = LibraryService.getInstance()
         const email = userEmail || job.userEmail
         const libraryForConfig = await libraryService.getLibrary(email, job.libraryId)
-        libraryConfig = libraryForConfig?.config?.chat
+        libraryConfig = libraryForConfig?.config?.secretaryService
       } catch (error) {
         FileLogger.warn('start-route', 'Fehler beim Laden der Library-Config', {
           jobId,

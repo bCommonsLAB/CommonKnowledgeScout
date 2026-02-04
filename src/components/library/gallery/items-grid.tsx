@@ -9,9 +9,11 @@ export interface ItemsGridProps {
   docsByYear: Array<[number | string, DocCardMeta[]]>
   onOpen?: (doc: DocCardMeta) => void // Optional: Fallback für Dokumente ohne slug
   libraryId?: string // Optional: Für URL-basierte Navigation
+  /** Fallback-DetailViewType aus der Library-Config */
+  libraryDetailViewType?: string
 }
 
-export function ItemsGrid({ docsByYear, onOpen, libraryId }: ItemsGridProps) {
+export function ItemsGrid({ docsByYear, onOpen, libraryId, libraryDetailViewType }: ItemsGridProps) {
   const { t } = useTranslation()
   return (
     <div className='space-y-2'>
@@ -22,7 +24,7 @@ export function ItemsGrid({ docsByYear, onOpen, libraryId }: ItemsGridProps) {
           </h3>
           <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6'>
             {yearDocs.map((doc) => (
-              <DocumentCard key={doc.id} doc={doc} onClick={onOpen} libraryId={libraryId} />
+              <DocumentCard key={doc.id} doc={doc} onClick={onOpen} libraryId={libraryId} libraryDetailViewType={libraryDetailViewType} />
             ))}
           </div>
         </div>

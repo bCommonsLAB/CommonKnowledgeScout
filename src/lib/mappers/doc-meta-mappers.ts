@@ -6,6 +6,7 @@
 import type { BookDetailData } from '@/components/library/book-detail'
 import type { SessionDetailData } from '@/components/library/session-detail'
 import type { TestimonialDetailData } from '@/components/library/testimonial-detail'
+import type { ClimateActionDetailData } from '@/components/library/climate-action-detail'
 
 /**
  * Mapper: API-Response → BookDetailData
@@ -296,3 +297,80 @@ export function mapToTestimonialDetail(input: unknown): TestimonialDetailData {
   return data;
 }
 
+/**
+ * Mapper: API-Response → ClimateActionDetailData
+ * Extrahiert Klimamaßnahmen-spezifische Felder aus docMetaJson
+ */
+export function mapToClimateActionDetail(input: unknown): ClimateActionDetailData {
+  const root = (input && typeof input === 'object') ? input as Record<string, unknown> : {};
+  const docMetaJson = (root.docMetaJson && typeof root.docMetaJson === 'object') 
+    ? root.docMetaJson as Record<string, unknown> 
+    : {};
+  
+  const toStr = (v: unknown): string | undefined => {
+    if (typeof v === 'string' && v.trim().length > 0) {
+      return v.trim();
+    }
+    return undefined;
+  };
+
+  const toNum = (v: unknown): number | undefined => 
+    typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+
+  const toStrArr = (v: unknown): string[] | undefined => {
+    if (Array.isArray(v)) {
+      const arr = (v as Array<unknown>).map(x => toStr(x) || '').filter(Boolean);
+      return arr.length > 0 ? arr : undefined;
+    }
+    return undefined;
+  };
+
+  const data: ClimateActionDetailData = {
+    // Basis-Felder
+    title: toStr(docMetaJson.title) || toStr(root.fileName) || '—',
+    summary: toStr(docMetaJson.summary),
+    markdown: toStr(docMetaJson.markdown),
+    coverImageUrl: toStr((docMetaJson as { coverImageUrl?: unknown }).coverImageUrl),
+    url: toStr(docMetaJson.url),
+    
+    // Klima-spezifische Felder (Template: klimamassnahme-detail)
+    // massnahme_nr = Maßnahmen-Nummer
+    massnahme_nr: toStr(docMetaJson.massnahme_nr),
+    // lv_bewertung = Bewertung der Landesverwaltung
+    lv_bewertung: toStr(docMetaJson.lv_bewertung),
+    // arbeitsgruppe = Arbeitsgruppe (Energie, Mobilität, Wohnen, etc.)
+    arbeitsgruppe: toStr(docMetaJson.arbeitsgruppe),
+    // lv_zustaendigkeit = Zuständige Stelle (Ressort/Gemeinde)
+    lv_zustaendigkeit: toStr(docMetaJson.lv_zustaendigkeit),
+    
+    // category mit Fallback auf handlungsfeld für ältere Daten in der DB
+    category: toStr(docMetaJson.category) || toStr(docMetaJson.handlungsfeld),
+    sector: toStr(docMetaJson.sector),
+    region: toStr(docMetaJson.region),
+    year: ((): number | string | undefined => {
+      const y = docMetaJson.year;
+      if (typeof y === 'number') return y;
+      if (typeof y === 'string' && y.trim()) return y.trim();
+      return undefined;
+    })(),
+    status: toStr(docMetaJson.status) || toStr(docMetaJson.lv_bewertung),
+    actors: toStrArr(docMetaJson.actors),
+    targetGroup: toStr(docMetaJson.targetGroup),
+    co2Savings: toStr(docMetaJson.co2Savings),
+    budget: toStr(docMetaJson.budget),
+    timeframe: toStr(docMetaJson.timeframe),
+    sdgs: toStrArr(docMetaJson.sdgs),
+    tags: toStrArr(docMetaJson.tags),
+    topics: toStrArr(docMetaJson.topics),
+    source: toStr(docMetaJson.source),
+    authors: toStrArr(docMetaJson.authors),
+    
+    // Technische Felder
+    fileId: toStr(root.fileId),
+    fileName: toStr(root.fileName),
+    upsertedAt: toStr(root.upsertedAt),
+    chunkCount: toNum(root.chunkCount),
+  };
+
+  return data;
+}

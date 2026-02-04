@@ -29,6 +29,8 @@ export interface GroupedItemsViewProps {
   onOpenDocument?: (doc: DocCardMeta) => void
   /** Callback für Schließen (z.B. im ReferencesSheet, um das Sheet zu schließen) */
   onClose?: () => void
+  /** Fallback-DetailViewType aus der Library-Config */
+  libraryDetailViewType?: string
 }
 
 /**
@@ -46,6 +48,7 @@ export function GroupedItemsView({
   libraryId,
   onOpenDocument,
   onClose,
+  libraryDetailViewType,
 }: GroupedItemsViewProps) {
   if (viewMode === 'table') {
     return (
@@ -75,6 +78,7 @@ export function GroupedItemsView({
       onClose={onClose}
       viewMode={viewMode}
       onViewModeChange={onViewModeChange}
+      libraryDetailViewType={libraryDetailViewType}
     />
   )
 }

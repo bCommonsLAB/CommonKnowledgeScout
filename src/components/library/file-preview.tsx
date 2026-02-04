@@ -32,7 +32,7 @@ import type { StoryStepStatus, StoryStepState } from "@/components/library/share
 import { ArtifactMarkdownPanel } from "@/components/library/shared/artifact-markdown-panel"
 import { ArtifactEditDialog } from "@/components/library/shared/artifact-edit-dialog"
 import { IngestionDetailPanel } from "@/components/library/shared/ingestion-detail-panel"
-import { PipelineSheet, type PipelinePolicies, type CoverImageOptions } from "@/components/library/flow/pipeline-sheet"
+import { PipelineSheet, type PipelinePolicies, type CoverImageOptions, type LlmModelOption } from "@/components/library/flow/pipeline-sheet"
 import { runPipelineForFile, getMediaKind, type MediaKind } from "@/lib/pipeline/run-pipeline"
 import { activeLibraryAtom } from "@/atoms/library-atom"
 import { loadPdfDefaults } from "@/lib/pdf-defaults"
@@ -484,7 +484,7 @@ function PreviewContent({
   onContentUpdated,
   onRefreshFolder,
   storySteps,
-  editHandlerRef,
+  // editHandlerRef entfernt - wird derzeit nicht verwendet
   effectiveMdIdRef,
 }: {
   item: StorageItem;
@@ -497,7 +497,6 @@ function PreviewContent({
   onContentUpdated: (content: string) => void;
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
   storySteps: StoryStepStatus[];
-  editHandlerRef?: React.MutableRefObject<(() => void) | null>;
   effectiveMdIdRef?: React.MutableRefObject<string | null>;
 }) {
   const [infoTab, setInfoTab] = React.useState<"original" | "transcript" | "transform" | "story" | "overview">("original")
@@ -627,6 +626,11 @@ function PreviewContent({
   const [templates, setTemplates] = React.useState<string[]>([])
   const [isLoadingTemplates, setIsLoadingTemplates] = React.useState(false)
   const [isRunningPipeline, setIsRunningPipeline] = React.useState(false)
+  
+  // LLM-Modell-State
+  const [llmModel, setLlmModel] = React.useState<string>("")
+  const [llmModels, setLlmModels] = React.useState<LlmModelOption[]>([])
+  const [isLoadingLlmModels, setIsLoadingLlmModels] = React.useState(false)
 
   // Job-Status fuer diese Datei aus dem globalen Atom lesen
   const jobInfoByItemId = useAtomValue(jobInfoByItemIdAtom)
@@ -635,7 +639,8 @@ function PreviewContent({
 
   const activeLibrary = useAtomValue(activeLibraryAtom)
   const libraryConfigChatTargetLanguage = activeLibrary?.config?.chat?.targetLanguage
-  const libraryConfigPdfTemplate = activeLibrary?.config?.secretaryService?.pdfDefaults?.template
+  const libraryConfigPdfTemplate = activeLibrary?.config?.secretaryService?.template
+  const libraryConfigLlmModel = activeLibrary?.config?.secretaryService?.llmModel
 
   const kind: MediaKind = React.useMemo(() => getMediaKind(item), [item])
   const defaults = React.useMemo(() => {
@@ -666,6 +671,15 @@ function PreviewContent({
         const names = await listAvailableTemplates(activeLibraryId)
         if (cancelled) return
         setTemplates(Array.isArray(names) ? names : [])
+        // Falls kein Template ausgewählt: Library-Default verwenden, wenn verfügbar
+        if (!templateName && names.length > 0 && libraryConfigPdfTemplate) {
+          const defaultExists = names.some(n => n.toLowerCase() === libraryConfigPdfTemplate.toLowerCase())
+          if (defaultExists) {
+            // Finde den exakten Namen (Case-sensitiv) aus der Liste
+            const exactName = names.find(n => n.toLowerCase() === libraryConfigPdfTemplate.toLowerCase())
+            if (exactName) setTemplateName(exactName)
+          }
+        }
       } catch (err) {
         FileLogger.warn("file-preview", "Templates konnten nicht geladen werden", {
           error: err instanceof Error ? err.message : String(err),
@@ -679,7 +693,46 @@ function PreviewContent({
     return () => {
       cancelled = true
     }
-  }, [activeLibraryId, isPipelineOpen])
+  }, [activeLibraryId, isPipelineOpen, templateName, libraryConfigPdfTemplate])
+
+  // LLM-Modelle laden wenn Pipeline-Sheet geöffnet ist
+  React.useEffect(() => {
+    let cancelled = false
+    async function loadLlmModels() {
+      if (!isPipelineOpen) return
+      setIsLoadingLlmModels(true)
+      try {
+        const res = await fetch("/api/public/llm-models")
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const data = await res.json() as Array<{ _id: string; modelId: string; name: string; strengths?: string }>
+        if (cancelled) return
+        const models: LlmModelOption[] = data.map(m => ({
+          modelId: m.modelId || m._id,
+          name: m.name,
+          strengths: m.strengths,
+        }))
+        setLlmModels(models)
+        // Falls kein Modell ausgewählt: Library-Default verwenden, sonst erstes Modell
+        if (!llmModel && models.length > 0) {
+          const defaultModel = libraryConfigLlmModel && models.some(m => m.modelId === libraryConfigLlmModel)
+            ? libraryConfigLlmModel
+            : models[0].modelId
+          setLlmModel(defaultModel)
+        }
+      } catch (err) {
+        FileLogger.warn("file-preview", "LLM-Modelle konnten nicht geladen werden", {
+          error: err instanceof Error ? err.message : String(err),
+        })
+        if (!cancelled) setLlmModels([])
+      } finally {
+        if (!cancelled) setIsLoadingLlmModels(false)
+      }
+    }
+    void loadLlmModels()
+    return () => {
+      cancelled = true
+    }
+  }, [isPipelineOpen, llmModel, libraryConfigLlmModel])
 
   // Öffne Pipeline-Sheet mit Defaults basierend auf fehlender Phase
   // force=true oeffnet die Maske mit aktiviertem "Bestehende Assets ueberschreiben"
@@ -700,7 +753,7 @@ function PreviewContent({
 
   // Pipeline starten
   const runPipeline = React.useCallback(
-    async (args: { templateName?: string; targetLanguage: string; policies: PipelinePolicies; coverImage?: CoverImageOptions }) => {
+    async (args: { templateName?: string; targetLanguage: string; policies: PipelinePolicies; coverImage?: CoverImageOptions; llmModel?: string }) => {
       if (!activeLibraryId) {
         toast.error("Fehler", { description: "libraryId fehlt" })
         return
@@ -729,6 +782,8 @@ function PreviewContent({
           // Cover-Bild-Generierung
           generateCoverImage: args.coverImage?.generateCoverImage,
           coverImagePrompt: args.coverImage?.coverImagePrompt,
+          // LLM-Modell für Template-Transformation
+          llmModel: args.llmModel,
         })
 
         toast.success("Job angelegt", { description: `Job ${jobId} wurde enqueued.` })
@@ -938,25 +993,15 @@ function PreviewContent({
                         Jetzt erstellen
                       </Button>
                     ) : (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setIsEditOpen(true)}
-                          disabled={!provider || !transformItem}
-                        >
-                          Bearbeiten
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openPipelineForPhase("transform", true)}
-                          disabled={isRunningPipeline || hasActiveJob}
-                        >
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                          Neu generieren
-                        </Button>
-                      </>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openPipelineForPhase("transform", true)}
+                        disabled={isRunningPipeline || hasActiveJob}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Neu generieren
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -977,21 +1022,10 @@ function PreviewContent({
                       parentId={item.parentId}
                       provider={provider}
                       ingestionTabMode="preview"
-                      onEditClick={editHandlerRef as unknown as () => void}
                       effectiveMdIdRef={effectiveMdIdRef}
                     />
                   </div>
                 )}
-                <ArtifactEditDialog
-                  open={isEditOpen}
-                  onOpenChange={setIsEditOpen}
-                  item={transformItem}
-                  provider={provider}
-                  libraryId={activeLibraryId || undefined}
-                  onSaved={(saved) => {
-                    if (saved) setTransformItem(saved)
-                  }}
-                />
               </div>
             </TabsContent>
 
@@ -1056,6 +1090,10 @@ function PreviewContent({
             onTemplateNameChange={setTemplateName}
             templates={templates}
             isLoadingTemplates={isLoadingTemplates}
+            llmModel={llmModel}
+            onLlmModelChange={setLlmModel}
+            llmModels={llmModels}
+            isLoadingLlmModels={isLoadingLlmModels}
             onStart={runPipeline}
             defaultSteps={pipelineDefaultSteps}
             defaultForce={pipelineDefaultForce}
@@ -1064,7 +1102,7 @@ function PreviewContent({
               hasTransformed: !!shadowTwinState?.transformed,
               hasIngested: publishStep?.state !== "missing",
             }}
-            defaultGenerateCoverImage={activeLibrary?.config?.chat?.generateCoverImage}
+            defaultGenerateCoverImage={activeLibrary?.config?.secretaryService?.generateCoverImage}
           />
         </IngestionDataProvider>
       )
@@ -1243,25 +1281,15 @@ function PreviewContent({
                         Jetzt erstellen
                       </Button>
                     ) : (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setIsEditOpen(true)}
-                          disabled={!provider || !transformItem}
-                        >
-                          Bearbeiten
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openPipelineForPhase("transform", true)}
-                          disabled={isRunningPipeline || hasActiveJob}
-                        >
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                          Neu generieren
-                        </Button>
-                      </>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openPipelineForPhase("transform", true)}
+                        disabled={isRunningPipeline || hasActiveJob}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Neu generieren
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -1282,21 +1310,10 @@ function PreviewContent({
                       parentId={item.parentId}
                       provider={provider}
                       ingestionTabMode="preview"
-                      onEditClick={editHandlerRef as unknown as () => void}
                       effectiveMdIdRef={effectiveMdIdRef}
                     />
                   </div>
                 )}
-                <ArtifactEditDialog
-                  open={isEditOpen}
-                  onOpenChange={setIsEditOpen}
-                  item={transformItem}
-                  provider={provider}
-                  libraryId={activeLibraryId || undefined}
-                  onSaved={(saved) => {
-                    if (saved) setTransformItem(saved)
-                  }}
-                />
               </div>
             </TabsContent>
 
@@ -1361,6 +1378,10 @@ function PreviewContent({
             onTemplateNameChange={setTemplateName}
             templates={templates}
             isLoadingTemplates={isLoadingTemplates}
+            llmModel={llmModel}
+            onLlmModelChange={setLlmModel}
+            llmModels={llmModels}
+            isLoadingLlmModels={isLoadingLlmModels}
             onStart={runPipeline}
             defaultSteps={pipelineDefaultSteps}
             defaultForce={pipelineDefaultForce}
@@ -1369,7 +1390,7 @@ function PreviewContent({
               hasTransformed: !!shadowTwinState?.transformed,
               hasIngested: publishStep?.state !== "missing",
             }}
-            defaultGenerateCoverImage={activeLibrary?.config?.chat?.generateCoverImage}
+            defaultGenerateCoverImage={activeLibrary?.config?.secretaryService?.generateCoverImage}
           />
         </IngestionDataProvider>
       )
@@ -1530,25 +1551,15 @@ function PreviewContent({
                         Jetzt erstellen
                       </Button>
                     ) : (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setIsEditOpen(true)}
-                          disabled={!provider || !transformItem}
-                        >
-                          Bearbeiten
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openPipelineForPhase("transform", true)}
-                          disabled={isRunningPipeline || hasActiveJob}
-                        >
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                          Neu generieren
-                        </Button>
-                      </>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openPipelineForPhase("transform", true)}
+                        disabled={isRunningPipeline || hasActiveJob}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Neu generieren
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -1569,21 +1580,10 @@ function PreviewContent({
                       parentId={item.parentId}
                       provider={provider}
                       ingestionTabMode="preview"
-                      onEditClick={editHandlerRef as unknown as () => void}
                       effectiveMdIdRef={effectiveMdIdRef}
                     />
                   </div>
                 )}
-                <ArtifactEditDialog
-                  open={isEditOpen}
-                  onOpenChange={setIsEditOpen}
-                  item={transformItem}
-                  provider={provider}
-                  libraryId={activeLibraryId || undefined}
-                  onSaved={(saved) => {
-                    if (saved) setTransformItem(saved)
-                  }}
-                />
               </div>
             </TabsContent>
 
@@ -1648,6 +1648,10 @@ function PreviewContent({
             onTemplateNameChange={setTemplateName}
             templates={templates}
             isLoadingTemplates={isLoadingTemplates}
+            llmModel={llmModel}
+            onLlmModelChange={setLlmModel}
+            llmModels={llmModels}
+            isLoadingLlmModels={isLoadingLlmModels}
             onStart={runPipeline}
             defaultSteps={pipelineDefaultSteps}
             defaultForce={pipelineDefaultForce}
@@ -1656,7 +1660,7 @@ function PreviewContent({
               hasTransformed: !!shadowTwinState?.transformed,
               hasIngested: publishStep?.state !== "missing",
             }}
-            defaultGenerateCoverImage={activeLibrary?.config?.chat?.generateCoverImage}
+            defaultGenerateCoverImage={activeLibrary?.config?.secretaryService?.generateCoverImage}
           />
         </IngestionDataProvider>
       )
@@ -1703,6 +1707,10 @@ function PreviewContent({
             onTemplateNameChange={setTemplateName}
             templates={templates}
             isLoadingTemplates={isLoadingTemplates}
+            llmModel={llmModel}
+            onLlmModelChange={setLlmModel}
+            llmModels={llmModels}
+            isLoadingLlmModels={isLoadingLlmModels}
             onStart={runPipeline}
             defaultSteps={pipelineDefaultSteps}
             defaultForce={pipelineDefaultForce}
@@ -1711,7 +1719,7 @@ function PreviewContent({
               hasTransformed: false,
               hasIngested: false,
             }}
-            defaultGenerateCoverImage={activeLibrary?.config?.chat?.generateCoverImage}
+            defaultGenerateCoverImage={activeLibrary?.config?.secretaryService?.generateCoverImage}
           />
         </>
       );
@@ -1751,7 +1759,7 @@ export function FilePreview({
   })
   
   // Refs für Handler von JobReportTab (für Header-Buttons)
-  const editHandlerRef = React.useRef<(() => void) | null>(null)
+  // editHandlerRef wurde entfernt - wird derzeit nicht verwendet
   const effectiveMdIdRef = React.useRef<string | null>(null)
   
   // Debug-Log für FilePreview-Hauptkomponente
@@ -1921,7 +1929,6 @@ export function FilePreview({
           onContentUpdated={handleContentUpdated}
           onRefreshFolder={onRefreshFolder}
           storySteps={storyStatus.steps}
-          editHandlerRef={editHandlerRef}
           effectiveMdIdRef={effectiveMdIdRef}
         />
       </div>

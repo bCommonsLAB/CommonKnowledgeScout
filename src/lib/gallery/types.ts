@@ -31,6 +31,16 @@ export interface DocCardMeta {
   detailViewType?: string
   /** Optional: Parent-Item-ID für Hierarchien (z.B. testimonial.parentId = event.id) */
   parentId?: string
+  
+  // Klimamaßnahmen-spezifische Felder
+  /** Maßnahmennummer (z.B. "456") */
+  massnahme_nr?: string
+  /** Arbeitsgruppe (z.B. "Energie", "Mobilität") */
+  arbeitsgruppe?: string
+  /** Bewertung der Landesverwaltung (z.B. "in_umsetzung", "nicht_umsetzbar") */
+  lv_bewertung?: string
+  /** Kategorie für Facettenfilter (z.B. Handlungsfeld bei Klimamaßnahmen) */
+  category?: string
 }
 
 export interface ChapterInfo {
@@ -85,6 +95,12 @@ export function mapItemToDocCardMeta(item: Item): DocCardMeta {
     docType: item.docType,
     detailViewType: item.meta.detailViewType as string | undefined,
     parentId: item.parentId,
+    // Klimamaßnahmen-spezifische Felder
+    massnahme_nr: item.meta.massnahme_nr as string | undefined,
+    arbeitsgruppe: item.meta.arbeitsgruppe as string | undefined,
+    lv_bewertung: item.meta.lv_bewertung as string | undefined,
+    // category mit Fallback auf handlungsfeld für ältere Daten in der DB
+    category: (item.meta.category || item.meta.handlungsfeld) as string | undefined,
   };
 }
 

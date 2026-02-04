@@ -112,8 +112,8 @@ export interface LibraryChatConfig {
 
   /** Gallery-Konfiguration für die Wissensgalerie */
   gallery?: {
-    /** Typ der Detailansicht: 'book' für klassische Dokumente, 'session' für Event-Sessions/Präsentationen */
-    detailViewType?: 'book' | 'session';
+    /** Typ der Detailansicht für verschiedene Dokumenttypen */
+    detailViewType?: 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog';
     /** Facetten-Definitionen für Filter */
     facets?: Array<{
       metaKey: string;
@@ -125,21 +125,7 @@ export interface LibraryChatConfig {
     }>;
   };
 
-  /**
-   * Cover-Bild-Generierung: Automatisch generieren bei Transformation.
-   * Wenn true, wird bei der Template-Phase automatisch ein Cover-Bild generiert,
-   * sofern noch keines existiert.
-   */
-  generateCoverImage?: boolean;
-
-  /**
-   * Cover-Bild-Generierung: Standard-Prompt für alle Coverbilder in dieser Library.
-   * Variablen: {{title}}, {{summary}} werden ersetzt.
-   * 
-   * @example "Erstelle ein Coverbild für: {{title}}. Inhalt: {{summary}}"
-   */
-  coverImagePrompt?: string;
-}
+  }
 
 /**
  * Configuration options for storage providers.
@@ -169,15 +155,20 @@ export interface StorageConfig {
     /** API-Key für die Authentifizierung */
     apiKey: string;
 
-    /** PDF-Standardwerte pro Library (serverseitig wirksam) */
-    pdfDefaults?: {
-      /** Standard-Extraktionsmethode für PDF → Markdown */
-      extractionMethod?: 'native' | 'ocr' | 'both' | 'preview' | 'preview_and_native' | 'llm' | 'llm_and_ocr' | 'mistral_ocr';
-      /** Standard-Template-Name für Phase 2 (ohne .md) */
-      template?: string;
-    };
+    // === Phase 1: Transkription ===
+    /** Standard-Extraktionsmethode für PDF → Text (Default: mistral_ocr) */
+    pdfExtractionMethod?: 'mistral_ocr' | 'native' | 'ocr' | 'both' | 'preview' | 'preview_and_native' | 'llm' | 'llm_and_ocr';
 
-    /** Coverbild-Generierung: Standard-Prompt für alle Coverbilder in dieser Library */
+    // === Phase 2: Transformation ===
+    /** Standard-Template für strukturierte Ausgabe (ohne .md) */
+    template?: string;
+    /** Standard-LLM-Modell für Template-Transformation */
+    llmModel?: string;
+    /** Standard-Zielsprache für Transformation */
+    targetLanguage?: 'de' | 'en';
+    /** Automatisch Cover-Bild bei Transformation generieren */
+    generateCoverImage?: boolean;
+    /** Standard-Prompt für Cover-Bild-Generierung. Variablen: {{title}}, {{summary}} */
     coverImagePrompt?: string;
   };
 
@@ -331,13 +322,20 @@ export interface ClientLibrary {
       /** API-Key für die Authentifizierung */
       apiKey: string;
 
-      /** PDF-Standardwerte pro Library (UI-sicher) */
-      pdfDefaults?: {
-        extractionMethod?: 'native' | 'ocr' | 'both' | 'preview' | 'preview_and_native' | 'llm' | 'llm_and_ocr' | 'mistral_ocr';
-        template?: string;
-      };
+      // === Phase 1: Transkription ===
+      /** Standard-Extraktionsmethode für PDF → Text (Default: mistral_ocr) */
+      pdfExtractionMethod?: 'mistral_ocr' | 'native' | 'ocr' | 'both' | 'preview' | 'preview_and_native' | 'llm' | 'llm_and_ocr';
 
-      /** Coverbild-Generierung: Standard-Prompt für alle Coverbilder in dieser Library */
+      // === Phase 2: Transformation ===
+      /** Standard-Template für strukturierte Ausgabe (ohne .md) */
+      template?: string;
+      /** Standard-LLM-Modell für Template-Transformation */
+      llmModel?: string;
+      /** Standard-Zielsprache für Transformation */
+      targetLanguage?: 'de' | 'en';
+      /** Automatisch Cover-Bild bei Transformation generieren */
+      generateCoverImage?: boolean;
+      /** Standard-Prompt für Cover-Bild-Generierung */
       coverImagePrompt?: string;
     };
     /** Chat-/RAG-Konfiguration für die UI */

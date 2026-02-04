@@ -385,6 +385,7 @@
       "galleryFacetsDescription": "Definisci facce per la navigazione dei filtri.",
       "detailViewTypeBook": "Book (Libri, Documenti, Capitoli)",
       "detailViewTypeSession": "Session (Eventi, Presentazioni, Slide)",
+      "detailViewTypeClimateAction": "ClimateAction (Misure climatiche)",
       "checkIndexStatus": "Controlla stato indice",
       "checking": "Controllo...",
       "createIndex": "Crea indice",

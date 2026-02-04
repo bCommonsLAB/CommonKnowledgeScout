@@ -87,10 +87,25 @@ export interface TemplateRunArgs {
   extractedText: string
   templateContent: string
   targetLanguage: string
+  /** Optional: LLM-Modell-ID für Template-Transformation (z.B. 'google/gemini-2.5-flash') */
+  llmModel?: string
 }
 
+/** 
+ * Template Run Ergebnis.
+ * Bei Erfolg: meta ist gesetzt
+ * Bei Fehler: meta=null/undefined und optionale Fehlerdetails
+ */
 export interface TemplateRunResult {
-  meta: Frontmatter | null
+  meta?: Frontmatter | null
+  /** Legacy: metadata wird als Alias für meta verwendet (Rückwärtskompatibilität) */
+  metadata?: null
+  /** HTTP-Status bei Fehler */
+  status?: number
+  /** HTTP-Statustext bei Fehler */
+  statusText?: string
+  /** Fehlermeldung */
+  error?: string
 }
 
 // --- Kapitelanalyse ---

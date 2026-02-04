@@ -63,7 +63,14 @@ export async function POST(request: NextRequest) {
         secretaryService: libraryData.config?.secretaryService ? {
           apiUrl: libraryData.config.secretaryService.apiUrl || '',
           apiKey: '', // API-Key muss neu eingegeben werden
-          pdfDefaults: libraryData.config.secretaryService.pdfDefaults,
+          // Phase 1: Transkription
+          pdfExtractionMethod: libraryData.config.secretaryService.pdfExtractionMethod,
+          // Phase 2: Transformation
+          template: libraryData.config.secretaryService.template,
+          llmModel: libraryData.config.secretaryService.llmModel,
+          targetLanguage: libraryData.config.secretaryService.targetLanguage,
+          generateCoverImage: libraryData.config.secretaryService.generateCoverImage,
+          coverImagePrompt: libraryData.config.secretaryService.coverImagePrompt,
         } : undefined,
         
         // Chat Config

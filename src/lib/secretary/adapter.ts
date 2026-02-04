@@ -66,6 +66,8 @@ export interface TemplateTransformParams {
   waitMs?: number;
   apiKey?: string;
   timeoutMs?: number;
+  /** Optional: LLM-Modell-ID für Template-Transformation (z.B. 'google/gemini-2.5-flash') */
+  model?: string;
 }
 
 /**
@@ -86,7 +88,7 @@ export async function callTemplateTransform(p: TemplateTransformParams): Promise
   }
   
   // JSON-Body erstellen (statt FormData für große Payloads)
-  const body = {
+  const body: Record<string, unknown> = {
     text: p.text,
     template_content: templateContent,
     source_language: p.sourceLanguage || p.targetLanguage, // Fallback auf targetLanguage wenn nicht gesetzt
@@ -98,6 +100,11 @@ export async function callTemplateTransform(p: TemplateTransformParams): Promise
     callback_token: p.callbackToken ?? null,
     jobId: p.jobId || undefined,
     wait_ms: p.waitMs ?? 0
+  }
+  
+  // LLM-Modell nur hinzufügen, wenn explizit gesetzt (Secretary Service verwendet sonst Default)
+  if (p.model) {
+    body.model = p.model
   }
   
   const headers: Record<string, string> = { 

@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
 import { mergeTemplateNames } from "@/lib/templates/template-options"
+import { LlmModelSelector } from "@/components/ui/llm-model-selector"
 
 // Formular-Schema mit Validierung
 const secretaryServiceFormSchema = z.object({
@@ -31,6 +32,12 @@ const secretaryServiceFormSchema = z.object({
     'native','ocr','both','preview','preview_and_native','llm','llm_and_ocr','mistral_ocr'
   ]).optional(),
   pdfTemplate: z.string().optional(),
+  /** Standard-LLM-Modell für Template-Transformation */
+  templateLlmModel: z.string().optional(),
+  /** Standard-Zielsprache für Transformation */
+  targetLanguage: z.enum(['de', 'en']).optional(),
+  /** Automatisch Cover-Bild bei Transformation generieren */
+  generateCoverImage: z.boolean().optional(),
   coverImagePrompt: z.string().optional(),
 })
 
@@ -53,6 +60,9 @@ export function SecretaryServiceForm() {
       apiKey: '',
       pdfExtractionMethod: 'native',
       pdfTemplate: '',
+      templateLlmModel: '',
+      targetLanguage: 'de',
+      generateCoverImage: false,
       coverImagePrompt: '',
     },
   })
@@ -60,11 +70,26 @@ export function SecretaryServiceForm() {
   // Form mit aktiver Bibliothek befüllen
   useEffect(() => {
     if (activeLibrary) {
+      // generateCoverImage: Lese aus secretaryService (chat-Fallback entfernt, da nicht im Typ)
+      const generateCoverImage = 
+        typeof activeLibrary.config?.secretaryService?.generateCoverImage === 'boolean'
+          ? activeLibrary.config.secretaryService.generateCoverImage
+          : false
+      
+      // targetLanguage: Lese aus secretaryService oder chat (Rückwärtskompatibilität)
+      const targetLanguage = 
+        activeLibrary.config?.secretaryService?.targetLanguage ||
+        activeLibrary.config?.chat?.targetLanguage ||
+        'de'
+      
       form.reset({
         apiUrl: activeLibrary.config?.secretaryService?.apiUrl || undefined,
         apiKey: activeLibrary.config?.secretaryService?.apiKey || '',
-        pdfExtractionMethod: activeLibrary.config?.secretaryService?.pdfDefaults?.extractionMethod || 'mistral_ocr',
-        pdfTemplate: activeLibrary.config?.secretaryService?.pdfDefaults?.template || '',
+        pdfExtractionMethod: activeLibrary.config?.secretaryService?.pdfExtractionMethod || 'mistral_ocr',
+        pdfTemplate: activeLibrary.config?.secretaryService?.template || '',
+        templateLlmModel: activeLibrary.config?.secretaryService?.llmModel || '',
+        targetLanguage: targetLanguage as 'de' | 'en',
+        generateCoverImage,
         coverImagePrompt: activeLibrary.config?.secretaryService?.coverImagePrompt || '',
       })
     }
@@ -139,10 +164,13 @@ export function SecretaryServiceForm() {
           secretaryService: {
             ...(data.apiUrl ? { apiUrl: data.apiUrl } : {}),
             ...(data.apiKey ? { apiKey: data.apiKey } : {}),
-            pdfDefaults: {
-              extractionMethod: data.pdfExtractionMethod,
-              template: data.pdfTemplate?.trim() || undefined,
-            },
+            // Phase 1: Transkription
+            pdfExtractionMethod: data.pdfExtractionMethod,
+            // Phase 2: Transformation
+            template: data.pdfTemplate?.trim() || undefined,
+            llmModel: data.templateLlmModel?.trim() || undefined,
+            targetLanguage: data.targetLanguage || 'de',
+            generateCoverImage: data.generateCoverImage ?? false,
             ...(data.coverImagePrompt?.trim() ? { coverImagePrompt: data.coverImagePrompt.trim() } : {}),
           }
         }
@@ -172,10 +200,13 @@ export function SecretaryServiceForm() {
               // Fülle optionale Felder defensiv mit leerem String, damit der Client-Typ stimmt
               apiUrl: data.apiUrl || lib.config?.secretaryService?.apiUrl || '',
               apiKey: data.apiKey || lib.config?.secretaryService?.apiKey || '',
-              pdfDefaults: {
-                extractionMethod: data.pdfExtractionMethod,
-                template: data.pdfTemplate?.trim() || undefined,
-              },
+              // Phase 1: Transkription
+              pdfExtractionMethod: data.pdfExtractionMethod,
+              // Phase 2: Transformation
+              template: data.pdfTemplate?.trim() || undefined,
+              llmModel: data.templateLlmModel?.trim() || undefined,
+              targetLanguage: data.targetLanguage || 'de',
+              generateCoverImage: data.generateCoverImage ?? false,
               ...(data.coverImagePrompt?.trim() ? { coverImagePrompt: data.coverImagePrompt.trim() } : {}),
             }
           }
@@ -185,12 +216,12 @@ export function SecretaryServiceForm() {
       setLibraries(updatedLibraries)
       
       toast({
-        title: "Secretary Service Einstellungen aktualisiert",
-        description: `Die Secretary Service Einstellungen für "${activeLibrary.label}" wurden erfolgreich aktualisiert.`,
+        title: "Transformations-Einstellungen aktualisiert",
+        description: `Die Transformations-Einstellungen für "${activeLibrary.label}" wurden erfolgreich aktualisiert.`,
       })
       
     } catch (error) {
-      console.error('Fehler beim Speichern der Secretary Service Einstellungen:', error)
+      console.error('Fehler beim Speichern der Transformations-Einstellungen:', error)
       toast({
         title: "Fehler",
         description: error instanceof Error ? error.message : "Unbekannter Fehler beim Speichern",
@@ -212,64 +243,20 @@ export function SecretaryServiceForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8" autoComplete="off">
-        <FormField
-          control={form.control}
-          name="apiUrl"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>API-URL</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="http://127.0.0.1:5001/api (optional)"
-                  value={typeof field.value === 'string' ? field.value : ''}
-                  onChange={e => field.onChange(e.target.value)}
-                  autoComplete="off"
-                  name="sec-api-url"
-                  spellCheck={false}
-                  autoCapitalize="none"
-                  inputMode="url"
-                />
-              </FormControl>
-              <FormDescription>
-                Optional. Leer lassen, um die Umgebungsvariable zu verwenden.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="apiKey"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>API-Key</FormLabel>
-              <FormControl>
-                <Input
-                  type="password"
-                  placeholder="(optional) API-Key oder leer für ENV"
-                  value={typeof field.value === 'string' ? field.value : ''}
-                  onChange={e => field.onChange(e.target.value)}
-                  autoComplete="new-password"
-                  name="sec-api-key"
-                  spellCheck={false}
-                  autoCapitalize="none"
-                  inputMode="text"
-                />
-              </FormControl>
-              <FormDescription>
-                Optional. Leer lassen, um den API-Key aus der Umgebungsvariable zu verwenden.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* ===== Phase 1: Transkription ===== */}
+        <div className="space-y-4">
+          <div className="border-b pb-2">
+            <h3 className="text-lg font-semibold">Phase 1: Transkription</h3>
+            <p className="text-sm text-muted-foreground">
+              Extrahiert Text aus PDF-Dokumenten und anderen Medien.
+            </p>
+          </div>
           <FormField
             control={form.control}
             name="pdfExtractionMethod"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>PDF-Extraktionsmethode (Default)</FormLabel>
+                <FormLabel>PDF-Extraktionsmethode</FormLabel>
                 <FormControl>
                   <select className="border rounded h-9 px-2 w-full" value={field.value || ''} onChange={e => field.onChange(e.target.value)}>
                     {['native','ocr','both','preview','preview_and_native','llm','llm_and_ocr','mistral_ocr'].map(m => (
@@ -278,18 +265,30 @@ export function SecretaryServiceForm() {
                   </select>
                 </FormControl>
                 <FormDescription>
-                  Standardwert für neue PDF-Verarbeitungsjobs, falls der Client nichts sendet.
+                  Standardmethode für die Text-Extraktion aus PDF-Dokumenten.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
+        </div>
+
+        {/* ===== Phase 2: Transformation ===== */}
+        <div className="space-y-4">
+          <div className="border-b pb-2">
+            <h3 className="text-lg font-semibold">Phase 2: Transformation</h3>
+            <p className="text-sm text-muted-foreground">
+              Wandelt extrahierten Text mittels LLM und Template in strukturierte Inhalte um.
+            </p>
+          </div>
+
+          {/* Template-Auswahl */}
           <FormField
             control={form.control}
             name="pdfTemplate"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Template (Default, ohne .md)</FormLabel>
+                <FormLabel>Template</FormLabel>
                 <FormControl>
                   <div className="flex flex-col gap-2">
                     {templateMode === 'select' ? (
@@ -326,7 +325,6 @@ export function SecretaryServiceForm() {
                           type="button"
                           variant="outline"
                           onClick={() => {
-                            // Zur Liste zurück: wenn der aktuelle Wert nicht in MongoDB ist, leere Auswahl setzen.
                             const val = (typeof field.value === 'string' ? field.value : '').trim()
                             if (val && !mergedTemplateNames.some((n) => n.toLowerCase() === val.toLowerCase())) {
                               field.onChange('')
@@ -341,35 +339,167 @@ export function SecretaryServiceForm() {
                   </div>
                 </FormControl>
                 <FormDescription>
-                  Wird in Phase 2 verwendet, wenn kein Template angegeben ist. Die Liste kommt aus MongoDB (Template-Management).
+                  Standard-Template für die Transformation. Definiert die Ausgabestruktur.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* LLM-Modell */}
+          <FormField
+            control={form.control}
+            name="templateLlmModel"
+            render={({ field }) => (
+              <FormItem>
+                <LlmModelSelector
+                  value={field.value || ''}
+                  onChange={(v) => field.onChange(v)}
+                  label="LLM-Modell"
+                  placeholder="(kein Default)"
+                  description="Das LLM-Modell, das für die Template-Transformation verwendet wird."
+                  variant="form"
+                />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Zielsprache */}
+          <FormField
+            control={form.control}
+            name="targetLanguage"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Zielsprache</FormLabel>
+                <FormControl>
+                  <select 
+                    className="border rounded h-9 px-2 w-full" 
+                    value={field.value || 'de'} 
+                    onChange={e => field.onChange(e.target.value)}
+                  >
+                    <option value="de">Deutsch</option>
+                    <option value="en">English</option>
+                  </select>
+                </FormControl>
+                <FormDescription>
+                  Sprache, in der die transformierten Inhalte generiert werden.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Cover-Bild automatisch generieren */}
+          <FormField
+            control={form.control}
+            name="generateCoverImage"
+            render={({ field }) => (
+              <FormItem>
+                <div className="flex flex-row items-center gap-3">
+                  <FormControl>
+                    <input
+                      type="checkbox"
+                      checked={field.value || false}
+                      onChange={field.onChange}
+                      className="h-4 w-4"
+                    />
+                  </FormControl>
+                  <FormLabel className="!mt-0">Cover-Bild automatisch generieren</FormLabel>
+                </div>
+                <FormDescription>
+                  Bei Transformation automatisch ein Cover-Bild erstellen.
+                </FormDescription>
+              </FormItem>
+            )}
+          />
+
+          {/* Coverbild-Prompt */}
+          <FormField
+            control={form.control}
+            name="coverImagePrompt"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Coverbild-Prompt</FormLabel>
+                <FormControl>
+                  <Textarea
+                    placeholder="z. B. Erstelle ein Bild für: {{title}}..."
+                    value={typeof field.value === 'string' ? field.value : ''}
+                    onChange={e => field.onChange(e.target.value)}
+                    rows={3}
+                    className="font-mono text-sm"
+                  />
+                </FormControl>
+                <FormDescription>
+                  Prompt-Vorlage für die Bildgenerierung. Variablen: {`{{title}}`}, {`{{summary}}`}
                 </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
-        <FormField
-          control={form.control}
-          name="coverImagePrompt"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Coverbild-Prompt (Standard)</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="z. B. Ich brauche ein Bild für einen Blogartikel einer Klimamassnahme..."
-                  value={typeof field.value === 'string' ? field.value : ''}
-                  onChange={e => field.onChange(e.target.value)}
-                  rows={4}
-                  className="font-mono text-sm"
-                />
-              </FormControl>
-              <FormDescription>
-                Standard-Prompt für alle Coverbild-Generierungen in dieser Library. Wird vorangestellt, bevor Title und Teaser hinzugefügt werden.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+
+        {/* ===== Secretary Service Einstellungen ===== */}
+        <div className="space-y-4">
+          <div className="border-b pb-2">
+            <h3 className="text-lg font-semibold">Secretary Service Einstellungen</h3>
+            <p className="text-sm text-muted-foreground">
+              Verbindungseinstellungen zum Transformations-Backend.
+            </p>
+          </div>
+          <FormField
+            control={form.control}
+            name="apiUrl"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>API-URL</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="http://127.0.0.1:5001/api (optional)"
+                    value={typeof field.value === 'string' ? field.value : ''}
+                    onChange={e => field.onChange(e.target.value)}
+                    autoComplete="off"
+                    name="sec-api-url"
+                    spellCheck={false}
+                    autoCapitalize="none"
+                    inputMode="url"
+                  />
+                </FormControl>
+                <FormDescription>
+                  Optional. Leer lassen, um die Umgebungsvariable zu verwenden.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="apiKey"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>API-Key</FormLabel>
+                <FormControl>
+                  <Input
+                    type="password"
+                    placeholder="(optional) API-Key oder leer für ENV"
+                    value={typeof field.value === 'string' ? field.value : ''}
+                    onChange={e => field.onChange(e.target.value)}
+                    autoComplete="new-password"
+                    name="sec-api-key"
+                    spellCheck={false}
+                    autoCapitalize="none"
+                    inputMode="text"
+                  />
+                </FormControl>
+                <FormDescription>
+                  Optional. Leer lassen, um den API-Key aus der Umgebungsvariable zu verwenden.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
         <div className="flex justify-end">
           <Button 
             type="submit" 

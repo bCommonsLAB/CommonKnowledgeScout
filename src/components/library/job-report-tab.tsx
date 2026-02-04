@@ -12,16 +12,24 @@ import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser'
 import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom'
 import { librariesAtom } from '@/atoms/library-atom'
 import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
+import type { TemplatePreviewDetailViewType } from '@/lib/templates/template-types'
 import { DetailViewRenderer } from '@/components/library/detail-view-renderer'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { DocumentCard } from '@/components/library/gallery/document-card'
+import type { DocCardMeta } from '@/lib/gallery/types'
+import { AlertTriangle, X, Save, Copy, Link2 } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { validateAndRepairShadowTwin } from '@/lib/shadow-twin/shared'
 import { resolveShadowTwinImageUrl } from '@/lib/storage/shadow-twin'
 import { CoverImageGeneratorDialog } from './cover-image-generator-dialog'
 import { ArtifactEditDialog } from './shared/artifact-edit-dialog'
-import { fetchShadowTwinMarkdown } from '@/lib/shadow-twin/shadow-twin-mongo-client'
+import { fetchShadowTwinMarkdown, updateShadowTwinMarkdown } from '@/lib/shadow-twin/shadow-twin-mongo-client'
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
+import { buildCoverImagePromptForUIWithSource, type CoverImagePromptUIResult } from '@/lib/cover-image/prompt-builder'
 
 interface JobReportTabProps {
   libraryId: string
@@ -131,6 +139,8 @@ export function JobReportTab({
   const currentFolderId = shadowTwinState?.shadowTwinFolderId || fallbackFolderId || 'root'
   const [job, setJob] = useState<JobDto | null>(null)
   const [templateFields, setTemplateFields] = useState<string[] | null>(null)
+  // Template-spezifischer coverImagePrompt (aus Template-Frontmatter, höchste Priorität)
+  const [templateCoverImagePrompt, setTemplateCoverImagePrompt] = useState<string | null>(null)
   const [frontmatterMeta, setFrontmatterMeta] = useState<Record<string, unknown> | null>(null)
   const [section] = useState<'meta' | 'chapters'>('meta')
   const [parseErrors, setParseErrors] = useState<string[]>([])
@@ -144,6 +154,18 @@ export function JobReportTab({
   const [isUploading, setIsUploading] = useState(false)
   const [coverImageDisplayUrl, setCoverImageDisplayUrl] = useState<string | null>(null)
   const [isGeneratorDialogOpen, setIsGeneratorDialogOpen] = useState(false)
+  // State für DetailViewType-Override in Story-Vorschau ('auto' = aus Frontmatter/Config ermitteln)
+  const [previewDetailViewType, setPreviewDetailViewType] = useState<TemplatePreviewDetailViewType | 'auto'>('auto')
+  // State für Bearbeitungsmodus im Markdown-Tab (Rohtext vs. formatiert)
+  const [isMarkdownEditing, setIsMarkdownEditing] = useState(false)
+  // State für editierten Content (nur Body, ohne Frontmatter)
+  const [editedContent, setEditedContent] = useState<string>('')
+  // State für Inline-Editing: aktuell bearbeitetes Metadaten-Feld (null = keines)
+  const [editingField, setEditingField] = useState<string | null>(null)
+  // State für temporären Wert beim Inline-Editing
+  const [editingValue, setEditingValue] = useState<string>('')
+  // State für Speichern-Loading
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     if (forcedTab) setActiveTab(forcedTab)
@@ -336,6 +358,7 @@ export function JobReportTab({
     async function loadTemplateFields() {
       try {
         setTemplateFields(null)
+        setTemplateCoverImagePrompt(null)
         const tpl = job?.cumulativeMeta && typeof (job.cumulativeMeta as unknown) === 'object'
           ? (job.cumulativeMeta as Record<string, unknown>)['template_used']
           : undefined
@@ -348,21 +371,35 @@ export function JobReportTab({
           preferredTemplateName: templateName
         })
         const text = result.templateContent
-        // Extrahiere Frontmatter zwischen den ersten beiden --- und lese die Keys bis zu :
+        // Extrahiere Frontmatter zwischen den ersten beiden --- und lese die Keys/Values bis zu :
         const m = text.match(/^---[\s\S]*?---/)
         if (!m) return
         const fm = m[0]
         const keys: string[] = []
+        let extractedCoverImagePrompt: string | null = null
         for (const line of fm.split('\n')) {
           const t = line.trim()
           if (!t || t === '---') continue
           const idx = t.indexOf(':')
           if (idx > 0) {
             const k = t.slice(0, idx).trim()
+            const v = t.slice(idx + 1).trim()
             if (k) keys.push(k)
+            // Extrahiere coverImagePrompt aus Template-Frontmatter (höchste Priorität für Bildgenerierung)
+            if (k === 'coverImagePrompt' && v) {
+              extractedCoverImagePrompt = v
+            }
           }
         }
         setTemplateFields(Array.from(new Set(keys)))
+        setTemplateCoverImagePrompt(extractedCoverImagePrompt)
+        
+        if (extractedCoverImagePrompt) {
+          UILogger.debug('JobReportTab', 'Template coverImagePrompt extrahiert', {
+            templateName,
+            coverImagePrompt: extractedCoverImagePrompt.substring(0, 100)
+          })
+        }
       } catch (e) {
         UILogger.warn('JobReportTab', 'Template-Felder konnten nicht geladen werden', { error: e instanceof Error ? e.message : String(e) })
       }
@@ -451,6 +488,77 @@ export function JobReportTab({
     }
     setIsEditOpen(true)
   }, [provider, effectiveMdId])
+
+  // Speichert ein einzelnes Metadaten-Feld (Inline-Edit)
+  const saveMetaField = useCallback(async (fieldName: string, newValue: string) => {
+    if (!effectiveMdId || !fullContent) return
+    
+    setIsSaving(true)
+    try {
+      // Parse aktuelles Frontmatter
+      const parsed = parseSecretaryMarkdownStrict(fullContent)
+      const currentMeta = parsed.meta || {}
+      
+      // Aktualisiere das Feld
+      // Versuche JSON zu parsen (für Arrays/Objekte)
+      let parsedValue: unknown = newValue
+      if (newValue.startsWith('[') || newValue.startsWith('{')) {
+        try {
+          parsedValue = JSON.parse(newValue)
+        } catch {
+          // Kein valides JSON, verwende als String
+        }
+      }
+      currentMeta[fieldName] = parsedValue
+      
+      // Rekonstruiere Frontmatter
+      const frontmatterLines = Object.entries(currentMeta)
+        .map(([k, v]) => {
+          if (v === null || v === undefined) return `${k}: null`
+          if (Array.isArray(v)) return `${k}: ${JSON.stringify(v)}`
+          if (typeof v === 'object') return `${k}: ${JSON.stringify(v)}`
+          if (typeof v === 'string' && (v.includes('\n') || v.includes(':') || v.includes('"'))) {
+            // Multiline oder Sonderzeichen: YAML Block-Style oder Escaping
+            if (v.includes('\n')) {
+              return `${k}: |\n  ${v.split('\n').join('\n  ')}`
+            }
+            return `${k}: "${v.replace(/"/g, '\\"')}"`
+          }
+          return `${k}: ${v}`
+        })
+      const body = stripFrontmatter(fullContent)
+      const newFullContent = `---\n${frontmatterLines.join('\n')}\n---\n\n${body}`
+      
+      // Speichern
+      if (isMongoShadowTwinId(effectiveMdId)) {
+        const parts = parseMongoShadowTwinId(effectiveMdId)
+        if (!parts) throw new Error('Ungültige Mongo-ID')
+        await updateShadowTwinMarkdown(libraryId, parts, newFullContent)
+      } else if (provider) {
+        const item = await provider.getItemById(effectiveMdId)
+        if (!item || !item.parentId) throw new Error('Datei nicht gefunden')
+        const blob = new Blob([newFullContent], { type: 'text/markdown' })
+        const file = new File([blob], item.metadata.name, { type: 'text/markdown' })
+        await provider.deleteItem(item.id)
+        await provider.uploadFile(item.parentId, file)
+      }
+      
+      // Aktualisiere States
+      setFullContent(newFullContent)
+      setDebouncedContent(newFullContent)
+      const newParsed = parseSecretaryMarkdownStrict(newFullContent)
+      setFrontmatterMeta(newParsed.meta)
+      setParseErrors(newParsed.errors || [])
+      
+      toast.success(`"${fieldName}" gespeichert`)
+    } catch (e) {
+      toast.error(`Fehler: ${e instanceof Error ? e.message : 'Unbekannt'}`)
+    } finally {
+      setIsSaving(false)
+      setEditingField(null)
+      setEditingValue('')
+    }
+  }, [effectiveMdId, fullContent, libraryId, provider, stripFrontmatter])
   
   // Exponiere Handler über Callbacks
   useEffect(() => {
@@ -855,49 +963,38 @@ export function JobReportTab({
     }
   }, [saveCoverImage])
 
-  // Default-Prompt aus Metadaten ableiten: Library-Config coverImagePrompt + Frontmatter coverImagePrompt + Title + Teaser (getrennt durch Zeilenumbrüche)
-  const defaultPrompt = useMemo(() => {
+  // Default-Prompt aus Metadaten ableiten via zentrale Utility
+  // Priorität: 1. Template-Frontmatter coverImagePrompt (aus Template-Definition)
+  //            2. Transformiertes Frontmatter coverImagePrompt (vom LLM generiert)
+  //            3. Library-Config coverImagePrompt (Fallback)
+  const defaultPromptResult = useMemo((): CoverImagePromptUIResult => {
     const base: Record<string, unknown> = sourceMode === 'frontmatter'
       ? {}
       : ((job?.cumulativeMeta as unknown as Record<string, unknown>) || {})
     const cm = frontmatterMeta ? { ...base, ...frontmatterMeta } : base
     
-    // Priorität 1: Library-Config coverImagePrompt (Standard für alle Coverbilder in dieser Library)
-    // NEU: coverImagePrompt ist jetzt in config.chat (statt config.secretaryService)
-    const libraryCoverImagePrompt = activeLibrary?.config?.chat?.coverImagePrompt
+    // LLM-generierter coverImagePrompt aus transformierten Metadaten
+    const llmGeneratedPrompt = cm.coverImagePrompt as string | undefined
     
-    // Priorität 2: Frontmatter coverImagePrompt (dokumentenspezifisch)
-    const frontmatterCoverImagePrompt = cm.coverImagePrompt as string | undefined
+    // Library-Config coverImagePrompt als Fallback (aus secretaryService)
+    const libraryCoverImagePrompt = activeLibrary?.config?.secretaryService?.coverImagePrompt
     
-    // Unterstütze sowohl Title/Teaser (großgeschrieben) als auch title/teaser (kleingeschrieben) für Kompatibilität
+    // Unterstütze sowohl Title/Teaser (großgeschrieben) als auch title/teaser (kleingeschrieben)
     const title = (cm.Title as string | undefined) || (cm.title as string | undefined)
     const teaser = (cm.Teaser as string | undefined) || (cm.teaser as string | undefined)
     
-    const parts: string[] = []
-    
-    // 1. Library-Config coverImagePrompt voranstellen (höchste Priorität, falls vorhanden)
-    if (libraryCoverImagePrompt && typeof libraryCoverImagePrompt === 'string' && libraryCoverImagePrompt.trim().length > 0) {
-      parts.push(libraryCoverImagePrompt.trim())
-    }
-    
-    // 2. Frontmatter coverImagePrompt hinzufügen (falls vorhanden und nicht bereits durch Library-Config gesetzt)
-    if (frontmatterCoverImagePrompt && typeof frontmatterCoverImagePrompt === 'string' && frontmatterCoverImagePrompt.trim().length > 0) {
-      parts.push(frontmatterCoverImagePrompt.trim())
-    }
-    
-    // 3. Title hinzufügen (falls vorhanden)
-    if (title && typeof title === 'string' && title.trim().length > 0) {
-      parts.push(title.trim())
-    }
-    
-    // 4. Teaser hinzufügen (falls vorhanden)
-    if (teaser && typeof teaser === 'string' && teaser.trim().length > 0) {
-      parts.push(teaser.trim())
-    }
-    
-    // Alle Teile durch Zeilenumbrüche verbinden
-    return parts.join('\n')
-  }, [sourceMode, job, frontmatterMeta, activeLibrary])
+    // Zentrale Utility für UI-Anzeige verwenden (mit Quelle)
+    return buildCoverImagePromptForUIWithSource({
+      templatePrompt: templateCoverImagePrompt,
+      frontmatterPrompt: llmGeneratedPrompt,
+      libraryConfigPrompt: typeof libraryCoverImagePrompt === 'string' ? libraryCoverImagePrompt : undefined,
+      title,
+      summary: teaser,
+    })
+  }, [sourceMode, job, frontmatterMeta, activeLibrary, templateCoverImagePrompt])
+  
+  // Kompatibilität: defaultPrompt als String für bestehende Verwendungen
+  const defaultPrompt = defaultPromptResult.prompt
 
   if (sourceMode !== 'frontmatter') {
     if (loading) return <div className="p-4 text-sm text-muted-foreground">Lade Job…</div>
@@ -920,7 +1017,74 @@ export function JobReportTab({
           </TabsList>
 
           <TabsContent value="markdown" className="mt-3 min-h-0">
-            {/* Begrenze die Hoehe der Markdown-Vorschau, damit der Seiten-Scroll nicht uebernimmt. */}
+            {/* Bearbeitungs-Toolbar (nur wenn im Bearbeitungsmodus) */}
+            {isMarkdownEditing && (
+              <div className="flex justify-end mb-2 gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setIsMarkdownEditing(false)
+                    setEditedContent('')
+                  }}
+                  disabled={isSaving}
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Abbrechen
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    if (!effectiveMdId) return
+                    // Body mit Frontmatter wieder zusammenführen
+                    const parsed = parseSecretaryMarkdownStrict(fullContent)
+                    const frontmatterYaml = Object.entries(parsed.meta || {})
+                      .map(([k, v]) => {
+                        if (Array.isArray(v)) return `${k}: ${JSON.stringify(v)}`
+                        if (typeof v === 'string' && (v.includes('\n') || v.includes(':'))) return `${k}: "${v.replace(/"/g, '\\"')}"`
+                        return `${k}: ${v}`
+                      })
+                      .join('\n')
+                    const newFullContent = `---\n${frontmatterYaml}\n---\n\n${editedContent}`
+                    
+                    setIsSaving(true)
+                    try {
+                      if (isMongoShadowTwinId(effectiveMdId)) {
+                        const parts = parseMongoShadowTwinId(effectiveMdId)
+                        if (!parts) throw new Error('Ungültige Mongo-ID')
+                        await updateShadowTwinMarkdown(libraryId, parts, newFullContent)
+                      } else if (provider) {
+                        const item = await provider.getItemById(effectiveMdId)
+                        if (!item || !item.parentId) throw new Error('Datei nicht gefunden')
+                        const blob = new Blob([newFullContent], { type: 'text/markdown' })
+                        const file = new File([blob], item.metadata.name, { type: 'text/markdown' })
+                        await provider.deleteItem(item.id)
+                        await provider.uploadFile(item.parentId, file)
+                      }
+                      // Aktualisiere den Content-State
+                      setFullContent(newFullContent)
+                      setDebouncedContent(newFullContent)
+                      // Parse Frontmatter neu
+                      const newParsed = parseSecretaryMarkdownStrict(newFullContent)
+                      setFrontmatterMeta(newParsed.meta)
+                      setParseErrors(newParsed.errors || [])
+                      toast.success('Gespeichert')
+                      setIsMarkdownEditing(false)
+                      setEditedContent('')
+                    } catch (e) {
+                      toast.error(`Fehler: ${e instanceof Error ? e.message : 'Unbekannt'}`)
+                    } finally {
+                      setIsSaving(false)
+                    }
+                  }}
+                  disabled={isSaving}
+                >
+                  <Save className="h-4 w-4 mr-1" />
+                  {isSaving ? 'Speichern...' : 'Speichern'}
+                </Button>
+              </div>
+            )}
+            {/* Content: Rohtext-Editor (nur Body) oder formatierte Vorschau */}
             <div className="border rounded-md max-h-[70vh] overflow-hidden">
               {(() => {
                 // Zeige Fehler beim Laden der Datei an
@@ -932,13 +1096,13 @@ export function JobReportTab({
                   );
                 }
                 
-                // Prüfe Verarbeitungsstatus: Rendere nur wenn 'ready' oder wenn kein Status vorhanden (Rückwärtskompatibilität)
+                // Prüfe Verarbeitungsstatus
                 const processingStatus = shadowTwinState?.processingStatus;
                 const isReady = processingStatus === 'ready' || processingStatus === undefined;
                 const isProcessing = processingStatus === 'processing';
-                const isError = processingStatus === 'error';
+                const isErrorStatus = processingStatus === 'error';
                 
-                if (isError) {
+                if (isErrorStatus) {
                   return (
                     <div className="p-4 text-sm text-destructive">
                       Fehler bei der Verarbeitung: {shadowTwinState?.analysisError || 'Unbekannter Fehler'}
@@ -954,14 +1118,32 @@ export function JobReportTab({
                   );
                 }
                 
+                // Bearbeitungsmodus: Zeige Rohtext-Editor (nur Body, ohne Frontmatter)
+                if (isMarkdownEditing) {
+                  return (
+                    <Textarea
+                      value={editedContent}
+                      onChange={(e) => setEditedContent(e.target.value)}
+                      className="h-[70vh] w-full font-mono text-sm resize-none border-0 focus-visible:ring-0"
+                      placeholder="Markdown-Inhalt bearbeiten..."
+                      disabled={isSaving}
+                    />
+                  );
+                }
+                
                 if (debouncedContent && debouncedContent.trim().length > 0 && isReady) {
                   return (
-                <MarkdownPreview 
-                  content={stripFrontmatter(debouncedContent)} 
-                  currentFolderId={currentFolderId}
-                  provider={provider}
-                  className="h-[70vh]"
-                />
+                    <MarkdownPreview 
+                      content={stripFrontmatter(debouncedContent)} 
+                      currentFolderId={currentFolderId}
+                      provider={provider}
+                      className="h-[70vh]"
+                      onEdit={effectiveMdId ? () => {
+                        // Starte Bearbeitungsmodus mit Body (ohne Frontmatter)
+                        setEditedContent(stripFrontmatter(fullContent))
+                        setIsMarkdownEditing(true)
+                      } : undefined}
+                    />
                   );
                 }
                 
@@ -1053,24 +1235,86 @@ export function JobReportTab({
                           const pRaw = (provenance as Record<string, unknown>)[k]
                           const pStr = typeof pRaw === 'string' ? pRaw : pRaw ? JSON.stringify(pRaw) : ''
                           const color = cNum === undefined ? 'text-muted-foreground' : (cNum >= 0.8 ? 'text-green-600' : cNum >= 0.7 ? 'text-yellow-600' : 'text-red-600')
+                          // Inline-Edit: Wenn dieses Feld bearbeitet wird, zeige Input
+                          const isEditing = editingField === k
+                          
                           return (
-                            <tr key={k} className="border-t border-muted/40">
+                            <tr key={k} className="border-t border-muted/40 group">
                               <td className="py-1 pr-2 align-top font-medium sticky left-0 bg-background z-10 whitespace-nowrap">{k}</td>
                               <td className="py-1 pr-2 align-top">
-                                {valueStr ? (
+                                {isEditing ? (
+                                  <div className="flex items-center gap-1">
+                                    <Input
+                                      value={editingValue}
+                                      onChange={(e) => setEditingValue(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          saveMetaField(k, editingValue)
+                                        } else if (e.key === 'Escape') {
+                                          setEditingField(null)
+                                          setEditingValue('')
+                                        }
+                                      }}
+                                      onBlur={() => {
+                                        // Speichern bei Blur (verzögert, um Klick auf Button zu ermöglichen)
+                                        setTimeout(() => {
+                                          if (editingField === k) {
+                                            saveMetaField(k, editingValue)
+                                          }
+                                        }, 100)
+                                      }}
+                                      autoFocus
+                                      disabled={isSaving}
+                                      className="h-6 text-xs"
+                                    />
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-6 w-6 p-0"
+                                      onClick={() => saveMetaField(k, editingValue)}
+                                      disabled={isSaving}
+                                    >
+                                      <Save className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-6 w-6 p-0"
+                                      onClick={() => {
+                                        setEditingField(null)
+                                        setEditingValue('')
+                                      }}
+                                      disabled={isSaving}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                ) : (
                                   <TooltipProvider>
                                     <Tooltip>
                                       <TooltipTrigger asChild>
-                                        <span className="inline-block max-w-[40vw] overflow-hidden text-ellipsis whitespace-nowrap align-top" title="">
-                                          {valueStr}
+                                        <span 
+                                          className="inline-block max-w-[40vw] overflow-hidden text-ellipsis whitespace-nowrap align-top cursor-pointer hover:bg-muted/50 px-1 -mx-1 rounded transition-colors"
+                                          onClick={() => {
+                                            if (effectiveMdId) {
+                                              setEditingField(k)
+                                              setEditingValue(valueStr)
+                                            }
+                                          }}
+                                          title={effectiveMdId ? 'Klicken zum Bearbeiten' : ''}
+                                        >
+                                          {valueStr || <span className="text-muted-foreground italic">–</span>}
                                         </span>
                                       </TooltipTrigger>
                                       <TooltipContent>
-                                        <div className="max-w-[80vw] whitespace-pre-wrap break-words">{valueStr}</div>
+                                        <div className="max-w-[80vw] whitespace-pre-wrap break-words">
+                                          {valueStr || '(leer)'}
+                                          {effectiveMdId && <div className="text-xs text-muted-foreground mt-1">Klicken zum Bearbeiten</div>}
+                                        </div>
                                       </TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
-                                ) : ''}
+                                )}
                               </td>
                               {hasAnyConfidence ? <td className="py-1 pr-2 align-top sticky right-0 bg-background border-l">
                                 {(!hasNonEmptyValue || cNum === undefined) ? null : (
@@ -1121,8 +1365,41 @@ export function JobReportTab({
                       }}
                     />
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    Dateiname: {coverImageUrl}
+                  {/* Dateiname + Copy-Buttons */}
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>Dateiname: <code className="font-mono bg-muted px-1 py-0.5 rounded">{coverImageUrl}</code></span>
+                    {/* URL kopieren */}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      title="Bild-URL kopieren"
+                      onClick={async () => {
+                        if (coverImageDisplayUrl) {
+                          await navigator.clipboard.writeText(coverImageDisplayUrl)
+                          // Kurzes visuelles Feedback durch Toast wäre ideal,
+                          // aber wir nutzen hier erstmal einen simplen Ansatz
+                        }
+                      }}
+                    >
+                      <Link2 className="h-3.5 w-3.5" />
+                    </Button>
+                    {/* Dateiname kopieren */}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      title="Dateiname kopieren"
+                      onClick={async () => {
+                        if (coverImageUrl) {
+                          await navigator.clipboard.writeText(coverImageUrl)
+                        }
+                      }}
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 </div>
               ) : (
@@ -1189,6 +1466,8 @@ export function JobReportTab({
                 onOpenChange={setIsGeneratorDialogOpen}
                 onGenerated={handleGeneratedImage}
                 defaultPrompt={defaultPrompt}
+                promptSource={defaultPromptResult.source}
+                originalPrompt={defaultPromptResult.originalPrompt}
               />
             </div>
           </TabsContent>
@@ -1200,7 +1479,12 @@ export function JobReportTab({
                   ? {}
                   : ((job?.cumulativeMeta as unknown as Record<string, unknown>) || {})
                 const cm = frontmatterMeta ? { ...base, ...frontmatterMeta } : base
-                const previewType = getDetailViewType(cm, libraryConfig)
+                
+                // Ermittle den effektiven DetailViewType
+                const autoDetectedType = getDetailViewType(cm, libraryConfig)
+                const effectivePreviewType: TemplatePreviewDetailViewType = 
+                  previewDetailViewType === 'auto' ? autoDetectedType : previewDetailViewType
+                
                 const body = debouncedContent ? stripFrontmatter(debouncedContent) : ''
                 
                 // Metadaten mit aufgelöster coverImageUrl (wird durch useEffect aktualisiert)
@@ -1208,17 +1492,101 @@ export function JobReportTab({
                   ? { ...cm, coverImageUrl: resolvedCoverImageUrl }
                   : cm
                 
+                // Mapping für DocumentCard (Teaser-Vorschau)
+                const docCardMeta: DocCardMeta = {
+                  id: fileId,
+                  title: typeof cm.title === 'string' ? cm.title : '',
+                  shortTitle: typeof cm.shortTitle === 'string' ? cm.shortTitle : undefined,
+                  fileName: fileName || '',
+                  slug: typeof cm.slug === 'string' ? cm.slug : undefined,
+                  year: typeof cm.year === 'number' ? cm.year : (typeof cm.year === 'string' ? parseInt(cm.year, 10) || undefined : undefined),
+                  region: typeof cm.region === 'string' ? cm.region : undefined,
+                  coverImageUrl: resolvedCoverImageUrl,
+                  authors: Array.isArray(cm.authors) ? (cm.authors as unknown[]).filter((a): a is string => typeof a === 'string') : undefined,
+                  speakers: Array.isArray(cm.speakers) ? (cm.speakers as unknown[]).filter((s): s is string => typeof s === 'string') : undefined,
+                  pages: typeof cm.pages === 'number' ? cm.pages : undefined,
+                  date: typeof cm.date === 'string' ? cm.date : undefined,
+                  track: typeof cm.track === 'string' ? cm.track : undefined,
+                  detailViewType: effectivePreviewType,
+                  // Klimamaßnahmen-spezifische Felder
+                  massnahme_nr: typeof cm.massnahme_nr === 'string' ? cm.massnahme_nr : (typeof cm.massnahme_nr === 'number' ? String(cm.massnahme_nr) : undefined),
+                  arbeitsgruppe: typeof cm.arbeitsgruppe === 'string' ? cm.arbeitsgruppe : undefined,
+                  lv_bewertung: typeof cm.lv_bewertung === 'string' ? cm.lv_bewertung : undefined,
+                  // category mit Fallback auf handlungsfeld für ältere Daten in der DB
+                  category: typeof cm.category === 'string' ? cm.category : (typeof cm.handlungsfeld === 'string' ? cm.handlungsfeld : undefined),
+                }
+                
+                // Validierung: Pflichtfelder je nach DetailViewType prüfen
+                const requiredFieldsByType: Record<TemplatePreviewDetailViewType, string[]> = {
+                  book: ['title', 'summary'],
+                  session: ['title', 'speakers'],
+                  testimonial: ['title', 'teaser'],
+                  blog: ['title', 'summary'],
+                  climateAction: ['title', 'category', 'summary'],
+                }
+                const requiredFields = requiredFieldsByType[effectivePreviewType] || ['title']
+                const missingFields = requiredFields.filter(field => {
+                  const val = cm[field]
+                  if (val === undefined || val === null) return true
+                  if (typeof val === 'string' && val.trim() === '') return true
+                  if (Array.isArray(val) && val.length === 0) return true
+                  return false
+                })
+                
                 return (
-                  <div className="border rounded-md p-3">
-                    <DetailViewRenderer
-                      detailViewType={previewType}
-                      metadata={cmWithResolvedImage}
-                      markdown={body}
-                      libraryId={libraryId}
-                      provider={provider}
-                      currentFolderId={currentFolderId}
-                      showBackLink={false}
-                    />
+                  <div className="space-y-6">
+                    {/* 1. Story Layout */}
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-semibold text-muted-foreground">Story Layout</h4>
+                      <Select 
+                        value={previewDetailViewType} 
+                        onValueChange={(v) => setPreviewDetailViewType(v as TemplatePreviewDetailViewType | 'auto')}
+                      >
+                        <SelectTrigger className="w-full max-w-[300px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="auto">Automatisch ({autoDetectedType})</SelectItem>
+                          <SelectItem value="book">Book</SelectItem>
+                          <SelectItem value="session">Session</SelectItem>
+                          <SelectItem value="testimonial">Testimonial</SelectItem>
+                          <SelectItem value="blog">Blog</SelectItem>
+                          <SelectItem value="climateAction">ClimateAction</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      
+                      {/* Validierungswarnungen */}
+                      {missingFields.length > 0 && (
+                        <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-sm mt-2">
+                          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                          <span>Fehlende Felder: {missingFields.join(', ')}</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* 2. Listung in der Galerieansicht (Teaser) */}
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-semibold text-muted-foreground">Listung in der Galerieansicht</h4>
+                      <div className="max-w-[300px]">
+                        <DocumentCard doc={docCardMeta} />
+                      </div>
+                    </div>
+                    
+                    {/* 3. Detailansicht */}
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-semibold text-muted-foreground">Detailansicht</h4>
+                      <div className="border rounded-md p-3">
+                        <DetailViewRenderer
+                          detailViewType={effectivePreviewType}
+                          metadata={cmWithResolvedImage}
+                          markdown={body}
+                          libraryId={libraryId}
+                          provider={provider}
+                          currentFolderId={currentFolderId}
+                          showBackLink={false}
+                        />
+                      </div>
+                    </div>
                   </div>
                 )
               })()

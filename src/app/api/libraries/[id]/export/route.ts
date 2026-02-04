@@ -63,7 +63,14 @@ export async function GET(
         secretaryService: library.config.secretaryService ? {
           apiUrl: library.config.secretaryService.apiUrl || '',
           apiKey: '', // API-Key wird nicht exportiert
-          pdfDefaults: library.config.secretaryService.pdfDefaults,
+          // Phase 1: Transkription
+          pdfExtractionMethod: library.config.secretaryService.pdfExtractionMethod,
+          // Phase 2: Transformation
+          template: library.config.secretaryService.template,
+          llmModel: library.config.secretaryService.llmModel,
+          targetLanguage: library.config.secretaryService.targetLanguage,
+          generateCoverImage: library.config.secretaryService.generateCoverImage,
+          coverImagePrompt: library.config.secretaryService.coverImagePrompt,
         } : undefined,
         
         // Chat Config (vollständig exportieren)

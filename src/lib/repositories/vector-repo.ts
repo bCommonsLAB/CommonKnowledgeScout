@@ -1053,6 +1053,13 @@ export async function findDocs(
       // Detailansicht-Auswahl (Wizard/Frontmatter)
       'docMetaJson.detailViewType': 1,
       'docMetaJson.docType': 1,
+      // ClimateAction-spezifische Felder für Gallery-Teaser
+      // handlungsfeld wird noch für Fallback bei alten Daten projiziert
+      'docMetaJson.category': 1,
+      'docMetaJson.handlungsfeld': 1,
+      'docMetaJson.massnahme_nr': 1,
+      'docMetaJson.lv_bewertung': 1,
+      'docMetaJson.arbeitsgruppe': 1,
     },
   })
   

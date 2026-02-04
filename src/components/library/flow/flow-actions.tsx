@@ -13,7 +13,7 @@ import { FileLogger } from "@/lib/debug/logger"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { ArrowLeft, ExternalLink, FileText, PanelLeftClose, ScrollText, Settings, Sparkles } from "lucide-react"
 import type { ShadowTwinTransformationEntry } from "@/components/library/flow/use-shadow-twin-artifacts"
-import { PipelineSheet, type PipelinePolicies, type CoverImageOptions } from "@/components/library/flow/pipeline-sheet"
+import { PipelineSheet, type PipelinePolicies, type CoverImageOptions, type LlmModelOption } from "@/components/library/flow/pipeline-sheet"
 import { loadPdfDefaults } from "@/lib/pdf-defaults"
 import { getEffectivePdfDefaults } from "@/atoms/pdf-defaults"
 import { activeLibraryAtom } from "@/atoms/library-atom"
@@ -75,6 +75,11 @@ export function FlowActions({
 
   const [templates, setTemplates] = React.useState<string[]>([])
   const [isLoadingTemplates, setIsLoadingTemplates] = React.useState(false)
+  
+  // LLM-Modell-State
+  const [llmModel, setLlmModel] = React.useState<string>("")
+  const [llmModels, setLlmModels] = React.useState<LlmModelOption[]>([])
+  const [isLoadingLlmModels, setIsLoadingLlmModels] = React.useState(false)
 
   const [isRunning, setIsRunning] = React.useState(false)
   const [activeJob, setActiveJob] = React.useState<{ jobId: string; status?: string; progress?: number; message?: string } | null>(null)
@@ -82,7 +87,8 @@ export function FlowActions({
 
   const activeLibrary = useAtomValue(activeLibraryAtom)
   const libraryConfigChatTargetLanguage = activeLibrary?.config?.chat?.targetLanguage
-  const libraryConfigPdfTemplate = activeLibrary?.config?.secretaryService?.pdfDefaults?.template
+  const libraryConfigPdfTemplate = activeLibrary?.config?.secretaryService?.template
+  const libraryConfigLlmModel = activeLibrary?.config?.secretaryService?.llmModel
   
 
   const kind = getMediaKind(sourceFile)
@@ -150,6 +156,14 @@ export function FlowActions({
         if (isNonEmptyString(templateName) && !names.includes(templateName)) {
           void setTemplateName("")
         }
+        // Falls kein Template ausgewählt: Library-Default verwenden, wenn verfügbar
+        if (!templateName && names.length > 0 && libraryConfigPdfTemplate) {
+          const defaultExists = names.some(n => n.toLowerCase() === libraryConfigPdfTemplate.toLowerCase())
+          if (defaultExists) {
+            const exactName = names.find(n => n.toLowerCase() === libraryConfigPdfTemplate.toLowerCase())
+            if (exactName) void setTemplateName(exactName)
+          }
+        }
       } catch (err) {
         FileLogger.warn("flow-actions", "Templates konnten nicht geladen werden", {
           error: err instanceof Error ? err.message : String(err),
@@ -163,7 +177,46 @@ export function FlowActions({
     return () => {
       cancelled = true
     }
-  }, [libraryId, templateName, setTemplateName, isPipelineOpen])
+  }, [libraryId, templateName, setTemplateName, isPipelineOpen, libraryConfigPdfTemplate])
+
+  // LLM-Modelle laden wenn Pipeline geöffnet wird
+  React.useEffect(() => {
+    let cancelled = false
+    async function loadLlmModels() {
+      if (!isPipelineOpen) return
+      setIsLoadingLlmModels(true)
+      try {
+        const res = await fetch("/api/public/llm-models")
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const data = await res.json() as Array<{ _id: string; modelId: string; name: string; strengths?: string }>
+        if (cancelled) return
+        const models: LlmModelOption[] = data.map(m => ({
+          modelId: m.modelId || m._id,
+          name: m.name,
+          strengths: m.strengths,
+        }))
+        setLlmModels(models)
+        // Falls kein Modell ausgewählt: Library-Default verwenden, sonst erstes Modell
+        if (!llmModel && models.length > 0) {
+          const defaultModel = libraryConfigLlmModel && models.some(m => m.modelId === libraryConfigLlmModel)
+            ? libraryConfigLlmModel
+            : models[0].modelId
+          setLlmModel(defaultModel)
+        }
+      } catch (err) {
+        FileLogger.warn("flow-actions", "LLM-Modelle konnten nicht geladen werden", {
+          error: err instanceof Error ? err.message : String(err),
+        })
+        if (!cancelled) setLlmModels([])
+      } finally {
+        if (!cancelled) setIsLoadingLlmModels(false)
+      }
+    }
+    void loadLlmModels()
+    return () => {
+      cancelled = true
+    }
+  }, [isPipelineOpen, llmModel, libraryConfigLlmModel])
 
   // Subscribe to SSE and update active job state (thin UI only; engine stays server-side).
   React.useEffect(() => {
@@ -204,7 +257,7 @@ export function FlowActions({
   }, [activeJob?.jobId])
 
   const runPipeline = React.useCallback(
-    async (args: { templateName?: string; targetLanguage: string; policies: PipelinePolicies; coverImage?: CoverImageOptions }) => {
+    async (args: { templateName?: string; targetLanguage: string; policies: PipelinePolicies; coverImage?: CoverImageOptions; llmModel?: string }) => {
       if (!libraryId) {
         toast.error("Fehler", { description: "libraryId fehlt" })
         return
@@ -233,6 +286,8 @@ export function FlowActions({
           // Cover-Bild-Generierung
           generateCoverImage: args.coverImage?.generateCoverImage,
           coverImagePrompt: args.coverImage?.coverImagePrompt,
+          // LLM-Modell für Template-Transformation
+          llmModel: args.llmModel,
         })
 
         setActiveJob({ jobId, status: "queued", progress: 0, message: "queued" })
@@ -482,8 +537,12 @@ export function FlowActions({
         onTemplateNameChange={(v) => void setTemplateName(v)}
         templates={templates}
         isLoadingTemplates={isLoadingTemplates}
+        llmModel={llmModel}
+        onLlmModelChange={setLlmModel}
+        llmModels={llmModels}
+        isLoadingLlmModels={isLoadingLlmModels}
         onStart={runPipeline}
-        defaultGenerateCoverImage={activeLibrary?.config?.chat?.generateCoverImage}
+        defaultGenerateCoverImage={activeLibrary?.config?.secretaryService?.generateCoverImage}
       />
     </div>
   )

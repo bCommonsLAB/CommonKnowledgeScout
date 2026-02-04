@@ -114,8 +114,8 @@ export const chatConfigSchema = z.object({
   // Wenn nicht gesetzt, wird automatisch das kürzere Feld gewählt (falls beide vorhanden)
   tocSummaryField: z.enum(['summary', 'teaser']).optional(),
   gallery: z.object({
-    // Typ der Detailansicht: 'book' für klassische Dokumente, 'session' für Event-Sessions/Präsentationen
-    detailViewType: z.enum(['book', 'session']).default('book'),
+    // Typ der Detailansicht: 'book' für klassische Dokumente, 'session' für Event-Sessions, 'climateAction' für Klimamaßnahmen, etc.
+    detailViewType: z.enum(['book', 'session', 'climateAction', 'testimonial', 'blog']).default('book'),
     facets: z.array(z.object({
       metaKey: z.string().min(1), // Top‑Level Feld in docMetaJson (gleichzeitig Query-Param-Name)
       label: z.string().min(1).optional(),

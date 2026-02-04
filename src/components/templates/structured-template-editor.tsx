@@ -21,6 +21,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 import type { TemplateCreationConfig, TemplateMetadataSchema, TemplateMetadataField, TemplatePreviewDetailViewType } from '@/lib/templates/template-types'
 import { buildCreationFileName } from '@/lib/creation/file-name'
 import { injectCreationIntoFrontmatter } from '@/lib/templates/template-frontmatter-utils'
+import { validateTemplateForViewType, getRequiredFields, getOptionalFields, type ValidationResult } from '@/lib/detail-view-types'
+import { AlertTriangle, CheckCircle2, Check } from 'lucide-react'
 // Input entfällt nach UI-Verschlankung
 
 export interface StructuredTemplateEditorProps {
@@ -222,6 +224,28 @@ export function StructuredTemplateEditor({ markdownBody, metadata, systemprompt,
         description: question,
         variable: field.key, // Stelle sicher, dass Variable = Key
         rawValue: `{{${field.key}|${question}}}`
+      }
+      const updatedMetadata: TemplateMetadataSchema = {
+        ...metadata,
+        fields: updatedFields,
+        rawFrontmatter: buildFrontmatterFromFields(updatedFields, metadata.rawFrontmatter)
+      }
+      onChange({ markdownBody, metadata: updatedMetadata, systemprompt: sysPrompt, creation })
+    }
+  }
+
+  // Aktualisiert den Wert eines festen Feldes (ohne {{...}} Placeholder)
+  const updateFixedFieldValue = (entryKey: string, newValue: string) => {
+    const fieldIndex = metadata.fields.findIndex(f => f.key === entryKey)
+    if (fieldIndex >= 0) {
+      const field = metadata.fields[fieldIndex]
+      const updatedFields = [...metadata.fields]
+      updatedFields[fieldIndex] = {
+        ...field,
+        rawValue: newValue,
+        // Festes Feld hat keine Variable/Description im Placeholder-Sinne
+        variable: field.key,
+        description: ''
       }
       const updatedMetadata: TemplateMetadataSchema = {
         ...metadata,
@@ -438,21 +462,43 @@ export function StructuredTemplateEditor({ markdownBody, metadata, systemprompt,
               Feld hinzufügen
             </Button>
           </div>
+          {/* Legende für Feldtypen */}
+          <div className="mb-2 flex items-center gap-4 text-[10px]">
+            <div className="flex items-center gap-1">
+              <span className="inline-block w-2 h-2 rounded-full bg-blue-500" />
+              <span className="text-muted-foreground">Dynamisch (LLM füllt aus)</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="inline-block w-2 h-2 rounded-full bg-gray-400" />
+              <span className="text-muted-foreground">Fest (fixer Wert)</span>
+            </div>
+          </div>
           <div className="max-h-[50vh] overflow-auto rounded border">
             <table className="w-full text-[11px] border-collapse">
               <thead className="sticky top-0 bg-background">
                 <tr>
+                  <th className="w-6 px-1 py-1"></th>
                   <th className="w-40 text-left px-2 py-1">Feld</th>
-                  <th className="text-left px-2 py-1">Hinweis</th>
+                  <th className="text-left px-2 py-1">Hinweis / Wert</th>
                   <th className="w-10 px-2 py-1"></th>
                 </tr>
               </thead>
               <tbody>
                 {metadata.fields.length === 0 ? (
-                  <tr><td colSpan={3} className="px-2 py-1 text-muted-foreground">Keine Felder im Frontmatter.</td></tr>
+                  <tr><td colSpan={4} className="px-2 py-1 text-muted-foreground">Keine Felder im Frontmatter.</td></tr>
                 ) : metadata.fields.map((field, i) => {
+                  // Prüfe ob dynamisches Feld (enthält {{...}}) oder fester Wert
+                  const isDynamic = field.rawValue?.includes('{{') ?? false
+                  
                   return (
                     <tr key={`${field.key}-${i}`} className="align-top">
+                      {/* Typ-Indikator */}
+                      <td className="px-1 py-1 align-top">
+                        <span 
+                          className={`inline-block w-2 h-2 rounded-full mt-1.5 ${isDynamic ? 'bg-blue-500' : 'bg-gray-400'}`}
+                          title={isDynamic ? 'Dynamisch: LLM extrahiert/generiert diesen Wert' : 'Fest: Dieser Wert wird 1:1 übernommen'}
+                        />
+                      </td>
                       <td className="px-2 py-1 align-top">
                         <InlineEditableCell
                           value={field.key}
@@ -462,11 +508,20 @@ export function StructuredTemplateEditor({ markdownBody, metadata, systemprompt,
                         />
                       </td>
                       <td className="px-2 py-1 align-top">
-                        <InlineEditableCell
-                          value={field.description}
-                          onChange={(val) => updateFrontmatterQuestion(field.key, val)}
-                          placeholder="Klicken zum Bearbeiten"
-                        />
+                        {isDynamic ? (
+                          <InlineEditableCell
+                            value={field.description}
+                            onChange={(val) => updateFrontmatterQuestion(field.key, val)}
+                            placeholder="LLM-Anweisung eingeben"
+                          />
+                        ) : (
+                          <InlineEditableCell
+                            value={field.rawValue || ''}
+                            onChange={(val) => updateFixedFieldValue(field.key, val)}
+                            placeholder="Festen Wert eingeben"
+                            className="font-mono text-muted-foreground"
+                          />
+                        )}
                       </td>
                       <td className="px-2 py-1 align-top">
                         <Button
@@ -562,11 +617,20 @@ export function StructuredTemplateEditor({ markdownBody, metadata, systemprompt,
                 <SelectItem value="session">Session</SelectItem>
                 <SelectItem value="testimonial">Testimonial</SelectItem>
                 <SelectItem value="blog">Blog</SelectItem>
+                <SelectItem value="climateAction">ClimateAction</SelectItem>
               </SelectContent>
             </Select>
+            
+            {/* Pflichtfeld-Warnung basierend auf Registry */}
+            <DetailViewTypeWarning
+              viewType={metadata.detailViewType || 'book'}
+              templateFields={metadata.fields.map(f => f.key)}
+            />
+            
             <div className="text-xs text-muted-foreground">
               <p className="mb-1">• <strong>Book:</strong> Klassische Dokumentansicht mit Kapiteln</p>
               <p className="mb-1">• <strong>Session:</strong> Event/Talk/Session Detail-Ansicht</p>
+              <p className="mb-1">• <strong>ClimateAction:</strong> Klimamaßnahmen-Ansicht</p>
               <p className="mb-1">• <strong>Testimonial:</strong> Testimonial-Ansicht</p>
               <p>• <strong>Blog:</strong> Blog-Ansicht</p>
             </div>
@@ -2019,6 +2083,116 @@ function InlineMarkdownCell({ displayValue, editValue, onChange, placeholder, co
       onBlur={() => setEditing(false)}
       onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setEditing(false) } }}
     />
+  )
+}
+
+/**
+ * Zeigt eine Warnung an, wenn Pflichtfelder für den ausgewählten DetailViewType
+ * nicht im Template definiert sind. Zeigt auch eine Bestätigung bei erfolgreicher Validierung.
+ */
+function DetailViewTypeWarning({ viewType, templateFields }: { viewType: string; templateFields: string[] }) {
+  const validation: ValidationResult = React.useMemo(
+    () => validateTemplateForViewType(templateFields, viewType),
+    [templateFields, viewType]
+  )
+  
+  // Erfolgreiche Validierung - zeige Bestätigung
+  if (validation.isValid) {
+    // Finde die erkannten Pflichtfelder (die im Template vorhanden sind)
+    // getRequiredFields und getOptionalFields kommen aus dem Import oben
+    const requiredFields = getRequiredFields(viewType) as string[]
+    const optionalFields = getOptionalFields(viewType) as string[]
+    const presentOptional = optionalFields.filter((f: string) => templateFields.includes(f))
+    
+    return (
+      <div className="flex items-start gap-2 p-3 rounded-md border border-green-500/50 bg-green-50 dark:bg-green-950/20">
+        <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-500 flex-shrink-0 mt-0.5" />
+        <div className="text-xs">
+          <p className="font-medium text-green-800 dark:text-green-300">
+            Alle Pflichtfelder für {viewType} vorhanden
+          </p>
+          <div className="mt-2 grid gap-2 md:grid-cols-2">
+            <div>
+              <p className="text-green-700 dark:text-green-400 font-medium">
+                Pflichtfelder:
+              </p>
+              <ul className="mt-1 space-y-0.5">
+                {requiredFields.map((field: string) => (
+                  <li key={field} className="font-mono text-green-700 dark:text-green-400 flex items-center gap-1">
+                    <Check className="w-3 h-3" /> {field}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {presentOptional.length > 0 && (
+              <div>
+                <p className="text-green-600 dark:text-green-500 font-medium">
+                  Optionale Felder erkannt:
+                </p>
+                <ul className="mt-1 space-y-0.5">
+                  {presentOptional.slice(0, 5).map((field: string) => (
+                    <li key={field} className="font-mono text-green-600 dark:text-green-500 flex items-center gap-1">
+                      <Check className="w-3 h-3" /> {field}
+                    </li>
+                  ))}
+                  {presentOptional.length > 5 && (
+                    <li className="text-green-600 dark:text-green-500">
+                      + {presentOptional.length - 5} weitere
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
+          </div>
+          {validation.missingOptional.length > 0 && (
+            <p className="text-green-600 dark:text-green-500 mt-2 text-[10px]">
+              {validation.missingOptional.length} optionale Felder nicht definiert (nicht kritisch)
+            </p>
+          )}
+        </div>
+      </div>
+    )
+  }
+  
+  // Fehlende Pflichtfelder - zeige Warnung
+  return (
+    <div className="flex items-start gap-2 p-3 rounded-md border border-yellow-500/50 bg-yellow-50 dark:bg-yellow-950/20">
+      <AlertTriangle className="w-4 h-4 text-yellow-600 dark:text-yellow-500 flex-shrink-0 mt-0.5" />
+      <div className="text-xs">
+        <p className="font-medium text-yellow-800 dark:text-yellow-300">
+          Fehlende Pflichtfelder für {viewType}
+        </p>
+        <p className="text-yellow-700 dark:text-yellow-400 mt-1">
+          Die folgenden Felder müssen im Template definiert sein, damit die Detail-Ansicht korrekt funktioniert:
+        </p>
+        <ul className="mt-1 space-y-0.5">
+          {validation.missingRequired.map(field => (
+            <li key={field} className="font-mono text-yellow-800 dark:text-yellow-300">
+              • {field}
+            </li>
+          ))}
+        </ul>
+        {validation.missingOptional.length > 0 && (
+          <>
+            <p className="text-yellow-700 dark:text-yellow-400 mt-2">
+              Optionale Felder (empfohlen):
+            </p>
+            <ul className="mt-1 space-y-0.5">
+              {validation.missingOptional.slice(0, 5).map(field => (
+                <li key={field} className="font-mono text-yellow-600 dark:text-yellow-500">
+                  • {field}
+                </li>
+              ))}
+              {validation.missingOptional.length > 5 && (
+                <li className="text-yellow-600 dark:text-yellow-500">
+                  ... und {validation.missingOptional.length - 5} weitere
+                </li>
+              )}
+            </ul>
+          </>
+        )}
+      </div>
+    </div>
   )
 }
 

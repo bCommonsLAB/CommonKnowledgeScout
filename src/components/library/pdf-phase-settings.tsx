@@ -36,7 +36,7 @@ export function PdfPhaseSettings({ open, onOpenChange }: PdfPhaseSettingsProps) 
   const [values, setValues] = React.useState<Partial<PdfTransformOptions>>({});
 
   const libraryConfigChatTargetLanguage = activeLibrary?.config?.chat?.targetLanguage;
-  const libraryConfigPdfTemplate = activeLibrary?.config?.secretaryService?.pdfDefaults?.template;
+  const libraryConfigPdfTemplate = activeLibrary?.config?.secretaryService?.template;
 
   React.useEffect(() => {
     if (!activeLibraryId) return;

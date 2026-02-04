@@ -218,7 +218,12 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   const libraries = useAtomValue(librariesAtom)
   const activeLibrary = libraries.find(lib => lib.id === libraryId)
   const galleryConfig = activeLibrary?.config?.chat?.gallery
-  const detailViewType = galleryConfig?.detailViewType === 'session' ? 'session' : 'book'
+  // Alle gültigen DetailViewTypes akzeptieren
+  const validDetailViewTypes = ['book', 'session', 'climateAction', 'testimonial', 'blog'] as const
+  const rawDetailViewType = galleryConfig?.detailViewType
+  const detailViewType = validDetailViewTypes.includes(rawDetailViewType as typeof validDetailViewTypes[number]) 
+    ? rawDetailViewType 
+    : 'book'
   const typeKey = detailViewType === 'session' ? 'talks' : 'documents'
   
   // Chat History

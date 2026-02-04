@@ -102,7 +102,8 @@ export function parseSecretaryMarkdownStrict(markdown: string): FrontmatterParse
   }
 
   // Spezifische Schlüssel, die JSON enthalten können
-  const jsonKeys = ['chapters', 'toc', 'confidence', 'provenance', 'slides']
+  // WICHTIG: 'tags' und 'authors' sind auch Arrays und müssen als JSON geparst werden
+  const jsonKeys = ['chapters', 'toc', 'confidence', 'provenance', 'slides', 'tags', 'authors', 'topics']
   for (const k of jsonKeys) {
     const raw = extractBalancedJsonAfterKey(fm, k)
     if (raw) {

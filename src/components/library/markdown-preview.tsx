@@ -5,7 +5,7 @@ import hljs from 'highlight.js';
 import 'highlight.js/styles/vs2015.css';
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
 import { Button } from '@/components/ui/button';
-import { Wand2, Search, Maximize2, X as CloseIcon, ChevronDown, ChevronUp } from 'lucide-react';
+import { Wand2, Search, Maximize2, X as CloseIcon, ChevronDown, ChevronUp, Copy, Check, Pencil } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import 'highlight.js/styles/github-dark.css';
@@ -150,6 +150,8 @@ interface MarkdownPreviewProps {
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
   onRegisterApi?: (api: { scrollToText: (q: string) => void; scrollToPage: (n: number | string) => void; setQueryAndSearch: (q: string) => void; getVisiblePage: () => number | null }) => void;
   compact?: boolean; // Kompakte Ansicht: ohne Schnellsuche, minimale Ränder
+  /** Callback für Bearbeiten-Button - wenn gesetzt, wird der Bearbeiten-Button angezeigt */
+  onEdit?: () => void;
 }
 
 /**
@@ -1282,7 +1284,8 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
   onTransform,
   onRefreshFolder,
   onRegisterApi,
-  compact = false
+  compact = false,
+  onEdit
 }: MarkdownPreviewProps) {
   const currentItem = useAtomValue(selectedFileAtom);
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
@@ -1294,6 +1297,21 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
   // Merkt sich die aktuelle Suchposition, um vor/zurueck navigieren zu koennen
   const searchStateRef = React.useRef<{ query: string; index: number } | null>(null);
   const [isFullscreen, setIsFullscreen] = React.useState<boolean>(false);
+  // State für Kopieren-Feedback
+  const [isCopied, setIsCopied] = React.useState<boolean>(false);
+  
+  // Kopiert den Markdown-Inhalt in die Zwischenablage
+  const handleCopyMarkdown = React.useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setIsCopied(true);
+      toast.success('Markdown in Zwischenablage kopiert');
+      // Nach 2 Sekunden Icon zurücksetzen
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch {
+      toast.error('Kopieren fehlgeschlagen');
+    }
+  }, [content]);
   
   // Logging in useEffect verschieben, um State-Updates während des Renderns zu vermeiden
   React.useEffect(() => {
@@ -1658,6 +1676,26 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
                   <Wand2 className="h-4 w-4" />
                 </button>
               )}
+              {onEdit && (
+                <button
+                  type="button"
+                  aria-label="Bearbeiten"
+                  title="Bearbeiten"
+                  onClick={onEdit}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border bg-background/80 hover:bg-muted text-muted-foreground"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+              )}
+              <button
+                type="button"
+                aria-label="Markdown kopieren"
+                title="Markdown kopieren"
+                onClick={handleCopyMarkdown}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md border bg-background/80 hover:bg-muted text-muted-foreground"
+              >
+                {isCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+              </button>
               <button
                 type="button"
                 aria-label="Vollbild"
@@ -1692,6 +1730,29 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
                       <Wand2 className="h-4 w-4" />
                     </button>
                   )}
+                  {onEdit && (
+                    <button
+                      type="button"
+                      aria-label="Bearbeiten"
+                      title="Bearbeiten"
+                      onClick={() => {
+                        setIsFullscreen(false)
+                        onEdit()
+                      }}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-md border bg-background/80 hover:bg-muted text-muted-foreground"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    aria-label="Markdown kopieren"
+                    title="Markdown kopieren"
+                    onClick={handleCopyMarkdown}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border bg-background/80 hover:bg-muted text-muted-foreground"
+                  >
+                    {isCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                  </button>
                   <button
                     type="button"
                     aria-label="Vollbild beenden"

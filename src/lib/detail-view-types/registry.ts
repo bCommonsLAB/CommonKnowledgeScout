@@ -1,0 +1,150 @@
+/**
+ * @fileoverview Zentrale Registry für DetailViewTypes
+ * 
+ * @description
+ * Diese Datei definiert alle verfügbaren DetailViewTypes zentral an einem Ort.
+ * Sie enthält:
+ * - Die Liste aller gültigen ViewTypes
+ * - Pflichtfelder und optionale Felder pro ViewType
+ * - Zod-Schema für Validierung
+ * - Validierungsfunktionen
+ * 
+ * @module detail-view-types
+ * 
+ * @usedIn
+ * - src/lib/external-jobs/phase-template.ts (Pipeline-Contract)
+ * - src/components/templates/structured-template-editor.tsx (Vorlagenverwaltung)
+ * - src/components/library/detail-view-renderer.tsx (Story-Vorschau)
+ * - src/components/library/gallery/detail-overlay.tsx (Galerie)
+ */
+
+import { z } from 'zod'
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ZENTRALE DEFINITION ALLER VIEWTYPES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Alle verfügbaren DetailViewTypes als const Array.
+ * Dies ist die einzige Stelle, an der neue ViewTypes hinzugefügt werden müssen.
+ */
+export const DETAIL_VIEW_TYPES = ['book', 'session', 'testimonial', 'blog', 'climateAction'] as const
+
+/**
+ * Union Type aller gültigen DetailViewTypes.
+ * Abgeleitet aus dem DETAIL_VIEW_TYPES Array.
+ */
+export type DetailViewType = typeof DETAIL_VIEW_TYPES[number]
+
+/**
+ * Zod-Schema für DetailViewType-Validierung.
+ * Kann in API-Routes und Forms verwendet werden.
+ */
+export const detailViewTypeSchema = z.enum(DETAIL_VIEW_TYPES)
+
+/**
+ * Prüft ob ein Wert ein gültiger DetailViewType ist.
+ * Type Guard für Runtime-Checks.
+ */
+export function isValidDetailViewType(value: unknown): value is DetailViewType {
+  return typeof value === 'string' && DETAIL_VIEW_TYPES.includes(value as DetailViewType)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// KONFIGURATION PRO VIEWTYPE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Konfiguration für einen DetailViewType.
+ * Definiert Pflichtfelder, optionale Felder und UI-Eigenschaften.
+ */
+export interface ViewTypeConfig {
+  /** Pflichtfelder, die im Frontmatter vorhanden sein müssen */
+  requiredFields: string[]
+  /** Optionale Felder, die die Anzeige verbessern */
+  optionalFields: string[]
+  /** i18n-Schlüssel für das Label (z.B. "Book", "Session") */
+  labelKey: string
+  /** i18n-Schlüssel für die Beschreibung */
+  descriptionKey: string
+}
+
+/**
+ * Registry mit Konfiguration für jeden DetailViewType.
+ * 
+ * Pflichtfelder:
+ * - Müssen im transformierten Frontmatter vorhanden sein
+ * - Pipeline-Contract warnt wenn sie fehlen
+ * - Story-Vorschau zeigt Warnung wenn sie fehlen
+ * 
+ * Optionale Felder:
+ * - Verbessern die Anzeige, sind aber nicht kritisch
+ * - Werden in der Vorlagenverwaltung als "empfohlen" angezeigt
+ */
+export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
+  book: {
+    requiredFields: ['title'],
+    optionalFields: ['summary', 'authors', 'year', 'coverImageUrl', 'chapters', 'pages', 'region'],
+    labelKey: 'gallery.detailViewTypeBook',
+    descriptionKey: 'gallery.detailViewTypeBookDescription',
+  },
+  session: {
+    requiredFields: ['title'],
+    optionalFields: ['summary', 'speakers', 'date', 'slides', 'track', 'location', 'video_url'],
+    labelKey: 'gallery.detailViewTypeSession',
+    descriptionKey: 'gallery.detailViewTypeSessionDescription',
+  },
+  testimonial: {
+    requiredFields: ['title', 'author_name'],
+    optionalFields: ['q1_experience', 'q2_key_insight', 'q3_why_important', 'author_image_url', 'author_role'],
+    labelKey: 'gallery.detailViewTypeTestimonial',
+    descriptionKey: 'gallery.detailViewTypeTestimonialDescription',
+  },
+  blog: {
+    requiredFields: ['title'],
+    optionalFields: ['summary', 'authors', 'coverImageUrl', 'teaser', 'tags'],
+    labelKey: 'gallery.detailViewTypeBlog',
+    descriptionKey: 'gallery.detailViewTypeBlogDescription',
+  },
+  climateAction: {
+    requiredFields: ['title', 'category'],
+    optionalFields: [
+      'summary',
+      'massnahme_nr',
+      'lv_bewertung',
+      'arbeitsgruppe',
+      'lv_zustaendigkeit',
+      'tags',
+      'coverImageUrl',
+    ],
+    labelKey: 'gallery.detailViewTypeClimateAction',
+    descriptionKey: 'gallery.detailViewTypeClimateActionDescription',
+  },
+}
+
+/**
+ * Hilfsfunktion: Holt die Konfiguration für einen ViewType.
+ * Gibt undefined zurück wenn der ViewType nicht existiert.
+ */
+export function getViewTypeConfig(viewType: string): ViewTypeConfig | undefined {
+  if (!isValidDetailViewType(viewType)) return undefined
+  return VIEW_TYPE_REGISTRY[viewType]
+}
+
+/**
+ * Hilfsfunktion: Holt alle Pflichtfelder für einen ViewType.
+ * Gibt leeres Array zurück wenn der ViewType nicht existiert.
+ */
+export function getRequiredFields(viewType: string): string[] {
+  const config = getViewTypeConfig(viewType)
+  return config?.requiredFields ?? []
+}
+
+/**
+ * Hilfsfunktion: Holt alle optionalen Felder für einen ViewType.
+ * Gibt leeres Array zurück wenn der ViewType nicht existiert.
+ */
+export function getOptionalFields(viewType: string): string[] {
+  const config = getViewTypeConfig(viewType)
+  return config?.optionalFields ?? []
+}

@@ -19,6 +19,7 @@ import {
 import { buildMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
 import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import { selectShadowTwinArtifact } from '@/lib/shadow-twin/shadow-twin-select'
+import { FileLogger } from '@/lib/debug/logger'
 
 /**
  * MongoDB Shadow-Twin Store Implementation.
@@ -95,7 +96,16 @@ export class MongoShadowTwinStore implements ShadowTwinStore {
       artifactKey: key,
     })
 
-    if (!record) return null
+    if (!record) {
+      FileLogger.warn('mongo-shadow-twin-store', 'Artefakt nicht gefunden', {
+        libraryId: this.libraryId,
+        sourceId: key.sourceId,
+        kind: key.kind,
+        targetLanguage: key.targetLanguage,
+        templateName: key.templateName,
+      })
+      return null
+    }
 
     const id = buildMongoShadowTwinId({
       libraryId: this.libraryId,

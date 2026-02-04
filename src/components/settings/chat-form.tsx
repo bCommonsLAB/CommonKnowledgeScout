@@ -43,6 +43,7 @@ import { useTranslation } from '@/lib/i18n/hooks'
 import { useStoryContext } from '@/hooks/use-story-context'
 import type { Library } from '@/types/library'
 import { getDefaultFacets, getDefaultEmbeddings } from '@/lib/chat/config'
+import { LlmModelSelector } from "@/components/ui/llm-model-selector"
 
 // Zod-Schema für Chat-Konfiguration
 const chatFormSchema = z.object({
@@ -57,9 +58,8 @@ const chatFormSchema = z.object({
     chunkOverlap: z.coerce.number().int().nonnegative().optional(),
     dimensions: z.coerce.number().int().positive().optional(),
   }).optional(),
-  // Cover-Bild-Generierung
-  generateCoverImage: z.boolean().optional(),
-  coverImagePrompt: z.string().optional(),
+  /** Standard-LLM-Modell für Chat-Antworten */
+  chatLlmModel: z.string().optional(),
   targetLanguage: z.preprocess(
     (val) => {
       if (val === '' || val === undefined || val === null) return TARGET_LANGUAGE_DEFAULT
@@ -88,7 +88,7 @@ const chatFormSchema = z.object({
         if (val === '' || val === undefined || val === null) return 'book';
         return val;
       },
-      z.enum(['book', 'session']).default('book')
+      z.enum(['book', 'session', 'climateAction', 'testimonial', 'blog']).default('book')
     ),
     facets: z.array(z.object({
       metaKey: z.string().min(1),
@@ -147,13 +147,10 @@ export function ChatForm() {
       targetLanguage: TARGET_LANGUAGE_DEFAULT,
       character: CHARACTER_DEFAULT,
       socialContext: SOCIAL_CONTEXT_DEFAULT,
-      gallery: { 
+gallery: {
         detailViewType: 'book',
         facets: getDefaultFacets().slice(0, 6) // Nur die ersten 6 sichtbaren Facetten als Default
       },
-      // Cover-Bild-Generierung Defaults
-      generateCoverImage: false,
-      coverImagePrompt: '',
     },
   })
 
@@ -182,14 +179,13 @@ export function ChatForm() {
       const galleryConfig = c.gallery as { detailViewType?: unknown; facets?: unknown } | undefined
       const detailViewType = galleryConfig?.detailViewType
       
-      // Explizite Prüfung und Logging
-      let finalViewType: 'book' | 'session' = 'book'
-      if (detailViewType === 'session') {
-        finalViewType = 'session'
-        console.log('[ChatForm] ✅ Setze detailViewType auf: session')
-      } else if (detailViewType === 'book') {
-        finalViewType = 'book'
-        console.log('[ChatForm] ✅ Setze detailViewType auf: book')
+      // Explizite Prüfung und Logging - alle gültigen Typen akzeptieren
+      const validDetailViewTypes = ['book', 'session', 'climateAction', 'testimonial', 'blog'] as const
+      type DetailViewType = typeof validDetailViewTypes[number]
+      let finalViewType: DetailViewType = 'book'
+      if (typeof detailViewType === 'string' && validDetailViewTypes.includes(detailViewType as DetailViewType)) {
+        finalViewType = detailViewType as DetailViewType
+        console.log('[ChatForm] ✅ Setze detailViewType auf:', finalViewType)
       } else {
         console.log('[ChatForm] ⚠️ Unbekannter detailViewType:', detailViewType, '- verwende default: book')
       }
@@ -246,9 +242,10 @@ export function ChatForm() {
             ? (c.embeddings as { dimensions?: number })!.dimensions
             : defaultEmbeddings.dimensions,
         },
-        // Cover-Bild-Generierung
-        generateCoverImage: typeof c.generateCoverImage === 'boolean' ? c.generateCoverImage : false,
-        coverImagePrompt: typeof c.coverImagePrompt === 'string' ? c.coverImagePrompt : '',
+        // Standard-LLM-Modell für Chat-Antworten
+        chatLlmModel: typeof (c.models as { chat?: string })?.chat === 'string' 
+          ? (c.models as { chat: string }).chat 
+          : '',
         targetLanguage: finalTargetLanguage,
         character: finalCharacter,
         socialContext: finalSocialContext,
@@ -306,11 +303,22 @@ export function ChatForm() {
         fullGallery: data.gallery 
       })
 
+      // Chat-Config vorbereiten: chatLlmModel → models.chat transformieren
+      const chatConfig = {
+        ...data,
+        // chatLlmModel als models.chat speichern (falls gesetzt)
+        models: data.chatLlmModel?.trim() 
+          ? { ...activeLibrary.config?.chat?.models, chat: data.chatLlmModel.trim() }
+          : activeLibrary.config?.chat?.models,
+      }
+      // chatLlmModel aus dem gesendeten Objekt entfernen (ist jetzt unter models.chat)
+      delete (chatConfig as Record<string, unknown>).chatLlmModel
+
       // Nur Chat-Config mergen, Server behält restliche Config sicher bei
       const response = await fetch(`/api/libraries/${encodeURIComponent(activeLibrary.id)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: activeLibrary.id, config: { chat: data } }),
+        body: JSON.stringify({ id: activeLibrary.id, config: { chat: chatConfig } }),
       })
       const respJson = await response.json().catch(() => ({}))
       // eslint-disable-next-line no-console
@@ -318,7 +326,7 @@ export function ChatForm() {
       if (!response.ok) throw new Error(`${t('settings.chatForm.errorSaving')} ${respJson?.error || response.statusText}`)
 
       const updatedLibraries = libraries.map(lib => lib.id === activeLibrary.id
-        ? { ...lib, config: { ...lib.config, chat: data } }
+        ? { ...lib, config: { ...lib.config, chat: chatConfig } }
         : lib)
       setLibraries(updatedLibraries)
 
@@ -377,7 +385,14 @@ export function ChatForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <div className="grid gap-6">
+        {/* ===== Chat UI ===== */}
+        <div className="space-y-4">
+          <div className="border-b pb-2">
+            <h3 className="text-lg font-semibold">Chat UI</h3>
+            <p className="text-sm text-muted-foreground">
+              Einstellungen für die Darstellung des Chat-Eingabefelds.
+            </p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
               control={form.control}
@@ -449,7 +464,16 @@ export function ChatForm() {
               )}
             />
           </div>
+        </div>
 
+        {/* ===== RAG Konfiguration ===== */}
+        <div className="space-y-4">
+          <div className="border-b pb-2">
+            <h3 className="text-lg font-semibold">RAG Konfiguration</h3>
+            <p className="text-sm text-muted-foreground">
+              Einstellungen für die Vektorsuche und Dokumenten-Chunking.
+            </p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
               control={form.control}
@@ -517,13 +541,13 @@ export function ChatForm() {
                 </FormItem>
               )}
             />
-          <FormField
-            control={form.control}
+            <FormField
+              control={form.control}
               name="embeddings.chunkOverlap"
-            render={({ field }) => (
-              <FormItem>
+              render={({ field }) => (
+                <FormItem>
                   <FormLabel>Chunk Overlap</FormLabel>
-                <FormControl>
+                  <FormControl>
                     <Input 
                       type="number" 
                       placeholder="200" 
@@ -534,18 +558,45 @@ export function ChatForm() {
                         field.onChange(val ? parseInt(val, 10) : undefined)
                       }}
                     />
-                </FormControl>
-                <FormDescription>
+                  </FormControl>
+                  <FormDescription>
                     Chunk-Overlap in Zeichen (Standard: 200)
-                </FormDescription>
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+
+        {/* ===== Eigene Perspektive ===== */}
+        <div className="space-y-4">
+          <div className="border-b pb-2">
+            <h3 className="text-lg font-semibold">Eigene Perspektive</h3>
+            <p className="text-sm text-muted-foreground">
+              LLM-Einstellungen und Perspektive für Chat-Antworten.
+            </p>
+          </div>
+
+          {/* LLM-Modell für Chat-Antworten */}
+          <FormField
+            control={form.control}
+            name="chatLlmModel"
+            render={({ field }) => (
+              <FormItem>
+                <LlmModelSelector
+                  value={field.value || ''}
+                  onChange={(v) => field.onChange(v)}
+                  label="LLM-Modell"
+                  placeholder="(kein Default)"
+                  description="Standard-LLM-Modell für Chat-Antworten."
+                  variant="form"
+                />
                 <FormMessage />
               </FormItem>
             )}
           />
-          </div>
-        </div>
 
-        <div className="grid gap-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <FormField
               control={form.control}
@@ -651,7 +702,14 @@ export function ChatForm() {
           </div>
         </div>
 
-        <div className="grid gap-6">
+        {/* ===== Wissensgalerie ===== */}
+        <div className="space-y-4">
+          <div className="border-b pb-2">
+            <h3 className="text-lg font-semibold">Wissensgalerie</h3>
+            <p className="text-sm text-muted-foreground">
+              Einstellungen für die Darstellung der Wissensgalerie.
+            </p>
+          </div>
           <FormField
             control={form.control}
             name="gallery.detailViewType"
@@ -667,7 +725,7 @@ export function ChatForm() {
                     onValueChange={(value) => {
                       console.log('[ChatForm] Select onChange:', value);
                       // NUR valide Werte akzeptieren (leere Strings ignorieren!)
-                      if (value === 'book' || value === 'session') {
+                      if (value === 'book' || value === 'session' || value === 'climateAction' || value === 'testimonial' || value === 'blog') {
                         field.onChange(value);
                       } else {
                         console.warn('[ChatForm] Ungültiger detailViewType ignoriert:', value);
@@ -682,6 +740,7 @@ export function ChatForm() {
                     <SelectContent>
                       <SelectItem value="book">{t('settings.chatForm.detailViewTypeBook')}</SelectItem>
                       <SelectItem value="session">{t('settings.chatForm.detailViewTypeSession')}</SelectItem>
+                      <SelectItem value="climateAction">{t('settings.chatForm.detailViewTypeClimateAction')}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormDescription>
@@ -696,59 +755,12 @@ export function ChatForm() {
           <div className="grid gap-3">
             <FormLabel>{t('settings.chatForm.galleryFacets')}</FormLabel>
             <FormDescription>{t('settings.chatForm.galleryFacetsDescription')}</FormDescription>
-            <FacetDefsEditor value={form.watch("gallery.facets") || []} onChange={(v) => form.setValue("gallery.facets", v, { shouldDirty: true })} />
-          </div>
-        </div>
-
-        {/* Cover-Bild-Generierung */}
-        <div className="grid gap-6">
-          <div className="text-lg font-semibold">Cover-Bild-Generierung</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="generateCoverImage"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">
-                      Automatisch generieren
-                    </FormLabel>
-                    <FormDescription>
-                      Bei Transformation automatisch ein Cover-Bild generieren (Default für Job-Erstellung)
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <input
-                      type="checkbox"
-                      checked={field.value || false}
-                      onChange={field.onChange}
-                      className="h-4 w-4"
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
+            <FacetDefsEditor 
+              value={form.watch("gallery.facets") || []} 
+              onChange={(v) => form.setValue("gallery.facets", v, { shouldDirty: true })} 
+              detailViewType={form.watch("gallery.detailViewType")}
             />
           </div>
-          <FormField
-            control={form.control}
-            name="coverImagePrompt"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Cover-Bild Prompt</FormLabel>
-                <FormControl>
-                  <Input 
-                    placeholder="Erstelle ein Coverbild für: {{title}}. Inhalt: {{summary}}" 
-                    {...field} 
-                    value={field.value || ""} 
-                  />
-                </FormControl>
-                <FormDescription>
-                  Standard-Prompt für Cover-Bild-Generierung. Variablen: {`{{title}}`}, {`{{summary}}`}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
         </div>
 
         <div className="flex items-center justify-between gap-4">

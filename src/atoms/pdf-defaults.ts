@@ -65,7 +65,7 @@ function getEffectiveTargetLanguage(
 /**
  * Bestimmt das effektive Template basierend auf Priorität:
  * 1. dbDefaults.template (localStorage)
- * 2. libraryConfigPdfTemplate (config.secretaryService.pdfDefaults.template)
+ * 2. libraryConfigPdfTemplate (config.secretaryService.template)
  */
 function getEffectiveTemplate(
   dbTemplate: string | undefined,

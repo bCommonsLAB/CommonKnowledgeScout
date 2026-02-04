@@ -422,6 +422,7 @@
       "galleryFacetsDescription": "Definieren Sie beliebige Facetten für die Filter-Navigation.",
       "detailViewTypeBook": "Book (Bücher, Dokumente, Kapitel)",
       "detailViewTypeSession": "Session (Events, Präsentationen, Slides)",
+      "detailViewTypeClimateAction": "ClimateAction (Klimamaßnahmen)",
       "checkIndexStatus": "Index Status prüfen",
       "checking": "Prüfe...",
       "createIndex": "Index anlegen",

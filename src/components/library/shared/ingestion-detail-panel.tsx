@@ -5,6 +5,7 @@ import { useAtomValue } from "jotai"
 
 import { IngestionBookDetail } from "@/components/library/ingestion-book-detail"
 import { IngestionSessionDetail } from "@/components/library/ingestion-session-detail"
+import { IngestionClimateActionDetail } from "@/components/library/ingestion-climate-action-detail"
 import { librariesAtom } from "@/atoms/library-atom"
 import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom"
 import { getDetailViewType } from "@/lib/templates/detail-view-type-utils"
@@ -80,6 +81,10 @@ export function IngestionDetailPanel({ libraryId, fileId }: IngestionDetailPanel
   // Story-Ansicht soll die kanonische Ingestion-Sicht zeigen (wie in der Gallery).
   if (viewType === "session") {
     return <IngestionSessionDetail libraryId={libraryId} fileId={fileId} />
+  }
+
+  if (viewType === "climateAction") {
+    return <IngestionClimateActionDetail libraryId={libraryId} fileId={fileId} />
   }
 
   return <IngestionBookDetail libraryId={libraryId} fileId={fileId} />

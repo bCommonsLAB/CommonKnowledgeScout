@@ -7,6 +7,8 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { X, ExternalLink, Loader2 } from 'lucide-react'
 import { IngestionBookDetail } from '@/components/library/ingestion-book-detail'
 import { IngestionSessionDetail } from '@/components/library/ingestion-session-detail'
+import { IngestionClimateActionDetail } from '@/components/library/ingestion-climate-action-detail'
+import type { ClimateActionDetailData } from '@/components/library/climate-action-detail'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useDocumentTranslation } from '@/hooks/use-document-translation'
 import { SwitchToStoryModeButton } from '@/components/library/gallery/switch-to-story-mode-button'
@@ -20,7 +22,8 @@ export interface DetailOverlayProps {
   onClose: () => void
   libraryId: string
   fileId: string
-  viewType: 'book' | 'session'
+  /** Typ der Detailansicht (book, session, climateAction, testimonial, blog) */
+  viewType: 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog'
   title?: string
   /** Optional: Dokument-Metadaten für den SwitchToStoryModeButton */
   doc?: DocCardMeta
@@ -50,14 +53,23 @@ export function DetailOverlay({
   // viewType wird automatisch über Props verwaltet
   
   // State für Tab und Übersetzung
+  // Hinweis: ClimateActionDetailData wird hier auch unterstützt (für Übersetzungs-Feature)
   const [activeTab, setActiveTab] = React.useState<'original' | 'translated'>('original')
-  const [originalData, setOriginalData] = React.useState<BookDetailData | SessionDetailData | null>(null)
-  const [translatedData, setTranslatedData] = React.useState<BookDetailData | SessionDetailData | null>(null)
+  const [originalData, setOriginalData] = React.useState<BookDetailData | SessionDetailData | ClimateActionDetailData | null>(null)
+  const [translatedData, setTranslatedData] = React.useState<BookDetailData | SessionDetailData | ClimateActionDetailData | null>(null)
   const [originalLanguage, setOriginalLanguage] = React.useState<string>('EN')
   const [sessionUrl, setSessionUrl] = React.useState<string | null>(null)
   
   // Bestimme Titel basierend auf viewType, falls nicht explizit angegeben
-  const displayTitle = title || (viewType === 'session' ? t('gallery.talkSummary') : t('gallery.documentView'))
+  const getDisplayTitle = () => {
+    if (title) return title
+    switch (viewType) {
+      case 'session': return t('gallery.talkSummary')
+      case 'climateAction': return t('gallery.climateActionView', { defaultValue: 'Maßnahmendetails' })
+      default: return t('gallery.documentView')
+    }
+  }
+  const displayTitle = getDisplayTitle()
   
   // Mapping von Locale zu Sprachcode (Großbuchstaben) für Übersetzungs-API
   // Unterstützt alle verfügbaren Zielsprachen
@@ -380,7 +392,8 @@ export function DetailOverlay({
           <div className={`p-0 w-full max-w-full overflow-x-hidden transition-opacity duration-300 ${
             translationLoading && !translatedData ? 'opacity-70' : 'opacity-100'
           }`}>
-            {viewType === 'session' ? (
+            {/* Render Detail-Komponente basierend auf viewType */}
+            {viewType === 'session' && (
               <IngestionSessionDetail
                 libraryId={libraryId}
                 fileId={fileId}
@@ -393,7 +406,21 @@ export function DetailOverlay({
                 }}
                 translatedData={activeTab === 'translated' ? (translatedData as SessionDetailData) : undefined}
               />
-            ) : (
+            )}
+            {viewType === 'climateAction' && (
+              <IngestionClimateActionDetail
+                libraryId={libraryId}
+                fileId={fileId}
+                onDataLoaded={(data) => {
+                  if (handleDataLoadedRef.current) {
+                    handleDataLoadedRef.current(data)
+                  }
+                }}
+                translatedData={activeTab === 'translated' ? (translatedData as ClimateActionDetailData) : undefined}
+              />
+            )}
+            {/* Default: Book-Detail (auch für testimonial, blog - vorerst) */}
+            {viewType !== 'session' && viewType !== 'climateAction' && (
               <IngestionBookDetail
                 libraryId={libraryId}
                 fileId={fileId}

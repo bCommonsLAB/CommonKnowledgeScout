@@ -133,8 +133,10 @@ export async function runPipelineForFile(args: {
   generateCoverImage?: boolean
   /** Optionaler Prompt für Cover-Bild-Generierung */
   coverImagePrompt?: string
+  /** LLM-Modell für Template-Transformation (z.B. 'google/gemini-2.5-flash') */
+  llmModel?: string
 }): Promise<{ jobId: string }> {
-  const { libraryId, sourceFile, parentId, kind, targetLanguage, templateName, policies, generateCoverImage, coverImagePrompt } = args
+  const { libraryId, sourceFile, parentId, kind, targetLanguage, templateName, policies, generateCoverImage, coverImagePrompt, llmModel } = args
 
   if (sourceFile.type !== "file") {
     throw new Error("Quelle ist keine Datei")
@@ -158,6 +160,8 @@ export async function runPipelineForFile(args: {
     },
     generateCoverImage,
     coverImagePrompt,
+    // LLM-Modell für Template-Transformation
+    llmModel,
   }
 
   FileLogger.info('run-pipeline', 'Pipeline starten (Unified Endpoint)', {

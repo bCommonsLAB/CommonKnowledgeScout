@@ -30,6 +30,8 @@ export interface VirtualizedItemsViewProps {
   isLoadingMore?: boolean
   /** Callback nach erfolgreichem Löschen eines Dokuments */
   onDocumentDeleted?: () => void
+  /** Fallback-DetailViewType aus der Library-Config */
+  libraryDetailViewType?: string
 }
 
 export function VirtualizedItemsView({
@@ -41,6 +43,7 @@ export function VirtualizedItemsView({
   hasMore,
   isLoadingMore,
   onDocumentDeleted,
+  libraryDetailViewType,
 }: VirtualizedItemsViewProps) {
   const { t, locale } = useTranslation()
   const router = useRouter()
@@ -143,7 +146,7 @@ export function VirtualizedItemsView({
   if (viewMode === 'grid') {
     return (
       <div ref={parentRef}>
-        <ItemsGrid docsByYear={docsByYear} onOpen={onOpen} libraryId={libraryId} />
+        <ItemsGrid docsByYear={docsByYear} onOpen={onOpen} libraryId={libraryId} libraryDetailViewType={libraryDetailViewType} />
         {/* Sentinel für Infinite Scroll */}
         {hasMore && (
           <div ref={sentinelRef} className="h-20 flex items-center justify-center py-4">

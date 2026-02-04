@@ -48,7 +48,7 @@ function isNonEmptyString(v: unknown): v is string {
 }
 
 export async function runTemplateTransform(args: TemplateRunArgs): Promise<TemplateRunResult> {
-  const { ctx, extractedText, templateContent, targetLanguage } = args
+  const { ctx, extractedText, templateContent, targetLanguage, llmModel } = args
   const repo = new ExternalJobsRepository()
   const jobId = ctx.jobId
   const { baseUrl, apiKey } = getSecretaryConfig()
@@ -77,14 +77,50 @@ export async function runTemplateTransform(args: TemplateRunArgs): Promise<Templ
     }) 
   } catch {}
   
+  // Frühe Validierung: Prüfe ob extrahierter Text vorhanden ist
+  // Wenn kein Text und keine URL vorhanden, würde der Secretary Service einen 400-Fehler zurückgeben.
+  // Bessere UX: Fehler hier mit aussagekräftiger Meldung werfen.
+  if (!extractedText || extractedText.trim().length === 0) {
+    const errorMessage = 'Kein extrahierter Text vorhanden. Die Template-Transformation benötigt Quelltext aus Phase 1 (Extraktion). ' +
+      'Mögliche Ursachen: (1) Die Quelldatei ist leer oder enthält keinen lesbaren Text, ' +
+      '(2) Die PDF-Extraktion hat keinen Text geliefert (z.B. bei reinen Bild-PDFs ohne OCR), ' +
+      '(3) Sie versuchen eine bereits transformierte Datei (.de.md) erneut zu transformieren - verwenden Sie stattdessen die Original-Quelldatei.'
+    
+    bufferLog(jobId, { 
+      phase: 'transform_validation_error', 
+      message: errorMessage,
+      extractedTextLength: extractedText?.length || 0
+    })
+    
+    try { 
+      await repo.traceAddEvent(jobId, { 
+        spanId: 'template', 
+        name: 'template_validation_failed', 
+        attributes: { 
+          error: 'empty_extracted_text',
+          extractedTextLength: extractedText?.length || 0
+        } 
+      }) 
+    } catch {}
+    
+    return {
+      metadata: null,
+      status: 400,
+      statusText: 'BAD REQUEST',
+      error: errorMessage
+    }
+  }
+  
   try {
     const resp = await callTemplateTransform({ 
       url: transformerUrl, 
-      text: extractedText || '', 
+      text: extractedText, 
       targetLanguage, 
       templateContent, 
       apiKey, 
-      timeoutMs: Number(process.env.EXTERNAL_TEMPLATE_TIMEOUT_MS || process.env.EXTERNAL_REQUEST_TIMEOUT_MS || 600000) 
+      timeoutMs: Number(process.env.EXTERNAL_TEMPLATE_TIMEOUT_MS || process.env.EXTERNAL_REQUEST_TIMEOUT_MS || 600000),
+      // LLM-Modell nur übergeben, wenn explizit gesetzt (Secretary Service verwendet sonst Default)
+      model: llmModel
     })
     
     const data: unknown = await resp.json().catch((parseError) => {

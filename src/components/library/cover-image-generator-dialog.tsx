@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -8,14 +8,21 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { UILogger } from '@/lib/debug/logger'
-import { Loader2, Check } from 'lucide-react'
+import { Loader2, Check, RefreshCw, Info } from 'lucide-react'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
+
+export type PromptSource = 'template' | 'frontmatter' | 'library_config' | 'default'
 
 interface CoverImageGeneratorDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onGenerated: (file: File) => Promise<void>
   defaultPrompt?: string
+  /** Quelle des Prompts für informative Anzeige */
+  promptSource?: PromptSource
+  /** Original-Prompt aus der Quelle (vor Variablenersetzung) */
+  originalPrompt?: string | null
 }
 
 interface GeneratedImage {
@@ -31,11 +38,21 @@ interface GeneratedImage {
  * Generiert standardmäßig 4 Varianten gleichzeitig, die der Benutzer auswählen kann.
  * Die UI ist benutzerfreundlich gestaltet mit weniger technischen Details.
  */
+// Labels für Prompt-Quellen
+const SOURCE_LABELS: Record<PromptSource, string> = {
+  template: 'Template-Vorlage',
+  frontmatter: 'LLM-generiert (Frontmatter)',
+  library_config: 'Library-Konfiguration',
+  default: 'Standard',
+}
+
 export function CoverImageGeneratorDialog({
   open,
   onOpenChange,
   onGenerated,
-  defaultPrompt = ''
+  defaultPrompt = '',
+  promptSource,
+  originalPrompt,
 }: CoverImageGeneratorDialogProps) {
   const [prompt, setPrompt] = useState(defaultPrompt)
   const [size, setSize] = useState<'1024x1024' | '1792x1024' | '1024x1792'>('1024x1024')
@@ -43,6 +60,20 @@ export function CoverImageGeneratorDialog({
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([])
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null)
+  
+  // Prompt aus Template/Library neu setzen wenn Dialog geöffnet wird
+  // oder wenn sich der defaultPrompt ändert und keine Bilder generiert wurden
+  useEffect(() => {
+    if (open && generatedImages.length === 0) {
+      setPrompt(defaultPrompt)
+    }
+  }, [open, defaultPrompt, generatedImages.length])
+  
+  // Prompt auf Template/Library-Wert zurücksetzen
+  const handleRecalculatePrompt = () => {
+    setPrompt(defaultPrompt)
+    toast.success('Prompt wurde aus Template/Library neu berechnet')
+  }
 
   // Reset State wenn Dialog geöffnet wird
   const handleOpenChange = (newOpen: boolean) => {
@@ -240,8 +271,43 @@ export function CoverImageGeneratorDialog({
         {generatedImages.length === 0 ? (
           // Schritt 1: Prompt-Eingabe und Generierung
           <div className="space-y-4 py-4">
+            {/* Informative Anzeige: Quelle des Prompts */}
+            {promptSource && (
+              <Collapsible>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
+                  <Info className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span>Prompt-Quelle: <strong>{SOURCE_LABELS[promptSource]}</strong></span>
+                  {originalPrompt && (
+                    <CollapsibleTrigger className="ml-auto text-primary hover:underline">
+                      Vorlage anzeigen
+                    </CollapsibleTrigger>
+                  )}
+                </div>
+                {originalPrompt && (
+                  <CollapsibleContent>
+                    <div className="mt-2 p-2 bg-muted/30 rounded border text-xs font-mono whitespace-pre-wrap max-h-24 overflow-y-auto">
+                      {originalPrompt}
+                    </div>
+                  </CollapsibleContent>
+                )}
+              </Collapsible>
+            )}
+
             <div className="space-y-2">
-              <Label htmlFor="prompt">Was soll auf dem Bild zu sehen sein? *</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="prompt">Was soll auf dem Bild zu sehen sein? *</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRecalculatePrompt}
+                  disabled={isGenerating}
+                  title="Prompt aus Template/Library neu berechnen"
+                >
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                  Neu berechnen
+                </Button>
+              </div>
               <Textarea
                 id="prompt"
                 placeholder="z.B. Ein modernes Bürogebäude bei Sonnenuntergang"

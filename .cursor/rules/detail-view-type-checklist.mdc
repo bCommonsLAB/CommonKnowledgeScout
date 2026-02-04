@@ -1,0 +1,182 @@
+---
+description: Checkliste und Architektur für DetailViewType-Erweiterungen
+globs: ["**/detail-view*.tsx", "**/doc-meta-mappers.ts", "**/registry.ts", "**/validation.ts"]
+---
+
+# DetailViewType Architektur und Checkliste
+
+## Architektur-Übersicht
+
+```
+Template-Editor        Pipeline (Template)    Story-Vorschau      Galerie
+       │                      │                   │                │
+       ▼                      ▼                   ▼                ▼
+┌─────────────┐        ┌─────────────┐     ┌─────────────┐  ┌─────────────┐
+│ Template    │        │ LLM füllt   │     │ Validierung │  │ Validierung │
+│ definiert   │───────▶│ Metadaten   │────▶│ gegen       │──│ gegen       │
+│ Felder      │        │ aus         │     │ Registry    │  │ Registry    │
+└─────────────┘        └─────────────┘     └─────────────┘  └─────────────┘
+       │                      │                   │                │
+       ▼                      ▼                   ▼                ▼
+┌─────────────┐        ┌─────────────┐     ┌─────────────┐  ┌─────────────┐
+│ Warnung:    │        │ CONTRACT:   │     │ Warnung:    │  │ Fallback    │
+│ "Für View-  │        │ Warnung in  │     │ "Fehlende   │  │ Rendering   │
+│ Type X      │        │ job.result  │     │ Felder: Y"  │  │ wenn Felder │
+│ fehlen..."  │        │ .warnings[] │     │             │  │ fehlen      │
+└─────────────┘        └─────────────┘     └─────────────┘  └─────────────┘
+```
+
+## Zentrale Dateien
+
+| Datei | Zweck |
+|-------|-------|
+| `src/lib/detail-view-types/registry.ts` | Zentrale Definition aller ViewTypes mit Pflichtfeldern |
+| `src/lib/detail-view-types/validation.ts` | Validierungsfunktionen für Pflichtfelder |
+| `src/lib/detail-view-types/index.ts` | Re-Exports für einfachen Import |
+| `src/lib/templates/template-types.ts` | TypeScript-Typen für ViewTypes |
+| `src/lib/mappers/doc-meta-mappers.ts` | Mapper für DB-Dokumente zu DetailData |
+| `src/components/library/detail-view-renderer.tsx` | Zentraler Renderer mit Validierung |
+| `src/components/library/shared/ingestion-detail-panel.tsx` | Story-Tab: Welche Detail-Komponente wird gerendert |
+| `src/components/library/job-report-tab.tsx` | Transformation-Vorschau: Teaser-Card + Preview Felder-Mapping |
+| `src/components/library/gallery/detail-overlay.tsx` | Galerie: Detail-Modal Render-Logik |
+
+## Checkliste: Neuer DetailViewType
+
+### Pflicht (sonst bricht es)
+
+1. **Registry erweitern**
+   - [ ] `src/lib/detail-view-types/registry.ts` → `DETAIL_VIEW_TYPES` Array
+   - [ ] `src/lib/detail-view-types/registry.ts` → `VIEW_TYPE_REGISTRY` mit Pflichtfeldern
+
+2. **Type-Definition hinzufügen**
+   - [ ] `src/lib/templates/template-types.ts` → `TemplatePreviewDetailViewType`
+
+3. **Zod-Schemas erweitern**
+   - [ ] `src/lib/chat/config.ts` → `detailViewType: z.enum([...])`
+   - [ ] `src/components/settings/chat-form.tsx` → Schema
+
+4. **Detail-Komponente erstellen**
+   - [ ] `src/components/library/{name}-detail.tsx`
+   - [ ] `src/components/library/ingestion-{name}-detail.tsx` (für Galerie)
+
+5. **Mapper erstellen**
+   - [ ] `src/lib/mappers/doc-meta-mappers.ts` → `mapTo{Name}Detail()`
+
+6. **DetailViewRenderer erweitern**
+   - [ ] `src/components/library/detail-view-renderer.tsx` → if-Statement + Import
+
+7. **DetailOverlay erweitern** (für Galerie)
+   - [ ] `src/components/library/gallery/detail-overlay.tsx` → Render-Logik
+
+8. **IngestionDetailPanel erweitern** (für Story-Tab)
+   - [ ] `src/components/library/shared/ingestion-detail-panel.tsx` → if-Statement für neuen ViewType
+
+9. **JobReportTab erweitern** (für Transformation-Vorschau Teaser)
+   - [ ] `src/components/library/job-report-tab.tsx` → Felder-Mapping für DocCardMeta (ca. Zeile 1500)
+
+### Optional (verbessert UX)
+
+1. **DocumentCard (Teaser)**
+   - [ ] `src/components/library/gallery/document-card.tsx` → Spezielles Card-Layout
+
+2. **Übersetzungen**
+   - [ ] `src/lib/i18n/translations/de.json`
+   - [ ] `src/lib/i18n/translations/en.json`
+
+3. **Settings-Dropdown**
+   - [ ] `src/components/settings/chat-form.tsx` → SelectItem
+
+4. **Validierungs-Arrays aktualisieren**
+   - [ ] `src/lib/templates/detail-view-type-utils.ts`
+   - [ ] `src/components/library/gallery/gallery-root.tsx`
+   - [ ] `src/components/library/chat/chat-panel.tsx`
+
+### DB/API
+
+1. **MongoDB Projection** (für spezifische Felder)
+   - [ ] `src/lib/repositories/vector-repo.ts`
+
+2. **DocCardMeta Type** (für neue Felder)
+   - [ ] `src/lib/gallery/types.ts`
+   - [ ] `src/lib/repositories/doc-meta-formatter.ts`
+
+## Beispiel: Neuen ViewType hinzufügen
+
+```typescript
+// 1. Registry erweitern (src/lib/detail-view-types/registry.ts)
+export const DETAIL_VIEW_TYPES = [
+  'book', 'session', 'testimonial', 'blog', 'climateAction', 
+  'newType' // NEU
+] as const
+
+export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
+  // ... bestehende
+  newType: {
+    requiredFields: ['title', 'customField'],
+    optionalFields: ['summary', 'tags'],
+    labelKey: 'gallery.detailViewTypeNewType',
+    descriptionKey: 'gallery.detailViewTypeNewTypeDescription',
+  },
+}
+
+// 2. Type-Definition (src/lib/templates/template-types.ts)
+export type TemplatePreviewDetailViewType = 
+  'book' | 'session' | 'testimonial' | 'blog' | 'climateAction' | 'newType'
+
+// 3. Mapper (src/lib/mappers/doc-meta-mappers.ts)
+export function mapToNewTypeDetail(doc: { docMetaJson?: Record<string, unknown> }): NewTypeDetailData {
+  const j = doc.docMetaJson || {}
+  return {
+    title: toStr(j.title),
+    customField: toStr(j.customField),
+    // ...
+  }
+}
+
+// 4. DetailViewRenderer erweitern
+if (detailViewType === "newType") {
+  return (
+    <>
+      {MissingFieldsWarning}
+      <NewTypeDetail data={mapToNewTypeDetail(docMetaJson)} showBackLink={showBackLink} />
+    </>
+  )
+}
+```
+
+## Pflichtfeld-Validierung
+
+Die Validierung erfolgt an drei Stellen:
+
+1. **Template-Editor**: Warnung beim Auswählen des ViewType
+2. **Pipeline (Template-Phase)**: Soft-Contract, loggt Warnung wenn Felder fehlen
+3. **Story-Vorschau/Galerie**: Warnung vor dem Detail-Content
+
+```typescript
+import { validateMetadataForViewType, formatValidationWarning } from '@/lib/detail-view-types'
+
+const validation = validateMetadataForViewType(metadata, 'climateAction')
+if (!validation.isValid) {
+  console.warn(formatValidationWarning(validation))
+  // → "Fehlende Pflichtfelder für climateAction: category"
+}
+```
+
+## Hinweise
+
+- Pflichtfeld-Validierung ist **Soft-Validation**: Jobs werden nicht abgebrochen
+- Warnungen werden in UI angezeigt und in Logs protokolliert
+- Neue ViewTypes sollten immer `title` als Pflichtfeld haben
+- Fallback-Logik: Wenn ein ViewType nicht erkannt wird, wird `session` verwendet
+
+## Automatisches Antwortschema
+
+Das LLM-Antwortschema wird **automatisch** aus den Template-Metadaten-Feldern generiert:
+
+- **Datei:** `src/lib/templates/template-service-mongodb.ts`
+- **Funktion:** `generateResponseSchemaFromFields()` + `appendGeneratedResponseSchema()`
+- **Wann:** Beim Serialisieren für Secretary Service (`serializeTemplateToMarkdown(template, false)`)
+
+Der manuell im Systemprompt geschriebene Schema-Block wird **nicht** entfernt, aber das generierte Schema wird am Ende angehängt mit der Anweisung "Verwende EXAKT diese Feldnamen". Das LLM priorisiert typischerweise die letzte Anweisung.
+
+**Vorteil:** Keine Inkonsistenzen zwischen Frontmatter-Feldern und Antwortschema mehr (z.B. `category` vs `handlungsfeld`).

@@ -12,11 +12,11 @@ const librarySidebarItems = [
     href: "/settings/storage",
   },
   {
-    title: "Secretary Service",
+    title: "Transformation",
     href: "/settings/secretary-service",
   },
   {
-    title: "Chat",
+    title: "Story",
     href: "/settings/chat",
   },
   {

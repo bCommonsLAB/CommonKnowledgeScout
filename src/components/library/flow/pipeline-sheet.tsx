@@ -37,6 +37,18 @@ export interface ExistingArtifacts {
   hasIngested: boolean
 }
 
+/**
+ * LLM-Modell für Dropdown-Auswahl
+ */
+export interface LlmModelOption {
+  /** Modell-ID (z.B. 'google/gemini-2.5-flash') */
+  modelId: string
+  /** Anzeigename (z.B. 'Gemini 2.5 Flash') */
+  name: string
+  /** Beschreibung der Stärken */
+  strengths?: string
+}
+
 interface PipelineSheetProps {
   isOpen: boolean
   onOpenChange: (open: boolean) => void
@@ -49,7 +61,15 @@ interface PipelineSheetProps {
   onTemplateNameChange: (value: string) => void
   templates: string[]
   isLoadingTemplates: boolean
-  onStart: (args: { templateName?: string; targetLanguage: string; policies: PipelinePolicies; coverImage?: CoverImageOptions }) => Promise<void>
+  /** Ausgewähltes LLM-Modell für Template-Transformation */
+  llmModel?: string
+  /** Callback für LLM-Modell-Änderung */
+  onLlmModelChange?: (value: string) => void
+  /** Verfügbare LLM-Modelle */
+  llmModels?: LlmModelOption[]
+  /** Ladezustand für LLM-Modelle */
+  isLoadingLlmModels?: boolean
+  onStart: (args: { templateName?: string; targetLanguage: string; policies: PipelinePolicies; coverImage?: CoverImageOptions; llmModel?: string }) => Promise<void>
   /**
    * Optionale Default-Werte fuer die Pipeline-Schritte.
    * Wenn gesetzt, werden die Switches beim Oeffnen des Sheets entsprechend initialisiert.
@@ -212,6 +232,8 @@ export function PipelineSheet(props: PipelineSheetProps) {
         coverImage: shouldTransform ? {
           generateCoverImage: shouldGenerateCoverImage,
         } : undefined,
+        // LLM-Modell nur übergeben wenn Transform aktiv und Modell gesetzt
+        llmModel: shouldTransform && isNonEmptyString(props.llmModel) ? props.llmModel : undefined,
       })
     } finally {
       setIsSubmitting(false)
@@ -303,7 +325,7 @@ export function PipelineSheet(props: PipelineSheetProps) {
                 />
               )}
               {visibleSteps.map((step, index) => (
-                <Collapsible key={step.key} defaultOpen={step.hasOptions && step.enabled}>
+                <Collapsible key={step.key} defaultOpen={false}>
                   <div
                     className={cn(
                       "relative rounded-lg border transition-all duration-200",
@@ -354,21 +376,21 @@ export function PipelineSheet(props: PipelineSheetProps) {
                       </div>
 
                       {/* Toggle */}
-                      <div className="flex items-center gap-2 pt-1">
-                        {step.hasOptions && step.enabled && (
-                          <CollapsibleTrigger asChild>
-                            <Button variant="ghost" size="sm" className="size-8 p-0">
-                              <ChevronDown className="size-4 transition-transform [[data-state=open]_&]:rotate-180" />
-                              <span className="sr-only">Optionen anzeigen</span>
-                            </Button>
-                          </CollapsibleTrigger>
-                        )}
+                      <div className="flex flex-col items-end gap-4 pt-1">
                         <Switch
                           checked={step.enabled}
                           onCheckedChange={(v) => !step.disabled && step.setEnabled(v)}
                           disabled={step.disabled}
                           aria-label={`${step.title} ${step.enabled ? "deaktivieren" : "aktivieren"}`}
                         />
+                        {step.hasOptions && step.enabled && (
+                          <CollapsibleTrigger asChild>
+                            <Button variant="ghost" size="sm" className="group h-6 px-2 text-xs text-muted-foreground hover:text-foreground">
+                              <span className="mr-1">Optionen</span>
+                              <ChevronDown className="size-3 transition-transform group-data-[state=open]:rotate-180" />
+                            </Button>
+                          </CollapsibleTrigger>
+                        )}
                       </div>
                     </div>
 
@@ -380,51 +402,84 @@ export function PipelineSheet(props: PipelineSheetProps) {
                           !step.enabled && "pointer-events-none"
                         )}>
                           {/* ml-[76px] = p-4 (16px) + Kreis (44px) + gap-4 (16px) = buendig mit Text */}
-                          <div className="flex items-center gap-3 ml-[76px] pr-4">
-                            <div className="flex items-center gap-2">
-                              <Label htmlFor="template" className="text-xs text-muted-foreground whitespace-nowrap">
-                                Vorlage
-                              </Label>
-                              {props.isLoadingTemplates ? (
-                                <Skeleton className="h-8 w-28" />
-                              ) : (
-                                <Select value={templateSelectValue} onValueChange={(v) => props.onTemplateNameChange(v === "__none__" ? "" : v)}>
-                                  <SelectTrigger id="template" className="h-8 w-32 text-xs">
-                                    <SelectValue placeholder="Waehlen..." />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {props.templates.map((t) => (
-                                      <SelectItem key={t} value={t} className="text-xs">
-                                        {t}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              )}
-                              {/* Link zu den Vorlagen-Einstellungen */}
-                              <Link href="/templates" title="Vorlagen verwalten">
-                                <Settings className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors cursor-pointer" />
-                              </Link>
-                            </div>
-                            {/* Abstand zwischen Vorlage und Sprache */}
-                            <div className="w-4" />
-                            <div className="flex items-center gap-2">
-                              <Label htmlFor="language" className="text-xs text-muted-foreground whitespace-nowrap">
-                                Sprache
-                              </Label>
-                              <Select value={props.targetLanguage} onValueChange={props.onTargetLanguageChange}>
-                                <SelectTrigger id="language" className="h-8 w-24 text-xs">
-                                  <SelectValue placeholder="de" />
+                          {/* Zeile 1: Vorlage (ganze Breite mit Zahnrad) */}
+                          <div className="flex items-center gap-2 ml-[76px] pr-4">
+                            <Label htmlFor="template" className="text-xs text-muted-foreground whitespace-nowrap w-14">
+                              Vorlage
+                            </Label>
+                            {props.isLoadingTemplates ? (
+                              <Skeleton className="h-8 flex-1" />
+                            ) : (
+                              <Select value={templateSelectValue} onValueChange={(v) => props.onTemplateNameChange(v === "__none__" ? "" : v)}>
+                                <SelectTrigger id="template" className="h-8 flex-1 text-xs text-left justify-start">
+                                  <SelectValue placeholder="Waehlen..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="de" className="text-xs">Deutsch</SelectItem>
-                                  <SelectItem value="en" className="text-xs">English</SelectItem>
+                                  {props.templates.map((t) => (
+                                    <SelectItem key={t} value={t} className="text-xs">
+                                      {t}
+                                    </SelectItem>
+                                  ))}
                                 </SelectContent>
                               </Select>
-                            </div>
+                            )}
+                            {/* Link zu den Vorlagen-Einstellungen */}
+                            <Link href="/templates" title="Vorlagen verwalten">
+                              <Settings className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors cursor-pointer" />
+                            </Link>
                           </div>
-                          {/* Cover-Bild-Generierung */}
+                          {/* Zeile 2: Sprache */}
                           <div className="flex items-center gap-2 ml-[76px] pr-4">
+                            <Label htmlFor="language" className="text-xs text-muted-foreground whitespace-nowrap w-14">
+                              Sprache
+                            </Label>
+                            <Select value={props.targetLanguage} onValueChange={props.onTargetLanguageChange}>
+                              <SelectTrigger id="language" className="h-8 flex-1 text-xs text-left justify-start">
+                                <SelectValue placeholder="de" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="de" className="text-xs">Deutsch</SelectItem>
+                                <SelectItem value="en" className="text-xs">English</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          {/* Zeile 3: LLM-Modell-Auswahl (volle Breite) */}
+                          <div className="flex items-center gap-2 ml-[76px] pr-4">
+                            <Label htmlFor="llm-model" className="text-xs text-muted-foreground whitespace-nowrap w-14">
+                              Modell
+                            </Label>
+                            {props.isLoadingLlmModels ? (
+                              <Skeleton className="h-8 flex-1" />
+                            ) : props.llmModels && props.llmModels.length > 0 ? (
+                              <Select 
+                                value={props.llmModel || ""} 
+                                onValueChange={(v) => props.onLlmModelChange?.(v)}
+                              >
+                                <SelectTrigger id="llm-model" className="h-8 flex-1 text-xs text-left justify-start">
+                                  <SelectValue placeholder="Standard" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {props.llmModels.map((model) => (
+                                    <SelectItem key={model.modelId} value={model.modelId} className="text-xs">
+                                      <div className="flex flex-col">
+                                        <span>{model.name}</span>
+                                        {model.strengths && (
+                                          <span className="text-[10px] text-muted-foreground">
+                                            {model.strengths}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic">Keine Modelle verfügbar</span>
+                            )}
+                          </div>
+                          {/* Cover-Bild-Generierung - linksbündig mit Dropdowns (w-14 Platzhalter) */}
+                          <div className="flex items-center gap-2 ml-[76px] pr-4">
+                            <div className="w-14" /> {/* Platzhalter für Alignment mit Labels */}
                             <input
                               type="checkbox"
                               id="generate-cover-image"

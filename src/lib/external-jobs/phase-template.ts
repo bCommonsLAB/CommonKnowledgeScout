@@ -23,7 +23,7 @@ import { stripAllFrontmatter } from '@/lib/markdown/frontmatter'
 import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser'
 import { handleJobError } from '@/lib/external-jobs/error-handler'
 import { FileLogger } from '@/lib/debug/logger'
-import type { LibraryChatConfig } from '@/types/library'
+import type { Library } from '@/types/library'
 import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
 import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver'
@@ -31,6 +31,73 @@ import { buildTransformationBody } from '@/lib/external-jobs/template-body-build
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { LibraryService } from '@/lib/services/library-service'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
+import { isValidDetailViewType, validateMetadataForViewType, formatValidationWarning } from '@/lib/detail-view-types'
+
+/**
+ * Extrahiert feste Felder (ohne {{...}}) aus dem Template-Frontmatter.
+ * Diese Felder werden nicht vom LLM generiert, sondern 1:1 ins Ergebnis übernommen.
+ * 
+ * Beispiele für feste Felder:
+ * - sprache: de
+ * - docType: klimamassnahme
+ * - coverImagePrompt: Erstelle ein Hintergrundbild...
+ * 
+ * @param templateContent - Der Template-Content (Markdown mit Frontmatter)
+ * @returns Record mit festen Feldnamen und Werten
+ */
+function extractFixedFieldsFromTemplate(templateContent: string | undefined): Record<string, unknown> {
+  if (!templateContent) return {}
+  
+  const fixedFields: Record<string, unknown> = {}
+  
+  // Frontmatter extrahieren (zwischen ersten --- und nächsten ---)
+  const frontmatterMatch = templateContent.match(/^---\s*\n([\s\S]*?)\n---/)
+  if (!frontmatterMatch) return {}
+  
+  const frontmatterContent = frontmatterMatch[1]
+  const lines = frontmatterContent.split('\n')
+  
+  for (const line of lines) {
+    const trimmed = line.trim()
+    
+    // Leere Zeilen und Kommentare überspringen
+    if (!trimmed || trimmed.startsWith('#')) continue
+    
+    // Suche nach Felddefinitionen: `key: value`
+    const fieldMatch = line.match(/^(\w+):\s*(.+)$/)
+    if (!fieldMatch) continue
+    
+    const key = fieldMatch[1].trim()
+    const value = fieldMatch[2].trim()
+    
+    // Prüfe ob es ein dynamisches Feld ist (mit {{...}})
+    const isDynamic = value.includes('{{') && value.includes('}}')
+    
+    // Nur feste Felder extrahieren
+    if (!isDynamic && value) {
+      // Versuche JSON zu parsen (für Arrays wie tags)
+      try {
+        if (value.startsWith('[') || value.startsWith('{')) {
+          fixedFields[key] = JSON.parse(value)
+        } else if (value === 'true') {
+          fixedFields[key] = true
+        } else if (value === 'false') {
+          fixedFields[key] = false
+        } else if (value === 'null') {
+          fixedFields[key] = null
+        } else if (!isNaN(Number(value)) && value !== '') {
+          fixedFields[key] = Number(value)
+        } else {
+          fixedFields[key] = value
+        }
+      } catch {
+        fixedFields[key] = value
+      }
+    }
+  }
+  
+  return fixedFields
+}
 
 export interface TemplatePhaseArgs {
   ctx: RequestContext
@@ -51,7 +118,7 @@ export interface TemplatePhaseArgs {
   hasMistralOcrImages?: boolean
   mistralOcrImagesUrl?: string
   targetParentId: string
-  libraryConfig?: LibraryChatConfig
+  libraryConfig?: NonNullable<Library['config']>['secretaryService']
   /** Cover-Bild automatisch generieren (Job-Parameter) */
   generateCoverImage?: boolean
   /** Optionaler Prompt für Cover-Bild-Generierung (Job-Parameter oder Library-Config) */
@@ -663,7 +730,7 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
 
   let metadataFromTemplate: Record<string, unknown> | null = null
   let picked: { templateContent: string; templateName: string; isPreferred: boolean } | null = null
-  // Preferred Template aus Library-Config: secretaryService.pdfDefaults.template
+  // Preferred Template aus Library-Config: secretaryService.template
   // Deklariere außerhalb des try-Blocks, damit es im catch-Block verfügbar ist
   let preferredTemplate: string | undefined = undefined
 
@@ -683,13 +750,13 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
       })
     } else {
       // Fallback: Versuche Template aus Library-Config zu lesen
-      // libraryConfig ist vom Typ LibraryChatConfig, aber das Template ist in storageConfig.secretaryService.pdfDefaults.template
+      // libraryConfig ist vom Typ LibraryChatConfig, aber das Template ist in storageConfig.secretaryService.template
       // Daher müssen wir die Library direkt laden, um an storageConfig zu kommen
       try {
         const { LibraryService } = await import('@/lib/services/library-service')
         const libraryService = LibraryService.getInstance()
         const library = await libraryService.getLibrary(job.userEmail, job.libraryId)
-        preferredTemplate = library?.config?.secretaryService?.pdfDefaults?.template
+        preferredTemplate = library?.config?.secretaryService?.template
         
         if (preferredTemplate) {
           FileLogger.info('phase-template', 'Template aus Library-Config gefunden', {
@@ -741,6 +808,11 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
 
     const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
     
+    // LLM-Modell aus Job-Parametern lesen (optional, Secretary Service verwendet sonst Default)
+    const llmModel = typeof job.parameters?.llmModel === 'string' && job.parameters.llmModel.trim()
+      ? job.parameters.llmModel.trim()
+      : undefined
+    
     // SSE-Event: Transformation wird durchgefuehrt
     try {
       getJobEventBus().emitUpdate(job.userEmail, {
@@ -757,7 +829,7 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
       })
     } catch {}
     
-    const tr = await runTemplateTransform({ ctx, extractedText: extractedText || '', templateContent, targetLanguage: lang })
+    const tr = await runTemplateTransform({ ctx, extractedText: extractedText || '', templateContent, targetLanguage: lang, llmModel })
     metadataFromTemplate = tr.meta as unknown as Record<string, unknown> | null
     if (metadataFromTemplate) {
       bufferLog(jobId, { phase: 'transform_meta', message: 'Metadaten via Template berechnet' })
@@ -1069,7 +1141,22 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
   const initialChapters: Array<Record<string, unknown>> | undefined = Array.isArray(existingChaptersPref)
     ? existingChaptersPref as Array<Record<string, unknown>>
     : (Array.isArray(templateChaptersPref) ? templateChaptersPref as Array<Record<string, unknown>> : undefined)
-  let mergedMeta = { ...(existingMeta || {}), ...finalMeta, ...ssotFlat } as Record<string, unknown>
+  
+  // Feste Felder aus dem Template extrahieren (z.B. coverImagePrompt, sprache, docType, detailViewType)
+  // Diese werden nicht vom LLM generiert, sondern 1:1 aus dem Template übernommen.
+  // Merge-Reihenfolge: existingMeta < fixedFields < finalMeta < ssotFlat
+  // (LLM-generierte Felder überschreiben feste Felder nur, wenn das LLM sie explizit liefert)
+  const fixedFieldsFromTemplate = extractFixedFieldsFromTemplate(picked?.templateContent)
+  if (Object.keys(fixedFieldsFromTemplate).length > 0) {
+    bufferLog(jobId, {
+      phase: 'template_fixed_fields',
+      message: `Feste Felder aus Template extrahiert: ${Object.keys(fixedFieldsFromTemplate).join(', ')}`,
+      fieldCount: Object.keys(fixedFieldsFromTemplate).length,
+      fields: Object.keys(fixedFieldsFromTemplate)
+    })
+  }
+  
+  let mergedMeta = { ...(existingMeta || {}), ...fixedFieldsFromTemplate, ...finalMeta, ...ssotFlat } as Record<string, unknown>
   if (initialChapters) (mergedMeta as { chapters: Array<Record<string, unknown>> }).chapters = initialChapters
   
   // Prüfe, ob chapters bereits vorhanden sind (aus existingMeta, finalMeta/metadataFromTemplate, oder bodyMetadata)
@@ -1402,6 +1489,37 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     // Falls Phase 2 eigene Assets erzeugt, werden diese am Ende von Phase 2 gespeichert.
     // Das Shadow-Twin reichert sich von Phase zu Phase an.
     
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // PFLICHTFELD-CONTRACT (Soft-Validation)
+    // Warnt wenn Pflichtfelder für den gewählten detailViewType fehlen.
+    // Kein Hard-Fail - Job läuft weiter, aber Warnung wird geloggt.
+    // ═══════════════════════════════════════════════════════════════════════════════
+    const detailViewType = mergedMeta.detailViewType as string | undefined
+    if (detailViewType && isValidDetailViewType(detailViewType)) {
+      const validation = validateMetadataForViewType(mergedMeta, detailViewType)
+      
+      if (!validation.isValid) {
+        const warningMessage = formatValidationWarning(validation) || 
+          `Pflichtfelder für ${detailViewType} fehlen: ${validation.missingRequired.join(', ')}`
+        
+        // Warnung loggen (kein Hard-Fail)
+        bufferLog(jobId, {
+          phase: 'template_validation_warning',
+          message: warningMessage,
+          detailViewType,
+          missingRequired: validation.missingRequired,
+          missingOptional: validation.missingOptional,
+          presentFields: validation.presentFields,
+        })
+        
+        FileLogger.warn('phase-template', 'Pflichtfelder für detailViewType fehlen', {
+          jobId,
+          detailViewType,
+          missingRequired: validation.missingRequired,
+        })
+      }
+    }
+    
     // Speichern via Modul
     // WICHTIG: Wir speichern die transformierte Datei mit Template-Namen und Sprachkürzel (z.B. Livique_Sørensen.Besprechung.de.md)
     // Diese Datei enthält Frontmatter und wird im Shadow-Twin-Verzeichnis gespeichert
@@ -1533,21 +1651,20 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
             })
           } catch {}
           
-          // Prompt erstellen
-          // Priorität: 1. Job-Prompt, 2. Library-Config-Prompt, 3. Standard-Prompt
-          const basePrompt = args.coverImagePrompt || 
-            args.libraryConfig?.coverImagePrompt ||
-            'Erstelle ein professionelles Cover-Bild für ein Dokument mit folgendem Titel und Inhalt:'
+          // Prompt erstellen via zentrale Utility
+          // Priorität: 1. Template-Frontmatter, 2. Job-Parameter, 3. Library-Config, 4. Standard-Prompt
+          const { buildCoverImagePrompt } = await import('@/lib/cover-image/prompt-builder')
+          const frontmatterCoverImagePrompt = (mergedMeta.coverImagePrompt as string | undefined)
           
-          // Variablen ersetzen
-          const prompt = basePrompt
-            .replace(/\{\{title\}\}/g, title)
-            .replace(/\{\{summary\}\}/g, summary)
+          const promptResult = buildCoverImagePrompt({
+            frontmatterPrompt: frontmatterCoverImagePrompt,
+            jobParameterPrompt: args.coverImagePrompt,
+            libraryConfigPrompt: args.libraryConfig?.coverImagePrompt,
+            title,
+            summary,
+          })
           
-          // Finaler Prompt: Wenn keine Variablen, dann Titel und Summary anhängen
-          const finalPrompt = basePrompt.includes('{{') 
-            ? prompt 
-            : `${prompt}\n\nTitel: ${title}\n\nZusammenfassung: ${summary}`
+          const finalPrompt = promptResult.prompt
           
           // Secretary Service direkt aufrufen (gleiche Logik wie der Proxy /api/secretary/text2image/generate)
           const { getSecretaryConfig } = await import('@/lib/env')

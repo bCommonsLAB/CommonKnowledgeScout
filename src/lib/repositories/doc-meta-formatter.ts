@@ -129,6 +129,12 @@ export function convertMongoDocToDocCardMeta(doc: MongoDocForConversion): DocCar
       }
       return undefined
     })(),
+    // ClimateAction-spezifische Felder für Gallery-Teaser
+    // category mit Fallback auf handlungsfeld für ältere Daten in der DB
+    category: (docMeta?.category || docMeta?.handlungsfeld) as string | undefined,
+    massnahme_nr: (docMeta?.massnahme_nr as string | undefined),
+    lv_bewertung: (docMeta?.lv_bewertung as string | undefined),
+    arbeitsgruppe: (docMeta?.arbeitsgruppe as string | undefined),
   }
 }
 

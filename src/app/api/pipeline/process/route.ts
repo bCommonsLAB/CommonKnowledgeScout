@@ -135,6 +135,8 @@ async function createJobForItem(args: {
         policies: finalPolicies,
         generateCoverImage: config.generateCoverImage,
         coverImagePrompt: config.coverImagePrompt,
+        // LLM-Modell für Template-Transformation
+        ...(config.llmModel ? { llmModel: config.llmModel } : {}),
         // PDF-spezifische Optionen
         ...(mediaKind === 'pdf' ? {
           extractionMethod: request.extractionMethod || 'mistral_ocr',

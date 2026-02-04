@@ -263,10 +263,12 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
     setIsNew(false);
     // Zurück zur aktiven Bibliothek, falls vorhanden
     if (activeLibrary) {
+      // clientSecret: Wenn maskiert ('********'), leer lassen damit das Backend den Wert behält
+      const rawClientSecret = activeLibrary.config?.clientSecret as string || "";
       const storageConfig = {
         basePath: activeLibrary.path,
         clientId: activeLibrary.config?.clientId as string || "",
-        clientSecret: activeLibrary.config?.clientSecret as string || "",
+        clientSecret: rawClientSecret === '********' ? '' : rawClientSecret,
         redirectUri: activeLibrary.config?.redirectUri as string || "",
       };
       
@@ -536,9 +538,18 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
           break;
         case "onedrive":
         case "gdrive":
+          // WICHTIG: clientSecret nur senden, wenn es NICHT der maskierte Wert ist
+          // Wenn es '********' ist, wurde kein neues Secret eingegeben und das Backend 
+          // soll den bestehenden Wert behalten
+          const clientSecret = data.storageConfig.clientSecret;
+          const shouldSendSecret = clientSecret && 
+            clientSecret !== '********' && 
+            clientSecret.trim() !== '';
+          
           storageConfig = {
             clientId: data.storageConfig.clientId,
-            clientSecret: data.storageConfig.clientSecret,
+            // Nur senden wenn es ein echter neuer Wert ist
+            ...(shouldSendSecret ? { clientSecret: clientSecret.trim() } : {}),
             redirectUri: data.storageConfig.redirectUri,
           };
           break;

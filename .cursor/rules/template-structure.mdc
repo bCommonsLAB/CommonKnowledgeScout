@@ -71,7 +71,25 @@ title: {{title|Vollständiger Titel des Dokuments (extraktiv)}}
 - Referenziert das Feld aus dem Frontmatter
 - Wird im Output durch den generierten Wert ersetzt
 
-## Frontmatter-Feldtypen
+## Feldtypen: Dynamisch vs. Fest
+
+Im Frontmatter gibt es zwei grundsätzlich verschiedene Feldtypen:
+
+### 🔵 Dynamische Felder (LLM füllt aus)
+
+Syntax: `feldname: {{variable|Anweisung für das LLM}}`
+
+Das LLM extrahiert oder generiert den Wert basierend auf dem Quelltext.
+
+```yaml
+# Dynamische Felder - LLM liefert den Wert
+title: {{title|Vollständiger Titel des Dokuments (extraktiv)}}
+summary: {{summary|Zusammenfassung in 2-3 Sätzen}}
+tags: {{tags|Array von Tags, lowercase, kebab-case}}
+year: {{year|Jahr (YYYY) oder null wenn nicht erkennbar}}
+```
+
+**Varianten dynamischer Felder:**
 
 | Typ | Syntax | Beispiel |
 |-----|--------|----------|
@@ -80,7 +98,42 @@ title: {{title|Vollständiger Titel des Dokuments (extraktiv)}}
 | Boolean | `{{feld\|boolean: true/false}}` | `isScan: {{isScan\|boolean; true wenn...}}` |
 | Nullable | `{{feld\|... oder null}}` | `year: {{year\|YYYY oder null}}` |
 | Enum | `{{feld\|Eine aus: a, b, c}}` | `status: {{status\|Eine aus: geplant, in_umsetzung, umgesetzt}}` |
-| Fester Wert | `wert` (ohne Placeholder) | `sprache: de` |
+
+### ⚪ Feste Felder (fixe Werte)
+
+Syntax: `feldname: wert` (ohne `{{...}}`)
+
+Der Wert wird 1:1 in jedes transformierte Dokument übernommen. Nützlich für:
+- Dokumenttyp/Format-Identifier
+- Sprachkennzeichnung
+- Feste Kategorien
+- Prompts für Bildgenerierung
+
+```yaml
+# Feste Felder - immer derselbe Wert
+sprache: de
+docType: klimamassnahme
+detailViewType: climateAction
+region: Südtirol
+coverImagePrompt: Erstelle ein Hintergrundbild für einen Blogartikel...
+```
+
+### Mischbeispiel
+
+```yaml
+---
+# DYNAMISCH: LLM extrahiert/generiert
+title: {{title|Kurzer Titel der Maßnahme (max. 80 Zeichen)}}
+summary: {{summary|Zusammenfassung für Bürger:innen (2-3 Sätze)}}
+tags: {{tags|Array von relevanten Keywords}}
+
+# FEST: Immer gleicher Wert
+sprache: de
+docType: klimamassnahme
+detailViewType: climateAction
+coverImagePrompt: Erstelle ein Hintergrundbild ohne Text...
+---
+```
 
 ## Systemprompt-Abschnitte
 

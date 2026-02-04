@@ -245,6 +245,23 @@ export class IngestionService {
       delete (docMetaJsonObj as Record<string, unknown>)['__jsonClean']
       delete (docMetaJsonObj as Record<string, unknown>)['__sanitized']
       
+      // Reparatur-Logik für Array-Felder, die fälschlicherweise als JSON-String gespeichert wurden
+      // Beispiel: tags: '["abfallvermeidung", "recycling"]' → tags: ["abfallvermeidung", "recycling"]
+      const arrayFields = ['tags', 'authors', 'topics']
+      for (const field of arrayFields) {
+        const value = docMetaJsonObj[field]
+        if (typeof value === 'string' && value.trim().startsWith('[')) {
+          try {
+            const parsed = JSON.parse(value)
+            if (Array.isArray(parsed)) {
+              docMetaJsonObj[field] = parsed
+            }
+          } catch {
+            // Parsing fehlgeschlagen - behalte Original
+          }
+        }
+      }
+      
       // Verarbeite Markdown-Bilder und Cover-Bild für Bücher (nur wenn kein Session-Modus)
       // WICHTIG: Verwende shadowTwinFolderId aus Parameter (kommt von job.shadowTwinState)
       // Dies ist die zentrale Logik, die auch Template-Phase verwendet

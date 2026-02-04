@@ -7,10 +7,97 @@
  * Verwende stattdessen die API-Routes (/api/templates).
  */
 
-import type { TemplateDocument } from './template-types'
+import type { TemplateDocument, TemplateMetadataField } from './template-types'
 import { TemplateRepository } from '@/lib/repositories/template-repo'
 import { parseTemplate } from './template-parser'
 import { injectCreationIntoFrontmatter } from './template-frontmatter-utils'
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ANTWORTSCHEMA-GENERIERUNG
+// 
+// Das LLM verwendet das "Antwortschema:" im Systemprompt als Vorlage für die 
+// JSON-Struktur. Früher wurde dieses manuell im Systemprompt gepflegt, was zu
+// Inkonsistenzen führte (z.B. "handlungsfeld" im Schema, aber "category" in Metadata).
+//
+// Jetzt wird das Schema AUTOMATISCH aus den Metadaten-Feldern generiert und am
+// Ende des Systemprompts eingefügt. Ein manuell geschriebenes Schema wird erkannt
+// und entfernt, um Duplikate zu vermeiden.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Generiert ein JSON-Schema-Objekt aus Template-Metadaten-Feldern.
+ * 
+ * Das Schema wird als Prosa-Block formatiert, damit das LLM die erwartete
+ * Struktur der Antwort kennt.
+ * 
+ * @param fields Template-Metadaten-Felder
+ * @returns Formatiertes Schema als String
+ */
+function generateResponseSchemaFromFields(fields: TemplateMetadataField[]): string {
+  const schemaObj: Record<string, string> = {}
+  
+  for (const field of fields) {
+    // Verwende variable als Key (oder key als Fallback)
+    const key = field.variable || field.key
+    
+    // Bestimme Typ-Beschreibung basierend auf rawValue oder description
+    let typeDesc = 'string'
+    const raw = field.rawValue || ''
+    const desc = field.description || ''
+    
+    // Spezialtypen erkennen
+    if (raw.includes('[]') || desc.toLowerCase().includes('array')) {
+      typeDesc = 'string[]'
+    } else if (raw.includes('number') || desc.toLowerCase().includes('zahl') || desc.toLowerCase().includes('nummer')) {
+      typeDesc = 'number | null'
+    } else if (desc) {
+      // Beschreibung als Typ-Hinweis verwenden (gekürzt)
+      const shortDesc = desc.length > 60 ? desc.substring(0, 57) + '...' : desc
+      typeDesc = `string (${shortDesc})`
+    }
+    
+    schemaObj[key] = typeDesc
+  }
+  
+  // Formatiere als lesbaren JSON-String
+  const lines = Object.entries(schemaObj).map(([key, type]) => `  "${key}": "${type}"`)
+  return `{\n${lines.join(',\n')}\n}`
+}
+
+/**
+ * Fügt das automatisch generierte Antwortschema zum Systemprompt hinzu.
+ * 
+ * Das generierte Schema wird am Ende des Systemprompts angehängt.
+ * Der bestehende Systemprompt bleibt unverändert erhalten.
+ * 
+ * @param systemprompt Original-Systemprompt (wird nicht verändert)
+ * @param fields Template-Metadaten-Felder
+ * @returns Systemprompt mit automatisch generiertem Schema am Ende
+ */
+function appendGeneratedResponseSchema(
+  systemprompt: string,
+  fields: TemplateMetadataField[]
+): string {
+  if (!systemprompt || fields.length === 0) {
+    return systemprompt
+  }
+  
+  // Generiere Schema aus Feldern
+  const generatedSchema = generateResponseSchemaFromFields(fields)
+  
+  // Hänge am Ende an mit klarer Kennzeichnung
+  // WICHTIG: Diese Anweisung überschreibt ein evtl. manuell geschriebenes Schema,
+  // da das LLM die letzte Anweisung priorisiert.
+  const schemaSection = `
+
+---
+WICHTIG - Verbindliches Antwortschema (automatisch aus Template-Metadaten generiert):
+Verwende EXAKT diese Feldnamen in deiner JSON-Antwort:
+
+${generatedSchema}`
+  
+  return systemprompt + schemaSection
+}
 
 /**
  * Lädt alle Templates einer Library aus MongoDB
@@ -103,6 +190,11 @@ export async function deleteTemplateFromMongoDB(
  * - Export zu Storage
  * - Secretary Service Kompatibilität
  * 
+ * WICHTIG für Secretary Service (includeCreation=false):
+ * Das Antwortschema wird AUTOMATISCH aus den Metadaten-Feldern generiert und
+ * an den Systemprompt angehängt. Ein manuell geschriebenes Schema im Original-
+ * Systemprompt wird dabei entfernt, um Inkonsistenzen zu vermeiden.
+ * 
  * @param template Template-Dokument
  * @param includeCreation Ob creation-Block enthalten sein soll (false für Secretary Service)
  * @returns Markdown-String
@@ -138,10 +230,26 @@ export function serializeTemplateToMarkdown(
   }
   
   // 3. Markdown-Body anhängen (kann leer sein)
-  // 4. systemprompt-Block anhängen
-  const systemPromptPart = template.systemprompt ? `\n\n--- systemprompt\n${template.systemprompt}` : ''
-  // Wenn markdownBody leer ist, füge trotzdem eine leere Zeile hinzu für korrekte Formatierung
   const bodyPart = template.markdownBody || ''
+  
+  // 4. Systemprompt-Block anhängen
+  // Für Secretary Service (includeCreation=false): Antwortschema automatisch generieren
+  let systemPromptPart = ''
+  if (template.systemprompt) {
+    if (!includeCreation && template.metadata.fields.length > 0) {
+      // Secretary Service Modus: Schema automatisch generieren und anhängen
+      // Das entfernt manuell geschriebene Schemas und ersetzt sie durch das generierte
+      const enhancedSystemprompt = appendGeneratedResponseSchema(
+        template.systemprompt,
+        template.metadata.fields
+      )
+      systemPromptPart = `\n\n--- systemprompt\n${enhancedSystemprompt}`
+    } else {
+      // Export-Modus: Original-Systemprompt beibehalten
+      systemPromptPart = `\n\n--- systemprompt\n${template.systemprompt}`
+    }
+  }
+  
   return `${frontmatter}\n\n${bodyPart}${systemPromptPart}`
 }
 

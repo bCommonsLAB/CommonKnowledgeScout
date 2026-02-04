@@ -64,7 +64,7 @@ export interface TemplateCreationWelcomeConfig {
   markdown: string
 }
 
-export type TemplatePreviewDetailViewType = 'book' | 'session' | 'testimonial' | 'blog'
+export type TemplatePreviewDetailViewType = 'book' | 'session' | 'testimonial' | 'blog' | 'climateAction'
 
 export interface TemplateCreationPreviewConfig {
   /**

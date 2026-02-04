@@ -168,8 +168,28 @@ export async function getShadowTwinArtifact(args: {
   const { libraryId, sourceId, artifactKey } = args
   const col = await getShadowTwinCollection(libraryId)
   const doc = await col.findOne({ libraryId, sourceId })
-  if (!doc) return null
-  return pickArtifact(doc, artifactKey)
+  
+  if (!doc) {
+    FileLogger.warn('shadow-twin-repo', 'Dokument nicht gefunden', {
+      libraryId,
+      sourceId,
+      artifactKey,
+      collectionName: getShadowTwinCollectionName(libraryId),
+    })
+    return null
+  }
+  
+  const artifact = pickArtifact(doc, artifactKey)
+  if (!artifact) {
+    FileLogger.warn('shadow-twin-repo', 'Artefakt im Dokument nicht gefunden', {
+      libraryId,
+      sourceId,
+      artifactKey,
+      availableArtifacts: doc.artifacts ? Object.keys(doc.artifacts) : [],
+    })
+  }
+  
+  return artifact
 }
 
 /**

@@ -37,6 +37,8 @@ interface GroupedItemsGridProps {
   viewMode?: ViewMode
   /** Callback für View-Mode-Änderung */
   onViewModeChange?: (mode: ViewMode) => void
+  /** Fallback-DetailViewType aus der Library-Config */
+  libraryDetailViewType?: string
 }
 
 /**
@@ -55,6 +57,7 @@ export function GroupedItemsGrid({
   onClose,
   viewMode,
   onViewModeChange,
+  libraryDetailViewType,
 }: GroupedItemsGridProps) {
   const { t } = useTranslation()
   const setChatReferences = useSetAtom(chatReferencesAtom)
@@ -204,7 +207,7 @@ export function GroupedItemsGrid({
           />
           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
             {usedDocs.map((doc) => (
-              <DocumentCard key={doc.id} doc={doc} onClick={onOpenDocument} libraryId={libraryId} />
+              <DocumentCard key={doc.id} doc={doc} onClick={onOpenDocument} libraryId={libraryId} libraryDetailViewType={libraryDetailViewType} />
             ))}
           </div>
         </div>
@@ -224,7 +227,7 @@ export function GroupedItemsGrid({
           />
           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
             {unusedDocs.map((doc) => (
-              <DocumentCard key={doc.id} doc={doc} onClick={onOpenDocument} libraryId={libraryId} />
+              <DocumentCard key={doc.id} doc={doc} onClick={onOpenDocument} libraryId={libraryId} libraryDetailViewType={libraryDetailViewType} />
             ))}
           </div>
         </div>

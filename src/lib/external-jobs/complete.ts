@@ -56,6 +56,7 @@ export async function setJobCompleted(args: CompleteArgs): Promise<JobResult> {
   // in den Job-Parametern nicht deaktiviert wurde. Andernfalls würde eine
   // vorher gesetzte Skip-Begründung (z.B. reason: 'phase_disabled') wieder
   // überschrieben werden.
+  const extractEnabled = phases ? (phases as { extract?: boolean }).extract !== false : true
   const templateEnabled = phases ? phases.template !== false : true
   if (templateEnabled) {
     await repo.updateStep(ctx.jobId, 'transform_template', { status: 'completed', endedAt: new Date() })
@@ -107,7 +108,11 @@ export async function setJobCompleted(args: CompleteArgs): Promise<JobResult> {
 
   if (sourceItemId && sourceName && sourceParentId && job) {
     const provider = await buildProvider({ userEmail: job.userEmail, libraryId: job.libraryId, jobId: ctx.jobId, repo })
+    // Bei Ingest-only Jobs (Template deaktiviert): Transformation als Fallback akzeptieren
+    // Grund: Ingest-only kann eine bereits existierende Transformation ingesten
+    const ingestOnly = !templateEnabled && !extractEnabled && ingestEnabled
     const expectedKind = templateEnabled ? 'transformation' : 'transcript'
+    const fallbackKind = ingestOnly ? 'transformation' : undefined
     const sourceBaseName = path.parse(sourceName).name
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -136,8 +141,9 @@ export async function setJobCompleted(args: CompleteArgs): Promise<JobResult> {
         // Die ID enthält bereits kind, targetLanguage und templateName
         const parsed = parseMongoShadowTwinId(savedItemId)
         if (parsed) {
-          const isExpectedKind = parsed.kind === expectedKind
-          const isExpectedTemplate = expectedKind === 'transformation'
+          // Prüfe ob expectedKind oder fallbackKind matched
+          const isExpectedKind = parsed.kind === expectedKind || (fallbackKind && parsed.kind === fallbackKind)
+          const isExpectedTemplate = (parsed.kind === 'transformation')
             ? (!templateName || !parsed.templateName || parsed.templateName.toLowerCase() === templateName.toLowerCase())
             : true
           
@@ -157,8 +163,9 @@ export async function setJobCompleted(args: CompleteArgs): Promise<JobResult> {
           const candidateName = String(it?.metadata?.name || '')
           const parsed = parseArtifactName(candidateName, sourceBaseName)
 
-          const isExpectedKind = parsed.kind === expectedKind
-          const isExpectedTemplate = expectedKind === 'transformation'
+          // Prüfe ob expectedKind oder fallbackKind matched
+          const isExpectedKind = parsed.kind === expectedKind || (fallbackKind && parsed.kind === fallbackKind)
+          const isExpectedTemplate = (parsed.kind === 'transformation')
             ? (!templateName || (parsed.templateName && parsed.templateName.toLowerCase() === templateName.toLowerCase()))
             : true
 
@@ -187,11 +194,21 @@ export async function setJobCompleted(args: CompleteArgs): Promise<JobResult> {
             provider,
           })
 
-          const resolvedId = await service.resolveSavedItemIdForContract({
+          // Erst mit expectedKind versuchen
+          let resolvedId = await service.resolveSavedItemIdForContract({
             expectedKind,
             targetLanguage: lang,
             templateName,
           })
+
+          // Wenn nicht gefunden und fallbackKind vorhanden, mit fallbackKind versuchen
+          if (!resolvedId && fallbackKind) {
+            resolvedId = await service.resolveSavedItemIdForContract({
+              expectedKind: fallbackKind,
+              targetLanguage: lang,
+              templateName,
+            })
+          }
 
           if (resolvedId) {
             savedItemId = resolvedId

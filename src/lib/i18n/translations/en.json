@@ -385,6 +385,7 @@
       "galleryFacetsDescription": "Define any facets for filter navigation.",
       "detailViewTypeBook": "Book (Books, Documents, Chapters)",
       "detailViewTypeSession": "Session (Events, Presentations, Slides)",
+      "detailViewTypeClimateAction": "ClimateAction (Climate Actions)",
       "checkIndexStatus": "Check index status",
       "checking": "Checking...",
       "createIndex": "Create index",

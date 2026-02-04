@@ -50,7 +50,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
   
   // Lade targetLanguage aus Library-Config (config.chat.targetLanguage)
   const libraryConfigChatTargetLanguage = activeLibrary?.config?.chat?.targetLanguage;
-  const libraryConfigPdfTemplate = activeLibrary?.config?.secretaryService?.pdfDefaults?.template;
+  const libraryConfigPdfTemplate = activeLibrary?.config?.secretaryService?.template;
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -176,7 +176,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
       setForceExtract(false);
       setForceMeta(false);
       // Cover-Bild aus Library-Config initialisieren
-      setGenerateCoverImage(activeLibrary?.config?.chat?.generateCoverImage === true);
+      setGenerateCoverImage(activeLibrary?.config?.secretaryService?.generateCoverImage === true);
       // Bei Öffnen initial Scannen
       void handleScan();
       // Batch-Name vorbelegen: relativer Pfad des aktuellen Ordners (ohne führenden '/')
@@ -236,7 +236,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
           targetLanguage: typeof defaults.targetLanguage === 'string' ? defaults.targetLanguage : TARGET_LANGUAGE_DEFAULT,
           // Cover-Bild (nur wenn Phase 2 aktiv)
           generateCoverImage: runMetaPhase && generateCoverImage,
-          coverImagePrompt: activeLibrary?.config?.chat?.coverImagePrompt,
+          coverImagePrompt: activeLibrary?.config?.secretaryService?.coverImagePrompt,
         },
         // Items für Batch-Verarbeitung
         items: candidates.map(({ file, parentId }) => ({ 

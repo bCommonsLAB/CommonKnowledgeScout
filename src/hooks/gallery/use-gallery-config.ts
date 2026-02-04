@@ -4,6 +4,9 @@ import { useMemo } from 'react'
 import type { GalleryTexts } from '@/lib/gallery/types'
 import { useTranslation } from '@/lib/i18n/hooks'
 
+/** Alle unterstützten DetailViewTypes */
+type DetailViewType = 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog'
+
 /**
  * Hook für Gallery-Konfiguration
  * Verwendet Übersetzungen basierend auf detailViewType
@@ -15,7 +18,7 @@ import { useTranslation } from '@/lib/i18n/hooks'
 export function useGalleryConfig(
   defaults: GalleryTexts, 
   libraryId?: string,
-  initialDetailViewType?: 'book' | 'session'
+  initialDetailViewType?: DetailViewType
 ) {
   const { t } = useTranslation()
   
@@ -23,6 +26,7 @@ export function useGalleryConfig(
   const detailViewType = initialDetailViewType || 'book'
 
   // Verwende Übersetzungen basierend auf detailViewType
+  // Fallback auf 'book' für neue ViewTypes ohne eigene Übersetzungen
   const texts = useMemo<GalleryTexts>(() => {
     const viewType = detailViewType === 'session' ? 'session' : 'book'
     return {

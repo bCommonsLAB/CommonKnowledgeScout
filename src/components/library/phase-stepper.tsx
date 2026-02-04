@@ -36,7 +36,7 @@ export function PhaseStepper({ statuses, className }: PhaseStepperProps) {
   
   // Lade targetLanguage aus Library-Config (config.chat.targetLanguage)
   const libraryConfigChatTargetLanguage = activeLibrary?.config?.chat?.targetLanguage;
-  const libraryConfigPdfTemplate = activeLibrary?.config?.secretaryService?.pdfDefaults?.template;
+  const libraryConfigPdfTemplate = activeLibrary?.config?.secretaryService?.template;
 
   function canRun(): boolean {
     return Boolean(provider && activeLibraryId && item && item.type === 'file');

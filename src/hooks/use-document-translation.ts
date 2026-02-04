@@ -17,7 +17,8 @@ import { useSessionHeaders } from './use-session-headers'
 interface TranslateDocumentParams {
   libraryId: string
   fileId: string
-  viewType: 'book' | 'session'
+  /** Unterstützte ViewTypes für Übersetzung (erweitert um climateAction, testimonial, blog) */
+  viewType: 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog'
   targetLanguage?: TargetLanguage
 }
 
