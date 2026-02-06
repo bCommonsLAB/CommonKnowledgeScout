@@ -94,7 +94,7 @@ function ClimateActionCard({ doc, onClick }: { doc: DocCardMeta; onClick: () => 
       {displayImageUrl ? (
         <Image
           src={displayImageUrl}
-          alt={doc.title || doc.shortTitle || doc.fileName || 'Cover'}
+          alt={doc.shortTitle || doc.title || doc.fileName || 'Cover'}
           fill
           className='object-cover transition-transform duration-500 group-hover:scale-105'
           loading='lazy'
@@ -119,7 +119,7 @@ function ClimateActionCard({ doc, onClick }: { doc: DocCardMeta; onClick: () => 
             </span>
           )}
           <h3 className='text-lg font-semibold leading-tight text-white text-balance pr-4 drop-shadow-lg'>
-            {doc.title || doc.shortTitle || doc.fileName || 'Klimamaßnahme'}
+            {doc.shortTitle || doc.title || doc.fileName || 'Klimamaßnahme'}
           </h3>
         </div>
         

@@ -17,6 +17,11 @@ Operational “what to debug” notes live in `docs/analysis/ingestion.md`.
 This project uses **MongoDB Atlas Vector Search** for semantic search and RAG.
 Embeddings and metadata live in MongoDB. No separate vector database is required.
 
+### Cluster-Anforderung (wichtig)
+- **Atlas Search / Vector Search** läuft nur auf **MongoDB Atlas** (nicht auf Self-Hosted-MongoDB).
+- Auf **M0 (Free)**- und **Flex**-Clustern sind `createSearchIndexes` und `listSearchIndexes` **nicht unterstützt** (laut [Unsupported Commands](https://www.mongodb.com/docs/atlas/unsupported-commands/), z. B. `getSearchIndexes`).
+- Für Vector Search wird ein **kostenpflichtiger Cluster (M2 oder höher)** benötigt. Auf M0 erscheinen in Compass unter „Search Indexes“ keine Indizes, und die Anwendung meldet „Index nicht gefunden“ trotz Klick auf „Index anlegen“.
+
 ### Collection layout
 - **One collection per library**: `vectors__${libraryId}`
 - Multiple document kinds live in the same collection (distinguished by `kind`)

@@ -254,12 +254,20 @@ async function checkIndexExists(
   try {
     // Versuche Index-Liste zu holen (präferierte Methode)
     const indexes = await col.listSearchIndexes().toArray()
+    const names = indexes.map((idx: { name?: string }) => idx.name ?? '(unnamed)')
     const exists = indexes.some((idx: { name: string }) => idx.name === indexName)
+    console.log(`[vector-repo] listSearchIndexes Ergebnis: ${indexes.length} Index(es) für Collection "${col.collectionName}": [${names.join(', ')}]`)
     console.log(`[vector-repo] checkIndexExists via listSearchIndexes: ${exists ? 'gefunden' : 'nicht gefunden'} für Index "${indexName}"`)
     return exists
   } catch (listError) {
-    // Fallback: Test-Query wenn listSearchIndexes nicht verfügbar
-    console.log(`[vector-repo] listSearchIndexes nicht verfügbar, verwende Fallback-Methode:`, listError instanceof Error ? listError.message : String(listError))
+    // Fallback: Test-Query wenn listSearchIndexes nicht verfügbar (z. B. M0-Cluster)
+    const err = listError as { message?: string; code?: number; codeName?: string; name?: string }
+    console.log(
+      `[vector-repo] listSearchIndexes nicht verfügbar (z. B. M0/Flex), verwende Fallback:`,
+      err.message ?? String(listError),
+      err.code != null ? `code=${err.code}` : '',
+      err.codeName ? `codeName=${err.codeName}` : ''
+    )
     try {
       // Hole ein existierendes Dokument mit Embedding für Test
       const sampleDoc = await col.findOne(
@@ -488,18 +496,34 @@ async function ensureVectorSearchIndex(
       const indexDefinition = buildVectorSearchIndexDefinition(library, dimension)
       
       console.log(`[vector-repo] Erstelle Vector Search Index für Library "${library.id}" mit ${parseFacetDefs(library).length} Facetten (Dimension: ${dimension})`)
-      console.log(`[vector-repo] Index-Definition:`, JSON.stringify(indexDefinition, null, 2))
-      console.log(`[vector-repo] Collection-Name: "${col.collectionName}", DB-Name: "${db.databaseName}"`)
+      
+      const createCommand = {
+        createSearchIndexes: col.collectionName,
+        indexes: [indexDefinition],
+      }
+      console.log(`[vector-repo] ========== Index anlegen: An MongoDB senden ==========`)
+      console.log(`[vector-repo] Datenbank: "${db.databaseName}", Collection: "${col.collectionName}"`)
+      console.log(`[vector-repo] Befehl: createSearchIndexes (Atlas Search API)`)
+      console.log(`[vector-repo] Payload (indexes):`, JSON.stringify(createCommand.indexes, null, 2))
+      console.log(`[vector-repo] ============================================================`)
       
       try {
-        const createCommand = {
-          createSearchIndexes: col.collectionName,
-          indexes: [indexDefinition],
+        const result = (await db.command(createCommand)) as {
+          ok?: number
+          indexesCreated?: Array<{ id?: string; name?: string }>
+          errorMessage?: string
+          codeName?: string
+          [key: string]: unknown
         }
-        console.log(`[vector-repo] Führe MongoDB-Befehl aus:`, JSON.stringify(createCommand, null, 2))
-        
-        const result = await db.command(createCommand)
-        console.log(`[vector-repo] MongoDB-Befehl erfolgreich ausgeführt:`, result)
+        console.log(`[vector-repo] ========== Antwort von MongoDB ==========`)
+        console.log(`[vector-repo] Vollständige Antwort:`, JSON.stringify(result, null, 2))
+        console.log(`[vector-repo] ok=${result.ok}, indexesCreated=${result.indexesCreated?.length ?? 0}`)
+        console.log(`[vector-repo] =========================================`)
+        if (result.ok !== 1) {
+          const msg = result.errorMessage ?? result.codeName ?? 'Unbekannter Fehler'
+          console.error(`[vector-repo] createSearchIndexes lehnte ab: ok=${result.ok}, message=${msg}`)
+          throw new Error(msg)
+        }
         console.log(`[vector-repo] ✅ Vector Search Index "${indexName}" erfolgreich erstellt für Collection "${libraryKey}"`)
         
         // Warte länger, damit MongoDB den Index registrieren kann
@@ -517,14 +541,24 @@ async function ensureVectorSearchIndex(
       } catch (createError) {
         const createErrorMsg = createError instanceof Error ? createError.message : String(createError)
         const createErrorStack = createError instanceof Error ? createError.stack : undefined
-        console.error(`[vector-repo] ❌ Fehler beim Erstellen des Index:`, {
-          error: createErrorMsg,
-          stack: createErrorStack,
-          libraryKey,
-          dimension,
-          collectionName: col.collectionName,
-          dbName: db.databaseName,
-        })
+        const mongoErr = createError as { code?: number; codeName?: string; name?: string }
+        console.error(`[vector-repo] ========== Fehler von MongoDB (createSearchIndexes) ==========`)
+        console.error(`[vector-repo] Nachricht: ${createErrorMsg}`)
+        if (mongoErr.code != null) console.error(`[vector-repo] MongoDB code: ${mongoErr.code}`)
+        if (mongoErr.codeName) console.error(`[vector-repo] MongoDB codeName: ${mongoErr.codeName}`)
+        console.error(`[vector-repo] Kontext: DB="${db.databaseName}", Collection="${col.collectionName}", libraryKey="${libraryKey}", dimension=${dimension}`)
+        if (createErrorStack) console.error(`[vector-repo] Stack:`, createErrorStack)
+        console.error(`[vector-repo] ====================================================================`)
+        // M0/Free und Flex unterstützen Atlas Search nicht – klare Meldung für den Nutzer
+        if (
+          /not allowed|Atlas tier|unsupported|getSearchIndexes|createSearchIndexes/i.test(createErrorMsg)
+        ) {
+          throw new Error(
+            'Atlas Search (Vector Search) ist auf diesem Cluster nicht verfügbar. ' +
+              'Er wird nur auf MongoDB Atlas mit kostenpflichtigem Cluster (M2 oder höher) unterstützt. ' +
+              'M0-Free- und Flex-Cluster unterstützen keine Suchindizes. Bitte Cluster in Atlas auf M2+ upgraden.'
+          )
+        }
         throw createError
       }
     } else {

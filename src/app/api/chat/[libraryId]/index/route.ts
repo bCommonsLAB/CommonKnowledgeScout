@@ -107,17 +107,23 @@ export async function POST(
     const dimension = getEmbeddingDimensionForModel(ctx.library.config?.chat)
     const libraryKey = getVectorCollectionName(ctx.library)
     
+    console.log(`[index/route] ========== Index anlegen angefordert ==========`)
+    console.log(`[index/route] libraryId: ${libraryId}`)
+    console.log(`[index/route] Collection (libraryKey): ${libraryKey}`)
+    console.log(`[index/route] Dimension: ${dimension}`)
+    console.log(`[index/route] Nächster Schritt: Cache leeren, dann getVectorCollection() → ensureVectorSearchIndex() → createSearchIndexes an MongoDB`)
+    console.log(`[index/route] ================================================`)
+    
     // Cache leeren, damit Index definitiv neu erstellt wird (falls vorher gelöscht wurde)
-    // Dies stellt sicher, dass ensureVectorSearchIndex() den Index wirklich prüft und erstellt
     clearVectorSearchIndexCache(libraryKey)
     console.log(`[index/route] Cache geleert für Collection "${libraryKey}", erstelle Index neu`)
     
     try {
       // Index wird automatisch erstellt durch getVectorCollection()
       // (ruft ensureVectorSearchIndex() auf, das jetzt den Index prüft und erstellt)
-      console.log(`[index/route] Rufe getVectorCollection() auf für Collection "${libraryKey}" mit Dimension ${dimension}`)
+      console.log(`[index/route] Rufe getVectorCollection() auf → dabei wird createSearchIndexes an MongoDB gesendet (siehe [vector-repo] Logs)`)
       await getVectorCollection(libraryKey, dimension, ctx.library)
-      console.log(`[index/route] getVectorCollection() erfolgreich aufgerufen für Collection "${libraryKey}"`)
+      console.log(`[index/route] getVectorCollection() zurück; Verifizierung ob Index in listSearchIndexes erscheint...`)
       
       // Warte etwas, damit MongoDB den Index registrieren kann
       await new Promise(resolve => setTimeout(resolve, 2000))
@@ -151,7 +157,7 @@ export async function POST(
       })
     }
 
-    // Index wurde nicht gefunden - möglicherweise wird er noch erstellt
+    // Index wurde nicht gefunden – entweder noch in Erstellung oder Cluster unterstützt keine Suchindizes (z. B. M0)
     console.warn(`[index/route] Index wurde nicht gefunden nach Erstellung für Collection "${libraryKey}"`)
     return NextResponse.json({
       status: 'creating',
@@ -159,7 +165,10 @@ export async function POST(
         name: VECTOR_SEARCH_INDEX_NAME,
         status: 'INITIAL_SYNC',
       },
-      message: 'Index wird erstellt, kann einige Minuten dauern',
+      message:
+        'Index wird erstellt, kann einige Minuten dauern. ' +
+        'Falls in MongoDB Compass unter "Search Indexes" dauerhaft "No search indexes yet" steht: ' +
+        'Atlas Search ist nur auf kostenpflichtigen Clustern (M2 oder höher) verfügbar, nicht auf M0 (Free) oder Flex.',
     })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Interner Fehler'
