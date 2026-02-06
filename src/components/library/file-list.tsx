@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { 
   File, FileText, FileVideo, FileAudio, FileSpreadsheet, Presentation, Globe,
   Image as ImageIcon, FileType2, Plus, RefreshCw, ChevronUp, ChevronDown, 
-  Trash2, Folder as FolderIcon, Sparkles 
+  Trash2, Folder as FolderIcon, Sparkles, Upload 
 } from "lucide-react"
 import { StorageItem } from "@/lib/storage/types"
 import { cn } from "@/lib/utils"
@@ -46,13 +46,82 @@ import { shadowTwinAnalysisTriggerAtom, shadowTwinStateAtom } from "@/atoms/shad
 type SortField = 'type' | 'name' | 'size' | 'date';
 type SortOrder = 'asc' | 'desc';
 
+// Metadaten für die Dateiliste (Titel, Nummer, Cover) aus Transformations-Frontmatter
+interface ListMeta {
+  title?: string;
+  number?: string;
+  coverImageUrl?: string;
+  /** Fragment-Name des Thumbnails (z.B. WebP); wenn vorhanden, in der Liste bevorzugt nutzen */
+  coverThumbnailUrl?: string;
+}
+
 // Typ für gruppierte Dateien
 interface FileGroup {
   baseItem?: StorageItem;
   transcriptFiles?: StorageItem[]; // NEU: alle Transkripte
   transformed?: StorageItem;
   shadowTwinFolderId?: string; // Optional: ID des Shadow-Twin-Verzeichnisses
+  /** Ingestion-Status (Story publiziert) – aus Shadow-Twin-Analyse */
+  ingestionStatus?: { exists: boolean; chunkCount?: number; chaptersCount?: number };
+  /** Titel, Nummer, Cover für Listen-Anzeige – aus Batch-Resolve (Mongo-Pfad) */
+  listMeta?: ListMeta;
 }
+
+/**
+ * Kleines Thumbnail für Cover-Bild in der Dateiliste.
+ * Löst relative coverImageUrl über resolve-binary-url auf (lazy).
+ */
+const ListCoverThumbnail = React.memo(function ListCoverThumbnail({
+  libraryId,
+  sourceId,
+  sourceName,
+  parentId,
+  coverImageUrl,
+  className,
+}: {
+  libraryId: string;
+  sourceId: string;
+  sourceName: string;
+  parentId: string;
+  coverImageUrl: string;
+  className?: string;
+}) {
+  const isAbsoluteUrl = coverImageUrl.startsWith('http://') || coverImageUrl.startsWith('https://') || coverImageUrl.startsWith('/api/');
+  const [resolvedUrl, setResolvedUrl] = React.useState<string | null>(isAbsoluteUrl ? coverImageUrl : null);
+
+  React.useEffect(() => {
+    if (isAbsoluteUrl || resolvedUrl !== null) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/library/${encodeURIComponent(libraryId)}/shadow-twins/resolve-binary-url`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sourceId, sourceName, parentId, fragmentName: coverImageUrl }),
+        });
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { resolvedUrl?: string };
+        if (data?.resolvedUrl && !cancelled) setResolvedUrl(data.resolvedUrl);
+      } catch {
+        // Fehler still ignorieren (Thumbnail optional)
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [libraryId, sourceId, sourceName, parentId, coverImageUrl, isAbsoluteUrl, resolvedUrl]);
+
+  if (resolvedUrl) {
+    return (
+      <img
+        src={resolvedUrl}
+        alt=""
+        className={cn('h-6 w-6 rounded object-cover flex-shrink-0', className)}
+        loading="lazy"
+      />
+    );
+  }
+  // Platzhalter während des Ladens oder bei Fehler (vermeidet Layout-Sprung)
+  return <div className={cn('h-6 w-6 rounded bg-muted flex-shrink-0 animate-pulse', className)} />;
+});
 
 /**
  * Ermittelt den Dateityp basierend auf der Dateiendung.
@@ -292,6 +361,8 @@ interface FileRowProps {
   fileGroup?: FileGroup;
   onRename?: (item: StorageItem, newName: string) => Promise<void>;
   compact?: boolean;
+  /** Für Cover-Thumbnail-Auflösung (resolve-binary-url) */
+  libraryId?: string;
 }
 
 const FileRow = React.memo(function FileRow({ 
@@ -303,7 +374,8 @@ const FileRow = React.memo(function FileRow({
   onDelete,
   fileGroup,
   onRename,
-  compact = false
+  compact = false,
+  libraryId,
 }: FileRowProps) {
   const [isEditing, setIsEditing] = React.useState(false);
   const [editName, setEditName] = React.useState(item.metadata.name);
@@ -617,7 +689,18 @@ const FileRow = React.memo(function FileRow({
           onClick={(e) => e.stopPropagation()}
         />
       </div>
-      <FileIconComponent item={item} />
+      {/* Cover-Thumbnail wenn vorhanden (nur bei Basis-Datei). Bevorzugt coverThumbnailUrl (klein), sonst coverImageUrl. */}
+      {(fileGroup?.listMeta?.coverThumbnailUrl || fileGroup?.listMeta?.coverImageUrl) && fileGroup?.baseItem?.id === item.id && libraryId ? (
+        <ListCoverThumbnail
+          libraryId={libraryId}
+          sourceId={item.id}
+          sourceName={item.metadata.name}
+          parentId={item.parentId}
+          coverImageUrl={fileGroup.listMeta.coverThumbnailUrl ?? fileGroup.listMeta.coverImageUrl ?? ''}
+        />
+      ) : (
+        <FileIconComponent item={item} />
+      )}
       {isEditing ? (
         <Input
           ref={inputRef}
@@ -629,16 +712,23 @@ const FileRow = React.memo(function FileRow({
           className="h-6 px-1 py-0 text-xs"
         />
       ) : (
-        <span 
-          className={cn("text-left truncate cursor-pointer hover:text-primary select-none", isActive && "font-medium")}
-          onClick={handleNameClick}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-          onTouchMove={handleTouchMove}
-          title={metadata.name}
-        >
-          {metadata.name}
-        </span>
+        <div className="min-w-0 flex flex-col justify-center">
+          <span 
+            className={cn("text-left truncate cursor-pointer hover:text-primary select-none", isActive && "font-medium")}
+            onClick={handleNameClick}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            onTouchMove={handleTouchMove}
+            title={fileGroup?.listMeta?.title ?? metadata.name}
+          >
+            {fileGroup?.listMeta?.number ? `${fileGroup.listMeta.number} · ` : ''}{metadata.name}
+          </span>
+          {fileGroup?.listMeta?.title ? (
+            <span className="text-[10px] text-muted-foreground truncate" title={fileGroup.listMeta.title}>
+              {fileGroup.listMeta.title}
+            </span>
+          ) : null}
+        </div>
       )}
       <span className="text-muted-foreground tabular-nums text-[10px]">
         {formatFileSize(metadata.size)}
@@ -649,30 +739,25 @@ const FileRow = React.memo(function FileRow({
       <div className="flex items-center justify-start gap-1">
         {/* Status-Icon: Zeigt Fortschritt der Story-Ingestion (Transcript → Transformation → Story) */}
         {(() => {
-          // Bestimme Status: Transformation > Transcript
-          // (ingestionStatus ist nicht Teil von FileGroup - nur shadwTwinState)
           const hasTransformation = !!fileGroup?.transformed;
           const hasTranscript = !!(fileGroup?.transcriptFiles && fileGroup.transcriptFiles.length > 0);
-          
-          if (!hasTranscript && !hasTransformation) {
-            return null; // Kein Status vorhanden
+          const storyPublished = !!fileGroup?.ingestionStatus?.exists;
+
+          if (!hasTranscript && !hasTransformation && !storyPublished) {
+            return null;
           }
 
-          // Bestimme Icon und Tooltip basierend auf höchstem Status
-          // Hinweis: ingestionStatus ist nicht Teil von FileGroup und wird hier nicht angezeigt
           let StatusIcon: typeof FileText;
           let statusText: string;
           let iconColor: string;
 
           if (hasTransformation && fileGroup?.transformed) {
-            // Transformation vorhanden (mittlere Stufe)
-            // Wichtig: Icon und Farbe müssen mit Tabs übereinstimmen (siehe `file-preview.tsx` stepStateClass)
             StatusIcon = Sparkles;
-            statusText = `Transformation vorhanden: ${fileGroup.transformed.metadata.name}`;
+            statusText = storyPublished
+              ? `Transformation & Story publiziert: ${fileGroup.transformed.metadata.name}`
+              : `Transformation vorhanden: ${fileGroup.transformed.metadata.name}`;
             iconColor = 'text-green-600';
           } else if (hasTranscript && fileGroup?.transcriptFiles?.[0]) {
-            // Nur Transcript vorhanden (niedrigste Stufe)
-            // Wichtig: Icon und Farbe müssen mit Tabs übereinstimmen (siehe `file-preview.tsx` stepStateClass)
             StatusIcon = FileText;
             statusText = `Transcript vorhanden: ${fileGroup.transcriptFiles[0].metadata.name}`;
             iconColor = 'text-green-600';
@@ -695,6 +780,21 @@ const FileRow = React.memo(function FileRow({
             </TooltipProvider>
           );
         })()}
+        {/* Story publiziert: Gleiches Icon wie im Story-Tab der File Preview (Upload, text-green-600 bei present) */}
+        {fileGroup?.ingestionStatus?.exists ? (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="h-6 w-6 flex items-center justify-center text-green-600" title="Story publiziert">
+                  <Upload className="h-4 w-4" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Story publiziert (in RAG/Galerie)</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : null}
         {/* Plus-Symbol nur anzeigen, wenn kein Shadow-Twin vorhanden und transkribierbar */}
         {(!fileGroup?.transcriptFiles || fileGroup.transcriptFiles.length === 0) && !fileGroup?.transformed && isTranscribable && !metadata.hasTranscript ? (
           <TooltipProvider>
@@ -966,7 +1066,8 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
           transcriptFiles: shadowTwinState?.transcriptFiles || (shadowTwins.length > 0 ? shadowTwins : undefined),
           transformed: shadowTwinState?.transformed,
           shadowTwinFolderId: shadowTwinState?.shadowTwinFolderId,
-          // Hinweis: ingestionStatus ist nicht Teil von FileGroup (nur in ShadowTwinState)
+          ingestionStatus: shadowTwinState?.ingestionStatus,
+          listMeta: shadowTwinState?.listMeta,
         });
       } else {
         // Keine Hauptdatei: Jede ShadowTwin einzeln anzeigen
@@ -1762,6 +1863,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                     fileGroup={group}
                     onRename={handleRename}
                     compact={compact}
+                    libraryId={activeLibraryId ?? undefined}
                   />
                 );
               });

@@ -17,6 +17,8 @@ export interface FacetDefUi {
   type: 'string' | 'number' | 'boolean' | 'string[]' | 'date' | 'integer-range'
   multi: boolean
   visible: boolean
+  /** Wenn true, wird diese Facette als Spalte in der Galerie-Tabellenansicht angezeigt */
+  showInTable?: boolean
   sort?: 'alpha' | 'count'
   max?: number
   columns?: number
@@ -34,6 +36,7 @@ export function FacetDefsEditor({ value, onChange, detailViewType }: FacetDefsEd
     ...d,
     multi: d?.multi ?? true,
     visible: d?.visible ?? true,
+    showInTable: d?.showInTable ?? false,
     type: d?.type ?? 'string',
     sort: ((d as { sort?: unknown }).sort === 'count' ? 'count' : 'alpha') as 'alpha' | 'count',
     max: typeof (d as { max?: unknown }).max === 'number' ? (d as { max: number }).max : undefined,
@@ -65,7 +68,7 @@ export function FacetDefsEditor({ value, onChange, detailViewType }: FacetDefsEd
     onChange(next)
   }
   function add() {
-    onChange([ ...defs, { metaKey: '', label: '', type: 'string', multi: true, visible: true } ])
+    onChange([ ...defs, { metaKey: '', label: '', type: 'string', multi: true, visible: true, showInTable: false } ])
   }
   function remove(index: number) {
     onChange(defs.filter((_, i) => i !== index))
@@ -120,6 +123,7 @@ export function FacetDefsEditor({ value, onChange, detailViewType }: FacetDefsEd
           type: (types.includes(obj.type as FacetDefUi['type']) ? obj.type : 'string') as FacetDefUi['type'],
           multi: typeof obj.multi === 'boolean' ? obj.multi : true,
           visible: typeof obj.visible === 'boolean' ? obj.visible : true,
+          showInTable: typeof obj.showInTable === 'boolean' ? obj.showInTable : false,
           sort: obj.sort === 'count' ? 'count' : 'alpha',
           max: typeof obj.max === 'number' ? obj.max : undefined,
           columns: typeof obj.columns === 'number' ? obj.columns : 1,
@@ -188,6 +192,7 @@ export function FacetDefsEditor({ value, onChange, detailViewType }: FacetDefsEd
               <th className="px-1 py-2 w-[10%]">Spalten</th>
               <th className="px-1 py-2 w-[10%]">Multi</th>
               <th className="px-1 py-2 w-[10%]">Sichtbar</th>
+              <th className="px-1 py-2 w-[10%]" title="Spalte in der Tabellenansicht anzeigen">In Tabelle</th>
               <th className="px-1 py-2 w-[100px]">Aktionen</th>
             </tr>
           </thead>
@@ -281,6 +286,9 @@ export function FacetDefsEditor({ value, onChange, detailViewType }: FacetDefsEd
                 <td className="px-1 py-2 align-middle">
                   <Switch checked={!!d.visible} onCheckedChange={(v) => update(i, { visible: v })} />
                 </td>
+                <td className="px-1 py-2 align-middle" title="Als Spalte in der Galerie-Tabellenansicht anzeigen">
+                  <Switch checked={!!d.showInTable} onCheckedChange={(v) => update(i, { showInTable: v })} />
+                </td>
                 <td className="px-0 py-2 align-middle">
                   <div className="flex items-center gap-0">
                     <Button type="button" variant="outline" size="sm" onClick={() => move(i, -1)} disabled={i === 0} className="h-8 w-8 p-0">↑</Button>
@@ -320,7 +328,7 @@ export function FacetDefsEditor({ value, onChange, detailViewType }: FacetDefsEd
           </DialogHeader>
           <div className="space-y-3">
             <Textarea
-              placeholder={`[\n  {\n    "metaKey": "arbeitsgruppe",\n    "label": "Arbeitsgruppe",\n    "type": "string",\n    "multi": true,\n    "visible": true\n  }\n]`}
+              placeholder={`[\n  {\n    "metaKey": "arbeitsgruppe",\n    "label": "Arbeitsgruppe",\n    "type": "string",\n    "multi": true,\n    "visible": true,\n    "showInTable": false\n  }\n]`}
               value={importJson}
               onChange={(e) => {
                 setImportJson(e.target.value)

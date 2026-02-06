@@ -114,6 +114,15 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
     ? rawGalleryConfig.groupByField 
     : 'year'
 
+  // Facetten, die als Spalten in der Tabellenansicht angezeigt werden (showInTable === true)
+  const tableColumnFacets = React.useMemo(() => {
+    const facets = rawGalleryConfig?.facets as Array<{ metaKey?: string; label?: string; showInTable?: boolean }> | undefined
+    if (!Array.isArray(facets)) return undefined
+    return facets
+      .filter((f) => f.showInTable === true && f.metaKey && f.metaKey.length > 0)
+      .map((f) => ({ metaKey: f.metaKey!, label: f.label }))
+  }, [rawGalleryConfig?.facets])
+
   // Hooks
   const { mode, setMode, containerRef } = useGalleryMode()
   
@@ -650,6 +659,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
       onDocumentDeleted={handleDocumentDeleted}
       libraryDetailViewType={detailViewType}
       groupByField={groupByField}
+      tableColumnFacets={tableColumnFacets}
     />
   }
 

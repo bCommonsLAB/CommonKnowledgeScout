@@ -23,6 +23,32 @@ import { buildMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id';
 import { getCollectionNameForLibrary, getByFileIds } from '@/lib/repositories/vector-repo';
 
 /**
+ * Extrahiert ListMeta aus Transformations-Frontmatter für die Dateiliste.
+ * Unterstützt title/titel, number/massnahme_nr/nummer, coverImageUrl und coverThumbnailUrl.
+ * coverThumbnailUrl wird in der Dateiliste bevorzugt (kleinere Ladegröße).
+ */
+function listMetaFromFrontmatter(frontmatter: Record<string, unknown> | undefined): ListMeta | undefined {
+  if (!frontmatter || typeof frontmatter !== 'object') return undefined;
+  const title =
+    (frontmatter.title as string) ??
+    (frontmatter.titel as string) ??
+    (frontmatter.shortTitle as string);
+  const number =
+    (frontmatter.massnahme_nr as string) ??
+    (frontmatter.number as string) ??
+    (frontmatter.nummer as string);
+  const coverImageUrl = frontmatter.coverImageUrl as string | undefined;
+  const coverThumbnailUrl = frontmatter.coverThumbnailUrl as string | undefined;
+  if (!title && !number && !coverImageUrl && !coverThumbnailUrl) return undefined;
+  return {
+    ...(typeof title === 'string' && title.trim() ? { title: title.trim() } : {}),
+    ...(typeof number === 'string' && number.trim() ? { number: number.trim() } : {}),
+    ...(typeof coverImageUrl === 'string' && coverImageUrl.trim() ? { coverImageUrl: coverImageUrl.trim() } : {}),
+    ...(typeof coverThumbnailUrl === 'string' && coverThumbnailUrl.trim() ? { coverThumbnailUrl: coverThumbnailUrl.trim() } : {}),
+  };
+}
+
+/**
  * Request-Body für Bulk-Auflösung.
  */
 export interface BatchResolveRequest {
@@ -43,6 +69,20 @@ export interface BatchResolveRequest {
   includeBoth?: boolean;
   /** Optional: Wenn true, wird auch der Ingestion-Status geprüft */
   includeIngestionStatus?: boolean;
+  /** Optional: Wenn true, werden Titel, Nummer und coverImageUrl für die Dateiliste mitgeliefert (Mongo-Pfad) */
+  includeListMeta?: boolean;
+}
+
+/**
+ * Metadaten für die Dateiliste (Titel, Nummer, Cover) aus Transformations-Frontmatter.
+ * coverThumbnailUrl wird in der Liste bevorzugt geladen (kleinere Dateien als coverImageUrl).
+ */
+export interface ListMeta {
+  title?: string;
+  number?: string;
+  coverImageUrl?: string;
+  /** Fragment-Name des Thumbnails (z.B. WebP); wenn vorhanden, in der Liste bevorzugt nutzen */
+  coverThumbnailUrl?: string;
 }
 
 /**
@@ -75,6 +115,8 @@ export interface BatchResolveResponse {
   transcripts?: Record<string, ResolvedArtifactWithItem | null>;
   /** Map von sourceId -> Ingestion-Status (nur wenn includeIngestionStatus=true) */
   ingestionStatus?: Record<string, IngestionStatus>;
+  /** Map von sourceId -> ListMeta (nur wenn includeListMeta=true, aktuell nur Mongo-Pfad) */
+  listMeta?: Record<string, ListMeta>;
 }
 
 /**
@@ -261,6 +303,24 @@ export async function POST(
         }
       }
 
+      // ListMeta aus Transformations-Frontmatter (nur Mongo-Pfad, wenn includeListMeta=true)
+      let listMeta: Record<string, ListMeta> | undefined;
+      if (body.includeListMeta === true) {
+        listMeta = {};
+        for (const source of body.sources) {
+          const doc = docs.get(source.sourceId);
+          if (!doc) continue;
+          const targetLanguage = targetLanguageBySource.get(source.sourceId) || 'de';
+          const selected = selectShadowTwinArtifact(doc, 'transformation', targetLanguage);
+          if (selected?.kind === 'transformation' && selected.record.frontmatter) {
+            const meta = listMetaFromFrontmatter(selected.record.frontmatter as Record<string, unknown>);
+            if (meta && (meta.title || meta.number || meta.coverImageUrl || meta.coverThumbnailUrl)) {
+              listMeta[source.sourceId] = meta;
+            }
+          }
+        }
+      }
+
       // Ingestion-Status prüfen (wenn includeIngestionStatus=true)
       let ingestionStatus: Record<string, IngestionStatus> | undefined;
       if (body.includeIngestionStatus === true) {
@@ -296,6 +356,9 @@ export async function POST(
       }
       if (ingestionStatus) {
         response.ingestionStatus = ingestionStatus;
+      }
+      if (listMeta) {
+        response.listMeta = listMeta;
       }
 
       return NextResponse.json(response, { status: 200 });

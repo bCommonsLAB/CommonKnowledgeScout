@@ -26,13 +26,15 @@ export interface ItemsViewProps {
   libraryDetailViewType?: string
   /** Gruppierungsfeld: 'year', 'none', oder ein Facetten-Key (z.B. 'category') */
   groupByField?: string
+  /** Facetten mit showInTable=true – bestimmen die Tabellenspalten (außer Titel/UpsertedAt) */
+  tableColumnFacets?: Array<{ metaKey: string; label?: string }>
 }
 
 /**
  * Wrapper-Komponente mit virtuellem Scrolling und Infinite Scroll
  * Lädt automatisch weitere Dokumente beim Scrollen
  */
-export function ItemsView({ viewMode, docsByYear, onOpen, libraryId, onLoadMore, hasMore, isLoadingMore, onDocumentDeleted, libraryDetailViewType, groupByField }: ItemsViewProps) {
+export function ItemsView({ viewMode, docsByYear, onOpen, libraryId, onLoadMore, hasMore, isLoadingMore, onDocumentDeleted, libraryDetailViewType, groupByField, tableColumnFacets }: ItemsViewProps) {
   return (
     <VirtualizedItemsView
       viewMode={viewMode}
@@ -45,6 +47,7 @@ export function ItemsView({ viewMode, docsByYear, onOpen, libraryId, onLoadMore,
       onDocumentDeleted={onDocumentDeleted}
       libraryDetailViewType={libraryDetailViewType}
       groupByField={groupByField}
+      tableColumnFacets={tableColumnFacets}
     />
   )
 }

@@ -63,6 +63,14 @@ export interface ShadowTwinState {
     chunkCount?: number;
     chaptersCount?: number;
   };
+  /** Metadaten für die Dateiliste (Titel, Nummer, Cover) aus Transformations-Frontmatter */
+  listMeta?: {
+    title?: string;
+    number?: string;
+    coverImageUrl?: string;
+    /** Thumbnail-Fragment (bevorzugt in der Liste für kleinere Ladegröße) */
+    coverThumbnailUrl?: string;
+  };
   /**
    * Gibt an, ob Binary-Uploads (z.B. Cover-Bilder) für dieses Shadow-Twin möglich sind.
    * 

@@ -207,7 +207,15 @@
       "date": "Datum",
       "track": "Track",
       "region": "Region",
-      "upsertedAt": "Eingefügt am"
+      "upsertedAt": "Eingefügt am",
+      "summary": "Zusammenfassung",
+      "speakers": "Referent:innen",
+      "massnahme_nr": "Nr.",
+      "category": "Handlungsfeld",
+      "lv_bewertung": "LV-Bewertung",
+      "lv_zustaendigkeit": "LV-Zuständigkeit",
+      "arbeitsgruppe": "Arbeitsgruppe",
+      "coverImageUrl": "Bild"
     },
     "texts": {
       "session": {

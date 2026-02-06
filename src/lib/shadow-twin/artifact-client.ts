@@ -61,6 +61,19 @@ export interface BatchResolveArtifactsClientOptions {
   includeBoth?: boolean;
   /** Optional: Wenn true, wird auch der Ingestion-Status geprüft */
   includeIngestionStatus?: boolean;
+  /** Optional: Wenn true, werden Titel, Nummer und coverImageUrl für die Dateiliste mitgeliefert (Mongo-Pfad) */
+  includeListMeta?: boolean;
+}
+
+/**
+ * Metadaten für die Dateiliste (Titel, Nummer, Cover) aus Transformations-Frontmatter.
+ * coverThumbnailUrl in der Liste bevorzugen (kleinere Ladegröße).
+ */
+export interface ListMeta {
+  title?: string;
+  number?: string;
+  coverImageUrl?: string;
+  coverThumbnailUrl?: string;
 }
 
 /**
@@ -85,6 +98,8 @@ export interface BatchResolveArtifactsClientResponse {
   transcripts?: Map<string, ResolvedArtifactWithItem | null>;
   /** Map von sourceId -> Ingestion-Status (nur wenn includeIngestionStatus=true) */
   ingestionStatus?: Map<string, IngestionStatus>;
+  /** Map von sourceId -> ListMeta (nur wenn includeListMeta=true) */
+  listMeta?: Map<string, ListMeta>;
 }
 
 /**
@@ -219,7 +234,7 @@ const MAX_SOURCES_PER_BATCH = 100;
 export async function batchResolveArtifactsClient(
   options: BatchResolveArtifactsClientOptions
 ): Promise<BatchResolveArtifactsClientResponse> {
-  const { libraryId, sources, preferredKind, includeBoth, includeIngestionStatus } = options;
+  const { libraryId, sources, preferredKind, includeBoth, includeIngestionStatus, includeListMeta } = options;
 
   if (!sources || sources.length === 0) {
     return { artifacts: new Map() };
@@ -255,6 +270,7 @@ export async function batchResolveArtifactsClient(
         preferredKind: preferredKind || 'transformation',
         includeBoth: includeBoth === true,
         includeIngestionStatus: includeIngestionStatus === true,
+        includeListMeta: includeListMeta === true,
       };
 
       FileLogger.debug('batchResolveArtifactsClient', `Sende Batch ${batchIndex + 1}/${batches.length}`, {
@@ -299,11 +315,13 @@ export async function batchResolveArtifactsClient(
         artifacts: Record<string, ResolvedArtifactWithItem | null>;
         transcripts?: Record<string, ResolvedArtifactWithItem | null>;
         ingestionStatus?: Record<string, IngestionStatus>;
+        listMeta?: Record<string, ListMeta>;
       };
       return {
         artifacts: data.artifacts || {},
         transcripts: data.transcripts,
         ingestionStatus: data.ingestionStatus,
+        listMeta: data.listMeta,
       };
     });
 
@@ -312,6 +330,7 @@ export async function batchResolveArtifactsClient(
     const artifacts: Record<string, ResolvedArtifactWithItem | null> = {};
     const transcripts: Record<string, ResolvedArtifactWithItem | null> = {};
     const ingestionStatus: Record<string, IngestionStatus> = {};
+    const listMeta: Record<string, ListMeta> = {};
     
     for (const batchResult of batchResults) {
       Object.assign(artifacts, batchResult.artifacts);
@@ -320,6 +339,9 @@ export async function batchResolveArtifactsClient(
       }
       if (batchResult.ingestionStatus) {
         Object.assign(ingestionStatus, batchResult.ingestionStatus);
+      }
+      if (batchResult.listMeta) {
+        Object.assign(listMeta, batchResult.listMeta);
       }
     }
 
@@ -340,6 +362,13 @@ export async function batchResolveArtifactsClient(
     if (includeIngestionStatus && ingestionStatusMap) {
       for (const [sourceId, status] of Object.entries(ingestionStatus)) {
         ingestionStatusMap.set(sourceId, status);
+      }
+    }
+
+    const listMetaMap = includeListMeta ? new Map<string, ListMeta>() : undefined;
+    if (includeListMeta && listMetaMap) {
+      for (const [sourceId, meta] of Object.entries(listMeta)) {
+        listMetaMap.set(sourceId, meta);
       }
     }
 
@@ -367,6 +396,9 @@ export async function batchResolveArtifactsClient(
     }
     if (includeIngestionStatus && ingestionStatusMap) {
       result.ingestionStatus = ingestionStatusMap;
+    }
+    if (includeListMeta && listMetaMap) {
+      result.listMeta = listMetaMap;
     }
 
     return result;

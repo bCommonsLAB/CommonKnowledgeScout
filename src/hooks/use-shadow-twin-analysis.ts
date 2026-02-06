@@ -230,13 +230,14 @@ export function useShadowTwinAnalysis(
             return;
           }
 
-          // OPTIMIERUNG: Ein einziger Bulk-Call für beide Artefakt-Typen + Ingestion-Status
+          // OPTIMIERUNG: Ein einziger Bulk-Call für beide Artefakt-Typen + Ingestion-Status + ListMeta
           const allResults = await batchResolveArtifactsClient({
             libraryId,
             sources,
             preferredKind: 'transformation',
             includeBoth: true, // Lade sowohl Transformation als auch Transcript
             includeIngestionStatus: true, // Lade auch Ingestion-Status
+            includeListMeta: true, // Titel, Nummer, coverImageUrl für Dateiliste (Mongo-Pfad)
           });
           
           // Extrahiere Ergebnisse aus dem kombinierten Response
@@ -277,6 +278,7 @@ export function useShadowTwinAnalysis(
               const transformation = transformationResults.get(it.id)
               const transcript = transcriptResults.get(it.id)
               const ingestionStatus = allResults.ingestionStatus?.get(it.id)
+              const listMeta = allResults.listMeta?.get(it.id)
               const hasArtifacts = Boolean(transformation || transcript)
 
               const transformed =
@@ -303,6 +305,8 @@ export function useShadowTwinAnalysis(
                   chunkCount: ingestionStatus.chunkCount,
                   chaptersCount: ingestionStatus.chaptersCount,
                 } : undefined,
+                // Metadaten für Dateiliste (Titel, Nummer, Cover) – nur bei Mongo-Pfad gefüllt
+                listMeta: listMeta && (listMeta.title || listMeta.number || listMeta.coverImageUrl || listMeta.coverThumbnailUrl) ? listMeta : undefined,
                 // Binary-Upload-Fähigkeit (abstrahiert Storage-Implementierung)
                 binaryUploadEnabled,
               }

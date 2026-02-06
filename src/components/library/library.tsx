@@ -64,7 +64,7 @@ import { NavigationLogger, StateLogger } from "@/lib/debug/logger"
 import { Breadcrumb } from "./breadcrumb"
 import { useToast } from "@/components/ui/use-toast"
 import { ChevronLeft } from "lucide-react"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import { useFolderNavigation } from "@/hooks/use-folder-navigation"
 import { uiPanePrefsAtom } from "@/atoms/ui-prefs-atom"
 export function Library() {
@@ -97,7 +97,9 @@ export function Library() {
   const [mobileView, setMobileView] = React.useState<'list' | 'preview'>('list');
   const loadInFlightRef = React.useRef<boolean>(false);
   const searchParams = useSearchParams();
+  const router = useRouter();
   const navigateToFolder = useFolderNavigation();
+  const openFileIdProcessedRef = React.useRef(false);
 
   // Mobile: Tree standardmäßig ausblenden, Desktop: anzeigen
   React.useEffect(() => {
@@ -136,6 +138,36 @@ export function Library() {
     urlInitAppliedRef.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, providerInstance, libraryStatus, currentFolderId]);
+
+  // openFileId aus URL: Dokument im Archiv öffnen (z.B. von Galerie „Im Archiv öffnen“)
+  React.useEffect(() => {
+    const openFileId = searchParams?.get('openFileId');
+    if (!openFileId || openFileIdProcessedRef.current) return;
+    if (!providerInstance || libraryStatus !== 'ready') return;
+    if (currentLibrary?.id !== activeLibraryId) return;
+
+    openFileIdProcessedRef.current = true;
+
+    void (async () => {
+      try {
+        const item = await providerInstance.getItemById(openFileId);
+        await navigateToFolder(item.parentId || 'root');
+        setSelectedFile(item);
+        setSelectedShadowTwin(null);
+        const params = new URLSearchParams(searchParams?.toString() ?? '');
+        params.delete('openFileId');
+        router.replace(params.toString() ? `/library?${params.toString()}` : '/library');
+      } catch (err) {
+        NavigationLogger.warn('Library', 'openFileId: Item nicht gefunden oder Fehler', {
+          openFileId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        const params = new URLSearchParams(searchParams?.toString() ?? '');
+        params.delete('openFileId');
+        router.replace(params.toString() ? `/library?${params.toString()}` : '/library');
+      }
+    })();
+  }, [searchParams, providerInstance, libraryStatus, activeLibraryId, currentLibrary?.id, navigateToFolder, setSelectedFile, setSelectedShadowTwin, router]);
 
   // Mobile-View Wechsellogik: bei Dateiauswahl zur Vorschau wechseln
   React.useEffect(() => {

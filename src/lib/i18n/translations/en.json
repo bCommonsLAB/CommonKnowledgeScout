@@ -172,7 +172,15 @@
       "date": "Date",
       "track": "Track",
       "region": "Region",
-      "upsertedAt": "Inserted"
+      "upsertedAt": "Inserted",
+      "summary": "Summary",
+      "speakers": "Speakers",
+      "massnahme_nr": "No.",
+      "category": "Category",
+      "lv_bewertung": "LV Rating",
+      "lv_zustaendigkeit": "LV Responsibility",
+      "arbeitsgruppe": "Working Group",
+      "coverImageUrl": "Image"
     },
     "texts": {
       "session": {

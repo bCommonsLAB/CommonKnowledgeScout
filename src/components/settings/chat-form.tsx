@@ -105,6 +105,8 @@ const chatFormSchema = z.object({
       type: z.enum(["string","number","boolean","string[]","date","integer-range"]).default("string"),
       multi: z.boolean().default(true),
       visible: z.boolean().default(true),
+      /** Wenn true, als Spalte in der Galerie-Tabellenansicht anzeigen */
+      showInTable: z.boolean().optional().default(false),
       sort: z.enum(['alpha','count']).optional(),
       max: z.coerce.number().int().positive().optional(),
       columns: z.coerce.number().int().min(1).max(2).optional(),
@@ -301,7 +303,7 @@ gallery: {
               const defaultFacetsMap = new Map(getDefaultFacets().map(f => [f.metaKey, f]))
               return (raw as Array<unknown>).map(v => String(v)).filter(Boolean).map((k) => {
                 const defaultFacet = defaultFacetsMap.get(k)
-                return defaultFacet || { metaKey: k, label: k, type: 'string', multi: true, visible: true }
+                return defaultFacet || { metaKey: k, label: k, type: 'string', multi: true, visible: true, showInTable: false }
               })
             }
             // Fallback: Verwende zentrale Default-Facetten

@@ -148,3 +148,45 @@ export function getOptionalFields(viewType: string): string[] {
   const config = getViewTypeConfig(viewType)
   return config?.optionalFields ?? []
 }
+
+/**
+ * Spalten-Definition für die Galerie-Tabellenansicht.
+ * labelKey ist der i18n-Schlüssel (z.B. gallery.table.title).
+ */
+export interface TableColumnDef {
+  key: string
+  labelKey: string
+}
+
+/** Standard-Spalten wenn kein DetailViewType oder für Rückwärtskompatibilität */
+const DEFAULT_TABLE_COLUMNS: TableColumnDef[] = [
+  { key: 'title', labelKey: 'gallery.table.title' },
+  { key: 'year', labelKey: 'gallery.table.year' },
+  { key: 'track', labelKey: 'gallery.table.track' },
+  { key: 'upsertedAt', labelKey: 'gallery.table.upsertedAt' },
+]
+
+/**
+ * Liefert die Tabellenspalten für die Galerie-Tabellenansicht basierend auf dem DetailViewType.
+ * Reihenfolge: Titel, Pflichtfelder (ohne title), optionale Felder, upsertedAt.
+ * Die erste Spalte (Thumbnail) wird in der UI ergänzt, nicht hier.
+ */
+export function getTableColumnsForViewType(viewType: string | undefined): TableColumnDef[] {
+  if (!viewType || !isValidDetailViewType(viewType)) {
+    return DEFAULT_TABLE_COLUMNS
+  }
+  const config = VIEW_TYPE_REGISTRY[viewType as DetailViewType]
+  if (!config) return DEFAULT_TABLE_COLUMNS
+
+  const required = config.requiredFields.filter((k) => k !== 'title')
+  const optional = config.optionalFields
+  const keys = ['title', ...required, ...optional, 'upsertedAt']
+  const seen = new Set<string>()
+  const columns: TableColumnDef[] = []
+  for (const key of keys) {
+    if (seen.has(key)) continue
+    seen.add(key)
+    columns.push({ key, labelKey: `gallery.table.${key}` })
+  }
+  return columns
+}

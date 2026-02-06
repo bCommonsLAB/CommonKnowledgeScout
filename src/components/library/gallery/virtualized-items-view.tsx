@@ -10,15 +10,17 @@ import {
   TableRow,
   Table,
 } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
+// Badge Import entfernt - wurde nicht verwendet
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { openDocumentBySlug } from '@/utils/document-navigation'
 import type { ViewMode } from './gallery-sticky-header'
 import { ItemsGrid } from './items-grid'
 import { DeleteDocumentButton } from './delete-document-button'
+import { OpenInArchiveButton } from './open-in-archive-button'
 import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
 import { formatUpsertedAt } from '@/utils/format-upserted-at'
+import { getTableColumnsForViewType } from '@/lib/detail-view-types'
 
 export interface VirtualizedItemsViewProps {
   viewMode: ViewMode
@@ -34,6 +36,8 @@ export interface VirtualizedItemsViewProps {
   libraryDetailViewType?: string
   /** Gruppierungsfeld: 'year', 'none', oder ein Facetten-Key (z.B. 'category') */
   groupByField?: string
+  /** Facetten mit showInTable=true – definieren die Tabellenspalten (Reihenfolge wie in Config) */
+  tableColumnFacets?: Array<{ metaKey: string; label?: string }>
 }
 
 export function VirtualizedItemsView({
@@ -47,6 +51,7 @@ export function VirtualizedItemsView({
   onDocumentDeleted,
   libraryDetailViewType,
   groupByField,
+  tableColumnFacets,
 }: VirtualizedItemsViewProps) {
   const { t, locale } = useTranslation()
   const router = useRouter()
@@ -145,6 +150,55 @@ export function VirtualizedItemsView({
     return '-'
   }
 
+  // Tabellenspalten: aus Facetten (showInTable) oder aus DetailViewType
+  const tableColumns = React.useMemo(() => {
+    if (tableColumnFacets && tableColumnFacets.length > 0) {
+      return [
+        { key: 'title', labelKey: 'gallery.table.title' as const },
+        ...tableColumnFacets.map((f) => ({ key: f.metaKey, label: f.label || f.metaKey })),
+        { key: 'upsertedAt', labelKey: 'gallery.table.upsertedAt' as const },
+      ]
+    }
+    return getTableColumnsForViewType(libraryDetailViewType).map((col) => ({
+      key: col.key,
+      labelKey: col.labelKey,
+    }))
+  }, [libraryDetailViewType, tableColumnFacets])
+
+  // Zellwert für eine Spalte aus doc lesen (inkl. title, upsertedAt, Arrays)
+  const getCellValue = (doc: DocCardMeta, key: string): React.ReactNode => {
+    if (key === 'title') {
+      return (
+        <div className="flex flex-col gap-1">
+          <span className="line-clamp-2">
+            {doc.shortTitle || doc.title || doc.fileName || 'Dokument'}
+          </span>
+          {(doc.speakers?.length ?? doc.authors?.length) ? (
+            <span className="text-xs text-muted-foreground line-clamp-1">
+              {formatSpeakers(doc)}
+            </span>
+          ) : null}
+        </div>
+      )
+    }
+    if (key === 'upsertedAt') {
+      return (
+        <span className="whitespace-nowrap text-sm text-muted-foreground" title={doc.upsertedAt ?? ''}>
+          {formatUpsertedAt(doc.upsertedAt, { locale })}
+        </span>
+      )
+    }
+    const raw = (doc as unknown as Record<string, unknown>)[key]
+    if (raw === undefined || raw === null) return <span className="text-muted-foreground">-</span>
+    if (Array.isArray(raw)) {
+      const str = raw.length === 1 ? String(raw[0]) : `${raw[0]} +${raw.length - 1}`
+      return <span className="line-clamp-1">{str}</span>
+    }
+    const str = String(raw)
+    if (str.length > 40) return <span className="line-clamp-2" title={str}>{str}</span>
+    return <span>{str}</span>
+  }
+
   // Grid-Modus: Einfaches Infinite Scroll ohne vollständige Virtualisierung (wegen unterschiedlicher Card-Höhen)
   if (viewMode === 'grid') {
     return (
@@ -162,72 +216,69 @@ export function VirtualizedItemsView({
     )
   }
 
-  // Table-Modus: Einfaches Infinite Scroll (Virtualisierung bei Tabellen ist komplexer wegen Jahr-Gruppierung)
+  // Table-Modus: Dynamische Gruppierung (groupByField wie Galerie), Spalten aus DetailViewType, Thumbnail
+  const showGroupHeaders = groupByField !== 'none'
   return (
     <div ref={parentRef}>
-      {docsByYear.map(([year, yearDocs]) => (
-        <div key={year} className="mb-6">
-          <h3 className="text-lg font-semibold mb-2">
-            {year === 'Ohne Jahrgang' ? t('gallery.noYear') : t('gallery.year', { year })}
-          </h3>
+      {docsByYear.map(([groupKey, groupDocs]) => (
+        <div key={String(groupKey)} className="mb-6">
+          {showGroupHeaders && (
+            <h3 className="text-lg font-semibold mb-2">
+              {groupByField === 'year'
+                ? (groupKey === 'Ohne Jahrgang' ? t('gallery.noYear') : t('gallery.year', { year: groupKey }))
+                : (groupKey === 'Ohne Zuordnung' ? t('gallery.noGroup') : String(groupKey))}
+            </h3>
+          )}
           <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[50%]">{t('gallery.table.title')}</TableHead>
-                  <TableHead className="w-[15%]">{t('gallery.table.year')}</TableHead>
-                  <TableHead className="w-[15%]">{t('gallery.table.track')}</TableHead>
-                  <TableHead className="w-[20%] whitespace-nowrap">{t('gallery.table.upsertedAt')}</TableHead>
-                  {isOwner && <TableHead className="w-[60px]"></TableHead>}
+                  <TableHead className="w-12 shrink-0" aria-label="Thumbnail" />
+                  {tableColumns.map((col) => (
+                    <TableHead
+                      key={col.key}
+                      className={col.key === 'title' ? 'min-w-[120px]' : 'whitespace-nowrap'}
+                    >
+                      {'labelKey' in col && col.labelKey ? t(col.labelKey) : ('label' in col && col.label ? col.label : col.key)}
+                    </TableHead>
+                  ))}
+                  {isOwner && <TableHead className="w-[60px] shrink-0" />}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {yearDocs.map((doc) => (
+                {groupDocs.map((doc) => (
                   <TableRow
                     key={doc.id}
                     className="cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => handleRowClick(doc)}
                   >
-                    <TableCell className="font-medium">
-                      <div className="flex flex-col gap-1">
-                        <span className="line-clamp-2">
-                          {doc.shortTitle || doc.title || doc.fileName || 'Dokument'}
-                        </span>
-                        <span className="text-xs text-muted-foreground line-clamp-1">
-                          {formatSpeakers(doc)}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {doc.year ? (
-                        <Badge variant="secondary" className="text-xs">
-                          {String(doc.year)}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {doc.track ? (
-                        <Badge variant="outline" className="text-xs">
-                          {doc.track}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                      <span title={doc.upsertedAt ?? ''}>
-                        {formatUpsertedAt(doc.upsertedAt, { locale })}
-                      </span>
-                    </TableCell>
-                    {isOwner && libraryId && (
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <DeleteDocumentButton
-                          doc={doc}
-                          libraryId={libraryId}
-                          onDeleted={onDocumentDeleted}
+                    <TableCell className="w-12 shrink-0 p-2 align-middle">
+                      {(doc.coverThumbnailUrl || doc.coverImageUrl) ? (
+                        <img
+                          src={doc.coverThumbnailUrl || doc.coverImageUrl}
+                          alt=""
+                          className="h-10 w-10 rounded object-cover"
+                          loading="lazy"
                         />
+                      ) : (
+                        <div className="h-10 w-10 rounded bg-muted shrink-0" />
+                      )}
+                    </TableCell>
+                    {tableColumns.map((col) => (
+                      <TableCell key={col.key} className={col.key === 'title' ? 'font-medium' : ''}>
+                        {getCellValue(doc, col.key)}
+                      </TableCell>
+                    ))}
+                    {isOwner && libraryId && (
+                      <TableCell className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-1">
+                          <OpenInArchiveButton doc={doc} libraryId={libraryId} />
+                          <DeleteDocumentButton
+                            doc={doc}
+                            libraryId={libraryId}
+                            onDeleted={onDocumentDeleted}
+                          />
+                        </div>
                       </TableCell>
                     )}
                   </TableRow>

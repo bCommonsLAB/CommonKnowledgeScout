@@ -24,6 +24,8 @@ export {
   getViewTypeConfig,
   getRequiredFields,
   getOptionalFields,
+  getTableColumnsForViewType,
+  type TableColumnDef,
 } from './registry'
 
 // Validation exports
