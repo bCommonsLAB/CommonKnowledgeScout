@@ -122,7 +122,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
         sortWithinGroup: { year: -1, upsertedAt: -1 },
       })
       return NextResponse.json(
-        { groups: groupedResult.groups, totalGroups: groupedResult.totalGroups },
+        { 
+          groups: groupedResult.groups, 
+          totalGroups: groupedResult.totalGroups,
+          // Gesamtzahl aller Dokumente (unabhängig von Pagination) für korrekte Anzeige
+          total: groupedResult.totalDocs,
+        },
         { status: 200 }
       )
     }

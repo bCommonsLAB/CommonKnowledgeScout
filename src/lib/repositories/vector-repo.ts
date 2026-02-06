@@ -1157,6 +1157,8 @@ export async function findDocsGrouped(
 ): Promise<{
   groups: Array<{ key: string | number; items: DocCardMeta[] }>
   totalGroups: number
+  /** Gesamtzahl aller Dokumente (unabhängig von Gruppierung/Pagination) */
+  totalDocs: number
 }> {
   const col = await getCollection<Document>(libraryKey)
   const baseQuery = { kind: 'meta' as const, libraryId, ...filter }
@@ -1196,13 +1198,17 @@ export async function findDocsGrouped(
     { $limit: options.groupsLimit },
   ]
 
-  const groupKeysResult = await col.aggregate(pipeline).toArray()
-  const totalGroupsAgg = await col.aggregate([
-    { $match: baseQuery },
-    { $addFields: { __groupKey: normalizedGroupKey } },
-    { $group: { _id: '$__groupKey' } },
-    { $count: 'total' },
-  ]).toArray()
+  // Parallele Abfragen für Performance: Gruppenschlüssel, Gruppenanzahl und Gesamtdokumente
+  const [groupKeysResult, totalGroupsAgg, totalDocsCount] = await Promise.all([
+    col.aggregate(pipeline).toArray(),
+    col.aggregate([
+      { $match: baseQuery },
+      { $addFields: { __groupKey: normalizedGroupKey } },
+      { $group: { _id: '$__groupKey' } },
+      { $count: 'total' },
+    ]).toArray(),
+    col.countDocuments(baseQuery),
+  ])
   const totalGroups = (totalGroupsAgg[0] as { total?: number } | undefined)?.total ?? 0
 
   const keys = groupKeysResult.map((r: Document) => r._id as string | number)
@@ -1299,7 +1305,7 @@ export async function findDocsGrouped(
     })
   }
 
-  return { groups, totalGroups }
+  return { groups, totalGroups, totalDocs: totalDocsCount }
 }
 
 /**

@@ -98,20 +98,22 @@ export function useGalleryData(
         if (useGroupedApi && !cancelled && Array.isArray(data?.groups)) {
           const newGroups = data.groups as Array<{ key: string | number; items: DocCardMeta[] }>
           const totalG = typeof data.totalGroups === 'number' ? data.totalGroups : 0
+          // Gesamtzahl aller Dokumente (vom Server) - wichtig für korrekte Anzeige "X Quellen"
+          const serverTotalDocs = typeof data.total === 'number' ? data.total : 0
           const groupOffset = (page - 1) * GROUPS_LIMIT
           const hasMoreGroups = groupOffset + newGroups.length < totalG
           const newGroupTuples = newGroups.map(g => [g.key, g.items] as [string | number, DocCardMeta[]])
           const newFlat = newGroupTuples.flatMap(([, items]) => items)
-          const newCount = newFlat.length
 
           setGroups(prev => isFirstPage ? newGroupTuples : [...prev, ...newGroupTuples])
           setTotalGroups(totalG)
           setHasMore(hasMoreGroups)
           setDocs(prev => isFirstPage ? newFlat : [...prev, ...newFlat])
-          setTotalCount(prev => (isFirstPage ? 0 : prev) + newCount)
+          // Verwende die Gesamtzahl vom Server (statt inkrementelles Addieren)
+          setTotalCount(serverTotalDocs)
           setGalleryData(prev => ({
             docs: isFirstPage ? newFlat : [...prev.docs, ...newFlat],
-            totalCount: isFirstPage ? newCount : prev.totalCount + newCount,
+            totalCount: serverTotalDocs,
             loading: false,
             isLoadingMore: false,
             error: null,
