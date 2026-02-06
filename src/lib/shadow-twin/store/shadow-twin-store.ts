@@ -12,6 +12,7 @@
  * - ArtifactMarkdownResult: Ergebnis beim Laden von Markdown-Artefakten
  * - UpsertArtifactResult: Ergebnis beim Speichern von Artefakten
  * - BinaryFragment: Typ für Binary-Fragmente
+ * - BinaryFragmentVariant: Varianten-Typ (original, thumbnail, preview)
  */
 
 import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
@@ -41,6 +42,11 @@ export interface UpsertArtifactResult {
 }
 
 /**
+ * Varianten-Typ für Binary-Fragmente (Original, Thumbnail, etc.)
+ */
+export type BinaryFragmentVariant = 'original' | 'thumbnail' | 'preview'
+
+/**
  * Binary-Fragment (z.B. Bild, Audio).
  * Enthält entweder url (Azure, bevorzugt) oder fileId (Dateisystem-Fallback).
  */
@@ -59,6 +65,20 @@ export interface BinaryFragment {
   size?: number
   /** Optional: Art des Fragments (image, audio, video, etc.) */
   kind?: string
+  /** Optional: Zeitpunkt der Erstellung */
+  createdAt?: string
+  /** 
+   * Optional: Variante des Fragments (original, thumbnail, preview)
+   * - 'original': Ursprüngliches Bild in voller Auflösung
+   * - 'thumbnail': Kleineres Vorschaubild (z.B. 320x320 für Galerie)
+   * - 'preview': Mittlere Größe für Vorschauen
+   */
+  variant?: BinaryFragmentVariant
+  /** 
+   * Optional: Hash des Original-Fragments
+   * Wird bei Varianten (thumbnail, preview) gesetzt, um die Zuordnung zum Original zu ermöglichen.
+   */
+  sourceHash?: string
 }
 
 /**

@@ -205,7 +205,8 @@ export function GroupedItemsGrid({
             onDocumentClick={handleDocumentClick}
             value="used-references"
           />
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+          {/* Breakpoints angepasst: Ab 400px 2 Spalten, damit 320px Thumbnails nicht zu stark vergrößert werden */}
+          <div className="mt-4 grid grid-cols-1 min-[400px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
             {usedDocs.map((doc) => (
               <DocumentCard key={doc.id} doc={doc} onClick={onOpenDocument} libraryId={libraryId} libraryDetailViewType={libraryDetailViewType} />
             ))}
@@ -225,7 +226,8 @@ export function GroupedItemsGrid({
             onDocumentClick={handleDocumentClick}
             value="unused-sources"
           />
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+          {/* Breakpoints angepasst: Ab 400px 2 Spalten, damit 320px Thumbnails nicht zu stark vergrößert werden */}
+          <div className="mt-4 grid grid-cols-1 min-[400px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
             {unusedDocs.map((doc) => (
               <DocumentCard key={doc.id} doc={doc} onClick={onOpenDocument} libraryId={libraryId} libraryDetailViewType={libraryDetailViewType} />
             ))}

@@ -282,44 +282,88 @@ export class IngestionService {
             })
           }
           
-          // PRIORITÄT 0: Prüfe ob Azure-URL bereits in binaryFragments vorhanden ist
+          // PRIORITÄT 0: Prüfe ob Azure-URL bereits im Frontmatter oder in binaryFragments vorhanden ist
           // Dies verhindert Doppelverarbeitung: Wenn das Bild bereits hochgeladen wurde,
           // verwenden wir die vorhandene URL direkt ohne erneutes Laden/Hochladen
           const frontmatterCoverImageUrl = (metaEffective as { coverImageUrl?: string })?.coverImageUrl
+          const frontmatterCoverThumbnailUrl = (metaEffective as { coverThumbnailUrl?: string })?.coverThumbnailUrl
+          
           if (frontmatterCoverImageUrl && typeof frontmatterCoverImageUrl === 'string' && frontmatterCoverImageUrl.trim().length > 0) {
-            try {
-              // Lade binaryFragments aus MongoDB
-              const binaryFragments = await getShadowTwinBinaryFragments(libraryId, fileId)
-              if (binaryFragments && binaryFragments.length > 0) {
-                // Suche nach Fragment mit dem Dateinamen aus Frontmatter
-                const coverFragment = binaryFragments.find(f => 
-                  f.name === frontmatterCoverImageUrl && f.url
-                )
-                
-                if (coverFragment?.url) {
-                  // URL direkt verwenden - kein erneutes Laden/Hochladen!
-                  coverImageUrl = coverFragment.url
-                  docMetaJsonObj.coverImageUrl = coverImageUrl
-                  FileLogger.info('ingestion', 'Cover-Bild URL aus binaryFragments übernommen (keine Doppelverarbeitung)', {
-                    fileId,
-                    coverImageUrl,
-                    fragmentName: coverFragment.name,
-                  })
-                  if (jobId) {
-                    bufferLog(jobId, {
-                      phase: 'cover_image_processed',
-                      message: `Cover-Bild aus MongoDB binaryFragments übernommen: ${coverImageUrl}`,
+            // FALL A: coverImageUrl ist bereits eine vollständige URL (http/https)
+            // Dies ist der Fall nach der Fix-Änderung in shadow-twin-service.ts
+            if (frontmatterCoverImageUrl.startsWith('http://') || frontmatterCoverImageUrl.startsWith('https://')) {
+              coverImageUrl = frontmatterCoverImageUrl
+              docMetaJsonObj.coverImageUrl = coverImageUrl
+              
+              // Auch coverThumbnailUrl übernehmen wenn vorhanden und bereits URL
+              if (frontmatterCoverThumbnailUrl && 
+                  typeof frontmatterCoverThumbnailUrl === 'string' && 
+                  (frontmatterCoverThumbnailUrl.startsWith('http://') || frontmatterCoverThumbnailUrl.startsWith('https://'))) {
+                docMetaJsonObj.coverThumbnailUrl = frontmatterCoverThumbnailUrl
+              }
+              
+              FileLogger.info('ingestion', 'Cover-Bild URL bereits vollständig im Frontmatter (direkt übernommen)', {
+                fileId,
+                coverImageUrl,
+                coverThumbnailUrl: frontmatterCoverThumbnailUrl,
+              })
+              if (jobId) {
+                bufferLog(jobId, {
+                  phase: 'cover_image_processed',
+                  message: `Cover-Bild URL bereits vollständig im Frontmatter: ${coverImageUrl}`,
+                })
+              }
+            } else {
+              // FALL B: coverImageUrl ist ein Dateiname - suche in binaryFragments
+              try {
+                // Lade binaryFragments aus MongoDB
+                const binaryFragments = await getShadowTwinBinaryFragments(libraryId, fileId)
+                if (binaryFragments && binaryFragments.length > 0) {
+                  // Suche nach Fragment mit dem Dateinamen aus Frontmatter
+                  const coverFragment = binaryFragments.find(f => 
+                    f.name === frontmatterCoverImageUrl && f.url
+                  )
+                  
+                  if (coverFragment?.url) {
+                    // URL direkt verwenden - kein erneutes Laden/Hochladen!
+                    coverImageUrl = coverFragment.url
+                    docMetaJsonObj.coverImageUrl = coverImageUrl
+                    
+                    // Suche auch Thumbnail-Fragment wenn coverThumbnailUrl ein Dateiname ist
+                    if (frontmatterCoverThumbnailUrl && 
+                        typeof frontmatterCoverThumbnailUrl === 'string' &&
+                        !frontmatterCoverThumbnailUrl.startsWith('http://') && 
+                        !frontmatterCoverThumbnailUrl.startsWith('https://')) {
+                      const thumbFragment = binaryFragments.find(f => 
+                        f.name === frontmatterCoverThumbnailUrl && f.url
+                      )
+                      if (thumbFragment?.url) {
+                        docMetaJsonObj.coverThumbnailUrl = thumbFragment.url
+                      }
+                    }
+                    
+                    FileLogger.info('ingestion', 'Cover-Bild URL aus binaryFragments übernommen (keine Doppelverarbeitung)', {
+                      fileId,
+                      coverImageUrl,
+                      fragmentName: coverFragment.name,
+                      coverThumbnailUrl: docMetaJsonObj.coverThumbnailUrl,
                     })
+                    if (jobId) {
+                      bufferLog(jobId, {
+                        phase: 'cover_image_processed',
+                        message: `Cover-Bild aus MongoDB binaryFragments übernommen: ${coverImageUrl}`,
+                      })
+                    }
                   }
                 }
+              } catch (error) {
+                FileLogger.warn('ingestion', 'Fehler beim Prüfen der binaryFragments', {
+                  fileId,
+                  frontmatterCoverImageUrl,
+                  error: error instanceof Error ? error.message : String(error),
+                })
+                // Fallback auf normale Verarbeitung
               }
-            } catch (error) {
-              FileLogger.warn('ingestion', 'Fehler beim Prüfen der binaryFragments', {
-                fileId,
-                frontmatterCoverImageUrl,
-                error: error instanceof Error ? error.message : String(error),
-              })
-              // Fallback auf normale Verarbeitung
             }
           }
           

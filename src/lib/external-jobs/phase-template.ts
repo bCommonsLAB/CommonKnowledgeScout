@@ -1779,7 +1779,9 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
           })
           
           // Metadaten aktualisieren
-          mergedMeta.coverImageUrl = uploadResult.fragment.name
+          // WICHTIG: Verwende resolvedUrl (Azure-URL) statt fragment.name,
+          // damit die URLs direkt in der Galerie funktionieren.
+          mergedMeta.coverImageUrl = uploadResult.fragment.resolvedUrl || uploadResult.fragment.name
           
           bufferLog(jobId, {
             phase: 'cover_image_generation_success',
@@ -1806,7 +1808,8 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
           } catch {}
           
           // Meta im Job aktualisieren
-          await repo.appendMeta(jobId, { coverImageUrl: uploadResult.fragment.name }, 'cover_image')
+          // WICHTIG: Verwende resolvedUrl (Azure-URL) statt fragment.name
+          await repo.appendMeta(jobId, { coverImageUrl: uploadResult.fragment.resolvedUrl || uploadResult.fragment.name }, 'cover_image')
           
           // SSE-Event: Cover-Bild generiert
           try {

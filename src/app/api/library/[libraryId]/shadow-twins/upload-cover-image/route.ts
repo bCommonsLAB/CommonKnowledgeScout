@@ -133,6 +133,8 @@ export async function POST(
       sourceId,
       fileName: result.fragment.name,
       resolvedUrl: result.fragment.resolvedUrl,
+      thumbnailName: result.thumbnailFragment?.name,
+      thumbnailUrl: result.thumbnailFragment?.resolvedUrl,
       artifactId: result.artifactId,
     })
 
@@ -147,6 +149,15 @@ export async function POST(
         mimeType: result.fragment.mimeType,
         kind: result.fragment.kind,
       },
+      // Thumbnail-Fragment (wenn generiert)
+      thumbnailFragment: result.thumbnailFragment ? {
+        name: result.thumbnailFragment.name,
+        url: result.thumbnailFragment.url,
+        resolvedUrl: result.thumbnailFragment.resolvedUrl,
+        hash: result.thumbnailFragment.hash,
+        size: result.thumbnailFragment.size,
+        mimeType: result.thumbnailFragment.mimeType,
+      } : undefined,
       markdown: result.markdown,
       artifactId: result.artifactId,
     }, { status: 200 })

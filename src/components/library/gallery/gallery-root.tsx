@@ -80,16 +80,39 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  // Lade detailViewType direkt aus dem librariesAtom, um Flackern zu vermeiden
+  // Lade detailViewType und groupByField direkt aus dem librariesAtom, um Flackern zu vermeiden
   const activeLibrary = libraries.find(lib => lib.id === libraryId)
+  
+  // Robustes Laden der Gallery-Config: Direkt aus dem Raw-Objekt lesen
+  const chatConfig = activeLibrary?.config?.chat
+  const rawGalleryConfig = chatConfig?.gallery as Record<string, unknown> | undefined
+  
+  // Debug: Was wird tatsächlich geladen?
+  React.useEffect(() => {
+    console.log('[GalleryRoot] Config geladen:', {
+      libraryId,
+      hasActiveLibrary: !!activeLibrary,
+      chatConfigKeys: chatConfig ? Object.keys(chatConfig) : [],
+      rawGalleryConfig,
+      galleryConfigKeys: rawGalleryConfig ? Object.keys(rawGalleryConfig) : [],
+      groupByField: rawGalleryConfig?.groupByField,
+      detailViewType: rawGalleryConfig?.detailViewType,
+    })
+  }, [libraryId, activeLibrary, chatConfig, rawGalleryConfig])
+  
   const initialDetailViewType = useMemo(() => {
-    const galleryConfig = activeLibrary?.config?.chat?.gallery
-    const vt = galleryConfig?.detailViewType
+    const vt = rawGalleryConfig?.detailViewType
     // Alle gültigen DetailViewTypes akzeptieren
     const validTypes = ['book', 'session', 'climateAction', 'testimonial', 'blog'] as const
     const result = validTypes.includes(vt as typeof validTypes[number]) ? vt as typeof validTypes[number] : 'book'
     return result
-  }, [activeLibrary?.config?.chat?.gallery])
+  }, [rawGalleryConfig?.detailViewType])
+  
+  // Gruppierungsfeld aus Library-Konfiguration (default: 'year')
+  // Direkt aus dem Raw-Objekt lesen, um TypeScript-Typeinschränkungen zu umgehen
+  const groupByField = (typeof rawGalleryConfig?.groupByField === 'string' && rawGalleryConfig.groupByField.length > 0) 
+    ? rawGalleryConfig.groupByField 
+    : 'year'
 
   // Hooks
   const { mode, setMode, containerRef } = useGalleryMode()
@@ -146,7 +169,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
   
   // Verwende refreshKey als Dependency, aber nicht als Teil des searchQuery
   // useGalleryData wird automatisch neu laden, wenn sich refreshKey ändert (über useEffect)
-  const { docs, loading, error, filteredDocs, docsByYear, loadMore, hasMore, isLoadingMore, totalCount } = useGalleryData(filters, mode, searchQuery, libraryId, { refreshKey })
+  const { docs, loading, error, filteredDocs, docsByYear, loadMore, hasMore, isLoadingMore, totalCount } = useGalleryData(filters, mode, searchQuery, libraryId, { refreshKey, groupByField })
   const { isOwner } = useIsLibraryOwner(libraryId)
   
   // Finde aktuelles Dokument aus URL-Parameter (für DetailOverlay)
@@ -188,6 +211,30 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
 
   // selectedDoc wird automatisch über React State verwaltet
   const { facetDefs } = useGalleryFacets(libraryId, filters)
+
+  // Dynamischer Platzhalter für das Suchfeld basierend auf den tatsächlich durchsuchten Feldern
+  // Die Suche durchsucht: title, shortTitle + alle String/String[]-Facetten
+  const searchPlaceholder = React.useMemo(() => {
+    // "Titel" ist immer dabei (fest codiert in der Such-API)
+    const fields = [t('gallery.searchFieldTitle') || 'Titel']
+    
+    // Füge Labels aller String/String[]-Facetten hinzu
+    for (const def of facetDefs) {
+      if (def.type === 'string' || def.type === 'string[]') {
+        // Verwende das Label, falls vorhanden, sonst den metaKey
+        const label = def.label || def.metaKey
+        if (label && !fields.includes(label)) {
+          fields.push(label)
+        }
+      }
+    }
+    
+    // Maximal 4 Felder anzeigen, dann "..."
+    const displayFields = fields.slice(0, 4)
+    const suffix = fields.length > 4 ? ', ...' : ''
+    
+    return `${t('gallery.searchPrefix') || 'Durchsuchen nach'} ${displayFields.join(', ')}${suffix}`
+  }, [facetDefs, t])
 
   // Lade sources aus QueryLog, falls queryId vorhanden ist
   React.useEffect(() => {
@@ -591,7 +638,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
       )
     }
     
-    // Sonst normale Jahrgangs-Gruppierung
+    // Gruppierung basierend auf Konfiguration (Jahr, Kategorie, oder keine)
     return <ItemsView 
       viewMode={viewMode} 
       docsByYear={docsByYear} 
@@ -602,6 +649,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
       isLoadingMore={isLoadingMore}
       onDocumentDeleted={handleDocumentDeleted}
       libraryDetailViewType={detailViewType}
+      groupByField={groupByField}
     />
   }
 
@@ -625,7 +673,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
             headline={texts.headline}
             subtitle={texts.subtitle}
             description={texts.description}
-            searchPlaceholder={t('gallery.searchPlaceholder')}
+            searchPlaceholder={searchPlaceholder}
             onChangeQuery={(value) => {
               // Entferne Refresh-Suffix beim Setzen des Query-Werts
               setSearchQuery(value.replace(/_refresh_\d+$/, ''))

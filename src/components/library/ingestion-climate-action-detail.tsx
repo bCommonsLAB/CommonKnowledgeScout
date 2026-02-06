@@ -30,6 +30,14 @@ export function IngestionClimateActionDetail({
   const [data, setData] = React.useState<ClimateActionDetailData | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
+  
+  // Ref für onDataLoaded, um Re-Renders zu vermeiden
+  // Der Callback ändert sich bei jedem Parent-Render, aber wir wollen nicht
+  // dass das einen neuen API-Call auslöst
+  const onDataLoadedRef = React.useRef(onDataLoaded);
+  React.useEffect(() => {
+    onDataLoadedRef.current = onDataLoaded;
+  }, [onDataLoaded]);
 
   const load = React.useCallback(async () => {
     try {
@@ -42,16 +50,16 @@ export function IngestionClimateActionDetail({
       if (!res.ok) throw new Error(typeof json?.error === 'string' ? json.error : 'Dokument-Metadaten konnten nicht geladen werden');
       const mapped = mapToClimateActionDetail(json as unknown);
       setData(mapped);
-      // Callback für Sprachinfo
-      if (onDataLoaded) {
-        onDataLoaded(mapped);
+      // Callback für Sprachinfo (via Ref, um Re-Renders zu vermeiden)
+      if (onDataLoadedRef.current) {
+        onDataLoadedRef.current(mapped);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unbekannter Fehler');
     } finally {
       setLoading(false);
     }
-  }, [libraryId, fileId, onDataLoaded]);
+  }, [libraryId, fileId]); // onDataLoaded entfernt - verwende Ref stattdessen
 
   React.useEffect(() => { 
     // Nur laden, wenn keine übersetzten Daten vorhanden sind

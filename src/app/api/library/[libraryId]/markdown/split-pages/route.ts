@@ -9,6 +9,8 @@ import {
   splitMarkdownByPageMarkers,
   toSafeFolderName,
 } from '@/lib/markdown/markdown-page-splitter'
+import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
+import { getShadowTwinArtifact } from '@/lib/repositories/shadow-twin-repo'
 
 interface SplitPagesRequestBody {
   sourceFileId: string
@@ -86,49 +88,98 @@ export async function POST(
     // Storage-Provider initialisieren (inkl. Base-URL + User-Email)
     const provider = await getServerProvider(userEmail, libraryId)
 
-    // Source-Datei laden (kann Transcript-Datei sein, wenn direkt aufgerufen)
-    const sourceItem = await provider.getItemById(sourceFileId)
-    if (!sourceItem || sourceItem.type !== 'file') {
-      return NextResponse.json({ error: 'Quelle ist keine Datei' }, { status: 400 })
+    // Prüfen ob sourceFileId eine MongoDB-ID ist (Shadow-Twin)
+    const isMongoSource = isMongoShadowTwinId(sourceFileId)
+    let markdown: string
+    let sourceFileName: string
+    let sourceBaseName: string
+    let parentId: string
+    let sourceMarkdownId: string // ID der Markdown-Quelle für Response
+
+    if (isMongoSource) {
+      // MongoDB Shadow-Twin: Markdown direkt aus MongoDB laden
+      FileLogger.info('split-pages', 'MongoDB Shadow-Twin erkannt, lade Markdown aus MongoDB', { sourceFileId })
+      
+      const parsed = parseMongoShadowTwinId(sourceFileId)
+      if (!parsed) {
+        return NextResponse.json({ error: 'Ungültige MongoDB Shadow-Twin ID' }, { status: 400 })
+      }
+      
+      // Markdown aus MongoDB laden via getShadowTwinArtifact
+      const artifact = await getShadowTwinArtifact({
+        libraryId: parsed.libraryId,
+        sourceId: parsed.sourceId,
+        artifactKey: {
+          sourceId: parsed.sourceId,
+          kind: parsed.kind,
+          targetLanguage: parsed.targetLanguage,
+          templateName: parsed.templateName,
+        },
+      })
+      
+      if (!artifact?.markdown) {
+        return NextResponse.json({ error: 'Shadow-Twin Markdown nicht gefunden' }, { status: 404 })
+      }
+      
+      markdown = artifact.markdown
+      sourceMarkdownId = sourceFileId // MongoDB-ID als Quelle
+      
+      // Original-Datei laden für parentId und Namen
+      const originalItem = await provider.getItemById(originalFileId).catch(() => null)
+      if (!originalItem || originalItem.type !== 'file') {
+        return NextResponse.json({ error: 'Original-Datei nicht gefunden' }, { status: 400 })
+      }
+      
+      sourceFileName = originalItem.metadata.name.replace(/\.[^.]+$/, '.md')
+      sourceBaseName = path.parse(originalItem.metadata.name).name
+      parentId = originalItem.parentId || 'root'
+      
+    } else {
+      // Storage-Datei: Normale Logik
+      const sourceItem = await provider.getItemById(sourceFileId)
+      if (!sourceItem || sourceItem.type !== 'file') {
+        return NextResponse.json({ error: 'Quelle ist keine Datei' }, { status: 400 })
+      }
+
+      sourceFileName = sourceItem.metadata.name
+      sourceBaseName = path.parse(sourceFileName).name
+
+      // Original-Datei laden, um parentId zu kennen (für Verzeichnis-Erstellung neben dem Original)
+      const originalItem = originalFileId !== sourceFileId 
+        ? await provider.getItemById(originalFileId).catch(() => null)
+        : sourceItem
+      if (!originalItem || originalItem.type !== 'file') {
+        return NextResponse.json({ error: 'Original-Datei nicht gefunden' }, { status: 400 })
+      }
+
+      // parentId vom Original verwenden, damit das Verzeichnis neben dem Original erstellt wird
+      parentId = originalItem.parentId || 'root'
+
+      // 1) Wenn die Quelle schon Markdown ist: direkt verwenden
+      // 2) Sonst: Transcript per Shadow‑Twin Resolver suchen (Marker sind dort verlässlich)
+      //    Verwende originalFileId für die Suche, falls sourceFileId bereits die Transcript-Datei ist
+      const resolvedMarkdown = isMarkdownFileName(sourceFileName) || isMarkdownMimeType(sourceItem.metadata.mimeType)
+        ? { fileId: sourceFileId }
+        : await resolveArtifact(provider, {
+            sourceItemId: originalFileId,
+            sourceName: originalItem.metadata.name,
+            parentId: originalItem.parentId || 'root',
+            targetLanguage,
+            preferredKind: 'transcript',
+          })
+
+      if (!resolvedMarkdown?.fileId) {
+        return NextResponse.json(
+          { error: 'Transcript-Markdown nicht gefunden (kein Split möglich)' },
+          { status: 404 }
+        )
+      }
+
+      // Markdown laden
+      const markdownBinary = await provider.getBinary(resolvedMarkdown.fileId)
+      markdown = await markdownBinary.blob.text()
+      sourceMarkdownId = resolvedMarkdown.fileId // Storage-ID als Quelle
     }
-
-    const sourceFileName = sourceItem.metadata.name
-    const sourceBaseName = path.parse(sourceFileName).name
-
-    // Original-Datei laden, um parentId zu kennen (für Verzeichnis-Erstellung neben dem Original)
-    const originalItem = originalFileId !== sourceFileId 
-      ? await provider.getItemById(originalFileId).catch(() => null)
-      : sourceItem
-    if (!originalItem || originalItem.type !== 'file') {
-      return NextResponse.json({ error: 'Original-Datei nicht gefunden' }, { status: 400 })
-    }
-
-    // parentId vom Original verwenden, damit das Verzeichnis neben dem Original erstellt wird
-    const parentId = originalItem.parentId || 'root'
-
-    // 1) Wenn die Quelle schon Markdown ist: direkt verwenden
-    // 2) Sonst: Transcript per Shadow‑Twin Resolver suchen (Marker sind dort verlässlich)
-    //    Verwende originalFileId für die Suche, falls sourceFileId bereits die Transcript-Datei ist
-    const resolvedMarkdown = isMarkdownFileName(sourceFileName) || isMarkdownMimeType(sourceItem.metadata.mimeType)
-      ? { fileId: sourceFileId }
-      : await resolveArtifact(provider, {
-          sourceItemId: originalFileId,
-          sourceName: originalItem.metadata.name,
-          parentId: originalItem.parentId || 'root',
-          targetLanguage,
-          preferredKind: 'transcript',
-        })
-
-    if (!resolvedMarkdown?.fileId) {
-      return NextResponse.json(
-        { error: 'Transcript-Markdown nicht gefunden (kein Split möglich)' },
-        { status: 404 }
-      )
-    }
-
-    // Markdown laden
-    const markdownBinary = await provider.getBinary(resolvedMarkdown.fileId)
-    const markdown = await markdownBinary.blob.text()
 
     // Seiten splitten (harte Validierung: ohne Marker keine Ausgabe)
     const splitResult = splitMarkdownByPageMarkers(markdown)
@@ -185,7 +236,7 @@ export async function POST(
       folderName: targetFolder.metadata.name,
       created: createdCount,
       pages: splitResult.pages.length,
-      sourceMarkdownId: resolvedMarkdown.fileId,
+      sourceMarkdownId,
     })
   } catch (error) {
     FileLogger.error('split-pages', 'Unerwarteter Fehler beim Splitten', {

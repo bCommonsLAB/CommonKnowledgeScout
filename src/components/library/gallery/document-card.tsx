@@ -82,18 +82,22 @@ function ClimateActionCard({ doc, onClick }: { doc: DocCardMeta; onClick: () => 
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.offen
   const IconComponent = iconMap[config.icon]
   
+  // Thumbnail bevorzugen für Galerie-Performance, Fallback auf Original
+  const displayImageUrl = doc.coverThumbnailUrl || doc.coverImageUrl
+  
   return (
     <article
       className='group relative aspect-[4/3] overflow-hidden rounded-lg shadow-md transition-all duration-300 hover:shadow-xl hover:scale-[1.02] cursor-pointer'
       onClick={onClick}
     >
-      {/* Hintergrundbild */}
-      {doc.coverImageUrl ? (
+      {/* Hintergrundbild: Thumbnail bevorzugt für bessere Performance */}
+      {displayImageUrl ? (
         <Image
-          src={doc.coverImageUrl}
-          alt={doc.shortTitle || doc.title || doc.fileName || 'Cover'}
+          src={displayImageUrl}
+          alt={doc.title || doc.shortTitle || doc.fileName || 'Cover'}
           fill
           className='object-cover transition-transform duration-500 group-hover:scale-105'
+          loading='lazy'
           unoptimized
         />
       ) : (
@@ -115,7 +119,7 @@ function ClimateActionCard({ doc, onClick }: { doc: DocCardMeta; onClick: () => 
             </span>
           )}
           <h3 className='text-lg font-semibold leading-tight text-white text-balance pr-4 drop-shadow-lg'>
-            {doc.shortTitle || doc.title || doc.fileName || 'Klimamaßnahme'}
+            {doc.title || doc.shortTitle || doc.fileName || 'Klimamaßnahme'}
           </h3>
         </div>
         
@@ -188,15 +192,16 @@ export function DocumentCard({ doc, onClick, libraryId, libraryDetailViewType }:
 
         <div className='flex items-start gap-3'>
           <div className='flex items-start gap-2 flex-1 min-w-0'>
-            {/* Cover-Bild-Thumbnail (falls vorhanden) */}
-            {doc.coverImageUrl ? (
+            {/* Cover-Bild-Thumbnail: Thumbnail bevorzugt für bessere Performance */}
+            {(doc.coverThumbnailUrl || doc.coverImageUrl) ? (
               <div className='flex-shrink-0 w-[80px] h-[120px] bg-secondary rounded border border-border overflow-hidden shadow-sm'>
                 <Image
-                  src={doc.coverImageUrl}
-                  alt={doc.shortTitle || doc.title || doc.fileName || 'Cover'}
+                  src={doc.coverThumbnailUrl || doc.coverImageUrl || ''}
+                  alt={doc.title || doc.shortTitle || doc.fileName || 'Cover'}
                   width={80}
                   height={120}
                   className='w-full h-full object-cover'
+                  loading='lazy'
                   unoptimized
                 />
               </div>
@@ -204,8 +209,8 @@ export function DocumentCard({ doc, onClick, libraryId, libraryDetailViewType }:
             <div className='flex-1 min-w-0'>
               {/* Kreisförmige Autoren-/Speaker-Icons nur anzeigen, wenn es echte Speaker-Bilder gibt (Logik in SpeakerOrAuthorIcons) */}
               <SpeakerOrAuthorIcons doc={doc} />
-              <CardTitle className='text-lg line-clamp-2'>{doc.shortTitle || doc.title || doc.fileName || 'Dokument'}</CardTitle>
-              <CardDescription className='line-clamp-2'>{doc.title || doc.fileName}</CardDescription>
+              <CardTitle className='text-lg line-clamp-2'>{doc.title || doc.shortTitle || doc.fileName || 'Dokument'}</CardTitle>
+              <CardDescription className='line-clamp-2'>{doc.shortTitle || doc.fileName}</CardDescription>
             </div>
           </div>
         </div>

@@ -32,6 +32,8 @@ export interface VirtualizedItemsViewProps {
   onDocumentDeleted?: () => void
   /** Fallback-DetailViewType aus der Library-Config */
   libraryDetailViewType?: string
+  /** Gruppierungsfeld: 'year', 'none', oder ein Facetten-Key (z.B. 'category') */
+  groupByField?: string
 }
 
 export function VirtualizedItemsView({
@@ -44,6 +46,7 @@ export function VirtualizedItemsView({
   isLoadingMore,
   onDocumentDeleted,
   libraryDetailViewType,
+  groupByField,
 }: VirtualizedItemsViewProps) {
   const { t, locale } = useTranslation()
   const router = useRouter()
@@ -146,7 +149,7 @@ export function VirtualizedItemsView({
   if (viewMode === 'grid') {
     return (
       <div ref={parentRef}>
-        <ItemsGrid docsByYear={docsByYear} onOpen={onOpen} libraryId={libraryId} libraryDetailViewType={libraryDetailViewType} />
+        <ItemsGrid docsByYear={docsByYear} onOpen={onOpen} libraryId={libraryId} libraryDetailViewType={libraryDetailViewType} groupByField={groupByField} />
         {/* Sentinel für Infinite Scroll */}
         {hasMore && (
           <div ref={sentinelRef} className="h-20 flex items-center justify-center py-4">

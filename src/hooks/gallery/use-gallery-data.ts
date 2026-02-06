@@ -12,7 +12,7 @@ export function useGalleryData(
   mode: 'gallery' | 'story', 
   searchQuery: string, 
   libraryId?: string,
-  options?: { skipApiCall?: boolean; refreshKey?: number }
+  options?: { skipApiCall?: boolean; refreshKey?: number; groupByField?: string }
 ) {
   const setGalleryData = useSetAtom(galleryDataAtom)
   const galleryDataFromAtom = useAtomValue(galleryDataAtom)
@@ -145,20 +145,62 @@ export function useGalleryData(
   
   const finalFilteredDocs = finalDocs
   
-  const finalDocsByYear = useMemo(() => {
-    const grouped = new Map<number | string, DocCardMeta[]>()
-    for (const doc of finalFilteredDocs) {
-      const year = doc.year || 'Ohne Jahrgang'
-      if (!grouped.has(year)) grouped.set(year, [])
-      grouped.get(year)!.push(doc)
+  // Gruppierung nach konfiguriertem Feld (default: 'year')
+  const groupByField = options?.groupByField || 'year'
+  
+  const groupedDocs = useMemo(() => {
+    // 'none' = keine Gruppierung, alle Dokumente in einer Gruppe
+    if (groupByField === 'none') {
+      return [['', finalFilteredDocs] as [string, DocCardMeta[]]]
     }
+    
+    const grouped = new Map<number | string, DocCardMeta[]>()
+    const noGroupLabel = groupByField === 'year' ? 'Ohne Jahrgang' : 'Ohne Zuordnung'
+    
+    for (const doc of finalFilteredDocs) {
+      // Dynamisch das Feld aus dem Dokument lesen
+      let groupValue: string | number | undefined
+      
+      if (groupByField === 'year') {
+        groupValue = doc.year
+      } else {
+        // Dynamischer Zugriff auf beliebige Felder
+        // Doppelte Konvertierung nötig, da DocCardMeta keinen Index-Signatur hat
+        const rawValue = (doc as unknown as Record<string, unknown>)[groupByField]
+        if (typeof rawValue === 'string' && rawValue.length > 0) {
+          groupValue = rawValue
+        } else if (typeof rawValue === 'number') {
+          groupValue = rawValue
+        }
+      }
+      
+      const key = groupValue || noGroupLabel
+      if (!grouped.has(key)) grouped.set(key, [])
+      grouped.get(key)!.push(doc)
+    }
+    
+    // Sortierung: Jahr numerisch absteigend, Strings alphabetisch
     const sorted = Array.from(grouped.entries()).sort((a, b) => {
-      const yearA = a[0] === 'Ohne Jahrgang' ? 0 : (typeof a[0] === 'string' ? parseInt(a[0], 10) : a[0])
-      const yearB = b[0] === 'Ohne Jahrgang' ? 0 : (typeof b[0] === 'string' ? parseInt(b[0], 10) : b[0])
-      return yearB - yearA
+      const keyA = a[0]
+      const keyB = b[0]
+      
+      // "Ohne Zuordnung" / "Ohne Jahrgang" immer ans Ende
+      if (keyA === noGroupLabel) return 1
+      if (keyB === noGroupLabel) return -1
+      
+      // Bei Jahr: numerisch absteigend
+      if (groupByField === 'year') {
+        const yearA = typeof keyA === 'string' ? parseInt(keyA, 10) : keyA
+        const yearB = typeof keyB === 'string' ? parseInt(keyB, 10) : keyB
+        return (yearB as number) - (yearA as number)
+      }
+      
+      // Bei anderen Feldern: alphabetisch aufsteigend
+      return String(keyA).localeCompare(String(keyB), 'de')
     })
+    
     return sorted
-  }, [finalFilteredDocs])
+  }, [finalFilteredDocs, groupByField])
   
   return { 
     docs: finalDocs, 
@@ -166,7 +208,9 @@ export function useGalleryData(
     loading: finalLoading, 
     error: finalError, 
     filteredDocs: finalFilteredDocs, 
-    docsByYear: finalDocsByYear, 
+    docsByYear: groupedDocs, // Umbenennung wäre besser, aber für Rückwärtskompatibilität beibehalten
+    groupedDocs, // Neuer Name für Klarheit
+    groupByField, // Aktuelles Gruppierungsfeld zurückgeben
     loadMore, 
     hasMore: finalHasMore, 
     isLoadingMore: finalIsLoadingMore, 

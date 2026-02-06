@@ -114,6 +114,7 @@
     "backToStoryMode": "Back to Story Mode",
     "year": "Year {year}",
     "noYear": "No year",
+    "noGroup": "Unassigned",
     "storyMode": {
       "headline": "Story Mode – Have the contents explained to you from your perspective",
       "subtitle": "Experience shared knowledge together",
@@ -131,6 +132,8 @@
       }
     },
     "searchPlaceholder": "Search by title, speaker, topic...",
+    "searchPrefix": "Search by",
+    "searchFieldTitle": "Title",
     "filter": "Filter",
     "reset": "Reset",
     "noFiltersAvailable": "No filters available",
@@ -381,6 +384,10 @@
       "socialContextDescription": "Language style and complexity of answers.",
       "galleryDetailViewType": "Gallery: Detail view type",
       "galleryDetailViewTypeDescription": "Determines which detail view format is used in the gallery: Book for classic documents with chapters, Session for event presentations with slides.",
+      "galleryGroupBy": "Gallery: Grouping",
+      "galleryGroupByDescription": "Determines how gallery items are grouped. Choose a facet or 'Year' as default.",
+      "groupByNone": "No grouping",
+      "groupByYear": "Year",
       "galleryFacets": "Gallery: Facets",
       "galleryFacetsDescription": "Define any facets for filter navigation.",
       "detailViewTypeBook": "Book (Books, Documents, Chapters)",

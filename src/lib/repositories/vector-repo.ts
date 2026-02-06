@@ -1039,6 +1039,7 @@ export async function findDocs(
       tags: 1,
       slug: 1,
       coverImageUrl: 1,
+      coverThumbnailUrl: 1,
       upsertedAt: 1,
       // Aus docMetaJson falls vorhanden
       'docMetaJson.title': 1,
@@ -1049,6 +1050,8 @@ export async function findDocs(
       'docMetaJson.speakers_image_url': 1,
       'docMetaJson.slug': 1,
       'docMetaJson.coverImageUrl': 1,
+      // Thumbnail-URL für performante Galerie-Ansicht (320x320 WebP)
+      'docMetaJson.coverThumbnailUrl': 1,
       'docMetaJson.pages': 1,
       // Detailansicht-Auswahl (Wizard/Frontmatter)
       'docMetaJson.detailViewType': 1,
@@ -1122,14 +1125,27 @@ export async function aggregateFacets(
     if (!key) continue
     
     const arr: Document[] = []
-    // Null/fehlende ausschließen
-    arr.push({ $match: { [key]: { $exists: true, $ne: null } } })
+    
+    // Suche sowohl auf Top-Level als auch in docMetaJson
+    // Verwende $ifNull um den ersten vorhandenen Wert zu nehmen
+    const topLevelField = `$${key}`
+    const docMetaField = `$docMetaJson.${key}`
+    
+    // Projektiere ein virtuelles Feld, das den Wert von Top-Level oder docMetaJson nimmt
+    arr.push({ 
+      $addFields: { 
+        [`__facet_${key}`]: { $ifNull: [topLevelField, docMetaField] } 
+      } 
+    })
+    
+    // Null/fehlende ausschließen (auf dem virtuellen Feld)
+    arr.push({ $match: { [`__facet_${key}`]: { $exists: true, $ne: null } } })
     
     if (d.type === 'string[]') {
-      arr.push({ $unwind: `$${key}` })
+      arr.push({ $unwind: `$__facet_${key}` })
     }
     
-    arr.push({ $group: { _id: `$${key}`, count: { $sum: 1 } } })
+    arr.push({ $group: { _id: `$__facet_${key}`, count: { $sum: 1 } } })
     arr.push({ $sort: { _id: 1 } })
     
     facetStages[key] = arr

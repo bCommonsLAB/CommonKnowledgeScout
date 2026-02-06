@@ -61,6 +61,10 @@ export async function POST(
       mimeType?: string
       size?: number
       createdAt: string
+      /** Variante: original, thumbnail, preview */
+      variant?: ImageVariant
+      /** Hash des Original-Bildes (bei Thumbnails/Previews) */
+      sourceHash?: string
     }> = []
 
     // Extrahiere auch Artefakte (Markdown-Dateien) aus den Dokumenten
@@ -73,6 +77,9 @@ export async function POST(
       templateName?: string
       mongoUpserted: boolean
     }> = []
+
+    // Typ für Bild-Varianten
+    type ImageVariant = 'original' | 'thumbnail' | 'preview'
 
     for (const [sourceId, doc] of docs.entries()) {
       // Extrahiere Transcript-Artefakte
@@ -153,6 +160,8 @@ export async function POST(
             mimeType: fragment.mimeType as string | undefined,
             size: fragment.size as number | undefined,
             createdAt: (fragment.createdAt as string) || new Date().toISOString(),
+            variant: fragment.variant as ImageVariant | undefined,
+            sourceHash: fragment.sourceHash as string | undefined,
           })
         }
       }

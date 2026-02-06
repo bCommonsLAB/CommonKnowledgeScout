@@ -154,6 +154,21 @@ export function JobReportTab({
   const [isUploading, setIsUploading] = useState(false)
   const [coverImageDisplayUrl, setCoverImageDisplayUrl] = useState<string | null>(null)
   const [isGeneratorDialogOpen, setIsGeneratorDialogOpen] = useState(false)
+  // State für verfügbare Bild-Paare aus binaryFragments (Galerie im "image" Tab)
+  // Jedes Paar besteht aus einem Thumbnail und dem zugehörigen Original
+  const [availableImagePairs, setAvailableImagePairs] = useState<Array<{
+    // Thumbnail-Daten (für Galerie-Anzeige)
+    thumbnailName: string
+    thumbnailUrl: string
+    // Original-Daten (für Frontmatter)
+    originalName: string
+    originalUrl: string
+    originalHash?: string
+    // Metadaten
+    createdAt?: string
+    isCurrentCover?: boolean
+  }>>([])
+  const [isLoadingImages, setIsLoadingImages] = useState(false)
   // State für DetailViewType-Override in Story-Vorschau ('auto' = aus Frontmatter/Config ermitteln)
   const [previewDetailViewType, setPreviewDetailViewType] = useState<TemplatePreviewDetailViewType | 'auto'>('auto')
   // State für Bearbeitungsmodus im Markdown-Tab (Rohtext vs. formatiert)
@@ -831,6 +846,115 @@ export function JobReportTab({
     return () => { cancelled = true }
   }, [coverImageUrl, libraryId, fileId, provider, shadowTwinState?.shadowTwinFolderId, fallbackFolderId])
 
+  // Lade alle verfügbaren Bilder aus binaryFragments (für Galerie im "image" Tab)
+  useEffect(() => {
+    // Nur laden wenn "image" Tab aktiv ist und wir die nötigen IDs haben
+    if (activeTab !== 'image' || !libraryId || !fileId) {
+      return
+    }
+
+    let cancelled = false
+    async function loadAvailableImages() {
+      setIsLoadingImages(true)
+      try {
+        // Verwende die bestehende binary-fragments API
+        const res = await fetch(`/api/library/${encodeURIComponent(libraryId)}/shadow-twins/binary-fragments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sourceIds: [fileId] }),
+        })
+
+        if (res.ok && !cancelled) {
+          const json = await res.json() as {
+            fragments: Array<{
+              name: string
+              url?: string
+              resolvedUrl?: string
+              hash?: string
+              mimeType?: string
+              size?: number
+              kind?: string
+              createdAt?: string
+              variant?: 'original' | 'thumbnail' | 'preview'
+              sourceHash?: string // Hash des Original-Bildes (bei Thumbnails)
+            }>
+          }
+
+          // Trenne Thumbnails und Originale
+          // Unterstützt sowohl `variant` Feld als auch Namenskonvention (für ältere Daten)
+          const thumbnails = json.fragments.filter(f => 
+            f.kind === 'image' && 
+            f.resolvedUrl && 
+            (f.variant === 'thumbnail' || f.name?.startsWith('thumb_'))
+          )
+          const originals = json.fragments.filter(f => 
+            f.kind === 'image' && 
+            f.resolvedUrl && 
+            f.variant !== 'thumbnail' && 
+            !f.name?.startsWith('thumb_')
+          )
+
+          // Bilde Paare: Thumbnail + zugehöriges Original
+          // Verknüpfung über sourceHash (Thumbnail.sourceHash === Original.hash)
+          // oder über Namenskonvention (thumb_<name>.webp → <name>.png/jpg)
+          const pairs: Array<{
+            thumbnailName: string
+            thumbnailUrl: string
+            originalName: string
+            originalUrl: string
+            originalHash?: string
+            createdAt?: string
+            isCurrentCover?: boolean
+          }> = []
+
+          for (const thumb of thumbnails) {
+            // Suche Original über sourceHash
+            let original = originals.find(o => 
+              thumb.sourceHash && o.hash === thumb.sourceHash
+            )
+
+            // Fallback: Namenskonvention (thumb_<name>.webp → <name>.*)
+            if (!original && thumb.name) {
+              const baseName = thumb.name.replace(/^thumb_/, '').replace(/\.[^.]+$/, '')
+              original = originals.find(o => 
+                o.name?.replace(/\.[^.]+$/, '') === baseName
+              )
+            }
+
+            if (original) {
+              pairs.push({
+                thumbnailName: thumb.name || '',
+                thumbnailUrl: thumb.resolvedUrl!,
+                originalName: original.name || '',
+                originalUrl: original.resolvedUrl!,
+                originalHash: original.hash,
+                createdAt: original.createdAt || thumb.createdAt,
+                isCurrentCover: coverImageUrl === original.name,
+              })
+            }
+          }
+
+          // Sortiere nach Erstellungsdatum (neueste zuerst)
+          pairs.sort((a, b) => {
+            if (!a.createdAt || !b.createdAt) return 0
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          })
+
+          setAvailableImagePairs(pairs)
+        }
+      } catch (error) {
+        UILogger.warn('JobReportTab', 'Fehler beim Laden der verfügbaren Bilder', {
+          error: error instanceof Error ? error.message : String(error),
+        })
+      } finally {
+        if (!cancelled) setIsLoadingImages(false)
+      }
+    }
+
+    void loadAvailableImages()
+    return () => { cancelled = true }
+  }, [activeTab, libraryId, fileId, coverImageUrl])
+
   // Gemeinsame Funktion zum Speichern eines Coverbildes (für Upload und Generierung)
   // Verwendet die Shadow-Twin API - alle Logik liegt im ShadowTwinService
   const saveCoverImage = useCallback(async (file: File) => {
@@ -950,6 +1074,79 @@ export function JobReportTab({
       event.target.value = ''
     }
   }, [saveCoverImage, provider, effectiveMdId])
+
+  // Funktion zum Auswählen eines bestehenden Bild-Paares als Cover
+  // Erwartet den Namen des Original-Bildes (nicht des Thumbnails)
+  const handleSelectExistingImage = useCallback(async (originalName: string, thumbnailName: string) => {
+    if (!libraryId || !fileId || !effectiveMdId) {
+      toast.error('Dokument-ID nicht verfügbar')
+      return
+    }
+
+    // Parse die Mongo-ID um die Parts zu bekommen
+    if (!isMongoShadowTwinId(effectiveMdId)) {
+      toast.error('Nur für MongoDB-Shadow-Twins unterstützt')
+      return
+    }
+
+    const parts = parseMongoShadowTwinId(effectiveMdId)
+    if (!parts) {
+      toast.error('Ungültige Dokument-ID')
+      return
+    }
+
+    setIsUploading(true)
+    try {
+      // Lade das aktuelle Markdown
+      const mdResult = await fetchShadowTwinMarkdown(libraryId, parts)
+      if (!mdResult) {
+        throw new Error('Markdown konnte nicht geladen werden')
+      }
+
+      // Patche das Frontmatter mit beiden Bild-URLs (Original + Thumbnail)
+      const { patchFrontmatter } = await import('@/lib/markdown/frontmatter-patch')
+      const patches: Record<string, string> = { 
+        coverImageUrl: originalName,
+        coverThumbnailUrl: thumbnailName,
+      }
+
+      const patchedMarkdown = patchFrontmatter(mdResult, patches)
+
+      // Speichere das aktualisierte Markdown
+      await updateShadowTwinMarkdown(libraryId, parts, patchedMarkdown)
+
+      toast.success('Cover-Bild ausgewählt')
+
+      // Aktualisiere die Anzeige mit dem Original-Bild
+      const pair = availableImagePairs.find(p => p.originalName === originalName)
+      setCoverImageDisplayUrl(pair?.originalUrl || null)
+      
+      // Aktualisiere auch resolvedCoverImageUrl für die Story-Vorschau
+      setResolvedCoverImageUrl(pair?.originalUrl || undefined)
+      
+      // Aktualisiere die Galerie-Markierung
+      setAvailableImagePairs(prev => prev.map(p => ({
+        ...p,
+        isCurrentCover: p.originalName === originalName,
+      })))
+      
+      // Parse das aktualisierte Frontmatter und aktualisiere den State
+      const { meta } = parseSecretaryMarkdownStrict(patchedMarkdown)
+      setFrontmatterMeta(meta)
+      setFullContent(patchedMarkdown)
+
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unbekannter Fehler'
+      toast.error('Fehler beim Auswählen: ' + errorMsg)
+      UILogger.error('JobReportTab', 'Fehler beim Auswählen des bestehenden Bildes', {
+        originalName,
+        thumbnailName,
+        error: errorMsg,
+      })
+    } finally {
+      setIsUploading(false)
+    }
+  }, [libraryId, fileId, effectiveMdId, availableImagePairs])
 
   const handleGeneratedImage = useCallback(async (file: File) => {
     try {
@@ -1469,6 +1666,57 @@ export function JobReportTab({
                 promptSource={defaultPromptResult.source}
                 originalPrompt={defaultPromptResult.originalPrompt}
               />
+
+              {/* Galerie der verfügbaren Bild-Paare (zeigt Thumbnails, setzt beide URLs) */}
+              {/* Anzeige auch bei nur einem Bild, damit Benutzer vorhandene Bilder sehen können */}
+              {availableImagePairs.length >= 1 && (
+                <div className="mt-4 pt-4 border-t">
+                  <div className="text-xs text-muted-foreground mb-2">
+                    Vorhandene Bilder ({availableImagePairs.length}) — klicken Sie, um eines auszuwählen:
+                  </div>
+                  <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2">
+                    {availableImagePairs.map((pair) => (
+                      <button
+                        key={pair.originalHash || pair.originalName}
+                        type="button"
+                        onClick={() => handleSelectExistingImage(pair.originalName, pair.thumbnailName)}
+                        disabled={isUploading || pair.isCurrentCover}
+                        className={`
+                          relative aspect-square rounded-md overflow-hidden border-2 transition-all
+                          ${pair.isCurrentCover 
+                            ? 'border-primary ring-2 ring-primary/30 cursor-default' 
+                            : 'border-transparent hover:border-muted-foreground/50 cursor-pointer'
+                          }
+                          ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}
+                        `}
+                        title={pair.isCurrentCover 
+                          ? `Aktuelles Cover: ${pair.originalName}` 
+                          : `Auswählen: ${pair.originalName}`
+                        }
+                      >
+                        {/* Zeige Thumbnail für schnelle Ladezeit */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={pair.thumbnailUrl}
+                          alt={pair.originalName}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                        {pair.isCurrentCover && (
+                          <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                            <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded font-medium">
+                              Aktiv
+                            </span>
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  {isLoadingImages && (
+                    <div className="text-xs text-muted-foreground mt-2">Lade Bilder...</div>
+                  )}
+                </div>
+              )}
             </div>
           </TabsContent>
 

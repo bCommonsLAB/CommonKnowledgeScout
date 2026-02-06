@@ -114,6 +114,7 @@
     "backToStoryMode": "Retour au mode Histoire",
     "year": "Année {year}",
     "noYear": "Sans année",
+    "noGroup": "Non attribué",
     "storyMode": {
       "headline": "Mode Histoire – Faites-vous expliquer les contenus depuis votre perspective",
       "subtitle": "Vivre ensemble la connaissance partagée",
@@ -131,6 +132,8 @@
       }
     },
     "searchPlaceholder": "Rechercher par titre, conférencier, sujet...",
+    "searchPrefix": "Rechercher par",
+    "searchFieldTitle": "Titre",
     "filter": "Filtre",
     "reset": "Réinitialiser",
     "noFiltersAvailable": "Aucun filtre disponible",
@@ -381,6 +384,10 @@
       "socialContextDescription": "Style de langue et complexité des réponses.",
       "galleryDetailViewType": "Galerie : Type de vue détaillée",
       "galleryDetailViewTypeDescription": "Détermine le format de vue détaillée utilisé dans la galerie : Livre pour les documents classiques avec chapitres, Session pour les présentations d'événements avec diapositives.",
+      "galleryGroupBy": "Galerie : Regroupement",
+      "galleryGroupByDescription": "Détermine comment les éléments de la galerie sont regroupés. Choisissez une facette ou 'Année' comme valeur par défaut.",
+      "groupByNone": "Pas de regroupement",
+      "groupByYear": "Année",
       "galleryFacets": "Galerie : Facettes",
       "galleryFacetsDescription": "Définir des facettes pour la navigation par filtres.",
       "detailViewTypeBook": "Livre (Livres, Documents, Chapitres)",

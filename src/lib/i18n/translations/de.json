@@ -115,6 +115,7 @@
     "backToStoryMode": "Zurück zu Story Mode",
     "year": "Jahr {year}",
     "noYear": "Ohne Jahr",
+    "noGroup": "Ohne Zuordnung",
     "storyMode": {
       "headline": "Story Mode – Lass dir die Inhalte aus deiner Perspektive erklären",
       "subtitle": "Gemeinsam geteiltes Wissen erleben",
@@ -158,6 +159,8 @@
       }
     },
     "searchPlaceholder": "Durchsuchen nach Titel, Speaker, Topic...",
+    "searchPrefix": "Durchsuchen nach",
+    "searchFieldTitle": "Titel",
     "filter": "Filter",
     "reset": "Zurücksetzen",
     "noFiltersAvailable": "Keine Filter verfügbar",
@@ -418,6 +421,10 @@
       "socialContextDescription": "Sprachstil und Komplexität der Antworten.",
       "galleryDetailViewType": "Galerie: Detailansicht-Typ",
       "galleryDetailViewTypeDescription": "Legt fest, welches Detail-View-Format in der Galerie verwendet wird: Book für klassische Dokumente mit Kapiteln, Session für Event-Präsentationen mit Slides.",
+      "galleryGroupBy": "Galerie: Gruppierung",
+      "galleryGroupByDescription": "Legt fest, nach welchem Feld die Galerie-Items gruppiert werden. Wählen Sie eine Facette oder 'Jahr' als Standard.",
+      "groupByNone": "Keine Gruppierung",
+      "groupByYear": "Jahr",
       "galleryFacets": "Galerie: Facetten",
       "galleryFacetsDescription": "Definieren Sie beliebige Facetten für die Filter-Navigation.",
       "detailViewTypeBook": "Book (Bücher, Dokumente, Kapitel)",

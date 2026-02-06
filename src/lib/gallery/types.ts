@@ -18,6 +18,8 @@ export interface DocCardMeta {
   upsertedAt?: string
   slug?: string
   coverImageUrl?: string
+  /** Thumbnail-URL für performante Galerie-Ansicht (320x320 WebP) */
+  coverThumbnailUrl?: string
   pages?: number
   /** Item-Typ (document, event, joboffer, testimonial, etc.) */
   docType?: string
@@ -91,6 +93,7 @@ export function mapItemToDocCardMeta(item: Item): DocCardMeta {
     upsertedAt: item.upsertedAt,
     slug: item.meta.slug as string | undefined,
     coverImageUrl: item.meta.coverImageUrl as string | undefined,
+    coverThumbnailUrl: item.meta.coverThumbnailUrl as string | undefined,
     pages: item.meta.pages as number | undefined,
     docType: item.docType,
     detailViewType: item.meta.detailViewType as string | undefined,

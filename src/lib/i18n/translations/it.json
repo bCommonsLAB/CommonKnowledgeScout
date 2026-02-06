@@ -114,6 +114,7 @@
     "backToStoryMode": "Torna alla modalità Storia",
     "year": "Anno {year}",
     "noYear": "Senza anno",
+    "noGroup": "Non assegnato",
     "storyMode": {
       "headline": "Modalità Storia – Fatti spiegare i contenuti dalla tua prospettiva",
       "subtitle": "Sperimentare insieme la conoscenza condivisa",
@@ -131,6 +132,8 @@
       }
     },
     "searchPlaceholder": "Cerca per titolo, relatore, argomento...",
+    "searchPrefix": "Cerca per",
+    "searchFieldTitle": "Titolo",
     "filter": "Filtro",
     "reset": "Reimposta",
     "noFiltersAvailable": "Nessun filtro disponibile",
@@ -381,6 +384,10 @@
       "socialContextDescription": "Stile linguistico e complessità delle risposte.",
       "galleryDetailViewType": "Galleria: Tipo vista dettaglio",
       "galleryDetailViewTypeDescription": "Determina quale formato di vista dettaglio viene utilizzato nella galleria: Book per documenti classici con capitoli, Session per presentazioni di eventi con slide.",
+      "galleryGroupBy": "Galleria: Raggruppamento",
+      "galleryGroupByDescription": "Determina come vengono raggruppati gli elementi della galleria. Scegli una faccia o 'Anno' come predefinito.",
+      "groupByNone": "Nessun raggruppamento",
+      "groupByYear": "Anno",
       "galleryFacets": "Galleria: Facce",
       "galleryFacetsDescription": "Definisci facce per la navigazione dei filtri.",
       "detailViewTypeBook": "Book (Libri, Documenti, Capitoli)",

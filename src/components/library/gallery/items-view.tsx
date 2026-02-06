@@ -8,7 +8,7 @@ import { VirtualizedItemsView } from './virtualized-items-view'
 export interface ItemsViewProps {
   /** View-Mode: 'grid' für Galerie-Ansicht, 'table' für Tabellen-Ansicht */
   viewMode: ViewMode
-  /** Dokumente gruppiert nach Jahr */
+  /** Dokumente gruppiert nach Jahr oder anderem Feld */
   docsByYear: Array<[number | string, DocCardMeta[]]>
   /** Callback für Dokument-Öffnen (optional: Fallback für Dokumente ohne slug) */
   onOpen?: (doc: DocCardMeta) => void
@@ -24,13 +24,15 @@ export interface ItemsViewProps {
   onDocumentDeleted?: () => void
   /** Fallback-DetailViewType aus der Library-Config */
   libraryDetailViewType?: string
+  /** Gruppierungsfeld: 'year', 'none', oder ein Facetten-Key (z.B. 'category') */
+  groupByField?: string
 }
 
 /**
  * Wrapper-Komponente mit virtuellem Scrolling und Infinite Scroll
  * Lädt automatisch weitere Dokumente beim Scrollen
  */
-export function ItemsView({ viewMode, docsByYear, onOpen, libraryId, onLoadMore, hasMore, isLoadingMore, onDocumentDeleted, libraryDetailViewType }: ItemsViewProps) {
+export function ItemsView({ viewMode, docsByYear, onOpen, libraryId, onLoadMore, hasMore, isLoadingMore, onDocumentDeleted, libraryDetailViewType, groupByField }: ItemsViewProps) {
   return (
     <VirtualizedItemsView
       viewMode={viewMode}
@@ -42,6 +44,7 @@ export function ItemsView({ viewMode, docsByYear, onOpen, libraryId, onLoadMore,
       isLoadingMore={isLoadingMore}
       onDocumentDeleted={onDocumentDeleted}
       libraryDetailViewType={libraryDetailViewType}
+      groupByField={groupByField}
     />
   )
 }

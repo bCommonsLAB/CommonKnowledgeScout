@@ -3,10 +3,11 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useAtom } from "jotai"
 import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom"
 import { Button } from "@/components/ui/button"
+import { Cloud, Wrench, Loader2, RefreshCw } from "lucide-react"
 import {
   Form,
   FormControl,
@@ -90,6 +91,14 @@ const chatFormSchema = z.object({
       },
       z.enum(['book', 'session', 'climateAction', 'testimonial', 'blog']).default('book')
     ),
+    // Gruppierung: 'none' = keine, 'year' = nach Jahr, oder ein Facetten-Key (z.B. 'category')
+    groupByField: z.preprocess(
+      (val) => {
+        if (val === '' || val === undefined || val === null) return 'year';
+        return val;
+      },
+      z.string().default('year')
+    ),
     facets: z.array(z.object({
       metaKey: z.string().min(1),
       label: z.string().optional(),
@@ -128,6 +137,34 @@ export function ChatForm() {
   const [indexDefinition, setIndexDefinition] = useState<string>('')
   const [collectionName, setCollectionName] = useState<string>('')
   const [initialFacets, setInitialFacets] = useState<Array<{ metaKey: string; type?: string }>>([])
+  
+  // Thumbnail-Reparatur States
+  const [thumbnailStats, setThumbnailStats] = useState<{
+    total?: number
+    withCoverImage?: number
+    missingThumbnails?: number
+    alreadyRepaired?: number
+  } | null>(null)
+  const [isRepairingThumbnails, setIsRepairingThumbnails] = useState(false)
+  const [repairProgress, setRepairProgress] = useState(0)
+  const [repairTotal, setRepairTotal] = useState(0)
+  
+  // Thumbnail-Regenerierung States (alle Thumbnails mit neuer Größe neu berechnen)
+  const [isRegeneratingThumbnails, setIsRegeneratingThumbnails] = useState(false)
+  const [regenerateProgress, setRegenerateProgress] = useState(0)
+  const [regenerateTotal, setRegenerateTotal] = useState(0)
+  
+  // Variant-Reparatur States
+  const [variantStats, setVariantStats] = useState<{
+    total?: number
+    missingVariant?: number
+    alreadyCorrect?: number
+  } | null>(null)
+  const [isRepairingVariants, setIsRepairingVariants] = useState(false)
+  
+  // Loading-State für Statistiken
+  const [isLoadingStats, setIsLoadingStats] = useState(false)
+  const [statsError, setStatsError] = useState<string | null>(null)
 
   const activeLibrary = libraries.find(lib => lib.id === activeLibraryId)
 
@@ -149,6 +186,7 @@ export function ChatForm() {
       socialContext: SOCIAL_CONTEXT_DEFAULT,
 gallery: {
         detailViewType: 'book',
+        groupByField: 'year', // Default: Nach Jahr gruppieren
         facets: getDefaultFacets().slice(0, 6) // Nur die ersten 6 sichtbaren Facetten als Default
       },
     },
@@ -176,7 +214,7 @@ gallery: {
         detailViewType: (c.gallery as { detailViewType?: unknown })?.detailViewType
       })
       
-      const galleryConfig = c.gallery as { detailViewType?: unknown; facets?: unknown } | undefined
+      const galleryConfig = c.gallery as { detailViewType?: unknown; groupByField?: string; facets?: unknown } | undefined
       const detailViewType = galleryConfig?.detailViewType
       
       // Explizite Prüfung und Logging - alle gültigen Typen akzeptieren
@@ -251,6 +289,10 @@ gallery: {
         socialContext: finalSocialContext,
         gallery: {
           detailViewType: finalViewType,
+          // Gruppierung: Lade aus Config oder Default 'year'
+          groupByField: typeof galleryConfig?.groupByField === 'string' && galleryConfig.groupByField.length > 0 
+            ? galleryConfig.groupByField 
+            : 'year',
           facets: (() => {
             const raw = galleryConfig?.facets
             if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'object') return raw as Array<Record<string, unknown>>
@@ -277,13 +319,231 @@ gallery: {
       
       // Nach dem Reset nochmal prüfen
       const afterResetValue = form.getValues('gallery.detailViewType')
+      const afterResetGroupBy = form.getValues('gallery.groupByField')
       console.log('[ChatForm] Form nach reset:', {
         detailViewType: afterResetValue,
-        type: typeof afterResetValue,
+        groupByField: afterResetGroupBy,
+        groupByFieldFromConfig: galleryConfig?.groupByField,
         allGalleryValues: form.getValues('gallery')
       })
     }
   }, [activeLibrary, form, t, defaultEmbeddings.chunkOverlap, defaultEmbeddings.chunkSize, defaultEmbeddings.dimensions, defaultEmbeddings.embeddingModel])
+
+  // Thumbnail- und Variant-Statistiken laden
+  const loadThumbnailStats = useCallback(async () => {
+    if (!activeLibrary) return
+    
+    setIsLoadingStats(true)
+    setStatsError(null)
+    
+    try {
+      // Thumbnail-Statistik
+      const thumbResponse = await fetch(`/api/library/${encodeURIComponent(activeLibrary.id)}/repair-thumbnails`)
+      if (thumbResponse.ok) {
+        const data = await thumbResponse.json()
+        setThumbnailStats(data)
+      } else {
+        const errorData = await thumbResponse.json().catch(() => ({}))
+        setStatsError(`Fehler beim Laden: ${errorData.error || thumbResponse.status}`)
+      }
+      
+      // Variant-Statistik (parallel laden)
+      const variantResponse = await fetch(`/api/library/${encodeURIComponent(activeLibrary.id)}/repair-thumbnails?type=variants`)
+      if (variantResponse.ok) {
+        const data = await variantResponse.json()
+        setVariantStats(data)
+      }
+    } catch (error) {
+      console.error('Fehler beim Laden der Statistiken:', error)
+      setStatsError(error instanceof Error ? error.message : 'Unbekannter Fehler')
+    } finally {
+      setIsLoadingStats(false)
+    }
+  }, [activeLibrary])
+  
+  // Statistiken beim Laden der Library abrufen
+  useEffect(() => {
+    if (activeLibrary) {
+      loadThumbnailStats()
+    }
+  }, [activeLibrary, loadThumbnailStats])
+  
+  // Thumbnail-Reparatur starten
+  const handleRepairThumbnails = useCallback(async () => {
+    if (!activeLibrary || isRepairingThumbnails) return
+    
+    setIsRepairingThumbnails(true)
+    setRepairProgress(0)
+    setRepairTotal(thumbnailStats?.missingThumbnails || 0)
+    
+    try {
+      const response = await fetch(`/api/library/${encodeURIComponent(activeLibrary.id)}/repair-thumbnails`, {
+        method: 'POST',
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Fehler: ${response.status}`)
+      }
+      
+      // SSE-Stream verarbeiten
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+      
+      if (!reader) {
+        throw new Error('Kein Stream-Reader verfügbar')
+      }
+      
+      let buffer = ''
+      
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        
+        buffer += decoder.decode(value, { stream: true })
+        
+        // Verarbeite SSE-Events
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || '' // Letzte unvollständige Zeile behalten
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const event = JSON.parse(line.slice(6))
+              
+              if (event.type === 'progress') {
+                setRepairProgress(event.current)
+                setRepairTotal(event.total)
+                
+                if (event.status === 'completed') {
+                  toast({
+                    title: 'Reparatur abgeschlossen',
+                    description: event.message || `${event.total} Thumbnails verarbeitet`,
+                  })
+                  // Statistiken aktualisieren
+                  loadThumbnailStats()
+                }
+              } else if (event.type === 'error') {
+                console.error('Reparatur-Fehler:', event.error)
+              }
+            } catch {
+              // JSON-Parse-Fehler ignorieren
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Fehler bei der Thumbnail-Reparatur:', error)
+      toast({
+        title: 'Fehler',
+        description: error instanceof Error ? error.message : 'Unbekannter Fehler',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsRepairingThumbnails(false)
+    }
+  }, [activeLibrary, isRepairingThumbnails, thumbnailStats?.missingThumbnails, loadThumbnailStats])
+  
+  // Thumbnail-Regenerierung starten (ALLE Thumbnails mit neuer Größe neu berechnen)
+  const handleRegenerateThumbnails = useCallback(async () => {
+    if (!activeLibrary || isRegeneratingThumbnails) return
+    
+    setIsRegeneratingThumbnails(true)
+    setRegenerateProgress(0)
+    setRegenerateTotal(thumbnailStats?.withCoverImage || 0)
+    
+    try {
+      // Regenerate-Modus: Alle Thumbnails neu berechnen (nicht nur fehlende)
+      const response = await fetch(`/api/library/${encodeURIComponent(activeLibrary.id)}/repair-thumbnails?regenerate=true`, {
+        method: 'POST',
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Fehler: ${response.status}`)
+      }
+      
+      // SSE-Stream verarbeiten
+      const reader = response.body?.getReader()
+      if (reader) {
+        const decoder = new TextDecoder()
+        let buffer = ''
+        
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || ''
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const event = JSON.parse(line.slice(6))
+                if (event.type === 'progress') {
+                  setRegenerateProgress(event.current || 0)
+                  setRegenerateTotal(event.total || 0)
+                } else if (event.type === 'complete') {
+                  toast({
+                    title: 'Regenerierung abgeschlossen',
+                    description: event.message || `${event.total} Thumbnails neu berechnet`,
+                  })
+                  // Statistiken aktualisieren
+                  loadThumbnailStats()
+                }
+              } catch {
+                // Parsing-Fehler ignorieren
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Fehler bei der Thumbnail-Regenerierung:', error)
+      toast({
+        title: 'Fehler',
+        description: error instanceof Error ? error.message : 'Unbekannter Fehler',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsRegeneratingThumbnails(false)
+    }
+  }, [activeLibrary, isRegeneratingThumbnails, thumbnailStats?.withCoverImage, loadThumbnailStats])
+  
+  // Variant-Reparatur starten (synchron, schnell)
+  const handleRepairVariants = useCallback(async () => {
+    if (!activeLibrary || isRepairingVariants) return
+    
+    setIsRepairingVariants(true)
+    
+    try {
+      const response = await fetch(`/api/library/${encodeURIComponent(activeLibrary.id)}/repair-thumbnails?type=variants`, {
+        method: 'POST',
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Fehler: ${response.status}`)
+      }
+      
+      const result = await response.json()
+      
+      toast({
+        title: 'Variant-Reparatur abgeschlossen',
+        description: `${result.repairedOriginals} Originals, ${result.repairedThumbnails} Thumbnails repariert`,
+      })
+      
+      // Statistiken aktualisieren
+      loadThumbnailStats()
+    } catch (error) {
+      console.error('Fehler bei der Variant-Reparatur:', error)
+      toast({
+        title: 'Fehler',
+        description: error instanceof Error ? error.message : 'Unbekannter Fehler',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsRepairingVariants(false)
+    }
+  }, [activeLibrary, isRepairingVariants, loadThumbnailStats])
 
   async function onSubmit(data: ChatFormValues) {
     console.log('[ChatForm] ✅ onSubmit wurde aufgerufen!')
@@ -752,6 +1012,64 @@ gallery: {
             }}
           />
 
+          {/* Gruppierung der Galerie-Items */}
+          <FormField
+            control={form.control}
+            name="gallery.groupByField"
+            render={({ field }) => {
+              const currentValue = field.value || 'year';
+              const facets = form.watch("gallery.facets") || [];
+              // Nur String-Facetten mit gültigem metaKey als Gruppierungsoptionen anbieten
+              const stringFacets = facets.filter((f: { type?: string; metaKey?: string }) => 
+                f.type === 'string' && f.metaKey && f.metaKey.length > 0
+              );
+              
+              console.log('[ChatForm] GroupBy Select Render:', { 
+                fieldValue: field.value, 
+                currentValue, 
+                stringFacetKeys: stringFacets.map((f: { metaKey: string }) => f.metaKey)
+              });
+              
+              return (
+                <FormItem>
+                  <FormLabel>{t('settings.chatForm.galleryGroupBy')}</FormLabel>
+                  <Select 
+                    value={currentValue} 
+                    onValueChange={(value) => {
+                      // Ignoriere leere Werte (Radix UI Bug bei Initialisierung)
+                      if (!value || value === '') {
+                        console.log('[ChatForm] Leerer groupByField ignoriert');
+                        return;
+                      }
+                      console.log('[ChatForm] groupByField onChange:', value);
+                      field.onChange(value);
+                    }}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="none">{t('settings.chatForm.groupByNone')}</SelectItem>
+                      <SelectItem value="year">{t('settings.chatForm.groupByYear')}</SelectItem>
+                      {/* Dynamisch alle String-Facetten als Gruppierungsoptionen */}
+                      {stringFacets.map((facet: { metaKey: string; label?: string }) => (
+                        <SelectItem key={facet.metaKey} value={facet.metaKey}>
+                          {facet.label || facet.metaKey}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    {t('settings.chatForm.galleryGroupByDescription')}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
+          />
+
           <div className="grid gap-3">
             <FormLabel>{t('settings.chatForm.galleryFacets')}</FormLabel>
             <FormDescription>{t('settings.chatForm.galleryFacetsDescription')}</FormDescription>
@@ -761,6 +1079,170 @@ gallery: {
               detailViewType={form.watch("gallery.detailViewType")}
             />
           </div>
+        </div>
+
+        {/* ===== Binary Storage ===== */}
+        <div className="space-y-4">
+          <div className="border-b pb-2">
+            <h3 className="text-lg font-semibold">Binary Storage</h3>
+            <p className="text-sm text-muted-foreground">
+              Speicherort für Bilder und andere Binärdateien.
+            </p>
+          </div>
+          
+          {/* Informative Anzeige */}
+          <div className="rounded-md border p-4 bg-muted/30">
+            <div className="flex items-center gap-2 text-sm">
+              <Cloud className="h-4 w-4" />
+              <span className="font-medium">Azure Blob Storage</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Container: knowledgescout / {activeLibrary?.id || '...'}
+            </p>
+          </div>
+          
+          {/* Thumbnail-Statistik */}
+          {isLoadingStats ? (
+            <div className="rounded-md border p-4 bg-muted/30 text-center">
+              <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
+              <p className="text-xs text-muted-foreground">Lade Statistik...</p>
+            </div>
+          ) : statsError ? (
+            <div className="rounded-md border p-4 bg-destructive/10 text-center">
+              <p className="text-sm text-destructive">{statsError}</p>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                className="mt-2"
+                onClick={loadThumbnailStats}
+              >
+                Erneut versuchen
+              </Button>
+            </div>
+          ) : thumbnailStats ? (
+            <div className="rounded-md border p-4 bg-muted/30">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div>
+                  <div className="text-2xl font-bold">{thumbnailStats.total ?? '-'}</div>
+                  <div className="text-xs text-muted-foreground">Shadow-Twins</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold">{thumbnailStats.withCoverImage ?? '-'}</div>
+                  <div className="text-xs text-muted-foreground">mit Cover-Bild</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-orange-600">{thumbnailStats.missingThumbnails ?? '-'}</div>
+                  <div className="text-xs text-muted-foreground">fehlende Thumbnails</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-green-600">{thumbnailStats.alreadyRepaired ?? '-'}</div>
+                  <div className="text-xs text-muted-foreground">repariert</div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-md border p-4 bg-muted/30 text-center">
+              <p className="text-xs text-muted-foreground">Keine Statistik verfügbar</p>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                className="mt-2"
+                onClick={loadThumbnailStats}
+              >
+                Statistik laden
+              </Button>
+            </div>
+          )}
+          
+          {/* Thumbnail-Reparatur-Button */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Thumbnails reparieren</p>
+              <p className="text-xs text-muted-foreground">
+                Generiert fehlende Thumbnails für alle Cover-Bilder.
+              </p>
+            </div>
+            <Button 
+              type="button"
+              variant="outline" 
+              onClick={handleRepairThumbnails}
+              disabled={isRepairingThumbnails || isRegeneratingThumbnails || (thumbnailStats?.missingThumbnails ?? 0) === 0}
+            >
+              {isRepairingThumbnails ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Repariere... ({repairProgress}/{repairTotal})
+                </>
+              ) : (
+                <>
+                  <Wrench className="h-4 w-4 mr-2" />
+                  Thumbnails reparieren
+                </>
+              )}
+            </Button>
+          </div>
+          
+          {/* Thumbnail-Regenerierung-Button (alle mit neuer Größe neu berechnen) */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Thumbnails neu berechnen</p>
+              <p className="text-xs text-muted-foreground">
+                Regeneriert alle Thumbnails mit der aktuellen Größe (640×640px).
+              </p>
+            </div>
+            <Button 
+              type="button"
+              variant="outline" 
+              onClick={handleRegenerateThumbnails}
+              disabled={isRepairingThumbnails || isRegeneratingThumbnails || (thumbnailStats?.withCoverImage ?? 0) === 0}
+            >
+              {isRegeneratingThumbnails ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Berechne... ({regenerateProgress}/{regenerateTotal})
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Thumbnails neu berechnen
+                </>
+              )}
+            </Button>
+          </div>
+          
+          {/* Variant-Statistik und Reparatur */}
+          {variantStats && (variantStats.missingVariant ?? 0) > 0 && (
+            <div className="rounded-md border p-4 bg-amber-50/50 dark:bg-amber-950/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                    Metadaten-Reparatur erforderlich
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {variantStats.missingVariant ?? 0} Fragment(e) ohne Typ-Markierung gefunden.
+                  </p>
+                </div>
+                <Button 
+                  type="button"
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleRepairVariants}
+                  disabled={isRepairingVariants}
+                >
+                  {isRepairingVariants ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Wrench className="h-4 w-4 mr-2" />
+                      Metadaten reparieren
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between gap-4">

@@ -89,6 +89,10 @@ export interface UploadBinaryFragmentOptions {
   mimeType: string
   /** Art des Fragments */
   kind: 'image' | 'audio' | 'video'
+  /** Variante des Fragments (original, thumbnail, preview) */
+  variant?: 'original' | 'thumbnail' | 'preview'
+  /** Hash des Original-Fragments (für Thumbnails/Previews) */
+  sourceHash?: string
 }
 
 /**
@@ -375,7 +379,7 @@ export class ShadowTwinService {
    * @returns Fragment mit aufgelöster URL
    */
   async uploadBinaryFragment(opts: UploadBinaryFragmentOptions): Promise<UploadBinaryFragmentResult> {
-    const { buffer, fileName, mimeType, kind } = opts
+    const { buffer, fileName, mimeType, kind, variant, sourceHash } = opts
 
     // Ermittle Extension aus Dateiname
     const extension = path.extname(fileName).toLowerCase().slice(1) || 'jpg'
@@ -449,7 +453,7 @@ export class ShadowTwinService {
         })
       }
 
-      // Fragment mit Azure-URL erstellen
+      // Fragment mit Azure-URL erstellen (inkl. variant für Thumbnail-Unterscheidung)
       const fragment: UploadBinaryFragmentResult = {
         name: fileName,
         url: azureUrl,
@@ -457,10 +461,12 @@ export class ShadowTwinService {
         mimeType,
         size,
         kind,
+        variant,
+        sourceHash,
         resolvedUrl: azureUrl,
       }
 
-      // In MongoDB speichern
+      // In MongoDB speichern (inkl. variant und sourceHash für Thumbnail-Zuordnung)
       await upsertShadowTwinBinaryFragment(libraryId, this.options.sourceId, {
         name: fileName,
         url: azureUrl,
@@ -469,6 +475,8 @@ export class ShadowTwinService {
         size,
         kind,
         createdAt,
+        variant,
+        sourceHash,
       })
 
       return fragment
@@ -681,8 +689,9 @@ export class ShadowTwinService {
    * 
    * Diese Methode abstrahiert den gesamten Cover-Bild-Workflow:
    * 1. Bild hochladen (Azure oder Filesystem)
-   * 2. Fragment in MongoDB/Filesystem registrieren
-   * 3. Frontmatter mit coverImageUrl patchen
+   * 2. Thumbnail generieren und hochladen (320x320 WebP für Galerie)
+   * 3. Fragment in MongoDB/Filesystem registrieren
+   * 4. Frontmatter mit coverImageUrl und coverThumbnailUrl patchen
    * 
    * @param opts Upload-Optionen mit Buffer, Dateiname, MIME-Type, Kind und Artefakt-Infos
    * @returns Fragment-Info und aktualisiertes Markdown
@@ -694,41 +703,124 @@ export class ShadowTwinService {
     kind: ArtifactKind
     targetLanguage: string
     templateName?: string
+    /** Ob ein Thumbnail generiert werden soll (Standard: true) */
+    generateThumbnail?: boolean
   }): Promise<{
     fragment: UploadBinaryFragmentResult
+    thumbnailFragment?: UploadBinaryFragmentResult
     markdown: string
     artifactId: string
   }> {
-    const { buffer, fileName, mimeType, kind, targetLanguage, templateName } = opts
+    const { buffer, fileName, mimeType, kind, targetLanguage, templateName, generateThumbnail = true } = opts
 
-    // 1. Bild hochladen
+    // 1. Original-Bild hochladen (mit variant: 'original')
     const fragment = await this.uploadBinaryFragment({
       buffer,
       fileName,
       mimeType,
       kind: 'image',
+      variant: 'original',
     })
 
-    // 2. Frontmatter mit coverImageUrl patchen
+    // 2. Thumbnail generieren und hochladen (wenn aktiviert)
+    let thumbnailFragment: UploadBinaryFragmentResult | undefined
+    if (generateThumbnail && this.isSupportedImageType(mimeType)) {
+      try {
+        // Dynamischer Import für Server-seitige Verarbeitung
+        // Verwende zentrale Thumbnail-Konfiguration für konsistente Größe
+        const { 
+          generateThumbnail: generateThumb, 
+          generateThumbnailFileName,
+          THUMBNAIL_SIZE,
+          THUMBNAIL_FORMAT,
+          THUMBNAIL_QUALITY,
+        } = await import('@/lib/image/thumbnail-generator')
+        
+        // Thumbnail generieren (640x640, WebP für optimale Kompression und HD-Displays)
+        const thumbnailResult = await generateThumb(buffer, {
+          size: THUMBNAIL_SIZE,
+          format: THUMBNAIL_FORMAT,
+          quality: THUMBNAIL_QUALITY,
+        })
+
+        const thumbnailFileName = generateThumbnailFileName(fileName, 'webp')
+
+        // Thumbnail hochladen (mit variant: 'thumbnail' und Referenz auf Original)
+        thumbnailFragment = await this.uploadBinaryFragment({
+          buffer: thumbnailResult.buffer,
+          fileName: thumbnailFileName,
+          mimeType: 'image/webp',
+          kind: 'image',
+          variant: 'thumbnail',
+          sourceHash: fragment.hash, // Verknüpfung zum Original-Bild
+        })
+
+        FileLogger.info('shadow-twin-service', 'Thumbnail generiert und hochgeladen', {
+          sourceId: this.options.sourceId,
+          originalSize: buffer.length,
+          thumbnailSize: thumbnailResult.size,
+          reduction: `${Math.round((1 - thumbnailResult.size / buffer.length) * 100)}%`,
+          thumbnailUrl: thumbnailFragment.resolvedUrl,
+        })
+      } catch (error) {
+        // Thumbnail-Fehler sind nicht kritisch - Original-Upload war erfolgreich
+        FileLogger.warn('shadow-twin-service', 'Thumbnail-Generierung fehlgeschlagen', {
+          sourceId: this.options.sourceId,
+          fileName,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }
+    }
+
+    // 3. Frontmatter mit coverImageUrl (und optional coverThumbnailUrl) patchen
+    // WICHTIG: Verwende resolvedUrl (Azure-URL) statt fragment.name,
+    // damit die URLs direkt in der Galerie funktionieren.
+    // Fallback auf fragment.name für den Filesystem-Modus.
+    const patches: Record<string, unknown> = { 
+      coverImageUrl: fragment.resolvedUrl || fragment.name 
+    }
+    if (thumbnailFragment) {
+      patches.coverThumbnailUrl = thumbnailFragment.resolvedUrl || thumbnailFragment.name
+    }
+
     const patchResult = await this.patchArtifactFrontmatter({
       kind,
       targetLanguage,
       templateName,
-      patches: { coverImageUrl: fragment.name },
+      patches,
     })
 
     FileLogger.info('shadow-twin-service', 'Cover-Bild hochgeladen und Frontmatter gepatcht', {
       sourceId: this.options.sourceId,
       imageName: fragment.name,
+      thumbnailName: thumbnailFragment?.name,
       resolvedUrl: fragment.resolvedUrl,
+      thumbnailUrl: thumbnailFragment?.resolvedUrl,
       artifactId: patchResult.id,
     })
 
     return {
       fragment,
+      thumbnailFragment,
       markdown: patchResult.markdown,
       artifactId: patchResult.id,
     }
+  }
+
+  /**
+   * Prüft ob ein MIME-Type ein unterstütztes Bildformat für Thumbnail-Generierung ist
+   */
+  private isSupportedImageType(mimeType: string): boolean {
+    const supportedTypes = [
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/webp',
+      'image/gif',
+      'image/avif',
+      'image/tiff',
+    ]
+    return supportedTypes.includes(mimeType.toLowerCase())
   }
 
   /**

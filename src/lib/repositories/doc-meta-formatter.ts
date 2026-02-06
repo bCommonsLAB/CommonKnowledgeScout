@@ -74,6 +74,7 @@ export interface MongoDocForConversion {
   tags?: unknown
   slug?: string
   coverImageUrl?: string
+  coverThumbnailUrl?: string
   upsertedAt?: string
   docMetaJson?: unknown
 }
@@ -120,6 +121,8 @@ export function convertMongoDocToDocCardMeta(doc: MongoDocForConversion): DocCar
     detailViewType: (docMeta?.detailViewType as string | undefined),
     slug: doc.slug || (docMeta?.slug as string | undefined),
     coverImageUrl: doc.coverImageUrl || (docMeta?.coverImageUrl as string | undefined),
+    // Thumbnail-URL für performante Galerie-Ansicht (320x320 WebP)
+    coverThumbnailUrl: doc.coverThumbnailUrl || (docMeta?.coverThumbnailUrl as string | undefined),
     pages: (() => {
       const pagesValue = docMeta?.pages
       if (typeof pagesValue === 'number') return pagesValue

@@ -207,6 +207,10 @@ export interface MongoBinaryFragment {
   size?: number
   kind?: string
   createdAt?: string
+  /** Variante des Fragments: 'original', 'thumbnail', 'preview' */
+  variant?: 'original' | 'thumbnail' | 'preview'
+  /** Hash des Original-Fragments (für Thumbnails/Previews zur Verknüpfung) */
+  sourceHash?: string
 }
 
 /**

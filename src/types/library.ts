@@ -114,6 +114,8 @@ export interface LibraryChatConfig {
   gallery?: {
     /** Typ der Detailansicht für verschiedene Dokumenttypen */
     detailViewType?: 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog';
+    /** Gruppierungsfeld für die Galerie-Ansicht: 'none', 'year', oder ein Facetten-Key (z.B. 'category') */
+    groupByField?: string;
     /** Facetten-Definitionen für Filter */
     facets?: Array<{
       metaKey: string;
