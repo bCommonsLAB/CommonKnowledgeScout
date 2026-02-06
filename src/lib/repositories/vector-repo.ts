@@ -1129,6 +1129,179 @@ export async function findDocs(
   }
 }
 
+/** Labels für Dokumente ohne Gruppenzuordnung (müssen mit use-gallery-data übereinstimmen) */
+const NO_GROUP_YEAR = 'Ohne Jahrgang'
+const NO_GROUP_OTHER = 'Ohne Zuordnung'
+
+/**
+ * Findet Meta-Dokumente gruppenweise (für Galerie mit fließendem Scroll).
+ * Pagination erfolgt nach Gruppen: jede "Seite" liefert die nächsten N Gruppen inkl. aller Docs,
+ * sodass neue Inhalte unten angehängt werden und kein sprunghaftes Scrollen entsteht.
+ *
+ * @param libraryKey Collection-Name
+ * @param libraryId Library-ID
+ * @param filter MongoDB-Basis-Filter (wie bei findDocs)
+ * @param options groupBy (z.B. 'year' oder 'category'), groupOffset, groupsLimit
+ * @returns Gruppen mit Items und totalGroups
+ */
+export async function findDocsGrouped(
+  libraryKey: string,
+  libraryId: string,
+  filter: Record<string, unknown>,
+  options: {
+    groupBy: string
+    groupOffset: number
+    groupsLimit: number
+    sortWithinGroup?: Record<string, 1 | -1>
+  }
+): Promise<{
+  groups: Array<{ key: string | number; items: DocCardMeta[] }>
+  totalGroups: number
+}> {
+  const col = await getCollection<Document>(libraryKey)
+  const baseQuery = { kind: 'meta' as const, libraryId, ...filter }
+  const groupBy = options.groupBy
+  const sortWithinGroup = options.sortWithinGroup ?? { year: -1, upsertedAt: -1 }
+
+  // Gruppenschlüssel: Jahr top-level; category mit handlungsfeld-Fallback; sonst metaKey in docMetaJson/top-level
+  const isYear = groupBy === 'year'
+  const groupKeyExpr: Document =
+    isYear
+      ? { $ifNull: ['$year', '$docMetaJson.year'] }
+      : groupBy === 'category'
+        ? { $ifNull: ['$docMetaJson.category', '$docMetaJson.handlungsfeld'] }
+        : { $ifNull: [`$${groupBy}`, `$docMetaJson.${groupBy}`] }
+
+  // Normierung: leere/null Werte als "Ohne Zuordnung" / "Ohne Jahrgang"
+  const noGroupLabel = isYear ? NO_GROUP_YEAR : NO_GROUP_OTHER
+  const normalizedGroupKey: Document = {
+    $cond: {
+      if: { $or: [{ $eq: [groupKeyExpr, null] }, { $eq: [groupKeyExpr, ''] }] },
+      then: noGroupLabel,
+      else: groupKeyExpr,
+    },
+  }
+
+  // Aggregation: distinct group keys, sortiert, dann skip/limit für "Seite"
+  const sortOrder = isYear ? -1 : 1
+  const pipeline: Document[] = [
+    { $match: baseQuery },
+    { $addFields: { __groupKey: normalizedGroupKey } },
+    { $group: { _id: '$__groupKey' } },
+    { $sort: { _id: sortOrder } },
+    // "Ohne Zuordnung" / "Ohne Jahrgang" ans Ende
+    { $addFields: { __sortEnd: { $cond: [{ $eq: ['$_id', noGroupLabel] }, 1, 0] } } },
+    { $sort: { __sortEnd: 1, _id: sortOrder } },
+    { $skip: options.groupOffset },
+    { $limit: options.groupsLimit },
+  ]
+
+  const groupKeysResult = await col.aggregate(pipeline).toArray()
+  const totalGroupsAgg = await col.aggregate([
+    { $match: baseQuery },
+    { $addFields: { __groupKey: normalizedGroupKey } },
+    { $group: { _id: '$__groupKey' } },
+    { $count: 'total' },
+  ]).toArray()
+  const totalGroups = (totalGroupsAgg[0] as { total?: number } | undefined)?.total ?? 0
+
+  const keys = groupKeysResult.map((r: Document) => r._id as string | number)
+
+  const projection = {
+    _id: 0,
+    fileId: 1,
+    fileName: 1,
+    title: 1,
+    shortTitle: 1,
+    year: 1,
+    authors: 1,
+    speakers: 1,
+    speakers_image_url: 1,
+    track: 1,
+    date: 1,
+    region: 1,
+    docType: 1,
+    source: 1,
+    tags: 1,
+    slug: 1,
+    coverImageUrl: 1,
+    coverThumbnailUrl: 1,
+    upsertedAt: 1,
+    'docMetaJson.title': 1,
+    'docMetaJson.shortTitle': 1,
+    'docMetaJson.speakers': 1,
+    'docMetaJson.track': 1,
+    'docMetaJson.date': 1,
+    'docMetaJson.speakers_image_url': 1,
+    'docMetaJson.slug': 1,
+    'docMetaJson.coverImageUrl': 1,
+    'docMetaJson.coverThumbnailUrl': 1,
+    'docMetaJson.pages': 1,
+    'docMetaJson.detailViewType': 1,
+    'docMetaJson.docType': 1,
+    'docMetaJson.category': 1,
+    'docMetaJson.handlungsfeld': 1,
+    'docMetaJson.massnahme_nr': 1,
+    'docMetaJson.lv_bewertung': 1,
+    'docMetaJson.arbeitsgruppe': 1,
+  }
+
+  const groups: Array<{ key: string | number; items: DocCardMeta[] }> = []
+
+  for (const key of keys) {
+    let groupFilter: Record<string, unknown>
+    if (key === noGroupLabel) {
+      if (isYear) {
+        groupFilter = {
+          $and: [
+            { $or: [{ year: null }, { year: { $exists: false } }, { year: '' }] },
+            { $or: [{ 'docMetaJson.year': null }, { 'docMetaJson.year': { $exists: false } }, { 'docMetaJson.year': '' }] },
+          ],
+        }
+      } else if (groupBy === 'category') {
+        groupFilter = {
+          $and: [
+            { $or: [{ 'docMetaJson.category': null }, { 'docMetaJson.category': { $exists: false } }, { 'docMetaJson.category': '' }] },
+            { $or: [{ 'docMetaJson.handlungsfeld': null }, { 'docMetaJson.handlungsfeld': { $exists: false } }, { 'docMetaJson.handlungsfeld': '' }] },
+          ],
+        }
+      } else {
+        groupFilter = {
+          $and: [
+            { $or: [{ [groupBy]: null }, { [groupBy]: { $exists: false } }, { [groupBy]: '' }] },
+            { $or: [{ [`docMetaJson.${groupBy}`]: null }, { [`docMetaJson.${groupBy}`]: { $exists: false } }, { [`docMetaJson.${groupBy}`]: '' }] },
+          ],
+        }
+      }
+    } else {
+      if (isYear) {
+        groupFilter = { $or: [{ year: key }, { 'docMetaJson.year': key }] }
+      } else if (groupBy === 'category') {
+        groupFilter = { $or: [{ 'docMetaJson.category': key }, { 'docMetaJson.handlungsfeld': key }] }
+      } else {
+        groupFilter = { $or: [{ [groupBy]: key }, { [`docMetaJson.${groupBy}`]: key }] }
+      }
+    }
+
+    const cursor = col.find(
+      { ...baseQuery, ...groupFilter },
+      { projection, sort: sortWithinGroup }
+    )
+    const rows = await cursor.toArray()
+    groups.push({
+      key,
+      items: rows.map(r => {
+        if (typeof r === 'object' && r !== null && 'fileId' in r && typeof (r as unknown as { fileId: unknown }).fileId === 'string') {
+          return convertMongoDocToDocCardMeta(r as unknown as MongoDocForConversion)
+        }
+        throw new Error('Document missing fileId field')
+      }),
+    })
+  }
+
+  return { groups, totalGroups }
+}
+
 /**
  * Aggregiert Facetten-Werte aus Meta-Dokumenten.
  * @param libraryKey Collection-Name

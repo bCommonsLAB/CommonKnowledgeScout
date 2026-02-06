@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { parseFacetDefs, buildFilterFromQuery } from '@/lib/chat/dynamic-facets'
 import { facetsSelectedToMongoFilter } from '@/lib/chat/common/filters'
-import { findDocs, getCollectionNameForLibrary, getCollectionOnly } from '@/lib/repositories/vector-repo'
+import { findDocs, findDocsGrouped, getCollectionNameForLibrary, getCollectionOnly } from '@/lib/repositories/vector-repo'
 import type { Document } from 'mongodb'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
@@ -72,11 +72,24 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
     // Prüfe, ob Image-URLs mitgeladen werden sollen (für Kompatibilität)
     const includeImageUrls = url.searchParams.get('includeImageUrls') === 'true'
     
-    // Pagination params
+    // Pagination params (flache Liste)
     const limitParam = url.searchParams.get('limit')
     const skipParam = url.searchParams.get('skip')
     const limit = limitParam ? parseInt(limitParam, 10) : 50 // Default auf 50 für bessere Performance
     const skip = skipParam ? parseInt(skipParam, 10) : 0
+
+    // Gruppenweise Pagination (fließendes Scrollen bei Gruppierung nach Handlungsfeld etc.)
+    const groupByParam = url.searchParams.get('groupBy')
+    const groupOffsetParam = url.searchParams.get('groupOffset')
+    const groupsLimitParam = url.searchParams.get('groupsLimit')
+    const useGrouped =
+      typeof groupByParam === 'string' &&
+      groupByParam.length > 0 &&
+      groupByParam !== 'none' &&
+      typeof groupOffsetParam === 'string' &&
+      typeof groupsLimitParam === 'string'
+    const groupOffset = useGrouped ? Math.max(0, parseInt(groupOffsetParam, 10) || 0) : 0
+    const groupsLimit = useGrouped ? Math.min(50, Math.max(1, parseInt(groupsLimitParam, 10) || 5)) : 5
 
     // Search param - Dynamisch in allen String/String[] Facetten suchen
     const search = url.searchParams.get('search')
@@ -98,6 +111,20 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
       }
       
       filter.$or = searchFields
+    }
+
+    // Bei gruppenweiser Pagination: findDocsGrouped nutzen, sonst klassische findDocs
+    if (useGrouped) {
+      const groupedResult = await findDocsGrouped(libraryKey, libraryId, filter, {
+        groupBy: groupByParam,
+        groupOffset,
+        groupsLimit,
+        sortWithinGroup: { year: -1, upsertedAt: -1 },
+      })
+      return NextResponse.json(
+        { groups: groupedResult.groups, totalGroups: groupedResult.totalGroups },
+        { status: 200 }
+      )
     }
 
     const result = await findDocs(libraryKey, libraryId, filter, { limit, skip, sort: { year: -1, upsertedAt: -1 } })

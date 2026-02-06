@@ -26,6 +26,13 @@ export function useGalleryData(
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
   const LIMIT = 50
+
+  // Gruppenweise Pagination: State für serverseitig gruppierte Antworten (fließendes Scrollen)
+  const groupByFieldOpt = options?.groupByField ?? 'year'
+  const useGroupedApi = groupByFieldOpt !== 'none'
+  const GROUPS_LIMIT = 5
+  const [groups, setGroups] = useState<Array<[string | number, DocCardMeta[]]>>([])
+  const [, setTotalGroups] = useState(0)
   
   // Memoize filters string für Dependency-Array
   const filtersString = useMemo(() => JSON.stringify(filters), [filters])
@@ -37,8 +44,10 @@ export function useGalleryData(
     setHasMore(true)
     setDocs([])
     setTotalCount(0)
+    setGroups([])
+    setTotalGroups(0)
     setIsLoadingMore(false)
-  }, [libraryId, filtersString, mode, searchQuery, skipApiCall, options?.refreshKey])
+  }, [libraryId, filtersString, mode, searchQuery, skipApiCall, options?.refreshKey, groupByFieldOpt])
   
   useEffect(() => {
     // Überspringe API-Aufruf wenn skipApiCall true ist
@@ -64,12 +73,19 @@ export function useGalleryData(
         Object.entries(filters).forEach(([k, arr]) => {
           if (Array.isArray(arr)) for (const v of arr) params.append(k, String(v))
         })
-        
-        // Pagination & Search
-        params.append('limit', String(LIMIT))
-        params.append('skip', String((page - 1) * LIMIT))
         if (searchQuery.trim()) {
           params.append('search', searchQuery.trim())
+        }
+
+        if (useGroupedApi) {
+          // Serverseitige Gruppierung: Pagination nach Gruppen, neue Blöcke werden unten angehängt
+          const groupOffset = (page - 1) * GROUPS_LIMIT
+          params.append('groupBy', groupByFieldOpt)
+          params.append('groupOffset', String(groupOffset))
+          params.append('groupsLimit', String(GROUPS_LIMIT))
+        } else {
+          params.append('limit', String(LIMIT))
+          params.append('skip', String((page - 1) * LIMIT))
         }
 
         const url = `/api/chat/${encodeURIComponent(libraryId)}/docs${params.toString() ? `?${params.toString()}` : ''}`
@@ -79,7 +95,29 @@ export function useGalleryData(
         const data = await res.json()
         if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Fehler beim Laden der Dokumente')
         
-        if (!cancelled && Array.isArray(data?.items)) {
+        if (useGroupedApi && !cancelled && Array.isArray(data?.groups)) {
+          const newGroups = data.groups as Array<{ key: string | number; items: DocCardMeta[] }>
+          const totalG = typeof data.totalGroups === 'number' ? data.totalGroups : 0
+          const groupOffset = (page - 1) * GROUPS_LIMIT
+          const hasMoreGroups = groupOffset + newGroups.length < totalG
+          const newGroupTuples = newGroups.map(g => [g.key, g.items] as [string | number, DocCardMeta[]])
+          const newFlat = newGroupTuples.flatMap(([, items]) => items)
+          const newCount = newFlat.length
+
+          setGroups(prev => isFirstPage ? newGroupTuples : [...prev, ...newGroupTuples])
+          setTotalGroups(totalG)
+          setHasMore(hasMoreGroups)
+          setDocs(prev => isFirstPage ? newFlat : [...prev, ...newFlat])
+          setTotalCount(prev => (isFirstPage ? 0 : prev) + newCount)
+          setGalleryData(prev => ({
+            docs: isFirstPage ? newFlat : [...prev.docs, ...newFlat],
+            totalCount: isFirstPage ? newCount : prev.totalCount + newCount,
+            loading: false,
+            isLoadingMore: false,
+            error: null,
+            hasMore: hasMoreGroups,
+          }))
+        } else if (!useGroupedApi && !cancelled && Array.isArray(data?.items)) {
           const newItems = data.items as DocCardMeta[]
           const total = typeof data.total === 'number' ? data.total : newItems.length
           const hasMoreData = newItems.length === LIMIT
@@ -89,7 +127,6 @@ export function useGalleryData(
           setDocs(updatedDocs)
           setTotalCount(total)
           
-          // Aktualisiere Atom für andere Komponenten
           setGalleryData({
             docs: updatedDocs,
             totalCount: total,
@@ -125,7 +162,7 @@ export function useGalleryData(
     load()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [libraryId, page, JSON.stringify(filters), mode, searchQuery, skipApiCall, options?.refreshKey]) // Abhängigkeit von page und refreshKey
+  }, [libraryId, page, JSON.stringify(filters), mode, searchQuery, skipApiCall, options?.refreshKey, useGroupedApi, groupByFieldOpt])
 
 
   const loadMore = () => {
@@ -145,62 +182,46 @@ export function useGalleryData(
   
   const finalFilteredDocs = finalDocs
   
-  // Gruppierung nach konfiguriertem Feld (default: 'year')
+  // Gruppierung: bei serverseitiger Gruppierung (groupByField !== 'none') kommen Gruppen aus State;
+  // sonst clientseitige Gruppierung aus finalFilteredDocs
   const groupByField = options?.groupByField || 'year'
   
-  const groupedDocs = useMemo(() => {
-    // 'none' = keine Gruppierung, alle Dokumente in einer Gruppe
+  const groupedDocsClient = useMemo(() => {
     if (groupByField === 'none') {
       return [['', finalFilteredDocs] as [string, DocCardMeta[]]]
     }
-    
     const grouped = new Map<number | string, DocCardMeta[]>()
     const noGroupLabel = groupByField === 'year' ? 'Ohne Jahrgang' : 'Ohne Zuordnung'
-    
     for (const doc of finalFilteredDocs) {
-      // Dynamisch das Feld aus dem Dokument lesen
       let groupValue: string | number | undefined
-      
       if (groupByField === 'year') {
         groupValue = doc.year
       } else {
-        // Dynamischer Zugriff auf beliebige Felder
-        // Doppelte Konvertierung nötig, da DocCardMeta keinen Index-Signatur hat
         const rawValue = (doc as unknown as Record<string, unknown>)[groupByField]
-        if (typeof rawValue === 'string' && rawValue.length > 0) {
-          groupValue = rawValue
-        } else if (typeof rawValue === 'number') {
-          groupValue = rawValue
-        }
+        if (typeof rawValue === 'string' && rawValue.length > 0) groupValue = rawValue
+        else if (typeof rawValue === 'number') groupValue = rawValue
       }
-      
-      const key = groupValue || noGroupLabel
+      const key = groupValue ?? noGroupLabel
       if (!grouped.has(key)) grouped.set(key, [])
       grouped.get(key)!.push(doc)
     }
-    
-    // Sortierung: Jahr numerisch absteigend, Strings alphabetisch
+    const noGroupLabelSort = groupByField === 'year' ? 'Ohne Jahrgang' : 'Ohne Zuordnung'
     const sorted = Array.from(grouped.entries()).sort((a, b) => {
       const keyA = a[0]
       const keyB = b[0]
-      
-      // "Ohne Zuordnung" / "Ohne Jahrgang" immer ans Ende
-      if (keyA === noGroupLabel) return 1
-      if (keyB === noGroupLabel) return -1
-      
-      // Bei Jahr: numerisch absteigend
+      if (keyA === noGroupLabelSort) return 1
+      if (keyB === noGroupLabelSort) return -1
       if (groupByField === 'year') {
         const yearA = typeof keyA === 'string' ? parseInt(keyA, 10) : keyA
         const yearB = typeof keyB === 'string' ? parseInt(keyB, 10) : keyB
         return (yearB as number) - (yearA as number)
       }
-      
-      // Bei anderen Feldern: alphabetisch aufsteigend
       return String(keyA).localeCompare(String(keyB), 'de')
     })
-    
     return sorted
   }, [finalFilteredDocs, groupByField])
+
+  const groupedDocs = useGroupedApi ? groups : groupedDocsClient
   
   return { 
     docs: finalDocs, 
