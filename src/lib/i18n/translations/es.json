@@ -172,7 +172,15 @@
       "date": "Fecha",
       "track": "Track",
       "region": "Región",
-      "upsertedAt": "Insertado"
+      "upsertedAt": "Insertado",
+      "summary": "Resumen",
+      "speakers": "Ponentes",
+      "massnahme_nr": "N.º",
+      "category": "Campo de acción",
+      "lv_bewertung": "Evaluación LV",
+      "lv_zustaendigkeit": "Responsabilidad LV",
+      "arbeitsgruppe": "Grupo de trabajo",
+      "coverImageUrl": "Imagen"
     },
     "texts": {
       "session": {

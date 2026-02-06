@@ -172,7 +172,15 @@
       "date": "Data",
       "track": "Track",
       "region": "Regione",
-      "upsertedAt": "Inserito"
+      "upsertedAt": "Inserito",
+      "summary": "Riepilogo",
+      "speakers": "Relatori",
+      "massnahme_nr": "Nr.",
+      "category": "Campo d'azione",
+      "lv_bewertung": "Valutazione LV",
+      "lv_zustaendigkeit": "Responsabilità LV",
+      "arbeitsgruppe": "Gruppo di lavoro",
+      "coverImageUrl": "Immagine"
     },
     "texts": {
       "session": {

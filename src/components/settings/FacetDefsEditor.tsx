@@ -18,7 +18,7 @@ export interface FacetDefUi {
   multi: boolean
   visible: boolean
   /** Wenn true, wird diese Facette als Spalte in der Galerie-Tabellenansicht angezeigt */
-  showInTable?: boolean
+  showInTable: boolean
   sort?: 'alpha' | 'count'
   max?: number
   columns?: number

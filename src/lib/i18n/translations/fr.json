@@ -172,7 +172,15 @@
       "date": "Date",
       "track": "Track",
       "region": "Région",
-      "upsertedAt": "Inséré"
+      "upsertedAt": "Inséré",
+      "summary": "Résumé",
+      "speakers": "Intervenants",
+      "massnahme_nr": "N°",
+      "category": "Champ d'action",
+      "lv_bewertung": "Évaluation LV",
+      "lv_zustaendigkeit": "Responsabilité LV",
+      "arbeitsgruppe": "Groupe de travail",
+      "coverImageUrl": "Image"
     },
     "texts": {
       "session": {
