@@ -89,7 +89,7 @@ const chatFormSchema = z.object({
         if (val === '' || val === undefined || val === null) return 'book';
         return val;
       },
-      z.enum(['book', 'session', 'climateAction', 'testimonial', 'blog']).default('book')
+      z.enum(['book', 'session', 'climateAction', 'testimonial', 'blog', 'divaDocument']).default('book')
     ),
     // Gruppierung: 'none' = keine, 'year' = nach Jahr, oder ein Facetten-Key (z.B. 'category')
     groupByField: z.preprocess(
@@ -220,7 +220,7 @@ gallery: {
       const detailViewType = galleryConfig?.detailViewType
       
       // Explizite Prüfung und Logging - alle gültigen Typen akzeptieren
-      const validDetailViewTypes = ['book', 'session', 'climateAction', 'testimonial', 'blog'] as const
+      const validDetailViewTypes = ['book', 'session', 'climateAction', 'testimonial', 'blog', 'divaDocument'] as const
       type DetailViewType = typeof validDetailViewTypes[number]
       let finalViewType: DetailViewType = 'book'
       if (typeof detailViewType === 'string' && validDetailViewTypes.includes(detailViewType as DetailViewType)) {
@@ -987,7 +987,7 @@ gallery: {
                     onValueChange={(value) => {
                       console.log('[ChatForm] Select onChange:', value);
                       // NUR valide Werte akzeptieren (leere Strings ignorieren!)
-                      if (value === 'book' || value === 'session' || value === 'climateAction' || value === 'testimonial' || value === 'blog') {
+                      if (value === 'book' || value === 'session' || value === 'climateAction' || value === 'testimonial' || value === 'blog' || value === 'divaDocument') {
                         field.onChange(value);
                       } else {
                         console.warn('[ChatForm] Ungültiger detailViewType ignoriert:', value);
@@ -1003,6 +1003,7 @@ gallery: {
                       <SelectItem value="book">{t('settings.chatForm.detailViewTypeBook')}</SelectItem>
                       <SelectItem value="session">{t('settings.chatForm.detailViewTypeSession')}</SelectItem>
                       <SelectItem value="climateAction">{t('settings.chatForm.detailViewTypeClimateAction')}</SelectItem>
+                      <SelectItem value="divaDocument">{t('settings.chatForm.detailViewTypeDivaDocument')}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormDescription>

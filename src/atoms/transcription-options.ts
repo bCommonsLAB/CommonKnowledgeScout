@@ -74,6 +74,9 @@ function mediaKindToMediaType(kind: MediaKind): MediaType {
       return 'video';
     case 'pdf':
     case 'image':
+    case 'docx':
+    case 'xlsx':
+    case 'pptx':
       return 'document';
     case 'markdown':
       return 'text';

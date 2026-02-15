@@ -66,6 +66,8 @@ export interface PipelineConfig {
   generateCoverImage?: boolean
   /** Custom Prompt für Cover-Bild-Generierung */
   coverImagePrompt?: string
+  /** Optionaler Korrekturhinweis des Anwenders (wird ans LLM-Prompt angehängt) */
+  customHint?: string
   
   // --- Force-Override ---
   /** Bestehende Assets überschreiben? (setzt alle Policies auf 'force') */
@@ -197,6 +199,8 @@ export function configToJobParameters(config: PipelineConfig): Record<string, un
     policies: config.policies,
     generateCoverImage: config.generateCoverImage,
     coverImagePrompt: config.coverImagePrompt,
+    // Korrekturhinweis des Anwenders
+    customHint: config.customHint,
     // LLM-Modell für Template-Transformation
     llmModel: config.llmModel,
   }

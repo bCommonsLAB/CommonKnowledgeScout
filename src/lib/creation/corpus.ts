@@ -9,7 +9,8 @@
 export interface WizardSource {
   id: string
   kind: 'text' | 'url' | 'file'
-  createdAt: Date
+  /** Datum (Date oder ISO-String aus JSON-Deserialisierung) */
+  createdAt: Date | string
   
   // Für 'text':
   text?: string
@@ -41,18 +42,31 @@ export interface WizardSource {
  * @param sources Liste aller Quellen (chronologisch sortiert)
  * @returns Kombinierter Korpus-Text für LLM
  */
+/** Konvertiert createdAt (Date oder ISO-String aus JSON) zu Timestamp. */
+function toTimestamp(createdAt: Date | string): number {
+  if (createdAt instanceof Date) return createdAt.getTime()
+  const t = new Date(createdAt).getTime()
+  return Number.isFinite(t) ? t : 0
+}
+
+/** Konvertiert createdAt zu ISO-String für Anzeige. */
+function toIsoSlice(createdAt: Date | string): string {
+  const d = createdAt instanceof Date ? createdAt : new Date(createdAt)
+  return d.toISOString().slice(0, 19).replace('T', ' ')
+}
+
 export function buildCorpusText(sources: WizardSource[]): string {
   if (sources.length === 0) {
     return ''
   }
-  
-  // Sortiere nach createdAt (chronologisch)
-  const sorted = [...sources].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
-  
+
+  // Sortiere nach createdAt (chronologisch). createdAt kann Date oder ISO-String sein (z.B. aus API-JSON).
+  const sorted = [...sources].sort((a, b) => toTimestamp(a.createdAt) - toTimestamp(b.createdAt))
+
   const blocks: string[] = []
-  
+
   for (const source of sorted) {
-    const dateStr = source.createdAt.toISOString().slice(0, 19).replace('T', ' ')
+    const dateStr = toIsoSlice(source.createdAt)
     
     let header = ''
     let content = ''

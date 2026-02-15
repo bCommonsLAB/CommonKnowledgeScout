@@ -10,9 +10,11 @@ import { WelcomeStep } from "./steps/welcome-step"
 import { PreviewDetailStep } from "./steps/preview-detail-step"
 import { UploadImagesStep } from "./steps/upload-images-step"
 import { SelectRelatedTestimonialsStep } from "./steps/select-related-testimonials-step"
+import { SelectFolderArtifactsStep } from "./steps/select-folder-artifacts-step"
 import { ReviewMarkdownStep } from "./steps/review-markdown-step"
 import { PublishStep } from "./steps/publish-step"
-import { Card } from "@/components/ui/card"
+import { CompletionStep } from "./steps/completion-step"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ChevronLeft, ChevronRight } from "lucide-react"
@@ -120,9 +122,11 @@ interface CreationWizardProps {
   seedFileId?: string
   /** Optional: Zielordner (base64 fileId), falls Wizard explizit in einem Ordner gestartet wird */
   targetFolderId?: string
+  /** Optional: Verzeichnis mit Artefakten – bei Folder-Flow werden hieraus Quellen geladen */
+  sourceFolderId?: string
 }
 
-export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, seedFileId, targetFolderId: targetFolderIdProp }: CreationWizardProps) {
+export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, seedFileId, targetFolderId: targetFolderIdProp, sourceFolderId }: CreationWizardProps) {
   const [template, setTemplate] = useState<TemplateDocument | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [wizardState, setWizardState] = useState<WizardState>({
@@ -171,6 +175,16 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       }
     })
   }, [seedFileIdState, seedFileId]) // Seed-ID ist relevant für die Auswahl
+
+  // Stabilisiere Callback für Folder-Artefakt-Auswahl (verhindert Endlosschleife in SelectFolderArtifactsStep)
+  const handleFolderArtifactSelectionChange = useCallback((selectedSources: WizardSource[]) => {
+    setWizardState((prev) => {
+      const currentIds = prev.sources.map((s) => s.id).sort().join(',')
+      const newIds = selectedSources.map((s) => s.id).sort().join(',')
+      if (currentIds === newIds) return prev
+      return { ...prev, sources: selectedSources }
+    })
+  }, [])
 
   function resolveTemplateDetailViewType(): 'book' | 'session' | 'testimonial' | 'blog' {
     // SSOT: Template-Detailansicht (im Template-Editor Tab "Detail-Ansicht")
@@ -331,6 +345,11 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         }
 
         setTemplate(loadedTemplate)
+
+        // Bei sourceFolderId (Folder-Flow): mode auf interview setzen, damit generateDraft ausgeführt wird
+        if (sourceFolderId) {
+          setWizardState((prev) => ({ ...prev, mode: 'interview' }))
+        }
         
         // Wenn nur eine Quelle vorhanden ist, wähle sie automatisch aus
         const supportedSources = loadedTemplate.creation.supportedSources || []
@@ -368,7 +387,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     }
 
     void loadTemplate()
-  }, [templateId, libraryId])
+  }, [templateId, libraryId, sourceFolderId])
 
   // Lade Datei für Resume-Modus
   useEffect(() => {
@@ -713,7 +732,14 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     return result
   }
 
-  const steps = creation.flow.steps
+  const rawSteps = creation.flow.steps
+  // Bei sourceFolderId: collectSource überspringen; sonst selectFolderArtifacts + generateDraft überspringen
+  const steps = rawSteps.filter((s) => {
+    if (s.preset === 'collectSource' && sourceFolderId) return false
+    if (s.preset === 'selectFolderArtifacts' && !sourceFolderId) return false
+    if (s.preset === 'generateDraft' && !sourceFolderId) return false
+    return true
+  })
   const currentStep = steps[wizardState.currentStepIndex]
   const isFirstStep = wizardState.currentStepIndex === 0
   const isLastStep = wizardState.currentStepIndex === steps.length - 1
@@ -1149,12 +1175,34 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
 
   const handleNext = async () => {
     if (isLastStep) {
+      // Completion-Step: "Weiter zur Library" navigiert zum Explorer (mit Ordner, falls bekannt)
+      if (currentStep.preset === 'completion') {
+        const folderId = wizardState.publishTargetFolderId || currentFolderId
+        const folderParam = folderId && folderId.trim().length > 0 ? `?folderId=${encodeURIComponent(folderId)}` : ''
+        router.push(`/library${folderParam}`)
+        return
+      }
       // Publish-Step: "Fertig" navigiert nur noch zurück. Der Step selbst finalisiert Session/Publish.
       if (currentStep.preset === 'publish') {
         router.push("/library")
         return
       }
+      // Letzter Step ohne Publish/Completion: Speichern und navigieren
       handleSave()
+      return
+    }
+
+    // Preview → Completion: Zuerst speichern, dann zum Abschluss-Step wechseln
+    const nextStep = steps[wizardState.currentStepIndex + 1]
+    if (currentStep.preset === 'previewDetail' && nextStep?.preset === 'completion') {
+      const saveRes = await handleSave({ navigateToLibrary: false })
+      if (saveRes?.savedItemId) {
+        setWizardState(prev => ({
+          ...prev,
+          currentStepIndex: prev.currentStepIndex + 1,
+          publishTargetFolderId: saveRes.targetFolderId ?? prev.publishTargetFolderId,
+        }))
+      }
       return
     }
 
@@ -1873,6 +1921,9 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       const templateName = template.name || templateId
       creationFlowMetadata.templateName = templateName
       
+      // Wizard-Output ist bereits Transformation – Pipeline/JobWorker können Template überspringen
+      creationFlowMetadata.transformationSource = true
+      
       // Text Sources: Array der Text-Inhalte aus allen Quellen
       // Wird benötigt, um die ursprünglichen Eingaben wiederherzustellen
       const textSources: string[] = []
@@ -1887,6 +1938,14 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       }
       if (textSources.length > 0) {
         creationFlowMetadata.textSources = textSources
+      }
+
+      // Quell-Datei-IDs für Verlinkung (Folder-Flow)
+      const sourceFileIds = wizardState.sources
+        .filter((s) => s.kind === 'file' && s.id.startsWith('file-'))
+        .map((s) => s.id.replace(/^file-/, ''))
+      if (sourceFileIds.length > 0) {
+        creationFlowMetadata.sourceFileIds = sourceFileIds
       }
       
       // Traceability-Felder für Dialograum-Ergebnis (wenn seedFileId vorhanden)
@@ -2449,87 +2508,9 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           })
       }
       
-      // Schreibe Shadow‑Twin Bundle (falls Quellen vorhanden)
-      if (!isPdfShadowTwinPublish && wizardState.sources.length > 0 && wizardState.generatedDraft) {
-        try {
-          // Lade die gerade gespeicherte Datei, um ihre ID zu bekommen
-          const items = await provider.listItemsById(targetFolderId)
-          const savedFile = items.find(
-            item => item.type === 'file' && item.metadata.name === targetFileName
-          )
-          
-          if (savedFile) {
-            // Baue Transcript-Inhalt (vollständiger Rohkorpus)
-            const transcriptContent = buildCorpusText(wizardState.sources)
-            
-            // Baue Transformation-Inhalt (Template-Output mit Frontmatter)
-            const transformationContent = `---\n${Object.entries(wizardState.generatedDraft.metadata)
-              .map(([key, value]) => {
-                if (value === null || value === undefined) return `${key}: ""`
-                if (Array.isArray(value)) return `${key}: ${JSON.stringify(value)}`
-                if (typeof value === 'string' && value.includes('\n')) {
-                  return `${key}: |\n${value.split('\n').map(line => `  ${line}`).join('\n')}`
-                }
-                return `${key}: ${value}`
-              })
-              .join('\n')}\n---\n\n${wizardState.generatedDraft.markdown}`
-            
-            // Rufe write-bundle API auf
-            const bundleResponse = await fetch(`/api/library/${libraryId}/creation/write-bundle`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                sourceFileId: savedFile.id,
-                sourceFileName: targetFileName,
-                sourceParentId: targetFolderId,
-                // Serialisiere sources: Date-Objekte zu ISO-Strings
-                sources: wizardState.sources.map(source => ({
-                  ...source,
-                  createdAt: source.createdAt.toISOString(),
-                })),
-                transcriptContent,
-                transformationContent,
-                templateName: template.name || templateId,
-                targetLanguage: 'de',
-              }),
-            })
-            
-            if (!bundleResponse.ok) {
-              const errorText = await bundleResponse.text().catch(() => 'Unknown error')
-              let errorData: unknown
-              try {
-                errorData = JSON.parse(errorText)
-              } catch {
-                errorData = { error: errorText }
-              }
-              console.error('[handleSave] Fehler beim Schreiben des Bundles:', {
-                status: bundleResponse.status,
-                statusText: bundleResponse.statusText,
-                errorData,
-              })
-              // Nicht fatal: Source-Datei ist bereits gespeichert
-              const errorMessage = typeof errorData === 'object' && errorData !== null && 'error' in errorData
-                ? String(errorData.error)
-                : 'Unbekannter Fehler'
-              toast.warning(`Shadow‑Twin Bundle konnte nicht geschrieben werden: ${errorMessage}`)
-            } else {
-              const bundleResult = await bundleResponse.json()
-              // Optional: Aktualisiere Source-Datei mit Referenz-IDs im Frontmatter
-              // (Für jetzt: Referenzen werden später über Resolver aufgelöst)
-              if (bundleResult.transcriptFileId || bundleResult.transformationFileId) {
-                // TODO: Optional: Frontmatter mit Referenzen aktualisieren
-                // Für jetzt: Resolver findet Artefakte automatisch
-              }
-            }
-          }
-        } catch (error) {
-          console.error('[handleSave] Fehler beim Schreiben des Bundles:', error)
-          // Nicht fatal: Source-Datei ist bereits gespeichert
-          toast.warning('Shadow‑Twin Bundle konnte nicht geschrieben werden, aber Source-Datei wurde gespeichert')
-        }
-      }
+      // Wizard erzeugt nur eine Datei – kein write-bundle (Shadow-Twin-Artefakte).
+      // Die Datei hat transformationSource: true und dient als Single Point of Truth.
+      // Publikation erfolgt über ingest-markdown (liest aus der Datei) oder JobWorker.
       
       // Ermittle savedItemId für Logging (falls noch nicht gesetzt)
       if (!savedItemId) {
@@ -2682,8 +2663,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             libraryId={libraryId}
             provider={provider || undefined}
             targetFolderId={currentFolderId}
-            // Quelle-Auswahl (wenn source nicht gesetzt)
-            supportedSources={creation.supportedSources}
+            // Quelle-Auswahl (wenn source nicht gesetzt). Folder nur bei sourceFolderId (dann wird collectSource übersprungen)
+            supportedSources={creation.supportedSources.filter((s) => s.type !== 'folder')}
             selectedSource={wizardState.selectedSource}
             onSourceSelect={(source) => {
               setWizardState(prev => ({ ...prev, selectedSource: source }))
@@ -2982,6 +2963,28 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         )
       }
 
+      case "selectFolderArtifacts": {
+        if (!sourceFolderId || !libraryId) {
+          return (
+            <Card>
+              <CardContent className="py-6">
+                <p className="text-sm text-muted-foreground">
+                  Kein Verzeichnis-Kontext. Bitte starte den Wizard aus einem Verzeichnis heraus.
+                </p>
+              </CardContent>
+            </Card>
+          )
+        }
+        return (
+          <SelectFolderArtifactsStep
+            libraryId={libraryId}
+            folderId={sourceFolderId}
+            targetLanguage="de"
+            onSelectionChange={handleFolderArtifactSelectionChange}
+          />
+        )
+      }
+
       case "previewDetail": {
         const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
         const baseMetadata =
@@ -3115,6 +3118,9 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           />
         )
       }
+
+      case "completion":
+        return <CompletionStep />
 
       case "publish": {
         const onPublish = async () => {
@@ -3759,7 +3765,11 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         return true // uploadImages ist immer optional (kann übersprungen werden)
       case "selectRelatedTestimonials":
         return true // selectRelatedTestimonials ist immer optional (kann übersprungen werden)
+      case "selectFolderArtifacts":
+        return wizardState.sources.length > 0
       case "previewDetail":
+        return true
+      case "completion":
         return true
       case "publish":
         // "Weiter/Fertig" erst nach erfolgreichem Publish erlauben
@@ -3829,7 +3839,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       {/* Step Content */}
       <div className="mb-6 min-h-[400px]">
         {/* Überschrift/Beschreibung nur anzeigen, wenn der Step keine eigene Card hat */}
-        {currentStep.preset !== 'collectSource' && currentStep.preset !== 'welcome' && currentStep.preset !== 'editDraft' && (
+        {currentStep.preset !== 'collectSource' && currentStep.preset !== 'welcome' && currentStep.preset !== 'editDraft' && currentStep.preset !== 'completion' && (
           <>
             {currentStep.title && (
               <h2 className="text-2xl font-semibold mb-2">{currentStep.title}</h2>
@@ -3856,9 +3866,15 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           onClick={handleNext}
           disabled={!canProceed()}
         >
-          {isLastStep
-            ? (currentStep.preset === 'publish' ? "Fertig" : "Speichern")
-            : "Weiter"}
+          {currentStep.preset === 'completion' && isLastStep
+            ? "Weiter zur Library"
+            : currentStep.preset === 'publish' && isLastStep
+              ? "Fertig"
+              : currentStep.preset === 'previewDetail' && steps[wizardState.currentStepIndex + 1]?.preset === 'completion'
+                ? "Speichern"
+                : isLastStep
+                  ? "Speichern"
+                  : "Weiter"}
           {!isLastStep && <ChevronRight className="w-4 h-4 ml-2" />}
         </Button>
       </div>

@@ -24,6 +24,10 @@ creation:
       type: url
       label: "Webseite"
       helpText: "Importiere Informationen von einer Webseite"
+    - id: folder
+      type: folder
+      label: "Verzeichnis mit Artefakten"
+      helpText: "Audio, Video, PDF oder Office – alle bereits transkribiert"
   flow:
     steps:
       - id: Welcome
@@ -32,6 +36,12 @@ creation:
       - id: CollectSource
         preset: collectSource
         title: "Quelle erfassen"
+      - id: SelectArtifacts
+        preset: selectFolderArtifacts
+        title: "Artefakte auswählen"
+      - id: Generate
+        preset: generateDraft
+        title: "Event-Details extrahieren"
       - id: Details
         preset: editDraft
         title: "Event-Details"

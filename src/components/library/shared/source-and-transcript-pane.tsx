@@ -40,7 +40,7 @@ export function SourceAndTranscriptPane(props: SourceAndTranscriptPaneProps) {
   const [isTranscriptLoading, setIsTranscriptLoading] = React.useState(false)
   const [transcriptError, setTranscriptError] = React.useState<string | null>(null)
 
-  const shouldLoadTranscript = mediaType === "audio" || (mediaType === "pdf" && leftMode === "transcript")
+  const shouldLoadTranscript = mediaType === "audio" || mediaType === "video" || (mediaType === "pdf" && leftMode === "transcript")
   React.useEffect(() => {
     let cancelled = false
 
@@ -117,7 +117,7 @@ export function SourceAndTranscriptPane(props: SourceAndTranscriptPaneProps) {
     )
   }
 
-  if (mediaType === "audio") {
+  if (mediaType === "audio" || mediaType === "video") {
     return (
       <div className="flex h-full flex-col">
         <div className="min-h-0 flex-1 overflow-hidden">

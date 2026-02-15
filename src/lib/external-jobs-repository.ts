@@ -538,7 +538,7 @@ export class ExternalJobsRepository {
 }
 
 function mapStepToSpanId(name: string): 'extract' | 'template' | 'ingest' | undefined {
-  if (name === 'extract_pdf') return 'extract';
+  if (name === 'extract_pdf' || name === 'extract_audio' || name === 'extract_video' || name === 'extract_office') return 'extract';
   if (name === 'transform_template') return 'template';
   if (name === 'ingest_rag') return 'ingest';
   return undefined;

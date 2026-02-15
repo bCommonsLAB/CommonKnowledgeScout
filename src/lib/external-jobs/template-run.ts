@@ -48,7 +48,7 @@ function isNonEmptyString(v: unknown): v is string {
 }
 
 export async function runTemplateTransform(args: TemplateRunArgs): Promise<TemplateRunResult> {
-  const { ctx, extractedText, templateContent, targetLanguage, llmModel } = args
+  const { ctx, extractedText, templateContent, targetLanguage, llmModel, context } = args
   const repo = new ExternalJobsRepository()
   const jobId = ctx.jobId
   const { baseUrl, apiKey } = getSecretaryConfig()
@@ -120,7 +120,9 @@ export async function runTemplateTransform(args: TemplateRunArgs): Promise<Templ
       apiKey, 
       timeoutMs: Number(process.env.EXTERNAL_TEMPLATE_TIMEOUT_MS || process.env.EXTERNAL_REQUEST_TIMEOUT_MS || 600000),
       // LLM-Modell nur übergeben, wenn explizit gesetzt (Secretary Service verwendet sonst Default)
-      model: llmModel
+      model: llmModel,
+      // Quelldatei-Kontext (Dateiname, Pfad, Datum etc.) für präzisere Metadaten-Extraktion
+      context: context || {}
     })
     
     const data: unknown = await resp.json().catch((parseError) => {

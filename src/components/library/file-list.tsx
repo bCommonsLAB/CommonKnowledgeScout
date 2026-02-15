@@ -927,6 +927,11 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
 
   // Kein mobiles Flag mehr notwendig
 
+  // Sortier-Atome VOR folders definieren, da folders diese referenziert
+  const items = useAtomValue(sortedFilteredFilesAtom);
+  const [sortField, setSortField] = useAtom(sortFieldAtom);
+  const [sortOrder, setSortOrder] = useAtom(sortOrderAtom);
+
   const folders = useMemo(() => {
     // Wenn eine folderId in der URL steht und currentFolderId noch 'root' ist,
     // zeige keine Items an (verhindert, dass Root-Items kurz angezeigt werden)
@@ -935,8 +940,28 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     }
     const items = allItemsInFolder ?? [];
     // Verstecke dot-Verzeichnisse generell in der Liste
-    return items.filter(item => item.type === 'folder' && !item.metadata.name.startsWith('.'));
-  }, [allItemsInFolder, shouldShowItems]);
+    const filtered = items.filter(item => item.type === 'folder' && !item.metadata.name.startsWith('.'));
+    
+    // Sortiere Ordner nach aktuellem Sortierfeld und -richtung
+    return [...filtered].sort((a, b) => {
+      let cmp = 0;
+      switch (sortField) {
+        case 'name':
+          cmp = a.metadata.name.localeCompare(b.metadata.name);
+          break;
+        case 'size':
+          cmp = (a.metadata.size || 0) - (b.metadata.size || 0);
+          break;
+        case 'date':
+          cmp = new Date(a.metadata.modifiedAt ?? 0).getTime() - new Date(b.metadata.modifiedAt ?? 0).getTime();
+          break;
+        default:
+          // Fallback: alphabetisch nach Name
+          cmp = a.metadata.name.localeCompare(b.metadata.name);
+      }
+      return sortOrder === 'asc' ? cmp : -cmp;
+    });
+  }, [allItemsInFolder, shouldShowItems, sortField, sortOrder]);
 
   // Hilfsfunktion zum Finden einer FileGroup in der Map
   const findFileGroup = useCallback((map: Map<string, FileGroup>, stem: string): FileGroup | undefined => {
@@ -945,11 +970,6 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     );
   }, []); // Stabile Utility-Funktion ohne Dependencies
 
-  // NEU: Atome für Sortierung und Filter
-  const items = useAtomValue(sortedFilteredFilesAtom);
-  const [sortField, setSortField] = useAtom(sortFieldAtom);
-  const [sortOrder, setSortOrder] = useAtom(sortOrderAtom);
-  
   // Review-Mode-Atoms
   const [selectedFile] = useAtom(selectedFileAtom);
   const [, setSelectedShadowTwin] = useAtom(selectedShadowTwinAtom);
@@ -1807,14 +1827,14 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                 <span className="text-left truncate select-none" title={folder.metadata.name}>{folder.metadata.name}</span>
               </div>
             ) : (
-              // Normal: behalte leichte Einrückung für Checkbox-Spalte
+              // Normal: gleiches 6-Spalten-Grid wie Dateien (Checkbox, Icon, Name, Größe, Datum, Aktionen)
               <div
                 key={folder.id}
                 role="button"
                 tabIndex={0}
                 onClick={() => navigateToFolder(folder.id)}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigateToFolder(folder.id) }}
-                className="w-full px-4 py-2 text-xs hover:bg-muted/50 grid grid-cols-[24px_24px_minmax(0,1fr)] gap-2 items-center cursor-pointer"
+                className="w-full px-4 py-2 text-xs hover:bg-muted/50 grid grid-cols-[24px_24px_minmax(0,1fr)_56px_88px_auto] gap-2 items-center cursor-pointer"
               >
                 <div className="w-6 flex items-center justify-center">
                   <Checkbox
@@ -1834,6 +1854,16 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                 </div>
                 <FolderIcon className="h-4 w-4" />
                 <span className="text-left truncate select-none" title={folder.metadata.name}>{folder.metadata.name}</span>
+                {/* Größe: Ordner zeigen keinen Wert (Strich) */}
+                <span className="text-muted-foreground tabular-nums text-[10px]">
+                  {formatFileSize(folder.metadata.size)}
+                </span>
+                {/* Änderungsdatum des Ordners */}
+                <span className="text-muted-foreground tabular-nums text-[10px]">
+                  {formatDate(folder.metadata.modifiedAt)}
+                </span>
+                {/* Platzhalter für Aktionen-Spalte */}
+                <div />
               </div>
             )
           ))}

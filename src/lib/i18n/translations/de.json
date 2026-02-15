@@ -438,6 +438,8 @@
       "detailViewTypeBook": "Book (Bücher, Dokumente, Kapitel)",
       "detailViewTypeSession": "Session (Events, Präsentationen, Slides)",
       "detailViewTypeClimateAction": "ClimateAction (Klimamaßnahmen)",
+      "detailViewTypeDivaDocument": "DivaDocument (Katalogdokumente, Preislisten, Materialkollektionen)",
+      "detailViewTypeDivaDocumentDescription": "Detail-Ansicht für Katalogdokumente der Möbelbranche (Preislisten, Produktdatenblätter, Materialkollektionen etc.)",
       "checkIndexStatus": "Index Status prüfen",
       "checking": "Prüfe...",
       "createIndex": "Index anlegen",

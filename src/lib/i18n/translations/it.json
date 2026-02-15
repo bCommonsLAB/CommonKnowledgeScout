@@ -401,6 +401,8 @@
       "detailViewTypeBook": "Book (Libri, Documenti, Capitoli)",
       "detailViewTypeSession": "Session (Eventi, Presentazioni, Slide)",
       "detailViewTypeClimateAction": "ClimateAction (Misure climatiche)",
+      "detailViewTypeDivaDocument": "DivaDocument (Documenti catalogo, Listini prezzi, Collezioni materiali)",
+      "detailViewTypeDivaDocumentDescription": "Vista dettaglio per documenti catalogo dell'industria del mobile (listini prezzi, schede prodotto, collezioni materiali, ecc.)",
       "checkIndexStatus": "Controlla stato indice",
       "checking": "Controllo...",
       "createIndex": "Crea indice",

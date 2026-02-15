@@ -1,0 +1,82 @@
+[
+  {
+    "metaKey": "dokumentTyp",
+    "label": "Dokumententyp",
+    "type": "string",
+    "multi": true,
+    "visible": true,
+    "showInTable": true,
+    "sort": "count",
+    "columns": 1
+  },
+  {
+    "metaKey": "produktname",
+    "label": "Produktname",
+    "type": "string",
+    "multi": true,
+    "visible": true,
+    "showInTable": true,
+    "sort": "alpha",
+    "columns": 1
+  },
+  {
+    "metaKey": "lieferant",
+    "label": "Lieferant",
+    "type": "string",
+    "multi": true,
+    "visible": true,
+    "showInTable": true,
+    "sort": "alpha",
+    "columns": 1
+  },
+  {
+    "metaKey": "haendler",
+    "label": "Händler",
+    "type": "string",
+    "multi": true,
+    "visible": true,
+    "showInTable": true,
+    "sort": "alpha",
+    "columns": 1
+  },
+  {
+    "metaKey": "produktkategorien",
+    "label": "Produktkategorie",
+    "type": "string[]",
+    "multi": true,
+    "visible": true,
+    "showInTable": false,
+    "sort": "count",
+    "columns": 2
+  },
+  {
+    "metaKey": "gueltigAb",
+    "label": "Gültigkeit ab",
+    "type": "date",
+    "multi": false,
+    "visible": true,
+    "showInTable": true,
+    "sort": "alpha",
+    "columns": 1
+  },
+  {
+    "metaKey": "istVeraltet",
+    "label": "Veraltet",
+    "type": "boolean",
+    "multi": false,
+    "visible": true,
+    "showInTable": true,
+    "sort": "count",
+    "columns": 1
+  },
+  {
+    "metaKey": "dokumentFormat",
+    "label": "Dokumentformat",
+    "type": "string",
+    "multi": true,
+    "visible": true,
+    "showInTable": true,
+    "sort": "count",
+    "columns": 1
+  }
+]

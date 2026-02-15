@@ -135,6 +135,26 @@ export async function findPdfMarkdown(
     }
   }
 
+  // Wizard-Dateien (transformationSource: true): Source-Datei selbst ist die Transformation
+  // Kein Shadow-Twin; die Markdown-Datei dient als Single Point of Truth.
+  if (sourceItemId && originalName.toLowerCase().endsWith('.md') && preferredKind === 'transformation') {
+    try {
+      const bin = await provider.getBinary(sourceItemId)
+      const text = await bin.blob.text()
+      const { meta } = parseFrontmatter(text)
+      if (meta?.transformationSource === true) {
+        return {
+          hasMarkdown: true,
+          fileId: sourceItemId,
+          fileName: originalName,
+          text,
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   // Fallback (v2-only, ohne sourceItemId): deterministischer Name im Parent-Verzeichnis
   const sourceNameForFallback = sourceName || `${baseName}.pdf`
   const sourceItemIdForFallback = sourceItemId || 'unknown'

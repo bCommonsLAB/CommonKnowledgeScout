@@ -99,7 +99,7 @@ export function renderTemplateBody(args: { body: string; values: Record<string, 
 
 function buildFallbackBodyFromMeta(meta: Record<string, unknown>): string {
   const title = isNonEmptyString(meta.title) ? meta.title.trim() : ''
-  const summary = isNonEmptyString(meta.summary) ? meta.summary.trim() : ''
+  const summary = isNonEmptyString(meta.summary) ? meta.summary.trim() : (isNonEmptyString(meta.teaser) ? meta.teaser.trim() : '')
   const messages = isNonEmptyString(meta.messages) ? meta.messages.trim() : ''
   // historischer Tippfehler: `nexsSteps`
   const nextSteps = isNonEmptyString(meta.nextSteps) ? meta.nextSteps.trim() : (isNonEmptyString(meta.nexsSteps) ? meta.nexsSteps.trim() : '')

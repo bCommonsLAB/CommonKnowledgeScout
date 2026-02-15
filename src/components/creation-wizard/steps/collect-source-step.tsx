@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import type { CreationSource } from "@/lib/templates/template-types"
-import { Link, Upload, Plus, Loader2, FileText, Mic } from "lucide-react"
+import { Link, Upload, Plus, Loader2, FileText, Mic, FolderOpen } from "lucide-react"
 import { toast } from "sonner"
 import { DictationTextarea } from "@/components/shared/dictation-textarea"
 import { SecretaryServiceError } from "@/lib/secretary/client"
@@ -110,6 +110,7 @@ function CollectSourceSelectionView({
     if (source.type === 'url') return "Über eine Webseite auslesen"
     if (source.type === 'text') return "Text (tippen oder diktieren)"
     if (source.type === 'file') return "Datei hochladen"
+    if (source.type === 'folder') return "Verzeichnis mit Artefakten"
     return source.label
   }
 
@@ -118,6 +119,7 @@ function CollectSourceSelectionView({
     if (source.type === 'url') return "Füge einen Link ein. Wir lesen die Infos von der Webseite aus."
     if (source.type === 'text') return "Tippe deinen Text ein oder diktiere ihn. Du siehst das Ergebnis, bevor es verarbeitet wird."
     if (source.type === 'file') return "Lade eine Datei hoch (z.B. Slides oder PDF)."
+    if (source.type === 'folder') return "Audio, Video, PDF oder Office – alle bereits transkribiert"
     return source.helpText || ""
   }
 
@@ -126,6 +128,7 @@ function CollectSourceSelectionView({
     url: Link,
     text: Mic,
     file: Upload,
+    folder: FolderOpen,
   }
 
   function toFieldLabel(key: string): string {

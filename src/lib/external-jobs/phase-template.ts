@@ -123,6 +123,8 @@ export interface TemplatePhaseArgs {
   generateCoverImage?: boolean
   /** Optionaler Prompt für Cover-Bild-Generierung (Job-Parameter oder Library-Config) */
   coverImagePrompt?: string
+  /** Optionaler Korrekturhinweis des Anwenders (wird ans LLM-Prompt angehängt und in Frontmatter gespeichert) */
+  customHint?: string
 }
 
 export interface TemplatePhaseResult {
@@ -733,6 +735,11 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
   // Preferred Template aus Library-Config: secretaryService.template
   // Deklariere außerhalb des try-Blocks, damit es im catch-Block verfügbar ist
   let preferredTemplate: string | undefined = undefined
+  // Korrekturhinweis des Anwenders – außerhalb des try-Blocks deklariert,
+  // damit er nach dem catch-Block für die Metadaten-Persistierung erreichbar ist.
+  // Priorität: 1. Job-Parameter (auch "" = explizites Löschen), 2. Bestehendes Frontmatter (nur wenn nicht übergeben)
+  const hintFromArgs = args.customHint
+  let customHintValue = typeof hintFromArgs === 'string' ? (hintFromArgs.trim() || undefined) : undefined
 
   try {
     // Templates wählen via zentrale Template-Service Library
@@ -806,6 +813,70 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
       })
     }
 
+    // Fallback: customHint aus bestehendem Frontmatter laden, nur wenn nicht explizit übergeben
+    // hintFromArgs === undefined: nicht in Job-Parametern (z.B. Batch). hintFromArgs === "": User hat gelöscht.
+    if (!customHintValue && hintFromArgs === undefined) {
+      try {
+        const baseName = (job.correlation.source?.name || 'output').replace(/\.[^/.]+$/, '')
+        const sourceNameForHint = job.correlation?.source?.name || baseName
+        const langForHint = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
+        const sourceItemIdForHint = job.correlation?.source?.itemId || 'unknown'
+        let hint = ''
+
+        // 1. Versuche über resolveArtifact (Filesystem/Provider)
+        const resolved = await resolveArtifact(provider, {
+          sourceItemId: sourceItemIdForHint,
+          sourceName: sourceNameForHint,
+          parentId: targetParentId,
+          targetLanguage: langForHint,
+          templateName: picked?.templateName,
+          preferredKind: 'transformation',
+        })
+        if (resolved) {
+          const bin = await provider.getBinary(resolved.fileId)
+          const text = await bin.blob.text()
+          const parsed = parseSecretaryMarkdownStrict(text)
+          const meta = parsed?.meta
+          hint = typeof meta?.customHint === 'string' ? meta.customHint.trim() : ''
+        }
+
+        // 2. Fallback: Mongo-Shadow-Twin (wenn resolveArtifact nichts fand)
+        if (!hint && library) {
+          const service = new ShadowTwinService({
+            library,
+            userEmail: job.userEmail,
+            sourceId: sourceItemIdForHint,
+            sourceName: sourceNameForHint,
+            parentId: targetParentId,
+            provider,
+          })
+          const mongoResult = await service.getMarkdown({
+            kind: 'transformation',
+            targetLanguage: langForHint,
+            templateName: picked?.templateName,
+          })
+          if (mongoResult?.markdown) {
+            const parsed = parseSecretaryMarkdownStrict(mongoResult.markdown)
+            const meta = parsed?.meta
+            hint = typeof meta?.customHint === 'string' ? meta.customHint.trim() : ''
+          }
+        }
+
+        if (hint) {
+          customHintValue = hint
+          FileLogger.info('phase-template', 'customHint aus bestehendem Frontmatter übernommen', {
+            jobId,
+            customHintPreview: hint.substring(0, 60),
+          })
+        }
+      } catch (err) {
+        FileLogger.warn('phase-template', 'customHint aus Frontmatter laden fehlgeschlagen', {
+          jobId,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      }
+    }
+
     const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
     
     // LLM-Modell aus Job-Parametern lesen (optional, Secretary Service verwendet sonst Default)
@@ -829,7 +900,68 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
       })
     } catch {}
     
-    const tr = await runTemplateTransform({ ctx, extractedText: extractedText || '', templateContent, targetLanguage: lang, llmModel })
+    // Quelldatei-Kontext aufbauen für den Secretary Service
+    // Enthält Dateiname, Pfad, Datum, Extension der Original-Quelldatei (z.B. PDF),
+    // NICHT des generierten Markdown-Artefakts.
+    // Dieser Kontext wird dem LLM als CONTEXT-Block mitgesendet.
+    const sourceContext: Record<string, unknown> = {}
+    const sourceItemId = job.correlation?.source?.itemId
+    const sourceName = job.correlation?.source?.name
+    if (sourceName) {
+      sourceContext.fileName = sourceName
+      // Dateiendung extrahieren (z.B. ".pdf" → "pdf")
+      const extMatch = sourceName.match(/\.([a-zA-Z0-9]+)$/)
+      if (extMatch) {
+        sourceContext.fileExtension = extMatch[1].toLowerCase()
+      }
+    }
+    if (job.correlation?.source?.mimeType) {
+      sourceContext.mimeType = job.correlation.source.mimeType
+    }
+    // Pfad und Metadaten der Quelldatei aus dem Storage-Provider laden
+    // WICHTIG: Fehler beim Laden dürfen die Pipeline nicht brechen
+    if (sourceItemId) {
+      try {
+        const sourcePath = await provider.getPathById(sourceItemId)
+        if (sourcePath) {
+          sourceContext.filePath = sourcePath
+        }
+      } catch {
+        // Pfad konnte nicht aufgelöst werden – kein Abbruch
+      }
+      try {
+        const sourceItem = await provider.getItemById(sourceItemId)
+        if (sourceItem?.metadata?.modifiedAt) {
+          sourceContext.fileModifiedAt = sourceItem.metadata.modifiedAt instanceof Date
+            ? sourceItem.metadata.modifiedAt.toISOString()
+            : String(sourceItem.metadata.modifiedAt)
+        }
+      } catch {
+        // Metadaten konnten nicht geladen werden – kein Abbruch
+      }
+    }
+
+    // Korrekturhinweis des Anwenders ans Ende des Template-Contents anhängen.
+    // Steht NACH dem auto-generierten Antwortschema = höchste Priorität für das LLM.
+    // Formulierung muss explizit machen: Überschreibt Extraktionsregeln, verbindlich.
+    // customHintValue ist außerhalb des try-Blocks deklariert (Scope-sicher).
+    let templateContentFinal = templateContent
+    if (customHintValue) {
+      templateContentFinal += `\n\nVERBINDLICHER KORREKTURHINWEIS (höchste Priorität – überschreibt Extraktion aus Pfad/Dokument):
+Der Anwender hat folgende Korrektur angegeben. Setze die genannten Felder EXAKT wie angegeben – ignoriere dabei die üblichen Extraktionsregeln aus Pfad und Dokument.
+
+${customHintValue}`
+      FileLogger.info('phase-template', 'customHint an Template-Content angehängt', {
+        jobId,
+        customHintLength: customHintValue.length,
+        customHintPreview: customHintValue.substring(0, 80),
+        templateContentFinalLength: templateContentFinal.length,
+      })
+    } else {
+      FileLogger.info('phase-template', 'Kein customHint vorhanden', { jobId, argsCustomHint: args.customHint ?? 'undefined' })
+    }
+
+    const tr = await runTemplateTransform({ ctx, extractedText: extractedText || '', templateContent: templateContentFinal, targetLanguage: lang, llmModel, context: sourceContext })
     metadataFromTemplate = tr.meta as unknown as Record<string, unknown> | null
     if (metadataFromTemplate) {
       bufferLog(jobId, { phase: 'transform_meta', message: 'Metadaten via Template berechnet' })
@@ -1158,6 +1290,16 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
   
   let mergedMeta = { ...(existingMeta || {}), ...fixedFieldsFromTemplate, ...finalMeta, ...ssotFlat } as Record<string, unknown>
   if (initialChapters) (mergedMeta as { chapters: Array<Record<string, unknown>> }).chapters = initialChapters
+  
+  // customHint 1:1 als Metadatum speichern (für Nachvollziehbarkeit und Re-Open).
+  // Wird NACH dem Merge gesetzt, damit der Benutzerwert nicht vom LLM-Output überschrieben wird.
+  if (customHintValue) {
+    mergedMeta.customHint = customHintValue
+    FileLogger.info('phase-template', 'customHint in mergedMeta gespeichert', {
+      jobId,
+      customHintPreview: customHintValue.substring(0, 80),
+    })
+  }
   
   // Prüfe, ob chapters bereits vorhanden sind (aus existingMeta, finalMeta/metadataFromTemplate, oder bodyMetadata)
   // Diese Prüfung muss VOR dem Laden von textSource erfolgen, damit wir wissen, ob Analyse nötig ist

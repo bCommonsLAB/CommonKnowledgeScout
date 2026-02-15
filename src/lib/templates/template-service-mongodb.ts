@@ -51,8 +51,12 @@ function generateResponseSchemaFromFields(fields: TemplateMetadataField[]): stri
     } else if (raw.includes('number') || desc.toLowerCase().includes('zahl') || desc.toLowerCase().includes('nummer')) {
       typeDesc = 'number | null'
     } else if (desc) {
-      // Beschreibung als Typ-Hinweis verwenden (gekürzt)
-      const shortDesc = desc.length > 60 ? desc.substring(0, 57) + '...' : desc
+      // Beschreibung als Typ-Hinweis verwenden
+      // WICHTIG: Limit auf 200 Zeichen erhöht, damit präzise Enum-Werte und
+      // Formatvorgaben (z.B. "preisliste | produktdatenblatt | ...") nicht abgeschnitten werden.
+      // Das alte Limit von 60 Zeichen hat dazu geführt, dass der Secretary Service
+      // weniger präzise Feldbeschreibungen bekam als im Template formuliert.
+      const shortDesc = desc.length > 200 ? desc.substring(0, 197) + '...' : desc
       typeDesc = `string (${shortDesc})`
     }
     

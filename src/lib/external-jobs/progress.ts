@@ -110,7 +110,9 @@ export async function handleProgressIfAny(
           ? 'extract_audio'
           : job.job_type === 'video'
             ? 'extract_video'
-            : 'extract_pdf'
+            : job.job_type === 'office'
+              ? 'extract_office'
+              : 'extract_pdf'
       const latest = await repo.get(jobId)
       const st = Array.isArray(latest?.steps) ? latest!.steps!.find(s => s?.name === extractStepName) : undefined
       if (!st || (st.status !== 'running' && st.status !== 'completed' && st.status !== 'failed')) {

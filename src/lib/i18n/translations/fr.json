@@ -401,6 +401,8 @@
       "detailViewTypeBook": "Livre (Livres, Documents, Chapitres)",
       "detailViewTypeSession": "Session (Événements, Présentations, Diapositives)",
       "detailViewTypeClimateAction": "ClimateAction (Mesures climatiques)",
+      "detailViewTypeDivaDocument": "DivaDocument (Documents catalogue, Listes de prix, Collections de matériaux)",
+      "detailViewTypeDivaDocumentDescription": "Vue détaillée pour les documents catalogue de l'industrie du meuble (listes de prix, fiches produits, collections de matériaux, etc.)",
       "checkIndexStatus": "Vérifier le statut de l'index",
       "checking": "Vérification...",
       "createIndex": "Créer l'index",

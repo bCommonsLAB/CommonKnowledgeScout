@@ -113,7 +113,7 @@ export interface LibraryChatConfig {
   /** Gallery-Konfiguration für die Wissensgalerie */
   gallery?: {
     /** Typ der Detailansicht für verschiedene Dokumenttypen */
-    detailViewType?: 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog';
+    detailViewType?: 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog' | 'divaDocument';
     /** Gruppierungsfeld für die Galerie-Ansicht: 'none', 'year', oder ein Facetten-Key (z.B. 'category') */
     groupByField?: string;
     /** Facetten-Definitionen für Filter */

@@ -802,6 +802,7 @@ function validateGlobalContracts(
     const extractStepName =
       job.job_type === 'audio' ? 'extract_audio'
       : job.job_type === 'video' ? 'extract_video'
+      : job.job_type === 'office' ? 'extract_office'
       : 'extract_pdf'
 
     // Extract-Policy prüfen
@@ -883,6 +884,7 @@ function validateGlobalContracts(
       const extractStepName =
         job.job_type === 'audio' ? 'extract_audio'
         : job.job_type === 'video' ? 'extract_video'
+        : job.job_type === 'office' ? 'extract_office'
         : 'extract_pdf'
       const extractStep = steps.find(s => s?.name === extractStepName)
       if (extractStep && extractStep.status === 'pending') {
@@ -1026,6 +1028,7 @@ export async function validateExternalJobForTestCase(
     const extractStepName =
       job.job_type === 'audio' ? 'extract_audio'
       : job.job_type === 'video' ? 'extract_video'
+      : job.job_type === 'office' ? 'extract_office'
       : 'extract_pdf'
 
     checkStepStatus(job, extractStepName, 'completed', messages)

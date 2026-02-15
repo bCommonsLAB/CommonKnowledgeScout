@@ -103,7 +103,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
   const initialDetailViewType = useMemo(() => {
     const vt = rawGalleryConfig?.detailViewType
     // Alle gültigen DetailViewTypes akzeptieren
-    const validTypes = ['book', 'session', 'climateAction', 'testimonial', 'blog'] as const
+    const validTypes = ['book', 'session', 'climateAction', 'testimonial', 'blog', 'divaDocument'] as const
     const result = validTypes.includes(vt as typeof validTypes[number]) ? vt as typeof validTypes[number] : 'book'
     return result
   }, [rawGalleryConfig?.detailViewType])
@@ -198,7 +198,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
   // Bestimme viewType für DetailOverlay:
   // - Primär: pro Dokument über `detailViewType` (Wizard/Frontmatter)
   // - Fallback: Library-Config
-  const validDetailViewTypes: TemplatePreviewDetailViewType[] = ['book', 'session', 'climateAction', 'testimonial', 'blog']
+  const validDetailViewTypes: TemplatePreviewDetailViewType[] = ['book', 'session', 'climateAction', 'testimonial', 'blog', 'divaDocument']
   const detailViewTypeForDoc = React.useMemo<TemplatePreviewDetailViewType>(() => {
     if (!selectedDoc) return detailViewType as TemplatePreviewDetailViewType // Fallback auf Library-Config
 

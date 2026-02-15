@@ -23,6 +23,7 @@ export default function CreateWizardPage({ params }: { params: Promise<{ typeId:
   const templateIdOverride = searchParams.get('templateIdOverride') || undefined
   const seedFileId = searchParams.get('seedFileId') || undefined
   const targetFolderId = searchParams.get('targetFolderId') || undefined
+  const sourceFolderId = searchParams.get('sourceFolderId') || undefined
 
   useEffect(() => {
     async function loadCreationType() {
@@ -106,7 +107,8 @@ export default function CreateWizardPage({ params }: { params: Promise<{ typeId:
           libraryId={activeLibrary.id}
           resumeFileId={resumeFileId}
           seedFileId={seedFileId}
-          targetFolderId={targetFolderId}
+          targetFolderId={targetFolderId || sourceFolderId}
+          sourceFolderId={sourceFolderId}
         />
       </div>
     </div>

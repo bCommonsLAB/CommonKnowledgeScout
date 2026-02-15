@@ -28,7 +28,7 @@ import { z } from 'zod'
  * Alle verfügbaren DetailViewTypes als const Array.
  * Dies ist die einzige Stelle, an der neue ViewTypes hinzugefügt werden müssen.
  */
-export const DETAIL_VIEW_TYPES = ['book', 'session', 'testimonial', 'blog', 'climateAction'] as const
+export const DETAIL_VIEW_TYPES = ['book', 'session', 'testimonial', 'blog', 'climateAction', 'divaDocument'] as const
 
 /**
  * Union Type aller gültigen DetailViewTypes.
@@ -119,6 +119,25 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
     ],
     labelKey: 'gallery.detailViewTypeClimateAction',
     descriptionKey: 'gallery.detailViewTypeClimateActionDescription',
+  },
+  divaDocument: {
+    requiredFields: ['title', 'dokumentTyp', 'produktname', 'lieferant'],
+    optionalFields: [
+      'summary',
+      'haendler',
+      'produktkategorien',
+      'gueltigAb',
+      'istVeraltet',
+      'dokumentFormat',
+      'materialgruppen',
+      'waehrung',
+      'preistyp',
+      'zertifizierungen',
+      'tags',
+      'coverImageUrl',
+    ],
+    labelKey: 'gallery.detailViewTypeDivaDocument',
+    descriptionKey: 'gallery.detailViewTypeDivaDocumentDescription',
   },
 }
 

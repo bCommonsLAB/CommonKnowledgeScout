@@ -89,6 +89,13 @@ export interface TemplateRunArgs {
   targetLanguage: string
   /** Optional: LLM-Modell-ID für Template-Transformation (z.B. 'google/gemini-2.5-flash') */
   llmModel?: string
+  /**
+   * Optional: Kontextinformationen zur Quelldatei (Original-PDF etc.).
+   * Wird dem Secretary Service als CONTEXT-Block mitgesendet, damit das LLM
+   * Metadaten aus Dateiname, Pfad und Datum extrahieren kann.
+   * Beispiel: { fileName: "Chile.pdf", filePath: "/Conform/CHILE/Dokumente/Livique/", ... }
+   */
+  context?: Record<string, unknown>
 }
 
 /** 

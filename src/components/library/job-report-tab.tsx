@@ -1771,6 +1771,7 @@ export function JobReportTab({
                   testimonial: ['title', 'teaser'],
                   blog: ['title', 'summary'],
                   climateAction: ['title', 'category', 'summary'],
+                  divaDocument: ['title', 'dokumentTyp', 'produktname', 'lieferant'],
                 }
                 const requiredFields = requiredFieldsByType[effectivePreviewType] || ['title']
                 const missingFields = requiredFields.filter(field => {
@@ -1800,6 +1801,7 @@ export function JobReportTab({
                           <SelectItem value="testimonial">Testimonial</SelectItem>
                           <SelectItem value="blog">Blog</SelectItem>
                           <SelectItem value="climateAction">ClimateAction</SelectItem>
+                          <SelectItem value="divaDocument">DivaDocument</SelectItem>
                         </SelectContent>
                       </Select>
                       
@@ -1962,7 +1964,7 @@ export function JobReportTab({
 
               const planned = (() => {
                 const n = s.name
-                if (n === 'extract_pdf') return phases.extract === true
+                if (n === 'extract_pdf' || n === 'extract_audio' || n === 'extract_video' || n === 'extract_office') return phases.extract === true
                 if (n === 'transform_template' || n === 'store_shadow_twin') return phases.template === true
                 if (n === 'ingest_rag') return phases.ingest === true
                 return false

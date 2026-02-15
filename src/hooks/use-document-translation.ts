@@ -18,7 +18,7 @@ interface TranslateDocumentParams {
   libraryId: string
   fileId: string
   /** Unterstützte ViewTypes für Übersetzung (erweitert um climateAction, testimonial, blog) */
-  viewType: 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog'
+  viewType: 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog' | 'divaDocument'
   targetLanguage?: TargetLanguage
 }
 

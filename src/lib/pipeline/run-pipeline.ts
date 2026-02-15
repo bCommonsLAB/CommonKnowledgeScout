@@ -77,6 +77,13 @@ export async function runPipelineUnified(args: {
     useCache: args.useCache,
   }
 
+  // DEBUG: customHint im Request prüfen (kann nach Verifizierung entfernt werden)
+  console.log('[runPipelineUnified] customHint im Request:', {
+    configCustomHint: config.customHint,
+    hasCustomHint: !!config.customHint,
+    configKeys: Object.keys(config),
+  })
+
   const res = await fetch("/api/pipeline/process", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -133,10 +140,12 @@ export async function runPipelineForFile(args: {
   generateCoverImage?: boolean
   /** Optionaler Prompt für Cover-Bild-Generierung */
   coverImagePrompt?: string
+  /** Optionaler Korrekturhinweis des Anwenders */
+  customHint?: string
   /** LLM-Modell für Template-Transformation (z.B. 'google/gemini-2.5-flash') */
   llmModel?: string
 }): Promise<{ jobId: string }> {
-  const { libraryId, sourceFile, parentId, kind, targetLanguage, templateName, policies, generateCoverImage, coverImagePrompt, llmModel } = args
+  const { libraryId, sourceFile, parentId, kind, targetLanguage, templateName, policies, generateCoverImage, coverImagePrompt, customHint, llmModel } = args
 
   if (sourceFile.type !== "file") {
     throw new Error("Quelle ist keine Datei")
@@ -160,6 +169,8 @@ export async function runPipelineForFile(args: {
     },
     generateCoverImage,
     coverImagePrompt,
+    // Korrekturhinweis des Anwenders
+    customHint,
     // LLM-Modell für Template-Transformation
     llmModel,
   }

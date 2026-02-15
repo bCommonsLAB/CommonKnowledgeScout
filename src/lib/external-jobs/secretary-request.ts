@@ -3,7 +3,7 @@
  *
  * @description
  * Bereitet FormData und URL für Requests an den Secretary Service vor.
- * Unterstützt sowohl Mistral OCR als auch Standard PDF Process Endpoints.
+ * Unterstützt: Audio, Video, Office (DOCX/XLSX/PPTX), PDF (Mistral OCR + Standard).
  *
  * @module external-jobs
  */
@@ -59,29 +59,14 @@ export function prepareSecretaryRequest(
     const targetLanguage = typeof opts['targetLanguage'] === 'string' ? String(opts['targetLanguage']) : 'de'
     const sourceLanguage = typeof opts['sourceLanguage'] === 'string' ? String(opts['sourceLanguage']) : 'auto'
     const useCache = typeof opts['useCache'] === 'boolean' ? opts['useCache'] : true
-    const template = typeof (job.parameters as Record<string, unknown> | undefined)?.['template'] === 'string'
-      ? String((job.parameters as Record<string, unknown>)['template'])
-      : undefined
-    const phases = (() => {
-      const raw = job.parameters && typeof job.parameters === 'object'
-        ? (job.parameters as { phases?: unknown }).phases
-        : undefined
-      if (!raw || typeof raw !== 'object') return undefined
-      return raw as { extract?: boolean; template?: boolean; ingest?: boolean }
-    })()
-    const isTemplatePhaseEnabled = phases?.template !== false
-    // WICHTIG:
-    // Wenn unsere Pipeline eine Template-Phase ausführt, darf Extract für Audio/Video nur das ROHE Transkript liefern.
-    // Sonst liefert der Secretary schon template-transformierten Text zurück, und wir speichern diesen fälschlich als Transcript (*.de.md).
-    const shouldSendTemplateToSecretary = !!(template && template.trim()) && !isTemplatePhaseEnabled
-
+    // Template gehört zur Transformations-Phase, nicht zur Extract-Phase.
+    // Extract liefert immer nur das rohe Transkript; Template-Transformation erfolgt lokal in phase-template.ts.
     formData = new FormData()
     formData.append('file', file)
     formData.append('target_language', targetLanguage)
     formData.append('source_language', sourceLanguage)
     // Secretary uses `useCache` (see existing Next proxy routes)
     formData.append('useCache', String(useCache))
-    if (shouldSendTemplateToSecretary) formData.append('template', template!.trim())
     formData.append('callback_url', callbackUrl)
     formData.append('callback_token', secret)
 
@@ -93,9 +78,6 @@ export function prepareSecretaryRequest(
       targetLanguage,
       sourceLanguage,
       useCache: String(useCache),
-      templateRequested: !!(template && template.trim()),
-      templateSentToSecretary: shouldSendTemplateToSecretary,
-      templatePhaseEnabled: isTemplatePhaseEnabled,
       callbackUrl,
     })
 
@@ -109,26 +91,14 @@ export function prepareSecretaryRequest(
     const targetLanguage = typeof opts['targetLanguage'] === 'string' ? String(opts['targetLanguage']) : 'de'
     const sourceLanguage = typeof opts['sourceLanguage'] === 'string' ? String(opts['sourceLanguage']) : 'auto'
     const useCache = typeof opts['useCache'] === 'boolean' ? opts['useCache'] : true
-    const template = typeof (job.parameters as Record<string, unknown> | undefined)?.['template'] === 'string'
-      ? String((job.parameters as Record<string, unknown>)['template'])
-      : undefined
-    const phases = (() => {
-      const raw = job.parameters && typeof job.parameters === 'object'
-        ? (job.parameters as { phases?: unknown }).phases
-        : undefined
-      if (!raw || typeof raw !== 'object') return undefined
-      return raw as { extract?: boolean; template?: boolean; ingest?: boolean }
-    })()
-    const isTemplatePhaseEnabled = phases?.template !== false
-    const shouldSendTemplateToSecretary = !!(template && template.trim()) && !isTemplatePhaseEnabled
-
+    // Template gehört zur Transformations-Phase, nicht zur Extract-Phase.
+    // Extract liefert immer nur das rohe Transkript; Template-Transformation erfolgt lokal in phase-template.ts.
     formData = new FormData()
     formData.append('file', file)
     formData.append('target_language', targetLanguage)
     formData.append('source_language', sourceLanguage)
     // Secretary uses `useCache` (see existing Next proxy routes)
     formData.append('useCache', String(useCache))
-    if (shouldSendTemplateToSecretary) formData.append('template', template!.trim())
     formData.append('callback_url', callbackUrl)
     formData.append('callback_token', secret)
 
@@ -140,9 +110,41 @@ export function prepareSecretaryRequest(
       targetLanguage,
       sourceLanguage,
       useCache: String(useCache),
-      templateRequested: !!(template && template.trim()),
-      templateSentToSecretary: shouldSendTemplateToSecretary,
-      templatePhaseEnabled: isTemplatePhaseEnabled,
+      callbackUrl,
+    })
+
+    return { url, formData, headers }
+  }
+
+  // --- Office (DOCX/XLSX/PPTX) - Pipeline A: python-only ---
+  // POST /api/office/process: Office → Markdown + Images + Thumbnails
+  if (job.job_type === 'office') {
+    const endpoint = normalizedBaseUrl.endsWith('/api') ? '/office/process' : '/api/office/process'
+    url = `${normalizedBaseUrl}${endpoint}`
+
+    const useCache = typeof opts['useCache'] === 'boolean' ? opts['useCache'] : true
+    const includeImages = typeof opts['includeImages'] === 'boolean' ? opts['includeImages'] : true
+    const includePreviews = typeof opts['includePreviews'] === 'boolean' ? opts['includePreviews'] : true
+    const forceRefresh = typeof opts['force_refresh'] === 'boolean' ? opts['force_refresh'] : false
+
+    formData = new FormData()
+    formData.append('file', file)
+    formData.append('useCache', String(useCache))
+    formData.append('includeImages', String(includeImages))
+    formData.append('includePreviews', String(includePreviews))
+    formData.append('callback_url', callbackUrl)
+    formData.append('callback_token', secret)
+    formData.append('jobId', job.jobId)
+    formData.append('force_refresh', String(forceRefresh))
+
+    FileLogger.info('secretary-request', 'Office FormData erstellt', {
+      jobId: job.jobId,
+      url,
+      fileName: file.name,
+      fileSize: file.size,
+      useCache: String(useCache),
+      includeImages: String(includeImages),
+      includePreviews: String(includePreviews),
       callbackUrl,
     })
 

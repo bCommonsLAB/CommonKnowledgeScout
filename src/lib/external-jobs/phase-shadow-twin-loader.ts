@@ -445,6 +445,32 @@ export async function loadShadowTwinMarkdown(
       }
     }
 
+    // Priorität 4: Wizard-Dateien (transformationSource: true) – Source als Transformation
+    // Kein Shadow-Twin vorhanden; die Datei selbst ist bereits die Transformation.
+    const sourceMediaType = job.correlation?.source?.mediaType
+    const isMarkdownSource = sourceMediaType === 'markdown' ||
+      originalName.toLowerCase().endsWith('.md') ||
+      job.job_type === 'text'
+
+    if (isMarkdownSource && sourceItemId) {
+      const result = await loadMarkdownById(ctx, provider, sourceItemId, originalName, originalName, lang, sourceItemId, parentId)
+      if (result) {
+        const parsed = parseSecretaryMarkdownStrict(result.markdown)
+        const meta = (parsed?.meta && typeof parsed.meta === 'object' && !Array.isArray(parsed.meta))
+          ? (parsed.meta as Record<string, unknown>)
+          : {}
+        if (meta?.transformationSource === true) {
+          FileLogger.info('phase-shadow-twin-loader', 'Wizard-Datei (transformationSource) als Transformation geladen', {
+            jobId,
+            purpose,
+            sourceItemId,
+            sourceName: originalName,
+          })
+          return { ...result, loadedArtifactKind: 'transformation' }
+        }
+      }
+    }
+
     // Nichts gefunden
     FileLogger.warn('phase-shadow-twin-loader', 'Shadow-Twin-Markdown nicht gefunden (forIngestOrPassthrough)', {
       jobId,

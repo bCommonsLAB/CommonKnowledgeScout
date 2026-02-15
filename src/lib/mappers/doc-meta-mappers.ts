@@ -7,6 +7,7 @@ import type { BookDetailData } from '@/components/library/book-detail'
 import type { SessionDetailData } from '@/components/library/session-detail'
 import type { TestimonialDetailData } from '@/components/library/testimonial-detail'
 import type { ClimateActionDetailData } from '@/components/library/climate-action-detail'
+import type { DivaDocumentDetailData } from '@/components/library/diva-document-detail'
 
 /**
  * Mapper: API-Response → BookDetailData
@@ -365,6 +366,87 @@ export function mapToClimateActionDetail(input: unknown): ClimateActionDetailDat
     source: toStr(docMetaJson.source),
     authors: toStrArr(docMetaJson.authors),
     
+    // Technische Felder
+    fileId: toStr(root.fileId),
+    fileName: toStr(root.fileName),
+    upsertedAt: toStr(root.upsertedAt),
+    chunkCount: toNum(root.chunkCount),
+  };
+
+  return data;
+}
+
+/**
+ * Mapper: API-Response → DivaDocumentDetailData
+ * Extrahiert Katalogdokument-spezifische Felder aus docMetaJson
+ * (Möbelbranche: Preislisten, Produktdatenblätter, Materialkollektionen)
+ */
+export function mapToDivaDocumentDetail(input: unknown): DivaDocumentDetailData {
+  const root = (input && typeof input === 'object') ? input as Record<string, unknown> : {};
+  const docMetaJson = (root.docMetaJson && typeof root.docMetaJson === 'object') 
+    ? root.docMetaJson as Record<string, unknown> 
+    : {};
+  
+  const toStr = (v: unknown): string | undefined => {
+    if (typeof v === 'string' && v.trim().length > 0) {
+      return v.trim();
+    }
+    return undefined;
+  };
+
+  const toNum = (v: unknown): number | undefined => 
+    typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+
+  const toBool = (v: unknown): boolean | undefined => {
+    if (typeof v === 'boolean') return v;
+    if (typeof v === 'string') {
+      const lower = v.toLowerCase().trim();
+      if (lower === 'true' || lower === '1') return true;
+      if (lower === 'false' || lower === '0') return false;
+    }
+    return undefined;
+  };
+
+  const toStrArr = (v: unknown): string[] | undefined => {
+    if (Array.isArray(v)) {
+      const arr = (v as Array<unknown>).map(x => toStr(x) || '').filter(Boolean);
+      return arr.length > 0 ? arr : undefined;
+    }
+    return undefined;
+  };
+
+  const data: DivaDocumentDetailData = {
+    // Basis-Felder
+    title: toStr(docMetaJson.title) || toStr(root.fileName) || '—',
+    summary: toStr(docMetaJson.summary),
+    markdown: toStr(docMetaJson.markdown),
+    coverImageUrl: toStr((docMetaJson as { coverImageUrl?: unknown }).coverImageUrl),
+
+    // Katalog-spezifische Felder
+    dokumentTyp: toStr(docMetaJson.dokumentTyp),
+    dokumentFormat: toStr(docMetaJson.dokumentFormat),
+    produktname: toStr(docMetaJson.produktname),
+    lieferant: toStr(docMetaJson.lieferant),
+    haendler: toStr(docMetaJson.haendler),
+    produktkategorien: toStrArr(docMetaJson.produktkategorien),
+    materialgruppen: toStrArr(docMetaJson.materialgruppen),
+    farbvarianten: toStrArr(docMetaJson.farbvarianten),
+    technischeDaten: toStrArr(docMetaJson.technischeDaten),
+    konfigurationsoptionen: toStrArr(docMetaJson.konfigurationsoptionen),
+    gueltigAb: toStr(docMetaJson.gueltigAb),
+    waehrung: toStr(docMetaJson.waehrung),
+    preistyp: toStr(docMetaJson.preistyp),
+    hatVkGegenstueck: toBool(docMetaJson.hatVkGegenstueck),
+    istVeraltet: toBool(docMetaJson.istVeraltet),
+    zertifizierungen: toStrArr(docMetaJson.zertifizierungen),
+    tags: toStrArr(docMetaJson.tags),
+    year: ((): number | string | undefined => {
+      const y = docMetaJson.year;
+      if (typeof y === 'number') return y;
+      if (typeof y === 'string' && y.trim()) return y.trim();
+      return undefined;
+    })(),
+
     // Technische Felder
     fileId: toStr(root.fileId),
     fileName: toStr(root.fileName),

@@ -97,6 +97,12 @@ async function createJobForItem(args: {
     },
     options: {
       targetLanguage: config.targetLanguage,
+      // Office-spezifische Optionen (Secretary /api/office/process)
+      ...((mediaKind === 'docx' || mediaKind === 'xlsx' || mediaKind === 'pptx') ? {
+        useCache: request.useCache ?? true,
+        includeImages: true,
+        includePreviews: true,
+      } : {}),
     },
     batchId,
     batchName: request.batchName,
@@ -135,6 +141,8 @@ async function createJobForItem(args: {
         policies: finalPolicies,
         generateCoverImage: config.generateCoverImage,
         coverImagePrompt: config.coverImagePrompt,
+        // Korrekturhinweis: auch leeren String übernehmen (explizites Löschen durch User)
+        ...(typeof config.customHint === 'string' ? { customHint: config.customHint } : {}),
         // LLM-Modell für Template-Transformation
         ...(config.llmModel ? { llmModel: config.llmModel } : {}),
         // PDF-spezifische Optionen
@@ -142,6 +150,10 @@ async function createJobForItem(args: {
           extractionMethod: request.extractionMethod || 'mistral_ocr',
           includeOcrImages: request.includeOcrImages ?? true,
           includePageImages: request.includePageImages ?? true,
+          useCache: request.useCache ?? true,
+        } : {}),
+        // Office-spezifische Optionen (useCache für Secretary)
+        ...((mediaKind === 'docx' || mediaKind === 'xlsx' || mediaKind === 'pptx') ? {
           useCache: request.useCache ?? true,
         } : {}),
       },
@@ -160,12 +172,14 @@ async function createJobForItem(args: {
 /**
  * Gibt den korrekten Extract-Step-Namen für einen JobType zurück
  */
-function getExtractStepName(jobType: JobType): 'extract_pdf' | 'extract_audio' | 'extract_video' {
+function getExtractStepName(jobType: JobType): 'extract_pdf' | 'extract_audio' | 'extract_video' | 'extract_office' {
   switch (jobType) {
     case 'audio':
       return 'extract_audio'
     case 'video':
       return 'extract_video'
+    case 'office':
+      return 'extract_office'
     default:
       return 'extract_pdf'
   }
@@ -186,6 +200,12 @@ function getMimeTypeForMediaKind(kind: MediaKind): string {
       return 'image/*'
     case 'markdown':
       return 'text/markdown'
+    case 'docx':
+      return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    case 'xlsx':
+      return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    case 'pptx':
+      return 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
     default:
       return 'application/octet-stream'
   }

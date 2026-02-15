@@ -8,7 +8,9 @@ import { X, ExternalLink, Loader2 } from 'lucide-react'
 import { IngestionBookDetail } from '@/components/library/ingestion-book-detail'
 import { IngestionSessionDetail } from '@/components/library/ingestion-session-detail'
 import { IngestionClimateActionDetail } from '@/components/library/ingestion-climate-action-detail'
+import { IngestionDivaDocumentDetail } from '@/components/library/ingestion-diva-document-detail'
 import type { ClimateActionDetailData } from '@/components/library/climate-action-detail'
+import type { DivaDocumentDetailData } from '@/components/library/diva-document-detail'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useDocumentTranslation } from '@/hooks/use-document-translation'
 import { SwitchToStoryModeButton } from '@/components/library/gallery/switch-to-story-mode-button'
@@ -22,8 +24,8 @@ export interface DetailOverlayProps {
   onClose: () => void
   libraryId: string
   fileId: string
-  /** Typ der Detailansicht (book, session, climateAction, testimonial, blog) */
-  viewType: 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog'
+  /** Typ der Detailansicht (book, session, climateAction, testimonial, blog, divaDocument) */
+  viewType: 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog' | 'divaDocument'
   title?: string
   /** Optional: Dokument-Metadaten für den SwitchToStoryModeButton */
   doc?: DocCardMeta
@@ -53,10 +55,10 @@ export function DetailOverlay({
   // viewType wird automatisch über Props verwaltet
   
   // State für Tab und Übersetzung
-  // Hinweis: ClimateActionDetailData wird hier auch unterstützt (für Übersetzungs-Feature)
+  // Hinweis: ClimateActionDetailData und DivaDocumentDetailData werden hier auch unterstützt
   const [activeTab, setActiveTab] = React.useState<'original' | 'translated'>('original')
-  const [originalData, setOriginalData] = React.useState<BookDetailData | SessionDetailData | ClimateActionDetailData | null>(null)
-  const [translatedData, setTranslatedData] = React.useState<BookDetailData | SessionDetailData | ClimateActionDetailData | null>(null)
+  const [originalData, setOriginalData] = React.useState<BookDetailData | SessionDetailData | ClimateActionDetailData | DivaDocumentDetailData | null>(null)
+  const [translatedData, setTranslatedData] = React.useState<BookDetailData | SessionDetailData | ClimateActionDetailData | DivaDocumentDetailData | null>(null)
   const [originalLanguage, setOriginalLanguage] = React.useState<string>('EN')
   const [sessionUrl, setSessionUrl] = React.useState<string | null>(null)
   
@@ -419,8 +421,20 @@ export function DetailOverlay({
                 translatedData={activeTab === 'translated' ? (translatedData as ClimateActionDetailData) : undefined}
               />
             )}
+            {viewType === 'divaDocument' && (
+              <IngestionDivaDocumentDetail
+                libraryId={libraryId}
+                fileId={fileId}
+                onDataLoaded={(data) => {
+                  if (handleDataLoadedRef.current) {
+                    handleDataLoadedRef.current(data)
+                  }
+                }}
+                translatedData={activeTab === 'translated' ? (translatedData as DivaDocumentDetailData) : undefined}
+              />
+            )}
             {/* Default: Book-Detail (auch für testimonial, blog - vorerst) */}
-            {viewType !== 'session' && viewType !== 'climateAction' && (
+            {viewType !== 'session' && viewType !== 'climateAction' && viewType !== 'divaDocument' && (
               <IngestionBookDetail
                 libraryId={libraryId}
                 fileId={fileId}

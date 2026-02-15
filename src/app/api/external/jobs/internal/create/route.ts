@@ -52,23 +52,34 @@ export async function POST(request: NextRequest) {
     const jobType: ExternalJob['job_type'] =
       inferredMediaType === 'audio'
         ? 'audio'
-        : 'pdf'
+        : inferredMediaType === 'office'
+          ? 'office'
+          : 'pdf'
 
     const extractStepName =
-      jobType === 'audio' ? 'extract_audio' : 'extract_pdf'
+      jobType === 'audio' ? 'extract_audio' : jobType === 'office' ? 'extract_office' : 'extract_pdf'
+
+    // Office-Jobs haben andere Options (kein extractionMethod, includeOcrImages etc.)
+    const correlationOptions = jobType === 'office'
+      ? { targetLanguage, useCache: true, includeImages: true, includePreviews: true }
+      : {
+          targetLanguage,
+          extractionMethod,
+          includeOcrImages,
+          includePageImages,
+          includeImages, // Rückwärtskompatibilität
+        }
 
     const correlation = {
       jobId,
       libraryId,
       source: { mediaType: inferredMediaType, mimeType, name: fileName, parentId, itemId },
-      options: { 
-        targetLanguage, 
-        extractionMethod, 
-        includeOcrImages, 
-        includePageImages, 
-        includeImages // Rückwärtskompatibilität
-      }
+      options: correlationOptions
     } satisfies ExternalJob['correlation']
+
+    const jobParameters = jobType === 'office'
+      ? { targetLanguage, useCache: true }
+      : { targetLanguage, extractionMethod, includeOcrImages, includePageImages, includeImages }
 
     const job: ExternalJob = {
       jobId,
@@ -89,13 +100,7 @@ export async function POST(request: NextRequest) {
         { name: 'store_shadow_twin', status: 'pending' },
         { name: 'ingest_rag', status: 'pending' },
       ],
-      parameters: { 
-        targetLanguage, 
-        extractionMethod, 
-        includeOcrImages, 
-        includePageImages, 
-        includeImages // Rückwärtskompatibilität
-      }
+      parameters: jobParameters
     }
     await repo.create(job)
 

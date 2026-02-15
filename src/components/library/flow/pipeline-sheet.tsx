@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { cn } from "@/lib/utils"
+import { DictationTextarea } from "@/components/shared/dictation-textarea"
 // Zentrale Pipeline-Konfigurationstypen - Re-Export für Rückwärtskompatibilität
 import { type PipelinePolicies as PipelinePoliciesType } from "@/lib/pipeline/pipeline-config"
 export type PipelinePolicies = PipelinePoliciesType
@@ -54,7 +55,7 @@ interface PipelineSheetProps {
   onOpenChange: (open: boolean) => void
   libraryId: string
   sourceFileName: string
-  kind: "pdf" | "audio" | "video" | "markdown" | "other"
+  kind: "pdf" | "audio" | "video" | "markdown" | "office" | "other"
   targetLanguage: string
   onTargetLanguageChange: (value: string) => void
   templateName: string
@@ -69,7 +70,7 @@ interface PipelineSheetProps {
   llmModels?: LlmModelOption[]
   /** Ladezustand für LLM-Modelle */
   isLoadingLlmModels?: boolean
-  onStart: (args: { templateName?: string; targetLanguage: string; policies: PipelinePolicies; coverImage?: CoverImageOptions; llmModel?: string }) => Promise<void>
+  onStart: (args: { templateName?: string; targetLanguage: string; policies: PipelinePolicies; coverImage?: CoverImageOptions; llmModel?: string; customHint?: string }) => Promise<void>
   /**
    * Optionale Default-Werte fuer die Pipeline-Schritte.
    * Wenn gesetzt, werden die Switches beim Oeffnen des Sheets entsprechend initialisiert.
@@ -92,6 +93,11 @@ interface PipelineSheetProps {
    * Ermoeglicht intelligente Vorauswahl und visuelle Hinweise.
    */
   existingArtifacts?: ExistingArtifacts
+  /**
+   * Default-Wert fuer den Korrekturhinweis (aus vorherigem Artefakt-Frontmatter).
+   * Wird beim Oeffnen des Sheets als Initialwert gesetzt.
+   */
+  defaultCustomHint?: string
 }
 
 function isNonEmptyString(v: unknown): v is string {
@@ -112,6 +118,7 @@ export function PipelineSheet(props: PipelineSheetProps) {
   const [shouldIngest, setShouldIngest] = React.useState(false)
   const [shouldForce, setShouldForce] = React.useState(props.defaultForce ?? false)
   const [shouldGenerateCoverImage, setShouldGenerateCoverImage] = React.useState(props.defaultGenerateCoverImage ?? false)
+  const [customHint, setCustomHint] = React.useState(props.defaultCustomHint ?? '')
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
   // Beim Oeffnen des Sheets: Initialisiere basierend auf defaultSteps und existingArtifacts
@@ -122,6 +129,14 @@ export function PipelineSheet(props: PipelineSheetProps) {
     const forceMode = props.defaultForce ?? false
     setShouldForce(forceMode)
     setShouldGenerateCoverImage(props.defaultGenerateCoverImage ?? false)
+    const hintValue = props.defaultCustomHint ?? ''
+    setCustomHint(hintValue)
+    // DEBUG: Protokollieren ob defaultCustomHint korrekt in PipelineSheet ankommt
+    console.log('[PipelineSheet] useEffect (Beim Öffnen) – defaultCustomHint:', {
+      received: props.defaultCustomHint,
+      resolved: hintValue,
+      length: hintValue.length,
+    })
     
     if (props.defaultSteps) {
       // defaultSteps respektieren
@@ -144,7 +159,7 @@ export function PipelineSheet(props: PipelineSheetProps) {
       setShouldTransform(false)
       setShouldIngest(false)
     }
-  }, [props.isOpen, props.defaultSteps, props.defaultForce, props.defaultGenerateCoverImage, isMarkdown, hasTranscript, hasTransformed, hasIngested])
+  }, [props.isOpen, props.defaultSteps, props.defaultForce, props.defaultGenerateCoverImage, props.defaultCustomHint, isMarkdown, hasTranscript, hasTransformed, hasIngested])
 
   // Separater Effect: Cover-Bild-Generierung aktualisieren, wenn der Wert spaeter verfuegbar wird
   // (activeLibrary wird asynchron geladen, deshalb kann der Wert beim ersten Oeffnen noch undefined sein)
@@ -224,6 +239,9 @@ export function PipelineSheet(props: PipelineSheetProps) {
 
     setIsSubmitting(true)
     try {
+      // customHint: Immer übergeben wenn Transform aktiv – auch leeren String bei explizitem Löschen.
+      // Sonst würde der Server den Fallback aus Metadaten nutzen, obwohl der User den Hinweis entfernt hat.
+      const resolvedCustomHint = shouldTransform ? (customHint ?? '') : undefined
       await props.onStart({
         templateName: isNonEmptyString(props.templateName) ? props.templateName : undefined,
         targetLanguage: props.targetLanguage,
@@ -234,11 +252,13 @@ export function PipelineSheet(props: PipelineSheetProps) {
         } : undefined,
         // LLM-Modell nur übergeben wenn Transform aktiv und Modell gesetzt
         llmModel: shouldTransform && isNonEmptyString(props.llmModel) ? props.llmModel : undefined,
+        // Korrekturhinweis: leeren String bei explizitem Löschen übergeben, damit Server keinen Fallback nutzt
+        customHint: resolvedCustomHint,
       })
     } finally {
       setIsSubmitting(false)
     }
-  }, [canStart, props, shouldExtract, shouldForce, shouldIngest, shouldTransform, shouldGenerateCoverImage, isMarkdown])
+  }, [canStart, props, shouldExtract, shouldForce, shouldIngest, shouldTransform, shouldGenerateCoverImage, customHint, isMarkdown])
 
   // Step-Definitionen fuer das Rendering
   const steps = [
@@ -490,6 +510,17 @@ export function PipelineSheet(props: PipelineSheetProps) {
                             <Label htmlFor="generate-cover-image" className="text-xs text-muted-foreground cursor-pointer">
                               Cover-Bild generieren
                             </Label>
+                          </div>
+                          {/* Korrekturhinweise – mehrzeiliges Textfeld mit Diktierfunktion */}
+                          <div className="ml-[76px] pr-4 pt-1">
+                            <DictationTextarea
+                              label="Korrekturhinweise (optional)"
+                              value={customHint}
+                              onChange={setCustomHint}
+                              placeholder="Korrekturen, die Extraktion überschreiben, z.B. 'haendler: Maximode' oder 'Lieferant ist Conform, nicht Chile'"
+                              rows={2}
+                              variant="inline"
+                            />
                           </div>
                         </div>
                       </CollapsibleContent>

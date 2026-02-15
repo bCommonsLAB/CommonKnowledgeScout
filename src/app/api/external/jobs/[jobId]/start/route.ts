@@ -110,9 +110,10 @@ function deriveExtractGateFromShadowTwinState(
   }
 }
 
-function getExtractStepName(jobType: string): 'extract_pdf' | 'extract_audio' | 'extract_video' {
+function getExtractStepName(jobType: string): 'extract_pdf' | 'extract_audio' | 'extract_video' | 'extract_office' {
   if (jobType === 'audio') return 'extract_audio'
   if (jobType === 'video') return 'extract_video'
+  if (jobType === 'office') return 'extract_office'
   return 'extract_pdf'
 }
 
@@ -479,7 +480,7 @@ export async function POST(
     const ctxPre: RequestContext = { request, jobId, job, body: {}, callbackToken: undefined, internalBypass: true }
     let preExtractResult: Awaited<ReturnType<typeof preprocessorPdfExtract>> | null = null
     let preTemplateResult: Awaited<ReturnType<typeof preprocessorTransformTemplate>> | null = null
-    if (job.job_type === 'pdf') {
+    if (['pdf', 'office'].includes(job.job_type)) {
     try {
       preExtractResult = await preprocessorPdfExtract(ctxPre)
     } catch (error) {
@@ -522,7 +523,7 @@ export async function POST(
       return NextResponse.json({ error: 'Fehler beim Initialisieren der Steps' }, { status: 500 })
     }
     // Status wird erst nach erfolgreichem Request gesetzt (siehe Zeile 477)
-    await repo.traceAddEvent(jobId, { spanId: 'preprocess', name: job.job_type === 'pdf' ? 'process_pdf_submit' : 'process_submit', attributes: {
+    await repo.traceAddEvent(jobId, { spanId: 'preprocess', name: (job.job_type === 'pdf') ? 'process_pdf_submit' : 'process_submit', attributes: {
       libraryId: job.libraryId,
       fileName: filename,
       extractionMethod: opts['extractionMethod'] ?? job.correlation?.options?.extractionMethod ?? undefined,
@@ -891,11 +892,23 @@ export async function POST(
       const ctxPreUpdated: RequestContext = { request, jobId, job: updatedJob || job, body: {}, callbackToken: undefined, internalBypass: true }
       const { stripAllFrontmatter } = await import('@/lib/markdown/frontmatter')
       const extractedText = stripAllFrontmatter(shadowTwinData.markdown)
-      // Cover-Bild-Generierung aus Job-Parametern lesen
+      // Cover-Bild-Generierung und Korrekturhinweis aus Job-Parametern lesen
       const jobParams = (job.parameters && typeof job.parameters === 'object') ? job.parameters as { 
         generateCoverImage?: boolean
-        coverImagePrompt?: string 
+        coverImagePrompt?: string
+        customHint?: string
       } : {}
+      
+      // Logging: customHint-Weitergabe prüfbar machen
+      if (jobParams.customHint) {
+        FileLogger.info('start-route', 'customHint aus Job-Parametern gelesen', {
+          jobId,
+          customHintLength: jobParams.customHint.length,
+          customHintPreview: jobParams.customHint.substring(0, 80),
+        })
+      } else {
+        FileLogger.info('start-route', 'Kein customHint in Job-Parametern', { jobId })
+      }
       
       const templateResult = await runTemplatePhase({
         ctx: ctxPreUpdated,
@@ -910,6 +923,7 @@ export async function POST(
         libraryConfig,
         generateCoverImage: jobParams.generateCoverImage,
         coverImagePrompt: jobParams.coverImagePrompt,
+        customHint: jobParams.customHint,
       })
 
       if (templateResult.status === 'failed') {

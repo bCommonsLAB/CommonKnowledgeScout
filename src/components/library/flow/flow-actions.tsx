@@ -84,6 +84,21 @@ export function FlowActions({
   const [isRunning, setIsRunning] = React.useState(false)
   const [activeJob, setActiveJob] = React.useState<{ jobId: string; status?: string; progress?: number; message?: string } | null>(null)
   const [settingsOpen, setSettingsOpen] = React.useState(false)
+  
+  // Korrekturhinweis aus localStorage laden (persistent pro Datei)
+  const customHintStorageKey = `customHint:${libraryId}:${sourceFile.id}`
+  const [savedCustomHint, setSavedCustomHint] = React.useState(() => {
+    if (typeof window === 'undefined') return ''
+    return localStorage.getItem(customHintStorageKey) ?? ''
+  })
+
+  // Bei jedem Öffnen des Pipeline-Sheets: Korrekturhinweis aus localStorage nachladen
+  React.useEffect(() => {
+    if (pipelineParam === '1' && typeof window !== 'undefined') {
+      const fromStorage = localStorage.getItem(customHintStorageKey) ?? ''
+      setSavedCustomHint(fromStorage)
+    }
+  }, [pipelineParam, customHintStorageKey])
 
   const activeLibrary = useAtomValue(activeLibraryAtom)
   const libraryConfigChatTargetLanguage = activeLibrary?.config?.chat?.targetLanguage
@@ -257,7 +272,7 @@ export function FlowActions({
   }, [activeJob?.jobId])
 
   const runPipeline = React.useCallback(
-    async (args: { templateName?: string; targetLanguage: string; policies: PipelinePolicies; coverImage?: CoverImageOptions; llmModel?: string }) => {
+    async (args: { templateName?: string; targetLanguage: string; policies: PipelinePolicies; coverImage?: CoverImageOptions; llmModel?: string; customHint?: string }) => {
       if (!libraryId) {
         toast.error("Fehler", { description: "libraryId fehlt" })
         return
@@ -272,6 +287,11 @@ export function FlowActions({
       }
 
       setIsRunning(true)
+      // DEBUG: customHint-Übergabe prüfen (kann nach Verifizierung entfernt werden)
+      console.log('[FlowActions] runPipeline – customHint Debug:', {
+        customHint: args.customHint,
+        hasCustomHint: !!args.customHint,
+      })
       try {
         const { jobId } = await runPipelineForFile({
           libraryId,
@@ -286,9 +306,18 @@ export function FlowActions({
           // Cover-Bild-Generierung
           generateCoverImage: args.coverImage?.generateCoverImage,
           coverImagePrompt: args.coverImage?.coverImagePrompt,
+          // Korrekturhinweis des Anwenders (optional, wird ans Prompt angehängt)
+          customHint: args.customHint,
           // LLM-Modell für Template-Transformation
           llmModel: args.llmModel,
         })
+
+        // Korrekturhinweis für Re-Open in localStorage speichern
+        if (args.customHint) {
+          localStorage.setItem(customHintStorageKey, args.customHint)
+        } else {
+          localStorage.removeItem(customHintStorageKey)
+        }
 
         setActiveJob({ jobId, status: "queued", progress: 0, message: "queued" })
         toast.success("Job angelegt", { description: `Job ${jobId} wurde enqueued.` })
@@ -543,6 +572,7 @@ export function FlowActions({
         isLoadingLlmModels={isLoadingLlmModels}
         onStart={runPipeline}
         defaultGenerateCoverImage={activeLibrary?.config?.secretaryService?.generateCoverImage}
+        defaultCustomHint={savedCustomHint}
       />
     </div>
   )

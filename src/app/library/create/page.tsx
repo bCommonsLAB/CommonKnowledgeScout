@@ -5,7 +5,7 @@ import { activeLibraryAtom } from "@/atoms/library-atom"
 import { getLibraryCreationConfig } from "@/lib/templates/library-creation-config"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, FileText } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
@@ -30,8 +30,12 @@ function getIconComponent(iconName?: string) {
 export default function CreateContentPage() {
   const activeLibrary = useAtomValue(activeLibraryAtom)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [creationTypes, setCreationTypes] = useState<Awaited<ReturnType<typeof getLibraryCreationConfig>>>([])
   const [isLoading, setIsLoading] = useState(true)
+
+  // sourceFolderId aus URL übernehmen (wenn Nutzer aus Verzeichnis kam)
+  const sourceFolderId = searchParams.get('sourceFolderId') || undefined
 
   useEffect(() => {
     async function loadCreationTypes() {
@@ -109,12 +113,15 @@ export default function CreateContentPage() {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {creationTypes.map((type) => {
             const Icon = getIconComponent(type.icon)
-            
+            const typeUrl = sourceFolderId
+              ? `/library/create/${type.id}?sourceFolderId=${encodeURIComponent(sourceFolderId)}`
+              : `/library/create/${type.id}`
+
             return (
               <Card
                 key={type.id}
                 className="group cursor-pointer hover:border-primary transition-colors"
-                onClick={() => router.push(`/library/create/${type.id}`)}
+                onClick={() => router.push(typeUrl)}
               >
                 <CardHeader>
                   <div className="flex items-start gap-4">
@@ -137,7 +144,7 @@ export default function CreateContentPage() {
                     className="w-full"
                     onClick={(e) => {
                       e.stopPropagation()
-                      router.push(`/library/create/${type.id}`)
+                      router.push(typeUrl)
                     }}
                   >
                     Erstellen

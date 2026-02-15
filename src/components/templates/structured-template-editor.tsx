@@ -618,6 +618,7 @@ export function StructuredTemplateEditor({ markdownBody, metadata, systemprompt,
                 <SelectItem value="testimonial">Testimonial</SelectItem>
                 <SelectItem value="blog">Blog</SelectItem>
                 <SelectItem value="climateAction">ClimateAction</SelectItem>
+                <SelectItem value="divaDocument">DivaDocument</SelectItem>
               </SelectContent>
             </Select>
             
@@ -843,18 +844,20 @@ function CreationFlowEditor({
     }))
   }
 
-  const SOURCE_TYPE_ICONS = {
+  const SOURCE_TYPE_ICONS: Record<NonNullable<TemplateCreationConfig['supportedSources'][0]['type']>, React.ComponentType<{ className?: string }>> = {
     spoken: Mic,
     url: LinkIcon,
     text: FileText,
     file: Upload,
+    folder: Folder,
   }
 
-  const SOURCE_TYPE_COLORS = {
+  const SOURCE_TYPE_COLORS: Record<NonNullable<TemplateCreationConfig['supportedSources'][0]['type']>, string> = {
     spoken: "text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-950/30",
     url: "text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-950/30",
     text: "text-purple-600 bg-purple-50 dark:text-purple-400 dark:bg-purple-950/30",
     file: "text-orange-600 bg-orange-50 dark:text-orange-400 dark:bg-orange-950/30",
+    folder: "text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-950/30",
   }
 
   const addSource = () => {

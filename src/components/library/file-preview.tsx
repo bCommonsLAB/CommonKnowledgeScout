@@ -4,7 +4,6 @@ import * as React from 'react';
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, ExternalLink, FileText, RefreshCw, Sparkles, Upload } from "lucide-react";
-import { VideoPlayer } from './video-player';
 import { MarkdownPreview } from './markdown-preview';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import './markdown-audio';
@@ -34,6 +33,9 @@ import { ArtifactEditDialog } from "@/components/library/shared/artifact-edit-di
 import { IngestionDetailPanel } from "@/components/library/shared/ingestion-detail-panel"
 import { PipelineSheet, type PipelinePolicies, type CoverImageOptions, type LlmModelOption } from "@/components/library/flow/pipeline-sheet"
 import { runPipelineForFile, getMediaKind, type MediaKind } from "@/lib/pipeline/run-pipeline"
+import { fetchShadowTwinMarkdown } from "@/lib/shadow-twin/shadow-twin-mongo-client"
+import { isMongoShadowTwinId, parseMongoShadowTwinId } from "@/lib/shadow-twin/mongo-shadow-twin-id"
+import { parseSecretaryMarkdownStrict } from "@/lib/secretary/response-parser"
 import { activeLibraryAtom } from "@/atoms/library-atom"
 import { loadPdfDefaults } from "@/lib/pdf-defaults"
 import { getEffectivePdfDefaults } from "@/atoms/pdf-defaults"
@@ -65,6 +67,7 @@ function getPhaseLabel(phase?: string): string {
   const phaseLabels: Record<string, string> = {
     extract: 'Transkript',
     extract_pdf: 'Transkript',
+    extract_office: 'Transkript',
     extraction: 'Transkript',
     transcribe: 'Transkript',
     transcription: 'Transkript',
@@ -503,7 +506,7 @@ function PreviewContent({
   const transcript = useResolvedTranscriptItem({
     provider,
     libraryId: activeLibraryId,
-    sourceFile: fileType === "audio" || fileType === "pdf" ? item : null,
+    sourceFile: ['pdf', 'audio', 'video', 'docx', 'xlsx', 'pptx'].includes(fileType) ? item : null,
     targetLanguage: "de",
   })
   const [transformItem, setTransformItem] = React.useState<StorageItem | null>(null)
@@ -618,7 +621,65 @@ function PreviewContent({
   }, [provider, shadowTwinState?.transformed?.id])
 
   // Pipeline-Sheet State und Logik
+  // Korrekturhinweis aus localStorage laden (persistent pro Datei)
+  const customHintStorageKey = `customHint:${activeLibraryId}:${item.id}`
+  const [savedCustomHint, setSavedCustomHint] = React.useState(() => {
+    if (typeof window === 'undefined') return ''
+    const v = localStorage.getItem(customHintStorageKey) ?? ''
+    console.log('[file-preview] savedCustomHint init:', { customHintStorageKey, value: v, length: v.length })
+    return v
+  })
   const [isPipelineOpen, setIsPipelineOpen] = React.useState(false)
+
+  // DEBUG: Log wenn Pipeline geöffnet und defaultCustomHint an PipelineSheet übergeben wird
+  React.useEffect(() => {
+    if (isPipelineOpen) {
+      console.log('[file-preview] PipelineSheet wird geöffnet mit defaultCustomHint:', {
+        savedCustomHint,
+        savedCustomHintLength: savedCustomHint?.length ?? 0,
+      })
+    }
+  }, [isPipelineOpen, savedCustomHint])
+
+  // Korrekturhinweis aus Metadaten des transformierten Artefakts laden, wenn Feld leer
+  // (localStorage ist oft leer nach Reload; Metadaten sind die Quelle der Wahrheit)
+  React.useEffect(() => {
+    if (!isPipelineOpen || !activeLibraryId) return
+    if (savedCustomHint && savedCustomHint.length > 0) return
+    const transformedId = shadowTwinState?.transformed?.id
+    if (!transformedId) return
+
+    let cancelled = false
+    async function loadFromMetadata() {
+      try {
+        let markdown = ''
+        if (isMongoShadowTwinId(transformedId)) {
+          const parts = parseMongoShadowTwinId(transformedId)
+          if (!parts || cancelled) return
+          markdown = await fetchShadowTwinMarkdown(activeLibraryId, parts)
+        } else if (provider && transformedId) {
+          const bin = await provider.getBinary(transformedId)
+          markdown = await bin.blob.text()
+        }
+        if (cancelled || !markdown) return
+        const { meta } = parseSecretaryMarkdownStrict(markdown)
+        const hint = typeof meta?.customHint === 'string' ? meta.customHint.trim() : ''
+        if (hint) {
+          setSavedCustomHint(hint)
+          localStorage.setItem(customHintStorageKey, hint)
+        }
+      } catch (err) {
+        FileLogger.warn('file-preview', 'customHint aus Metadaten laden fehlgeschlagen', {
+          error: err instanceof Error ? err.message : String(err),
+        })
+      }
+    }
+    void loadFromMetadata()
+    return () => {
+      cancelled = true
+    }
+  }, [isPipelineOpen, activeLibraryId, savedCustomHint, shadowTwinState?.transformed?.id, customHintStorageKey, provider])
+
   const [pipelineDefaultSteps, setPipelineDefaultSteps] = React.useState<{ extract: boolean; metadata: boolean; ingest: boolean } | undefined>(undefined)
   const [pipelineDefaultForce, setPipelineDefaultForce] = React.useState(false)
   const [targetLanguage, setTargetLanguage] = React.useState<string>("de")
@@ -748,12 +809,25 @@ function PreviewContent({
       setPipelineDefaultSteps({ extract: false, metadata: false, ingest: true })
     }
     setPipelineDefaultForce(force)
+    // Korrekturhinweis bei jedem Öffnen aus localStorage aktualisieren,
+    // damit der zuletzt gespeicherte Wert immer angezeigt wird.
+    if (typeof window !== 'undefined') {
+      const fromStorage = localStorage.getItem(customHintStorageKey) ?? ''
+      console.log('[file-preview] openPipelineForPhase – customHint:', {
+        customHintStorageKey,
+        fromStorage,
+        fromStorageLength: fromStorage.length,
+        phase,
+        force,
+      })
+      setSavedCustomHint(fromStorage)
+    }
     setIsPipelineOpen(true)
-  }, [])
+  }, [customHintStorageKey])
 
   // Pipeline starten
   const runPipeline = React.useCallback(
-    async (args: { templateName?: string; targetLanguage: string; policies: PipelinePolicies; coverImage?: CoverImageOptions; llmModel?: string }) => {
+    async (args: { templateName?: string; targetLanguage: string; policies: PipelinePolicies; coverImage?: CoverImageOptions; llmModel?: string; customHint?: string }) => {
       if (!activeLibraryId) {
         toast.error("Fehler", { description: "libraryId fehlt" })
         return
@@ -782,9 +856,26 @@ function PreviewContent({
           // Cover-Bild-Generierung
           generateCoverImage: args.coverImage?.generateCoverImage,
           coverImagePrompt: args.coverImage?.coverImagePrompt,
+          // Korrekturhinweis des Anwenders (optional, wird ans Prompt angehängt)
+          customHint: args.customHint,
           // LLM-Modell für Template-Transformation
           llmModel: args.llmModel,
         })
+
+        // Korrekturhinweis für Re-Open in localStorage speichern
+        if (args.customHint) {
+          localStorage.setItem(customHintStorageKey, args.customHint)
+          setSavedCustomHint(args.customHint)
+          console.log('[file-preview] runPipeline – customHint gespeichert:', {
+            customHintStorageKey,
+            customHint: args.customHint,
+            customHintLength: args.customHint.length,
+          })
+        } else {
+          localStorage.removeItem(customHintStorageKey)
+          setSavedCustomHint('')
+          console.log('[file-preview] runPipeline – customHint entfernt (war leer)', { customHintStorageKey })
+        }
 
         toast.success("Job angelegt", { description: `Job ${jobId} wurde enqueued.` })
         toast.success("Job in Warteschlange", { description: "Worker startet den Job automatisch. Ergebnisse erscheinen im Shadow‑Twin." })
@@ -797,7 +888,7 @@ function PreviewContent({
         setIsRunningPipeline(false)
       }
     },
-    [activeLibraryId, item, kind, libraryConfigChatTargetLanguage, libraryConfigPdfTemplate]
+    [activeLibraryId, item, kind, libraryConfigChatTargetLanguage, libraryConfigPdfTemplate, customHintStorageKey]
   )
 
   // async function loadRagStatus() {
@@ -913,8 +1004,9 @@ function PreviewContent({
                         <Sparkles className="h-4 w-4 mr-2" />
                         Jetzt erstellen
                       </Button>
-                    ) : transcript.transcriptItem && ['pdf', 'audio', 'markdown'].includes(fileType) ? (
+                    ) : transcript.transcriptItem && ['pdf', 'audio', 'markdown', 'docx', 'xlsx', 'pptx'].includes(fileType) ? (
                       <>
+                        {(fileType as string) === 'pdf' && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -959,6 +1051,7 @@ function PreviewContent({
                         >
                           Seiten splitten
                         </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"
@@ -1083,7 +1176,7 @@ function PreviewContent({
             onOpenChange={setIsPipelineOpen}
             libraryId={activeLibraryId}
             sourceFileName={item.metadata.name}
-            kind={kind === "pdf" || kind === "audio" || kind === "video" || kind === "markdown" ? kind : "other"}
+            kind={(["pdf", "audio", "video", "markdown"].includes(kind) ? kind : (["docx", "xlsx", "pptx"].includes(kind) ? "office" : "other")) as "pdf" | "audio" | "video" | "markdown" | "office" | "other"}
             targetLanguage={effectiveTargetLanguage}
             onTargetLanguageChange={setTargetLanguage}
             templateName={templateName}
@@ -1103,6 +1196,7 @@ function PreviewContent({
               hasIngested: publishStep?.state !== "missing",
             }}
             defaultGenerateCoverImage={activeLibrary?.config?.secretaryService?.generateCoverImage}
+            defaultCustomHint={savedCustomHint}
           />
         </IngestionDataProvider>
       )
@@ -1123,12 +1217,233 @@ function PreviewContent({
           showTransformControls={false}
         />
       );
-    case 'video':
-      FileLogger.debug('PreviewContent', 'Video-Player wird gerendert', {
+    case 'video': {
+      FileLogger.debug('PreviewContent', 'Video-Pipeline wird gerendert', {
         itemId: item.id,
         itemName: item.metadata.name
       });
-      return <VideoPlayer provider={provider} activeLibraryId={activeLibraryId} onRefreshFolder={onRefreshFolder} showTransformControls={false} />;
+      if (!provider) {
+        return <div className="text-sm text-muted-foreground">Kein Provider verfügbar.</div>;
+      }
+      const videoDocModifiedAt = shadowTwinState?.transformed?.metadata.modifiedAt
+        ? new Date(shadowTwinState.transformed.metadata.modifiedAt).toISOString()
+        : undefined
+      const videoTextStep = getStoryStep(storySteps, "text")
+      const videoTransformStep = getStoryStep(storySteps, "transform")
+      const videoPublishStep = getStoryStep(storySteps, "publish")
+
+      return (
+        <IngestionDataProvider
+          libraryId={activeLibraryId}
+          fileId={item.id}
+          docModifiedAt={videoDocModifiedAt}
+          includeChapters={true}
+        >
+          {hasActiveJob && currentJobInfo && (
+            <JobProgressBar 
+              status={currentJobInfo.status} 
+              progress={currentJobInfo.progress} 
+              message={currentJobInfo.message}
+              phase={currentJobInfo.phase}
+            />
+          )}
+          <Tabs value={infoTab} onValueChange={(v) => setInfoTab(v as typeof infoTab)} className="flex h-full flex-col">
+            <TabsList className="mx-3 mt-3 w-fit">
+              <TabsTrigger value="original">Original</TabsTrigger>
+              <TabsTrigger value="transcript">
+                <ArtifactTabLabel label="Transkript" icon={FileText} state={videoTextStep?.state || null} />
+              </TabsTrigger>
+              <TabsTrigger value="transform">
+                <ArtifactTabLabel label="Transformation" icon={Sparkles} state={videoTransformStep?.state || null} />
+              </TabsTrigger>
+              <TabsTrigger value="story">
+                <ArtifactTabLabel label="Story" icon={Upload} state={videoPublishStep?.state || null} />
+              </TabsTrigger>
+              <TabsTrigger value="overview">Übersicht</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="original" className="min-h-0 flex-1 overflow-hidden p-3">
+              <div className="h-full overflow-hidden rounded border">
+                <SourceAndTranscriptPane
+                  provider={provider}
+                  libraryId={activeLibraryId}
+                  sourceFile={item}
+                  streamingUrl={null}
+                  transcriptItem={transcript.transcriptItem}
+                  leftPaneMode="video"
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="transcript" className="min-h-0 flex-1 overflow-hidden p-3">
+              <div className="h-full overflow-hidden rounded border p-3">
+                <ArtifactMarkdownPanel
+                  title="Transcript (aus dem Original transkribiert)"
+                  titleClassName="text-xs text-muted-foreground font-normal"
+                  item={transcript.transcriptItem}
+                  provider={provider}
+                  libraryId={activeLibraryId || undefined}
+                  emptyHint="Noch kein Transkript vorhanden."
+                  additionalActions={
+                    !transcript.transcriptItem ? (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => openPipelineForPhase("transcript")}
+                        disabled={isRunningPipeline || hasActiveJob}
+                      >
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Jetzt erstellen
+                      </Button>
+                    ) : transcript.transcriptItem && ['pdf', 'audio', 'video', 'markdown', 'docx', 'xlsx', 'pptx'].includes(fileType) ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openPipelineForPhase("transcript", true)}
+                        disabled={isRunningPipeline || hasActiveJob}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Neu generieren
+                      </Button>
+                    ) : null
+                  }
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="transform" className="min-h-0 flex-1 overflow-auto p-3">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-muted-foreground">
+                    Story-Inhalte und Metadaten (aus dem Transkript transformiert)
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {!transformItem ? (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => openPipelineForPhase("transform")}
+                        disabled={isRunningPipeline || hasActiveJob}
+                      >
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Jetzt erstellen
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openPipelineForPhase("transform", true)}
+                        disabled={isRunningPipeline || hasActiveJob}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Neu generieren
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                {transformError ? (
+                  <Alert variant="destructive">
+                    <AlertDescription>{transformError}</AlertDescription>
+                  </Alert>
+                ) : !transformItem ? (
+                  <div className="rounded border p-3 text-sm text-muted-foreground">
+                    Keine Transformationsdaten vorhanden. Bitte stellen Sie sicher, dass die Datei verarbeitet wurde.
+                  </div>
+                ) : (
+                  <div className="rounded border">
+                    <JobReportTabWithShadowTwin 
+                      libraryId={activeLibraryId} 
+                      fileId={item.id} 
+                      fileName={item.metadata.name}
+                      parentId={item.parentId}
+                      provider={provider}
+                      ingestionTabMode="preview"
+                      effectiveMdIdRef={effectiveMdIdRef}
+                    />
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="story" className="min-h-0 flex-1 overflow-auto p-3">
+              {infoTab === "story" ? (
+                <div className="h-full overflow-auto rounded border p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="text-xs text-muted-foreground">
+                      veröffentlichte Story (aus den Artefakten der Transformation erstellt) · Diese Ansicht entspricht der Gallery-Detail Ansicht.
+                    </div>
+                    {videoPublishStep?.state === "missing" ? (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => openPipelineForPhase("story")}
+                        disabled={isRunningPipeline || hasActiveJob}
+                      >
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Jetzt erstellen
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openPipelineForPhase("story", true)}
+                        disabled={isRunningPipeline || hasActiveJob}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Erneut publizieren
+                      </Button>
+                    )}
+                  </div>
+                  <IngestionDetailPanel libraryId={activeLibraryId} fileId={item.id} />
+                </div>
+              ) : null}
+            </TabsContent>
+
+            <TabsContent value="overview" className="min-h-0 flex-1 overflow-auto p-3">
+              {infoTab === "overview" ? (
+                <div className="rounded border">
+                  <ArtifactInfoPanel
+                    libraryId={activeLibraryId}
+                    sourceFile={item}
+                    shadowTwinFolderId={shadowTwinState?.shadowTwinFolderId || null}
+                    transcriptFiles={shadowTwinState?.transcriptFiles}
+                    transformed={shadowTwinState?.transformed}
+                    targetLanguage="de"
+                  />
+                </div>
+              ) : null}
+            </TabsContent>
+          </Tabs>
+          <PipelineSheet
+            isOpen={isPipelineOpen}
+            onOpenChange={setIsPipelineOpen}
+            libraryId={activeLibraryId}
+            sourceFileName={item.metadata.name}
+            kind={(["pdf", "audio", "video", "markdown"].includes(kind) ? kind : (["docx", "xlsx", "pptx"].includes(kind) ? "office" : "other")) as "pdf" | "audio" | "video" | "markdown" | "office" | "other"}
+            targetLanguage={effectiveTargetLanguage}
+            onTargetLanguageChange={setTargetLanguage}
+            templateName={templateName}
+            onTemplateNameChange={setTemplateName}
+            templates={templates}
+            isLoadingTemplates={isLoadingTemplates}
+            llmModel={llmModel}
+            onLlmModelChange={setLlmModel}
+            llmModels={llmModels}
+            isLoadingLlmModels={isLoadingLlmModels}
+            onStart={runPipeline}
+            defaultSteps={pipelineDefaultSteps}
+            defaultForce={pipelineDefaultForce}
+            existingArtifacts={{
+              hasTranscript: !!transcript.transcriptItem,
+              hasTransformed: !!shadowTwinState?.transformed,
+              hasIngested: videoPublishStep?.state !== "missing",
+            }}
+            defaultGenerateCoverImage={activeLibrary?.config?.secretaryService?.generateCoverImage}
+            defaultCustomHint={savedCustomHint}
+          />
+        </IngestionDataProvider>
+      )
+    }
     case 'markdown': {
       if (!provider) {
         return <div className="text-sm text-muted-foreground">Kein Provider verfügbar.</div>;
@@ -1371,7 +1686,7 @@ function PreviewContent({
             onOpenChange={setIsPipelineOpen}
             libraryId={activeLibraryId}
             sourceFileName={item.metadata.name}
-            kind={kind === "pdf" || kind === "audio" || kind === "video" || kind === "markdown" ? kind : "other"}
+            kind={(["pdf", "audio", "video", "markdown"].includes(kind) ? kind : (["docx", "xlsx", "pptx"].includes(kind) ? "office" : "other")) as "pdf" | "audio" | "video" | "markdown" | "office" | "other"}
             targetLanguage={effectiveTargetLanguage}
             onTargetLanguageChange={setTargetLanguage}
             templateName={templateName}
@@ -1391,6 +1706,7 @@ function PreviewContent({
               hasIngested: publishStep?.state !== "missing",
             }}
             defaultGenerateCoverImage={activeLibrary?.config?.secretaryService?.generateCoverImage}
+            defaultCustomHint={savedCustomHint}
           />
         </IngestionDataProvider>
       )
@@ -1471,8 +1787,9 @@ function PreviewContent({
                         <Sparkles className="h-4 w-4 mr-2" />
                         Jetzt erstellen
                       </Button>
-                    ) : transcript.transcriptItem && ['pdf', 'audio', 'markdown'].includes(fileType) ? (
+                    ) : transcript.transcriptItem && ['pdf', 'audio', 'markdown', 'docx', 'xlsx', 'pptx'].includes(fileType) ? (
                       <>
+                        {(fileType as string) === 'pdf' && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -1517,6 +1834,7 @@ function PreviewContent({
                         >
                           Seiten splitten
                         </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"
@@ -1641,7 +1959,7 @@ function PreviewContent({
             onOpenChange={setIsPipelineOpen}
             libraryId={activeLibraryId}
             sourceFileName={item.metadata.name}
-            kind={kind === "pdf" || kind === "audio" || kind === "video" || kind === "markdown" ? kind : "other"}
+            kind={(["pdf", "audio", "video", "markdown"].includes(kind) ? kind : (["docx", "xlsx", "pptx"].includes(kind) ? "office" : "other")) as "pdf" | "audio" | "video" | "markdown" | "office" | "other"}
             targetLanguage={effectiveTargetLanguage}
             onTargetLanguageChange={setTargetLanguage}
             templateName={templateName}
@@ -1661,13 +1979,281 @@ function PreviewContent({
               hasIngested: publishStep?.state !== "missing",
             }}
             defaultGenerateCoverImage={activeLibrary?.config?.secretaryService?.generateCoverImage}
+            defaultCustomHint={savedCustomHint}
           />
         </IngestionDataProvider>
       )
     }
     case 'docx':
-    case 'pptx':
     case 'xlsx':
+    case 'pptx': {
+      // Office-Dateien: volle Pipeline-UI wie PDF (Transkript, Transformation, Story)
+      if (!provider) {
+        return <div className="text-sm text-muted-foreground">Kein Provider verfügbar.</div>;
+      }
+      const docModifiedAtOffice = shadowTwinState?.transformed?.metadata.modifiedAt
+        ? new Date(shadowTwinState.transformed.metadata.modifiedAt).toISOString()
+        : undefined
+      const textStepOffice = getStoryStep(storySteps, "text")
+      const transformStepOffice = getStoryStep(storySteps, "transform")
+      const publishStepOffice = getStoryStep(storySteps, "publish")
+
+      return (
+        <IngestionDataProvider
+          libraryId={activeLibraryId}
+          fileId={item.id}
+          docModifiedAt={docModifiedAtOffice}
+          includeChapters={true}
+        >
+          {hasActiveJob && currentJobInfo && (
+            <JobProgressBar 
+              status={currentJobInfo.status} 
+              progress={currentJobInfo.progress} 
+              message={currentJobInfo.message}
+              phase={currentJobInfo.phase}
+            />
+          )}
+          <Tabs value={infoTab} onValueChange={(v) => setInfoTab(v as typeof infoTab)} className="flex h-full flex-col">
+            <TabsList className="mx-3 mt-3 w-fit">
+              <TabsTrigger value="original">Original</TabsTrigger>
+              <TabsTrigger value="transcript">
+                <ArtifactTabLabel label="Transkript" icon={FileText} state={textStepOffice?.state || null} />
+              </TabsTrigger>
+              <TabsTrigger value="transform">
+                <ArtifactTabLabel label="Transformation" icon={Sparkles} state={transformStepOffice?.state || null} />
+              </TabsTrigger>
+              <TabsTrigger value="story">
+                <ArtifactTabLabel label="Story" icon={Upload} state={publishStepOffice?.state || null} />
+              </TabsTrigger>
+              <TabsTrigger value="overview">Übersicht</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="original" className="min-h-0 flex-1 overflow-hidden p-3">
+              <div className="h-full overflow-hidden rounded border">
+                <SourceAndTranscriptPane
+                  provider={provider}
+                  libraryId={activeLibraryId}
+                  sourceFile={item}
+                  streamingUrl={null}
+                  transcriptItem={transcript.transcriptItem}
+                  leftPaneMode="pdf"
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="transcript" className="min-h-0 flex-1 overflow-hidden p-3">
+              <div className="h-full overflow-hidden rounded border p-3">
+                <ArtifactMarkdownPanel
+                  title="Transcript (aus dem Original extrahiert)"
+                  titleClassName="text-xs text-muted-foreground font-normal"
+                  item={transcript.transcriptItem}
+                  provider={provider}
+                  libraryId={activeLibraryId || undefined}
+                  emptyHint="Noch kein Transkript vorhanden."
+                  additionalActions={
+                    !transcript.transcriptItem ? (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => openPipelineForPhase("transcript")}
+                        disabled={isRunningPipeline || hasActiveJob}
+                      >
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Jetzt erstellen
+                      </Button>
+                    ) : transcript.transcriptItem && ['pdf', 'audio', 'markdown', 'docx', 'xlsx', 'pptx'].includes(fileType) ? (
+                      <>
+                        {(fileType as string) === 'pdf' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={isSplittingPages || !provider}
+                          onClick={async () => {
+                            if (!activeLibraryId || !transcript.transcriptItem?.id) return
+                            setIsSplittingPages(true)
+                            try {
+                              const res = await fetch(`/api/library/${encodeURIComponent(activeLibraryId)}/markdown/split-pages`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  sourceFileId: transcript.transcriptItem.id,
+                                  originalFileId: item.id,
+                                  targetLanguage: 'de',
+                                }),
+                              })
+                              const json = (await res.json().catch(() => ({}))) as { error?: unknown; folderName?: string; created?: number }
+                              if (!res.ok) {
+                                const msg = typeof json.error === 'string' ? json.error : `HTTP ${res.status}`
+                                throw new Error(msg)
+                              }
+                              toast.success("Seiten gesplittet", {
+                                description: `${json.created ?? 0} Seiten in Ordner "${json.folderName || 'pages'}" gespeichert.`
+                              })
+                              if (onRefreshFolder && item.parentId) {
+                                const refreshed = await provider?.listItemsById(item.parentId)
+                                if (refreshed) onRefreshFolder(item.parentId, refreshed)
+                              }
+                            } catch (error) {
+                              toast.error("Split fehlgeschlagen", {
+                                description: error instanceof Error ? error.message : "Unbekannter Fehler"
+                              })
+                            } finally {
+                              setIsSplittingPages(false)
+                            }
+                          }}
+                        >
+                          Seiten splitten
+                        </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openPipelineForPhase("transcript", true)}
+                          disabled={isRunningPipeline || hasActiveJob}
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Neu generieren
+                        </Button>
+                      </>
+                    ) : null
+                  }
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="transform" className="min-h-0 flex-1 overflow-auto p-3">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-muted-foreground">
+                    Story-Inhalte und Metadaten (aus dem Transkript transformiert)
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {!transformItem ? (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => openPipelineForPhase("transform")}
+                        disabled={isRunningPipeline || hasActiveJob}
+                      >
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Jetzt erstellen
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openPipelineForPhase("transform", true)}
+                        disabled={isRunningPipeline || hasActiveJob}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Neu generieren
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                {transformError ? (
+                  <Alert variant="destructive">
+                    <AlertDescription>{transformError}</AlertDescription>
+                  </Alert>
+                ) : !transformItem ? (
+                  <div className="rounded border p-3 text-sm text-muted-foreground">
+                    Keine Transformationsdaten vorhanden. Bitte stellen Sie sicher, dass die Datei verarbeitet wurde.
+                  </div>
+                ) : (
+                  <div className="rounded border">
+                    <JobReportTabWithShadowTwin 
+                      libraryId={activeLibraryId} 
+                      fileId={item.id} 
+                      fileName={item.metadata.name}
+                      parentId={item.parentId}
+                      provider={provider}
+                      ingestionTabMode="preview"
+                      effectiveMdIdRef={effectiveMdIdRef}
+                    />
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="story" className="min-h-0 flex-1 overflow-auto p-3">
+              {infoTab === "story" ? (
+                <div className="h-full overflow-auto rounded border p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="text-xs text-muted-foreground">
+                      veröffentlichte Story (aus den Artefakten der Transformation erstellt)
+                    </div>
+                    {publishStepOffice?.state === "missing" ? (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => openPipelineForPhase("story")}
+                        disabled={isRunningPipeline || hasActiveJob}
+                      >
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Jetzt erstellen
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openPipelineForPhase("story", true)}
+                        disabled={isRunningPipeline || hasActiveJob}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Erneut publizieren
+                      </Button>
+                    )}
+                  </div>
+                  <IngestionDetailPanel libraryId={activeLibraryId} fileId={item.id} />
+                </div>
+              ) : null}
+            </TabsContent>
+
+            <TabsContent value="overview" className="min-h-0 flex-1 overflow-auto p-3">
+              {infoTab === "overview" ? (
+                <div className="rounded border">
+                  <ArtifactInfoPanel
+                    libraryId={activeLibraryId}
+                    sourceFile={item}
+                    shadowTwinFolderId={shadowTwinState?.shadowTwinFolderId || null}
+                    transcriptFiles={shadowTwinState?.transcriptFiles}
+                    transformed={shadowTwinState?.transformed}
+                    targetLanguage="de"
+                  />
+                </div>
+              ) : null}
+            </TabsContent>
+          </Tabs>
+          <PipelineSheet
+            isOpen={isPipelineOpen}
+            onOpenChange={setIsPipelineOpen}
+            libraryId={activeLibraryId}
+            sourceFileName={item.metadata.name}
+            kind="office"
+            targetLanguage={effectiveTargetLanguage}
+            onTargetLanguageChange={setTargetLanguage}
+            templateName={templateName}
+            onTemplateNameChange={setTemplateName}
+            templates={templates}
+            isLoadingTemplates={isLoadingTemplates}
+            llmModel={llmModel}
+            onLlmModelChange={setLlmModel}
+            llmModels={llmModels}
+            isLoadingLlmModels={isLoadingLlmModels}
+            onStart={runPipeline}
+            defaultSteps={pipelineDefaultSteps}
+            defaultForce={pipelineDefaultForce}
+            existingArtifacts={{
+              hasTranscript: !!transcript.transcriptItem,
+              hasTransformed: !!shadowTwinState?.transformed,
+              hasIngested: publishStepOffice?.state !== "missing",
+            }}
+            defaultGenerateCoverImage={activeLibrary?.config?.secretaryService?.generateCoverImage}
+            defaultCustomHint={savedCustomHint}
+          />
+        </IngestionDataProvider>
+      )
+    }
     case 'presentation':
       return (
         <DocumentPreviewComponent
@@ -1700,7 +2286,7 @@ function PreviewContent({
             onOpenChange={setIsPipelineOpen}
             libraryId={activeLibraryId}
             sourceFileName={item.metadata.name}
-            kind={kind === "pdf" || kind === "audio" || kind === "video" || kind === "markdown" ? kind : "other"}
+            kind={(["pdf", "audio", "video", "markdown"].includes(kind) ? kind : (["docx", "xlsx", "pptx"].includes(kind) ? "office" : "other")) as "pdf" | "audio" | "video" | "markdown" | "office" | "other"}
             targetLanguage={effectiveTargetLanguage}
             onTargetLanguageChange={setTargetLanguage}
             templateName={templateName}
@@ -1720,6 +2306,7 @@ function PreviewContent({
               hasIngested: false,
             }}
             defaultGenerateCoverImage={activeLibrary?.config?.secretaryService?.generateCoverImage}
+            defaultCustomHint={savedCustomHint}
           />
         </>
       );

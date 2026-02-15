@@ -24,13 +24,14 @@ import type { StorageItem } from "@/lib/storage/types"
  * - UI-Rendering (wie wird die Datei angezeigt)
  * - Story-Status-Labels
  */
-export type MediaKind = "pdf" | "audio" | "video" | "image" | "markdown" | "unknown"
+export type MediaKind = "pdf" | "audio" | "video" | "image" | "markdown" | "docx" | "xlsx" | "pptx" | "unknown"
 
 /**
  * Job-Typ für Backend-Verarbeitung
  * Mapping: MediaKind → JobType
+ * Office-Dateien (docx, xlsx, pptx) nutzen denselben Endpoint → "office"
  */
-export type JobType = "pdf" | "audio" | "video" | "text"
+export type JobType = "pdf" | "audio" | "video" | "text" | "office"
 
 /**
  * UI-Kategorie für Dateilisten-Filterung
@@ -70,6 +71,11 @@ export function getMediaKind(file: StorageItem): MediaKind {
   
   // Markdown/Text-Dateien
   if (mime.includes("markdown") || /\.(md|mdx|txt)$/.test(name)) return "markdown"
+
+  // Office-Dateien (Secretary unterstützt alle drei über /api/office/process)
+  if (/\.(doc|docx|odt)$/.test(name) || mime.includes("wordprocessingml") || mime.includes("msword")) return "docx"
+  if (/\.(xls|xlsx|ods)$/.test(name) || mime.includes("spreadsheetml") || mime.includes("ms-excel")) return "xlsx"
+  if (/\.(ppt|pptx|odp)$/.test(name) || mime.includes("presentationml") || mime.includes("ms-powerpoint")) return "pptx"
   
   return "unknown"
 }
@@ -95,6 +101,10 @@ export function mediaKindToJobType(kind: MediaKind): JobType {
       return "audio"
     case "video":
       return "video"
+    case "docx":
+    case "xlsx":
+    case "pptx":
+      return "office"
     case "markdown":
     case "image":
     case "unknown":
@@ -121,6 +131,9 @@ export function mediaKindToFileCategory(kind: MediaKind): FileCategory {
       return "text"
     case "pdf":
     case "image":
+    case "docx":
+    case "xlsx":
+    case "pptx":
       return "documents"
     case "unknown":
     default:
@@ -135,7 +148,7 @@ export function mediaKindToFileCategory(kind: MediaKind): FileCategory {
  * @returns boolean - true wenn verarbeitbar
  */
 export function isPipelineSupported(kind: MediaKind): boolean {
-  return kind === "pdf" || kind === "audio" || kind === "video" || kind === "markdown"
+  return kind === "pdf" || kind === "audio" || kind === "video" || kind === "markdown" || kind === "docx" || kind === "xlsx" || kind === "pptx"
 }
 
 /**
@@ -155,6 +168,9 @@ export function getTextStepLabel(kind: MediaKind): string {
       return "Transkription"
     case "pdf":
     case "image":
+    case "docx":
+    case "xlsx":
+    case "pptx":
       return "Text (OCR/Extrakt)"
     default:
       return "Text"

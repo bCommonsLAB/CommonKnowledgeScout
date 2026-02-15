@@ -16,6 +16,7 @@ import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver';
 import { LibraryService } from '@/lib/services/library-service';
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service';
 import { isMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id';
+import { parseFrontmatter } from '@/lib/markdown/frontmatter';
 
 /**
  * GET /api/library/[libraryId]/artifacts/resolve
@@ -106,7 +107,67 @@ export async function GET(
           { status: 200 }
         );
       }
-      // Kein Artefakt im Service gefunden
+
+      // Kein Artefakt im Service gefunden (z.B. MongoDB bei primaryStore='mongo').
+      // WICHTIG: Creation Wizard schreibt nur ins Dateisystem (write-bundle → writeArtifact).
+      // Bei Mongo-first Libraries liegen Wizard-Artefakte daher nur im Provider.
+      // Provider-Fallback versuchen, bevor wir null zurückgeben.
+      try {
+        const provider = await getServerProvider(userEmail, libraryId);
+        const resolved = await resolveArtifact(provider, {
+          sourceItemId: sourceId,
+          sourceName,
+          parentId,
+          targetLanguage,
+          templateName,
+          preferredKind: preferredKind || undefined,
+        });
+
+        if (resolved) {
+          return NextResponse.json(
+            { artifact: resolved },
+            { status: 200 }
+          );
+        }
+      } catch (providerError) {
+        FileLogger.debug('artifacts/resolve', 'Provider-Fallback fehlgeschlagen (Service hatte null)', {
+          providerError: providerError instanceof Error ? providerError.message : String(providerError),
+        });
+      }
+
+      // Self-Reference für Wizard-Dateien (transformationSource: true):
+      // Die Source-Datei selbst ist die Transformation – kein Shadow-Twin nötig.
+      try {
+        const provider = await getServerProvider(userEmail, libraryId);
+        const item = await provider.getItemById(sourceId);
+        if (item?.type === 'file') {
+          const bin = await provider.getBinary(sourceId);
+          const content = await bin.blob.text();
+          const { meta } = parseFrontmatter(content);
+          if (meta?.transformationSource === true) {
+            // Für Transformation und Transcript: Source-Datei als Artefakt zurückgeben
+            const kind = (resolvedKind === 'transformation' || resolvedKind === 'transcript')
+              ? resolvedKind
+              : 'transformation';
+            return NextResponse.json(
+              {
+                artifact: {
+                  kind,
+                  fileId: sourceId,
+                  fileName: sourceName,
+                  location: 'sibling' as const,
+                },
+              },
+              { status: 200 }
+            );
+          }
+        }
+      } catch (selfRefError) {
+        FileLogger.debug('artifacts/resolve', 'Self-Reference-Prüfung fehlgeschlagen', {
+          error: selfRefError instanceof Error ? selfRefError.message : String(selfRefError),
+        });
+      }
+
       return NextResponse.json({ artifact: null }, { status: 200 });
     } catch (error) {
       // Service-Fehler → Fallback zu Provider-basierter Auflösung (nur wenn Provider verfügbar)
@@ -139,7 +200,37 @@ export async function GET(
         });
       }
 
-      // Kein Artefakt gefunden
+      // Self-Reference für Wizard-Dateien (transformationSource: true) – auch bei Service-Fehler
+      try {
+        const provider = await getServerProvider(userEmail, libraryId);
+        const item = await provider.getItemById(sourceId);
+        if (item?.type === 'file') {
+          const bin = await provider.getBinary(sourceId);
+          const content = await bin.blob.text();
+          const { meta } = parseFrontmatter(content);
+          if (meta?.transformationSource === true) {
+            const kind = (resolvedKind === 'transformation' || resolvedKind === 'transcript')
+              ? resolvedKind
+              : 'transformation';
+            return NextResponse.json(
+              {
+                artifact: {
+                  kind,
+                  fileId: sourceId,
+                  fileName: sourceName,
+                  location: 'sibling' as const,
+                },
+              },
+              { status: 200 }
+            );
+          }
+        }
+      } catch (selfRefError) {
+        FileLogger.debug('artifacts/resolve', 'Self-Reference-Prüfung fehlgeschlagen (catch-Pfad)', {
+          error: selfRefError instanceof Error ? selfRefError.message : String(selfRefError),
+        });
+      }
+
       return NextResponse.json({ artifact: null }, { status: 200 });
     }
   } catch (error) {

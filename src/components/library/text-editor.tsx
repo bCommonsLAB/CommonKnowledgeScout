@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { StorageProvider } from '@/lib/storage/types';
@@ -16,6 +16,12 @@ interface TextEditorProps {
 export function TextEditor({ content, provider, onSaveAction }: TextEditorProps) {
   const [value, setValue] = useState(content);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Sync mit content-Prop wenn sich dieser aendert (z.B. nach asynchronem Laden im Artefakt-Dialog).
+  // Ohne dies bleibt der Editor leer beim ersten Oeffnen, da useState nur den Initialwert nutzt.
+  useEffect(() => {
+    setValue(content);
+  }, [content]);
   
   const handleSave = useCallback(async () => {
     FileLogger.info('TextEditor', 'Speichern gestartet', {

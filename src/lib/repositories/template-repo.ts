@@ -153,7 +153,19 @@ export class TemplateRepository {
       ? { _id: actualId }
       : { _id: actualId, libraryId }
     
-    const result = await col.findOne(filter)
+    let result = await col.findOne(filter)
+    
+    // Fallback: Alte _id-Struktur (nur name, ohne libraryId-Prefix)
+    // Templates die vor der libraryId-Migration erstellt wurden, haben _id = name
+    if (!result && !templateId.includes(':')) {
+      const oldFilter = admin
+        ? { _id: templateId, libraryId }
+        : { _id: templateId, libraryId }
+      result = await col.findOne(oldFilter)
+      if (result && process.env.NODE_ENV === 'development') {
+        console.debug('[TemplateRepository] findById: Gefunden mit alter _id, Migration empfohlen')
+      }
+    }
     
     // Debug-Logging für Ergebnis
     if (process.env.NODE_ENV === 'development') {

@@ -14,7 +14,7 @@
 /**
  * Unterstützte Source-Typen für Creation-Inputs
  */
-export type CreationSourceType = 'spoken' | 'url' | 'text' | 'file'
+export type CreationSourceType = 'spoken' | 'url' | 'text' | 'file' | 'folder'
 
 /**
  * Definition einer unterstützten Input-Quelle für den Creation-Wizard
@@ -39,7 +39,9 @@ export interface CreationSource {
  * - `editDraft`: Formular-Modus: direkte Bearbeitung aller Metadaten + Markdown-Draft (mit Feld-Auswahl)
  * - `uploadImages`: Optionaler Step zum Hochladen von Bildern für konfigurierte Bildfelder
  * - `previewDetail`: Vorschau der fertigen Detailseite
+ * - `completion`: Abschluss-Step nach Speichern – zeigt Erfolgsmeldung und „Weiter zur Library“
  * - `selectRelatedTestimonials`: Auswahl/Exclude von gefundenen Testimonials (für Dialograum-Ergebnis)
+ * - `selectFolderArtifacts`: Auswahl von Artefakten aus einem Verzeichnis (für Folder-Flow)
  */
 export type CreationFlowStepPreset = 
   | 'welcome'
@@ -49,9 +51,11 @@ export type CreationFlowStepPreset =
   | 'generateDraft' 
   | 'previewDetail'
   | 'publish'
+  | 'completion'
   | 'editDraft'
   | 'uploadImages'
   | 'selectRelatedTestimonials'
+  | 'selectFolderArtifacts'
 
 /**
  * Optionaler Welcome-Step Inhalt (Markdown)
@@ -64,7 +68,7 @@ export interface TemplateCreationWelcomeConfig {
   markdown: string
 }
 
-export type TemplatePreviewDetailViewType = 'book' | 'session' | 'testimonial' | 'blog' | 'climateAction'
+export type TemplatePreviewDetailViewType = 'book' | 'session' | 'testimonial' | 'blog' | 'climateAction' | 'divaDocument'
 
 export interface TemplateCreationPreviewConfig {
   /**

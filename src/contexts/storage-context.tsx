@@ -436,7 +436,13 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       } catch (err) {
         if (isCancelled) return; // Ignoriere Fehler wenn gecancelt
         
-        AuthLogger.error('StorageContext', 'Library fetch failed', err);
+        // Fehlerdetails normalisieren – manche Fehler (z.B. leere Objekte) serialisieren als {}
+        const errDetails = err instanceof Error
+          ? { message: err.message, name: err.name, stack: err.stack }
+          : err && typeof err === 'object' && Object.keys(err as object).length > 0
+            ? (err as Record<string, unknown>)
+            : { raw: String(err), type: typeof err };
+        AuthLogger.error('StorageContext', 'Library fetch failed', errDetails);
         
         if (retryCount < maxRetries) {
           AuthLogger.warn('StorageContext', `Retrying library fetch (${retryCount + 1}/${maxRetries})`);

@@ -6,9 +6,10 @@ import { BookDetail } from "@/components/library/book-detail"
 import { SessionDetail } from "@/components/library/session-detail"
 import { TestimonialDetail } from "@/components/library/testimonial-detail"
 import { ClimateActionDetail } from "@/components/library/climate-action-detail"
+import { DivaDocumentDetail } from "@/components/library/diva-document-detail"
 import type { StorageProvider } from "@/lib/storage/types"
 import type { TemplatePreviewDetailViewType } from "@/lib/templates/template-types"
-import { mapToBookDetail, mapToSessionDetail, mapToTestimonialDetail, mapToClimateActionDetail } from "@/lib/mappers/doc-meta-mappers"
+import { mapToBookDetail, mapToSessionDetail, mapToTestimonialDetail, mapToClimateActionDetail, mapToDivaDocumentDetail } from "@/lib/mappers/doc-meta-mappers"
 import { validateMetadataForViewType, formatValidationWarning } from "@/lib/detail-view-types"
 
 interface DetailViewRendererProps {
@@ -110,6 +111,15 @@ export function DetailViewRenderer({
       <>
         {MissingFieldsWarning}
         <ClimateActionDetail data={mapToClimateActionDetail(docMetaJson)} showBackLink={showBackLink} />
+      </>
+    )
+  }
+  
+  if (detailViewType === "divaDocument") {
+    return (
+      <>
+        {MissingFieldsWarning}
+        <DivaDocumentDetail data={mapToDivaDocumentDetail(docMetaJson)} showBackLink={showBackLink} />
       </>
     )
   }

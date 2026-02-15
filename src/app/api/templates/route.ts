@@ -174,7 +174,10 @@ export async function PUT(request: NextRequest) {
     
     if (!template) {
       return NextResponse.json(
-        { error: 'Template nicht gefunden oder keine Berechtigung' },
+        {
+          error: 'Template nicht gefunden oder keine Berechtigung',
+          hint: 'Prüfe, ob templateId und libraryId korrekt sind. Bei älteren Templates kann ein Neuspeichern (Löschen + Neu anlegen) helfen.',
+        },
         { status: 404 }
       )
     }

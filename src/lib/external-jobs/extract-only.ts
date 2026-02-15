@@ -632,7 +632,9 @@ export async function runExtractOnly(
         ? 'extract_audio'
         : job.job_type === 'video'
           ? 'extract_video'
-          : 'extract_pdf'
+          : job.job_type === 'office'
+            ? 'extract_office'
+            : 'extract_pdf'
     await repo.updateStep(jobId, extractStepName, { status: 'completed', endedAt: new Date() })
   } catch {}
   try {

@@ -170,7 +170,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(data.data);
+    // Antwort normalisieren: Secretary kann data.text, data.markdown oder data.content liefern
+    const secretaryData = (data?.data ?? data) as Record<string, unknown> | undefined
+    const structuredData = (secretaryData?.structured_data ?? secretaryData?.structuredData) as Record<string, unknown> | undefined
+    const rawMarkdown =
+      (typeof secretaryData?.markdown === 'string' ? secretaryData.markdown : null) ||
+      (typeof secretaryData?.text === 'string' ? secretaryData.text : null) ||
+      (typeof secretaryData?.content === 'string' ? secretaryData.content : null) ||
+      ''
+
+    // WICHTIG: Gleiche Logik wie JobWorker (template-body-builder.ts).
+    // Wenn Secretary kein Markdown liefert (z.B. content: null vom LLM), Body aus structured_data bauen.
+    let markdown = (rawMarkdown || '').trim()
+    if (!markdown && structuredData && typeof structuredData === 'object' && templateContent) {
+      const { buildTransformationBody } = await import('@/lib/external-jobs/template-body-builder')
+      const built = buildTransformationBody({
+        meta: structuredData,
+        templateContent,
+        templateNameForParsing: templateName || 'unknown',
+      })
+      markdown = built.body || ''
+      if (markdown) {
+        console.log('[process-text] Markdown aus buildTransformationBody (Strategie:', built.strategy, ')')
+      }
+    }
+
+    // Wizard erwartet structured_data und markdown. Weitere Secretary-Felder optional mitschicken.
+    return NextResponse.json({
+      ...secretaryData,
+      structured_data: structuredData ?? (secretaryData?.structured_data as Record<string, unknown>) ?? {},
+      markdown: markdown || (typeof secretaryData?.markdown === 'string' ? secretaryData.markdown : ''),
+    })
   } catch (error) {
     console.error('[process-text] Secretary Service Error:', error);
     return NextResponse.json(

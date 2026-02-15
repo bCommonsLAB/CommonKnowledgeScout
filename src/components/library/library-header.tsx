@@ -176,7 +176,14 @@ export function LibraryHeader({
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => router.push("/library/create")}
+            onClick={() => {
+              const params = new URLSearchParams()
+              if (currentFolderId && currentFolderId !== 'root') {
+                params.set('sourceFolderId', currentFolderId)
+              }
+              const qs = params.toString()
+              router.push(qs ? `/library/create?${qs}` : '/library/create')
+            }}
             title="Content erstellen"
             aria-label="Content erstellen"
           >

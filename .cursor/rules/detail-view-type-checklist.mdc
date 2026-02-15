@@ -26,6 +26,17 @@ Template-Editor        Pipeline (Template)    Story-Vorschau      Galerie
 └─────────────┘        └─────────────┘     └─────────────┘  └─────────────┘
 ```
 
+## Existierende ViewTypes
+
+| ViewType | Pflichtfelder | Beschreibung |
+|----------|--------------|--------------|
+| `book` | title | Klassische Dokumente mit Kapiteln |
+| `session` | title | Events, Präsentationen, Slides |
+| `testimonial` | title, author_name | Erfahrungsberichte |
+| `blog` | title | Blog-Artikel |
+| `climateAction` | title, category | Klimamaßnahmen |
+| `divaDocument` | title, dokumentTyp, produktname, lieferant | Katalogdokumente (Möbelbranche: Preislisten, Produktdatenblätter, Materialkollektionen) |
+
 ## Zentrale Dateien
 
 | Datei | Zweck |
@@ -53,26 +64,51 @@ Template-Editor        Pipeline (Template)    Story-Vorschau      Galerie
 
 3. **Zod-Schemas erweitern**
    - [ ] `src/lib/chat/config.ts` → `detailViewType: z.enum([...])`
-   - [ ] `src/components/settings/chat-form.tsx` → Schema
+   - [ ] `src/components/settings/chat-form.tsx` → Schema (`z.enum(...)` + `validDetailViewTypes` + `if-Bedingung` + `<SelectItem>`)
 
 4. **Detail-Komponente erstellen**
-   - [ ] `src/components/library/{name}-detail.tsx`
-   - [ ] `src/components/library/ingestion-{name}-detail.tsx` (für Galerie)
+   - [ ] `src/components/library/{name}-detail.tsx` → DetailData Interface + Komponente
+   - [ ] `src/components/library/ingestion-{name}-detail.tsx` → MongoDB-Loader-Wrapper (für Galerie + Story-Tab)
 
 5. **Mapper erstellen**
-   - [ ] `src/lib/mappers/doc-meta-mappers.ts` → `mapTo{Name}Detail()`
+   - [ ] `src/lib/mappers/doc-meta-mappers.ts` → `mapTo{Name}Detail()` + Import des DetailData-Typs
 
 6. **DetailViewRenderer erweitern**
-   - [ ] `src/components/library/detail-view-renderer.tsx` → if-Statement + Import
+   - [ ] `src/components/library/detail-view-renderer.tsx` → Import + if-Statement
 
 7. **DetailOverlay erweitern** (für Galerie)
-   - [ ] `src/components/library/gallery/detail-overlay.tsx` → Render-Logik
+   - [ ] `src/components/library/gallery/detail-overlay.tsx` → Import, ViewType-Union, State-Typen, Render-Block
 
 8. **IngestionDetailPanel erweitern** (für Story-Tab)
-   - [ ] `src/components/library/shared/ingestion-detail-panel.tsx` → if-Statement für neuen ViewType
+   - [ ] `src/components/library/shared/ingestion-detail-panel.tsx` → Import + if-Statement
 
 9. **JobReportTab erweitern** (für Transformation-Vorschau Teaser)
-   - [ ] `src/components/library/job-report-tab.tsx` → Felder-Mapping für DocCardMeta (ca. Zeile 1500)
+   - [ ] `src/components/library/job-report-tab.tsx` → `requiredFieldsByType` Record + `<SelectItem>`
+
+### Pflicht: Hardcodierte ViewType-Listen aktualisieren
+
+WICHTIG: Diese Dateien enthalten hardcodierte Arrays/Unions mit allen ViewTypes.
+Wenn ein neuer ViewType hinzugefügt wird, MÜSSEN sie ALLE aktualisiert werden!
+
+10. **ViewType-Utils (Fallback-Logik)**
+    - [ ] `src/lib/templates/detail-view-type-utils.ts` → BEIDE `validTypes`-Arrays (Frontmatter + Library-Config)
+
+11. **Galerie-Root (Initialisierung + Overlay-Routing)**
+    - [ ] `src/components/library/gallery/gallery-root.tsx` → `validTypes` Array (Initialisierung)
+    - [ ] `src/components/library/gallery/gallery-root.tsx` → `validDetailViewTypes` Array (Overlay-Routing)
+
+12. **Chat-Panel (ViewType-Bestimmung)**
+    - [ ] `src/components/library/chat/chat-panel.tsx` → `validDetailViewTypes` Array
+
+13. **TypeScript-Typdefinitionen**
+    - [ ] `src/types/library.ts` → `detailViewType?: '...'` Union im `gallery`-Objekt
+    - [ ] `src/hooks/gallery/use-gallery-config.ts` → `type DetailViewType = '...'` Union
+
+14. **Übersetzungs-Hook**
+    - [ ] `src/hooks/use-document-translation.ts` → `viewType: '...'` Union
+
+15. **Template-Editor (Dropdown)**
+    - [ ] `src/components/templates/structured-template-editor.tsx` → `<SelectItem>`
 
 ### Optional (verbessert UX)
 
@@ -80,16 +116,8 @@ Template-Editor        Pipeline (Template)    Story-Vorschau      Galerie
    - [ ] `src/components/library/gallery/document-card.tsx` → Spezielles Card-Layout
 
 2. **Übersetzungen**
-   - [ ] `src/lib/i18n/translations/de.json`
-   - [ ] `src/lib/i18n/translations/en.json`
-
-3. **Settings-Dropdown**
-   - [ ] `src/components/settings/chat-form.tsx` → SelectItem
-
-4. **Validierungs-Arrays aktualisieren**
-   - [ ] `src/lib/templates/detail-view-type-utils.ts`
-   - [ ] `src/components/library/gallery/gallery-root.tsx`
-   - [ ] `src/components/library/chat/chat-panel.tsx`
+   - [ ] `src/lib/i18n/translations/de.json` → Label + Description
+   - [ ] `src/lib/i18n/translations/en.json` → Label + Description
 
 ### DB/API
 
@@ -100,49 +128,66 @@ Template-Editor        Pipeline (Template)    Story-Vorschau      Galerie
    - [ ] `src/lib/gallery/types.ts`
    - [ ] `src/lib/repositories/doc-meta-formatter.ts`
 
-## Beispiel: Neuen ViewType hinzufügen
+## Beispiel: divaDocument (Referenzimplementierung)
 
 ```typescript
 // 1. Registry erweitern (src/lib/detail-view-types/registry.ts)
 export const DETAIL_VIEW_TYPES = [
   'book', 'session', 'testimonial', 'blog', 'climateAction', 
-  'newType' // NEU
+  'divaDocument' // NEU: Katalogdokumente Möbelbranche
 ] as const
 
 export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
   // ... bestehende
-  newType: {
-    requiredFields: ['title', 'customField'],
-    optionalFields: ['summary', 'tags'],
-    labelKey: 'gallery.detailViewTypeNewType',
-    descriptionKey: 'gallery.detailViewTypeNewTypeDescription',
+  divaDocument: {
+    requiredFields: ['title', 'dokumentTyp', 'produktname', 'lieferant'],
+    optionalFields: [
+      'summary', 'haendler', 'produktkategorien', 'gueltigAb',
+      'istVeraltet', 'dokumentFormat', 'materialgruppen',
+      'waehrung', 'preistyp', 'zertifizierungen', 'tags', 'coverImageUrl',
+    ],
+    labelKey: 'gallery.detailViewTypeDivaDocument',
+    descriptionKey: 'gallery.detailViewTypeDivaDocumentDescription',
   },
 }
 
 // 2. Type-Definition (src/lib/templates/template-types.ts)
 export type TemplatePreviewDetailViewType = 
-  'book' | 'session' | 'testimonial' | 'blog' | 'climateAction' | 'newType'
+  'book' | 'session' | 'testimonial' | 'blog' | 'climateAction' | 'divaDocument'
 
 // 3. Mapper (src/lib/mappers/doc-meta-mappers.ts)
-export function mapToNewTypeDetail(doc: { docMetaJson?: Record<string, unknown> }): NewTypeDetailData {
-  const j = doc.docMetaJson || {}
+export function mapToDivaDocumentDetail(input: unknown): DivaDocumentDetailData {
+  const root = (input && typeof input === 'object') ? input as Record<string, unknown> : {};
+  const docMetaJson = (root.docMetaJson && typeof root.docMetaJson === 'object') 
+    ? root.docMetaJson as Record<string, unknown> : {};
   return {
-    title: toStr(j.title),
-    customField: toStr(j.customField),
-    // ...
+    title: toStr(docMetaJson.title) || '—',
+    dokumentTyp: toStr(docMetaJson.dokumentTyp),
+    produktname: toStr(docMetaJson.produktname),
+    lieferant: toStr(docMetaJson.lieferant),
+    // ... weitere Felder
   }
 }
 
 // 4. DetailViewRenderer erweitern
-if (detailViewType === "newType") {
+if (detailViewType === "divaDocument") {
   return (
     <>
       {MissingFieldsWarning}
-      <NewTypeDetail data={mapToNewTypeDetail(docMetaJson)} showBackLink={showBackLink} />
+      <DivaDocumentDetail data={mapToDivaDocumentDetail(docMetaJson)} showBackLink={showBackLink} />
     </>
   )
 }
 ```
+
+## divaDocument: Dateien-Übersicht
+
+| Datei | Typ |
+|-------|-----|
+| `src/components/library/diva-document-detail.tsx` | Detail-Komponente + DivaDocumentDetailData Interface |
+| `src/components/library/ingestion-diva-document-detail.tsx` | Ingestion-Wrapper (MongoDB-Loader) |
+| `template-samples/divaKatalog-detail-de.md` | Template mit `detailViewType: divaDocument` |
+| `template-samples/divaKatalog-facets-config.json` | Facetten-Config (8 Facetten, importierbar) |
 
 ## Pflichtfeld-Validierung
 
@@ -151,14 +196,15 @@ Die Validierung erfolgt an drei Stellen:
 1. **Template-Editor**: Warnung beim Auswählen des ViewType
 2. **Pipeline (Template-Phase)**: Soft-Contract, loggt Warnung wenn Felder fehlen
 3. **Story-Vorschau/Galerie**: Warnung vor dem Detail-Content
+4. **Facetten-Editor**: Gelbe Warnung wenn Facetten-metaKeys nicht in der Registry sind
 
 ```typescript
 import { validateMetadataForViewType, formatValidationWarning } from '@/lib/detail-view-types'
 
-const validation = validateMetadataForViewType(metadata, 'climateAction')
+const validation = validateMetadataForViewType(metadata, 'divaDocument')
 if (!validation.isValid) {
   console.warn(formatValidationWarning(validation))
-  // → "Fehlende Pflichtfelder für climateAction: category"
+  // → "Fehlende Pflichtfelder für divaDocument: dokumentTyp"
 }
 ```
 
@@ -167,7 +213,9 @@ if (!validation.isValid) {
 - Pflichtfeld-Validierung ist **Soft-Validation**: Jobs werden nicht abgebrochen
 - Warnungen werden in UI angezeigt und in Logs protokolliert
 - Neue ViewTypes sollten immer `title` als Pflichtfeld haben
-- Fallback-Logik: Wenn ein ViewType nicht erkannt wird, wird `session` verwendet
+- Fallback-Logik: Wenn ein ViewType nicht erkannt wird, wird `book` verwendet (Default in detail-view-type-utils.ts)
+- **Facetten-Prüfung**: Der FacetDefsEditor validiert metaKeys gegen die Registry des aktuellen ViewType und zeigt gelbe Warnungen für unbekannte Felder
+- **Hardcodierte Listen**: Es gibt ~8 Dateien mit hardcodierten ViewType-Arrays/Unions, die ALLE aktualisiert werden müssen (siehe Checkliste Punkt 10-15)
 
 ## Automatisches Antwortschema
 

@@ -5,6 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Loader2, Wand2 } from "lucide-react"
 import { toast } from "sonner"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { MarkdownMetadata } from "@/components/library/markdown-metadata"
+import { MarkdownPreview } from "@/components/library/markdown-preview"
+import { createMarkdownWithFrontmatter } from "@/lib/markdown/compose"
 
 interface GenerateDraftStepProps {
   templateId: string
@@ -99,6 +103,14 @@ export function GenerateDraftStep({
   }, [autoAdvance, generatedDraft, onAdvance])
 
   if (generatedDraft && showResultPreview) {
+    // Gleiche Komponenten wie File Preview: MarkdownMetadata (Tabelle) + MarkdownPreview (gerenderter Body)
+    const fullContent = createMarkdownWithFrontmatter(
+      generatedDraft.markdown || "",
+      (generatedDraft.metadata || {}) as Record<string, unknown>
+    )
+    const hasMetadata = Object.keys(generatedDraft.metadata || {}).length > 0
+    const hasMarkdown = (generatedDraft.markdown || "").trim().length > 0
+
     return (
       <Card>
         <CardHeader>
@@ -108,18 +120,30 @@ export function GenerateDraftStep({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <h3 className="font-semibold mb-2">Metadaten</h3>
-            <pre className="bg-muted p-4 rounded-md text-sm overflow-auto max-h-64">
-              {JSON.stringify(generatedDraft.metadata, null, 2)}
-            </pre>
-          </div>
-          <div>
-            <h3 className="font-semibold mb-2">Markdown-Vorschau</h3>
-            <div className="bg-muted p-4 rounded-md text-sm overflow-auto max-h-64">
-              {generatedDraft.markdown || "(Kein Markdown-Inhalt)"}
-            </div>
-          </div>
+          <Tabs defaultValue="markdown" className="w-full">
+            <TabsList className="w-full sm:w-auto">
+              <TabsTrigger value="metadata">Metadaten</TabsTrigger>
+              <TabsTrigger value="markdown">Markdown-Vorschau</TabsTrigger>
+            </TabsList>
+            <TabsContent value="metadata" className="mt-3">
+              <div className="rounded border overflow-auto max-h-[70vh]">
+                {hasMetadata ? (
+                  <MarkdownMetadata content={fullContent} libraryId={libraryId} />
+                ) : (
+                  <div className="p-4 text-sm text-muted-foreground">(Keine Metadaten)</div>
+                )}
+              </div>
+            </TabsContent>
+            <TabsContent value="markdown" className="mt-3">
+              <div className="rounded border overflow-hidden max-h-[70vh]">
+                {hasMarkdown ? (
+                  <MarkdownPreview className="max-h-[70vh]" content={generatedDraft.markdown!} compact />
+                ) : (
+                  <div className="p-4 text-sm text-muted-foreground">(Kein Markdown-Inhalt)</div>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
           <Button onClick={handleGenerate} variant="outline" className="w-full">
             Neu generieren
           </Button>

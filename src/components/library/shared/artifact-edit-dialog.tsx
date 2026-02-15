@@ -43,6 +43,7 @@ export function ArtifactEditDialog({
       }
 
       try {
+        setContent("") // Veralteten Inhalt loeschen, bis neuer geladen ist
         setIsLoading(true)
         setError(null)
 

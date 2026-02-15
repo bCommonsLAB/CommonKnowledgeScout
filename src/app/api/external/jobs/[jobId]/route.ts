@@ -219,6 +219,9 @@ export async function POST(
     // Beide URLs sollten als finales Payload erkannt werden
     // NEU: Asynchroner Webhook sendet mistral_ocr_raw_url und mistral_ocr_raw_metadata (keine vollständigen Daten)
     // Die vollständigen Daten müssen über Download-Endpoint abgerufen werden: GET /api/pdf/jobs/{job_id}/mistral-ocr-raw
+    // Video/Audio: Secretary sendet data.transcription und/oder data.result (nicht extracted_text)
+    const dataTranscription = (body?.data as { transcription?: unknown })?.transcription
+    const dataResult = (body?.data as { result?: unknown })?.result
     const hasFinalPayload = !!(
       (body?.data as { extracted_text?: unknown })?.extracted_text || 
       (body?.data as { images_archive_url?: unknown })?.images_archive_url || 
@@ -226,6 +229,8 @@ export async function POST(
       (body?.data as { mistral_ocr_raw_url?: unknown })?.mistral_ocr_raw_url ||
       (body?.data as { mistral_ocr_raw_metadata?: unknown })?.mistral_ocr_raw_metadata ||
       (body?.data as { mistral_ocr_raw?: unknown })?.mistral_ocr_raw || // Rückwärtskompatibilität (Legacy)
+      dataTranscription || // Video/Audio: rohes Transkript oder Objekt mit text
+      dataResult || // Video/Audio: template-transformiertes Ergebnis (Secretary liefert oft hier)
       (body as { status?: unknown })?.status === 'completed' || 
       body?.phase === 'template_completed'
     );
@@ -347,7 +352,7 @@ export async function POST(
       clearWatchdog(jobId);
       bufferLog(jobId, { phase: 'failed', message: phase });
       try {
-        const extractStepName = job.job_type === 'audio' ? 'extract_audio' : job.job_type === 'video' ? 'extract_video' : 'extract_pdf'
+        const extractStepName = job.job_type === 'audio' ? 'extract_audio' : job.job_type === 'video' ? 'extract_video' : job.job_type === 'office' ? 'extract_office' : 'extract_pdf'
         await repo.updateStep(jobId, extractStepName, { status: 'failed', endedAt: new Date(), error: { message: phase || 'Worker meldete failed' } })
       } catch {}
       // gepufferte Logs persistieren
@@ -432,9 +437,10 @@ export async function POST(
       return NextResponse.json({ status: 'ok', jobId, kind: 'failed' });
     }
 
-    function getExtractStepName(jobType: string): 'extract_pdf' | 'extract_audio' | 'extract_video' {
+    function getExtractStepName(jobType: string): 'extract_pdf' | 'extract_audio' | 'extract_video' | 'extract_office' {
       if (jobType === 'audio') return 'extract_audio'
       if (jobType === 'video') return 'extract_video'
+      if (jobType === 'office') return 'extract_office'
       return 'extract_pdf'
     }
 
@@ -443,17 +449,41 @@ export async function POST(
     const transcriptionTextRaw: string | undefined =
       (body?.data as { transcription?: { text?: unknown } })?.transcription?.text as string | undefined
 
-    // Compatibility (audio/video): accept a few common payload shapes.
-    // Primary expected shape is: data.transcription.text
+    // Compatibility (audio/video): accept multiple payload shapes from Secretary.
+    // Primary: data.transcription.text (rohes Transkript)
+    // Fallback: data.result (template-transformiertes Markdown) – Secretary liefert oft hier
     const audioTextCompat: string | undefined = (() => {
       if (!(job.job_type === 'audio' || job.job_type === 'video')) return undefined
       const data = body?.data as Record<string, unknown> | undefined
-      const directText = data && typeof data['text'] === 'string' ? String(data['text']) : undefined
+      if (!data) return undefined
+      const directText = typeof data['text'] === 'string' ? String(data['text']) : undefined
       const transcriptionText =
         typeof transcriptionTextRaw === 'string' ? transcriptionTextRaw : undefined
       const extractedTextFallback =
         typeof extractedTextRaw === 'string' ? extractedTextRaw : undefined
-      return transcriptionText || directText || extractedTextFallback
+      // data.transcription als String (manche Secretary-Versionen)
+      const transcriptionAsString =
+        typeof data.transcription === 'string' ? data.transcription : undefined
+      // data.result: Secretary legt template-transformiertes Markdown oft hier ab
+      const resultObj = data.result
+      const resultAsString = typeof resultObj === 'string' ? resultObj : undefined
+      const resultMarkdown =
+        resultObj && typeof resultObj === 'object' && typeof (resultObj as { markdown?: unknown }).markdown === 'string'
+          ? (resultObj as { markdown: string }).markdown
+          : undefined
+      const resultText =
+        resultObj && typeof resultObj === 'object' && typeof (resultObj as { text?: unknown }).text === 'string'
+          ? (resultObj as { text: string }).text
+          : undefined
+      return (
+        transcriptionText ||
+        transcriptionAsString ||
+        resultAsString ||
+        resultMarkdown ||
+        resultText ||
+        directText ||
+        extractedTextFallback
+      )
     })()
 
     const extractedText: string | undefined = (() => {
@@ -829,7 +859,7 @@ export async function POST(
         // - persistToFilesystem=true: Bilder werden in Phase 1 verarbeitet (Filesystem)
         // - persistToFilesystem=false: Bilder werden beim Transcript-Speichern verarbeitet (direkt nach Azure/MongoDB)
         // Für Audio/Video: Images-Phase ist irrelevant und wird als disabled behandelt.
-        const imagesPhaseEnabledEffective = (job.job_type === 'pdf') ? imagesPhaseEnabled : false
+        const imagesPhaseEnabledEffective = (job.job_type === 'pdf' || job.job_type === 'office') ? imagesPhaseEnabled : false
         
         // Prüfe Shadow-Twin-Konfiguration für Bilder-Verarbeitung
         const libraryForImages = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
@@ -902,11 +932,21 @@ export async function POST(
         // Falls Phase 2 eigene Assets erzeugt, werden diese am Ende von Phase 2 gespeichert.
         // Das Shadow-Twin reichert sich von Phase zu Phase an.
         
-        // Cover-Bild-Generierung aus Job-Parametern lesen
+        // Cover-Bild-Generierung und Korrekturhinweis aus Job-Parametern lesen
         const jobParams = (job.parameters && typeof job.parameters === 'object') ? job.parameters as { 
           generateCoverImage?: boolean
-          coverImagePrompt?: string 
+          coverImagePrompt?: string
+          customHint?: string
         } : {}
+        
+        // Logging: customHint-Weitergabe prüfbar machen (Callback-Route)
+        if (jobParams.customHint) {
+          FileLogger.info('callback-route', 'customHint aus Job-Parametern gelesen', {
+            jobId,
+            customHintLength: jobParams.customHint.length,
+            customHintPreview: jobParams.customHint.substring(0, 80),
+          })
+        }
         
         const templateResult = await runTemplatePhase({
           ctx,
@@ -932,6 +972,7 @@ export async function POST(
           libraryConfig: lib.config?.secretaryService,
           generateCoverImage: jobParams.generateCoverImage,
           coverImagePrompt: jobParams.coverImagePrompt,
+          customHint: jobParams.customHint,
         })
 
         // Fatal: Wenn Template-Transformation fehlgeschlagen ist, abbrechen

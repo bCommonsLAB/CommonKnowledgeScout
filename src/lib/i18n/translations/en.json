@@ -401,6 +401,8 @@
       "detailViewTypeBook": "Book (Books, Documents, Chapters)",
       "detailViewTypeSession": "Session (Events, Presentations, Slides)",
       "detailViewTypeClimateAction": "ClimateAction (Climate Actions)",
+      "detailViewTypeDivaDocument": "DivaDocument (Catalog documents, Price lists, Material collections)",
+      "detailViewTypeDivaDocumentDescription": "Detail view for furniture industry catalog documents (price lists, product data sheets, material collections, etc.)",
       "checkIndexStatus": "Check index status",
       "checking": "Checking...",
       "createIndex": "Create index",
