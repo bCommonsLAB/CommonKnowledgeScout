@@ -29,11 +29,14 @@ export function EventSummary({ summary, videoUrl, provider = null, currentFolder
       {/* Video Embed */}
       {videoUrl && (
         <div className="mb-6 aspect-video rounded-lg overflow-hidden bg-muted w-full max-w-full box-border relative">
+          {/* iframe mit loading="lazy" für verzögertes Laden (Performance in verschachtelten Ansichten) */}
           <iframe
             src={videoUrl}
             className="absolute inset-0 w-full h-full max-w-full"
             allow="autoplay; fullscreen; picture-in-picture"
             allowFullScreen
+            loading="lazy"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-presentation"
             title="Event Video"
           />
         </div>

@@ -111,10 +111,10 @@ export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdown
 
   // WICHTIG: Wenn parentId bereits das Shadow-Twin-Verzeichnis ist (isParentShadowTwinFolder),
   // oder wenn shadowTwinFolderId vorhanden ist (Verzeichnis existiert bereits),
-  // dann sollte createFolder auf false gesetzt werden, um keine verschachtelten Ordner zu erstellen.
-  // Wenn shadowTwinFolderId nicht vorhanden ist, prüfe ob ein Verzeichnis erstellt werden soll.
+  // dann createFolder=false (keine verschachtelten Ordner).
+  // Wenn shadowTwinFolderId fehlt: createFolder=true, damit writeArtifact den Ordner erstellt und darin schreibt.
   const createFolderValue = (ctx.job.shadowTwinState as { createFolder?: boolean | string } | undefined)?.createFolder;
-  const createFolder = !isParentShadowTwinFolder && !shadowTwinFolderId && (createFolderValue === true || createFolderValue === 'true')
+  const createFolder = !isParentShadowTwinFolder && !shadowTwinFolderId && (createFolderValue !== false && createFolderValue !== 'false')
 
   // 5. Füge detailViewType aus Template ins Frontmatter ein (falls Template vorhanden)
   let finalMarkdown = markdown

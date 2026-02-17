@@ -2,17 +2,32 @@ import path from 'path';
 import { StorageItem, StorageProvider } from './types';
 import { FileLogger } from '@/lib/debug/logger';
 
+/** Präfix für Shadow-Twin-Verzeichnisse. Unterstrich statt Punkt (Obsidian zeigt Punkt-Ordner nicht an). */
+const SHADOW_TWIN_FOLDER_PREFIX = '_';
+
+/** Legacy-Prefix (Punkt) für Rückwärtskompatibilität. */
+const SHADOW_TWIN_FOLDER_PREFIX_LEGACY = '.';
 
 /**
- * Generiert den Shadow-Twin-Verzeichnisnamen mit Punkt-Prefix
- * Format: .{originalName}/ (mit Dateiendung, z.B. .document.pdf/)
+ * Prüft, ob ein Ordnername ein Shadow-Twin-Verzeichnis bezeichnet.
+ * Shadow-Twin-Ordner beginnen mit _ (neu) oder . (Legacy) und sollen in der Dateiliste ausgeblendet werden.
+ */
+export function isShadowTwinFolderName(name: string): boolean {
+  return name.startsWith(SHADOW_TWIN_FOLDER_PREFIX) || name.startsWith(SHADOW_TWIN_FOLDER_PREFIX_LEGACY);
+}
+
+/**
+ * Generiert den Shadow-Twin-Verzeichnisnamen mit Unterstrich-Prefix
+ * Format: _{originalName}/ (mit Dateiendung, z.B. _document.pdf/)
+ * 
+ * Unterstrich statt Punkt: Obsidian und andere Tools zeigen Ordner mit Punkt-Prefix oft nicht an.
  * 
  * WICHTIG: Berücksichtigt Längenlimit von 255 Zeichen für Verzeichnisnamen.
  * Wenn der Name zu lang ist, wird er abgeschnitten (behält Dateiendung).
  * 
  * @param originalName Der ursprüngliche Dateiname
  * @param maxLength Maximale Länge (Standard: 255 Zeichen)
- * @returns Verzeichnisname im Format .{name}/
+ * @returns Verzeichnisname im Format _{name}/
  */
 export function generateShadowTwinFolderName(
   originalName: string,
@@ -21,8 +36,8 @@ export function generateShadowTwinFolderName(
   // Entferne führende/trailing Slashes falls vorhanden
   const cleanName = originalName.trim().replace(/^\/+|\/+$/g, '');
   
-  // Erstelle Verzeichnisname mit Punkt-Prefix
-  const folderName = `.${cleanName}`;
+  // Erstelle Verzeichnisname mit Unterstrich-Prefix (Obsidian-kompatibel)
+  const folderName = `${SHADOW_TWIN_FOLDER_PREFIX}${cleanName}`;
   
   // Prüfe Längenlimit
   if (folderName.length <= maxLength) {
@@ -36,13 +51,13 @@ export function generateShadowTwinFolderName(
   const baseName = parsedPath.name; // Basisname ohne Extension
   
   // Berechne verfügbare Länge für Basisname
-  // Punkt-Prefix (1) + Extension + Punkt (1) = 2 + extension.length
+  // Prefix (1) + Extension + Punkt (1) = 2 + extension.length
   const reservedLength = 2 + extension.length;
   const availableLength = maxLength - reservedLength;
   
   if (availableLength <= 0) {
     // Extension selbst ist schon zu lang - verwende nur Extension
-    return `.${extension}`;
+    return `${SHADOW_TWIN_FOLDER_PREFIX}${extension}`;
   }
   
   // Kürze Basisname von vorne
@@ -50,32 +65,31 @@ export function generateShadowTwinFolderName(
     ? baseName.slice(0, availableLength)
     : baseName;
   
-  return `.${truncatedBase}${extension}`;
+  return `${SHADOW_TWIN_FOLDER_PREFIX}${truncatedBase}${extension}`;
 }
 
 /**
  * Generiert alle möglichen Varianten des Shadow-Twin-Verzeichnisnamens
- * für die Erkennungslogik. Berücksichtigt sowohl vollständigen Namen
- * als auch abgeschnittene Varianten (falls Original > 255 Zeichen).
+ * für die Erkennungslogik. Berücksichtigt:
+ * - Neues Format: Unterstrich-Prefix (_name)
+ * - Legacy-Format: Punkt-Prefix (.name) für Rückwärtskompatibilität
  * 
  * @param originalName Der ursprüngliche Dateiname
- * @returns Array von möglichen Verzeichnisnamen-Varianten
+ * @returns Array von möglichen Verzeichnisnamen-Varianten (Unterstrich zuerst, dann Punkt)
  */
 export function generateShadowTwinFolderNameVariants(originalName: string): string[] {
-  const fullName = generateShadowTwinFolderName(originalName, 255);
-  const variants: string[] = [fullName];
-  
-  // Wenn der vollständige Name bereits abgeschnitten wurde,
-  // gibt es keine weiteren Varianten
   const cleanName = originalName.trim().replace(/^\/+|\/+$/g, '');
-  const fullFolderName = `.${cleanName}`;
   
-  if (fullFolderName.length > 255) {
-    // Name wurde abgeschnitten - nur abgeschnittene Variante zurückgeben
-    return variants;
+  // Neues Format (Unterstrich) – zuerst prüfen
+  const underscoreName = generateShadowTwinFolderName(originalName, 255);
+  const variants: string[] = [underscoreName];
+  
+  // Legacy-Format (Punkt) – für bestehende Ordner
+  const dotName = `.${cleanName}`;
+  if (dotName.length <= 255 && dotName !== underscoreName) {
+    variants.push(dotName);
   }
   
-  // Vollständiger Name passt - nur eine Variante
   return variants;
 }
 

@@ -22,6 +22,7 @@ import { getServerProvider } from '@/lib/storage/server-provider'
 import { findShadowTwinFolder } from '@/lib/storage/shadow-twin'
 import { IngestionService } from '@/lib/chat/ingestion-service'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
+import { createMarkdownWithFrontmatter } from '@/lib/markdown/compose'
 import { isMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
 import { LibraryService } from '@/lib/services/library-service'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
@@ -469,19 +470,6 @@ function pushValidationMessage(
   if (type === 'error') validation.ok = false
 }
 
-function serializeFrontmatter(meta: Record<string, unknown>): string {
-  return Object.entries(meta)
-    .map(([key, value]) => {
-      if (value === null || value === undefined) return `${key}: ""`
-      if (Array.isArray(value)) return `${key}: ${JSON.stringify(value)}`
-      if (typeof value === 'string' && value.includes('\n')) {
-        return `${key}: |\n${value.split('\n').map(line => `  ${line}`).join('\n')}`
-      }
-      return `${key}: ${value}`
-    })
-    .join('\n')
-}
-
 async function runPdfHitlPublishWorkflow(args: {
   userEmail: string
   libraryId: string
@@ -614,7 +602,7 @@ async function runPdfHitlPublishWorkflow(args: {
         title: 'Integration Test – HITL Publish',
         slug: 'integration-test-hitl-publish',
       }
-      const overwrittenMarkdown = `---\n${serializeFrontmatter(publishMeta)}\n---\n\n${body}`
+      const overwrittenMarkdown = createMarkdownWithFrontmatter(body, publishMeta)
 
       const upserted = await service.upsertMarkdown({
         kind: 'transformation',
@@ -666,7 +654,7 @@ async function runPdfHitlPublishWorkflow(args: {
       title: 'Integration Test – HITL Publish',
       slug: 'integration-test-hitl-publish',
     }
-    const overwrittenMarkdown = `---\n${serializeFrontmatter(publishMeta)}\n---\n\n${body}`
+    const overwrittenMarkdown = createMarkdownWithFrontmatter(body, publishMeta)
 
     // Overwrite by delete+upload (kein overwrite-by-id)
     await provider.deleteItem(transformFileId)

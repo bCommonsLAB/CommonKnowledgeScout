@@ -69,6 +69,8 @@ export interface UpsertMarkdownOptions {
   templateName?: string
   markdown: string
   binaryFragments?: BinaryFragment[]
+  /** Optional: Shadow-Twin-Ordner-ID für Filesystem-Write. Wenn gesetzt, wird ins Verzeichnis geschrieben statt neben die Quelle. */
+  shadowTwinFolderId?: string
 }
 
 export interface ResolveSavedItemIdOptions {
@@ -137,12 +139,15 @@ export class ShadowTwinService {
       )
     }
 
-    // Fallback Store (nur wenn erlaubt und unterschiedlich zum Primary)
-    if (
-      this.config.allowFilesystemFallback &&
+    // Filesystem-Store: Für persistToFilesystem (Write) und/oder allowFilesystemFallback (Read).
+    // persistToFilesystem: Shadow-Twins zusätzlich ins Filesystem schreiben bei jedem Speichern.
+    // allowFilesystemFallback: Aus Filesystem lesen, wenn Mongo-Eintrag fehlt (nur in Ausnahmefällen).
+    // Beide nutzen dieselbe ProviderShadowTwinStore-Instanz, werden aber getrennt gesteuert.
+    const needsFilesystemStore =
       this.config.primaryStore === 'mongo' &&
-      options.provider
-    ) {
+      options.provider &&
+      (this.config.persistToFilesystem || this.config.allowFilesystemFallback)
+    if (needsFilesystemStore) {
       this.fallbackStore = new ProviderShadowTwinStore(
         options.provider,
         options.sourceName,
@@ -185,8 +190,8 @@ export class ShadowTwinService {
       if (transformationExists) return true
     }
 
-    // 3. Fallback Store (wenn erlaubt)
-    if (this.fallbackStore) {
+    // 3. Fallback Store (nur wenn allowFilesystemFallback=true – Lesen aus FS bei fehlendem Mongo-Eintrag)
+    if (this.config.allowFilesystemFallback && this.fallbackStore) {
       const existsInFallback = await this.fallbackStore.existsArtifact(key)
       if (existsInFallback) return true
 
@@ -224,8 +229,8 @@ export class ShadowTwinService {
     const result = await this.primaryStore.getArtifactMarkdown(key)
     if (result) return result
 
-    // 2. Fallback Store (wenn erlaubt)
-    if (this.fallbackStore) {
+    // 2. Fallback Store (nur wenn allowFilesystemFallback=true – Lesen aus FS bei fehlendem Mongo-Eintrag)
+    if (this.config.allowFilesystemFallback && this.fallbackStore) {
       const fallbackResult = await this.fallbackStore.getArtifactMarkdown(key)
       if (fallbackResult) return fallbackResult
     }
@@ -267,12 +272,14 @@ export class ShadowTwinService {
     // 1. Primary Store speichern
     const result = await this.primaryStore.upsertArtifact(key, opts.markdown, opts.binaryFragments, context)
 
-    // 2. Wenn persistToFilesystem=true, auch im Filesystem speichern
+    // 2. Wenn persistToFilesystem=true, auch im Filesystem speichern (im Shadow-Twin-Ordner)
     if (this.config.persistToFilesystem && this.config.primaryStore === 'mongo' && this.fallbackStore) {
-      // Optional: Auch im Filesystem speichern (für Kompatibilität)
-      // Hinweis: Dies könnte zu Duplikaten führen, daher optional
       try {
-        await this.fallbackStore.upsertArtifact(key, opts.markdown, opts.binaryFragments, context)
+        // WICHTIG: shadowTwinFolderId als Ziel-Parent, sonst landet die Datei neben der Quelle statt im Ordner
+        const fsContext = opts.shadowTwinFolderId
+          ? { ...context, parentId: opts.shadowTwinFolderId }
+          : context
+        await this.fallbackStore.upsertArtifact(key, opts.markdown, opts.binaryFragments, fsContext)
       } catch {
         // Fehler beim Filesystem-Write nicht kritisch, wenn Primary erfolgreich war
         // Logging könnte hier sinnvoll sein
@@ -292,8 +299,8 @@ export class ShadowTwinService {
     const fragments = await this.primaryStore.getBinaryFragments(this.options.sourceId)
     if (fragments) return fragments
 
-    // 2. Fallback Store (wenn erlaubt)
-    if (this.fallbackStore) {
+    // 2. Fallback Store (nur wenn allowFilesystemFallback=true)
+    if (this.config.allowFilesystemFallback && this.fallbackStore) {
       const fallbackFragments = await this.fallbackStore.getBinaryFragments(this.options.sourceId)
       if (fallbackFragments) return fallbackFragments
     }
@@ -487,22 +494,24 @@ export class ShadowTwinService {
       throw new Error('Provider erforderlich für Filesystem-Upload')
     }
 
-    // Ermittle Shadow-Twin-Verzeichnis
-    const shadowTwinFolderName = `.${this.options.sourceName}`
+    // Ermittle Shadow-Twin-Verzeichnis (Unterstrich-Prefix, Obsidian-kompatibel)
+    const { findShadowTwinFolder, generateShadowTwinFolderName } = await import('@/lib/storage/shadow-twin')
     const parentItem = await this.options.provider.getItemById(this.options.parentId)
     if (!parentItem) {
       throw new Error('Parent-Ordner nicht gefunden')
     }
 
-    // Suche oder erstelle Shadow-Twin-Verzeichnis
-    const shadowTwinItems = await this.options.provider.listItemsById(this.options.parentId)
-    let shadowTwinFolder = shadowTwinItems.find(
-      item => item.type === 'folder' && item.metadata.name === shadowTwinFolderName
+    // Suche existierendes Verzeichnis (prüft Unterstrich- und Legacy-Punkt-Format)
+    let shadowTwinFolder = await findShadowTwinFolder(
+      this.options.parentId,
+      this.options.sourceName,
+      this.options.provider
     )
 
     if (!shadowTwinFolder) {
-      // Erstelle Shadow-Twin-Verzeichnis
-      shadowTwinFolder = await this.options.provider.createFolder(this.options.parentId, shadowTwinFolderName)
+      // Erstelle Shadow-Twin-Verzeichnis mit Unterstrich-Prefix
+      const folderName = generateShadowTwinFolderName(this.options.sourceName)
+      shadowTwinFolder = await this.options.provider.createFolder(this.options.parentId, folderName)
     }
 
     // Erstelle File-Objekt für Upload
@@ -557,8 +566,8 @@ export class ShadowTwinService {
       }
     }
 
-    // 2. Fallback Store (wenn erlaubt)
-    if (this.fallbackStore) {
+    // 2. Fallback Store (nur wenn allowFilesystemFallback=true)
+    if (this.config.allowFilesystemFallback && this.fallbackStore) {
       const fallbackResult = await this.fallbackStore.getArtifactMarkdown(key)
       if (fallbackResult) {
         if (this.validateSavedItemId(fallbackResult.id, opts.expectedKind, opts.templateName)) {
@@ -829,9 +838,9 @@ export class ShadowTwinService {
   static async create(opts: Omit<ShadowTwinServiceOptions, 'provider'>): Promise<ShadowTwinService> {
     let provider: StorageProvider | undefined
 
-    // Provider nur erstellen, wenn benötigt (Filesystem primary oder Fallback)
+    // Provider nur erstellen, wenn benötigt (Filesystem primary, Fallback oder Persist)
     const config = getShadowTwinConfig(opts.library)
-    if (config.primaryStore === 'filesystem' || config.allowFilesystemFallback) {
+    if (config.primaryStore === 'filesystem' || config.allowFilesystemFallback || config.persistToFilesystem) {
       if (!opts.library) {
         throw new Error('Library ist erforderlich für Provider-Erstellung')
       }

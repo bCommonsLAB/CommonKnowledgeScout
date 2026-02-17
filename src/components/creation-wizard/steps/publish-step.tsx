@@ -25,6 +25,8 @@ interface PublishStepProps {
   goToLibraryLabel?: string
   /** Optional: Zusätzliche Inhalte im Success-Block (z.B. kurze Statistiken) */
   children?: React.ReactNode
+  /** Optional: Erfolgsmeldung (Standard: "Das Ergebnis wurde gespeichert und indiziert.") */
+  successMessage?: string
 }
 
 /**
@@ -44,6 +46,7 @@ export function PublishStep({
   onGoToLibrary,
   goToLibraryLabel = "Zur Bibliothek",
   children,
+  successMessage = "Das Ergebnis wurde gespeichert und indiziert.",
 }: PublishStepProps) {
   const didStartRef = React.useRef(false)
 
@@ -67,7 +70,7 @@ export function PublishStep({
               Wizard abgeschlossen
             </div>
             <div className="mt-1 text-xs text-muted-foreground">
-              Das Ergebnis wurde gespeichert und indiziert.
+              {successMessage}
             </div>
             {children ? <div className="mt-3">{children}</div> : null}
             {onGoToLibrary ? (

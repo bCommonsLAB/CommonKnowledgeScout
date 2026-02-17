@@ -34,6 +34,7 @@ import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import { LibraryService } from '@/lib/services/library-service'
+import type { Library } from '@/types/library'
 
 /**
  * DETERMINISTISCHE QUELLENWAHL - Purpose Enum
@@ -327,11 +328,13 @@ export async function loadShadowTwinMarkdown(
     }
 
     // Priorität 2: ShadowTwinService (Mongo-Store)
+    // Library hier laden (wird für primaryStore-Prüfung in Priorität 3 wiederverwendet)
+    let libraryForLoader: Library | null = null
     try {
-      const library = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
-      if (library) {
+      libraryForLoader = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
+      if (libraryForLoader) {
         const service = new ShadowTwinService({
-          library,
+          library: libraryForLoader,
           userEmail: job.userEmail,
           sourceId: sourceItemId,
           sourceName: originalName,
@@ -407,69 +410,51 @@ export async function loadShadowTwinMarkdown(
       })
     }
 
-    // Priorität 3: resolveArtifact
-    let resolved = templateName
-      ? await resolveArtifact(provider, {
+    // Priorität 3: resolveArtifact (Filesystem/Provider)
+    // NUR bei Filesystem-Mode ausführen. Bei Mongo-Mode reichen Priorität 1+2.
+    // Siehe docs/rules/ingest-mongo-only.md: Kein Filesystem-Fallback bei Mongo-Mode.
+    const primaryStore = (libraryForLoader?.config?.shadowTwin as { primaryStore?: string } | undefined)?.primaryStore
+    if (primaryStore !== 'mongo') {
+      let resolved = templateName
+        ? await resolveArtifact(provider, {
+            sourceItemId,
+            sourceName: originalName,
+            parentId,
+            targetLanguage: lang,
+            templateName,
+            preferredKind: 'transformation',
+          })
+        : null
+
+      if (!resolved) {
+        // Fallback zu Transcript
+        resolved = await resolveArtifact(provider, {
           sourceItemId,
           sourceName: originalName,
           parentId,
           targetLanguage: lang,
-          templateName,
-          preferredKind: 'transformation',
+          preferredKind: 'transcript',
         })
-      : null
-
-    if (!resolved) {
-      // Fallback zu Transcript
-      resolved = await resolveArtifact(provider, {
-        sourceItemId,
-        sourceName: originalName,
-        parentId,
-        targetLanguage: lang,
-        preferredKind: 'transcript',
-      })
-    }
-
-    if (resolved) {
-      const isTransformation = resolved.fileName.includes(templateName || '')
-      FileLogger.info('phase-shadow-twin-loader', `${isTransformation ? 'Transformation' : 'Transkript'} über resolveArtifact geladen`, {
-        jobId,
-        purpose,
-        fileId: resolved.fileId,
-        fileName: resolved.fileName,
-      })
-
-      const result = await loadMarkdownById(ctx, provider, resolved.fileId, resolved.fileName, originalName, lang, sourceItemId, parentId)
-      if (result) {
-        return { ...result, loadedArtifactKind: isTransformation ? 'transformation' : 'transcript' }
       }
-    }
 
-    // Priorität 4: Wizard-Dateien (transformationSource: true) – Source als Transformation
-    // Kein Shadow-Twin vorhanden; die Datei selbst ist bereits die Transformation.
-    const sourceMediaType = job.correlation?.source?.mediaType
-    const isMarkdownSource = sourceMediaType === 'markdown' ||
-      originalName.toLowerCase().endsWith('.md') ||
-      job.job_type === 'text'
+      if (resolved) {
+        const isTransformation = resolved.fileName.includes(templateName || '')
+        FileLogger.info('phase-shadow-twin-loader', `${isTransformation ? 'Transformation' : 'Transkript'} über resolveArtifact geladen`, {
+          jobId,
+          purpose,
+          fileId: resolved.fileId,
+          fileName: resolved.fileName,
+        })
 
-    if (isMarkdownSource && sourceItemId) {
-      const result = await loadMarkdownById(ctx, provider, sourceItemId, originalName, originalName, lang, sourceItemId, parentId)
-      if (result) {
-        const parsed = parseSecretaryMarkdownStrict(result.markdown)
-        const meta = (parsed?.meta && typeof parsed.meta === 'object' && !Array.isArray(parsed.meta))
-          ? (parsed.meta as Record<string, unknown>)
-          : {}
-        if (meta?.transformationSource === true) {
-          FileLogger.info('phase-shadow-twin-loader', 'Wizard-Datei (transformationSource) als Transformation geladen', {
-            jobId,
-            purpose,
-            sourceItemId,
-            sourceName: originalName,
-          })
-          return { ...result, loadedArtifactKind: 'transformation' }
+        const result = await loadMarkdownById(ctx, provider, resolved.fileId, resolved.fileName, originalName, lang, sourceItemId, parentId)
+        if (result) {
+          return { ...result, loadedArtifactKind: isTransformation ? 'transformation' : 'transcript' }
         }
       }
     }
+
+    // REGEL (docs/rules/ingest-mongo-only.md): Alle ingestierten Artefakte MÜSSEN in MongoDB vorhanden sein.
+    // Kein Fallback auf Filesystem/Provider – wenn Priorität 1–2 (Mongo) bzw. 1–3 (Filesystem) nichts finden, schlagen wir fehl.
 
     // Nichts gefunden
     FileLogger.warn('phase-shadow-twin-loader', 'Shadow-Twin-Markdown nicht gefunden (forIngestOrPassthrough)', {

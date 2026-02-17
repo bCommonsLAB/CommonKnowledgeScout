@@ -21,6 +21,7 @@ import { FileLogger, UILogger } from "@/lib/debug/logger"
 import { useCallback, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { useFolderNavigation } from '@/hooks/use-folder-navigation';
 import { toast } from "sonner";
+import { isShadowTwinFolderName } from '@/lib/storage/shadow-twin';
 
 // Ref-Interface für externe Steuerung
 export interface FileTreeRef {
@@ -109,7 +110,7 @@ function TreeItem({
   const children = (loadedChildren[item.id] || []).filter(child => {
     if (child.type !== 'folder') return false;
     const name = child.metadata?.name || '';
-    return !name.startsWith('.');
+    return !isShadowTwinFolderName(name);
   });
 
   // Scroll zum aktuellen Ordner, wenn er dieser Item ist
@@ -586,7 +587,7 @@ export const FileTree = forwardRef<FileTreeRef, object>(function FileTree({
   const items = (loadedChildren.root || []).filter(item => {
     if (item.type !== 'folder') return false;
     const name = item.metadata?.name || '';
-    return !name.startsWith('.');
+    return !isShadowTwinFolderName(name);
   });
 
   return (

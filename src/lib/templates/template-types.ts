@@ -148,6 +148,11 @@ export interface CreationFlowStepRef {
    * dann wird `author_name` als Textfeld und `author_image_url` als Upload-Komponente gerendert.
    */
   imageFieldKeys?: string[]
+  /**
+   * Nur für preset 'publish': false = nur im Archiv speichern, keine Ingestion.
+   * true/undefined = Speichern + Ingestion (Standard).
+   */
+  ingestOnFinish?: boolean
 }
 
 /**

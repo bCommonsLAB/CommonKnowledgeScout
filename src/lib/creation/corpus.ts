@@ -1,9 +1,14 @@
 /**
  * @fileoverview Korpus-Builder für Multi-Source Creation Wizard
- * 
+ *
  * @description
  * Baut einen einheitlichen Textkorpus aus mehreren Quellen für LLM-Verarbeitung.
  * Trennt zwischen LLM-Rohtext (Point-of-Truth) und UI-Summaries.
+ *
+ * Shadow-Twin-Metadaten: Bei Datei-Quellen mit sourceMetadata werden diese als
+ * "Metadaten aus Shadow-Twin:"-Block in den Kontext geschrieben. Der Secretary
+ * nutzt sie für Template-Felder wie attachments_url, attachment_links.
+ * Siehe docs/analysis/shadow-twin-metadata-to-secretary-context.md
  */
 
 export interface WizardSource {
@@ -22,7 +27,13 @@ export interface WizardSource {
   // Für 'file':
   fileName?: string
   extractedText?: string  // Extrahierter Text für LLM
-  
+
+  /**
+   * Metadaten aus dem Shadow-Twin-Frontmatter (attachments_url, attachment_links, url, video_url, …).
+   * Werden in den Korpus-Kontext geschrieben, damit der Secretary diese Felder für die Transformation nutzen kann.
+   */
+  sourceMetadata?: Record<string, unknown>
+
   // Gemeinsam für 'url' und 'file':
   summary?: string        // Lesbare Summary für UI
 }
@@ -84,12 +95,32 @@ export function buildCorpusText(sources: WizardSource[]): string {
       }
     } else if (source.kind === 'file') {
       header = `[Quelle: Datei | ${source.fileName || 'unbekannt'}]`
-      // WICHTIG: Für LLM immer den extrahierten Text verwenden, nicht die Summary
-      content = source.extractedText?.trim() || ''
-      if (!content && source.summary) {
-        // Fallback: Wenn kein extractedText vorhanden, nutze Summary
-        content = source.summary.trim()
+      // Shadow-Twin-Metadaten (attachments_url, attachment_links, url, video_url, …) in den Kontext,
+      // damit der Secretary diese für die Transformation nutzen kann (z. B. attachment_links).
+      const metaLines: string[] = []
+      if (source.sourceMetadata && Object.keys(source.sourceMetadata).length > 0) {
+        for (const [k, v] of Object.entries(source.sourceMetadata)) {
+          if (v != null && v !== '' && typeof v === 'string') {
+            metaLines.push(`${k}: ${v}`)
+          } else if (Array.isArray(v) && v.length > 0) {
+            metaLines.push(`${k}: ${v.map((x) => String(x)).join(', ')}`)
+          }
+        }
+        if (metaLines.length > 0) {
+          metaLines.unshift('Metadaten aus Shadow-Twin:')
+        }
       }
+      // WICHTIG: Für LLM immer den extrahierten Text verwenden, nicht die Summary
+      let bodyContent = source.extractedText?.trim() || ''
+      if (!bodyContent && source.summary) {
+        bodyContent = source.summary.trim()
+      }
+      content =
+        metaLines.length > 0
+          ? bodyContent
+            ? `${metaLines.join('\n')}\n\n${bodyContent}`
+            : metaLines.join('\n')
+          : bodyContent
     }
     
     if (header && content) {
@@ -133,6 +164,59 @@ export function buildSourceSummary(source: WizardSource): string {
   }
   
   return 'Unbekannte Quelle'
+}
+
+/**
+ * Baut ein vollständiges Transkript-Markdown für Shadow-Twin-Persistierung.
+ *
+ * Aufbau:
+ * 1. Frontmatter mit `kind: transcript`, `sourceCount`, `createdAt`
+ * 2. Quellen-Referenzen als Wikilinks (Dateien), Markdown-Links (URLs), Timestamps (Text)
+ * 3. Trennlinie
+ * 4. Korpus-Text (aus buildCorpusText)
+ *
+ * Damit sieht das Transkript im File-Preview identisch strukturiert aus wie bei Audio/PDF:
+ * Man sieht oben die Quellen, darunter den gesamten Rohtext.
+ *
+ * @param sources Liste aller Wizard-Quellen
+ * @returns Vollständiges Markdown mit Frontmatter und Quellen-Referenzen
+ */
+export function buildTranscriptMarkdown(sources: WizardSource[]): string {
+  const now = new Date().toISOString()
+  const corpusText = buildCorpusText(sources)
+
+  // Frontmatter
+  const frontmatter = [
+    '---',
+    'kind: transcript',
+    `sourceCount: ${sources.length}`,
+    `createdAt: ${now}`,
+    '---',
+  ].join('\n')
+
+  // Quellen-Referenzen (sortiert wie im Korpus)
+  const sorted = [...sources].sort((a, b) => toTimestamp(a.createdAt) - toTimestamp(b.createdAt))
+  const refLines: string[] = []
+  for (const source of sorted) {
+    if (source.kind === 'file' && source.fileName) {
+      // Wikilink für Dateien
+      refLines.push(`- [[${source.fileName}]] (Datei)`)
+    } else if (source.kind === 'url' && source.url) {
+      // Markdown-Link für URLs; Titel aus Summary (erste Zeile) oder URL
+      const label = source.summary?.split('\n')[0]?.trim() || source.url
+      refLines.push(`- [${label}](${source.url}) (Webseite)`)
+    } else if (source.kind === 'text') {
+      const dateStr = toIsoSlice(source.createdAt)
+      refLines.push(`- Diktat vom ${dateStr} (Text)`)
+    }
+  }
+
+  const refsBlock = refLines.length > 0
+    ? `\n# Quellen\n\n${refLines.join('\n')}\n\n---\n`
+    : ''
+
+  // Zusammensetzen: Frontmatter + Quellen-Referenzen + Korpus-Text
+  return `${frontmatter}\n${refsBlock}\n${corpusText}\n`
 }
 
 /**

@@ -769,122 +769,73 @@ function ShadowTwinDebugContent() {
     })
   }
 
+  // Kompakte Zusammenfassung: Anzahl Artefakte und Binaries
+  const transcriptCount = state.transcriptFiles?.length || 0
+  const transformCount = state.transformed ? 1 : 0
+  const mediaCount = state.mediaFiles?.length || 0
+  const binaryCount = binaryFragments.length
+
   return (
-    <div className="space-y-4">
-      {/* State-Informationen */}
-      <div className="space-y-3">
-          {isEmptyButChecked ? (
-            <div className="rounded border bg-muted/30 p-2 text-xs text-muted-foreground">
-              Analysiert: keine Artefakte gefunden (noch nicht verarbeitet).
-            </div>
-          ) : null}
-          <div>
-            <div className="text-xs font-medium text-muted-foreground mb-1">Base Item</div>
-            <div className="text-xs break-all">{state.baseItem.metadata.name}</div>
-            <div className="text-[10px] text-muted-foreground mt-1 break-all">{state.baseItem.id}</div>
-          </div>
+    <div className="space-y-3">
+      {/* Kompakte Übersicht: Source + Artefakte auf einen Blick */}
+      {isEmptyButChecked && (
+        <div className="rounded border bg-muted/30 p-2 text-xs text-muted-foreground">
+          Analysiert: keine Artefakte gefunden (noch nicht verarbeitet).
+        </div>
+      )}
 
+      {state.analysisError && (
+        <div className="rounded border border-red-200 bg-red-50 p-2">
+          <div className="text-xs font-medium text-red-600">Analysefehler</div>
+          <div className="text-xs text-red-600 break-all mt-1">{state.analysisError}</div>
+        </div>
+      )}
+
+      {/* Kompakte Key-Value-Übersicht */}
+      <table className="w-full text-xs">
+        <tbody>
+          <tr className="border-b">
+            <td className="py-1 pr-3 text-muted-foreground whitespace-nowrap align-top">Source</td>
+            <td className="py-1 break-all">{state.baseItem.metadata.name}</td>
+          </tr>
           {state.transformed && (
-            <div>
-              <div className="text-xs font-medium text-muted-foreground mb-1">Transformed</div>
-              <div className="text-xs break-all">{state.transformed.metadata.name}</div>
-              <div className="text-[10px] text-muted-foreground mt-1 break-all">{state.transformed.id}</div>
-            </div>
+            <tr className="border-b">
+              <td className="py-1 pr-3 text-muted-foreground whitespace-nowrap align-top">Transformation</td>
+              <td className="py-1 break-all">{state.transformed.metadata.name}</td>
+            </tr>
           )}
-
-          {state.shadowTwinFolderId && (
-            <div>
-              <div className="text-xs font-medium text-muted-foreground mb-1">Shadow-Twin Folder</div>
-              <div className="text-[10px] text-muted-foreground break-all">{state.shadowTwinFolderId}</div>
-            </div>
+          {transcriptCount > 0 && (
+            <tr className="border-b">
+              <td className="py-1 pr-3 text-muted-foreground whitespace-nowrap align-top">
+                Transkript{transcriptCount > 1 ? `e (${transcriptCount})` : ''}
+              </td>
+              <td className="py-1 break-all">
+                {state.transcriptFiles!.map(f => f.metadata.name).join(', ')}
+              </td>
+            </tr>
           )}
+          <tr className="border-b">
+            <td className="py-1 pr-3 text-muted-foreground whitespace-nowrap align-top">Zusammenfassung</td>
+            <td className="py-1">
+              <span className="inline-flex gap-2 flex-wrap">
+                <span>{transformCount} Transformation</span>
+                <span>{transcriptCount} Transkript{transcriptCount !== 1 ? 'e' : ''}</span>
+                <span>{binaryCount} Binaries{loadingFragments ? ' (lädt...)' : ''}</span>
+                {mediaCount > 0 && <span>{mediaCount} Media</span>}
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <td className="py-1 pr-3 text-muted-foreground whitespace-nowrap align-top">Analysiert</td>
+            <td className="py-1">{new Date(state.analysisTimestamp).toLocaleString('de-DE')}</td>
+          </tr>
+        </tbody>
+      </table>
 
-          {state.transcriptFiles && state.transcriptFiles.length > 0 && (
-            <div>
-              <div className="text-xs font-medium text-muted-foreground mb-1">
-                Transcript Files ({state.transcriptFiles.length})
-              </div>
-              <div className="space-y-1">
-                {state.transcriptFiles.map((file) => (
-                  <div key={file.id} className="text-xs break-all">{file.metadata.name}</div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {state.mediaFiles && state.mediaFiles.length > 0 && (
-            <div>
-              <div className="text-xs font-medium text-muted-foreground mb-1">
-                Media Files ({state.mediaFiles.length})
-              </div>
-              <div className="space-y-1">
-                {state.mediaFiles.map((file) => (
-                  <div key={file.id} className="text-xs break-all">{file.metadata.name}</div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Binary Fragments aus MongoDB (Cover-Bilder, Audio, etc.) */}
-          <div>
-            <div className="text-xs font-medium text-muted-foreground mb-1">
-              Binary Files (MongoDB) {loadingFragments && <span className="text-[10px]">(lädt...)</span>}
-            </div>
-            {binaryFragments.length > 0 ? (
-              <div className="space-y-1">
-                {binaryFragments.map((fragment, idx) => (
-                  <div key={`${fragment.name}-${idx}`} className="flex items-start gap-2">
-                    <span className="text-xs text-muted-foreground shrink-0">[{fragment.kind}]</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs break-all">{fragment.name}</div>
-                      {fragment.url && (
-                        <a 
-                          href={fragment.url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-[10px] text-blue-600 hover:underline break-all"
-                        >
-                          {fragment.url.length > 60 ? `${fragment.url.substring(0, 60)}...` : fragment.url}
-                        </a>
-                      )}
-                      {fragment.size && (
-                        <span className="text-[10px] text-muted-foreground ml-2">
-                          ({(fragment.size / 1024).toFixed(1)} KB)
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-xs text-muted-foreground">
-                {loadingFragments ? '...' : 'Keine Binärdateien'}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <div className="text-xs font-medium text-muted-foreground mb-1">Analysis Timestamp</div>
-            <div className="text-xs">{new Date(state.analysisTimestamp).toLocaleString('de-DE')}</div>
-          </div>
-
-          {state.analysisError && (
-            <div>
-              <div className="text-xs font-medium text-red-600 mb-1">Error</div>
-              <div className="text-xs text-red-600 break-all">{state.analysisError}</div>
-            </div>
-          )}
-      </div>
-
-      {/* Artefakte-Tabelle (aus MongoDB) */}
+      {/* Einzelne Tabelle: Alle Artefakte aus MongoDB (Markdown + Binaries) */}
       {activeLibraryId && (
-        <div className="border-t pt-4">
-          <div className="mb-2">
-            <div className="text-sm font-medium">Alle Artefakte (aus MongoDB)</div>
-            <div className="text-xs text-muted-foreground mt-1">
-              Zeigt alle Dateien (Markdown-Artefakte und Binary-Fragmente wie Bilder, Audio, Video) aus MongoDB.
-            </div>
-          </div>
+        <div>
+          <div className="text-xs font-medium mb-2">Artefakte in MongoDB</div>
           <ShadowTwinArtifactsTable
             libraryId={activeLibraryId}
             sourceId={selectedFile.id}

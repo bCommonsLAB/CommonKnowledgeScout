@@ -724,7 +724,9 @@ export async function POST(
       try { await repo.updateStep(jobId, 'ingest_rag', { status: 'running', startedAt: new Date() }) } catch {}
       try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'ingest_start', attributes: { libraryId: job.libraryId } }) } catch {}
 
-      const ctxPre: RequestContext = { request, jobId, job, body: {}, callbackToken: undefined, internalBypass: true }
+      // Job mit aktuellem shadowTwinState aus der Analyse – loadShadowTwinMarkdown braucht ihn
+      const jobWithShadowTwinState = { ...job, shadowTwinState: shadowTwinState ?? job.shadowTwinState }
+      const ctxPre: RequestContext = { request, jobId, job: jobWithShadowTwinState, body: {}, callbackToken: undefined, internalBypass: true }
 
       // Shadow-Twin-Markdown-Datei laden (v2-only)
       // Ingest-only-Pfad: Braucht das transformierte Markdown mit Metadaten

@@ -1071,6 +1071,8 @@ export async function findDocs(
       docType: 1,
       source: 1,
       tags: 1,
+      topics: 1,
+      organisation: 1,
       slug: 1,
       coverImageUrl: 1,
       coverThumbnailUrl: 1,
@@ -1097,6 +1099,10 @@ export async function findDocs(
       'docMetaJson.massnahme_nr': 1,
       'docMetaJson.lv_bewertung': 1,
       'docMetaJson.arbeitsgruppe': 1,
+      // Session/Event-spezifische Felder
+      'docMetaJson.organisation': 1,
+      'docMetaJson.topics': 1,
+      'docMetaJson.tags': 1,
     },
   })
   
@@ -1229,6 +1235,8 @@ export async function findDocsGrouped(
     docType: 1,
     source: 1,
     tags: 1,
+    topics: 1,
+    organisation: 1,
     slug: 1,
     coverImageUrl: 1,
     coverThumbnailUrl: 1,
@@ -1247,6 +1255,9 @@ export async function findDocsGrouped(
     'docMetaJson.docType': 1,
     'docMetaJson.category': 1,
     'docMetaJson.handlungsfeld': 1,
+    'docMetaJson.organisation': 1,
+    'docMetaJson.topics': 1,
+    'docMetaJson.tags': 1,
     'docMetaJson.massnahme_nr': 1,
     'docMetaJson.lv_bewertung': 1,
     'docMetaJson.arbeitsgruppe': 1,

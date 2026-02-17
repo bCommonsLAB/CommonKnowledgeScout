@@ -1054,7 +1054,9 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                     <div className="flex items-center justify-between rounded border p-3">
                       <div>
                         <FormLabel className="text-sm">Filesystem Fallback</FormLabel>
-                        <FormDescription>Fallback lesen, wenn Mongo‑Eintrag fehlt.</FormDescription>
+                        <FormDescription>
+                          Ausnahme: Aus Filesystem lesen, wenn Mongo‑Eintrag fehlt. Standardmäßig deaktiviert – nur bei Bedarf aktivieren.
+                        </FormDescription>
                       </div>
                       <Switch
                         checked={shadowTwinAllowFilesystemFallback}

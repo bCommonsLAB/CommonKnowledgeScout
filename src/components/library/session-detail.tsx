@@ -49,6 +49,7 @@ export interface SessionDetailData {
   speakers_url?: string[];
   speakers_image_url?: string[];
   affiliations?: string[];
+  organisation?: string;
   tags?: string[];
   topics?: string[];
   year?: number | string;
@@ -79,7 +80,7 @@ interface SessionDetailProps {
   libraryId?: string; // Optional: für Link zur Library
   provider?: StorageProvider | null;
   currentFolderId?: string;
-  /** Optional: Event-spezifische Tools/Listen ausblenden (z.B. in Wizard-Preview) */
+  /** Optional: Event-Tools ausblenden (z.B. Wizard-Preview). Überschreibt hasTestimonialWizard. */
   hideEventTools?: boolean;
   /** Optional: Debug-Block ausblenden (z.B. in Wizard-Preview) */
   hideDebug?: boolean;
@@ -96,9 +97,12 @@ export function SessionDetail({
   libraryId,
   provider = null,
   currentFolderId = 'root',
-  hideEventTools = false,
+  hideEventTools: hideEventToolsProp = false,
   hideDebug = false,
 }: SessionDetailProps) {
+  // Testimonials/Co-Creation nur anzeigen, wenn Folgewizard im Template definiert ist (im Dokument gespeichert)
+  const hasTestimonialWizard = !!(data.wizard_testimonial_template_id && data.wizard_testimonial_template_id.trim())
+  const showEventTools = !hideEventToolsProp && hasTestimonialWizard
   const { t } = useTranslation()
   const { isOwnerOrModerator, isLoading: isLoadingRole, error: roleError } = useLibraryRole(libraryId)
   const router = useRouter()
@@ -324,11 +328,16 @@ export function SessionDetail({
                 <p className="text-lg text-muted-foreground mb-6 text-pretty">{data.teaser}</p>
               )}
 
-              {/* PDF-Link prominent anzeigen */}
-              {data.url && (
+              {/* Organisation (z.B. "Universität Innsbruck") */}
+              {data.organisation && (
+                <p className="text-sm text-muted-foreground mb-4">{data.organisation}</p>
+              )}
+
+              {/* PDF-Link prominent anzeigen (attachments_url = PDF, url = Original-Webseite) */}
+              {data.attachments_url && (
                 <div className="mb-6">
                   <a
-                    href={data.url}
+                    href={data.attachments_url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-base font-medium shadow-sm"
@@ -340,59 +349,112 @@ export function SessionDetail({
                 </div>
               )}
 
-              {/* Speakers Section */}
-              {speakers.length > 0 && (
-                <div className="mt-6 flex flex-wrap gap-4">
-                  {speakers.map((speaker, index) => {
-                    const speakerUrl = getSpeakerUrl(index);
-                    const speakerImageUrl = getSpeakerImageUrl(index);
-                    const affiliation = getAffiliation(index);
-                    const speakerInitials = speaker
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("");
+              {/* Speakers Section:
+                  - MIT Bild: Card + Avatar (visuell prominent)
+                  - OHNE Bild: Einfache Textliste (unter Organisation, kein übergroßer Kreis) */}
+              {speakers.length > 0 && (() => {
+                // Prüfe ob mindestens ein Sprecher ein Bild hat
+                const hasAnyImage = speakers.some((_, idx) => !!getSpeakerImageUrl(idx))
 
-                    const speakerContent = (
-                      <Card className="p-4 hover:shadow-lg transition-shadow">
-                        <div className="flex items-center gap-4">
-                          <Avatar className="h-16 w-16 border-2 border-blue-400">
-                            {speakerImageUrl ? (
-                              <AvatarImage src={speakerImageUrl} alt={speaker} />
-                            ) : null}
-                            <AvatarFallback>{speakerInitials}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-semibold text-lg group-hover:text-blue-600 transition-colors">
-                              {speaker}
+                if (hasAnyImage) {
+                  // Layout mit Avatar-Cards (nur wenn Bilder vorhanden)
+                  return (
+                    <div className="mt-6 flex flex-wrap gap-4">
+                      {speakers.map((speaker, index) => {
+                        const speakerUrl = getSpeakerUrl(index);
+                        const speakerImageUrl = getSpeakerImageUrl(index);
+                        const affiliation = getAffiliation(index);
+                        const speakerInitials = speaker
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("");
+
+                        const speakerContent = (
+                          <Card className="p-4 hover:shadow-lg transition-shadow">
+                            <div className="flex items-center gap-4">
+                              <Avatar className="h-16 w-16 border-2 border-blue-400">
+                                {speakerImageUrl ? (
+                                  <AvatarImage src={speakerImageUrl} alt={speaker} />
+                                ) : null}
+                                <AvatarFallback>{speakerInitials}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <div className="font-semibold text-lg group-hover:text-blue-600 transition-colors">
+                                  {speaker}
+                                </div>
+                                {affiliation && (
+                                  <div className="text-sm text-muted-foreground">{affiliation}</div>
+                                )}
+                              </div>
                             </div>
-                            {affiliation && (
-                              <div className="text-sm text-muted-foreground">{affiliation}</div>
-                            )}
+                          </Card>
+                        );
+
+                        if (speakerUrl) {
+                          return (
+                            <a
+                              key={`${speaker}-${index}`}
+                              href={speakerUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="group"
+                            >
+                              {speakerContent}
+                            </a>
+                          );
+                        }
+
+                        return (
+                          <div key={`${speaker}-${index}`} className="group">
+                            {speakerContent}
                           </div>
-                        </div>
-                      </Card>
-                    );
+                        );
+                      })}
+                    </div>
+                  )
+                }
 
-                    if (speakerUrl) {
-                      return (
-                        <a
-                          key={`${speaker}-${index}`}
-                          href={speakerUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="group"
-                        >
-                          {speakerContent}
-                        </a>
+                // Kompakte Textliste ohne Avatar (wenn kein Sprecher ein Bild hat)
+                return (
+                  <div className="mt-3 text-base text-foreground">
+                    {speakers.map((speaker, index) => {
+                      const speakerUrl = getSpeakerUrl(index);
+                      const affiliation = getAffiliation(index);
+                      const nameEl = (
+                        <span key={`${speaker}-${index}`}>
+                          <span className="font-medium">{speaker}</span>
+                          {affiliation && <span className="text-muted-foreground"> ({affiliation})</span>}
+                          {index < speakers.length - 1 && <span className="text-muted-foreground">, </span>}
+                        </span>
                       );
-                    }
 
-                    return (
-                      <div key={`${speaker}-${index}`} className="group">
-                        {speakerContent}
-                      </div>
-                    );
-                  })}
+                      if (speakerUrl) {
+                        return (
+                          <a
+                            key={`${speaker}-${index}`}
+                            href={speakerUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-blue-600 transition-colors"
+                          >
+                            {nameEl}
+                          </a>
+                        );
+                      }
+                      return nameEl;
+                    })}
+                  </div>
+                )
+              })()}
+
+              {/* Tags als Badge-Chips (Topics werden nicht angezeigt) */}
+              {Array.isArray(data.tags) && data.tags.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {data.tags.map((tag) => (
+                    <Badge key={`tag-${tag}`} className="bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900">
+                      {tag}
+                    </Badge>
+                  ))}
                 </div>
               )}
             </div>
@@ -421,7 +483,7 @@ export function SessionDetail({
           {slides.length > 0 && <EventSlides slides={slides} libraryId={libraryId} />}
 
           {/* Event: Moderator-Tools + Testimonials */}
-          {isEvent && !hideEventTools ? (
+          {isEvent && showEventTools ? (
             <Card className="p-4">
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1">

@@ -157,6 +157,11 @@ export class FileSystemClient implements StorageProvider {
   }
 
   async deleteItem(itemId: string): Promise<void> {
+    // SICHERHEIT: Mongo-Shadow-Twin-IDs dürfen nicht an die Filesystem-API gesendet werden.
+    // Dort würde getPathFromId bei ungültigen IDs auf library.path zurückfallen → Löschen des Root-Verzeichnisses.
+    if (itemId.startsWith('mongo-shadow-twin:')) {
+      throw new Error(`[FilesystemClient] Mongo-Shadow-Twin-ID "${itemId.slice(0, 40)}..." kann nicht über Filesystem gelöscht werden`)
+    }
     this.invalidateCache();
     const url = `${this.baseUrl}?fileId=${encodeURIComponent(itemId)}`;
     await this.fetchWithError(url, { method: 'DELETE' });

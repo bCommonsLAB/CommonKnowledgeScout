@@ -76,7 +76,11 @@ class LocalStorageProvider implements StorageProvider {
   }
 
   async deleteItem(fileId: string): Promise<void> {
-    const response = await fetch(`/api/storage/filesystem?action=delete&fileId=${fileId}&libraryId=${this.library.id}`, {
+    // SICHERHEIT: Mongo-Shadow-Twin-IDs dürfen nicht an die Filesystem-API gesendet werden.
+    if (fileId.startsWith('mongo-shadow-twin:')) {
+      throw new Error(`[StorageFactoryMongoDB] Mongo-Shadow-Twin-ID kann nicht über Filesystem gelöscht werden`)
+    }
+    const response = await fetch(`/api/storage/filesystem?action=delete&fileId=${encodeURIComponent(fileId)}&libraryId=${encodeURIComponent(this.library.id)}`, {
       method: 'DELETE',
     });
     if (!response.ok) {

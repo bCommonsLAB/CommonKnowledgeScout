@@ -1541,40 +1541,54 @@ function PreviewContent({
 
             <TabsContent value="transcript" className="min-h-0 flex-1 overflow-hidden p-3">
               <div className="h-full overflow-hidden rounded border p-3">
-                <div className="space-y-3">
-                  <div className="text-xs text-muted-foreground">
-                    Für Markdown-Dateien ist kein separates Transkript erforderlich, da das Original bereits Text ist.
-                  </div>
-                  <div className="border-t pt-3">
-                    <ArtifactMarkdownPanel
-                      title="Original-Inhalt"
-                      titleClassName="text-xs text-muted-foreground font-normal"
-                      item={item}
-                      provider={provider}
-                      libraryId={activeLibraryId || undefined}
-                      emptyHint="Kein Inhalt verfügbar"
-                      stripFrontmatter={false}
-                      onSaved={(saved) => {
-                        if (!provider) return
-                        const loadSavedContent = async () => {
-                          const { blob } = await provider.getBinary(saved.id)
-                          const text = await blob.text()
-                          contentCache.current.delete(item.id)
-                          contentCache.current.set(saved.id, { content: text, hasMetadata: !!extractFrontmatter(text) })
-                          onContentUpdated(text)
-                          setSelectedFile(saved)
-                          if (onRefreshFolder) {
-                            const updatedItems = await provider.listItemsById(saved.parentId)
-                            onRefreshFolder(saved.parentId, updatedItems, saved)
+                {/* Bei Mongo-Mode: Transkript aus MongoDB anzeigen (enthält Quellen-Referenzen + Korpus-Text).
+                    Ohne MongoDB-Transkript: Original als Fallback anzeigen. */}
+                {shadowTwinState?.transcriptFiles && shadowTwinState.transcriptFiles.length > 0 ? (
+                  <ArtifactMarkdownPanel
+                    title="Transkript (Quellen + Korpus-Text)"
+                    titleClassName="text-xs text-muted-foreground font-normal"
+                    item={shadowTwinState.transcriptFiles[0]}
+                    provider={provider}
+                    libraryId={activeLibraryId || undefined}
+                    emptyHint="Transkript konnte nicht geladen werden."
+                    stripFrontmatter={true}
+                  />
+                ) : (
+                  <div className="space-y-3">
+                    <div className="text-xs text-muted-foreground">
+                      Kein separates Transkript vorhanden. Das Original wird als Fallback angezeigt.
+                    </div>
+                    <div className="border-t pt-3">
+                      <ArtifactMarkdownPanel
+                        title="Original-Inhalt"
+                        titleClassName="text-xs text-muted-foreground font-normal"
+                        item={item}
+                        provider={provider}
+                        libraryId={activeLibraryId || undefined}
+                        emptyHint="Kein Inhalt verfügbar"
+                        stripFrontmatter={false}
+                        onSaved={(saved) => {
+                          if (!provider) return
+                          const loadSavedContent = async () => {
+                            const { blob } = await provider.getBinary(saved.id)
+                            const text = await blob.text()
+                            contentCache.current.delete(item.id)
+                            contentCache.current.set(saved.id, { content: text, hasMetadata: !!extractFrontmatter(text) })
+                            onContentUpdated(text)
+                            setSelectedFile(saved)
+                            if (onRefreshFolder) {
+                              const updatedItems = await provider.listItemsById(saved.parentId)
+                              onRefreshFolder(saved.parentId, updatedItems, saved)
+                            }
                           }
-                        }
-                        loadSavedContent().catch((error) => {
-                          FileLogger.error('FilePreview', 'Fehler beim Aktualisieren nach Edit', { error })
-                        })
-                      }}
-                    />
+                          loadSavedContent().catch((error) => {
+                            FileLogger.error('FilePreview', 'Fehler beim Aktualisieren nach Edit', { error })
+                          })
+                        }}
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </TabsContent>
 

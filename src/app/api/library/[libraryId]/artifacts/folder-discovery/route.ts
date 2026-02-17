@@ -13,7 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { getMediaKind } from '@/lib/media-types'
-import { stripAllFrontmatter } from '@/lib/markdown/frontmatter'
+import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { getShadowTwinsBySourceIds } from '@/lib/repositories/shadow-twin-repo'
@@ -34,6 +34,36 @@ const SUPPORTED_MEDIA_KINDS = new Set<string>([
   'pptx',
   'markdown',
 ])
+
+/**
+ * Felder aus dem Shadow-Twin-Frontmatter, die in den Kontext für den Secretary übernommen werden.
+ * Ermöglicht z. B. attachments_url, attachment_links für Event-Templates.
+ * Siehe docs/analysis/shadow-twin-metadata-to-secretary-context.md
+ */
+const METADATA_KEYS_FOR_CONTEXT = new Set([
+  'attachments_url',
+  'attachment_links',
+  'url',
+  'video_url',
+  'coverImageUrl',
+  'title',
+  'slug',
+  'organisation',
+  'event',
+  'track',
+])
+
+/** Extrahiert relevante Metadaten aus dem Frontmatter für den Kontext. */
+function extractSourceMetadata(meta: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const key of METADATA_KEYS_FOR_CONTEXT) {
+    const v = meta[key]
+    if (v != null && v !== '') {
+      out[key] = v
+    }
+  }
+  return out
+}
 
 export interface FolderDiscoveryRequest {
   folderId: string
@@ -118,8 +148,24 @@ export async function POST(
         }
         if (!selected?.record?.markdown?.trim()) continue
 
-        const extractedText = stripAllFrontmatter(selected.record.markdown).trim()
+        const { meta, body } = parseFrontmatter(selected.record.markdown)
+        const extractedText = body.trim()
         if (!extractedText) continue
+
+        const sourceMetadata =
+          meta && typeof meta === 'object' && !Array.isArray(meta)
+            ? extractSourceMetadata(meta as Record<string, unknown>)
+            : undefined
+
+        if (sourceMetadata && Object.keys(sourceMetadata).length > 0) {
+          FileLogger.debug('artifacts/folder-discovery', 'Shadow-Twin-Metadaten für Secretary-Kontext', {
+            fileName: item.metadata?.name,
+            sourceMetadata,
+            keys: Object.keys(sourceMetadata),
+          })
+          // Console für lokales Debugging (Server-Log)
+          console.debug('[folder-discovery] Shadow-Twin-Metadaten für', item.metadata?.name, ':', sourceMetadata)
+        }
 
         const fileName = item.metadata?.name || 'unbekannt'
         const modifiedAt = item.metadata?.modifiedAt
@@ -135,6 +181,7 @@ export async function POST(
           kind: 'file',
           fileName,
           extractedText,
+          sourceMetadata: Object.keys(sourceMetadata).length > 0 ? sourceMetadata : undefined,
           summary: extractedText.length > 150 ? `${extractedText.slice(0, 150)}...` : extractedText,
           createdAt,
         })
@@ -149,11 +196,17 @@ export async function POST(
         let summary = ''
 
         try {
+          let sourceMetadata: Record<string, unknown> | undefined
+
           if (getMediaKind(item) === 'markdown') {
             const { blob } = await provider.getBinary(item.id)
             const raw = await blob.text()
-            extractedText = stripAllFrontmatter(raw).trim()
+            const { meta, body } = parseFrontmatter(raw)
+            extractedText = body.trim()
             summary = extractedText.length > 150 ? `${extractedText.slice(0, 150)}...` : extractedText
+            if (meta && typeof meta === 'object' && !Array.isArray(meta)) {
+              sourceMetadata = extractSourceMetadata(meta as Record<string, unknown>)
+            }
           } else {
             // Bevorzuge Transcript, Fallback auf Transformation
             let resolved = await resolveArtifact(provider, {
@@ -176,12 +229,25 @@ export async function POST(
             if (resolved?.fileId) {
               const { blob } = await provider.getBinary(resolved.fileId)
               const raw = await blob.text()
-              extractedText = stripAllFrontmatter(raw).trim()
+              const { meta, body } = parseFrontmatter(raw)
+              extractedText = body.trim()
               summary = extractedText.length > 150 ? `${extractedText.slice(0, 150)}...` : extractedText
+              if (meta && typeof meta === 'object' && !Array.isArray(meta)) {
+                sourceMetadata = extractSourceMetadata(meta as Record<string, unknown>)
+              }
             }
           }
 
           if (!extractedText.trim()) continue
+
+          if (sourceMetadata && Object.keys(sourceMetadata).length > 0) {
+            FileLogger.debug('artifacts/folder-discovery', 'Shadow-Twin-Metadaten für Secretary-Kontext (FS)', {
+              fileName,
+              sourceMetadata,
+              keys: Object.keys(sourceMetadata),
+            })
+            console.debug('[folder-discovery] Shadow-Twin-Metadaten für', fileName, ':', sourceMetadata)
+          }
 
           const modifiedAt = item.metadata?.modifiedAt
           const createdAt =
@@ -196,6 +262,8 @@ export async function POST(
             kind: 'file',
             fileName,
             extractedText,
+            sourceMetadata:
+              sourceMetadata && Object.keys(sourceMetadata).length > 0 ? sourceMetadata : undefined,
             summary: summary || fileName,
             createdAt,
           })

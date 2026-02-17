@@ -41,6 +41,7 @@ import { FileCategoryFilter } from './file-category-filter';
 import { useFolderNavigation } from "@/hooks/use-folder-navigation";
 import { useShadowTwinAnalysis } from "@/hooks/use-shadow-twin-analysis";
 import { shadowTwinAnalysisTriggerAtom, shadowTwinStateAtom } from "@/atoms/shadow-twin-atom";
+import { isShadowTwinFolderName } from "@/lib/storage/shadow-twin";
 
 // Typen für Sortieroptionen
 type SortField = 'type' | 'name' | 'size' | 'date';
@@ -939,8 +940,10 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
       return [];
     }
     const items = allItemsInFolder ?? [];
-    // Verstecke dot-Verzeichnisse generell in der Liste
-    const filtered = items.filter(item => item.type === 'folder' && !item.metadata.name.startsWith('.'));
+    // Verstecke Shadow-Twin-Ordner (Unterstrich- und Punkt-Prefix) in der Liste
+    const filtered = items.filter(
+      item => item.type === 'folder' && !isShadowTwinFolderName(item.metadata.name)
+    );
     
     // Sortiere Ordner nach aktuellem Sortierfeld und -richtung
     return [...filtered].sort((a, b) => {

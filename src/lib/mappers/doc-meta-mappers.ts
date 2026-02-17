@@ -202,6 +202,7 @@ export function mapToSessionDetail(input: unknown): SessionDetailData {
     speakers_url: toStrArr(docMetaJson.speakers_url) || [],
     speakers_image_url: toStrArr(docMetaJson.speakers_image_url) || [],
     affiliations: toStrArr(docMetaJson.affiliations) || [],
+    organisation: toStr(docMetaJson.organisation),
     tags: toStrArr(docMetaJson.tags) || [],
     topics: toStrArr(docMetaJson.topics) || [],
     

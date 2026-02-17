@@ -43,6 +43,14 @@ export interface DocCardMeta {
   lv_bewertung?: string
   /** Kategorie für Facettenfilter (z.B. Handlungsfeld bei Klimamaßnahmen) */
   category?: string
+
+  // Session/Event-spezifische Felder für Gallery-Karten
+  /** Organisation des Sprechers/Events (z.B. "Universität Innsbruck") */
+  organisation?: string
+  /** Tags für Facettenfilter und Detail-Anzeige */
+  tags?: string[]
+  /** Themen/Topics für Facettenfilter und Detail-Anzeige */
+  topics?: string[]
 }
 
 export interface ChapterInfo {
@@ -104,6 +112,10 @@ export function mapItemToDocCardMeta(item: Item): DocCardMeta {
     lv_bewertung: item.meta.lv_bewertung as string | undefined,
     // category mit Fallback auf handlungsfeld für ältere Daten in der DB
     category: (item.meta.category || item.meta.handlungsfeld) as string | undefined,
+    // Session/Event-spezifische Felder
+    organisation: item.meta.organisation as string | undefined,
+    tags: Array.isArray(item.meta.tags) ? item.meta.tags as string[] : undefined,
+    topics: Array.isArray(item.meta.topics) ? item.meta.topics as string[] : undefined,
   };
 }
 

@@ -22,12 +22,13 @@ import { toast } from "sonner"
 import { useStorage } from "@/contexts/storage-context"
 import { useRouter } from "next/navigation"
 import { useAtomValue } from "jotai"
-import { currentFolderIdAtom } from "@/atoms/library-atom"
+import { currentFolderIdAtom, librariesAtom } from "@/atoms/library-atom"
 import { buildCreationFileName } from "@/lib/creation/file-name"
 import { applyEventFrontmatterDefaults } from "@/lib/events/event-frontmatter-defaults"
 import type { WizardSource } from "@/lib/creation/corpus"
-import { buildCorpusText, isCorpusTooLarge, truncateCorpus } from "@/lib/creation/corpus"
+import { buildCorpusText, buildTranscriptMarkdown, isCorpusTooLarge, truncateCorpus } from "@/lib/creation/corpus"
 import { parseFrontmatter } from "@/lib/markdown/frontmatter"
+import { createMarkdownWithFrontmatter } from "@/lib/markdown/compose"
 import { resolveArtifactClient } from "@/lib/shadow-twin/artifact-client"
 import { writeArtifact } from "@/lib/shadow-twin/artifact-writer"
 import { findRelatedTestimonials } from "@/lib/creation/dialograum-discovery"
@@ -141,6 +142,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
   const [resumeFileIdState] = useState<string | undefined>(resumeFileId)
   const [seedFileIdState, setSeedFileIdState] = useState<string | undefined>(seedFileId)
   const { provider, refreshItems } = useStorage()
+  const libraries = useAtomValue(librariesAtom)
   const currentFolderIdAtomValue = useAtomValue(currentFolderIdAtom)
   // Verwende targetFolderIdProp, falls gesetzt (für Child-Flows), sonst currentFolderIdAtom
   const currentFolderId = targetFolderIdProp || currentFolderIdAtomValue
@@ -779,9 +781,22 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     }
 
     try {
+      // Shadow-Twin-Metadaten: welche Quellen haben sourceMetadata für den Secretary-Kontext?
+      const sourcesWithMeta = sources.filter((s) => s.kind === 'file' && s.sourceMetadata && Object.keys(s.sourceMetadata).length > 0)
+      if (sourcesWithMeta.length > 0) {
+        console.debug('[corpus] Shadow-Twin-Metadaten im Kontext für', sourcesWithMeta.length, 'Quelle(n):')
+        for (const s of sourcesWithMeta) {
+          console.debug('  -', s.fileName, ':', s.sourceMetadata)
+        }
+      }
+
       // Baue Korpus-Text aus allen Quellen
       let corpusText = buildCorpusText(sources)
-      
+
+      if (sourcesWithMeta.length > 0) {
+        console.debug('[corpus] Korpus an Secretary: Länge', corpusText.length, 'Zeichen,', sourcesWithMeta.length, 'Quelle(n) mit Shadow-Twin-Metadaten')
+      }
+
       // Prüfe Größe und kürze ggf.
       if (isCorpusTooLarge(corpusText)) {
         corpusText = truncateCorpus(corpusText)
@@ -1812,11 +1827,35 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       /**
        * Frontmatter darf nur Template-Metadaten enthalten.
        * Alle "Body-only" Felder (z.B. summaryInText) dürfen NICHT im Frontmatter landen.
+       *
+       * WICHTIG: Hardcodierte Felder (ohne {{}} Placeholder, d.h. description === '')
+       * sind System-Parameter und dürfen NICHT vom LLM überschrieben werden.
+       * Beispiel: detailViewType ist im Template hardcodiert als "session",
+       * das LLM hat aber "video" zurückgegeben → Template-Wert muss Vorrang haben.
        */
       const frontmatterKeys = new Set(template.metadata.fields.map((f) => f.key))
       const frontmatterMetadata: Record<string, unknown> = {}
       for (const key of frontmatterKeys) {
-        if (key in metadataWithImages) frontmatterMetadata[key] = metadataWithImages[key]
+        const field = template.metadata.fields.find((f) => f.key === key)
+        const isHardcoded = field && (!field.description || field.description.trim() === '')
+
+        if (isHardcoded && field?.rawValue) {
+          // Hardcodiertes Feld: Template-rawValue hat Vorrang (LLM darf nicht überschreiben)
+          const rv = field.rawValue
+          if (rv === 'true') frontmatterMetadata[key] = true
+          else if (rv === 'false') frontmatterMetadata[key] = false
+          else frontmatterMetadata[key] = rv
+        } else if (key in metadataWithImages) {
+          frontmatterMetadata[key] = metadataWithImages[key]
+        } else {
+          // Template-Default: rawValue verwenden, wenn Feld keinen Wert aus Formular/LLM hat
+          const rv = field?.rawValue
+          if (rv !== undefined && rv !== '') {
+            if (rv === 'true') frontmatterMetadata[key] = true
+            else if (rv === 'false') frontmatterMetadata[key] = false
+            else frontmatterMetadata[key] = rv
+          }
+        }
       }
 
       applyEventFrontmatterDefaults({
@@ -1838,11 +1877,11 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         const testimonialId = typeof fw?.testimonialTemplateId === 'string' ? fw.testimonialTemplateId.trim() : ''
         const finalizeId = typeof fw?.finalizeTemplateId === 'string' ? fw.finalizeTemplateId.trim() : ''
 
+        // Nur setzen, wenn Template einen Folgewizard definiert hat (Folge-Wizards → Wizard für Testimonials)
         if (testimonialId) {
           frontmatterMetadata.wizard_testimonial_template_id = testimonialId
-        } else if (!frontmatterMetadata.wizard_testimonial_template_id) {
-          frontmatterMetadata.wizard_testimonial_template_id = 'event-testimonial-creation-de'
         }
+        // Kein Fallback: Ohne Folgewizard-Definition bleibt das Feld leer → Testimonials-Bereich wird nicht angezeigt
 
         if (finalizeId) {
           frontmatterMetadata.wizard_finalize_template_id = finalizeId
@@ -2047,22 +2086,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       const docTypeForSave = typeof allFrontmatterMetadata.docType === 'string' ? allFrontmatterMetadata.docType.trim() : ''
       const slugForSave = typeof allFrontmatterMetadata.slug === 'string' ? allFrontmatterMetadata.slug.trim() : undefined
       
-      const frontmatter = Object.entries(allFrontmatterMetadata)
-        .map(([key, value]) => {
-          if (value === null || value === undefined) {
-            return `${key}: ""`
-          }
-          if (Array.isArray(value)) {
-            return `${key}: ${JSON.stringify(value)}`
-          }
-          if (typeof value === 'string' && value.includes('\n')) {
-            return `${key}: |\n${value.split('\n').map(line => `  ${line}`).join('\n')}`
-          }
-          return `${key}: ${value}`
-        })
-        .join("\n")
-
-      const markdownContent = `---\n${frontmatter}\n---\n\n${finalBodyMarkdown}`
+      // Zentrale Frontmatter-Serialisierung (wie Job Worker) – mehrzeilige Strings via JSON.stringify
+      const markdownContent = createMarkdownWithFrontmatter(finalBodyMarkdown, allFrontmatterMetadata)
 
       // Speichere Datei im Storage
       let targetFolderId: string
@@ -2131,18 +2156,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
 
         // Für PDF-Publish halten wir das Frontmatter bewusst sauber:
         // nur Template-Metadaten (keine Wizard-Resume-Felder).
-        const pdfFrontmatter = Object.entries(frontmatterMetadata)
-          .map(([key, value]) => {
-            if (value === null || value === undefined) return `${key}: ""`
-            if (Array.isArray(value)) return `${key}: ${JSON.stringify(value)}`
-            if (typeof value === 'string' && value.includes('\n')) {
-              return `${key}: |\n${value.split('\n').map(line => `  ${line}`).join('\n')}`
-            }
-            return `${key}: ${value}`
-          })
-          .join("\n")
-
-        const pdfMarkdownContent = `---\n${pdfFrontmatter}\n---\n\n${existingTransformBody}`
+        // Zentrale Serialisierung via compose (wie Job Worker)
+        const pdfMarkdownContent = createMarkdownWithFrontmatter(existingTransformBody, frontmatterMetadata)
 
         // 4) Overwrite via zentralem Writer (SSOT, v2-only)
         const templateName = String(templateId || 'pdfanalyse')
@@ -2438,6 +2453,60 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         // Variante C: Staging-Artefakte aus `.wizard-sources` in den Zielordner verschieben
         // (best effort, kein Blocker für Speichern)
         await promotePdfWizardArtifacts({ destinationFolderId: targetFolderId })
+      }
+
+      // MongoDB-Persistenz: Wizard-Output als Shadow-Twin-Artefakte in MongoDB speichern.
+      // Zwei Artefakte: Transkript (Korpus mit Quellen-Referenzen) + Transformation (Wizard-Output).
+      // Siehe docs/rules/ingest-mongo-only.md: Alle ingestierten Artefakte MÜSSEN in MongoDB existieren.
+      // Nur bei primaryStore === 'mongo'. Die API lehnt bei Filesystem-Mode ab.
+      // BLOCKIEREND: Bei Fehler wird der Speichervorgang abgebrochen.
+      if (savedItemId && libraryId && markdownContent) {
+        const library = libraries.find((lib) => lib.id === libraryId)
+        const shadowTwinConfig = library?.config?.shadowTwin as { primaryStore?: 'filesystem' | 'mongo' } | undefined
+        if (shadowTwinConfig?.primaryStore === 'mongo') {
+          const templateNameForArtifact = (template?.name || templateId || '').trim() || 'creation'
+          const upsertUrl = `/api/library/${encodeURIComponent(libraryId)}/shadow-twins/upsert`
+
+          // 1) Transkript: Korpus-Text mit Quellen-Referenzen (wie bei Audio/PDF das extrahierte Transkript)
+          const transcriptMarkdown = buildTranscriptMarkdown(wizardState.sources)
+          const transcriptRes = await fetch(upsertUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sourceId: savedItemId,
+              artifactKey: {
+                kind: 'transcript',
+                targetLanguage: 'de',
+              },
+              markdown: transcriptMarkdown,
+            }),
+          })
+          if (!transcriptRes.ok) {
+            const errText = await transcriptRes.text().catch(() => 'Unknown error')
+            toast.error('Shadow-Twin-Transkript konnte nicht gespeichert werden', { description: errText })
+            throw new Error(`Shadow-Twin-Transkript-Upsert fehlgeschlagen: ${errText}`)
+          }
+
+          // 2) Transformation: Wizard-Output (fertiges Markdown mit Frontmatter)
+          const transformRes = await fetch(upsertUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sourceId: savedItemId,
+              artifactKey: {
+                kind: 'transformation',
+                targetLanguage: 'de',
+                templateName: templateNameForArtifact,
+              },
+              markdown: markdownContent,
+            }),
+          })
+          if (!transformRes.ok) {
+            const errText = await transformRes.text().catch(() => 'Unknown error')
+            toast.error('Shadow-Twin-Transformation konnte nicht gespeichert werden', { description: errText })
+            throw new Error(`Shadow-Twin-Transformation-Upsert fehlgeschlagen: ${errText}`)
+          }
+        }
       }
 
       /**
@@ -3149,10 +3218,13 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             })
           }
 
-          // Generic Publish: Save + Ingest (z.B. Event-Erstellung).
-          // Motivation: User soll am Ende einen expliziten Abschluss mit Progress sehen
-          // und danach direkt in den Explorer wechseln können.
+          // Generic Publish: Save + optional Ingest (z.B. Event-Erstellung).
+          // ingestOnFinish: false = nur Archiv, keine Ingestion (User kann später aus Archiv ingestieren).
           if (isGenericPublish) {
+            // Explizit Publish-Step aus Template laden (currentStep kann durch Filter abweichen)
+            const publishStepFromTemplate = template.creation?.flow?.steps?.find((s) => s.preset === 'publish')
+            const ingestOnFinish = publishStepFromTemplate?.ingestOnFinish ?? currentStep?.ingestOnFinish
+            const shouldIngest = ingestOnFinish !== false
             setWizardState(prev => ({
               ...prev,
               isPublishing: true,
@@ -3168,51 +3240,53 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
               const targetSlug = saveRes?.slug
               if (!savedItemId) throw new Error('Speichern fehlgeschlagen (savedItemId fehlt).')
 
-              setWizardState(prev => ({
-                ...prev,
-                publishingProgress: 70,
-                publishingMessage: 'Ingestion starten…',
-              }))
+              if (shouldIngest) {
+                setWizardState(prev => ({
+                  ...prev,
+                  publishingProgress: 70,
+                  publishingMessage: 'Ingestion starten…',
+                }))
 
-              const ingestStartedAt = nowMs()
-              if (sessionIdForLogs) {
-                void logWizardEventClient(sessionIdForLogs, {
-                  eventType: 'ingest_started',
-                  stepIndex: wizardState.currentStepIndex,
-                  stepPreset: currentStep?.preset,
-                  fileIds: { savedItemId },
-                  metadata: { mode: 'generic_publish' },
+                const ingestStartedAt = nowMs()
+                if (sessionIdForLogs) {
+                  void logWizardEventClient(sessionIdForLogs, {
+                    eventType: 'ingest_started',
+                    stepIndex: wizardState.currentStepIndex,
+                    stepPreset: currentStep?.preset,
+                    fileIds: { savedItemId },
+                    metadata: { mode: 'generic_publish' },
+                  })
+                }
+                const ingestRes = await fetch(`/api/chat/${encodeURIComponent(libId)}/ingest-markdown`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ fileId: savedItemId, fileName: savedFileName }),
                 })
-              }
-              const ingestRes = await fetch(`/api/chat/${encodeURIComponent(libId)}/ingest-markdown`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fileId: savedItemId, fileName: savedFileName }),
-              })
-              if (!ingestRes.ok) {
-                const errorText = await ingestRes.text().catch(() => 'Unknown error')
+                if (!ingestRes.ok) {
+                  const errorText = await ingestRes.text().catch(() => 'Unknown error')
+                  if (sessionIdForLogs) {
+                    const durationMs = Math.max(0, nowMs() - ingestStartedAt)
+                    void logWizardEventClient(sessionIdForLogs, {
+                      eventType: 'ingest_failed',
+                      stepIndex: wizardState.currentStepIndex,
+                      stepPreset: currentStep?.preset,
+                      fileIds: { savedItemId },
+                      metadata: { durationMs, mode: 'generic_publish' },
+                      error: { code: 'ingest_failed', message: errorText },
+                    })
+                  }
+                  throw new Error(`Ingestion fehlgeschlagen: ${errorText}`)
+                }
                 if (sessionIdForLogs) {
                   const durationMs = Math.max(0, nowMs() - ingestStartedAt)
                   void logWizardEventClient(sessionIdForLogs, {
-                    eventType: 'ingest_failed',
+                    eventType: 'ingest_completed',
                     stepIndex: wizardState.currentStepIndex,
                     stepPreset: currentStep?.preset,
                     fileIds: { savedItemId },
                     metadata: { durationMs, mode: 'generic_publish' },
-                    error: { code: 'ingest_failed', message: errorText },
                   })
                 }
-                throw new Error(`Ingestion fehlgeschlagen: ${errorText}`)
-              }
-              if (sessionIdForLogs) {
-                const durationMs = Math.max(0, nowMs() - ingestStartedAt)
-                void logWizardEventClient(sessionIdForLogs, {
-                  eventType: 'ingest_completed',
-                  stepIndex: wizardState.currentStepIndex,
-                  stepPreset: currentStep?.preset,
-                  fileIds: { savedItemId },
-                  metadata: { durationMs, mode: 'generic_publish' },
-                })
               }
 
               const imagesCount = Object.keys(wizardState.imageUrls || {}).length
@@ -3226,7 +3300,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                 publishingMessage: 'Fertig.',
                 publishStats: { documents: 1, images: imagesCount, sources: sourcesCount },
                 publishTargetFolderId: targetFolderId,
-                publishTargetSlug: targetSlug || prev.publishTargetSlug,
+                // Slug nur bei Ingestion – sonst Gallery-Lookup schlägt fehl (Dokument nicht indiziert)
+                publishTargetSlug: shouldIngest ? (targetSlug || prev.publishTargetSlug) : undefined,
               }))
               if (sessionIdForLogs) {
                 const durationMs = Math.max(0, nowMs() - publishStartedAt)
@@ -3493,23 +3568,29 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             || {}
 
           // Frontmatter darf nur Template-Metadaten enthalten.
+          // Hardcodierte Felder (description === '') werden vom Template-rawValue geschützt.
           const frontmatterKeys = new Set(template.metadata.fields.map((f) => f.key))
           const frontmatterMetadata: Record<string, unknown> = {}
           for (const key of frontmatterKeys) {
-            if (key in baseMetadata) frontmatterMetadata[key] = (baseMetadata as Record<string, unknown>)[key]
-          }
+            const field = template.metadata.fields.find((f) => f.key === key)
+            const isHardcoded = field && (!field.description || field.description.trim() === '')
 
-          function serializeFrontmatter(meta: Record<string, unknown>): string {
-            return Object.entries(meta)
-              .map(([key, value]) => {
-                if (value === null || value === undefined) return `${key}: ""`
-                if (Array.isArray(value)) return `${key}: ${JSON.stringify(value)}`
-                if (typeof value === 'string' && value.includes('\n')) {
-                  return `${key}: |\n${value.split('\n').map(line => `  ${line}`).join('\n')}`
-                }
-                return `${key}: ${value}`
-              })
-              .join("\n")
+            if (isHardcoded && field?.rawValue) {
+              // Hardcodiertes Feld: Template-rawValue hat Vorrang
+              const rv = field.rawValue
+              if (rv === 'true') frontmatterMetadata[key] = true
+              else if (rv === 'false') frontmatterMetadata[key] = false
+              else frontmatterMetadata[key] = rv
+            } else if (key in baseMetadata) {
+              frontmatterMetadata[key] = (baseMetadata as Record<string, unknown>)[key]
+            } else {
+              const rv = field?.rawValue
+              if (rv !== undefined && rv !== '') {
+                if (rv === 'true') frontmatterMetadata[key] = true
+                else if (rv === 'false') frontmatterMetadata[key] = false
+                else frontmatterMetadata[key] = rv
+              }
+            }
           }
 
           const destinationFolderId = currentFolderId && currentFolderId.trim().length > 0 ? currentFolderId : 'root'
@@ -3578,8 +3659,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             const existingTransformContent = await existingTransformBlob.text()
             const { body: existingTransformBody } = parseFrontmatter(existingTransformContent)
 
-            const nextFrontmatter = serializeFrontmatter(frontmatterMetadata)
-            const nextMarkdown = `---\n${nextFrontmatter}\n---\n\n${existingTransformBody}`
+            const nextMarkdown = createMarkdownWithFrontmatter(existingTransformBody, frontmatterMetadata)
 
             const templateName = String(templateId || 'pdfanalyse')
             const writeRes = await writeArtifact(provider, {
@@ -3713,6 +3793,9 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
               router.push(`/library${folderParam}`)
             }}
             goToLibraryLabel="Im Explorer öffnen"
+            successMessage={currentStep?.ingestOnFinish === false
+              ? "Das Ergebnis wurde im Archiv gespeichert. Ingestion kann später aus dem Archiv erfolgen."
+              : undefined}
           >
             {wizardState.publishStats ? (
               <div className="text-xs text-muted-foreground space-y-1">
@@ -3838,8 +3921,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
 
       {/* Step Content */}
       <div className="mb-6 min-h-[400px]">
-        {/* Überschrift/Beschreibung nur anzeigen, wenn der Step keine eigene Card hat */}
-        {currentStep.preset !== 'collectSource' && currentStep.preset !== 'welcome' && currentStep.preset !== 'editDraft' && currentStep.preset !== 'completion' && (
+        {/* Überschrift/Beschreibung nur anzeigen, wenn der Step keine eigene Card hat (publish hat eigene Card mit Titel) */}
+        {currentStep.preset !== 'collectSource' && currentStep.preset !== 'welcome' && currentStep.preset !== 'editDraft' && currentStep.preset !== 'completion' && currentStep.preset !== 'publish' && (
           <>
             {currentStep.title && (
               <h2 className="text-2xl font-semibold mb-2">{currentStep.title}</h2>

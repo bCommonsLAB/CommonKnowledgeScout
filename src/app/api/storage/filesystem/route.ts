@@ -152,9 +152,20 @@ function getPathFromId(library: LibraryType, fileId: string): string {
     return library.path;
   }
 
-  // Wenn es NICHT wie Base64 aussieht, nicht dekodieren – Buffer.from(...,'base64') erzeugt sonst Müll (Windows: "��").
+  // SICHERHEIT: Mongo-Shadow-Twin-IDs dürfen NIEMALS an den Filesystem-Provider gelangen.
+  // Diese IDs beginnen mit "mongo-shadow-twin:" und sind keine Dateipfade.
+  // Ohne diese Prüfung fällt getPathFromId auf library.path zurück, was bei DELETE
+  // zur rekursiven Löschung des gesamten Bibliotheksverzeichnisses führen kann!
+  if (fileId.startsWith('mongo-shadow-twin:')) {
+    throw new Error(`[getPathFromId] Mongo-Shadow-Twin-ID ist keine Filesystem-ID. Aufruf über falschen Provider.`)
+  }
+
+  // Wenn es NICHT wie Base64 aussieht, nicht dekodieren – sondern Fehler werfen.
+  // KRITISCH: Vorher wurde hier library.path zurückgegeben, was bei DELETE
+  // zur Löschung des gesamten Bibliotheksverzeichnisses geführt hat!
+  // Nur explizite 'root'-Aufrufe (oben geprüft) dürfen library.path erhalten.
   if (!/^[A-Za-z0-9+/=]+$/.test(fileId) || fileId.length % 4 !== 0) {
-    return library.path
+    throw new Error(`[getPathFromId] fileId ist kein gültiges Base64-Format und kann nicht zu einem Pfad aufgelöst werden.`)
   }
   
   try {
@@ -165,7 +176,7 @@ function getPathFromId(library: LibraryType, fileId: string): string {
     
     // Check for path traversal attempts
     if (normalizedPath.includes('..')) {
-      return library.path;
+      throw new Error(`[getPathFromId] Path-Traversal-Versuch erkannt in fileId`)
     }
     
     // Join with base path using pathLib.join to handle separators correctly
@@ -192,20 +203,21 @@ function getPathFromId(library: LibraryType, fileId: string): string {
     }
     
     if (!isWithinLibrary) {
-      return library.path;
+      throw new Error(`[getPathFromId] Pfad liegt außerhalb der Bibliothek`)
     }
     
     return result;
   } catch (error) {
-    console.error('[getPathFromId] 💥 Error decoding path:', {
+    console.error('[getPathFromId] Fehler beim Dekodieren des Pfads:', {
       error: error instanceof Error ? {
         message: error.message,
         name: error.name
       } : error,
-      fileId,
+      fileId: fileId.slice(0, 60),
       libraryPath: library.path
     });
-    return library.path;
+    // KRITISCH: Niemals library.path als Fallback! Das führt bei DELETE zum Löschen des Root-Verzeichnisses.
+    throw error instanceof Error ? error : new Error(`[getPathFromId] Unbekannter Fehler beim Dekodieren`)
   }
 }
 
@@ -988,6 +1000,14 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid file ID' }, { status: 400 });
   }
 
+  // SICHERHEIT: Mongo-Shadow-Twin-IDs direkt ablehnen – diese gehören nicht zum Filesystem.
+  // Ohne diese Prüfung kann getPathFromId bei ungültigen IDs auf library.path zurückfallen
+  // und das gesamte Bibliotheksverzeichnis rekursiv löschen.
+  if (fileId.startsWith('mongo-shadow-twin:')) {
+    console.warn('[API] DELETE: Mongo-Shadow-Twin-ID abgelehnt – nicht über Filesystem löschbar', { fileId: fileId.slice(0, 60) });
+    return NextResponse.json({ error: 'Mongo-Shadow-Twin-IDs können nicht über den Filesystem-Provider gelöscht werden' }, { status: 400 });
+  }
+
   // E-Mail aus Authentifizierung oder Parameter ermitteln
   const userEmail = await getUserEmail(request);
 
@@ -1002,6 +1022,16 @@ export async function DELETE(request: NextRequest) {
 
   try {
     const absolutePath = getPathFromId(library, fileId);
+
+    // SICHERHEIT: Löschen des Library-Root-Verzeichnisses IMMER verhindern.
+    // Das ist die letzte Verteidigungslinie, falls getPathFromId trotz aller Prüfungen library.path zurückgibt.
+    const normalizedAbsolute = pathLib.normalize(absolutePath).replace(/\\/g, '/');
+    const normalizedLibRoot = pathLib.normalize(library.path).replace(/\\/g, '/');
+    if (normalizedAbsolute === normalizedLibRoot || normalizedAbsolute === normalizedLibRoot + '/') {
+      console.error('[API] DELETE: KRITISCH – Versuch, das Library-Root-Verzeichnis zu löschen!', { absolutePath, libraryPath: library.path, fileId: fileId.slice(0, 60) });
+      return NextResponse.json({ error: 'Das Löschen des Library-Root-Verzeichnisses ist nicht erlaubt' }, { status: 403 });
+    }
+
     const stats = await fs.stat(absolutePath);
     
     // Prüfe ob es sich um ein Buch handelt (PDF-Datei) und lösche Azure-Bilder

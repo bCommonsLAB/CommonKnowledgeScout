@@ -72,6 +72,8 @@ export interface MongoDocForConversion {
   docType?: string
   source?: string
   tags?: unknown
+  topics?: unknown
+  organisation?: string
   slug?: string
   coverImageUrl?: string
   coverThumbnailUrl?: string
@@ -138,6 +140,11 @@ export function convertMongoDocToDocCardMeta(doc: MongoDocForConversion): DocCar
     massnahme_nr: (docMeta?.massnahme_nr as string | undefined),
     lv_bewertung: (docMeta?.lv_bewertung as string | undefined),
     arbeitsgruppe: (docMeta?.arbeitsgruppe as string | undefined),
+    // Session/Event-spezifische Felder
+    organisation: (typeof doc.organisation === 'string' ? doc.organisation : undefined)
+      || (docMeta?.organisation as string | undefined),
+    tags: Array.isArray(doc.tags) ? doc.tags.map(String) : (Array.isArray(docMeta?.tags) ? (docMeta.tags as unknown[]).map(String) : undefined),
+    topics: Array.isArray(doc.topics) ? doc.topics.map(String) : (Array.isArray(docMeta?.topics) ? (docMeta.topics as unknown[]).map(String) : undefined),
   }
 }
 

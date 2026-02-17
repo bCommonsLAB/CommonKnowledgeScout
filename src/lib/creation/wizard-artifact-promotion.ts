@@ -77,15 +77,20 @@ export async function promoteWizardArtifacts(args: PromoteWizardArtifactsArgs): 
     return { movedBase: 'skipped', movedArtifactFolder: 'not_found' }
   }
 
-  // Artefakt-Ordner: `.${baseFileName}` (z.B. ".176...pdf")
+  // Artefakt-Ordner: Unterstrich- oder Punkt-Prefix (z.B. _document.pdf oder .document.pdf)
   const baseName = baseItem.metadata?.name || ''
-  const artifactFolderName = baseName ? `.${baseName}` : ''
+  const { generateShadowTwinFolderNameVariants } = await import('@/lib/storage/shadow-twin')
+  const artifactFolderVariants = baseName ? generateShadowTwinFolderNameVariants(baseName) : []
 
   let artifactFolderId: string | undefined
-  if (artifactFolderName) {
+  let artifactFolderName: string | undefined
+  if (artifactFolderVariants.length > 0) {
     const stagingItems = await provider.listItemsById(stagingFolderId)
-    const artifactFolder = stagingItems.find((it) => isFolderNamed(it, artifactFolderName))
+    const artifactFolder = stagingItems.find(
+      (it) => it.type === 'folder' && artifactFolderVariants.includes(it.metadata?.name || '')
+    )
     artifactFolderId = artifactFolder?.id
+    artifactFolderName = artifactFolder?.metadata?.name
   }
 
   // Verschiebe Basis-PDF in Zielordner (Inbox/Container)

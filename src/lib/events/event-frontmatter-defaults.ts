@@ -41,6 +41,10 @@ export function applyEventFrontmatterDefaults(args: {
     }
   }
 
+  // detailViewType: Nur als Fallback setzen, wenn leer.
+  // Der Hauptschutz gegen LLM-Überschreibung liegt in creation-wizard.tsx,
+  // wo hardcodierte Felder (description === '') direkt aus rawValue kommen.
+  // Dieser Fallback greift nur, wenn das Feld im Template existiert aber keinen Wert hat.
   if (frontmatterKeys.has('detailViewType')) {
     const current = frontmatter.detailViewType
     if (!current || String(current).trim() === '') {
@@ -68,15 +72,11 @@ export function applyEventFrontmatterDefaults(args: {
     }
   }
 
-  // Wizard-Orchestrierung: Default-Templates für Folgeflüsse (B/C).
-  // Diese Felder sind bewusst optional: Nur setzen, wenn das Template sie definiert.
+  // Wizard-Orchestrierung: Nur setzen, wenn das Template (creation.followWizards) sie definiert.
+  // Kein Fallback – ohne Folgewizard-Definition bleibt das Feld leer, Testimonials-Bereich wird nicht angezeigt.
+  // Die konkreten IDs werden vom Creation Wizard aus template.creation.followWizards übernommen.
   if (docType === 'event') {
-    if (frontmatterKeys.has('wizard_testimonial_template_id')) {
-      const current = frontmatter.wizard_testimonial_template_id
-      if (!current || String(current).trim() === '') {
-        frontmatter.wizard_testimonial_template_id = 'event-testimonial-creation-de'
-      }
-    }
+    // wizard_testimonial_template_id: Kein Default – wird nur vom Wizard gesetzt, wenn Template Folgewizard hat
     if (frontmatterKeys.has('wizard_finalize_template_id')) {
       const current = frontmatter.wizard_finalize_template_id
       if (!current || String(current).trim() === '') {

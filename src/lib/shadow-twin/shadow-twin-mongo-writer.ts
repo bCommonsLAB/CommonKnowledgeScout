@@ -216,6 +216,22 @@ export async function persistShadowTwinToMongo(args: {
       throw new Error(`Library nicht gefunden: ${libraryId}`)
     }
 
+    const { getShadowTwinConfig } = await import('@/lib/shadow-twin/shadow-twin-config')
+    const cfg = getShadowTwinConfig(library)
+    // Wenn persistToFilesystem und shadowTwinFolderId fehlt: Ordner finden oder erstellen
+    let effectiveShadowTwinFolderId = shadowTwinFolderId
+    if (cfg.persistToFilesystem && cfg.primaryStore === 'mongo' && !effectiveShadowTwinFolderId) {
+      const { findShadowTwinFolder, generateShadowTwinFolderName } = await import('@/lib/storage/shadow-twin')
+      const found = await findShadowTwinFolder(sourceItem.parentId, sourceItem.metadata.name, provider)
+      if (found) {
+        effectiveShadowTwinFolderId = found.id
+      } else {
+        const folderName = generateShadowTwinFolderName(sourceItem.metadata.name)
+        const created = await provider.createFolder(sourceItem.parentId, folderName)
+        effectiveShadowTwinFolderId = created.id
+      }
+    }
+
     const service = new ShadowTwinService({
       library,
       userEmail,
@@ -240,6 +256,7 @@ export async function persistShadowTwinToMongo(args: {
       templateName: artifactKey.templateName,
       markdown: processed.markdown,
       binaryFragments: serviceBinaryFragments,
+      shadowTwinFolderId: effectiveShadowTwinFolderId,
     })
   } catch (error) {
     FileLogger.error('shadow-twin-mongo-writer', 'Fehler beim Speichern über ShadowTwinService', {

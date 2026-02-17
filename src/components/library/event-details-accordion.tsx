@@ -70,6 +70,15 @@ export function EventDetailsAccordion({ data }: EventDetailsAccordionProps) {
                   </div>
                 )}
 
+                {data.organisation && (
+                  <div className="flex items-start gap-2">
+                    <div>
+                      <div className="text-xs text-muted-foreground">Organisation</div>
+                      <div className="font-medium">{data.organisation}</div>
+                    </div>
+                  </div>
+                )}
+
                 {data.track && (
                   <div className="pt-2 border-t">
                     <Badge variant="secondary" className="text-xs">

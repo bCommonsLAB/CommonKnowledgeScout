@@ -1,0 +1,23 @@
+---
+description: Alle ingestierten Artefakte müssen in MongoDB vorhanden sein. Kein Fallback auf Filesystem.
+globs: src/lib/external-jobs/phase-shadow-twin-loader.ts,src/app/api/external/jobs/**/start/route.ts,src/components/creation-wizard/**/*
+alwaysApply: false
+---
+
+# Ingest: MongoDB-only (kein Fallback)
+
+## Regel
+
+**Alle ingestierten Artefakte MÜSSEN in MongoDB vorhanden sein.**
+
+- Kein Fallback auf Filesystem oder Provider
+- Kein „lade die Quelldatei direkt, wenn Shadow-Twin fehlt“
+- Deterministisch: Wenn nicht in MongoDB → Fehler
+
+## Bei Änderungen prüfen
+
+- [ ] Wird für Ingest aus dem Provider/Dateisystem geladen, wenn MongoDB leer ist? → VERBOTEN
+- [ ] Gibt es einen Fallback-Pfad, der die Quelldatei als Ingest-Quelle nutzt? → ENTFERNEN
+- [ ] Wird der Wizard-Upsert blockierend ausgeführt, bevor Ingest getriggert wird? → Sollte so sein (bei primaryStore=mongo)
+
+Siehe: `docs/rules/ingest-mongo-only.md`

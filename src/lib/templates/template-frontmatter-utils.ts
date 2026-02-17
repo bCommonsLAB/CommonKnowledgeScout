@@ -472,7 +472,8 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
                   title: typeof st.title === 'string' ? st.title : undefined,
                   description: typeof st.description === 'string' ? st.description : undefined,
                   fields: Array.isArray(st.fields) ? st.fields.filter((f): f is string => typeof f === 'string') : undefined,
-                  imageFieldKeys: Array.isArray(st.imageFieldKeys) ? st.imageFieldKeys.filter((f): f is string => typeof f === 'string') : undefined
+                  imageFieldKeys: Array.isArray(st.imageFieldKeys) ? st.imageFieldKeys.filter((f): f is string => typeof f === 'string') : undefined,
+                  ingestOnFinish: st.ingestOnFinish === false ? false : true
                 }
               }
               return { id: '', preset: '' as CreationFlowStepPreset }
@@ -599,7 +600,8 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
                   title: typeof st.title === 'string' ? st.title : undefined,
                   description: typeof st.description === 'string' ? st.description : undefined,
                   fields: Array.isArray(st.fields) ? st.fields.filter((f): f is string => typeof f === 'string') : undefined,
-                  imageFieldKeys: Array.isArray(st.imageFieldKeys) ? st.imageFieldKeys.filter((f): f is string => typeof f === 'string') : undefined
+                  imageFieldKeys: Array.isArray(st.imageFieldKeys) ? st.imageFieldKeys.filter((f): f is string => typeof f === 'string') : undefined,
+                  ingestOnFinish: st.ingestOnFinish === false ? false : true
                 }
               }
               return { id: '', preset: '' as CreationFlowStepPreset }
@@ -799,6 +801,9 @@ function serializeCreationToYaml(creation: TemplateCreationConfig, indent: numbe
       for (const fieldKey of step.imageFieldKeys) {
         lines.push(`${indentStr}        - ${fieldKey}`)
       }
+    }
+    if (step.preset === 'publish' && step.ingestOnFinish === false) {
+      lines.push(`${indentStr}      ingestOnFinish: false`)
     }
   }
   

@@ -3,6 +3,7 @@
 import * as React from "react"
 
 import type { StorageItem, StorageProvider } from "@/lib/storage/types"
+import { generateShadowTwinFolderNameVariants } from "@/lib/storage/shadow-twin"
 import { parseArtifactName } from "@/lib/shadow-twin/artifact-naming"
 
 export interface ShadowTwinTransformationEntry {
@@ -41,25 +42,6 @@ function asTimeMs(value: unknown): number {
     return Number.isFinite(t) ? t : 0
   }
   return 0
-}
-
-function generateShadowTwinFolderNameVariants(originalName: string): string[] {
-  const cleanName = originalName.trim().replace(/^\/+|\/+$/g, "")
-  const fullFolderName = `.${cleanName}`
-  const maxLength = 255
-
-  if (fullFolderName.length <= maxLength) return [fullFolderName]
-
-  // Name ist zu lang: behalte Extension, kürze Basisname (ohne Node `path`).
-  const lastDot = cleanName.lastIndexOf(".")
-  const extension = lastDot >= 0 ? cleanName.slice(lastDot) : ""
-  const baseName = lastDot >= 0 ? cleanName.slice(0, lastDot) : cleanName
-  const reservedLength = 2 + extension.length // "." + "." + ext
-  const availableLength = maxLength - reservedLength
-  if (availableLength <= 0) return [`.${extension}`]
-
-  const truncatedBase = baseName.length > availableLength ? baseName.slice(0, availableLength) : baseName
-  return [`.${truncatedBase}${extension}`]
 }
 
 async function findShadowTwinFolderId(args: {

@@ -21,6 +21,7 @@ import { selectShadowTwinArtifact } from '@/lib/shadow-twin/shadow-twin-select';
 import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming';
 import { buildMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id';
 import { getCollectionNameForLibrary, getByFileIds } from '@/lib/repositories/vector-repo';
+import { parseFrontmatter } from '@/lib/markdown/frontmatter';
 
 /**
  * Extrahiert ListMeta aus Transformations-Frontmatter für die Dateiliste.
@@ -46,6 +47,37 @@ function listMetaFromFrontmatter(frontmatter: Record<string, unknown> | undefine
     ...(typeof coverImageUrl === 'string' && coverImageUrl.trim() ? { coverImageUrl: coverImageUrl.trim() } : {}),
     ...(typeof coverThumbnailUrl === 'string' && coverThumbnailUrl.trim() ? { coverThumbnailUrl: coverThumbnailUrl.trim() } : {}),
   };
+}
+
+/**
+ * Self-Reference für Wizard-Dateien (transformationSource: true):
+ * Die Source-Datei selbst ist die Transformation – kein Shadow-Twin nötig.
+ * Analog zur resolve-Route.
+ * @returns Artefakt oder null; bei Erfolg optional frontmatter für listMeta
+ */
+async function trySelfReferenceTransformation(
+  provider: StorageProvider,
+  source: { sourceId: string; sourceName: string; parentId: string },
+  kind: 'transcript' | 'transformation'
+): Promise<{ artifact: ResolvedArtifactWithItem; frontmatter?: Record<string, unknown> } | null> {
+  try {
+    const item = await provider.getItemById(source.sourceId);
+    if (!item || item.type !== 'file') return null;
+    const bin = await provider.getBinary(source.sourceId);
+    const content = await bin.blob.text();
+    const { meta } = parseFrontmatter(content);
+    if (meta?.transformationSource !== true) return null;
+    const artifact: ResolvedArtifactWithItem = {
+      fileId: source.sourceId,
+      fileName: source.sourceName,
+      location: 'sibling',
+      kind: kind === 'transformation' || kind === 'transcript' ? kind : 'transformation',
+      item,
+    };
+    return { artifact, frontmatter: meta as Record<string, unknown> };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -221,9 +253,10 @@ export async function POST(
       // Helper-Funktion zum Erstellen eines ResolvedArtifactWithItem
       const createArtifactItem = (
         source: typeof body.sources[0],
-        selected: { kind: 'transcript' | 'transformation'; record: { markdown: string; updatedAt: string }; templateName?: string }
+        selected: { kind: 'transcript' | 'transformation'; targetLanguage: string; record: { markdown: string; updatedAt: string }; templateName?: string }
       ): ResolvedArtifactWithItem => {
-        const targetLanguage = targetLanguageBySource.get(source.sourceId) || 'de';
+        // Verwende die tatsaechliche Sprache des Artefakts (z.B. 'en' bei Fallback, wenn nur transcript.en existiert)
+        const targetLanguage = selected.targetLanguage || targetLanguageBySource.get(source.sourceId) || 'de';
         const fileName = buildArtifactName(
           {
             sourceId: source.sourceId,
@@ -266,13 +299,16 @@ export async function POST(
 
       const artifacts: Record<string, ResolvedArtifactWithItem | null> = {};
       const transcripts: Record<string, ResolvedArtifactWithItem | null> = {};
-      
+
       // Lade beide Artefakt-Typen wenn includeBoth=true
       const shouldIncludeBoth = body.includeBoth === true;
-      
+
       for (const source of body.sources) {
         const doc = docs.get(source.sourceId);
         if (!doc) {
+          // Mongo-Mode: Kein Self-Reference / Filesystem-Fallback.
+          // Siehe docs/rules/ingest-mongo-only.md: Artefakte MÜSSEN in MongoDB existieren.
+          // Wenn kein Shadow-Twin-Dokument in Mongo, dann gibt es kein Artefakt.
           artifacts[source.sourceId] = null;
           if (shouldIncludeBoth) {
             transcripts[source.sourceId] = null;
@@ -286,7 +322,7 @@ export async function POST(
         const selected = selectShadowTwinArtifact(doc, preferredKind, targetLanguage);
         // selectShadowTwinArtifact gibt nur 'transcript' oder 'transformation' zurück, nie 'raw'
         if (selected && (selected.kind === 'transcript' || selected.kind === 'transformation')) {
-          artifacts[source.sourceId] = createArtifactItem(source, selected as { kind: 'transcript' | 'transformation'; record: typeof selected.record; templateName?: string });
+          artifacts[source.sourceId] = createArtifactItem(source, selected as { kind: 'transcript' | 'transformation'; targetLanguage: string; record: typeof selected.record; templateName?: string });
         } else {
           artifacts[source.sourceId] = null;
         }
@@ -296,7 +332,7 @@ export async function POST(
           const transcriptSelected = selectShadowTwinArtifact(doc, 'transcript', targetLanguage);
           // selectShadowTwinArtifact gibt nur 'transcript' oder 'transformation' zurück, nie 'raw'
           if (transcriptSelected && (transcriptSelected.kind === 'transcript' || transcriptSelected.kind === 'transformation')) {
-            transcripts[source.sourceId] = createArtifactItem(source, transcriptSelected as { kind: 'transcript' | 'transformation'; record: typeof transcriptSelected.record; templateName?: string });
+            transcripts[source.sourceId] = createArtifactItem(source, transcriptSelected as { kind: 'transcript' | 'transformation'; targetLanguage: string; record: typeof transcriptSelected.record; templateName?: string });
           } else {
             transcripts[source.sourceId] = null;
           }
@@ -309,15 +345,17 @@ export async function POST(
         listMeta = {};
         for (const source of body.sources) {
           const doc = docs.get(source.sourceId);
-          if (!doc) continue;
-          const targetLanguage = targetLanguageBySource.get(source.sourceId) || 'de';
-          const selected = selectShadowTwinArtifact(doc, 'transformation', targetLanguage);
-          if (selected?.kind === 'transformation' && selected.record.frontmatter) {
-            const meta = listMetaFromFrontmatter(selected.record.frontmatter as Record<string, unknown>);
-            if (meta && (meta.title || meta.number || meta.coverImageUrl || meta.coverThumbnailUrl)) {
-              listMeta[source.sourceId] = meta;
+          if (doc) {
+            const targetLanguage = targetLanguageBySource.get(source.sourceId) || 'de';
+            const selected = selectShadowTwinArtifact(doc, 'transformation', targetLanguage);
+            if (selected?.kind === 'transformation' && selected.record.frontmatter) {
+              const meta = listMetaFromFrontmatter(selected.record.frontmatter as Record<string, unknown>);
+              if (meta && (meta.title || meta.number || meta.coverImageUrl || meta.coverThumbnailUrl)) {
+                listMeta[source.sourceId] = meta;
+              }
             }
           }
+          // Mongo-Mode: Kein Self-Reference – wenn kein doc, dann kein ListMeta
         }
       }
 
@@ -424,6 +462,11 @@ export async function POST(
         });
 
         if (!resolved) {
+          // Self-Reference: Wizard-Dateien (transformationSource: true) – Source selbst ist Transformation
+          const selfRef = await trySelfReferenceTransformation(provider, source, preferredKind);
+          if (selfRef) {
+            return { sourceId: source.sourceId, artifact: selfRef.artifact };
+          }
           return { sourceId: source.sourceId, artifact: null };
         }
 
@@ -507,6 +550,11 @@ export async function POST(
           });
 
           if (!resolved) {
+            // Self-Reference: Wizard-Dateien (transformationSource: true) – Source selbst ist auch als Transcript nutzbar
+            const selfRef = await trySelfReferenceTransformation(provider, source, 'transcript');
+            if (selfRef) {
+              return { sourceId: source.sourceId, artifact: selfRef.artifact };
+            }
             return { sourceId: source.sourceId, artifact: null };
           }
 

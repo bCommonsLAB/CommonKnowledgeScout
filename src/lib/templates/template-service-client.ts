@@ -20,6 +20,11 @@ export async function listAvailableTemplates(libraryId: string): Promise<string[
   try {
     const response = await fetch(`/api/templates?libraryId=${encodeURIComponent(libraryId)}`)
     if (!response.ok) {
+      // 404: Clerk maskiert geschützte Routen für anonyme Nutzer als 404.
+      // 401: Nicht authentifiziert. In beiden Fällen: leere Liste zurückgeben statt werfen.
+      if (response.status === 404 || response.status === 401) {
+        return []
+      }
       throw new Error(`HTTP ${response.status}`)
     }
     const data = await response.json()

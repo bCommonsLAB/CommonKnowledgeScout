@@ -591,17 +591,35 @@ export function JobReportTab({
     }
   }, [effectiveMdId, effectiveMdIdRef])
   
-  // Lade Edit-Item wenn Dialog geöffnet wird
+  // Lade Edit-Item wenn Dialog geöffnet wird.
+  // Bei Mongo-IDs: Virtuelles Item aus shadowTwinState verwenden (provider kennt keine Mongo-IDs).
   useEffect(() => {
-    if (!isEditOpen || !provider || !effectiveMdId) {
+    if (!isEditOpen || !effectiveMdId) {
+      setEditItem(null)
+      return
+    }
+
+    // Mongo-ID: Virtuelles StorageItem aus shadowTwinState.transformed verwenden
+    if (isMongoShadowTwinId(effectiveMdId)) {
+      const virtualItem = shadowTwinState?.transformed
+      if (virtualItem) {
+        setEditItem(virtualItem)
+      } else {
+        UILogger.warn('JobReportTab', 'Mongo-ID aber kein virtuelles Item in shadowTwinState', { effectiveMdId })
+        setEditItem(null)
+      }
+      return
+    }
+
+    // Filesystem-ID: Über Provider laden
+    if (!provider) {
       setEditItem(null)
       return
     }
     
     let cancelled = false
-    // provider und effectiveMdId sind hier garantiert definiert (werden oben geprüft)
-    const currentProvider = provider!
-    const currentMdId = effectiveMdId!
+    const currentProvider = provider
+    const currentMdId = effectiveMdId
     async function loadEditItem() {
       try {
         const item = await currentProvider.getItemById(currentMdId)
@@ -617,7 +635,7 @@ export function JobReportTab({
     }
     void loadEditItem()
     return () => { cancelled = true }
-  }, [isEditOpen, provider, effectiveMdId])
+  }, [isEditOpen, provider, effectiveMdId, shadowTwinState])
 
   useEffect(() => {
     async function loadFrontmatter() {
@@ -1074,6 +1092,40 @@ export function JobReportTab({
       event.target.value = ''
     }
   }, [saveCoverImage, provider, effectiveMdId])
+
+  // Prüfe ob die aktuelle coverImageUrl relativ ist (nicht absolut)
+  // Relative URLs müssen für die Web-Ingestion in absolute URLs umgewandelt werden
+  const isCoverImageRelative = coverImageUrl
+    ? !(coverImageUrl.startsWith('http://') || coverImageUrl.startsWith('https://') || coverImageUrl.startsWith('/api/storage/'))
+    : false
+
+  // "Bild verwenden": Aktuell angezeigtes Bild (aus relativem Pfad aufgelöst) neu hochladen,
+  // damit es eine absolute URL bekommt und bei der Ingestion/Veröffentlichung erreichbar ist.
+  const handleUseCurrentImage = useCallback(async () => {
+    if (!coverImageDisplayUrl || !coverImageUrl) return
+
+    setIsUploading(true)
+    try {
+      // Bild von der aufgelösten URL laden
+      const response = await fetch(coverImageDisplayUrl)
+      if (!response.ok) {
+        throw new Error(`Bild konnte nicht geladen werden: ${response.status}`)
+      }
+      const blob = await response.blob()
+
+      // Dateiname aus coverImageUrl extrahieren (z.B. "34dd92f7-...jpg")
+      const fileName = coverImageUrl.split('/').pop() || 'cover.jpg'
+      const mimeType = blob.type || 'image/jpeg'
+      const file = new File([blob], fileName, { type: mimeType })
+
+      await saveCoverImage(file)
+      toast.success('Bild neu gespeichert — coverImageUrl aktualisiert')
+    } catch (error) {
+      toast.error('Fehler: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'))
+    } finally {
+      setIsUploading(false)
+    }
+  }, [coverImageDisplayUrl, coverImageUrl, saveCoverImage])
 
   // Funktion zum Auswählen eines bestehenden Bild-Paares als Cover
   // Erwartet den Namen des Original-Bildes (nicht des Thumbnails)
@@ -1551,6 +1603,12 @@ export function JobReportTab({
               
               {coverImageDisplayUrl ? (
                 <div className="space-y-2">
+                  {/* Hinweis: Relative URL ist nur lokal auflösbar */}
+                  {isCoverImageRelative && (
+                    <div className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded px-2 py-1.5">
+                      Relative URL — nur lokal auflösbar. Klicke &quot;Bild verwenden&quot;, um eine absolute URL für die Web-Veröffentlichung zu erzeugen.
+                    </div>
+                  )}
                   <div className="border rounded-md p-3">
                     <img 
                       src={coverImageDisplayUrl} 
@@ -1627,8 +1685,8 @@ export function JobReportTab({
                 </Alert>
               )}
 
-              {/* Upload-Button */}
-              <div className="flex gap-2">
+              {/* Upload-Buttons */}
+              <div className="flex gap-2 flex-wrap">
                 <label className="cursor-pointer">
                   <input
                     type="file"
@@ -1646,6 +1704,20 @@ export function JobReportTab({
                     {isUploading ? 'Lädt...' : 'Bild hochladen'}
                   </Button>
                 </label>
+                {/* "Bild verwenden": Nur anzeigen wenn coverImageUrl relativ ist und ein Bild geladen wurde.
+                    Lädt das aktuell angezeigte Bild neu hoch, damit coverImageUrl eine absolute URL wird
+                    und bei Ingestion/Veröffentlichung ohne lokalen Storage erreichbar ist. */}
+                {isCoverImageRelative && coverImageDisplayUrl && (
+                  <Button
+                    type="button"
+                    variant="default"
+                    onClick={handleUseCurrentImage}
+                    disabled={isUploading || !!validationResult.error}
+                    className="text-xs"
+                  >
+                    {isUploading ? 'Lädt...' : 'Bild verwenden'}
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="outline"

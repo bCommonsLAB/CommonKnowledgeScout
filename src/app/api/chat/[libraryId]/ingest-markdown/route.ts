@@ -5,7 +5,8 @@ import { FileLogger } from '@/lib/debug/logger'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { IngestionService } from '@/lib/chat/ingestion-service'
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
-import { getShadowTwinArtifact, toArtifactKey } from '@/lib/repositories/shadow-twin-repo'
+import { getShadowTwinArtifact, getShadowTwinsBySourceIds, toArtifactKey } from '@/lib/repositories/shadow-twin-repo'
+import { selectShadowTwinArtifact } from '@/lib/shadow-twin/shadow-twin-select'
 import { LibraryService } from '@/lib/services/library-service'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 
@@ -89,16 +90,48 @@ export async function POST(
         markdownLength: markdown.length
       })
     } else {
-      // Standard-Pfad: Lade über Provider (Filesystem)
-      const provider = await getServerProvider(userEmail, libraryId)
-      item = await provider.getItemById(fileId)
-      const bin = await provider.getBinary(fileId)
-      markdown = await bin.blob.text()
-      
-      FileLogger.info('ingest-markdown', 'Markdown aus Filesystem geladen', {
-        fileId,
-        markdownLength: markdown.length
-      })
+      // Provider-ID: Prüfe ob Mongo-Mode aktiv – wenn ja, aus MongoDB laden statt Filesystem.
+      // Siehe docs/rules/ingest-mongo-only.md: Alle ingestierten Artefakte MÜSSEN in MongoDB existieren.
+      const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
+      const shadowTwinConfig = library ? getShadowTwinConfig(library) : null
+
+      if (shadowTwinConfig?.primaryStore === 'mongo') {
+        // Mongo-Mode: fileId ist sourceId – Transformation aus MongoDB laden
+        const docsMap = await getShadowTwinsBySourceIds({ libraryId, sourceIds: [fileId] })
+        const doc = docsMap.get(fileId)
+        if (!doc) {
+          FileLogger.warn('ingest-markdown', 'Kein Shadow-Twin in MongoDB für sourceId', { fileId, libraryId })
+          return NextResponse.json({ error: 'Kein Shadow-Twin-Artefakt in MongoDB für diese Datei. Bitte zuerst Transformation durchführen.' }, { status: 404 })
+        }
+
+        // Transformation auswählen (gleiche Logik wie batch-resolve)
+        const selected = selectShadowTwinArtifact(doc, 'transformation', 'de')
+        if (!selected || !selected.record.markdown) {
+          FileLogger.warn('ingest-markdown', 'Kein Transformations-Artefakt mit Inhalt', { fileId, libraryId })
+          return NextResponse.json({ error: 'Kein Transformations-Artefakt mit Inhalt in MongoDB gefunden.' }, { status: 404 })
+        }
+
+        markdown = selected.record.markdown
+        item = { metadata: { name: fileName || `${fileId}.md` } }
+
+        FileLogger.info('ingest-markdown', 'Markdown aus MongoDB geladen (Mongo-Mode, Provider-ID)', {
+          fileId,
+          kind: selected.kind,
+          templateName: selected.templateName,
+          markdownLength: markdown.length,
+        })
+      } else {
+        // Filesystem-Mode: Lade über Provider (unveraendert)
+        const provider = await getServerProvider(userEmail, libraryId)
+        item = await provider.getItemById(fileId)
+        const bin = await provider.getBinary(fileId)
+        markdown = await bin.blob.text()
+
+        FileLogger.info('ingest-markdown', 'Markdown aus Filesystem geladen', {
+          fileId,
+          markdownLength: markdown.length,
+        })
+      }
     }
 
     // DEBUG: Prüfe ob Frontmatter vorhanden ist

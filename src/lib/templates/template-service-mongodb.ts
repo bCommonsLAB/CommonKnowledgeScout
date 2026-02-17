@@ -37,6 +37,15 @@ function generateResponseSchemaFromFields(fields: TemplateMetadataField[]): stri
   const schemaObj: Record<string, string> = {}
   
   for (const field of fields) {
+    // Hardcodierte Felder (ohne {{}} Placeholder) NICHT ins LLM-Schema aufnehmen.
+    // Diese haben description === '' und sind System-Parameter (z.B. detailViewType, docType
+    // ohne Placeholder), die das LLM nicht ausfüllen soll.
+    // Ohne diesen Filter wird z.B. detailViewType als nacktes "string"-Feld gesendet
+    // und das LLM ändert "session" eigenmächtig zu "video".
+    if (!field.description || field.description.trim() === '') {
+      continue
+    }
+
     // Verwende variable als Key (oder key als Fallback)
     const key = field.variable || field.key
     

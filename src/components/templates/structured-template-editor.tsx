@@ -1772,6 +1772,26 @@ function CreationFlowEditor({
                   </div>
                 ) : null}
 
+                {selectedStep.preset === 'publish' && (
+                  <div className="space-y-2 pt-2 border-t">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`ingestOnFinish-${selectedStep.id}`}
+                        checked={selectedStep.ingestOnFinish !== false}
+                        onCheckedChange={(checked) => {
+                          updateStepById(selectedStep.id, { ingestOnFinish: checked === true })
+                        }}
+                      />
+                      <label htmlFor={`ingestOnFinish-${selectedStep.id}`} className="text-sm cursor-pointer">
+                        Nach Speichern ingestieren (für Suche indizieren)
+                      </label>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Wenn deaktiviert: Nur im Archiv speichern. Ingestion kann später optional aus dem Archiv erfolgen.
+                    </p>
+                  </div>
+                )}
+
                 {selectedStep.preset === 'editDraft' && (
                   <div className="space-y-4">
                     <div>
