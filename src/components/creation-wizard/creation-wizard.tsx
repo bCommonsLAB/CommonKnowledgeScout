@@ -2086,8 +2086,34 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       const docTypeForSave = typeof allFrontmatterMetadata.docType === 'string' ? allFrontmatterMetadata.docType.trim() : ''
       const slugForSave = typeof allFrontmatterMetadata.slug === 'string' ? allFrontmatterMetadata.slug.trim() : undefined
       
-      // Zentrale Frontmatter-Serialisierung (wie Job Worker) – mehrzeilige Strings via JSON.stringify
-      const markdownContent = createMarkdownWithFrontmatter(finalBodyMarkdown, allFrontmatterMetadata)
+      // --- Dual-Save Architektur: Transkript (Filesystem) + Transformation (MongoDB) ---
+      // Die Transformation (LLM-Output) wird als Shadow-Twin-Artefakt in MongoDB gespeichert.
+      // Die physische Datei im Filesystem ist das Transkript (Quelltexte), damit der
+      // Benutzer jederzeit eine neue Transformation starten kann, ohne Inhalte zu verlieren.
+      
+      // 1. Transformation-Markdown (für MongoDB Shadow-Twin): LLM-Output + transformationSource=true
+      const transformationMarkdownContent = createMarkdownWithFrontmatter(finalBodyMarkdown, allFrontmatterMetadata)
+      
+      // 2. Transkript-Markdown (für Filesystem): Quelltexte als Body, OHNE transformationSource
+      // So kann die normale Pipeline die Datei erneut transformieren.
+      const transcriptFrontmatter = { ...allFrontmatterMetadata }
+      delete transcriptFrontmatter.transformationSource
+      
+      // Quelltexte als Body zusammensetzen (lesbares Format mit Separatoren)
+      const transcriptBodyParts: string[] = []
+      if (Array.isArray(textSources) && textSources.length > 0) {
+        for (let i = 0; i < textSources.length; i++) {
+          if (textSources.length > 1) {
+            transcriptBodyParts.push(`## Quelle ${i + 1}\n`)
+          }
+          transcriptBodyParts.push(textSources[i])
+        }
+      }
+      const transcriptBody = transcriptBodyParts.length > 0 ? transcriptBodyParts.join('\n\n') : finalBodyMarkdown
+      const transcriptMarkdownContent = createMarkdownWithFrontmatter(transcriptBody, transcriptFrontmatter)
+      
+      // markdownContent = Transkript (wird ins Filesystem gespeichert)
+      const markdownContent = transcriptMarkdownContent
 
       // Speichere Datei im Storage
       let targetFolderId: string
@@ -2430,6 +2456,38 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
               console.warn('[Wizard] Fehler beim Loggen von file_saved:', error)
             }
           }
+        }
+      }
+
+      // --- Shadow-Twin: Transformation als Artefakt in MongoDB persistieren ---
+      // Die physische Datei (savedItemId) ist das Transkript.
+      // Die Transformation (LLM-Output) wird als Shadow-Twin-Artefakt gespeichert,
+      // damit ingest-markdown sie für die Indizierung verwendet (Mongo-Mode).
+      if (savedItemId && libraryId && !isPdfShadowTwinPublish && !resumeFileIdState) {
+        try {
+          const templateName = template.name || templateId || 'unknown'
+          const upsertRes = await fetch(`/api/library/${encodeURIComponent(libraryId)}/shadow-twins/upsert`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sourceId: savedItemId,
+              artifactKey: {
+                kind: 'transformation',
+                targetLanguage: 'de',
+                templateName,
+              },
+              markdown: transformationMarkdownContent,
+            }),
+          })
+          if (!upsertRes.ok) {
+            const errorText = await upsertRes.text().catch(() => 'Unknown')
+            console.warn('[handleSave] Shadow-Twin Upsert fehlgeschlagen:', errorText)
+            // Nicht fatal: Datei ist gespeichert, nur Artefakt fehlt
+          } else {
+            console.log('[handleSave] Transformation als Shadow-Twin-Artefakt gespeichert')
+          }
+        } catch (error) {
+          console.warn('[handleSave] Shadow-Twin Upsert Fehler:', error)
         }
       }
 
