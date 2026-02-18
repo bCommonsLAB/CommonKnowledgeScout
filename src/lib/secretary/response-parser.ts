@@ -102,8 +102,9 @@ export function parseSecretaryMarkdownStrict(markdown: string): FrontmatterParse
   }
 
   // Spezifische Schlüssel, die JSON enthalten können
-  // WICHTIG: 'tags' und 'authors' sind auch Arrays und müssen als JSON geparst werden
-  const jsonKeys = ['chapters', 'toc', 'confidence', 'provenance', 'slides', 'tags', 'authors', 'topics']
+  // WICHTIG: Alle Array-Felder aus Event-Templates müssen hier gelistet sein,
+  // sonst werden sie als String gespeichert (z.B. '["Paolo Dongilli"]' statt Array).
+  const jsonKeys = ['chapters', 'toc', 'confidence', 'provenance', 'slides', 'tags', 'authors', 'topics', 'speakers', 'speakers_image_url', 'speakers_url']
   for (const k of jsonKeys) {
     const raw = extractBalancedJsonAfterKey(fm, k)
     if (raw) {
@@ -112,6 +113,19 @@ export function parseSecretaryMarkdownStrict(markdown: string): FrontmatterParse
       } catch (e) { 
         errors.push(`${k} ist kein gültiges JSON: ${(e as Error).message}`)
         UILogger.warn('response-parser', 'parseSecretaryMarkdownStrict:json-error', { key: k, error: (e as Error).message })
+      }
+    }
+  }
+
+  // Fallback: Wenn extractBalancedJsonAfterKey fehlschlägt (z.B. bei unerwarteter Formatierung),
+  // versuche den bereits extrahierten String-Wert direkt zu JSON-parsen.
+  // Deckt Fälle ab, in denen der Wert korrekt als '["a","b"]' vorliegt,
+  // aber die Bracket-Suche im Gesamttext nicht greift.
+  for (const k of jsonKeys) {
+    if (typeof meta[k] === 'string') {
+      const str = (meta[k] as string).trim()
+      if (str.startsWith('[') || str.startsWith('{')) {
+        try { meta[k] = JSON.parse(str) } catch { /* Wert bleibt als String */ }
       }
     }
   }

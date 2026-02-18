@@ -31,6 +31,27 @@ import { fetchShadowTwinMarkdown, updateShadowTwinMarkdown } from '@/lib/shadow-
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
 import { buildCoverImagePromptForUIWithSource, type CoverImagePromptUIResult } from '@/lib/cover-image/prompt-builder'
 
+/**
+ * Robuste Konvertierung eines Frontmatter-Werts in ein String-Array.
+ * Behandelt: echte Arrays, JSON-Strings (z.B. '["a","b"]'), und undefined.
+ * Notwendig, weil parseSecretaryMarkdownStrict Array-Felder unter Umständen
+ * als String belässt (z.B. wenn extractBalancedJsonAfterKey fehlschlägt).
+ */
+function safeParseStringArray(value: unknown): string[] | undefined {
+  if (Array.isArray(value)) {
+    return value.filter((s): s is string => typeof s === 'string')
+  }
+  if (typeof value === 'string' && value.trim().startsWith('[')) {
+    try {
+      const parsed = JSON.parse(value)
+      if (Array.isArray(parsed)) {
+        return parsed.filter((s): s is string => typeof s === 'string')
+      }
+    } catch { /* Wert ist kein gültiges JSON */ }
+  }
+  return undefined
+}
+
 interface JobReportTabProps {
   libraryId: string
   fileId: string
@@ -1823,7 +1844,7 @@ export function JobReportTab({
                   region: typeof cm.region === 'string' ? cm.region : undefined,
                   coverImageUrl: resolvedCoverImageUrl,
                   authors: Array.isArray(cm.authors) ? (cm.authors as unknown[]).filter((a): a is string => typeof a === 'string') : undefined,
-                  speakers: Array.isArray(cm.speakers) ? (cm.speakers as unknown[]).filter((s): s is string => typeof s === 'string') : undefined,
+                  speakers: safeParseStringArray(cm.speakers),
                   pages: typeof cm.pages === 'number' ? cm.pages : undefined,
                   date: typeof cm.date === 'string' ? cm.date : undefined,
                   track: typeof cm.track === 'string' ? cm.track : undefined,
@@ -1834,6 +1855,10 @@ export function JobReportTab({
                   lv_bewertung: typeof cm.lv_bewertung === 'string' ? cm.lv_bewertung : undefined,
                   // category mit Fallback auf handlungsfeld für ältere Daten in der DB
                   category: typeof cm.category === 'string' ? cm.category : (typeof cm.handlungsfeld === 'string' ? cm.handlungsfeld : undefined),
+                  // Session/Event-spezifische Felder für Gallery-Karten
+                  organisation: typeof cm.organisation === 'string' ? cm.organisation : undefined,
+                  tags: Array.isArray(cm.tags) ? (cm.tags as unknown[]).filter((t): t is string => typeof t === 'string') : undefined,
+                  topics: Array.isArray(cm.topics) ? (cm.topics as unknown[]).filter((t): t is string => typeof t === 'string') : undefined,
                 }
                 
                 // Validierung: Pflichtfelder je nach DetailViewType prüfen
