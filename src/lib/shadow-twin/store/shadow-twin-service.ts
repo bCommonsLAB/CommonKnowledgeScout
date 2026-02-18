@@ -147,7 +147,7 @@ export class ShadowTwinService {
       this.config.primaryStore === 'mongo' &&
       options.provider &&
       (this.config.persistToFilesystem || this.config.allowFilesystemFallback)
-    if (needsFilesystemStore) {
+    if (needsFilesystemStore && options.provider) {
       this.fallbackStore = new ProviderShadowTwinStore(
         options.provider,
         options.sourceName,

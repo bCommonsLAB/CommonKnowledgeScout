@@ -181,7 +181,7 @@ export async function POST(
           kind: 'file',
           fileName,
           extractedText,
-          sourceMetadata: Object.keys(sourceMetadata).length > 0 ? sourceMetadata : undefined,
+          sourceMetadata: sourceMetadata && Object.keys(sourceMetadata).length > 0 ? sourceMetadata : undefined,
           summary: extractedText.length > 150 ? `${extractedText.slice(0, 150)}...` : extractedText,
           createdAt,
         })
