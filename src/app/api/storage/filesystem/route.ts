@@ -473,16 +473,19 @@ export async function GET(request: NextRequest) {
   }
 
   // WICHTIG: Diese Route ist nur für lokale Filesystem-Libraries gedacht
-  // Für OneDrive-Libraries sollte /api/storage verwendet werden
-  if (library.type === 'onedrive') {
-    console.warn(`[API][filesystem] ❌ Diese Route unterstützt keine OneDrive-Libraries. Verwende /api/storage statt /api/storage/filesystem`, {
+  // OneDrive-/Nextcloud-Libraries haben eigene Routen
+  if (library.type === 'onedrive' || library.type === 'nextcloud') {
+    const routeHint = library.type === 'nextcloud'
+      ? '/api/storage/nextcloud'
+      : '/api/storage';
+    console.warn(`[API][filesystem] ❌ Diese Route unterstützt keine ${library.type}-Libraries. Verwende ${routeHint}`, {
       libraryId: library.id,
       libraryType: library.type,
       action,
       fileId
     });
     return NextResponse.json({ 
-      error: 'OneDrive-Libraries werden über /api/storage unterstützt, nicht über /api/storage/filesystem',
+      error: `${library.type}-Libraries werden über ${routeHint} unterstützt, nicht über /api/storage/filesystem`,
       errorCode: 'WRONG_ROUTE_FOR_PROVIDER',
       libraryId: library.id,
       libraryType: library.type,

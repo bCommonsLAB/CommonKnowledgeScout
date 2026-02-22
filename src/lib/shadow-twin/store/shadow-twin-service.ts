@@ -333,11 +333,10 @@ export class ShadowTwinService {
       return fragment.url
     }
 
-    // 2. Fallback: Dateisystem-Referenz → Storage-API-URL generieren
+    // 2. Fallback: Dateisystem-Referenz → provider-agnostische Streaming-URL
     if (fragment.fileId && this.options.library?.id) {
-      // Generiere Storage-API-URL für Dateisystem-Zugriff
       const libraryId = this.options.library.id
-      return `/api/storage/filesystem?action=binary&fileId=${encodeURIComponent(fragment.fileId)}&libraryId=${encodeURIComponent(libraryId)}`
+      return `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(fragment.fileId)}`
     }
 
     return null
@@ -363,9 +362,9 @@ export class ShadowTwinService {
       if (fragment.url) {
         resolvedUrl = fragment.url
       }
-      // 2. Fallback: Dateisystem-Referenz → Storage-API-URL generieren
+      // 2. Fallback: Dateisystem-Referenz → provider-agnostische Streaming-URL
       else if (fragment.fileId && libraryId) {
-        resolvedUrl = `/api/storage/filesystem?action=binary&fileId=${encodeURIComponent(fragment.fileId)}&libraryId=${encodeURIComponent(libraryId)}`
+        resolvedUrl = `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(fragment.fileId)}`
       }
 
       return {
@@ -521,9 +520,10 @@ export class ShadowTwinService {
     // Upload via Provider
     const uploadedItem = await this.options.provider.uploadFile(shadowTwinFolder.id, file)
 
-    // Generiere Storage-API-URL
+    // Provider hat Upload durchgeführt → aufgelöste Streaming-URL verwenden
     const libraryId = this.options.library?.id || ''
-    const resolvedUrl = `/api/storage/filesystem?action=binary&fileId=${encodeURIComponent(uploadedItem.id)}&libraryId=${encodeURIComponent(libraryId)}`
+    const resolvedUrl = await this.options.provider.getStreamingUrl(uploadedItem.id)
+      || `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(uploadedItem.id)}`
 
     FileLogger.info('shadow-twin-service', 'Binary-Fragment ins Dateisystem hochgeladen', {
       fileName,

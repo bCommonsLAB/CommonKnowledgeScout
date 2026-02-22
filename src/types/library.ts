@@ -35,7 +35,7 @@ import type { SocialContext } from '@/lib/chat/constants';
  * Supported storage provider types.
  * Each type represents a different storage backend implementation.
  */
-export type StorageProviderType = 'local' | 'onedrive' | 'gdrive';
+export type StorageProviderType = 'local' | 'onedrive' | 'gdrive' | 'nextcloud';
 
 /**
  * Chat/RAG-spezifische Konfiguration pro Library.
@@ -148,6 +148,16 @@ export interface StorageConfig {
   
   /** Required OAuth permission scopes */
   scope?: string[];
+
+  /** Nextcloud/WebDAV Konfiguration */
+  nextcloud?: {
+    /** WebDAV-URL (z.B. https://cloud.example.com/remote.php/dav/files/username) */
+    webdavUrl: string;
+    /** Nextcloud-Benutzername */
+    username: string;
+    /** App-Passwort (server-seitig, nie an Client senden). Optional, da es bei der Erstellung noch fehlen kann. */
+    appPassword?: string;
+  };
 
   /** Secretary Service Konfiguration */
   secretaryService?: {
@@ -389,6 +399,13 @@ export interface ClientLibrary {
         /** Erklärungstext zur Themenübersicht */
         topicsIntro?: string;
       };
+    };
+    /** Nextcloud/WebDAV-Konfiguration (maskiertes App-Passwort fuer die UI) */
+    nextcloud?: {
+      webdavUrl: string;
+      username: string;
+      /** Maskierter Wert ('********') oder leer – das echte Passwort bleibt server-seitig */
+      appPassword?: string;
     };
     [key: string]: unknown;
   };

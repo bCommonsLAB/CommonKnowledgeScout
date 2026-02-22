@@ -1137,8 +1137,8 @@ function resolveImageUrl(
     }
     const fileId = btoa(binary);
     
-    // Baue Storage-API-URL
-    const resolvedUrl = `/api/storage/filesystem?action=binary&fileId=${encodeURIComponent(fileId)}&libraryId=${encodeURIComponent(libraryId)}`;
+    // Provider-agnostische Streaming-URL (funktioniert für Local und OneDrive)
+    const resolvedUrl = `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(fileId)}`;
     
     // Debug-Log für erfolgreiche Auflösung (nur wenn currentFolderId nicht 'root' ist)
     if (currentFolderId !== 'root') {

@@ -1,0 +1,44 @@
+---
+description: Keine stillen Fallbacks – immer explizit oder Fehlermeldung
+alwaysApply: true
+---
+
+# Keine stillen Fallbacks
+
+Stille Fallbacks verschleiern Fehler und machen Debugging unmöglich.
+Code muss immer **explizit** handeln oder **laut fehlschlagen**.
+
+## Regel
+
+- **NIEMALS** einen ungültigen Wert stillschweigend durch einen Default ersetzen.
+- Wenn ein erwarteter Wert fehlt oder ungültig ist: **Fehler werfen** oder **explizit loggen**.
+- Enum-Validierungen, switch-Statements und Typ-Prüfungen müssen **alle gültigen Werte** abdecken. Neue Werte dürfen nicht im `default`-Zweig verschwinden.
+
+## Beispiele
+
+```typescript
+// ❌ VERBOTEN: Stiller Fallback auf 'local'
+const validType = (type === 'local' || type === 'onedrive') ? type : 'local';
+
+// ✅ RICHTIG: Fehler werfen bei unbekanntem Typ
+if (type !== 'local' && type !== 'onedrive' && type !== 'nextcloud') {
+  throw new Error(`Ungültiger Storage-Typ: "${type}"`);
+}
+
+// ❌ VERBOTEN: Stille Validierung, die neue Werte ignoriert
+if (value === 'a' || value === 'b') { field.onChange(value); }
+
+// ✅ RICHTIG: Alle bekannten Werte explizit oder Set verwenden
+const VALID_VALUES = new Set(['a', 'b', 'c']);
+if (!VALID_VALUES.has(value)) {
+  console.error(`Unerwarteter Wert: "${value}"`);
+  return;
+}
+field.onChange(value);
+```
+
+## Checkliste bei Code-Änderungen
+
+- [ ] Gibt es `|| defaultValue`-Ausdrücke, die Fehler verschleiern?
+- [ ] Decken switch/if-Ketten alle gültigen Enum-Werte ab?
+- [ ] Wird bei einem neuen Enum-Wert der `default`-Zweig erreicht statt eines expliziten `case`?

@@ -271,8 +271,8 @@ export async function resolveShadowTwinImageUrl(
     return imagePath;
   }
   
-  // Generiere Storage-API-URL
-  const resolvedUrl = `/api/storage/filesystem?action=binary&fileId=${encodeURIComponent(imageFile.id)}&libraryId=${encodeURIComponent(libraryId)}`;
+  // Provider-agnostische Streaming-URL (funktioniert für Local und OneDrive)
+  const resolvedUrl = `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(imageFile.id)}`;
   
   return resolvedUrl;
 }

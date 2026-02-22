@@ -588,51 +588,66 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
         const items = await provider.listItemsById(folderId);
         return items;
       } catch (error) {
-        if (isStorageError(error) && error.code === 'AUTH_REQUIRED') {
-        setIsAuthRequired(true);
-        setAuthProvider(provider.name);
-        setLibraryStatus('waitingForAuth');
-        // Kein Logging für AUTH_REQUIRED
-      } else {
-        setIsAuthRequired(false);
-        setAuthProvider(null);
-        setLibraryStatus('ready');
-        
-        // Verbesserte Fehlerbehandlung
-        let errorMessage = 'Unbekannter Fehler beim Laden der Dateien';
-        
-        if (error instanceof Error) {
-          errorMessage = error.message;
-          
-          // Spezifische Fehlermeldungen für häufige Probleme
-          if (error.message.includes('Bibliothek nicht gefunden')) {
-            errorMessage = 'Die ausgewählte Bibliothek wurde nicht gefunden. Bitte überprüfen Sie die Bibliothekskonfiguration.';
-          } else if (error.message.includes('Server-Fehler')) {
-            errorMessage = 'Server-Fehler beim Laden der Bibliothek. Bitte überprüfen Sie, ob der Bibliothekspfad existiert und zugänglich ist.';
-          } else if (error.message.includes('Keine Berechtigung')) {
-            errorMessage = 'Keine Berechtigung für den Zugriff auf die Bibliothek. Bitte überprüfen Sie die Dateiberechtigungen.';
-          } else if (error.message.includes('ENOENT')) {
-            errorMessage = 'Der Bibliothekspfad existiert nicht. Bitte überprüfen Sie die Bibliothekskonfiguration.';
-          }
+        // Rate-Limiting (429): Kein Auth-Problem, sondern temporäre Überlastung.
+        // Fehler mit spezifischem Namen werfen, damit library.tsx ihn erkennt.
+        const errorCode = (error as { code?: string }).code;
+        if (errorCode === 'RATE_LIMITED' || (error instanceof Error && error.message.includes('429'))) {
+          AuthLogger.warn('StorageContext', 'Rate-Limit erreicht', {
+            libraryId: currentLibrary.id,
+            providerName: provider.name,
+          });
+          const rateLimitError = new Error(
+            'Der Storage-Server ist vorübergehend überlastet (Rate-Limit). Bitte in einigen Sekunden erneut versuchen.'
+          );
+          rateLimitError.name = 'RateLimitError';
+          throw rateLimitError;
         }
+
+        if (isStorageError(error) && error.code === 'AUTH_REQUIRED') {
+          setIsAuthRequired(true);
+          setAuthProvider(provider.name);
+          setLibraryStatus('waitingForAuth');
+          // Kein Logging für AUTH_REQUIRED
+        } else {
+          setIsAuthRequired(false);
+          setAuthProvider(null);
+          setLibraryStatus('ready');
         
-        AuthLogger.error('StorageContext', 'Error listing items', {
-          error: error instanceof Error ? {
-            message: error.message,
-            name: error.name,
-            stack: error.stack?.split('\n').slice(0, 3)
-          } : error,
-          libraryId: currentLibrary.id,
-          libraryPath: currentLibrary.path,
-          providerName: provider.name
-        });
+          // Verbesserte Fehlerbehandlung
+          let errorMessage = 'Unbekannter Fehler beim Laden der Dateien';
         
-        // Erstelle einen benutzerfreundlichen Fehler
-        const userFriendlyError = new Error(errorMessage);
-        userFriendlyError.name = 'StorageError';
-        throw userFriendlyError;
-      }
-      throw error;
+          if (error instanceof Error) {
+            errorMessage = error.message;
+          
+            // Spezifische Fehlermeldungen für häufige Probleme
+            if (error.message.includes('Bibliothek nicht gefunden')) {
+              errorMessage = 'Die ausgewählte Bibliothek wurde nicht gefunden. Bitte überprüfen Sie die Bibliothekskonfiguration.';
+            } else if (error.message.includes('Server-Fehler')) {
+              errorMessage = 'Server-Fehler beim Laden der Bibliothek. Bitte überprüfen Sie, ob der Bibliothekspfad existiert und zugänglich ist.';
+            } else if (error.message.includes('Keine Berechtigung')) {
+              errorMessage = 'Keine Berechtigung für den Zugriff auf die Bibliothek. Bitte überprüfen Sie die Dateiberechtigungen.';
+            } else if (error.message.includes('ENOENT')) {
+              errorMessage = 'Der Bibliothekspfad existiert nicht. Bitte überprüfen Sie die Bibliothekskonfiguration.';
+            }
+          }
+        
+          AuthLogger.error('StorageContext', 'Error listing items', {
+            error: error instanceof Error ? {
+              message: error.message,
+              name: error.name,
+              stack: error.stack?.split('\n').slice(0, 3)
+            } : error,
+            libraryId: currentLibrary.id,
+            libraryPath: currentLibrary.path,
+            providerName: provider.name
+          });
+        
+          // Erstelle einen benutzerfreundlichen Fehler
+          const userFriendlyError = new Error(errorMessage);
+          userFriendlyError.name = 'StorageError';
+          throw userFriendlyError;
+        }
+        throw error;
       }
     });
   };
@@ -767,9 +782,9 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
       });
       
       // Status-Logik: Nur OAuth-basierte Provider benötigen Authentifizierung
-      // Lokale Dateisystem-Bibliotheken sind immer "ready"
-      if (currentLibrary.type === 'local') {
-        console.log('[StorageContext] ✅ Local Library - Status: ready');
+      // Lokale und Nextcloud-Bibliotheken sind immer "ready" (kein Browser-Token noetig)
+      if (currentLibrary.type === 'local' || currentLibrary.type === 'nextcloud') {
+        console.log(`[StorageContext] ✅ ${currentLibrary.type} Library - Status: ready`);
         setLibraryStatus('ready');
         setLibraryStatusAtom('ready');
       } else if (currentLibrary.type === 'onedrive' || currentLibrary.type === 'gdrive') {

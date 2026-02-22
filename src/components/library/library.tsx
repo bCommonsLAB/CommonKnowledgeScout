@@ -324,6 +324,19 @@ export function Library() {
       if (isStorageError(error) && error.code === 'AUTH_REQUIRED') {
         StateLogger.info('Library', 'Auth required');
         // Keine Fehlermeldung für AUTH_REQUIRED anzeigen
+      } else if (error instanceof Error && error.name === 'RateLimitError') {
+        // Rate-Limit: Freundliche Meldung + automatischer Retry nach 10s
+        StateLogger.warn('Library', 'Rate-Limit erreicht, Retry in 10s');
+        toast({
+          title: "Server vorübergehend überlastet",
+          description: "Rate-Limit erreicht. Automatischer Retry in 10 Sekunden...",
+        });
+        // Sperre lösen, damit der Retry starten kann
+        loadInFlightRef.current = false;
+        setLastLoadedFolder(null);
+        setTimeout(() => {
+          loadItems();
+        }, 10000);
       } else {
         StateLogger.error('Library', 'Failed to load items', {
           error: error instanceof Error ? {

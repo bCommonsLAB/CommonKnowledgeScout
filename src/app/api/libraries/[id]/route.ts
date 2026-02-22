@@ -138,6 +138,23 @@ export async function PUT(
           console.log(`[API] PUT: Ignoriere maskiertes clientSecret`);
           continue;
         }
+
+        // Nextcloud-Config: Merge statt Überschreiben (appPassword-Maske schützen)
+        if (key === 'nextcloud' && typeof value === 'object' && value !== null) {
+          const existingNc = (processedConfig.nextcloud || {}) as Record<string, string>;
+          const newNc = value as Record<string, string>;
+          const merged = { ...existingNc };
+          if (newNc.webdavUrl) merged.webdavUrl = newNc.webdavUrl;
+          if (newNc.username) merged.username = newNc.username;
+          // App-Passwort nur aktualisieren wenn nicht maskiert
+          if (newNc.appPassword && newNc.appPassword !== '********') {
+            merged.appPassword = newNc.appPassword;
+          }
+          processedConfig.nextcloud = merged as { webdavUrl: string; username: string; appPassword?: string };
+          console.log(`[API] PUT: Nextcloud-Config gemergt (appPassword ${newNc.appPassword === '********' ? 'maskiert → beibehalten' : 'aktualisiert'})`);
+          continue;
+        }
+
         // Alle anderen Werte übernehmen
         processedConfig[key] = value;
       }
@@ -337,6 +354,18 @@ export async function PATCH(
             existingKeys: existingChat ? Object.keys(existingChat) : [],
             newKeys: Object.keys(value as Record<string, unknown>),
           })
+        } else if (key === 'nextcloud' && value && typeof value === 'object' && !Array.isArray(value)) {
+          // Nextcloud-Config: Merge und App-Passwort-Maskierung beachten
+          const existingNc = updatedConfig[key] as Record<string, unknown> | undefined;
+          const newNc = value as Record<string, string>;
+          const merged = { ...(existingNc || {}) };
+          if (newNc.webdavUrl) merged.webdavUrl = newNc.webdavUrl;
+          if (newNc.username) merged.username = newNc.username;
+          // App-Passwort nur aktualisieren, wenn ein neuer (nicht-maskierter) Wert gesendet wird
+          if (newNc.appPassword && newNc.appPassword !== '********') {
+            merged.appPassword = newNc.appPassword;
+          }
+          updatedConfig[key] = merged;
         } else {
           // Alle anderen Felder normal aktualisieren
           updatedConfig[key] = value;

@@ -38,7 +38,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
-import { OneDriveProvider } from "@/lib/storage/onedrive-provider"
 import { Badge } from "@/components/ui/badge"
 import { useStorage } from "@/contexts/storage-context"
 import { StorageFactory } from "@/lib/storage/storage-factory"
@@ -46,7 +45,7 @@ import React from 'react'
 
 // Hauptschema für das Formular
 const storageFormSchema = z.object({
-  type: z.enum(["local", "onedrive", "gdrive"], {
+  type: z.enum(["local", "onedrive", "gdrive", "nextcloud"], {
     required_error: "Bitte wählen Sie einen Speichertyp.",
   }),
   path: z.string({
@@ -56,6 +55,10 @@ const storageFormSchema = z.object({
   tenantId: z.string().optional(),
   clientId: z.string().optional(),
   clientSecret: z.string().optional(),
+  // Nextcloud/WebDAV-Konfiguration
+  nextcloudWebdavUrl: z.string().optional(),
+  nextcloudUsername: z.string().optional(),
+  nextcloudAppPassword: z.string().optional(),
 });
 
 type StorageFormValues = z.infer<typeof storageFormSchema>
@@ -112,7 +115,10 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
     path: '',
     tenantId: '',
     clientId: '',
-    clientSecret: ''
+    clientSecret: '',
+    nextcloudWebdavUrl: '',
+    nextcloudUsername: '',
+    nextcloudAppPassword: '',
   }), []); // Leere Dependency-Liste, da die Werte konstant sind
   
   const form = useForm<StorageFormValues>({
@@ -175,18 +181,25 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
   // Form mit aktiver Bibliothek befüllen
   useEffect(() => {
     if (activeLibrary) {
+      // Nextcloud-Config robust extrahieren (config hat [key: string]: unknown Index-Signatur)
+      const ncConfig = activeLibrary.config?.nextcloud as { webdavUrl?: string; username?: string; appPassword?: string } | undefined;
+
       console.log('[StorageForm] Befülle Form mit Library-Daten:', {
         libraryLabel: activeLibrary.label,
         type: activeLibrary.type,
         path: activeLibrary.path,
-        config: activeLibrary.config
+        hasNextcloudConfig: !!ncConfig,
+        nextcloudUsername: ncConfig?.username,
+        nextcloudWebdavUrl: ncConfig?.webdavUrl,
+        configKeys: activeLibrary.config ? Object.keys(activeLibrary.config) : [],
       });
       
       // Validierung: Sicherstellen, dass type ein gültiger Wert ist
       const libraryType = activeLibrary.type as StorageProviderType;
-      const validType = (libraryType === 'local' || libraryType === 'onedrive' || libraryType === 'gdrive') 
-        ? libraryType 
-        : 'local'; // Fallback auf 'local' wenn ungültig
+      if (libraryType !== 'local' && libraryType !== 'onedrive' && libraryType !== 'gdrive' && libraryType !== 'nextcloud') {
+        console.error(`[StorageForm] Ungültiger Bibliothekstyp: "${libraryType}"`);
+      }
+      const validType = libraryType;
       
       // Wenn Bibliothek gewechselt wird, Formular mit den Werten befüllen
       const formData = {
@@ -199,6 +212,12 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
         clientSecret: (activeLibrary.config?.clientSecret as string === '********') 
           ? '' 
           : activeLibrary.config?.clientSecret as string || oauthDefaults.clientSecret,
+        // Nextcloud-Felder aus der Config laden
+        nextcloudWebdavUrl: ncConfig?.webdavUrl || '',
+        nextcloudUsername: ncConfig?.username || '',
+        nextcloudAppPassword: (ncConfig?.appPassword === '********') 
+          ? '' 
+          : ncConfig?.appPassword || '',
       };
       
       console.log('[StorageForm] Form-Daten zum Befüllen:', formData);
@@ -212,7 +231,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
         const afterReset = form.getValues();
         console.log('[StorageForm] Form-Zustand nach Reset:', afterReset);
         // Sicherstellen, dass type gesetzt ist
-        if (!afterReset.type || (afterReset.type !== 'local' && afterReset.type !== 'onedrive' && afterReset.type !== 'gdrive')) {
+        if (!afterReset.type || (afterReset.type !== 'local' && afterReset.type !== 'onedrive' && afterReset.type !== 'gdrive' && afterReset.type !== 'nextcloud')) {
           console.warn('[StorageForm] Type ist nach Reset ungültig, setze auf:', validType);
           form.setValue('type', validType);
         }
@@ -300,6 +319,12 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
       if (!currentValues.clientId) { nextValues.clientId = (activeLibrary.config?.clientId as string) || ''; needsReset = true; }
       // clientSecret nie vorbefüllen; leer lassen (Maskierung über Placeholder)
       if (currentValues.clientSecret === undefined) { nextValues.clientSecret = ''; needsReset = true; }
+    }
+    if (activeLibrary.type === 'nextcloud') {
+      const nc = activeLibrary.config?.nextcloud as { webdavUrl?: string; username?: string; appPassword?: string } | undefined;
+      if (!currentValues.nextcloudWebdavUrl) { nextValues.nextcloudWebdavUrl = nc?.webdavUrl || ''; needsReset = true; }
+      if (!currentValues.nextcloudUsername) { nextValues.nextcloudUsername = nc?.username || ''; needsReset = true; }
+      if (currentValues.nextcloudAppPassword === undefined) { nextValues.nextcloudAppPassword = ''; needsReset = true; }
     }
     if (needsReset) {
       form.reset(nextValues as StorageFormValues, { keepDefaultValues: false, keepDirty: false, keepTouched: false });
@@ -457,7 +482,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
       });
       
       // Konfiguration für die API vorbereiten
-      const config: Record<string, string> = {};
+      const config: Record<string, unknown> = {};
       
       // Nur die für den ausgewählten Typ relevanten Felder hinzufügen
       if (data.type === 'onedrive' || data.type === 'gdrive') {
@@ -477,6 +502,21 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
             reason: data.clientSecret === '********' ? 'maskiert' : 
                     data.clientSecret === '' ? 'leer' : 'undefined/null'
           });
+        }
+      }
+
+      // Nextcloud-Konfiguration als verschachteltes Objekt senden
+      if (data.type === 'nextcloud') {
+        const nc: Record<string, string> = {};
+        if (data.nextcloudWebdavUrl) nc.webdavUrl = data.nextcloudWebdavUrl.trim();
+        if (data.nextcloudUsername) nc.username = data.nextcloudUsername.trim();
+        // App-Passwort nur senden, wenn nicht maskiert und nicht leer
+        if (data.nextcloudAppPassword && data.nextcloudAppPassword !== '********') {
+          const trimmed = data.nextcloudAppPassword.trim();
+          if (trimmed) nc.appPassword = trimmed;
+        }
+        if (Object.keys(nc).length > 0) {
+          config.nextcloud = nc;
         }
       }
       
@@ -587,9 +627,8 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
         type: updatedLibrary.type
       });
       
-      const provider = new OneDriveProvider(updatedLibrary);
-      
-      // Die getAuthUrl Methode ist jetzt asynchron
+      // Temporärer Provider nur für OAuth-URL (über Factory, keine direkte Provider-Instanziierung)
+      const provider = StorageFactory.getInstance().createOneDriveProviderForAuth(updatedLibrary);
       const authUrlString = await provider.getAuthUrl();
       
       // State-Objekt mit Library-ID und aktueller URL erstellen (einheitliches Format)
@@ -788,10 +827,49 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
         const filePath = await provider.getPathById(createdFile.id);
         logStep("Dateipfad", "success", `Pfad erfolgreich abgerufen: ${filePath}`);
 
-        // Schritt 9: Aufräumen - Testverzeichnis löschen
-        logStep("Aufräumen", "info", "Lösche Testverzeichnis...");
+        // Schritt 9: Pfad-Items abrufen (Breadcrumb-Pfad)
+        logStep("Pfad-Items", "info", "Rufe Breadcrumb-Pfad ab...");
+        const pathItems = await provider.getPathItemsById(createdFile.id);
+        logStep("Pfad-Items", "success", `Breadcrumb-Pfad: ${pathItems.map(p => p.metadata.name).join(' / ')} (${pathItems.length} Ebenen)`);
+
+        // Schritt 10: Datei umbenennen
+        const renamedName = `renamed-${testFileName}`;
+        logStep("Umbenennen", "info", `Benenne "${testFileName}" um in "${renamedName}"...`);
+        const renamedFile = await provider.renameItem(createdFile.id, renamedName);
+        const renameOk = renamedFile.metadata.name === renamedName;
+        logStep("Umbenennen", renameOk ? "success" : "error",
+          renameOk ? `Erfolgreich umbenannt zu "${renamedFile.metadata.name}".` : `Name stimmt nicht: "${renamedFile.metadata.name}" statt "${renamedName}"`);
+
+        // Schritt 11: Zweiten Testordner erstellen und Datei verschieben
+        const moveTargetName = `move-target-${testFolderName}`;
+        logStep("Verschieben", "info", `Erstelle Zielordner "${moveTargetName}" und verschiebe Datei...`);
+        const moveTarget = await provider.createFolder('root', moveTargetName);
+        await provider.moveItem(renamedFile.id, moveTarget.id);
+        const movedItems = await provider.listItemsById(moveTarget.id);
+        const moveOk = movedItems.some(i => i.metadata.name === renamedName);
+        logStep("Verschieben", moveOk ? "success" : "error",
+          moveOk ? `Datei erfolgreich nach "${moveTargetName}" verschoben.` : "Datei wurde nicht im Zielordner gefunden!");
+
+        // Schritt 12: Streaming-URL abrufen
+        const movedFile = movedItems.find(i => i.metadata.name === renamedName);
+        if (movedFile) {
+          logStep("Streaming-URL", "info", "Rufe Streaming-URL ab...");
+          const streamUrl = await provider.getStreamingUrl(movedFile.id);
+          logStep("Streaming-URL", streamUrl ? "success" : "error",
+            streamUrl ? `Streaming-URL erhalten (${streamUrl.substring(0, 80)}...)` : "Keine Streaming-URL erhalten!");
+
+          // Schritt 13: Download-URL abrufen
+          logStep("Download-URL", "info", "Rufe Download-URL ab...");
+          const downloadUrl = await provider.getDownloadUrl(movedFile.id);
+          logStep("Download-URL", downloadUrl ? "success" : "error",
+            downloadUrl ? `Download-URL erhalten (${downloadUrl.substring(0, 80)}...)` : "Keine Download-URL erhalten!");
+        }
+
+        // Schritt 14: Aufräumen - beide Testverzeichnisse löschen
+        logStep("Aufräumen", "info", "Lösche Testverzeichnisse...");
         await provider.deleteItem(testFolder.id);
-        logStep("Aufräumen", "success", "Testverzeichnis erfolgreich gelöscht.");
+        await provider.deleteItem(moveTarget.id);
+        logStep("Aufräumen", "success", "Alle Testverzeichnisse erfolgreich gelöscht.");
 
         // Schritt 10: Tokens in DB speichern (für Server-Test)
         // Nur für OneDrive-Provider: Speichere Tokens in DB, damit Server-Test funktioniert
@@ -1044,6 +1122,82 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
             />
           </>
         );
+      case "nextcloud":
+        return (
+          <>
+            <FormField
+              control={form.control}
+              name="nextcloudWebdavUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>WebDAV-URL</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value ?? ''}
+                      placeholder="https://cloud.example.com/remote.php/dav/files/username"
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Die vollständige WebDAV-URL Ihrer Nextcloud-Instanz.
+                    Typisches Format: https://[domain]/remote.php/dav/files/[benutzername]
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="nextcloudUsername"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Benutzername</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value ?? ''}
+                      placeholder="Nextcloud-Benutzername"
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Ihr Nextcloud-Benutzername.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="nextcloudAppPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>App-Passwort</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="password"
+                      value={field.value ?? ''}
+                      placeholder={
+                        activeLibrary?.config?.nextcloud?.appPassword === '********'
+                          ? "App-Passwort ist gespeichert (zum Ändern neuen Wert eingeben)"
+                          : "Nextcloud App-Passwort eingeben"
+                      }
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Ein App-Passwort aus Ihrer Nextcloud-Instanz (Einstellungen → Sicherheit → Geräte & Sitzungen).
+                    {activeLibrary?.config?.nextcloud?.appPassword === '********' && (
+                      <span className="block mt-1 text-green-600 dark:text-green-400">
+                        ✓ Ein App-Passwort ist bereits gespeichert. Lassen Sie das Feld leer, um es beizubehalten.
+                      </span>
+                    )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </>
+        );
       default:
         return null;
     }
@@ -1071,14 +1225,14 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
 
     return (
       <div className="space-y-2 max-h-[500px] overflow-y-auto">
-        <table className="w-full border-collapse">
+        <table className="w-full border-collapse table-fixed">
           <thead className="bg-muted/50">
             <tr className="text-xs border-b">
-              <th className="text-left p-2 font-medium">Datum/Zeit</th>
-              <th className="text-left p-2 font-medium">Funktion</th>
+              <th className="text-left p-2 font-medium w-[90px]">Datum/Zeit</th>
+              <th className="text-left p-2 font-medium w-[120px]">Funktion</th>
               <th className="text-left p-2 font-medium">Beschreibung</th>
-              <th className="text-left p-2 font-medium w-[100px]">Status</th>
-              <th className="text-left p-2 font-medium w-[80px]">Details</th>
+              <th className="text-left p-2 font-medium w-[80px]">Status</th>
+              <th className="text-left p-2 font-medium w-[60px]">Details</th>
             </tr>
           </thead>
           <tbody>
@@ -1094,7 +1248,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
                 >
                   <td className="p-2">{result.timestamp && !isNaN(Date.parse(result.timestamp)) ? new Date(result.timestamp).toLocaleTimeString() : ''}</td>
                   <td className="p-2">{result.step}</td>
-                  <td className="p-2">{result.message}</td>
+                  <td className="p-2 overflow-hidden text-ellipsis whitespace-nowrap" title={result.message}>{result.message}</td>
                   <td className="p-2">
                     <Badge 
                       variant={
@@ -1157,7 +1311,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
                   <Select
                     onValueChange={(value) => {
                       // Sicherstellen, dass der Wert gültig ist
-                      if (value === 'local' || value === 'onedrive' || value === 'gdrive') {
+                      if (value === 'local' || value === 'onedrive' || value === 'gdrive' || value === 'nextcloud') {
                         field.onChange(value);
                       }
                     }}
@@ -1172,6 +1326,7 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
                       <SelectItem value="local">Lokales Dateisystem</SelectItem>
                       <SelectItem value="onedrive">Microsoft OneDrive</SelectItem>
                       <SelectItem value="gdrive">Google Drive</SelectItem>
+                      <SelectItem value="nextcloud">Nextcloud (WebDAV)</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormDescription>

@@ -18,6 +18,8 @@ import { galleryFiltersAtom } from '@/atoms/gallery-filters';
 import { usePathname, useRouter } from 'next/navigation';
 import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom';
 import { ShadowTwinArtifactsTable } from '@/components/library/shared/shadow-twin-artifacts-table';
+import { useShadowTwinFreshnessApi, type FreshnessStatus } from '@/hooks/use-shadow-twin-freshness';
+import { FreshnessComparisonPanel } from '@/components/library/shared/freshness-comparison-panel';
 
 interface IngestionBreakdown {
   doc: number;
@@ -645,6 +647,16 @@ interface BinaryFragmentInfo {
  * Shadow-Twin-Debug-Content-Komponente
  * Zeigt den Shadow-Twin-State der ausgewählten Datei an
  */
+/** Kurze deutsche Labels für Freshness-Status */
+const FRESHNESS_LABELS: Record<FreshnessStatus, { label: string; color: string }> = {
+  'loading': { label: 'Wird geprüft…', color: 'text-muted-foreground' },
+  'synced': { label: 'Synchron', color: 'text-green-600' },
+  'source-newer': { label: 'Quelldatei neuer', color: 'text-amber-600' },
+  'storage-newer': { label: 'Storage neuer', color: 'text-blue-600' },
+  'storage-missing': { label: 'Storage fehlt', color: 'text-red-600' },
+  'no-twin': { label: 'Kein Shadow-Twin', color: 'text-slate-600' },
+}
+
 function ShadowTwinDebugContent() {
   const shadowTwinStates = useAtomValue(shadowTwinStateAtom);
   const selectedFile = useAtomValue(selectedFileAtom);
@@ -695,6 +707,11 @@ function ShadowTwinDebugContent() {
     return () => { cancelled = true; };
   }, [activeLibraryId, selectedFile]);
 
+  // Hooks müssen immer in derselben Reihenfolge aufgerufen werden (vor bedingten Returns)
+  const state = selectedFile ? shadowTwinStates.get(selectedFile.id) : undefined;
+  const freshness = useShadowTwinFreshnessApi(activeLibraryId, selectedFile, state);
+  const freshnessLabel = FRESHNESS_LABELS[freshness.status];
+
   if (!selectedFile) {
     return (
       <div className="text-sm text-muted-foreground">
@@ -702,8 +719,6 @@ function ShadowTwinDebugContent() {
       </div>
     );
   }
-
-  const state = shadowTwinStates.get(selectedFile.id);
 
   if (!state) {
     return (
@@ -825,9 +840,49 @@ function ShadowTwinDebugContent() {
               </span>
             </td>
           </tr>
-          <tr>
+          <tr className="border-b">
             <td className="py-1 pr-3 text-muted-foreground whitespace-nowrap align-top">Analysiert</td>
             <td className="py-1">{new Date(state.analysisTimestamp).toLocaleString('de-DE')}</td>
+          </tr>
+          <tr className="border-b">
+            <td className="py-1 pr-3 text-muted-foreground whitespace-nowrap align-top">Freshness</td>
+            <td className="py-1">
+              <span className={`font-medium ${freshnessLabel.color}`}>
+                {freshness.apiLoading ? 'Wird geprüft…' : freshnessLabel.label}
+              </span>
+              {/* API-basierte Issue-Anzahl (hat Vorrang über Atom-staleCount) */}
+              {freshness.apiIssueCount > 0 && freshness.apiArtifacts.length > 1 && (
+                <span className="ml-1 text-muted-foreground">
+                  ({freshness.apiIssueCount}/{freshness.apiArtifacts.length} abweichend)
+                </span>
+              )}
+              {freshness.apiIssueCount === 0 && freshness.staleCount > 0 && freshness.artifacts.length > 1 && (
+                <span className="ml-1 text-muted-foreground">
+                  ({freshness.staleCount}/{freshness.artifacts.length} veraltet)
+                </span>
+              )}
+            </td>
+          </tr>
+          <tr className="border-b">
+            <td className="py-1 pr-3 text-muted-foreground whitespace-nowrap align-top">Quelle modifiedAt</td>
+            <td className="py-1">
+              {freshness.sourceModifiedAt
+                ? freshness.sourceModifiedAt.toLocaleString('de-DE')
+                : <span className="text-muted-foreground">—</span>}
+            </td>
+          </tr>
+          <tr>
+            <td className="py-1 pr-3 text-muted-foreground whitespace-nowrap align-top">Twin updatedAt</td>
+            <td className="py-1">
+              {freshness.twinUpdatedAt
+                ? freshness.twinUpdatedAt.toLocaleString('de-DE')
+                : <span className="text-muted-foreground">—</span>}
+              {freshness.diffMs !== null && freshness.diffMs !== 0 && (
+                <span className="ml-2 text-muted-foreground">
+                  (Diff: {freshness.diffMs > 0 ? '+' : ''}{Math.round(freshness.diffMs / 1000)}s)
+                </span>
+              )}
+            </td>
           </tr>
         </tbody>
       </table>
@@ -843,6 +898,15 @@ function ShadowTwinDebugContent() {
             filesystemDeleted={false}
           />
         </div>
+      )}
+
+      {/* Pro-Artefakt Freshness-Vergleich: MongoDB vs. Storage Timestamps */}
+      {activeLibraryId && (
+        <FreshnessComparisonPanel
+          libraryId={activeLibraryId}
+          sourceId={selectedFile.id}
+          parentId={selectedFile.parentId}
+        />
       )}
     </div>
   );

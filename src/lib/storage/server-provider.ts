@@ -37,6 +37,9 @@ export async function getServerProvider(userEmail: string, libraryId: string): P
   const factory = StorageFactory.getInstance();
   factory.setApiBaseUrl(baseUrl);
   factory.setUserEmail(userEmail);
+  // Server-Kontext aktivieren: Erstellt direkte Provider (z.B. WebDAV)
+  // statt HTTP-Proxies, die eine Clerk-Session benötigen würden.
+  factory.setServerContext(true);
   factory.setLibraries([{ 
     id: lib.id,
     label: lib.label,

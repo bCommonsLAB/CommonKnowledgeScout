@@ -76,7 +76,7 @@ const libraryFormSchema = z.object({
   path: z.string({
     required_error: "Bitte geben Sie einen Speicherpfad ein.",
   }),
-  type: z.enum(["local", "onedrive", "gdrive"], {
+  type: z.enum(["local", "onedrive", "gdrive", "nextcloud"], {
     required_error: "Bitte wählen Sie einen Speichertyp.",
   }),
   description: z.string().optional(),
@@ -530,6 +530,10 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
       // Extrahiere die spezifischen Storage-Konfigurationen basierend auf dem Typ
       let storageConfig = {};
       
+      // Existierende Config der aktiven Library bewahren (z.B. nextcloud-Credentials),
+      // die in diesem Formular nicht bearbeitet werden.
+      const existingConfig = activeLibrary?.config ?? {};
+
       switch(data.type) {
         case "local":
           storageConfig = {
@@ -537,7 +541,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
           };
           break;
         case "onedrive":
-        case "gdrive":
+        case "gdrive": {
           // WICHTIG: clientSecret nur senden, wenn es NICHT der maskierte Wert ist
           // Wenn es '********' ist, wurde kein neues Secret eingegeben und das Backend 
           // soll den bestehenden Wert behalten
@@ -552,6 +556,14 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
             ...(shouldSendSecret ? { clientSecret: clientSecret.trim() } : {}),
             redirectUri: data.storageConfig.redirectUri,
           };
+          break;
+        }
+        case "nextcloud":
+          // Nextcloud-Credentials werden im Storage-Formular verwaltet, nicht hier.
+          // Existierende Config durchreichen, damit sie nicht gelöscht wird.
+          if (existingConfig.nextcloud) {
+            storageConfig = { nextcloud: existingConfig.nextcloud };
+          }
           break;
       }
       

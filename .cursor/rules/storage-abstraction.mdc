@@ -1,0 +1,150 @@
+---
+description: Zentrale Architektur-Rule – Storage-unabhängige Programmierung über StorageFactory
+alwaysApply: true
+---
+
+# Storage-Abstraktion: Zentrale Architektur-Rule
+
+## Kernprinzip
+
+**Alle Frontend- und Server-Anwendungen müssen storage-unabhängig programmiert werden.**
+Der Zugriff auf Dateien und Ordner erfolgt ausschließlich über das `StorageProvider`-Interface
+und die `StorageFactory`. Kein Code darf direkt auf ein konkretes Storage-Backend zugreifen.
+
+Unterstützte Backends: `local` (Filesystem), `onedrive`, `nextcloud` (WebDAV), weitere in Zukunft.
+Neuer Code darf NICHT von einem bestimmten Backend abhängen.
+
+## Architektur-Übersicht
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  UI-Komponenten / Hooks                                 │
+│  → Verwenden useStorageProvider() / StorageContext       │
+│  → Kennen NUR das StorageProvider-Interface              │
+└──────────────────┬──────────────────────────────────────┘
+                   │
+┌──────────────────▼──────────────────────────────────────┐
+│  StorageFactory  (Singleton)                            │
+│  → Erstellt Provider anhand library.type                │
+│  → Client-Kontext: HTTP-Proxy-Provider                  │
+│  → Server-Kontext (setServerContext): Direkte Provider  │
+└──────────────────┬──────────────────────────────────────┘
+                   │
+┌──────────────────▼──────────────────────────────────────┐
+│  StorageProvider-Implementierungen                      │
+│  ├─ LocalStorageProvider      (→ /api/storage/filesystem)│
+│  ├─ OneDriveProvider          (→ Microsoft Graph API)   │
+│  ├─ NextcloudClientProvider   (→ /api/storage/nextcloud)│
+│  ├─ NextcloudProvider         (→ WebDAV direkt, Server) │
+│  └─ [Zukünftige Provider]                               │
+└─────────────────────────────────────────────────────────┘
+```
+
+## Regeln
+
+### 1. NIEMALS direkt auf Storage-Backends zugreifen
+
+**VERBOTEN:**
+```typescript
+// Direkter Filesystem-Zugriff in Frontend oder Hooks
+import fs from 'fs'
+const files = fs.readdirSync('/some/path')
+
+// Direkter WebDAV-Aufruf in Komponenten
+import { createClient } from 'webdav'
+const client = createClient(url, { username, password })
+
+// Direkter OneDrive-API-Aufruf in UI-Code
+fetch('https://graph.microsoft.com/v1.0/me/drive/root/children')
+```
+
+**RICHTIG:**
+```typescript
+// Immer über StorageProvider-Interface
+const provider = useStorageProvider()
+const items = await provider.listItemsById('root')
+const binary = await provider.getBinary(itemId)
+await provider.uploadFile(folderId, file)
+```
+
+### 2. StorageFactory ist der einzige Einstiegspunkt
+
+- **Client-seitig:** `useStorageProvider()` Hook oder `StorageContext`
+- **Server-seitig:** `getServerProvider(userEmail, libraryId)` aus `src/lib/storage/server-provider.ts`
+- **Beide** gehen intern über `StorageFactory.getInstance().getProvider(libraryId)`
+
+Niemals Provider manuell instanziieren (außer in der Factory selbst oder in Tests).
+
+### 3. UI darf keinen Storage-Typ abfragen für Feature-Entscheidungen
+
+**VERBOTEN:**
+```typescript
+// Feature-Logik basierend auf Storage-Typ
+if (library.type === 'nextcloud') {
+  // Nextcloud-spezifisches Verhalten
+}
+if (library.type === 'local') {
+  // Nur für lokalen Storage
+}
+```
+
+**RICHTIG:**
+```typescript
+// Abstrakte Fähigkeiten abfragen (über Provider-Interface oder Config-Flags)
+const provider = useStorageProvider()
+const validation = await provider.validateConfiguration()
+if (validation.isValid) { /* ... */ }
+```
+
+**Ausnahme:** Settings-/Konfigurationsformulare dürfen `library.type` lesen,
+um die richtigen Eingabefelder anzuzeigen (z.B. WebDAV-URL nur bei Nextcloud).
+
+### 4. Server-Kontext: Factory mit setServerContext(true)
+
+Server-seitige Aufrufe (API-Routes, External Jobs) müssen `setServerContext(true)` setzen.
+Dadurch erstellt die Factory direkte Provider (z.B. `NextcloudProvider` via WebDAV)
+statt HTTP-Proxies, die eine Clerk-Session benötigen würden.
+
+```typescript
+// In getServerProvider (bereits implementiert):
+const factory = StorageFactory.getInstance()
+factory.setServerContext(true)
+const provider = await factory.getProvider(libraryId)
+```
+
+### 5. Neue Storage-Backends hinzufügen – Checkliste
+
+Beim Hinzufügen eines neuen Storage-Backends:
+
+1. `StorageProvider`-Interface implementieren (Server-seitiger Provider)
+2. Client-Proxy-Provider implementieren (HTTP-Proxy über API-Route)
+3. API-Route erstellen (`/api/storage/[typ]`)
+4. `StorageFactory.getProvider()` erweitern (Client + Server-Kontext)
+5. `StorageProviderType` in `src/types/library.ts` erweitern
+6. `SUPPORTED_LIBRARY_TYPES` in `src/lib/storage/supported-types.ts` erweitern
+7. Settings-Formulare anpassen (`storage-form.tsx`, `library-form.tsx`)
+8. `StorageContext` anpassen (Status-Handling)
+9. `getServerProvider` / `server-provider.ts` prüfen
+10. Filesystem-API-Route aktualisieren (Typ-Weiche)
+11. `library-service.ts` → `toClientLibraries` für neue Config-Felder erweitern
+
+### 6. StorageProvider-Interface ist der Vertrag
+
+Alle Provider MÜSSEN das vollständige `StorageProvider`-Interface implementieren:
+
+- `listItemsById(folderId)` – Ordnerinhalt auflisten
+- `getItemById(id)` – Einzelnes Element abrufen
+- `createFolder(parentId, name)` – Ordner erstellen
+- `deleteItem(id)` – Element löschen
+- `moveItem(id, newParentId)` – Element verschieben
+- `renameItem(id, newName)` – Element umbenennen
+- `uploadFile(folderId, file)` – Datei hochladen
+- `getBinary(id)` – Binärdaten abrufen
+- `getPathById(id)` – Pfad eines Elements
+- `validateConfiguration()` – Konfiguration prüfen
+
+## Verwandte Rules
+
+- `shadow-twin-architecture.mdc` → Storage-Abstraktion im Shadow-Twin-System
+- `contracts-story-pipeline.mdc` → Storage-Contract für Story-Pipeline
+- `no-silent-fallbacks.mdc` → Keine stillen Fallbacks bei unbekannten Storage-Typen

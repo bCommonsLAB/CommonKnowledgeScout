@@ -11,6 +11,7 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { LibraryService } from '@/lib/services/library-service'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { getShadowTwinsBySourceIds } from '@/lib/repositories/shadow-twin-repo'
+import { getServerProvider } from '@/lib/storage/server-provider'
 import { FileLogger } from '@/lib/debug/logger'
 
 export async function POST(
@@ -46,8 +47,16 @@ export async function POST(
       sourceIds: body.sourceIds,
     })
 
+    // Provider einmalig holen, um Streaming-URLs aufzulösen (statt hardcoded Filesystem-URL)
+    let storageProvider: Awaited<ReturnType<typeof getServerProvider>> | null = null
+    try {
+      storageProvider = await getServerProvider(userEmail, libraryId)
+    } catch (providerError) {
+      FileLogger.warn('shadow-twins/binary-fragments', 'Provider konnte nicht geladen werden – Fallback auf streaming-url', { error: providerError })
+    }
+
     // Extrahiere binaryFragments mit sourceId-Information
-    // Enthält resolvedUrl: entweder Azure-URL oder generierte Storage-API-URL
+    // Enthält resolvedUrl: entweder Azure-URL oder provider-aufgelöste Streaming-URL
     const fragments: Array<{
       sourceId: string
       sourceName: string
@@ -138,14 +147,22 @@ export async function POST(
           const url = fragment.url as string | undefined
           const fileId = fragment.fileId as string | undefined
           
-          // Generiere resolvedUrl: Azure-URL (bevorzugt) oder Storage-API-URL (Fallback)
+          // Generiere resolvedUrl: Azure-URL (bevorzugt) oder provider-aufgelöste Streaming-URL
           let resolvedUrl: string | undefined
           if (url) {
             // Azure Blob Storage URL vorhanden
             resolvedUrl = url
           } else if (fileId) {
-            // Dateisystem-Referenz: Generiere Storage-API-URL
-            resolvedUrl = `/api/storage/filesystem?action=binary&fileId=${encodeURIComponent(fileId)}&libraryId=${encodeURIComponent(libraryId)}`
+            // Über Provider auflösen (provider-agnostisch) oder Streaming-URL als Fallback
+            if (storageProvider) {
+              try {
+                resolvedUrl = await storageProvider.getStreamingUrl(fileId)
+              } catch {
+                resolvedUrl = `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(fileId)}`
+              }
+            } else {
+              resolvedUrl = `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(fileId)}`
+            }
           }
           
           fragments.push({

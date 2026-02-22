@@ -424,12 +424,185 @@ class LocalStorageProvider implements StorageProvider {
   }
 }
 
+/**
+ * Client-seitiger Proxy-Provider fuer Nextcloud.
+ * Analog zum LocalStorageProvider, ruft aber /api/storage/nextcloud auf.
+ * Credentials liegen ausschliesslich server-seitig (in library.config.nextcloud).
+ */
+class NextcloudClientProvider implements StorageProvider {
+  private library: ClientLibrary;
+  private baseUrl: string;
+  private userEmail: string | null = null;
+  // Deduplizierung paralleler Anfragen (gleicher Ordner → nur 1 Request)
+  private pendingRequests: Map<string, Promise<StorageItem[]>> = new Map();
+
+  constructor(library: ClientLibrary, baseUrl?: string) {
+    this.library = library;
+    this.baseUrl = baseUrl || '';
+  }
+
+  isAuthenticated(): boolean {
+    return true;
+  }
+
+  setUserEmail(email: string) {
+    this.userEmail = email;
+  }
+
+  get name() {
+    return 'Nextcloud (WebDAV)';
+  }
+
+  get id() {
+    return this.library.id;
+  }
+
+  private getApiUrl(path: string): string {
+    const url = `${this.baseUrl}${path}`;
+    if (this.userEmail) {
+      const sep = url.includes('?') ? '&' : '?';
+      return `${url}${sep}email=${encodeURIComponent(this.userEmail)}`;
+    }
+    return url;
+  }
+
+  async listItemsById(folderId: string): Promise<StorageItem[]> {
+    // Deduplizierung: Gleichzeitige Anfragen für denselben Ordner zusammenführen
+    const requestKey = `${this.library.id}:${folderId}`;
+    const existing = this.pendingRequests.get(requestKey);
+    if (existing) {
+      return existing;
+    }
+
+    const requestPromise = (async () => {
+      const url = this.getApiUrl(`/api/storage/nextcloud?action=list&fileId=${encodeURIComponent(folderId)}&libraryId=${encodeURIComponent(this.library.id)}`);
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) {
+        // 429 Rate-Limit: Spezifischen Fehler werfen, damit der StorageContext ihn erkennt
+        if (res.status === 429) {
+          const err = new Error('Nextcloud Rate-Limit erreicht. Bitte kurz warten.');
+          (err as unknown as { code: string }).code = 'RATE_LIMITED';
+          throw err;
+        }
+        throw new Error(`Fehler beim Laden (${res.status})`);
+      }
+      return res.json() as Promise<StorageItem[]>;
+    })();
+
+    this.pendingRequests.set(requestKey, requestPromise);
+    try {
+      return await requestPromise;
+    } finally {
+      this.pendingRequests.delete(requestKey);
+    }
+  }
+
+  async getItemById(fileId: string): Promise<StorageItem> {
+    const url = this.getApiUrl(`/api/storage/nextcloud?action=get&fileId=${encodeURIComponent(fileId)}&libraryId=${encodeURIComponent(this.library.id)}`);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Fehler beim Laden des Items');
+    return res.json();
+  }
+
+  async createFolder(parentId: string, name: string): Promise<StorageItem> {
+    const url = this.getApiUrl(`/api/storage/nextcloud?action=createFolder&fileId=${encodeURIComponent(parentId)}&libraryId=${encodeURIComponent(this.library.id)}`);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    if (!res.ok) throw new Error('Fehler beim Erstellen des Ordners');
+    return res.json();
+  }
+
+  async deleteItem(fileId: string): Promise<void> {
+    const url = this.getApiUrl(`/api/storage/nextcloud?fileId=${encodeURIComponent(fileId)}&libraryId=${encodeURIComponent(this.library.id)}`);
+    const res = await fetch(url, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Fehler beim Loeschen');
+  }
+
+  async moveItem(fileId: string, newParentId: string): Promise<void> {
+    const url = this.getApiUrl(`/api/storage/nextcloud?fileId=${encodeURIComponent(fileId)}&newParentId=${encodeURIComponent(newParentId)}&libraryId=${encodeURIComponent(this.library.id)}`);
+    const res = await fetch(url, { method: 'PATCH' });
+    if (!res.ok) throw new Error('Fehler beim Verschieben');
+  }
+
+  async renameItem(itemId: string, newName: string): Promise<StorageItem> {
+    const url = this.getApiUrl(`/api/storage/nextcloud?action=rename&fileId=${encodeURIComponent(itemId)}&libraryId=${encodeURIComponent(this.library.id)}`);
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newName }),
+    });
+    if (!res.ok) throw new Error('Fehler beim Umbenennen');
+    return res.json();
+  }
+
+  async uploadFile(parentId: string, file: File): Promise<StorageItem> {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+    const url = this.getApiUrl(`/api/storage/nextcloud?action=upload&fileId=${encodeURIComponent(parentId)}&libraryId=${encodeURIComponent(this.library.id)}`);
+    const res = await fetch(url, { method: 'POST', body: formData });
+    if (!res.ok) throw new Error('Fehler beim Upload');
+    return res.json();
+  }
+
+  async getBinary(fileId: string): Promise<{ blob: Blob; mimeType: string }> {
+    const url = this.getApiUrl(`/api/storage/nextcloud?action=binary&fileId=${encodeURIComponent(fileId)}&libraryId=${encodeURIComponent(this.library.id)}`);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Fehler beim Laden der Binaerdaten');
+    const blob = await res.blob();
+    return { blob, mimeType: res.headers.get('Content-Type') || 'application/octet-stream' };
+  }
+
+  async getPathById(itemId: string): Promise<string> {
+    const url = this.getApiUrl(`/api/storage/nextcloud?action=path&fileId=${encodeURIComponent(itemId)}&libraryId=${encodeURIComponent(this.library.id)}`);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Fehler beim Laden des Pfads');
+    return res.text();
+  }
+
+  async getPathItemsById(itemId: string): Promise<StorageItem[]> {
+    if (itemId === 'root') {
+      return [{ id: 'root', parentId: '', type: 'folder', metadata: { name: 'root', size: 0, modifiedAt: new Date(), mimeType: 'application/folder' } }];
+    }
+    // Pfad aufloesen und Ordner iterativ laden (wie LocalStorageProvider)
+    const path = await this.getPathById(itemId);
+    const segments = path.split('/').filter(Boolean);
+    let parentId = 'root';
+    const pathItems: StorageItem[] = [];
+    for (const segment of segments) {
+      const children = await this.listItemsById(parentId);
+      const folder = children.find(c => c.metadata.name === segment && c.type === 'folder');
+      if (!folder) break;
+      pathItems.push(folder);
+      parentId = folder.id;
+    }
+    return [{ id: 'root', parentId: '', type: 'folder', metadata: { name: 'root', size: 0, modifiedAt: new Date(), mimeType: 'application/folder' } }, ...pathItems];
+  }
+
+  async validateConfiguration(): Promise<StorageValidationResult> {
+    return { isValid: true };
+  }
+
+  async getStreamingUrl(itemId: string): Promise<string> {
+    return this.getApiUrl(`/api/storage/nextcloud?action=binary&fileId=${encodeURIComponent(itemId)}&libraryId=${this.library.id}`);
+  }
+
+  async getDownloadUrl(itemId: string): Promise<string> {
+    return this.getStreamingUrl(itemId);
+  }
+}
+
 export class StorageFactory {
   private static instance: StorageFactory;
   private libraries: ClientLibrary[] = [];
   private providers = new Map<string, StorageProvider>();
   private apiBaseUrl: string | null = null;
   private userEmail: string | null = null;
+  // Server-Kontext: true → direkte Provider (WebDAV) statt HTTP-Proxies erstellen.
+  // Nötig, weil Server-zu-Server-Aufrufe keine Clerk-Session haben.
+  private serverContext = false;
 
   private constructor() {}
 
@@ -443,6 +616,15 @@ export class StorageFactory {
   // Setzt die Basis-URL für API-Anfragen, wichtig für serverseitige Aufrufe
   setApiBaseUrl(baseUrl: string) {
     this.apiBaseUrl = baseUrl;
+  }
+
+  /**
+   * Aktiviert den Server-Kontext.
+   * Im Server-Kontext werden direkte Provider (z.B. NextcloudProvider via WebDAV)
+   * statt HTTP-Proxies erstellt, da Server-zu-Server-Aufrufe keine Clerk-Session haben.
+   */
+  setServerContext(isServer: boolean) {
+    this.serverContext = isServer;
   }
 
   /**
@@ -554,7 +736,36 @@ export class StorageFactory {
           //console.log(`StorageFactory: User-Email an OneDriveProvider gesetzt`);
         }
         break;
-      // Add more provider types here
+      case 'nextcloud':
+        if (this.serverContext) {
+          // Server-Kontext: Direkt den WebDAV-Provider erstellen (kein HTTP-Proxy nötig).
+          // Dynamischer Import, damit das webdav-Paket nicht im Client-Bundle landet.
+          const { NextcloudProvider } = await import('./nextcloud-provider');
+          const nc = (library.config as Record<string, unknown>)?.nextcloud as
+            | { webdavUrl?: string; username?: string; appPassword?: string }
+            | undefined;
+
+          const missing: string[] = [];
+          if (!nc?.webdavUrl) missing.push('webdavUrl');
+          if (!nc?.username) missing.push('username');
+          if (!nc?.appPassword) missing.push('appPassword');
+
+          if (missing.length > 0) {
+            throw new Error(
+              `Nextcloud-Konfiguration unvollständig. Fehlende Felder: ${missing.join(', ')}. ` +
+              `Bitte in den Storage-Einstellungen konfigurieren.`
+            );
+          }
+
+          provider = new NextcloudProvider(nc!.webdavUrl!, nc!.username!, nc!.appPassword!, library.id);
+        } else {
+          // Client-Kontext: HTTP-Proxy verwenden, der /api/storage/nextcloud aufruft
+          provider = new NextcloudClientProvider(library, this.apiBaseUrl || undefined);
+        }
+        if (this.userEmail && 'setUserEmail' in (provider as unknown as { setUserEmail?: (e: string) => void })) {
+          (provider as unknown as { setUserEmail?: (e: string) => void }).setUserEmail?.(this.userEmail);
+        }
+        break;
       default:
         console.warn(`StorageFactory: Nicht unterstützter Bibliothekstyp "${library.type}" für Bibliothek "${library.label}"`);
         console.info(`StorageFactory: Unterstützte Typen: ${getSupportedLibraryTypesString()}`);
@@ -577,5 +788,14 @@ export class StorageFactory {
     // Cache provider
     this.providers.set(libraryId, provider);
     return provider;
+  }
+
+  /**
+   * Erstellt eine temporäre OneDrive-Provider-Instanz nur für den OAuth-Flow.
+   * Wird nicht gecacht und nicht in setLibraries/setUserEmail eingebunden.
+   * Typischer Aufruf: factory.createOneDriveProviderForAuth(library).getAuthUrl()
+   */
+  createOneDriveProviderForAuth(library: ClientLibrary): OneDriveProvider {
+    return new OneDriveProvider(library);
   }
 } 

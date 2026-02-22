@@ -174,10 +174,45 @@ export async function POST(request: NextRequest) {
     const path = await provider.getPathById(uploaded.id)
     push('Dateipfad', 'success', `Pfad: ${path}`)
 
-    // Aufräumen
+    // Pfad-Items (Breadcrumb)
+    push('Pfad-Items', 'info', 'Rufe Breadcrumb-Pfad ab...')
+    const pathItems = await provider.getPathItemsById(uploaded.id)
+    push('Pfad-Items', 'success', `Breadcrumb: ${pathItems.map(p => p.metadata.name).join(' / ')} (${pathItems.length} Ebenen)`)
+
+    // Umbenennen
+    const renamedName = `renamed-${fileName}`
+    push('Umbenennen', 'info', `Benenne "${fileName}" um in "${renamedName}"...`)
+    const renamed = await provider.renameItem(uploaded.id, renamedName)
+    push('Umbenennen', renamed.metadata.name === renamedName ? 'success' : 'error',
+      renamed.metadata.name === renamedName ? `Umbenannt zu "${renamedName}"` : `Name stimmt nicht: "${renamed.metadata.name}"`)
+
+    // Verschieben
+    const moveTargetName = `move-target-${Math.random().toString(36).slice(2, 8)}`
+    push('Verschieben', 'info', `Erstelle Zielordner und verschiebe Datei...`)
+    const moveTarget = await provider.createFolder('root', moveTargetName)
+    await provider.moveItem(renamed.id, moveTarget.id)
+    const movedItems = await provider.listItemsById(moveTarget.id)
+    const moveOk = movedItems.some(i => i.metadata.name === renamedName)
+    push('Verschieben', moveOk ? 'success' : 'error',
+      moveOk ? `Datei nach "${moveTargetName}" verschoben` : 'Datei nicht im Zielordner gefunden')
+
+    // Streaming-URL
+    const movedFile = movedItems.find(i => i.metadata.name === renamedName)
+    if (movedFile) {
+      push('Streaming-URL', 'info', 'Rufe Streaming-URL ab...')
+      const streamUrl = await provider.getStreamingUrl(movedFile.id)
+      push('Streaming-URL', streamUrl ? 'success' : 'error', streamUrl ? `URL erhalten` : 'Keine URL')
+
+      push('Download-URL', 'info', 'Rufe Download-URL ab...')
+      const dlUrl = await provider.getDownloadUrl(movedFile.id)
+      push('Download-URL', dlUrl ? 'success' : 'error', dlUrl ? `URL erhalten` : 'Keine URL')
+    }
+
+    // Aufräumen – beide Testordner löschen
     push('Aufräumen', 'info', `Lösche Testordner...`)
     await provider.deleteItem(folder.id)
-    push('Aufräumen', 'success', `Ordner gelöscht`)
+    await provider.deleteItem(moveTarget.id)
+    push('Aufräumen', 'success', `Alle Testordner gelöscht`)
 
     return NextResponse.json({ success: true, logs })
   } catch (err) {

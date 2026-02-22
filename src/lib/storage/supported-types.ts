@@ -23,7 +23,7 @@
  * - None (pure type definitions and utilities)
  */
 
-export const SUPPORTED_LIBRARY_TYPES = ['local', 'onedrive'] as const;
+export const SUPPORTED_LIBRARY_TYPES = ['local', 'onedrive', 'nextcloud'] as const;
 export type SupportedLibraryType = typeof SUPPORTED_LIBRARY_TYPES[number];
 
 /**

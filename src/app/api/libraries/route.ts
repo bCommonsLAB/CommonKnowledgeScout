@@ -145,6 +145,30 @@ export async function POST(request: NextRequest) {
       };
     }
     
+    // Bei Updates: Existierende Config-Felder bewahren, die nicht im Request enthalten sind.
+    // Verhindert, dass z.B. nextcloud-Credentials gelöscht werden, wenn das allgemeine
+    // Library-Formular gespeichert wird (das keine Storage-Felder verwaltet).
+    if (existingLibrary && existingLibrary.config && libraryData.config) {
+      const mergedConfig = { ...existingLibrary.config };
+      for (const [key, value] of Object.entries(libraryData.config)) {
+        // Nextcloud-Config: Merge statt Überschreiben (Credentials schützen)
+        if (key === 'nextcloud' && typeof value === 'object' && value !== null) {
+          const existingNc = (mergedConfig.nextcloud || {}) as Record<string, unknown>;
+          const newNc = value as Record<string, string>;
+          const merged = { ...existingNc };
+          if (newNc.webdavUrl) merged.webdavUrl = newNc.webdavUrl;
+          if (newNc.username) merged.username = newNc.username;
+          if (newNc.appPassword && newNc.appPassword !== '********') {
+            merged.appPassword = newNc.appPassword;
+          }
+          mergedConfig.nextcloud = merged as { webdavUrl: string; username: string; appPassword?: string };
+        } else {
+          (mergedConfig as Record<string, unknown>)[key] = value;
+        }
+      }
+      libraryData.config = mergedConfig;
+    }
+    
     const success = await libraryService.updateLibrary(email, libraryData);
     
     if (success) {

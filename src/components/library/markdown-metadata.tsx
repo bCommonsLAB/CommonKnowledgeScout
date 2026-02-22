@@ -65,8 +65,8 @@ function resolveImageUrl(relativePath: string | undefined, libraryId: string | u
     }
     const fileId = btoa(binary);
     
-    // Baue Storage-API-URL
-    return `/api/storage/filesystem?action=binary&fileId=${encodeURIComponent(fileId)}&libraryId=${encodeURIComponent(libraryId)}`;
+    // Provider-agnostische Streaming-URL (funktioniert für Local und OneDrive)
+    return `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(fileId)}`;
   } catch (error) {
     console.error('[MarkdownMetadata] Fehler beim Konvertieren des Bildpfads:', error);
     return relativePath; // Fallback: ursprüngliche URL verwenden

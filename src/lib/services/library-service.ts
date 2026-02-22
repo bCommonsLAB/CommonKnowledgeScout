@@ -347,6 +347,27 @@ export class LibraryService {
           // Der Client muss den Token-Status aus localStorage prüfen
         };
       }
+
+      // Nextcloud: URL + Username an Client, App-Passwort maskiert
+      if (lib.type === 'nextcloud') {
+        const nc = (lib.config as Record<string, unknown>)?.nextcloud as { webdavUrl?: string; username?: string; appPassword?: string } | undefined;
+        console.log('[toClientLibraries] Nextcloud-Config aus DB:', {
+          libraryId: lib.id,
+          hasConfig: !!lib.config,
+          hasNextcloud: !!nc,
+          nextcloudKeys: nc ? Object.keys(nc) : [],
+        });
+        if (nc) {
+          config = {
+            ...config,
+            nextcloud: {
+              webdavUrl: nc.webdavUrl || '',
+              username: nc.username || '',
+              appPassword: nc.appPassword ? '********' : undefined,
+            },
+          };
+        }
+      }
       
       const result = {
         id: lib.id,

@@ -37,6 +37,8 @@ import { fetchShadowTwinMarkdown } from "@/lib/shadow-twin/shadow-twin-mongo-cli
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from "@/lib/shadow-twin/mongo-shadow-twin-id"
 import { parseSecretaryMarkdownStrict } from "@/lib/secretary/response-parser"
 import { activeLibraryAtom } from "@/atoms/library-atom"
+import { useShadowTwinFreshnessApi } from "@/hooks/use-shadow-twin-freshness"
+import { ShadowTwinSyncBanner } from "@/components/library/shared/shadow-twin-sync-banner"
 import { loadPdfDefaults } from "@/lib/pdf-defaults"
 import { getEffectivePdfDefaults } from "@/atoms/pdf-defaults"
 import { TARGET_LANGUAGE_DEFAULT } from "@/lib/chat/constants"
@@ -489,6 +491,7 @@ function PreviewContent({
   storySteps,
   // editHandlerRef entfernt - wird derzeit nicht verwendet
   effectiveMdIdRef,
+  pipelineOpenerRef,
 }: {
   item: StorageItem;
   fileType: string;
@@ -501,6 +504,8 @@ function PreviewContent({
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
   storySteps: StoryStepStatus[];
   effectiveMdIdRef?: React.MutableRefObject<string | null>;
+  /** Ref, über den FilePreview die Pipeline-Öffnung triggern kann (Freshness-Banner) */
+  pipelineOpenerRef?: React.MutableRefObject<(() => void) | null>;
 }) {
   const [infoTab, setInfoTab] = React.useState<"original" | "transcript" | "transform" | "story" | "overview">("original")
   const transcript = useResolvedTranscriptItem({
@@ -630,6 +635,16 @@ function PreviewContent({
     return v
   })
   const [isPipelineOpen, setIsPipelineOpen] = React.useState(false)
+
+  // Registriere Pipeline-Opener für Freshness-Banner (ref-basiert, um Prop-Drilling zu vermeiden)
+  React.useEffect(() => {
+    if (pipelineOpenerRef) {
+      pipelineOpenerRef.current = () => setIsPipelineOpen(true)
+    }
+    return () => {
+      if (pipelineOpenerRef) pipelineOpenerRef.current = null
+    }
+  }, [pipelineOpenerRef])
 
   // DEBUG: Log wenn Pipeline geöffnet und defaultCustomHint an PipelineSheet übergeben wird
   React.useEffect(() => {
@@ -2359,6 +2374,76 @@ export function FilePreview({
     shadowTwinState,
   })
   
+  // Freshness-Check: Vollständiger Vergleich Source vs. MongoDB vs. Storage (via API)
+  const freshness = useShadowTwinFreshnessApi(activeLibraryId, displayFile, shadowTwinState)
+
+  // Ref-basierter Callback, um die Pipeline aus dem Banner heraus zu öffnen
+  const pipelineOpenerRef = React.useRef<(() => void) | null>(null)
+  const [isSyncing, setIsSyncing] = React.useState(false)
+
+  // Generischer Sync-Handler für beide Richtungen
+  const handleSync = React.useCallback(async (direction: 'from-storage' | 'to-storage') => {
+    if (!activeLibraryId || !displayFile) return
+    setIsSyncing(true)
+    try {
+      const endpoint = direction === 'from-storage'
+        ? `/api/library/${encodeURIComponent(activeLibraryId)}/shadow-twins/sync-from-storage`
+        : `/api/library/${encodeURIComponent(activeLibraryId)}/shadow-twins/sync-to-storage`
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceId: displayFile.id, parentId: displayFile.parentId }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Unbekannter Fehler' }))
+        toast.error("Sync fehlgeschlagen", { description: err.error || 'Server-Fehler' })
+        return
+      }
+      const result = await res.json()
+      // Erfolg-Feedback
+      const countKey = direction === 'from-storage' ? 'synced' : 'written'
+      const count = result[countKey] || 0
+      if (count > 0) {
+        const label = direction === 'from-storage' ? 'MongoDB aktualisiert' : 'In Storage geschrieben'
+        const desc = direction === 'from-storage'
+          ? `${count} Artefakt${count > 1 ? 'e' : ''} vom Storage synchronisiert.`
+          : `${count} Artefakt${count > 1 ? 'e' : ''} in den Storage geschrieben.`
+        toast.success(label, { description: desc })
+      } else if (result.skipped > 0) {
+        toast.info("Bereits synchron", { description: "Alle Artefakte sind bereits aktuell." })
+      }
+      if (result.failed > 0) {
+        toast.warning("Teilweise fehlgeschlagen", {
+          description: `${result.failed} Artefakt${result.failed > 1 ? 'e' : ''} konnten nicht synchronisiert werden.`,
+        })
+      }
+    } catch (err) {
+      toast.error("Sync-Fehler", { description: err instanceof Error ? err.message : String(err) })
+    } finally {
+      setIsSyncing(false)
+    }
+  }, [activeLibraryId, displayFile])
+
+  // Request-Update: Je nach Status passende Aktion auslösen
+  const handleRequestUpdate = React.useCallback(() => {
+    if (freshness.status === 'storage-newer') {
+      void handleSync('from-storage')
+      return
+    }
+    if (freshness.status === 'storage-missing') {
+      void handleSync('to-storage')
+      return
+    }
+    // source-newer / no-twin → Pipeline öffnen
+    if (pipelineOpenerRef.current) {
+      pipelineOpenerRef.current()
+    } else {
+      toast.info("Pipeline nicht verfügbar", {
+        description: "Bitte verwende den Verarbeitungs-Button in der Toolbar.",
+      })
+    }
+  }, [freshness.status, handleSync])
+
   // Refs für Handler von JobReportTab (für Header-Buttons)
   // editHandlerRef wurde entfernt - wird derzeit nicht verwendet
   const effectiveMdIdRef = React.useRef<string | null>(null)
@@ -2511,6 +2596,12 @@ export function FilePreview({
           ) : null}
         </div>
       </div>
+      {/* Freshness-Banner: Warnung wenn Quelldatei und Shadow-Twin nicht synchron */}
+      <ShadowTwinSyncBanner
+        freshness={freshness}
+        onRequestUpdate={handleRequestUpdate}
+        isUpdating={isSyncing}
+      />
       <ContentLoader
         item={displayFile}
         provider={provider}
@@ -2527,6 +2618,7 @@ export function FilePreview({
           activeLibraryId={activeLibraryId}
           provider={provider}
           contentCache={contentCache}
+          pipelineOpenerRef={pipelineOpenerRef}
           onContentUpdated={handleContentUpdated}
           onRefreshFolder={onRefreshFolder}
           storySteps={storyStatus.steps}
