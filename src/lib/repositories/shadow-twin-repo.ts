@@ -341,9 +341,177 @@ export async function updateShadowTwinArtifactMarkdown(args: {
  * - Diese Operation ist primär für deterministische Test-Setups gedacht ("clean" State).
  * - In der Produktion sollte das nur bewusst/gezielt genutzt werden.
  */
+/**
+ * Gibt alle Artefakte eines Shadow-Twin-Dokuments als flache Liste zurueck.
+ * Iteriert ueber die verschachtelte Struktur (transcript.{lang}, transformation.{template}.{lang}).
+ */
+export interface FlatArtifactEntry {
+  kind: ArtifactKind
+  targetLanguage: string
+  templateName?: string
+  updatedAt: string
+  createdAt: string
+  /** Markdown-Laenge in Zeichen (ohne das Markdown selbst zu uebertragen) */
+  markdownLength: number
+}
+
+export async function getAllArtifacts(args: {
+  libraryId: string
+  sourceId: string
+}): Promise<FlatArtifactEntry[]> {
+  const { libraryId, sourceId } = args
+  const col = await getShadowTwinCollection(libraryId)
+  const doc = await col.findOne({ libraryId, sourceId })
+  if (!doc?.artifacts) return []
+
+  const entries: FlatArtifactEntry[] = []
+
+  // Transcripts: artifacts.transcript.{lang}
+  if (doc.artifacts.transcript) {
+    for (const [lang, record] of Object.entries(doc.artifacts.transcript)) {
+      if (!record || typeof record !== 'object') continue
+      entries.push({
+        kind: 'transcript',
+        targetLanguage: lang,
+        updatedAt: record.updatedAt,
+        createdAt: record.createdAt,
+        markdownLength: record.markdown?.length || 0,
+      })
+    }
+  }
+
+  // Transformations: artifacts.transformation.{template}.{lang}
+  if (doc.artifacts.transformation) {
+    for (const [template, langMap] of Object.entries(doc.artifacts.transformation)) {
+      if (!langMap || typeof langMap !== 'object') continue
+      for (const [lang, record] of Object.entries(langMap)) {
+        if (!record || typeof record !== 'object') continue
+        entries.push({
+          kind: 'transformation',
+          targetLanguage: lang,
+          templateName: template,
+          updatedAt: record.updatedAt,
+          createdAt: record.createdAt,
+          markdownLength: record.markdown?.length || 0,
+        })
+      }
+    }
+  }
+
+  // Sortierung: neueste zuerst
+  entries.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  return entries
+}
+
+/**
+ * Findet/loescht alle Artefakte einer bestimmten Sprache in der gesamten Library.
+ * Unterstuetzt Dry-Run (nur zaehlen, nicht loeschen).
+ */
+export interface LanguageDeleteResult {
+  /** Betroffene Quelldateien */
+  affectedFiles: Array<{
+    sourceId: string
+    sourceName: string
+    artifacts: Array<{ kind: ArtifactKind; templateName?: string }>
+  }>
+  /** Gesamtzahl geloeschter/gefundener Artefakte */
+  totalArtifacts: number
+}
+
+export async function deleteArtifactsByLanguage(args: {
+  libraryId: string
+  targetLanguage: string
+  dryRun: boolean
+}): Promise<LanguageDeleteResult> {
+  const { libraryId, targetLanguage, dryRun } = args
+  const col = await getShadowTwinCollection(libraryId)
+  const lang = targetLanguage.toLowerCase()
+
+  // Alle Dokumente durchsuchen, die Artefakte in dieser Sprache haben
+  // MongoDB: Pruefen ob artifacts.transcript.{lang} oder artifacts.transformation.*.{lang} existiert
+  const docs = await col.find({
+    libraryId,
+    $or: [
+      { [`artifacts.transcript.${lang}`]: { $exists: true } },
+      { [`artifacts.transformation`]: { $exists: true } },
+    ],
+  }).toArray()
+
+  const affectedFiles: LanguageDeleteResult['affectedFiles'] = []
+  let totalArtifacts = 0
+
+  for (const doc of docs) {
+    const artifacts: Array<{ kind: ArtifactKind; templateName?: string }> = []
+
+    // Transcript in dieser Sprache?
+    if (doc.artifacts?.transcript?.[lang]) {
+      artifacts.push({ kind: 'transcript' })
+    }
+
+    // Transformationen in dieser Sprache?
+    if (doc.artifacts?.transformation) {
+      for (const [templateName, langMap] of Object.entries(doc.artifacts.transformation)) {
+        if (langMap && typeof langMap === 'object' && lang in langMap) {
+          artifacts.push({ kind: 'transformation', templateName })
+        }
+      }
+    }
+
+    if (artifacts.length === 0) continue
+
+    totalArtifacts += artifacts.length
+    affectedFiles.push({
+      sourceId: doc.sourceId,
+      sourceName: doc.sourceName,
+      artifacts,
+    })
+
+    // Tatsaechlich loeschen (nur wenn kein Dry-Run)
+    if (!dryRun) {
+      const unsetPaths: Record<string, ''> = {}
+      for (const a of artifacts) {
+        const key: ArtifactKey = {
+          sourceId: doc.sourceId,
+          kind: a.kind,
+          targetLanguage: lang,
+          templateName: a.templateName,
+        }
+        unsetPaths[buildArtifactPath(key)] = ''
+      }
+      await col.updateOne(
+        { _id: doc._id },
+        { $unset: unsetPaths }
+      )
+    }
+  }
+
+  return { affectedFiles, totalArtifacts }
+}
+
 export async function deleteShadowTwinBySourceId(libraryId: string, sourceId: string): Promise<void> {
   const col = await getShadowTwinCollection(libraryId)
   await col.deleteOne({ libraryId, sourceId })
+}
+
+/**
+ * Löscht ein einzelnes Artefakt (z.B. nur Transcript "de" oder Transformation "pdfanalyse.en")
+ * aus dem Shadow-Twin-Dokument, ohne andere Artefakte zu beeinflussen.
+ *
+ * Verwendet $unset mit dem Pfad aus buildArtifactPath (z.B. "artifacts.transcript.de").
+ */
+export async function deleteShadowTwinArtifact(args: {
+  libraryId: string
+  sourceId: string
+  artifactKey: ArtifactKey
+}): Promise<boolean> {
+  const { libraryId, sourceId, artifactKey } = args
+  const path = buildArtifactPath(artifactKey)
+  const col = await getShadowTwinCollection(libraryId)
+  const result = await col.updateOne(
+    { libraryId, sourceId },
+    { $unset: { [path]: '' } }
+  )
+  return result.modifiedCount > 0
 }
 
 export function logShadowTwinRepoError(scope: string, error: unknown): void {

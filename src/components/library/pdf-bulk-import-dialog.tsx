@@ -27,6 +27,8 @@ import { Settings } from 'lucide-react';
 import { TARGET_LANGUAGE_DEFAULT } from '@/lib/chat/constants';
 // Zentrale Medientyp-Erkennung für alle unterstützten Dateitypen
 import { getMediaKind, isPipelineSupported } from '@/lib/media-types';
+// Shadow-Twin-Ordner erkennen (Prefix '_' oder '.'), damit sie beim Scan übersprungen werden
+import { isShadowTwinFolderName } from '@/lib/storage/shadow-twin';
 
 // Rückwärtskompatible Props-Benennung (Dialog unterstützt jetzt alle Medientypen)
 interface PdfBulkImportDialogProps {
@@ -109,7 +111,11 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
         continue;
       }
 
-      const folders = items.filter((i) => i.type === 'folder');
+      // Shadow-Twin-Ordner (Prefix '_' oder '.') überspringen – diese enthalten
+      // nur generierte Artefakte und keine zu verarbeitenden Quelldateien.
+      const folders = items.filter(
+        (i) => i.type === 'folder' && !isShadowTwinFolderName(i.metadata.name)
+      );
       folders.forEach((f) => stack.push(f.id));
 
       const files = items.filter((i) => i.type === 'file');

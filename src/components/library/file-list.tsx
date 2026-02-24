@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { 
   File, FileText, FileVideo, FileAudio, FileSpreadsheet, Presentation, Globe,
   Image as ImageIcon, FileType2, Plus, RefreshCw, ChevronUp, ChevronDown, 
-  Trash2, Folder as FolderIcon, Sparkles, Upload 
+  Trash2, Folder as FolderIcon, Sparkles, Upload, FolderSync 
 } from "lucide-react"
 import { StorageItem } from "@/lib/storage/types"
 import { cn } from "@/lib/utils"
@@ -868,6 +868,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   const { provider, refreshItems, currentLibrary } = useStorage();
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
+  const [isFolderSyncing, setIsFolderSyncing] = React.useState(false);
   // Mobile-Flag wurde entfernt, FileList lädt unabhängig vom View
   const [selectedBatchItems, setSelectedBatchItems] = useAtom(selectedBatchItemsAtom);
   const [selectedTransformationItems, setSelectedTransformationItems] = useAtom(selectedTransformationItemsAtom);
@@ -1336,6 +1337,53 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     }
   }, [currentFolderId, refreshItems, setFolderItems, setShadowTwinAnalysisTrigger, shadowTwinAnalysisTrigger]);
 
+  // Verzeichnis-Sync: Änderungen im aktuellen Ordner (und Unterordner) abgleichen
+  const handleFolderSync = useCallback(async () => {
+    if (!currentFolderId || !activeLibraryId) return;
+    setIsFolderSyncing(true);
+    try {
+      const res = await fetch(`/api/library/${encodeURIComponent(activeLibraryId)}/shadow-twins/sync-all`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderId: currentFolderId, recursive: true }),
+      });
+      const json = await res.json().catch(() => ({})) as {
+        report?: { scanned?: number; markdownToCache?: number; markdownToStorage?: number; imagesWritten?: number; sourceNewer?: number; errors?: number };
+        error?: string;
+      };
+      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+
+      const r = json.report;
+      if (r) {
+        const changes = (r.markdownToCache || 0) + (r.markdownToStorage || 0) + (r.imagesWritten || 0);
+        if (changes > 0) {
+          toast.success(`${changes} Artefakt${changes > 1 ? 'e' : ''} abgeglichen`, {
+            description: [
+              r.markdownToCache ? `${r.markdownToCache} → Cache` : '',
+              r.markdownToStorage ? `${r.markdownToStorage} → Storage` : '',
+              r.imagesWritten ? `${r.imagesWritten} Bilder` : '',
+            ].filter(Boolean).join(', '),
+          });
+          // Dateiliste + Shadow-Twin-Analyse neu laden
+          setShadowTwinAnalysisTrigger((v) => v + 1);
+        } else {
+          toast.info('Alles synchron', { description: `${r.scanned || 0} Dateien geprüft.` });
+        }
+        if (r.sourceNewer && r.sourceNewer > 0) {
+          toast.warning(`${r.sourceNewer} Quelldatei${r.sourceNewer > 1 ? 'en' : ''} neuer`, {
+            description: 'Pipeline-Verarbeitung nötig.',
+          });
+        }
+      }
+    } catch (error) {
+      toast.error('Abgleich fehlgeschlagen', {
+        description: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setIsFolderSyncing(false);
+    }
+  }, [currentFolderId, activeLibraryId, setShadowTwinAnalysisTrigger]);
+
   // Globales Ordner-Refresh-Ereignis (z. B. nach Shadow‑Twin Speicherung)
   React.useEffect(() => {
     const onRefresh = (e: Event) => {
@@ -1728,6 +1776,26 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
             >
               <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
             </Button>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={handleFolderSync}
+                    disabled={isFolderSyncing || !currentFolderId}
+                    aria-label="Änderungen abgleichen"
+                  >
+                    <FolderSync className={cn("h-4 w-4", isFolderSyncing && "animate-spin")} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Änderungen in diesem Verzeichnis abgleichen</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
 
             {/* Dateikategorie-Filter (Icon-only Variante) */}
             <FileCategoryFilter iconOnly />

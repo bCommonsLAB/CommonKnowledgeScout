@@ -94,17 +94,25 @@ function deriveExtractGateFromShadowTwinState(
     // Ohne irgendein Markdown ist die Aussage "shadow_twin_exists" nicht belastbar
     if (!transformedId && !transcriptId) return { exists: false }
 
-    return {
-      exists: true,
-      reason: 'shadow_twin_exists',
-      details: {
-        source: 'shadowTwinState',
-        folderId: folderId || null,
-        language: (targetLanguage || 'de').toLowerCase(),
-        transformed: transformedId ? { id: transformedId, name: transformedName || null } : null,
-        transcript: transcriptId ? { id: transcriptId, name: transcriptName || null } : null,
-      },
+    // Wenn ein Transcript gefunden wurde, ist die Aussage belastbar
+    if (transcriptId) {
+      return {
+        exists: true,
+        reason: 'shadow_twin_exists',
+        details: {
+          source: 'shadowTwinState',
+          folderId: folderId || null,
+          language: (targetLanguage || 'de').toLowerCase(),
+          transformed: transformedId ? { id: transformedId, name: transformedName || null } : null,
+          transcript: { id: transcriptId, name: transcriptName || null },
+        },
+      }
     }
+
+    // NUR Transformation vorhanden, aber kein Transcript:
+    // Die Transformation allein beweist nicht, dass ein Transcript in der Zielsprache existiert.
+    // Fallback auf gateExtractPdf() für eine gründliche MongoDB-basierte Prüfung.
+    return undefined
   } catch {
     return undefined
   }

@@ -1,13 +1,12 @@
 "use client"
 
 import * as React from "react"
-import { Trash2 } from "lucide-react"
+import { Trash2, X, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 
 import { useSetAtom } from "jotai"
 
 import type { StorageItem } from "@/lib/storage/types"
-import { parseArtifactName } from "@/lib/shadow-twin/artifact-naming"
 import { IngestionStatusCompact } from "@/components/library/shared/ingestion-status-compact"
 import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom"
 import { Button } from "@/components/ui/button"
@@ -22,33 +21,20 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
-type ArtifactPhase = "extract" | "template" | "ingest"
-
-interface ArtifactRow {
-  phase: ArtifactPhase
-  label: string
-  fileName: string
-  fileId: string
-  modifiedAtIso?: string
-  templateName?: string | null
-  targetLanguage?: string | null
-  location?: "dotFolder" | "sibling" | "unknown"
-}
-
-function toIso(value: unknown): string | undefined {
-  if (value instanceof Date) return value.toISOString()
-  if (typeof value === "string") {
-    const d = new Date(value)
-    return Number.isFinite(d.getTime()) ? d.toISOString() : undefined
-  }
-  return undefined
-}
-
-function sourceBaseName(sourceName: string): string {
-  const trimmed = sourceName.trim()
-  const lastDot = trimmed.lastIndexOf(".")
-  return lastDot > 0 ? trimmed.slice(0, lastDot) : trimmed
+// Typ aus der API – entspricht FlatArtifactEntry aus shadow-twin-repo
+interface MongoArtifact {
+  kind: "transcript" | "transformation"
+  targetLanguage: string
+  templateName?: string
+  updatedAt: string
+  createdAt: string
+  markdownLength: number
 }
 
 function formatShort(iso?: string): string {
@@ -58,145 +44,146 @@ function formatShort(iso?: string): string {
   return d.toLocaleString("de-DE", { year: "2-digit", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
 }
 
+function sourceBaseName(sourceName: string): string {
+  const trimmed = sourceName.trim()
+  const lastDot = trimmed.lastIndexOf(".")
+  return lastDot > 0 ? trimmed.slice(0, lastDot) : trimmed
+}
+
+/** Baut den erwarteten Dateinamen fuer ein Artefakt */
+function buildFileName(base: string, artifact: MongoArtifact): string {
+  if (artifact.kind === "transcript") {
+    return `${base}.${artifact.targetLanguage}.md`
+  }
+  return `${base}.${artifact.templateName || "unknown"}.${artifact.targetLanguage}.md`
+}
+
+/** Eindeutiger Key fuer ein Artefakt (fuer React-Key und Delete-Tracking) */
+function artifactKey(a: MongoArtifact): string {
+  return `${a.kind}::${a.targetLanguage}::${a.templateName || ""}`
+}
+
 export interface ArtifactInfoPanelProps {
   libraryId: string
   sourceFile: StorageItem
-  /**
-   * Falls vorhanden: Dot-Folder Id aus Shadow-Twin Analyse (schnell).
-   * Wichtig: Wir triggern hier absichtlich KEIN Dot-Folder Listing, weil das
-   * beim Tab-Wechsel teuer sein kann (Storage-Request). Die Info-Ansicht ist
-   * "Atom-only" und zeigt nur, was die Shadow-Twin-Analyse bereits geliefert hat.
-   */
   shadowTwinFolderId?: string | null
-  /**
-   * Optional: bereits bekannte Artefakte (z.B. aus shadowTwinStateAtom).
-   * Das ist die kanonische Datenquelle für dieses Panel.
-   */
   transcriptFiles?: StorageItem[]
   transformed?: StorageItem
   targetLanguage: string
-  /**
-   * Callback wenn Artefakte geloescht wurden.
-   * Wird aufgerufen nach erfolgreichem Loeschen aller Artefakte.
-   */
   onArtifactsDeleted?: () => void
 }
 
 export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
   const base = React.useMemo(() => sourceBaseName(props.sourceFile.metadata.name), [props.sourceFile.metadata.name])
   const [isDeleting, setIsDeleting] = React.useState(false)
+  const [deletingKey, setDeletingKey] = React.useState<string | null>(null)
   const triggerShadowTwinAnalysis = useSetAtom(shadowTwinAnalysisTriggerAtom)
 
-  // Berechne ob es Artefakte zum Loeschen gibt
-  const hasArtifacts = React.useMemo(() => {
-    const hasTranscripts = Array.isArray(props.transcriptFiles) && props.transcriptFiles.length > 0
-    const hasTransformed = !!props.transformed
-    return hasTranscripts || hasTransformed
-  }, [props.transcriptFiles, props.transformed])
+  // Alle Artefakte aus MongoDB laden (nicht gefiltert, alle Sprachen/Templates)
+  const [allArtifacts, setAllArtifacts] = React.useState<MongoArtifact[]>([])
+  const [isLoading, setIsLoading] = React.useState(true)
+
+  const fetchAllArtifacts = React.useCallback(async () => {
+    if (!props.libraryId || !props.sourceFile?.id) return
+    setIsLoading(true)
+    try {
+      const res = await fetch(
+        `/api/library/${encodeURIComponent(props.libraryId)}/shadow-twins/${encodeURIComponent(props.sourceFile.id)}`
+      )
+      if (res.ok) {
+        const data = await res.json() as { artifacts?: MongoArtifact[] }
+        setAllArtifacts(data.artifacts || [])
+      }
+    } catch {
+      // Fehler beim Laden – leer bleiben
+    } finally {
+      setIsLoading(false)
+    }
+  }, [props.libraryId, props.sourceFile?.id])
+
+  React.useEffect(() => {
+    void fetchAllArtifacts()
+  }, [fetchAllArtifacts])
+
+  const transcripts = React.useMemo(
+    () => allArtifacts.filter((a) => a.kind === "transcript"),
+    [allArtifacts]
+  )
+  const transformations = React.useMemo(
+    () => allArtifacts.filter((a) => a.kind === "transformation"),
+    [allArtifacts]
+  )
+  const hasArtifacts = allArtifacts.length > 0
+
+  // Neueste Transformation fuer Ingestion-Status
+  const newestTransformation = transformations[0] || null
+  const activeTemplateName = newestTransformation?.templateName || null
+
+  // Einzelnes Artefakt loeschen
+  const handleDeleteSingle = React.useCallback(async (artifact: MongoArtifact) => {
+    if (!props.libraryId || !props.sourceFile?.id) return
+    const sourceId = props.sourceFile.id
+    const key = artifactKey(artifact)
+
+    setDeletingKey(key)
+    try {
+      const params = new URLSearchParams({ kind: artifact.kind, lang: artifact.targetLanguage })
+      if (artifact.templateName) params.set("template", artifact.templateName)
+
+      const res = await fetch(
+        `/api/library/${encodeURIComponent(props.libraryId)}/shadow-twins/${encodeURIComponent(sourceId)}?${params.toString()}`,
+        { method: "DELETE" }
+      )
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({})) as { error?: string }
+        throw new Error(json.error || `HTTP ${res.status}`)
+      }
+
+      const label = artifact.kind === "transcript"
+        ? `Transcript (${artifact.targetLanguage})`
+        : `Transformation (${artifact.targetLanguage}/${artifact.templateName})`
+      toast.success("Artefakt geloescht", { description: label })
+
+      // Liste und Shadow-Twin-Analyse aktualisieren
+      await fetchAllArtifacts()
+      triggerShadowTwinAnalysis((v) => v + 1)
+      props.onArtifactsDeleted?.()
+    } catch (error) {
+      toast.error("Fehler beim Loeschen", {
+        description: error instanceof Error ? error.message : "Unbekannter Fehler"
+      })
+    } finally {
+      setDeletingKey(null)
+    }
+  }, [props.libraryId, props.sourceFile?.id, props.onArtifactsDeleted, triggerShadowTwinAnalysis, fetchAllArtifacts])
 
   // Alle Artefakte loeschen
-  const handleDeleteAllArtifacts = React.useCallback(async () => {
-    if (!props.libraryId) return
-    if (!props.sourceFile?.id) return
-    
+  const handleDeleteAll = React.useCallback(async () => {
+    if (!props.libraryId || !props.sourceFile?.id) return
     setIsDeleting(true)
     try {
-      // Strategie: 
-      // 1. Shadow-Twin-API aufrufen (loescht alle MongoDB-basierten Artefakte)
-      // 2. Fuer normale Storage-Dateien: einzeln loeschen
-      
       const sourceId = props.sourceFile.id
-      let shadowTwinDeleted = false
-      let ingestionDeleted = false
-      let storageFilesDeleted = 0
-      let storageFilesFailed = 0
-      
-      // 1. Shadow-Twin-Artefakte aus MongoDB loeschen
+
+      // 1. Alle Shadow-Twin-Artefakte aus MongoDB loeschen
+      await fetch(
+        `/api/library/${encodeURIComponent(props.libraryId)}/shadow-twins/${encodeURIComponent(sourceId)}`,
+        { method: "DELETE" }
+      )
+
+      // 2. Ingestion-Daten loeschen
       try {
-        const shadowTwinRes = await fetch(
-          `/api/library/${encodeURIComponent(props.libraryId)}/shadow-twins/${encodeURIComponent(sourceId)}`,
-          { method: "DELETE" }
-        )
-        if (shadowTwinRes.ok) {
-          shadowTwinDeleted = true
-        }
-      } catch {
-        // Shadow-Twin-Loeschung ist optional, kein Fehler
-      }
-      
-      // 2. Ingestion-Daten loeschen (Vektoren, DocMeta, Chunks)
-      try {
-        const ingestionRes = await fetch(
+        await fetch(
           `/api/chat/${encodeURIComponent(props.libraryId)}/docs/delete?fileId=${encodeURIComponent(sourceId)}`,
           { method: "DELETE" }
         )
-        if (ingestionRes.ok) {
-          ingestionDeleted = true
-        }
       } catch {
-        // Ingestion-Loeschung ist optional, kein Fehler
+        // optional
       }
-      
-      // 3. Normale Storage-Dateien loeschen (nur wenn ID nicht mit mongo-shadow-twin beginnt)
-      const storageFileIds: string[] = []
-      
-      if (Array.isArray(props.transcriptFiles)) {
-        for (const t of props.transcriptFiles) {
-          if (!t.id.startsWith("mongo-shadow-twin:")) {
-            storageFileIds.push(t.id)
-          }
-        }
-      }
-      
-      if (props.transformed && !props.transformed.id.startsWith("mongo-shadow-twin:")) {
-        storageFileIds.push(props.transformed.id)
-      }
-      
-      // Storage-Dateien parallel loeschen
-      if (storageFileIds.length > 0) {
-        const deletePromises = storageFileIds.map(async (fileId) => {
-          const res = await fetch(
-            `/api/library/${encodeURIComponent(props.libraryId)}/items/${encodeURIComponent(fileId)}`,
-            { method: "DELETE" }
-          )
-          if (!res.ok) {
-            const json = await res.json().catch(() => ({})) as { error?: string }
-            throw new Error(json.error || `HTTP ${res.status}`)
-          }
-          return fileId
-        })
-        
-        const results = await Promise.allSettled(deletePromises)
-        storageFilesDeleted = results.filter((r) => r.status === "fulfilled").length
-        storageFilesFailed = results.filter((r) => r.status === "rejected").length
-      }
-      
-      // Feedback
-      if (shadowTwinDeleted || ingestionDeleted || storageFilesDeleted > 0) {
-        if (storageFilesFailed > 0) {
-          toast.warning("Teilweise geloescht", {
-            description: `Einige Artefakte konnten nicht geloescht werden.`
-          })
-        } else {
-          const parts: string[] = []
-          if (shadowTwinDeleted) parts.push("Artefakte")
-          if (ingestionDeleted) parts.push("Ingestion-Daten")
-          if (storageFilesDeleted > 0) parts.push(`${storageFilesDeleted} Dateien`)
-          toast.success("Geloescht", {
-            description: `${parts.join(", ")} wurden erfolgreich geloescht.`
-          })
-        }
-      } else if (!shadowTwinDeleted && !ingestionDeleted && storageFilesDeleted === 0) {
-        toast.info("Keine Artefakte", { 
-          description: "Es gab keine Artefakte zum Loeschen." 
-        })
-      }
-      
-      // Shadow-Twin-Analyse neu triggern um UI zu aktualisieren
+
+      toast.success("Alle Artefakte geloescht")
+      await fetchAllArtifacts()
       triggerShadowTwinAnalysis((v) => v + 1)
-      // Optional: zusaetzlicher Callback
       props.onArtifactsDeleted?.()
-      
     } catch (error) {
       toast.error("Fehler beim Loeschen", {
         description: error instanceof Error ? error.message : "Unbekannter Fehler"
@@ -204,135 +191,132 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
     } finally {
       setIsDeleting(false)
     }
-  }, [props.libraryId, props.sourceFile?.id, props.transcriptFiles, props.transformed, props.onArtifactsDeleted, triggerShadowTwinAnalysis])
+  }, [props.libraryId, props.sourceFile?.id, props.onArtifactsDeleted, triggerShadowTwinAnalysis, fetchAllArtifacts])
 
-  const rows = React.useMemo<ArtifactRow[]>(() => {
-    // Atom-only: KEIN Dot-Folder Listing (Performance).
-    const out: ArtifactRow[] = []
+  // Einzelne Artefakt-Zeile rendern
+  const renderArtifactRow = React.useCallback((artifact: MongoArtifact) => {
+    const key = artifactKey(artifact)
+    const fileName = buildFileName(base, artifact)
+    const isCurrentlyDeleting = deletingKey === key
 
-    const transcript = Array.isArray(props.transcriptFiles) ? props.transcriptFiles : []
-    for (const t of transcript) {
-      out.push({
-        phase: "extract",
-        label: "Transcript",
-        fileName: String(t.metadata.name),
-        fileId: t.id,
-        modifiedAtIso: toIso(t.metadata.modifiedAt),
-        targetLanguage: parseArtifactName(String(t.metadata.name), base).targetLanguage,
-        location: "unknown",
-      })
-    }
-
-    if (props.transformed) {
-      const parsed = parseArtifactName(String(props.transformed.metadata.name), base)
-      out.push({
-        phase: "template",
-        label: "Transformation",
-        fileName: String(props.transformed.metadata.name),
-        fileId: props.transformed.id,
-        modifiedAtIso: toIso(props.transformed.metadata.modifiedAt),
-        templateName: parsed.templateName,
-        targetLanguage: parsed.targetLanguage,
-        location: "unknown",
-      })
-    }
-
-    out.sort((a, b) => (b.modifiedAtIso || "").localeCompare(a.modifiedAtIso || ""))
-    return out
-  }, [props.transcriptFiles, props.transformed, base])
-
-  const transformations = rows.filter((r) => r.phase === "template")
-  const transcripts = rows.filter((r) => r.phase === "extract")
-  const newestTransformation = transformations[0] || null
-  const ingestionFileId = props.sourceFile.id
-  const activeTemplateName = newestTransformation?.templateName || null
+    return (
+      <div key={key} className="group flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase">
+            {artifact.targetLanguage}
+          </span>
+          <span className="min-w-0 truncate text-xs text-muted-foreground">{fileName}</span>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <span className="text-xs text-muted-foreground">{formatShort(artifact.updatedAt)}</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive disabled:opacity-30"
+                disabled={isCurrentlyDeleting}
+                onClick={() => void handleDeleteSingle(artifact)}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="left">Dieses Artefakt loeschen</TooltipContent>
+          </Tooltip>
+        </div>
+      </div>
+    )
+  }, [base, deletingKey, handleDeleteSingle])
 
   return (
     <div className="space-y-6 p-3">
       <div className="flex items-center justify-between gap-3">
         <div className="text-xs text-muted-foreground">
-          Sprache: {props.targetLanguage} · Template: {activeTemplateName || "—"} · Dot‑Folder: {props.shadowTwinFolderId ? "ja" : "nein"}
+          Sprache: {props.targetLanguage} · Template: {activeTemplateName || "—"} · Dot-Folder: {props.shadowTwinFolderId ? "ja" : "nein"}
         </div>
-        <div className="text-xs text-muted-foreground" />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className="p-1 rounded hover:bg-muted text-muted-foreground"
+              onClick={() => void fetchAllArtifacts()}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Artefakte neu laden</TooltipContent>
+        </Tooltip>
       </div>
 
+      {/* Phase 1: Transcripts */}
       <div className="space-y-2">
         <div className="text-sm font-semibold">Phase 1 · Original transkribieren</div>
-        {transcripts.length === 0 ? (
+        {isLoading ? (
+          <div className="text-sm text-muted-foreground">Lade...</div>
+        ) : transcripts.length === 0 ? (
           <div className="text-sm text-muted-foreground">Kein Transcript gefunden.</div>
         ) : (
-          <div className="space-y-1">
-            {transcripts.map((t) => (
-              <div key={t.fileId} className="flex items-center justify-between gap-3">
-                <div className="min-w-0 truncate text-xs text-muted-foreground">{t.fileName}</div>
-                <div className="shrink-0 text-xs text-muted-foreground">{formatShort(t.modifiedAtIso)}</div>
-              </div>
-            ))}
-          </div>
+          <div className="space-y-1">{transcripts.map(renderArtifactRow)}</div>
         )}
       </div>
 
+      {/* Phase 2: Transformations */}
       <div className="space-y-2">
         <div className="text-sm font-semibold">Phase 2 · Metadaten & Storyinhalte transformieren</div>
-        {transformations.length === 0 ? (
+        {isLoading ? (
+          <div className="text-sm text-muted-foreground">Lade...</div>
+        ) : transformations.length === 0 ? (
           <div className="text-sm text-muted-foreground">Keine Transformation gefunden.</div>
         ) : (
-          <div className="space-y-1">
-            {transformations.map((t) => (
-              <div key={t.fileId} className="flex items-center justify-between gap-3">
-                <div className="min-w-0 truncate text-xs text-muted-foreground">{t.fileName}</div>
-                <div className="shrink-0 text-xs text-muted-foreground">{formatShort(t.modifiedAtIso)}</div>
-              </div>
-            ))}
-          </div>
+          <div className="space-y-1">{transformations.map(renderArtifactRow)}</div>
         )}
       </div>
 
+      {/* Phase 3: Ingestion */}
       <div className="space-y-2">
-        <div className="text-sm font-semibold">Phase 3 · Story veröffentlichen</div>
+        <div className="text-sm font-semibold">Phase 3 · Story veroeffentlichen</div>
         {!newestTransformation ? (
-          <div className="text-sm text-muted-foreground">Keine Transformation → kein Ingestion‑Status.</div>
+          <div className="text-sm text-muted-foreground">Keine Transformation → kein Ingestion-Status.</div>
         ) : (
           <div className="rounded-md border p-3">
             <IngestionStatusCompact
               libraryId={props.libraryId}
-              fileId={ingestionFileId}
-              docModifiedAt={newestTransformation.modifiedAtIso}
+              fileId={props.sourceFile.id}
+              docModifiedAt={newestTransformation.updatedAt}
             />
           </div>
         )}
       </div>
 
-      {/* Alle Artefakte loeschen Button */}
+      {/* Alle Artefakte loeschen */}
       {hasArtifacts && (
         <div className="border-t pt-4">
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="text-destructive hover:text-destructive"
                 disabled={isDeleting}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                {isDeleting ? "Wird geloescht..." : "Alle Artefakte loeschen"}
+                {isDeleting ? "Wird geloescht..." : `Alle Artefakte loeschen (${allArtifacts.length})`}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Alle Artefakte loeschen?</AlertDialogTitle>
+                <AlertDialogTitle>Alle {allArtifacts.length} Artefakte loeschen?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Dies loescht alle generierten Artefakte (Transkript, Transformation) fuer diese Datei.
+                  Dies loescht alle generierten Artefakte (Transkript, Transformation) in allen Sprachen fuer diese Datei.
                   Die Originaldatei bleibt erhalten. Diese Aktion kann nicht rueckgaengig gemacht werden.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Abbrechen</AlertDialogCancel>
                 <AlertDialogAction
-                  onClick={() => void handleDeleteAllArtifacts()}
+                  onClick={() => void handleDeleteAll()}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
-                  Loeschen
+                  Alle loeschen
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -346,5 +330,3 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
     </div>
   )
 }
-
-

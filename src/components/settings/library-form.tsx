@@ -42,7 +42,7 @@ import { toast } from "@/components/ui/use-toast"
 import { Textarea } from "../ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
-import { AlertCircle, Trash2, Plus, Download, Upload } from "lucide-react"
+import { AlertCircle, Trash2, Plus, Download, Upload, Search, Languages } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -129,6 +129,40 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
   const [dryRunCleanupFilesystem, setDryRunCleanupFilesystem] = useState(false);
   const [dryRunRunning, setDryRunRunning] = useState(false);
   const [dryRunError, setDryRunError] = useState<string | null>(null);
+
+  // Storage-Sync State (Export/Import Cache ↔ Storage)
+  const [isSyncRunning, setIsSyncRunning] = useState(false);
+
+  // Sprach-Bereinigung State
+  const [isLangCleanupOpen, setIsLangCleanupOpen] = useState(false);
+  const [langCleanupLang, setLangCleanupLang] = useState('');
+  const [isLangAnalyzing, setIsLangAnalyzing] = useState(false);
+  const [isLangDeleting, setIsLangDeleting] = useState(false);
+  const [langCleanupResult, setLangCleanupResult] = useState<{
+    dryRun: boolean;
+    targetLanguage: string;
+    totalArtifacts: number;
+    totalFiles: number;
+    storageDeleted: number | null;
+    affectedFiles: Array<{
+      sourceName: string;
+      artifacts: Array<{ kind: string; templateName: string | null }>;
+    }>;
+  } | null>(null);
+
+  // Analyse State (dryRun von sync-all – zeigt was passieren würde, ohne Änderungen)
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisReport, setAnalysisReport] = useState<{
+    scanned: number;
+    withShadowTwin: number;
+    markdownToCache: number;
+    markdownToStorage: number;
+    imagesWritten: number;
+    imagesSkipped: number;
+    alreadySynced: number;
+    sourceNewer: number;
+    errors: number;
+  } | null>(null);
   const [migrationRuns, setMigrationRuns] = useState<Array<{
     runId: string
     status: 'running' | 'completed' | 'failed'
@@ -377,14 +411,14 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
         }
       }
       toast({
-        title: "Upsert abgeschlossen",
-        description: "Migration erfolgreich durchgeführt. Der Report wird in der Tabelle angezeigt.",
+        title: "Import abgeschlossen",
+        description: "Die Artefakte wurden aus dem Dateisystem in den Cache geladen. Der Report wird in der Tabelle angezeigt.",
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setDryRunError(message);
       toast({
-        title: "Upsert fehlgeschlagen",
+        title: "Import fehlgeschlagen",
         description: message,
         variant: "destructive",
       });
@@ -392,6 +426,114 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
       setDryRunRunning(false);
     }
   }, [activeLibraryId, dryRunRecursive, dryRunCleanupFilesystem]);
+
+  // Sync mit Richtungswahl: Export (to-storage), Import (to-cache), oder bidirektional
+  const runDirectionalSync = useCallback(async (direction: 'to-storage' | 'to-cache' | 'both') => {
+    if (!activeLibraryId) {
+      toast({ title: "Fehler", description: "Keine aktive Bibliothek gewählt.", variant: "destructive" });
+      return;
+    }
+    setIsSyncRunning(true);
+    try {
+      const res = await fetch(`/api/library/${activeLibraryId}/shadow-twins/sync-all`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderId: 'root', recursive: true, direction }),
+      });
+      const json = await res.json().catch(() => ({})) as {
+        success?: boolean;
+        report?: NonNullable<typeof analysisReport>;
+        error?: string;
+      };
+      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+
+      const r = json.report;
+      if (r) {
+        const parts: string[] = [];
+        if (r.markdownToCache > 0) parts.push(`${r.markdownToCache} Markdown → Cache`);
+        if (r.markdownToStorage > 0) parts.push(`${r.markdownToStorage} Markdown → Storage`);
+        if (r.imagesWritten > 0) parts.push(`${r.imagesWritten} Bilder → Storage`);
+        if (r.sourceNewer > 0) parts.push(`${r.sourceNewer} Pipeline nötig`);
+        if (r.errors > 0) parts.push(`${r.errors} Fehler`);
+
+        const label = direction === 'to-storage' ? 'Export' : direction === 'to-cache' ? 'Import' : 'Sync';
+        toast({
+          title: parts.length > 0 ? `${label} abgeschlossen` : "Alles synchron",
+          description: parts.length > 0 ? parts.join(', ') : `${r.scanned} Dateien geprüft, alle synchron.`,
+        });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: "Sync fehlgeschlagen", description: message, variant: "destructive" });
+    } finally {
+      setIsSyncRunning(false);
+    }
+  }, [activeLibraryId]);
+
+  // Analyse: DryRun von sync-all – scannt Storage + Cache und zeigt was synchronisiert werden würde
+  const runAnalysis = useCallback(async () => {
+    if (!activeLibraryId) {
+      toast({ title: "Fehler", description: "Keine aktive Bibliothek gewählt.", variant: "destructive" });
+      return;
+    }
+    setIsAnalyzing(true);
+    setAnalysisReport(null);
+    try {
+      const res = await fetch(`/api/library/${activeLibraryId}/shadow-twins/sync-all`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderId: 'root', recursive: true, dryRun: true, direction: 'both' }),
+      });
+      const json = await res.json().catch(() => ({})) as {
+        report?: NonNullable<typeof analysisReport>;
+        error?: string;
+      };
+      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+
+      if (json.report) {
+        setAnalysisReport(json.report);
+      }
+      toast({ title: "Analyse abgeschlossen", description: "Storage und Cache wurden verglichen." });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: "Analyse fehlgeschlagen", description: message, variant: "destructive" });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [activeLibraryId]);
+
+  // Sprach-Bereinigung: Analyse (Dry-Run) oder tatsaechliches Loeschen
+  const runLanguageCleanup = useCallback(async (dryRun: boolean) => {
+    if (!activeLibraryId || !langCleanupLang.trim()) return;
+
+    if (dryRun) setIsLangAnalyzing(true);
+    else setIsLangDeleting(true);
+
+    try {
+      const res = await fetch(`/api/library/${activeLibraryId}/shadow-twins/delete-by-language`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetLanguage: langCleanupLang.trim(), dryRun }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+
+      setLangCleanupResult(json);
+
+      if (!dryRun) {
+        toast({
+          title: 'Bereinigung abgeschlossen',
+          description: `${json.totalArtifacts} Artefakte in ${json.totalFiles} Dateien gelöscht (${json.storageDeleted ?? 0} Dateien aus Storage entfernt).`,
+        });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: 'Fehler', description: message, variant: 'destructive' });
+    } finally {
+      setIsLangAnalyzing(false);
+      setIsLangDeleting(false);
+    }
+  }, [activeLibraryId, langCleanupLang]);
 
   useEffect(() => {
     if (!isDryRunOpen || !activeLibraryId) return;
@@ -1028,7 +1170,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                   </div>
                   <div className="border-t pt-4 space-y-3">
                     <div>
-                      <h4 className="text-sm font-medium">Shadow‑Twin Speicher (Mongo/Filesystem)</h4>
+                      <h4 className="text-sm font-medium">Primärer Speicher</h4>
                       <p className="text-xs text-muted-foreground">
                         Diese Flags steuern den primären Store und optionale Filesystem‑Writes.
                       </p>
@@ -1045,18 +1187,18 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="filesystem">Filesystem (Legacy)</SelectItem>
-                          <SelectItem value="mongo">MongoDB (primär)</SelectItem>
+                          <SelectItem value="filesystem">Dateisystem (Legacy)</SelectItem>
+                          <SelectItem value="mongo">Cache (empfohlen)</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormDescription>
-                        Legt fest, ob Shadow‑Twins primär aus dem Filesystem oder aus MongoDB gelesen werden.
+                        Legt fest, ob Artefakte primär aus dem Dateisystem oder aus dem Cache gelesen werden.
                       </FormDescription>
                     </div>
                     <div className="flex items-center justify-between rounded border p-3">
                       <div>
                         <FormLabel className="text-sm">Persist to Filesystem</FormLabel>
-                        <FormDescription>Shadow‑Twins zusätzlich ins Filesystem schreiben.</FormDescription>
+                        <FormDescription>Artefakte zusätzlich ins Dateisystem schreiben.</FormDescription>
                       </div>
                       <Switch
                         checked={shadowTwinPersistToFilesystem}
@@ -1067,7 +1209,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                       <div>
                         <FormLabel className="text-sm">Filesystem Fallback</FormLabel>
                         <FormDescription>
-                          Ausnahme: Aus Filesystem lesen, wenn Mongo‑Eintrag fehlt. Standardmäßig deaktiviert – nur bei Bedarf aktivieren.
+                          Aus dem Dateisystem lesen, wenn kein Cache‑Eintrag vorhanden ist. Standardmäßig deaktiviert – nur bei Bedarf aktivieren.
                         </FormDescription>
                       </div>
                       <Switch
@@ -1076,39 +1218,123 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                       />
                     </div>
                   </div>
+                  {/* Analyse */}
                   <div className="border-t pt-4">
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <h4 className="text-sm font-medium">Migration (Upsert)</h4>
+                        <h4 className="text-sm font-medium">Analyse</h4>
                         <p className="text-xs text-muted-foreground">
-                          Upsert nach MongoDB und Report anzeigen. Cleanup kann unten aktiviert werden.
+                          Vergleicht Storage und Cache und zeigt, was synchronisiert werden müsste – ohne etwas zu verändern.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={!activeLibraryId || isAnalyzing}
+                        onClick={() => void runAnalysis()}
+                      >
+                        <Search className={`h-4 w-4 mr-2 ${isAnalyzing ? 'animate-pulse' : ''}`} />
+                        {isAnalyzing ? 'Analysiert…' : 'Analysieren'}
+                      </Button>
+                    </div>
+                    {analysisReport && (
+                      <div className="mt-2 rounded border p-3 text-xs space-y-2">
+                        <div className="font-medium">Analyse-Ergebnis</div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground">
+                          <span>Dateien im Storage:</span><span className="font-mono">{analysisReport.scanned}</span>
+                          <span>Davon mit Cache-Eintrag:</span><span className="font-mono">{analysisReport.withShadowTwin}</span>
+                        </div>
+                        {(analysisReport.markdownToStorage > 0 || analysisReport.imagesWritten > 0) && (
+                          <div className="border-t pt-1.5">
+                            <div className="text-xs font-medium text-muted-foreground mb-0.5">Cache → Dateisystem (Export)</div>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground">
+                              {analysisReport.markdownToStorage > 0 && (<><span>Markdown-Dateien:</span><span className="font-mono text-green-600">{analysisReport.markdownToStorage}</span></>)}
+                              {analysisReport.imagesWritten > 0 && (<><span>Bilder:</span><span className="font-mono text-green-600">{analysisReport.imagesWritten}</span></>)}
+                            </div>
+                          </div>
+                        )}
+                        {analysisReport.markdownToCache > 0 && (
+                          <div className="border-t pt-1.5">
+                            <div className="text-xs font-medium text-muted-foreground mb-0.5">Dateisystem → Cache (Import)</div>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground">
+                              <span>Markdown-Dateien:</span><span className="font-mono text-blue-600">{analysisReport.markdownToCache}</span>
+                            </div>
+                          </div>
+                        )}
+                        {analysisReport.sourceNewer > 0 && (
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground border-t pt-1.5">
+                            <span>Quelldatei neuer (Pipeline nötig):</span><span className="font-mono text-amber-600">{analysisReport.sourceNewer}</span>
+                          </div>
+                        )}
+                        {analysisReport.errors > 0 && (
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground">
+                            <span>Fehler:</span><span className="font-mono text-red-600">{analysisReport.errors}</span>
+                          </div>
+                        )}
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground">
+                          <span>Bereits synchron:</span><span className="font-mono">{analysisReport.alreadySynced}</span>
+                          {analysisReport.imagesSkipped > 0 && (<><span>Bilder bereits vorhanden:</span><span className="font-mono">{analysisReport.imagesSkipped}</span></>)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Ins Dateisystem exportieren */}
+                  <div className="border-t pt-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h4 className="text-sm font-medium">Ins Dateisystem exportieren</h4>
+                        <p className="text-xs text-muted-foreground">
+                          Schreibt alle Artefakte und Bilder aus dem Cache ins Dateisystem. Geeignet als Backup oder für die Einrichtung auf einem neuen System.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={!activeLibraryId || isSyncRunning}
+                        onClick={() => void runDirectionalSync('to-storage')}
+                      >
+                        <Download className={`h-4 w-4 mr-2 ${isSyncRunning ? 'animate-spin' : ''}`} />
+                        {isSyncRunning ? 'Exportiert…' : 'Exportieren'}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Aus Dateisystem laden (Migration) */}
+                  <div className="border-t pt-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h4 className="text-sm font-medium">Aus Dateisystem laden</h4>
+                        <p className="text-xs text-muted-foreground">
+                          Liest Artefakte und Bilder aus dem Dateisystem und lädt sie in den Cache. Geeignet zum Rekonstruieren eines leeren Caches. Kann je nach Größe der Bibliothek einige Minuten dauern.
                         </p>
                       </div>
                       <Dialog open={isDryRunOpen} onOpenChange={setIsDryRunOpen}>
                         <DialogTrigger asChild>
                           <Button type="button" variant="outline" disabled={!activeLibraryId}>
-                            Migration starten
+                            <Upload className="h-4 w-4 mr-2" />
+                            Laden
                           </Button>
                         </DialogTrigger>
                         <DialogContent className="max-w-7xl w-[95vw] max-h-[90vh] overflow-auto !grid-cols-1">
                           <DialogHeader>
-                            <DialogTitle>Shadow‑Twin Migration (Upsert)</DialogTitle>
+                            <DialogTitle>Aus Dateisystem laden</DialogTitle>
                             <DialogDescription className="space-y-2">
                               <div>
-                                <strong>Absicht:</strong> Dieser Dialog ermöglicht die Migration von Shadow-Twins (abgeleitete Markdown-Dateien und zugehörige Assets) vom Dateisystem nach MongoDB als primärem Speicher. 
-                                Sie können Migrationsläufe starten und detaillierte Berichte über jeden verarbeiteten Datei einsehen.
+                                <strong>Absicht:</strong> Liest alle Artefakte (Markdown, Bilder, Medien) aus dem Dateisystem und erstellt die zugehörigen Cache-Einträge. 
+                                Bestehende Einträge werden aktualisiert, fehlende werden neu erstellt.
                               </div>
                               <div className="text-xs text-muted-foreground mt-1 space-y-1">
                                 <div>
-                                  <strong>Aktuelles Ziel:</strong> Shadow-Twins werden primär in <span className="font-mono">{shadowTwinPrimaryStore === 'mongo' ? 'MongoDB' : 'Filesystem'}</span> gespeichert.
+                                  <strong>Aktuelles Ziel:</strong> Artefakte werden primär im <span className="font-mono">{shadowTwinPrimaryStore === 'mongo' ? 'Cache' : 'Dateisystem'}</span> gespeichert.
                                 </div>
                                 {shadowTwinPrimaryStore === 'mongo' ? (
                                   <div className="text-green-600 dark:text-green-400">
-                                    ✓ Ziel erreicht: MongoDB ist als primärer Store aktiviert.
+                                    ✓ Cache ist als primärer Speicher aktiviert.
                                   </div>
                                 ) : (
                                   <div className="text-amber-600 dark:text-amber-400">
-                                    ⚠ Bitte setze &quot;Primary Store&quot; auf &quot;MongoDB&quot; in den Library-Einstellungen, bevor du die Migration startest.
+                                    ⚠ Bitte setze den primären Speicher auf &quot;Cache&quot; in den Einstellungen, bevor du die Migration startest.
                                   </div>
                                 )}
                                 <div>
@@ -1120,15 +1346,15 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                           <div className="space-y-3 min-w-0">
                             <div className="flex items-center justify-between rounded border p-3">
                               <div>
-                                <FormLabel className="text-sm">Recursive</FormLabel>
-                                <FormDescription>Unterordner einschließen.</FormDescription>
+                                <FormLabel className="text-sm">Unterordner einbeziehen</FormLabel>
+                                <FormDescription>Alle Unterordner rekursiv durchsuchen.</FormDescription>
                               </div>
                               <Switch checked={dryRunRecursive} onCheckedChange={setDryRunRecursive} />
                             </div>
                             <div className="flex items-center justify-between rounded border p-3">
                               <div>
-                                <FormLabel className="text-sm">Filesystem Cleanup</FormLabel>
-                                <FormDescription>Filesystem‑Shadow‑Twins nach erfolgreichem Upsert löschen.</FormDescription>
+                                <FormLabel className="text-sm">Dateien aufräumen</FormLabel>
+                                <FormDescription>Dateisystem-Artefakte nach erfolgreicher Cache-Befüllung löschen.</FormDescription>
                               </div>
                               <Switch checked={dryRunCleanupFilesystem} onCheckedChange={setDryRunCleanupFilesystem} />
                             </div>
@@ -1136,9 +1362,9 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                               <p className="text-xs text-destructive">{dryRunError}</p>
                             ) : null}
                             <div className="border-t pt-3">
-                              <div className="text-sm font-medium">Upsert‑Lauf auswählen</div>
+                              <div className="text-sm font-medium">Bisherige Läufe</div>
                               {migrationRunsArray.length === 0 ? (
-                                <div className="mt-2 text-xs text-muted-foreground">Keine Upserts vorhanden.</div>
+                                <div className="mt-2 text-xs text-muted-foreground">Noch keine Läufe vorhanden.</div>
                               ) : (
                                 <div className="mt-2 space-y-2">
                                   <Select
@@ -1147,7 +1373,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                                   >
                                     <FormControl>
                                       <SelectTrigger>
-                                        <SelectValue placeholder="Upsert‑Lauf auswählen" />
+                                        <SelectValue placeholder="Lauf auswählen" />
                                       </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
@@ -1395,10 +1621,10 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                                                               <th className="px-2 py-1 font-medium">
                                                                 <Tooltip>
                                                                   <TooltipTrigger className="cursor-help underline decoration-dotted">
-                                                                    Mongo
+                                                                    Cache
                                                                   </TooltipTrigger>
                                                                   <TooltipContent>
-                                                                    <p className="max-w-xs">Status der MongoDB-Speicherung: &quot;upserted&quot; = erfolgreich gespeichert/aktualisiert, &quot;nein&quot; = nicht gespeichert.</p>
+                                                                    <p className="max-w-xs">Status der Cache-Speicherung: &quot;gespeichert&quot; = erfolgreich gespeichert/aktualisiert, &quot;nein&quot; = nicht gespeichert.</p>
                                                                   </TooltipContent>
                                                                 </Tooltip>
                                                               </th>
@@ -1408,7 +1634,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                                                                     FS gelöscht
                                                                   </TooltipTrigger>
                                                                   <TooltipContent>
-                                                                    <p className="max-w-xs">Ob die Dateisystemkopie nach erfolgreicher MongoDB-Migration gelöscht wurde: &quot;ja&quot; = gelöscht, &quot;nein&quot; = noch vorhanden oder Cleanup deaktiviert.</p>
+                                                                    <p className="max-w-xs">Ob die Dateisystemkopie nach erfolgreicher Cache-Migration gelöscht wurde: &quot;ja&quot; = gelöscht, &quot;nein&quot; = noch vorhanden oder Cleanup deaktiviert.</p>
                                                                   </TooltipContent>
                                                                 </Tooltip>
                                                               </th>
@@ -1433,7 +1659,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                                                                 ) : '-'}
                                                               </td>
                                                               <td className="px-2 py-1 font-mono text-[10px]">{file.hash || '-'}</td>
-                                                              <td className="px-2 py-1">{file.mongoUpserted ? 'upserted' : 'nein'}</td>
+                                                              <td className="px-2 py-1">{file.mongoUpserted ? 'gespeichert' : 'nein'}</td>
                                                               <td className="px-2 py-1">{file.filesystemDeleted ? 'ja' : 'nein'}</td>
                                                             </tr>
                                                           ))}
@@ -1466,16 +1692,159 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                               type="button"
                               onClick={() => {
                                 const cleanupText = dryRunCleanupFilesystem 
-                                  ? '(mit Cleanup - Filesystem-Dateien werden gelöscht)' 
-                                  : '(ohne Cleanup)'
+                                  ? '(Dateien im Storage werden nach dem Import gelöscht)' 
+                                  : '(Dateien im Storage bleiben erhalten)'
                                 const confirmed = window.confirm(
-                                  `Upsert startet die Migration nach MongoDB ${cleanupText}. Fortfahren?`
+                                  `Artefakte aus dem Dateisystem laden ${cleanupText}. Fortfahren?`
                                 )
                                 if (confirmed) void runShadowTwinMigration()
                               }}
                               disabled={dryRunRunning}
                             >
-                              {dryRunRunning ? 'Läuft…' : 'Upsert ausführen'}
+                              {dryRunRunning ? 'Läuft…' : 'Laden'}
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </div>
+
+                  {/* Artefakte nach Sprache bereinigen */}
+                  <div className="border-t pt-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h4 className="text-sm font-medium">Artefakte nach Sprache bereinigen</h4>
+                        <p className="text-xs text-muted-foreground">
+                          Löscht alle Artefakte einer bestimmten Sprache aus Cache und Storage. Nützlich, wenn versehentlich in der falschen Sprache verarbeitet wurde.
+                        </p>
+                      </div>
+                      <Dialog open={isLangCleanupOpen} onOpenChange={(open) => {
+                        setIsLangCleanupOpen(open);
+                        if (!open) {
+                          setLangCleanupResult(null);
+                          setLangCleanupLang('');
+                        }
+                      }}>
+                        <DialogTrigger asChild>
+                          <Button type="button" variant="outline" disabled={!activeLibraryId}>
+                            <Languages className="h-4 w-4 mr-2" />
+                            Bereinigen
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl">
+                          <DialogHeader>
+                            <DialogTitle>Artefakte nach Sprache bereinigen</DialogTitle>
+                            <DialogDescription>
+                              Wähle eine Sprache und starte zuerst eine Analyse, um zu sehen, welche Artefakte betroffen sind. Erst danach kann gelöscht werden.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            {/* Sprachauswahl */}
+                            <div className="flex items-center gap-3">
+                              <FormLabel className="text-sm shrink-0">Sprache</FormLabel>
+                              <Select
+                                value={langCleanupLang}
+                                onValueChange={(v) => {
+                                  setLangCleanupLang(v);
+                                  setLangCleanupResult(null);
+                                }}
+                              >
+                                <SelectTrigger className="w-40">
+                                  <SelectValue placeholder="Sprache wählen" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="de">Deutsch (de)</SelectItem>
+                                  <SelectItem value="en">Englisch (en)</SelectItem>
+                                  <SelectItem value="fr">Französisch (fr)</SelectItem>
+                                  <SelectItem value="it">Italienisch (it)</SelectItem>
+                                  <SelectItem value="es">Spanisch (es)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={!langCleanupLang || isLangAnalyzing}
+                                onClick={() => void runLanguageCleanup(true)}
+                              >
+                                <Search className={`h-3.5 w-3.5 mr-1.5 ${isLangAnalyzing ? 'animate-pulse' : ''}`} />
+                                {isLangAnalyzing ? 'Analysiert…' : 'Analysieren'}
+                              </Button>
+                            </div>
+
+                            {/* Analyse-Ergebnis */}
+                            {langCleanupResult && (
+                              <div className="rounded border p-3 text-xs space-y-3">
+                                <div className="font-medium">
+                                  {langCleanupResult.dryRun ? 'Analyse-Ergebnis' : 'Lösch-Ergebnis'}
+                                  {' '}({langCleanupResult.targetLanguage.toUpperCase()})
+                                </div>
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground">
+                                  <span>Betroffene Dateien:</span>
+                                  <span className="font-mono">{langCleanupResult.totalFiles}</span>
+                                  <span>Artefakte gesamt:</span>
+                                  <span className="font-mono">{langCleanupResult.totalArtifacts}</span>
+                                  {langCleanupResult.storageDeleted !== null && (
+                                    <>
+                                      <span>Aus Storage gelöscht:</span>
+                                      <span className="font-mono">{langCleanupResult.storageDeleted}</span>
+                                    </>
+                                  )}
+                                </div>
+
+                                {/* Detailliste der betroffenen Dateien */}
+                                {langCleanupResult.affectedFiles.length > 0 && (
+                                  <div className="max-h-60 overflow-auto border-t pt-2">
+                                    <table className="w-full text-xs">
+                                      <thead>
+                                        <tr className="text-left text-muted-foreground">
+                                          <th className="pr-2 py-0.5">Datei</th>
+                                          <th className="pr-2 py-0.5">Artefakte</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {langCleanupResult.affectedFiles.map((f, i) => (
+                                          <tr key={i} className="border-t">
+                                            <td className="pr-2 py-1 max-w-[250px] truncate">{f.sourceName}</td>
+                                            <td className="pr-2 py-1">
+                                              {f.artifacts.map((a, j) => (
+                                                <span key={j} className="inline-block mr-1.5 rounded bg-muted px-1 py-0.5 text-[10px]">
+                                                  {a.kind}{a.templateName ? ` (${a.templateName})` : ''}
+                                                </span>
+                                              ))}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setIsLangCleanupOpen(false)}>
+                              Schließen
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              disabled={
+                                !langCleanupResult ||
+                                !langCleanupResult.dryRun ||
+                                langCleanupResult.totalArtifacts === 0 ||
+                                isLangDeleting
+                              }
+                              onClick={() => {
+                                const count = langCleanupResult?.totalArtifacts ?? 0;
+                                const lang = langCleanupResult?.targetLanguage?.toUpperCase() ?? '';
+                                const confirmed = window.confirm(
+                                  `${count} Artefakte (${lang}) in ${langCleanupResult?.totalFiles ?? 0} Dateien unwiderruflich löschen?\n\nDieser Vorgang entfernt die Artefakte aus Cache und Storage.`
+                                );
+                                if (confirmed) void runLanguageCleanup(false);
+                              }}
+                            >
+                              {isLangDeleting ? 'Löscht…' : `${langCleanupResult?.totalArtifacts ?? 0} Artefakte löschen`}
                             </Button>
                           </DialogFooter>
                         </DialogContent>

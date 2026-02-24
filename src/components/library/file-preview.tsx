@@ -2381,60 +2381,47 @@ export function FilePreview({
   const pipelineOpenerRef = React.useRef<(() => void) | null>(null)
   const [isSyncing, setIsSyncing] = React.useState(false)
 
-  // Generischer Sync-Handler für beide Richtungen
-  const handleSync = React.useCallback(async (direction: 'from-storage' | 'to-storage') => {
-    if (!activeLibraryId || !displayFile) return
-    setIsSyncing(true)
-    try {
-      const endpoint = direction === 'from-storage'
-        ? `/api/library/${encodeURIComponent(activeLibraryId)}/shadow-twins/sync-from-storage`
-        : `/api/library/${encodeURIComponent(activeLibraryId)}/shadow-twins/sync-to-storage`
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sourceId: displayFile.id, parentId: displayFile.parentId }),
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Unbekannter Fehler' }))
-        toast.error("Sync fehlgeschlagen", { description: err.error || 'Server-Fehler' })
-        return
-      }
-      const result = await res.json()
-      // Erfolg-Feedback
-      const countKey = direction === 'from-storage' ? 'synced' : 'written'
-      const count = result[countKey] || 0
-      if (count > 0) {
-        const label = direction === 'from-storage' ? 'MongoDB aktualisiert' : 'In Storage geschrieben'
-        const desc = direction === 'from-storage'
-          ? `${count} Artefakt${count > 1 ? 'e' : ''} vom Storage synchronisiert.`
-          : `${count} Artefakt${count > 1 ? 'e' : ''} in den Storage geschrieben.`
-        toast.success(label, { description: desc })
-      } else if (result.skipped > 0) {
-        toast.info("Bereits synchron", { description: "Alle Artefakte sind bereits aktuell." })
-      }
-      if (result.failed > 0) {
-        toast.warning("Teilweise fehlgeschlagen", {
-          description: `${result.failed} Artefakt${result.failed > 1 ? 'e' : ''} konnten nicht synchronisiert werden.`,
-        })
-      }
-    } catch (err) {
-      toast.error("Sync-Fehler", { description: err instanceof Error ? err.message : String(err) })
-    } finally {
-      setIsSyncing(false)
-    }
-  }, [activeLibraryId, displayFile])
+  // Stiller Auto-Sync: Bei storage-newer oder storage-missing automatisch synchronisieren
+  // Kein Banner, kein Klick nötig – wird beim Öffnen des FilePreview ausgelöst
+  const autoSyncRef = React.useRef<string | null>(null)
+  React.useEffect(() => {
+    const status = freshness.status
+    const fileId = displayFile?.id
+    // Nur einmal pro Datei + Status syncen (verhindert Endlosschleifen)
+    const syncKey = `${fileId}-${status}`
+    if (autoSyncRef.current === syncKey) return
+    if (status !== 'storage-newer' && status !== 'storage-missing') return
+    if (!activeLibraryId || !displayFile || isSyncing) return
 
-  // Request-Update: Je nach Status passende Aktion auslösen
+    autoSyncRef.current = syncKey
+    const direction = status === 'storage-newer' ? 'from-storage' : 'to-storage'
+    const endpoint = direction === 'from-storage'
+      ? `/api/library/${encodeURIComponent(activeLibraryId)}/shadow-twins/sync-from-storage`
+      : `/api/library/${encodeURIComponent(activeLibraryId)}/shadow-twins/sync-to-storage`
+
+    setIsSyncing(true)
+    fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sourceId: displayFile.id, parentId: displayFile.parentId }),
+    })
+      .then(async (res) => {
+        if (!res.ok) return
+        const result = await res.json()
+        const count = result[direction === 'from-storage' ? 'synced' : 'written'] || 0
+        if (count > 0) {
+          toast.info(
+            direction === 'from-storage' ? 'Auto-Sync: Cache aktualisiert' : 'Auto-Sync: In Storage geschrieben',
+            { description: `${count} Artefakt${count > 1 ? 'e' : ''} synchronisiert.`, duration: 3000 },
+          )
+        }
+      })
+      .catch(() => { /* Stiller Fehler – nicht kritisch */ })
+      .finally(() => setIsSyncing(false))
+  }, [freshness.status, activeLibraryId, displayFile, isSyncing])
+
+  // Request-Update: Nur für source-newer / no-twin → Pipeline öffnen
   const handleRequestUpdate = React.useCallback(() => {
-    if (freshness.status === 'storage-newer') {
-      void handleSync('from-storage')
-      return
-    }
-    if (freshness.status === 'storage-missing') {
-      void handleSync('to-storage')
-      return
-    }
-    // source-newer / no-twin → Pipeline öffnen
     if (pipelineOpenerRef.current) {
       pipelineOpenerRef.current()
     } else {
@@ -2442,7 +2429,7 @@ export function FilePreview({
         description: "Bitte verwende den Verarbeitungs-Button in der Toolbar.",
       })
     }
-  }, [freshness.status, handleSync])
+  }, [])
 
   // Refs für Handler von JobReportTab (für Header-Buttons)
   // editHandlerRef wurde entfernt - wird derzeit nicht verwendet

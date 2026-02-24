@@ -4,16 +4,11 @@
  * @fileoverview Shadow-Twin Sync Banner
  *
  * @description
- * Zeigt eine kompakte Warnung an, wenn Quelldatei, MongoDB und Storage-Datei
- * nicht synchron sind. Zeigt pro Artefakt den Status an (Transcript,
- * Transformation können unterschiedlich sein).
+ * Zeigt eine kompakte Warnung an, wenn die Quelldatei neuer als der
+ * Shadow-Twin ist (source-newer) oder kein Shadow-Twin existiert (no-twin).
  *
- * Erkennt drei Fälle:
- * - source-newer: Quelldatei wurde geändert → Shadow-Twin neu generieren
- * - storage-newer: Artefakt-Datei im Storage wurde extern editiert → MongoDB aktualisieren
- * - no-twin: Kein Shadow-Twin vorhanden → Erstellen
- *
- * Funktioniert Storage-unabhängig (Filesystem, OneDrive, Nextcloud).
+ * Storage-Fälle (storage-newer, storage-missing) werden automatisch
+ * im FilePreview per useEffect synchronisiert – kein Banner nötig.
  *
  * @module shadow-twin
  *
@@ -22,7 +17,7 @@
  */
 
 import * as React from "react"
-import { AlertTriangle, ArrowUpFromLine, Clock, Download, FileQuestion, RefreshCw } from "lucide-react"
+import { AlertTriangle, Clock, FileQuestion, RefreshCw } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import type { FreshnessInfo, FreshnessStatus } from "@/hooks/use-shadow-twin-freshness"
@@ -47,33 +42,21 @@ export interface ShadowTwinSyncBannerProps {
   isUpdating?: boolean
 }
 
-/** Icon + Farben pro Status */
-const STATUS_CONFIG: Record<
-  Exclude<FreshnessStatus, "loading" | "synced">,
+/** Icon + Farben pro Status (nur source-newer und no-twin) */
+const STATUS_CONFIG: Partial<Record<
+  FreshnessStatus,
   {
     icon: React.ElementType
     borderClass: string
     bgClass: string
     iconClass: string
   }
-> = {
+>> = {
   "source-newer": {
     icon: AlertTriangle,
     borderClass: "border-amber-300 dark:border-amber-700",
     bgClass: "bg-amber-50 dark:bg-amber-950/30",
     iconClass: "text-amber-600 dark:text-amber-400",
-  },
-  "storage-newer": {
-    icon: ArrowUpFromLine,
-    borderClass: "border-blue-300 dark:border-blue-700",
-    bgClass: "bg-blue-50 dark:bg-blue-950/30",
-    iconClass: "text-blue-600 dark:text-blue-400",
-  },
-  "storage-missing": {
-    icon: Download,
-    borderClass: "border-red-300 dark:border-red-700",
-    bgClass: "bg-red-50 dark:bg-red-950/30",
-    iconClass: "text-red-600 dark:text-red-400",
   },
   "no-twin": {
     icon: FileQuestion,
@@ -83,34 +66,21 @@ const STATUS_CONFIG: Record<
   },
 }
 
-/** Status-Label pro API-Artefakt-Status */
-const API_STATUS_LABEL: Record<string, { symbol: string; color: string }> = {
-  synced:          { symbol: "✓", color: "text-green-600 dark:text-green-400" },
-  "source-newer":  { symbol: "⚠", color: "text-amber-600 dark:text-amber-400" },
-  "storage-newer": { symbol: "↑", color: "text-blue-600 dark:text-blue-400" },
-  "mongo-newer":   { symbol: "↓", color: "text-purple-600 dark:text-purple-400" },
-  "storage-missing": { symbol: "✗", color: "text-red-600 dark:text-red-400" },
-  "mongo-missing": { symbol: "✗", color: "text-red-600 dark:text-red-400" },
-}
-
 export function ShadowTwinSyncBanner({
   freshness,
   onRequestUpdate,
   isUpdating = false,
 }: ShadowTwinSyncBannerProps) {
-  // Bei "loading", "synced" oder apiLoading kein Banner anzeigen
-  if (freshness.status === "loading" || freshness.status === "synced") {
-    return null
-  }
-  // Während API lädt, noch kein Banner (vermeidet Flackern)
-  if (freshness.apiLoading) {
-    return null
-  }
-
+  // Banner nur für source-newer und no-twin anzeigen
+  // storage-newer und storage-missing werden automatisch per useEffect gesynct
   const config = STATUS_CONFIG[freshness.status]
+  if (!config) return null
+
+  // Während API lädt, noch kein Banner (vermeidet Flackern)
+  if (freshness.apiLoading) return null
+
   const Icon = config.icon
 
-  // Per-Artefakt Details aus API (vollständig) oder aus Atom-Check (Fallback)
   const hasApiData = freshness.apiArtifacts.length > 0
   const issueCount = hasApiData ? freshness.apiIssueCount : freshness.staleCount
   const totalCount = hasApiData ? freshness.apiArtifacts.length : freshness.artifacts.length
@@ -132,28 +102,6 @@ export function ShadowTwinSyncBanner({
                 )}
               </>
             )}
-            {freshness.status === "storage-newer" && (
-              <>
-                <span className="font-medium">
-                  Artefakt im Storage wurde extern geändert
-                  {totalCount > 1 && <> ({issueCount}/{totalCount} abweichend)</>}
-                </span>
-                <span className="text-muted-foreground">
-                  {" "}— Die Datei im Storage ist neuer als der MongoDB-Eintrag.
-                </span>
-              </>
-            )}
-            {freshness.status === "storage-missing" && (
-              <>
-                <span className="font-medium">
-                  Artefakt fehlt im Storage
-                  {totalCount > 1 && <> ({issueCount}/{totalCount} fehlend)</>}
-                </span>
-                <span className="text-muted-foreground">
-                  {" "}— Die Datei existiert in MongoDB, aber nicht im Storage.
-                </span>
-              </>
-            )}
             {freshness.status === "no-twin" && (
               <>
                 <span className="font-medium">Kein Shadow-Twin vorhanden</span>
@@ -162,25 +110,9 @@ export function ShadowTwinSyncBanner({
                 </span>
               </>
             )}
-
-            {/* Per-Artefakt Auflistung (API-basiert wenn verfügbar) */}
-            {hasApiData && freshness.apiArtifacts.length > 0 && (
-              <ul className="mt-1 space-y-0.5 text-muted-foreground">
-                {freshness.apiArtifacts.map((art) => {
-                  const statusCfg = API_STATUS_LABEL[art.status] || API_STATUS_LABEL.synced
-                  return (
-                    <li key={`${art.kind}-${art.targetLanguage}-${art.templateName || ""}`} className="flex items-center gap-1">
-                      <span className={statusCfg.color}>{statusCfg.symbol}</span>
-                      <span>{art.kind === "transcript" ? "Transcript" : "Transformation"}</span>
-                      <span className="text-muted-foreground text-[10px]">({art.targetLanguage})</span>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
           </AlertDescription>
 
-          {/* Aktions-Button */}
+          {/* Aktions-Button: Pipeline öffnen */}
           {onRequestUpdate && (
             <div className="flex items-center gap-2 mt-1.5">
               <Button
@@ -194,17 +126,11 @@ export function ShadowTwinSyncBanner({
                   <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
                 ) : freshness.status === "no-twin" ? (
                   <Clock className="h-3 w-3 mr-1" />
-                ) : freshness.status === "storage-missing" ? (
-                  <Download className="h-3 w-3 mr-1" />
                 ) : (
                   <RefreshCw className="h-3 w-3 mr-1" />
                 )}
                 {freshness.status === "no-twin"
                   ? "Jetzt erstellen"
-                  : freshness.status === "storage-newer"
-                  ? "MongoDB aktualisieren"
-                  : freshness.status === "storage-missing"
-                  ? "In Storage schreiben"
                   : "Shadow-Twin aktualisieren"}
               </Button>
             </div>
