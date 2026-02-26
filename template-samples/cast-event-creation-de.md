@@ -22,6 +22,7 @@ coverImageUrl: {{coverImageUrl|Dateiname des Thumbnails (z.B. aus events-Liste, 
 attachments_url: {{attachments_url|Leer lassen. Öffentlicher Link zum PDF wird erst beim Publizieren gesetzt (PDF hat zu diesem Zeitpunkt noch keine öffentliche URL). Optional manuell ergänzen, falls bereits ein Freigabe-Link existiert.}}
 url: {{url|URL zur Original-Webseite (optional)}}
 testimonialWriteKey: {{testimonialWriteKey|Wird automatisch gesetzt (für QR Upload)}}
+detailViewType: session
 creation:
   preview:
     detailViewType: session
@@ -95,8 +96,7 @@ creation:
     icon: Calendar
 ---
 
-## Zusammenfassung & Highlights
-{{summary|Bitte die Texte des Video-Transcripts, des Web-Texts und der Slide-Texte sinnvoll auswerten. Zuerst eine kurze Zusammenfassung. Darunter den Text in treffenden Abschnitten gliedern. Für jeden Abschnitt einen passenden Titel in Fett darstellen und darunter jeden Abschnitt ausführlich mit mindestens 120 Worten zusammenfassen. Absätze und Titel mit \n trennen.}}
+{{summary|Bitte die Texte des Video-Transcripts, des Web-Texts und der Slide-Texte sinnvoll auswerten. Zuerst eine kurze Zusammenfassung. Darunter den Text in treffenden Abschnitten gliedern. Für jeden Abschnitt einen passenden Titel in Fett darstellen und darunter jeden Abschnitt ausführlich mit mindestens 80 bis 120 Worten zusammenfassen- Die Länge kann variieren - abhängig davon, ob das Kapitel ein zentrales Thema behandelt. Aus dem text sollte Hervorgehen, wer was gesagt hat. Absätze und Titel mit \n trennen.}}
 
 --- systemprompt
 Du agierst als spezialisierter Journalist für Umwelt- und Sozialthemen. Deine Aufgabe ist es, die bereitgestellten komplexe Inhalte so aufzubereiten, dass ihre Relevanz für den Klimaaktivismus und für nachhaltige, soziale und gemeinschaftsorientierte Transformationsprozesse klar, verständlich und handlungsleitend wird.
