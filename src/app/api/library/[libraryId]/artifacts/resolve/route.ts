@@ -13,6 +13,8 @@ import { auth, currentUser } from '@clerk/nextjs/server';
 import { FileLogger } from '@/lib/debug/logger';
 import { getServerProvider } from '@/lib/storage/server-provider';
 import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver';
+import { reconstructFromFolder } from '@/lib/shadow-twin/reconstruct-from-storage';
+import { findShadowTwinFolder } from '@/lib/storage/shadow-twin';
 import { LibraryService } from '@/lib/services/library-service';
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service';
 import { isMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id';
@@ -92,8 +94,33 @@ export async function GET(
       });
 
       if (serviceResult) {
-        // Konvertiere Service-Ergebnis zu ResolvedArtifact-Format
-        const location = isMongoShadowTwinId(serviceResult.id) ? 'dotFolder' : 'sibling';
+        const fromMongo = isMongoShadowTwinId(serviceResult.id)
+        const location = fromMongo ? 'dotFolder' : 'sibling';
+
+        // Wenn das Artefakt NICHT aus MongoDB kommt (z.B. primaryStore='filesystem'),
+        // muessen wir es in MongoDB nachfuehren, damit die Uebersicht korrekte Daten zeigt.
+        if (!fromMongo) {
+          try {
+            const provider = await getServerProvider(userEmail, libraryId)
+            const folder = await findShadowTwinFolder(parentId, sourceName, provider)
+            if (folder) {
+              const results = await reconstructFromFolder({
+                provider, libraryId, userEmail, sourceId, sourceName, parentId,
+                shadowTwinFolderId: folder.id,
+              })
+              const ok = results.filter((r) => r.success).length
+              if (ok > 0) {
+                FileLogger.info('artifacts/resolve', `Lazy Reconstruction (service-path): ${ok} Artefakt(e) in MongoDB nachgefuehrt`, {
+                  sourceId, sourceName,
+                })
+              }
+            }
+          } catch (reconstructErr) {
+            FileLogger.warn('artifacts/resolve', 'Lazy Reconstruction (service-path) fehlgeschlagen', {
+              sourceId, error: reconstructErr instanceof Error ? reconstructErr.message : String(reconstructErr),
+            })
+          }
+        }
         
         return NextResponse.json(
           {
@@ -124,6 +151,43 @@ export async function GET(
         });
 
         if (resolved) {
+          // Lazy Reconstruction: Artefakt im Storage gefunden, aber nicht in MongoDB.
+          // Alle Artefakte im Shadow-Twin-Ordner in MongoDB rekonstruieren.
+          // WICHTIG: Muss awaited werden, da Next.js fire-and-forget Promises
+          // nach Response-Ende abbricht (Serverless-Umgebung).
+          try {
+            if (resolved.shadowTwinFolderId) {
+              const results = await reconstructFromFolder({
+                provider, libraryId, userEmail, sourceId, sourceName, parentId,
+                shadowTwinFolderId: resolved.shadowTwinFolderId,
+              })
+              const ok = results.filter((r) => r.success).length
+              if (ok > 0) {
+                FileLogger.info('artifacts/resolve', `Lazy Reconstruction: ${ok} Artefakt(e) in MongoDB nachgefuehrt`, {
+                  sourceId, sourceName,
+                })
+              }
+            } else if (resolved.location === 'sibling') {
+              const folder = await findShadowTwinFolder(parentId, sourceName, provider)
+              if (folder) {
+                const results = await reconstructFromFolder({
+                  provider, libraryId, userEmail, sourceId, sourceName, parentId,
+                  shadowTwinFolderId: folder.id,
+                })
+                const ok = results.filter((r) => r.success).length
+                if (ok > 0) {
+                  FileLogger.info('artifacts/resolve', `Lazy Reconstruction (sibling): ${ok} Artefakt(e) nachgefuehrt`, {
+                    sourceId, sourceName,
+                  })
+                }
+              }
+            }
+          } catch (reconstructErr) {
+            FileLogger.warn('artifacts/resolve', 'Lazy Reconstruction fehlgeschlagen (nicht kritisch)', {
+              sourceId, error: reconstructErr instanceof Error ? reconstructErr.message : String(reconstructErr),
+            })
+          }
+
           return NextResponse.json(
             { artifact: resolved },
             { status: 200 }

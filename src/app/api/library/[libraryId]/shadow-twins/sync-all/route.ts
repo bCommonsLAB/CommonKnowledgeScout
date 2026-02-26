@@ -21,6 +21,10 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
+
+// Sync kann bei grossen Libraries (Export/Import) lange dauern
+export const maxDuration = 600 // 10 Minuten
+
 import { LibraryService } from '@/lib/services/library-service'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import {

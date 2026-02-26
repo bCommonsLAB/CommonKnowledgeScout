@@ -57,8 +57,13 @@ export async function GET(request: NextRequest) {
     const provider = await getServerProvider(userEmail, libraryId)
     const streamingUrl = await provider.getStreamingUrl(fileId)
 
-    // 302 Redirect auf die aufgelöste URL
-    return NextResponse.redirect(streamingUrl, 302)
+    // Relative URLs (z.B. Nextcloud-Proxy: /api/storage/nextcloud?...) muessen
+    // zu absoluten URLs aufgeloest werden, da NextResponse.redirect() das erfordert.
+    const absoluteUrl = streamingUrl.startsWith('/')
+      ? new URL(streamingUrl, request.nextUrl.origin).toString()
+      : streamingUrl
+
+    return NextResponse.redirect(absoluteUrl, 302)
   } catch (error) {
     console.error('[streaming-url] Fehler:', error)
     return NextResponse.json(

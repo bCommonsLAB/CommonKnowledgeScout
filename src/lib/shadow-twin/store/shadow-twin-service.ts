@@ -232,10 +232,51 @@ export class ShadowTwinService {
     // 2. Fallback Store (nur wenn allowFilesystemFallback=true – Lesen aus FS bei fehlendem Mongo-Eintrag)
     if (this.config.allowFilesystemFallback && this.fallbackStore) {
       const fallbackResult = await this.fallbackStore.getArtifactMarkdown(key)
-      if (fallbackResult) return fallbackResult
+      if (fallbackResult) {
+        // Lazy Reconstruction: Artefakt im Storage gefunden, aber nicht in MongoDB.
+        // Await: Muss abgeschlossen sein bevor die Response gesendet wird,
+        // da Next.js fire-and-forget Promises nach Response-Ende abbricht.
+        if (this.config.primaryStore === 'mongo' && this.options.library) {
+          try {
+            await this.lazyReconstructToMongo(key, fallbackResult.markdown)
+          } catch (err) {
+            FileLogger.warn('ShadowTwinService', 'Lazy Reconstruction fehlgeschlagen (nicht kritisch)', {
+              sourceId: this.options.sourceId, kind: key.kind,
+              error: err instanceof Error ? err.message : String(err),
+            })
+          }
+        }
+        return fallbackResult
+      }
     }
 
     return null
+  }
+
+  /**
+   * Schreibt ein einzelnes Artefakt im Hintergrund in MongoDB nach.
+   * Wird getriggert wenn der Filesystem-Fallback ein Artefakt findet,
+   * das in MongoDB fehlt.
+   */
+  private async lazyReconstructToMongo(key: ArtifactKey, markdown: string): Promise<void> {
+    const { upsertShadowTwinArtifact } = await import('@/lib/repositories/shadow-twin-repo')
+    const library = this.options.library
+    if (!library) return
+
+    await upsertShadowTwinArtifact({
+      libraryId: library.id,
+      userEmail: this.options.userEmail,
+      sourceId: this.options.sourceId,
+      sourceName: this.options.sourceName,
+      parentId: this.options.parentId,
+      artifactKey: key,
+      markdown,
+    })
+
+    FileLogger.info('ShadowTwinService', 'Lazy Reconstruction: Artefakt in MongoDB nachgefuehrt', {
+      sourceId: this.options.sourceId, kind: key.kind,
+      lang: key.targetLanguage, template: key.templateName,
+    })
   }
 
   /**

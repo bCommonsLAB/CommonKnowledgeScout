@@ -2588,6 +2588,13 @@ export function FilePreview({
         freshness={freshness}
         onRequestUpdate={handleRequestUpdate}
         isUpdating={isSyncing}
+        fileId={displayFile?.id}
+        parentId={displayFile?.parentId}
+        libraryId={activeLibraryId || undefined}
+        onReconstructed={() => {
+          // Nach Rekonstruktion: Shadow-Twin-Analyse neu triggern
+          setShadowTwinAnalysisTrigger((v) => v + 1)
+        }}
       />
       <ContentLoader
         item={displayFile}

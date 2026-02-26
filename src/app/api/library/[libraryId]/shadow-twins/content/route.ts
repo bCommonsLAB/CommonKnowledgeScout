@@ -3,15 +3,20 @@
  *
  * @description
  * Liefert und aktualisiert Shadow-Twin-Markdown aus MongoDB.
- * Wird verwendet, wenn Shadow-Twins nicht im Filesystem liegen.
+ * Bei aktiviertem persistToFilesystem wird die Aenderung auch
+ * ins Storage geschrieben (Shadow-Twin-Ordner).
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { LibraryService } from '@/lib/services/library-service'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
-import { getShadowTwinArtifact, toArtifactKey, updateShadowTwinArtifactMarkdown } from '@/lib/repositories/shadow-twin-repo'
+import { getShadowTwinArtifact, getShadowTwinsBySourceIds, toArtifactKey, updateShadowTwinArtifactMarkdown } from '@/lib/repositories/shadow-twin-repo'
+import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
+import { getServerProvider } from '@/lib/storage/server-provider'
+import { findShadowTwinFolder } from '@/lib/storage/shadow-twin'
 import { FileLogger } from '@/lib/debug/logger'
+import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
 
 function getQueryParam(searchParams: URLSearchParams, key: string): string | null {
   const value = searchParams.get(key)
@@ -105,19 +110,74 @@ export async function POST(
       return NextResponse.json({ error: 'Mongo ist nicht aktiv' }, { status: 400 })
     }
 
+    const artifactKey: ArtifactKey = toArtifactKey({
+      sourceId: body.sourceId,
+      kind: body.kind,
+      targetLanguage: body.targetLanguage || 'de',
+      templateName: body.templateName,
+    })
+
+    // 1. MongoDB aktualisieren
     await updateShadowTwinArtifactMarkdown({
       libraryId,
       sourceId: body.sourceId,
-      artifactKey: toArtifactKey({
-        sourceId: body.sourceId,
-        kind: body.kind,
-        targetLanguage: body.targetLanguage || 'de',
-        templateName: body.templateName,
-      }),
+      artifactKey,
       markdown: body.markdown,
     })
 
-    return NextResponse.json({ ok: true }, { status: 200 })
+    // 2. Bei persistToFilesystem: Aenderung auch ins Storage schreiben
+    let storagePersisted = false
+    if (shadowTwinConfig.persistToFilesystem) {
+      try {
+        const provider = await getServerProvider(userEmail, libraryId)
+        if (provider) {
+          // Shadow-Twin-Dokument laden fuer parentId und sourceName
+          const docs = await getShadowTwinsBySourceIds({ libraryId, sourceIds: [body.sourceId] })
+          const doc = docs.get(body.sourceId)
+          const parentId = doc?.parentId
+          const sourceName = doc?.sourceName || ''
+
+          if (parentId && sourceName) {
+            // Shadow-Twin-Ordner finden
+            const shadowTwinFolder = await findShadowTwinFolder(parentId, sourceName, provider)
+            if (shadowTwinFolder) {
+              const fileName = buildArtifactName(artifactKey, sourceName)
+              // Bestehende Datei im Ordner suchen
+              const folderItems = await provider.listItemsById(shadowTwinFolder.id)
+              const existingFile = folderItems.find(
+                (item) => item.type === 'file' && item.metadata.name === fileName
+              )
+
+              // Alte Version loeschen und neu hochladen
+              if (existingFile) {
+                await provider.deleteItem(existingFile.id)
+              }
+
+              const blob = new Blob([body.markdown], { type: 'text/markdown' })
+              const file = new File([blob], fileName, { type: 'text/markdown' })
+              await provider.uploadFile(shadowTwinFolder.id, file)
+              storagePersisted = true
+
+              FileLogger.info('shadow-twins/content', 'Markdown auch im Storage aktualisiert', {
+                sourceId: body.sourceId, fileName, shadowTwinFolder: shadowTwinFolder.metadata.name,
+              })
+            } else {
+              FileLogger.warn('shadow-twins/content', 'Shadow-Twin-Ordner nicht gefunden fuer Storage-Persistierung', {
+                sourceId: body.sourceId, parentId, sourceName,
+              })
+            }
+          }
+        }
+      } catch (storageErr) {
+        // Storage-Fehler ist nicht kritisch – MongoDB wurde bereits aktualisiert
+        const storageMsg = storageErr instanceof Error ? storageErr.message : String(storageErr)
+        FileLogger.warn('shadow-twins/content', 'Storage-Persistierung fehlgeschlagen (MongoDB OK)', {
+          sourceId: body.sourceId, error: storageMsg,
+        })
+      }
+    }
+
+    return NextResponse.json({ ok: true, storagePersisted }, { status: 200 })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     FileLogger.error('shadow-twins/content', 'POST fehlgeschlagen', { error: msg })

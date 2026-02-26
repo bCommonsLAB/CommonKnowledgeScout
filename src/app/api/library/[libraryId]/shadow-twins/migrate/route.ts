@@ -9,6 +9,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import path from 'path'
+
+// Migration kann bei grossen Libraries (100+ Dateien ueber WebDAV) sehr lange dauern
+export const maxDuration = 600 // 10 Minuten
 import type { StorageItem, StorageProvider } from '@/lib/storage/types'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { LibraryService } from '@/lib/services/library-service'
@@ -255,8 +258,23 @@ export async function POST(
       }
     }
 
+    // Fortschritts-Update alle 20 Dateien in MongoDB speichern
+    let lastProgressAt = Date.now()
+    const PROGRESS_INTERVAL_MS = 15_000
+
     for (const source of files) {
       report.sourcesScanned += 1
+
+      // Periodisches Fortschritts-Update (verhindert "stuck"-Eindruck)
+      if (runId && Date.now() - lastProgressAt > PROGRESS_INTERVAL_MS) {
+        lastProgressAt = Date.now()
+        await appendMigrationStep(runId, {
+          name: 'progress',
+          at: new Date().toISOString(),
+          meta: { scanned: report.sourcesScanned, total: files.length, upserted: report.artifactsUpserted },
+        }).catch(() => { /* non-critical */ })
+      }
+
       try {
         // parentItems ueber Cache laden (vermeidet redundante API-Aufrufe bei Dateien im selben Ordner)
         const parentItems = await cache.list(source.parentId)

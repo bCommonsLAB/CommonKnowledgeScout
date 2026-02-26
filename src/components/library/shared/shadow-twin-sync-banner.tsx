@@ -17,9 +17,10 @@
  */
 
 import * as React from "react"
-import { AlertTriangle, Clock, FileQuestion, RefreshCw } from "lucide-react"
+import { AlertTriangle, Clock, FileQuestion, FolderSearch, RefreshCw } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
 import type { FreshnessInfo, FreshnessStatus } from "@/hooks/use-shadow-twin-freshness"
 
 /** Formatiert eine Zeitdifferenz menschenlesbar. */
@@ -40,6 +41,12 @@ export interface ShadowTwinSyncBannerProps {
   freshness: FreshnessInfo
   onRequestUpdate?: () => void
   isUpdating?: boolean
+  /** Fuer no-twin: fileId und libraryId, um Rekonstruktion aus Storage zu ermoeglichen */
+  fileId?: string
+  parentId?: string
+  libraryId?: string
+  /** Callback nach erfolgreicher Rekonstruktion (z.B. Atom-Refresh) */
+  onReconstructed?: () => void
 }
 
 /** Icon + Farben pro Status (nur source-newer und no-twin) */
@@ -70,13 +77,62 @@ export function ShadowTwinSyncBanner({
   freshness,
   onRequestUpdate,
   isUpdating = false,
+  fileId,
+  parentId,
+  libraryId,
+  onReconstructed,
 }: ShadowTwinSyncBannerProps) {
-  // Banner nur für source-newer und no-twin anzeigen
+  const [isReconstructing, setIsReconstructing] = React.useState(false)
+
+  // Rekonstruktion: Bestehende Artefakte aus dem Storage in MongoDB laden
+  const handleReconstruct = React.useCallback(async () => {
+    if (!libraryId || !fileId || !parentId) return
+    setIsReconstructing(true)
+    try {
+      const res = await fetch(
+        `/api/library/${encodeURIComponent(libraryId)}/shadow-twins/reconstruct`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sourceId: fileId, parentId }),
+        },
+      )
+      const data = await res.json()
+
+      if (!res.ok) {
+        toast.error('Rekonstruktion fehlgeschlagen', { description: data.error || 'Unbekannter Fehler' })
+        return
+      }
+
+      if (data.reconstructed > 0) {
+        toast.success('Artefakte rekonstruiert', {
+          description: `${data.reconstructed} Artefakt${data.reconstructed > 1 ? 'e' : ''} aus dem Storage wiederhergestellt.`,
+        })
+        onReconstructed?.()
+      } else if (data.artifacts?.length === 0) {
+        toast.info('Keine Artefakte gefunden', {
+          description: data.message || 'Im Shadow-Twin-Ordner wurden keine Markdown-Dateien gefunden.',
+        })
+      } else {
+        toast.warning('Rekonstruktion unvollständig', {
+          description: `${data.failed} Artefakt${data.failed > 1 ? 'e' : ''} konnten nicht geladen werden.`,
+        })
+      }
+    } catch (err) {
+      toast.error('Fehler', {
+        description: err instanceof Error ? err.message : 'Netzwerkfehler bei Rekonstruktion',
+      })
+    } finally {
+      setIsReconstructing(false)
+    }
+  }, [libraryId, fileId, parentId, onReconstructed])
+
+  // Banner nur fuer source-newer und no-twin anzeigen
   // storage-newer und storage-missing werden automatisch per useEffect gesynct
   const config = STATUS_CONFIG[freshness.status]
   if (!config) return null
 
-  // Während API lädt, noch kein Banner (vermeidet Flackern)
+  // Waehrend API laedt, noch kein Banner (vermeidet Flackern)
   if (freshness.apiLoading) return null
 
   const Icon = config.icon
@@ -84,6 +140,9 @@ export function ShadowTwinSyncBanner({
   const hasApiData = freshness.apiArtifacts.length > 0
   const issueCount = hasApiData ? freshness.apiIssueCount : freshness.staleCount
   const totalCount = hasApiData ? freshness.apiArtifacts.length : freshness.artifacts.length
+
+  // Pruefen ob Rekonstruktion moeglich ist (no-twin + fileId/libraryId/parentId vorhanden)
+  const canReconstruct = freshness.status === 'no-twin' && !!libraryId && !!fileId && !!parentId
 
   return (
     <Alert className={`mx-3 mt-2 py-2 px-3 ${config.borderClass} ${config.bgClass}`}>
@@ -112,14 +171,32 @@ export function ShadowTwinSyncBanner({
             )}
           </AlertDescription>
 
-          {/* Aktions-Button: Pipeline öffnen */}
-          {onRequestUpdate && (
-            <div className="flex items-center gap-2 mt-1.5">
+          <div className="flex items-center gap-2 mt-1.5">
+            {/* Rekonstruktions-Button: Bestehende Dateien aus Storage einlesen */}
+            {canReconstruct && (
               <Button
                 size="sm"
                 variant="outline"
                 className="h-6 text-xs px-2"
-                disabled={isUpdating}
+                disabled={isReconstructing || isUpdating}
+                onClick={handleReconstruct}
+              >
+                {isReconstructing ? (
+                  <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                ) : (
+                  <FolderSearch className="h-3 w-3 mr-1" />
+                )}
+                Aus Storage wiederherstellen
+              </Button>
+            )}
+
+            {/* Aktions-Button: Pipeline oeffnen (neu generieren) */}
+            {onRequestUpdate && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-6 text-xs px-2"
+                disabled={isUpdating || isReconstructing}
                 onClick={onRequestUpdate}
               >
                 {isUpdating ? (
@@ -133,8 +210,8 @@ export function ShadowTwinSyncBanner({
                   ? "Jetzt erstellen"
                   : "Shadow-Twin aktualisieren"}
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </Alert>

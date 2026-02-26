@@ -6,6 +6,8 @@
  * Verwendet den ShadowTwinService zur Storage-Abstraktion:
  * - Wenn Azure-URL vorhanden → direkt verwenden
  * - Wenn nur fileId vorhanden → Storage-API-URL generieren
+ * - Fallback: Wenn in MongoDB keine Fragmente registriert sind,
+ *   wird direkt im Shadow-Twin-Ordner im Storage gesucht.
  * 
  * Das Frontend muss sich nicht um die Storage-Details kümmern.
  */
@@ -14,6 +16,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { LibraryService } from '@/lib/services/library-service'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
+import { getServerProvider } from '@/lib/storage/server-provider'
+import { findShadowTwinFolder } from '@/lib/storage/shadow-twin'
 import { FileLogger } from '@/lib/debug/logger'
 
 interface RequestBody {
@@ -73,24 +77,52 @@ export async function POST(
     // Löse Binary-Fragment-URL auf
     const resolvedUrl = await service.resolveBinaryFragmentUrl(body.fragmentName)
 
-    if (!resolvedUrl) {
-      FileLogger.warn('shadow-twins/resolve-binary-url', 'Fragment nicht gefunden', {
-        fragmentName: body.fragmentName,
-        sourceId: body.sourceId,
-        availableFragments: allFragments?.map(f => ({ name: f.name, hasUrl: !!f.url, hasFileId: !!f.fileId })) ?? [],
-      })
-      return NextResponse.json({ 
-        error: 'Fragment nicht gefunden',
-        fragmentName: body.fragmentName,
-        sourceId: body.sourceId,
-        availableFragments: allFragments?.map(f => f.name) ?? [],
-      }, { status: 404 })
+    if (resolvedUrl) {
+      return NextResponse.json({ resolvedUrl, fragmentName: body.fragmentName }, { status: 200 })
     }
 
-    return NextResponse.json({ 
-      resolvedUrl,
+    // Storage-Fallback: Wenn MongoDB kein Fragment kennt, direkt im Shadow-Twin-Ordner suchen.
+    // Typischer Fall: Dateien wurden manuell ins Storage kopiert, aber nie in MongoDB registriert.
+    if (body.parentId && body.sourceName) {
+      try {
+        const provider = await getServerProvider(userEmail, libraryId)
+        if (provider) {
+          const shadowTwinFolder = await findShadowTwinFolder(body.parentId, body.sourceName, provider)
+          if (shadowTwinFolder) {
+            const folderItems = await provider.listItemsById(shadowTwinFolder.id)
+            const binaryFile = folderItems.find(
+              (item) => item.type === 'file' &&
+                item.metadata.name.toLowerCase() === body.fragmentName.toLowerCase()
+            )
+
+            if (binaryFile) {
+              const streamingUrl = `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(binaryFile.id)}`
+              FileLogger.info('shadow-twins/resolve-binary-url', 'Fragment via Storage-Fallback gefunden', {
+                fragmentName: body.fragmentName, sourceId: body.sourceId, fileId: binaryFile.id,
+              })
+              return NextResponse.json({ resolvedUrl: streamingUrl, fragmentName: body.fragmentName }, { status: 200 })
+            }
+          }
+        }
+      } catch (storageErr) {
+        FileLogger.warn('shadow-twins/resolve-binary-url', 'Storage-Fallback fehlgeschlagen', {
+          fragmentName: body.fragmentName,
+          error: storageErr instanceof Error ? storageErr.message : String(storageErr),
+        })
+      }
+    }
+
+    FileLogger.warn('shadow-twins/resolve-binary-url', 'Fragment nicht gefunden (inkl. Storage-Fallback)', {
       fragmentName: body.fragmentName,
-    }, { status: 200 })
+      sourceId: body.sourceId,
+      availableFragments: allFragments?.map(f => ({ name: f.name, hasUrl: !!f.url, hasFileId: !!f.fileId })) ?? [],
+    })
+    return NextResponse.json({ 
+      error: 'Fragment nicht gefunden',
+      fragmentName: body.fragmentName,
+      sourceId: body.sourceId,
+      availableFragments: allFragments?.map(f => f.name) ?? [],
+    }, { status: 404 })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     FileLogger.error('shadow-twins/resolve-binary-url', 'POST fehlgeschlagen', { error: msg })
