@@ -61,6 +61,8 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
   const [previewItems, setPreviewItems] = useState<Array<{ id: string; name: string; relPath: string; pages?: number }>>([]);
   const [stats, setStats] = useState<ScanStats>({ totalFiles: 0, skippedExisting: 0, toProcess: 0 });
   const [batchName, setBatchName] = useState<string>('');
+  // Set mit IDs der abgewaehlten Dateien (standardmaessig alle ausgewaehlt)
+  const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
 
   // Phasensteuerung: Standard nur Phase 1 (Extraktion)
   const [runMetaPhase, setRunMetaPhase] = useState<boolean>(true); // Phase 2 standardmäßig aktiv
@@ -151,19 +153,24 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
     try {
       const result = await scanFolder(rootFolderId);
       setCandidates(result.selected);
-      // Vorschau-Details (max. 10) berechnen: relativer Pfad + Dateiname
-      const top = result.selected.slice(0, 10);
+      setExcludedIds(new Set());
+      // Vorschau-Details fuer alle Kandidaten berechnen
       const details: Array<{ id: string; name: string; relPath: string; pages?: number }> = [];
-      for (const { file, parentId } of top) {
-        let relPath = '.';
-        try {
-          const chain = await provider.getPathItemsById(parentId);
-          const idx = chain.findIndex((it) => it.id === rootFolderId);
-          const start = idx >= 0 ? idx + 1 : 1; // nach aktuellem Root bzw. nach globalem Root
-          const parts = chain.slice(start).map((it) => it.metadata.name).filter(Boolean);
-          relPath = parts.length ? parts.join('/') : '.';
-        } catch {
-          relPath = '.';
+      // Pfad-Cache: parentId -> relPath (vermeidet redundante API-Aufrufe)
+      const pathCache = new Map<string, string>();
+      for (const { file, parentId } of result.selected) {
+        let relPath = pathCache.get(parentId);
+        if (relPath === undefined) {
+          try {
+            const chain = await provider.getPathItemsById(parentId);
+            const idx = chain.findIndex((it) => it.id === rootFolderId);
+            const start = idx >= 0 ? idx + 1 : 1;
+            const parts = chain.slice(start).map((it) => it.metadata.name).filter(Boolean);
+            relPath = parts.length ? parts.join('/') : '.';
+          } catch {
+            relPath = '.';
+          }
+          pathCache.set(parentId, relPath);
         }
         details.push({ id: file.id, name: file.metadata.name, relPath });
       }
@@ -206,9 +213,15 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
 
   // keine lokale Optionsbearbeitung nötig; Änderungen erfolgen im Settings-Dialog
 
+  // Gefilterte Kandidaten: nur ausgewaehlte Dateien (nicht in excludedIds)
+  const selectedCandidates = useMemo(
+    () => candidates.filter((c) => !excludedIds.has(c.file.id)),
+    [candidates, excludedIds]
+  );
+
   const handleEnqueue = useCallback(async () => {
     if (!activeLibraryId) return;
-    if (candidates.length === 0) return;
+    if (selectedCandidates.length === 0) return;
     setIsEnqueuing(true);
     try {
       const defaults = getEffectivePdfDefaults(
@@ -244,8 +257,8 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
           generateCoverImage: runMetaPhase && generateCoverImage,
           coverImagePrompt: activeLibrary?.config?.secretaryService?.coverImagePrompt,
         },
-        // Items für Batch-Verarbeitung
-        items: candidates.map(({ file, parentId }) => ({ 
+        // Items fuer Batch-Verarbeitung (nur ausgewaehlte Dateien)
+        items: selectedCandidates.map(({ file, parentId }) => ({ 
           fileId: file.id, 
           parentId, 
           name: file.metadata.name, 
@@ -280,7 +293,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
     } finally {
       setIsEnqueuing(false);
     }
-  }, [activeLibraryId, activeLibrary, candidates, runMetaPhase, runIngestionPhase, forceExtract, forceMeta, generateCoverImage, batchName, onOpenChange, pdfOverrides]);
+  }, [activeLibraryId, activeLibrary, selectedCandidates, runMetaPhase, runIngestionPhase, forceExtract, forceMeta, generateCoverImage, batchName, onOpenChange, pdfOverrides]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -380,7 +393,8 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
                   <span className="text-muted-foreground">Ignoriert:</span> <span className="font-medium">{stats.skippedExisting}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Zu verarbeiten:</span> <span className="font-medium">{stats.toProcess}</span>
+                  <span className="text-muted-foreground">Ausgewählt:</span>{' '}
+                  <span className="font-medium">{previewItems.length - excludedIds.size} / {previewItems.length}</span>
                 </div>
               </div>
               <Button variant="outline" size="sm" onClick={handleScan} disabled={isScanning}>
@@ -388,20 +402,68 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
               </Button>
             </div>
             <Separator className="my-3" />
-            <ScrollArea className="h-40">
+            {previewItems.length > 0 && (
+              <div className="flex items-center gap-2 mb-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs h-6 px-2"
+                  onClick={() => setExcludedIds(new Set())}
+                  disabled={excludedIds.size === 0}
+                >
+                  Alle auswählen
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs h-6 px-2"
+                  onClick={() => setExcludedIds(new Set(previewItems.map((it) => it.id)))}
+                  disabled={excludedIds.size === previewItems.length}
+                >
+                  Keine auswählen
+                </Button>
+              </div>
+            )}
+            <ScrollArea className="h-52">
               {previewItems.length === 0 ? (
                 <div className="text-sm text-muted-foreground">Keine Kandidaten gefunden.</div>
               ) : (
-                <ul className="text-sm space-y-2">
-                  {previewItems.map((it) => (
-                    <li key={it.id} className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="text-muted-foreground truncate">{it.relPath}</div>
-                        <div className="font-medium break-all">{it.name}</div>
-                      </div>
-                      <div className="shrink-0 text-muted-foreground whitespace-nowrap">Seiten: —</div>
-                    </li>
-                  ))}
+                <ul className="text-sm space-y-1">
+                  {previewItems.map((it) => {
+                    const isSelected = !excludedIds.has(it.id);
+                    return (
+                      <li
+                        key={it.id}
+                        className={`flex items-start gap-2 rounded px-1 py-1 cursor-pointer hover:bg-muted/50 ${!isSelected ? 'opacity-50' : ''}`}
+                        onClick={() => {
+                          setExcludedIds((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(it.id)) next.delete(it.id);
+                            else next.add(it.id);
+                            return next;
+                          });
+                        }}
+                      >
+                        <Checkbox
+                          checked={isSelected}
+                          className="mt-1 shrink-0"
+                          onCheckedChange={(checked) => {
+                            setExcludedIds((prev) => {
+                              const next = new Set(prev);
+                              if (checked) next.delete(it.id);
+                              else next.add(it.id);
+                              return next;
+                            });
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-muted-foreground text-xs truncate">{it.relPath}</div>
+                          <div className="font-medium break-all">{it.name}</div>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </ScrollArea>
@@ -410,8 +472,8 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isEnqueuing || isScanning}>Abbrechen</Button>
-          <Button onClick={handleEnqueue} disabled={isEnqueuing || isScanning || candidates.length === 0}>
-            {isEnqueuing ? 'Wird gestartet…' : `Jobs starten (${candidates.length})`}
+          <Button onClick={handleEnqueue} disabled={isEnqueuing || isScanning || selectedCandidates.length === 0}>
+            {isEnqueuing ? 'Wird gestartet…' : `Jobs starten (${selectedCandidates.length})`}
           </Button>
         </DialogFooter>
         <PdfPhaseSettings open={settingsOpen} onOpenChange={setSettingsOpen} />

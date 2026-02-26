@@ -9,6 +9,7 @@
 
 import type { StorageItem, StorageProvider } from '@/lib/storage/types'
 import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
+import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import { upsertShadowTwinArtifact } from '@/lib/repositories/shadow-twin-repo'
 import { AzureStorageService, calculateImageHash } from '@/lib/services/azure-storage-service'
 import { getAzureStorageConfig } from '@/lib/config/azure-storage'
@@ -354,12 +355,16 @@ export async function persistShadowTwinFilesToMongo(args: {
     }
   }
 
-  // Lade Markdown-Inhalt (nur die erste/primäre Markdown-Datei, falls vorhanden)
-  const primaryMarkdownFile = markdownFiles.find((f) => {
-    const name = f.metadata.name.toLowerCase()
-    const lang = artifactKey.targetLanguage.toLowerCase()
-    return name.includes(`.${lang}.md`) || name.endsWith(`.${lang}.md`)
-  }) || markdownFiles[0]
+  // Lade Markdown-Inhalt: exakten Dateinamen ueber buildArtifactName konstruieren,
+  // um Verwechslungen zwischen Transcript und Transformation zu vermeiden.
+  // Beispiel: Transcript "...Peter Aichner.de.md" vs. Transformation "...Peter Aichner.cast-event-creation-de.de.md"
+  const expectedFileName = buildArtifactName(artifactKey, sourceItem.metadata.name)
+  const primaryMarkdownFile = markdownFiles.find(
+    (f) => f.metadata.name === expectedFileName
+  ) || markdownFiles.find(
+    // Case-insensitiver Fallback (OneDrive kann Gross-/Kleinschreibung normalisieren)
+    (f) => f.metadata.name.toLowerCase() === expectedFileName.toLowerCase()
+  ) || null
 
   if (primaryMarkdownFile) {
     try {

@@ -9,11 +9,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import path from 'path'
-import type { StorageItem } from '@/lib/storage/types'
+import type { StorageItem, StorageProvider } from '@/lib/storage/types'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { LibraryService } from '@/lib/services/library-service'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
-import { findShadowTwinFolder } from '@/lib/storage/shadow-twin'
+import { generateShadowTwinFolderNameVariants } from '@/lib/storage/shadow-twin'
 import { parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import { persistShadowTwinFilesToMongo } from '@/lib/shadow-twin/shadow-twin-migration-writer'
 import { FileLogger } from '@/lib/debug/logger'
@@ -38,6 +38,7 @@ interface MigrationReport {
   upsertedArtifacts?: Array<{
     sourceId: string
     sourceName: string
+    parentName?: string
     artifactFileName: string
     kind: 'transcript' | 'transformation'
     targetLanguage: string
@@ -50,13 +51,36 @@ interface MigrationReport {
   upsertedArtifactsTruncated?: boolean
 }
 
-async function listFilesRecursively(provider: Awaited<ReturnType<typeof getServerProvider>>, folderId: string, recursive: boolean, limit?: number): Promise<StorageItem[]> {
+/**
+ * In-Memory-Cache fuer listItemsById-Ergebnisse.
+ * Vermeidet redundante OneDrive/Storage-API-Aufrufe fuer denselben Ordner.
+ */
+class FolderCache {
+  private cache = new Map<string, StorageItem[]>()
+
+  constructor(private provider: StorageProvider) {}
+
+  async list(folderId: string): Promise<StorageItem[]> {
+    const cached = this.cache.get(folderId)
+    if (cached) return cached
+    const items = await this.provider.listItemsById(folderId)
+    this.cache.set(folderId, items)
+    return items
+  }
+
+  /** Cache fuer einen Ordner invalidieren (nach Schreib-/Loeschvorgang) */
+  invalidate(folderId: string): void {
+    this.cache.delete(folderId)
+  }
+}
+
+async function listFilesRecursively(cache: FolderCache, folderId: string, recursive: boolean, limit?: number): Promise<StorageItem[]> {
   const files: StorageItem[] = []
   const queue: string[] = [folderId]
 
   while (queue.length > 0) {
     const current = queue.shift() as string
-    const items = await provider.listItemsById(current)
+    const items = await cache.list(current)
 
     for (const item of items) {
       if (item.type === 'folder') {
@@ -71,10 +95,11 @@ async function listFilesRecursively(provider: Awaited<ReturnType<typeof getServe
 }
 
 /**
- * Sammelt alle Dateien in einem Ordner rekursiv (für Cleanup)
+ * Sammelt alle Dateien in einem Ordner rekursiv (fuer Cleanup).
+ * Nutzt den FolderCache fuer konsistente Ergebnisse.
  */
 async function collectAllFilesInFolder(
-  provider: Awaited<ReturnType<typeof getServerProvider>>,
+  cache: FolderCache,
   folderId: string
 ): Promise<StorageItem[]> {
   const files: StorageItem[] = []
@@ -82,7 +107,7 @@ async function collectAllFilesInFolder(
 
   while (queue.length > 0) {
     const current = queue.shift() as string
-    const items = await provider.listItemsById(current)
+    const items = await cache.list(current)
 
     for (const item of items) {
       if (item.type === 'folder') {
@@ -203,7 +228,8 @@ export async function POST(
     })
 
     const provider = await getServerProvider(userEmail, libraryId)
-    const files = await listFilesRecursively(provider, body.folderId, !!body.recursive, body.limit)
+    const cache = new FolderCache(provider)
+    const files = await listFilesRecursively(cache, body.folderId, !!body.recursive, body.limit)
     await appendMigrationStep(runId, {
       name: 'scan_done',
       at: new Date().toISOString(),
@@ -212,12 +238,36 @@ export async function POST(
 
     const MAX_UPSERT_DETAILS = 500
 
+    // Cache fuer Ordnernamen (parentId -> name), um redundante API-Aufrufe zu vermeiden
+    const parentNameCache = new Map<string, string>()
+    async function resolveParentName(parentId: string): Promise<string> {
+      if (!parentId) return ''
+      const cached = parentNameCache.get(parentId)
+      if (cached !== undefined) return cached
+      try {
+        const parentItem = await provider.getItemById(parentId)
+        const name = parentItem?.metadata?.name || ''
+        parentNameCache.set(parentId, name)
+        return name
+      } catch {
+        parentNameCache.set(parentId, '')
+        return ''
+      }
+    }
+
     for (const source of files) {
       report.sourcesScanned += 1
       try {
-        const parentItems = await provider.listItemsById(source.parentId)
-        const shadowTwinFolder = await findShadowTwinFolder(source.parentId, source.metadata.name, provider)
-        const shadowTwinFolderItems = shadowTwinFolder ? await provider.listItemsById(shadowTwinFolder.id) : []
+        // parentItems ueber Cache laden (vermeidet redundante API-Aufrufe bei Dateien im selben Ordner)
+        const parentItems = await cache.list(source.parentId)
+
+        // Shadow-Twin-Ordner direkt aus den gecachten parentItems finden (vermeidet redundanten listItemsById)
+        const variants = generateShadowTwinFolderNameVariants(source.metadata.name)
+        const shadowTwinFolder = parentItems.find(
+          (item) => item.type === 'folder' && variants.includes(item.metadata.name)
+        ) ?? null
+
+        const shadowTwinFolderItems = shadowTwinFolder ? await cache.list(shadowTwinFolder.id) : []
 
         const artifacts = collectArtifactsForSource({
           source,
@@ -240,17 +290,18 @@ export async function POST(
             })
             report.artifactsUpserted += 1
             if (report.upsertedArtifacts && report.upsertedArtifacts.length < MAX_UPSERT_DETAILS) {
+              const parentName = await resolveParentName(source.parentId)
               report.upsertedArtifacts.push({
                 sourceId: source.id,
                 sourceName: source.metadata.name,
+                parentName: parentName || undefined,
                 artifactFileName: artifact.item.metadata.name,
                 kind: artifact.key.kind,
                 targetLanguage: artifact.key.targetLanguage,
                 templateName: artifact.key.templateName,
                 mongoUpserted: true,
-                // Konvertiere detaillierte Statistiken zu vereinfachtem Format
                 blobImages: mongoResult.imageFiles,
-                blobErrors: 0, // Keine Fehler während der Migration
+                blobErrors: 0,
                 filesystemDeleted: !!body.cleanupFilesystem,
               })
             } else if (report.upsertedArtifacts && report.upsertedArtifacts.length >= MAX_UPSERT_DETAILS) {
@@ -263,10 +314,9 @@ export async function POST(
           }
         }
 
-        // Cleanup: Lösche alle Dateien im Shadow-Twin-Ordner (nicht nur Markdown)
+        // Cleanup: Loesche alle Dateien im Shadow-Twin-Ordner (nicht nur Markdown)
         if (body.cleanupFilesystem && shadowTwinFolder && !body.dryRun) {
-          // Lösche alle Dateien im Shadow-Twin-Ordner rekursiv
-          const allFilesInFolder = await collectAllFilesInFolder(provider, shadowTwinFolder.id)
+          const allFilesInFolder = await collectAllFilesInFolder(cache, shadowTwinFolder.id)
           for (const file of allFilesInFolder) {
             try {
               await provider.deleteItem(file.id)
@@ -279,10 +329,12 @@ export async function POST(
               })
             }
           }
-          // Lösche den Ordner selbst, wenn er leer ist
-          const remaining = await provider.listItemsById(shadowTwinFolder.id)
+          // Cache invalidieren nach Loeschungen
+          cache.invalidate(shadowTwinFolder.id)
+          const remaining = await cache.list(shadowTwinFolder.id)
           if (remaining.length === 0) {
             await provider.deleteItem(shadowTwinFolder.id)
+            cache.invalidate(source.parentId)
             report.foldersDeleted += 1
           }
         }

@@ -1319,27 +1319,29 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                         <DialogContent className="max-w-7xl w-[95vw] max-h-[90vh] overflow-auto !grid-cols-1">
                           <DialogHeader>
                             <DialogTitle>Aus Dateisystem laden</DialogTitle>
-                            <DialogDescription className="space-y-2">
-                              <div>
-                                <strong>Absicht:</strong> Liest alle Artefakte (Markdown, Bilder, Medien) aus dem Dateisystem und erstellt die zugehörigen Cache-Einträge. 
-                                Bestehende Einträge werden aktualisiert, fehlende werden neu erstellt.
-                              </div>
-                              <div className="text-xs text-muted-foreground mt-1 space-y-1">
-                                <div>
-                                  <strong>Aktuelles Ziel:</strong> Artefakte werden primär im <span className="font-mono">{shadowTwinPrimaryStore === 'mongo' ? 'Cache' : 'Dateisystem'}</span> gespeichert.
-                                </div>
-                                {shadowTwinPrimaryStore === 'mongo' ? (
-                                  <div className="text-green-600 dark:text-green-400">
-                                    ✓ Cache ist als primärer Speicher aktiviert.
-                                  </div>
-                                ) : (
-                                  <div className="text-amber-600 dark:text-amber-400">
-                                    ⚠ Bitte setze den primären Speicher auf &quot;Cache&quot; in den Einstellungen, bevor du die Migration startest.
-                                  </div>
-                                )}
-                                <div>
-                                  Dieser Lauf verwendet die Library‑Root.
-                                </div>
+                            <DialogDescription asChild>
+                              <div className="text-sm text-muted-foreground space-y-2">
+                                <span className="block">
+                                  <strong>Absicht:</strong> Liest alle Artefakte (Markdown, Bilder, Medien) aus dem Dateisystem und erstellt die zugehörigen Cache-Einträge. 
+                                  Bestehende Einträge werden aktualisiert, fehlende werden neu erstellt.
+                                </span>
+                                <span className="block text-xs text-muted-foreground mt-1 space-y-1">
+                                  <span className="block">
+                                    <strong>Aktuelles Ziel:</strong> Artefakte werden primär im <span className="font-mono">{shadowTwinPrimaryStore === 'mongo' ? 'Cache' : 'Dateisystem'}</span> gespeichert.
+                                  </span>
+                                  {shadowTwinPrimaryStore === 'mongo' ? (
+                                    <span className="block text-green-600 dark:text-green-400">
+                                      ✓ Cache ist als primärer Speicher aktiviert.
+                                    </span>
+                                  ) : (
+                                    <span className="block text-amber-600 dark:text-amber-400">
+                                      ⚠ Bitte setze den primären Speicher auf &quot;Cache&quot; in den Einstellungen, bevor du die Migration startest.
+                                    </span>
+                                  )}
+                                  <span className="block">
+                                    Dieser Lauf verwendet die Library‑Root.
+                                  </span>
+                                </span>
                               </div>
                             </DialogDescription>
                           </DialogHeader>
@@ -1449,6 +1451,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                                     type FileEntry = {
                                       sourceId: string
                                       sourceName: string
+                                      parentName?: string
                                       fileName: string
                                       kind: string
                                       mimeType?: string
@@ -1457,7 +1460,6 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                                       hash?: string
                                       mongoUpserted: boolean
                                       filesystemDeleted: boolean
-                                      // Artefakt-spezifische Felder (nur für Markdown-Artefakte)
                                       artifactKind?: 'transcript' | 'transformation'
                                       targetLanguage?: string
                                       templateName?: string
@@ -1505,7 +1507,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                                         size: fragment.size,
                                         url: fragment.url,
                                         hash: fragment.hash,
-                                        mongoUpserted: !!fragment.url, // Wenn URL vorhanden, wurde es erfolgreich hochgeladen
+                                        mongoUpserted: !!fragment.url,
                                         filesystemDeleted: selectedRun.params?.cleanupFilesystem || false,
                                       })
                                     }
@@ -1514,11 +1516,12 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                                     const grouped = allFiles.reduce((acc, file) => {
                                       const sourceId = file.sourceId || 'unknown'
                                       if (!acc[sourceId]) {
-                                        const decodedPath = tryDecodePath(sourceId)
+                                        // parentName aus API bevorzugen, dann base64-Dekodierung als Fallback
+                                        const path = file.parentName || tryDecodePath(sourceId)
                                         acc[sourceId] = {
                                           sourceId,
                                           sourceName: file.sourceName || 'Unbekannt',
-                                          path: decodedPath,
+                                          path,
                                           files: []
                                         }
                                       }

@@ -60,6 +60,7 @@ export async function POST(
     const fragments: Array<{
       sourceId: string
       sourceName: string
+      parentName?: string
       name: string
       kind: string
       url?: string
@@ -80,6 +81,7 @@ export async function POST(
     const artifacts: Array<{
       sourceId: string
       sourceName: string
+      parentName?: string
       artifactFileName: string
       kind: 'transcript' | 'transformation'
       targetLanguage: string
@@ -87,10 +89,30 @@ export async function POST(
       mongoUpserted: boolean
     }> = []
 
+    // Cache fuer Ordnernamen (parentId -> name)
+    const parentNameCache = new Map<string, string>()
+    async function resolveParentName(parentId: string | undefined): Promise<string> {
+      if (!parentId || !storageProvider) return ''
+      const cached = parentNameCache.get(parentId)
+      if (cached !== undefined) return cached
+      try {
+        const parentItem = await storageProvider.getItemById(parentId)
+        const name = parentItem?.metadata?.name || ''
+        parentNameCache.set(parentId, name)
+        return name
+      } catch {
+        parentNameCache.set(parentId, '')
+        return ''
+      }
+    }
+
     // Typ für Bild-Varianten
     type ImageVariant = 'original' | 'thumbnail' | 'preview'
 
     for (const [sourceId, doc] of docs.entries()) {
+      // Ordnernamen einmalig pro parentId aufloesen
+      const parentName = await resolveParentName(doc.parentId)
+
       // Extrahiere Transcript-Artefakte
       if (doc.artifacts?.transcript) {
         for (const [targetLanguage] of Object.entries(doc.artifacts.transcript)) {
@@ -106,6 +128,7 @@ export async function POST(
           artifacts.push({
             sourceId,
             sourceName: doc.sourceName,
+            parentName: parentName || undefined,
             artifactFileName,
             kind: 'transcript',
             targetLanguage,
@@ -131,6 +154,7 @@ export async function POST(
             artifacts.push({
               sourceId,
               sourceName: doc.sourceName,
+              parentName: parentName || undefined,
               artifactFileName,
               kind: 'transformation',
               targetLanguage,
@@ -168,6 +192,7 @@ export async function POST(
           fragments.push({
             sourceId,
             sourceName: doc.sourceName,
+            parentName: parentName || undefined,
             name: (fragment.name as string) || 'Unbekannt',
             kind: (fragment.kind as string) || 'binary',
             url,
