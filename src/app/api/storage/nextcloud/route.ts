@@ -123,7 +123,8 @@ function tryCreateProvider(library: LibraryType): NextcloudProvider | NextRespon
     )
   }
 
-  return new NextcloudProvider(nc!.webdavUrl!, nc!.username!, nc!.appPassword!, library.id)
+  // library.path als Basispfad uebergeben, damit nur der konfigurierte Unterpfad sichtbar ist
+  return new NextcloudProvider(nc!.webdavUrl!, nc!.username!, nc!.appPassword!, library.id, library.path)
 }
 
 /** Typ-Guard: prueft ob das Ergebnis ein Fehler-Response ist */

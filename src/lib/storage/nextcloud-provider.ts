@@ -142,24 +142,51 @@ export class NextcloudProvider implements StorageProvider {
   name = 'Nextcloud (WebDAV)'
   id: string
   private client: WebDAVClient
+  /** Optionaler Basispfad innerhalb des WebDAV-Root (z.B. "/Documents/MyLib"). */
+  private basePath: string
 
   /**
    * @param webdavUrl  Vollstaendige WebDAV-URL (z.B. https://cloud.example.com/remote.php/dav/files/user)
    * @param username   Nextcloud-Benutzername
    * @param password   App-Passwort
    * @param libraryId  ID der Library (wird als Provider-ID verwendet)
+   * @param basePath   Optionaler Unterpfad innerhalb des WebDAV-Root (library.path)
    */
   constructor(
     webdavUrl: string,
     username: string,
     password: string,
     libraryId: string,
+    basePath?: string,
   ) {
     this.id = libraryId
+    this.basePath = this.normalizeBasePath(basePath)
     this.client = createClient(webdavUrl, {
       username,
       password,
     })
+  }
+
+  /**
+   * Normalisiert den Basispfad: fuehrender Slash, keine trailing Slashes.
+   * Leerer/undefinierter Wert → '' (= WebDAV-Root).
+   */
+  private normalizeBasePath(path?: string): string {
+    if (!path || path === '/' || path === '.') return ''
+    let normalized = path.replace(/\/+/g, '/').replace(/\/+$/, '')
+    if (!normalized.startsWith('/')) normalized = '/' + normalized
+    return normalized
+  }
+
+  /**
+   * Konvertiert einen library-relativen Pfad in einen vollstaendigen WebDAV-Pfad.
+   * Beispiel: basePath="/Docs/Lib", libraryRelPath="/sub" → "/Docs/Lib/sub"
+   */
+  private toWebDavPath(libraryRelativePath: string): string {
+    if (!this.basePath) return libraryRelativePath
+    const rel = libraryRelativePath.replace(/^\/+/, '')
+    if (!rel) return this.basePath
+    return `${this.basePath}/${rel}`
   }
 
   isAuthenticated(): boolean {
@@ -169,8 +196,9 @@ export class NextcloudProvider implements StorageProvider {
 
   async validateConfiguration(): Promise<StorageValidationResult> {
     try {
-      // PROPFIND auf Root-Verzeichnis als Verbindungstest (mit Retry bei Rate-Limiting)
-      await withRetry(() => this.client.getDirectoryContents('/'), 'validateConfiguration')
+      // PROPFIND auf den Basispfad als Verbindungstest (mit Retry bei Rate-Limiting)
+      const rootPath = this.toWebDavPath('/')
+      await withRetry(() => this.client.getDirectoryContents(rootPath), 'validateConfiguration')
       return { isValid: true }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
@@ -179,30 +207,35 @@ export class NextcloudProvider implements StorageProvider {
   }
 
   async listItemsById(folderId: string): Promise<StorageItem[]> {
-    const folderPath = idToPath(folderId)
+    // Library-relativer Pfad (fuer IDs) und vollstaendiger WebDAV-Pfad (fuer Client-Aufrufe)
+    const libraryRelPath = idToPath(folderId)
+    const webdavPath = this.toWebDavPath(libraryRelPath)
     const contents = await withRetry(
-      () => this.client.getDirectoryContents(folderPath, { deep: false }),
+      () => this.client.getDirectoryContents(webdavPath, { deep: false }),
       `listItemsById(${folderId})`
     ) as FileStat[] | ResponseDataDetailed<FileStat[]>
     const stats = Array.isArray(contents) ? contents : contents.data
 
-    // Erstes Element ist der Ordner selbst (bei manchen WebDAV-Servern) – herausfiltern
+    // Erstes Element ist der Ordner selbst (bei manchen WebDAV-Servern) – herausfiltern.
+    // s.filename ist der volle WebDAV-Pfad, daher mit webdavPath vergleichen.
     return stats
       .filter(s => {
         const itemPath = s.filename.replace(/\/+$/, '')
-        const parentPathNorm = folderPath.replace(/\/+$/, '') || ''
+        const parentPathNorm = webdavPath.replace(/\/+$/, '') || ''
         return itemPath !== parentPathNorm
       })
-      .map(s => fileStatToStorageItem(s, folderPath))
+      .map(s => fileStatToStorageItem(s, libraryRelPath))
   }
 
   async getItemById(itemId: string): Promise<StorageItem> {
-    const itemPath = idToPath(itemId)
+    const libraryRelPath = idToPath(itemId)
+    const webdavPath = this.toWebDavPath(libraryRelPath)
     const stat = await withRetry(
-      () => this.client.stat(itemPath),
+      () => this.client.stat(webdavPath),
       `getItemById(${itemId})`
     ) as FileStat
-    const parts = itemPath.split('/').filter(Boolean)
+    // Parent-Pfad library-relativ berechnen (fuer korrekte ID-Generierung)
+    const parts = libraryRelPath.split('/').filter(Boolean)
     parts.pop()
     const parentPath = parts.length > 0 ? '/' + parts.join('/') : '/'
 
@@ -210,56 +243,70 @@ export class NextcloudProvider implements StorageProvider {
   }
 
   async createFolder(parentId: string, name: string): Promise<StorageItem> {
-    const parentPath = idToPath(parentId)
-    const newPath = parentPath === '/' ? `/${name}` : `${parentPath}/${name}`
-    await withRetry(() => this.client.createDirectory(newPath), `createFolder(${name})`)
-    const stat = await withRetry(() => this.client.stat(newPath), `createFolder.stat(${name})`) as FileStat
-    return fileStatToStorageItem(stat, parentPath)
+    const parentRelPath = idToPath(parentId)
+    const newRelPath = parentRelPath === '/' ? `/${name}` : `${parentRelPath}/${name}`
+    const webdavNewPath = this.toWebDavPath(newRelPath)
+    try {
+      await withRetry(() => this.client.createDirectory(webdavNewPath), `createFolder(${name})`)
+    } catch (error) {
+      // 405 = Ordner existiert bereits (WebDAV MKCOL auf existierendes Verzeichnis).
+      // In diesem Fall einfach den bestehenden Ordner zurueckgeben statt zu werfen.
+      const status = (error as { status?: number }).status
+      if (status !== 405) throw error
+    }
+    const stat = await withRetry(() => this.client.stat(webdavNewPath), `createFolder.stat(${name})`) as FileStat
+    return fileStatToStorageItem(stat, parentRelPath)
   }
 
   async deleteItem(itemId: string): Promise<void> {
-    const itemPath = idToPath(itemId)
-    await withRetry(() => this.client.deleteFile(itemPath), `deleteItem(${itemId})`)
+    const webdavPath = this.toWebDavPath(idToPath(itemId))
+    await withRetry(() => this.client.deleteFile(webdavPath), `deleteItem(${itemId})`)
   }
 
   async moveItem(itemId: string, newParentId: string): Promise<void> {
-    const sourcePath = idToPath(itemId)
-    const fileName = sourcePath.split('/').pop() || ''
-    const targetParent = idToPath(newParentId)
-    const targetPath = targetParent === '/' ? `/${fileName}` : `${targetParent}/${fileName}`
-    await withRetry(() => this.client.moveFile(sourcePath, targetPath), `moveItem(${itemId})`)
+    const sourceRelPath = idToPath(itemId)
+    const fileName = sourceRelPath.split('/').pop() || ''
+    const targetParentRel = idToPath(newParentId)
+    const targetRelPath = targetParentRel === '/' ? `/${fileName}` : `${targetParentRel}/${fileName}`
+    const webdavSource = this.toWebDavPath(sourceRelPath)
+    const webdavTarget = this.toWebDavPath(targetRelPath)
+    await withRetry(() => this.client.moveFile(webdavSource, webdavTarget), `moveItem(${itemId})`)
   }
 
   async renameItem(itemId: string, newName: string): Promise<StorageItem> {
-    const sourcePath = idToPath(itemId)
-    const parts = sourcePath.split('/')
+    const sourceRelPath = idToPath(itemId)
+    const parts = sourceRelPath.split('/')
     parts.pop()
-    const parentPath = parts.join('/') || '/'
-    const targetPath = parentPath === '/' ? `/${newName}` : `${parentPath}/${newName}`
-    await withRetry(() => this.client.moveFile(sourcePath, targetPath), `renameItem(${newName})`)
-    const stat = await withRetry(() => this.client.stat(targetPath), `renameItem.stat(${newName})`) as FileStat
-    return fileStatToStorageItem(stat, parentPath)
+    const parentRelPath = parts.join('/') || '/'
+    const targetRelPath = parentRelPath === '/' ? `/${newName}` : `${parentRelPath}/${newName}`
+    const webdavSource = this.toWebDavPath(sourceRelPath)
+    const webdavTarget = this.toWebDavPath(targetRelPath)
+    await withRetry(() => this.client.moveFile(webdavSource, webdavTarget), `renameItem(${newName})`)
+    const stat = await withRetry(() => this.client.stat(webdavTarget), `renameItem.stat(${newName})`) as FileStat
+    return fileStatToStorageItem(stat, parentRelPath)
   }
 
   async uploadFile(parentId: string, file: File): Promise<StorageItem> {
-    const parentPath = idToPath(parentId)
-    const targetPath = parentPath === '/' ? `/${file.name}` : `${parentPath}/${file.name}`
+    const parentRelPath = idToPath(parentId)
+    const targetRelPath = parentRelPath === '/' ? `/${file.name}` : `${parentRelPath}/${file.name}`
+    const webdavTarget = this.toWebDavPath(targetRelPath)
     const buffer = Buffer.from(await file.arrayBuffer())
     await withRetry(
-      () => this.client.putFileContents(targetPath, buffer, { overwrite: true, contentLength: buffer.length }),
+      () => this.client.putFileContents(webdavTarget, buffer, { overwrite: true, contentLength: buffer.length }),
       `uploadFile(${file.name})`
     )
-    const stat = await withRetry(() => this.client.stat(targetPath), `uploadFile.stat(${file.name})`) as FileStat
-    return fileStatToStorageItem(stat, parentPath)
+    const stat = await withRetry(() => this.client.stat(webdavTarget), `uploadFile.stat(${file.name})`) as FileStat
+    return fileStatToStorageItem(stat, parentRelPath)
   }
 
   async getBinary(fileId: string): Promise<{ blob: Blob; mimeType: string }> {
-    const filePath = idToPath(fileId)
+    const libraryRelPath = idToPath(fileId)
+    const webdavPath = this.toWebDavPath(libraryRelPath)
     const buffer = await withRetry(
-      () => this.client.getFileContents(filePath),
+      () => this.client.getFileContents(webdavPath),
       `getBinary(${fileId})`
     ) as Buffer
-    const fileName = filePath.split('/').pop() || ''
+    const fileName = libraryRelPath.split('/').pop() || ''
     const mimeType = guessMimeType(fileName)
     return {
       blob: new Blob([buffer], { type: mimeType }),
@@ -291,19 +338,22 @@ export class NextcloudProvider implements StorageProvider {
 
     if (itemId === 'root') return [rootItem]
 
-    const fullPath = idToPath(itemId)
-    const segments = fullPath.split('/').filter(Boolean)
+    // Library-relativer Pfad → Segmente durchlaufen und jeweils per WebDAV-Pfad abfragen
+    const libraryRelPath = idToPath(itemId)
+    const segments = libraryRelPath.split('/').filter(Boolean)
     const pathItems: StorageItem[] = [rootItem]
-    let currentPath = ''
+    let currentRelPath = ''
 
     for (const segment of segments) {
-      currentPath += '/' + segment
+      currentRelPath += '/' + segment
       try {
+        const webdavPath = this.toWebDavPath(currentRelPath)
         const stat = await withRetry(
-          () => this.client.stat(currentPath),
-          `getPathItemsById.stat(${currentPath})`
+          () => this.client.stat(webdavPath),
+          `getPathItemsById.stat(${currentRelPath})`
         ) as FileStat
-        const parentOfCurrent = currentPath.split('/').slice(0, -1).join('/') || '/'
+        // Parent library-relativ berechnen
+        const parentOfCurrent = currentRelPath.split('/').slice(0, -1).join('/') || '/'
         const item = fileStatToStorageItem(stat, parentOfCurrent)
         if (item.type === 'folder') {
           pathItems.push(item)

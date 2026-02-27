@@ -32,6 +32,21 @@ import type { Character, AccessPerspective, TargetLanguage } from '@/lib/chat/co
 import type { SocialContext } from '@/lib/chat/constants';
 
 /**
+ * Ein einzelner Favoriten-Eintrag (Ordner-Lesezeichen innerhalb einer Library).
+ * Wird direkt im Library-Dokument in MongoDB gespeichert.
+ */
+export interface FavoriteEntry {
+  /** Storage-ID des favorisierten Ordners */
+  id: string;
+  /** Anzeigename des Ordners */
+  name: string;
+  /** Pfad-Labels fuer die Breadcrumb-Anzeige (z.B. ["root", "Projekte", "2026"]) */
+  path?: string[];
+  /** ISO-Zeitstempel des Hinzufuegens */
+  addedAt: string;
+}
+
+/**
  * Supported storage provider types.
  * Each type represents a different storage backend implementation.
  */
@@ -302,6 +317,9 @@ export interface Library {
    * - 'db': stored in database
    */
   transcription: 'shadowTwin' | 'db';
+
+  /** Favorisierte Ordner (Lesezeichen) – in MongoDB persistiert */
+  favorites?: FavoriteEntry[];
 }
 
 /**

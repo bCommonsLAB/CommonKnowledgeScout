@@ -7,7 +7,6 @@ import { NavigationLogger, UILogger } from "@/lib/debug/logger";
 import { currentPathAtom, currentFolderIdAtom, activeLibraryAtom } from "@/atoms/library-atom";
 import { useCallback } from "react";
 import { useFolderNavigation } from '@/hooks/use-folder-navigation';
-import { useStorage } from "@/contexts/storage-context";
 import { loadFavorites, toggleFavorite } from "@/lib/library/favorites";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ChevronDown, ChevronUp, Star, StarOff } from "lucide-react";
@@ -27,18 +26,17 @@ export function Breadcrumb({ className }: BreadcrumbProps) {
   const scrollStartTime = React.useRef<number | null>(null);
 
   const navigateToFolder = useFolderNavigation();
-  const { provider } = useStorage();
 
   const [favoritesOpen, setFavoritesOpen] = React.useState(false);
   const [favorites, setFavorites] = React.useState<Array<{ id: string; name: string; label: string }>>([]);
 
-  // Favoriten laden bei Wechsel der aktiven Library oder Provider-Verfügbarkeit
+  // Favoriten aus MongoDB laden bei Wechsel der aktiven Library
   React.useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
-        if (!provider || !activeLibrary?.id) return;
-        const data = await loadFavorites(provider, activeLibrary.id);
+        if (!activeLibrary?.id) return;
+        const data = await loadFavorites(activeLibrary.id);
         if (cancelled) return;
         const list = (data.favorites || []).map(f => ({
           id: f.id,
@@ -52,7 +50,7 @@ export function Breadcrumb({ className }: BreadcrumbProps) {
     }
     void load();
     return () => { cancelled = true; };
-  }, [provider, activeLibrary?.id]);
+  }, [activeLibrary?.id]);
 
   // Handler für Root-Klick
   const handleRootClick = useCallback(() => {
@@ -124,8 +122,15 @@ export function Breadcrumb({ className }: BreadcrumbProps) {
   ), [currentFolder, favorites]);
 
   async function handleToggleFavorite() {
-    if (!provider || !activeLibrary?.id || !currentFolder) return;
-    const updated = await toggleFavorite(provider, activeLibrary.id, currentFolder);
+    if (!activeLibrary?.id || !currentFolder) return;
+    // Pfad-Labels aus dem aktuellen Breadcrumb-Pfad extrahieren
+    const pathLabels = currentPath.map(p => p.metadata.name);
+    const updated = await toggleFavorite(
+      activeLibrary.id,
+      currentFolder.id,
+      currentFolder.metadata.name,
+      pathLabels,
+    );
     const list = (updated.favorites || []).map(f => ({
       id: f.id,
       name: f.name,
@@ -204,7 +209,7 @@ export function Breadcrumb({ className }: BreadcrumbProps) {
           {/* Favoriten-Star am Ende des Breadcrumbs */}
           <span className="text-muted-foreground flex-shrink-0">/</span>
           <button
-            disabled={!currentFolder || !provider || !activeLibrary?.id}
+            disabled={!currentFolder || !activeLibrary?.id}
             onClick={handleToggleFavorite}
             className={cn(
               "inline-flex h-6 w-6 items-center justify-center rounded",

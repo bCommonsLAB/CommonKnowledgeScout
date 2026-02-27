@@ -757,7 +757,8 @@ export class StorageFactory {
             );
           }
 
-          provider = new NextcloudProvider(nc!.webdavUrl!, nc!.username!, nc!.appPassword!, library.id);
+          // library.path als Basispfad uebergeben (analog zum OneDrive-/Filesystem-Provider)
+          provider = new NextcloudProvider(nc!.webdavUrl!, nc!.username!, nc!.appPassword!, library.id, library.path);
         } else {
           // Client-Kontext: HTTP-Proxy verwenden, der /api/storage/nextcloud aufruft
           provider = new NextcloudClientProvider(library, this.apiBaseUrl || undefined);

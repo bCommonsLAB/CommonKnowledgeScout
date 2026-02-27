@@ -24,7 +24,7 @@
  */
 
 import { getCollection } from '@/lib/mongodb-service';
-import { Library, ClientLibrary } from '@/types/library';
+import { Library, ClientLibrary, FavoriteEntry } from '@/types/library';
 import { shouldShowOnHomepage } from '@/lib/public-publishing';
 import { buildCaseInsensitiveEmailRegex, normalizeEmail } from '@/lib/auth/user-email';
 
@@ -249,6 +249,49 @@ export class LibraryService {
       return this.updateUserLibraries(email, filteredLibraries);
     } catch (error) {
       console.error('Fehler beim Löschen der Bibliothek:', error);
+      return false;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Favoriten (Ordner-Lesezeichen pro Library)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Favoriten einer Library laden.
+   * @returns Array von FavoriteEntry (leer, falls keine vorhanden)
+   */
+  async getLibraryFavorites(email: string, libraryId: string): Promise<FavoriteEntry[]> {
+    const libs = await this.getUserLibraries(email);
+    const lib = libs.find(l => l.id === libraryId);
+    return lib?.favorites ?? [];
+  }
+
+  /**
+   * Favoriten einer Library gezielt aktualisieren (atomares MongoDB-Update).
+   * Verwendet den positional Operator, um nur das favorites-Feld der betroffenen
+   * Library zu setzen — ohne das gesamte Dokument neu zu schreiben.
+   */
+  async updateLibraryFavorites(
+    email: string,
+    libraryId: string,
+    favorites: FavoriteEntry[],
+  ): Promise<boolean> {
+    try {
+      const normalizedEmail = normalizeEmail(email);
+      if (!normalizedEmail) return false;
+
+      const collection = await getCollection<UserLibraries>(this.collectionName);
+
+      // Gezieltes Update mit positional Operator ($) auf das passende Array-Element
+      const result = await collection.updateOne(
+        { email: normalizedEmail, 'libraries.id': libraryId },
+        { $set: { 'libraries.$.favorites': favorites, lastUpdated: new Date() } },
+      );
+
+      return result.modifiedCount > 0;
+    } catch (error) {
+      console.error('[LibraryService] Fehler beim Aktualisieren der Favoriten:', error);
       return false;
     }
   }
