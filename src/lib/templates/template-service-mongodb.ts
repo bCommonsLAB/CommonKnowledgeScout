@@ -78,14 +78,36 @@ function generateResponseSchemaFromFields(fields: TemplateMetadataField[]): stri
 }
 
 /**
- * Fügt das automatisch generierte Antwortschema zum Systemprompt hinzu.
+ * Prüft ob der Systemprompt bereits ein handgeschriebenes Response-Schema enthält.
  * 
- * Das generierte Schema wird am Ende des Systemprompts angehängt.
- * Der bestehende Systemprompt bleibt unverändert erhalten.
+ * Erkennt typische Marker wie "Antwortschema", "Response Schema" oder
+ * JSON-Bloecke mit geschweiften Klammern nach Schema-Ueberschriften.
+ * 
+ * @param systemprompt Systemprompt-Text
+ * @returns true wenn ein handgeschriebenes Schema erkannt wurde
+ */
+function hasHandwrittenResponseSchema(systemprompt: string): boolean {
+  if (!systemprompt) return false
+  const lower = systemprompt.toLowerCase()
+  // Typische Schema-Marker in Templates (deutsch und englisch)
+  return (
+    lower.includes('antwortschema') ||
+    lower.includes('response schema') ||
+    lower.includes('response format')
+  )
+}
+
+/**
+ * Fuegt das automatisch generierte Antwortschema zum Systemprompt hinzu,
+ * ABER NUR wenn der Systemprompt kein handgeschriebenes Schema enthaelt.
+ * 
+ * Templates mit praezisem, handgeschriebenem Schema (z.B. verschachtelte
+ * chapters-Struktur, Enum-Typen) behalten ihr Schema unveraendert.
+ * Templates ohne Schema bekommen eines aus den Frontmatter-Feldern generiert.
  * 
  * @param systemprompt Original-Systemprompt (wird nicht verändert)
  * @param fields Template-Metadaten-Felder
- * @returns Systemprompt mit automatisch generiertem Schema am Ende
+ * @returns Systemprompt, ggf. mit generiertem Schema am Ende
  */
 function appendGeneratedResponseSchema(
   systemprompt: string,
@@ -95,17 +117,23 @@ function appendGeneratedResponseSchema(
     return systemprompt
   }
   
-  // Generiere Schema aus Feldern
+  // Wenn der Systemprompt bereits ein handgeschriebenes Schema enthaelt,
+  // dieses respektieren und KEIN auto-generiertes anhaengen.
+  // Grund: Handgeschriebene Schemas koennen verschachtelte Typen (z.B. chapters),
+  // praezise Enums und Union-Types enthalten, die das auto-generierte Schema
+  // nicht abbilden kann und sonst widersprüchlich ueberschreiben wuerde.
+  if (hasHandwrittenResponseSchema(systemprompt)) {
+    return systemprompt
+  }
+  
+  // Kein handgeschriebenes Schema vorhanden: auto-generieren aus Frontmatter-Feldern
   const generatedSchema = generateResponseSchemaFromFields(fields)
   
-  // Hänge am Ende an mit klarer Kennzeichnung
-  // WICHTIG: Diese Anweisung überschreibt ein evtl. manuell geschriebenes Schema,
-  // da das LLM die letzte Anweisung priorisiert.
   const schemaSection = `
 
 ---
-WICHTIG - Verbindliches Antwortschema (automatisch aus Template-Metadaten generiert):
-Verwende EXAKT diese Feldnamen in deiner JSON-Antwort:
+IMPORTANT - Binding response schema (auto-generated from template metadata):
+Use EXACTLY these field names in your JSON response:
 
 ${generatedSchema}`
   

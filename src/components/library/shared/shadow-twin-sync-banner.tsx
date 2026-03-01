@@ -17,7 +17,7 @@
  */
 
 import * as React from "react"
-import { AlertTriangle, Clock, FileQuestion, FolderSearch, RefreshCw } from "lucide-react"
+import { AlertTriangle, FileQuestion, FolderSearch, RefreshCw, Upload } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
@@ -45,6 +45,8 @@ export interface ShadowTwinSyncBannerProps {
   fileId?: string
   parentId?: string
   libraryId?: string
+  /** Shadow-Twin-Ordner-ID: Wenn vorhanden, existiert ein Storage-Ordner mit möglichen Artefakten */
+  shadowTwinFolderId?: string | null
   /** Callback nach erfolgreicher Rekonstruktion (z.B. Atom-Refresh) */
   onReconstructed?: () => void
 }
@@ -80,6 +82,7 @@ export function ShadowTwinSyncBanner({
   fileId,
   parentId,
   libraryId,
+  shadowTwinFolderId,
   onReconstructed,
 }: ShadowTwinSyncBannerProps) {
   const [isReconstructing, setIsReconstructing] = React.useState(false)
@@ -141,77 +144,69 @@ export function ShadowTwinSyncBanner({
   const issueCount = hasApiData ? freshness.apiIssueCount : freshness.staleCount
   const totalCount = hasApiData ? freshness.apiArtifacts.length : freshness.artifacts.length
 
-  // Pruefen ob Rekonstruktion moeglich ist (no-twin + fileId/libraryId/parentId vorhanden)
-  const canReconstruct = freshness.status === 'no-twin' && !!libraryId && !!fileId && !!parentId
+  // Rekonstruktion nur anbieten, wenn ein Shadow-Twin-Ordner im Storage existiert
+  const canReconstruct = freshness.status === 'no-twin' && !!shadowTwinFolderId && !!libraryId && !!fileId && !!parentId
 
   return (
     <Alert className={`mx-3 mt-2 py-2 px-3 ${config.borderClass} ${config.bgClass}`}>
-      <div className="flex items-start gap-2">
-        <Icon className={`h-4 w-4 mt-0.5 shrink-0 ${config.iconClass}`} />
-        <div className="flex-1 min-w-0">
-          <AlertDescription className="text-xs">
-            {freshness.status === "source-newer" && (
-              <>
-                <span className="font-medium">
-                  Quelldatei ist neuer als Shadow-Twin
-                  {totalCount > 1 && <> ({issueCount}/{totalCount} veraltet)</>}
-                </span>
-                {freshness.diffMs !== null && (
-                  <span className="text-muted-foreground"> — Differenz: {formatDiff(freshness.diffMs)}</span>
-                )}
-              </>
-            )}
-            {freshness.status === "no-twin" && (
-              <>
-                <span className="font-medium">Kein Shadow-Twin vorhanden</span>
-                <span className="text-muted-foreground">
-                  {" "}— für diese Datei wurde noch kein Transkript oder Transformation erstellt.
-                </span>
-              </>
-            )}
-          </AlertDescription>
+      <div className="flex items-center gap-2">
+        <Icon className={`h-4 w-4 shrink-0 ${config.iconClass}`} />
+        <AlertDescription className="text-xs flex-1 min-w-0">
+          {freshness.status === "source-newer" && (
+            <>
+              <span className="font-medium">
+                Quelldatei wurde geändert
+                {totalCount > 1 && <> ({issueCount}/{totalCount} veraltet)</>}
+              </span>
+              {freshness.diffMs !== null && (
+                <span className="text-muted-foreground"> — vor {formatDiff(freshness.diffMs)}</span>
+              )}
+            </>
+          )}
+          {freshness.status === "no-twin" && (
+            <span className="font-medium">Keine Story vorhanden</span>
+          )}
+        </AlertDescription>
 
-          <div className="flex items-center gap-2 mt-1.5">
-            {/* Rekonstruktions-Button: Bestehende Dateien aus Storage einlesen */}
-            {canReconstruct && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-6 text-xs px-2"
-                disabled={isReconstructing || isUpdating}
-                onClick={handleReconstruct}
-              >
-                {isReconstructing ? (
-                  <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                ) : (
-                  <FolderSearch className="h-3 w-3 mr-1" />
-                )}
-                Aus Storage wiederherstellen
-              </Button>
-            )}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Rekonstruktion nur wenn Storage-Ordner existiert */}
+          {canReconstruct && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 text-xs px-2"
+              disabled={isReconstructing || isUpdating}
+              onClick={handleReconstruct}
+            >
+              {isReconstructing ? (
+                <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+              ) : (
+                <FolderSearch className="h-3 w-3 mr-1" />
+              )}
+              Wiederherstellen
+            </Button>
+          )}
 
-            {/* Aktions-Button: Pipeline oeffnen (neu generieren) */}
-            {onRequestUpdate && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-6 text-xs px-2"
-                disabled={isUpdating || isReconstructing}
-                onClick={onRequestUpdate}
-              >
-                {isUpdating ? (
-                  <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                ) : freshness.status === "no-twin" ? (
-                  <Clock className="h-3 w-3 mr-1" />
-                ) : (
-                  <RefreshCw className="h-3 w-3 mr-1" />
-                )}
-                {freshness.status === "no-twin"
-                  ? "Jetzt erstellen"
-                  : "Shadow-Twin aktualisieren"}
-              </Button>
-            )}
-          </div>
+          {onRequestUpdate && (
+            <Button
+              size="sm"
+              variant={freshness.status === "no-twin" ? "default" : "outline"}
+              className="h-6 text-xs px-2"
+              disabled={isUpdating || isReconstructing}
+              onClick={onRequestUpdate}
+            >
+              {isUpdating ? (
+                <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+              ) : freshness.status === "no-twin" ? (
+                <Upload className="h-3 w-3 mr-1" />
+              ) : (
+                <RefreshCw className="h-3 w-3 mr-1" />
+              )}
+              {freshness.status === "no-twin"
+                ? "Story erstellen"
+                : "Aktualisieren"}
+            </Button>
+          )}
         </div>
       </div>
     </Alert>

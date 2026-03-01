@@ -159,10 +159,15 @@ export class MongoShadowTwinStore implements ShadowTwinStore {
       markdown,
       binaryFragments: binaryFragments?.map((f) => ({
         name: f.name,
+        originalName: f.originalName,
         url: f.url,
         hash: f.hash,
         mimeType: f.mimeType,
         size: f.size,
+        kind: f.kind,
+        variant: f.variant,
+        sourceHash: f.sourceHash,
+        createdAt: f.createdAt,
       })),
     })
 
@@ -183,15 +188,18 @@ export class MongoShadowTwinStore implements ShadowTwinStore {
     const fragments = await getShadowTwinBinaryFragments(this.libraryId, sourceId)
     if (!fragments) return null
 
-    // Mappe alle Felder, inkl. fileId als Fallback für url
     return fragments.map((f) => ({
       name: f.name,
+      originalName: f.originalName,
       url: f.url,
       fileId: f.fileId,
       hash: f.hash,
       mimeType: f.mimeType,
       size: f.size,
       kind: f.kind,
+      createdAt: f.createdAt,
+      variant: f.variant,
+      sourceHash: f.sourceHash,
     }))
   }
 }

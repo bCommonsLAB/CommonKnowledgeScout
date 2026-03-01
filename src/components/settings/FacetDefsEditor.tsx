@@ -7,9 +7,97 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
-import { Trash2, Upload, Copy, Check, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { Trash2, Upload, Copy, Check, AlertTriangle, CheckCircle2, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { getRequiredFields, getOptionalFields, isValidDetailViewType } from '@/lib/detail-view-types'
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STANDARD-FACETTEN AUS REGISTRY GENERIEREN
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Felder die als Facette keinen Sinn ergeben (URLs, Langtexte, komplexe Objekte) */
+const NON_FACET_FIELDS = new Set([
+  'title', 'shortTitle', 'slug', 'summary', 'teaser',
+  'coverImageUrl', 'video_url', 'url', 'attachments_url', 'attachment_links',
+  'speakers_image_url', 'speakers_url', 'author_image_url',
+  'chapters', 'toc', 'testimonialWriteKey',
+  'ecosocial', 'slides',
+])
+
+/** Bekannte Typ-Zuordnung fuer Felder (Fallback: string) */
+const FIELD_TYPE_MAP: Record<string, FacetDefUi['type']> = {
+  authors: 'string[]',
+  tags: 'string[]',
+  topics: 'string[]',
+  speakers: 'string[]',
+  produktkategorien: 'string[]',
+  materialgruppen: 'string[]',
+  zertifizierungen: 'string[]',
+  year: 'number',
+  pages: 'number',
+  massnahme_nr: 'number',
+  gueltigAb: 'date',
+  istVeraltet: 'boolean',
+  isScan: 'boolean',
+}
+
+/** Label-Vorschlaege fuer bekannte Felder (CamelCase → lesbarer Name) */
+const FIELD_LABEL_MAP: Record<string, string> = {
+  authors: 'Authors',
+  year: 'Year',
+  region: 'Region',
+  docType: 'DocType',
+  source: 'Source',
+  tags: 'Tags',
+  topics: 'Topics',
+  speakers: 'Speakers',
+  organisation: 'Organisation',
+  event: 'Event',
+  track: 'Track',
+  location: 'Location',
+  date: 'Date',
+  category: 'Category',
+  language: 'Language',
+  pages: 'Pages',
+  commercialStatus: 'Status',
+  project: 'Project',
+  dokumentTyp: 'Dokumenttyp',
+  produktname: 'Produkt',
+  lieferant: 'Lieferant',
+  haendler: 'Händler',
+  waehrung: 'Währung',
+  preistyp: 'Preistyp',
+  arbeitsgruppe: 'Arbeitsgruppe',
+  lv_bewertung: 'LV-Bewertung',
+  lv_zustaendigkeit: 'Zuständigkeit',
+  author_name: 'Author',
+  author_role: 'Role',
+}
+
+/**
+ * Generiert Standard-Facetten aus der VIEW_TYPE_REGISTRY.
+ * Filtert Felder die als Facette keinen Sinn ergeben (URLs, Freitexte, Objekte).
+ */
+function generateDefaultFacets(viewType: string): FacetDefUi[] {
+  if (!isValidDetailViewType(viewType)) return []
+  const required = getRequiredFields(viewType)
+  const optional = getOptionalFields(viewType)
+  const allFields = [...required, ...optional]
+
+  return allFields
+    .filter((key) => !NON_FACET_FIELDS.has(key))
+    .map((key) => ({
+      metaKey: key,
+      label: FIELD_LABEL_MAP[key] || key.charAt(0).toUpperCase() + key.slice(1),
+      type: FIELD_TYPE_MAP[key] || 'string' as FacetDefUi['type'],
+      sort: 'alpha' as const,
+      max: undefined,
+      columns: 1,
+      multi: (FIELD_TYPE_MAP[key] === 'string[]'),
+      visible: true,
+      showInTable: false,
+    }))
+}
 
 export interface FacetDefUi {
   metaKey: string
@@ -307,6 +395,25 @@ export function FacetDefsEditor({ value, onChange, detailViewType }: FacetDefsEd
 
       <div className="flex flex-wrap gap-2">
         <Button type="button" variant="secondary" onClick={add}>Facette hinzufügen</Button>
+        {detailViewType && isValidDetailViewType(detailViewType) && (
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={() => {
+              const defaults = generateDefaultFacets(detailViewType)
+              if (defaults.length === 0) {
+                toast.info('Keine Standard-Facetten für diesen Typ definiert')
+                return
+              }
+              onChange(defaults)
+              toast.success(`${defaults.length} Standard-Facetten für "${detailViewType}" gesetzt`)
+            }}
+            className="gap-2"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Standard für {detailViewType}
+          </Button>
+        )}
         <Button type="button" variant="outline" onClick={handleExport} className="gap-2">
           {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
           Facetten exportieren

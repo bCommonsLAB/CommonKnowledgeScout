@@ -24,7 +24,7 @@ import type { StorageItem } from "@/lib/storage/types"
  * - UI-Rendering (wie wird die Datei angezeigt)
  * - Story-Status-Labels
  */
-export type MediaKind = "pdf" | "audio" | "video" | "image" | "markdown" | "docx" | "xlsx" | "pptx" | "unknown"
+export type MediaKind = "pdf" | "audio" | "video" | "image" | "markdown" | "docx" | "xlsx" | "pptx" | "link" | "unknown"
 
 /**
  * Job-Typ für Backend-Verarbeitung
@@ -72,6 +72,9 @@ export function getMediaKind(file: StorageItem): MediaKind {
   // Markdown/Text-Dateien
   if (mime.includes("markdown") || /\.(md|mdx|txt)$/.test(name)) return "markdown"
 
+  // Web-Link-Dateien (.url = Windows, .webloc = macOS)
+  if (/\.(url|webloc)$/.test(name)) return "link"
+
   // Office-Dateien (Secretary unterstützt alle drei über /api/office/process)
   if (/\.(doc|docx|odt)$/.test(name) || mime.includes("wordprocessingml") || mime.includes("msword")) return "docx"
   if (/\.(xls|xlsx|ods)$/.test(name) || mime.includes("spreadsheetml") || mime.includes("ms-excel")) return "xlsx"
@@ -107,6 +110,7 @@ export function mediaKindToJobType(kind: MediaKind): JobType {
       return "office"
     case "markdown":
     case "image":
+    case "link":
     case "unknown":
     default:
       return "text"
@@ -135,6 +139,7 @@ export function mediaKindToFileCategory(kind: MediaKind): FileCategory {
     case "xlsx":
     case "pptx":
       return "documents"
+    case "link":
     case "unknown":
     default:
       return "all"

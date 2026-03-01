@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Calendar, FileText, MapPin, BookOpen, Tag, ExternalLink } from "lucide-react";
+import { ArrowLeft, Calendar, FileText, MapPin, BookOpen, Tag, ExternalLink, Globe, Paperclip } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { ChapterAccordion } from "./chapter-accordion";
@@ -22,6 +22,8 @@ export interface Chapter {
 export interface BookDetailData {
   title: string;
   authors: string[];
+  /** Autoren-Bilder, Index-basiert gemappt auf authors[] */
+  authors_image_url?: string[];
   year: number | string;
   pages?: number;
   region?: string;
@@ -40,7 +42,10 @@ export interface BookDetailData {
   upsertedAt?: string;
   markdown?: string;
   coverImageUrl?: string;
-  url?: string; // PDF-URL aus Azure Storage
+  /** Generische URL: kann PDF-URL oder Web-Link sein */
+  url?: string;
+  /** Anhänge (Dokumente, PDFs, etc.) */
+  attachments_url?: string[];
 }
 
 interface BookDetailProps {
@@ -52,6 +57,11 @@ interface BookDetailProps {
 export function BookDetail({ data, backHref = "/library", showBackLink = false }: BookDetailProps) {
   const title = data.title || "—";
   const authors = Array.isArray(data.authors) ? data.authors : [];
+
+  // URL-Klassifikation: PDF oder Webseite → immer prominent als Button
+  const urlIsPdf = data.url ? isPdfUrl(data.url) : false
+  // Attachments in Dokumente vs. Links aufteilen (url NICHT enthalten, da eigener Button)
+  const attachmentGroups = classifyAttachments(data.attachments_url)
 
   return (
     <div className="container max-w-2xl mx-auto px-4 py-6">
@@ -66,7 +76,6 @@ export function BookDetail({ data, backHref = "/library", showBackLink = false }
       <div className="mb-6">
         {data.coverImageUrl ? (
           <div className="flex gap-4 items-start">
-            {/* Kleines Cover-Bild (Preview) links neben dem Titel */}
             <div className="flex-shrink-0 w-[136px] h-[204px] bg-secondary rounded border border-border overflow-hidden flex items-center justify-center">
               <Image
                 src={data.coverImageUrl}
@@ -83,7 +92,7 @@ export function BookDetail({ data, backHref = "/library", showBackLink = false }
               {authors.length > 0 ? (
                 <p className="text-base text-muted-foreground mb-3">{authors.join(", ")}</p>
               ) : null}
-              {/* PDF-Link prominent anzeigen */}
+              {/* Prominenter Quell-Button: "PDF öffnen" oder "Quelle öffnen" */}
               {data.url && (
                 <div className="mb-3">
                   <a
@@ -92,8 +101,8 @@ export function BookDetail({ data, backHref = "/library", showBackLink = false }
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-medium"
                   >
-                    <FileText className="w-4 h-4" />
-                    PDF öffnen
+                    {urlIsPdf ? <FileText className="w-4 h-4" /> : <Globe className="w-4 h-4" />}
+                    {urlIsPdf ? 'PDF öffnen' : 'Quelle öffnen'}
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 </div>
@@ -117,7 +126,6 @@ export function BookDetail({ data, backHref = "/library", showBackLink = false }
         ) : (
           <div>
             <h1 className="text-2xl font-bold text-foreground mb-2 text-balance">{title}</h1>
-            {/* PDF-Link prominent anzeigen (auch ohne Cover) */}
             {data.url && (
               <div className="mb-3">
                 <a
@@ -126,13 +134,12 @@ export function BookDetail({ data, backHref = "/library", showBackLink = false }
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-medium"
                 >
-                  <FileText className="w-4 h-4" />
-                  PDF öffnen
+                  {urlIsPdf ? <FileText className="w-4 h-4" /> : <Globe className="w-4 h-4" />}
+                  {urlIsPdf ? 'PDF öffnen' : 'Quelle öffnen'}
                   <ExternalLink className="w-3 h-3" />
                 </a>
               </div>
             )}
-            {/* Ohne Cover kein Autoren-Teaser, nur Badges */}
             <div className="flex flex-wrap gap-2">
               {data.year !== undefined && (
                 <Badge variant="outline" className="text-xs"><Calendar className="w-3 h-3 mr-1" />{String(data.year)}</Badge>
@@ -154,9 +161,67 @@ export function BookDetail({ data, backHref = "/library", showBackLink = false }
       {data.summary && (
         <section className="bg-card border border-border rounded-lg p-5 mb-6">
           <h2 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">Zusammenfassung</h2>
-          <p className="text-sm text-muted-foreground leading-relaxed text-pretty">{data.summary}</p>
-          {/* KI-Info-Hinweis für KI-generierte Zusammenfassung */}
+          <div className="prose prose-sm prose-slate dark:prose-invert max-w-none text-muted-foreground">
+            <MarkdownPreview content={normalizeEscapedNewlines(data.summary)} compact className="min-h-0 w-full" />
+          </div>
           <AIGeneratedNotice compact />
+        </section>
+      )}
+
+      {/* Dokumente & Links aus attachments_url – nach Zusammenfassung, vor Metadaten */}
+      {(attachmentGroups.documents.length > 0 || attachmentGroups.links.length > 0) && (
+        <section className="bg-card border border-border rounded-lg p-5 mb-6">
+          {/* Dokumente (PDF-Anhänge) */}
+          {attachmentGroups.documents.length > 0 && (
+            <div className={attachmentGroups.links.length > 0 ? 'mb-4' : ''}>
+              <h2 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide flex items-center gap-2">
+                <Paperclip className="w-4 h-4" />
+                Dokumente
+              </h2>
+              <ul className="space-y-1.5">
+                {attachmentGroups.documents.map((url, idx) => (
+                  <li key={idx}>
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                    >
+                      <FileText className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span className="truncate">{extractDisplayName(url)}</span>
+                      <ExternalLink className="w-3 h-3 flex-shrink-0 text-muted-foreground" />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Web-Links aus Attachments */}
+          {attachmentGroups.links.length > 0 && (
+            <div>
+              <h2 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide flex items-center gap-2">
+                <Globe className="w-4 h-4" />
+                Links
+              </h2>
+              <ul className="space-y-1.5">
+                {attachmentGroups.links.map((url, idx) => (
+                  <li key={idx}>
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                    >
+                      <Globe className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span className="truncate">{extractDisplayName(url)}</span>
+                      <ExternalLink className="w-3 h-3 flex-shrink-0 text-muted-foreground" />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </section>
       )}
 
@@ -232,4 +297,65 @@ export function BookDetail({ data, backHref = "/library", showBackLink = false }
 
 export default BookDetail;
 
+// ── Hilfsfunktionen ──────────────────────────────────────────────────────────
 
+/** Erkennt PDF-URLs anhand Dateiendung oder Azure Blob Storage Muster */
+function isPdfUrl(url: string): boolean {
+  try {
+    const pathname = new URL(url).pathname.toLowerCase()
+    // Explizite .pdf-Endung
+    if (pathname.endsWith('.pdf')) return true
+    // Azure Blob Storage mit PDF-Dateinamen (URL-encoded Leerzeichen möglich)
+    if (pathname.includes('.pdf')) return true
+  } catch {
+    // Relative URL oder ungültig
+    if (url.toLowerCase().endsWith('.pdf')) return true
+  }
+  return false
+}
+
+/**
+ * Klassifiziert attachments_url in Dokumente (PDFs) und Web-Links.
+ * data.url wird hier NICHT berücksichtigt (hat eigenen prominenten Button).
+ */
+function classifyAttachments(
+  attachmentsUrl: string[] | undefined
+): { documents: string[]; links: string[] } {
+  const documents: string[] = []
+  const links: string[] = []
+
+  if (attachmentsUrl) {
+    for (const u of attachmentsUrl) {
+      if (isPdfUrl(u)) {
+        documents.push(u)
+      } else {
+        links.push(u)
+      }
+    }
+  }
+
+  return { documents, links }
+}
+
+/** Wandelt literal escaped Newlines (\\n) in echte Zeilenumbrüche um */
+function normalizeEscapedNewlines(text: string): string {
+  return text.replace(/\\n/g, '\n')
+}
+
+/** Extrahiert einen lesbaren Anzeigenamen aus einer URL */
+function extractDisplayName(url: string): string {
+  try {
+    const parsed = new URL(url)
+    // Für Blob-Storage: Dateiname aus Pfad
+    const segments = parsed.pathname.split('/').filter(Boolean)
+    const lastSegment = segments[segments.length - 1]
+    if (lastSegment && lastSegment.includes('.')) {
+      return decodeURIComponent(lastSegment)
+    }
+    // Für Webseiten: Hostname + Pfad
+    const path = parsed.pathname.length > 1 ? parsed.pathname : ''
+    return `${parsed.hostname}${path}`
+  } catch {
+    return url
+  }
+}

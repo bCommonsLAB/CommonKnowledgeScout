@@ -63,19 +63,20 @@ async function getTranslationsCollection(): Promise<Collection<TranslationDocume
 }
 
 /**
- * Lädt eine übersetzte Dokumentstruktur aus dem Cache
+ * Lädt eine übersetzte Dokumentstruktur aus dem Cache.
  * 
  * @param fileId Die Datei-ID des Dokuments
  * @param targetLanguage Die Zielsprache der Übersetzung
- * @returns Die übersetzten Daten oder null, wenn nicht gefunden
+ * @returns Übersetzung mit createdAt oder null
  */
 export async function getTranslation(
   fileId: string,
   targetLanguage: TargetLanguage
-): Promise<BookDetailData | SessionDetailData | null> {
+): Promise<{ translatedData: BookDetailData | SessionDetailData; createdAt: Date } | null> {
   const col = await getTranslationsCollection()
   const doc = await col.findOne({ fileId, targetLanguage })
-  return doc?.translatedData || null
+  if (!doc?.translatedData) return null
+  return { translatedData: doc.translatedData, createdAt: doc.createdAt }
 }
 
 /**

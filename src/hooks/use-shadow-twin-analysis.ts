@@ -274,6 +274,14 @@ export function useShadowTwinAnalysis(
               }
             }
 
+            // DIAGNOSE: Zeigt API-Ergebnis für jedes Item
+            FileLogger.info('useShadowTwinAnalysis', 'Batch-Resolve Ergebnis', {
+              transformationResultsSize: transformationResults.size,
+              transcriptResultsSize: transcriptResults.size,
+              transformationKeys: Array.from(transformationResults.keys()),
+              itemIds: itemsToAnalyze.map(it => it.id),
+            });
+
             for (const it of itemsToAnalyze) {
               const transformation = transformationResults.get(it.id)
               const transcript = transcriptResults.get(it.id)
@@ -285,6 +293,16 @@ export function useShadowTwinAnalysis(
                 transformation?.kind === 'transformation' && transformation.item ? transformation.item : undefined
               const transcriptFiles =
                 transcript?.kind === 'transcript' && transcript.item ? [transcript.item] : undefined
+
+              // DIAGNOSE: Für Dateien mit Artefakten oder ohne, logge Details
+              if (!transformed && !transcriptFiles) {
+                FileLogger.debug('useShadowTwinAnalysis', 'Kein Artefakt fuer Item', {
+                  itemId: it.id,
+                  itemName: it.metadata.name,
+                  transformationRaw: transformation ? { kind: transformation.kind, hasItem: !!transformation.item } : null,
+                  transcriptRaw: transcript ? { kind: transcript.kind, hasItem: !!transcript.item } : null,
+                });
+              }
               const shadowTwinFolderId = transformation?.shadowTwinFolderId || transcript?.shadowTwinFolderId
 
               // Binary-Uploads sind möglich wenn:

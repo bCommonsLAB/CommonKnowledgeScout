@@ -148,30 +148,41 @@ export async function POST(
       hasApiKey: !!apiKey,
     })
 
-    // Cache prüfen
-    console.log('[translate-document] Prüfe Cache:', { fileId, targetLanguage })
-    const cachedTranslation = await getTranslation(fileId, targetLanguage)
-    if (cachedTranslation) {
-      console.log('[translate-document] ✅ Cache gefunden für:', { 
-        fileId, 
-        targetLanguage,
-        hasTranslatedData: !!cachedTranslation,
-        translatedDataKeys: cachedTranslation && typeof cachedTranslation === 'object' 
-          ? Object.keys(cachedTranslation).slice(0, 10) 
-          : [],
-      })
-      return NextResponse.json({
-        translatedData: cachedTranslation,
-        cached: true,
-      })
-    }
-    
-    console.log('[translate-document] ⚠️ Kein Cache gefunden, starte Übersetzung')
-
     // Verwende Collection-Name aus Config (deterministisch, keine Owner-Email-Ermittlung mehr)
     const libraryKey = getCollectionNameForLibrary(ctx.library)
     const docMetaMap = await getByFileIds(libraryKey, libraryId, [fileId])
     const docMeta = docMetaMap.get(fileId)
+
+    // Cache prüfen: nur verwenden, wenn Cache neuer als das Dokument ist
+    console.log('[translate-document] Prüfe Cache:', { fileId, targetLanguage })
+    const cached = await getTranslation(fileId, targetLanguage)
+    if (cached) {
+      const docUpsertedAt = typeof docMeta?.upsertedAt === 'string'
+        ? new Date(docMeta.upsertedAt)
+        : null
+      const cacheIsValid = !docUpsertedAt || cached.createdAt >= docUpsertedAt
+
+      if (cacheIsValid) {
+        console.log('[translate-document] ✅ Cache gültig:', {
+          fileId,
+          targetLanguage,
+          cacheCreatedAt: cached.createdAt.toISOString(),
+          docUpsertedAt: docUpsertedAt?.toISOString() || 'unbekannt',
+        })
+        return NextResponse.json({
+          translatedData: cached.translatedData,
+          cached: true,
+        })
+      }
+
+      console.log('[translate-document] ⚠️ Cache veraltet, Übersetzung wird neu erstellt:', {
+        fileId,
+        cacheCreatedAt: cached.createdAt.toISOString(),
+        docUpsertedAt: docUpsertedAt?.toISOString(),
+      })
+    } else {
+      console.log('[translate-document] Kein Cache vorhanden, starte Übersetzung')
+    }
 
     if (!docMeta) {
       return NextResponse.json(
@@ -198,26 +209,42 @@ export async function POST(
       docMetaJsonKeys: Object.keys(docMetaJson).slice(0, 20),
     })
     
+    // Bestimme die tatsächliche Inhaltssprache für die Übersetzung.
+    // Priorität: targetLanguage > summary_language > language > Fallback 'en'
+    // targetLanguage/summary_language = Sprache, IN DIE transformiert wurde (SSOT aus Pipeline).
+    // language = Quellsprache des Originals (vom LLM erkannt, z.B. 'en' für ein englisches PDF).
+    // Die Übersetzung übersetzt VON der Inhaltssprache IN die angeforderte Zielsprache.
+    const targetLangField = docMetaJson.targetLanguage
+    const summaryLangField = docMetaJson.summary_language
+    
     let sourceLanguage: string
     let langSource: string
     
-    if (typeof languageField === 'string' && languageField.trim().length > 0) {
+    if (typeof targetLangField === 'string' && targetLangField.trim().length > 0) {
+      sourceLanguage = targetLangField.trim().toLowerCase()
+      langSource = 'docMetaJson.targetLanguage (Zielsprache der Transformation)'
+    } else if (typeof summaryLangField === 'string' && summaryLangField.trim().length > 0) {
+      sourceLanguage = summaryLangField.trim().toLowerCase()
+      langSource = 'docMetaJson.summary_language (Fallback für ältere Daten)'
+    } else if (typeof languageField === 'string' && languageField.trim().length > 0) {
       sourceLanguage = languageField.trim().toLowerCase()
-      langSource = 'docMetaJson.language (explizit gesetzt)'
+      langSource = 'docMetaJson.language (Quellsprache, kein targetLanguage vorhanden)'
     } else {
       sourceLanguage = 'en'
-      langSource = 'Fallback (docMetaJson.language fehlt oder leer)'
+      langSource = 'Fallback (keine Sprachfelder vorhanden)'
     }
     
-    console.log('[translate-document] ✅ Originalsprache ermittelt:', {
+    console.log('[translate-document] Inhaltssprache ermittelt:', {
       sourceLanguage,
       source: langSource,
       targetLanguage,
       viewType,
+      fields: {
+        targetLanguage: targetLangField,
+        summary_language: summaryLangField,
+        language: languageField,
+      },
       needsTranslation: sourceLanguage !== targetLanguage.toLowerCase(),
-      reason: sourceLanguage !== targetLanguage.toLowerCase()
-        ? `Übersetzung nötig: ${sourceLanguage} → ${targetLanguage}`
-        : `Keine Übersetzung nötig: Originalsprache (${sourceLanguage}) = Zielsprache (${targetLanguage})`,
     })
 
     // Übersetzen basierend auf viewType

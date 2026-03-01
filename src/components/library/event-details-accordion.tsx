@@ -109,14 +109,20 @@ export function EventDetailsAccordion({ data }: EventDetailsAccordionProps) {
                         </a>
                       </Button>
                     )}
-                    {data.attachments_url && (
-                      <Button asChild variant="ghost" size="sm" className="w-full justify-start h-8 px-2">
-                        <a href={data.attachments_url} target="_blank" rel="noopener noreferrer">
-                          <FileText className="h-3 w-3 mr-2" />
-                          {t('event.downloadSlides')}
-                        </a>
-                      </Button>
-                    )}
+                    {/* Rückwärtskompatibel: attachments_url kann String oder Array sein */}
+                    {data.attachments_url && (() => {
+                      const urls = Array.isArray(data.attachments_url)
+                        ? data.attachments_url.filter(u => typeof u === 'string' && u.trim().length > 0)
+                        : [data.attachments_url]
+                      return urls.map((url, idx) => (
+                        <Button key={idx} asChild variant="ghost" size="sm" className="w-full justify-start h-8 px-2">
+                          <a href={url} target="_blank" rel="noopener noreferrer">
+                            <FileText className="h-3 w-3 mr-2" />
+                            {urls.length > 1 ? `${t('event.downloadSlides')} ${idx + 1}` : t('event.downloadSlides')}
+                          </a>
+                        </Button>
+                      ))
+                    })()}
                     {data.video_url && (
                       <Button asChild variant="ghost" size="sm" className="w-full justify-start h-8 px-2">
                         <a href={data.video_url} target="_blank" rel="noopener noreferrer">

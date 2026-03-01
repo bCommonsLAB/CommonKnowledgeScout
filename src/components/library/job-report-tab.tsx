@@ -12,20 +12,22 @@ import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser'
 import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom'
 import { librariesAtom } from '@/atoms/library-atom'
 import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
+import { DETAIL_VIEW_TYPES, type DetailViewType } from '@/lib/detail-view-types/registry'
+import { MediaTab } from './media-tab'
 import type { TemplatePreviewDetailViewType } from '@/lib/templates/template-types'
 import { DetailViewRenderer } from '@/components/library/detail-view-renderer'
 import { Button } from '@/components/ui/button'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+// Alert, AlertDescription entfernt (aktuell nicht verwendet)
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DocumentCard } from '@/components/library/gallery/document-card'
 import type { DocCardMeta } from '@/lib/gallery/types'
-import { AlertTriangle, X, Save, Copy, Link2 } from 'lucide-react'
+import { AlertTriangle, X, Save } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { validateAndRepairShadowTwin } from '@/lib/shadow-twin/shared'
 import { resolveShadowTwinImageUrl } from '@/lib/storage/shadow-twin'
-import { CoverImageGeneratorDialog } from './cover-image-generator-dialog'
+// CoverImageGeneratorDialog entfernt (aktuell nicht verwendet)
 import { ArtifactEditDialog } from './shared/artifact-edit-dialog'
 import { fetchShadowTwinMarkdown, updateShadowTwinMarkdown } from '@/lib/shadow-twin/shadow-twin-mongo-client'
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
@@ -68,7 +70,7 @@ interface JobReportTabProps {
   onJumpTo?: (args: { page?: number | string; evidence?: string }) => void
   // NEU: Rohinhalt (Markdown). Wenn gesetzt und sourceMode='frontmatter', wird direkt dieser Text geparst (ohne Datei/JOB).
   rawContent?: string
-  forcedTab?: 'markdown' | 'meta' | 'chapters' | 'ingestion' | 'process'
+  forcedTab?: 'markdown' | 'meta' | 'chapters' | 'media' | 'ingestion' | 'process'
   // Steuert den Tab "ingestion": Statusanzeige oder Story-Vorschau.
   ingestionTabMode?: 'status' | 'preview'
   // Callback für Header-Buttons (Bearbeiten)
@@ -167,14 +169,14 @@ export function JobReportTab({
   const [parseErrors, setParseErrors] = useState<string[]>([])
   const [fullContent, setFullContent] = useState<string>('')
   const [debouncedContent, setDebouncedContent] = useState<string>('')
-  const [activeTab, setActiveTab] = useState<'markdown' | 'meta' | 'chapters' | 'image' | 'ingestion' | 'process'>(forcedTab || 'markdown')
+  const [activeTab, setActiveTab] = useState<'markdown' | 'meta' | 'chapters' | 'media' | 'ingestion' | 'process'>(forcedTab || 'markdown')
   const [displayedFileName, setDisplayedFileName] = useState<string | null>(null)
   // State für aufgelöste coverImageUrl in Story-Vorschau
   const [resolvedCoverImageUrl, setResolvedCoverImageUrl] = useState<string | undefined>(undefined)
   // State für Cover-Bild-Upload im "image" Tab
-  const [isUploading, setIsUploading] = useState(false)
+  const [, setIsUploading] = useState(false)
   const [coverImageDisplayUrl, setCoverImageDisplayUrl] = useState<string | null>(null)
-  const [isGeneratorDialogOpen, setIsGeneratorDialogOpen] = useState(false)
+  // isGeneratorDialogOpen-State entfernt (aktuell nicht verwendet)
   // State für verfügbare Bild-Paare aus binaryFragments (Galerie im "image" Tab)
   // Jedes Paar besteht aus einem Thumbnail und dem zugehörigen Original
   const [availableImagePairs, setAvailableImagePairs] = useState<Array<{
@@ -189,9 +191,8 @@ export function JobReportTab({
     createdAt?: string
     isCurrentCover?: boolean
   }>>([])
-  const [isLoadingImages, setIsLoadingImages] = useState(false)
-  // State für DetailViewType-Override in Story-Vorschau ('auto' = aus Frontmatter/Config ermitteln)
-  const [previewDetailViewType, setPreviewDetailViewType] = useState<TemplatePreviewDetailViewType | 'auto'>('auto')
+  const [, setIsLoadingImages] = useState(false)
+  // DetailViewType wird direkt aus Frontmatter gelesen (Single Source of Truth im Metadaten-Tab)
   // State für Bearbeitungsmodus im Markdown-Tab (Rohtext vs. formatiert)
   const [isMarkdownEditing, setIsMarkdownEditing] = useState(false)
   // State für editierten Content (nur Body, ohne Frontmatter)
@@ -774,7 +775,7 @@ export function JobReportTab({
 
   // Validiere Shadow-Twin-Daten für schreibende Operationen
   // Prüft ob templateName für Transformationen vorhanden ist
-  const validationResult = useMemo(() => {
+  const _validationResult = useMemo(() => {
     if (!shadowTwinState?.transformed) {
       return { valid: true, error: undefined, wasRepaired: false, repairInfo: undefined }
     }
@@ -887,8 +888,8 @@ export function JobReportTab({
 
   // Lade alle verfügbaren Bilder aus binaryFragments (für Galerie im "image" Tab)
   useEffect(() => {
-    // Nur laden wenn "image" Tab aktiv ist und wir die nötigen IDs haben
-    if (activeTab !== 'image' || !libraryId || !fileId) {
+    // Nur laden wenn "media" Tab aktiv ist und wir die nötigen IDs haben
+    if (activeTab !== 'media' || !libraryId || !fileId) {
       return
     }
 
@@ -1093,7 +1094,7 @@ export function JobReportTab({
     }
   }, [libraryId, fileId, frontmatterMeta, job, effectiveMdId])
 
-  const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const _handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file || !provider || !effectiveMdId) return
 
@@ -1116,13 +1117,13 @@ export function JobReportTab({
 
   // Prüfe ob die aktuelle coverImageUrl relativ ist (nicht absolut)
   // Relative URLs müssen für die Web-Ingestion in absolute URLs umgewandelt werden
-  const isCoverImageRelative = coverImageUrl
+  const _isCoverImageRelative = coverImageUrl
     ? !(coverImageUrl.startsWith('http://') || coverImageUrl.startsWith('https://') || coverImageUrl.startsWith('/api/storage/'))
     : false
 
   // "Bild verwenden": Aktuell angezeigtes Bild (aus relativem Pfad aufgelöst) neu hochladen,
   // damit es eine absolute URL bekommt und bei der Ingestion/Veröffentlichung erreichbar ist.
-  const handleUseCurrentImage = useCallback(async () => {
+  const _handleUseCurrentImage = useCallback(async () => {
     if (!coverImageDisplayUrl || !coverImageUrl) return
 
     setIsUploading(true)
@@ -1150,7 +1151,7 @@ export function JobReportTab({
 
   // Funktion zum Auswählen eines bestehenden Bild-Paares als Cover
   // Erwartet den Namen des Original-Bildes (nicht des Thumbnails)
-  const handleSelectExistingImage = useCallback(async (originalName: string, thumbnailName: string) => {
+  const _handleSelectExistingImage = useCallback(async (originalName: string, thumbnailName: string) => {
     if (!libraryId || !fileId || !effectiveMdId) {
       toast.error('Dokument-ID nicht verfügbar')
       return
@@ -1221,7 +1222,7 @@ export function JobReportTab({
     }
   }, [libraryId, fileId, effectiveMdId, availableImagePairs])
 
-  const handleGeneratedImage = useCallback(async (file: File) => {
+  const _handleGeneratedImage = useCallback(async (file: File) => {
     try {
       await saveCoverImage(file)
       // Toast wird bereits in saveCoverImage nicht mehr gesetzt, da es von handleFileUpload kommt
@@ -1264,7 +1265,7 @@ export function JobReportTab({
   }, [sourceMode, job, frontmatterMeta, activeLibrary, templateCoverImagePrompt])
   
   // Kompatibilität: defaultPrompt als String für bestehende Verwendungen
-  const defaultPrompt = defaultPromptResult.prompt
+  const _defaultPrompt = defaultPromptResult.prompt
 
   if (sourceMode !== 'frontmatter') {
     if (loading) return <div className="p-4 text-sm text-muted-foreground">Lade Job…</div>
@@ -1280,7 +1281,7 @@ export function JobReportTab({
             <TabsTrigger value="markdown" className="px-2 py-1 text-xs">Markdown</TabsTrigger>
             <TabsTrigger value="meta" className="px-2 py-1 text-xs">Metadaten</TabsTrigger>
             <TabsTrigger value="chapters" className="px-2 py-1 text-xs">Kapitel</TabsTrigger>
-            <TabsTrigger value="image" className="px-2 py-1 text-xs">Bild</TabsTrigger>
+            <TabsTrigger value="media" className="px-2 py-1 text-xs">Medien</TabsTrigger>
             <TabsTrigger value="ingestion" className="px-2 py-1 text-xs">
               {ingestionTabMode === 'preview' ? 'Story Vorschau' : 'Ingestion-Status'}
             </TabsTrigger>
@@ -1512,7 +1513,25 @@ export function JobReportTab({
                             <tr key={k} className="border-t border-muted/40 group">
                               <td className="py-1 pr-2 align-top font-medium sticky left-0 bg-background z-10 whitespace-nowrap">{k}</td>
                               <td className="py-1 pr-2 align-top">
-                                {isEditing ? (
+                                {/* detailViewType als Dropdown statt Textfeld rendern */}
+                                {k === 'detailViewType' ? (
+                                  <Select
+                                    value={typeof val === 'string' && DETAIL_VIEW_TYPES.includes(val as DetailViewType) ? val : 'book'}
+                                    onValueChange={async (newType) => {
+                                      await saveMetaField('detailViewType', newType)
+                                    }}
+                                    disabled={!effectiveMdId || isSaving}
+                                  >
+                                    <SelectTrigger className="h-7 text-xs w-auto min-w-[160px]">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {DETAIL_VIEW_TYPES.map(dvt => (
+                                        <SelectItem key={dvt} value={dvt}>{dvt}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : isEditing ? (
                                   <div className="flex items-center gap-1">
                                     <Input
                                       value={editingValue}
@@ -1616,201 +1635,31 @@ export function JobReportTab({
             })()}
           </TabsContent>
 
-          <TabsContent value="image" className="mt-3">
-            <div className="space-y-3">
-              <div className="text-xs text-muted-foreground mb-2">
-                Coverbild für die Ingestion. Das Bild wird im Shadow-Twin-Verzeichnis gespeichert und als <code className="text-xs bg-muted px-1 py-0.5 rounded">coverImageUrl</code> in den Metadaten gespeichert.
-              </div>
-              
-              {coverImageDisplayUrl ? (
-                <div className="space-y-2">
-                  {/* Hinweis: Relative URL ist nur lokal auflösbar */}
-                  {isCoverImageRelative && (
-                    <div className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded px-2 py-1.5">
-                      Relative URL — nur lokal auflösbar. Klicke &quot;Bild verwenden&quot;, um eine absolute URL für die Web-Veröffentlichung zu erzeugen.
-                    </div>
-                  )}
-                  <div className="border rounded-md p-3">
-                    <img 
-                      src={coverImageDisplayUrl} 
-                      alt="Coverbild" 
-                      className="max-w-full max-h-[400px] object-contain rounded"
-                      onError={() => {
-                        UILogger.warn('JobReportTab', 'Fehler beim Laden des Cover-Bildes', { coverImageDisplayUrl })
-                        setCoverImageDisplayUrl(null)
-                      }}
-                    />
-                  </div>
-                  {/* Dateiname + Copy-Buttons */}
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>Dateiname: <code className="font-mono bg-muted px-1 py-0.5 rounded">{coverImageUrl}</code></span>
-                    {/* URL kopieren */}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      title="Bild-URL kopieren"
-                      onClick={async () => {
-                        if (coverImageDisplayUrl) {
-                          await navigator.clipboard.writeText(coverImageDisplayUrl)
-                          // Kurzes visuelles Feedback durch Toast wäre ideal,
-                          // aber wir nutzen hier erstmal einen simplen Ansatz
-                        }
-                      }}
-                    >
-                      <Link2 className="h-3.5 w-3.5" />
-                    </Button>
-                    {/* Dateiname kopieren */}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      title="Dateiname kopieren"
-                      onClick={async () => {
-                        if (coverImageUrl) {
-                          await navigator.clipboard.writeText(coverImageUrl)
-                        }
-                      }}
-                    >
-                      <Copy className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="border rounded-md p-6 text-center text-sm text-muted-foreground">
-                  Kein Coverbild vorhanden. Bitte laden Sie ein Bild hoch.
-                </div>
-              )}
-
-              {/* Validierungsfehler anzeigen - blockiert schreibende Features */}
-              {validationResult.error && (
-                <Alert variant="destructive">
-                  <AlertDescription className="text-xs">
-                    <strong>Daten inkonsistent:</strong> {validationResult.error}
-                    <br />
-                    <span className="text-muted-foreground">
-                      Nutzen Sie &quot;Bearbeiten&quot;, um das Problem manuell zu beheben.
-                    </span>
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {/* Info wenn Auto-Reparatur durchgeführt wurde */}
-              {validationResult.wasRepaired && validationResult.repairInfo && (
-                <Alert>
-                  <AlertDescription className="text-xs">
-                    <strong>Automatisch repariert:</strong> {validationResult.repairInfo}
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {/* Upload-Buttons */}
-              <div className="flex gap-2 flex-wrap">
-                <label className="cursor-pointer">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileUpload}
-                    disabled={isUploading || !!validationResult.error}
-                    className="hidden"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={isUploading || !!validationResult.error}
-                    className="text-xs"
-                  >
-                    {isUploading ? 'Lädt...' : 'Bild hochladen'}
-                  </Button>
-                </label>
-                {/* "Bild verwenden": Nur anzeigen wenn coverImageUrl relativ ist und ein Bild geladen wurde.
-                    Lädt das aktuell angezeigte Bild neu hoch, damit coverImageUrl eine absolute URL wird
-                    und bei Ingestion/Veröffentlichung ohne lokalen Storage erreichbar ist. */}
-                {isCoverImageRelative && coverImageDisplayUrl && (
-                  <Button
-                    type="button"
-                    variant="default"
-                    onClick={handleUseCurrentImage}
-                    disabled={isUploading || !!validationResult.error}
-                    className="text-xs"
-                  >
-                    {isUploading ? 'Lädt...' : 'Bild verwenden'}
-                  </Button>
-                )}
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsGeneratorDialogOpen(true)}
-                  disabled={isUploading || !!validationResult.error}
-                  className="text-xs"
-                >
-                  Bild generieren
-                </Button>
-              </div>
-
-              {/* Cover-Image-Generator-Dialog */}
-              <CoverImageGeneratorDialog
-                open={isGeneratorDialogOpen}
-                onOpenChange={setIsGeneratorDialogOpen}
-                onGenerated={handleGeneratedImage}
-                defaultPrompt={defaultPrompt}
-                promptSource={defaultPromptResult.source}
-                originalPrompt={defaultPromptResult.originalPrompt}
-              />
-
-              {/* Galerie der verfügbaren Bild-Paare (zeigt Thumbnails, setzt beide URLs) */}
-              {/* Anzeige auch bei nur einem Bild, damit Benutzer vorhandene Bilder sehen können */}
-              {availableImagePairs.length >= 1 && (
-                <div className="mt-4 pt-4 border-t">
-                  <div className="text-xs text-muted-foreground mb-2">
-                    Vorhandene Bilder ({availableImagePairs.length}) — klicken Sie, um eines auszuwählen:
-                  </div>
-                  <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2">
-                    {availableImagePairs.map((pair) => (
-                      <button
-                        key={pair.originalHash || pair.originalName}
-                        type="button"
-                        onClick={() => handleSelectExistingImage(pair.originalName, pair.thumbnailName)}
-                        disabled={isUploading || pair.isCurrentCover}
-                        className={`
-                          relative aspect-square rounded-md overflow-hidden border-2 transition-all
-                          ${pair.isCurrentCover 
-                            ? 'border-primary ring-2 ring-primary/30 cursor-default' 
-                            : 'border-transparent hover:border-muted-foreground/50 cursor-pointer'
-                          }
-                          ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}
-                        `}
-                        title={pair.isCurrentCover 
-                          ? `Aktuelles Cover: ${pair.originalName}` 
-                          : `Auswählen: ${pair.originalName}`
-                        }
-                      >
-                        {/* Zeige Thumbnail für schnelle Ladezeit */}
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={pair.thumbnailUrl}
-                          alt={pair.originalName}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
-                        {pair.isCurrentCover && (
-                          <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                            <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded font-medium">
-                              Aktiv
-                            </span>
-                          </div>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                  {isLoadingImages && (
-                    <div className="text-xs text-muted-foreground mt-2">Lade Bilder...</div>
-                  )}
-                </div>
-              )}
-            </div>
+          <TabsContent value="media" className="mt-3">
+            <MediaTab
+              libraryId={libraryId}
+              fileId={fileId}
+              effectiveMdId={effectiveMdId}
+              frontmatterMeta={frontmatterMeta}
+              fullContent={fullContent}
+              provider={provider ?? null}
+              libraryConfig={libraryConfig as Record<string, unknown> | undefined}
+              templateName={
+                (frontmatterMeta?.template_used as string | undefined) ||
+                (job?.cumulativeMeta?.template_used as string | undefined) ||
+                (() => {
+                  if (effectiveMdId && isMongoShadowTwinId(effectiveMdId)) {
+                    return parseMongoShadowTwinId(effectiveMdId)?.templateName
+                  }
+                  return undefined
+                })()
+              }
+              onFrontmatterUpdate={(meta, content) => {
+                setFrontmatterMeta(meta)
+                setFullContent(content)
+                setDebouncedContent(content)
+              }}
+            />
           </TabsContent>
 
           <TabsContent value="ingestion" className="mt-3">
@@ -1821,10 +1670,8 @@ export function JobReportTab({
                   : ((job?.cumulativeMeta as unknown as Record<string, unknown>) || {})
                 const cm = frontmatterMeta ? { ...base, ...frontmatterMeta } : base
                 
-                // Ermittle den effektiven DetailViewType
-                const autoDetectedType = getDetailViewType(cm, libraryConfig)
-                const effectivePreviewType: TemplatePreviewDetailViewType = 
-                  previewDetailViewType === 'auto' ? autoDetectedType : previewDetailViewType
+                // DetailViewType direkt aus Frontmatter/Library-Config lesen (Single Source of Truth)
+                const effectivePreviewType = getDetailViewType(cm, libraryConfig)
                 
                 const body = debouncedContent ? stripFrontmatter(debouncedContent) : ''
                 
@@ -1881,26 +1728,14 @@ export function JobReportTab({
                 
                 return (
                   <div className="space-y-6">
-                    {/* 1. Story Layout */}
+                    {/* 1. Story Layout (aus Frontmatter, änderbar im Metadaten-Tab) */}
                     <div className="space-y-2">
-                      <h4 className="text-sm font-semibold text-muted-foreground">Story Layout</h4>
-                      <Select 
-                        value={previewDetailViewType} 
-                        onValueChange={(v) => setPreviewDetailViewType(v as TemplatePreviewDetailViewType | 'auto')}
-                      >
-                        <SelectTrigger className="w-full max-w-[300px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="auto">Automatisch ({autoDetectedType})</SelectItem>
-                          <SelectItem value="book">Book</SelectItem>
-                          <SelectItem value="session">Session</SelectItem>
-                          <SelectItem value="testimonial">Testimonial</SelectItem>
-                          <SelectItem value="blog">Blog</SelectItem>
-                          <SelectItem value="climateAction">ClimateAction</SelectItem>
-                          <SelectItem value="divaDocument">DivaDocument</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <h4 className="text-sm font-semibold text-muted-foreground">
+                        Story Layout: <span className="font-normal">{effectivePreviewType}</span>
+                      </h4>
+                      <p className="text-xs text-muted-foreground">
+                        Änderbar im Metadaten-Tab unter <code className="bg-muted px-1 py-0.5 rounded">detailViewType</code>.
+                      </p>
                       
                       {/* Validierungswarnungen */}
                       {missingFields.length > 0 && (

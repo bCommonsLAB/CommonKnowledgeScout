@@ -16,6 +16,8 @@ export interface ImageProcessingError {
 export interface MarkdownImageProcessingResult {
   markdown: string
   imageErrors: Array<{ imagePath: string; error: string }>
+  /** Mapping: originalPath → azureUrl für jedes erfolgreich verarbeitete Bild */
+  imageMapping: Array<{ originalPath: string; azureUrl: string }>
 }
 
 export interface SlideImageProcessingResult {
@@ -65,15 +67,16 @@ export class ImageProcessor {
   ): Promise<MarkdownImageProcessingResult> {
     const azureStorage = await this.ensureAzureStorage(fileId, jobId)
     if (!azureStorage) {
-      return { markdown: markdownBody, imageErrors: [] }
+      return { markdown: markdownBody, imageErrors: [], imageMapping: [] }
     }
 
     const containerCheck = await this.ensureContainer(azureStorage, fileId, jobId, 'markdown_images_container_error')
     if (!containerCheck.success || !containerCheck.containerName) {
-      return { markdown: markdownBody, imageErrors: [{ imagePath: '', error: containerCheck.errorMessage || 'Unbekannter Fehler' }] }
+      return { markdown: markdownBody, imageErrors: [{ imagePath: '', error: containerCheck.errorMessage || 'Unbekannter Fehler' }], imageMapping: [] }
     }
 
     const errors: Array<{ imagePath: string; error: string }> = []
+    const imageMapping: Array<{ originalPath: string; azureUrl: string }> = []
     let updatedMarkdown = markdownBody
 
     // Regex-Patterns für Bildreferenzen
@@ -109,7 +112,7 @@ export class ImageProcessor {
 
     if (imageReferences.length === 0) {
       FileLogger.info('ingestion', 'Keine relativen Bildreferenzen im Markdown gefunden', { fileId })
-      return { markdown: markdownBody, imageErrors: [] }
+      return { markdown: markdownBody, imageErrors: [], imageMapping: [] }
     }
 
     FileLogger.info('ingestion', 'Verarbeite Markdown-Bilder für Azure Upload', {
@@ -336,6 +339,8 @@ export class ImageProcessor {
           if (success && azureUrl) {
             const altText = match[1] || imagePath
             updatedMarkdown = updatedMarkdown.replace(match[0], pattern.replace(altText, azureUrl))
+            // Sammle Mapping: Original-Pfad → Azure-URL (für originalName in binaryFragments)
+            imageMapping.push({ originalPath: imagePath || '', azureUrl })
           } else {
             const userFriendlyError = this.formatImageError(error || 'Unbekannter Fehler', imagePath || '')
             errors.push({ imagePath: imagePath || '', error: userFriendlyError })
@@ -390,7 +395,7 @@ export class ImageProcessor {
       })
     }
 
-    return { markdown: updatedMarkdown, imageErrors: errors }
+    return { markdown: updatedMarkdown, imageErrors: errors, imageMapping }
   }
 
   /**

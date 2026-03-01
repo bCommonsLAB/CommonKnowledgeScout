@@ -240,6 +240,15 @@ export async function POST(
     const preferredKind = body.preferredKind || 'transformation';
     const shadowTwinConfig = getShadowTwinConfig(library);
 
+    // DIAGNOSE: Zeigt, welcher Pfad (mongo/filesystem) aktiv ist
+    FileLogger.info('artifacts/batch-resolve', 'Config-Diagnose', {
+      libraryId,
+      primaryStore: shadowTwinConfig.primaryStore,
+      rawShadowTwinConfig: library?.config?.shadowTwin,
+      sourcesCount: body.sources.length,
+      preferredKind,
+    });
+
     // MongoDB-Pfad: Artefakte direkt aus Mongo laden (kein Filesystem-Scan).
     if (shadowTwinConfig.primaryStore === 'mongo') {
       const targetLanguageBySource = new Map(
@@ -248,6 +257,17 @@ export async function POST(
       const docs = await getShadowTwinsBySourceIds({
         libraryId,
         sourceIds: body.sources.map((source) => source.sourceId),
+      });
+
+      // DIAGNOSE: Zeigt, wie viele Dokumente gefunden wurden
+      FileLogger.info('artifacts/batch-resolve', 'Mongo-Pfad Ergebnis', {
+        libraryId,
+        sourcesCount: body.sources.length,
+        docsFound: docs.size,
+        sourceIdsWithDocs: Array.from(docs.keys()),
+        sourceIdsWithoutDocs: body.sources
+          .filter(s => !docs.has(s.sourceId))
+          .map(s => ({ sourceId: s.sourceId, sourceName: s.sourceName })),
       });
 
       // Helper-Funktion zum Erstellen eines ResolvedArtifactWithItem
@@ -306,13 +326,15 @@ export async function POST(
       for (const source of body.sources) {
         const doc = docs.get(source.sourceId);
         if (!doc) {
-          // Mongo-Mode: Kein Self-Reference / Filesystem-Fallback.
-          // Siehe docs/rules/ingest-mongo-only.md: Artefakte MÜSSEN in MongoDB existieren.
-          // Wenn kein Shadow-Twin-Dokument in Mongo, dann gibt es kein Artefakt.
           artifacts[source.sourceId] = null;
           if (shouldIncludeBoth) {
             transcripts[source.sourceId] = null;
           }
+          // DIAGNOSE: Zeigt, welche sourceIds kein Mongo-Dokument haben
+          FileLogger.debug('artifacts/batch-resolve', 'Kein Mongo-Dokument fuer Source', {
+            sourceId: source.sourceId,
+            sourceName: source.sourceName,
+          });
           continue;
         }
 
@@ -320,7 +342,25 @@ export async function POST(
         
         // Haupt-Artefakt (preferredKind)
         const selected = selectShadowTwinArtifact(doc, preferredKind, targetLanguage);
-        // selectShadowTwinArtifact gibt nur 'transcript' oder 'transformation' zurück, nie 'raw'
+
+        // DIAGNOSE: Zeigt, was selectShadowTwinArtifact zurückgibt
+        FileLogger.info('artifacts/batch-resolve', 'selectShadowTwinArtifact Ergebnis', {
+          sourceId: source.sourceId,
+          sourceName: source.sourceName,
+          preferredKind,
+          targetLanguage,
+          selectedKind: selected?.kind ?? null,
+          selectedLang: selected?.targetLanguage ?? null,
+          selectedTemplate: selected?.templateName ?? null,
+          hasRecord: !!selected?.record,
+          docArtifactKeys: {
+            hasTranscript: !!doc.artifacts?.transcript,
+            transcriptLangs: doc.artifacts?.transcript ? Object.keys(doc.artifacts.transcript) : [],
+            hasTransformation: !!doc.artifacts?.transformation,
+            transformationTemplates: doc.artifacts?.transformation ? Object.keys(doc.artifacts.transformation) : [],
+          },
+        });
+
         if (selected && (selected.kind === 'transcript' || selected.kind === 'transformation')) {
           artifacts[source.sourceId] = createArtifactItem(source, selected as { kind: 'transcript' | 'transformation'; targetLanguage: string; record: typeof selected.record; templateName?: string });
         } else {

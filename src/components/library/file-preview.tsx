@@ -579,6 +579,17 @@ function PreviewContent({
   React.useEffect(() => {
     let cancelled = false
 
+    // DIAGNOSE: Zeigt den genauen Zustand von shadowTwinState.transformed
+    FileLogger.info('PreviewContent', 'Transform-Effect ausgelöst', {
+      itemId: item.id,
+      itemName: item.metadata.name,
+      hasShadowTwinState: !!shadowTwinState,
+      hasTransformed: !!shadowTwinState?.transformed,
+      transformedId: shadowTwinState?.transformed?.id ?? 'N/A',
+      transformedName: shadowTwinState?.transformed?.metadata?.name ?? 'N/A',
+      isMongoId: shadowTwinState?.transformed?.id?.startsWith('mongo-shadow-twin:') ?? false,
+    });
+
     async function loadTransformItem() {
       if (!shadowTwinState?.transformed?.id) {
         setTransformItem(null)
@@ -2291,19 +2302,260 @@ function PreviewContent({
           onRefreshFolder={onRefreshFolder}
         />
       );
-    case 'website':
-      const urlContent = content.match(/URL=(.*)/)?.[1];
-      return urlContent ? (
-        <iframe 
-          src={urlContent}
-          title={item.metadata.name}
-          className="w-full h-screen"
-        />
-      ) : (
-        <div className="text-center text-muted-foreground">
-          Keine gültige URL gefunden.
-        </div>
-      );
+    case 'website': {
+      // .url-Dateien: Volle Pipeline-UI wie andere Dateitypen
+      if (!provider) {
+        return <div className="text-sm text-muted-foreground">Kein Provider verfügbar.</div>;
+      }
+      const urlContent = content.match(/URL=(.*)/i)?.[1]?.trim();
+      const docModifiedAtWeb = shadowTwinState?.transformed?.metadata.modifiedAt
+        ? new Date(shadowTwinState.transformed.metadata.modifiedAt).toISOString()
+        : undefined
+      const textStepWeb = getStoryStep(storySteps, "text")
+      const transformStepWeb = getStoryStep(storySteps, "transform")
+      const publishStepWeb = getStoryStep(storySteps, "publish")
+
+      return (
+        <IngestionDataProvider
+          libraryId={activeLibraryId}
+          fileId={item.id}
+          docModifiedAt={docModifiedAtWeb}
+          includeChapters={true}
+        >
+          {hasActiveJob && currentJobInfo && (
+            <JobProgressBar 
+              status={currentJobInfo.status} 
+              progress={currentJobInfo.progress} 
+              message={currentJobInfo.message}
+              phase={currentJobInfo.phase}
+            />
+          )}
+          <Tabs value={infoTab} onValueChange={(v) => setInfoTab(v as typeof infoTab)} className="flex h-full flex-col">
+            <TabsList className="mx-3 mt-3 w-fit">
+              <TabsTrigger value="original">Original</TabsTrigger>
+              <TabsTrigger value="transcript">
+                <ArtifactTabLabel label="Transkript" icon={FileText} state={textStepWeb?.state || null} />
+              </TabsTrigger>
+              <TabsTrigger value="transform">
+                <ArtifactTabLabel label="Transformation" icon={Sparkles} state={transformStepWeb?.state || null} />
+              </TabsTrigger>
+              <TabsTrigger value="story">
+                <ArtifactTabLabel label="Story" icon={Upload} state={publishStepWeb?.state || null} />
+              </TabsTrigger>
+              <TabsTrigger value="overview">Übersicht</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="original" className="min-h-0 flex-1 overflow-hidden p-3">
+              <div className="h-full overflow-hidden rounded border flex flex-col">
+                {urlContent ? (
+                  <>
+                    <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 border-b">
+                      <ExternalLink className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                      <a href={urlContent} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate text-sm">
+                        {urlContent}
+                      </a>
+                    </div>
+                    <div className="relative flex-1 min-h-0">
+                      <iframe 
+                        src={urlContent}
+                        title={item.metadata.name}
+                        className="w-full h-full absolute inset-0"
+                        sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center -z-10 text-muted-foreground text-sm">
+                        <p>Website blockiert möglicherweise die Einbettung.</p>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center justify-center flex-1 text-muted-foreground text-sm">
+                    Keine gültige URL gefunden.
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="transcript" className="min-h-0 flex-1 overflow-hidden p-3">
+              <div className="h-full overflow-hidden rounded border p-3">
+                {shadowTwinState?.transcriptFiles && shadowTwinState.transcriptFiles.length > 0 ? (
+                  <ArtifactMarkdownPanel
+                    title="Transkript (Website-Inhalt)"
+                    titleClassName="text-xs text-muted-foreground font-normal"
+                    item={shadowTwinState.transcriptFiles[0]}
+                    provider={provider}
+                    libraryId={activeLibraryId || undefined}
+                    emptyHint="Transkript konnte nicht geladen werden."
+                    stripFrontmatter={true}
+                  />
+                ) : (
+                  <ArtifactMarkdownPanel
+                    title="Transkript"
+                    titleClassName="text-xs text-muted-foreground font-normal"
+                    item={transcript.transcriptItem}
+                    provider={provider}
+                    libraryId={activeLibraryId || undefined}
+                    emptyHint="Noch kein Transkript vorhanden."
+                    additionalActions={
+                      !transcript.transcriptItem ? (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => openPipelineForPhase("transcript")}
+                          disabled={isRunningPipeline || hasActiveJob}
+                        >
+                          <Sparkles className="h-4 w-4 mr-2" />
+                          Jetzt erstellen
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openPipelineForPhase("transcript", true)}
+                          disabled={isRunningPipeline || hasActiveJob}
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Neu generieren
+                        </Button>
+                      )
+                    }
+                  />
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="transform" className="min-h-0 flex-1 overflow-auto p-3">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-muted-foreground">
+                    Story-Inhalte und Metadaten (aus dem Transkript transformiert)
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {!transformItem ? (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => openPipelineForPhase("transform")}
+                        disabled={isRunningPipeline || hasActiveJob}
+                      >
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Jetzt erstellen
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openPipelineForPhase("transform", true)}
+                        disabled={isRunningPipeline || hasActiveJob}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Neu generieren
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                {transformError ? (
+                  <Alert variant="destructive">
+                    <AlertDescription>{transformError}</AlertDescription>
+                  </Alert>
+                ) : !transformItem ? (
+                  <div className="rounded border p-3 text-sm text-muted-foreground">
+                    Keine Transformationsdaten vorhanden. Bitte stellen Sie sicher, dass die Datei verarbeitet wurde.
+                  </div>
+                ) : (
+                  <div className="rounded border">
+                    <JobReportTabWithShadowTwin 
+                      libraryId={activeLibraryId} 
+                      fileId={item.id} 
+                      fileName={item.metadata.name}
+                      parentId={item.parentId}
+                      provider={provider}
+                      ingestionTabMode="preview"
+                      effectiveMdIdRef={effectiveMdIdRef}
+                    />
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="story" className="min-h-0 flex-1 overflow-auto p-3">
+              {infoTab === "story" ? (
+                <div className="h-full overflow-auto rounded border p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="text-xs text-muted-foreground">
+                      veröffentlichte Story (aus den Artefakten der Transformation erstellt)
+                    </div>
+                    {publishStepWeb?.state === "missing" ? (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => openPipelineForPhase("story")}
+                        disabled={isRunningPipeline || hasActiveJob}
+                      >
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Jetzt erstellen
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openPipelineForPhase("story", true)}
+                        disabled={isRunningPipeline || hasActiveJob}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Erneut publizieren
+                      </Button>
+                    )}
+                  </div>
+                  <IngestionDetailPanel libraryId={activeLibraryId} fileId={item.id} />
+                </div>
+              ) : null}
+            </TabsContent>
+
+            <TabsContent value="overview" className="min-h-0 flex-1 overflow-auto p-3">
+              {infoTab === "overview" ? (
+                <div className="rounded border">
+                  <ArtifactInfoPanel
+                    libraryId={activeLibraryId}
+                    sourceFile={item}
+                    shadowTwinFolderId={shadowTwinState?.shadowTwinFolderId || null}
+                    transcriptFiles={shadowTwinState?.transcriptFiles}
+                    transformed={shadowTwinState?.transformed}
+                    targetLanguage="de"
+                  />
+                </div>
+              ) : null}
+            </TabsContent>
+          </Tabs>
+          <PipelineSheet
+            isOpen={isPipelineOpen}
+            onOpenChange={setIsPipelineOpen}
+            libraryId={activeLibraryId}
+            sourceFileName={item.metadata.name}
+            kind="other"
+            targetLanguage={effectiveTargetLanguage}
+            onTargetLanguageChange={setTargetLanguage}
+            templateName={templateName}
+            onTemplateNameChange={setTemplateName}
+            templates={templates}
+            isLoadingTemplates={isLoadingTemplates}
+            llmModel={llmModel}
+            onLlmModelChange={setLlmModel}
+            llmModels={llmModels}
+            isLoadingLlmModels={isLoadingLlmModels}
+            onStart={runPipeline}
+            defaultSteps={pipelineDefaultSteps}
+            defaultForce={pipelineDefaultForce}
+            existingArtifacts={{
+              hasTranscript: !!transcript.transcriptItem,
+              hasTransformed: !!shadowTwinState?.transformed,
+              hasIngested: publishStepWeb?.state !== "missing",
+            }}
+            defaultGenerateCoverImage={activeLibrary?.config?.secretaryService?.generateCoverImage}
+            defaultCustomHint={savedCustomHint}
+          />
+        </IngestionDataProvider>
+      )
+    }
     default:
       return (
         <>
@@ -2572,6 +2824,14 @@ export function FilePreview({
               variant="outline"
               onClick={async () => {
                 try {
+                  // Bei .url-Dateien: Die enthaltene Website-URL öffnen statt der Rohdatei
+                  if (fileType === 'website' && state.content) {
+                    const parsedUrl = state.content.match(/URL=(.*)/i)?.[1]?.trim()
+                    if (parsedUrl) {
+                      window.open(parsedUrl, "_blank", "noopener,noreferrer")
+                      return
+                    }
+                  }
                   const url = await provider.getStreamingUrl(displayFile.id)
                   window.open(url, "_blank", "noopener,noreferrer")
                 } catch {}
@@ -2591,6 +2851,7 @@ export function FilePreview({
         fileId={displayFile?.id}
         parentId={displayFile?.parentId}
         libraryId={activeLibraryId || undefined}
+        shadowTwinFolderId={shadowTwinState?.shadowTwinFolderId}
         onReconstructed={() => {
           // Nach Rekonstruktion: Shadow-Twin-Analyse neu triggern
           setShadowTwinAnalysisTrigger((v) => v + 1)

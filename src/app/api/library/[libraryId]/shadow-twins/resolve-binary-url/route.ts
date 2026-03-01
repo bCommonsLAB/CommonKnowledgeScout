@@ -18,6 +18,7 @@ import { LibraryService } from '@/lib/services/library-service'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { findShadowTwinFolder } from '@/lib/storage/shadow-twin'
+import { getShadowTwinsBySourceIds } from '@/lib/repositories/shadow-twin-repo'
 import { FileLogger } from '@/lib/debug/logger'
 
 interface RequestBody {
@@ -83,11 +84,29 @@ export async function POST(
 
     // Storage-Fallback: Wenn MongoDB kein Fragment kennt, direkt im Shadow-Twin-Ordner suchen.
     // Typischer Fall: Dateien wurden manuell ins Storage kopiert, aber nie in MongoDB registriert.
-    if (body.parentId && body.sourceName) {
+    // Lade sourceName/parentId aus MongoDB, falls nicht im Request angegeben
+    let effectiveSourceName = body.sourceName || ''
+    let effectiveParentId = body.parentId || ''
+    if (!effectiveSourceName || !effectiveParentId) {
+      try {
+        const docs = await getShadowTwinsBySourceIds({ libraryId, sourceIds: [body.sourceId] })
+        const doc = docs.get(body.sourceId)
+        if (doc) {
+          effectiveSourceName = effectiveSourceName || doc.sourceName || ''
+          effectiveParentId = effectiveParentId || doc.parentId || ''
+        }
+      } catch (lookupErr) {
+        FileLogger.debug('shadow-twins/resolve-binary-url', 'MongoDB-Lookup für sourceName/parentId fehlgeschlagen', {
+          error: lookupErr instanceof Error ? lookupErr.message : String(lookupErr),
+        })
+      }
+    }
+
+    if (effectiveParentId && effectiveSourceName) {
       try {
         const provider = await getServerProvider(userEmail, libraryId)
         if (provider) {
-          const shadowTwinFolder = await findShadowTwinFolder(body.parentId, body.sourceName, provider)
+          const shadowTwinFolder = await findShadowTwinFolder(effectiveParentId, effectiveSourceName, provider)
           if (shadowTwinFolder) {
             const folderItems = await provider.listItemsById(shadowTwinFolder.id)
             const binaryFile = folderItems.find(
@@ -115,7 +134,7 @@ export async function POST(
     FileLogger.warn('shadow-twins/resolve-binary-url', 'Fragment nicht gefunden (inkl. Storage-Fallback)', {
       fragmentName: body.fragmentName,
       sourceId: body.sourceId,
-      availableFragments: allFragments?.map(f => ({ name: f.name, hasUrl: !!f.url, hasFileId: !!f.fileId })) ?? [],
+      availableFragments: allFragments?.map(f => ({ name: f.name, originalName: f.originalName, hasUrl: !!f.url, hasFileId: !!f.fileId })) ?? [],
     })
     return NextResponse.json({ 
       error: 'Fragment nicht gefunden',

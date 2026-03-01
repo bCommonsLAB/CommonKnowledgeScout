@@ -64,7 +64,7 @@ export interface SessionDetailData {
   language?: string;
   slides?: Slide[];
   video_url?: string;
-  attachments_url?: string;
+  attachments_url?: string | string[];
   url?: string; // Session-URL auf Event-Website
   // Technische Felder
   fileId?: string;
@@ -333,21 +333,31 @@ export function SessionDetail({
                 <p className="text-sm text-muted-foreground mb-4">{data.organisation}</p>
               )}
 
-              {/* PDF-Link prominent anzeigen (attachments_url = PDF, url = Original-Webseite) */}
-              {data.attachments_url && (
-                <div className="mb-6">
-                  <a
-                    href={data.attachments_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-base font-medium shadow-sm"
-                  >
-                    <FileText className="w-5 h-5" />
-                    PDF öffnen
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
-                </div>
-              )}
+              {/* PDF-Links prominent anzeigen (attachments_url = PDF(s), url = Original-Webseite) */}
+              {/* Rückwärtskompatibel: String oder Array */}
+              {data.attachments_url && (() => {
+                const urls = Array.isArray(data.attachments_url)
+                  ? data.attachments_url.filter(u => typeof u === 'string' && u.trim().length > 0)
+                  : [data.attachments_url]
+                if (urls.length === 0) return null
+                return (
+                  <div className="mb-6 flex flex-wrap gap-2">
+                    {urls.map((url, idx) => (
+                      <a
+                        key={idx}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-base font-medium shadow-sm"
+                      >
+                        <FileText className="w-5 h-5" />
+                        {urls.length > 1 ? `PDF ${idx + 1}` : 'PDF öffnen'}
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    ))}
+                  </div>
+                )
+              })()}
 
               {/* Speakers Section:
                   - MIT Bild: Card + Avatar (visuell prominent)

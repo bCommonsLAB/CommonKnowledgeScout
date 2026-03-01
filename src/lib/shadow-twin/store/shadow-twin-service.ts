@@ -363,9 +363,14 @@ export class ShadowTwinService {
     const fragments = await this.getBinaryFragments()
     if (!fragments) return null
 
-    // Suche Fragment nach Namen (case-insensitive)
+    // Suche Fragment: zuerst nach Name, dann nach originalName (case-insensitive).
+    // originalName enthält den Pre-Upload-Dateinamen (z.B. "img-0.jpeg"), der im Frontmatter
+    // referenziert wird, während name den Azure-Hash-Namen enthält.
+    const nameLower = fragmentName.toLowerCase()
     const fragment = fragments.find(
-      f => f.name.toLowerCase() === fragmentName.toLowerCase()
+      f => f.name.toLowerCase() === nameLower
+    ) ?? fragments.find(
+      f => f.originalName?.toLowerCase() === nameLower
     )
     if (!fragment) return null
 

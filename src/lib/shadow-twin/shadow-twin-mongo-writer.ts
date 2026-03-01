@@ -41,40 +41,6 @@ function extractImageUrls(markdown: string): Array<{ url: string; name: string; 
   return results
 }
 
-/**
- * Extrahiert den ursprünglichen relativen Pfad aus dem Markdown (vor URL-Rewrite)
- * für Bilder, die noch relative Pfade haben
- */
-function extractOriginalImagePaths(markdown: string): Map<string, string> {
-  const pathMap = new Map<string, string>()
-  const patterns = [
-    {
-      regex: /!\[([^\]]*?)\]\((?!http)([^)]+)\)/g,
-      extractPath: (match: RegExpMatchArray) => match[2],
-    },
-    {
-      regex: /<img\s+src=["'](?!http)([^"']+)["'][^>]*>/gi,
-      extractPath: (match: RegExpMatchArray) => match[1],
-    },
-    {
-      regex: /<img-(\d+\.(?:jpeg|jpg|png|gif|webp))>/gi,
-      extractPath: (match: RegExpMatchArray) => match[1],
-    },
-  ]
-
-  for (const pattern of patterns) {
-    let match: RegExpExecArray | null
-    while ((match = pattern.regex.exec(markdown)) !== null) {
-      const imagePath = pattern.extractPath(match)
-      if (imagePath) {
-        const fileName = path.basename(imagePath)
-        pathMap.set(fileName, imagePath)
-      }
-    }
-  }
-
-  return pathMap
-}
 
 export async function persistShadowTwinToMongo(args: {
   libraryId: string
@@ -130,13 +96,21 @@ export async function persistShadowTwinToMongo(args: {
   // Extrahiere Azure-URLs aus dem verarbeiteten Markdown
   const imageUrls = extractImageUrls(processed.markdown)
   
-  // Extrahiere ursprüngliche relative Pfade (für Bilder, die noch nicht verarbeitet wurden)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _originalPaths = extractOriginalImagePaths(markdown)
+  // Baue Reverse-Mapping: Azure-Blob-Name → Original-Dateiname (z.B. "hash.jpeg" → "img-0.jpeg")
+  // Wird verwendet, um bei der Auflösung auch über den originalen Frontmatter-Wert zu matchen
+  const azureNameToOriginal = new Map<string, string>()
+  for (const mapping of processed.imageMapping) {
+    const azureBlobName = mapping.azureUrl.split('/').pop() || ''
+    const originalFileName = mapping.originalPath.split('/').pop() || mapping.originalPath
+    if (azureBlobName && originalFileName) {
+      azureNameToOriginal.set(azureBlobName.toLowerCase(), originalFileName)
+    }
+  }
 
   // Erstelle binaryFragments mit Hash und Size
   const binaryFragments: Array<{
     name: string
+    originalName?: string
     kind: 'image'
     url?: string
     hash?: string
@@ -161,7 +135,8 @@ export async function persistShadowTwinToMongo(args: {
       
       if (metadata) {
         binaryFragments.push({
-          name: fileName, // Verwende Dateinamen aus URL (wie von extractImageUrls extrahiert)
+          name: fileName,
+          originalName: azureNameToOriginal.get(fileName.toLowerCase()),
           kind: 'image',
           url: metadata.url,
           hash: metadata.hash,
@@ -175,6 +150,7 @@ export async function persistShadowTwinToMongo(args: {
         const mimeType = ext ? `image/${ext === 'jpg' ? 'jpeg' : ext}` : undefined
         binaryFragments.push({
           name: fileName,
+          originalName: azureNameToOriginal.get(fileName.toLowerCase()),
           kind: 'image',
           url: imageInfo.url,
           mimeType,
@@ -196,14 +172,12 @@ export async function persistShadowTwinToMongo(args: {
       const ext = path.extname(imageInfo.name).toLowerCase().slice(1)
       const mimeType = ext ? `image/${ext === 'jpg' ? 'jpeg' : ext}` : undefined
       
-      // Verwende nur URL - Hash und Size sind optional und werden nicht berechnet
-      // (Hash wurde bereits beim Azure-Upload berechnet, aber nicht zurückgegeben)
       binaryFragments.push({
         name: imageInfo.name,
+        originalName: azureNameToOriginal.get(imageInfo.name.toLowerCase()),
         kind: 'image',
         url: imageInfo.url,
         mimeType,
-        // hash und size sind optional - nicht berechnet, um Zeit zu sparen
         createdAt: new Date().toISOString(),
       })
     }
@@ -241,9 +215,10 @@ export async function persistShadowTwinToMongo(args: {
       provider,
     })
 
-    // Konvertiere binaryFragments zu Service-Format
+    // Konvertiere binaryFragments zu Service-Format (inkl. originalName für Frontmatter-Auflösung)
     const serviceBinaryFragments = binaryFragments.map((f) => ({
       name: f.name,
+      originalName: f.originalName,
       url: f.url,
       hash: f.hash,
       mimeType: f.mimeType,

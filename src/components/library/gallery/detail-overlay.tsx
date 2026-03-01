@@ -60,6 +60,8 @@ export function DetailOverlay({
   const [originalData, setOriginalData] = React.useState<BookDetailData | SessionDetailData | ClimateActionDetailData | DivaDocumentDetailData | null>(null)
   const [translatedData, setTranslatedData] = React.useState<BookDetailData | SessionDetailData | ClimateActionDetailData | DivaDocumentDetailData | null>(null)
   const [originalLanguage, setOriginalLanguage] = React.useState<string>('EN')
+  /** Sprache, IN DIE der Inhalt transformiert wurde (aus Frontmatter targetLanguage) */
+  const [contentLanguage, setContentLanguage] = React.useState<string | null>(null)
   const [sessionUrl, setSessionUrl] = React.useState<string | null>(null)
   
   // Bestimme Titel basierend auf viewType, falls nicht explizit angegeben
@@ -210,7 +212,8 @@ export function DetailOverlay({
       setTranslatedData(null)
       setSessionUrl(null)
       setOriginalLanguage('EN')
-      translationStartedRef.current = null // Reset translation flag
+      setContentLanguage(null)
+      translationStartedRef.current = null
       return
     }
 
@@ -229,7 +232,7 @@ export function DetailOverlay({
         if (res.ok && json.docMetaJson) {
           const docMetaJson = json.docMetaJson as Record<string, unknown>
           
-          // Bestimme Originalsprache
+          // Bestimme Originalsprache (Quellsprache des Dokuments)
           const languageField = docMetaJson.language
           const lang = typeof languageField === 'string' && languageField.trim().length > 0
             ? languageField.trim()
@@ -238,13 +241,29 @@ export function DetailOverlay({
           
           setOriginalLanguage(langCode)
           
+          // Bestimme Inhaltssprache (Zielsprache der Transformation)
+          // Priorität: targetLanguage > summary_language (beide SSOT-Felder aus der Pipeline)
+          const targetLangField = docMetaJson.targetLanguage
+          const summaryLangField = docMetaJson.summary_language
+          const resolvedContentLang = 
+            (typeof targetLangField === 'string' && targetLangField.trim().length > 0)
+              ? targetLangField.trim().toUpperCase().slice(0, 2)
+              : (typeof summaryLangField === 'string' && summaryLangField.trim().length > 0)
+                ? summaryLangField.trim().toUpperCase().slice(0, 2)
+                : null
+          
+          setContentLanguage(resolvedContentLang)
+          
           // URL für Sessions speichern
           if (viewType === 'session' && typeof docMetaJson.url === 'string') {
             setSessionUrl(docMetaJson.url)
           }
           
+          // Bestimme die effektive Sprache des Inhalts für Tab-Entscheidung
+          const effectiveContentLang = resolvedContentLang || langCode
+          
           // Wenn Präferenz existiert UND Übersetzung nötig ist: automatisch auf "translated" Tab wechseln
-          if (preferTranslation && langCode !== targetLanguageCode) {
+          if (preferTranslation && effectiveContentLang !== targetLanguageCode) {
             setActiveTab('translated')
           }
         } else {
@@ -273,8 +292,9 @@ export function DetailOverlay({
       ? localStorage.getItem(PREFER_TRANSLATION_KEY) === 'true'
       : false
     
-    // Prüfe, ob Übersetzung nötig ist
-    const needsTranslation = originalLanguage !== targetLanguageCode
+    // Prüfe, ob Übersetzung nötig ist (basierend auf Inhaltssprache, nicht Quellsprache)
+    const effectiveLang = contentLanguage || originalLanguage
+    const needsTranslation = effectiveLang !== targetLanguageCode
     
     // Prüfe, ob wir auf "translated" Tab sind (kann durch Präferenz gesetzt worden sein)
     const isTranslatedTab = activeTab === 'translated'
@@ -308,12 +328,16 @@ export function DetailOverlay({
         translationStartedRef.current = null
       })
     }
-  }, [open, originalData, originalLanguage, targetLanguageCode, activeTab, translatedData, fileId, viewType, libraryId, translateDocument])
+  }, [open, originalData, originalLanguage, contentLanguage, targetLanguageCode, activeTab, translatedData, fileId, viewType, libraryId, translateDocument])
   
   // viewType wird automatisch über Props verwaltet
   
-  // Prüfe, ob Tabs angezeigt werden sollen (nur wenn Originalsprache != Zielsprache)
-  const shouldShowTabs = originalLanguage !== targetLanguageCode
+  // Prüfe, ob Tabs angezeigt werden sollen.
+  // Entscheidend ist die Inhaltssprache (contentLanguage = targetLanguage aus Frontmatter),
+  // nicht die Quellsprache (originalLanguage = language aus Frontmatter).
+  // Wenn der Inhalt bereits in der Zielsprache des Browsers vorliegt, sind Tabs unnötig.
+  const effectiveContentLanguage = contentLanguage || originalLanguage
+  const shouldShowTabs = effectiveContentLanguage !== targetLanguageCode
   
   if (!open) return null
   return (
@@ -357,11 +381,11 @@ export function DetailOverlay({
           
           {/* Tabs und CTA-Button nebeneinander */}
           <div className="flex items-center justify-between gap-4">
-            {/* Tabs für Sprache (nur wenn Originalsprache != Zielsprache) */}
+            {/* Tabs für Sprache (nur wenn Inhaltssprache != Browser-Zielsprache) */}
             {shouldShowTabs && (
               <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1">
                 <TabsList className="w-fit">
-                  <TabsTrigger value="original">{originalLanguage}</TabsTrigger>
+                  <TabsTrigger value="original">{effectiveContentLanguage}</TabsTrigger>
                   <TabsTrigger value="translated" disabled={translationLoading && !translatedData}>
                     {translationLoading && !translatedData ? (
                       <span className="flex items-center gap-2">
@@ -438,6 +462,11 @@ export function DetailOverlay({
               <IngestionBookDetail
                 libraryId={libraryId}
                 fileId={fileId}
+                onDataLoaded={(data) => {
+                  if (handleDataLoadedRef.current) {
+                    handleDataLoadedRef.current(data)
+                  }
+                }}
                 translatedData={activeTab === 'translated' ? (translatedData as BookDetailData) : undefined}
               />
             )}

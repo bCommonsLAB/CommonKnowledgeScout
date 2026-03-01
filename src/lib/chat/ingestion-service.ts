@@ -448,6 +448,32 @@ export class IngestionService {
             }
           }
           
+          // Medien-Felder (speakers_image_url, authors_image_url, attachments_url, author_image_url)
+          // aus binaryFragments auflösen, falls sie relative Dateinamen enthalten
+          try {
+            const allFragments = await getShadowTwinBinaryFragments(libraryId, fileId)
+            if (allFragments && allFragments.length > 0) {
+              const mediaFields = ['speakers_image_url', 'authors_image_url', 'attachments_url', 'author_image_url'] as const
+              for (const fieldKey of mediaFields) {
+                const rawValue = docMetaJsonObj[fieldKey]
+                if (rawValue) {
+                  const resolved = resolveMediaFieldFromFragments(fieldKey, rawValue as string | string[], allFragments)
+                  if (resolved) {
+                    docMetaJsonObj[fieldKey] = resolved
+                  }
+                }
+              }
+              FileLogger.info('ingestion', 'Medien-Felder aus binaryFragments aufgelöst', {
+                fileId,
+                resolvedFields: mediaFields.filter(f => docMetaJsonObj[f]),
+              })
+            }
+          } catch (error) {
+            FileLogger.warn('ingestion', 'Fehler beim Auflösen der Medien-Felder', {
+              fileId, error: error instanceof Error ? error.message : String(error),
+            })
+          }
+
           // Verarbeite Markdown-Bilder
           const markdownResult = await ImageProcessor.processMarkdownImages(
             body,
@@ -985,4 +1011,31 @@ export class IngestionService {
   }
 }
 
+/**
+ * Löst einen Dateinamen oder ein Array von Dateinamen gegen binaryFragments auf.
+ * Wenn der Wert bereits eine vollständige URL ist, wird er direkt übernommen.
+ * Bei relativem Dateinamen wird in den fragments nach einer passenden URL gesucht.
+ *
+ * Unterstützt: String-Felder (coverImageUrl, author_image_url)
+ * und Array-Felder (speakers_image_url, authors_image_url, attachments_url).
+ */
+export function resolveMediaFieldFromFragments(
+  fieldKey: string,
+  value: string | string[] | undefined,
+  fragments: Array<{ name: string; url?: string }>,
+): string | string[] | undefined {
+  if (!value) return value
 
+  const resolveOne = (name: string): string => {
+    if (!name || name.trim().length === 0) return name
+    if (name.startsWith('http://') || name.startsWith('https://')) return name
+    const frag = fragments.find(f => f.name === name && f.url)
+    return frag?.url || name
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(v => typeof v === 'string' ? resolveOne(v) : v)
+  }
+
+  return resolveOne(value)
+}

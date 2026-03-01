@@ -79,6 +79,12 @@ export interface BinaryFragment {
    * Wird bei Varianten (thumbnail, preview) gesetzt, um die Zuordnung zum Original zu ermöglichen.
    */
   sourceHash?: string
+  /**
+   * Optional: Ursprünglicher Dateiname vor Azure-Upload (z.B. "img-0.jpeg").
+   * Wird bei der Auflösung als Fallback verwendet, wenn der Frontmatter-Wert
+   * den Original-Namen referenziert statt des Azure-Hash-Namens.
+   */
+  originalName?: string
 }
 
 /**

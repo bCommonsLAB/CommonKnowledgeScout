@@ -10,9 +10,11 @@ interface IngestionBookDetailProps {
   fileId: string;
   docModifiedAt?: string;
   translatedData?: BookDetailData;
+  /** Callback wenn Original-Daten geladen wurden (für Übersetzungs-Logik im Parent) */
+  onDataLoaded?: (data: BookDetailData) => void;
 }
 
-export function IngestionBookDetail({ libraryId, fileId, translatedData }: IngestionBookDetailProps) {
+export function IngestionBookDetail({ libraryId, fileId, translatedData, onDataLoaded }: IngestionBookDetailProps) {
   const { t } = useTranslation()
   const [data, setData] = React.useState<BookDetailData | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -30,6 +32,7 @@ export function IngestionBookDetail({ libraryId, fileId, translatedData }: Inges
       if (!res.ok) throw new Error(typeof json?.error === 'string' ? json.error : 'Dokument-Metadaten konnten nicht geladen werden');
       const mapped = mapToBookDetail(json as unknown);
       setData(mapped);
+      onDataLoaded?.(mapped);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unbekannter Fehler');
     } finally {

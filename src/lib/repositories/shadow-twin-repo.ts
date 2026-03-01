@@ -198,6 +198,8 @@ export async function getShadowTwinArtifact(args: {
  */
 export interface MongoBinaryFragment {
   name: string
+  /** Ursprünglicher Dateiname vor Azure-Upload (z.B. "img-0.jpeg") */
+  originalName?: string
   /** Azure Blob Storage URL (bevorzugt) */
   url?: string
   /** Dateisystem-Referenz (Fallback, wenn keine Azure-URL) */
@@ -233,6 +235,7 @@ export async function getShadowTwinBinaryFragments(
     const f = fragment as Record<string, unknown>
     return {
       name: typeof f.name === 'string' ? f.name : '',
+      originalName: typeof f.originalName === 'string' ? f.originalName : undefined,
       url: typeof f.url === 'string' ? f.url : undefined,
       fileId: typeof f.fileId === 'string' ? f.fileId : undefined,
       hash: typeof f.hash === 'string' ? f.hash : undefined,
@@ -240,6 +243,8 @@ export async function getShadowTwinBinaryFragments(
       size: typeof f.size === 'number' ? f.size : undefined,
       kind: typeof f.kind === 'string' ? f.kind : undefined,
       createdAt: typeof f.createdAt === 'string' ? f.createdAt : undefined,
+      variant: typeof f.variant === 'string' ? f.variant as MongoBinaryFragment['variant'] : undefined,
+      sourceHash: typeof f.sourceHash === 'string' ? f.sourceHash : undefined,
     }
   })
 }

@@ -194,7 +194,10 @@ export async function POST(
             sourceName: doc.sourceName,
             parentName: parentName || undefined,
             name: (fragment.name as string) || 'Unbekannt',
-            kind: (fragment.kind as string) || 'binary',
+            // kind aus Fragment, oder aus mimeType/Dateiname ableiten (für ältere Daten ohne kind-Feld)
+            kind: (fragment.kind as string)
+              || (fragment.mimeType && (fragment.mimeType as string).startsWith('image/') ? 'image' : undefined)
+              || (/\.(jpeg|jpg|png|gif|webp|svg|bmp)$/i.test((fragment.name as string) || '') ? 'image' : 'binary'),
             url,
             fileId,
             resolvedUrl,

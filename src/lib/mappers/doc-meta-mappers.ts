@@ -44,6 +44,7 @@ export function mapToBookDetail(input: unknown): BookDetailData {
   const data: BookDetailData = {
     title: toStr(docMetaJson.title) || toStr(root.fileName) || '—',
     authors: toStrArr(docMetaJson.authors) || [],
+    authors_image_url: toStrArr(docMetaJson.authors_image_url),
     year: ((): number | string => {
       const y = docMetaJson.year ?? root.year;
       if (typeof y === 'number') return y;
@@ -71,7 +72,13 @@ export function mapToBookDetail(input: unknown): BookDetailData {
     upsertedAt: toStr(root.upsertedAt),
     markdown: toStr(docMetaJson.markdown),
     coverImageUrl: toStr((docMetaJson as { coverImageUrl?: unknown }).coverImageUrl),
-    url: toStr(docMetaJson.url), // PDF-URL aus Azure Storage
+    url: toStr(docMetaJson.url),
+    attachments_url: (() => {
+      const raw = docMetaJson.attachments_url
+      if (Array.isArray(raw)) return raw.filter((u): u is string => typeof u === 'string' && u.trim().length > 0)
+      if (typeof raw === 'string' && raw.trim().length > 0) return [raw.trim()]
+      return undefined
+    })(),
     chapters: chaptersIn.map((c, i) => {
       const ch = (c && typeof c === 'object') ? c as Record<string, unknown> : {};
       const order = toNum(ch.order) ?? (i + 1);
@@ -229,7 +236,13 @@ export function mapToSessionDetail(input: unknown): SessionDetailData {
     
     // Links (alle aus docMetaJson)
     video_url: toStr(docMetaJson.video_url),
-    attachments_url: toStr(docMetaJson.attachments_url),
+    attachments_url: (() => {
+      // Rückwärtskompatibel: String oder Array
+      const raw = docMetaJson.attachments_url
+      if (Array.isArray(raw)) return raw.filter((u): u is string => typeof u === 'string' && u.trim().length > 0)
+      if (typeof raw === 'string' && raw.trim().length > 0) return [raw.trim()]
+      return undefined
+    })(),
     url: toStr(docMetaJson.url),
     
     // Slides

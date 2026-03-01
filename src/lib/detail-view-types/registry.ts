@@ -55,6 +55,28 @@ export function isValidDetailViewType(value: unknown): value is DetailViewType {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
+ * Medien-Konfiguration pro ViewType.
+ * Steuert welche Medien-Sektionen im Medien-Tab angezeigt werden.
+ */
+export interface ViewTypeMediaConfig {
+  /** Zeigt die Coverbild-Sektion (coverImageUrl) */
+  coverImage: boolean
+  /** Personen-Sektion mit Index-basierten Bildern (z.B. Sprecher, Autoren) */
+  personField?: {
+    /** Frontmatter-Key für die Personen-Liste (z.B. 'speakers', 'authors') */
+    listKey: string
+    /** Frontmatter-Key für die Bild-URLs (z.B. 'speakers_image_url', 'authors_image_url') */
+    imageKey: string
+    /** UI-Label für die Sektion (z.B. 'Sprecher', 'Autoren') */
+    label: string
+  }
+  /** Zeigt die Anhänge-Sektion (attachments_url als string[]) */
+  attachments: boolean
+  /** Zeigt die URL-Sektion (url-Feld, zuordenbar über .url-Dateien im Verzeichnis) */
+  urlField: boolean
+}
+
+/**
  * Konfiguration für einen DetailViewType.
  * Definiert Pflichtfelder, optionale Felder und UI-Eigenschaften.
  */
@@ -67,6 +89,8 @@ export interface ViewTypeConfig {
   labelKey: string
   /** i18n-Schlüssel für die Beschreibung */
   descriptionKey: string
+  /** Medien-Konfiguration für den Medien-Tab */
+  mediaConfig: ViewTypeMediaConfig
 }
 
 /**
@@ -83,13 +107,19 @@ export interface ViewTypeConfig {
  */
 export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
   book: {
-    requiredFields: ['title'],
-    optionalFields: ['summary', 'authors', 'year', 'coverImageUrl', 'chapters', 'pages', 'region'],
+    requiredFields: ['title', 'language', 'targetLanguage'],
+    optionalFields: ['summary', 'authors', 'authors_image_url', 'year', 'coverImageUrl', 'chapters', 'pages', 'region', 'topics', 'tags', 'docType', 'source'],
     labelKey: 'gallery.detailViewTypeBook',
     descriptionKey: 'gallery.detailViewTypeBookDescription',
+    mediaConfig: {
+      coverImage: true,
+      personField: { listKey: 'authors', imageKey: 'authors_image_url', label: 'Autoren' },
+      attachments: false,
+      urlField: true,
+    },
   },
   session: {
-    requiredFields: ['title'],
+    requiredFields: ['title', 'language', 'targetLanguage'],
     optionalFields: [
       'summary',
       'teaser',
@@ -115,21 +145,38 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
     ],
     labelKey: 'gallery.detailViewTypeSession',
     descriptionKey: 'gallery.detailViewTypeSessionDescription',
+    mediaConfig: {
+      coverImage: true,
+      personField: { listKey: 'speakers', imageKey: 'speakers_image_url', label: 'Sprecher' },
+      attachments: true,
+      urlField: true,
+    },
   },
   testimonial: {
-    requiredFields: ['title', 'author_name'],
+    requiredFields: ['title', 'author_name', 'language', 'targetLanguage'],
     optionalFields: ['q1_experience', 'q2_key_insight', 'q3_why_important', 'author_image_url', 'author_role'],
     labelKey: 'gallery.detailViewTypeTestimonial',
     descriptionKey: 'gallery.detailViewTypeTestimonialDescription',
+    mediaConfig: {
+      coverImage: false,
+      personField: { listKey: 'author_name', imageKey: 'author_image_url', label: 'Autor' },
+      attachments: false,
+      urlField: false,
+    },
   },
   blog: {
-    requiredFields: ['title'],
+    requiredFields: ['title', 'language', 'targetLanguage'],
     optionalFields: ['summary', 'authors', 'coverImageUrl', 'teaser', 'tags'],
     labelKey: 'gallery.detailViewTypeBlog',
     descriptionKey: 'gallery.detailViewTypeBlogDescription',
+    mediaConfig: {
+      coverImage: true,
+      attachments: false,
+      urlField: true,
+    },
   },
   climateAction: {
-    requiredFields: ['title', 'category'],
+    requiredFields: ['title', 'category', 'language', 'targetLanguage'],
     optionalFields: [
       'summary',
       'massnahme_nr',
@@ -141,9 +188,14 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
     ],
     labelKey: 'gallery.detailViewTypeClimateAction',
     descriptionKey: 'gallery.detailViewTypeClimateActionDescription',
+    mediaConfig: {
+      coverImage: true,
+      attachments: false,
+      urlField: false,
+    },
   },
   divaDocument: {
-    requiredFields: ['title', 'dokumentTyp', 'produktname', 'lieferant'],
+    requiredFields: ['title', 'dokumentTyp', 'produktname', 'lieferant', 'language', 'targetLanguage'],
     optionalFields: [
       'summary',
       'haendler',
@@ -160,6 +212,11 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
     ],
     labelKey: 'gallery.detailViewTypeDivaDocument',
     descriptionKey: 'gallery.detailViewTypeDivaDocumentDescription',
+    mediaConfig: {
+      coverImage: true,
+      attachments: false,
+      urlField: true,
+    },
   },
 }
 

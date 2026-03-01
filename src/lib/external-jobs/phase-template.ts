@@ -1197,6 +1197,10 @@ ${customHintValue}`
   if (typeof (finalMeta as Record<string, unknown>)['summary_pages'] === 'number') ssotFlat['summary_pages'] = (finalMeta as Record<string, unknown>)['summary_pages']
   if (typeof (finalMeta as Record<string, unknown>)['summary_chunks'] === 'number') ssotFlat['summary_chunks'] = (finalMeta as Record<string, unknown>)['summary_chunks']
   ssotFlat['summary_language'] = lang
+  // targetLanguage als SSOT-Feld: Sprache, IN DIE transformiert wurde.
+  // Unterscheidet sich von 'language' (= Quellsprache des Originals, vom LLM erkannt).
+  // Wird vom UI (Detail-Overlay) benötigt, um Sprach-Tabs korrekt anzuzeigen.
+  ssotFlat['targetLanguage'] = lang
 
   // Kapitel zentral normalisieren (Analyze-Endpoint), Ergebnis in Frontmatter mergen
   // Bestehendes Frontmatter laden (falls Datei existiert) und als Basis verwenden
