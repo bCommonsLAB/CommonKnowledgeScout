@@ -158,7 +158,9 @@ export function BookDetail({ data, backHref = "/library", showBackLink = false }
         )}
       </div>
 
-      {data.summary && (
+      {/* Zusammenfassung nur anzeigen, wenn kein Markdown-Body vorhanden ist —
+           der Markdown-Body enthält den Summary bereits am Anfang. */}
+      {data.summary && !data.markdown && (
         <section className="bg-card border border-border rounded-lg p-5 mb-6">
           <h2 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">Zusammenfassung</h2>
           <div className="prose prose-sm prose-slate dark:prose-invert max-w-none text-muted-foreground">

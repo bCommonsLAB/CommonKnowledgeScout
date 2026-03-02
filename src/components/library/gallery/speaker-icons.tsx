@@ -52,30 +52,31 @@ function normalizeImageUrls(urls: unknown): string[] | undefined {
   return undefined
 }
 
-export function SpeakerOrAuthorIcons({ doc }: { doc: DocLike }) {
+export function SpeakerOrAuthorIcons({ doc, compact = false }: { doc: DocLike; compact?: boolean }) {
   const names = doc.speakers && doc.speakers.length > 0 
     ? doc.speakers 
     : (doc.authors && doc.authors.length > 0 ? doc.authors : undefined)
   
-  // URLs sind bereits in den Metadaten vorhanden
-  // Die Bilder selbst werden durch Next.js Image lazy-loaded (mit loading="lazy")
-  // WICHTIG: speakers_image_url kann auch für authors verwendet werden, wenn keine speakers vorhanden sind
-  // Dies ist konsistent mit der Datenstruktur, wo speakers_image_url für beide Fälle verwendet wird
   // Normalisiere speakers_image_url (kann String oder Array sein)
   const images = normalizeImageUrls(doc.speakers_image_url)
 
-  // Icons nur anzeigen, wenn wir wirklich Bild-URLs haben.
-  // Wenn keine Bilder vorhanden sind, sollen die großen Kreise komplett entfallen.
+  // Icons nur anzeigen, wenn wir wirklich Bild-URLs haben
   const hasRealImages = Array.isArray(images) && images.some(url => typeof url === 'string' && url.trim().length > 0)
   
   // Icons nur anzeigen, wenn Namen UND echte Bilder vorhanden sind
   if (!names || names.length === 0 || !hasRealImages) {
-    // Kein Name oder keine echten Bilder → keine Kreise rendern
     return null
   }
+
+  // compact: kleinere Icons (40px) ohne negative Margins — für SessionCard
+  // normal: große Icons (80px) mit -mt-10 — für Standard-Karte
+  const iconSize = compact ? 'h-12 w-12' : 'h-20 w-20'
+  const wrapperClass = compact
+    ? 'flex items-center gap-0 flex-wrap'
+    : 'flex items-center gap-0 -mt-10 mb-2 flex-wrap -ml-2'
   
   return (
-    <div className='flex items-center gap-0 -mt-10 mb-2 flex-wrap -ml-2'>
+    <div className={wrapperClass}>
       {names.slice(0, 3).map((name, idx) => {
         const imageUrl = images && images[idx] ? images[idx] : undefined
         return (
@@ -84,7 +85,7 @@ export function SpeakerOrAuthorIcons({ doc }: { doc: DocLike }) {
             className={idx > 0 ? '-ml-2' : ''}
             style={{ zIndex: names.length - idx }}
           >
-            <SpeakerIcon name={name} imageUrl={imageUrl} />
+            <SpeakerIcon name={name} imageUrl={imageUrl} size={iconSize} compact={compact} />
           </div>
         )
       })}
@@ -93,7 +94,7 @@ export function SpeakerOrAuthorIcons({ doc }: { doc: DocLike }) {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className='flex items-center justify-center h-20 w-20 rounded-full bg-muted text-muted-foreground text-sm font-medium shrink-0 border-2 border-background shadow-sm'>
+                <div className={`flex items-center justify-center ${iconSize} rounded-full bg-muted text-muted-foreground text-sm font-medium shrink-0 border-2 border-background shadow-sm`}>
                   +{names.length - 3}
                 </div>
               </TooltipTrigger>
@@ -112,14 +113,20 @@ export function SpeakerOrAuthorIcons({ doc }: { doc: DocLike }) {
   )
 }
 
-export function SpeakerIcon({ name, imageUrl }: { name: string; imageUrl?: string }) {
+export function SpeakerIcon({ name, imageUrl, size = 'h-20 w-20', compact = false }: { 
+  name: string; 
+  imageUrl?: string; 
+  size?: string;
+  compact?: boolean;
+}) {
   const [imageError, setImageError] = useState(false)
+  const textSize = compact ? 'text-xs' : 'text-base'
   
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className='flex items-center justify-center h-20 w-20 rounded-full bg-primary/10 text-primary text-base font-medium border-2 border-background hover:border-primary/30 transition-colors overflow-hidden shrink-0 shadow-sm relative'>
+          <div className={`flex items-center justify-center ${size} rounded-full bg-primary/10 text-primary ${textSize} font-medium border-2 border-background hover:border-primary/30 transition-colors overflow-hidden shrink-0 shadow-sm relative`}>
             {imageUrl && !imageError ? (
               <Image 
                 src={imageUrl} 

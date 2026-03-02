@@ -51,6 +51,7 @@ const bookTranslationSchema = z.object({
   title: z.string(),
   authors: z.array(z.string()),
   summary: z.string().optional(),
+  markdown: z.string().optional(),
   topics: z.array(z.string()).optional(),
   chapters: z.array(chapterTranslationSchema).optional(),
   // Nicht-textuelle Felder bleiben unverändert (werden nicht übersetzt)
@@ -124,6 +125,7 @@ structured_data:
   title: {{title|Übersetze den Titel}}
   authors: {{authors|Übersetze die Autorenliste (Array von Strings)}}
   summary: {{summary|Übersetze die Zusammenfassung (optional)}}
+  markdown: {{markdown|Übersetze den Markdown-Text (optional, behalte Markdown-Formatierung bei)}}
   topics: {{topics|Übersetze die Themenliste (Array von Strings, optional)}}
   chapters: {{chapters|Übersetze die Kapitel-Liste (Array von Objekten mit order, level, title, startPage, endPage, summary, keywords, optional)}}
 ---
@@ -156,11 +158,12 @@ export async function translateBookData(
     throw new Error('Secretary Service API-Key fehlt')
   }
 
-  // Daten für Übersetzung vorbereiten
+  // Daten für Übersetzung vorbereiten (inkl. markdown-Body)
   const dataToTranslate = JSON.stringify({
     title: data.title,
     authors: data.authors,
     summary: data.summary,
+    markdown: data.markdown,
     topics: data.topics,
     chapters: data.chapters?.map(ch => ({
       order: ch.order,

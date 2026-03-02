@@ -193,14 +193,14 @@ function SessionCard({ doc, onClick }: { doc: DocCardMeta; onClick: () => void }
         <div className='absolute inset-0 bg-gradient-to-br from-blue-400 to-cyan-600' />
       )}
 
-      {/* Leichte Blende: Gradient von oben und unten für bessere Lesbarkeit */}
-      <div className='absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/60' />
+      {/* Blende: Starke Abdunklung für bessere Lesbarkeit über Hintergrundbild */}
+      <div className='absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/80' />
 
       {/* Content Container */}
       <div className='relative h-full flex flex-col justify-between p-4'>
-        {/* OBEN: Titel + Sprecher + Organisation */}
+        {/* OBEN: Titel + Sprecher-Namen */}
         <div className='pr-8'>
-          <h3 className='text-lg font-semibold leading-tight text-white text-balance drop-shadow-lg line-clamp-2'>
+          <h3 className='text-lg font-semibold leading-tight text-white drop-shadow-lg line-clamp-2'>
             {doc.shortTitle || doc.title || doc.fileName || 'Session'}
           </h3>
           {speakerNames && (
@@ -208,30 +208,26 @@ function SessionCard({ doc, onClick }: { doc: DocCardMeta; onClick: () => void }
               {speakerNames}
             </p>
           )}
-          {doc.organisation && (
-            <p className='text-xs text-white/70 mt-0.5 drop-shadow-lg line-clamp-1'>
-              {doc.organisation}
-            </p>
-          )}
         </div>
 
-        {/* UNTEN: Datum + Track-Badge */}
-        <div className='flex items-end justify-between'>
-          <span className='text-xs text-white/80 drop-shadow-lg flex items-center gap-1'>
-            {formattedDate && (
-              <>
-                <Calendar className='w-3 h-3' />
-                {formattedDate}
-              </>
+        {/* UNTEN: Speaker-Icons + Datum/Track */}
+        <div className='flex flex-col gap-1'>
+          <SpeakerOrAuthorIcons doc={doc} compact />
+          <div className='flex items-end justify-between'>
+            <span className='text-xs text-white/80 drop-shadow-lg flex items-center gap-1'>
+              {formattedDate && (
+                <>
+                  <Calendar className='w-3 h-3' />
+                  {formattedDate}
+                </>
+              )}
+            </span>
+            {doc.track && (
+              <div className='flex items-center rounded-full px-2.5 py-1 text-xs font-medium backdrop-blur-sm bg-white/20 text-white'>
+                {doc.track}
+              </div>
             )}
-          </span>
-
-          {/* Track-Badge als Pill mit backdrop-blur */}
-          {doc.track && (
-            <div className='flex items-center rounded-full px-2.5 py-1 text-xs font-medium backdrop-blur-sm bg-white/20 text-white'>
-              {doc.track}
-            </div>
-          )}
+          </div>
         </div>
       </div>
 
