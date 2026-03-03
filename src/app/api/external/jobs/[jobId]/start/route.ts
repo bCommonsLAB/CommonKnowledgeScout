@@ -28,7 +28,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuth, currentUser } from '@clerk/nextjs/server'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { getServerProvider } from '@/lib/storage/server-provider'
-import { getPublicAppUrl } from '@/lib/env'
+import { getPublicAppUrl, isElectronMode } from '@/lib/env'
+import { streamSecretaryJob } from '@/lib/external-jobs/secretary-sse-client'
+import { mapSyncResponseToCallbackBody, mapSSEResultToCallbackBody, postToSelfCallback } from '@/lib/external-jobs/offline-callback'
 import { getJobEventBus } from '@/lib/events/job-event-bus'
 import { startWatchdog, bumpWatchdog, clearWatchdog } from '@/lib/external-jobs-watchdog'
 import type { RequestContext } from '@/types/external-jobs'
@@ -534,6 +536,7 @@ export async function POST(
     await repo.traceAddEvent(jobId, { spanId: 'preprocess', name: (job.job_type === 'pdf') ? 'process_pdf_submit' : 'process_submit', attributes: {
       libraryId: job.libraryId,
       fileName: filename,
+      offline,
       extractionMethod: opts['extractionMethod'] ?? job.correlation?.options?.extractionMethod ?? undefined,
       targetLanguage: opts['targetLanguage'] ?? job.correlation?.options?.targetLanguage ?? undefined,
       includeOcrImages: opts['includeOcrImages'] ?? job.correlation?.options?.includeOcrImages ?? undefined,
@@ -1202,8 +1205,11 @@ export async function POST(
       return NextResponse.json({ ok: true, jobId, kind: 'extract_skipped' })
     }
 
+    // Offline-Modus (Electron): callback_url weglassen, Ergebnis direkt empfangen
+    const offline = isElectronMode()
+
     // Bereite Secretary-Service-Request vor
-    const requestConfig = prepareSecretaryRequest(job, file, callbackUrl, secret)
+    const requestConfig = prepareSecretaryRequest(job, file, callbackUrl, secret, { offlineMode: offline })
     const { url, formData: formForRequest, headers } = requestConfig
     const submitAtIso = new Date().toISOString()
     const submitAtMs = Date.now()
@@ -1225,6 +1231,7 @@ export async function POST(
           method: 'POST',
           submitAt: submitAtIso,
           extractionMethod,
+          offline,
         },
       })
     } catch {}
@@ -1233,6 +1240,7 @@ export async function POST(
         submitAt: submitAtIso,
         requestUrl: url,
         requestMethod: 'POST',
+        offline,
       })
     } catch {}
     
@@ -1268,6 +1276,7 @@ export async function POST(
           statusText: resp.statusText,
           url,
           extractionMethod,
+          offline,
           ackAt: ackAtIso,
           submitToAckMs,
           // Duplicate-Diagnose:
@@ -1325,7 +1334,9 @@ export async function POST(
       jobId,
       hasData: !!data,
       dataKeys: data && typeof data === 'object' ? Object.keys(data) : [],
-      status: (data as { status?: string })?.status
+      status: (data as { status?: string })?.status,
+      offline,
+      httpStatus: resp.status,
     });
     getJobEventBus().emitUpdate(job.userEmail, { type: 'job_update', jobId, status: 'running', progress: 0, updatedAt: new Date().toISOString(), message: 'enqueued', jobType: job.job_type, fileName: job.correlation?.source?.name, sourceItemId: job.correlation?.source?.itemId, libraryId: job.libraryId })
     // Watchdog wurde bereits beim Start gestartet - nur aktualisieren (bump)
@@ -1337,8 +1348,77 @@ export async function POST(
         jobId,
         error: error instanceof Error ? error.message : String(error)
       })
-      // Watchdog-Fehler nicht kritisch - Job kann trotzdem fortgesetzt werden
     }
+
+    // --- Offline-Modus: Ergebnis direkt empfangen und an Callback-Route weiterleiten ---
+    // Im Online-Modus wartet die Route hier nur auf den ACK; der Secretary
+    // ruft später die Callback-Route per Webhook auf.
+    // Im Offline-Modus empfangen wir das Ergebnis direkt (sync oder SSE)
+    // und leiten es per Self-POST an die eigene Callback-Route weiter.
+    if (offline) {
+      try {
+        if (resp.status === 200) {
+          // Synchrone Response (Audio/Video/Transformer):
+          // Secretary hat das Ergebnis direkt geliefert
+          FileLogger.info('start-route', 'Offline-Modus: Synchrone Response empfangen', { jobId, jobType: job.job_type })
+          // Offline-Variante in MongoDB persistieren
+          try { await repo.traceAddEvent(jobId, { spanId: 'preprocess', name: 'offline_processing', attributes: { variant: 'sync', httpStatus: 200, jobType: job.job_type } }) } catch {}
+          const callbackBody = mapSyncResponseToCallbackBody(data as Record<string, unknown>, job.job_type)
+          const selfResult = await postToSelfCallback(jobId, callbackBody)
+          if (!selfResult.ok) {
+            FileLogger.error('start-route', 'Offline Self-Callback fehlgeschlagen', { jobId, status: selfResult.status })
+          }
+          return NextResponse.json({ ok: true, jobId, kind: 'offline_sync', data })
+        }
+
+        if (resp.status === 202) {
+          // Asynchrone Response (PDF/Office): Secretary gibt job_id zurück
+          // SSE-Stream öffnen, um das Ergebnis abzuholen
+          const secretaryJobId = (data as { job?: { id?: string } })?.job?.id
+          if (!secretaryJobId) {
+            FileLogger.error('start-route', 'Offline-Modus: Keine Secretary job_id in 202-Response', { jobId, data })
+            await repo.setStatus(jobId, 'failed', { error: { code: 'offline_no_job_id', message: 'Secretary 202-Response enthält keine job_id' } })
+            return NextResponse.json({ error: 'Keine job_id in Secretary-Response' }, { status: 502 })
+          }
+
+          FileLogger.info('start-route', 'Offline-Modus: SSE-Stream wird geöffnet', { jobId, secretaryJobId })
+          // Offline-Variante in MongoDB persistieren
+          try { await repo.traceAddEvent(jobId, { spanId: 'preprocess', name: 'offline_processing', attributes: { variant: 'sse', httpStatus: 202, jobType: job.job_type, secretaryJobId } }) } catch {}
+
+          // Progress-Updates an Job-Event-Bus weiterleiten
+          const onProgress = (progress: number, message: string) => {
+            try {
+              repo.updateStep(jobId, extractStepName, { details: { progress, message } }).catch(() => {})
+              getJobEventBus().emitUpdate(job.userEmail, {
+                type: 'job_update', jobId, status: 'running', progress,
+                updatedAt: new Date().toISOString(), message,
+                jobType: job.job_type, fileName: job.correlation?.source?.name,
+                sourceItemId: job.correlation?.source?.itemId, libraryId: job.libraryId,
+              })
+              bumpWatchdog(jobId, 600_000)
+            } catch {}
+          }
+
+          const sseResults = await streamSecretaryJob(secretaryJobId, onProgress)
+          const callbackBody = mapSSEResultToCallbackBody(sseResults, job.job_type)
+          const selfResult = await postToSelfCallback(jobId, callbackBody)
+          if (!selfResult.ok) {
+            FileLogger.error('start-route', 'Offline SSE Self-Callback fehlgeschlagen', { jobId, status: selfResult.status })
+          }
+          return NextResponse.json({ ok: true, jobId, kind: 'offline_sse', secretaryJobId })
+        }
+      } catch (offlineErr) {
+        FileLogger.error('start-route', 'Offline-Modus Fehler', {
+          jobId,
+          error: offlineErr instanceof Error ? offlineErr.message : String(offlineErr),
+        })
+        await repo.setStatus(jobId, 'failed', {
+          error: { code: 'offline_error', message: offlineErr instanceof Error ? offlineErr.message : String(offlineErr) },
+        })
+        return NextResponse.json({ error: 'Offline-Verarbeitung fehlgeschlagen' }, { status: 500 })
+      }
+    }
+
     return NextResponse.json({ ok: true, jobId, data })
   } catch (err) {
     // WICHTIG: Bei Fehlern Status auf 'failed' setzen, damit Job nicht hängen bleibt

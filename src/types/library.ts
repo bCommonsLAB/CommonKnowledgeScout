@@ -430,6 +430,21 @@ export interface ClientLibrary {
   
   /** Optional icon component for UI representation */
   icon?: ReactNode;
+
+  /** Markiert Libraries, die ueber eine Einladung geteilt wurden (nicht im Besitz des Users) */
+  isShared?: boolean;
+
+  /** Slug fuer die Explore-Seite (bei geteilten Libraries fuer Navigation) */
+  slug?: string;
+
+  /**
+   * Zugriffsrolle des aktuellen Users fuer diese Library.
+   * - 'owner': Voller Zugriff inkl. Settings
+   * - 'co-creator': Voller Arbeitszugriff (Archiv, Explore, Story, Templates), kein Settings-Zugang
+   * - 'moderator': Zugriffsanfragen verwalten
+   * - 'reader': Nur Lese-Zugriff (ueber Einladung/Access Request)
+   */
+  accessRole?: 'owner' | 'co-creator' | 'moderator' | 'reader';
 }
 
 /**

@@ -6,7 +6,7 @@ import { useAtom } from "jotai"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { activeLibraryAtom, activeLibraryIdAtom, currentFolderIdAtom, folderItemsAtom, lastLoadedFolderAtom, librariesAtom, libraryAtom } from "@/atoms/library-atom"
-import { Plus } from "lucide-react"
+import { Plus, Share2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { StateLogger } from "@/lib/debug/logger"
 import { CreateLibraryDialog } from "./create-library-dialog"
@@ -33,8 +33,14 @@ export function LibrarySwitcher({
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   
   const currentLibrary = libraries.find(lib => lib.id === activeLibraryId) || activeLibrary;
-  const safeLibraries = React.useMemo(() => {
-    return (libraries || []).filter(lib => typeof lib.id === 'string' && lib.id.trim() !== '');
+  
+  // Eigene und geteilte Libraries trennen
+  const { ownLibraries, sharedLibraries } = React.useMemo(() => {
+    const safe = (libraries || []).filter(lib => typeof lib.id === 'string' && lib.id.trim() !== '');
+    return {
+      ownLibraries: safe.filter(lib => !lib.isShared),
+      sharedLibraries: safe.filter(lib => lib.isShared),
+    };
   }, [libraries]);
   
   /**
@@ -50,9 +56,25 @@ export function LibrarySwitcher({
   const handleLibraryChange = (value: string) => {
     // Wenn der spezielle Wert für "Neue Bibliothek erstellen" ausgewählt wurde
     if (value === "new-library") {
-      // Öffne den Dialog anstatt direkt zur Settings-Seite zu navigieren
       setIsCreateDialogOpen(true)
       return;
+    }
+    
+    // Geteilte Libraries: Co-Creators koennen direkt arbeiten, Reader navigieren zur Explore-Seite
+    const selectedShared = sharedLibraries.find(lib => lib.id === value);
+    if (selectedShared) {
+      if (selectedShared.accessRole === 'co-creator') {
+        // Co-Creator: Library als aktive Library setzen (wie eigene)
+        StateLogger.info('LibrarySwitcher', 'Co-Creator Library aktiviert', { libraryId: value })
+        // Weiter zum normalen Auswahl-Flow (unten)
+      } else if (selectedShared.slug) {
+        // Reader: Zur Explore-Seite navigieren
+        StateLogger.info('LibrarySwitcher', 'Navigiere zu geteilter Bibliothek', { 
+          libraryId: value, slug: selectedShared.slug 
+        })
+        router.push(`/explore/${selectedShared.slug}`)
+        return;
+      }
     }
     
     // Normale Bibliotheksauswahl
@@ -109,9 +131,10 @@ export function LibrarySwitcher({
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
+          {/* Eigene Bibliotheken */}
           <SelectGroup>
-            <SelectLabel>Bibliotheken</SelectLabel>
-            {safeLibraries.map((library) => (
+            <SelectLabel>Meine Bibliotheken</SelectLabel>
+            {ownLibraries.map((library) => (
               <SelectItem key={library.id} value={library.id}>
                 <div className="flex items-center gap-3 [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0 [&_svg]:text-foreground">
                   {library.icon}
@@ -120,6 +143,27 @@ export function LibrarySwitcher({
               </SelectItem>
             ))}
           </SelectGroup>
+          
+          {/* Geteilte Bibliotheken (über Einladung) */}
+          {sharedLibraries.length > 0 && (
+            <>
+              <SelectSeparator className="my-2" />
+              <SelectGroup>
+                <SelectLabel className="flex items-center gap-2">
+                  <Share2 className="h-3 w-3" />
+                  Geteilt mit mir
+                </SelectLabel>
+                {sharedLibraries.map((library) => (
+                  <SelectItem key={library.id} value={library.id}>
+                    <div className="flex items-center gap-3 [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0 [&_svg]:text-foreground">
+                      {library.icon}
+                      {library.label}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </>
+          )}
           
           {/* Trennlinie und Eintrag zum Erstellen einer neuen Bibliothek */}
           <SelectSeparator className="my-2" />

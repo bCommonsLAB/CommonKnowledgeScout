@@ -219,6 +219,23 @@ export async function updateAccessRequestInviteToken(
 }
 
 /**
+ * Ruft alle genehmigten Zugriffsanfragen für eine E-Mail-Adresse ab.
+ * Wird verwendet, um geteilte Libraries im Dropdown anzuzeigen.
+ * 
+ * @param userEmail Benutzer-E-Mail
+ * @returns Array von genehmigten Access Requests
+ */
+export async function getApprovedAccessRequestsByEmail(
+  userEmail: string
+): Promise<LibraryAccessRequest[]> {
+  const col = await getAccessRequestsCollection();
+  return await col.find({
+    userEmail,
+    status: 'approved',
+  }).toArray();
+}
+
+/**
  * Löscht eine Zugriffsanfrage
  * 
  * @param id Request-ID

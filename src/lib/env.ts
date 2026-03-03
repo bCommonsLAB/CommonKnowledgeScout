@@ -72,6 +72,16 @@ export function getSecretaryConfig(): SecretaryConfig {
 
 
 /**
+ * Erkennt, ob die App im Electron-Desktop-Modus läuft.
+ * Im Electron-Prozess ist `process.versions.electron` immer gesetzt.
+ * Wird verwendet, um Webhook-basierte Kommunikation durch SSE/Sync zu ersetzen,
+ * da der Secretary Service die App im Desktop-Modus nicht per Webhook erreichen kann.
+ */
+export function isElectronMode(): boolean {
+  return !!(process.versions as Record<string, string | undefined>).electron
+}
+
+/**
  * Vimeo API Zugriff (optional). Wenn gesetzt, kann die Server-Route
  * Medien-URLs über die offizielle API auflösen (um Player/CORS/403 zu umgehen).
  */

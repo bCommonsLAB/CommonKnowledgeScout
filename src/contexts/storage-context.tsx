@@ -339,40 +339,44 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
             .filter(lib => typeof lib?.id === 'string' && lib.id.trim() !== '')
             .filter(lib => {
               const isSupported = isSupportedLibraryType(lib.type);
-              // Unsupported library types are silently filtered out (normal case)
               return isSupported;
             });
           
-          console.log('[StorageContext] 📚 Libraries gefiltert:', {
+          // Libraries nach Zugriffsrolle trennen:
+          // - Eigene + Co-Creator: StorageFactory, Auto-Selection, volles Arbeiten
+          // - Reader: Nur im Dropdown, Navigation zu Explore-Seite
+          const ownLibraries = supportedLibraries.filter(lib => !lib.isShared);
+          const coCreatorLibraries = supportedLibraries.filter(lib => lib.accessRole === 'co-creator');
+          const readerLibraries = supportedLibraries.filter(lib => lib.isShared && lib.accessRole !== 'co-creator');
+          
+          // Libraries die einen Storage-Provider benoetigen (eigene + Co-Creator)
+          const workableLibraries = [...ownLibraries, ...coCreatorLibraries];
+          
+          console.log('[StorageContext] Libraries gefiltert:', {
             totalReceived: data.length,
-            supportedCount: supportedLibraries.length,
-            supportedTypes: supportedLibraries.map(lib => ({ id: lib.id.substring(0, 8) + '...', type: lib.type, label: lib.label })),
+            ownCount: ownLibraries.length,
+            coCreatorCount: coCreatorLibraries.length,
+            readerCount: readerLibraries.length,
             timestamp: new Date().toISOString()
           });
           
-          // WICHTIG: Intelligentes State-Merge statt Überschreiben
-          // Prüfe ob Libraries bereits im State sind (z.B. von Explore-Seite)
+          // WICHTIG: Intelligentes State-Merge statt Ueberschreiben
           const existingLibraries = libraries
           const newLibraryIds = new Set(supportedLibraries.map(lib => lib.id))
           
-          // Merge-Strategie:
-          // 1. Behalte vorhandene Libraries, die nicht in den neuen Libraries sind (z.B. Explore-Libraries)
-          // 2. Füge neue Libraries hinzu oder aktualisiere vorhandene
+          // Behalte vorhandene Libraries, die nicht in den neuen Libraries sind (z.B. Explore-Libraries)
           const librariesToKeep = existingLibraries.filter(lib => !newLibraryIds.has(lib.id))
           const mergedLibraries = [...librariesToKeep, ...supportedLibraries]
           setLibraries(mergedLibraries);
           
-          // Setze StorageFactory Libraries (nur unterstützte)
+          // StorageFactory mit eigenen + Co-Creator Libraries initialisieren
+          // (Co-Creators arbeiten auf derselben libraryId wie der Owner)
           const factory = StorageFactory.getInstance();
-          factory.setLibraries(supportedLibraries);
-          
-          // Setze User-Email für API-Calls
+          factory.setLibraries(workableLibraries);
           factory.setUserEmail(userEmail);
           
-          // Prüfe, ob der Benutzer keine unterstützten Bibliotheken hat und noch nicht zur Settings-Seite weitergeleitet wurde
-          // WICHTIG: Nur Creators (MiSpace) werden zu /settings weitergeleitet
-          // Gäste (WeSpace) bleiben auf der aktuellen Seite oder werden zur Homepage weitergeleitet
-          if (supportedLibraries.length === 0 && !hasRedirectedToSettings && typeof window !== 'undefined') {
+          // Settings-Redirect nur wenn EIGENE Libraries fehlen und kein Co-Creator-Zugang besteht
+          if (ownLibraries.length === 0 && coCreatorLibraries.length === 0 && !hasRedirectedToSettings && typeof window !== 'undefined') {
             const currentPath = window.location.pathname;
             // Nur weiterleiten, wenn wir nicht bereits auf der Settings-Seite sind
             if (!currentPath.startsWith('/settings')) {
@@ -393,17 +397,16 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
             }
           }
           
-          // Setze die erste unterstützte Bibliothek als aktiv, falls noch keine ausgewählt ist
-          if (supportedLibraries.length > 0) {
+          // Auto-Selection aus eigenen + Co-Creator Libraries
+          if (workableLibraries.length > 0) {
             const storedLibraryId = localStorage.getItem('activeLibraryId');
             
-            // Zusätzliche Validierung: Prüfe, ob die ID ein gültiges UUID-Format hat
             const isValidUUID = storedLibraryId && 
               storedLibraryId.length > 10 && 
               isNaN(Number(storedLibraryId));
             
-            // Prüfen, ob die gespeicherte ID in den unterstützten Bibliotheken existiert und gültig ist
-            const validStoredId = isValidUUID && supportedLibraries.some(lib => lib.id === storedLibraryId);
+            // Gespeicherte ID gegen arbeitsfaehige Libraries pruefen (eigene + Co-Creator)
+            const validStoredId = isValidUUID && workableLibraries.some(lib => lib.id === storedLibraryId);
             
             if (validStoredId) {
               setActiveLibraryId(storedLibraryId);
@@ -415,18 +418,25 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
                 localStorage.removeItem('activeLibraryId');
               }
               
-              const firstLibId = supportedLibraries[0].id;
+              const firstLibId = workableLibraries[0].id;
               setActiveLibraryId(firstLibId);
               localStorage.setItem('activeLibraryId', firstLibId);
             }
           } else {
-            AuthLogger.warn('StorageContext', 'No supported libraries available', {
+            AuthLogger.warn('StorageContext', 'No workable libraries available', {
               totalLibraries: data.length,
-              supportedLibraries: supportedLibraries.length
+              ownLibraries: ownLibraries.length,
+              coCreatorLibraries: coCreatorLibraries.length,
+              readerLibraries: readerLibraries.length,
             });
             setActiveLibraryId("");
             localStorage.removeItem('activeLibraryId');
-            setLibraries([]);
+            // Reader-Libraries im State behalten fuer Dropdown-Anzeige
+            if (readerLibraries.length > 0) {
+              setLibraries(readerLibraries);
+            } else {
+              setLibraries([]);
+            }
           }
         } else {
           AuthLogger.error('StorageContext', 'Invalid library data format', { data });

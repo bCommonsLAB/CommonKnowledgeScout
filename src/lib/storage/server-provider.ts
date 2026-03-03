@@ -25,20 +25,44 @@ import { StorageFactory } from '@/lib/storage/storage-factory';
 import type { StorageProvider } from '@/lib/storage/types';
 import { LibraryService } from '@/lib/services/library-service';
 import { getSelfBaseUrl } from '../env'
+import { isCoCreatorOrOwner } from '@/lib/repositories/library-members-repo';
+import type { Library } from '@/types/library';
 
+/**
+ * Erstellt einen Storage-Provider fuer serverseitige API-Routen.
+ * 
+ * Ablauf:
+ * 1. Zuerst in eigenen Libraries des Users suchen
+ * 2. Falls nicht gefunden: Library owner-unabhaengig laden und Co-Creator-Rolle pruefen
+ *    (ermoeglicht kollaboratives Arbeiten auf derselben libraryId)
+ */
 export async function getServerProvider(userEmail: string, libraryId: string): Promise<StorageProvider> {
   const baseUrl = getSelfBaseUrl();
-
   const libraryService = LibraryService.getInstance();
-  const libraries = await libraryService.getUserLibraries(userEmail);
-  const lib = libraries.find(l => l.id === libraryId);
-  if (!lib) throw new Error('Library nicht gefunden');
+
+  // 1) Eigene Libraries pruefen (Standard-Fall)
+  let lib: Library | null = null;
+  const ownLibraries = await libraryService.getUserLibraries(userEmail);
+  lib = ownLibraries.find(l => l.id === libraryId) || null;
+
+  // 2) Fallback: Library owner-unabhaengig laden + Co-Creator-Berechtigung pruefen
+  if (!lib) {
+    lib = await libraryService.getLibraryById(libraryId);
+    if (!lib) {
+      throw new Error('Library nicht gefunden');
+    }
+    
+    const hasAccess = await isCoCreatorOrOwner(libraryId, userEmail);
+    if (!hasAccess) {
+      throw new Error('Keine Berechtigung fuer diese Library');
+    }
+  }
 
   const factory = StorageFactory.getInstance();
   factory.setApiBaseUrl(baseUrl);
   factory.setUserEmail(userEmail);
   // Server-Kontext aktivieren: Erstellt direkte Provider (z.B. WebDAV)
-  // statt HTTP-Proxies, die eine Clerk-Session benötigen würden.
+  // statt HTTP-Proxies, die eine Clerk-Session benoetigen wuerden.
   factory.setServerContext(true);
   factory.setLibraries([{ 
     id: lib.id,
@@ -51,13 +75,13 @@ export async function getServerProvider(userEmail: string, libraryId: string): P
 
   const provider = await factory.getProvider(lib.id);
   
-  // Stelle sicher, dass userEmail im Provider gesetzt ist (für Token-Loading)
+  // Stelle sicher, dass userEmail im Provider gesetzt ist (fuer Token-Loading)
   if ('setUserEmail' in provider && typeof provider.setUserEmail === 'function') {
     (provider as unknown as { setUserEmail?: (e: string) => void }).setUserEmail?.(userEmail);
   }
   
   const validation = await provider.validateConfiguration();
-  if (!validation.isValid) throw new Error(validation.error || 'Ungültige Provider-Konfiguration');
+  if (!validation.isValid) throw new Error(validation.error || 'Ungueltige Provider-Konfiguration');
   return provider;
 }
 

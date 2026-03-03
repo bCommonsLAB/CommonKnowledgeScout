@@ -8,6 +8,8 @@ const nextConfig = {
     BUILD_TARGET: process.env.BUILD_TARGET || 'web',
     IS_PACKAGE_BUILD: process.env.IS_PACKAGE_BUILD || 'false'
   },
+  // Electron-Modul nicht in den Next.js Server-Bundle aufnehmen (wird zur Laufzeit bereitgestellt)
+  serverExternalPackages: ['electron'],
   images: {
     // Für Kompatibilität: domains (veraltet, aber manchmal noch benötigt)
     domains: ['www.sfscon.it', 'ragtempproject.blob.core.windows.net'],

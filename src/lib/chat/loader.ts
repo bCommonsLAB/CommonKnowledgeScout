@@ -29,7 +29,7 @@ import { LibraryService, type UserLibraries } from '@/lib/services/library-servi
 import { normalizeChatConfig } from '@/lib/chat/config'
 import { computeDocMetaCollectionName } from '@/lib/repositories/doc-meta-repo'
 import { hasUserAccess } from '@/lib/repositories/library-access-repo'
-import { isModeratorOrOwner } from '@/lib/repositories/library-members-repo'
+import { isModeratorOrOwner, isCoCreatorOrOwner } from '@/lib/repositories/library-members-repo'
 
 export interface LibraryChatContext {
   library: Library
@@ -291,7 +291,18 @@ export async function loadLibraryChatContext(
   const library = libraries.find(l => l.id === libraryId)
   
   if (!library) {
-    // Versuche auch öffentliche Library zu laden (zuerst über ID, dann über Slug)
+    // Fallback: Co-Creator-Zugriff pruefen (Library des Owners laden)
+    const sharedLib = await libService.getLibraryById(libraryId)
+    if (sharedLib) {
+      const hasCoCreatorAccess = await isCoCreatorOrOwner(libraryId, userEmail)
+      if (hasCoCreatorAccess) {
+        const context = await createLibraryChatContext(sharedLib, userEmail)
+        setCachedContext(userEmail, libraryId, context)
+        return context
+      }
+    }
+    
+    // Fallback: Oeffentliche Library laden (zuerst ueber ID, dann ueber Slug)
     const byId = await loadPublicLibraryById(libraryId, userEmail)
     if (byId) {
       setCachedContext(userEmail, libraryId, byId)

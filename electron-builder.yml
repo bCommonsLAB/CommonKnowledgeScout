@@ -1,0 +1,63 @@
+# electron-builder Konfiguration fuer Knowledge Scout Desktop App
+# Dokumentation: https://www.electron.build/configuration
+
+appId: com.bcommonslab.knowledge-scout
+productName: Knowledge Scout
+
+# App-Icon: electron-builder konvertiert die PNG automatisch in .ico (Windows)
+icon: electron/icon.png
+
+# ASAR aktiviert: Packt alle Dateien in ein Archiv (dramatisch schnellerer Installer).
+# Node.js require() und fs.readFileSync() funktionieren transparent mit asar.
+# Nur native Module (.node) und sharp muessen entpackt werden.
+asar: true
+asarUnpack:
+  - "**/*.node"
+  - "node_modules/sharp/**"
+  - "node_modules/@img/**"
+  - ".next/**"
+  - "public/**"
+  - ".env"
+
+# Ueberschreibt "main" in package.json fuer die gepackte Electron-App
+# (im Source-package.json bleibt "main": "dist/server.js" fuer npm-Publishing)
+extraMetadata:
+  main: electron/main.js
+
+# Dateien die in die App gepackt werden.
+# node_modules (nur production deps) werden automatisch von electron-builder verwaltet.
+# KEIN standalone-Build noetig: next-electron-rsc nutzt require('next') direkt.
+files:
+  - electron/main.js
+  - electron/preload.js
+  - ".env"
+  - ".next/server/**/*"
+  - ".next/static/**/*"
+  - ".next/required-server-files.json"
+  - ".next/BUILD_ID"
+  - ".next/build-manifest.json"
+  - ".next/app-build-manifest.json"
+  - ".next/app-path-routes-manifest.json"
+  - ".next/routes-manifest.json"
+  - ".next/prerender-manifest.json"
+  - ".next/react-loadable-manifest.json"
+  - ".next/images-manifest.json"
+  - ".next/package.json"
+  - public
+  - "!**/node_modules/electron"
+  - "!**/node_modules/electron-builder"
+  - "!**/node_modules/pnpm"
+
+# Windows-Build: NSIS Installer
+win:
+  target: nsis
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+
+# Auto-Update via GitHub Releases
+publish:
+  provider: github
+  owner: bCommonsLAB
+  repo: CommonKnowledgeScout

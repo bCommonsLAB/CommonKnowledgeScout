@@ -78,10 +78,9 @@ export async function POST(
       );
     }
 
-    // Library-Informationen laden
+    // Library-Informationen laden (aus den Libraries des Einladenden, nicht nur öffentliche)
     const libraryService = LibraryService.getInstance();
-    const publicLibraries = await libraryService.getAllPublicLibraries();
-    const library = publicLibraries.find(lib => lib.id === libraryId);
+    const library = await libraryService.getLibrary(inviterEmail, libraryId);
 
     if (!library) {
       return NextResponse.json(

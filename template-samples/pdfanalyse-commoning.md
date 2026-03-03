@@ -1,4 +1,5 @@
 ---
+detailViewType: book
 title: {{title|Vollständiger Titel des Dokuments (extraktiv, aus Titel/Deckblatt/Überschriften)}}
 shortTitle: {{shortTitle|≤40 Zeichen, gut lesbar, ohne abschließende Satzzeichen}}
 slug: {{slug|ASCII, lowercase, kebab-case; Umlaute/Diakritika normalisieren; max 80; keine doppelten Bindestriche}}
