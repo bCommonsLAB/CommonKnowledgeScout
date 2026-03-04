@@ -9,10 +9,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Loader2, CheckCircle2, AlertCircle, LogOut, Mail } from "lucide-react"
 
 /**
- * Seite zum Akzeptieren von Library-Einladungen
+ * Seite zum Akzeptieren von Library-Einladungen.
+ * Unterstuetzt zwei Token-Typen:
+ * - Access-Request-Tokens (Lese-Zugriff via library_access_requests)
+ * - Member-Invite-Tokens (Co-Creator/Moderator via library_members)
  * 
  * Flow:
- * 1. Prüft ob Token gültig ist
+ * 1. Prueft ob Token gueltig ist (zuerst Access-Request, dann Member-Invite)
  * 2. Wenn nicht angemeldet: Zeigt Hinweis zur Anmeldung
  * 3. Wenn angemeldet: Akzeptiert Einladung automatisch
  */
@@ -26,6 +29,9 @@ export default function InviteAcceptPage() {
   const [currentEmail, setCurrentEmail] = useState<string | null>(null)
   const [librarySlug, setLibrarySlug] = useState<string | null>(null)
   const [lastAttemptedUserId, setLastAttemptedUserId] = useState<string | null>(null)
+  // Typ der Einladung: 'access' (Lese-Zugriff) oder 'member' (Co-Creator/Moderator)
+  const [inviteType, setInviteType] = useState<'access' | 'member' | null>(null)
+  const [memberRole, setMemberRole] = useState<string | null>(null)
 
   const tokenParam = typeof params.token === 'string' ? params.token : null
   
@@ -39,14 +45,13 @@ export default function InviteAcceptPage() {
   // Token aus Session Storage oder Param holen
   const token = tokenParam || (typeof window !== 'undefined' ? sessionStorage.getItem('inviteToken') : null)
 
-  // acceptInvite muss VOR dem useEffect definiert werden, der es verwendet
+  // acceptInvite probiert zuerst den Access-Request-Endpoint, dann den Member-Invite-Endpoint
   const acceptInvite = useCallback(async () => {
-    // Token aus Session Storage oder Param holen
     const currentToken = tokenParam || (typeof window !== 'undefined' ? sessionStorage.getItem('inviteToken') : null)
     if (!currentToken) {
       console.error('[InviteAcceptPage] Kein Token gefunden')
       setStatus('error')
-      setError('Ungültiger Einladungslink')
+      setError('Ungueltiger Einladungslink')
       return
     }
 
@@ -54,21 +59,33 @@ export default function InviteAcceptPage() {
     setStatus('accepting')
 
     try {
-      const response = await fetch(`/api/libraries/invites/${currentToken}/accept`, {
+      // 1. Versuch: Access-Request-Token (Lese-Zugriff)
+      let response = await fetch(`/api/libraries/invites/${currentToken}/accept`, {
         method: 'POST',
       })
+      let data = await response.json()
 
-      const data = await response.json()
+      // Bei 404: Token gehoert nicht zu Access Requests -> Member-Invite versuchen
+      if (response.status === 404) {
+        console.log('[InviteAcceptPage] Kein Access-Request-Token, versuche Member-Invite...')
+        response = await fetch(`/api/member-invites/${currentToken}/accept`, {
+          method: 'POST',
+        })
+        data = await response.json()
+
+        if (response.ok && data.inviteType === 'member') {
+          setInviteType('member')
+          setMemberRole(data.role || null)
+        }
+      } else if (response.ok) {
+        setInviteType('access')
+      }
+
       console.log('[InviteAcceptPage] API Response:', { status: response.status, data })
 
       if (!response.ok) {
-        // Speichere zusätzliche Informationen für E-Mail-Mismatch-Fehler
-        if (data.expectedEmail) {
-          setExpectedEmail(data.expectedEmail)
-        }
-        if (data.currentEmail) {
-          setCurrentEmail(data.currentEmail)
-        }
+        if (data.expectedEmail) setExpectedEmail(data.expectedEmail)
+        if (data.currentEmail) setCurrentEmail(data.currentEmail)
         throw new Error(data.error || 'Fehler beim Akzeptieren der Einladung')
       }
 
@@ -77,12 +94,11 @@ export default function InviteAcceptPage() {
         setLibrarySlug(data.librarySlug)
       }
 
-      // Token aus Session Storage entfernen nach erfolgreicher Annahme
       if (typeof window !== 'undefined') {
         sessionStorage.removeItem('inviteToken')
       }
 
-      // Nach 2 Sekunden zur Library weiterleiten
+      // Nach 2 Sekunden weiterleiten
       setTimeout(() => {
         if (data.librarySlug) {
           router.push(`/explore/${data.librarySlug}`)
@@ -220,6 +236,11 @@ export default function InviteAcceptPage() {
   }
 
   if (status === 'success') {
+    const roleLabel = memberRole === 'co-creator' ? 'Co-Creator' : memberRole === 'moderator' ? 'Moderator' : null
+    const successMessage = inviteType === 'member' && roleLabel
+      ? `Sie sind jetzt ${roleLabel} dieser Library und koennen sofort loslegen.`
+      : 'Ihre Einladung wurde erfolgreich angenommen. Sie haben nun Zugriff auf die Library.'
+
     return (
       <div className="container mx-auto py-12 px-4">
         <Card>
@@ -233,7 +254,7 @@ export default function InviteAcceptPage() {
             <div className="flex items-center gap-4">
               <CheckCircle2 className="h-6 w-6 text-green-500" />
               <p className="text-sm text-muted-foreground">
-                Ihre Einladung wurde erfolgreich angenommen. Sie haben nun Zugriff auf die Library.
+                {successMessage}
               </p>
             </div>
             {librarySlug && (

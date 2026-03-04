@@ -2,8 +2,9 @@
  * @fileoverview Members List Component
  * 
  * @description
- * Component for displaying and managing library members (moderators).
- * Allows owners to add and remove moderators.
+ * Component for displaying and managing library members (co-creators, moderators).
+ * Allows owners to invite and remove members. Zeigt den Einladungsstatus
+ * (ausstehend/aktiv) und ermoeglicht erneutes Senden.
  * 
  * @module settings
  */
@@ -33,16 +34,17 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, UserPlus, Trash2, Shield } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Loader2, Trash2, Shield, Users, AlertCircle, Mail, Clock, CheckCircle2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
-import type { LibraryMember } from "@/types/library-members"
+import type { LibraryMember, LibraryRole } from "@/types/library-members"
 
 interface MembersListProps {
   libraryId: string
 }
 
 /**
- * Komponente für Liste der Library-Mitglieder (Moderatoren)
+ * Komponente fuer Liste der Library-Mitglieder mit Einladungsflow
  */
 export function MembersList({ libraryId }: MembersListProps) {
   const { toast } = useToast()
@@ -51,8 +53,11 @@ export function MembersList({ libraryId }: MembersListProps) {
   const [error, setError] = useState<string | null>(null)
   const [isAddingMember, setIsAddingMember] = useState(false)
   const [newMemberEmail, setNewMemberEmail] = useState("")
+  const [newMemberRole, setNewMemberRole] = useState<LibraryRole>("co-creator")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [dialogError, setDialogError] = useState<string | null>(null)
   const [removingEmail, setRemovingEmail] = useState<string | null>(null)
+  const [resendingEmail, setResendingEmail] = useState<string | null>(null)
 
   const loadMembers = useCallback(async () => {
     setLoading(true)
@@ -79,13 +84,11 @@ export function MembersList({ libraryId }: MembersListProps) {
     loadMembers()
   }, [loadMembers])
 
-  async function handleAddMember() {
+  async function handleInviteMember() {
+    setDialogError(null)
+    
     if (!newMemberEmail || !newMemberEmail.includes("@")) {
-      toast({
-        title: "Fehler",
-        description: "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
-        variant: "destructive",
-      })
+      setDialogError("Bitte geben Sie eine gueltige E-Mail-Adresse ein.")
       return
     }
 
@@ -99,38 +102,76 @@ export function MembersList({ libraryId }: MembersListProps) {
         },
         body: JSON.stringify({
           email: newMemberEmail.trim(),
-          role: "moderator",
+          role: newMemberRole,
         }),
       })
 
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || "Fehler beim Hinzufügen des Moderators")
+        setDialogError(data.error || "Fehler beim Einladen des Mitglieds")
+        return
       }
 
+      const roleLabel = newMemberRole === 'co-creator' ? 'Co-Creator' : 'Moderator'
       toast({
-        title: "Erfolg",
-        description: `Moderator ${newMemberEmail} wurde erfolgreich hinzugefügt.`,
+        title: "Einladung gesendet",
+        description: data.emailSent
+          ? `Einladung als ${roleLabel} an ${newMemberEmail} gesendet.`
+          : `Einladung als ${roleLabel} erstellt. E-Mail konnte nicht gesendet werden.`,
       })
 
       setNewMemberEmail("")
+      setNewMemberRole("co-creator")
+      setDialogError(null)
       setIsDialogOpen(false)
       await loadMembers()
     } catch (error) {
-      console.error("Fehler beim Hinzufügen des Moderators:", error)
-      toast({
-        title: "Fehler",
-        description: error instanceof Error ? error.message : "Unbekannter Fehler",
-        variant: "destructive",
-      })
+      console.error("Fehler beim Einladen des Mitglieds:", error)
+      setDialogError(error instanceof Error ? error.message : "Unbekannter Fehler")
     } finally {
       setIsAddingMember(false)
     }
   }
 
-  async function handleRemoveMember(email: string) {
-    if (!confirm(`Möchten Sie ${email} wirklich als Moderator entfernen?`)) {
+  /** Einladungs-E-Mail erneut senden (nur fuer pending Members) */
+  async function handleResendInvite(email: string) {
+    setResendingEmail(email)
+
+    try {
+      const response = await fetch(`/api/libraries/${libraryId}/members`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Fehler beim erneuten Senden")
+      }
+
+      toast({
+        title: "Einladung erneut gesendet",
+        description: data.message,
+      })
+
+      await loadMembers()
+    } catch (err) {
+      console.error("Fehler beim erneuten Senden:", err)
+      toast({
+        title: "Fehler",
+        description: err instanceof Error ? err.message : "Unbekannter Fehler",
+        variant: "destructive",
+      })
+    } finally {
+      setResendingEmail(null)
+    }
+  }
+
+  async function handleRemoveMember(email: string, memberStatus?: string) {
+    const label = memberStatus === 'pending' ? 'die Einladung zurueckziehen' : 'das Mitglied entfernen'
+    if (!confirm(`Moechten Sie ${label} fuer ${email}?`)) {
       return
     }
 
@@ -138,29 +179,24 @@ export function MembersList({ libraryId }: MembersListProps) {
 
     try {
       const url = `/api/libraries/${libraryId}/members?email=${encodeURIComponent(email)}`
-      console.log('[MembersList] Entferne Moderator:', { libraryId, email, url })
 
-      const response = await fetch(url, {
-        method: "DELETE",
-      })
-
+      const response = await fetch(url, { method: "DELETE" })
       const data = await response.json()
 
       if (!response.ok) {
-        console.error('[MembersList] Fehler beim Entfernen:', { status: response.status, data })
-        throw new Error(data.error || "Fehler beim Entfernen des Moderators")
+        throw new Error(data.error || "Fehler beim Entfernen des Mitglieds")
       }
-
-      console.log('[MembersList] Moderator erfolgreich entfernt:', data)
 
       toast({
         title: "Erfolg",
-        description: `Moderator ${email} wurde erfolgreich entfernt.`,
+        description: memberStatus === 'pending'
+          ? `Einladung fuer ${email} wurde zurueckgezogen.`
+          : `Mitglied ${email} wurde entfernt.`,
       })
 
       await loadMembers()
     } catch (error) {
-      console.error("Fehler beim Entfernen des Moderators:", error)
+      console.error("Fehler beim Entfernen des Mitglieds:", error)
       toast({
         title: "Fehler",
         description: error instanceof Error ? error.message : "Unbekannter Fehler",
@@ -189,20 +225,20 @@ export function MembersList({ libraryId }: MembersListProps) {
 
   return (
     <div className="space-y-4">
-      {/* Add Member Button */}
+      {/* Invite Member Button */}
       <div className="flex justify-end">
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (open) setDialogError(null); }}>
           <DialogTrigger asChild>
             <Button>
-              <UserPlus className="h-4 w-4 mr-2" />
-              Moderator hinzufügen
+              <Mail className="h-4 w-4 mr-2" />
+              Mitglied einladen
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Moderator hinzufügen</DialogTitle>
+              <DialogTitle>Mitglied einladen</DialogTitle>
               <DialogDescription>
-                Fügen Sie einen Moderator zu dieser Library hinzu. Moderatoren können Zugriffsanfragen verwalten und Einladungen versenden.
+                Die eingeladene Person erhaelt eine E-Mail mit einem Bestaetigungslink.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
@@ -211,13 +247,50 @@ export function MembersList({ libraryId }: MembersListProps) {
                 <Input
                   id="member-email"
                   type="email"
-                  placeholder="moderator@example.com"
+                  placeholder="benutzer@example.com"
                   value={newMemberEmail}
                   onChange={(e) => setNewMemberEmail(e.target.value)}
                   disabled={isAddingMember}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="member-role">Rolle *</Label>
+                <Select
+                  value={newMemberRole}
+                  onValueChange={(val) => setNewMemberRole(val as LibraryRole)}
+                  disabled={isAddingMember}
+                >
+                  <SelectTrigger id="member-role">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="co-creator">
+                      <div className="flex flex-col">
+                        <span className="font-medium">Co-Creator</span>
+                        <span className="text-xs text-muted-foreground">
+                          Voller Arbeitszugriff (Archiv, Explore, Story, Templates)
+                        </span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="moderator">
+                      <div className="flex flex-col">
+                        <span className="font-medium">Moderator</span>
+                        <span className="text-xs text-muted-foreground">
+                          Zugriffsanfragen verwalten und Einladungen senden
+                        </span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+            {/* Fehlermeldung direkt im Dialog */}
+            {dialogError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{dialogError}</AlertDescription>
+              </Alert>
+            )}
             <DialogFooter>
               <Button
                 variant="outline"
@@ -226,16 +299,16 @@ export function MembersList({ libraryId }: MembersListProps) {
               >
                 Abbrechen
               </Button>
-              <Button onClick={handleAddMember} disabled={isAddingMember || !newMemberEmail}>
+              <Button onClick={handleInviteMember} disabled={isAddingMember || !newMemberEmail}>
                 {isAddingMember ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Wird hinzugefügt...
+                    Wird gesendet...
                   </>
                 ) : (
                   <>
-                    <Shield className="h-4 w-4 mr-2" />
-                    Moderator hinzufügen
+                    <Mail className="h-4 w-4 mr-2" />
+                    Einladung senden
                   </>
                 )}
               </Button>
@@ -248,7 +321,7 @@ export function MembersList({ libraryId }: MembersListProps) {
       {members.length === 0 ? (
         <Alert>
           <AlertDescription>
-            Keine Moderatoren vorhanden. Fügen Sie einen Moderator hinzu, um Zugriffsanfragen zu verwalten.
+            Keine Mitglieder vorhanden. Laden Sie Co-Creators oder Moderatoren ein.
           </AlertDescription>
         </Alert>
       ) : (
@@ -258,8 +331,8 @@ export function MembersList({ libraryId }: MembersListProps) {
               <TableRow>
                 <TableHead>E-Mail</TableHead>
                 <TableHead>Rolle</TableHead>
-                <TableHead>Hinzugefügt am</TableHead>
-                <TableHead>Hinzugefügt von</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Eingeladen am</TableHead>
                 <TableHead className="text-right">Aktionen</TableHead>
               </TableRow>
             </TableHeader>
@@ -268,10 +341,30 @@ export function MembersList({ libraryId }: MembersListProps) {
                 <TableRow key={`${member.libraryId}-${member.userEmail}`}>
                   <TableCell className="font-medium">{member.userEmail}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">
-                      <Shield className="h-3 w-3 mr-1" />
-                      {member.role === 'moderator' ? 'Moderator' : member.role}
-                    </Badge>
+                    {member.role === 'co-creator' ? (
+                      <Badge variant="default" className="bg-blue-600">
+                        <Users className="h-3 w-3 mr-1" />
+                        Co-Creator
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline">
+                        <Shield className="h-3 w-3 mr-1" />
+                        Moderator
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {member.status === 'active' ? (
+                      <Badge variant="default" className="bg-green-600">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Aktiv
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">
+                        <Clock className="h-3 w-3 mr-1" />
+                        Ausstehend
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell>
                     {new Date(member.addedAt).toLocaleDateString('de-DE', {
@@ -280,14 +373,29 @@ export function MembersList({ libraryId }: MembersListProps) {
                       day: 'numeric',
                     })}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {member.addedBy}
-                  </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right space-x-2">
+                    {/* Erneut senden - nur fuer pending Mitglieder */}
+                    {member.status === 'pending' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleResendInvite(member.userEmail)}
+                        disabled={resendingEmail === member.userEmail}
+                      >
+                        {resendingEmail === member.userEmail ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Mail className="h-4 w-4 mr-1" />
+                            Erneut senden
+                          </>
+                        )}
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="destructive"
-                      onClick={() => handleRemoveMember(member.userEmail)}
+                      onClick={() => handleRemoveMember(member.userEmail, member.status)}
                       disabled={removingEmail === member.userEmail}
                     >
                       {removingEmail === member.userEmail ? (
@@ -295,7 +403,7 @@ export function MembersList({ libraryId }: MembersListProps) {
                       ) : (
                         <>
                           <Trash2 className="h-4 w-4 mr-1" />
-                          Entfernen
+                          {member.status === 'pending' ? 'Zurueckziehen' : 'Entfernen'}
                         </>
                       )}
                     </Button>
@@ -309,4 +417,3 @@ export function MembersList({ libraryId }: MembersListProps) {
     </div>
   )
 }
-

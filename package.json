@@ -1,6 +1,6 @@
 {
   "name": "@bcommonslab/common-knowledge-scout",
-  "version": "1.0.5",
+  "version": "1.2.0",
   "description": "Common Knowledge Scout - Modern Document Management System",
   "main": "dist/server.js",
   "types": "dist/index.d.ts",
@@ -51,7 +51,11 @@
     "docs:history": "pnpm run docs:history:merge",
     "docs:history:monthly": "node --import tsx scripts/merge-history-monthly.ts",
     "docs:history:mon": "pnpm run docs:history:monthly",
-    "test:vector-search": "node --import tsx scripts/test-mongodb-vector-search.ts"
+    "test:vector-search": "node --import tsx scripts/test-mongodb-vector-search.ts",
+    "electron:dev": "electron electron/main.js",
+    "electron:build": "next build && node scripts/generate-required-server-files.js && electron-builder --config electron-builder.yml",
+    "electron:pack": "next build && node scripts/generate-required-server-files.js && electron-builder --config electron-builder.yml --dir",
+    "electron:publish": "next build && node scripts/generate-required-server-files.js && electron-builder --config electron-builder.yml --publish always"
   },
   "dependencies": {
     "@azure/storage-blob": "^12.29.1",
@@ -92,6 +96,7 @@
     "cmdk": "1.0.0",
     "date-fns": "^3.6.0",
     "dotenv": "^16.5.0",
+    "electron-updater": "^6.8.3",
     "geist": "^1.3.1",
     "highlight.js": "^11.11.1",
     "jotai": "^2.11.0",
@@ -103,6 +108,7 @@
     "mongodb": "^7.0.0",
     "next": "15.3.8",
     "next-auth": "^4.24.11",
+    "next-electron-rsc": "^0.3.0",
     "next-themes": "^0.4.4",
     "node-mailjet": "^6.0.11",
     "nuqs": "^2.4.3",
@@ -149,6 +155,8 @@
     "autoprefixer": "^10.4.20",
     "better-sqlite3": "11.7.0",
     "cross-env": "^7.0.3",
+    "electron": "^40.6.1",
+    "electron-builder": "^26.8.1",
     "eslint": "^9.28.0",
     "eslint-config-next": "15.3.8",
     "jsdom": "^27.4.0",

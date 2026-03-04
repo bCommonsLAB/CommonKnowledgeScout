@@ -3,7 +3,7 @@ detailViewType: book
 title: {{title|Full title of the document (extractive, from title page/cover/headings)}}
 shortTitle: {{shortTitle|≤40 characters, readable, no trailing punctuation}}
 slug: {{slug|ASCII, lowercase, kebab-case; normalize umlauts/diacritics; max 80; no double hyphens}}
-summary: {{summary|≤1000 characters, extractive, summarize the content comprehensively}}
+summary: {{summary|Analyze the document text meaningfully. Start with a brief summary. Then structure the text into fitting sections. For each section, display a suitable title in bold and below it summarize each section in detail with at least 80 to 120 words. The length may vary depending on whether the chapter covers a central topic. Separate paragraphs and titles with \n.}}
 teaser: {{teaser|2–3 sentences, not identical to summary, extractive}}
 authors: {{authors|Array of authors, deduplicated, format "Last, First" when possible; primarily from imprint}}
 tags: {{tags|Array, normalized: lowercase, ASCII, kebab-case, deduplicated; strictly extractive (only terms appearing in the document, e.g. from keywords)}}
@@ -26,9 +26,10 @@ isScan: {{isScan|boolean; technical: true if filename starts with "!"}}
 acronyms_resolved: {{acronyms_resolved|Array of resolved acronyms (only if acronym mapping is provided and found in the document)}}
 chapters: {{chapters|Array of chapters with title, level (1–3), order (1-based), startPage, endPage, pageCount, startEvidence (≤160), summary (≤1000, extractive), keywords (5–12)}}
 toc: {{toc|Optional array of { title, page, level }, only if explicitly recognizable}}
+detailViewType: book
 ---
 
-{{summary|Analyze the document text meaningfully. Start with a brief summary. Then structure the text into fitting sections. For each section, display a suitable title in bold and below it summarize each section in detail with at least 80 to 120 words. The length may vary depending on whether the chapter covers a central topic. Separate paragraphs and titles with \n.}}
+
 
 --- systemprompt
 Role:

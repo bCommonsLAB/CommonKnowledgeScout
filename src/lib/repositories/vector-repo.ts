@@ -59,6 +59,9 @@ const ensuredIndexesForCollections = new Set<string>()
 export function clearVectorSearchIndexCache(libraryKey: string): void {
   const cacheKey = `${libraryKey}::${VECTOR_SEARCH_INDEX_NAME}`
   ensuredIndexKeys.delete(cacheKey)
+  // colCache muss ebenfalls geleert werden, damit getVectorCollection()
+  // nicht vorzeitig zurückkehrt und ensureVectorSearchIndex() übersprungen wird
+  colCache.delete(libraryKey)
 }
 
 /**

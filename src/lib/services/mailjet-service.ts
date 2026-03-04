@@ -212,6 +212,47 @@ export class MailjetService {
   }
 
   /**
+   * Sendet Einladungs-E-Mail fuer eine Mitgliedschaft (Co-Creator / Moderator).
+   * Verwendet einen eigenen Bestaetigungslink mit Member-Token.
+   */
+  static async sendMemberInviteEmail(
+    recipientEmail: string,
+    recipientName: string,
+    libraryName: string,
+    role: string,
+    inviteUrl: string,
+    inviterName: string
+  ): Promise<boolean> {
+    try {
+      const roleLabel = role === 'co-creator' ? 'Co-Creator' : 'Moderator';
+      const subject = `Einladung als ${roleLabel} fuer "${libraryName}"`;
+
+      const mailjet = getMailjetClient();
+      await mailjet.post('send', { version: 'v3.1' }).request({
+        Messages: [{
+          From: {
+            Email: process.env.MAILJET_FROM_EMAIL,
+            Name: process.env.MAILJET_FROM_NAME || 'KnowledgeScout'
+          },
+          To: [{
+            Email: recipientEmail,
+            Name: recipientName || recipientEmail
+          }],
+          Subject: subject,
+          HTMLPart: this.generateMemberInviteHTML(recipientName || recipientEmail, libraryName, roleLabel, inviteUrl, inviterName),
+          TextPart: this.generateMemberInviteText(recipientName || recipientEmail, libraryName, roleLabel, inviteUrl, inviterName)
+        }]
+      });
+
+      console.log(`[MailjetService] Mitglieder-Einladung gesendet an ${recipientEmail} (Rolle: ${roleLabel})`);
+      return true;
+    } catch (error) {
+      console.error('[MailjetService] Fehler beim Versand der Mitglieder-Einladung:', error);
+      return false;
+    }
+  }
+
+  /**
    * Sendet Ablehnungs-E-Mail an Benutzer
    */
   static async sendAccessRejectedEmail(
@@ -508,6 +549,70 @@ export class MailjetService {
       Status: Zugriff abgelehnt
       
       Bei Fragen können Sie sich jederzeit an uns wenden.
+    `;
+  }
+
+  // -- Mitglieder-Einladung Templates --
+
+  private static generateMemberInviteHTML(
+    recipientName: string,
+    libraryName: string,
+    roleLabel: string,
+    inviteUrl: string,
+    inviterName: string
+  ): string {
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2d5016;">Einladung als ${roleLabel}</h2>
+        
+        <p>Hallo ${recipientName},</p>
+        
+        <p>${inviterName} hat Sie als <strong>${roleLabel}</strong> fuer die Library "${libraryName}" eingeladen.</p>
+        
+        <div style="background-color: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h3 style="color: #2d5016; margin-top: 0;">Ihre Einladung:</h3>
+          <p style="margin: 10px 0;"><strong>Library:</strong> ${libraryName}</p>
+          <p style="margin: 10px 0;"><strong>Rolle:</strong> ${roleLabel}</p>
+          <p style="margin: 10px 0;"><strong>Eingeladen von:</strong> ${inviterName}</p>
+        </div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${inviteUrl}" 
+             style="background-color: #2d5016; color: white; padding: 12px 30px; 
+                    text-decoration: none; border-radius: 5px; display: inline-block;">
+            Einladung annehmen
+          </a>
+        </div>
+        
+        <p style="color: #666; font-size: 14px;">
+          Wichtig: Bitte melden Sie sich mit der E-Mail-Adresse an, an die diese Einladung gesendet wurde.
+        </p>
+      </div>
+    `;
+  }
+
+  private static generateMemberInviteText(
+    recipientName: string,
+    libraryName: string,
+    roleLabel: string,
+    inviteUrl: string,
+    inviterName: string
+  ): string {
+    return `
+      Einladung als ${roleLabel}
+      
+      Hallo ${recipientName},
+      
+      ${inviterName} hat Sie als ${roleLabel} fuer die Library "${libraryName}" eingeladen.
+      
+      Ihre Einladung:
+      Library: ${libraryName}
+      Rolle: ${roleLabel}
+      Eingeladen von: ${inviterName}
+      
+      Einladung annehmen: ${inviteUrl}
+      
+      Wichtig: Bitte melden Sie sich mit der E-Mail-Adresse an, an die diese Einladung gesendet wurde.
     `;
   }
 }

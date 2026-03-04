@@ -602,6 +602,91 @@ export class LibraryService {
   }
 
   /**
+   * Library nach ID abrufen (owner-unabhängig).
+   * Durchsucht alle User-Einträge nach einer Library mit der gegebenen ID.
+   * Wird benötigt, um geteilte Libraries zu laden, die einem anderen User gehören.
+   * 
+   * @param libraryId ID der Bibliothek
+   */
+  async getLibraryById(libraryId: string): Promise<Library | null> {
+    try {
+      const collection = await getCollection<UserLibraries>(this.collectionName);
+      
+      const pipeline = [
+        { $unwind: '$libraries' },
+        { $match: { 'libraries.id': libraryId } },
+        { $limit: 1 },
+        { $replaceRoot: { newRoot: '$libraries' } }
+      ];
+      
+      const results = await collection.aggregate<Library>(pipeline).toArray();
+      return results.length > 0 ? results[0] : null;
+    } catch (error) {
+      console.error('[LibraryService] Fehler beim Abrufen der Bibliothek nach ID:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Alle Libraries laden, auf die der User ueber approved Access Requests
+   * oder Co-Creator-Mitgliedschaften Zugriff hat.
+   * Filtert eigene Libraries heraus (doppelte Anzeige vermeiden).
+   * Gibt die Rolle (`accessRole`) pro Library zurueck.
+   * 
+   * @param email E-Mail-Adresse des Benutzers
+   */
+  async getSharedLibrariesForUser(
+    email: string
+  ): Promise<Array<Library & { accessRole: 'co-creator' | 'reader' }>> {
+    try {
+      const { getApprovedAccessRequestsByEmail } = await import(
+        '@/lib/repositories/library-access-repo'
+      );
+      const { listMembershipsByEmail } = await import(
+        '@/lib/repositories/library-members-repo'
+      );
+      
+      // Eigene Library-IDs ermitteln, um Duplikate auszuschließen
+      const ownLibraries = await this.getUserLibraries(email);
+      const ownLibraryIds = new Set(ownLibraries.map(lib => lib.id));
+      
+      const result: Array<Library & { accessRole: 'co-creator' | 'reader' }> = [];
+      const seenIds = new Set<string>();
+      
+      // 1) Co-Creator-Mitgliedschaften laden (hoechste Prioritaet)
+      const memberships = await listMembershipsByEmail(email, 'co-creator');
+      for (const membership of memberships) {
+        if (ownLibraryIds.has(membership.libraryId)) continue;
+        if (seenIds.has(membership.libraryId)) continue;
+        
+        const library = await this.getLibraryById(membership.libraryId);
+        if (library && library.isEnabled) {
+          result.push({ ...library, accessRole: 'co-creator' });
+          seenIds.add(membership.libraryId);
+        }
+      }
+      
+      // 2) Approved Access Requests (Reader-Zugriff)
+      const approvedRequests = await getApprovedAccessRequestsByEmail(email);
+      for (const request of approvedRequests) {
+        if (ownLibraryIds.has(request.libraryId)) continue;
+        if (seenIds.has(request.libraryId)) continue;
+        
+        const library = await this.getLibraryById(request.libraryId);
+        if (library && library.isEnabled) {
+          result.push({ ...library, accessRole: 'reader' });
+          seenIds.add(request.libraryId);
+        }
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('[LibraryService] Fehler beim Abrufen geteilter Bibliotheken:', error);
+      return [];
+    }
+  }
+
+  /**
    * Prüft ob ein Slug-Name bereits verwendet wird
    * Verwendet MongoDB-Aggregation für optimierte Performance
    * @param slugName Der zu prüfende Slug-Name

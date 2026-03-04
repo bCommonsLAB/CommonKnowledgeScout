@@ -18,21 +18,30 @@ export interface SecretaryRequestConfig {
   headers: Record<string, string>
 }
 
+export interface SecretaryRequestOptions {
+  /** Im Offline-Modus (Electron) werden callback_url/callback_token weggelassen.
+   *  Audio/Video antworten dann synchron; PDF/Office geben eine job_id zurück. */
+  offlineMode?: boolean
+}
+
 /**
  * Bereitet einen Request an den Secretary Service vor.
  *
  * @param job Job-Dokument
- * @param file PDF-Datei
- * @param callbackUrl Callback-URL für den Secretary Service
- * @param secret Callback-Token (wird in FormData eingefügt)
+ * @param file Quelldatei
+ * @param callbackUrl Callback-URL für den Secretary Service (wird im offlineMode ignoriert)
+ * @param secret Callback-Token (wird im offlineMode ignoriert)
+ * @param options Optionale Einstellungen (z.B. offlineMode)
  * @returns Konfiguration für den Request
  */
 export function prepareSecretaryRequest(
   job: ExternalJob,
   file: File,
   callbackUrl: string,
-  secret: string
+  secret: string,
+  options?: SecretaryRequestOptions
 ): SecretaryRequestConfig {
+  const offline = options?.offlineMode ?? false
   const opts = (job.correlation?.options || {}) as Record<string, unknown>
   const { baseUrl, apiKey } = getSecretaryConfig()
 
@@ -67,8 +76,11 @@ export function prepareSecretaryRequest(
     formData.append('source_language', sourceLanguage)
     // Secretary uses `useCache` (see existing Next proxy routes)
     formData.append('useCache', String(useCache))
-    formData.append('callback_url', callbackUrl)
-    formData.append('callback_token', secret)
+    // Im Offline-Modus (Electron): callback_url weglassen → Secretary antwortet synchron
+    if (!offline) {
+      formData.append('callback_url', callbackUrl)
+      formData.append('callback_token', secret)
+    }
 
     FileLogger.info('secretary-request', 'Audio FormData erstellt', {
       jobId: job.jobId,
@@ -78,7 +90,7 @@ export function prepareSecretaryRequest(
       targetLanguage,
       sourceLanguage,
       useCache: String(useCache),
-      callbackUrl,
+      callbackUrl: offline ? '(offline-mode)' : callbackUrl,
     })
 
     return { url, formData, headers }
@@ -99,8 +111,10 @@ export function prepareSecretaryRequest(
     formData.append('source_language', sourceLanguage)
     // Secretary uses `useCache` (see existing Next proxy routes)
     formData.append('useCache', String(useCache))
-    formData.append('callback_url', callbackUrl)
-    formData.append('callback_token', secret)
+    if (!offline) {
+      formData.append('callback_url', callbackUrl)
+      formData.append('callback_token', secret)
+    }
 
     FileLogger.info('secretary-request', 'Video FormData erstellt', {
       jobId: job.jobId,
@@ -110,7 +124,7 @@ export function prepareSecretaryRequest(
       targetLanguage,
       sourceLanguage,
       useCache: String(useCache),
-      callbackUrl,
+      callbackUrl: offline ? '(offline-mode)' : callbackUrl,
     })
 
     return { url, formData, headers }
@@ -132,8 +146,10 @@ export function prepareSecretaryRequest(
     formData.append('useCache', String(useCache))
     formData.append('includeImages', String(includeImages))
     formData.append('includePreviews', String(includePreviews))
-    formData.append('callback_url', callbackUrl)
-    formData.append('callback_token', secret)
+    if (!offline) {
+      formData.append('callback_url', callbackUrl)
+      formData.append('callback_token', secret)
+    }
     formData.append('jobId', job.jobId)
     formData.append('force_refresh', String(forceRefresh))
 
@@ -145,7 +161,7 @@ export function prepareSecretaryRequest(
       useCache: String(useCache),
       includeImages: String(includeImages),
       includePreviews: String(includePreviews),
-      callbackUrl,
+      callbackUrl: offline ? '(offline-mode)' : callbackUrl,
     })
 
     return { url, formData, headers }
@@ -173,8 +189,10 @@ export function prepareSecretaryRequest(
     formData.append('includeImages', String(includeOcrImages)) // Mistral OCR Bilder als Base64
     formData.append('includePageImages', String(includePageImages)) // Seiten-Bilder als ZIP
     formData.append('useCache', String(useCache))
-    formData.append('callback_url', callbackUrl)
-    formData.append('callback_token', secret)
+    if (!offline) {
+      formData.append('callback_url', callbackUrl)
+      formData.append('callback_token', secret)
+    }
 
     // Optional: page_start und page_end
     if (typeof opts['page_start'] === 'number') {
@@ -193,7 +211,7 @@ export function prepareSecretaryRequest(
       includeOcrImages: String(includeOcrImages),
       includePageImages: String(includePageImages),
       useCache: String(useCache),
-      callbackUrl,
+      callbackUrl: offline ? '(offline-mode)' : callbackUrl,
     })
   } else {
     // Standard PDF Process Endpoint
@@ -207,14 +225,16 @@ export function prepareSecretaryRequest(
     formData.append('useCache', String(typeof opts['useCache'] === 'boolean' ? opts['useCache'] : true))
     const standardIncludeImages = typeof opts['includeImages'] === 'boolean' ? opts['includeImages'] : false
     formData.append('includeImages', String(standardIncludeImages))
-    formData.append('callback_url', callbackUrl)
-    formData.append('callback_token', secret)
+    if (!offline) {
+      formData.append('callback_url', callbackUrl)
+      formData.append('callback_token', secret)
+    }
 
     FileLogger.info('secretary-request', 'Standard PDF Process FormData erstellt', {
       jobId: job.jobId,
       url,
       extractionMethod,
-      callbackUrl,
+      callbackUrl: offline ? '(offline-mode)' : callbackUrl,
     })
   }
 

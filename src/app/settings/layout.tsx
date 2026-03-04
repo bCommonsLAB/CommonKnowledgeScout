@@ -1,37 +1,21 @@
+"use client"
+
 import { Separator } from "@/components/ui/separator"
 import { SidebarNav } from "@/components/settings/sidebar-nav"
+import { useAtomValue } from "jotai"
+import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom"
+import { useMemo } from "react"
+import { Info } from "lucide-react"
 
-// Einstellungen für Bibliotheksverwaltung
-const librarySidebarItems = [
-  {
-    title: "Allgemeine Einstellungen",
-    href: "/settings",
-  },
-  {
-    title: "Storage",
-    href: "/settings/storage",
-  },
-  {
-    title: "Transformation",
-    href: "/settings/secretary-service",
-  },
-  {
-    title: "Story",
-    href: "/settings/chat",
-  },
-  {
-    title: "Veröffentlichen",
-    href: "/settings/public",
-  },
-  {
-    title: "Zugriffsanfragen",
-    href: "/settings/public/access-requests",
-  },
-  {
-    title: "Moderatoren",
-    href: "/settings/public/members",
-  },
-  // Weitere bibliotheksbezogene Einstellungen können hier hinzugefügt werden
+// Alle verfuegbaren Settings-Tabs
+const allSidebarItems = [
+  { title: "Allgemeine Einstellungen", href: "/settings" },
+  { title: "Storage", href: "/settings/storage" },
+  { title: "Transformation", href: "/settings/secretary-service" },
+  { title: "Story", href: "/settings/chat" },
+  { title: "Veröffentlichen", href: "/settings/public" },
+  { title: "Zugriffsanfragen", href: "/settings/public/access-requests" },
+  { title: "Mitglieder", href: "/settings/public/members" },
 ]
 
 interface LayoutProps {
@@ -39,8 +23,39 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
+  const activeLibraryId = useAtomValue(activeLibraryIdAtom)
+  const libraries = useAtomValue(librariesAtom)
+  
+  const activeLibrary = libraries.find(lib => lib.id === activeLibraryId)
+  const isCoCreator = activeLibrary?.accessRole === 'co-creator'
+  
+  // Co-Creators sehen keine Settings-Tabs (Einstellungen liegen beim Owner)
+  const sidebarItems = useMemo(() => {
+    if (isCoCreator) return []
+    return allSidebarItems
+  }, [isCoCreator])
+
   return (
     <div className="flex flex-col h-full">
+      {/* Hinweis fuer Co-Creators */}
+      {isCoCreator && (
+        <div className="bg-blue-50 dark:bg-blue-950/30 border-b border-blue-200 dark:border-blue-800 px-6 py-4">
+          <div className="flex items-start gap-3 max-w-3xl">
+            <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                Geteilte Bibliothek
+              </p>
+              <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                Diese Bibliothek wird von einem anderen Benutzer verwaltet.
+                Die Einstellungen koennen nur vom Owner geaendert werden.
+                Sie koennen im Archiv, Explore- und Story-Modus arbeiten.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    
       {/* Mobile Version */}
       <div className="md:hidden flex-1 overflow-y-auto">
         <div className="p-6 pb-16 space-y-6">
@@ -51,7 +66,7 @@ export default function Layout({ children }: LayoutProps) {
             </p>
           </div>
           <Separator className="my-4" />
-          <SidebarNav items={librarySidebarItems} />
+          {sidebarItems.length > 0 && <SidebarNav items={sidebarItems} />}
           <div className="mt-6">{children}</div>
         </div>
       </div>
@@ -69,9 +84,11 @@ export default function Layout({ children }: LayoutProps) {
             <Separator className="my-6" />
             
             <div className="flex flex-col space-y-8 lg:flex-row lg:space-x-12 lg:space-y-0">
-              <aside className="-mx-4 lg:w-1/5">
-                <SidebarNav items={librarySidebarItems} />
-              </aside>
+              {sidebarItems.length > 0 && (
+                <aside className="-mx-4 lg:w-1/5">
+                  <SidebarNav items={sidebarItems} />
+                </aside>
+              )}
               <div className="flex-1 min-w-0">{children}</div>
             </div>
           </div>

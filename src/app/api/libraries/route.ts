@@ -81,10 +81,24 @@ export async function GET(request: NextRequest) {
   
   try {
     const libraryService = LibraryService.getInstance();
-    const libraries = await libraryService.getUserLibraries(email);
-    const clientLibraries = libraryService.toClientLibraries(libraries);
     
-    return NextResponse.json(clientLibraries);
+    // Eigene Libraries laden (accessRole: 'owner')
+    const libraries = await libraryService.getUserLibraries(email);
+    const clientLibraries = libraryService.toClientLibraries(libraries).map(lib => ({
+      ...lib,
+      accessRole: 'owner' as const,
+    }));
+    
+    // Geteilte Libraries laden (Co-Creator + Reader ueber Access Requests)
+    const sharedLibraries = await libraryService.getSharedLibrariesForUser(email);
+    const sharedClientLibraries = libraryService.toClientLibraries(sharedLibraries).map((lib, idx) => ({
+      ...lib,
+      isShared: true,
+      accessRole: sharedLibraries[idx].accessRole,
+      slug: lib.config?.publicPublishing?.slugName || undefined,
+    }));
+    
+    return NextResponse.json([...clientLibraries, ...sharedClientLibraries]);
   } catch (error) {
     console.error('[API] Fehler beim Abrufen der Bibliotheken:', error);
     

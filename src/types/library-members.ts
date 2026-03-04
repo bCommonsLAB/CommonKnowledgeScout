@@ -10,14 +10,20 @@
 
 /**
  * Library member role
- * - 'owner': Full access to all library settings and access management
- * - 'moderator': Can manage access requests and send invitations, but no access to library settings
+ * - 'owner': Voller Zugriff auf alle Library-Einstellungen und Zugriffsverwaltung
+ * - 'moderator': Kann Zugriffsanfragen verwalten und Einladungen senden, kein Zugang zu Library-Einstellungen
+ * - 'co-creator': Voller Arbeitszugriff (Archiv, Explore, Story, Templates), aber kein Zugang zu Settings.
+ *   Arbeitet auf derselben libraryId wie der Owner (geteilte Shadow Twins, Stories, Vektor-Daten).
  */
-export type LibraryRole = 'owner' | 'moderator';
+export type LibraryRole = 'owner' | 'moderator' | 'co-creator';
+
+/** Einladungsstatus eines Mitglieds */
+export type MemberStatus = 'pending' | 'active';
 
 /**
  * Library member document
- * Represents a user's role in a library
+ * Represents a user's role in a library.
+ * Mitglieder durchlaufen einen Einladungsflow: pending -> active.
  */
 export interface LibraryMember {
   /** Library ID this member belongs to */
@@ -26,10 +32,16 @@ export interface LibraryMember {
   userEmail: string;
   /** Role of the member */
   role: LibraryRole;
-  /** Timestamp when the member was added */
+  /** Einladungsstatus: 'pending' bis zur Bestaetigung, dann 'active' */
+  status: MemberStatus;
+  /** Timestamp when the member was added/invited */
   addedAt: Date;
   /** Email of the user who added this member */
   addedBy: string;
+  /** Einladungs-Token fuer den Bestaetigungslink (nur bei pending) */
+  inviteToken?: string;
+  /** Zeitpunkt der Annahme der Einladung */
+  acceptedAt?: Date;
 }
 
 

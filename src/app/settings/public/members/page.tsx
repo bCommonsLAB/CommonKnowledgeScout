@@ -2,8 +2,8 @@
  * @fileoverview Library Members Management Page
  * 
  * @description
- * Page for managing library members (moderators).
- * Only owners can access this page and add/remove moderators.
+ * Seite fuer die Verwaltung von Library-Mitgliedern (Co-Creators und Moderatoren).
+ * Nur Owner haben Zugriff auf diese Seite.
  * 
  * @module settings
  */
@@ -65,9 +65,9 @@ export default function MembersPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h3 className="text-lg font-medium">Moderatoren verwalten</h3>
+          <h3 className="text-lg font-medium">Mitglieder verwalten</h3>
           <p className="text-sm text-muted-foreground">
-            Verwalten Sie Moderatoren für Ihre Library. Moderatoren können Zugriffsanfragen verwalten und Einladungen versenden.
+            Verwalten Sie Co-Creators und Moderatoren fuer Ihre Library.
           </p>
         </div>
         <Separator />
@@ -82,17 +82,17 @@ export default function MembersPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h3 className="text-lg font-medium">Moderatoren verwalten</h3>
+          <h3 className="text-lg font-medium">Mitglieder verwalten</h3>
           <p className="text-sm text-muted-foreground">
-            Verwalten Sie Moderatoren für Ihre Library.
+            Verwalten Sie Co-Creators und Moderatoren fuer Ihre Library.
           </p>
         </div>
         <Separator />
         <Alert>
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Keine Bibliothek ausgewählt</AlertTitle>
+          <AlertTitle>Keine Bibliothek ausgewaehlt</AlertTitle>
           <AlertDescription>
-            Bitte wählen Sie zuerst eine Bibliothek aus, um Moderatoren zu verwalten.
+            Bitte waehlen Sie zuerst eine Bibliothek aus, um Mitglieder zu verwalten.
           </AlertDescription>
         </Alert>
       </div>
@@ -103,9 +103,9 @@ export default function MembersPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h3 className="text-lg font-medium">Moderatoren verwalten</h3>
+          <h3 className="text-lg font-medium">Mitglieder verwalten</h3>
           <p className="text-sm text-muted-foreground">
-            Verwalten Sie Moderatoren für Ihre Library.
+            Verwalten Sie Co-Creators und Moderatoren fuer Ihre Library.
           </p>
         </div>
         <Separator />
@@ -113,7 +113,7 @@ export default function MembersPage() {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Keine Berechtigung</AlertTitle>
           <AlertDescription>
-            {error || 'Nur Owner können Moderatoren verwalten.'}
+            {error || 'Nur Owner koennen Mitglieder verwalten.'}
           </AlertDescription>
         </Alert>
       </div>
@@ -123,9 +123,9 @@ export default function MembersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium">Moderatoren verwalten</h3>
+        <h3 className="text-lg font-medium">Mitglieder verwalten</h3>
         <p className="text-sm text-muted-foreground">
-          Verwalten Sie Moderatoren für Ihre Library. Moderatoren können Zugriffsanfragen verwalten und Einladungen versenden, haben aber keinen Zugriff auf die Library-Einstellungen.
+          Verwalten Sie die Mitglieder Ihrer Library. Co-Creators haben vollen Arbeitszugriff (Archiv, Explore, Story, Templates). Moderatoren koennen Zugriffsanfragen verwalten und Einladungen versenden.
         </p>
       </div>
       <Separator />
