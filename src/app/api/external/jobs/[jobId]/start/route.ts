@@ -532,6 +532,9 @@ export async function POST(
       await repo.setStatus(jobId, 'failed', { error: { code: 'steps_init_error', message: 'Fehler beim Initialisieren der Steps' } })
       return NextResponse.json({ error: 'Fehler beim Initialisieren der Steps' }, { status: 500 })
     }
+    // Offline-Modus (Electron): wird für Trace-Events und Secretary-Request benötigt
+    const offline = isElectronMode()
+
     // Status wird erst nach erfolgreichem Request gesetzt (siehe Zeile 477)
     await repo.traceAddEvent(jobId, { spanId: 'preprocess', name: (job.job_type === 'pdf') ? 'process_pdf_submit' : 'process_submit', attributes: {
       libraryId: job.libraryId,
@@ -1204,9 +1207,6 @@ export async function POST(
       // (Template-only Flow wird oben bereits behandelt)
       return NextResponse.json({ ok: true, jobId, kind: 'extract_skipped' })
     }
-
-    // Offline-Modus (Electron): callback_url weglassen, Ergebnis direkt empfangen
-    const offline = isElectronMode()
 
     // Bereite Secretary-Service-Request vor
     const requestConfig = prepareSecretaryRequest(job, file, callbackUrl, secret, { offlineMode: offline })
