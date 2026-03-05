@@ -56,8 +56,12 @@ nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
 
-# Auto-Update via GitHub Releases
+# Auto-Update via GitHub Releases.
+# releaseType muss 'release' sein, weil ci-main bereits ein published Release
+# erstellt. electron-builder versucht sonst ein Draft zu erstellen, was mit
+# einem bestehenden published Release inkompatibel ist und alle Uploads ueberspringt.
 publish:
   provider: github
   owner: bCommonsLAB
   repo: CommonKnowledgeScout
+  releaseType: release

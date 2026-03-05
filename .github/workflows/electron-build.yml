@@ -60,6 +60,24 @@ jobs:
             require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
           "
 
+      # .env-Datei fuer die paketierte Electron-App generieren.
+      # Next.js backt NEXT_PUBLIC_* Variablen zur Build-Zeit ein, aber
+      # serverseitige Secrets (CLERK_SECRET_KEY, MONGODB_URI) werden
+      # erst zur Laufzeit aus .env geladen.
+      - name: Generate .env for Electron
+        shell: bash
+        run: |
+          echo "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}" > .env
+          echo "CLERK_SECRET_KEY=${{ secrets.CLERK_SECRET_KEY }}" >> .env
+          echo "NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in" >> .env
+          echo "NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up" >> .env
+          echo "NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/" >> .env
+          echo "NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/" >> .env
+          echo "MONGODB_URI=${{ secrets.MONGODB_URI }}" >> .env
+          echo "MONGODB_DATABASE_NAME=${{ secrets.MONGODB_DATABASE_NAME }}" >> .env
+          echo "MONGODB_COLLECTION_NAME=${{ secrets.MONGODB_COLLECTION_NAME }}" >> .env
+          echo ".env generiert mit $(wc -l < .env) Zeilen"
+
       # Next.js Build mit den gleichen ENV-Variablen wie im Docker-Build
       - name: Build Next.js
         env:
@@ -77,8 +95,10 @@ jobs:
       - name: Generate required-server-files.json
         run: node scripts/generate-required-server-files.js
 
-      # Electron-App bauen und an bestehendes GitHub Release anhängen.
-      # GH_TOKEN wird von electron-builder für den Upload zu GitHub Releases verwendet.
+      # Electron-App bauen und an bestehendes GitHub Release anhaengen.
+      # GH_TOKEN wird von electron-builder fuer den Upload zu GitHub Releases verwendet.
+      # Wir verwenden GITHUB_TOKEN (automatisch bereitgestellt), da permissions: contents: write
+      # gesetzt ist und das ausreicht, um Assets an bestehende Releases anzuhaengen.
       - name: Build and publish Electron app
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
