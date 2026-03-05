@@ -25,6 +25,8 @@ import { LlmModelSelector } from "@/components/ui/llm-model-selector"
 
 // Formular-Schema mit Validierung
 const secretaryServiceFormSchema = z.object({
+  // Benutzerdefinierte Verbindung aktiv (false = ENV-Defaults)
+  useCustomConfig: z.boolean().optional(),
   // Optional: Wenn gesetzt, muss es eine gültige URL sein
   apiUrl: z.string().url({ message: "Bitte geben Sie eine gültige URL ein." }).optional(),
   // Optional: Leer lassen → ENV verwenden
@@ -59,6 +61,7 @@ export function SecretaryServiceForm() {
   const form = useForm<SecretaryServiceFormValues>({
     resolver: zodResolver(secretaryServiceFormSchema),
     defaultValues: {
+      useCustomConfig: false,
       apiUrl: undefined,
       apiKey: '',
       pdfExtractionMethod: 'native',
@@ -87,6 +90,7 @@ export function SecretaryServiceForm() {
         'de'
       
       form.reset({
+        useCustomConfig: activeLibrary.config?.secretaryService?.useCustomConfig ?? false,
         apiUrl: activeLibrary.config?.secretaryService?.apiUrl || undefined,
         apiKey: activeLibrary.config?.secretaryService?.apiKey || '',
         pdfExtractionMethod: activeLibrary.config?.secretaryService?.pdfExtractionMethod || 'mistral_ocr',
@@ -101,9 +105,10 @@ export function SecretaryServiceForm() {
   }, [activeLibrary, form])
 
   const currentPdfTemplate = form.watch('pdfTemplate')
-  // apiUrl beobachten, um Desktop-Modus-Switch bedingt anzuzeigen
+  // useCustomConfig beobachten, um Verbindungsfelder bedingt anzuzeigen
+  const isCustomConfig = form.watch('useCustomConfig') ?? false
   const currentApiUrl = form.watch('apiUrl')
-  const hasCustomApiUrl = !!(currentApiUrl && currentApiUrl.trim())
+  const hasCustomApiUrl = isCustomConfig && !!(currentApiUrl && currentApiUrl.trim())
 
   const mergedTemplateNames = mergeTemplateNames({
     templateNames: availableTemplateNames,
@@ -165,12 +170,15 @@ export function SecretaryServiceForm() {
         throw new Error("Keine Bibliothek ausgewählt")
       }
       
-      // Bibliotheksobjekt aktualisieren
+      // Bibliotheksobjekt aktualisieren.
+      // apiUrl/apiKey/useDirectConnection werden immer gespeichert (auch bei useCustomConfig=false),
+      // damit beim Umschalten nichts verloren geht.
       const updatedLibrary = {
         ...activeLibrary,
         config: {
           ...activeLibrary.config,
           secretaryService: {
+            useCustomConfig: data.useCustomConfig ?? false,
             ...(data.apiUrl ? { apiUrl: data.apiUrl } : {}),
             ...(data.apiKey ? { apiKey: data.apiKey } : {}),
             // Phase 1: Transkription
@@ -181,8 +189,7 @@ export function SecretaryServiceForm() {
             targetLanguage: data.targetLanguage || 'de',
             generateCoverImage: data.generateCoverImage ?? false,
             ...(data.coverImagePrompt?.trim() ? { coverImagePrompt: data.coverImagePrompt.trim() } : {}),
-            // Verbindungsmodus: nur speichern wenn apiUrl gesetzt
-            ...(data.apiUrl ? { useDirectConnection: data.useDirectConnection ?? false } : {}),
+            useDirectConnection: data.useDirectConnection ?? false,
           }
         }
       }
@@ -208,7 +215,7 @@ export function SecretaryServiceForm() {
           config: {
             ...lib.config,
             secretaryService: {
-              // Fülle optionale Felder defensiv mit leerem String, damit der Client-Typ stimmt
+              useCustomConfig: data.useCustomConfig ?? false,
               apiUrl: data.apiUrl || lib.config?.secretaryService?.apiUrl || '',
               apiKey: data.apiKey || lib.config?.secretaryService?.apiKey || '',
               // Phase 1: Transkription
@@ -219,8 +226,7 @@ export function SecretaryServiceForm() {
               targetLanguage: data.targetLanguage || 'de',
               generateCoverImage: data.generateCoverImage ?? false,
               ...(data.coverImagePrompt?.trim() ? { coverImagePrompt: data.coverImagePrompt.trim() } : {}),
-              // Verbindungsmodus: nur relevant wenn apiUrl gesetzt
-              useDirectConnection: data.apiUrl ? (data.useDirectConnection ?? false) : false,
+              useDirectConnection: data.useDirectConnection ?? false,
             }
           }
         }
@@ -460,84 +466,113 @@ export function SecretaryServiceForm() {
               Verbindungseinstellungen zum Transformations-Backend.
             </p>
           </div>
+
+          {/* Toggle: Standard (ENV) vs. Benutzerdefiniert */}
           <FormField
             control={form.control}
-            name="apiUrl"
+            name="useCustomConfig"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>API-URL</FormLabel>
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <FormLabel className="text-base">
+                    Benutzerdefinierte Verbindung
+                  </FormLabel>
+                  <FormDescription>
+                    {field.value
+                      ? 'Eigene API-URL und API-Key werden verwendet.'
+                      : 'Standard-Verbindung über Umgebungsvariablen.'}
+                  </FormDescription>
+                </div>
                 <FormControl>
-                  <Input
-                    placeholder="http://127.0.0.1:5001/api (optional)"
-                    value={typeof field.value === 'string' ? field.value : ''}
-                    onChange={e => field.onChange(e.target.value)}
-                    autoComplete="off"
-                    name="sec-api-url"
-                    spellCheck={false}
-                    autoCapitalize="none"
-                    inputMode="url"
+                  <Switch
+                    checked={field.value ?? false}
+                    onCheckedChange={field.onChange}
                   />
                 </FormControl>
-                <FormDescription>
-                  Optional. Leer lassen, um die Umgebungsvariable zu verwenden.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="apiKey"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>API-Key</FormLabel>
-                <FormControl>
-                  <Input
-                    type="password"
-                    placeholder="(optional) API-Key oder leer für ENV"
-                    value={typeof field.value === 'string' ? field.value : ''}
-                    onChange={e => field.onChange(e.target.value)}
-                    autoComplete="new-password"
-                    name="sec-api-key"
-                    spellCheck={false}
-                    autoCapitalize="none"
-                    inputMode="text"
-                  />
-                </FormControl>
-                <FormDescription>
-                  Optional. Leer lassen, um den API-Key aus der Umgebungsvariable zu verwenden.
-                </FormDescription>
-                <FormMessage />
               </FormItem>
             )}
           />
 
-          {/* Desktop-Modus: nur anzeigen, wenn eine eigene API-URL konfiguriert ist */}
-          {hasCustomApiUrl && (
-            <FormField
-              control={form.control}
-              name="useDirectConnection"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">
-                      Desktop-Modus
-                    </FormLabel>
+          {/* Verbindungsfelder: nur sichtbar wenn benutzerdefiniert aktiv */}
+          {isCustomConfig && (
+            <>
+              <FormField
+                control={form.control}
+                name="apiUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>API-URL</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="https://secretaryservices.example.com/api"
+                        value={typeof field.value === 'string' ? field.value : ''}
+                        onChange={e => field.onChange(e.target.value)}
+                        autoComplete="off"
+                        name="sec-api-url"
+                        spellCheck={false}
+                        autoCapitalize="none"
+                        inputMode="url"
+                      />
+                    </FormControl>
                     <FormDescription>
-                      Aktivieren, wenn der Secretary Service diese Anwendung nicht über das Netzwerk erreichen kann
-                      (z.&nbsp;B. lokale Installation oder Firewall). Ergebnisse werden dann aktiv abgeholt statt
-                      per Rückmeldung zugestellt.
+                      URL des Secretary Service (z.&nbsp;B. https://secretaryservices.example.com/api).
                     </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value ?? false}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="apiKey"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>API-Key</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        placeholder="API-Key für die Authentifizierung"
+                        value={typeof field.value === 'string' ? field.value : ''}
+                        onChange={e => field.onChange(e.target.value)}
+                        autoComplete="new-password"
+                        name="sec-api-key"
+                        spellCheck={false}
+                        autoCapitalize="none"
+                        inputMode="text"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Desktop-Modus: nur anzeigen, wenn eine eigene API-URL konfiguriert ist */}
+              {hasCustomApiUrl && (
+                <FormField
+                  control={form.control}
+                  name="useDirectConnection"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">
+                          Desktop-Modus
+                        </FormLabel>
+                        <FormDescription>
+                          Aktivieren, wenn der Secretary Service diese Anwendung nicht über das Netzwerk erreichen kann
+                          (z.&nbsp;B. lokale Installation oder Firewall). Ergebnisse werden dann aktiv abgeholt statt
+                          per Rückmeldung zugestellt.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value ?? false}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
               )}
-            />
+            </>
           )}
         </div>
 

@@ -176,6 +176,15 @@ export interface StorageConfig {
 
   /** Secretary Service Konfiguration */
   secretaryService?: {
+    // === Verbindungskonfiguration ===
+    /**
+     * Benutzerdefinierte Verbindung aktiv: Wenn true, werden apiUrl/apiKey/useDirectConnection
+     * aus dieser Config verwendet. Wenn false, gelten die ENV-Defaults – die gespeicherten
+     * Werte bleiben erhalten, damit der Anwender zwischen Standard und Benutzerdefiniert
+     * wechseln kann, ohne Eingaben zu verlieren.
+     */
+    useCustomConfig?: boolean;
+
     /** API-URL des Secretary Service */
     apiUrl: string;
     
@@ -201,7 +210,8 @@ export interface StorageConfig {
     // === Verbindungsmodus ===
     /**
      * Desktop-Modus: Ergebnisse werden aktiv abgeholt (SSE/Sync) statt per Webhook zugestellt.
-     * Nur relevant, wenn apiUrl gesetzt ist. Bei fehlender apiUrl gilt die automatische Erkennung (Electron).
+     * Nur relevant, wenn useCustomConfig=true und apiUrl gesetzt ist.
+     * Bei fehlender apiUrl gilt die automatische Erkennung (Electron).
      */
     useDirectConnection?: boolean;
   };
@@ -353,6 +363,9 @@ export interface ClientLibrary {
   config: {
     /** Secretary Service Konfiguration */
     secretaryService?: {
+      /** Benutzerdefinierte Verbindung aktiv (Standard: false → ENV-Defaults) */
+      useCustomConfig?: boolean;
+
       /** API-URL des Secretary Service */
       apiUrl: string;
       
@@ -376,7 +389,7 @@ export interface ClientLibrary {
       coverImagePrompt?: string;
 
       // === Verbindungsmodus ===
-      /** Desktop-Modus: Ergebnisse aktiv abholen statt per Webhook. Nur relevant bei gesetzter apiUrl. */
+      /** Desktop-Modus: Ergebnisse aktiv abholen statt per Webhook. Nur relevant bei useCustomConfig=true. */
       useDirectConnection?: boolean;
     };
     /** Chat-/RAG-Konfiguration für die UI */

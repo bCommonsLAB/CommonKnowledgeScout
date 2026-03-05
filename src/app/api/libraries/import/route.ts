@@ -61,6 +61,8 @@ export async function POST(request: NextRequest) {
         
         // Secretary Service Config (ohne API-Key, muss neu konfiguriert werden)
         secretaryService: libraryData.config?.secretaryService ? {
+          // Beim Import ist useCustomConfig deaktiviert, bis der Benutzer API-Key neu eingibt
+          useCustomConfig: false,
           apiUrl: libraryData.config.secretaryService.apiUrl || '',
           apiKey: '', // API-Key muss neu eingegeben werden
           // Phase 1: Transkription
@@ -71,6 +73,7 @@ export async function POST(request: NextRequest) {
           targetLanguage: libraryData.config.secretaryService.targetLanguage,
           generateCoverImage: libraryData.config.secretaryService.generateCoverImage,
           coverImagePrompt: libraryData.config.secretaryService.coverImagePrompt,
+          useDirectConnection: libraryData.config.secretaryService.useDirectConnection ?? false,
         } : undefined,
         
         // Chat Config

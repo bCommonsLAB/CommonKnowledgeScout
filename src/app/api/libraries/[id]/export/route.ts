@@ -61,6 +61,7 @@ export async function GET(
       config: library.config ? {
         // Secretary Service Config (ohne API-Keys)
         secretaryService: library.config.secretaryService ? {
+          useCustomConfig: library.config.secretaryService.useCustomConfig ?? false,
           apiUrl: library.config.secretaryService.apiUrl || '',
           apiKey: '', // API-Key wird nicht exportiert
           // Phase 1: Transkription
@@ -71,6 +72,7 @@ export async function GET(
           targetLanguage: library.config.secretaryService.targetLanguage,
           generateCoverImage: library.config.secretaryService.generateCoverImage,
           coverImagePrompt: library.config.secretaryService.coverImagePrompt,
+          useDirectConnection: library.config.secretaryService.useDirectConnection ?? false,
         } : undefined,
         
         // Chat Config (vollständig exportieren)

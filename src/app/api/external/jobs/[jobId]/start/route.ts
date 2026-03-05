@@ -572,15 +572,30 @@ export async function POST(
       const libraryService = LibraryService.getInstance()
       const libraries = await libraryService.getUserLibraries(job.userEmail)
       library = libraries.find(l => l.id === job.libraryId) as Library | undefined
-      // Secretary-Config aus Library laden (für apiUrl/apiKey-Override und Desktop-Modus)
+      // Secretary-Config aus Library laden (für apiUrl/apiKey-Override und Desktop-Modus).
+      // useCustomConfig muss true sein, damit die benutzerdefinierten Verbindungseinstellungen
+      // (apiUrl, apiKey, useDirectConnection) aktiv sind. Bei false gelten ENV-Defaults.
+      // Andere Felder (pdfExtractionMethod, template, etc.) gelten immer.
       if (library?.config?.secretaryService) {
-        libraryConfig = library.config.secretaryService
+        const rawConfig = library.config.secretaryService
+        if (rawConfig.useCustomConfig) {
+          libraryConfig = rawConfig
+        } else {
+          // Nur Transformations-Felder übernehmen, keine Verbindungs-Overrides
+          libraryConfig = {
+            ...rawConfig,
+            apiUrl: '',
+            apiKey: '',
+            useDirectConnection: false,
+          }
+        }
         if (libraryConfig?.useDirectConnection) {
           offline = true
         }
         FileLogger.info('start-route', 'Library-Config geladen', {
           jobId,
           libraryId: job.libraryId,
+          useCustomConfig: rawConfig.useCustomConfig ?? false,
           useDirectConnection: libraryConfig?.useDirectConnection ?? false,
           hasCustomApiUrl: !!libraryConfig?.apiUrl,
           customApiUrl: libraryConfig?.apiUrl || '(env)',
@@ -593,7 +608,8 @@ export async function POST(
           name: 'secretary_config_resolved',
           attributes: {
             secretaryUrl: libraryConfig?.apiUrl || '(env)',
-            configSource: libraryConfig?.apiUrl ? 'library-config' : 'env',
+            configSource: rawConfig.useCustomConfig ? 'library-config' : 'env',
+            useCustomConfig: rawConfig.useCustomConfig ?? false,
             useDirectConnection: libraryConfig?.useDirectConnection ?? false,
             offline,
             electronMode: isElectronMode(),
