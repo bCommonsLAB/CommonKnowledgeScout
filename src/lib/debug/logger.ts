@@ -44,18 +44,25 @@ class BaseLogger {
   }
 
   private static logToConsole(entry: Omit<LogEntry, 'id'>) {
-    if (process.env.NODE_ENV === 'development') {
+    const isDev = process.env.NODE_ENV === 'development';
+
+    if (isDev) {
+      // Development: Detaillierte Ausgabe mit Icons und Sequenznummern
       const icon = entry.level === 'error' ? '🔴' : 
                   entry.level === 'warn' ? '⚠️' : 
                   entry.level === 'info' ? 'ℹ️' : '🔍';
-      
-      // Formatiere den Zeitstempel für die Konsolenausgabe
       const timeOnly = entry.timestamp.split('T')[1];
-      
       console[entry.level](
         `[${timeOnly}][${entry.area.toUpperCase()}:${entry.sequence}][${entry.component}][${entry.level}] ${icon} ${entry.message}`,
         entry.details || ''
       );
+    } else if (entry.level !== 'debug') {
+      // Production: Kompakte Ausgabe für info/warn/error (debug unterdrückt).
+      // In Electron wird console.log in main.log geschrieben – essentiell für Debugging.
+      const fn = entry.level === 'error' ? console.error :
+                 entry.level === 'warn' ? console.warn : console.log;
+      fn(`[${entry.area}:${entry.component}] ${entry.message}`,
+        entry.details ? JSON.stringify(entry.details) : '');
     }
   }
 

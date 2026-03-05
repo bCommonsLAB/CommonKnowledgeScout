@@ -73,28 +73,48 @@ export function mapSyncResponseToCallbackBody(
 /**
  * Wraps SSE-Completed-Daten in das Callback-Format.
  *
- * Seit dem Secretary Service Update liefert das SSE completed-Event
- * die gleiche data-Struktur wie der Webhook-Callback:
- *   { extracted_text: "...", metadata: {...}, pages_archive_url: "...", ... }
+ * Der Secretary Service liefert SSE-Daten in zwei möglichen Formaten:
  *
- * Die Daten werden daher 1:1 als { phase: "completed", data: ... } durchgereicht.
+ * 1. Flach (identisch mit Webhook, z.B. PDF nach Update):
+ *    { extracted_text: "...", metadata: {...}, pages_archive_url: "..." }
+ *
+ * 2. Gewrappt (z.B. Office-Jobs):
+ *    { status: "success", request: {...}, process: {...}, error: null,
+ *      data: { extracted_text: "...", metadata: {...} } }
+ *
+ * Die Funktion erkennt automatisch, ob die Daten gewrappt sind, und
+ * entpackt sie bei Bedarf, damit die Callback-Route immer das flache
+ * Format erhält: { phase: "completed", data: { extracted_text, ... } }
  */
 export function mapSSEResultToCallbackBody(
   sseResults: Record<string, unknown>,
   _jobType: string
 ): Record<string, unknown> {
-  FileLogger.info('offline-callback', 'SSE→Callback Durchreichung', {
+  // Prüfen ob die Daten gewrappt sind: kein extracted_text auf Top-Level,
+  // aber ein verschachteltes data-Objekt vorhanden
+  const hasDirectExtractedText = 'extracted_text' in sseResults
+  const hasNestedData = typeof sseResults.data === 'object' && sseResults.data !== null && !Array.isArray(sseResults.data)
+  const innerData = hasNestedData ? sseResults.data as Record<string, unknown> : null
+  const hasWrappedExtractedText = innerData && 'extracted_text' in innerData
+
+  // Gewrappte Daten entpacken (z.B. Office-Jobs mit { status, data: { extracted_text } })
+  const effectiveData = (!hasDirectExtractedText && hasWrappedExtractedText && innerData)
+    ? innerData
+    : sseResults
+
+  FileLogger.info('offline-callback', 'SSE→Callback Mapping', {
     sseResultKeys: Object.keys(sseResults),
-    hasExtractedText: 'extracted_text' in sseResults,
-    extractedTextLength: typeof sseResults.extracted_text === 'string' ? sseResults.extracted_text.length : 0,
-    hasPagesArchiveUrl: !!sseResults.pages_archive_url,
-    hasMistralOcrRawUrl: !!sseResults.mistral_ocr_raw_url,
+    unwrapped: effectiveData !== sseResults,
+    effectiveDataKeys: Object.keys(effectiveData),
+    hasExtractedText: 'extracted_text' in effectiveData,
+    extractedTextLength: typeof effectiveData.extracted_text === 'string' ? effectiveData.extracted_text.length : 0,
+    hasPagesArchiveUrl: !!effectiveData.pages_archive_url,
+    hasMistralOcrRawUrl: !!effectiveData.mistral_ocr_raw_url,
   })
 
-  // SSE-Format ist identisch mit Webhook-Format – kein Mapping nötig.
   return {
     phase: 'completed',
-    data: sseResults,
+    data: effectiveData,
   }
 }
 

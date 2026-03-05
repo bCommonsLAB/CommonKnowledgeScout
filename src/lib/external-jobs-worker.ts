@@ -115,8 +115,9 @@ class ExternalJobsWorkerSingleton {
 
       // Atomare Claims in Concurrency-Schleifen vermeiden Doppelstarts
       const workers = Array.from({ length: availableSlots }).map(async () => {
+        let claimed: Awaited<ReturnType<typeof repo.claimNextQueuedJob>> = null;
         try {
-          const claimed = await repo.claimNextQueuedJob();
+          claimed = await repo.claimNextQueuedJob();
           if (!claimed) return;
           
           FileLogger.info('jobs-worker', 'Job gefunden und wird gestartet', {
@@ -201,10 +202,26 @@ class ExternalJobsWorkerSingleton {
           this.stats.processed += 1;
         } catch (err) {
           this.stats.errors += 1;
+          const errMsg = err instanceof Error ? err.message : String(err);
           FileLogger.error('jobs-worker', 'Tick-Fehler', { 
-            err: err instanceof Error ? err.message : String(err),
+            err: errMsg,
             stack: err instanceof Error ? err.stack : undefined
           });
+          
+          // Job als failed markieren wenn eine Exception aufgetreten ist
+          // (z.B. ECONNREFUSED weil kein HTTP-Server erreichbar)
+          if (claimed) {
+            try {
+              await repo.setStatus(claimed.jobId, 'failed', {
+                error: { code: 'worker_exception', message: errMsg }
+              });
+            } catch (statusErr) {
+              FileLogger.error('jobs-worker', 'Konnte Job nicht als failed markieren', {
+                jobId: claimed.jobId,
+                error: statusErr instanceof Error ? statusErr.message : String(statusErr)
+              });
+            }
+          }
         }
       });
 

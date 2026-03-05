@@ -48,14 +48,18 @@ if (!dev) {
   const origLog = console.log;
   const origError = console.error;
   const origWarn = console.warn;
+  const origInfo = console.info;
+  const origDebug = console.debug;
   const logFn = (prefix, orig, ...args) => {
     const msg = `[${new Date().toISOString()}] ${prefix} ${args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ')}\n`;
     logStream.write(msg);
     orig.apply(console, args);
   };
   console.log = (...args) => logFn('LOG', origLog, ...args);
+  console.info = (...args) => logFn('LOG', origInfo, ...args);
   console.error = (...args) => logFn('ERR', origError, ...args);
   console.warn = (...args) => logFn('WRN', origWarn, ...args);
+  console.debug = (...args) => logFn('DBG', origDebug, ...args);
   // Unhandled errors ebenfalls loggen
   process.on('uncaughtException', (err) => {
     logFn('FATAL', origError, 'Uncaught Exception:', err.stack || err.message);
@@ -110,6 +114,34 @@ if (!dev) {
   };
 }
 
+// FETCH-BRIDGE: In Production nutzt next-electron-rsc protocol.handle() statt
+// eines echten HTTP-Servers. Node.js fetch() (aus Worker, LocalStorageProvider etc.)
+// macht aber echte TCP-Verbindungen und erreicht den Protocol-Handler nicht.
+// Lösung: globalThis.fetch für localhost-Requests durch Electrons net.fetch()
+// ersetzen, das den protocol.handle()-Interceptor durchläuft.
+if (!dev) {
+  const { net } = require('electron');
+  const _originalFetch = globalThis.fetch;
+  globalThis.fetch = function electronFetchBridge(input, init) {
+    let url;
+    if (typeof input === 'string') url = input;
+    else if (input instanceof URL) url = input.toString();
+    else if (input && typeof input === 'object' && 'url' in input) url = input.url;
+
+    const isLocalhost = url && (
+      url.startsWith(`http://localhost:${PROD_PORT}`) ||
+      url.startsWith(`http://localhost/`) ||
+      url.startsWith(`http://127.0.0.1:${PROD_PORT}`)
+    );
+
+    if (isLocalhost) {
+      return net.fetch(input, init);
+    }
+    return _originalFetch.call(globalThis, input, init);
+  };
+  console.log('[FetchBridge] localhost-Requests werden über Electron net.fetch geleitet');
+}
+
 // createHandler wird VOR app.ready initialisiert (wegen registerSchemesAsPrivileged).
 // Da next-electron-rsc ein ESM-Modul ist, muss es dynamisch importiert werden.
 const handlerPromise = import('next-electron-rsc').then(({ createHandler }) => {
@@ -123,11 +155,15 @@ const handlerPromise = import('next-electron-rsc').then(({ createHandler }) => {
 });
 
 async function createWindow() {
+  console.log('[Window] createWindow() gestartet');
   const { createInterceptor, localhostUrl } = await handlerPromise;
+  console.log('[Window] Handler bereit, localhostUrl:', localhostUrl);
 
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
+    // Fenster erst nach erfolgreichem Laden sichtbar machen
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -135,11 +171,33 @@ async function createWindow() {
     },
   });
 
+  // Fenster anzeigen sobald Renderer bereit ist (verhindert weisses Flackern)
+  mainWindow.once('ready-to-show', () => {
+    console.log('[Window] ready-to-show Event empfangen');
+    mainWindow.show();
+  });
+
+  // Renderer-Fehler loggen (Console-Ausgaben und Crashes)
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    console.error('[Window] did-fail-load:', { errorCode, errorDescription, validatedURL });
+    // Fenster trotzdem anzeigen, damit der Benutzer etwas sieht
+    mainWindow.show();
+  });
+  mainWindow.webContents.on('render-process-gone', (event, details) => {
+    console.error('[Window] render-process-gone:', details);
+  });
+  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    if (level >= 2) { // Nur Warnungen (2) und Fehler (3) loggen
+      console.log(`[Renderer ${level === 3 ? 'ERR' : 'WRN'}] ${message} (${sourceId}:${line})`);
+    }
+  });
+
   // Dev: wartet bis der Next.js Dev-Server bereit ist.
   // Prod: aktiviert den Protocol-Interceptor (kein offener Port).
   stopIntercept = await createInterceptor({
     session: mainWindow.webContents.session,
   });
+  console.log('[Window] Interceptor erstellt');
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -148,7 +206,15 @@ async function createWindow() {
   });
 
   // URL laden (in Dev: http://localhost:3000, in Prod: interne Protocol-URL)
-  await mainWindow.loadURL(localhostUrl + '/');
+  console.log('[Window] Lade URL:', localhostUrl + '/');
+  try {
+    await mainWindow.loadURL(localhostUrl + '/');
+    console.log('[Window] URL erfolgreich geladen');
+  } catch (err) {
+    console.error('[Window] loadURL fehlgeschlagen:', err.message);
+    // Fenster trotzdem anzeigen
+    mainWindow.show();
+  }
 
   // Anwendungs-Menü mit Versionsinformation erstellen
   const appVersion = app.getVersion();
@@ -272,6 +338,9 @@ async function createWindow() {
 function initAutoUpdater() {
   if (dev) return;
 
+  const currentVersion = app.getVersion();
+  console.log(`[AutoUpdater] Initialisiert – installierte Version: ${currentVersion}`);
+
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
 
@@ -280,14 +349,20 @@ function initAutoUpdater() {
   // aus createWindow() darauf zugreifen kann.
   autoUpdater.manualCheck = false;
 
-  autoUpdater.on('update-not-available', () => {
+  autoUpdater.on('checking-for-update', () => {
+    console.log('[AutoUpdater] Suche nach Updates...');
+  });
+
+  autoUpdater.on('update-not-available', (info) => {
+    console.log('[AutoUpdater] Kein Update verfuegbar. Aktuelle Version:', currentVersion,
+      '– Remote-Version:', info?.version || 'unbekannt');
     if (autoUpdater.manualCheck) {
       autoUpdater.manualCheck = false;
       dialog.showMessageBox(mainWindow, {
         type: 'info',
         title: 'Kein Update verfügbar',
         message: 'Sie verwenden bereits die neueste Version.',
-        detail: `Aktuelle Version: ${app.getVersion()}`,
+        detail: `Aktuelle Version: ${currentVersion}`,
         buttons: ['OK'],
       });
     }
@@ -295,7 +370,8 @@ function initAutoUpdater() {
 
   autoUpdater.on('update-available', (info) => {
     autoUpdater.manualCheck = false;
-    console.log('[AutoUpdater] Neue Version verfuegbar:', info.version);
+    console.log('[AutoUpdater] Neue Version verfuegbar:', info.version,
+      '(aktuell:', currentVersion + ')');
     dialog.showMessageBox(mainWindow, {
       type: 'info',
       title: 'Update verfuegbar',
@@ -306,9 +382,18 @@ function initAutoUpdater() {
       cancelId: 1,
     }).then(({ response }) => {
       if (response === 0) {
+        console.log('[AutoUpdater] Download gestartet durch Benutzer');
         autoUpdater.downloadUpdate();
+      } else {
+        console.log('[AutoUpdater] Download vom Benutzer verschoben');
       }
     });
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    console.log(`[AutoUpdater] Download: ${Math.round(progress.percent)}%`
+      + ` (${Math.round(progress.transferred / 1024 / 1024)}MB`
+      + ` / ${Math.round(progress.total / 1024 / 1024)}MB)`);
   });
 
   autoUpdater.on('update-downloaded', (info) => {
@@ -329,13 +414,23 @@ function initAutoUpdater() {
   });
 
   autoUpdater.on('error', (err) => {
-    console.log('[AutoUpdater] Fehler (wird ignoriert):', err.message);
+    console.log('[AutoUpdater] Fehler:', err.message);
+    if (err.stack) {
+      console.log('[AutoUpdater] Stack:', err.stack);
+    }
   });
 
+  // Automatische Prüfung 5 Sekunden nach App-Start
   setTimeout(() => {
-    autoUpdater.checkForUpdates().catch((err) => {
-      console.log('[AutoUpdater] Check fehlgeschlagen:', err.message);
-    });
+    console.log('[AutoUpdater] Starte automatischen Update-Check...');
+    autoUpdater.checkForUpdates()
+      .then((result) => {
+        console.log('[AutoUpdater] Check abgeschlossen.',
+          'Update-Info:', result?.updateInfo?.version || 'keine');
+      })
+      .catch((err) => {
+        console.log('[AutoUpdater] Check fehlgeschlagen:', err.message);
+      });
   }, 5000);
 }
 
