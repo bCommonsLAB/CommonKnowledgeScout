@@ -71,53 +71,27 @@ export function mapSyncResponseToCallbackBody(
 }
 
 /**
- * Normalisiert ein SSE-Completed-Event (PDF/Office) in das Callback-Format.
+ * Wraps SSE-Completed-Daten in das Callback-Format.
  *
- * SSE completed Event:
- *   { results: { markdown_content: "...", structured_data: {...} } }
+ * Seit dem Secretary Service Update liefert das SSE completed-Event
+ * die gleiche data-Struktur wie der Webhook-Callback:
+ *   { extracted_text: "...", metadata: {...}, pages_archive_url: "...", ... }
  *
- * Callback-Route erwartet:
- *   { phase: "completed", data: { extracted_text: "...", metadata: {...} } }
+ * Die Daten werden daher 1:1 als { phase: "completed", data: ... } durchgereicht.
  */
 export function mapSSEResultToCallbackBody(
   sseResults: Record<string, unknown>,
-  jobType: string
+  _jobType: string
 ): Record<string, unknown> {
-  // PDF: SSE liefert results.markdown_content / results.structured_data
-  if (jobType === 'pdf') {
-    const markdownContent = sseResults.markdown_content as string | undefined
-    const structuredData = sseResults.structured_data as Record<string, unknown> | undefined
-    const extractedText = markdownContent
-      ?? (structuredData?.extracted_text as string | undefined)
-      ?? ''
+  FileLogger.info('offline-callback', 'SSE→Callback Durchreichung', {
+    sseResultKeys: Object.keys(sseResults),
+    hasExtractedText: 'extracted_text' in sseResults,
+    extractedTextLength: typeof sseResults.extracted_text === 'string' ? sseResults.extracted_text.length : 0,
+    hasPagesArchiveUrl: !!sseResults.pages_archive_url,
+    hasMistralOcrRawUrl: !!sseResults.mistral_ocr_raw_url,
+  })
 
-    return {
-      phase: 'completed',
-      data: {
-        extracted_text: extractedText,
-        metadata: structuredData?.metadata ?? sseResults.metadata ?? undefined,
-        // Mistral OCR spezifische Felder weiterleiten
-        mistral_ocr_raw_url: sseResults.mistral_ocr_raw_url ?? undefined,
-        mistral_ocr_raw_metadata: sseResults.mistral_ocr_raw_metadata ?? undefined,
-        pages_archive_url: sseResults.pages_archive_url ?? undefined,
-        images_archive_url: sseResults.images_archive_url ?? undefined,
-      },
-    }
-  }
-
-  // Office: Ähnlich wie PDF
-  if (jobType === 'office') {
-    return {
-      phase: 'completed',
-      data: {
-        extracted_text: (sseResults.markdown_content as string) ?? '',
-        metadata: sseResults.metadata ?? undefined,
-        images_archive_url: sseResults.images_archive_url ?? undefined,
-      },
-    }
-  }
-
-  // Fallback
+  // SSE-Format ist identisch mit Webhook-Format – kein Mapping nötig.
   return {
     phase: 'completed',
     data: sseResults,
@@ -143,13 +117,17 @@ export async function postToSelfCallback(
     throw new Error('INTERNAL_TEST_TOKEN fehlt – wird für Offline-Callback benötigt')
   }
 
+  const cbData = callbackBody.data as Record<string, unknown> | undefined
   FileLogger.info('offline-callback', 'Self-POST an Callback-Route', {
     jobId,
     callbackUrl,
     phase: callbackBody.phase,
-    dataKeys: callbackBody.data && typeof callbackBody.data === 'object'
-      ? Object.keys(callbackBody.data as Record<string, unknown>)
-      : [],
+    dataKeys: cbData ? Object.keys(cbData) : [],
+    extractedTextLength: typeof cbData?.extracted_text === 'string' ? cbData.extracted_text.length : 0,
+    hasMistralOcrRawUrl: !!cbData?.mistral_ocr_raw_url,
+    hasPagesArchiveUrl: !!cbData?.pages_archive_url,
+    hasImagesArchiveUrl: !!cbData?.images_archive_url,
+    bodyJsonSize: JSON.stringify(callbackBody).length,
   })
 
   const resp = await fetch(callbackUrl, {

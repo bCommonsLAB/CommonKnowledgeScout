@@ -19,9 +19,13 @@ export interface SecretaryRequestConfig {
 }
 
 export interface SecretaryRequestOptions {
-  /** Im Offline-Modus (Electron) werden callback_url/callback_token weggelassen.
+  /** Im Offline-Modus (Electron/Desktop) werden callback_url/callback_token weggelassen.
    *  Audio/Video antworten dann synchron; PDF/Office geben eine job_id zurück. */
   offlineMode?: boolean
+  /** Library-spezifische API-URL (überschreibt ENV-Variable SECRETARY_SERVICE_URL) */
+  overrideBaseUrl?: string
+  /** Library-spezifischer API-Key (überschreibt ENV-Variable SECRETARY_SERVICE_API_KEY) */
+  overrideApiKey?: string
 }
 
 /**
@@ -43,11 +47,21 @@ export function prepareSecretaryRequest(
 ): SecretaryRequestConfig {
   const offline = options?.offlineMode ?? false
   const opts = (job.correlation?.options || {}) as Record<string, unknown>
-  const { baseUrl, apiKey } = getSecretaryConfig()
+  const envConfig = getSecretaryConfig()
+  // Library-spezifische Config hat Vorrang vor ENV-Variablen
+  const baseUrl = options?.overrideBaseUrl || envConfig.baseUrl
+  const apiKey = options?.overrideApiKey || envConfig.apiKey
 
   if (!apiKey) {
     throw new Error('SECRETARY_SERVICE_API_KEY fehlt')
   }
+
+  FileLogger.info('secretary-request', 'Config aufgelöst', {
+    jobId: job.jobId,
+    baseUrl,
+    source: options?.overrideBaseUrl ? 'library-config' : 'env',
+    offline,
+  })
 
   const headers: Record<string, string> = {
     'x-worker': 'true',

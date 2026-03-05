@@ -197,6 +197,13 @@ export interface StorageConfig {
     generateCoverImage?: boolean;
     /** Standard-Prompt für Cover-Bild-Generierung. Variablen: {{title}}, {{summary}} */
     coverImagePrompt?: string;
+
+    // === Verbindungsmodus ===
+    /**
+     * Desktop-Modus: Ergebnisse werden aktiv abgeholt (SSE/Sync) statt per Webhook zugestellt.
+     * Nur relevant, wenn apiUrl gesetzt ist. Bei fehlender apiUrl gilt die automatische Erkennung (Electron).
+     */
+    useDirectConnection?: boolean;
   };
 
   /** Chat-/RAG-Konfiguration pro Library (öffentlich sichere Inhalte) */
@@ -367,6 +374,10 @@ export interface ClientLibrary {
       generateCoverImage?: boolean;
       /** Standard-Prompt für Cover-Bild-Generierung */
       coverImagePrompt?: string;
+
+      // === Verbindungsmodus ===
+      /** Desktop-Modus: Ergebnisse aktiv abholen statt per Webhook. Nur relevant bei gesetzter apiUrl. */
+      useDirectConnection?: boolean;
     };
     /** Chat-/RAG-Konfiguration für die UI */
     chat?: LibraryChatConfig;

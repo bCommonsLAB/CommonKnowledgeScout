@@ -1,0 +1,85 @@
+name: electron-build
+
+# Startet automatisch nachdem ci-main erfolgreich durchgelaufen ist,
+# damit der Version-Tag und das GitHub Release bereits existieren.
+# Kann auch manuell gestartet werden.
+on:
+  workflow_run:
+    workflows: ["ci-main"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-electron:
+    # Nur ausführen wenn ci-main erfolgreich war (oder manueller Trigger)
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: windows-latest
+    environment: prod
+    name: Electron Windows Build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Version aus VERSION-Datei lesen (wurde von ci-main gebumpt)
+      - name: Read version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(cat VERSION)
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building Electron app v$VERSION"
+
+      # package.json-Version synchronisieren, damit electron-builder
+      # und electron-updater die gleiche Version verwenden
+      - name: Sync package.json version
+        shell: bash
+        run: |
+          node -e "
+            const pkg = require('./package.json');
+            pkg.version = '${{ steps.version.outputs.VERSION }}';
+            require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+
+      # Next.js Build mit den gleichen ENV-Variablen wie im Docker-Build
+      - name: Build Next.js
+        env:
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          NEXT_PUBLIC_CLERK_SIGN_IN_URL: /sign-in
+          NEXT_PUBLIC_CLERK_SIGN_UP_URL: /sign-up
+          NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL: /
+          NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL: /
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DATABASE_NAME: ${{ secrets.MONGODB_DATABASE_NAME }}
+          MONGODB_COLLECTION_NAME: ${{ secrets.MONGODB_COLLECTION_NAME }}
+        run: pnpm build
+
+      - name: Generate required-server-files.json
+        run: node scripts/generate-required-server-files.js
+
+      # Electron-App bauen und an bestehendes GitHub Release anhängen.
+      # GH_TOKEN wird von electron-builder für den Upload zu GitHub Releases verwendet.
+      - name: Build and publish Electron app
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm exec electron-builder --config electron-builder.yml --publish always

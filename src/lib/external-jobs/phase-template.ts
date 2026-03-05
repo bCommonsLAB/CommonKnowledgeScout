@@ -961,7 +961,11 @@ ${customHintValue}`
       FileLogger.info('phase-template', 'Kein customHint vorhanden', { jobId, argsCustomHint: args.customHint ?? 'undefined' })
     }
 
-    const tr = await runTemplateTransform({ ctx, extractedText: extractedText || '', templateContent: templateContentFinal, targetLanguage: lang, llmModel, context: sourceContext })
+    // Library-spezifische Secretary-Config durchreichen (Desktop-Modus)
+    const secretaryUrlConfig = args.libraryConfig?.apiUrl
+      ? { overrideBaseUrl: args.libraryConfig.apiUrl, overrideApiKey: args.libraryConfig.apiKey }
+      : undefined
+    const tr = await runTemplateTransform({ ctx, extractedText: extractedText || '', templateContent: templateContentFinal, targetLanguage: lang, llmModel, context: sourceContext, secretaryUrlConfig })
     metadataFromTemplate = tr.meta as unknown as Record<string, unknown> | null
     if (metadataFromTemplate) {
       bufferLog(jobId, { phase: 'transform_meta', message: 'Metadaten via Template berechnet' })
@@ -1813,18 +1817,21 @@ ${customHintValue}`
           const finalPrompt = promptResult.prompt
           
           // Secretary Service direkt aufrufen (gleiche Logik wie der Proxy /api/secretary/text2image/generate)
+          // Library-spezifische Overrides haben Vorrang (Desktop-Modus)
           const { getSecretaryConfig } = await import('@/lib/env')
-          const { baseUrl, apiKey } = getSecretaryConfig()
+          const envConfig = getSecretaryConfig()
+          const coverBaseUrl = args.libraryConfig?.apiUrl || envConfig.baseUrl
+          const coverApiKey = args.libraryConfig?.apiKey || envConfig.apiKey
           
-          if (!baseUrl) {
+          if (!coverBaseUrl) {
             throw new Error('Cover-Bild-Generierung: SECRETARY_SERVICE_URL ist nicht konfiguriert')
           }
-          if (!apiKey) {
+          if (!coverApiKey) {
             throw new Error('Cover-Bild-Generierung: SECRETARY_SERVICE_API_KEY ist nicht konfiguriert')
           }
           
           // URL: baseUrl enthält bereits /api, daher nur /text2image/generate anhängen
-          const text2imageUrl = `${baseUrl}/text2image/generate`
+          const text2imageUrl = `${coverBaseUrl}/text2image/generate`
           
           bufferLog(jobId, {
             phase: 'cover_image_generation',
@@ -1854,8 +1861,8 @@ ${customHintValue}`
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${apiKey}`,
-              'X-Secretary-Api-Key': apiKey,
+              'Authorization': `Bearer ${coverApiKey}`,
+              'X-Secretary-Api-Key': coverApiKey,
             },
             body: JSON.stringify({
               prompt: finalPrompt,

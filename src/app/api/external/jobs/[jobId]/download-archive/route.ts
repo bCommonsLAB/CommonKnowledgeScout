@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
 import { currentUser } from '@clerk/nextjs/server';
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
-import { getSecretaryConfig } from '@/lib/env'
+import { resolveSecretaryUrl, getSecretaryAuthHeaders } from '@/lib/external-jobs/secretary-url';
+import { LibraryService } from '@/lib/services/library-service';
 
 /**
  * GET /api/external/jobs/[jobId]/download-archive
  * Lädt das ZIP-Archiv für einen External-Job herunter.
+ *
+ * Verwendet Library-spezifische Secretary-Service-Config (Desktop-Modus),
+ * falls in der zugehörigen Library konfiguriert. Sonst ENV-Variablen.
  *
  * Verhalten:
  * - 401 falls nicht authentifiziert
@@ -40,18 +44,24 @@ export async function GET(
       return NextResponse.json({ error: 'Keine Bilddateien verfügbar' }, { status: 400 });
     }
 
-    // Absolut vs. relativ behandeln
-    const isAbsolute = /^https?:\/\//i.test(archiveUrl);
-    const { baseUrl: base } = getSecretaryConfig();
-    const targetUrl = isAbsolute ? archiveUrl : `${base}${archiveUrl.startsWith('/') ? '' : '/'}${archiveUrl}`;
-
-    // Mit Service-Auth an Secretary weiterreichen
-    const { apiKey } = getSecretaryConfig();
-    const headers: Record<string, string> = {};
-    if (apiKey) {
-      headers['Authorization'] = `Bearer ${apiKey}`;
-      headers['X-Secretary-Api-Key'] = apiKey;
+    // Library-spezifische Secretary-Config laden (Desktop-Modus)
+    let secretaryUrlConfig: { overrideBaseUrl?: string; overrideApiKey?: string } | undefined
+    try {
+      const library = await LibraryService.getInstance().getLibrary(userEmail, job.libraryId);
+      const libSecretary = library?.config?.secretaryService;
+      if (libSecretary?.apiUrl) {
+        secretaryUrlConfig = {
+          overrideBaseUrl: libSecretary.apiUrl,
+          overrideApiKey: libSecretary.apiKey,
+        };
+      }
+    } catch {
+      // Library nicht ladbar – Fallback auf ENV
     }
+
+    // URL-Auflösung und Auth-Headers über zentrale Utility (respektiert Library-Overrides)
+    const targetUrl = resolveSecretaryUrl(archiveUrl, secretaryUrlConfig);
+    const headers = getSecretaryAuthHeaders(secretaryUrlConfig);
 
     const upstream = await fetch(targetUrl, { method: 'GET', headers });
 
@@ -68,7 +78,6 @@ export async function GET(
     const arrayBuffer = await upstream.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Filename wenn vorhanden übernehmen
     const dispo = upstream.headers.get('content-disposition') || 'attachment; filename="images.zip"';
     const contentType = upstream.headers.get('content-type') || 'application/zip';
 

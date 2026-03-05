@@ -48,10 +48,13 @@ function isNonEmptyString(v: unknown): v is string {
 }
 
 export async function runTemplateTransform(args: TemplateRunArgs): Promise<TemplateRunResult> {
-  const { ctx, extractedText, templateContent, targetLanguage, llmModel, context } = args
+  const { ctx, extractedText, templateContent, targetLanguage, llmModel, context, secretaryUrlConfig } = args
   const repo = new ExternalJobsRepository()
   const jobId = ctx.jobId
-  const { baseUrl, apiKey } = getSecretaryConfig()
+  const envConfig = getSecretaryConfig()
+  // Library-spezifische Overrides haben Vorrang vor ENV-Variablen (Desktop-Modus)
+  const baseUrl = secretaryUrlConfig?.overrideBaseUrl || envConfig.baseUrl
+  const apiKey = secretaryUrlConfig?.overrideApiKey || envConfig.apiKey
   const transformerUrl = `${baseUrl}/transformer/template`
 
   // Berechne Content-Length des Requests (JSON: text + template_content + andere Felder)

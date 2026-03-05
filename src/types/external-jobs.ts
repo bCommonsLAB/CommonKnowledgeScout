@@ -96,6 +96,11 @@ export interface TemplateRunArgs {
    * Beispiel: { fileName: "Chile.pdf", filePath: "/Conform/CHILE/Dokumente/Livique/", ... }
    */
   context?: Record<string, unknown>
+  /**
+   * Optional: Library-spezifische Secretary-Service-Config (Desktop-Modus).
+   * Wenn gesetzt, werden overrideBaseUrl/overrideApiKey statt ENV-Variablen verwendet.
+   */
+  secretaryUrlConfig?: { overrideBaseUrl?: string; overrideApiKey?: string }
 }
 
 /** 

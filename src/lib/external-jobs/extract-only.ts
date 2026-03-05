@@ -37,8 +37,8 @@ import { LibraryService } from '@/lib/services/library-service'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { persistShadowTwinToMongo } from '@/lib/shadow-twin/shadow-twin-mongo-writer'
 import { FileLogger } from '@/lib/debug/logger'
-import { getSecretaryConfig } from '@/lib/env'
 import { buildMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
+import { resolveSecretaryUrl, getSecretaryAuthHeaders, type SecretaryUrlConfig } from './secretary-url'
 
 /**
  * Runs extract-only mode processing. This mode is activated when both template
@@ -69,7 +69,8 @@ export async function runExtractOnly(
   mistralOcrRaw: unknown,
   hasMistralOcrImages: boolean,
   mistralOcrImagesUrl: string | undefined,
-  imagesPhaseEnabled: boolean
+  imagesPhaseEnabled: boolean,
+  secretaryUrlConfig?: SecretaryUrlConfig
 ): Promise<{ savedItemId: string | undefined; savedItems: string[] }> {
   const { jobId, job, body } = ctx
 
@@ -410,25 +411,8 @@ export async function runExtractOnly(
         // Hilfsfunktion: Lade ZIP von URL herunter und konvertiere zu Base64
         const downloadZipAsBase64 = async (url: string): Promise<string | undefined> => {
           try {
-            // URL-Auflösung: ähnlich wie in images.ts
-            const { baseUrl: baseRaw } = getSecretaryConfig()
-            const isAbsolute = /^https?:\/\//i.test(url)
-            let archiveUrl = url
-            if (!isAbsolute) {
-              const base = baseRaw.replace(/\/$/, '')
-              const rel = url.startsWith('/') ? url : `/${url}`
-              archiveUrl = base.endsWith('/api') && rel.startsWith('/api/') 
-                ? `${base}${rel.substring(4)}` 
-                : `${base}${rel}`
-            }
-            
-            // Headers für Authentifizierung (falls benötigt)
-            const headers: Record<string, string> = {}
-            const { apiKey } = getSecretaryConfig()
-            if (apiKey) {
-              headers['Authorization'] = `Bearer ${apiKey}`
-              headers['X-Secretary-Api-Key'] = apiKey
-            }
+            const archiveUrl = resolveSecretaryUrl(url, secretaryUrlConfig)
+            const headers = getSecretaryAuthHeaders(secretaryUrlConfig)
             
             bufferLog(jobId, {
               phase: 'extract_only_downloading_zip',

@@ -17,11 +17,12 @@
  * 
  * @dependencies
  * - @clerk/nextjs/server: Authentication utilities
- * - process.env: Environment variables for Secretary Service URL and API key
+ * - @/lib/env: getSecretaryConfig() für Secretary Service URL und API-Key
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
+import { getSecretaryConfig } from '@/lib/env';
 
 /**
  * POST /api/secretary/process-image
@@ -81,17 +82,14 @@ export async function POST(request: NextRequest) {
       libraryId
     });
 
-    // Secretary Service URL aus Umgebungsvariablen
-    const env = process.env;
-    if (!env.SECRETARY_SERVICE_URL) {
+    const { baseUrl: secretaryServiceUrl } = getSecretaryConfig();
+    if (!secretaryServiceUrl) {
       console.error('[process-image] SECRETARY_SERVICE_URL nicht konfiguriert');
       return NextResponse.json(
         { error: 'Secretary Service nicht konfiguriert' },
         { status: 500 }
       );
     }
-
-    const secretaryServiceUrl = env.SECRETARY_SERVICE_URL;
     const apiUrl = `${secretaryServiceUrl}/imageocr/process`;
     
     console.log('[process-image] Weiterleitung an Secretary Service:', apiUrl);
@@ -113,7 +111,7 @@ export async function POST(request: NextRequest) {
       body: secretaryFormData,
       headers: (() => {
         const h: Record<string, string> = { 'Accept': 'application/json' };
-        const apiKey = process.env.SECRETARY_SERVICE_API_KEY;
+        const { apiKey } = getSecretaryConfig();
         if (apiKey) { h['Authorization'] = `Bearer ${apiKey}`; h['X-Secretary-Api-Key'] = apiKey; }
         return h;
       })(),

@@ -36,19 +36,31 @@ const MAX_RETRIES = 3
 const RETRY_DELAY_MS = 5000
 const STREAM_TIMEOUT_MS = 10 * 60 * 1000 // 10 Minuten
 
+/** Optionale Overrides für Library-spezifische Secretary-Config */
+export interface SSEClientOptions {
+  /** Library-spezifische API-URL (überschreibt ENV) */
+  overrideBaseUrl?: string
+  /** Library-spezifischer API-Key (überschreibt ENV) */
+  overrideApiKey?: string
+}
+
 /**
  * Öffnet einen SSE-Stream zum Secretary Service und wartet auf das Ergebnis.
  * Gibt bei `completed` die Ergebnis-Daten zurück, wirft bei `error`/`timeout`.
  *
  * @param secretaryJobId Job-ID vom Secretary Service (aus der 202-Response)
  * @param onProgress Optionaler Callback für Fortschritts-Updates
+ * @param options Optionale Library-spezifische Config-Overrides
  * @returns Ergebnis-Daten aus dem `completed`-Event
  */
 export async function streamSecretaryJob(
   secretaryJobId: string,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  options?: SSEClientOptions
 ): Promise<Record<string, unknown>> {
-  const { baseUrl, apiKey } = getSecretaryConfig()
+  const envConfig = getSecretaryConfig()
+  const baseUrl = options?.overrideBaseUrl || envConfig.baseUrl
+  const apiKey = options?.overrideApiKey || envConfig.apiKey
   if (!apiKey) throw new Error('SECRETARY_SERVICE_API_KEY fehlt')
 
   const normalizedBase = baseUrl.replace(/\/$/, '')
@@ -163,7 +175,16 @@ async function readSSEStream(
 
           if (currentEvent === 'completed') {
             reader.cancel()
-            return (eventData.data?.results ?? eventData.data ?? {}) as Record<string, unknown>
+            const results = (eventData.data?.results ?? eventData.data ?? {}) as Record<string, unknown>
+            FileLogger.info('secretary-sse', 'SSE completed: Rohdaten', {
+              secretaryJobId,
+              resultKeys: Object.keys(results),
+              hasMarkdownContent: 'markdown_content' in results,
+              hasExtractedText: 'extracted_text' in results,
+              markdownContentLength: typeof results.markdown_content === 'string' ? results.markdown_content.length : 0,
+              extractedTextLength: typeof results.extracted_text === 'string' ? results.extracted_text.length : 0,
+            })
+            return results
           }
 
           if (currentEvent === 'error') {

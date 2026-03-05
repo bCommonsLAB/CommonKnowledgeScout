@@ -532,8 +532,12 @@ export async function POST(
       await repo.setStatus(jobId, 'failed', { error: { code: 'steps_init_error', message: 'Fehler beim Initialisieren der Steps' } })
       return NextResponse.json({ error: 'Fehler beim Initialisieren der Steps' }, { status: 500 })
     }
-    // Offline-Modus (Electron): wird für Trace-Events und Secretary-Request benötigt
-    const offline = isElectronMode()
+    // Offline-Modus: Ergebnisse aktiv abholen (SSE/Sync) statt per Webhook.
+    // Automatische Erkennung via Electron; wird nach Library-Config-Laden ggf. überschrieben.
+    let offline = isElectronMode()
+    // Library-spezifische Secretary-Config (apiUrl, apiKey, useDirectConnection)
+    // Wird beim Gate-Check geladen und für Secretary-Requests + SSE-Stream verwendet.
+    let libraryConfig: NonNullable<Library['config']>['secretaryService'] | undefined = undefined
 
     // Status wird erst nach erfolgreichem Request gesetzt (siehe Zeile 477)
     await repo.traceAddEvent(jobId, { spanId: 'preprocess', name: (job.job_type === 'pdf') ? 'process_pdf_submit' : 'process_submit', attributes: {
@@ -568,7 +572,35 @@ export async function POST(
       const libraryService = LibraryService.getInstance()
       const libraries = await libraryService.getUserLibraries(job.userEmail)
       library = libraries.find(l => l.id === job.libraryId) as Library | undefined
-      
+      // Secretary-Config aus Library laden (für apiUrl/apiKey-Override und Desktop-Modus)
+      if (library?.config?.secretaryService) {
+        libraryConfig = library.config.secretaryService
+        if (libraryConfig?.useDirectConnection) {
+          offline = true
+        }
+        FileLogger.info('start-route', 'Library-Config geladen', {
+          jobId,
+          libraryId: job.libraryId,
+          useDirectConnection: libraryConfig?.useDirectConnection ?? false,
+          hasCustomApiUrl: !!libraryConfig?.apiUrl,
+          customApiUrl: libraryConfig?.apiUrl || '(env)',
+          offlineFinal: offline,
+          electronMode: isElectronMode(),
+        })
+        // Trace-Event für Job Worker Events (sichtbar im Job-Report-Tab)
+        await repo.traceAddEvent(jobId, {
+          spanId: 'preprocess',
+          name: 'secretary_config_resolved',
+          attributes: {
+            secretaryUrl: libraryConfig?.apiUrl || '(env)',
+            configSource: libraryConfig?.apiUrl ? 'library-config' : 'env',
+            useDirectConnection: libraryConfig?.useDirectConnection ?? false,
+            offline,
+            electronMode: isElectronMode(),
+          },
+        })
+      }
+
       if (!library) {
         FileLogger.warn('start-route', 'Library nicht gefunden für Gate-Prüfung', {
           jobId,
@@ -879,22 +911,7 @@ export async function POST(
       // Policies lesen
       const phasePolicies = readPhasesAndPolicies(job.parameters)
       
-      // Library-Config für Template-Auswahl laden (secretaryService-Config, nicht chat-Config)
-      // runTemplatePhase erwartet config.secretaryService mit apiUrl, apiKey etc.
-      let libraryConfig: NonNullable<Library['config']>['secretaryService'] | undefined = undefined
-      try {
-        const libraryService = LibraryService.getInstance()
-        const email = userEmail || job.userEmail
-        const libraryForConfig = await libraryService.getLibrary(email, job.libraryId)
-        libraryConfig = libraryForConfig?.config?.secretaryService
-      } catch (error) {
-        FileLogger.warn('start-route', 'Fehler beim Laden der Library-Config', {
-          jobId,
-          libraryId: job.libraryId,
-          error: error instanceof Error ? error.message : String(error),
-        })
-        // Nicht kritisch - Template-Auswahl kann auch ohne Config funktionieren
-      }
+      // libraryConfig wurde bereits oben beim Gate-Check geladen (äußerer Scope)
 
       // Target-Parent-ID bestimmen (Shadow-Twin-Folder oder Parent)
       // WICHTIG: Job-Objekt neu laden, um aktuelles Shadow-Twin-State zu erhalten
@@ -1208,8 +1225,12 @@ export async function POST(
       return NextResponse.json({ ok: true, jobId, kind: 'extract_skipped' })
     }
 
-    // Bereite Secretary-Service-Request vor
-    const requestConfig = prepareSecretaryRequest(job, file, callbackUrl, secret, { offlineMode: offline })
+    // Bereite Secretary-Service-Request vor (Library-Config hat Vorrang vor ENV)
+    const requestConfig = prepareSecretaryRequest(job, file, callbackUrl, secret, {
+      offlineMode: offline,
+      overrideBaseUrl: libraryConfig?.apiUrl || undefined,
+      overrideApiKey: libraryConfig?.apiKey || undefined,
+    })
     const { url, formData: formForRequest, headers } = requestConfig
     const submitAtIso = new Date().toISOString()
     const submitAtMs = Date.now()
@@ -1399,7 +1420,10 @@ export async function POST(
             } catch {}
           }
 
-          const sseResults = await streamSecretaryJob(secretaryJobId, onProgress)
+          const sseResults = await streamSecretaryJob(secretaryJobId, onProgress, {
+            overrideBaseUrl: libraryConfig?.apiUrl || undefined,
+            overrideApiKey: libraryConfig?.apiKey || undefined,
+          })
           const callbackBody = mapSSEResultToCallbackBody(sseResults, job.job_type)
           const selfResult = await postToSelfCallback(jobId, callbackBody)
           if (!selfResult.ok) {

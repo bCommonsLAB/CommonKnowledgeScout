@@ -508,9 +508,22 @@ export async function POST(
     // WICHTIG: Bilder sind NIEMALS in mistral_ocr_raw eingebettet, sondern werden separat bereitgestellt
     const mistralOcrImagesUrl: string | undefined = (body?.data as { mistral_ocr_images_url?: unknown })?.mistral_ocr_images_url as string | undefined
     
+    // Library-spezifische Secretary-Config laden (Desktop-Modus)
+    // Wird für URL-Auflösung bei Downloads (Mistral OCR, Bilder etc.) benötigt
+    let libraryConfig: NonNullable<import('@/types/library').Library['config']>['secretaryService'] | undefined
+    try {
+      const earlyLib = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
+      libraryConfig = earlyLib?.config?.secretaryService
+    } catch {
+      // Library nicht ladbar – Fallback auf ENV
+    }
+
     // Wenn mistral_ocr_raw_url oder mistral_ocr_raw_metadata vorhanden ist, lade die Daten über den Download-Endpoint
     if ((mistralOcrRawUrl || mistralOcrRawMetadata) && !mistralOcrRaw) {
-      const downloadedRaw = await downloadMistralOcrRaw(body, jobId)
+      const downloadedRaw = await downloadMistralOcrRaw(body, jobId, {
+        overrideBaseUrl: libraryConfig?.apiUrl || undefined,
+        overrideApiKey: libraryConfig?.apiKey || undefined,
+      })
       if (downloadedRaw) {
         mistralOcrRaw = downloadedRaw
       }
@@ -614,7 +627,11 @@ export async function POST(
         mistralOcrRaw,
         hasMistralOcrImages,
         mistralOcrImagesUrl,
-        imagesPhaseEnabled
+        imagesPhaseEnabled,
+        {
+          overrideBaseUrl: libraryConfig?.apiUrl || undefined,
+          overrideApiKey: libraryConfig?.apiKey || undefined,
+        }
       )
       return NextResponse.json({ status: 'ok', jobId, kind: 'extract_only', savedItemId: result.savedItemId })
     }
@@ -688,24 +705,16 @@ export async function POST(
               // Hilfsfunktion: Lade ZIP von URL herunter und konvertiere zu Base64
               const downloadZipAsBase64 = async (url: string): Promise<string | undefined> => {
                 try {
-                  const { getSecretaryConfig } = await import('@/lib/env')
-                  const { baseUrl: baseRaw } = getSecretaryConfig()
-                  const isAbsolute = /^https?:\/\//i.test(url)
-                  let archiveUrl = url
-                  if (!isAbsolute) {
-                    const base = baseRaw.replace(/\/$/, '')
-                    const rel = url.startsWith('/') ? url : `/${url}`
-                    archiveUrl = base.endsWith('/api') && rel.startsWith('/api/') 
-                      ? `${base}${rel.substring(4)}` 
-                      : `${base}${rel}`
-                  }
-                  
-                  const headers: Record<string, string> = {}
-                  const { apiKey } = getSecretaryConfig()
-                  if (apiKey) {
-                    headers['Authorization'] = `Bearer ${apiKey}`
-                    headers['X-Secretary-Api-Key'] = apiKey
-                  }
+                  const { resolveSecretaryUrl, getSecretaryAuthHeaders } = await import('@/lib/external-jobs/secretary-url')
+                  // libraryConfig kommt aus dem äußeren Scope (Library-spezifische Secretary-Config)
+                  const archiveUrl = resolveSecretaryUrl(url, {
+                    overrideBaseUrl: libraryConfig?.apiUrl || undefined,
+                    overrideApiKey: libraryConfig?.apiKey || undefined,
+                  })
+                  const headers = getSecretaryAuthHeaders({
+                    overrideBaseUrl: libraryConfig?.apiUrl || undefined,
+                    overrideApiKey: libraryConfig?.apiKey || undefined,
+                  })
                   
                   const response = await fetch(archiveUrl, { method: 'GET', headers })
                   if (!response.ok) {
@@ -887,7 +896,11 @@ export async function POST(
               lang,
               targetParentId,
               imagesPhaseEnabled: imagesPhaseEnabledEffective,
-              shadowTwinFolderId, // Verwende Shadow-Twin-Verzeichnis aus Job-State
+              shadowTwinFolderId,
+              secretaryUrlConfig: {
+                overrideBaseUrl: libraryConfig?.apiUrl || undefined,
+                overrideApiKey: libraryConfig?.apiKey || undefined,
+              },
             })
             
             bufferLog(jobId, {

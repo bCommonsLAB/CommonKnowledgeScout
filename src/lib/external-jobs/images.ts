@@ -32,7 +32,7 @@ import type { StorageProvider } from '@/lib/storage/types'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { ImageExtractionService } from '@/lib/transform/image-extraction-service'
-import { getSecretaryConfig } from '../env'
+import { resolveSecretaryUrl, getSecretaryAuthHeaders, type SecretaryUrlConfig } from './secretary-url'
 import { findOrCreateShadowTwinFolder, prepareImageProcessingContext } from './shadow-twin-helpers'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 
@@ -68,6 +68,8 @@ export interface ProcessAllImageSourcesOptions {
   imagesPhaseEnabled: boolean
   /** Optional: Pre-created Shadow-Twin folder ID (if already created) */
   shadowTwinFolderId?: string
+  /** Library-spezifische Secretary-Config (Desktop-Modus) */
+  secretaryUrlConfig?: SecretaryUrlConfig
 }
 
 /**
@@ -101,6 +103,7 @@ export async function processAllImageSources(
     lang,
     targetParentId,
     imagesPhaseEnabled,
+    secretaryUrlConfig,
   } = options
 
   if (!imagesPhaseEnabled) {
@@ -181,21 +184,8 @@ export async function processAllImageSources(
   // PRIORITÄT: mistral_ocr_images_url wird ZUERST verarbeitet, da dies die primäre Quelle für eingebettete Bilder ist
   if (mistralOcrImagesUrl) {
     try {
-      // Download ZIP archive from URL (similar to pages_archive_url)
-      const { baseUrl: baseRaw } = getSecretaryConfig()
-      const isAbsolute = /^https?:\/\//i.test(mistralOcrImagesUrl)
-      let archiveUrl = mistralOcrImagesUrl
-      if (!isAbsolute) {
-        const base = baseRaw.replace(/\/$/, '')
-        const rel = mistralOcrImagesUrl.startsWith('/') ? mistralOcrImagesUrl : `/${mistralOcrImagesUrl}`
-        archiveUrl = base.endsWith('/api') && rel.startsWith('/api/') ? `${base}${rel.substring(4)}` : `${base}${rel}`
-      }
-      const headers: Record<string, string> = {}
-      const { apiKey } = getSecretaryConfig()
-      if (apiKey) {
-        headers['Authorization'] = `Bearer ${apiKey}`
-        headers['X-Secretary-Api-Key'] = apiKey
-      }
+      const archiveUrl = resolveSecretaryUrl(mistralOcrImagesUrl, secretaryUrlConfig)
+      const headers = getSecretaryAuthHeaders(secretaryUrlConfig)
 
       bufferLog(ctx.jobId, {
         phase: 'mistral_ocr_images_download_start',
@@ -310,21 +300,8 @@ export async function processAllImageSources(
   // 1. Process pages_archive_url (Mistral OCR page images as ZIP from URL)
   if (pagesArchiveUrl) {
     try {
-      // Download ZIP archive from URL (similar to images_archive_url)
-      const { baseUrl: baseRaw } = getSecretaryConfig()
-      const isAbsolute = /^https?:\/\//i.test(pagesArchiveUrl)
-      let archiveUrl = pagesArchiveUrl
-      if (!isAbsolute) {
-        const base = baseRaw.replace(/\/$/, '')
-        const rel = pagesArchiveUrl.startsWith('/') ? pagesArchiveUrl : `/${pagesArchiveUrl}`
-        archiveUrl = base.endsWith('/api') && rel.startsWith('/api/') ? `${base}${rel.substring(4)}` : `${base}${rel}`
-      }
-      const headers: Record<string, string> = {}
-      const { apiKey } = getSecretaryConfig()
-      if (apiKey) {
-        headers['Authorization'] = `Bearer ${apiKey}`
-        headers['X-Secretary-Api-Key'] = apiKey
-      }
+      const archiveUrl = resolveSecretaryUrl(pagesArchiveUrl, secretaryUrlConfig)
+      const headers = getSecretaryAuthHeaders(secretaryUrlConfig)
 
       bufferLog(ctx.jobId, {
         phase: 'pages_archive_download_start',
@@ -639,21 +616,8 @@ export async function maybeProcessImages(args: ImagesArgs): Promise<ImagesResult
   const { ctx, parentId, imagesZipUrl, extractedText, lang } = args
   if (!imagesZipUrl) return
 
-  // Baue absolute URL, falls nötig
-  const { baseUrl: baseRaw } = getSecretaryConfig()
-  const isAbsolute = /^https?:\/\//i.test(imagesZipUrl)
-  let archiveUrl = imagesZipUrl
-  if (!isAbsolute) {
-    const base = baseRaw.replace(/\/$/, '')
-    const rel = imagesZipUrl.startsWith('/') ? imagesZipUrl : `/${imagesZipUrl}`
-    archiveUrl = base.endsWith('/api') && rel.startsWith('/api/') ? `${base}${rel.substring(4)}` : `${base}${rel}`
-  }
-  const headers: Record<string, string> = {}
-  const { apiKey } = getSecretaryConfig()
-  if (apiKey) {
-    headers['Authorization'] = `Bearer ${apiKey}`
-    headers['X-Secretary-Api-Key'] = apiKey
-  }
+  const archiveUrl = resolveSecretaryUrl(imagesZipUrl)
+  const headers = getSecretaryAuthHeaders()
 
   const resp = await fetch(archiveUrl, { method: 'GET', headers })
   if (!resp.ok) {

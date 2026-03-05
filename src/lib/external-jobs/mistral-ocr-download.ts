@@ -8,19 +8,21 @@
  * @module external-jobs
  */
 
-import { getSecretaryConfig } from '@/lib/env'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
+import { resolveSecretaryUrl, getSecretaryAuthHeaders, type SecretaryUrlConfig } from './secretary-url'
 
 /**
  * Lädt Mistral OCR Raw-Daten über den Download-Endpoint.
  *
  * @param body Callback-Body vom Secretary Service
  * @param jobId Job-ID
+ * @param secretaryUrlConfig Optionale Library-spezifische Secretary-Config (Desktop-Modus)
  * @returns Mistral OCR Raw-Daten oder null bei Fehler
  */
 export async function downloadMistralOcrRaw(
   body: { process?: { id?: unknown }; data?: { processId?: unknown; mistral_ocr_raw_url?: unknown; mistral_ocr_raw_metadata?: unknown; mistral_ocr_raw?: unknown } },
-  jobId: string
+  jobId: string,
+  secretaryUrlConfig?: SecretaryUrlConfig
 ): Promise<unknown> {
   const mistralOcrRawUrl = body?.data?.mistral_ocr_raw_url as string | undefined
   const mistralOcrRawMetadata = body?.data?.mistral_ocr_raw_metadata
@@ -53,19 +55,9 @@ export async function downloadMistralOcrRaw(
       return null
     }
 
-    const { baseUrl, apiKey } = getSecretaryConfig()
-    // Konstruiere Download-Endpoint: GET /api/pdf/jobs/{job_id}/mistral-ocr-raw
-    const base = baseUrl.replace(/\/$/, '')
     const endpoint = `/api/pdf/jobs/${secretaryJobId}/mistral-ocr-raw`
-    const downloadUrl = base.endsWith('/api')
-      ? `${base}${endpoint.substring(4)}` // Entferne /api wenn base bereits /api enthält
-      : `${base}${endpoint}`
-
-    const headers: Record<string, string> = {}
-    if (apiKey) {
-      headers['Authorization'] = `Bearer ${apiKey}`
-      headers['X-Secretary-Api-Key'] = apiKey
-    }
+    const downloadUrl = resolveSecretaryUrl(endpoint, secretaryUrlConfig)
+    const headers = getSecretaryAuthHeaders(secretaryUrlConfig)
 
     bufferLog(jobId, {
       phase: 'mistral_ocr_raw_download_start',

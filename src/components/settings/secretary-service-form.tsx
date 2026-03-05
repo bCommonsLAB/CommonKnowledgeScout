@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
+import { Switch } from "@/components/ui/switch"
 import { mergeTemplateNames } from "@/lib/templates/template-options"
 import { LlmModelSelector } from "@/components/ui/llm-model-selector"
 
@@ -39,6 +40,8 @@ const secretaryServiceFormSchema = z.object({
   /** Automatisch Cover-Bild bei Transformation generieren */
   generateCoverImage: z.boolean().optional(),
   coverImagePrompt: z.string().optional(),
+  /** Desktop-Modus: Ergebnisse aktiv abholen statt per Webhook */
+  useDirectConnection: z.boolean().optional(),
 })
 
 type SecretaryServiceFormValues = z.infer<typeof secretaryServiceFormSchema>
@@ -64,6 +67,7 @@ export function SecretaryServiceForm() {
       targetLanguage: 'de',
       generateCoverImage: false,
       coverImagePrompt: '',
+      useDirectConnection: false,
     },
   })
 
@@ -91,11 +95,16 @@ export function SecretaryServiceForm() {
         targetLanguage: targetLanguage as 'de' | 'en',
         generateCoverImage,
         coverImagePrompt: activeLibrary.config?.secretaryService?.coverImagePrompt || '',
+        useDirectConnection: activeLibrary.config?.secretaryService?.useDirectConnection ?? false,
       })
     }
   }, [activeLibrary, form])
 
   const currentPdfTemplate = form.watch('pdfTemplate')
+  // apiUrl beobachten, um Desktop-Modus-Switch bedingt anzuzeigen
+  const currentApiUrl = form.watch('apiUrl')
+  const hasCustomApiUrl = !!(currentApiUrl && currentApiUrl.trim())
+
   const mergedTemplateNames = mergeTemplateNames({
     templateNames: availableTemplateNames,
     currentTemplateName: currentPdfTemplate,
@@ -172,6 +181,8 @@ export function SecretaryServiceForm() {
             targetLanguage: data.targetLanguage || 'de',
             generateCoverImage: data.generateCoverImage ?? false,
             ...(data.coverImagePrompt?.trim() ? { coverImagePrompt: data.coverImagePrompt.trim() } : {}),
+            // Verbindungsmodus: nur speichern wenn apiUrl gesetzt
+            ...(data.apiUrl ? { useDirectConnection: data.useDirectConnection ?? false } : {}),
           }
         }
       }
@@ -208,6 +219,8 @@ export function SecretaryServiceForm() {
               targetLanguage: data.targetLanguage || 'de',
               generateCoverImage: data.generateCoverImage ?? false,
               ...(data.coverImagePrompt?.trim() ? { coverImagePrompt: data.coverImagePrompt.trim() } : {}),
+              // Verbindungsmodus: nur relevant wenn apiUrl gesetzt
+              useDirectConnection: data.apiUrl ? (data.useDirectConnection ?? false) : false,
             }
           }
         }
@@ -498,6 +511,34 @@ export function SecretaryServiceForm() {
               </FormItem>
             )}
           />
+
+          {/* Desktop-Modus: nur anzeigen, wenn eine eigene API-URL konfiguriert ist */}
+          {hasCustomApiUrl && (
+            <FormField
+              control={form.control}
+              name="useDirectConnection"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">
+                      Desktop-Modus
+                    </FormLabel>
+                    <FormDescription>
+                      Aktivieren, wenn der Secretary Service diese Anwendung nicht über das Netzwerk erreichen kann
+                      (z.&nbsp;B. lokale Installation oder Firewall). Ergebnisse werden dann aktiv abgeholt statt
+                      per Rückmeldung zugestellt.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value ?? false}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+          )}
         </div>
 
         <div className="flex justify-end">

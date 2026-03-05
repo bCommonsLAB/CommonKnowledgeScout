@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
 import { cookies } from 'next/headers';
-
-// Importiere die Umgebungsvariablen
-const env = {
-  SECRETARY_SERVICE_URL: process.env.SECRETARY_SERVICE_URL || '',
-  SECRETARY_SERVICE_API_KEY: process.env.SECRETARY_SERVICE_API_KEY || ''
-};
+import { getSecretaryConfig } from '@/lib/env';
 
 /**
  * API-Route für den Track-Processor des Secretary Service
@@ -63,8 +58,7 @@ export async function GET(
       }, { status: 400 });
     }
 
-    const apiUrl = env.SECRETARY_SERVICE_URL;
-    const apiKey = env.SECRETARY_SERVICE_API_KEY;
+    const { baseUrl: apiUrl, apiKey } = getSecretaryConfig();
     console.log('[secretary/tracks] API-URL vorhanden:', !!apiUrl, ' API-Key vorhanden:', !!apiKey);
 
     if (!apiUrl || !apiKey) {
@@ -79,10 +73,8 @@ export async function GET(
     
     console.log('[secretary/tracks] Track-Pfad:', trackPath);
     
-    // Zusammenstellung der Track-Processor API URL
     let targetUrl = `${apiUrl}/tracks/${trackPath}`;
     
-    // URL-Parameter aus der Anfrage übernehmen
     const searchParams = req.nextUrl.searchParams;
     if (searchParams.toString()) {
       targetUrl += `?${searchParams.toString()}`;
@@ -90,7 +82,6 @@ export async function GET(
 
     console.log(`[secretary/tracks] GET-Anfrage an: ${targetUrl}`);
 
-    // Anfrage an den Secretary Service weiterleiten
     const response = await fetch(targetUrl, {
       method: 'GET',
       headers: {
@@ -151,8 +142,7 @@ export async function POST(
       */
     }
 
-    const apiUrl = env.SECRETARY_SERVICE_URL;
-    const apiKey = env.SECRETARY_SERVICE_API_KEY;
+    const { baseUrl: apiUrl, apiKey } = getSecretaryConfig();
     
     console.log('[secretary/tracks] API-URL vorhanden:', !!apiUrl, ' API-Key vorhanden:', !!apiKey);
 
@@ -166,13 +156,11 @@ export async function POST(
       }, { status: 400 });
     }
 
-    // Body der Anfrage lesen
     const requestBody = await req.json();
     console.log('[secretary/tracks] Request-Body:', JSON.stringify(requestBody));
     
     console.log('[secretary/tracks] Track-Pfad:', trackPath);
     
-    // Zusammenstellung der Track-Processor API URL
     let targetUrl = `${apiUrl}/tracks/${trackPath}`;
     
     // URL-Parameter aus der Anfrage übernehmen

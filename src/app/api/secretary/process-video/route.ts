@@ -17,12 +17,12 @@
  * 
  * @dependencies
  * - @clerk/nextjs/server: Authentication utilities
- * - process.env: Environment variables for Secretary Service URL and API key
+ * - @/lib/env: getSecretaryConfig() für Secretary Service URL und API-Key
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
-import { env } from 'process';
+import { getSecretaryConfig } from '@/lib/env';
 
 export async function POST(request: NextRequest) {
   try {
@@ -55,13 +55,14 @@ export async function POST(request: NextRequest) {
     console.log('[process-video] FormData erhalten mit Feldern:', formDataKeys);
     
 
-    // Secretary Service URL aus Umgebungsvariablen holen
-    const secretaryServiceUrl = env.SECRETARY_SERVICE_URL;
-    
-    // Sicherstellen, dass keine doppelten Slashes entstehen
-    const normalizedUrl = secretaryServiceUrl?.endsWith('/') 
-      ? `${secretaryServiceUrl}video/process` 
-      : `${secretaryServiceUrl}/video/process`;
+    const { baseUrl: secretaryServiceUrl } = getSecretaryConfig();
+    if (!secretaryServiceUrl) {
+      return NextResponse.json(
+        { error: 'SECRETARY_SERVICE_URL ist nicht konfiguriert' },
+        { status: 500 }
+      );
+    }
+    const normalizedUrl = `${secretaryServiceUrl}/video/process`;
     
     console.log('[process-video] Sende Anfrage an Secretary Service:', normalizedUrl);
     
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
       body: serviceFormData,
       headers: (() => {
         const h: Record<string, string> = { 'Accept': 'application/json' };
-        const apiKey = process.env.SECRETARY_SERVICE_API_KEY;
+        const { apiKey } = getSecretaryConfig();
         if (apiKey) { h['Authorization'] = `Bearer ${apiKey}`; h['X-Secretary-Api-Key'] = apiKey; }
         return h;
       })(),
