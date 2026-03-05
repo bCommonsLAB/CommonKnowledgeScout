@@ -5,7 +5,6 @@
  * mittels next-electron-rsc. In Development wird der Dev-Server
  * automatisch gestartet, in Production werden HTTP-Requests
  * über ein Protocol-Intercept intern an Next.js weitergeleitet.
- *
  * WICHTIG: createHandler() muss VOR app.on('ready') aufgerufen werden,
  * da registerSchemesAsPrivileged nur vor App-Ready funktioniert.
  *
