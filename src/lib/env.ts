@@ -56,6 +56,9 @@ export function getSelfBaseUrl(): string {
   const publicBase = normalizeBaseUrl(process.env.NEXT_PUBLIC_APP_URL)
   if (publicBase) return publicBase
   const port = String(process.env.PORT || '3000')
+  // In Electron nutzt next-electron-rsc 'localhost' als Protocol-Handler-Domain.
+  // 127.0.0.1 wird vom Interceptor nicht erkannt und fuehrt zu assertion errors.
+  if (isElectronMode()) return `http://localhost:${port}`
   return `http://127.0.0.1:${port}`
 }
 

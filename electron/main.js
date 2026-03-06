@@ -101,9 +101,22 @@ if (!dev) {
     if (scheme === 'http') {
       return originalHandle(scheme, (request) => {
         const url = new URL(request.url);
-        // localhost ohne Port -> Port ergaenzen
+        let rewritten = false;
+
+        // 127.0.0.1 -> localhost umschreiben: getSelfBaseUrl() liefert 127.0.0.1,
+        // aber next-electron-rsc's Interceptor akzeptiert nur localhost
+        if (url.hostname === '127.0.0.1') {
+          url.hostname = 'localhost';
+          rewritten = true;
+        }
+
+        // localhost ohne Port -> Port ergaenzen (Clerk-Redirects lassen Port weg)
         if (url.hostname === 'localhost' && !url.port) {
           url.port = String(PROD_PORT);
+          rewritten = true;
+        }
+
+        if (rewritten) {
           return handler(new Request(url.toString(), request));
         }
         return handler(request);
@@ -134,6 +147,15 @@ if (!dev) {
     );
 
     if (isLocalhost) {
+      // 127.0.0.1 -> localhost normalisieren: next-electron-rsc's protocol handler
+      // und Session-Cookies erwarten localhost, nicht 127.0.0.1
+      if (url && url.includes('127.0.0.1')) {
+        const normalized = url.replace(`http://127.0.0.1:${PROD_PORT}`, `http://localhost:${PROD_PORT}`);
+        if (typeof input === 'string') {
+          return net.fetch(normalized, init);
+        }
+        return net.fetch(new Request(normalized, input), init);
+      }
       return net.fetch(input, init);
     }
     return _originalFetch.call(globalThis, input, init);
