@@ -13,7 +13,8 @@ interface AppLogoProps {
   fallback?: React.ReactNode
 }
 
-const LOGO_URL = 'https://ragtempproject.blob.core.windows.net/knowledgescout/images/CommonKnowledgeScout_logo.png'
+// Lokales SVG statt externer Azure-URL – funktioniert auch offline in Electron
+const LOGO_URL = '/media/CommonKnowledgeScout_logo1.svg'
 
 /**
  * Wiederverwendbare Logo-Komponente für CommonKnowledgeScout
@@ -23,8 +24,6 @@ const LOGO_URL = 'https://ragtempproject.blob.core.windows.net/knowledgescout/im
  */
 export function AppLogo({ size = 32, className, fallback }: AppLogoProps) {
   const [imageError, setImageError] = useState(false)
-  // Bildgröße: Container-Größe plus 8px (damit es um 4px auf jeder Seite beschnitten wird)
-  const imageSize = size + 8
 
   return (
     <div
@@ -38,14 +37,10 @@ export function AppLogo({ size = 32, className, fallback }: AppLogoProps) {
         <Image
           src={LOGO_URL}
           alt="CommonKnowledgeScout Logo"
-          width={imageSize}
-          height={imageSize}
-          className="object-cover"
-          style={{
-            width: `${imageSize}px`,
-            height: `${imageSize}px`,
-            margin: '-4px',
-          }}
+          width={size}
+          height={size}
+          className="object-contain"
+          style={{ width: `${size}px`, height: `${size}px` }}
           unoptimized
           onError={() => setImageError(true)}
         />
