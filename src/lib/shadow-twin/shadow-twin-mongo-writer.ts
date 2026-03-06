@@ -59,39 +59,72 @@ export async function persistShadowTwinToMongo(args: {
 
   let processedMarkdown = markdown
   let directUploadMetadata: Array<{ fileName: string; url: string; hash: string; size: number; mimeType: string }> | undefined
+  let azureUnavailable = false
 
-  // Wenn ZIP-Daten vorhanden sind, lade Bilder direkt aus dem ZIP nach Azure hoch
+  // Wenn ZIP-Daten vorhanden sind, lade Bilder direkt aus dem ZIP nach Azure hoch.
+  // Falls Azure nicht konfiguriert ist (z.B. Electron/Offline), wird der Upload
+  // übersprungen und der Text trotzdem gespeichert.
   if (zipArchives && zipArchives.length > 0) {
-    const { uploadImagesFromZipDirectly } = await import('./shadow-twin-direct-upload')
-    const uploadResult = await uploadImagesFromZipDirectly({
-      zipArchives,
-      markdown,
-      libraryId,
-      sourceItemId: sourceItem.id,
-      jobId,
-    })
-    processedMarkdown = uploadResult.markdown
-    directUploadMetadata = uploadResult.imageMetadata
-  } else {
+    try {
+      const { uploadImagesFromZipDirectly } = await import('./shadow-twin-direct-upload')
+      const uploadResult = await uploadImagesFromZipDirectly({
+        zipArchives,
+        markdown,
+        libraryId,
+        sourceItemId: sourceItem.id,
+        jobId,
+      })
+      processedMarkdown = uploadResult.markdown
+      directUploadMetadata = uploadResult.imageMetadata
+    } catch (azureErr) {
+      const msg = azureErr instanceof Error ? azureErr.message : String(azureErr)
+      if (msg.includes('Azure Storage nicht konfiguriert') || msg.includes('Azure Storage Service nicht konfiguriert')) {
+        azureUnavailable = true
+        FileLogger.warn('shadow-twin-mongo-writer', 'Azure Storage nicht verfügbar – Bilder-Upload wird übersprungen, Text wird trotzdem gespeichert', {
+          libraryId, sourceId: sourceItem.id, error: msg,
+        })
+      } else {
+        throw azureErr
+      }
+    }
+  } else if (!azureUnavailable) {
     // Standard-Pfad: Bilder vom Filesystem laden und nach Azure hochladen
-    const processed = await ImageProcessor.processMarkdownImages(
-      markdown,
+    try {
+      const processed = await ImageProcessor.processMarkdownImages(
+        markdown,
+        provider,
+        libraryId,
+        sourceItem.id,
+        shadowTwinFolderId
+      )
+      processedMarkdown = processed.markdown
+    } catch (imgErr) {
+      const msg = imgErr instanceof Error ? imgErr.message : String(imgErr)
+      if (msg.includes('Azure Storage nicht konfiguriert') || msg.includes('Azure Storage Service nicht konfiguriert')) {
+        azureUnavailable = true
+        FileLogger.warn('shadow-twin-mongo-writer', 'Azure Storage nicht verfügbar – Bilder-Verarbeitung übersprungen', {
+          libraryId, sourceId: sourceItem.id, error: msg,
+        })
+      } else {
+        throw imgErr
+      }
+    }
+  }
+
+  // Verarbeite Markdown (URLs sollten bereits gesetzt sein, aber prüfe auf verbleibende relative Pfade).
+  // Bei fehlendem Azure wird der zweite Durchlauf übersprungen.
+  let processed: { markdown: string; imageErrors: Array<{ imagePath: string; error: string }>; imageMapping: Array<{ originalPath: string; azureUrl: string }> }
+  if (azureUnavailable) {
+    processed = { markdown: processedMarkdown, imageErrors: [], imageMapping: [] }
+  } else {
+    processed = await ImageProcessor.processMarkdownImages(
+      processedMarkdown,
       provider,
       libraryId,
       sourceItem.id,
       shadowTwinFolderId
     )
-    processedMarkdown = processed.markdown
   }
-
-  // Verarbeite Markdown (URLs sollten bereits gesetzt sein, aber prüfe auf verbleibende relative Pfade)
-  const processed = await ImageProcessor.processMarkdownImages(
-    processedMarkdown,
-    provider,
-    libraryId,
-    sourceItem.id,
-    shadowTwinFolderId
-  )
 
   // Extrahiere Azure-URLs aus dem verarbeiteten Markdown
   const imageUrls = extractImageUrls(processed.markdown)
