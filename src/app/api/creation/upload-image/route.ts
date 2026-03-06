@@ -41,10 +41,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Library-Zugriff prüfen
+    // Library-Zugriff prüfen (getLibrary unterstützt auch Co-Creator)
     const libraryService = LibraryService.getInstance()
-    const libraries = await libraryService.getUserLibraries(userEmail)
-    const hasAccess = libraries.some(lib => lib.id === libraryId)
+    const hasAccess = await libraryService.getLibrary(userEmail, libraryId)
     if (!hasAccess) {
       return NextResponse.json(
         { error: 'Kein Zugriff auf diese Library' },

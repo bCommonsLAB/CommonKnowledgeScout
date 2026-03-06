@@ -3,6 +3,8 @@
 <svg version="1.1" id="Ebene_2" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
 	 width="517.604px" height="490.018px" viewBox="0 0 517.604 490.018" style="enable-background:new 0 0 517.604 490.018;"
 	 xml:space="preserve">
+<!-- Weißer Hintergrundkreis, damit das Logo auf dunklem Untergrund nicht durchscheint -->
+<circle style="fill:#FFFFFF;" cx="258.8" cy="245" r="245"/>
 <g>
 	<circle style="fill:#B37338;" cx="258.1" cy="134.495" r="45.354"/>
 	<path style="fill:#B37338;" d="M323.309,252.885h-0.076c-1.572-34.61-30.122-62.189-65.121-62.189

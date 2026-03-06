@@ -636,10 +636,10 @@ export async function POST(
       return NextResponse.json({ status: 'ok', jobId, kind: 'extract_only', savedItemId: result.savedItemId })
     }
 
-    // Bibliothek laden (um Typ zu bestimmen)
+    // Bibliothek laden (um Typ zu bestimmen).
+    // getLibrary() statt getUserLibraries(), damit Co-Creator auf die Config zugreifen können.
     const libraryService = LibraryService.getInstance();
-    const libraries = await libraryService.getUserLibraries(job.userEmail);
-    const lib = libraries.find(l => l.id === job.libraryId);
+    const lib = await libraryService.getLibrary(job.userEmail, job.libraryId);
 
     try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'callback_before_library' }) } catch {}
 

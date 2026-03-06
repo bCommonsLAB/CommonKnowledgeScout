@@ -18,9 +18,9 @@ const LOGO_URL = '/media/CommonKnowledgeScout_logo1.svg'
 
 /**
  * Wiederverwendbare Logo-Komponente für CommonKnowledgeScout
- * 
- * Zeigt das Logo als runden Avatar an. Unterstützt verschiedene Größen
- * und hat einen optionalen Fallback.
+ *
+ * Das SVG enthält bereits den runden Hintergrund – kein zusätzliches
+ * Clipping oder Transparenz nötig.
  */
 export function AppLogo({ size = 32, className, fallback }: AppLogoProps) {
   const [imageError, setImageError] = useState(false)
@@ -28,7 +28,7 @@ export function AppLogo({ size = 32, className, fallback }: AppLogoProps) {
   return (
     <div
       className={cn(
-        'rounded-full overflow-hidden bg-background border border-border flex items-center justify-center flex-shrink-0 relative',
+        'flex items-center justify-center flex-shrink-0',
         className
       )}
       style={{ width: size, height: size }}
@@ -46,7 +46,7 @@ export function AppLogo({ size = 32, className, fallback }: AppLogoProps) {
         />
       ) : (
         fallback || (
-          <div className="w-full h-full bg-muted flex items-center justify-center">
+          <div className="w-full h-full bg-muted rounded-full flex items-center justify-center">
             <span className="text-xs font-medium text-muted-foreground">CKS</span>
           </div>
         )

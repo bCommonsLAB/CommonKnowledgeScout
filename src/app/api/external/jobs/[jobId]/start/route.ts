@@ -568,10 +568,11 @@ export async function POST(
     let extractGateReason: string | undefined
     let library: Library | undefined
     try {
-      // Library-Informationen für Gate benötigt
+      // Library-Informationen für Gate benötigt.
+      // Verwendet getLibrary() statt getUserLibraries(), damit auch Co-Creator
+      // auf die Library-Config (inkl. Secretary-Service-Settings) zugreifen können.
       const libraryService = LibraryService.getInstance()
-      const libraries = await libraryService.getUserLibraries(job.userEmail)
-      library = libraries.find(l => l.id === job.libraryId) as Library | undefined
+      library = (await libraryService.getLibrary(job.userEmail, job.libraryId)) as Library | undefined
       // Secretary-Config aus Library laden (für apiUrl/apiKey-Override und Desktop-Modus).
       // useCustomConfig muss true sein, damit die benutzerdefinierten Verbindungseinstellungen
       // (apiUrl, apiKey, useDirectConnection) aktiv sind. Bei false gelten ENV-Defaults.

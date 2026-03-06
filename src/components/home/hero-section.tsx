@@ -20,7 +20,7 @@ export function HeroSection() {
       <div className="container relative mx-auto px-4 py-12 md:py-16 lg:py-20">
         <div className="mx-auto max-w-4xl text-center">
           {/* Logo */}
-          <div className="mb-6 flex justify-center opacity-60">
+          <div className="mb-6 flex justify-center">
             <AppLogo size={100} />
           </div>
 
