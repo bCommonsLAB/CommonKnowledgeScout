@@ -98,6 +98,43 @@ if (!process.env.INTERNAL_TEST_TOKEN) {
 
 let mainWindow = null;
 let stopIntercept = null;
+let appLocalhostUrl = null;
+
+/**
+ * Löscht OAuth-relevante Cookies (Google, Clerk), damit beim nächsten
+ * Login der Account-Picker angezeigt wird statt den letzten Account
+ * automatisch zu verwenden.
+ */
+async function clearAuthCookies(session) {
+  const authDomains = [
+    '.google.com',
+    '.accounts.google.com',
+    'accounts.google.com',
+    '.googleapis.com',
+    '.clerk.accounts.dev',
+    '.clerk.dev',
+    '.clerk.com',
+  ];
+  try {
+    const allCookies = await session.cookies.get({});
+    let removed = 0;
+    for (const cookie of allCookies) {
+      const matchesDomain = authDomains.some(d =>
+        cookie.domain === d || cookie.domain?.endsWith(d)
+      );
+      if (matchesDomain) {
+        const protocol = cookie.secure ? 'https' : 'http';
+        const domain = cookie.domain?.startsWith('.') ? cookie.domain.slice(1) : cookie.domain;
+        const url = `${protocol}://${domain}${cookie.path || '/'}`;
+        await session.cookies.remove(url, cookie.name);
+        removed++;
+      }
+    }
+    console.log(`[Auth] ${removed} Auth-Cookies gelöscht`);
+  } catch (err) {
+    console.error('[Auth] Fehler beim Löschen der Cookies:', err.message);
+  }
+}
 
 // In Production: protocol.handle wrappen, damit http://localhost/ (ohne Port)
 // automatisch auf http://localhost:3000/ normalisiert wird.
@@ -186,6 +223,7 @@ const handlerPromise = import('next-electron-rsc').then(({ createHandler }) => {
 async function createWindow() {
   console.log('[Window] createWindow() gestartet');
   const { createInterceptor, localhostUrl } = await handlerPromise;
+  appLocalhostUrl = localhostUrl;
   console.log('[Window] Handler bereit, localhostUrl:', localhostUrl);
 
   mainWindow = new BrowserWindow({
@@ -204,6 +242,20 @@ async function createWindow() {
   mainWindow.once('ready-to-show', () => {
     console.log('[Window] ready-to-show Event empfangen');
     mainWindow.show();
+  });
+
+  // Auth-Session löschen wenn Clerk-Logout erkannt wird.
+  // Ohne das speichert Electrons Session die Google-OAuth-Cookies und Google
+  // zeigt beim nächsten Login keinen Account-Picker mehr.
+  mainWindow.webContents.on('did-navigate', async (_event, url) => {
+    try {
+      const parsed = new URL(url);
+      const isSignOut = parsed.pathname.includes('/sign-out') || parsed.pathname.includes('/sign-in');
+      if (isSignOut) {
+        console.log('[Auth] Clerk Sign-Out/Sign-In erkannt, lösche Auth-Cookies...');
+        await clearAuthCookies(mainWindow.webContents.session);
+      }
+    } catch { /* URL-Parse-Fehler ignorieren */ }
   });
 
   // Renderer-Fehler loggen (Console-Ausgaben und Crashes)
@@ -251,6 +303,21 @@ async function createWindow() {
     {
       label: 'Datei',
       submenu: [
+        {
+          label: 'Account wechseln',
+          click: async () => {
+            await clearAuthCookies(mainWindow.webContents.session);
+            dialog.showMessageBox(mainWindow, {
+              type: 'info',
+              title: 'Account wechseln',
+              message: 'Auth-Session wurde gelöscht.',
+              detail: 'Beim nächsten Login wird der Google Account-Picker angezeigt.',
+              buttons: ['OK'],
+            });
+            mainWindow.loadURL(appLocalhostUrl + '/');
+          },
+        },
+        { type: 'separator' },
         { role: 'quit', label: 'Beenden' },
       ],
     },
