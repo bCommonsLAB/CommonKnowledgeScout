@@ -158,6 +158,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const { id } = await params
     const libraryService = LibraryService.getInstance()
+    // Token-Verwaltung ist nur für Owner zugänglich
+    const isOwner = await libraryService.isOwner(userEmail, id)
+    if (!isOwner) return NextResponse.json({ error: 'Keine Berechtigung. Nur Owner koennen Tokens verwalten.' }, { status: 403 })
     const library = await libraryService.getLibrary(userEmail, id)
     if (!library) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
 

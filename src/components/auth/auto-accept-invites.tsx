@@ -1,25 +1,28 @@
 /**
  * @fileoverview Auto Accept Invites Component
- * 
+ *
  * @description
- * Client component that automatically accepts pending invitations after login.
- * Should be included in the root layout to handle invitations globally.
- * 
+ * Client-Komponente, die beim App-Start nach ausstehenden Einladungen sucht.
+ * Zeigt einen Dialog, in dem der Benutzer jede Einladung annehmen oder ablehnen kann.
+ * Wird im Root-Layout eingebunden.
+ *
  * @module components/auth
  */
 
 "use client"
 
 import { useAutoAcceptInvites } from '@/hooks/use-auto-accept-invites'
+import { PendingInvitesDialog } from './pending-invites-dialog'
 
-/**
- * Component that automatically accepts pending invitations after login
- * 
- * This component uses the useAutoAcceptInvites hook to handle automatic
- * acceptance of invitations when a user logs in or registers.
- */
 export function AutoAcceptInvites() {
-  useAutoAcceptInvites()
-  return null
-}
+  const { pendingInvites, handleComplete } = useAutoAcceptInvites()
 
+  if (pendingInvites.length === 0) return null
+
+  return (
+    <PendingInvitesDialog
+      invites={pendingInvites}
+      onComplete={handleComplete}
+    />
+  )
+}

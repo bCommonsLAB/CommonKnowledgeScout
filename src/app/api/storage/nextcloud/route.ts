@@ -82,11 +82,12 @@ async function getNextcloudLibrary(
   libraryId: string,
   email: string,
 ): Promise<LibraryType | undefined> {
+  // Zentrale Berechtigungsprüfung über LibraryService.getLibrary():
+  // Prüft eigene Libraries UND Co-Creator-/Reader-Zugriff automatisch.
   const svc = LibraryService.getInstance()
-  const libs = await svc.getUserLibraries(email)
-  return libs.find(
-    (l) => l.id === libraryId && l.isEnabled && l.type === 'nextcloud',
-  )
+  const lib = await svc.getLibrary(email, libraryId)
+  if (!lib || lib.type !== 'nextcloud') return undefined
+  return lib
 }
 
 /**

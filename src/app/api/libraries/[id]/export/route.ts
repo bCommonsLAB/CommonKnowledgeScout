@@ -42,8 +42,16 @@ export async function GET(
     }
 
     const libraryService = LibraryService.getInstance()
+    // Export nur für Owner zugänglich (enthält Konfigurationsdaten)
+    const isOwner = await libraryService.isOwner(userEmail, libraryId)
+    if (!isOwner) {
+      return NextResponse.json(
+        { error: 'Keine Berechtigung. Nur Owner koennen Libraries exportieren.' },
+        { status: 403 }
+      )
+    }
     const library = await libraryService.getLibrary(userEmail, libraryId)
-    
+
     if (!library) {
       return NextResponse.json(
         { error: 'Bibliothek nicht gefunden' },

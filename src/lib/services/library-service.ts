@@ -114,18 +114,88 @@ export class LibraryService {
   }
 
   /**
-   * Bibliothek für einen Benutzer abrufen
+   * Bibliothek für einen Benutzer abrufen.
+   * Prüft zuerst eigene Libraries, dann Co-Creator-/Reader-Berechtigung.
+   * Dadurch funktioniert der Zugriff für eingeladene Mitglieder automatisch
+   * in allen API-Routen, die diese Methode verwenden (~30+ Routen).
+   *
+   * WICHTIG: Keine Abhängigkeit zu library-members-repo oder library-access-repo,
+   * da diese Module LibraryService importieren – das würde eine zirkuläre
+   * Abhängigkeit erzeugen. Stattdessen werden die Collections direkt abgefragt.
+   *
    * @param email E-Mail-Adresse des Benutzers
    * @param libraryId ID der Bibliothek
    */
   async getLibrary(email: string, libraryId: string): Promise<Library | null> {
     try {
+      // 1) Eigene Libraries prüfen (schneller Pfad, kein zusätzlicher DB-Call)
       const libraries = await this.getUserLibraries(email);
-      return libraries.find(lib => lib.id === libraryId && lib.isEnabled) || null;
+      const own = libraries.find(lib => lib.id === libraryId && lib.isEnabled);
+      if (own) return own;
+
+      // 2) Fallback: Library owner-unabhängig laden und Berechtigung prüfen.
+      // Ermöglicht eingeladenen Mitgliedern den Zugriff auf Libraries anderer Benutzer.
+      const shared = await this.getLibraryById(libraryId);
+      if (!shared || !shared.isEnabled) return null;
+
+      const normalizedEmail = normalizeEmail(email);
+      const hasAccess = await this.hasSharedAccess(libraryId, normalizedEmail);
+      if (!hasAccess) return null;
+
+      return shared;
     } catch (error) {
       console.error('Fehler beim Abrufen der Bibliothek:', error);
       throw error;
     }
+  }
+
+  /**
+   * Prüft ob ein Benutzer geteilten Zugriff auf eine Library hat.
+   * Prüft Co-Creator-Mitgliedschaften (library_members) und
+   * genehmigte Zugriffsanfragen (library_access_requests).
+   *
+   * Direkte MongoDB-Queries statt Import aus library-members-repo/library-access-repo,
+   * um zirkuläre Abhängigkeiten zu vermeiden (beide importieren LibraryService).
+   */
+  private async hasSharedAccess(libraryId: string, normalizedEmail: string): Promise<boolean> {
+    // Co-Creator-Mitgliedschaft prüfen (aktive oder Altdaten ohne Status-Feld)
+    const membersCol = await getCollection('library_members');
+    const activeFilter = { $or: [{ status: 'active' }, { status: { $exists: false } }] };
+
+    const member = await membersCol.findOne({
+      libraryId,
+      userEmail: normalizedEmail,
+      ...activeFilter,
+    }) ?? await membersCol.findOne({
+      libraryId,
+      userEmail: { $regex: buildCaseInsensitiveEmailRegex(normalizedEmail) },
+      ...activeFilter,
+    });
+    if (member) return true;
+
+    // Genehmigte Zugriffsanfragen prüfen (Reader-Zugriff)
+    const accessCol = await getCollection('library_access_requests');
+    const accessRequest = await accessCol.findOne({
+      libraryId,
+      userEmail: normalizedEmail,
+      status: 'approved',
+    });
+    return !!accessRequest;
+  }
+
+  /**
+   * Prüft ob ein Benutzer der Owner einer Library ist.
+   * Im Gegensatz zu getLibrary() berücksichtigt diese Methode KEINE
+   * Co-Creator-/Reader-Berechtigungen. Wird für Routen verwendet,
+   * die nur dem Owner zugänglich sein sollen (z.B. Mitglieder-Verwaltung,
+   * Token-Management, Einstellungen).
+   *
+   * @param email E-Mail-Adresse des Benutzers
+   * @param libraryId ID der Bibliothek
+   */
+  async isOwner(email: string, libraryId: string): Promise<boolean> {
+    const libraries = await this.getUserLibraries(email);
+    return libraries.some(lib => lib.id === libraryId);
   }
 
   /**

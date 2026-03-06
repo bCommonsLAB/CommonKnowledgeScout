@@ -128,20 +128,11 @@ async function getUserEmail(request: NextRequest): Promise<string | undefined> {
 }
 
 async function getLibrary(libraryId: string, email: string): Promise<LibraryType | undefined> {
-  // Bibliothek aus MongoDB abrufen
+  // Zentrale Berechtigungsprüfung über LibraryService.getLibrary():
+  // Prüft eigene Libraries UND Co-Creator-/Reader-Zugriff automatisch.
   const libraryService = LibraryService.getInstance();
-  const libraries = await libraryService.getUserLibraries(email);
-  
-  
-  if (libraries.length === 0) {
-    return undefined;
-  }
-  
-  const match = libraries.find(lib => lib.id === libraryId && lib.isEnabled);
-  if (match) {
-    return match;
-  }
-  return undefined;
+  const lib = await libraryService.getLibrary(email, libraryId);
+  return lib ?? undefined;
 }
 
 

@@ -18,7 +18,7 @@
 export type LibraryRole = 'owner' | 'moderator' | 'co-creator';
 
 /** Einladungsstatus eines Mitglieds */
-export type MemberStatus = 'pending' | 'active';
+export type MemberStatus = 'pending' | 'active' | 'declined';
 
 /**
  * Library member document

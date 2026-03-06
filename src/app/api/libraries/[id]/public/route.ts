@@ -97,7 +97,14 @@ export async function PUT(
       }
     }
 
-    // Library laden
+    // Public-Einstellungen nur für Owner zugänglich
+    const isOwner = await libraryService.isOwner(userEmail, libraryId);
+    if (!isOwner) {
+      return NextResponse.json(
+        { error: 'Keine Berechtigung. Nur Owner koennen Public-Einstellungen aendern.' },
+        { status: 403 }
+      );
+    }
     const library = await libraryService.getLibrary(userEmail, libraryId);
     if (!library) {
       return NextResponse.json(

@@ -46,9 +46,8 @@ export async function GET(
 
     // Nur Owner koennen Mitglieder sehen
     const libraryService = LibraryService.getInstance();
-    try {
-      await libraryService.getLibrary(userEmail, libraryId);
-    } catch {
+    const ownerCheck = await libraryService.isOwner(userEmail, libraryId);
+    if (!ownerCheck) {
       return NextResponse.json(
         { error: 'Keine Berechtigung. Nur Owner koennen Mitglieder verwalten.' },
         { status: 403 }
@@ -99,15 +98,14 @@ export async function POST(
 
     // Nur Owner koennen Mitglieder einladen
     const libraryService = LibraryService.getInstance();
-    let library;
-    try {
-      library = await libraryService.getLibrary(userEmail, libraryId);
-    } catch {
+    const isOwner = await libraryService.isOwner(userEmail, libraryId);
+    if (!isOwner) {
       return NextResponse.json(
         { error: 'Keine Berechtigung. Nur Owner koennen Mitglieder einladen.' },
         { status: 403 }
       );
     }
+    const library = await libraryService.getLibrary(userEmail, libraryId);
 
     const body = await request.json().catch(() => ({}));
     const { email: memberEmail, role } = body;
@@ -216,15 +214,14 @@ export async function PUT(
 
     // Nur Owner koennen erneut senden
     const libraryService = LibraryService.getInstance();
-    let library;
-    try {
-      library = await libraryService.getLibrary(userEmail, libraryId);
-    } catch {
+    const isOwner = await libraryService.isOwner(userEmail, libraryId);
+    if (!isOwner) {
       return NextResponse.json(
         { error: 'Keine Berechtigung.' },
         { status: 403 }
       );
     }
+    const library = await libraryService.getLibrary(userEmail, libraryId);
 
     const body = await request.json().catch(() => ({}));
     const { email: memberEmail } = body;
@@ -313,9 +310,8 @@ export async function DELETE(
 
     // Nur Owner koennen Mitglieder entfernen
     const libraryService = LibraryService.getInstance();
-    try {
-      await libraryService.getLibrary(userEmail, libraryId);
-    } catch {
+    const isOwner = await libraryService.isOwner(userEmail, libraryId);
+    if (!isOwner) {
       return NextResponse.json(
         { error: 'Keine Berechtigung. Nur Owner koennen Mitglieder entfernen.' },
         { status: 403 }

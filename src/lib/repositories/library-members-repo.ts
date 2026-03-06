@@ -159,6 +159,104 @@ export async function acceptMemberInvite(
 }
 
 /**
+ * Findet alle ausstehenden Einladungen (status: 'pending') fuer eine E-Mail-Adresse.
+ * Wird beim Login/App-Start aufgerufen, um Co-Creator-Einladungen automatisch
+ * zu akzeptieren – auch in der Offline-Version, wo der E-Mail-Link nicht funktioniert.
+ *
+ * @param userEmail E-Mail des Benutzers
+ * @returns Array von pending LibraryMember-Eintraegen
+ */
+export async function getPendingMembersByEmail(
+  userEmail: string
+): Promise<LibraryMember[]> {
+  const col = await getMembersCollection();
+  const normalizedUserEmail = normalizeEmail(userEmail);
+
+  const exact = await col.find({
+    userEmail: normalizedUserEmail,
+    status: 'pending',
+  }).toArray();
+  if (exact.length > 0) return exact;
+
+  return await col.find({
+    userEmail: { $regex: buildCaseInsensitiveEmailRegex(normalizedUserEmail) },
+    status: 'pending',
+  }).toArray();
+}
+
+/**
+ * Akzeptiert eine ausstehende Mitgliedschaft direkt per E-Mail (ohne Token).
+ * Wird fuer Auto-Accept beim Login verwendet.
+ *
+ * @param libraryId Library-ID
+ * @param userEmail E-Mail des Mitglieds
+ * @returns true wenn erfolgreich aktiviert
+ */
+export async function acceptMemberByEmail(
+  libraryId: string,
+  userEmail: string
+): Promise<boolean> {
+  const col = await getMembersCollection();
+  const normalizedUserEmail = normalizeEmail(userEmail);
+
+  const result = await col.updateOne(
+    {
+      libraryId,
+      $or: [
+        { userEmail: normalizedUserEmail },
+        { userEmail: { $regex: buildCaseInsensitiveEmailRegex(normalizedUserEmail) } },
+      ],
+      status: 'pending',
+    },
+    {
+      $set: {
+        status: 'active' as const,
+        acceptedAt: new Date(),
+      },
+      $unset: { inviteToken: '' },
+    }
+  );
+
+  return result.modifiedCount > 0;
+}
+
+/**
+ * Lehnt eine ausstehende Mitgliedschaft ab (status → declined).
+ * Der Eintrag bleibt erhalten, damit der Owner sieht, dass die Einladung abgelehnt wurde.
+ *
+ * @param libraryId Library-ID
+ * @param userEmail E-Mail des Mitglieds
+ * @returns true wenn erfolgreich abgelehnt
+ */
+export async function declineMemberByEmail(
+  libraryId: string,
+  userEmail: string
+): Promise<boolean> {
+  const col = await getMembersCollection();
+  const normalizedUserEmail = normalizeEmail(userEmail);
+
+  const result = await col.updateOne(
+    {
+      libraryId,
+      $or: [
+        { userEmail: normalizedUserEmail },
+        { userEmail: { $regex: buildCaseInsensitiveEmailRegex(normalizedUserEmail) } },
+      ],
+      status: 'pending',
+    },
+    {
+      $set: {
+        status: 'declined' as const,
+        declinedAt: new Date(),
+      },
+      $unset: { inviteToken: '' },
+    }
+  );
+
+  return result.modifiedCount > 0;
+}
+
+/**
  * Aktualisiert den Einladungs-Token (z.B. beim erneuten Senden).
  * 
  * @param libraryId Library-ID

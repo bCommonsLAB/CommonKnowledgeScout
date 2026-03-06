@@ -1,94 +1,83 @@
 /**
- * @fileoverview Auto Accept Invites Hook
- * 
+ * @fileoverview Pending Invites Hook
+ *
  * @description
- * Hook that automatically accepts all pending invitations for the current user
- * after successful login/registration. This handles cases where the invite token
- * was lost during the authentication flow.
- * 
+ * Lädt beim Login/App-Start ausstehende Einladungen (Co-Creator, Moderator, Reader).
+ * Gibt die Einladungen zurück, damit die UI einen Dialog anzeigen kann.
+ * Akzeptiert NICHT automatisch – der Benutzer entscheidet selbst.
+ *
  * @module hooks
  */
 
 "use client"
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useUser } from '@clerk/nextjs'
-import { useRouter } from 'next/navigation'
+import { useStorage } from '@/contexts/storage-context'
+import { useAtom } from 'jotai'
+import { activeLibraryIdAtom } from '@/atoms/library-atom'
+import type { PendingInvite } from '@/app/api/user/accept-pending-invites/route'
 
-/**
- * Hook that automatically accepts pending invitations after login
- * 
- * This hook:
- * 1. Watches for successful user authentication
- * 2. Calls the API to accept all pending invitations for the user's email
- * 3. Redirects to the first accepted library if any were accepted
- */
 export function useAutoAcceptInvites() {
   const { user, isLoaded } = useUser()
-  const router = useRouter()
+  const { refreshLibraries } = useStorage()
+  const [, setActiveLibraryId] = useAtom(activeLibraryIdAtom)
   const hasCheckedRef = useRef(false)
   const lastUserIdRef = useRef<string | null>(null)
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([])
 
   useEffect(() => {
-    // Warte bis Clerk geladen ist
     if (!isLoaded) return
 
-    // Wenn kein Benutzer angemeldet ist, reset den Check
     if (!user) {
       hasCheckedRef.current = false
       lastUserIdRef.current = null
+      setPendingInvites([])
       return
     }
 
     const currentUserId = user.id
-    const currentUserEmail = user.emailAddresses?.[0]?.emailAddress
+    if (currentUserId === lastUserIdRef.current) return
 
-    // Prüfe ob sich der Benutzer geändert hat (neuer Login)
-    if (currentUserId === lastUserIdRef.current) {
-      // Gleicher Benutzer, bereits geprüft
-      return
-    }
-
-    // Neuer Benutzer oder neuer Login - akzeptiere ausstehende Einladungen
-    if (currentUserEmail && !hasCheckedRef.current) {
+    const email = user.emailAddresses?.[0]?.emailAddress
+    if (email && !hasCheckedRef.current) {
       hasCheckedRef.current = true
       lastUserIdRef.current = currentUserId
 
-      // Akzeptiere ausstehende Einladungen im Hintergrund
-      fetch('/api/user/accept-pending-invites', {
-        method: 'POST',
-      })
-        .then(async (response) => {
-          if (!response.ok) {
-            console.warn('[useAutoAcceptInvites] Fehler beim Akzeptieren ausstehender Einladungen:', response.status)
+      fetch('/api/user/accept-pending-invites')
+        .then(async (res) => {
+          if (!res.ok) {
+            console.warn('[useAutoAcceptInvites] Fehler beim Laden:', res.status)
             return
           }
-
-          const data = await response.json()
-          
-          if (data.acceptedCount > 0 && data.libraries && data.libraries.length > 0) {
-            console.log('[useAutoAcceptInvites] Einladungen akzeptiert:', data)
-            
-            // Wenn wir auf der Home-Seite oder einer generischen Seite sind,
-            // leite zur ersten akzeptierten Library weiter
-            const currentPath = window.location.pathname
-            const isGenericPage = currentPath === '/' || 
-                                  currentPath === '/explore' ||
-                                  currentPath.startsWith('/sign-in') ||
-                                  currentPath.startsWith('/sign-up')
-            
-            if (isGenericPage && data.libraries[0]?.slug) {
-              // Kurze Verzögerung, damit der Benutzer die Erfolgsmeldung sieht
-              setTimeout(() => {
-                router.push(`/explore/${data.libraries[0].slug}`)
-              }, 1000)
-            }
+          const data = await res.json()
+          if (data.invites && data.invites.length > 0) {
+            console.log(`[useAutoAcceptInvites] ${data.invites.length} ausstehende Einladung(en) gefunden`)
+            setPendingInvites(data.invites)
           }
         })
-        .catch((error) => {
-          console.error('[useAutoAcceptInvites] Fehler:', error)
+        .catch((err) => {
+          console.error('[useAutoAcceptInvites] Fehler:', err)
         })
     }
-  }, [user, isLoaded, router])
-}
+  }, [user, isLoaded])
 
+  /**
+   * Wird nach Abschluss des Dialogs aufgerufen.
+   * Lädt die Library-Liste neu und wählt die zuletzt akzeptierte Library aus.
+   */
+  const handleComplete = useCallback(async (lastAcceptedLibraryId?: string) => {
+    setPendingInvites([])
+
+    // Library-Liste neu laden, damit die akzeptierte Library sofort sichtbar ist
+    await refreshLibraries()
+
+    // Akzeptierte Library auswählen und in localStorage speichern
+    if (lastAcceptedLibraryId) {
+      setActiveLibraryId(lastAcceptedLibraryId)
+      localStorage.setItem('activeLibraryId', lastAcceptedLibraryId)
+    }
+  }, [refreshLibraries, setActiveLibraryId])
+
+  return { pendingInvites, handleComplete }
+}
