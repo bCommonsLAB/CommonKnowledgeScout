@@ -88,6 +88,14 @@ if (!dev) {
   }
 }
 
+// INTERNAL_TEST_TOKEN wird für Self-Callbacks im Offline-Modus benötigt
+// (SSE completed → postToSelfCallback → /api/external/jobs/{jobId}).
+// Falls nicht in .env vorhanden, generieren wir ein zufälliges Token.
+if (!process.env.INTERNAL_TEST_TOKEN) {
+  process.env.INTERNAL_TEST_TOKEN = require('crypto').randomUUID();
+  console.log('[Config] INTERNAL_TEST_TOKEN auto-generiert für Offline-Modus');
+}
+
 let mainWindow = null;
 let stopIntercept = null;
 
