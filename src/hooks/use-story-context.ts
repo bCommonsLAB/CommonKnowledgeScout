@@ -386,20 +386,27 @@ export function useStoryContext(): UseStoryContextReturn {
         
         const defaultModel = models[0] // Erstes Modell nach Sortierung (niedrigste order-Nummer)
         
+        // Immer modelId verwenden (OpenRouter-Name), nie _id
+        const defaultModelId = (defaultModel as { modelId?: string }).modelId
+        if (!defaultModelId) {
+          console.error('[useStoryContext] Default-Modell hat keine modelId:', defaultModel)
+          return
+        }
+
         // Wenn llmModel leer ist, setze Default-Modell
         if (!llmModel) {
-          console.log('[useStoryContext] llmModel ist leer, setze Default-Modell:', defaultModel._id)
-          setLlmModel(defaultModel._id)
+          console.log('[useStoryContext] llmModel ist leer, setze Default-Modell:', defaultModelId)
+          setLlmModel(defaultModelId)
           return
         }
         
-        // Prüfe, ob das gespeicherte Modell noch gültig ist
-        const isValidModel = models.some((m: { _id: string }) => m._id === llmModel)
+        // Prüfe, ob der gespeicherte Wert eine gültige modelId ist
+        const isValidModel = models.some((m: { modelId?: string }) => m.modelId === llmModel)
         
         if (!isValidModel) {
-          console.warn('[useStoryContext] Gespeichertes Modell ist nicht mehr gültig:', llmModel)
-          console.log('[useStoryContext] Wechsle auf Default-Modell:', defaultModel._id)
-          setLlmModel(defaultModel._id)
+          console.warn('[useStoryContext] Gespeichertes Modell ist keine gültige modelId:', llmModel)
+          console.log('[useStoryContext] Wechsle auf Default-Modell:', defaultModelId)
+          setLlmModel(defaultModelId)
         } else {
           console.log('[useStoryContext] Modell ist gültig:', llmModel)
         }

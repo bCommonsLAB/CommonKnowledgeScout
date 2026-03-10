@@ -205,11 +205,13 @@ export function FlowActions({
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = await res.json() as Array<{ _id: string; modelId: string; name: string; strengths?: string }>
         if (cancelled) return
-        const models: LlmModelOption[] = data.map(m => ({
-          modelId: m.modelId || m._id,
-          name: m.name,
-          strengths: m.strengths,
-        }))
+        const models: LlmModelOption[] = data
+          .filter(m => !!m.modelId)
+          .map(m => ({
+            modelId: m.modelId,
+            name: m.name,
+            strengths: m.strengths,
+          }))
         setLlmModels(models)
         // Falls kein Modell ausgewählt: Library-Default verwenden, sonst erstes Modell
         if (!llmModel && models.length > 0) {

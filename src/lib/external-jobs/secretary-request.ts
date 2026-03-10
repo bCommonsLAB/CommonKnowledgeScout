@@ -81,7 +81,8 @@ export function prepareSecretaryRequest(
 
     const targetLanguage = typeof opts['targetLanguage'] === 'string' ? String(opts['targetLanguage']) : 'de'
     const sourceLanguage = typeof opts['sourceLanguage'] === 'string' ? String(opts['sourceLanguage']) : 'auto'
-    const useCache = typeof opts['useCache'] === 'boolean' ? opts['useCache'] : true
+    // Default: false – gecachte Fehler-Ergebnisse dürfen nicht stillschweigend wiederverwendet werden
+    const useCache = typeof opts['useCache'] === 'boolean' ? opts['useCache'] : false
     // Template gehört zur Transformations-Phase, nicht zur Extract-Phase.
     // Extract liefert immer nur das rohe Transkript; Template-Transformation erfolgt lokal in phase-template.ts.
     formData = new FormData()
@@ -116,7 +117,8 @@ export function prepareSecretaryRequest(
 
     const targetLanguage = typeof opts['targetLanguage'] === 'string' ? String(opts['targetLanguage']) : 'de'
     const sourceLanguage = typeof opts['sourceLanguage'] === 'string' ? String(opts['sourceLanguage']) : 'auto'
-    const useCache = typeof opts['useCache'] === 'boolean' ? opts['useCache'] : true
+    // Default: false – gecachte Fehler-Ergebnisse dürfen nicht stillschweigend wiederverwendet werden
+    const useCache = typeof opts['useCache'] === 'boolean' ? opts['useCache'] : false
     // Template gehört zur Transformations-Phase, nicht zur Extract-Phase.
     // Extract liefert immer nur das rohe Transkript; Template-Transformation erfolgt lokal in phase-template.ts.
     formData = new FormData()
@@ -150,7 +152,8 @@ export function prepareSecretaryRequest(
     const endpoint = normalizedBaseUrl.endsWith('/api') ? '/office/process' : '/api/office/process'
     url = `${normalizedBaseUrl}${endpoint}`
 
-    const useCache = typeof opts['useCache'] === 'boolean' ? opts['useCache'] : true
+    // Default: false – gecachte Fehler-Ergebnisse dürfen nicht stillschweigend wiederverwendet werden
+    const useCache = typeof opts['useCache'] === 'boolean' ? opts['useCache'] : false
     const includeImages = typeof opts['includeImages'] === 'boolean' ? opts['includeImages'] : true
     const includePreviews = typeof opts['includePreviews'] === 'boolean' ? opts['includePreviews'] : true
     const forceRefresh = typeof opts['force_refresh'] === 'boolean' ? opts['force_refresh'] : false
@@ -196,7 +199,8 @@ export function prepareSecretaryRequest(
     // Bei Mistral OCR: includePageImages immer true (erzwungen)
     const includePageImages = typeof opts['includePageImages'] === 'boolean' ? opts['includePageImages'] : true
     const includeOcrImages = typeof opts['includeOcrImages'] === 'boolean' ? opts['includeOcrImages'] : true
-    const useCache = typeof opts['useCache'] === 'boolean' ? opts['useCache'] : true
+    // Default: false – gecachte Fehler-Ergebnisse dürfen nicht stillschweigend wiederverwendet werden
+    const useCache = typeof opts['useCache'] === 'boolean' ? opts['useCache'] : false
 
     formData = new FormData()
     formData.append('file', file)

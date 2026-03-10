@@ -248,8 +248,8 @@ export async function POST(
       if (!llmModel) {
         const { getDefaultLlmModel } = await import('@/lib/db/llm-models-repo')
         const defaultModel = await getDefaultLlmModel()
-        if (defaultModel) {
-          llmModel = defaultModel._id
+        if (defaultModel?.modelId) {
+          llmModel = defaultModel.modelId
         }
       }
       
@@ -336,8 +336,8 @@ export async function POST(
     if (!llmModel) {
       const { getDefaultLlmModel } = await import('@/lib/db/llm-models-repo')
       const defaultModel = await getDefaultLlmModel()
-      if (defaultModel) {
-        llmModel = defaultModel._id
+      if (defaultModel?.modelId) {
+        llmModel = defaultModel.modelId
       }
     }
     

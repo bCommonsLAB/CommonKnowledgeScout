@@ -1,0 +1,121 @@
+---
+description: Medien-Lebenszyklus, Frontmatter-Referenzierung und Multi-Source-Architektur
+alwaysApply: true
+---
+
+# Medien-Lebenszyklus: Frontmatter enthält NUR Dateinamen
+
+## Kernregel
+
+Frontmatter-Felder für Medien (Bilder, Anhänge) enthalten **ausschließlich Dateinamen**,
+die sich auf Dateien im selben Verzeichnis oder in `binaryFragments` des Shadow-Twins beziehen.
+
+**NIEMALS** Azure-Blob-URLs oder andere externe URLs in Frontmatter-Medienfeldern speichern.
+Blob-URLs entstehen erst bei Ingestion & Publishing (Phase 3).
+
+## Betroffene Felder
+
+`coverImageUrl`, `speakers_image_url`, `authors_image_url`, `galleryImageUrls`,
+`attachments_url` – alle Felder, die auf Binärdateien verweisen.
+
+## 3 Phasen (kanonische Benennung)
+
+1. **Transkription** (Extract) – Quelldatei → maschinenlesbare Artefakte (PDF→Bilder+Text, Audio→Transkript-Markdown)
+2. **Transformation** (Template) – Fragmente → Markdown + Frontmatter mit **Dateinamen** + `_source_files`
+3. **Ingestion & Publishing** – Medien nach Azure publizieren, Dokument ins Werk ingestieren (RAG/Vector-Store)
+
+**Achtung:** "Ingestion" = Phase 3 (ins Werk aufnehmen + publizieren), NICHT Phase 1.
+Phase 1 heißt "Transkription" oder "Extract".
+
+## Multi-Source: Wiki-Link-basiertes Sammel-Transkript
+
+Bei mehreren Quelldateien wird **vor** der Transformation ein Composite-Markdown erzeugt:
+
+1. Alle Quellen müssen transkribiert sein (Phase 1 pro Quelle)
+2. **Leichtgewichtige Referenz-Datei** mit Obsidian-Wiki-Links wird erstellt
+3. `_source_files` wird im Frontmatter gesetzt, `kind: composite-transcript`
+4. Verfügbare Medien als Wiki-Links (inkl. `#`-Syntax für PDF-Fragmente)
+5. **Keine Transkript-Kopien** in der persistierten Datei
+6. Der JobWorker erkennt `kind: composite-transcript` und löst Wiki-Links **dynamisch** auf (MongoDB-first)
+7. Die geflachte Version mit `<source>`-Blöcken wird **nie persistiert**, nur im Speicher erzeugt
+
+### Wiki-Link-Syntax
+
+- `[[datei.ext]]` → Direkte Datei im Verzeichnis
+- `[[quelldatei.pdf#fragment.jpeg]]` → Binary Fragment aus Shadow-Twin
+
+### Persistierte Form (Obsidian-kompatibel, < 1 KB)
+
+```markdown
+---
+_source_files: ["praesentation.pdf", "interview.mp3"]
+kind: composite-transcript
+---
+# Sammel-Transkript
+## Quellen
+- [[praesentation.pdf]]
+- [[interview.mp3]]
+## Verfügbare Medien
+- [[max-mustermann.jpg]]
+- [[praesentation.pdf#img-0.jpeg]]
+```
+
+### Resolution-Reihenfolge: MongoDB-first
+
+1. MongoDB Shadow-Twin (binaryFragments, Transkripte) — immer verfügbar
+2. Storage-Filesystem als Fallback
+
+### Implementierung
+
+- `buildCompositeReference()` → Erzeugt die persistierte Referenz-Datei
+- `resolveCompositeTranscript()` → Löst Wiki-Links dynamisch auf (für LLM)
+- `phase-shadow-twin-loader.ts` → Erkennt `kind: composite-transcript` und ruft Resolution auf
+
+## Semantische Medien-Zuordnung
+
+Sprechende Dateinamen ermöglichen automatische Zuordnung durch das LLM:
+- `max-mustermann.jpg` → `speakers_image_url` für "Max Mustermann"
+- `cover-klimaschutz.jpg` → `coverImageUrl`
+
+Die Medien-Liste im Sammel-Markdown gibt dem LLM den Kontext.
+Das Systemprompt weist an: "Ordne Bilder anhand ihrer Dateinamen zu."
+
+## `_source_files` (PFLICHT)
+
+Jede Transformation muss `_source_files` im Frontmatter enthalten:
+
+```yaml
+_source_files: ["praesentation.pdf", "interview.mp3", "bericht.pdf"]
+```
+
+**Rekonstruktion:** Quellen finden → transkribieren → binaryFragments auflösen.
+
+## Upload-Regel
+
+Hochgeladene Dateien müssen **zuerst im Store persistiert** und transkribiert werden,
+bevor sie als Quelle verwendet werden können. Kein direkter Upload in die Transformation.
+
+Für Medien-Zuordnung immer: `POST /api/library/{libraryId}/shadow-twins/upload-media`
+
+**NICHT** `/api/creation/upload-image` (gibt Azure-URL zurück → Regelverstoß).
+
+## Architektur-Prinzip: Experten zuerst
+
+Neue Features zuerst im **File Preview Mode** (Experten) implementieren und testen.
+Der **Creation Wizard** (Laien) baut darauf auf und nutzt dieselbe Library-Funktion.
+
+## Checkliste
+
+- [ ] Schreibt mein Code eine Azure-URL ins Frontmatter? → REFACTOREN
+- [ ] Nutzt mein Code `/api/creation/upload-image`? → Auf `/shadow-twins/upload-media` umstellen
+- [ ] Wird ein `binaryFragment` im Shadow-Twin registriert? → PFLICHT bei jedem Medien-Upload
+- [ ] Enthält die Transformation `_source_files`? → PFLICHT für Rekonstruierbarkeit
+- [ ] Werden Uploads zuerst im Store persistiert? → Kein direkter Upload in die Transformation
+- [ ] Verwende ich "Ingestion" für Phase 1? → FALSCH, Phase 1 = "Transkription"
+- [ ] Baue ich Multi-Source in den JobWorker? → FALSCH, Composite-Reference vorher erzeugen
+- [ ] Kopiere ich Transkript-Inhalte in das Composite-Markdown? → FALSCH, nur Wiki-Links persistieren
+- [ ] Listet das Sammel-Markdown verfügbare Medien mit Dateinamen auf? → PFLICHT für semantische Zuordnung
+
+## Referenz
+
+Detaillierte Analyse: `docs/media-lifecycle-architektur.md`

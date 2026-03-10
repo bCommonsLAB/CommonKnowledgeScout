@@ -231,14 +231,16 @@ export function PerspectivePageContent({
           count: models.length,
           models: models.map(m => ({ id: m._id, name: m.name })),
         })
-        const mappedModels = models.map(m => ({
-          modelId: m._id,
-          name: m.name,
-          strengths: m.strengths,
-          supportedLanguages: m.supportedLanguages,
-          url: m.url,
-          order: m.order,
-        }))
+        const mappedModels = models
+          .filter(m => !!m._id)
+          .map(m => ({
+            modelId: m._id,
+            name: m.name,
+            strengths: m.strengths,
+            supportedLanguages: m.supportedLanguages,
+            url: m.url,
+            order: m.order,
+          }))
         setAvailableModels(mappedModels)
         console.log('[PerspectivePage] availableModels gesetzt:', mappedModels.length)
       } catch (error) {
@@ -311,17 +313,16 @@ export function PerspectivePageContent({
     }
   }, [localLlmModel, availableModels, setTargetLanguage, setLlmModel])
   
-  // Initialisiere Modell, wenn noch keines gewählt ist
+  // Initialisiere Modell oder korrigiere ungültige gespeicherte Werte
+  // (z.B. alte MongoDB-ObjectIds, die keine gültige modelId sind)
   useEffect(() => {
-    console.log('[PerspectivePage] Prüfe Modell-Initialisierung:', {
-      localLlmModel,
-      filteredModelsCount: filteredModels.length,
-      modelsLoading,
-      firstModel: filteredModels[0]?.modelId,
-    })
-    if (!localLlmModel && filteredModels.length > 0 && !modelsLoading) {
+    if (modelsLoading || filteredModels.length === 0) return
+
+    const isCurrentValid = localLlmModel && filteredModels.some(m => m.modelId === localLlmModel)
+
+    if (!isCurrentValid) {
       const firstModelId = filteredModels[0].modelId
-      console.log('[PerspectivePage] Setze initiales Modell:', firstModelId)
+      console.log('[PerspectivePage] Modell ungültig oder leer, setze:', firstModelId, '(war:', localLlmModel, ')')
       setLocalLlmModel(firstModelId)
     }
   }, [localLlmModel, filteredModels, modelsLoading])

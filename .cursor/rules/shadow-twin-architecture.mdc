@@ -11,7 +11,7 @@ alwaysApply: false
 Ein **Shadow-Twin** ist eine Metadaten-Struktur, die zu einer Quelldatei (PDF, Audio, Video, Markdown) gehört. Es speichert:
 
 - **Artefakte**: Transformierte Inhalte (Transkripte, Zusammenfassungen, formatierte Markdown-Dateien)
-- **Binary Fragments**: Binärdateien (Cover-Bilder, Audio-Clips, generierte Assets)
+- **Binary Fragments**: Binärdateien (Cover-Bilder, aus PDFs extrahierte Bilder, generierte Assets)
 - **Metadaten**: Verarbeitungsstatus, Zeitstempel, Verweise
 
 Ein Shadow-Twin existiert **unabhängig vom Storage-Backend** (MongoDB oder Filesystem).

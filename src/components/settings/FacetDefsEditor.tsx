@@ -15,13 +15,19 @@ import { getRequiredFields, getOptionalFields, isValidDetailViewType } from '@/l
 // STANDARD-FACETTEN AUS REGISTRY GENERIEREN
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/** Felder die als Facette keinen Sinn ergeben (URLs, Langtexte, komplexe Objekte) */
+/** Felder die als Facette keinen Sinn ergeben (URLs, Langtexte, komplexe Objekte, System-/Sprachfelder) */
 const NON_FACET_FIELDS = new Set([
+  // Langtexte / Freitexte
   'title', 'shortTitle', 'slug', 'summary', 'teaser',
+  // Bild-/Medien-URLs
   'coverImageUrl', 'video_url', 'url', 'attachments_url', 'attachment_links',
-  'speakers_image_url', 'speakers_url', 'author_image_url',
+  'speakers_image_url', 'speakers_url', 'author_image_url', 'authors_image_url',
+  'galleryImageUrls',
+  // Komplexe Objekte / Struktur-Felder
   'chapters', 'toc', 'testimonialWriteKey',
   'ecosocial', 'slides',
+  // Sprach-/System-Felder (intern, nicht filterbar)
+  'language', 'targetLanguage',
 ])
 
 /** Bekannte Typ-Zuordnung fuer Felder (Fallback: string) */

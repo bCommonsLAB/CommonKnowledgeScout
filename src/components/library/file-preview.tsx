@@ -720,9 +720,16 @@ function PreviewContent({
   const [isLoadingLlmModels, setIsLoadingLlmModels] = React.useState(false)
 
   // Job-Status fuer diese Datei aus dem globalen Atom lesen
+  // Stale-Check: Jobs aelter als 10 Minuten ohne Update gelten als verwaist
   const jobInfoByItemId = useAtomValue(jobInfoByItemIdAtom)
   const currentJobInfo = jobInfoByItemId[item.id]
-  const hasActiveJob = currentJobInfo?.status === 'queued' || currentJobInfo?.status === 'running'
+  const STALE_JOB_THRESHOLD_MS = 10 * 60 * 1000
+  const isJobStale = React.useMemo(() => {
+    if (!currentJobInfo?.updatedAt) return true
+    const age = Date.now() - new Date(currentJobInfo.updatedAt).getTime()
+    return age > STALE_JOB_THRESHOLD_MS
+  }, [currentJobInfo?.updatedAt, STALE_JOB_THRESHOLD_MS])
+  const hasActiveJob = !isJobStale && (currentJobInfo?.status === 'queued' || currentJobInfo?.status === 'running')
 
   const activeLibrary = useAtomValue(activeLibraryAtom)
   const libraryConfigChatTargetLanguage = activeLibrary?.config?.chat?.targetLanguage
@@ -793,11 +800,13 @@ function PreviewContent({
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = await res.json() as Array<{ _id: string; modelId: string; name: string; strengths?: string }>
         if (cancelled) return
-        const models: LlmModelOption[] = data.map(m => ({
-          modelId: m.modelId || m._id,
-          name: m.name,
-          strengths: m.strengths,
-        }))
+        const models: LlmModelOption[] = data
+          .filter(m => !!m.modelId)
+          .map(m => ({
+            modelId: m.modelId,
+            name: m.name,
+            strengths: m.strengths,
+          }))
         setLlmModels(models)
         // Falls kein Modell ausgewählt: Library-Default verwenden, sonst erstes Modell
         if (!llmModel && models.length > 0) {

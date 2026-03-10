@@ -70,6 +70,13 @@ export interface ViewTypeMediaConfig {
     /** UI-Label für die Sektion (z.B. 'Sprecher', 'Autoren') */
     label: string
   }
+  /** Galerie-Sektion: Array von Bild-URLs (z.B. galleryImageUrls) */
+  galleryField?: {
+    /** Frontmatter-Key für die Bild-URL-Liste (z.B. 'galleryImageUrls') */
+    key: string
+    /** UI-Label für die Sektion (z.B. 'Bildergalerie') */
+    label: string
+  }
   /** Zeigt die Anhänge-Sektion (attachments_url als string[]) */
   attachments: boolean
   /** Zeigt die URL-Sektion (url-Feld, zuordenbar über .url-Dateien im Verzeichnis) */
@@ -142,12 +149,19 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
       'slides',
       'tags',
       'topics',
+      'galleryImageUrls',
+      'authors',
+      'authors_image_url',
+      'region',
+      'docType',
+      'source',
     ],
     labelKey: 'gallery.detailViewTypeSession',
     descriptionKey: 'gallery.detailViewTypeSessionDescription',
     mediaConfig: {
       coverImage: true,
       personField: { listKey: 'speakers', imageKey: 'speakers_image_url', label: 'Sprecher' },
+      galleryField: { key: 'galleryImageUrls', label: 'Bildergalerie' },
       attachments: true,
       urlField: true,
     },

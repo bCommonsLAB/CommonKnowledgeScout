@@ -463,6 +463,8 @@ export function JobMonitorPanel() {
                 updatedAt: evt.updatedAt,
                 phase: evt.phase,
               });
+              // Failed-Jobs nach 5s aus dem Atom entfernen (analog zu completed)
+              setTimeout(() => clearJobInfo(evt.sourceItemId!), 5000);
             }
             return;
           }

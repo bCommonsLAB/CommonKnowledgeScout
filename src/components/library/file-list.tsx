@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { 
   File, FileText, FileVideo, FileAudio, FileSpreadsheet, Presentation, Globe,
   Image as ImageIcon, FileType2, Plus, RefreshCw, ChevronUp, ChevronDown, 
-  Trash2, Folder as FolderIcon, Sparkles, Upload, FolderSync 
+  Trash2, Folder as FolderIcon, Sparkles, Upload, FolderSync, Layers 
 } from "lucide-react"
 import { StorageItem } from "@/lib/storage/types"
 import { cn } from "@/lib/utils"
@@ -1618,6 +1618,71 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     }
   };
 
+  // Sammel-Transkript aus allen ausgewählten Dateien erstellen
+  const [isCreatingComposite, setIsCreatingComposite] = React.useState(false);
+  const handleCreateCompositeTranscript = React.useCallback(async () => {
+    if (!activeLibraryId) return;
+
+    // Alle ausgewählten Dateien zusammenführen (Batch + Transformation)
+    const allSelected = [
+      ...selectedBatchItems.map(x => x.item),
+      ...selectedTransformationItems.map(x => x.item),
+    ].filter(item => item.type === 'file');
+
+    if (allSelected.length < 2) {
+      toast.info('Mindestens 2 Dateien auswählen', {
+        description: 'Für ein Sammel-Transkript werden mindestens 2 Quelldateien benötigt.',
+      });
+      return;
+    }
+
+    setIsCreatingComposite(true);
+    try {
+      const sourceItems = allSelected.map(item => ({
+        id: item.id,
+        name: item.metadata.name,
+        parentId: item.parentId || currentFolderId || 'root',
+      }));
+
+      const res = await fetch(
+        `/api/library/${encodeURIComponent(activeLibraryId)}/composite-transcript`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sourceItems, targetLanguage: 'de' }),
+        }
+      );
+
+      const json = await res.json();
+
+      if (res.status === 422 && json.missingTranscripts) {
+        // Transkripte fehlen – Warnung anzeigen
+        toast.warning('Transkripte fehlen', {
+          description: `Bitte zuerst transkribieren: ${(json.missingTranscripts as string[]).join(', ')}`,
+          duration: 8000,
+        });
+        return;
+      }
+
+      if (!res.ok) {
+        throw new Error(json.error || `HTTP ${res.status}`);
+      }
+
+      toast.success('Sammel-Transkript erstellt', {
+        description: `${json.file?.name} (${allSelected.length} Quellen)`,
+      });
+
+      // Dateiliste aktualisieren, damit die neue Datei sichtbar wird
+      await handleRefresh();
+    } catch (error) {
+      toast.error('Sammel-Transkript fehlgeschlagen', {
+        description: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setIsCreatingComposite(false);
+    }
+  }, [activeLibraryId, selectedBatchItems, selectedTransformationItems, currentFolderId, handleRefresh]);
+
   // Markdown‑Ingestion (Batch) – öffnet Dialog für Fortschrittsanzeige
   // Erweitert: Unterstützt jetzt auch rekursive Ordner-Verarbeitung
   const handleBatchIngest = React.useCallback(() => {
@@ -1815,6 +1880,19 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                   Ingest
                 </Button>
               </>
+            )}
+            {/* Sammel-Transkript: sichtbar wenn ≥2 Dateien insgesamt ausgewählt */}
+            {(selectedBatchItems.length + selectedTransformationItems.length) >= 2 && (
+              <Button
+                size="icon"
+                variant="outline"
+                title="Sammel-Transkript erstellen"
+                aria-label="Sammel-Transkript erstellen"
+                onClick={handleCreateCompositeTranscript}
+                disabled={isCreatingComposite}
+              >
+                <Layers className={cn("h-4 w-4", isCreatingComposite && "animate-spin")} />
+              </Button>
             )}
             {(selectedBatchItems.length + selectedTransformationItems.length) > 0 && (
               <Button size="icon" variant="destructive" title="Ausgewählte löschen" aria-label="Ausgewählte löschen" onClick={handleBulkDelete}>

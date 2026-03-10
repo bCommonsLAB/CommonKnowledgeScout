@@ -107,8 +107,8 @@ interface WizardState {
   extractionError?: string
   // Bild-Upload: ausgewählte Dateien pro Bildfeld-Key
   imageFiles?: Record<string, File | null>
-  // Bild-URLs: bereits hochgeladene URLs pro Bildfeld-Key (für Preview)
-  imageUrls?: Record<string, string>
+  // Bild-URLs: einzeln (string) oder Array (string[]) pro Bildfeld-Key
+  imageUrls?: Record<string, string | string[]>
   // Upload-State: welche Bilder gerade hochgeladen werden
   isUploadingImages?: Record<string, boolean>
 }
@@ -1757,24 +1757,30 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       const detailViewType = resolveTemplateDetailViewType()
       const scope: 'books' | 'sessions' = detailViewType === 'book' ? 'books' : 'sessions'
 
-      // Verwende bereits hochgeladene Bild-URLs oder lade sie jetzt hoch
-      // Bildfelder kommen aus dem uploadImages Step (fields)
+      // Verwende bereits hochgeladene Bild-URLs oder lade sie jetzt hoch.
+      // Unterstützt einzelne URLs (string) und Array-URLs (string[]).
       const uploadImagesStepForSave = template.creation.flow.steps.find(step => step.preset === 'uploadImages')
       const imageFieldKeysForSave = uploadImagesStepForSave?.fields || []
       const imageFiles = wizardState.imageFiles || {}
       const alreadyUploadedUrls = wizardState.imageUrls || {}
-      const imageUrls: Record<string, string> = {}
+      const imageUrls: Record<string, string | string[]> = {}
 
       for (const fieldKey of imageFieldKeysForSave) {
-        // Wenn bereits hochgeladen, verwende diese URL
-        if (alreadyUploadedUrls[fieldKey]) {
-          imageUrls[fieldKey] = alreadyUploadedUrls[fieldKey]
-          // Optional: Nochmal mit echter OwnerId hochladen für Konsistenz
-          // (aktuell verwenden wir die bereits hochgeladene URL)
+        const existing = alreadyUploadedUrls[fieldKey]
+
+        // Array-Felder: bereits hochgeladene URLs direkt übernehmen
+        if (Array.isArray(existing)) {
+          if (existing.length > 0) imageUrls[fieldKey] = existing
           continue
         }
 
-        // Fallback: Lade jetzt hoch (falls nicht bereits geschehen)
+        // Einzelbild: bereits hochgeladene URL übernehmen
+        if (typeof existing === 'string' && existing) {
+          imageUrls[fieldKey] = existing
+          continue
+        }
+
+        // Fallback: Einzelbild jetzt hochladen (falls Datei vorhanden)
         const file = imageFiles[fieldKey]
         if (file) {
           try {
@@ -1786,9 +1792,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
 
             const response = await fetch('/api/creation/upload-image', {
               method: 'POST',
-              headers: {
-                'X-Library-Id': libraryId,
-              },
+              headers: { 'X-Library-Id': libraryId },
               body: formData,
             })
 
@@ -1803,7 +1807,6 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             }
           } catch (error) {
             toast.error(`Fehler beim Hochladen von ${fieldKey}: ${error instanceof Error ? error.message : "Unbekannter Fehler"}`)
-            // Weiter mit anderen Bildern, auch wenn eines fehlschlägt
             if (wizardSessionIdRef.current) {
               void logWizardEventClient(wizardSessionIdRef.current, {
                 eventType: 'error',
@@ -1818,7 +1821,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         }
       }
 
-      // Merge Bild-URLs in finalMetadata
+      // Merge Bild-URLs in finalMetadata (string und string[] werden korrekt übernommen)
       const metadataWithImages = {
         ...finalMetadata,
         ...imageUrls,
@@ -2978,21 +2981,22 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             libraryId={libraryId}
             onMetadataChange={(metadata) => {
               setWizardState(prev => {
-                // Extrahiere Bild-URLs (nur Strings)
-                const newImageUrls: Record<string, string> = {}
+                // Extrahiere Bild-URLs (Strings und Arrays)
+                const newImageUrls: Record<string, string | string[]> = {}
                 if (imageFieldKeys) {
                   for (const key of imageFieldKeys) {
                     const value = metadata[key]
                     if (typeof value === 'string' && value.trim().length > 0) {
                       newImageUrls[key] = value
+                    } else if (Array.isArray(value) && value.length > 0) {
+                      newImageUrls[key] = value as string[]
                     }
                   }
                 }
                 return {
                   ...prev,
                   draftMetadata: metadata,
-                  reviewedFields: metadata, // Synchronisiere auch reviewedFields
-                  // Merge Bild-URLs auch in imageUrls für Preview
+                  reviewedFields: metadata,
                   imageUrls: {
                     ...(prev.imageUrls || {}),
                     ...newImageUrls
@@ -3022,11 +3026,17 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           )
         }
 
-        // Konvertiere fieldKeys zu imageFields-Format für UploadImagesStep
-        const imageFields = imageFieldKeys.map(key => ({
-          key,
-          label: template.metadata.fields.find(f => f.key === key)?.description || key,
-        }))
+        // Konvertiere fieldKeys zu imageFields-Format für UploadImagesStep.
+        // Array-Felder (rawValue enthält "Array") bekommen multiple=true.
+        const imageFields = imageFieldKeys.map(key => {
+          const fieldMeta = template.metadata.fields.find(f => f.key === key)
+          const isArray = fieldMeta?.rawValue?.includes("Array") || false
+          return {
+            key,
+            label: fieldMeta?.description || key,
+            multiple: isArray,
+          }
+        })
 
         return (
           <UploadImagesStep
@@ -3035,6 +3045,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             imageUrls={wizardState.imageUrls}
             isUploadingImages={wizardState.isUploadingImages}
             libraryId={libraryId}
+            sourceFolderId={sourceFolderId}
             onChangeSelectedFiles={(key, file) => {
               setWizardState(prev => ({
                 ...prev,
@@ -3044,17 +3055,28 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                 },
                 isUploadingImages: {
                   ...(prev.isUploadingImages || {}),
-                  [key]: file !== null, // Upload startet wenn Datei ausgewählt
+                  [key]: file !== null,
                 },
               }))
             }}
             onUploadComplete={(key, url) => {
               setWizardState(prev => {
+                const isMultiple = imageFields.find(f => f.key === key)?.multiple
+                const existing = prev.imageUrls?.[key]
+
+                // Array-Felder: URL an bestehendes Array anhängen
+                let newValue: string | string[]
+                if (isMultiple) {
+                  const arr = Array.isArray(existing) ? existing : (typeof existing === 'string' && existing ? [existing] : [])
+                  newValue = [...arr, url]
+                } else {
+                  newValue = url
+                }
+
                 const newImageUrls = {
                   ...(prev.imageUrls || {}),
-                  [key]: url,
+                  [key]: newValue,
                 }
-                // Merge URLs in alle relevanten Metadata-Felder für Preview
                 const baseMetadata = prev.draftMetadata || prev.reviewedFields || prev.generatedDraft?.metadata || {}
                 const updatedMetadata = {
                   ...baseMetadata,
@@ -3064,15 +3086,40 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                   ...prev,
                   imageUrls: newImageUrls,
                   draftMetadata: updatedMetadata,
-                  // Merge auch in reviewedFields, falls vorhanden
                   reviewedFields: prev.reviewedFields ? {
                     ...prev.reviewedFields,
                     ...newImageUrls,
                   } : prev.reviewedFields,
                   isUploadingImages: {
                     ...(prev.isUploadingImages || {}),
-                    [key]: false, // Upload abgeschlossen
+                    [key]: false,
                   },
+                }
+              })
+            }}
+            onRemoveArrayImage={(key, index) => {
+              setWizardState(prev => {
+                const existing = prev.imageUrls?.[key]
+                if (!Array.isArray(existing)) return prev
+
+                const updated = existing.filter((_, i) => i !== index)
+                const newImageUrls = {
+                  ...(prev.imageUrls || {}),
+                  [key]: updated,
+                }
+                const baseMetadata = prev.draftMetadata || prev.reviewedFields || prev.generatedDraft?.metadata || {}
+                const updatedMetadata = {
+                  ...baseMetadata,
+                  ...newImageUrls,
+                }
+                return {
+                  ...prev,
+                  imageUrls: newImageUrls,
+                  draftMetadata: updatedMetadata,
+                  reviewedFields: prev.reviewedFields ? {
+                    ...prev.reviewedFields,
+                    ...newImageUrls,
+                  } : prev.reviewedFields,
                 }
               })
             }}

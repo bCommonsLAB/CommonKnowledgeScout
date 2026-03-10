@@ -275,6 +275,52 @@ export async function loadShadowTwinMarkdown(
       // Lade die Quelldatei direkt als "Transkript"
       const result = await loadMarkdownById(ctx, provider, sourceItemId, originalName, originalName, lang, sourceItemId, parentId)
       if (result) {
+        // Composite-Transcript erkennen und dynamisch auflösen:
+        // Wenn kind=composite-transcript im Frontmatter steht, enthält die Datei
+        // nur Wiki-Links. Die Transkripte werden aus den Shadow-Twins geladen
+        // und die geflachte Version wird im Speicher erzeugt (nie persistiert).
+        if (result.meta?.kind === 'composite-transcript') {
+          FileLogger.info('phase-shadow-twin-loader', 'Composite-Transcript erkannt, starte Resolution', {
+            jobId,
+            sourceItemId,
+            sourceName: originalName,
+          })
+
+          try {
+            const { resolveCompositeTranscript } = await import('@/lib/creation/composite-transcript')
+            const resolved = await resolveCompositeTranscript({
+              libraryId: job.libraryId,
+              userEmail: job.userEmail,
+              targetLanguage: lang,
+              compositeMarkdown: result.markdown,
+              parentId,
+            })
+
+            if (resolved.unresolvedSources.length > 0) {
+              FileLogger.warn('phase-shadow-twin-loader', 'Composite: Nicht alle Quellen aufgelöst', {
+                jobId,
+                unresolvedSources: resolved.unresolvedSources,
+              })
+            }
+
+            // Geflachtes Markdown mit geparsten Meta-Daten zurückgeben
+            const resolvedMeta = parseSecretaryMarkdownStrict(resolved.markdown)
+            return {
+              markdown: resolved.markdown,
+              meta: (resolvedMeta?.meta as Record<string, unknown>) ?? result.meta,
+              fileId: result.fileId,
+              fileName: result.fileName,
+              loadedArtifactKind: 'transcript' as const,
+            }
+          } catch (error) {
+            FileLogger.error('phase-shadow-twin-loader', 'Composite-Resolution fehlgeschlagen, verwende Original', {
+              jobId,
+              error: error instanceof Error ? error.message : String(error),
+            })
+            // Fallback: Original-Markdown verwenden (mit Wiki-Links)
+          }
+        }
+
         return { ...result, loadedArtifactKind: 'transcript' }
       }
     }
