@@ -132,6 +132,8 @@ export async function runPipelineForFile(args: {
   parentId: string
   kind: MediaKind
   targetLanguage: string
+  /** Quellsprache für Transkription ('auto' = automatische Erkennung) */
+  sourceLanguage?: string
   templateName?: string
   policies: PipelinePolicies
   libraryConfigChatTargetLanguage?: TargetLanguage
@@ -145,7 +147,7 @@ export async function runPipelineForFile(args: {
   /** LLM-Modell für Template-Transformation (z.B. 'google/gemini-2.5-flash') */
   llmModel?: string
 }): Promise<{ jobId: string }> {
-  const { libraryId, sourceFile, parentId, kind, targetLanguage, templateName, policies, generateCoverImage, coverImagePrompt, customHint, llmModel } = args
+  const { libraryId, sourceFile, parentId, kind, targetLanguage, sourceLanguage, templateName, policies, generateCoverImage, coverImagePrompt, customHint, llmModel } = args
 
   if (sourceFile.type !== "file") {
     throw new Error("Quelle ist keine Datei")
@@ -155,6 +157,8 @@ export async function runPipelineForFile(args: {
   // Konvertiere Legacy-Parameter in PipelineConfig-Format
   const config: PipelineConfig = {
     targetLanguage: targetLanguage as TargetLanguage,
+    // Quellsprache für Transkription (Whisper) – nur setzen wenn explizit angegeben
+    ...(sourceLanguage && sourceLanguage !== 'auto' ? { sourceLanguage } : {}),
     templateName,
     phases: {
       // Bei Markdown ist Extract immer deaktiviert

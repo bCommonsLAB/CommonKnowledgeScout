@@ -44,6 +44,53 @@ import { getEffectivePdfDefaults } from "@/atoms/pdf-defaults"
 import { TARGET_LANGUAGE_DEFAULT } from "@/lib/chat/constants"
 import { jobInfoByItemIdAtom } from "@/atoms/job-status"
 import { Progress } from "@/components/ui/progress"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
+/**
+ * Extrahiert den Sprachcode aus dem Dateinamen eines Transkripts.
+ * Erwartet das Pattern: `name.LANG.md` (z.B. "Voice-test.en.md" → "en").
+ * Gibt den Code in Großbuchstaben zurück oder null, wenn kein Muster erkannt wird.
+ */
+function extractTranscriptLang(filename: string): string | null {
+  const match = filename.match(/\.([a-z]{2})\.md$/i)
+  return match ? match[1].toLowerCase() : null
+}
+
+function getTransformationLabel(item: StorageItem): string {
+  const id = item.id
+  if (isMongoShadowTwinId(id)) {
+    const parsed = parseMongoShadowTwinId(id)
+    if (parsed) {
+      const lang = parsed.targetLanguage?.toLowerCase()
+      const langLabel = lang ? (TRANSCRIPT_LANG_LABELS[lang] ?? lang.toUpperCase()) : "?"
+      const template = parsed.templateName || "template"
+      return `${lang ? lang.toUpperCase() : "?"} – ${langLabel} · ${template}`
+    }
+  }
+  const filename = item.metadata.name
+  const match = filename.match(/\.([^.]+)\.([a-z]{2})\.md$/i)
+  if (match) {
+    const template = match[1]
+    const lang = match[2].toLowerCase()
+    const langLabel = TRANSCRIPT_LANG_LABELS[lang] ?? lang.toUpperCase()
+    return `${lang.toUpperCase()} – ${langLabel} · ${template}`
+  }
+  return filename
+}
+
+// Sprachlabels für die Dropdown-Anzeige
+const TRANSCRIPT_LANG_LABELS: Record<string, string> = {
+  de: "Deutsch",
+  en: "English",
+  fr: "Français",
+  es: "Español",
+  it: "Italiano",
+  pt: "Português",
+  am: "አማርኛ",
+  ar: "العربية",
+  sw: "Kiswahili",
+  om: "Oromoo",
+}
 
 // Explizite React-Komponenten-Deklarationen für den Linter
 const ImagePreviewComponent = ImagePreview;
@@ -234,6 +281,7 @@ function JobReportTabWithShadowTwin({
   ingestionTabMode = "status",
   onEditClick,
   effectiveMdIdRef,
+  resolvedMdFileId,
 }: {
   libraryId: string;
   fileId: string;
@@ -243,6 +291,7 @@ function JobReportTabWithShadowTwin({
   ingestionTabMode?: 'status' | 'preview';
   onEditClick?: () => void;
   effectiveMdIdRef?: React.MutableRefObject<string | null>;
+  resolvedMdFileId?: string;
 }) {
   const [mdFileId, setMdFileId] = React.useState<string | null>(null);
   const [baseFileId, setBaseFileId] = React.useState<string>(fileId);
@@ -250,6 +299,13 @@ function JobReportTabWithShadowTwin({
 
   // Variante C: Vollständig über API - kein lokales Parsing mehr
   React.useEffect(() => {
+    if (resolvedMdFileId) {
+      setMdFileId(resolvedMdFileId);
+      setBaseFileId(fileId);
+      setIsLoading(false);
+      return;
+    }
+
     async function resolveArtifact() {
       setIsLoading(true);
 
@@ -314,7 +370,7 @@ function JobReportTabWithShadowTwin({
     } else {
       setIsLoading(false);
     }
-  }, [libraryId, fileId, fileName, parentId]);
+  }, [libraryId, fileId, fileName, parentId, resolvedMdFileId]);
 
   if (isLoading) {
     return (
@@ -514,6 +570,9 @@ function PreviewContent({
     sourceFile: ['pdf', 'audio', 'video', 'docx', 'xlsx', 'pptx'].includes(fileType) ? item : null,
     targetLanguage: "de",
   })
+  // Ausgewähltes Transkript aus der Liste aller verfügbaren Transkripte
+  const [selectedTranscriptIdx, setSelectedTranscriptIdx] = React.useState<number>(0)
+  const [selectedTransformationIdx, setSelectedTransformationIdx] = React.useState<number>(0)
   const [transformItem, setTransformItem] = React.useState<StorageItem | null>(null)
   const [transformError, setTransformError] = React.useState<string | null>(null)
   const [isEditOpen, setIsEditOpen] = React.useState(false)
@@ -538,7 +597,162 @@ function PreviewContent({
   // Hole Shadow-Twin-State für die aktuelle Datei
   const shadowTwinStates = useAtomValue(shadowTwinStateAtom);
   const shadowTwinState = shadowTwinStates.get(item.id);
-  
+
+  // Alle verfügbaren Transkripte (alle Sprachen) aus MongoDB laden.
+  // Die Batch-Resolve-API liefert nur ein Transkript pro Source, daher holen wir
+  // bei der ausgewählten Datei alle Sprach-Varianten über die Shadow-Twins-API.
+  const [allTranscriptFiles, setAllTranscriptFiles] = React.useState<StorageItem[]>([])
+  const [allTransformationFiles, setAllTransformationFiles] = React.useState<StorageItem[]>([])
+  React.useEffect(() => {
+    if (!activeLibraryId || !item.id) return
+    let cancelled = false
+    async function loadAllArtifacts() {
+      try {
+        const res = await fetch(
+          `/api/library/${encodeURIComponent(activeLibraryId)}/shadow-twins/${encodeURIComponent(item.id)}`
+        )
+        if (!res.ok || cancelled) return
+        const data = await res.json() as {
+          artifacts?: Array<{ kind: string; targetLanguage: string; markdownLength: number; updatedAt: string; templateName?: string }>
+        }
+        if (cancelled || !data.artifacts) return
+        // Nur Transkripte filtern und als virtuelle StorageItems erstellen
+        const transcriptArtifacts = data.artifacts.filter((a) => a.kind === 'transcript')
+        const transformationArtifacts = data.artifacts.filter((a) => a.kind === 'transformation')
+        if (transcriptArtifacts.length <= 1) {
+          // Nur ein Transkript → kein Dropdown nötig, bleibe bei der bestehenden Logik
+          setAllTranscriptFiles([])
+        } else {
+          const baseName = item.metadata.name.replace(/\.[^.]+$/, '')
+          const virtualItems: StorageItem[] = transcriptArtifacts.map((a) => {
+            const fileName = `${baseName}.${a.targetLanguage}.md`
+            // Mongo-Shadow-Twin-ID (Format: mongo-shadow-twin:<libraryId>::<sourceId>::<kind>::<lang>::<template?>)
+            const parts = [activeLibraryId, item.id, 'transcript', a.targetLanguage, ''].map(encodeURIComponent)
+            const mongoId = `mongo-shadow-twin:${parts.join('::')}`
+            return {
+              id: mongoId,
+              parentId: item.parentId ?? '',
+              type: 'file' as const,
+              metadata: {
+                name: fileName,
+                size: a.markdownLength ?? 0,
+                modifiedAt: new Date(a.updatedAt ?? Date.now()),
+                mimeType: 'text/markdown',
+                isTwin: true,
+              },
+            }
+          })
+          if (!cancelled) setAllTranscriptFiles(virtualItems)
+        }
+
+        if (transformationArtifacts.length <= 1) {
+          setAllTransformationFiles([])
+        } else {
+          const baseName = item.metadata.name.replace(/\.[^.]+$/, '')
+          const virtualTransformItems: StorageItem[] = transformationArtifacts.map((a) => {
+            const templateName = typeof a.templateName === 'string' && a.templateName.trim().length > 0
+              ? a.templateName
+              : 'template'
+            const fileName = `${baseName}.${templateName}.${a.targetLanguage}.md`
+            const parts = [activeLibraryId, item.id, 'transformation', a.targetLanguage, templateName].map(encodeURIComponent)
+            const mongoId = `mongo-shadow-twin:${parts.join('::')}`
+            return {
+              id: mongoId,
+              parentId: item.parentId ?? '',
+              type: 'file' as const,
+              metadata: {
+                name: fileName,
+                size: a.markdownLength ?? 0,
+                modifiedAt: new Date(a.updatedAt ?? Date.now()),
+                mimeType: 'text/markdown',
+                isTwin: true,
+              },
+            }
+          })
+          if (!cancelled) setAllTransformationFiles(virtualTransformItems)
+        }
+      } catch {
+        // Fehler ignorieren – Dropdown bleibt ausgeblendet
+      }
+    }
+    void loadAllArtifacts()
+    return () => { cancelled = true }
+    // transcript.transcriptItem triggert Neuladen, wenn ein neues Transkript erstellt wird
+  }, [activeLibraryId, item.id, item.metadata.name, item.parentId, transcript.transcriptItem, shadowTwinState?.transformed?.id])
+
+  // Verfügbare Transkripte: bevorzuge die vollständige Liste aus der API,
+  // Fallback auf die Einzeldatei aus dem Shadow-Twin-State
+  const availableTranscripts = allTranscriptFiles.length > 0
+    ? allTranscriptFiles
+    : (shadowTwinState?.transcriptFiles ?? [])
+  const displayTranscriptItem = React.useMemo(() => {
+    if (availableTranscripts.length > 0) {
+      const idx = Math.min(selectedTranscriptIdx, availableTranscripts.length - 1)
+      return availableTranscripts[idx] ?? null
+    }
+    return transcript.transcriptItem
+  }, [availableTranscripts, selectedTranscriptIdx, transcript.transcriptItem])
+
+  const availableTransformations = React.useMemo(() => {
+    if (allTransformationFiles.length > 0) return allTransformationFiles
+    return shadowTwinState?.transformed ? [shadowTwinState.transformed] : []
+  }, [allTransformationFiles, shadowTwinState?.transformed])
+
+  const displayTransformationItem = React.useMemo(() => {
+    if (availableTransformations.length === 0) return null
+    const idx = Math.min(selectedTransformationIdx, availableTransformations.length - 1)
+    return availableTransformations[idx] ?? null
+  }, [availableTransformations, selectedTransformationIdx])
+
+  // Sprach-Dropdown als headerExtra für ArtifactMarkdownPanel
+  const transcriptHeaderExtra = React.useMemo(() => {
+    if (availableTranscripts.length <= 1) return undefined
+    return (
+      <Select
+        value={String(Math.min(selectedTranscriptIdx, availableTranscripts.length - 1))}
+        onValueChange={(v) => setSelectedTranscriptIdx(Number(v))}
+      >
+        <SelectTrigger className="h-7 w-auto min-w-[80px] text-xs gap-1">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {availableTranscripts.map((tf, idx) => {
+            const lang = extractTranscriptLang(tf.metadata.name)
+            const label = lang
+              ? (TRANSCRIPT_LANG_LABELS[lang] ?? lang.toUpperCase())
+              : tf.metadata.name
+            return (
+              <SelectItem key={tf.id} value={String(idx)}>
+                {lang ? `${lang.toUpperCase()} – ${label}` : label}
+              </SelectItem>
+            )
+          })}
+        </SelectContent>
+      </Select>
+    )
+  }, [availableTranscripts, selectedTranscriptIdx])
+
+  const transformHeaderExtra = React.useMemo(() => {
+    if (availableTransformations.length <= 1) return null
+    return (
+      <Select
+        value={String(Math.min(selectedTransformationIdx, availableTransformations.length - 1))}
+        onValueChange={(v) => setSelectedTransformationIdx(Number(v))}
+      >
+        <SelectTrigger className="h-8 w-auto min-w-[180px] text-xs gap-1">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {availableTransformations.map((tf, idx) => (
+            <SelectItem key={tf.id} value={String(idx)}>
+              {getTransformationLabel(tf)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    )
+  }, [availableTransformations, selectedTransformationIdx])
+
   // Bestimme das Verzeichnis für Bild-Auflösung im Markdown-Viewer:
   // 
   // Strategie:
@@ -574,6 +788,10 @@ function PreviewContent({
   
   React.useEffect(() => {
     setInfoTab("original");
+    setSelectedTranscriptIdx(0);
+    setSelectedTransformationIdx(0);
+    setAllTranscriptFiles([]);
+    setAllTransformationFiles([]);
   }, [item.id]);
 
   React.useEffect(() => {
@@ -584,29 +802,29 @@ function PreviewContent({
       itemId: item.id,
       itemName: item.metadata.name,
       hasShadowTwinState: !!shadowTwinState,
-      hasTransformed: !!shadowTwinState?.transformed,
-      transformedId: shadowTwinState?.transformed?.id ?? 'N/A',
-      transformedName: shadowTwinState?.transformed?.metadata?.name ?? 'N/A',
-      isMongoId: shadowTwinState?.transformed?.id?.startsWith('mongo-shadow-twin:') ?? false,
+      hasTransformed: !!displayTransformationItem,
+      transformedId: displayTransformationItem?.id ?? 'N/A',
+      transformedName: displayTransformationItem?.metadata?.name ?? 'N/A',
+      isMongoId: displayTransformationItem?.id?.startsWith('mongo-shadow-twin:') ?? false,
     });
 
     async function loadTransformItem() {
-      if (!shadowTwinState?.transformed?.id) {
+      if (!displayTransformationItem?.id) {
         setTransformItem(null)
         setTransformError(null)
         return
       }
       
-      const transformedId = shadowTwinState.transformed.id
+      const transformedId = displayTransformationItem.id
       
       // Prüfe, ob die ID eine Mongo-Shadow-Twin-ID ist
       // Diese IDs haben das Format: "mongo-shadow-twin:..."
       // In diesem Fall brauchen wir keinen Provider-Aufruf, da das Artefakt in MongoDB liegt
       if (transformedId.startsWith('mongo-shadow-twin:')) {
-        // Für Mongo-Artefakte: Verwende die Metadaten aus shadowTwinState direkt
+        // Für Mongo-Artefakte: Verwende die Metadaten direkt
         // Das Artefakt wird über /api/library/.../shadow-twins/content geladen
         if (cancelled) return
-        setTransformItem(shadowTwinState.transformed)
+        setTransformItem(displayTransformationItem)
         setTransformError(null)
         return
       }
@@ -634,7 +852,7 @@ function PreviewContent({
     return () => {
       cancelled = true
     }
-  }, [provider, shadowTwinState?.transformed?.id])
+  }, [provider, displayTransformationItem])
 
   // Pipeline-Sheet State und Logik
   // Korrekturhinweis aus localStorage laden (persistent pro Datei)
@@ -708,7 +926,9 @@ function PreviewContent({
 
   const [pipelineDefaultSteps, setPipelineDefaultSteps] = React.useState<{ extract: boolean; metadata: boolean; ingest: boolean } | undefined>(undefined)
   const [pipelineDefaultForce, setPipelineDefaultForce] = React.useState(false)
-  const [targetLanguage, setTargetLanguage] = React.useState<string>("de")
+  const [targetLanguage, setTargetLanguage] = React.useState<string>("")
+  // Quellsprache für Transkription (Whisper). 'auto' = automatische Erkennung
+  const [sourceLanguage, setSourceLanguage] = React.useState<string>("auto")
   const [templateName, setTemplateName] = React.useState<string>("")
   const [templates, setTemplates] = React.useState<string[]>([])
   const [isLoadingTemplates, setIsLoadingTemplates] = React.useState(false)
@@ -862,7 +1082,7 @@ function PreviewContent({
 
   // Pipeline starten
   const runPipeline = React.useCallback(
-    async (args: { templateName?: string; targetLanguage: string; policies: PipelinePolicies; coverImage?: CoverImageOptions; llmModel?: string; customHint?: string }) => {
+    async (args: { templateName?: string; targetLanguage: string; sourceLanguage?: string; policies: PipelinePolicies; coverImage?: CoverImageOptions; llmModel?: string; customHint?: string }) => {
       if (!activeLibraryId) {
         toast.error("Fehler", { description: "libraryId fehlt" })
         return
@@ -884,6 +1104,8 @@ function PreviewContent({
           parentId: item.parentId,
           kind,
           targetLanguage: args.targetLanguage,
+          // Quellsprache für Transkription (Whisper) – nur setzen wenn explizit angegeben
+          sourceLanguage: args.sourceLanguage,
           templateName: args.templateName,
           policies: args.policies,
           libraryConfigChatTargetLanguage,
@@ -1024,7 +1246,8 @@ function PreviewContent({
                 <ArtifactMarkdownPanel
                   title="Transcript (aus dem Original transkribiert)"
                   titleClassName="text-xs text-muted-foreground font-normal"
-                  item={transcript.transcriptItem}
+                  headerExtra={transcriptHeaderExtra}
+                  item={displayTranscriptItem}
                   provider={provider}
                   libraryId={activeLibraryId || undefined}
                   emptyHint="Noch kein Transkript vorhanden."
@@ -1110,6 +1333,7 @@ function PreviewContent({
                     Story-Inhalte und Metadaten (aus dem Transkript transformiert)
                   </div>
                   <div className="flex items-center gap-2">
+                    {transformHeaderExtra}
                     {!transformItem ? (
                       <Button
                         size="sm"
@@ -1149,6 +1373,7 @@ function PreviewContent({
                       fileName={item.metadata.name}
                       parentId={item.parentId}
                       provider={provider}
+                      resolvedMdFileId={transformItem?.id ?? undefined}
                       ingestionTabMode="preview"
                       effectiveMdIdRef={effectiveMdIdRef}
                     />
@@ -1214,6 +1439,8 @@ function PreviewContent({
             kind={(["pdf", "audio", "video", "markdown"].includes(kind) ? kind : (["docx", "xlsx", "pptx"].includes(kind) ? "office" : "other")) as "pdf" | "audio" | "video" | "markdown" | "office" | "other"}
             targetLanguage={effectiveTargetLanguage}
             onTargetLanguageChange={setTargetLanguage}
+            sourceLanguage={sourceLanguage}
+            onSourceLanguageChange={setSourceLanguage}
             templateName={templateName}
             onTemplateNameChange={setTemplateName}
             templates={templates}
@@ -1315,7 +1542,8 @@ function PreviewContent({
                 <ArtifactMarkdownPanel
                   title="Transcript (aus dem Original transkribiert)"
                   titleClassName="text-xs text-muted-foreground font-normal"
-                  item={transcript.transcriptItem}
+                  headerExtra={transcriptHeaderExtra}
+                  item={displayTranscriptItem}
                   provider={provider}
                   libraryId={activeLibraryId || undefined}
                   emptyHint="Noch kein Transkript vorhanden."
@@ -1353,6 +1581,7 @@ function PreviewContent({
                     Story-Inhalte und Metadaten (aus dem Transkript transformiert)
                   </div>
                   <div className="flex items-center gap-2">
+                    {transformHeaderExtra}
                     {!transformItem ? (
                       <Button
                         size="sm"
@@ -1392,6 +1621,7 @@ function PreviewContent({
                       fileName={item.metadata.name}
                       parentId={item.parentId}
                       provider={provider}
+                      resolvedMdFileId={transformItem?.id ?? undefined}
                       ingestionTabMode="preview"
                       effectiveMdIdRef={effectiveMdIdRef}
                     />
@@ -1457,6 +1687,8 @@ function PreviewContent({
             kind={(["pdf", "audio", "video", "markdown"].includes(kind) ? kind : (["docx", "xlsx", "pptx"].includes(kind) ? "office" : "other")) as "pdf" | "audio" | "video" | "markdown" | "office" | "other"}
             targetLanguage={effectiveTargetLanguage}
             onTargetLanguageChange={setTargetLanguage}
+            sourceLanguage={sourceLanguage}
+            onSourceLanguageChange={setSourceLanguage}
             templateName={templateName}
             onTemplateNameChange={setTemplateName}
             templates={templates}
@@ -1582,7 +1814,8 @@ function PreviewContent({
                   <ArtifactMarkdownPanel
                     title="Transkript (Quellen + Korpus-Text)"
                     titleClassName="text-xs text-muted-foreground font-normal"
-                    item={shadowTwinState.transcriptFiles[0]}
+                    headerExtra={transcriptHeaderExtra}
+                    item={displayTranscriptItem ?? shadowTwinState.transcriptFiles[0]}
                     provider={provider}
                     libraryId={activeLibraryId || undefined}
                     emptyHint="Transkript konnte nicht geladen werden."
@@ -1634,6 +1867,7 @@ function PreviewContent({
                     Story-Inhalte und Metadaten (aus dem Original transformiert)
                   </div>
                   <div className="flex items-center gap-2">
+                    {transformHeaderExtra}
                     {!transformItem ? (
                       <Button
                         size="sm"
@@ -1673,6 +1907,7 @@ function PreviewContent({
                       fileName={item.metadata.name}
                       parentId={item.parentId}
                       provider={provider}
+                      resolvedMdFileId={transformItem?.id ?? undefined}
                       ingestionTabMode="preview"
                       effectiveMdIdRef={effectiveMdIdRef}
                     />
@@ -1738,6 +1973,8 @@ function PreviewContent({
             kind={(["pdf", "audio", "video", "markdown"].includes(kind) ? kind : (["docx", "xlsx", "pptx"].includes(kind) ? "office" : "other")) as "pdf" | "audio" | "video" | "markdown" | "office" | "other"}
             targetLanguage={effectiveTargetLanguage}
             onTargetLanguageChange={setTargetLanguage}
+            sourceLanguage={sourceLanguage}
+            onSourceLanguageChange={setSourceLanguage}
             templateName={templateName}
             onTemplateNameChange={setTemplateName}
             templates={templates}
@@ -1821,7 +2058,8 @@ function PreviewContent({
                 <ArtifactMarkdownPanel
                   title="Transcript (aus dem Original transkribiert)"
                   titleClassName="text-xs text-muted-foreground font-normal"
-                  item={transcript.transcriptItem}
+                  headerExtra={transcriptHeaderExtra}
+                  item={displayTranscriptItem}
                   provider={provider}
                   libraryId={activeLibraryId || undefined}
                   emptyHint="Noch kein Transkript vorhanden."
@@ -1907,6 +2145,7 @@ function PreviewContent({
                     Story-Inhalte und Metadaten (aus dem Transkript transformiert)
                   </div>
                   <div className="flex items-center gap-2">
+                    {transformHeaderExtra}
                     {!transformItem ? (
                       <Button
                         size="sm"
@@ -1946,6 +2185,7 @@ function PreviewContent({
                       fileName={item.metadata.name}
                       parentId={item.parentId}
                       provider={provider}
+                      resolvedMdFileId={transformItem?.id ?? undefined}
                       ingestionTabMode="preview"
                       effectiveMdIdRef={effectiveMdIdRef}
                     />
@@ -2011,6 +2251,8 @@ function PreviewContent({
             kind={(["pdf", "audio", "video", "markdown"].includes(kind) ? kind : (["docx", "xlsx", "pptx"].includes(kind) ? "office" : "other")) as "pdf" | "audio" | "video" | "markdown" | "office" | "other"}
             targetLanguage={effectiveTargetLanguage}
             onTargetLanguageChange={setTargetLanguage}
+            sourceLanguage={sourceLanguage}
+            onSourceLanguageChange={setSourceLanguage}
             templateName={templateName}
             onTemplateNameChange={setTemplateName}
             templates={templates}
@@ -2177,6 +2419,7 @@ function PreviewContent({
                     Story-Inhalte und Metadaten (aus dem Transkript transformiert)
                   </div>
                   <div className="flex items-center gap-2">
+                    {transformHeaderExtra}
                     {!transformItem ? (
                       <Button
                         size="sm"
@@ -2216,6 +2459,7 @@ function PreviewContent({
                       fileName={item.metadata.name}
                       parentId={item.parentId}
                       provider={provider}
+                      resolvedMdFileId={transformItem?.id ?? undefined}
                       ingestionTabMode="preview"
                       effectiveMdIdRef={effectiveMdIdRef}
                     />
@@ -2281,6 +2525,8 @@ function PreviewContent({
             kind="office"
             targetLanguage={effectiveTargetLanguage}
             onTargetLanguageChange={setTargetLanguage}
+            sourceLanguage={sourceLanguage}
+            onSourceLanguageChange={setSourceLanguage}
             templateName={templateName}
             onTemplateNameChange={setTemplateName}
             templates={templates}
@@ -2390,7 +2636,8 @@ function PreviewContent({
                   <ArtifactMarkdownPanel
                     title="Transkript (Website-Inhalt)"
                     titleClassName="text-xs text-muted-foreground font-normal"
-                    item={shadowTwinState.transcriptFiles[0]}
+                    headerExtra={transcriptHeaderExtra}
+                    item={displayTranscriptItem ?? shadowTwinState.transcriptFiles[0]}
                     provider={provider}
                     libraryId={activeLibraryId || undefined}
                     emptyHint="Transkript konnte nicht geladen werden."
@@ -2478,6 +2725,7 @@ function PreviewContent({
                       fileName={item.metadata.name}
                       parentId={item.parentId}
                       provider={provider}
+                      resolvedMdFileId={transformItem?.id ?? undefined}
                       ingestionTabMode="preview"
                       effectiveMdIdRef={effectiveMdIdRef}
                     />
@@ -2543,6 +2791,8 @@ function PreviewContent({
             kind="other"
             targetLanguage={effectiveTargetLanguage}
             onTargetLanguageChange={setTargetLanguage}
+            sourceLanguage={sourceLanguage}
+            onSourceLanguageChange={setSourceLanguage}
             templateName={templateName}
             onTemplateNameChange={setTemplateName}
             templates={templates}
@@ -2579,6 +2829,8 @@ function PreviewContent({
             kind={(["pdf", "audio", "video", "markdown"].includes(kind) ? kind : (["docx", "xlsx", "pptx"].includes(kind) ? "office" : "other")) as "pdf" | "audio" | "video" | "markdown" | "office" | "other"}
             targetLanguage={effectiveTargetLanguage}
             onTargetLanguageChange={setTargetLanguage}
+            sourceLanguage={sourceLanguage}
+            onSourceLanguageChange={setSourceLanguage}
             templateName={templateName}
             onTemplateNameChange={setTemplateName}
             templates={templates}

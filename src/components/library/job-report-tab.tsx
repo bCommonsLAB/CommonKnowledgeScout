@@ -463,30 +463,60 @@ export function JobReportTab({
         jobResultId: job?.result?.savedItemId
       })
       
-      // PRIORITÄT 1: Verwende mdFileId (aus shadowTwinState.transformed.id)
+      // PRIORITÄT 1: Verwende mdFileId (aus Auswahl/Resolver), solange es kein Transcript ist.
       if (mdFileId && typeof mdFileId === 'string' && mdFileId.length > 0) {
-        // Prüfe, ob mdFileId auf die transformierte Datei (.de.md) zeigt, nicht auf das Transcript (.md)
-        const isTransformed = mdFileId.includes('.de.md') || shadowTwinState?.transformed?.id === mdFileId
-        if (isTransformed) {
-          return mdFileId
+        // Mongo-ID: Art des Artefakts explizit prüfen (transformation vs transcript)
+        if (isMongoShadowTwinId(mdFileId)) {
+          const parsedMd = parseMongoShadowTwinId(mdFileId)
+          if (parsedMd?.kind === 'transformation') {
+            return mdFileId
+          }
+          if (parsedMd?.kind === 'transcript' && shadowTwinState?.transformed?.id) {
+            UILogger.warn('JobReportTab', 'mdFileId zeigt auf Transcript, verwende transformed.id', {
+              mdFileId,
+              transformedId: shadowTwinState.transformed.id,
+            })
+            return shadowTwinState.transformed.id
+          }
+        } else {
+          // Nicht-Mongo-ID: möglichst robustes Heuristik-Muster
+          // Transcript: name.xx.md
+          // Transformation: name.<template>.xx.md
+          const looksLikeTranscript = /\.[a-z]{2}\.md$/i.test(mdFileId) && !/\.[^.]+\.[a-z]{2}\.md$/i.test(mdFileId)
+          if (!looksLikeTranscript) {
+            return mdFileId
+          }
         }
-        // Wenn mdFileId auf das Transcript zeigt, verwende stattdessen transformed.id direkt
+
+        // Fallback: Wenn mdFileId nicht sicher als Transformation erkannt wird,
+        // nutze das explizite transformed-Artefakt aus dem Shadow-Twin-State.
         if (shadowTwinState?.transformed?.id) {
-          UILogger.warn('JobReportTab', 'mdFileId zeigt auf Transcript, verwende transformed.id', {
+          UILogger.warn('JobReportTab', 'mdFileId nicht als Transformation erkannt, verwende transformed.id', {
             mdFileId,
             transformedId: shadowTwinState.transformed.id
           })
           return shadowTwinState.transformed.id
+        }
+
+        if (!isMongoShadowTwinId(mdFileId)) {
+          return mdFileId
         }
       }
       // PRIORITÄT 2: Fallback auf transformed.id direkt aus shadowTwinState
       if (shadowTwinState?.transformed?.id) {
         return shadowTwinState.transformed.id
       }
-      // PRIORITÄT 3: Fallback auf Job-Resultat (nur wenn es auf .de.md endet)
+      // PRIORITÄT 3: Fallback auf Job-Resultat (sprachunabhängig, nur Markdown-Artefakt)
       const resultId = job?.result?.savedItemId as string | undefined
-      if (resultId && resultId.length > 0 && resultId.includes('.de.md')) {
-        return resultId
+      if (resultId && resultId.length > 0) {
+        if (isMongoShadowTwinId(resultId)) {
+          const parsedResult = parseMongoShadowTwinId(resultId)
+          if (parsedResult?.kind === 'transformation') {
+            return resultId
+          }
+        } else if (/\.md$/i.test(resultId)) {
+          return resultId
+        }
       }
       // PRIORITÄT 4: Fallback auf Transcript, wenn keine transformierte Datei vorhanden ist
       // (wird später eine Warnung anzeigen, dass kein Frontmatter vorhanden ist)

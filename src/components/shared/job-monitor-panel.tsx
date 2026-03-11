@@ -105,6 +105,7 @@ export function JobMonitorPanel() {
   const upsertJobInfo = useSetAtom(upsertJobInfoAtom);
   const clearJobInfo = useSetAtom(clearJobInfoAtom);
   const triggerShadowTwinAnalysis = useSetAtom(shadowTwinAnalysisTriggerAtom);
+  const shadowTwinRefreshTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -133,6 +134,23 @@ export function JobMonitorPanel() {
   
   // Prüfe ob wir auf der Integration Tests Seite sind (sollte Job Handle anzeigen)
   const isIntegrationTestsPage = pathname === '/integration-tests';
+
+  const scheduleShadowTwinReanalysisBurst = useCallback(() => {
+    // Storage-Backends (v.a. WebDAV/Nextcloud) können Artefakte kurz verzögert sichtbar machen.
+    // Deshalb triggern wir die Analyse mehrmals mit wachsendem Abstand.
+    const delaysMs = [400, 1500, 4000];
+    delaysMs.forEach((delayMs) => {
+      const timer = setTimeout(() => triggerShadowTwinAnalysis((v) => v + 1), delayMs);
+      shadowTwinRefreshTimersRef.current.push(timer);
+    });
+  }, [triggerShadowTwinAnalysis]);
+
+  useEffect(() => {
+    return () => {
+      shadowTwinRefreshTimersRef.current.forEach((timer) => clearTimeout(timer));
+      shadowTwinRefreshTimersRef.current = [];
+    };
+  }, []);
 
   /**
    * Öffnet die Datei eines fehlerhaften Jobs im Datei-Viewer.
@@ -481,8 +499,7 @@ export function JobMonitorPanel() {
             });
             // Bei completed: Shadow-Twin-Analyse triggern und Job-Info nach kurzer Zeit entfernen
             if (evt.status === 'completed') {
-              // Shadow-Twin-Analyse mit kurzem Delay triggern, damit MongoDB-Operationen abgeschlossen sind
-              setTimeout(() => triggerShadowTwinAnalysis((v) => v + 1), 400);
+              scheduleShadowTwinReanalysisBurst();
               if (evt.sourceItemId) {
                 setTimeout(() => clearJobInfo(evt.sourceItemId!), 5000);
               }
@@ -587,8 +604,7 @@ export function JobMonitorPanel() {
           phase: detail.phase,
         });
         if (detail.status === 'completed') {
-          // Shadow-Twin-Analyse mit kurzem Delay triggern, damit MongoDB-Operationen abgeschlossen sind
-          setTimeout(() => triggerShadowTwinAnalysis((v) => v + 1), 400);
+          scheduleShadowTwinReanalysisBurst();
           if (detail.sourceItemId) {
             setTimeout(() => clearJobInfo(detail.sourceItemId!), 5000);
           }
@@ -639,7 +655,7 @@ export function JobMonitorPanel() {
       window.removeEventListener('job_update_local', onLocal as unknown as EventListener);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveUpdates, upsertJobStatus, upsertJobInfo, clearJobInfo, triggerShadowTwinAnalysis]);
+  }, [liveUpdates, upsertJobStatus, upsertJobInfo, clearJobInfo, triggerShadowTwinAnalysis, scheduleShadowTwinReanalysisBurst]);
 
   const handleToggle = () => setIsOpen(v => !v);
   const queuedCount = items.filter(i => i.status === 'queued').length;

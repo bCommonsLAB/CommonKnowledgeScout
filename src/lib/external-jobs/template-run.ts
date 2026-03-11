@@ -73,6 +73,7 @@ export async function runTemplateTransform(args: TemplateRunArgs): Promise<Templ
         url: transformerUrl, 
         method: 'POST', 
         targetLanguage, 
+        useCache: false,
         templateContentLen: templateContent.length,
         extractedTextLen: textLength,
         estimatedContentLength
@@ -120,6 +121,8 @@ export async function runTemplateTransform(args: TemplateRunArgs): Promise<Templ
       text: extractedText, 
       targetLanguage, 
       templateContent, 
+      // Explizit deaktivieren, damit kein impliziter Service-Default greift.
+      useCache: false,
       apiKey, 
       timeoutMs: Number(process.env.EXTERNAL_TEMPLATE_TIMEOUT_MS || process.env.EXTERNAL_REQUEST_TIMEOUT_MS || 600000),
       // LLM-Modell nur übergeben, wenn explizit gesetzt (Secretary Service verwendet sonst Default)

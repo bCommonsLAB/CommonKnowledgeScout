@@ -14,6 +14,8 @@ import { Switch } from "@/components/ui/switch"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { cn } from "@/lib/utils"
 import { DictationTextarea } from "@/components/shared/dictation-textarea"
+// Zentrale Sprachdefinitionen (Single Source of Truth für alle Sprachen im Projekt)
+import { TARGET_LANGUAGE_VALUES, TARGET_LANGUAGE_LABELS, type TargetLanguage } from "@/lib/chat/constants"
 // Zentrale Pipeline-Konfigurationstypen - Re-Export für Rückwärtskompatibilität
 import { type PipelinePolicies as PipelinePoliciesType } from "@/lib/pipeline/pipeline-config"
 export type PipelinePolicies = PipelinePoliciesType
@@ -50,6 +52,40 @@ export interface LlmModelOption {
   strengths?: string
 }
 
+/**
+ * Zusätzliche Whisper-Sprachen, die nicht in TARGET_LANGUAGE_LABELS stehen.
+ * Werden an die zentrale Sprachliste angehängt.
+ */
+const EXTRA_WHISPER_LANGUAGES: Record<string, string> = {
+  ar: 'Arabisch',
+  am: 'Amharisch',
+}
+
+/**
+ * Quellsprachen für die Transkription (Whisper).
+ * Abgeleitet aus den zentralen TARGET_LANGUAGE_LABELS + Whisper-spezifische Extras.
+ * 'auto' = automatische Erkennung durch Whisper.
+ */
+export const TRANSCRIPTION_SOURCE_LANGUAGES: readonly { value: string; label: string }[] = [
+  { value: 'auto', label: 'Automatisch erkennen' },
+  // Zentrale Sprachen (ohne 'global') + Whisper-Extras
+  ...TARGET_LANGUAGE_VALUES
+    .filter((v): v is Exclude<TargetLanguage, 'global'> => v !== 'global')
+    .map(v => ({ value: v, label: TARGET_LANGUAGE_LABELS[v] })),
+  ...Object.entries(EXTRA_WHISPER_LANGUAGES)
+    .filter(([code]) => !(code in TARGET_LANGUAGE_LABELS))
+    .map(([code, label]) => ({ value: code, label })),
+]
+
+/**
+ * Zielsprachen für die Transformation.
+ * Abgeleitet aus den zentralen TARGET_LANGUAGE_LABELS (ohne 'global').
+ */
+export const TRANSFORMATION_TARGET_LANGUAGES: readonly { value: string; label: string }[] =
+  TARGET_LANGUAGE_VALUES
+    .filter((v): v is Exclude<TargetLanguage, 'global'> => v !== 'global')
+    .map(v => ({ value: v, label: TARGET_LANGUAGE_LABELS[v] }))
+
 interface PipelineSheetProps {
   isOpen: boolean
   onOpenChange: (open: boolean) => void
@@ -58,6 +94,10 @@ interface PipelineSheetProps {
   kind: "pdf" | "audio" | "video" | "markdown" | "office" | "other"
   targetLanguage: string
   onTargetLanguageChange: (value: string) => void
+  /** Quellsprache für Transkription ('auto' = automatische Erkennung) */
+  sourceLanguage?: string
+  /** Callback für Quellsprache-Änderung */
+  onSourceLanguageChange?: (value: string) => void
   templateName: string
   onTemplateNameChange: (value: string) => void
   templates: string[]
@@ -70,7 +110,7 @@ interface PipelineSheetProps {
   llmModels?: LlmModelOption[]
   /** Ladezustand für LLM-Modelle */
   isLoadingLlmModels?: boolean
-  onStart: (args: { templateName?: string; targetLanguage: string; policies: PipelinePolicies; coverImage?: CoverImageOptions; llmModel?: string; customHint?: string }) => Promise<void>
+  onStart: (args: { templateName?: string; targetLanguage: string; sourceLanguage?: string; policies: PipelinePolicies; coverImage?: CoverImageOptions; llmModel?: string; customHint?: string }) => Promise<void>
   /**
    * Optionale Default-Werte fuer die Pipeline-Schritte.
    * Wenn gesetzt, werden die Switches beim Oeffnen des Sheets entsprechend initialisiert.
@@ -245,6 +285,10 @@ export function PipelineSheet(props: PipelineSheetProps) {
       await props.onStart({
         templateName: isNonEmptyString(props.templateName) ? props.templateName : undefined,
         targetLanguage: props.targetLanguage,
+        // Quellsprache nur übergeben wenn Extract aktiv und nicht 'auto'
+        sourceLanguage: shouldExtract && props.sourceLanguage && props.sourceLanguage !== 'auto'
+          ? props.sourceLanguage
+          : undefined,
         policies,
         // Cover-Bild-Generierung nur wenn Transform aktiv
         coverImage: shouldTransform ? {
@@ -275,6 +319,8 @@ export function PipelineSheet(props: PipelineSheetProps) {
       enabled: shouldExtract,
       setEnabled: setShouldExtract,
       disabled: extractDisabled,
+      // Quellsprache-Auswahl nur bei Audio/Video anzeigen (PDFs und Office werden immer 'auto' erkannt)
+      hasOptions: (props.kind === 'audio' || props.kind === 'video') && !extractDisabled,
       hasExisting: hasTranscript && !isMarkdown,
       hidden: isMarkdown,
     },
@@ -414,7 +460,7 @@ export function PipelineSheet(props: PipelineSheetProps) {
                       </div>
                     </div>
 
-                    {/* Collapsible Options for Transform step - kompaktes Layout, buendig mit Text */}
+                    {/* Collapsible Options - kompaktes Layout, buendig mit Text */}
                     {step.hasOptions && (
                       <CollapsibleContent>
                         <div className={cn(
@@ -422,106 +468,161 @@ export function PipelineSheet(props: PipelineSheetProps) {
                           !step.enabled && "pointer-events-none"
                         )}>
                           {/* ml-[76px] = p-4 (16px) + Kreis (44px) + gap-4 (16px) = buendig mit Text */}
-                          {/* Zeile 1: Vorlage (ganze Breite mit Zahnrad) */}
-                          <div className="flex items-center gap-2 ml-[76px] pr-4">
-                            <Label htmlFor="template" className="text-xs text-muted-foreground whitespace-nowrap w-14">
-                              Vorlage
-                            </Label>
-                            {props.isLoadingTemplates ? (
-                              <Skeleton className="h-8 flex-1" />
-                            ) : (
-                              <Select value={templateSelectValue} onValueChange={(v) => props.onTemplateNameChange(v === "__none__" ? "" : v)}>
-                                <SelectTrigger id="template" className="h-8 flex-1 text-xs text-left justify-start">
-                                  <SelectValue placeholder="Waehlen..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {props.templates.map((t) => (
-                                    <SelectItem key={t} value={t} className="text-xs">
-                                      {t}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            )}
-                            {/* Link zu den Vorlagen-Einstellungen */}
-                            <Link href="/templates" title="Vorlagen verwalten">
-                              <Settings className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors cursor-pointer" />
-                            </Link>
-                          </div>
-                          {/* Zeile 2: Sprache */}
-                          <div className="flex items-center gap-2 ml-[76px] pr-4">
-                            <Label htmlFor="language" className="text-xs text-muted-foreground whitespace-nowrap w-14">
-                              Sprache
-                            </Label>
-                            <Select value={props.targetLanguage} onValueChange={props.onTargetLanguageChange}>
-                              <SelectTrigger id="language" className="h-8 flex-1 text-xs text-left justify-start">
-                                <SelectValue placeholder="de" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="de" className="text-xs">Deutsch</SelectItem>
-                                <SelectItem value="en" className="text-xs">English</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          {/* Zeile 3: LLM-Modell-Auswahl (volle Breite) */}
-                          <div className="flex items-center gap-2 ml-[76px] pr-4">
-                            <Label htmlFor="llm-model" className="text-xs text-muted-foreground whitespace-nowrap w-14">
-                              Modell
-                            </Label>
-                            {props.isLoadingLlmModels ? (
-                              <Skeleton className="h-8 flex-1" />
-                            ) : props.llmModels && props.llmModels.length > 0 ? (
-                              <Select 
-                                value={props.llmModel || ""} 
-                                onValueChange={(v) => props.onLlmModelChange?.(v)}
-                              >
-                                <SelectTrigger id="llm-model" className="h-8 flex-1 text-xs text-left justify-start">
-                                  <SelectValue placeholder="Standard" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {props.llmModels.map((model) => (
-                                    <SelectItem key={model.modelId} value={model.modelId} className="text-xs">
-                                      <div className="flex flex-col">
-                                        <span>{model.name}</span>
-                                        {model.strengths && (
-                                          <span className="text-[10px] text-muted-foreground">
-                                            {model.strengths}
-                                          </span>
-                                        )}
-                                      </div>
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              <span className="text-xs text-muted-foreground italic">Keine Modelle verfügbar</span>
-                            )}
-                          </div>
-                          {/* Cover-Bild-Generierung - linksbündig mit Dropdowns (w-14 Platzhalter) */}
-                          <div className="flex items-center gap-2 ml-[76px] pr-4">
-                            <div className="w-14" /> {/* Platzhalter für Alignment mit Labels */}
-                            <input
-                              type="checkbox"
-                              id="generate-cover-image"
-                              checked={shouldGenerateCoverImage}
-                              onChange={(e) => setShouldGenerateCoverImage(e.target.checked)}
-                              className="h-4 w-4 rounded border-gray-300"
-                            />
-                            <Label htmlFor="generate-cover-image" className="text-xs text-muted-foreground cursor-pointer">
-                              Cover-Bild generieren
-                            </Label>
-                          </div>
-                          {/* Korrekturhinweise – mehrzeiliges Textfeld mit Diktierfunktion */}
-                          <div className="ml-[76px] pr-4 pt-1">
-                            <DictationTextarea
-                              label="Korrekturhinweise (optional)"
-                              value={customHint}
-                              onChange={setCustomHint}
-                              placeholder="Korrekturen, die Extraktion überschreiben, z.B. 'haendler: Maximode' oder 'Lieferant ist Conform, nicht Chile'"
-                              rows={2}
-                              variant="inline"
-                            />
-                          </div>
+
+                          {/* === Extract-Optionen: Quellsprache + Zielsprache === */}
+                          {step.key === "extract" && (
+                            <>
+                              <div className="flex items-center gap-2 ml-[76px] pr-4">
+                                <Label htmlFor="source-language" className="text-xs text-muted-foreground whitespace-nowrap w-20">
+                                  Quellsprache
+                                </Label>
+                                <Select
+                                  value={props.sourceLanguage || 'auto'}
+                                  onValueChange={(v) => props.onSourceLanguageChange?.(v)}
+                                >
+                                  <SelectTrigger id="source-language" className="h-8 flex-1 text-xs text-left justify-start">
+                                    <SelectValue placeholder="Automatisch erkennen" />
+                                  </SelectTrigger>
+                                  <SelectContent className="max-h-[280px]">
+                                    {TRANSCRIPTION_SOURCE_LANGUAGES.map((lang) => (
+                                      <SelectItem key={lang.value} value={lang.value} className="text-xs">
+                                        {lang.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="flex items-center gap-2 ml-[76px] pr-4">
+                                <Label htmlFor="extract-target-language" className="text-xs text-muted-foreground whitespace-nowrap w-20">
+                                  Zielsprache
+                                </Label>
+                                <Select
+                                  value={props.targetLanguage}
+                                  onValueChange={props.onTargetLanguageChange}
+                                >
+                                  <SelectTrigger id="extract-target-language" className="h-8 flex-1 text-xs text-left justify-start">
+                                    <SelectValue placeholder="Deutsch" />
+                                  </SelectTrigger>
+                                  <SelectContent className="max-h-[280px]">
+                                    {TRANSFORMATION_TARGET_LANGUAGES.map((lang) => (
+                                      <SelectItem key={lang.value} value={lang.value} className="text-xs">
+                                        {lang.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </>
+                          )}
+
+                          {/* === Transform-Optionen: Vorlage, Sprache, Modell, Cover, Hinweise === */}
+                          {step.key === "transform" && (
+                            <>
+                              {/* Zeile 1: Vorlage (ganze Breite mit Zahnrad) */}
+                              <div className="flex items-center gap-2 ml-[76px] pr-4">
+                                <Label htmlFor="template" className="text-xs text-muted-foreground whitespace-nowrap w-14">
+                                  Vorlage
+                                </Label>
+                                {props.isLoadingTemplates ? (
+                                  <Skeleton className="h-8 flex-1" />
+                                ) : (
+                                  <Select value={templateSelectValue} onValueChange={(v) => props.onTemplateNameChange(v === "__none__" ? "" : v)}>
+                                    <SelectTrigger id="template" className="h-8 flex-1 text-xs text-left justify-start">
+                                      <SelectValue placeholder="Waehlen..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {props.templates.map((t) => (
+                                        <SelectItem key={t} value={t} className="text-xs">
+                                          {t}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                                {/* Link zu den Vorlagen-Einstellungen */}
+                                <Link href="/templates" title="Vorlagen verwalten">
+                                  <Settings className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors cursor-pointer" />
+                                </Link>
+                              </div>
+                              {/* Zeile 2: Zielsprache (aus zentraler Sprachliste) */}
+                              <div className="flex items-center gap-2 ml-[76px] pr-4">
+                                <Label htmlFor="language" className="text-xs text-muted-foreground whitespace-nowrap w-14">
+                                  Sprache
+                                </Label>
+                                <Select value={props.targetLanguage} onValueChange={props.onTargetLanguageChange}>
+                                  <SelectTrigger id="language" className="h-8 flex-1 text-xs text-left justify-start">
+                                    <SelectValue placeholder="Deutsch" />
+                                  </SelectTrigger>
+                                  <SelectContent className="max-h-[280px]">
+                                    {TRANSFORMATION_TARGET_LANGUAGES.map((lang) => (
+                                      <SelectItem key={lang.value} value={lang.value} className="text-xs">
+                                        {lang.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              {/* Zeile 3: LLM-Modell-Auswahl (volle Breite) */}
+                              <div className="flex items-center gap-2 ml-[76px] pr-4">
+                                <Label htmlFor="llm-model" className="text-xs text-muted-foreground whitespace-nowrap w-14">
+                                  Modell
+                                </Label>
+                                {props.isLoadingLlmModels ? (
+                                  <Skeleton className="h-8 flex-1" />
+                                ) : props.llmModels && props.llmModels.length > 0 ? (
+                                  <Select 
+                                    value={props.llmModel || ""} 
+                                    onValueChange={(v) => props.onLlmModelChange?.(v)}
+                                  >
+                                    <SelectTrigger id="llm-model" className="h-8 flex-1 text-xs text-left justify-start">
+                                      <SelectValue placeholder="Standard" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {props.llmModels.map((model) => (
+                                        <SelectItem key={model.modelId} value={model.modelId} className="text-xs">
+                                          <div className="flex flex-col">
+                                            <span>{model.name}</span>
+                                            {model.strengths && (
+                                              <span className="text-[10px] text-muted-foreground">
+                                                {model.strengths}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground italic">Keine Modelle verfügbar</span>
+                                )}
+                              </div>
+                              {/* Cover-Bild-Generierung - linksbündig mit Dropdowns (w-14 Platzhalter) */}
+                              <div className="flex items-center gap-2 ml-[76px] pr-4">
+                                <div className="w-14" /> {/* Platzhalter für Alignment mit Labels */}
+                                <input
+                                  type="checkbox"
+                                  id="generate-cover-image"
+                                  checked={shouldGenerateCoverImage}
+                                  onChange={(e) => setShouldGenerateCoverImage(e.target.checked)}
+                                  className="h-4 w-4 rounded border-gray-300"
+                                />
+                                <Label htmlFor="generate-cover-image" className="text-xs text-muted-foreground cursor-pointer">
+                                  Cover-Bild generieren
+                                </Label>
+                              </div>
+                              {/* Korrekturhinweise – mehrzeiliges Textfeld mit Diktierfunktion */}
+                              <div className="ml-[76px] pr-4 pt-1">
+                                <DictationTextarea
+                                  label="Korrekturhinweise (optional)"
+                                  value={customHint}
+                                  onChange={setCustomHint}
+                                  placeholder="Korrekturen, die Extraktion überschreiben, z.B. 'haendler: Maximode' oder 'Lieferant ist Conform, nicht Chile'"
+                                  rows={2}
+                                  variant="inline"
+                                />
+                              </div>
+                            </>
+                          )}
                         </div>
                       </CollapsibleContent>
                     )}

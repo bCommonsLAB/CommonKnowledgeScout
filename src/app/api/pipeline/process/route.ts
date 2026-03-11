@@ -97,6 +97,8 @@ async function createJobForItem(args: {
     },
     options: {
       targetLanguage: config.targetLanguage,
+      // Quellsprache für Transkription (Whisper) – nur setzen wenn explizit angegeben
+      ...(config.sourceLanguage ? { sourceLanguage: config.sourceLanguage } : {}),
       // Office-spezifische Optionen (Secretary /api/office/process)
       ...((mediaKind === 'docx' || mediaKind === 'xlsx' || mediaKind === 'pptx') ? {
         useCache: request.useCache ?? true,
@@ -132,6 +134,8 @@ async function createJobForItem(args: {
       ],
       parameters: {
         targetLanguage: config.targetLanguage,
+        // Quellsprache für Transkription (Whisper) – nur speichern wenn explizit angegeben
+        ...(config.sourceLanguage ? { sourceLanguage: config.sourceLanguage } : {}),
         ...(config.templateName ? { template: config.templateName } : {}),
         phases: {
           extract: mediaKind !== 'markdown' && config.phases.extract,

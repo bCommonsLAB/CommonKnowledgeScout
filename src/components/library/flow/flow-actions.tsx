@@ -63,6 +63,8 @@ export function FlowActions({
 }: FlowActionsProps) {
   const router = useRouter()
   const [targetLanguage, setTargetLanguage] = useQueryState("targetLanguage", parseAsString.withDefault(""))
+  // Quellsprache für Transkription (Whisper). 'auto' = automatische Erkennung
+  const [sourceLanguage, setSourceLanguage] = React.useState<string>("auto")
   const [templateName, setTemplateName] = useQueryState("templateName", parseAsString.withDefault(""))
   // mobile-first default: hide left/source pane unless user explicitly enables it
   const [leftPaneMode, setLeftPaneMode] = useQueryState("left", parseAsString.withDefault("off"))
@@ -274,7 +276,7 @@ export function FlowActions({
   }, [activeJob?.jobId])
 
   const runPipeline = React.useCallback(
-    async (args: { templateName?: string; targetLanguage: string; policies: PipelinePolicies; coverImage?: CoverImageOptions; llmModel?: string; customHint?: string }) => {
+    async (args: { templateName?: string; targetLanguage: string; sourceLanguage?: string; policies: PipelinePolicies; coverImage?: CoverImageOptions; llmModel?: string; customHint?: string }) => {
       if (!libraryId) {
         toast.error("Fehler", { description: "libraryId fehlt" })
         return
@@ -301,6 +303,8 @@ export function FlowActions({
           parentId,
           kind,
           targetLanguage: args.targetLanguage,
+          // Quellsprache für Transkription (Whisper)
+          sourceLanguage: args.sourceLanguage,
           templateName: args.templateName,
           policies: args.policies,
           libraryConfigChatTargetLanguage,
@@ -564,6 +568,8 @@ export function FlowActions({
         kind={kind === "pdf" || kind === "audio" || kind === "video" || kind === "markdown" ? kind : "other"}
         targetLanguage={targetLanguage}
         onTargetLanguageChange={(v) => void setTargetLanguage(v)}
+        sourceLanguage={sourceLanguage}
+        onSourceLanguageChange={setSourceLanguage}
         templateName={templateName}
         onTemplateNameChange={(v) => void setTemplateName(v)}
         templates={templates}

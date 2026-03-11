@@ -14,6 +14,8 @@ import { isMongoShadowTwinId, parseMongoShadowTwinId } from "@/lib/shadow-twin/m
 interface ArtifactMarkdownPanelProps {
   title: string
   titleClassName?: string
+  /** Zusätzliches Element neben dem Titel (z.B. Sprach-Dropdown) */
+  headerExtra?: React.ReactNode
   item: StorageItem | null
   provider: StorageProvider | null
   libraryId?: string
@@ -31,6 +33,7 @@ function stripFrontmatterBlock(markdown: string): string {
 export function ArtifactMarkdownPanel({
   title,
   titleClassName,
+  headerExtra,
   item,
   provider,
   libraryId,
@@ -105,11 +108,14 @@ export function ArtifactMarkdownPanel({
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          {typeof title === "string" && title.trim().length > 0 ? (
-            <div className={cn("text-sm font-medium", titleClassName)}>{title}</div>
-          ) : (
-            <div />
-          )}
+          <div className="flex items-center gap-2">
+            {typeof title === "string" && title.trim().length > 0 ? (
+              <div className={cn("text-sm font-medium", titleClassName)}>{title}</div>
+            ) : (
+              <div />
+            )}
+            {headerExtra}
+          </div>
           <div className="flex items-center gap-2">
             {additionalActions}
           </div>
@@ -138,7 +144,10 @@ export function ArtifactMarkdownPanel({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        {hasTitle ? <div className={cn("text-sm font-medium", titleClassName)}>{title}</div> : <div />}
+        <div className="flex items-center gap-2">
+          {hasTitle ? <div className={cn("text-sm font-medium", titleClassName)}>{title}</div> : <div />}
+          {headerExtra}
+        </div>
         <div className="flex items-center gap-2">
           {additionalActions}
           <Button

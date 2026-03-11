@@ -60,6 +60,8 @@ export interface PipelineConfig {
   templateName?: string
   /** Zielsprache für die Verarbeitung */
   targetLanguage: string
+  /** Quellsprache der Mediendatei (für Transkription). 'auto' = automatische Erkennung */
+  sourceLanguage?: string
   
   // --- Cover-Bild ---
   /** Cover-Bild generieren? */
@@ -194,6 +196,8 @@ export function createDefaultConfig(overrides: Partial<PipelineConfig> = {}): Pi
 export function configToJobParameters(config: PipelineConfig): Record<string, unknown> {
   return {
     targetLanguage: config.targetLanguage,
+    // Quellsprache für Transkription (Whisper) – 'auto' = automatische Erkennung
+    ...(config.sourceLanguage && config.sourceLanguage !== 'auto' ? { sourceLanguage: config.sourceLanguage } : {}),
     template: config.templateName,
     phases: config.phases,
     policies: config.policies,
