@@ -112,6 +112,10 @@ export async function loadShadowTwinMarkdown(
   const parentId = job.correlation?.source?.parentId || 'root'
   const originalName = job.correlation.source?.name || 'output'
   const sourceItemId = job.correlation?.source?.itemId || 'unknown'
+  const sourceMediaType = job.correlation?.source?.mediaType
+  const isMarkdownSource = sourceMediaType === 'markdown'
+    || originalName.toLowerCase().endsWith('.md')
+    || job.job_type === 'text'
   const templateName = job.parameters?.template as string | undefined
 
   // ============================================================================
@@ -158,6 +162,75 @@ export async function loadShadowTwinMarkdown(
     // 3. resolveArtifact mit preferredKind: 'transcript'
     //
     // =========================================================================
+
+    // Priorität 0: Bei Markdown-Quellen IMMER die aktuelle Quelldatei bevorzugen.
+    // Grund: shadowTwinState/transcript kann veraltet sein (extract wurde übersprungen).
+    // Dadurch würden Composite-Änderungen (_source_files) nicht wirksam.
+    if (isMarkdownSource && sourceItemId) {
+      FileLogger.info('phase-shadow-twin-loader', 'Markdown-Quelle als primäre Transkript-Quelle verwenden', {
+        jobId,
+        purpose,
+        sourceItemId,
+        sourceName: originalName,
+        sourceMediaType,
+      })
+
+      const result = await loadMarkdownById(ctx, provider, sourceItemId, originalName, originalName, lang, sourceItemId, parentId)
+      if (result) {
+        if (result.meta?.kind === 'composite-transcript') {
+          FileLogger.info('phase-shadow-twin-loader', 'Composite-Transcript erkannt, starte Resolution', {
+            jobId,
+            sourceItemId,
+            sourceName: originalName,
+          })
+
+          try {
+            const { resolveCompositeTranscript } = await import('@/lib/creation/composite-transcript')
+            const resolved = await resolveCompositeTranscript({
+              libraryId: job.libraryId,
+              userEmail: job.userEmail,
+              targetLanguage: lang,
+              compositeMarkdown: result.markdown,
+              parentId,
+            })
+
+            if (resolved.unresolvedSources.length > 0) {
+              FileLogger.warn('phase-shadow-twin-loader', 'Composite: Nicht alle Quellen aufgelöst', {
+                jobId,
+                unresolvedSources: resolved.unresolvedSources,
+              })
+
+              const message = `Composite-Transcript unvollständig: Quelle(n) nicht aufgelöst: ${resolved.unresolvedSources.join(', ')}`
+              FileLogger.error('phase-shadow-twin-loader', message, {
+                jobId,
+                unresolvedSources: resolved.unresolvedSources,
+              })
+              throw new Error(message)
+            }
+
+            const resolvedMeta = parseSecretaryMarkdownStrict(resolved.markdown)
+            return {
+              markdown: resolved.markdown,
+              meta: (resolvedMeta?.meta as Record<string, unknown>) ?? result.meta,
+              fileId: result.fileId,
+              fileName: result.fileName,
+              loadedArtifactKind: 'transcript' as const,
+            }
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error)
+            if (message.includes('Composite-Transcript unvollständig')) {
+              throw error
+            }
+            FileLogger.error('phase-shadow-twin-loader', 'Composite-Resolution fehlgeschlagen, verwende Original', {
+              jobId,
+              error: message,
+            })
+          }
+        }
+
+        return { ...result, loadedArtifactKind: 'transcript' as const }
+      }
+    }
 
     // Priorität 1: Direkt aus shadowTwinState.transcriptFiles
     const transcriptFiles = job.shadowTwinState?.transcriptFiles
@@ -258,11 +331,6 @@ export async function loadShadowTwinMarkdown(
     // Priorität 4: Fallback für Markdown-Quellen
     // Bei Markdown-Dateien ist die Quelldatei selbst das "Transkript" - 
     // kein separates Artefakt erforderlich
-    const sourceMediaType = job.correlation?.source?.mediaType
-    const isMarkdownSource = sourceMediaType === 'markdown' || 
-                             originalName.toLowerCase().endsWith('.md') ||
-                             job.job_type === 'text'
-    
     if (isMarkdownSource && sourceItemId) {
       FileLogger.info('phase-shadow-twin-loader', 'Markdown-Quelle als Transkript-Fallback verwenden', {
         jobId,
@@ -301,6 +369,15 @@ export async function loadShadowTwinMarkdown(
                 jobId,
                 unresolvedSources: resolved.unresolvedSources,
               })
+
+              // Harte Validierung: Alle referenzierten Quellen müssen aufgelöst sein.
+              // Sonst läuft die Template-Phase mit unvollständigem Kontext weiter.
+              const message = `Composite-Transcript unvollständig: Quelle(n) nicht aufgelöst: ${resolved.unresolvedSources.join(', ')}`
+              FileLogger.error('phase-shadow-twin-loader', message, {
+                jobId,
+                unresolvedSources: resolved.unresolvedSources,
+              })
+              throw new Error(message)
             }
 
             // Geflachtes Markdown mit geparsten Meta-Daten zurückgeben
@@ -313,9 +390,13 @@ export async function loadShadowTwinMarkdown(
               loadedArtifactKind: 'transcript' as const,
             }
           } catch (error) {
+            const message = error instanceof Error ? error.message : String(error)
+            if (message.includes('Composite-Transcript unvollständig')) {
+              throw error
+            }
             FileLogger.error('phase-shadow-twin-loader', 'Composite-Resolution fehlgeschlagen, verwende Original', {
               jobId,
-              error: error instanceof Error ? error.message : String(error),
+              error: message,
             })
             // Fallback: Original-Markdown verwenden (mit Wiki-Links)
           }

@@ -47,6 +47,35 @@ function isNonEmptyString(v: unknown): v is string {
   return typeof v === 'string' && v.trim().length > 0
 }
 
+function validateCompositeContextWindow(text: string): { ok: true } | { ok: false; message: string } {
+  if (!text || !text.includes('# Quellenübersicht')) {
+    return { ok: true }
+  }
+
+  // Quellenzeilen aus der Übersichtstabelle zählen, z.B. "| 1 | datei | Typ |"
+  const sourceRows = text.match(/^\|\s*\d+\s*\|.*\|.*\|$/gm) || []
+  const expectedSources = sourceRows.length
+  if (expectedSources < 2) {
+    return { ok: true }
+  }
+
+  const openSources = (text.match(/<source file="/g) || []).length
+  const closeSources = (text.match(/<\/source>/g) || []).length
+
+  const hasSourceMarkerMismatch = openSources !== closeSources
+  const hasMissingOpenMarkers = closeSources > 0 && openSources === 0
+  const hasTooFewSourceBlocks = openSources < expectedSources
+
+  if (hasSourceMarkerMismatch || hasMissingOpenMarkers || hasTooFewSourceBlocks) {
+    return {
+      ok: false,
+      message: `Composite-Kontext ungültig: Quellenübersicht meldet ${expectedSources} Quelle(n), aber Source-Blöcke sind inkonsistent (open=<source file= ${openSources}, close=</source> ${closeSources}). Bitte Composite-Resolution/Quelle prüfen.`,
+    }
+  }
+
+  return { ok: true }
+}
+
 export async function runTemplateTransform(args: TemplateRunArgs): Promise<TemplateRunResult> {
   const { ctx, extractedText, templateContent, targetLanguage, llmModel, context, secretaryUrlConfig } = args
   const repo = new ExternalJobsRepository()
@@ -112,6 +141,36 @@ export async function runTemplateTransform(args: TemplateRunArgs): Promise<Templ
       status: 400,
       statusText: 'BAD REQUEST',
       error: errorMessage
+    }
+  }
+
+  // Frühe Validierung für Composite-Kontexte:
+  // Verhindert LLM-Aufrufe mit unvollständigem/inkonsistentem Source-Fenster.
+  const compositeValidation = validateCompositeContextWindow(extractedText)
+  if (!compositeValidation.ok) {
+    bufferLog(jobId, {
+      phase: 'transform_validation_error',
+      message: compositeValidation.message,
+      extractedTextLength: extractedText.length,
+    })
+
+    try {
+      await repo.traceAddEvent(jobId, {
+        spanId: 'template',
+        name: 'template_validation_failed',
+        attributes: {
+          error: 'invalid_composite_context_window',
+          extractedTextLength: extractedText.length,
+          details: compositeValidation.message,
+        },
+      })
+    } catch {}
+
+    return {
+      metadata: null,
+      status: 400,
+      statusText: 'BAD REQUEST',
+      error: compositeValidation.message,
     }
   }
   

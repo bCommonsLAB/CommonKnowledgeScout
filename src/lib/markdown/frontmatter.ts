@@ -15,7 +15,7 @@ export function parseFrontmatter(markdown: string): ParsedFrontmatter {
     ? (parsed.meta as Record<string, unknown>)
     : {}
   // Frontmatter‑Block am Anfang entfernen
-  const re = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/m
+  const re = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/
   const body = re.test(markdown) ? markdown.replace(re, '') : markdown
   return { meta, body }
 }
@@ -25,7 +25,10 @@ export function parseFrontmatter(markdown: string): ParsedFrontmatter {
  */
 export function stripAllFrontmatter(text: string): string {
   let out = text
-  const re = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/m
+  // Nur Frontmatter-Präfixe am Dokumentanfang entfernen.
+  // WICHTIG: Kein /m-Flag, sonst würden auch spätere '--- ... ---' Blöcke
+  // (z. B. Composite-Trenner vor <source>-Blöcken) fälschlich entfernt.
+  const re = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/
   while (re.test(out)) out = out.replace(re, '')
   return out
 }

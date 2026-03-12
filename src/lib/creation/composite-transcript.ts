@@ -256,6 +256,17 @@ export async function resolveCompositeTranscript(
       }
     }
 
+    // Leere/Whitespace-Transkripte gelten als "nicht aufgelöst".
+    // Sonst entstehen stillschweigend Quellen ohne nutzbaren Inhalt.
+    if (typeof markdown === 'string' && markdown.trim().length === 0) {
+      FileLogger.warn('composite-transcript', `Leeres Transkript für "${name}"`, {
+        libraryId,
+        sourceId: item.id,
+      })
+      markdown = null
+      unresolvedSources.push(name)
+    }
+
     resolvedSources.push({ name, index: i + 1, markdown, mimeType })
   }
 

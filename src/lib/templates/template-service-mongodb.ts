@@ -133,7 +133,9 @@ function appendGeneratedResponseSchema(
 
 ---
 IMPORTANT - Binding response schema (auto-generated from template metadata):
-Use EXACTLY these field names in your JSON response:
+Use AT LEAST these field names in your JSON response.
+If REQUIRED FIELDS contains additional template variables (e.g. from markdown body),
+include them as well:
 
 ${generatedSchema}`
   
