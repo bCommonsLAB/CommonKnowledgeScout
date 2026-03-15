@@ -122,6 +122,23 @@ export async function POST(
               return NextResponse.json({ resolvedUrl: streamingUrl, fragmentName: body.fragmentName }, { status: 200 })
             }
           }
+
+          // Zweiter Storage-Fallback: direkt im Quellverzeichnis suchen.
+          // Wichtig für Galerie-Bilder, die als normale Sibling-Dateien vorliegen
+          // und nicht als binaryFragment im Shadow-Twin registriert sind.
+          const sourceSiblings = await provider.listItemsById(effectiveParentId)
+          const siblingMatch = sourceSiblings.find(
+            (item) =>
+              item.type === 'file' &&
+              item.metadata.name.toLowerCase() === body.fragmentName.toLowerCase()
+          )
+          if (siblingMatch) {
+            const streamingUrl = `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(siblingMatch.id)}`
+            FileLogger.info('shadow-twins/resolve-binary-url', 'Datei via Source-Verzeichnis-Fallback gefunden', {
+              fragmentName: body.fragmentName, sourceId: body.sourceId, fileId: siblingMatch.id,
+            })
+            return NextResponse.json({ resolvedUrl: streamingUrl, fragmentName: body.fragmentName }, { status: 200 })
+          }
         }
       } catch (storageErr) {
         FileLogger.warn('shadow-twins/resolve-binary-url', 'Storage-Fallback fehlgeschlagen', {

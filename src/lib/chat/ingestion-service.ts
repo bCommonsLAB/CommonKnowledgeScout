@@ -15,6 +15,7 @@ import { extractFacetValues, buildVectorDocuments } from '@/lib/ingestion/vector
 import { buildMetaDocument } from '@/lib/ingestion/meta-document-builder'
 import { hashId } from '@/lib/utils/string-utils'
 import { AzureStorageService } from '@/lib/services/azure-storage-service'
+import { calculateImageHash } from '@/lib/services/azure-storage-service'
 import { getAzureStorageConfig } from '@/lib/config/azure-storage'
 import { getShadowTwinBinaryFragments } from '@/lib/repositories/shadow-twin-repo'
 import * as fs from 'fs/promises'
@@ -448,12 +449,12 @@ export class IngestionService {
             }
           }
           
-          // Medien-Felder (speakers_image_url, authors_image_url, attachments_url, author_image_url)
+          // Medien-Felder (speakers_image_url, authors_image_url, attachments_url, author_image_url, galleryImageUrls)
           // aus binaryFragments auflösen, falls sie relative Dateinamen enthalten
           try {
             const allFragments = await getShadowTwinBinaryFragments(libraryId, fileId)
             if (allFragments && allFragments.length > 0) {
-              const mediaFields = ['speakers_image_url', 'authors_image_url', 'attachments_url', 'author_image_url'] as const
+              const mediaFields = ['speakers_image_url', 'authors_image_url', 'attachments_url', 'author_image_url', 'galleryImageUrls'] as const
               for (const fieldKey of mediaFields) {
                 const rawValue = docMetaJsonObj[fieldKey]
                 if (rawValue) {
@@ -471,6 +472,100 @@ export class IngestionService {
           } catch (error) {
             FileLogger.warn('ingestion', 'Fehler beim Auflösen der Medien-Felder', {
               fileId, error: error instanceof Error ? error.message : String(error),
+            })
+          }
+
+          // Zweiter Pass für Publish: verbleibende Dateinamen auf Blob-URLs heben
+          // (wichtig für public views ohne Storage-Provider/Session).
+          try {
+            if (provider) {
+              const azureConfig = getAzureStorageConfig()
+              const azureStorage = new AzureStorageService()
+              const scope: 'books' | 'sessions' = isSessionMode ? 'sessions' : 'books'
+              const mediaFieldsToPromote = ['attachments_url', 'galleryImageUrls'] as const
+              const sourceItem = await provider.getItemById(fileId).catch(() => null)
+              const candidateFolderIds: string[] = []
+              if (shadowTwinFolderId) candidateFolderIds.push(shadowTwinFolderId)
+              if (sourceItem?.parentId && !candidateFolderIds.includes(sourceItem.parentId)) {
+                candidateFolderIds.push(sourceItem.parentId)
+              }
+
+              const findItemByName = async (name: string): Promise<string | undefined> => {
+                for (const folderId of candidateFolderIds) {
+                  try {
+                    const siblings = await provider.listItemsById(folderId)
+                    const match = siblings.find((it) =>
+                      it.type === 'file' && it.metadata?.name?.toLowerCase() === name.toLowerCase()
+                    )
+                    if (match?.id) return match.id
+                  } catch {
+                    // nächster Kandidat
+                  }
+                }
+                return undefined
+              }
+
+              const promoteToBlobUrl = async (nameOrUrl: string): Promise<string> => {
+                const value = nameOrUrl.trim()
+                if (!value) return value
+                if (value.startsWith('http://') || value.startsWith('https://')) return value
+                if (!azureConfig || !azureStorage.isConfigured()) return value
+
+                const matchedFileId = await findItemByName(value)
+                if (!matchedFileId) return value
+
+                const fileBinary = await provider.getBinary(matchedFileId)
+                const fileBuffer = Buffer.from(await fileBinary.blob.arrayBuffer())
+                const ext = value.split('.').pop()?.toLowerCase() || ''
+                const isPdf = ext === 'pdf'
+                const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)
+
+                if (isPdf) {
+                  return azureStorage.uploadPdfToScope(
+                    azureConfig.containerName,
+                    libraryId,
+                    scope,
+                    fileId,
+                    value,
+                    fileBuffer
+                  )
+                }
+
+                if (isImage) {
+                  const hash = calculateImageHash(fileBuffer)
+                  return azureStorage.uploadImageToScope(
+                    azureConfig.containerName,
+                    libraryId,
+                    scope,
+                    fileId,
+                    hash,
+                    ext || 'jpg',
+                    fileBuffer
+                  )
+                }
+
+                return value
+              }
+
+              for (const fieldKey of mediaFieldsToPromote) {
+                const raw = docMetaJsonObj[fieldKey]
+                if (!raw) continue
+                if (Array.isArray(raw)) {
+                  const promoted = await Promise.all(
+                    raw.map(async (entry) =>
+                      typeof entry === 'string' ? promoteToBlobUrl(entry) : entry
+                    )
+                  )
+                  docMetaJsonObj[fieldKey] = promoted
+                } else if (typeof raw === 'string') {
+                  docMetaJsonObj[fieldKey] = await promoteToBlobUrl(raw)
+                }
+              }
+            }
+          } catch (error) {
+            FileLogger.warn('ingestion', 'Fehler beim Blob-Publish von Medien-Feldern', {
+              fileId,
+              error: error instanceof Error ? error.message : String(error),
             })
           }
 

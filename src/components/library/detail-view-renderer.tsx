@@ -31,6 +31,10 @@ interface DetailViewRendererProps {
   hideEventTools?: boolean
   /** Optional: Blendet Debug-Informationen aus */
   hideDebug?: boolean
+  /** Optional: Source-Datei-ID für Media-Auflösung in Preview */
+  sourceFileId?: string
+  /** Optional: Source-Dateiname für Media-Auflösung in Preview */
+  sourceFileName?: string
 }
 
 /**
@@ -49,21 +53,54 @@ export function DetailViewRenderer({
   currentFolderId = 'root',
   hideEventTools = false,
   hideDebug = false,
+  sourceFileId,
+  sourceFileName,
 }: DetailViewRendererProps) {
+  // Stabilisiert Metadaten über inhaltlichen Snapshot.
+  // So vermeiden wir unnötige Re-Renders in tiefen Detail-Komponenten,
+  // wenn nur Objekt-Referenzen wechseln, der Inhalt aber gleich bleibt.
+  const metadataSnapshot = React.useMemo(() => {
+    try {
+      return JSON.stringify(metadata || {})
+    } catch {
+      return "{}"
+    }
+  }, [metadata])
+
+  const stableMetadata = React.useMemo<Record<string, unknown>>(() => {
+    try {
+      return JSON.parse(metadataSnapshot) as Record<string, unknown>
+    } catch {
+      return {}
+    }
+  }, [metadataSnapshot])
+
   // Mapper erwarten API-ähnliche Struktur: { docMetaJson: { ... } }
   const docMetaJson = React.useMemo(() => {
-    const base = { ...(metadata || {}) }
+    const base = { ...stableMetadata }
     if (markdown && typeof markdown === "string") {
       ;(base as Record<string, unknown>).markdown = markdown
     }
     return { docMetaJson: base }
-  }, [metadata, markdown])
+  }, [stableMetadata, markdown])
+  const mapperInput = React.useMemo(() => {
+    const root: Record<string, unknown> = { ...docMetaJson }
+    if (sourceFileId) root.fileId = sourceFileId
+    if (sourceFileName) root.fileName = sourceFileName
+    return root
+  }, [docMetaJson, sourceFileId, sourceFileName])
   
   // Validiere Pflichtfelder für den gewählten ViewType
   const validation = React.useMemo(
-    () => validateMetadataForViewType(metadata || {}, detailViewType),
-    [metadata, detailViewType]
+    () => validateMetadataForViewType(stableMetadata, detailViewType),
+    [stableMetadata, detailViewType]
   )
+
+  const mappedBookDetail = React.useMemo(() => mapToBookDetail(mapperInput), [mapperInput])
+  const mappedSessionDetail = React.useMemo(() => mapToSessionDetail(mapperInput), [mapperInput])
+  const mappedTestimonialDetail = React.useMemo(() => mapToTestimonialDetail(mapperInput), [mapperInput])
+  const mappedClimateActionDetail = React.useMemo(() => mapToClimateActionDetail(mapperInput), [mapperInput])
+  const mappedDivaDocumentDetail = React.useMemo(() => mapToDivaDocumentDetail(mapperInput), [mapperInput])
   
   // Warnung für fehlende Pflichtfelder
   const MissingFieldsWarning = React.useMemo(() => {
@@ -92,7 +129,7 @@ export function DetailViewRenderer({
     return (
       <>
         {MissingFieldsWarning}
-        <BookDetail data={mapToBookDetail(docMetaJson)} showBackLink={showBackLink} />
+        <BookDetail data={mappedBookDetail} showBackLink={showBackLink} />
       </>
     )
   }
@@ -101,7 +138,7 @@ export function DetailViewRenderer({
     return (
       <>
         {MissingFieldsWarning}
-        <TestimonialDetail data={mapToTestimonialDetail(docMetaJson)} showBackLink={showBackLink} libraryId={libraryId} />
+        <TestimonialDetail data={mappedTestimonialDetail} showBackLink={showBackLink} libraryId={libraryId} />
       </>
     )
   }
@@ -110,7 +147,7 @@ export function DetailViewRenderer({
     return (
       <>
         {MissingFieldsWarning}
-        <ClimateActionDetail data={mapToClimateActionDetail(docMetaJson)} showBackLink={showBackLink} />
+        <ClimateActionDetail data={mappedClimateActionDetail} showBackLink={showBackLink} />
       </>
     )
   }
@@ -119,7 +156,7 @@ export function DetailViewRenderer({
     return (
       <>
         {MissingFieldsWarning}
-        <DivaDocumentDetail data={mapToDivaDocumentDetail(docMetaJson)} showBackLink={showBackLink} />
+        <DivaDocumentDetail data={mappedDivaDocumentDetail} showBackLink={showBackLink} />
       </>
     )
   }
@@ -129,7 +166,7 @@ export function DetailViewRenderer({
     <>
       {MissingFieldsWarning}
       <SessionDetail
-        data={mapToSessionDetail(docMetaJson)}
+        data={mappedSessionDetail}
         showBackLink={showBackLink}
         libraryId={libraryId}
         provider={provider}

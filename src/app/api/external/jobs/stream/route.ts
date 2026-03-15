@@ -13,35 +13,72 @@ export async function GET(request: NextRequest) {
   const userEmail = user?.emailAddresses?.[0]?.emailAddress || '';
   if (!userEmail) return new Response('Forbidden', { status: 403 });
 
+  let teardown: (() => void) | null = null;
+
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       const encoder = new TextEncoder();
+      const signal = (request as unknown as { signal?: AbortSignal }).signal;
 
-      // Initial event: connected
-      controller.enqueue(encoder.encode(`event: connected\n`));
-      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ ok: true, ts: Date.now() })}\n\n`));
+      let isClosed = false;
+      let keepAlive: ReturnType<typeof setInterval> | undefined;
+      let unsubscribe: (() => void) | undefined;
 
-      const unsubscribe = getJobEventBus().subscribe(userEmail, (evt: JobUpdateEvent) => {
-        controller.enqueue(encoder.encode(`event: job_update\n`));
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(evt)}\n\n`));
-      });
-
-      const keepAlive = setInterval(() => {
-        controller.enqueue(encoder.encode(`event: ping\n`));
-        controller.enqueue(encoder.encode(`data: ${Date.now()}\n\n`));
-      }, 25000);
-
-      // Cleanup
+      // Guard gegen doppelte/verspätete Teardowns.
       const close = () => {
-        clearInterval(keepAlive);
-        unsubscribe();
+        if (isClosed) return;
+        isClosed = true;
+        if (keepAlive) {
+          clearInterval(keepAlive);
+          keepAlive = undefined;
+        }
+        if (unsubscribe) {
+          unsubscribe();
+          unsubscribe = undefined;
+        }
+        if (signal && typeof signal.removeEventListener === 'function') {
+          signal.removeEventListener('abort', close);
+        }
       };
 
+      // enqueue kann nach Stream-Close werfen; dann sofort aufräumen.
+      const safeEnqueue = (payload: string): boolean => {
+        if (isClosed) return false;
+        try {
+          controller.enqueue(encoder.encode(payload));
+          return true;
+        } catch {
+          close();
+          return false;
+        }
+      };
+
+      const sendEvent = (event: string, data: string): void => {
+        const hasEvent = safeEnqueue(`event: ${event}\n`);
+        if (!hasEvent) return;
+        safeEnqueue(`data: ${data}\n\n`);
+      };
+
+      // Initial event: connected
+      sendEvent('connected', JSON.stringify({ ok: true, ts: Date.now() }));
+
+      unsubscribe = getJobEventBus().subscribe(userEmail, (evt: JobUpdateEvent) => {
+        sendEvent('job_update', JSON.stringify(evt));
+      });
+
+      keepAlive = setInterval(() => {
+        sendEvent('ping', String(Date.now()));
+      }, 25000);
+
       // Cleanup über AbortSignal wenn vorhanden
-      const signal = (request as unknown as { signal?: AbortSignal }).signal;
       if (signal && typeof signal.addEventListener === 'function') {
         signal.addEventListener('abort', close);
       }
+
+      teardown = close;
+    },
+    cancel() {
+      if (teardown) teardown();
     }
   });
 

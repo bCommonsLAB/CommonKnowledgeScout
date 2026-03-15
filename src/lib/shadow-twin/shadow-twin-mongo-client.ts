@@ -15,10 +15,13 @@ export async function fetchShadowTwinMarkdown(
     sourceId: parts.sourceId,
     kind: parts.kind,
     targetLanguage: parts.targetLanguage,
+    _ts: String(Date.now()),
   })
   if (parts.templateName) params.set('templateName', parts.templateName)
 
-  const res = await fetch(`/api/library/${libraryId}/shadow-twins/content?${params.toString()}`)
+  const res = await fetch(`/api/library/${libraryId}/shadow-twins/content?${params.toString()}`, {
+    cache: 'no-store',
+  })
   if (!res.ok) {
     throw new Error(`HTTP ${res.status}: ${res.statusText}`)
   }

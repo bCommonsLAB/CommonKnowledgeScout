@@ -8,6 +8,7 @@ import type { StorageProvider } from "@/lib/storage/types";
 interface EventSummaryProps {
   summary: string;
   videoUrl?: string; 
+  coverImageUrl?: string;
   provider?: StorageProvider | null;
   currentFolderId?: string;
 }
@@ -17,7 +18,7 @@ interface EventSummaryProps {
  * Zeigt Markdown-Inhalt mit zentralem MarkdownPreview-Viewer
  * Video ist bereits im Markdown integriert
  */
-export function EventSummary({ summary, videoUrl, provider = null, currentFolderId = 'root' }: EventSummaryProps) {
+export function EventSummary({ summary, videoUrl, coverImageUrl, provider = null, currentFolderId = 'root' }: EventSummaryProps) {
   if (!summary) {
     return null;
   }
@@ -26,8 +27,8 @@ export function EventSummary({ summary, videoUrl, provider = null, currentFolder
     <Card className="px-6 pt-0 pb-6 w-full max-w-full overflow-x-hidden box-border">
       {/* Markdown Content mit zentralem MarkdownPreview */}
 
-      {/* Video Embed */}
-      {videoUrl && (
+      {/* Primär: Video, Fallback: Coverbild */}
+      {videoUrl ? (
         <div className="mb-6 aspect-video rounded-lg overflow-hidden bg-muted w-full max-w-full box-border relative">
           {/* iframe mit loading="lazy" für verzögertes Laden (Performance in verschachtelten Ansichten) */}
           <iframe
@@ -40,7 +41,17 @@ export function EventSummary({ summary, videoUrl, provider = null, currentFolder
             title="Event Video"
           />
         </div>
-      )}
+      ) : coverImageUrl ? (
+        <div className="mb-6 rounded-lg overflow-hidden bg-muted w-full max-w-full box-border border">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={coverImageUrl}
+            alt="Coverbild"
+            className="w-full h-auto max-h-[520px] object-cover"
+            loading="lazy"
+          />
+        </div>
+      ) : null}
       <div className="prose prose-slate dark:prose-invert max-w-none w-full overflow-x-hidden">
         <MarkdownPreview 
           content={summary} 

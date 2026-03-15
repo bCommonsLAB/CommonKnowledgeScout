@@ -7,7 +7,6 @@ import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { chatReferencesAtom } from '@/atoms/chat-references-atom'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FilterContextBar } from '@/components/library/filter-context-bar'
-import { ChatPanel } from '@/components/library/chat/chat-panel'
 import { StoryModeHeader } from '@/components/library/story/story-mode-header'
 import { GalleryStickyHeader } from '@/components/library/gallery/gallery-sticky-header'
 import { FiltersPanel } from '@/components/library/gallery/filters-panel'
@@ -22,7 +21,6 @@ import { MobileFiltersSheet } from '@/components/library/gallery/mobile-filters-
 import { DetailOverlay } from '@/components/library/gallery/detail-overlay'
 import { useGalleryMode } from '@/hooks/gallery/use-gallery-mode'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import { useStoryContext } from '@/hooks/use-story-context'
 import { useGalleryConfig } from '@/hooks/gallery/use-gallery-config'
 import { useGalleryData } from '@/hooks/gallery/use-gallery-data'
 import { useGalleryFacets } from '@/hooks/gallery/use-gallery-facets'
@@ -36,12 +34,22 @@ import { ReferencesSheet } from './references-sheet'
 import { openDocumentBySlug, closeDocument } from '@/utils/document-navigation'
 import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
 import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
+import dynamic from 'next/dynamic'
+import { storyCharacterAtom } from '@/atoms/story-context-atom'
 
 export interface GalleryRootProps {
   libraryIdProp?: string
   /** Wenn true, werden die Tabs nicht gerendert (z.B. wenn sie bereits im Header sind) */
   hideTabs?: boolean
 }
+
+const LazyChatPanel = dynamic(
+  () => import('@/components/library/chat/chat-panel').then((module) => module.ChatPanel),
+  {
+    ssr: false,
+    loading: () => <div className='text-sm text-muted-foreground p-4'>Lade Story-Panel…</div>,
+  }
+)
 
 export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProps) {
   const { t } = useTranslation()
@@ -69,8 +77,9 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
   const sessionHeaders = useSessionHeaders()
   const [sources, setSources] = React.useState<QueryLog['sources']>([])
   
-  // Story Context für Perspektivenprüfung
-  const { character } = useStoryContext()
+  // Nur den Character-Atomwert lesen (leichtgewichtig).
+  // Vermeidet den schweren useStoryContext-Hook inkl. Modell-Fetch im Gallery-Load.
+  const character = useAtomValue(storyCharacterAtom)
 
   // Mobile detection
   useEffect(() => {
@@ -677,7 +686,8 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
         </div>
       )}
       <Tabs value={mode} className="flex-1 min-h-0 flex flex-col">
-        {/* Gallery Mode */}
+        {/* Gallery Mode: nur mounten wenn aktiv, um unnötige API-Last zu vermeiden */}
+        {mode === 'gallery' && (
         <TabsContent value="gallery" className="flex-1 min-h-0 m-0 mt-0 flex flex-col overflow-hidden data-[state=active]:flex">
           <GalleryStickyHeader
             headline={texts.headline}
@@ -767,15 +777,17 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
             </section>
           </div>
         </TabsContent>
+        )}
 
-        {/* Story Mode */}
+        {/* Story Mode: Chat/Story nur on-demand mounten */}
+        {mode === 'story' && (
         <TabsContent value="story" className="flex-1 min-h-0 m-0 flex flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden">
           <div className="flex-shrink-0">
             <StoryModeHeader libraryId={libraryId || ''} onBackToGallery={() => setMode('gallery')} />
           </div>
           <div className="grid gap-6 lg:grid-cols-[1fr_1fr] flex-1 min-h-0 overflow-hidden">
             <div className="min-h-0 flex flex-col overflow-hidden rounded-md">
-              <ChatPanel libraryId={libraryId} variant='embedded' />
+              <LazyChatPanel libraryId={libraryId} variant='embedded' />
             </div>
             <div className="hidden lg:flex flex-col min-h-0 overflow-hidden rounded-md">
               {/* FilterContextBar nur anzeigen wenn KEINE Antwort-Referenzen angezeigt werden (Answer-Modus) */}
@@ -803,6 +815,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
             </div>
           </div>
         </TabsContent>
+        )}
       </Tabs>
 
       {/* Mobile Filters Sheet */}

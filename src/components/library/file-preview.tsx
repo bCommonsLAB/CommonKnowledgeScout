@@ -597,6 +597,17 @@ function PreviewContent({
   // Hole Shadow-Twin-State für die aktuelle Datei
   const shadowTwinStates = useAtomValue(shadowTwinStateAtom);
   const shadowTwinState = shadowTwinStates.get(item.id);
+  // Job-Status fuer diese Datei aus dem globalen Atom lesen.
+  // WICHTIG: Dieser Block muss vor Effects stehen, die currentJobInfo in Dependencies nutzen.
+  const jobInfoByItemId = useAtomValue(jobInfoByItemIdAtom)
+  const currentJobInfo = jobInfoByItemId[item.id]
+  const STALE_JOB_THRESHOLD_MS = 10 * 60 * 1000
+  const isJobStale = React.useMemo(() => {
+    if (!currentJobInfo?.updatedAt) return true
+    const age = Date.now() - new Date(currentJobInfo.updatedAt).getTime()
+    return age > STALE_JOB_THRESHOLD_MS
+  }, [currentJobInfo?.updatedAt, STALE_JOB_THRESHOLD_MS])
+  const hasActiveJob = !isJobStale && (currentJobInfo?.status === 'queued' || currentJobInfo?.status === 'running')
 
   // Alle verfügbaren Transkripte (alle Sprachen) aus MongoDB laden.
   // Die Batch-Resolve-API liefert nur ein Transkript pro Source, daher holen wir
@@ -609,7 +620,8 @@ function PreviewContent({
     async function loadAllArtifacts() {
       try {
         const res = await fetch(
-          `/api/library/${encodeURIComponent(activeLibraryId)}/shadow-twins/${encodeURIComponent(item.id)}`
+          `/api/library/${encodeURIComponent(activeLibraryId)}/shadow-twins/${encodeURIComponent(item.id)}?ts=${Date.now()}`,
+          { cache: 'no-store' }
         )
         if (!res.ok || cancelled) return
         const data = await res.json() as {
@@ -617,8 +629,12 @@ function PreviewContent({
         }
         if (cancelled || !data.artifacts) return
         // Nur Transkripte filtern und als virtuelle StorageItems erstellen
-        const transcriptArtifacts = data.artifacts.filter((a) => a.kind === 'transcript')
-        const transformationArtifacts = data.artifacts.filter((a) => a.kind === 'transformation')
+        const transcriptArtifacts = data.artifacts
+          .filter((a) => a.kind === 'transcript')
+          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+        const transformationArtifacts = data.artifacts
+          .filter((a) => a.kind === 'transformation')
+          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
         if (transcriptArtifacts.length <= 1) {
           // Nur ein Transkript → kein Dropdown nötig, bleibe bei der bestehenden Logik
           setAllTranscriptFiles([])
@@ -645,32 +661,28 @@ function PreviewContent({
           if (!cancelled) setAllTranscriptFiles(virtualItems)
         }
 
-        if (transformationArtifacts.length <= 1) {
-          setAllTransformationFiles([])
-        } else {
-          const baseName = item.metadata.name.replace(/\.[^.]+$/, '')
-          const virtualTransformItems: StorageItem[] = transformationArtifacts.map((a) => {
-            const templateName = typeof a.templateName === 'string' && a.templateName.trim().length > 0
-              ? a.templateName
-              : 'template'
-            const fileName = `${baseName}.${templateName}.${a.targetLanguage}.md`
-            const parts = [activeLibraryId, item.id, 'transformation', a.targetLanguage, templateName].map(encodeURIComponent)
-            const mongoId = `mongo-shadow-twin:${parts.join('::')}`
-            return {
-              id: mongoId,
-              parentId: item.parentId ?? '',
-              type: 'file' as const,
-              metadata: {
-                name: fileName,
-                size: a.markdownLength ?? 0,
-                modifiedAt: new Date(a.updatedAt ?? Date.now()),
-                mimeType: 'text/markdown',
-                isTwin: true,
-              },
-            }
-          })
-          if (!cancelled) setAllTransformationFiles(virtualTransformItems)
-        }
+        const baseName = item.metadata.name.replace(/\.[^.]+$/, '')
+        const virtualTransformItems: StorageItem[] = transformationArtifacts.map((a) => {
+          const templateName = typeof a.templateName === 'string' && a.templateName.trim().length > 0
+            ? a.templateName
+            : 'template'
+          const fileName = `${baseName}.${templateName}.${a.targetLanguage}.md`
+          const parts = [activeLibraryId, item.id, 'transformation', a.targetLanguage, templateName].map(encodeURIComponent)
+          const mongoId = `mongo-shadow-twin:${parts.join('::')}`
+          return {
+            id: mongoId,
+            parentId: item.parentId ?? '',
+            type: 'file' as const,
+            metadata: {
+              name: fileName,
+              size: a.markdownLength ?? 0,
+              modifiedAt: new Date(a.updatedAt ?? Date.now()),
+              mimeType: 'text/markdown',
+              isTwin: true,
+            },
+          }
+        })
+        if (!cancelled) setAllTransformationFiles(virtualTransformItems)
       } catch {
         // Fehler ignorieren – Dropdown bleibt ausgeblendet
       }
@@ -678,7 +690,17 @@ function PreviewContent({
     void loadAllArtifacts()
     return () => { cancelled = true }
     // transcript.transcriptItem triggert Neuladen, wenn ein neues Transkript erstellt wird
-  }, [activeLibraryId, item.id, item.metadata.name, item.parentId, transcript.transcriptItem, shadowTwinState?.transformed?.id])
+    // currentJobInfo aktualisiert Artefakte direkt nach Job-Ende (ohne Dateiwechsel)
+  }, [
+    activeLibraryId,
+    item.id,
+    item.metadata.name,
+    item.parentId,
+    transcript.transcriptItem,
+    shadowTwinState?.transformed?.id,
+    currentJobInfo?.status,
+    currentJobInfo?.updatedAt,
+  ])
 
   // Verfügbare Transkripte: bevorzuge die vollständige Liste aus der API,
   // Fallback auf die Einzeldatei aus dem Shadow-Twin-State
@@ -938,18 +960,6 @@ function PreviewContent({
   const [llmModel, setLlmModel] = React.useState<string>("")
   const [llmModels, setLlmModels] = React.useState<LlmModelOption[]>([])
   const [isLoadingLlmModels, setIsLoadingLlmModels] = React.useState(false)
-
-  // Job-Status fuer diese Datei aus dem globalen Atom lesen
-  // Stale-Check: Jobs aelter als 10 Minuten ohne Update gelten als verwaist
-  const jobInfoByItemId = useAtomValue(jobInfoByItemIdAtom)
-  const currentJobInfo = jobInfoByItemId[item.id]
-  const STALE_JOB_THRESHOLD_MS = 10 * 60 * 1000
-  const isJobStale = React.useMemo(() => {
-    if (!currentJobInfo?.updatedAt) return true
-    const age = Date.now() - new Date(currentJobInfo.updatedAt).getTime()
-    return age > STALE_JOB_THRESHOLD_MS
-  }, [currentJobInfo?.updatedAt, STALE_JOB_THRESHOLD_MS])
-  const hasActiveJob = !isJobStale && (currentJobInfo?.status === 'queued' || currentJobInfo?.status === 'running')
 
   const activeLibrary = useAtomValue(activeLibraryAtom)
   const libraryConfigChatTargetLanguage = activeLibrary?.config?.chat?.targetLanguage

@@ -7,20 +7,20 @@ title: {{title|Titel der Aktion (z.B. "Mahnwache für Klimagerechtigkeit")}}
 shortTitle: {{shortTitle|Kurztitel für Listen (max. 50 Zeichen)}}
 slug: {{slug|Wird automatisch gesetzt (aus Dateiname)}}
 teaser: {{teaser|Kurzer Teaser-Text für die Vorschau (1-2 Sätze, motivierend)}}
-summary: {{summary|Ausführlicher Bericht über die Aktion (Markdown, für Detailansicht)}}
+summary: {{summary|Kurze Zusammenfassung in 2-3 Sätzen: Was ist passiert, wer war beteiligt und warum ist es wichtig.}}
 date: {{date|Datum der Aktion (ISO oder frei)}}
 location: {{location|Ort der Aktion (z.B. "Waltherplatz, Bozen")}}
 year: {{year|Jahr (z.B. 2026)}}
 tags: {{tags|Tags (Array, z.B. ["klimaschutz", "mahnwache", "petition"])}}
 topics: {{topics|Themen (Array, z.B. ["Klimagerechtigkeit", "Mobilität"])}}
 authors: {{authors|Array von Personen/Organisationen (z.B. ["Oldies for Future", "Stadtwerke Brixen"])}}
-authors_image_url: {{authors_image_url|Array von Bild-URLs, Index-parallel zu authors (z.B. ["oldies.jpg", "stadtwerke.jpg"])}}
+authors_image_url: {{authors_image_url|Array von Bild-Dateinamen, index-parallel zu authors (z.B. ["oldies.jpg", "stadtwerke.jpg"]). Nur Dateinamen aus den verfuegbaren Medien verwenden, sonst [] oder "" pro Eintrag.}}
 organisation: Oldies for Future
 event: {{event|Aktionsname oder Anlass (z.B. "Globaler Klimastreik März 2026")}}
 video_url: {{video_url|Video-URL falls vorhanden (optional)}}
-coverImageUrl: {{coverImageUrl|Dateiname des Titelbilds}}
-galleryImageUrls: {{galleryImageUrls|Array von Bild-URLs für die Galerie am Ende des Berichts (z.B. ["bild1.jpg", "bild2.jpg", "bild3.jpg"])}}
-attachments_url: {{attachments_url|Leer lassen. Öffentlicher Link wird beim Publizieren gesetzt.}}
+coverImageUrl: {{coverImageUrl|Dateiname des Titelbilds. Nur aus "Verfügbare Medien im Verzeichnis" waehlen. Keine URL. Wenn unsicher: "".}}
+galleryImageUrls: {{galleryImageUrls|Array von Bild-Dateinamen fuer die Galerie (ohne Coverbild), nur aus "Verfügbare Medien im Verzeichnis". Keine URLs. Wenn keine passenden Bilder: [].}}
+attachments_url: {{attachments_url|Array von Dateinamen fuer Anhaenge (z.B. PDF/Office), bevorzugt aus den Quell-Dateien in der Quellenuebersicht. Keine URLs. Wenn keine passenden Anhaenge: [].}}
 url: {{url|URL zur Original-Webseite oder Social-Media-Post (optional)}}
 testimonialWriteKey: {{testimonialWriteKey|Wird automatisch gesetzt (für QR Upload)}}
 creation:
@@ -57,7 +57,7 @@ creation:
         title: "Artefakte auswählen"
       - id: Generate
         preset: generateDraft
-        title: "Aktionsbericht erstellen"
+        title: "Blogartikel erstellen"
       - id: Details
         preset: editDraft
         title: "Aktions-Details"
@@ -88,59 +88,61 @@ creation:
       - id: Publish
         preset: publish
         title: "Fertigstellen"
-        description: "Aktionsbericht wird gespeichert. Muss noch manuell publiziert werden."
+        description: "Blogartikel wird gespeichert. Muss noch manuell publiziert werden."
         ingestOnFinish: false
   ui:
-    displayName: "Aktionsbericht erstellen"
-    description: "Erstelle einen Bericht über eine Aktion der Oldies for Future"
+    displayName: "Blogartikel aus Aktionen erstellen"
+    description: "Erstelle einen Blogartikel über Aktionen von Oldies for Future"
     icon: Megaphone
 ---
-
-## Zusammenfassung
-
-{{summary|Berichte über die Aktion: Beginne mit einer kurzen Zusammenfassung (2-3 Sätze), die das Wichtigste auf den Punkt bringt. Gliedere dann den Ablauf in sinnvolle Abschnitte. Für jeden Abschnitt einen passenden Titel in Fett und darunter 80-120 Worte. Betone das Engagement der Teilnehmenden, die Wirkung der Aktion und die Reaktionen vor Ort. Absätze und Titel mit \n trennen.}}
+{{blogartikel|Schreibe einen vollständigen Blogartikel auf Basis aller bereitgestellten Quellen (Text, URL, Dateien/Artefakte). Thema, Schwerpunkt und Ton ergeben sich aus dem Material. Der Artikel muss komplett in Markdown formatiert sein. Erzeuge die Struktur dynamisch: Die Überschrift wird später ergänzt. Beginne also mit einer kurzen Einleitung und danach sinnvolle H2-Zwischenueberschriften, die zum konkreten Thema passen. Verwende keine starre Standard-Gliederung. Der Text soll je nach Inhalt folgendes abdecken, soweit die Quellen es hergeben: Was ist passiert, wer war beteiligt, wie lief die Aktion ab, welche Reaktionen gab es, welche Botschaften stehen im Mittelpunkt und warum ist das im groesseren Zusammenhang relevant. Wenn Zitate, Eindruecke oder besondere Momente vorliegen, integriere sie passend. Wenn etwas nicht belegt ist, lasse es weg. Achte auf abwechslungsreiche Satzanfaenge, gute Lesbarkeit und einen runden, motivierenden Abschluss.}}
 
 --- systemprompt
-Du bist ein erfahrener Journalist, der über bürgerschaftliches Engagement und Umweltaktionen berichtet. Du schreibst Aktionsberichte für die **Oldies for Future** – eine Gruppe engagierter älterer Menschen, die sich für Klimaschutz, Nachhaltigkeit und soziale Gerechtigkeit einsetzen.
+Du bist Autorin oder Autor fuer die Initiative **Oldies for Future**.
+Die Zielgruppe umfasst auch aeltere Leserinnen und Leser.
 
-**Dein Zielpublikum sind ältere Leserinnen und Leser.** Beachte dabei:
+Dauerhafte Schreibregeln:
+- Schreibe klar, lebendig und gut verstaendlich.
+- Nutze kurze bis mittlere Saetze und gut lesbare Absaetze.
+- Formuliere respektvoll, sachlich engagiert und ohne Uebertreibung.
+- Variiere Satzanfaenge und vermeide monotone Wiederholungen.
 
-- Schreibe in klarer, gut lesbarer Sprache ohne unnötigen Fachjargon.
-- Verwende kurze Sätze und übersichtliche Absätze.
-- Würdige das Engagement der Teilnehmenden respektvoll und auf Augenhöhe.
-- Hebe die Wirkung und den Erfolg der Aktionen hervor, ohne zu übertreiben.
-- Berichte sachlich, aber mit Wärme und Wertschätzung.
-- Verwende eine direkte, persönliche Ansprache wo passend.
+Quellenlogik:
+- Verarbeite alle bereitgestellten Quellen gemeinsam (Text, URL, Ordner/Artefakte).
+- Fuehre Informationen zusammen, ohne Details zu erfinden.
+- Bei widerspruechlichen Angaben nutze nur klar belegbare Informationen.
+- Wenn Angaben fehlen oder unsicher sind, nutze "" oder null (je nach Feldtyp).
 
-Inhaltliche Leitlinien:
-
-- Beschreibe, was bei der Aktion passiert ist: Ablauf, Teilnehmende, Ziele.
-- Erkläre den gesellschaftlichen oder ökologischen Hintergrund kurz und verständlich.
-- Mache deutlich, warum diese Aktion wichtig ist und was sie bewirken soll.
-- Wenn Zitate oder Aussagen im Quelltext vorkommen, übernimm sie sinngemäß.
-- Nenne konkrete Zahlen (Teilnehmende, Unterschriften etc.), wenn vorhanden.
-
-Extrahiere aus der Nutzereingabe (Text, URL, Ordner) strukturierte Aktions-Informationen.
+Medien-Zuordnung:
+- Verwende fuer Medienfelder ausschliesslich Dateinamen, niemals externe URLs.
+- Erlaube nur Dateinamen, die in "Verfügbare Medien im Verzeichnis" oder in der Quellenuebersicht auftauchen.
+- coverImageUrl: genau ein Bild-Dateiname oder "".
+- galleryImageUrls: Bild-Dateinamen als Array, ohne Coverbild.
+- attachments_url: Dateinamen von Anhaengen (z. B. PDF) als Array.
+- authors_image_url: index-parallel zu authors; wenn kein sicheres Bild: "" am jeweiligen Index.
 
 Strenge Regeln:
-
-- Verwende ausschließlich Inhalte, die EXPLIZIT im Quelltext vorkommen.
-- Keine Halluzinationen oder erfundenen Details.
-- Wenn Information nicht sicher vorliegt: gib "" oder null zurück.
-- Antworte AUSSCHLIESSLICH mit einem gültigen JSON-Objekt.
+- Verwende ausschliesslich Inhalte, die explizit in den Quellen vorkommen.
+- Keine Halluzinationen, keine erfundenen Zitate, keine erfundenen Zahlen.
+- Antworte ausschliesslich mit einem gueltigen JSON-Objekt.
 
 Antwortschema (MUSS exakt ein JSON-Objekt sein):
 {
   "title": "string",
   "shortTitle": "string (max 50 Zeichen)",
   "teaser": "string (1-2 Sätze)",
-  "summary": "string (Markdown, ausführlicher Bericht)",
+  "summary": "string (kurze Zusammenfassung, 2-3 Sätze)",
+  "blogartikel": "string (Markdown, vollständiger Blogartikel)",
   "authors": "string[] (Personen/Organisationen, z.B. [\"Oldies for Future\"])",
+  "authors_image_url": "string[] (Bild-Dateinamen, index-parallel zu authors)",
   "date": "string (ISO oder frei)",
   "location": "string",
   "year": "string (YYYY)",
   "event": "string oder null",
   "video_url": "string oder null",
+  "coverImageUrl": "string (Dateiname oder \"\")",
+  "galleryImageUrls": "string[] (Bild-Dateinamen)",
+  "attachments_url": "string[] (Dateinamen von Anhängen, z. B. PDF)",
   "url": "string oder null",
   "tags": "string[]",
   "topics": "string[]"

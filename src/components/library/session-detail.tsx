@@ -1,11 +1,12 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowLeft, ExternalLink, FileText } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileText, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
 import { EventSlides } from "@/components/event-slides";
 import { EventSummary } from "@/components/event-summary";
@@ -64,7 +65,9 @@ export interface SessionDetailData {
   language?: string;
   slides?: Slide[];
   video_url?: string;
+  coverImageUrl?: string;
   attachments_url?: string | string[];
+  galleryImageUrls?: string[];
   url?: string; // Session-URL auf Event-Website
   // Technische Felder
   fileId?: string;
@@ -112,6 +115,226 @@ export function SessionDetail({
   const speakers_image_url = Array.isArray(data.speakers_image_url) ? data.speakers_image_url : [];
   const affiliations = Array.isArray(data.affiliations) ? data.affiliations : [];
   const slides = Array.isArray(data.slides) ? data.slides : [];
+  const attachmentNames = React.useMemo(() => {
+    return Array.isArray(data.attachments_url)
+      ? data.attachments_url.filter((u): u is string => typeof u === "string" && u.trim().length > 0)
+      : (typeof data.attachments_url === "string" && data.attachments_url.trim().length > 0 ? [data.attachments_url.trim()] : [])
+  }, [data.attachments_url])
+  const galleryImageNames = React.useMemo(() => {
+    return Array.isArray(data.galleryImageUrls)
+      ? data.galleryImageUrls.filter((u): u is string => typeof u === "string" && u.trim().length > 0)
+      : []
+  }, [data.galleryImageUrls])
+  const [resolvedAttachments, setResolvedAttachments] = React.useState<Array<{ name: string; url?: string }>>([])
+  const [resolvedGalleryImages, setResolvedGalleryImages] = React.useState<Array<{ name: string; url?: string }>>([])
+  const [resolvedCoverImageUrl, setResolvedCoverImageUrl] = React.useState<string | undefined>(undefined)
+  const [lightboxImage, setLightboxImage] = React.useState<{ name: string; url: string } | null>(null)
+  const [lightboxLoadError, setLightboxLoadError] = React.useState<string | null>(null)
+  const [failedGalleryUrls, setFailedGalleryUrls] = React.useState<Set<string>>(new Set())
+  const [isMounted, setIsMounted] = React.useState(false)
+  // Request-Dedupe: verhindert doppelte resolve-binary-url Aufrufe bei identischem Input.
+  const mediaResolveInFlightRef = React.useRef<Map<string, Promise<string | undefined>>>(new Map())
+  const mediaResolvedUrlCacheRef = React.useRef<Map<string, string | undefined>>(new Map())
+  const lastResolvedSignatureRef = React.useRef<string>("")
+  const unresolvedAttachmentNames = React.useMemo(
+    () => resolvedAttachments.filter((entry) => !entry.url).map((entry) => entry.name),
+    [resolvedAttachments]
+  )
+  const unresolvedGalleryImageNames = React.useMemo(
+    () => resolvedGalleryImages.filter((entry) => !entry.url).map((entry) => entry.name),
+    [resolvedGalleryImages]
+  )
+  const coverImageName = React.useMemo(
+    () => (typeof data.coverImageUrl === "string" ? data.coverImageUrl.trim() : ""),
+    [data.coverImageUrl]
+  )
+  const mediaResolveSignature = React.useMemo(() => {
+    return JSON.stringify({
+      libraryId: libraryId || "",
+      fileId: data.fileId || "",
+      fileName: data.fileName || "",
+      currentFolderId: currentFolderId || "",
+      providerAvailable: !!provider,
+      attachmentNames,
+      galleryImageNames,
+      coverImageName,
+    })
+  }, [attachmentNames, coverImageName, currentFolderId, data.fileId, data.fileName, galleryImageNames, libraryId, provider])
+  React.useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  React.useEffect(() => {
+    if (!lightboxImage) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setLightboxImage(null)
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [lightboxImage])
+
+  const markGalleryUrlAsFailed = React.useCallback((url: string) => {
+    setFailedGalleryUrls((prev) => {
+      if (prev.has(url)) return prev
+      const next = new Set(prev)
+      next.add(url)
+      return next
+    })
+  }, [])
+
+  React.useEffect(() => {
+    let cancelled = false
+    const folderItemsCache = new Map<string, Awaited<ReturnType<NonNullable<typeof provider>["listItemsById"]>>>()
+    const folderItemsInFlight = new Map<string, Promise<Awaited<ReturnType<NonNullable<typeof provider>["listItemsById"]>>>>()
+
+    const isAbsoluteOrApiUrl = (value: string): boolean =>
+      value.startsWith("http://") || value.startsWith("https://") || value.startsWith("/api/storage/")
+
+    async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, timeoutMs: number): Promise<Response> {
+      const controller = new AbortController()
+      const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs)
+      try {
+        return await fetch(input, { ...init, signal: controller.signal })
+      } finally {
+        window.clearTimeout(timeoutId)
+      }
+    }
+
+    function isSameEntries(
+      a: Array<{ name: string; url?: string }>,
+      b: Array<{ name: string; url?: string }>
+    ): boolean {
+      if (a.length !== b.length) return false
+      for (let i = 0; i < a.length; i += 1) {
+        if (a[i]?.name !== b[i]?.name) return false
+        if ((a[i]?.url || "") !== (b[i]?.url || "")) return false
+      }
+      return true
+    }
+
+    async function resolveMediaName(name: string, candidateFolderIds: string[]): Promise<string | undefined> {
+      if (isAbsoluteOrApiUrl(name)) return name
+      if (!libraryId || !data.fileId) return undefined
+      const dedupeKey = `${libraryId}|${data.fileId}|${currentFolderId || ""}|${candidateFolderIds.join(",")}|${name.toLowerCase()}`
+
+      if (mediaResolvedUrlCacheRef.current.has(dedupeKey)) {
+        return mediaResolvedUrlCacheRef.current.get(dedupeKey)
+      }
+      const existingInFlight = mediaResolveInFlightRef.current.get(dedupeKey)
+      if (existingInFlight) {
+        return await existingInFlight
+      }
+
+      const resolvePromise = (async (): Promise<string | undefined> => {
+        // Primär: ShadowTwinService-Resolver (storage-agnostisch)
+        try {
+          const res = await fetchWithTimeout(
+            `/api/library/${encodeURIComponent(libraryId)}/shadow-twins/resolve-binary-url`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              cache: "no-store",
+              body: JSON.stringify({
+                sourceId: data.fileId,
+                sourceName: data.fileName || "",
+                parentId: currentFolderId || "",
+                fragmentName: name,
+              }),
+            },
+            8000
+          )
+          if (res.ok) {
+            const json = await res.json() as { resolvedUrl?: string }
+            if (json.resolvedUrl) return json.resolvedUrl
+          }
+        } catch {
+          // Fallback unten
+        }
+
+        // Fallback: direkt im aktuellen Verzeichnis nach Dateiname suchen
+        if (provider && candidateFolderIds.length > 0) {
+          const loadFolderItems = async (folderId: string) => {
+            if (folderItemsCache.has(folderId)) {
+              return folderItemsCache.get(folderId) || []
+            }
+            const existingInFlight = folderItemsInFlight.get(folderId)
+            if (existingInFlight) {
+              return await existingInFlight
+            }
+            const loadPromise = provider.listItemsById(folderId)
+            folderItemsInFlight.set(folderId, loadPromise)
+            try {
+              const items = await loadPromise
+              folderItemsCache.set(folderId, items)
+              return items
+            } finally {
+              folderItemsInFlight.delete(folderId)
+            }
+          }
+
+          for (const folderId of candidateFolderIds) {
+            try {
+              const siblings = await loadFolderItems(folderId)
+              const match = siblings.find((item) =>
+                item.type === "file" && item.metadata.name.toLowerCase() === name.toLowerCase()
+              )
+              if (match) {
+                return `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(match.id)}`
+              }
+            } catch {
+              // nächster Kandidat
+            }
+          }
+        }
+        return undefined
+      })()
+
+      mediaResolveInFlightRef.current.set(dedupeKey, resolvePromise)
+      try {
+        const resolved = await resolvePromise
+        mediaResolvedUrlCacheRef.current.set(dedupeKey, resolved)
+        return resolved
+      } finally {
+        mediaResolveInFlightRef.current.delete(dedupeKey)
+      }
+    }
+
+    async function resolveAll() {
+      if (lastResolvedSignatureRef.current === mediaResolveSignature) {
+        return
+      }
+      const candidateFolderIds: string[] = []
+      if (currentFolderId) candidateFolderIds.push(currentFolderId)
+      if (provider && data.fileId) {
+        try {
+          const sourceItem = await provider.getItemById(data.fileId)
+          if (sourceItem?.parentId && !candidateFolderIds.includes(sourceItem.parentId)) {
+            candidateFolderIds.push(sourceItem.parentId)
+          }
+        } catch {
+          // Fallback bleibt currentFolderId
+        }
+      }
+
+      const attachmentEntries = await Promise.all(
+        attachmentNames.map(async (name) => ({ name, url: await resolveMediaName(name, candidateFolderIds) }))
+      )
+      const galleryEntries = await Promise.all(
+        galleryImageNames.map(async (name) => ({ name, url: await resolveMediaName(name, candidateFolderIds) }))
+      )
+      const coverImageUrl = coverImageName ? await resolveMediaName(coverImageName, candidateFolderIds) : undefined
+      if (cancelled) return
+      setResolvedAttachments((prev) => (isSameEntries(prev, attachmentEntries) ? prev : attachmentEntries))
+      setResolvedGalleryImages((prev) => (isSameEntries(prev, galleryEntries) ? prev : galleryEntries))
+      setResolvedCoverImageUrl((prev) => (prev === coverImageUrl ? prev : coverImageUrl))
+      lastResolvedSignatureRef.current = mediaResolveSignature
+    }
+
+    void resolveAll()
+    return () => { cancelled = true }
+  }, [attachmentNames, coverImageName, currentFolderId, data.fileId, data.fileName, galleryImageNames, libraryId, mediaResolveSignature, provider])
 
   const isEvent = (data.docType || '').toLowerCase() === 'event'
   const eventFileId = data.fileId
@@ -133,21 +356,6 @@ export function SessionDetail({
    */
   const canSeeModeratorTools = !!isOwnerOrModerator || (isEvent && !!libraryId && !!flowEventFileId && !!writeKey)
 
-  // Debug-Logging für Rollen-Check (direkt beim Rendern, damit es garantiert ausgelöst wird)
-  if (typeof window !== 'undefined') {
-    console.log('[SessionDetail] Rollen-Check:', {
-      libraryId,
-      isEvent,
-      eventFileId,
-      hasWriteKey: !!writeKey,
-      isOwnerOrModerator,
-      isLoadingRole,
-      roleError,
-      canSeeModeratorTools,
-      wizard_testimonial_template_id: data.wizard_testimonial_template_id,
-      docType: data.docType,
-    })
-  }
   const publicAnonTestimonialUrl = React.useMemo(() => {
     if (!libraryId || !flowEventFileId) return ''
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
@@ -205,7 +413,7 @@ export function SessionDetail({
     libraryId: isEvent ? libraryId : undefined,
     eventFileId: isEvent ? flowEventFileId : undefined,
     writeKey: isEvent ? writeKey : undefined,
-    enabled: isEvent,
+    enabled: isEvent && showEventTools,
   })
 
   // Finalisieren ist nur sinnvoll, wenn tatsächlich Testimonials vorhanden sind.
@@ -333,28 +541,47 @@ export function SessionDetail({
                 <p className="text-sm text-muted-foreground mb-4">{data.organisation}</p>
               )}
 
-              {/* PDF-Links prominent anzeigen (attachments_url = PDF(s), url = Original-Webseite) */}
-              {/* Rückwärtskompatibel: String oder Array */}
-              {data.attachments_url && (() => {
-                const urls = Array.isArray(data.attachments_url)
-                  ? data.attachments_url.filter(u => typeof u === 'string' && u.trim().length > 0)
-                  : [data.attachments_url]
-                if (urls.length === 0) return null
+              {/* PDF-Links dezent anzeigen (Dateiname + PDF-Icon + Öffnen-Icon) */}
+              {attachmentNames.length > 0 && (() => {
+                if (attachmentNames.length === 0) return null
                 return (
-                  <div className="mb-6 flex flex-wrap gap-2">
-                    {urls.map((url, idx) => (
-                      <a
-                        key={idx}
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-base font-medium shadow-sm"
-                      >
-                        <FileText className="w-5 h-5" />
-                        {urls.length > 1 ? `PDF ${idx + 1}` : 'PDF öffnen'}
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
-                    ))}
+                  <div className="mb-6 space-y-1.5">
+                    <div className="space-y-1">
+                      {attachmentNames.map((fileName, idx) => {
+                        const resolved = resolvedAttachments[idx]
+                        if (!resolved?.url) {
+                          return (
+                            <div
+                              key={idx}
+                              className="inline-flex items-center gap-2 text-sm text-muted-foreground"
+                              title={`Nicht auflösbar: ${fileName}`}
+                            >
+                              <FileText className="w-4 h-4" />
+                              <span className="truncate max-w-[520px]">{fileName}</span>
+                            </div>
+                          )
+                        }
+                        return (
+                          <a
+                            key={idx}
+                            href={resolved.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                            title={fileName}
+                          >
+                            <FileText className="w-4 h-4" />
+                            <span className="truncate max-w-[520px]">{fileName}</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        )
+                      })}
+                    </div>
+                    {unresolvedAttachmentNames.length > 0 && (
+                      <p className="text-xs text-amber-700 dark:text-amber-400">
+                        Nicht auflösbare Anhänge in der Vorschau: {unresolvedAttachmentNames.join(", ")}
+                      </p>
+                    )}
                   </div>
                 )
               })()}
@@ -481,9 +708,100 @@ export function SessionDetail({
               <EventSummary
                 summary={data.markdown || data.summary || ''}
                 videoUrl={data.video_url}
+                coverImageUrl={resolvedCoverImageUrl}
                 provider={provider}
                 currentFolderId={currentFolderId}
               />
+              {galleryImageNames.length > 0 && (
+                <Card className="p-4">
+                  <div className="mb-3 flex items-center gap-2 text-sm font-medium">
+                    <ImageIcon className="h-4 w-4" />
+                    Bildergalerie
+                  </div>
+                  {resolvedGalleryImages.some((img) => !!img.url) ? (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {resolvedGalleryImages.map((img, idx) => (
+                        img.url ? (
+                          failedGalleryUrls.has(img.url) ? (
+                            <div
+                              key={`${img.name}-${idx}`}
+                              className="rounded border h-40 bg-muted/40 text-xs text-muted-foreground flex items-center justify-center p-2 text-center"
+                              title={`Bild konnte nicht geladen werden: ${img.name}`}
+                            >
+                              Bild nicht verfügbar
+                            </div>
+                          ) : (
+                            <button
+                              key={`${img.name}-${idx}`}
+                              className="block rounded border overflow-hidden hover:opacity-90 transition-opacity"
+                              title={img.name}
+                              type="button"
+                              onClick={() => {
+                                setLightboxLoadError(null)
+                                setLightboxImage({ name: img.name, url: img.url as string })
+                              }}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={img.url}
+                                alt={img.name}
+                                className="w-full h-40 object-cover"
+                                loading="lazy"
+                                onError={() => markGalleryUrlAsFailed(img.url as string)}
+                              />
+                            </button>
+                          )
+                        ) : null
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Keine Galerie-Bilder konnten in der Vorschau aufgelöst werden.
+                    </p>
+                  )}
+                  {unresolvedGalleryImageNames.length > 0 && (
+                    <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+                      Nicht auflösbare Galerie-Bilder: {unresolvedGalleryImageNames.join(", ")}
+                    </p>
+                  )}
+                </Card>
+              )}
+              {isMounted && lightboxImage
+                ? createPortal(
+                    <div
+                      className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center p-4"
+                      onClick={() => setLightboxImage(null)}
+                    >
+                      <button
+                        type="button"
+                        className="absolute top-4 right-4 text-white/90 hover:text-white text-sm border border-white/30 rounded px-2 py-1"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          setLightboxImage(null)
+                        }}
+                      >
+                        Schließen
+                      </button>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={lightboxImage.url}
+                        alt={lightboxImage.name}
+                        className="max-w-full max-h-full object-contain"
+                        onClick={(event) => event.stopPropagation()}
+                        onError={() => {
+                          setLightboxLoadError(`Bild konnte nicht geladen werden: ${lightboxImage.name}`)
+                          markGalleryUrlAsFailed(lightboxImage.url)
+                        }}
+                      />
+                      {lightboxLoadError ? (
+                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded border border-red-300/60 bg-black/70 px-3 py-2 text-xs text-red-100">
+                          {lightboxLoadError}
+                        </div>
+                      ) : null}
+                    </div>,
+                    document.body
+                  )
+                : null}
               {/* KI-Info-Hinweis für KI-generierte Zusammenfassung */}
               <AIGeneratedNotice compact />
             </>

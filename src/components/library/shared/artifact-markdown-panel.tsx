@@ -102,7 +102,7 @@ export function ArtifactMarkdownPanel({
     return () => {
       cancelled = true
     }
-  }, [provider, currentItem?.id, libraryId])
+  }, [provider, currentItem?.id, currentItem?.metadata?.modifiedAt, libraryId])
 
   if (!currentItem) {
     return (

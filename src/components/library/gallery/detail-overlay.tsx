@@ -18,6 +18,7 @@ import { DocumentShareButton } from '@/components/library/gallery/document-share
 import type { BookDetailData } from '@/components/library/book-detail'
 import type { SessionDetailData } from '@/components/library/session-detail'
 import type { DocCardMeta } from '@/lib/gallery/types'
+import { mapToBookDetail, mapToSessionDetail } from '@/lib/mappers/doc-meta-mappers'
 
 export interface DetailOverlayProps {
   open: boolean
@@ -59,6 +60,9 @@ export function DetailOverlay({
   const [activeTab, setActiveTab] = React.useState<'original' | 'translated'>('original')
   const [originalData, setOriginalData] = React.useState<BookDetailData | SessionDetailData | ClimateActionDetailData | DivaDocumentDetailData | null>(null)
   const [translatedData, setTranslatedData] = React.useState<BookDetailData | SessionDetailData | ClimateActionDetailData | DivaDocumentDetailData | null>(null)
+  const [prefetchedBookData, setPrefetchedBookData] = React.useState<BookDetailData | null>(null)
+  const [prefetchedSessionData, setPrefetchedSessionData] = React.useState<SessionDetailData | null>(null)
+  const [isDocMetaReady, setIsDocMetaReady] = React.useState(false)
   const [originalLanguage, setOriginalLanguage] = React.useState<string>('EN')
   /** Sprache, IN DIE der Inhalt transformiert wurde (aus Frontmatter targetLanguage) */
   const [contentLanguage, setContentLanguage] = React.useState<string | null>(null)
@@ -210,12 +214,21 @@ export function DetailOverlay({
       setActiveTab('original')
       setOriginalData(null)
       setTranslatedData(null)
+      setPrefetchedBookData(null)
+      setPrefetchedSessionData(null)
+      setIsDocMetaReady(false)
       setSessionUrl(null)
       setOriginalLanguage('EN')
       setContentLanguage(null)
       translationStartedRef.current = null
       return
     }
+
+    // Bei Dokumentwechsel alte Prefetch-Daten verwerfen, damit kein falsches initialData
+    // in Child-Komponenten landet.
+    setPrefetchedBookData(null)
+    setPrefetchedSessionData(null)
+    setIsDocMetaReady(false)
 
     // Prüfe globale localStorage-Präferenz beim Öffnen
     const preferTranslation = typeof window !== 'undefined' 
@@ -231,6 +244,22 @@ export function DetailOverlay({
         
         if (res.ok && json.docMetaJson) {
           const docMetaJson = json.docMetaJson as Record<string, unknown>
+
+          // Doc-spezifische Originaldaten direkt vormappen, damit Child-Komponenten
+          // keinen zweiten doc-meta-Request auslösen müssen.
+          if (viewType === 'session') {
+            try {
+              setPrefetchedSessionData(mapToSessionDetail(json as unknown))
+            } catch {
+              setPrefetchedSessionData(null)
+            }
+          } else if (viewType !== 'climateAction' && viewType !== 'divaDocument') {
+            try {
+              setPrefetchedBookData(mapToBookDetail(json as unknown))
+            } catch {
+              setPrefetchedBookData(null)
+            }
+          }
           
           // Bestimme Originalsprache (Quellsprache des Dokuments)
           const languageField = docMetaJson.language
@@ -277,6 +306,8 @@ export function DetailOverlay({
         })
         // Fallback: "EN" bei Fehler
         setOriginalLanguage('EN')
+      } finally {
+        setIsDocMetaReady(true)
       }
     }
 
@@ -423,6 +454,8 @@ export function DetailOverlay({
               <IngestionSessionDetail
                 libraryId={libraryId}
                 fileId={fileId}
+                initialData={activeTab === 'original' ? (prefetchedSessionData || undefined) : undefined}
+                suspendInitialFetch={activeTab === 'original' && !isDocMetaReady}
                 onDataLoaded={(data) => {
                   // Verwende Ref, um sicherzustellen, dass wir die neueste Version verwenden
                   // aber vermeide, dass sich der Callback ändert und zu Re-Renders führt
@@ -462,6 +495,8 @@ export function DetailOverlay({
               <IngestionBookDetail
                 libraryId={libraryId}
                 fileId={fileId}
+                initialData={activeTab === 'original' ? (prefetchedBookData || undefined) : undefined}
+                suspendInitialFetch={activeTab === 'original' && !isDocMetaReady}
                 onDataLoaded={(data) => {
                   if (handleDataLoadedRef.current) {
                     handleDataLoadedRef.current(data)

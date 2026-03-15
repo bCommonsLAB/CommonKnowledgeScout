@@ -32,6 +32,15 @@ import {
 import { StateLogger } from "@/lib/debug/logger"
 import { StorageProviderType } from "@/types/library"
 
+/**
+ * Erzeugt einen stabilen MongoDB-Collection-Namen für eine Library.
+ * Die Logik entspricht der bestehenden per_library-Konvention.
+ */
+function buildCollectionNameForLibraryId(libraryId: string): string {
+  const safeId = libraryId.replace(/[^a-zA-Z0-9_\-]/g, "_").slice(0, 60)
+  return `doc_meta__${safeId}`
+}
+
 interface CreateLibraryDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -136,6 +145,35 @@ export function CreateLibraryDialog({
           newLibraryId,
         })
 
+        // WICHTIG: Clone darf niemals den alten Vector-Store-Collection-Namen übernehmen.
+        // Sonst teilen sich alte und neue Library dieselbe MongoDB-Collection.
+        const sourceConfig = (activeLibrary.config || {}) as Record<string, unknown>
+        const sourceChat = (sourceConfig.chat || {}) as Record<string, unknown>
+        const sourceVectorStore = (sourceChat.vectorStore || {}) as Record<string, unknown>
+        const clonedConfig: Record<string, unknown> = {
+          ...sourceConfig,
+          chat: {
+            ...sourceChat,
+            vectorStore: {
+              ...sourceVectorStore,
+              collectionName: buildCollectionNameForLibraryId(newLibraryId),
+            },
+          },
+          description: `Kopie von ${activeLibrary.label}`,
+        }
+
+        // Legacy-Felder explizit entfernen, damit keine veraltete Index-Logik erhalten bleibt.
+        if (
+          clonedConfig.chat &&
+          typeof clonedConfig.chat === 'object' &&
+          (clonedConfig.chat as Record<string, unknown>).vectorStore &&
+          typeof (clonedConfig.chat as Record<string, unknown>).vectorStore === 'object'
+        ) {
+          const vectorStore = (clonedConfig.chat as { vectorStore: Record<string, unknown> }).vectorStore
+          delete vectorStore.indexOverride
+          delete vectorStore.indexName
+        }
+
         libraryData = {
           id: newLibraryId,
           label: name.trim(),
@@ -143,11 +181,7 @@ export function CreateLibraryDialog({
           path: activeLibrary.path ? `${activeLibrary.path}-copy` : "",
           type: activeLibrary.type,
           isEnabled: true,
-          config: {
-            // Kopiere alle Konfigurationen außer ID-spezifische
-            ...activeLibrary.config,
-            description: `Kopie von ${activeLibrary.label}`,
-          },
+          config: clonedConfig,
         }
       } else {
         // Neue leere Library mit Standardwerten

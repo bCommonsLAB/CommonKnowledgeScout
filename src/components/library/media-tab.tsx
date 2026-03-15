@@ -199,6 +199,18 @@ export function MediaTab({
           }
         }
       }
+      if (mediaConfig.galleryField) {
+        const galleryUrls = safeArray(frontmatterMeta[mediaConfig.galleryField.key])
+        for (const url of galleryUrls) {
+          const item = items.get(url) || items.get(url.split('/').pop() || '')
+          if (item) item.assignedTo = mediaConfig.galleryField.key
+        }
+      }
+      const attachmentUrls = safeArray(frontmatterMeta.attachments_url)
+      for (const url of attachmentUrls) {
+        const item = items.get(url) || items.get(url.split('/').pop() || '')
+        if (item) item.assignedTo = 'attachments_url'
+      }
     }
 
     // Filtern basierend auf aktivem Assignment
@@ -324,6 +336,9 @@ export function MediaTab({
   const attachments = mediaConfig.attachments
     ? safeArray(frontmatterMeta?.attachments_url)
     : []
+  const galleryImages = mediaConfig.galleryField
+    ? safeArray(frontmatterMeta?.[mediaConfig.galleryField.key])
+    : []
   const currentUrl = typeof frontmatterMeta?.url === 'string' ? frontmatterMeta.url : ''
 
   return (
@@ -414,7 +429,7 @@ export function MediaTab({
             <Paperclip className="h-4 w-4" /> Anhänge
           </h4>
           {attachments.length > 0 && (
-            <div className="space-y-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-1.5">
               {attachments.map((att, idx) => (
                 <div key={idx} className="flex items-center gap-2 text-xs px-2 py-1 border rounded border-muted">
                   <FileText className="h-3.5 w-3.5 text-muted-foreground" />
@@ -443,6 +458,55 @@ export function MediaTab({
             disabled={isUploading}
           >
             {activeAssignment?.fieldKey === 'attachments_url' ? 'Abbrechen' : '+ Anhang hinzufügen'}
+          </Button>
+        </section>
+      )}
+
+      {/* Galerie-Sektion */}
+      {mediaConfig.galleryField && (
+        <section className="space-y-2">
+          <h4 className="text-sm font-semibold flex items-center gap-1.5">
+            <ImageIcon className="h-4 w-4" /> {mediaConfig.galleryField.label}
+          </h4>
+          {galleryImages.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-1.5">
+              {galleryImages.map((img, idx) => (
+                <div key={idx} className="flex items-center gap-2 text-xs px-2 py-1 border rounded border-muted">
+                  <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="flex-1 truncate">{img}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 w-5 p-0"
+                    onClick={() => removeArrayFieldItem(
+                      mediaConfig.galleryField!.key,
+                      idx,
+                      libraryId,
+                      effectiveMdId,
+                      onFrontmatterUpdate
+                    )}
+                    disabled={isUploading}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground italic">Keine Galerie-Bilder zugeordnet.</p>
+          )}
+          <Button
+            variant={activeAssignment?.fieldKey === mediaConfig.galleryField.key ? 'default' : 'outline'}
+            size="sm"
+            className="text-xs h-7"
+            onClick={() => setActiveAssignment(
+              activeAssignment?.fieldKey === mediaConfig.galleryField!.key
+                ? null
+                : { fieldKey: mediaConfig.galleryField!.key, arrayAppend: true }
+            )}
+            disabled={isUploading}
+          >
+            {activeAssignment?.fieldKey === mediaConfig.galleryField.key ? 'Abbrechen' : '+ Bild zur Galerie'}
           </Button>
         </section>
       )}
@@ -600,7 +664,20 @@ export function MediaTab({
 /** Konvertiert einen unbekannten Wert sicher in ein String-Array */
 function safeArray(value: unknown): string[] {
   if (Array.isArray(value)) return value.filter((v): v is string => typeof v === 'string')
-  if (typeof value === 'string' && value.trim().length > 0) return [value]
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const trimmed = value.trim()
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed.replace(/'/g, '"'))
+        if (Array.isArray(parsed)) {
+          return parsed.filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+        }
+      } catch {
+        // Fallback auf Einzelwert
+      }
+    }
+    return [trimmed]
+  }
   return []
 }
 
@@ -729,6 +806,35 @@ async function removeAttachment(
   const { meta: newMeta } = parseSecretaryMarkdownStrict(patchedMarkdown)
   onFrontmatterUpdate(newMeta, patchedMarkdown)
   toast.success('Anhang entfernt')
+}
+
+/** Entfernt einen Eintrag aus einem beliebigen Array-Frontmatter-Feld */
+async function removeArrayFieldItem(
+  fieldKey: string,
+  index: number,
+  libraryId: string,
+  effectiveMdId: string | null,
+  onFrontmatterUpdate: (meta: Record<string, unknown>, fullContent: string) => void,
+) {
+  if (!effectiveMdId || !isMongoShadowTwinId(effectiveMdId)) return
+  const parts = parseMongoShadowTwinId(effectiveMdId)
+  if (!parts) return
+
+  const mdResult = await fetchShadowTwinMarkdown(libraryId, parts)
+  if (!mdResult) return
+
+  const { meta } = parseSecretaryMarkdownStrict(mdResult)
+  const current = safeArray(meta[fieldKey])
+  if (index < 0 || index >= current.length) return
+  current.splice(index, 1)
+
+  const { patchFrontmatter } = await import('@/lib/markdown/frontmatter-patch')
+  const patchedMarkdown = patchFrontmatter(mdResult, { [fieldKey]: JSON.stringify(current) })
+  await updateShadowTwinMarkdown(libraryId, parts, patchedMarkdown)
+
+  const { meta: newMeta } = parseSecretaryMarkdownStrict(patchedMarkdown)
+  onFrontmatterUpdate(newMeta, patchedMarkdown)
+  toast.success('Eintrag entfernt')
 }
 
 /**

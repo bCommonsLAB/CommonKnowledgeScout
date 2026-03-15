@@ -193,8 +193,8 @@ function SessionCard({ doc, onClick }: { doc: DocCardMeta; onClick: () => void }
         <div className='absolute inset-0 bg-gradient-to-br from-blue-400 to-cyan-600' />
       )}
 
-      {/* Blende: Starke Abdunklung für bessere Lesbarkeit über Hintergrundbild */}
-      <div className='absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/80' />
+      {/* Blende: Sehr dezent, damit das Cover klarer sichtbar bleibt */}
+      <div className='absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/30' />
 
       {/* Content Container */}
       <div className='relative h-full flex flex-col justify-between p-4'>

@@ -10,11 +10,22 @@ interface IngestionBookDetailProps {
   fileId: string;
   docModifiedAt?: string;
   translatedData?: BookDetailData;
+  /** Optional: Bereits vorgeladene Originaldaten (verhindert doppelten doc-meta-Request) */
+  initialData?: BookDetailData;
+  /** Optional: Verhindert initialen Auto-Fetch, bis Parent-Prefetch entschieden ist */
+  suspendInitialFetch?: boolean;
   /** Callback wenn Original-Daten geladen wurden (für Übersetzungs-Logik im Parent) */
   onDataLoaded?: (data: BookDetailData) => void;
 }
 
-export function IngestionBookDetail({ libraryId, fileId, translatedData, onDataLoaded }: IngestionBookDetailProps) {
+export function IngestionBookDetail({
+  libraryId,
+  fileId,
+  translatedData,
+  initialData,
+  suspendInitialFetch = false,
+  onDataLoaded,
+}: IngestionBookDetailProps) {
   const { t } = useTranslation()
   const [data, setData] = React.useState<BookDetailData | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -40,12 +51,23 @@ export function IngestionBookDetail({ libraryId, fileId, translatedData, onDataL
     }
   }, [libraryId, fileId]);
 
-  React.useEffect(() => { 
-    // Nur laden, wenn keine übersetzten Daten vorhanden sind
-    if (!translatedData) {
-      void load(); 
+  React.useEffect(() => {
+    if (suspendInitialFetch) return
+
+    // Übersetzte Daten werden direkt verwendet, kein Original-Fetch nötig.
+    if (translatedData) return
+
+    // Vorgenladene Originaldaten nutzen, um doppelten doc-meta-Call zu vermeiden.
+    if (initialData) {
+      setData(initialData)
+      setError(null)
+      setLoading(false)
+      onDataLoaded?.(initialData)
+      return
     }
-  }, [load, translatedData]);
+
+    void load()
+  }, [load, translatedData, initialData, onDataLoaded, suspendInitialFetch]);
 
   // Verwende übersetzte Daten, falls vorhanden
   const displayData = translatedData || data;

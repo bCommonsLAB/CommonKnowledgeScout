@@ -236,13 +236,10 @@ export function mapToSessionDetail(input: unknown): SessionDetailData {
     
     // Links (alle aus docMetaJson)
     video_url: toStr(docMetaJson.video_url),
-    attachments_url: (() => {
-      // Rückwärtskompatibel: String oder Array
-      const raw = docMetaJson.attachments_url
-      if (Array.isArray(raw)) return raw.filter((u): u is string => typeof u === 'string' && u.trim().length > 0)
-      if (typeof raw === 'string' && raw.trim().length > 0) return [raw.trim()]
-      return undefined
-    })(),
+    coverImageUrl: toStr((docMetaJson as { coverImageUrl?: unknown }).coverImageUrl)
+      || toStr((docMetaJson as { cover_image_url?: unknown }).cover_image_url),
+    attachments_url: toStrArr(docMetaJson.attachments_url),
+    galleryImageUrls: toStrArr((docMetaJson as { galleryImageUrls?: unknown }).galleryImageUrls),
     url: toStr(docMetaJson.url),
     
     // Slides

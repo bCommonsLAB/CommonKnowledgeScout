@@ -10,13 +10,24 @@ interface IngestionSessionDetailProps {
   fileId: string;
   onDataLoaded?: (data: SessionDetailData) => void;
   translatedData?: SessionDetailData;
+  /** Optional: Bereits vorgeladene Originaldaten (verhindert doppelten doc-meta-Request) */
+  initialData?: SessionDetailData;
+  /** Optional: Verhindert initialen Auto-Fetch, bis Parent-Prefetch entschieden ist */
+  suspendInitialFetch?: boolean;
 }
 
 /**
  * Wrapper-Komponente für SessionDetail
  * Lädt Session-Daten via API und mappt sie auf das SessionDetailData-Format
  */
-export function IngestionSessionDetail({ libraryId, fileId, onDataLoaded, translatedData }: IngestionSessionDetailProps) {
+export function IngestionSessionDetail({
+  libraryId,
+  fileId,
+  onDataLoaded,
+  translatedData,
+  initialData,
+  suspendInitialFetch = false,
+}: IngestionSessionDetailProps) {
   const { t } = useTranslation()
   const [data, setData] = React.useState<SessionDetailData | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -68,16 +79,32 @@ export function IngestionSessionDetail({ libraryId, fileId, onDataLoaded, transl
     }
   }, [libraryId, fileId, t]);
 
-  React.useEffect(() => { 
-    // Nur laden, wenn keine übersetzten Daten vorhanden sind
-    if (!translatedData) {
-      // Reset lastLoadedFileIdRef, wenn wir neu laden
-      lastLoadedFileIdRef.current = null;
-      void load(); 
+  React.useEffect(() => {
+    // Parent entscheidet gerade über Prefetch → noch nicht selbst laden.
+    if (suspendInitialFetch) return
+
+    // Übersetzte Daten werden direkt verwendet, kein Callback nötig.
+    if (translatedData) return
+
+    // Wenn Originaldaten bereits vorgeladen sind, verwende sie direkt ohne weiteren Fetch.
+    if (initialData) {
+      setData(initialData)
+      setError(null)
+      setLoading(false)
+      const mappedFileId = initialData.fileId || fileId
+      if (lastLoadedFileIdRef.current !== mappedFileId && onDataLoadedRef.current) {
+        lastLoadedFileIdRef.current = mappedFileId
+        setTimeout(() => {
+          onDataLoadedRef.current?.(initialData)
+        }, 0)
+      }
+      return
     }
-    // Übersetzte Daten werden direkt verwendet, kein Callback nötig
-    // (Callback wird nur für Original-Daten benötigt, um Übersetzung zu starten)
-  }, [load, translatedData]);
+
+    // Kein initialData verfügbar: normal laden.
+    lastLoadedFileIdRef.current = null
+    void load()
+  }, [load, translatedData, initialData, fileId, suspendInitialFetch]);
 
   // Verwende übersetzte Daten, falls vorhanden
   const displayData = translatedData || data;

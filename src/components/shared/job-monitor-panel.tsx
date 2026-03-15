@@ -428,10 +428,10 @@ export function JobMonitorPanel() {
     }
   }, [isRefreshing, statusFilter, batchFilter, activeLibraryId]);
 
-  // SSE verbinden IMMER wenn Live-Updates aktiv sind (global fuer Job-Status-Tracking)
-  // UI-Liste wird nur aktualisiert wenn Panel geoeffnet ist
+  // SSE nur on-demand verbinden: erst wenn Panel geöffnet ist.
+  // So vermeiden wir permanente /stream-Requests auf Seiten, auf denen der Monitor geschlossen bleibt.
   useEffect(() => {
-    if (!liveUpdates) {
+    if (!liveUpdates || !isOpen) {
       if (eventRef.current) { try { eventRef.current.close(); } catch {} eventRef.current = null; }
       sseRetryAttemptRef.current = 0;
       return;
@@ -505,19 +505,28 @@ export function JobMonitorPanel() {
               }
             }
           }
-          // Refresh der Dateiliste triggern, falls serverseitig Ordner-ID mitgeliefert wird
+          // Refresh der Dateiliste triggern, sobald Artefakte geschrieben wurden
+          // (Filesystem: stored_local, Mongo: stored_mongo) oder wenn der Job abgeschlossen ist.
           // WICHTIG: Refresh sowohl Parent als auch Shadow-Twin-Verzeichnis (falls vorhanden)
-          if (evt.refreshFolderId && (evt.status === 'completed' || evt.message === 'stored_local')) {
+          const shouldRefreshFolders =
+            evt.status === 'completed' ||
+            evt.message === 'stored_local' ||
+            evt.message === 'stored_mongo'
+          if (shouldRefreshFolders) {
             try {
               // Refresh alle betroffenen Ordner (Parent + Shadow-Twin)
-              const refreshFolderIds = evt.refreshFolderIds || [evt.refreshFolderId]
+              const refreshFolderIds = (Array.isArray(evt.refreshFolderIds) && evt.refreshFolderIds.length > 0)
+                ? evt.refreshFolderIds
+                : (evt.refreshFolderId ? [evt.refreshFolderId] : [])
+
               refreshFolderIds.forEach(folderId => {
-                window.dispatchEvent(new CustomEvent('library_refresh', { 
-                  detail: { 
+                if (!folderId) return
+                window.dispatchEvent(new CustomEvent('library_refresh', {
+                  detail: {
                     folderId,
                     shadowTwinFolderId: evt.shadowTwinFolderId || null,
                     triggerShadowTwinAnalysis: true // Flag für Shadow-Twin-Analyse-Neuberechnung
-                  } 
+                  }
                 }))
               })
             } catch {}
@@ -655,7 +664,7 @@ export function JobMonitorPanel() {
       window.removeEventListener('job_update_local', onLocal as unknown as EventListener);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveUpdates, upsertJobStatus, upsertJobInfo, clearJobInfo, triggerShadowTwinAnalysis, scheduleShadowTwinReanalysisBurst]);
+  }, [liveUpdates, isOpen, upsertJobStatus, upsertJobInfo, clearJobInfo, triggerShadowTwinAnalysis, scheduleShadowTwinReanalysisBurst]);
 
   const handleToggle = () => setIsOpen(v => !v);
   const queuedCount = items.filter(i => i.status === 'queued').length;

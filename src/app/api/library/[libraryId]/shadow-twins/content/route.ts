@@ -69,7 +69,17 @@ export async function GET(
       return NextResponse.json({ error: 'Artefakt nicht gefunden' }, { status: 404 })
     }
 
-    return NextResponse.json({ markdown: record.markdown }, { status: 200 })
+    return NextResponse.json(
+      { markdown: record.markdown },
+      {
+        status: 200,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+          Pragma: 'no-cache',
+          Expires: '0',
+        },
+      }
+    )
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     FileLogger.error('shadow-twins/content', 'GET fehlgeschlagen', { error: msg })

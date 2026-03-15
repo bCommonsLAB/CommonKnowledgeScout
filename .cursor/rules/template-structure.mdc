@@ -60,7 +60,7 @@ title: {{title|Vollständiger Titel des Dokuments (extraktiv)}}
 - **feldname**: Name des JSON-Feldes im Output
 - **Beschreibung**: Anweisung für das LLM, wie der Wert extrahiert/generiert werden soll
 
-### Im Body: `{{feldname}}`
+### Im Body: `{{feldname}}` oder `{{feldname|Anweisung}}`
 
 ```markdown
 ## {{title}}
@@ -68,8 +68,31 @@ title: {{title|Vollständiger Titel des Dokuments (extraktiv)}}
 {{summary}}
 ```
 
-- Referenziert das Feld aus dem Frontmatter
+- Kann ein Feld aus dem Frontmatter referenzieren (`{{feldname}}`)
+- Oder ein reines Body-Feld mit eigener Anweisung definieren (`{{feldname|Anweisung}}`)
 - Wird im Output durch den generierten Wert ersetzt
+
+### Body-only Felder (ohne Frontmatter-Spiegelung)
+
+Nicht jedes im Body verwendete Feld muss im Frontmatter definiert sein.
+
+- **Frontmatter** enthaelt nur Meta-/Strukturfelder, die als Metadaten persistiert oder separat dargestellt werden.
+- **Body-only Felder** sind fuer den Inhaltsblock und muessen nicht im Frontmatter dupliziert werden.
+- Das Antwortschema im `systemprompt` muss trotzdem **alle** vom LLM erwarteten Output-Felder enthalten (inkl. Body-only Felder).
+
+Beispiel:
+
+```markdown
+---
+title: {{title|Titel}}
+summary: {{summary|Kurze Zusammenfassung in 2-3 Sätzen}}
+---
+
+## Blogartikel
+{{blogartikel|Vollständiger Artikel in Markdown}}
+```
+
+Hier ist `blogartikel` bewusst **nicht** im Frontmatter.
 
 ## Feldtypen: Dynamisch vs. Fest
 
@@ -237,8 +260,8 @@ Diese Felder sind in den meisten Templates enthalten:
 
 ## Checkliste für neue Templates
 
-- [ ] Frontmatter definiert alle benötigten Felder mit `{{feld|Beschreibung}}`
-- [ ] Body verwendet die Felder mit `{{feld}}`
+- [ ] Frontmatter enthält nur Metadaten-Felder (keine unnötige Spiegelung von Body-only Feldern)
+- [ ] Body verwendet Felder mit `{{feld}}` oder definiert Body-only Felder mit `{{feld|Anweisung}}`
 - [ ] Systemprompt definiert klare Rolle
 - [ ] Strenge Regeln verbieten Halluzinationen
 - [ ] Antwortschema ist vollständig und korrekt

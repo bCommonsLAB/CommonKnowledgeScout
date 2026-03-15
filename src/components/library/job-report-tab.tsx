@@ -211,11 +211,16 @@ export function JobReportTab({
   // Resolve coverImageUrl für Story-Vorschau wenn es ein relativer Pfad ist
   // Verwendet den ShadowTwinService via API für Storage-Abstraktion
   useEffect(() => {
-    const base: Record<string, unknown> = sourceMode === 'frontmatter'
-      ? {}
-      : ((job?.cumulativeMeta as unknown as Record<string, unknown>) || {})
-    const cm = frontmatterMeta ? { ...base, ...frontmatterMeta } : base
-    const coverImageUrl = cm.coverImageUrl as string | undefined
+    // Nur in der Story-Vorschau auflösen, um doppelte Resolver-Calls zu vermeiden.
+    if (activeTab !== 'ingestion' || ingestionTabMode !== 'preview') {
+      return
+    }
+
+    const cumulativeMetaCoverImage = sourceMode === 'frontmatter'
+      ? undefined
+      : ((job?.cumulativeMeta as unknown as Record<string, unknown> | undefined)?.coverImageUrl)
+    const coverImageCandidate = frontmatterMeta?.coverImageUrl ?? cumulativeMetaCoverImage
+    const coverImageUrl = typeof coverImageCandidate === 'string' ? coverImageCandidate : undefined
     
     if (!coverImageUrl || !libraryId || !fileId) {
       setResolvedCoverImageUrl(coverImageUrl)
@@ -252,7 +257,7 @@ export function JobReportTab({
           }
         }
 
-        // Fallback: Dateisystem-Auflösung (für Kompatibilität)
+        // Fallback 1: Dateisystem-Auflösung (Shadow-Twin-Fokus)
         if (provider) {
           const baseItem = await provider.getItemById(fileId)
           if (baseItem && !cancelled) {
@@ -268,6 +273,25 @@ export function JobReportTab({
             if (!cancelled) {
               setResolvedCoverImageUrl(fallbackUrl)
               return
+            }
+          }
+
+          // Fallback 2: Direkt im Quellverzeichnis nach Dateiname suchen
+          if (baseItem?.parentId && coverImageUrl) {
+            try {
+              const siblings = await provider.listItemsById(baseItem.parentId)
+              const match = siblings.find(
+                (item) =>
+                  item.type === 'file' &&
+                  item.metadata.name.toLowerCase() === coverImageUrl.toLowerCase()
+              )
+              if (match && !cancelled) {
+                const siblingUrl = `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(match.id)}`
+                setResolvedCoverImageUrl(siblingUrl)
+                return
+              }
+            } catch {
+              // Optionaler Fallback; Fehler hier nicht kritisch
             }
           }
         }
@@ -288,7 +312,7 @@ export function JobReportTab({
     }
     void resolveCoverImage()
     return () => { cancelled = true }
-  }, [frontmatterMeta?.coverImageUrl, job?.cumulativeMeta, sourceMode, provider, fileId, libraryId, shadowTwinState?.shadowTwinFolderId, fallbackFolderId])
+  }, [activeTab, ingestionTabMode, frontmatterMeta?.coverImageUrl, job?.cumulativeMeta, sourceMode, provider, fileId, libraryId, shadowTwinState?.shadowTwinFolderId, fallbackFolderId])
 
   // Debounce Content-Änderungen, um unnötige Re-Renders während der Job-Verarbeitung zu vermeiden
   // WICHTIG: Wenn der Job abgeschlossen ist, rendere sofort (kein Debounce)
@@ -308,7 +332,10 @@ export function JobReportTab({
     }
   }, [fullContent, job?.status])
 
-  const stripFrontmatter = (markdown: string): string => markdown.replace(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/, '')
+  const stripFrontmatter = useCallback(
+    (markdown: string): string => markdown.replace(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/, ''),
+    []
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -801,7 +828,7 @@ export function JobReportTab({
       }
     }
     void loadFrontmatter()
-  }, [provider, effectiveMdId, sourceMode, rawContent, shadowTwinState?.transformed?.metadata?.name, job?.result?.savedItemId, mdFileId, shadowTwinState])
+  }, [provider, effectiveMdId, sourceMode, rawContent, shadowTwinState?.transformed?.metadata?.name, job?.result?.savedItemId, mdFileId, shadowTwinState, libraryId])
 
   // Validiere Shadow-Twin-Daten für schreibende Operationen
   // Prüft ob templateName für Transformationen vorhanden ist
@@ -835,6 +862,11 @@ export function JobReportTab({
   // Verwendet den ShadowTwinService via API für Storage-Abstraktion
   const coverImageUrl = frontmatterMeta?.coverImageUrl as string | undefined
   useEffect(() => {
+    // Nur im Media-Tab laden; in anderen Tabs ist die URL-Auflösung hier nicht erforderlich.
+    if (activeTab !== 'media') {
+      return
+    }
+
     if (!coverImageUrl || !libraryId || !fileId) {
       setCoverImageDisplayUrl(null)
       return
@@ -914,7 +946,7 @@ export function JobReportTab({
     }
     void loadImageUrl()
     return () => { cancelled = true }
-  }, [coverImageUrl, libraryId, fileId, provider, shadowTwinState?.shadowTwinFolderId, fallbackFolderId])
+  }, [activeTab, coverImageUrl, libraryId, fileId, provider, shadowTwinState?.shadowTwinFolderId, fallbackFolderId])
 
   // Lade alle verfügbaren Bilder aus binaryFragments (für Galerie im "image" Tab)
   useEffect(() => {
@@ -1741,7 +1773,7 @@ export function JobReportTab({
                 // Validierung: Pflichtfelder je nach DetailViewType prüfen
                 const requiredFieldsByType: Record<TemplatePreviewDetailViewType, string[]> = {
                   book: ['title', 'summary'],
-                  session: ['title', 'speakers'],
+                  session: ['title'],
                   testimonial: ['title', 'teaser'],
                   blog: ['title', 'summary'],
                   climateAction: ['title', 'category', 'summary'],
@@ -1793,6 +1825,8 @@ export function JobReportTab({
                           metadata={cmWithResolvedImage}
                           markdown={body}
                           libraryId={libraryId}
+                          sourceFileId={fileId}
+                          sourceFileName={fileName}
                           provider={provider}
                           currentFolderId={currentFolderId}
                           showBackLink={false}

@@ -12,6 +12,11 @@ function nonEmptyString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+function isMissingWriteKeyForPrivateLibraryError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error)
+  return msg.includes('writeKey ist erforderlich')
+}
+
 function getFileExtensionFromName(name: string): string | null {
   const m = name.toLowerCase().match(/\.([a-z0-9]+)$/)
   return m?.[1] || null
@@ -63,15 +68,24 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'libraryId und eventFileId sind erforderlich' }, { status: 400 })
     }
 
-    const { ownerEmail, isPublicLibrary } = await resolveOwnerForTestimonials({ libraryId, writeKey })
+    let ownerEmail = ''
+    let isPublicLibrary = false
+    try {
+      const resolved = await resolveOwnerForTestimonials({ libraryId, writeKey })
+      ownerEmail = resolved.ownerEmail
+      isPublicLibrary = resolved.isPublicLibrary
+    } catch (error) {
+      if (isMissingWriteKeyForPrivateLibraryError(error)) {
+        return NextResponse.json({ error: 'Ungültiger oder fehlender writeKey' }, { status: 403 })
+      }
+      throw error
+    }
     const provider = await getServerProvider(ownerEmail, libraryId)
 
     const eventItem = await provider.getItemById(eventFileId)
     if (!eventItem || eventItem.type !== 'file') {
       return NextResponse.json({ error: 'Event-Datei nicht gefunden' }, { status: 404 })
     }
-    const eventFolderId = eventItem.parentId || 'root'
-
     // Private libraries: listing nur mit gültigem writeKey (sonst wäre es ein Leck).
     if (!isPublicLibrary) {
       const requiredKey = await readEventWriteKeyIfAny({ provider, eventFileId })
@@ -85,13 +99,6 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: 'Ungültiger writeKey' }, { status: 403 })
       }
     }
-
-    // Erstelle testimonials-Ordner (wird von discoverTestimonials verwendet)
-    await ensureChildFolderId({
-      provider,
-      parentId: eventFolderId,
-      folderName: 'testimonials',
-    })
 
     // Verwende gemeinsame Discovery-Funktion
     const { discoverTestimonials } = await import('@/lib/testimonials/testimonial-discovery')
