@@ -58,6 +58,7 @@
     "electron:publish": "next build && node scripts/generate-required-server-files.js && electron-builder --config electron-builder.yml --publish always"
   },
   "dependencies": {
+    "@azure/msal-node": "^2.16.2",
     "@azure/storage-blob": "^12.29.1",
     "@clerk/nextjs": "^6.21.0",
     "@heroicons/react": "^2.2.0",

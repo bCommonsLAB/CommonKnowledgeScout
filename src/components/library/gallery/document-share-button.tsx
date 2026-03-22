@@ -12,6 +12,7 @@ import {
 import { Share2, Twitter, Linkedin, Facebook, Copy, Check } from 'lucide-react'
 import { useTranslation } from '@/lib/i18n/hooks'
 import type { DocCardMeta } from '@/lib/gallery/types'
+import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
 
 export interface DocumentShareButtonProps {
   /** Das Dokument, das geteilt werden soll */
@@ -47,9 +48,10 @@ export function DocumentShareButton({
     const currentPath = pathname || ''
     const params = new URLSearchParams(searchParams?.toString() || '')
     
-    // Stelle sicher, dass doc-Parameter vorhanden ist
-    if (doc.slug) {
-      params.set('doc', doc.slug)
+    // Stelle sicher, dass doc-Parameter vorhanden ist (inkl. synthetischer Slug ohne meta.slug)
+    const navSlug = getEffectiveDocumentNavigationSlug(doc)
+    if (navSlug) {
+      params.set('doc', navSlug)
     }
     
     return `${baseUrl}${currentPath}?${params.toString()}`

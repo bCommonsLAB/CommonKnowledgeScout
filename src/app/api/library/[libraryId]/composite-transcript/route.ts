@@ -67,6 +67,7 @@ export async function POST(
       userEmail,
       targetLanguage,
       sourceItems,
+      library,
     })
 
     // Wenn Transkripte fehlen: Warnung zurückgeben (nicht speichern)

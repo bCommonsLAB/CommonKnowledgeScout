@@ -18,6 +18,8 @@ import { AzureStorageService } from '@/lib/services/azure-storage-service'
 import { calculateImageHash } from '@/lib/services/azure-storage-service'
 import { getAzureStorageConfig } from '@/lib/config/azure-storage'
 import { getShadowTwinBinaryFragments } from '@/lib/repositories/shadow-twin-repo'
+import { parseTwinRelativeImageRef } from '@/lib/storage/shadow-twin-folder-name'
+import { buildDocumentSlugFallback } from '@/lib/documents/document-slug'
 import * as fs from 'fs/promises'
 
 /**
@@ -270,6 +272,8 @@ export class IngestionService {
       const isSessionMode = chaptersInput.length === 0 && Array.isArray((metaEffective as { slides?: unknown }).slides) && ((metaEffective as { slides?: unknown }).slides as Array<unknown>).length > 0
       
       if (provider && !isSessionMode && body && typeof body === 'string' && body.trim().length > 0) {
+        // Lokale Referenz: In verschachtelten async-Closures bleibt `provider` sonst `| undefined` (TS)
+        const storageProvider: StorageProvider = provider
         try {
           // shadowTwinFolderId kommt bereits aus job.shadowTwinState (zentrale Logik)
           if (shadowTwinFolderId) {
@@ -315,46 +319,57 @@ export class IngestionService {
                 })
               }
             } else {
-              // FALL B: coverImageUrl ist ein Dateiname - suche in binaryFragments
+              // FALL B: coverImageUrl ist Dateiname oder `_Quelle.pdf/fragment.jpeg` — binaryFragments (Anker + ggf. Quell-PDF)
               try {
-                // Lade binaryFragments aus MongoDB
-                const binaryFragments = await getShadowTwinBinaryFragments(libraryId, fileId)
-                if (binaryFragments && binaryFragments.length > 0) {
-                  // Suche nach Fragment mit dem Dateinamen aus Frontmatter
-                  const coverFragment = binaryFragments.find(f => 
-                    f.name === frontmatterCoverImageUrl && f.url
-                  )
-                  
-                  if (coverFragment?.url) {
-                    // URL direkt verwenden - kein erneutes Laden/Hochladen!
-                    coverImageUrl = coverFragment.url
-                    docMetaJsonObj.coverImageUrl = coverImageUrl
-                    
-                    // Suche auch Thumbnail-Fragment wenn coverThumbnailUrl ein Dateiname ist
-                    if (frontmatterCoverThumbnailUrl && 
-                        typeof frontmatterCoverThumbnailUrl === 'string' &&
-                        !frontmatterCoverThumbnailUrl.startsWith('http://') && 
-                        !frontmatterCoverThumbnailUrl.startsWith('https://')) {
-                      const thumbFragment = binaryFragments.find(f => 
-                        f.name === frontmatterCoverThumbnailUrl && f.url
-                      )
-                      if (thumbFragment?.url) {
-                        docMetaJsonObj.coverThumbnailUrl = thumbFragment.url
-                      }
+                const { findSourceFileMatchingTwinFolder } = await import('@/lib/storage/shadow-twin')
+                const baseItem = await storageProvider.getItemById(fileId)
+
+                async function fragmentUrlForRef(ref: string): Promise<string | null> {
+                  const parsed = parseTwinRelativeImageRef(ref)
+                  const leaf = parsed?.imageFileName ?? ref
+                  const sourceIds: string[] = [fileId]
+                  if (parsed && baseItem) {
+                    const src = await findSourceFileMatchingTwinFolder(
+                      baseItem.parentId,
+                      parsed.twinFolderName,
+                      storageProvider,
+                    )
+                    if (src && !sourceIds.includes(src.id)) sourceIds.push(src.id)
+                  }
+                  for (const sid of sourceIds) {
+                    const frags = await getShadowTwinBinaryFragments(libraryId, sid)
+                    const hit = frags?.find(f => f.name === leaf && f.url)
+                    if (hit?.url) return hit.url
+                  }
+                  return null
+                }
+
+                const coverFromFrag = await fragmentUrlForRef(frontmatterCoverImageUrl)
+                if (coverFromFrag) {
+                  coverImageUrl = coverFromFrag
+                  docMetaJsonObj.coverImageUrl = coverImageUrl
+
+                  if (frontmatterCoverThumbnailUrl &&
+                      typeof frontmatterCoverThumbnailUrl === 'string' &&
+                      !frontmatterCoverThumbnailUrl.startsWith('http://') &&
+                      !frontmatterCoverThumbnailUrl.startsWith('https://')) {
+                    const thumbUrl = await fragmentUrlForRef(frontmatterCoverThumbnailUrl)
+                    if (thumbUrl) {
+                      docMetaJsonObj.coverThumbnailUrl = thumbUrl
                     }
-                    
-                    FileLogger.info('ingestion', 'Cover-Bild URL aus binaryFragments übernommen (keine Doppelverarbeitung)', {
-                      fileId,
-                      coverImageUrl,
-                      fragmentName: coverFragment.name,
-                      coverThumbnailUrl: docMetaJsonObj.coverThumbnailUrl,
+                  }
+
+                  FileLogger.info('ingestion', 'Cover-Bild URL aus binaryFragments übernommen (keine Doppelverarbeitung)', {
+                    fileId,
+                    coverImageUrl,
+                    frontmatterCoverImageUrl,
+                    coverThumbnailUrl: docMetaJsonObj.coverThumbnailUrl,
+                  })
+                  if (jobId) {
+                    bufferLog(jobId, {
+                      phase: 'cover_image_processed',
+                      message: `Cover-Bild aus MongoDB binaryFragments übernommen: ${coverImageUrl}`,
                     })
-                    if (jobId) {
-                      bufferLog(jobId, {
-                        phase: 'cover_image_processed',
-                        message: `Cover-Bild aus MongoDB binaryFragments übernommen: ${coverImageUrl}`,
-                      })
-                    }
                   }
                 }
               } catch (error) {
@@ -378,15 +393,20 @@ export class IngestionService {
             
             // Lade das explizit gesetzte Cover-Bild aus dem Shadow-Twin-Verzeichnis
             try {
-              const baseItem = await provider.getItemById(fileId)
+              const baseItem = await storageProvider.getItemById(fileId)
               if (baseItem) {
-                const { findShadowTwinImage } = await import('@/lib/storage/shadow-twin')
-                const imageItem = await findShadowTwinImage(baseItem, frontmatterCoverImageUrl, provider, shadowTwinFolderId)
+                const { findShadowTwinImageFromAnchorContext } = await import('@/lib/storage/shadow-twin')
+                const imageItem = await findShadowTwinImageFromAnchorContext(
+                  baseItem,
+                  frontmatterCoverImageUrl,
+                  storageProvider,
+                  shadowTwinFolderId,
+                )
                 
                 if (imageItem) {
                   // Verarbeite das explizit gesetzte Cover-Bild (lade auf Azure hoch)
                   coverImageUrl = await ImageProcessor.processCoverImage(
-                    provider,
+                    storageProvider,
                     shadowTwinFolderId,
                     libraryId,
                     fileId,
@@ -430,7 +450,7 @@ export class IngestionService {
           // PRIORITÄT 2: Fallback auf automatische Cover-Bild-Erkennung (nur wenn kein explizites coverImageUrl vorhanden)
           if (!coverImageUrl) {
             coverImageUrl = await ImageProcessor.processCoverImage(
-              provider,
+              storageProvider,
               shadowTwinFolderId,
               libraryId,
               fileId,
@@ -449,26 +469,55 @@ export class IngestionService {
             }
           }
           
-          // Medien-Felder (speakers_image_url, authors_image_url, attachments_url, author_image_url, galleryImageUrls)
-          // aus binaryFragments auflösen, falls sie relative Dateinamen enthalten
+          // Medien-Felder: Dateiname, `_Quelle.pdf/fragment.jpeg` oder URL — Auflösung über Anker- + Quell-Shadow-Twin-Fragmente
           try {
-            const allFragments = await getShadowTwinBinaryFragments(libraryId, fileId)
-            if (allFragments && allFragments.length > 0) {
-              const mediaFields = ['speakers_image_url', 'authors_image_url', 'attachments_url', 'author_image_url', 'galleryImageUrls'] as const
-              for (const fieldKey of mediaFields) {
-                const rawValue = docMetaJsonObj[fieldKey]
-                if (rawValue) {
-                  const resolved = resolveMediaFieldFromFragments(fieldKey, rawValue as string | string[], allFragments)
-                  if (resolved) {
-                    docMetaJsonObj[fieldKey] = resolved
-                  }
-                }
+            const baseItemMedia = await storageProvider.getItemById(fileId)
+            const resolveOneMediaRef = async (ref: string): Promise<string> => {
+              if (!ref || ref.trim().length === 0) return ref
+              if (ref.startsWith('http://') || ref.startsWith('https://')) return ref
+              const parsed = parseTwinRelativeImageRef(ref)
+              const ids: string[] = [fileId]
+              if (parsed && baseItemMedia) {
+                const { findSourceFileMatchingTwinFolder } = await import('@/lib/storage/shadow-twin')
+                const src = await findSourceFileMatchingTwinFolder(
+                  baseItemMedia.parentId,
+                  parsed.twinFolderName,
+                  storageProvider,
+                )
+                if (src && !ids.includes(src.id)) ids.push(src.id)
               }
-              FileLogger.info('ingestion', 'Medien-Felder aus binaryFragments aufgelöst', {
-                fileId,
-                resolvedFields: mediaFields.filter(f => docMetaJsonObj[f]),
-              })
+              const leaf = parsed?.imageFileName ?? ref
+              for (const sid of ids) {
+                const frags = await getShadowTwinBinaryFragments(libraryId, sid)
+                const hit = frags?.find(f => f.name === leaf && f.url)
+                if (hit?.url) return hit.url
+              }
+              return ref
             }
+
+            const mediaFields = [
+              'coverImageUrl',
+              'coverThumbnailUrl',
+              'speakers_image_url',
+              'authors_image_url',
+              'attachments_url',
+              'author_image_url',
+              'galleryImageUrls',
+            ] as const
+
+            for (const fieldKey of mediaFields) {
+              const rawValue = docMetaJsonObj[fieldKey]
+              if (rawValue == null) continue
+              if (Array.isArray(rawValue)) {
+                docMetaJsonObj[fieldKey] = await Promise.all(
+                  rawValue.map(async (v) => (typeof v === 'string' ? resolveOneMediaRef(v) : v)),
+                )
+              } else if (typeof rawValue === 'string') {
+                docMetaJsonObj[fieldKey] = await resolveOneMediaRef(rawValue)
+              }
+            }
+
+            FileLogger.info('ingestion', 'Medien-Felder (inkl. Twin-Pfade) aus binaryFragments aufgelöst', { fileId })
           } catch (error) {
             FileLogger.warn('ingestion', 'Fehler beim Auflösen der Medien-Felder', {
               fileId, error: error instanceof Error ? error.message : String(error),
@@ -478,12 +527,19 @@ export class IngestionService {
           // Zweiter Pass für Publish: verbleibende Dateinamen auf Blob-URLs heben
           // (wichtig für public views ohne Storage-Provider/Session).
           try {
-            if (provider) {
+            if (storageProvider) {
               const azureConfig = getAzureStorageConfig()
               const azureStorage = new AzureStorageService()
               const scope: 'books' | 'sessions' = isSessionMode ? 'sessions' : 'books'
-              const mediaFieldsToPromote = ['attachments_url', 'galleryImageUrls'] as const
-              const sourceItem = await provider.getItemById(fileId).catch(() => null)
+              const mediaFieldsToPromote = [
+                'coverImageUrl',
+                'coverThumbnailUrl',
+                'speakers_image_url',
+                'authors_image_url',
+                'attachments_url',
+                'galleryImageUrls',
+              ] as const
+              const sourceItem = await storageProvider.getItemById(fileId).catch(() => null)
               const candidateFolderIds: string[] = []
               if (shadowTwinFolderId) candidateFolderIds.push(shadowTwinFolderId)
               if (sourceItem?.parentId && !candidateFolderIds.includes(sourceItem.parentId)) {
@@ -493,7 +549,7 @@ export class IngestionService {
               const findItemByName = async (name: string): Promise<string | undefined> => {
                 for (const folderId of candidateFolderIds) {
                   try {
-                    const siblings = await provider.listItemsById(folderId)
+                    const siblings = await storageProvider.listItemsById(folderId)
                     const match = siblings.find((it) =>
                       it.type === 'file' && it.metadata?.name?.toLowerCase() === name.toLowerCase()
                     )
@@ -511,12 +567,46 @@ export class IngestionService {
                 if (value.startsWith('http://') || value.startsWith('https://')) return value
                 if (!azureConfig || !azureStorage.isConfigured()) return value
 
+                // Bild aus `_Quelle.pdf/fragment.jpeg` (Storage-Twin), wenn kein Mongo-URL-Schritt greifen konnte
+                if (parseTwinRelativeImageRef(value) && sourceItem) {
+                  try {
+                    const { findShadowTwinImageFromAnchorContext } = await import('@/lib/storage/shadow-twin')
+                    const imageItem = await findShadowTwinImageFromAnchorContext(
+                      sourceItem,
+                      value,
+                      storageProvider,
+                      shadowTwinFolderId,
+                    )
+                    if (imageItem) {
+                      const fileBinary = await storageProvider.getBinary(imageItem.id)
+                      const fileBuffer = Buffer.from(await fileBinary.blob.arrayBuffer())
+                      const leaf = value.split('/').pop() || value
+                      const ext = leaf.split('.').pop()?.toLowerCase() || 'jpg'
+                      const hash = calculateImageHash(fileBuffer)
+                      return azureStorage.uploadImageToScope(
+                        azureConfig.containerName,
+                        libraryId,
+                        scope,
+                        fileId,
+                        hash,
+                        ext,
+                        fileBuffer
+                      )
+                    }
+                  } catch (e) {
+                    FileLogger.warn('ingestion', 'Twin-Pfad Blob-Promote fehlgeschlagen', {
+                      value,
+                      error: e instanceof Error ? e.message : String(e),
+                    })
+                  }
+                }
+
                 const matchedFileId = await findItemByName(value)
                 if (!matchedFileId) return value
 
-                const fileBinary = await provider.getBinary(matchedFileId)
+                const fileBinary = await storageProvider.getBinary(matchedFileId)
                 const fileBuffer = Buffer.from(await fileBinary.blob.arrayBuffer())
-                const ext = value.split('.').pop()?.toLowerCase() || ''
+                const ext = value.split('/').pop()?.split('.').pop()?.toLowerCase() || ''
                 const isPdf = ext === 'pdf'
                 const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)
 
@@ -572,7 +662,7 @@ export class IngestionService {
           // Verarbeite Markdown-Bilder
           const markdownResult = await ImageProcessor.processMarkdownImages(
             body,
-            provider,
+            storageProvider,
             libraryId,
             fileId,
             shadowTwinFolderId,
@@ -882,6 +972,14 @@ export class IngestionService {
       // chunksUpserted wird später nach dem Embedding gesetzt, initialisiere mit 0
       let chunksUpserted = 0
       
+      if (typeof (docMetaJsonObj as { slug?: unknown }).slug !== 'string' || !(docMetaJsonObj as { slug?: string }).slug?.trim()) {
+        docMetaJsonObj.slug = buildDocumentSlugFallback(
+          fileName,
+          (docMetaJsonObj as { source_file?: unknown }).source_file as string | undefined,
+          (docMetaJsonObj as { title?: unknown }).title as string | undefined,
+        )
+      }
+
       const mongoDoc: DocMeta = {
         user: userEmail,
         libraryId,

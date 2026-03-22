@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { openDocumentBySlug } from '@/utils/document-navigation'
+import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
 import { DeleteDocumentButton } from './delete-document-button'
 import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
 import { formatUpsertedAt } from '@/utils/format-upserted-at'
@@ -38,11 +39,10 @@ export function ItemsTable({ docsByYear, onOpen, libraryId, onDocumentDeleted }:
   const { isOwner } = useIsLibraryOwner(libraryId)
 
   const handleRowClick = (doc: DocCardMeta) => {
-    // Verwende zentrale Utility-Funktion wenn slug vorhanden ist
-    if (doc.slug && libraryId) {
-      openDocumentBySlug(doc.slug, libraryId, router, pathname, searchParams)
+    const slug = getEffectiveDocumentNavigationSlug(doc)
+    if (slug && libraryId) {
+      openDocumentBySlug(slug, libraryId, router, pathname, searchParams)
     } else if (onOpen) {
-      // Fallback: Verwende onClick-Callback wenn kein slug vorhanden
       onOpen(doc)
     }
   }

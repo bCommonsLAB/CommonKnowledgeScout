@@ -14,6 +14,7 @@ import {
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { openDocumentBySlug } from '@/utils/document-navigation'
+import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
 import type { ViewMode } from './gallery-sticky-header'
 import { ItemsGrid } from './items-grid'
 import { DeleteDocumentButton } from './delete-document-button'
@@ -129,8 +130,9 @@ export function VirtualizedItemsView({
   }, [hasMore, isLoadingMore, onLoadMore, docsByYear])
 
   const handleRowClick = (doc: DocCardMeta) => {
-    if (doc.slug && libraryId) {
-      openDocumentBySlug(doc.slug, libraryId, router, pathname, searchParams)
+    const slug = getEffectiveDocumentNavigationSlug(doc)
+    if (slug && libraryId) {
+      openDocumentBySlug(slug, libraryId, router, pathname, searchParams)
     } else if (onOpen) {
       onOpen(doc)
     }

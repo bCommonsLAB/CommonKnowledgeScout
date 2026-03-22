@@ -32,6 +32,7 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ReferencesSheet } from './references-sheet'
 import { openDocumentBySlug, closeDocument } from '@/utils/document-navigation'
+import { docMatchesNavigationSlug, getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
 import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
 import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
 import dynamic from 'next/dynamic'
@@ -50,6 +51,16 @@ const LazyChatPanel = dynamic(
     loading: () => <div className='text-sm text-muted-foreground p-4'>Lade Story-Panel…</div>,
   }
 )
+
+/** Konstante außerhalb der Komponente: stabil für useMemo-Dependencies (eslint react-hooks/exhaustive-deps). */
+const VALID_DETAIL_VIEW_TYPES: TemplatePreviewDetailViewType[] = [
+  'book',
+  'session',
+  'climateAction',
+  'testimonial',
+  'blog',
+  'divaDocument',
+]
 
 export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProps) {
   const { t } = useTranslation()
@@ -190,44 +201,9 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
   const { docs, loading, error, filteredDocs, docsByYear, loadMore, hasMore, isLoadingMore, totalCount } = useGalleryData(filters, mode, searchQuery, libraryId, { refreshKey, groupByField })
   const { isOwner } = useIsLibraryOwner(libraryId)
   
-  // Finde aktuelles Dokument aus URL-Parameter (für DetailOverlay)
-  // WICHTIG: Ignoriere selectedDoc, wenn wir gerade zum Story-Mode wechseln
+  // `doc`-Parameter aus der URL (Auflösung erfolgt nach `allDocs`, siehe unten)
   const docSlug = searchParams?.get('doc')
-  const selectedDoc = React.useMemo(() => {
-    // Wenn wir gerade zum Story-Mode wechseln, ignoriere selectedDoc
-    if (isSwitchingToStoryModeRef.current) {
-      return null
-    }
-    if (!docSlug || !libraryId || loading || docs.length === 0) {
-      return null
-    }
-    return docs.find(doc => doc.slug === docSlug) || null
-  }, [docSlug, libraryId, loading, docs])
 
-  // Bestimme viewType für DetailOverlay:
-  // - Primär: pro Dokument über `detailViewType` (Wizard/Frontmatter)
-  // - Fallback: Library-Config
-  const validDetailViewTypes: TemplatePreviewDetailViewType[] = ['book', 'session', 'climateAction', 'testimonial', 'blog', 'divaDocument']
-  const detailViewTypeForDoc = React.useMemo<TemplatePreviewDetailViewType>(() => {
-    if (!selectedDoc) return detailViewType as TemplatePreviewDetailViewType // Fallback auf Library-Config
-
-    // 1) Dokument-spezifisch (Wizard/Frontmatter)
-    const perDoc = typeof selectedDoc.detailViewType === 'string' ? selectedDoc.detailViewType : ''
-    if (perDoc && validDetailViewTypes.includes(perDoc as TemplatePreviewDetailViewType)) {
-      return perDoc as TemplatePreviewDetailViewType
-    }
-
-    // 2) Fallback: library settings
-    // (Explizit über util, damit Regeln zentral bleiben)
-    const activeLibrary = libraries.find(lib => lib.id === libraryId)
-    const libraryConfig = activeLibrary?.config?.chat
-    const result = getDetailViewType({}, libraryConfig)
-    return validDetailViewTypes.includes(result as TemplatePreviewDetailViewType) 
-      ? result as TemplatePreviewDetailViewType 
-      : 'book'
-  }, [selectedDoc, detailViewType, libraries, libraryId])
-
-  // selectedDoc wird automatisch über React State verwaltet
   const { facetDefs } = useGalleryFacets(libraryId, filters)
 
   // Dynamischer Platzhalter für das Suchfeld basierend auf den tatsächlich durchsuchten Feldern
@@ -367,6 +343,41 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
     return Array.from(docsMap.values())
   }, [docs, additionalDocs])
 
+  // Finde aktuelles Dokument aus URL-Parameter (für DetailOverlay).
+  // Nutzt `allDocs` (docs + nachgeladene Reference-Docs), damit der `doc`-Parameter auch für
+  // Einträge ohne persistierten `meta.slug` funktioniert (synthetischer Slug, siehe document-slug.ts).
+  const selectedDoc = React.useMemo(() => {
+    if (isSwitchingToStoryModeRef.current) {
+      return null
+    }
+    if (!docSlug || !libraryId || loading || allDocs.length === 0) {
+      return null
+    }
+    return allDocs.find(doc => docMatchesNavigationSlug(doc, docSlug)) || null
+  }, [docSlug, libraryId, loading, allDocs])
+
+  // Bestimme viewType für DetailOverlay:
+  // - Primär: pro Dokument über `detailViewType` (Wizard/Frontmatter)
+  // - Fallback: Library-Config
+  const detailViewTypeForDoc = React.useMemo<TemplatePreviewDetailViewType>(() => {
+    if (!selectedDoc) return detailViewType as TemplatePreviewDetailViewType // Fallback auf Library-Config
+
+    // 1) Dokument-spezifisch (Wizard/Frontmatter)
+    const perDoc = typeof selectedDoc.detailViewType === 'string' ? selectedDoc.detailViewType : ''
+    if (perDoc && VALID_DETAIL_VIEW_TYPES.includes(perDoc as TemplatePreviewDetailViewType)) {
+      return perDoc as TemplatePreviewDetailViewType
+    }
+
+    // 2) Fallback: library settings
+    // (Explizit über util, damit Regeln zentral bleiben)
+    const activeLibrary = libraries.find(lib => lib.id === libraryId)
+    const libraryConfig = activeLibrary?.config?.chat
+    const result = getDetailViewType({}, libraryConfig)
+    return VALID_DETAIL_VIEW_TYPES.includes(result as TemplatePreviewDetailViewType) 
+      ? result as TemplatePreviewDetailViewType 
+      : 'book'
+  }, [selectedDoc, detailViewType, libraries, libraryId])
+
   // Gruppiere Dokumente nach Referenzen, wenn chatReferences gesetzt ist
   // WICHTIG: Verwende `allDocs` statt `docs`, damit alle Dokumente aus references angezeigt werden,
   // auch wenn sie nicht durch Pagination geladen wurden
@@ -389,8 +400,9 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
   // Event handlers
   // Vereinfachte handleOpenDocument: Nutzt zentrale Utility-Funktion
   const handleOpenDocument = (doc: DocCardMeta) => {
-    if (!doc.slug) {
-      console.warn('[GalleryRoot] Dokument hat keinen slug, kann nicht geöffnet werden:', doc)
+    const slug = getEffectiveDocumentNavigationSlug(doc)
+    if (!slug) {
+      console.warn('[GalleryRoot] Dokument hat weder slug noch fileId/id, kann nicht geöffnet werden:', doc)
       return
     }
     // Schließe ReferencesSheet bevor DetailOverlay geöffnet wird (verhindert verschachtelte Overlays)
@@ -400,7 +412,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
       setReferencesSheetData(null)
     }
     // Nutze zentrale Utility-Funktion für URL-basierte Navigation
-    openDocumentBySlug(doc.slug, libraryId || '', router, pathname, searchParams)
+    openDocumentBySlug(slug, libraryId || '', router, pathname, searchParams)
   }
   
   const handleCloseDocument = () => {

@@ -17,7 +17,8 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { LibraryService } from '@/lib/services/library-service'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import { getServerProvider } from '@/lib/storage/server-provider'
-import { findShadowTwinFolder } from '@/lib/storage/shadow-twin'
+import { findShadowTwinFolder, findSourceFileMatchingTwinFolder } from '@/lib/storage/shadow-twin'
+import { parseTwinRelativeImageRef } from '@/lib/storage/shadow-twin-folder-name'
 import { getShadowTwinsBySourceIds } from '@/lib/repositories/shadow-twin-repo'
 import { FileLogger } from '@/lib/debug/logger'
 
@@ -47,18 +48,47 @@ export async function POST(
     const { libraryId } = await params
     const body = await request.json() as RequestBody
 
-    if (!body?.sourceId || !body?.fragmentName) {
+    if (!body?.sourceId || body.fragmentName == null || String(body.fragmentName).trim() === '') {
       return NextResponse.json({ error: 'sourceId und fragmentName sind erforderlich' }, { status: 400 })
     }
 
+    // Normalisierung: Clients/WebDAV liefern manchmal trailing Backslashes (z. B. "thumb.jpg\") — Lookups würden sonst scheitern.
+    const fragmentName = String(body.fragmentName).trim().replace(/\\+$/g, '')
+
     const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
     if (!library) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
+
+    // `_Quelle.pdf/img-0.jpeg`: Fragment liegt beim Shadow-Twin der Quelle, nicht beim Anker-Dokument.
+    let resolveSourceId = body.sourceId
+    let resolveFragmentKey = fragmentName
+    const twinParsed = parseTwinRelativeImageRef(fragmentName)
+    if (twinParsed) {
+      try {
+        const providerEarly = await getServerProvider(userEmail, libraryId)
+        const anchorItem = await providerEarly.getItemById(body.sourceId)
+        if (anchorItem) {
+          const sourceFile = await findSourceFileMatchingTwinFolder(
+            anchorItem.parentId,
+            twinParsed.twinFolderName,
+            providerEarly,
+          )
+          if (sourceFile) {
+            resolveSourceId = sourceFile.id
+            resolveFragmentKey = twinParsed.imageFileName
+          }
+        }
+      } catch (e) {
+        FileLogger.warn('shadow-twins/resolve-binary-url', 'Twin-Pfad-Auflösung fehlgeschlagen', {
+          error: e instanceof Error ? e.message : String(e),
+        })
+      }
+    }
 
     // Erstelle ShadowTwinService
     const service = await ShadowTwinService.create({
       library,
       userEmail,
-      sourceId: body.sourceId,
+      sourceId: resolveSourceId,
       sourceName: body.sourceName || '',
       parentId: body.parentId || '',
     })
@@ -67,8 +97,9 @@ export async function POST(
     const allFragments = await service.getBinaryFragments()
     
     FileLogger.info('shadow-twins/resolve-binary-url', 'Debug: Fragmente geladen', {
-      sourceId: body.sourceId,
-      fragmentName: body.fragmentName,
+      sourceId: resolveSourceId,
+      fragmentName,
+      resolveFragmentKey,
       fragmentCount: allFragments?.length ?? 0,
       fragmentNames: allFragments?.map(f => f.name) ?? [],
       fragmentsWithUrl: allFragments?.filter(f => f.url).length ?? 0,
@@ -76,10 +107,10 @@ export async function POST(
     })
 
     // Löse Binary-Fragment-URL auf
-    const resolvedUrl = await service.resolveBinaryFragmentUrl(body.fragmentName)
+    const resolvedUrl = await service.resolveBinaryFragmentUrl(resolveFragmentKey)
 
     if (resolvedUrl) {
-      return NextResponse.json({ resolvedUrl, fragmentName: body.fragmentName }, { status: 200 })
+      return NextResponse.json({ resolvedUrl, fragmentName }, { status: 200 })
     }
 
     // Storage-Fallback: Wenn MongoDB kein Fragment kennt, direkt im Shadow-Twin-Ordner suchen.
@@ -89,8 +120,8 @@ export async function POST(
     let effectiveParentId = body.parentId || ''
     if (!effectiveSourceName || !effectiveParentId) {
       try {
-        const docs = await getShadowTwinsBySourceIds({ libraryId, sourceIds: [body.sourceId] })
-        const doc = docs.get(body.sourceId)
+        const docs = await getShadowTwinsBySourceIds({ libraryId, sourceIds: [resolveSourceId] })
+        const doc = docs.get(resolveSourceId)
         if (doc) {
           effectiveSourceName = effectiveSourceName || doc.sourceName || ''
           effectiveParentId = effectiveParentId || doc.parentId || ''
@@ -111,15 +142,15 @@ export async function POST(
             const folderItems = await provider.listItemsById(shadowTwinFolder.id)
             const binaryFile = folderItems.find(
               (item) => item.type === 'file' &&
-                item.metadata.name.toLowerCase() === body.fragmentName.toLowerCase()
+                item.metadata.name.toLowerCase() === resolveFragmentKey.toLowerCase()
             )
 
             if (binaryFile) {
               const streamingUrl = `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(binaryFile.id)}`
               FileLogger.info('shadow-twins/resolve-binary-url', 'Fragment via Storage-Fallback gefunden', {
-                fragmentName: body.fragmentName, sourceId: body.sourceId, fileId: binaryFile.id,
+                fragmentName, sourceId: resolveSourceId, fileId: binaryFile.id,
               })
-              return NextResponse.json({ resolvedUrl: streamingUrl, fragmentName: body.fragmentName }, { status: 200 })
+              return NextResponse.json({ resolvedUrl: streamingUrl, fragmentName }, { status: 200 })
             }
           }
 
@@ -130,32 +161,32 @@ export async function POST(
           const siblingMatch = sourceSiblings.find(
             (item) =>
               item.type === 'file' &&
-              item.metadata.name.toLowerCase() === body.fragmentName.toLowerCase()
+              item.metadata.name.toLowerCase() === resolveFragmentKey.toLowerCase()
           )
           if (siblingMatch) {
             const streamingUrl = `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(siblingMatch.id)}`
             FileLogger.info('shadow-twins/resolve-binary-url', 'Datei via Source-Verzeichnis-Fallback gefunden', {
-              fragmentName: body.fragmentName, sourceId: body.sourceId, fileId: siblingMatch.id,
+              fragmentName, sourceId: resolveSourceId, fileId: siblingMatch.id,
             })
-            return NextResponse.json({ resolvedUrl: streamingUrl, fragmentName: body.fragmentName }, { status: 200 })
+            return NextResponse.json({ resolvedUrl: streamingUrl, fragmentName }, { status: 200 })
           }
         }
       } catch (storageErr) {
         FileLogger.warn('shadow-twins/resolve-binary-url', 'Storage-Fallback fehlgeschlagen', {
-          fragmentName: body.fragmentName,
+          fragmentName,
           error: storageErr instanceof Error ? storageErr.message : String(storageErr),
         })
       }
     }
 
     FileLogger.warn('shadow-twins/resolve-binary-url', 'Fragment nicht gefunden (inkl. Storage-Fallback)', {
-      fragmentName: body.fragmentName,
+      fragmentName,
       sourceId: body.sourceId,
       availableFragments: allFragments?.map(f => ({ name: f.name, originalName: f.originalName, hasUrl: !!f.url, hasFileId: !!f.fileId })) ?? [],
     })
     return NextResponse.json({ 
       error: 'Fragment nicht gefunden',
-      fragmentName: body.fragmentName,
+      fragmentName,
       sourceId: body.sourceId,
       availableFragments: allFragments?.map(f => f.name) ?? [],
     }, { status: 404 })

@@ -172,7 +172,7 @@ export class ImageProcessor {
               return { success: false, match, pattern, imagePath, error: normalizedPath.error || 'Unbekannter Fehler' }
             }
 
-            const { findShadowTwinImage } = await import('@/lib/storage/shadow-twin')
+            const { findShadowTwinImageFromAnchorContext } = await import('@/lib/storage/shadow-twin')
             const baseItem = await provider.getItemById(fileId)
             if (!baseItem) {
               const errorMsg = `Base-Item nicht gefunden: ${fileId}`
@@ -256,7 +256,12 @@ export class ImageProcessor {
             // Versuche zuerst, das Bild vom Storage Provider zu laden
             // (nur wenn wir es noch nicht haben)
             try {
-            const imageFile = await findShadowTwinImage(baseItem, normalizedPath.path, provider, shadowTwinFolderId)
+            const imageFile = await findShadowTwinImageFromAnchorContext(
+              baseItem,
+              normalizedPath.path,
+              provider,
+              shadowTwinFolderId,
+            )
             if (!imageFile) {
               const errorMsg = `Bild nicht gefunden: ${normalizedPath.path}`
               FileLogger.warn('ingestion', errorMsg, {
@@ -427,11 +432,16 @@ export class ImageProcessor {
       return null
     }
 
-    const { findShadowTwinImage } = await import('@/lib/storage/shadow-twin')
+    const { findShadowTwinImageFromAnchorContext } = await import('@/lib/storage/shadow-twin')
 
     for (const candidate of coverCandidates) {
       try {
-        const imageItem = await findShadowTwinImage(baseItem, candidate, provider, shadowTwinFolderId)
+        const imageItem = await findShadowTwinImageFromAnchorContext(
+          baseItem,
+          candidate,
+          provider,
+          shadowTwinFolderId,
+        )
         if (!imageItem) {
           continue
         }

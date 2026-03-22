@@ -115,6 +115,21 @@ export function SessionDetail({
   const speakers_image_url = Array.isArray(data.speakers_image_url) ? data.speakers_image_url : [];
   const affiliations = Array.isArray(data.affiliations) ? data.affiliations : [];
   const slides = Array.isArray(data.slides) ? data.slides : [];
+  const getDisplayFileName = React.useCallback((value: string): string => {
+    const input = String(value || "").trim()
+    if (!input) return ""
+    try {
+      if (input.startsWith("http://") || input.startsWith("https://")) {
+        const parsed = new URL(input)
+        const segment = parsed.pathname.split("/").filter(Boolean).pop() || input
+        return decodeURIComponent(segment)
+      }
+    } catch {
+      // Fallback unten verwenden.
+    }
+    const normalized = input.split("?")[0]?.split("#")[0] || input
+    return decodeURIComponent(normalized.split("/").filter(Boolean).pop() || input)
+  }, [])
   const attachmentNames = React.useMemo(() => {
     return Array.isArray(data.attachments_url)
       ? data.attachments_url.filter((u): u is string => typeof u === "string" && u.trim().length > 0)
@@ -137,8 +152,8 @@ export function SessionDetail({
   const mediaResolvedUrlCacheRef = React.useRef<Map<string, string | undefined>>(new Map())
   const lastResolvedSignatureRef = React.useRef<string>("")
   const unresolvedAttachmentNames = React.useMemo(
-    () => resolvedAttachments.filter((entry) => !entry.url).map((entry) => entry.name),
-    [resolvedAttachments]
+    () => resolvedAttachments.filter((entry) => !entry.url).map((entry) => getDisplayFileName(entry.name)),
+    [resolvedAttachments, getDisplayFileName]
   )
   const unresolvedGalleryImageNames = React.useMemo(
     () => resolvedGalleryImages.filter((entry) => !entry.url).map((entry) => entry.name),
@@ -548,16 +563,17 @@ export function SessionDetail({
                   <div className="mb-6 space-y-1.5">
                     <div className="space-y-1">
                       {attachmentNames.map((fileName, idx) => {
+                        const displayName = getDisplayFileName(fileName)
                         const resolved = resolvedAttachments[idx]
                         if (!resolved?.url) {
                           return (
                             <div
                               key={idx}
                               className="inline-flex items-center gap-2 text-sm text-muted-foreground"
-                              title={`Nicht auflösbar: ${fileName}`}
+                              title={`Nicht auflösbar: ${displayName}`}
                             >
                               <FileText className="w-4 h-4" />
-                              <span className="truncate max-w-[520px]">{fileName}</span>
+                              <span className="truncate max-w-[520px]">{displayName}</span>
                             </div>
                           )
                         }
@@ -568,10 +584,10 @@ export function SessionDetail({
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                            title={fileName}
+                            title={displayName}
                           >
                             <FileText className="w-4 h-4" />
-                            <span className="truncate max-w-[520px]">{fileName}</span>
+                            <span className="truncate max-w-[520px]">{displayName}</span>
                             <ExternalLink className="w-3.5 h-3.5" />
                           </a>
                         )

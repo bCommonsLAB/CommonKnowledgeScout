@@ -27,7 +27,6 @@ import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { validateAndRepairShadowTwin } from '@/lib/shadow-twin/shared'
 import { resolveShadowTwinImageUrl } from '@/lib/storage/shadow-twin'
-// CoverImageGeneratorDialog entfernt (aktuell nicht verwendet)
 import { ArtifactEditDialog } from './shared/artifact-edit-dialog'
 import { fetchShadowTwinMarkdown, updateShadowTwinMarkdown } from '@/lib/shadow-twin/shadow-twin-mongo-client'
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
@@ -1716,6 +1715,9 @@ export function JobReportTab({
                   return undefined
                 })()
               }
+              imageGenerationPrompt={defaultPromptResult.prompt}
+              imageGenerationPromptSource={defaultPromptResult.source}
+              imageGenerationOriginalPrompt={defaultPromptResult.originalPrompt}
               onFrontmatterUpdate={(meta, content) => {
                 setFrontmatterMeta(meta)
                 setFullContent(content)

@@ -10,6 +10,7 @@ import type { DocCardMeta } from '@/lib/gallery/types'
 import { SpeakerOrAuthorIcons } from './speaker-icons'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { openDocumentBySlug } from '@/utils/document-navigation'
+import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
 
 export interface DocumentCardProps {
   doc: DocCardMeta
@@ -250,14 +251,13 @@ export function DocumentCard({ doc, onClick, libraryId, libraryDetailViewType }:
   const searchParams = useSearchParams()
   
   const handleClick = () => {
-    // Verwende zentrale Utility-Funktion wenn slug vorhanden ist
-    if (doc.slug && libraryId) {
-      openDocumentBySlug(doc.slug, libraryId, router, pathname, searchParams)
+    const slug = getEffectiveDocumentNavigationSlug(doc)
+    if (slug && libraryId) {
+      openDocumentBySlug(slug, libraryId, router, pathname, searchParams)
     } else if (onClick) {
-      // Fallback: Verwende onClick-Callback wenn kein slug vorhanden
       onClick(doc)
     } else {
-      console.warn('[DocumentCard] Kein slug oder onClick-Callback verfügbar:', doc)
+      console.warn('[DocumentCard] Kein navigierbarer Slug/fileId oder onClick-Callback:', doc)
     }
   }
   

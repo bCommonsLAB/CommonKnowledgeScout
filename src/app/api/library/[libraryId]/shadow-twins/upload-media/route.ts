@@ -120,11 +120,12 @@ export async function POST(
       }
     }
 
-    // 3. Frontmatter patchen: dynamisch basierend auf fieldKey
-    const patchValue = fragment.resolvedUrl || fragment.name
+    // 3. Frontmatter patchen: bewusst nur mit Dateinamen.
+    // Blob-/Streaming-URLs werden erst bei Anzeige/Auflösung bzw. beim Publizieren benötigt.
+    const patchValue = file.name || fragment.name
     const patches = buildFrontmatterPatches(
       fieldKey, patchValue, arrayIndex, arrayAppend,
-      thumbnailFragment ? (thumbnailFragment.resolvedUrl || thumbnailFragment.name) : undefined,
+      thumbnailFragment ? thumbnailFragment.name : undefined,
       // Aktuelles Markdown für Array-Operationen laden
       async () => {
         const artifact = await service.getMarkdown({ kind, targetLanguage, templateName })

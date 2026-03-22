@@ -83,6 +83,26 @@ export function getMediaKind(file: StorageItem): MediaKind {
   return "unknown"
 }
 
+/**
+ * Erkennt Bilder nur aus Dateiname und optionalem MIME (ohne vollständiges StorageItem).
+ * Z. B. Composite-API-Body oder Markdown-Zeilen mit reinem Dateinamen.
+ */
+export function isImageMediaFromName(fileName: string, mimeType = ''): boolean {
+  return (
+    getMediaKind({
+      id: '_',
+      parentId: '_',
+      type: 'file',
+      metadata: {
+        name: fileName,
+        size: 0,
+        modifiedAt: new Date(0),
+        mimeType,
+      },
+    }) === 'image'
+  )
+}
+
 // =============================================================================
 // MAPPING-FUNKTIONEN
 // =============================================================================

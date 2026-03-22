@@ -8,7 +8,7 @@ import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.
  * Diese Funktion stellt sicher, dass alle Dokument-Klicks die URL setzen,
  * sodass die DetailOverlay-Verwaltung zentral über URL-Parameter erfolgen kann.
  * 
- * @param slug - Der Slug des Dokuments (aus doc.slug)
+ * @param slug - Dokument-Slug für `?doc=` (persistierter `meta.slug` oder synthetischer Slug aus document-slug.ts)
  * @param libraryId - Die ID der Library
  * @param router - Next.js Router-Instanz (aus useRouter())
  * @param pathname - Aktueller Pfadname (aus usePathname())

@@ -32,6 +32,8 @@ import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { LibraryService } from '@/lib/services/library-service'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import { isValidDetailViewType, validateMetadataForViewType, formatValidationWarning } from '@/lib/detail-view-types'
+import { extractForwardedTemplateSourceFrontmatter } from '@/lib/external-jobs/template-source-frontmatter'
+import { buildDocumentSlugFallback } from '@/lib/documents/document-slug'
 
 /**
  * Extrahiert feste Felder (ohne {{...}}) aus dem Template-Frontmatter.
@@ -1184,7 +1186,10 @@ ${customHintValue}`
 
   // SSOT: Flache, UI-taugliche Metafelder ergänzen (nur auf stabilem Meilenstein)
   const baseMeta = bodyMetadata || {}
-  const finalMeta: Record<string, unknown> = metadataFromTemplate ? { ...metadataFromTemplate } : { ...baseMeta }
+  const forwardedSourceMeta = extractForwardedTemplateSourceFrontmatter(baseMeta)
+  const finalMeta: Record<string, unknown> = metadataFromTemplate
+    ? { ...forwardedSourceMeta, ...metadataFromTemplate }
+    : { ...baseMeta }
   const ssotFlat: Record<string, unknown> = {
     job_id: jobId,
     source_file: job.correlation.source?.name || baseName,
@@ -1298,6 +1303,12 @@ ${customHintValue}`
   
   let mergedMeta = { ...(existingMeta || {}), ...fixedFieldsFromTemplate, ...finalMeta, ...ssotFlat } as Record<string, unknown>
   if (initialChapters) (mergedMeta as { chapters: Array<Record<string, unknown>> }).chapters = initialChapters
+
+  // Öffnen aus Galerie/Explore erfolgt über docMetaJson.slug.
+  // Secretary liefert dieses Feld oft nicht; deshalb stabilen Fallback aus dem Artefaktnamen setzen.
+  if (typeof mergedMeta.slug !== 'string' || mergedMeta.slug.trim().length === 0) {
+    mergedMeta.slug = buildDocumentSlugFallback(uniqueName, sourceName, mergedMeta.title as string | undefined)
+  }
   
   // customHint 1:1 als Metadatum speichern (für Nachvollziehbarkeit und Re-Open).
   // Wird NACH dem Merge gesetzt, damit der Benutzerwert nicht vom LLM-Output überschrieben wird.

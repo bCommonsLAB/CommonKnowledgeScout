@@ -100,6 +100,29 @@ let mainWindow = null;
 let stopIntercept = null;
 let appLocalhostUrl = null;
 
+/** AbortController für laufenden Teams-Stream-Relay (IPC cancel) */
+const streamRelayState = { abortController: null };
+
+/**
+ * Headers für net.fetch normalisieren (Plain-Objekt oder Fetch-Headers).
+ * @param {HeadersInit|undefined} h
+ * @returns {Record<string, string>}
+ */
+function normalizeFetchHeaders(h) {
+  if (!h) return {};
+  if (typeof Headers !== 'undefined' && h instanceof Headers) {
+    const o = {};
+    h.forEach((v, k) => {
+      o[k] = v;
+    });
+    return o;
+  }
+  if (typeof h === 'object' && !Array.isArray(h)) {
+    return { ...h };
+  }
+  return {};
+}
+
 /**
  * Löscht OAuth-relevante Cookies (Google, Clerk), damit beim nächsten
  * Login der Account-Picker angezeigt wird statt den letzten Account
@@ -533,6 +556,88 @@ function initAutoUpdater() {
 app.on('ready', async () => {
   // IPC-Handler für Version-Abfrage aus dem Renderer-Prozess
   ipcMain.handle('get-app-version', () => app.getVersion());
+
+  /**
+   * Teams-Video-Relay: Graph-Download (MSAL) + Chunk-Upload zu /api/stream-ingest (Clerk-Cookies).
+   */
+  ipcMain.handle('stream-relay:cancel', () => {
+    if (streamRelayState.abortController) {
+      streamRelayState.abortController.abort();
+    }
+    return { ok: true };
+  });
+
+  ipcMain.handle('stream-relay:start', async (event, opts) => {
+    if (!opts || typeof opts.streamUrl !== 'string' || !opts.streamUrl.trim()) {
+      return { ok: false, error: 'streamUrl fehlt oder ist leer' };
+    }
+
+    streamRelayState.abortController = new AbortController();
+    const { shell, net } = require('electron');
+    const { createMsalStreamRelayAuth } = require('./msal-auth');
+    const { relayStreamToIngest } = require('./stream-relay');
+
+    /**
+     * Clerk-Session an Next.js weiterreichen (localhost).
+     * @param {string} url
+     * @param {RequestInit} [init]
+     */
+    async function cookieFetch(url, init = {}) {
+      if (!mainWindow || mainWindow.isDestroyed()) {
+        throw new Error(
+          'stream_relay_no_window: Kein Browserfenster für Cookie-Weiterleitung (Clerk)'
+        );
+      }
+      const targetUrl = new URL(url);
+      const origin = `${targetUrl.protocol}//${targetUrl.host}`;
+      const cookieList = await mainWindow.webContents.session.cookies.get({ url: origin + '/' });
+      const cookieHeader = cookieList.map((c) => `${c.name}=${c.value}`).join('; ');
+      const baseHeaders = normalizeFetchHeaders(init.headers);
+      const headers = { ...baseHeaders };
+      if (cookieHeader) {
+        headers.Cookie = cookieHeader;
+      }
+      return net.fetch(url, { ...init, headers });
+    }
+
+    const baseUrl =
+      (appLocalhostUrl || `http://localhost:${dev ? 3000 : PROD_PORT}`).replace(/\/$/, '');
+
+    try {
+      const msal = createMsalStreamRelayAuth({
+        userDataPath: app.getPath('userData'),
+        openBrowser: (authUrl) => shell.openExternal(authUrl),
+      });
+
+      const result = await relayStreamToIngest({
+        streamUrl: opts.streamUrl.trim(),
+        acquireToken: () => msal.acquireTokenForGraph(),
+        baseUrl,
+        cookieFetch,
+        signal: streamRelayState.abortController.signal,
+        onProgress: (p) => {
+          try {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('stream-relay:progress', p);
+            }
+          } catch {
+            /* Fenster geschlossen */
+          }
+        },
+        targetLanguage: typeof opts.targetLanguage === 'string' ? opts.targetLanguage : undefined,
+        sourceLanguage: typeof opts.sourceLanguage === 'string' ? opts.sourceLanguage : undefined,
+        fileName: typeof opts.fileName === 'string' ? opts.fileName : undefined,
+      });
+
+      return { ok: true, data: result };
+    } catch (e) {
+      const msg = e && e.message ? e.message : String(e);
+      console.error('[stream-relay]', msg);
+      return { ok: false, error: msg };
+    } finally {
+      streamRelayState.abortController = null;
+    }
+  });
 
   await createWindow();
   initAutoUpdater();

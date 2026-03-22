@@ -12,9 +12,14 @@
  *    Version im Speicher. Wird nie persistiert, sondern nur als Input für
  *    die Template-Phase (LLM) verwendet.
  *
- * Wiki-Link-Syntax:
- * - `[[datei.pdf]]` → Direkte Datei im Verzeichnis
- * - `[[quelldatei.pdf#fragment.jpeg]]` → Binary Fragment aus Shadow-Twin
+ * Wiki-Link-Syntax (Obsidian):
+ * - `[[datei.pdf]]` / Quellen: Dokumente als normale Wikilinks
+ * - „Verfügbare Medien“: zuerst Ordner-Bilder, dann **je PDF** extrahierte Fragmente plus optional
+ *   „Im Transkript erwähnt“ (aus Transkript-Markdown geparste Bild-Dateinamen), dann andere Quelltypen (Office …)
+ * - Vor jedem Embed: **Dateiname** als Prüfansicht-Label
+ * - `![[bild.jpg]]` im Quellverzeichnis: eingebettete Vorschau
+ * - `![[_Quelle.pdf/fragment.jpeg]]` für PDF-Fragmente: Pfad = Shadow-Twin-Ordner (`generateShadowTwinFolderName`)
+ * - Legacy in älteren Dateien: `[[quelle.pdf#fragment.jpeg]]` (App-Vorschau löst weiter auf)
  *
  * @see docs/media-lifecycle-architektur.md
  */
@@ -22,13 +27,30 @@
 import {
   getShadowTwinsBySourceIds,
   getShadowTwinArtifact,
-  getShadowTwinBinaryFragments,
   toArtifactKey,
 } from '@/lib/repositories/shadow-twin-repo'
 import { getServerProvider } from '@/lib/storage/server-provider'
-import { getMediaKind } from '@/lib/media-types'
+import { isImageMediaFromName } from '@/lib/media-types'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { FileLogger } from '@/lib/debug/logger'
+import type { Library } from '@/types/library'
+import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
+import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
+import { parseCompositeSourceFilesFromMeta } from '@/lib/creation/composite-source-files-meta'
+import { generateShadowTwinFolderName } from '@/lib/storage/shadow-twin'
+import {
+  buildAggregatedMediaForSources,
+  type MediaFileInfo,
+  type OtherSourceExtractedGroup,
+  type PdfMediaSection,
+} from '@/lib/media/aggregated-media-service'
+
+/** Für Tests und Abwärtskompatibilität — kanonische Medien-Helfer liegen im Aggregations-Service. */
+export type { MediaFileInfo, PdfMediaSection } from '@/lib/media/aggregated-media-service'
+export {
+  extractCanonicalImageNameByBlobNameFromMarkdown,
+  extractImageLikeNamesFromMarkdown,
+} from '@/lib/media/aggregated-media-service'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPEN
@@ -41,6 +63,12 @@ export interface CompositeReferenceOptions {
   targetLanguage: string
   /** Ausgewählte Quelldateien (StorageItems mit id, name, parentId) */
   sourceItems: Array<{ id: string; name: string; parentId: string }>
+  /**
+   * Optional: Library-Dokument für Shadow-Twin-Konfiguration.
+   * Wenn gesetzt und Transkripte werden ins Dateisystem gespiegelt, enthält das Markdown
+   * pro Nicht-.md-Quelle eine zweite Zeile `[[…transcript….md|Transkript prüfen]]` (Obsidian-Alias).
+   */
+  library?: Library | null
 }
 
 /** Ergebnis von buildCompositeReference */
@@ -74,21 +102,22 @@ export interface CompositeResolveResult {
   unresolvedSources: string[]
 }
 
-/** Medien-Info mit optionaler Herkunft */
-export interface MediaFileInfo {
-  name: string
-  size: number
-  mimeType: string
-  /** Quelldatei, aus der das Fragment extrahiert wurde (nur bei #-Links) */
-  sourceFile?: string
-}
-
 /** Internes Zwischenergebnis pro Quelle bei Resolution */
 interface ResolvedSource {
   name: string
   index: number
   markdown: string | null
   mimeType: string
+}
+
+/**
+ * Quellen, die ein echtes Transkript-Artefakt brauchen (PDF, Audio, Office, …).
+ * Markdown ist schon Text; Bilder werden nicht transkribiert.
+ */
+function compositeSourceExpectsTranscript(item: { id: string; name: string; parentId: string }): boolean {
+  if (item.name.toLowerCase().endsWith('.md')) return false
+  if (isImageMediaFromName(item.name)) return false
+  return true
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -104,7 +133,7 @@ interface ResolvedSource {
 export async function buildCompositeReference(
   options: CompositeReferenceOptions
 ): Promise<CompositeReferenceResult> {
-  const { libraryId, userEmail, targetLanguage: _targetLanguage, sourceItems } = options
+  const { libraryId, userEmail, targetLanguage, sourceItems, library: libraryDoc } = options
 
   if (sourceItems.length === 0) {
     throw new Error('Mindestens eine Quelldatei erforderlich')
@@ -125,8 +154,7 @@ export async function buildCompositeReference(
   // Transkript-Existenz prüfen (ohne Inhalt zu laden)
   const missingTranscripts: string[] = []
   for (const item of sourceItems) {
-    // Markdown-Dateien brauchen kein separates Transkript
-    if (item.name.toLowerCase().endsWith('.md')) continue
+    if (!compositeSourceExpectsTranscript(item)) continue
 
     const doc = shadowTwinDocs.get(item.id)
     const hasTranscript = doc?.artifacts?.transcript
@@ -138,14 +166,29 @@ export async function buildCompositeReference(
     }
   }
 
-  // Medien sammeln (binaryFragments + Verzeichnis-Dateien)
-  const mediaFiles = await collectMediaFiles(libraryId, userEmail, sourceItems)
+  // Medien sammeln (binaryFragments + Verzeichnis-Dateien) — gemeinsamer Aggregations-Service
+  const { mediaFiles, pdfSections, otherExtracted } = await buildAggregatedMediaForSources({
+    libraryId,
+    userEmail,
+    targetLanguage,
+    sourceItems,
+  })
+
+  // Obsidian: zweite Zeile „Transkript prüfen“ nur, wenn Transkript-Artefakte im Vault/Storage liegen.
+  const st = getShadowTwinConfig(libraryDoc ?? null)
+  const includeTranscriptWikiLinks =
+    libraryDoc != null &&
+    (st.primaryStore === 'filesystem' || st.persistToFilesystem === true)
 
   // Wiki-Link-Markdown zusammenbauen
   const markdown = assembleReferenceMarkdown({
     sourceFileNames,
     sourceItems,
     mediaFiles,
+    pdfSections,
+    otherExtracted,
+    targetLanguage,
+    includeTranscriptWikiLinks,
   })
 
   FileLogger.info('composite-transcript', 'Composite-Reference erstellt', {
@@ -176,7 +219,7 @@ export async function resolveCompositeTranscript(
 
   // Frontmatter parsen, um _source_files zu lesen
   const { meta } = parseFrontmatter(compositeMarkdown)
-  const sourceFileNames = parseSourceFiles(meta)
+  const sourceFileNames = parseCompositeSourceFilesFromMeta(meta)
 
   if (sourceFileNames.length === 0) {
     throw new Error('Composite-Markdown enthält keine _source_files im Frontmatter')
@@ -233,6 +276,9 @@ export async function resolveCompositeTranscript(
         FileLogger.warn('composite-transcript', `Markdown "${name}" nicht ladbar`, { error })
         unresolvedSources.push(name)
       }
+    } else if (!compositeSourceExpectsTranscript(item)) {
+      // Bilder (u. a.): kein Shadow-Twin-Transkript — Platzhalter für LLM, nicht als Fehler zählen
+      markdown = `*(Bildquelle „${name}“ — kein Text-Transkript; Zuordnung über Dateiname und Medienliste.)*`
     } else {
       // Transkript aus Shadow-Twin laden (MongoDB-first)
       try {
@@ -270,14 +316,21 @@ export async function resolveCompositeTranscript(
     resolvedSources.push({ name, index: i + 1, markdown, mimeType })
   }
 
-  // Medien aus Wiki-Links im Body parsen + anreichern
-  const mediaFiles = await collectMediaFiles(libraryId, userEmail, sourceItems)
+  // Medien — dieselbe Aggregation wie im Sammel-Transkript / Medien-API
+  const { mediaFiles, pdfSections, otherExtracted } = await buildAggregatedMediaForSources({
+    libraryId,
+    userEmail,
+    targetLanguage,
+    sourceItems,
+  })
 
   // Geflachte Version zusammenbauen
   const resolvedMarkdown = assembleFlattenedMarkdown({
     sourceFileNames,
     sources: resolvedSources,
     mediaFiles,
+    pdfSections,
+    otherExtracted,
   })
 
   FileLogger.info('composite-transcript', 'Resolution abgeschlossen', {
@@ -292,74 +345,6 @@ export async function resolveCompositeTranscript(
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// MEDIEN SAMMELN
-// ═══════════════════════════════════════════════════════════════════════════════
-
-/**
- * Sammelt verfügbare Medien aus zwei Quellen:
- * 1. binaryFragments aus Shadow-Twins (Bilder aus PDFs) → mit sourceFile-Herkunft
- * 2. Geschwister-Dateien im Verzeichnis (direkte Bild-Dateien)
- *
- * Dedupliziert nach Dateiname (binaryFragments haben Vorrang).
- */
-async function collectMediaFiles(
-  libraryId: string,
-  userEmail: string,
-  sourceItems: Array<{ id: string; name: string; parentId: string }>,
-): Promise<MediaFileInfo[]> {
-  const mediaMap = new Map<string, MediaFileInfo>()
-
-  // A) binaryFragments aus Shadow-Twins (PDF-Bilder etc.)
-  for (const item of sourceItems) {
-    try {
-      const fragments = await getShadowTwinBinaryFragments(libraryId, item.id)
-      if (!fragments) continue
-
-      for (const frag of fragments) {
-        if (frag.variant === 'thumbnail') continue
-        if (!frag.name || frag.kind !== 'image') continue
-
-        mediaMap.set(frag.name, {
-          name: frag.name,
-          size: frag.size ?? 0,
-          mimeType: frag.mimeType ?? 'image/jpeg',
-          sourceFile: item.name,
-        })
-      }
-    } catch (error) {
-      FileLogger.warn('composite-transcript', `binaryFragments für "${item.name}" nicht ladbar`, { error })
-    }
-  }
-
-  // B) Geschwister-Dateien im Verzeichnis (nur Bilder)
-  const parentId = sourceItems[0]?.parentId
-  if (parentId) {
-    try {
-      const provider = await getServerProvider(userEmail, libraryId)
-      const siblings = await provider.listItemsById(parentId)
-
-      for (const sib of siblings) {
-        if (sib.type !== 'file') continue
-        if (mediaMap.has(sib.metadata.name)) continue
-
-        const kind = getMediaKind(sib)
-        if (kind !== 'image') continue
-
-        mediaMap.set(sib.metadata.name, {
-          name: sib.metadata.name,
-          size: sib.metadata.size,
-          mimeType: sib.metadata.mimeType || 'image/jpeg',
-        })
-      }
-    } catch (error) {
-      FileLogger.warn('composite-transcript', 'Geschwister-Dateien nicht ladbar', { error })
-    }
-  }
-
-  return Array.from(mediaMap.values())
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
 // MARKDOWN-BUILDER: Reference (persistiert, Wiki-Links)
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -367,6 +352,13 @@ interface ReferenceAssembleOptions {
   sourceFileNames: string[]
   sourceItems: Array<{ id: string; name: string; parentId: string }>
   mediaFiles: MediaFileInfo[]
+  /** PDF → Fragmente + Transkript-Verweise */
+  pdfSections: PdfMediaSection[]
+  /** Nicht-PDF-Quellen mit extrahierten Bildfragmenten */
+  otherExtracted: OtherSourceExtractedGroup[]
+  targetLanguage: string
+  /** Transkript-Dateiname als Wikilink-Zeile (Alias „Transkript prüfen“) für Nicht-.md-Quellen */
+  includeTranscriptWikiLinks: boolean
 }
 
 /**
@@ -374,7 +366,15 @@ interface ReferenceAssembleOptions {
  * Diese Version wird im Storage persistiert.
  */
 function assembleReferenceMarkdown(options: ReferenceAssembleOptions): string {
-  const { sourceFileNames, mediaFiles } = options
+  const {
+    sourceFileNames,
+    sourceItems,
+    mediaFiles,
+    pdfSections,
+    otherExtracted,
+    targetLanguage,
+    includeTranscriptWikiLinks,
+  } = options
   const now = new Date().toISOString()
   const parts: string[] = []
 
@@ -392,35 +392,121 @@ function assembleReferenceMarkdown(options: ReferenceAssembleOptions): string {
   parts.push('')
   parts.push('# Sammel-Transkript')
 
-  // Quellen als Wiki-Links
+  // Quellen: nur „Dokument“-Quellen (keine Bilder) — Bilder stehen nur unter „Verfügbare Medien“,
+  // sonst doppelte [[…]]-Liste (Quellen + Im Verzeichnis). _source_files bleibt vollständig.
   parts.push('')
   parts.push('## Quellen')
+  let quellenNonImage = 0
   for (const name of sourceFileNames) {
+    if (isImageMediaFromName(name)) continue
+    quellenNonImage += 1
+    parts.push('')
+    parts.push(`### ${name}`)
     parts.push(`- [[${name}]]`)
+    // Zweite Zeile: echte Transkript-MD im Storage (nur wenn Konfiguration FS-Spiegelung nutzt).
+    if (includeTranscriptWikiLinks) {
+      const item = sourceItems.find(s => s.name === name)
+      if (item && compositeSourceExpectsTranscript(item)) {
+        const transcriptFileName = buildArtifactName(
+          { sourceId: item.id, kind: 'transcript', targetLanguage },
+          name
+        )
+        parts.push(`  - [[${transcriptFileName}|Transkript prüfen]]`)
+      }
+    }
+  }
+  if (quellenNonImage === 0) {
+    parts.push('')
+    parts.push('*Nur Bilder ausgewählt — siehe „Verfügbare Medien“; alle Namen stehen weiterhin im Frontmatter.*')
   }
 
-  // Medien als Wiki-Links (getrennt nach Herkunft)
-  if (mediaFiles.length > 0) {
+  // Medien: Ordner-Dateien, dann je PDF (Fragmente + Transkript-Verweise), dann andere Quelltypen
+  const directMedia = mediaFiles.filter(m => !m.sourceFile)
+  const showMediaSection =
+    directMedia.length > 0 || pdfSections.length > 0 || otherExtracted.length > 0
+
+  if (showMediaSection) {
     parts.push('')
     parts.push('## Verfügbare Medien')
 
-    // Direkte Verzeichnis-Dateien (ohne sourceFile)
-    const directMedia = mediaFiles.filter(m => !m.sourceFile)
     if (directMedia.length > 0) {
       parts.push('')
-      parts.push('### Im Verzeichnis')
+      parts.push('### Im Quellverzeichnis (eigene Bilddateien)')
       for (const m of directMedia) {
-        parts.push(`- [[${m.name}]]`)
+        parts.push('')
+        parts.push(`**${m.name}**`)
+        parts.push('')
+        parts.push(`![[${m.name}]]`)
+        parts.push('')
       }
     }
 
-    // Extrahierte Fragmente (mit sourceFile → #-Syntax)
-    const fragmentMedia = mediaFiles.filter(m => m.sourceFile)
-    if (fragmentMedia.length > 0) {
+    if (pdfSections.length > 0) {
       parts.push('')
-      parts.push('### Aus Quelldateien extrahiert')
-      for (const m of fragmentMedia) {
-        parts.push(`- [[${m.sourceFile}#${m.name}]]`)
+      parts.push('### Medien je PDF-Datei')
+      parts.push('')
+      parts.push(
+        '*Extrahierte Seiten-/Objektbilder aus dem Shadow-Twin; zusätzlich Dateinamen, die im Transkript dieser PDF vorkommen (z. B. Verweise auf Ordner-Bilder).*',
+      )
+
+      for (const section of pdfSections) {
+        parts.push('')
+        parts.push(`#### ${section.pdfFileName}`)
+        parts.push('')
+        parts.push(`- [[${section.pdfFileName}]]`)
+
+        if (section.fragments.length > 0) {
+          parts.push('')
+          parts.push('*Aus dieser Datei extrahiert:*')
+          for (const m of section.fragments) {
+            const twinFolder = generateShadowTwinFolderName(section.pdfFileName)
+            const pathInVault = `${twinFolder}/${m.name}`
+            parts.push('')
+            parts.push(`**${m.name}**`)
+            parts.push('')
+            parts.push(`![[${pathInVault}]]`)
+            parts.push('')
+          }
+        }
+
+        if (section.transcriptOnlyRefs.length > 0) {
+          parts.push('')
+          parts.push('*Im Transkript dieser PDF erwähnt (weitere Medien — oft Dateien im gleichen Ordner):*')
+          for (const ref of section.transcriptOnlyRefs) {
+            parts.push(`- [[${ref}]]`)
+          }
+          parts.push('')
+        }
+
+        if (section.fragments.length === 0 && section.transcriptOnlyRefs.length === 0) {
+          parts.push('')
+          parts.push(
+            '*Keine extrahierten Bilder; im Transkript wurden keine weiteren Bild-Dateinamen erkannt.*',
+          )
+          parts.push('')
+        }
+      }
+    }
+
+    if (otherExtracted.length > 0) {
+      parts.push('')
+      parts.push('### Medien aus anderen Quelldateien (z. B. Office)')
+      for (const group of otherExtracted) {
+        parts.push('')
+        parts.push(`#### ${group.sourceFileName}`)
+        parts.push('')
+        parts.push(`- [[${group.sourceFileName}]]`)
+        parts.push('')
+        parts.push('*Aus dieser Datei extrahiert:*')
+        for (const m of group.fragments) {
+          const twinFolder = generateShadowTwinFolderName(group.sourceFileName)
+          const pathInVault = `${twinFolder}/${m.name}`
+          parts.push('')
+          parts.push(`**${m.name}**`)
+          parts.push('')
+          parts.push(`![[${pathInVault}]]`)
+          parts.push('')
+        }
       }
     }
   }
@@ -437,6 +523,8 @@ interface FlattenedAssembleOptions {
   sourceFileNames: string[]
   sources: ResolvedSource[]
   mediaFiles: MediaFileInfo[]
+  pdfSections: PdfMediaSection[]
+  otherExtracted: OtherSourceExtractedGroup[]
 }
 
 /**
@@ -445,7 +533,7 @@ interface FlattenedAssembleOptions {
  * Wird nur im Speicher erzeugt und nie persistiert.
  */
 function assembleFlattenedMarkdown(options: FlattenedAssembleOptions): string {
-  const { sourceFileNames, sources, mediaFiles } = options
+  const { sourceFileNames, sources, mediaFiles, pdfSections, otherExtracted } = options
   const parts: string[] = []
 
   // Frontmatter (minimal, für Erkennung im Pipeline-Flow)
@@ -469,15 +557,56 @@ function assembleFlattenedMarkdown(options: FlattenedAssembleOptions): string {
     parts.push(`| ${s.index} | ${s.name}${status} | ${typ} |`)
   }
 
-  // Verfügbare Medien (für semantische Zuordnung durch LLM)
-  if (mediaFiles.length > 0) {
+  // Verfügbare Medien (für semantische Zuordnung durch LLM) — gleiche Logik wie in der persistierten Prüfansicht
+  const directMedia = mediaFiles.filter(m => !m.sourceFile)
+  const showMedia = directMedia.length > 0 || pdfSections.length > 0 || otherExtracted.length > 0
+  if (showMedia) {
     parts.push('')
-    parts.push('## Verfügbare Medien im Verzeichnis')
-    parts.push('')
-    for (const m of mediaFiles) {
-      const sizeStr = formatFileSize(m.size)
-      const sourceHint = m.sourceFile ? ` (PDF-Fragment aus ${m.sourceFile})` : ''
-      parts.push(`- ${m.name} (Bild, ${sizeStr}${sourceHint})`)
+    parts.push('## Verfügbare Medien')
+
+    if (directMedia.length > 0) {
+      parts.push('')
+      parts.push('### Im Quellverzeichnis')
+      for (const m of directMedia) {
+        const sizeStr = formatFileSize(m.size)
+        parts.push(`- ${m.name} (Bild, ${sizeStr})`)
+      }
+    }
+
+    if (pdfSections.length > 0) {
+      parts.push('')
+      parts.push('### Je PDF-Datei')
+      for (const section of pdfSections) {
+        parts.push('')
+        parts.push(`#### ${section.pdfFileName}`)
+        if (section.fragments.length > 0) {
+          parts.push('*Extrahiert:*')
+          for (const m of section.fragments) {
+            parts.push(`- ${m.name} (${formatFileSize(m.size)})`)
+          }
+        }
+        if (section.transcriptOnlyRefs.length > 0) {
+          parts.push('*Im Transkript erwähnt:*')
+          for (const ref of section.transcriptOnlyRefs) {
+            parts.push(`- ${ref}`)
+          }
+        }
+        if (section.fragments.length === 0 && section.transcriptOnlyRefs.length === 0) {
+          parts.push('- *(keine Bilder / keine Verweise erkannt)*')
+        }
+      }
+    }
+
+    if (otherExtracted.length > 0) {
+      parts.push('')
+      parts.push('### Aus anderen Quelldateien extrahiert')
+      for (const group of otherExtracted) {
+        parts.push('')
+        parts.push(`#### ${group.sourceFileName}`)
+        for (const m of group.fragments) {
+          parts.push(`- ${m.name} (${formatFileSize(m.size)})`)
+        }
+      }
     }
   }
 
@@ -506,25 +635,6 @@ function assembleFlattenedMarkdown(options: FlattenedAssembleOptions): string {
 // ═══════════════════════════════════════════════════════════════════════════════
 // HILFSFUNKTIONEN
 // ═══════════════════════════════════════════════════════════════════════════════
-
-/** Parst _source_files aus dem Frontmatter-Meta-Objekt */
-function parseSourceFiles(meta: Record<string, unknown>): string[] {
-  const raw = meta['_source_files']
-  if (Array.isArray(raw)) {
-    return raw.filter((v): v is string => typeof v === 'string')
-  }
-  if (typeof raw === 'string') {
-    try {
-      const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed)) {
-        return parsed.filter((v): v is string => typeof v === 'string')
-      }
-    } catch {
-      // Kein gültiges JSON-Array
-    }
-  }
-  return []
-}
 
 /** Leitet MIME-Type aus Dateiendung ab */
 function guessMimeType(fileName: string): string {

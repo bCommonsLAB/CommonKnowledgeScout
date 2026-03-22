@@ -31,6 +31,7 @@ import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/m
 import { AzureStorageService, calculateImageHash } from '@/lib/services/azure-storage-service'
 import { getAzureStorageConfig } from '@/lib/config/azure-storage'
 import { FileLogger } from '@/lib/debug/logger'
+import { matchBinaryFragmentByLookupName } from '@/lib/shadow-twin/binary-fragment-lookup'
 import path from 'path'
 
 export interface ShadowTwinServiceOptions {
@@ -363,15 +364,8 @@ export class ShadowTwinService {
     const fragments = await this.getBinaryFragments()
     if (!fragments) return null
 
-    // Suche Fragment: zuerst nach Name, dann nach originalName (case-insensitive).
-    // originalName enthält den Pre-Upload-Dateinamen (z.B. "img-0.jpeg"), der im Frontmatter
-    // referenziert wird, während name den Azure-Hash-Namen enthält.
-    const nameLower = fragmentName.toLowerCase()
-    const fragment = fragments.find(
-      f => f.name.toLowerCase() === nameLower
-    ) ?? fragments.find(
-      f => f.originalName?.toLowerCase() === nameLower
-    )
+    // name, originalName oder übliche Hash-Dateinamen aus dem Transkript (hash.jpeg ↔ img-0.jpeg)
+    const fragment = matchBinaryFragmentByLookupName(fragments, fragmentName)
     if (!fragment) return null
 
     // 1. Bevorzugt: Azure Blob Storage URL

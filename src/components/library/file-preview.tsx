@@ -4,12 +4,13 @@ import * as React from 'react';
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, ExternalLink, FileText, RefreshCw, Sparkles, Upload } from "lucide-react";
-import { MarkdownPreview } from './markdown-preview';
+import { MarkdownPreview, type CompositeWikiPreviewOptions } from './markdown-preview';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import './markdown-audio';
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { activeLibraryIdAtom, selectedFileAtom } from "@/atoms/library-atom";
+import { activeLibraryIdAtom, selectedFileAtom, activeLibraryAtom } from "@/atoms/library-atom";
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
+import type { Library } from '@/types/library'
 import { extractFrontmatter } from './markdown-metadata';
 import { ImagePreview } from './image-preview';
 import { DocumentPreview } from './document-preview';
@@ -36,7 +37,8 @@ import { runPipelineForFile, getMediaKind, type MediaKind } from "@/lib/pipeline
 import { fetchShadowTwinMarkdown } from "@/lib/shadow-twin/shadow-twin-mongo-client"
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from "@/lib/shadow-twin/mongo-shadow-twin-id"
 import { parseSecretaryMarkdownStrict } from "@/lib/secretary/response-parser"
-import { activeLibraryAtom } from "@/atoms/library-atom"
+import { parseFrontmatter } from '@/lib/markdown/frontmatter'
+import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { useShadowTwinFreshnessApi } from "@/hooks/use-shadow-twin-freshness"
 import { ShadowTwinSyncBanner } from "@/components/library/shared/shadow-twin-sync-banner"
 import { loadPdfDefaults } from "@/lib/pdf-defaults"
@@ -593,7 +595,48 @@ function PreviewContent({
   //   analyze?: { chapters?: Array<Record<string, unknown>>; toc?: Array<Record<string, unknown>> };
   // } | null>(null);
   const setSelectedFile = useSetAtom(selectedFileAtom);
-  
+  const activeLibrary = useAtomValue(activeLibraryAtom)
+
+  /** Namen → fileId im Ordner der aktuellen Datei (für Composite-Wikilinks / resolve-binary-url). */
+  const [wikiSiblingMap, setWikiSiblingMap] = React.useState<Record<string, string>>({})
+  React.useEffect(() => {
+    if (!activeLibraryId || !item.id) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetch(`/api/library/${encodeURIComponent(activeLibraryId)}/sibling-files`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sourceId: item.id }),
+        })
+        if (!res.ok || cancelled) return
+        const json = await res.json() as { files: Array<{ id: string; name: string }> }
+        const m: Record<string, string> = {}
+        for (const f of json.files ?? []) m[f.name] = f.id
+        if (!cancelled) setWikiSiblingMap(m)
+      } catch {
+        if (!cancelled) setWikiSiblingMap({})
+      }
+    })()
+    return () => { cancelled = true }
+  }, [activeLibraryId, item.id])
+
+  const onWikiNavigateToFile = React.useCallback(
+    async (targetFileId: string, options?: { openTranscriptTab?: boolean }) => {
+      if (!provider) return
+      try {
+        const target = await provider.getItemById(targetFileId)
+        if (target) {
+          setSelectedFile(target)
+          if (options?.openTranscriptTab) setInfoTab('transcript')
+        }
+      } catch (err) {
+        FileLogger.warn('PreviewContent', 'Wiki-Navigation zu Datei fehlgeschlagen', { err })
+      }
+    },
+    [provider, setSelectedFile]
+  )
+
   // Hole Shadow-Twin-State für die aktuelle Datei
   const shadowTwinStates = useAtomValue(shadowTwinStateAtom);
   const shadowTwinState = shadowTwinStates.get(item.id);
@@ -789,6 +832,31 @@ function PreviewContent({
   // Der Shadow-Twin-State wird für die PDF-Datei gespeichert, nicht für die Markdown-Datei,
   // daher müssen wir item.parentId verwenden, wenn die Markdown-Datei direkt geöffnet wird.
   const currentFolderId = shadowTwinState?.shadowTwinFolderId || item.parentId;
+
+  /** Sammeltranskript: Wikilink-Auflösung und optional Mongo-„Transkript prüfen“ im Viewer. */
+  const compositeWikiPreview = React.useMemo((): CompositeWikiPreviewOptions | null => {
+    if (!activeLibraryId || fileType !== 'markdown' || !content?.trim()) return null
+    const { meta } = parseFrontmatter(content)
+    if (meta?.kind !== 'composite-transcript') return null
+    // ClientLibrary enthält dieselbe config.shadowTwin-Struktur wie Library; Typ nur für Server-Library strenger.
+    const st = getShadowTwinConfig(activeLibrary as Library | null | undefined)
+    const transcriptOnFs = st.primaryStore === 'filesystem' || st.persistToFilesystem
+    return {
+      libraryId: activeLibraryId,
+      parentFolderId: item.parentId ?? '',
+      siblingNameToId: wikiSiblingMap,
+      injectMongoTranscriptLinks: !transcriptOnFs,
+      onNavigateToFile: onWikiNavigateToFile,
+    }
+  }, [
+    activeLibraryId,
+    fileType,
+    content,
+    activeLibrary,
+    item.parentId,
+    wikiSiblingMap,
+    onWikiNavigateToFile,
+  ])
   
   // Debug-Log für PreviewContent
   React.useEffect(() => {
@@ -961,7 +1029,6 @@ function PreviewContent({
   const [llmModels, setLlmModels] = React.useState<LlmModelOption[]>([])
   const [isLoadingLlmModels, setIsLoadingLlmModels] = React.useState(false)
 
-  const activeLibrary = useAtomValue(activeLibraryAtom)
   const libraryConfigChatTargetLanguage = activeLibrary?.config?.chat?.targetLanguage
   const libraryConfigPdfTemplate = activeLibrary?.config?.secretaryService?.template
   const libraryConfigLlmModel = activeLibrary?.config?.secretaryService?.llmModel
@@ -1782,6 +1849,7 @@ function PreviewContent({
                     className="max-h-[70vh]"
                     compact
                     onRefreshFolder={onRefreshFolder}
+                    compositeWikiPreview={compositeWikiPreview}
                     onTransform={() => {
                       // Transform-Button wurde geklickt - wechsle zum Transform-Tab
                       setInfoTab("transform")

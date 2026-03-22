@@ -15,9 +15,12 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
-import { Image as ImageIcon, User, Paperclip, X, Upload, FileText, Check, Globe, Link2 } from 'lucide-react'
+import { Image as ImageIcon, User, Paperclip, X, Upload, FileText, Check, Globe, Link2, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { UILogger } from '@/lib/debug/logger'
+import { parseCompositeSourceFilesFromMeta } from '@/lib/creation/composite-source-files-meta'
+import { parseFrontmatter } from '@/lib/markdown/frontmatter'
+import { buildTwinRelativeMediaRef } from '@/lib/storage/shadow-twin-folder-name'
 import { VIEW_TYPE_REGISTRY, type DetailViewType, type ViewTypeMediaConfig } from '@/lib/detail-view-types/registry'
 import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
@@ -25,6 +28,7 @@ import { fetchShadowTwinMarkdown, updateShadowTwinMarkdown } from '@/lib/shadow-
 import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser'
 import type { StorageProvider } from '@/lib/storage/types'
 import type { SiblingFile } from '@/app/api/library/[libraryId]/sibling-files/route'
+import { CoverImageGeneratorDialog, type PromptSource } from '@/components/library/cover-image-generator-dialog'
 
 /** Ziel für die Slot-first-Zuordnung */
 interface AssignmentTarget {
@@ -45,6 +49,15 @@ interface GalleryItem {
   /** Bereits einem Feld zugeordnet? */
   assignedTo?: string
   size?: number
+  /** Bei Fragmenten: Shadow-Twin-Quelle (PDF-`sourceId`), für eindeutige Keys und resolve-binary-url */
+  fragmentSourceId?: string
+  /** Bei Fragmenten: Speicher-Dateiname der Quelle (z. B. PDF) — nur Anzeige/Tooltip */
+  sourceFileName?: string
+  /**
+   * Wert fürs Frontmatter bei PDF-/MD-Fragmenten: `_Quelle.pdf/img-0.jpeg` (eindeutig bei Namenskollisionen).
+   * Siblings: ungesetzt → `name` wird gespeichert.
+   */
+  frontmatterRef?: string
 }
 
 export interface MediaTabProps {
@@ -57,6 +70,10 @@ export interface MediaTabProps {
   libraryConfig?: Record<string, unknown>
   /** Template-Name für Artefakt-Patching */
   templateName: string | undefined
+  /** Default-Prompt für Bildgenerierung im Medien-Tab */
+  imageGenerationPrompt?: string
+  imageGenerationPromptSource?: PromptSource
+  imageGenerationOriginalPrompt?: string | null
   /** Callbacks für State-Updates im Parent */
   onFrontmatterUpdate: (meta: Record<string, unknown>, fullContent: string) => void
 }
@@ -70,6 +87,9 @@ export function MediaTab({
   provider,
   libraryConfig,
   templateName,
+  imageGenerationPrompt,
+  imageGenerationPromptSource,
+  imageGenerationOriginalPrompt,
   onFrontmatterUpdate,
 }: MediaTabProps) {
   // ViewType aus Frontmatter ermitteln
@@ -78,100 +98,170 @@ export function MediaTab({
     return getDetailViewType(cm, libraryConfig)
   }, [frontmatterMeta, libraryConfig]) as DetailViewType
 
-  const mediaConfig: ViewTypeMediaConfig = VIEW_TYPE_REGISTRY[detailViewType]?.mediaConfig ?? {
-    coverImage: true, attachments: false,
-  }
+  const mediaConfig = useMemo<ViewTypeMediaConfig>(() => (
+    VIEW_TYPE_REGISTRY[detailViewType]?.mediaConfig ?? {
+      coverImage: true,
+      attachments: false,
+    }
+  ), [detailViewType])
+
+  /**
+   * Quell-Dateinamen aus Sammel-/Mehrquellen-Kontext (`_source_files`).
+   * Wichtig: Nach der Transformation fehlt oft `kind: composite-transcript`, während `_source_files`
+   * erhalten bleibt — ohne diese Namen sendet die API nur die Anker-`.md`-ID und `pdfSections` bleiben leer.
+   */
+  const compositeSourceNames = useMemo(() => {
+    if (frontmatterMeta) {
+      const fromMeta = parseCompositeSourceFilesFromMeta(frontmatterMeta)
+      if (fromMeta.length > 0) return fromMeta
+    }
+    if (fullContent?.trim()) {
+      try {
+        const { meta } = parseFrontmatter(fullContent)
+        const fromBody = parseCompositeSourceFilesFromMeta(meta as Record<string, unknown>)
+        if (fromBody.length > 0) return fromBody
+      } catch {
+        /* Frontmatter optional fehlerhaft — Aggregation nur mit Meta */
+      }
+    }
+    return []
+  }, [frontmatterMeta, fullContent])
+
+  /** Explizites Sammel-Transkript (Obsidian-Referenzdatei) — nur für UI-Hinweise. */
+  const isCompositeTranscript = useMemo(
+    () => frontmatterMeta?.kind === 'composite-transcript',
+    [frontmatterMeta?.kind]
+  )
+
+  /** Mehrquellen-Aggregation (PDF-Fragmente etc.), sobald `_source_files` befüllt ist. */
+  const useMultiSourceAggregation = compositeSourceNames.length > 0
 
   // Zuordnungsmodus-State (Slot-first)
   const [activeAssignment, setActiveAssignment] = useState<AssignmentTarget | null>(null)
   const [isUploading, setIsUploading] = useState(false)
+  const [isImageGeneratorOpen, setIsImageGeneratorOpen] = useState(false)
 
-  // Galerie-Daten
+  // Galerie: einheitlich über serverseitige Medienaggregation (wie Sammel-Transkript)
   const [siblingFiles, setSiblingFiles] = useState<SiblingFile[]>([])
-  const [binaryFragments, setBinaryFragments] = useState<Array<{
-    name: string; resolvedUrl?: string; kind?: string; variant?: string; hash?: string
+  const [fragmentGalleryItems, setFragmentGalleryItems] = useState<Array<{
+    key: string
+    displayName: string
+    fragmentSourceId: string
+    mediaKind: 'image' | 'document'
+    previewUrl?: string
+    sourceFileName?: string
   }>>([])
-  const [isLoadingGallery, setIsLoadingGallery] = useState(false)
+  const [aggregatedLoading, setAggregatedLoading] = useState(false)
+  const [aggregatedError, setAggregatedError] = useState<string | null>(null)
 
-  // Geschwister-Dateien laden
+  const compositeSourceKey = useMemo(
+    () => compositeSourceNames.join('\0'),
+    [compositeSourceNames],
+  )
+
   useEffect(() => {
     if (!libraryId || !fileId) return
     let cancelled = false
+    setAggregatedLoading(true)
+    setAggregatedError(null)
 
-    async function loadSiblings() {
+    void (async () => {
       try {
-        const res = await fetch(`/api/library/${encodeURIComponent(libraryId)}/sibling-files`, {
+        const res = await fetch(`/api/library/${encodeURIComponent(libraryId)}/aggregated-media`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sourceId: fileId }),
+          body: JSON.stringify({
+            anchorSourceId: fileId,
+            targetLanguage: 'de',
+            compositeSourceFileNames: useMultiSourceAggregation ? compositeSourceNames : [],
+          }),
         })
-        if (res.ok && !cancelled) {
-          const json = await res.json() as { files: SiblingFile[] }
+        const json = await res.json().catch(() => ({})) as {
+          files?: SiblingFile[]
+          fragmentGalleryItems?: typeof fragmentGalleryItems
+          error?: string
+        }
+        if (cancelled) return
+        if (res.ok && json.files && json.fragmentGalleryItems) {
           setSiblingFiles(json.files)
+          setFragmentGalleryItems(json.fragmentGalleryItems)
+        } else {
+          setSiblingFiles([])
+          setFragmentGalleryItems([])
+          setAggregatedError(json.error || `aggregated-media: HTTP ${res.status}`)
+          UILogger.warn('MediaTab', 'aggregated-media API nicht OK', { status: res.status, error: json.error })
         }
       } catch (error) {
-        UILogger.warn('MediaTab', 'Fehler beim Laden der Geschwister-Dateien', { error })
-      }
-    }
-    void loadSiblings()
-    return () => { cancelled = true }
-  }, [libraryId, fileId])
-
-  // Binary Fragments laden
-  useEffect(() => {
-    if (!libraryId || !fileId) return
-    let cancelled = false
-
-    async function loadFragments() {
-      setIsLoadingGallery(true)
-      try {
-        const res = await fetch(`/api/library/${encodeURIComponent(libraryId)}/shadow-twins/binary-fragments`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sourceIds: [fileId] }),
-        })
-        if (res.ok && !cancelled) {
-          const json = await res.json() as { fragments: typeof binaryFragments }
-          setBinaryFragments(json.fragments)
+        if (!cancelled) {
+          setSiblingFiles([])
+          setFragmentGalleryItems([])
+          setAggregatedError(error instanceof Error ? error.message : String(error))
         }
-      } catch (error) {
-        UILogger.warn('MediaTab', 'Fehler beim Laden der binaryFragments', { error })
+        UILogger.warn('MediaTab', 'Fehler beim Laden der aggregierten Medien', { error })
       } finally {
-        if (!cancelled) setIsLoadingGallery(false)
+        if (!cancelled) setAggregatedLoading(false)
+      }
+    })()
+
+    return () => { cancelled = true }
+  }, [libraryId, fileId, useMultiSourceAggregation, compositeSourceKey, compositeSourceNames])
+
+  const galleryLoading = aggregatedLoading
+
+  /** Dateiname → Vorschau-URL für Slots (Cover/Galerie) ohne Abhängigkeit vom Assignment-Filter */
+  const previewUrlByFileName = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const frag of fragmentGalleryItems) {
+      if (frag.displayName && frag.previewUrl) {
+        m.set(frag.displayName, frag.previewUrl)
+        if (frag.sourceFileName) {
+          m.set(buildTwinRelativeMediaRef(frag.sourceFileName, frag.displayName), frag.previewUrl)
+        }
       }
     }
-    void loadFragments()
-    return () => { cancelled = true }
-  }, [libraryId, fileId])
+    for (const sib of siblingFiles) {
+      if (!m.has(sib.name) && sib.mediaKind === 'image') {
+        m.set(
+          sib.name,
+          `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(sib.id)}`
+        )
+      }
+    }
+    return m
+  }, [fragmentGalleryItems, siblingFiles, libraryId])
 
   // Kombinierte Galerie: Siblings + Fragments, dedupliziert nach Name
   const galleryItems = useMemo((): GalleryItem[] => {
     const items = new Map<string, GalleryItem>()
 
-    // binaryFragments zuerst (haben Vorschau-URLs)
-    for (const frag of binaryFragments) {
-      if (!frag.name || frag.variant === 'thumbnail') continue
-      const kind = frag.kind === 'image' ? 'image' as const : 'document' as const
-      items.set(frag.name, {
-        id: `frag-${frag.name}`,
-        name: frag.name,
+    // Fragmente aus Aggregation (kanonische Namen, stabiler Key pro Quelle+Name)
+    for (const frag of fragmentGalleryItems) {
+      if (!frag.displayName) continue
+      const kind = frag.mediaKind === 'image' ? 'image' as const : 'document' as const
+      const frontmatterRef = frag.sourceFileName
+        ? buildTwinRelativeMediaRef(frag.sourceFileName, frag.displayName)
+        : frag.displayName
+      items.set(frag.key, {
+        id: frag.key,
+        name: frag.displayName,
         source: 'fragment',
         mediaKind: kind,
-        previewUrl: frag.resolvedUrl,
+        previewUrl: frag.previewUrl,
+        fragmentSourceId: frag.fragmentSourceId,
+        sourceFileName: frag.sourceFileName,
+        frontmatterRef,
       })
     }
 
-    // Siblings (nur wenn nicht bereits als Fragment vorhanden)
-    // Vorschau-URL via provider-agnostische streaming-url Route
+    // Siblings: eigener Map-Key (`sibling:id`), damit Fragmente mit gleichem Dateinamen (anderes PDF) koexistieren
     for (const sib of siblingFiles) {
-      if (items.has(sib.name)) continue
       const previewUrl = sib.mediaKind === 'image'
         ? `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(sib.id)}`
         : undefined
       const kind = sib.mediaKind === 'pdf' ? 'pdf' as const
         : sib.mediaKind === 'link' ? 'link' as const
         : 'image' as const
-      items.set(sib.name, {
+      items.set(`sibling:${sib.id}`, {
         id: sib.id,
         name: sib.name,
         source: 'sibling',
@@ -181,11 +271,21 @@ export function MediaTab({
       })
     }
 
+    const findByAssignedFileName = (fileRef: string): GalleryItem | undefined => {
+      const base = fileRef.split('/').pop() || fileRef
+      const norm = fileRef.trim()
+      for (const it of items.values()) {
+        const ref = it.frontmatterRef ?? it.name
+        if (ref === fileRef || ref === norm || it.name === fileRef || it.name === base) return it
+      }
+      return undefined
+    }
+
     // Markiere zugeordnete Dateien
     if (frontmatterMeta) {
       const coverUrl = frontmatterMeta.coverImageUrl as string | undefined
       if (coverUrl) {
-        const item = items.get(coverUrl) || items.get(coverUrl.split('/').pop() || '')
+        const item = findByAssignedFileName(coverUrl)
         if (item) item.assignedTo = 'coverImageUrl'
       }
       if (mediaConfig.personField) {
@@ -193,7 +293,7 @@ export function MediaTab({
         if (Array.isArray(imageUrls)) {
           for (const url of imageUrls) {
             if (typeof url === 'string') {
-              const item = items.get(url) || items.get(url.split('/').pop() || '')
+              const item = findByAssignedFileName(url)
               if (item) item.assignedTo = mediaConfig.personField.imageKey
             }
           }
@@ -202,13 +302,13 @@ export function MediaTab({
       if (mediaConfig.galleryField) {
         const galleryUrls = safeArray(frontmatterMeta[mediaConfig.galleryField.key])
         for (const url of galleryUrls) {
-          const item = items.get(url) || items.get(url.split('/').pop() || '')
+          const item = findByAssignedFileName(url)
           if (item) item.assignedTo = mediaConfig.galleryField.key
         }
       }
       const attachmentUrls = safeArray(frontmatterMeta.attachments_url)
       for (const url of attachmentUrls) {
-        const item = items.get(url) || items.get(url.split('/').pop() || '')
+        const item = findByAssignedFileName(url)
         if (item) item.assignedTo = 'attachments_url'
       }
     }
@@ -225,7 +325,7 @@ export function MediaTab({
       return result.filter(item => item.mediaKind === 'image')
     }
     return result
-  }, [siblingFiles, binaryFragments, frontmatterMeta, mediaConfig, activeAssignment])
+  }, [siblingFiles, fragmentGalleryItems, frontmatterMeta, mediaConfig, activeAssignment, libraryId])
 
   // Template-Name ermitteln (für Upload-API)
   const resolvedTemplateName = useMemo(() => {
@@ -266,10 +366,11 @@ export function MediaTab({
           activeAssignment, parsedUrl, libraryId, fileId, effectiveMdId,
           frontmatterMeta, fullContent, provider, onFrontmatterUpdate,
         )
-      } else if (item.source === 'fragment' && item.previewUrl) {
-        // Bereits hochgeladen: Nur Frontmatter patchen
+      } else if (item.source === 'fragment' && (item.previewUrl || item.frontmatterRef)) {
+        // Fragment: Frontmatter mit Twin-Relativpfad (`_Quelle.pdf/fragment.jpeg`), damit Zuordnung eindeutig bleibt
+        const valueToStore = item.frontmatterRef ?? item.name
         await patchFrontmatterField(
-          activeAssignment, item.name, libraryId, fileId, effectiveMdId,
+          activeAssignment, valueToStore, libraryId, fileId, effectiveMdId,
           frontmatterMeta, fullContent, provider, onFrontmatterUpdate,
         )
       } else {
@@ -341,6 +442,34 @@ export function MediaTab({
     : []
   const currentUrl = typeof frontmatterMeta?.url === 'string' ? frontmatterMeta.url : ''
 
+  const fallbackImageGenerationTarget = useMemo<AssignmentTarget | null>(() => {
+    // Galerie ist der sicherste Default, weil dort mehrere Bilder ergänzt werden können.
+    if (mediaConfig.galleryField) {
+      return { fieldKey: mediaConfig.galleryField.key, arrayAppend: true }
+    }
+    if (mediaConfig.coverImage) {
+      return { fieldKey: 'coverImageUrl' }
+    }
+    if (mediaConfig.personField && persons.length === 1) {
+      return { fieldKey: mediaConfig.personField.imageKey, arrayIndex: 0 }
+    }
+    return null
+  }, [mediaConfig, persons.length])
+
+  const canGenerateImageForActiveAssignment = useMemo(() => {
+    if (!activeAssignment) return fallbackImageGenerationTarget !== null
+    if (activeAssignment.fieldKey === 'url') return false
+    if (activeAssignment.fieldKey === 'attachments_url') return false
+    return true
+  }, [activeAssignment, fallbackImageGenerationTarget])
+
+  const effectiveImageGenerationTarget = useMemo<AssignmentTarget | null>(() => {
+    if (!activeAssignment) return fallbackImageGenerationTarget
+    if (activeAssignment.fieldKey === 'url') return null
+    if (activeAssignment.fieldKey === 'attachments_url') return null
+    return activeAssignment
+  }, [activeAssignment, fallbackImageGenerationTarget])
+
   return (
     <div className="space-y-4">
       {/* Coverbild-Sektion */}
@@ -351,8 +480,26 @@ export function MediaTab({
           </h4>
           <div className="flex items-center gap-3">
             {coverImageUrl ? (
-              <div className="text-xs text-muted-foreground">
-                <code className="bg-muted px-1 py-0.5 rounded">{typeof coverImageUrl === 'string' ? coverImageUrl.split('/').pop() : '–'}</code>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground min-w-0">
+                {(() => {
+                  const label = typeof coverImageUrl === 'string' ? coverImageUrl.split('/').pop() || coverImageUrl : '–'
+                  const thumb = typeof coverImageUrl === 'string' ? previewUrlByFileName.get(coverImageUrl) || previewUrlByFileName.get(label) : undefined
+                  return (
+                    <>
+                      {thumb ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          src={thumb}
+                          alt=""
+                          title={label}
+                          className="h-10 w-10 rounded object-cover border border-muted shrink-0"
+                          loading="lazy"
+                        />
+                      ) : null}
+                      <code className="bg-muted px-1 py-0.5 rounded truncate max-w-[200px]" title={label}>{label}</code>
+                    </>
+                  )
+                })()}
               </div>
             ) : (
               <span className="text-xs text-muted-foreground italic">Kein Coverbild zugeordnet</span>
@@ -395,9 +542,18 @@ export function MediaTab({
                     {/* Bild-Vorschau oder Platzhalter */}
                     <div className="w-8 h-8 rounded bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden">
                       {imageUrl ? (
-                        <span className="text-[10px] text-muted-foreground truncate px-0.5" title={imageUrl}>
-                          {typeof imageUrl === 'string' ? imageUrl.split('/').pop()?.substring(0, 6) : ''}...
-                        </span>
+                        (() => {
+                          const lab = typeof imageUrl === 'string' ? imageUrl.split('/').pop() || imageUrl : ''
+                          const thumb = typeof imageUrl === 'string' ? previewUrlByFileName.get(imageUrl) || previewUrlByFileName.get(lab) : undefined
+                          return thumb ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img src={thumb} alt="" title={lab} className="h-full w-full object-cover" loading="lazy" />
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground truncate px-0.5" title={imageUrl}>
+                              {lab.substring(0, 6)}...
+                            </span>
+                          )
+                        })()
                       ) : (
                         <User className="h-4 w-4 text-muted-foreground" />
                       )}
@@ -472,8 +628,17 @@ export function MediaTab({
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-1.5">
               {galleryImages.map((img, idx) => (
                 <div key={idx} className="flex items-center gap-2 text-xs px-2 py-1 border rounded border-muted">
-                  <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="flex-1 truncate">{img}</span>
+                  {(() => {
+                    const lab = img.split('/').pop() || img
+                    const thumb = previewUrlByFileName.get(img) || previewUrlByFileName.get(lab)
+                    return thumb ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={thumb} alt="" title={img} className="h-8 w-8 rounded object-cover shrink-0 border border-muted" loading="lazy" />
+                    ) : (
+                      <ImageIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    )
+                  })()}
+                  <span className="flex-1 truncate" title={img}>{img}</span>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -553,40 +718,91 @@ export function MediaTab({
 
       {/* Datei-Upload-Button */}
       <section className="pt-2 border-t">
-        <label className="cursor-pointer">
-          <input
-            type="file"
-            accept={activeAssignment?.fieldKey === 'attachments_url' ? '.pdf,image/*' : 'image/*,.pdf'}
-            onChange={async (e) => {
-              const file = e.target.files?.[0]
-              if (!file || !activeAssignment) {
-                if (file && !activeAssignment) toast.info('Bitte zuerst einen Slot auswählen')
-                return
-              }
-              await handleFileUpload(file, activeAssignment, libraryId, fileId,
-                resolvedTemplateName, onFrontmatterUpdate, setIsUploading)
-              e.target.value = ''
-            }}
-            className="hidden"
-            disabled={isUploading || !activeAssignment}
-          />
+        <div className="flex flex-wrap gap-2">
+          <label className="cursor-pointer">
+            <input
+              type="file"
+              accept={activeAssignment?.fieldKey === 'attachments_url' ? '.pdf,image/*' : 'image/*,.pdf'}
+              onChange={async (e) => {
+                const file = e.target.files?.[0]
+                if (!file || !activeAssignment) {
+                  if (file && !activeAssignment) toast.info('Bitte zuerst einen Slot auswählen')
+                  return
+                }
+                await handleFileUpload(file, activeAssignment, libraryId, fileId,
+                  resolvedTemplateName, onFrontmatterUpdate, setIsUploading)
+                e.target.value = ''
+              }}
+              className="hidden"
+              disabled={isUploading || !activeAssignment}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-xs h-7"
+              disabled={isUploading || !activeAssignment}
+            >
+              <Upload className="h-3.5 w-3.5 mr-1" />
+              {isUploading ? 'Lädt...' : 'Datei hochladen'}
+            </Button>
+          </label>
           <Button
             type="button"
             variant="outline"
             size="sm"
             className="text-xs h-7"
-            disabled={isUploading || !activeAssignment}
+            onClick={() => {
+              if (!effectiveImageGenerationTarget) {
+                toast.info('Für dieses Dokument ist aktuell kein Bild-Ziel verfügbar')
+                return
+              }
+              setIsImageGeneratorOpen(true)
+            }}
+            disabled={isUploading || !canGenerateImageForActiveAssignment}
           >
-            <Upload className="h-3.5 w-3.5 mr-1" />
-            {isUploading ? 'Lädt...' : 'Datei hochladen'}
+            <Sparkles className="h-3.5 w-3.5 mr-1" />
+            Bild generieren
           </Button>
-        </label>
+        </div>
         {!activeAssignment && (
           <p className="text-[10px] text-muted-foreground mt-1">
             Wählen Sie zuerst einen Slot oben aus, um eine Datei hochzuladen oder zuzuordnen.
           </p>
         )}
+        {!activeAssignment && fallbackImageGenerationTarget ? (
+          <p className="text-[10px] text-muted-foreground mt-1">
+            Ohne aktive Auswahl wird ein generiertes Bild standardmäßig {fallbackImageGenerationTarget.arrayAppend ? 'zur Bildergalerie hinzugefügt' : 'dem Coverbild zugeordnet'}.
+          </p>
+        ) : null}
+        {activeAssignment && !canGenerateImageForActiveAssignment ? (
+          <p className="text-[10px] text-muted-foreground mt-1">
+            Bildgenerierung ist für Bild-Slots verfügbar, nicht für URL oder Anhänge.
+          </p>
+        ) : null}
       </section>
+
+      <CoverImageGeneratorDialog
+        open={isImageGeneratorOpen}
+        onOpenChange={setIsImageGeneratorOpen}
+        defaultPrompt={imageGenerationPrompt || ''}
+        promptSource={imageGenerationPromptSource}
+        originalPrompt={imageGenerationOriginalPrompt || null}
+        onGenerated={async (file) => {
+          if (!effectiveImageGenerationTarget) {
+            throw new Error('Kein Ziel-Slot für die Bildgenerierung verfügbar')
+          }
+          await handleFileUpload(
+            file,
+            effectiveImageGenerationTarget,
+            libraryId,
+            fileId,
+            resolvedTemplateName,
+            onFrontmatterUpdate,
+            setIsUploading,
+          )
+        }}
+      />
 
       {/* Galerie-Grid: Medien aus dem Quellverzeichnis + binaryFragments */}
       <section className="pt-2 border-t">
@@ -598,8 +814,19 @@ export function MediaTab({
             </span>
           )}
         </h4>
-        {isLoadingGallery ? (
-          <div className="text-xs text-muted-foreground">Lade Medien...</div>
+        {useMultiSourceAggregation ? (
+          <p className="text-[10px] text-muted-foreground mb-1">
+            {isCompositeTranscript ? 'Sammeltranskript:' : 'Mehrquellen-Kontext:'} PDF-Bildfragmente werden aus allen Einträgen in{' '}
+            <code className="bg-muted px-0.5 rounded">_source_files</code> geladen (sofern Shadow-Twin-Fragmente in Mongo vorliegen).
+          </p>
+        ) : null}
+        {aggregatedError ? (
+          <p className="text-[10px] text-destructive mb-2">
+            Medien-Aggregation: {aggregatedError}
+          </p>
+        ) : null}
+        {galleryLoading ? (
+          <div className="text-xs text-muted-foreground">Lade Medien (Ordner + Fragmente)…</div>
         ) : galleryItems.length === 0 ? (
           <div className="text-xs text-muted-foreground italic">Keine Medien-Dateien im Verzeichnis gefunden.</div>
         ) : (
@@ -619,7 +846,7 @@ export function MediaTab({
                   ${item.assignedTo ? 'border-primary/40' : 'border-transparent'}
                   ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}
                 `}
-                title={item.name}
+                title={item.sourceFileName ? `${item.name} — Quelle: ${item.sourceFileName}` : item.name}
               >
                 {item.mediaKind === 'image' && item.previewUrl ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
@@ -648,6 +875,11 @@ export function MediaTab({
                 {item.source === 'sibling' && (
                   <div className="absolute bottom-0.5 left-0.5 bg-amber-500/80 text-white text-[8px] px-1 rounded">
                     lokal
+                  </div>
+                )}
+                {item.source === 'fragment' && item.sourceFileName && (
+                  <div className="absolute bottom-0.5 right-0.5 bg-slate-600/85 text-white text-[8px] px-1 rounded max-w-[90%] truncate" title={item.sourceFileName}>
+                    {item.sourceFileName.length > 14 ? `${item.sourceFileName.slice(0, 12)}…` : item.sourceFileName}
                   </div>
                 )}
               </button>
@@ -715,19 +947,19 @@ async function patchFrontmatterField(
     const current = Array.isArray(meta[target.fieldKey]) ? [...(meta[target.fieldKey] as string[])] : []
     while (current.length <= target.arrayIndex) current.push('')
     current[target.arrayIndex] = fileName
-    patches = { [target.fieldKey]: JSON.stringify(current) }
+    patches = { [target.fieldKey]: current }
   } else if (target.arrayAppend) {
     // Array-Feld: Anhängen
     const { meta } = parseSecretaryMarkdownStrict(mdResult)
     const current = Array.isArray(meta[target.fieldKey]) ? [...(meta[target.fieldKey] as string[])] : []
     current.push(fileName)
-    patches = { [target.fieldKey]: JSON.stringify(current) }
+    patches = { [target.fieldKey]: current }
   } else {
     // String-Feld
     patches = { [target.fieldKey]: fileName }
   }
 
-  const patchedMarkdown = patchFrontmatter(mdResult, patches as Record<string, string>)
+  const patchedMarkdown = patchFrontmatter(mdResult, patches)
   await updateShadowTwinMarkdown(libraryId, parts, patchedMarkdown)
 
   const { meta } = parseSecretaryMarkdownStrict(patchedMarkdown)

@@ -1,72 +1,16 @@
-import path from 'path';
 import { StorageItem, StorageProvider } from './types';
 import { FileLogger } from '@/lib/debug/logger';
+import {
+  generateShadowTwinFolderName,
+  parseTwinRelativeImageRef,
+} from './shadow-twin-folder-name';
 
-/** Präfix für Shadow-Twin-Verzeichnisse. Unterstrich statt Punkt (Obsidian zeigt Punkt-Ordner nicht an). */
-const SHADOW_TWIN_FOLDER_PREFIX = '_';
-
-/** Legacy-Prefix (Punkt) für Rückwärtskompatibilität. */
-const SHADOW_TWIN_FOLDER_PREFIX_LEGACY = '.';
-
-/**
- * Prüft, ob ein Ordnername ein Shadow-Twin-Verzeichnis bezeichnet.
- * Shadow-Twin-Ordner beginnen mit _ (neu) oder . (Legacy) und sollen in der Dateiliste ausgeblendet werden.
- */
-export function isShadowTwinFolderName(name: string): boolean {
-  return name.startsWith(SHADOW_TWIN_FOLDER_PREFIX) || name.startsWith(SHADOW_TWIN_FOLDER_PREFIX_LEGACY);
-}
-
-/**
- * Generiert den Shadow-Twin-Verzeichnisnamen mit Unterstrich-Prefix
- * Format: _{originalName}/ (mit Dateiendung, z.B. _document.pdf/)
- * 
- * Unterstrich statt Punkt: Obsidian und andere Tools zeigen Ordner mit Punkt-Prefix oft nicht an.
- * 
- * WICHTIG: Berücksichtigt Längenlimit von 255 Zeichen für Verzeichnisnamen.
- * Wenn der Name zu lang ist, wird er abgeschnitten (behält Dateiendung).
- * 
- * @param originalName Der ursprüngliche Dateiname
- * @param maxLength Maximale Länge (Standard: 255 Zeichen)
- * @returns Verzeichnisname im Format _{name}/
- */
-export function generateShadowTwinFolderName(
-  originalName: string,
-  maxLength: number = 255
-): string {
-  // Entferne führende/trailing Slashes falls vorhanden
-  const cleanName = originalName.trim().replace(/^\/+|\/+$/g, '');
-  
-  // Erstelle Verzeichnisname mit Unterstrich-Prefix (Obsidian-kompatibel)
-  const folderName = `${SHADOW_TWIN_FOLDER_PREFIX}${cleanName}`;
-  
-  // Prüfe Längenlimit
-  if (folderName.length <= maxLength) {
-    return folderName;
-  }
-  
-  // Name ist zu lang - muss abgeschnitten werden
-  // Strategie: Behalte Dateiendung, kürze Basisname
-  const parsedPath = path.parse(cleanName);
-  const extension = parsedPath.ext; // z.B. .pdf
-  const baseName = parsedPath.name; // Basisname ohne Extension
-  
-  // Berechne verfügbare Länge für Basisname
-  // Prefix (1) + Extension + Punkt (1) = 2 + extension.length
-  const reservedLength = 2 + extension.length;
-  const availableLength = maxLength - reservedLength;
-  
-  if (availableLength <= 0) {
-    // Extension selbst ist schon zu lang - verwende nur Extension
-    return `${SHADOW_TWIN_FOLDER_PREFIX}${extension}`;
-  }
-  
-  // Kürze Basisname von vorne
-  const truncatedBase = baseName.length > availableLength 
-    ? baseName.slice(0, availableLength)
-    : baseName;
-  
-  return `${SHADOW_TWIN_FOLDER_PREFIX}${truncatedBase}${extension}`;
-}
+export {
+  generateShadowTwinFolderName,
+  isShadowTwinFolderName,
+  parseTwinRelativeImageRef,
+  buildTwinRelativeMediaRef,
+} from './shadow-twin-folder-name';
 
 /**
  * Generiert alle möglichen Varianten des Shadow-Twin-Verzeichnisnamens
@@ -227,11 +171,54 @@ export async function findShadowTwinImage(
 }
 
 /**
+ * Ordnet ein Twin-Ordner-Segment (`_Quelle.pdf`) der Quell-Datei im selben Elternordner zu.
+ */
+export async function findSourceFileMatchingTwinFolder(
+  parentId: string,
+  twinFolderName: string,
+  provider: StorageProvider,
+): Promise<StorageItem | null> {
+  const items = await provider.listItemsById(parentId)
+  for (const item of items) {
+    if (item.type !== 'file') continue
+    const n = item.metadata.name
+    if (generateShadowTwinFolderName(n) === twinFolderName) {
+      return item
+    }
+    if (`.${n.trim()}` === twinFolderName) {
+      return item
+    }
+  }
+  return null
+}
+
+/**
+ * `imageRef` ist ein einfacher Dateiname (Twin der Anker-Datei) oder
+ * `_Quelldatei.pdf/fragment.jpeg` (Fragment aus einer anderen Quelle im gleichen Ordner).
+ */
+export async function findShadowTwinImageFromAnchorContext(
+  anchorItem: StorageItem,
+  imageRef: string,
+  provider: StorageProvider,
+  shadowTwinFolderId?: string,
+): Promise<StorageItem | null> {
+  const decoded = imageRef.replace(/&amp;/g, '&').trim()
+  const parsed = parseTwinRelativeImageRef(decoded)
+  if (parsed) {
+    const sourceFile = await findSourceFileMatchingTwinFolder(anchorItem.parentId, parsed.twinFolderName, provider)
+    if (sourceFile) {
+      const inTwin = await findShadowTwinImage(sourceFile, parsed.imageFileName, provider, undefined)
+      if (inTwin) return inTwin
+    }
+  }
+  return findShadowTwinImage(anchorItem, decoded, provider, shadowTwinFolderId)
+}
+
+/**
  * Löst einen relativen Bildpfad zu einer Storage-API-URL auf
  * 
  * Diese Funktion zentralisiert die Bild-URL-Auflösung für Frontend-Komponenten.
- * Sie verwendet findShadowTwinImage() um das Bild zu finden und generiert dann
- * eine Storage-API-URL.
+ * Sie verwendet findShadowTwinImageFromAnchorContext (inkl. `_Quelle/fragment`-Pfade).
  * 
  * @param baseItem Die Basisdatei (z.B. PDF), zu der das Bild gehört
  * @param imagePath Relativer Bildpfad (z.B. "img-0.jpeg")
@@ -256,7 +243,7 @@ export async function resolveShadowTwinImageUrl(
   }
   
   // Finde Bild-Datei
-  const imageFile = await findShadowTwinImage(
+  const imageFile = await findShadowTwinImageFromAnchorContext(
     baseItem,
     imagePath,
     provider,

@@ -20,6 +20,7 @@ import { useSetAtom } from 'jotai'
 import { chatReferencesAtom } from '@/atoms/chat-references-atom'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { openDocumentBySlug } from '@/utils/document-navigation'
+import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
 import { ReferenceGroupHeader } from './reference-group-header'
 import { ViewModeToggle } from './view-mode-toggle'
 import type { ViewMode } from './gallery-sticky-header'
@@ -83,11 +84,10 @@ export function GroupedItemsTable({
 
   // Handler für Dokument-Klick
   const handleRowClick = (doc: DocCardMeta) => {
-    // Verwende zentrale Utility-Funktion wenn slug vorhanden ist
-    if (doc.slug && libraryId) {
-      openDocumentBySlug(doc.slug, libraryId, router, pathname, searchParams)
+    const slug = getEffectiveDocumentNavigationSlug(doc)
+    if (slug && libraryId) {
+      openDocumentBySlug(slug, libraryId, router, pathname, searchParams)
     } else if (onOpenDocument) {
-      // Fallback: Verwende onClick-Callback
       onOpenDocument(doc)
     }
   }

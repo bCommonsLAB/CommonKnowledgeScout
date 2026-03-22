@@ -24,6 +24,21 @@ import { createClient, type WebDAVClient, type FileStat, type ResponseDataDetail
 import { StorageProvider, StorageItem, StorageValidationResult } from './types'
 
 /**
+ * Normalisiert eine WebDAV-URL robust fuer den HTTP-Client.
+ * - trimmt Whitespace
+ * - entfernt trailing Slashes
+ * - kodiert Leerzeichen im Pfad (z.B. "My Folder" -> "My%20Folder")
+ */
+export function normalizeWebdavUrl(rawUrl: string): string {
+  const trimmed = rawUrl.trim()
+  if (!trimmed) return trimmed
+
+  // URL-Parser kodiert ungueltige Zeichen im Pfad automatisch (u.a. Leerzeichen).
+  const parsed = new URL(trimmed)
+  return parsed.toString().replace(/\/+$/, '')
+}
+
+/**
  * Kodiert einen relativen Pfad als base64-ID (kompatibel zum Filesystem-Provider).
  */
 function pathToId(relativePath: string): string {
@@ -144,6 +159,10 @@ export class NextcloudProvider implements StorageProvider {
   private client: WebDAVClient
   /** Optionaler Basispfad innerhalb des WebDAV-Root (z.B. "/Documents/MyLib"). */
   private basePath: string
+  /** Normalisierte URL fuer aussagekraeftige Fehlermeldungen. */
+  private webdavUrlForLogs: string
+  /** Benutzername fuer gezielte URL-Hinweise bei Konfigurationsfehlern. */
+  private usernameForLogs: string
 
   /**
    * @param webdavUrl  Vollstaendige WebDAV-URL (z.B. https://cloud.example.com/remote.php/dav/files/user)
@@ -161,10 +180,28 @@ export class NextcloudProvider implements StorageProvider {
   ) {
     this.id = libraryId
     this.basePath = this.normalizeBasePath(basePath)
-    this.client = createClient(webdavUrl, {
+    const normalizedWebdavUrl = normalizeWebdavUrl(webdavUrl)
+    this.webdavUrlForLogs = normalizedWebdavUrl
+    this.usernameForLogs = username
+    this.client = createClient(normalizedWebdavUrl, {
       username,
       password,
     })
+  }
+
+  private throwRootConfigHintIfNeeded(error: unknown, operation: string): never {
+    const status = (error as { status?: number }).status
+    if (status !== 404) throw error
+
+    const message =
+      `WebDAV-Endpunkt nicht gefunden (404) bei ${operation}. ` +
+      `Pruefe die Nextcloud-WebDAV-URL. Erwartetes Format: ` +
+      `https://<host>/remote.php/dav/files/<username>. ` +
+      `Aktuell: "${this.webdavUrlForLogs}". ` +
+      `Hinweis: Falls ein Anzeigename statt Loginname verwendet wurde, teste ".../files/${this.usernameForLogs}".`
+    const enrichedError = new Error(message) as Error & { status?: number }
+    enrichedError.status = 404
+    throw enrichedError
   }
 
   /**
@@ -201,6 +238,15 @@ export class NextcloudProvider implements StorageProvider {
       await withRetry(() => this.client.getDirectoryContents(rootPath), 'validateConfiguration')
       return { isValid: true }
     } catch (error) {
+      if ((error as { status?: number }).status === 404) {
+        try {
+          this.throwRootConfigHintIfNeeded(error, 'validateConfiguration')
+        } catch (hintedError) {
+          const msg = hintedError instanceof Error ? hintedError.message : String(hintedError)
+          return { isValid: false, error: `WebDAV-Verbindung fehlgeschlagen: ${msg}` }
+        }
+      }
+
       const msg = error instanceof Error ? error.message : String(error)
       return { isValid: false, error: `WebDAV-Verbindung fehlgeschlagen: ${msg}` }
     }
@@ -210,10 +256,16 @@ export class NextcloudProvider implements StorageProvider {
     // Library-relativer Pfad (fuer IDs) und vollstaendiger WebDAV-Pfad (fuer Client-Aufrufe)
     const libraryRelPath = idToPath(folderId)
     const webdavPath = this.toWebDavPath(libraryRelPath)
-    const contents = await withRetry(
-      () => this.client.getDirectoryContents(webdavPath, { deep: false }),
-      `listItemsById(${folderId})`
-    ) as FileStat[] | ResponseDataDetailed<FileStat[]>
+    let contents: FileStat[] | ResponseDataDetailed<FileStat[]>
+    try {
+      contents = await withRetry(
+        () => this.client.getDirectoryContents(webdavPath, { deep: false }),
+        `listItemsById(${folderId})`
+      ) as FileStat[] | ResponseDataDetailed<FileStat[]>
+    } catch (error) {
+      if (folderId === 'root') this.throwRootConfigHintIfNeeded(error, 'listItemsById(root)')
+      throw error
+    }
     const stats = Array.isArray(contents) ? contents : contents.data
 
     // Erstes Element ist der Ordner selbst (bei manchen WebDAV-Servern) – herausfiltern.

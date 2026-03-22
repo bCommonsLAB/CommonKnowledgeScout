@@ -9,6 +9,7 @@ import type { DocCardMeta } from '@/lib/gallery/types'
 import type { ChatResponse } from '@/types/chat-response'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { openDocumentBySlug } from '@/utils/document-navigation'
+import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
 
 export function useGalleryEvents(
   libraryId: string | undefined,
@@ -45,11 +46,10 @@ export function useGalleryEvents(
       
       const doc = docs.find(d => d.fileId === fileId || d.id === fileId)
       if (doc) {
-        // Verwende zentrale Utility-Funktion wenn slug vorhanden
-        if (doc.slug) {
-          openDocumentBySlug(doc.slug, libraryId, router, pathname, searchParams)
+        const slug = getEffectiveDocumentNavigationSlug(doc)
+        if (slug) {
+          openDocumentBySlug(slug, libraryId, router, pathname, searchParams)
         } else {
-          // Fallback: Verwende onClick-Callback
         onOpenDocument(doc)
         }
       } else {
@@ -76,11 +76,10 @@ export function useGalleryEvents(
               }
               return next as typeof f
             })
-            // Verwende zentrale Utility-Funktion wenn slug vorhanden
-            if (docAfterLoad.slug) {
-              openDocumentBySlug(docAfterLoad.slug, libraryId, router, pathname, searchParams)
+            const slugAfter = getEffectiveDocumentNavigationSlug(docAfterLoad)
+            if (slugAfter) {
+              openDocumentBySlug(slugAfter, libraryId, router, pathname, searchParams)
             } else {
-              // Fallback: Verwende onClick-Callback
             onOpenDocument(docAfterLoad)
             }
           }

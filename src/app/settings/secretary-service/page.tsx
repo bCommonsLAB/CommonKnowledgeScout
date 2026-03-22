@@ -1,6 +1,7 @@
 import { Metadata } from "next"
 import { Separator } from "@/components/ui/separator"
 import { SecretaryServiceForm } from "@/components/settings/secretary-service-form"
+import { TeamsStreamRelayPanel } from "@/components/settings/teams-stream-relay-panel"
 
 export const metadata: Metadata = {
   title: "Bibliothek - Transformation",
@@ -17,7 +18,11 @@ export default function SecretaryServicePage() {
         </p>
       </div>
       <Separator />
-      
+
+      <TeamsStreamRelayPanel />
+
+      <Separator />
+
       <SecretaryServiceForm />
     </div>
   )

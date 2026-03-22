@@ -55,20 +55,28 @@ export function parseSecretaryMarkdownStrict(markdown: string): FrontmatterParse
     const idx = t.indexOf(':')
     if (idx > 0) {
       const k = t.slice(0, idx).trim()
-      let v = t.slice(idx + 1).trim()
-      
-      // Entferne Anführungszeichen von String-Werten (YAML-Syntax)
-      // Unterstützt sowohl einfache als auch doppelte Anführungszeichen
-      if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
-        v = v.slice(1, -1)
+      const rawValue = t.slice(idx + 1).trim()
+
+      // Roundtrip-stabiler Scalar-Parser:
+      // - quoted strings via JSON.parse dekodieren (wichtig für \n, \", usw.)
+      // - Zahlen/Booleans typisieren, damit Patch-Roundtrips `pages: 2` nicht zu `"2"` machen
+      // - sonst Rohstring behalten
+      let parsedValue: unknown = rawValue
+      if (rawValue.startsWith('"') && rawValue.endsWith('"')) {
+        try {
+          parsedValue = JSON.parse(rawValue)
+        } catch {
+          parsedValue = rawValue.slice(1, -1)
+        }
+      } else if (rawValue.startsWith("'") && rawValue.endsWith("'")) {
+        parsedValue = rawValue.slice(1, -1)
+      } else if (rawValue === 'true' || rawValue === 'false') {
+        parsedValue = rawValue === 'true'
+      } else if (/^[-+]?[0-9]+(\.[0-9]+)?$/.test(rawValue)) {
+        parsedValue = Number(rawValue)
       }
-      
-      // Wenn der Wert leer ist und die nächste Zeile nicht leer ist und nicht mit `:` beginnt,
-      // könnte es ein mehrzeiliger Wert sein (YAML multiline string)
-      // Für jetzt: Nimm nur den Wert nach dem Doppelpunkt (einfache Werte)
-      // Komplexe mehrzeilige Werte werden später über JSON-Parsing behandelt
-      
-      meta[k] = v
+
+      meta[k] = parsedValue
     }
   }
 
@@ -104,7 +112,23 @@ export function parseSecretaryMarkdownStrict(markdown: string): FrontmatterParse
   // Spezifische Schlüssel, die JSON enthalten können
   // WICHTIG: Alle Array-Felder aus Event-Templates müssen hier gelistet sein,
   // sonst werden sie als String gespeichert (z.B. '["Paolo Dongilli"]' statt Array).
-  const jsonKeys = ['chapters', 'toc', 'confidence', 'provenance', 'slides', 'tags', 'authors', 'topics', 'speakers', 'speakers_image_url', 'speakers_url']
+  const jsonKeys = [
+    'chapters',
+    'toc',
+    'confidence',
+    'provenance',
+    'slides',
+    'tags',
+    'authors',
+    'topics',
+    'speakers',
+    'speakers_image_url',
+    'speakers_url',
+    'authors_image_url',
+    'attachments_url',
+    'galleryImageUrls',
+    '_source_files',
+  ]
   for (const k of jsonKeys) {
     const raw = extractBalancedJsonAfterKey(fm, k)
     if (raw) {

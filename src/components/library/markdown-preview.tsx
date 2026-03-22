@@ -125,6 +125,10 @@ const SearchPopover = React.memo(({
 SearchPopover.displayName = "SearchPopover";
 import { SUPPORTED_LANGUAGES } from "@/lib/secretary/constants";
 import { stripAllFrontmatter, parseFrontmatter } from '@/lib/markdown/frontmatter'
+import {
+  injectMongoTranscriptCheckLinks,
+  replaceCompositePdfImageWikilinksWithPlaceholders,
+} from '@/lib/markdown/composite-wiki-preview'
 import { replacePlaceholdersInMarkdown } from '@/lib/markdown/placeholder-replacement'
 import { buildArtifactName, extractBaseName, parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
@@ -141,6 +145,17 @@ function injectPageAnchors(content: string): string {
   });
 }
 
+/** Optionen für Wikilink-/Fragment-Vorschau bei Sammeltranskripten (`kind: composite-transcript`). */
+export interface CompositeWikiPreviewOptions {
+  libraryId: string
+  parentFolderId: string
+  /** Dateiname → Storage-`fileId` (Geschwister im Ordner der Composite-Datei) */
+  siblingNameToId: Record<string, string>
+  /** true: injizierte „Transkript prüfen“-Links (Mongo-only), wenn im Markdown keine FS-Zeile steht */
+  injectMongoTranscriptLinks: boolean
+  onNavigateToFile: (fileId: string, options?: { openTranscriptTab?: boolean }) => void | Promise<void>
+}
+
 interface MarkdownPreviewProps {
   content: string;
   currentFolderId?: string;
@@ -152,6 +167,8 @@ interface MarkdownPreviewProps {
   compact?: boolean; // Kompakte Ansicht: ohne Schnellsuche, minimale Ränder
   /** Callback für Bearbeiten-Button - wenn gesetzt, wird der Bearbeiten-Button angezeigt */
   onEdit?: () => void;
+  /** Sammeltranskript: Wikilinks auflösen, PDF-Fragmente als Bilder, Navigation zu Quellen */
+  compositeWikiPreview?: CompositeWikiPreviewOptions | null;
 }
 
 /**
@@ -1159,6 +1176,20 @@ function resolveImageUrl(
 }
 
 /**
+ * Leerzeichen in relativen Zielpfaden für Markdown-Links kodieren.
+ * Remarkable/CommonMark bricht sonst bei Dateinamen wie „Aktion Wasser.md“ ab → Link wirkt wie Fließtext.
+ */
+function encodeSpacesInRelativeMarkdownHrefs(text: string): string {
+  return text.replace(/\[([^\]]*)\]\(([^)]+)\)/g, (full, label: string, hrefRaw: string) => {
+    const href = hrefRaw.trim()
+    if (!href || /^(https?:|mailto:|#|\/api\/)/i.test(href)) return full
+    if (!/\s/.test(href)) return full
+    const enc = href.replace(/ /g, '%20')
+    return `[${label}](${enc})`
+  })
+}
+
+/**
  * Converts Obsidian paths and prepares markdown content
  */
 function processObsidianContent(
@@ -1169,15 +1200,24 @@ function processObsidianContent(
 ): string {
   if (!provider) return content;
 
-  // Convert Obsidian audio embeds to links
-  content = content.replace(/!\[\[(.*?\.(?:mp3|m4a|wav|ogg))\]\]/g, (match, audioFile) => {
+  // Obsidian: [[Ziel|Anzeigetext]] — vor allen anderen [[...]]-Ersetzungen (sonst frisst das generische Muster den Pipe-Link).
+  content = content.replace(/\[\[([^\[\]]+?)\|([^\[\]]+?)\]\]/g, (_m, target: string, linkLabel: string) => {
+    const href = target.replace(/ /g, '%20')
+    return `[${linkLabel}](${href})`
+  })
+
+  // Wichtig: ![[bild.jpg]] ZUERST — sonst ersetzt das nächste Muster nur [[…]] innerhalb von ![[…]]
+  // und es bleibt ein störendes „!“ als Fließtext (Obsidian zeigt das nicht).
+  content = content.replace(/!\[\[(.*?\.(?:mp3|m4a|wav|ogg))\]\]/g, (_match, audioFile: string) => {
     return `<div class="my-4">
       <div class="text-xs text-muted-foreground">Audio: ${audioFile}</div>
     </div>`;
   });
 
-  // Convert Obsidian image paths
-  content = content.replace(/!\[\[(.*?\.(?:jpg|jpeg|png|gif|webp))\]\]/g, '![]($1)');
+  content = content.replace(/!\[\[(.*?\.(?:jpg|jpeg|png|gif|webp))\]\]/gi, '![]($1)');
+
+  // Obsidian: [[bild.png]] als eingebettetes Bild (nur ohne führendes ! — siehe oben)
+  content = content.replace(/\[\[([^\[\]]+\.(?:jpe?g|png|gif|webp))\]\]/gi, '![]($1)');
 
   // Convert YouTube links
   content = content.replace(
@@ -1261,8 +1301,14 @@ function processObsidianContent(
     );
   }
 
-  // Convert Obsidian internal links to normal links
-  content = content.replace(/\[\[(.*?)\]\]/g, '[$1]($1)');
+  // Convert Obsidian internal links to normal links (Ziel-URL Leerzeichen kodieren)
+  content = content.replace(/\[\[(.*?)\]\]/g, (_m, inner: string) => {
+    const href = inner.replace(/ /g, '%20')
+    return `[${inner}](${href})`
+  })
+
+  // Alle verbleibenden relativen [text](url) mit Leerzeichen im url-Teil (z. B. aus anderen Generatoren)
+  content = encodeSpacesInRelativeMarkdownHrefs(content)
 
   // Convert Obsidian callouts
   content = content.replace(
@@ -1285,7 +1331,8 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
   onRefreshFolder,
   onRegisterApi,
   compact = false,
-  onEdit
+  onEdit,
+  compositeWikiPreview = null,
 }: MarkdownPreviewProps) {
   const currentItem = useAtomValue(selectedFileAtom);
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
@@ -1344,8 +1391,18 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
     // Entferne Frontmatter robust
     let mainContent = stripAllFrontmatter(content);
 
+    // Mongo-only-Sammeltranskript: fehlende „Transkript prüfen“-Zeilen ergänzen (gleiches Erscheinungsbild wie Wikilink).
+    if (compositeWikiPreview?.injectMongoTranscriptLinks) {
+      mainContent = injectMongoTranscriptCheckLinks(mainContent);
+    }
+
     // Seite‑Marker als Anker einfügen, z. B. "— Seite 12 —" → <div data-page-marker="12"></div>
     mainContent = injectPageAnchors(mainContent);
+
+    // PDF-Bildfragmente als HTML-<img>-Platzhalter (async Auflösung über resolve-binary-url)
+    if (compositeWikiPreview) {
+      mainContent = replaceCompositePdfImageWikilinksWithPlaceholders(mainContent);
+    }
 
     // Process the main content
     const processedContent = processObsidianContent(
@@ -1431,7 +1488,7 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
     }
     
     return rendered;
-  }, [content, currentFolderId, provider, activeLibraryId]);
+  }, [content, currentFolderId, provider, activeLibraryId, compositeWikiPreview]);
   
   // Logging nach dem Rendern in useEffect
   React.useEffect(() => {
@@ -1443,6 +1500,98 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
       });
     }
   }, [content, renderedContent.length]);
+
+  // Composite: PDF-Fragment-<img>-Platzhalter → echte URLs (nach DOM-Update)
+  React.useEffect(() => {
+    const root = contentRef.current;
+    if (!root || !compositeWikiPreview || !activeLibraryId) return;
+
+    const imgs = root.querySelectorAll<HTMLImageElement>(
+      'img.ks-wikilink-fragment[data-wikilink-source][data-wikilink-fragment]'
+    );
+
+    imgs.forEach((img) => {
+      if (img.getAttribute('data-ks-resolved') === '1') return;
+      const sourceName = img.getAttribute('data-wikilink-source');
+      const frag = img.getAttribute('data-wikilink-fragment');
+      if (!sourceName || !frag) return;
+      const sourceId = compositeWikiPreview.siblingNameToId[sourceName];
+      if (!sourceId) return;
+
+      void (async () => {
+        try {
+          const res = await fetch(
+            `/api/library/${encodeURIComponent(activeLibraryId)}/shadow-twins/resolve-binary-url`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                sourceId,
+                sourceName,
+                parentId: compositeWikiPreview.parentFolderId,
+                fragmentName: frag,
+              }),
+            }
+          );
+          if (!res.ok) return;
+          const data = (await res.json()) as { resolvedUrl?: string };
+          if (!data.resolvedUrl || !root.contains(img)) return;
+          img.src = data.resolvedUrl;
+          img.setAttribute('loading', 'lazy');
+          img.setAttribute('data-ks-resolved', '1');
+        } catch {
+          // Vorschau darf bei Netzwerkfehlern nicht abbrechen
+        }
+      })();
+    });
+  }, [renderedContent, compositeWikiPreview, activeLibraryId]);
+
+  // Composite: Klicks auf interne Dateilinks und injizierte „Transkript prüfen“-Links
+  React.useEffect(() => {
+    const root = contentRef.current;
+    if (!root || !compositeWikiPreview) return;
+
+    const handler = (ev: MouseEvent) => {
+      const el = ev.target as HTMLElement | null;
+      if (!el) return;
+      const a = el.closest('a');
+      if (!a || !root.contains(a)) return;
+
+      if (a.classList.contains('ks-composite-transcript-check')) {
+        ev.preventDefault();
+        const name = a.getAttribute('data-ks-source-name');
+        if (!name) return;
+        const fid = compositeWikiPreview.siblingNameToId[name];
+        if (fid) void compositeWikiPreview.onNavigateToFile(fid, { openTranscriptTab: true });
+        return;
+      }
+
+      const href = a.getAttribute('href');
+      if (!href || href.startsWith('http://') || href.startsWith('https://') || href.startsWith('mailto:') || href.startsWith('#')) {
+        return;
+      }
+
+      const base = href.split('/').pop() || href;
+      let decoded = base;
+      try {
+        decoded = decodeURIComponent(base);
+      } catch {
+        /* ignore */
+      }
+      const fid =
+        compositeWikiPreview.siblingNameToId[decoded] ||
+        compositeWikiPreview.siblingNameToId[base] ||
+        compositeWikiPreview.siblingNameToId[href];
+
+      if (fid) {
+        ev.preventDefault();
+        void compositeWikiPreview.onNavigateToFile(fid, {});
+      }
+    };
+
+    root.addEventListener('click', handler);
+    return () => root.removeEventListener('click', handler);
+  }, [compositeWikiPreview, renderedContent]);
 
   const handleTransformButtonClick = () => {
     FileLogger.info('MarkdownPreview', 'Transform-Button geklickt', {
@@ -1710,7 +1859,12 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
           </div>
           <div 
             ref={!isFullscreen ? contentRef : undefined}
-            className={cn("prose dark:prose-invert max-w-none w-full overflow-x-hidden [&>*]:max-w-full [&>*]:overflow-x-hidden", compact ? "p-1 pt-0 [&>*:first-child]:!mt-0" : "p-4 [&>*:first-child]:!mt-0")}
+            className={cn(
+              "prose dark:prose-invert max-w-none w-full overflow-x-hidden [&>*]:max-w-full [&>*]:overflow-x-hidden",
+              compact ? "p-1 pt-0 [&>*:first-child]:!mt-0" : "p-4 [&>*:first-child]:!mt-0",
+              compositeWikiPreview &&
+                "[&_h3]:mt-4 [&_h3]:mb-2 [&_h3]:rounded-md [&_h3]:border-l-4 [&_h3]:border-primary/35 [&_h3]:bg-muted/45 [&_h3]:pl-3 [&_h3]:py-2 [&_h3]:text-base [&_h3]:font-semibold [&_ul]:my-1"
+            )}
             dangerouslySetInnerHTML={{ __html: renderedContent }}
           />
         </TabsContent>
@@ -1767,7 +1921,12 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
               </div>
               <div 
                 ref={contentRef}
-                className={cn("prose dark:prose-invert max-w-none w-full overflow-x-hidden [&>*]:max-w-full [&>*]:overflow-x-hidden", compact ? "p-1 pt-0 [&>*:first-child]:!mt-0" : "p-4 [&>*:first-child]:!mt-0")}
+                className={cn(
+                  "prose dark:prose-invert max-w-none w-full overflow-x-hidden [&>*]:max-w-full [&>*]:overflow-x-hidden",
+                  compact ? "p-1 pt-0 [&>*:first-child]:!mt-0" : "p-4 [&>*:first-child]:!mt-0",
+                  compositeWikiPreview &&
+                    "[&_h3]:mt-4 [&_h3]:mb-2 [&_h3]:rounded-md [&_h3]:border-l-4 [&_h3]:border-primary/35 [&_h3]:bg-muted/45 [&_h3]:pl-3 [&_h3]:py-2 [&_h3]:text-base [&_h3]:font-semibold [&_ul]:my-1"
+                )}
                 dangerouslySetInnerHTML={{ __html: renderedContent }}
               />
             </div>
@@ -1794,6 +1953,9 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
     prevProps.provider === nextProps.provider &&
     prevProps.className === nextProps.className &&
     prevProps.onTransform === nextProps.onTransform &&
-    prevProps.onRefreshFolder === nextProps.onRefreshFolder
+    prevProps.onRefreshFolder === nextProps.onRefreshFolder &&
+    prevProps.compositeWikiPreview === nextProps.compositeWikiPreview &&
+    prevProps.onEdit === nextProps.onEdit &&
+    prevProps.compact === nextProps.compact
   );
 }); 

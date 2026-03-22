@@ -11,12 +11,12 @@ summary: {{summary|Kurze Zusammenfassung in 2-3 Sätzen: Was ist passiert, wer w
 date: {{date|Datum der Aktion (ISO oder frei)}}
 location: {{location|Ort der Aktion (z.B. "Waltherplatz, Bozen")}}
 year: {{year|Jahr (z.B. 2026)}}
+event: {{event|Aktionstyp (genau eine Option): "Bewusstseinsbildung", "Protest", "Ausflug", "Fest", "Pressekonferenz", "Offener Brief"}}
 tags: {{tags|Tags (Array, z.B. ["klimaschutz", "mahnwache", "petition"])}}
 topics: {{topics|Themen (Array, z.B. ["Klimagerechtigkeit", "Mobilität"])}}
 authors: {{authors|Array von Personen/Organisationen (z.B. ["Oldies for Future", "Stadtwerke Brixen"])}}
 authors_image_url: {{authors_image_url|Array von Bild-Dateinamen, index-parallel zu authors (z.B. ["oldies.jpg", "stadtwerke.jpg"]). Nur Dateinamen aus den verfuegbaren Medien verwenden, sonst [] oder "" pro Eintrag.}}
 organisation: Oldies for Future
-event: {{event|Aktionsname oder Anlass (z.B. "Globaler Klimastreik März 2026")}}
 video_url: {{video_url|Video-URL falls vorhanden (optional)}}
 coverImageUrl: {{coverImageUrl|Dateiname des Titelbilds. Nur aus "Verfügbare Medien im Verzeichnis" waehlen. Keine URL. Wenn unsicher: "".}}
 galleryImageUrls: {{galleryImageUrls|Array von Bild-Dateinamen fuer die Galerie (ohne Coverbild), nur aus "Verfügbare Medien im Verzeichnis". Keine URLs. Wenn keine passenden Bilder: [].}}
@@ -124,6 +124,13 @@ Medien-Zuordnung:
 Strenge Regeln:
 - Verwende ausschliesslich Inhalte, die explizit in den Quellen vorkommen.
 - Keine Halluzinationen, keine erfundenen Zitate, keine erfundenen Zahlen.
+- event muss genau ein Wert aus dieser Liste sein:
+  - "Bewusstseinsbildung"
+  - "Protest"
+  - "Ausflug"
+  - "Fest"
+  - "Pressekonferenz"
+  - "Offener Brief"
 - Antworte ausschliesslich mit einem gueltigen JSON-Objekt.
 
 Antwortschema (MUSS exakt ein JSON-Objekt sein):
@@ -138,7 +145,7 @@ Antwortschema (MUSS exakt ein JSON-Objekt sein):
   "date": "string (ISO oder frei)",
   "location": "string",
   "year": "string (YYYY)",
-  "event": "string oder null",
+  "event": "string (genau eine Option: Bewusstseinsbildung | Protest | Ausflug | Fest | Pressekonferenz | Offener Brief)",
   "video_url": "string oder null",
   "coverImageUrl": "string (Dateiname oder \"\")",
   "galleryImageUrls": "string[] (Bild-Dateinamen)",

@@ -30,6 +30,9 @@ extraMetadata:
 files:
   - electron/main.js
   - electron/preload.js
+  - electron/msal-auth.js
+  - electron/stream-relay.js
+  - electron/stream-resolver.js
   - ".env"
   - ".next/server/**/*"
   - ".next/static/**/*"
