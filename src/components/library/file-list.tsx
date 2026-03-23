@@ -29,8 +29,6 @@ import {
   selectedBatchItemsAtom,
   transcriptionDialogOpenAtom,
   selectedTransformationItemsAtom,
-  transformationDialogOpenAtom,
-  ingestionDialogOpenAtom,
   getMediaType,
   fileCategoryFilterAtom,
 } from '@/atoms/transcription-options';
@@ -873,8 +871,6 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   const [selectedBatchItems, setSelectedBatchItems] = useAtom(selectedBatchItemsAtom);
   const [selectedTransformationItems, setSelectedTransformationItems] = useAtom(selectedTransformationItemsAtom);
   const [, setTranscriptionDialogOpen] = useAtom(transcriptionDialogOpenAtom);
-  const [, setTransformationDialogOpen] = useAtom(transformationDialogOpenAtom);
-  const [, setIngestionDialogOpen] = useAtom(ingestionDialogOpenAtom);
   const [isInitialized, setIsInitialized] = React.useState(false);
   const initializationTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   // Entkoppelt: Kein Warten mehr auf FileTree-Status
@@ -1612,12 +1608,6 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     }
   };
 
-  const handleBatchTransformation = () => {
-    if (selectedTransformationItems.length > 0) {
-      setTransformationDialogOpen(true);
-    }
-  };
-
   // Sammel-Transkript aus allen ausgewählten Dateien erstellen
   const [isCreatingComposite, setIsCreatingComposite] = React.useState(false);
   const handleCreateCompositeTranscript = React.useCallback(async () => {
@@ -1682,29 +1672,6 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
       setIsCreatingComposite(false);
     }
   }, [activeLibraryId, selectedBatchItems, selectedTransformationItems, currentFolderId, handleRefresh]);
-
-  // Markdown‑Ingestion (Batch) – öffnet Dialog für Fortschrittsanzeige
-  // Erweitert: Unterstützt jetzt auch rekursive Ordner-Verarbeitung
-  const handleBatchIngest = React.useCallback(() => {
-    // Prüfe ob Markdown-Dateien oder Ordner ausgewählt sind
-    const isMarkdown = (name: string, mime?: string) => {
-      const lower = name.toLowerCase();
-      return lower.endsWith('.md') || (mime || '').toLowerCase().includes('markdown');
-    };
-
-    const hasMarkdownOrFolders = selectedTransformationItems.some(({ item }) => 
-      item.type === 'folder' || 
-      (item.type === 'file' && isMarkdown(item.metadata.name, item.metadata.mimeType))
-    );
-
-    if (!hasMarkdownOrFolders) {
-      toast.info("Hinweis", { description: "Keine Markdown‑Dateien oder Ordner ausgewählt" });
-      return;
-    }
-
-    // Öffne Dialog für Fortschrittsanzeige
-    setIngestionDialogOpen(true);
-  }, [selectedTransformationItems, setIngestionDialogOpen]);
 
   // Bulk-Löschung für ausgewählte Dateien (unabhängig von Batch/Transformation-Selektor)
   const handleBulkDelete = React.useCallback(async () => {
@@ -1870,16 +1837,6 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
               <Button size="icon" title="Transkribieren" aria-label="Transkribieren" onClick={handleBatchTranscription}>
                 <FileText className="h-4 w-4" />
               </Button>
-            )}
-            {selectedTransformationItems.length > 0 && (
-              <>
-                <Button size="icon" variant="secondary" title="Transformieren" aria-label="Transformieren" onClick={handleBatchTransformation}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-                <Button className="h-8 px-2 text-xs" variant="outline" title="Ingestieren" aria-label="Ingestieren" onClick={handleBatchIngest}>
-                  Ingest
-                </Button>
-              </>
             )}
             {/* Sammel-Transkript: sichtbar wenn ≥2 Dateien insgesamt ausgewählt */}
             {(selectedBatchItems.length + selectedTransformationItems.length) >= 2 && (
