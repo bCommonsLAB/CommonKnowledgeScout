@@ -8,7 +8,8 @@
  * @module external-jobs
  */
 
-import type { RequestContext, PhasePolicies } from '@/types/external-jobs'
+import type { RequestContext } from '@/types/external-jobs'
+import type { PhasePoliciesOrchestratorSlice } from '@/lib/processing/phase-policy'
 import type { ExternalJob } from '@/types/external-job'
 import type { StorageProvider } from '@/lib/storage/types'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
@@ -187,9 +188,9 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
   const _persistToFilesystem = shadowTwinConfig.persistToFilesystem ?? true
   
   // Erweitere policies um ingest, falls nicht vorhanden
-  const fullPolicies: PhasePolicies = {
-    metadata: policies.metadata as string,
-    ingest: (policies.ingest || 'auto') as string
+  const fullPolicies: PhasePoliciesOrchestratorSlice = {
+    metadata: policies.metadata,
+    ingest: policies.ingest ?? 'auto'
   }
   let templateStatus: 'completed' | 'failed' | 'skipped' = 'completed'
   // WICHTIG: savedItemId muss im gesamten Funktions-Scope verfügbar sein (auch vor Skip-Branches),
@@ -285,7 +286,15 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
       candidates.push({ kind: 'transformation', templateName: undefined })
       candidates.push({ kind: 'transcript' })
 
-      let chosen: { kind: 'transformation' | 'transcript'; templateName?: string; md: string; fileId: string; fileName: string } | null = null
+      let chosen: {
+        kind: 'transformation' | 'transcript'
+        templateName?: string
+        md: string
+        fileId: string
+        fileName: string
+        /** Mongo/Provider: bereits geparstes Frontmatter (Kapitel oft hier, nicht im Strict-Parser) */
+        artifactFrontmatter?: Record<string, unknown>
+      } | null = null
       for (const c of candidates) {
         const res = await service.getMarkdown({
           kind: c.kind,
@@ -293,7 +302,17 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
           templateName: c.templateName,
         })
         if (res?.markdown) {
-          chosen = { kind: c.kind, templateName: c.templateName, md: res.markdown, fileId: res.id, fileName: res.name }
+          chosen = {
+            kind: c.kind,
+            templateName: c.templateName,
+            md: res.markdown,
+            fileId: res.id,
+            fileName: res.name,
+            artifactFrontmatter:
+              res.frontmatter && typeof res.frontmatter === 'object' && !Array.isArray(res.frontmatter)
+                ? (res.frontmatter as Record<string, unknown>)
+                : undefined,
+          }
           break
         }
       }
@@ -316,9 +335,19 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
         const parsed = parseSecretaryMarkdownStrict(chosen.md)
         const existingMetaCheck =
           parsed?.meta && typeof parsed.meta === 'object' && !Array.isArray(parsed.meta) ? parsed.meta as Record<string, unknown> : null
-        const existingChaptersCheck = Array.isArray(existingMetaCheck?.chapters) && (existingMetaCheck.chapters as Array<unknown>).length > 0
-        // Prüfe alle Quellen: bestehende Datei (aus beliebigem Store), bodyMetadata, oder fmFromBody
-        hasChaptersBeforeDecision = existingChaptersCheck || hasChaptersOnlyInBody || Array.isArray((fmFromBody as { chapters?: unknown })?.chapters)
+        const chaptersFromStrict =
+          Array.isArray(existingMetaCheck?.chapters) && (existingMetaCheck.chapters as Array<unknown>).length > 0
+        const af = chosen.artifactFrontmatter
+        const chaptersFromArtifactMeta =
+          !!af &&
+          Array.isArray((af as { chapters?: unknown }).chapters) &&
+          ((af as { chapters: unknown[] }).chapters as unknown[]).length > 0
+        const existingChaptersCheck = chaptersFromStrict || chaptersFromArtifactMeta
+        // Prüfe alle Quellen: Strict-Parser, Store-Frontmatter (Mongo parseFrontmatter), bodyMetadata, fmFromBody
+        hasChaptersBeforeDecision =
+          existingChaptersCheck ||
+          hasChaptersOnlyInBody ||
+          Array.isArray((fmFromBody as { chapters?: unknown })?.chapters)
 
         bufferLog(jobId, {
           phase: 'template_check_chapters_result',
@@ -365,6 +394,20 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
       // Fehler beim Laden nicht kritisch - Entscheidung basiert auf anderen Faktoren
     }
   }
+
+  // Chapters aus Preprocessor-Meta: auch wenn frontmatterValid=false (Repair: z. B. pages fehlt, chapters da).
+  // Vorher hing die Ergänzung nur an preTemplate.frontmatterValid → Template lief fälschlich, Validator: expectTemplateRun=false.
+  if (policies.metadata !== 'force' && !hasChaptersBeforeDecision && preTemplate?.meta) {
+    const preChapters = (preTemplate.meta as { chapters?: unknown }).chapters
+    if (Array.isArray(preChapters) && preChapters.length > 0) {
+      hasChaptersBeforeDecision = true
+      bufferLog(jobId, {
+        phase: 'template_chapters_from_preprocess_meta',
+        message: 'Chapters aus preprocessorTransformTemplate.meta (ohne frontmatterValid-Pflicht)',
+        count: preChapters.length,
+      })
+    }
+  }
   
   const decision = await decideTemplateRun({
     ctx,
@@ -377,8 +420,9 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     preNeedTemplate: ((): boolean => {
       if (fullPolicies.metadata === 'force') return true
       if (fullPolicies.metadata === 'skip') return false
-      // Wenn chapters bereits vorhanden sind, brauchen wir Template nicht (nur pages wird rekonstruiert)
-      if (hasChaptersBeforeDecision && fullPolicies.metadata !== 'force') return false
+      // Wenn chapters bereits vorhanden sind, brauchen wir Template nicht (nur pages wird rekonstruiert).
+      // Nach den beiden Zeilen oben ist metadata hier nie 'force' — daher kein erneuter Vergleich (TS-Narrowing).
+      if (hasChaptersBeforeDecision) return false
       if (typeof preTemplate.frontmatterValid === 'boolean') return !preTemplate.frontmatterValid
       return !isFrontmatterCompleteFromBody
     })(),
@@ -412,24 +456,6 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
         }
       })
     } catch {}
-    shouldRunTemplate = false
-  }
-
-  // WICHTIG (Mongo-PrimaryStore):
-  // Wenn `preprocessorTransformTemplate()` bereits eine valide Transformation (inkl. chapters)
-  // aus MongoDB geladen hat, dann ist das ein starkes Signal, dass Template NICHT erneut laufen soll.
-  // Der bisherige `hasChaptersBeforeDecision`-Check über den StorageProvider sieht Mongo-Artefakte
-  // nicht – deshalb ergänzen wir den Check hier direkt aus `preTemplate.meta`.
-  if (!hasChaptersBeforeDecision && preTemplate?.frontmatterValid) {
-    const chaptersFromPre = (preTemplate.meta as { chapters?: unknown } | undefined)?.chapters
-    if (Array.isArray(chaptersFromPre) && chaptersFromPre.length > 0) {
-      hasChaptersBeforeDecision = true
-    }
-  }
-
-  // Wenn die Entscheidung noch "run" ist, aber chapters laut Preprocessor vorhanden sind,
-  // überspringen wir Template (außer force).
-  if (shouldRunTemplate && hasChaptersBeforeDecision && policies.metadata !== 'force') {
     shouldRunTemplate = false
   }
 
@@ -562,9 +588,15 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
       try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'transform_gate_skip', attributes: { message: 'chapters_already_exist' } }) } catch {}
       try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'transform_meta_skipped', attributes: { reason: 'chapters_already_exist' } }) } catch {}
       try { await repo.traceEndSpan(jobId, 'template', 'skipped', { reason: 'chapters_already_exist' }) } catch {}
-      // Step-Markierung nur im reinen Skip-Fall
-      try { await repo.updateStep(jobId, 'transform_template', { status: 'completed', endedAt: new Date(), details: { skipped: true, reason: 'chapters_already_exist' } }) } catch {}
     }
+    // Step-Details IMMER setzen (auch wenn Span schon existiert — sonst bleibt skipped-Flag aus und Integrationstests scheitern).
+    try {
+      await repo.updateStep(jobId, 'transform_template', {
+        status: 'completed',
+        endedAt: new Date(),
+        details: { skipped: true, reason: 'chapters_already_exist' },
+      })
+    } catch {}
     // SSOT: bereits geliefertes Frontmatter direkt übernehmen
     let skippedMeta = fmFromBody || {}
     try {

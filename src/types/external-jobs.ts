@@ -4,6 +4,10 @@
 
 import type { NextRequest } from 'next/server'
 import type { ExternalJob } from '@/types/external-job'
+import type { PhasePoliciesOrchestratorSlice } from '@/lib/processing/phase-policy'
+
+/** Kanonische Phasen-Policies: @/lib/processing/phase-policy */
+export type { PhasePolicies, PhaseDirective, PhasePoliciesOrchestratorSlice } from '@/lib/processing/phase-policy'
 
 // --- Frontmatter & Kapitel ---
 export interface ChapterMeta {
@@ -55,18 +59,10 @@ export function createExternalJobError(code: string, message: string, status: nu
   return err
 }
 
-// --- Policies ---
-export interface PhasePolicies {
-  // metadata: 'force' | 'skip' | 'auto'
-  metadata: string
-  // ingest: 'ignore' | 'enqueue' | 'upsert'
-  ingest: string
-}
-
 // --- Decisions ---
 export interface TemplateDecisionArgs {
   ctx: RequestContext
-  policies: PhasePolicies
+  policies: PhasePoliciesOrchestratorSlice
   isFrontmatterCompleteFromBody: boolean
   templateGateExists: boolean
   autoSkip: boolean

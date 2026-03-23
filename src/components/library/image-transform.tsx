@@ -9,7 +9,7 @@ import { activeLibraryAtom, selectedFileAtom } from "@/atoms/library-atom";
 import { useStorage } from "@/contexts/storage-context";
 import { toast } from "sonner";
 import { TransformService, TransformResult, ImageTransformOptions } from "@/lib/transform/transform-service";
-import { TransformSaveOptions as SaveOptionsType } from "@/components/library/transform-save-options";
+import type { TransformSaveOptions as SaveOptionsType } from "@/lib/transform/transform-save-options";
 import { TransformSaveOptions as SaveOptionsComponent } from "@/components/library/transform-save-options";
 import { TransformResultHandler } from "@/components/library/transform-result-handler";
 import { FileLogger } from "@/lib/debug/logger";

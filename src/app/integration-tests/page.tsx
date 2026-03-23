@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { Suspense, useMemo, useState } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
-import { activeLibraryAtom, currentFolderIdAtom, currentPathAtom } from '@/atoms/library-atom';
+import { activeLibraryAtom, activeLibraryIdAtom, currentFolderIdAtom, currentPathAtom } from '@/atoms/library-atom';
+import { useSearchParams } from 'next/navigation';
+import { useStorage } from '@/contexts/storage-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -56,7 +58,18 @@ interface UiRunNote {
   nextStepsMarkdown: string;
 }
 
-export default function IntegrationTestsPage() {
+/**
+ * Liest `libraryId` und `folderId` aus der URL (z. B. Bookmark / Debug-Footer)
+ * und schreibt sie in die globalen Library-Atome — sonst ignoriert die Seite die Query.
+ * Params bleiben in der URL (bewusst), damit Links teilbar bleiben.
+ */
+function IntegrationTestsPageContent() {
+  const searchParams = useSearchParams();
+  const searchParamsKey = searchParams.toString();
+  const [, setActiveLibraryId] = useAtom(activeLibraryIdAtom);
+  const [, setCurrentFolderId] = useAtom(currentFolderIdAtom);
+  const { refreshAuthStatus } = useStorage();
+
   const [activeLibrary] = useAtom(activeLibraryAtom);
   const [currentFolderId] = useAtom(currentFolderIdAtom);
   const currentPathItems = useAtomValue(currentPathAtom);
@@ -98,6 +111,30 @@ export default function IntegrationTestsPage() {
     const names = currentPathItems.map(it => String(it.metadata?.name || '/'));
     return names.join(' / ');
   }, [currentPathItems]);
+
+  // URL → Atome: reproduzierbare Bookmarks (?libraryId=…&folderId=…)
+  useEffect(() => {
+    const sp = new URLSearchParams(searchParamsKey);
+    // `libraryId`: Debug-Footer / Bookmarks; `activeLibraryId`: gleiche Semantik wie /library
+    const libraryIdParam = (sp.get('libraryId') || sp.get('activeLibraryId') || '').trim();
+    const folderIdParam = (sp.get('folderId') || '').trim();
+
+    if (!libraryIdParam && !folderIdParam) return;
+
+    if (libraryIdParam) {
+      setActiveLibraryId(libraryIdParam);
+      try {
+        localStorage.setItem('activeLibraryId', libraryIdParam);
+      } catch {
+        /* z. B. private mode — ignorieren */
+      }
+      refreshAuthStatus();
+    }
+
+    if (folderIdParam) {
+      setCurrentFolderId(folderIdParam);
+    }
+  }, [searchParamsKey, setActiveLibraryId, setCurrentFolderId, refreshAuthStatus]);
 
   // Lade Templates aus MongoDB wenn Library verfügbar ist
   useEffect(() => {
@@ -1056,6 +1093,21 @@ export default function IntegrationTestsPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function IntegrationTestsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-[40vh] items-center justify-center gap-2 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span>Integrationstests werden geladen…</span>
+        </div>
+      }
+    >
+      <IntegrationTestsPageContent />
+    </Suspense>
   );
 }
 

@@ -56,9 +56,6 @@ import {
 } from "@/atoms/library-atom"
 import { activeLibraryIdAtom } from "@/atoms/library-atom"
 import { useStorage, isStorageError } from "@/contexts/storage-context"
-import { TranscriptionDialog } from "./transcription-dialog"
-import { TransformationDialog } from "./transformation-dialog"
-import { IngestionDialog } from "./ingestion-dialog"
 import { StorageItem } from "@/lib/storage/types"
 import { NavigationLogger, StateLogger } from "@/lib/debug/logger"
 import { Breadcrumb } from "./breadcrumb"
@@ -79,7 +76,7 @@ export function Library() {
   // Review-Mode Atoms
   const [isReviewMode] = useAtom(reviewModeAtom);
   const [selectedFile, setSelectedFile] = useAtom(selectedFileAtom);
-  const [selectedShadowTwin, setSelectedShadowTwin] = useAtom(selectedShadowTwinAtom);
+  const [, setSelectedShadowTwin] = useAtom(selectedShadowTwinAtom);
   
   // Storage Context
   const { 
@@ -520,7 +517,6 @@ export function Library() {
         provider={providerInstance}
         error={storageError}
         onUploadComplete={loadItems}
-        onClearCache={clearCache}
         isTreeVisible={isTreeVisible}
         onToggleTree={() => setUiPrefs({ treeVisible: !isTreeVisible })}
         isCompactList={isListCompact}
@@ -531,22 +527,32 @@ export function Library() {
       
       <div className="flex-1 min-h-0 overflow-hidden">
         {isReviewMode ? (
-          // Review-Layout: 3 Panels ohne FileTree - FileList (compact) | FilePreview (Basis-Datei) | FilePreview (Shadow-Twin)
+          // Review: eine Vorschau — Vergleich Original|Transkript passiert im Transkript-Tab (file-preview), nicht als zweite FilePreview.
+          // FileList: dieselbe compact-Präferenz wie im Normal-Layout (nicht erzwingend compact=true — sonst fehlen Kopfzeile/Spalten und wirkt die Liste „zerschossen‘).
           <ResizablePanelGroup direction="horizontal" className="h-full">
-            <ResizablePanel defaultSize={25} minSize={20} className="min-h-0">
+            <ResizablePanel
+              defaultSize={isListCompact ? 28 : 34}
+              minSize={isListCompact ? 18 : 22}
+              className="min-h-0"
+            >
               <div className="h-full overflow-auto flex flex-col">
-                <FileList compact={true} />
+                <FileList compact={isListCompact} />
               </div>
             </ResizablePanel>
             <ResizableHandle />
-            <ResizablePanel defaultSize={37.5} minSize={30} className="min-h-0">
+            <ResizablePanel
+              defaultSize={isListCompact ? 72 : 66}
+              minSize={40}
+              className="min-h-0"
+            >
               <div className="h-full relative flex flex-col">
                 {selectedFile ? (
                   <FilePreviewLazy
                     provider={providerInstance}
                     file={selectedFile}
+                    onClearCacheBeforeReview={clearCache}
                     onRefreshFolder={(folderId, items, selectFileAfterRefresh) => {
-                    StateLogger.info('Library', 'FilePreview (Basis) onRefreshFolder aufgerufen', {
+                    StateLogger.info('Library', 'FilePreview (Review) onRefreshFolder aufgerufen', {
                       folderId,
                       itemsCount: items.length,
                       hasSelectFile: !!selectFileAfterRefresh
@@ -588,56 +594,6 @@ export function Library() {
                 )}
               </div>
             </ResizablePanel>
-            <ResizableHandle />
-            <ResizablePanel defaultSize={37.5} minSize={30} className="min-h-0">
-              <div className="h-full relative flex flex-col">
-                {selectedShadowTwin ? (
-                  <FilePreviewLazy
-                    provider={providerInstance}
-                    file={selectedShadowTwin}
-                    onRefreshFolder={(folderId, items, selectFileAfterRefresh) => {
-                      StateLogger.info('Library', 'FilePreview (Shadow-Twin) onRefreshFolder aufgerufen', {
-                        folderId,
-                        itemsCount: items.length,
-                        hasSelectFile: !!selectFileAfterRefresh
-                      });
-                      
-                      // Aktualisiere die Dateiliste
-                      setFolderItems(items);
-                      
-                      // Aktualisiere den Cache
-                      if (libraryState.folderCache?.[folderId]) {
-                        const cachedFolder = libraryState.folderCache[folderId];
-                        if (cachedFolder) {
-                          setLibraryState(state => ({
-                            ...state,
-                            folderCache: {
-                              ...(state.folderCache || {}),
-                              [folderId]: {
-                                ...cachedFolder,
-                                children: items
-                              }
-                            }
-                          }));
-                        }
-                      }
-                      
-                      // Wenn eine Datei ausgewählt werden soll (nach dem Speichern)
-                      if (selectFileAfterRefresh) {
-                        StateLogger.info('Library', 'Wähle gespeicherte Datei aus', {
-                          fileId: selectFileAfterRefresh.id,
-                          fileName: selectFileAfterRefresh.metadata.name
-                        });
-                      }
-                    }}
-                  />
-                ) : (
-                  <div className="h-full flex items-center justify-center text-muted-foreground">
-                    <p>Kein Shadow-Twin ausgewählt</p>
-                  </div>
-                )}
-              </div>
-            </ResizablePanel>
           </ResizablePanelGroup>
         ) : (
           // Normal-Layout (Desktop) oder alternierendes Mobile-Layout
@@ -673,6 +629,7 @@ export function Library() {
                     {selectedFile ? (
                       <FilePreviewLazy
                         provider={providerInstance}
+                        onClearCacheBeforeReview={clearCache}
                         onRefreshFolder={(folderId, items, selectFileAfterRefresh) => {
                         StateLogger.info('Library', 'FilePreview onRefreshFolder aufgerufen', {
                           folderId,
@@ -737,6 +694,7 @@ export function Library() {
                     {selectedFile ? (
                       <FilePreviewLazy
                         provider={providerInstance}
+                        onClearCacheBeforeReview={clearCache}
                         onRefreshFolder={(folderId, items, selectFileAfterRefresh) => {
                         StateLogger.info('Library', 'FilePreview onRefreshFolder aufgerufen', {
                           folderId,
@@ -785,46 +743,6 @@ export function Library() {
         )}
       </div>
       
-      {/* Dialoge */}
-      <TranscriptionDialog />
-      <TransformationDialog 
-        onRefreshFolder={(folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => {
-          StateLogger.info('Library', 'TransformationDialog onRefreshFolder aufgerufen', {
-            folderId,
-            itemsCount: items.length,
-            hasSelectFile: !!selectFileAfterRefresh
-          });
-          
-          // Aktualisiere die Dateiliste
-          setFolderItems(items);
-          
-          // Aktualisiere den Cache
-          if (libraryState.folderCache?.[folderId]) {
-            const cachedFolder = libraryState.folderCache[folderId];
-            if (cachedFolder) {
-              setLibraryState(state => ({
-                ...state,
-                folderCache: {
-                  ...(state.folderCache || {}),
-                  [folderId]: {
-                    ...cachedFolder,
-                    children: items
-                  }
-                }
-              }));
-            }
-          }
-          
-          // Wenn eine Datei ausgewählt werden soll (nach dem Speichern)
-          if (selectFileAfterRefresh) {
-            StateLogger.info('Library', 'Wähle gespeicherte Datei aus', {
-              fileId: selectFileAfterRefresh.id,
-              fileName: selectFileAfterRefresh.metadata.name
-            });
-          }
-        }}
-      />
-      <IngestionDialog />
     </div>
   );
 }

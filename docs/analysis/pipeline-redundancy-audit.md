@@ -42,9 +42,9 @@ Das ist der modernere Weg und sollte aus meiner Sicht der Hauptweg sein.
 
 ### Weg B: Alte Dialoge
 
-- `transcription-dialog.tsx`
-- `transformation-dialog.tsx`
-- `BatchTransformService`
+- ~~`transcription-dialog.tsx`~~ (entfernt; Transkription über Pipeline)
+- ~~`transformation-dialog.tsx`~~ / ~~`batch-transform-service.ts`~~ (entfernt; Transformation über Pipeline / `phase-template.ts`)
+- ~~`ingestion-dialog.tsx`~~ (entfernt; Batch-Ingest aus der Dateiliste entfällt, `ingest-markdown` über Wizard/Vorschau/andere UI)
 
 Diese Teile machen fachlich Ähnliches, aber auf anderem Weg.
 

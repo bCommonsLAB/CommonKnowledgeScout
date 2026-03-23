@@ -35,6 +35,18 @@ Ich benutze hier nur drei einfache Urteile:
 
 ---
 
+## Stand nach Library-Review-UI (nur Doku / Einordnung)
+
+Nach der Umstellung des **Vergleichs-Modus** in der Library (eine `FilePreview`, Split **Original | Transkript** nur im Tab **Transkript** innerhalb `file-preview.tsx`; Liste | Vorschau in `library.tsx`):
+
+- **Shadow-Twin / `primaryStore` in der UI:** keine inhaltliche Änderung — die in Abschnitt 2 und 3 genannten **Lücken** zu `shadow-twin-architecture.mdc` und `contracts-story-pipeline.mdc` bleiben **offen**.
+- **`file-preview.tsx`** bleibt ein Hotspot (weiterhin viele Verantwortlichkeiten); der Review-Split ist **rein UI-Layout**, kein neuer Pipeline-Endpunkt.
+- **Konsistenz mit der Pipeline-Policy:** Der verbindliche Standardweg fürs Archiv ist in [`pipeline-standard-path-policy.md`](./pipeline-standard-path-policy.md) und in der [Systemkarte](./pipeline-system-map.md) (Abschnitt „Policy“ + „Review-Modus“) nachgezogen.
+
+Wenn später `primaryStore` aus der UI gekapselt wird, Review- und Normal-Layout profitieren **gemeinsam** von einer schlankeren `FilePreview`-Schicht.
+
+---
+
 ## 1) `storage-abstraction.mdc`
 
 ### Urteil: OK
@@ -139,7 +151,7 @@ Ich habe hier keinen vollständigen Beweis für das ganze Repo geführt.
 
 Trotzdem ist die Rule wichtig, besonders bei Bereichen wie:
 
-- `batch-transform-service.ts`
+- `transform-service.ts` und `phase-template.ts` (Fallback-/Template-Pfade)
 
 Dort sollte man bei späteren Refactorings genau hinschauen:
 
@@ -194,6 +206,8 @@ Diese offenen Punkte sollte man später gezielt gegen den Code prüfen.
 
 Wenn du aus dieser Analyse etwas Praktisches ableiten willst, dann würde ich so vorgehen:
 
+0. **Standardweg und Scope lesen** — [`pipeline-standard-path-policy.md`](./pipeline-standard-path-policy.md) (damit Refactors am Archiv dem gleichen Modell folgen)
+
 1. **Rule-Konflikte sichtbar machen**
    - besonders alles rund um `primaryStore` in UI
 
@@ -212,6 +226,8 @@ Wenn du aus dieser Analyse etwas Praktisches ableiten willst, dann würde ich so
 
 - `PhasePolicies` zentralisieren
 - `TransformSaveOptions` zentralisieren
+
+**Stand (Code):** Kanonisch `PhasePolicies` / `PhaseDirective` / `PhasePoliciesOrchestratorSlice` in `src/lib/processing/phase-policy.ts`; `external-jobs` re-exportiert und nutzt `PhasePoliciesOrchestratorSlice` für Template-Entscheidungen. `TransformSaveOptions` in `src/lib/transform/transform-save-options.ts`; UI-Komponente importiert denselben Typ. Unit-Test: `tests/unit/processing/phase-policy.test.ts`.
 
 ### Priorität 2
 
@@ -243,4 +259,5 @@ Sie ist aber nur dann wirklich hilfreich, wenn man danach auch entscheidet:
 ## Verweise
 
 - `docs/analysis/pipeline-system-map.md`
+- `docs/analysis/pipeline-standard-path-policy.md`
 - `docs/analysis/pipeline-redundancy-audit.md`

@@ -10,9 +10,7 @@ Diese Notiz dokumentiert, wie der aktuelle Flow im UI aussieht und welche (minim
 ## Beobachtungen im UI (`FilePreview`)
 
 - **Dateityp-Erkennung**: `file-preview.tsx` klassifiziert `.md/.mdx/.txt` als `markdown` und behandelt viele „textartige“ Extensions ebenfalls als editierbar.
-- **Transformation (Template)**: Der UI-Flow läuft primär über `TransformationDialog` + `BatchTransformService`.
-  - Der Dialog akzeptiert **Markdown direkt** (kein Transcript/Resolver nötig).
-  - Bei PDFs versucht der Dialog zuerst ein Transcript-Markdown per Resolver zu finden; bei `.md` entfällt das.
+- **Transformation (Template)**: In der Archiv-Vorschau primär über **Pipeline** (`run-pipeline.ts` → External Jobs → `phase-template.ts`). Der frühere `TransformationDialog` / `BatchTransformService` wurde entfernt.
 - **Ingestion**: In `job-report-tab.tsx` („Veröffentlichen“) wird die Route
   `POST /api/chat/{libraryId}/ingest-markdown` aufgerufen.
   - Damit wird ein vorhandenes Markdown (typischerweise Transformation) ingestiert.
@@ -61,4 +59,9 @@ ohne den External-Job-Orchestrator als Voraussetzung zu erzwingen.
 Wichtig: Diese Variante ist **nur** so gut wie die Verfügbarkeit des verwendeten Templates in MongoDB
 (Template-Content wird serverseitig geladen). Die End-to-End-Integration mit dem realen Secretary Service
 ist ein echter Integrationstest und muss in der Umgebung ausgeführt werden.
+
+## Verweise
+
+- [`pipeline-standard-path-policy.md`](./pipeline-standard-path-policy.md) — Standardweg Bibliotheks-Archiv vs. Sonderpfade
+- [`pipeline-system-map.md`](./pipeline-system-map.md) — Systemkarte
 

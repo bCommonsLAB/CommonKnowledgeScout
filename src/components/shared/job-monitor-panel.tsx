@@ -145,6 +145,28 @@ export function JobMonitorPanel() {
     });
   }, [triggerShadowTwinAnalysis]);
 
+  /**
+   * REST-Jobliste mit dem globalen Job-Info-Atom abgleichen.
+   * Hintergrund: SSE (/stream) ist nur bei geoeffnetem Panel aktiv. Schliesst der Nutzer
+   * das Panel waehrend der Pipeline, kommt kein finales `job_update` (completed/failed) an —
+   * die Vorschau bleibt dann z.B. auf 90 % / "Story wird verarbeitet", obwohl der Server
+   * den Job schon als abgeschlossen listet. Terminal-Eintraege aus der Liste entfernen
+   * den veralteten Fortschritt im Atom (analog zum clear nach SSE-completed).
+   */
+  const syncTerminalJobAtomsFromList = useCallback(
+    (rows: JobListItem[]) => {
+      for (const row of rows) {
+        const sid = row.sourceItemId;
+        if (!sid) continue;
+        const st = String(row.status || '').toLowerCase();
+        if (st === 'completed' || st === 'failed') {
+          clearJobInfo(sid);
+        }
+      }
+    },
+    [clearJobInfo]
+  );
+
   useEffect(() => {
     return () => {
       shadowTwinRefreshTimersRef.current.forEach((timer) => clearTimeout(timer));
@@ -330,15 +352,17 @@ export function JobMonitorPanel() {
             sampleItem: json.items[0]
           });
         }
-        setItems(prev => replace ? json.items : [...prev, ...json.items]);
-        setHasMore(json.items.length === 20);
+        const rows: JobListItem[] = json.items || [];
+        setItems(prev => (replace ? rows : [...prev, ...rows]));
+        syncTerminalJobAtomsFromList(rows);
+        setHasMore(rows.length === 20);
       } finally {
         isFetchingRef.current = false;
       }
     }
     void load(1, true);
     return () => { cancelled = true; };
-  }, [isOpen, statusFilter, batchFilter, activeLibraryId]);
+  }, [isOpen, statusFilter, batchFilter, activeLibraryId, syncTerminalJobAtomsFromList]);
 
   // Batch-Namen laden, wenn Panel geöffnet wird
   useEffect(() => {
@@ -420,13 +444,15 @@ export function JobMonitorPanel() {
       const res = await fetch(`/api/external/jobs?${params.toString()}`, { cache: 'no-store' });
       if (!res.ok) return;
       const json = await res.json();
-      setItems(json.items || []);
+      const list = json.items || [];
+      setItems(list);
+      syncTerminalJobAtomsFromList(list);
       setPage(1);
-      setHasMore((json.items || []).length === 20);
+      setHasMore(list.length === 20);
     } finally {
       setIsRefreshing(false);
     }
-  }, [isRefreshing, statusFilter, batchFilter, activeLibraryId]);
+  }, [isRefreshing, statusFilter, batchFilter, activeLibraryId, syncTerminalJobAtomsFromList]);
 
   // SSE nur on-demand verbinden: erst wenn Panel geöffnet ist.
   // So vermeiden wir permanente /stream-Requests auf Seiten, auf denen der Monitor geschlossen bleibt.
@@ -693,9 +719,11 @@ export function JobMonitorPanel() {
     const res = await fetch(`/api/external/jobs?${params.toString()}`, { cache: 'no-store' });
     if (!res.ok) return;
     const json = await res.json();
-    setItems(prev => [...prev, ...json.items]);
+    const newRows: JobListItem[] = json.items || [];
+    setItems(prev => [...prev, ...newRows]);
     setPage(next);
-    setHasMore(json.items.length === 20);
+    setHasMore(newRows.length === 20);
+    syncTerminalJobAtomsFromList(newRows);
   };
 
   // Polling Fallback: nur wenn Panel offen, Live-Updates an UND keine SSE-Events für 10s

@@ -8,6 +8,8 @@ import type { StorageItem, StorageProvider } from "@/lib/storage/types"
 import { FileLogger } from "@/lib/debug/logger"
 import { ArtifactEditDialog } from "@/components/library/shared/artifact-edit-dialog"
 import { cn } from "@/lib/utils"
+import { Pencil } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { fetchShadowTwinMarkdown } from "@/lib/shadow-twin/shadow-twin-mongo-client"
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from "@/lib/shadow-twin/mongo-shadow-twin-id"
 
@@ -150,14 +152,25 @@ export function ArtifactMarkdownPanel({
         </div>
         <div className="flex items-center gap-2">
           {additionalActions}
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setIsEditOpen(true)}
-            disabled={!provider && !(libraryId && currentItem?.id && isMongoShadowTwinId(currentItem.id))}
-          >
-            Bearbeiten
-          </Button>
+          {/* Icon-only wie Transkript-Toolbar; Tooltip ersetzt den früheren Button-Text. */}
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  className="h-8 w-8 shrink-0"
+                  onClick={() => setIsEditOpen(true)}
+                  disabled={!provider && !(libraryId && currentItem?.id && isMongoShadowTwinId(currentItem.id))}
+                  aria-label="Bearbeiten"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Bearbeiten</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
       <div className="rounded border">

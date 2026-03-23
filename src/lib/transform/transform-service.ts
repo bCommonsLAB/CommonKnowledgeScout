@@ -11,7 +11,7 @@
  * 
  * @exports
  * - TransformService: Main transformation service class
- * - TransformSaveOptions: Options interface for transformations
+ * - TransformSaveOptions: re-export aus transform-save-options (zentrale Typdefinition)
  * - PdfTransformOptions: PDF-specific transformation options
  * - VideoTransformOptions: Video-specific transformation options
  * - ImageTransformOptions: Image-specific transformation options
@@ -39,18 +39,10 @@ import { writeArtifact } from "@/lib/shadow-twin/artifact-writer";
 import type { ArtifactKey } from "@/lib/shadow-twin/artifact-types";
 import type { ShadowTwinConfigDefaults } from "@/lib/shadow-twin/shadow-twin-config";
 import { isMongoShadowTwinId } from "@/lib/shadow-twin/mongo-shadow-twin-id";
+import type { TransformSaveOptions } from "@/lib/transform/transform-save-options";
 
-export interface TransformSaveOptions {
-  targetLanguage: string;
-  fileName: string;
-  createShadowTwin: boolean;
-  fileExtension: string;
-  useCache?: boolean; // Neu: Cache-Option für alle Transformationen
-  includeOcrImages?: boolean; // Mistral OCR Bilder als Base64 (in mistral_ocr_raw.pages[*].images[*].image_base64)
-  includePageImages?: boolean; // Seiten-Bilder als ZIP (parallel extrahiert)
-  includeImages?: boolean; // Rückwärtskompatibilität: für Standard-Endpoint (deprecated, verwende includeOcrImages/includePageImages)
-  useIngestionPipeline?: boolean; // Neu: Auto-RAG nach Speicherung
-}
+/** @see transform-save-options.ts — zentrale Definition */
+export type { TransformSaveOptions } from "@/lib/transform/transform-save-options";
 
 export interface PdfTransformOptions extends TransformSaveOptions {
   extractionMethod: string;

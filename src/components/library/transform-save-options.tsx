@@ -9,20 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { SUPPORTED_LANGUAGES } from "@/lib/secretary/constants";
 import { buildArtifactName } from "@/lib/shadow-twin/artifact-naming";
 import type { ArtifactKey } from "@/lib/shadow-twin/artifact-types";
-
-export interface TransformSaveOptions {
-  [key: string]: unknown;
-  targetLanguage: string;
-  fileName: string;
-  createShadowTwin: boolean;
-  fileExtension: string;
-  extractionMethod?: string; // Optional für PDF-Transformation
-  useCache?: boolean; // Neu: Cache-Option für alle Transformationen
-  includeOcrImages?: boolean; // Mistral OCR Bilder als Base64 (in mistral_ocr_raw.pages[*].images[*].image_base64)
-  includePageImages?: boolean; // Seiten-Bilder als ZIP (parallel extrahiert)
-  includeImages?: boolean; // Rückwärtskompatibilität: für Standard-Endpoint (deprecated)
-  context?: string; // Optionaler Kontext für LLM-Optimierung
-}
+import type { TransformSaveOptions } from "@/lib/transform/transform-save-options";
 
 interface TransformSaveOptionsProps {
   originalFileName: string;

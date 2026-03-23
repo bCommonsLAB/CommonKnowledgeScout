@@ -3,12 +3,12 @@
 import * as React from 'react';
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, ExternalLink, FileText, RefreshCw, Sparkles, Upload } from "lucide-react";
+import { AlertCircle, ArrowLeft, ExternalLink, Eye, FileText, Loader2, RefreshCw, Scissors, Sparkles, Upload } from "lucide-react";
 import { MarkdownPreview, type CompositeWikiPreviewOptions } from './markdown-preview';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import './markdown-audio';
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { activeLibraryIdAtom, selectedFileAtom, activeLibraryAtom } from "@/atoms/library-atom";
+import { activeLibraryIdAtom, selectedFileAtom, activeLibraryAtom, reviewModeAtom } from "@/atoms/library-atom";
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
 import type { Library } from '@/types/library'
 import { extractFrontmatter } from './markdown-metadata';
@@ -47,6 +47,8 @@ import { TARGET_LANGUAGE_DEFAULT } from "@/lib/chat/constants"
 import { jobInfoByItemIdAtom } from "@/atoms/job-status"
 import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { SourceRenderer } from "@/components/library/flow/source-renderer"
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
 
 /**
  * Extrahiert den Sprachcode aus dem Dateinamen eines Transkripts.
@@ -186,6 +188,8 @@ interface FilePreviewProps {
   provider: StorageProvider | null;
   file?: StorageItem | null; // Neue prop für explizite Datei-Auswahl
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
+  /** Wird vor Aktivierung des Review-/Vergleichen-Modus aufgerufen (Ordner-Cache leeren), analog zum früheren LibraryHeader. */
+  onClearCacheBeforeReview?: () => void;
 }
 
 // Helper function for file type detection
@@ -535,6 +539,269 @@ function ContentLoader({
   return null;
 }
 
+/**
+ * Icon-only Toolbar im Transkript-Tab: Review/Vergleichen, optional Seiten splitten (PDF),
+ * Neu generieren bzw. „Jetzt erstellen“. Tooltips liefern die früheren Button-Texte.
+ */
+function TranscriptToolbarActions({
+  isReviewMode,
+  onToggleReviewMode,
+  hasTranscriptItem,
+  transcriptToolsEligible,
+  isPdf,
+  isSplittingPages,
+  setIsSplittingPages,
+  isRunningPipeline,
+  hasActiveJob,
+  openPipelineForPhase,
+  activeLibraryId,
+  transcriptItem,
+  sourceItem,
+  provider,
+  onRefreshFolder,
+}: {
+  isReviewMode: boolean;
+  onToggleReviewMode: () => void;
+  hasTranscriptItem: boolean;
+  /** Wie bisher: Nur bestimmte Medientypen erhalten Split + Neu-generieren. */
+  transcriptToolsEligible: boolean;
+  isPdf: boolean;
+  isSplittingPages: boolean;
+  setIsSplittingPages: React.Dispatch<React.SetStateAction<boolean>>;
+  isRunningPipeline: boolean;
+  hasActiveJob: boolean;
+  openPipelineForPhase: (phase: "transcript", force?: boolean) => void;
+  activeLibraryId: string;
+  transcriptItem: StorageItem | null;
+  sourceItem: StorageItem;
+  provider: StorageProvider | null;
+  onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
+}) {
+  const runSplitPages = React.useCallback(async () => {
+    if (!activeLibraryId || !transcriptItem?.id) return;
+    setIsSplittingPages(true);
+    try {
+      const res = await fetch(`/api/library/${encodeURIComponent(activeLibraryId)}/markdown/split-pages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceFileId: transcriptItem.id,
+          originalFileId: sourceItem.id,
+          targetLanguage: "de",
+        }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { error?: unknown; folderName?: string; created?: number };
+      if (!res.ok) {
+        const msg = typeof json.error === "string" ? json.error : `HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+      toast.success("Seiten gesplittet", {
+        description: `${json.created ?? 0} Seiten in Ordner "${json.folderName || "pages"}" gespeichert.`,
+      });
+      if (onRefreshFolder && sourceItem.parentId) {
+        const refreshed = await provider?.listItemsById(sourceItem.parentId);
+        if (refreshed) onRefreshFolder(sourceItem.parentId, refreshed);
+      }
+    } catch (error) {
+      toast.error("Split fehlgeschlagen", {
+        description: error instanceof Error ? error.message : "Unbekannter Fehler",
+      });
+    } finally {
+      setIsSplittingPages(false);
+    }
+  }, [
+    activeLibraryId,
+    transcriptItem?.id,
+    sourceItem.id,
+    sourceItem.parentId,
+    provider,
+    onRefreshFolder,
+    setIsSplittingPages,
+  ]);
+
+  return (
+    <TooltipProvider delayDuration={300}>
+      <div className="flex flex-shrink-0 items-center gap-1">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              size="icon"
+              variant={isReviewMode ? "secondary" : "outline"}
+              className="h-8 w-8"
+              onClick={onToggleReviewMode}
+              aria-label={isReviewMode ? "Zur Listenansicht" : "Vergleichen"}
+            >
+              {isReviewMode ? <ArrowLeft className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            {isReviewMode
+              ? "Zur Listenansicht (Review beenden)"
+              : "Vergleichen: eine Vorschau, im Transkript-Tab Original links und Text rechts"}
+          </TooltipContent>
+        </Tooltip>
+
+        {!hasTranscriptItem ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                size="icon"
+                variant="default"
+                className="h-8 w-8"
+                onClick={() => openPipelineForPhase("transcript")}
+                disabled={isRunningPipeline || hasActiveJob}
+                aria-label="Transkript jetzt erstellen"
+              >
+                <Sparkles className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Transkript jetzt erstellen</TooltipContent>
+          </Tooltip>
+        ) : transcriptToolsEligible ? (
+          <>
+            {isPdf ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    className="h-8 w-8"
+                    disabled={isSplittingPages || !provider}
+                    onClick={() => void runSplitPages()}
+                    aria-label="Seiten splitten"
+                  >
+                    {isSplittingPages ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Scissors className="h-4 w-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Seiten splitten</TooltipContent>
+              </Tooltip>
+            ) : null}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  className="h-8 w-8"
+                  onClick={() => openPipelineForPhase("transcript", true)}
+                  disabled={isRunningPipeline || hasActiveJob}
+                  aria-label="Transkript neu generieren"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Transkript neu generieren</TooltipContent>
+            </Tooltip>
+          </>
+        ) : null}
+      </div>
+    </TooltipProvider>
+  );
+}
+
+/** Nur die Quelle (PDF/Audio/Video/Office), ohne das untere Transkript aus SourceAndTranscriptPane. */
+function ReviewOriginalPane(props: {
+  provider: StorageProvider
+  item: StorageItem
+  streamingUrl?: string | null
+}) {
+  return (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded border bg-background">
+      <div className="shrink-0 border-b bg-muted/20 px-3 py-2 text-xs text-muted-foreground truncate">
+        {props.item.metadata?.name ?? ""}
+      </div>
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <SourceRenderer
+          provider={props.provider}
+          file={props.item}
+          streamingUrl={props.streamingUrl ?? null}
+          showHeader={false}
+        />
+      </div>
+    </div>
+  )
+}
+
+/** .url-Original wie im Tab „Original“ (Iframe), für Review-Split links. */
+function WebsiteReviewOriginalIframe(props: { urlContent: string | undefined; label: string }) {
+  return (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded border bg-background">
+      {props.urlContent ? (
+        <>
+          <div className="flex shrink-0 items-center gap-2 border-b bg-muted/50 px-4 py-3">
+            <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <a
+              href={props.urlContent}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="truncate text-sm text-primary hover:underline"
+            >
+              {props.urlContent}
+            </a>
+          </div>
+          <div className="relative min-h-0 flex-1">
+            <iframe
+              src={props.urlContent}
+              title={props.label}
+              className="absolute inset-0 h-full w-full"
+              sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+            />
+            <div className="pointer-events-none absolute inset-0 -z-10 flex items-center justify-center text-sm text-muted-foreground">
+              <p>Website blockiert möglicherweise die Einbettung.</p>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+          Keine gültige URL gefunden.
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ReviewTranscriptSplit(props: { original: React.ReactNode; transcript: React.ReactNode }) {
+  return (
+    <ResizablePanelGroup direction="horizontal" className="h-full min-h-[200px] w-full">
+      <ResizablePanel defaultSize={50} minSize={24} className="min-h-0 overflow-hidden">
+        <div className="h-full min-h-0 pr-2">{props.original}</div>
+      </ResizablePanel>
+      <ResizableHandle withHandle />
+      <ResizablePanel defaultSize={50} minSize={28} className="min-h-0 overflow-hidden">
+        <div className="h-full min-h-0 overflow-hidden pl-2">{props.transcript}</div>
+      </ResizablePanel>
+    </ResizablePanelGroup>
+  )
+}
+
+/**
+ * Review-Modus: im Transkript-Tab Original links, Artefakt rechts — eine Tab-Leiste, keine zweite FilePreview.
+ */
+function wrapTranscriptTabWithReviewSplit(
+  isReviewMode: boolean,
+  originalPane: React.ReactNode,
+  transcriptPanel: React.ReactNode,
+) {
+  if (!isReviewMode) {
+    return <div className="h-full overflow-hidden rounded border p-3">{transcriptPanel}</div>
+  }
+  return (
+    <ReviewTranscriptSplit
+      original={originalPane}
+      transcript={
+        <div className="flex h-full min-h-0 flex-col overflow-hidden rounded border p-3">{transcriptPanel}</div>
+      }
+    />
+  )
+}
+
 // Separate Komponente für die Vorschau
 function PreviewContent({ 
   item, 
@@ -550,6 +817,7 @@ function PreviewContent({
   // editHandlerRef entfernt - wird derzeit nicht verwendet
   effectiveMdIdRef,
   pipelineOpenerRef,
+  onClearCacheBeforeReview,
 }: {
   item: StorageItem;
   fileType: string;
@@ -564,6 +832,7 @@ function PreviewContent({
   effectiveMdIdRef?: React.MutableRefObject<string | null>;
   /** Ref, über den FilePreview die Pipeline-Öffnung triggern kann (Freshness-Banner) */
   pipelineOpenerRef?: React.MutableRefObject<(() => void) | null>;
+  onClearCacheBeforeReview?: () => void;
 }) {
   const [infoTab, setInfoTab] = React.useState<"original" | "transcript" | "transform" | "story" | "overview">("original")
   const transcript = useResolvedTranscriptItem({
@@ -596,6 +865,23 @@ function PreviewContent({
   // } | null>(null);
   const setSelectedFile = useSetAtom(selectedFileAtom);
   const activeLibrary = useAtomValue(activeLibraryAtom)
+  const [isReviewMode, setReviewMode] = useAtom(reviewModeAtom)
+  /** Review/Vergleichen: vor dem Einschalten optional Cache leeren (Library übergibt clearCache). */
+  const handleReviewModeToggle = React.useCallback(() => {
+    setReviewMode((prev) => {
+      if (!prev) {
+        onClearCacheBeforeReview?.()
+      }
+      return !prev
+    })
+  }, [onClearCacheBeforeReview, setReviewMode])
+
+  // Review: eine gemeinsame Tab-Leiste — Vergleich nur im Transkript-Tab (Split), nicht zwei FilePreviews.
+  React.useEffect(() => {
+    if (isReviewMode) {
+      setInfoTab("transcript")
+    }
+  }, [isReviewMode])
 
   /** Namen → fileId im Ordner der aktuellen Datei (für Composite-Wikilinks / resolve-binary-url). */
   const [wikiSiblingMap, setWikiSiblingMap] = React.useState<Record<string, string>>({})
@@ -1319,7 +1605,9 @@ function PreviewContent({
             </TabsContent>
 
             <TabsContent value="transcript" className="min-h-0 flex-1 overflow-hidden p-3">
-              <div className="h-full overflow-hidden rounded border p-3">
+              {wrapTranscriptTabWithReviewSplit(
+                isReviewMode,
+                <ReviewOriginalPane provider={provider} item={item} streamingUrl={null} />,
                 <ArtifactMarkdownPanel
                   title="Transcript (aus dem Original transkribiert)"
                   titleClassName="text-xs text-muted-foreground font-normal"
@@ -1329,78 +1617,29 @@ function PreviewContent({
                   libraryId={activeLibraryId || undefined}
                   emptyHint="Noch kein Transkript vorhanden."
                   additionalActions={
-                    !transcript.transcriptItem ? (
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => openPipelineForPhase("transcript")}
-                        disabled={isRunningPipeline || hasActiveJob}
-                      >
-                        <Sparkles className="h-4 w-4 mr-2" />
-                        Jetzt erstellen
-                      </Button>
-                    ) : transcript.transcriptItem && ['pdf', 'audio', 'markdown', 'docx', 'xlsx', 'pptx'].includes(fileType) ? (
-                      <>
-                        {(fileType as string) === 'pdf' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={isSplittingPages || !provider}
-                          onClick={async () => {
-                            if (!activeLibraryId || !transcript.transcriptItem?.id) return
-                            // Erklärung: Split läuft serverseitig, weil große PDFs im Browser zu schwer sind.
-                            // Verarbeitet die Transcript-Datei und splittet sie in einzelne Seiten-Dateien in einem Unterverzeichnis.
-                            setIsSplittingPages(true)
-                            try {
-                              const res = await fetch(`/api/library/${encodeURIComponent(activeLibraryId)}/markdown/split-pages`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                  sourceFileId: transcript.transcriptItem.id,
-                                  originalFileId: item.id,
-                                  targetLanguage: 'de',
-                                }),
-                              })
-                              const json = (await res.json().catch(() => ({}))) as { error?: unknown; folderName?: string; created?: number }
-                              if (!res.ok) {
-                                const msg = typeof json.error === 'string' ? json.error : `HTTP ${res.status}`
-                                throw new Error(msg)
-                              }
-                              toast.success("Seiten gesplittet", {
-                                description: `${json.created ?? 0} Seiten in Ordner "${json.folderName || 'pages'}" gespeichert.`
-                              })
-                              // UI-Liste aktualisieren, damit der neue Ordner sichtbar wird.
-                              // Verwende die parentId des Originals, nicht die der Transcript-Datei
-                              if (onRefreshFolder && item.parentId) {
-                                const refreshed = await provider?.listItemsById(item.parentId)
-                                if (refreshed) onRefreshFolder(item.parentId, refreshed)
-                              }
-                            } catch (error) {
-                              toast.error("Split fehlgeschlagen", {
-                                description: error instanceof Error ? error.message : "Unbekannter Fehler"
-                              })
-                            } finally {
-                              setIsSplittingPages(false)
-                            }
-                          }}
-                        >
-                          Seiten splitten
-                        </Button>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openPipelineForPhase("transcript", true)}
-                          disabled={isRunningPipeline || hasActiveJob}
-                        >
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                          Neu generieren
-                        </Button>
-                      </>
-                    ) : null
+                    <TranscriptToolbarActions
+                      isReviewMode={isReviewMode}
+                      onToggleReviewMode={handleReviewModeToggle}
+                      hasTranscriptItem={!!transcript.transcriptItem}
+                      transcriptToolsEligible={
+                        !!(transcript.transcriptItem &&
+                          ["pdf", "audio", "markdown", "docx", "xlsx", "pptx"].includes(fileType))
+                      }
+                      isPdf={false}
+                      isSplittingPages={isSplittingPages}
+                      setIsSplittingPages={setIsSplittingPages}
+                      isRunningPipeline={isRunningPipeline}
+                      hasActiveJob={hasActiveJob}
+                      openPipelineForPhase={openPipelineForPhase}
+                      activeLibraryId={activeLibraryId}
+                      transcriptItem={transcript.transcriptItem}
+                      sourceItem={item}
+                      provider={provider}
+                      onRefreshFolder={onRefreshFolder}
+                    />
                   }
-                />
-              </div>
+                />,
+              )}
             </TabsContent>
 
             <TabsContent value="transform" className="min-h-0 flex-1 overflow-auto p-3">
@@ -1615,7 +1854,9 @@ function PreviewContent({
             </TabsContent>
 
             <TabsContent value="transcript" className="min-h-0 flex-1 overflow-hidden p-3">
-              <div className="h-full overflow-hidden rounded border p-3">
+              {wrapTranscriptTabWithReviewSplit(
+                isReviewMode,
+                <ReviewOriginalPane provider={provider} item={item} streamingUrl={null} />,
                 <ArtifactMarkdownPanel
                   title="Transcript (aus dem Original transkribiert)"
                   titleClassName="text-xs text-muted-foreground font-normal"
@@ -1625,30 +1866,29 @@ function PreviewContent({
                   libraryId={activeLibraryId || undefined}
                   emptyHint="Noch kein Transkript vorhanden."
                   additionalActions={
-                    !transcript.transcriptItem ? (
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => openPipelineForPhase("transcript")}
-                        disabled={isRunningPipeline || hasActiveJob}
-                      >
-                        <Sparkles className="h-4 w-4 mr-2" />
-                        Jetzt erstellen
-                      </Button>
-                    ) : transcript.transcriptItem && ['pdf', 'audio', 'video', 'markdown', 'docx', 'xlsx', 'pptx'].includes(fileType) ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openPipelineForPhase("transcript", true)}
-                        disabled={isRunningPipeline || hasActiveJob}
-                      >
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Neu generieren
-                      </Button>
-                    ) : null
+                    <TranscriptToolbarActions
+                      isReviewMode={isReviewMode}
+                      onToggleReviewMode={handleReviewModeToggle}
+                      hasTranscriptItem={!!transcript.transcriptItem}
+                      transcriptToolsEligible={
+                        !!(transcript.transcriptItem &&
+                          ["pdf", "audio", "video", "markdown", "docx", "xlsx", "pptx"].includes(fileType))
+                      }
+                      isPdf={false}
+                      isSplittingPages={isSplittingPages}
+                      setIsSplittingPages={setIsSplittingPages}
+                      isRunningPipeline={isRunningPipeline}
+                      hasActiveJob={hasActiveJob}
+                      openPipelineForPhase={openPipelineForPhase}
+                      activeLibraryId={activeLibraryId}
+                      transcriptItem={transcript.transcriptItem}
+                      sourceItem={item}
+                      provider={provider}
+                      onRefreshFolder={onRefreshFolder}
+                    />
                   }
-                />
-              </div>
+                />,
+              )}
             </TabsContent>
 
             <TabsContent value="transform" className="min-h-0 flex-1 overflow-auto p-3">
@@ -2132,7 +2372,9 @@ function PreviewContent({
             </TabsContent>
 
             <TabsContent value="transcript" className="min-h-0 flex-1 overflow-hidden p-3">
-              <div className="h-full overflow-hidden rounded border p-3">
+              {wrapTranscriptTabWithReviewSplit(
+                isReviewMode,
+                <ReviewOriginalPane provider={provider} item={item} streamingUrl={null} />,
                 <ArtifactMarkdownPanel
                   title="Transcript (aus dem Original transkribiert)"
                   titleClassName="text-xs text-muted-foreground font-normal"
@@ -2142,78 +2384,29 @@ function PreviewContent({
                   libraryId={activeLibraryId || undefined}
                   emptyHint="Noch kein Transkript vorhanden."
                   additionalActions={
-                    !transcript.transcriptItem ? (
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => openPipelineForPhase("transcript")}
-                        disabled={isRunningPipeline || hasActiveJob}
-                      >
-                        <Sparkles className="h-4 w-4 mr-2" />
-                        Jetzt erstellen
-                      </Button>
-                    ) : transcript.transcriptItem && ['pdf', 'audio', 'markdown', 'docx', 'xlsx', 'pptx'].includes(fileType) ? (
-                      <>
-                        {(fileType as string) === 'pdf' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={isSplittingPages || !provider}
-                          onClick={async () => {
-                            if (!activeLibraryId || !transcript.transcriptItem?.id) return
-                            // Erklärung: Split läuft serverseitig, weil große PDFs im Browser zu schwer sind.
-                            // Verarbeitet die Transcript-Datei und splittet sie in einzelne Seiten-Dateien in einem Unterverzeichnis.
-                            setIsSplittingPages(true)
-                            try {
-                              const res = await fetch(`/api/library/${encodeURIComponent(activeLibraryId)}/markdown/split-pages`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                  sourceFileId: transcript.transcriptItem.id,
-                                  originalFileId: item.id,
-                                  targetLanguage: 'de',
-                                }),
-                              })
-                              const json = (await res.json().catch(() => ({}))) as { error?: unknown; folderName?: string; created?: number }
-                              if (!res.ok) {
-                                const msg = typeof json.error === 'string' ? json.error : `HTTP ${res.status}`
-                                throw new Error(msg)
-                              }
-                              toast.success("Seiten gesplittet", {
-                                description: `${json.created ?? 0} Seiten in Ordner "${json.folderName || 'pages'}" gespeichert.`
-                              })
-                              // UI-Liste aktualisieren, damit der neue Ordner sichtbar wird.
-                              // Verwende die parentId des Originals, nicht die der Transcript-Datei
-                              if (onRefreshFolder && item.parentId) {
-                                const refreshed = await provider?.listItemsById(item.parentId)
-                                if (refreshed) onRefreshFolder(item.parentId, refreshed)
-                              }
-                            } catch (error) {
-                              toast.error("Split fehlgeschlagen", {
-                                description: error instanceof Error ? error.message : "Unbekannter Fehler"
-                              })
-                            } finally {
-                              setIsSplittingPages(false)
-                            }
-                          }}
-                        >
-                          Seiten splitten
-                        </Button>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openPipelineForPhase("transcript", true)}
-                          disabled={isRunningPipeline || hasActiveJob}
-                        >
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                          Neu generieren
-                        </Button>
-                      </>
-                    ) : null
+                    <TranscriptToolbarActions
+                      isReviewMode={isReviewMode}
+                      onToggleReviewMode={handleReviewModeToggle}
+                      hasTranscriptItem={!!transcript.transcriptItem}
+                      transcriptToolsEligible={
+                        !!(transcript.transcriptItem &&
+                          ["pdf", "audio", "markdown", "docx", "xlsx", "pptx"].includes(fileType))
+                      }
+                      isPdf
+                      isSplittingPages={isSplittingPages}
+                      setIsSplittingPages={setIsSplittingPages}
+                      isRunningPipeline={isRunningPipeline}
+                      hasActiveJob={hasActiveJob}
+                      openPipelineForPhase={openPipelineForPhase}
+                      activeLibraryId={activeLibraryId}
+                      transcriptItem={transcript.transcriptItem}
+                      sourceItem={item}
+                      provider={provider}
+                      onRefreshFolder={onRefreshFolder}
+                    />
                   }
-                />
-              </div>
+                />,
+              )}
             </TabsContent>
 
             <TabsContent value="transform" className="min-h-0 flex-1 overflow-auto p-3">
@@ -2411,7 +2604,9 @@ function PreviewContent({
             </TabsContent>
 
             <TabsContent value="transcript" className="min-h-0 flex-1 overflow-hidden p-3">
-              <div className="h-full overflow-hidden rounded border p-3">
+              {wrapTranscriptTabWithReviewSplit(
+                isReviewMode,
+                <ReviewOriginalPane provider={provider} item={item} streamingUrl={null} />,
                 <ArtifactMarkdownPanel
                   title="Transcript (aus dem Original extrahiert)"
                   titleClassName="text-xs text-muted-foreground font-normal"
@@ -2420,74 +2615,29 @@ function PreviewContent({
                   libraryId={activeLibraryId || undefined}
                   emptyHint="Noch kein Transkript vorhanden."
                   additionalActions={
-                    !transcript.transcriptItem ? (
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => openPipelineForPhase("transcript")}
-                        disabled={isRunningPipeline || hasActiveJob}
-                      >
-                        <Sparkles className="h-4 w-4 mr-2" />
-                        Jetzt erstellen
-                      </Button>
-                    ) : transcript.transcriptItem && ['pdf', 'audio', 'markdown', 'docx', 'xlsx', 'pptx'].includes(fileType) ? (
-                      <>
-                        {(fileType as string) === 'pdf' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={isSplittingPages || !provider}
-                          onClick={async () => {
-                            if (!activeLibraryId || !transcript.transcriptItem?.id) return
-                            setIsSplittingPages(true)
-                            try {
-                              const res = await fetch(`/api/library/${encodeURIComponent(activeLibraryId)}/markdown/split-pages`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                  sourceFileId: transcript.transcriptItem.id,
-                                  originalFileId: item.id,
-                                  targetLanguage: 'de',
-                                }),
-                              })
-                              const json = (await res.json().catch(() => ({}))) as { error?: unknown; folderName?: string; created?: number }
-                              if (!res.ok) {
-                                const msg = typeof json.error === 'string' ? json.error : `HTTP ${res.status}`
-                                throw new Error(msg)
-                              }
-                              toast.success("Seiten gesplittet", {
-                                description: `${json.created ?? 0} Seiten in Ordner "${json.folderName || 'pages'}" gespeichert.`
-                              })
-                              if (onRefreshFolder && item.parentId) {
-                                const refreshed = await provider?.listItemsById(item.parentId)
-                                if (refreshed) onRefreshFolder(item.parentId, refreshed)
-                              }
-                            } catch (error) {
-                              toast.error("Split fehlgeschlagen", {
-                                description: error instanceof Error ? error.message : "Unbekannter Fehler"
-                              })
-                            } finally {
-                              setIsSplittingPages(false)
-                            }
-                          }}
-                        >
-                          Seiten splitten
-                        </Button>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openPipelineForPhase("transcript", true)}
-                          disabled={isRunningPipeline || hasActiveJob}
-                        >
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                          Neu generieren
-                        </Button>
-                      </>
-                    ) : null
+                    <TranscriptToolbarActions
+                      isReviewMode={isReviewMode}
+                      onToggleReviewMode={handleReviewModeToggle}
+                      hasTranscriptItem={!!transcript.transcriptItem}
+                      transcriptToolsEligible={
+                        !!(transcript.transcriptItem &&
+                          ["pdf", "audio", "markdown", "docx", "xlsx", "pptx"].includes(fileType))
+                      }
+                      isPdf={false}
+                      isSplittingPages={isSplittingPages}
+                      setIsSplittingPages={setIsSplittingPages}
+                      isRunningPipeline={isRunningPipeline}
+                      hasActiveJob={hasActiveJob}
+                      openPipelineForPhase={openPipelineForPhase}
+                      activeLibraryId={activeLibraryId}
+                      transcriptItem={transcript.transcriptItem}
+                      sourceItem={item}
+                      provider={provider}
+                      onRefreshFolder={onRefreshFolder}
+                    />
                   }
-                />
-              </div>
+                />,
+              )}
             </TabsContent>
 
             <TabsContent value="transform" className="min-h-0 flex-1 overflow-auto p-3">
@@ -2709,52 +2859,142 @@ function PreviewContent({
             </TabsContent>
 
             <TabsContent value="transcript" className="min-h-0 flex-1 overflow-hidden p-3">
-              <div className="h-full overflow-hidden rounded border p-3">
-                {shadowTwinState?.transcriptFiles && shadowTwinState.transcriptFiles.length > 0 ? (
-                  <ArtifactMarkdownPanel
-                    title="Transkript (Website-Inhalt)"
-                    titleClassName="text-xs text-muted-foreground font-normal"
-                    headerExtra={transcriptHeaderExtra}
-                    item={displayTranscriptItem ?? shadowTwinState.transcriptFiles[0]}
-                    provider={provider}
-                    libraryId={activeLibraryId || undefined}
-                    emptyHint="Transkript konnte nicht geladen werden."
-                    stripFrontmatter={true}
-                  />
-                ) : (
-                  <ArtifactMarkdownPanel
-                    title="Transkript"
-                    titleClassName="text-xs text-muted-foreground font-normal"
-                    item={transcript.transcriptItem}
-                    provider={provider}
-                    libraryId={activeLibraryId || undefined}
-                    emptyHint="Noch kein Transkript vorhanden."
-                    additionalActions={
-                      !transcript.transcriptItem ? (
-                        <Button
-                          size="sm"
-                          variant="default"
-                          onClick={() => openPipelineForPhase("transcript")}
-                          disabled={isRunningPipeline || hasActiveJob}
-                        >
-                          <Sparkles className="h-4 w-4 mr-2" />
-                          Jetzt erstellen
-                        </Button>
+              {isReviewMode ? (
+                <ReviewTranscriptSplit
+                  original={<WebsiteReviewOriginalIframe urlContent={urlContent} label={item.metadata.name} />}
+                  transcript={
+                    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded border p-3">
+                      {shadowTwinState?.transcriptFiles && shadowTwinState.transcriptFiles.length > 0 ? (
+                        <ArtifactMarkdownPanel
+                          title="Transkript (Website-Inhalt)"
+                          titleClassName="text-xs text-muted-foreground font-normal"
+                          headerExtra={transcriptHeaderExtra}
+                          item={displayTranscriptItem ?? shadowTwinState.transcriptFiles[0]}
+                          provider={provider}
+                          libraryId={activeLibraryId || undefined}
+                          emptyHint="Transkript konnte nicht geladen werden."
+                          stripFrontmatter={true}
+                          additionalActions={
+                            <TranscriptToolbarActions
+                              isReviewMode={isReviewMode}
+                              onToggleReviewMode={handleReviewModeToggle}
+                              hasTranscriptItem
+                              transcriptToolsEligible={false}
+                              isPdf={false}
+                              isSplittingPages={isSplittingPages}
+                              setIsSplittingPages={setIsSplittingPages}
+                              isRunningPipeline={isRunningPipeline}
+                              hasActiveJob={hasActiveJob}
+                              openPipelineForPhase={openPipelineForPhase}
+                              activeLibraryId={activeLibraryId}
+                              transcriptItem={displayTranscriptItem ?? shadowTwinState.transcriptFiles[0] ?? null}
+                              sourceItem={item}
+                              provider={provider}
+                              onRefreshFolder={onRefreshFolder}
+                            />
+                          }
+                        />
                       ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openPipelineForPhase("transcript", true)}
-                          disabled={isRunningPipeline || hasActiveJob}
-                        >
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                          Neu generieren
-                        </Button>
-                      )
-                    }
-                  />
-                )}
-              </div>
+                        <ArtifactMarkdownPanel
+                          title="Transkript"
+                          titleClassName="text-xs text-muted-foreground font-normal"
+                          item={transcript.transcriptItem}
+                          provider={provider}
+                          libraryId={activeLibraryId || undefined}
+                          emptyHint="Noch kein Transkript vorhanden."
+                          additionalActions={
+                            <TranscriptToolbarActions
+                              isReviewMode={isReviewMode}
+                              onToggleReviewMode={handleReviewModeToggle}
+                              hasTranscriptItem={!!transcript.transcriptItem}
+                              transcriptToolsEligible={
+                                !!(transcript.transcriptItem &&
+                                  ["pdf", "audio", "video", "markdown", "docx", "xlsx", "pptx"].includes(fileType))
+                              }
+                              isPdf={false}
+                              isSplittingPages={isSplittingPages}
+                              setIsSplittingPages={setIsSplittingPages}
+                              isRunningPipeline={isRunningPipeline}
+                              hasActiveJob={hasActiveJob}
+                              openPipelineForPhase={openPipelineForPhase}
+                              activeLibraryId={activeLibraryId}
+                              transcriptItem={transcript.transcriptItem}
+                              sourceItem={item}
+                              provider={provider}
+                              onRefreshFolder={onRefreshFolder}
+                            />
+                          }
+                        />
+                      )}
+                    </div>
+                  }
+                />
+              ) : (
+                <div className="h-full overflow-hidden rounded border p-3">
+                  {shadowTwinState?.transcriptFiles && shadowTwinState.transcriptFiles.length > 0 ? (
+                    <ArtifactMarkdownPanel
+                      title="Transkript (Website-Inhalt)"
+                      titleClassName="text-xs text-muted-foreground font-normal"
+                      headerExtra={transcriptHeaderExtra}
+                      item={displayTranscriptItem ?? shadowTwinState.transcriptFiles[0]}
+                      provider={provider}
+                      libraryId={activeLibraryId || undefined}
+                      emptyHint="Transkript konnte nicht geladen werden."
+                      stripFrontmatter={true}
+                      additionalActions={
+                        <TranscriptToolbarActions
+                          isReviewMode={isReviewMode}
+                          onToggleReviewMode={handleReviewModeToggle}
+                          hasTranscriptItem
+                          transcriptToolsEligible={false}
+                          isPdf={false}
+                          isSplittingPages={isSplittingPages}
+                          setIsSplittingPages={setIsSplittingPages}
+                          isRunningPipeline={isRunningPipeline}
+                          hasActiveJob={hasActiveJob}
+                          openPipelineForPhase={openPipelineForPhase}
+                          activeLibraryId={activeLibraryId}
+                          transcriptItem={displayTranscriptItem ?? shadowTwinState.transcriptFiles[0] ?? null}
+                          sourceItem={item}
+                          provider={provider}
+                          onRefreshFolder={onRefreshFolder}
+                        />
+                      }
+                    />
+                  ) : (
+                    <ArtifactMarkdownPanel
+                      title="Transkript"
+                      titleClassName="text-xs text-muted-foreground font-normal"
+                      item={transcript.transcriptItem}
+                      provider={provider}
+                      libraryId={activeLibraryId || undefined}
+                      emptyHint="Noch kein Transkript vorhanden."
+                      additionalActions={
+                        <TranscriptToolbarActions
+                          isReviewMode={isReviewMode}
+                          onToggleReviewMode={handleReviewModeToggle}
+                          hasTranscriptItem={!!transcript.transcriptItem}
+                          transcriptToolsEligible={
+                            !!(transcript.transcriptItem &&
+                              ["pdf", "audio", "video", "markdown", "docx", "xlsx", "pptx"].includes(fileType))
+                          }
+                          isPdf={false}
+                          isSplittingPages={isSplittingPages}
+                          setIsSplittingPages={setIsSplittingPages}
+                          isRunningPipeline={isRunningPipeline}
+                          hasActiveJob={hasActiveJob}
+                          openPipelineForPhase={openPipelineForPhase}
+                          activeLibraryId={activeLibraryId}
+                          transcriptItem={transcript.transcriptItem}
+                          sourceItem={item}
+                          provider={provider}
+                          onRefreshFolder={onRefreshFolder}
+                        />
+                      }
+                    />
+                  )}
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="transform" className="min-h-0 flex-1 overflow-auto p-3">
@@ -2949,7 +3189,8 @@ export function FilePreview({
   className,
   provider,
   file,
-  onRefreshFolder
+  onRefreshFolder,
+  onClearCacheBeforeReview,
 }: FilePreviewProps) {
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const selectedFileFromAtom = useAtomValue(selectedFileAtom);
@@ -3217,6 +3458,7 @@ export function FilePreview({
           onRefreshFolder={onRefreshFolder}
           storySteps={storyStatus.steps}
           effectiveMdIdRef={effectiveMdIdRef}
+          onClearCacheBeforeReview={onClearCacheBeforeReview}
         />
       </div>
     </div>

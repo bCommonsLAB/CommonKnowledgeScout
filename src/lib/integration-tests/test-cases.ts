@@ -9,19 +9,19 @@
  * @module integration-tests
  */
 
+import type { PhaseDirective, PhasePolicies } from '@/lib/processing/phase-policy'
+
 export interface PhaseFlags {
   extract: boolean;
   template: boolean;
   ingest: boolean;
 }
 
-export type PhasePoliciesValue = 'force' | 'skip' | 'auto' | 'ignore' | 'do';
+/** @deprecated Nutze {@link PhaseDirective} — behalten für bestehende Importe (Orchestrator) */
+export type PhasePoliciesValue = PhaseDirective
 
-export interface PhasePolicies {
-  extract?: PhasePoliciesValue;
-  metadata?: PhasePoliciesValue;
-  ingest?: PhasePoliciesValue;
-}
+/** Teil-Policies pro Testfall; entspricht partiellen Job-`policies` */
+export type IntegrationTestPhasePolicies = Partial<PhasePolicies>
 
 export type ShadowTwinInitialState =
   | 'clean' // kein Shadow-Twin-Verzeichnis, keine Markdown-Files
@@ -133,7 +133,7 @@ export interface IntegrationTestCase {
   /** Aktivierte Phasen in diesem Testfall */
   phases: PhaseFlags;
   /** Phase-Policies, die über Job-Parameter gesetzt werden sollen */
-  policies?: PhasePolicies;
+  policies?: IntegrationTestPhasePolicies;
   /** Mistral-spezifische Optionen (nur relevant für Phase-1-Tests) */
   mistralOptions?: MistralExtractOptions;
   /** Gewünschter initialer Shadow-Twin-Zustand vor Teststart */

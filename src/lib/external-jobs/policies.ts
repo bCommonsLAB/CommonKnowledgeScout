@@ -16,13 +16,15 @@
  * 
  * @dependencies
  * - @/lib/processing/phase-policy: Policy extraction utilities
- * - @/types/external-jobs: PhasePolicies and RequestContext types
+ * - @/types/external-jobs: RequestContext
+ * - @/lib/processing/phase-policy: PhasePoliciesOrchestratorSlice, getPolicies
  */
 
-import type { PhasePolicies, RequestContext } from '@/types/external-jobs'
+import type { RequestContext } from '@/types/external-jobs'
+import type { PhasePoliciesOrchestratorSlice } from '@/lib/processing/phase-policy'
 import { getPolicies } from '@/lib/processing/phase-policy'
 
-export function readPhasesAndPolicies(ctxOrParams: RequestContext | Record<string, unknown> | undefined): PhasePolicies {
+export function readPhasesAndPolicies(ctxOrParams: RequestContext | Record<string, unknown> | undefined): PhasePoliciesOrchestratorSlice {
   const parameters = (ctxOrParams && 'job' in ctxOrParams && (ctxOrParams as RequestContext).job?.parameters)
     ? (ctxOrParams as RequestContext).job.parameters || {}
     : (ctxOrParams && typeof ctxOrParams === 'object' && !('job' in ctxOrParams))

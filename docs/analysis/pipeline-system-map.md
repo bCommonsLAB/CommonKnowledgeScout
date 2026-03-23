@@ -15,6 +15,16 @@ Wichtig: Das ist eine **Code-Analyse**. Ich habe hier nichts durch echte Laufzei
 
 ---
 
+## Policy: Standardweg und Scope
+
+**Festgelegter Standardweg** für das **Bibliotheks-Archiv** (Liste/Vorschau):  
+`FilePreview` → `run-pipeline.ts` → `POST /api/pipeline/process` → External Jobs (siehe Abschnitt „Der wichtigste Ablauf“).
+
+**Kurz-Dokument mit Scope** (was dazu gehört, was absichtlich andere Einstiege hat):  
+[`docs/analysis/pipeline-standard-path-policy.md`](./pipeline-standard-path-policy.md)
+
+---
+
 ## Kurz gesagt
 
 Im Moment gibt es **nicht nur einen Weg** durch das System.
@@ -22,8 +32,8 @@ Im Moment gibt es **nicht nur einen Weg** durch das System.
 Es gibt mindestens diese Wege:
 
 1. Der neuere Hauptweg über `FilePreview` und `POST /api/pipeline/process`
-2. Ältere Dialoge über `BatchTransformService` und `TransformService`
-3. Den `creation-wizard.tsx`, der manches noch einmal auf eigene Weise macht
+2. Ältere **TransformService**-Pfadteile in Einzelkomponenten (z. B. Vorschau-Helfer) – ohne Batch-Dialoge in der Dateiliste
+3. Den `creation-wizard.tsx`, der manches noch einmal auf eigene Weise macht (u. a. `ingest-markdown`)
 
 Das ist der Hauptgrund, warum der Code schwer zu verstehen ist.
 
@@ -53,8 +63,6 @@ flowchart LR
   ExternalJobs --> ShadowTwin[shadow-twin-service.ts]
   ExternalJobs --> IngestPhase[phase-ingest.ts]
   IngestPhase --> IngestionService[ingestion-service.ts]
-  LegacyDialogs[legacy_dialogs] --> BatchService[batch-transform-service.ts]
-  BatchService --> TransformService[transform-service.ts]
 ```
 
 Einfach gesagt:
@@ -89,6 +97,12 @@ Die Vorschau selbst liegt vor allem hier:
 
 Wenn du also verstehen willst, was der Nutzer in der Archivsicht wirklich sieht, ist `file-preview.tsx` eine der wichtigsten Dateien.
 
+### Review-Modus („Vergleichen“)
+
+- **Layout** (`library.tsx`): Im Review-Modus gibt es **zwei horizontale Bereiche**: **Dateiliste** | **eine** `FilePreview`-Instanz für die ausgewählte Quelldatei (keine zweite Vorschau für ein separates Shadow-Twin-File mehr).
+- **Dateiliste**: `compact` folgt der **gleichen** UI-Präferenz wie im Normal-Layout (`isListCompact` / Kompakt-Toggle im Header), damit Kopfzeile und Tabellenspalten nicht „zerschossen“ wirken.
+- **Vergleich Inhalt**: In `file-preview.tsx` wird bei aktivem `reviewModeAtom` der Tab **Transkript** fokussiert; **unter** der gemeinsamen Tab-Leiste (Original / Transkript / …) zeigt der Transkript-Tab einen **Split**: links **Original** (Quelle), rechts **Transkript-Artefakt** — weiterhin **eine** Menüzeile, keine doppelte FilePreview.
+
 ---
 
 ## 2) Wo wird ein Transkript erzeugt?
@@ -111,17 +125,11 @@ Die wichtigsten Dateien dafür:
 - `src/lib/external-jobs/extract-only.ts`
 - `src/lib/external-jobs/sources/*`
 
-### Älterer Weg
+### Älterer Weg (Transkription)
 
-Es gibt daneben noch einen älteren Weg:
+Der frühere Batch-Dialog **`transcription-dialog.tsx`** wurde entfernt. Audio-/Video-Transkription läuft über den **Pipeline-Hauptweg** (siehe Abschnitt „Neuer Hauptweg“ oben).
 
-- `src/components/library/transcription-dialog.tsx`
-- `src/lib/transform/batch-transform-service.ts`
-- `src/lib/transform/transform-service.ts`
-
-Dieser Weg macht fachlich etwas Ähnliches, aber nicht über denselben Einstieg.
-
-Genau das erzeugt Verwirrung.
+`TransformService` wird weiterhin von anderen UI-Pfaden genutzt (z. B. PDF/Bild-Transformation in der Vorschau). Der frühere **`BatchTransformService`** und **`TransformationDialog`** wurden entfernt.
 
 ---
 
@@ -145,17 +153,11 @@ Dazu kommen Hilfsdateien:
 Das ist im Kern die Logik:  
 „Nimm Transkript oder Rohtext und baue daraus strukturiertes Markdown mit Frontmatter.“
 
-### Weg B: Über alte Dialoge
+### Weg B: ~~Über alten Batch-Dialog~~ (entfernt)
 
-Zusätzlich gibt es:
+Der frühere **`transformation-dialog.tsx`** und **`batch-transform-service.ts`** sind entfernt.
 
-- `src/components/library/transformation-dialog.tsx`
-- `src/lib/transform/batch-transform-service.ts`
-- `src/lib/transform/transform-service.ts`
-
-Auch dieser Weg erzeugt Transformationen.
-
-Das heißt: **dieselbe Fachidee ist an mehreren Stellen umgesetzt**.
+Zusätzlich zur Pipeline gibt es weiter **einzelne UI-Pfade** mit `TransformService` (nicht als zentraler Batch-Dialog). Die kanonische Template-Phase für Jobs bleibt **`phase-template.ts`**.
 
 ---
 
@@ -206,8 +208,8 @@ Wichtige Datei:
 
 Diese Route wird unter anderem von hier benutzt:
 
-- `src/components/library/ingestion-dialog.tsx`
 - `src/components/creation-wizard/creation-wizard.tsx`
+- weiteren Stellen in der Vorschau / Job-UI (z. B. Veröffentlichen), nicht mehr über einen **IngestionDialog** in der Dateiliste
 
 ---
 
@@ -229,126 +231,25 @@ Das erklärt, warum Status-Anzeigen manchmal nicht aus einer einzigen Quelle kom
 
 ---
 
-## 7) Wo werden die alten Dialoge im UX wirklich geöffnet?
+## 7) Legacy-Dialoge in der Dateiliste (Stand)
 
-Das war eine der wichtigsten Nachfragen.  
-Darum hier die klare Antwort mit Beleg aus dem Code.
+Die drei früheren Library-Dialoge sind **entfernt**:
 
-### Grundaufbau
+- ~~`TranscriptionDialog`~~
+- ~~`TransformationDialog`~~
+- ~~`IngestionDialog`~~
 
-Die Dialog-Komponenten werden in `src/components/library/library.tsx` **immer mitgerendert**:
+**Transkription, Template-Transformation und Publishing** in der Archivsicht laufen über **Vorschau / Pipeline** (`run-pipeline.ts`) bzw. über andere UI-Teile (Wizard, Vorschau-Aktionen).
 
-- `TranscriptionDialog`
-- `TransformationDialog`
-- `IngestionDialog`
+### Dateiliste: was bleibt?
 
-Aber:  
-Sie öffnen sich **nicht von selbst**.  
-Sie werden über Jotai-Atoms geöffnet.
+In `file-list.tsx` gibt es weiter Checkbox-Auswahl und Toolbar-Aktionen **ohne** Dialoge:
 
-Die relevanten Atoms liegen in:
+- **Sammel-Transkript** → `POST /api/library/[libraryId]/composite-transcript`
+- **Bulk-Löschen**
+- `selectedBatchItemsAtom` / `selectedTransformationItemsAtom` nur noch für diese Zwecke
 
-- `src/atoms/transcription-options.ts`
-
-### Wichtige Erkenntnis
-
-Repo-weit habe ich nur diese echten Öffnungsstellen gefunden:
-
-- `setTranscriptionDialogOpen(true)`
-- `setTransformationDialogOpen(true)`
-- `setIngestionDialogOpen(true)`
-
-Und **alle drei** kommen in derselben Datei vor:
-
-- `src/components/library/file-list.tsx`
-
-Das heißt:
-
-- Die alten Dialoge werden aktuell **aus der Dateiliste heraus** geöffnet
-- nicht aus `file-preview.tsx`
-- nicht aus `flow-actions.tsx`
-- nicht aus dem Wizard
-
-### Wie sieht das im UI aus?
-
-In `file-list.tsx` gibt es oberhalb der Liste eine kleine Aktionsleiste.
-
-Dort erscheinen Buttons **nur dann**, wenn Dateien per Checkbox ausgewählt wurden.
-
-### Alter Dialog 1: `TranscriptionDialog`
-
-Wird geöffnet über:
-
-- Button mit Titel/Aria-Label **`Transkribieren`**
-
-Dieser Button erscheint, wenn `selectedBatchItems.length > 0`.
-
-Welche Dateien landen dort?
-
-- Audio-Dateien
-- Video-Dateien
-
-Denn beim Anhaken einer Datei gilt:
-
-- Audio/Video gehen in `selectedBatchItems`
-- Text/Dokumente gehen **nicht** dorthin
-
-### Alter Dialog 2: `TransformationDialog`
-
-Wird geöffnet über:
-
-- Button mit Titel/Aria-Label **`Transformieren`**
-
-Dieser Button erscheint, wenn `selectedTransformationItems.length > 0`.
-
-Welche Dateien landen dort?
-
-- Markdown
-- Dokumente
-- teilweise auch Ordner über dieselbe Auswahl-Logik
-
-Wichtig:
-
-- Der Dialog selbst verarbeitet intern effektiv vor allem Markdown und PDFs
-- andere Dinge werden eher übersprungen
-
-Das ist ein Hinweis darauf, dass Auswahl-UI und eigentliche Dialog-Logik nicht ganz sauber zusammenpassen.
-
-### Alter Dialog 3: `IngestionDialog`
-
-Wird geöffnet über:
-
-- Button **`Ingest`**
-
-Dieser Button erscheint ebenfalls bei `selectedTransformationItems.length > 0`.
-
-Der Code prüft vor dem Öffnen zusätzlich:
-
-- ob mindestens eine Markdown-Datei
-- oder ein Ordner
-
-ausgewählt ist.
-
-Dieser Dialog ist also deutlich an den Batch-/Listen-Workflow gekoppelt.
-
-### Sammel-Transkript ist kein Dialog
-
-Zusätzlich gibt es in derselben Leiste noch:
-
-- Button **`Sammel-Transkript erstellen`**
-
-Das ist **kein** alter Dialog, sondern ein direkter API-Aufruf aus `file-list.tsx`:
-
-- `POST /api/library/[libraryId]/composite-transcript`
-
-### Kurzfazit zu den Legacy-Dialogen
-
-Die alten Dialoge sind aktuell **nicht überall im Produkt verstreut**.  
-Sie hängen sehr konkret an **einer Stelle**:
-
-- `FileList`-Toolbar nach Checkbox-Auswahl
-
-Das ist für das Aufräumen wichtig, weil man dadurch einen klaren Migrationspunkt hat.
+**Ingest** aus der Listen-Toolbar und `ingestion-dialog.tsx` gibt es nicht mehr; `ingest-markdown` bleibt als API für Wizard und andere Aufrufer.
 
 ---
 
@@ -376,15 +277,18 @@ Die wichtigste strategische Entscheidung ist deshalb:
 - Welcher Weg ist der **Standardweg**?
 - Welche Wege sind nur noch **Legacy**?
 
-Meine Empfehlung bleibt:
+**Als Policy festgehalten** (inkl. Scope): [`pipeline-standard-path-policy.md`](./pipeline-standard-path-policy.md)
 
-- `FilePreview` + `POST /api/pipeline/process` als Hauptweg
-- ältere Dialoge und Sonderwege danach schrittweise angleichen
+Praktisch:
+
+- `FilePreview` + `POST /api/pipeline/process` als Hauptweg im Bibliotheks-Archiv
+- ältere Sonderwege (Wizard, `TransformService` in Einzelteilen) schrittweise angleichen oder in der Policy als Ausnahme führen
 
 ---
 
 ## Verwandte Dateien
 
+- `docs/analysis/pipeline-standard-path-policy.md`
 - `docs/analysis/pipeline-redundancy-audit.md`
 - `docs/analysis/rules-gap-analysis.md`
 - `docs/media-lifecycle-architektur.md`

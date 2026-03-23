@@ -284,10 +284,16 @@ export async function prepareShadowTwinForTestCase(args: PrepareShadowTwinArgs):
       provider,
     })
 
+    // Dot-Folder (kanonischer Write-Pfad) — sonst landet persistToFilesystem neben der PDF,
+    // während Jobs/resolveArtifact die „echte“ Datei im Twin-Ordner lesen (ohne Test-Dummy-Kapitel).
+    const twinFolder = await findShadowTwinFolder(source.parentId, source.name, provider)
+    const shadowTwinFolderId = twinFolder?.id
+
     await service.upsertMarkdown({
       kind: 'transcript',
       targetLanguage: lang,
       markdown: buildDummyTranscriptMarkdown(),
+      ...(shadowTwinFolderId ? { shadowTwinFolderId } : {}),
     })
 
     await service.upsertMarkdown({
@@ -295,6 +301,7 @@ export async function prepareShadowTwinForTestCase(args: PrepareShadowTwinArgs):
       targetLanguage: lang,
       templateName,
       markdown: buildDummyTransformationMarkdown({ complete: true }),
+      ...(shadowTwinFolderId ? { shadowTwinFolderId } : {}),
     })
 
     return undefined
@@ -313,10 +320,14 @@ export async function prepareShadowTwinForTestCase(args: PrepareShadowTwinArgs):
       provider,
     })
 
+    const twinFolder = await findShadowTwinFolder(source.parentId, source.name, provider)
+    const shadowTwinFolderId = twinFolder?.id
+
     await service.upsertMarkdown({
       kind: 'transcript',
       targetLanguage: lang,
       markdown: buildDummyTranscriptMarkdown(),
+      ...(shadowTwinFolderId ? { shadowTwinFolderId } : {}),
     })
 
     await service.upsertMarkdown({
@@ -324,6 +335,7 @@ export async function prepareShadowTwinForTestCase(args: PrepareShadowTwinArgs):
       targetLanguage: lang,
       templateName,
       markdown: buildDummyTransformationMarkdown({ complete: false }),
+      ...(shadowTwinFolderId ? { shadowTwinFolderId } : {}),
     })
 
     return undefined

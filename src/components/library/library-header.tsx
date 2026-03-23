@@ -1,13 +1,13 @@
 import * as React from "react"
 import { UILogger } from "@/lib/debug/logger"
 import { Button } from "@/components/ui/button"
-import { Upload, AlertTriangle, ArrowLeft, Eye, FileStack, Sidebar, LayoutList, Plus } from "lucide-react"
+import { Upload, AlertTriangle, ArrowLeft, FileStack, Sidebar, LayoutList, Plus } from "lucide-react"
 import { UploadDialog } from "./upload-dialog"
 import { StorageProvider } from "@/lib/storage/types"
 import { useCallback } from "react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAtom, useAtomValue } from "jotai"
-import { currentFolderIdAtom, reviewModeAtom, libraryAtom } from "@/atoms/library-atom"
+import { currentFolderIdAtom, libraryAtom } from "@/atoms/library-atom"
 import { Breadcrumb } from "./breadcrumb"
 import { AudioRecorderClient } from "./audio-recorder-client"
 import PdfBulkImportDialog from "./pdf-bulk-import-dialog"
@@ -19,7 +19,6 @@ interface LibraryHeaderProps {
   onUploadComplete?: () => void
   error?: string | null
   children?: React.ReactNode
-  onClearCache?: () => void // Cache-Invalidierung
   isTreeVisible?: boolean
   onToggleTree?: () => void
   isCompactList?: boolean
@@ -31,7 +30,6 @@ export function LibraryHeader({
   onUploadComplete,
   error,
   children,
-  onClearCache,
   isTreeVisible,
   onToggleTree,
   isCompactList,
@@ -40,7 +38,6 @@ export function LibraryHeader({
   const [isUploadOpen, setIsUploadOpen] = React.useState(false)
   const [isPdfBulkOpen, setIsPdfBulkOpen] = React.useState(false)
   const [currentFolderId] = useAtom(currentFolderIdAtom);
-  const [isReviewMode, setIsReviewMode] = useAtom(reviewModeAtom);
   const libraryState = useAtomValue(libraryAtom);
   const navigateToFolder = useFolderNavigation();
   const router = useRouter();
@@ -81,20 +78,6 @@ export function LibraryHeader({
     UILogger.info('LibraryHeader', 'PDF bulk button clicked');
     setIsPdfBulkOpen(true);
   }, []);
-
-  const handleReviewModeToggle = useCallback(() => {
-    UILogger.info('LibraryHeader', 'Review mode toggled', { newMode: !isReviewMode });
-    
-    // Wenn Review-Modus aktiviert wird, Cache leeren
-    if (!isReviewMode && onClearCache) {
-      UILogger.info('LibraryHeader', 'Clearing cache before entering review mode');
-      onClearCache();
-    }
-    
-    setIsReviewMode(!isReviewMode);
-  }, [isReviewMode, setIsReviewMode, onClearCache]);
-
-
 
   return (
     <div className="border-b bg-background flex-shrink-0">
@@ -162,20 +145,6 @@ export function LibraryHeader({
           <Button
             variant="ghost"
             size="icon"
-            onClick={handleReviewModeToggle}
-            title={isReviewMode ? 'Zur Liste' : 'Vergleichen'}
-            aria-label={isReviewMode ? 'Zur Liste' : 'Vergleichen'}
-          >
-            {isReviewMode ? (
-              <ArrowLeft className="h-4 w-4" />
-            ) : (
-              <Eye className="h-4 w-4" />
-            )}
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="icon"
             onClick={() => {
               const params = new URLSearchParams()
               if (currentFolderId && currentFolderId !== 'root') {
@@ -204,8 +173,8 @@ export function LibraryHeader({
             variant="secondary"
             size="icon"
             onClick={handlePdfBulkClick}
-            title="PDF-Verzeichnis verarbeiten"
-            aria-label="PDF-Verzeichnis verarbeiten"
+            title="Verzeichnis verarbeiten"
+            aria-label="Verzeichnis verarbeiten"
           >
             <FileStack className="h-4 w-4" />
           </Button>

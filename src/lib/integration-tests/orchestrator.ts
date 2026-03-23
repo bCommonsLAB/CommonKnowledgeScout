@@ -15,7 +15,8 @@
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { getPublicAppUrl } from '@/lib/env'
 import { FileLogger } from '@/lib/debug/logger'
-import { integrationTestCases, type IntegrationTestCase, type PhasePoliciesValue } from './test-cases'
+import { integrationTestCases, type IntegrationTestCase } from './test-cases'
+import type { PhaseDirective } from '@/lib/processing/phase-policy'
 import { listIntegrationTestFiles, prepareShadowTwinForTestCase, type IntegrationTestFile, type IntegrationTestFileKind } from './pdf-upload'
 import { validateExternalJobForTestCase, type JobValidationResult } from './validators'
 import { getServerProvider } from '@/lib/storage/server-provider'
@@ -75,7 +76,7 @@ export interface IntegrationTestRunResult {
   };
 }
 
-function mapPhaseValueToDirective(value: PhasePoliciesValue | undefined): 'ignore' | 'do' | 'force' {
+function mapPhaseValueToDirective(value: PhaseDirective | undefined): 'ignore' | 'do' | 'force' {
   if (!value) return 'do'
   if (value === 'force') return 'force'
   if (value === 'ignore') return 'ignore'
@@ -444,13 +445,22 @@ async function waitForJobCompletion(args: {
   const repo = new ExternalJobsRepository()
   const started = Date.now()
   const pollIntervalMs = 2_000
+  /** Kurzzeitig null (Replika-Lag, Race nach Create) — nicht sofort abbrechen */
+  let consecutiveMisses = 0
+  const maxConsecutiveMissesBeforeFail = 8
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
     const job = await repo.get(jobId)
     if (!job) {
-      throw new Error(`Job ${jobId} während Polling nicht mehr gefunden`)
+      consecutiveMisses++
+      if (consecutiveMisses >= maxConsecutiveMissesBeforeFail) {
+        throw new Error(`Job ${jobId} während Polling nicht mehr gefunden`)
+      }
+      await new Promise(resolve => setTimeout(resolve, 500))
+      continue
     }
+    consecutiveMisses = 0
     if (job.status === 'completed' || job.status === 'failed') {
       return job
     }

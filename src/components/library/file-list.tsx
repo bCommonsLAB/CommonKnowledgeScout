@@ -27,7 +27,6 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input"
 import {
   selectedBatchItemsAtom,
-  transcriptionDialogOpenAtom,
   selectedTransformationItemsAtom,
   getMediaType,
   fileCategoryFilterAtom,
@@ -355,7 +354,6 @@ interface FileRowProps {
   isSelected: boolean;
   isActive?: boolean;
   onSelect: () => void;
-  onCreateTranscript: (e: React.MouseEvent) => void;
   onDelete: (e: React.MouseEvent<HTMLButtonElement>, item: StorageItem) => void;
   fileGroup?: FileGroup;
   onRename?: (item: StorageItem, newName: string) => Promise<void>;
@@ -369,7 +367,6 @@ const FileRow = React.memo(function FileRow({
   isSelected, 
   isActive = false,
   onSelect,
-  onCreateTranscript,
   onDelete,
   fileGroup,
   onRename,
@@ -390,18 +387,6 @@ const FileRow = React.memo(function FileRow({
     hasTranscript: !!item.metadata?.hasTranscript || (fileGroup?.transcriptFiles && fileGroup.transcriptFiles.length > 0),
     modifiedAt: item.metadata?.modifiedAt
   }), [item.metadata, fileGroup]);
-
-  const isTranscribable = React.useMemo(() => {
-    const mimeType = metadata.mimeType.toLowerCase();
-    const extension = metadata.name.split('.').pop()?.toLowerCase();
-
-    return (
-      mimeType.startsWith('audio/') ||
-      mimeType.startsWith('video/') ||
-      extension === 'pdf' ||
-      mimeType === 'application/pdf'
-    );
-  }, [metadata.mimeType, metadata.name]);
 
   // Memoize the click handler
   const handleClick = React.useCallback(() => {
@@ -794,32 +779,7 @@ const FileRow = React.memo(function FileRow({
             </Tooltip>
           </TooltipProvider>
         ) : null}
-        {/* Plus-Symbol nur anzeigen, wenn kein Shadow-Twin vorhanden und transkribierbar */}
-        {(!fileGroup?.transcriptFiles || fileGroup.transcriptFiles.length === 0) && !fileGroup?.transformed && isTranscribable && !metadata.hasTranscript ? (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div 
-                  role="button"
-                  tabIndex={0}
-                  className="h-6 w-6 p-0 inline-flex items-center justify-center hover:bg-muted rounded-sm"
-                  onClick={onCreateTranscript}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.stopPropagation();
-                      onCreateTranscript(e as unknown as React.MouseEvent<HTMLDivElement>);
-                    }
-                  }}
-                >
-                  <Plus className="h-4 w-4" />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Transkript erstellen</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ) : null}
+        {/* Transkript-Start nur noch über Vorschau/Pipeline (kein Plus in der Zeile; früherer Handler war nur TODO-Stubs). */}
         {/* Delete direkt neben Dokument-Icons */}
         <TooltipProvider>
           <Tooltip>
@@ -870,7 +830,6 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   // Mobile-Flag wurde entfernt, FileList lädt unabhängig vom View
   const [selectedBatchItems, setSelectedBatchItems] = useAtom(selectedBatchItemsAtom);
   const [selectedTransformationItems, setSelectedTransformationItems] = useAtom(selectedTransformationItemsAtom);
-  const [, setTranscriptionDialogOpen] = useAtom(transcriptionDialogOpenAtom);
   const [isInitialized, setIsInitialized] = React.useState(false);
   const initializationTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   // Entkoppelt: Kein Warten mehr auf FileTree-Status
@@ -1422,12 +1381,6 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     return () => window.removeEventListener('library_refresh', onRefresh as unknown as EventListener);
   }, [items, handleRefresh, currentFolderId, setShadowTwinAnalysisTrigger]);
 
-  const handleCreateTranscript = React.useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    FileLogger.info('FileList', 'Create transcript for', { fileName: 'TODO' });
-    // TODO: Implement transcript creation
-  }, []);
-
   // Entfernt: handleItemSelect war unbenutzt
 
   // Check if an item is selected (beide Atome prüfen)
@@ -1601,12 +1554,6 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
       throw error;
     }
   }, [provider, handleRefresh, fileGroupsWithShadowTwinFolders, findFileGroup]);
-
-  const handleBatchTranscription = () => {
-    if (selectedBatchItems.length > 0) {
-      setTranscriptionDialogOpen(true);
-    }
-  };
 
   // Sammel-Transkript aus allen ausgewählten Dateien erstellen
   const [isCreatingComposite, setIsCreatingComposite] = React.useState(false);
@@ -1832,12 +1779,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
             {/* Dateikategorie-Filter (Icon-only Variante) */}
             <FileCategoryFilter iconOnly />
 
-            {/* Batch-Actions als Icons */}
-            {selectedBatchItems.length > 0 && (
-              <Button size="icon" title="Transkribieren" aria-label="Transkribieren" onClick={handleBatchTranscription}>
-                <FileText className="h-4 w-4" />
-              </Button>
-            )}
+            {/* Batch-Actions: Sammel-Transkript / Löschen (Ingest nur noch über Vorschau/Pipeline/Wizard) */}
             {/* Sammel-Transkript: sichtbar wenn ≥2 Dateien insgesamt ausgewählt */}
             {(selectedBatchItems.length + selectedTransformationItems.length) >= 2 && (
               <Button
@@ -1994,7 +1936,6 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                     isSelected={isItemSelected(item)}
                     isActive={isActive}
                     onSelect={() => handleSelect(item, group)}
-                    onCreateTranscript={handleCreateTranscript}
                     onDelete={(e) => handleDeleteClick(e, item)}
                     fileGroup={group}
                     onRename={handleRename}

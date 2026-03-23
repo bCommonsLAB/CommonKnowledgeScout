@@ -11,7 +11,8 @@
  * 
  * @exports
  * - PhaseDirective: Type for phase directives
- * - PhasePolicies: Interface for phase policies
+ * - PhasePolicies: Vollständige Job-Policies (extract, metadata, ingest)
+ * - PhasePoliciesOrchestratorSlice: Nur metadata+ingest (Template/Ingest-Orchestrierung)
  * - shouldRunWithGate: Determines if phase should run based on gate and directive
  * - shouldRunExtract: Determines if extraction should run
  * - legacyToPolicies: Converts legacy flags to policies
@@ -28,8 +29,10 @@
 
 import type { ExternalJob } from '@/types/external-job';
 
-// Zentrale, typisierte Steuerung je Phase
-export type PhaseDirective = 'ignore' | 'do' | 'force';
+// Zentrale, typisierte Steuerung je Phase.
+// 'skip'/'auto' kommen aus Orchestrator-/Client-Payloads (Template-Entscheid, Ingest);
+// Gates kombinieren sie wie 'do' bzw. 'ignore' (siehe shouldRunWithGate).
+export type PhaseDirective = 'ignore' | 'do' | 'force' | 'skip' | 'auto';
 
 export interface PhasePolicies {
   extract: PhaseDirective;
@@ -37,10 +40,17 @@ export interface PhasePolicies {
   ingest: PhaseDirective;
 }
 
+/**
+ * Teilvektor für Module, die nur Template- und Ingest-Steuerung brauchen (Callbacks, readPhasesAndPolicies).
+ * Vollständige Steuerung inkl. Extract bleibt {@link PhasePolicies}.
+ */
+export type PhasePoliciesOrchestratorSlice = Pick<PhasePolicies, 'metadata' | 'ingest'>;
+
 export function shouldRunWithGate(gateExists: boolean, directive: PhaseDirective): boolean {
-  if (directive === 'ignore') return false;
+  if (directive === 'ignore' || directive === 'skip') return false;
   if (directive === 'force') return true;
-  return !gateExists; // 'do' respektiert Gate
+  // 'do' und 'auto': Gate respektieren (wie bisher bei 'do')
+  return !gateExists;
 }
 
 export function shouldRunExtract(shadowTwinExists: boolean, directive: PhaseDirective): boolean {
