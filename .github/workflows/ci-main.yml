@@ -17,13 +17,16 @@ jobs:
     environment: prod
     name: CI Prod
     outputs:
-      version: ${{ steps.read_version.outputs.VERSION }}
+      version: ${{ steps.bump.outputs.new_version }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
         with:
-          # Use the built-in workflow token to avoid PAT rotation for same-repo CI pushes.
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # CI_PAT pusht spaeter Commit + Tag auf den geschuetzten master.
+          token: ${{ secrets.CI_PAT }}
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
 
       - uses: pnpm/action-setup@v4
         with:
@@ -36,17 +39,32 @@ jobs:
           # Cache wird nicht benötigt, da der Build komplett im Docker-Container läuft
           # Dependencies werden im Container installiert, nicht auf dem Runner
 
-      - name: read version file
+      - name: read version sources
         id: read_version
         run: |
-          VERSION=$(cat VERSION)
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          FILE_VERSION=$(tr -d '[:space:]' < VERSION)
+          LATEST_TAG=$(git tag --list 'v*' --sort=-version:refname | head -n 1 || true)
+          TAG_VERSION="${LATEST_TAG#v}"
+
+          if [ -n "$TAG_VERSION" ]; then
+            BASE_VERSION=$(printf '%s\n%s\n' "$FILE_VERSION" "$TAG_VERSION" | sort -V | tail -n 1)
+          else
+            BASE_VERSION="$FILE_VERSION"
+          fi
+
+          echo "FILE_VERSION=$FILE_VERSION" >> $GITHUB_OUTPUT
+          echo "TAG_VERSION=$TAG_VERSION" >> $GITHUB_OUTPUT
+          echo "BASE_VERSION=$BASE_VERSION" >> $GITHUB_OUTPUT
+
+          echo "Version aus Datei: $FILE_VERSION"
+          echo "Neuester Tag: ${TAG_VERSION:-<kein Tag>}"
+          echo "Basis für Bump: $BASE_VERSION"
 
       - name: bump version
         id: bump
         uses: cbrgm/semver-bump-action@main
         with:
-          current-version: ${{steps.read_version.outputs.VERSION}}
+          current-version: ${{ steps.read_version.outputs.BASE_VERSION }}
           bump-level: patch
 
       - name: write version file
@@ -76,11 +94,11 @@ jobs:
             MONGODB_DATABASE_NAME=${{ secrets.MONGODB_DATABASE_NAME }}
             MONGODB_COLLECTION_NAME=${{ secrets.MONGODB_COLLECTION_NAME }}
             
-      - name: Push version and tag
+      - name: Push version commit and tag
         run: |
           git config user.name github-actions[bot]
           git config user.email github-actions[bot]@users.noreply.github.com
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git remote set-url origin https://x-access-token:${{ secrets.CI_PAT }}@github.com/${{ github.repository }}.git
           git add VERSION
           git commit -m "Bump version to ${{ steps.bump.outputs.new_version }} [skip ci]"
           git tag -a -m "${{ steps.bump.outputs.new_version }}" v${{ steps.bump.outputs.new_version }}
