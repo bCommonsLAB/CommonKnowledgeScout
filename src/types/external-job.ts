@@ -86,6 +86,11 @@ export interface ExternalJob {
   operation: 'extract' | 'transcribe' | 'transform' | 'summarize' | string;
   worker: 'secretary' | string;
   status: ExternalJobStatus;
+  /**
+   * App-/Worker-Pool (siehe `JOBS_WORKER_POOL_ID`). Nur Prozesse mit derselben ID claimen den Job.
+   * Fehlt das Feld im Dokument, gilt Pool `default` (Legacy).
+   */
+  workerPoolId?: string;
   libraryId: string;
   userEmail: string;
   correlation: ExternalJobCorrelation;

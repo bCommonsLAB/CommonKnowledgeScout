@@ -1,8 +1,9 @@
 /**
  * Typdefinitionen für die Story-Themenübersicht.
- * 
+ *
  * Diese Typen definieren die Struktur der Themenübersicht im Story-Modus,
- * einschließlich Themen, Fragen und deren Metadaten.
+ * einschließlich Themen und Fragen. Pro Frage werden nur id + text genutzt
+ * (Klick übernimmt `text` in den Chat); Retriever/Intent kommen aus der Chat-Konfiguration.
  */
 
 /**
@@ -36,50 +37,11 @@ export interface StoryTopic {
 }
 
 /**
- * Eine einzelne Frage innerhalb eines Themas.
+ * Eine einzelne Frage innerhalb eines Themas (nur Darstellung + Klick → Eingabefeld).
  */
 export interface StoryQuestion {
   /** Eindeutige ID der Frage */
   id: string;
   /** Frage im Klartext */
   text: string;
-  /** Optional: Intent der Frage für bessere Retriever-Auswahl */
-  intent?: 'what' | 'why' | 'how' | 'compare' | 'recommend';
-  /** Optional: Bevorzugte Retriever-Methode für diese Frage */
-  retriever?: 'summary' | 'chunk' | 'auto';
-  /** Optional: Facetten-Filter, die für diese Frage angewendet werden sollen */
-  facets?: Record<string, string[]>;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

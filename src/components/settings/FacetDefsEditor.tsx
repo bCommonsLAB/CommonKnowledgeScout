@@ -17,8 +17,8 @@ import { getRequiredFields, getOptionalFields, isValidDetailViewType } from '@/l
 
 /** Felder die als Facette keinen Sinn ergeben (URLs, Langtexte, komplexe Objekte, System-/Sprachfelder) */
 const NON_FACET_FIELDS = new Set([
-  // Langtexte / Freitexte
-  'title', 'shortTitle', 'slug', 'summary', 'teaser',
+  // Langtexte / Freitexte / hohe Kardinalität (Herkunft nur für Tooltip, Facetten → pathHints/folderTrail)
+  'title', 'shortTitle', 'slug', 'summary', 'teaser', 'sourcePath', 'sourceFileName',
   // Bild-/Medien-URLs
   'coverImageUrl', 'video_url', 'url', 'attachments_url', 'attachment_links',
   'speakers_image_url', 'speakers_url', 'author_image_url', 'authors_image_url',

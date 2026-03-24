@@ -68,6 +68,7 @@ export function ProcessingStatus({ steps, isActive }: ProcessingStatusProps) {
     if (params.character) paramParts.push(`${t('configDisplay.character')} ${params.character}`)
     if (params.accessPerspective) paramParts.push(`${t('configDisplay.accessPerspective')} ${params.accessPerspective}`)
     if (params.socialContext) paramParts.push(`${t('configDisplay.context')} ${params.socialContext}`)
+    if (params.llmModel) paramParts.push(`${t('configDisplay.llmModel')} ${params.llmModel}`)
     if (params.filters && Object.keys(params.filters).length > 0) {
       const filterCount = Object.values(params.filters).reduce((sum: number, val: unknown) => {
         if (Array.isArray(val)) return sum + val.length

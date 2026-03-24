@@ -28,6 +28,7 @@ import { Collection } from 'mongodb';
 import type { UpdateOptions } from 'mongodb';
 import crypto from 'crypto';
 import { getCollection } from '@/lib/mongodb-service';
+import { currentWorkerPoolMongoMatch, getJobsWorkerPoolId } from '@/lib/env';
 import { ExternalJob, ExternalJobStatus, ExternalJobStep, ExternalJobIngestionInfo } from '@/types/external-job';
 
 export class ExternalJobsRepository {
@@ -55,6 +56,8 @@ export class ExternalJobsRepository {
         col.createIndex({ status: 1, updatedAt: 1 }, { name: 'status_updatedAt' }),
         // userEmail + updatedAt für Sortierung
         col.createIndex({ userEmail: 1, updatedAt: -1 }, { name: 'user_updatedAt_desc' }),
+        // Worker-Claim / Zähler pro Pool
+        col.createIndex({ status: 1, workerPoolId: 1, updatedAt: 1 }, { name: 'status_pool_updatedAt' }),
       ]);
     } catch {
       // Fehler ignorieren (Indizes könnten bereits existieren)
@@ -69,7 +72,9 @@ export class ExternalJobsRepository {
   async create(job: Omit<ExternalJob, 'createdAt' | 'updatedAt'>): Promise<void> {
     const col = await this.getCollection();
     const now = new Date();
-    await col.insertOne({ ...job, createdAt: now, updatedAt: now });
+    // Immer Server-Pool setzen (kein Überschreiben aus Client-Payload): verhindert Cross-App-Claims.
+    const workerPoolId = getJobsWorkerPoolId();
+    await col.insertOne({ ...job, workerPoolId, createdAt: now, updatedAt: now });
   }
 
   async setStatus(jobId: string, status: ExternalJobStatus, extra: Partial<ExternalJob> = {}): Promise<boolean> {
@@ -315,14 +320,15 @@ export class ExternalJobsRepository {
     const col = await this.getCollection();
     const page = Math.max(1, options.page ?? 1);
     const limit = Math.max(1, Math.min(100, options.limit ?? 20));
+    const q = { userEmail, ...currentWorkerPoolMongoMatch() };
     const cursor = col
-      .find({ userEmail })
+      .find(q)
       .sort({ updatedAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);
     const [items, total] = await Promise.all([
       cursor.toArray(),
-      col.countDocuments({ userEmail })
+      col.countDocuments(q)
     ]);
     return { items, total, page, limit };
   }
@@ -352,13 +358,22 @@ export class ExternalJobsRepository {
       const statuses = Array.isArray(options.status) ? options.status : [options.status];
       filter['status'] = { $in: statuses };
     }
+    const pool = currentWorkerPoolMongoMatch();
     if (options.q) {
       const rx = new RegExp(options.q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-      filter['$or'] = [
-        { 'correlation.source.name': rx },
-        { 'correlation.source.itemId': rx },
-        { jobId: rx },
+      // $and: Pool-Match und Textsuche dürfen nicht zwei Top-Level-$or verdrängen
+      filter['$and'] = [
+        pool,
+        {
+          $or: [
+            { 'correlation.source.name': rx },
+            { 'correlation.source.itemId': rx },
+            { jobId: rx },
+          ],
+        },
       ];
+    } else {
+      Object.assign(filter, pool);
     }
 
     const cursor = col
@@ -375,36 +390,43 @@ export class ExternalJobsRepository {
 
   async findLatestBySourceItem(userEmail: string, libraryId: string, sourceItemId: string): Promise<ExternalJob | null> {
     const col = await this.getCollection();
-    return col.find({ userEmail, libraryId, 'correlation.source.itemId': sourceItemId }).sort({ updatedAt: -1 }).limit(1).next();
+    return col.find({ userEmail, libraryId, 'correlation.source.itemId': sourceItemId, ...currentWorkerPoolMongoMatch() }).sort({ updatedAt: -1 }).limit(1).next();
   }
 
   async findLatestByResultItem(userEmail: string, resultItemId: string): Promise<ExternalJob | null> {
     const col = await this.getCollection();
-    return col.find({ userEmail, 'result.savedItemId': resultItemId }).sort({ updatedAt: -1 }).limit(1).next();
+    return col.find({ userEmail, 'result.savedItemId': resultItemId, ...currentWorkerPoolMongoMatch() }).sort({ updatedAt: -1 }).limit(1).next();
   }
 
   async findLatestByFileIdAuto(userEmail: string, libraryId: string, fileId: string): Promise<ExternalJob | null> {
     const col = await this.getCollection();
+    // Pool-Match kann selbst $or sein — nicht mit der Datei-$or auf Root-Ebene mischen
     return col.find({
       userEmail,
       libraryId,
-      $or: [
-        { 'correlation.source.itemId': fileId },
-        { 'result.savedItemId': fileId }
-      ]
+      $and: [
+        currentWorkerPoolMongoMatch(),
+        {
+          $or: [
+            { 'correlation.source.itemId': fileId },
+            { 'result.savedItemId': fileId },
+          ],
+        },
+      ],
     }).sort({ updatedAt: -1 }).limit(1).next();
   }
 
   async findLatestBySourceName(userEmail: string, libraryId: string, sourceName: string): Promise<ExternalJob | null> {
     const col = await this.getCollection();
-    return col.find({ userEmail, libraryId, 'correlation.source.name': sourceName }).sort({ updatedAt: -1 }).limit(1).next();
+    return col.find({ userEmail, libraryId, 'correlation.source.name': sourceName, ...currentWorkerPoolMongoMatch() }).sort({ updatedAt: -1 }).limit(1).next();
   }
 
   async listDistinctBatchNames(userEmail: string, libraryId?: string): Promise<string[]> {
     const col = await this.getCollection();
     const match: Record<string, unknown> = {
       userEmail,
-      'correlation.batchName': { $type: 'string', $ne: '' }
+      'correlation.batchName': { $type: 'string', $ne: '' },
+      ...currentWorkerPoolMongoMatch(),
     };
     if (libraryId) match['libraryId'] = libraryId;
     const rows = await col.aggregate<{ _id: string }>([
@@ -421,7 +443,7 @@ export class ExternalJobsRepository {
   ): Promise<{ queued: number; running: number; completed: number; failed: number; pendingStorage: number; total: number }>
   {
     const col = await this.getCollection();
-    const match: Record<string, unknown> = { userEmail };
+    const match: Record<string, unknown> = { userEmail, ...currentWorkerPoolMongoMatch() };
     if (filters.libraryId) match['libraryId'] = filters.libraryId;
     if (filters.batchId) match['correlation.batchId'] = filters.batchId;
     if (filters.batchName) match['correlation.batchName'] = filters.batchName;
@@ -444,15 +466,16 @@ export class ExternalJobsRepository {
   async claimNextQueuedJob(): Promise<ExternalJob | null> {
     const col = await this.getCollection();
     const now = new Date();
+    const pool = currentWorkerPoolMongoMatch();
     // Ruhiger: keine lauten Info-Logs hier
-    // Phase 1: Kandidaten lesen (stabilste Reihenfolge via updatedAt)
-    const candidate = await col.find({ status: 'queued' }).sort({ updatedAt: 1 }).limit(1).next();
+    // Phase 1: Kandidaten lesen (stabilste Reihenfolge via updatedAt) — nur eigener Worker-Pool
+    const candidate = await col.find({ status: 'queued', ...pool }).sort({ updatedAt: 1 }).limit(1).next();
     if (!candidate) {
       return null;
     }
-    // Phase 2: Guarded Update auf genau diesen Job
+    // Phase 2: Guarded Update — Filter muss Pool enthalten, sonst könnte ein anderer Pool den Job übernehmen
     const upd = await col.updateOne(
-      { jobId: candidate.jobId, status: 'queued' },
+      { jobId: candidate.jobId, status: 'queued', ...pool },
       { $set: { status: 'running', updatedAt: now } }
     );
     if (upd.modifiedCount === 1) {
@@ -464,12 +487,12 @@ export class ExternalJobsRepository {
 
   async listQueued(limit: number = 50): Promise<ExternalJob[]> {
     const col = await this.getCollection();
-    return col.find({ status: 'queued' }).sort({ updatedAt: 1 }).limit(Math.max(1, Math.min(500, limit)) ).toArray();
+    return col.find({ status: 'queued', ...currentWorkerPoolMongoMatch() }).sort({ updatedAt: 1 }).limit(Math.max(1, Math.min(500, limit)) ).toArray();
   }
 
   async countRunning(): Promise<number> {
     const col = await this.getCollection();
-    return col.countDocuments({ status: 'running' });
+    return col.countDocuments({ status: 'running', ...currentWorkerPoolMongoMatch() });
   }
 
   // ---- Trace-Unterstützung ----

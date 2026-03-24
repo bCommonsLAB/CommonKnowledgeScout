@@ -36,6 +36,8 @@ import { buildCacheHashParams } from '@/lib/chat/utils/cache-hash-builder'
 import { createCacheHash } from '@/lib/chat/utils/cache-key-utils'
 import { appendRetrievalStep } from '@/lib/logging/query-logger'
 import { runChatOrchestrated } from '@/lib/chat/orchestrator'
+import { LlmProviderError } from '@/lib/chat/common/llm'
+import type { QueryLog } from '@/types/query-log'
 import { buildFilters } from '@/lib/chat/common/filters'
 import { parseFacetDefs } from '@/lib/chat/dynamic-facets'
 import { decideRetrieverMode } from '@/lib/chat/common/retriever-decider'
@@ -64,6 +66,8 @@ const chatRequestSchema = z.object({
   })).optional(),
   chatId: z.string().optional(),
   asTOC: z.boolean().optional(), // Optional: Antwort als Themenübersicht formatieren
+  /** true = Mongo-Query-Cache ignorieren (z. B. „TOC neu berechnen“) */
+  skipQueryCache: z.boolean().optional(),
 })
 
 /**
@@ -166,7 +170,7 @@ export async function POST(
           return
         }
 
-        const { message, answerLength, chatHistory, chatId: bodyChatId, asTOC } = body.data
+        const { message, answerLength, chatHistory, chatId: bodyChatId, asTOC, skipQueryCache } = body.data
 
         // Query-Parameter parsen
         const parsedUrl = new URL(request.url)
@@ -409,6 +413,7 @@ export async function POST(
               accessPerspective: accessPerspectiveArrayToString(effectiveChatConfig.accessPerspective),
               socialContext: effectiveChatConfig.socialContext,
               filters: facetsSelectedForCache,
+              ...(llmModelForCache ? { llmModel: llmModelForCache } : {}),
             },
             cacheHash: cacheHashForLog,
             documentCount,
@@ -416,22 +421,26 @@ export async function POST(
           
           // Hash-basierte Cache-Suche (findQueryByQuestionAndContext berechnet intern den Hash)
           // WICHTIG: Verwende den gleichen Retriever-Wert wie beim Hash-Berechnen oben
-          const cachedQuery = await findQueryByQuestionAndContext({
-            libraryId,
-            userEmail: userEmail || undefined,
-            sessionId: sessionId || undefined,
-            question: message.trim(),
-            queryType: isTOCQuery ? 'toc' : 'question',
-            answerLength,
-            targetLanguage: effectiveChatConfig.targetLanguage,
-            character: effectiveChatConfig.character,
-            accessPerspective: effectiveChatConfig.accessPerspective,
-            socialContext: effectiveChatConfig.socialContext,
-            genderInclusive: effectiveChatConfig.genderInclusive,
-            retriever: retrieverForCache,
-            facetsSelected: Object.keys(facetsSelectedForCache).length > 0 ? facetsSelectedForCache : undefined,
-            llmModel: llmModelForCache,
-          })
+          // skipQueryCache: Client verlangt echte Neuberechnung (TOC reload), nicht den Mongo-Treffer
+          const cachedQuery =
+            skipQueryCache === true
+              ? null
+              : await findQueryByQuestionAndContext({
+                  libraryId,
+                  userEmail: userEmail || undefined,
+                  sessionId: sessionId || undefined,
+                  question: message.trim(),
+                  queryType: isTOCQuery ? 'toc' : 'question',
+                  answerLength,
+                  targetLanguage: effectiveChatConfig.targetLanguage,
+                  character: effectiveChatConfig.character,
+                  accessPerspective: effectiveChatConfig.accessPerspective,
+                  socialContext: effectiveChatConfig.socialContext,
+                  genderInclusive: effectiveChatConfig.genderInclusive,
+                  retriever: retrieverForCache,
+                  facetsSelected: Object.keys(facetsSelectedForCache).length > 0 ? facetsSelectedForCache : undefined,
+                  llmModel: llmModelForCache,
+                })
 
           // Wenn Cache gefunden wurde und Antwort vorhanden ist
           if (cachedQuery && ((cachedQuery.answer && cachedQuery.answer.trim().length > 0) || cachedQuery.storyTopicsData)) {
@@ -461,6 +470,7 @@ export async function POST(
                   accessPerspective: accessPerspectiveArrayToString(effectiveChatConfig.accessPerspective),
                   socialContext: effectiveChatConfig.socialContext,
                   filters: facetsSelected,
+                  ...(llmModelForCache ? { llmModel: llmModelForCache } : {}),
                 },
                 cacheHash: cacheHashForLog,
                 documentCount,
@@ -756,19 +766,28 @@ export async function POST(
         console.error('[api/chat/stream] Error:', error)
         const errorStep: ChatProcessingStep = { type: 'error', error: error instanceof Error ? error.message : String(error) }
         
-        // Wenn ein queryId vorhanden ist, speichere auch die Error-Logs
-        // queryId ist nur innerhalb des try-Blocks verfügbar, daher müssen wir es außerhalb prüfen
+        // Query-Log finalisieren: bisher wurden nur processingLogs geschrieben — ohne status/error
+        // blieb der Eintrag dauerhaft "pending" (z. B. bei SchemaValidationError nach dem LLM).
         try {
-          if (typeof queryId !== 'undefined') {
+          if (queryId !== undefined) {
             const allSteps = [...collectedSteps, errorStep]
+            const errorMessage =
+              error instanceof Error ? error.message.slice(0, 4000) : String(error).slice(0, 4000)
+            const errorRecord: NonNullable<QueryLog['error']> = {
+              message: errorMessage,
+              stage:
+                error instanceof LlmProviderError && error.code
+                  ? String(error.code)
+                  : 'stream',
+            }
             await updateQueryLogPartial(queryId, {
+              status: 'error',
+              error: errorRecord,
               processingLogs: allSteps,
-            }).catch(() => {
-              // Ignoriere Fehler beim Speichern der Logs
             })
           }
-        } catch {
-          // Ignoriere Fehler beim Speichern der Error-Logs
+        } catch (persistErr) {
+          console.error('[api/chat/stream] Query-Log Fehler-Persistierung fehlgeschlagen:', persistErr)
         }
         
         // Prüfe, ob der Stream noch aktiv ist, bevor der Error-Step gesendet wird

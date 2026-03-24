@@ -183,29 +183,53 @@ export function PerspectivePageContent({
   const [modelsLoading, setModelsLoading] = useState(true)
   const [modelAutoSwitched, setModelAutoSwitched] = useState(false)
 
-  // Synchronisiere lokale Werte mit globalen Werten nur beim initialen Laden
-  // WICHTIG: Nicht bei jeder Änderung synchronisieren, da sonst lokale Änderungen überschrieben werden
+  // Synchronisiere lokale Werte mit globalen Werten nur beim initialen Laden (einmal pro Seitenbesuch).
+  // WICHTIG: Kein `localLlmModel` in den Dependencies — sonst wird isInitialized zu früh true und ein
+  // später nachziehendes `llmModel` aus useStoryContext (API-Validierung) überschreibt den Select nie.
+  // Wenn das Atom zunächst leer ist, warten wir bis die Modellliste da ist und setzen ein Fallback.
   const [isInitialized, setIsInitialized] = useState(false)
   useEffect(() => {
-    if (!isInitialized) {
-      console.log('[PerspectivePage] Initiale Synchronisation lokaler Werte:', {
-        targetLanguage,
-        llmModel,
-        character,
-        accessPerspective,
-        socialContext,
-        currentLocalLlmModel: localLlmModel,
-      })
-      setLocalLanguage(targetLanguage)
-      setLocalInterests(character)
-      setLocalAccessPerspective(accessPerspective)
-      setLocalLanguageStyle(socialContext)
-      if (llmModel) {
-        setLocalLlmModel(llmModel)
-      }
-      setIsInitialized(true)
+    if (isInitialized) return
+
+    const atomModel = typeof llmModel === 'string' ? llmModel.trim() : ''
+
+    const candidates = (
+      targetLanguage === 'global'
+        ? [...availableModels]
+        : availableModels.filter((m) => m.supportedLanguages.includes(targetLanguage))
+    ).sort((a, b) => a.order - b.order)
+    const fallbackModelId = candidates[0]?.modelId ?? ''
+
+    // Noch kein Modell im Atom und Liste noch nicht geladen → warten (verhindert „leeres“ Init)
+    if (!atomModel && modelsLoading) {
+      return
     }
-  }, [targetLanguage, character, accessPerspective, socialContext, llmModel, isInitialized, localLlmModel])
+
+    console.log('[PerspectivePage] Initiale Synchronisation lokaler Werte:', {
+      targetLanguage,
+      llmModel: atomModel || '(leer)',
+      fallbackModelId: fallbackModelId || '(keiner)',
+      character,
+      accessPerspective,
+      socialContext,
+    })
+
+    setLocalLanguage(targetLanguage)
+    setLocalInterests(character)
+    setLocalAccessPerspective(accessPerspective)
+    setLocalLanguageStyle(socialContext)
+    setLocalLlmModel(atomModel || fallbackModelId)
+    setIsInitialized(true)
+  }, [
+    targetLanguage,
+    character,
+    accessPerspective,
+    socialContext,
+    llmModel,
+    isInitialized,
+    modelsLoading,
+    availableModels,
+  ])
   
   // Lade LLM-Modelle beim Mount
   useEffect(() => {
@@ -219,8 +243,12 @@ export function PerspectivePageContent({
           console.error('[PerspectivePage] Fehler beim Laden der Modelle:', res.status)
           return
         }
+        // WICHTIG: `modelId` ist die OpenRouter-/API-Kennung (z. B. google/gemini-2.5-flash).
+        // `_id` kann bei MongoDB ein ObjectId-String sein — der darf NICHT als Chat-/Cache-Key verwendet werden,
+        // sonst schlägt die Validierung in useStoryContext fehl und es wird still das Default-Modell gesetzt.
         const models = await res.json() as Array<{
           _id: string
+          modelId: string
           name: string
           strengths: string
           supportedLanguages: TargetLanguage[]
@@ -229,12 +257,12 @@ export function PerspectivePageContent({
         }>
         console.log('[PerspectivePage] Modelle geladen:', {
           count: models.length,
-          models: models.map(m => ({ id: m._id, name: m.name })),
+          models: models.map(m => ({ modelId: m.modelId, mongoId: m._id, name: m.name })),
         })
         const mappedModels = models
-          .filter(m => !!m._id)
-          .map(m => ({
-            modelId: m._id,
+          .filter((m) => typeof m.modelId === 'string' && m.modelId.trim().length > 0)
+          .map((m) => ({
+            modelId: m.modelId.trim(),
             name: m.name,
             strengths: m.strengths,
             supportedLanguages: m.supportedLanguages,

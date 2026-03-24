@@ -51,6 +51,13 @@ export interface DocCardMeta {
   tags?: string[]
   /** Themen/Topics für Facettenfilter und Detail-Anzeige */
   topics?: string[]
+
+  /**
+   * Beim Ingest gesetzte Herkunft (nur informativ, z. B. Tooltip) — keine Facetten.
+   * Facetten weiter über pathHints / folderTrail im Template.
+   */
+  sourcePath?: string
+  sourceFileName?: string
 }
 
 export interface ChapterInfo {
@@ -116,6 +123,8 @@ export function mapItemToDocCardMeta(item: Item): DocCardMeta {
     organisation: item.meta.organisation as string | undefined,
     tags: Array.isArray(item.meta.tags) ? item.meta.tags as string[] : undefined,
     topics: Array.isArray(item.meta.topics) ? item.meta.topics as string[] : undefined,
+    sourcePath: typeof item.meta.sourcePath === 'string' ? item.meta.sourcePath : undefined,
+    sourceFileName: typeof item.meta.sourceFileName === 'string' ? item.meta.sourceFileName : undefined,
   };
 }
 

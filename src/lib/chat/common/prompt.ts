@@ -729,15 +729,11 @@ Respond EXCLUSIVELY as a JSON object with exactly this structure:
       "questions": [
         {
           "id": "q-1-1",
-          "text": "Formulate a concrete question about this topic",
-          "intent": "what",
-          "retriever": "auto"
+          "text": "Formulate a concrete question about this topic"
         },
         {
           "id": "q-1-2",
-          "text": "Another question about this topic",
-          "intent": "why",
-          "retriever": "summary"
+          "text": "Another question about this topic"
         }
       ]
     },
@@ -748,9 +744,7 @@ Respond EXCLUSIVELY as a JSON object with exactly this structure:
       "questions": [
         {
           "id": "q-2-1",
-          "text": "Question about the second topic",
-          "intent": "how",
-          "retriever": "auto"
+          "text": "Question about the second topic"
         }
       ]
     }
@@ -762,8 +756,7 @@ Requirements:
 - Each topic should contain 4-7 relevant questions (questions)
 - Questions should be concrete and answerable 
 - Use unique IDs: "topic-1", "topic-2", etc. for topics and "q-1-1", "q-1-2", etc. for questions
-- The "intent" can be: "what", "why", "how", "compare" or "recommend" (optional)
-- The "retriever" can be: "summary", "chunk" or "auto" (optional, default: "auto")
+- Each question object MUST contain only "id" and "text" (no intent, retriever, or other fields)
 - The "summary" per topic is optional but recommended for better UX
 - The "tagline" should be concise, e.g., "Seven central topic areas" or "Overview of the most important topics"
 - The "intro" should explain how the topic overview can be used
@@ -941,15 +934,11 @@ Respond EXCLUSIVELY as a JSON object with exactly this structure:
       "questions": [
         {
           "id": "q-1-1",
-          "text": "Formulate a concrete question about this topic",
-          "intent": "what",
-          "retriever": "auto"
+          "text": "Formulate a concrete question about this topic"
         },
         {
           "id": "q-1-2",
-          "text": "Another question about this topic",
-          "intent": "why",
-          "retriever": "summary"
+          "text": "Another question about this topic"
         }
       ]
     },
@@ -960,9 +949,7 @@ Respond EXCLUSIVELY as a JSON object with exactly this structure:
       "questions": [
         {
           "id": "q-2-1",
-          "text": "Question about the second topic",
-          "intent": "how",
-          "retriever": "auto"
+          "text": "Question about the second topic"
         }
       ]
     }
@@ -974,8 +961,7 @@ Requirements:
 - Each topic should contain 4-7 relevant questions (questions)
 - Questions should be concrete and answerable 
 - Use unique IDs: "topic-1", "topic-2", etc. for topics and "q-1-1", "q-1-2", etc. for questions
-- The "intent" can be: "what", "why", "how", "compare" or "recommend" (optional)
-- The "retriever" can be: "summary", "chunk" or "auto" (optional, default: "auto")
+- Each question object MUST contain only "id" and "text" (no intent, retriever, or other fields)
 - The "summary" per topic is optional but recommended for better UX
 - The "tagline" should be concise, e.g., "Seven central topic areas" or "Overview of the most important topics"
 - The "intro" should explain how the topic overview can be used

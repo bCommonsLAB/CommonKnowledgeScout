@@ -1,15 +1,10 @@
 import { z } from 'zod'
 import type { StoryTopicsData } from '@/types/story-topics'
 
-/**
- * Zod-Schema für StoryQuestion
- */
+/** TOC-Frage: nur id + text (wie strukturiertes LLM-Output + UI). */
 const storyQuestionSchema = z.object({
   id: z.string(),
   text: z.string(),
-  intent: z.enum(['what', 'why', 'how', 'compare', 'recommend']).optional(),
-  retriever: z.enum(['summary', 'chunk', 'auto']).optional(),
-  facets: z.record(z.string(), z.array(z.string())).optional(),
 })
 
 /**

@@ -251,8 +251,9 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
       totalTokens = result.usage?.totalTokens
       
       // Create a Markdown answer from StoryTopicsData for the normal answer (for backward compatibility)
-      answer = `# ${storyTopicsData.title}\n\n${storyTopicsData.tagline}\n\n${storyTopicsData.intro}\n\n`
-      storyTopicsData.topics.forEach((topic) => {
+      const toc = storyTopicsData
+      answer = `# ${toc.title}\n\n${toc.tagline}\n\n${toc.intro}\n\n`
+      toc.topics.forEach((topic) => {
         answer += `## ${topic.title}\n\n`
         if (topic.summary) {
           answer += `${topic.summary}\n\n`
@@ -263,7 +264,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
         answer += '\n'
       })
       // Generate suggestedQuestions from topics
-      suggestedQuestions = storyTopicsData.topics.flatMap(topic => 
+      suggestedQuestions = toc.topics.flatMap(topic => 
         topic.questions.map(q => q.text)
       ).slice(0, 7) // Limit to 7 questions
     } else {
@@ -395,8 +396,9 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
             totalTokens = retryResult.usage?.totalTokens
             
             // Create Markdown answer
-            answer = `# ${storyTopicsData.title}\n\n${storyTopicsData.tagline}\n\n${storyTopicsData.intro}\n\n`
-            storyTopicsData.topics.forEach((topic) => {
+            const tocRetry = storyTopicsData
+            answer = `# ${tocRetry.title}\n\n${tocRetry.tagline}\n\n${tocRetry.intro}\n\n`
+            tocRetry.topics.forEach((topic) => {
               answer += `## ${topic.title}\n\n`
               if (topic.summary) {
                 answer += `${topic.summary}\n\n`
@@ -406,7 +408,7 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
               })
               answer += '\n'
             })
-            suggestedQuestions = storyTopicsData.topics.flatMap(topic => 
+            suggestedQuestions = tocRetry.topics.flatMap(topic => 
               topic.questions.map(q => q.text)
             ).slice(0, 7)
           } else {

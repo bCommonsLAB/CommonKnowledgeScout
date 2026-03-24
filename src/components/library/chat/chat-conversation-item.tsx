@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { ChatMessage } from './chat-message'
 import type { ChatResponse } from '@/types/chat-response'
 import type { Character } from '@/lib/chat/constants'
-import type { AnswerLength, Retriever, TargetLanguage, SocialContext } from '@/lib/chat/constants'
+import type { AnswerLength, Retriever, TargetLanguage, SocialContext, LlmModelId } from '@/lib/chat/constants'
 import { characterColors, characterIconColors } from '@/lib/chat/constants'
 
 interface ConversationPair {
@@ -21,6 +21,7 @@ interface ConversationPair {
     targetLanguage?: TargetLanguage
     socialContext?: SocialContext
     queryId?: string
+    llmModel?: LlmModelId
   }
   answer?: {
     id: string
@@ -34,6 +35,7 @@ interface ConversationPair {
     targetLanguage?: TargetLanguage
     character?: Character[] // Array (kann leer sein)
     socialContext?: SocialContext
+    llmModel?: LlmModelId
   }
 }
 
@@ -229,6 +231,7 @@ export function ChatConversationItem({
                   targetLanguage={pair.answer.targetLanguage}
                   character={pair.answer.character}
                   socialContext={pair.answer.socialContext}
+                  llmModel={pair.answer.llmModel ?? pair.question.llmModel}
                   filters={filters}
                   innerRef={innerRef}
                   onQuestionClick={onQuestionClick}

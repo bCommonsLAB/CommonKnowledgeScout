@@ -93,8 +93,6 @@ export const storyTopicsZodSchema = z.object({
         z.object({
           id: z.string(),
           text: z.string(),
-          intent: z.enum(['what', 'why', 'how', 'compare', 'recommend']).optional(),
-          retriever: z.enum(['summary', 'chunk', 'auto']).optional(),
         })
       ).min(1),
     })
@@ -102,9 +100,11 @@ export const storyTopicsZodSchema = z.object({
 })
 
 /**
- * JSON Schema Draft-07 für StoryTopicsData (TOC)
+ * JSON Schema Draft-07 für StoryTopicsData (TOC).
+ * Pro Frage nur id + text; zusätzliche Modell-Felder werden per additionalProperties am Question-Objekt toleriert,
+ * Zod entfernt sie beim Parsen (.strip-Verhalten).
  */
-export const storyTopicsSchemaJson = JSON.stringify({
+const storyTopicsSchemaObject = {
   $schema: 'http://json-schema.org/draft-07/schema#',
   type: 'object',
   required: ['id', 'title', 'tagline', 'intro', 'topics'],
@@ -161,18 +161,8 @@ export const storyTopicsSchemaJson = JSON.stringify({
                   type: 'string',
                   description: 'Concrete question about this topic',
                 },
-                intent: {
-                  type: 'string',
-                  enum: ['what', 'why', 'how', 'compare', 'recommend'],
-                  description: 'Question intent (optional)',
-                },
-                retriever: {
-                  type: 'string',
-                  enum: ['summary', 'chunk', 'auto'],
-                  description: 'Recommended retriever mode (optional, default: "auto")',
-                },
               },
-              additionalProperties: false,
+              additionalProperties: true,
             },
           },
         },
@@ -181,7 +171,9 @@ export const storyTopicsSchemaJson = JSON.stringify({
     },
   },
   additionalProperties: false,
-})
+} as const
+
+export const storyTopicsSchemaJson = JSON.stringify(storyTopicsSchemaObject)
 
 /**
  * Zod Schema für Question Analysis

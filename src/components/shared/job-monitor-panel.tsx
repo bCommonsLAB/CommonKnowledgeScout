@@ -113,7 +113,14 @@ export function JobMonitorPanel() {
   const [batchNames, setBatchNames] = useState<string[]>([]);
   const [serverCounts, setServerCounts] = useState<{ queued: number; running: number; completed: number; failed: number; pendingStorage: number; total: number } | null>(null);
   const [liveUpdates, setLiveUpdates] = useState<boolean>(true);
-  const [workerStatus, setWorkerStatus] = useState<{ state: 'running' | 'stopped'; stats?: { processed?: number; errors?: number; lastTickAt?: number }; concurrency?: number; intervalMs?: number } | null>(null);
+  const [workerStatus, setWorkerStatus] = useState<{
+    state: 'running' | 'stopped';
+    stats?: { processed?: number; errors?: number; lastTickAt?: number };
+    concurrency?: number;
+    intervalMs?: number;
+    workerId?: string;
+    jobsWorkerPoolId?: string;
+  } | null>(null);
   const [openTraces, setOpenTraces] = useState<Set<string>>(new Set());
   const toggleTrace = (jobId: string) => {
     setOpenTraces(prev => {
@@ -850,7 +857,21 @@ export function JobMonitorPanel() {
             <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-green-500" />Completed {serverCounts?.completed ?? completedCount}</span>
             <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-red-500" />Failed {serverCounts?.failed ?? failedCount}</span>
             {/* Workersteuerung entfernt: Worker läuft automatisch */}
-            <span className="ml-auto inline-flex items-center gap-2" title={workerStatus ? `Interval ${workerStatus.intervalMs}ms • Concurrency ${workerStatus.concurrency}` : ''}>
+            <span
+              className="ml-auto inline-flex items-center gap-2"
+              title={
+                workerStatus
+                  ? [
+                      `Pool ${workerStatus.jobsWorkerPoolId ?? '?'}`,
+                      workerStatus.workerId ? `Worker ${workerStatus.workerId}` : null,
+                      `Interval ${workerStatus.intervalMs}ms`,
+                      `Concurrency ${workerStatus.concurrency}`,
+                    ]
+                      .filter(Boolean)
+                      .join(' • ')
+                  : ''
+              }
+            >
               <span className={cn("inline-block h-2 w-2 rounded-full", (workerStatus?.state === 'running') ? 'bg-emerald-500' : 'bg-gray-400')} />
               <span>{workerStatus?.state === 'running' ? 'Worker läuft' : 'Worker gestoppt'}</span>
               {typeof workerStatus?.stats?.processed === 'number' && (

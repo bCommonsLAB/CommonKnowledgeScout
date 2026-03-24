@@ -10,7 +10,7 @@ import { BookOpen } from 'lucide-react'
 import type { ChatResponse } from '@/types/chat-response'
 import { QueryDetailsDialog } from './query-details-dialog'
 import { ProcessingLogsDialog } from './processing-logs-dialog'
-import type { Character, TargetLanguage, SocialContext, AnswerLength, Retriever, AccessPerspective } from '@/lib/chat/constants'
+import type { Character, TargetLanguage, SocialContext, AnswerLength, Retriever, AccessPerspective, LlmModelId } from '@/lib/chat/constants'
 import { characterColors, characterIconColors } from '@/lib/chat/constants'
 import { useUser } from '@clerk/nextjs'
 import { AIGeneratedNotice } from '@/components/shared/ai-generated-notice'
@@ -35,6 +35,7 @@ interface ChatMessageProps {
   retriever?: Retriever
   targetLanguage?: TargetLanguage
   socialContext?: SocialContext
+  llmModel?: LlmModelId
   filters?: Record<string, unknown> // Optional: Filterparameter direkt übergeben
 }
 
@@ -72,6 +73,7 @@ export function ChatMessage({
   retriever,
   targetLanguage,
   socialContext,
+  llmModel,
   filters,
 }: ChatMessageProps) {
   const { t } = useTranslation()
@@ -118,6 +120,7 @@ export function ChatMessage({
                 character={character}
                 accessPerspective={accessPerspective}
                 socialContext={socialContext}
+                llmModel={llmModel}
                 libraryId={libraryId}
                 queryId={queryId}
                 filters={filters}
@@ -177,6 +180,7 @@ export function ChatMessage({
                       character={character}
                       accessPerspective={accessPerspective}
                       socialContext={socialContext}
+                      llmModel={llmModel}
                       libraryId={libraryId}
                       queryId={queryId}
                       filters={filters}

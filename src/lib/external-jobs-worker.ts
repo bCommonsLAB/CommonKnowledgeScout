@@ -24,7 +24,7 @@
 
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
 import { FileLogger } from '@/lib/debug/logger';
-import { getPublicAppUrl } from '@/lib/env'
+import { getJobsWorkerPoolId, getPublicAppUrl } from '@/lib/env'
 
 type WorkerState = 'stopped' | 'running';
 
@@ -51,8 +51,15 @@ class ExternalJobsWorkerSingleton {
     return this.instance;
   }
 
-  getStatus(): { state: WorkerState; stats: WorkerStats; intervalMs: number; concurrency: number; workerId: string } {
-    return { state: this.state, stats: { ...this.stats }, intervalMs: this.intervalMs, concurrency: this.concurrency, workerId: this.workerId };
+  getStatus(): { state: WorkerState; stats: WorkerStats; intervalMs: number; concurrency: number; workerId: string; jobsWorkerPoolId: string } {
+    return {
+      state: this.state,
+      stats: { ...this.stats },
+      intervalMs: this.intervalMs,
+      concurrency: this.concurrency,
+      workerId: this.workerId,
+      jobsWorkerPoolId: getJobsWorkerPoolId(),
+    };
   }
 
   start(): void {

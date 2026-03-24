@@ -1106,6 +1106,9 @@ export async function findDocs(
       'docMetaJson.organisation': 1,
       'docMetaJson.topics': 1,
       'docMetaJson.tags': 1,
+      // Nur informativ (Tooltip), keine Facetten-Logik
+      'docMetaJson.sourcePath': 1,
+      'docMetaJson.sourceFileName': 1,
     },
   })
   
@@ -1264,6 +1267,8 @@ export async function findDocsGrouped(
     'docMetaJson.massnahme_nr': 1,
     'docMetaJson.lv_bewertung': 1,
     'docMetaJson.arbeitsgruppe': 1,
+    'docMetaJson.sourcePath': 1,
+    'docMetaJson.sourceFileName': 1,
   }
 
   const groups: Array<{ key: string | number; items: DocCardMeta[] }> = []

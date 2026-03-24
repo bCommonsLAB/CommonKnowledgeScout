@@ -291,8 +291,10 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     retriever?: import('@/lib/chat/constants').Retriever
     targetLanguage?: import('@/lib/chat/constants').TargetLanguage
     character?: import('@/lib/chat/constants').Character[]
+    accessPerspective?: import('@/lib/chat/constants').AccessPerspective[]
     socialContext?: import('@/lib/chat/constants').SocialContext
     facetsSelected?: Record<string, unknown>
+    llmModel?: import('@/lib/chat/constants').LlmModelId
   }) => void) | null>(null)
   
   // Chat Stream
@@ -333,8 +335,10 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
           retriever,
           targetLanguage,
           character,
+          accessPerspective,
           socialContext,
           facetsSelected: galleryFilters || {},
+          llmModel,
         })
       }
     },
@@ -524,8 +528,10 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
             targetLanguage,
             // character ist bereits Array (kann leer sein)
             character: character,
+            accessPerspective,
             socialContext,
             facetsSelected: galleryFilters || {},
+            llmModel,
           })
         }
       }
@@ -1051,6 +1057,14 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                       processingSteps={processingSteps}
                       docCount={filteredDocsCount}
                       docType={typeKey}
+                      answerLength={answerLength}
+                      retriever={retriever}
+                      targetLanguage={targetLanguage}
+                      character={character}
+                      accessPerspective={accessPerspective}
+                      socialContext={socialContext}
+                      filters={galleryFilters || {}}
+                      llmModel={llmModel}
                       onSelectQuestion={(question) => {
                         setInput(question.text)
                         setIsChatInputOpen(true)
@@ -1078,6 +1092,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                 character={character}
                 accessPerspective={accessPerspective}
                 socialContext={socialContext}
+                llmModel={llmModel}
                 onQuestionClick={(question) => {
                   setInput(question)
                   inputRef.current?.focus()
@@ -1162,6 +1177,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
                     accessPerspective={accessPerspective}
                     socialContext={socialContext}
                     filters={galleryFilters || {}}
+                    llmModel={llmModel}
                     onSelectQuestion={(question) => {
                       setInput(question.text)
                       setIsChatInputOpen(true)
@@ -1188,6 +1204,7 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
               character={character}
               accessPerspective={accessPerspective}
               socialContext={socialContext}
+              llmModel={llmModel}
               filters={galleryFilters}
               onQuestionClick={(question) => {
                 setInput(question)

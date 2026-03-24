@@ -538,7 +538,8 @@
     "language": "Sprache:",
     "character": "Interessenprofil:",
     "accessPerspective": "Zugangsperspektive:",
-    "context": "Sprachstil:"
+    "context": "Sprachstil:",
+    "llmModel": "Modell:"
   },
   "configPopover": {
     "advancedSettings": "Erweiterte Einstellungen",

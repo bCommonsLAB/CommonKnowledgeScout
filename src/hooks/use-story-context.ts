@@ -400,13 +400,44 @@ export function useStoryContext(): UseStoryContextReturn {
           return
         }
         
-        // Prüfe, ob der gespeicherte Wert eine gültige modelId ist
+        // Prüfe, ob der gespeicherte Wert eine gültige modelId ist (OpenRouter-Name, z. B. google/gemini-…)
         const isValidModel = models.some((m: { modelId?: string }) => m.modelId === llmModel)
-        
+
         if (!isValidModel) {
+          // Migration: ältere Clients haben fälschlich MongoDB-_id in localStorage gespeichert (siehe perspective-page-content).
+          // Wenn der gespeicherte String einem Dokument-_id entspricht, auf canonical modelId mappen und persistieren.
+          const rowWithMongoId = models.find(
+            (m: { _id?: string; modelId?: string }) =>
+              typeof m._id === 'string' &&
+              m._id === llmModel &&
+              typeof m.modelId === 'string' &&
+              m.modelId.trim().length > 0
+          )
+          if (rowWithMongoId?.modelId) {
+            const canonical = rowWithMongoId.modelId.trim()
+            console.warn(
+              '[useStoryContext] Migriere llmModel von Mongo _id zu modelId:',
+              llmModel,
+              '->',
+              canonical
+            )
+            setLlmModel(canonical)
+            try {
+              localStorage.setItem(`${STORAGE_KEY_PREFIX}llmModel`, JSON.stringify(canonical))
+            } catch (persistErr) {
+              console.error('[useStoryContext] localStorage nach llmModel-Migration:', persistErr)
+            }
+            return
+          }
+
           console.warn('[useStoryContext] Gespeichertes Modell ist keine gültige modelId:', llmModel)
           console.log('[useStoryContext] Wechsle auf Default-Modell:', defaultModelId)
           setLlmModel(defaultModelId)
+          try {
+            localStorage.setItem(`${STORAGE_KEY_PREFIX}llmModel`, JSON.stringify(defaultModelId))
+          } catch (persistErr) {
+            console.error('[useStoryContext] localStorage nach Default llmModel:', persistErr)
+          }
         } else {
           console.log('[useStoryContext] Modell ist gültig:', llmModel)
         }

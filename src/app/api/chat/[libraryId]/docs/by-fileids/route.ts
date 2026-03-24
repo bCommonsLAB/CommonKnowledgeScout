@@ -115,6 +115,8 @@ export async function GET(
               'docMetaJson.slug': 1,
               'docMetaJson.coverImageUrl': 1,
               'docMetaJson.pages': 1,
+              'docMetaJson.sourcePath': 1,
+              'docMetaJson.sourceFileName': 1,
             }
           }
         )

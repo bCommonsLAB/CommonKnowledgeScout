@@ -54,6 +54,8 @@ interface PerspectiveDisplayProps {
    * - Bei 'inline'-Variante: Muss explizit übergeben werden (aus QueryLog), kein Fallback
    */
   socialContext?: SocialContext
+  /** LLM-Modell-ID (z. B. OpenRouter) — Transparenz; inline meist aus QueryLog */
+  llmModel?: string
   /** Padding links (für Header-Variante, um mit Buttons ausgerichtet zu sein) */
   paddingLeft?: string
 }
@@ -77,6 +79,7 @@ export function PerspectiveDisplay({
   character: characterProp,
   accessPerspective: accessPerspectiveProp,
   socialContext: socialContextProp,
+  llmModel: llmModelProp,
   paddingLeft,
 }: PerspectiveDisplayProps) {
   const { t } = useTranslation()
@@ -85,6 +88,7 @@ export function PerspectiveDisplay({
     character: characterContext,
     accessPerspective: accessPerspectiveContext,
     socialContext: socialContextContext,
+    llmModel: llmModelContext,
     targetLanguageLabels,
     characterLabels,
     accessPerspectiveLabels,
@@ -106,6 +110,10 @@ export function PerspectiveDisplay({
   const socialContext = variant === 'header'
     ? (socialContextProp ?? socialContextContext)
     : socialContextProp
+  const llmModelResolved =
+    variant === 'header'
+      ? (llmModelProp ?? (llmModelContext?.trim() ? llmModelContext : undefined))
+      : llmModelProp
 
   // Erstelle Items für beide Varianten
   const items = useMemo(() => {
@@ -131,6 +139,13 @@ export function PerspectiveDisplay({
         result.push({
           label: t('configDisplay.method'),
           value: retrieverLabel,
+        })
+      }
+
+      if (llmModelResolved) {
+        result.push({
+          label: t('configDisplay.llmModel'),
+          value: llmModelResolved,
         })
       }
     }
@@ -171,6 +186,14 @@ export function PerspectiveDisplay({
       })
     }
 
+    // Header: Modell nach Sprachstil (Transparenz)
+    if (variant === 'header' && llmModelResolved) {
+      result.push({
+        label: t('configDisplay.llmModel'),
+        value: llmModelResolved,
+      })
+    }
+
     return result
   }, [
     variant,
@@ -178,6 +201,7 @@ export function PerspectiveDisplay({
     showRetriever,
     answerLength,
     retriever,
+    llmModelResolved,
     targetLanguage,
     character,
     accessPerspective,

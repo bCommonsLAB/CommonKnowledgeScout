@@ -12,6 +12,7 @@ import type {
   Retriever,
   TargetLanguage,
   SocialContext,
+  LlmModelId,
 } from '@/lib/chat/constants'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useSessionHeaders } from '@/hooks/use-session-headers'
@@ -25,6 +26,8 @@ interface ChatConfigDisplayProps {
   character?: Character[] // Array (kann leer sein)
   accessPerspective?: AccessPerspective[] // Array (kann leer sein)
   socialContext?: SocialContext
+  /** Aktuelles LLM (laufende Anfrage); historisch kommt Wert aus QueryLog */
+  llmModel?: LlmModelId
   libraryId?: string
   queryId?: string
   filters?: Record<string, unknown> // Optional: Filterparameter direkt übergeben (z.B. galleryFilters)
@@ -42,6 +45,7 @@ export function ChatConfigDisplay({
   character,
   accessPerspective,
   socialContext,
+  llmModel,
   libraryId,
   queryId,
   filters: filtersProp,
@@ -59,6 +63,7 @@ export function ChatConfigDisplay({
   const [queryCharacter, setQueryCharacter] = useState<Character[] | undefined>(undefined)
   const [queryAccessPerspective, setQueryAccessPerspective] = useState<AccessPerspective[] | undefined>(undefined)
   const [querySocialContext, setQuerySocialContext] = useState<SocialContext | undefined>(undefined)
+  const [queryLlmModel, setQueryLlmModel] = useState<string | undefined>(undefined)
 
   // Verwende Parameter aus Query, falls vorhanden, sonst Props als Fallback
   const effectiveAnswerLength = queryAnswerLength ?? answerLength
@@ -67,13 +72,15 @@ export function ChatConfigDisplay({
   const effectiveCharacter = queryCharacter ?? character
   const effectiveAccessPerspective = queryAccessPerspective ?? accessPerspective
   const effectiveSocialContext = querySocialContext ?? socialContext
+  const effectiveLlmModel = (queryLlmModel ?? llmModel)?.trim() || undefined
 
   // Erstelle Config-Items mit useMemo, damit sie sich aktualisieren, wenn Filter geladen werden
   // Verwende jetzt PerspectiveDisplay für die Perspektiven-Anzeige
   const hasPerspectiveParams = useMemo(() => {
     return !!(effectiveTargetLanguage || (effectiveCharacter && effectiveCharacter.length > 0) || 
-             (effectiveAccessPerspective && effectiveAccessPerspective.length > 0) || effectiveSocialContext)
-  }, [effectiveTargetLanguage, effectiveCharacter, effectiveAccessPerspective, effectiveSocialContext])
+             (effectiveAccessPerspective && effectiveAccessPerspective.length > 0) || effectiveSocialContext ||
+             effectiveLlmModel)
+  }, [effectiveTargetLanguage, effectiveCharacter, effectiveAccessPerspective, effectiveSocialContext, effectiveLlmModel])
 
   // Lade alle Parameter aus QueryLog, falls queryId vorhanden ist
   // WICHTIG: Wenn filtersProp übergeben wird (z.B. während einer neuen Query), verwende diese IMMER,
@@ -91,6 +98,7 @@ export function ChatConfigDisplay({
       if (character) setQueryCharacter(character)
       if (accessPerspective) setQueryAccessPerspective(accessPerspective)
       if (socialContext) setQuerySocialContext(socialContext)
+      if (llmModel) setQueryLlmModel(llmModel)
       // Wenn filtersProp vorhanden ist, müssen wir nicht aus QueryLog laden
       // Aber wenn queryId vorhanden ist, können wir trotzdem andere Parameter aus QueryLog laden
       if (queryId && libraryId) {
@@ -105,7 +113,7 @@ export function ChatConfigDisplay({
       // Weiter mit QueryLog-Ladung unten
     } else {
       // Wenn keine queryId vorhanden ist, verwende Props (z.B. während der Verarbeitung)
-      if (answerLength || retriever || targetLanguage || character || accessPerspective || socialContext) {
+      if (answerLength || retriever || targetLanguage || character || accessPerspective || socialContext || llmModel) {
         // Props vorhanden: Verwende diese direkt, keine Query-Ladung nötig
         setQueryAnswerLength(answerLength)
         setQueryRetriever(retriever)
@@ -113,6 +121,7 @@ export function ChatConfigDisplay({
         setQueryCharacter(character) // Array (kann leer sein)
         setQueryAccessPerspective(accessPerspective) // Array (kann leer sein)
         setQuerySocialContext(socialContext)
+        setQueryLlmModel(llmModel)
         setFilters(null) // Keine filtersProp, setze auf null
         return
       }
@@ -125,6 +134,7 @@ export function ChatConfigDisplay({
       setQueryCharacter(undefined)
       setQueryAccessPerspective(undefined)
       setQuerySocialContext(undefined)
+      setQueryLlmModel(undefined)
       return
     }
 
@@ -165,7 +175,11 @@ export function ChatConfigDisplay({
         setQueryCharacter(queryLog.cacheParams?.character ?? queryLog.character)
         setQueryAccessPerspective(queryLog.cacheParams?.accessPerspective ?? queryLog.accessPerspective)
         setQuerySocialContext(queryLog.cacheParams?.socialContext ?? queryLog.socialContext)
-        
+        const logLlm =
+          queryLog.cacheParams?.llmModel ??
+          (typeof queryLog.prompt?.model === 'string' ? queryLog.prompt.model : undefined)
+        setQueryLlmModel(logLlm)
+
         // Setze Filter: Nur wenn keine filtersProp übergeben wurde, verwende Filter aus QueryLog
         // Wenn filtersProp vorhanden ist, wurde es bereits oben gesetzt
         if (!filtersProp || Object.keys(filtersProp).length === 0) {
@@ -190,6 +204,7 @@ export function ChatConfigDisplay({
         setQueryCharacter(undefined)
         setQueryAccessPerspective(undefined)
         setQuerySocialContext(undefined)
+        setQueryLlmModel(undefined)
         setIsLoadingParams(false)
       }
     }
@@ -199,7 +214,7 @@ export function ChatConfigDisplay({
     return () => {
       cancelled = true
     }
-  }, [libraryId, queryId, filtersProp, sessionHeaders, answerLength, retriever, targetLanguage, character, accessPerspective, socialContext])
+  }, [libraryId, queryId, filtersProp, sessionHeaders, answerLength, retriever, targetLanguage, character, accessPerspective, socialContext, llmModel])
 
   // Lade Facetten-Definitionen für Labels
   useEffect(() => {
@@ -264,7 +279,7 @@ export function ChatConfigDisplay({
   }
   
   // Prüfe ob überhaupt etwas angezeigt werden soll
-  const hasAnswerLengthOrRetriever = !!(effectiveAnswerLength || effectiveRetriever)
+  const hasAnswerLengthOrRetriever = !!(effectiveAnswerLength || effectiveRetriever || effectiveLlmModel)
   const hasFilters = !!(filters && Object.keys(filters).length > 0)
   
   if (!hasPerspectiveParams && !hasAnswerLengthOrRetriever && !hasFilters) {
@@ -284,6 +299,7 @@ export function ChatConfigDisplay({
           character={effectiveCharacter}
           accessPerspective={effectiveAccessPerspective}
           socialContext={effectiveSocialContext}
+          llmModel={effectiveLlmModel}
         />
       )}
       
@@ -309,6 +325,14 @@ export function ChatConfigDisplay({
                     : RETRIEVER_LABELS[effectiveRetriever] || effectiveRetriever
                 }
               </span>
+            )}
+            {effectiveLlmModel && (
+              <>
+                {(effectiveAnswerLength || effectiveRetriever) && <span className="mx-1">·</span>}
+                <span>
+                  {t('configDisplay.llmModel')} {effectiveLlmModel}
+                </span>
+              </>
             )}
           </span>
         </div>

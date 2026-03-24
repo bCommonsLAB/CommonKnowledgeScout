@@ -145,6 +145,9 @@ export function convertMongoDocToDocCardMeta(doc: MongoDocForConversion): DocCar
       || (docMeta?.organisation as string | undefined),
     tags: Array.isArray(doc.tags) ? doc.tags.map(String) : (Array.isArray(docMeta?.tags) ? (docMeta.tags as unknown[]).map(String) : undefined),
     topics: Array.isArray(doc.topics) ? doc.topics.map(String) : (Array.isArray(docMeta?.topics) ? (docMeta.topics as unknown[]).map(String) : undefined),
+    // Ingest-Herkunft (Performance: kein fileId-Dekodieren im Client nötig)
+    sourcePath: typeof docMeta?.sourcePath === 'string' ? docMeta.sourcePath : undefined,
+    sourceFileName: typeof docMeta?.sourceFileName === 'string' ? docMeta.sourceFileName : undefined,
   }
 }
 

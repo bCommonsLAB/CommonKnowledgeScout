@@ -8,7 +8,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { StoryTopicsData } from '@/types/story-topics'
 import type { ChatResponse } from '@/types/chat-response'
-import type { TargetLanguage, Character, SocialContext, AnswerLength, Retriever } from '@/lib/chat/constants'
+import type { TargetLanguage, Character, SocialContext, AnswerLength, Retriever, AccessPerspective, LlmModelId } from '@/lib/chat/constants'
 import { TOC_QUESTION } from '@/lib/chat/constants'
 import type { GalleryFilters } from '@/atoms/gallery-filters'
 
@@ -23,8 +23,10 @@ interface CachedTOC {
   retriever?: Retriever
   targetLanguage?: TargetLanguage
   character?: Character[] // Array (kann leer sein)
+  accessPerspective?: AccessPerspective[]
   socialContext?: SocialContext
   facetsSelected?: Record<string, unknown>
+  llmModel?: LlmModelId
 }
 
 interface UseChatTOCParams {
@@ -37,7 +39,13 @@ interface UseChatTOCParams {
   galleryFilters?: GalleryFilters
   isEmbedded: boolean
   isSending: boolean
-  sendQuestion?: (question: string, retriever?: 'chunk' | 'doc' | 'summary' | 'auto', isTOCQuery?: boolean) => Promise<void>
+  sendQuestion?: (
+    question: string,
+    retriever?: 'chunk' | 'doc' | 'summary' | 'auto',
+    isTOCQuery?: boolean,
+    asTOC?: boolean,
+    skipQueryCache?: boolean
+  ) => Promise<void>
   setProcessingSteps?: React.Dispatch<React.SetStateAction<import('@/types/chat-processing').ChatProcessingStep[]>>
 }
 
@@ -60,8 +68,10 @@ interface UseChatTOCResult {
     retriever?: Retriever
     targetLanguage?: TargetLanguage
     character?: Character[] // Array (kann leer sein)
+    accessPerspective?: AccessPerspective[]
     socialContext?: SocialContext
     facetsSelected?: Record<string, unknown>
+    llmModel?: LlmModelId
   }) => void
 }
 
@@ -223,7 +233,8 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
     try {
       // Starte die Anfrage direkt als TOC-Query
       // Verwende 'auto' für automatische Retriever-Entscheidung basierend auf Token-Budget
-      await currentSendQuestion(TOC_QUESTION, 'auto', true) // true = isTOCQuery
+      // skipQueryCache: Server soll nicht die alte Mongo-Query mit gleichem Hash zurückgeben
+      await currentSendQuestion(TOC_QUESTION, 'auto', true, false, true)
     } catch (error) {
       console.error('[useChatTOC] Fehler bei TOC-Neugenerierung:', error)
       // Bei Fehler: Reset Flag, damit erneut versucht werden kann
@@ -246,8 +257,10 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
       retriever?: Retriever
       targetLanguage?: TargetLanguage
       character?: Character[] // Array (kann leer sein)
+      accessPerspective?: AccessPerspective[]
       socialContext?: SocialContext
       facetsSelected?: Record<string, unknown>
+      llmModel?: LlmModelId
     }) => {
       // Reset Generierungs-Flag IMMER, da die Generierung jetzt abgeschlossen ist
       // (auch wenn keine Daten vorhanden sind, z.B. "No matching content found")
@@ -267,8 +280,10 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
           retriever: data.retriever,
           targetLanguage: data.targetLanguage,
           character: data.character,
+          accessPerspective: data.accessPerspective,
           socialContext: data.socialContext,
           facetsSelected: data.facetsSelected,
+          llmModel: data.llmModel,
         })
       } else if (data.answer) {
         // Fallback: Normale Antwort (auch wenn leer, z.B. "No matching content found")
@@ -282,8 +297,10 @@ export function useChatTOC(params: UseChatTOCParams): UseChatTOCResult {
           retriever: data.retriever,
           targetLanguage: data.targetLanguage,
           character: data.character,
+          accessPerspective: data.accessPerspective,
           socialContext: data.socialContext,
           facetsSelected: data.facetsSelected,
+          llmModel: data.llmModel,
         })
         setCachedStoryTopicsData(null)
       } else {

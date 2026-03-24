@@ -483,7 +483,8 @@
     "language": "Langue :",
     "character": "Intérêts thématiques :",
     "accessPerspective": "Perspective d'accès :",
-    "context": "Style de langue :"
+    "context": "Style de langue :",
+    "llmModel": "Modèle :"
   },
   "configPopover": {
     "advancedSettings": "Paramètres avancés",

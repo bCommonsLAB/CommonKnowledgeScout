@@ -73,6 +73,40 @@ export function getSecretaryConfig(): SecretaryConfig {
   return { baseUrl, apiKey }
 }
 
+/**
+ * Worker-Pool für `external_jobs`: Mehrere App-Instanzen (z. B. verschiedene Electron-Builds)
+ * können dieselbe MongoDB-Collection teilen. Jobs werden mit dieser ID persistiert; nur Worker
+ * derselben Pool-ID claimen sie. Ohne gesetztes `JOBS_WORKER_POOL_ID` ist der Pool `"default"`
+ * (bestehende Dokumente ohne Feld gelten ebenfalls als `default`).
+ */
+export function getJobsWorkerPoolId(): string {
+  const raw = process.env.JOBS_WORKER_POOL_ID?.trim()
+  return raw && raw.length > 0 ? raw : 'default'
+}
+
+/**
+ * Mongo-Match für genau einen Worker-Pool (Queries + atomares Claim).
+ * `default` schließt Legacy-Jobs ohne `workerPoolId`-Feld ein.
+ */
+export function workerPoolMongoMatch(poolId: string): Record<string, unknown> {
+  if (poolId === 'default') {
+    return {
+      $or: [
+        { workerPoolId: 'default' },
+        { workerPoolId: { $exists: false } },
+        { workerPoolId: null },
+        { workerPoolId: '' },
+      ],
+    }
+  }
+  return { workerPoolId: poolId }
+}
+
+/** Match für den aktuellen Prozess (aus `JOBS_WORKER_POOL_ID`). */
+export function currentWorkerPoolMongoMatch(): Record<string, unknown> {
+  return workerPoolMongoMatch(getJobsWorkerPoolId())
+}
+
 
 /**
  * Erkennt, ob die App im Electron-Desktop-Modus läuft.

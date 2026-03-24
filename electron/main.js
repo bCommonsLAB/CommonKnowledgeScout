@@ -96,6 +96,41 @@ if (!process.env.INTERNAL_TEST_TOKEN) {
   console.log('[Config] INTERNAL_TEST_TOKEN auto-generiert für Offline-Modus');
 }
 
+/**
+ * External-Jobs-Worker-Pool: Wenn JOBS_WORKER_POOL_ID weder in .env noch in der OS-Umgebung
+ * gesetzt ist, eine stabile ID vergeben und unter userData persistieren (pro Installation).
+ * So claimen mehrere Desktop-Instanzen mit gemeinsamer MongoDB nicht gegenseitig Jobs —
+ * ohne manuelle .env, solange jede App ein eigenes userData-Verzeichnis hat (andere appId/name).
+ * Explizite JOBS_WORKER_POOL_ID in .env hat immer Vorrang.
+ */
+function ensureJobsWorkerPoolId() {
+  const existing = (process.env.JOBS_WORKER_POOL_ID || '').trim();
+  if (existing) return;
+  const crypto = require('crypto');
+  const fileName = 'jobs-worker-pool-id.txt';
+  try {
+    const userData = app.getPath('userData');
+    if (!fs.existsSync(userData)) fs.mkdirSync(userData, { recursive: true });
+    const idPath = path.join(userData, fileName);
+    if (fs.existsSync(idPath)) {
+      const fromDisk = fs.readFileSync(idPath, 'utf8').trim();
+      if (fromDisk) {
+        process.env.JOBS_WORKER_POOL_ID = fromDisk;
+        console.log('[Config] JOBS_WORKER_POOL_ID aus userData (bestehend)');
+        return;
+      }
+    }
+    const fresh = `electron-${crypto.randomUUID()}`;
+    fs.writeFileSync(idPath, fresh, 'utf8');
+    process.env.JOBS_WORKER_POOL_ID = fresh;
+    console.log('[Config] JOBS_WORKER_POOL_ID neu angelegt:', idPath);
+  } catch (err) {
+    process.env.JOBS_WORKER_POOL_ID = `electron-${crypto.randomUUID()}`;
+    console.warn('[Config] JOBS_WORKER_POOL_ID nur für diese Sitzung (Persistenz fehlgeschlagen):', err?.message || err);
+  }
+}
+ensureJobsWorkerPoolId();
+
 let mainWindow = null;
 let stopIntercept = null;
 let appLocalhostUrl = null;

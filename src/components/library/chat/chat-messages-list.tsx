@@ -6,7 +6,7 @@ import { ChatConfigDisplay } from './chat-config-display'
 import type { ChatMessage } from './utils/chat-utils'
 import { groupMessagesToConversations } from './utils/chat-utils'
 import type { ChatProcessingStep } from '@/types/chat-processing'
-import type { Character, AnswerLength, Retriever, TargetLanguage, SocialContext, AccessPerspective } from '@/lib/chat/constants'
+import type { Character, AnswerLength, Retriever, TargetLanguage, SocialContext, AccessPerspective, LlmModelId } from '@/lib/chat/constants'
 import { useTranslation } from '@/lib/i18n/hooks'
 
 interface ChatMessagesListProps {
@@ -23,6 +23,7 @@ interface ChatMessagesListProps {
   character: Character[] // Array (kann leer sein)
   accessPerspective: AccessPerspective[] // Array (kann leer sein)
   socialContext: SocialContext
+  llmModel: LlmModelId
   filters?: Record<string, unknown> // Optional: Filterparameter für Anzeige während Verarbeitung
   onQuestionClick: (question: string) => void
   onDelete: (queryId: string) => Promise<void>
@@ -62,6 +63,7 @@ export function ChatMessagesList({
   character,
   accessPerspective,
   socialContext,
+  llmModel,
   filters,
   onQuestionClick,
   onDelete,
@@ -110,6 +112,7 @@ export function ChatMessagesList({
                   targetLanguage: conv.question.targetLanguage,
                   socialContext: conv.question.socialContext,
                   queryId: conv.question.queryId,
+                  llmModel: conv.question.llmModel,
                 },
                 answer: conv.answer ? {
                   id: conv.answer.id,
@@ -123,6 +126,7 @@ export function ChatMessagesList({
                   targetLanguage: conv.answer.targetLanguage,
                   character: conv.answer.character,
                   socialContext: conv.answer.socialContext,
+                  llmModel: conv.answer.llmModel,
                 } : undefined,
               }}
               conversationId={conv.conversationId}
@@ -173,6 +177,7 @@ export function ChatMessagesList({
                   character={character}
                   accessPerspective={accessPerspective}
                   socialContext={socialContext}
+                  llmModel={llmModel}
                   libraryId={libraryId}
                   filters={filters}
                 />

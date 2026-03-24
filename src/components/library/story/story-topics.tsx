@@ -10,7 +10,7 @@ import { AIGeneratedNotice } from '@/components/shared/ai-generated-notice'
 import { ChatConfigDisplay } from '@/components/library/chat/chat-config-display'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { librariesAtom } from '@/atoms/library-atom'
-import type { AnswerLength, Retriever, TargetLanguage, SocialContext, Character, AccessPerspective } from '@/lib/chat/constants'
+import type { AnswerLength, Retriever, TargetLanguage, SocialContext, Character, AccessPerspective, LlmModelId } from '@/lib/chat/constants'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { QueryDetailsDialog } from '@/components/library/chat/query-details-dialog'
 import { ProcessingStatus } from '@/components/library/chat/processing-status'
@@ -28,6 +28,7 @@ interface CachedTOC {
   socialContext?: SocialContext
   facetsSelected?: Record<string, unknown>
   queryId?: string
+  llmModel?: LlmModelId
 }
 
 interface StoryTopicsProps {
@@ -45,6 +46,7 @@ interface StoryTopicsProps {
   socialContext?: SocialContext
   queryId?: string // QueryId für Filterparameter-Anzeige
   filters?: Record<string, unknown> // Optional: Filterparameter direkt übergeben
+  llmModel?: LlmModelId
   cachedTOC?: CachedTOC | null // Optional: CachedTOC mit Parametern aus Cache
   showReloadButton?: boolean // Zeigt an, ob Reload-Button angezeigt werden soll (bei Parameteränderungen)
   onRegenerate?: () => Promise<void> // Callback für Reload-Button
@@ -92,6 +94,7 @@ export function StoryTopics({
   accessPerspective,
   socialContext,
   filters,
+  llmModel,
 }: StoryTopicsProps) {
   const { t } = useTranslation()
   const { isSignedIn } = useUser()
@@ -207,7 +210,7 @@ export function StoryTopics({
                       <div className="text-sm text-muted-foreground">{t('chatMessages.processing')}</div>
                       {/* Konfigurationsparameter während der Berechnung anzeigen */}
                       {/* Verwende cachedTOC oder Props für Config-Display */}
-                      {(cachedTOC || answerLength || retriever || targetLanguage) && (
+                      {(cachedTOC || answerLength || retriever || targetLanguage || llmModel) && (
                         <div className="mt-2">
                           <ChatConfigDisplay
                             libraryId={libraryId}
@@ -217,6 +220,7 @@ export function StoryTopics({
                             character={cachedTOC?.character || character}
                             accessPerspective={cachedTOC?.accessPerspective || accessPerspective}
                             socialContext={cachedTOC?.socialContext || socialContext}
+                            llmModel={cachedTOC?.llmModel || llmModel}
                             filters={cachedTOC?.facetsSelected || filters}
                           />
                         </div>
@@ -329,6 +333,7 @@ export function StoryTopics({
                         character={cachedTOC?.character}
                         accessPerspective={cachedTOC?.accessPerspective}
                         socialContext={cachedTOC?.socialContext}
+                        llmModel={cachedTOC?.llmModel ?? llmModel}
                         filters={cachedTOC?.facetsSelected}
                       />
                     </div>

@@ -58,7 +58,8 @@ interface UseChatStreamResult {
     questionText: string,
     retrieverOverride?: Retriever,
     isTOCQuery?: boolean,
-    asTOC?: boolean
+    asTOC?: boolean,
+    skipQueryCache?: boolean
   ) => Promise<void>
   setProcessingSteps: React.Dispatch<React.SetStateAction<ChatProcessingStep[]>>
 }
@@ -101,7 +102,8 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
       questionText: string,
       retrieverOverride?: Retriever,
       isTOCQuery = false,
-      asTOC = false
+      asTOC = false,
+      skipQueryCache = false
     ): Promise<void> => {
       if (!cfg) return
       if (isSending) return // Verhindere doppelte Anfragen
@@ -271,6 +273,7 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
           headers,
           body: JSON.stringify({
             asTOC: asTOC || undefined, // Sende asTOC Flag, wenn gesetzt
+            ...(skipQueryCache ? { skipQueryCache: true } : {}),
             message: questionText,
             answerLength,
             chatHistory: limitedChatHistory.length > 0 ? limitedChatHistory : undefined,
@@ -379,7 +382,10 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
                 retriever: effectiveRetriever === 'auto' ? undefined : effectiveRetriever,
                 targetLanguage,
                 character,
+                accessPerspective,
                 socialContext,
+                llmModel: llmModel || undefined,
+                facetsSelected: galleryFilters,
               }
 
               if (answerMessage.content) {

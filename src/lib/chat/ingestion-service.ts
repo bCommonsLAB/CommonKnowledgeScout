@@ -20,6 +20,8 @@ import { getAzureStorageConfig } from '@/lib/config/azure-storage'
 import { getShadowTwinBinaryFragments } from '@/lib/repositories/shadow-twin-repo'
 import { parseTwinRelativeImageRef } from '@/lib/storage/shadow-twin-folder-name'
 import { buildDocumentSlugFallback } from '@/lib/documents/document-slug'
+import { tryDecodeRelativePathFromFileId } from '@/utils/decode-storage-file-id'
+import { INGEST_META_SOURCE_FILE_NAME_KEY } from '@/lib/ingestion/ingest-meta-keys'
 import * as fs from 'fs/promises'
 
 /**
@@ -978,6 +980,31 @@ export class IngestionService {
           (docMetaJsonObj as { source_file?: unknown }).source_file as string | undefined,
           (docMetaJsonObj as { title?: unknown }).title as string | undefined,
         )
+      }
+
+      // Herkunft nur informativ (Tooltip): Ordner + Dateiname ohne Client-Dekodierung von fileId
+      {
+        const hintedRaw = metaEffective[INGEST_META_SOURCE_FILE_NAME_KEY]
+        const hinted =
+          typeof hintedRaw === 'string' && hintedRaw.trim().length > 0 ? hintedRaw.trim() : ''
+        delete (docMetaJsonObj as Record<string, unknown>)[INGEST_META_SOURCE_FILE_NAME_KEY]
+        delete (metaEffective as Record<string, unknown>)[INGEST_META_SOURCE_FILE_NAME_KEY]
+
+        const decoded = tryDecodeRelativePathFromFileId(fileId)
+        let sourcePath = ''
+        let sourceFileName = ''
+        if (decoded) {
+          const norm = decoded.replace(/\\/g, '/')
+          const lastSlash = norm.lastIndexOf('/')
+          sourcePath = lastSlash >= 0 ? norm.slice(0, lastSlash) : ''
+          const baseFromDecode = lastSlash >= 0 ? norm.slice(lastSlash + 1) : norm
+          sourceFileName = hinted || baseFromDecode
+        } else {
+          sourcePath = ''
+          sourceFileName = hinted || fileName
+        }
+        ;(docMetaJsonObj as Record<string, unknown>).sourcePath = sourcePath
+        ;(docMetaJsonObj as Record<string, unknown>).sourceFileName = sourceFileName
       }
 
       const mongoDoc: DocMeta = {

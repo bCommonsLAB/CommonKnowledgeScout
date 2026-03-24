@@ -10,6 +10,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import type { DocCardMeta } from '@/lib/gallery/types'
+import { tryDecodeRelativePathFromFileId } from '@/utils/decode-storage-file-id'
 
 export interface OpenInArchiveButtonProps {
   /** Dokument (fileId wird für die Archiv-Navigation verwendet) */
@@ -36,6 +37,12 @@ export function OpenInArchiveButton({
   if (!fileId) return null
 
   const href = `/library?activeLibraryId=${encodeURIComponent(libraryId)}&openFileId=${encodeURIComponent(fileId)}`
+  const indexFileName = doc.fileName?.trim()
+  // Bevorzugt: beim Ingest gespeicherte Herkunft (ohne Base64-Dekodierung im Client).
+  const ingestPath = doc.sourcePath?.trim()
+  const ingestFile = doc.sourceFileName?.trim()
+  const hasIngestLoc = Boolean(ingestPath || ingestFile)
+  const storagePathDecoded = !hasIngestLoc ? tryDecodeRelativePathFromFileId(fileId) : undefined
 
   return (
     <TooltipProvider>
@@ -56,8 +63,39 @@ export function OpenInArchiveButton({
             </a>
           </Button>
         </TooltipTrigger>
-        <TooltipContent>
-          <p>Im Archiv öffnen (zum Bearbeiten)</p>
+        <TooltipContent className="max-w-sm">
+          <div className="space-y-1 text-xs">
+            <p className="font-medium">Im Archiv öffnen</p>
+            {hasIngestLoc ? (
+              <>
+                {ingestPath ? (
+                  <p>
+                    <span className="text-muted-foreground">Ordner:</span>{' '}
+                    <span className="break-all">{ingestPath}</span>
+                  </p>
+                ) : null}
+                <p>
+                  <span className="text-muted-foreground">Quelldatei:</span>{' '}
+                  <span className="break-all">{ingestFile || indexFileName || '—'}</span>
+                </p>
+              </>
+            ) : storagePathDecoded ? (
+              <p>
+                <span className="text-muted-foreground">Speicherpfad:</span>{' '}
+                <span className="break-all">{storagePathDecoded}</span>
+              </p>
+            ) : (
+              <p className="text-muted-foreground break-all">
+                ID (nicht als Pfad dekodierbar): {fileId.length > 120 ? `${fileId.slice(0, 120)}…` : fileId}
+              </p>
+            )}
+            {!hasIngestLoc && indexFileName ? (
+              <p>
+                <span className="text-muted-foreground">Dateiname (Index):</span>{' '}
+                <span className="break-all">{indexFileName}</span>
+              </p>
+            ) : null}
+          </div>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

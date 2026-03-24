@@ -20,6 +20,7 @@ import { FileLogger } from '@/lib/debug/logger'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { loadShadowTwinMarkdown } from '@/lib/external-jobs/phase-shadow-twin-loader'
 import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
+import { INGEST_META_SOURCE_FILE_NAME_KEY } from '@/lib/ingestion/ingest-meta-keys'
 
 export interface IngestPhaseArgs {
   ctx: RequestContext
@@ -292,6 +293,15 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
     }
   }
 
+  // Originaldateiname aus dem Job (fileName oben ist oft Artefaktname) — nur für Ingest-Herkunftsfelder
+  const metaForIngestWithSource: Record<string, unknown> = {
+    ...(metaForIngestion as Record<string, unknown>),
+  }
+  const srcName = job.correlation?.source?.name
+  if (typeof srcName === 'string' && srcName.trim().length > 0) {
+    metaForIngestWithSource[INGEST_META_SOURCE_FILE_NAME_KEY] = srcName.trim()
+  }
+
   let res
   try {
     res = await runIngestion({
@@ -299,7 +309,7 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
       savedItemId: fileId,
       fileName,
       markdown: markdownForIngestion,
-      meta: metaForIngestion as unknown as Record<string, unknown>,
+      meta: metaForIngestWithSource,
       provider: ingestionProvider,
       shadowTwinFolderId,
     })
