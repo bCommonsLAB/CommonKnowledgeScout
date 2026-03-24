@@ -4,7 +4,7 @@ import * as React from "react"
 import { useSearchParams } from "next/navigation"
 import { 
   File, FileText, FileVideo, FileAudio, FileSpreadsheet, Presentation, Globe,
-  Image as ImageIcon, FileType2, Plus, RefreshCw, ChevronUp, ChevronDown, 
+  Image as ImageIcon, FileType2, RefreshCw, ChevronUp, ChevronDown, 
   Trash2, Folder as FolderIcon, Sparkles, Upload, FolderSync, Layers 
 } from "lucide-react"
 import { StorageItem } from "@/lib/storage/types"

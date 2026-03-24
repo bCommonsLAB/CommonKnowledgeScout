@@ -56,7 +56,6 @@ import {
 } from "@/atoms/library-atom"
 import { activeLibraryIdAtom } from "@/atoms/library-atom"
 import { useStorage, isStorageError } from "@/contexts/storage-context"
-import { StorageItem } from "@/lib/storage/types"
 import { NavigationLogger, StateLogger } from "@/lib/debug/logger"
 import { Breadcrumb } from "./breadcrumb"
 import { useToast } from "@/components/ui/use-toast"
