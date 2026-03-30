@@ -82,6 +82,14 @@ export async function GET(
           coverImagePrompt: library.config.secretaryService.coverImagePrompt,
           useDirectConnection: library.config.secretaryService.useDirectConnection ?? false,
         } : undefined,
+
+        ingestionStorage: library.config.ingestionStorage
+          ? {
+              useCustomConfig: library.config.ingestionStorage.useCustomConfig ?? false,
+              connectionString: '',
+              containerName: library.config.ingestionStorage.containerName || '',
+            }
+          : undefined,
         
         // Chat Config (vollständig exportieren)
         chat: library.config.chat,

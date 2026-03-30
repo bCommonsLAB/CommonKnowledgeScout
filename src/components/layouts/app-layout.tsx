@@ -15,6 +15,9 @@ interface AppLayoutProps {
  */
 export function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname()
+
+  // Öffentliche Explore-Ansicht unter /explore/[slug]: ohne globale TopNav (Standalone, siehe Plan Draft-zu-Publish).
+  const isExploreSlugPage = Boolean(pathname && /^\/explore\/[^/]+/.test(pathname))
   
   // Homepage, Explore-Seiten, Docs, Info-Seiten und bestimmte Tools bekommen scrollbares Layout
   const isScrollablePage = pathname === '/' || 
@@ -27,7 +30,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     // Scrollbares Layout für Homepage und rechtliche Seiten
     return (
       <>
-        <TopNavWrapper />
+        {!isExploreSlugPage && <TopNavWrapper />}
         <div className="flex-1 overflow-y-auto">
           {children}
         </div>

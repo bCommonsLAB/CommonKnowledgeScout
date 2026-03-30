@@ -46,14 +46,22 @@ export async function GET(
       );
     }
 
-    // Nur sichere Daten zurückgeben
+    const pub = library.config?.publicPublishing
+    const sitePublished = pub?.sitePublished === true
+
+    // Nur sichere Daten zurückgeben. Live-Startseiten-URL nur bei explizitem Publish (kein stiller Fallback).
     const safeLibrary = {
       id: library.id,
-      label: library.config?.publicPublishing?.publicName || library.label,
-      slugName: library.config?.publicPublishing?.slugName,
-      description: library.config?.publicPublishing?.description,
-      icon: library.config?.publicPublishing?.icon,
-      requiresAuth: library.config?.publicPublishing?.requiresAuth === true,
+      label: pub?.publicName || library.label,
+      slugName: pub?.slugName,
+      description: pub?.description,
+      icon: pub?.icon,
+      requiresAuth: pub?.requiresAuth === true,
+      siteEnabled: pub?.siteEnabled === true,
+      sitePublished,
+      siteVersion: sitePublished ? pub?.siteVersion : undefined,
+      sitePublishedAt: sitePublished ? pub?.sitePublishedAt : undefined,
+      siteUrl: sitePublished ? pub?.siteUrl : undefined,
       // Chat-Config ist bereits öffentlich sicher (keine Secrets)
       chat: library.config?.chat,
     };

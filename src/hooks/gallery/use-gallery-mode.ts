@@ -3,12 +3,21 @@
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 
+export type GalleryMode = 'site' | 'gallery' | 'story'
+
 export function useGalleryMode() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const pathname = usePathname()
   const modeParam = searchParams?.get('mode')
-  const mode = (modeParam === 'story' ? 'story' : 'gallery') as 'gallery' | 'story'
+  const viewParam = searchParams?.get('view')
+  const mode = (
+    viewParam === 'site'
+      ? 'site'
+      : modeParam === 'story'
+        ? 'story'
+        : 'gallery'
+  ) as GalleryMode
 
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -31,7 +40,7 @@ export function useGalleryMode() {
       containerRef.current.style.maxHeight = `${availableHeight}px`
     }
 
-    // Initial nach dem Mount und nach Moduswechsel (gallery/story) berechnen
+    // Initial nach dem Mount und nach Moduswechsel (site/gallery/story) berechnen
     requestAnimationFrame(() => requestAnimationFrame(updateHeight))
 
     window.addEventListener('resize', updateHeight)
@@ -40,7 +49,7 @@ export function useGalleryMode() {
     }
   }, [mode])
 
-  const setMode = (newMode: 'gallery' | 'story') => {
+  const setMode = (newMode: GalleryMode) => {
     console.log('[useGalleryMode] 🔄 setMode aufgerufen:', {
       newMode,
       currentMode: mode,
@@ -52,11 +61,17 @@ export function useGalleryMode() {
     
     const params = new URLSearchParams(searchParams?.toString() || '')
     
-    // WICHTIG: Entferne doc Parameter beim Wechsel zum Story-Mode
-    // Der doc Parameter sollte nicht im Story-Mode vorhanden sein
-    if (newMode === 'story') {
+    // Startseite, Inhalte und Story teilen sich dieselbe Gallery-Ansicht.
+    // Wir räumen die konkurrierenden Query-Parameter jeweils weg, damit die URL eindeutig bleibt.
+    if (newMode === 'site') {
+      params.delete('doc')
+      params.delete('mode')
+      params.set('view', 'site')
+      console.log('[useGalleryMode] ✅ Site-Mode gesetzt')
+    } else if (newMode === 'story') {
       const hadDoc = params.has('doc')
       params.delete('doc')
+      params.delete('view')
       params.set('mode', 'story')
       console.log('[useGalleryMode] ✅ Story-Mode: doc Parameter entfernt:', {
         hatteDoc: hadDoc,
@@ -64,6 +79,7 @@ export function useGalleryMode() {
         paramsNachher: params.toString(),
       })
     } else {
+      params.delete('view')
       params.delete('mode')
       console.log('[useGalleryMode] ✅ Gallery-Mode gesetzt')
     }

@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/components/ui/use-toast"
+import { Switch } from "@/components/ui/switch"
 import { FacetDefsEditor } from '@/components/settings/FacetDefsEditor'
 import { IndexDefinitionDialog } from '@/components/settings/index-definition-dialog'
 import { SearchIndexDialog } from '@/components/settings/search-index-dialog'
@@ -112,6 +113,10 @@ const chatFormSchema = z.object({
       columns: z.coerce.number().int().min(1).max(2).optional(),
     })).default(getDefaultFacets().slice(0, 6)) // Nur die ersten 6 sichtbaren Facetten als Default
   }).optional(),
+  /** Azure Blob Ingestion: siehe Abschnitt „Binary Storage“ unter Story */
+  ingestionStorageUseCustom: z.boolean().optional(),
+  ingestionConnectionString: z.string().optional(),
+  ingestionContainerName: z.string().optional(),
 })
 
 type ChatFormValues = z.infer<typeof chatFormSchema>
@@ -191,8 +196,14 @@ gallery: {
         groupByField: 'year', // Default: Nach Jahr gruppieren
         facets: getDefaultFacets().slice(0, 6) // Nur die ersten 6 sichtbaren Facetten als Default
       },
+      ingestionStorageUseCustom: false,
+      ingestionConnectionString: '',
+      ingestionContainerName: '',
     },
   })
+
+  const azureIngestionCustom = form.watch('ingestionStorageUseCustom') ?? false
+  const azureContainerWatched = form.watch('ingestionContainerName') || ''
 
   useEffect(() => {
     if (activeLibrary?.config?.chat) {
@@ -310,6 +321,9 @@ gallery: {
             return getDefaultFacets().slice(0, 6) // Nur die ersten 6 sichtbaren Facetten
           })(),
         },
+        ingestionStorageUseCustom: activeLibrary.config?.ingestionStorage?.useCustomConfig ?? false,
+        ingestionConnectionString: activeLibrary.config?.ingestionStorage?.connectionString || '',
+        ingestionContainerName: activeLibrary.config?.ingestionStorage?.containerName || '',
       })
       
       // Speichere initiale Facetten für Vergleich
@@ -330,6 +344,21 @@ gallery: {
       })
     }
   }, [activeLibrary, form, t, defaultEmbeddings.chunkOverlap, defaultEmbeddings.chunkSize, defaultEmbeddings.dimensions, defaultEmbeddings.embeddingModel])
+
+  // Azure Ingestion auch laden, wenn (noch) keine chat-Config existiert — Haupt-useEffect braucht config.chat
+  useEffect(() => {
+    if (!activeLibrary?.id) return
+    const ing = activeLibrary.config?.ingestionStorage
+    form.setValue('ingestionStorageUseCustom', ing?.useCustomConfig ?? false, { shouldDirty: false })
+    form.setValue('ingestionConnectionString', ing?.connectionString || '', { shouldDirty: false })
+    form.setValue('ingestionContainerName', ing?.containerName || '', { shouldDirty: false })
+  }, [
+    activeLibrary?.id,
+    activeLibrary?.config?.ingestionStorage?.useCustomConfig,
+    activeLibrary?.config?.ingestionStorage?.connectionString,
+    activeLibrary?.config?.ingestionStorage?.containerName,
+    form,
+  ])
 
   // Thumbnail- und Variant-Statistiken laden
   const loadThumbnailStats = useCallback(async () => {
@@ -556,18 +585,25 @@ gallery: {
     try {
       if (!activeLibrary) throw new Error(t('settings.chatForm.noLibrarySelected'))
 
+      const {
+        ingestionStorageUseCustom,
+        ingestionConnectionString,
+        ingestionContainerName,
+        ...chatFormRest
+      } = data
+
       // Debug-Output vor dem Speichern
       // eslint-disable-next-line no-console
       console.log('[ChatForm] Speichere Chat-Config …', { 
         libraryId: activeLibrary.id, 
-        facets: data.gallery?.facets?.length || 0,
-        detailViewType: data.gallery?.detailViewType,
-        fullGallery: data.gallery 
+        facets: chatFormRest.gallery?.facets?.length || 0,
+        detailViewType: chatFormRest.gallery?.detailViewType,
+        fullGallery: chatFormRest.gallery 
       })
 
       // Chat-Config vorbereiten: chatLlmModel → models.chat transformieren
       const chatConfig = {
-        ...data,
+        ...chatFormRest,
         // chatLlmModel als models.chat speichern (falls gesetzt)
         models: data.chatLlmModel?.trim() 
           ? { ...activeLibrary.config?.chat?.models, chat: data.chatLlmModel.trim() }
@@ -576,11 +612,26 @@ gallery: {
       // chatLlmModel aus dem gesendeten Objekt entfernen (ist jetzt unter models.chat)
       delete (chatConfig as Record<string, unknown>).chatLlmModel
 
-      // Nur Chat-Config mergen, Server behält restliche Config sicher bei
+      const ingestionStorage = {
+        useCustomConfig: ingestionStorageUseCustom ?? false,
+        connectionString:
+          ingestionConnectionString ||
+          activeLibrary.config?.ingestionStorage?.connectionString ||
+          '',
+        containerName:
+          ingestionContainerName ||
+          activeLibrary.config?.ingestionStorage?.containerName ||
+          '',
+      }
+
+      // Chat + Azure Ingestion (Binary Storage) in einem PATCH
       const response = await fetch(`/api/libraries/${encodeURIComponent(activeLibrary.id)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: activeLibrary.id, config: { chat: chatConfig } }),
+        body: JSON.stringify({
+          id: activeLibrary.id,
+          config: { chat: chatConfig, ingestionStorage },
+        }),
       })
       const respJson = await response.json().catch(() => ({}))
       // eslint-disable-next-line no-console
@@ -588,7 +639,7 @@ gallery: {
       if (!response.ok) throw new Error(`${t('settings.chatForm.errorSaving')} ${respJson?.error || response.statusText}`)
 
       const updatedLibraries = libraries.map(lib => lib.id === activeLibrary.id
-        ? { ...lib, config: { ...lib.config, chat: chatConfig } }
+        ? { ...lib, config: { ...lib.config, chat: chatConfig, ingestionStorage } }
         : lib)
       setLibraries(updatedLibraries)
 
@@ -1089,18 +1140,98 @@ gallery: {
           <div className="border-b pb-2">
             <h3 className="text-lg font-semibold">Binary Storage</h3>
             <p className="text-sm text-muted-foreground">
-              Speicherort für Bilder und andere Binärdateien.
+              Speicherort für Bilder und andere Binärdateien (Azure Blob bei Ingestion). Optional eigene Zugangsdaten pro Bibliothek — sonst gelten{' '}
+              <span className="font-mono text-xs">AZURE_STORAGE_*</span> aus der Server-/Desktop-Umgebung.
             </p>
           </div>
+
+          <FormField
+            control={form.control}
+            name="ingestionStorageUseCustom"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <FormLabel className="text-base">Bibliothekseigene Azure-Zugangsdaten</FormLabel>
+                  <FormDescription>
+                    {field.value
+                      ? 'Connection String und Container werden in MongoDB für diese Bibliothek gespeichert.'
+                      : 'Globale Azure-Konfiguration aus der Prozess-Umgebung verwenden.'}
+                  </FormDescription>
+                </div>
+                <FormControl>
+                  <Switch checked={field.value ?? false} onCheckedChange={field.onChange} />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+          {azureIngestionCustom && (
+            <>
+              <FormField
+                control={form.control}
+                name="ingestionConnectionString"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Azure Connection String</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        placeholder="DefaultEndpointsProtocol=https;AccountName=…"
+                        value={typeof field.value === 'string' ? field.value : ''}
+                        onChange={(e) => field.onChange(e.target.value)}
+                        autoComplete="new-password"
+                        name="azure-ingestion-conn"
+                        spellCheck={false}
+                        className="font-mono text-sm"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Nur serverseitig. Leer lassen, um den gespeicherten Wert beizubehalten.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="ingestionContainerName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Container-Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="z. B. knowledgescout"
+                        value={typeof field.value === 'string' ? field.value : ''}
+                        onChange={(e) => field.onChange(e.target.value)}
+                        autoComplete="off"
+                        spellCheck={false}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </>
+          )}
           
-          {/* Informative Anzeige */}
+          {/* Kurzüberblick zur aktuellen Auflösung */}
           <div className="rounded-md border p-4 bg-muted/30">
             <div className="flex items-center gap-2 text-sm">
               <Cloud className="h-4 w-4" />
               <span className="font-medium">Azure Blob Storage</span>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Container: knowledgescout / {activeLibrary?.id || '...'}
+              {azureIngestionCustom ? (
+                <>
+                  Container (Bibliothek):{' '}
+                  <span className="font-mono">{azureContainerWatched.trim() || '…'}</span>
+                  {' · '}Blob-Pfad enthält Library-ID: <span className="font-mono">{activeLibrary.id}</span>
+                </>
+              ) : (
+                <>
+                  Container aus <span className="font-mono">AZURE_STORAGE_CONTAINER_NAME</span> (Umgebung)
+                  {' · '}Unterordner u. a. <span className="font-mono">{activeLibrary.id}</span>
+                </>
+              )}
             </p>
           </div>
           

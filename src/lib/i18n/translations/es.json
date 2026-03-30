@@ -91,6 +91,7 @@
     "docs": "Docs",
     "library": "Archivo",
     "gallery": "Explorar",
+    "webView": "Probar vista web",
     "templates": "Plantillas",
     "eventMonitor": "Monitor de eventos",
     "sessionManager": "Gestor de sesiones"
@@ -101,7 +102,11 @@
     "slugMissing": "Slug faltante",
     "libraryNotFound": "Biblioteca no encontrada",
     "libraryNotPublic": "La biblioteca no está públicamente disponible",
-    "errorLoadingLibrary": "Error al cargar la biblioteca"
+    "errorLoadingLibrary": "Error al cargar la biblioteca",
+    "homepage": "Página de inicio",
+    "contents": "Galería",
+    "homepageFrameTitle": "Página de inicio pública",
+    "homepageGalleryToggle": "Página de inicio o galería"
   },
   "gallery": {
     "gallery": "Contenidos",
@@ -180,7 +185,10 @@
       "lv_bewertung": "Evaluación LV",
       "lv_zustaendigkeit": "Responsabilidad LV",
       "arbeitsgruppe": "Grupo de trabajo",
-      "coverImageUrl": "Imagen"
+      "coverImageUrl": "Imagen",
+      "sortByColumn": "Ordenar por {label}",
+      "sortAscending": "{label} — ascendente (clic para descendente)",
+      "sortDescending": "{label} — descendente (clic para ascendente)"
     },
     "texts": {
       "session": {

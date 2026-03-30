@@ -75,6 +75,14 @@ export async function POST(request: NextRequest) {
           coverImagePrompt: libraryData.config.secretaryService.coverImagePrompt,
           useDirectConnection: libraryData.config.secretaryService.useDirectConnection ?? false,
         } : undefined,
+
+        ingestionStorage: libraryData.config?.ingestionStorage
+          ? {
+              useCustomConfig: false,
+              connectionString: '',
+              containerName: libraryData.config.ingestionStorage.containerName || '',
+            }
+          : undefined,
         
         // Chat Config
         chat: libraryData.config?.chat,

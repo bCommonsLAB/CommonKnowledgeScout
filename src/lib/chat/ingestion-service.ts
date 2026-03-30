@@ -16,7 +16,7 @@ import { buildMetaDocument } from '@/lib/ingestion/meta-document-builder'
 import { hashId } from '@/lib/utils/string-utils'
 import { AzureStorageService } from '@/lib/services/azure-storage-service'
 import { calculateImageHash } from '@/lib/services/azure-storage-service'
-import { getAzureStorageConfig } from '@/lib/config/azure-storage'
+import { resolveAzureStorageConfig } from '@/lib/config/azure-storage'
 import { getShadowTwinBinaryFragments } from '@/lib/repositories/shadow-twin-repo'
 import { parseTwinRelativeImageRef } from '@/lib/storage/shadow-twin-folder-name'
 import { buildDocumentSlugFallback } from '@/lib/documents/document-slug'
@@ -84,6 +84,8 @@ export class IngestionService {
     const repo = new ExternalJobsRepository()
     const retrieverCtx = await getRetrieverContext(userEmail, libraryId)
     const { ctx, libraryKey, facetDefs } = retrieverCtx
+    /** Azure: Library-spezifische ingestionStorage oder globale ENV */
+    const libraryConfig = ctx.library.config
 
     // Frontmatter strikt parsen: Meta als Single Source, Body zum Chunken
     const { meta: metaFromMarkdown, body } = await (async () => {
@@ -186,7 +188,8 @@ export class IngestionService {
               provider,
               libraryId,
               fileId,
-              jobId
+              jobId,
+              libraryConfig
             )
             
             // Aktualisiere Slides in metaEffective
@@ -414,7 +417,8 @@ export class IngestionService {
                     fileId,
                     jobId,
                     isSessionMode,
-                    frontmatterCoverImageUrl // NEU: Expliziter Dateiname
+                    frontmatterCoverImageUrl, // Expliziter Dateiname
+                    libraryConfig
                   )
                   
                   if (coverImageUrl) {
@@ -457,7 +461,9 @@ export class IngestionService {
               libraryId,
               fileId,
               jobId,
-              isSessionMode
+              isSessionMode,
+              undefined,
+              libraryConfig
             )
             if (coverImageUrl) {
               docMetaJsonObj.coverImageUrl = coverImageUrl
@@ -530,8 +536,8 @@ export class IngestionService {
           // (wichtig für public views ohne Storage-Provider/Session).
           try {
             if (storageProvider) {
-              const azureConfig = getAzureStorageConfig()
-              const azureStorage = new AzureStorageService()
+              const azureConfig = resolveAzureStorageConfig(libraryConfig)
+              const azureStorage = new AzureStorageService(libraryConfig)
               const scope: 'books' | 'sessions' = isSessionMode ? 'sessions' : 'books'
               const mediaFieldsToPromote = [
                 'coverImageUrl',
@@ -669,7 +675,8 @@ export class IngestionService {
             fileId,
             shadowTwinFolderId,
             jobId,
-            isSessionMode
+            isSessionMode,
+            libraryConfig
           )
           
           // Verwende aktualisiertes Markdown (mit Azure-URLs)
@@ -742,9 +749,9 @@ export class IngestionService {
                 : `${originalPdfFileName.replace(/\.[^/.]+$/, '')}.pdf`
               
               // Azure Storage Service für PDF-Upload
-              const azureConfig = getAzureStorageConfig()
+              const azureConfig = resolveAzureStorageConfig(libraryConfig)
               if (azureConfig) {
-                const azureStorageInstance = new AzureStorageService()
+                const azureStorageInstance = new AzureStorageService(libraryConfig)
                 
                 if (azureStorageInstance.isConfigured()) {
                   // Prüfe ob Container existiert

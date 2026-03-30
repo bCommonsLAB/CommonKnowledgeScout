@@ -1,5 +1,6 @@
 import { BlobServiceClient, ContainerClient } from '@azure/storage-blob'
-import { getAzureStorageConfig } from '@/lib/config/azure-storage'
+import { resolveAzureStorageConfig } from '@/lib/config/azure-storage'
+import type { StorageConfig } from '@/types/library'
 import { FileLogger } from '@/lib/debug/logger'
 import crypto from 'crypto'
 import * as fs from 'fs'
@@ -37,10 +38,14 @@ export function calculateImageHash(buffer: Buffer): string {
  */
 export class AzureStorageService {
   private blobServiceClient: BlobServiceClient | null = null
-  private config: ReturnType<typeof getAzureStorageConfig> = null
+  private config: ReturnType<typeof resolveAzureStorageConfig> = null
 
-  constructor() {
-    this.config = getAzureStorageConfig()
+  /**
+   * @param libraryConfig Optional: Library.config — bei gesetztem ingestionStorage.useCustomConfig
+   * werden Connection String und Container aus MongoDB verwendet, sonst Prozess-ENV.
+   */
+  constructor(libraryConfig?: StorageConfig | null) {
+    this.config = resolveAzureStorageConfig(libraryConfig ?? undefined)
     if (!this.config) {
       FileLogger.warn('AzureStorageService', 'Azure Storage nicht konfiguriert')
       return
@@ -628,6 +633,66 @@ export class AzureStorageService {
       svg: 'image/svg+xml',
     }
     return contentTypes[ext] || 'image/jpeg'
+  }
+
+  /**
+   * Blob-Pfad für veröffentlichte statische Website (Snapshot unter public-site/v{n}/).
+   */
+  getPublicSiteBlobPath(libraryId: string, version: number, relativePath: string): string {
+    if (!this.config) throw new Error('Azure Storage nicht konfiguriert')
+    const sanitizedLibraryId = sanitizeLibraryId(libraryId)
+    const normalized = relativePath.replace(/^\/+/, '').replace(/\\/g, '/')
+    return `${sanitizedLibraryId}/public-site/v${version}/${normalized}`
+  }
+
+  /**
+   * Öffentliche URL einer Datei im public-site-Snapshot.
+   */
+  getPublicSiteFileUrl(
+    _containerName: string,
+    libraryId: string,
+    version: number,
+    relativePath: string
+  ): string {
+    if (!this.config) throw new Error('Azure Storage nicht konfiguriert')
+    const blobPath = this.getPublicSiteBlobPath(libraryId, version, relativePath)
+    return `${this.config.baseUrl}/${blobPath}`
+  }
+
+  /**
+   * Lädt eine Datei der statischen Website in den Blob-Storage.
+   */
+  async uploadPublicSiteFile(
+    containerName: string,
+    libraryId: string,
+    version: number,
+    relativePath: string,
+    buffer: Buffer,
+    contentType: string
+  ): Promise<string> {
+    if (!this.isConfigured()) {
+      throw new Error('Azure Storage nicht konfiguriert')
+    }
+    try {
+      const containerClient = this.getContainerClient(containerName)
+      if (!containerClient) {
+        throw new Error('Container Client konnte nicht erstellt werden')
+      }
+      const blobPath = this.getPublicSiteBlobPath(libraryId, version, relativePath)
+      const blockBlobClient = containerClient.getBlockBlobClient(blobPath)
+      await blockBlobClient.uploadData(buffer, {
+        blobHTTPHeaders: {
+          blobContentType: contentType,
+          blobCacheControl: 'public, max-age=3600',
+        },
+      })
+      return this.getPublicSiteFileUrl(containerName, libraryId, version, relativePath)
+    } catch (error) {
+      FileLogger.error('AzureStorageService', 'Fehler beim Upload public-site', error)
+      throw new Error(
+        `Public-Site-Upload fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`
+      )
+    }
   }
 }
 

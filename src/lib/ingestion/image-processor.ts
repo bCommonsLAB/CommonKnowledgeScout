@@ -1,8 +1,9 @@
 import type { StorageProvider } from '@/lib/storage/types'
+import type { StorageConfig } from '@/types/library'
 import { FileLogger } from '@/lib/debug/logger'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
 import { AzureStorageService, calculateImageHash } from '@/lib/services/azure-storage-service'
-import { getAzureStorageConfig } from '@/lib/config/azure-storage'
+import { resolveAzureStorageConfig } from '@/lib/config/azure-storage'
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
 import { getShadowTwinBinaryFragments } from '@/lib/repositories/shadow-twin-repo'
 
@@ -63,14 +64,15 @@ export class ImageProcessor {
     fileId: string,
     shadowTwinFolderId: string | undefined,
     jobId?: string,
-    isSessionMode: boolean = false
+    isSessionMode: boolean = false,
+    libraryConfig?: StorageConfig | null
   ): Promise<MarkdownImageProcessingResult> {
-    const azureStorage = await this.ensureAzureStorage(fileId, jobId)
+    const azureStorage = await this.ensureAzureStorage(fileId, jobId, libraryConfig)
     if (!azureStorage) {
       return { markdown: markdownBody, imageErrors: [], imageMapping: [] }
     }
 
-    const containerCheck = await this.ensureContainer(azureStorage, fileId, jobId, 'markdown_images_container_error')
+    const containerCheck = await this.ensureContainer(azureStorage, fileId, jobId, 'markdown_images_container_error', false, libraryConfig)
     if (!containerCheck.success || !containerCheck.containerName) {
       return { markdown: markdownBody, imageErrors: [{ imagePath: '', error: containerCheck.errorMessage || 'Unbekannter Fehler' }], imageMapping: [] }
     }
@@ -413,9 +415,10 @@ export class ImageProcessor {
     fileId: string,
     jobId?: string,
     isSessionMode: boolean = false,
-    explicitImageFileName?: string
+    explicitImageFileName?: string,
+    libraryConfig?: StorageConfig | null
   ): Promise<string | null> {
-    const azureStorage = await this.ensureAzureStorage(fileId, jobId)
+    const azureStorage = await this.ensureAzureStorage(fileId, jobId, libraryConfig)
     if (!azureStorage) {
       return null
     }
@@ -451,7 +454,7 @@ export class ImageProcessor {
         const scope: 'books' | 'sessions' = isSessionMode ? 'sessions' : 'books'
         const extension = candidate.split('.').pop()?.toLowerCase() || 'jpg'
 
-        const containerCheck = await this.ensureContainer(azureStorage, fileId, jobId, 'cover_image_container_error')
+        const containerCheck = await this.ensureContainer(azureStorage, fileId, jobId, 'cover_image_container_error', false, libraryConfig)
         if (!containerCheck.success || !containerCheck.containerName) {
           return null
         }
@@ -491,14 +494,15 @@ export class ImageProcessor {
     provider: StorageProvider,
     libraryId: string,
     fileId: string,
-    jobId?: string
+    jobId?: string,
+    libraryConfig?: StorageConfig | null
   ): Promise<SlideImageProcessingResult> {
-    const azureStorage = await this.ensureAzureStorage(fileId, jobId)
+    const azureStorage = await this.ensureAzureStorage(fileId, jobId, libraryConfig)
     if (!azureStorage) {
       return { slides, errors: [] }
     }
 
-    const containerCheck = await this.ensureContainer(azureStorage, fileId, jobId, 'slide_images_container_error', true)
+    const containerCheck = await this.ensureContainer(azureStorage, fileId, jobId, 'slide_images_container_error', true, libraryConfig)
     if (!containerCheck.success) {
       throw new Error(containerCheck.errorMessage)
     }
@@ -684,14 +688,18 @@ export class ImageProcessor {
   // Private Hilfsfunktionen
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private static async ensureAzureStorage(_fileId: string, _jobId?: string): Promise<AzureStorageService | null> {
-    const azureConfig = getAzureStorageConfig()
+  private static async ensureAzureStorage(
+    _fileId: string,
+    _jobId?: string,
+    libraryConfig?: StorageConfig | null
+  ): Promise<AzureStorageService | null> {
+    const azureConfig = resolveAzureStorageConfig(libraryConfig ?? undefined)
     if (!azureConfig) {
       FileLogger.info('ingestion', 'Azure Storage nicht konfiguriert, überspringe Bild-Upload')
       return null
     }
 
-    const azureStorage = new AzureStorageService()
+    const azureStorage = new AzureStorageService(libraryConfig ?? undefined)
     if (!azureStorage.isConfigured()) {
       FileLogger.warn('ingestion', 'Azure Storage Service nicht konfiguriert')
       return null
@@ -705,9 +713,10 @@ export class ImageProcessor {
     fileId: string,
     jobId: string | undefined,
     phase: string,
-    throwOnError: boolean = false
+    throwOnError: boolean = false,
+    libraryConfig?: StorageConfig | null
   ): Promise<{ success: boolean; containerName?: string; errorMessage?: string }> {
-    const azureConfig = getAzureStorageConfig()
+    const azureConfig = resolveAzureStorageConfig(libraryConfig ?? undefined)
     if (!azureConfig) {
       return { success: false, errorMessage: 'Azure Storage nicht konfiguriert' }
     }

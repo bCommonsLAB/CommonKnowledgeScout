@@ -40,17 +40,24 @@ export async function GET() {
     );
 
     // Nur sichere Daten zurückgeben (ohne API-Keys, Secrets, etc.)
-    const safeLibraries = homepageLibraries.map(lib => ({
-      id: lib.id,
-      label: lib.config?.publicPublishing?.publicName || lib.label,
-      slugName: lib.config?.publicPublishing?.slugName,
-      description: lib.config?.publicPublishing?.description,
-      icon: lib.config?.publicPublishing?.icon,
-      backgroundImageUrl: lib.config?.publicPublishing?.backgroundImageUrl,
-      requiresAuth: lib.config?.publicPublishing?.requiresAuth === true,
-      // Vollständige Chat-Config zurückgeben (inkl. detailViewType und alle anderen Settings)
-      chat: lib.config?.chat,
-    }));
+    const safeLibraries = homepageLibraries.map(lib => {
+      const pub = lib.config?.publicPublishing
+      const sitePublished = pub?.sitePublished === true
+      return {
+        id: lib.id,
+        label: pub?.publicName || lib.label,
+        slugName: pub?.slugName,
+        description: pub?.description,
+        icon: pub?.icon,
+        backgroundImageUrl: pub?.backgroundImageUrl,
+        requiresAuth: pub?.requiresAuth === true,
+        sitePublished,
+        siteVersion: sitePublished ? pub?.siteVersion : undefined,
+        sitePublishedAt: sitePublished ? pub?.sitePublishedAt : undefined,
+        siteUrl: sitePublished ? pub?.siteUrl : undefined,
+        chat: lib.config?.chat,
+      }
+    });
 
     return NextResponse.json({ libraries: safeLibraries });
   } catch (error) {

@@ -42,6 +42,12 @@ export interface GalleryRootProps {
   libraryIdProp?: string
   /** Wenn true, werden die Tabs nicht gerendert (z.B. wenn sie bereits im Header sind) */
   hideTabs?: boolean
+  /** Optionale Startseiten-Vorschau (Draft oder veröffentlichte Live-Site) */
+  siteViewSrc?: string | null
+  /** Steuert, ob der Tab "Startseite" angeboten wird */
+  showSiteTab?: boolean
+  /** Sandbox für die eingebettete Startseite */
+  siteSandbox?: string
 }
 
 const LazyChatPanel = dynamic(
@@ -62,7 +68,13 @@ const VALID_DETAIL_VIEW_TYPES: TemplatePreviewDetailViewType[] = [
   'divaDocument',
 ]
 
-export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProps) {
+export function GalleryRoot({
+  libraryIdProp,
+  hideTabs = false,
+  siteViewSrc = null,
+  showSiteTab = false,
+  siteSandbox = "allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox",
+}: GalleryRootProps) {
   const { t } = useTranslation()
   const libraryIdFromAtom = useAtomValue(activeLibraryIdAtom)
   const libraryId = libraryIdProp || libraryIdFromAtom
@@ -145,6 +157,15 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
 
   // Hooks
   const { mode, setMode, containerRef } = useGalleryMode()
+  const hasSiteView = showSiteTab && typeof siteViewSrc === 'string' && siteViewSrc.length > 0
+
+  // Kein stiller Fallback: Wenn kein Site-Tab erlaubt ist, aber ?view=site in der URL steht,
+  // springen wir explizit zurück auf Inhalte.
+  useEffect(() => {
+    if (mode === 'site' && !hasSiteView) {
+      setMode('gallery')
+    }
+  }, [mode, hasSiteView, setMode])
   
   // Mode und searchParams werden automatisch über React State verwaltet
   
@@ -195,10 +216,11 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
   
   // State für Refresh-Trigger nach Löschung
   const [refreshKey, setRefreshKey] = React.useState(0)
+  const galleryDataMode = mode === 'site' ? 'gallery' : mode
   
   // Verwende refreshKey als Dependency, aber nicht als Teil des searchQuery
   // useGalleryData wird automatisch neu laden, wenn sich refreshKey ändert (über useEffect)
-  const { docs, loading, error, filteredDocs, docsByYear, loadMore, hasMore, isLoadingMore, totalCount } = useGalleryData(filters, mode, searchQuery, libraryId, { refreshKey, groupByField })
+  const { docs, loading, error, filteredDocs, docsByYear, loadMore, hasMore, isLoadingMore, totalCount } = useGalleryData(filters, galleryDataMode, searchQuery, libraryId, { refreshKey, groupByField })
   const { isOwner } = useIsLibraryOwner(libraryId)
   
   // `doc`-Parameter aus der URL (Auflösung erfolgt nach `allDocs`, siehe unten)
@@ -689,8 +711,11 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
       {/* Tabs nur rendern, wenn sie nicht im Header sind */}
       {!hideTabs && (
         <div className='mb-3 flex items-center flex-shrink-0'>
-          <Tabs value={mode} onValueChange={(value) => setMode(value as 'gallery' | 'story')} className="w-auto">
+          <Tabs value={mode} onValueChange={(value) => setMode(value as 'site' | 'gallery' | 'story')} className="w-auto">
             <TabsList>
+              {hasSiteView && (
+                <TabsTrigger value="site">{t('explore.homepage')}</TabsTrigger>
+              )}
               <TabsTrigger value="gallery">{t('gallery.gallery')}</TabsTrigger>
               <TabsTrigger value="story">{t('gallery.story')}</TabsTrigger>
             </TabsList>
@@ -698,6 +723,17 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
         </div>
       )}
       <Tabs value={mode} className="flex-1 min-h-0 flex flex-col">
+        {mode === 'site' && hasSiteView && (
+        <TabsContent value="site" className="flex-1 min-h-0 m-0 mt-0 flex flex-col overflow-hidden data-[state=active]:flex">
+          <iframe
+            title={t('explore.homepageFrameTitle')}
+            src={siteViewSrc}
+            className="h-full w-full min-h-[50vh] rounded-md border bg-background"
+            sandbox={siteSandbox}
+          />
+        </TabsContent>
+        )}
+
         {/* Gallery Mode: nur mounten wenn aktiv, um unnötige API-Last zu vermeiden */}
         {mode === 'gallery' && (
         <TabsContent value="gallery" className="flex-1 min-h-0 m-0 mt-0 flex flex-col overflow-hidden data-[state=active]:flex">
@@ -850,7 +886,7 @@ export function GalleryRoot({ libraryIdProp, hideTabs = false }: GalleryRootProp
           fileId={selectedDoc.fileId || selectedDoc.id}
           viewType={detailViewTypeForDoc}
           doc={selectedDoc}
-          currentMode={mode}
+          currentMode={galleryDataMode}
           isSwitchingRef={isSwitchingToStoryModeRef}
         />
       )}

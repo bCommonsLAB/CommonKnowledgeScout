@@ -190,7 +190,7 @@ export function SecretaryServiceForm() {
             generateCoverImage: data.generateCoverImage ?? false,
             ...(data.coverImagePrompt?.trim() ? { coverImagePrompt: data.coverImagePrompt.trim() } : {}),
             useDirectConnection: data.useDirectConnection ?? false,
-          }
+          },
         }
       }
       
@@ -227,7 +227,7 @@ export function SecretaryServiceForm() {
               generateCoverImage: data.generateCoverImage ?? false,
               ...(data.coverImagePrompt?.trim() ? { coverImagePrompt: data.coverImagePrompt.trim() } : {}),
               useDirectConnection: data.useDirectConnection ?? false,
-            }
+            },
           }
         }
       })

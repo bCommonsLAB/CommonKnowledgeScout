@@ -29,7 +29,7 @@ import { getServerProvider } from '@/lib/storage/server-provider'
 import { upsertShadowTwinBinaryFragment } from '@/lib/repositories/shadow-twin-repo'
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
 import { AzureStorageService, calculateImageHash } from '@/lib/services/azure-storage-service'
-import { getAzureStorageConfig } from '@/lib/config/azure-storage'
+import { resolveAzureStorageConfig } from '@/lib/config/azure-storage'
 import { FileLogger } from '@/lib/debug/logger'
 import { matchBinaryFragmentByLookupName } from '@/lib/shadow-twin/binary-fragment-lookup'
 import path from 'path'
@@ -437,12 +437,13 @@ export class ShadowTwinService {
 
     // MongoDB-Modus: Upload nach Azure
     if (this.config.primaryStore === 'mongo') {
-      const azureConfig = getAzureStorageConfig()
+      const libCfg = this.options.library?.config
+      const azureConfig = resolveAzureStorageConfig(libCfg)
       if (!azureConfig) {
         throw new Error('Azure Storage nicht konfiguriert für MongoDB-Modus')
       }
 
-      const azureStorage = new AzureStorageService()
+      const azureStorage = new AzureStorageService(libCfg)
       if (!azureStorage.isConfigured()) {
         throw new Error('Azure Storage Service nicht konfiguriert')
       }

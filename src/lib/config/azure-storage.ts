@@ -1,7 +1,10 @@
 /**
  * Azure Storage Konfiguration
- * Lädt Konfiguration aus Umgebungsvariablen für Azure Blob Storage
+ * Lädt Konfiguration aus Umgebungsvariablen oder — bei aktivierter Library-Config —
+ * aus MongoDB (Transformation → Azure Ingestion Storage).
  */
+
+import type { StorageConfig } from '@/types/library'
 
 export interface AzureStorageConfig {
   connectionString: string
@@ -28,7 +31,7 @@ function generateBaseUrl(accountName: string, containerName: string): string {
 }
 
 /**
- * Azure Storage Konfiguration aus Umgebungsvariablen
+ * Azure Storage Konfiguration aus Umgebungsvariablen (Prozess-ENV).
  */
 export function getAzureStorageConfig(): AzureStorageConfig | null {
   const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING || ''
@@ -53,11 +56,38 @@ export function getAzureStorageConfig(): AzureStorageConfig | null {
 }
 
 /**
+ * Auflösung für einen konkreten Library-Kontext: zuerst benutzerdefinierte Ingestion-Storage-Config,
+ * sonst globale ENV-Variablen (wie bisher für Server/Electron-.env).
+ */
+export function resolveAzureStorageConfig(
+  libraryConfig?: StorageConfig | null
+): AzureStorageConfig | null {
+  const ing = libraryConfig?.ingestionStorage
+  if (ing?.useCustomConfig) {
+    const connectionString = (ing.connectionString || '').trim()
+    const containerName = (ing.containerName || '').trim()
+    if (connectionString && containerName) {
+      const uploadDir = process.env.UPLOAD_DIR || 'sessions'
+      const accountName = extractAccountName(connectionString)
+      const baseUrl = generateBaseUrl(accountName, containerName)
+      return {
+        connectionString,
+        containerName,
+        uploadDir,
+        accountName,
+        baseUrl,
+      }
+    }
+  }
+  return getAzureStorageConfig()
+}
+
+/**
  * Validiert Azure Storage Konfiguration
  * Gibt Warnung zurück wenn nicht konfiguriert, aber wirft keinen Fehler
  */
 export function validateAzureStorageConfig(): void {
-  const config = getAzureStorageConfig()
+  const config = getAzureStorageConfig() // Nur globale ENV-Warnung beim Start
   if (!config) {
     console.warn('[AzureStorage] Warnung: Azure Storage Konfiguration ist unvollständig. Bilder werden nicht auf Azure hochgeladen.')
   }

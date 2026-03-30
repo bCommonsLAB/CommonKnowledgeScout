@@ -407,6 +407,7 @@ export class LibraryService {
       const baseConfig = {
         transcription: lib.transcription,
         secretaryService: lib.config?.secretaryService,
+        ingestionStorage: lib.config?.ingestionStorage,
         // Shadow-Twin-Modus ist kein Secret und muss für UI/Flows sichtbar sein
         shadowTwin: lib.config?.shadowTwin,
         // Chat-/Galerie-Settings sind sicher und werden an den Client geliefert
@@ -428,6 +429,11 @@ export class LibraryService {
           apiKey: lib.config.publicPublishing.apiKey 
             ? this.maskApiKey(lib.config.publicPublishing.apiKey)
             : undefined,
+          siteEnabled: lib.config.publicPublishing.siteEnabled === true,
+          sitePublished: lib.config.publicPublishing.sitePublished,
+          siteUrl: lib.config.publicPublishing.siteUrl,
+          siteVersion: lib.config.publicPublishing.siteVersion,
+          sitePublishedAt: lib.config.publicPublishing.sitePublishedAt,
         } : undefined
       } as Record<string, unknown>;
       
@@ -672,6 +678,32 @@ export class LibraryService {
   }
 
   /**
+   * Library nach publicPublishing.slugName abrufen (ohne isPublic-Filter).
+   * Für authentifizierte Explore-Ansicht: Owner/Co-Creator können Slug testen, bevor die Library öffentlich ist.
+   */
+  async getLibraryByPublishingSlug(slugName: string): Promise<Library | null> {
+    try {
+      const collection = await getCollection<UserLibraries>(this.collectionName);
+      await this.ensurePublicLibrariesIndexes();
+      const pipeline = [
+        { $unwind: '$libraries' },
+        {
+          $match: {
+            'libraries.config.publicPublishing.slugName': slugName,
+          },
+        },
+        { $limit: 1 },
+        { $replaceRoot: { newRoot: '$libraries' } },
+      ];
+      const results = await collection.aggregate<Library>(pipeline).toArray();
+      return results.length > 0 ? results[0] : null;
+    } catch (error) {
+      console.error('[LibraryService] Fehler bei getLibraryByPublishingSlug:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Library nach ID abrufen (owner-unabhängig).
    * Durchsucht alle User-Einträge nach einer Library mit der gegebenen ID.
    * Wird benötigt, um geteilte Libraries zu laden, die einem anderen User gehören.
@@ -694,6 +726,28 @@ export class LibraryService {
     } catch (error) {
       console.error('[LibraryService] Fehler beim Abrufen der Bibliothek nach ID:', error);
       return null;
+    }
+  }
+
+  /**
+   * E-Mail des Nutzers, in dessen MongoDB-Dokument die Library-ID vorkommt (Owner).
+   * `updateLibrary(email, …)` schreibt nur in dieses Dokument; Co-Creator brauchen diese Adresse,
+   * um Metadaten (z. B. publicPublishing nach Site-Publish) zu persistieren.
+   */
+  async findOwnerEmailForLibraryId(libraryId: string): Promise<string | null> {
+    const id = String(libraryId || '').trim()
+    if (!id) return null
+    try {
+      const collection = await getCollection<UserLibraries>(this.collectionName)
+      const row = await collection.findOne(
+        { 'libraries.id': id },
+        { projection: { email: 1 } },
+      )
+      const email = typeof row?.email === 'string' ? row.email.trim() : ''
+      return email || null
+    } catch (error) {
+      console.error('[LibraryService] findOwnerEmailForLibraryId:', error)
+      return null
     }
   }
 

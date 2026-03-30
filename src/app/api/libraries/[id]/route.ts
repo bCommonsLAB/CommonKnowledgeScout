@@ -366,6 +366,18 @@ export async function PATCH(
             merged.appPassword = newNc.appPassword;
           }
           updatedConfig[key] = merged;
+        } else if (key === 'ingestionStorage' && value && typeof value === 'object' && !Array.isArray(value)) {
+          // Merge: leerer connectionString überschreibt gespeichertes Secret nicht (wie Nextcloud appPassword)
+          const existingIng = updatedConfig[key] as Record<string, unknown> | undefined;
+          const inc = value as Record<string, unknown>;
+          const merged: Record<string, unknown> = { ...(existingIng || {}), ...inc };
+          const incCs = inc.connectionString;
+          if (typeof incCs !== 'string' || !incCs.trim()) {
+            if (existingIng?.connectionString && typeof existingIng.connectionString === 'string') {
+              merged.connectionString = existingIng.connectionString;
+            }
+          }
+          updatedConfig[key] = merged;
         } else {
           // Alle anderen Felder normal aktualisieren
           updatedConfig[key] = value;

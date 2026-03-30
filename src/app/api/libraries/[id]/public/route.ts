@@ -34,7 +34,7 @@ export async function PUT(
 
     // Request Body parsen
     const body = await request.json().catch(() => ({}));
-    const { slugName, publicName, description, icon, apiKey, isPublic, requiresAuth, showOnHomepage, backgroundImageUrl, gallery } = body;
+    const { slugName, publicName, description, icon, apiKey, isPublic, requiresAuth, showOnHomepage, backgroundImageUrl, gallery, siteEnabled } = body;
 
     // Validierung
     if (isPublic === true) {
@@ -120,38 +120,48 @@ export async function PUT(
       hasPublicPublishing: !!library.config?.publicPublishing
     });
 
+    const prevPub = library.config?.publicPublishing
+
     // Public-Publishing-Config aktualisieren
     // WICHTIG: Mergen der gesamten config-Struktur, nicht überschreiben
+    // Site-Publish-Metadaten (Azure-Snapshot) nur via publish-site/depublish-site ändern — hier explizit beibehalten.
     const updatedLibrary = {
       ...library,
       config: {
         ...library.config,
         publicPublishing: {
-          slugName: slugName || library.config?.publicPublishing?.slugName || '',
-          publicName: publicName || library.config?.publicPublishing?.publicName || library.label,
-          description: description || library.config?.publicPublishing?.description || '',
-          icon: icon !== undefined ? (icon === 'none' ? undefined : icon) : library.config?.publicPublishing?.icon,
+          slugName: slugName || prevPub?.slugName || '',
+          publicName: publicName || prevPub?.publicName || library.label,
+          description: description || prevPub?.description || '',
+          icon: icon !== undefined ? (icon === 'none' ? undefined : icon) : prevPub?.icon,
           // API-Key nur aktualisieren wenn gesetzt und nicht maskiert
           // Wenn undefined, behalte den alten Wert
           apiKey: apiKey !== undefined && apiKey !== '' && !apiKey.includes('...') && !apiKey.includes('••••') && (apiKey.match(/\./g)?.length || 0) < 10
             ? apiKey 
-            : library.config?.publicPublishing?.apiKey,
+            : prevPub?.apiKey,
           isPublic: isPublic !== undefined ? isPublic : false,
           // Backwards-Compatibility: fehlend => true
           // Wenn der Client nichts sendet, behalten wir den bisherigen Wert (oder true, wenn bisher nicht vorhanden).
-          showOnHomepage: showOnHomepage !== undefined ? showOnHomepage : (library.config?.publicPublishing?.showOnHomepage ?? true),
-          requiresAuth: requiresAuth !== undefined ? requiresAuth : (library.config?.publicPublishing?.requiresAuth || false),
+          showOnHomepage: showOnHomepage !== undefined ? showOnHomepage : (prevPub?.showOnHomepage ?? true),
+          requiresAuth: requiresAuth !== undefined ? requiresAuth : (prevPub?.requiresAuth || false),
           // Hintergrundbild-URL: Wenn gesetzt, verwende neuen Wert, sonst behalte alten oder undefined
           backgroundImageUrl: backgroundImageUrl !== undefined 
             ? (backgroundImageUrl === '' ? undefined : backgroundImageUrl)
-            : library.config?.publicPublishing?.backgroundImageUrl,
+            : prevPub?.backgroundImageUrl,
           // Gallery-Texte mergen (nur wenn vorhanden)
           gallery: gallery ? {
-            headline: gallery.headline !== undefined ? gallery.headline : library.config?.publicPublishing?.gallery?.headline,
-            subtitle: gallery.subtitle !== undefined ? gallery.subtitle : library.config?.publicPublishing?.gallery?.subtitle,
-            description: gallery.description !== undefined ? gallery.description : library.config?.publicPublishing?.gallery?.description,
-            filterDescription: gallery.filterDescription !== undefined ? gallery.filterDescription : library.config?.publicPublishing?.gallery?.filterDescription,
-          } : library.config?.publicPublishing?.gallery,
+            headline: gallery.headline !== undefined ? gallery.headline : prevPub?.gallery?.headline,
+            subtitle: gallery.subtitle !== undefined ? gallery.subtitle : prevPub?.gallery?.subtitle,
+            description: gallery.description !== undefined ? gallery.description : prevPub?.gallery?.description,
+            filterDescription: gallery.filterDescription !== undefined ? gallery.filterDescription : prevPub?.gallery?.filterDescription,
+          } : prevPub?.gallery,
+          // Startseiten-Tab bewusst ein-/ausblenden. Fehlend => false, damit keine Library
+          // ungefragt eine Webansicht bekommt.
+          siteEnabled: siteEnabled === true,
+          sitePublished: prevPub?.sitePublished,
+          siteUrl: prevPub?.siteUrl,
+          siteVersion: prevPub?.siteVersion,
+          sitePublishedAt: prevPub?.sitePublishedAt,
         },
       },
     };

@@ -7,7 +7,8 @@
  */
 
 import { AzureStorageService } from '@/lib/services/azure-storage-service'
-import { getAzureStorageConfig } from '@/lib/config/azure-storage'
+import { resolveAzureStorageConfig } from '@/lib/config/azure-storage'
+import { LibraryService } from '@/lib/services/library-service'
 import { calculateImageHash } from '@/lib/services/azure-storage-service'
 // ImageProcessor wird für zukünftige Erweiterungen importiert
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -59,12 +60,15 @@ export async function uploadImagesFromZipDirectly(
     })
   }
 
-  const azureConfig = getAzureStorageConfig()
+  const libraryDoc = await LibraryService.getInstance().getLibraryById(libraryId)
+  const libraryConfig = libraryDoc?.config
+
+  const azureConfig = resolveAzureStorageConfig(libraryConfig)
   if (!azureConfig) {
     throw new Error('Azure Storage nicht konfiguriert')
   }
 
-  const azureStorage = new AzureStorageService()
+  const azureStorage = new AzureStorageService(libraryConfig)
   if (!azureStorage.isConfigured()) {
     throw new Error('Azure Storage Service nicht konfiguriert')
   }

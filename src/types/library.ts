@@ -216,6 +216,18 @@ export interface StorageConfig {
     useDirectConnection?: boolean;
   };
 
+  /**
+   * Azure Blob Storage für Ingestion (Medien nach Azure, Phase 3).
+   * UI: Einstellungen → Story → „Binary Storage“.
+   * useCustomConfig + connectionString + containerName → MongoDB-Werte.
+   * Sonst Fallback auf AZURE_STORAGE_* aus der Prozess-Umgebung.
+   */
+  ingestionStorage?: {
+    useCustomConfig?: boolean;
+    connectionString?: string;
+    containerName?: string;
+  };
+
   /** Chat-/RAG-Konfiguration pro Library (öffentlich sichere Inhalte) */
   chat?: LibraryChatConfig;
 
@@ -300,6 +312,19 @@ export interface StorageConfig {
       /** Erklärungstext zur Themenübersicht */
       topicsIntro?: string;
     };
+    /**
+     * Veröffentlichte Startseite (Snapshot in Azure, anonym über Slug erreichbar).
+     * Draft bleibt im Library-Storage unter `web/` bis explizit publiziert.
+     */
+    siteEnabled?: boolean;
+    /** Veröffentlichte Startseite (Snapshot in Azure, anonym über Slug erreichbar). */
+    sitePublished?: boolean;
+    /** Öffentliche URL der `index.html` (Azure Blob) */
+    siteUrl?: string;
+    /** Monoton steigende Version bei Neu-Veröffentlichung */
+    siteVersion?: number;
+    /** ISO-Zeitpunkt der letzten Veröffentlichung */
+    sitePublishedAt?: string;
   };
 }
 
@@ -392,6 +417,12 @@ export interface ClientLibrary {
       /** Desktop-Modus: Ergebnisse aktiv abholen statt per Webhook. Nur relevant bei useCustomConfig=true. */
       useDirectConnection?: boolean;
     };
+    /** Azure Ingestion Storage — Pflege unter Story → Binary Storage */
+    ingestionStorage?: {
+      useCustomConfig?: boolean;
+      connectionString?: string;
+      containerName?: string;
+    };
     /** Chat-/RAG-Konfiguration für die UI */
     chat?: LibraryChatConfig;
     /** Creation-Flow-Konfiguration für die UI */
@@ -441,6 +472,12 @@ export interface ClientLibrary {
         /** Erklärungstext zur Themenübersicht */
         topicsIntro?: string;
       };
+      /** Veröffentlichte Startseite (Azure), siehe serverseitiges publicPublishing */
+      siteEnabled?: boolean;
+      sitePublished?: boolean;
+      siteUrl?: string;
+      siteVersion?: number;
+      sitePublishedAt?: string;
     };
     /** Nextcloud/WebDAV-Konfiguration (maskiertes App-Passwort fuer die UI) */
     nextcloud?: {

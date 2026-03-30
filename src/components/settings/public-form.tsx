@@ -65,6 +65,7 @@ const publicFormSchema = z.object({
   icon: z.string().optional(),
   isPublic: z.boolean().default(false),
   requiresAuth: z.boolean().default(false),
+  siteEnabled: z.boolean().default(false),
   // Flag: ob die Library auf der Homepage gelistet wird (fehlend => true)
   showOnHomepage: z.boolean().default(true),
   // Hintergrundbild-URL für die Homepage
@@ -106,6 +107,8 @@ export function PublicForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingSlug, setIsCheckingSlug] = useState(false);
   const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
+  const [sitePublishLoading, setSitePublishLoading] = useState(false);
+  const [siteDepublishLoading, setSiteDepublishLoading] = useState(false);
   const [libraries, setLibraries] = useAtom(librariesAtom);
   const [activeLibraryId] = useAtom(activeLibraryIdAtom);
 
@@ -122,6 +125,7 @@ export function PublicForm() {
         icon: "",
         isPublic: false,
         requiresAuth: false,
+        siteEnabled: false,
         showOnHomepage: true,
         backgroundImageUrl: "",
         galleryHeadline: "Entdecke, was Menschen auf der SFSCon gesagt haben",
@@ -138,6 +142,7 @@ export function PublicForm() {
       icon: activeLibrary.config?.publicPublishing?.icon || "",
       isPublic: activeLibrary.config?.publicPublishing?.isPublic === true || false,
       requiresAuth: activeLibrary.config?.publicPublishing?.requiresAuth === true || false,
+      siteEnabled: activeLibrary.config?.publicPublishing?.siteEnabled === true || false,
       // Backwards-Compatibility: fehlend => true
       showOnHomepage: activeLibrary.config?.publicPublishing?.showOnHomepage !== false,
       backgroundImageUrl: activeLibrary.config?.publicPublishing?.backgroundImageUrl || "",
@@ -160,6 +165,7 @@ export function PublicForm() {
   // Slug-Validierung beim Tippen
   const slugName = form.watch("slugName")
   const isPublic = form.watch("isPublic")
+  const siteEnabled = form.watch("siteEnabled")
   useEffect(() => {
     if (!slugName || slugName.length < 3) {
       setSlugAvailable(null);
@@ -198,6 +204,144 @@ export function PublicForm() {
     const origin = typeof window !== "undefined" ? window.location.origin : ""
     return origin ? `${origin}${path}` : path
   }, [slugName])
+
+  /**
+   * Gemeinsames PUT für Public-Settings (wie beim Speichern-Button).
+   * Wirft bei API-Fehler — für handleSubmit / Auto-Save vor Startseiten-Aktionen.
+   */
+  async function putPublicSettings(data: PublicFormValues): Promise<void> {
+    if (!user?.primaryEmailAddress?.emailAddress) {
+      throw new Error('Sie müssen angemeldet sein, um Public-Settings zu speichern.')
+    }
+    if (!activeLibraryId) {
+      throw new Error('Bitte wählen Sie zuerst eine Bibliothek aus.')
+    }
+
+    const publicPublishing = {
+      slugName: data.slugName,
+      publicName: data.publicName,
+      description: data.description,
+      icon: data.icon || undefined,
+      isPublic: data.isPublic,
+      requiresAuth: data.requiresAuth,
+      siteEnabled: data.siteEnabled,
+      showOnHomepage: data.showOnHomepage,
+      backgroundImageUrl: data.backgroundImageUrl || undefined,
+    }
+
+    const response = await fetch(`/api/libraries/${activeLibraryId}/public`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(publicPublishing),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(
+        typeof errorData.error === 'string' ? errorData.error : 'Fehler beim Speichern der Public-Settings',
+      )
+    }
+
+    if (user?.primaryEmailAddress?.emailAddress) {
+      try {
+        const librariesResponse = await fetch(
+          `/api/libraries?email=${encodeURIComponent(user.primaryEmailAddress.emailAddress)}`,
+        )
+        if (librariesResponse.ok) {
+          const updatedLibraries = await librariesResponse.json()
+          if (Array.isArray(updatedLibraries)) {
+            setLibraries(updatedLibraries)
+          }
+        }
+      } catch (refreshError) {
+        console.error('[PublicForm] Libraries nach putPublicSettings:', refreshError)
+      }
+    }
+
+    router.refresh()
+  }
+
+  /**
+   * Vor „Draft testen“ / „Veröffentlichen“: ungespeicherte Änderungen sichern,
+   * sonst stimmt der Slug in MongoDB nicht mit dem Formular überein (404 / Fehler).
+   */
+  async function ensurePublicSettingsPersistedForSiteActions(): Promise<boolean> {
+    if (!user?.primaryEmailAddress?.emailAddress) {
+      toast({
+        title: 'Fehler',
+        description: 'Sie müssen angemeldet sein, um Public-Settings zu speichern.',
+        variant: 'destructive',
+      })
+      return false
+    }
+    if (!activeLibraryId) {
+      toast({
+        title: 'Fehler',
+        description: 'Bitte wählen Sie zuerst eine Bibliothek aus.',
+        variant: 'destructive',
+      })
+      return false
+    }
+    if (isCheckingSlug) {
+      toast({
+        title: 'Bitte kurz warten',
+        description: 'Der Slug wird noch auf Verfügbarkeit geprüft.',
+      })
+      return false
+    }
+    if (slugAvailable === false) {
+      toast({
+        title: 'Slug nicht verfügbar',
+        description: 'Dieser Slug ist bereits vergeben. Bitte einen anderen wählen.',
+        variant: 'destructive',
+      })
+      return false
+    }
+
+    // Keine Änderungen: nichts nach dem Server schicken
+    if (!form.formState.isDirty) {
+      return true
+    }
+
+    return await new Promise<boolean>((resolve) => {
+      void form.handleSubmit(
+        async (data) => {
+          setIsLoading(true)
+          try {
+            await putPublicSettings(data)
+            toast({
+              title: 'Gespeichert',
+              description:
+                'Änderungen wurden gespeichert, bevor die Startseiten-Aktion ausgeführt wird.',
+            })
+            resolve(true)
+          } catch (error) {
+            console.error('[PublicForm] Auto-Save vor Startseiten-Aktion:', error)
+            toast({
+              title: 'Speichern fehlgeschlagen',
+              description:
+                error instanceof Error ? error.message : 'Fehler beim Speichern der Public-Settings.',
+              variant: 'destructive',
+            })
+            resolve(false)
+          } finally {
+            setIsLoading(false)
+          }
+        },
+        () => {
+          toast({
+            title: 'Eingaben unvollständig',
+            description:
+              'Bitte prüfen Sie die Felder unter „Veröffentlichen“ und beheben Sie die markierten Fehler.',
+            variant: 'destructive',
+          })
+          resolve(false)
+        },
+      )()
+    })
+  }
 
   async function handleCopyPublicLink() {
     if (!publicLink) {
@@ -247,57 +391,13 @@ export function PublicForm() {
     setIsLoading(true);
 
     try {
-      // Public-Publishing-Config erstellen
-      const publicPublishing = {
-        slugName: data.slugName,
-        publicName: data.publicName,
-        description: data.description,
-        icon: data.icon || undefined,
-        isPublic: data.isPublic,
-        requiresAuth: data.requiresAuth,
-        showOnHomepage: data.showOnHomepage,
-        backgroundImageUrl: data.backgroundImageUrl || undefined,
-        // Gallery-Texte werden nicht mehr gespeichert, da sie jetzt aus den Übersetzungen kommen
-      };
-
-      const response = await fetch(`/api/libraries/${activeLibraryId}/public`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(publicPublishing),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Fehler beim Speichern der Public-Settings');
-      }
+      await putPublicSettings(data);
 
       toast({
         title: "Erfolg",
         description: "Public-Settings erfolgreich gespeichert.",
       });
-
-      // Libraries aktualisieren, um die neuen Daten zu bekommen
-      // Lade Libraries neu über die API
-      if (user?.primaryEmailAddress?.emailAddress) {
-        try {
-          const librariesResponse = await fetch(`/api/libraries?email=${encodeURIComponent(user.primaryEmailAddress.emailAddress)}`);
-          if (librariesResponse.ok) {
-            const updatedLibraries = await librariesResponse.json();
-            if (Array.isArray(updatedLibraries)) {
-              // Aktualisiere das librariesAtom
-              setLibraries(updatedLibraries);
-              console.log('[PublicForm] Libraries nach Speichern aktualisiert');
-            }
-          }
-        } catch (refreshError) {
-          console.error('[PublicForm] Fehler beim Aktualisieren der Libraries:', refreshError);
-        }
-      }
-
-      // Seiten neu laden, um aktualisierte Daten zu bekommen
-      router.refresh();
+      console.log('[PublicForm] Libraries nach Speichern aktualisiert');
     } catch (error) {
       console.error('Fehler beim Speichern der Public-Settings:', error);
       toast({
@@ -345,6 +445,148 @@ export function PublicForm() {
             </FormItem>
           )}
         />
+
+        {/* Startseite (web/): unabhängig vom Public-Flag — Publish läuft über eigene API (Owner + Co-Creator). */}
+        {activeLibraryId && slugName && slugName.length >= 3 && (
+          <div className="rounded-lg border p-4 space-y-3">
+            <div>
+              <h3 className="text-base font-semibold">Startseite verwalten</h3>
+              <p className="text-sm text-muted-foreground">
+                Entwurf liegt im Storage unter <code className="text-xs">web/</code>. Testen im Explore-Modus; Live erst nach explizitem Veröffentlichen (Azure-Snapshot).
+              </p>
+            </div>
+            <FormField
+              control={form.control}
+              name="siteEnabled"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Startseite anzeigen</FormLabel>
+                    <FormDescription>
+                      Zeigt den Tab „Startseite“ in Explore und in der normalen Galerie-Ansicht an. Wenn deaktiviert, bleibt die Website verborgen, auch wenn Dateien unter <code className="text-xs">web/</code> liegen.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            {activeLibrary?.config?.publicPublishing?.sitePublished && (
+              <p className="text-sm">
+                Live-Version v{activeLibrary.config.publicPublishing.siteVersion ?? '—'}
+                {activeLibrary.config.publicPublishing.sitePublishedAt
+                  ? ` · ${new Date(activeLibrary.config.publicPublishing.sitePublishedAt).toLocaleString()}`
+                  : ''}
+              </p>
+            )}
+            {siteEnabled && (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={isLoading || sitePublishLoading || siteDepublishLoading || isCheckingSlug || slugAvailable !== true}
+                  onClick={async () => {
+                    const persisted = await ensurePublicSettingsPersistedForSiteActions()
+                    if (!persisted) return
+                    window.open(`/explore/${encodeURIComponent(slugName)}?view=site`, '_blank', 'noopener,noreferrer')
+                  }}
+                >
+                  Draft testen
+                </Button>
+                <Button
+                  type="button"
+                  disabled={isLoading || sitePublishLoading || siteDepublishLoading || isCheckingSlug || slugAvailable !== true}
+                  onClick={async () => {
+                    if (!activeLibraryId) return
+                    const persisted = await ensurePublicSettingsPersistedForSiteActions()
+                    if (!persisted) return
+                    setSitePublishLoading(true)
+                    try {
+                      const res = await fetch(`/api/library/${encodeURIComponent(activeLibraryId)}/publish-site`, {
+                        method: 'POST',
+                      })
+                      const data = await res.json().catch(() => ({}))
+                      if (!res.ok) {
+                        throw new Error(typeof data.error === 'string' ? data.error : 'Veröffentlichen fehlgeschlagen')
+                      }
+                      toast({
+                        title: 'Startseite veröffentlicht',
+                        description: data.siteUrl ? `Version ${data.siteVersion}` : 'OK',
+                      })
+                      router.refresh()
+                      if (user?.primaryEmailAddress?.emailAddress) {
+                        const librariesResponse = await fetch(
+                          `/api/libraries?email=${encodeURIComponent(user.primaryEmailAddress.emailAddress)}`,
+                        )
+                        if (librariesResponse.ok) {
+                          const updatedLibraries = await librariesResponse.json()
+                          if (Array.isArray(updatedLibraries)) setLibraries(updatedLibraries)
+                        }
+                      }
+                    } catch (e) {
+                      toast({
+                        title: 'Fehler',
+                        description: e instanceof Error ? e.message : 'Veröffentlichen fehlgeschlagen',
+                        variant: 'destructive',
+                      })
+                    } finally {
+                      setSitePublishLoading(false)
+                    }
+                  }}
+                >
+                  {sitePublishLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  {activeLibrary?.config?.publicPublishing?.sitePublished
+                    ? 'Neu veröffentlichen'
+                    : 'Veröffentlichen'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={sitePublishLoading || siteDepublishLoading || !activeLibrary?.config?.publicPublishing?.sitePublished}
+                  onClick={async () => {
+                    if (!activeLibraryId) return
+                    setSiteDepublishLoading(true)
+                    try {
+                      const res = await fetch(`/api/library/${encodeURIComponent(activeLibraryId)}/depublish-site`, {
+                        method: 'POST',
+                      })
+                      const data = await res.json().catch(() => ({}))
+                      if (!res.ok) {
+                        throw new Error(typeof data.error === 'string' ? data.error : 'Depublizieren fehlgeschlagen')
+                      }
+                      toast({ title: 'Live-Startseite deaktiviert', description: 'Anonyme Nutzer sehen nur noch die Galerie.' })
+                      router.refresh()
+                      if (user?.primaryEmailAddress?.emailAddress) {
+                        const librariesResponse = await fetch(
+                          `/api/libraries?email=${encodeURIComponent(user.primaryEmailAddress.emailAddress)}`,
+                        )
+                        if (librariesResponse.ok) {
+                          const updatedLibraries = await librariesResponse.json()
+                          if (Array.isArray(updatedLibraries)) setLibraries(updatedLibraries)
+                        }
+                      }
+                    } catch (e) {
+                      toast({
+                        title: 'Fehler',
+                        description: e instanceof Error ? e.message : 'Depublizieren fehlgeschlagen',
+                        variant: 'destructive',
+                      })
+                    } finally {
+                      setSiteDepublishLoading(false)
+                    }
+                  }}
+                >
+                  {siteDepublishLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Depublizieren
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
 
         {form.watch("isPublic") && (
           <>

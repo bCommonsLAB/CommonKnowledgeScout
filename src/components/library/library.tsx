@@ -63,6 +63,7 @@ import { ChevronLeft } from "lucide-react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { useFolderNavigation } from "@/hooks/use-folder-navigation"
 import { uiPanePrefsAtom } from "@/atoms/ui-prefs-atom"
+
 export function Library() {
   // Globale Atoms
   const [, setFolderItems] = useAtom(folderItemsAtom);
@@ -111,6 +112,9 @@ export function Library() {
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
   }, []);
+
+  // Hinweis: Keine eingebettete Website-Vorschau mehr in der Archiv-Ansicht — Draft/Live-Startseite
+  // siehe Erkunden (/explore/[slug]?view=site) und media-lifecycle-Plan (Storage web/ vs. Azure-Publish).
 
   // URL -> State: folderId aus Query anwenden, wenn Provider bereit ist
   const urlInitAppliedRef = React.useRef(false);

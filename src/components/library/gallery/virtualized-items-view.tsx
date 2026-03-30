@@ -22,6 +22,8 @@ import { OpenInArchiveButton } from './open-in-archive-button'
 import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
 import { formatUpsertedAt } from '@/utils/format-upserted-at'
 import { getTableColumnsForViewType } from '@/lib/detail-view-types'
+import { sortDocsByTableColumn } from '@/lib/gallery/table-sort'
+import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
 
 export interface VirtualizedItemsViewProps {
   viewMode: ViewMode
@@ -64,6 +66,10 @@ export function VirtualizedItemsView({
   const scrollOffsetFromBottomRef = useRef<number | null>(null)
   const scrollContainerRef = useRef<HTMLElement | null>(null)
   const prevDocsLengthRef = useRef<number>(0)
+
+  /** Tabellen-Sortierung: nur innerhalb jeder Gruppe (z. B. Jahr), nicht global über Gruppen hinweg */
+  const [sortColumn, setSortColumn] = React.useState<string | null>(null)
+  const [sortDir, setSortDir] = React.useState<'asc' | 'desc'>('asc')
 
   // Finde den Scroll-Container einmal beim Mount
   useEffect(() => {
@@ -167,6 +173,34 @@ export function VirtualizedItemsView({
     }))
   }, [libraryDetailViewType, tableColumnFacets])
 
+  const displayDocsByYear = React.useMemo(() => {
+    if (viewMode !== 'table' || !sortColumn) return docsByYear
+    return docsByYear.map(
+      ([groupKey, groupDocs]) =>
+        [groupKey, sortDocsByTableColumn(groupDocs, sortColumn, sortDir)] as [number | string, DocCardMeta[]]
+    )
+  }, [docsByYear, viewMode, sortColumn, sortDir])
+
+  const columnHeaderLabel = React.useCallback(
+    (col: { key: string; labelKey?: string; label?: string }) => {
+      if (col.labelKey) return t(col.labelKey)
+      if (col.label) return col.label
+      return col.key
+    },
+    [t]
+  )
+
+  const onHeaderSort = React.useCallback((key: string) => {
+    setSortColumn((prev) => {
+      if (prev === key) {
+        setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+        return prev
+      }
+      setSortDir('asc')
+      return key
+    })
+  }, [])
+
   // Zellwert für eine Spalte aus doc lesen (inkl. title, upsertedAt, Arrays)
   const getCellValue = (doc: DocCardMeta, key: string): React.ReactNode => {
     if (key === 'title') {
@@ -222,7 +256,7 @@ export function VirtualizedItemsView({
   const showGroupHeaders = groupByField !== 'none'
   return (
     <div ref={parentRef}>
-      {docsByYear.map(([groupKey, groupDocs]) => (
+      {displayDocsByYear.map(([groupKey, groupDocs]) => (
         <div key={String(groupKey)} className="mb-6">
           {showGroupHeaders && (
             <h3 className="text-lg font-semibold mb-2">
@@ -236,14 +270,52 @@ export function VirtualizedItemsView({
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12 shrink-0" aria-label="Thumbnail" />
-                  {tableColumns.map((col) => (
-                    <TableHead
-                      key={col.key}
-                      className={col.key === 'title' ? 'min-w-[120px]' : 'whitespace-nowrap'}
-                    >
-                      {'labelKey' in col && col.labelKey ? t(col.labelKey) : ('label' in col && col.label ? col.label : col.key)}
-                    </TableHead>
-                  ))}
+                  {tableColumns.map((col) => {
+                    const label = columnHeaderLabel(col)
+                    const isSorted = sortColumn === col.key
+                    return (
+                      <TableHead
+                        key={col.key}
+                        className={col.key === 'title' ? 'min-w-[120px]' : 'whitespace-nowrap'}
+                        aria-sort={isSorted ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                      >
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1.5 max-w-full text-left font-medium hover:text-foreground text-muted-foreground hover:underline"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onHeaderSort(col.key)
+                          }}
+                          title={
+                            isSorted
+                              ? sortDir === 'asc'
+                                ? t('gallery.table.sortAscending', { label })
+                                : t('gallery.table.sortDescending', { label })
+                              : t('gallery.table.sortByColumn', { label })
+                          }
+                          aria-label={
+                            isSorted
+                              ? sortDir === 'asc'
+                                ? t('gallery.table.sortAscending', { label })
+                                : t('gallery.table.sortDescending', { label })
+                              : t('gallery.table.sortByColumn', { label })
+                          }
+                        >
+                          <span className="truncate">{label}</span>
+                          {isSorted ? (
+                            sortDir === 'asc' ? (
+                              <ArrowUp className="h-4 w-4 shrink-0 text-foreground" aria-hidden />
+                            ) : (
+                              <ArrowDown className="h-4 w-4 shrink-0 text-foreground" aria-hidden />
+                            )
+                          ) : (
+                            // Gut sichtbar neben dem Label (vorher opacity-40 — in Screenshots oft „unsichtbar“)
+                            <ArrowUpDown className="h-4 w-4 shrink-0 text-foreground/55" aria-hidden />
+                          )}
+                        </button>
+                      </TableHead>
+                    )
+                  })}
                   {isOwner && <TableHead className="w-[60px] shrink-0" />}
                 </TableRow>
               </TableHeader>

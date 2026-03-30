@@ -20,7 +20,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ lib
       return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
     }
 
+    // Alle Definitionen: für buildFilterFromQuery (URL-Parameter auch bei unsichtbaren Facetten)
     const defs = parseFacetDefs(ctx.library)
+    // Nur sichtbare Facetten: Sidebar/„Filter“-Navigation entspricht „Sichtbar“ in Story-Config
+    const visibleDefs = defs.filter((d) => d.visible)
     const libraryKey = getCollectionNameForLibrary(ctx.library)
     
     // PERFORMANCE: Index-Erstellung zur Laufzeit entfernen
@@ -38,8 +41,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ lib
       }
     }
 
-    const counts = await aggregateFacets(libraryKey, libraryId, filter, defs.map(d => ({ metaKey: d.metaKey, type: d.type, label: d.label })))
-    const out = defs.map(d => {
+    const counts = await aggregateFacets(
+      libraryKey,
+      libraryId,
+      filter,
+      visibleDefs.map((d) => ({ metaKey: d.metaKey, type: d.type, label: d.label }))
+    )
+    const out = visibleDefs.map((d) => {
       const options = counts[d.metaKey] || []
       const sorted = (d.sort === 'count')
         ? options.slice().sort((a, b) => b.count - a.count || String(a.value).localeCompare(String(b.value)))

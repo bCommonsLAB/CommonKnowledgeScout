@@ -165,6 +165,9 @@ export async function persistShadowTwinToMongo(args: {
 }): Promise<{ markdown: string; imageCount: number; imageErrorsCount: number }> {
   const { libraryId, userEmail, sourceItem, provider, artifactKey, markdown, shadowTwinFolderId, zipArchives, jobId } = args
 
+  const libraryDoc = await LibraryService.getInstance().getLibraryById(libraryId)
+  const libraryConfig = libraryDoc?.config
+
   let processedMarkdown = markdown
   let directUploadMetadata: Array<{ fileName: string; url: string; hash: string; size: number; mimeType: string }> | undefined
   let azureUnavailable = false
@@ -203,7 +206,10 @@ export async function persistShadowTwinToMongo(args: {
         provider,
         libraryId,
         sourceItem.id,
-        shadowTwinFolderId
+        shadowTwinFolderId,
+        jobId,
+        false,
+        libraryConfig
       )
       processedMarkdown = processed.markdown
     } catch (imgErr) {
@@ -230,7 +236,10 @@ export async function persistShadowTwinToMongo(args: {
       provider,
       libraryId,
       sourceItem.id,
-      shadowTwinFolderId
+      shadowTwinFolderId,
+      jobId,
+      false,
+      libraryConfig
     )
   }
 

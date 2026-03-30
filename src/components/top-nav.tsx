@@ -10,6 +10,14 @@ import { useAtom } from "jotai"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
   Sheet,
   SheetContent,
   SheetHeader,
@@ -26,6 +34,11 @@ import { useTranslation } from "@/lib/i18n/hooks"
 import { useScrollVisibility } from "@/hooks/use-scroll-visibility"
 import { useUserRole } from "@/hooks/use-user-role"
 
+interface NavItem {
+  name: string
+  href: string
+  newTab?: boolean
+}
 
 export function TopNav() {
   const pathname = usePathname()
@@ -37,7 +50,16 @@ export function TopNav() {
   
   // Statt Events verwenden wir Jotai
   const [libraryContext] = useAtom(libraryAtom)
-  const { libraries } = libraryContext
+  const { libraries, activeLibraryId } = libraryContext
+  const activeLibrary = libraries.find((lib) => lib.id === activeLibraryId)
+  const webViewEnabled = activeLibrary?.config?.publicPublishing?.siteEnabled === true
+  const activeLibrarySlug =
+    activeLibrary?.config?.publicPublishing?.slugName ||
+    activeLibrary?.slug ||
+    ''
+  const webViewTestHref = activeLibrarySlug
+    ? `/explore/${encodeURIComponent(activeLibrarySlug)}?view=site`
+    : ''
   
   // Prüfe ob Story-Modus aktiv ist
   const isStoryMode = searchParams?.get('mode') === 'story'
@@ -46,9 +68,23 @@ export function TopNav() {
   
   // Hilfsfunktion um zu prüfen, ob ein Nav-Item aktiv ist
   const isActiveNavItem = (href: string) => {
+    if (href === '/docs/') {
+      return pathname?.startsWith('/docs') ?? false
+    }
+    if (href === '/templates') {
+      return pathname?.startsWith('/templates') ?? false
+    }
+    if (href === '/event-monitor') {
+      return pathname?.startsWith('/event-monitor') ?? false
+    }
+    if (href === '/session-manager') {
+      return pathname?.startsWith('/session-manager') ?? false
+    }
     if (href.includes('?mode=story')) {
-      // Für Story: Prüfe pathname UND query parameter
       return pathname === '/library/gallery' && isStoryMode
+    }
+    if (href === '/library/gallery') {
+      return pathname === '/library/gallery' && !isStoryMode
     }
     return pathname === href
   }
@@ -57,20 +93,16 @@ export function TopNav() {
   const isVisible = useScrollVisibility()
   
   // Navigationselemente mit Übersetzungen
-  const publicNavItems = [
+  const publicNavItems: NavItem[] = [
     {
       name: t('navigation.home'),
       href: "/",
-    },
-    {
-      name: t('navigation.docs'),
-      href: "/docs/",
     },
   ];
   
   // Admin-Features nur für Creators (MiSpace)
   // Gäste (WeSpace) sehen diese nicht
-  const protectedNavItems = isCreator ? [
+  const primaryProtectedNavItems: NavItem[] = isCreator ? [
     {
       name: t('navigation.library'),
       href: "/library",
@@ -79,23 +111,41 @@ export function TopNav() {
       name: t('navigation.gallery'),
       href: "/library/gallery",
     },
+    ...(webViewEnabled && webViewTestHref ? [{
+      name: t('navigation.webView'),
+      href: webViewTestHref,
+      newTab: true,
+    }] : []),
     {
       name: "Story",
       href: "/library/gallery?mode=story",
     },
-    {
-      name: t('navigation.templates'),
-      href: "/templates",
-    },
-    {
-      name: t('navigation.eventMonitor'),
-      href: "/event-monitor",
-    },
-    {
-      name: t('navigation.sessionManager'),
-      href: "/session-manager",
-    },
   ] : [];
+
+  const secondaryNavItems: NavItem[] = [
+    {
+      name: t('navigation.docs'),
+      href: "/docs/",
+    },
+    ...(isCreator ? [
+      {
+        name: t('navigation.templates'),
+        href: "/templates",
+      },
+      {
+        name: t('navigation.eventMonitor'),
+        href: "/event-monitor",
+      },
+      {
+        name: t('navigation.sessionManager'),
+        href: "/session-manager",
+      },
+    ] : []),
+  ];
+
+  const hasSecondaryActive =
+    pathname?.startsWith('/settings') === true ||
+    secondaryNavItems.some((item) => isActiveNavItem(item.href))
 
   return (
     <>
@@ -124,6 +174,8 @@ export function TopNav() {
                     key={item.href}
                     href={item.href}
                     onClick={() => setOpen(false)}
+                    target={item.newTab ? "_blank" : undefined}
+                    rel={item.newTab ? "noreferrer" : undefined}
                     className={cn(
                       "block rounded-md px-3 py-2 text-sm",
                       pathname === item.href ? "bg-muted text-primary" : "text-foreground hover:bg-muted"
@@ -133,13 +185,15 @@ export function TopNav() {
                   </Link>
                 ))}
                 
-                {/* Geschützte Navigationselemente - nur für angemeldete Benutzer */}
+                {/* Geschützte Primärnavigation - nur für angemeldete Creator */}
                 <SignedIn>
-                  {protectedNavItems.map((item) => (
+                  {primaryProtectedNavItems.map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
                       onClick={() => setOpen(false)}
+                      target={item.newTab ? "_blank" : undefined}
+                      rel={item.newTab ? "noreferrer" : undefined}
                       className={cn(
                         "block rounded-md px-3 py-2 text-sm",
                         isActiveNavItem(item.href) ? "bg-muted text-primary" : "text-foreground hover:bg-muted"
@@ -150,6 +204,24 @@ export function TopNav() {
                   ))}
                 </SignedIn>
                 
+                <div className="pt-3 border-t" />
+                <div className="px-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Mehr
+                </div>
+                {secondaryNavItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      "block rounded-md px-3 py-2 text-sm",
+                      isActiveNavItem(item.href) ? "bg-muted text-primary" : "text-foreground hover:bg-muted"
+                    )}
+                  >
+                    {item.name}
+                  </Link>
+                ))}
+
                 <div className="pt-3 border-t" />
                 {/* Settings + Dark Mode im Menü - nur für Creators */}
                 <SignedIn>
@@ -185,6 +257,8 @@ export function TopNav() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  target={item.newTab ? "_blank" : undefined}
+                  rel={item.newTab ? "noreferrer" : undefined}
                   className={cn(
                     "flex h-7 items-center justify-center rounded-full px-4 text-center text-sm font-medium transition-colors hover:text-primary",
                     pathname === item.href
@@ -198,10 +272,12 @@ export function TopNav() {
               
               {/* Geschützte Navigationselemente - nur für angemeldete Benutzer */}
               <SignedIn>
-                {protectedNavItems.map((item) => (
+                {primaryProtectedNavItems.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
+                    target={item.newTab ? "_blank" : undefined}
+                    rel={item.newTab ? "noreferrer" : undefined}
                     className={cn(
                       "flex h-7 items-center justify-center rounded-full px-4 text-center text-sm font-medium transition-colors hover:text-primary",
                       isActiveNavItem(item.href)
@@ -225,31 +301,6 @@ export function TopNav() {
                   <div className="w-[160px] sm:w-[180px] md:w-[200px]">
                     <LibrarySwitcher />
                   </div>
-                  
-                  {/* Zahnrad-Symbol für Einstellungen - nur für Creators */}
-                  {isCreator && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => router.push('/settings')}
-                            className={cn(
-                              "rounded-full",
-                              pathname?.startsWith('/settings') && "bg-muted"
-                            )}
-                          >
-                            <Settings className="h-[1.2rem] w-[1.2rem]" />
-                            <span className="sr-only">Bibliothekseinstellungen</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Bibliothekseinstellungen</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
                 </div>
               ) : (
                 /* Neue Bibliothek Button für Creators ohne Bibliotheken */
@@ -271,33 +322,45 @@ export function TopNav() {
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
-                    
-                    {/* Zahnrad-Symbol für Einstellungen - nur für Creators */}
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => router.push('/settings')}
-                            className={cn(
-                              "rounded-full",
-                              pathname?.startsWith('/settings') && "bg-muted"
-                            )}
-                          >
-                            <Settings className="h-[1.2rem] w-[1.2rem]" />
-                            <span className="sr-only">Bibliothekseinstellungen</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Bibliothekseinstellungen</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
                   </div>
                 )
               )}
             </SignedIn>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("rounded-full", hasSecondaryActive && "bg-muted")}
+                >
+                  <Settings className="h-[1.2rem] w-[1.2rem]" />
+                  <span className="sr-only">Mehr Optionen</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Mehr</DropdownMenuLabel>
+                <SignedIn>
+                  {isCreator && (
+                    <>
+                      <DropdownMenuItem onClick={() => router.push('/settings')}>
+                        Einstellungen
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+                </SignedIn>
+                {secondaryNavItems.map((item) => (
+                  <DropdownMenuItem
+                    key={item.href}
+                    onClick={() => router.push(item.href)}
+                    className={isActiveNavItem(item.href) ? "bg-muted font-medium" : ""}
+                  >
+                    {item.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             
             {/* Sprachumschalter - immer sichtbar */}
             <LanguageSwitcher />
