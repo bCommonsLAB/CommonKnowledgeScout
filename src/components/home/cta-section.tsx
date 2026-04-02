@@ -42,7 +42,7 @@ export function CTASection() {
               <Button size="lg" className="gap-2" asChild>
                 <a href="https://github.com/bCommonsLAB/CommonKnowledgeScout" target="_blank" rel="noopener noreferrer">
                   <Compass className="h-5 w-5" />
-                  {t('home.cta.buttonResearch')}
+                  View on GitHub
                 </a>
               </Button>
               <Button size="lg" variant="outline" className="gap-2 bg-transparent" asChild>

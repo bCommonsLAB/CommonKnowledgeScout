@@ -21,7 +21,7 @@ pathHints: {{pathHints|Array normalisierter Pfadhinweise (technisch)}}
 
 ## {{title}}
 
-{{bodyResponse|Beschreibe den Inhalt der Besprechung als zusammenhängenden Dokumentteil mit klar erkennbaren Abschnitten zu Zusammenfassung, besprochenen Punkten, nächsten Schritten und offenen Fragen. Arbeite die zentralen Themen, Vereinbarungen und offenen Punkte klar heraus, ohne Informationen zu erfinden. Verwende Abschnittstitel in der Zielsprache des Dokuments.}}
+{{bodyResponse|Beschreibe den Inhalt der Besprechungen ausführlich mit klar erkennbaren Abschnitten und Zusammenfassung, besprochenen Punkten, nächsten Schritten und offenen Fragen. Arbeite die zentralen Themen, Vereinbarungen und offenen Punkte klar heraus, ohne Informationen zu erfinden. Verwende Abschnittstitel in der Zielsprache des Dokuments. Wenn es mehrere quellen (Besprechungen) sind, müssen wir diese ausführlich einzeln behandeln, diese dann bitte aber auch am Anfang eine generelle Zusammenfassung über alle Kunden hinweg mit eine objektiven Markteinschätzung formulieren.}}
 
 --- systemprompt
 Rolle:

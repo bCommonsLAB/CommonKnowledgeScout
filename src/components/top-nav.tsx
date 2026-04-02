@@ -33,12 +33,7 @@ import { LanguageSwitcher } from "@/components/shared/language-switcher"
 import { useTranslation } from "@/lib/i18n/hooks"
 import { useScrollVisibility } from "@/hooks/use-scroll-visibility"
 import { useUserRole } from "@/hooks/use-user-role"
-
-interface NavItem {
-  name: string
-  href: string
-  newTab?: boolean
-}
+import { buildTopNavConfig } from "@/components/top-nav-config"
 
 export function TopNav() {
   const pathname = usePathname()
@@ -92,56 +87,17 @@ export function TopNav() {
   // Auto-Hide beim Scrollen - verwendet gemeinsamen Hook
   const isVisible = useScrollVisibility()
   
-  // Navigationselemente mit Übersetzungen
-  const publicNavItems: NavItem[] = [
-    {
-      name: t('navigation.home'),
-      href: "/",
-    },
-  ];
-  
-  // Admin-Features nur für Creators (MiSpace)
-  // Gäste (WeSpace) sehen diese nicht
-  const primaryProtectedNavItems: NavItem[] = isCreator ? [
-    {
-      name: t('navigation.library'),
-      href: "/library",
-    },
-    {
-      name: t('navigation.gallery'),
-      href: "/library/gallery",
-    },
-    ...(webViewEnabled && webViewTestHref ? [{
-      name: t('navigation.webView'),
-      href: webViewTestHref,
-      newTab: true,
-    }] : []),
-    {
-      name: "Story",
-      href: "/library/gallery?mode=story",
-    },
-  ] : [];
-
-  const secondaryNavItems: NavItem[] = [
-    {
-      name: t('navigation.docs'),
-      href: "/docs/",
-    },
-    ...(isCreator ? [
-      {
-        name: t('navigation.templates'),
-        href: "/templates",
-      },
-      {
-        name: t('navigation.eventMonitor'),
-        href: "/event-monitor",
-      },
-      {
-        name: t('navigation.sessionManager'),
-        href: "/session-manager",
-      },
-    ] : []),
-  ];
+  const {
+    publicNavItems,
+    primaryProtectedNavItems,
+    secondaryNavItems,
+    showMoreMenu,
+  } = buildTopNavConfig({
+    isCreator,
+    webViewEnabled,
+    webViewTestHref,
+    t,
+  })
 
   const hasSecondaryActive =
     pathname?.startsWith('/settings') === true ||
@@ -204,23 +160,27 @@ export function TopNav() {
                   ))}
                 </SignedIn>
                 
-                <div className="pt-3 border-t" />
-                <div className="px-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Mehr
-                </div>
-                {secondaryNavItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setOpen(false)}
-                    className={cn(
-                      "block rounded-md px-3 py-2 text-sm",
-                      isActiveNavItem(item.href) ? "bg-muted text-primary" : "text-foreground hover:bg-muted"
-                    )}
-                  >
-                    {item.name}
-                  </Link>
-                ))}
+                {secondaryNavItems.length > 0 && (
+                  <>
+                    <div className="pt-3 border-t" />
+                    <div className="px-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Mehr
+                    </div>
+                    {secondaryNavItems.map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setOpen(false)}
+                        className={cn(
+                          "block rounded-md px-3 py-2 text-sm",
+                          isActiveNavItem(item.href) ? "bg-muted text-primary" : "text-foreground hover:bg-muted"
+                        )}
+                      >
+                        {item.name}
+                      </Link>
+                    ))}
+                  </>
+                )}
 
                 <div className="pt-3 border-t" />
                 {/* Settings + Dark Mode im Menü - nur für Creators */}
@@ -327,40 +287,42 @@ export function TopNav() {
               )}
             </SignedIn>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn("rounded-full", hasSecondaryActive && "bg-muted")}
-                >
-                  <Settings className="h-[1.2rem] w-[1.2rem]" />
-                  <span className="sr-only">Mehr Optionen</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Mehr</DropdownMenuLabel>
-                <SignedIn>
-                  {isCreator && (
-                    <>
-                      <DropdownMenuItem onClick={() => router.push('/settings')}>
-                        Einstellungen
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                    </>
-                  )}
-                </SignedIn>
-                {secondaryNavItems.map((item) => (
-                  <DropdownMenuItem
-                    key={item.href}
-                    onClick={() => router.push(item.href)}
-                    className={isActiveNavItem(item.href) ? "bg-muted font-medium" : ""}
+            {showMoreMenu && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn("rounded-full", hasSecondaryActive && "bg-muted")}
                   >
-                    {item.name}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                    <Settings className="h-[1.2rem] w-[1.2rem]" />
+                    <span className="sr-only">Mehr Optionen</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Mehr</DropdownMenuLabel>
+                  <SignedIn>
+                    {isCreator && (
+                      <>
+                        <DropdownMenuItem onClick={() => router.push('/settings')}>
+                          Einstellungen
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
+                  </SignedIn>
+                  {secondaryNavItems.map((item) => (
+                    <DropdownMenuItem
+                      key={item.href}
+                      onClick={() => router.push(item.href)}
+                      className={isActiveNavItem(item.href) ? "bg-muted font-medium" : ""}
+                    >
+                      {item.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             
             {/* Sprachumschalter - immer sichtbar */}
             <LanguageSwitcher />

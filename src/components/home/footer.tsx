@@ -24,9 +24,6 @@ export function Footer() {
           <Link href="/info?type=datenschutz" className="text-muted-foreground hover:text-foreground underline">
             {t('footer.privacy')}
           </Link>
-          <Link href="/info?type=impressum" className="text-muted-foreground hover:text-foreground underline">
-            {t('footer.imprint')}
-          </Link>
           <Link href="/info?type=rechtliche-hinweise" className="text-muted-foreground hover:text-foreground underline">
             {t('footer.legalNotice')}
           </Link>
