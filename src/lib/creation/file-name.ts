@@ -20,6 +20,11 @@ export interface BuildCreationFileNameArgs {
   metadata: Record<string, unknown>
   config?: CreationOutputFileNameConfig
   now?: Date
+  /**
+   * Optional: Vorrang vor metadataFieldKey / title (z.B. Wizard-Feld `filename` ohne .md).
+   * Wird zu einem sicheren Slug normalisiert.
+   */
+  overrideBaseName?: string
 }
 
 export interface BuildCreationFileNameResult {
@@ -75,6 +80,12 @@ export function buildCreationFileName(args: BuildCreationFileNameArgs): BuildCre
   const updatedMetadata: Record<string, unknown> = { ...args.metadata }
 
   const candidateRaw = (() => {
+    const override = args.overrideBaseName?.trim()
+    if (override) {
+      // Entferne versehentlich angehängte .md/.markdown vom Override
+      const stripped = override.replace(/\.(md|markdown)$/i, '').trim()
+      return stripped || override
+    }
     if (metadataFieldKey) {
       const v = updatedMetadata[metadataFieldKey]
       if (typeof v === 'string' && v.trim()) return v.trim()

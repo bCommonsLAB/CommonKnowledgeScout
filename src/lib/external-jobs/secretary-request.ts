@@ -47,6 +47,9 @@ export function prepareSecretaryRequest(
 ): SecretaryRequestConfig {
   const offline = options?.offlineMode ?? false
   const opts = (job.correlation?.options || {}) as Record<string, unknown>
+  const parameters = (job.parameters && typeof job.parameters === 'object')
+    ? job.parameters as { template?: unknown; phases?: { template?: boolean } }
+    : undefined
   const envConfig = getSecretaryConfig()
   // Library-spezifische Config hat Vorrang vor ENV-Variablen
   const baseUrl = options?.overrideBaseUrl || envConfig.baseUrl
@@ -91,6 +94,12 @@ export function prepareSecretaryRequest(
     formData.append('source_language', sourceLanguage)
     // Secretary uses `useCache` (see existing Next proxy routes)
     formData.append('useCache', String(useCache))
+    const templatePhaseDisabled = parameters?.phases?.template === false
+    const templateName = typeof parameters?.template === 'string' ? parameters.template.trim() : ''
+    if (templatePhaseDisabled && templateName) {
+      // Extract-only Shortcut: Transform-Template wird im Secretary ausgeführt.
+      formData.append('template', templateName)
+    }
     // Im Offline-Modus (Electron): callback_url weglassen → Secretary antwortet synchron
     if (!offline) {
       formData.append('callback_url', callbackUrl)
@@ -127,6 +136,12 @@ export function prepareSecretaryRequest(
     formData.append('source_language', sourceLanguage)
     // Secretary uses `useCache` (see existing Next proxy routes)
     formData.append('useCache', String(useCache))
+    const templatePhaseDisabled = parameters?.phases?.template === false
+    const templateName = typeof parameters?.template === 'string' ? parameters.template.trim() : ''
+    if (templatePhaseDisabled && templateName) {
+      // Extract-only Shortcut: Transform-Template wird im Secretary ausgeführt.
+      formData.append('template', templateName)
+    }
     if (!offline) {
       formData.append('callback_url', callbackUrl)
       formData.append('callback_token', secret)

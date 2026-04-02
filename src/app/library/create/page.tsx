@@ -4,12 +4,22 @@ import { useAtomValue } from "jotai"
 import { activeLibraryAtom } from "@/atoms/library-atom"
 import { getLibraryCreationConfig } from "@/lib/templates/library-creation-config"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, FileText } from "lucide-react"
+import { ArrowLeft, FileText, Mic } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import * as LucideIcons from "lucide-react"
+
+/**
+ * Bekannte Icons direkt importieren — bei `import * as lucide-react` kann Tree-Shaking
+ * einzelne Symbole (z. B. Mic) aus dem Namespace entfernen, dann wäre die Lookup-Map leer.
+ */
+const STATIC_LUCIDE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  Mic,
+  FileText,
+}
 
 /**
  * Lädt ein Lucide-Icon dynamisch basierend auf dem Icon-Namen
@@ -18,12 +28,14 @@ function getIconComponent(iconName?: string) {
   if (!iconName) {
     return FileText
   }
-  
+  const staticIcon = STATIC_LUCIDE_ICONS[iconName]
+  if (staticIcon) return staticIcon
+
   const IconComponent = (LucideIcons as Record<string, unknown>)[iconName] as React.ComponentType<{ className?: string }> | undefined
   if (IconComponent && typeof IconComponent === 'function') {
     return IconComponent
   }
-  
+
   return FileText
 }
 
@@ -112,42 +124,75 @@ export default function CreateContentPage() {
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {creationTypes.map((type) => {
-            const Icon = getIconComponent(type.icon)
+            // Diktat: immer Mikrofon (auch wenn Config/Icon-String aus API abweicht)
+            const Icon =
+              type.templateId === 'audio-transcript-de'
+                ? Mic
+                : getIconComponent(type.icon)
             const typeUrl = sourceFolderId
               ? `/library/create/${type.id}?sourceFolderId=${encodeURIComponent(sourceFolderId)}`
               : `/library/create/${type.id}`
+            const isDisabled = type.disabled === true
 
             return (
               <Card
                 key={type.id}
-                className="group cursor-pointer hover:border-primary transition-colors"
-                onClick={() => router.push(typeUrl)}
+                className={
+                  isDisabled
+                    ? 'opacity-60 cursor-not-allowed border-muted'
+                    : 'group cursor-pointer hover:border-primary transition-colors'
+                }
+                onClick={() => {
+                  if (isDisabled) return
+                  router.push(typeUrl)
+                }}
               >
                 <CardHeader>
                   <div className="flex items-start gap-4">
-                    <div className="p-3 rounded-lg bg-primary/10">
-                      <Icon className="w-6 h-6 text-primary" />
+                    <div className={`p-3 rounded-lg ${isDisabled ? 'bg-muted' : 'bg-primary/10'}`}>
+                      <Icon className={`w-6 h-6 ${isDisabled ? 'text-muted-foreground' : 'text-primary'}`} />
                     </div>
                     <div className="flex-1">
-                      <CardTitle className="group-hover:text-primary transition-colors">
-                        {type.label}
-                      </CardTitle>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <CardTitle
+                          className={
+                            isDisabled ? '' : 'group-hover:text-primary transition-colors'
+                          }
+                        >
+                          {type.label}
+                        </CardTitle>
+                        {type.source === 'builtin' ? (
+                          <Badge variant="secondary" className="text-xs font-normal">
+                            Standardvorlage
+                          </Badge>
+                        ) : null}
+                        {isDisabled ? (
+                          <Badge variant="outline" className="text-xs font-normal text-muted-foreground">
+                            Bald
+                          </Badge>
+                        ) : null}
+                      </div>
                       <CardDescription className="mt-2">
                         {type.description}
+                        {type.disabledHint ? (
+                          <span className="block mt-2 text-muted-foreground">{type.disabledHint}</span>
+                        ) : null}
                       </CardDescription>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full"
+                    disabled={isDisabled}
                     onClick={(e) => {
                       e.stopPropagation()
+                      if (isDisabled) return
                       router.push(typeUrl)
                     }}
                   >
-                    Erstellen
+                    {isDisabled ? 'Noch nicht verfügbar' : 'Erstellen'}
                   </Button>
                 </CardContent>
               </Card>

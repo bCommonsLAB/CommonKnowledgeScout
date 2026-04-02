@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { loadTemplateFromMongoDB } from '@/lib/templates/template-service-mongodb'
+import { getBuiltinCreationTemplate } from '@/lib/templates/builtin-creation-templates'
 
 async function getUserEmail(): Promise<string | null> {
   const { userId } = await auth()
@@ -44,8 +45,13 @@ export async function GET(
 
     // Lade Template aus MongoDB
     const template = await loadTemplateFromMongoDB(templateId, libraryId, userEmail, isAdmin)
-    
+
+    // Built-in-Fallback (Variante A): kein Mongo-Seed, zentrale Registry im Code
     if (!template) {
+      const builtin = getBuiltinCreationTemplate(templateId, libraryId, userEmail)
+      if (builtin) {
+        return NextResponse.json({ template: builtin })
+      }
       return NextResponse.json({ error: 'Template nicht gefunden' }, { status: 404 })
     }
 

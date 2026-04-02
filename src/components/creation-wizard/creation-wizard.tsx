@@ -24,6 +24,8 @@ import { useRouter } from "next/navigation"
 import { useAtomValue } from "jotai"
 import { currentFolderIdAtom, librariesAtom } from "@/atoms/library-atom"
 import { buildCreationFileName } from "@/lib/creation/file-name"
+import { runBuiltinTemplateExtract } from "@/lib/creation/builtin-collect-extract"
+import { buildDictationDraftFromSources, suggestDictationFileBaseName } from "@/lib/creation/builtin-dictation-draft"
 import { applyEventFrontmatterDefaults } from "@/lib/events/event-frontmatter-defaults"
 import type { WizardSource } from "@/lib/creation/corpus"
 import { buildCorpusText, buildTranscriptMarkdown, isCorpusTooLarge, truncateCorpus } from "@/lib/creation/corpus"
@@ -735,9 +737,11 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
   }
 
   const rawSteps = creation.flow.steps
-  // Bei sourceFolderId: collectSource überspringen; sonst selectFolderArtifacts + generateDraft überspringen
+  const hasSelectFolderArtifactsStep = rawSteps.some((s) => s.preset === 'selectFolderArtifacts')
+  // sourceFolderId kommt oft mit (Zielordner beim Anlegen aus dem Explorer). collectSource nur dann
+  // entfernen, wenn der Flow wirklich Ordner-Artefakte nutzt — sonst fehlt z. B. der Diktat-Textschritt.
   const steps = rawSteps.filter((s) => {
-    if (s.preset === 'collectSource' && sourceFolderId) return false
+    if (s.preset === 'collectSource' && sourceFolderId && hasSelectFolderArtifactsStep) return false
     if (s.preset === 'selectFolderArtifacts' && !sourceFolderId) return false
     if (s.preset === 'generateDraft' && !sourceFolderId) return false
     return true
@@ -906,6 +910,33 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     }
   }
 
+  /**
+   * Built-in Diktat (audio-transcript-de): kein Secretary/process-text — Entwurf direkt aus Quelltext.
+   */
+  function applyDirectDictationDraft(sources: WizardSource[]) {
+    const draft = buildDictationDraftFromSources(sources)
+    setWizardState((prev) => {
+      const existingFilename =
+        (typeof prev.draftMetadata?.filename === 'string' && prev.draftMetadata.filename.trim()) ||
+        (typeof prev.reviewedFields?.filename === 'string' && prev.reviewedFields.filename.trim()) ||
+        (typeof prev.generatedDraft?.metadata?.filename === 'string' && prev.generatedDraft.metadata.filename.trim()) ||
+        ''
+      const mergedMetadata =
+        draft &&
+        ({
+          ...draft.metadata,
+          // Vorschlag nur, bis der Nutzer im Dateinamen-Schritt etwas eingibt; bei Text-Updates beibehalten.
+          filename: existingFilename || (draft.metadata.filename as string) || suggestDictationFileBaseName(),
+        } as Record<string, unknown>)
+      return {
+        ...prev,
+        generatedDraft: draft && mergedMetadata ? { metadata: mergedMetadata, markdown: draft.markdown } : undefined,
+        isExtracting: false,
+        extractionError: undefined,
+      }
+    })
+  }
+
   interface JobUpdateWire {
     type: 'job_update'
     jobId: string
@@ -1057,10 +1088,9 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
    * Verhindert auch, dass Quellen mit derselben ID doppelt hinzugefügt werden.
    */
   const addSource = async (source: WizardSource) => {
-    // Single-Source UX: Wenn das Template nur "file" unterstützt, soll die Quelle-Auswahl nicht wieder erscheinen.
-    // Sonst sieht man während PDF-HITL Processing die "Startmethode"/"Quellen"-Infos (verwirrend).
     const supportedSources = template?.creation?.supportedSources || []
-    const isSingleFileOnly = supportedSources.length === 1 && supportedSources[0]?.type === 'file'
+    // Eine einzige Quelle (Text, Datei, …): Auswahl beibehalten — sonst springt „Zurück“ zur Startmaske statt ins Diktatfeld.
+    const isSingleSupportedSource = supportedSources.length === 1 && !!supportedSources[0]
 
     // WICHTIG: Verwende setWizardState mit Updater-Funktion, um Race Conditions zu vermeiden
     // (wenn addSource mehrfach schnell hintereinander aufgerufen wird)
@@ -1083,7 +1113,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         return {
           ...prev,
           sources: updatedSources,
-          selectedSource: isSingleFileOnly ? prev.selectedSource : undefined, // Multi-Source: Reset; Single-File: behalten
+          selectedSource: isSingleSupportedSource ? prev.selectedSource : undefined,
         }
       }
 
@@ -1105,7 +1135,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           return {
             ...prev,
             sources: updatedSources,
-            selectedSource: isSingleFileOnly ? prev.selectedSource : undefined, // Multi-Source: Reset; Single-File: behalten
+            selectedSource: isSingleSupportedSource ? prev.selectedSource : undefined,
           }
         }
       }
@@ -1126,20 +1156,23 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           return {
             ...prev,
             sources: updatedSources,
-            selectedSource: isSingleFileOnly ? prev.selectedSource : undefined, // Multi-Source: Reset; Single-File: behalten
+            selectedSource: isSingleSupportedSource ? prev.selectedSource : undefined,
           }
         }
       }
 
       // Quelle existiert noch nicht: Hinzufügen
       const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
+      // Nur file-transcript-de: Datei-Pipeline; Diktat (audio-transcript-de): direkter Text-Entwurf ohne process-text.
+      const isBuiltinFileTranscript = templateId === 'file-transcript-de'
       finalSources = [...prev.sources, source]
       return {
         ...prev,
         sources: finalSources,
-        selectedSource: isSingleFileOnly ? prev.selectedSource : undefined, // Multi-Source: Reset; Single-File: behalten
+        selectedSource: isSingleSupportedSource ? prev.selectedSource : undefined,
         // Für pdfanalyse: Metadaten erst nach "Weiter" laden, nicht sofort im Hintergrund.
-        generatedDraft: isPdfAnalyse ? undefined : prev.generatedDraft,
+        // Built-in Transkript-Templates: Extraktion erst beim Verlassen von collectSource (Secretary-Pipelines).
+        generatedDraft: isPdfAnalyse || isBuiltinFileTranscript ? undefined : prev.generatedDraft,
       }
     })
 
@@ -1157,9 +1190,13 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       })
     }
 
-    // Verarbeitung nur starten, wenn nicht pdfanalyse
+    // Verarbeitung: pdfanalyse/file-transcript-de separat; Diktat ohne LLM; sonst process-text.
     const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
-    if (!isPdfAnalyse) {
+    const isBuiltinFileTranscript = templateId === 'file-transcript-de'
+    const isBuiltinDictation = templateId === 'audio-transcript-de'
+    if (isBuiltinDictation) {
+      applyDirectDictationDraft(finalSources)
+    } else if (!isPdfAnalyse && !isBuiltinFileTranscript) {
       await runExtraction(finalSources)
     }
   }
@@ -1169,11 +1206,12 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
    */
   const removeSource = async (sourceId: string) => {
     const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
+    const isBuiltinFileTranscript = templateId === 'file-transcript-de'
     const newSources = wizardState.sources.filter(s => s.id !== sourceId)
     setWizardState(prev => ({ 
       ...prev, 
       sources: newSources,
-      generatedDraft: isPdfAnalyse ? undefined : prev.generatedDraft,
+      generatedDraft: isPdfAnalyse || isBuiltinFileTranscript ? undefined : prev.generatedDraft,
     }))
 
     // Log source_removed Event (best effort)
@@ -1183,7 +1221,10 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         sourceId,
       }).catch(error => console.warn('[Wizard] Fehler beim Loggen von source_removed:', error))
     }
-    if (!isPdfAnalyse) {
+    const isBuiltinDictation = templateId === 'audio-transcript-de'
+    if (isBuiltinDictation) {
+      applyDirectDictationDraft(newSources)
+    } else if (!isPdfAnalyse && !isBuiltinFileTranscript) {
       await runExtraction(newSources)
     }
   }
@@ -1202,8 +1243,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         router.push("/library")
         return
       }
-      // Letzter Step ohne Publish/Completion: Speichern und navigieren
-      handleSave()
+      // Letzter Step ohne Publish/Completion: Speichern und navigieren (z. B. Diktat: editDraft ist final)
+      await handleSave()
       return
     }
 
@@ -1421,6 +1462,85 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         // WICHTIG: pdfanalyse darf nie in die generische Step-Advance-Logik fallen.
         return
       }
+
+      // Built-in „Datei transkribieren“: Secretary-Pipeline beim Verlassen von collectSource (nur Datei-Upload)
+      if (templateId === 'file-transcript-de') {
+        if (!provider) {
+          toast.error('Storage ist noch nicht bereit', { description: 'Bitte kurz warten und erneut auf „Weiter“ klicken.' })
+          return
+        }
+        if (!libraryId) {
+          toast.error('Kontext fehlt', { description: 'libraryId fehlt – bitte Seite neu laden.' })
+          return
+        }
+        const baseFileIdFromJustAdded =
+          justAddedSource?.kind === 'file' && typeof justAddedSource.id === 'string' && justAddedSource.id.startsWith('file-')
+            ? justAddedSource.id.replace(/^file-/, '')
+            : ''
+        const fileSource = baseFileIdFromJustAdded
+          ? null
+          : [...wizardState.sources].reverse().find(s => s.kind === 'file' && typeof s.id === 'string' && s.id.startsWith('file-'))
+        const baseFileId = baseFileIdFromJustAdded || (fileSource ? fileSource.id.replace(/^file-/, '') : '')
+        if (!baseFileId) {
+          toast.error('Bitte zuerst eine Datei auswählen', { description: 'Es wurde keine Datei gefunden, die verarbeitet werden kann.' })
+          return
+        }
+
+        setWizardState(prev => ({
+          ...prev,
+          isExtracting: true,
+          processingProgress: 0,
+          processingMessage: 'Datei wird verarbeitet…',
+        }))
+
+        try {
+          const { markdown, metadata } = await runBuiltinTemplateExtract({
+            templateId,
+            provider,
+            libraryId,
+            baseFileId,
+            onProgress: (p) => {
+              setWizardState(prev => ({
+                ...prev,
+                processingProgress: typeof p.progress === 'number' ? p.progress : prev.processingProgress,
+                processingMessage: p.message || prev.processingMessage,
+              }))
+            },
+          })
+
+          setWizardState(prev => ({
+            ...prev,
+            isExtracting: false,
+            processingProgress: undefined,
+            processingMessage: undefined,
+            generatedDraft: { metadata, markdown },
+            draftMetadata: metadata,
+            draftText: markdown,
+            currentStepIndex: Math.min(prev.currentStepIndex + 1, steps.length - 1),
+          }))
+
+          if (wizardSessionIdRef.current) {
+            const newIndex = Math.min(wizardState.currentStepIndex + 1, steps.length - 1)
+            const newStep = steps[newIndex]
+            await logWizardEventClient(wizardSessionIdRef.current, {
+              eventType: 'step_changed',
+              stepIndex: newIndex,
+              stepPreset: newStep?.preset,
+            })
+          }
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : 'Unbekannter Fehler'
+          setWizardState(prev => ({
+            ...prev,
+            isExtracting: false,
+            processingProgress: undefined,
+            processingMessage: undefined,
+            extractionError: msg,
+          }))
+          toast.error('Verarbeitung fehlgeschlagen', { description: msg })
+        }
+        return
+      }
     }
 
     // PDF HITL: Nach Markdown-Review startet die Metadaten/Template-Phase (und optional Ingest)
@@ -1618,10 +1738,12 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       const nextRawIndex = prev.currentStepIndex + 1
       const nextStep = steps[nextRawIndex]
 
-      // UX: Wenn Briefing vorhanden ist, sollen unnötige Zwischensteps verschwinden.
-      // - Form-Modus: springe direkt zum nächsten editDraft (wenn vorhanden)
-      // - Interview-Modus: wenn Source bereits gewählt, überspringe chooseSource
+      // UX: Form-Modus kann Zwischenschritte überspringen — aber collectSource NIEMALS,
+      // sonst fehlt die Quelle (Text/Datei/URL) und Nutzer landen direkt im editDraft.
       if (prev.mode === 'form') {
+        if (nextStep?.preset === 'collectSource') {
+          return { ...prev, currentStepIndex: nextRawIndex }
+        }
         const editDraftIndex = steps.findIndex((s, idx) => idx > prev.currentStepIndex && s.preset === 'editDraft')
         if (editDraftIndex >= 0) {
           return { ...prev, currentStepIndex: editDraftIndex }
@@ -1661,15 +1783,16 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       const newIndex = prev.currentStepIndex - 1
       const newStep = steps[newIndex]
       const supportedSources = template?.creation?.supportedSources || []
-      const isSingleFileOnly = supportedSources.length === 1 && supportedSources[0]?.type === 'file'
+      // Nur eine Quelle (z. B. nur Datei oder nur Text): Auswahl beibehalten, sonst landet man in der Startmaske statt im Eingabefeld.
+      const isSingleSupportedSource = supportedSources.length === 1 && !!supportedSources[0]
       
       // Wenn wir zurück zum collectSource Step gehen,
-      // setze selectedSource IMMER zurück, damit die Quelle-Auswahl wieder angezeigt wird
+      // setze selectedSource zurück, damit die Quelle-Auswahl wieder angezeigt wird — außer bei genau einer definierten Quelle.
       if (newStep?.preset === 'collectSource') {
         return {
           ...prev,
           currentStepIndex: newIndex,
-          selectedSource: isSingleFileOnly ? prev.selectedSource : undefined, // Single-File: nicht zurück in Auswahl springen
+          selectedSource: isSingleSupportedSource ? prev.selectedSource : undefined,
         }
       }
       
@@ -1740,6 +1863,12 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       // Wenn createInOwnFolder=true, muss der Dateiname eindeutig sein, damit nicht mehrere
       // Testimonials am selben Tag denselben Ordner verwenden und sich überschreiben
       const createInOwnFolder = template.creation.output?.createInOwnFolder === true
+      const wizardOnlyKeys = template.creation.output?.wizardOnlyMetadataKeys ?? []
+      const filenameOverride =
+        typeof baseMetadata.filename === 'string' && baseMetadata.filename.trim().length > 0
+          ? baseMetadata.filename.trim()
+          : undefined
+
       const { fileName, updatedMetadata: finalMetadata } = buildCreationFileName({
         typeId,
         metadata: baseMetadata,
@@ -1747,7 +1876,13 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           ...template.creation.output?.fileName,
           ensureUnique: createInOwnFolder, // Eindeutigkeit sicherstellen bei createInOwnFolder
         },
+        overrideBaseName: filenameOverride,
       })
+
+      const finalMetadataForFrontmatter = { ...finalMetadata }
+      for (const k of wizardOnlyKeys) {
+        delete finalMetadataForFrontmatter[k]
+      }
 
       // Bestimme OwnerId (Dateiname ohne Extension)
       // Wird u.a. für Bild-Uploads verwendet (Pfad/Scope).
@@ -1823,7 +1958,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
 
       // Merge Bild-URLs in finalMetadata (string und string[] werden korrekt übernommen)
       const metadataWithImages = {
-        ...finalMetadata,
+        ...finalMetadataForFrontmatter,
         ...imageUrls,
       }
 
@@ -2793,7 +2928,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             libraryId={libraryId}
             provider={provider || undefined}
             targetFolderId={currentFolderId}
-            // Quelle-Auswahl (wenn source nicht gesetzt). Folder nur bei sourceFolderId (dann wird collectSource übersprungen)
+            // Quelle-Auswahl (wenn source nicht gesetzt). Ordner-Typ „folder“ nur in speziellen Flows (nicht für Diktat).
             supportedSources={creation.supportedSources.filter((s) => s.type !== 'folder')}
             selectedSource={wizardState.selectedSource}
             onSourceSelect={(source) => {
@@ -2960,7 +3095,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           )
         }
         
-        // Markdown-Tab nur anzeigen, wenn Text vorhanden ist
+        // Markdown-Tab nur anzeigen, wenn Text vorhanden ist (Diktat: Tabs aus — nur Dateiname)
+        const isBuiltinDictation = templateId === 'audio-transcript-de'
         const showMarkdownTab = initialDraftText.trim().length > 0
         
         // Bildfelder: aus editDraft.imageFieldKeys (falls definiert)
@@ -2977,6 +3113,10 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             // Nur benutzerrelevante Felder anzeigen (aus editDraft.fields)
             userRelevantFields={userRelevantFields}
             showMarkdownTab={showMarkdownTab}
+            suppressMarkdownTab={isBuiltinDictation}
+            headingOverride={currentStep.title}
+            subheadingOverride={currentStep.description}
+            hideSourcesFooter={isBuiltinDictation}
             imageFieldKeys={imageFieldKeys}
             libraryId={libraryId}
             onMetadataChange={(metadata) => {

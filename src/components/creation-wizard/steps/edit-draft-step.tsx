@@ -35,6 +35,14 @@ interface EditDraftStepProps {
    * Standard: true, wenn draftText vorhanden ist.
    */
   showMarkdownTab?: boolean
+  /** Wenn true: kein Markdown-Tab (nur Metadatenfelder), z. B. Diktat nur Dateiname. */
+  suppressMarkdownTab?: boolean
+  /** Optional: eigene Überschrift statt „Prüfen & Speichern“. */
+  headingOverride?: string
+  /** Optional: eigener Einleitungstext unter der Überschrift. */
+  subheadingOverride?: string
+  /** Quellen-Zeile unten ausblenden (z. B. Diktat: Text war im Schritt davor). */
+  hideSourcesFooter?: boolean
   /**
    * Felder, die als Bild-Upload gerendert werden sollen (aus editDraft.imageFieldKeys).
    * Diese Felder müssen auch in userRelevantFields enthalten sein.
@@ -63,6 +71,10 @@ export function EditDraftStep({
   sources = [],
   userRelevantFields,
   showMarkdownTab = true,
+  suppressMarkdownTab = false,
+  headingOverride,
+  subheadingOverride,
+  hideSourcesFooter = false,
   imageFieldKeys = [],
   libraryId,
 }: EditDraftStepProps) {
@@ -133,6 +145,7 @@ export function EditDraftStep({
     // Fallback: Konvertiere camelCase zu lesbarem Text
     const labelMap: Record<string, string> = {
       title: "Titel",
+      filename: "Dateiname (ohne .md)",
       shortTitle: "Kurztitel",
       summary: "Zusammenfassung",
       teaser: "Teaser",
@@ -412,18 +425,20 @@ export function EditDraftStep({
     )
   }
 
+  const tabsMode = showMarkdownTab && !suppressMarkdownTab
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-slate-900 dark:text-white sm:text-3xl">
-        {showMarkdownTab ? "Bearbeiten" : "Prüfen & Speichern"}
+        {tabsMode ? "Bearbeiten" : (headingOverride ?? "Prüfen & Speichern")}
       </h1>
       <p className="mt-2 text-lg text-slate-600 dark:text-slate-300">
-        {showMarkdownTab 
+        {tabsMode
           ? "Du kannst alle Felder direkt bearbeiten. Änderungen werden automatisch gespeichert."
-          : "Schau dir die Infos an. Du kannst alles direkt bearbeiten."}
+          : (subheadingOverride ?? "Schau dir die Infos an. Du kannst alles direkt bearbeiten.")}
       </p>
 
-      {showMarkdownTab ? (
+      {tabsMode ? (
         <Tabs defaultValue="metadata" className="mt-8">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="metadata">Felder</TabsTrigger>
@@ -503,8 +518,8 @@ export function EditDraftStep({
         </div>
       )}
 
-      {/* Dezent: Verwendete Quellen unten */}
-      {sources.length > 0 && (
+      {/* Dezent: Verwendete Quellen unten (bei reinem Dateinamen-Schritt oft redundant) */}
+      {!hideSourcesFooter && sources.length > 0 && (
         <div className="mt-8">
           <CompactSourcesInfo sources={sources} />
         </div>

@@ -433,6 +433,9 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
         const extension = fileNameObj && typeof fileNameObj.extension === 'string' ? fileNameObj.extension : undefined
         const fallbackPrefix = fileNameObj && typeof fileNameObj.fallbackPrefix === 'string' ? fileNameObj.fallbackPrefix : undefined
         const createInOwnFolder = outputObj && typeof outputObj.createInOwnFolder === 'boolean' ? outputObj.createInOwnFolder : undefined
+        const wizardOnlyMetadataKeys = Array.isArray(outputObj?.wizardOnlyMetadataKeys)
+          ? outputObj.wizardOnlyMetadataKeys.filter((k): k is string => typeof k === 'string')
+          : undefined
         
         // ImageFields extrahieren
         const imageFields = Array.isArray(obj.imageFields) ? obj.imageFields : []
@@ -491,7 +494,14 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
         if (detailViewType === 'book' || detailViewType === 'session' || detailViewType === 'testimonial' || detailViewType === 'blog') {
           result.preview = { detailViewType }
         }
-        if (metadataFieldKey || autoFillMetadataField !== undefined || extension || fallbackPrefix || createInOwnFolder !== undefined) {
+        if (
+          metadataFieldKey ||
+          autoFillMetadataField !== undefined ||
+          extension ||
+          fallbackPrefix ||
+          createInOwnFolder !== undefined ||
+          (wizardOnlyMetadataKeys && wizardOnlyMetadataKeys.length > 0)
+        ) {
           result.output = {
             fileName: {
               metadataFieldKey,
@@ -500,6 +510,7 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
               fallbackPrefix,
             },
             createInOwnFolder,
+            wizardOnlyMetadataKeys,
           }
         }
         
@@ -561,6 +572,9 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
         const extension = fileNameObj && typeof fileNameObj.extension === 'string' ? fileNameObj.extension : undefined
         const fallbackPrefix = fileNameObj && typeof fileNameObj.fallbackPrefix === 'string' ? fileNameObj.fallbackPrefix : undefined
         const createInOwnFolder = outputObj && typeof outputObj.createInOwnFolder === 'boolean' ? outputObj.createInOwnFolder : undefined
+        const wizardOnlyMetadataKeys = Array.isArray(outputObj?.wizardOnlyMetadataKeys)
+          ? outputObj.wizardOnlyMetadataKeys.filter((k): k is string => typeof k === 'string')
+          : undefined
         
         // ImageFields extrahieren (Fallback)
         const imageFields = Array.isArray(obj.imageFields) ? obj.imageFields : []
@@ -619,7 +633,14 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
         if (detailViewType === 'book' || detailViewType === 'session' || detailViewType === 'testimonial' || detailViewType === 'blog') {
           result.preview = { detailViewType }
         }
-        if (metadataFieldKey || autoFillMetadataField !== undefined || extension || fallbackPrefix || createInOwnFolder !== undefined) {
+        if (
+          metadataFieldKey ||
+          autoFillMetadataField !== undefined ||
+          extension ||
+          fallbackPrefix ||
+          createInOwnFolder !== undefined ||
+          (wizardOnlyMetadataKeys && wizardOnlyMetadataKeys.length > 0)
+        ) {
           result.output = {
             fileName: {
               metadataFieldKey,
@@ -628,6 +649,7 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
               fallbackPrefix,
             },
             createInOwnFolder,
+            wizardOnlyMetadataKeys,
           }
         }
         

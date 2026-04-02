@@ -3,10 +3,11 @@
  * 
  * @description
  * Hilfsfunktionen zum Laden und Validieren der Creation-Konfiguration.
- * Creation-Typen werden direkt aus MongoDB-Templates abgeleitet (Templates mit creation-Block).
+ * Creation-Typen werden aus MongoDB-Templates abgeleitet und mit Built-in-Templates gemergt.
  */
 
 import type { ParsedTemplate, TemplateDocument } from './template-types'
+import { listBuiltinCreationTemplates } from '@/lib/templates/builtin-creation-templates'
 
 /**
  * Creation-Typ-Definition aus Template
@@ -17,6 +18,14 @@ export interface LibraryCreationType {
   description: string
   templateId: string
   icon?: string
+  /** Herkunft: Library-Mongo oder eingebautes Standard-Template */
+  source?: 'library' | 'builtin'
+  /** Optional: Built-ins können als schreibgeschützte Vorlage markiert werden (UI) */
+  isReadonly?: boolean
+  /** Noch nicht nutzbar: Karte sichtbar, aber ausgegraut (z. B. bis Pipeline stabil ist) */
+  disabled?: boolean
+  /** Kurzer Hinweis unter der Beschreibung, wenn disabled */
+  disabledHint?: string
 }
 
 /**
@@ -71,8 +80,84 @@ function deriveIconFromTemplateName(templateName: string): string | undefined {
 }
 
 /**
- * Lädt die Creation-Typen direkt aus MongoDB-Templates.
- * Filtert Templates mit creation-Block und konvertiert sie zu Creation-Typen.
+ * Mappt ein Template-Dokument auf einen Creation-Typ (ohne Netzwerk).
+ * Dient Tests und Merge-Logik.
+ */
+export function templateDocumentToCreationType(
+  template: TemplateDocument,
+  source: 'library' | 'builtin'
+): LibraryCreationType | null {
+  if (
+    !template.creation ||
+    template.creation.supportedSources.length === 0 ||
+    template.creation.flow.steps.length === 0
+  ) {
+    return null
+  }
+  const templateName = template.name
+  const creation = template.creation
+  const firstStep = creation.flow.steps[0]
+
+  const displayName =
+    creation.ui?.displayName || firstStep?.title || deriveDisplayNameFromTemplateName(templateName)
+  const description =
+    creation.ui?.description ||
+    firstStep?.description ||
+    `Erstelle ${displayName} mit diesem Template`
+  // Diktat: immer Mikrofon (Lucide „Mic“), nicht die Default-Ableitung „FileText“ vom Namen audio-transcript-de.
+  const icon =
+    templateName === 'audio-transcript-de'
+      ? 'Mic'
+      : creation.ui?.icon || deriveIconFromTemplateName(templateName)
+
+  // Datei transkribieren: Flow noch nicht stabil — in der Liste sichtbar, Start gesperrt
+  const isFileTranscriptDe = templateName === 'file-transcript-de'
+
+  return {
+    id: templateName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+    label: displayName,
+    description,
+    templateId: templateName,
+    icon,
+    source,
+    isReadonly: source === 'builtin',
+    disabled: isFileTranscriptDe,
+    disabledHint: isFileTranscriptDe
+      ? 'Noch nicht startbar — die Verarbeitung wird gerade überarbeitet.'
+      : undefined,
+  }
+}
+
+/**
+ * Merge: MongoDB-Templates zuerst; Built-ins nur wenn kein gleichnamiges Library-Template existiert.
+ *
+ * @param libraryId aktuelle Library (für Built-in-Platzhalter)
+ * @param userEmail Owner-String für Built-in-Dokumente (nur Metadaten)
+ */
+export function mergeCreationTypesWithBuiltins(
+  mongoTemplates: TemplateDocument[],
+  libraryId: string,
+  userEmail: string
+): LibraryCreationType[] {
+  const fromMongo: LibraryCreationType[] = mongoTemplates
+    .map((t) => templateDocumentToCreationType(t, 'library'))
+    .filter((x): x is LibraryCreationType => x !== null)
+
+  const mongoNames = new Set(fromMongo.map((t) => t.templateId))
+
+  const builtins = listBuiltinCreationTemplates(libraryId, userEmail)
+  const fromBuiltin: LibraryCreationType[] = []
+  for (const b of builtins) {
+    if (mongoNames.has(b.name)) continue
+    const row = templateDocumentToCreationType(b, 'builtin')
+    if (row) fromBuiltin.push(row)
+  }
+
+  return [...fromMongo, ...fromBuiltin]
+}
+
+/**
+ * Lädt die Creation-Typen aus MongoDB-Templates und ergänzt Built-in-Standardvorlagen.
  * 
  * @param libraryId Library-ID
  * @returns Array von Creation-Typen
@@ -81,41 +166,17 @@ export async function getLibraryCreationConfig(libraryId: string): Promise<Libra
   try {
     // Lade alle Templates der Library
     const response = await fetch(`/api/templates?libraryId=${encodeURIComponent(libraryId)}`)
+    let templates: TemplateDocument[] = []
     if (!response.ok) {
       console.error('[getLibraryCreationConfig] Fehler beim Laden der Templates:', response.status)
-      return []
+      // Trotzdem Built-ins anzeigen (neue Library / API kurz nicht erreichbar).
+    } else {
+      const data = await response.json()
+      templates = data.templates || []
     }
-    
-    const data = await response.json()
-    const templates: TemplateDocument[] = data.templates || []
-    
-    // Filtere Templates mit creation-Block und konvertiere zu Creation-Typen
-    const creationTypes: LibraryCreationType[] = templates
-      .filter(template => 
-        template.creation && 
-        template.creation.supportedSources.length > 0 &&
-        template.creation.flow.steps.length > 0
-      )
-      .map(template => {
-        const templateName = template.name
-        const creation = template.creation!
-        const firstStep = creation.flow.steps[0]
-        
-        // UI-Metadaten aus creation.ui oder Fallbacks
-        const displayName = creation.ui?.displayName || firstStep?.title || deriveDisplayNameFromTemplateName(templateName)
-        const description = creation.ui?.description || firstStep?.description || `Erstelle ${displayName} mit diesem Template`
-        const icon = creation.ui?.icon || deriveIconFromTemplateName(templateName)
-        
-        return {
-          id: templateName.toLowerCase().replace(/[^a-z0-9]/g, '-'), // Slug-ähnliche ID
-          label: displayName,
-          description: description,
-          templateId: templateName,
-          icon: icon,
-        }
-      })
-    
-    return creationTypes
+
+    // Platzhalter-Owner nur für Listen-Merge; echte User-Mail liefert die Config-API beim Template-Laden.
+    return mergeCreationTypesWithBuiltins(templates, libraryId, 'builtin@local')
   } catch (error) {
     console.error('[getLibraryCreationConfig] Fehler:', error)
     return []

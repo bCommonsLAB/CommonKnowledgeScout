@@ -74,6 +74,17 @@ describe("buildCreationFileName", () => {
     })
     expect(res.fileName).toBe("testimonial-2025-01-02.md")
   })
+
+  it("overrideBaseName hat Vorrang vor title/metadataFieldKey", () => {
+    const res = buildCreationFileName({
+      typeId: "audio-transcript-de",
+      metadata: { title: "Ignoriert" },
+      config: { metadataFieldKey: "title", extension: "md" },
+      overrideBaseName: "Mein-Dateiname",
+      now: new Date("2025-01-02T12:00:00Z"),
+    })
+    expect(res.fileName).toBe("mein-dateiname.md")
+  })
 })
 
 

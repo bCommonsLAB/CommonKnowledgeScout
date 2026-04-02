@@ -76,7 +76,12 @@ export function applyEventFrontmatterDefaults(args: {
   // Kein Fallback – ohne Folgewizard-Definition bleibt das Feld leer, Testimonials-Bereich wird nicht angezeigt.
   // Die konkreten IDs werden vom Creation Wizard aus template.creation.followWizards übernommen.
   if (docType === 'event') {
-    // wizard_testimonial_template_id: Kein Default – wird nur vom Wizard gesetzt, wenn Template Folgewizard hat
+    if (frontmatterKeys.has('wizard_testimonial_template_id')) {
+      const current = frontmatter.wizard_testimonial_template_id
+      if (!current || String(current).trim() === '') {
+        frontmatter.wizard_testimonial_template_id = 'event-testimonial-creation-de'
+      }
+    }
     if (frontmatterKeys.has('wizard_finalize_template_id')) {
       const current = frontmatter.wizard_finalize_template_id
       if (!current || String(current).trim() === '') {

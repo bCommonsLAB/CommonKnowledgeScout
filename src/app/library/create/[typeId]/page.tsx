@@ -89,6 +89,24 @@ export default function CreateWizardPage({ params }: { params: Promise<{ typeId:
     )
   }
 
+  if (creationType.disabled) {
+    return (
+      <div className="container max-w-4xl py-12">
+        <div className="mb-8">
+          <Link href="/library/create" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4">
+            <ArrowLeft className="w-4 h-4" />
+            Zurück zur Auswahl
+          </Link>
+          <h1 className="text-3xl font-bold mb-2">{creationType.label}</h1>
+          <p className="text-muted-foreground">{creationType.description}</p>
+          <p className="mt-4 text-muted-foreground">
+            {creationType.disabledHint ?? 'Dieser Typ kann derzeit noch nicht gestartet werden.'}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container max-w-4xl py-12">

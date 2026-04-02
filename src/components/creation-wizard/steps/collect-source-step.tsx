@@ -332,6 +332,9 @@ function CollectSingleFileSelectionView({
   onPickFile,
   onClearPending,
   isDisabled,
+  accept,
+  helperText,
+  inputLabel,
 }: {
   isProcessing: boolean
   progress?: number
@@ -340,23 +343,27 @@ function CollectSingleFileSelectionView({
   onPickFile: (event: React.ChangeEvent<HTMLInputElement>) => void
   onClearPending: () => void
   isDisabled: boolean
+  /** HTML accept-Attribut (z.B. ".pdf" oder "audio/*") */
+  accept: string
+  helperText: string
+  inputLabel: string
 }) {
   return (
     <Card>
       <CardHeader>
         <CardTitle>Datei hochladen</CardTitle>
         <CardDescription>
-          Wähle ein PDF. Verarbeitung startet erst nach Klick auf „Weiter“.
+          {helperText}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <Label>PDF auswählen</Label>
+          <Label>{inputLabel}</Label>
           <Input
             type="file"
             onChange={onPickFile}
             className="mt-2"
-            accept=".pdf"
+            accept={accept}
             disabled={isDisabled}
           />
         </div>
@@ -499,6 +506,13 @@ export function CollectSourceStep({
 
   const isSingleFileOnly = supportedSources.length === 1 && supportedSources[0]?.type === 'file'
 
+  /**
+   * pdf: bisheriges PDF-HITL / pdfanalyse
+   * generic: Built-in file-transcript-de (PDF + diverse Medien, Dispatch im Wizard)
+   */
+  const singleFileUploadMode: 'pdf' | 'generic' =
+    templateId === 'file-transcript-de' ? 'generic' : 'pdf'
+
   // JETZT können wir frühe Returns machen (nach allen Hooks)
   // Wenn keine Quelle ausgewählt ist, zeige Quelle-Auswahl
   if (!source && supportedSources.length > 0) {
@@ -529,6 +543,16 @@ export function CollectSourceStep({
 
   // Single-File/PDF Mode: schlanke Oberfläche ohne Multi-Source-Overlays.
   if (isSingleFileOnly && source.type === 'file') {
+    const singleAccept =
+      singleFileUploadMode === 'generic'
+        ? '.pdf,.mp3,.wav,.m4a,.aac,.ogg,.flac,.webm,video/*,image/*,.mp4,.mov,.mkv,.png,.jpg,.jpeg,.webp,.gif'
+        : '.pdf'
+    const singleHelper =
+      singleFileUploadMode === 'generic'
+        ? 'PDF, Audio, Bild oder Video. Verarbeitung startet nach Klick auf „Weiter“.'
+        : 'Wähle ein PDF. Verarbeitung startet erst nach Klick auf „Weiter“.'
+    const singleLabel = 'Datei auswählen'
+
     return (
       <CollectSingleFileSelectionView
         isProcessing={!!isExtracting}
@@ -543,6 +567,9 @@ export function CollectSourceStep({
           if (fileInputRef.current) fileInputRef.current.value = ''
         }}
         isDisabled={!!isExtracting}
+        accept={singleAccept}
+        helperText={singleHelper}
+        inputLabel={singleLabel}
       />
     )
   }
@@ -707,24 +734,24 @@ export function CollectSourceStep({
       const lowerName = String(file.name || '').toLowerCase()
       const isPdf = file.type === 'application/pdf' || lowerName.endsWith('.pdf')
 
+      // Upload ins Storage, damit External Jobs später per originalItemId laden können
+      async function ensureWizardSourcesFolderId(): Promise<string> {
+        if (!provider) throw new Error('Provider nicht verfügbar')
+        const baseFolderId = (targetFolderId && targetFolderId.trim().length > 0) ? targetFolderId : "root"
+        const folderName = ".wizard-sources"
+        const items = await provider.listItemsById(baseFolderId)
+        const existing = items.find((it) => it.type === 'folder' && it.metadata?.name === folderName)
+        if (existing) return existing.id
+        const created = await provider.createFolder(baseFolderId, folderName)
+        return created.id
+      }
+
       // PDF im Wizard (HITL): Storage-first Upload, Verarbeitung startet erst bei "Weiter".
       if (isPdf) {
         setErrorMessage(null)
         if (!provider || !libraryId) {
           toast.error('PDF im Wizard benötigt Storage + Library', { description: 'Bitte im Archiv/Library starten oder sicherstellen, dass provider+libraryId verfügbar sind.' })
           return
-        }
-
-        // Upload ins Storage, damit External Jobs später per originalItemId laden können
-        async function ensureWizardSourcesFolderId(): Promise<string> {
-          if (!provider) throw new Error('Provider nicht verfügbar')
-          const baseFolderId = (targetFolderId && targetFolderId.trim().length > 0) ? targetFolderId : "root"
-          const folderName = ".wizard-sources"
-          const items = await provider.listItemsById(baseFolderId)
-          const existing = items.find((it) => it.type === 'folder' && it.metadata?.name === folderName)
-          if (existing) return existing.id
-          const created = await provider.createFolder(baseFolderId, folderName)
-          return created.id
         }
 
         const wizardFolderId = await ensureWizardSourcesFolderId()
@@ -745,6 +772,36 @@ export function CollectSourceStep({
         }
         setPendingFileSource(prepared)
         toast.success('PDF bereit', { description: 'Klicke „Weiter“, um OCR/Artefakte zu starten.' })
+        return
+      }
+
+      // Built-in file-transcript-de: Binärdateien (Audio/Video/Bild) ohne file.text()
+      if (singleFileUploadMode === 'generic') {
+        setErrorMessage(null)
+        if (!provider || !libraryId) {
+          toast.error('Upload benötigt Storage + Library', {
+            description: 'Bitte im Archiv/Library starten oder sicherstellen, dass provider+libraryId verfügbar sind.',
+          })
+          return
+        }
+        const wizardFolderId = await ensureWizardSourcesFolderId()
+        const uploadName = `${Date.now()}-${file.name}`
+        const uploaded = await provider.uploadFile(
+          wizardFolderId,
+          new File([file], uploadName, { type: file.type || 'application/octet-stream' })
+        )
+        const prepared: WizardSource = {
+          id: `file-${uploaded.id}`,
+          kind: 'file',
+          fileName: uploaded.metadata?.name || uploadName,
+          extractedText: '',
+          summary: uploaded.metadata?.name || uploadName,
+          createdAt: new Date(),
+        }
+        setPendingFileSource(prepared)
+        toast.success('Datei bereit', {
+          description: 'Klicke „Weiter“, um die Verarbeitung zu starten.',
+        })
         return
       }
 
@@ -993,7 +1050,9 @@ export function CollectSourceStep({
             {source.type === "url" 
               ? "Link einfügen" 
               : source.type === "spoken" || source.type === "text" 
-                ? "Erzähl mir von der Veranstaltung" 
+                ? (templateId === 'audio-transcript-de'
+                    ? "Erzähl mir was"
+                    : "Erzähl mir von der Veranstaltung")
                 : "Datei hochladen"}
             </CardTitle>
             {/* Quelle wechseln: erlaubt neue Auswahl ohne Umweg über "Zurück" */}
@@ -1017,7 +1076,9 @@ export function CollectSourceStep({
             {source.type === "url"
               ? "Füge den Link zur Event-Seite ein"
               : source.type === "spoken" || source.type === "text"
-                ? "Tippe oder diktiere alle wichtigen Infos"
+                ? (templateId === 'audio-transcript-de'
+                    ? "Tippe oder diktiere, was du festhalten willst."
+                    : "Tippe oder diktiere alle wichtigen Infos")
                 : source.helpText || "Lade eine Datei hoch"}
           </CardDescription>
         </CardHeader>
@@ -1026,11 +1087,13 @@ export function CollectSourceStep({
         {(source.type === "spoken" || source.type === "text") && (
           <div className="space-y-6">
             <DictationTextarea
-              label="Erzähl mir von der Veranstaltung"
+              label={templateId === 'audio-transcript-de' ? "Erzähl mir was" : "Erzähl mir von der Veranstaltung"}
               value={input}
               onChange={setInput}
               rows={8}
-              placeholder="z.B.: Am 15. Januar findet ein Workshop zum Thema KI statt. Der Eintritt ist frei..."
+              placeholder={templateId === 'audio-transcript-de'
+                ? "z. B.: Ich habe heute das und das erlebt."
+                : "z.B.: Am 15. Januar findet ein Workshop zum Thema KI statt. Der Eintritt ist frei..."}
               disabled={isExtracting}
               showOscilloscope={true}
               className="[&_textarea]:w-full [&_textarea]:resize-none [&_textarea]:text-lg [&_textarea]:border-2 [&_textarea]:focus:border-blue-500"

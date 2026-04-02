@@ -106,6 +106,11 @@ export interface TemplateCreationOutputConfig {
    * Ermöglicht Child-Flows (z.B. Testimonials) im selben Ordner.
    */
   createInOwnFolder?: boolean
+  /**
+   * Metadaten-Schlüssel, die nur im Wizard-Formular vorkommen und nicht ins persistierte Frontmatter sollen
+   * (z.B. `filename` als reiner Ausgabe-Dateiname).
+   */
+  wizardOnlyMetadataKeys?: string[]
 }
 
 /**
