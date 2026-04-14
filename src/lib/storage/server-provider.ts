@@ -73,6 +73,11 @@ export async function getServerProvider(userEmail: string, libraryId: string): P
     config: (lib.config as unknown as Record<string, unknown>) || {}
   }]);
 
+  // Cache leeren, damit ein frischer Provider mit aktuellen DB-Credentials erstellt wird.
+  // Ohne dies wuerde ein gecachter Provider mit veralteten Zugangsdaten zurueckgegeben,
+  // weil setLibraries den Cache nur bei geaenderten IDs leert (nicht bei Config-Aenderungen).
+  await factory.clearProvider(lib.id);
+
   const provider = await factory.getProvider(lib.id);
   
   // Stelle sicher, dass userEmail im Provider gesetzt ist (fuer Token-Loading)

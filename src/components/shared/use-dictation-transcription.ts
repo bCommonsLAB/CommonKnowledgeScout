@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { toast } from "sonner"
+import { extractSecretaryAudioText } from "@/lib/secretary/extract-audio-text"
 
 /**
  * Merge-Strategie für Diktat-Text: Standardmäßig wird neuer Text angehängt (mit Leerzeile).
@@ -155,30 +156,7 @@ export function useDictationTranscription(
       throw new Error(errMsg)
     }
 
-    // Antwortformat ist in der Codebase bereits so gehandhabt (siehe EditDraftStep).
-    const transcriptionText =
-      data && typeof data === "object" && "data" in data
-        ? (data as { data?: { transcription?: { text?: unknown } } }).data?.transcription?.text
-        : undefined
-
-    const outputText =
-      data && typeof data === "object" && "data" in data
-        ? (data as { data?: { output_text?: unknown } }).data?.output_text
-        : undefined
-
-    const originalText =
-      data && typeof data === "object" && "data" in data
-        ? (data as { data?: { original_text?: unknown } }).data?.original_text
-        : undefined
-
-    const text =
-      typeof transcriptionText === "string"
-        ? transcriptionText
-        : typeof outputText === "string"
-          ? outputText
-          : typeof originalText === "string"
-            ? originalText
-            : ""
+    const text = extractSecretaryAudioText(data)
 
     if (!text.trim()) throw new Error("Keine Transkription erhalten.")
 

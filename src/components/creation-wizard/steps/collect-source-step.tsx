@@ -11,6 +11,7 @@ import { Link, Upload, Plus, Loader2, FileText, Mic, FolderOpen } from "lucide-r
 import { toast } from "sonner"
 import { DictationTextarea } from "@/components/shared/dictation-textarea"
 import { SecretaryServiceError } from "@/lib/secretary/client"
+import { extractSecretaryAudioText } from "@/lib/secretary/extract-audio-text"
 import type { WizardSource } from "@/lib/creation/corpus"
 import { buildSourceSummary } from "@/lib/creation/corpus"
 import type { TemplateMetadataSchema } from "@/lib/templates/template-types"
@@ -984,31 +985,7 @@ export function CollectSourceStep({
         throw new Error(errMsg)
       }
 
-      // NOTE: Secretary AudioProcessor liefert die Transkription unter data.transcription.text
-      // (und optional weitere Felder wie transformation_result).
-      const transcriptionText =
-        data && typeof data === "object" && "data" in data
-          ? (data as { data?: { transcription?: { text?: unknown } } }).data?.transcription?.text
-          : undefined
-
-      // Fallbacks (ältere/alternative Response-Formate)
-      const outputText =
-        data && typeof data === "object" && "data" in data
-          ? (data as { data?: { output_text?: unknown } }).data?.output_text
-          : undefined
-      const originalText =
-        data && typeof data === "object" && "data" in data
-          ? (data as { data?: { original_text?: unknown } }).data?.original_text
-          : undefined
-
-      const text =
-        typeof transcriptionText === "string"
-          ? transcriptionText
-          : typeof outputText === "string"
-            ? outputText
-            : typeof originalText === "string"
-              ? originalText
-              : ""
+      const text = extractSecretaryAudioText(data)
 
       if (!text.trim()) {
         throw new Error("Keine Transkription erhalten.")
