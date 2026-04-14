@@ -12,6 +12,7 @@ import { LibraryService } from '@/lib/services/library-service'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { getShadowTwinsBySourceIds } from '@/lib/repositories/shadow-twin-repo'
 import { getServerProvider } from '@/lib/storage/server-provider'
+import { isAbsoluteLoopbackMediaUrl } from '@/lib/storage/non-portable-media-url'
 import { FileLogger } from '@/lib/debug/logger'
 
 export async function POST(
@@ -173,8 +174,8 @@ export async function POST(
           
           // Generiere resolvedUrl: Azure-URL (bevorzugt) oder provider-aufgelöste Streaming-URL
           let resolvedUrl: string | undefined
-          if (url) {
-            // Azure Blob Storage URL vorhanden
+          if (url && !isAbsoluteLoopbackMediaUrl(url)) {
+            // Azure oder andere öffentliche URL — nicht Dev-localhost-Proxy aus Mongo.
             resolvedUrl = url
           } else if (fileId) {
             // Über Provider auflösen (provider-agnostisch) oder Streaming-URL als Fallback

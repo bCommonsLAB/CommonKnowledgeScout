@@ -23,7 +23,9 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
+import { getRequestPublicOrigin } from '@/lib/http/request-public-origin'
 import { getServerProvider } from '@/lib/storage/server-provider'
+import { FileLogger } from '@/lib/debug/logger'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -59,9 +61,24 @@ export async function GET(request: NextRequest) {
 
     // Relative URLs (z.B. Nextcloud-Proxy: /api/storage/nextcloud?...) muessen
     // zu absoluten URLs aufgeloest werden, da NextResponse.redirect() das erfordert.
+    // Origin aus X-Forwarded-* wählen, damit der Client nicht auf internes localhost zeigt.
+    const redirectOrigin = getRequestPublicOrigin(request)
     const absoluteUrl = streamingUrl.startsWith('/')
-      ? new URL(streamingUrl, request.nextUrl.origin).toString()
+      ? new URL(streamingUrl, redirectOrigin).toString()
       : streamingUrl
+
+    if (process.env.MEDIA_TAB_RESOLUTION_TRACE === '1') {
+      FileLogger.info('storage/streaming-url/trace', '302: Binärdaten — physische Quelle = Storage-Backend hinter Proxy', {
+        libraryId,
+        fileId,
+        providerName: provider.name,
+        providerRelativeStreamingPath: streamingUrl,
+        redirectOriginUsed: redirectOrigin,
+        locationHeader: absoluteUrl,
+        browserFlow:
+          '<img src=/api/storage/streaming-url…> → dieser Handler → 302 → Binary-Route → WebDAV/Graph/lokal',
+      })
+    }
 
     return NextResponse.redirect(absoluteUrl, 302)
   } catch (error) {

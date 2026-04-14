@@ -32,6 +32,7 @@ import { AzureStorageService, calculateImageHash } from '@/lib/services/azure-st
 import { resolveAzureStorageConfig } from '@/lib/config/azure-storage'
 import { FileLogger } from '@/lib/debug/logger'
 import { matchBinaryFragmentByLookupName } from '@/lib/shadow-twin/binary-fragment-lookup'
+import { isAbsoluteLoopbackMediaUrl } from '@/lib/storage/non-portable-media-url'
 import path from 'path'
 
 export interface ShadowTwinServiceOptions {
@@ -368,8 +369,9 @@ export class ShadowTwinService {
     const fragment = matchBinaryFragmentByLookupName(fragments, fragmentName)
     if (!fragment) return null
 
-    // 1. Bevorzugt: Azure Blob Storage URL
-    if (fragment.url) {
+    // 1. Bevorzugt: Azure Blob Storage URL (oder andere öffentliche URL).
+    // Persistierte Dev-Proxy-URLs (localhost) würden in Production brechen → ignorieren.
+    if (fragment.url && !isAbsoluteLoopbackMediaUrl(fragment.url)) {
       return fragment.url
     }
 
@@ -398,8 +400,8 @@ export class ShadowTwinService {
     return fragments.map(fragment => {
       let resolvedUrl: string | undefined
 
-      // 1. Bevorzugt: Azure Blob Storage URL
-      if (fragment.url) {
+      // 1. Bevorzugt: Azure Blob Storage URL; keine Loopback-Absolut-URLs aus Dev.
+      if (fragment.url && !isAbsoluteLoopbackMediaUrl(fragment.url)) {
         resolvedUrl = fragment.url
       }
       // 2. Fallback: Dateisystem-Referenz → provider-agnostische Streaming-URL

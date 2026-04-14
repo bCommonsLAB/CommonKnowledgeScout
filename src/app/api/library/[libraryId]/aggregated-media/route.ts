@@ -16,7 +16,33 @@ import {
   buildAggregatedMediaForSources,
   type MediaFileInfo,
 } from '@/lib/media/aggregated-media-service'
+import { isAbsoluteLoopbackMediaUrl } from '@/lib/storage/non-portable-media-url'
 import type { SiblingFile } from '../sibling-files/route'
+
+/** Per `MEDIA_TAB_RESOLUTION_TRACE=1` in .env: detaillierte Server-Logs zu jeder Vorschau-URL (physische Quelle + Client-Pfad). */
+function isMediaResolutionTraceEnabled(): boolean {
+  return process.env.MEDIA_TAB_RESOLUTION_TRACE === '1'
+}
+
+/** Kurzklassifikation der an den Client gesendeten previewUrl (für Logs). */
+function classifyPreviewUrlForTrace(url: string | undefined): string {
+  if (!url) return 'none'
+  const u = url.trim()
+  if (u.startsWith('/api/storage/streaming-url')) {
+    return 'relative_streaming_url_then_302_to_provider_binary'
+  }
+  if (u.includes('/api/storage/nextcloud')) {
+    return 'relative_nextcloud_proxy_binary_direct'
+  }
+  if (u.includes('/api/storage/filesystem')) {
+    return 'relative_filesystem_proxy_binary'
+  }
+  if (u.startsWith('https://') || u.startsWith('http://')) {
+    return 'absolute_http_url_stored_in_mongo_eg_azure'
+  }
+  if (u.startsWith('/')) return 'relative_other_api_path'
+  return 'unknown'
+}
 
 /** Wie sibling-files: nur zuordenbare Medien-Typen */
 const ASSIGNABLE_MEDIA_KINDS = new Set<MediaKind>(['image', 'pdf', 'link'])
@@ -34,20 +60,42 @@ export interface AggregatedFragmentGalleryItem {
   sourceFileName?: string
 }
 
-async function resolveFragmentPreviewUrl(
+/** Löst Vorschau-URL für ein Fragment; liefert Trace-Felder für optionales Logging. */
+async function resolveFragmentPreviewUrlWithTrace(
   libraryId: string,
   m: MediaFileInfo,
   storageProvider: Awaited<ReturnType<typeof getServerProvider>>,
-): Promise<string | undefined> {
-  if (m.url) return m.url
-  if (m.fileId) {
+): Promise<{ previewUrl: string | undefined; trace: Record<string, unknown> }> {
+  const hadRawUrl = !!m.url
+  const rawUrlLoopback = hadRawUrl && isAbsoluteLoopbackMediaUrl(m.url as string)
+  let previewUrl: string | undefined
+  let resolutionStep: string
+
+  if (m.url && !isAbsoluteLoopbackMediaUrl(m.url)) {
+    previewUrl = m.url
+    resolutionStep = 'use_fragment_url_from_mongo'
+  } else if (m.fileId) {
     try {
-      return await storageProvider.getStreamingUrl(m.fileId)
+      previewUrl = await storageProvider.getStreamingUrl(m.fileId)
+      resolutionStep = 'provider_getStreamingUrl'
     } catch {
-      return `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(m.fileId)}`
+      previewUrl = `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(m.fileId)}`
+      resolutionStep = 'getStreamingUrl_threw_use_streaming_url_fallback'
     }
+  } else {
+    resolutionStep = 'no_url_no_fileId'
   }
-  return undefined
+
+  return {
+    previewUrl,
+    trace: {
+      resolutionStep,
+      mongoFragmentHadUrl: hadRawUrl,
+      mongoUrlIgnoredAsLoopback: rawUrlLoopback || false,
+      mongoFileId: m.fileId ?? null,
+      previewUrlClass: classifyPreviewUrlForTrace(previewUrl),
+    },
+  }
 }
 
 /**
@@ -115,6 +163,7 @@ export async function POST(
     }
 
     const provider = await getServerProvider(userEmail, libraryId)
+    const storageBackendLabel = provider.name
     const anchorItem = await provider.getItemById(body.anchorSourceId)
     if (!anchorItem) {
       return NextResponse.json({ error: 'Quelldatei nicht gefunden' }, { status: 404 })
@@ -139,6 +188,34 @@ export async function POST(
       }))
 
     const nameToSiblingId = new Map(files.map((f) => [f.name, f.id] as const))
+
+    if (isMediaResolutionTraceEnabled()) {
+      FileLogger.info('aggregated-media/trace', 'Kontext: Medien-Tab-Galerie = Storage-Geschwister + Mongo-binaryFragments', {
+        libraryId,
+        anchorSourceId: body.anchorSourceId,
+        anchorFileName: anchorItem.metadata.name,
+        parentFolderId: parentId,
+        storageBackend: storageBackendLabel,
+        uiNote:
+          'Badge „lokal“ = Datei liegt als Geschwister im gleichen Ordner im Storage (listItemsById), nicht „lokales Dateisystem“.',
+      })
+      for (const f of files) {
+        if (f.mediaKind !== 'image') continue
+        FileLogger.info('aggregated-media/trace', 'Geschwister-Bild (nur Storage-Listing, kein Mongo-Eintrag nötig)', {
+          libraryId,
+          physicalSource: 'storage_webdav_or_filesystem',
+          storageBackend: storageBackendLabel,
+          fileName: f.name,
+          storageFileId: f.id,
+          uiGallerySource: 'sibling',
+          uiBadgeLokalMeans: 'sibling_im_ordner',
+          clientImgSrc:
+            '/api/storage/streaming-url?libraryId=…&fileId=… (vom Client gebaut; siehe nächster Request in Network)',
+          serverThen:
+            'GET streaming-url → provider.getStreamingUrl(fileId) → 302 zu Binary-Proxy (z.B. /api/storage/nextcloud?action=binary)',
+        })
+      }
+    }
 
     const compositeNames = Array.isArray(body.compositeSourceFileNames)
       ? body.compositeSourceFileNames.filter((n): n is string => typeof n === 'string')
@@ -185,8 +262,23 @@ export async function POST(
           /\.(jpe?g|png|gif|webp)$/i.test(m.name || '')
         if (!looksLikeImage) continue
 
-        const previewUrl = await resolveFragmentPreviewUrl(libraryId, m, provider)
+        const { previewUrl, trace } = await resolveFragmentPreviewUrlWithTrace(libraryId, m, provider)
         const key = `fragment:${fragmentSourceId}:${m.name}`
+
+        if (isMediaResolutionTraceEnabled()) {
+          FileLogger.info('aggregated-media/trace', 'Fragment-Bild (Mongo binaryFragments-Metadaten; Bytes über Storage/Azure)', {
+            libraryId,
+            physicalSource:
+              'mongo_shadow_twin_binaryFragments_eintrag plus ggf_webdav_oder_azure_bytes',
+            storageBackend: storageBackendLabel,
+            fragmentDisplayName: m.name,
+            fragmentSourceId,
+            sourcePdfOrFile: sourceFileName,
+            uiGallerySource: 'fragment',
+            ...trace,
+            clientImgSrc: previewUrl ?? null,
+          })
+        }
 
         fragmentGalleryItems.push({
           key,
