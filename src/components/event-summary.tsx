@@ -4,6 +4,7 @@ import * as React from "react";
 import { Card } from "@/components/ui/card";
 import { MarkdownPreview } from "@/components/library/markdown-preview";
 import type { StorageProvider } from "@/lib/storage/types";
+import { isSafeVideoIframeSrc } from "@/lib/media/safe-video-iframe";
 
 interface EventSummaryProps {
   summary: string;
@@ -23,16 +24,19 @@ export function EventSummary({ summary, videoUrl, coverImageUrl, provider = null
     return null;
   }
 
+  // Nur echte Embed-URLs (YouTube/Vimeo/https-Video) — sonst relative Dateinamen → HTML-404 im iframe.
+  const embeddableVideoUrl = videoUrl && isSafeVideoIframeSrc(videoUrl) ? videoUrl : undefined;
+
   return (
     <Card className="px-6 pt-0 pb-6 w-full max-w-full overflow-x-hidden box-border">
       {/* Markdown Content mit zentralem MarkdownPreview */}
 
-      {/* Primär: Video, Fallback: Coverbild */}
-      {videoUrl ? (
+      {/* Primär: eingebettbares Web-Video, Fallback: Coverbild (ungültige video_url ignorieren) */}
+      {embeddableVideoUrl ? (
         <div className="mb-6 aspect-video rounded-lg overflow-hidden bg-muted w-full max-w-full box-border relative">
           {/* iframe mit loading="lazy" für verzögertes Laden (Performance in verschachtelten Ansichten) */}
           <iframe
-            src={videoUrl}
+            src={embeddableVideoUrl}
             className="absolute inset-0 w-full h-full max-w-full"
             allow="autoplay; fullscreen; picture-in-picture"
             allowFullScreen

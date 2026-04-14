@@ -498,8 +498,16 @@ export class IngestionService {
               for (const sid of ids) {
                 const frags = await getShadowTwinBinaryFragments(libraryId, sid)
                 const hit = frags?.find(f => f.name === leaf && f.url)
-                if (hit?.url) return hit.url
+                if (hit?.url) {
+                  FileLogger.info('ingestion', '[STUFE-1] binaryFragment-Treffer', {
+                    fileId, ref, leaf, resolvedUrl: hit.url.slice(0, 120), sourceId: sid,
+                  })
+                  return hit.url
+                }
               }
+              FileLogger.info('ingestion', '[STUFE-1] Kein binaryFragment gefunden — Dateiname bleibt', {
+                fileId, ref, leaf, searchedSourceIds: ids,
+              })
               return ref
             }
 
@@ -516,6 +524,7 @@ export class IngestionService {
             for (const fieldKey of mediaFields) {
               const rawValue = docMetaJsonObj[fieldKey]
               if (rawValue == null) continue
+              const before = JSON.stringify(rawValue).slice(0, 200)
               if (Array.isArray(rawValue)) {
                 docMetaJsonObj[fieldKey] = await Promise.all(
                   rawValue.map(async (v) => (typeof v === 'string' ? resolveOneMediaRef(v) : v)),
@@ -523,6 +532,10 @@ export class IngestionService {
               } else if (typeof rawValue === 'string') {
                 docMetaJsonObj[fieldKey] = await resolveOneMediaRef(rawValue)
               }
+              const after = JSON.stringify(docMetaJsonObj[fieldKey]).slice(0, 200)
+              FileLogger.info('ingestion', '[STUFE-1] Medien-Feld nach binaryFragments-Auflösung', {
+                fileId, field: fieldKey, before, after, changed: before !== after,
+              })
             }
 
             FileLogger.info('ingestion', 'Medien-Felder (inkl. Twin-Pfade) aus binaryFragments aufgelöst', { fileId })
@@ -547,12 +560,21 @@ export class IngestionService {
                 'attachments_url',
                 'galleryImageUrls',
               ] as const
+
+              FileLogger.info('ingestion', '[STUFE-2] Start Blob-Promote', {
+                fileId, azureConfigured: !!azureConfig, azureServiceReady: azureStorage.isConfigured(), scope,
+              })
+
               const sourceItem = await storageProvider.getItemById(fileId).catch(() => null)
               const candidateFolderIds: string[] = []
               if (shadowTwinFolderId) candidateFolderIds.push(shadowTwinFolderId)
               if (sourceItem?.parentId && !candidateFolderIds.includes(sourceItem.parentId)) {
                 candidateFolderIds.push(sourceItem.parentId)
               }
+
+              FileLogger.info('ingestion', '[STUFE-2] Kandidaten-Ordner für Dateisuche', {
+                fileId, candidateFolderIds, sourceItemParentId: sourceItem?.parentId, shadowTwinFolderId,
+              })
 
               const findItemByName = async (name: string): Promise<string | undefined> => {
                 for (const folderId of candidateFolderIds) {
@@ -561,19 +583,33 @@ export class IngestionService {
                     const match = siblings.find((it) =>
                       it.type === 'file' && it.metadata?.name?.toLowerCase() === name.toLowerCase()
                     )
-                    if (match?.id) return match.id
+                    if (match?.id) {
+                      FileLogger.info('ingestion', '[STUFE-2] Datei gefunden via listItemsById', {
+                        fileId, name, folderId, matchedId: match.id.slice(0, 80),
+                      })
+                      return match.id
+                    }
                   } catch {
-                    // nächster Kandidat
+                    FileLogger.warn('ingestion', '[STUFE-2] listItemsById fehlgeschlagen', { fileId, name, folderId })
                   }
                 }
+                FileLogger.warn('ingestion', '[STUFE-2] Datei NICHT gefunden in Kandidaten-Ordnern', {
+                  fileId, name, candidateFolderIds,
+                })
                 return undefined
               }
 
               const promoteToBlobUrl = async (nameOrUrl: string): Promise<string> => {
                 const value = nameOrUrl.trim()
                 if (!value) return value
-                if (value.startsWith('http://') || value.startsWith('https://')) return value
-                if (!azureConfig || !azureStorage.isConfigured()) return value
+                if (value.startsWith('http://') || value.startsWith('https://')) {
+                  FileLogger.info('ingestion', '[STUFE-2] Bereits URL — übersprungen', { fileId, url: value.slice(0, 120) })
+                  return value
+                }
+                if (!azureConfig || !azureStorage.isConfigured()) {
+                  FileLogger.warn('ingestion', '[STUFE-2] Azure nicht konfiguriert — Dateiname bleibt', { fileId, value })
+                  return value
+                }
 
                 // Bild aus `_Quelle.pdf/fragment.jpeg` (Storage-Twin), wenn kein Mongo-URL-Schritt greifen konnte
                 if (parseTwinRelativeImageRef(value) && sourceItem) {
@@ -591,7 +627,7 @@ export class IngestionService {
                       const leaf = value.split('/').pop() || value
                       const ext = leaf.split('.').pop()?.toLowerCase() || 'jpg'
                       const hash = calculateImageHash(fileBuffer)
-                      return azureStorage.uploadImageToScope(
+                      const azureUrl = await azureStorage.uploadImageToScope(
                         azureConfig.containerName,
                         libraryId,
                         scope,
@@ -600,17 +636,23 @@ export class IngestionService {
                         ext,
                         fileBuffer
                       )
+                      FileLogger.info('ingestion', '[STUFE-2] Twin-Pfad → Azure Upload OK', {
+                        fileId, value, azureUrl: azureUrl.slice(0, 120), size: fileBuffer.length,
+                      })
+                      return azureUrl
                     }
                   } catch (e) {
-                    FileLogger.warn('ingestion', 'Twin-Pfad Blob-Promote fehlgeschlagen', {
-                      value,
-                      error: e instanceof Error ? e.message : String(e),
+                    FileLogger.warn('ingestion', '[STUFE-2] Twin-Pfad Blob-Promote fehlgeschlagen', {
+                      fileId, value, error: e instanceof Error ? e.message : String(e),
                     })
                   }
                 }
 
                 const matchedFileId = await findItemByName(value)
-                if (!matchedFileId) return value
+                if (!matchedFileId) {
+                  FileLogger.warn('ingestion', '[STUFE-2] Datei nicht im Storage gefunden — Dateiname bleibt', { fileId, value })
+                  return value
+                }
 
                 const fileBinary = await storageProvider.getBinary(matchedFileId)
                 const fileBuffer = Buffer.from(await fileBinary.blob.arrayBuffer())
@@ -619,7 +661,7 @@ export class IngestionService {
                 const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)
 
                 if (isPdf) {
-                  return azureStorage.uploadPdfToScope(
+                  const pdfUrl = await azureStorage.uploadPdfToScope(
                     azureConfig.containerName,
                     libraryId,
                     scope,
@@ -627,11 +669,15 @@ export class IngestionService {
                     value,
                     fileBuffer
                   )
+                  FileLogger.info('ingestion', '[STUFE-2] PDF → Azure Upload OK', {
+                    fileId, value, azureUrl: pdfUrl.slice(0, 120), size: fileBuffer.length,
+                  })
+                  return pdfUrl
                 }
 
                 if (isImage) {
                   const hash = calculateImageHash(fileBuffer)
-                  return azureStorage.uploadImageToScope(
+                  const imgUrl = await azureStorage.uploadImageToScope(
                     azureConfig.containerName,
                     libraryId,
                     scope,
@@ -640,14 +686,22 @@ export class IngestionService {
                     ext || 'jpg',
                     fileBuffer
                   )
+                  FileLogger.info('ingestion', '[STUFE-2] Bild → Azure Upload OK', {
+                    fileId, value, azureUrl: imgUrl.slice(0, 120), ext, hash, size: fileBuffer.length,
+                  })
+                  return imgUrl
                 }
 
+                FileLogger.warn('ingestion', '[STUFE-2] Datei ist weder Bild noch PDF — übersprungen', {
+                  fileId, value, ext,
+                })
                 return value
               }
 
               for (const fieldKey of mediaFieldsToPromote) {
                 const raw = docMetaJsonObj[fieldKey]
                 if (!raw) continue
+                const before = JSON.stringify(raw).slice(0, 200)
                 if (Array.isArray(raw)) {
                   const promoted = await Promise.all(
                     raw.map(async (entry) =>
@@ -658,6 +712,10 @@ export class IngestionService {
                 } else if (typeof raw === 'string') {
                   docMetaJsonObj[fieldKey] = await promoteToBlobUrl(raw)
                 }
+                const after = JSON.stringify(docMetaJsonObj[fieldKey]).slice(0, 200)
+                FileLogger.info('ingestion', '[STUFE-2] Medien-Feld nach Blob-Promote', {
+                  fileId, field: fieldKey, before, after, changed: before !== after,
+                })
               }
             }
           } catch (error) {
@@ -711,6 +769,53 @@ export class IngestionService {
           docMetaJsonObj.markdown = body.trim()
         }
       }
+      // Zusammenfassung: finaler Stand aller Medien-Felder nach Stufe 1 + 2 + Markdown-Bilder
+      {
+        const summaryFields = ['coverImageUrl', 'coverThumbnailUrl', 'galleryImageUrls', 'speakers_image_url', 'authors_image_url', 'attachments_url'] as const
+        const summary: Record<string, { value: string; isUrl: boolean }> = {}
+        for (const fk of summaryFields) {
+          const v = docMetaJsonObj[fk]
+          if (v == null) continue
+          if (Array.isArray(v)) {
+            (v as unknown[]).forEach((entry, i) => {
+              const s = typeof entry === 'string' ? entry : JSON.stringify(entry)
+              summary[`${fk}[${i}]`] = { value: s.slice(0, 140), isUrl: s.startsWith('http') }
+            })
+          } else if (typeof v === 'string') {
+            summary[fk] = { value: v.slice(0, 140), isUrl: v.startsWith('http') }
+          }
+        }
+        const allResolved = Object.values(summary).every(e => e.isUrl)
+        const unresolvedCount = Object.values(summary).filter(e => !e.isUrl).length
+        FileLogger.info('ingestion', '[MEDIEN-SUMMARY] Finaler Stand aller Medien-Felder vor Upsert', {
+          fileId, allResolved, unresolvedCount, totalFields: Object.keys(summary).length, summary,
+        })
+        if (unresolvedCount > 0) {
+          FileLogger.warn('ingestion', '[MEDIEN-SUMMARY] Nicht alle Medien-Felder enthalten Azure-URLs!', {
+            fileId,
+            unresolvedFields: Object.entries(summary).filter(([, e]) => !e.isUrl).map(([k, e]) => `${k}=${e.value}`),
+          })
+        }
+
+        // Trace-Event in MongoDB speichern, damit es im Job-Dokument sichtbar ist
+        if (jobId) {
+          try {
+            const fieldEntries = Object.entries(summary).map(([k, e]) => `${k}: ${e.isUrl ? '✓ URL' : '✗ ' + e.value.slice(0, 60)}`)
+            await repo.traceAddEvent(jobId, {
+              spanId: 'ingest',
+              name: 'media_fields_resolved',
+              level: allResolved ? 'info' : 'warn',
+              attributes: {
+                allResolved,
+                unresolvedCount,
+                totalFields: Object.keys(summary).length,
+                fields: fieldEntries,
+              },
+            })
+          } catch { /* Trace-Fehler ignorieren */ }
+        }
+      }
+
       // WICHTIG: Stelle sicher, dass die aktualisierten Slides (mit Azure-URLs) in docMetaJsonObj sind
       if (metaEffective.slides && Array.isArray(metaEffective.slides)) {
         docMetaJsonObj.slides = metaEffective.slides

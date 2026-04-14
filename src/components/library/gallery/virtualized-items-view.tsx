@@ -24,6 +24,7 @@ import { formatUpsertedAt } from '@/utils/format-upserted-at'
 import { getTableColumnsForViewType } from '@/lib/detail-view-types'
 import { sortDocsByTableColumn } from '@/lib/gallery/table-sort'
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
+import { buildGalleryDocSourcePathLine, buildGalleryDocSourcePathParts } from '@/lib/gallery/doc-source-path'
 
 export interface VirtualizedItemsViewProps {
   viewMode: ViewMode
@@ -320,43 +321,73 @@ export function VirtualizedItemsView({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {groupDocs.map((doc) => (
-                  <TableRow
-                    key={doc.id}
-                    className="cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => handleRowClick(doc)}
-                  >
-                    <TableCell className="w-12 shrink-0 p-2 align-middle">
-                      {(doc.coverThumbnailUrl || doc.coverImageUrl) ? (
-                        <img
-                          src={doc.coverThumbnailUrl || doc.coverImageUrl}
-                          alt=""
-                          className="h-10 w-10 rounded object-cover"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className="h-10 w-10 rounded bg-muted shrink-0" />
-                      )}
-                    </TableCell>
-                    {tableColumns.map((col) => (
-                      <TableCell key={col.key} className={col.key === 'title' ? 'font-medium' : ''}>
-                        {getCellValue(doc, col.key)}
-                      </TableCell>
-                    ))}
-                    {isOwner && libraryId && (
-                      <TableCell className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center gap-1">
-                          <OpenInArchiveButton doc={doc} libraryId={libraryId} />
-                          <DeleteDocumentButton
-                            doc={doc}
-                            libraryId={libraryId}
-                            onDeleted={onDocumentDeleted}
-                          />
-                        </div>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
+                {groupDocs.map((doc) => {
+                  const sourcePathParts = isOwner && libraryId ? buildGalleryDocSourcePathParts(doc) : null
+                  const sourcePathTitle =
+                    isOwner && libraryId ? buildGalleryDocSourcePathLine(doc) : null
+                  const hasSourcePathRow =
+                    Boolean(sourcePathParts && (sourcePathParts.directory || sourcePathParts.fileName))
+                  const pathRowColSpan = 1 + tableColumns.length + (isOwner && libraryId ? 1 : 0)
+                  return (
+                    <React.Fragment key={doc.id}>
+                      <TableRow
+                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => handleRowClick(doc)}
+                      >
+                        <TableCell className="w-12 shrink-0 p-2 align-middle">
+                          {(doc.coverThumbnailUrl || doc.coverImageUrl) ? (
+                            <img
+                              src={doc.coverThumbnailUrl || doc.coverImageUrl}
+                              alt=""
+                              className="h-10 w-10 rounded object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="h-10 w-10 rounded bg-muted shrink-0" />
+                          )}
+                        </TableCell>
+                        {tableColumns.map((col) => (
+                          <TableCell key={col.key} className={col.key === 'title' ? 'font-medium' : ''}>
+                            {getCellValue(doc, col.key)}
+                          </TableCell>
+                        ))}
+                        {isOwner && libraryId && (
+                          <TableCell className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center gap-1">
+                              <OpenInArchiveButton doc={doc} libraryId={libraryId} />
+                              <DeleteDocumentButton
+                                doc={doc}
+                                libraryId={libraryId}
+                                onDeleted={onDocumentDeleted}
+                              />
+                            </div>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                      {/* Owner: volle Breite — Zeile 1 Ordner, Zeile 2 Datei(en), umbrechend statt einer Mini-Zeile */}
+                      {isOwner && libraryId && hasSourcePathRow && sourcePathParts ? (
+                        <TableRow
+                          className="hover:bg-muted/30 bg-muted/15 border-t border-border/60"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <TableCell colSpan={pathRowColSpan} className="py-1.5 px-3 align-top">
+                            <div
+                              className="space-y-0.5 text-[11px] leading-snug text-muted-foreground font-mono"
+                              title={sourcePathTitle ?? undefined}
+                            >
+                              {sourcePathParts.directory ? (
+                                <div className="break-all">{sourcePathParts.directory}</div>
+                              ) : null}
+                              {sourcePathParts.fileName ? (
+                                <div className="break-all text-foreground/80">{sourcePathParts.fileName}</div>
+                              ) : null}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : null}
+                    </React.Fragment>
+                  )
+                })}
               </TableBody>
             </Table>
           </div>

@@ -373,8 +373,32 @@ export function MediaTab({
           activeAssignment, valueToStore, libraryId, fileId, effectiveMdId,
           frontmatterMeta, fullContent, provider, onFrontmatterUpdate,
         )
+      } else if (
+        item.source === 'sibling' &&
+        item.mediaKind === 'image' &&
+        effectiveMdId &&
+        isMongoShadowTwinId(effectiveMdId)
+      ) {
+        // Bild liegt bereits im Quellordner (Nextcloud/…). Kein erneuter Upload nach Azure
+        // (Mongo-Modus ohne Azure würde sonst scheitern). Kanonisch: nur Dateiname im Frontmatter.
+        const clearStaleThumb =
+          activeAssignment.fieldKey === 'coverImageUrl'
+            ? ({ coverThumbnailUrl: undefined } as Record<string, unknown>)
+            : undefined
+        await patchFrontmatterField(
+          activeAssignment,
+          item.name,
+          libraryId,
+          fileId,
+          effectiveMdId,
+          frontmatterMeta,
+          fullContent,
+          provider,
+          onFrontmatterUpdate,
+          clearStaleThumb,
+        )
       } else {
-        // Sibling-Datei: Über Provider laden und via Upload-API hochladen
+        // Sibling-Datei (z. B. PDF / kein Mongo-Meta): über Provider laden und via Upload-API
         if (!provider) {
           toast.error('Storage-Provider nicht verfügbar')
           return
@@ -406,8 +430,13 @@ export function MediaTab({
         })
 
         if (!res.ok) {
-          const err = await res.json().catch(() => ({})) as { error?: string }
-          throw new Error(err.error || `Upload fehlgeschlagen: ${res.status}`)
+          const errBody = await res.json().catch(() => ({})) as { error?: string | { error?: string } }
+          const nested =
+            typeof errBody.error === 'object' && errBody.error !== null && 'error' in errBody.error
+              ? (errBody.error as { error?: string }).error
+              : undefined
+          const flat = typeof errBody.error === 'string' ? errBody.error : nested
+          throw new Error(flat || `Upload fehlgeschlagen: ${res.status}`)
         }
 
         const result = await res.json() as { markdown: string }
@@ -418,8 +447,16 @@ export function MediaTab({
       toast.success('Medium zugeordnet')
       setActiveAssignment(null)
     } catch (error) {
-      toast.error('Fehler: ' + (error instanceof Error ? error.message : 'Unbekannt'))
-      UILogger.error('MediaTab', 'Fehler bei Medien-Zuordnung', { error, item, activeAssignment })
+      const msg = error instanceof Error ? error.message : String(error)
+      toast.error('Fehler: ' + msg)
+      // Error-Objekte loggen sonst als {} (nicht enumerierbare message)
+      UILogger.error('MediaTab', 'Fehler bei Medien-Zuordnung', {
+        message: msg,
+        itemId: item.id,
+        itemName: item.name,
+        itemSource: item.source,
+        fieldKey: activeAssignment.fieldKey,
+      })
     } finally {
       setIsUploading(false)
     }
@@ -916,7 +953,7 @@ function safeArray(value: unknown): string[] {
   return []
 }
 
-/** Patcht ein Frontmatter-Feld direkt (ohne Upload, für bereits vorhandene Fragments) */
+/** Patcht ein Frontmatter-Feld direkt (ohne Upload, für bereits vorhandene Fragments / Storage-Siblings) */
 async function patchFrontmatterField(
   target: AssignmentTarget,
   fileName: string,
@@ -927,6 +964,8 @@ async function patchFrontmatterField(
   fullContent: string,
   provider: StorageProvider | null,
   onFrontmatterUpdate: (meta: Record<string, unknown>, fullContent: string) => void,
+  /** Zusätzliche Keys (z. B. coverThumbnailUrl entfernen); undefined-Werte werden von patchFrontmatter gestrichen */
+  extraPatches?: Record<string, unknown>,
 ) {
   if (!effectiveMdId || !isMongoShadowTwinId(effectiveMdId)) {
     toast.error('Nur für MongoDB-Shadow-Twins unterstützt')
@@ -960,6 +999,10 @@ async function patchFrontmatterField(
   } else {
     // String-Feld
     patches = { [target.fieldKey]: fileName }
+  }
+
+  if (extraPatches && Object.keys(extraPatches).length > 0) {
+    patches = { ...patches, ...extraPatches }
   }
 
   const patchedMarkdown = patchFrontmatter(mdResult, patches)

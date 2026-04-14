@@ -33,6 +33,7 @@ import { resolveAzureStorageConfig } from '@/lib/config/azure-storage'
 import { FileLogger } from '@/lib/debug/logger'
 import { matchBinaryFragmentByLookupName } from '@/lib/shadow-twin/binary-fragment-lookup'
 import { isAbsoluteLoopbackMediaUrl } from '@/lib/storage/non-portable-media-url'
+import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser'
 import path from 'path'
 
 export interface ShadowTwinServiceOptions {
@@ -684,6 +685,24 @@ export class ShadowTwinService {
     // Einzige Ausnahme: Wenn das Artefakt gefunden wurde UND die ID das templateName enthält,
     // können wir es als Validierung/Korrektur verwenden.
     if (kind === 'transformation') {
+      // MediaTab/Upload senden templateName manchmal nicht (Props ohne template_used).
+      // Das gespeicherte Artefakt enthält template_used — das ist kanonisch und deterministisch.
+      if (!templateName && existing.markdown) {
+        try {
+          const { meta } = parseSecretaryMarkdownStrict(existing.markdown)
+          const fromFm = meta.template_used
+          if (typeof fromFm === 'string' && fromFm.trim()) {
+            templateName = fromFm.trim()
+            FileLogger.debug('shadow-twin-service', 'templateName aus Artefakt-Frontmatter (template_used)', {
+              sourceId: this.options.sourceId,
+              templateName,
+            })
+          }
+        } catch {
+          /* Strict-Parse optional fehlgeschlagen — Mongo-ID-Fallback folgt unten */
+        }
+      }
+
       if (!templateName) {
         // Versuche templateName aus der gefundenen ID zu extrahieren (als letzter Ausweg)
         if (isMongoShadowTwinId(existing.id)) {
