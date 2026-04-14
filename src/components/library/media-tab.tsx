@@ -871,9 +871,12 @@ export function MediaTab({
                     <Check className="h-2.5 w-2.5" />
                   </div>
                 )}
-                {/* Quelle: Sibling vs Fragment */}
+                {/* Quelle: Sibling = gleicher Ordner im Storage (Nextcloud/WebDAV etc.), kein Mongo-Fragment */}
                 {item.source === 'sibling' && (
-                  <div className="absolute bottom-0.5 left-0.5 bg-amber-500/80 text-white text-[8px] px-1 rounded">
+                  <div
+                    className="absolute bottom-0.5 left-0.5 bg-amber-500/80 text-white text-[8px] px-1 rounded"
+                    title="Geschwisterdatei im Quellordner (Storage-Listing), nicht aus Mongo-binaryFragments"
+                  >
                     lokal
                   </div>
                 )}
