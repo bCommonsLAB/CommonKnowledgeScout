@@ -169,6 +169,8 @@ export interface IngestArgs {
   meta?: Frontmatter
   provider?: import('@/lib/storage/types').StorageProvider
   shadowTwinFolderId?: string
+  /** Parent-Ordner der Quelldatei — ermöglicht Sibling-Suche für Medien (Bilder im selben Verzeichnis) */
+  sourceParentId?: string
 }
 
 export interface IngestResult {

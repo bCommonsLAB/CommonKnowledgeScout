@@ -302,6 +302,9 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
     metaForIngestWithSource[INGEST_META_SOURCE_FILE_NAME_KEY] = srcName.trim()
   }
 
+  // Parent-Ordner der Quelldatei: damit Stufe 2 (Blob-Promote) Sibling-Dateien (Bilder) finden kann
+  const sourceParentId = (job.correlation?.source?.parentId as string | undefined) || undefined
+
   let res
   try {
     res = await runIngestion({
@@ -312,6 +315,7 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
       meta: metaForIngestWithSource,
       provider: ingestionProvider,
       shadowTwinFolderId,
+      sourceParentId,
     })
   } catch (err) {
     // Ingestion fehlgeschlagen → Step/Job als failed markieren

@@ -133,11 +133,28 @@ export async function POST(
       }
     }
 
+    FileLogger.info('shadow-twins/resolve-binary-url', 'Storage-Fallback Vorbedingungen', {
+      fragmentName,
+      resolveFragmentKey,
+      effectiveParentId: effectiveParentId || '(leer)',
+      effectiveSourceName: effectiveSourceName || '(leer)',
+      bodyParentId: body.parentId || '(leer)',
+      bodySourceName: body.sourceName || '(leer)',
+      willAttemptFallback: Boolean(effectiveParentId && effectiveSourceName),
+    })
+
     if (effectiveParentId && effectiveSourceName) {
       try {
         const provider = await getServerProvider(userEmail, libraryId)
         if (provider) {
           const shadowTwinFolder = await findShadowTwinFolder(effectiveParentId, effectiveSourceName, provider)
+          FileLogger.info('shadow-twins/resolve-binary-url', 'Shadow-Twin-Ordner Suche', {
+            fragmentName,
+            effectiveParentId,
+            effectiveSourceName,
+            shadowTwinFolderFound: !!shadowTwinFolder,
+            shadowTwinFolderId: shadowTwinFolder?.id?.slice(0, 80),
+          })
           if (shadowTwinFolder) {
             const folderItems = await provider.listItemsById(shadowTwinFolder.id)
             const binaryFile = folderItems.find(
@@ -152,12 +169,17 @@ export async function POST(
               })
               return NextResponse.json({ resolvedUrl: streamingUrl, fragmentName }, { status: 200 })
             }
+            FileLogger.info('shadow-twins/resolve-binary-url', 'Datei nicht im Shadow-Twin-Ordner', {
+              fragmentName, resolveFragmentKey,
+              filesInFolder: folderItems.filter(i => i.type === 'file').map(i => i.metadata.name),
+            })
           }
 
           // Zweiter Storage-Fallback: direkt im Quellverzeichnis suchen.
           // Wichtig für Galerie-Bilder, die als normale Sibling-Dateien vorliegen
           // und nicht als binaryFragment im Shadow-Twin registriert sind.
           const sourceSiblings = await provider.listItemsById(effectiveParentId)
+          const siblingFileNames = sourceSiblings.filter(i => i.type === 'file').map(i => i.metadata.name)
           const siblingMatch = sourceSiblings.find(
             (item) =>
               item.type === 'file' &&
@@ -170,6 +192,11 @@ export async function POST(
             })
             return NextResponse.json({ resolvedUrl: streamingUrl, fragmentName }, { status: 200 })
           }
+          FileLogger.warn('shadow-twins/resolve-binary-url', 'Datei auch nicht im Quellverzeichnis', {
+            fragmentName, resolveFragmentKey, effectiveParentId,
+            siblingFileCount: siblingFileNames.length,
+            siblingFileNames: siblingFileNames.slice(0, 20),
+          })
         }
       } catch (storageErr) {
         FileLogger.warn('shadow-twins/resolve-binary-url', 'Storage-Fallback fehlgeschlagen', {

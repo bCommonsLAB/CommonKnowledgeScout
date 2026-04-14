@@ -80,6 +80,7 @@ export class IngestionService {
     jobId?: string,
     provider?: StorageProvider,
     shadowTwinFolderId?: string,
+    sourceParentId?: string,
   ): Promise<{ chunksUpserted: number; docUpserted: boolean; index: string; imageErrors?: Array<{ slideIndex: number; imageUrl: string; error: string }> }> {
     const repo = new ExternalJobsRepository()
     const retrieverCtx = await getRetrieverContext(userEmail, libraryId)
@@ -563,6 +564,7 @@ export class IngestionService {
 
               FileLogger.info('ingestion', '[STUFE-2] Start Blob-Promote', {
                 fileId, azureConfigured: !!azureConfig, azureServiceReady: azureStorage.isConfigured(), scope,
+                sourceParentId: sourceParentId || '(nicht übergeben)',
               })
 
               const sourceItem = await storageProvider.getItemById(fileId).catch(() => null)
@@ -571,9 +573,18 @@ export class IngestionService {
               if (sourceItem?.parentId && !candidateFolderIds.includes(sourceItem.parentId)) {
                 candidateFolderIds.push(sourceItem.parentId)
               }
+              // Expliziter Parent-Ordner aus Job-Kontext: stellt sicher, dass
+              // Sibling-Dateien (Bilder im selben Verzeichnis) auch dann gefunden werden,
+              // wenn getItemById(fileId) fehlschlägt (z.B. bei Nextcloud-Encoding-Problemen).
+              if (sourceParentId && !candidateFolderIds.includes(sourceParentId)) {
+                candidateFolderIds.push(sourceParentId)
+              }
 
               FileLogger.info('ingestion', '[STUFE-2] Kandidaten-Ordner für Dateisuche', {
-                fileId, candidateFolderIds, sourceItemParentId: sourceItem?.parentId, shadowTwinFolderId,
+                fileId, candidateFolderIds,
+                sourceItemParentId: sourceItem?.parentId || '(getItemById fehlgeschlagen)',
+                sourceParentIdFromJob: sourceParentId || '(nicht übergeben)',
+                shadowTwinFolderId,
               })
 
               const findItemByName = async (name: string): Promise<string | undefined> => {
