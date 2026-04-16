@@ -132,13 +132,44 @@ function ensureJobsWorkerPoolId() {
 ensureJobsWorkerPoolId();
 
 let mainWindow = null;
+/** Eigenes Fenster: Umgebungsvariablen (maskiert / optional einblendbar) */
+let envConfigWindow = null;
 let stopIntercept = null;
 let appLocalhostUrl = null;
 
 /** AbortController für laufenden Teams-Stream-Relay (IPC cancel) */
 const streamRelayState = { abortController: null };
 
-const { buildEnvDebugSnapshotText } = require('./env-debug-snapshot');
+const { buildEnvDebugRows } = require('./env-debug-snapshot');
+
+/**
+ * Hilfe-Menü: Konfigurationsübersicht (nicht der native Dialog — dort kein Auge/Toggle).
+ * @param {import('electron').BrowserWindow | null} parentWindow
+ */
+function openEnvConfigWindow(parentWindow) {
+  if (envConfigWindow && !envConfigWindow.isDestroyed()) {
+    envConfigWindow.focus();
+    return;
+  }
+  const parent =
+    parentWindow && !parentWindow.isDestroyed() ? parentWindow : undefined;
+  envConfigWindow = new BrowserWindow({
+    width: 780,
+    height: 620,
+    parent,
+    title: 'Konfiguration',
+    show: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'env-viewer-preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  envConfigWindow.loadFile(path.join(__dirname, 'env-config-window.html'));
+  envConfigWindow.on('closed', () => {
+    envConfigWindow = null;
+  });
+}
 
 /**
  * Headers für net.fetch normalisieren (Plain-Objekt oder Fetch-Headers).
@@ -441,29 +472,9 @@ async function createWindow() {
           },
         },
         {
-          label: 'Konfiguration (maskiert)…',
+          label: 'Konfiguration…',
           click: () => {
-            const snapshot = buildEnvDebugSnapshotText(process.env, {
-              dev,
-              electronVersion: process.versions.electron,
-              nodeVersion: process.versions.node,
-            });
-            dialog
-              .showMessageBox(mainWindow, {
-                type: 'info',
-                title: 'Konfiguration',
-                message:
-                  'Aktive Umgebungsvariablen (sensible Werte nur als Länge, nicht als Klartext).',
-                detail: snapshot,
-                buttons: ['Schließen', 'In Zwischenablage kopieren'],
-                defaultId: 0,
-                cancelId: 0,
-              })
-              .then(({ response }) => {
-                if (response === 1) {
-                  clipboard.writeText(snapshot);
-                }
-              });
+            openEnvConfigWindow(mainWindow);
           },
         },
         { type: 'separator' },
@@ -619,6 +630,33 @@ function initAutoUpdater() {
 app.on('ready', async () => {
   // IPC-Handler für Version-Abfrage aus dem Renderer-Prozess
   ipcMain.handle('get-app-version', () => app.getVersion());
+
+  /**
+   * Konfigurations-Fenster: Tabellenzeilen (maskiert oder nach Toggle im Klartext).
+   * Klartext ist nur lokal sinnvoll — dieselben Werte stehen in der .env auf der Platte.
+   */
+  ipcMain.handle('env-config:get-rows', (_evt, opts) => {
+    const revealAll = !!(opts && opts.revealAll);
+    const revealKeys =
+      opts && Array.isArray(opts.revealKeys) ? opts.revealKeys : [];
+    const rows = buildEnvDebugRows(process.env, { revealAll, revealKeys });
+    return {
+      meta: {
+        dev,
+        electronVersion: process.versions.electron,
+        nodeVersion: process.versions.node,
+      },
+      rows,
+    };
+  });
+
+  ipcMain.handle('env-config:copy-text', (_evt, text) => {
+    if (typeof text !== 'string') {
+      return { ok: false };
+    }
+    clipboard.writeText(text);
+    return { ok: true };
+  });
 
   /**
    * Teams-Video-Relay: Graph-Download (MSAL) + Chunk-Upload zu /api/stream-ingest (Clerk-Cookies).

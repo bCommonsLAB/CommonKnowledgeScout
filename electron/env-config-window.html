@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'" />
+  <title>Konfiguration</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, Segoe UI, sans-serif;
+      font-size: 13px;
+      margin: 0;
+      padding: 12px 14px;
+      color: #1a1a1a;
+      background: #f5f5f5;
+    }
+    h1 { font-size: 15px; margin: 0 0 8px; font-weight: 600; }
+    .hint { color: #444; margin-bottom: 10px; line-height: 1.4; }
+    .meta { font-size: 12px; color: #555; margin-bottom: 10px; white-space: pre-wrap; }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    label.reveal-all { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+    button.copy {
+      padding: 6px 12px;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      background: #fff;
+    }
+    button.copy:hover { background: #eee; }
+    .table-wrap {
+      overflow: auto;
+      max-height: calc(100vh - 200px);
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      background: #fff;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      text-align: left;
+      padding: 6px 8px;
+      border-bottom: 1px solid #eee;
+      vertical-align: top;
+    }
+    th { background: #fafafa; position: sticky; top: 0; font-weight: 600; }
+    td.key { font-family: ui-monospace, Consolas, monospace; white-space: nowrap; }
+    td.val {
+      font-family: ui-monospace, Consolas, monospace;
+      word-break: break-all;
+      max-width: 420px;
+    }
+    td.eye { width: 40px; text-align: center; }
+    button.eye-btn {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    button.eye-btn:hover { background: #eee; }
+    button.eye-btn:disabled { opacity: 0.35; cursor: default; }
+  </style>
+</head>
+<body>
+  <h1>Konfiguration</h1>
+  <p class="hint">
+    Nur Clerk, MongoDB, Secretary, interne Job-Callbacks, JOBS_WORKER_* sowie App-/Self-Base-URL.
+    Standard: maskiert (Screenshots / Bildschirmfreigabe). Auge pro Zeile oder „Alle einblenden“.
+  </p>
+  <div class="meta" id="meta"></div>
+  <div class="toolbar">
+    <label class="reveal-all">
+      <input type="checkbox" id="reveal-all" />
+      Alle sensiblen Werte einblenden
+    </label>
+    <button type="button" class="copy" id="copy">In Zwischenablage kopieren</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Variable</th>
+          <th>Wert</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <script src="./env-config-window.js"></script>
+</body>
+</html>
