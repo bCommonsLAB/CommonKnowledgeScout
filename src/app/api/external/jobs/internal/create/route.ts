@@ -3,6 +3,8 @@ import crypto from 'crypto'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import type { ExternalJob } from '@/types/external-job'
 import { hasInternalTokenBypass } from '@/lib/external-jobs/auth'
+import { getMediaKind } from '@/lib/media-types'
+import type { StorageItem } from '@/lib/storage/types'
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,47 +41,106 @@ export async function POST(request: NextRequest) {
     const jobSecret = crypto.randomBytes(24).toString('base64url')
     const jobSecretHash = repo.hashSecret(jobSecret)
 
-    // Media-Type + Job-Type ableiten (für PDF und Audio Integrationstests).
-    // WICHTIG:
-    // - Diese Route wird von Integrationstests genutzt und muss daher mehrere Medientypen unterstützen.
-    // - Für unknown Types bleiben wir beim bisherigen Default "pdf".
-    const explicitMediaType = typeof body.mediaType === 'string' ? body.mediaType : undefined
-    const inferredMediaType =
-      explicitMediaType
-        ? explicitMediaType
-        : (mimeType.startsWith('audio/') ? 'audio' : 'pdf')
+    // Media-Type + Job-Type ableiten (Integrationstests / interne Job-Erstellung).
+    // Kritisch: Bilder (image/* oder Bild-Endung) müssen job_type "image" bekommen – sonst
+    // prepareSecretaryRequest → PDF-Endpoint statt Image-Analyzer in der Start-Route.
+    const explicitMediaTypeRaw = typeof body.mediaType === 'string' ? body.mediaType.trim() : undefined
+    const syntheticItem: StorageItem = {
+      id: itemId || '_pending_',
+      parentId,
+      type: 'file',
+      metadata: {
+        name: fileName,
+        mimeType,
+        size: 0,
+        modifiedAt: new Date(),
+      },
+    }
+    const detectedKind = getMediaKind(syntheticItem)
 
-    const jobType: ExternalJob['job_type'] =
-      inferredMediaType === 'audio'
-        ? 'audio'
-        : inferredMediaType === 'office'
+    let jobType: ExternalJob['job_type']
+    let sourceMediaType: string
+
+    if (
+      explicitMediaTypeRaw === 'audio' ||
+      explicitMediaTypeRaw === 'video' ||
+      explicitMediaTypeRaw === 'image' ||
+      explicitMediaTypeRaw === 'office' ||
+      explicitMediaTypeRaw === 'pdf'
+    ) {
+      jobType =
+        explicitMediaTypeRaw === 'office'
           ? 'office'
-          : 'pdf'
+          : (explicitMediaTypeRaw as ExternalJob['job_type'])
+      sourceMediaType = explicitMediaTypeRaw
+    } else {
+      switch (detectedKind) {
+        case 'audio':
+          jobType = 'audio'
+          sourceMediaType = 'audio'
+          break
+        case 'video':
+          jobType = 'video'
+          sourceMediaType = 'video'
+          break
+        case 'image':
+          jobType = 'image'
+          sourceMediaType = 'image'
+          break
+        case 'docx':
+        case 'xlsx':
+        case 'pptx':
+          jobType = 'office'
+          sourceMediaType = 'office'
+          break
+        case 'pdf':
+          jobType = 'pdf'
+          sourceMediaType = 'pdf'
+          break
+        default:
+          // Legacy: unbekannte Dateien ohne Audio-Signatur wie bisher als PDF-Job
+          jobType = mimeType.startsWith('audio/') ? 'audio' : 'pdf'
+          sourceMediaType = jobType === 'audio' ? 'audio' : 'pdf'
+      }
+    }
 
     const extractStepName =
-      jobType === 'audio' ? 'extract_audio' : jobType === 'office' ? 'extract_office' : 'extract_pdf'
+      jobType === 'audio'
+        ? 'extract_audio'
+        : jobType === 'video'
+          ? 'extract_video'
+          : jobType === 'office'
+            ? 'extract_office'
+            : jobType === 'image'
+              ? 'extract_image'
+              : 'extract_pdf'
 
-    // Office-Jobs haben andere Options (kein extractionMethod, includeOcrImages etc.)
-    const correlationOptions = jobType === 'office'
-      ? { targetLanguage, useCache: true, includeImages: true, includePreviews: true }
-      : {
-          targetLanguage,
-          extractionMethod,
-          includeOcrImages,
-          includePageImages,
-          includeImages, // Rückwärtskompatibilität
-        }
+    const correlationOptions =
+      jobType === 'office'
+        ? { targetLanguage, useCache: true, includeImages: true, includePreviews: true }
+        : jobType === 'image'
+          ? { targetLanguage }
+          : {
+              targetLanguage,
+              extractionMethod,
+              includeOcrImages,
+              includePageImages,
+              includeImages,
+            }
 
     const correlation = {
       jobId,
       libraryId,
-      source: { mediaType: inferredMediaType, mimeType, name: fileName, parentId, itemId },
+      source: { mediaType: sourceMediaType, mimeType, name: fileName, parentId, itemId },
       options: correlationOptions
     } satisfies ExternalJob['correlation']
 
-    const jobParameters = jobType === 'office'
-      ? { targetLanguage, useCache: true }
-      : { targetLanguage, extractionMethod, includeOcrImages, includePageImages, includeImages }
+    const jobParameters =
+      jobType === 'office'
+        ? { targetLanguage, useCache: true }
+        : jobType === 'image'
+          ? { targetLanguage }
+          : { targetLanguage, extractionMethod, includeOcrImages, includePageImages, includeImages }
 
     const job: ExternalJob = {
       jobId,

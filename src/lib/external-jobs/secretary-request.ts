@@ -59,6 +59,13 @@ export function prepareSecretaryRequest(
     throw new Error('SECRETARY_SERVICE_API_KEY fehlt')
   }
 
+  // Bild-Jobs nutzen in der Start-Route ausschließlich callImageAnalyzerTemplate – niemals PDF/Extract.
+  if (job.job_type === 'image') {
+    throw new Error(
+      'prepareSecretaryRequest: job_type "image" ist ungültig – Bildanalyse läuft über den Image-Analyzer-Pfad, nicht über /api/pdf/process.'
+    )
+  }
+
   FileLogger.info('secretary-request', 'Config aufgelöst', {
     jobId: job.jobId,
     baseUrl,

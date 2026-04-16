@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { useAtomValue, useAtom } from 'jotai';
 import { 
   activeLibraryIdAtom,
+  activeLibraryAtom,
   selectedFileAtom, 
   folderItemsAtom,
   sortedFilteredFilesAtom,
@@ -39,6 +40,7 @@ import { useFolderNavigation } from "@/hooks/use-folder-navigation";
 import { useShadowTwinAnalysis } from "@/hooks/use-shadow-twin-analysis";
 import { shadowTwinAnalysisTriggerAtom, shadowTwinStateAtom } from "@/atoms/shadow-twin-atom";
 import { isShadowTwinFolderName } from "@/lib/storage/shadow-twin";
+import { shouldFilterShadowTwinFolders } from "@/lib/storage/shadow-twin-folder-name";
 
 // Typen für Sortieroptionen
 type SortField = 'type' | 'name' | 'size' | 'date';
@@ -825,6 +827,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   
   const { provider, refreshItems, currentLibrary } = useStorage();
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
+  const activeLibrary = useAtomValue(activeLibraryAtom);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [isFolderSyncing, setIsFolderSyncing] = React.useState(false);
   // Mobile-Flag wurde entfernt, FileList lädt unabhängig vom View
@@ -889,16 +892,19 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   const [sortField, setSortField] = useAtom(sortFieldAtom);
   const [sortOrder, setSortOrder] = useAtom(sortOrderAtom);
 
+  const hideShadowTwinFolders = shouldFilterShadowTwinFolders(
+    activeLibrary?.config?.shadowTwin as { primaryStore?: string; persistToFilesystem?: boolean } | undefined
+  );
+
   const folders = useMemo(() => {
-    // Wenn eine folderId in der URL steht und currentFolderId noch 'root' ist,
-    // zeige keine Items an (verhindert, dass Root-Items kurz angezeigt werden)
     if (!shouldShowItems) {
       return [];
     }
     const items = allItemsInFolder ?? [];
-    // Verstecke Shadow-Twin-Ordner (Unterstrich- und Punkt-Prefix) in der Liste
+    // Shadow-Twin-Ordner nur verstecken, wenn Filesystem-Persistierung aktiv ist.
+    // Ohne FS-Persistierung sind `_`-Ordner reguläre Benutzer-Verzeichnisse.
     const filtered = items.filter(
-      item => item.type === 'folder' && !isShadowTwinFolderName(item.metadata.name)
+      item => item.type === 'folder' && (!hideShadowTwinFolders || !isShadowTwinFolderName(item.metadata.name))
     );
     
     // Sortiere Ordner nach aktuellem Sortierfeld und -richtung

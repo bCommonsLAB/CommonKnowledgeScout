@@ -4,19 +4,24 @@
  * @description
  * Lädt Templates aus MongoDB für External Jobs.
  * Serialisiert Templates zu Markdown für Secretary Service Kompatibilität.
+ * Zentralisiert die Template-Name-Auflösung (Job-Parameter → Library-Config → Default).
  * 
  * @module external-jobs
  */
 
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { loadTemplateFromMongoDB, serializeTemplateToMarkdown } from '@/lib/templates/template-service-mongodb'
+import { FileLogger } from '@/lib/debug/logger'
 
 export interface PickTemplateArgs {
   repo: ExternalJobsRepository
   jobId: string
   libraryId: string
   userEmail: string
+  /** Expliziter Template-Name — überschreibt Job-Parameter und Library-Config */
   preferredTemplateName?: string
+  /** Job-Objekt — wenn übergeben, wird der Template-Name automatisch aufgelöst */
+  job?: { parameters?: Record<string, unknown> }
 }
 
 export interface PickTemplateResult {
@@ -27,14 +32,64 @@ export interface PickTemplateResult {
 }
 
 /**
+ * Löst den Template-Namen aus Job-Parametern und Library-Config auf.
+ * 
+ * Priorität:
+ * 1. Job-Parameter (`job.parameters.template`)
+ * 2. Library-Config (`library.config.secretaryService.template`)
+ * 3. undefined (pickTemplate verwendet dann Default "pdfanalyse")
+ */
+export async function resolvePreferredTemplateName(
+  job: { parameters?: Record<string, unknown> },
+  libraryId: string,
+  userEmail: string,
+): Promise<string | undefined> {
+  // Priorität 1: Template aus Job-Parametern
+  const fromJobParams = job.parameters?.template as string | undefined
+  if (fromJobParams) return fromJobParams
+
+  // Priorität 2: Template aus Library-Config
+  try {
+    const { LibraryService } = await import('@/lib/services/library-service')
+    const libraryService = LibraryService.getInstance()
+    const library = await libraryService.getLibrary(userEmail, libraryId)
+    const fromConfig = library?.config?.secretaryService?.template as string | undefined
+    if (fromConfig) return fromConfig
+  } catch {
+    // Nicht kritisch — pickTemplate kann auch ohne Preferred Template arbeiten
+  }
+
+  return undefined
+}
+
+/**
  * Lädt ein Template aus MongoDB für External Jobs.
+ * 
+ * Template-Name-Auflösung:
+ * 1. `preferredTemplateName` (explizit übergeben)
+ * 2. `job.parameters.template` (wenn `job` übergeben)
+ * 3. Library-Config `secretaryService.template` (wenn `job` übergeben)
+ * 4. Default: "pdfanalyse"
  * 
  * @throws {Error} Wenn kein Template gefunden wird
  */
 export async function pickTemplate(args: PickTemplateArgs): Promise<PickTemplateResult> {
-  const { repo, jobId, libraryId, userEmail, preferredTemplateName } = args
+  const { repo, jobId, libraryId, userEmail, job } = args
+
+  // Template-Name auflösen: explizit > Job-Parameter > Library-Config > Default
+  let preferredTemplateName = args.preferredTemplateName
+  if (!preferredTemplateName && job) {
+    preferredTemplateName = await resolvePreferredTemplateName(job, libraryId, userEmail)
+    if (preferredTemplateName) {
+      FileLogger.info('template-files', 'Template-Name aufgelöst', {
+        jobId,
+        libraryId,
+        preferredTemplateName,
+        source: job.parameters?.template ? 'job_parameters' : 'library_config',
+      })
+    }
+  }
   
-  // Wenn kein Preferred Template angegeben, verwende Default "pdfanalyse"
   const templateName = preferredTemplateName || 'pdfanalyse'
   
   // Lade Template aus MongoDB
@@ -52,7 +107,6 @@ export async function pickTemplate(args: PickTemplateArgs): Promise<PickTemplate
     ) || null
     
     if (template) {
-      // Template gefunden, aber mit anderer _id - logge Warnung
       try {
         await repo.traceAddEvent(jobId, {
           spanId: 'template',
@@ -68,7 +122,6 @@ export async function pickTemplate(args: PickTemplateArgs): Promise<PickTemplate
   }
   
   if (!template) {
-    // Versuche alle Templates zu laden, um verfügbare zu zeigen
     const { listTemplatesFromMongoDB } = await import('@/lib/templates/template-service-mongodb')
     const allTemplates = await listTemplatesFromMongoDB(libraryId, userEmail, false)
     const availableNames = allTemplates.map(t => t.name)
@@ -77,7 +130,6 @@ export async function pickTemplate(args: PickTemplateArgs): Promise<PickTemplate
       ? `Template "${preferredTemplateName}" nicht gefunden in Library "${libraryId}". Verfügbare Templates: ${availableNames.join(', ') || 'keine'}`
       : `Kein Template gefunden. Verfügbare Templates: ${availableNames.join(', ') || 'keine'}`
     
-    // Trace-Event für Fehler
     try {
       await repo.traceAddEvent(jobId, {
         spanId: 'template',
@@ -96,7 +148,6 @@ export async function pickTemplate(args: PickTemplateArgs): Promise<PickTemplate
   // Serialisiere Template zu Markdown (ohne creation-Block für Secretary Service)
   const templateContent = serializeTemplateToMarkdown(template, false)
   
-  // Trace-Event für Erfolg
   try {
     await repo.traceAddEvent(jobId, {
       spanId: 'template',
@@ -116,5 +167,3 @@ export async function pickTemplate(args: PickTemplateArgs): Promise<PickTemplate
     isPreferred: !!preferredTemplateName && preferredTemplateName === template.name
   }
 }
-
-

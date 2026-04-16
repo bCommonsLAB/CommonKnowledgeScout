@@ -91,7 +91,7 @@ interface PipelineSheetProps {
   onOpenChange: (open: boolean) => void
   libraryId: string
   sourceFileName: string
-  kind: "pdf" | "audio" | "video" | "markdown" | "office" | "other"
+  kind: "pdf" | "audio" | "video" | "image" | "markdown" | "office" | "other"
   targetLanguage: string
   onTargetLanguageChange: (value: string) => void
   /** Quellsprache für Transkription ('auto' = automatische Erkennung) */
@@ -145,8 +145,10 @@ function isNonEmptyString(v: unknown): v is string {
 }
 
 export function PipelineSheet(props: PipelineSheetProps) {
-  // Bei Markdown: Extract immer deaktiviert (Textquelle bereits vorhanden)
+  // Bei Markdown und Bildern: Extract immer deaktiviert
+  // (Markdown hat bereits Text, Bilder werden direkt vom Image-Analyzer transformiert)
   const isMarkdown = props.kind === "markdown"
+  const skipExtract = isMarkdown || props.kind === "image"
   
   // Artefakt-Status fuer intelligente UI-Logik
   const hasTranscript = props.existingArtifacts?.hasTranscript ?? false
@@ -183,7 +185,7 @@ export function PipelineSheet(props: PipelineSheetProps) {
       // Wenn Force aktiv, dann auch vorhandene Artefakte ueberschreiben -> Step aktivieren
       // Sonst: nur aktivieren wenn Artefakt nicht vorhanden
       // Bei Markdown: Extract immer false
-      if (isMarkdown) {
+      if (skipExtract) {
         setShouldExtract(false)
       } else {
         // Wenn Force aktiv oder Transcript nicht vorhanden -> aktivieren wenn in defaultSteps
@@ -199,7 +201,7 @@ export function PipelineSheet(props: PipelineSheetProps) {
       setShouldTransform(false)
       setShouldIngest(false)
     }
-  }, [props.isOpen, props.defaultSteps, props.defaultForce, props.defaultGenerateCoverImage, props.defaultCustomHint, isMarkdown, hasTranscript, hasTransformed, hasIngested])
+  }, [props.isOpen, props.defaultSteps, props.defaultForce, props.defaultGenerateCoverImage, props.defaultCustomHint, skipExtract, hasTranscript, hasTransformed, hasIngested])
 
   // Separater Effect: Cover-Bild-Generierung aktualisieren, wenn der Wert spaeter verfuegbar wird
   // (activeLibrary wird asynchron geladen, deshalb kann der Wert beim ersten Oeffnen noch undefined sein)
@@ -213,10 +215,10 @@ export function PipelineSheet(props: PipelineSheetProps) {
 
   // Abhaengigkeits-Logik: Wenn Transformation gewaehlt und kein Transcript vorhanden -> Extract automatisch mit
   React.useEffect(() => {
-    if (shouldTransform && !hasTranscript && !isMarkdown && !shouldExtract) {
+    if (shouldTransform && !hasTranscript && !skipExtract && !shouldExtract) {
       setShouldExtract(true)
     }
-  }, [shouldTransform, hasTranscript, isMarkdown, shouldExtract])
+  }, [shouldTransform, hasTranscript, skipExtract, shouldExtract])
 
   // Abhaengigkeits-Logik: Wenn Ingestion gewaehlt und kein Transform vorhanden -> Transform automatisch mit
   React.useEffect(() => {
@@ -230,11 +232,11 @@ export function PipelineSheet(props: PipelineSheetProps) {
     setShouldForce(checked)
     // Wenn Force aktiviert und defaultSteps vorhanden, setze entsprechend
     if (checked && props.defaultSteps) {
-      if (!isMarkdown) setShouldExtract(props.defaultSteps.extract)
+      if (!skipExtract) setShouldExtract(props.defaultSteps.extract)
       setShouldTransform(props.defaultSteps.metadata)
       setShouldIngest(props.defaultSteps.ingest)
     }
-  }, [props.defaultSteps, isMarkdown])
+  }, [props.defaultSteps, skipExtract])
 
   // Automatisch erstes Template auswaehlen, wenn keines ausgewaehlt und Templates verfuegbar
   React.useEffect(() => {
@@ -246,7 +248,7 @@ export function PipelineSheet(props: PipelineSheetProps) {
   const templateSelectValue = props.templateName || (props.templates.length > 0 ? props.templates[0] : "__none__")
   
   // Berechne ob ein Schritt deaktiviert sein sollte (vorhanden und nicht erzwingen)
-  const extractDisabled = isMarkdown || (hasTranscript && !shouldForce)
+  const extractDisabled = skipExtract || (hasTranscript && !shouldForce)
   const transformDisabled = hasTransformed && !shouldForce
   const ingestDisabled = hasIngested && !shouldForce
   
@@ -256,7 +258,7 @@ export function PipelineSheet(props: PipelineSheetProps) {
 
   // Zaehle aktive Schritte
   const enabledCount = [shouldExtract, shouldTransform, shouldIngest].filter(Boolean).length
-  const totalSteps = isMarkdown ? 2 : 3
+  const totalSteps = skipExtract ? 2 : 3
 
   const start = React.useCallback(async () => {
     if (!canStart) {
@@ -272,7 +274,7 @@ export function PipelineSheet(props: PipelineSheetProps) {
     const active: "do" | "force" = shouldForce ? "force" : "do"
     // Bei Markdown: extract immer "ignore" (Textquelle bereits vorhanden)
     const policies: PipelinePolicies = {
-      extract: isMarkdown ? "ignore" : (shouldExtract ? active : "ignore"),
+      extract: skipExtract ? "ignore" : (shouldExtract ? active : "ignore"),
       metadata: shouldTransform ? active : "ignore",
       ingest: shouldIngest ? active : "ignore",
     }
@@ -302,7 +304,7 @@ export function PipelineSheet(props: PipelineSheetProps) {
     } finally {
       setIsSubmitting(false)
     }
-  }, [canStart, props, shouldExtract, shouldForce, shouldIngest, shouldTransform, shouldGenerateCoverImage, customHint, isMarkdown])
+  }, [canStart, props, shouldExtract, shouldForce, shouldIngest, shouldTransform, shouldGenerateCoverImage, customHint, skipExtract])
 
   // Step-Definitionen fuer das Rendering
   const steps = [
@@ -310,7 +312,7 @@ export function PipelineSheet(props: PipelineSheetProps) {
       id: 1,
       key: "extract",
       title: "Transkript erstellen",
-      description: isMarkdown 
+      description: skipExtract 
         ? "Textquelle vorhanden, Transkript wird uebersprungen." 
         : hasTranscript && !shouldForce
           ? "Bereits vorhanden (wird uebersprungen)."
@@ -321,8 +323,8 @@ export function PipelineSheet(props: PipelineSheetProps) {
       disabled: extractDisabled,
       // Quellsprache-Auswahl nur bei Audio/Video anzeigen (PDFs und Office werden immer 'auto' erkannt)
       hasOptions: (props.kind === 'audio' || props.kind === 'video') && !extractDisabled,
-      hasExisting: hasTranscript && !isMarkdown,
-      hidden: isMarkdown,
+      hasExisting: hasTranscript && !skipExtract,
+      hidden: skipExtract,
     },
     {
       id: 2,
@@ -412,7 +414,7 @@ export function PipelineSheet(props: PipelineSheetProps) {
                             : "bg-white dark:bg-zinc-900 text-muted-foreground border-gray-300 dark:border-zinc-600"
                         )}
                       >
-                        <span className="text-sm font-bold">{isMarkdown ? index + 1 : step.id}</span>
+                        <span className="text-sm font-bold">{skipExtract ? index + 1 : step.id}</span>
                       </div>
 
                       {/* Content */}

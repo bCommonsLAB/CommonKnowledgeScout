@@ -33,6 +33,22 @@ export interface JobValidationResult {
   messages: ValidationMessage[];
 }
 
+/** Extract-Step-Name wie in der Job-Start-Route (Bilder: extract_image, nicht extract_pdf). */
+function extractStepNameForJobType(jobType: string | undefined): string {
+  switch (jobType) {
+    case 'audio':
+      return 'extract_audio'
+    case 'video':
+      return 'extract_video'
+    case 'office':
+      return 'extract_office'
+    case 'image':
+      return 'extract_image'
+    default:
+      return 'extract_pdf'
+  }
+}
+
 function pushMessage(
   acc: ValidationMessage[],
   type: ValidationMessage['type'],
@@ -799,11 +815,7 @@ function validateGlobalContracts(
 
   if (policies) {
     const steps = Array.isArray(job.steps) ? job.steps : []
-    const extractStepName =
-      job.job_type === 'audio' ? 'extract_audio'
-      : job.job_type === 'video' ? 'extract_video'
-      : job.job_type === 'office' ? 'extract_office'
-      : 'extract_pdf'
+    const extractStepName = extractStepNameForJobType(job.job_type)
 
     // Extract-Policy prüfen
     if (policies.extract === 'ignore') {
@@ -881,11 +893,7 @@ function validateGlobalContracts(
     // Hinweis: Extract kann durch Gate legitim übersprungen werden, daher nur warnen bei pending ohne skipped-Details
     const extractEnabled = phases ? phases.extract !== false : true
     if (extractEnabled) {
-      const extractStepName =
-        job.job_type === 'audio' ? 'extract_audio'
-        : job.job_type === 'video' ? 'extract_video'
-        : job.job_type === 'office' ? 'extract_office'
-        : 'extract_pdf'
+      const extractStepName = extractStepNameForJobType(job.job_type)
       const extractStep = steps.find(s => s?.name === extractStepName)
       if (extractStep && extractStep.status === 'pending') {
         // Bei Extract ist pending ohne Gate-Skip ein echter Fehler
@@ -1025,11 +1033,7 @@ export async function validateExternalJobForTestCase(
 
   // Extract-Step (falls relevant)
   if (testCase.phases.extract) {
-    const extractStepName =
-      job.job_type === 'audio' ? 'extract_audio'
-      : job.job_type === 'video' ? 'extract_video'
-      : job.job_type === 'office' ? 'extract_office'
-      : 'extract_pdf'
+    const extractStepName = extractStepNameForJobType(job.job_type)
 
     checkStepStatus(job, extractStepName, 'completed', messages)
     const extractStep = Array.isArray(job.steps)

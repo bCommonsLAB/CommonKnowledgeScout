@@ -148,6 +148,7 @@ export function convertMongoDocToDocCardMeta(doc: MongoDocForConversion): DocCar
     // Ingest-Herkunft (Performance: kein fileId-Dekodieren im Client nötig)
     sourcePath: typeof docMeta?.sourcePath === 'string' ? docMeta.sourcePath : undefined,
     sourceFileName: typeof docMeta?.sourceFileName === 'string' ? docMeta.sourceFileName : undefined,
+    textur_code: typeof docMeta?.textur_code === 'string' ? docMeta.textur_code : undefined,
   }
 }
 

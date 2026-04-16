@@ -7,6 +7,7 @@ import { IngestionBookDetail } from "@/components/library/ingestion-book-detail"
 import { IngestionSessionDetail } from "@/components/library/ingestion-session-detail"
 import { IngestionClimateActionDetail } from "@/components/library/ingestion-climate-action-detail"
 import { IngestionDivaDocumentDetail } from "@/components/library/ingestion-diva-document-detail"
+import { IngestionDivaTextureDetail } from "@/components/library/ingestion-diva-texture-detail"
 import { librariesAtom } from "@/atoms/library-atom"
 import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom"
 import { getDetailViewType } from "@/lib/templates/detail-view-type-utils"
@@ -90,6 +91,10 @@ export function IngestionDetailPanel({ libraryId, fileId }: IngestionDetailPanel
 
   if (viewType === "divaDocument") {
     return <IngestionDivaDocumentDetail libraryId={libraryId} fileId={fileId} />
+  }
+
+  if (viewType === "divaTexture") {
+    return <IngestionDivaTextureDetail libraryId={libraryId} fileId={fileId} />
   }
 
   return <IngestionBookDetail libraryId={libraryId} fileId={fileId} />

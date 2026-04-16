@@ -1770,6 +1770,7 @@ export function JobReportTab({
                   organisation: typeof cm.organisation === 'string' ? cm.organisation : undefined,
                   tags: Array.isArray(cm.tags) ? (cm.tags as unknown[]).filter((t): t is string => typeof t === 'string') : undefined,
                   topics: Array.isArray(cm.topics) ? (cm.topics as unknown[]).filter((t): t is string => typeof t === 'string') : undefined,
+                  textur_code: typeof cm.textur_code === 'string' ? cm.textur_code : undefined,
                 }
                 
                 // Validierung: Pflichtfelder je nach DetailViewType prüfen
@@ -1780,6 +1781,7 @@ export function JobReportTab({
                   blog: ['title', 'summary'],
                   climateAction: ['title', 'category', 'summary'],
                   divaDocument: ['title', 'dokumentTyp', 'produktname', 'lieferant'],
+                  divaTexture: ['title'],
                 }
                 const requiredFields = requiredFieldsByType[effectivePreviewType] || ['title']
                 const missingFields = requiredFields.filter(field => {

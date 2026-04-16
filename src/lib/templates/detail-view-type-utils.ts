@@ -24,7 +24,7 @@ export function getDetailViewType(
   // 1. Prüfe Frontmatter
   const frontmatterDetailViewType = meta.detailViewType
   if (typeof frontmatterDetailViewType === 'string') {
-    const validTypes: TemplatePreviewDetailViewType[] = ['book', 'session', 'testimonial', 'blog', 'climateAction', 'divaDocument']
+    const validTypes: TemplatePreviewDetailViewType[] = ['book', 'session', 'testimonial', 'blog', 'climateAction', 'divaDocument', 'divaTexture']
     if (validTypes.includes(frontmatterDetailViewType as TemplatePreviewDetailViewType)) {
       return frontmatterDetailViewType as TemplatePreviewDetailViewType
     }
@@ -32,7 +32,7 @@ export function getDetailViewType(
   
   // 2. Fallback: Library-Config
   const configDetailViewType = libraryConfig?.gallery?.detailViewType
-  const validLibraryTypes: TemplatePreviewDetailViewType[] = ['book', 'session', 'testimonial', 'blog', 'climateAction', 'divaDocument']
+  const validLibraryTypes: TemplatePreviewDetailViewType[] = ['book', 'session', 'testimonial', 'blog', 'climateAction', 'divaDocument', 'divaTexture']
   if (typeof configDetailViewType === 'string' && validLibraryTypes.includes(configDetailViewType as TemplatePreviewDetailViewType)) {
     return configDetailViewType as TemplatePreviewDetailViewType
   }

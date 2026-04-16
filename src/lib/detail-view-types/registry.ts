@@ -28,7 +28,7 @@ import { z } from 'zod'
  * Alle verfügbaren DetailViewTypes als const Array.
  * Dies ist die einzige Stelle, an der neue ViewTypes hinzugefügt werden müssen.
  */
-export const DETAIL_VIEW_TYPES = ['book', 'session', 'testimonial', 'blog', 'climateAction', 'divaDocument'] as const
+export const DETAIL_VIEW_TYPES = ['book', 'session', 'testimonial', 'blog', 'climateAction', 'divaDocument', 'divaTexture'] as const
 
 /**
  * Union Type aller gültigen DetailViewTypes.
@@ -230,6 +230,50 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
       coverImage: true,
       attachments: false,
       urlField: true,
+    },
+  },
+  /** PBR-/Material-Textur (Template Diva-Texture-Analysis) — kein Katalog-Pflichtfeld-Set wie divaDocument */
+  divaTexture: {
+    requiredFields: ['title'],
+    optionalFields: [
+      'coverImageUrl',
+      'slug',
+      'iln_nummer',
+      'textur_code',
+      'materialart',
+      'visuelle_grundwirkung',
+      'oberflaechencharakter',
+      'verwechslungs_verbot',
+      'standard_prompt',
+      'farbe',
+      'farbvariation',
+      'struktur_sichtbarkeit',
+      'muster',
+      'glanzeindruck',
+      'prompt_zusatz',
+      'confidence_value',
+      'confidence_sources',
+      'confidence_reasoning',
+      'sprache',
+      'docType',
+      'breite_px',
+      'hoehe_px',
+      'dpi_horizontal',
+      'dpi_vertikal',
+      'bittiefe',
+      'breite_cm',
+      'hoehe_cm',
+      'komprimierung',
+      'farbraum',
+      'erstellungsdatum',
+      'erstellungsprogramm',
+    ],
+    labelKey: 'gallery.detailViewTypeDivaTexture',
+    descriptionKey: 'gallery.detailViewTypeDivaTextureDescription',
+    mediaConfig: {
+      coverImage: true,
+      attachments: false,
+      urlField: false,
     },
   },
 }

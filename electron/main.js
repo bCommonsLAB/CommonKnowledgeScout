@@ -11,7 +11,7 @@
  * @see https://github.com/kirill-konshin/next-electron-rsc
  */
 
-const { app, BrowserWindow, protocol, dialog, Menu, ipcMain } = require('electron');
+const { app, BrowserWindow, protocol, dialog, Menu, ipcMain, clipboard } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { execSync } = require('child_process');
@@ -137,6 +137,8 @@ let appLocalhostUrl = null;
 
 /** AbortController für laufenden Teams-Stream-Relay (IPC cancel) */
 const streamRelayState = { abortController: null };
+
+const { buildEnvDebugSnapshotText } = require('./env-debug-snapshot');
 
 /**
  * Headers für net.fetch normalisieren (Plain-Objekt oder Fetch-Headers).
@@ -436,6 +438,32 @@ async function createWindow() {
               ].join('\n'),
               buttons: ['OK'],
             });
+          },
+        },
+        {
+          label: 'Konfiguration (maskiert)…',
+          click: () => {
+            const snapshot = buildEnvDebugSnapshotText(process.env, {
+              dev,
+              electronVersion: process.versions.electron,
+              nodeVersion: process.versions.node,
+            });
+            dialog
+              .showMessageBox(mainWindow, {
+                type: 'info',
+                title: 'Konfiguration',
+                message:
+                  'Aktive Umgebungsvariablen (sensible Werte nur als Länge, nicht als Klartext).',
+                detail: snapshot,
+                buttons: ['Schließen', 'In Zwischenablage kopieren'],
+                defaultId: 0,
+                cancelId: 0,
+              })
+              .then(({ response }) => {
+                if (response === 1) {
+                  clipboard.writeText(snapshot);
+                }
+              });
           },
         },
         { type: 'separator' },

@@ -116,6 +116,21 @@ describe('prepareSecretaryRequest', () => {
     expect(cfg.url).toContain('/video/process')
     expect(getStringField(cfg.formData, 'template')).toBeNull()
   })
+
+  it('wirft bei job_type image (Bildanalyse läuft nicht über PDF-Endpoints)', () => {
+    const job = createJob({
+      job_type: 'image',
+      correlation: {
+        jobId: 'job-img',
+        libraryId: 'lib-1',
+        source: { mediaType: 'image', name: 'x.jpg', itemId: 'it4', parentId: 'p1' },
+        options: { targetLanguage: 'de' },
+      },
+    })
+    expect(() =>
+      prepareSecretaryRequest(job, createFile('x.jpg', 'image/jpeg'), 'https://app/cb', 'secret')
+    ).toThrow(/job_type "image"/)
+  })
 })
 
  

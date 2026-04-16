@@ -35,13 +35,14 @@ export async function GET(request: NextRequest) {
     const kind =
       kindRaw === 'audio' ? 'audio'
       : kindRaw === 'pdf' ? 'pdf'
+      : kindRaw === 'image' ? 'image'
       : kindRaw === 'markdown' ? 'markdown'
       : kindRaw === 'txt' ? 'txt'
       : kindRaw === 'website' ? 'website'
       : null
 
     if (!libraryId) return NextResponse.json({ error: 'libraryId erforderlich' }, { status: 400 })
-    if (!kind) return NextResponse.json({ error: 'kind erforderlich (pdf|audio|markdown|txt|website)' }, { status: 400 })
+    if (!kind) return NextResponse.json({ error: 'kind erforderlich (pdf|audio|image|markdown|txt|website)' }, { status: 400 })
 
     const files = await listIntegrationTestFiles({ userEmail, libraryId, folderId, kind })
     return NextResponse.json(

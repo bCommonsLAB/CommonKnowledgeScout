@@ -23,7 +23,7 @@ import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import { deleteShadowTwinBySourceId } from '@/lib/repositories/shadow-twin-repo'
 
-export type IntegrationTestFileKind = 'pdf' | 'audio' | 'markdown' | 'txt' | 'website'
+export type IntegrationTestFileKind = 'pdf' | 'audio' | 'image' | 'markdown' | 'txt' | 'website'
 
 export interface PdfTestFile {
   itemId: string;
@@ -116,6 +116,11 @@ export function detectFileKind(name: string, mimeType: string | undefined): Inte
   if (n.endsWith('.mp3') || n.endsWith('.wav') || n.endsWith('.m4a') || n.endsWith('.aac') || n.endsWith('.ogg') || n.endsWith('.flac')) {
     return 'audio'
   }
+
+  // Bilder (Secretary Image Analyzer /api/image-analyzer/process)
+  if (mt.startsWith('image/')) return 'image'
+  if (/\.(png|jpg|jpeg|gif|webp|bmp|ico)$/i.test(n)) return 'image'
+
   return null
 }
 

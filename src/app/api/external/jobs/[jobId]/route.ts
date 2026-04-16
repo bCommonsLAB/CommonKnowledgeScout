@@ -40,7 +40,7 @@ import { bufferLog, drainBufferedLogs } from '@/lib/external-jobs-log-buffer';
 import { bumpWatchdog, clearWatchdog } from '@/lib/external-jobs-watchdog';
 // Modularisierte Orchestrator-Module
 import { readContext } from '@/lib/external-jobs/context'
-import { authorizeCallback } from '@/lib/external-jobs/auth'
+import { authorizeCallback, hasInternalTokenBypass } from '@/lib/external-jobs/auth'
 import { readPhasesAndPolicies } from '@/lib/external-jobs/policies'
 import { handleProgressIfAny } from '@/lib/external-jobs/progress'
 import { buildProvider } from '@/lib/external-jobs/provider'
@@ -65,14 +65,31 @@ export async function GET(
 ) {
   try {
     const { userId } = getAuth(_request);
-    if (!userId) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 });
+    const internalBypass = hasInternalTokenBypass(_request.headers);
+    const urlObj = new URL(_request.url);
+    const internalUserEmail = internalBypass ? String(urlObj.searchParams.get('userEmail') || '').trim() : '';
+
+    if (!userId && !internalBypass) {
+      return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 });
+    }
 
     const { jobId } = await params;
     if (!jobId) return NextResponse.json({ error: 'jobId erforderlich' }, { status: 400 });
 
-    const user = await currentUser();
-    const userEmail = user?.emailAddresses?.[0]?.emailAddress || '';
-    if (!userEmail) return NextResponse.json({ error: 'Benutzer-E-Mail nicht verfügbar' }, { status: 403 });
+    let userEmail = '';
+    if (internalBypass) {
+      if (!internalUserEmail) {
+        return NextResponse.json(
+          { error: 'userEmail query erforderlich (Internal-Token-Modus)' },
+          { status: 400 }
+        );
+      }
+      userEmail = internalUserEmail;
+    } else {
+      const user = await currentUser();
+      userEmail = user?.emailAddresses?.[0]?.emailAddress || '';
+      if (!userEmail) return NextResponse.json({ error: 'Benutzer-E-Mail nicht verfügbar' }, { status: 403 });
+    }
 
     const repo = new ExternalJobsRepository();
     const job = await repo.get(jobId);
@@ -437,10 +454,11 @@ export async function POST(
       return NextResponse.json({ status: 'ok', jobId, kind: 'failed' });
     }
 
-    function getExtractStepName(jobType: string): 'extract_pdf' | 'extract_audio' | 'extract_video' | 'extract_office' {
+    function getExtractStepName(jobType: string): 'extract_pdf' | 'extract_audio' | 'extract_video' | 'extract_office' | 'extract_image' {
       if (jobType === 'audio') return 'extract_audio'
       if (jobType === 'video') return 'extract_video'
       if (jobType === 'office') return 'extract_office'
+      if (jobType === 'image') return 'extract_image'
       return 'extract_pdf'
     }
 

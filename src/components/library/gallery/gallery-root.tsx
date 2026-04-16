@@ -66,6 +66,7 @@ const VALID_DETAIL_VIEW_TYPES: TemplatePreviewDetailViewType[] = [
   'testimonial',
   'blog',
   'divaDocument',
+  'divaTexture',
 ]
 
 export function GalleryRoot({
@@ -135,7 +136,7 @@ export function GalleryRoot({
   const initialDetailViewType = useMemo(() => {
     const vt = rawGalleryConfig?.detailViewType
     // Alle gültigen DetailViewTypes akzeptieren
-    const validTypes = ['book', 'session', 'climateAction', 'testimonial', 'blog', 'divaDocument'] as const
+    const validTypes = ['book', 'session', 'climateAction', 'testimonial', 'blog', 'divaDocument', 'divaTexture'] as const
     const result = validTypes.includes(vt as typeof validTypes[number]) ? vt as typeof validTypes[number] : 'book'
     return result
   }, [rawGalleryConfig?.detailViewType])

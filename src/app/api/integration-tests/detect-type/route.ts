@@ -7,7 +7,7 @@ import type { IntegrationTestFileKind } from '@/lib/integration-tests/pdf-upload
  * Erkennt automatisch den ersten unterstützten Dateityp im Ordner.
  * 
  * Scannt alle Dateien im Ordner und gibt den ersten gefundenen Typ zurück.
- * Priorität: PDF > Audio > Markdown > TXT > Website
+ * Priorität: PDF > Bild > Audio > Markdown > TXT > Website
  */
 export async function GET(request: NextRequest) {
   try {
@@ -56,8 +56,7 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Priorität: PDF > Audio > Markdown > TXT > Website
-    const priority: IntegrationTestFileKind[] = ['pdf', 'audio', 'markdown', 'txt', 'website']
+    const priority: IntegrationTestFileKind[] = ['pdf', 'image', 'audio', 'markdown', 'txt', 'website']
     
     for (const kind of priority) {
       const { detectFileKind } = await import('@/lib/integration-tests/pdf-upload')
@@ -84,7 +83,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       detectedKind: null,
-      message: 'Kein unterstützter Dateityp gefunden (PDF, Audio, Markdown, TXT, Website)',
+      message: 'Kein unterstützter Dateityp gefunden (PDF, Bild, Audio, Markdown, TXT, Website)',
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unbekannter Fehler'

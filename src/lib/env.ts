@@ -74,6 +74,34 @@ export function getSecretaryConfig(): SecretaryConfig {
 }
 
 /**
+ * Relativer API-Pfad für Bild+Template (Vision) am Secretary, **ohne** führenden Slash.
+ * Wird an `SECRETARY_SERVICE_URL` angehängt: Wenn die URL mit `/api` endet → `{base}/{path}`,
+ * sonst → `{base}/api/{path}` (siehe `buildSecretaryServiceApiUrl`).
+ *
+ * Standard: `image-analyzer/process` (siehe docs/_secretary-service-docu/image-analyzer.md).
+ * Override nur nötig, wenn der Secretary abweichend deployed ist.
+ */
+export function getSecretaryImageAnalyzerRelativePath(): string {
+  const raw = process.env.SECRETARY_IMAGE_ANALYZER_PATH?.trim()
+  if (raw) {
+    return raw.replace(/^\/+/, '')
+  }
+  return 'image-analyzer/process'
+}
+
+/**
+ * Baut eine Secretary-URL unter `/api/...` konsistent zu `prepareSecretaryRequest` / Proxy-Routen.
+ */
+export function buildSecretaryServiceApiUrl(baseUrl: string, relativePath: string): string {
+  const base = baseUrl.replace(/\/+$/, '')
+  const rel = relativePath.replace(/^\/+/, '')
+  if (base.endsWith('/api')) {
+    return `${base}/${rel}`
+  }
+  return `${base}/api/${rel}`
+}
+
+/**
  * Worker-Pool für `external_jobs`: Mehrere App-Instanzen (z. B. verschiedene Electron-Builds)
  * können dieselbe MongoDB-Collection teilen. Jobs werden mit dieser ID persistiert; nur Worker
  * derselben Pool-ID claimen sie. Ohne gesetztes `JOBS_WORKER_POOL_ID` ist der Pool `"default"`

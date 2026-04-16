@@ -8,6 +8,7 @@ import type { SessionDetailData } from '@/components/library/session-detail'
 import type { TestimonialDetailData } from '@/components/library/testimonial-detail'
 import type { ClimateActionDetailData } from '@/components/library/climate-action-detail'
 import type { DivaDocumentDetailData } from '@/components/library/diva-document-detail'
+import type { DivaTextureDetailData } from '@/components/library/diva-texture-detail'
 
 /**
  * Mapper: API-Response → BookDetailData
@@ -466,4 +467,76 @@ export function mapToDivaDocumentDetail(input: unknown): DivaDocumentDetailData 
   };
 
   return data;
+}
+
+/**
+ * Mapper: API-Response → DivaTextureDetailData (Material-/PBR-Texturanalyse).
+ */
+export function mapToDivaTextureDetail(input: unknown): DivaTextureDetailData {
+  const root = (input && typeof input === 'object') ? input as Record<string, unknown> : {}
+  const docMetaJson = (root.docMetaJson && typeof root.docMetaJson === 'object')
+    ? root.docMetaJson as Record<string, unknown>
+    : {}
+
+  const toStr = (v: unknown): string | undefined => {
+    if (typeof v === 'string' && v.trim().length > 0) return v.trim()
+    return undefined
+  }
+
+  const toNum = (v: unknown): number | undefined =>
+    typeof v === 'number' && Number.isFinite(v) ? v : undefined
+
+  const toNumOrNull = (v: unknown): number | null | undefined => {
+    if (v === null) return null
+    if (typeof v === 'number' && Number.isFinite(v)) return v
+    return undefined
+  }
+
+  const toStrArr = (v: unknown): string[] | undefined => {
+    if (!Array.isArray(v)) return undefined
+    const arr = (v as unknown[]).map((x) => (typeof x === 'string' ? x.trim() : '')).filter(Boolean)
+    return arr.length > 0 ? arr : undefined
+  }
+
+  const data: DivaTextureDetailData = {
+    title: toStr(docMetaJson.title) || toStr(root.fileName) || '—',
+    markdown: toStr(docMetaJson.markdown),
+    coverImageUrl: toStr((docMetaJson as { coverImageUrl?: unknown }).coverImageUrl),
+    slug: toStr(docMetaJson.slug),
+    iln_nummer: toStr(docMetaJson.iln_nummer),
+    textur_code: toStr(docMetaJson.textur_code),
+    materialart: toStr(docMetaJson.materialart),
+    visuelle_grundwirkung: toStr(docMetaJson.visuelle_grundwirkung),
+    oberflaechencharakter: toStr(docMetaJson.oberflaechencharakter),
+    verwechslungs_verbot: toStrArr(docMetaJson.verwechslungs_verbot),
+    standard_prompt: toStr(docMetaJson.standard_prompt),
+    farbe: toStr(docMetaJson.farbe),
+    farbvariation: toStr(docMetaJson.farbvariation),
+    struktur_sichtbarkeit: toStr(docMetaJson.struktur_sichtbarkeit),
+    muster: toStr(docMetaJson.muster),
+    glanzeindruck: toStr(docMetaJson.glanzeindruck),
+    prompt_zusatz: toStr(docMetaJson.prompt_zusatz),
+    confidence_value: toNum(docMetaJson.confidence_value),
+    confidence_sources: toStrArr(docMetaJson.confidence_sources),
+    confidence_reasoning: toStr(docMetaJson.confidence_reasoning),
+    sprache: toStr(docMetaJson.sprache),
+    docType: toStr(docMetaJson.docType),
+    breite_px: toNum(docMetaJson.breite_px),
+    hoehe_px: toNum(docMetaJson.hoehe_px),
+    dpi_horizontal: toNumOrNull(docMetaJson.dpi_horizontal) ?? undefined,
+    dpi_vertikal: toNumOrNull(docMetaJson.dpi_vertikal) ?? undefined,
+    bittiefe: toNumOrNull(docMetaJson.bittiefe) ?? undefined,
+    breite_cm: toNumOrNull(docMetaJson.breite_cm) ?? undefined,
+    hoehe_cm: toNumOrNull(docMetaJson.hoehe_cm) ?? undefined,
+    komprimierung: toStr(docMetaJson.komprimierung),
+    farbraum: toStr(docMetaJson.farbraum),
+    erstellungsdatum: toStr(docMetaJson.erstellungsdatum) ?? null,
+    erstellungsprogramm: toStr(docMetaJson.erstellungsprogramm),
+    fileId: toStr(root.fileId),
+    fileName: toStr(root.fileName),
+    upsertedAt: toStr(root.upsertedAt),
+    chunkCount: toNum(root.chunkCount),
+  }
+
+  return data
 }

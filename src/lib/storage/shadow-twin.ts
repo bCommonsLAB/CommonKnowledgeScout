@@ -74,6 +74,25 @@ export async function findShadowTwinFolder(
 }
 
 /**
+ * Shadow-Twin-Ordner finden oder erstellen.
+ * Sucht per {@link findShadowTwinFolder} (Unterstrich- und Legacy-Punkt-Namen),
+ * erstellt bei Bedarf mit {@link generateShadowTwinFolderName}.
+ *
+ * Reihenfolge der Parameter: wie in anderen API-Routen (`provider` zuerst), damit
+ * dynamische Imports nicht fälschlich `(parentId, name, provider)` verwenden.
+ */
+export async function ensureShadowTwinFolder(
+  provider: StorageProvider,
+  parentId: string,
+  sourceName: string,
+): Promise<StorageItem> {
+  const existing = await findShadowTwinFolder(parentId, sourceName, provider);
+  if (existing) return existing;
+  const folderName = generateShadowTwinFolderName(sourceName);
+  return provider.createFolder(parentId, folderName);
+}
+
+/**
  * Findet ein Bild im Shadow-Twin-Verzeichnis oder im Parent-Verzeichnis (Fallback)
  * 
  * Diese Funktion zentralisiert die Bild-Auflösungslogik für Shadow-Twin-Dateien.

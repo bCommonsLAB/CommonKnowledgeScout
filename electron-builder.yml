@@ -30,6 +30,7 @@ extraMetadata:
 files:
   - electron/main.js
   - electron/preload.js
+  - electron/env-debug-snapshot.js
   - electron/msal-auth.js
   - electron/stream-relay.js
   - electron/stream-resolver.js

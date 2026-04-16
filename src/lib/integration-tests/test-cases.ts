@@ -119,7 +119,7 @@ export interface IntegrationTestCase {
    * Ziel-Dateityp für den Test.
    * Wird genutzt, um die Test-Targets im Ordner zu filtern und die UI zu vereinfachen.
    */
-  target: 'pdf' | 'audio' | 'markdown' | 'txt' | 'website';
+  target: 'pdf' | 'audio' | 'image' | 'markdown' | 'txt' | 'website';
   /** UseCase-ID aus docs/architecture/use-cases-and-personas.md, z.B. "pdf_mistral_report" */
   useCaseId: string;
   /** Szenario-ID innerhalb des UseCases, z.B. "happy_path", "gate_skip", "force_recompute" */
@@ -136,6 +136,8 @@ export interface IntegrationTestCase {
   policies?: IntegrationTestPhasePolicies;
   /** Mistral-spezifische Optionen (nur relevant für Phase-1-Tests) */
   mistralOptions?: MistralExtractOptions;
+  /** Optional: LLM-Modell für Template/Image-Analyzer (Job-Parameter `llmModel`) */
+  llmModel?: string;
   /** Gewünschter initialer Shadow-Twin-Zustand vor Teststart */
   shadowTwinState?: ShadowTwinInitialState;
   /** Erwartetes Verhalten / Prüfpunkte */
@@ -428,6 +430,33 @@ export const integrationTestCases: IntegrationTestCase[] = [
       expectShadowTwinExists: true,
       // Ingest-Input muss valide sein
       expectIngestInputNonEmpty: true,
+    },
+  },
+  // IMAGE UseCase: Secretary Image Analyzer (Vision + Template), siehe docs/_secretary-service-docu/image-analyzer.md
+  {
+    id: 'image_texture_analysis.diva_happy_path',
+    target: 'image',
+    useCaseId: 'image_texture_analysis',
+    scenarioId: 'diva_happy_path',
+    label: 'Bild – Image Analyzer + Template (Diva / Happy Path)',
+    description:
+      'Kein Extract: Template-Phase ruft Secretary POST /api/image-analyzer/process mit template_content. ' +
+      'Erwartet Transformation-Artefakt im Shadow-Twin.',
+    category: 'usecase',
+    phases: { extract: false, template: true, ingest: false },
+    policies: {
+      extract: 'ignore',
+      metadata: 'force',
+      ingest: 'ignore',
+    },
+    llmModel: 'google/gemini-2.5-flash',
+    shadowTwinState: 'clean',
+    expected: {
+      shouldComplete: true,
+      expectShadowTwinExists: true,
+      expectTemplateRun: true,
+      expectTemplateInputNonEmpty: false,
+      expectPhaseInputNonEmpty: false,
     },
   },
   // MARKDOWN UseCase: markdown_ingest

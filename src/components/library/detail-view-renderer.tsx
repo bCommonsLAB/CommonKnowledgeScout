@@ -7,9 +7,10 @@ import { SessionDetail } from "@/components/library/session-detail"
 import { TestimonialDetail } from "@/components/library/testimonial-detail"
 import { ClimateActionDetail } from "@/components/library/climate-action-detail"
 import { DivaDocumentDetail } from "@/components/library/diva-document-detail"
+import { DivaTextureDetail } from "@/components/library/diva-texture-detail"
 import type { StorageProvider } from "@/lib/storage/types"
 import type { TemplatePreviewDetailViewType } from "@/lib/templates/template-types"
-import { mapToBookDetail, mapToSessionDetail, mapToTestimonialDetail, mapToClimateActionDetail, mapToDivaDocumentDetail } from "@/lib/mappers/doc-meta-mappers"
+import { mapToBookDetail, mapToSessionDetail, mapToTestimonialDetail, mapToClimateActionDetail, mapToDivaDocumentDetail, mapToDivaTextureDetail } from "@/lib/mappers/doc-meta-mappers"
 import { validateMetadataForViewType, formatValidationWarning } from "@/lib/detail-view-types"
 
 interface DetailViewRendererProps {
@@ -101,6 +102,7 @@ export function DetailViewRenderer({
   const mappedTestimonialDetail = React.useMemo(() => mapToTestimonialDetail(mapperInput), [mapperInput])
   const mappedClimateActionDetail = React.useMemo(() => mapToClimateActionDetail(mapperInput), [mapperInput])
   const mappedDivaDocumentDetail = React.useMemo(() => mapToDivaDocumentDetail(mapperInput), [mapperInput])
+  const mappedDivaTextureDetail = React.useMemo(() => mapToDivaTextureDetail(mapperInput), [mapperInput])
   
   // Warnung für fehlende Pflichtfelder
   const MissingFieldsWarning = React.useMemo(() => {
@@ -157,6 +159,15 @@ export function DetailViewRenderer({
       <>
         {MissingFieldsWarning}
         <DivaDocumentDetail data={mappedDivaDocumentDetail} showBackLink={showBackLink} />
+      </>
+    )
+  }
+
+  if (detailViewType === "divaTexture") {
+    return (
+      <>
+        {MissingFieldsWarning}
+        <DivaTextureDetail data={mappedDivaTextureDetail} showBackLink={showBackLink} />
       </>
     )
   }

@@ -190,6 +190,8 @@
       "sortAscending": "{label} — croissant (clic pour décroissant)",
       "sortDescending": "{label} — décroissant (clic pour croissant)"
     },
+    "detailViewTypeDivaTexture": "DivaTexture (Analyse de texture matériau / PBR)",
+    "detailViewTypeDivaTextureDescription": "Vue détaillée pour l'analyse de textures avec métadonnées structurées.",
     "texts": {
       "session": {
         "headline": "Découvrez les contenus de cet événement",
@@ -411,6 +413,8 @@
       "detailViewTypeClimateAction": "ClimateAction (Mesures climatiques)",
       "detailViewTypeDivaDocument": "DivaDocument (Documents catalogue, Listes de prix, Collections de matériaux)",
       "detailViewTypeDivaDocumentDescription": "Vue détaillée pour les documents catalogue de l'industrie du meuble (listes de prix, fiches produits, collections de matériaux, etc.)",
+      "detailViewTypeDivaTexture": "DivaTexture (Analyse de texture matériau / PBR)",
+      "detailViewTypeDivaTextureDescription": "Vue détaillée pour l'analyse de textures avec métadonnées structurées.",
       "checkIndexStatus": "Vérifier le statut de l'index",
       "checking": "Vérification...",
       "createIndex": "Créer l'index",

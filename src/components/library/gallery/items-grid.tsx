@@ -38,7 +38,8 @@ export function ItemsGrid({ docsByYear, onOpen, libraryId, libraryDetailViewType
           {/* Container Queries: Spalten basierend auf Container-Breite, nicht Viewport-Breite
               Konservative Breakpoints für bessere Lesbarkeit:
               @lg = 512px, @4xl = 896px, @6xl = 1152px, @7xl = 1280px */}
-          <div className='grid grid-cols-1 @lg:grid-cols-2 @4xl:grid-cols-3 @6xl:grid-cols-4 @7xl:grid-cols-5 gap-4'>
+          {/* Dichteres Raster: mehr Karten pro Zeile, kleinere Kacheln (Container-Queries) */}
+          <div className='grid grid-cols-2 @md:grid-cols-3 @lg:grid-cols-4 @4xl:grid-cols-5 @6xl:grid-cols-6 @7xl:grid-cols-7 gap-3'>
             {groupDocs.map((doc) => (
               <DocumentCard key={doc.id} doc={doc} onClick={onOpen} libraryId={libraryId} libraryDetailViewType={libraryDetailViewType} />
             ))}

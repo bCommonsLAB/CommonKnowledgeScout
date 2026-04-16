@@ -190,6 +190,8 @@
       "sortAscending": "{label} — ascending (click for descending)",
       "sortDescending": "{label} — descending (click for ascending)"
     },
+    "detailViewTypeDivaTexture": "DivaTexture (Material / PBR texture analysis)",
+    "detailViewTypeDivaTextureDescription": "Detail view for texture analysis with structured metadata.",
     "texts": {
       "session": {
         "headline": "Discover the contents of this event",
@@ -411,6 +413,8 @@
       "detailViewTypeClimateAction": "ClimateAction (Climate Actions)",
       "detailViewTypeDivaDocument": "DivaDocument (Catalog documents, Price lists, Material collections)",
       "detailViewTypeDivaDocumentDescription": "Detail view for furniture industry catalog documents (price lists, product data sheets, material collections, etc.)",
+      "detailViewTypeDivaTexture": "DivaTexture (Material / PBR texture analysis)",
+      "detailViewTypeDivaTextureDescription": "Detail view for texture analysis with structured metadata (fabric, leather, wood, …).",
       "checkIndexStatus": "Check index status",
       "checking": "Checking...",
       "createIndex": "Create index",

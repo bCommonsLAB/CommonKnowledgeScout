@@ -22,6 +22,8 @@ import { useCallback, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { useFolderNavigation } from '@/hooks/use-folder-navigation';
 import { toast } from "sonner";
 import { isShadowTwinFolderName } from '@/lib/storage/shadow-twin';
+import { shouldFilterShadowTwinFolders } from '@/lib/storage/shadow-twin-folder-name';
+import { activeLibraryAtom } from '@/atoms/library-atom';
 
 // Ref-Interface für externe Steuerung
 export interface FileTreeRef {
@@ -35,6 +37,7 @@ interface TreeItemProps {
   level: number;
   onMoveItem?: (itemId: string, targetFolderId: string) => Promise<void>;
   currentFolderId?: string;
+  hideShadowTwinFolders: boolean;
 }
 
 // TreeItem Komponente
@@ -42,7 +45,8 @@ function TreeItem({
   item,
   level,
   onMoveItem,
-  currentFolderId
+  currentFolderId,
+  hideShadowTwinFolders
 }: TreeItemProps) {
   const [expandedFolders, setExpandedFolders] = useAtom(expandedFoldersAtom);
   const [selectedFile, setSelectedFile] = useAtom(selectedFileAtom);
@@ -110,7 +114,7 @@ function TreeItem({
   const children = (loadedChildren[item.id] || []).filter(child => {
     if (child.type !== 'folder') return false;
     const name = child.metadata?.name || '';
-    return !isShadowTwinFolderName(name);
+    return !hideShadowTwinFolders || !isShadowTwinFolderName(name);
   });
 
   // Scroll zum aktuellen Ordner, wenn er dieser Item ist
@@ -170,6 +174,7 @@ function TreeItem({
           level={level + 1}
           onMoveItem={onMoveItem}
           currentFolderId={currentFolderId}
+          hideShadowTwinFolders={hideShadowTwinFolders}
         />
       ))}
     </div>
@@ -184,10 +189,15 @@ export const FileTree = forwardRef<FileTreeRef, object>(function FileTree({
   const [loadedChildren, setLoadedChildren] = useAtom(loadedChildrenAtom);
   const [isReady, setFileTreeReady] = useAtom(fileTreeReadyAtom);
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
+  const activeLibrary = useAtomValue(activeLibraryAtom);
   const [, setSelectedFile] = useAtom(selectedFileAtom);
   const folderItems = useAtomValue(folderItemsAtom);
   const currentFolderId = useAtomValue(currentFolderIdAtom);
   const libraryState = useAtomValue(libraryAtom);
+
+  const hideShadowTwinFolders = shouldFilterShadowTwinFolders(
+    activeLibrary?.config?.shadowTwin as { primaryStore?: string; persistToFilesystem?: boolean } | undefined
+  );
   
   // Refs um aktuelle Werte im Timeout zu prüfen (Closure-Problem vermeiden)
   const loadedChildrenRef = React.useRef(loadedChildren);
@@ -587,7 +597,7 @@ export const FileTree = forwardRef<FileTreeRef, object>(function FileTree({
   const items = (loadedChildren.root || []).filter(item => {
     if (item.type !== 'folder') return false;
     const name = item.metadata?.name || '';
-    return !isShadowTwinFolderName(name);
+    return !hideShadowTwinFolders || !isShadowTwinFolderName(name);
   });
 
   return (
@@ -598,6 +608,7 @@ export const FileTree = forwardRef<FileTreeRef, object>(function FileTree({
           item={item}
           level={0}
           currentFolderId={currentFolderId}
+          hideShadowTwinFolders={hideShadowTwinFolders}
         />
       ))}
     </div>

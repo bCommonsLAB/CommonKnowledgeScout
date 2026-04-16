@@ -9,6 +9,7 @@ import { IngestionBookDetail } from '@/components/library/ingestion-book-detail'
 import { IngestionSessionDetail } from '@/components/library/ingestion-session-detail'
 import { IngestionClimateActionDetail } from '@/components/library/ingestion-climate-action-detail'
 import { IngestionDivaDocumentDetail } from '@/components/library/ingestion-diva-document-detail'
+import { IngestionDivaTextureDetail } from '@/components/library/ingestion-diva-texture-detail'
 import type { ClimateActionDetailData } from '@/components/library/climate-action-detail'
 import type { DivaDocumentDetailData } from '@/components/library/diva-document-detail'
 import { useTranslation } from '@/lib/i18n/hooks'
@@ -25,8 +26,8 @@ export interface DetailOverlayProps {
   onClose: () => void
   libraryId: string
   fileId: string
-  /** Typ der Detailansicht (book, session, climateAction, testimonial, blog, divaDocument) */
-  viewType: 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog' | 'divaDocument'
+  /** Typ der Detailansicht (book, session, climateAction, testimonial, blog, divaDocument, divaTexture) */
+  viewType: 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog' | 'divaDocument' | 'divaTexture'
   title?: string
   /** Optional: Dokument-Metadaten für den SwitchToStoryModeButton */
   doc?: DocCardMeta
@@ -253,7 +254,7 @@ export function DetailOverlay({
             } catch {
               setPrefetchedSessionData(null)
             }
-          } else if (viewType !== 'climateAction' && viewType !== 'divaDocument') {
+          } else if (viewType !== 'climateAction' && viewType !== 'divaDocument' && viewType !== 'divaTexture') {
             try {
               setPrefetchedBookData(mapToBookDetail(json as unknown))
             } catch {
@@ -368,7 +369,9 @@ export function DetailOverlay({
   // nicht die Quellsprache (originalLanguage = language aus Frontmatter).
   // Wenn der Inhalt bereits in der Zielsprache des Browsers vorliegt, sind Tabs unnötig.
   const effectiveContentLanguage = contentLanguage || originalLanguage
-  const shouldShowTabs = effectiveContentLanguage !== targetLanguageCode
+  // divaTexture: kein translate-document-Pfad — Tabs würden fälschlich Book-Übersetzung anstoßen
+  const shouldShowTabs =
+    effectiveContentLanguage !== targetLanguageCode && viewType !== 'divaTexture'
   
   if (!open) return null
   return (
@@ -490,8 +493,14 @@ export function DetailOverlay({
                 translatedData={activeTab === 'translated' ? (translatedData as DivaDocumentDetailData) : undefined}
               />
             )}
+            {viewType === 'divaTexture' && (
+              <IngestionDivaTextureDetail
+                libraryId={libraryId}
+                fileId={fileId}
+              />
+            )}
             {/* Default: Book-Detail (auch für testimonial, blog - vorerst) */}
-            {viewType !== 'session' && viewType !== 'climateAction' && viewType !== 'divaDocument' && (
+            {viewType !== 'session' && viewType !== 'climateAction' && viewType !== 'divaDocument' && viewType !== 'divaTexture' && (
               <IngestionBookDetail
                 libraryId={libraryId}
                 fileId={fileId}

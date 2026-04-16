@@ -78,10 +78,12 @@ async function createJobForItem(args: {
   const jobSecret = crypto.randomBytes(24).toString('base64url')
   const jobSecretHash = repo.hashSecret(jobSecret)
   
-  // Policies anpassen: Bei Markdown ist Extract immer 'ignore'
+  // Policies anpassen: Bei Markdown und Bildern ist Extract immer 'ignore'
+  // (Bilder werden direkt vom Image-Analyzer transformiert, ohne Transkription)
+  const skipExtract = mediaKind === 'markdown' || mediaKind === 'image'
   const finalPolicies = {
     ...config.policies,
-    extract: mediaKind === 'markdown' ? 'ignore' as const : config.policies.extract,
+    extract: skipExtract ? 'ignore' as const : config.policies.extract,
   }
   
   // Correlation erstellen
@@ -138,7 +140,7 @@ async function createJobForItem(args: {
         ...(config.sourceLanguage ? { sourceLanguage: config.sourceLanguage } : {}),
         ...(config.templateName ? { template: config.templateName } : {}),
         phases: {
-          extract: mediaKind !== 'markdown' && config.phases.extract,
+          extract: !skipExtract && config.phases.extract,
           template: config.phases.template,
           ingest: config.phases.ingest,
         },
@@ -176,7 +178,7 @@ async function createJobForItem(args: {
 /**
  * Gibt den korrekten Extract-Step-Namen für einen JobType zurück
  */
-function getExtractStepName(jobType: JobType): 'extract_pdf' | 'extract_audio' | 'extract_video' | 'extract_office' {
+function getExtractStepName(jobType: JobType): 'extract_pdf' | 'extract_audio' | 'extract_video' | 'extract_office' | 'extract_image' {
   switch (jobType) {
     case 'audio':
       return 'extract_audio'
@@ -184,6 +186,8 @@ function getExtractStepName(jobType: JobType): 'extract_pdf' | 'extract_audio' |
       return 'extract_video'
     case 'office':
       return 'extract_office'
+    case 'image':
+      return 'extract_image'
     default:
       return 'extract_pdf'
   }

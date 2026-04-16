@@ -53,7 +53,7 @@ import { loadShadowTwinMarkdown } from '@/lib/external-jobs/phase-shadow-twin-lo
 import { runIngestPhase } from '@/lib/external-jobs/phase-ingest'
 import { runTemplatePhase } from '@/lib/external-jobs/phase-template'
 import { readPhasesAndPolicies } from '@/lib/external-jobs/policies'
-import { generateShadowTwinFolderName } from '@/lib/storage/shadow-twin'
+import { generateShadowTwinFolderName, ensureShadowTwinFolder } from '@/lib/storage/shadow-twin'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { withRequestStorageCache } from '@/lib/storage/provider-request-cache'
 
@@ -120,10 +120,11 @@ function deriveExtractGateFromShadowTwinState(
   }
 }
 
-function getExtractStepName(jobType: string): 'extract_pdf' | 'extract_audio' | 'extract_video' | 'extract_office' {
+function getExtractStepName(jobType: string): 'extract_pdf' | 'extract_audio' | 'extract_video' | 'extract_office' | 'extract_image' {
   if (jobType === 'audio') return 'extract_audio'
   if (jobType === 'video') return 'extract_video'
   if (jobType === 'office') return 'extract_office'
+  if (jobType === 'image') return 'extract_image'
   return 'extract_pdf'
 }
 
@@ -879,7 +880,8 @@ export async function POST(
     }
 
     // Template-only: vorhandenes Markdown nutzen, Frontmatter reparieren lassen
-    if (!runExtract && runTemplate) {
+    // WICHTIG: Image-Jobs NICHT hier abfangen — die haben einen eigenen Pfad weiter unten
+    if (!runExtract && runTemplate && job.job_type !== 'image') {
       // Markiere Extract-Step als skipped, wenn Extract übersprungen wurde (Gate oder Phase deaktiviert)
       // WICHTIG: Dies muss auch hier passieren, wenn Template ausgeführt wird
       try {
@@ -1080,6 +1082,278 @@ export async function POST(
       })
 
       return NextResponse.json({ ok: true, jobId, kind: ingestEnabled ? 'template_and_ingest' : 'template_only' })
+    }
+
+    // =========================================================================
+    // IMAGE-ANALYZER-PFAD: Bilder direkt transformieren (kein Extract)
+    // Analog zum Markdown-Template-only-Pfad, aber mit Binary statt Text.
+    // =========================================================================
+    if (job.job_type === 'image' && runTemplate) {
+      // Extract-Step als skipped markieren (Bilder brauchen keine Transkription)
+      try {
+        await repo.updateStep(jobId, extractStepName, {
+          status: 'completed',
+          endedAt: new Date(),
+          details: { skipped: true, reason: 'image_no_extract' }
+        })
+      } catch {}
+
+      try {
+        await repo.setStatus(jobId, 'running')
+      } catch {}
+
+      // Binary aus Storage laden
+      const sourceItemId = job.correlation?.source?.itemId
+      if (!sourceItemId) {
+        await repo.setStatus(jobId, 'failed', { error: { code: 'missing_source', message: 'Keine Quell-ID für Bild' } })
+        return NextResponse.json({ error: 'Keine Quell-ID für Bild' }, { status: 400 })
+      }
+
+      // getBinary() liefert { blob: Blob, mimeType: string } gemäß StorageProvider-Interface
+      let imageBuffer: Buffer
+      try {
+        const binaryResult = await provider.getBinary(sourceItemId)
+        const arrayBuffer = await binaryResult.blob.arrayBuffer()
+        imageBuffer = Buffer.from(arrayBuffer)
+      } catch (error) {
+        const msg = `Bild konnte nicht geladen werden: ${error instanceof Error ? error.message : String(error)}`
+        await repo.setStatus(jobId, 'failed', { error: { code: 'binary_load_error', message: msg } })
+        return NextResponse.json({ error: msg }, { status: 500 })
+      }
+
+      // Technische Bild-Metadaten aus EXIF/Header extrahieren (programmatisch, nicht LLM)
+      // sharp liest nur den Header — auch bei großen Bildern < 10ms
+      let imageTechnicalMeta: Awaited<ReturnType<typeof import('@/lib/image/exif-metadata').extractImageMetadata>> | null = null
+      try {
+        const { extractImageMetadata } = await import('@/lib/image/exif-metadata')
+        imageTechnicalMeta = await extractImageMetadata(imageBuffer)
+      } catch (error) {
+        FileLogger.warn('start-route', `EXIF-Extraktion fehlgeschlagen (nicht-kritisch): ${error instanceof Error ? error.message : String(error)}`, { jobId })
+      }
+
+      // Template laden (zentralisiert über pickTemplate mit automatischer Name-Auflösung)
+      const { pickTemplate } = await import('@/lib/external-jobs/template-files')
+      const templateDoc = await pickTemplate({
+        repo,
+        jobId,
+        libraryId: job.libraryId,
+        userEmail: job.userEmail,
+        job,
+      })
+      if (!templateDoc?.templateContent) {
+        const msg = 'Kein Template gefunden für Image-Analyse'
+        await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: msg } })
+        await repo.setStatus(jobId, 'failed', { error: { code: 'no_template', message: msg } })
+        return NextResponse.json({ error: msg }, { status: 400 })
+      }
+
+      // Transform-Step starten
+      try {
+        await repo.updateStep(jobId, 'transform_template', { status: 'running', startedAt: new Date() })
+      } catch {}
+
+      // Secretary Image-Analyzer aufrufen
+      const { getSecretaryConfig } = await import('@/lib/env')
+      const secretaryConfig = getSecretaryConfig()
+      const baseUrl = libraryConfig?.apiUrl || secretaryConfig.baseUrl
+      const apiKey = libraryConfig?.apiKey || secretaryConfig.apiKey || ''
+      const targetLanguage = (job.correlation?.options?.targetLanguage as string) || 'de'
+      const llmModel = job.parameters?.llmModel as string | undefined
+
+      const { callImageAnalyzerTemplate } = await import('@/lib/secretary/image-analyzer')
+
+      let responseData: { text: string; structured_data?: Record<string, unknown> }
+      try {
+        const imageMimeType = job.correlation?.source?.mimeType || 'image/jpeg'
+        const imageFileName = job.correlation?.source?.name || 'image.jpg'
+
+        // Kontext für den Secretary aufbauen (Datei-Metadaten, kein EXIF — EXIF wird post-merge injiziert)
+        const imageContext: Record<string, unknown> = {
+          fileName: imageFileName,
+          mimeType: imageMimeType,
+          libraryId: job.libraryId,
+        }
+        // Dateiendung
+        const extMatch = imageFileName.match(/\.([a-zA-Z0-9]+)$/)
+        if (extMatch) imageContext.fileExtension = extMatch[1].toLowerCase()
+        // Pfad aus Storage laden (für ILN-Parsing im Template)
+        try {
+          const sourcePath = await provider.getPathById(sourceItemId)
+          if (sourcePath) imageContext.filePath = sourcePath
+        } catch {}
+        // Änderungsdatum
+        try {
+          const sourceItem = await provider.getItemById(sourceItemId)
+          if (sourceItem?.metadata?.modifiedAt) {
+            imageContext.fileModifiedAt = sourceItem.metadata.modifiedAt instanceof Date
+              ? sourceItem.metadata.modifiedAt.toISOString()
+              : String(sourceItem.metadata.modifiedAt)
+          }
+        } catch {}
+
+        const res = await callImageAnalyzerTemplate({
+          baseUrl,
+          apiKey,
+          file: imageBuffer,
+          fileName: imageFileName,
+          mimeType: imageMimeType,
+          templateContent: templateDoc.templateContent,
+          targetLanguage,
+          context: imageContext,
+          model: llmModel,
+          useCache: true,
+          timeoutMs: 120_000,
+        })
+
+        const json = await res.json() as { status: string; data?: { text: string; structured_data?: Record<string, unknown> }; error?: unknown }
+        if (json.status !== 'success' || !json.data?.text) {
+          throw new Error(json.error ? JSON.stringify(json.error) : 'Image-Analyzer lieferte kein Ergebnis')
+        }
+        responseData = json.data
+      } catch (error) {
+        const msg = `Image-Analyzer-Fehler: ${error instanceof Error ? error.message : String(error)}`
+        FileLogger.error('start-route', msg, { jobId })
+        await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: msg } })
+        await repo.setStatus(jobId, 'failed', { error: { code: 'image_analyzer_error', message: msg } })
+        return NextResponse.json({ error: msg }, { status: 500 })
+      }
+
+      // Nach LLM: programmatisch ins Frontmatter mergen (EXIF + Cover für Galerie/Shop-Kachel).
+      // coverImageUrl = nur Dateiname der analysierten Quelle (Media-Lifecycle), keine Blob-URL.
+      let finalMarkdown = responseData.text
+      try {
+        const { patchFrontmatter } = await import('@/lib/markdown/frontmatter-patch')
+        const systemPatch: Record<string, unknown> = {}
+        if (imageTechnicalMeta) {
+          Object.assign(systemPatch, imageTechnicalMeta as unknown as Record<string, unknown>)
+        }
+        const sourceImageName = job.correlation?.source?.name?.trim()
+        if (sourceImageName) {
+          systemPatch.coverImageUrl = sourceImageName
+        }
+        if (Object.keys(systemPatch).length > 0) {
+          finalMarkdown = patchFrontmatter(responseData.text, systemPatch)
+        }
+      } catch (error) {
+        FileLogger.warn('start-route', `System-Frontmatter-Merge (EXIF/Cover) fehlgeschlagen (nicht-kritisch): ${error instanceof Error ? error.message : String(error)}`, { jobId })
+      }
+
+      // Ergebnis als Transformation-Artefakt speichern (analog phase-template: Konstruktor + upsertMarkdown-Optionen)
+      const { ShadowTwinService } = await import('@/lib/shadow-twin/store/shadow-twin-service')
+
+      const library = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
+      if (!library) {
+        const msg = 'Bibliothek nicht gefunden'
+        await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: msg } })
+        await repo.setStatus(jobId, 'failed', { error: { code: 'library_not_found', message: msg } })
+        return NextResponse.json({ error: msg }, { status: 404 })
+      }
+
+      const parentId = job.correlation?.source?.parentId || 'root'
+      const originalName = job.correlation?.source?.name || 'image'
+      // Nur bei persistToFilesystem: Twin-Ordner im Storage anlegen (wie PDF-Start oben). Sonst Mongo-only — leere _…-Ordner vermeiden.
+      const imageTwinCfg = getShadowTwinConfig(library)
+      const shadowTwinFolderId: string | undefined =
+        job.shadowTwinState?.shadowTwinFolderId ??
+        (imageTwinCfg.persistToFilesystem
+          ? (await ensureShadowTwinFolder(provider, parentId, originalName)).id
+          : undefined)
+
+      const templateFromParams =
+        typeof job.parameters?.template === 'string' ? job.parameters.template.trim() : ''
+      const templateName = templateDoc.templateName || templateFromParams || 'default'
+
+      const shadowTwinService = new ShadowTwinService({
+        library,
+        userEmail: job.userEmail,
+        sourceId: sourceItemId,
+        sourceName: originalName,
+        parentId,
+        provider,
+      })
+
+      try {
+        const savedResult = await shadowTwinService.upsertMarkdown({
+          kind: 'transformation',
+          targetLanguage,
+          templateName,
+          markdown: finalMarkdown,
+          shadowTwinFolderId,
+        })
+
+        await repo.updateStep(jobId, 'transform_template', {
+          status: 'completed',
+          endedAt: new Date(),
+          details: { templateName, targetLanguage, savedItemId: savedResult.id }
+        })
+
+        // Shadow-Twin-State aktualisieren (Ordner-ID mitschreiben — sonst bleibt sie in Mongo null obwohl der Twin existiert)
+        try {
+          const updatedJob = await repo.get(jobId)
+          if (updatedJob?.shadowTwinState) {
+            const mongoState = toMongoShadowTwinState({
+              ...updatedJob.shadowTwinState,
+              shadowTwinFolderId,
+              processingStatus: ingestEnabled ? 'processing' as const : 'ready' as const,
+            })
+            await repo.setShadowTwinState(jobId, mongoState)
+          }
+        } catch {}
+
+        // Ingest-Phase falls aktiviert
+        if (ingestEnabled) {
+          try {
+            await repo.updateStep(jobId, 'ingest_rag', { status: 'running', startedAt: new Date() })
+          } catch {}
+
+          const phasePolicies = readPhasesAndPolicies(job.parameters)
+          const ctxIngest: RequestContext = { request, jobId, job, body: {}, callbackToken: undefined, internalBypass: true }
+
+          const { parseFrontmatter } = await import('@/lib/markdown/frontmatter')
+          const { meta: ingestMeta } = parseFrontmatter(finalMarkdown)
+
+          const ingestResult = await runIngestPhase({
+            ctx: ctxIngest,
+            provider,
+            repo,
+            markdown: finalMarkdown,
+            meta: ingestMeta,
+            savedItemId: savedResult.id,
+            policies: { ingest: phasePolicies.ingest as 'force' | 'skip' | 'auto' | 'ignore' | 'do' },
+          })
+
+          if (ingestResult.error) {
+            await repo.setStatus(jobId, 'failed', { error: { code: 'ingestion_failed', message: ingestResult.error } })
+            return NextResponse.json({ error: ingestResult.error }, { status: 500 })
+          }
+        }
+
+        // Job als completed markieren
+        await setJobCompleted({ ctx: { request, jobId, job, body: {}, callbackToken: undefined, internalBypass: true }, result: { savedItemId: savedResult.id } })
+
+        getJobEventBus().emitUpdate(job.userEmail, {
+          type: 'job_update',
+          jobId,
+          status: 'completed',
+          progress: 100,
+          updatedAt: new Date().toISOString(),
+          message: 'completed',
+          jobType: job.job_type,
+          fileName: job.correlation?.source?.name,
+          sourceItemId: job.correlation?.source?.itemId,
+          libraryId: job.libraryId,
+          result: { savedItemId: savedResult.id },
+          shadowTwinFolderId: shadowTwinFolderId || null,
+        })
+
+        return NextResponse.json({ ok: true, jobId, kind: ingestEnabled ? 'image_and_ingest' : 'image_only' })
+      } catch (error) {
+        const msg = `Fehler beim Speichern des Image-Analyse-Ergebnisses: ${error instanceof Error ? error.message : String(error)}`
+        FileLogger.error('start-route', msg, { jobId })
+        await repo.updateStep(jobId, 'transform_template', { status: 'failed', endedAt: new Date(), error: { message: msg } })
+        await repo.setStatus(jobId, 'failed', { error: { code: 'save_error', message: msg } })
+        return NextResponse.json({ error: msg }, { status: 500 })
+      }
     }
 
     // Secretary-Flow (Extract/Template)

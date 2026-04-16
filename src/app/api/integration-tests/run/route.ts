@@ -9,7 +9,7 @@ interface RunRequestBody {
   folderId?: string;
   testCaseIds?: string[];
   fileIds?: string[];
-  fileKind?: 'pdf' | 'audio' | 'markdown' | 'txt' | 'website';
+  fileKind?: 'pdf' | 'audio' | 'image' | 'markdown' | 'txt' | 'website';
   jobTimeoutMs?: number;
   templateName?: string;
   /**
@@ -61,6 +61,7 @@ export async function POST(request: NextRequest) {
     const fileKind =
       body.fileKind === 'audio' ? 'audio'
       : body.fileKind === 'pdf' ? 'pdf'
+      : body.fileKind === 'image' ? 'image'
       : body.fileKind === 'markdown' ? 'markdown'
       : body.fileKind === 'txt' ? 'txt'
       : body.fileKind === 'website' ? 'website'

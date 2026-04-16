@@ -5,7 +5,7 @@ import type { GalleryTexts } from '@/lib/gallery/types'
 import { useTranslation } from '@/lib/i18n/hooks'
 
 /** Alle unterstützten DetailViewTypes */
-type DetailViewType = 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog' | 'divaDocument'
+type DetailViewType = 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog' | 'divaDocument' | 'divaTexture'
 
 /**
  * Hook für Gallery-Konfiguration

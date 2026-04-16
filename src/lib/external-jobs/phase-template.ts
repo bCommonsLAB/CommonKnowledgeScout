@@ -776,59 +776,17 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
   let customHintValue = typeof hintFromArgs === 'string' ? (hintFromArgs.trim() || undefined) : undefined
 
   try {
-    // Templates wählen via zentrale Template-Service Library
+    // Template wählen — Name-Auflösung ist in pickTemplate zentralisiert
+    // (Job-Parameter → Library-Config → Default "pdfanalyse")
     const { pickTemplate } = await import('@/lib/external-jobs/template-files')
-    
-    // Priorität: 1. Job-Parameter, 2. Library-Config
-    // Prüfe zuerst Job-Parameter (höchste Priorität)
-    const templateFromJobParams = job.parameters?.template as string | undefined
-    if (templateFromJobParams) {
-      preferredTemplate = templateFromJobParams
-      FileLogger.info('phase-template', 'Template aus Job-Parametern gefunden', {
-        jobId,
-        libraryId: job.libraryId,
-        preferredTemplate,
-      })
-    } else {
-      // Fallback: Versuche Template aus Library-Config zu lesen
-      // libraryConfig ist vom Typ LibraryChatConfig, aber das Template ist in storageConfig.secretaryService.template
-      // Daher müssen wir die Library direkt laden, um an storageConfig zu kommen
-      try {
-        const { LibraryService } = await import('@/lib/services/library-service')
-        const libraryService = LibraryService.getInstance()
-        const library = await libraryService.getLibrary(job.userEmail, job.libraryId)
-        preferredTemplate = library?.config?.secretaryService?.template
-        
-        if (preferredTemplate) {
-          FileLogger.info('phase-template', 'Template aus Library-Config gefunden', {
-            jobId,
-            libraryId: job.libraryId,
-            preferredTemplate,
-          })
-        } else {
-          FileLogger.info('phase-template', 'Kein Template in Library-Config, versuche Template aus MongoDB zu finden', {
-            jobId,
-            libraryId: job.libraryId,
-          })
-        }
-      } catch (error) {
-        FileLogger.warn('phase-template', 'Fehler beim Laden der Library für Template-Auswahl', {
-          jobId,
-          libraryId: job.libraryId,
-          error: error instanceof Error ? error.message : String(error),
-        })
-        // Nicht kritisch - pickTemplate kann auch ohne Preferred Template ein Template aus MongoDB verwenden
-      }
-    }
-    
-    // pickTemplate aufrufen - lädt Template aus MongoDB
-    picked = await pickTemplate({ 
-      repo, 
+    picked = await pickTemplate({
+      repo,
       jobId,
       libraryId: job.libraryId,
       userEmail: job.userEmail,
-      preferredTemplateName: preferredTemplate 
+      job,
     })
+    preferredTemplate = picked.templateName
     
     // Template wurde erfolgreich geladen
     const templateContent = picked.templateContent

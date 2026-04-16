@@ -29,6 +29,8 @@ import { TARGET_LANGUAGE_DEFAULT } from '@/lib/chat/constants';
 import { getMediaKind, isPipelineSupported } from '@/lib/media-types';
 // Shadow-Twin-Ordner erkennen (Prefix '_' oder '.'), damit sie beim Scan übersprungen werden
 import { isShadowTwinFolderName } from '@/lib/storage/shadow-twin';
+import { shouldFilterShadowTwinFolders } from '@/lib/storage/shadow-twin-folder-name';
+import { matchesGlobFileName } from '@/lib/strings/glob-file-name';
 
 // Rückwärtskompatible Props-Benennung (Dialog unterstützt jetzt alle Medientypen)
 interface PdfBulkImportDialogProps {
@@ -61,6 +63,8 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
   const [previewItems, setPreviewItems] = useState<Array<{ id: string; name: string; relPath: string; pages?: number }>>([]);
   const [stats, setStats] = useState<ScanStats>({ totalFiles: 0, skippedExisting: 0, toProcess: 0 });
   const [batchName, setBatchName] = useState<string>('');
+  /** Optional: z. B. `*_basecolor*` — nur passende Dateinamen in Liste & Jobs */
+  const [fileNamePattern, setFileNamePattern] = useState<string>('');
   // Set mit IDs der abgewaehlten Dateien (standardmaessig alle ausgewaehlt)
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
 
@@ -113,10 +117,13 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
         continue;
       }
 
-      // Shadow-Twin-Ordner (Prefix '_' oder '.') überspringen – diese enthalten
-      // nur generierte Artefakte und keine zu verarbeitenden Quelldateien.
+      // Shadow-Twin-Ordner nur überspringen, wenn Filesystem-Persistierung aktiv ist.
+      // Ohne FS-Persistierung sind `_`-Ordner reguläre Benutzer-Verzeichnisse.
+      const hideTwinFolders = shouldFilterShadowTwinFolders(
+        activeLibrary?.config?.shadowTwin as { primaryStore?: string; persistToFilesystem?: boolean } | undefined
+      );
       const folders = items.filter(
-        (i) => i.type === 'folder' && !isShadowTwinFolderName(i.metadata.name)
+        (i) => i.type === 'folder' && (!hideTwinFolders || !isShadowTwinFolderName(i.metadata.name))
       );
       folders.forEach((f) => stack.push(f.id));
 
@@ -213,10 +220,22 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
 
   // keine lokale Optionsbearbeitung nötig; Änderungen erfolgen im Settings-Dialog
 
-  // Gefilterte Kandidaten: nur ausgewaehlte Dateien (nicht in excludedIds)
+  const previewById = useMemo(() => {
+    const m = new Map<string, (typeof previewItems)[number]>();
+    for (const p of previewItems) m.set(p.id, p);
+    return m;
+  }, [previewItems]);
+
+  /** Nach Dateinamen-Muster (Glob mit *); leer = alle Kandidaten */
+  const matchingCandidates = useMemo(
+    () => candidates.filter((c) => matchesGlobFileName(c.file.metadata.name, fileNamePattern)),
+    [candidates, fileNamePattern]
+  );
+
+  // Nur Muster-Treffer, davon nicht abgewaehlte
   const selectedCandidates = useMemo(
-    () => candidates.filter((c) => !excludedIds.has(c.file.id)),
-    [candidates, excludedIds]
+    () => matchingCandidates.filter((c) => !excludedIds.has(c.file.id)),
+    [matchingCandidates, excludedIds]
   );
 
   const handleEnqueue = useCallback(async () => {
@@ -384,17 +403,40 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
               <Label htmlFor="batch-name">Batch-Name</Label>
               <input id="batch-name" className="mt-1 w-full border rounded px-2 py-1 text-sm" placeholder="z.B. Ordnername" value={batchName} onChange={(e) => setBatchName(e.target.value)} />
             </div>
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex gap-4">
+            <div className="mb-2">
+              <Label htmlFor="file-name-pattern">Dateinamen-Muster (optional)</Label>
+              <input
+                id="file-name-pattern"
+                className="mt-1 w-full border rounded px-2 py-1 text-sm font-mono"
+                placeholder="*_basecolor*"
+                value={fileNamePattern}
+                onChange={(e) => setFileNamePattern(e.target.value)}
+                aria-describedby="file-name-pattern-hint"
+              />
+              <p id="file-name-pattern-hint" className="mt-1 text-xs text-muted-foreground">
+                Nur <code className="rounded bg-muted px-0.5">*</code> als Platzhalter; Vergleich ohne Groß-/Kleinschreibung. Liste und Jobs beziehen sich nur auf passende Dateien.
+              </p>
+            </div>
+            <div className="flex items-center justify-between text-sm flex-wrap gap-y-2 gap-x-4">
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
                 <div>
                   <span className="text-muted-foreground">Gesamt Dateien:</span> <span className="font-medium">{stats.totalFiles}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Ignoriert:</span> <span className="font-medium">{stats.skippedExisting}</span>
                 </div>
+                {fileNamePattern.trim() ? (
+                  <div>
+                    <span className="text-muted-foreground">Passend zum Muster:</span>{' '}
+                    <span className="font-medium">{matchingCandidates.length}</span>
+                    <span className="text-muted-foreground"> / {previewItems.length}</span>
+                  </div>
+                ) : null}
                 <div>
                   <span className="text-muted-foreground">Ausgewählt:</span>{' '}
-                  <span className="font-medium">{previewItems.length - excludedIds.size} / {previewItems.length}</span>
+                  <span className="font-medium">
+                    {selectedCandidates.length} / {matchingCandidates.length}
+                  </span>
                 </div>
               </div>
               <Button variant="outline" size="sm" onClick={handleScan} disabled={isScanning}>
@@ -408,8 +450,14 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
                   variant="ghost"
                   size="sm"
                   className="text-xs h-6 px-2"
-                  onClick={() => setExcludedIds(new Set())}
-                  disabled={excludedIds.size === 0}
+                  onClick={() => {
+                    setExcludedIds((prev) => {
+                      const next = new Set(prev);
+                      for (const c of matchingCandidates) next.delete(c.file.id);
+                      return next;
+                    });
+                  }}
+                  disabled={matchingCandidates.length === 0 || matchingCandidates.every((c) => !excludedIds.has(c.file.id))}
                 >
                   Alle auswählen
                 </Button>
@@ -417,8 +465,14 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
                   variant="ghost"
                   size="sm"
                   className="text-xs h-6 px-2"
-                  onClick={() => setExcludedIds(new Set(previewItems.map((it) => it.id)))}
-                  disabled={excludedIds.size === previewItems.length}
+                  onClick={() => {
+                    setExcludedIds((prev) => {
+                      const next = new Set(prev);
+                      for (const c of matchingCandidates) next.add(c.file.id);
+                      return next;
+                    });
+                  }}
+                  disabled={matchingCandidates.length === 0 || matchingCandidates.every((c) => excludedIds.has(c.file.id))}
                 >
                   Keine auswählen
                 </Button>
@@ -427,9 +481,13 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
             <ScrollArea className="h-52">
               {previewItems.length === 0 ? (
                 <div className="text-sm text-muted-foreground">Keine Kandidaten gefunden.</div>
+              ) : matchingCandidates.length === 0 ? (
+                <div className="text-sm text-muted-foreground">Keine Datei passt zum Muster. Muster leeren oder anpassen.</div>
               ) : (
                 <ul className="text-sm space-y-1">
-                  {previewItems.map((it) => {
+                  {matchingCandidates.map(({ file }) => {
+                    const it = previewById.get(file.id);
+                    if (!it) return null;
                     const isSelected = !excludedIds.has(it.id);
                     return (
                       <li

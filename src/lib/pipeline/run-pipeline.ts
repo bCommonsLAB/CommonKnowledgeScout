@@ -155,19 +155,22 @@ export async function runPipelineForFile(args: {
 
   // Unified Endpoint für alle Medientypen
   // Konvertiere Legacy-Parameter in PipelineConfig-Format
+  // Bei Markdown und Bildern ist Extract immer deaktiviert
+  // (Bilder werden direkt vom Image-Analyzer transformiert)
+  const skipExtract = kind === "markdown" || kind === "image"
+
   const config: PipelineConfig = {
     targetLanguage: targetLanguage as TargetLanguage,
     // Quellsprache für Transkription (Whisper) – nur setzen wenn explizit angegeben
     ...(sourceLanguage && sourceLanguage !== 'auto' ? { sourceLanguage } : {}),
     templateName,
     phases: {
-      // Bei Markdown ist Extract immer deaktiviert
-      extract: kind !== "markdown",
+      extract: !skipExtract,
       template: policies.metadata !== "ignore",
       ingest: policies.ingest !== "ignore",
     },
     policies: {
-      extract: kind === "markdown" ? "ignore" : policies.extract,
+      extract: skipExtract ? "ignore" : policies.extract,
       metadata: policies.metadata,
       ingest: policies.ingest,
     },

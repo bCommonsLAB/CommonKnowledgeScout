@@ -31,7 +31,7 @@ export type MediaKind = "pdf" | "audio" | "video" | "image" | "markdown" | "docx
  * Mapping: MediaKind → JobType
  * Office-Dateien (docx, xlsx, pptx) nutzen denselben Endpoint → "office"
  */
-export type JobType = "pdf" | "audio" | "video" | "text" | "office"
+export type JobType = "pdf" | "audio" | "video" | "image" | "text" | "office"
 
 /**
  * UI-Kategorie für Dateilisten-Filterung
@@ -124,12 +124,13 @@ export function mediaKindToJobType(kind: MediaKind): JobType {
       return "audio"
     case "video":
       return "video"
+    case "image":
+      return "image"
     case "docx":
     case "xlsx":
     case "pptx":
       return "office"
     case "markdown":
-    case "image":
     case "link":
     case "unknown":
     default:
@@ -173,7 +174,7 @@ export function mediaKindToFileCategory(kind: MediaKind): FileCategory {
  * @returns boolean - true wenn verarbeitbar
  */
 export function isPipelineSupported(kind: MediaKind): boolean {
-  return kind === "pdf" || kind === "audio" || kind === "video" || kind === "markdown" || kind === "docx" || kind === "xlsx" || kind === "pptx"
+  return kind === "pdf" || kind === "audio" || kind === "video" || kind === "markdown" || kind === "image" || kind === "docx" || kind === "xlsx" || kind === "pptx"
 }
 
 /**

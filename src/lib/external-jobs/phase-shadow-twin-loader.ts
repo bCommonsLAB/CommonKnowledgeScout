@@ -116,6 +116,8 @@ export async function loadShadowTwinMarkdown(
   const isMarkdownSource = sourceMediaType === 'markdown'
     || originalName.toLowerCase().endsWith('.md')
     || job.job_type === 'text'
+  // Bilder haben kein Transkript — die Transformation wird direkt vom Image-Analyzer erzeugt
+  const isImageSource = sourceMediaType === 'image' || job.job_type === 'image'
   const templateName = job.parameters?.template as string | undefined
 
   // ============================================================================
@@ -162,6 +164,15 @@ export async function loadShadowTwinMarkdown(
     // 3. resolveArtifact mit preferredKind: 'transcript'
     //
     // =========================================================================
+
+    // Bilder haben kein Transkript — die Transformation wird vom Image-Analyzer erzeugt.
+    // Für forTemplateTransformation gibt es hier nichts zu laden.
+    if (isImageSource) {
+      FileLogger.info('phase-shadow-twin-loader', 'Image-Quelle: kein Transkript vorhanden (Transformation via Image-Analyzer)', {
+        jobId, purpose, sourceItemId, sourceName: originalName,
+      })
+      return null
+    }
 
     // Priorität 0: Bei Markdown-Quellen IMMER die aktuelle Quelldatei bevorzugen.
     // Grund: shadowTwinState/transcript kann veraltet sein (extract wurde übersprungen).

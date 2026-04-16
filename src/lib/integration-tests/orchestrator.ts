@@ -414,6 +414,10 @@ async function configureJobParameters(args: {
     merged['useCache'] = !testCase.mistralOptions.forceRecompute
   }
 
+  if (typeof testCase.llmModel === 'string' && testCase.llmModel.trim().length > 0) {
+    merged['llmModel'] = testCase.llmModel.trim()
+  }
+
   await repo.mergeParameters(jobId, merged)
 }
 
@@ -726,6 +730,7 @@ export async function runIntegrationTests(args: RunIntegrationTestsArgs): Promis
     if (
       explicit === 'pdf' ||
       explicit === 'audio' ||
+      explicit === 'image' ||
       explicit === 'markdown' ||
       explicit === 'txt' ||
       explicit === 'website'

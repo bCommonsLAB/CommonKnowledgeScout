@@ -75,8 +75,8 @@ function IntegrationTestsPageContent() {
   const currentPathItems = useAtomValue(currentPathAtom);
 
   const [selectedIds, setSelectedIds] = useState<string[]>(integrationTestCases.map(tc => tc.id));
-  const [suiteFilter, setSuiteFilter] = useState<'all' | 'pdf' | 'audio' | 'markdown' | 'txt' | 'website'>('all');
-  const [fileKind, setFileKind] = useState<'pdf' | 'audio' | 'markdown' | 'txt' | 'website'>('pdf');
+  const [suiteFilter, setSuiteFilter] = useState<'all' | 'pdf' | 'audio' | 'image' | 'markdown' | 'txt' | 'website'>('all');
+  const [fileKind, setFileKind] = useState<'pdf' | 'audio' | 'image' | 'markdown' | 'txt' | 'website'>('pdf');
   const [availableFiles, setAvailableFiles] = useState<Array<{ id: string; name: string; mimeType?: string }>>([]);
   const [selectedFileId, setSelectedFileId] = useState<string>('');
   const [fileIdsInput, setFileIdsInput] = useState('');
@@ -191,7 +191,7 @@ function IntegrationTestsPageContent() {
           return;
         }
         const json = (await res.json()) as { 
-          detectedKind?: 'pdf' | 'audio' | 'markdown' | 'txt' | 'website' | null;
+          detectedKind?: 'pdf' | 'audio' | 'image' | 'markdown' | 'txt' | 'website' | null;
           firstFile?: { id: string; name: string; mimeType?: string };
         };
         if (json.detectedKind && json.detectedKind !== fileKind) {
@@ -560,7 +560,10 @@ function IntegrationTestsPageContent() {
               <span className="text-xs text-muted-foreground">Suite</span>
               <Select
                 value={suiteFilter}
-                onValueChange={(v) => setSuiteFilter(v === 'audio' ? 'audio' : v === 'pdf' ? 'pdf' : v === 'markdown' ? 'markdown' : 'all')}
+                onValueChange={(v) => {
+                  const allowed: Array<typeof suiteFilter> = ['all', 'pdf', 'audio', 'image', 'markdown', 'txt', 'website']
+                  setSuiteFilter(allowed.includes(v as typeof suiteFilter) ? (v as typeof suiteFilter) : 'all')
+                }}
                 disabled={running}
               >
                 <SelectTrigger className="h-8 w-[160px]">
@@ -569,6 +572,7 @@ function IntegrationTestsPageContent() {
                 <SelectContent>
                   <SelectItem value="all">Alle</SelectItem>
                   <SelectItem value="pdf">Nur PDF</SelectItem>
+                  <SelectItem value="image">Nur Bild</SelectItem>
                   <SelectItem value="audio">Nur Audio</SelectItem>
                   <SelectItem value="markdown">Nur Markdown</SelectItem>
                   <SelectItem value="txt">Nur TXT</SelectItem>
@@ -654,7 +658,8 @@ function IntegrationTestsPageContent() {
               <Select
                 value={fileKind}
                 onValueChange={(v) => {
-                  const next = v === 'audio' ? 'audio' 
+                  const next = v === 'audio' ? 'audio'
+                    : v === 'image' ? 'image'
                     : v === 'markdown' ? 'markdown'
                     : v === 'txt' ? 'txt'
                     : v === 'website' ? 'website'
@@ -674,6 +679,7 @@ function IntegrationTestsPageContent() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="pdf">PDF</SelectItem>
+                  <SelectItem value="image">Bild</SelectItem>
                   <SelectItem value="audio">Audio</SelectItem>
                   <SelectItem value="markdown">Markdown</SelectItem>
                   <SelectItem value="txt">TXT</SelectItem>

@@ -58,6 +58,9 @@ export interface DocCardMeta {
    */
   sourcePath?: string
   sourceFileName?: string
+
+  /** Diva-Texture-Analysis: Kurzcode unter dem Titel (optional) */
+  textur_code?: string
 }
 
 export interface ChapterInfo {
@@ -125,6 +128,7 @@ export function mapItemToDocCardMeta(item: Item): DocCardMeta {
     topics: Array.isArray(item.meta.topics) ? item.meta.topics as string[] : undefined,
     sourcePath: typeof item.meta.sourcePath === 'string' ? item.meta.sourcePath : undefined,
     sourceFileName: typeof item.meta.sourceFileName === 'string' ? item.meta.sourceFileName : undefined,
+    textur_code: typeof item.meta.textur_code === 'string' ? item.meta.textur_code : undefined,
   };
 }
 
