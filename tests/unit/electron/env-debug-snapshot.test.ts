@@ -28,14 +28,13 @@ const {
 };
 
 describe('env-debug-snapshot', () => {
-  it('shouldShowFullValue: nur Clerk-Public, URLs, Mongo-Metadaten, Secretary-URL/Pfad, JOBS_WORKER_*', () => {
+  it('shouldShowFullValue: App-URLs, Mongo-Metadaten, Secretary-URL/Pfad, JOBS_WORKER_* (kein Clerk)', () => {
     expect(shouldShowFullValue('NEXT_PUBLIC_APP_URL')).toBe(true);
-    expect(shouldShowFullValue('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY')).toBe(true);
     expect(shouldShowFullValue('MONGODB_DATABASE_NAME')).toBe(true);
     expect(shouldShowFullValue('SECRETARY_SERVICE_URL')).toBe(true);
     expect(shouldShowFullValue('JOBS_WORKER_POOL_ID')).toBe(true);
+    expect(shouldShowFullValue('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY')).toBe(false);
     expect(shouldShowFullValue('NODE_ENV')).toBe(false);
-    expect(shouldShowFullValue('NEXT_PUBLIC_AUTH_MODE')).toBe(false);
     expect(shouldShowFullValue('CLERK_SECRET_KEY')).toBe(false);
     expect(shouldShowFullValue('MONGODB_URI')).toBe(false);
     expect(shouldShowFullValue('SECRETARY_SERVICE_API_KEY')).toBe(false);
@@ -48,8 +47,8 @@ describe('env-debug-snapshot', () => {
   });
 
   it('formatEnvLine: maskiert vs. Klartext', () => {
-    expect(formatEnvLine('CLERK_SECRET_KEY', 'sk_live_xyz')).toBe(
-      'CLERK_SECRET_KEY=[maskiert, 11 Zeichen]'
+    expect(formatEnvLine('INTERNAL_TEST_TOKEN', 'tokensecret')).toBe(
+      'INTERNAL_TEST_TOKEN=[maskiert, 11 Zeichen]'
     );
     expect(formatEnvLine('NEXT_PUBLIC_APP_URL', 'http://localhost:3000')).toBe(
       'NEXT_PUBLIC_APP_URL=http://localhost:3000'
@@ -61,7 +60,8 @@ describe('env-debug-snapshot', () => {
     expect(isRelevantAppKey('_SECRETARY_SERVICE_URL')).toBe(false);
     expect(isRelevantAppKey('PATH')).toBe(false);
     expect(isRelevantAppKey('MONGODB_URI')).toBe(true);
-    expect(isRelevantAppKey('CLERK_SECRET_KEY')).toBe(true);
+    expect(isRelevantAppKey('CLERK_SECRET_KEY')).toBe(false);
+    expect(isRelevantAppKey('NEXT_PUBLIC_CLERK_SIGN_IN_URL')).toBe(false);
     expect(isRelevantAppKey('INTERNAL_TEST_TOKEN')).toBe(true);
     expect(isRelevantAppKey('JOBS_WORKER_AUTOSTART')).toBe(true);
     expect(isRelevantAppKey('NODE_ENV')).toBe(false);
@@ -98,13 +98,15 @@ describe('env-debug-snapshot', () => {
         NEXT_PUBLIC_APP_URL: 'http://localhost:3000',
         INTERNAL_SELF_BASE_URL: 'http://localhost:3000',
         CLERK_SECRET_KEY: 'sk_test',
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_test',
       },
       { dev: true, electronVersion: '40.0.0', nodeVersion: '22.0.0' }
     );
     expect(text).toContain('NEXT_PUBLIC_APP_URL=http://localhost:3000');
     expect(text).toContain('INTERNAL_SELF_BASE_URL=http://localhost:3000');
     expect(text).toContain('MONGODB_URI=[maskiert');
-    expect(text).toContain('CLERK_SECRET_KEY=[maskiert');
+    expect(text).not.toContain('CLERK_SECRET_KEY');
+    expect(text).not.toContain('NEXT_PUBLIC_CLERK');
     expect(text).not.toContain('PATH=');
     expect(text).not.toContain('NODE_ENV');
     expect(text).not.toContain('MAILJET');

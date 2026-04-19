@@ -18,7 +18,7 @@ export interface DocCardMeta {
   upsertedAt?: string
   slug?: string
   coverImageUrl?: string
-  /** Thumbnail-URL für performante Galerie-Ansicht (320x320 WebP) */
+  /** Thumbnail-URL für Galerie/Liste (256×256 WebP, center-crop aus Cover) */
   coverThumbnailUrl?: string
   pages?: number
   /** Item-Typ (document, event, joboffer, testimonial, etc.) */

@@ -170,6 +170,9 @@
       "grid": "Galerie",
       "table": "Tableau"
     },
+    "cardDensityToggleAria": "Grille de cartes : confortable ou compacte",
+    "cardDensityComfortable": "Confortable",
+    "cardDensityCompact": "Compacte",
     "table": {
       "title": "Titre",
       "authors": "Auteurs",
@@ -402,6 +405,10 @@
       "socialContextDescription": "Style de langue et complexité des réponses.",
       "galleryDetailViewType": "Galerie : Type de vue détaillée",
       "galleryDetailViewTypeDescription": "Détermine le format de vue détaillée utilisé dans la galerie : Livre pour les documents classiques avec chapitres, Session pour les présentations d'événements avec diapositives.",
+      "galleryCardDensity": "Galerie : Grille de cartes (par défaut)",
+      "galleryCardDensityDescription": "Densité de grille par défaut dans la galerie de connaissances. Les utilisateurs peuvent la modifier par session ; cette valeur s'applique en l'absence de préférence enregistrée.",
+      "galleryCardDensityComfortable": "Confortable (moins de colonnes, plus d'espacement)",
+      "galleryCardDensityCompact": "Compacte (grille plus dense)",
       "galleryGroupBy": "Galerie : Regroupement",
       "galleryGroupByDescription": "Détermine comment les éléments de la galerie sont regroupés. Choisissez une facette ou 'Année' comme valeur par défaut.",
       "groupByNone": "Pas de regroupement",

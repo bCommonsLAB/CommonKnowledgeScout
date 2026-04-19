@@ -4,6 +4,7 @@ import React from 'react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import type { ViewMode } from './gallery-sticky-header'
 import { VirtualizedItemsView } from './virtualized-items-view'
+import type { GalleryCardDensity } from '@/lib/gallery/gallery-card-density'
 
 export interface ItemsViewProps {
   /** View-Mode: 'grid' für Galerie-Ansicht, 'table' für Tabellen-Ansicht */
@@ -28,13 +29,27 @@ export interface ItemsViewProps {
   groupByField?: string
   /** Facetten mit showInTable=true – bestimmen die Tabellenspalten (außer Titel/UpsertedAt) */
   tableColumnFacets?: Array<{ metaKey: string; label?: string }>
+  cardDensity?: GalleryCardDensity
 }
 
 /**
  * Wrapper-Komponente mit virtuellem Scrolling und Infinite Scroll
  * Lädt automatisch weitere Dokumente beim Scrollen
  */
-export function ItemsView({ viewMode, docsByYear, onOpen, libraryId, onLoadMore, hasMore, isLoadingMore, onDocumentDeleted, libraryDetailViewType, groupByField, tableColumnFacets }: ItemsViewProps) {
+export function ItemsView({
+  viewMode,
+  docsByYear,
+  onOpen,
+  libraryId,
+  onLoadMore,
+  hasMore,
+  isLoadingMore,
+  onDocumentDeleted,
+  libraryDetailViewType,
+  groupByField,
+  tableColumnFacets,
+  cardDensity = 'comfortable',
+}: ItemsViewProps) {
   return (
     <VirtualizedItemsView
       viewMode={viewMode}
@@ -48,6 +63,7 @@ export function ItemsView({ viewMode, docsByYear, onOpen, libraryId, onLoadMore,
       libraryDetailViewType={libraryDetailViewType}
       groupByField={groupByField}
       tableColumnFacets={tableColumnFacets}
+      cardDensity={cardDensity}
     />
   )
 }

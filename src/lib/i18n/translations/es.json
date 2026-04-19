@@ -170,6 +170,9 @@
       "grid": "Galería",
       "table": "Tabla"
     },
+    "cardDensityToggleAria": "Cuadrícula de tarjetas: cómoda o compacta",
+    "cardDensityComfortable": "Cómoda",
+    "cardDensityCompact": "Compacta",
     "table": {
       "title": "Título",
       "authors": "Autores",
@@ -402,6 +405,10 @@
       "socialContextDescription": "Estilo de idioma y complejidad de las respuestas.",
       "galleryDetailViewType": "Galería: Tipo de vista detallada",
       "galleryDetailViewTypeDescription": "Determina qué formato de vista detallada se usa en la galería: Libro para documentos clásicos con capítulos, Sesión para presentaciones de eventos con diapositivas.",
+      "galleryCardDensity": "Galería: Cuadrícula de tarjetas (predeterminada)",
+      "galleryCardDensityDescription": "Densidad de cuadrícula predeterminada en la galería de conocimiento. Los usuarios pueden cambiarla por sesión; este valor aplica si no hay preferencia guardada.",
+      "galleryCardDensityComfortable": "Cómoda (menos columnas, más espacio)",
+      "galleryCardDensityCompact": "Compacta (cuadrícula más densa)",
       "galleryGroupBy": "Galería: Agrupación",
       "galleryGroupByDescription": "Determina cómo se agrupan los elementos de la galería. Elija una faceta o 'Año' como predeterminado.",
       "groupByNone": "Sin agrupación",

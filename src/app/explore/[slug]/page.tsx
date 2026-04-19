@@ -423,7 +423,10 @@ export default function ExplorePage() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-hidden p-2 sm:p-4">
+      {/* Padding-Top bewusst auf 0: die Tabs (Inhalte / Story Mode) sollen direkt unter der
+         Trennlinie des Page-Headers andocken — analog zur Library-Gallery-Ansicht.
+         Seitliches und unteres Padding bleiben wie zuvor (Inhalte sollen nicht am Rand kleben). */}
+      <div className="flex-1 min-h-0 overflow-hidden px-2 pt-0 pb-2 sm:px-4 sm:pb-4">
         <div className="h-full min-h-0 overflow-hidden">
           <GalleryClient
             libraryIdProp={library.id}

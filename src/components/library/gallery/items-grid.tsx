@@ -4,6 +4,10 @@ import React from 'react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { DocumentCard } from './document-card'
 import { useTranslation } from '@/lib/i18n/hooks'
+import {
+  itemsGridClassForDensity,
+  type GalleryCardDensity,
+} from '@/lib/gallery/gallery-card-density'
 
 export interface ItemsGridProps {
   docsByYear: Array<[number | string, DocCardMeta[]]>
@@ -13,9 +17,18 @@ export interface ItemsGridProps {
   libraryDetailViewType?: string
   /** Gruppierungsfeld: 'year', 'none', oder ein Facetten-Key (z.B. 'category') */
   groupByField?: string
+  /** Karten-Raster: kompakt vs. komfortabel (Default: comfortable) */
+  cardDensity?: GalleryCardDensity
 }
 
-export function ItemsGrid({ docsByYear, onOpen, libraryId, libraryDetailViewType, groupByField = 'year' }: ItemsGridProps) {
+export function ItemsGrid({
+  docsByYear,
+  onOpen,
+  libraryId,
+  libraryDetailViewType,
+  groupByField = 'year',
+  cardDensity = 'comfortable',
+}: ItemsGridProps) {
   const { t } = useTranslation()
   
   // Bei 'none' keine Gruppen-Header anzeigen
@@ -35,11 +48,8 @@ export function ItemsGrid({ docsByYear, onOpen, libraryId, libraryDetailViewType
               }
             </h3>
           )}
-          {/* Container Queries: Spalten basierend auf Container-Breite, nicht Viewport-Breite
-              Konservative Breakpoints für bessere Lesbarkeit:
-              @lg = 512px, @4xl = 896px, @6xl = 1152px, @7xl = 1280px */}
-          {/* Dichteres Raster: mehr Karten pro Zeile, kleinere Kacheln (Container-Queries) */}
-          <div className='grid grid-cols-2 @md:grid-cols-3 @lg:grid-cols-4 @4xl:grid-cols-5 @6xl:grid-cols-6 @7xl:grid-cols-7 gap-3'>
+          {/* Spalten aus Library-Config / Toggle: siehe itemsGridClassForDensity */}
+          <div className={itemsGridClassForDensity(cardDensity)}>
             {groupDocs.map((doc) => (
               <DocumentCard key={doc.id} doc={doc} onClick={onOpen} libraryId={libraryId} libraryDetailViewType={libraryDetailViewType} />
             ))}

@@ -205,6 +205,9 @@
       "grid": "Galerie",
       "table": "Tabelle"
     },
+    "cardDensityToggleAria": "Karten-Raster: komfortabel oder kompakt",
+    "cardDensityComfortable": "Komfortabel",
+    "cardDensityCompact": "Kompakt",
     "table": {
       "title": "Titel",
       "authors": "Autor:innen",
@@ -439,6 +442,10 @@
       "socialContextDescription": "Sprachstil und Komplexität der Antworten.",
       "galleryDetailViewType": "Galerie: Detailansicht-Typ",
       "galleryDetailViewTypeDescription": "Legt fest, welches Detail-View-Format in der Galerie verwendet wird: Book für klassische Dokumente mit Kapiteln, Session für Event-Präsentationen mit Slides.",
+      "galleryCardDensity": "Galerie: Karten-Raster (Standard)",
+      "galleryCardDensityDescription": "Standard für die Raster-Dichte in der Wissensgalerie (Grid). Nutzer können pro Sitzung umschalten; ohne Wahl gilt dieser Standard.",
+      "galleryCardDensityComfortable": "Komfortabel (weniger Spalten, mehr Abstand)",
+      "galleryCardDensityCompact": "Kompakt (dichteres Raster)",
       "galleryGroupBy": "Galerie: Gruppierung",
       "galleryGroupByDescription": "Legt fest, nach welchem Feld die Galerie-Items gruppiert werden. Wählen Sie eine Facette oder 'Jahr' als Standard.",
       "groupByNone": "Keine Gruppierung",

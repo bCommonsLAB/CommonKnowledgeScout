@@ -129,6 +129,11 @@ export interface LibraryChatConfig {
   gallery?: {
     /** Typ der Detailansicht für verschiedene Dokumenttypen */
     detailViewType?: 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog' | 'divaDocument' | 'divaTexture';
+    /**
+     * Raster der Karten in der Grid-Ansicht: kompakt (mehr Spalten) vs. komfortabel (weniger, größere Kacheln).
+     * Default in der App: comfortable, wenn nicht gesetzt.
+     */
+    galleryCardDensity?: 'compact' | 'comfortable';
     /** Gruppierungsfeld für die Galerie-Ansicht: 'none', 'year', oder ein Facetten-Key (z.B. 'category') */
     groupByField?: string;
     /** Facetten-Definitionen für Filter */

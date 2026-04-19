@@ -7,6 +7,7 @@ import type { QueryLog } from '@/types/query-log'
 import { GroupedItemsGrid } from './grouped-items-grid'
 import { GroupedItemsTable } from './grouped-items-table'
 import type { ViewMode } from './gallery-sticky-header'
+import type { GalleryCardDensity } from '@/lib/gallery/gallery-card-density'
 
 export interface GroupedItemsViewProps {
   /** View-Mode: 'grid' für Galerie-Ansicht, 'table' für Tabellen-Ansicht */
@@ -31,6 +32,8 @@ export interface GroupedItemsViewProps {
   onClose?: () => void
   /** Fallback-DetailViewType aus der Library-Config */
   libraryDetailViewType?: string
+  cardDensity?: GalleryCardDensity
+  onCardDensityChange?: (density: GalleryCardDensity) => void
 }
 
 /**
@@ -49,6 +52,8 @@ export function GroupedItemsView({
   onOpenDocument,
   onClose,
   libraryDetailViewType,
+  cardDensity = 'comfortable',
+  onCardDensityChange,
 }: GroupedItemsViewProps) {
   if (viewMode === 'table') {
     return (
@@ -79,6 +84,8 @@ export function GroupedItemsView({
       viewMode={viewMode}
       onViewModeChange={onViewModeChange}
       libraryDetailViewType={libraryDetailViewType}
+      cardDensity={cardDensity}
+      onCardDensityChange={onCardDensityChange}
     />
   )
 }

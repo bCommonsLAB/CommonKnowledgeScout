@@ -77,8 +77,10 @@ const iconMap = {
 }
 
 /**
- * Textur-Analyse (divaTexture): quadratische Kachel, Cover als gleichmäßig gekachelter Hintergrund
- * (Material-/PBR-Vorschau — nicht nur kleines Thumbnail wie bei Buch-Karten).
+ * Textur-Analyse (divaTexture): quadratische Kachel, Hintergrund aus Cover.
+ * Galerie: **coverThumbnailUrl zuerst** (256×256 WebP, center-crop aus Original) —
+ * sonst zieht die Karte mehrere MB Original-JPEGs pro Eintrag.
+ * Detailansicht kann weiter das volle `coverImageUrl` nutzen.
  */
 function DivaTextureCard({
   doc,
@@ -89,15 +91,14 @@ function DivaTextureCard({
   onClick: () => void
   libraryId?: string
 }) {
-  // Volles Cover bevorzugen: Thumbnails sind oft stark verkleinert — bei 1:1-Darstellung wäre das Muster kaum erkennbar.
-  const rawRef = doc.coverImageUrl || doc.coverThumbnailUrl
+  const rawRef = doc.coverThumbnailUrl || doc.coverImageUrl
   const [displayImageUrl, setDisplayImageUrl] = useState<string | undefined>(() =>
     rawRef && !coverRefNeedsApiResolution(rawRef) ? rawRef : undefined
   )
 
   // Nur-Dateiname / relativer Verweis: über API in streaming-url auflösen (siehe Media-Lifecycle-Regel).
   useEffect(() => {
-    const ref = doc.coverImageUrl || doc.coverThumbnailUrl
+    const ref = doc.coverThumbnailUrl || doc.coverImageUrl
     if (!ref) {
       setDisplayImageUrl(undefined)
       return

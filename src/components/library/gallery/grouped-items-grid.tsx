@@ -15,7 +15,12 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { openDocumentBySlug } from '@/utils/document-navigation'
 import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
 import { ViewModeToggle } from './view-mode-toggle'
+import { GalleryCardDensityToggle } from './gallery-card-density-toggle'
 import type { ViewMode } from './gallery-sticky-header'
+import {
+  groupedItemsGridClassForDensity,
+  type GalleryCardDensity,
+} from '@/lib/gallery/gallery-card-density'
 
 interface GroupedItemsGridProps {
   /** Dokumente, die in der Antwort verwendet wurden */
@@ -40,6 +45,8 @@ interface GroupedItemsGridProps {
   onViewModeChange?: (mode: ViewMode) => void
   /** Fallback-DetailViewType aus der Library-Config */
   libraryDetailViewType?: string
+  cardDensity?: GalleryCardDensity
+  onCardDensityChange?: (density: GalleryCardDensity) => void
 }
 
 /**
@@ -59,6 +66,8 @@ export function GroupedItemsGrid({
   viewMode,
   onViewModeChange,
   libraryDetailViewType,
+  cardDensity = 'comfortable',
+  onCardDensityChange,
 }: GroupedItemsGridProps) {
   const { t } = useTranslation()
   const setChatReferences = useSetAtom(chatReferencesAtom)
@@ -166,6 +175,13 @@ export function GroupedItemsGrid({
         <h2 className="text-lg font-semibold">{t('gallery.references')}</h2>
         <div className="flex items-center gap-2 flex-wrap">
           {/* View-Mode-Toggle - nur anzeigen wenn Props gesetzt sind */}
+          {viewMode === 'grid' && onCardDensityChange && (
+            <GalleryCardDensityToggle
+              cardDensity={cardDensity}
+              onCardDensityChange={onCardDensityChange}
+              compact
+            />
+          )}
           {viewMode !== undefined && onViewModeChange && (
             <ViewModeToggle viewMode={viewMode} onViewModeChange={onViewModeChange} compact />
           )}
@@ -206,7 +222,7 @@ export function GroupedItemsGrid({
             value="used-references"
           />
           {/* Breakpoints angepasst: Ab 400px 2 Spalten, damit 320px Thumbnails nicht zu stark vergrößert werden */}
-          <div className="mt-4 grid grid-cols-2 min-[400px]:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3">
+          <div className={`mt-4 ${groupedItemsGridClassForDensity(cardDensity)}`}>
             {usedDocs.map((doc) => (
               <DocumentCard key={doc.id} doc={doc} onClick={onOpenDocument} libraryId={libraryId} libraryDetailViewType={libraryDetailViewType} />
             ))}
@@ -227,7 +243,7 @@ export function GroupedItemsGrid({
             value="unused-sources"
           />
           {/* Breakpoints angepasst: Ab 400px 2 Spalten, damit 320px Thumbnails nicht zu stark vergrößert werden */}
-          <div className="mt-4 grid grid-cols-2 min-[400px]:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3">
+          <div className={`mt-4 ${groupedItemsGridClassForDensity(cardDensity)}`}>
             {unusedDocs.map((doc) => (
               <DocumentCard key={doc.id} doc={doc} onClick={onOpenDocument} libraryId={libraryId} libraryDetailViewType={libraryDetailViewType} />
             ))}

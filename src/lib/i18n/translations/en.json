@@ -170,6 +170,9 @@
       "grid": "Gallery",
       "table": "Table"
     },
+    "cardDensityToggleAria": "Card grid: comfortable or compact",
+    "cardDensityComfortable": "Comfortable",
+    "cardDensityCompact": "Compact",
     "table": {
       "title": "Title",
       "authors": "Authors",
@@ -402,6 +405,10 @@
       "socialContextDescription": "Language style and complexity of answers.",
       "galleryDetailViewType": "Gallery: Detail view type",
       "galleryDetailViewTypeDescription": "Determines which detail view format is used in the gallery: Book for classic documents with chapters, Session for event presentations with slides.",
+      "galleryCardDensity": "Gallery: Card grid (default)",
+      "galleryCardDensityDescription": "Default grid density in the knowledge gallery. Users can override per session; this value applies when no override is stored.",
+      "galleryCardDensityComfortable": "Comfortable (fewer columns, more spacing)",
+      "galleryCardDensityCompact": "Compact (denser grid)",
       "galleryGroupBy": "Gallery: Grouping",
       "galleryGroupByDescription": "Determines how gallery items are grouped. Choose a facet or 'Year' as default.",
       "groupByNone": "No grouping",

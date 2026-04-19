@@ -760,7 +760,7 @@ export class ShadowTwinService {
    * 
    * Diese Methode abstrahiert den gesamten Cover-Bild-Workflow:
    * 1. Bild hochladen (Azure oder Filesystem)
-   * 2. Thumbnail generieren und hochladen (320x320 WebP für Galerie)
+   * 2. Thumbnail generieren und hochladen (256×256 WebP, center-crop für Galerie)
    * 3. Fragment in MongoDB/Filesystem registrieren
    * 4. Frontmatter mit coverImageUrl und coverThumbnailUrl patchen
    * 
@@ -807,7 +807,7 @@ export class ShadowTwinService {
           THUMBNAIL_QUALITY,
         } = await import('@/lib/image/thumbnail-generator')
         
-        // Thumbnail generieren (640x640, WebP für optimale Kompression und HD-Displays)
+        // Thumbnail generieren (256×256 center-crop, WebP — Bandbreite in Raster-Galerien)
         const thumbnailResult = await generateThumb(buffer, {
           size: THUMBNAIL_SIZE,
           format: THUMBNAIL_FORMAT,

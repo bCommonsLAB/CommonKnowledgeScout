@@ -2,8 +2,9 @@
  * @fileoverview Maskierte ENV-Schnappschüsse für Electron-Debugging
  *
  * Es werden nur ausgewählte Umgebungsvariablen gelistet (Allowlist):
- * Clerk (Publishable + Secret + NEXT_PUBLIC_CLERK_* URLs), MongoDB, SECRETARY_*,
- * INTERNAL_TEST_TOKEN, JOBS_WORKER_*, NEXT_PUBLIC_APP_URL, INTERNAL_SELF_BASE_URL.
+ * MongoDB, SECRETARY_*, INTERNAL_TEST_TOKEN, JOBS_WORKER_*,
+ * NEXT_PUBLIC_APP_URL, INTERNAL_SELF_BASE_URL.
+ * Clerk-Variablen werden absichtlich nicht angezeigt.
  *
  * Schlüssel mit führendem Unterstrich (`_VAR=…`) werden ignoriert.
  *
@@ -54,7 +55,6 @@ const SECRETARY_SHOW_FULL_KEYS = new Set([
  * @returns {boolean}
  */
 function shouldShowFullValue(key) {
-  if (key.startsWith('NEXT_PUBLIC_CLERK_')) return true;
   if (key === 'NEXT_PUBLIC_APP_URL' || key === 'INTERNAL_SELF_BASE_URL') return true;
   if (key === 'MONGODB_DATABASE_NAME' || key === 'MONGODB_COLLECTION_NAME') return true;
   if (SECRETARY_SHOW_FULL_KEYS.has(key)) return true;
@@ -98,8 +98,6 @@ function isRelevantAppKey(key) {
   if (IGNORED_KEYS.has(key)) return false;
   if (key.startsWith('npm_')) return false;
 
-  if (key === 'CLERK_SECRET_KEY') return true;
-  if (key.startsWith('NEXT_PUBLIC_CLERK_')) return true;
   if (key.startsWith('MONGODB_')) return true;
   if (key.startsWith('SECRETARY_')) return true;
   if (key === 'INTERNAL_TEST_TOKEN') return true;

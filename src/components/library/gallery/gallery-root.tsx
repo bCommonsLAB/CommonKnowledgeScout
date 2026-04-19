@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { activeLibraryIdAtom, librariesAtom } from '@/atoms/library-atom'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
@@ -37,6 +37,11 @@ import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
 import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
 import dynamic from 'next/dynamic'
 import { storyCharacterAtom } from '@/atoms/story-context-atom'
+import {
+  normalizeGalleryCardDensity,
+  galleryCardDensityStorageKey,
+  type GalleryCardDensity,
+} from '@/lib/gallery/gallery-card-density'
 
 export interface GalleryRootProps {
   libraryIdProp?: string
@@ -146,6 +151,44 @@ export function GalleryRoot({
   const groupByField = (typeof rawGalleryConfig?.groupByField === 'string' && rawGalleryConfig.groupByField.length > 0) 
     ? rawGalleryConfig.groupByField 
     : 'year'
+
+  /** Library-Default für Galerie-Raster; Session-Override hat Vorrang (siehe useEffect). */
+  const configCardDensity = useMemo(
+    () => normalizeGalleryCardDensity(rawGalleryConfig?.galleryCardDensity),
+    [rawGalleryConfig?.galleryCardDensity]
+  )
+  const [cardDensity, setCardDensity] = useState<GalleryCardDensity>('comfortable')
+
+  // Effektive Dichte: zuerst sessionStorage pro Library, sonst Config-Default.
+  useEffect(() => {
+    if (!libraryId) {
+      setCardDensity(configCardDensity)
+      return
+    }
+    try {
+      const stored = sessionStorage.getItem(galleryCardDensityStorageKey(libraryId))
+      if (stored !== null) {
+        setCardDensity(normalizeGalleryCardDensity(stored))
+        return
+      }
+    } catch (e) {
+      console.warn('[GalleryRoot] sessionStorage (Karten-Dichte) lesen fehlgeschlagen:', e)
+    }
+    setCardDensity(configCardDensity)
+  }, [libraryId, configCardDensity])
+
+  const handleCardDensityChange = useCallback(
+    (density: GalleryCardDensity) => {
+      setCardDensity(density)
+      if (!libraryId) return
+      try {
+        sessionStorage.setItem(galleryCardDensityStorageKey(libraryId), density)
+      } catch (e) {
+        console.warn('[GalleryRoot] sessionStorage (Karten-Dichte) schreiben fehlgeschlagen:', e)
+      }
+    },
+    [libraryId]
+  )
 
   // Facetten, die als Spalten in der Tabellenansicht angezeigt werden (showInTable === true)
   const tableColumnFacets = React.useMemo(() => {
@@ -687,6 +730,8 @@ export function GalleryRoot({
           libraryId={libraryId || ''}
           onOpenDocument={handleOpenDocument}
           libraryDetailViewType={detailViewType}
+          cardDensity={cardDensity}
+          onCardDensityChange={handleCardDensityChange}
         />
       )
     }
@@ -704,6 +749,7 @@ export function GalleryRoot({
       libraryDetailViewType={detailViewType}
       groupByField={groupByField}
       tableColumnFacets={tableColumnFacets}
+      cardDensity={cardDensity}
     />
   }
 
@@ -750,6 +796,8 @@ export function GalleryRoot({
             queryValue={searchQuery}
             viewMode={viewMode}
             onViewModeChange={setViewMode}
+            cardDensity={cardDensity}
+            onCardDensityChange={handleCardDensityChange}
           />
 
           <div className='flex-1 min-h-0 overflow-hidden flex flex-col'>
@@ -764,7 +812,6 @@ export function GalleryRoot({
                 onCta={() => setMode('story')}
                 tooltip={t('gallery.storyModeTooltip')}
                 mode="gallery"
-                viewMode={viewMode}
                 filteredDocuments={filteredDocs}
                 libraryId={libraryId}
                 onBulkDelete={handleDocumentDeleted}
@@ -799,7 +846,6 @@ export function GalleryRoot({
                     onCta={() => setMode('story')}
                     tooltip={t('gallery.storyModeTooltip')}
                     mode="gallery"
-                    viewMode={viewMode}
                     filteredDocuments={filteredDocs}
                     libraryId={libraryId}
                     onBulkDelete={handleDocumentDeleted}
@@ -850,6 +896,8 @@ export function GalleryRoot({
                     facetDefs={facetDefs}
                     viewMode={viewMode}
                     onViewModeChange={setViewMode}
+                    cardDensity={cardDensity}
+                    onCardDensityChange={handleCardDensityChange}
                     mode="story"
                   />
                 </div>
@@ -907,6 +955,8 @@ export function GalleryRoot({
           mode={referencesSheetMode}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
+          cardDensity={cardDensity}
+          onCardDensityChange={handleCardDensityChange}
           references={referencesSheetData?.references}
           queryId={referencesSheetData?.queryId}
           onOpenDocument={handleOpenDocument}

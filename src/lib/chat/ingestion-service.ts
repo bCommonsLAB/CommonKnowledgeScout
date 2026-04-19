@@ -539,6 +539,57 @@ export class IngestionService {
               })
             }
 
+            /**
+             * Frontmatter hat oft nur coverImageUrl als https (nach Azure-Upload), aber kein coverThumbnailUrl.
+             * Dann bleibt docMetaJson ohne Thumbnail → Galerie lädt das Vollbild. Thumbnail liegt aber als
+             * binaryFragment (variant thumbnail / thumb_*) im Shadow-Twin — hier nachträglich verknüpfen.
+             */
+            const coverUrlOnly = docMetaJsonObj.coverImageUrl
+            if (
+              typeof coverUrlOnly === 'string' &&
+              (coverUrlOnly.startsWith('http://') || coverUrlOnly.startsWith('https://')) &&
+              !docMetaJsonObj.coverThumbnailUrl
+            ) {
+              const frags = await getShadowTwinBinaryFragments(libraryId, fileId)
+              if (frags && frags.length > 0) {
+                const originals = frags.filter(
+                  (f) =>
+                    f.kind === 'image' &&
+                    f.url &&
+                    f.variant !== 'thumbnail' &&
+                    !f.name?.startsWith('thumb_'),
+                )
+                const original =
+                  originals.find((f) => f.url === coverUrlOnly) ?? originals[0]
+                let thumb =
+                  original?.hash
+                    ? frags.find(
+                        (f) =>
+                          f.kind === 'image' &&
+                          f.url &&
+                          (f.variant === 'thumbnail' || !!f.name?.startsWith('thumb_')) &&
+                          f.sourceHash === original.hash,
+                      )
+                    : undefined
+                if (!thumb) {
+                  thumb = frags.find(
+                    (f) =>
+                      f.kind === 'image' &&
+                      f.url &&
+                      (f.variant === 'thumbnail' || !!f.name?.startsWith('thumb_')),
+                  )
+                }
+                if (thumb?.url) {
+                  docMetaJsonObj.coverThumbnailUrl = thumb.url
+                  FileLogger.info(
+                    'ingestion',
+                    'coverThumbnailUrl aus binaryFragments ergänzt (Cover war nur Blob-URL ohne Frontmatter-Feld)',
+                    { fileId, thumbnailName: thumb.name },
+                  )
+                }
+              }
+            }
+
             FileLogger.info('ingestion', 'Medien-Felder (inkl. Twin-Pfade) aus binaryFragments aufgelöst', { fileId })
           } catch (error) {
             FileLogger.warn('ingestion', 'Fehler beim Auflösen der Medien-Felder', {

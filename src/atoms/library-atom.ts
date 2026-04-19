@@ -36,6 +36,7 @@ import { atomFamily } from "jotai/utils"
 import { StorageItem } from "@/lib/storage/types"
 import { ClientLibrary } from "@/types/library"
 import { fileCategoryFilterAtom, getFileCategory } from '@/atoms/transcription-options'
+import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 
 // Basis-Typen für den Library-State
 export interface LibraryState {
@@ -67,10 +68,16 @@ libraryAtom.debugLabel = "libraryAtom"
 export const activeLibraryIdAtom = atom(
   get => get(libraryAtom).activeLibraryId,
   (get, set, newId: string) => {
+    const prev = get(libraryAtom).activeLibraryId
     set(libraryAtom, {
       ...get(libraryAtom),
       activeLibraryId: newId
     })
+    // Galerie-/Story-Filter (Facetten, shortTitle, …) sind an die aktive Library gebunden.
+    // Beim Wechsel zurücksetzen, damit keine Filter der vorherigen Library „hängen bleiben“.
+    if (newId !== prev) {
+      set(galleryFiltersAtom, {})
+    }
   }
 )
 activeLibraryIdAtom.debugLabel = "activeLibraryIdAtom"

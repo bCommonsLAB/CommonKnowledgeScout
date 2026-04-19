@@ -22,10 +22,12 @@ export function TopNavWrapper() {
     return null;
   }
 
-  // TopNav verwendet useSearchParams(), daher muss es in Suspense gewrappt werden
-  // Fallback: Leerer Platzhalter mit korrekter Höhe um Layout-Shift zu vermeiden
+  // TopNav verwendet useSearchParams(), daher muss es in Suspense gewrappt werden.
+  // Variante 1: Die TopNav ist `position: fixed` und nimmt KEINEN Platz im Flow ein.
+  // Der Inhalts-Wrapper im AppLayout reserviert den 64px-Platz per `pt-16`.
+  // Daher braucht der Fallback hier KEINE Höhe mehr — sonst entstünde doppelter Versatz.
   return (
-    <Suspense fallback={<div className="h-16 border-b bg-background" />}>
+    <Suspense fallback={null}>
       <TopNav />
     </Suspense>
   );

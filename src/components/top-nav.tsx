@@ -105,9 +105,11 @@ export function TopNav() {
 
   return (
     <>
+      {/* Variante 1: Bar liegt fixed über dem Inhalt; der Layout-Wrapper reserviert/kollabiert
+         seinerseits per padding-top den 64px-Platz, damit der „Rand“ beim Hide nicht stehen bleibt. */}
       <div 
         className={cn(
-          "border-b bg-background transition-transform duration-300 ease-in-out sticky top-0 z-50",
+          "border-b bg-background transition-transform duration-300 ease-in-out fixed top-0 left-0 right-0 z-50",
           isVisible ? "translate-y-0" : "-translate-y-full"
         )}
       >

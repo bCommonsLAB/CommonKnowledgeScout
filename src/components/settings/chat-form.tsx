@@ -46,6 +46,7 @@ import { useStoryContext } from '@/hooks/use-story-context'
 import type { Library } from '@/types/library'
 import { getDefaultFacets, getDefaultEmbeddings } from '@/lib/chat/config'
 import { LlmModelSelector } from "@/components/ui/llm-model-selector"
+import { normalizeGalleryCardDensity } from '@/lib/gallery/gallery-card-density'
 
 // Zod-Schema für Chat-Konfiguration
 const chatFormSchema = z.object({
@@ -111,7 +112,14 @@ const chatFormSchema = z.object({
       sort: z.enum(['alpha','count']).optional(),
       max: z.coerce.number().int().positive().optional(),
       columns: z.coerce.number().int().min(1).max(2).optional(),
-    })).default(getDefaultFacets().slice(0, 6)) // Nur die ersten 6 sichtbaren Facetten als Default
+    })).default(getDefaultFacets().slice(0, 6)), // Nur die ersten 6 sichtbaren Facetten als Default
+    galleryCardDensity: z.preprocess(
+      (val) => {
+        if (val === '' || val === undefined || val === null) return 'comfortable'
+        return val
+      },
+      z.enum(['compact', 'comfortable']).default('comfortable')
+    ),
   }).optional(),
   /** Azure Blob Ingestion: siehe Abschnitt „Binary Storage“ unter Story */
   ingestionStorageUseCustom: z.boolean().optional(),
@@ -194,7 +202,8 @@ export function ChatForm() {
 gallery: {
         detailViewType: 'book',
         groupByField: 'year', // Default: Nach Jahr gruppieren
-        facets: getDefaultFacets().slice(0, 6) // Nur die ersten 6 sichtbaren Facetten als Default
+        facets: getDefaultFacets().slice(0, 6), // Nur die ersten 6 sichtbaren Facetten als Default
+        galleryCardDensity: 'comfortable',
       },
       ingestionStorageUseCustom: false,
       ingestionConnectionString: '',
@@ -227,7 +236,12 @@ gallery: {
         detailViewType: (c.gallery as { detailViewType?: unknown })?.detailViewType
       })
       
-      const galleryConfig = c.gallery as { detailViewType?: unknown; groupByField?: string; facets?: unknown } | undefined
+      const galleryConfig = c.gallery as {
+        detailViewType?: unknown
+        groupByField?: string
+        facets?: unknown
+        galleryCardDensity?: unknown
+      } | undefined
       const detailViewType = galleryConfig?.detailViewType
       
       // Explizite Prüfung und Logging - alle gültigen Typen akzeptieren
@@ -302,6 +316,7 @@ gallery: {
         socialContext: finalSocialContext,
         gallery: {
           detailViewType: finalViewType,
+          galleryCardDensity: normalizeGalleryCardDensity(galleryConfig?.galleryCardDensity),
           // Gruppierung: Lade aus Config oder Default 'year'
           groupByField: typeof galleryConfig?.groupByField === 'string' && galleryConfig.groupByField.length > 0 
             ? galleryConfig.groupByField 
@@ -1065,6 +1080,38 @@ gallery: {
                 </FormItem>
               );
             }}
+          />
+
+          <FormField
+            control={form.control}
+            name="gallery.galleryCardDensity"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('settings.chatForm.galleryCardDensity')}</FormLabel>
+                <Select
+                  value={field.value || 'comfortable'}
+                  onValueChange={(value) => {
+                    if (value === 'compact' || value === 'comfortable') {
+                      field.onChange(value)
+                    } else {
+                      console.warn('[ChatForm] Ungültige galleryCardDensity ignoriert:', value)
+                    }
+                  }}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="comfortable">{t('settings.chatForm.galleryCardDensityComfortable')}</SelectItem>
+                    <SelectItem value="compact">{t('settings.chatForm.galleryCardDensityCompact')}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormDescription>{t('settings.chatForm.galleryCardDensityDescription')}</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
           />
 
           {/* Gruppierung der Galerie-Items */}

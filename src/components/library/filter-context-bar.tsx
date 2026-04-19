@@ -8,7 +8,9 @@ import { useAtomValue } from 'jotai'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { ViewModeToggle } from '@/components/library/gallery/view-mode-toggle'
+import { GalleryCardDensityToggle } from '@/components/library/gallery/gallery-card-density-toggle'
 import type { ViewMode } from '@/components/library/gallery/gallery-sticky-header'
+import type { GalleryCardDensity } from '@/lib/gallery/gallery-card-density'
 import { BulkDeleteButton } from '@/components/library/gallery/bulk-delete-button'
 import type { DocCardMeta } from '@/lib/gallery/types'
 
@@ -23,6 +25,9 @@ interface FilterContextBarProps {
   tooltip?: string // Optional: Tooltip für CTA-Button
   viewMode?: ViewMode // Optional: View-Mode für Toggle
   onViewModeChange?: (mode: ViewMode) => void // Optional: Callback für View-Mode-Änderung
+  /** Nur bei Grid: Raster kompakt vs. komfortabel (gleiche Quelle wie GalleryStickyHeader). */
+  cardDensity?: GalleryCardDensity
+  onCardDensityChange?: (density: GalleryCardDensity) => void
   mode?: 'gallery' | 'story' // Optional: Gallery oder Story-Modus
   // Bulk-Delete Props
   filteredDocuments?: Array<{ fileId?: string; id: string }> // Gefilterte Dokumente für Bulk-Delete
@@ -49,7 +54,9 @@ export function FilterContextBar({
   onCta, 
   tooltip, 
   viewMode, 
-  onViewModeChange, 
+  onViewModeChange,
+  cardDensity = 'comfortable',
+  onCardDensityChange,
   mode,
   filteredDocuments = [],
   libraryId,
@@ -140,9 +147,16 @@ export function FilterContextBar({
         </Button>
       )}
 
-      {/* View-Mode-Toggle - nur anzeigen wenn Props gesetzt sind */}
+      {/* Galerie/Tabellen-Umschalter + optional Karten-Dichte (nur Grid) */}
       {viewMode !== undefined && onViewModeChange && (
-        <div className="flex items-center shrink-0 ml-auto">
+        <div className="flex items-center gap-2 shrink-0 ml-auto">
+          {viewMode === 'grid' && onCardDensityChange && (
+            <GalleryCardDensityToggle
+              cardDensity={cardDensity}
+              onCardDensityChange={onCardDensityChange}
+              compact
+            />
+          )}
           <ViewModeToggle viewMode={viewMode} onViewModeChange={onViewModeChange} compact />
         </div>
       )}

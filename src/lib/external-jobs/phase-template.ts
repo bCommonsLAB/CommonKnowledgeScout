@@ -1936,7 +1936,11 @@ ${customHintValue}`
           // WICHTIG: Verwende resolvedUrl (Azure-URL) statt fragment.name,
           // damit die URLs direkt in der Galerie funktionieren.
           mergedMeta.coverImageUrl = uploadResult.fragment.resolvedUrl || uploadResult.fragment.name
-          
+          if (uploadResult.thumbnailFragment) {
+            mergedMeta.coverThumbnailUrl =
+              uploadResult.thumbnailFragment.resolvedUrl || uploadResult.thumbnailFragment.name
+          }
+
           bufferLog(jobId, {
             phase: 'cover_image_generation_success',
             message: 'Cover-Bild erfolgreich generiert und gespeichert',
@@ -1963,7 +1967,20 @@ ${customHintValue}`
           
           // Meta im Job aktualisieren
           // WICHTIG: Verwende resolvedUrl (Azure-URL) statt fragment.name
-          await repo.appendMeta(jobId, { coverImageUrl: uploadResult.fragment.resolvedUrl || uploadResult.fragment.name }, 'cover_image')
+          await repo.appendMeta(
+            jobId,
+            {
+              coverImageUrl: uploadResult.fragment.resolvedUrl || uploadResult.fragment.name,
+              ...(uploadResult.thumbnailFragment
+                ? {
+                    coverThumbnailUrl:
+                      uploadResult.thumbnailFragment.resolvedUrl ||
+                      uploadResult.thumbnailFragment.name,
+                  }
+                : {}),
+            },
+            'cover_image'
+          )
           
           // SSE-Event: Cover-Bild generiert
           try {

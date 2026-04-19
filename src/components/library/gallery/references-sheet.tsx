@@ -11,8 +11,10 @@ import type { QueryLog } from '@/types/query-log'
 import { GroupedItemsView } from './grouped-items-view'
 import { ItemsView } from './items-view'
 import { ViewModeToggle } from './view-mode-toggle'
+import { GalleryCardDensityToggle } from './gallery-card-density-toggle'
 import { useTranslation } from '@/lib/i18n/hooks'
 import type { ViewMode } from './gallery-sticky-header'
+import type { GalleryCardDensity } from '@/lib/gallery/gallery-card-density'
 
 interface ReferencesSheetProps {
   /** Sheet geöffnet/geschlossen */
@@ -27,6 +29,9 @@ interface ReferencesSheetProps {
   viewMode?: ViewMode
   /** Callback für View-Mode-Änderung */
   onViewModeChange?: (mode: ViewMode) => void
+  /** Gleiche effektive Dichte wie in GalleryRoot (inkl. Session-Override). */
+  cardDensity?: GalleryCardDensity
+  onCardDensityChange?: (density: GalleryCardDensity) => void
   /** Referenzen für Antwort-Modus */
   references?: ChatResponse['references']
   /** QueryId für Antwort-Modus */
@@ -62,6 +67,8 @@ export function ReferencesSheet({
   mode,
   viewMode = 'grid',
   onViewModeChange,
+  cardDensity = 'comfortable',
+  onCardDensityChange,
   references,
   queryId,
   onOpenDocument,
@@ -123,7 +130,14 @@ export function ReferencesSheet({
               <div className="flex items-center gap-2">
                 {/* View-Mode-Toggle - nur auf Desktop neben dem Close-Button */}
                 {onViewModeChange && (
-                  <div className="hidden lg:flex items-center">
+                  <div className="hidden lg:flex items-center gap-2">
+                    {currentViewMode === 'grid' && onCardDensityChange && (
+                      <GalleryCardDensityToggle
+                        cardDensity={cardDensity}
+                        onCardDensityChange={onCardDensityChange}
+                        compact
+                      />
+                    )}
                     <ViewModeToggle viewMode={currentViewMode} onViewModeChange={handleViewModeChange} compact />
                   </div>
                 )}
@@ -141,7 +155,14 @@ export function ReferencesSheet({
             </div>
             {/* View-Mode-Toggle - unterhalb des Close-Buttons auf Mobile */}
             {onViewModeChange && (
-              <div className="flex items-center justify-end lg:hidden">
+              <div className="flex items-center justify-end gap-2 lg:hidden">
+                {currentViewMode === 'grid' && onCardDensityChange && (
+                  <GalleryCardDensityToggle
+                    cardDensity={cardDensity}
+                    onCardDensityChange={onCardDensityChange}
+                    compact
+                  />
+                )}
                 <ViewModeToggle viewMode={currentViewMode} onViewModeChange={handleViewModeChange} compact />
               </div>
             )}
@@ -158,6 +179,7 @@ export function ReferencesSheet({
               ) : references && references.length > 0 && (usedDocs.length > 0 || unusedDocs.length > 0) ? (
                 <GroupedItemsView
                   viewMode={currentViewMode}
+                  onViewModeChange={handleViewModeChange}
                   usedDocs={usedDocs}
                   unusedDocs={unusedDocs}
                   references={references}
@@ -166,6 +188,8 @@ export function ReferencesSheet({
                   libraryId={libraryId}
                   onOpenDocument={onOpenDocument}
                   onClose={handleCloseAnswer}
+                  cardDensity={cardDensity}
+                  onCardDensityChange={onCardDensityChange}
                 />
               ) : (
                 <div className="text-sm text-muted-foreground py-8">
@@ -184,7 +208,13 @@ export function ReferencesSheet({
                   Keine Dokumente gefunden.
                 </div>
               ) : (
-                <ItemsView viewMode={currentViewMode} docsByYear={docsByYear} onOpen={onOpenDocument} libraryId={libraryId} />
+                <ItemsView
+                  viewMode={currentViewMode}
+                  docsByYear={docsByYear}
+                  onOpen={onOpenDocument}
+                  libraryId={libraryId}
+                  cardDensity={cardDensity}
+                />
               )}
             </>
           )}

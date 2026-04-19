@@ -170,6 +170,9 @@
       "grid": "Galleria",
       "table": "Tabella"
     },
+    "cardDensityToggleAria": "Griglia schede: comoda o compatta",
+    "cardDensityComfortable": "Comoda",
+    "cardDensityCompact": "Compatta",
     "table": {
       "title": "Titolo",
       "authors": "Autori",
@@ -402,6 +405,10 @@
       "socialContextDescription": "Stile linguistico e complessità delle risposte.",
       "galleryDetailViewType": "Galleria: Tipo vista dettaglio",
       "galleryDetailViewTypeDescription": "Determina quale formato di vista dettaglio viene utilizzato nella galleria: Book per documenti classici con capitoli, Session per presentazioni di eventi con slide.",
+      "galleryCardDensity": "Galleria: Griglia schede (predefinito)",
+      "galleryCardDensityDescription": "Densità predefinita del raster nella galleria della conoscenza. Gli utenti possono cambiarla per sessione; questo valore vale se non è memorizzata alcuna scelta.",
+      "galleryCardDensityComfortable": "Comoda (meno colonne, più spaziatura)",
+      "galleryCardDensityCompact": "Compatta (griglia più densa)",
       "galleryGroupBy": "Galleria: Raggruppamento",
       "galleryGroupByDescription": "Determina come vengono raggruppati gli elementi della galleria. Scegli una faccia o 'Anno' come predefinito.",
       "groupByNone": "Nessun raggruppamento",

@@ -25,6 +25,7 @@ import { getTableColumnsForViewType } from '@/lib/detail-view-types'
 import { sortDocsByTableColumn } from '@/lib/gallery/table-sort'
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
 import { buildGalleryDocSourcePathLine, buildGalleryDocSourcePathParts } from '@/lib/gallery/doc-source-path'
+import type { GalleryCardDensity } from '@/lib/gallery/gallery-card-density'
 
 export interface VirtualizedItemsViewProps {
   viewMode: ViewMode
@@ -42,6 +43,7 @@ export interface VirtualizedItemsViewProps {
   groupByField?: string
   /** Facetten mit showInTable=true – definieren die Tabellenspalten (Reihenfolge wie in Config) */
   tableColumnFacets?: Array<{ metaKey: string; label?: string }>
+  cardDensity?: GalleryCardDensity
 }
 
 export function VirtualizedItemsView({
@@ -56,6 +58,7 @@ export function VirtualizedItemsView({
   libraryDetailViewType,
   groupByField,
   tableColumnFacets,
+  cardDensity = 'comfortable',
 }: VirtualizedItemsViewProps) {
   const { t, locale } = useTranslation()
   const router = useRouter()
@@ -240,7 +243,14 @@ export function VirtualizedItemsView({
   if (viewMode === 'grid') {
     return (
       <div ref={parentRef}>
-        <ItemsGrid docsByYear={docsByYear} onOpen={onOpen} libraryId={libraryId} libraryDetailViewType={libraryDetailViewType} groupByField={groupByField} />
+        <ItemsGrid
+          docsByYear={docsByYear}
+          onOpen={onOpen}
+          libraryId={libraryId}
+          libraryDetailViewType={libraryDetailViewType}
+          groupByField={groupByField}
+          cardDensity={cardDensity}
+        />
         {/* Sentinel für Infinite Scroll */}
         {hasMore && (
           <div ref={sentinelRef} className="h-20 flex items-center justify-center py-4">

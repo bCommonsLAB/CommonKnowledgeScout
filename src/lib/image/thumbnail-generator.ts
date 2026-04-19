@@ -11,14 +11,12 @@
 import sharp from 'sharp'
 
 /**
- * Zentrale Thumbnail-Konfiguration
- * 
- * 640px gewählt für optimale Schärfe auf HD-Displays:
- * - Deckt 2x Retina-Displays vollständig ab
- * - Deckt 3x Displays bei 2-Spalten-Layout ab
- * - Guter Kompromiss zwischen Qualität und Dateigröße (~40KB WebP)
+ * Zentrale Thumbnail-Konfiguration (Galerie / Listen / coverThumbnailUrl)
+ *
+ * 256px Quadrat mit sharp `fit: 'cover'` + `position: centre` → **Zentrierter Ausschnitt**
+ * (kein „alles reingestaucht“), geringe Byte-Last bei vielen Karten (Texturen etc.).
  */
-export const THUMBNAIL_SIZE = 640
+export const THUMBNAIL_SIZE = 256
 export const THUMBNAIL_FORMAT: 'webp' | 'jpeg' = 'webp'
 export const THUMBNAIL_QUALITY = 80
 
@@ -42,7 +40,7 @@ export interface ThumbnailResult {
  * Optionen für die Thumbnail-Generierung
  */
 export interface ThumbnailOptions {
-  /** Zielgröße in Pixel (Quadrat, Standard: 320) */
+  /** Zielgröße in Pixel (Quadrat; Standard: {@link THUMBNAIL_SIZE}) */
   size?: number
   /** Ausgabeformat (Standard: webp für beste Kompression) */
   format?: 'webp' | 'jpeg'
@@ -69,7 +67,11 @@ const DEFAULT_OPTIONS: Required<ThumbnailOptions> = {
  * @param imageBuffer - Buffer mit dem Original-Bild (PNG, JPEG, WebP, etc.)
  * @param options - Optionen für die Thumbnail-Generierung
  * @returns Promise mit dem generierten Thumbnail
- * 
+ *
+ * Hinweis: `resize(..., { fit: 'cover', position: 'centre' })` entspricht einem
+ * quadratischen **Crop** aus der Mitte — gleiche „Skalierung der Kachel“ in der UI
+ * wie bei großen Maps, nur mit weniger Pixeln.
+ *
  * @example
  * ```ts
  * const originalBuffer = await file.arrayBuffer()

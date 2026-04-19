@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input'
 import { Search } from 'lucide-react'
 import { useScrollVisibility } from '@/hooks/use-scroll-visibility'
 import { ViewModeToggle } from './view-mode-toggle'
+import { GalleryCardDensityToggle } from './gallery-card-density-toggle'
+import type { GalleryCardDensity } from '@/lib/gallery/gallery-card-density'
 
 export type ViewMode = 'grid' | 'table'
 
@@ -17,6 +19,9 @@ export interface GalleryStickyHeaderProps {
   onChangeQuery: (v: string) => void
   viewMode?: ViewMode
   onViewModeChange?: (mode: ViewMode) => void
+  /** Nur bei Grid: Karten-Raster kompakt vs. komfortabel */
+  cardDensity?: GalleryCardDensity
+  onCardDensityChange?: (density: GalleryCardDensity) => void
 }
 
 /**
@@ -35,6 +40,8 @@ export function GalleryStickyHeader(props: GalleryStickyHeaderProps) {
     onChangeQuery,
     viewMode = 'grid',
     onViewModeChange,
+    cardDensity = 'comfortable',
+    onCardDensityChange,
   } = props
 
   // Verwende gemeinsamen Scroll-Visibility-Hook (wie TopNav)
@@ -76,9 +83,17 @@ export function GalleryStickyHeader(props: GalleryStickyHeaderProps) {
             className="pl-10 text-sm sm:text-base"
           />
         </div>
-        {/* View Mode Toggle */}
+        {/* Karten-Dichte vor Galerie/Tabelle (Dichte nur im Grid); Bezeichnungen nur in Tooltips */}
         {onViewModeChange && (
-          <ViewModeToggle viewMode={viewMode} onViewModeChange={onViewModeChange} />
+          <div className="flex items-center gap-2 shrink-0">
+            {viewMode === 'grid' && onCardDensityChange && (
+              <GalleryCardDensityToggle
+                cardDensity={cardDensity}
+                onCardDensityChange={onCardDensityChange}
+              />
+            )}
+            <ViewModeToggle viewMode={viewMode} onViewModeChange={onViewModeChange} />
+          </div>
         )}
       </div>
     </div>
