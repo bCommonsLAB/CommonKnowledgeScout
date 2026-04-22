@@ -4,6 +4,7 @@ import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { parseFacetDefs, buildFilterFromQuery } from '@/lib/chat/dynamic-facets'
 import { facetsSelectedToMongoFilter } from '@/lib/chat/common/filters'
 import { getCollectionNameForLibrary, getCollectionOnly } from '@/lib/repositories/vector-repo'
+import { maybePublicationFilter } from '@/lib/chat/publication-filter'
 
 /**
  * GET /api/chat/[libraryId]/docs/ids
@@ -93,6 +94,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
 
     // WICHTIG: Filter nur nach kind: 'meta' Dokumenten
     filter.kind = 'meta'
+
+    // Doc-Publication: Drafts werden bei nicht-Owner-Sichten ausgeblendet,
+    // damit z.B. „Alle anzeigen“-Listen anonyme keine Draft-IDs ausliefern.
+    const pubFilter = await maybePublicationFilter(libraryId, userEmail || null)
+    if (pubFilter) Object.assign(filter, pubFilter)
 
     // Hole alle Meta-Dokumente (ohne Pagination)
     const col = await getCollectionOnly(libraryKey)

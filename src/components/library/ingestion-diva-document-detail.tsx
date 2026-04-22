@@ -4,46 +4,37 @@ import * as React from "react";
 import { DivaDocumentDetail, type DivaDocumentDetailData } from "./diva-document-detail";
 import { useTranslation } from "@/lib/i18n/hooks";
 import { mapToDivaDocumentDetail } from "@/lib/mappers/doc-meta-mappers";
+import { localizeDocMetaJson } from "@/lib/i18n/get-localized";
 
 interface IngestionDivaDocumentDetailProps {
   libraryId: string;
   fileId: string;
-  docModifiedAt?: string;
-  translatedData?: DivaDocumentDetailData;
-  /** Callback, wenn Daten geladen wurden (für Sprachinfo im Overlay) */
-  onDataLoaded?: (data: DivaDocumentDetailData) => void;
+  /** Optional: Fallback-Locale aus library.config.translations.fallbackLocale */
+  fallbackLocale?: string;
 }
 
 /**
- * Wrapper für DivaDocumentDetail, der Daten aus der MongoDB lädt.
- * 
- * Analog zu IngestionBookDetail, IngestionSessionDetail und IngestionClimateActionDetail,
- * aber für Diva-Katalogdokumente (Möbelbranche).
+ * Wrapper fuer DivaDocumentDetail (Katalogdokumente).
+ *
+ * Veredelt die geladene `docMetaJson` mit der globalen UI-Locale via
+ * `localizeDocMetaJson`, bevor das Detail-Mapping erfolgt.
  */
 export function IngestionDivaDocumentDetail({
   libraryId,
   fileId,
-  translatedData,
-  onDataLoaded,
+  fallbackLocale,
 }: IngestionDivaDocumentDetailProps) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [data, setData] = React.useState<DivaDocumentDetailData | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
-
-  // Ref für onDataLoaded, um Re-Renders zu vermeiden
-  const onDataLoadedRef = React.useRef(onDataLoaded);
-  React.useEffect(() => {
-    onDataLoadedRef.current = onDataLoaded;
-  }, [onDataLoaded]);
 
   const load = React.useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      // Verwende den schnellen doc-meta Endpunkt (MongoDB)
       const url = `/api/chat/${encodeURIComponent(libraryId)}/doc-meta?fileId=${encodeURIComponent(fileId)}`;
-      const res = await fetch(url, { cache: "no-store" });
+      const res = await fetch(url, { cache: "no-store", headers: { 'x-locale': locale } });
       const json = await res.json();
       if (!res.ok) {
         throw new Error(
@@ -52,38 +43,29 @@ export function IngestionDivaDocumentDetail({
             : "Dokument-Metadaten konnten nicht geladen werden"
         );
       }
-      const mapped = mapToDivaDocumentDetail(json as unknown);
+      const localized = localizeDocMetaJson(json?.docMetaJson as Record<string, unknown> | undefined, locale, fallbackLocale)
+      const mapped = mapToDivaDocumentDetail({ ...json, docMetaJson: localized });
       setData(mapped);
-      // Callback für Sprachinfo (via Ref, um Re-Renders zu vermeiden)
-      if (onDataLoadedRef.current) {
-        onDataLoadedRef.current(mapped);
-      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unbekannter Fehler");
     } finally {
       setLoading(false);
     }
-  }, [libraryId, fileId]);
+  }, [libraryId, fileId, locale, fallbackLocale]);
 
   React.useEffect(() => {
-    // Nur laden, wenn keine übersetzten Daten vorhanden sind
-    if (!translatedData) {
-      void load();
-    }
-  }, [load, translatedData]);
+    void load();
+  }, [load]);
 
-  // Verwende übersetzte Daten, falls vorhanden
-  const displayData = translatedData || data;
-
-  if (loading && !displayData) {
+  if (loading && !data) {
     return <div className="text-sm text-muted-foreground">{t("gallery.loading")}</div>;
   }
   if (error) {
     return <div className="text-sm text-destructive">{error}</div>;
   }
-  if (!displayData) return null;
+  if (!data) return null;
 
-  return <DivaDocumentDetail data={displayData} showBackLink={false} />;
+  return <DivaDocumentDetail data={data} showBackLink={false} />;
 }
 
 export default IngestionDivaDocumentDetail;

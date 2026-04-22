@@ -13,7 +13,9 @@
  * - translateSessionData: Translates SessionDetailData
  * 
  * @usedIn
- * - src/app/api/chat/[libraryId]/translate-document/route.ts: Translation API endpoint
+ * - src/lib/external-jobs/phase-translations.ts: Worker-Phase, die pro
+ *   Ziel-Locale die LLM-Translation ausloest und das Ergebnis in
+ *   `docMetaJson.translations` schreibt (neuer Doc-Translations Refactor).
  * 
  * @dependencies
  * - @/lib/secretary/adapter: Secretary Service adapter

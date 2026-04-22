@@ -412,6 +412,10 @@ export class LibraryService {
         shadowTwin: lib.config?.shadowTwin,
         // Chat-/Galerie-Settings sind sicher und werden an den Client geliefert
         chat: lib.config?.chat,
+        // Doc-Translations Refactor: Sprach-Konfiguration ist clientseitig sichtbar
+        // (reine Sprach-Praeferenzen, kein Secret) und wird im LanguageSwitcher und
+        // in der Galerie-Tabelle (Spalte „Sprachen") konsumiert.
+        translations: lib.config?.translations,
         // Public-Publishing-Daten (ohne API-Key) sind sicher für den Client
         publicPublishing: lib.config?.publicPublishing ? {
           slugName: lib.config.publicPublishing.slugName,

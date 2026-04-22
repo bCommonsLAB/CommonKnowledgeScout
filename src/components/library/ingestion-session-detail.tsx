@@ -4,118 +4,75 @@ import * as React from "react";
 import { SessionDetail, type SessionDetailData } from "./session-detail";
 import { useTranslation } from "@/lib/i18n/hooks";
 import { mapToSessionDetail } from "@/lib/mappers/doc-meta-mappers";
+import { localizeDocMetaJson } from "@/lib/i18n/get-localized";
 
 interface IngestionSessionDetailProps {
   libraryId: string;
   fileId: string;
-  onDataLoaded?: (data: SessionDetailData) => void;
-  translatedData?: SessionDetailData;
   /** Optional: Bereits vorgeladene Originaldaten (verhindert doppelten doc-meta-Request) */
   initialData?: SessionDetailData;
   /** Optional: Verhindert initialen Auto-Fetch, bis Parent-Prefetch entschieden ist */
   suspendInitialFetch?: boolean;
+  /** Optional: Fallback-Locale aus library.config.translations.fallbackLocale */
+  fallbackLocale?: string;
 }
 
 /**
- * Wrapper-Komponente für SessionDetail
- * Lädt Session-Daten via API und mappt sie auf das SessionDetailData-Format
+ * Wrapper-Komponente fuer SessionDetail.
+ *
+ * Laedt Session-Daten ueber den `doc-meta`-Endpoint und veredelt sie
+ * vor dem Mapping mit der globalen UI-Locale (siehe `localizeDocMetaJson`).
+ * Faellt sauber auf `fallbackLocale` und schliesslich die Originalsprache
+ * zurueck, wenn keine Uebersetzung vorhanden ist.
  */
 export function IngestionSessionDetail({
   libraryId,
   fileId,
-  onDataLoaded,
-  translatedData,
   initialData,
   suspendInitialFetch = false,
+  fallbackLocale,
 }: IngestionSessionDetailProps) {
-  const { t } = useTranslation()
+  const { t, locale } = useTranslation()
   const [data, setData] = React.useState<SessionDetailData | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
-  
-  // Ref für onDataLoaded, um Endlosschleifen zu vermeiden
-  // WICHTIG: Verwende Ref direkt, um zu verhindern, dass sich der Callback ändert
-  const onDataLoadedRef = React.useRef(onDataLoaded);
-  React.useEffect(() => {
-    onDataLoadedRef.current = onDataLoaded;
-  }, [onDataLoaded]);
-  
-  // Ref, um zu verhindern, dass onDataLoaded mehrfach für dieselben Daten aufgerufen wird
-  const lastLoadedFileIdRef = React.useRef<string | null>(null);
 
   const load = React.useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      // Verwende den schnellen doc-meta Endpunkt (MongoDB)
       const url = `/api/chat/${encodeURIComponent(libraryId)}/doc-meta?fileId=${encodeURIComponent(fileId)}`;
-      const res = await fetch(url, { cache: 'no-store' });
+      const res = await fetch(url, { cache: 'no-store', headers: { 'x-locale': locale } });
       const json = await res.json();
       if (!res.ok) throw new Error(typeof json?.error === 'string' ? json.error : t('event.errorLoadingSessionData'));
-      const mapped = mapToSessionDetail(json as unknown);
+      const localized = localizeDocMetaJson(json?.docMetaJson as Record<string, unknown> | undefined, locale, fallbackLocale)
+      const mapped = mapToSessionDetail({ ...json, docMetaJson: localized });
       setData(mapped);
-      
-      // Verhindere mehrfache Callbacks für dieselbe fileId
-      const mappedFileId = mapped.fileId || fileId;
-      if (lastLoadedFileIdRef.current === mappedFileId) {
-        console.log('[IngestionSessionDetail] ⏭️ onDataLoaded bereits für diese fileId aufgerufen, überspringe:', mappedFileId);
-        return;
-      }
-      
-      lastLoadedFileIdRef.current = mappedFileId;
-      
-      // Callback aufrufen, wenn Daten geladen wurden (nach setState)
-      if (onDataLoadedRef.current) {
-        // Verwende setTimeout, um sicherzustellen, dass State gesetzt ist
-        setTimeout(() => {
-          onDataLoadedRef.current?.(mapped);
-        }, 0);
-      }
     } catch (e) {
       console.error('[IngestionSessionDetail] Error:', e);
       setError(e instanceof Error ? e.message : 'Unbekannter Fehler');
     } finally {
       setLoading(false);
     }
-  }, [libraryId, fileId, t]);
+  }, [libraryId, fileId, locale, fallbackLocale, t]);
 
   React.useEffect(() => {
-    // Parent entscheidet gerade über Prefetch → noch nicht selbst laden.
     if (suspendInitialFetch) return
-
-    // Übersetzte Daten werden direkt verwendet, kein Callback nötig.
-    if (translatedData) return
-
-    // Wenn Originaldaten bereits vorgeladen sind, verwende sie direkt ohne weiteren Fetch.
     if (initialData) {
       setData(initialData)
       setError(null)
       setLoading(false)
-      const mappedFileId = initialData.fileId || fileId
-      if (lastLoadedFileIdRef.current !== mappedFileId && onDataLoadedRef.current) {
-        lastLoadedFileIdRef.current = mappedFileId
-        setTimeout(() => {
-          onDataLoadedRef.current?.(initialData)
-        }, 0)
-      }
       return
     }
-
-    // Kein initialData verfügbar: normal laden.
-    lastLoadedFileIdRef.current = null
     void load()
-  }, [load, translatedData, initialData, fileId, suspendInitialFetch]);
+  }, [load, initialData, suspendInitialFetch]);
 
-  // Verwende übersetzte Daten, falls vorhanden
-  const displayData = translatedData || data;
-
-  if (loading && !displayData) return <div className="text-sm text-muted-foreground">{t('event.loadingSessionData')}</div>;
+  if (loading && !data) return <div className="text-sm text-muted-foreground">{t('event.loadingSessionData')}</div>;
   if (error) return <div className="text-sm text-destructive">{error}</div>;
-  if (!displayData) return null;
+  if (!data) return null;
 
-  return <SessionDetail data={displayData} showBackLink={false} libraryId={libraryId} />;
+  return <SessionDetail data={data} showBackLink={false} libraryId={libraryId} />;
 }
 
 
 export default IngestionSessionDetail;
-

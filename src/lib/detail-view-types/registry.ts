@@ -84,6 +84,63 @@ export interface ViewTypeMediaConfig {
 }
 
 /**
+ * Sichtbarkeits-Scope eines uebersetzbaren Feldes.
+ *
+ * - `gallery`: nur in Karten-/Tabellenansicht benoetigt (kleine Felder).
+ * - `detail`:  nur in der Detailansicht benoetigt (grosse Felder wie summary, markdown).
+ * - `both`:    in beiden Ansichten benoetigt (typisch: title, shortTitle).
+ *
+ * Wird im Repository genutzt, um die Mongo-Projection auf die jeweilige Ansicht
+ * zu beschraenken (siehe Plan, Performance-Sanity-Check).
+ */
+export type TranslatableScope = 'gallery' | 'detail' | 'both'
+
+/**
+ * Definition eines uebersetzbaren Feldes innerhalb eines ViewTypes.
+ */
+export interface TranslatableFieldSpec {
+  /** Frontmatter-Key (z.B. 'title', 'summary', 'topics') */
+  key: string
+  /** Sichtbarkeits-Scope: bestimmt, in welche Sub-Map (gallery/detail) das Resultat geschrieben wird */
+  scope: TranslatableScope
+}
+
+/**
+ * Spec fuer Sub-Felder bei Strukturlisten (z.B. chapters[]).
+ */
+export interface TranslatableChaptersSpec {
+  /** Kapitel-Titel uebersetzen */
+  title?: boolean
+  /** Kapitel-Summary uebersetzen */
+  summary?: boolean
+  /** Kapitel-Keywords (string[]) uebersetzen */
+  keywords?: boolean
+}
+
+/**
+ * Welche Felder eines ViewTypes uebersetzt werden sollen und in welche Sub-Map sie wandern.
+ *
+ * Wird sowohl im Backend (`phase-translations`) zum Erzeugen des Zod-Schemas
+ * als auch im UI-Mapper (`getLocalized`) verwendet, damit es nur EINE Quelle
+ * der Wahrheit gibt.
+ */
+export interface TranslatableSpec {
+  /** Reine Textfelder, werden 1:1 uebersetzt (z.B. title, summary, markdown) */
+  text: TranslatableFieldSpec[]
+  /** string[]-Felder, jedes Element wird uebersetzt (z.B. authors, speakers) */
+  arrayOfText: TranslatableFieldSpec[]
+  /**
+   * Topic-aehnliche Felder: Filter bleibt kanonisch, fuer Display wird eine Label-Map
+   * `{ canonical: translatedLabel }` erzeugt (z.B. topics, tags).
+   */
+  topicLike: TranslatableFieldSpec[]
+  /** Strukturlisten (z.B. chapters[]) – Sub-Felder, die uebersetzt werden */
+  nested?: {
+    chapters?: TranslatableChaptersSpec
+  }
+}
+
+/**
  * Konfiguration für einen DetailViewType.
  * Definiert Pflichtfelder, optionale Felder und UI-Eigenschaften.
  */
@@ -98,6 +155,11 @@ export interface ViewTypeConfig {
   descriptionKey: string
   /** Medien-Konfiguration für den Medien-Tab */
   mediaConfig: ViewTypeMediaConfig
+  /**
+   * Welche Felder pro ViewType in welche Sub-Map (gallery/detail) uebersetzt werden.
+   * Single Source of Truth fuer Backend-Job und UI-Lookup.
+   */
+  translatable: TranslatableSpec
 }
 
 /**
@@ -123,6 +185,24 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
       personField: { listKey: 'authors', imageKey: 'authors_image_url', label: 'Autoren' },
       attachments: false,
       urlField: true,
+    },
+    translatable: {
+      text: [
+        { key: 'title', scope: 'both' },
+        { key: 'shortTitle', scope: 'both' },
+        { key: 'summary', scope: 'detail' },
+        { key: 'markdown', scope: 'detail' },
+      ],
+      arrayOfText: [
+        { key: 'authors', scope: 'detail' },
+      ],
+      topicLike: [
+        { key: 'topics', scope: 'both' },
+        { key: 'tags', scope: 'both' },
+      ],
+      nested: {
+        chapters: { title: true, summary: true, keywords: true },
+      },
     },
   },
   session: {
@@ -165,6 +245,24 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
       attachments: true,
       urlField: true,
     },
+    translatable: {
+      text: [
+        { key: 'title', scope: 'both' },
+        { key: 'shortTitle', scope: 'both' },
+        { key: 'teaser', scope: 'both' },
+        { key: 'summary', scope: 'detail' },
+        { key: 'markdown', scope: 'detail' },
+        { key: 'track', scope: 'both' },
+      ],
+      arrayOfText: [
+        { key: 'speakers', scope: 'detail' },
+        { key: 'authors', scope: 'detail' },
+      ],
+      topicLike: [
+        { key: 'topics', scope: 'both' },
+        { key: 'tags', scope: 'both' },
+      ],
+    },
   },
   testimonial: {
     requiredFields: ['title', 'author_name', 'language', 'targetLanguage'],
@@ -177,6 +275,18 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
       attachments: false,
       urlField: false,
     },
+    translatable: {
+      text: [
+        { key: 'title', scope: 'both' },
+        { key: 'shortTitle', scope: 'both' },
+        { key: 'q1_experience', scope: 'detail' },
+        { key: 'q2_key_insight', scope: 'detail' },
+        { key: 'q3_why_important', scope: 'detail' },
+        { key: 'author_role', scope: 'detail' },
+      ],
+      arrayOfText: [],
+      topicLike: [],
+    },
   },
   blog: {
     requiredFields: ['title', 'language', 'targetLanguage'],
@@ -187,6 +297,21 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
       coverImage: true,
       attachments: false,
       urlField: true,
+    },
+    translatable: {
+      text: [
+        { key: 'title', scope: 'both' },
+        { key: 'shortTitle', scope: 'both' },
+        { key: 'teaser', scope: 'both' },
+        { key: 'summary', scope: 'detail' },
+        { key: 'markdown', scope: 'detail' },
+      ],
+      arrayOfText: [
+        { key: 'authors', scope: 'detail' },
+      ],
+      topicLike: [
+        { key: 'tags', scope: 'both' },
+      ],
     },
   },
   climateAction: {
@@ -206,6 +331,21 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
       coverImage: true,
       attachments: false,
       urlField: false,
+    },
+    translatable: {
+      text: [
+        { key: 'title', scope: 'both' },
+        { key: 'shortTitle', scope: 'both' },
+        { key: 'summary', scope: 'detail' },
+        { key: 'markdown', scope: 'detail' },
+        { key: 'arbeitsgruppe', scope: 'detail' },
+        { key: 'lv_zustaendigkeit', scope: 'detail' },
+      ],
+      arrayOfText: [],
+      topicLike: [
+        { key: 'category', scope: 'both' },
+        { key: 'tags', scope: 'both' },
+      ],
     },
   },
   divaDocument: {
@@ -230,6 +370,22 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
       coverImage: true,
       attachments: false,
       urlField: true,
+    },
+    translatable: {
+      text: [
+        { key: 'title', scope: 'both' },
+        { key: 'shortTitle', scope: 'both' },
+        { key: 'summary', scope: 'detail' },
+        { key: 'markdown', scope: 'detail' },
+      ],
+      arrayOfText: [
+        { key: 'produktkategorien', scope: 'detail' },
+        { key: 'materialgruppen', scope: 'detail' },
+        { key: 'zertifizierungen', scope: 'detail' },
+      ],
+      topicLike: [
+        { key: 'tags', scope: 'both' },
+      ],
     },
   },
   /** PBR-/Material-Textur (Template Diva-Texture-Analysis) — kein Katalog-Pflichtfeld-Set wie divaDocument */
@@ -275,6 +431,12 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
       attachments: false,
       urlField: false,
     },
+    /** divaTexture: kein Uebersetzungspfad (Material-/PBR-Daten sind sprachneutral). */
+    translatable: {
+      text: [],
+      arrayOfText: [],
+      topicLike: [],
+    },
   },
 }
 
@@ -303,6 +465,41 @@ export function getRequiredFields(viewType: string): string[] {
 export function getOptionalFields(viewType: string): string[] {
   const config = getViewTypeConfig(viewType)
   return config?.optionalFields ?? []
+}
+
+/**
+ * Liefert die uebersetzbaren Felder eines ViewTypes.
+ *
+ * Wird vom Backend (`phase-translations`) genutzt, um den Secretary-Payload
+ * zu bauen, und vom UI-Mapper (`getLocalized`), um zu wissen, welche Felder
+ * pro Locale erwartet werden.
+ *
+ * Gibt einen leeren `TranslatableSpec` zurueck, falls der ViewType unbekannt
+ * ist oder keine `translatable`-Konfiguration besitzt – sicheres Default-Verhalten.
+ */
+export function getTranslatableFields(viewType: string | undefined): TranslatableSpec {
+  if (!viewType) return { text: [], arrayOfText: [], topicLike: [] }
+  const config = getViewTypeConfig(viewType)
+  if (!config?.translatable) return { text: [], arrayOfText: [], topicLike: [] }
+  return config.translatable
+}
+
+/**
+ * Liefert nur die Felder, die fuer einen bestimmten Scope (`gallery`/`detail`)
+ * relevant sind. `'both'` gilt fuer beide Scopes.
+ */
+export function getTranslatableFieldsForScope(
+  viewType: string | undefined,
+  scope: 'gallery' | 'detail',
+): TranslatableSpec {
+  const all = getTranslatableFields(viewType)
+  const filterFn = (f: TranslatableFieldSpec) => f.scope === scope || f.scope === 'both'
+  return {
+    text: all.text.filter(filterFn),
+    arrayOfText: all.arrayOfText.filter(filterFn),
+    topicLike: all.topicLike.filter(filterFn),
+    nested: scope === 'detail' ? all.nested : undefined,
+  }
 }
 
 /**

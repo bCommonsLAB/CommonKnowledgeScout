@@ -208,7 +208,7 @@ export function GroupedItemsTable({
                 <TableCell>
                   {doc.track ? (
                     <Badge variant="outline" className="text-xs">
-                      {doc.track}
+                      {doc.trackLabel || doc.track}
                     </Badge>
                   ) : (
                     <span className="text-muted-foreground">-</span>

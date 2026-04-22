@@ -1703,7 +1703,7 @@ function PreviewContent({
                 <div className="h-full overflow-auto rounded border p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <div className="text-xs text-muted-foreground">
-                      veröffentlichte Story (aus den Artefakten der Transformation erstellt) · Diese Ansicht entspricht der Gallery-Detail Ansicht.
+                      veröffentlichte Story (aus den Artefakten der Transformation erstellt) · Diese Ansicht entspricht der Gallery-Detail Ansicht. · Übersetzungen werden separat über die Galerie-Tabelle ausgelöst (Publish-Button pro Dokument).
                     </div>
                     {publishStep?.state === "missing" ? (
                       <Button
@@ -1893,7 +1893,7 @@ function PreviewContent({
                 <div className="h-full overflow-auto rounded border p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <div className="text-xs text-muted-foreground">
-                      veröffentlichte Story (aus der Bild-Analyse erstellt)
+                      veröffentlichte Story (aus der Bild-Analyse erstellt) · Übersetzungen werden separat über die Galerie-Tabelle ausgelöst (Publish-Button pro Dokument).
                     </div>
                     {imgPublishStep?.state === "missing" ? (
                       <Button
@@ -2126,7 +2126,7 @@ function PreviewContent({
                 <div className="h-full overflow-auto rounded border p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <div className="text-xs text-muted-foreground">
-                      veröffentlichte Story (aus den Artefakten der Transformation erstellt) · Diese Ansicht entspricht der Gallery-Detail Ansicht.
+                      veröffentlichte Story (aus den Artefakten der Transformation erstellt) · Diese Ansicht entspricht der Gallery-Detail Ansicht. · Übersetzungen werden separat über die Galerie-Tabelle ausgelöst (Publish-Button pro Dokument).
                     </div>
                     {videoPublishStep?.state === "missing" ? (
                       <Button
@@ -2413,7 +2413,7 @@ function PreviewContent({
                 <div className="h-full overflow-auto rounded border p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <div className="text-xs text-muted-foreground">
-                      veröffentlichte Story (aus den Artefakten der Transformation erstellt) · Diese Ansicht entspricht der Gallery-Detail Ansicht.
+                      veröffentlichte Story (aus den Artefakten der Transformation erstellt) · Diese Ansicht entspricht der Gallery-Detail Ansicht. · Übersetzungen werden separat über die Galerie-Tabelle ausgelöst (Publish-Button pro Dokument).
                     </div>
                     {publishStep?.state === "missing" ? (
                       <Button
@@ -2644,7 +2644,7 @@ function PreviewContent({
                 <div className="h-full overflow-auto rounded border p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <div className="text-xs text-muted-foreground">
-                      veröffentlichte Story (aus den Artefakten der Transformation erstellt) · Diese Ansicht entspricht der Gallery-Detail Ansicht.
+                      veröffentlichte Story (aus den Artefakten der Transformation erstellt) · Diese Ansicht entspricht der Gallery-Detail Ansicht. · Übersetzungen werden separat über die Galerie-Tabelle ausgelöst (Publish-Button pro Dokument).
                     </div>
                     {publishStep?.state === "missing" ? (
                       <Button
@@ -2875,7 +2875,7 @@ function PreviewContent({
                 <div className="h-full overflow-auto rounded border p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <div className="text-xs text-muted-foreground">
-                      veröffentlichte Story (aus den Artefakten der Transformation erstellt)
+                      veröffentlichte Story (aus den Artefakten der Transformation erstellt) · Übersetzungen werden separat über die Galerie-Tabelle ausgelöst (Publish-Button pro Dokument).
                     </div>
                     {publishStepOffice?.state === "missing" ? (
                       <Button
@@ -3231,7 +3231,7 @@ function PreviewContent({
                 <div className="h-full overflow-auto rounded border p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <div className="text-xs text-muted-foreground">
-                      veröffentlichte Story (aus den Artefakten der Transformation erstellt)
+                      veröffentlichte Story (aus den Artefakten der Transformation erstellt) · Übersetzungen werden separat über die Galerie-Tabelle ausgelöst (Publish-Button pro Dokument).
                     </div>
                     {publishStepWeb?.state === "missing" ? (
                       <Button

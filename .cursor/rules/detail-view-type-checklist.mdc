@@ -104,8 +104,8 @@ Wenn ein neuer ViewType hinzugefügt wird, MÜSSEN sie ALLE aktualisiert werden!
     - [ ] `src/types/library.ts` → `detailViewType?: '...'` Union im `gallery`-Objekt
     - [ ] `src/hooks/gallery/use-gallery-config.ts` → `type DetailViewType = '...'` Union
 
-14. **Übersetzungs-Hook**
-    - [ ] `src/hooks/use-document-translation.ts` → `viewType: '...'` Union
+14. **Übersetzungen (Doc-Translations Refactor)**
+    - [ ] `src/lib/detail-view-types/registry.ts` → `translatable`-Block (`text` / `arrayOfText` / `topicLike` / `nested`) im neuen ViewType ergänzen, damit `phase-translations` weiß, welche Felder zu übersetzen sind. (Der frühere Hook `use-document-translation.ts` wurde durch den Backend-Worker abgelöst und existiert nicht mehr.)
 
 15. **Template-Editor (Dropdown)**
     - [ ] `src/components/templates/structured-template-editor.tsx` → `<SelectItem>`

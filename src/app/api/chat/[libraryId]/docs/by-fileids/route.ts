@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { getByFileIds, getCollectionNameForLibrary, getCollectionOnly } from '@/lib/repositories/vector-repo'
 import { convertMongoDocToDocCardMeta, type MongoDocForConversion } from '@/lib/repositories/doc-meta-formatter'
+import { canSeeDrafts } from '@/lib/chat/publication-filter'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import type { Document } from 'mongodb'
 
@@ -62,6 +63,10 @@ export async function GET(
 
     const url = new URL(request.url)
     const libraryKey = getCollectionNameForLibrary(ctx.library)
+
+    // Aktive UI-Locale (Header) und Fallback aus Library-Config (Doc-Translations)
+    const headerLocale = request.headers.get('x-locale') || undefined
+    const fallbackLocale = ctx.library.config?.translations?.fallbackLocale
     
     // Extrahiere alle fileIds aus Query-Parametern
     const fileIds = url.searchParams.getAll('fileId')
@@ -72,9 +77,24 @@ export async function GET(
 
     // Lade Dokumente nach fileIds
     const docsMap = await getByFileIds(libraryKey, libraryId, fileIds)
-    
+
     if (docsMap.size === 0) {
       return NextResponse.json({ items: [] }, { status: 200 })
+    }
+
+    // Doc-Publication: Drafts werden bei nicht-Owner-Sichten ausgeblendet,
+    // damit ein nicht-publiziertes Dokument auch dann nicht erreichbar ist,
+    // wenn jemand seine fileId direkt anfragt (z.B. via geteilter Link).
+    const allowDrafts = await canSeeDrafts(libraryId, userEmail || null)
+    if (!allowDrafts) {
+      for (const [fid, doc] of docsMap) {
+        const status = (doc.docMetaJson as { publication?: { status?: string } } | undefined)
+          ?.publication?.status
+        if (status === 'draft') docsMap.delete(fid)
+      }
+      if (docsMap.size === 0) {
+        return NextResponse.json({ items: [] }, { status: 200 })
+      }
     }
 
     // Lade vollständige Dokument-Daten für alle Felder (inkl. docMetaJson)
@@ -117,17 +137,29 @@ export async function GET(
               'docMetaJson.pages': 1,
               'docMetaJson.sourcePath': 1,
               'docMetaJson.sourceFileName': 1,
+              // Doc-Translations: locale-spezifische Galerie-Sub-Maps + Original-Locale
+              'docMetaJson.language': 1,
+              ...(headerLocale ? { [`docMetaJson.translations.gallery.${headerLocale}`]: 1 } : {}),
+              ...(fallbackLocale && fallbackLocale !== headerLocale
+                ? { [`docMetaJson.translations.gallery.${fallbackLocale}`]: 1 }
+                : {}),
             }
           }
         )
 
         if (fullDoc && typeof fullDoc === 'object' && 'fileId' in fullDoc && typeof fullDoc.fileId === 'string') {
-          // Verwende vollständige Dokument-Daten
-          return convertMongoDocToDocCardMeta(fullDoc as unknown as MongoDocForConversion)
+          // Verwende vollständige Dokument-Daten (mit Locale-Overlay)
+          return convertMongoDocToDocCardMeta(fullDoc as unknown as MongoDocForConversion, {
+            locale: headerLocale,
+            fallbackLocale,
+          })
         }
-        
-        // Fallback: Verwende Daten aus doc (VectorDocument)
-        return convertMongoDocToDocCardMeta(doc)
+
+        // Fallback: Verwende Daten aus doc (VectorDocument), ebenfalls lokalisiert
+        return convertMongoDocToDocCardMeta(doc, {
+          locale: headerLocale,
+          fallbackLocale,
+        })
       })
     )
 

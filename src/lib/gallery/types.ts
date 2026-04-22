@@ -61,6 +61,30 @@ export interface DocCardMeta {
 
   /** Diva-Texture-Analysis: Kurzcode unter dem Titel (optional) */
   textur_code?: string
+
+  // ─── Publish-Status (Doc-Translations Refactor) ─────────────────────────
+  /** Veroeffentlichungs-Status auf Dokumentebene ('draft' | 'published'). */
+  publicationStatus?: 'draft' | 'published'
+  /** ISO-Zeitstempel der Veroeffentlichung (nur wenn `published`). */
+  publishedAt?: string
+  /**
+   * Translation-Status pro Locale: pending | done | failed.
+   * Wird von der Tabellenansicht als Sprach-Chips visualisiert.
+   */
+  translationStatus?: Record<string, 'pending' | 'done' | 'failed'>
+
+  // ─── Doc-Translations (Galerie-Sub-Map) ──────────────────────────────────
+  /**
+   * Display-Labels fuer Topics in der aktiven UI-Locale.
+   * Filter-Werte (`topics`) bleiben kanonisch; nur das Label wird uebersetzt.
+   * Map: kanonischer Wert -> uebersetztes Label.
+   */
+  topicsLabels?: Record<string, string>
+  /** Display-Labels fuer Tags in der aktiven UI-Locale (siehe `topicsLabels`). */
+  tagsLabels?: Record<string, string>
+  /** Optional: weitere Display-Labels pro Facet-Key. */
+  categoryLabel?: string
+  trackLabel?: string
 }
 
 export interface ChapterInfo {

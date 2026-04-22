@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { parseFacetDefs, buildFilterFromQuery } from '@/lib/chat/dynamic-facets'
 import { aggregateFacets, getCollectionNameForLibrary } from '@/lib/repositories/vector-repo'
+import { maybePublicationFilter } from '@/lib/chat/publication-filter'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
   try {
@@ -40,6 +41,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ lib
         filter[def.metaKey] = builtin[def.metaKey]
       }
     }
+
+    // Doc-Publication: Drafts werden bei nicht-Owner-Sichten aus den Facetten-
+    // Counts ausgeschlossen, damit Filter-Zaehler konsistent zur Galerie-Liste sind.
+    const pubFilter = await maybePublicationFilter(libraryId, userEmail || null)
+    if (pubFilter) Object.assign(filter, pubFilter)
 
     const counts = await aggregateFacets(
       libraryKey,

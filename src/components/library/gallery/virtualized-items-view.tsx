@@ -19,6 +19,8 @@ import type { ViewMode } from './gallery-sticky-header'
 import { ItemsGrid } from './items-grid'
 import { DeleteDocumentButton } from './delete-document-button'
 import { OpenInArchiveButton } from './open-in-archive-button'
+import { PublishDocumentButton } from './publish-document-button'
+import { PublishStatusBadge, TranslationStatusChips } from './publish-status-chips'
 import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
 import { formatUpsertedAt } from '@/utils/format-upserted-at'
 import { getTableColumnsForViewType } from '@/lib/detail-view-types'
@@ -44,6 +46,19 @@ export interface VirtualizedItemsViewProps {
   /** Facetten mit showInTable=true – definieren die Tabellenspalten (Reihenfolge wie in Config) */
   tableColumnFacets?: Array<{ metaKey: string; label?: string }>
   cardDensity?: GalleryCardDensity
+  /**
+   * Doc-Translations Refactor:
+   * Erwartete Ziel-Locales aus `library.config.translations.targetLocales`.
+   * Wird in der Spalte „Sprachen" angezeigt, damit auch noch nicht enqueued
+   * Locales als Chip sichtbar sind (Spaltenbreite bleibt konsistent).
+   */
+  expectedTargetLocales?: string[]
+  /**
+   * Doc-Translations Refactor:
+   * Callback nach erfolgreichem Publish/Unpublish/Re-translate.
+   * Wird verwendet, um die Galerie nach einer Aktion neu zu laden.
+   */
+  onPublishChanged?: () => void
 }
 
 export function VirtualizedItemsView({
@@ -59,6 +74,8 @@ export function VirtualizedItemsView({
   groupByField,
   tableColumnFacets,
   cardDensity = 'comfortable',
+  expectedTargetLocales,
+  onPublishChanged,
 }: VirtualizedItemsViewProps) {
   const { t, locale } = useTranslation()
   const router = useRouter()
@@ -162,20 +179,36 @@ export function VirtualizedItemsView({
     return '-'
   }
 
-  // Tabellenspalten: aus Facetten (showInTable) oder aus DetailViewType
+  // Tabellenspalten: aus Facetten (showInTable) oder aus DetailViewType.
+  // Doc-Translations Refactor: fuer Owner injizieren wir vor der upsertedAt-Spalte
+  // zwei zusaetzliche Spalten: 'publication' (Status-Badge) und 'languages' (Locale-Chips).
   const tableColumns = React.useMemo(() => {
-    if (tableColumnFacets && tableColumnFacets.length > 0) {
-      return [
-        { key: 'title', labelKey: 'gallery.table.title' as const },
-        ...tableColumnFacets.map((f) => ({ key: f.metaKey, label: f.label || f.metaKey })),
-        { key: 'upsertedAt', labelKey: 'gallery.table.upsertedAt' as const },
-      ]
-    }
-    return getTableColumnsForViewType(libraryDetailViewType).map((col) => ({
-      key: col.key,
-      labelKey: col.labelKey,
-    }))
-  }, [libraryDetailViewType, tableColumnFacets])
+    const baseColumns = (() => {
+      if (tableColumnFacets && tableColumnFacets.length > 0) {
+        return [
+          { key: 'title', labelKey: 'gallery.table.title' as const },
+          ...tableColumnFacets.map((f) => ({ key: f.metaKey, label: f.label || f.metaKey })),
+          { key: 'upsertedAt', labelKey: 'gallery.table.upsertedAt' as const },
+        ]
+      }
+      return getTableColumnsForViewType(libraryDetailViewType).map((col) => ({
+        key: col.key,
+        labelKey: col.labelKey,
+      }))
+    })()
+    if (!isOwner) return baseColumns
+    // Vor der letzten Spalte (typischerweise upsertedAt) die zwei neuen Spalten einfuegen.
+    const insertAt = Math.max(0, baseColumns.length - 1)
+    const ownerColumns = [
+      { key: 'publication', label: 'Status' },
+      { key: 'languages', label: 'Sprachen' },
+    ]
+    return [
+      ...baseColumns.slice(0, insertAt),
+      ...ownerColumns,
+      ...baseColumns.slice(insertAt),
+    ]
+  }, [libraryDetailViewType, tableColumnFacets, isOwner])
 
   const displayDocsByYear = React.useMemo(() => {
     if (viewMode !== 'table' || !sortColumn) return docsByYear
@@ -226,6 +259,19 @@ export function VirtualizedItemsView({
         <span className="whitespace-nowrap text-sm text-muted-foreground" title={doc.upsertedAt ?? ''}>
           {formatUpsertedAt(doc.upsertedAt, { locale })}
         </span>
+      )
+    }
+    // Doc-Translations Refactor: Publikationsstatus als Badge.
+    if (key === 'publication') {
+      return <PublishStatusBadge status={doc.publicationStatus} />
+    }
+    // Doc-Translations Refactor: Translation-Status pro Locale als kleine Chips.
+    if (key === 'languages') {
+      return (
+        <TranslationStatusChips
+          status={doc.translationStatus}
+          expectedLocales={expectedTargetLocales}
+        />
       )
     }
     const raw = (doc as unknown as Record<string, unknown>)[key]
@@ -327,7 +373,7 @@ export function VirtualizedItemsView({
                       </TableHead>
                     )
                   })}
-                  {isOwner && <TableHead className="w-[60px] shrink-0" />}
+                  {isOwner && <TableHead className="w-[140px] shrink-0" />}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -364,6 +410,12 @@ export function VirtualizedItemsView({
                         {isOwner && libraryId && (
                           <TableCell className="shrink-0" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center gap-1">
+                              {/* Doc-Translations Refactor: Publish/Unpublish/Re-translate Aktion */}
+                              <PublishDocumentButton
+                                doc={doc}
+                                libraryId={libraryId}
+                                onChanged={onPublishChanged}
+                              />
                               <OpenInArchiveButton doc={doc} libraryId={libraryId} />
                               <DeleteDocumentButton
                                 doc={doc}

@@ -16,6 +16,8 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { openDocumentBySlug } from '@/utils/document-navigation'
 import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
 import { DeleteDocumentButton } from './delete-document-button'
+import { PublishDocumentButton } from './publish-document-button'
+import { PublishStatusBadge, TranslationStatusChips } from './publish-status-chips'
 import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
 import { formatUpsertedAt } from '@/utils/format-upserted-at'
 
@@ -25,13 +27,28 @@ export interface ItemsTableProps {
   libraryId?: string
   /** Callback nach erfolgreichem Löschen eines Dokuments */
   onDocumentDeleted?: () => void
+  /**
+   * Erwartete Ziel-Locales aus `library.config.translations.targetLocales`.
+   * Wird fuer die Status-Chips genutzt, damit auch noch nicht enqueued Locales
+   * sichtbar sind (Spaltenbreite bleibt konsistent).
+   */
+  expectedTargetLocales?: string[]
+  /** Callback nach Publish/Unpublish/Re-translate (zum Reload der Galerie) */
+  onPublishChanged?: () => void
 }
 
 /**
  * Tabellenansicht der Gallery-Dokumente
  * Zeigt Dokumente kompakt in einer Tabelle mit den wichtigsten Feldern
  */
-export function ItemsTable({ docsByYear, onOpen, libraryId, onDocumentDeleted }: ItemsTableProps) {
+export function ItemsTable({
+  docsByYear,
+  onOpen,
+  libraryId,
+  onDocumentDeleted,
+  expectedTargetLocales,
+  onPublishChanged,
+}: ItemsTableProps) {
   const { t, locale } = useTranslation()
   const router = useRouter()
   const pathname = usePathname()
@@ -74,11 +91,22 @@ export function ItemsTable({ docsByYear, onOpen, libraryId, onDocumentDeleted }:
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[50%]">{t('gallery.table.title')}</TableHead>
-                  <TableHead className="w-[15%]">{t('gallery.table.year')}</TableHead>
-                  <TableHead className="w-[15%]">{t('gallery.table.track')}</TableHead>
-                  <TableHead className="w-[20%] whitespace-nowrap">{t('gallery.table.upsertedAt')}</TableHead>
-                  {isOwner && <TableHead className="w-[60px]"></TableHead>}
+                  <TableHead className="w-[35%]">{t('gallery.table.title')}</TableHead>
+                  <TableHead className="w-[10%]">{t('gallery.table.year')}</TableHead>
+                  <TableHead className="w-[10%]">{t('gallery.table.track')}</TableHead>
+                  {/* Doc-Translations Refactor: Publikations- und Sprachen-Spalten */}
+                  {isOwner && (
+                    <TableHead className="w-[10%] whitespace-nowrap">
+                      {t('gallery.table.publication', { defaultValue: 'Status' })}
+                    </TableHead>
+                  )}
+                  {isOwner && (
+                    <TableHead className="w-[15%] whitespace-nowrap">
+                      {t('gallery.table.languages', { defaultValue: 'Sprachen' })}
+                    </TableHead>
+                  )}
+                  <TableHead className="w-[15%] whitespace-nowrap">{t('gallery.table.upsertedAt')}</TableHead>
+                  {isOwner && <TableHead className="w-[120px]"></TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -110,12 +138,27 @@ export function ItemsTable({ docsByYear, onOpen, libraryId, onDocumentDeleted }:
                     <TableCell>
                       {doc.track ? (
                         <Badge variant="outline" className="text-xs">
-                          {doc.track}
+                          {/* Doc-Translations: zeige uebersetztes Label, kanonischer Wert bleibt im Filter. */}
+                          {doc.trackLabel || doc.track}
                         </Badge>
                       ) : (
                         <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
+                    {/* Doc-Translations Refactor: Status- und Sprachen-Spalten nur fuer Owner */}
+                    {isOwner && (
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <PublishStatusBadge status={doc.publicationStatus} />
+                      </TableCell>
+                    )}
+                    {isOwner && (
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <TranslationStatusChips
+                          status={doc.translationStatus}
+                          expectedLocales={expectedTargetLocales}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                       <span title={doc.upsertedAt ?? ''}>
                         {formatUpsertedAt(doc.upsertedAt, { locale })}
@@ -123,11 +166,19 @@ export function ItemsTable({ docsByYear, onOpen, libraryId, onDocumentDeleted }:
                     </TableCell>
                     {isOwner && libraryId && (
                       <TableCell onClick={(e) => e.stopPropagation()}>
-                        <DeleteDocumentButton
-                          doc={doc}
-                          libraryId={libraryId}
-                          onDeleted={onDocumentDeleted}
-                        />
+                        <div className='flex items-center gap-1'>
+                          {/* Doc-Translations Refactor: Publish/Unpublish/Re-translate Aktion */}
+                          <PublishDocumentButton
+                            doc={doc}
+                            libraryId={libraryId}
+                            onChanged={onPublishChanged}
+                          />
+                          <DeleteDocumentButton
+                            doc={doc}
+                            libraryId={libraryId}
+                            onDeleted={onDocumentDeleted}
+                          />
+                        </div>
                       </TableCell>
                     )}
                   </TableRow>

@@ -160,6 +160,22 @@ export async function POST(
     if (!internal.isInternal) {
       if (job.userEmail !== userEmail) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+
+    // ─── Doc-Translations Refactor: schmale Phase ohne Storage/Secretary-Pfad ───
+    // Translation-Jobs kennen kein Quell-Item im Storage, deshalb branchen wir
+    // hier frueh aus. Die Phase erledigt LLM-Call + atomares Schreiben in
+    // docMetaJson.translations selbst.
+    if (job.job_type === 'translation' && job.operation === 'translate') {
+      try {
+        const { runPhaseTranslations } = await import('@/lib/external-jobs/phase-translations')
+        const result = await runPhaseTranslations(job)
+        return NextResponse.json({ ok: true, phase: 'translations', result }, { status: 200 })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        FileLogger.error('start-route', 'phase-translations failed', { jobId, error: msg })
+        return NextResponse.json({ error: msg }, { status: 500 })
+      }
+    }
     
     // WICHTIG: Watchdog SOFORT starten, damit Job nicht hängen bleibt, wenn Start-Endpoint fehlschlägt
     // Timeout: 10 Minuten (600_000 ms) - sollte ausreichen für Datei-Laden, Preprocessing, Request, etc.

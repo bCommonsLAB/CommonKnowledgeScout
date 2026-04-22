@@ -3,7 +3,15 @@
 import React from 'react'
 import { useTranslation } from '@/lib/i18n/hooks'
 
-export interface FacetOption { value: string | number; count: number }
+/**
+ * Eine Facetten-Option:
+ * - `value` ist der kanonische Filterwert (Originalsprache, fuer URL/Mongo-Query).
+ * - `label` ist die optionale Anzeige in der aktiven UI-Locale (Doc-Translations).
+ *
+ * Die Galerie-FacetGroup zeigt `label || String(value)`. Damit bleiben Filter
+ * stabil gegen Sprachwechsel, waehrend die Anzeige lokalisiert ist.
+ */
+export interface FacetOption { value: string | number; count: number; label?: string }
 
 export interface FacetGroupProps {
   label: string
@@ -34,6 +42,8 @@ export function FacetGroup({ label, options, selected, onChange }: FacetGroupPro
         {normalized.map((o) => {
           const v = String(o.value)
           const active = values.has(v)
+          // Doc-Translations: zeige uebersetztes Label, behalte aber kanonischen Wert.
+          const display = o.label && o.label.trim().length > 0 ? o.label : v
           return (
             <button
               key={v}
@@ -41,7 +51,7 @@ export function FacetGroup({ label, options, selected, onChange }: FacetGroupPro
               onClick={() => toggle(v)}
               className={`w-full grid grid-cols-[1fr_auto] items-center rounded px-2 py-1 text-left text-sm ${active ? 'bg-primary/10' : 'hover:bg-muted'} min-w-0`}
             >
-              <span title={v} className='truncate min-w-0 pr-2'>{v}</span>
+              <span title={display !== v ? `${display} (${v})` : v} className='truncate min-w-0 pr-2'>{display}</span>
               <span className='text-xs text-muted-foreground justify-self-end ml-2 min-w-[2.5rem] text-right tabular-nums'>{o.count > 0 ? o.count : ''}</span>
             </button>
           )

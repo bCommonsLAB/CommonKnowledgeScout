@@ -1,5 +1,7 @@
 import type { DocCardMeta } from '@/lib/gallery/types'
 import type { VectorDocument } from './vector-repo'
+import { localizeDocMetaJson } from '@/lib/i18n/get-localized'
+import type { DocTranslationsMeta } from '@/types/doc-meta'
 
 /**
  * Konvertiert speakers_image_url von verschiedenen Formaten zu string[]
@@ -83,36 +85,70 @@ export interface MongoDocForConversion {
 
 /**
  * Konvertiert ein MongoDB-Dokument zu DocCardMeta-Format
- * 
+ *
  * Diese Funktion wird verwendet, um Dokumente aus MongoDB (z.B. aus find-Queries)
  * in das Format zu konvertieren, das von der Gallery verwendet wird.
- * 
+ *
+ * Doc-Translations (Refactor):
+ * - Wenn `options.locale` gesetzt ist, wird `docMetaJson` zuerst per
+ *   `localizeDocMetaJson` mit den Galerie-/Detail-Sub-Maps der gewuenschten
+ *   Locale (mit Fallback-Kette) ueberlagert.
+ * - Filterwerte (`topics`, `tags`, `category`, ...) bleiben kanonisch — die
+ *   uebersetzten Display-Labels werden separat als `topicsLabels`,
+ *   `tagsLabels`, `categoryLabel` und `trackLabel` mitgegeben.
+ *
  * @param doc - MongoDB-Dokument mit den erforderlichen Feldern
+ * @param options.locale - Aktive UI-Locale (z.B. 'en', 'de')
+ * @param options.fallbackLocale - Fallback-Locale aus `library.config.translations`
  * @returns DocCardMeta-Objekt für Gallery-Anzeige
  */
-export function convertMongoDocToDocCardMeta(doc: MongoDocForConversion): DocCardMeta {
-  const docMeta = doc.docMetaJson && typeof doc.docMetaJson === 'object' 
-    ? doc.docMetaJson as Record<string, unknown> 
-    : undefined
+export function convertMongoDocToDocCardMeta(
+  doc: MongoDocForConversion,
+  options: { locale?: string; fallbackLocale?: string } = {},
+): DocCardMeta {
+  // Original docMetaJson fuer Label-Maps und Translations-Lookup behalten.
+  const rawDocMeta =
+    doc.docMetaJson && typeof doc.docMetaJson === 'object'
+      ? (doc.docMetaJson as Record<string, unknown>)
+      : undefined
+
+  // Fuer alle Original-Felder verwenden wir das ueberlagerte docMetaJson.
+  // Topic-Filterwerte (topics, tags, category) bleiben kanonisch erhalten,
+  // weil `applyOverlay` `*Labels`-Maps ueberspringt — die Label-Maps werden
+  // weiter unten separat extrahiert.
+  const docMeta = options.locale
+    ? localizeDocMetaJson(rawDocMeta, options.locale, options.fallbackLocale)
+    : rawDocMeta
   
   // speakers_image_url: Priorität: Top-Level > docMetaJson.speakers_image_url
   const speakersImageUrlTopLevel = convertSpeakersImageUrl(doc.speakers_image_url)
   const speakersImageUrlDocMeta = docMeta ? convertSpeakersImageUrl(docMeta.speakers_image_url) : undefined
   const speakersImageUrl = speakersImageUrlTopLevel || speakersImageUrlDocMeta
 
+  // Fuer uebersetzbare Textfelder (title/shortTitle/track) muss bei aktiver
+  // Locale die docMetaJson-Variante (= ggf. uebersetzt) Vorrang vor dem
+  // Top-Level-Feld (= Originalsprache) haben.
+  const pickText = (key: string, top: string | undefined): string | undefined => {
+    const localized = docMeta?.[key]
+    if (options.locale && typeof localized === 'string' && localized.trim().length > 0) {
+      return localized
+    }
+    return top || (typeof localized === 'string' ? localized : undefined)
+  }
+
   return {
     id: `${doc.fileId}-meta`,
     fileId: doc.fileId,
     fileName: doc.fileName,
-    title: doc.title || (docMeta?.title as string | undefined),
-    shortTitle: doc.shortTitle || (docMeta?.shortTitle as string | undefined),
+    title: pickText('title', doc.title),
+    shortTitle: pickText('shortTitle', doc.shortTitle),
     authors: Array.isArray(doc.authors) ? doc.authors : undefined,
     speakers: Array.isArray(doc.speakers) 
       ? doc.speakers 
       : (Array.isArray(docMeta?.speakers) ? docMeta.speakers as string[] : undefined),
     speakers_image_url: speakersImageUrl || undefined,
     year: (typeof doc.year === 'number' || typeof doc.year === 'string') ? doc.year : undefined,
-    track: doc.track || (docMeta?.track as string | undefined),
+    track: pickText('track', doc.track),
     date: doc.date || (docMeta?.date as string | undefined),
     region: typeof doc.region === 'string' ? doc.region : undefined,
     upsertedAt: typeof doc.upsertedAt === 'string' ? doc.upsertedAt : undefined,
@@ -149,7 +185,81 @@ export function convertMongoDocToDocCardMeta(doc: MongoDocForConversion): DocCar
     sourcePath: typeof docMeta?.sourcePath === 'string' ? docMeta.sourcePath : undefined,
     sourceFileName: typeof docMeta?.sourceFileName === 'string' ? docMeta.sourceFileName : undefined,
     textur_code: typeof docMeta?.textur_code === 'string' ? docMeta.textur_code : undefined,
+    // ─── Doc-Translations: Publish-/Translation-Status ───────────────────
+    ...buildPublicationFields(rawDocMeta),
+    // ─── Doc-Translations: Display-Labels fuer Facetten ──────────────────
+    // Filter-Werte (topics/tags/category) bleiben kanonisch (siehe oben);
+    // nur die Anzeige wird via Label-Maps lokalisiert.
+    ...buildLocalizedLabels(rawDocMeta, options.locale, options.fallbackLocale),
   }
+}
+
+/**
+ * Liest Publikations- und Translation-Status aus `docMetaJson.publication` /
+ * `docMetaJson.translationStatus` fuer die Tabellenansicht.
+ */
+function buildPublicationFields(
+  rawDocMeta: Record<string, unknown> | undefined,
+): Partial<Pick<DocCardMeta, 'publicationStatus' | 'publishedAt' | 'translationStatus'>> {
+  if (!rawDocMeta) return {}
+  const out: Partial<Pick<DocCardMeta, 'publicationStatus' | 'publishedAt' | 'translationStatus'>> = {}
+  const pub = rawDocMeta.publication as Record<string, unknown> | undefined
+  if (pub) {
+    if (pub.status === 'draft' || pub.status === 'published') out.publicationStatus = pub.status
+    if (typeof pub.publishedAt === 'string') out.publishedAt = pub.publishedAt
+  }
+  const ts = rawDocMeta.translationStatus
+  if (ts && typeof ts === 'object' && !Array.isArray(ts)) {
+    // Whitelist-Filter: nur erwartete Status-Werte uebernehmen.
+    const filtered: Record<string, 'pending' | 'done' | 'failed'> = {}
+    for (const [loc, val] of Object.entries(ts as Record<string, unknown>)) {
+      if (val === 'pending' || val === 'done' || val === 'failed') filtered[loc] = val
+    }
+    if (Object.keys(filtered).length > 0) out.translationStatus = filtered
+  }
+  return out
+}
+
+/**
+ * Liest die Display-Label-Maps aus `docMetaJson.translations.gallery` und
+ * baut die optionalen `*Labels`-Felder von DocCardMeta zusammen.
+ *
+ * Reihenfolge: Fallback-Locale wird zuerst eingespielt, gewuenschte Locale
+ * ueberschreibt anschliessend.
+ */
+function buildLocalizedLabels(
+  rawDocMeta: Record<string, unknown> | undefined,
+  locale: string | undefined,
+  fallbackLocale: string | undefined,
+): Partial<Pick<DocCardMeta, 'topicsLabels' | 'tagsLabels' | 'categoryLabel' | 'trackLabel'>> {
+  if (!rawDocMeta || !locale) return {}
+  const translations = (rawDocMeta as { translations?: DocTranslationsMeta }).translations
+  if (!translations?.gallery) return {}
+  const gallery = translations.gallery as Record<string, Record<string, unknown>>
+  const fb = fallbackLocale && fallbackLocale !== locale ? gallery[fallbackLocale] : undefined
+  const cur = gallery[locale]
+  if (!fb && !cur) return {}
+
+  const merge = (key: string): Record<string, string> | undefined => {
+    const fromFb = (fb?.[key] as Record<string, string> | undefined) || undefined
+    const fromCur = (cur?.[key] as Record<string, string> | undefined) || undefined
+    if (!fromFb && !fromCur) return undefined
+    return { ...(fromFb || {}), ...(fromCur || {}) }
+  }
+  const pickStr = (key: string): string | undefined => {
+    const v = (cur?.[key] as string | undefined) || (fb?.[key] as string | undefined)
+    return typeof v === 'string' && v.trim().length > 0 ? v : undefined
+  }
+  const out: Partial<Pick<DocCardMeta, 'topicsLabels' | 'tagsLabels' | 'categoryLabel' | 'trackLabel'>> = {}
+  const topicsLabels = merge('topicsLabels')
+  if (topicsLabels) out.topicsLabels = topicsLabels
+  const tagsLabels = merge('tagsLabels')
+  if (tagsLabels) out.tagsLabels = tagsLabels
+  const categoryLabel = pickStr('categoryLabel')
+  if (categoryLabel) out.categoryLabel = categoryLabel
+  const trackLabel = pickStr('trackLabel')
+  if (trackLabel) out.trackLabel = trackLabel
+  return out
 }
 
 /**
@@ -161,7 +271,10 @@ export function convertMongoDocToDocCardMeta(doc: MongoDocForConversion): DocCar
  * @param doc - VectorDocument aus dem Repository
  * @returns DocCardMeta-Objekt für Gallery-Anzeige
  */
-export function convertVectorDocumentToDocCardMeta(doc: VectorDocument): DocCardMeta {
-  return convertMongoDocToDocCardMeta(doc)
+export function convertVectorDocumentToDocCardMeta(
+  doc: VectorDocument,
+  options: { locale?: string; fallbackLocale?: string } = {},
+): DocCardMeta {
+  return convertMongoDocToDocCardMeta(doc, options)
 }
 

@@ -68,33 +68,51 @@ export function t(
 ): string {
   const translations = getTranslations(locale)
   const keys = key.split('.')
-  
+
+  // Doc-Translations Refactor:
+  // i18next-Style `defaultValue` als Fallback unterstuetzen, damit Komponenten
+  // sinnvolle Defaults inline definieren koennen, bevor i18n-Keys in alle 5
+  // Bundles eingepflegt werden.
+  const defaultValue =
+    params && typeof params.defaultValue === 'string'
+      ? (params.defaultValue as string)
+      : undefined
+
   // Navigiere durch das verschachtelte Objekt
   let value: unknown = translations
   for (const k of keys) {
     if (value && typeof value === 'object' && k in value) {
       value = (value as Record<string, unknown>)[k]
     } else {
-      // Fallback: Versuche deutschen Text wenn Schlüssel nicht gefunden
+      // Fallback 1: deutscher Text (historisches Verhalten)
       const deValue = getNestedValue(deTranslations, keys)
       if (deValue && typeof deValue === 'string') {
         return replaceParams(deValue, params)
       }
-      // Letzter Fallback: Schlüssel selbst
+      // Fallback 2: defaultValue aus dem Aufrufer (neu)
+      if (defaultValue !== undefined) {
+        return replaceParams(defaultValue, params)
+      }
+      // Letzter Fallback: Schluessel selbst (debug-freundlich)
       return key
     }
   }
-  
+
   if (typeof value === 'string') {
     return replaceParams(value, params)
   }
-  
+
   // Fallback auf deutschen Text
   const deValue = getNestedValue(deTranslations, keys)
   if (deValue && typeof deValue === 'string') {
     return replaceParams(deValue, params)
   }
-  
+
+  // Fallback: defaultValue aus dem Aufrufer
+  if (defaultValue !== undefined) {
+    return replaceParams(defaultValue, params)
+  }
+
   return key
 }
 

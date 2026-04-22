@@ -30,6 +30,7 @@
 import { ReactNode } from 'react';
 import type { Character, AccessPerspective, TargetLanguage } from '@/lib/chat/constants';
 import type { SocialContext } from '@/lib/chat/constants';
+import type { Locale } from '@/lib/i18n';
 
 /**
  * Ein einzelner Favoriten-Eintrag (Ordner-Lesezeichen innerhalb einer Library).
@@ -51,6 +52,25 @@ export interface FavoriteEntry {
  * Each type represents a different storage backend implementation.
  */
 export type StorageProviderType = 'local' | 'onedrive' | 'gdrive' | 'nextcloud';
+
+/**
+ * Konfiguration fuer Dokumenten-Uebersetzungen pro Library.
+ *
+ * - `targetLocales`: Liste der Sprachen, in die publizierte Dokumente uebersetzt werden sollen
+ *   (Subset von `SUPPORTED_LOCALES`).
+ * - `fallbackLocale`: Sprache, die im UI verwendet wird, wenn der Benutzer eine Locale waehlt,
+ *   die nicht in `targetLocales` enthalten ist (z.B. weil noch keine Uebersetzung existiert).
+ * - `autoTranslateOnPublish`: Wenn `true`, startet das Publish eines Dokuments automatisch
+ *   parallele Uebersetzungsjobs fuer alle `targetLocales`.
+ */
+export interface TranslationsConfig {
+  /** Zielsprachen fuer die Backend-Uebersetzungsjobs (Default: leer = keine automatische Uebersetzung) */
+  targetLocales?: Locale[];
+  /** Fallback-Locale, wenn die UI-Locale nicht in `targetLocales` ist (Default: 'en') */
+  fallbackLocale?: Locale;
+  /** Beim Publish automatisch alle Locales generieren (Default: true, sobald `targetLocales` gesetzt) */
+  autoTranslateOnPublish?: boolean;
+}
 
 /**
  * Chat/RAG-spezifische Konfiguration pro Library.
@@ -235,6 +255,12 @@ export interface StorageConfig {
 
   /** Chat-/RAG-Konfiguration pro Library (öffentlich sichere Inhalte) */
   chat?: LibraryChatConfig;
+
+  /**
+   * Doc-Translations-Konfiguration (Sprachen, in die publizierte Dokumente uebersetzt werden).
+   * Vom globalen LanguageSwitcher konsumiert; Backend-Jobs erzeugen Uebersetzungen pro Locale.
+   */
+  translations?: TranslationsConfig;
 
   /** Shadow-Twin-Modus pro Library */
   shadowTwin?: {
@@ -430,6 +456,8 @@ export interface ClientLibrary {
     };
     /** Chat-/RAG-Konfiguration für die UI */
     chat?: LibraryChatConfig;
+    /** Doc-Translations-Konfiguration (clientseitig sichtbar, weil reine Sprach-Praeferenzen) */
+    translations?: TranslationsConfig;
     /** Creation-Flow-Konfiguration für die UI */
     creation?: {
       types?: Array<{

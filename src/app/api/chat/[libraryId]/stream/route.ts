@@ -40,6 +40,8 @@ import { LlmProviderError } from '@/lib/chat/common/llm'
 import type { QueryLog } from '@/types/query-log'
 import { buildFilters } from '@/lib/chat/common/filters'
 import { parseFacetDefs } from '@/lib/chat/dynamic-facets'
+import { applyDraftExclusionToChunkFilter } from '@/lib/chat/publication-filter'
+import { getCollectionNameForLibrary } from '@/lib/repositories/vector-repo'
 import { decideRetrieverMode } from '@/lib/chat/common/retriever-decider'
 import { createChat, touchChat, getChatById } from '@/lib/db/chats-repo'
 import {
@@ -361,7 +363,17 @@ export async function POST(
             ? explicitRetrieverValue 
             : (isTOCQuery ? 'summary' : 'chunk')
           const built = buildFilters(parsedUrl, ctx.library, userEmail || '', libraryId, tempRetrieverForFilters)
-          
+
+          // Doc-Publication: Drafts aus dem RAG-Filter ausschliessen (siehe
+          // applyDraftExclusionToChunkFilter). Owner/Mod sehen alles, andere
+          // bekommen Drafts auch nicht als Quelle ins Chat zitiert.
+          await applyDraftExclusionToChunkFilter(
+            built.mongo as Record<string, unknown>,
+            getCollectionNameForLibrary(ctx.library),
+            libraryId,
+            userEmail || null,
+          )
+
           // Schritt 2: Retriever-Modus automatisch entscheiden (für Cache-Hash benötigt)
           const retrieverDecision = await decideRetrieverMode({
             libraryId,
@@ -585,6 +597,12 @@ export async function POST(
             ? explicitRetrieverValue 
             : (isTOCQuery ? 'summary' : 'chunk')
           built = buildFilters(parsedUrl, ctx.library, userEmail || '', libraryId, tempRetrieverForFilters)
+          await applyDraftExclusionToChunkFilter(
+            built.mongo as Record<string, unknown>,
+            getCollectionNameForLibrary(ctx.library),
+            libraryId,
+            userEmail || null,
+          )
           retrieverDecision = await decideRetrieverMode({
             libraryId,
             userEmail: userEmail || '',
@@ -604,6 +622,12 @@ export async function POST(
             ? explicitRetrieverValue 
             : (isTOCQuery ? 'summary' : 'chunk')
           built = buildFilters(parsedUrl, ctx.library, userEmail || '', libraryId, tempRetrieverForFilters)
+          await applyDraftExclusionToChunkFilter(
+            built.mongo as Record<string, unknown>,
+            getCollectionNameForLibrary(ctx.library),
+            libraryId,
+            userEmail || null,
+          )
           retrieverDecision = await decideRetrieverMode({
             libraryId,
             userEmail: userEmail || '',

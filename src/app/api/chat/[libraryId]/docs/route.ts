@@ -4,6 +4,7 @@ import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { parseFacetDefs, buildFilterFromQuery } from '@/lib/chat/dynamic-facets'
 import { facetsSelectedToMongoFilter } from '@/lib/chat/common/filters'
 import { findDocs, findDocsGrouped, getCollectionNameForLibrary, getCollectionOnly } from '@/lib/repositories/vector-repo'
+import { maybePublicationFilter } from '@/lib/chat/publication-filter'
 import type { Document } from 'mongodb'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
@@ -113,6 +114,21 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
       filter.$or = searchFields
     }
 
+    // Doc-Publication: Owner/Moderatoren sehen alle Dokumente, anonyme und
+    // nicht-Owner sehen nur Dokumente ohne `publication.status = 'draft'`.
+    // Bestandsdokumente OHNE das Feld bleiben sichtbar (lax/backwards-compatible).
+    const pubFilter = await maybePublicationFilter(libraryId, userEmail || null)
+    if (pubFilter) Object.assign(filter, pubFilter)
+
+    // Locale fuer Doc-Translations:
+    //   1. `x-locale`-Header (durch middleware.ts gesetzt)
+    //   2. Fallback aus library.config.translations.fallbackLocale
+    //   3. Default 'en'
+    // Wird an die Repository-Funktionen weitergereicht, damit dort die
+    // Mongo-Projection fuer `docMetaJson.translations.gallery.<locale>` greift.
+    const headerLocale = req.headers.get('x-locale') || undefined
+    const fallbackLocale = ctx.library.config?.translations?.fallbackLocale || 'en'
+
     // Bei gruppenweiser Pagination: findDocsGrouped nutzen, sonst klassische findDocs
     if (useGrouped) {
       const groupedResult = await findDocsGrouped(libraryKey, libraryId, filter, {
@@ -120,6 +136,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
         groupOffset,
         groupsLimit,
         sortWithinGroup: { year: -1, upsertedAt: -1 },
+        locale: headerLocale,
+        fallbackLocale,
       })
       return NextResponse.json(
         { 
@@ -132,7 +150,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
       )
     }
 
-    const result = await findDocs(libraryKey, libraryId, filter, { limit, skip, sort: { year: -1, upsertedAt: -1 } })
+    const result = await findDocs(libraryKey, libraryId, filter, {
+      limit,
+      skip,
+      sort: { year: -1, upsertedAt: -1 },
+      locale: headerLocale,
+      fallbackLocale,
+    })
     
     // Wenn includeImageUrls=true, lade Image-URLs für alle Dokumente
     // Ansonsten werden sie lazy-loaded über die separate Route

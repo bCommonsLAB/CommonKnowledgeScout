@@ -80,6 +80,15 @@ export async function GET(
       : false
     const canSeeSecrets = !ctx.library.config?.publicPublishing?.isPublic || isOwnerOrMod
 
+    // Doc-Publication: Drafts werden bei nicht-Owner-Sichten als „nicht vorhanden“
+    // ausgeliefert. So fuehren auch Direkt-Links auf Drafts zu einer 200-mit-`exists:false`
+    // Antwort statt versehentlich Inhalte zu leaken.
+    const pubStatus = (docMetaJsonRaw as { publication?: { status?: string } } | undefined)
+      ?.publication?.status
+    if (pubStatus === 'draft' && !isOwnerOrMod) {
+      return NextResponse.json({ exists: false })
+    }
+
     const docMetaJson = (() => {
       if (!docMetaJsonRaw) return undefined
       // Avoid mutating cached objects from Mongo driver

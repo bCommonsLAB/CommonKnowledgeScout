@@ -12,6 +12,7 @@ import { GalleryCardDensityToggle } from '@/components/library/gallery/gallery-c
 import type { ViewMode } from '@/components/library/gallery/gallery-sticky-header'
 import type { GalleryCardDensity } from '@/lib/gallery/gallery-card-density'
 import { BulkDeleteButton } from '@/components/library/gallery/bulk-delete-button'
+import { BulkPublishButton } from '@/components/library/gallery/bulk-publish-button'
 import type { DocCardMeta } from '@/lib/gallery/types'
 
 interface FilterContextBarProps {
@@ -36,6 +37,11 @@ interface FilterContextBarProps {
   showBulkDelete?: boolean // Ob Bulk-Delete-Button angezeigt werden soll
   totalCount?: number // Gesamtanzahl gefilterter Dokumente (für Bulk-Delete)
   searchQuery?: string // Aktuelle Suchanfrage (für Bulk-Delete API-Aufruf)
+  // Bulk-Publish Props (identischer Owner-Scope wie Bulk-Delete, daher eigene Flag)
+  showBulkPublish?: boolean // Ob Bulk-Publish-Button angezeigt werden soll
+  onBulkPublish?: () => void // Callback nach erfolgreichem Bulk-Publish (Refresh)
+  /** Ob Uebersetzungs-Zielsprachen konfiguriert sind (Kosten-Hinweis im Dialog). */
+  hasTranslationTargets?: boolean
 }
 
 /**
@@ -64,6 +70,9 @@ export function FilterContextBar({
   showBulkDelete = false,
   totalCount,
   searchQuery,
+  showBulkPublish = false,
+  onBulkPublish,
+  hasTranslationTargets = false,
 }: FilterContextBarProps) {
   // Hole Filter aus Atom (zentrale Verwaltung)
   const filters = useAtomValue(galleryFiltersAtom)
@@ -158,6 +167,20 @@ export function FilterContextBar({
             />
           )}
           <ViewModeToggle viewMode={viewMode} onViewModeChange={onViewModeChange} compact />
+        </div>
+      )}
+
+      {/* Bulk-Publish-Button - nur wenn Owner, Tabellenansicht und Dokumente gefiltert sind */}
+      {showBulkPublish && libraryId && viewMode === 'table' && totalCount !== undefined && totalCount > 0 && (
+        <div className="flex items-center shrink-0">
+          <BulkPublishButton
+            libraryId={libraryId}
+            onPublished={onBulkPublish}
+            totalCount={totalCount}
+            filters={filters as Record<string, string[] | undefined>}
+            searchQuery={searchQuery || ''}
+            hasTranslationTargets={hasTranslationTargets}
+          />
         </div>
       )}
 

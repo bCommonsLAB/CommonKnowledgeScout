@@ -1013,6 +1013,84 @@ export async function deleteVectorsByFileId(
 }
 
 /**
+ * Baut die MongoDB-Projection fuer die Galerie-Ansicht.
+ *
+ * Gibt nur die Felder zurueck, die fuer Karten/Tabellen-Rendering benoetigt werden.
+ * Wenn `locale` gesetzt ist, wird zusaetzlich `docMetaJson.translations.gallery.<locale>`
+ * (und optional `<fallbackLocale>`) projiziert. So bleiben grosse Felder wie
+ * `markdown`/`summary` und Translations anderer Sprachen aus dem Payload.
+ *
+ * Hintergrund: Plan, Performance-Sanity-Check – verhindert Mega-Payloads bei 100+ Items.
+ */
+function buildGalleryProjection(
+  locale?: string,
+  fallbackLocale?: string,
+): Record<string, 0 | 1> {
+  const projection: Record<string, 0 | 1> = {
+    _id: 0,
+    fileId: 1,
+    fileName: 1,
+    title: 1,
+    shortTitle: 1,
+    year: 1,
+    authors: 1,
+    speakers: 1,
+    speakers_image_url: 1,
+    track: 1,
+    date: 1,
+    region: 1,
+    docType: 1,
+    source: 1,
+    tags: 1,
+    topics: 1,
+    organisation: 1,
+    slug: 1,
+    coverImageUrl: 1,
+    coverThumbnailUrl: 1,
+    upsertedAt: 1,
+    'docMetaJson.title': 1,
+    'docMetaJson.shortTitle': 1,
+    'docMetaJson.speakers': 1,
+    'docMetaJson.track': 1,
+    'docMetaJson.date': 1,
+    'docMetaJson.speakers_image_url': 1,
+    'docMetaJson.slug': 1,
+    'docMetaJson.coverImageUrl': 1,
+    'docMetaJson.coverThumbnailUrl': 1,
+    'docMetaJson.pages': 1,
+    'docMetaJson.detailViewType': 1,
+    'docMetaJson.docType': 1,
+    'docMetaJson.category': 1,
+    'docMetaJson.handlungsfeld': 1,
+    'docMetaJson.massnahme_nr': 1,
+    'docMetaJson.lv_bewertung': 1,
+    'docMetaJson.arbeitsgruppe': 1,
+    'docMetaJson.organisation': 1,
+    'docMetaJson.topics': 1,
+    'docMetaJson.tags': 1,
+    'docMetaJson.sourcePath': 1,
+    'docMetaJson.sourceFileName': 1,
+    // Quellsprache des Originals (fuer getLocalized-Fallback auf Original)
+    'docMetaJson.language': 1,
+    // Publikations-Status (Tabellen-/Galerie-Badge)
+    'docMetaJson.publication': 1,
+    // Status pro Sprache (fuer Sprach-Chips in der Tabellenansicht)
+    'docMetaJson.translationStatus': 1,
+  }
+
+  // Locale-spezifische Galerie-Translations (klein, nur title/topicsLabels/etc.).
+  // Wir laden bewusst NICHT translations.detail.* in der Galerie.
+  if (locale) {
+    projection[`docMetaJson.translations.gallery.${locale}`] = 1
+  }
+  if (fallbackLocale && fallbackLocale !== locale) {
+    projection[`docMetaJson.translations.gallery.${fallbackLocale}`] = 1
+  }
+
+  return projection
+}
+
+/**
  * Findet Meta-Dokumente (für Gallery-Anzeige).
  * @param libraryKey Collection-Name
  * @param libraryId Library-ID
@@ -1028,6 +1106,14 @@ export async function findDocs(
     limit?: number
     skip?: number
     sort?: Record<string, 1 | -1>
+    /**
+     * Aktive UI-Locale fuer die Galerie. Wird genutzt, um in der Projection
+     * `docMetaJson.translations.gallery.<locale>` (und ggf. `<fallbackLocale>`)
+     * mitzuladen. So bleibt der Payload klein und es wird kein N+1 ausgeloest.
+     */
+    locale?: string
+    /** Fallback-Locale fuer den UI-Lookup (siehe `library.config.translations.fallbackLocale`) */
+    fallbackLocale?: string
   } = {}
 ): Promise<{ items: DocCardMeta[]; total: number }> {
   // PERFORMANCE: Nutze direkt getCollection statt getVectorCollection, um Overhead (Dimension-Check, Index-Check) zu vermeiden
@@ -1058,58 +1144,7 @@ export async function findDocs(
   }
   
   const cursor = col.find(query, {
-    projection: {
-      _id: 0,
-      fileId: 1,
-      fileName: 1,
-      title: 1,
-      shortTitle: 1,
-      year: 1,
-      authors: 1,
-      speakers: 1,
-      speakers_image_url: 1,
-      track: 1,
-      date: 1,
-      region: 1,
-      docType: 1,
-      source: 1,
-      tags: 1,
-      topics: 1,
-      organisation: 1,
-      slug: 1,
-      coverImageUrl: 1,
-      coverThumbnailUrl: 1,
-      upsertedAt: 1,
-      // Aus docMetaJson falls vorhanden
-      'docMetaJson.title': 1,
-      'docMetaJson.shortTitle': 1,
-      'docMetaJson.speakers': 1,
-      'docMetaJson.track': 1,
-      'docMetaJson.date': 1,
-      'docMetaJson.speakers_image_url': 1,
-      'docMetaJson.slug': 1,
-      'docMetaJson.coverImageUrl': 1,
-      // Thumbnail-URL für performante Galerie-Ansicht (320x320 WebP)
-      'docMetaJson.coverThumbnailUrl': 1,
-      'docMetaJson.pages': 1,
-      // Detailansicht-Auswahl (Wizard/Frontmatter)
-      'docMetaJson.detailViewType': 1,
-      'docMetaJson.docType': 1,
-      // ClimateAction-spezifische Felder für Gallery-Teaser
-      // handlungsfeld wird noch für Fallback bei alten Daten projiziert
-      'docMetaJson.category': 1,
-      'docMetaJson.handlungsfeld': 1,
-      'docMetaJson.massnahme_nr': 1,
-      'docMetaJson.lv_bewertung': 1,
-      'docMetaJson.arbeitsgruppe': 1,
-      // Session/Event-spezifische Felder
-      'docMetaJson.organisation': 1,
-      'docMetaJson.topics': 1,
-      'docMetaJson.tags': 1,
-      // Nur informativ (Tooltip), keine Facetten-Logik
-      'docMetaJson.sourcePath': 1,
-      'docMetaJson.sourceFileName': 1,
-    },
+    projection: buildGalleryProjection(options.locale, options.fallbackLocale),
   })
   
   if (options.sort) {
@@ -1133,7 +1168,12 @@ export async function findDocs(
     items: rows.map(r => {
       // Type-Assertion: rows enthalten fileId durch projection
       if (typeof r === 'object' && r !== null && 'fileId' in r && typeof r.fileId === 'string') {
-        return convertMongoDocToDocCardMeta(r as unknown as MongoDocForConversion)
+        // Locale-Overlay direkt im Repository: Galerie-Komponenten erhalten DocCardMeta
+        // bereits in der aktiven UI-Locale (siehe Doc-Translations Refactor).
+        return convertMongoDocToDocCardMeta(r as unknown as MongoDocForConversion, {
+          locale: options.locale,
+          fallbackLocale: options.fallbackLocale,
+        })
       }
       throw new Error('Document missing fileId field')
     }),
@@ -1165,6 +1205,10 @@ export async function findDocsGrouped(
     groupOffset: number
     groupsLimit: number
     sortWithinGroup?: Record<string, 1 | -1>
+    /** Aktive UI-Locale fuer locale-spezifische Translations (Galerie-Sub-Map) */
+    locale?: string
+    /** Fallback-Locale fuer den UI-Lookup */
+    fallbackLocale?: string
   }
 ): Promise<{
   groups: Array<{ key: string | number; items: DocCardMeta[] }>
@@ -1225,51 +1269,8 @@ export async function findDocsGrouped(
 
   const keys = groupKeysResult.map((r: Document) => r._id as string | number)
 
-  const projection = {
-    _id: 0,
-    fileId: 1,
-    fileName: 1,
-    title: 1,
-    shortTitle: 1,
-    year: 1,
-    authors: 1,
-    speakers: 1,
-    speakers_image_url: 1,
-    track: 1,
-    date: 1,
-    region: 1,
-    docType: 1,
-    source: 1,
-    tags: 1,
-    topics: 1,
-    organisation: 1,
-    slug: 1,
-    coverImageUrl: 1,
-    coverThumbnailUrl: 1,
-    upsertedAt: 1,
-    'docMetaJson.title': 1,
-    'docMetaJson.shortTitle': 1,
-    'docMetaJson.speakers': 1,
-    'docMetaJson.track': 1,
-    'docMetaJson.date': 1,
-    'docMetaJson.speakers_image_url': 1,
-    'docMetaJson.slug': 1,
-    'docMetaJson.coverImageUrl': 1,
-    'docMetaJson.coverThumbnailUrl': 1,
-    'docMetaJson.pages': 1,
-    'docMetaJson.detailViewType': 1,
-    'docMetaJson.docType': 1,
-    'docMetaJson.category': 1,
-    'docMetaJson.handlungsfeld': 1,
-    'docMetaJson.organisation': 1,
-    'docMetaJson.topics': 1,
-    'docMetaJson.tags': 1,
-    'docMetaJson.massnahme_nr': 1,
-    'docMetaJson.lv_bewertung': 1,
-    'docMetaJson.arbeitsgruppe': 1,
-    'docMetaJson.sourcePath': 1,
-    'docMetaJson.sourceFileName': 1,
-  }
+  // Zentrale Galerie-Projection (inkl. locale-spezifischer Translations).
+  const projection = buildGalleryProjection(options.locale, options.fallbackLocale)
 
   const groups: Array<{ key: string | number; items: DocCardMeta[] }> = []
 
@@ -1317,7 +1318,11 @@ export async function findDocsGrouped(
       key,
       items: rows.map(r => {
         if (typeof r === 'object' && r !== null && 'fileId' in r && typeof (r as unknown as { fileId: unknown }).fileId === 'string') {
-          return convertMongoDocToDocCardMeta(r as unknown as MongoDocForConversion)
+          // Locale-Overlay: siehe findDocs (gleiches Vorgehen fuer gruppierte Galerie).
+          return convertMongoDocToDocCardMeta(r as unknown as MongoDocForConversion, {
+            locale: options.locale,
+            fallbackLocale: options.fallbackLocale,
+          })
         }
         throw new Error('Document missing fileId field')
       }),
@@ -1424,6 +1429,83 @@ export async function getMetaByFileId(
   } as Partial<Document>)
   
   return doc as VectorDocument | null
+}
+
+/**
+ * Schreibt eine Translation-Sub-Map (gallery+detail) fuer eine konkrete Locale
+ * atomar in `docMetaJson.translations` und aktualisiert den Status.
+ *
+ * Verwendet dot-notation, damit andere Locales nicht ueberschrieben werden.
+ * Wird vom Worker (`phase-translations`) nach erfolgreicher LLM-Antwort
+ * aufgerufen.
+ */
+export async function setDocTranslationForLocale(
+  libraryKey: string,
+  fileId: string,
+  locale: string,
+  payload: {
+    gallery?: Record<string, unknown>
+    detail?: Record<string, unknown>
+    status: 'done' | 'failed' | 'pending'
+    error?: string
+  },
+): Promise<boolean> {
+  const col = await getCollectionOnly(libraryKey)
+  const set: Record<string, unknown> = {
+    [`docMetaJson.translationStatus.${locale}`]: payload.status,
+  }
+  if (payload.gallery && Object.keys(payload.gallery).length > 0) {
+    set[`docMetaJson.translations.gallery.${locale}`] = payload.gallery
+  }
+  if (payload.detail && Object.keys(payload.detail).length > 0) {
+    set[`docMetaJson.translations.detail.${locale}`] = payload.detail
+  }
+  if (payload.error) {
+    set[`docMetaJson.translationErrors.${locale}`] = payload.error
+  }
+  const res = await col.updateOne(
+    { _id: `${fileId}-meta`, kind: 'meta' } as Partial<Document>,
+    { $set: set },
+  )
+  return res.matchedCount > 0
+}
+
+/**
+ * Patchet die Publikations-Metadaten eines Dokuments (Doc-Translations Refactor).
+ *
+ * Setzt `docMetaJson.publication.{status,publishedAt,publishedBy}` und
+ * (optional) initialisiert `docMetaJson.translationStatus.<locale> = 'pending'`
+ * fuer alle uebergebenen Ziel-Locales – damit die UI direkt nach dem
+ * Publish-Klick die Status-Chips zeigen kann, bevor die Worker beginnen.
+ *
+ * Wird ausschliesslich von der Publish-API aufgerufen.
+ */
+export async function setDocPublication(
+  libraryKey: string,
+  fileId: string,
+  patch: {
+    status: 'draft' | 'published'
+    publishedBy?: string
+    targetLocales?: string[]
+  },
+): Promise<boolean> {
+  const col = await getCollectionOnly(libraryKey)
+  const set: Record<string, unknown> = {
+    'docMetaJson.publication.status': patch.status,
+    'docMetaJson.publication.publishedAt': patch.status === 'published' ? new Date().toISOString() : null,
+  }
+  if (patch.publishedBy) set['docMetaJson.publication.publishedBy'] = patch.publishedBy
+  if (patch.status === 'published' && Array.isArray(patch.targetLocales)) {
+    for (const loc of patch.targetLocales) {
+      // Initial-Status fuer jede Ziel-Locale: 'pending' (Worker setzt spaeter 'done'/'failed').
+      set[`docMetaJson.translationStatus.${loc}`] = 'pending'
+    }
+  }
+  const res = await col.updateOne(
+    { _id: `${fileId}-meta`, kind: 'meta' } as Partial<Document>,
+    { $set: set },
+  )
+  return res.matchedCount > 0
 }
 
 /**

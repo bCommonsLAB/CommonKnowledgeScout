@@ -128,10 +128,9 @@ export default clerkMiddleware(async (auth, req) => {
     const isChatApiPath = /^\/api\/chat\/[^/]+\/(docs|facets|config|stats|doc-meta|chats|doc-by-slug|speaker-images)$/.test(path);
     const isChatQueriesPath = /^\/api\/chat\/[^/]+\/queries(\/[^/]+)?$/.test(path);
     const isChatStreamPath = /^\/api\/chat\/[^/]+\/stream$/.test(path);
-    const isTranslateDocumentPath = /^\/api\/chat\/[^/]+\/translate-document$/.test(path);
     if (
       (req.method === 'GET' && (isChatApiPath || isChatQueriesPath)) || 
-      (req.method === 'POST' && (isChatStreamPath || isTranslateDocumentPath)) ||
+      (req.method === 'POST' && isChatStreamPath) ||
       (req.method === 'DELETE' && isChatQueriesPath)
     ) {
       isPublic = true;

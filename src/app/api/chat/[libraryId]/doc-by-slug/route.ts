@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { getCollectionNameForLibrary, getCollectionOnly } from '@/lib/repositories/vector-repo'
+import { canSeeDrafts } from '@/lib/chat/publication-filter'
 
 /**
  * GET /api/chat/[libraryId]/doc-by-slug
@@ -132,6 +133,17 @@ export async function GET(
     const docMetaJson = (doc.docMetaJson && typeof doc.docMetaJson === 'object')
       ? doc.docMetaJson as Record<string, unknown>
       : {}
+
+    // Doc-Publication: Drafts werden bei nicht-Owner-Sichten als 404 ausgeliefert.
+    // Sonst koennten anonyme via Slug-Direktlink ein nicht-publiziertes Dokument
+    // oeffnen (z.B. nach versehentlich geteiltem Link).
+    const pubStatus = (docMetaJson as { publication?: { status?: string } }).publication?.status
+    if (pubStatus === 'draft') {
+      const allowDrafts = await canSeeDrafts(libraryId, userEmail || null)
+      if (!allowDrafts) {
+        return NextResponse.json({ error: 'Dokument nicht gefunden' }, { status: 404 })
+      }
+    }
 
     return NextResponse.json({
       fileId: doc.fileId,

@@ -736,7 +736,9 @@ export function GalleryRoot({
       )
     }
     
-    // Gruppierung basierend auf Konfiguration (Jahr, Kategorie, oder keine)
+    // Gruppierung basierend auf Konfiguration (Jahr, Kategorie, oder keine).
+    // Doc-Translations Refactor: erwartete Ziel-Locales und Reload-Callback nach
+    // Publish/Unpublish/Re-translate werden an die Tabelle weitergereicht.
     return <ItemsView 
       viewMode={viewMode} 
       docsByYear={docsByYear} 
@@ -750,6 +752,8 @@ export function GalleryRoot({
       groupByField={groupByField}
       tableColumnFacets={tableColumnFacets}
       cardDensity={cardDensity}
+      expectedTargetLocales={activeLibrary?.config?.translations?.targetLocales}
+      onPublishChanged={handleDocumentDeleted}
     />
   }
 
@@ -812,12 +816,16 @@ export function GalleryRoot({
                 onCta={() => setMode('story')}
                 tooltip={t('gallery.storyModeTooltip')}
                 mode="gallery"
+                viewMode={viewMode}
                 filteredDocuments={filteredDocs}
                 libraryId={libraryId}
                 onBulkDelete={handleDocumentDeleted}
                 showBulkDelete={isOwner && filteredDocs.length > 0}
                 totalCount={totalCount}
                 searchQuery={searchQuery}
+                showBulkPublish={isOwner && filteredDocs.length > 0}
+                onBulkPublish={handleDocumentDeleted}
+                hasTranslationTargets={(activeLibrary?.config?.translations?.targetLocales?.length ?? 0) > 0}
               />
             </div>
 
@@ -846,12 +854,16 @@ export function GalleryRoot({
                     onCta={() => setMode('story')}
                     tooltip={t('gallery.storyModeTooltip')}
                     mode="gallery"
+                    viewMode={viewMode}
                     filteredDocuments={filteredDocs}
                     libraryId={libraryId}
                     onBulkDelete={handleDocumentDeleted}
                     showBulkDelete={isOwner && filteredDocs.length > 0}
                     totalCount={totalCount}
                     searchQuery={searchQuery}
+                    showBulkPublish={isOwner && filteredDocs.length > 0}
+                    onBulkPublish={handleDocumentDeleted}
+                    hasTranslationTargets={(activeLibrary?.config?.translations?.targetLocales?.length ?? 0) > 0}
                   />
                 </div>
 
@@ -937,6 +949,8 @@ export function GalleryRoot({
           doc={selectedDoc}
           currentMode={galleryDataMode}
           isSwitchingRef={isSwitchingToStoryModeRef}
+          // Fallback-Locale aus Library-Config (siehe Doc-Translations Refactor)
+          fallbackLocale={activeLibrary?.config?.translations?.fallbackLocale}
         />
       )}
 

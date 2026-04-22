@@ -4,78 +4,59 @@ import * as React from "react";
 import { ClimateActionDetail, type ClimateActionDetailData } from "./climate-action-detail";
 import { useTranslation } from "@/lib/i18n/hooks";
 import { mapToClimateActionDetail } from "@/lib/mappers/doc-meta-mappers";
+import { localizeDocMetaJson } from "@/lib/i18n/get-localized";
 
 interface IngestionClimateActionDetailProps {
   libraryId: string;
   fileId: string;
-  docModifiedAt?: string;
-  translatedData?: ClimateActionDetailData;
-  /** Callback, wenn Daten geladen wurden (für Sprachinfo im Overlay) */
-  onDataLoaded?: (data: ClimateActionDetailData) => void;
+  /** Optional: Fallback-Locale aus library.config.translations.fallbackLocale */
+  fallbackLocale?: string;
 }
 
 /**
- * Wrapper für ClimateActionDetail, der Daten aus der MongoDB lädt.
- * 
- * Analog zu IngestionBookDetail und IngestionSessionDetail,
- * aber für ClimateAction-Dokumente (Klimamaßnahmen).
+ * Wrapper fuer ClimateActionDetail (Klimamassnahmen).
+ *
+ * Veredelt die geladene `docMetaJson` mit der globalen UI-Locale via
+ * `localizeDocMetaJson`, bevor das Detail-Mapping erfolgt. Faellt sauber auf
+ * `fallbackLocale` und Original zurueck (siehe `getLocalized`-Fallback-Kette).
  */
-export function IngestionClimateActionDetail({ 
-  libraryId, 
-  fileId, 
-  translatedData,
-  onDataLoaded,
+export function IngestionClimateActionDetail({
+  libraryId,
+  fileId,
+  fallbackLocale,
 }: IngestionClimateActionDetailProps) {
-  const { t } = useTranslation()
+  const { t, locale } = useTranslation()
   const [data, setData] = React.useState<ClimateActionDetailData | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
-  
-  // Ref für onDataLoaded, um Re-Renders zu vermeiden
-  // Der Callback ändert sich bei jedem Parent-Render, aber wir wollen nicht
-  // dass das einen neuen API-Call auslöst
-  const onDataLoadedRef = React.useRef(onDataLoaded);
-  React.useEffect(() => {
-    onDataLoadedRef.current = onDataLoaded;
-  }, [onDataLoaded]);
 
   const load = React.useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      // Verwende den schnellen doc-meta Endpunkt (MongoDB)
       const url = `/api/chat/${encodeURIComponent(libraryId)}/doc-meta?fileId=${encodeURIComponent(fileId)}`;
-      const res = await fetch(url, { cache: 'no-store' });
+      const res = await fetch(url, { cache: 'no-store', headers: { 'x-locale': locale } });
       const json = await res.json();
       if (!res.ok) throw new Error(typeof json?.error === 'string' ? json.error : 'Dokument-Metadaten konnten nicht geladen werden');
-      const mapped = mapToClimateActionDetail(json as unknown);
+      const localized = localizeDocMetaJson(json?.docMetaJson as Record<string, unknown> | undefined, locale, fallbackLocale)
+      const mapped = mapToClimateActionDetail({ ...json, docMetaJson: localized });
       setData(mapped);
-      // Callback für Sprachinfo (via Ref, um Re-Renders zu vermeiden)
-      if (onDataLoadedRef.current) {
-        onDataLoadedRef.current(mapped);
-      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unbekannter Fehler');
     } finally {
       setLoading(false);
     }
-  }, [libraryId, fileId]); // onDataLoaded entfernt - verwende Ref stattdessen
+  }, [libraryId, fileId, locale, fallbackLocale]);
 
-  React.useEffect(() => { 
-    // Nur laden, wenn keine übersetzten Daten vorhanden sind
-    if (!translatedData) {
-      void load(); 
-    }
-  }, [load, translatedData]);
+  React.useEffect(() => {
+    void load();
+  }, [load]);
 
-  // Verwende übersetzte Daten, falls vorhanden
-  const displayData = translatedData || data;
-
-  if (loading && !displayData) return <div className="text-sm text-muted-foreground">{t('gallery.loading')}</div>;
+  if (loading && !data) return <div className="text-sm text-muted-foreground">{t('gallery.loading')}</div>;
   if (error) return <div className="text-sm text-destructive">{error}</div>;
-  if (!displayData) return null;
+  if (!data) return null;
 
-  return <ClimateActionDetail data={displayData} showBackLink={false} />;
+  return <ClimateActionDetail data={data} showBackLink={false} />;
 }
 
 export default IngestionClimateActionDetail;

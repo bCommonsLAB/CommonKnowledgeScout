@@ -30,6 +30,10 @@ export interface ItemsViewProps {
   /** Facetten mit showInTable=true – bestimmen die Tabellenspalten (außer Titel/UpsertedAt) */
   tableColumnFacets?: Array<{ metaKey: string; label?: string }>
   cardDensity?: GalleryCardDensity
+  /** Doc-Translations Refactor: erwartete Ziel-Locales fuer Sprachen-Spalte */
+  expectedTargetLocales?: string[]
+  /** Doc-Translations Refactor: Reload-Callback nach Publish/Unpublish/Re-translate */
+  onPublishChanged?: () => void
 }
 
 /**
@@ -49,6 +53,8 @@ export function ItemsView({
   groupByField,
   tableColumnFacets,
   cardDensity = 'comfortable',
+  expectedTargetLocales,
+  onPublishChanged,
 }: ItemsViewProps) {
   return (
     <VirtualizedItemsView
@@ -64,6 +70,8 @@ export function ItemsView({
       groupByField={groupByField}
       tableColumnFacets={tableColumnFacets}
       cardDensity={cardDensity}
+      expectedTargetLocales={expectedTargetLocales}
+      onPublishChanged={onPublishChanged}
     />
   )
 }

@@ -272,7 +272,8 @@ function ClimateActionCard({ doc, onClick }: { doc: DocCardMeta; onClick: () => 
           {/* Kategorie (z.B. Handlungsfeld bei Klimamaßnahmen) */}
           {doc.category && (
             <span className='block text-[10px] font-semibold uppercase tracking-widest text-white drop-shadow-lg'>
-              {doc.category}
+              {/* Doc-Translations: zeige uebersetztes Label, behalte kanonischen Wert. */}
+              {doc.categoryLabel || doc.category}
             </span>
           )}
           <h3 className='text-lg font-semibold leading-tight text-white text-balance pr-4 drop-shadow-lg'>
@@ -381,7 +382,7 @@ function SessionCard({ doc, onClick }: { doc: DocCardMeta; onClick: () => void }
             </span>
             {doc.track && (
               <div className='flex items-center rounded-full px-2.5 py-1 text-xs font-medium backdrop-blur-sm bg-white/20 text-white'>
-                {doc.track}
+                {doc.trackLabel || doc.track}
               </div>
             )}
           </div>
@@ -503,14 +504,14 @@ export function DocumentCard({ doc, onClick, libraryId, libraryDetailViewType }:
               </div>
               {doc.track && (
                 <Badge variant='outline' className='text-xs'>
-                  {doc.track}
+                  {doc.trackLabel || doc.track}
                 </Badge>
               )}
             </div>
           ) : doc.track ? (
             <div className='flex items-center justify-end text-sm text-muted-foreground'>
               <Badge variant='outline' className='text-xs'>
-                {doc.track}
+                {doc.trackLabel || doc.track}
               </Badge>
             </div>
           ) : null}
