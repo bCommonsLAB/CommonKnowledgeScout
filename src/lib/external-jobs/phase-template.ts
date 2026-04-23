@@ -36,73 +36,11 @@ import { isValidDetailViewType, validateMetadataForViewType, formatValidationWar
 import { extractForwardedTemplateSourceFrontmatter } from '@/lib/external-jobs/template-source-frontmatter'
 import { buildDocumentSlugFallback } from '@/lib/documents/document-slug'
 
-/**
- * Extrahiert feste Felder (ohne {{...}}) aus dem Template-Frontmatter.
- * Diese Felder werden nicht vom LLM generiert, sondern 1:1 ins Ergebnis übernommen.
- *
- * Export: nur fuer Characterization Tests (Plan-Schritt 3, Pilot external-jobs).
- *
- * Beispiele für feste Felder:
- * - sprache: de
- * - docType: klimamassnahme
- * - coverImagePrompt: Erstelle ein Hintergrundbild...
- *
- * @param templateContent - Der Template-Content (Markdown mit Frontmatter)
- * @returns Record mit festen Feldnamen und Werten
- */
-export function extractFixedFieldsFromTemplate(templateContent: string | undefined): Record<string, unknown> {
-  if (!templateContent) return {}
-  
-  const fixedFields: Record<string, unknown> = {}
-  
-  // Frontmatter extrahieren (zwischen ersten --- und nächsten ---)
-  const frontmatterMatch = templateContent.match(/^---\s*\n([\s\S]*?)\n---/)
-  if (!frontmatterMatch) return {}
-  
-  const frontmatterContent = frontmatterMatch[1]
-  const lines = frontmatterContent.split('\n')
-  
-  for (const line of lines) {
-    const trimmed = line.trim()
-    
-    // Leere Zeilen und Kommentare überspringen
-    if (!trimmed || trimmed.startsWith('#')) continue
-    
-    // Suche nach Felddefinitionen: `key: value`
-    const fieldMatch = line.match(/^(\w+):\s*(.+)$/)
-    if (!fieldMatch) continue
-    
-    const key = fieldMatch[1].trim()
-    const value = fieldMatch[2].trim()
-    
-    // Prüfe ob es ein dynamisches Feld ist (mit {{...}})
-    const isDynamic = value.includes('{{') && value.includes('}}')
-    
-    // Nur feste Felder extrahieren
-    if (!isDynamic && value) {
-      // Versuche JSON zu parsen (für Arrays wie tags)
-      try {
-        if (value.startsWith('[') || value.startsWith('{')) {
-          fixedFields[key] = JSON.parse(value)
-        } else if (value === 'true') {
-          fixedFields[key] = true
-        } else if (value === 'false') {
-          fixedFields[key] = false
-        } else if (value === 'null') {
-          fixedFields[key] = null
-        } else if (!isNaN(Number(value)) && value !== '') {
-          fixedFields[key] = Number(value)
-        } else {
-          fixedFields[key] = value
-        }
-      } catch {
-        fixedFields[key] = value
-      }
-    }
-  }
-  
-  return fixedFields
-}
+// Helper extractFixedFieldsFromTemplate wurde in eigene Datei
+// phase-template/extract-meta.ts ausgelagert (Modul-Split, Plan-Schritt 4
+// Pilot-Welle external-jobs). Re-Export, um bestehende Imports nicht zu
+// brechen (auch die Char-Tests in tests/unit/external-jobs/).
+export { extractFixedFieldsFromTemplate } from './phase-template/extract-meta'
 
 export interface TemplatePhaseArgs {
   ctx: RequestContext
