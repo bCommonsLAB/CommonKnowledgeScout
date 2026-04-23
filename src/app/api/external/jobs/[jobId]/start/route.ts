@@ -41,6 +41,7 @@ import { isInternalAuthorized } from '@/lib/external-jobs/auth'
 import { FileLogger } from '@/lib/debug/logger'
 import { checkJobStartability } from '@/lib/external-jobs/job-status-check'
 import { prepareSecretaryRequest } from '@/lib/external-jobs/secretary-request'
+import { resolveLibrarySecretaryConfig } from '@/lib/external-jobs/secretary-url'
 import { tracePreprocessEvents } from '@/lib/external-jobs/trace-helpers'
 import { handleJobError } from '@/lib/external-jobs/error-handler'
 import { analyzeShadowTwinWithService } from '@/lib/shadow-twin/analyze-shadow-twin'
@@ -132,10 +133,52 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ jobId: string }> }
 ) {
+  // SOFORT-LOG (allererste Aktion):
+  // Wenn der Worker die Route aufruft und die Antwort nie kommt, müssen wir wenigstens hier
+  // erfahren, dass der Handler überhaupt läuft. Vorher (vor dem `await params`) gab es
+  // keinen einzigen Logeintrag, der das beweisen konnte.
+  const handlerEnteredAt = Date.now();
+  const startRequestIdHeader = request.headers.get('x-start-request-id') || request.headers.get('x-request-id') || null;
+  const workerIdHeader = request.headers.get('x-worker-id') || null;
+  const workerTickIdHeader = request.headers.get('x-worker-tick-id') || null;
+  FileLogger.info('start-route', 'Route betreten', {
+    method: request.method,
+    url: request.url,
+    pid: process.pid,
+    startRequestId: startRequestIdHeader,
+    workerId: workerIdHeader,
+    workerTickId: workerTickIdHeader,
+  });
+
   const { jobId } = await params;
   const repo = new ExternalJobsRepository();
+
+  // Trace-Event als allererstes nach Verfügbarkeit der jobId.
+  // Wir setzen ein eigenes Event, damit auch ohne `initializeTrace()` (das später passiert)
+  // ein erster Beweis im Job-Dokument landet, dass die Route betreten wurde.
+  // Best-Effort: Mongo-Fehler dürfen die Request-Verarbeitung nicht blockieren.
+  void repo.traceAddEvent(jobId, {
+    spanId: 'job',
+    name: 'start_route_entered',
+    level: 'info',
+    attributes: {
+      pid: process.pid,
+      startRequestId: startRequestIdHeader,
+      workerId: workerIdHeader,
+      workerTickId: workerTickIdHeader,
+      handlerLatencyMs: Date.now() - handlerEnteredAt,
+    },
+  }).catch((err) => {
+    FileLogger.warn('start-route', 'Trace-Event start_route_entered konnte nicht geschrieben werden', {
+      jobId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  });
+
   try {
-    // Interner Worker darf ohne Clerk durch, wenn Token korrekt
+    // Interner Worker darf ohne Clerk durch, wenn Token korrekt.
+    // Diagnose-Log: Wenn die Route hängt, sehen wir hier, ob wir am Auth-Check scheitern.
+    const authStartedAt = Date.now();
     const internal = isInternalAuthorized(request)
     let userEmail = ''
     if (!internal.isInternal) {
@@ -145,13 +188,29 @@ export async function POST(
       userEmail = user?.emailAddresses?.[0]?.emailAddress || ''
       if (!userEmail) return NextResponse.json({ error: 'Benutzer-E-Mail nicht verfügbar' }, { status: 403 })
     }
+    FileLogger.info('start-route', 'Auth-Check abgeschlossen', {
+      jobId,
+      isInternal: internal.isInternal,
+      hasUserEmail: !!userEmail,
+      elapsedMs: Date.now() - authStartedAt,
+    });
+
     if (!jobId) return NextResponse.json({ error: 'jobId erforderlich' }, { status: 400 })
     let job: Awaited<ReturnType<typeof repo.get>>
+    const repoGetStartedAt = Date.now();
     try {
       job = await repo.get(jobId)
+      FileLogger.info('start-route', 'Job aus Mongo geladen', {
+        jobId,
+        elapsedMs: Date.now() - repoGetStartedAt,
+        found: !!job,
+        currentStatus: job?.status,
+        workerStartAttempts: job?.workerStartAttempts ?? 0,
+      });
     } catch (error) {
       FileLogger.error('start-route', 'Fehler beim Laden des Jobs', {
         jobId,
+        elapsedMs: Date.now() - repoGetStartedAt,
         error: error instanceof Error ? error.message : String(error)
       })
       return NextResponse.json({ error: 'Fehler beim Laden des Jobs' }, { status: 500 })
@@ -180,6 +239,7 @@ export async function POST(
     // WICHTIG: Watchdog SOFORT starten, damit Job nicht hängen bleibt, wenn Start-Endpoint fehlschlägt
     // Timeout: 10 Minuten (600_000 ms) - sollte ausreichen für Datei-Laden, Preprocessing, Request, etc.
     // Der Watchdog wird später via bumpWatchdog aktualisiert, wenn Callbacks vom Secretary Service kommen
+    const watchdogStartedAt = Date.now();
     try {
       startWatchdog({ 
         jobId, 
@@ -187,6 +247,10 @@ export async function POST(
         jobType: job.job_type, 
         fileName: job.correlation?.source?.name 
       }, 600_000)
+      FileLogger.info('start-route', 'Watchdog gestartet', {
+        jobId,
+        elapsedMs: Date.now() - watchdogStartedAt,
+      });
     } catch (error) {
       FileLogger.error('start-route', 'Fehler beim Starten des Watchdogs', {
         jobId,
@@ -240,14 +304,27 @@ export async function POST(
     }
 
     // Secretary-Aufruf vorbereiten (aus alter Retry-Startlogik entnommen, minimal)
+    // Diagnose-Log: Storage-Provider-Aufbau ist ein häufiger Hänger (WebDAV/OAuth-Refresh).
+    // Ohne Eingangs-Log + Dauer können wir nicht unterscheiden, ob der Hang hier oder später passiert.
     let provider: Awaited<ReturnType<typeof getServerProvider>>
+    const providerStartedAt = Date.now();
+    FileLogger.info('start-route', 'Lade Storage-Provider', {
+      jobId,
+      userEmail: job.userEmail,
+      libraryId: job.libraryId,
+    });
     try {
       provider = await getServerProvider(job.userEmail, job.libraryId)
+      FileLogger.info('start-route', 'Storage-Provider geladen', {
+        jobId,
+        elapsedMs: Date.now() - providerStartedAt,
+      });
     } catch (error) {
       FileLogger.error('start-route', 'Fehler beim Laden des Storage-Providers', {
         jobId,
         userEmail: job.userEmail,
         libraryId: job.libraryId,
+        elapsedMs: Date.now() - providerStartedAt,
         error: error instanceof Error ? error.message : String(error)
       })
       await repo.setStatus(jobId, 'failed', { error: { code: 'provider_error', message: 'Fehler beim Laden des Storage-Providers' } })
@@ -590,35 +667,27 @@ export async function POST(
       // auf die Library-Config (inkl. Secretary-Service-Settings) zugreifen können.
       const libraryService = LibraryService.getInstance()
       library = (await libraryService.getLibrary(job.userEmail, job.libraryId)) as Library | undefined
-      // Secretary-Config aus Library laden (für apiUrl/apiKey-Override und Desktop-Modus).
-      // useCustomConfig muss true sein, damit die benutzerdefinierten Verbindungseinstellungen
-      // (apiUrl, apiKey, useDirectConnection) aktiv sind. Bei false gelten ENV-Defaults.
-      // Andere Felder (pdfExtractionMethod, template, etc.) gelten immer.
+      // Secretary-Config zentral aufloesen. Die Logik (useCustomConfig-Gate +
+      // Verbindungsfelder leeren bei false) lebt seit Konsolidierung ausschliesslich
+      // in `resolveLibrarySecretaryConfig`. So sehen POST- und Callback-Pfad
+      // garantiert dieselbe effektive Konfiguration -> kein Konfig-Drift mehr.
       if (library?.config?.secretaryService) {
-        const rawConfig = library.config.secretaryService
-        if (rawConfig.useCustomConfig) {
-          libraryConfig = rawConfig
-        } else {
-          // Nur Transformations-Felder übernehmen, keine Verbindungs-Overrides
-          libraryConfig = {
-            ...rawConfig,
-            apiUrl: '',
-            apiKey: '',
-            useDirectConnection: false,
-          }
-        }
+        const resolved = resolveLibrarySecretaryConfig(library)
+        libraryConfig = resolved.effective
         if (libraryConfig?.useDirectConnection) {
           offline = true
         }
+        const rawUseCustomConfig = library.config.secretaryService.useCustomConfig ?? false
         FileLogger.info('start-route', 'Library-Config geladen', {
           jobId,
           libraryId: job.libraryId,
-          useCustomConfig: rawConfig.useCustomConfig ?? false,
+          useCustomConfig: rawUseCustomConfig,
           useDirectConnection: libraryConfig?.useDirectConnection ?? false,
           hasCustomApiUrl: !!libraryConfig?.apiUrl,
           customApiUrl: libraryConfig?.apiUrl || '(env)',
           offlineFinal: offline,
           electronMode: isElectronMode(),
+          source: resolved.source,
         })
         // Trace-Event für Job Worker Events (sichtbar im Job-Report-Tab)
         await repo.traceAddEvent(jobId, {
@@ -626,8 +695,8 @@ export async function POST(
           name: 'secretary_config_resolved',
           attributes: {
             secretaryUrl: libraryConfig?.apiUrl || '(env)',
-            configSource: rawConfig.useCustomConfig ? 'library-config' : 'env',
-            useCustomConfig: rawConfig.useCustomConfig ?? false,
+            configSource: resolved.source === 'library-custom' ? 'library-config' : 'env',
+            useCustomConfig: rawUseCustomConfig,
             useDirectConnection: libraryConfig?.useDirectConnection ?? false,
             offline,
             electronMode: isElectronMode(),

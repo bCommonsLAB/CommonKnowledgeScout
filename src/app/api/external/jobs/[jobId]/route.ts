@@ -46,6 +46,7 @@ import { handleProgressIfAny } from '@/lib/external-jobs/progress'
 import { buildProvider } from '@/lib/external-jobs/provider'
 import { runExtractOnly } from '@/lib/external-jobs/extract-only'
 import { downloadMistralOcrRaw } from '@/lib/external-jobs/mistral-ocr-download'
+import { resolveLibrarySecretaryConfig } from '@/lib/external-jobs/secretary-url'
 import { setJobCompleted } from '@/lib/external-jobs/complete'
 import { handleJobError, handleJobErrorWithDetails } from '@/lib/external-jobs/error-handler'
 import { runTemplatePhase } from '@/lib/external-jobs/phase-template'
@@ -526,22 +527,26 @@ export async function POST(
     // WICHTIG: Bilder sind NIEMALS in mistral_ocr_raw eingebettet, sondern werden separat bereitgestellt
     const mistralOcrImagesUrl: string | undefined = (body?.data as { mistral_ocr_images_url?: unknown })?.mistral_ocr_images_url as string | undefined
     
-    // Library-spezifische Secretary-Config laden (Desktop-Modus)
-    // Wird für URL-Auflösung bei Downloads (Mistral OCR, Bilder etc.) benötigt
+    // Library-spezifische Secretary-Config zentral aufloesen.
+    // WICHTIG: Hier wurde frueher `library.config.secretaryService` direkt gelesen,
+    // ohne `useCustomConfig` zu beachten. Folge: Downloads gingen an die in der
+    // Library eingetragene `apiUrl`, obwohl der POST in `start/route.ts` korrekt
+    // auf ENV ausgewichen war -> Konfig-Drift -> 404 -> Bilder verloren.
+    // Jetzt nutzt dieser Pfad denselben zentralen Resolver wie `start/route.ts`.
     let libraryConfig: NonNullable<import('@/types/library').Library['config']>['secretaryService'] | undefined
+    let secretaryOverride: import('@/lib/external-jobs/secretary-url').SecretaryUrlConfig = {}
     try {
       const earlyLib = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
-      libraryConfig = earlyLib?.config?.secretaryService
+      const resolved = resolveLibrarySecretaryConfig(earlyLib)
+      libraryConfig = resolved.effective
+      secretaryOverride = resolved.override
     } catch {
-      // Library nicht ladbar – Fallback auf ENV
+      // Library nicht ladbar – Fallback auf ENV (override bleibt leer)
     }
 
     // Wenn mistral_ocr_raw_url oder mistral_ocr_raw_metadata vorhanden ist, lade die Daten über den Download-Endpoint
     if ((mistralOcrRawUrl || mistralOcrRawMetadata) && !mistralOcrRaw) {
-      const downloadedRaw = await downloadMistralOcrRaw(body, jobId, {
-        overrideBaseUrl: libraryConfig?.apiUrl || undefined,
-        overrideApiKey: libraryConfig?.apiKey || undefined,
-      })
+      const downloadedRaw = await downloadMistralOcrRaw(body, jobId, secretaryOverride)
       if (downloadedRaw) {
         mistralOcrRaw = downloadedRaw
       }
@@ -646,10 +651,7 @@ export async function POST(
         hasMistralOcrImages,
         mistralOcrImagesUrl,
         imagesPhaseEnabled,
-        {
-          overrideBaseUrl: libraryConfig?.apiUrl || undefined,
-          overrideApiKey: libraryConfig?.apiKey || undefined,
-        }
+        secretaryOverride
       )
       return NextResponse.json({ status: 'ok', jobId, kind: 'extract_only', savedItemId: result.savedItemId })
     }
@@ -724,15 +726,10 @@ export async function POST(
               const downloadZipAsBase64 = async (url: string): Promise<string | undefined> => {
                 try {
                   const { resolveSecretaryUrl, getSecretaryAuthHeaders } = await import('@/lib/external-jobs/secretary-url')
-                  // libraryConfig kommt aus dem äußeren Scope (Library-spezifische Secretary-Config)
-                  const archiveUrl = resolveSecretaryUrl(url, {
-                    overrideBaseUrl: libraryConfig?.apiUrl || undefined,
-                    overrideApiKey: libraryConfig?.apiKey || undefined,
-                  })
-                  const headers = getSecretaryAuthHeaders({
-                    overrideBaseUrl: libraryConfig?.apiUrl || undefined,
-                    overrideApiKey: libraryConfig?.apiKey || undefined,
-                  })
+                  // secretaryOverride kommt aus dem aeusseren Scope: zentral via
+                  // resolveLibrarySecretaryConfig aufgeloest, beachtet useCustomConfig.
+                  const archiveUrl = resolveSecretaryUrl(url, secretaryOverride)
+                  const headers = getSecretaryAuthHeaders(secretaryOverride)
                   
                   const response = await fetch(archiveUrl, { method: 'GET', headers })
                   if (!response.ok) {
@@ -915,10 +912,7 @@ export async function POST(
               targetParentId,
               imagesPhaseEnabled: imagesPhaseEnabledEffective,
               shadowTwinFolderId,
-              secretaryUrlConfig: {
-                overrideBaseUrl: libraryConfig?.apiUrl || undefined,
-                overrideApiKey: libraryConfig?.apiKey || undefined,
-              },
+              secretaryUrlConfig: secretaryOverride,
             })
             
             bufferLog(jobId, {
@@ -999,8 +993,11 @@ export async function POST(
           hasMistralOcrImages: hasMistralOcrImages,
           mistralOcrImagesUrl: mistralOcrImagesUrl, // Für Template-Info verfügbar
           targetParentId,
-          // Secretary-Service-Config für Cover-Bild-Prompt-Fallback
-          libraryConfig: lib.config?.secretaryService,
+          // Secretary-Service-Config für Cover-Bild-Prompt-Fallback und Cover-URL-Aufloesung.
+          // WICHTIG: Zentral via resolveLibrarySecretaryConfig aufgeloest, damit
+          // useCustomConfig konsistent beachtet wird und die `apiUrl` nicht
+          // versehentlich aus einer ruhenden Library-Konfig genutzt wird.
+          libraryConfig: resolveLibrarySecretaryConfig(lib).effective,
           generateCoverImage: jobParams.generateCoverImage,
           coverImagePrompt: jobParams.coverImagePrompt,
           customHint: jobParams.customHint,

@@ -65,8 +65,9 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { librariesAtom, activeLibraryIdAtom } from "@/atoms/library-atom"
-import { StorageProviderType } from "@/types/library"
+import { StorageProviderType, type Library } from "@/types/library"
 import { CreateLibraryDialog } from "@/components/library/create-library-dialog"
+import { getMediaStorageStrategy } from "@/lib/shadow-twin/media-storage-strategy"
 
 // Hauptschema für das Formular mit erweiterter Konfiguration
 const libraryFormSchema = z.object({
@@ -119,6 +120,10 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
   const [shadowTwinPrimaryStore, setShadowTwinPrimaryStore] = useState<'filesystem' | 'mongo'>('filesystem');
   const [shadowTwinPersistToFilesystem, setShadowTwinPersistToFilesystem] = useState(true);
   const [shadowTwinAllowFilesystemFallback, setShadowTwinAllowFilesystemFallback] = useState(true);
+  // Phase 5 (media-storage-determinismus): Azure-Konfig-Status fuer die abgeleitete Strategie.
+  // Wird einmal pro Library beim Server gefragt; das eigentliche Strategie-Objekt leiten wir
+  // clientseitig aus den drei lokalen States + diesem Flag ab, damit es beim Toggeln live ist.
+  const [azureConfigured, setAzureConfigured] = useState<boolean | null>(null);
   const shadowTwinConfigRef = useRef({
     primaryStore: 'filesystem' as 'filesystem' | 'mongo',
     persistToFilesystem: true,
@@ -244,6 +249,28 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
     setShadowTwinPersistToFilesystem(nextSnapshot.persistToFilesystem);
     setShadowTwinAllowFilesystemFallback(nextSnapshot.allowFilesystemFallback);
   }, [activeLibrary?.id, activeLibrary?.config]);
+
+  // Phase 5: Azure-Verfuegbarkeit fuer die Library serverseitig erfragen, damit die
+  // abgeleitete Media-Storage-Strategie unten korrekt angezeigt werden kann.
+  useEffect(() => {
+    const id = activeLibrary?.id;
+    if (!id) {
+      setAzureConfigured(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/library/${id}/media-storage-strategy`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data && typeof data.azureConfigured === 'boolean') {
+          setAzureConfigured(data.azureConfigured);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setAzureConfigured(null);
+      });
+    return () => { cancelled = true; };
+  }, [activeLibrary?.id]);
   
   const defaultValues = useMemo<LibraryFormValues>(() => ({
     label: "",
@@ -1218,6 +1245,65 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                       />
                     </div>
                   </div>
+                  {/* Phase 5: Effektive Media-Storage-Strategie (read-only Info-Block) */}
+                  {(() => {
+                    // Strategie clientseitig aus den drei Switches + serverseitigem azureConfigured ableiten,
+                    // damit der Block beim Toggeln direkt reagiert.
+                    const previewLib = {
+                      config: {
+                        shadowTwin: {
+                          primaryStore: shadowTwinPrimaryStore,
+                          persistToFilesystem: shadowTwinPersistToFilesystem,
+                          allowFilesystemFallback: shadowTwinAllowFilesystemFallback,
+                        },
+                      },
+                    } as unknown as Library;
+                    const azureKnown = typeof azureConfigured === 'boolean';
+                    const strategy = azureKnown
+                      ? getMediaStorageStrategy(previewLib, azureConfigured!)
+                      : null;
+                    const badgeColor =
+                      strategy?.mode === 'azure-only'
+                        ? 'bg-blue-100 text-blue-900 border-blue-300'
+                        : strategy?.mode === 'azure-with-fs-backup'
+                        ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                        : strategy?.mode === 'filesystem-only'
+                        ? 'bg-slate-100 text-slate-900 border-slate-300'
+                        : 'bg-red-100 text-red-900 border-red-300';
+                    return (
+                      <div className="border-t pt-4 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-medium">Effektive Medien‑Speicher‑Strategie</h4>
+                          {strategy && (
+                            <span className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-mono ${badgeColor}`}>
+                              {strategy.mode}
+                            </span>
+                          )}
+                        </div>
+                        {!azureKnown && (
+                          <p className="text-xs text-muted-foreground">Strategie wird ermittelt…</p>
+                        )}
+                        {strategy && (
+                          <>
+                            <p className="text-xs text-muted-foreground">{strategy.rationale}</p>
+                            <ul className="text-xs text-muted-foreground space-y-0.5 pl-4 list-disc">
+                              <li>Schreiben nach Azure: <span className="font-mono">{String(strategy.writeToAzure)}</span></li>
+                              <li>Schreiben ins Filesystem: <span className="font-mono">{String(strategy.writeToFilesystem)}</span></li>
+                              <li>Lese‑Quelle: <span className="font-mono">{strategy.readPreferredSource}</span></li>
+                              <li>Filesystem‑Fallback beim Lesen: <span className="font-mono">{String(strategy.allowFilesystemFallbackOnRead)}</span></li>
+                              <li>Azure konfiguriert: <span className="font-mono">{String(azureConfigured)}</span></li>
+                            </ul>
+                            {strategy.mode === 'unavailable' && (
+                              <p className="text-xs font-medium text-red-700">
+                                Achtung: Bilder können in dieser Konfiguration weder geschrieben noch gelesen werden.
+                                Bitte Azure konfigurieren oder „Persist to Filesystem" aktivieren.
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
                   {/* Analyse */}
                   <div className="border-t pt-4">
                     <div className="flex items-start justify-between gap-4">

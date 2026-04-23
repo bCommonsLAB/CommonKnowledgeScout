@@ -1266,6 +1266,10 @@ function processObsidianContent(
   );
 
   // Resolve relative image paths to Storage API URLs
+  // Phase 4 (media-storage-determinismus): Bilder mit absoluten http(s)://-URLs werden hier
+  // bewusst NICHT umgeschrieben (`(?!http)`-Lookahead). Das ist der "Fast Path": absolute
+  // Azure-URLs aus dem Markdown gehen direkt an den Browser, ohne /api/storage/streaming-url.
+  // Nur relative Pfade (Legacy oder unvollstaendige Migration) erzeugen noch einen Server-Round-Trip.
   if (currentFolderId && libraryId) {
     // Markdown image syntax: ![alt](path)
     content = content.replace(

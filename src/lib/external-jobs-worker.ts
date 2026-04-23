@@ -41,6 +41,17 @@ class ExternalJobsWorkerSingleton {
   private intervalId: NodeJS.Timeout | null = null;
   private readonly intervalMs: number = Number(process.env.JOBS_WORKER_INTERVAL_MS || '2000');
   private readonly concurrency: number = Number(process.env.JOBS_WORKER_CONCURRENCY || '3');
+  /**
+   * Hartes Timeout für den `fetch()` an `/api/external/jobs/[jobId]/start`.
+   * Default 60 s — deutlich kürzer als undici-Default (300 s), damit Hänger früh sichtbar werden.
+   * Konfigurierbar via `JOBS_WORKER_START_TIMEOUT_MS`.
+   */
+  private readonly startFetchTimeoutMs: number = Number(process.env.JOBS_WORKER_START_TIMEOUT_MS || '60000');
+  /**
+   * Maximale Wiederhol-Versuche, bevor der Job bei wiederholtem Worker-Dispatch-Fehler endgültig fehlschlägt.
+   * Default 3 — schützt gegen kurzzeitige HMR-/Compile-Hänger im Dev-Modus.
+   */
+  private readonly startMaxAttempts: number = Number(process.env.JOBS_WORKER_START_MAX_ATTEMPTS || '3');
   private stats: WorkerStats = { processed: 0, errors: 0 };
   private readonly workerId: string = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
     ? (crypto as unknown as { randomUUID: () => string }).randomUUID()
@@ -151,13 +162,28 @@ class ExternalJobsWorkerSingleton {
           });
           
           const startHeaders = { ...headers, 'X-Start-Request-Id': startRequestId }
-          const startResponse = await fetch(startUrl, { method: 'POST', headers: startHeaders });
-          
+          // Hartes Timeout via AbortController.
+          // Ohne dieses Timeout würden wir auf den undici-Default (300 s headersTimeout) warten,
+          // bevor wir überhaupt erfahren, dass der `/start`-Handler hängt.
+          // Mit AbortController scheitert der fetch nach `startFetchTimeoutMs` mit `AbortError`.
+          const startController = new AbortController();
+          const startTimeoutHandle = setTimeout(() => startController.abort(), this.startFetchTimeoutMs);
+          const fetchStartedAt = Date.now();
+          let startResponse: Response;
+          try {
+            startResponse = await fetch(startUrl, { method: 'POST', headers: startHeaders, signal: startController.signal });
+          } finally {
+            clearTimeout(startTimeoutHandle);
+          }
+          const fetchElapsedMs = Date.now() - fetchStartedAt;
+
           FileLogger.info('jobs-worker', 'Start-Route Antwort erhalten', {
             jobId: claimed.jobId,
             status: startResponse.status,
             statusText: startResponse.statusText,
-            ok: startResponse.ok
+            ok: startResponse.ok,
+            elapsedMs: fetchElapsedMs,
+            timeoutMs: this.startFetchTimeoutMs,
           });
           
           if (!startResponse.ok) {
@@ -210,24 +236,50 @@ class ExternalJobsWorkerSingleton {
         } catch (err) {
           this.stats.errors += 1;
           const errMsg = err instanceof Error ? err.message : String(err);
-          FileLogger.error('jobs-worker', 'Tick-Fehler', { 
+          const errName = err instanceof Error ? err.name : 'UnknownError';
+          // AbortError = unser Timeout hat zugeschlagen. Andere Fehler aus der fetch-Phase
+          // (DNS, TCP-Reset, ECONNREFUSED) kommen als `TypeError: fetch failed` mit `cause`.
+          const isAbort = errName === 'AbortError';
+          // `cause` aus undici aufdecken — sonst sehen wir nur "fetch failed".
+          const cause = err && typeof err === 'object' && 'cause' in err ? (err as { cause?: unknown }).cause : undefined;
+          const causeMessage = cause instanceof Error ? cause.message : (cause ? String(cause) : undefined);
+          const causeCode = cause && typeof cause === 'object' && 'code' in cause ? String((cause as { code?: unknown }).code) : undefined;
+
+          FileLogger.error('jobs-worker', isAbort ? 'Worker-Dispatch Timeout' : 'Worker-Dispatch Fehler', {
+            jobId: claimed?.jobId,
             err: errMsg,
-            stack: err instanceof Error ? err.stack : undefined
+            errName,
+            causeMessage,
+            causeCode,
+            timeoutMs: this.startFetchTimeoutMs,
+            stack: err instanceof Error ? err.stack : undefined,
           });
-          
-          // Job als failed markieren wenn eine Exception aufgetreten ist
-          // (z.B. ECONNREFUSED weil kein HTTP-Server erreichbar)
-          if (claimed) {
-            try {
-              await repo.setStatus(claimed.jobId, 'failed', {
-                error: { code: 'worker_exception', message: errMsg }
-              });
-            } catch (statusErr) {
-              FileLogger.error('jobs-worker', 'Konnte Job nicht als failed markieren', {
-                jobId: claimed.jobId,
-                error: statusErr instanceof Error ? statusErr.message : String(statusErr)
-              });
-            }
+
+          // Wenn wir keinen claim haben, ist der Fehler nicht jobspezifisch — nichts zu requeuen.
+          if (!claimed) return;
+
+          // Worker konnte die `/start`-Route nicht erreichen → Requeue mit Versuchszähler.
+          // Das schützt gegen kurzlebige Hänger (Next-HMR-Compile, kurzfristige Mongo-/DNS-Probleme),
+          // gibt aber nach `startMaxAttempts` Versuchen sauber auf, statt endlos zu loopen.
+          try {
+            const reason = isAbort ? 'fetch_timeout' : (causeCode || 'fetch_failed');
+            const detailedMessage = causeMessage ? `${errMsg} (cause: ${causeMessage})` : errMsg;
+            const result = await repo.requeueAfterStartFailure(claimed.jobId, detailedMessage, {
+              maxAttempts: this.startMaxAttempts,
+              reason,
+            });
+            FileLogger.warn('jobs-worker', 'Requeue-Entscheidung getroffen', {
+              jobId: claimed.jobId,
+              attempts: result.attempts,
+              maxAttempts: this.startMaxAttempts,
+              finalStatus: result.finalStatus,
+              reason,
+            });
+          } catch (requeueErr) {
+            FileLogger.error('jobs-worker', 'Konnte Requeue/Failed-Update nicht durchführen', {
+              jobId: claimed.jobId,
+              error: requeueErr instanceof Error ? requeueErr.message : String(requeueErr),
+            });
           }
         }
       });

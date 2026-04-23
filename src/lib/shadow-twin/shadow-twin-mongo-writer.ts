@@ -10,11 +10,11 @@
 
 import type { StorageItem, StorageProvider } from '@/lib/storage/types'
 import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
-import { ImageProcessor } from '@/lib/ingestion/image-processor'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import { LibraryService } from '@/lib/services/library-service'
 import { FileLogger } from '@/lib/debug/logger'
 import { generateShadowTwinFolderName } from '@/lib/storage/shadow-twin'
+import { persistOcrImages, freezeMarkdownImageUrls } from '@/lib/shadow-twin/media-persistence-service'
 import path from 'path'
 
 /** Letztes URL-Segment ohne Query (Azure-Blob-Name / Dateiname) */
@@ -150,6 +150,38 @@ export function buildPersistableImageBinaryFragment(args: {
 }
 
 
+/**
+ * Diagnose-Felder, die `persistShadowTwinToMongo` zurueckgibt, damit der Aufrufer
+ * (extract-only.ts) sie ins Trace schreiben kann. Ziel: ohne in den Innereien
+ * herumzulesen klar sehen, welcher Pfad lief und warum 0 Bilder rauskamen.
+ */
+export interface PersistShadowTwinDiagnostics {
+  /** Strategie-Modus (azure-only | azure-with-fs-backup | filesystem-only | unavailable). */
+  strategyMode: string
+  /** Aus der Strategie abgeleitet: schreiben wir nach Azure? */
+  writeToAzure: boolean
+  /** Aus der Strategie abgeleitet: schreiben wir auch ins Filesystem? */
+  writeToFilesystem: boolean
+  /** Anzahl ZIP-Archive, die hereinkamen (vor Verarbeitung). */
+  zipArchivesPassed: number
+  /** Lief der schnelle ZIP -> Azure-Direktupload? */
+  ranDirectUpload: boolean
+  /** Lief der ImageProcessor (Filesystem-Pfad/Backup)? */
+  ranImageProcessor: boolean
+  /** Anzahl Bilder aus dem Direktupload (== `mediaResult.imageMetadata.length`). */
+  directUploadCount: number
+  /** Anzahl im Markdown gefundener absoluter Bild-URLs nach der Bild-Verarbeitung. */
+  imageUrlsInMarkdown: number
+  /** Anzahl finaler binaryFragments, die wir in Mongo schreiben. */
+  binaryFragmentsCount: number
+  /** Wie viele relative Bildpfade hat das Freeze ersetzt? (nur azure-Pfad) */
+  freezeReplacedCount: number
+  /** Wie viele blieben unaufgeloest? (nur azure-Pfad) */
+  freezeUnresolvedCount: number
+  /** Beispiele unaufgeloester Pfade (max. 5). */
+  freezeUnresolvedSample: string[]
+}
+
 export async function persistShadowTwinToMongo(args: {
   libraryId: string
   userEmail: string
@@ -162,85 +194,33 @@ export async function persistShadowTwinToMongo(args: {
   zipArchives?: Array<{ base64Data: string; fileName: string }>
   /** Optional: Job-ID für Logging */
   jobId?: string
-}): Promise<{ markdown: string; imageCount: number; imageErrorsCount: number }> {
+}): Promise<{
+  markdown: string
+  imageCount: number
+  imageErrorsCount: number
+  diagnostics: PersistShadowTwinDiagnostics
+}> {
   const { libraryId, userEmail, sourceItem, provider, artifactKey, markdown, shadowTwinFolderId, zipArchives, jobId } = args
 
-  const libraryDoc = await LibraryService.getInstance().getLibraryById(libraryId)
-  const libraryConfig = libraryDoc?.config
+  // Bild-Persistenz ist seit Phase 2 vollstaendig in `persistOcrImages` zentralisiert.
+  // Die Funktion entscheidet auf Basis der `MediaStorageStrategy` (azure-only, azure-with-fs-backup,
+  // filesystem-only, unavailable) deterministisch ueber Schreibziele und Fallbacks; insbesondere
+  // entfaellt der frueher unconditional zweite ImageProcessor-Lauf, der den Log-Spam verursacht hat.
+  const mediaResult = await persistOcrImages({
+    libraryId,
+    sourceItemId: sourceItem.id,
+    markdown,
+    provider,
+    shadowTwinFolderId,
+    zipArchives,
+    jobId,
+  })
 
-  let processedMarkdown = markdown
-  let directUploadMetadata: Array<{ fileName: string; url: string; hash: string; size: number; mimeType: string }> | undefined
-  let azureUnavailable = false
-
-  // Wenn ZIP-Daten vorhanden sind, lade Bilder direkt aus dem ZIP nach Azure hoch.
-  // Falls Azure nicht konfiguriert ist (z.B. Electron/Offline), wird der Upload
-  // übersprungen und der Text trotzdem gespeichert.
-  if (zipArchives && zipArchives.length > 0) {
-    try {
-      const { uploadImagesFromZipDirectly } = await import('./shadow-twin-direct-upload')
-      const uploadResult = await uploadImagesFromZipDirectly({
-        zipArchives,
-        markdown,
-        libraryId,
-        sourceItemId: sourceItem.id,
-        jobId,
-      })
-      processedMarkdown = uploadResult.markdown
-      directUploadMetadata = uploadResult.imageMetadata
-    } catch (azureErr) {
-      const msg = azureErr instanceof Error ? azureErr.message : String(azureErr)
-      if (msg.includes('Azure Storage nicht konfiguriert') || msg.includes('Azure Storage Service nicht konfiguriert')) {
-        azureUnavailable = true
-        FileLogger.warn('shadow-twin-mongo-writer', 'Azure Storage nicht verfügbar – Bilder-Upload wird übersprungen, Text wird trotzdem gespeichert', {
-          libraryId, sourceId: sourceItem.id, error: msg,
-        })
-      } else {
-        throw azureErr
-      }
-    }
-  } else if (!azureUnavailable) {
-    // Standard-Pfad: Bilder vom Filesystem laden und nach Azure hochladen
-    try {
-      const processed = await ImageProcessor.processMarkdownImages(
-        markdown,
-        provider,
-        libraryId,
-        sourceItem.id,
-        shadowTwinFolderId,
-        jobId,
-        false,
-        libraryConfig
-      )
-      processedMarkdown = processed.markdown
-    } catch (imgErr) {
-      const msg = imgErr instanceof Error ? imgErr.message : String(imgErr)
-      if (msg.includes('Azure Storage nicht konfiguriert') || msg.includes('Azure Storage Service nicht konfiguriert')) {
-        azureUnavailable = true
-        FileLogger.warn('shadow-twin-mongo-writer', 'Azure Storage nicht verfügbar – Bilder-Verarbeitung übersprungen', {
-          libraryId, sourceId: sourceItem.id, error: msg,
-        })
-      } else {
-        throw imgErr
-      }
-    }
-  }
-
-  // Verarbeite Markdown (URLs sollten bereits gesetzt sein, aber prüfe auf verbleibende relative Pfade).
-  // Bei fehlendem Azure wird der zweite Durchlauf übersprungen.
-  let processed: { markdown: string; imageErrors: Array<{ imagePath: string; error: string }>; imageMapping: Array<{ originalPath: string; azureUrl: string }> }
-  if (azureUnavailable) {
-    processed = { markdown: processedMarkdown, imageErrors: [], imageMapping: [] }
-  } else {
-    processed = await ImageProcessor.processMarkdownImages(
-      processedMarkdown,
-      provider,
-      libraryId,
-      sourceItem.id,
-      shadowTwinFolderId,
-      jobId,
-      false,
-      libraryConfig
-    )
+  const directUploadMetadata = mediaResult.imageMetadata.length > 0 ? mediaResult.imageMetadata : undefined
+  const processed = {
+    markdown: mediaResult.markdown,
+    imageErrors: mediaResult.imageErrors,
+    imageMapping: mediaResult.imageMapping,
   }
 
   // Extrahiere Azure-URLs aus dem verarbeiteten Markdown (vor Umschreiben auf kanonische Namen)
@@ -275,9 +255,8 @@ export async function persistShadowTwinToMongo(args: {
     }
   }
 
-  const markdownToPersist = rewriteMarkdownAzureUrlsToCanonicalFileNames(processed.markdown, urlToCanonical)
-
   // Erstelle binaryFragments mit konsistenten Pflicht-/Metadatenfeldern.
+  // (Wird unten von der Phase-3-Freeze-Logik konsumiert, daher VOR dem Markdown-Persist-Schritt.)
   const binaryFragments: PersistableImageBinaryFragment[] = []
 
   // Wenn direkter Upload verwendet wurde, verwende die Metadaten direkt
@@ -339,6 +318,36 @@ export async function persistShadowTwinToMongo(args: {
         })
       )
     }
+  }
+
+  // Phase 3: Markdown deterministisch einfrieren.
+  // - Im Azure-Modus (writeToAzure=true) bleiben absolute Azure-URLs erhalten, damit der Browser
+  //   spaeter direkt aus Azure laedt (kein streaming-url-Round-Trip mehr).
+  // - Etwaige verbliebene relative Pfade (z.B. wenn ein Bild im OCR-Output anders heisst als im ZIP)
+  //   werden mittels binaryFragments noch in absolute URLs aufgeloest.
+  // - Im reinen Filesystem-Modus bleibt das alte Verhalten (URL -> kanonischer Vault-Pfad), damit
+  //   das Markdown portabel im Filesystem liegt.
+  let markdownToPersist: string
+  // Diagnose: Freeze-Statistik (nur im Azure-Pfad relevant), wird unten ans Ergebnis gehaengt.
+  let freezeReplacedCount = 0
+  let freezeUnresolvedCount = 0
+  let freezeUnresolvedSample: string[] = []
+  if (mediaResult.strategy.writeToAzure) {
+    const frozen = freezeMarkdownImageUrls(processed.markdown, binaryFragments)
+    markdownToPersist = frozen.markdown
+    freezeReplacedCount = frozen.replacedCount
+    freezeUnresolvedCount = frozen.unresolved.length
+    freezeUnresolvedSample = frozen.unresolved.slice(0, 5)
+    if (frozen.unresolved.length > 0) {
+      FileLogger.warn('shadow-twin-mongo-writer', 'Relative Bildpfade nach Freeze nicht aufloesbar', {
+        libraryId,
+        sourceId: sourceItem.id,
+        unresolvedSample: freezeUnresolvedSample,
+        unresolvedCount: freezeUnresolvedCount,
+      })
+    }
+  } else {
+    markdownToPersist = rewriteMarkdownAzureUrlsToCanonicalFileNames(processed.markdown, urlToCanonical)
   }
 
   // Verwende ShadowTwinService für zentrale Store-Entscheidung
@@ -406,5 +415,19 @@ export async function persistShadowTwinToMongo(args: {
     markdown: markdownToPersist,
     imageCount: imageUrls.length,
     imageErrorsCount: processed.imageErrors.length,
+    diagnostics: {
+      strategyMode: mediaResult.strategy.mode,
+      writeToAzure: mediaResult.strategy.writeToAzure,
+      writeToFilesystem: mediaResult.strategy.writeToFilesystem,
+      zipArchivesPassed: mediaResult.diagnostics.zipArchiveCount,
+      ranDirectUpload: mediaResult.diagnostics.ranDirectUpload,
+      ranImageProcessor: mediaResult.diagnostics.ranImageProcessor,
+      directUploadCount: mediaResult.imageMetadata.length,
+      imageUrlsInMarkdown: imageUrls.length,
+      binaryFragmentsCount: binaryFragments.length,
+      freezeReplacedCount,
+      freezeUnresolvedCount,
+      freezeUnresolvedSample,
+    },
   }
 }

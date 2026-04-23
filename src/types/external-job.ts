@@ -91,6 +91,13 @@ export interface ExternalJob {
    * Fehlt das Feld im Dokument, gilt Pool `default` (Legacy).
    */
   workerPoolId?: string;
+  /**
+   * Anzahl bisheriger Versuche, den Job vom Worker an die `/start`-Route zu dispatchen.
+   * Wird inkrementiert, wenn der Worker-fetch in ein Timeout läuft oder netzwerkseitig scheitert.
+   * Ab `JOBS_WORKER_START_MAX_ATTEMPTS` (Default 3) wird der Job endgültig als `failed` markiert.
+   * Bei jedem erfolgreichen Aufruf der `/start`-Route bleibt das Feld unverändert (resetten würde Race-Conditions provozieren).
+   */
+  workerStartAttempts?: number;
   libraryId: string;
   userEmail: string;
   correlation: ExternalJobCorrelation;

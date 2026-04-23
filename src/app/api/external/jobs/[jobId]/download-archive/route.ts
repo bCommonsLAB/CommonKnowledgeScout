@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
 import { currentUser } from '@clerk/nextjs/server';
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
-import { resolveSecretaryUrl, getSecretaryAuthHeaders } from '@/lib/external-jobs/secretary-url';
+import { resolveSecretaryUrl, getSecretaryAuthHeaders, resolveLibrarySecretaryConfig, type SecretaryUrlConfig } from '@/lib/external-jobs/secretary-url';
 import { LibraryService } from '@/lib/services/library-service';
 
 /**
@@ -44,19 +44,16 @@ export async function GET(
       return NextResponse.json({ error: 'Keine Bilddateien verfügbar' }, { status: 400 });
     }
 
-    // Library-spezifische Secretary-Config laden (Desktop-Modus)
-    let secretaryUrlConfig: { overrideBaseUrl?: string; overrideApiKey?: string } | undefined
+    // Library-spezifische Secretary-Config zentral aufloesen.
+    // Frueher wurde `library.config.secretaryService.apiUrl` unkonditional als
+    // Override genutzt -> Konfig-Drift mit `start/route.ts`, das `useCustomConfig`
+    // ehrt. Jetzt geht alles ueber denselben Resolver.
+    let secretaryUrlConfig: SecretaryUrlConfig = {}
     try {
       const library = await LibraryService.getInstance().getLibrary(userEmail, job.libraryId);
-      const libSecretary = library?.config?.secretaryService;
-      if (libSecretary?.apiUrl) {
-        secretaryUrlConfig = {
-          overrideBaseUrl: libSecretary.apiUrl,
-          overrideApiKey: libSecretary.apiKey,
-        };
-      }
+      secretaryUrlConfig = resolveLibrarySecretaryConfig(library).override
     } catch {
-      // Library nicht ladbar – Fallback auf ENV
+      // Library nicht ladbar – Fallback auf ENV (override bleibt leer)
     }
 
     // URL-Auflösung und Auth-Headers über zentrale Utility (respektiert Library-Overrides)

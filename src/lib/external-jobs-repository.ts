@@ -136,6 +136,73 @@ export class ExternalJobsRepository {
     await col.updateOne({ jobId }, { $set: { processId, updatedAt: new Date() } });
   }
 
+  /**
+   * Behandelt einen Worker-Dispatch-Fehler (Worker konnte die `/start`-Route nicht erreichen).
+   *
+   * Verhalten:
+   * - Inkrementiert `workerStartAttempts` atomar.
+   * - Solange `attempts < maxAttempts` (Default 3): setzt den Job zurück auf `queued`,
+   *   sodass der nächste Worker-Tick ihn erneut probiert. Schreibt ein Trace-Event
+   *   `worker_start_requeued`, damit die Wiederholung im Bericht sichtbar ist.
+   * - Bei `attempts >= maxAttempts`: setzt den Job auf `failed` mit dem übergebenen Fehlertext
+   *   und schreibt ein Trace-Event `worker_start_giveup`.
+   *
+   * Race-Hinweis:
+   * Wir verwenden `findOneAndUpdate` mit `$inc`, sodass selbst bei zwei parallelen Worker-Pools
+   * die Versuche korrekt gezählt werden. Der Statuswechsel passiert in einem zweiten Update,
+   * das den erwarteten Status (`running`) prüft, um nicht versehentlich einen bereits
+   * erfolgreichen Job zurück in die Queue zu drücken.
+   */
+  async requeueAfterStartFailure(
+    jobId: string,
+    errorMessage: string,
+    options: { maxAttempts?: number; reason?: string } = {}
+  ): Promise<{ requeued: boolean; attempts: number; finalStatus: 'queued' | 'failed' }> {
+    const maxAttempts = options.maxAttempts ?? 3;
+    const reason = options.reason ?? 'fetch_failed';
+    const col = await this.getCollection();
+    const now = new Date();
+
+    const updated = await col.findOneAndUpdate(
+      { jobId },
+      { $inc: { workerStartAttempts: 1 }, $set: { updatedAt: now } },
+      { returnDocument: 'after' }
+    );
+    const attempts = (updated?.workerStartAttempts as number | undefined) ?? 1;
+
+    if (attempts < maxAttempts) {
+      const requeued = await col.updateOne(
+        { jobId, status: 'running' },
+        { $set: { status: 'queued', updatedAt: new Date() } }
+      );
+      try {
+        await this.traceAddEvent(jobId, {
+          spanId: 'job',
+          name: 'worker_start_requeued',
+          level: 'warn',
+          message: `Worker-Dispatch fehlgeschlagen (${reason}), Versuch ${attempts}/${maxAttempts}`,
+          attributes: { attempts, maxAttempts, reason, errorMessage, statusChanged: requeued.modifiedCount === 1 },
+        });
+      } catch {}
+      return { requeued: requeued.modifiedCount === 1, attempts, finalStatus: 'queued' };
+    }
+
+    await col.updateOne(
+      { jobId },
+      { $set: { status: 'failed', updatedAt: new Date(), error: { code: 'worker_start_giveup', message: errorMessage, details: { attempts, maxAttempts, reason } } } }
+    );
+    try {
+      await this.traceAddEvent(jobId, {
+        spanId: 'job',
+        name: 'worker_start_giveup',
+        level: 'error',
+        message: `Worker-Dispatch endgültig fehlgeschlagen nach ${attempts} Versuchen (${reason})`,
+        attributes: { attempts, maxAttempts, reason, errorMessage },
+      });
+    } catch {}
+    return { requeued: false, attempts, finalStatus: 'failed' };
+  }
+
   async setResult(jobId: string, payload: ExternalJob['payload'], result: ExternalJob['result']): Promise<void> {
     const col = await this.getCollection();
     await col.updateOne(

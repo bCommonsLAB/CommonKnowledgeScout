@@ -408,34 +408,90 @@ export async function runExtractOnly(
       // Sammle ZIP-Daten für direkten Upload (wenn persistToFilesystem=false)
       const zipArchives: Array<{ base64Data: string; fileName: string }> = []
       if (!persistToFilesystem && imagesPhaseEnabled) {
-        // Hilfsfunktion: Lade ZIP von URL herunter und konvertiere zu Base64
-        const downloadZipAsBase64 = async (url: string): Promise<string | undefined> => {
+        // Helper: Maskiere URL fuer Trace (kein Token im Query, nur Host+Pfad sichtbar).
+        const safeUrlForTrace = (raw: string): string => {
           try {
-            const archiveUrl = resolveSecretaryUrl(url, secretaryUrlConfig)
+            const u = new URL(raw, 'http://placeholder.invalid')
+            const isPlaceholder = u.host === 'placeholder.invalid'
+            return `${isPlaceholder ? '' : `${u.protocol}//${u.host}`}${u.pathname}`
+          } catch {
+            return raw.split('?')[0] || raw
+          }
+        }
+
+        // Hilfsfunktion: Lade ZIP von URL herunter und konvertiere zu Base64
+        const downloadZipAsBase64 = async (rawUrl: string, label: string): Promise<string | undefined> => {
+          const archiveUrl = resolveSecretaryUrl(rawUrl, secretaryUrlConfig)
+          const safeUrl = safeUrlForTrace(archiveUrl)
+          const safeRaw = safeUrlForTrace(rawUrl)
+          const startedAt = Date.now()
+          try {
             const headers = getSecretaryAuthHeaders(secretaryUrlConfig)
-            
+
             bufferLog(jobId, {
               phase: 'extract_only_downloading_zip',
-              message: `Lade ZIP von URL: ${archiveUrl}`,
+              message: `Lade ZIP von URL: ${safeUrl}`,
             })
-            
+
             const response = await fetch(archiveUrl, { method: 'GET', headers })
             if (!response.ok) {
               throw new Error(`HTTP ${response.status}: ${response.statusText}`)
             }
             const arrayBuffer = await response.arrayBuffer()
             const buffer = Buffer.from(arrayBuffer)
+            const elapsedMs = Date.now() - startedAt
+
+            // Erfolg ins Trace, damit wir im Image-Loss-Debugging sicher wissen, dass der
+            // Download tatsaechlich Bytes geliefert hat (kein 0-Byte-OK).
+            try {
+              await repo.traceAddEvent(jobId, {
+                spanId: 'extract',
+                name: 'extract_only_zip_download_ok',
+                attributes: {
+                  label,
+                  bytes: buffer.length,
+                  elapsedMs,
+                  resolvedUrl: safeUrl,
+                  rawUrl: safeRaw,
+                  status: response.status,
+                },
+              })
+            } catch {
+              // Trace-Fehler nicht kritisch
+            }
+
             return buffer.toString('base64')
           } catch (error) {
+            const elapsedMs = Date.now() - startedAt
+            const errMsg = error instanceof Error ? error.message : String(error)
             FileLogger.warn('extract-only', 'Fehler beim Herunterladen von ZIP-URL', {
-              url,
-              error: error instanceof Error ? error.message : String(error),
+              url: safeUrl,
+              error: errMsg,
             })
             bufferLog(jobId, {
               phase: 'extract_only_zip_download_error',
-              message: `Fehler beim Herunterladen von ZIP: ${error instanceof Error ? error.message : String(error)}`,
-              url,
+              message: `Fehler beim Herunterladen von ZIP: ${errMsg}`,
+              url: safeUrl,
             })
+
+            // Fehler ins Trace, mit aufgeloester URL und Roh-URL, damit wir sehen ob z.B.
+            // resolveSecretaryUrl eine relative URL nicht aufgeloest hat.
+            try {
+              await repo.traceAddEvent(jobId, {
+                spanId: 'extract',
+                name: 'extract_only_zip_download_error',
+                level: 'warn',
+                attributes: {
+                  label,
+                  errorMessage: errMsg,
+                  resolvedUrl: safeUrl,
+                  rawUrl: safeRaw,
+                  elapsedMs,
+                },
+              })
+            } catch {
+              // Trace-Fehler nicht kritisch
+            }
             return undefined
           }
         }
@@ -456,7 +512,7 @@ export async function runExtractOnly(
         
         // Lade ZIP-Daten von URLs herunter (falls nicht als Base64 vorhanden)
         if (pagesArchiveUrl && !pagesArchiveData) {
-          const base64Data = await downloadZipAsBase64(pagesArchiveUrl)
+          const base64Data = await downloadZipAsBase64(pagesArchiveUrl, 'pages_archive_url')
           if (base64Data) {
             zipArchives.push({
               base64Data,
@@ -466,7 +522,7 @@ export async function runExtractOnly(
         }
         
         if (imagesArchiveUrlFromWorker && !imagesArchiveData) {
-          const base64Data = await downloadZipAsBase64(imagesArchiveUrlFromWorker)
+          const base64Data = await downloadZipAsBase64(imagesArchiveUrlFromWorker, 'images_archive_url_from_worker')
           if (base64Data) {
             zipArchives.push({
               base64Data,
@@ -477,7 +533,7 @@ export async function runExtractOnly(
         
         // Mistral OCR Images: Lade von URL herunter (falls vorhanden)
         if (mistralOcrImagesUrl) {
-          const base64Data = await downloadZipAsBase64(mistralOcrImagesUrl)
+          const base64Data = await downloadZipAsBase64(mistralOcrImagesUrl, 'mistral_ocr_images_url')
           if (base64Data) {
             zipArchives.push({
               base64Data,
@@ -492,6 +548,27 @@ export async function runExtractOnly(
           zipCount: zipArchives.length,
           zipFileNames: zipArchives.map(z => z.fileName),
         })
+
+        // Schreibe denselben Befund zusaetzlich ins Trace, damit wir im aktuellen
+        // Image-Loss-Debugging eindeutig sehen, ob ein ZIP ueberhaupt eingesammelt wurde
+        // (bisher war diese Info nur im File-Log und damit unsichtbar im Job-Trace).
+        try {
+          await repo.traceAddEvent(jobId, {
+            spanId: 'extract',
+            name: 'extract_only_zip_archives_collected',
+            attributes: {
+              zipCount: zipArchives.length,
+              zipFileNames: zipArchives.map(z => z.fileName),
+              hasMistralOcrImagesUrl: Boolean(mistralOcrImagesUrl),
+              hasPagesArchiveUrl: Boolean(pagesArchiveUrl),
+              hasImagesArchiveUrlFromWorker: Boolean(imagesArchiveUrlFromWorker),
+              hasImagesArchiveData: Boolean(imagesArchiveData),
+              hasPagesArchiveData: Boolean(pagesArchiveData),
+            },
+          })
+        } catch {
+          // Trace-Fehler nicht kritisch
+        }
       }
       
       const mongoResult = await persistShadowTwinToMongo({
@@ -524,9 +601,21 @@ export async function runExtractOnly(
         message: `Shadow-Twin in MongoDB gespeichert (${mongoResult.imageCount} Bilder verarbeitet)`,
         imageCount: mongoResult.imageCount,
         imageErrorsCount: mongoResult.imageErrorsCount,
+        // Diagnose-Felder fuer aktuelles Image-Loss-Debugging
+        strategyMode: mongoResult.diagnostics.strategyMode,
+        writeToAzure: mongoResult.diagnostics.writeToAzure,
+        writeToFilesystem: mongoResult.diagnostics.writeToFilesystem,
+        zipArchivesPassed: mongoResult.diagnostics.zipArchivesPassed,
+        ranDirectUpload: mongoResult.diagnostics.ranDirectUpload,
+        ranImageProcessor: mongoResult.diagnostics.ranImageProcessor,
+        directUploadCount: mongoResult.diagnostics.directUploadCount,
+        binaryFragmentsCount: mongoResult.diagnostics.binaryFragmentsCount,
+        freezeReplacedCount: mongoResult.diagnostics.freezeReplacedCount,
+        freezeUnresolvedCount: mongoResult.diagnostics.freezeUnresolvedCount,
+        freezeUnresolvedSample: mongoResult.diagnostics.freezeUnresolvedSample,
       })
       
-      // Schreibe auch in Trace für bessere Sichtbarkeit
+      // Schreibe auch in Trace für bessere Sichtbarkeit (selbe Diagnose-Felder)
       try {
         await repo.traceAddEvent(jobId, {
           spanId: 'extract',
@@ -534,6 +623,17 @@ export async function runExtractOnly(
           attributes: {
             imageCount: mongoResult.imageCount,
             imageErrorsCount: mongoResult.imageErrorsCount,
+            strategyMode: mongoResult.diagnostics.strategyMode,
+            writeToAzure: mongoResult.diagnostics.writeToAzure,
+            writeToFilesystem: mongoResult.diagnostics.writeToFilesystem,
+            zipArchivesPassed: mongoResult.diagnostics.zipArchivesPassed,
+            ranDirectUpload: mongoResult.diagnostics.ranDirectUpload,
+            ranImageProcessor: mongoResult.diagnostics.ranImageProcessor,
+            directUploadCount: mongoResult.diagnostics.directUploadCount,
+            binaryFragmentsCount: mongoResult.diagnostics.binaryFragmentsCount,
+            freezeReplacedCount: mongoResult.diagnostics.freezeReplacedCount,
+            freezeUnresolvedCount: mongoResult.diagnostics.freezeUnresolvedCount,
+            freezeUnresolvedSample: mongoResult.diagnostics.freezeUnresolvedSample,
           },
         })
       } catch {

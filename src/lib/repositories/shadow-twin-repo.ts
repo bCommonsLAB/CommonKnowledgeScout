@@ -250,6 +250,70 @@ export async function getShadowTwinBinaryFragments(
 }
 
 /**
+ * Sucht library-weit nach einem binary-Fragment, dessen Name/Hash/originalName auf den
+ * uebergebenen `lookupName` matcht. Genutzt vom Lese-Pfad (`streaming-url`), um vor jedem
+ * Filesystem-Aufruf zu pruefen, ob das Bild bereits in Mongo (mit absoluter Azure-URL) liegt.
+ *
+ * Implementation: ein einziges Aggregations-Match mit `$unwind` + `$or`-Filter. Trifft das Match,
+ * wird das erste Fragment zurueckgegeben. Das ist deterministisch ueber alle sourceId-Dokumente
+ * der Library hinweg.
+ */
+export async function findBinaryFragmentInLibraryByLookupName(
+  libraryId: string,
+  lookupName: string,
+): Promise<MongoBinaryFragment | null> {
+  const trimmed = lookupName?.trim()
+  if (!trimmed) return null
+  const lower = trimmed.toLowerCase()
+
+  // Hash-Form akzeptieren: `{hash}.{ext}` -> Hash isoliert vergleichen
+  const hashMatch = lower.match(/^([a-f0-9]{12,64})\.(jpe?g|png|gif|webp)$/i)
+  const hashOnly = hashMatch?.[1]
+
+  const col = await getShadowTwinCollection(libraryId)
+  // Aggregation: alle binaryFragments aus allen Shadow-Twin-Dokumenten der Library "auspacken"
+  // und auf den lookupName matchen. Limit 1 reicht: erster Treffer gewinnt.
+  const cursor = col.aggregate<{ fragment: Record<string, unknown> }>([
+    { $match: { libraryId, binaryFragments: { $exists: true, $ne: [] } } },
+    { $unwind: '$binaryFragments' },
+    {
+      $project: { fragment: '$binaryFragments', _id: 0 },
+    },
+    {
+      $match: {
+        $or: [
+          { 'fragment.name': new RegExp(`^${escapeRegex(trimmed)}$`, 'i') },
+          { 'fragment.originalName': new RegExp(`^${escapeRegex(trimmed)}$`, 'i') },
+          ...(hashOnly ? [{ 'fragment.hash': new RegExp(`^${escapeRegex(hashOnly)}$`, 'i') }] : []),
+        ],
+      },
+    },
+    { $limit: 1 },
+  ])
+
+  const doc = await cursor.next()
+  if (!doc) return null
+  const f = doc.fragment as Record<string, unknown>
+  return {
+    name: typeof f.name === 'string' ? f.name : '',
+    originalName: typeof f.originalName === 'string' ? f.originalName : undefined,
+    url: typeof f.url === 'string' ? f.url : undefined,
+    fileId: typeof f.fileId === 'string' ? f.fileId : undefined,
+    hash: typeof f.hash === 'string' ? f.hash : undefined,
+    mimeType: typeof f.mimeType === 'string' ? f.mimeType : undefined,
+    size: typeof f.size === 'number' ? f.size : undefined,
+    kind: typeof f.kind === 'string' ? f.kind : undefined,
+    createdAt: typeof f.createdAt === 'string' ? f.createdAt : undefined,
+    variant: typeof f.variant === 'string' ? (f.variant as MongoBinaryFragment['variant']) : undefined,
+    sourceHash: typeof f.sourceHash === 'string' ? f.sourceHash : undefined,
+  }
+}
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
  * Fügt ein Binary-Fragment zu einem Shadow-Twin hinzu oder ersetzt es bei gleichem Namen.
  * 
  * Verwendet $push mit $each und $slice für atomare Updates.
