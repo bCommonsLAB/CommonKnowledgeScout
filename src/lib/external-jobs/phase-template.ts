@@ -38,8 +38,11 @@ import { buildDocumentSlugFallback } from '@/lib/documents/document-slug'
 
 // Helper extractFixedFieldsFromTemplate wurde in eigene Datei
 // phase-template/extract-meta.ts ausgelagert (Modul-Split, Plan-Schritt 4
-// Pilot-Welle external-jobs). Re-Export, um bestehende Imports nicht zu
-// brechen (auch die Char-Tests in tests/unit/external-jobs/).
+// Pilot-Welle external-jobs). Wir importieren ihn hier fuer den lokalen
+// Aufruf in runTemplatePhase (Zeile 1224) und re-exportieren, damit
+// bestehende Imports inkl. Char-Tests in tests/unit/external-jobs/
+// unveraendert weiterlaufen.
+import { extractFixedFieldsFromTemplate } from './phase-template/extract-meta'
 export { extractFixedFieldsFromTemplate } from './phase-template/extract-meta'
 
 export interface TemplatePhaseArgs {
