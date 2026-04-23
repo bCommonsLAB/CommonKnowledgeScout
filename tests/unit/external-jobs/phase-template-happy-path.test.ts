@@ -57,25 +57,27 @@ import { decideTemplateRun } from '@/lib/external-jobs/template-decision'
 import type { TemplateDecisionArgs } from '@/types/external-jobs'
 
 function makeCtx(overrides?: Partial<TemplateDecisionArgs>): TemplateDecisionArgs {
-  return {
-    ctx: {
-      // Wir verwenden bewusst nur die Felder, die decideTemplateRun liest.
-      jobId: 'job-1',
-      job: {
-        userEmail: 'a@b.com',
-        libraryId: 'lib-1',
-        correlation: {
-          source: { itemId: 'src-1', name: 'x.pdf', parentId: 'p-1' },
-          options: { targetLanguage: 'de' },
-        },
+  // Minimaler RequestContext-Partial — decideTemplateRun liest nur die hier
+  // gesetzten Felder. Cast via unknown, weil RequestContext umfangreich ist
+  // (NextRequest, voller ExternalJob, voller ExternalCallbackBody) und das
+  // Aufbauen hier den Test nur aufblaehen wuerde, ohne Verhalten zu pruefen.
+  const ctxPartial = {
+    jobId: 'job-1',
+    job: {
+      userEmail: 'a@b.com',
+      libraryId: 'lib-1',
+      correlation: {
+        source: { itemId: 'src-1', name: 'x.pdf', parentId: 'p-1' },
+        options: { targetLanguage: 'de' },
       },
-      body: { phase: null },
-      // Felder, die in decideTemplateRun nicht verwendet werden, koennen
-      // beliebig leer sein.
-      request: {} as never,
-      callbackToken: undefined,
-      internalBypass: true,
-    } as TemplateDecisionArgs['ctx'],
+    },
+    body: { phase: null },
+    request: {},
+    callbackToken: undefined,
+    internalBypass: true,
+  }
+  return {
+    ctx: ctxPartial as unknown as TemplateDecisionArgs['ctx'],
     policies: { metadata: 'auto', ingest: 'auto' },
     isFrontmatterCompleteFromBody: false,
     templateGateExists: false,

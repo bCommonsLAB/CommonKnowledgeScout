@@ -43,22 +43,24 @@ import { decideTemplateRun } from '@/lib/external-jobs/template-decision'
 import type { TemplateDecisionArgs } from '@/types/external-jobs'
 
 function makeCtx(overrides?: Partial<TemplateDecisionArgs>): TemplateDecisionArgs {
-  return {
-    ctx: {
-      jobId: 'job-1',
-      job: {
-        userEmail: 'a@b.com',
-        libraryId: 'lib-1',
-        correlation: {
-          source: { itemId: 'src-1', name: 'x.pdf', parentId: 'p-1' },
-          options: { targetLanguage: 'de' },
-        },
+  // Minimaler RequestContext-Partial; Cast via unknown wie im happy-path-Test.
+  const ctxPartial = {
+    jobId: 'job-1',
+    job: {
+      userEmail: 'a@b.com',
+      libraryId: 'lib-1',
+      correlation: {
+        source: { itemId: 'src-1', name: 'x.pdf', parentId: 'p-1' },
+        options: { targetLanguage: 'de' },
       },
-      body: { phase: null },
-      request: {} as never,
-      callbackToken: undefined,
-      internalBypass: true,
-    } as TemplateDecisionArgs['ctx'],
+    },
+    body: { phase: null },
+    request: {},
+    callbackToken: undefined,
+    internalBypass: true,
+  }
+  return {
+    ctx: ctxPartial as unknown as TemplateDecisionArgs['ctx'],
     policies: { metadata: 'auto', ingest: 'auto' },
     isFrontmatterCompleteFromBody: false,
     templateGateExists: false,
