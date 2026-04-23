@@ -211,12 +211,22 @@ interface JobPhases {
 
 ### Skip-Semantik (wichtig für Contracts/Validatoren)
 
-In der aktuellen Codebasis wird „übersprungen“ typischerweise so modelliert:
+In der aktuellen Codebasis wird „übersprungen“ so modelliert:
 
 - Step bleibt **`status: 'completed'`**
 - und bekommt `details: { skipped: true, reason: '...' }`
 
-Das bedeutet: **kein eigener StepStatus `'skipped'` als Pflicht**. (Wenn du doch `'skipped'` siehst, behandle es als legacy/inkonsistent und prüfe, ob der Validator angepasst werden muss.)
+**Harte Regel** (nach Refactor-Pilot 2026-04, siehe `docs/refactor/external-jobs/00-audit.md`):
+
+- Es gibt **keinen** eigenen StepStatus `'skipped'`. Wer ein `'skipped'` schreibt, verletzt den Vertrag.
+- Wer ein `'skipped'` liest (Legacy-Daten in alter Mongo-Sammlung), behandelt es semantisch wie `'completed'` mit `details.skipped=true`, aber loggt eine Drift-Warnung. Kein stiller Fallback.
+
+Die `decideTemplateRun`-Reasons sind verbindlich (siehe Char-Tests in `tests/unit/external-jobs/phase-template-*.test.ts`):
+
+- `policy_force` / `policy_skip` / `policy_ignore` — explizite Policy-Steuerung
+- `frontmatter_complete_body` — Frontmatter im Body bereits komplett
+- `auto_no_gate` — Auto-Mode, kein Gate, kein FM
+- `template_completed_fm_ok` / `template_completed_no_repair` / `template_completed_repair` — Callback-Pfad
 
 ## Globale Contracts (KRITISCH)
 
