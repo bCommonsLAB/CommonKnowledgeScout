@@ -1,0 +1,5 @@
+{
+  "$schema": "https://www.cursor.com/schemas/environment.schema.json",
+  "name": "CommonKnowledgeScout Cloud Agent",
+  "install": "corepack enable && corepack prepare pnpm@9.15.3 --activate && pnpm install --frozen-lockfile"
+}
