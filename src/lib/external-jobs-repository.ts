@@ -313,12 +313,14 @@ export class ExternalJobsRepository {
           await this.traceAddEvent(jobId, { spanId, name: 'step_running', attributes: { step: name } });
         } else if (patch.status === 'completed') {
           await this.traceEndSpan(jobId, spanId, 'completed', {});
-          const sourceAttr = (() => {
-            try {
-              const src = (patch as { details?: { source?: unknown } })?.details?.source
-              return typeof src === 'string' ? src : undefined
-            } catch { return undefined }
-          })()
+          // Optionales Trace-Attribut: source aus patch.details extrahieren.
+          // Lesepfad ist garantiert Property-Zugriff auf Plain-Objects, kann
+          // ohne try/catch laufen. Wenn details.source kein String ist, lassen
+          // wir das Attribut bewusst weg (dokumentierte Skip-Semantik fuer
+          // optionale Trace-Daten — siehe no-silent-fallbacks.mdc, "explizit
+          // handeln statt stillschweigend defaulten").
+          const details = (patch as { details?: { source?: unknown } }).details
+          const sourceAttr = typeof details?.source === 'string' ? details.source : undefined
           await this.traceAddEvent(jobId, { spanId, name: 'step_completed', attributes: { step: name, ...(sourceAttr ? { source: sourceAttr } : {}) } });
         } else if (patch.status === 'failed') {
           await this.traceEndSpan(jobId, spanId, 'failed', { reason: (patch as { error?: unknown })?.error });
