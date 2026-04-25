@@ -39,16 +39,18 @@ import { buildDocumentSlugFallback } from '@/lib/documents/document-slug'
 /**
  * Extrahiert feste Felder (ohne {{...}}) aus dem Template-Frontmatter.
  * Diese Felder werden nicht vom LLM generiert, sondern 1:1 ins Ergebnis übernommen.
- * 
+ *
+ * Export: nur fuer Characterization Tests (Plan-Schritt 3, Pilot external-jobs).
+ *
  * Beispiele für feste Felder:
  * - sprache: de
  * - docType: klimamassnahme
  * - coverImagePrompt: Erstelle ein Hintergrundbild...
- * 
+ *
  * @param templateContent - Der Template-Content (Markdown mit Frontmatter)
  * @returns Record mit festen Feldnamen und Werten
  */
-function extractFixedFieldsFromTemplate(templateContent: string | undefined): Record<string, unknown> {
+export function extractFixedFieldsFromTemplate(templateContent: string | undefined): Record<string, unknown> {
   if (!templateContent) return {}
   
   const fixedFields: Record<string, unknown> = {}
