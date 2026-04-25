@@ -533,16 +533,20 @@ export async function POST(
     // Library eingetragene `apiUrl`, obwohl der POST in `start/route.ts` korrekt
     // auf ENV ausgewichen war -> Konfig-Drift -> 404 -> Bilder verloren.
     // Jetzt nutzt dieser Pfad denselben zentralen Resolver wie `start/route.ts`.
-    let libraryConfig: NonNullable<import('@/types/library').Library['config']>['secretaryService'] | undefined
+    // libraryConfig (resolved.effective) wird hier nicht direkt verwendet — wir
+    // brauchen nur den Override fuer Secretary-Aufrufe. Praefix `_` markiert
+    // das bewusst als ungenutzte Kopie (ESLint-Konvention im Projekt).
+    let _libraryConfig: NonNullable<import('@/types/library').Library['config']>['secretaryService'] | undefined
     let secretaryOverride: import('@/lib/external-jobs/secretary-url').SecretaryUrlConfig = {}
     try {
       const earlyLib = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
       const resolved = resolveLibrarySecretaryConfig(earlyLib)
-      libraryConfig = resolved.effective
+      _libraryConfig = resolved.effective
       secretaryOverride = resolved.override
     } catch {
       // Library nicht ladbar – Fallback auf ENV (override bleibt leer)
     }
+    void _libraryConfig
 
     // Wenn mistral_ocr_raw_url oder mistral_ocr_raw_metadata vorhanden ist, lade die Daten über den Download-Endpoint
     if ((mistralOcrRawUrl || mistralOcrRawMetadata) && !mistralOcrRaw) {

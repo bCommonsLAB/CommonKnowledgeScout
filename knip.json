@@ -1,0 +1,27 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/app/**/page.tsx",
+    "src/app/**/layout.tsx",
+    "src/app/**/route.ts",
+    "src/app/**/not-found.tsx",
+    "electron/main.js",
+    "electron/preload.js",
+    "scripts/**/*.{ts,mjs,js}",
+    "next.config.{js,mjs,ts}",
+    "vitest.config.{js,mjs,ts}"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx,js,jsx,mjs}",
+    "scripts/**/*.{ts,mjs,js}",
+    "electron/**/*.js"
+  ],
+  "ignore": [
+    "template-samples/**"
+  ],
+  "ignoreDependencies": [
+    "@shadcn/ui",
+    "@tailwindcss/aspect-ratio",
+    "@types/better-sqlite3"
+  ]
+}

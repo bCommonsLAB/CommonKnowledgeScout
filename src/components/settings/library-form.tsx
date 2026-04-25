@@ -1296,7 +1296,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                             {strategy.mode === 'unavailable' && (
                               <p className="text-xs font-medium text-red-700">
                                 Achtung: Bilder können in dieser Konfiguration weder geschrieben noch gelesen werden.
-                                Bitte Azure konfigurieren oder „Persist to Filesystem" aktivieren.
+                                Bitte Azure konfigurieren oder „Persist to Filesystem&quot; aktivieren.
                               </p>
                             )}
                           </>
