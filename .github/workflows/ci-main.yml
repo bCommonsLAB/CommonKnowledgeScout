@@ -6,6 +6,20 @@ on:
     branches:
       - 'master'
 
+# Verhindert Race-Condition beim Bump-Push:
+# Mehrere parallele Runs (z.B. nach mehreren schnell aufeinanderfolgenden
+# Merges) wuerden sonst alle versuchen, einen eigenen Bump-Commit + Tag
+# auf master zu pushen. Der erste gewinnt, alle weiteren scheitern mit
+# "rejected (fetch first)" und es entstehen verwaiste Tags.
+#
+# group=ci-main-master: alle Push-Runs auf master teilen sich den Slot.
+# cancel-in-progress=false: laufende Runs werden NICHT abgebrochen
+#   (sonst koennte ein bereits halb gepushtes Docker-Image verwaisen);
+#   neue Runs warten brav, bis der vorige fertig ist.
+concurrency:
+  group: ci-main-master
+  cancel-in-progress: false
+
 permissions:
   contents: write
   packages: write
