@@ -36,7 +36,9 @@ Code-Aenderungen landen direkt in `src/lib/storage/`, neue Tests in
 - File: `docs/refactor/storage/00-audit.md`
 - 3 Tabellen (Rules, Tests, Docs) wie in [Pilot-Vorlage](../external-jobs/00-audit.md)
 - Vergiss `tests/unit/storage/` nicht (6 vorhandene Tests + 2 Helper-Tests)
-- Klaeren: Ist `storage-factory-mongodb.ts` Duplikat zu `storage-factory.ts`? Ist `onedrive-provider-server.ts` Strangler-Fig zu `onedrive-provider.ts`?
+- **Vorab-Entscheidungen** (vom IDE-Agenten geklaert, im Audit nur bestaetigen):
+  - `storage-factory-mongodb.ts` ist **toter Duplikat-Code** (0 Imports im `src/`-Tree, eigene `LocalStorageProvider`-Klasse mit veralteten API-Pfaden, unterstuetzt nur `local`). → in Schritt 6 loeschen, knip soll bestaetigen.
+  - `onedrive-provider-server.ts` ist **kein Strangler-Fig**, sondern eingegrenzter OAuth-Server-Helper (genau 1 Aufrufer: `src/app/api/auth/onedrive/callback/route.ts`, implementiert `StorageProvider` NICHT). → in Schritt 4 nach `src/lib/storage/onedrive/oauth-server.ts` migrieren, Klassen-Name + Header schaerfen.
 
 ### Schritt 1 — Inventur
 - File: `docs/refactor/storage/01-inventory.md` **existiert bereits** (vom IDE-Agenten geschrieben).
@@ -62,27 +64,33 @@ Code-Aenderungen landen direkt in `src/lib/storage/`, neue Tests in
 ### Schritt 4 — Altlast-Pass
 
 **Pflicht-Subset** (nicht alles auf einmal):
-1. `onedrive-provider.ts` (2.109 Z.) → 5 Sub-Module splitten:
+1. `onedrive-provider.ts` (2.109 Z.) → 5 Sub-Module splitten unter `src/lib/storage/onedrive/`:
    - `onedrive/auth.ts`, `onedrive/items.ts`, `onedrive/binary.ts`, `onedrive/cache.ts`, `onedrive/errors.ts`
    - `onedrive-provider.ts` bleibt als Composer / Fassade (~200 Z.)
    - Char-Tests aus Schritt 3 muessen gruen bleiben
 2. Silent Catch in `onedrive-provider.ts` dokumentieren oder beheben (1 Stelle)
-3. **Helper-Service erstellen** fuer "ist diese Library auf Filesystem?" — z.B. `storage/library-capability.ts` mit `isFilesystemBacked(library): boolean`. Pilot-Migration: `file-preview.tsx:1134` darauf umstellen.
+3. **`onedrive-provider-server.ts` umziehen** nach `src/lib/storage/onedrive/oauth-server.ts`:
+   - Klassen-Name beibehalten oder `OneDriveOAuthServer` vorschlagen (User-Frage, nicht eigenmaechtig umbenennen)
+   - Header-Doc schaerfen: "OAuth-Authorization-Code-Flow Server-Helper. Implementiert NICHT das `StorageProvider`-Interface."
+   - Aufrufer in `src/app/api/auth/onedrive/callback/route.ts:5` Import-Pfad anpassen
+4. **Helper-Service erstellen** fuer "ist diese Library auf Filesystem?" — z.B. `storage/library-capability.ts` mit `isFilesystemBacked(library): boolean`. Pilot-Migration: `file-preview.tsx:1134` darauf umstellen.
 
-**Optional bei Zeit/Budget**: weitere `> 200 Zeilen`-Files prufen (`storage-factory.ts`, `filesystem-provider.ts`).
+**Optional bei Zeit/Budget**: weitere `> 200 Zeilen`-Files pruefen (`storage-factory.ts`, `filesystem-provider.ts`).
 
 **NICHT in dieser Welle** (Folge-PRs):
 - Vollstaendiges Aufraeumen aller `library.type ===`-Branches in der Codebase (gehoert teilweise zu Welle 9d `file-preview`)
-- Architektur-Entscheidung "soll `storage-factory-mongodb.ts` mit `storage-factory.ts` mergen?" — nur **dokumentieren** in `04-altlast-pass.md`, **nicht** umsetzen ohne User-Abstimmung.
 
 ### Schritt 5 — Strangler-Fig
-- Falls Audit ergibt, dass `storage-factory-mongodb.ts` Duplikat ist: Markiere alte Variante als `@deprecated` mit Log-Warnung, **migriere nicht** (User entscheidet in eigener Welle).
-- Falls `onedrive-provider-server.ts` als Strangler-Fig zu `onedrive-provider.ts` identifiziert wird: dokumentieren, nicht aufloesen.
+- `storage-factory-mongodb.ts` ist **kein** Strangler-Fig, sondern toter Code → wird in Schritt 6 geloescht (siehe Schritt 0 Vorab-Entscheidungen).
+- `onedrive-provider-server.ts` ist **kein** Strangler-Fig, sondern eigenstaendiger OAuth-Helper → wird in Schritt 4 umgezogen, nicht aufgeloest.
+- Falls beim Splitten von `onedrive-provider.ts` Strangler-Fig-Situationen entstehen: in `04-altlast-pass.md` dokumentieren.
 
 ### Schritt 6 — Dead-Code
 - `pnpm knip` laufen lassen
-- Findings in `storage`-Modulgrenzen pruefen, sicher loeschbares loeschen
+- **`storage-factory-mongodb.ts` loeschen** (im Voraus geklaerter Dead-Code, knip soll bestaetigen)
+- Weitere Findings in `storage`-Modulgrenzen pruefen, sicher loeschbares loeschen
 - API-Route `streaming-url/route.ts` pruefen: noch genutzt?
+- Doku-Hygiene: nach Loeschen von `storage-factory-mongodb.ts` auch in `docs/reference/modules/storage.md`, `docs/reference/file-index.md`, `docs/architecture/module-hierarchy.md` Verweise entfernen (keine Auto-Generierung in diesen Files)
 
 ### Schritt 7 — Abnahme
 

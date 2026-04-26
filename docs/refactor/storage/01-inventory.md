@@ -105,9 +105,15 @@ oder lokale Fake-Provider erstellen.
 
 - **`StorageFactory` Singleton** — Tests muessen Singleton-State pro Test
   zuruecksetzen (Setup/Teardown).
-- **Zwei OneDrive-Implementierungen** (`onedrive-provider.ts` + `onedrive-provider-server.ts`) —
-  Cloud-Agent klaert im Audit, ob das Strangler-Fig oder bewusste Trennung ist.
-- **`storage-factory-mongodb.ts`** — Name suggeriert Mongo-spezifische Variante.
-  Schritt 0 (Audit) muss klaeren: Duplikat oder eigenstaendig?
+- **Zwei OneDrive-Implementierungen** (`onedrive-provider.ts` + `onedrive-provider-server.ts`):
+  Pre-Flight-Analyse 2026-04-26 hat geklaert: `onedrive-provider-server.ts` ist
+  **kein Strangler-Fig**, sondern eigenstaendiger OAuth-Server-Helper (genau
+  1 Aufrufer in `src/app/api/auth/onedrive/callback/route.ts`, implementiert
+  `StorageProvider` NICHT). → in Schritt 4 nach `src/lib/storage/onedrive/oauth-server.ts`
+  umziehen.
+- **`storage-factory-mongodb.ts`** — Pre-Flight-Analyse 2026-04-26 hat geklaert:
+  **toter Duplikat-Code** (0 Imports im `src/`-Tree, eigene veraltete
+  `LocalStorageProvider`-Klasse mit fehlerhaften API-Pfaden, unterstuetzt nur
+  `local`). → in Schritt 6 loeschen, knip bestaetigt.
 - **API-Route `streaming-url/route.ts`** ist nicht im Audit-Check der Pilot-Welle
   enthalten gewesen — Cloud-Agent verifiziert ob noch genutzt.
