@@ -105,6 +105,23 @@ Marker-Format `--- Seite N ---`, aber:
 spaeteren Markdown-Welle: gemeinsame Marker-Regex-Konstante
 exportieren (vermeidet Drift bei Marker-Format-Aenderungen).
 
+## Weiterer Watchpoint aus Schritt 6 (knip): Doppelter `VectorDocument`
+
+`pnpm knip` hat ein zweites Drift-Symptom aufgedeckt: zwei
+unabhaengige `VectorDocument`-Interfaces mit identischem Namen.
+
+| Datei | Wer importiert |
+|---|---|
+| `src/lib/ingestion/vector-builder.ts:5` | nur intern (impliziter Return-Type von `buildVectorDocuments`) |
+| `src/lib/repositories/vector-repo.ts:70` | `doc-meta-formatter.ts`, ueber 10 Verwendungen in `vector-repo.ts` selbst |
+
+**Bewertung**: aktuell strukturell aequivalent, aber langfristig
+fragil. Konsolidierung haette Cross-Module-Impact und gehoert in
+einen separaten PR mit eigenen Char-Tests.
+
+**Empfehlung**: Folge-PR "ingestion+repositories: VectorDocument
+konsolidieren" — siehe [`06-deadcode.md`](./06-deadcode.md).
+
 ## Was wurde **bewusst nicht** gemacht
 
 | Auslassung | Warum nicht in Welle 3 |
