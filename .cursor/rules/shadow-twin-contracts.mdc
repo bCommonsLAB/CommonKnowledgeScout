@@ -1,0 +1,149 @@
+---
+description: Harte technische Invarianten fuer das Modul `shadow-twin` (Service, Store, Artifacts)
+globs: src/lib/shadow-twin/**/*.ts,tests/unit/shadow-twin/**/*.ts
+alwaysApply: false
+---
+
+# Contracts: `shadow-twin`
+
+Diese Regel ergaenzt die Architektur-Rule
+[`shadow-twin-architecture.mdc`](mdc:.cursor/rules/shadow-twin-architecture.mdc)
+um **harte technische Invarianten** auf Code-Ebene. Sie ist der Vertrag,
+gegen den `tests/unit/shadow-twin/**` und kuenftige Stores/Writer
+implementiert werden.
+
+Die Architektur-Rule erklaert das **Warum** (UI darf storage-agnostisch
+sein, ArtifactKey ist deterministisch, virtuelle Mongo-IDs). Diese Rule
+erklaert das **Wie genau** auf Funktions- und Fehler-Ebene.
+
+## Quellen der Wahrheit (zuerst lesen)
+
+- Typen: `src/lib/shadow-twin/artifact-types.ts` (`ArtifactKind`, `ArtifactKey`)
+- Store-Interface: `src/lib/shadow-twin/store/shadow-twin-store.ts`
+- Service-Layer: `src/lib/shadow-twin/store/shadow-twin-service.ts`
+- Implementierungen: `store/mongo-shadow-twin-store.ts`, `store/provider-shadow-twin-store.ts`
+- Helper: `mongo-shadow-twin-id.ts`, `binary-fragment-lookup.ts`,
+  `media-storage-strategy.ts`, `shadow-twin-config.ts`
+
+## §1 ArtifactKey-Determinismus
+
+`ArtifactKey` aus `artifact-types.ts` ist der eindeutige Vertrag fuer
+Artefakte. Jede Operation (Lesen, Schreiben, Loeschen, Aufloesen) muss
+denselben Key fuer dasselbe Artefakt liefern.
+
+- **Pflicht-Felder fuer alle ArtifactKinds**: `sourceId`, `kind`,
+  `targetLanguage`.
+- **`templateName` ist PFLICHT fuer `kind === 'transformation'`**.
+  - Aufrufer/Route/UI muss es explizit kennen und uebergeben.
+  - **Kein** "pick latest/best transformation" als Standard-Fallback.
+- **`templateName` ist verboten fuer `kind === 'transcript' | 'canonical' | 'raw'`**.
+- Reihenfolge der Argumente in `ArtifactKey` ist Teil des Vertrags
+  (`sourceId, kind, targetLanguage, templateName?`).
+
+## §2 Fehler-Semantik
+
+- Jede ungueltige oder unbekannte Eingabe **wirft**, statt `undefined`
+  oder leere Listen zu returnieren. Insbesondere:
+  - `kind === 'transformation'` ohne `templateName` → wirft.
+  - Mongo-Shadow-Twin-IDs (`mongo-shadow-twin:*`) duerfen nicht an die
+    Filesystem-API geleitet werden → wirft, statt zu schweigen
+    (siehe `LocalStorageProvider.deleteItem` in `storage-factory.ts`).
+- Stores werfen typisierte Fehler aus `src/lib/shadow-twin/errors.ts`
+  oder `StorageError` (aus dem Storage-Modul).
+- **Verbotene Anti-Pattern** (siehe `no-silent-fallbacks.mdc`):
+  - `} catch {}` ohne Kommentar, der den bewussten Schluck dokumentiert.
+  - `?? defaultValue` als Ersatz fuer eine Validierung.
+  - `return undefined` statt `throw`, wenn der Aufrufer keinen sinnvollen
+    Fallback hat.
+- **Erlaubte gefangene Fehler** (mit Kommentar, optional Logging):
+  - JSON-Parsing eines Error-Bodies (z.B. `response.json().catch(...)`).
+  - Optionale Datei-Lookups, deren Fehlen den Hauptpfad nicht bricht
+    (z.B. Parent-Item-Lookup beim Pfad-Aufbau).
+
+## §3 Erlaubte / verbotene Abhaengigkeiten
+
+`src/lib/shadow-twin/**`:
+
+- **DARF abhaengen von**:
+  - `@/types/library`, `@/lib/services/library-service`
+  - `@/lib/storage/**` (Provider/Factory/Helper, **nur** Server-Kontext)
+  - `@/lib/repositories/**` (MongoDB-Repos)
+  - `@/lib/services/azure-storage-service`
+  - `@/lib/config/azure-storage`
+  - `@/lib/debug/logger` (`AuthLogger`, `FileLogger`)
+  - `@/lib/markdown/**` (Frontmatter-Parser, etc.)
+  - `@/lib/secretary/response-parser` (fuer Markdown-Validierung)
+- **DARF NICHT abhaengen von**:
+  - `src/components/**` (UI-Code)
+  - `src/contexts/**` (React-Context)
+  - `src/hooks/**` (React-Hooks)
+  - `src/app/**`, **ausser** API-Route-Implementierungen unter
+    `src/app/api/library/[libraryId]/shadow-twins/**` (Aufrufer-Richtung
+    UI/Route → Service, niemals umgekehrt).
+
+## §4 Skip- / Default-Semantik (gegen stille Fallbacks)
+
+- `ShadowTwinService` waehlt den Store basierend auf
+  `getShadowTwinConfig(library)`:
+  - `primaryStore === 'mongo'` → `MongoShadowTwinStore`
+  - `primaryStore === 'filesystem'` (Default) → `ProviderShadowTwinStore`
+- **Fallback-Logik ist erlaubt**, wenn:
+  - `allowFilesystemFallback === true` und Mongo-Lese-Operation kein
+    Ergebnis liefert → optionaler Provider-Lookup.
+  - Der Fallback ist **dokumentiert** im Code-Kommentar.
+- **Kein Fallback** bei Schreib-Operationen: `primaryStore` ist die
+  Source of Truth fuer Writes.
+- Mongo-Shadow-Twin-IDs sind virtuelle IDs — siehe
+  `shadow-twin-architecture.mdc` und §2: nicht an Provider weiterreichen.
+
+## §5 Helper statt direkter `library.config.shadowTwin`-Zugriffe
+
+Aus Welle 1 etabliert: `isFilesystemBacked()` aus
+`src/lib/storage/library-capability.ts`. Fuer shadow-twin-Code gilt:
+
+- **Bevorzugt**:
+  - `getShadowTwinConfig(library)` aus `shadow-twin-config.ts` — liefert
+    konsistente Defaults und kapselt das Optional-Chaining.
+  - `isFilesystemBacked(library)` aus `storage/library-capability.ts` —
+    UI/Hook-Frage "ist die Library Filesystem-basiert?".
+- **Verboten** in shadow-twin-Code:
+  - Direkter `library.config?.shadowTwin?.primaryStore`-Zugriff ohne
+    Helper. Service- und Store-Layer ist die einzige erlaubte Ausnahme,
+    und auch dort bevorzugt via `getShadowTwinConfig`.
+
+## §6 Store-Architektur (Strategy-Pattern)
+
+`store/shadow-twin-store.ts` ist das **Pflicht-Interface** fuer
+Implementierungen:
+
+- `MongoShadowTwinStore` — primaere Implementierung mit MongoDB +
+  Azure Blob Storage.
+- `ProviderShadowTwinStore` — Filesystem-Implementierung via
+  `StorageProvider` (Local, Nextcloud, OneDrive).
+- Neue Stores muessen das gesamte Interface implementieren; partielle
+  Implementierungen (Mock-Stores in Tests) muessen **klar** als Test-Doubles
+  markiert sein.
+
+`ShadowTwinService` ist der **einzig** zulaessige Einstiegspunkt fuer
+Stores — keine Direkt-Instantiierung von `MongoShadowTwinStore` oder
+`ProviderShadowTwinStore` ausserhalb des Service oder von Tests.
+
+## §7 Code-Review-Checkliste
+
+Wenn du im Modul `shadow-twin` Code anfasst:
+
+- [ ] Implementiert ein neuer Store das **komplette**
+      `ShadowTwinStore`-Interface aus `store/shadow-twin-store.ts`?
+- [ ] Wird `ArtifactKey` nur deterministisch konstruiert
+      (`templateName` Pflicht fuer `transformation`, verboten fuer andere)?
+- [ ] Wirft jede unbekannte/ungueltige Eingabe (virtuelle Mongo-ID,
+      fehlender `templateName` bei transformation) statt still zu defaulten?
+- [ ] Faengt jeder `try/catch` einen **konkreten** Fehler ab oder enthaelt
+      einen Kommentar, warum der Schluck bewusst ist?
+- [ ] Importiert die Datei nichts aus `src/components/**`, `src/contexts/**`
+      oder `src/hooks/**`?
+- [ ] Pruefst du Library-Faehigkeiten via Helper
+      (`getShadowTwinConfig`, `isFilesystemBacked`) statt via direktem
+      `library.config?.shadowTwin?.*`-Zugriff?
+- [ ] Werden neue Stores ueber `ShadowTwinService` erzeugt, nicht direkt
+      instanziert (ausser in Tests)?
