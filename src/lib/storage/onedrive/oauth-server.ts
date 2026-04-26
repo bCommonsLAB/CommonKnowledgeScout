@@ -1,4 +1,4 @@
-import { StorageError } from './types';
+import { StorageError } from '../types';
 import { ClientLibrary, Library, StorageConfig } from '@/types/library';
 import { LibraryService } from '@/lib/services/library-service';
 import * as process from 'process';
@@ -10,8 +10,30 @@ interface TokenResponse {
 }
 
 /**
- * Serverseitige Implementierung des OneDrive Providers
- * Enthält nur die für die Authentifizierung notwendigen Methoden
+ * @fileoverview OAuth-Server-Helper fuer den OneDrive-Authorization-Code-Flow.
+ *
+ * Dieser Helper ist **kein** `StorageProvider` und implementiert die
+ * `StorageProvider`-Schnittstelle bewusst NICHT. Er deckt ausschliesslich
+ * den Server-Anteil des OneDrive-OAuth-Flow ab:
+ *
+ * 1. `getRequiredConfigValues()` — Library-Config validieren (Tenant-ID,
+ *    Client-ID, Client-Secret, Redirect-URI), inkl. Heuristik gegen
+ *    versehentlich verwendete Client-Secret-IDs statt -Values.
+ * 2. `authenticate(code)` — Authorization-Code gegen
+ *    `login.microsoftonline.com` einloesen, Tokens abholen.
+ * 3. `saveTokensTemporarily()` — Tokens **temporaer** in der Library-Config
+ *    ablegen, damit der Browser sie einmalig abholen und in localStorage
+ *    persistieren kann.
+ *
+ * Genau **ein** Aufrufer: `src/app/api/auth/onedrive/callback/route.ts`.
+ *
+ * Lebenszyklus: in Welle 1 / Schritt 4 nach `src/lib/storage/onedrive/`
+ * umgezogen (vorher `src/lib/storage/onedrive-provider-server.ts`).
+ * Klassenname `OneDriveServerProvider` bleibt fuer API-Kompatibilitaet
+ * unveraendert; Schaerfung auf `OneDriveOAuthServer` wuerde Aufrufer brechen
+ * und ist Folge-PR.
+ *
+ * @module storage/onedrive
  */
 export class OneDriveServerProvider {
   private library: ClientLibrary;
