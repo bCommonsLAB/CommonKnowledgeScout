@@ -25,6 +25,7 @@ import { StorageProvider, StorageItem, StorageValidationResult, StorageError, St
 import { ClientLibrary } from '@/types/library';
 import { FileLogger } from '@/lib/debug/logger';
 import * as process from 'process';
+import { extractGraphEndpoint, parseRetryAfter } from './onedrive/errors';
 
 interface OneDriveFile {
   id: string;
@@ -844,32 +845,23 @@ export class OneDriveProvider implements StorageProvider {
         
         // Rate-Limit-Fehler sauber erkennen (429 = Too Many Requests, 503 = Service Unavailable)
         if (response.status === 429 || response.status === 503) {
-          // Versuche Retry-After aus Header zu lesen
-          const retryAfterHeader = response.headers.get('Retry-After');
-          let retryAfter = 60; // Default: 60 Sekunden
+          // Versuche Retry-After aus Header zu lesen (Sekunden oder HTTP-Date).
+          // Default 60s, falls Header fehlt oder unparsbar ist (Microsoft Graph-Empfehlung).
+          const headerRetry = parseRetryAfter(response.headers.get('Retry-After'));
+          let retryAfter = headerRetry ?? 60;
           
-          // Prüfe Retry-After Header (kann Sekunden oder HTTP-Date sein)
-          if (retryAfterHeader) {
-            const parsed = parseInt(retryAfterHeader, 10);
-            if (!isNaN(parsed)) {
-              retryAfter = parsed;
-            } else {
-              // HTTP-Date Format - konvertiere zu Sekunden
-              const date = new Date(retryAfterHeader);
-              if (!isNaN(date.getTime())) {
-                retryAfter = Math.max(1, Math.ceil((date.getTime() - Date.now()) / 1000));
-              }
-            }
-          }
-          
-          // Versuche auch aus Error-Body zu lesen (Graph API gibt manchmal retryAfterSeconds)
+          // Versuche auch aus Error-Body zu lesen (Graph API liefert manchmal retryAfterSeconds).
+          // Bewusster Fallback: JSON-Parse-Fehler wird ignoriert, weil der Body optional ist
+          // und der Header bereits einen Default geliefert hat.
           try {
             const errorData = await response.json().catch(() => ({}));
             if (errorData.error?.retryAfterSeconds) {
               retryAfter = errorData.error.retryAfterSeconds;
             }
-          } catch {
-            // Ignore JSON parsing errors
+          } catch (jsonErr) {
+            // Body-Parsing fehlgeschlagen — wir verwenden den Header-Wert.
+            // Kein logging, weil es ein erwarteter Fall ist (manche Responses haben gar keinen Body).
+            void jsonErr;
           }
           
           // Telemetrie: Speichere Rate-Limit-Event
@@ -968,16 +960,10 @@ export class OneDriveProvider implements StorageProvider {
 
   /**
    * Extrahiert den Endpoint aus einer Graph API URL für Telemetrie.
+   * Delegiert an `extractGraphEndpoint` aus `onedrive/errors.ts` (Welle 1, Schritt 4 extrahiert).
    */
   private extractEndpoint(url: string): string {
-    try {
-      const urlObj = new URL(url);
-      // Extrahiere Pfad nach /v1.0/ oder /beta/
-      const match = urlObj.pathname.match(/\/(v1\.0|beta)\/(.+)$/);
-      return match ? match[2] : urlObj.pathname;
-    } catch {
-      return url.substring(0, 100); // Fallback: erste 100 Zeichen
-    }
+    return extractGraphEndpoint(url);
   }
 
   /**
@@ -2084,12 +2070,21 @@ export class OneDriveProvider implements StorageProvider {
       const children = await this.listItemsById(parentId);
       const folder = children.find(child => child.metadata.name === segment && child.type === 'folder');
       if (!folder) break;
-      // Eltern in den Cache schreiben, falls sie fehlen
+      // Eltern in den Cache schreiben, falls sie fehlen.
+      // Bewusster Schluck: Wenn der Eltern-Lookup fehlschlaegt (z.B. weil der
+      // User keine Berechtigung mehr fuer einen tieferen Ordner hat), bricht
+      // das den Pfad-Aufbau nicht ab — die UI zeigt dann nur die kuerzere
+      // Breadcrumb. Wir loggen den Fehler, statt ihn still zu schlucken.
       if (parentId !== 'root' && !pathItems.find(item => item.id === parentId)) {
         try {
           const parentItem = await this.getItemById(parentId);
           pathItems.push(parentItem);
-        } catch {}
+        } catch (parentErr) {
+          FileLogger.warn('OneDriveProvider', 'getPathItemsById: Eltern-Item konnte nicht geladen werden', {
+            parentId,
+            error: parentErr instanceof Error ? parentErr.message : String(parentErr),
+          });
+        }
       }
       pathItems.push(folder);
       parentId = folder.id;
