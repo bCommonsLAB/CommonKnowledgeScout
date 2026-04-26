@@ -5,6 +5,67 @@ Quelle: [.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](..
 Das Playbook ist die wiederholbare Methodik gegen Strategie-Drift.
 Jedes Modul wird in dieser Reihenfolge bearbeitet. **Tests vor Refactor.**
 
+## Workflow-Regeln (gelten fuer JEDE Welle)
+
+Diese Regeln entstanden aus der Pilot-Welle `external-jobs` (siehe
+[`docs/_analysis/ci-race-condition-2026-04-25.md`](../_analysis/ci-race-condition-2026-04-25.md)
+und Retrospektive vom 25.04.2026). Sie sind nicht verhandelbar.
+
+### R1 — Eine Welle, ein Test-Cycle, ein Push
+
+```
+Plan → Code → autom. Tests → User-UI-Smoke → User-OK → Push
+```
+
+- Eine Welle wird **komplett** abgeschlossen und lokal verifiziert, bevor der naechste Modul-Refactor startet.
+- "Komplett" heisst: alle Schritte 0–7 fuer EIN Modul.
+- **Kein Push auf `master`** ohne explizites User-OK nach lokalem Test.
+- Bei mehreren PRs innerhalb einer Welle: **seriell mergen** mit ≥6 Min Abstand
+  (CI-Build-Dauer abwarten) ODER alle in EINEN Squash-Merge buendeln.
+
+### R2 — Default = 1 Cloud-Agent, kein Parallelismus
+
+| Variante | Wann verwenden? |
+|---|---|
+| **1 Cloud-Agent** seriell durch alle 8 Schritte (DEFAULT) | Standardfall fuer jede Welle. User kann parallel andere Arbeit machen, Agent liefert PR(s) am Ende zum Review |
+| **IDE-Agent (Claude im Cursor-Chat)** | nur fuer kleine Hotfix-Mini-Wellen (1-2 Files, klare Grenzen) oder wenn User direkt mit-debuggen will |
+| **NIE** mehrere Cloud-Agents parallel | nur ausnahmsweise und mit Stacked-PRs (Branch B baut auf Branch A) |
+
+Begruendung: Pilot-Welle nutzte 5 parallele Cloud-Agents → 6× derselbe
+Bootstrap-Commit, CI-Race-Condition beim Merge, Acceptance-Bericht aus
+unvollstaendigem Stand. Nutzen war marginal, Kosten + Komplexitaet hoch.
+Ein einzelner Cloud-Agent, der die Welle seriell abarbeitet, vermeidet
+diese Probleme komplett.
+
+### R3 — User-Verifikation ist Pflicht-Phase, nicht "nice to have"
+
+Vor Push einer Welle:
+
+1. **Automatisierte Tests lokal**: `pnpm test` + (falls relevant) `pnpm test:integration:api`
+2. **UI-Smoke**: User klickt durch die betroffenen UseCases. Agent stellt vorher eine
+   konkrete Test-Liste bereit als `docs/refactor/<modul>/05-user-test-plan.md`.
+3. **User-OK ausdruecklich abwarten** (kein "ich mach mal weiter").
+4. Erst dann: Commit + Push.
+
+### R4 — Push-Disziplin
+
+- **Doku-only-Commits** mit `[skip ci]` im Subject (sonst triggern sie unnoetig
+  Production-Deploy).
+- **Keine 2 Pushes in 6 Min** auf `master` ohne CI-Statuscheck.
+- **CI-Status pruefen** nach jedem Push, bevor weiterer Push folgt.
+
+### R5 — Definition of Done zweiteilen
+
+Plan und Acceptance-Berichte trennen explizit zwischen:
+
+- **Methodik-DoD**: Was beweist, dass die Welle methodisch sauber war?
+  (z.B. Audit existiert, Char-Tests existieren, Playbook befolgt)
+- **Modul-DoD**: Was misst echte Modul-Verbesserung?
+  (z.B. "−10 leere Catches", "phase-template.ts < 1.500 Zeilen")
+
+Beides darf realistisch dimensioniert sein — lieber kleine erreichte Ziele als
+grosse unerfuellte.
+
 ```mermaid
 flowchart TD
   s0[0 Bestands-Audit Rules Tests Docs] --> s1[1 Inventur]
@@ -151,12 +212,22 @@ Commit pro Datei fuer saubere History.
 
 Modul gilt als "gruen", wenn alle Punkte erfuellt sind:
 
+**Methodik-DoD** (siehe R5):
+
+- Audit-File `docs/refactor/<modul>/00-audit.md` existiert mit allen 3 Tabellen
+- Inventur-File `docs/refactor/<modul>/01-inventory.md` existiert
+- Test-Plan-File `docs/refactor/<modul>/05-user-test-plan.md` existiert (siehe R3)
+- Modul-spezifische Contract-Rule existiert
+- Acceptance-File `docs/refactor/<modul>/04-acceptance.md` existiert mit Methodik+Modul-DoD-Status
+
+**Modul-DoD** (Welle-spezifisch, im Plan VORHER festgelegt):
+
 - `pnpm test` (Vitest) gruen, neue Tests in `tests/unit/<modul>/`
 - `pnpm lint` ohne neue Warnings
 - Falls Pipeline-Modul: `pnpm test:integration:api` mit relevanten Testcases gruen
-- Modul-spezifische Contract-Rule existiert
-- Alle Top-Dateien < 200 Zeilen (oder dokumentierte Ausnahme)
-- `pnpm health --module <modul>` zeigt 0 fuer `any`/silent-fallback/large-file-Counts
+- **User-Verifikation lokal** durchgefuehrt und dokumentiert (Datum, Befund, Use-Cases)
+- Konkrete Modul-Ziele (z.B. "−N leere Catches", "Datei X < Y Zeilen") erfuellt
+- `pnpm health --module <modul>` zeigt die im Plan vereinbarten Werte
 
 ## Werkzeuge (alle in `pnpm`)
 
