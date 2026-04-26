@@ -128,3 +128,17 @@ nach dem Pilot zum **zweiten** Mal angewendet. Erkenntnisse:
 2. **PR `refactor/storage-welle-1`** als Draft erstellt (Code + Doku in einem PR, wie im Brief gefordert).
 3. **Naechste Welle** kann danach starten — Plan §5 Welle 2 (`shadow-twin`).
    Die Methodik ist jetzt zweimal erprobt; das Vorbild liegt direkt vor.
+
+## User-Verifikation 2026-04-27
+
+User hat lokal verifiziert. Befund:
+
+| Phase | Status | Detail |
+|---|---|---|
+| A — autom. Tests | ✅ | `pnpm test`, `pnpm lint`, `pnpm health -- --module storage` alle gruen |
+| B — Build-Sanity | ✅ | `pnpm build` sauber durchgelaufen, kein "Module not found" auf den umgezogenen `onedrive/oauth-server.ts`-Pfad |
+| C — UI-Smoke | ✅ | **Alle** Tests aus `05-user-test-plan.md` durchgelaufen: Filesystem (Test 1), OneDrive Datei oeffnen (Test 2), **OneDrive Re-Auth (Test 3)** — Schluesseltest fuer den OAuth-Helper-Move, Nextcloud (Test 4), Sammeltranskript (Tests 6/7) |
+| D — Befund | ✅ | **Option 1 aus dem Test-Plan**: alles gruen, Welle abgenommen |
+
+Damit ist sowohl Methodik-DoD (R5) als auch Modul-DoD vollstaendig
+abgenommen. PR wird gemerged, Welle 2 (`shadow-twin`) kann starten.
