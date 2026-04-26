@@ -1,0 +1,205 @@
+---
+description: Harte technische Invarianten fuer das Modul `ingestion` (Embeddings, Bilder, Vektoren, Meta-Dokumente)
+globs: src/lib/ingestion/**/*.ts,tests/unit/ingestion/**/*.ts
+alwaysApply: false
+---
+
+# Contracts: `ingestion`
+
+Diese Regel ergaenzt die globalen Pipeline-Rules
+[`contracts-story-pipeline.mdc`](mdc:.cursor/rules/contracts-story-pipeline.mdc)
+und [`ingest-mongo-only.mdc`](mdc:.cursor/rules/ingest-mongo-only.mdc)
+um **harte technische Invarianten** auf Code-Ebene fuer das Modul
+`src/lib/ingestion/`. Sie ist der Vertrag, gegen den
+`tests/unit/ingestion/**` und kuenftige Helper implementiert werden.
+
+Die Pipeline-Rule `ingest-mongo-only.mdc` erklaert das **Warum** auf
+Pipeline-Ebene (kein Fallback fuer Ingest-Quellen). Diese Rule erklaert
+das **Wie genau** auf Funktions- und Fehler-Ebene innerhalb der
+Ingestion-Helper.
+
+## Quellen der Wahrheit (zuerst lesen)
+
+- Pure Helper:
+  - `src/lib/ingestion/page-split.ts` (Markdown-Seiten-Span-Aufloesung)
+  - `src/lib/ingestion/metadata-formatter.ts` (Embedding-Praefix)
+  - `src/lib/ingestion/document-text-builder.ts` (Embedding-Text-Aggregation)
+  - `src/lib/ingestion/meta-document-builder.ts` (Meta-Dokument-Aufbau)
+  - `src/lib/ingestion/vector-builder.ts` (Vector-Dokumente + Facetten)
+  - `src/lib/ingestion/ingest-meta-keys.ts` (interne Meta-Keys)
+- Stateful: `src/lib/ingestion/image-processor.ts` (Klasse `ImageProcessor`
+  mit klassen-statischem Cache `imageCache`)
+- Verwandtes Modul (NICHT identisch): `src/lib/markdown/markdown-page-splitter.ts`
+  hat eine eigene `splitMarkdownByPageMarkers`-Funktion. Beide Funktionen
+  parsen das gleiche Marker-Format `--- Seite N ---`, liefern aber
+  unterschiedliche Result-Strukturen. Kein Konsolidierungs-Pflicht in
+  Welle 3, aber Watchpoint fuer kuenftige Refactors.
+
+## §1 Determinismus
+
+Pure Helper sind **strikt seiteneffekt-frei** und idempotent fuer
+gleiche Eingabe:
+
+- `splitByPages(markdown)` ist deterministisch: gleiche Input-Seiten →
+  gleiche `PageSpan[]`-Ausgabe.
+- `buildMetadataPrefix(docMetaJsonObj)` ist deterministisch: gleiche
+  Felder → gleicher Praefix-String.
+- `buildDocumentTextForEmbedding(...)` ist deterministisch.
+- `buildMetaDocument(...)` ist deterministisch **bis auf** den
+  `upsertedAt`-Timestamp (siehe §4: dieser ist explizit nicht-deterministisch).
+- `extractFacetValues(...)` und `buildVectorDocuments(...)` sind
+  deterministisch **bis auf** den `upsertedAt`-Timestamp.
+
+`ImageProcessor` (Klasse) ist **nicht** deterministisch in dem Sinne, dass
+sie einen klassen-statischen Cache `imageCache` haelt. Tests **MUESSEN**
+`ImageProcessor.clearImageCache()` in `beforeEach` aufrufen.
+
+## §2 Fehler-Semantik
+
+### Pflicht: kein silent fallback fuer Ingest-Quellen
+
+Die Pipeline-Rule [`ingest-mongo-only.mdc`](mdc:.cursor/rules/ingest-mongo-only.mdc)
+gilt auch fuer Code in `src/lib/ingestion/`:
+
+- **Verboten**: Filesystem- oder Provider-Fallback fuer Ingest-Quellen,
+  wenn die kanonische MongoDB-Quelle leer ist.
+- **Verboten**: `} catch {}` ohne Kommentar, der den bewussten Schluck
+  dokumentiert.
+- **Verboten**: `?? defaultValue` als Ersatz fuer eine Validierung.
+
+### Erlaubt: Result-Objekt-Pattern bei Bild-Verarbeitung
+
+`ImageProcessor.processMarkdownImages` und `processSlideImages`
+liefern **Result-Objekte** zurueck (Beispiel: `MarkdownImageProcessingResult`):
+
+```ts
+interface MarkdownImageProcessingResult {
+  markdown: string                       // immer der aktuellste Stand
+  imageErrors: Array<{ imagePath: string; error: string }>  // nicht-fatale Fehler
+  imageMapping: Array<{ originalPath: string; azureUrl: string }>
+}
+```
+
+Bedeutung: einzelne Bild-Verarbeitungsfehler sind **NICHT** fatal, sie
+landen im `imageErrors`-Array und das Markdown wird unveraendert zurueckgegeben.
+Der Aufrufer entscheidet, ob `imageErrors.length > 0` ein Hard-Fail ist.
+
+### Erlaubt: bewusste `try/catch` mit Logging
+
+Beispiel-Pattern in `image-processor.ts` Zeile 242-249:
+
+```ts
+try {
+  const binaryFragments = await getShadowTwinBinaryFragments(libraryId, sourceId)
+  // ... Optimierungs-Pfad
+} catch (mongoError) {
+  // MongoDB-Pruefung fehlgeschlagen - nicht kritisch, verwende normalen Upload-Pfad
+  FileLogger.warn('ingestion', 'Fehler beim Pruefen von MongoDB binaryFragments', {
+    fileId, sourceId, error: ...
+  })
+}
+```
+
+Pflicht-Bedingungen:
+
+1. Der `catch` enthaelt einen **Kommentar**, warum der Fehler nicht fatal ist.
+2. Der `catch` ruft mindestens `FileLogger.warn` oder `FileLogger.error` auf.
+3. Es gibt einen dokumentierten Fallback-Pfad, der NICHT die Mongo-Only-Regel
+   verletzt (im Beispiel: regulaerer Storage-Provider-Pfad fuer **dieses Bild**,
+   NICHT als Fallback fuer fehlende Ingest-Quellen).
+
+## §3 Erlaubte / verbotene Abhaengigkeiten
+
+`src/lib/ingestion/**`:
+
+- **DARF abhaengen von**:
+  - `@/types/**` (`DocMeta`, `StorageConfig`, `ChapterMetaEntry`)
+  - `@/lib/storage/**` (Storage-Provider/Types)
+  - `@/lib/services/azure-storage-service` (Bilder + Hash)
+  - `@/lib/config/azure-storage` (Azure-Config)
+  - `@/lib/debug/logger` (`FileLogger`)
+  - `@/lib/external-jobs-log-buffer` (`bufferLog`)
+  - `@/lib/repositories/shadow-twin-repo` (Mongo-Lookups)
+  - `@/lib/shadow-twin/mongo-shadow-twin-id` (ID-Helper)
+  - `@/lib/utils/string-utils` (`safeText`)
+  - `@/lib/chat/dynamic-facets` (`FacetDef`-Typ)
+- **DARF NICHT abhaengen von**:
+  - `src/components/**` (UI-Code)
+  - `src/contexts/**` (React-Context)
+  - `src/hooks/**` (React-Hooks)
+  - `src/app/**` (UI-Routen; API-Routen sind erlaubt als Aufrufer-Richtung,
+    aber niemals umgekehrt importieren)
+  - `src/lib/chat/ingestion-service.ts` direkt — `ingestion-service` ist
+    der **Aufrufer** der `ingestion`-Helper, nicht umgekehrt.
+
+## §4 Skip- / Default-Semantik
+
+### Pure Helper
+
+- `buildMetadataPrefix({})` → leerer String, **kein Wurf**. Begruendung:
+  fehlende Metadaten sind ein gueltiger Zustand.
+- `buildDocumentTextForEmbedding(empty, empty)` → leerer String.
+- `splitByPages('text ohne marker')` → leeres Array `[]`.
+- `extractFacetValues(...)` mit unbekannten Facet-Defs → ueberspringt
+  unbekannte Felder, **kein Wurf**.
+- `buildMetaDocument(...)` → setzt `upsertedAt = new Date().toISOString()`.
+  Tests muessen den Timestamp ggf. mocken (`vi.useFakeTimers()`).
+
+### `ImageProcessor` (Klasse)
+
+- `processMarkdownImages` ohne Bilder im Markdown → `{ markdown, imageErrors: [], imageMapping: [] }`.
+- `processMarkdownImages` mit Azure-Storage-Fehlbild → `imageErrors`-Array
+  fuellen, Markdown unveraendert zurueck. **Kein Wurf**.
+- `imageCache` lebt klassen-statisch ueber Aufrufe hinweg. Tests muessen
+  via `clearImageCache()` zuruecksetzen.
+
+## §5 Cache-Vertrag (`ImageProcessor.imageCache`)
+
+- Cache-Schluessel: `${libraryId}:${scope}:${hash}:${extension}` (siehe
+  `getImageCacheKey`).
+- Cache-Wert: Azure-Blob-URL (string).
+- Cache wird **niemals** persistiert; lebt nur fuer die Lebensdauer des
+  Node-Prozesses.
+- `clearImageCache()` ist **Pflicht-Cleanup** in jedem Test, der
+  `ImageProcessor` aufruft. Sonst gibt es Kreuz-Kontamination zwischen
+  Tests.
+- Direktes Lesen/Schreiben von `imageCache` ausserhalb der Klasse ist
+  **verboten** — der Cache ist `private static`.
+
+## §6 Mongo-Only-Vertrag (Verbindung zu `ingest-mongo-only.mdc`)
+
+`src/lib/ingestion/`-Code fungiert als **Konsument** der Mongo-Only-Regel:
+
+- Bilder, die ueber `processMarkdownImages` aufgeloest werden, bevorzugen
+  bestehende Mongo-Eintraege (`getShadowTwinBinaryFragments`) vor einem
+  Storage-Provider-Lookup.
+- Wenn Mongo-Lookup fehlschlaegt (`catch`-Pfad), ist der **Provider-Lookup
+  fuer dieses einzelne Bild** ein bewusster Optimierungs-Fallback,
+  **NICHT** ein Verstoss gegen die Mongo-Only-Regel — denn die
+  kanonische Ingest-Quelle (das Markdown selbst) lebt **schon** in Mongo
+  zum Zeitpunkt dieser Verarbeitung.
+- **Verboten** ist hingegen: das Markdown-Quelldokument (oder den
+  korrespondierenden Vector-/Meta-Eintrag) aus Filesystem laden, weil
+  Mongo "leer" ist. Das verletzt `ingest-mongo-only.mdc` direkt.
+
+## §7 Code-Review-Checkliste
+
+Wenn du im Modul `ingestion` Code anfasst:
+
+- [ ] Ist die Funktion **pure** (deterministisch ausser dokumentierter
+      Timestamp/Cache)? Falls ja: keine I/O ausser dem Aufrufer.
+- [ ] Faengt jeder `try/catch` einen **konkreten** Fehler ab und enthaelt
+      einen **Kommentar** plus **Logger-Aufruf** (`FileLogger.warn` o.ae.)?
+- [ ] Liefert die Funktion bei Fehlern in **einzelnen Bildern/Items** ein
+      Result-Objekt (statt zu werfen) — und der Aufrufer kann
+      `errors.length > 0` pruefen?
+- [ ] Importiert die Datei nichts aus `src/components/**`,
+      `src/contexts/**`, `src/hooks/**` oder `src/lib/chat/ingestion-service.ts`?
+- [ ] Wird Timestamp (`upsertedAt`) in Tests via `vi.useFakeTimers` o.ae.
+      stabilisiert?
+- [ ] Wird `ImageProcessor.clearImageCache()` in `beforeEach` aufgerufen?
+- [ ] Verstoesst der Code NICHT gegen `ingest-mongo-only.mdc` (kein
+      Filesystem-Fallback fuer Ingest-Quellen)?
+- [ ] Sind Azure-Storage- und Mongo-Aufrufe in Tests sauber gemockt
+      (`vi.mock('@/lib/services/azure-storage-service')`,
+      `vi.mock('@/lib/repositories/shadow-twin-repo')`)?
