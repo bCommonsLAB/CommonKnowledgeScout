@@ -21,8 +21,10 @@ Complete index of all documented source files with descriptions, exports, and us
 | `src/lib/storage/storage-factory.ts` | storage | Storage provider factory | `StorageFactory`, `LocalStorageProvider` | Contexts, API routes, components |
 | `src/lib/storage/filesystem-provider.ts` | storage | Local filesystem provider | `FileSystemProvider` | Storage factory |
 | `src/lib/storage/onedrive-provider.ts` | storage | OneDrive provider | `OneDriveProvider` | Storage factory |
-| `src/lib/storage/storage-factory-mongodb.ts` | storage | MongoDB storage factory | `MongoDBStorageFactory` | MongoDB operations |
-| `src/lib/storage/filesystem-client.ts` | storage | Filesystem client | `FileSystemClient` | Client-side operations |
+| `src/lib/storage/onedrive/oauth-server.ts` | storage | OneDrive OAuth-Authorization-Code-Flow Helper (Welle 1: vorher `onedrive-provider-server.ts`) | `OneDriveServerProvider` | `auth/onedrive/callback/route.ts` |
+| `src/lib/storage/onedrive/errors.ts` | storage | Pure OneDrive-Helper (Welle 1: extrahiert aus `onedrive-provider.ts`) | `extractGraphEndpoint`, `parseRetryAfter` | OneDrive-Provider |
+| `src/lib/storage/library-capability.ts` | storage | Storage-agnostic capability helper (Welle 1) | `isFilesystemBacked` | UI-Komponenten / Service-Layer |
+| `src/lib/storage/filesystem-client.ts` | storage | Filesystem client (legacy reference, Folge-PR-Cleanup) | `FileSystemClient` | (kein aktiver Aufrufer) |
 | `src/lib/storage/server-provider.ts` | storage | Server-side provider helper | `getServerProvider` | API routes |
 | `src/lib/storage/supported-types.ts` | storage | Supported library types | `SUPPORTED_LIBRARY_TYPES`, `isSupportedLibraryType`, `getSupportedLibraryTypesString` | Storage factory |
 | `src/contexts/storage-context.tsx` | storage | Storage React context | `StorageContextProvider`, `useStorage` | Components |

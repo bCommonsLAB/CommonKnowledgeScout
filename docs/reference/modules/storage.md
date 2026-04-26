@@ -4,7 +4,7 @@ Complete documentation for the Storage module.
 
 ## Overview
 
-The Storage module provides an abstraction layer for file storage operations across multiple backends. It supports local filesystem and OneDrive storage, with Nextcloud support in development.
+The Storage module provides an abstraction layer for file storage operations across multiple backends. It supports local filesystem, OneDrive and Nextcloud (WebDAV).
 
 ## Key Files
 
@@ -12,14 +12,22 @@ The Storage module provides an abstraction layer for file storage operations acr
 - **`src/lib/storage/types.ts`**: Core type definitions including `StorageProvider` interface, `StorageItem`, and `StorageValidationResult`
 
 ### Factory & Providers
-- **`src/lib/storage/storage-factory.ts`**: Main factory for creating storage providers
-- **`src/lib/storage/filesystem-provider.ts`**: Local filesystem provider implementation
-- **`src/lib/storage/onedrive-provider.ts`**: OneDrive provider implementation
-- **`src/lib/storage/storage-factory-mongodb.ts`**: MongoDB-based storage factory
+- **`src/lib/storage/storage-factory.ts`**: Main factory for creating storage providers (`LocalStorageProvider`, `NextcloudClientProvider`, `OneDriveProvider`)
+- **`src/lib/storage/filesystem-provider.ts`**: Server-side filesystem provider (legacy reference; in-tree, currently no active import — slated for Folge-PR cleanup)
+- **`src/lib/storage/nextcloud-provider.ts`**: Server-side Nextcloud (WebDAV) provider, used by `StorageFactory` in Server-Kontext
+- **`src/lib/storage/onedrive-provider.ts`**: OneDrive provider implementation (Welle 1: Helper extrahiert nach `onedrive/errors.ts`)
+- **`src/lib/storage/onedrive/oauth-server.ts`**: OAuth-Authorization-Code-Flow Server-Helper (kein `StorageProvider`-Implementierer; Welle 1: umgezogen vom alten Pfad `onedrive-provider-server.ts`)
 
 ### Client & Server
-- **`src/lib/storage/filesystem-client.ts`**: Client-side filesystem provider
-- **`src/lib/storage/server-provider.ts`**: Server-side provider helper
+- **`src/lib/storage/filesystem-client.ts`**: Client-side filesystem helper (legacy reference; in-tree, currently no active import — slated for Folge-PR cleanup)
+- **`src/lib/storage/server-provider.ts`**: Server-side provider helper (`getServerProvider`)
+
+### Helper / Capability
+- **`src/lib/storage/library-capability.ts`**: Storage-agnostische Capability-Helper (`isFilesystemBacked`); siehe `.cursor/rules/storage-contracts.mdc` §5
+- **`src/lib/storage/onedrive/errors.ts`**: Pure Helper fuer OneDrive (`extractGraphEndpoint`, `parseRetryAfter`)
+- **`src/lib/storage/provider-request-cache.ts`**: Per-Request-Cache-Wrapper fuer Provider
+- **`src/lib/storage/request-deduplicator.ts`**: Deduplizierungs-Helper
+- **`src/lib/storage/non-portable-media-url.ts`**: Erkennung von Loopback-URLs
 
 ### Context & Hooks
 - **`src/contexts/storage-context.tsx`**: React context for storage provider management
@@ -39,15 +47,16 @@ The Storage module provides an abstraction layer for file storage operations acr
 
 ### Classes
 - `StorageFactory`: Singleton factory for creating providers
-- `FileSystemProvider`: Local filesystem provider
 - `OneDriveProvider`: OneDrive provider
-- `FileSystemClient`: Client-side filesystem provider
-- `MongoDBStorageFactory`: MongoDB-based factory
+- `NextcloudProvider`: Server-side Nextcloud (WebDAV) provider
+- `OneDriveServerProvider`: OAuth-Authorization-Code-Flow Helper (in `onedrive/oauth-server.ts`)
 
 ### Functions
 - `getServerProvider()`: Creates server-side storage provider
 - `isSupportedLibraryType()`: Type guard for library types
 - `getSupportedLibraryTypesString()`: UI helper for supported types
+- `isFilesystemBacked()`: Storage-agnostic capability check (Welle 1)
+- `extractGraphEndpoint()`, `parseRetryAfter()`: OneDrive-Helper (Welle 1)
 
 ## Usage Examples
 
@@ -96,9 +105,9 @@ The storage module follows a layered architecture:
 
 ## Supported Storage Backends
 
-- ✅ **Local File System**: Direct filesystem access
-- ✅ **OneDrive**: Microsoft OneDrive integration
-- 🚧 **Nextcloud**: In development
+- ✅ **Local File System**: Direct filesystem access (`local`)
+- ✅ **OneDrive**: Microsoft OneDrive integration (`onedrive`)
+- ✅ **Nextcloud**: WebDAV-based Nextcloud integration (`nextcloud`)
 
 ## Error Handling
 
