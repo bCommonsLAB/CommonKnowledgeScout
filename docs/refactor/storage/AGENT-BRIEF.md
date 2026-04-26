@@ -70,9 +70,10 @@ Code-Aenderungen landen direkt in `src/lib/storage/`, neue Tests in
    - Char-Tests aus Schritt 3 muessen gruen bleiben
 2. Silent Catch in `onedrive-provider.ts` dokumentieren oder beheben (1 Stelle)
 3. **`onedrive-provider-server.ts` umziehen** nach `src/lib/storage/onedrive/oauth-server.ts`:
-   - Klassen-Name beibehalten oder `OneDriveOAuthServer` vorschlagen (User-Frage, nicht eigenmaechtig umbenennen)
+   - Klassen-Name umbenennen: `OneDriveServerProvider` → `OneDriveOAuthServer` (User-Entscheidung 2026-04-26, vor Welle-Start verbindlich gemacht). Begruendung: schaerfere Bedeutung, Provider-Suffix war irrefuehrend, weil die Klasse `StorageProvider` gerade NICHT implementiert.
    - Header-Doc schaerfen: "OAuth-Authorization-Code-Flow Server-Helper. Implementiert NICHT das `StorageProvider`-Interface."
-   - Aufrufer in `src/app/api/auth/onedrive/callback/route.ts:5` Import-Pfad anpassen
+   - Alle Aufrufer anpassen — aktuell genau 1 Stelle: `src/app/api/auth/onedrive/callback/route.ts` (Import-Pfad + Klassen-Name)
+   - Falls `grep -rn "OneDriveServerProvider" src/` weitere Treffer findet: alle migrieren, vor Commit verifizieren.
 4. **Helper-Service erstellen** fuer "ist diese Library auf Filesystem?" — z.B. `storage/library-capability.ts` mit `isFilesystemBacked(library): boolean`. Pilot-Migration: `file-preview.tsx:1134` darauf umstellen.
 
 **Optional bei Zeit/Budget**: weitere `> 200 Zeilen`-Files pruefen (`storage-factory.ts`, `filesystem-provider.ts`).

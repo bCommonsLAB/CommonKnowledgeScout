@@ -110,7 +110,8 @@ oder lokale Fake-Provider erstellen.
   **kein Strangler-Fig**, sondern eigenstaendiger OAuth-Server-Helper (genau
   1 Aufrufer in `src/app/api/auth/onedrive/callback/route.ts`, implementiert
   `StorageProvider` NICHT). → in Schritt 4 nach `src/lib/storage/onedrive/oauth-server.ts`
-  umziehen.
+  umziehen + Klasse umbenennen `OneDriveServerProvider` → `OneDriveOAuthServer`
+  (User-Entscheidung 2026-04-26, `Provider`-Suffix war irrefuehrend).
 - **`storage-factory-mongodb.ts`** — Pre-Flight-Analyse 2026-04-26 hat geklaert:
   **toter Duplikat-Code** (0 Imports im `src/`-Tree, eigene veraltete
   `LocalStorageProvider`-Klasse mit fehlerhaften API-Pfaden, unterstuetzt nur
