@@ -25,24 +25,31 @@ Common Knowledge Scout
 ├── Storage Layer (Layer 2)
 │   ├── lib/storage/
 │   │   ├── types.ts
-│   │   │   └── Type Definitions
+│   │   │   └── Type Definitions (StorageProvider, StorageItem, StorageError)
 │   │   ├── storage-factory.ts
 │   │   │   ├── LocalStorageProvider
+│   │   │   ├── NextcloudClientProvider
 │   │   │   └── StorageFactory
 │   │   ├── filesystem-provider.ts
-│   │   │   └── FileSystemProvider
+│   │   │   └── FileSystemProvider (legacy, vor Welle 1)
+│   │   ├── nextcloud-provider.ts
+│   │   │   └── NextcloudProvider (Server/WebDAV)
 │   │   ├── onedrive-provider.ts
 │   │   │   └── OneDriveProvider
-│   │   ├── onedrive-provider-server.ts
-│   │   │   └── OneDriveServerProvider
+│   │   ├── onedrive/
+│   │   │   ├── errors.ts (extractGraphEndpoint, parseRetryAfter)
+│   │   │   └── oauth-server.ts (OneDriveServerProvider, OAuth-Helper)
+│   │   ├── library-capability.ts
+│   │   │   └── isFilesystemBacked
 │   │   ├── filesystem-client.ts
-│   │   │   └── FilesystemClient
+│   │   │   └── FilesystemClient (legacy, vor Welle 1)
 │   │   ├── server-provider.ts
-│   │   │   └── Server Provider Helper
-│   │   ├── storage-factory-mongodb.ts
-│   │   │   └── MongoDBStorageFactory
-│   │   ├── storage-service.ts
+│   │   │   └── Server Provider Helper (getServerProvider)
 │   │   ├── shadow-twin.ts
+│   │   ├── shadow-twin-folder-name.ts
+│   │   ├── provider-request-cache.ts
+│   │   ├── request-deduplicator.ts
+│   │   ├── non-portable-media-url.ts
 │   │   └── supported-types.ts
 │   ├── contexts/storage-context.tsx
 │   │   └── StorageContextProvider
@@ -120,7 +127,7 @@ Layer 5 (API Routes & Components)
 Foundation layer providing authentication, database, and environment configuration. No internal dependencies.
 
 ### Storage Layer
-Abstracts file storage operations across multiple backends (local filesystem, OneDrive). Depends on Core Infrastructure.
+Abstracts file storage operations across multiple backends (local filesystem, OneDrive, Nextcloud). Depends on Core Infrastructure.
 
 ### Library System
 Manages library data and provides UI components for file browsing and management. Depends on Storage Layer.

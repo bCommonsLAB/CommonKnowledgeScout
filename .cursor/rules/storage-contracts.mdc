@@ -1,0 +1,168 @@
+---
+description: Harte technische Invarianten fuer das Modul `storage` (Provider, Factory, Helper)
+globs: src/lib/storage/**/*.ts,src/app/api/storage/**/*.ts,tests/unit/storage/**/*.ts
+alwaysApply: false
+---
+
+# Contracts: `storage`
+
+Diese Regel ergaenzt die Architektur-Rule
+[`storage-abstraction.mdc`](mdc:.cursor/rules/storage-abstraction.mdc)
+um **harte technische Invarianten** auf Code-Ebene. Sie ist der Vertrag,
+gegen den `tests/unit/storage/**` und kuenftige Provider implementiert werden.
+
+Die Architektur-Rule erklaert das **Warum** (UI muss storage-agnostisch sein,
+Factory ist einziger Einstiegspunkt). Diese Rule erklaert das **Wie genau**
+auf Funktions- und Fehler-Ebene.
+
+## Quellen der Wahrheit (zuerst lesen)
+
+- Interface: `src/lib/storage/types.ts` (`StorageProvider`, `StorageItem`,
+  `StorageError`, `StorageValidationResult`)
+- Factory: `src/lib/storage/storage-factory.ts` (`StorageFactory`,
+  Singleton, Provider-Auswahl, Server-Kontext)
+- Server-Provider: `src/lib/storage/server-provider.ts`
+  (`getServerProvider`, `setServerContext(true)`)
+- Provider-Implementierungen: `filesystem-provider.ts`, `nextcloud-provider.ts`,
+  `onedrive-provider.ts` (Server-direkt) und die Client-Proxies in
+  `storage-factory.ts` (`LocalStorageProvider`, `NextcloudClientProvider`)
+- Helper: `provider-request-cache.ts`, `request-deduplicator.ts`,
+  `non-portable-media-url.ts`, `shadow-twin-folder-name.ts`,
+  `supported-types.ts`
+
+## §1 Determinismus & Vertrag des `StorageProvider`-Interface
+
+- Jede neue Provider-Klasse implementiert das **vollstaendige**
+  `StorageProvider`-Interface aus `types.ts`. Optionale Zusatzmethoden wie
+  `saveAndExtractZipInFolder` (Filesystem-spezifisch) sind via
+  Feature-Detection erlaubt, gehoeren aber **nicht** ins Interface.
+- Methoden sind **idempotent fuer Lese-Operationen** (`listItemsById`,
+  `getItemById`, `getBinary`, `getPathById`, `getStreamingUrl`,
+  `getDownloadUrl`, `getPathItemsById`, `validateConfiguration`,
+  `isAuthenticated`).
+- `id` ist die `library.id`. `name` ist ein Display-String fuer Debug/UI
+  (kein Vertrags-Identifier).
+- Reihenfolge der Argumente ist Teil des Vertrags, insbesondere
+  `(parentId, name)` bei `createFolder` und `(parentId, file)` bei
+  `uploadFile`.
+- `listItemsById('root')` ist der **einzig** zulaessige Einstiegspunkt fuer
+  die Root-Auflistung; jeder Provider erkennt `'root'` als Sonderwert.
+
+## §2 Fehler-Semantik
+
+- Jeder ungueltige oder unbekannte Eingabewert **wirft**, statt `undefined`
+  oder leere Listen zu returnieren. Insbesondere:
+  - Unbekannte `libraryId` in `StorageFactory.getProvider` → wirft
+    `LibraryNotFoundError` (Name + `errorCode='LIBRARY_NOT_FOUND'` +
+    `libraryId`-Feld). **Kein** Fallback auf "default-Library".
+  - Unbekannter `library.type` in `StorageFactory.getProvider` → wirft
+    `UnsupportedLibraryTypeError` (Name + `errorCode='UNSUPPORTED_LIBRARY_TYPE'`
+    + `libraryType` + `libraryId`). **Kein** stiller Default auf `'local'`.
+  - `Mongo-Shadow-Twin-IDs` (`mongo-shadow-twin:*`) duerfen nicht an die
+    Filesystem-API geleitet werden → `LocalStorageProvider.deleteItem`
+    wirft, statt zu schweigen.
+- Provider werfen typisierte Fehler. Bevorzugt:
+  - `StorageError` (aus `types.ts`) mit `code` und `provider`-Feld fuer
+    semantische Provider-Fehler (Auth, Rate-Limit, Config).
+  - Native `Error` mit aussagekraeftigem Text fuer triviale Faelle (z.B.
+    HTTP-Status nicht ok).
+- **Verbotene Anti-Pattern** (genuegen `no-silent-fallbacks.mdc`):
+  - `} catch {}` ohne Kommentar, der den bewussten Schluck dokumentiert.
+  - `?? defaultValue` als Ersatz fuer eine Validierung.
+  - `return undefined` statt `throw`, wenn der Aufrufer keinen sinnvollen
+    Fallback hat.
+- **Erlaubte gefangene Fehler** (mit Kommentar, optional Logging):
+  - JSON-Parsing eines Error-Bodies (`response.json().catch(...)` zur
+    Extraktion einer optionalen Detail-Message).
+  - Optionale Pfad-Aufloesungen, deren Fehlen den Hauptpfad nicht bricht
+    (z.B. zusaetzlicher Item-Lookup beim Pfad-Aufbau).
+
+## §3 Erlaubte / verbotene Abhaengigkeiten
+
+`src/lib/storage/**`:
+
+- **DARF abhaengen von**:
+  - `@/types/library`, `@/lib/services/library-service`
+  - `@/lib/debug/logger` (`AuthLogger`, `FileLogger`)
+  - `@/lib/auth` (nur in `server-provider.ts`)
+  - Externe Pakete fuer Backend-Anbindung (`webdav`, Microsoft Graph via
+    `fetch`, `node:fs`/`node:path` ausschliesslich in API-Routes oder im
+    `filesystem-provider.ts`).
+- **DARF NICHT abhaengen von**:
+  - `src/components/**` (UI-Code)
+  - `src/contexts/**` (React-Context)
+  - `src/hooks/**` (React-Hooks)
+  - `src/app/**`, **ausser** API-Route-Implementierungen unter
+    `src/app/api/storage/**` und `src/app/api/auth/onedrive/**` (Aufrufer-Richtung
+    UI/Route → Storage, niemals umgekehrt).
+
+## §4 Skip- / Default-Semantik (gegen stille Fallbacks)
+
+- `getProvider()` hat **keinen Default-Provider**. Unbekannter Typ wirft
+  (siehe §2). Der Aufrufer-Layer (Context oder Service) entscheidet, wie
+  er den Fehler darstellt; Storage selbst rateft nicht.
+- `setLibraries([])` ist Sonderfall fuer Initialisierung: behaelt die
+  bestehende Liste, statt sie zu loeschen. Dieser Sonderfall ist
+  **dokumentiert** in `storage-factory.ts:644-664` und absichtlich (sonst
+  haetten leere Initial-Renderings existierende Provider invalidiert).
+  Neue Sonderfaelle bitte mit Begruendung im Code-Kommentar versehen.
+- `serverContext` ist per Default `false` (Client-Kontext mit
+  HTTP-Proxy-Providern). Server-seitige Aufrufer **muessen** explizit
+  `setServerContext(true)` setzen, sonst landen Calls im falschen
+  HTTP-Pfad. `getServerProvider` macht das automatisch.
+- Mongo-Shadow-Twin-IDs sind virtuelle IDs (siehe
+  `shadow-twin-architecture.mdc`). Storage-Provider, die diese IDs sehen,
+  werfen statt sie zu interpretieren. Aufloesung passiert ausschliesslich
+  im Service-Layer.
+
+## §5 Helper-Funktionen statt direkter `library.type`-Checks
+
+Code, der wissen muss, ob eine Library auf einem bestimmten Backend liegt,
+nutzt zentrale Helper aus `src/lib/storage/`. **Keine** direkten
+`library.type === '...'`-Vergleiche in UI/Hooks.
+
+- **Bevorzugt** (Schritt 4 dieser Welle fuehrt sie ein):
+  - `isFilesystemBacked(library)` aus `storage/library-capability.ts` —
+    `true` fuer `library.type === 'local'` oder fuer den Mongo-Shadow-Twin-
+    `persistToFilesystem`-Modus.
+- Storage-spezifische Eingabefelder in Settings-Formularen sind die
+  **einzige** dokumentierte Ausnahme (siehe `storage-abstraction.mdc` §3).
+
+## §6 OneDrive-Sub-Module (Welle 1, Schritt 4)
+
+Mit dem Split von `onedrive-provider.ts` (2.108 Zeilen) gilt fuer das
+OneDrive-Backend:
+
+- Verzeichnis: `src/lib/storage/onedrive/`
+- Sub-Module:
+  - `auth.ts` — OAuth-Flow, Token-Refresh, Token-Persistierung
+  - `items.ts` — `listItemsById`, `getItemById`, `createFolder`,
+    `deleteItem`, `moveItem`, `renameItem`, `uploadFile`
+  - `binary.ts` — `getBinary`, `getStreamingUrl`, `getDownloadUrl`
+  - `cache.ts` — Request-Queue, Rate-Limit-Handling, Pending-Request-Map
+  - `errors.ts` — gemeinsame Error-Helper (z.B. URL-Sanitizer fuer Logs,
+    Retry-After-Parser)
+  - `oauth-server.ts` — eingegrenzter OAuth-Server-Helper (vorher
+    `onedrive-provider-server.ts`), implementiert `StorageProvider`
+    **NICHT**.
+- `onedrive-provider.ts` bleibt als duenne Fassade (~200 Zeilen), die das
+  `StorageProvider`-Interface implementiert und die Sub-Module komponiert.
+- Aufrufer von `onedrive-provider-server.ts` (genau eine API-Route) wird
+  auf den neuen Pfad migriert.
+
+## §7 Code-Review-Checkliste
+
+Wenn du im Modul `storage` Code anfasst:
+
+- [ ] Implementiert ein neuer Provider das **komplette** `StorageProvider`-
+      Interface aus `types.ts`?
+- [ ] Wirft jede unbekannte/ungueltige Eingabe (libraryId, library.type,
+      virtuelle Mongo-ID) statt still zu defaulten?
+- [ ] Faengt jeder `try/catch` einen **konkreten** Fehler ab oder enthaelt
+      einen Kommentar, warum der Schluck bewusst ist?
+- [ ] Importiert die Datei nichts aus `src/components/**`, `src/contexts/**`
+      oder `src/hooks/**`?
+- [ ] Pruefst du Library-Faehigkeiten via Helper (`isFilesystemBacked`)
+      statt via `library.type === '...'`?
+- [ ] Liegen OneDrive-spezifische Erweiterungen unter
+      `src/lib/storage/onedrive/`, nicht in einer Mega-Datei?

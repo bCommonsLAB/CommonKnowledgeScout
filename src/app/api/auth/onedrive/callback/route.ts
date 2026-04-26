@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { StorageFactory } from '@/lib/storage/storage-factory';
 import { LibraryService } from '@/lib/services/library-service';
-import { OneDriveServerProvider } from '@/lib/storage/onedrive-provider-server';
+import { OneDriveServerProvider } from '@/lib/storage/onedrive/oauth-server';
 import { ClientLibrary } from '@/types/library';
 
 export async function GET(request: NextRequest) {
