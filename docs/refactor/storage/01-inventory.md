@@ -9,6 +9,10 @@ Quelle: `pnpm health --module storage` plus manuelle Test- und API-Route-Zuordnu
 |---|---:|---|---:|---|---:|---:|---:|
 | `storage` | 15 | 2.109 (`onedrive-provider.ts`) | 9 | ja | 0 | 1 | 0 |
 
+> Cloud-Agent-Verifikation 2026-04-26 (Welle 1, Schritt 1):
+> `pnpm health -- --module storage` reproduziert die Werte 1:1
+> (15 Files, 2109 Max-Zeilen, 9 > 200, 0 any, 1 leere Catches, 0 'use client').
+
 **Vergleich zu `external-jobs`** (Pilot): strukturell deutlich sauberer
 (0 `any`, nur 1 leeres Catch, 0 `use client`). Hauptlast ist die Groesse
 weniger Dateien, nicht die Verteilung von Code-Smells.
