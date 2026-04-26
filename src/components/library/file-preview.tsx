@@ -38,7 +38,7 @@ import { fetchShadowTwinMarkdown } from "@/lib/shadow-twin/shadow-twin-mongo-cli
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from "@/lib/shadow-twin/mongo-shadow-twin-id"
 import { parseSecretaryMarkdownStrict } from "@/lib/secretary/response-parser"
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
-import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
+import { isFilesystemBacked } from '@/lib/storage/library-capability'
 import { useShadowTwinFreshnessApi } from "@/hooks/use-shadow-twin-freshness"
 import { ShadowTwinSyncBanner } from "@/components/library/shared/shadow-twin-sync-banner"
 import { loadPdfDefaults } from "@/lib/pdf-defaults"
@@ -1129,9 +1129,10 @@ function PreviewContent({
     if (!activeLibraryId || fileType !== 'markdown' || !content?.trim()) return null
     const { meta } = parseFrontmatter(content)
     if (meta?.kind !== 'composite-transcript') return null
-    // ClientLibrary enthält dieselbe config.shadowTwin-Struktur wie Library; Typ nur für Server-Library strenger.
-    const st = getShadowTwinConfig(activeLibrary as Library | null | undefined)
-    const transcriptOnFs = st.primaryStore === 'filesystem' || st.persistToFilesystem
+    // Storage-agnostischer Helper: liefert true, wenn die Library auf einem
+    // Filesystem-Backend persistiert. UI muss `primaryStore` nicht mehr selbst lesen
+    // (siehe `.cursor/rules/storage-contracts.mdc` §5).
+    const transcriptOnFs = isFilesystemBacked(activeLibrary as Library | null | undefined)
     return {
       libraryId: activeLibraryId,
       parentFolderId: item.parentId ?? '',
