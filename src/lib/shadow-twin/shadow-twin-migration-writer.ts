@@ -15,57 +15,13 @@ import { AzureStorageService, calculateImageHash } from '@/lib/services/azure-st
 import { getAzureStorageConfig } from '@/lib/config/azure-storage'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { FileLogger } from '@/lib/debug/logger'
+import { getFileKind, getMimeTypeFromFileName } from '@/lib/shadow-twin/file-kind'
 import path from 'path'
 
-/**
- * Bestimmt den Dateityp basierend auf Dateiname und MIME-Type
- */
-function getFileKind(fileName: string, mimeType?: string): 'markdown' | 'image' | 'audio' | 'video' | 'binary' {
-  const name = fileName.toLowerCase()
-  const mime = (mimeType || '').toLowerCase()
-
-  if (mime.includes('markdown') || /\.(md|mdx|txt)$/.test(name)) return 'markdown'
-  if (mime.startsWith('image/') || /\.(png|jpg|jpeg|gif|webp|svg|bmp|ico|jpeg)$/.test(name)) return 'image'
-  if (mime.startsWith('audio/') || /\.(mp3|m4a|wav|ogg|opus|flac)$/.test(name)) return 'audio'
-  if (mime.startsWith('video/') || /\.(mp4|mov|avi|webm|mkv)$/.test(name)) return 'video'
-  return 'binary'
-}
-
-/**
- * Bestimmt MIME-Type basierend auf Dateiendung
- */
-function getMimeType(fileName: string): string | undefined {
-  const ext = path.extname(fileName).toLowerCase().slice(1)
-  const mimeMap: Record<string, string> = {
-    // Bilder
-    png: 'image/png',
-    jpg: 'image/jpeg',
-    jpeg: 'image/jpeg',
-    gif: 'image/gif',
-    webp: 'image/webp',
-    svg: 'image/svg+xml',
-    bmp: 'image/bmp',
-    ico: 'image/x-icon',
-    // Audio
-    mp3: 'audio/mpeg',
-    m4a: 'audio/mp4',
-    wav: 'audio/wav',
-    ogg: 'audio/ogg',
-    opus: 'audio/opus',
-    flac: 'audio/flac',
-    // Video
-    mp4: 'video/mp4',
-    mov: 'video/quicktime',
-    avi: 'video/x-msvideo',
-    webm: 'video/webm',
-    mkv: 'video/x-matroska',
-    // Markdown
-    md: 'text/markdown',
-    mdx: 'text/markdown',
-    txt: 'text/plain',
-  }
-  return mimeMap[ext]
-}
+// Welle 2, Schritt 4: pure Helper `getFileKind` und `getMimeTypeFromFileName`
+// wurden nach `src/lib/shadow-twin/file-kind.ts` extrahiert. Lokaler Alias
+// fuer Aufrufer im File belassen, damit die Diff-Groesse klein bleibt.
+const getMimeType = getMimeTypeFromFileName
 
 /**
  * Sammelt alle Dateien im Shadow-Twin-Ordner rekursiv
