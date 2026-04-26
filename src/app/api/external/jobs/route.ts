@@ -80,6 +80,11 @@ export async function GET(request: NextRequest) {
 
     const mapped = items.map((j: ExternalJob) => {
       const last = Array.isArray(j.logs) && j.logs.length > 0 ? j.logs[j.logs.length - 1] : undefined;
+      // Bei fehlgeschlagenen Jobs: job.error.message als Fallback für lastMessage verwenden,
+      // damit die Fehlermeldung direkt in der Liste sichtbar ist (nicht nur im HoverCard).
+      const lastMessage = typeof last?.message === 'string'
+        ? last.message
+        : (j.status === 'failed' && typeof j.error?.message === 'string' ? j.error.message : undefined);
       return {
         jobId: j.jobId,
         status: j.status,
@@ -96,7 +101,7 @@ export async function GET(request: NextRequest) {
         batchId: j.correlation?.batchId,
         updatedAt: j.updatedAt,
         createdAt: j.createdAt,
-        lastMessage: typeof last?.message === 'string' ? last.message : undefined,
+        lastMessage,
         lastProgress: typeof last?.progress === 'number' ? last.progress : undefined,
       };
     });

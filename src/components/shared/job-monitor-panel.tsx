@@ -461,10 +461,12 @@ export function JobMonitorPanel() {
     }
   }, [isRefreshing, statusFilter, batchFilter, activeLibraryId, syncTerminalJobAtomsFromList]);
 
-  // SSE nur on-demand verbinden: erst wenn Panel geöffnet ist.
-  // So vermeiden wir permanente /stream-Requests auf Seiten, auf denen der Monitor geschlossen bleibt.
+  // SSE läuft immer, solange Live-Updates aktiv sind – unabhängig ob das Panel geöffnet ist.
+  // So bleiben Fortschrittsbalken und Atom-Updates (jobInfoByItemIdAtom) stets aktuell,
+  // auch wenn der Benutzer das Monitor-Panel nie öffnet.
+  // Panel-interne Items-Listen-Updates sind weiterhin mit isOpenRef.current geschützt (Zeile 494).
   useEffect(() => {
-    if (!liveUpdates || !isOpen) {
+    if (!liveUpdates) {
       if (eventRef.current) { try { eventRef.current.close(); } catch {} eventRef.current = null; }
       sseRetryAttemptRef.current = 0;
       return;
@@ -696,8 +698,9 @@ export function JobMonitorPanel() {
       if (eventRef.current) try { eventRef.current.close(); } catch {}
       window.removeEventListener('job_update_local', onLocal as unknown as EventListener);
     };
+  // isOpen bewusst nicht in deps: SSE soll unabhängig vom Panel-Zustand laufen.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveUpdates, isOpen, upsertJobStatus, upsertJobInfo, clearJobInfo, triggerShadowTwinAnalysis, scheduleShadowTwinReanalysisBurst]);
+  }, [liveUpdates, upsertJobStatus, upsertJobInfo, clearJobInfo, triggerShadowTwinAnalysis, scheduleShadowTwinReanalysisBurst]);
 
   const handleToggle = () => setIsOpen(v => !v);
   const queuedCount = items.filter(i => i.status === 'queued').length;
@@ -1100,6 +1103,8 @@ export function JobMonitorPanel() {
 
 function JobLogs({ jobId }: { jobId: string }) {
   const [logs, setLogs] = useState<Array<{ timestamp: string; phase?: string; progress?: number; message?: string }>>([]);
+  // Fehlermeldung aus job.error (wird bei failed-Jobs vom Server zurückgegeben)
+  const [jobError, setJobError] = useState<{ code: string; message: string; details?: Record<string, unknown> } | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -1117,6 +1122,14 @@ function JobLogs({ jobId }: { jobId: string }) {
           progress: typeof e.progress === 'number' ? e.progress : undefined,
           message: typeof e.message === 'string' ? e.message : undefined,
         })));
+        // Fehlermeldung aus job.error auslesen (vorhanden wenn Job failed)
+        if (json.error && typeof json.error === 'object') {
+          setJobError({
+            code: typeof json.error.code === 'string' ? json.error.code : 'unknown',
+            message: typeof json.error.message === 'string' ? json.error.message : String(json.error),
+            details: json.error.details,
+          });
+        }
         setLoaded(true);
       } catch {
         // ignore
@@ -1127,12 +1140,25 @@ function JobLogs({ jobId }: { jobId: string }) {
   }, [jobId, loaded]);
 
   if (!loaded) return <div className="text-muted-foreground">Lade Logs…</div>;
-  // Filter: keinerlei reine Worker-Details ohne message nicht anzeigen
+  // Filter: reine Worker-Details ohne message nicht anzeigen
   const visible = logs.filter(l => (l.message && l.message.trim() !== ''));
-  if (visible.length === 0) return <div className="text-muted-foreground">Keine Logs</div>;
 
   return (
     <div className="space-y-2">
+      {/* Fehlermeldung prominent oben anzeigen, wenn job.error vorhanden */}
+      {jobError && (
+        <div className="rounded border border-red-300 bg-red-50 p-2 text-xs text-red-800">
+          <div className="font-semibold mb-0.5">Fehler [{jobError.code}]</div>
+          <div className="break-all">{jobError.message}</div>
+          {jobError.details && Object.keys(jobError.details).length > 0 && (
+            <details className="mt-1 cursor-pointer">
+              <summary className="text-[10px] text-red-600 hover:underline">Details anzeigen</summary>
+              <pre className="mt-1 whitespace-pre-wrap break-all text-[10px]">{JSON.stringify(jobError.details, null, 2)}</pre>
+            </details>
+          )}
+        </div>
+      )}
+      {visible.length === 0 && !jobError && <div className="text-muted-foreground">Keine Logs</div>}
       {visible.map((l, idx) => (
         <div key={idx} className="flex items-start justify-between gap-2">
           <div className="truncate">

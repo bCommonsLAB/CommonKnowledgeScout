@@ -943,6 +943,9 @@ function PreviewContent({
   // bei der ausgewählten Datei alle Sprach-Varianten über die Shadow-Twins-API.
   const [allTranscriptFiles, setAllTranscriptFiles] = React.useState<StorageItem[]>([])
   const [allTransformationFiles, setAllTransformationFiles] = React.useState<StorageItem[]>([])
+  // Lokaler Trigger: Erhöhung erzwingt erneutes Laden aller Artefakte (loadAllArtifacts-Effect).
+  // Wird vom Fallback-Polling gesetzt, wenn der Job als abgeschlossen erkannt wird.
+  const [artifactsRefreshTrigger, setArtifactsRefreshTrigger] = React.useState(0)
   React.useEffect(() => {
     if (!activeLibraryId || !item.id) return
     let cancelled = false
@@ -1020,6 +1023,7 @@ function PreviewContent({
     return () => { cancelled = true }
     // transcript.transcriptItem triggert Neuladen, wenn ein neues Transkript erstellt wird
     // currentJobInfo aktualisiert Artefakte direkt nach Job-Ende (ohne Dateiwechsel)
+    // artifactsRefreshTrigger: direkter Fallback-Trigger vom Polling-Mechanismus
   }, [
     activeLibraryId,
     item.id,
@@ -1029,6 +1033,7 @@ function PreviewContent({
     shadowTwinState?.transformed?.id,
     currentJobInfo?.status,
     currentJobInfo?.updatedAt,
+    artifactsRefreshTrigger,
   ])
 
   // Verfügbare Transkripte: bevorzuge die vollständige Liste aus der API,
@@ -1309,6 +1314,8 @@ function PreviewContent({
   const [templates, setTemplates] = React.useState<string[]>([])
   const [isLoadingTemplates, setIsLoadingTemplates] = React.useState(false)
   const [isRunningPipeline, setIsRunningPipeline] = React.useState(false)
+  // Hält die jobId des zuletzt gestarteten Jobs (wird für Fallback-Polling genutzt)
+  const [pendingJobId, setPendingJobId] = React.useState<string | null>(null)
   
   // LLM-Modell-State
   const [llmModel, setLlmModel] = React.useState<string>("")
@@ -1462,7 +1469,7 @@ function PreviewContent({
       setIsRunningPipeline(true)
       try {
         const { jobId } = await runPipelineForFile({
-          libraryId: activeLibraryId,
+          libraryId: activeLibraryId!,
           sourceFile: item,
           parentId: item.parentId,
           kind,
@@ -1497,6 +1504,9 @@ function PreviewContent({
           console.log('[file-preview] runPipeline – customHint entfernt (war leer)', { customHintStorageKey })
         }
 
+        // Job-ID speichern – Fallback-Polling prüft ob die Verarbeitung abgeschlossen ist,
+        // falls SSE-Events nicht ankommen (z.B. Panel war geschlossen, Verbindungsfehler).
+        setPendingJobId(jobId)
         toast.success("Job angelegt", { description: `Job ${jobId} wurde enqueued.` })
         toast.success("Job in Warteschlange", { description: "Worker startet den Job automatisch. Ergebnisse erscheinen im Shadow‑Twin." })
         setIsPipelineOpen(false)
@@ -1510,6 +1520,46 @@ function PreviewContent({
     },
     [activeLibraryId, item, kind, libraryConfigChatTargetLanguage, libraryConfigPdfTemplate, customHintStorageKey]
   )
+
+  // Fallback-Polling: wenn nach einem Pipeline-Start die SSE-Events ausbleiben
+  // (z.B. weil der Job-Monitor-Panel-SSE noch nicht verbunden war), prüfen wir
+  // alle 8 Sekunden den Job-Status direkt über die REST-API.
+  // Sobald der Job abgeschlossen ist, wird loadAllArtifacts automatisch neu getriggert,
+  // indem currentJobInfo über den Jotai-Atom aktualisiert wird.
+  // Alternativ: direkte Shadow-Twin-Analyse neu triggern, falls currentJobInfo fehlt.
+  React.useEffect(() => {
+    if (!pendingJobId || !activeLibraryId) return
+
+    let stopped = false
+    let pollCount = 0
+    const MAX_POLLS = 30 // max ~4 Minuten
+
+    const poll = async () => {
+      if (stopped || pollCount >= MAX_POLLS) return
+      pollCount++
+      try {
+        const res = await fetch(`/api/external/jobs/${encodeURIComponent(pendingJobId)}`, { cache: 'no-store' })
+        if (!res.ok || stopped) return
+        const data = await res.json() as { status?: string }
+        if (data.status === 'completed' || data.status === 'failed') {
+          // Job fertig: Artefakte direkt neu laden (direkter Trigger für loadAllArtifacts-Effect)
+          setArtifactsRefreshTrigger((v) => v + 1)
+          setPendingJobId(null)
+          stopped = true
+        }
+      } catch {
+        // Polling-Fehler ignorieren – nächster Versuch in 8s
+      }
+    }
+
+    // Sofort + alle 8s pollen
+    void poll()
+    const interval = setInterval(() => { void poll() }, 8000)
+    return () => {
+      stopped = true
+      clearInterval(interval)
+    }
+  }, [pendingJobId, activeLibraryId, setArtifactsRefreshTrigger])
 
   // async function loadRagStatus() {
   //   try {

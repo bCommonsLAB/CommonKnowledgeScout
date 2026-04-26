@@ -944,6 +944,12 @@ export async function POST(
         }
         
         const completed = await setJobCompleted({ ctx: ctx2, result: { savedItemId: shadowTwinData.fileId } })
+        // SSE-Event: Ingest-only-Job abgeschlossen – mit refreshFolderIds analog zur Callback-Route.
+        const ingestOnlyParentId = job.correlation?.source?.parentId || 'root'
+        const ingestOnlyShadowTwinFolderId = job.shadowTwinState?.shadowTwinFolderId || null
+        const ingestOnlyRefreshFolderIds = ingestOnlyShadowTwinFolderId && ingestOnlyShadowTwinFolderId !== ingestOnlyParentId
+          ? [ingestOnlyParentId, ingestOnlyShadowTwinFolderId]
+          : [ingestOnlyParentId]
         getJobEventBus().emitUpdate(job.userEmail, { 
           type: 'job_update', 
           jobId, 
@@ -956,7 +962,9 @@ export async function POST(
           sourceItemId: job.correlation?.source?.itemId, 
           libraryId: job.libraryId,
           result: { savedItemId: shadowTwinData.fileId },
-          shadowTwinFolderId: job.shadowTwinState?.shadowTwinFolderId || null,
+          refreshFolderId: ingestOnlyParentId,
+          refreshFolderIds: ingestOnlyRefreshFolderIds,
+          shadowTwinFolderId: ingestOnlyShadowTwinFolderId,
         })
         return NextResponse.json({ ok: true, jobId: completed.jobId, kind: 'ingest_only' })
       }
@@ -978,6 +986,24 @@ export async function POST(
             reason: extractGateExists ? 'shadow_twin_exists' : 'phase_disabled',
             gateReason: extractGateReason
           }
+        })
+      } catch {}
+
+      // SSE-Event: Job startet (Template-only-Pfad) – analog zu Zeile 1738 im Secretary-Pfad.
+      // Sorgt dafür, dass der Fortschrittsbalken in der Vorschau sofort erscheint,
+      // wenn das Job-Monitor-Panel geöffnet ist.
+      try {
+        getJobEventBus().emitUpdate(job.userEmail, {
+          type: 'job_update',
+          jobId,
+          status: 'running',
+          progress: 0,
+          updatedAt: new Date().toISOString(),
+          message: 'transform_start',
+          jobType: job.job_type,
+          fileName: job.correlation?.source?.name,
+          sourceItemId: job.correlation?.source?.itemId,
+          libraryId: job.libraryId,
         })
       } catch {}
       
@@ -1165,6 +1191,35 @@ export async function POST(
         ctx: ctxPreUpdated,
         result: { savedItemId: templateResult.savedItemId },
       })
+
+      // SSE-Event: Template-Job abgeschlossen – analog zur Callback-Route (Zeile 1152-1175).
+      // WICHTIG: refreshFolderIds + shadowTwinFolderId müssen gesetzt sein, damit
+      // job-monitor-panel.tsx ein library_refresh-Event auslöst und die Vorschau
+      // sich nach Abschluss der Transformation automatisch aktualisiert.
+      try {
+        const finalJob = await repo.get(jobId)
+        const finalShadowTwinFolderId = finalJob?.shadowTwinState?.shadowTwinFolderId || shadowTwinState?.shadowTwinFolderId || null
+        const sourceParentId = job.correlation?.source?.parentId || 'root'
+        const refreshFolderIds = finalShadowTwinFolderId && finalShadowTwinFolderId !== sourceParentId
+          ? [sourceParentId, finalShadowTwinFolderId]
+          : [sourceParentId]
+        getJobEventBus().emitUpdate(job.userEmail, {
+          type: 'job_update',
+          jobId,
+          status: 'completed',
+          progress: 100,
+          updatedAt: new Date().toISOString(),
+          message: 'completed',
+          jobType: job.job_type,
+          fileName: job.correlation?.source?.name,
+          sourceItemId: job.correlation?.source?.itemId,
+          libraryId: job.libraryId,
+          result: { savedItemId: templateResult.savedItemId },
+          refreshFolderId: sourceParentId,
+          refreshFolderIds,
+          shadowTwinFolderId: finalShadowTwinFolderId,
+        })
+      } catch {}
 
       return NextResponse.json({ ok: true, jobId, kind: ingestEnabled ? 'template_and_ingest' : 'template_only' })
     }
