@@ -6,6 +6,11 @@ import { AzureStorageService, calculateImageHash } from '@/lib/services/azure-st
 import { resolveAzureStorageConfig } from '@/lib/config/azure-storage'
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
 import { getShadowTwinBinaryFragments } from '@/lib/repositories/shadow-twin-repo'
+import {
+  formatImageError,
+  getImageCacheKey,
+  normalizeImagePath,
+} from '@/lib/ingestion/image-processor-helpers'
 
 export interface ImageProcessingError {
   imagePath?: string
@@ -34,19 +39,7 @@ export class ImageProcessor {
   // Performance: Cache für bereits geprüfte Bilder (Hash -> Azure URL)
   // Verhindert wiederholte Azure API-Calls für dieselben Bilder
   private static imageCache: Map<string, string> = new Map()
-  
-  /**
-   * Berechnet Cache-Key für Bild-Deduplizierung
-   */
-  private static getImageCacheKey(
-    libraryId: string,
-    scope: 'books' | 'sessions',
-    hash: string,
-    extension: string
-  ): string {
-    return `${libraryId}:${scope}:${hash}:${extension}`
-  }
-  
+
   /**
    * Löscht den Bild-Cache (für Tests oder nach größeren Änderungen)
    */
@@ -169,7 +162,7 @@ export class ImageProcessor {
           }
 
           try {
-            const normalizedPath = this.normalizeImagePath(imagePath)
+            const normalizedPath = normalizeImagePath(imagePath)
             if (!normalizedPath.success || !normalizedPath.path) {
               return { success: false, match, pattern, imagePath, error: normalizedPath.error || 'Unbekannter Fehler' }
             }
@@ -232,7 +225,7 @@ export class ImageProcessor {
                     
                     // Cache die URL für zukünftige Verwendungen
                     if (fragment.hash) {
-                      const cacheKey = this.getImageCacheKey(libraryId, scope, fragment.hash, extension)
+                      const cacheKey = getImageCacheKey(libraryId, scope, fragment.hash, extension)
                       this.imageCache.set(cacheKey, fragment.url)
                     }
                     
@@ -279,7 +272,7 @@ export class ImageProcessor {
               hash = calculateImageHash(buffer)
               
               // Prüfe Cache bevor wir Azure prüfen
-              const cacheKey = this.getImageCacheKey(libraryId, scope, hash, extension)
+              const cacheKey = getImageCacheKey(libraryId, scope, hash, extension)
               const cachedUrl = this.imageCache.get(cacheKey)
               if (cachedUrl) {
                 FileLogger.info('ingestion', 'Bild aus Cache gefunden (vor Azure-Prüfung)', {
@@ -349,7 +342,7 @@ export class ImageProcessor {
             // Sammle Mapping: Original-Pfad → Azure-URL (für originalName in binaryFragments)
             imageMapping.push({ originalPath: imagePath || '', azureUrl })
           } else {
-            const userFriendlyError = this.formatImageError(error || 'Unbekannter Fehler', imagePath || '')
+            const userFriendlyError = formatImageError(error || 'Unbekannter Fehler', imagePath || '')
             errors.push({ imagePath: imagePath || '', error: userFriendlyError })
             if (jobId) {
               bufferLog(jobId, {
@@ -570,7 +563,7 @@ export class ImageProcessor {
       const batchResults = await Promise.allSettled(
         batch.map(async ({ index, slide, imageUrl }) => {
           try {
-            const normalizedPath = this.normalizeImagePath(imageUrl)
+            const normalizedPath = normalizeImagePath(imageUrl)
                 if (!normalizedPath.success || !normalizedPath.path) {
                   return { success: false, index, slide, imageUrl, error: normalizedPath.error || 'Kein Bildpfad gefunden' }
             }
@@ -631,7 +624,7 @@ export class ImageProcessor {
           if (success) {
             updatedSlides[index] = slide
           } else {
-            const userFriendlyError = this.formatImageError(error || 'Unbekannter Fehler', imageUrl)
+            const userFriendlyError = formatImageError(error || 'Unbekannter Fehler', imageUrl)
             errors.push({ slideIndex: index, imageUrl, error: userFriendlyError })
             updatedSlides[index] = slide
 
@@ -740,14 +733,6 @@ export class ImageProcessor {
     return { success: true, containerName: azureConfig.containerName }
   }
 
-  private static normalizeImagePath(imagePath: string): { success: boolean; path?: string; error?: string } {
-    const normalizedPath = imagePath.replace(/^\/+|\/+$/g, '')
-    if (normalizedPath.includes('..')) {
-      return { success: false, error: '[Schritt: Bild-Pfad Validierung] Path traversal erkannt' }
-    }
-    return { success: true, path: normalizedPath }
-  }
-
   private static async uploadImageWithDeduplication(
     azureStorage: AzureStorageService,
     containerName: string,
@@ -762,7 +747,7 @@ export class ImageProcessor {
     imageIndex?: number
   ): Promise<string> {
     const hash = calculateImageHash(buffer)
-    const cacheKey = this.getImageCacheKey(libraryId, scope, hash, extension)
+    const cacheKey = getImageCacheKey(libraryId, scope, hash, extension)
     
     // Performance: Prüfe zuerst den Cache
     const cachedUrl = this.imageCache.get(cacheKey)
@@ -842,17 +827,5 @@ export class ImageProcessor {
     return azureUrl
   }
 
-  private static formatImageError(errorMessage: string, imagePath: string): string {
-    if (errorMessage.includes('not found') || errorMessage.includes('nicht gefunden')) {
-      return `[Schritt: Bild-Upload] Bild nicht gefunden: ${imagePath}`
-    }
-    if (errorMessage.includes('does not exist')) {
-      return `[Schritt: Bild-Upload] Bild-Datei existiert nicht: ${imagePath}`
-    }
-    if (errorMessage.includes('Upload fehlgeschlagen')) {
-      return `[Schritt: Bild-Upload] Upload fehlgeschlagen für ${imagePath}: ${errorMessage.replace('Upload fehlgeschlagen: ', '')}`
-    }
-    return `[Schritt: Bild-Upload] ${errorMessage}`
-  }
 }
 
