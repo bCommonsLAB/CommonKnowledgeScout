@@ -499,14 +499,18 @@ export async function POST(
     const includeOcrImages = extractionMethod === 'mistral_ocr'
       ? (typeof opts['includeOcrImages'] === 'boolean' ? opts['includeOcrImages'] : true)
       : (typeof opts['includeOcrImages'] === 'boolean' ? opts['includeOcrImages'] : false)
-    // Bei Mistral OCR: includePageImages immer true (erzwungen)
-    const includePageImages = typeof opts['includePageImages'] === 'boolean' 
-      ? opts['includePageImages'] 
+    // Hard-Rename: zwei getrennte Flags fuer Vorschau (Low-Res) und HighRes (200 DPI).
+    // Beide Defaults true bei mistral_ocr, kann ueber Job-Options ueberschrieben werden.
+    const includePreviewPages = typeof opts['includePreviewPages'] === 'boolean'
+      ? opts['includePreviewPages']
+      : (extractionMethod === 'mistral_ocr' ? true : false)
+    const includeHighResPages = typeof opts['includeHighResPages'] === 'boolean'
+      ? opts['includeHighResPages']
       : (extractionMethod === 'mistral_ocr' ? true : false)
     const includeImages = typeof opts['includeImages'] === 'boolean' ? opts['includeImages'] : false
-    
-    // Shadow-Twin-Verzeichnis wird benötigt, wenn Bilder verarbeitet werden sollen
-    const needsShadowTwinFolder = includeOcrImages || includePageImages || includeImages
+
+    // Shadow-Twin-Verzeichnis wird benoetigt, sobald irgendein Bild-Flag aktiv ist.
+    const needsShadowTwinFolder = includeOcrImages || includePreviewPages || includeHighResPages || includeImages
     
     // Prüfe Shadow-Twin-Konfiguration: Verzeichnis nur erstellen, wenn persistToFilesystem=true
     const shadowTwinConfig = getShadowTwinConfig(libraryForShadowTwin)
@@ -641,7 +645,8 @@ export async function POST(
       extractionMethod: opts['extractionMethod'] ?? job.correlation?.options?.extractionMethod ?? undefined,
       targetLanguage: opts['targetLanguage'] ?? job.correlation?.options?.targetLanguage ?? undefined,
       includeOcrImages: opts['includeOcrImages'] ?? job.correlation?.options?.includeOcrImages ?? undefined,
-      includePageImages: opts['includePageImages'] ?? job.correlation?.options?.includePageImages ?? undefined,
+      includePreviewPages: opts['includePreviewPages'] ?? job.correlation?.options?.includePreviewPages ?? undefined,
+      includeHighResPages: opts['includeHighResPages'] ?? job.correlation?.options?.includeHighResPages ?? undefined,
       includeImages: opts['includeImages'] ?? job.correlation?.options?.includeImages ?? undefined, // Rückwärtskompatibilität
       useCache: opts['useCache'] ?? job.correlation?.options?.useCache ?? undefined,
       template: (job.parameters as Record<string, unknown> | undefined)?.['template'] ?? undefined,
@@ -972,6 +977,32 @@ export async function POST(
       return NextResponse.json({ ok: true, jobId, kind: 'ingest_only', skipped: ingestResult.skipped })
     }
 
+    // =========================================================================
+    // COMPOSITE-MULTI-IMAGE-PFAD: Markdown-Container mit `kind: composite-multi`
+    // Source ist eine .md-Datei, die auf 2..10 Bild-Geschwister verweist. Statt
+    // den Text-Template-Pfad zu nehmen, leiten wir auf den Multi-Image-Endpoint
+    // des Secretary um (siehe docs/_secretary-service-docu/image-analyzer.md).
+    // Erkennung: Frontmatter `kind: composite-multi` der Source-Datei.
+    // =========================================================================
+    if (runTemplate && job.job_type === 'text') {
+      const { peekCompositeMultiSource, runCompositeMultiImagePath } = await import(
+        '@/lib/external-jobs/run-composite-multi-image'
+      )
+      const compositeMd = await peekCompositeMultiSource({ provider, job })
+      if (compositeMd) {
+        return runCompositeMultiImagePath({
+          request,
+          jobId,
+          job,
+          repo,
+          provider,
+          compositeMarkdown: compositeMd,
+          libraryConfig,
+          extractStepName,
+        })
+      }
+    }
+
     // Template-only: vorhandenes Markdown nutzen, Frontmatter reparieren lassen
     // WICHTIG: Image-Jobs NICHT hier abfangen — die haben einen eigenen Pfad weiter unten
     if (!runExtract && runTemplate && job.job_type !== 'image') {
@@ -1300,6 +1331,14 @@ export async function POST(
       const targetLanguage = (job.correlation?.options?.targetLanguage as string) || 'de'
       const llmModel = job.parameters?.llmModel as string | undefined
 
+      // useCache-Auflösung analog zu Audio/Video/Office (siehe secretary-request.ts):
+      // Default = false, damit gecachte Fehler-Ergebnisse (z.B. fehlerhafter JSON-Parse
+      // im LLM-Output) NICHT stillschweigend wiederverwendet werden. Der Anwender kann
+      // bei Bedarf über job.correlation.options.useCache=true bewusst den Secretary-Cache
+      // aktivieren (z.B. bei reinen Re-Renderings ohne LLM-Risiko).
+      const imageUseCacheOpt = job.correlation?.options?.useCache
+      const useCache = typeof imageUseCacheOpt === 'boolean' ? imageUseCacheOpt : false
+
       const { callImageAnalyzerTemplate } = await import('@/lib/secretary/image-analyzer')
 
       let responseData: { text: string; structured_data?: Record<string, unknown> }
@@ -1331,6 +1370,13 @@ export async function POST(
           }
         } catch {}
 
+        FileLogger.info('start-route', 'Image-Analyzer Aufruf', {
+          jobId,
+          fileName: imageFileName,
+          useCache,
+          model: llmModel,
+        })
+
         const res = await callImageAnalyzerTemplate({
           baseUrl,
           apiKey,
@@ -1341,7 +1387,7 @@ export async function POST(
           targetLanguage,
           context: imageContext,
           model: llmModel,
-          useCache: true,
+          useCache,
           timeoutMs: 120_000,
         })
 

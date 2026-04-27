@@ -23,15 +23,18 @@ export async function POST(request: NextRequest) {
     // Globaler Default: mistral_ocr (wenn nichts gesetzt ist)
     const extractionMethod = typeof body.extractionMethod === 'string' ? body.extractionMethod : 'mistral_ocr'
     
-    // Für Mistral OCR: Beide Parameter standardmäßig true
+    // Fuer Mistral OCR: alle Bild-Flags standardmaessig true.
+    // Hard-Rename: getrennte Flags fuer Vorschau (Low-Res) und HighRes (200 DPI).
     const isMistralOcr = extractionMethod === 'mistral_ocr';
-    // Bei Mistral OCR: includePageImages immer true (erzwungen)
-    const includePageImages = body.includePageImages !== undefined
-      ? Boolean(body.includePageImages)
-      : (isMistralOcr ? true : undefined); // Standard: true für Mistral OCR
+    const includePreviewPages = body.includePreviewPages !== undefined
+      ? Boolean(body.includePreviewPages)
+      : (isMistralOcr ? true : undefined);
+    const includeHighResPages = body.includeHighResPages !== undefined
+      ? Boolean(body.includeHighResPages)
+      : (isMistralOcr ? true : undefined);
     const includeOcrImages = body.includeOcrImages !== undefined
       ? Boolean(body.includeOcrImages)
-      : (isMistralOcr ? true : undefined); // Standard: true für Mistral OCR
+      : (isMistralOcr ? true : undefined);
     const includeImages = Boolean(body.includeImages) // Rückwärtskompatibilität
 
     if (!libraryId) return NextResponse.json({ error: 'libraryId erforderlich' }, { status: 400 })
@@ -124,7 +127,8 @@ export async function POST(request: NextRequest) {
               targetLanguage,
               extractionMethod,
               includeOcrImages,
-              includePageImages,
+              includePreviewPages,
+              includeHighResPages,
               includeImages,
             }
 
@@ -140,7 +144,7 @@ export async function POST(request: NextRequest) {
         ? { targetLanguage, useCache: true }
         : jobType === 'image'
           ? { targetLanguage }
-          : { targetLanguage, extractionMethod, includeOcrImages, includePageImages, includeImages }
+          : { targetLanguage, extractionMethod, includeOcrImages, includePreviewPages, includeHighResPages, includeImages }
 
     const job: ExternalJob = {
       jobId,

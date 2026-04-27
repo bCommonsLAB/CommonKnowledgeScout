@@ -1341,7 +1341,9 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             form.append('targetLanguage', 'de')
             form.append('extractionMethod', 'mistral_ocr')
             form.append('includeOcrImages', 'true')
-            form.append('includePageImages', 'true')
+            // Hard-Rename: getrennte Flags fuer Preview (Low-Res) und HighRes (200 DPI)
+            form.append('includePreviewPages', 'true')
+            form.append('includeHighResPages', 'true')
             form.append('useCache', 'false')
             // Extract-only: keine Metadaten, kein Ingest
             form.append('policies', JSON.stringify({ extract: 'do', metadata: 'ignore', ingest: 'ignore' }))
@@ -1600,7 +1602,9 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           form.append('targetLanguage', 'de')
           form.append('extractionMethod', 'mistral_ocr')
           form.append('includeOcrImages', 'true')
-          form.append('includePageImages', 'true')
+          // Hard-Rename: getrennte Flags fuer Preview (Low-Res) und HighRes (200 DPI)
+          form.append('includePreviewPages', 'true')
+          form.append('includeHighResPages', 'true')
           form.append('useCache', 'false')
           form.append('template', 'pdfanalyse')
           // PDF Human-in-the-loop: Job2 erzeugt/aktualisiert das Transformations-Artefakt,

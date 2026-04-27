@@ -731,20 +731,25 @@ export async function transformPdf(
       } catch {}
     })();
     
-    // Für Mistral OCR: Beide Parameter standardmäßig true
+    // Fuer Mistral OCR: alle Bild-Flags standardmaessig true.
+    // Hard-Rename auf neue Secretary-API: includePreviewPages + includeHighResPages
+    // ersetzen den frueheren includePageImages-Schalter.
     const isMistralOcr = extractionMethod === 'mistral_ocr';
-    const includeOcrImagesValue = includeOcrImages !== undefined 
-      ? includeOcrImages 
-      : (isMistralOcr ? true : false); // Standard: true für Mistral OCR
-    const includePageImagesValue = isMistralOcr ? true : false; // Standard: true für Mistral OCR
-    
+    const includeOcrImagesValue = includeOcrImages !== undefined
+      ? includeOcrImages
+      : (isMistralOcr ? true : false);
+    const includePreviewPagesValue = isMistralOcr ? true : false;
+    const includeHighResPagesValue = isMistralOcr ? true : false;
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('targetLanguage', targetLanguage);
     formData.append('extractionMethod', extractionMethod);
     formData.append('useCache', useCache.toString());
     formData.append('includeOcrImages', includeOcrImagesValue.toString());
-    formData.append('includePageImages', includePageImagesValue.toString());
+    // Beide neuen Flags getrennt an die Proxy-Route durchreichen.
+    formData.append('includePreviewPages', includePreviewPagesValue.toString());
+    formData.append('includeHighResPages', includeHighResPagesValue.toString());
     // Policies als JSON übergeben (neues Format)
     if (context?.policies) {
       formData.append('policies', JSON.stringify(context.policies));

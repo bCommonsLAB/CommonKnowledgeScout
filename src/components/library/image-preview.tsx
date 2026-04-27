@@ -1,7 +1,14 @@
 'use client';
 
 import * as React from 'react';
-import Image from 'next/image';
+// Bewusst KEIN next/image: die Detail-Vorschau soll das Original-Bild
+// in nativer Aufloesung ausliefern, damit der Anwender per Browser-Zoom
+// die Bildqualitaet pruefen kann (z.B. 200 DPI Page-Renderings).
+// next/image wuerde das Bild automatisch auf ~828 px herunterskalieren
+// und als WebP q75 ausliefern -> wirkt wie ein Thumbnail, ist es aber
+// technisch nicht. Fuer Galerie-/Listenansichten mit kleinen Kacheln
+// kann an anderer Stelle weiterhin next/image (oder das preview-Variant
+// aus Mongo) verwendet werden.
 import { useAtomValue } from "jotai";
 import { selectedFileAtom } from "@/atoms/library-atom";
 import { FileLogger } from "@/lib/debug/logger";
@@ -234,12 +241,17 @@ export function ImagePreview({ provider, onRefreshFolder, showTransformControls 
         </div>
       ) : (
         <div className="flex items-start justify-center h-full p-4 overflow-auto">
-          <Image
+          {/* Natives <img>: liefert das Originalbild ohne Next-Optimierung aus,
+              damit Browser-Zoom (Ctrl+Scroll) die echte Pixel-Aufloesung
+              sichtbar macht. Linter-Hinweis bewusst unterdrueckt - hier
+              ist next/image fachlich falsch (siehe Kommentar oben am Datei-Anfang). */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src={imageUrl}
             alt={item.metadata.name}
-            width={800}
-            height={600}
-            className="max-w-full max-h-full object-contain"
+            // max-w-full + h-auto: das Bild fuellt die verfuegbare Container-Breite
+            // proportional aus; per Browser-Zoom kann hineingezoomt werden.
+            className="max-w-full h-auto object-contain"
             onLoad={() => {
               FileLogger.info('ImagePreview', 'Bild erfolgreich geladen', {
                 itemId: item.id,

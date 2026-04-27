@@ -283,10 +283,12 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
           name: file.metadata.name, 
           mimeType: file.metadata.mimeType 
         })),
-        // PDF-spezifische Optionen (werden nur für PDFs verwendet)
+        // PDF-spezifische Optionen (werden nur für PDFs verwendet).
+        // Hard-Rename: getrennte Flags fuer Preview (~360 px) und HighRes (200 DPI).
         extractionMethod: typeof defaults.extractionMethod === 'string' ? defaults.extractionMethod : 'mistral_ocr',
         includeOcrImages: defaults.includeOcrImages ?? true,
-        includePageImages: defaults.includePageImages ?? true,
+        includePreviewPages: defaults.includePreviewPages ?? true,
+        includeHighResPages: defaults.includeHighResPages ?? true,
         useCache: defaults.useCache ?? true,
       };
       

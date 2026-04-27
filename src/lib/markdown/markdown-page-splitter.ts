@@ -18,7 +18,14 @@ export interface SplitMarkdownByPagesResult {
   markerCount: number
 }
 
-const PAGE_MARKER_REGEX = /^---\s*Seite\s*(\d+)\s*---\s*$/gm
+// Erkennt Page-Marker in drei Schreibweisen, konsistent mit der Preview-Heuristik
+// (siehe markdown-preview.tsx, Zeile 141):
+//  - ASCII-Triple-Dash:  --- Seite 1 ---
+//  - En-Dash:            – Seite 1 –        (U+2013)
+//  - Em-Dash:            — Seite 1 —        (U+2014)
+// Mistral-OCR schreibt die Marker je nach Output-Phase als ASCII oder Em-Dash;
+// die Preview rendert sie sogar wieder als Em-Dash. Daher tolerieren wir alle drei.
+const PAGE_MARKER_REGEX = /^\s*(?:---|—|–)\s*Seite\s*(\d+)\s*(?:---|—|–)\s*$/gm
 
 /**
  * Removes YAML frontmatter from markdown to ensure markers are parsed from the body.

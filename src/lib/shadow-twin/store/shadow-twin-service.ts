@@ -94,10 +94,12 @@ export interface UploadBinaryFragmentOptions {
   mimeType: string
   /** Art des Fragments */
   kind: 'image' | 'audio' | 'video'
-  /** Variante des Fragments (original, thumbnail, preview) */
-  variant?: 'original' | 'thumbnail' | 'preview'
+  /** Variante des Fragments (siehe BinaryFragmentVariant in shadow-twin-store.ts) */
+  variant?: 'original' | 'thumbnail' | 'preview' | 'page-render'
   /** Hash des Original-Fragments (für Thumbnails/Previews) */
   sourceHash?: string
+  /** Optional: Seitennummer (1-basiert) - relevant bei variant='page-render' */
+  pageNumber?: number
 }
 
 /**

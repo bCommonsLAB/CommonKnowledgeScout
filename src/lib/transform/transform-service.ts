@@ -477,32 +477,40 @@ export class TransformService {
     refreshItems: (folderId: string) => Promise<StorageItem[]>,
     libraryId: string
   ): Promise<TransformResult> {
-    // Für Mistral OCR: Beide Parameter standardmäßig true
+    // Hard-Rename: getrennte Flags fuer Preview (~360 px) und HighRes (200 DPI).
+    // Bei Mistral OCR sind alle drei Bild-Flags standardmaessig true.
     const isMistralOcr = options.extractionMethod === 'mistral_ocr';
-    const includeOcrImages = options.includeOcrImages !== undefined 
-      ? options.includeOcrImages 
-      : (isMistralOcr ? true : (options.includeImages ?? false)); // Standard: true für Mistral OCR
-    const includePageImages = options.includePageImages !== undefined
-      ? options.includePageImages
-      : (isMistralOcr ? true : false); // Standard: true für Mistral OCR
-    
+    const includeOcrImages = options.includeOcrImages !== undefined
+      ? options.includeOcrImages
+      : (isMistralOcr ? true : (options.includeImages ?? false));
+    const includePreviewPages = options.includePreviewPages !== undefined
+      ? options.includePreviewPages
+      : (isMistralOcr ? true : false);
+    const includeHighResPages = options.includeHighResPages !== undefined
+      ? options.includeHighResPages
+      : (isMistralOcr ? true : false);
+    // Lokales Hilfsflag: irgendeine Form von Page-Renderings ist angefordert.
+    const wantsPageImages = includePreviewPages || includeHighResPages;
+
     FileLogger.info('TransformService', 'PDF-Transformation gestartet', {
       fileName: originalItem.metadata.name,
       extractionMethod: options.extractionMethod,
       targetLanguage: options.targetLanguage,
       includeOcrImages,
-      includePageImages,
+      includePreviewPages,
+      includeHighResPages,
       includeImages: options.includeImages // Rückwärtskompatibilität
     });
     FileLogger.debug('TransformService', 'Bild-Optionen', {
       includeOcrImages,
-      includePageImages,
+      includePreviewPages,
+      includeHighResPages,
       includeImages: options.includeImages,
       isMistralOcr
     });
     
-    // PDF-Datei wird transformiert - hole die vollständige Response
-    // transformPdf erwartet includeOcrImages als Parameter (nicht includePageImages, das wird intern gesetzt)
+    // PDF-Datei wird transformiert - hole die vollstaendige Response.
+    // Die Page-Image-Flags (preview/highres) werden intern in der Secretary-Schicht gesetzt.
     const response = await transformPdf(
       file,
       options.targetLanguage,
@@ -563,8 +571,9 @@ export class TransformService {
     });
     
     // Entscheidungslogik: Shadow-Twin-Verzeichnis oder Datei?
-    // Erstelle Verzeichnis, wenn Bilder vorhanden sind (ZIP oder Mistral OCR)
-    const shouldCreateShadowTwinFolder = (includePageImages && hasZipImages) || (includeOcrImages && hasMistralOcrImages);
+    // Erstelle Verzeichnis, wenn Bilder vorhanden sind (ZIP oder Mistral OCR).
+    // wantsPageImages = Preview ODER HighRes wurde angefordert.
+    const shouldCreateShadowTwinFolder = (wantsPageImages && hasZipImages) || (includeOcrImages && hasMistralOcrImages);
     
     if (response && response.data && response.data.extracted_text) {
       FileLogger.info('TransformService', 'Extracted-Text gefunden', {
@@ -641,7 +650,7 @@ export class TransformService {
     
     // Bilder speichern (ZIP-Archive)
     let imageExtractionResult: ImageExtractionResult | undefined;
-    if (includePageImages && hasZipImages && response && response.data && response.data.images_archive_data) {
+    if (wantsPageImages && hasZipImages && response && response.data && response.data.images_archive_data) {
       try {
         FileLogger.info('TransformService', 'Starte ZIP-Bild-Extraktion', {
           imagesArchiveFilename: response.data.images_archive_filename,

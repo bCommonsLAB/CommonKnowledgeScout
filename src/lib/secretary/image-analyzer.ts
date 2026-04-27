@@ -12,17 +12,39 @@
 import { fetchWithTimeout, HttpError, NetworkError, TimeoutError } from '@/lib/utils/fetch-with-timeout'
 import { buildSecretaryServiceApiUrl, getSecretaryImageAnalyzerRelativePath } from '@/lib/env'
 
+/**
+ * Ein einzelnes Bild fuer Multi-Image-Calls.
+ * Im Multi-Pfad wird pro Bild ein `files`-Form-Feld gesetzt — die Reihenfolge
+ * im Array ist semantisch relevant (Teil des Secretary-Cache-Keys).
+ */
+export interface ImageAnalyzerFile {
+  file: Buffer | Blob
+  fileName: string
+  mimeType: string
+}
+
 export interface ImageAnalyzerTemplateParams {
   /** Basis-URL des Secretary Service (z.B. 'https://secretary.example.com') */
   baseUrl: string
   /** API-Key fuer Authentifizierung */
   apiKey: string
-  /** Bild-Binary als Buffer oder Blob */
-  file: Buffer | Blob
-  /** Dateiname des Bildes (z.B. '9106_1_basecolor.jpg') */
-  fileName: string
-  /** MIME-Type des Bildes (z.B. 'image/jpeg') */
-  mimeType: string
+  /**
+   * Single-Image-Pfad (Backwards-Compat): Wird als `file`-Form-Feld gesendet.
+   * Entweder `file`+`fileName`+`mimeType` ODER `files` setzen.
+   */
+  file?: Buffer | Blob
+  /** Dateiname des Single-Image-Pfads (z.B. '9106_1_basecolor.jpg') */
+  fileName?: string
+  /** MIME-Type des Single-Image-Pfads (z.B. 'image/jpeg') */
+  mimeType?: string
+  /**
+   * Multi-Image-Pfad: Array von Bildern, jedes wird als separates `files`-Form-Feld
+   * angehaengt. Der Secretary-Endpoint analysiert alle Bilder gemeinsam in EINEM
+   * LLM-Call. Reihenfolge ist semantisch relevant und Teil des Cache-Keys.
+   * Limit: 10 Bilder pro Request (siehe Secretary-Spec).
+   * Multi-Image wird nur vom Provider `openrouter` unterstuetzt.
+   */
+  files?: ImageAnalyzerFile[]
   /** Template-Inhalt als YAML/Markdown-String */
   templateContent: string
   /** Zielsprache fuer die Analyse (z.B. 'de', 'en') */
@@ -89,11 +111,35 @@ export async function callImageAnalyzerTemplate(p: ImageAnalyzerTemplateParams):
   // FormData aufbauen (multipart/form-data fuer Binary-Upload)
   const formData = new FormData()
 
-  // Bild als File-Blob hinzufuegen
-  const blob = p.file instanceof Blob
-    ? p.file
-    : new Blob([p.file], { type: p.mimeType })
-  formData.append('file', blob, p.fileName)
+  // Validierung: Genau einer der beiden Pfade muss gewaehlt sein.
+  const hasSingle = p.file != null
+  const hasMulti = Array.isArray(p.files) && p.files.length > 0
+  if (!hasSingle && !hasMulti) {
+    throw new Error('callImageAnalyzerTemplate: Weder file noch files gesetzt')
+  }
+
+  // Single-Image-Pfad (Backwards-Compat): genau ein `file`-Feld.
+  if (hasSingle) {
+    if (!p.fileName || !p.mimeType) {
+      throw new Error('callImageAnalyzerTemplate: file ohne fileName/mimeType')
+    }
+    const blob = p.file instanceof Blob
+      ? p.file
+      : new Blob([p.file as Buffer], { type: p.mimeType })
+    formData.append('file', blob, p.fileName)
+  }
+
+  // Multi-Image-Pfad: pro Bild ein `files`-Feld (repeatable, siehe
+  // docs/_secretary-service-docu/image-analyzer.md). Reihenfolge des Arrays
+  // wird 1:1 in die Reihenfolge der Form-Felder uebernommen.
+  if (hasMulti) {
+    for (const img of p.files!) {
+      const blob = img.file instanceof Blob
+        ? img.file
+        : new Blob([img.file as Buffer], { type: img.mimeType })
+      formData.append('files', blob, img.fileName)
+    }
+  }
 
   // Template und Sprache
   formData.append('template_content', templateContent)

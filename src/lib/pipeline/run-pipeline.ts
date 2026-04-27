@@ -53,7 +53,10 @@ export async function runPipelineUnified(args: {
   /** PDF-spezifische Optionen */
   extractionMethod?: string
   includeOcrImages?: boolean
-  includePageImages?: boolean
+  /** Vorschau-Seitenrenderings (~360 px) anfordern. Default true bei mistral_ocr. */
+  includePreviewPages?: boolean
+  /** Hochaufloesende Seitenrenderings (200 DPI) anfordern. Default true bei mistral_ocr. */
+  includeHighResPages?: boolean
   useCache?: boolean
 }): Promise<{ jobId: string; mediaKind: MediaKind }> {
   const { libraryId, sourceFile, parentId, config } = args
@@ -73,7 +76,8 @@ export async function runPipelineUnified(args: {
     config,
     extractionMethod: args.extractionMethod,
     includeOcrImages: args.includeOcrImages,
-    includePageImages: args.includePageImages,
+    includePreviewPages: args.includePreviewPages,
+    includeHighResPages: args.includeHighResPages,
     useCache: args.useCache,
   }
 
@@ -189,10 +193,13 @@ export async function runPipelineForFile(args: {
     config,
   })
 
-  // PDF-spezifische Optionen
+  // PDF-spezifische Optionen.
+  // Hard-Rename: aus dem ehemaligen Boolean includePageImages werden zwei
+  // unabhaengige Flags includePreviewPages und includeHighResPages.
   let extractionMethod: string | undefined
   let includeOcrImages: boolean | undefined
-  let includePageImages: boolean | undefined
+  let includePreviewPages: boolean | undefined
+  let includeHighResPages: boolean | undefined
   let useCache: boolean | undefined
 
   if (kind === "pdf") {
@@ -206,7 +213,9 @@ export async function runPipelineForFile(args: {
     extractionMethod = typeof defaults.extractionMethod === 'string' ? defaults.extractionMethod : 'mistral_ocr'
     const isMistralOcr = extractionMethod === 'mistral_ocr'
     if (isMistralOcr) {
-      includePageImages = defaults.includePageImages !== undefined ? defaults.includePageImages : true
+      // Defaults bei mistral_ocr: alle drei Bild-Flags an, kann ueber UI/Atom uebersteuert werden.
+      includePreviewPages = defaults.includePreviewPages !== undefined ? defaults.includePreviewPages : true
+      includeHighResPages = defaults.includeHighResPages !== undefined ? defaults.includeHighResPages : true
       includeOcrImages = defaults.includeOcrImages !== undefined ? defaults.includeOcrImages : true
     }
     useCache = defaults.useCache ?? true
@@ -219,7 +228,8 @@ export async function runPipelineForFile(args: {
     config,
     extractionMethod,
     includeOcrImages,
-    includePageImages,
+    includePreviewPages,
+    includeHighResPages,
     useCache,
   })
 

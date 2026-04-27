@@ -129,6 +129,7 @@ import {
   injectMongoTranscriptCheckLinks,
   replaceCompositePdfImageWikilinksWithPlaceholders,
 } from '@/lib/markdown/composite-wiki-preview'
+import { replaceCompositeMultiPreviewBlock } from '@/lib/markdown/composite-multi-preview'
 import { replacePlaceholdersInMarkdown } from '@/lib/markdown/placeholder-replacement'
 import { buildArtifactName, extractBaseName, parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
@@ -1392,8 +1393,20 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
   const renderedContent = React.useMemo(() => {
     if (!content) return '';
 
+    // Frontmatter VOR dem Strippen lesen, damit wir den `kind`-Wert kennen
+    // (zum Aktivieren des Composite-Multi-Vorschau-Grids).
+    const { meta: frontmatterMeta } = parseFrontmatter(content);
+    const isCompositeMulti = frontmatterMeta?.kind === 'composite-multi';
+
     // Entferne Frontmatter robust
     let mainContent = stripAllFrontmatter(content);
+
+    // Composite-Multi: Vorschau-Block (Obsidian-Embeds) durch ein Bild-Grid
+    // mit Platzhalter-<img>-Tags ersetzen. Der eigentliche src-Wert wird
+    // im useEffect weiter unten asynchron gesetzt (anhand siblingNameToId).
+    if (isCompositeMulti) {
+      mainContent = replaceCompositeMultiPreviewBlock(mainContent);
+    }
 
     // Mongo-only-Sammeltranskript: fehlende „Transkript prüfen“-Zeilen ergänzen (gleiches Erscheinungsbild wie Wikilink).
     if (compositeWikiPreview?.injectMongoTranscriptLinks) {
@@ -1547,6 +1560,35 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
           // Vorschau darf bei Netzwerkfehlern nicht abbrechen
         }
       })();
+    });
+  }, [renderedContent, compositeWikiPreview, activeLibraryId]);
+
+  // Composite-Multi: Platzhalter-<img>-Tags mit echten Streaming-URLs befuellen.
+  // Quelle ist `siblingNameToId` aus dem composite-transcript-Pfad — wir nutzen
+  // genau dieselbe Map, weil composite-multi-Quellen ebenfalls Geschwister
+  // im selben Verzeichnis sind.
+  React.useEffect(() => {
+    const root = contentRef.current;
+    if (!root || !compositeWikiPreview || !activeLibraryId) return;
+
+    const imgs = root.querySelectorAll<HTMLImageElement>(
+      'img.ks-composite-multi-image[data-composite-multi-source]'
+    );
+
+    imgs.forEach((img) => {
+      if (img.getAttribute('data-ks-resolved') === '1') return;
+      const sourceName = img.getAttribute('data-composite-multi-source');
+      if (!sourceName) return;
+      const fileId = compositeWikiPreview.siblingNameToId[sourceName];
+      if (!fileId) return;
+
+      const url =
+        `/api/storage/streaming-url` +
+        `?libraryId=${encodeURIComponent(activeLibraryId)}` +
+        `&fileId=${encodeURIComponent(fileId)}`;
+      img.src = url;
+      img.setAttribute('loading', 'lazy');
+      img.setAttribute('data-ks-resolved', '1');
     });
   }, [renderedContent, compositeWikiPreview, activeLibraryId]);
 

@@ -209,10 +209,12 @@ export interface MongoBinaryFragment {
   size?: number
   kind?: string
   createdAt?: string
-  /** Variante des Fragments: 'original', 'thumbnail', 'preview' */
-  variant?: 'original' | 'thumbnail' | 'preview'
+  /** Variante des Fragments. 'page-render' = komplette PDF-Seite als Bild. */
+  variant?: 'original' | 'thumbnail' | 'preview' | 'page-render'
   /** Hash des Original-Fragments (für Thumbnails/Previews zur Verknüpfung) */
   sourceHash?: string
+  /** Optional: Seitennummer (1-basiert) - relevant bei variant='page-render' */
+  pageNumber?: number
 }
 
 /**
@@ -245,6 +247,7 @@ export async function getShadowTwinBinaryFragments(
       createdAt: typeof f.createdAt === 'string' ? f.createdAt : undefined,
       variant: typeof f.variant === 'string' ? f.variant as MongoBinaryFragment['variant'] : undefined,
       sourceHash: typeof f.sourceHash === 'string' ? f.sourceHash : undefined,
+      pageNumber: typeof f.pageNumber === 'number' ? f.pageNumber : undefined,
     }
   })
 }

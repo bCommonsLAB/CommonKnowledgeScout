@@ -43,8 +43,16 @@ export interface UpsertArtifactResult {
 
 /**
  * Varianten-Typ für Binary-Fragmente (Original, Thumbnail, etc.)
+ *
+ * Werte:
+ * - 'original': Ursprüngliches Bild in voller Auflösung (Default für eingebettete OCR-Bilder).
+ * - 'thumbnail': Kleineres Vorschaubild (z.B. 320x320 für Galerie).
+ * - 'preview': Mittlere Größe für Vorschauen.
+ * - 'page-render': Komplette PDF-Seite als gerendertes Bild (Mistral-Pages-Archive). Wird unabhängig
+ *                  von Markdown-Referenzen persistiert, damit Folgefunktionen (z.B. Split-Pages-to-Images)
+ *                  die Seitenbilder zuverlässig finden – auch im Mongo-only-Modus.
  */
-export type BinaryFragmentVariant = 'original' | 'thumbnail' | 'preview'
+export type BinaryFragmentVariant = 'original' | 'thumbnail' | 'preview' | 'page-render'
 
 /**
  * Binary-Fragment (z.B. Bild, Audio).
@@ -85,6 +93,13 @@ export interface BinaryFragment {
    * den Original-Namen referenziert statt des Azure-Hash-Namens.
    */
   originalName?: string
+  /**
+   * Optional: Seitennummer (1-basiert).
+   * Wird bei `variant === 'page-render'` gesetzt, damit Folgefunktionen die Bilder
+   * zuverlässig der richtigen PDF-Seite zuordnen können – auch wenn der Dateiname
+   * (`name`) später angereichert oder umbenannt wird.
+   */
+  pageNumber?: number
 }
 
 /**

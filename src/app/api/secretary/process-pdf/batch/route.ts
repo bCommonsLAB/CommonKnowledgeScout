@@ -21,9 +21,14 @@ interface BatchRequestBody {
   options?: {
     targetLanguage?: string;
     extractionMethod?: string;
-    includeOcrImages?: boolean; // Mistral OCR Bilder als Base64
-    includePageImages?: boolean; // Seiten-Bilder als ZIP
-    includeImages?: boolean; // Rückwärtskompatibilität
+    /** Mistral-OCR-erkannte eingebettete Bilder als ZIP. */
+    includeOcrImages?: boolean;
+    /** Vorschau-Seiten-Renderings (~360 px) im pages.zip (preview_NNN.jpg). */
+    includePreviewPages?: boolean;
+    /** HighRes-Seiten-Renderings (200 DPI) im pages.zip (page_NNN.jpeg). */
+    includeHighResPages?: boolean;
+    /** Rueckwaertskompat: nur fuer Standard-Endpoint relevant. */
+    includeImages?: boolean;
     useCache?: boolean;
     template?: string;
     policies?: import('@/lib/processing/phase-policy').PhasePolicies;
@@ -53,25 +58,29 @@ export async function POST(request: NextRequest) {
     const batchName = typeof body?.batchName === 'string' ? body.batchName : undefined;
     const options = body?.options || {};
     
-    // Globaler Default: mistral_ocr (wenn nichts gesetzt ist)
+    // Globaler Default: mistral_ocr (wenn nichts gesetzt ist).
+    // Hard-Rename: getrennte Flags fuer Preview vs. HighRes.
     const extractionMethod = options?.extractionMethod || 'mistral_ocr';
     const isMistralOcr = extractionMethod === 'mistral_ocr';
-    // Bei Mistral OCR: includePageImages immer true (erzwungen)
-    const includePageImages = options?.includePageImages !== undefined
-      ? options.includePageImages
-      : (isMistralOcr ? true : undefined); // Standard: true für Mistral OCR
+    const includePreviewPages = options?.includePreviewPages !== undefined
+      ? options.includePreviewPages
+      : (isMistralOcr ? true : undefined);
+    const includeHighResPages = options?.includeHighResPages !== undefined
+      ? options.includeHighResPages
+      : (isMistralOcr ? true : undefined);
     const includeOcrImages = options?.includeOcrImages !== undefined
       ? options.includeOcrImages
-      : (isMistralOcr ? true : undefined); // Standard: true für Mistral OCR
-    
+      : (isMistralOcr ? true : undefined);
+
     // Diagnose: Eingehende Policies loggen (einmal pro Batch)
-    FileLogger.info('process-pdf-batch', 'Incoming batch options', { 
-      libraryId, 
-      batchName, 
+    FileLogger.info('process-pdf-batch', 'Incoming batch options', {
+      libraryId,
+      batchName,
       policiesIn: options?.policies,
       extractionMethod,
       includeOcrImages,
-      includePageImages,
+      includePreviewPages,
+      includeHighResPages,
       isMistralOcr
     });
     if (!libraryId || items.length === 0) {
@@ -114,7 +123,8 @@ export async function POST(request: NextRequest) {
               targetLanguage: options?.targetLanguage || 'de',
               extractionMethod: extractionMethod,
               includeOcrImages: includeOcrImages,
-              includePageImages: includePageImages,
+              includePreviewPages: includePreviewPages,
+              includeHighResPages: includeHighResPages,
               includeImages: options?.includeImages ?? false, // Rückwärtskompatibilität
               useCache: options?.useCache ?? true,
             },
@@ -133,7 +143,8 @@ export async function POST(request: NextRequest) {
             targetLanguage: options?.targetLanguage || 'de',
             extractionMethod: extractionMethod,
             includeOcrImages: includeOcrImages,
-            includePageImages: includePageImages,
+            includePreviewPages: includePreviewPages,
+            includeHighResPages: includeHighResPages,
             includeImages: options?.includeImages ?? false, // Rückwärtskompatibilität
             useCache: options?.useCache ?? true,
             template: options?.template,

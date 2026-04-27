@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { 
   File, FileText, FileVideo, FileAudio, FileSpreadsheet, Presentation, Globe,
   Image as ImageIcon, FileType2, RefreshCw, ChevronUp, ChevronDown, 
-  Trash2, Folder as FolderIcon, Sparkles, Upload, FolderSync, Layers 
+  Trash2, Folder as FolderIcon, Sparkles, Upload, FolderSync, Layers, ImagePlus 
 } from "lucide-react"
 import { StorageItem } from "@/lib/storage/types"
 import { cn } from "@/lib/utils"
@@ -41,6 +41,8 @@ import { useShadowTwinAnalysis } from "@/hooks/use-shadow-twin-analysis";
 import { shadowTwinAnalysisTriggerAtom, shadowTwinStateAtom } from "@/atoms/shadow-twin-atom";
 import { isShadowTwinFolderName } from "@/lib/storage/shadow-twin";
 import { shouldFilterShadowTwinFolders } from "@/lib/storage/shadow-twin-folder-name";
+import { isImageMediaFromName } from "@/lib/media-types";
+import { CompositeMultiCreateDialog, deriveCompositeMultiDefaultFilename } from "./composite-multi-create-dialog";
 
 // Typen für Sortieroptionen
 type SortField = 'type' | 'name' | 'size' | 'date';
@@ -1626,6 +1628,88 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     }
   }, [activeLibraryId, selectedBatchItems, selectedTransformationItems, currentFolderId, handleRefresh]);
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Composite-Multi (Bild-Sammelanalyse) – paralleles Konzept zu Sammel-Transkript
+  //
+  // Auslöser: ≥2 ausgewählte Dateien sind ALLE Bilder. Der Toolbar-Button
+  // öffnet einen Dialog, der einen Dateinamen vom User abfragt (Default-
+  // Vorschlag wird aus dem gemeinsamen Präfix der Quellen abgeleitet).
+  // Nach Bestätigung wird `/api/library/.../composite-multi` aufgerufen.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const allSelectedItems = React.useMemo(() => {
+    return [
+      ...selectedBatchItems.map(x => x.item),
+      ...selectedTransformationItems.map(x => x.item),
+    ].filter(item => item.type === 'file');
+  }, [selectedBatchItems, selectedTransformationItems]);
+
+  // Sammelanalyse ist nur sinnvoll, wenn ALLE Selektionen Bilder sind.
+  // Außerdem hartes Limit aus der Secretary-Spec: max. 10 Bilder.
+  const compositeMultiEligible = React.useMemo(() => {
+    if (allSelectedItems.length < 2) return false;
+    if (allSelectedItems.length > 10) return false;
+    return allSelectedItems.every(item => isImageMediaFromName(item.metadata.name));
+  }, [allSelectedItems]);
+
+  const [isCompositeMultiDialogOpen, setIsCompositeMultiDialogOpen] = React.useState(false);
+  const [isCreatingCompositeMulti, setIsCreatingCompositeMulti] = React.useState(false);
+
+  const compositeMultiDefaultFilename = React.useMemo(() => {
+    return deriveCompositeMultiDefaultFilename(allSelectedItems.map(i => i.metadata.name));
+  }, [allSelectedItems]);
+
+  const handleConfirmCompositeMulti = React.useCallback(async (args: { filename: string; title?: string }) => {
+    if (!activeLibraryId) return;
+    if (allSelectedItems.length < 2) return;
+
+    setIsCreatingCompositeMulti(true);
+    try {
+      const sourceItems = allSelectedItems.map(item => ({
+        id: item.id,
+        name: item.metadata.name,
+        parentId: item.parentId || currentFolderId || 'root',
+      }));
+
+      const res = await fetch(
+        `/api/library/${encodeURIComponent(activeLibraryId)}/composite-multi`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sourceItems,
+            filename: args.filename,
+            title: args.title,
+          }),
+        }
+      );
+
+      const json = await res.json();
+      if (!res.ok) {
+        // 409 (Kollision) gesondert behandeln – der User kann den Namen ändern.
+        if (res.status === 409) {
+          toast.warning('Dateiname bereits vergeben', {
+            description: json.error || 'Bitte einen anderen Namen wählen.',
+          });
+          return;
+        }
+        throw new Error(json.error || `HTTP ${res.status}`);
+      }
+
+      toast.success('Bild-Sammelanalyse erstellt', {
+        description: `${json.file?.name} (${sourceItems.length} Bilder)`,
+      });
+      setIsCompositeMultiDialogOpen(false);
+      await handleRefresh();
+    } catch (error) {
+      toast.error('Bild-Sammelanalyse fehlgeschlagen', {
+        description: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setIsCreatingCompositeMulti(false);
+    }
+  }, [activeLibraryId, allSelectedItems, currentFolderId, handleRefresh]);
+
   // Bulk-Löschung für ausgewählte Dateien (unabhängig von Batch/Transformation-Selektor)
   const handleBulkDelete = React.useCallback(async () => {
     if (!provider) return;
@@ -1799,6 +1883,19 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                 <Layers className={cn("h-4 w-4", isCreatingComposite && "animate-spin")} />
               </Button>
             )}
+            {/* Bild-Sammelanalyse: nur sichtbar wenn ALLE Selektionen Bilder sind (2..10) */}
+            {compositeMultiEligible && (
+              <Button
+                size="icon"
+                variant="outline"
+                title="Bild-Sammelanalyse erstellen (mehrere Bilder gemeinsam analysieren)"
+                aria-label="Bild-Sammelanalyse erstellen"
+                onClick={() => setIsCompositeMultiDialogOpen(true)}
+                disabled={isCreatingCompositeMulti}
+              >
+                <ImagePlus className={cn("h-4 w-4", isCreatingCompositeMulti && "animate-spin")} />
+              </Button>
+            )}
             {(selectedBatchItems.length + selectedTransformationItems.length) > 0 && (
               <Button size="icon" variant="destructive" title="Ausgewählte löschen" aria-label="Ausgewählte löschen" onClick={handleBulkDelete}>
                 <Trash2 className="h-4 w-4" />
@@ -1960,6 +2057,16 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
           </div>
         </div>
       </div>
+
+      {/* Composite-Multi-Erstellungsdialog – nur fuer Bild-Selektionen */}
+      <CompositeMultiCreateDialog
+        open={isCompositeMultiDialogOpen}
+        onOpenChange={setIsCompositeMultiDialogOpen}
+        imageCount={allSelectedItems.length}
+        defaultFilename={compositeMultiDefaultFilename}
+        onConfirm={handleConfirmCompositeMulti}
+        isSubmitting={isCreatingCompositeMulti}
+      />
     </div>
   );
 }); 

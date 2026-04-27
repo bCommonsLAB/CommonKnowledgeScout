@@ -25,9 +25,18 @@ interface TransformSaveOptionsProps {
   showIncludeImages?: boolean; // Neu: Zeigt Bilder-Option (deprecated, verwende showIncludeOcrImages/showIncludePageImages)
   defaultIncludeImages?: boolean; // Neu: Standard-Bilder-Einstellung (deprecated)
   showIncludeOcrImages?: boolean; // Zeigt Mistral OCR Bilder-Option
-  showIncludePageImages?: boolean; // Zeigt Seiten-Bilder-Option
+  /**
+   * Zeigt eine kombinierte Checkbox fuer Seiten-Renderings.
+   * Steuert intern beide neuen Flags includePreviewPages und includeHighResPages
+   * gemeinsam (Hard-Rename, ehemals showIncludePageImages).
+   */
+  showIncludePageImages?: boolean;
   defaultIncludeOcrImages?: boolean; // Standard: Mistral OCR Bilder
-  defaultIncludePageImages?: boolean; // Standard: Seiten-Bilder
+  /**
+   * Standardwert fuer die kombinierte Seiten-Bilder-Checkbox.
+   * Setzt initial sowohl includePreviewPages als auch includeHighResPages auf diesen Wert.
+   */
+  defaultIncludePageImages?: boolean;
   showCreateShadowTwin?: boolean; // Neu: Checkbox für Shadow-Twin ein-/ausblenden
 }
 
@@ -84,7 +93,9 @@ export function TransformSaveOptions({
       extractionMethod: defaultExtractionMethod,
       useCache: defaultUseCache,
       includeOcrImages: defaultIncludeOcrImages,
-      includePageImages: defaultIncludePageImages,
+      // Hard-Rename: ein UI-Default mappt initial auf beide neuen Flags.
+      includePreviewPages: defaultIncludePageImages,
+      includeHighResPages: defaultIncludePageImages,
       includeImages: defaultIncludeImages // Rückwärtskompatibilität
     };
   });
@@ -277,12 +288,22 @@ export function TransformSaveOptions({
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="include-page-images"
-                checked={options.includePageImages !== undefined ? options.includePageImages : (options.extractionMethod === 'mistral_ocr' ? true : false)}
-                onCheckedChange={(checked) => updateOptions({ includePageImages: !!checked })}
+                // Eine Checkbox fuer beide neuen Flags. Sichtbar als "an", sobald
+                // mindestens eines von Preview/HighRes aktiv ist (oder Default bei mistral_ocr).
+                checked={
+                  (options.includePreviewPages !== undefined || options.includeHighResPages !== undefined)
+                    ? (!!options.includePreviewPages || !!options.includeHighResPages)
+                    : (options.extractionMethod === 'mistral_ocr')
+                }
+                onCheckedChange={(checked) => updateOptions({
+                  includePreviewPages: !!checked,
+                  includeHighResPages: !!checked,
+                })}
               />
               <Label htmlFor="include-page-images">Seiten-Bilder als ZIP extrahieren</Label>
               <p className="text-xs text-muted-foreground ml-6">
-                Extrahiert alle PDF-Seiten als Bilder und speichert sie als ZIP-Archiv (parallel zur OCR-Verarbeitung)
+                Liefert preview_NNN.jpg (~360 px Vorschau) und page_NNN.jpeg (200 DPI HighRes)
+                im pages.zip - parallel zur OCR-Verarbeitung.
               </p>
             </div>
           )}

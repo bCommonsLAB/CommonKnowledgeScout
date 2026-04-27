@@ -31,7 +31,7 @@ export type ShadowTwinInitialState =
 export interface MistralExtractOptions {
   /** true → useCache=false, Secretary soll wirklich neu rechnen */
   forceRecompute: boolean;
-  /** true → includeOcrImages und/oder includePageImages aktivieren */
+  /** true → includeOcrImages und/oder includePreviewPages/includeHighResPages aktivieren */
   includeImages?: boolean;
 }
 

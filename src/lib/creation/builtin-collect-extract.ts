@@ -172,7 +172,9 @@ async function runPdfExtractOnly(args: {
   form.append('targetLanguage', 'de')
   form.append('extractionMethod', 'mistral_ocr')
   form.append('includeOcrImages', 'true')
-  form.append('includePageImages', 'true')
+  // Hard-Rename: zwei getrennte Flags fuer Vorschau (Low-Res) und HighRes (200 DPI)
+  form.append('includePreviewPages', 'true')
+  form.append('includeHighResPages', 'true')
   form.append('useCache', 'false')
   form.append('policies', JSON.stringify({ extract: 'do', metadata: 'ignore', ingest: 'ignore' }))
 

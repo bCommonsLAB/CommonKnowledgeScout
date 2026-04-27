@@ -58,7 +58,8 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
     extractionMethod: "mistral_ocr", // Globaler Default: mistral_ocr
     useCache: true, // Standardwert: Cache verwenden
     includeOcrImages: undefined, // Wird basierend auf extractionMethod gesetzt
-    includePageImages: undefined, // Wird basierend auf extractionMethod gesetzt
+    includePreviewPages: undefined, // Wird basierend auf extractionMethod gesetzt
+    includeHighResPages: undefined, // Wird basierend auf extractionMethod gesetzt
     includeImages: false, // Rückwärtskompatibilität
     useIngestionPipeline: false,
     template: undefined
@@ -201,13 +202,17 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
       // Globaler Default: mistral_ocr (wenn nichts gesetzt ist)
       extractionMethod: options.extractionMethod || "mistral_ocr",
       useCache: options.useCache ?? true, // Standardwert: Cache verwenden
-      // Bei Mistral OCR: includePageImages immer true (erzwungen)
-      includePageImages: options.includePageImages !== undefined
-        ? options.includePageImages
-        : (isMistralOcr ? true : undefined), // Standard: true für Mistral OCR
-      includeOcrImages: options.includeOcrImages !== undefined 
-        ? options.includeOcrImages 
-        : (isMistralOcr ? true : undefined), // Standard: true für Mistral OCR
+      // Hard-Rename: getrennte Flags fuer Preview (Low-Res ~360 px) und HighRes (200 DPI).
+      // Bei Mistral OCR sind beide standardmaessig true.
+      includePreviewPages: options.includePreviewPages !== undefined
+        ? options.includePreviewPages
+        : (isMistralOcr ? true : undefined),
+      includeHighResPages: options.includeHighResPages !== undefined
+        ? options.includeHighResPages
+        : (isMistralOcr ? true : undefined),
+      includeOcrImages: options.includeOcrImages !== undefined
+        ? options.includeOcrImages
+        : (isMistralOcr ? true : undefined),
       includeImages: options.includeImages ?? false // Rückwärtskompatibilität
     };
     FileLogger.debug('PdfTransform', 'useCache Wert:', { useCache: pdfOptions.useCache });

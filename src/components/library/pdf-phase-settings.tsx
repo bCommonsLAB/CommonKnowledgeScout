@@ -87,9 +87,11 @@ export function PdfPhaseSettings({ open, onOpenChange }: PdfPhaseSettingsProps) 
       fileExtension: 'md',
       extractionMethod: typeof values.extractionMethod === 'string' ? values.extractionMethod : 'mistral_ocr',
       useCache: values.useCache ?? true,
-      // Für Mistral OCR: Beide Parameter standardmäßig true
+      // Bei Mistral OCR: alle Bild-Flags standardmaessig true.
+      // Hard-Rename: getrennte Flags fuer Preview (Low-Res) und HighRes (200 DPI).
       includeOcrImages: values.extractionMethod === 'mistral_ocr' ? (values.includeOcrImages ?? true) : undefined,
-      includePageImages: values.extractionMethod === 'mistral_ocr' ? (values.includePageImages ?? true) : undefined,
+      includePreviewPages: values.extractionMethod === 'mistral_ocr' ? (values.includePreviewPages ?? true) : undefined,
+      includeHighResPages: values.extractionMethod === 'mistral_ocr' ? (values.includeHighResPages ?? true) : undefined,
       includeImages: values.includeImages ?? false, // Rückwärtskompatibilität
       useIngestionPipeline: values.useIngestionPipeline ?? false,
       template: effectiveTemplate,
@@ -146,17 +148,20 @@ export function PdfPhaseSettings({ open, onOpenChange }: PdfPhaseSettingsProps) 
               Cache verwenden
             </label>
             <label className="flex items-center gap-2 text-sm">
-              <Checkbox 
-                checked={values.extractionMethod === 'mistral_ocr' 
+              <Checkbox
+                checked={values.extractionMethod === 'mistral_ocr'
                   ? (values.includeOcrImages !== undefined ? values.includeOcrImages : true)
-                  : (!!values.includeImages)} 
+                  : (!!values.includeImages)}
                 onCheckedChange={(c) => {
                   if (values.extractionMethod === 'mistral_ocr') {
-                    update({ includeOcrImages: !!c, includePageImages: !!c });
+                    // Eine sichtbare Checkbox steuert alle drei Bild-Flags gemeinsam:
+                    // OCR-erkannte Bilder, Vorschau-Renderings und HighRes-Renderings.
+                    // Granulare Steuerung kann spaeter ueber ein "Erweitert"-Panel folgen.
+                    update({ includeOcrImages: !!c, includePreviewPages: !!c, includeHighResPages: !!c });
                   } else {
                     update({ includeImages: !!c });
                   }
-                }} 
+                }}
               />
               {values.extractionMethod === 'mistral_ocr' ? 'OCR & Seiten-Bilder extrahieren' : 'Bilder extrahieren'}
             </label>

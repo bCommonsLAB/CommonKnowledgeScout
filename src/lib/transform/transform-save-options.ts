@@ -24,9 +24,22 @@ export interface TransformSaveOptions {
   /** PDF: Extraktionsmethode (native, mistral_ocr, …) */
   extractionMethod?: string;
   useCache?: boolean;
+  /** OCR-Bilder (von Mistral erkannte eingebettete Bilder) als ZIP anfordern. */
   includeOcrImages?: boolean;
-  includePageImages?: boolean;
-  /** @deprecated zugunsten includeOcrImages/includePageImages */
+  /**
+   * PDF-Vorschau-Renderings (Low-Res, ~360 px, JPEG q80) im pages.zip anfordern.
+   * Liefert preview_NNN.jpg zur UI-Vorschau / als Thumbnail.
+   * Default bei mistral_ocr: true.
+   */
+  includePreviewPages?: boolean;
+  /**
+   * PDF-Hochaufloesungs-Renderings (200 DPI, JPEG q85) im pages.zip anfordern.
+   * Liefert page_NNN.jpeg zur Weiterverarbeitung (z.B. Split-Pages-Funktion).
+   * Default bei mistral_ocr: true.
+   * Unabhaengig von includePreviewPages — beide koennen kombiniert werden.
+   */
+  includeHighResPages?: boolean;
+  /** @deprecated zugunsten includeOcrImages */
   includeImages?: boolean;
   /** Nach Speicherung automatisch Ingestion-Pipeline */
   useIngestionPipeline?: boolean;

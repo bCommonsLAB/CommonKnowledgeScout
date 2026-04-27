@@ -114,6 +114,10 @@ type PersistableImageBinaryFragment = {
   mimeType?: string
   size?: number
   createdAt: string
+  // Optional: Markierung als Seitenrendering (variant='page-render') und 1-basierte
+  // Seitennummer. Genutzt vom Locator (page-images-locator.ts) im Mongo-only-Modus.
+  variant?: 'original' | 'thumbnail' | 'preview' | 'page-render'
+  pageNumber?: number
 }
 
 /**
@@ -128,6 +132,9 @@ export function buildPersistableImageBinaryFragment(args: {
   mimeType?: string
   size?: number
   createdAt?: string
+  // Optional: zusätzliche Markierungen für Page-Render-Fragmente.
+  variant?: 'original' | 'thumbnail' | 'preview' | 'page-render'
+  pageNumber?: number
 }): PersistableImageBinaryFragment {
   const canonicalName = fileNameOnlyFromPathOrUrl(args.canonicalName)
   const blobStyleName = args.blobStyleName
@@ -146,6 +153,8 @@ export function buildPersistableImageBinaryFragment(args: {
     mimeType: args.mimeType || inferImageMimeTypeFromFileName(canonicalName || blobStyleName || ''),
     size: typeof args.size === 'number' ? args.size : undefined,
     createdAt: args.createdAt || new Date().toISOString(),
+    variant: args.variant,
+    pageNumber: args.pageNumber,
   }
 }
 
@@ -190,8 +199,12 @@ export async function persistShadowTwinToMongo(args: {
   artifactKey: ArtifactKey
   markdown: string
   shadowTwinFolderId?: string
-  /** Optional: ZIP-Daten für direkten Upload nach Azure (ohne Filesystem) */
-  zipArchives?: Array<{ base64Data: string; fileName: string }>
+  /**
+   * Optional: ZIP-Daten für direkten Upload nach Azure (ohne Filesystem).
+   * `variantHint='page-render'` markiert das Mistral-Pages-Archiv (Seitenrenderings),
+   * dessen Inhalte unabhängig von Markdown-Referenzen als binaryFragments gespeichert werden.
+   */
+  zipArchives?: Array<{ base64Data: string; fileName: string; variantHint?: 'page-render' }>
   /** Optional: Job-ID für Logging */
   jobId?: string
 }): Promise<{
@@ -267,12 +280,15 @@ export async function persistShadowTwinToMongo(args: {
     for (const meta of directUploadMetadata) {
       metadataMap.set(meta.url, meta)
     }
-    
-    // Verwende Metadaten aus direktem Upload
+
+    // 1) Bilder, die im Markdown referenziert sind (Standard-Fall: img-N.jpeg von Mistral OCR).
+    //    Set sammelt URLs, die wir bereits als binaryFragment aufgenommen haben - damit wir im
+    //    zweiten Schritt (Page-Renders) keine Duplikate produzieren.
+    const persistedUrls = new Set<string>()
     for (const imageInfo of imageUrls) {
       const fileName = imageInfo.name
       const metadata = metadataMap.get(imageInfo.url)
-      
+
       if (metadata) {
         const canonical = azureNameToOriginal.get(fileName.toLowerCase()) || fileName
         binaryFragments.push(
@@ -283,8 +299,13 @@ export async function persistShadowTwinToMongo(args: {
             hash: metadata.hash,
             mimeType: metadata.mimeType,
             size: metadata.size,
+            // Im Normalfall sind die im Markdown referenzierten Bilder OCR-Bilder ohne variant-Hint.
+            // Sollte ein Page-Render trotzdem im Markdown stehen, geben wir den Hint trotzdem mit.
+            variant: metadata.variant,
+            pageNumber: metadata.pageNumber,
           })
         )
+        persistedUrls.add(metadata.url)
       } else {
         // Fallback: verwende nur URL (sollte nicht vorkommen, wenn alle Bilder korrekt verarbeitet wurden)
         const canonical = azureNameToOriginal.get(fileName.toLowerCase()) || fileName
@@ -295,6 +316,7 @@ export async function persistShadowTwinToMongo(args: {
             url: imageInfo.url,
           })
         )
+        persistedUrls.add(imageInfo.url)
         FileLogger.warn('shadow-twin-mongo-writer', 'Bild-Metadaten nicht gefunden (direkter Upload)', {
           fileName,
           url: imageInfo.url,
@@ -302,6 +324,40 @@ export async function persistShadowTwinToMongo(args: {
           availableUrls: Array.from(metadataMap.keys()),
         })
       }
+    }
+
+    // 2) Seiten-Renderings (HighRes + Thumbnails), die NICHT im Markdown stehen.
+    //    Mistral schreibt typischerweise nur OCR-Bilder ins Markdown. Damit Folgefunktionen
+    //    (z.B. split-pages-to-images, UI-Thumbnails) die Bilder im Mongo-only-Modus finden,
+    //    persistieren wir hier sowohl variant='page-render' (HighRes 200 DPI) als auch
+    //    variant='thumbnail' (Vorschau ~360 px) ausdruecklich als binaryFragments.
+    let pageRenderFragmentsAdded = 0
+    let thumbnailFragmentsAdded = 0
+    for (const meta of directUploadMetadata) {
+      if (meta.variant !== 'page-render' && meta.variant !== 'thumbnail') continue
+      if (persistedUrls.has(meta.url)) continue // war ja im Markdown referenziert -> bereits drin
+      binaryFragments.push(
+        buildPersistableImageBinaryFragment({
+          canonicalName: meta.fileName,    // bereits normalisiert (page_NNN.<ext> bzw. preview_NNN.<ext>)
+          blobStyleName: meta.fileName,
+          url: meta.url,
+          hash: meta.hash,
+          mimeType: meta.mimeType,
+          size: meta.size,
+          variant: meta.variant,
+          pageNumber: meta.pageNumber,
+        })
+      )
+      persistedUrls.add(meta.url)
+      if (meta.variant === 'page-render') pageRenderFragmentsAdded++
+      else thumbnailFragmentsAdded++
+    }
+    if (pageRenderFragmentsAdded > 0 || thumbnailFragmentsAdded > 0) {
+      FileLogger.info('shadow-twin-mongo-writer', 'Page-Renderings zusaetzlich persistiert', {
+        sourceId: sourceItem.id,
+        pageRenderFragmentsAdded,
+        thumbnailFragmentsAdded,
+      })
     }
   } else {
     // Standard-Pfad: Bilder wurden bereits von ImageProcessor hochgeladen
@@ -383,6 +439,8 @@ export async function persistShadowTwinToMongo(args: {
     })
 
     // Konvertiere binaryFragments zu Service-Format, ohne Metadaten wieder zu verlieren.
+    // WICHTIG: variant und pageNumber müssen mitwandern, damit page-render-Fragmente in Mongo
+    // landen und vom Locator (page-images-locator.ts) gefunden werden können.
     const serviceBinaryFragments = binaryFragments.map((f) => ({
       name: f.name,
       originalName: f.originalName,
@@ -392,6 +450,8 @@ export async function persistShadowTwinToMongo(args: {
       size: f.size,
       kind: f.kind,
       createdAt: f.createdAt,
+      variant: f.variant,
+      pageNumber: f.pageNumber,
     }))
 
     await service.upsertMarkdown({

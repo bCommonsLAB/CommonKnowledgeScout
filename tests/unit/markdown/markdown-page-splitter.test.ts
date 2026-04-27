@@ -30,4 +30,24 @@ describe('splitMarkdownByPageMarkers', () => {
     expect(result.pages).toHaveLength(0)
     expect(result.markerCount).toBe(0)
   })
+
+  it('accepts em-dash markers ("— Seite N —")', () => {
+    // Mistral-OCR und die Markdown-Preview verwenden Em-Dash (U+2014) als Marker;
+    // unser Splitter MUSS diese Variante akzeptieren, sonst greift die Filename-
+    // Heuristik im Working-Folder nicht (Splitter liefert dann 0 Marker).
+    const markdown = ['— Seite 1 —', 'Erste Seite', '', '— Seite 2 —', 'Zweite Seite'].join('\n')
+    const result = splitMarkdownByPageMarkers(markdown)
+    expect(result.markerCount).toBe(2)
+    expect(result.pages).toHaveLength(2)
+    expect(result.pages[0].content).toContain('Erste Seite')
+    expect(result.pages[1].content).toContain('Zweite Seite')
+  })
+
+  it('accepts en-dash markers ("– Seite N –")', () => {
+    // En-Dash (U+2013) wird ebenfalls toleriert (siehe Preview-Heuristik).
+    const markdown = ['– Seite 1 –', 'A', '– Seite 2 –', 'B'].join('\n')
+    const result = splitMarkdownByPageMarkers(markdown)
+    expect(result.markerCount).toBe(2)
+    expect(result.pages.map((p) => p.pageNumber)).toEqual([1, 2])
+  })
 })

@@ -11,6 +11,7 @@ import { currentFolderIdAtom, libraryAtom } from "@/atoms/library-atom"
 import { Breadcrumb } from "./breadcrumb"
 import { AudioRecorderClient } from "./audio-recorder-client"
 import PdfBulkImportDialog from "./pdf-bulk-import-dialog"
+import { SplitPdfPagesButton } from "./split-pdf-pages-button"
 import { useFolderNavigation } from "@/hooks/use-folder-navigation"
 import { useRouter } from "next/navigation"
 
@@ -178,6 +179,13 @@ export function LibraryHeader({
           >
             <FileStack className="h-4 w-4" />
           </Button>
+
+          {/*
+            PDF-Seiten-zu-Bilder-Button: nur sichtbar, wenn aktuell eine PDF selektiert ist.
+            Folgefunktion zur Mistral-OCR-Transkription, legt Phase-1-Seitenbilder im
+            Working-Verzeichnis neben der PDF ab. Re-fresht die Liste nach Erfolg.
+          */}
+          <SplitPdfPagesButton onCompleted={handleUploadComplete} />
 
           {/* Aufnahme als Icon-Button (mobil/desktop sichtbar) */}
           <AudioRecorderClient 

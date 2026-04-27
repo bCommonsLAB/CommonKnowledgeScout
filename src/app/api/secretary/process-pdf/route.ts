@@ -44,25 +44,29 @@ export async function POST(request: NextRequest) {
     // Globaler Default: mistral_ocr (wenn nichts gesetzt ist)
     const extractionMethod = (formData.get('extractionMethod') as string) || 'mistral_ocr';
     
-    // Neue Parameter-Namen für Mistral OCR:
-    // - includeOcrImages: Mistral OCR Bilder als Base64 (in mistral_ocr_raw.pages[*].images[*].image_base64)
-    // - includePageImages: Seiten-Bilder als ZIP (parallel extrahiert)
-    // Rückwärtskompatibilität: includeImages bleibt für Standard-Endpoint
+    // Parameter-Namen fuer Mistral OCR (Hard-Rename auf neue Secretary-API):
+    // - includeOcrImages:    Mistral-OCR-erkannte eingebettete Bilder als ZIP
+    // - includePreviewPages: Vorschau-Seiten-Renderings (~360 px) im pages.zip (preview_NNN.jpg)
+    // - includeHighResPages: HighRes-Seiten-Renderings (200 DPI) im pages.zip (page_NNN.jpeg)
+    // includeImages bleibt nur als Rueckwaertskompat fuer den Standard-Endpoint.
     const includeOcrImagesRaw = formData.get('includeOcrImages') as string | null;
-    const includePageImagesRaw = formData.get('includePageImages') as string | null;
+    const includePreviewPagesRaw = formData.get('includePreviewPages') as string | null;
+    const includeHighResPagesRaw = formData.get('includeHighResPages') as string | null;
     const includeImagesRaw = formData.get('includeImages') as string | null; // Rückwärtskompatibilität
-    
-    // Für Mistral OCR: Beide Parameter standardmäßig true, wenn nicht explizit gesetzt
+
+    // Bei Mistral OCR: alle drei Bild-Flags standardmaessig true (kann ueberschrieben werden).
     const isMistralOcr = extractionMethod === 'mistral_ocr';
-    const includeOcrImages = includeOcrImagesRaw !== null 
+    const includeOcrImages = includeOcrImagesRaw !== null
       ? includeOcrImagesRaw === 'true'
-      : (isMistralOcr ? true : (includeImagesRaw === 'true')); // Standard: true für Mistral OCR, sonst aus includeImages
-    // Bei Mistral OCR: includePageImages immer true (erzwungen)
-    const includePageImages = includePageImagesRaw !== null
-      ? includePageImagesRaw === 'true'
-      : (isMistralOcr ? true : false); // Standard: true für Mistral OCR
-    
-    // Für Rückwärtskompatibilität: includeImages bleibt für Standard-Endpoint
+      : (isMistralOcr ? true : (includeImagesRaw === 'true'));
+    const includePreviewPages = includePreviewPagesRaw !== null
+      ? includePreviewPagesRaw === 'true'
+      : (isMistralOcr ? true : false);
+    const includeHighResPages = includeHighResPagesRaw !== null
+      ? includeHighResPagesRaw === 'true'
+      : (isMistralOcr ? true : false);
+
+    // Fuer Rueckwaertskompat: includeImages bleibt fuer Standard-Endpoint.
     const includeImages = includeImagesRaw !== null ? includeImagesRaw === 'true' : false;
     
     const useCache = (formData.get('useCache') as string) ?? 'true';
@@ -111,7 +115,8 @@ export async function POST(request: NextRequest) {
         targetLanguage,
         extractionMethod,
         includeOcrImages, // Mistral OCR Bilder als Base64
-        includePageImages, // Seiten-Bilder als ZIP
+        includePreviewPages, // Vorschau-Renderings im pages.zip (preview_NNN.jpg)
+        includeHighResPages, // HighRes-Renderings im pages.zip (page_NNN.jpeg, 200 DPI)
         includeImages: includeImages, // Rückwärtskompatibilität für Standard-Endpoint
         useCache: useCache === 'true',
       },
@@ -148,7 +153,8 @@ export async function POST(request: NextRequest) {
       targetLanguage,
       extractionMethod,
       includeOcrImages,
-      includePageImages,
+      includePreviewPages,
+      includeHighResPages,
       includeImages, // Rückwärtskompatibilität
       useCache: useCache === 'true',
       template: (formData.get('template') as string) || undefined,
@@ -170,7 +176,8 @@ export async function POST(request: NextRequest) {
           extractionMethod,
           targetLanguage,
           includeOcrImages,
-          includePageImages,
+          includePreviewPages,
+          includeHighResPages,
           includeImages, // Rückwärtskompatibilität
           useCache: useCache === 'true',
           template: (formData.get('template') as string) || undefined,

@@ -168,6 +168,7 @@ export class MongoShadowTwinStore implements ShadowTwinStore {
         variant: f.variant,
         sourceHash: f.sourceHash,
         createdAt: f.createdAt,
+        pageNumber: f.pageNumber,
       })),
     })
 

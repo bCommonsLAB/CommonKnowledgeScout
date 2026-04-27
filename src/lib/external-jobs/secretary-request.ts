@@ -217,17 +217,26 @@ export function prepareSecretaryRequest(
       : '/api/pdf/process-mistral-ocr'
     url = `${normalizedBaseUrl}${endpoint}`
 
-    // Mistral OCR spezifische Parameter
-    // Bei Mistral OCR: includePageImages immer true (erzwungen)
-    const includePageImages = typeof opts['includePageImages'] === 'boolean' ? opts['includePageImages'] : true
+    // Mistral OCR spezifische Parameter (Hard-Rename auf neue Secretary-API):
+    //  - includePreviewPages liefert preview_NNN.jpg (Low-Res, ~360 px, JPEG q80) ins pages.zip
+    //  - includeHighResPages liefert page_NNN.jpeg (200 DPI, JPEG q85) ins pages.zip
+    // Beide Flags sind unabhaengig und beliebig kombinierbar; Defaults true
+    // (siehe applyMistralDefaults in src/atoms/pdf-defaults.ts).
+    const includePreviewPages = typeof opts['includePreviewPages'] === 'boolean' ? opts['includePreviewPages'] : true
+    const includeHighResPages = typeof opts['includeHighResPages'] === 'boolean' ? opts['includeHighResPages'] : true
     const includeOcrImages = typeof opts['includeOcrImages'] === 'boolean' ? opts['includeOcrImages'] : true
     // Default: false – gecachte Fehler-Ergebnisse dürfen nicht stillschweigend wiederverwendet werden
     const useCache = typeof opts['useCache'] === 'boolean' ? opts['useCache'] : false
 
     formData = new FormData()
     formData.append('file', file)
-    formData.append('includeImages', String(includeOcrImages)) // Mistral OCR Bilder als Base64
-    formData.append('includePageImages', String(includePageImages)) // Seiten-Bilder als ZIP
+    // Achtung: laut offizieller Secretary-Doku heisst der Parameter am
+    // /api/pdf/process-mistral-ocr-Endpoint exakt "includeOCRImages" (mit grossem OCR).
+    // Der Standard-Endpoint /api/pdf/process verwendet weiterhin "includeImages".
+    // Wir respektieren diese unterschiedliche Schreibweise pro Endpoint bewusst.
+    formData.append('includeOCRImages', String(includeOcrImages)) // Mistral-OCR-erkannte Bilder
+    formData.append('includePreviewPages', String(includePreviewPages)) // Vorschau-Seiten-Renderings ins ZIP
+    formData.append('includeHighResPages', String(includeHighResPages)) // HighRes-Seiten-Renderings ins ZIP (200 DPI)
     formData.append('useCache', String(useCache))
     if (!offline) {
       formData.append('callback_url', callbackUrl)
@@ -249,7 +258,8 @@ export function prepareSecretaryRequest(
       fileName: file.name,
       fileSize: file.size,
       includeOcrImages: String(includeOcrImages),
-      includePageImages: String(includePageImages),
+      includePreviewPages: String(includePreviewPages),
+      includeHighResPages: String(includeHighResPages),
       useCache: String(useCache),
       callbackUrl: offline ? '(offline-mode)' : callbackUrl,
     })

@@ -1124,11 +1124,21 @@ function PreviewContent({
   // daher müssen wir item.parentId verwenden, wenn die Markdown-Datei direkt geöffnet wird.
   const currentFolderId = shadowTwinState?.shadowTwinFolderId || item.parentId;
 
-  /** Sammeltranskript: Wikilink-Auflösung und optional Mongo-„Transkript prüfen“ im Viewer. */
+  /**
+   * Sammeltranskript / Bild-Sammelanalyse: Wikilink-Aufloesung und optional
+   * Mongo-„Transkript pruefen“ im Viewer.
+   *
+   * Wir aktivieren denselben `compositeWikiPreview`-Hook fuer beide Container-
+   * Arten, weil beide `siblingNameToId` brauchen, um eingebettete Quellen
+   * korrekt aufzuloesen:
+   * - `composite-transcript`: Wikilinks auf Geschwister, Transkript-pruefen-Links
+   * - `composite-multi`: Bild-Embeds als Grid (`replaceCompositeMultiPreviewBlock`)
+   */
   const compositeWikiPreview = React.useMemo((): CompositeWikiPreviewOptions | null => {
     if (!activeLibraryId || fileType !== 'markdown' || !content?.trim()) return null
     const { meta } = parseFrontmatter(content)
-    if (meta?.kind !== 'composite-transcript') return null
+    const isCompositeContainer = meta?.kind === 'composite-transcript' || meta?.kind === 'composite-multi'
+    if (!isCompositeContainer) return null
     // Storage-agnostischer Helper: liefert true, wenn die Library auf einem
     // Filesystem-Backend persistiert. UI muss `primaryStore` nicht mehr selbst lesen
     // (siehe `.cursor/rules/storage-contracts.mdc` §5).

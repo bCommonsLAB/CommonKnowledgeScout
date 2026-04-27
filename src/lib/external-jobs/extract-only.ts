@@ -406,7 +406,10 @@ export async function runExtractOnly(
       const currentShadowTwinFolderId = job.shadowTwinState?.shadowTwinFolderId || shadowTwinFolderId
       
       // Sammle ZIP-Daten für direkten Upload (wenn persistToFilesystem=false)
-      const zipArchives: Array<{ base64Data: string; fileName: string }> = []
+      // variantHint markiert das Mistral-Pages-Archiv (Seitenrenderings) so, dass der
+      // Direct-Upload die Inhalte unabhaengig von Markdown-Referenzen als binaryFragments
+      // mit variant='page-render' bzw. 'thumbnail' speichert (siehe shadow-twin-direct-upload.ts).
+      const zipArchives: Array<{ base64Data: string; fileName: string; variantHint?: 'page-render' }> = []
       if (!persistToFilesystem && imagesPhaseEnabled) {
         // Helper: Maskiere URL fuer Trace (kein Token im Query, nur Host+Pfad sichtbar).
         const safeUrlForTrace = (raw: string): string => {
@@ -504,9 +507,14 @@ export async function runExtractOnly(
           })
         }
         if (pagesArchiveData) {
+          // variantHint='page-render': dieses ZIP enthaelt komplette Seitenrenderings.
+          // Der Direct-Upload normalisiert die Dateinamen auf page_NNN.<ext> und der Mongo-Writer
+          // persistiert sie als binaryFragments mit variant='page-render', auch wenn sie nicht
+          // im transcript-Markdown referenziert sind (Variante-1-Fix).
           zipArchives.push({
             base64Data: pagesArchiveData,
             fileName: (body?.data as { pages_archive_filename?: string })?.pages_archive_filename || 'pages.zip',
+            variantHint: 'page-render',
           })
         }
         
@@ -517,6 +525,7 @@ export async function runExtractOnly(
             zipArchives.push({
               base64Data,
               fileName: (body?.data as { pages_archive_filename?: string })?.pages_archive_filename || 'pages.zip',
+              variantHint: 'page-render',
             })
           }
         }

@@ -237,7 +237,24 @@ export async function persistShadowTwinFilesToMongo(args: {
     mimeType?: string
     size?: number
     createdAt: string
+    // Markierungen, die der Locator (page-images-locator.ts) für die Folgefunktion
+    // "PDF-Seiten als Bilder" benötigt. Werden bei Filesystem-Migration heuristisch aus
+    // dem Dateinamen abgeleitet (Pattern page_NNN.<ext>).
+    variant?: 'original' | 'thumbnail' | 'preview' | 'page-render'
+    pageNumber?: number
   }> = []
+
+  /**
+   * Erkennt anhand des Dateinamens, ob eine Datei eine PDF-Seitenrenderung ist
+   * (Standard-Naming aus ImageExtractionService.saveZipArchive: page_001.png).
+   * Liefert die 1-basierte Seitennummer oder null.
+   */
+  function detectPageRenderNumber(fileName: string): number | null {
+    const m = fileName.match(/^page[_-](\d+)\.(png|jpe?g)$/i)
+    if (!m) return null
+    const n = parseInt(m[1], 10)
+    return Number.isFinite(n) ? n : null
+  }
 
   let markdownContent = ''
   let markdownCount = 0
@@ -262,15 +279,21 @@ export async function persistShadowTwinFilesToMongo(args: {
       case 'image':
         imageCount++
         imageFiles.push(file)
-        // Bilder werden zu binaryFragments hinzugefügt
-        binaryFragments.push({
-          name: fileName,
-          kind: fileKind,
-          mimeType,
-          size: file.metadata.size,
-          // StorageItemMetadata hat nur modifiedAt, nicht createdAt
-          createdAt: file.metadata.modifiedAt?.toISOString() || new Date().toISOString(),
-        })
+        {
+          // Heuristik: Wenn der Dateiname dem Pattern page_NNN.<ext> entspricht, markieren wir
+          // das Fragment als variant='page-render'. So findet der Locator die Seitenbilder
+          // sowohl im Filesystem-Modus als auch nach Migration in den Mongo-only-Modus.
+          const pageNumber = detectPageRenderNumber(fileName)
+          binaryFragments.push({
+            name: fileName,
+            kind: fileKind,
+            mimeType,
+            size: file.metadata.size,
+            createdAt: file.metadata.modifiedAt?.toISOString() || new Date().toISOString(),
+            variant: pageNumber != null ? 'page-render' : undefined,
+            pageNumber: pageNumber ?? undefined,
+          })
+        }
         break
       case 'audio':
         audioCount++

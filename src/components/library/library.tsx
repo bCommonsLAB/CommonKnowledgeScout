@@ -175,8 +175,15 @@ export function Library() {
     if (selectedFile) setMobileView('preview');
   }, [isMobile, selectedFile]);
 
-  // Optimierter loadItems mit Cache-Check
-  const loadItems = useCallback(async () => {
+  // Optimierter loadItems mit Cache-Check.
+  //
+  // force=true erzwingt einen frischen API-Call und ueberspringt den Cache-Hit.
+  // Verwendung z.B. nach Schreib-Operationen (Upload, Split-Pages, Audio-Recorder),
+  // wenn die Datei-Liste serverseitig veraendert wurde (neue Dateien, Umbenennungen,
+  // ueberschriebene Inhalte). Ohne force liefert der Cache evtl. veraltete Items
+  // mit IDs, die auf nicht mehr existente Dateien zeigen -> Vorschau "Bild nicht
+  // verfuegbar".
+  const loadItems = useCallback(async (force: boolean = false) => {
     console.log('[Library] 🔄 loadItems aufgerufen:', {
       hasProvider: !!providerInstance,
       libraryStatus,
@@ -184,6 +191,7 @@ export function Library() {
       activeLibraryId,
       currentLibraryId: currentLibrary?.id?.substring(0, 8) + '...',
       loadInFlight: loadInFlightRef.current,
+      force,
       timestamp: new Date().toISOString()
     });
     
@@ -225,10 +233,26 @@ export function Library() {
       const expectedLibraryId = activeLibraryId;
       const expectedFolderId = currentFolderId;
 
+      // Bei force=true: Cache-Eintrag fuer aktuellen Folder zuerst loeschen,
+      // damit waehrend des laufenden Reloads niemand mehr stale Items aus dem
+      // Cache zieht (z.B. das FileTree, das ueber libraryState.folderCache lebt).
+      if (force) {
+        setLibraryState(state => {
+          if (!state.folderCache?.[currentFolderId]) return state;
+          const next = { ...state.folderCache };
+          delete next[currentFolderId];
+          NavigationLogger.info('Library', 'Force-Reload: Cache-Eintrag invalidiert', {
+            folderId: currentFolderId,
+          });
+          return { ...state, folderCache: next };
+        });
+      }
+
       // Prüfe Cache zuerst (verwende aktuellen State über setLibraryState)
       // WICHTIG: libraryState.folderCache wird über Closure verwendet, nicht über Dependencies
+      // Bei force=true wird der Cache-Hit bewusst uebersprungen.
       const currentState = libraryState;
-      if (currentState.folderCache?.[currentFolderId]?.children) {
+      if (!force && currentState.folderCache?.[currentFolderId]?.children) {
         const cachedItems = currentState.folderCache[currentFolderId].children;
         NavigationLogger.info('Library', 'Using cached items', {
           folderId: currentFolderId,
@@ -395,6 +419,16 @@ export function Library() {
     activeLibraryId
   ]);
 
+  // Erzwingt einen frischen Reload des aktuellen Folders.
+  // Wird nach Schreib-Operationen aufgerufen (Upload, Split-Pages, Audio-Recorder etc.),
+  // damit Stale-Cache-Eintraege nicht verhindern, dass die UI die neuen Dateinamen/IDs sieht.
+  // Wichtig: muss als eigenstaendiger Callback existieren, weil React bei Prop-Forwarding
+  // (z.B. onUploadComplete={loadItems}) das erste Argument als Event/anything reinreicht
+  // und so unabsichtlich force=truthy aktivieren wuerde.
+  const refreshCurrentFolder = useCallback(() => {
+    return loadItems(true);
+  }, [loadItems]);
+
   // Effect für Initial-Load (entkoppelt vom FileTree)
   useEffect(() => {
     const isReady = !!providerInstance && libraryStatus === 'ready';
@@ -519,7 +553,7 @@ export function Library() {
       <LibraryHeader
         provider={providerInstance}
         error={storageError}
-        onUploadComplete={loadItems}
+        onUploadComplete={refreshCurrentFolder}
         isTreeVisible={isTreeVisible}
         onToggleTree={() => setUiPrefs({ treeVisible: !isTreeVisible })}
         isCompactList={isListCompact}

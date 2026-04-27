@@ -16,7 +16,9 @@ export function loadPdfDefaults(libraryId: string): Partial<PdfTransformOptions>
     if (typeof parsed.useCache === 'boolean') result.useCache = parsed.useCache;
     if (typeof parsed.includeImages === 'boolean') result.includeImages = parsed.includeImages;
     if (typeof parsed.includeOcrImages === 'boolean') result.includeOcrImages = parsed.includeOcrImages;
-    if (typeof parsed.includePageImages === 'boolean') result.includePageImages = parsed.includePageImages;
+    // Neue, getrennte Flags fuer Preview vs. HighRes (Hard-Rename, ehemals includePageImages).
+    if (typeof parsed.includePreviewPages === 'boolean') result.includePreviewPages = parsed.includePreviewPages;
+    if (typeof parsed.includeHighResPages === 'boolean') result.includeHighResPages = parsed.includeHighResPages;
     if (typeof parsed.template === 'string') result.template = parsed.template;
     if (typeof parsed.useIngestionPipeline === 'boolean') result.useIngestionPipeline = parsed.useIngestionPipeline;
     return result;
@@ -34,7 +36,8 @@ export function savePdfDefaults(libraryId: string, options: PdfTransformOptions)
       useCache: options.useCache,
       includeImages: options.includeImages,
       includeOcrImages: options.includeOcrImages,
-      includePageImages: options.includePageImages,
+      includePreviewPages: options.includePreviewPages,
+      includeHighResPages: options.includeHighResPages,
       template: options.template,
       useIngestionPipeline: options.useIngestionPipeline,
     };

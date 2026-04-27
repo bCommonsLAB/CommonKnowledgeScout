@@ -151,11 +151,13 @@ async function createJobForItem(args: {
         ...(typeof config.customHint === 'string' ? { customHint: config.customHint } : {}),
         // LLM-Modell für Template-Transformation
         ...(config.llmModel ? { llmModel: config.llmModel } : {}),
-        // PDF-spezifische Optionen
+        // PDF-spezifische Optionen.
+        // Hard-Rename: getrennte Flags fuer Preview (~360 px) und HighRes (200 DPI).
         ...(mediaKind === 'pdf' ? {
           extractionMethod: request.extractionMethod || 'mistral_ocr',
           includeOcrImages: request.includeOcrImages ?? true,
-          includePageImages: request.includePageImages ?? true,
+          includePreviewPages: request.includePreviewPages ?? true,
+          includeHighResPages: request.includeHighResPages ?? true,
           useCache: request.useCache ?? true,
         } : {}),
         // Office-spezifische Optionen (useCache für Secretary)

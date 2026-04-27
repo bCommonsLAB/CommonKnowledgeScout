@@ -20,20 +20,30 @@ const GLOBAL_DEFAULT_EXTRACTION_METHOD: PdfTransformOptions['extractionMethod'] 
 
 /**
  * Erzwingt Mistral-spezifische Defaults für Bild-Extraktion.
- * Wenn extractionMethod === 'mistral_ocr', dann sind includePageImages und includeOcrImages standardmäßig true.
+ * Wenn extractionMethod === 'mistral_ocr':
+ *  - includePreviewPages standardmaessig true (Low-Res Thumbnails fuer UI)
+ *  - includeHighResPages standardmaessig true (200 DPI fuer Weiterverarbeitung,
+ *    z.B. Split-Pages-Funktion)
+ *  - includeOcrImages standardmaessig true (von Mistral erkannte eingebettete Bilder)
+ * Alle drei Flags koennen explizit ueberschrieben werden.
  */
 function applyMistralDefaults(options: Partial<PdfTransformOptions>): Partial<PdfTransformOptions> {
   const extractionMethod = options.extractionMethod || GLOBAL_DEFAULT_EXTRACTION_METHOD
   const isMistralOcr = extractionMethod === 'mistral_ocr'
-  
+
   return {
     ...options,
     extractionMethod,
-    // Bei Mistral OCR: includePageImages immer true (erzwungen)
-    includePageImages: isMistralOcr 
-      ? (options.includePageImages !== undefined ? options.includePageImages : true)
-      : options.includePageImages,
-    // Bei Mistral OCR: includeOcrImages standardmäßig true (kann überschrieben werden)
+    // Vorschau-Bilder: bei Mistral standardmaessig true, sonst durchreichen
+    includePreviewPages: isMistralOcr
+      ? (options.includePreviewPages !== undefined ? options.includePreviewPages : true)
+      : options.includePreviewPages,
+    // HighRes-Bilder: bei Mistral standardmaessig true, sonst durchreichen.
+    // Diese sind die Quelle fuer die Split-Pages-Funktion.
+    includeHighResPages: isMistralOcr
+      ? (options.includeHighResPages !== undefined ? options.includeHighResPages : true)
+      : options.includeHighResPages,
+    // OCR-Bilder (eingebettete Bilder aus dem PDF): bei Mistral standardmaessig true
     includeOcrImages: isMistralOcr
       ? (options.includeOcrImages !== undefined ? options.includeOcrImages : true)
       : options.includeOcrImages,

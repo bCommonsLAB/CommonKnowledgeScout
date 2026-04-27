@@ -69,9 +69,11 @@ export function PhaseStepper({ statuses, className }: PhaseStepperProps) {
       // Globaler Default: mistral_ocr (wird bereits in getEffectivePdfDefaults angewendet)
       extractionMethod: typeof defaults.extractionMethod === 'string' ? defaults.extractionMethod : 'mistral_ocr',
       useCache: defaults.useCache ?? true,
-      // Für Mistral OCR: Beide Parameter standardmäßig true (werden bereits in getEffectivePdfDefaults angewendet)
+      // Bei Mistral OCR werden alle Bild-Flags bereits in getEffectivePdfDefaults gesetzt.
+      // Hard-Rename: getrennte Flags fuer Preview (~360 px) und HighRes (200 DPI).
       includeOcrImages: defaults.includeOcrImages,
-      includePageImages: defaults.includePageImages,
+      includePreviewPages: defaults.includePreviewPages,
+      includeHighResPages: defaults.includeHighResPages,
       includeImages: defaults.includeImages ?? false, // Rückwärtskompatibilität
       template: typeof defaults.template === 'string' ? defaults.template : undefined,
     };

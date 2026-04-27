@@ -122,8 +122,10 @@ export interface PipelineRequest {
   extractionMethod?: string
   /** OCR-Bilder einschließen? */
   includeOcrImages?: boolean
-  /** Seitenbilder einschließen? */
-  includePageImages?: boolean
+  /** Vorschau-Seitenrenderings (~360 px) einschließen? Default true bei mistral_ocr. */
+  includePreviewPages?: boolean
+  /** Hochaufloesende Seitenrenderings (200 DPI) einschließen? Default true bei mistral_ocr. */
+  includeHighResPages?: boolean
   /** Cache verwenden? */
   useCache?: boolean
 }

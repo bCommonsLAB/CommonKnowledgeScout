@@ -48,14 +48,24 @@ function getStringField(formData: FormData, key: string): string | null {
 }
 
 describe('prepareSecretaryRequest', () => {
-  it('builds PDF mistral_ocr request with callback', () => {
+  it('builds PDF mistral_ocr request with callback und uebersetzt die neuen Page-Image-Flags', () => {
+    // Hard-Rename: Aus dem alten includePageImages werden zwei orthogonale Flags
+    // includePreviewPages (Low-Res ~360 px) und includeHighResPages (200 DPI).
+    // Defaults bei mistral_ocr: beide true.
     const job = createJob({
       job_type: 'pdf',
       correlation: {
         jobId: 'job-pdf',
         libraryId: 'lib-1',
         source: { mediaType: 'pdf', name: 'doc.pdf', itemId: 'it1', parentId: 'p1' },
-        options: { extractionMethod: 'mistral_ocr', includeOcrImages: true, includePageImages: true, useCache: true, targetLanguage: 'de' },
+        options: {
+          extractionMethod: 'mistral_ocr',
+          includeOcrImages: true,
+          includePreviewPages: true,
+          includeHighResPages: true,
+          useCache: true,
+          targetLanguage: 'de',
+        },
       },
     })
 
@@ -64,6 +74,54 @@ describe('prepareSecretaryRequest', () => {
     expect(cfg.headers.Authorization).toContain('test-key')
     expect(getStringField(cfg.formData, 'callback_url')).toBe('https://app/cb')
     expect(getStringField(cfg.formData, 'callback_token')).toBe('secret')
+    // Die neuen, getrennten Flags muessen 1:1 an den Secretary-Service durchgereicht werden.
+    expect(getStringField(cfg.formData, 'includePreviewPages')).toBe('true')
+    expect(getStringField(cfg.formData, 'includeHighResPages')).toBe('true')
+    // Wichtig: Am /api/pdf/process-mistral-ocr-Endpoint heisst der Parameter laut
+    // offizieller Secretary-Doku "includeOCRImages" (grosses OCR).
+    expect(getStringField(cfg.formData, 'includeOCRImages')).toBe('true')
+    // Der alte Schluessel includeImages und includePageImages duerfen NICHT am Mistral-Endpoint stehen.
+    expect(getStringField(cfg.formData, 'includeImages')).toBeNull()
+    expect(getStringField(cfg.formData, 'includePageImages')).toBeNull()
+  })
+
+  it('PDF mistral_ocr Defaults: ohne explizite Page-Image-Flags werden beide Flags auf true gesetzt', () => {
+    // Wenn die Job-Optionen keine Page-Image-Flags enthalten, soll die Outbound-Schicht
+    // bei mistral_ocr beide Defaults (Preview + HighRes) auf true setzen.
+    const job = createJob({
+      job_type: 'pdf',
+      correlation: {
+        jobId: 'job-pdf-defaults',
+        libraryId: 'lib-1',
+        source: { mediaType: 'pdf', name: 'doc.pdf', itemId: 'it1', parentId: 'p1' },
+        options: { extractionMethod: 'mistral_ocr' },
+      },
+    })
+
+    const cfg = prepareSecretaryRequest(job, createFile('doc.pdf', 'application/pdf'), 'https://app/cb', 'secret')
+    expect(getStringField(cfg.formData, 'includePreviewPages')).toBe('true')
+    expect(getStringField(cfg.formData, 'includeHighResPages')).toBe('true')
+  })
+
+  it('PDF mistral_ocr: explizit deaktivierte Flags werden korrekt weitergereicht', () => {
+    // includePreviewPages=false und includeHighResPages=true: nur HighRes anfordern.
+    const job = createJob({
+      job_type: 'pdf',
+      correlation: {
+        jobId: 'job-pdf-only-highres',
+        libraryId: 'lib-1',
+        source: { mediaType: 'pdf', name: 'doc.pdf', itemId: 'it1', parentId: 'p1' },
+        options: {
+          extractionMethod: 'mistral_ocr',
+          includePreviewPages: false,
+          includeHighResPages: true,
+        },
+      },
+    })
+
+    const cfg = prepareSecretaryRequest(job, createFile('doc.pdf', 'application/pdf'), 'https://app/cb', 'secret')
+    expect(getStringField(cfg.formData, 'includePreviewPages')).toBe('false')
+    expect(getStringField(cfg.formData, 'includeHighResPages')).toBe('true')
   })
 
   it('does NOT send template to /audio/process when template-phase is enabled (handled in phase 2)', () => {

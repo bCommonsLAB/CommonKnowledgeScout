@@ -44,6 +44,15 @@ import { bufferLog } from '@/lib/external-jobs-log-buffer'
 export interface ZipArchiveInput {
   base64Data: string
   fileName: string
+  /**
+   * Optional: Hint fuer den Direct-Upload, dass dieses ZIP komplette Seitenrenderings enthaelt
+   * (Mistral `pages_archive`). Konsequenz im Direct-Upload:
+   * - Dateinamen werden auf `page_NNN.<ext>` normalisiert.
+   * - Die zurueckgegebenen `UploadedImageMetadata`-Eintraege bekommen `variant='page-render'` + `pageNumber`.
+   * - Der Mongo-Writer persistiert diese Eintraege auch dann als binaryFragments, wenn sie nicht
+   *   im Markdown referenziert sind (= bisheriger Verlust-Fall).
+   */
+  variantHint?: 'page-render'
 }
 
 /** Metadaten eines hochgeladenen Bildes; spiegelt das Format aus shadow-twin-direct-upload. */
@@ -53,6 +62,14 @@ export interface UploadedImageMetadata {
   hash: string
   size: number
   mimeType: string
+  /**
+   * Optional: Variant-Klassifikation des Bildes.
+   *  - 'page-render': HighRes-Seitenrendering (200 DPI), Quelle fuer Split-Pages-Funktion.
+   *  - 'thumbnail':   Vorschau-Seitenrendering (~360 px), fuer UI-Thumbnails.
+   */
+  variant?: 'page-render' | 'thumbnail'
+  /** Optional: 1-basierte Seitennummer (bei variant='page-render' oder 'thumbnail'). */
+  pageNumber?: number
 }
 
 /** Mapping eines im Markdown ersetzten Bildpfads -> Azure-URL. */
