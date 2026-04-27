@@ -1,0 +1,126 @@
+---
+description: Harte technische Invarianten fuer das Modul `chat` (RAG-Konsum, Retriever, Ingestion-Service)
+globs: src/lib/chat/**/*.ts,tests/unit/chat/**/*.ts
+alwaysApply: false
+---
+
+# Contracts: `chat`
+
+Diese Regel definiert **harte technische Invarianten** auf Code-Ebene
+fuer das Modul `src/lib/chat/`. Sie ergaenzt
+[`contracts-story-pipeline.mdc`](mdc:.cursor/rules/contracts-story-pipeline.mdc)
+um Wrapper-/Helper-spezifische Vertraege.
+
+## Quellen der Wahrheit
+
+- Pure Helper:
+  - `common/budget.ts` — Token/Char-Budget-Helpers
+  - `common/normalize-suggested-questions.ts`
+  - `common/retriever-decider.ts`
+  - `common/toc-parser.ts`
+  - `common/filters.ts`
+  - `facets.ts` (deprecated, nutzt `dynamic-facets`)
+  - `dynamic-facets.ts`
+  - `publication-filter.ts`
+  - `utils/cache-key-utils.ts`, `utils/cache-hash-builder.ts`
+  - `vector-stats.ts`
+- Service-Layer:
+  - `ingestion-service.ts` (1.435 Z. — Hauptlast, Folge-PR fuer Split)
+  - `orchestrator.ts` (521 Z.)
+  - `loader.ts` (418 Z.)
+  - `config.ts`, `dynamic-facets.ts`, `vector-search-index.ts`,
+    `rag-embeddings.ts`, `retriever-context.ts`
+- Retrievers:
+  - `retrievers/chunks.ts`, `retrievers/chunk-summary.ts`,
+    `retrievers/summaries-mongo.ts`, `retrievers/metadata-extractor.ts`
+- Konstanten / Prompts:
+  - `constants.ts` (888 Z.), `common/prompt.ts` (982 Z.) — beide ueber
+    DoD-Schwelle, Folge-PR fuer Split
+
+## §1 Determinismus
+
+Pure Helper sind **strikt seiteneffekt-frei**:
+
+- `getBaseBudget`, `reduceBudgets`, `canAccumulate`,
+  `estimateTokensFromText`, `canAccumulateTokens` deterministisch (aus
+  `common/budget.ts`).
+- `composeDocSummaryText`, `extractTopLevelFacetsFromMeta`
+  (aus `facets.ts`).
+- `decideRetrieverStrategy` (aus `common/retriever-decider.ts`).
+- `normalizeSuggestedQuestions` (aus
+  `common/normalize-suggested-questions.ts`).
+- `parseTocFromMarkdown` (aus `common/toc-parser.ts`).
+- `buildPublicationFilter` (aus `publication-filter.ts`).
+- `buildVectorSearchCacheKey`, `buildCacheHash` deterministisch.
+
+Service-Funktionen mit Mongo/HTTP-I/O sind NICHT pure.
+
+## §2 Fehler-Semantik
+
+**Kein silent fallback.** Konkrete Verpflichtungen:
+
+- **Index-Erstellung** (`ensureFacetIndexes`, `ensureChunkIndexes`):
+  Fehler werden geloggt, blockieren aber nicht die Pipeline (Indizes
+  werden lazy aufgebaut). Pflicht: `console.warn` mit Begruendung.
+- **Telemetry-Aufrufe** (`repo.traceAddEvent`): wie in `templates`-Modul:
+  Fehler nicht werfen, aber loggen.
+- **Vector Search-Aufrufe**: bei MongoDB-Token-Index-Fehlern werfen,
+  weil das ein Konfig-Bug ist (siehe contracts-story-pipeline.mdc §5).
+- **Ingest-Eingabe leer/zu kurz**: werfen (siehe
+  contracts-story-pipeline.mdc §4 — kein "success mit 0 chunks").
+- **`catch {}`** verboten — alle 9 Vorkommen werden in Welle 2.3
+  Schritt 4 gefixt.
+
+## §3 Erlaubte / verbotene Abhaengigkeiten
+
+DARF abhaengen von:
+
+- `src/lib/secretary/client` (fuer `embedTextRag`)
+- `src/lib/repositories/vector-repo`
+- `src/lib/mongodb-service`
+- `src/lib/external-jobs-repository` (nur fuer `repo.traceAddEvent`)
+- `src/lib/templates/template-service` (Template-Loader)
+- `src/lib/logging`
+
+DARF **NICHT** abhaengen von:
+
+- `src/components/**` (UI)
+- `src/app/**` (Routen)
+- `src/lib/external-jobs/**` (Aufrufer-Richtung)
+
+Direkte Imports aus UI sind erlaubt fuer pure Funktionen
+(`composeDocSummaryText`, `normalizeSuggestedQuestions`), aber UI-
+Komponenten sollen vorzugsweise via API-Routen kommunizieren.
+
+## §4 Skip- / Default-Semantik
+
+- Fehlende Vector-Search-Ergebnisse: liefere leere Liste an Aufrufer,
+  aber **logge** den Grund (Index fehlt? Library leer?).
+- Fehlende Embedding-Konfiguration: wirft, kein Fallback auf Default-
+  Modell ohne Begruendung.
+- `canAccumulateTokens(current, add, budget)`: deterministisch true/false.
+
+## §5 Cache-Vertrag
+
+- `buildVectorSearchCacheKey` ist deterministisch fuer gleiche
+  Eingabe. Cache-Hits werden in Stats reflektiert.
+- Stat-Helper (`vector-stats.ts`) duerfen Globals lesen, nicht
+  schreiben.
+
+## §6 Test-Vertrag
+
+- Pure Funktionen ohne Mocks testen.
+- Service-Funktionen mit MongoDB- bzw. fetch-Mocks (analog
+  `secretary-contracts.mdc` §7).
+- `vi.mock('@/lib/secretary/client')` fuer `embedTextRag` in
+  `rag-embeddings`-Tests.
+- `vi.mock('@/lib/repositories/vector-repo')` fuer Retriever-Tests.
+
+## §7 Performance-Watchpoints
+
+- `chunks.ts` (554 Z.) und `summaries-mongo.ts` (327 Z.) sind die
+  Heisen Pfade fuer RAG-Retrieval. Aenderungen MUESSEN durch Tests
+  abgedeckt sein, bevor sie produktiv gehen.
+- `ingestion-service.ts` (1.435 Z.) faehrt MongoDB-Bulk-Upserts —
+  Reihenfolge der Operationen ist Vertrag (nicht durch Welle 2.3
+  abgedeckt, Folge-PR).
