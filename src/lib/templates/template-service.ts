@@ -55,6 +55,38 @@ export class TemplateNotFoundError extends Error {
 }
 
 /**
+ * Best-effort Trace-Emitter fuer Telemetry. Loggt Fehler explizit
+ * statt sie still zu schlucken (vorher 5x stille catch-Bloecke in dieser Datei,
+ * eliminiert in Welle 2.2 — siehe templates-contracts.mdc §2 +
+ * docs/refactor/templates/04-altlast-pass.md).
+ *
+ * Wenn `repo` oder `jobId` fehlt, ist die Funktion no-op.
+ */
+async function emitTraceEventSafely(
+  repo: ExternalJobsRepository | undefined,
+  jobId: string | undefined,
+  name: string,
+  attributes: Record<string, unknown>
+): Promise<void> {
+  if (!repo || !jobId) return
+  try {
+    await repo.traceAddEvent(jobId, {
+      spanId: 'template',
+      name,
+      attributes,
+    })
+  } catch (err) {
+    // Telemetry-Fehler sollen den Template-Lade-Pfad nicht blockieren.
+    // Wir loggen aber explizit, damit Drift sichtbar bleibt
+    // (no-silent-fallbacks.mdc).
+    console.warn(
+      `[templates/service] Trace-Event "${name}" konnte nicht persistiert werden:`,
+      err,
+    )
+  }
+}
+
+/**
  * Stellt sicher, dass der Templates-Ordner existiert.
  * Erstellt ihn falls nötig.
  * 
@@ -88,7 +120,15 @@ export async function listAvailableTemplates(provider: TemplateServiceProvider):
       .filter(it => it.type === 'file' && (it as { metadata?: { name?: string } }).metadata?.name?.endsWith('.md'))
       .map(it => ((it as { metadata?: { name?: string } }).metadata?.name || '').replace(/\.md$/, ''))
       .filter(name => name.length > 0)
-  } catch {
+  } catch (err) {
+    // Bewusster Fallback auf leeres Array: Aufrufer (UI-Listen)
+    // sollen weiterlaufen koennen, wenn der Templates-Ordner
+    // (noch) nicht existiert oder Storage gerade nicht erreichbar
+    // ist. Wir loggen den Grund explizit (no-silent-fallbacks.mdc).
+    console.warn(
+      '[templates/service] listAvailableTemplates fehlgeschlagen, liefere leere Liste:',
+      err,
+    )
     return []
   }
 }
@@ -133,20 +173,13 @@ export async function loadTemplate(args: LoadTemplateArgs): Promise<LoadTemplate
     if (preferredTemplate) {
       const errorMessage = `Template "${preferredTemplate}" nicht gefunden. Verfügbare Templates: ${availableTemplates.length > 0 ? availableTemplates.join(', ') : '(keine)'}`
       
-      // Trace-Event für Fehler (falls repo verfügbar)
-      if (repo && jobId) {
-        try {
-          await repo.traceAddEvent(jobId, {
-            spanId: 'template',
-            name: 'template_not_found',
-            attributes: {
-              preferredTemplate,
-              availableTemplates,
-              error: errorMessage
-            }
-          })
-        } catch {}
-      }
+      // Trace-Event fuer Fehler (best-effort: Telemetry-Fehler darf
+      // den Haupt-Pfad nicht blockieren — siehe templates-contracts.mdc §2)
+      await emitTraceEventSafely(repo, jobId, 'template_not_found', {
+        preferredTemplate,
+        availableTemplates,
+        error: errorMessage,
+      })
       
       throw new TemplateNotFoundError(errorMessage, preferredTemplate, availableTemplates)
     }
@@ -155,20 +188,11 @@ export async function loadTemplate(args: LoadTemplateArgs): Promise<LoadTemplate
     if (availableTemplates.length === 0) {
       const errorMessage = `Kein Template angegeben und keine Templates im Templates-Ordner gefunden.`
       
-      // Trace-Event für Fehler (falls repo verfügbar)
-      if (repo && jobId) {
-        try {
-          await repo.traceAddEvent(jobId, {
-            spanId: 'template',
-            name: 'template_not_found',
-            attributes: {
-              preferredTemplate: '(nicht gesetzt)',
-              availableTemplates: [],
-              error: errorMessage
-            }
-          })
-        } catch {}
-      }
+      await emitTraceEventSafely(repo, jobId, 'template_not_found', {
+        preferredTemplate: '(nicht gesetzt)',
+        availableTemplates: [],
+        error: errorMessage,
+      })
       
       throw new TemplateNotFoundError(errorMessage, undefined, [])
     }
@@ -177,36 +201,20 @@ export async function loadTemplate(args: LoadTemplateArgs): Promise<LoadTemplate
     const defaultTemplate = availableTemplates.find(name => name.toLowerCase() === 'pdfanalyse')
     if (defaultTemplate) {
       chosen = pickByName(`${defaultTemplate}.md`)
-      if (repo && jobId) {
-        try {
-          await repo.traceAddEvent(jobId, {
-            spanId: 'template',
-            name: 'template_default_used',
-            attributes: {
-              preferredTemplate: '(nicht gesetzt)',
-              usedTemplate: defaultTemplate,
-              availableTemplates
-            }
-          })
-        } catch {}
-      }
+      await emitTraceEventSafely(repo, jobId, 'template_default_used', {
+        preferredTemplate: '(nicht gesetzt)',
+        usedTemplate: defaultTemplate,
+        availableTemplates,
+      })
     } else {
       // Verwende erstes verfügbares Template als Fallback
       const firstTemplate = availableTemplates[0]
       chosen = pickByName(`${firstTemplate}.md`)
-      if (repo && jobId) {
-        try {
-          await repo.traceAddEvent(jobId, {
-            spanId: 'template',
-            name: 'template_fallback_used',
-            attributes: {
-              preferredTemplate: '(nicht gesetzt)',
-              usedTemplate: firstTemplate,
-              availableTemplates
-            }
-          })
-        } catch {}
-      }
+      await emitTraceEventSafely(repo, jobId, 'template_fallback_used', {
+        preferredTemplate: '(nicht gesetzt)',
+        usedTemplate: firstTemplate,
+        availableTemplates,
+      })
     }
     
     // Wenn immer noch kein Template gefunden wurde (sollte nicht passieren), Fehler werfen
@@ -221,21 +229,13 @@ export async function loadTemplate(args: LoadTemplateArgs): Promise<LoadTemplate
   const templateContent = await bin.blob.text()
   const selectedName = ((chosen as unknown as { metadata?: { name?: string } })?.metadata?.name || 'pdfanalyse.md').replace(/\.md$/, '')
   
-  // Trace-Event für Erfolg (falls repo verfügbar)
-  if (repo && jobId) {
-    try {
-      await repo.traceAddEvent(jobId, {
-        spanId: 'template',
-        name: 'template_selected',
-        attributes: {
-          preferred: preferredTemplate,
-          picked: true,
-          templateName: selectedName,
-          isPreferred
-        }
-      })
-    } catch {}
-  }
+  // Trace-Event fuer Erfolg (best-effort, siehe oben)
+  await emitTraceEventSafely(repo, jobId, 'template_selected', {
+    preferred: preferredTemplate,
+    picked: true,
+    templateName: selectedName,
+    isPreferred,
+  })
   
   return {
     templateContent,

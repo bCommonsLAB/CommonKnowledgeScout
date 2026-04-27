@@ -1,0 +1,124 @@
+---
+description: Harte technische Invarianten fuer das Modul `templates` (Template-Parser, Frontmatter-Utils, Service-Layer)
+globs: src/lib/templates/**/*.ts,tests/unit/templates/**/*.ts
+alwaysApply: false
+---
+
+# Contracts: `templates`
+
+Diese Regel definiert **harte technische Invarianten** auf Code-Ebene
+fuer das Modul `src/lib/templates/`. Sie ist der Vertrag, gegen den
+`tests/unit/templates/**` und kuenftige Helper implementiert werden.
+
+Die Architektur-Rule `template-structure.mdc` beschreibt das **Template-
+Datei-Format** (Frontmatter, creation-Block, systemprompt). Diese Rule
+beschreibt das **Verhalten der TS-Funktionen**, die mit diesem Format
+arbeiten.
+
+## Quellen der Wahrheit
+
+- Pure Funktionen:
+  - `src/lib/templates/template-parser.ts` (`parseTemplate`)
+  - `src/lib/templates/placeholders.ts` (`extractPlaceholders`,
+    `parseHeadings`, `assignHeadingsToPlaceholders`)
+  - `src/lib/templates/template-frontmatter-utils.ts`
+    (`extractCreationFromFrontmatter`, `injectCreationIntoFrontmatter`)
+  - `src/lib/templates/template-options.ts` (`mergeTemplateNames`)
+  - `src/lib/templates/detail-view-type-utils.ts` (`getDetailViewType`)
+  - `src/lib/templates/builtin-creation-templates.ts`
+- Service-Layer (mit I/O):
+  - `template-service.ts` — File-basierter Legacy-Service
+  - `template-service-mongodb.ts` — Primaere Persistenz
+  - `template-service-client.ts` — Client-Side Wrapper
+  - `template-import-export.ts` — Import/Export
+  - `library-creation-config.ts` — Library-Creation-Config-Logik
+- Typen: `template-types.ts`
+
+## §1 Determinismus
+
+Pure Funktionen sind **strikt seiteneffekt-frei** und idempotent fuer
+gleiche Eingabe:
+
+- `parseTemplate(content, name)` ist deterministisch.
+- `extractPlaceholders(text)`, `parseHeadings(text)`,
+  `assignHeadingsToPlaceholders(text)` sind deterministisch.
+- `extractCreationFromFrontmatter(yaml)` und
+  `injectCreationIntoFrontmatter(yaml, config)` sind deterministisch.
+- `serializeTemplateWithoutCreation(content)` ist deterministisch.
+- `mergeTemplateNames(args)` ist deterministisch.
+- `getDetailViewType(...)` ist deterministisch.
+
+Service-Funktionen mit I/O (Storage, Mongo) sind NICHT pure und
+duerfen Seiteneffekte haben — aber nicht in versteckten Globals.
+
+## §2 Fehler-Semantik
+
+**Kein silent fallback.** Konkrete Verpflichtungen:
+
+- `loadTemplate` und Verwandte werfen `TemplateNotFoundError` bei
+  fehlendem Template — **niemals** stilles `undefined` zurueckgeben.
+- `parseTemplate` liefert ein `errors`-Array in der Result-Struktur;
+  Aufrufer pruefen das.
+- **Telemetry-Aufrufe** (`repo.traceAddEvent`) duerfen scheitern,
+  ohne den Haupt-Pfad zu blockieren — aber sie muessen **geloggt**
+  werden. Pure `catch {}` ist verboten (siehe Welle 2.2 Schritt 4).
+- `listAvailableTemplates` darf bei Storage-Fehler ein leeres Array
+  zurueckgeben — aber **nur mit `console.warn`** und Begruendungs-
+  Kommentar.
+
+## §3 Erlaubte / verbotene Abhaengigkeiten
+
+DARF abhaengen von:
+
+- `src/lib/external-jobs-repository` (nur fuer `repo.traceAddEvent`-Aufrufe)
+- `src/lib/storage` (Storage-Provider via Interface)
+- `src/lib/mongodb-service` (in `template-service-mongodb.ts`)
+- `src/lib/logging`
+
+DARF **NICHT** abhaengen von:
+
+- `src/components/**` (UI)
+- `src/app/**` (Next.js-Routen)
+- `src/lib/secretary/**` (Aufrufer-Richtung)
+- `src/lib/external-jobs/**` (Aufrufer-Richtung; abgesehen vom Repo-Type)
+
+UI-Komponenten, die heute direkt aus `src/lib/templates/` importieren,
+sind erlaubt fuer **Funktionsaufrufe** (z.B.
+`mergeTemplateNames`, `getDetailViewType`, `parseTemplate`), aber UI
+sollte sich vorzugsweise auf `template-service-client.ts` beschraenken.
+
+## §4 Skip- / Default-Semantik
+
+- `loadTemplate` ohne `preferredTemplateName`:
+  - Versucht "pdfanalyse" als Default
+  - Faellt sonst auf `availableTemplates[0]` zurueck
+  - Wirft `TemplateNotFoundError` wenn beides fehlt
+- `getUxConfig(template)` liefert `null` wenn kein creation-Block
+  vorhanden — explizit, kein Throw.
+- `parseTemplate` mit fehlendem Frontmatter: liefert `errors`-Array,
+  kein Throw.
+
+## §5 Frontmatter-Vertrag
+
+- `creation`-Block ist **NICHT** Teil des Secretary-Wire-Formats —
+  `serializeTemplateWithoutCreation` MUSS aufgerufen werden vor jedem
+  Secretary-Call.
+- `injectCreationIntoFrontmatter(yaml, null)` entfernt den Block.
+- YAML wird mit `js-yaml` SAFE_SCHEMA geparst — keine eval'ed Tags.
+
+## §6 MongoDB- vs. Filesystem-Vertrag
+
+- **Primaere Quelle**: MongoDB (`template-service-mongodb.ts`).
+  Filesystem-Service ist **Legacy** fuer Import + Migration.
+- Neue Code-Pfade muessen MongoDB nutzen, NICHT Filesystem.
+- `template-service.ts` (Filesystem) bleibt fuer:
+  - `/api/templates/import` (Storage → Mongo)
+  - Backward-Compat in einzelnen UI-Pfaden
+
+## §7 Test-Vertrag
+
+- Pure Funktionen: keine Mocks noetig.
+- Service-Funktionen: Provider-Interface mocken, NICHT echte Storage-
+  Calls.
+- MongoDB-Service: `vi.mock('@/lib/mongodb-service')` Pflicht.
+- Telemetry-Aufrufe: optional mocken, nur wenn Test sie pruefen will.
