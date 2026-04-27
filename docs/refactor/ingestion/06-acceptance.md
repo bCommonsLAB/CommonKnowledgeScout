@@ -7,6 +7,7 @@ Bezug:
 - AGENT-BRIEF: [`AGENT-BRIEF.md`](./AGENT-BRIEF.md)
 - Welle-2-Vorbild: [`docs/refactor/shadow-twin/06-acceptance.md`](../shadow-twin/06-acceptance.md)
 - Workflow-Regeln: [`docs/refactor/playbook.md`](../playbook.md) R1-R5
+- **PR**: [bCommonsLAB/CommonKnowledgeScout#21](https://github.com/bCommonsLAB/CommonKnowledgeScout/pull/21)
 
 ## Zusammenfassung
 
