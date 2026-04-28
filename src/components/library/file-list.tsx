@@ -1388,7 +1388,15 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
             setShadowTwinAnalysisTrigger((v) => v + 1)
           }
         }
-      } catch {}
+      } catch (error) {
+        // CustomEvent.detail kann von externen Triggern beliebig befuellt sein.
+        // Wenn das Event-Format unerwartet ist, soll der Refresh-Handler nicht
+        // crashen, aber wir loggen, damit Drift sichtbar wird
+        // (siehe .cursor/rules/no-silent-fallbacks.mdc).
+        FileLogger.warn('FileList', 'library_refresh-Event konnte nicht verarbeitet werden', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     };
     window.addEventListener('library_refresh', onRefresh as unknown as EventListener);
     return () => window.removeEventListener('library_refresh', onRefresh as unknown as EventListener);

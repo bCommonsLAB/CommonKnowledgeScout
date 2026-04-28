@@ -103,10 +103,18 @@ export function LibrarySwitcher({
     setActiveLibraryId(value);
     StateLogger.info('LibrarySwitcher', 'Bibliothek geändert zu', { libraryId: value });
 
-    // URL bereinigen: vorhandene folderId aus der vorherigen Library entfernen
+    // URL bereinigen: vorhandene folderId aus der vorherigen Library entfernen.
+    // Wenn der Router-Replace fehlschlaegt (z.B. wegen Hot-Reload-Race),
+    // ist das nicht kritisch — die Folder-Atoms wurden oben schon zurueckgesetzt.
+    // Wir loggen den Fehler aber, damit kein stilles Fehlverhalten auftritt
+    // (siehe .cursor/rules/no-silent-fallbacks.mdc + welle-3-schale-loader-contracts.mdc §2).
     try {
       router.replace('/library');
-    } catch {}
+    } catch (error) {
+      StateLogger.warn('LibrarySwitcher', 'router.replace fehlgeschlagen, URL bleibt unveraendert', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   return (
