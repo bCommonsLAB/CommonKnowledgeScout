@@ -77,3 +77,36 @@ export function replaceCompositePdfImageWikilinksWithPlaceholders(markdownBody: 
     }
   )
 }
+
+/**
+ * Ersetzt einfache Datei-Wikilinks `[[name.ext]]` durch klickbare `<a>`-Tags
+ * mit dem Dateinamen als sichtbarem Text (Obsidian-Style).
+ *
+ * Hintergrund: Der Standard-Markdown-Renderer ignoriert die `[[…]]`-Syntax
+ * und liefert leere Listenpunkte. Im Quellen-Block eines Composite-Markdowns
+ * fuehrt das zu unsichtbaren Quellen-Eintraegen. Dieser Helper erzeugt fuer
+ * jeden Wikilink einen normalen Link, dessen Klick vom bestehenden Composite-
+ * Klick-Handler in `markdown-preview.tsx` (Sektion „interne Datei-Links")
+ * ueber die `siblingNameToId`-Map zur Datei-Navigation aufgeloest wird.
+ *
+ * Bewusst NICHT erfasst (separater Helper / Verhalten):
+ * - `![[name.ext]]`        → Embed; vom Vorschau-Block-Helper behandelt
+ * - `[[doc.pdf#frag.png]]` → PDF-Fragment; eigener Helper liefert <img>
+ * - `[[name|alias]]`       → Pipe-Alias; aktuell nicht im Scope
+ * - `[[Page]]`             → ohne Erweiterung; interne Obsidian-Page-Links
+ *
+ * Match-Regel:
+ * - Lookbehind `(?<!!)` schliesst Embeds aus.
+ * - Inhalt darf weder `#` (Fragment) noch `|` (Alias) noch eckige Klammern
+ *   enthalten.
+ * - Eine Dateierweiterung `.<1–8 alnum>` ist Pflicht.
+ */
+export function replaceCompositeSourceWikilinksWithLinks(markdownBody: string): string {
+  return markdownBody.replace(
+    /(?<!!)\[\[([^#|\[\]\n]+\.[a-zA-Z0-9]{1,8})\]\]/g,
+    (_full, name: string) => {
+      const safe = escapeHtmlAttr(name)
+      return `<a href="${safe}" class="ks-composite-source-link" data-ks-source-name="${safe}">${safe}</a>`
+    }
+  )
+}

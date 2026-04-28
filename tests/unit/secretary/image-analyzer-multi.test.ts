@@ -45,11 +45,13 @@ async function inspectFormData(call: unknown[]): Promise<{
   url: string
   fields: Array<{ name: string; value: unknown }>
   fileFields: Array<{ name: string; fileName: string; size: number; type: string }>
+  headers: Record<string, string>
 }> {
-  const [url, init] = call as [string, { body: FormData }]
+  const [url, init] = call as [string, { body: FormData; headers?: Record<string, string> }]
   const fd = init.body
   const fields: Array<{ name: string; value: unknown }> = []
   const fileFields: Array<{ name: string; fileName: string; size: number; type: string }> = []
+  const headers: Record<string, string> = init.headers ?? {}
 
   // FormData.entries() liefert [name, value] — value ist Blob/File oder string.
   for (const [name, value] of fd.entries()) {
@@ -65,7 +67,7 @@ async function inspectFormData(call: unknown[]): Promise<{
       fields.push({ name, value })
     }
   }
-  return { url, fields, fileFields }
+  return { url, fields, fileFields, headers }
 }
 
 describe('callImageAnalyzerTemplate', () => {
@@ -268,5 +270,80 @@ describe('callImageAnalyzerTemplate', () => {
     expect(inspected.fields.find(f => f.name === 'template_content')?.value).toBe('mein-template')
     expect(inspected.fields.find(f => f.name === 'target_language')?.value).toBe('en')
     expect(inspected.fields.find(f => f.name === 'useCache')?.value).toBe('false')
+  })
+
+  // Diagnose-Header (X-Job-Id, X-Source-Item-Id, X-Worker-Pool-Id, ...) muessen
+  // 1:1 an den Secretary-Service durchgereicht werden, damit dort Logs eindeutig
+  // einem CKS-Job zugeordnet werden koennen. Siehe run-composite-multi-image.ts
+  // und start/route.ts (Image-Analyzer-Pfad).
+  it('reicht correlationHeaders 1:1 an den HTTP-Call durch', async () => {
+    const { fetchWithTimeout } = await import('@/lib/utils/fetch-with-timeout')
+    const mockOk = new Response(JSON.stringify({ status: 'success', data: { text: '...' } }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+    ;(fetchWithTimeout as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockOk)
+
+    const { callImageAnalyzerTemplate } = await import('@/lib/secretary/image-analyzer')
+
+    await callImageAnalyzerTemplate({
+      baseUrl: 'https://secretary.test',
+      apiKey: 'k',
+      file: Buffer.from('x'),
+      fileName: 'a.jpg',
+      mimeType: 'image/jpeg',
+      templateContent: 'tpl',
+      targetLanguage: 'de',
+      correlationHeaders: {
+        'X-Job-Id': 'job-123',
+        'X-Source-Item-Id': 'src-abc',
+        'X-Worker-Pool-Id': 'PetersPC',
+        'X-Start-Request-Id': 'req-xyz',
+      },
+    })
+
+    const call = (fetchWithTimeout as unknown as ReturnType<typeof vi.fn>).mock.calls[0]
+    const inspected = await inspectFormData(call)
+    expect(inspected.headers['X-Job-Id']).toBe('job-123')
+    expect(inspected.headers['X-Source-Item-Id']).toBe('src-abc')
+    expect(inspected.headers['X-Worker-Pool-Id']).toBe('PetersPC')
+    expect(inspected.headers['X-Start-Request-Id']).toBe('req-xyz')
+  })
+
+  // Sicherheits-Invariante: Pflicht-Header (Authorization, X-Secretary-Api-Key,
+  // Accept) duerfen NICHT durch correlationHeaders ueberschrieben werden,
+  // selbst wenn der Caller absichtlich oder versehentlich gleichnamige Werte
+  // setzt. Sonst koennte ein Caller die API-Key-Authentifizierung kapern.
+  it('correlationHeaders koennen Pflicht-Header nicht ueberschreiben', async () => {
+    const { fetchWithTimeout } = await import('@/lib/utils/fetch-with-timeout')
+    const mockOk = new Response(JSON.stringify({ status: 'success', data: { text: '...' } }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+    ;(fetchWithTimeout as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockOk)
+
+    const { callImageAnalyzerTemplate } = await import('@/lib/secretary/image-analyzer')
+
+    await callImageAnalyzerTemplate({
+      baseUrl: 'https://secretary.test',
+      apiKey: 'real-key',
+      file: Buffer.from('x'),
+      fileName: 'a.jpg',
+      mimeType: 'image/jpeg',
+      templateContent: 'tpl',
+      targetLanguage: 'de',
+      correlationHeaders: {
+        // Boeswillige Werte — duerfen NICHT durchschlagen
+        'Authorization': 'Bearer hijacked',
+        'X-Secretary-Api-Key': 'hijacked',
+        'Accept': 'text/plain',
+      },
+    })
+
+    const call = (fetchWithTimeout as unknown as ReturnType<typeof vi.fn>).mock.calls[0]
+    const inspected = await inspectFormData(call)
+    expect(inspected.headers['Authorization']).toBe('Bearer real-key')
+    expect(inspected.headers['X-Secretary-Api-Key']).toBe('real-key')
+    expect(inspected.headers['Accept']).toBe('application/json')
   })
 })

@@ -61,6 +61,20 @@ export interface ImageAnalyzerTemplateParams {
   useCache?: boolean
   /** Timeout in Millisekunden */
   timeoutMs?: number
+  /**
+   * Optionale Korrelations-Header fuer die Diagnose im Secretary-Service.
+   *
+   * Typischer Inhalt (vom Aufrufer gesetzt):
+   *   - `X-Job-Id`           — eindeutige External-Job-ID (CKS)
+   *   - `X-Source-Item-Id`   — itemId der Quelldatei (Composite-MD oder Bild)
+   *   - `X-Worker-Pool-Id`   — App-/Worker-Pool (siehe `JOBS_WORKER_POOL_ID`)
+   *   - `X-Start-Request-Id` — Request-ID des Worker→Start-Aufrufs
+   *
+   * Pflicht-Header (`Authorization`, `X-Secretary-Api-Key`, `Accept`) werden
+   * danach gesetzt und ueberschreiben hier uebergebene gleichnamige Werte —
+   * der Caller kann also die Auth-Header nicht versehentlich zerstoeren.
+   */
+  correlationHeaders?: Record<string, string>
 }
 
 /**
@@ -160,8 +174,14 @@ export async function callImageAnalyzerTemplate(p: ImageAnalyzerTemplateParams):
   }
   formData.append('useCache', String(p.useCache ?? true))
 
-  // Headers (kein Content-Type – wird von FormData automatisch mit boundary gesetzt)
+  // Headers (kein Content-Type – wird von FormData automatisch mit boundary gesetzt).
+  //
+  // Reihenfolge ist sicherheitsrelevant:
+  //   1. `correlationHeaders` zuerst (vom Caller, rein optional, fuer Diagnose),
+  //   2. Pflicht-Header danach (Accept + Authorization), damit der Caller die
+  //      Auth-Header NICHT versehentlich oder absichtlich ueberschreiben kann.
   const headers: Record<string, string> = {
+    ...(p.correlationHeaders ?? {}),
     'Accept': 'application/json',
   }
   if (p.apiKey) {

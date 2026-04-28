@@ -28,6 +28,7 @@ import {
   COMPOSITE_MULTI_MAX_IMAGES,
 } from '@/lib/creation/composite-multi'
 import { callImageAnalyzerTemplate } from '@/lib/secretary/image-analyzer'
+import { getJobsWorkerPoolId } from '@/lib/env'
 
 /**
  * Heuristische Vorab-Pruefung: ist die uebergebene Markdown-Quelle ein
@@ -193,10 +194,50 @@ export async function runCompositeMultiImagePath(
     return NextResponse.json({ error: msg }, { status: 400 })
   }
 
+  // ORPHAN-GUARD: Wenn ein Vorgaenger-Worker-Tick bereits einen Vision-Call
+  // gestartet hat und der Server-Prozess noch laeuft, wuerden wir ohne diesen
+  // Check ein zweites Mal das Modell rufen (= doppelte Tokens, Zeit).
+  // Siehe `image-analyzer-orphan-guard.ts` fuer Hintergrund.
+  const { checkImageAnalyzerOrphan } = await import('@/lib/external-jobs/image-analyzer-orphan-guard')
+  const orphanCheck = await checkImageAnalyzerOrphan(repo, jobId)
+  if (orphanCheck.shouldSkip) {
+    FileLogger.warn('run-composite-multi-image', 'Multi-Image Skip: Vorgaenger-Instanz laeuft noch', {
+      jobId,
+      stepRunningSinceMs: orphanCheck.stepRunningSinceMs,
+      stepName: orphanCheck.stepName,
+    })
+    return NextResponse.json({
+      ok: true,
+      jobId,
+      skipped: true,
+      reason: 'orphan_in_flight',
+      stepRunningSinceMs: orphanCheck.stepRunningSinceMs,
+    })
+  }
+
   // Transform-Step starten.
   try {
     await repo.updateStep(jobId, 'transform_template', { status: 'running', startedAt: new Date() })
   } catch {}
+
+  // Korrekturhinweis (customHint) ans Template anhaengen — analog zum Markdown-Pfad
+  // (siehe phase-template.ts). Templates wie `gaderform-bett-steckbrief-de` werten
+  // diesen Block aus, um z.B. einen Modell-Anker zu setzen. Ohne dieses Anhaengen
+  // landet jeder solche Job zwangslaeufig im Template-Fallback ("Kein Modell-Anker
+  // gefunden"). Single Source of Truth: append-custom-hint.ts.
+  const customHintForMulti = (job.parameters as { customHint?: string } | undefined)?.customHint
+  const { appendCustomHintToTemplate } = await import('@/lib/external-jobs/append-custom-hint')
+  const hintAppendResult = appendCustomHintToTemplate(templateDoc.templateContent, customHintForMulti)
+  const templateContentForMulti = hintAppendResult.content
+  if (hintAppendResult.appended) {
+    FileLogger.info('run-composite-multi-image', 'customHint an Multi-Image-Template angehängt', {
+      jobId,
+      customHintLength: hintAppendResult.hintLength,
+      customHintPreview: typeof customHintForMulti === 'string' ? customHintForMulti.trim().substring(0, 80) : '',
+    })
+  } else {
+    FileLogger.info('run-composite-multi-image', 'Kein customHint im Multi-Image-Pfad vorhanden', { jobId })
+  }
 
   // Secretary-Aufruf vorbereiten.
   const { getSecretaryConfig } = await import('@/lib/env')
@@ -221,6 +262,21 @@ export async function runCompositeMultiImagePath(
     imageNames: resolved.imageBinaries.map(b => b.name),
   }
 
+  // Korrelations-Header fuer den Secretary-Service: machen serverseitige
+  // Logs eindeutig zuordenbar (kein Raten, ob ein Re-Aufruf zum gleichen
+  // Job gehoert oder ein zweiter Job in der Queue ist).
+  // X-Worker-Id und X-Start-Request-Id setzt der CKS-Worker bereits beim
+  // Aufruf von /start — wir reichen sie nur durch.
+  const correlationHeaders: Record<string, string> = {
+    'X-Job-Id': jobId,
+    'X-Source-Item-Id': job.correlation?.source?.itemId ?? '',
+    'X-Worker-Pool-Id': getJobsWorkerPoolId(),
+  }
+  const startRequestId = request.headers.get('x-start-request-id')
+  if (startRequestId) correlationHeaders['X-Start-Request-Id'] = startRequestId
+  const workerIdHeader = request.headers.get('x-worker-id')
+  if (workerIdHeader) correlationHeaders['X-Worker-Id'] = workerIdHeader
+
   let responseData: { text: string; structured_data?: Record<string, unknown> }
   try {
     FileLogger.info('run-composite-multi-image', 'Multi-Image Secretary-Aufruf', {
@@ -238,7 +294,7 @@ export async function runCompositeMultiImagePath(
         fileName: b.name,
         mimeType: b.mimeType,
       })),
-      templateContent: templateDoc.templateContent,
+      templateContent: templateContentForMulti,
       targetLanguage,
       context: imageContext,
       model: llmModel,
@@ -246,6 +302,7 @@ export async function runCompositeMultiImagePath(
       // Multi-Image-Calls koennen laenger dauern als Single-Image
       // (mehr Bilder = mehr Tokens = mehr LLM-Zeit).
       timeoutMs: 240_000,
+      correlationHeaders,
     })
 
     const json = (await res.json()) as {

@@ -876,19 +876,17 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
       }
     }
 
-    // Korrekturhinweis des Anwenders ans Ende des Template-Contents anhängen.
-    // Steht NACH dem auto-generierten Antwortschema = höchste Priorität für das LLM.
-    // Formulierung muss explizit machen: Überschreibt Extraktionsregeln, verbindlich.
-    // customHintValue ist außerhalb des try-Blocks deklariert (Scope-sicher).
-    let templateContentFinal = templateContent
-    if (customHintValue) {
-      templateContentFinal += `\n\nVERBINDLICHER KORREKTURHINWEIS (höchste Priorität – überschreibt Extraktion aus Pfad/Dokument):
-Der Anwender hat folgende Korrektur angegeben. Setze die genannten Felder EXAKT wie angegeben – ignoriere dabei die üblichen Extraktionsregeln aus Pfad und Dokument.
-
-${customHintValue}`
+    // Korrekturhinweis des Anwenders ans Ende des Template-Contents anhaengen.
+    // Steht NACH dem auto-generierten Antwortschema = hoechste Prioritaet fuer das LLM.
+    // Helper-Funktion ist Single Source of Truth fuer das Anhaenge-Wording —
+    // wird auch vom Image-Pfad genutzt (siehe append-custom-hint.ts).
+    const { appendCustomHintToTemplate } = await import('@/lib/external-jobs/append-custom-hint')
+    const hintResult = appendCustomHintToTemplate(templateContent, customHintValue)
+    const templateContentFinal = hintResult.content
+    if (hintResult.appended && customHintValue) {
       FileLogger.info('phase-template', 'customHint an Template-Content angehängt', {
         jobId,
-        customHintLength: customHintValue.length,
+        customHintLength: hintResult.hintLength,
         customHintPreview: customHintValue.substring(0, 80),
         templateContentFinalLength: templateContentFinal.length,
       })

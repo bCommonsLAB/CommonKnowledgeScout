@@ -28,7 +28,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuth, currentUser } from '@clerk/nextjs/server'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { getServerProvider } from '@/lib/storage/server-provider'
-import { getPublicAppUrl, isElectronMode } from '@/lib/env'
+import { getPublicAppUrl, isElectronMode, getJobsWorkerPoolId } from '@/lib/env'
 import { streamSecretaryJob } from '@/lib/external-jobs/secretary-sse-client'
 import { mapSyncResponseToCallbackBody, mapSSEResultToCallbackBody, postToSelfCallback } from '@/lib/external-jobs/offline-callback'
 import { getJobEventBus } from '@/lib/events/job-event-bus'
@@ -1318,10 +1318,50 @@ export async function POST(
         return NextResponse.json({ error: msg }, { status: 400 })
       }
 
+      // ORPHAN-GUARD: Wenn ein Vorgaenger-Worker-Tick bereits einen Vision-Call
+      // gestartet hat und der Server-Prozess noch laeuft, wuerden wir ohne
+      // diesen Check ein zweites Mal das Modell rufen (= doppelte Tokens, Zeit).
+      // Siehe `image-analyzer-orphan-guard.ts` fuer Hintergrund.
+      const { checkImageAnalyzerOrphan } = await import('@/lib/external-jobs/image-analyzer-orphan-guard')
+      const orphanCheck = await checkImageAnalyzerOrphan(repo, jobId)
+      if (orphanCheck.shouldSkip) {
+        FileLogger.warn('start-route', 'Image-Analyzer Skip: Vorgaenger-Instanz laeuft noch', {
+          jobId,
+          stepRunningSinceMs: orphanCheck.stepRunningSinceMs,
+          stepName: orphanCheck.stepName,
+        })
+        return NextResponse.json({
+          ok: true,
+          jobId,
+          skipped: true,
+          reason: 'orphan_in_flight',
+          stepRunningSinceMs: orphanCheck.stepRunningSinceMs,
+        })
+      }
+
       // Transform-Step starten
       try {
         await repo.updateStep(jobId, 'transform_template', { status: 'running', startedAt: new Date() })
       } catch {}
+
+      // Korrekturhinweis (customHint) ans Template anhaengen — analog zum Markdown-Pfad
+      // (siehe phase-template.ts). Templates wie `gaderform-bett-steckbrief-de` werten
+      // diesen Block aus, um z.B. einen Modell-Anker zu setzen. Ohne dieses Anhaengen
+      // landet jeder solche Job zwangslaeufig im Template-Fallback ("Kein Modell-Anker
+      // gefunden"). Single Source of Truth: append-custom-hint.ts.
+      const customHintForImage = (job.parameters as { customHint?: string } | undefined)?.customHint
+      const { appendCustomHintToTemplate: appendCustomHintImage } = await import('@/lib/external-jobs/append-custom-hint')
+      const hintAppendResultImage = appendCustomHintImage(templateDoc.templateContent, customHintForImage)
+      const templateContentForImage = hintAppendResultImage.content
+      if (hintAppendResultImage.appended) {
+        FileLogger.info('start-route', 'customHint an Image-Template angehängt', {
+          jobId,
+          customHintLength: hintAppendResultImage.hintLength,
+          customHintPreview: typeof customHintForImage === 'string' ? customHintForImage.trim().substring(0, 80) : '',
+        })
+      } else {
+        FileLogger.info('start-route', 'Kein customHint im Image-Pfad vorhanden', { jobId })
+      }
 
       // Secretary Image-Analyzer aufrufen
       const { getSecretaryConfig } = await import('@/lib/env')
@@ -1370,6 +1410,21 @@ export async function POST(
           }
         } catch {}
 
+        // Korrelations-Header fuer den Secretary-Service: machen serverseitige
+        // Logs eindeutig zuordenbar (kein Raten, ob ein Re-Aufruf zum gleichen
+        // Job gehoert oder ein zweiter Job in der Queue ist).
+        // X-Worker-Id und X-Start-Request-Id setzt der CKS-Worker bereits beim
+        // Aufruf von /start — wir reichen sie nur durch.
+        const correlationHeaders: Record<string, string> = {
+          'X-Job-Id': jobId,
+          'X-Source-Item-Id': sourceItemId,
+          'X-Worker-Pool-Id': getJobsWorkerPoolId(),
+        }
+        const startRequestId = request.headers.get('x-start-request-id')
+        if (startRequestId) correlationHeaders['X-Start-Request-Id'] = startRequestId
+        const workerIdHeader = request.headers.get('x-worker-id')
+        if (workerIdHeader) correlationHeaders['X-Worker-Id'] = workerIdHeader
+
         FileLogger.info('start-route', 'Image-Analyzer Aufruf', {
           jobId,
           fileName: imageFileName,
@@ -1383,12 +1438,13 @@ export async function POST(
           file: imageBuffer,
           fileName: imageFileName,
           mimeType: imageMimeType,
-          templateContent: templateDoc.templateContent,
+          templateContent: templateContentForImage,
           targetLanguage,
           context: imageContext,
           model: llmModel,
           useCache,
           timeoutMs: 120_000,
+          correlationHeaders,
         })
 
         const json = await res.json() as { status: string; data?: { text: string; structured_data?: Record<string, unknown> }; error?: unknown }

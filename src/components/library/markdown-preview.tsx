@@ -128,6 +128,7 @@ import { stripAllFrontmatter, parseFrontmatter } from '@/lib/markdown/frontmatte
 import {
   injectMongoTranscriptCheckLinks,
   replaceCompositePdfImageWikilinksWithPlaceholders,
+  replaceCompositeSourceWikilinksWithLinks,
 } from '@/lib/markdown/composite-wiki-preview'
 import { replaceCompositeMultiPreviewBlock } from '@/lib/markdown/composite-multi-preview'
 import { replacePlaceholdersInMarkdown } from '@/lib/markdown/placeholder-replacement'
@@ -1416,9 +1417,14 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
     // Seite‑Marker als Anker einfügen, z. B. "— Seite 12 —" → <div data-page-marker="12"></div>
     mainContent = injectPageAnchors(mainContent);
 
-    // PDF-Bildfragmente als HTML-<img>-Platzhalter (async Auflösung über resolve-binary-url)
+    // Composite: Wikilink-Transformationen (Reihenfolge wichtig!).
+    // 1. PDF-Fragmente (`[[doc.pdf#frag.png]]`) → <img>-Platzhalter (eigener Helper).
+    // 2. Reine Datei-Wikilinks (`[[name.ext]]`) → klickbare <a>-Tags.
+    //    Reihenfolge: Fragmente zuerst, weil deren Pattern strenger ist und der
+    //    Source-Helper sonst potenziell Teile davon konsumieren wuerde.
     if (compositeWikiPreview) {
       mainContent = replaceCompositePdfImageWikilinksWithPlaceholders(mainContent);
+      mainContent = replaceCompositeSourceWikilinksWithLinks(mainContent);
     }
 
     // Process the main content
