@@ -16,7 +16,6 @@ import {
 import { useStorage } from '@/contexts/storage-context';
 import { FileLogger, UILogger } from "@/lib/debug/logger"
 import { useCallback, useImperativeHandle, forwardRef, useEffect } from 'react';
-import { useFolderNavigation } from '@/hooks/use-folder-navigation';
 import { toast } from "sonner";
 import { shouldFilterShadowTwinFolders } from '@/lib/storage/shadow-twin-folder-name';
 import { activeLibraryAtom } from '@/atoms/library-atom';
