@@ -415,7 +415,12 @@ export const chunksRetriever: ChatRetriever = {
             }
           }
           boosted += lex
-        } catch {}
+        } catch (err) {
+          // Lexical-Boost ist optional: Fehler hier (z.B. malformed
+          // metadata) sollen das Ranking nicht zerstoeren. Logging
+          // Pflicht (chat-contracts.mdc §2).
+          console.warn('[chat/retriever-chunks] Lexical-Boost Fehler:', err)
+        }
         
         return { ...r, score: boosted }
       })

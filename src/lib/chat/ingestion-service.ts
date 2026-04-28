@@ -25,6 +25,27 @@ import { INGEST_META_SOURCE_FILE_NAME_KEY } from '@/lib/ingestion/ingest-meta-ke
 import * as fs from 'fs/promises'
 
 /**
+ * Best-effort Trace-Emitter fuer die Telemetry-Pfade in dieser Datei.
+ * Loggt Fehler explizit, statt sie in stillen catch-Bloecken zu schlucken
+ * (Welle 2.3 Schritt 4, siehe chat-contracts.mdc §2).
+ */
+async function emitIngestTraceEvent(
+  repo: ExternalJobsRepository,
+  jobId: string,
+  name: string,
+  attributes: Record<string, unknown>,
+): Promise<void> {
+  try {
+    await repo.traceAddEvent(jobId, { spanId: 'ingest', name, attributes })
+  } catch (err) {
+    console.warn(
+      `[chat/ingest] Trace-Event "${name}" konnte nicht persistiert werden:`,
+      err,
+    )
+  }
+}
+
+/**
  * Stub-Service zum Enqueue einer Ingestion.
  * Hier später: Markdown scannen → Summaries erzeugen → Embeddings upserten.
  */
@@ -102,7 +123,12 @@ export class IngestionService {
     // Facetten-validierung und Parsing: fehlende Felder warnen, Typen parse/prüfen
     try {
       validateAndSanitizeFrontmatter(metaEffective, facetDefs, jobId)
-    } catch {}
+    } catch (err) {
+      // Frontmatter-Validierung darf den Ingest nicht blockieren —
+      // sie liefert nur Warnings ueber den jobId-Logger. Wir loggen
+      // hier explizit (chat-contracts.mdc §2).
+      console.warn('[chat/ingest] validateAndSanitizeFrontmatter fehlgeschlagen:', err)
+    }
     let spans = splitByPages(body)
     if (!Array.isArray(spans) || spans.length === 0) {
       // Fallback: Gesamten Body als eine Seite behandeln
@@ -149,7 +175,12 @@ export class IngestionService {
           FileLogger.info('ingestion', 'Session-Modus erkannt (keine Chapters erwartet)', { fileId })
         }
       }
-    } catch {}
+    } catch (err) {
+      // Vorab-Checks sind reine Warnungen — Fehler hier blockieren
+      // den Ingest nicht. Logging trotzdem Pflicht
+      // (chat-contracts.mdc §2, no-silent-fallbacks.mdc).
+      console.warn('[chat/ingest] Frontmatter-Vorab-Check fehlgeschlagen:', err)
+    }
 
     // Kapitel-Infos für MongoDB sammeln (ohne Chunking)
     const chaptersForMongo: ChapterMetaEntry[] = []
@@ -1057,18 +1088,12 @@ export class IngestionService {
                             phase: 'pdf_upload_completed',
                             message: `PDF hochgeladen: ${sanitizedPdfFileName}`,
                           })
-                          try {
-                            await repo.traceAddEvent(jobId, {
-                              spanId: 'ingest',
-                              name: 'pdf_uploaded',
-                              attributes: {
-                                fileId,
-                                fileName: sanitizedPdfFileName,
-                                pdfUrl,
-                                scope,
-                              },
-                            })
-                          } catch {}
+                          await emitIngestTraceEvent(repo, jobId, 'pdf_uploaded', {
+                            fileId,
+                            fileName: sanitizedPdfFileName,
+                            pdfUrl,
+                            scope,
+                          })
                         }
                       }
                     }
@@ -1125,16 +1150,10 @@ export class IngestionService {
               phase: 'pdf_upload_error',
               message: `PDF-Upload fehlgeschlagen: ${errorMessage}`,
             })
-            try {
-              await repo.traceAddEvent(jobId, {
-                spanId: 'ingest',
-                name: 'pdf_upload_failed',
-                attributes: {
-                  fileId,
-                  error: errorMessage,
-                },
-              })
-            } catch {}
+            await emitIngestTraceEvent(repo, jobId, 'pdf_upload_failed', {
+              fileId,
+              error: errorMessage,
+            })
           }
           // Fehler nicht werfen - PDF-Upload ist optional
         }
@@ -1214,7 +1233,15 @@ export class IngestionService {
         chapters: chaptersForMongo,
       }
       // Collection-Name aus Config holen (bereits oben definiert)
-      try { await ensureFacetIndexes(libraryKey, facetDefs) } catch {}
+      // Index-Aufbau ist best-effort: Aufrufer erwartet, dass Indizes
+      // lazy/idempotent angelegt werden. Fehler hier sollen den
+      // Ingest nicht blockieren, aber sichtbar bleiben
+      // (chat-contracts.mdc §2).
+      try {
+        await ensureFacetIndexes(libraryKey, facetDefs)
+      } catch (err) {
+        console.warn('[chat/ingest] ensureFacetIndexes fehlgeschlagen:', err)
+      }
       // Facettenwerte dynamisch zusätzlich in mongoDoc spiegeln
       try {
         const sanitized = ((metaEffective as Record<string, unknown>)['__sanitized'] as Record<string, unknown>) || (metaEffective || {}) as Record<string, unknown>
@@ -1241,7 +1268,11 @@ export class IngestionService {
             }
           }
         }
-      } catch {}
+      } catch (err) {
+        // Facet-Spiegelung ist best-effort: Fehler in der Konvertierung
+        // einzelner Felder darf nicht den ganzen Ingest brechen.
+        console.warn('[chat/ingest] Facet-Mirroring in mongoDoc fehlgeschlagen:', err)
+      }
       // WICHTIG: Das finale Markdown verwenden (mit Azure-Bild-URLs)
       // Dieses Markdown wird an Secretary Service RAG API gesendet
       const baseMarkdown = typeof docMetaJsonObj.markdown === 'string' && docMetaJsonObj.markdown.trim().length > 0
@@ -1383,7 +1414,12 @@ export class IngestionService {
         FileLogger.info('ingestion', 'Meta-Dokument gespeichert', { fileId, chunks: chunksUpserted, hasEmbedding: !!documentEmbedding })
         if (jobId) {
           bufferLog(jobId, { phase: 'meta_doc_upserted', message: `Meta-Dokument gespeichert: chunks=${chunksUpserted}, chapters=${chaptersCount}, embedding=${documentEmbedding ? 'ja' : 'nein'}` })
-          try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'meta_doc_upsert_done', attributes: { fileId, chunks: chunksUpserted, chapters: chaptersCount, hasEmbedding: !!documentEmbedding } }) } catch {}
+          await emitIngestTraceEvent(repo, jobId, 'meta_doc_upsert_done', {
+            fileId,
+            chunks: chunksUpserted,
+            chapters: chaptersCount,
+            hasEmbedding: !!documentEmbedding,
+          })
         }
       } catch (e) {
         FileLogger.warn('ingestion', 'Fehler beim Speichern des Meta-Dokuments', { fileId, error: String(e) })
@@ -1397,7 +1433,10 @@ export class IngestionService {
       FileLogger.warn('ingestion', 'Doc‑Meta finales Update fehlgeschlagen', { fileId, err: String(err) })
       if (jobId) {
         bufferLog(jobId, { phase: 'doc_meta_final_failed', message: 'Doc‑Meta finales Update fehlgeschlagen' })
-        try { await repo.traceAddEvent(jobId, { spanId: 'ingest', name: 'doc_meta_upsert_failed', attributes: { vectorFileId: fileId, error: String(err) } }) } catch {}
+        await emitIngestTraceEvent(repo, jobId, 'doc_meta_upsert_failed', {
+          vectorFileId: fileId,
+          error: String(err),
+        })
       }
       // Kritisch: Fehler weiterwerfen, damit Orchestrator den Step/Job als failed markiert
       throw err instanceof Error ? err : new Error(String(err))
