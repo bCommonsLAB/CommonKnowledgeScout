@@ -120,7 +120,14 @@ export async function listTemplatesInStorage(provider: TemplateServiceProvider):
       .filter(it => it.type === 'file' && (it as { metadata?: { name?: string } }).metadata?.name?.endsWith('.md'))
       .map(it => ((it as { metadata?: { name?: string } }).metadata?.name || ''))
       .filter(name => name.length > 0)
-  } catch {
+  } catch (err) {
+    // Bewusster Fallback auf leere Liste: UI-Pfad fuer Import-Dialog
+    // soll auch dann funktionieren, wenn Storage gerade nicht
+    // erreichbar ist. Wir loggen explizit (no-silent-fallbacks.mdc).
+    console.warn(
+      '[templates/import-export] listTemplatesInStorage fehlgeschlagen:',
+      err,
+    )
     return []
   }
 }
