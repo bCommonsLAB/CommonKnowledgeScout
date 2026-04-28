@@ -27,7 +27,13 @@ todos:
     content: "Pilot-Abnahme: Vitest gruen, Integrationstests gruen, Lint sauber, module-health zeigt 0 fuer external-jobs. Lokal verifizieren oder via Cloud-Agent."
     status: pending
   - id: next-modules
-    content: "Naechste Module bottom-up (Quelle -> UX). Welle 1 Backend: storage, ingestion, shadow-twin. Welle 2 Verarbeitung: secretary, templates, chat. Welle 3 UX: 3a Archiv-Ansicht generell; 3b file-preview als Mehr-Phasen-Welle (Inventur, Modul-Split nach View-Typ, Tests, Altlast); 3c kleine UI (library-form, Dialoge); 3d creation-wizard zum Schluss als grosse Mehr-Phasen-Welle. Welle 4 niedrige Prio: event-job+event-monitor, Rest"
+    content: "Naechste Module bottom-up (Quelle -> UX). Welle 1 Backend: storage, ingestion, shadow-twin. Welle 2 Verarbeitung: secretary, templates, chat. Welle 3 UX (DURCH USER NEU GEORDNET 2026-04-28, fachlich nach UX-Welten statt Datei-Groesse): 3-I Schale+Loader; 3-II Archiv-Detail (inkl. file-preview); 3-III Galerie+Story+Chat; 3-IV Settings; 3-V Job/Event-Monitor; 3-VI Creation-Wizard. Welle 4 niedrige Prio: event-job-Logik (Lib), Rest"
+    status: pending
+  - id: backend-cleanup-followup
+    content: "Backend-Cleanup-Folge-Welle (offen, nach Welle 3 oder parallel): pnpm health zeigt Drift in den abgenommenen Backend-Modulen (external-jobs 78 leere Catches, 15 Files >200z; chat 14 Files >200z; storage 8 Files >200z mit max 2.104z onedrive-provider; shadow-twin 12 Files >200z; image 3 any). Definition of Done aus Sektion 7 ist nicht erfuellt. Befund vom 2026-04-28 nach UI-Inventur via scripts/ui-scope-analysis.mjs. User-Entscheidung: bewusst ueberspringen, Welle 3 startet trotzdem."
+    status: pending
+  - id: welle-3i-schale-loader
+    content: "Welle 3-I Schale+Loader: App-Schale (library.tsx, library-header.tsx, library-switcher.tsx, src/app/library/*) + Library-Loader (file-list.tsx mit 89 Hooks!, file-tree.tsx, upload-dialog.tsx, upload-area.tsx, create-library-dialog.tsx). 16 Files, 5.427 Zeilen verifiziert. Eigene Mehr-Phasen-Welle, weil file-list.tsx Sub-Modul-Split braucht. Pre-Flight-Doku komplett unter docs/refactor/welle-3-schale-loader/ (README, AGENT-BRIEF, 01-inventory, 00-audit-Vorlage)."
     status: pending
 isProject: false
 ---
@@ -186,7 +192,7 @@ Modul gilt erst dann als "grün", wenn alle Punkte erfüllt:
 
 ## 5. Modul-Reihenfolge nach dem Pilot
 
-Priorisierung **bottom-up von der Datenquelle Richtung UX**: zuerst Backend-Layer haerten (Storage, Persistenz, Pipeline), dann Verarbeitungsschicht (Secretary, Templates, Chat), dann UI-Welle gestaffelt vom Einfachen zum Komplexen. `event-job` zuletzt, weil eigene Domaene mit niedriger Prioritaet (siehe ADR 0001).
+Priorisierung **bottom-up von der Datenquelle Richtung UX**: zuerst Backend-Layer haerten (Storage, Persistenz, Pipeline), dann Verarbeitungsschicht (Secretary, Templates, Chat), dann UI-Welle entlang der **fachlichen UX-Welten** (vom Frequent-Use-Case zum Selten-Use-Case). `event-job` zuletzt, weil eigene Domaene mit niedriger Prioritaet (siehe ADR 0001).
 
 ### Welle 0 - Pilot
 1. `external-jobs` - orchestriert Secretary/Pipeline/Chat (Pilot-Modul, lehrt Methodik)
@@ -201,28 +207,105 @@ Priorisierung **bottom-up von der Datenquelle Richtung UX**: zuerst Backend-Laye
 6. `templates` - Output-Templates fuer Pipeline-Ergebnisse
 7. `chat` - RAG-Konsum (Embeddings → LLM-Antwort)
 
-### Welle 3 - UX (vom Einfachen zum Komplexen)
+### Welle 3 - UX (USER-PRIORISIERT 2026-04-28, fachlich nach UX-Welten)
 
-#### Welle 3a - Archiv-Ansicht generell
-8. Library-Listen, Detail-Header, Sidebar-Navigation, Filter/Search (kleine, klar abgegrenzte Komponenten — gute Uebung fuer die UX-Welle)
+Reihenfolge entlang der **User-Frequenz**, nicht Datei-Groesse: zuerst die UX-Welten, die der User taeglich nutzt (Schale, Archiv-Detail, Galerie/Chat); Settings und Monitor zuletzt, weil seltener Use-Case; Creation-Wizard ganz zum Schluss wegen hoechster Komplexitaet.
 
-#### Welle 3b - `file-preview.tsx` als eigene Mehr-Phasen-Welle
-[src/components/library/file-preview.tsx](src/components/library/file-preview.tsx) (3.506 Zeilen) hat einen Switch ueber 8 View-Typen plus Extension-Map plus Reducer. Eigenstaendige Welle mit 4 Cloud-Agents:
+Die Scope-Aufteilung basiert auf einer Inventur am 2026-04-28 (`scripts/ui-scope-analysis.mjs`), die 195 UI-Files in `src/components/library`, `src/app/library`, `src/components/settings`, `src/components/shared`, `src/components/event-monitor`, `src/components/creation-wizard` analysiert hat.
 
-- **9a Inventur + Audit**: pro View-Typ (audio, image, video, markdown, pdf, office, presentation, website) Stats erheben (Zeilen, States, Hook-Anzahl, Storage-Branches), bestehende Tests/Docs/Rules auditieren. Output: `docs/refactor/file-preview/00-audit.md` + `01-inventory.md`. Bezug zur bestehenden Regel [.cursor/rules/detail-view-type-checklist.mdc](.cursor/rules/detail-view-type-checklist.mdc)
-- **9b Modul-Split**: `src/components/library/file-preview/` Verzeichnis mit `index.tsx` (orchestriert) + `views/audio.tsx` + `views/image.tsx` + `views/video.tsx` + `views/markdown.tsx` + `views/pdf.tsx` + `views/office.tsx` + `views/presentation.tsx` + `views/website.tsx` + `lib/extension-map.ts` + `state/preview-reducer.ts`
-- **9c Characterization Tests**: pro Sub-View mindestens 1 Render-Test (mit Test-Daten aus Storage-Mock); plus 1 Test fuer Extension-Map und 1 Reducer-Test
-- **9d Altlast-Pass**: u.a. Storage-Branch in Zeile 1129 entfernen (`primaryStore === 'filesystem'`) → Storage-Entscheidung gehoert in Welle 1 `storage`-Modul, nicht in eine View-Komponente
+#### Welle 3-I - App-Schale + Library-Loader (16 Files, 5.427 Zeilen verifiziert)
 
-#### Welle 3c - Kleinere UI-Komponenten
-10. `library-form.tsx`, weitere Dialoge/Forms — opportunistisch nach gleichem Schema, aber kuerzer (eine Welle pro Komponente, 1-2 Cloud-Agents)
+Erste UX-Welle, weil zentraler Rendezvous-Punkt aller anderen Sub-Welten: wenn die Schale stabil ist, profitieren alle nachfolgenden Wellen. Audit unter `docs/refactor/welle-3-schale-loader/`.
 
-#### Welle 3d - `creation-wizard.tsx` als grosse Mehr-Phasen-Welle
-11. [src/components/creation-wizard/creation-wizard.tsx](src/components/creation-wizard/creation-wizard.tsx) (3.947 Zeilen) **als letztes**, weil komplexester Kandidat (27 React-Hooks, Window-Hack `__collectSourceStepBeforeLeave`); profitiert von allen vorherigen Wellen (saubere Backend-Contracts → sauberer Wizard-Flow). Gleiche 4-Phasen-Struktur wie Welle 3b: Inventur+Audit, Modul-Split (vermutlich pro Wizard-Step ein Modul), Characterization Tests, Altlast-Pass (Window-Hack eliminieren)
+**App-Schale** (Layout-Wrapper, Header, Switcher):
+- [src/components/library/library.tsx](src/components/library/library.tsx) (785 Zeilen, 28 Hooks)
+- [src/components/library/library-header.tsx](src/components/library/library-header.tsx)
+- [src/components/library/library-switcher.tsx](src/components/library/library-switcher.tsx) (109 Zeilen, 1 leerer Catch)
+- `src/app/library/page.tsx`, `src/app/library/gallery/page.tsx`, `src/app/library/gallery/page-client.tsx`, `src/app/library/gallery/client.tsx`, `src/app/library/gallery/ensure-library.tsx`, `src/app/library/gallery/perspective/page.tsx`, `src/app/library/create/page.tsx`, `src/app/library/create/[typeId]/page.tsx`
+
+**Library-Loader** (Tree-Navigation, Upload, Library-Anlage):
+- [src/components/library/file-list.tsx](src/components/library/file-list.tsx) (**2.217 Zeilen, 89 Hooks!**, 1 leerer Catch) — Mehr-Phasen-Sub-Welle wegen Hook-Dichte
+- [src/components/library/file-tree.tsx](src/components/library/file-tree.tsx) (619 Zeilen, 30 Hooks)
+- [src/components/library/upload-dialog.tsx](src/components/library/upload-dialog.tsx)
+- [src/components/library/upload-area.tsx](src/components/library/upload-area.tsx)
+- [src/components/library/create-library-dialog.tsx](src/components/library/create-library-dialog.tsx) (435 Zeilen, 13 Hooks)
+
+#### Welle 3-II - Archiv-Detail (~65 Files, ~22.000 Zeilen, **inkl. file-preview.tsx**)
+
+Detail-Ansicht einer Library-Datei. Umfasst die alte Plan-Welle 3b (`file-preview.tsx`) als Sub-Welle innerhalb 3-II, weil fachlich Teil des Archiv-Detail-Erlebnisses.
+
+**Top-Files (Auszug):**
+- [src/components/library/file-preview.tsx](src/components/library/file-preview.tsx) (3.701 Zeilen, 66 Hooks, 1 leerer Catch, 1 Storage-Branch) — eigene Mehr-Phasen-Sub-Welle 3-II-a "Preview-Switch"
+- [src/components/library/job-report-tab.tsx](src/components/library/job-report-tab.tsx) (2.284 Zeilen, 30 Hooks)
+- [src/components/library/markdown-preview.tsx](src/components/library/markdown-preview.tsx) (2.054 Zeilen, 41 Hooks, **3 leere Catches**)
+- [src/components/library/media-tab.tsx](src/components/library/media-tab.tsx) (1.147 Zeilen, 13 Hooks)
+- `*-detail.tsx` (testimonial, climate-action, book, ingestion-book, diva-texture, ingestion-diva-texture, session)
+- `audio-*`, `video-*`, `image-*`, `pdf-*`, `text-editor`, `markdown-metadata`, `chapter-accordion`, `slide-accordion`, `flow/*`, `shared/*` (ohne perspective-*)
+
+**Sub-Wellen-Vorschlag** (im Audit-Schritt verfeinern):
+- 3-II-a: `file-preview.tsx` Modul-Split nach View-Typ (analog alter Welle 3b: views/audio, views/image, views/video, views/markdown, views/pdf, views/office, views/presentation, views/website + extension-map + preview-reducer). Bezug zu [.cursor/rules/detail-view-type-checklist.mdc](.cursor/rules/detail-view-type-checklist.mdc).
+- 3-II-b: `markdown-preview.tsx` aufsplitten + leere Catches fixen
+- 3-II-c: `job-report-tab.tsx` + `media-tab.tsx` (Tabs der Detail-View)
+- 3-II-d: `*-detail.tsx`-Familie + flow/ + shared/
+
+#### Welle 3-III - Galerie + Story-Mode + Chat (~65 Files, ~15.000 Zeilen)
+
+Konsum-Sicht / RAG-UX. Profitiert von Welle 2 (`chat`-Backend bereits refaktoriert, eigene `chat-contracts.mdc`).
+
+**Top-Files (Auszug):**
+- [src/components/library/chat/chat-panel.tsx](src/components/library/chat/chat-panel.tsx) (1.268 Zeilen, 36 Hooks)
+- [src/components/library/gallery/gallery-root.tsx](src/components/library/gallery/gallery-root.tsx) (993 Zeilen, 49 Hooks)
+- [src/components/library/shared/perspective-page-content.tsx](src/components/library/shared/perspective-page-content.tsx) (926 Zeilen)
+- `src/components/library/gallery/*` (30 Files: items-table, items-grid, virtualized-items-view, document-card, grouped-*, references-*, facet-*, filters-panel, mobile-filters-sheet, ...)
+- `src/components/library/story/*` (story-mode-header, story-header, story-topics)
+- `src/components/library/chat/*` (chat-messages-list, chat-message, chat-input, chat-suggested-questions, chat-document-sources, debug-panel, processing-status, query-details-dialog, chat-reference-list, chat-config-*, chat-filters-display, chat-conversation-item, chat-selector, hooks/use-chat-stream, hooks/use-chat-toc, ...)
+- `filter-context-bar.tsx`, `file-category-filter.tsx`
+
+**Sub-Wellen-Vorschlag:**
+- 3-III-a: `gallery/` (Modul-Split nach View-Modus: items, grouped-items, references, facets)
+- 3-III-b: `chat/` (Modul-Split nach Chat-Komponenten-Familie)
+- 3-III-c: `story/` + `perspective-*` (kleiner, Aufwärm-Sub-Welle)
+
+#### Welle 3-IV - Settings (~16 Files, ~10.000 Zeilen) — niedrigere User-Frequenz
+
+Settings-Forms werden vom User selten geöffnet → spätere Prio. Bezug zur Ausnahme in [.cursor/rules/storage-abstraction.mdc](.cursor/rules/storage-abstraction.mdc): "Settings-Formulare dürfen `library.type` lesen".
+
+- [src/components/settings/library-form.tsx](src/components/settings/library-form.tsx) (2.234 Zeilen, 39 Hooks, 2 Storage-Branches — erlaubt!)
+- [src/components/settings/chat-form.tsx](src/components/settings/chat-form.tsx) (1.518 Zeilen)
+- [src/components/settings/storage-form.tsx](src/components/settings/storage-form.tsx) (1.412 Zeilen)
+- `public-form.tsx`, `secretary-service-form.tsx`, `search-index-dialog.tsx`, `FacetDefsEditor.tsx`, `members-list.tsx`, `access-requests-list.tsx`, `sidebar-nav.tsx`, ...
+
+#### Welle 3-V - Job/Event-Monitor (~15 Files, ~5.000 Zeilen) — Debug-Tool
+
+Monitor ist Diagnose-Tool, kein Haupt-Use-Case. **Hohe Drift-Dichte** (12 leere Catches in `job-monitor-panel.tsx` allein).
+
+- [src/components/shared/job-monitor-panel.tsx](src/components/shared/job-monitor-panel.tsx) (1.175 Zeilen, 27 Hooks, **12 leere Catches**)
+- [src/components/event-monitor/batch-list.tsx](src/components/event-monitor/batch-list.tsx) (1.351 Zeilen)
+- `batch-archive-dialog.tsx`, `batch-process-dialog.tsx`, weitere event-monitor-Komponenten
+
+#### Welle 3-VI - Creation-Wizard (~17 Files, ~8.000 Zeilen) — komplexester Kandidat
+
+[src/components/creation-wizard/creation-wizard.tsx](src/components/creation-wizard/creation-wizard.tsx) (**4.220 Zeilen**, 16 Hooks, 4 leere Catches, 2 Storage-Branches, Window-Hack `__collectSourceStepBeforeLeave`). **Als allerletzte UX-Welle**, weil komplexester Kandidat — profitiert von allen vorherigen Wellen (saubere Backend-Contracts, saubere Schale, saubere Detail-View → sauberer Wizard-Flow).
+
+Gleiche 4-Phasen-Struktur wie 3-II-a: Inventur+Audit, Modul-Split (vermutlich pro Wizard-Step ein Modul), Characterization Tests, Altlast-Pass (Window-Hack eliminieren).
 
 ### Welle 4 - Niedrige Prioritaet
-12. `event-job` + `event-monitor` UI - eigene Domaene (Sessions, Event-Monitor); per ADR 0001 separat. Niedrige Prio, weil isoliert und nicht im Hauptfluss
+12. `event-job` (Lib) - eigene Domaene per ADR 0001, separat von external-jobs. UI-Teil bereits in Welle 3-V abgedeckt
 13. Restliche `src/lib`-Module - opportunistisch im Vorbeigehen
+
+### Backend-Drift-Befund (offen, zu klaeren)
+
+`pnpm health` am 2026-04-28 zeigt, dass die abgenommenen Wellen 0-2 die Definition of Done aus Sektion 7 nicht voll erfuellen:
+
+| Modul | leere Catches | Files > 200z | Max-Datei |
+|---|---:|---:|---|
+| `external-jobs` (Pilot!) | 78 | 15 | `phase-template.ts` 2.038z |
+| `chat` | 0 | 14 | `ingestion-service.ts` 1.474z |
+| `storage` | 0 | 8 | `onedrive-provider.ts` 2.104z |
+| `shadow-twin` | 0 | 12 | `shadow-twin-service.ts` 917z |
+| `image` (3 `any`) | 0 | 1 | 890z |
+
+**User-Entscheidung 2026-04-28**: Welle 3 startet trotzdem. Backend-Cleanup als Folge-Welle (siehe Todo `backend-cleanup-followup`).
 
 ## 6. Was der Plan NICHT macht
 
