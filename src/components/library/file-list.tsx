@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { 
   File, FileText, FileVideo, FileAudio, FileSpreadsheet, Presentation, Globe,
   Image as ImageIcon, FileType2, RefreshCw, ChevronUp, ChevronDown, 
-  Trash2, Folder as FolderIcon, Sparkles, Upload, FolderSync, Layers, ImagePlus 
+  Trash2, Folder as FolderIcon, Sparkles, Upload, FolderSync, Layers, ImagePlus, Combine
 } from "lucide-react"
 import { StorageItem } from "@/lib/storage/types"
 import { cn } from "@/lib/utils"
@@ -43,6 +43,11 @@ import { isShadowTwinFolderName } from "@/lib/storage/shadow-twin";
 import { shouldFilterShadowTwinFolders } from "@/lib/storage/shadow-twin-folder-name";
 import { isImageMediaFromName } from "@/lib/media-types";
 import { CompositeMultiCreateDialog, deriveCompositeMultiDefaultFilename } from "./composite-multi-create-dialog";
+import {
+  CompositeTransformationsCreateDialog,
+  deriveCompositeTransformationsDefaultFilename,
+  type DialogTemplateEntry,
+} from "./composite-transformations-create-dialog";
 
 // Typen für Sortieroptionen
 type SortField = 'type' | 'name' | 'size' | 'date';
@@ -1710,6 +1715,121 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     }
   }, [activeLibraryId, allSelectedItems, currentFolderId, handleRefresh]);
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Composite-Transformations: Sammeldatei, deren Wikilinks auf Transformations-
+  // Artefakte zeigen ("[[seite1.pdf/template-name]]"). Datei nutzt KEIN neues
+  // kind und laeuft durch den normalen composite-transcript-Pipeline-Pfad.
+  //
+  // Auslöser: >=2 Dateien markiert, alle im selben Verzeichnis (medienneutral).
+  // Beim Oeffnen wird per GET-Pre-Fetch die Liste der verfuegbaren Templates
+  // ermittelt; die Auswahl ist im Dialog auf ein Template + Sprache begrenzt
+  // (Determinismus-Contract aus shadow-twin-contracts.mdc).
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const compositeTransformationsEligible = React.useMemo(() => {
+    if (allSelectedItems.length < 2) return false;
+    const parents = new Set(allSelectedItems.map(i => i.parentId || ''));
+    if (parents.size !== 1) return false;
+    return true;
+  }, [allSelectedItems]);
+
+  const [isCompositeTransformationsDialogOpen, setIsCompositeTransformationsDialogOpen] =
+    React.useState(false);
+  const [isCreatingCompositeTransformations, setIsCreatingCompositeTransformations] =
+    React.useState(false);
+  const [compositeTransformationsTemplates, setCompositeTransformationsTemplates] =
+    React.useState<DialogTemplateEntry[]>([]);
+  const [isLoadingCompositeTransformationsTemplates, setIsLoadingCompositeTransformationsTemplates] =
+    React.useState(false);
+
+  const compositeTransformationsDefaultFilename = React.useMemo(() => {
+    return deriveCompositeTransformationsDefaultFilename(
+      allSelectedItems.map(i => i.metadata.name),
+    );
+  }, [allSelectedItems]);
+
+  // Beim Oeffnen des Dialogs: Pool-Pre-Fetch (welche Templates sind verfuegbar?).
+  const handleOpenCompositeTransformationsDialog = React.useCallback(async () => {
+    if (!activeLibraryId) return;
+    if (!compositeTransformationsEligible) return;
+    setIsCompositeTransformationsDialogOpen(true);
+    setIsLoadingCompositeTransformationsTemplates(true);
+    setCompositeTransformationsTemplates([]);
+    try {
+      const sourceIds = allSelectedItems.map(i => i.id).join(',');
+      const sourceNames = allSelectedItems.map(i => i.metadata.name).join(',');
+      const url = `/api/library/${encodeURIComponent(activeLibraryId)}/composite-transformations?sourceIds=${encodeURIComponent(sourceIds)}&sourceNames=${encodeURIComponent(sourceNames)}&targetLanguage=de`;
+      const res = await fetch(url);
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || `HTTP ${res.status}`);
+      }
+      const list: DialogTemplateEntry[] = Array.isArray(json.templates) ? json.templates : [];
+      setCompositeTransformationsTemplates(list);
+    } catch (error) {
+      toast.error('Templates konnten nicht geladen werden', {
+        description: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setIsLoadingCompositeTransformationsTemplates(false);
+    }
+  }, [activeLibraryId, allSelectedItems, compositeTransformationsEligible]);
+
+  const handleConfirmCompositeTransformations = React.useCallback(
+    async (args: { filename: string; templateName: string; title?: string }) => {
+      if (!activeLibraryId) return;
+      if (allSelectedItems.length < 2) return;
+
+      setIsCreatingCompositeTransformations(true);
+      try {
+        const sourceItems = allSelectedItems.map(item => ({
+          id: item.id,
+          name: item.metadata.name,
+          parentId: item.parentId || currentFolderId || 'root',
+        }));
+
+        const res = await fetch(
+          `/api/library/${encodeURIComponent(activeLibraryId)}/composite-transformations`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sourceItems,
+              templateName: args.templateName,
+              targetLanguage: 'de',
+              filename: args.filename,
+              title: args.title,
+            }),
+          },
+        );
+
+        const json = await res.json();
+        if (!res.ok) {
+          if (res.status === 409) {
+            toast.warning('Dateiname bereits vergeben', {
+              description: json.error || 'Bitte einen anderen Namen waehlen.',
+            });
+            return;
+          }
+          throw new Error(json.error || `HTTP ${res.status}`);
+        }
+
+        toast.success('Sammel-Transformationen erstellt', {
+          description: `${json.file?.name} (${sourceItems.length} Quellen, Template "${args.templateName}")`,
+        });
+        setIsCompositeTransformationsDialogOpen(false);
+        await handleRefresh();
+      } catch (error) {
+        toast.error('Sammel-Transformationen fehlgeschlagen', {
+          description: error instanceof Error ? error.message : String(error),
+        });
+      } finally {
+        setIsCreatingCompositeTransformations(false);
+      }
+    },
+    [activeLibraryId, allSelectedItems, currentFolderId, handleRefresh],
+  );
+
   // Bulk-Löschung für ausgewählte Dateien (unabhängig von Batch/Transformation-Selektor)
   const handleBulkDelete = React.useCallback(async () => {
     if (!provider) return;
@@ -1896,6 +2016,19 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                 <ImagePlus className={cn("h-4 w-4", isCreatingCompositeMulti && "animate-spin")} />
               </Button>
             )}
+            {/* Sammel-Transformationen: medienneutral, ab 2 Quellen im selben Verzeichnis. */}
+            {compositeTransformationsEligible && (
+              <Button
+                size="icon"
+                variant="outline"
+                title="Sammel-Transformationen erstellen (Wikilinks zeigen auf Transformations-Artefakte)"
+                aria-label="Sammel-Transformationen erstellen"
+                onClick={handleOpenCompositeTransformationsDialog}
+                disabled={isCreatingCompositeTransformations}
+              >
+                <Combine className={cn("h-4 w-4", isCreatingCompositeTransformations && "animate-spin")} />
+              </Button>
+            )}
             {(selectedBatchItems.length + selectedTransformationItems.length) > 0 && (
               <Button size="icon" variant="destructive" title="Ausgewählte löschen" aria-label="Ausgewählte löschen" onClick={handleBulkDelete}>
                 <Trash2 className="h-4 w-4" />
@@ -2066,6 +2199,18 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
         defaultFilename={compositeMultiDefaultFilename}
         onConfirm={handleConfirmCompositeMulti}
         isSubmitting={isCreatingCompositeMulti}
+      />
+
+      {/* Sammel-Transformations-Dialog – medienneutral, mit Template-Dropdown */}
+      <CompositeTransformationsCreateDialog
+        open={isCompositeTransformationsDialogOpen}
+        onOpenChange={setIsCompositeTransformationsDialogOpen}
+        sourceCount={allSelectedItems.length}
+        defaultFilename={compositeTransformationsDefaultFilename}
+        templates={compositeTransformationsTemplates}
+        isLoadingTemplates={isLoadingCompositeTransformationsTemplates}
+        onConfirm={handleConfirmCompositeTransformations}
+        isSubmitting={isCreatingCompositeTransformations}
       />
     </div>
   );

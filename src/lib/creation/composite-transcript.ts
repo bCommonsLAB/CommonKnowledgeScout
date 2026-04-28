@@ -37,6 +37,10 @@ import type { Library } from '@/types/library'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import { parseCompositeSourceFilesFromMeta } from '@/lib/creation/composite-source-files-meta'
+import {
+  parseCompositeSourceEntry,
+  appendTemplateSuffix,
+} from '@/lib/creation/composite-source-entry'
 import { generateShadowTwinFolderName } from '@/lib/storage/shadow-twin'
 import {
   buildAggregatedMediaForSources,
@@ -69,6 +73,17 @@ export interface CompositeReferenceOptions {
    * pro Nicht-.md-Quelle eine zweite Zeile `[[…transcript….md|Transkript prüfen]]` (Obsidian-Alias).
    */
   library?: Library | null
+  /**
+   * Optional: Wenn gesetzt, wird pro Nicht-`.md`-Quelle ein Schraegstrich-Suffix mit
+   * diesem Template-Namen an den `_source_files`-Eintrag und den Quellen-Wikilink
+   * angehaengt. Der Resolver laedt dann statt eines `transcript`-Artefakts die
+   * `transformation` mit `(sourceId, kind='transformation', targetLanguage, templateName)`.
+   *
+   * Hartes Determinismus-Contract (siehe `shadow-twin-contracts.mdc`):
+   * `templateName` ist hier Pflicht, kein "pick latest". Caller muss vorher
+   * sicherstellen, dass die markierten Quellen die Transformation besitzen.
+   */
+  transformationTemplateName?: string
 }
 
 /** Ergebnis von buildCompositeReference */
@@ -133,7 +148,14 @@ function compositeSourceExpectsTranscript(item: { id: string; name: string; pare
 export async function buildCompositeReference(
   options: CompositeReferenceOptions
 ): Promise<CompositeReferenceResult> {
-  const { libraryId, userEmail, targetLanguage, sourceItems, library: libraryDoc } = options
+  const {
+    libraryId,
+    userEmail,
+    targetLanguage,
+    sourceItems,
+    library: libraryDoc,
+    transformationTemplateName,
+  } = options
 
   if (sourceItems.length === 0) {
     throw new Error('Mindestens eine Quelldatei erforderlich')
@@ -146,17 +168,45 @@ export async function buildCompositeReference(
     libraryId,
     sourceCount: sourceItems.length,
     sourceFileNames,
+    transformationTemplateName: transformationTemplateName ?? null,
   })
 
-  // Shadow-Twins laden (nur für Validierung + binaryFragments)
+  // Shadow-Twins laden (fuer Validierung von Transcripts und Transformations)
   const shadowTwinDocs = await getShadowTwinsBySourceIds({ libraryId, sourceIds })
 
-  // Transkript-Existenz prüfen (ohne Inhalt zu laden)
+  // Existenz-Pruefung pro Quelle.
+  // - Im Default-Modus (Sammel-Transkript): pruefen, ob ein `transcript`-Artefakt existiert.
+  //   `.md`-Quellen und Bilder werden uebersprungen, da sie kein Transcript benoetigen.
+  // - Im Transformations-Modus: pruefen, ob die Transformation mit
+  //   `(templateName, targetLanguage)` existiert. Hier MUESSEN auch `.md`-Quellen
+  //   geprueft werden, denn Markdown-Originale koennen ebenfalls via Template
+  //   transformiert werden (z.B. Steckbrief-MD → gaderform-bett-steckbrief).
+  //   Bilder bleiben ausgeschlossen, da sie nie eine Text-Transformation haben.
+  //   Caller hat das vorher schon gegen den Pool gecheckt; das hier ist die
+  //   zweite Verteidigungslinie.
   const missingTranscripts: string[] = []
   for (const item of sourceItems) {
+    const doc = shadowTwinDocs.get(item.id)
+
+    if (transformationTemplateName) {
+      // Bilder haben nie eine Text-Transformation — ueberspringen.
+      if (isImageMediaFromName(item.name)) continue
+
+      // Pfad: `artifacts.transformation.<templateName>.<targetLanguage>`
+      const transformationByTemplate = doc?.artifacts?.transformation as
+        | Record<string, Record<string, unknown> | undefined>
+        | undefined
+      const langBucket = transformationByTemplate?.[transformationTemplateName]
+      const hasTransformation = !!langBucket?.[targetLanguage]
+      if (!hasTransformation) {
+        missingTranscripts.push(item.name)
+      }
+      continue
+    }
+
+    // Default-Modus: nur Nicht-`.md`/Nicht-Bild-Quellen brauchen ein Transcript.
     if (!compositeSourceExpectsTranscript(item)) continue
 
-    const doc = shadowTwinDocs.get(item.id)
     const hasTranscript = doc?.artifacts?.transcript
       && typeof doc.artifacts.transcript === 'object'
       && Object.keys(doc.artifacts.transcript as Record<string, unknown>).length > 0
@@ -189,6 +239,7 @@ export async function buildCompositeReference(
     otherExtracted,
     targetLanguage,
     includeTranscriptWikiLinks,
+    transformationTemplateName,
   })
 
   FileLogger.info('composite-transcript', 'Composite-Reference erstellt', {
@@ -217,18 +268,28 @@ export async function resolveCompositeTranscript(
 ): Promise<CompositeResolveResult> {
   const { libraryId, userEmail, targetLanguage, compositeMarkdown, parentId } = options
 
-  // Frontmatter parsen, um _source_files zu lesen
+  // Frontmatter parsen, um _source_files zu lesen.
+  // Eintraege koennen ein optionales Schraegstrich-Suffix haben:
+  //   "seite1.pdf"                              → Transcript-Lookup (wie bisher)
+  //   "seite1.pdf/gaderform-bett-steckbrief"    → Transformation-Lookup mit templateName
+  // Siehe `composite-source-entry.ts` und `docs/composite-transformations-e2e.md`.
   const { meta } = parseFrontmatter(compositeMarkdown)
-  const sourceFileNames = parseCompositeSourceFilesFromMeta(meta)
+  const rawSourceEntries = parseCompositeSourceFilesFromMeta(meta)
 
-  if (sourceFileNames.length === 0) {
+  if (rawSourceEntries.length === 0) {
     throw new Error('Composite-Markdown enthält keine _source_files im Frontmatter')
   }
 
+  // Pro Eintrag: Suffix vom Dateinamen trennen.
+  const parsedEntries = rawSourceEntries.map(parseCompositeSourceEntry)
+  // Nur die reinen Dateinamen — wird unten an Builder/Logger gegeben.
+  const sourceFileNames = parsedEntries.map(e => e.name)
+
   FileLogger.info('composite-transcript', 'Starte Resolution', {
     libraryId,
-    sourceCount: sourceFileNames.length,
+    sourceCount: rawSourceEntries.length,
     sourceFileNames,
+    transformationCount: parsedEntries.filter(e => e.templateName).length,
   })
 
   // Quelldateien im Verzeichnis suchen, um sourceIds zu ermitteln
@@ -244,37 +305,75 @@ export async function resolveCompositeTranscript(
     }
   }
 
-  // Shadow-Twins für gefundene Quellen laden
+  // Shadow-Twins für gefundene Quellen laden (nur fuer evtl. Logging/Validierung)
   const sourceIds = sourceItems.map(s => s.id)
   const _shadowTwinDocs = sourceIds.length > 0
     ? await getShadowTwinsBySourceIds({ libraryId, sourceIds })
     : new Map()
 
-  // Transkripte pro Quelle laden
+  // Transkripte / Transformationen pro Quelle laden
   const resolvedSources: ResolvedSource[] = []
   const unresolvedSources: string[] = []
 
-  for (let i = 0; i < sourceFileNames.length; i++) {
-    const name = sourceFileNames[i]
+  for (let i = 0; i < parsedEntries.length; i++) {
+    const entry = parsedEntries[i]
+    const { name, templateName, raw } = entry
     const item = sourceItems.find(s => s.name === name)
     const mimeType = guessMimeType(name)
     let markdown: string | null = null
 
     if (!item) {
       // Datei nicht im Verzeichnis gefunden
-      unresolvedSources.push(name)
+      unresolvedSources.push(raw)
       resolvedSources.push({ name, index: i + 1, markdown: null, mimeType })
       continue
     }
 
-    // Markdown-Dateien direkt aus dem Storage lesen
-    if (name.toLowerCase().endsWith('.md')) {
+    if (templateName) {
+      // ── Transformations-Pfad: explizit kein Fallback auf Transcript ──
+      // Siehe shadow-twin-contracts.mdc: templateName ist Pflicht und es gibt
+      // kein "pick latest". Wir laden GENAU diese Transformation oder melden
+      // sie als unresolved.
+      // Achtung: `.md`-Quellen koennen ebenfalls transformiert werden
+      // (z.B. Steckbrief-MD → `gaderform-bett-steckbrief`). Daher KEINE
+      // Sonderbehandlung mehr fuer `.md` — der Pfad ist identisch zu PDFs/Audios.
+      try {
+        const record = await getShadowTwinArtifact({
+          libraryId,
+          sourceId: item.id,
+          artifactKey: toArtifactKey({
+            sourceId: item.id,
+            kind: 'transformation',
+            targetLanguage,
+            templateName,
+          }),
+        })
+        markdown = record?.markdown ?? null
+
+        if (!markdown) {
+          FileLogger.warn(
+            'composite-transcript',
+            `Transformation "${templateName}" fuer "${name}" nicht gefunden`,
+            { libraryId, sourceId: item.id, targetLanguage },
+          )
+          unresolvedSources.push(raw)
+        }
+      } catch (error) {
+        FileLogger.warn(
+          'composite-transcript',
+          `Transformation "${templateName}" fuer "${name}" nicht ladbar`,
+          { error },
+        )
+        unresolvedSources.push(raw)
+      }
+    } else if (name.toLowerCase().endsWith('.md')) {
+      // Markdown-Dateien direkt aus dem Storage lesen
       try {
         const binary = await provider.getBinary(item.id)
         markdown = await binary.blob.text()
       } catch (error) {
         FileLogger.warn('composite-transcript', `Markdown "${name}" nicht ladbar`, { error })
-        unresolvedSources.push(name)
+        unresolvedSources.push(raw)
       }
     } else if (!compositeSourceExpectsTranscript(item)) {
       // Bilder (u. a.): kein Shadow-Twin-Transkript — Platzhalter für LLM, nicht als Fehler zählen
@@ -294,23 +393,23 @@ export async function resolveCompositeTranscript(
         markdown = record?.markdown ?? null
 
         if (!markdown) {
-          unresolvedSources.push(name)
+          unresolvedSources.push(raw)
         }
       } catch (error) {
         FileLogger.warn('composite-transcript', `Transkript für "${name}" nicht ladbar`, { error })
-        unresolvedSources.push(name)
+        unresolvedSources.push(raw)
       }
     }
 
-    // Leere/Whitespace-Transkripte gelten als "nicht aufgelöst".
+    // Leere/Whitespace-Inhalte gelten als "nicht aufgelöst".
     // Sonst entstehen stillschweigend Quellen ohne nutzbaren Inhalt.
     if (typeof markdown === 'string' && markdown.trim().length === 0) {
-      FileLogger.warn('composite-transcript', `Leeres Transkript für "${name}"`, {
+      FileLogger.warn('composite-transcript', `Leerer Inhalt für "${raw}"`, {
         libraryId,
         sourceId: item.id,
       })
       markdown = null
-      unresolvedSources.push(name)
+      unresolvedSources.push(raw)
     }
 
     resolvedSources.push({ name, index: i + 1, markdown, mimeType })
@@ -359,6 +458,12 @@ interface ReferenceAssembleOptions {
   targetLanguage: string
   /** Transkript-Dateiname als Wikilink-Zeile (Alias „Transkript prüfen“) für Nicht-.md-Quellen */
   includeTranscriptWikiLinks: boolean
+  /**
+   * Wenn gesetzt: Quellen-Wikilinks und `_source_files`-Eintraege erhalten ein
+   * `/templateName`-Suffix (Sammel-Transformations-Modus). Markdown-Quellen
+   * (`.md`) werden nicht mit Suffix versehen.
+   */
+  transformationTemplateName?: string
 }
 
 /**
@@ -374,12 +479,34 @@ function assembleReferenceMarkdown(options: ReferenceAssembleOptions): string {
     otherExtracted,
     targetLanguage,
     includeTranscriptWikiLinks,
+    transformationTemplateName,
   } = options
   const now = new Date().toISOString()
   const parts: string[] = []
 
+  // Helfer: liefert pro Quelldateiname den `_source_files`-Eintrag.
+  // Im Transformations-Modus haengen wir IMMER das `/templateName`-Suffix an —
+  // auch bei `.md`-Quellen. Markdown-Originale werden naemlich genauso wie
+  // PDFs/Audios via Template transformiert und liegen dann als
+  // `artifacts.transformation.<templateName>.<targetLanguage>` im Shadow-Twin.
+  // Der Pool-Lookup behandelt `.md` ebenfalls als gleichwertige Quelle —
+  // siehe `composite-transformations-pool.ts` — und der Submit-Button im
+  // Dialog wird nur freigegeben, wenn alle Quellen das Template tatsaechlich
+  // besitzen. Wuerden wir hier fuer `.md` den Suffix weglassen, wuerde die
+  // Sammeldatei stillschweigend auf das Original zeigen statt auf die
+  // Transformation — was die Anwender-Erwartung bricht.
+  const entryForName = (name: string): string => {
+    if (!transformationTemplateName) return name
+    return appendTemplateSuffix(name, transformationTemplateName)
+  }
+
+  // `_source_files` mit Suffix (oder ohne im Default-Modus).
+  const sourceFileEntries = sourceFileNames.map(entryForName)
+
   // Frontmatter
-  const sourceFilesJson = JSON.stringify(sourceFileNames)
+  // Kind bleibt `composite-transcript` (auch im Transformations-Modus) —
+  // der Resolver erkennt den Modus am Schraegstrich-Suffix in `_source_files`.
+  const sourceFilesJson = JSON.stringify(sourceFileEntries)
   parts.push([
     '---',
     `_source_files: ${sourceFilesJson}`,
@@ -390,7 +517,7 @@ function assembleReferenceMarkdown(options: ReferenceAssembleOptions): string {
 
   // Titel
   parts.push('')
-  parts.push('# Sammel-Transkript')
+  parts.push(transformationTemplateName ? '# Sammel-Transformationen' : '# Sammel-Transkript')
 
   // Quellen: nur „Dokument“-Quellen (keine Bilder) — Bilder stehen nur unter „Verfügbare Medien“,
   // sonst doppelte [[…]]-Liste (Quellen + Im Verzeichnis). _source_files bleibt vollständig.
@@ -402,9 +529,11 @@ function assembleReferenceMarkdown(options: ReferenceAssembleOptions): string {
     quellenNonImage += 1
     parts.push('')
     parts.push(`### ${name}`)
-    parts.push(`- [[${name}]]`)
+    parts.push(`- [[${entryForName(name)}]]`)
     // Zweite Zeile: echte Transkript-MD im Storage (nur wenn Konfiguration FS-Spiegelung nutzt).
-    if (includeTranscriptWikiLinks) {
+    // Im Transformations-Modus ueberspringen wir den Transkript-Pruefen-Link, da der
+    // Wikilink bereits auf die Transformation zeigt und nicht auf das Transkript.
+    if (includeTranscriptWikiLinks && !transformationTemplateName) {
       const item = sourceItems.find(s => s.name === name)
       if (item && compositeSourceExpectsTranscript(item)) {
         const transcriptFileName = buildArtifactName(

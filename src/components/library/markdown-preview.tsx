@@ -1573,6 +1573,16 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
   // Quelle ist `siblingNameToId` aus dem composite-transcript-Pfad — wir nutzen
   // genau dieselbe Map, weil composite-multi-Quellen ebenfalls Geschwister
   // im selben Verzeichnis sind.
+  //
+  // Bugfix 2026-04-28: Frueher wurde hier eine hand-gebaute URL auf
+  // `/api/storage/streaming-url?...` gesetzt. Diese Route geht durch die
+  // `media-storage-strategy` und liefert bei `mode: 'azure-only'` ein 404,
+  // wenn das Bild nicht als `binaryFragment` in MongoDB registriert ist —
+  // selbst dann, wenn die Datei im Storage-Provider direkt verfuegbar waere.
+  // Beweis: `image-preview.tsx` (Direkt-Preview einer .jpeg-Datei) nutzt
+  // `provider.getStreamingUrl(item.id)` und funktioniert bei derselben Library.
+  // Wir uebernehmen exakt dasselbe Muster, damit der Composite-Multi-Vorschau-
+  // Pfad konsistent zum direkten Bild-Preview ist.
   React.useEffect(() => {
     const root = contentRef.current;
     if (!root || !compositeWikiPreview || !activeLibraryId) return;
@@ -1588,15 +1598,46 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
       const fileId = compositeWikiPreview.siblingNameToId[sourceName];
       if (!fileId) return;
 
-      const url =
+      // Sofort als "in Bearbeitung" markieren, damit ein erneuter useEffect-
+      // Lauf (z.B. wegen Re-Render) nicht parallel denselben Provider-Call
+      // anstoesst. Identisches Verhalten zum Vorgaenger-Code.
+      img.setAttribute('data-ks-resolved', '1');
+      img.setAttribute('loading', 'lazy');
+
+      if (provider) {
+        // Bevorzugter Pfad: direkter Provider-Aufruf wie in `image-preview.tsx`.
+        // Der Provider-Pfad umgeht die strikte `azure-only`-Strategy und
+        // liefert die Storage-URL (z.B. `/api/storage/filesystem?action=binary&...`)
+        // direkt zurueck.
+        void provider
+          .getStreamingUrl(fileId)
+          .then((url) => {
+            if (url) img.src = url;
+          })
+          .catch((error) => {
+            FileLogger.warn(
+              'MarkdownPreview',
+              'Composite-Multi: Streaming-URL fehlgeschlagen',
+              {
+                sourceName,
+                fileId,
+                error: error instanceof Error ? error.message : String(error),
+              },
+            );
+          });
+        return;
+      }
+
+      // Fallback: Strategy-Route (nur wenn kein Provider injiziert wurde).
+      // Dieser Pfad ist der historisch einzige und greift jetzt nur noch in
+      // sehr eingeschraenkten Konstellationen (z.B. read-only-Renderings ohne
+      // aktiven Storage-Context).
+      img.src =
         `/api/storage/streaming-url` +
         `?libraryId=${encodeURIComponent(activeLibraryId)}` +
         `&fileId=${encodeURIComponent(fileId)}`;
-      img.src = url;
-      img.setAttribute('loading', 'lazy');
-      img.setAttribute('data-ks-resolved', '1');
     });
-  }, [renderedContent, compositeWikiPreview, activeLibraryId]);
+  }, [renderedContent, compositeWikiPreview, activeLibraryId, provider]);
 
   // Composite: Klicks auf interne Dateilinks und injizierte „Transkript prüfen“-Links
   React.useEffect(() => {
