@@ -8,15 +8,15 @@ Erste UX-Welle nach Abschluss von Welle 0-2 (Backend). Reihenfolge der UX-Wellen
 
 | Datum | Datei | Status |
 |---|---|---|
-| 2026-04-28 | `README.md` | erstellt (IDE-Agent, Pre-Flight) |
+| 2026-04-28 | `README.md` | aktualisiert (Cloud-Agent, Schritt 7) |
 | 2026-04-28 | `AGENT-BRIEF.md` | erstellt (IDE-Agent, Pre-Flight) |
 | 2026-04-28 | `01-inventory.md` | erstellt (IDE-Agent, Pre-Flight) |
-| TBD | `00-audit.md` | offen — Cloud-Agent Schritt 0 |
-| TBD | `02-contracts.md` | offen — Cloud-Agent Schritt 2 |
-| TBD | `03-tests.md` | offen — Cloud-Agent Schritt 3 |
-| TBD | `04-altlast-pass.md` | offen — Cloud-Agent Schritt 4 |
-| TBD | `05-user-test-plan.md` | offen — Cloud-Agent vor Abnahme |
-| TBD | `06-acceptance.md` | offen — Cloud-Agent Schritt 7 |
+| 2026-04-28 | `00-audit.md` | abgeschlossen (Cloud-Agent, Schritt 0) |
+| 2026-04-28 | `02-contracts.md` | abgeschlossen (Cloud-Agent, Schritt 2) |
+| 2026-04-28 | `03-tests.md` | abgeschlossen (Cloud-Agent, Schritt 3) |
+| 2026-04-28 | `04-altlast-pass.md` | abgeschlossen (Cloud-Agent, Schritt 4) |
+| 2026-04-28 | `05-user-test-plan.md` | abgeschlossen (Cloud-Agent, Schritt 5) — User fuehrt Phase C aus |
+| 2026-04-28 | `06-acceptance.md` | abgeschlossen (Cloud-Agent, Schritt 7) — Sign-off offen |
 
 ## Scope (16 Files, **5.427 Zeilen verifiziert**)
 

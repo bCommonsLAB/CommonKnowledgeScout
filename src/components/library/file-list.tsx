@@ -59,7 +59,6 @@ import {
   formatFileSize,
   formatDate,
 } from './file-list/list-utils';
-import { FileIconComponent } from './file-list/file-icon';
 import { SortableHeaderCell } from './file-list/sortable-header-cell';
 import { FileRow } from './file-list/file-row';
 
