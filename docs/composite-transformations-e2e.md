@@ -18,6 +18,14 @@ Wikilink-Schema: `[[Quellname/Templatename]]`
 - Ein zweites Template (z. B. `zusammenfassung`), das auf das Sammel-Markdown
   als Folge-Schritt angewendet werden kann.
 
+> **Hinweis zu `.md`-Quellen** (seit Bugfix 2026-04-28): Markdown-Originale werden
+> ebenfalls als gleichwertige Quellen behandelt, sofern sie ein Transformations-
+> Artefakt mit dem gewaehlten Template besitzen. Der Suffix `/templateName` wird
+> im `_source_files`-Eintrag und im Wikilink konsequent gesetzt — auch fuer `.md`.
+> Anwendungsfall: Steckbrief-Markdowns (z. B. `bett cortina.md`), die selbst per
+> Template `gaderform-bett-steckbrief` transformiert wurden, lassen sich
+> aggregieren und auf ihre Transformationen verweisen.
+
 ## Schritte
 
 ### 1. Quellen markieren

@@ -80,7 +80,12 @@ describe('buildCompositeReference + transformationTemplateName', () => {
     expect(result.sourceFileNames).toEqual(['a.pdf', 'b.pdf'])
   })
 
-  it('Markdown-Quellen bekommen KEIN Suffix (haben kein Template)', async () => {
+  it('Markdown-Quellen bekommen ebenfalls den /templateName-Suffix', async () => {
+    // Hintergrund (nach Bugfix 2026-04-28): Markdown-Originale koennen via
+    // Template transformiert werden (z.B. Steckbrief-MD → gaderform-bett-steckbrief).
+    // Der Pool-Lookup bietet das Template auch fuer .md-Quellen an, daher MUSS
+    // der Build-Schritt den Suffix konsequent setzen — sonst zeigt die Sammeldatei
+    // stillschweigend auf das Original statt auf die Transformation.
     const result = await buildCompositeReference({
       libraryId: 'lib-1',
       userEmail: 'u@e.com',
@@ -93,9 +98,8 @@ describe('buildCompositeReference + transformationTemplateName', () => {
     })
 
     expect(result.markdown).toContain('"a.pdf/tmpl"')
-    // .md-Quellen ohne Suffix:
-    expect(result.markdown).toContain('"notes.md"')
-    expect(result.markdown).not.toContain('"notes.md/tmpl"')
+    expect(result.markdown).toContain('"notes.md/tmpl"')
+    expect(result.markdown).toContain('- [[notes.md/tmpl]]')
   })
 
   it('Default-Modus (ohne transformationTemplateName) bleibt unveraendert', async () => {
@@ -141,6 +145,38 @@ describe('buildCompositeReference + transformationTemplateName', () => {
 
     expect(result.missingTranscripts).toEqual(['b.pdf'])
   })
+
+  it('Existenz-Pruefung erfasst auch .md-Quellen ohne Transformation', async () => {
+    // Bugfix 2026-04-28: vorher wurden .md-Quellen in der Existenz-Pruefung
+    // uebersprungen — eine .md ohne Transformation lief stillschweigend durch.
+    mockGetMany.mockResolvedValue(new Map([
+      ['s1', {
+        libraryId: 'lib-1', sourceId: 's1', sourceName: 'a.md', parentId: 'p',
+        userEmail: 'u@e.com',
+        artifacts: { transformation: { tmpl: { de: { markdown: 'm', createdAt: 'x', updatedAt: 'x' } } } },
+        createdAt: 'x', updatedAt: 'x',
+      }],
+      ['s2', {
+        libraryId: 'lib-1', sourceId: 's2', sourceName: 'b.md', parentId: 'p',
+        userEmail: 'u@e.com',
+        artifacts: {},
+        createdAt: 'x', updatedAt: 'x',
+      }],
+    ]))
+
+    const result = await buildCompositeReference({
+      libraryId: 'lib-1',
+      userEmail: 'u@e.com',
+      targetLanguage: 'de',
+      sourceItems: [
+        { id: 's1', name: 'a.md', parentId: 'p' },
+        { id: 's2', name: 'b.md', parentId: 'p' },
+      ],
+      transformationTemplateName: 'tmpl',
+    })
+
+    expect(result.missingTranscripts).toEqual(['b.md'])
+  })
 })
 
 // ─── B/C) Resolver mit Schraegstrich-Suffix ────────────────────────────────
@@ -181,6 +217,44 @@ describe('resolveCompositeTranscript mit Suffix', () => {
 
     // Geflachter Markdown enthaelt den Inhalt der Transformation:
     expect(r.markdown).toContain('Transformation Markdown')
+    expect(r.unresolvedSources).toEqual([])
+  })
+
+  it('laedt Transformation auch fuer .md-Quellen mit Schraegstrich-Suffix', async () => {
+    // Bugfix 2026-04-28: vorher hat der Resolver bei .md-Quellen mit Suffix
+    // eine Warnung geloggt und sie als unresolved markiert. Jetzt wird die
+    // Transformation regulaer geladen — analog zu PDFs/Audios.
+    mockProvider.mockResolvedValue({
+      listItemsById: vi.fn().mockResolvedValue([
+        { id: 's1', type: 'file', metadata: { name: 'bett.md' } },
+      ]),
+      getBinary: vi.fn(),
+    })
+    mockGetOne.mockResolvedValue({
+      markdown: '# Steckbrief Bett\nFelder ...',
+      createdAt: 'x', updatedAt: 'x',
+    })
+
+    const md = [
+      '---',
+      '_source_files: ["bett.md/gaderform-bett-steckbrief"]',
+      'kind: composite-transcript',
+      '---',
+      '',
+    ].join('\n')
+
+    const r = await resolveCompositeTranscript({
+      libraryId: 'lib-1',
+      userEmail: 'u@e.com',
+      targetLanguage: 'de',
+      compositeMarkdown: md,
+      parentId: 'p',
+    })
+
+    const lastCall = mockGetOne.mock.calls[0]?.[0]
+    expect(lastCall?.artifactKey?.kind).toBe('transformation')
+    expect(lastCall?.artifactKey?.templateName).toBe('gaderform-bett-steckbrief')
+    expect(r.markdown).toContain('Steckbrief Bett')
     expect(r.unresolvedSources).toEqual([])
   })
 
