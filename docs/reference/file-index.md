@@ -38,9 +38,15 @@ Complete index of all documented source files with descriptions, exports, and us
 | `src/atoms/library-atom.ts` | library | Library state atoms | `libraryAtom`, `activeLibraryIdAtom`, `librariesAtom`, `activeLibraryAtom`, `currentFolderIdAtom` | Components |
 | `src/lib/services/library-service.ts` | library | Library service | `LibraryService`, `UserLibraries` | API routes, components |
 | `src/components/library/library.tsx` | library | Main library component | `Library` | Library page |
-| `src/components/library/library-header.tsx` | library | Library header component | TBD | Library component |
-| `src/components/library/library-switcher.tsx` | library | Library switcher component | TBD | Library header |
-| `src/components/library/file-list.tsx` | library | File list with header actions and record operations | `FileList` | Library component |
+| `src/components/library/library-header.tsx` | library | Library header component (Pfad, Tree-/Compact-Toggle, Upload-/Bulk-Buttons) | `LibraryHeader` | Library component |
+| `src/components/library/library-switcher.tsx` | library | Library switcher component (Dropdown, Library-Wechsel, Cache-Reset) | `LibrarySwitcher` | Library header |
+| `src/components/library/file-list.tsx` | library | File list composer (Welle 3-I Schritt 4b: Sub-Komponenten in `file-list/`) | `FileList` | Library component |
+| `src/components/library/file-list/list-utils.ts` | library | Pure Helper + Typen (`SortField`, `SortOrder`, `FileGroup`, `ListMeta`, `getFileTypeFromName`, `formatFileSize`, `formatDate`) | mehrere | `file-list/file-row.tsx`, `file-list.tsx` |
+| `src/components/library/file-list/cover-thumbnail.tsx` | library | Listen-Cover-Thumbnail mit lazy `resolve-binary-url` | `ListCoverThumbnail` | `file-list/file-row.tsx` |
+| `src/components/library/file-list/file-icon.tsx` | library | File-Icon-Komponente (Lucide nach Dateityp) | `FileIconComponent` | `file-list/file-row.tsx` |
+| `src/components/library/file-list/sortable-header-cell.tsx` | library | Sortier-Kopfzelle der Liste | `SortableHeaderCell` | `file-list.tsx` |
+| `src/components/library/file-list/file-row.tsx` | library | Listen-Zeile (Selection, Drag&Drop, Long-Press, Rename, Status-Icons) | `FileRow` | `file-list.tsx` |
+| `src/components/library/tree-item.tsx` | library | TreeItem-Komponente (aus `file-tree.tsx` ausgegliedert, Welle 3-I Schritt 4a) | `TreeItem` | `file-tree.tsx` |
 
 ## Chat System ✅
 
