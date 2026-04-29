@@ -91,7 +91,15 @@ export async function GET(request: NextRequest) {
     
     // Geteilte Libraries laden (Co-Creator + Reader ueber Access Requests)
     const sharedLibraries = await libraryService.getSharedLibrariesForUser(email);
-    const sharedClientLibraries = libraryService.toClientLibraries(sharedLibraries).map((lib, idx) => ({
+    // Bei geteilten Libraries `path` durch user-spezifischen
+    // `localPathOverride` ersetzen, damit die UI bei `local`-Libraries den
+    // korrekten Pfad des Co-Creators zeigt (siehe Variante A in
+    // docs/per-user-storage-path-analyse.md).
+    const sharedWithOverrides = await libraryService.toClientLibrariesWithMemberOverrides(
+      sharedLibraries,
+      email,
+    );
+    const sharedClientLibraries = sharedWithOverrides.map((lib, idx) => ({
       ...lib,
       isShared: true,
       accessRole: sharedLibraries[idx].accessRole,
