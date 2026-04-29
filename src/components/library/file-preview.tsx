@@ -45,7 +45,6 @@ import { loadPdfDefaults } from "@/lib/pdf-defaults"
 import { getEffectivePdfDefaults } from "@/atoms/pdf-defaults"
 import { TARGET_LANGUAGE_DEFAULT } from "@/lib/chat/constants"
 import { jobInfoByItemIdAtom } from "@/atoms/job-status"
-import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { SourceRenderer } from "@/components/library/flow/source-renderer"
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
@@ -63,88 +62,10 @@ import {
 const ImagePreviewComponent = ImagePreview;
 const DocumentPreviewComponent = DocumentPreview;
 
-// Job-Progress-Anzeige fuer laufende Jobs
-interface JobProgressBarProps {
-  status: 'queued' | 'running' | 'completed' | 'failed';
-  progress?: number;
-  message?: string;
-  phase?: string;
-}
-
-// Mapping von Phase-Codes zu lesbaren Labels
-function getPhaseLabel(phase?: string): string {
-  if (!phase) return '';
-  const normalized = phase.toLowerCase();
-  
-  // Ignoriere generische Status-Phasen (kommen vom Secretary-Service)
-  const ignoredPhases = ['running', 'initializing', 'postprocessing', 'completed', 'progress'];
-  if (ignoredPhases.includes(normalized)) return '';
-  
-  const phaseLabels: Record<string, string> = {
-    extract: 'Transkript',
-    extract_pdf: 'Transkript',
-    extract_office: 'Transkript',
-    extraction: 'Transkript',
-    transcribe: 'Transkript',
-    transcription: 'Transkript',
-    transform: 'Transformation',
-    transform_template: 'Transformation',
-    transformation: 'Transformation',
-    template: 'Transformation',
-    metadata: 'Transformation',
-    ingest: 'Story',
-    ingest_rag: 'Story',
-    ingestion: 'Story',
-    publish: 'Story',
-  };
-  return phaseLabels[normalized] || '';
-}
-
-function JobProgressBar({ status, progress, message, phase }: JobProgressBarProps) {
-  const phaseLabel = getPhaseLabel(phase);
-  
-  // Status-Label mit optionaler Phase
-  const getStatusLabel = (): string => {
-    if (status === 'queued') return 'In Warteschlange...';
-    if (status === 'completed') return 'Abgeschlossen';
-    if (status === 'failed') return 'Fehlgeschlagen';
-    // running
-    if (phaseLabel) {
-      return `${phaseLabel} wird verarbeitet...`;
-    }
-    return 'Wird verarbeitet...';
-  };
-  
-  // Bereinigte Message (entferne technische Details, zeige nur relevante Info)
-  const getCleanMessage = (): string | undefined => {
-    if (!message) return undefined;
-    // Technische Messages filtern
-    if (message.startsWith('Mistral-OCR:')) {
-      // Extrahiere den relevanten Teil nach dem Doppelpunkt
-      const parts = message.split(' - Args:');
-      return parts[0].replace('Mistral-OCR: ', '');
-    }
-    return message;
-  };
-
-  const progressValue = typeof progress === 'number' ? Math.max(0, Math.min(100, progress)) : 0;
-  const cleanMessage = getCleanMessage();
-
-  return (
-    <div className="mx-3 mt-3 rounded-md border bg-muted/30 p-3">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium">{getStatusLabel()}</span>
-        {status === 'running' && (
-          <span className="text-xs text-muted-foreground">{progressValue}%</span>
-        )}
-      </div>
-      <Progress value={status === 'running' ? progressValue : status === 'queued' ? 0 : 100} className="h-2" />
-      {cleanMessage && (
-        <p className="mt-2 text-xs text-muted-foreground truncate">{cleanMessage}</p>
-      )}
-    </div>
-  );
-}
+// JobProgressBar + getPhaseLabel wurden in
+// src/components/library/file-preview/job-progress-bar.tsx ausgegliedert
+// (Welle 3-II-a, Schritt 4b).
+import { JobProgressBar } from './file-preview/job-progress-bar'
 
 interface FilePreviewProps {
   className?: string;
