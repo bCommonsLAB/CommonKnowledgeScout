@@ -7,15 +7,15 @@ Zweite UX-Welle nach Welle 3-I (App-Schale + Library-Loader).
 
 | Datum | Datei | Status |
 |---|---|---|
-| 2026-04-29 | `README.md` | erstellt (Cloud-Agent, Pre-Flight + Lauf) |
-| 2026-04-29 | `AGENT-BRIEF.md` | erstellt (Cloud-Agent, Pre-Flight) |
+| 2026-04-29 | `README.md` | erstellt (Cloud-Agent, Vorbereitungs-Lauf) |
+| 2026-04-29 | `AGENT-BRIEF.md` | erstellt (Cloud-Agent) — enthaelt Sub-Wellen-Briefs fuer 3-II-a/b/c/d |
 | 2026-04-29 | `01-inventory.md` | erstellt (Cloud-Agent) |
-| 2026-04-29 | `00-audit.md` | erstellt (Cloud-Agent) |
-| 2026-04-29 | `02-contracts.md` | erstellt (Cloud-Agent) |
-| 2026-04-29 | `03-tests.md` | erstellt (Cloud-Agent) |
-| 2026-04-29 | `04-altlast-pass.md` | erstellt (Cloud-Agent — Phase A: kleine Altlasten + Sub-Wellen-Backlog) |
-| 2026-04-29 | `05-user-test-plan.md` | erstellt (Cloud-Agent) |
-| 2026-04-29 | `06-acceptance.md` | erstellt (Cloud-Agent) |
+| 2026-04-29 | `00-audit.md` | erstellt (Cloud-Agent, Schritt 0) |
+| 2026-04-29 | `02-contracts.md` | erstellt (Cloud-Agent, Schritt 2) |
+| – | `03-tests.md` | nicht als eigene Datei — Test-Strategie in `00-audit.md` Sektion B + `AGENT-BRIEF.md` Schritt 3 |
+| 2026-04-29 | `04-altlast-pass.md` | erstellt (Cloud-Agent, Schritt 4a — kleine Altlasten + Sub-Wellen-Backlog) |
+| 2026-04-29 | `05-user-test-plan.md` | erstellt (Cloud-Agent, Schritt 5) — User fuehrt Phase C aus |
+| 2026-04-29 | `06-acceptance.md` | erstellt (Cloud-Agent, Schritt 7) — Sign-off offen |
 
 ## Scope (57 Files, **20.508 Zeilen verifiziert**)
 
