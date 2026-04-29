@@ -116,6 +116,43 @@ describe('OneDriveProvider error paths', () => {
     expect(unauthedProvider.isAuthenticated()).toBe(false)
   })
 
+  it('isAuthenticated() laedt OAuth-Session synchron aus localStorage (kein In-Memory-Token)', () => {
+    // Browser simulieren: tryHydrateTokensFromLocalStorage laeuft nur mit window + localStorage
+    const store: Record<string, string> = {}
+    const ls = {
+      getItem: (k: string) => store[k] ?? null,
+      setItem: (k: string, v: string) => {
+        store[k] = v
+      },
+      removeItem: (k: string) => {
+        delete store[k]
+      },
+      clear: () => {
+        for (const k of Object.keys(store)) delete store[k]
+      },
+      key: (i: number) => Object.keys(store)[i] ?? null,
+      get length() {
+        return Object.keys(store).length
+      },
+    } as Storage
+    vi.stubGlobal('localStorage', ls)
+    // Minimaler Browser-Stub: localStorage + globales fetch (loadOAuthDefaults im Konstruktor)
+    vi.stubGlobal('window', { ...globalThis, localStorage: ls } as unknown as Window)
+    const libId = 'lib-ls-hydrate-only'
+    ls.setItem(
+      `onedrive_tokens_${libId}`,
+      JSON.stringify({
+        accessToken: 'from-localstorage',
+        refreshToken: 'refresh-ls',
+        expiry: Date.now() + 3_600_000,
+      }),
+    )
+    const provider = new OneDriveProvider(makeLibrary({ id: libId, config: {} }))
+    expect(provider.isAuthenticated()).toBe(true)
+    vi.unstubAllGlobals()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
   it('listItemsById ohne Tokens wirft StorageError "AUTH_REQUIRED"', async () => {
     const provider = new OneDriveProvider(makeLibrary({ id: 'lib-unauth', config: {} }))
     fetchMock.mockResolvedValue(

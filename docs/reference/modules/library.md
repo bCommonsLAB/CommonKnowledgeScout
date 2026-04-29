@@ -22,6 +22,13 @@ The Library module manages library configuration, state, and UI components. Libr
 - **`src/components/library/library-header.tsx`**: Library header with switcher and actions
 - **`src/components/library/library-switcher.tsx`**: Library selection component
 - **`src/components/library/file-list.tsx`**: File list component with header actions and record-level operations
+- **`src/components/library/file-list/`**: Sub-Komponenten (Welle 3-I, Schritt 4b)
+  - `list-utils.ts`: Pure Helper (`getFileTypeFromName`, `formatFileSize`, `formatDate`) und Typen (`SortField`, `SortOrder`, `FileGroup`, `ListMeta`)
+  - `cover-thumbnail.tsx`: Listen-Cover-Thumbnail mit lazy Resolve via `resolve-binary-url`-Route
+  - `file-icon.tsx`: Memoized Icon-Komponente (Lucide-Icons nach Dateityp)
+  - `sortable-header-cell.tsx`: Sortier-Kopfzelle
+  - `file-row.tsx`: Listen-Zeile (Selection-Checkbox, Drag&Drop, Long-Press, Rename, Status-Icons)
+- **`src/components/library/tree-item.tsx`**: TreeItem-Komponente (aus `file-tree.tsx` ausgegliedert, Welle 3-I, Schritt 4a)
 
 ## Exports
 

@@ -1,0 +1,237 @@
+---
+description: Harte Invarianten fuer App-Schale + Library-Loader (Welle 3-I)
+globs: src/components/library/library*.tsx,src/components/library/file-list/**/*.tsx,src/components/library/file-list/**/*.ts,src/components/library/file-list.tsx,src/components/library/file-tree.tsx,src/components/library/upload-dialog.tsx,src/components/library/upload-area.tsx,src/components/library/create-library-dialog.tsx,src/app/library/**/*.tsx
+alwaysApply: false
+---
+
+# Contracts: Welle 3-I — App-Schale + Library-Loader
+
+Diese Rule kodifiziert die Invarianten fuer die App-Schale (`library.tsx`,
+`library-header.tsx`, `library-switcher.tsx`, `src/app/library/**`) und
+den Library-Loader (`file-list.tsx`, `file-tree.tsx`, `upload-dialog.tsx`,
+`upload-area.tsx`, `create-library-dialog.tsx`).
+
+Sie ergaenzt die globalen Architektur-Rules
+[`storage-abstraction.mdc`](mdc:.cursor/rules/storage-abstraction.mdc),
+[`no-silent-fallbacks.mdc`](mdc:.cursor/rules/no-silent-fallbacks.mdc),
+[`media-lifecycle.mdc`](mdc:.cursor/rules/media-lifecycle.mdc) um
+**konkrete Code-Invarianten** fuer die UI-Container-Schicht.
+
+## Quellen der Wahrheit (zuerst lesen)
+
+- App-Schale: `src/components/library/library.tsx`,
+  `src/components/library/library-header.tsx`,
+  `src/components/library/library-switcher.tsx`
+- Page-Routen: `src/app/library/page.tsx`,
+  `src/app/library/create/page.tsx`,
+  `src/app/library/gallery/page.tsx`
+- Library-Loader: `src/components/library/file-list.tsx` (bzw. nach
+  Schritt 4b: `src/components/library/file-list/`),
+  `src/components/library/file-tree.tsx`,
+  `src/components/library/upload-dialog.tsx`,
+  `src/components/library/upload-area.tsx`,
+  `src/components/library/create-library-dialog.tsx`
+- State: `src/atoms/library-atom.ts`, `src/atoms/transcription-options.ts`,
+  `src/atoms/shadow-twin-atom.ts`, `src/atoms/ui-prefs-atom.ts`
+- Hooks: `src/hooks/use-folder-navigation.ts`,
+  `src/hooks/use-shadow-twin-analysis.ts`
+- Service-Layer (NICHT direkt in UI importieren ausser wo zugelassen):
+  `src/contexts/storage-context.tsx`,
+  `src/lib/services/library-service.ts`,
+  `src/lib/storage/shadow-twin-folder-name.ts`
+
+## §1 Determinismus — UI-Container ohne Business-Logik
+
+- Die Komponenten dieser Welle sind **UI-Container**: sie rendern Daten,
+  delegieren Aktionen und orchestrieren Sub-Komponenten.
+- **Verboten** in Welle-3-I-Komponenten:
+  - Datenbank-Queries (gehoeren in `src/lib/services/library-service.ts`).
+  - Storage-Operationen ausser ueber `useStorage()` /
+    `useStorageProvider()` (gehoeren in `src/lib/storage/`).
+  - Frontmatter-Parsing oder -Schreiben (gehoert in
+    `src/lib/templates/` bzw. Server-API).
+- **Erlaubt** in Welle-3-I-Komponenten:
+  - Lesen aus Jotai-Atoms.
+  - Aufruf von Hooks aus `src/hooks/`.
+  - Aufruf von Helpers aus `src/lib/storage/` (z.B.
+    `shouldFilterShadowTwinFolders`, `isShadowTwinFolderName`,
+    `isImageMediaFromName`).
+  - Aufruf von HTTP-Endpoints unter `/api/library/...` ueber `fetch`
+    (z.B. `resolve-binary-url`).
+- Komponenten- und Render-Funktionen MUESSEN deterministisch sein
+  (selbe Props + selbe Atoms ⇒ selber Render-Output).
+
+## §2 Fehler-Semantik
+
+- **Kein leerer `catch {}`**: jeder Catch-Block in Welle-3-I-Komponenten
+  muss entweder
+  - explizit loggen (`StateLogger.warn`, `NavigationLogger.warn`,
+    `FileLogger.warn` aus `@/lib/debug/logger`) **mit Begruendung im
+    Kommentar**, oder
+  - werfen (`throw`) bzw. eine Toast-Meldung anzeigen
+    (`toast({ variant: 'destructive', ... })`).
+- Lade-Fehler in Library-Pfaden (Provider-Failures, AUTH_REQUIRED,
+  Rate-Limit) werden **explizit** in `library.tsx` behandelt — entweder
+  via `isStorageError(error)`-Branch oder via Toast.
+- Optional-Pfade duerfen still gefangen werden, **nur** mit Kommentar:
+  - Beispiel: Thumbnail-Auflösung in `file-list.tsx` darf still
+    fehlschlagen, weil das Layout nicht bricht und ein Platzhalter
+    gerendert wird. Der Catch-Block enthaelt einen Kommentar wie
+    `// Thumbnail optional - Fehler still ignorieren`.
+- `localStorage.setItem`-Aufrufe (z.B. `library-switcher.tsx:88`)
+  duerfen still fehlschlagen, **nur** mit Begruendungs-Kommentar
+  (z.B. Quota-Exceeded, Privacy-Mode).
+
+## §3 Erlaubte / verbotene Abhaengigkeiten
+
+`src/components/library/library*.tsx`,
+`src/components/library/file-list*`,
+`src/components/library/file-tree.tsx`,
+`src/components/library/upload-*.tsx`,
+`src/components/library/create-library-dialog.tsx`,
+`src/app/library/**/*.tsx`:
+
+- **DARF abhaengen von**:
+  - `@/atoms/**` (Jotai-State)
+  - `@/hooks/**` (React-Hooks)
+  - `@/contexts/storage-context` (Storage-Provider via Context)
+  - `@/lib/storage/types` (nur Typen, keine Provider-Implementierungen)
+  - `@/lib/storage/shadow-twin-folder-name` (Helper, kein Branch)
+  - `@/lib/storage/shadow-twin` (Helper)
+  - `@/lib/storage/library-capability` (kuenftiger Helper, falls
+    eingefuehrt — analog `storage-contracts.mdc` §5)
+  - `@/lib/services/library-service` ausschliesslich aus
+    `src/app/library/**` (Page-Routen)
+  - `@/lib/debug/logger`
+  - `@/lib/utils`, `@/lib/media-types`, `@/lib/storage/client-paths`
+  - `@/components/ui/**` (shadcn/ui)
+  - `@/components/library/**` (untereinander erlaubt)
+  - Externe Pakete: `react`, `next`, `jotai`, `@clerk/nextjs`,
+    `lucide-react`, `sonner`, etc.
+- **DARF NICHT abhaengen von**:
+  - `@/lib/storage/filesystem-provider`,
+    `@/lib/storage/onedrive-provider`,
+    `@/lib/storage/nextcloud-provider`,
+    `@/lib/storage/onedrive/**` (Provider-Internals — verbotene
+    direkte Backend-Imports gemaess `storage-abstraction.mdc`).
+  - `@/lib/external-jobs/**` (Pipeline-Internals, gehoert via API).
+  - `@/lib/shadow-twin/store/**` (Server-Side-Store).
+  - `mongodb`, `node:fs`, `node:path` (Server-Only).
+
+## §4 Skip- / Default-Semantik
+
+- **Was zeigt die Schale, wenn die aktive Library nicht geladen werden
+  kann?**
+  - `libraryStatus === 'waitingForAuth'` → Hinweis-Komponente in
+    `library.tsx` (nicht stiller leerer State).
+  - `libraryStatus !== 'ready'` → "Lade Storage..."-Indikator.
+  - `libraries.length === 0` → freundliche "Keine Bibliotheken
+    vorhanden"-Card mit "Erste Bibliothek erstellen"-Button
+    (`src/app/library/page.tsx`).
+  - Provider-Fehler → Toast-Meldung mit Klartext-Beschreibung.
+  - **Verboten**: stiller leerer State (`return null` ohne Indikator).
+- **Was zeigt die Liste, wenn der aktuelle Folder leer ist?**
+  - Empty-State-Hinweis ("Keine Dateien im Ordner").
+  - **Verboten**: leerer Render ohne sichtbares Feedback.
+- **Was passiert bei Library-Wechsel?**
+  - Cache-Reset, Folder auf `'root'`, Selection geloescht
+    (`library-switcher.tsx:97-103`, `library.tsx:482-499`). Reihenfolge
+    ist Teil des Vertrags (Cache zuerst, dann Atoms).
+
+## §5 Storage-Branches im UI verboten — Helper sind erlaubt
+
+Konform mit
+[`storage-abstraction.mdc`](mdc:.cursor/rules/storage-abstraction.mdc) §3:
+
+- **Verboten** in Welle-3-I-Komponenten:
+  - `if (library.type === 'local') ...`
+  - `if (activeLibrary?.config?.shadowTwin?.primaryStore === 'mongo') ...`
+  - `if (storage instanceof FilesystemProvider) ...`
+- **Erlaubt** (Helper-Aufrufe statt Branches):
+  - `shouldFilterShadowTwinFolders(activeLibrary?.config?.shadowTwin)`
+    aus `@/lib/storage/shadow-twin-folder-name` — gibt `boolean`
+    zurueck und kapselt die Storage-Detail-Entscheidung.
+  - Kuenftige Helper wie `isFilesystemBacked(library)` aus
+    `@/lib/storage/library-capability` (siehe `storage-contracts.mdc` §5).
+- **Ausnahme**: Settings-Formulare (`src/components/settings/**`) —
+  dort sind `library.type`-Branches dokumentiert erlaubt, weil sie die
+  richtigen Eingabefelder waehlen. **Nicht relevant** fuer Welle 3-I.
+
+Verifikation:
+```bash
+rg "library\.type\s*===|primaryStore\s*===|library\.config\.shadowTwin\?" \
+  src/components/library/library*.tsx \
+  src/components/library/file-list.tsx \
+  src/components/library/file-list/ \
+  src/components/library/file-tree.tsx \
+  src/components/library/upload-dialog.tsx \
+  src/components/library/upload-area.tsx \
+  src/components/library/create-library-dialog.tsx \
+  src/app/library/
+```
+
+Ergebnis muss leer sein **oder** auf einen Helper-Aufruf zeigen
+(z.B. die `shouldFilterShadowTwinFolders`-Konstruktion in
+`file-list.tsx:902-904`).
+
+## §6 Modul-Split-Vertrag (`file-list.tsx`)
+
+Mit dem Split von `file-list.tsx` (2.217 Zeilen, 89 Hooks) in Welle 3-I,
+Schritt 4b gilt:
+
+- Verzeichnis: `src/components/library/file-list/`
+- Erwartete Sub-Module (Cloud-Agent verfeinert beim Split):
+  - `index.tsx` — Composer / Fassade, exportiert `FileList`. Bleibt
+    der einzige Import-Pfad fuer Konsumenten (`library.tsx`).
+  - `list-render.tsx` bzw. `list-row.tsx` — Render der Liste, Tabelle/Grid.
+  - `list-filter.tsx` bzw. `hooks/use-file-list-filter.ts` —
+    Filter/Search-UI + URL-Sync.
+  - `hooks/use-file-list-selection.ts` — Bulk-Selection-State.
+  - `list-bulk-actions.tsx` — Action-Bar fuer Bulk-Operationen.
+  - `hooks/use-file-list-data.ts` — Daten-Hook (Atoms +
+    Shadow-Twin-Analyse).
+  - `list-meta-resolver.tsx` — Cover/Title/Number aus Frontmatter
+    (Mongo-Pfad).
+- Keine zirkulaeren Imports zwischen Sub-Modulen. Hierarchie:
+  `index.tsx` → konkrete Sub-Module → Hooks → Helpers.
+- **Vertrag der Fassade `index.tsx`**: exportiert `FileList`-Komponente
+  mit identischer Props-Signatur (`{ compact?: boolean }`), damit
+  bestehende Aufrufer (`library.tsx`) ohne Anpassung weiterlaufen.
+- Maximalgroesse pro Sub-Datei: < 250 Zeilen. < 200 ist Ziel,
+  jede Ueberschreitung ist im Code-Kommentar zu begruenden.
+
+## §7 `'use client'`-Direktiven — minimieren, nicht maximieren
+
+Konform mit Plan-Sektion 8 (UX-Welle Regel 8):
+
+- Page-Komponenten unter `src/app/library/**/page.tsx` sollen
+  Server-Komponenten sein, **es sei denn** sie nutzen client-only-APIs
+  (`useState`, `useEffect`, `useSearchParams`, `useRouter`,
+  Browser-APIs).
+- Wenn eine Page-Komponente `'use client'` braucht, sollte die
+  client-spezifische Logik in eine **separate Sub-Komponente**
+  (`*-client.tsx`) ausgelagert werden, sodass die Page selbst
+  Server-Komponente bleibt.
+  - Beispiel: `src/app/library/gallery/page.tsx` ist Server-Komponente
+    und bindet `page-client.tsx` (`'use client'`) ein.
+- Welle-3-I-Komponenten unter `src/components/library/` duerfen
+  `'use client'` deklarieren — sie sind reine Client-Container.
+
+## §8 Code-Review-Checkliste
+
+Wenn du Welle-3-I-Code anfasst:
+
+- [ ] Hat die geaenderte Datei < 250 Zeilen (besser < 200)?
+- [ ] Enthaelt der Diff einen leeren `catch {}` ohne
+      Begruendungs-Kommentar?
+- [ ] Importiert die Datei einen Provider direkt
+      (`filesystem-provider`, `onedrive-provider`,
+      `nextcloud-provider`)? → REFACTOREN!
+- [ ] Enthaelt der Diff eine `library.type === '...'`-Verzweigung?
+      → Helper benutzen!
+- [ ] Wird ein leerer State (Empty-Array, `null`) ohne sichtbaren
+      Indikator gerendert?
+- [ ] Bleibt `FileList` als Composer-Fassade unter `file-list/index.tsx`
+      auch nach Modul-Split exportiert?
+- [ ] Sind neu hinzugefuegte Page-Komponenten Server-Komponenten,
+      wo immer moeglich?

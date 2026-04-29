@@ -1,9 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { ChevronDown, ChevronRight } from "lucide-react"
-import { StorageItem } from '@/lib/storage/types';
-import { cn } from "@/lib/utils"
 import { useAtom } from 'jotai';
 import { useAtomValue } from 'jotai';
 import { 
@@ -19,166 +16,17 @@ import {
 import { useStorage } from '@/contexts/storage-context';
 import { FileLogger, UILogger } from "@/lib/debug/logger"
 import { useCallback, useImperativeHandle, forwardRef, useEffect } from 'react';
-import { useFolderNavigation } from '@/hooks/use-folder-navigation';
 import { toast } from "sonner";
-import { isShadowTwinFolderName } from '@/lib/storage/shadow-twin';
 import { shouldFilterShadowTwinFolders } from '@/lib/storage/shadow-twin-folder-name';
 import { activeLibraryAtom } from '@/atoms/library-atom';
+import { isShadowTwinFolderName } from '@/lib/storage/shadow-twin';
+// TreeItem-Render-Logik liegt in eigener Datei (Welle 3-I, Schritt 4a-Split):
+import { TreeItem } from './tree-item';
 
 // Ref-Interface für externe Steuerung
 export interface FileTreeRef {
   refresh: () => Promise<void>;
   expandToItem: (itemId: string) => Promise<void>;
-}
-
-// Props für einzelne Tree-Items
-interface TreeItemProps {
-  item: StorageItem;
-  level: number;
-  onMoveItem?: (itemId: string, targetFolderId: string) => Promise<void>;
-  currentFolderId?: string;
-  hideShadowTwinFolders: boolean;
-}
-
-// TreeItem Komponente
-function TreeItem({
-  item,
-  level,
-  onMoveItem,
-  currentFolderId,
-  hideShadowTwinFolders
-}: TreeItemProps) {
-  const [expandedFolders, setExpandedFolders] = useAtom(expandedFoldersAtom);
-  const [selectedFile, setSelectedFile] = useAtom(selectedFileAtom);
-  const [loadedChildren, setLoadedChildren] = useAtom(loadedChildrenAtom);
-  const libraryState = useAtomValue(libraryAtom);
-  const { provider, listItems } = useStorage();
-  const navigateToFolder = useFolderNavigation();
-  const itemRef = React.useRef<HTMLDivElement>(null);
-
-  // Ordner erweitern
-  const handleExpand = useCallback(async (folderId: string) => {
-    if (!provider) return;
-    
-    try {
-      // Ordnerinhalt laden, wenn noch nicht geladen
-      if (!loadedChildren[folderId]) {
-        // PERFORMANCE-OPTIMIERUNG: Verwende Cache statt API-Call wenn möglich
-        const cachedFolder = libraryState.folderCache?.[folderId];
-        if (cachedFolder && cachedFolder.children) {
-          // Verwende Cache-Inhalt
-          setLoadedChildren(prev => ({
-            ...prev,
-            [folderId]: cachedFolder.children || []
-          }));
-          UILogger.debug('FileTree', 'Ordner für Expand aus Cache geladen', {
-            folderId,
-            itemCount: cachedFolder.children.length
-          });
-        } else {
-          // PERFORMANCE-OPTIMIERUNG: Verwende listItems für Deduplizierung
-          const items = await listItems(folderId);
-          setLoadedChildren(prev => ({
-            ...prev,
-            [folderId]: items
-          }));
-        }
-      }
-
-      // Ordner als erweitert markieren
-      setExpandedFolders(prev => {
-        const newSet = new Set(prev);
-        if (newSet.has(folderId)) {
-          newSet.delete(folderId);
-        } else {
-          newSet.add(folderId);
-        }
-        return newSet;
-      });
-    } catch (error) {
-      FileLogger.error('FileTree', 'Fehler beim Laden des Ordnerinhalts', error);
-    }
-  }, [provider, loadedChildren, libraryState.folderCache, listItems, setLoadedChildren, setExpandedFolders]);
-
-  // Element auswählen
-  const handleSelect = useCallback((item: StorageItem) => {
-    setSelectedFile(item);
-    if (item.type === 'folder') {
-      navigateToFolder(item.id);
-    }
-  }, [setSelectedFile, navigateToFolder]);
-
-  const isExpanded = expandedFolders.has(item.id);
-  const isSelected = selectedFile?.id === item.id;
-  const isCurrentFolder = currentFolderId === item.id;
-  const children = (loadedChildren[item.id] || []).filter(child => {
-    if (child.type !== 'folder') return false;
-    const name = child.metadata?.name || '';
-    return !hideShadowTwinFolders || !isShadowTwinFolderName(name);
-  });
-
-  // Scroll zum aktuellen Ordner, wenn er dieser Item ist
-  React.useEffect(() => {
-    if (isCurrentFolder && itemRef.current) {
-      // Warte kurz, damit der Tree gerendert ist
-      setTimeout(() => {
-        try {
-          itemRef.current?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'nearest',
-            inline: 'nearest'
-          });
-        } catch (error) {
-          // Ignoriere Scroll-Fehler
-          console.debug('[FileTree] Scroll-Fehler ignoriert:', error);
-        }
-      }, 100);
-    }
-  }, [isCurrentFolder]);
-
-  return (
-    <div 
-      ref={itemRef}
-      data-folder-id={item.id}
-      className={cn(
-        "px-2 py-1 cursor-pointer hover:bg-accent rounded-md transition-colors",
-        isSelected && "bg-accent",
-        isCurrentFolder && "bg-primary/20"
-      )}
-    >
-      <div 
-        className="flex items-center gap-2"
-        onClick={() => handleSelect(item)}
-      >
-        {/* Chevron-Button für Expand/Collapse */}
-        <button
-          className="p-0 mr-1 focus:outline-none"
-          tabIndex={-1}
-          aria-label={isExpanded ? "Zuklappen" : "Aufklappen"}
-          onClick={e => {
-            e.stopPropagation();
-            handleExpand(item.id);
-          }}
-        >
-          {isExpanded
-            ? <ChevronDown className="h-4 w-4" />
-            : <ChevronRight className="h-4 w-4" />}
-        </button>
-        {/* Nur Ordnername anzeigen */}
-        <span>{item.metadata.name}</span>
-      </div>
-      {isExpanded && children.map(child => (
-        <TreeItem
-          key={child.id}
-          item={child}
-          level={level + 1}
-          onMoveItem={onMoveItem}
-          currentFolderId={currentFolderId}
-          hideShadowTwinFolders={hideShadowTwinFolders}
-        />
-      ))}
-    </div>
-  );
 }
 
 // FileTree Hauptkomponente

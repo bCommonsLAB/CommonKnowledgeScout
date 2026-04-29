@@ -33,12 +33,18 @@ function LibraryUrlHandler() {
       
       // Auth-Status aktualisieren für die neue Library
       refreshAuthStatus();
-      // Entferne nur activeLibraryId aus der URL, folderId beibehalten
+      // Entferne nur activeLibraryId aus der URL, folderId beibehalten.
+      // Wenn die URL-Manipulation fehlschlaegt (z.B. wegen ungueltiger Suchparameter),
+      // bleibt die alte URL aktiv — der Library-State wurde oben schon korrekt gesetzt,
+      // also ist das funktional unkritisch. Wir loggen aber, damit es nicht stille
+      // Drift wird (siehe .cursor/rules/no-silent-fallbacks.mdc).
       try {
         const params = new URLSearchParams(searchParams ?? undefined);
         params.delete('activeLibraryId');
         router.replace(params.size ? `/library?${params.toString()}` : '/library');
-      } catch {}
+      } catch (error) {
+        console.warn('[LibraryPage] URL-Bereinigung fehlgeschlagen:', error instanceof Error ? error.message : error);
+      }
     }
 
     // Optional: Wenn nur folderId vorhanden ist, nichts tun – die Synchronisation erfolgt über navigateToFolder
