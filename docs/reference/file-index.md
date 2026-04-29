@@ -47,6 +47,11 @@ Complete index of all documented source files with descriptions, exports, and us
 | `src/components/library/file-list/sortable-header-cell.tsx` | library | Sortier-Kopfzelle der Liste | `SortableHeaderCell` | `file-list.tsx` |
 | `src/components/library/file-list/file-row.tsx` | library | Listen-Zeile (Selection, Drag&Drop, Long-Press, Rename, Status-Icons) | `FileRow` | `file-list.tsx` |
 | `src/components/library/tree-item.tsx` | library | TreeItem-Komponente (aus `file-tree.tsx` ausgegliedert, Welle 3-I Schritt 4a) | `TreeItem` | `file-tree.tsx` |
+| `src/components/library/file-preview.tsx` | library | Detail-Ansicht einer Library-Datei (Tabs: Source, Transcript, Transformation, Story, Media). **Welle 3-II-a (Folge): Modul-Split nach View-Typ.** | `FilePreview` | `library.tsx` |
+| `src/components/library/markdown-preview.tsx` | library | Markdown-Renderer mit TOC, Suche, Highlighting. **Welle 3-II-b (Folge): Modul-Split.** | `MarkdownPreview` | `*-detail.tsx`-Familie |
+| `src/components/library/job-report-tab.tsx` | library | Transformation-Tab mit Pflichtfeld-Validierung pro DetailViewType. **Welle 3-II-c (Folge): Modul-Split.** | `JobReportTab` | `file-preview.tsx` |
+| `src/components/library/media-tab.tsx` | library | Medien-Tab mit Upload-Area + Cover-Auswahl. **Welle 3-II-c (Folge): Modul-Split.** | `MediaTab` | `file-preview.tsx` |
+| `src/components/library/detail-view-renderer.tsx` | library | Switch-Renderer fuer DetailViewType (book/session/testimonial/climateAction/divaDocument/divaTexture). Char-Test-gesichert (Welle 3-II Schritt 3). | `DetailViewRenderer` | `file-preview.tsx`, `creation-wizard` |
 
 ## Chat System ✅
 

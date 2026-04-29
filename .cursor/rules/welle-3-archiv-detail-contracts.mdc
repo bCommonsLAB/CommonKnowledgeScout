@@ -1,0 +1,263 @@
+---
+description: Harte Invarianten fuer Archiv-Detail (Welle 3-II)
+globs: src/components/library/file-preview.tsx,src/components/library/file-preview/**/*.tsx,src/components/library/file-preview/**/*.ts,src/components/library/markdown-preview.tsx,src/components/library/markdown-preview/**/*.tsx,src/components/library/markdown-preview/**/*.ts,src/components/library/job-report-tab.tsx,src/components/library/job-report-tab/**/*.tsx,src/components/library/job-report-tab/**/*.ts,src/components/library/media-tab.tsx,src/components/library/media-tab/**/*.tsx,src/components/library/media-tab/**/*.ts,src/components/library/*-detail.tsx,src/components/library/audio-*.tsx,src/components/library/video-*.tsx,src/components/library/image-*.tsx,src/components/library/pdf-*.tsx,src/components/library/text-editor.tsx,src/components/library/markdown-*.tsx,src/components/library/chapter-accordion.tsx,src/components/library/slide-accordion.tsx,src/components/library/event-details-accordion.tsx,src/components/library/transform-*.tsx,src/components/library/document-preview.tsx,src/components/library/cover-image-generator-dialog.tsx,src/components/library/ingestion-status.tsx,src/components/library/phase-stepper.tsx,src/components/library/detail-view-renderer.tsx,src/components/library/flow/**/*.tsx,src/components/library/shared/**/*.tsx,src/components/library/shared/**/*.ts
+alwaysApply: false
+---
+
+# Contracts: Welle 3-II — Archiv-Detail
+
+Diese Rule kodifiziert die Invarianten fuer den Archiv-Detail-Bereich:
+`file-preview.tsx`, `markdown-preview.tsx`, `job-report-tab.tsx`,
+`media-tab.tsx`, `*-detail.tsx`-Familie, Media-Renderer (audio/video/image/pdf),
+Markdown-Sub-Komponenten, `flow/*` und `shared/*` (ohne `perspective-*`).
+
+Sie ergaenzt:
+- [`storage-abstraction.mdc`](mdc:.cursor/rules/storage-abstraction.mdc)
+- [`no-silent-fallbacks.mdc`](mdc:.cursor/rules/no-silent-fallbacks.mdc)
+- [`media-lifecycle.mdc`](mdc:.cursor/rules/media-lifecycle.mdc)
+- [`detail-view-type-checklist.mdc`](mdc:.cursor/rules/detail-view-type-checklist.mdc)
+- [`shadow-twin-architecture.mdc`](mdc:.cursor/rules/shadow-twin-architecture.mdc)
+- [`welle-3-schale-loader-contracts.mdc`](mdc:.cursor/rules/welle-3-schale-loader-contracts.mdc) (Welle 3-I)
+
+## Quellen der Wahrheit (zuerst lesen)
+
+- Hauptkomponenten: `src/components/library/file-preview.tsx`,
+  `markdown-preview.tsx`, `job-report-tab.tsx`, `media-tab.tsx`,
+  `detail-view-renderer.tsx`
+- Detail-Komponenten: `src/components/library/{name}-detail.tsx` (book,
+  testimonial, climate-action, diva-document, diva-texture, session) und
+  `src/components/library/ingestion-{name}-detail.tsx`
+- Media-Renderer: `audio-player.tsx`, `audio-transform.tsx`, `video-player.tsx`,
+  `video-transform.tsx`, `image-preview.tsx`, `image-transform.tsx`,
+  `pdf-canvas-viewer.tsx`, `pdf-phases-view.tsx`, `pdf-phase-settings.tsx`,
+  `pdf-transform.tsx`
+- Detail-Tab-Helper: `cover-image-generator-dialog.tsx`,
+  `transform-result-handler.tsx`, `transform-save-options.tsx`,
+  `event-details-accordion.tsx`, `phase-stepper.tsx`,
+  `ingestion-status.tsx`
+- Markdown-Sub-Komponenten: `markdown-metadata.tsx`, `markdown-audio.tsx`,
+  `chapter-accordion.tsx`, `slide-accordion.tsx`, `text-editor.tsx`
+- Flow: `flow/artifact-tabs.tsx`, `flow/pipeline-sheet.tsx`,
+  `flow/source-renderer.tsx`
+- Shared: `shared/artifact-info-panel.tsx`,
+  `shared/artifact-markdown-panel.tsx`, `shared/artifact-edit-dialog.tsx`,
+  `shared/freshness-comparison-panel.tsx`,
+  `shared/ingestion-data-context.tsx`, `shared/ingestion-detail-panel.tsx`,
+  `shared/ingestion-status-compact.tsx`,
+  `shared/shadow-twin-artifacts-table.tsx`,
+  `shared/shadow-twin-sync-banner.tsx`,
+  `shared/source-and-transcript-pane.tsx`, `shared/story-status-icons.tsx`,
+  `shared/story-view.tsx`, `shared/use-ingestion-data.ts`,
+  `shared/use-resolved-transcript-item.ts`, `shared/use-story-status.ts`
+- Helper: `src/lib/storage/library-capability.ts` (aus Welle 1),
+  `src/lib/detail-view-types/registry.ts` (aus DetailViewType-Architektur)
+
+## §1 Determinismus — Detail-Komponenten sind Renderer
+
+- Detail-View-Komponenten sind **UI-Renderer**: sie nehmen Props/Atom-State
+  entgegen, rendern, und delegieren Aktionen.
+- **Verboten** in Welle-3-II-Komponenten:
+  - Frontmatter-Schreib-Logik (gehoert in `src/lib/templates/` bzw.
+    Server-API).
+  - Datenbank-Queries (gehoeren in `src/lib/services/`).
+  - Storage-Operationen ausser ueber `useStorage()` /
+    `useStorageProvider()` (gehoeren in `src/lib/storage/`).
+  - Pipeline-Trigger ausser ueber HTTP-API (gehoert in
+    `/api/pipeline/process` etc.).
+- **Erlaubt**:
+  - Lesen aus Jotai-Atoms.
+  - Aufruf von Hooks aus `src/hooks/`.
+  - Aufruf von Helpers aus `src/lib/storage/`,
+    `src/lib/detail-view-types/`, `src/lib/templates/`.
+  - HTTP-Endpoints unter `/api/library/...`, `/api/pipeline/...`.
+
+## §2 Fehler-Semantik
+
+- **Kein leerer `catch {}`**. Konform zu
+  [`no-silent-fallbacks.mdc`](mdc:.cursor/rules/no-silent-fallbacks.mdc):
+  jeder Catch in Welle-3-II-Komponenten muss entweder:
+  - explizit loggen (`StateLogger.warn`, `FileLogger.warn`,
+    `UILogger.warn`) **mit Begruendungs-Kommentar**, oder
+  - werfen (`throw`) bzw. eine Toast-Meldung anzeigen
+    (`toast.error(...)` oder `toast({ variant: 'destructive', ... })`).
+- Render-Fehler in Detail-Komponenten werden via React-Error-Boundary
+  (in `library.tsx` vorhanden) gefangen oder via `try/catch` mit
+  `<Alert variant="destructive">`-Render gefangen.
+- Optional-Pfade duerfen still gefangen werden, **nur** mit
+  Begruendungs-Kommentar (z.B. `scrollIntoView` in alten Browsern).
+
+## §3 Erlaubte / verbotene Abhaengigkeiten
+
+`src/components/library/file-preview*.tsx`,
+`src/components/library/markdown-preview*.tsx`,
+`src/components/library/job-report-tab*.tsx`,
+`src/components/library/media-tab*.tsx`,
+`src/components/library/*-detail.tsx`,
+`src/components/library/audio-*.tsx`,
+`src/components/library/video-*.tsx`,
+`src/components/library/image-*.tsx`,
+`src/components/library/pdf-*.tsx`,
+`src/components/library/markdown-*.tsx`,
+`src/components/library/{chapter,slide,event-details}-accordion.tsx`,
+`src/components/library/{text-editor,document-preview,transform-*,cover-image-generator-dialog,ingestion-status,phase-stepper,detail-view-renderer}.tsx`,
+`src/components/library/flow/**`,
+`src/components/library/shared/**`:
+
+- **DARF abhaengen von**:
+  - `@/atoms/**` (Jotai-State)
+  - `@/hooks/**` (React-Hooks)
+  - `@/contexts/storage-context` (Storage-Provider via Context)
+  - `@/lib/storage/types` (nur Typen)
+  - `@/lib/storage/library-capability` (Helper, kein Branch — siehe §7)
+  - `@/lib/detail-view-types/**` (Registry, Validation, Index)
+  - `@/lib/templates/**` (DetailViewType-Typen, Mapper)
+  - `@/lib/mappers/doc-meta-mappers` (Mongo-Doc → DetailData)
+  - `@/lib/debug/logger`
+  - `@/lib/utils`, `@/lib/media-types`, `@/lib/storage/client-paths`
+  - `@/components/ui/**` (shadcn/ui)
+  - `@/components/library/**` (untereinander erlaubt)
+  - Externe Pakete: `react`, `next`, `jotai`, `lucide-react`, `sonner`,
+    `react-markdown`, `react-syntax-highlighter`, `pdfjs-dist`, etc.
+- **DARF NICHT abhaengen von**:
+  - `@/lib/storage/filesystem-provider`,
+    `@/lib/storage/onedrive-provider`, `@/lib/storage/nextcloud-provider`,
+    `@/lib/storage/onedrive/**` (Provider-Internals).
+  - `@/lib/external-jobs/**` (Pipeline-Internals, nur via API).
+  - `@/lib/shadow-twin/store/**` (Server-Side-Store).
+  - `mongodb`, `node:fs`, `node:path` (Server-Only).
+
+## §4 Skip- / Default-Semantik
+
+- Wenn eine Quelldatei kein passender Detail-View-Typ vorhanden ist:
+  Fallback auf `book` per Default-Logik (`detail-view-type-utils.ts`,
+  konform zu [`detail-view-type-checklist.mdc`](mdc:.cursor/rules/detail-view-type-checklist.mdc)).
+- Wenn Pflichtfelder eines `detailViewType` fehlen:
+  `<Alert>`-Warning **vor** dem Detail-Content rendern (siehe
+  Architektur-Diagramm in
+  [`detail-view-type-checklist.mdc`](mdc:.cursor/rules/detail-view-type-checklist.mdc)).
+- Wenn ein Tab keine Daten hat (z.B. Story-Tab, Transcript-Tab):
+  freundlicher Empty-State (`<div>Noch keine ...</div>`).
+- **Verboten**: stiller leerer State (`return null` ohne Indikator) ausser
+  als bewusstes Tab-Switch-Default (mit Begruendungs-Kommentar).
+
+## §5 DetailViewType-Erweiterung
+
+Strikte Einhaltung der Checkliste in
+[`detail-view-type-checklist.mdc`](mdc:.cursor/rules/detail-view-type-checklist.mdc).
+Zusaetzlich fuer Welle 3-II:
+
+- **`detail-view-renderer.tsx` ist der zentrale Switch**. Char-Test
+  `tests/unit/components/library/detail-view-renderer.test.tsx` muss
+  jeden View-Typ-Branch fixieren.
+- **`job-report-tab.tsx` ist Punkt 9 der Checkliste**. Wenn 3-II-c den
+  Modul-Split macht, muss der `job-report-tab/index.tsx`-Pfad stabil
+  bleiben (keine Umbenennung), sonst bricht die Checkliste.
+- **`detailViewType`-Wert kommt deterministisch** aus Frontmatter oder
+  Library-Config — niemals "geraten" oder "best-fit".
+
+## §6 Modul-Split-Vertrag (Vorbereitung fuer Sub-Wellen)
+
+Sub-Wellen 3-II-a/b/c/d splitten die 4 grossen Files. Der Vertrag fuer
+alle 4 Sub-Wellen:
+
+- **Composer-Fassade bleibt**: `index.tsx` exportiert die alte
+  Komponente unter dem alten Namen, sodass Konsumenten unangetastet
+  bleiben (`file-preview.tsx`, `markdown-preview.tsx`, `job-report-tab.tsx`,
+  `media-tab.tsx`).
+- **Hierarchie**: `index.tsx` → konkrete Sub-Module → Hooks → Helper.
+  Keine zirkulaeren Imports.
+- **Maximalgroesse pro Sub-Datei**: < 350 Zeilen. Ueberschreitungen mit
+  Begruendungs-Kommentar.
+- **Char-Tests vor Split**: jede Sub-Welle hat ihr eigenes Char-Test-Set,
+  das den Vertrag der Composer-Fassade fixiert (mind. Render-Smoke pro
+  View-Typ bzw. pro Tab).
+
+### §6a Verzeichnisstruktur
+
+| Hauptkomponente | Sub-Verzeichnis | Wichtigste Sub-Module |
+|---|---|---|
+| `file-preview.tsx` | `file-preview/` | `index.tsx`, `extension-map.ts`, `preview-reducer.ts`, `views/{audio,image,video,markdown,pdf,office,presentation,website}-view.tsx`, `hooks/use-preview-data.ts`, `hooks/use-preview-tabs.ts` |
+| `markdown-preview.tsx` | `markdown-preview/` | `index.tsx`, `toc-builder.tsx`, `search-overlay.tsx`, `chapter-renderer.tsx`, `slide-renderer.tsx`, `hooks/use-markdown-search.ts`, `hooks/use-markdown-toc.ts` |
+| `job-report-tab.tsx` | `job-report-tab/` | `index.tsx`, `teaser-card.tsx`, `field-mapper.tsx`, `job-status-bar.tsx`, `hooks/use-job-report.ts` |
+| `media-tab.tsx` | `media-tab/` | `index.tsx`, `media-grid.tsx`, `media-row.tsx`, `upload-area.tsx`, `hooks/use-media-data.ts` |
+
+## §7 Storage-Branches verboten — Helper sind erlaubt
+
+Konform mit
+[`storage-abstraction.mdc`](mdc:.cursor/rules/storage-abstraction.mdc) §3.
+**Aktuell 1 Verstoss** (vor diesem Refactor) in
+`shared/freshness-comparison-panel.tsx:145`:
+
+```typescript
+// VERBOTEN
+const hasStorageColumn = data.config.primaryStore === "filesystem"
+  || data.config.persistToFilesystem
+```
+
+**Zwei zulaessige Loesungen**:
+
+a) **API-Response-Flag** (bevorzugt fuer Diagnose-Panels):
+   - Server-API liefert ein vorberechnetes `hasStorageColumn`-Flag in
+     der Response.
+b) **Helper-Aufruf** (wenn Helper aus Welle 1 verfuegbar ist):
+   - `import { isFilesystemBacked } from '@/lib/storage/library-capability'`
+   - `const hasStorageColumn = isFilesystemBacked({ type, config: { shadowTwin: data.config } })`
+
+In dieser PR (Vorbereitung) wird Loesung (b) implementiert, weil der
+Helper bereits existiert.
+
+Verifikation:
+
+```bash
+rg "primaryStore\s*===|library\.type\s*===" \
+  src/components/library/file-preview*.tsx \
+  src/components/library/markdown-preview*.tsx \
+  src/components/library/job-report-tab*.tsx \
+  src/components/library/media-tab*.tsx \
+  src/components/library/*-detail.tsx \
+  src/components/library/{audio,video,image,pdf}-*.tsx \
+  src/components/library/markdown-*.tsx \
+  src/components/library/flow/ \
+  src/components/library/shared/
+```
+
+Ergebnis muss leer sein **oder** auf einen Helper-Aufruf zeigen.
+
+## §8 `'use client'`-Direktiven minimieren
+
+Konform mit Plan-Sektion 8 (UX-Welle Regel 8). 54 von 57 Welle-3-II-Files
+haben `'use client'`. Ausnahmen:
+
+- `markdown-metadata.tsx` (kein Hook-Use im File selbst)
+- `shared/shadow-twin-artifacts-table.tsx` (kein Hook-Use)
+- `markdown-preview.tsx` (Pre-Existing-Issue: nutzt `useState`, hat aber
+  keine Direktive — funktioniert via Eltern-Komponente)
+
+Welle-3-II-Komponenten unter `src/components/library/` duerfen
+`'use client'` deklarieren — sie sind reine Client-Container. Bei
+neuen Sub-Komponenten in `file-preview/`, `markdown-preview/` etc.:
+KEINE `'use client'`-Direktive setzen, wenn sie ueber den
+Composer-Index importiert werden. Falls Sub-Komponente neue
+Client-API verwendet (Browser-API, eigene `useState`), Direktive
+explizit setzen.
+
+## §9 Code-Review-Checkliste
+
+Wenn du Welle-3-II-Code anfasst:
+
+- [ ] Hat die geaenderte Datei < 350 Zeilen (besser < 250)?
+- [ ] Enthaelt der Diff einen leeren `catch {}`?
+- [ ] Importiert die Datei einen Provider direkt
+      (`filesystem-provider`, `onedrive-provider`,
+      `nextcloud-provider`)? → REFACTOREN!
+- [ ] Enthaelt der Diff eine `library.type === '...'`- oder
+      `primaryStore === '...'`-Verzweigung? → Helper benutzen
+      (siehe §7)!
+- [ ] Wird ein leerer State (`null`) ohne sichtbaren Indikator
+      gerendert?
+- [ ] Bleibt die Composer-Fassade nach Modul-Split exportiert?
+- [ ] Ist ein neuer DetailViewType vollstaendig nach
+      [`detail-view-type-checklist.mdc`](mdc:.cursor/rules/detail-view-type-checklist.mdc)
+      registriert?
+- [ ] Sind neu hinzugefuegte Sub-Komponenten in einem `index.ts`
+      re-exportiert oder direkt importierbar?

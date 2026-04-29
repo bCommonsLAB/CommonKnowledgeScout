@@ -118,7 +118,10 @@ export function AudioTransform({
       const jobId = typeof (json as { job?: { id?: unknown } }).job?.id === 'string' ? (json as { job: { id: string } }).job.id : ''
       if (!jobId) throw new Error('Job-ID fehlt in Response')
 
-      // Sofortiges lokales Event (Fallback), damit UI Panels den Job sehen, bevor SSE connected ist
+      // Sofortiges lokales Event (Fallback), damit UI Panels den Job sehen, bevor SSE connected ist.
+      // CustomEvent-Constructor kann in alten Browsern werfen (IE) — dann
+      // springt SSE nach wenigen Sekunden ein. Wir loggen, damit der
+      // Fehler nicht still verschwindet (.cursor/rules/no-silent-fallbacks.mdc).
       try {
         window.dispatchEvent(new CustomEvent('job_update_local', {
           detail: {
@@ -133,7 +136,11 @@ export function AudioTransform({
             libraryId: activeLibrary.id,
           }
         }))
-      } catch {}
+      } catch (eventError) {
+        FileLogger.warn('AudioTransform', 'job_update_local-Event konnte nicht gefeuert werden', {
+          error: eventError instanceof Error ? eventError.message : String(eventError),
+        })
+      }
 
       FileLogger.info('AudioTransform', 'Job enqueued (Audio)', { jobId })
       toast.success('Job gestartet', { description: 'Transkription läuft im Hintergrund. Ergebnis erscheint nach Abschluss im Shadow‑Twin.' })

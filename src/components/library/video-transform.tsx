@@ -133,7 +133,14 @@ export function VideoTransform({
             libraryId: activeLibrary.id,
           }
         }))
-      } catch {}
+      } catch (eventError) {
+        // CustomEvent-Constructor kann in alten Browsern werfen — SSE liefert
+        // dann nach wenigen Sekunden den Job-Status nach. Wir loggen, damit
+        // der Fehler nicht still verschwindet (.cursor/rules/no-silent-fallbacks.mdc).
+        FileLogger.warn('VideoTransform', 'job_update_local-Event konnte nicht gefeuert werden', {
+          error: eventError instanceof Error ? eventError.message : String(eventError),
+        })
+      }
 
       FileLogger.info('VideoTransform', 'Job enqueued (Video)', { jobId })
       toast.success('Job gestartet', { description: 'Transkription läuft im Hintergrund. Ergebnis erscheint nach Abschluss im Shadow‑Twin.' })
