@@ -15,12 +15,10 @@ import { extractFrontmatter } from './markdown-metadata';
 import { ImagePreview } from './image-preview';
 import { DocumentPreview } from './document-preview';
 import { FileLogger } from "@/lib/debug/logger"
-import { JobReportTab } from './job-report-tab';
 // PdfPhasesView ist bewusst NICHT mehr Teil der File-Preview (zu heavy). Flow-View ist der Expertenmodus.
 import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner'
-import { resolveArtifactClient } from '@/lib/shadow-twin/artifact-client';
 import { SourceAndTranscriptPane } from "@/components/library/shared/source-and-transcript-pane"
 import { useResolvedTranscriptItem } from "@/components/library/shared/use-resolved-transcript-item"
 import { ArtifactInfoPanel } from "@/components/library/shared/artifact-info-panel"
@@ -28,7 +26,7 @@ import { useStoryStatus } from "@/components/library/shared/use-story-status"
 import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { IngestionDataProvider } from "@/components/library/shared/ingestion-data-context"
-import type { StoryStepStatus, StoryStepState } from "@/components/library/shared/story-status"
+import type { StoryStepStatus } from "@/components/library/shared/story-status"
 import { ArtifactMarkdownPanel } from "@/components/library/shared/artifact-markdown-panel"
 import { ArtifactEditDialog } from "@/components/library/shared/artifact-edit-dialog"
 import { IngestionDetailPanel } from "@/components/library/shared/ingestion-detail-panel"
@@ -45,143 +43,25 @@ import { loadPdfDefaults } from "@/lib/pdf-defaults"
 import { getEffectivePdfDefaults } from "@/atoms/pdf-defaults"
 import { TARGET_LANGUAGE_DEFAULT } from "@/lib/chat/constants"
 import { jobInfoByItemIdAtom } from "@/atoms/job-status"
-import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { SourceRenderer } from "@/components/library/flow/source-renderer"
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
 
-/**
- * Extrahiert den Sprachcode aus dem Dateinamen eines Transkripts.
- * Erwartet das Pattern: `name.LANG.md` (z.B. "Voice-test.en.md" → "en").
- * Gibt den Code in Großbuchstaben zurück oder null, wenn kein Muster erkannt wird.
- */
-function extractTranscriptLang(filename: string): string | null {
-  const match = filename.match(/\.([a-z]{2})\.md$/i)
-  return match ? match[1].toLowerCase() : null
-}
-
-function getTransformationLabel(item: StorageItem): string {
-  const id = item.id
-  if (isMongoShadowTwinId(id)) {
-    const parsed = parseMongoShadowTwinId(id)
-    if (parsed) {
-      const lang = parsed.targetLanguage?.toLowerCase()
-      const langLabel = lang ? (TRANSCRIPT_LANG_LABELS[lang] ?? lang.toUpperCase()) : "?"
-      const template = parsed.templateName || "template"
-      return `${lang ? lang.toUpperCase() : "?"} – ${langLabel} · ${template}`
-    }
-  }
-  const filename = item.metadata.name
-  const match = filename.match(/\.([^.]+)\.([a-z]{2})\.md$/i)
-  if (match) {
-    const template = match[1]
-    const lang = match[2].toLowerCase()
-    const langLabel = TRANSCRIPT_LANG_LABELS[lang] ?? lang.toUpperCase()
-    return `${lang.toUpperCase()} – ${langLabel} · ${template}`
-  }
-  return filename
-}
-
-// Sprachlabels für die Dropdown-Anzeige
-const TRANSCRIPT_LANG_LABELS: Record<string, string> = {
-  de: "Deutsch",
-  en: "English",
-  fr: "Français",
-  es: "Español",
-  it: "Italiano",
-  pt: "Português",
-  am: "አማርኛ",
-  ar: "العربية",
-  sw: "Kiswahili",
-  om: "Oromoo",
-}
+// extractTranscriptLang, getTransformationLabel und TRANSCRIPT_LANG_LABELS
+// wurden in src/components/library/file-preview/extension-map.ts ausgegliedert
+// (Welle 3-II-a, Schritt 4b — siehe welle-3-archiv-detail-contracts.mdc §6).
+import {
+  extractTranscriptLang,
+  getTransformationLabel,
+  TRANSCRIPT_LANG_LABELS,
+} from './file-preview/extension-map'
 
 // Explizite React-Komponenten-Deklarationen für den Linter
 const ImagePreviewComponent = ImagePreview;
 const DocumentPreviewComponent = DocumentPreview;
 
-// Job-Progress-Anzeige fuer laufende Jobs
-interface JobProgressBarProps {
-  status: 'queued' | 'running' | 'completed' | 'failed';
-  progress?: number;
-  message?: string;
-  phase?: string;
-}
-
-// Mapping von Phase-Codes zu lesbaren Labels
-function getPhaseLabel(phase?: string): string {
-  if (!phase) return '';
-  const normalized = phase.toLowerCase();
-  
-  // Ignoriere generische Status-Phasen (kommen vom Secretary-Service)
-  const ignoredPhases = ['running', 'initializing', 'postprocessing', 'completed', 'progress'];
-  if (ignoredPhases.includes(normalized)) return '';
-  
-  const phaseLabels: Record<string, string> = {
-    extract: 'Transkript',
-    extract_pdf: 'Transkript',
-    extract_office: 'Transkript',
-    extraction: 'Transkript',
-    transcribe: 'Transkript',
-    transcription: 'Transkript',
-    transform: 'Transformation',
-    transform_template: 'Transformation',
-    transformation: 'Transformation',
-    template: 'Transformation',
-    metadata: 'Transformation',
-    ingest: 'Story',
-    ingest_rag: 'Story',
-    ingestion: 'Story',
-    publish: 'Story',
-  };
-  return phaseLabels[normalized] || '';
-}
-
-function JobProgressBar({ status, progress, message, phase }: JobProgressBarProps) {
-  const phaseLabel = getPhaseLabel(phase);
-  
-  // Status-Label mit optionaler Phase
-  const getStatusLabel = (): string => {
-    if (status === 'queued') return 'In Warteschlange...';
-    if (status === 'completed') return 'Abgeschlossen';
-    if (status === 'failed') return 'Fehlgeschlagen';
-    // running
-    if (phaseLabel) {
-      return `${phaseLabel} wird verarbeitet...`;
-    }
-    return 'Wird verarbeitet...';
-  };
-  
-  // Bereinigte Message (entferne technische Details, zeige nur relevante Info)
-  const getCleanMessage = (): string | undefined => {
-    if (!message) return undefined;
-    // Technische Messages filtern
-    if (message.startsWith('Mistral-OCR:')) {
-      // Extrahiere den relevanten Teil nach dem Doppelpunkt
-      const parts = message.split(' - Args:');
-      return parts[0].replace('Mistral-OCR: ', '');
-    }
-    return message;
-  };
-
-  const progressValue = typeof progress === 'number' ? Math.max(0, Math.min(100, progress)) : 0;
-  const cleanMessage = getCleanMessage();
-
-  return (
-    <div className="mx-3 mt-3 rounded-md border bg-muted/30 p-3">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium">{getStatusLabel()}</span>
-        {status === 'running' && (
-          <span className="text-xs text-muted-foreground">{progressValue}%</span>
-        )}
-      </div>
-      <Progress value={status === 'running' ? progressValue : status === 'queued' ? 0 : 100} className="h-2" />
-      {cleanMessage && (
-        <p className="mt-2 text-xs text-muted-foreground truncate">{cleanMessage}</p>
-      )}
-    </div>
-  );
-}
+// JobProgressBar + getPhaseLabel wurden in
+// src/components/library/file-preview/job-progress-bar.tsx ausgegliedert
+// (Welle 3-II-a, Schritt 4b).
+import { JobProgressBar } from './file-preview/job-progress-bar'
 
 interface FilePreviewProps {
   className?: string;
@@ -192,352 +72,26 @@ interface FilePreviewProps {
   onClearCacheBeforeReview?: () => void;
 }
 
-// Helper function for file type detection
-function getFileType(fileName: string): string {
-  const extension = fileName.split('.').pop()?.toLowerCase();
-  
-  switch(extension) {
-    case 'txt':
-    case 'md':
-    case 'mdx':
-      return 'markdown';
-    case 'mp4':
-    case 'avi':
-    case 'mov':
-    case 'webm':
-    case 'mkv':
-      return 'video';
-    case 'mp3':
-    case 'm4a':
-    case 'wav':
-    case 'ogg':
-    case 'opus':
-    case 'flac':
-      return 'audio';
-    case 'jpg':
-    case 'jpeg':
-    case 'png':
-    case 'gif':
-    case 'webp':
-    case 'svg':
-    case 'bmp':
-    case 'ico':
-      return 'image';
-    case 'pdf':
-      return 'pdf';
-    case 'doc':
-    case 'docx':
-      return 'docx';
-    case 'odt':
-      return 'docx';
-    case 'ppt':
-    case 'pptx':
-      return 'pptx';
-    case 'xls':
-    case 'xlsx':
-      return 'xlsx';
-    case 'url':
-      return 'website';
-    default:
-      // Für unbekannte Dateitypen prüfen wir, ob es sich um eine Textdatei handeln könnte
-      const textExtensions = ['json', 'xml', 'yaml', 'yml', 'ini', 'cfg', 'conf', 'log', 'csv', 'html', 'htm', 'css', 'js', 'ts', 'jsx', 'tsx', 'py', 'java', 'c', 'cpp', 'h', 'hpp', 'cs', 'php', 'rb', 'go', 'rs', 'swift', 'kt', 'scala', 'r', 'sh', 'bash', 'ps1', 'bat', 'cmd', 'odt'];
-      if (textExtensions.includes(extension || '')) {
-        return 'markdown'; // Behandle als editierbare Textdatei
-      }
-      return 'unknown';
-  }
-}
+// getFileType wurde in file-preview/extension-map.ts ausgegliedert
+// (Welle 3-II-a). Re-Import oben (zusammen mit den Lang-Helpern):
+import { getFileType } from './file-preview/extension-map'
 
-function getStoryStep(steps: StoryStepStatus[], id: StoryStepStatus["id"]): StoryStepStatus | null {
-  return steps.find((step) => step.id === id) ?? null
-}
+// getStoryStep, stepStateClass und ArtifactTabLabel wurden in
+// src/components/library/file-preview/artifact-tab-label.tsx ausgegliedert
+// (Welle 3-II-a, Schritt 4b).
+import {
+  ArtifactTabLabel,
+  getStoryStep,
+} from './file-preview/artifact-tab-label'
 
-function stepStateClass(state: StoryStepState | null): string {
-  if (state === "present") return "text-green-600"
-  if (state === "running") return "text-amber-600"
-  if (state === "error") return "text-destructive"
-  return "text-muted-foreground"
-}
+// JobReportTabWithShadowTwin wurde in
+// src/components/library/file-preview/job-report-tab-with-shadow-twin.tsx
+// ausgegliedert (Welle 3-II-a, Schritt 4b).
+import { JobReportTabWithShadowTwin } from './file-preview/job-report-tab-with-shadow-twin'
 
-function ArtifactTabLabel({
-  icon: Icon,
-  label,
-  state,
-}: {
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  state: StoryStepState | null
-}) {
-  return (
-    <span className="inline-flex items-center gap-2">
-      <Icon className={cn("h-4 w-4", stepStateClass(state))} />
-      <span>{label}</span>
-    </span>
-  )
-}
-
-// Komponente, die JobReportTab mit Shadow-Twin-Unterstützung umschließt
-// Verwendet jetzt den zentralen resolveArtifactClient statt lokaler Heuristik
-function JobReportTabWithShadowTwin({
-  libraryId,
-  fileId,
-  fileName,
-  parentId,
-  provider,
-  ingestionTabMode = "status",
-  onEditClick,
-  effectiveMdIdRef,
-  resolvedMdFileId,
-}: {
-  libraryId: string;
-  fileId: string;
-  fileName: string;
-  parentId: string;
-  provider: StorageProvider | null;
-  ingestionTabMode?: 'status' | 'preview';
-  onEditClick?: () => void;
-  effectiveMdIdRef?: React.MutableRefObject<string | null>;
-  resolvedMdFileId?: string;
-}) {
-  const [mdFileId, setMdFileId] = React.useState<string | null>(null);
-  const [baseFileId, setBaseFileId] = React.useState<string>(fileId);
-  const [isLoading, setIsLoading] = React.useState(true);
-
-  // Variante C: Vollständig über API - kein lokales Parsing mehr
-  React.useEffect(() => {
-    if (resolvedMdFileId) {
-      setMdFileId(resolvedMdFileId);
-      setBaseFileId(fileId);
-      setIsLoading(false);
-      return;
-    }
-
-    async function resolveArtifact() {
-      setIsLoading(true);
-
-      // Rufe zentrale Resolver-API auf
-      // Priorität 1: Transformation (hat Frontmatter)
-      let resolved = await resolveArtifactClient({
-        libraryId,
-        sourceId: fileId,
-        sourceName: fileName,
-        parentId,
-        targetLanguage: 'de', // Standard-Sprache
-        preferredKind: 'transformation',
-      });
-
-      // Priorität 2: Fallback zu Transcript wenn keine Transformation gefunden
-      if (!resolved) {
-        resolved = await resolveArtifactClient({
-          libraryId,
-          sourceId: fileId,
-          sourceName: fileName,
-          parentId,
-          targetLanguage: 'de', // Standard-Sprache
-          preferredKind: 'transcript',
-        });
-      }
-
-      if (resolved) {
-        setMdFileId(resolved.fileId);
-        setBaseFileId(fileId); // Basis-Datei bleibt fileId
-        FileLogger.debug('JobReportTabWithShadowTwin', 'Artefakt über Resolver gefunden', {
-          originalFileId: fileId,
-          resolvedFileId: resolved.fileId,
-          resolvedFileName: resolved.fileName,
-          kind: resolved.kind,
-          location: resolved.location,
-        });
-      } else {
-        // Kein Artefakt gefunden - verwende Basis-Datei direkt
-        setMdFileId(null);
-        setBaseFileId(fileId);
-        FileLogger.debug('JobReportTabWithShadowTwin', 'Kein Shadow-Twin-Artefakt gefunden, verwende Basis-Datei', {
-          fileId,
-          fileName,
-          parentId,
-        });
-      }
-
-      setIsLoading(false);
-    }
-
-    if (libraryId && fileId && parentId) {
-      resolveArtifact().catch((error) => {
-        FileLogger.error('JobReportTabWithShadowTwin', 'Fehler bei Artefakt-Auflösung', {
-          fileId,
-          fileName,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        setIsLoading(false);
-        setMdFileId(null);
-        setBaseFileId(fileId);
-      });
-    } else {
-      setIsLoading(false);
-    }
-  }, [libraryId, fileId, fileName, parentId, resolvedMdFileId]);
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-muted-foreground">Lade Metadaten...</p>
-      </div>
-    );
-  }
-
-  return (
-    <JobReportTab 
-      libraryId={libraryId} 
-      fileId={baseFileId} 
-      fileName={fileName} 
-      provider={provider}
-      mdFileId={mdFileId}
-      ingestionTabMode={ingestionTabMode}
-      onEditClick={onEditClick}
-      effectiveMdIdRef={effectiveMdIdRef}
-      sourceMode="frontmatter"
-      viewMode="metaOnly"
-    />
-  );
-}
-
-// Separate Komponente für den Content Loader
-function ContentLoader({ 
-  item, 
-  provider, 
-  fileType, 
-  contentCache,
-  onContentLoaded 
-}: {
-  item: StorageItem | null;
-  provider: StorageProvider | null;
-  fileType: string;
-  contentCache: React.MutableRefObject<Map<string, { content: string; hasMetadata: boolean }>>;
-  onContentLoaded: (content: string, hasMetadata: boolean) => void;
-}) {
-  const loadingIdRef = React.useRef<string | null>(null);
-
-  // Prüft ob eine Datei ein Template ist
-  const isTemplateFile = React.useCallback((name?: string): boolean => {
-    if (!name) return false;
-    return name.includes('{{') && name.includes('}}');
-  }, []);
-
-  const loadContent = React.useCallback(async () => {
-    if (!item?.id || !provider) {
-      FileLogger.debug('ContentLoader', 'loadContent abgebrochen', {
-        hasItem: !!item?.id,
-        hasProvider: !!provider
-      });
-      return;
-    }
-    
-    // Prüfe, ob es sich um einen Ordner handelt (root ist ein Ordner)
-    if (item.type === 'folder' || item.id === 'root') {
-      FileLogger.debug('ContentLoader', 'Überspringe Content-Laden für Ordner', {
-        itemId: item.id,
-        itemName: item.metadata.name,
-        itemType: item.type
-      });
-      contentCache.current.set(item.id, { content: '', hasMetadata: false });
-      onContentLoaded('', false);
-      return;
-    }
-    
-    FileLogger.info('ContentLoader', 'Lade Content für Datei', {
-      itemId: item.id,
-      itemName: item.metadata.name,
-      cacheSize: contentCache.current.size
-    });
-    
-    // Prüfen ob Inhalt bereits im Cache
-    const cachedContent = contentCache.current.get(item.id);
-    if (cachedContent) {
-      FileLogger.info('ContentLoader', 'Content aus Cache geladen', {
-        itemId: item.id,
-        contentLength: cachedContent.content.length,
-        hasMetadata: cachedContent.hasMetadata
-      });
-      onContentLoaded(cachedContent.content, cachedContent.hasMetadata);
-      return;
-    }
-
-    // Prüfen ob bereits ein Ladevorgang läuft
-    if (loadingIdRef.current === item.id) {
-      FileLogger.debug('ContentLoader', 'Ladevorgang läuft bereits', {
-        itemId: item.id
-      });
-      return;
-    }
-    
-    loadingIdRef.current = item.id;
-    
-    try {
-      // Wenn es eine Template-Datei ist, zeigen wir eine Warnung an
-      if (isTemplateFile(item.metadata.name)) {
-        const content = "---\nstatus: template\n---\n\n> **Hinweis**: Diese Datei enthält nicht aufgelöste Template-Variablen.\n> Bitte stellen Sie sicher, dass alle Variablen korrekt definiert sind.";
-        contentCache.current.set(item.id, { content, hasMetadata: true });
-        onContentLoaded(content, true);
-        return;
-      }
-
-      // Liste der Dateitypen, die als Binärdateien behandelt werden sollen
-      const binaryFileTypes = ['audio', 'image', 'video', 'pdf', 'docx', 'pptx', 'xlsx'];
-      
-      if (!binaryFileTypes.includes(fileType) && fileType !== 'unknown') {
-        FileLogger.debug('ContentLoader', 'Lade Textinhalt von Provider', {
-          itemId: item.id,
-          fileType
-        });
-        const content = await provider.getBinary(item.id).then(({ blob }) => blob.text());
-        const hasMetadata = !!extractFrontmatter(content);
-        
-        FileLogger.info('ContentLoader', 'Content geladen und in Cache gespeichert', {
-          itemId: item.id,
-          contentLength: content.length,
-          hasMetadata
-        });
-        
-        contentCache.current.set(item.id, { content, hasMetadata });
-        onContentLoaded(content, hasMetadata);
-      } else {
-        FileLogger.debug('ContentLoader', 'Überspringe Content-Laden für Binary/Unknown-Datei', {
-          itemId: item.id,
-          fileType,
-          isBinary: binaryFileTypes.includes(fileType),
-          isUnknown: fileType === 'unknown'
-        });
-        contentCache.current.set(item.id, { content: '', hasMetadata: false });
-        onContentLoaded('', false);
-      }
-    } catch (err) {
-      FileLogger.error('ContentLoader', 'Failed to load file', err);
-      // Bei Fehler zeigen wir eine Fehlermeldung im Markdown-Format
-      const errorContent = "---\nstatus: error\n---\n\n> **Fehler**: Die Datei konnte nicht geladen werden.\n> Bitte überprüfen Sie die Konsole für weitere Details.";
-      contentCache.current.set(item.id, { content: errorContent, hasMetadata: true });
-      onContentLoaded(errorContent, true);
-    } finally {
-      loadingIdRef.current = null;
-    }
-  }, [item?.id, item?.type, item?.metadata?.name, provider, fileType, onContentLoaded, isTemplateFile, contentCache]);
-
-  // Cleanup bei Unmount
-  React.useEffect(() => {
-    return () => {
-      loadingIdRef.current = null;
-    };
-  }, []);
-
-  // Nur laden wenn sich die ID ändert
-  React.useEffect(() => {
-    if (item?.id) {
-      loadContent();
-    }
-  }, [item?.id, loadContent]);
-
-  return null;
-}
+// ContentLoader wurde in src/components/library/file-preview/content-loader.tsx
+// ausgegliedert (Welle 3-II-a, Schritt 4b).
+import { ContentLoader } from './file-preview/content-loader'
 
 /**
  * Icon-only Toolbar im Transkript-Tab: Review/Vergleichen, optional Seiten splitten (PDF),
@@ -706,101 +260,16 @@ function TranscriptToolbarActions({
   );
 }
 
-/** Nur die Quelle (PDF/Audio/Video/Office), ohne das untere Transkript aus SourceAndTranscriptPane. */
-function ReviewOriginalPane(props: {
-  provider: StorageProvider
-  item: StorageItem
-  streamingUrl?: string | null
-}) {
-  return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded border bg-background">
-      <div className="shrink-0 border-b bg-muted/20 px-3 py-2 text-xs text-muted-foreground truncate">
-        {props.item.metadata?.name ?? ""}
-      </div>
-      <div className="min-h-0 flex-1 overflow-hidden">
-        <SourceRenderer
-          provider={props.provider}
-          file={props.item}
-          streamingUrl={props.streamingUrl ?? null}
-          showHeader={false}
-        />
-      </div>
-    </div>
-  )
-}
-
-/** .url-Original wie im Tab „Original“ (Iframe), für Review-Split links. */
-function WebsiteReviewOriginalIframe(props: { urlContent: string | undefined; label: string }) {
-  return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded border bg-background">
-      {props.urlContent ? (
-        <>
-          <div className="flex shrink-0 items-center gap-2 border-b bg-muted/50 px-4 py-3">
-            <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <a
-              href={props.urlContent}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="truncate text-sm text-primary hover:underline"
-            >
-              {props.urlContent}
-            </a>
-          </div>
-          <div className="relative min-h-0 flex-1">
-            <iframe
-              src={props.urlContent}
-              title={props.label}
-              className="absolute inset-0 h-full w-full"
-              sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-            />
-            <div className="pointer-events-none absolute inset-0 -z-10 flex items-center justify-center text-sm text-muted-foreground">
-              <p>Website blockiert möglicherweise die Einbettung.</p>
-            </div>
-          </div>
-        </>
-      ) : (
-        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-          Keine gültige URL gefunden.
-        </div>
-      )}
-    </div>
-  )
-}
-
-function ReviewTranscriptSplit(props: { original: React.ReactNode; transcript: React.ReactNode }) {
-  return (
-    <ResizablePanelGroup direction="horizontal" className="h-full min-h-[200px] w-full">
-      <ResizablePanel defaultSize={50} minSize={24} className="min-h-0 overflow-hidden">
-        <div className="h-full min-h-0 pr-2">{props.original}</div>
-      </ResizablePanel>
-      <ResizableHandle withHandle />
-      <ResizablePanel defaultSize={50} minSize={28} className="min-h-0 overflow-hidden">
-        <div className="h-full min-h-0 overflow-hidden pl-2">{props.transcript}</div>
-      </ResizablePanel>
-    </ResizablePanelGroup>
-  )
-}
-
-/**
- * Review-Modus: im Transkript-Tab Original links, Artefakt rechts — eine Tab-Leiste, keine zweite FilePreview.
- */
-function wrapTranscriptTabWithReviewSplit(
-  isReviewMode: boolean,
-  originalPane: React.ReactNode,
-  transcriptPanel: React.ReactNode,
-) {
-  if (!isReviewMode) {
-    return <div className="h-full overflow-hidden rounded border p-3">{transcriptPanel}</div>
-  }
-  return (
-    <ReviewTranscriptSplit
-      original={originalPane}
-      transcript={
-        <div className="flex h-full min-h-0 flex-col overflow-hidden rounded border p-3">{transcriptPanel}</div>
-      }
-    />
-  )
-}
+// ReviewOriginalPane, WebsiteReviewOriginalIframe, ReviewTranscriptSplit
+// und wrapTranscriptTabWithReviewSplit wurden in
+// src/components/library/file-preview/review-split.tsx ausgegliedert
+// (Welle 3-II-a, Schritt 4b).
+import {
+  ReviewOriginalPane,
+  ReviewTranscriptSplit,
+  WebsiteReviewOriginalIframe,
+  wrapTranscriptTabWithReviewSplit,
+} from './file-preview/review-split'
 
 // Separate Komponente für die Vorschau
 function PreviewContent({ 
