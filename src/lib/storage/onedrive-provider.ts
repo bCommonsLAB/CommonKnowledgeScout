@@ -664,7 +664,38 @@ export class OneDriveProvider implements StorageProvider {
     }
   }
 
+  /**
+   * Liest gespeicherte OAuth-Tokens synchron aus localStorage (nur Browser).
+   * Ohne das liefert isAuthenticated() zunächst false, weil loadTokens() async ist —
+   * storage-context listItems() bricht dann mit waitingForAuth ab, bevor
+   * ensureAccessToken/listItemsById die Session laden könnte (erstmaliger Archiv-Start).
+   */
+  private tryHydrateTokensFromLocalStorage(): void {
+    if (typeof window === 'undefined') return;
+    if (this.accessToken) return;
+    try {
+      const tokensJson = localStorage.getItem(`onedrive_tokens_${this.library.id}`);
+      if (!tokensJson) return;
+      const tokens = JSON.parse(tokensJson) as {
+        accessToken?: string;
+        refreshToken?: string;
+        expiry?: number;
+      };
+      if (tokens.accessToken) {
+        this.accessToken = tokens.accessToken;
+        this.refreshToken = tokens.refreshToken ?? null;
+        this.tokenExpiry = tokens.expiry ?? 0;
+        this.authenticated = true;
+      }
+    } catch (error) {
+      console.error('[OneDriveProvider] tryHydrateTokensFromLocalStorage', error);
+    }
+  }
+
   public isAuthenticated(): boolean {
+    if (typeof window !== 'undefined') {
+      this.tryHydrateTokensFromLocalStorage();
+    }
     // Wenn Tokens noch nicht geladen wurden, versuche sie synchron zu prüfen
     // (loadTokens ist async, daher können wir hier nicht warten)
     // Aber wir können prüfen, ob Tokens in der Config vorhanden sind

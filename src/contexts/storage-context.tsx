@@ -838,7 +838,10 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
         setLibraryStatusAtom('ready');
       }
     }
-  }, [currentLibrary, provider, setLibraryStatusAtom]);
+    // pathname: Nach OAuth in den Einstellungen ändern sich currentLibrary/provider oft nicht —
+    // ohne Route-Wechsel bliebe libraryStatus fälschlich auf waitingForAuth, obwohl das Token
+    // in localStorage liegt. Beim Wechsel z. B. /settings → /library muss der Check erneut laufen.
+  }, [currentLibrary, provider, pathname, setLibraryStatusAtom]);
 
   return (
     <StorageContext.Provider value={value}>
