@@ -15,12 +15,10 @@ import { extractFrontmatter } from './markdown-metadata';
 import { ImagePreview } from './image-preview';
 import { DocumentPreview } from './document-preview';
 import { FileLogger } from "@/lib/debug/logger"
-import { JobReportTab } from './job-report-tab';
 // PdfPhasesView ist bewusst NICHT mehr Teil der File-Preview (zu heavy). Flow-View ist der Expertenmodus.
 import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner'
-import { resolveArtifactClient } from '@/lib/shadow-twin/artifact-client';
 import { SourceAndTranscriptPane } from "@/components/library/shared/source-and-transcript-pane"
 import { useResolvedTranscriptItem } from "@/components/library/shared/use-resolved-transcript-item"
 import { ArtifactInfoPanel } from "@/components/library/shared/artifact-info-panel"
@@ -80,159 +78,19 @@ interface FilePreviewProps {
 // (Welle 3-II-a). Re-Import oben (zusammen mit den Lang-Helpern):
 import { getFileType } from './file-preview/extension-map'
 
-function getStoryStep(steps: StoryStepStatus[], id: StoryStepStatus["id"]): StoryStepStatus | null {
-  return steps.find((step) => step.id === id) ?? null
-}
+// getStoryStep, stepStateClass und ArtifactTabLabel wurden in
+// src/components/library/file-preview/artifact-tab-label.tsx ausgegliedert
+// (Welle 3-II-a, Schritt 4b).
+import {
+  ArtifactTabLabel,
+  getStoryStep,
+  stepStateClass,
+} from './file-preview/artifact-tab-label'
 
-function stepStateClass(state: StoryStepState | null): string {
-  if (state === "present") return "text-green-600"
-  if (state === "running") return "text-amber-600"
-  if (state === "error") return "text-destructive"
-  return "text-muted-foreground"
-}
-
-function ArtifactTabLabel({
-  icon: Icon,
-  label,
-  state,
-}: {
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  state: StoryStepState | null
-}) {
-  return (
-    <span className="inline-flex items-center gap-2">
-      <Icon className={cn("h-4 w-4", stepStateClass(state))} />
-      <span>{label}</span>
-    </span>
-  )
-}
-
-// Komponente, die JobReportTab mit Shadow-Twin-Unterstützung umschließt
-// Verwendet jetzt den zentralen resolveArtifactClient statt lokaler Heuristik
-function JobReportTabWithShadowTwin({
-  libraryId,
-  fileId,
-  fileName,
-  parentId,
-  provider,
-  ingestionTabMode = "status",
-  onEditClick,
-  effectiveMdIdRef,
-  resolvedMdFileId,
-}: {
-  libraryId: string;
-  fileId: string;
-  fileName: string;
-  parentId: string;
-  provider: StorageProvider | null;
-  ingestionTabMode?: 'status' | 'preview';
-  onEditClick?: () => void;
-  effectiveMdIdRef?: React.MutableRefObject<string | null>;
-  resolvedMdFileId?: string;
-}) {
-  const [mdFileId, setMdFileId] = React.useState<string | null>(null);
-  const [baseFileId, setBaseFileId] = React.useState<string>(fileId);
-  const [isLoading, setIsLoading] = React.useState(true);
-
-  // Variante C: Vollständig über API - kein lokales Parsing mehr
-  React.useEffect(() => {
-    if (resolvedMdFileId) {
-      setMdFileId(resolvedMdFileId);
-      setBaseFileId(fileId);
-      setIsLoading(false);
-      return;
-    }
-
-    async function resolveArtifact() {
-      setIsLoading(true);
-
-      // Rufe zentrale Resolver-API auf
-      // Priorität 1: Transformation (hat Frontmatter)
-      let resolved = await resolveArtifactClient({
-        libraryId,
-        sourceId: fileId,
-        sourceName: fileName,
-        parentId,
-        targetLanguage: 'de', // Standard-Sprache
-        preferredKind: 'transformation',
-      });
-
-      // Priorität 2: Fallback zu Transcript wenn keine Transformation gefunden
-      if (!resolved) {
-        resolved = await resolveArtifactClient({
-          libraryId,
-          sourceId: fileId,
-          sourceName: fileName,
-          parentId,
-          targetLanguage: 'de', // Standard-Sprache
-          preferredKind: 'transcript',
-        });
-      }
-
-      if (resolved) {
-        setMdFileId(resolved.fileId);
-        setBaseFileId(fileId); // Basis-Datei bleibt fileId
-        FileLogger.debug('JobReportTabWithShadowTwin', 'Artefakt über Resolver gefunden', {
-          originalFileId: fileId,
-          resolvedFileId: resolved.fileId,
-          resolvedFileName: resolved.fileName,
-          kind: resolved.kind,
-          location: resolved.location,
-        });
-      } else {
-        // Kein Artefakt gefunden - verwende Basis-Datei direkt
-        setMdFileId(null);
-        setBaseFileId(fileId);
-        FileLogger.debug('JobReportTabWithShadowTwin', 'Kein Shadow-Twin-Artefakt gefunden, verwende Basis-Datei', {
-          fileId,
-          fileName,
-          parentId,
-        });
-      }
-
-      setIsLoading(false);
-    }
-
-    if (libraryId && fileId && parentId) {
-      resolveArtifact().catch((error) => {
-        FileLogger.error('JobReportTabWithShadowTwin', 'Fehler bei Artefakt-Auflösung', {
-          fileId,
-          fileName,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        setIsLoading(false);
-        setMdFileId(null);
-        setBaseFileId(fileId);
-      });
-    } else {
-      setIsLoading(false);
-    }
-  }, [libraryId, fileId, fileName, parentId, resolvedMdFileId]);
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-muted-foreground">Lade Metadaten...</p>
-      </div>
-    );
-  }
-
-  return (
-    <JobReportTab 
-      libraryId={libraryId} 
-      fileId={baseFileId} 
-      fileName={fileName} 
-      provider={provider}
-      mdFileId={mdFileId}
-      ingestionTabMode={ingestionTabMode}
-      onEditClick={onEditClick}
-      effectiveMdIdRef={effectiveMdIdRef}
-      sourceMode="frontmatter"
-      viewMode="metaOnly"
-    />
-  );
-}
+// JobReportTabWithShadowTwin wurde in
+// src/components/library/file-preview/job-report-tab-with-shadow-twin.tsx
+// ausgegliedert (Welle 3-II-a, Schritt 4b).
+import { JobReportTabWithShadowTwin } from './file-preview/job-report-tab-with-shadow-twin'
 
 // Separate Komponente für den Content Loader
 function ContentLoader({ 
