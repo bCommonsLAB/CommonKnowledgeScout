@@ -506,6 +506,48 @@ export class LibraryService {
   }
 
   /**
+   * Wie `toClientLibraries`, ersetzt aber bei `library.type === 'local'` den
+   * `path` durch den user-spezifischen `localPathOverride` aus der
+   * Mitgliedschaft. Wird fuer Co-Creator verwendet, damit die UI nicht den
+   * (auf dem Co-Creator-Rechner falschen) Owner-Pfad anzeigt.
+   *
+   * Siehe docs/per-user-storage-path-analyse.md (Variante A).
+   *
+   * Verwendung: ausschliesslich fuer GETEILTE Libraries (Co-Creator/Reader),
+   * nicht fuer eigene. Eigene Libraries verwenden weiter `toClientLibraries`,
+   * weil dort `lib.path` bereits der korrekte (Owner-)Pfad ist.
+   */
+  async toClientLibrariesWithMemberOverrides(
+    libraries: Library[],
+    userEmail: string,
+  ): Promise<ClientLibrary[]> {
+    // Memberships gebuendelt laden, damit wir nicht pro Library einen DB-Call
+    // brauchen. Lazy-Import vermeidet zirkulaere Abhaengigkeit (das Repo
+    // importiert seinerseits LibraryService).
+    const { listMembershipsByEmail } = await import(
+      '@/lib/repositories/library-members-repo'
+    );
+    const memberships = await listMembershipsByEmail(userEmail);
+
+    const overrideByLibraryId = new Map<string, string>();
+    for (const m of memberships) {
+      const override = m.localPathOverride?.trim();
+      if (override) overrideByLibraryId.set(m.libraryId, override);
+    }
+
+    const base = this.toClientLibraries(libraries);
+    return base.map((clientLib, idx) => {
+      const original = libraries[idx];
+      // Override greift nur bei lokalen Libraries; remote Backends (OneDrive,
+      // Nextcloud, GDrive) sind user-unabhaengig und brauchen keinen Override.
+      if (original.type !== 'local') return clientLib;
+      const override = overrideByLibraryId.get(clientLib.id);
+      if (!override) return clientLib;
+      return { ...clientLib, path: override };
+    });
+  }
+
+  /**
    * Stellt sicher, dass Indizes für öffentliche Libraries vorhanden sind
    * Wird automatisch beim ersten Aufruf erstellt
    */

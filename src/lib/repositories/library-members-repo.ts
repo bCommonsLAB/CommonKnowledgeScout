@@ -124,14 +124,20 @@ export async function getMemberByInviteToken(
 /**
  * Akzeptiert eine ausstehende Mitglieder-Einladung.
  * Setzt den Status auf 'active' und entfernt den Token.
- * 
+ *
  * @param token Einladungs-Token
  * @param userEmail E-Mail des annehmenden Benutzers (zur Validierung)
+ * @param localPathOverride Optional: User-spezifischer lokaler Pfad
+ *   (siehe `LibraryMember.localPathOverride` und
+ *   docs/per-user-storage-path-analyse.md). Wird nur bei `local`-Libraries
+ *   genutzt; der Aufrufer ist verantwortlich, vorher den Identitäts-Marker
+ *   im Verzeichnis zu validieren.
  * @returns Das aktualisierte Member-Dokument oder null bei Fehler
  */
 export async function acceptMemberInvite(
   token: string,
-  userEmail: string
+  userEmail: string,
+  localPathOverride?: string
 ): Promise<LibraryMember | null> {
   const col = await getMembersCollection();
   const member = await getMemberByInviteToken(token);
@@ -144,18 +150,32 @@ export async function acceptMemberInvite(
     return null;
   }
 
+  // Optionalen Override mit ins Set-Objekt aufnehmen, damit ein einziges
+  // updateOne reicht. Trim, damit fuehrende/abschliessende Whitespaces
+  // aus dem UI-Input nicht zu kuriosen Pfaden fuehren.
+  const trimmedOverride = localPathOverride?.trim();
+  const setFields: Record<string, unknown> = {
+    status: 'active' as const,
+    acceptedAt: new Date(),
+  };
+  if (trimmedOverride) {
+    setFields.localPathOverride = trimmedOverride;
+  }
+
   await col.updateOne(
     { inviteToken: token },
     {
-      $set: {
-        status: 'active' as const,
-        acceptedAt: new Date(),
-      },
+      $set: setFields,
       $unset: { inviteToken: '' },
     }
   );
 
-  return { ...member, status: 'active', acceptedAt: new Date() };
+  return {
+    ...member,
+    status: 'active',
+    acceptedAt: new Date(),
+    ...(trimmedOverride ? { localPathOverride: trimmedOverride } : {}),
+  };
 }
 
 /**

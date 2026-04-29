@@ -42,6 +42,25 @@ export interface LibraryMember {
   inviteToken?: string;
   /** Zeitpunkt der Annahme der Einladung */
   acceptedAt?: Date;
+  /**
+   * User-spezifischer lokaler Pfad zur geteilten Library (Variante A,
+   * siehe docs/per-user-storage-path-analyse.md).
+   *
+   * Hintergrund: Bei `library.type === 'local'` zeigt der Owner-Pfad
+   * (z.B. `C:\Users\owner\Crystal Design GmbH\DIVA Catalog-Team`) auf
+   * ein Sync-Verzeichnis (SharePoint/OneDrive Sync). Co-Creator haben
+   * bei sich lokal denselben Inhalt, aber unter einem anderen Pfad.
+   * Dieses Feld speichert den Pfad PRO MITGLIED.
+   *
+   * Wird nur bei `local`-Libraries verwendet. Wird beim Annehmen der
+   * Einladung gesetzt (Pflichtschritt im Invite-Flow).
+   *
+   * WICHTIG: Kein stiller Fallback auf den Owner-Pfad. Wenn ein
+   * Co-Creator das Feld nicht hat, verweigert der Server-Provider die
+   * Provider-Erstellung mit einer klaren Fehlermeldung. Siehe Rule
+   * `no-silent-fallbacks.mdc`.
+   */
+  localPathOverride?: string;
 }
 
 
