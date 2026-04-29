@@ -28,7 +28,7 @@ import { z } from 'zod'
  * Alle verfügbaren DetailViewTypes als const Array.
  * Dies ist die einzige Stelle, an der neue ViewTypes hinzugefügt werden müssen.
  */
-export const DETAIL_VIEW_TYPES = ['book', 'session', 'testimonial', 'blog', 'climateAction', 'divaDocument', 'divaTexture'] as const
+export const DETAIL_VIEW_TYPES = ['book', 'session', 'testimonial', 'blog', 'climateAction', 'divaDocument', 'divaTexture', 'refurbedDevice'] as const
 
 /**
  * Union Type aller gültigen DetailViewTypes.
@@ -383,6 +383,50 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
         { key: 'materialgruppen', scope: 'detail' },
         { key: 'zertifizierungen', scope: 'detail' },
       ],
+      topicLike: [
+        { key: 'tags', scope: 'both' },
+      ],
+    },
+  },
+  /**
+   * Refurbed-Device: gebrauchte PCs/Notebooks, die an Schueler, Lehrer und Familien
+   * verschenkt werden. Fokus auf wenige laienverstaendliche Hardware-Felder + Eignungs-Text.
+   * Pflichtfelder bewusst minimal (`title`, `modell`), damit auch unvollstaendige Notizen
+   * verarbeitet werden koennen.
+   */
+  refurbedDevice: {
+    requiredFields: ['title', 'modell'],
+    optionalFields: [
+      'summary',
+      'geraetetyp',
+      'prozessor',
+      'arbeitsspeicher',
+      'festplatte',
+      'grafik',
+      'gewicht',
+      'betriebssystem',
+      'coverImageUrl',
+      'galleryImageUrls',
+      'tags',
+      'year',
+    ],
+    labelKey: 'gallery.detailViewTypeRefurbedDevice',
+    descriptionKey: 'gallery.detailViewTypeRefurbedDeviceDescription',
+    mediaConfig: {
+      coverImage: true,
+      galleryField: { key: 'galleryImageUrls', label: 'Geraete-Bilder' },
+      attachments: false,
+      urlField: false,
+    },
+    translatable: {
+      text: [
+        { key: 'title', scope: 'both' },
+        { key: 'shortTitle', scope: 'both' },
+        { key: 'summary', scope: 'detail' },
+        { key: 'markdown', scope: 'detail' },
+        { key: 'wofuerGeeignet', scope: 'detail' },
+      ],
+      arrayOfText: [],
       topicLike: [
         { key: 'tags', scope: 'both' },
       ],

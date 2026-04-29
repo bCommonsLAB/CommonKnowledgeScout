@@ -233,6 +233,8 @@
     },
     "detailViewTypeDivaTexture": "DivaTexture (Analyse de texture matériau / PBR)",
     "detailViewTypeDivaTextureDescription": "Vue détaillée pour l'analyse de textures avec métadonnées structurées.",
+    "detailViewTypeRefurbedDevice": "RefurbedDevice (PC/Portables d'occasion)",
+    "detailViewTypeRefurbedDeviceDescription": "Vue détaillée pour PC et portables d'occasion offerts à des élèves, enseignants et familles.",
     "texts": {
       "session": {
         "headline": "Découvrez les contenus de cet événement",
@@ -460,6 +462,8 @@
       "detailViewTypeDivaDocumentDescription": "Vue détaillée pour les documents catalogue de l'industrie du meuble (listes de prix, fiches produits, collections de matériaux, etc.)",
       "detailViewTypeDivaTexture": "DivaTexture (Analyse de texture matériau / PBR)",
       "detailViewTypeDivaTextureDescription": "Vue détaillée pour l'analyse de textures avec métadonnées structurées.",
+      "detailViewTypeRefurbedDevice": "RefurbedDevice (PC/Portables d'occasion)",
+      "detailViewTypeRefurbedDeviceDescription": "Vue détaillée pour PC et portables d'occasion. Affiche 8 champs matériels en langage simple (modèle, processeur, RAM, disque, graphique, poids, système d'exploitation) ainsi qu'un texte d'aptitude pour élèves, enseignants et familles.",
       "checkIndexStatus": "Vérifier le statut de l'index",
       "checking": "Vérification...",
       "createIndex": "Créer l'index",

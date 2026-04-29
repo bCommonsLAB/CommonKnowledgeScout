@@ -233,6 +233,8 @@
     },
     "detailViewTypeDivaTexture": "DivaTexture (Análisis de textura material / PBR)",
     "detailViewTypeDivaTextureDescription": "Vista detallada para análisis de texturas con metadatos estructurados.",
+    "detailViewTypeRefurbedDevice": "RefurbedDevice (PC/Portátiles usados)",
+    "detailViewTypeRefurbedDeviceDescription": "Vista detallada para PC y portátiles usados regalados a estudiantes, docentes y familias.",
     "texts": {
       "session": {
         "headline": "Descubre los contenidos de este evento",
@@ -460,6 +462,8 @@
       "detailViewTypeDivaDocumentDescription": "Vista detallada para documentos de catálogo de la industria del mueble (listas de precios, hojas de producto, colecciones de materiales, etc.)",
       "detailViewTypeDivaTexture": "DivaTexture (Análisis de textura material / PBR)",
       "detailViewTypeDivaTextureDescription": "Vista detallada para análisis de texturas con metadatos estructurados.",
+      "detailViewTypeRefurbedDevice": "RefurbedDevice (PC/Portátiles usados)",
+      "detailViewTypeRefurbedDeviceDescription": "Vista detallada para PC y portátiles usados. Muestra 8 campos de hardware comprensibles (modelo, procesador, RAM, disco, gráfica, peso, sistema operativo) y un texto de idoneidad para estudiantes, docentes y familias.",
       "checkIndexStatus": "Verificar estado del índice",
       "checking": "Verificando...",
       "createIndex": "Crear índice",

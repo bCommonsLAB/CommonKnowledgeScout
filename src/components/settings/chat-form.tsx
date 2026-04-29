@@ -91,7 +91,7 @@ const chatFormSchema = z.object({
         if (val === '' || val === undefined || val === null) return 'book';
         return val;
       },
-      z.enum(['book', 'session', 'climateAction', 'testimonial', 'blog', 'divaDocument', 'divaTexture']).default('book')
+      z.enum(['book', 'session', 'climateAction', 'testimonial', 'blog', 'divaDocument', 'divaTexture', 'refurbedDevice']).default('book')
     ),
     // Gruppierung: 'none' = keine, 'year' = nach Jahr, oder ein Facetten-Key (z.B. 'category')
     groupByField: z.preprocess(
@@ -245,7 +245,7 @@ gallery: {
       const detailViewType = galleryConfig?.detailViewType
       
       // Explizite Prüfung und Logging - alle gültigen Typen akzeptieren
-      const validDetailViewTypes = ['book', 'session', 'climateAction', 'testimonial', 'blog', 'divaDocument', 'divaTexture'] as const
+      const validDetailViewTypes = ['book', 'session', 'climateAction', 'testimonial', 'blog', 'divaDocument', 'divaTexture', 'refurbedDevice'] as const
       type DetailViewType = typeof validDetailViewTypes[number]
       let finalViewType: DetailViewType = 'book'
       if (typeof detailViewType === 'string' && validDetailViewTypes.includes(detailViewType as DetailViewType)) {
@@ -1053,7 +1053,7 @@ gallery: {
                     onValueChange={(value) => {
                       console.log('[ChatForm] Select onChange:', value);
                       // NUR valide Werte akzeptieren (leere Strings ignorieren!)
-                      if (value === 'book' || value === 'session' || value === 'climateAction' || value === 'testimonial' || value === 'blog' || value === 'divaDocument' || value === 'divaTexture') {
+                      if (value === 'book' || value === 'session' || value === 'climateAction' || value === 'testimonial' || value === 'blog' || value === 'divaDocument' || value === 'divaTexture' || value === 'refurbedDevice') {
                         field.onChange(value);
                       } else {
                         console.warn('[ChatForm] Ungültiger detailViewType ignoriert:', value);
@@ -1071,6 +1071,7 @@ gallery: {
                       <SelectItem value="climateAction">{t('settings.chatForm.detailViewTypeClimateAction')}</SelectItem>
                       <SelectItem value="divaDocument">{t('settings.chatForm.detailViewTypeDivaDocument')}</SelectItem>
                       <SelectItem value="divaTexture">{t('settings.chatForm.detailViewTypeDivaTexture')}</SelectItem>
+                      <SelectItem value="refurbedDevice">{t('settings.chatForm.detailViewTypeRefurbedDevice')}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormDescription>

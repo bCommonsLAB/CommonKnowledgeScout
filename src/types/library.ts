@@ -148,7 +148,7 @@ export interface LibraryChatConfig {
   /** Gallery-Konfiguration für die Wissensgalerie */
   gallery?: {
     /** Typ der Detailansicht für verschiedene Dokumenttypen */
-    detailViewType?: 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog' | 'divaDocument' | 'divaTexture';
+    detailViewType?: 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog' | 'divaDocument' | 'divaTexture' | 'refurbedDevice';
     /**
      * Raster der Karten in der Grid-Ansicht: kompakt (mehr Spalten) vs. komfortabel (weniger, größere Kacheln).
      * Default in der App: comfortable, wenn nicht gesetzt.

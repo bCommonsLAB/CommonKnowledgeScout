@@ -8,9 +8,10 @@ import { TestimonialDetail } from "@/components/library/testimonial-detail"
 import { ClimateActionDetail } from "@/components/library/climate-action-detail"
 import { DivaDocumentDetail } from "@/components/library/diva-document-detail"
 import { DivaTextureDetail } from "@/components/library/diva-texture-detail"
+import { RefurbedDeviceDetail } from "@/components/library/refurbed-device-detail"
 import type { StorageProvider } from "@/lib/storage/types"
 import type { TemplatePreviewDetailViewType } from "@/lib/templates/template-types"
-import { mapToBookDetail, mapToSessionDetail, mapToTestimonialDetail, mapToClimateActionDetail, mapToDivaDocumentDetail, mapToDivaTextureDetail } from "@/lib/mappers/doc-meta-mappers"
+import { mapToBookDetail, mapToSessionDetail, mapToTestimonialDetail, mapToClimateActionDetail, mapToDivaDocumentDetail, mapToDivaTextureDetail, mapToRefurbedDeviceDetail } from "@/lib/mappers/doc-meta-mappers"
 import { validateMetadataForViewType, formatValidationWarning } from "@/lib/detail-view-types"
 
 interface DetailViewRendererProps {
@@ -103,6 +104,7 @@ export function DetailViewRenderer({
   const mappedClimateActionDetail = React.useMemo(() => mapToClimateActionDetail(mapperInput), [mapperInput])
   const mappedDivaDocumentDetail = React.useMemo(() => mapToDivaDocumentDetail(mapperInput), [mapperInput])
   const mappedDivaTextureDetail = React.useMemo(() => mapToDivaTextureDetail(mapperInput), [mapperInput])
+  const mappedRefurbedDeviceDetail = React.useMemo(() => mapToRefurbedDeviceDetail(mapperInput), [mapperInput])
   
   // Warnung für fehlende Pflichtfelder
   const MissingFieldsWarning = React.useMemo(() => {
@@ -168,6 +170,15 @@ export function DetailViewRenderer({
       <>
         {MissingFieldsWarning}
         <DivaTextureDetail data={mappedDivaTextureDetail} showBackLink={showBackLink} />
+      </>
+    )
+  }
+
+  if (detailViewType === "refurbedDevice") {
+    return (
+      <>
+        {MissingFieldsWarning}
+        <RefurbedDeviceDetail data={mappedRefurbedDeviceDetail} showBackLink={showBackLink} />
       </>
     )
   }

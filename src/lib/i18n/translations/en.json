@@ -233,6 +233,8 @@
     },
     "detailViewTypeDivaTexture": "DivaTexture (Material / PBR texture analysis)",
     "detailViewTypeDivaTextureDescription": "Detail view for texture analysis with structured metadata.",
+    "detailViewTypeRefurbedDevice": "RefurbedDevice (Used PCs/Notebooks)",
+    "detailViewTypeRefurbedDeviceDescription": "Detail view for used PCs and notebooks given to students, teachers and families.",
     "texts": {
       "session": {
         "headline": "Discover the contents of this event",
@@ -460,6 +462,8 @@
       "detailViewTypeDivaDocumentDescription": "Detail view for furniture industry catalog documents (price lists, product data sheets, material collections, etc.)",
       "detailViewTypeDivaTexture": "DivaTexture (Material / PBR texture analysis)",
       "detailViewTypeDivaTextureDescription": "Detail view for texture analysis with structured metadata (fabric, leather, wood, …).",
+      "detailViewTypeRefurbedDevice": "RefurbedDevice (Used PCs/Notebooks)",
+      "detailViewTypeRefurbedDeviceDescription": "Detail view for used PCs and notebooks. Shows 8 plain-language hardware fields (model, processor, RAM, drive, graphics, weight, operating system) plus a suitability text for students, teachers and families.",
       "checkIndexStatus": "Check index status",
       "checking": "Checking...",
       "createIndex": "Create index",

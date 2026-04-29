@@ -1782,6 +1782,7 @@ export function JobReportTab({
                   climateAction: ['title', 'category', 'summary'],
                   divaDocument: ['title', 'dokumentTyp', 'produktname', 'lieferant'],
                   divaTexture: ['title'],
+                  refurbedDevice: ['title', 'modell'],
                 }
                 const requiredFields = requiredFieldsByType[effectivePreviewType] || ['title']
                 const missingFields = requiredFields.filter(field => {

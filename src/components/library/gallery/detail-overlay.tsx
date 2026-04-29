@@ -9,6 +9,7 @@ import { IngestionSessionDetail } from '@/components/library/ingestion-session-d
 import { IngestionClimateActionDetail } from '@/components/library/ingestion-climate-action-detail'
 import { IngestionDivaDocumentDetail } from '@/components/library/ingestion-diva-document-detail'
 import { IngestionDivaTextureDetail } from '@/components/library/ingestion-diva-texture-detail'
+import { IngestionRefurbedDeviceDetail } from '@/components/library/ingestion-refurbed-device-detail'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { SwitchToStoryModeButton } from '@/components/library/gallery/switch-to-story-mode-button'
 import { DocumentShareButton } from '@/components/library/gallery/document-share-button'
@@ -23,8 +24,8 @@ export interface DetailOverlayProps {
   onClose: () => void
   libraryId: string
   fileId: string
-  /** Typ der Detailansicht (book, session, climateAction, testimonial, blog, divaDocument, divaTexture) */
-  viewType: 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog' | 'divaDocument' | 'divaTexture'
+  /** Typ der Detailansicht (book, session, climateAction, testimonial, blog, divaDocument, divaTexture, refurbedDevice) */
+  viewType: 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog' | 'divaDocument' | 'divaTexture' | 'refurbedDevice'
   title?: string
   /** Optional: Dokument-Metadaten für den SwitchToStoryModeButton */
   doc?: DocCardMeta
@@ -111,7 +112,7 @@ export function DetailOverlay({
 
         if (viewType === 'session') {
           try { setPrefetchedSessionData(mapToSessionDetail(localizedJson as unknown)) } catch { setPrefetchedSessionData(null) }
-        } else if (viewType !== 'climateAction' && viewType !== 'divaDocument' && viewType !== 'divaTexture') {
+        } else if (viewType !== 'climateAction' && viewType !== 'divaDocument' && viewType !== 'divaTexture' && viewType !== 'refurbedDevice') {
           try { setPrefetchedBookData(mapToBookDetail(localizedJson as unknown)) } catch { setPrefetchedBookData(null) }
         }
 
@@ -201,8 +202,15 @@ export function DetailOverlay({
                 fileId={fileId}
               />
             )}
+            {viewType === 'refurbedDevice' && (
+              <IngestionRefurbedDeviceDetail
+                libraryId={libraryId}
+                fileId={fileId}
+                fallbackLocale={fallbackLocale}
+              />
+            )}
             {/* Default: Book-Detail (auch fuer testimonial, blog – vorerst) */}
-            {viewType !== 'session' && viewType !== 'climateAction' && viewType !== 'divaDocument' && viewType !== 'divaTexture' && (
+            {viewType !== 'session' && viewType !== 'climateAction' && viewType !== 'divaDocument' && viewType !== 'divaTexture' && viewType !== 'refurbedDevice' && (
               <IngestionBookDetail
                 libraryId={libraryId}
                 fileId={fileId}

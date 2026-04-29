@@ -9,6 +9,7 @@ import type { TestimonialDetailData } from '@/components/library/testimonial-det
 import type { ClimateActionDetailData } from '@/components/library/climate-action-detail'
 import type { DivaDocumentDetailData } from '@/components/library/diva-document-detail'
 import type { DivaTextureDetailData } from '@/components/library/diva-texture-detail'
+import type { RefurbedDeviceDetailData } from '@/components/library/refurbed-device-detail'
 
 /**
  * Mapper: API-Response → BookDetailData
@@ -451,6 +452,83 @@ export function mapToDivaDocumentDetail(input: unknown): DivaDocumentDetailData 
     hatVkGegenstueck: toBool(docMetaJson.hatVkGegenstueck),
     istVeraltet: toBool(docMetaJson.istVeraltet),
     zertifizierungen: toStrArr(docMetaJson.zertifizierungen),
+    tags: toStrArr(docMetaJson.tags),
+    year: ((): number | string | undefined => {
+      const y = docMetaJson.year;
+      if (typeof y === 'number') return y;
+      if (typeof y === 'string' && y.trim()) return y.trim();
+      return undefined;
+    })(),
+
+    // Technische Felder
+    fileId: toStr(root.fileId),
+    fileName: toStr(root.fileName),
+    upsertedAt: toStr(root.upsertedAt),
+    chunkCount: toNum(root.chunkCount),
+  };
+
+  return data;
+}
+
+/**
+ * Mapper: API-Response → RefurbedDeviceDetailData
+ *
+ * Extrahiert Felder fuer gebrauchte PCs/Notebooks (refurbedDevice DetailViewType).
+ * Strukturell analog zu mapToDivaDocumentDetail - flat Mapping ohne komplexe
+ * Sub-Strukturen (keine Slides, keine Chapters).
+ *
+ * Pflichtfelder im Frontmatter: title, modell.
+ * Alle anderen Felder sind optional und werden als undefined zurueckgegeben,
+ * wenn der Wert fehlt - die Detail-Komponente entscheidet pro Feld, was angezeigt wird.
+ */
+export function mapToRefurbedDeviceDetail(input: unknown): RefurbedDeviceDetailData {
+  const root = (input && typeof input === 'object') ? input as Record<string, unknown> : {};
+  const docMetaJson = (root.docMetaJson && typeof root.docMetaJson === 'object')
+    ? root.docMetaJson as Record<string, unknown>
+    : {};
+
+  const toStr = (v: unknown): string | undefined => {
+    if (typeof v === 'string' && v.trim().length > 0) {
+      return v.trim();
+    }
+    return undefined;
+  };
+
+  const toNum = (v: unknown): number | undefined =>
+    typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+
+  const toStrArr = (v: unknown): string[] | undefined => {
+    if (Array.isArray(v)) {
+      const arr = (v as Array<unknown>).map(x => toStr(x) || '').filter(Boolean);
+      return arr.length > 0 ? arr : undefined;
+    }
+    return undefined;
+  };
+
+  const data: RefurbedDeviceDetailData = {
+    // Basis-Felder
+    title: toStr(docMetaJson.title) || toStr(root.fileName) || '—',
+    summary: toStr(docMetaJson.summary),
+    markdown: toStr(docMetaJson.markdown),
+    coverImageUrl: toStr((docMetaJson as { coverImageUrl?: unknown }).coverImageUrl),
+    galleryImageUrls: toStrArr((docMetaJson as { galleryImageUrls?: unknown }).galleryImageUrls),
+
+    // Geraete-Identitaet
+    modell: toStr(docMetaJson.modell),
+    geraetetyp: toStr(docMetaJson.geraetetyp),
+
+    // Hardware (alle laienverstaendlich als String, nicht numerisch)
+    prozessor: toStr(docMetaJson.prozessor),
+    arbeitsspeicher: toStr(docMetaJson.arbeitsspeicher),
+    festplatte: toStr(docMetaJson.festplatte),
+    grafik: toStr(docMetaJson.grafik),
+    gewicht: toStr(docMetaJson.gewicht),
+    betriebssystem: toStr(docMetaJson.betriebssystem),
+
+    // Generative Eignungs-Beschreibung (Pflicht-Body-Feld)
+    wofuerGeeignet: toStr(docMetaJson.wofuerGeeignet),
+
+    // Tags + Jahr
     tags: toStrArr(docMetaJson.tags),
     year: ((): number | string | undefined => {
       const y = docMetaJson.year;
