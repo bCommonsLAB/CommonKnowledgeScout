@@ -3649,7 +3649,17 @@ export function FilePreview({
                   }
                   const url = await provider.getStreamingUrl(displayFile.id)
                   window.open(url, "_blank", "noopener,noreferrer")
-                } catch {}
+                } catch (error) {
+                  // Quelle-Button: Wenn der Streaming-URL-Resolve fehlschlaegt
+                  // (z.B. virtuelle Mongo-ID, Provider-Auth abgelaufen), bleibt
+                  // der Tab geschlossen — der Anwender bemerkt es. Wir loggen
+                  // den Fehler aber, damit er nicht still verschwindet
+                  // (.cursor/rules/no-silent-fallbacks.mdc).
+                  FileLogger.warn('FilePreview', 'Quelle-Button: getStreamingUrl fehlgeschlagen', {
+                    fileId: displayFile.id,
+                    error: error instanceof Error ? error.message : String(error),
+                  })
+                }
               }}
             >
               <ExternalLink className="h-4 w-4 mr-2" />

@@ -161,7 +161,14 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
               updatedAt: new Date().toISOString()
             }
           }));
-        } catch {}
+        } catch (eventError) {
+          // CustomEvent-Constructor kann in alten Browsern werfen — SSE liefert
+          // dann nach wenigen Sekunden den Job-Status nach. Wir loggen, damit
+          // der Fehler nicht still verschwindet (.cursor/rules/no-silent-fallbacks.mdc).
+          FileLogger.warn('PdfTransform', 'job_update_local-Event konnte nicht gefeuert werden', {
+            error: eventError instanceof Error ? eventError.message : String(eventError),
+          });
+        }
         return;
       }
 

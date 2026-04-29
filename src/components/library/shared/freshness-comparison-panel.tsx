@@ -27,6 +27,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { isFilesystemBacked } from "@/lib/storage/library-capability"
 
 /** Status-Typ (muss mit API übereinstimmen) */
 type ArtifactFreshnessStatus =
@@ -141,8 +142,16 @@ export function FreshnessComparisonPanel({
 
   if (!data) return null
 
-  const hasStorageColumn =
-    data.config.primaryStore === "filesystem" || data.config.persistToFilesystem
+  // Storage-Spalte zeigen, wenn die Library Filesystem-backed ist.
+  // Wir nutzen den storage-agnostischen Helper aus Welle 1
+  // (`isFilesystemBacked`) statt eines direkten `primaryStore`-Branches —
+  // konform mit `.cursor/rules/storage-abstraction.mdc` §3 und
+  // `.cursor/rules/welle-3-archiv-detail-contracts.mdc` §7.
+  // `data.config` aus der API-Response hat dieselbe Struktur wie
+  // `library.config.shadowTwin`, daher mappen wir es kurz um.
+  const hasStorageColumn = isFilesystemBacked({
+    config: { shadowTwin: data.config },
+  } as Parameters<typeof isFilesystemBacked>[0])
 
   return (
     <div className="space-y-2">

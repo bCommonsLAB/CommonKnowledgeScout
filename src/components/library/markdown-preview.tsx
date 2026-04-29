@@ -856,11 +856,19 @@ const md = new Remarkable({
     if (lang && hljs.getLanguage(lang)) {
       try {
         return hljs.highlight(str, { language: lang }).value;
-      } catch {}
+      } catch {
+        // hljs.highlight kann bei seltenen Token-Patterns werfen.
+        // Bewusster Fallback auf highlightAuto unten — Anwender sieht trotzdem
+        // Code, nur ohne Sprach-Hervorhebung. Render-Pfad darf nicht crashen
+        // (.cursor/rules/no-silent-fallbacks.mdc — dokumentierter Fallback).
+      }
     }
     try {
       return hljs.highlightAuto(str).value;
-    } catch {}
+    } catch {
+      // highlightAuto kann ebenfalls werfen. Fallback: ungehighlighteter
+      // leerer String (Markdown-Renderer faellt auf den Original-Code zurueck).
+    }
     return '';
   }
 }).use(linkify); // Linkify als Plugin hinzufügen
@@ -928,7 +936,10 @@ md.renderer.rules.fence = function (tokens, idx) {
   if (lang && hljs.getLanguage(lang)) {
     try {
       code = hljs.highlight(content, { language: lang }).value;
-    } catch {}
+    } catch {
+      // hljs.highlight kann bei seltenen Token-Patterns werfen.
+      // Fallback: unbearbeiteter Code (siehe Block oben fuer Begruendung).
+    }
   }
   
   return `
