@@ -82,7 +82,6 @@ import { getFileType } from './file-preview/extension-map'
 import {
   ArtifactTabLabel,
   getStoryStep,
-  stepStateClass,
 } from './file-preview/artifact-tab-label'
 
 // JobReportTabWithShadowTwin wurde in
