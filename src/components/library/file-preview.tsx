@@ -981,6 +981,15 @@ function PreviewContent({
     pipelineDefaultSteps,
     pipelineDefaultForce,
     savedCustomHint,
+    // Markdown-/Website-View-spezifische Felder (Welle 3-II-a Phase 2d).
+    content,
+    currentFolderId,
+    compositeWikiPreview,
+    isEditOpen,
+    setIsEditOpen,
+    contentCache,
+    onContentUpdated,
+    setSelectedFile,
   }
 
   switch (fileType) {

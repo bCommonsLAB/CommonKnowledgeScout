@@ -22,6 +22,7 @@ import type { FrontendShadowTwinState } from '@/atoms/shadow-twin-atom'
 import type { StoryStepStatus } from '@/components/library/shared/story-status'
 import type { LlmModelOption, PipelinePolicies, CoverImageOptions } from '@/components/library/flow/pipeline-sheet'
 import type { ResolvedTranscriptItemResult } from '@/components/library/shared/use-resolved-transcript-item'
+import type { CompositeWikiPreviewOptions } from '@/components/library/markdown-preview'
 
 /** Tab-Identitaet (siehe `PreviewContent.infoTab`-State). */
 export type PreviewInfoTab = 'original' | 'transcript' | 'transform' | 'story' | 'overview'
@@ -119,4 +120,34 @@ export interface PreviewViewProps {
   pipelineDefaultSteps: { extract: boolean; metadata: boolean; ingest: boolean } | undefined
   pipelineDefaultForce: boolean
   savedCustomHint: string
+
+  // ---------------------------------------------------------------------
+  // Markdown-/Website-View-spezifische Felder (Welle 3-II-a Phase 2d).
+  //
+  // Diese Felder werden NUR von markdown-view.tsx und website-view.tsx
+  // benoetigt. Damit Audio/Image/Video/PDF/Office Views nicht extra
+  // Mock-Daten brauchen, sind sie als optional deklariert.
+  //
+  // Composer (PreviewContent) MUSS sie aber immer setzen — die Views,
+  // die sie brauchen, lesen sie ueber Type-Guards (oder erwarten sie
+  // einfach, da sie im Composer immer existieren).
+  // ---------------------------------------------------------------------
+
+  /** Original-Datei-Inhalt als String (fuer markdown + website noetig). */
+  content?: string
+  /** Folder-ID zum Aufloesen relativer Wiki-Links im MarkdownPreview. */
+  currentFolderId?: string
+  /** Composite-Wiki-Preview-Konfiguration (Sammel-Markdown). */
+  compositeWikiPreview?: CompositeWikiPreviewOptions | null
+
+  /** State + Setter fuer den Markdown-Edit-Dialog. */
+  isEditOpen?: boolean
+  setIsEditOpen?: React.Dispatch<React.SetStateAction<boolean>>
+
+  /** Content-Cache-Ref (mutiert nach erfolgreichem Save). */
+  contentCache?: React.MutableRefObject<Map<string, { content: string; hasMetadata: boolean }>>
+  /** Callback nach Inhalts-Update (informiert FilePreview-Reducer). */
+  onContentUpdated?: (content: string) => void
+  /** Setter fuer das selectedFile-Atom (wird nach Edit/Save aktualisiert). */
+  setSelectedFile?: (item: StorageItem) => void
 }
