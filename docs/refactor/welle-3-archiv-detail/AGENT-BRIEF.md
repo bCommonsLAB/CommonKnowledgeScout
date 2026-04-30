@@ -114,62 +114,42 @@ Entfaellt in Vorbereitung.
 
 ## Sub-Wellen-Briefs (fuer Folge-Cloud-Lauefe)
 
+**Strategie ab 2026-04-30**: Pro Sub-Welle EINE PR mit mehreren
+kohaerenten Commits — siehe [`refactor-batch-strategy.mdc`](mdc:.cursor/rules/refactor-batch-strategy.mdc).
+
 Diese Briefs werden im Folge-Cloud-Lauf separat gestartet, sobald die
-Vorbereitungs-PR gemerged ist.
+jeweils vorherige Sub-Welle gemerged ist (R2: seriell).
 
-### Cloud-Auftrag fuer 3-II-a (Preview-Switch)
+### Cloud-Auftrag fuer 3-II-a (Preview-Switch) — ABGESCHLOSSEN
 
-```
-Lies docs/refactor/welle-3-archiv-detail/AGENT-BRIEF.md (Sektion "3-II-a"),
-.cursor/rules/welle-3-archiv-detail-contracts.mdc und
-.cursor/rules/detail-view-type-checklist.mdc.
+Welle 3-II-a wurde in 5 PRs (#28, #29, #32, #33, #34) abgewickelt — das
+war noch die alte Strategie. Bilanz: file-preview.tsx von 4.230 auf
+1.288 Zeilen reduziert (-69.5%), 9 View-Komponenten ausgegliedert.
 
-Aufgabe: file-preview.tsx (3.701 Zeilen, 66 Hooks) Modul-Split nach View-Typ.
+Ab Welle 3-II-b gilt die neue Strategie (1 PR pro Sub-Welle).
 
-Branch: refactor/welle-3-ii-a-preview-switch (von master nach 3-II-Vorbereitung-Merge).
-
-Zielstruktur (Cloud-Agent verfeinert nach Audit):
-  src/components/library/file-preview/
-    index.tsx                     # Composer, exportiert FilePreview (~250z)
-    extension-map.ts              # MIME/Endung -> View-Typ
-    preview-reducer.ts            # Tab-State (transcript|transformation|story|media|file)
-    views/
-      audio-view.tsx
-      image-view.tsx
-      video-view.tsx
-      markdown-view.tsx
-      pdf-view.tsx
-      office-view.tsx
-      presentation-view.tsx
-      website-view.tsx
-    hooks/
-      use-preview-data.ts        # Daten-Hook
-      use-preview-tabs.ts         # Tab-Switch + URL-Sync
-
-Vor jedem Sub-Split: Char-Tests aus tests/unit/components/library/file-preview/
-gruen halten. Pro View-Typ ein eigener Commit, max 500 Zeilen Diff pro Commit.
-
-Stop wenn > 1.000 Zeilen Diff in einem Commit.
-Antworte auf Deutsch. PR als Draft.
-```
-
-### Cloud-Auftrag fuer 3-II-b (Markdown)
+### Cloud-Auftrag fuer 3-II-b (Markdown) — 1 PR
 
 ```
-Lies docs/refactor/welle-3-archiv-detail/AGENT-BRIEF.md (Sektion "3-II-b"),
-.cursor/rules/welle-3-archiv-detail-contracts.mdc.
+Lies VOR dem Start:
+- docs/refactor/welle-3-archiv-detail/AGENT-BRIEF.md (Sektion "3-II-b")
+- .cursor/rules/welle-3-archiv-detail-contracts.mdc
+- .cursor/rules/refactor-batch-strategy.mdc (NEU — 1 PR pro Welle)
+- AGENTS.md (Branching/Stop-Bedingungen)
 
 Aufgabe: markdown-preview.tsx (2.054 Zeilen, 41 Hooks) + markdown-metadata.tsx
 (437z) Modul-Splits.
 
-Branch: refactor/welle-3-ii-b-markdown (von master nach 3-II-a-Merge).
+Branch: cursor/refactor-welle-3-ii-b-markdown-<suffix>
+
+Strategie: 1 PR mit ~6-9 kohaerenten Commits, jeder unter 1.000 Zeilen Diff.
 
 Hinweis: 3-II-Vorbereitung hat die 3 leeren Catches in markdown-preview.tsx
 schon eliminiert. Hier geht es nur um den Modul-Split.
 
 Zielstruktur:
   src/components/library/markdown-preview/
-    index.tsx                    # Composer
+    index.tsx                    # Composer (Hauptdatei nach Refactor)
     toc-builder.tsx              # Table-of-Contents
     search-overlay.tsx           # Suche im Markdown
     chapter-renderer.tsx         # ChapterAccordion-Integration
@@ -183,22 +163,43 @@ Zielstruktur:
     field-renderer.tsx
     edit-mode.tsx
 
-Pro Sub-File ein eigener Commit. Char-Tests vorher schreiben.
-Stop wenn > 1.000 Zeilen Diff in einem Commit.
-Antworte auf Deutsch. PR als Draft.
+Empfohlene Commit-Reihenfolge (anpassen nach Audit):
+  1. Char-Tests fuer markdown-preview.tsx (Sicherheitsnetz)
+  2. Helper extrahieren (toc-builder, search-overlay)
+  3. ChapterRenderer + SlideRenderer ausgliedern
+  4. Hooks ausgliedern (use-markdown-search, use-markdown-toc)
+  5. Composer-Integration in markdown-preview.tsx
+  6. markdown-metadata.tsx Split (field-renderer, edit-mode)
+  7. Cleanup ungenutzte Imports (NACH pnpm build, PFLICHT im selben PR)
+  8. Acceptance-Doc 06-acceptance-3-ii-b.md
+
+Vor jedem Push: pnpm test + pnpm lint + pnpm build (PFLICHT!).
+
+Stop wenn:
+- 1 Commit > 1.000 Zeilen Diff (splitten)
+- PR > 5.000 Zeilen Brutto-Diff (ohne Plan-Begruendung)
+- PR > 15 Commits
+
+PR als Draft. Smoke-Test-Plan im PR-Body (max 10 Klicks).
+Antworte auf Deutsch.
 ```
 
-### Cloud-Auftrag fuer 3-II-c (Detail-Tabs)
+### Cloud-Auftrag fuer 3-II-c (Detail-Tabs) — 1 PR
 
 ```
-Lies docs/refactor/welle-3-archiv-detail/AGENT-BRIEF.md (Sektion "3-II-c"),
-.cursor/rules/welle-3-archiv-detail-contracts.mdc und
-.cursor/rules/detail-view-type-checklist.mdc.
+Lies VOR dem Start:
+- docs/refactor/welle-3-archiv-detail/AGENT-BRIEF.md (Sektion "3-II-c")
+- .cursor/rules/welle-3-archiv-detail-contracts.mdc
+- .cursor/rules/detail-view-type-checklist.mdc
+- .cursor/rules/refactor-batch-strategy.mdc
+- AGENTS.md
 
 Aufgabe: job-report-tab.tsx (2.284z, 30 Hooks) + media-tab.tsx (1.147z, 13 Hooks)
 Modul-Splits.
 
-Branch: refactor/welle-3-ii-c-detail-tabs (von master nach 3-II-b-Merge).
+Branch: cursor/refactor-welle-3-ii-c-detail-tabs-<suffix>
+
+Strategie: 1 PR mit ~7-10 kohaerenten Commits.
 
 Zielstruktur:
   src/components/library/job-report-tab/
@@ -222,48 +223,85 @@ job-report-tab/index.tsx exportiert weiter dieselbe Komponente unter
 demselben Pfad, sonst bricht .cursor/rules/detail-view-type-checklist.mdc
 Punkt 9.
 
-Pro Sub-File ein eigener Commit. Char-Tests vorher schreiben.
-Stop wenn > 1.000 Zeilen Diff in einem Commit.
-Antworte auf Deutsch. PR als Draft.
+Empfohlene Commit-Reihenfolge:
+  1. Char-Tests fuer job-report-tab + media-tab
+  2. job-report-tab: teaser-card extrahieren
+  3. job-report-tab: field-mapper extrahieren
+  4. job-report-tab: job-status-bar extrahieren
+  5. job-report-tab: use-job-report Hook extrahieren
+  6. job-report-tab: Composer-Integration
+  7. media-tab: media-grid + media-row + upload-area extrahieren
+  8. media-tab: use-media-data Hook extrahieren
+  9. media-tab: Composer-Integration
+  10. Cleanup + Acceptance-Doc
+
+Vor jedem Push: pnpm test + pnpm lint + pnpm build (PFLICHT).
+
+Stop-Bedingungen siehe refactor-batch-strategy.mdc.
+
+PR als Draft. Smoke-Test-Plan im PR-Body.
+Antworte auf Deutsch.
 ```
 
-### Cloud-Auftrag fuer 3-II-d (Detail + Flow)
+### Cloud-Auftrag fuer 3-II-d (Detail + Flow) — 1 PR
 
 ```
-Lies docs/refactor/welle-3-archiv-detail/AGENT-BRIEF.md (Sektion "3-II-d"),
-.cursor/rules/welle-3-archiv-detail-contracts.mdc und
-.cursor/rules/detail-view-type-checklist.mdc.
+Lies VOR dem Start:
+- docs/refactor/welle-3-archiv-detail/AGENT-BRIEF.md (Sektion "3-II-d")
+- .cursor/rules/welle-3-archiv-detail-contracts.mdc
+- .cursor/rules/detail-view-type-checklist.mdc
+- .cursor/rules/refactor-batch-strategy.mdc
+- AGENTS.md
 
 Aufgabe: session-detail.tsx (1.042z, 19 Hooks) + flow/pipeline-sheet.tsx (671z) +
 cover-image-generator-dialog.tsx (458z) + shared/artifact-info-panel.tsx (333z) +
 shared/artifact-markdown-panel.tsx (325z) + shared/shadow-twin-artifacts-table.tsx
 (393z) Modul-Splits.
 
-Branch: refactor/welle-3-ii-d-detail-flow (von master nach 3-II-c-Merge).
+Gesamt-Volumen: ~3.200 Zeilen ueber 6 Files. Ist die groesste verbleibende
+Sub-Welle. Wenn das Brutto-Diff der PR > 5.000 Zeilen wird (mit Char-Tests
++ Acceptance), darf die Welle in 2 PRs aufgeteilt werden:
+- 3-II-d-1: session-detail + cover-image-generator-dialog (eigenstaendige
+  Komponenten)
+- 3-II-d-2: flow/pipeline-sheet + shared/* (gemeinsame Bibliotheks-Files)
+
+Branch: cursor/refactor-welle-3-ii-d-detail-flow-<suffix>
+
+Strategie: 1 PR (oder 2 wenn > 5.000 Zeilen) mit kohaerenten Commits.
 
 Pro Datei eigene Sub-Module. Char-Tests vorher schreiben.
-Stop wenn > 1.000 Zeilen Diff in einem Commit.
-Antworte auf Deutsch. PR als Draft.
+
+Vor jedem Push: pnpm test + pnpm lint + pnpm build (PFLICHT).
+
+Stop-Bedingungen siehe refactor-batch-strategy.mdc.
+
+PR als Draft. Smoke-Test-Plan im PR-Body.
+Antworte auf Deutsch.
 ```
 
-## Push-Strategie (R1, R4)
+## Push-Strategie
 
 **Du PUSHST NICHT auf master.** Stattdessen:
 
-- Eigener Branch: `refactor/welle-3-archiv-detail`
-- Commit pro Schritt
-- 1 PR am Ende, alle Schritte enthaltend
+- Eigener Branch pro Sub-Welle: `cursor/refactor-welle-3-ii-<sub>-<suffix>`
+- Mehrere kohaerente Commits, jeder unter 1.000 Zeilen Diff
+- **Eine PR pro Sub-Welle** (siehe `.cursor/rules/refactor-batch-strategy.mdc`)
 - Kein Auto-Merge — User reviewt, smoke-testet, merged dann selbst.
 
 ## Stop-Bedingungen
 
 Stoppe und melde dem User, wenn:
-- `> 1.000 Zeilen Diff` in einem Commit (zu riskant, splitte)
+- `> 1.000 Zeilen Diff` in einem **einzelnen** Commit (hart — splitte)
+- `> 5.000 Zeilen Brutto-Diff` in einer **PR** ohne Plan-Begruendung
+- `> 15 Commits` in einer PR
 - Tests werden rot und du findest die Ursache nicht in 30 Min
-- React-Error-Boundary-Fehler im UI nach Refactor — erst mit User klaeren, nicht raten
+- `pnpm build` rot und nach 3 Versuchen keine Loesung
+- React-Error-Boundary-Fehler im UI nach Refactor — erst mit User klaeren
 - Architektur-Frage auftritt, die nicht im Brief geklaert ist
 - Storage-Provider-Live-Calls werden noetig — verboten, sauber mocken
 - DetailViewType-Vertrag wird gebrochen (siehe `detail-view-type-checklist.mdc`)
+- Cleanup-Commit kann ungenutzte Imports nicht alle entfernen, weil ein
+  Import noch in einem nicht refactorierten Switch-Case verwendet wird
 
 ## Daten zum Mitnehmen
 
