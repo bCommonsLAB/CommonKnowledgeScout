@@ -9,6 +9,7 @@
 import type { ParsedTemplate, TemplateMetadataSchema, TemplateMetadataField, TemplateCreationConfig, TemplateValidationError, CreationFlowStepPreset, TemplatePreviewDetailViewType } from './template-types'
 import { extractCreationFromFrontmatter } from './template-frontmatter-utils'
 import { parseFrontmatterObjectFromBlock } from '@/lib/markdown/frontmatter'
+import { isValidDetailViewType } from '@/lib/detail-view-types/registry'
 
 /**
  * Parst ein Template aus rohem Markdown-Content
@@ -44,13 +45,16 @@ export function parseTemplate(
   // 3. Parse Frontmatter-Felder
   const metadataFields = parseFrontmatterFields(rawFrontmatter)
   
-  // 3.5. Extrahiere detailViewType aus Frontmatter (falls vorhanden)
+  // 3.5. Extrahiere detailViewType aus Frontmatter (falls vorhanden).
+  // Validiert gegen die zentrale Registry (`isValidDetailViewType`),
+  // damit neue Typen wie `refurbedDevice`, `divaDocument` etc. automatisch
+  // erkannt werden, ohne hier eine eigene Liste pflegen zu muessen.
   let detailViewType: TemplatePreviewDetailViewType | undefined
   if (rawFrontmatter) {
     try {
       const frontmatterObj = parseFrontmatterObjectFromBlock(rawFrontmatter)
       const dvt = frontmatterObj.detailViewType
-      if (typeof dvt === 'string' && ['book', 'session', 'testimonial', 'blog'].includes(dvt)) {
+      if (isValidDetailViewType(dvt)) {
         detailViewType = dvt as TemplatePreviewDetailViewType
       }
     } catch {

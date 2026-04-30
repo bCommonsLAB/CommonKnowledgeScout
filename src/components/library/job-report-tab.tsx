@@ -997,7 +997,9 @@ export function JobReportTab({
 
           // Bilde Paare: Thumbnail + zugehöriges Original
           // Verknüpfung über sourceHash (Thumbnail.sourceHash === Original.hash)
-          // oder über Namenskonvention (thumb_<name>.webp → <name>.png/jpg)
+          // oder über Namenskonvention (thumb_<name>.webp → <name>.{png,jpg,jpeg,webp,gif,...})
+          // Der Match laeuft ueber den Basis-Namen ohne Endung, also funktioniert er
+          // fuer alle Image-MIME-Types — auch fuer .webp-Originale.
           const pairs: Array<{
             thumbnailName: string
             thumbnailUrl: string
@@ -1196,9 +1198,19 @@ export function JobReportTab({
       }
       const blob = await response.blob()
 
-      // Dateiname aus coverImageUrl extrahieren (z.B. "34dd92f7-...jpg")
-      const fileName = coverImageUrl.split('/').pop() || 'cover.jpg'
-      const mimeType = blob.type || 'image/jpeg'
+      // Dateiname aus coverImageUrl extrahieren (z.B. "34dd92f7-...jpg" oder "...webp").
+      // Kein Fallback auf "cover.jpg" — wer einen Cover-URL ohne Dateinamen liefert,
+      // hat ein Pipeline-Problem, das nicht durch eine erfundene Endung kaschiert werden darf
+      // (siehe no-silent-fallbacks.mdc).
+      const fileName = coverImageUrl.split('/').pop()
+      if (!fileName) {
+        throw new Error('coverImageUrl enthaelt keinen Dateinamen — kann nicht hochgeladen werden')
+      }
+      // Auch der MIME-Typ muss konkret kommen. Ein Default "image/jpeg" verfaelscht webp/png-Originale.
+      const mimeType = blob.type
+      if (!mimeType) {
+        throw new Error('Geladene Cover-Datei hat keinen MIME-Typ — kann nicht hochgeladen werden')
+      }
       const file = new File([blob], fileName, { type: mimeType })
 
       await saveCoverImage(file)

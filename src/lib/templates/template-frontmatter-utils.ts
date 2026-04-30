@@ -5,8 +5,9 @@
  * Funktionen zum Extrahieren und Einfügen des creation-Blocks in/aus Frontmatter.
  */
 
-import type { TemplateCreationConfig, CreationFlowStepPreset } from './template-types'
+import type { TemplateCreationConfig, CreationFlowStepPreset, TemplatePreviewDetailViewType } from './template-types'
 import { parseFrontmatterObjectFromBlock } from '@/lib/markdown/frontmatter'
+import { isValidDetailViewType } from '@/lib/detail-view-types/registry'
 
 /**
  * Extrahiert einen verschachtelten YAML-Block nach einem Key
@@ -491,8 +492,11 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
         if (welcomeMarkdown && welcomeMarkdown.trim()) {
           result.welcome = { markdown: welcomeMarkdown }
         }
-        if (detailViewType === 'book' || detailViewType === 'session' || detailViewType === 'testimonial' || detailViewType === 'blog') {
-          result.preview = { detailViewType }
+        // Validierung gegen die zentrale Registry: nimmt automatisch alle ViewTypes an
+        // (book, session, testimonial, blog, climateAction, divaDocument, divaTexture,
+        // refurbedDevice, ...) - keine eigene Liste pflegen!
+        if (isValidDetailViewType(detailViewType)) {
+          result.preview = { detailViewType: detailViewType as TemplatePreviewDetailViewType }
         }
         if (
           metadataFieldKey ||
@@ -630,8 +634,11 @@ export function extractCreationFromFrontmatter(frontmatter: string): TemplateCre
         if (welcomeMarkdown && welcomeMarkdown.trim()) {
           result.welcome = { markdown: welcomeMarkdown }
         }
-        if (detailViewType === 'book' || detailViewType === 'session' || detailViewType === 'testimonial' || detailViewType === 'blog') {
-          result.preview = { detailViewType }
+        // Validierung gegen die zentrale Registry: nimmt automatisch alle ViewTypes an
+        // (book, session, testimonial, blog, climateAction, divaDocument, divaTexture,
+        // refurbedDevice, ...) - keine eigene Liste pflegen!
+        if (isValidDetailViewType(detailViewType)) {
+          result.preview = { detailViewType: detailViewType as TemplatePreviewDetailViewType }
         }
         if (
           metadataFieldKey ||

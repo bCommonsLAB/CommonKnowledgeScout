@@ -1069,6 +1069,15 @@ function buildGalleryProjection(
     'docMetaJson.topics': 1,
     'docMetaJson.tags': 1,
     'docMetaJson.sourcePath': 1,
+    // RefurbedDevice-spezifische Felder fuer Gallery-Teaser (vollflaechige Karte)
+    'docMetaJson.modell': 1,
+    'docMetaJson.geraetetyp': 1,
+    'docMetaJson.prozessor': 1,
+    'docMetaJson.arbeitsspeicher': 1,
+    'docMetaJson.festplatte': 1,
+    'docMetaJson.grafik': 1,
+    'docMetaJson.gewicht': 1,
+    'docMetaJson.betriebssystem': 1,
     'docMetaJson.sourceFileName': 1,
     // Quellsprache des Originals (fuer getLocalized-Fallback auf Original)
     'docMetaJson.language': 1,

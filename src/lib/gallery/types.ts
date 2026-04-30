@@ -62,6 +62,24 @@ export interface DocCardMeta {
   /** Diva-Texture-Analysis: Kurzcode unter dem Titel (optional) */
   textur_code?: string
 
+  // ─── RefurbedDevice-spezifische Felder fuer Gallery-Teaser ───────────────
+  /** Marke + Modell in einer Zeile (z.B. "Lenovo ThinkPad T480") */
+  modell?: string
+  /** "notebook" | "desktop-pc" | "mini-pc" | "all-in-one" */
+  geraetetyp?: string
+  /** Prozessor laienverstaendlich (z.B. "Intel Core i5, 8. Generation") */
+  prozessor?: string
+  /** Arbeitsspeicher mit Einheit (z.B. "8 GB") */
+  arbeitsspeicher?: string
+  /** Festplatte mit Typ (z.B. "256 GB SSD") */
+  festplatte?: string
+  /** Grafikkarte (z.B. "Intel-Grafik (integriert)") */
+  grafik?: string
+  /** Gewicht mit Einheit (z.B. "1.6 kg") */
+  gewicht?: string
+  /** Betriebssystem (z.B. "Linux Mint 21") */
+  betriebssystem?: string
+
   // ─── Publish-Status (Doc-Translations Refactor) ─────────────────────────
   /** Veroeffentlichungs-Status auf Dokumentebene ('draft' | 'published'). */
   publicationStatus?: 'draft' | 'published'
@@ -153,6 +171,15 @@ export function mapItemToDocCardMeta(item: Item): DocCardMeta {
     sourcePath: typeof item.meta.sourcePath === 'string' ? item.meta.sourcePath : undefined,
     sourceFileName: typeof item.meta.sourceFileName === 'string' ? item.meta.sourceFileName : undefined,
     textur_code: typeof item.meta.textur_code === 'string' ? item.meta.textur_code : undefined,
+    // RefurbedDevice-spezifische Felder fuer Gallery-Teaser (vollflaechige Karte)
+    modell: typeof item.meta.modell === 'string' ? item.meta.modell : undefined,
+    geraetetyp: typeof item.meta.geraetetyp === 'string' ? item.meta.geraetetyp : undefined,
+    prozessor: typeof item.meta.prozessor === 'string' ? item.meta.prozessor : undefined,
+    arbeitsspeicher: typeof item.meta.arbeitsspeicher === 'string' ? item.meta.arbeitsspeicher : undefined,
+    festplatte: typeof item.meta.festplatte === 'string' ? item.meta.festplatte : undefined,
+    grafik: typeof item.meta.grafik === 'string' ? item.meta.grafik : undefined,
+    gewicht: typeof item.meta.gewicht === 'string' ? item.meta.gewicht : undefined,
+    betriebssystem: typeof item.meta.betriebssystem === 'string' ? item.meta.betriebssystem : undefined,
   };
 }
 

@@ -30,8 +30,10 @@ import { getTranslatableFieldsForScope } from '@/lib/detail-view-types/registry'
 import {
   translateBookData,
   translateSessionData,
+  translateRefurbedDeviceData,
+  translateGenericData,
 } from '@/lib/chat/common/document-translation'
-import { mapToBookDetail, mapToSessionDetail } from '@/lib/mappers/doc-meta-mappers'
+import { mapToBookDetail, mapToSessionDetail, mapToRefurbedDeviceDetail } from '@/lib/mappers/doc-meta-mappers'
 import type { ExternalJob } from '@/types/external-job'
 import type { TargetLanguage } from '@/lib/chat/constants'
 
@@ -151,13 +153,53 @@ export async function runPhaseTranslations(job: ExternalJob): Promise<{
         galleryFields,
         detailFields,
       ))
-    } else {
-      // Fallback: kein spezialisierter Translator vorhanden → vorerst nur Status
-      // setzen und Phase als 'failed' markieren, bis ein generischer Translator
-      // existiert. Das verhindert stille Daten-Lücken.
-      throw new Error(
-        `phase-translations: kein Translator fuer detailViewType="${viewType}" implementiert`,
+    } else if (viewType === 'refurbedDevice') {
+      // RefurbedDevice (gebrauchte PCs/Notebooks): nur textuelle Felder uebersetzen
+      // (title, summary, markdown, wofuerGeeignet, tags). Hardware-Specs und Modellname
+      // bleiben unveraendert (universal).
+      const refurbedData = mapToRefurbedDeviceDetail({
+        exists: true,
+        fileId,
+        docMetaJson,
+        fileName: typeof meta.fileName === 'string' ? meta.fileName : undefined,
+        chunkCount: typeof meta.chunkCount === 'number' ? meta.chunkCount : undefined,
+        upsertedAt: typeof meta.upsertedAt === 'string' ? meta.upsertedAt : undefined,
+      } as unknown as Parameters<typeof mapToRefurbedDeviceDetail>[0])
+      const translated = await translateRefurbedDeviceData(
+        refurbedData,
+        targetLocale as TargetLanguage,
+        sourceLocale,
+        library.config?.publicPublishing?.apiKey,
       )
+      ;({ gallery: llmGallery, detail: llmDetail } = splitByScope(
+        translated as unknown as Record<string, unknown>,
+        galleryFields,
+        detailFields,
+      ))
+    } else {
+      // Fallback: generischer Translator fuer alle ViewTypes ohne spezialisierte
+      // Logik (testimonial, blog, climateAction, divaDocument, divaTexture, ...).
+      //
+      // Liest die `translatable`-Spec aus dem Registry und uebersetzt automatisch
+      // alle dort gelisteten text/arrayOfText/topicLike-Felder. Bei leerer Spec
+      // (z.B. divaTexture) ist es ein no-op und gibt das Original unveraendert
+      // zurueck.
+      //
+      // Spezialisierte Translator (book, session, refurbedDevice) gehen hier nicht
+      // hindurch - sie haben eigene Branches oben, weil sie Sub-Strukturen wie
+      // chapters/slides oder spezielle Extraktoren brauchen.
+      const translated = await translateGenericData(
+        docMetaJson as Record<string, unknown>,
+        viewType,
+        targetLocale as TargetLanguage,
+        sourceLocale,
+        library.config?.publicPublishing?.apiKey,
+      )
+      ;({ gallery: llmGallery, detail: llmDetail } = splitByScope(
+        translated as Record<string, unknown>,
+        galleryFields,
+        detailFields,
+      ))
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)

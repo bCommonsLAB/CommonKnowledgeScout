@@ -15,7 +15,8 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
-import { Image as ImageIcon, User, Paperclip, X, Upload, FileText, Check, Globe, Link2, Sparkles } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Image as ImageIcon, User, Paperclip, X, Upload, FileText, Check, Globe, Link2, Sparkles, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { UILogger } from '@/lib/debug/logger'
 import { parseCompositeSourceFilesFromMeta } from '@/lib/creation/composite-source-files-meta'
@@ -507,6 +508,33 @@ export function MediaTab({
     return activeAssignment
   }, [activeAssignment, fallbackImageGenerationTarget])
 
+  // ─────────────────────────────────────────────────────────────────────
+  // Live-Check: ist der aktuelle coverImageUrl-Wert in den verfuegbaren
+  // Medien vorhanden? Funktioniert auch fuer Alt-Daten (kein Frontmatter-
+  // Feld noetig). Liefert null wenn alles ok ODER noch keine Daten geladen.
+  // (siehe docs/refactor/cover-image-deterministic-flow/01-analysis.md §5)
+  // ─────────────────────────────────────────────────────────────────────
+  const coverImageMissingValue = useMemo<string | null>(() => {
+    if (!coverImageUrl || typeof coverImageUrl !== 'string') return null
+    if (galleryLoading) return null
+    const trimmed = coverImageUrl.trim()
+    if (!trimmed) return null
+    // Absolute URLs koennen nicht via Sibling gepruefte werden — nicht als "missing" werten
+    if (
+      trimmed.startsWith('http://') ||
+      trimmed.startsWith('https://') ||
+      trimmed.startsWith('blob:') ||
+      trimmed.startsWith('data:') ||
+      trimmed.startsWith('/api/storage/')
+    ) {
+      return null
+    }
+    const exists = galleryItems.some(
+      item => item.name === trimmed || item.frontmatterRef === trimmed,
+    )
+    return exists ? null : trimmed
+  }, [coverImageUrl, galleryLoading, galleryItems])
+
   return (
     <div className="space-y-4">
       {/* Coverbild-Sektion */}
@@ -515,6 +543,19 @@ export function MediaTab({
           <h4 className="text-sm font-semibold flex items-center gap-1.5">
             <ImageIcon className="h-4 w-4" /> Coverbild
           </h4>
+          {/* Live-Validierungs-Banner: zeigt an, wenn coverImageUrl auf nicht-existente Datei verweist */}
+          {coverImageMissingValue && (
+            <Alert variant="destructive" className="py-2">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle className="text-xs">Cover-Bild nicht gefunden</AlertTitle>
+              <AlertDescription className="text-xs">
+                &quot;{coverImageMissingValue}&quot; existiert nicht im Verzeichnis.{' '}
+                {galleryItems.length > 0
+                  ? `Verfuegbar: ${galleryItems.slice(0, 3).map(i => i.name).join(', ')}${galleryItems.length > 3 ? ', ...' : ''}`
+                  : 'Keine Bilder im Verzeichnis vorhanden.'}
+              </AlertDescription>
+            </Alert>
+          )}
           <div className="flex items-center gap-3">
             {coverImageUrl ? (
               <div className="flex items-center gap-2 text-xs text-muted-foreground min-w-0">

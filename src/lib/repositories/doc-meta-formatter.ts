@@ -185,6 +185,15 @@ export function convertMongoDocToDocCardMeta(
     sourcePath: typeof docMeta?.sourcePath === 'string' ? docMeta.sourcePath : undefined,
     sourceFileName: typeof docMeta?.sourceFileName === 'string' ? docMeta.sourceFileName : undefined,
     textur_code: typeof docMeta?.textur_code === 'string' ? docMeta.textur_code : undefined,
+    // RefurbedDevice-spezifische Felder fuer vollflaechige Gallery-Karte
+    modell: typeof docMeta?.modell === 'string' ? docMeta.modell : undefined,
+    geraetetyp: typeof docMeta?.geraetetyp === 'string' ? docMeta.geraetetyp : undefined,
+    prozessor: typeof docMeta?.prozessor === 'string' ? docMeta.prozessor : undefined,
+    arbeitsspeicher: typeof docMeta?.arbeitsspeicher === 'string' ? docMeta.arbeitsspeicher : undefined,
+    festplatte: typeof docMeta?.festplatte === 'string' ? docMeta.festplatte : undefined,
+    grafik: typeof docMeta?.grafik === 'string' ? docMeta.grafik : undefined,
+    gewicht: typeof docMeta?.gewicht === 'string' ? docMeta.gewicht : undefined,
+    betriebssystem: typeof docMeta?.betriebssystem === 'string' ? docMeta.betriebssystem : undefined,
     // ─── Doc-Translations: Publish-/Translation-Status ───────────────────
     ...buildPublicationFields(rawDocMeta),
     // ─── Doc-Translations: Display-Labels fuer Facetten ──────────────────

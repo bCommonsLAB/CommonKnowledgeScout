@@ -168,6 +168,34 @@
     "openDocument": "Apri documento",
     "openEventWebsite": "Apri sito web evento",
     "loading": "Caricamento…",
+    "share": "Condividi",
+    "shareText": "Dai un'occhiata a questo documento",
+    "shareNative": "Condividi...",
+    "shareTwitter": "Condividi su X (Twitter)",
+    "shareLinkedIn": "Condividi su LinkedIn",
+    "shareFacebook": "Condividi su Facebook",
+    "copyLink": "Copia link",
+    "linkCopied": "Link copiato!",
+    "refurbedDevice": {
+      "suitabilityHeading": "A cosa serve questo computer?",
+      "specsHeading": "In sintesi",
+      "galleryHeading": "Altre immagini",
+      "specs": {
+        "modell": "Modello",
+        "prozessor": "Processore",
+        "arbeitsspeicher": "Memoria",
+        "festplatte": "Disco",
+        "grafik": "Grafica",
+        "gewicht": "Peso",
+        "betriebssystem": "Sistema operativo"
+      },
+      "deviceTypes": {
+        "notebook": "Notebook",
+        "desktop-pc": "Desktop PC",
+        "mini-pc": "Mini PC",
+        "all-in-one": "All-in-One"
+      }
+    },
     "viewMode": {
       "grid": "Galleria",
       "table": "Tabella"

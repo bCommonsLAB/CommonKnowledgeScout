@@ -6,7 +6,7 @@ import Image from "next/image";
 import { ArrowLeft, Cpu, MemoryStick, HardDrive, MonitorSmartphone, Weight, Tag, Laptop, Image as ImageIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { AIGeneratedNotice } from "@/components/shared/ai-generated-notice";
-import { MarkdownPreview } from "./markdown-preview";
+import { useTranslation } from "@/lib/i18n/hooks";
 
 /**
  * Datenstruktur fuer RefurbedDevice Detail-Ansicht.
@@ -61,18 +61,6 @@ interface RefurbedDeviceDetailProps {
 }
 
 /**
- * Lesbare Labels fuer Geraetetyp - werden in Badge angezeigt.
- * Wenn ein neuer Geraetetyp im Template auftaucht (z.B. "tablet"),
- * wird der raw-Wert angezeigt (kein silent fallback).
- */
-const GERAETETYP_LABELS: Record<string, string> = {
-  notebook: "Notebook",
-  "desktop-pc": "Desktop-PC",
-  "mini-pc": "Mini-PC",
-  "all-in-one": "All-in-One",
-};
-
-/**
  * Detail-Ansicht fuer gebrauchte PCs/Notebooks (refurbedDevice).
  *
  * Layout-Reihenfolge (von oben nach unten):
@@ -82,33 +70,37 @@ const GERAETETYP_LABELS: Record<string, string> = {
  * 4. "Wofuer ist dieser Rechner gut?" - Pflicht-Body-Feld, das LLM aus Specs ableitet
  * 5. "Auf einen Blick" - Spec-Tabelle mit Icons
  * 6. Bilder-Galerie (wenn weitere Bilder vorhanden)
- * 7. Markdown-Body (wenn vorhanden)
- * 8. Tags (wenn vorhanden)
+ * 7. Tags (wenn vorhanden)
+ *
+ * Markdown-Body wird BEWUSST nicht angezeigt - alle Daten sind strukturiert im
+ * Frontmatter und werden hier mit Icons/Tabelle gerendert. Der Body bleibt fuer
+ * RAG-Volltext-Suche im Hintergrund relevant, ist aber UI-redundant.
  */
 export function RefurbedDeviceDetail({
   data,
   backHref = "/library",
   showBackLink = false,
 }: RefurbedDeviceDetailProps) {
+  const { t } = useTranslation();
   const title = data.title || "—";
   const tags = Array.isArray(data.tags) ? data.tags : [];
   const galleryImageUrls = Array.isArray(data.galleryImageUrls) ? data.galleryImageUrls : [];
 
-  // Lesbarer Geraetetyp-Label, sonst rohen Wert anzeigen (kein silent fallback)
+  // Lesbarer Geraetetyp-Label aus i18n; wenn kein Key vorhanden, rohen Wert anzeigen (kein silent fallback)
   const geraetetypLabel = data.geraetetyp
-    ? GERAETETYP_LABELS[data.geraetetyp] || data.geraetetyp
+    ? t(`gallery.refurbedDevice.deviceTypes.${data.geraetetyp}`, { defaultValue: data.geraetetyp })
     : undefined;
 
   // Spec-Items fuer "Auf einen Blick"-Tabelle
-  // Pro Zeile: Icon, Label, Wert. Eintraege ohne Wert werden weggelassen (kein "-").
+  // Pro Zeile: Icon, Label-i18n-Key, Wert. Eintraege ohne Wert werden weggelassen (kein "-").
   const specItems: Array<{ icon: React.ReactNode; label: string; value: string }> = [];
-  if (data.modell) specItems.push({ icon: <Laptop className="w-4 h-4" />, label: "Modell", value: data.modell });
-  if (data.prozessor) specItems.push({ icon: <Cpu className="w-4 h-4" />, label: "Prozessor", value: data.prozessor });
-  if (data.arbeitsspeicher) specItems.push({ icon: <MemoryStick className="w-4 h-4" />, label: "Arbeitsspeicher", value: data.arbeitsspeicher });
-  if (data.festplatte) specItems.push({ icon: <HardDrive className="w-4 h-4" />, label: "Festplatte", value: data.festplatte });
-  if (data.grafik) specItems.push({ icon: <MonitorSmartphone className="w-4 h-4" />, label: "Grafik", value: data.grafik });
-  if (data.gewicht) specItems.push({ icon: <Weight className="w-4 h-4" />, label: "Gewicht", value: data.gewicht });
-  if (data.betriebssystem) specItems.push({ icon: <ImageIcon className="w-4 h-4" />, label: "Betriebssystem", value: data.betriebssystem });
+  if (data.modell) specItems.push({ icon: <Laptop className="w-4 h-4" />, label: t('gallery.refurbedDevice.specs.modell'), value: data.modell });
+  if (data.prozessor) specItems.push({ icon: <Cpu className="w-4 h-4" />, label: t('gallery.refurbedDevice.specs.prozessor'), value: data.prozessor });
+  if (data.arbeitsspeicher) specItems.push({ icon: <MemoryStick className="w-4 h-4" />, label: t('gallery.refurbedDevice.specs.arbeitsspeicher'), value: data.arbeitsspeicher });
+  if (data.festplatte) specItems.push({ icon: <HardDrive className="w-4 h-4" />, label: t('gallery.refurbedDevice.specs.festplatte'), value: data.festplatte });
+  if (data.grafik) specItems.push({ icon: <MonitorSmartphone className="w-4 h-4" />, label: t('gallery.refurbedDevice.specs.grafik'), value: data.grafik });
+  if (data.gewicht) specItems.push({ icon: <Weight className="w-4 h-4" />, label: t('gallery.refurbedDevice.specs.gewicht'), value: data.gewicht });
+  if (data.betriebssystem) specItems.push({ icon: <ImageIcon className="w-4 h-4" />, label: t('gallery.refurbedDevice.specs.betriebssystem'), value: data.betriebssystem });
 
   return (
     <div className="container max-w-2xl mx-auto px-4 py-6">
@@ -166,7 +158,7 @@ export function RefurbedDeviceDetail({
       {data.wofuerGeeignet && (
         <section className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4 mb-6">
           <h2 className="text-sm font-semibold text-emerald-900 dark:text-emerald-100 mb-2">
-            Wofür ist dieser Rechner gut?
+            {t('gallery.refurbedDevice.suitabilityHeading')}
           </h2>
           <p className="text-sm text-emerald-900 dark:text-emerald-100 leading-relaxed text-pretty">
             {data.wofuerGeeignet}
@@ -178,7 +170,7 @@ export function RefurbedDeviceDetail({
       {specItems.length > 0 && (
         <section className="bg-card border border-border rounded-lg p-4 mb-6">
           <h2 className="text-xs font-semibold text-foreground mb-3 uppercase tracking-wide">
-            Auf einen Blick
+            {t('gallery.refurbedDevice.specsHeading')}
           </h2>
           <dl className="space-y-2">
             {specItems.map((item) => (
@@ -198,7 +190,7 @@ export function RefurbedDeviceDetail({
       {galleryImageUrls.length > 0 && (
         <section className="mb-6">
           <h2 className="text-xs font-semibold text-foreground mb-3 uppercase tracking-wide">
-            Weitere Bilder
+            {t('gallery.refurbedDevice.galleryHeading')}
           </h2>
           <div className="grid grid-cols-2 gap-3">
             {galleryImageUrls.map((url) => (
@@ -220,16 +212,11 @@ export function RefurbedDeviceDetail({
         </section>
       )}
 
-      {/* Markdown-Body (zusaetzliche Informationen vom Template) */}
-      {data.markdown && (
-        <div className="prose prose-slate dark:prose-invert max-w-none mb-6">
-          <MarkdownPreview
-            content={data.markdown}
-            compact={true}
-            className="min-h-0 w-full"
-          />
-        </div>
-      )}
+      {/* Markdown-Body wird hier bewusst NICHT angezeigt:
+          Alle Inhalte stehen strukturiert im Frontmatter und werden oben
+          mit Icons/Tabelle gerendert. Eine zusaetzliche Anzeige des
+          Markdown-Bodys waere reine Duplikation. Der Body bleibt fuer die
+          RAG-Volltext-Suche im Hintergrund relevant. */}
 
       {/* Tags */}
       {tags.length > 0 && (

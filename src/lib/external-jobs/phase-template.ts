@@ -898,9 +898,83 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     const secretaryUrlConfig = args.libraryConfig?.apiUrl
       ? { overrideBaseUrl: args.libraryConfig.apiUrl, overrideApiKey: args.libraryConfig.apiKey }
       : undefined
+
+    // ─────────────────────────────────────────────────────────────────────
+    // availableMedia in CONTEXT aufnehmen — gibt dem LLM den Existenz-Kontext
+    // (siehe docs/refactor/cover-image-deterministic-flow/01-analysis.md §4)
+    // ─────────────────────────────────────────────────────────────────────
+    const sourceItemIdForMedia = job.correlation?.source?.itemId
+    if (sourceItemIdForMedia) {
+      try {
+        const { loadAvailableMediaForSource } = await import('@/lib/templates/available-media-loader')
+        const mediaResult = await loadAvailableMediaForSource({
+          provider,
+          sourceItemId: sourceItemIdForMedia,
+          parentId: targetParentId,
+        })
+        sourceContext.availableMedia = mediaResult.entries
+        if (mediaResult.truncated) {
+          sourceContext.availableMediaTruncated = true
+        }
+        bufferLog(jobId, {
+          phase: 'transform_context',
+          message: `availableMedia: ${mediaResult.entries.length}/${mediaResult.totalBeforeLimit} Eintraege fuer LLM-CONTEXT geladen`,
+        })
+      } catch (err) {
+        // KEIN stiller Fallback: leere availableMedia → Validator wuerde ALLES rejecten.
+        // Lieber Job mit klarem Fehler beenden, damit User die Storage-Ursache sieht.
+        const msg = err instanceof Error ? err.message : String(err)
+        FileLogger.error('phase-template', 'availableMedia konnte nicht geladen werden', { jobId, error: msg })
+        throw new Error(`availableMedia konnte nicht geladen werden: ${msg}`)
+      }
+    }
+
     const tr = await runTemplateTransform({ ctx, extractedText: extractedText || '', templateContent: templateContentFinal, targetLanguage: lang, llmModel, context: sourceContext, secretaryUrlConfig })
-    metadataFromTemplate = tr.meta as unknown as Record<string, unknown> | null
-    if (metadataFromTemplate) {
+    const rawMetaFromLlm = tr.meta as unknown as Record<string, unknown> | null
+
+    if (rawMetaFromLlm) {
+      // ───────────────────────────────────────────────────────────────────
+      // Media-Existence-Validator anwenden (Variante B, set_null + Warning)
+      // Phantome (LLM hat Dateinamen aus Freitext oder Template-Beispielen
+      // uebernommen, die nicht existieren) werden auf null/[] gesetzt.
+      // Pipeline laeuft weiter, Job-Log enthaelt Diagnose-Report.
+      // (siehe docs/refactor/cover-image-deterministic-flow/01-analysis.md §3)
+      // ───────────────────────────────────────────────────────────────────
+      try {
+        const [{ validateMediaExistence, buildMediaFieldsConfig }, { getDetailViewType }] = await Promise.all([
+          import('@/lib/templates/media-existence-validator'),
+          import('@/lib/templates/detail-view-type-utils'),
+        ])
+        const detailViewType = getDetailViewType(rawMetaFromLlm, args.libraryConfig)
+        const mediaConfig = buildMediaFieldsConfig(detailViewType)
+        const availableMedia = Array.isArray(sourceContext.availableMedia)
+          ? (sourceContext.availableMedia as Parameters<typeof validateMediaExistence>[1])
+          : []
+        const validationResult = validateMediaExistence(rawMetaFromLlm, availableMedia, mediaConfig)
+        if (validationResult.hasChanges) {
+          bufferLog(jobId, {
+            phase: 'transform_validate',
+            message: 'Phantom-Medien rejected (LLM-Werte ohne reale Datei)',
+            details: validationResult.report,
+          })
+          FileLogger.warn('phase-template', 'Validator hat Phantom-Medien entfernt', {
+            jobId,
+            detailViewType,
+            rejected: validationResult.report.rejected,
+          })
+        }
+        // WICHTIG: Nur cleanedMeta — KEIN _media_validation-Feld ins Frontmatter
+        // (User-Entscheidung 2026-04-30: Banner berechnet sich live im UI)
+        metadataFromTemplate = validationResult.cleanedMeta
+      } catch (err) {
+        // Validator-Fehler darf die Pipeline nicht brechen — Original-Meta uebernehmen,
+        // aber laut loggen, damit Drift sichtbar wird.
+        FileLogger.error('phase-template', 'Media-Existence-Validator fehlgeschlagen — uebernehme Roh-Meta', {
+          jobId,
+          error: err instanceof Error ? err.message : String(err),
+        })
+        metadataFromTemplate = rawMetaFromLlm
+      }
       bufferLog(jobId, { phase: 'transform_meta', message: 'Metadaten via Template berechnet' })
     } else {
       // runTemplateTransform sollte jetzt einen Fehler werfen, wenn kein gültiges Meta zurückgegeben wird

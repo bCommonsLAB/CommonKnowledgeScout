@@ -31,20 +31,15 @@ customHint: keinen
 
 {{summary}}
 
-### Wofür ist dieser Rechner gut?
-
 {{wofuerGeeignet|Pflicht-Fließtext 3-5 Sätze in einfacher Alltagssprache für Schüler, Lehrer und Eltern.
 Erkläre konkret welche Aufgaben damit gut funktionieren ("Schulaufgaben in LibreOffice, Recherchieren im Browser, Videokonferenzen mit Jitsi/Zoom, einfache Bildbearbeitung mit GIMP").
 Wenn das Gerät auch für mehr taugt (z.B. Programmieren lernen, leichte Spiele): erwähnen.
 Nenne mindestens EINE ehrliche Grenze ("Für aktuelle PC-Spiele oder professionellen Videoschnitt ist es nicht ausgelegt").
-Keine Marketing-Phrasen, keine technischen Fachbegriffe ohne Erklärung.}}
+Keine Marketing-Phrasen, keine technischen Fachbegriffe ohne Erklärung.
 
-### Auf einen Blick
-
-{{aufEinenBlickTabelle|Markdown-Tabelle mit zwei Spalten: "Was" | "Was steckt drin".
-Zeilen in genau dieser Reihenfolge - leere Felder weglassen:
-Gerätetyp, Modell, Prozessor, Arbeitsspeicher, Festplatte, Grafik, Gewicht, Betriebssystem.
-Werte 1:1 aus dem Frontmatter übernehmen. Keine Codeblock-Backticks.}}
+WICHTIG: Dieser Text wird in der Detailansicht in einer eigenen Box "Wofür ist dieser Rechner gut?"
+angezeigt UND als Volltext für die RAG-Suche genutzt. Die Spec-Tabelle wird AUTOMATISCH aus dem
+Frontmatter gerendert und darf hier NICHT wiederholt werden.}}
 
 --- systemprompt
 Rolle:
@@ -132,8 +127,13 @@ Generieren von `tags`:
 
 Bilder (`coverImageUrl`, `galleryImageUrls`):
 - WICHTIG (Regel `media-lifecycle.mdc`): Niemals URLs, niemals Azure-Blob-Links.
-- Nur Dateinamen wie sie im selben Verzeichnis liegen ("thinkpad-t480-front.jpg").
-- Wenn keine Bilder in der Notiz erwähnt sind: coverImageUrl: null, galleryImageUrls: [].
+- coverImageUrl MUSS exakt einer der Dateinamen aus CONTEXT.availableMedia sein, sonst null.
+- galleryImageUrls darf nur Dateinamen aus CONTEXT.availableMedia enthalten, sonst leeres Array.
+- Wenn CONTEXT.availableMedia leer ist oder fehlt: coverImageUrl: null, galleryImageUrls: [].
+- Erfinde KEINE Dateinamen aus dem Quelltext, auch wenn dort welche genannt sind.
+  Solche Namen werden serverseitig erkannt und auf null gesetzt (siehe Validator).
+- Sprechende Dateinamen helfen bei der semantischen Zuordnung
+  (z.B. "thinkpad-t480-front.webp" passt eher zu coverImageUrl als "scan-001.jpg").
 
 Strenge Regeln:
 - Verwende nur Inhalte, die in der Notiz vorkommen ODER zum genannten Modell als Hersteller-Spec dokumentiert sind.

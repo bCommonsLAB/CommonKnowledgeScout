@@ -107,7 +107,14 @@ Wenn ein neuer ViewType hinzugefügt wird, MÜSSEN sie ALLE aktualisiert werden!
 14. **Übersetzungen (Doc-Translations Refactor)**
     - [ ] `src/lib/detail-view-types/registry.ts` → `translatable`-Block (`text` / `arrayOfText` / `topicLike` / `nested`) im neuen ViewType ergänzen, damit `phase-translations` weiß, welche Felder zu übersetzen sind. (Der frühere Hook `use-document-translation.ts` wurde durch den Backend-Worker abgelöst und existiert nicht mehr.)
 
-15. **Template-Editor (Dropdown)**
+15. **Translator (`phase-translations` Worker)**
+    - [ ] Klären, ob ein **spezialisierter Translator** in `src/lib/chat/common/document-translation.ts` benötigt wird. **Pflicht** wenn der ViewType `nested`-Strukturen hat (z.B. `book.chapters`, `session.slides`) oder spezielle Mapper-Logik braucht.
+    - [ ] **Standardfall** (nur flache text/array-Felder): Der **generische Translator** `translateGenericData(data, viewType, ...)` deckt das automatisch ab. Er liest die `translatable`-Spec aus der Registry und baut Template + Schema dynamisch. Du musst NICHTS implementieren - **nur sicherstellen, dass der `translatable`-Block in der Registry korrekt ist**.
+    - [ ] **Sonderfall** (`nested` oder Sub-Strukturen): Eigenen Translator analog zu `translateBookData` / `translateSessionData` schreiben + im Switch von `src/lib/external-jobs/phase-translations.ts` einen `else if (viewType === '...')`-Branch hinzufügen.
+    - [ ] **Sprachneutrale ViewTypes** (z.B. `divaTexture` mit reinen PBR-Daten): `translatable: { text: [], arrayOfText: [], topicLike: [] }` setzen. Der generische Translator erkennt das und macht no-op.
+    - [ ] Kein neuer Switch-Branch nötig wenn der generische Fallback ausreicht.
+
+16. **Template-Editor (Dropdown)**
     - [ ] `src/components/templates/structured-template-editor.tsx` → `<SelectItem>`
 
 ### Optional (verbessert UX)

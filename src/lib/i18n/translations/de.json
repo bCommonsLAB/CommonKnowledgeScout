@@ -203,6 +203,26 @@
     "shareFacebook": "Auf Facebook teilen",
     "copyLink": "Link kopieren",
     "linkCopied": "Link kopiert!",
+    "refurbedDevice": {
+      "suitabilityHeading": "Wofür ist dieser Rechner gut?",
+      "specsHeading": "Auf einen Blick",
+      "galleryHeading": "Weitere Bilder",
+      "specs": {
+        "modell": "Modell",
+        "prozessor": "Prozessor",
+        "arbeitsspeicher": "Arbeitsspeicher",
+        "festplatte": "Festplatte",
+        "grafik": "Grafik",
+        "gewicht": "Gewicht",
+        "betriebssystem": "Betriebssystem"
+      },
+      "deviceTypes": {
+        "notebook": "Notebook",
+        "desktop-pc": "Desktop-PC",
+        "mini-pc": "Mini-PC",
+        "all-in-one": "All-in-One"
+      }
+    },
     "viewMode": {
       "grid": "Galerie",
       "table": "Tabelle"
