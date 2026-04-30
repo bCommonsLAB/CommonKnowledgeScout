@@ -47,9 +47,6 @@ export function prepareSecretaryRequest(
 ): SecretaryRequestConfig {
   const offline = options?.offlineMode ?? false
   const opts = (job.correlation?.options || {}) as Record<string, unknown>
-  const parameters = (job.parameters && typeof job.parameters === 'object')
-    ? job.parameters as { template?: unknown; phases?: { template?: boolean } }
-    : undefined
   const envConfig = getSecretaryConfig()
   // Library-spezifische Config hat Vorrang vor ENV-Variablen
   const baseUrl = options?.overrideBaseUrl || envConfig.baseUrl
@@ -93,20 +90,20 @@ export function prepareSecretaryRequest(
     const sourceLanguage = typeof opts['sourceLanguage'] === 'string' ? String(opts['sourceLanguage']) : 'auto'
     // Default: false – gecachte Fehler-Ergebnisse dürfen nicht stillschweigend wiederverwendet werden
     const useCache = typeof opts['useCache'] === 'boolean' ? opts['useCache'] : false
-    // Template gehört zur Transformations-Phase, nicht zur Extract-Phase.
-    // Extract liefert immer nur das rohe Transkript; Template-Transformation erfolgt lokal in phase-template.ts.
+    // Template gehoert zur Transformations-Phase (Phase 2), nicht zur
+    // Extract-Phase (Phase 1). Extract liefert IMMER nur das rohe Transkript;
+    // Template-Transformation erfolgt LOKAL in phase-template.ts. Der Secretary
+    // bekommt deshalb NIE ein Template-Feld — auch nicht als "extract-only
+    // shortcut" (frueheres Verhalten). Begruendung: Template-Files leben im
+    // UI/DB, nicht im Secretary. Der Shortcut war Quelle eines Mix-State-Bugs
+    // (Secretary scheitert an fehlendem Template, Worker markiert Step
+    // trotzdem als completed). Siehe Job ae632f5c-... 2026-04-30.
     formData = new FormData()
     formData.append('file', file)
     formData.append('target_language', targetLanguage)
     formData.append('source_language', sourceLanguage)
     // Secretary uses `useCache` (see existing Next proxy routes)
     formData.append('useCache', String(useCache))
-    const templatePhaseDisabled = parameters?.phases?.template === false
-    const templateName = typeof parameters?.template === 'string' ? parameters.template.trim() : ''
-    if (templatePhaseDisabled && templateName) {
-      // Extract-only Shortcut: Transform-Template wird im Secretary ausgeführt.
-      formData.append('template', templateName)
-    }
     // Im Offline-Modus (Electron): callback_url weglassen → Secretary antwortet synchron
     if (!offline) {
       formData.append('callback_url', callbackUrl)
@@ -135,20 +132,14 @@ export function prepareSecretaryRequest(
     const sourceLanguage = typeof opts['sourceLanguage'] === 'string' ? String(opts['sourceLanguage']) : 'auto'
     // Default: false – gecachte Fehler-Ergebnisse dürfen nicht stillschweigend wiederverwendet werden
     const useCache = typeof opts['useCache'] === 'boolean' ? opts['useCache'] : false
-    // Template gehört zur Transformations-Phase, nicht zur Extract-Phase.
-    // Extract liefert immer nur das rohe Transkript; Template-Transformation erfolgt lokal in phase-template.ts.
+    // Template-Disziplin wie bei Audio: Secretary bekommt KEIN Template.
+    // Phase 2 lokal in phase-template.ts. Siehe Audio-Block oben fuer Begruendung.
     formData = new FormData()
     formData.append('file', file)
     formData.append('target_language', targetLanguage)
     formData.append('source_language', sourceLanguage)
     // Secretary uses `useCache` (see existing Next proxy routes)
     formData.append('useCache', String(useCache))
-    const templatePhaseDisabled = parameters?.phases?.template === false
-    const templateName = typeof parameters?.template === 'string' ? parameters.template.trim() : ''
-    if (templatePhaseDisabled && templateName) {
-      // Extract-only Shortcut: Transform-Template wird im Secretary ausgeführt.
-      formData.append('template', templateName)
-    }
     if (!offline) {
       formData.append('callback_url', callbackUrl)
       formData.append('callback_token', secret)
