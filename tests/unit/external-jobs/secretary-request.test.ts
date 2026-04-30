@@ -124,7 +124,21 @@ describe('prepareSecretaryRequest', () => {
     expect(getStringField(cfg.formData, 'includeHighResPages')).toBe('true')
   })
 
-  it('does NOT send template to /audio/process when template-phase is enabled (handled in phase 2)', () => {
+  // Template-Disziplin: Phase 1 (Extract) und Phase 2 (Template) sind klar
+  // getrennt. Der Secretary-Service bekommt NIE ein 'template'-Feld — die
+  // Template-Transformation passiert lokal in phase-template.ts. Frueheres
+  // Verhalten ("extract-only shortcut": bei phases.template=false das
+  // Template trotzdem mit-senden, damit Secretary beides in einem Call
+  // erledigt) wurde 2026-04-30 entfernt, weil:
+  //   - Template-Files leben im UI/DB, nicht im Secretary
+  //   - Secretary scheiterte mit "Template ... konnte nicht gelesen werden"
+  //   - Worker markierte den Step trotzdem als 'completed', step.error blieb
+  //     stehen → Mix-State-Bug, schwer debugbar
+  //   - Symmetriebruch: phases.template=true → kein Template, false → Template
+  //     (war konzeptionell verkehrt herum)
+  // Siehe Job ae632f5c-... (M4A "Besprechung Alex martina aryan").
+
+  it('does NOT send template to /audio/process when template-phase is enabled', () => {
     const job = createJob({
       job_type: 'audio',
       correlation: {
@@ -141,7 +155,11 @@ describe('prepareSecretaryRequest', () => {
     expect(getStringField(cfg.formData, 'template')).toBeNull()
   })
 
-  it('sends template to /audio/process when template-phase is disabled (extract-only shortcut)', () => {
+  it('does NOT send template to /audio/process when template-phase is disabled (regression: extract-only shortcut entfernt 2026-04-30)', () => {
+    // Regression-Test fuer den 2026-04-30 entfernten "extract-only shortcut".
+    // Vorher: template wurde GERADE DANN mitgesendet, wenn phases.template=false
+    // war. Das hat den Secretary an fehlenden Template-Files scheitern lassen.
+    // Jetzt: Secretary bekommt nie ein Template — egal welcher phase-Zustand.
     const job = createJob({
       job_type: 'audio',
       correlation: {
@@ -155,10 +173,10 @@ describe('prepareSecretaryRequest', () => {
 
     const cfg = prepareSecretaryRequest(job, createFile('a.mp3', 'audio/mpeg'), 'https://app/cb', 'secret')
     expect(cfg.url).toContain('/audio/process')
-    expect(getStringField(cfg.formData, 'template')).toBe('besprechung')
+    expect(getStringField(cfg.formData, 'template')).toBeNull()
   })
 
-  it('does NOT send template to /video/process when template-phase is enabled (handled in phase 2)', () => {
+  it('does NOT send template to /video/process when template-phase is enabled', () => {
     const job = createJob({
       job_type: 'video',
       correlation: {
@@ -171,6 +189,23 @@ describe('prepareSecretaryRequest', () => {
     })
 
     const cfg = prepareSecretaryRequest(job, createFile('v.mp4', 'video/mp4'), 'https://app/cb', 'secret')
+    expect(cfg.url).toContain('/video/process')
+    expect(getStringField(cfg.formData, 'template')).toBeNull()
+  })
+
+  it('does NOT send template to /video/process when template-phase is disabled (regression)', () => {
+    const job = createJob({
+      job_type: 'video',
+      correlation: {
+        jobId: 'job-video2',
+        libraryId: 'lib-1',
+        source: { mediaType: 'video', name: 'v2.mp4', itemId: 'it3', parentId: 'p1' },
+        options: { targetLanguage: 'de', sourceLanguage: 'auto', useCache: false },
+      },
+      parameters: { template: 'besprechung', phases: { extract: true, template: false, ingest: false } },
+    })
+
+    const cfg = prepareSecretaryRequest(job, createFile('v2.mp4', 'video/mp4'), 'https://app/cb', 'secret')
     expect(cfg.url).toContain('/video/process')
     expect(getStringField(cfg.formData, 'template')).toBeNull()
   })
