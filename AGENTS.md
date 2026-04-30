@@ -85,11 +85,18 @@ Vor jedem Refactor eines Moduls existiert ein Audit-File `docs/refactor/<modul>/
 
 - Default-Branch dieses Repos ist `master` (nicht `main`)
 - Branch-Namensschema fuer Refactoring-Plan: `refactor/cloud-<schritt>` (z.B. `refactor/cloud-tooling-setup`)
+- **Pro Welle EINE PR** (siehe `.cursor/rules/refactor-batch-strategy.mdc`)
+  - Mehrere kohaerente Commits, max **1.000 Zeilen Diff pro Commit** (hart)
+  - Max **5.000 Zeilen Brutto-Diff pro PR** (weich, mit Begruendung mehr OK)
+  - Max **15 Commits pro PR** (weich)
+  - Cleanup-Commits gehoeren ZWINGEND in den PR ihrer Ursache (NICHT als Folge-PR)
+  - Doku-Commit (Acceptance) als letzten Commit
 - Pro logischem Schritt einzelner Commit mit Prefix `[plan <plan-id>] <bereich>: <beschreibung>`
 - PR-Titel beschreibt Intention auf Deutsch, PR-Body listet:
-  - Was wurde geaendert
+  - Was wurde geaendert (gegliedert nach Commits)
   - Welche Tests laufen / welche bewusst nicht
   - Verweise auf Plan-File und Todo-IDs
+  - **Smoke-Test-Plan** (max 10 konkrete Klicks, nach Komponenten gruppiert)
   - Offene Folge-Schritte
 
 ### Stop-Bedingungen (nicht raten, abbrechen + in PR/Comment melden)
@@ -99,4 +106,6 @@ Vor jedem Refactor eines Moduls existiert ein Audit-File `docs/refactor/<modul>/
 - Konflikt mit anderem offenen `refactor/cloud-*`-Branch
 - Mehr als 3 fehlgeschlagene Versuche fuer dieselbe Aenderung
 - Sicherheitsrelevante Aenderungen (Auth, Secrets, Datenbank-Schema) ohne expliziten Auftrag
-- Aenderungen, die mehr als 1000 Zeilen Diff erzeugen wuerden, ohne dass dies explizit im Plan steht
+- **Einzelner Commit** mit mehr als 1.000 Zeilen Diff (hartes Limit, splitte den Commit)
+- **PR-Gesamtvolumen** ueber 5.000 Zeilen Brutto-Diff ohne Plan-Begruendung (zu schwer reviewbar)
+- **PR-Commit-Anzahl** ueber 15 Commits ohne Plan-Begruendung (zu unstrukturiert)

@@ -1,0 +1,139 @@
+---
+description: Batch-Strategie fuer Refactoring-Wellen — 1 PR pro Welle mit mehreren kohaerenten Commits
+globs: docs/refactor/**/*.md,src/components/**/*.tsx,src/components/**/*.ts,src/lib/**/*.ts
+alwaysApply: true
+---
+
+# Refactor-Batch-Strategie: 1 PR pro Welle
+
+## Kontext
+
+Bisher wurden Refactoring-Wellen oft in mehreren kleinen PRs abgewickelt
+(z.B. Welle 3-II-a in 5 PRs: Phase 1, 2a, 2b, 2c, 2d). Das war sicher,
+aber langsam: jede PR braucht 1 CI-Run + 1 Smoke-Test + 1 Merge-Cycle.
+
+**Lehre aus Welle 3-II-a (2026-04-30)**: Strukturell aehnliche Splits
+(Audio/Video/PDF/Office Views) haetten in 1 PR gepasst. Pro Welle 1 PR
+spart 60-80% CI- und Wartezeit ohne Sicherheits-Verlust, wenn diese
+Regel eingehalten wird.
+
+## Kernprinzip
+
+**Pro Welle EINE PR.** Die PR enthaelt mehrere kohaerente Commits, jeder
+unter dem Diff-Limit, mit klarem Smoke-Test-Plan im PR-Body.
+
+## Commit-Struktur (Reihenfolge ist verbindlich)
+
+Eine Welle besteht typischerweise aus diesen Commit-Typen, in dieser
+Reihenfolge:
+
+1. **Audit + Inventur** (Doku, klein) — falls noch nicht in vorheriger
+   Vorbereitungs-PR erledigt.
+2. **Char-Tests** als Sicherheitsnetz — VOR Code-Aenderungen
+3. **Helper-Extraktion** — kleine, isolierte Module ohne Render-Logik
+4. **Bundle-/Type-Erweiterungen** — falls noetig fuer Konsumenten
+5. **View-/Komponenten-Splits** — max 1 grosse Komponente pro Commit
+6. **Hooks-Extraktion** — falls noetig
+7. **Composer-Integration** im Mutter-Modul (Switch durch View-Komponenten ersetzen)
+8. **Cleanup** — ungenutzte Imports, Hook-Order-Bugs, Dead Code (PFLICHT
+   im selben PR!)
+9. **Acceptance-Doc** — als letzten Commit
+
+Nicht jede Welle braucht alle Schritte. Aber die Reihenfolge bleibt
+gleich (Tests vor Splits, Cleanup vor Doc).
+
+## Diff-Limits
+
+Diese Limits sind in `AGENTS.md` festgehalten und hier konkretisiert:
+
+| Limit | Wert | Haerte |
+|---|---|---|
+| pro **Commit** | max 1.000 Zeilen Diff | hart |
+| pro **PR** Brutto-Diff | max 5.000 Zeilen | weich (mehr OK mit Begruendung) |
+| pro **PR** Commit-Anzahl | max 15 Commits | weich |
+
+**Wenn ein Commit > 1.000 Zeilen wird**: STOP und splitten. Beispiele:
+- View-Komponente A + B + C → 3 separate Commits, einer pro View
+- Helper-Extraktion + Komponenten-Split → 2 separate Commits
+
+**Wenn eine PR > 5.000 Zeilen wird**: pruefen, ob die Welle in 2 Sub-
+Wellen aufgeteilt werden kann. Falls Aufteilung den Code unzusammen-
+haengend macht, **mit Plan-Begruendung** ueberschreitbar.
+
+## Smoke-Test im PR-Body
+
+Pro PR ein **Smoke-Test-Plan** im PR-Body unter "Smoke-Test (User)":
+
+- Max **10 konkrete Klicks**
+- Strukturiert nach Komponenten/Cases (nicht nach Commits)
+- Ein Klick = 1 Zeile mit "Datei oeffnen, X erwartet, Y pruefen"
+- Bei strukturell aehnlichen Komponenten (z.B. Audio + Video + PDF
+  fuer 5-Tab-Switch): ein Stellvertreter testen reicht, nicht alle
+
+Der User testet die PR einmalig am Ende. Inkrementelle Tests waehrend
+der Implementierung sind nicht vorgesehen (siehe Stop-Gates unten).
+
+## Cleanup-Pflicht
+
+**Cleanup-Commits gehoeren ZWINGEND in den PR ihrer Ursache.**
+
+Beispiele fuer typische Cleanup-Themen:
+- Ungenutzte Imports nach Modul-Splits (haeufig: lucide-Icons,
+  Komponenten-Imports, die nur im Mutterfile lagen)
+- Hook-Order-Bugs in neuen View-Komponenten (`useCallback` nach `if (...) return`)
+- Dead Code in Helper-Modulen
+- Vor-existierende Lint-Warnings, die durch den Refactor sichtbar werden
+
+**`pnpm build` ist die Pruefung**: was es als Error meldet, MUSS in
+diesem PR aufgeraeumt werden. `pnpm lint` allein reicht NICHT (siehe
+AGENTS.md / PR #31).
+
+## Sicherheitsnetz
+
+Bei jedem Commit:
+- `pnpm test` muss gruen sein
+
+Mindestens vor Push (idealerweise nach jedem groesseren Commit):
+- `pnpm build` muss gruen sein
+
+Bei riskanten Aenderungen (Bundle-Erweiterung, Hook-Aenderungen,
+Storage-Branch-Fix): zusaetzlich nach jedem Commit `pnpm build`
+ausfuehren.
+
+## Wann von 1 PR pro Welle abweichen
+
+In diesen Faellen ist eine **Aufteilung in 2+ PRs** sinnvoll:
+
+1. **Vorbereitungs-PR vor Welle**: Audit + Inventur + Char-Tests +
+   kleine Altlasten (Catches, Storage-Branches), falls die Welle sehr
+   gross ist und die Vorbereitung selbst > 1.500 Zeilen Brutto-Diff hat.
+2. **Hotfix nach Welle-Merge**: wenn ein Bug erst nach Merge auffaellt.
+   Hotfix immer als eigene kleine PR (siehe PR #30).
+3. **Bundle-/Schnittstellen-PR vor Welle**: wenn eine Bundle-Erweiterung
+   (z.B. PreviewViewProps) > 200 Zeilen Brutto-Diff hat und mehrere
+   spaetere Konsumenten betrifft. Bundle-PR zuerst, Konsumenten in
+   Folge-PRs.
+
+## Stop-Gates fuer den Agent
+
+Der Agent stoppt und meldet im PR/Comment, wenn:
+
+- 1 Commit > 1.000 Zeilen Diff (hart, splitten)
+- PR > 5.000 Zeilen Brutto-Diff ohne Plan-Begruendung
+- PR > 15 Commits ohne Plan-Begruendung
+- `pnpm test` rot wird und nach 3 Versuchen keine Loesung gefunden ist
+- `pnpm build` rot wird und nach 3 Versuchen keine Loesung gefunden ist
+- React-Error-Boundary-Fehler im UI nach Refactor — erst mit User klaeren
+- DetailViewType-Vertrag wird gebrochen (siehe `detail-view-type-checklist.mdc`)
+- Storage-Provider-Live-Calls werden noetig (verboten)
+- Cleanup-Commit kann ungenutzte Imports nicht alle entfernen, weil ein
+  Import noch in einem nicht refactorierten Switch-Case verwendet wird
+  → diesen Switch-Case mit-refactorieren oder Import behalten + Kommentar
+
+## Verweise
+
+- `AGENTS.md` Sektion "Branching, Commits, PRs" und "Stop-Bedingungen"
+- `.cursor/rules/no-silent-fallbacks.mdc`
+- `.cursor/rules/storage-abstraction.mdc`
+- `docs/refactor/welle-3-archiv-detail/06-acceptance-3-ii-a-2d.md`
+  (Bilanz Welle 3-II-a, Lehre fuer diese Strategie)
