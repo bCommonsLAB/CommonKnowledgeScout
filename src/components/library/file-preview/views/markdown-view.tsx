@@ -98,21 +98,13 @@ export function MarkdownView(props: PreviewViewProps) {
     setSelectedFile,
   } = props
 
-  if (!provider) {
-    return <div className="text-sm text-muted-foreground">Kein Provider verfuegbar.</div>
-  }
-
-  const docModifiedAt = shadowTwinState?.transformed?.metadata.modifiedAt
-    ? new Date(shadowTwinState.transformed.metadata.modifiedAt).toISOString()
-    : undefined
-  const textStep = getStoryStep(storySteps, 'text')
-  const transformStep = getStoryStep(storySteps, 'transform')
-  const publishStep = getStoryStep(storySteps, 'publish')
-
   // Edit-Save-Handler. Liest den neuen Inhalt aus dem Storage,
   // mutiert den contentCache und triggert das umliegende FilePreview-
   // Reducer-Update via onContentUpdated. Bestands-Eigenheit (1:1
   // portiert): Setzt das selectedFile-Atom und refresht den Folder.
+  //
+  // WICHTIG: Hook MUSS vor dem fruehen return stehen
+  // (react-hooks/rules-of-hooks).
   const handleSaved = React.useCallback(
     (saved: typeof item) => {
       if (!provider) return
@@ -137,6 +129,17 @@ export function MarkdownView(props: PreviewViewProps) {
     },
     [item.id, provider, contentCache, onContentUpdated, setSelectedFile, onRefreshFolder],
   )
+
+  if (!provider) {
+    return <div className="text-sm text-muted-foreground">Kein Provider verfuegbar.</div>
+  }
+
+  const docModifiedAt = shadowTwinState?.transformed?.metadata.modifiedAt
+    ? new Date(shadowTwinState.transformed.metadata.modifiedAt).toISOString()
+    : undefined
+  const textStep = getStoryStep(storySteps, 'text')
+  const transformStep = getStoryStep(storySteps, 'transform')
+  const publishStep = getStoryStep(storySteps, 'publish')
 
   return (
     <IngestionDataProvider

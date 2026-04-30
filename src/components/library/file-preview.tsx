@@ -3,35 +3,32 @@
 import * as React from 'react';
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, ExternalLink, FileText, RefreshCw, Sparkles, Upload } from "lucide-react";
-import { MarkdownPreview, type CompositeWikiPreviewOptions } from './markdown-preview';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertCircle, ExternalLink, RefreshCw } from "lucide-react";
+// Nach Phase 2d werden MarkdownPreview, Tabs, FileText, Sparkles, Upload,
+// extractFrontmatter, ArtifactInfoPanel, IngestionDataProvider,
+// ArtifactMarkdownPanel, ArtifactEditDialog, IngestionDetailPanel,
+// PipelineSheet, JobProgressBar, ArtifactTabLabel, getStoryStep,
+// JobReportTabWithShadowTwin, TranscriptToolbarActions, ReviewTranscriptSplit,
+// WebsiteReviewOriginalIframe und DocumentPreview alle nur noch innerhalb
+// der View-Komponenten unter file-preview/views/* verwendet — nicht mehr
+// im Mutterfile.
+import type { CompositeWikiPreviewOptions } from './markdown-preview';
 import './markdown-audio';
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { activeLibraryIdAtom, selectedFileAtom, activeLibraryAtom, reviewModeAtom } from "@/atoms/library-atom";
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
 import type { Library } from '@/types/library'
-import { extractFrontmatter } from './markdown-metadata';
-import { DocumentPreview } from './document-preview';
 import { FileLogger } from "@/lib/debug/logger"
 // PdfPhasesView ist bewusst NICHT mehr Teil der File-Preview (zu heavy). Flow-View ist der Expertenmodus.
 import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner'
-// SourceAndTranscriptPane wurde nach Phase 2c nur noch von audio/image/video/pdf/
-// office Views verwendet — diese sind alle in views/* ausgegliedert. Der
-// Import ist hier nicht mehr noetig (markdown nutzt MarkdownPreview direkt).
 import { useResolvedTranscriptItem } from "@/components/library/shared/use-resolved-transcript-item"
-import { ArtifactInfoPanel } from "@/components/library/shared/artifact-info-panel"
 import { useStoryStatus } from "@/components/library/shared/use-story-status"
 import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { IngestionDataProvider } from "@/components/library/shared/ingestion-data-context"
 import type { StoryStepStatus } from "@/components/library/shared/story-status"
-import { ArtifactMarkdownPanel } from "@/components/library/shared/artifact-markdown-panel"
-import { ArtifactEditDialog } from "@/components/library/shared/artifact-edit-dialog"
-import { IngestionDetailPanel } from "@/components/library/shared/ingestion-detail-panel"
-import { PipelineSheet, type PipelinePolicies, type CoverImageOptions, type LlmModelOption } from "@/components/library/flow/pipeline-sheet"
+import type { PipelinePolicies, CoverImageOptions, LlmModelOption } from "@/components/library/flow/pipeline-sheet"
 import { runPipelineForFile, getMediaKind, type MediaKind } from "@/lib/pipeline/run-pipeline"
 import { fetchShadowTwinMarkdown } from "@/lib/shadow-twin/shadow-twin-mongo-client"
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from "@/lib/shadow-twin/mongo-shadow-twin-id"
@@ -55,16 +52,10 @@ import {
   TRANSCRIPT_LANG_LABELS,
 } from './file-preview/extension-map'
 
-// DocumentPreviewComponent wird in der Office-View (Z. 1964) als JSX
-// genutzt — Alias bleibt fuer Linter-Klarheit. ImagePreview-Alias wurde
-// entfernt, weil ImagePreview nach views/image-view.tsx ausgegliedert
-// wurde (Welle 3-II-a Phase 2a).
-const DocumentPreviewComponent = DocumentPreview;
-
-// JobProgressBar + getPhaseLabel wurden in
-// src/components/library/file-preview/job-progress-bar.tsx ausgegliedert
-// (Welle 3-II-a, Schritt 4b).
-import { JobProgressBar } from './file-preview/job-progress-bar'
+// Nach Phase 2d (Welle 3-II-a Abschluss) werden DocumentPreview,
+// JobProgressBar und JobReportTabWithShadowTwin nur noch innerhalb der
+// View-Komponenten unter file-preview/views/* verwendet — die Imports
+// wurden hier entfernt.
 
 interface FilePreviewProps {
   className?: string;
@@ -79,27 +70,9 @@ interface FilePreviewProps {
 // (Welle 3-II-a). Re-Import oben (zusammen mit den Lang-Helpern):
 import { getFileType } from './file-preview/extension-map'
 
-// getStoryStep, stepStateClass und ArtifactTabLabel wurden in
-// src/components/library/file-preview/artifact-tab-label.tsx ausgegliedert
-// (Welle 3-II-a, Schritt 4b).
-import {
-  ArtifactTabLabel,
-  getStoryStep,
-} from './file-preview/artifact-tab-label'
-
-// JobReportTabWithShadowTwin wurde in
-// src/components/library/file-preview/job-report-tab-with-shadow-twin.tsx
-// ausgegliedert (Welle 3-II-a, Schritt 4b).
-import { JobReportTabWithShadowTwin } from './file-preview/job-report-tab-with-shadow-twin'
-
-// ContentLoader wurde in src/components/library/file-preview/content-loader.tsx
-// ausgegliedert (Welle 3-II-a, Schritt 4b).
+// ContentLoader wird im FilePreview-Wrapper benoetigt (laedt Content
+// aus dem Storage und triggert das React-Reducer-Update).
 import { ContentLoader } from './file-preview/content-loader'
-
-// TranscriptToolbarActions wurde in
-// src/components/library/file-preview/transcript-toolbar-actions.tsx
-// ausgegliedert (Welle 3-II-a Phase 2a, Schritt 4b).
-import { TranscriptToolbarActions } from './file-preview/transcript-toolbar-actions'
 // View-Komponenten unter file-preview/views/* (Welle 3-II-a Phase 2a-2d):
 // - AudioView: rendert die Audio-Detail-Tab-Pipeline (Phase 2a)
 // - ImageView: rendert die Bild-Detail-Tab-Pipeline (kein Transcript-Tab, Phase 2a)
@@ -123,19 +96,6 @@ import { MarkdownView } from './file-preview/views/markdown-view'
 import { PresentationView } from './file-preview/views/presentation-view'
 import { WebsiteView } from './file-preview/views/website-view'
 import type { PreviewViewProps } from './file-preview/views/view-props'
-
-// review-split-Helpers wurden in
-// src/components/library/file-preview/review-split.tsx ausgegliedert
-// (Welle 3-II-a, Schritt 4b).
-//
-// Nach Phase 2c werden im Mutterfile nur noch ReviewTranscriptSplit und
-// WebsiteReviewOriginalIframe (im 'website'-Case) gebraucht.
-// ReviewOriginalPane und wrapTranscriptTabWithReviewSplit wurden in die
-// View-Komponenten unter views/* mit ausgegliedert.
-import {
-  ReviewTranscriptSplit,
-  WebsiteReviewOriginalIframe,
-} from './file-preview/review-split'
 
 // Separate Komponente für die Vorschau
 function PreviewContent({ 
