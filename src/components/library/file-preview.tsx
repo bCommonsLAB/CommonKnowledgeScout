@@ -18,7 +18,9 @@ import { FileLogger } from "@/lib/debug/logger"
 import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner'
-import { SourceAndTranscriptPane } from "@/components/library/shared/source-and-transcript-pane"
+// SourceAndTranscriptPane wurde nach Phase 2c nur noch von audio/image/video/pdf/
+// office Views verwendet — diese sind alle in views/* ausgegliedert. Der
+// Import ist hier nicht mehr noetig (markdown nutzt MarkdownPreview direkt).
 import { useResolvedTranscriptItem } from "@/components/library/shared/use-resolved-transcript-item"
 import { ArtifactInfoPanel } from "@/components/library/shared/artifact-info-panel"
 import { useStoryStatus } from "@/components/library/shared/use-story-status"
@@ -115,15 +117,17 @@ import { PdfView } from './file-preview/views/pdf-view'
 import { OfficeView } from './file-preview/views/office-view'
 import type { PreviewViewProps } from './file-preview/views/view-props'
 
-// ReviewOriginalPane, WebsiteReviewOriginalIframe, ReviewTranscriptSplit
-// und wrapTranscriptTabWithReviewSplit wurden in
+// review-split-Helpers wurden in
 // src/components/library/file-preview/review-split.tsx ausgegliedert
 // (Welle 3-II-a, Schritt 4b).
+//
+// Nach Phase 2c werden im Mutterfile nur noch ReviewTranscriptSplit und
+// WebsiteReviewOriginalIframe (im 'website'-Case) gebraucht.
+// ReviewOriginalPane und wrapTranscriptTabWithReviewSplit wurden in die
+// View-Komponenten unter views/* mit ausgegliedert.
 import {
-  ReviewOriginalPane,
   ReviewTranscriptSplit,
   WebsiteReviewOriginalIframe,
-  wrapTranscriptTabWithReviewSplit,
 } from './file-preview/review-split'
 
 // Separate Komponente für die Vorschau
