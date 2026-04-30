@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, ArrowLeft, ExternalLink, Eye, FileText, Loader2, RefreshCw, Scissors, Sparkles, Upload } from "lucide-react";
+import { AlertCircle, ExternalLink, FileText, RefreshCw, Sparkles, Upload } from "lucide-react";
 import { MarkdownPreview, type CompositeWikiPreviewOptions } from './markdown-preview';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import './markdown-audio';
@@ -12,7 +12,6 @@ import { activeLibraryIdAtom, selectedFileAtom, activeLibraryAtom, reviewModeAto
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
 import type { Library } from '@/types/library'
 import { extractFrontmatter } from './markdown-metadata';
-import { ImagePreview } from './image-preview';
 import { DocumentPreview } from './document-preview';
 import { FileLogger } from "@/lib/debug/logger"
 // PdfPhasesView ist bewusst NICHT mehr Teil der File-Preview (zu heavy). Flow-View ist der Expertenmodus.
@@ -54,8 +53,10 @@ import {
   TRANSCRIPT_LANG_LABELS,
 } from './file-preview/extension-map'
 
-// Explizite React-Komponenten-Deklarationen für den Linter
-const ImagePreviewComponent = ImagePreview;
+// DocumentPreviewComponent wird in der Office-View (Z. 1964) als JSX
+// genutzt — Alias bleibt fuer Linter-Klarheit. ImagePreview-Alias wurde
+// entfernt, weil ImagePreview nach views/image-view.tsx ausgegliedert
+// wurde (Welle 3-II-a Phase 2a).
 const DocumentPreviewComponent = DocumentPreview;
 
 // JobProgressBar + getPhaseLabel wurden in
