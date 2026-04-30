@@ -108,7 +108,8 @@ import { TranscriptToolbarActions } from './file-preview/transcript-toolbar-acti
 // - PdfView: rendert die PDF-Detail-Tab-Pipeline (Phase 2c)
 // - OfficeView: rendert docx/xlsx/pptx Detail-Pipeline (Phase 2c)
 // - MarkdownView: rendert die Markdown-Detail-Pipeline mit Edit-Dialog (Phase 2d)
-// Verbleibende Views (presentation, website) folgen in Phase 2d Schritt 3+4.
+// - PresentationView: Praesentations-Wrapper (Phase 2d)
+// Verbleibende View (website) folgt in Phase 2d Schritt 4.
 import { AudioView } from './file-preview/views/audio-view'
 import { ImageView } from './file-preview/views/image-view'
 import { VideoView } from './file-preview/views/video-view'
@@ -116,6 +117,7 @@ import { DefaultView } from './file-preview/views/default-view'
 import { PdfView } from './file-preview/views/pdf-view'
 import { OfficeView } from './file-preview/views/office-view'
 import { MarkdownView } from './file-preview/views/markdown-view'
+import { PresentationView } from './file-preview/views/presentation-view'
 import type { PreviewViewProps } from './file-preview/views/view-props'
 
 // review-split-Helpers wurden in
@@ -1012,13 +1014,7 @@ function PreviewContent({
     case 'pptx':
       return <OfficeView {...viewProps} />
     case 'presentation':
-      return (
-        <DocumentPreviewComponent
-          provider={provider}
-          activeLibraryId={activeLibraryId}
-          onRefreshFolder={onRefreshFolder}
-        />
-      );
+      return <PresentationView {...viewProps} />
     case 'website': {
       // .url-Dateien: Volle Pipeline-UI wie andere Dateitypen
       if (!provider) {
