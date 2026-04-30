@@ -102,11 +102,13 @@ import { TranscriptToolbarActions } from './file-preview/transcript-toolbar-acti
 // - AudioView: rendert die Audio-Detail-Tab-Pipeline (Phase 2a)
 // - ImageView: rendert die Bild-Detail-Tab-Pipeline (kein Transcript-Tab, Phase 2a)
 // - VideoView: rendert die Video-Detail-Tab-Pipeline (Phase 2b)
-// Weitere Views (markdown, pdf, office, presentation, website, default)
-// folgen in Phase 2c/2d — siehe AGENT-BRIEF.md.
+// - DefaultView: Fallback fuer unbekannte Dateitypen (Phase 2b)
+// Weitere Views (markdown, pdf, office, presentation, website) folgen
+// in Phase 2c/2d — siehe AGENT-BRIEF.md.
 import { AudioView } from './file-preview/views/audio-view'
 import { ImageView } from './file-preview/views/image-view'
 import { VideoView } from './file-preview/views/video-view'
+import { DefaultView } from './file-preview/views/default-view'
 import type { PreviewViewProps } from './file-preview/views/view-props'
 
 // ReviewOriginalPane, WebsiteReviewOriginalIframe, ReviewTranscriptSplit
@@ -2088,42 +2090,7 @@ function PreviewContent({
       )
     }
     default:
-      return (
-        <>
-          <div className="text-center text-muted-foreground">
-            Keine Vorschau verfügbar für diesen Dateityp.
-          </div>
-          <PipelineSheet
-            isOpen={isPipelineOpen}
-            onOpenChange={setIsPipelineOpen}
-            libraryId={activeLibraryId}
-            sourceFileName={item.metadata.name}
-            kind={(["pdf", "audio", "video", "markdown"].includes(kind) ? kind : (["docx", "xlsx", "pptx"].includes(kind) ? "office" : "other")) as "pdf" | "audio" | "video" | "markdown" | "office" | "other"}
-            targetLanguage={effectiveTargetLanguage}
-            onTargetLanguageChange={setTargetLanguage}
-            sourceLanguage={sourceLanguage}
-            onSourceLanguageChange={setSourceLanguage}
-            templateName={templateName}
-            onTemplateNameChange={setTemplateName}
-            templates={templates}
-            isLoadingTemplates={isLoadingTemplates}
-            llmModel={llmModel}
-            onLlmModelChange={setLlmModel}
-            llmModels={llmModels}
-            isLoadingLlmModels={isLoadingLlmModels}
-            onStart={runPipeline}
-            defaultSteps={pipelineDefaultSteps}
-            defaultForce={pipelineDefaultForce}
-            existingArtifacts={{
-              hasTranscript: false,
-              hasTransformed: false,
-              hasIngested: false,
-            }}
-            defaultGenerateCoverImage={activeLibrary?.config?.secretaryService?.generateCoverImage}
-            defaultCustomHint={savedCustomHint}
-          />
-        </>
-      );
+      return <DefaultView {...viewProps} />
   }
 
   // Pipeline-Sheet für alle Dateitypen verfügbar (wird nach dem Switch gerendert)
