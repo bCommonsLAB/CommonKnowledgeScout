@@ -1,32 +1,29 @@
 // @vitest-environment jsdom
 
 /**
- * Characterization Tests fuer file-preview/views/audio-view.tsx
- * (Welle 3-II-a Phase 2a, Schritt 3 — Sicherheitsnetz vor weiteren View-Splits).
+ * Characterization Tests fuer file-preview/views/image-view.tsx
+ * (Welle 3-II-a Phase 2a, Schritt 3).
  *
  * Fixiert das Render-Verhalten:
  * - Bei provider=null wird ein "Kein Provider"-Hinweis gerendert.
- * - Mit gueltigen Props rendert die View die 5 Tab-Trigger
- *   (Original, Transkript, Transformation, Story, Uebersicht).
- * - Job-Progress-Bar erscheint, wenn hasActiveJob=true und currentJobInfo
- *   vorhanden.
+ * - Mit gueltigen Props rendert die View die 4 Tab-Trigger
+ *   (Original, Analyse, Story, Uebersicht — KEIN Transcript).
+ * - Job-Progress-Bar erscheint, wenn hasActiveJob=true.
  *
- * Sub-Komponenten werden gemockt — wir testen nur die Audio-View-Schale.
+ * Sub-Komponenten werden gemockt.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
+import { Provider, createStore } from 'jotai'
 import type { StorageItem, StorageProvider } from '@/lib/storage/types'
 import type { PreviewViewProps, PreviewInfoTab } from '@/components/library/file-preview/views/view-props'
 
-vi.mock('@/components/library/shared/source-and-transcript-pane', () => ({
-  SourceAndTranscriptPane: () => <div data-testid="source-pane-mock" />,
+vi.mock('@/components/library/image-preview', () => ({
+  ImagePreview: () => <div data-testid="image-preview-mock" />,
 }))
 vi.mock('@/components/library/shared/artifact-info-panel', () => ({
   ArtifactInfoPanel: () => <div data-testid="info-panel-mock" />,
-}))
-vi.mock('@/components/library/shared/artifact-markdown-panel', () => ({
-  ArtifactMarkdownPanel: () => <div data-testid="markdown-panel-mock" />,
 }))
 vi.mock('@/components/library/shared/ingestion-detail-panel', () => ({
   IngestionDetailPanel: () => <div data-testid="ingestion-detail-mock" />,
@@ -37,45 +34,38 @@ vi.mock('@/components/library/shared/ingestion-data-context', () => ({
 vi.mock('@/components/library/flow/pipeline-sheet', () => ({
   PipelineSheet: () => <div data-testid="pipeline-sheet-mock" />,
 }))
-vi.mock('@/components/library/file-preview/transcript-toolbar-actions', () => ({
-  TranscriptToolbarActions: () => <div data-testid="transcript-toolbar-mock" />,
-}))
 vi.mock('@/components/library/file-preview/job-report-tab-with-shadow-twin', () => ({
   JobReportTabWithShadowTwin: () => <div data-testid="job-report-mock" />,
 }))
 
-import { AudioView } from '@/components/library/file-preview/views/audio-view'
+import { ImageView } from '@/components/library/file-preview/views/image-view'
 
-function makeAudioFile(): StorageItem {
+function makeImageFile(): StorageItem {
   return {
-    id: 'audio-1',
+    id: 'img-1',
     parentId: 'root',
     type: 'file',
     metadata: {
-      name: 'aufnahme.mp3',
-      size: 1234,
+      name: 'foto.jpg',
+      size: 5678,
       modifiedAt: new Date('2026-01-01'),
-      mimeType: 'audio/mpeg',
+      mimeType: 'image/jpeg',
     },
   }
 }
 
 function makeProvider(): StorageProvider {
-  return {
-    id: 'lib-1',
-    name: 'Test',
-  } as unknown as StorageProvider
+  return { id: 'lib-1', name: 'Test' } as unknown as StorageProvider
 }
 
 function makeBaseProps(overrides: Partial<PreviewViewProps> = {}): PreviewViewProps {
-  const item = makeAudioFile()
   return {
-    item,
+    item: makeImageFile(),
     provider: makeProvider(),
     activeLibraryId: 'lib-1',
     activeLibrary: undefined,
-    fileType: 'audio',
-    kind: 'audio',
+    fileType: 'image',
+    kind: 'image',
     infoTab: 'original' as PreviewInfoTab,
     setInfoTab: vi.fn(),
     shadowTwinState: undefined,
@@ -116,7 +106,7 @@ function makeBaseProps(overrides: Partial<PreviewViewProps> = {}): PreviewViewPr
   }
 }
 
-describe('AudioView', () => {
+describe('ImageView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -126,33 +116,48 @@ describe('AudioView', () => {
   })
 
   it('zeigt einen Hinweis, wenn provider=null', () => {
-    render(<AudioView {...makeBaseProps({ provider: null })} />)
+    render(
+      <Provider store={createStore()}>
+        <ImageView {...makeBaseProps({ provider: null })} />
+      </Provider>
+    )
     expect(screen.getByText(/Kein Provider verfuegbar/i)).toBeTruthy()
   })
 
-  it('rendert alle 5 Tab-Trigger', () => {
-    render(<AudioView {...makeBaseProps()} />)
+  it('rendert nur 4 Tab-Trigger (kein Transcript-Tab)', () => {
+    render(
+      <Provider store={createStore()}>
+        <ImageView {...makeBaseProps()} />
+      </Provider>
+    )
     expect(screen.getByText('Original')).toBeTruthy()
-    expect(screen.getByText('Transkript')).toBeTruthy()
-    expect(screen.getByText('Transformation')).toBeTruthy()
+    expect(screen.getByText('Analyse')).toBeTruthy()
     expect(screen.getByText('Story')).toBeTruthy()
     expect(screen.getByText('Uebersicht')).toBeTruthy()
+    // Image-View hat KEINEN Transcript-Tab — Bilder werden nicht transkribiert.
+    expect(screen.queryByText('Transkript')).toBeNull()
   })
 
-  it('rendert die SourceAndTranscriptPane (Source-Pane-Mock) im Original-Tab', () => {
-    render(<AudioView {...makeBaseProps({ infoTab: 'original' })} />)
-    expect(screen.getByTestId('source-pane-mock')).toBeTruthy()
-  })
-
-  it('zeigt JobProgressBar, wenn hasActiveJob=true und currentJobInfo vorhanden', () => {
+  it('rendert ImagePreview im Original-Tab', () => {
     render(
-      <AudioView
-        {...makeBaseProps({
-          hasActiveJob: true,
-          currentJobInfo: { status: 'running', progress: 42 },
-        })}
-      />
+      <Provider store={createStore()}>
+        <ImageView {...makeBaseProps({ infoTab: 'original' })} />
+      </Provider>
     )
-    expect(screen.getByText('42%')).toBeTruthy()
+    expect(screen.getByTestId('image-preview-mock')).toBeTruthy()
+  })
+
+  it('zeigt JobProgressBar bei hasActiveJob=true', () => {
+    render(
+      <Provider store={createStore()}>
+        <ImageView
+          {...makeBaseProps({
+            hasActiveJob: true,
+            currentJobInfo: { status: 'running', progress: 75 },
+          })}
+        />
+      </Provider>
+    )
+    expect(screen.getByText('75%')).toBeTruthy()
   })
 })
