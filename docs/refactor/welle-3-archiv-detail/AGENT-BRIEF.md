@@ -270,9 +270,32 @@ Stoppe und melde dem User, wenn:
 - Repo: `bCommonsLAB/CommonKnowledgeScout`, default branch `master`
 - Aktueller Stand `master`: Wellen 0-2 + 3-I abgenommen
 - Test-Setup: `pnpm install` (Node 20+, pnpm 9.15.3)
-- Tools:
-  - `pnpm test` — Vitest
-  - `pnpm lint` — ESLint
-  - `node scripts/ui-welle-3ii-stats.mjs` — Welle-3-II-Stats
-  - `pnpm knip` — Dead-Code
+- Tools (Reihenfolge verbindlich vor jedem Push):
+  1. `pnpm test` — Vitest
+  2. `pnpm lint` — ESLint via `next lint`
+  3. **`pnpm build`** — `next build`, **PFLICHT** (siehe Lehre unten)
+  4. `node scripts/ui-welle-3ii-stats.mjs` — Welle-3-II-Stats
+  5. `pnpm knip` — Dead-Code
 - **Keine** Live-Storage-Provider-Calls, keine Live-Mongo-Calls (siehe AGENTS.md)
+
+## Lehre aus PR #29 / Hotfix #30 (2026-04-30)
+
+Beim Modul-Split von `file-preview.tsx` blieben 5 ungenutzte Imports
+zurueck (`ArrowLeft`, `Eye`, `Loader2`, `Scissors`, `ImagePreviewComponent`).
+`pnpm test` und `pnpm lint` waren lokal **gruen**, doch `pnpm build` (CI)
+brach mit `@typescript-eslint/no-unused-vars` als hard error. Production-
+Deploy war rot bis zum Hotfix #30.
+
+**Konsequenz fuer Sub-Wellen 3-II-a Phase 2b/2c/2d und 3-II-b/c/d**:
+
+- **Vor jedem `git push` muss `pnpm build` lokal gruen sein.**
+- Nach jedem Modul-Split: **explizit pruefen**, welche Imports im
+  Mutterfile nach Extraktion noch genutzt werden. Tipp:
+  ```
+  rg "ArrowLeft|Eye|Loader2|Scissors" src/components/library/file-preview.tsx
+  ```
+- **NICHT** auf `pnpm lint` allein verlassen — `next lint` klassifiziert
+  `no-unused-vars` als Warning, `next build` als Error.
+
+Diese Regel ist auch in `AGENTS.md` (Sektion "Test- und Lint-Commands")
+festgehalten.

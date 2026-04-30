@@ -12,10 +12,35 @@ Diese Datei definiert verbindliche Regeln fuer alle Agenten (lokal und Cursor Cl
 
 ### Test- und Lint-Commands (nach jeder Code-Aenderung ausfuehren)
 
-- `pnpm test`          # Vitest Unit-Tests, muss gruen sein
-- `pnpm lint`          # ESLint, muss ohne neue Warnings sein
-- `pnpm health`        # Modul-Health-Report (sobald Tooling-Agent gemerged ist)
-- Bei Pipeline-Aenderungen zusaetzlich: `pnpm test:integration:api` (siehe `.cursor/rules/external-jobs-integration-tests.mdc`)
+Reihenfolge ist verbindlich — alle vier muessen gruen sein, bevor gepusht wird:
+
+1. `pnpm test`         # Vitest Unit-Tests, muss gruen sein
+2. `pnpm lint`         # ESLint via `next lint`, muss ohne neue Warnings sein
+3. `pnpm build`        # **PFLICHT** — `next build`, muss gruen sein
+4. `pnpm health`       # Modul-Health-Report (sobald Tooling-Agent gemerged ist)
+
+Bei Pipeline-Aenderungen zusaetzlich: `pnpm test:integration:api`
+(siehe `.cursor/rules/external-jobs-integration-tests.mdc`).
+
+#### Warum `pnpm build` PFLICHT ist (Lehre aus PR #29 / Hotfix #30)
+
+`pnpm lint` (= `next lint`) klassifiziert bestimmte Regeln (z.B.
+`@typescript-eslint/no-unused-vars`) lokal als **Warning**. Erst
+`pnpm build` (= `next build`) macht daraus harte **Errors** und bricht
+den Production-Deploy. Konsequenz: Wenn nur `pnpm test` und `pnpm lint`
+gruen sind, ist der CI-Build **nicht** zwingend gruen.
+
+Symptom in CI:
+
+```
+Error: 'XYZ' is defined but never used. @typescript-eslint/no-unused-vars
+> Build failed because of webpack errors
+Process completed with exit code 1.
+```
+
+Konsequenz fuer den Agent: **immer** `pnpm build` lokal vor `git push`
+ausfuehren, vor allem nach Modul-Splits (uebrig gebliebene Imports
+sind der haeufigste Trigger).
 
 ### Repo-Konventionen (verbindlich)
 
