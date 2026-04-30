@@ -93,172 +93,18 @@ import { JobReportTabWithShadowTwin } from './file-preview/job-report-tab-with-s
 // ausgegliedert (Welle 3-II-a, Schritt 4b).
 import { ContentLoader } from './file-preview/content-loader'
 
-/**
- * Icon-only Toolbar im Transkript-Tab: Review/Vergleichen, optional Seiten splitten (PDF),
- * Neu generieren bzw. „Jetzt erstellen“. Tooltips liefern die früheren Button-Texte.
- */
-function TranscriptToolbarActions({
-  isReviewMode,
-  onToggleReviewMode,
-  hasTranscriptItem,
-  transcriptToolsEligible,
-  isPdf,
-  isSplittingPages,
-  setIsSplittingPages,
-  isRunningPipeline,
-  hasActiveJob,
-  openPipelineForPhase,
-  activeLibraryId,
-  transcriptItem,
-  sourceItem,
-  provider,
-  onRefreshFolder,
-}: {
-  isReviewMode: boolean;
-  onToggleReviewMode: () => void;
-  hasTranscriptItem: boolean;
-  /** Wie bisher: Nur bestimmte Medientypen erhalten Split + Neu-generieren. */
-  transcriptToolsEligible: boolean;
-  isPdf: boolean;
-  isSplittingPages: boolean;
-  setIsSplittingPages: React.Dispatch<React.SetStateAction<boolean>>;
-  isRunningPipeline: boolean;
-  hasActiveJob: boolean;
-  openPipelineForPhase: (phase: "transcript", force?: boolean) => void;
-  activeLibraryId: string;
-  transcriptItem: StorageItem | null;
-  sourceItem: StorageItem;
-  provider: StorageProvider | null;
-  onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
-}) {
-  const runSplitPages = React.useCallback(async () => {
-    if (!activeLibraryId || !transcriptItem?.id) return;
-    setIsSplittingPages(true);
-    try {
-      const res = await fetch(`/api/library/${encodeURIComponent(activeLibraryId)}/markdown/split-pages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sourceFileId: transcriptItem.id,
-          originalFileId: sourceItem.id,
-          targetLanguage: "de",
-        }),
-      });
-      const json = (await res.json().catch(() => ({}))) as { error?: unknown; folderName?: string; created?: number };
-      if (!res.ok) {
-        const msg = typeof json.error === "string" ? json.error : `HTTP ${res.status}`;
-        throw new Error(msg);
-      }
-      toast.success("Seiten gesplittet", {
-        description: `${json.created ?? 0} Seiten in Ordner "${json.folderName || "pages"}" gespeichert.`,
-      });
-      if (onRefreshFolder && sourceItem.parentId) {
-        const refreshed = await provider?.listItemsById(sourceItem.parentId);
-        if (refreshed) onRefreshFolder(sourceItem.parentId, refreshed);
-      }
-    } catch (error) {
-      toast.error("Split fehlgeschlagen", {
-        description: error instanceof Error ? error.message : "Unbekannter Fehler",
-      });
-    } finally {
-      setIsSplittingPages(false);
-    }
-  }, [
-    activeLibraryId,
-    transcriptItem?.id,
-    sourceItem.id,
-    sourceItem.parentId,
-    provider,
-    onRefreshFolder,
-    setIsSplittingPages,
-  ]);
-
-  return (
-    <TooltipProvider delayDuration={300}>
-      <div className="flex flex-shrink-0 items-center gap-1">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              size="icon"
-              variant={isReviewMode ? "secondary" : "outline"}
-              className="h-8 w-8"
-              onClick={onToggleReviewMode}
-              aria-label={isReviewMode ? "Zur Listenansicht" : "Vergleichen"}
-            >
-              {isReviewMode ? <ArrowLeft className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">
-            {isReviewMode
-              ? "Zur Listenansicht (Review beenden)"
-              : "Vergleichen: eine Vorschau, im Transkript-Tab Original links und Text rechts"}
-          </TooltipContent>
-        </Tooltip>
-
-        {!hasTranscriptItem ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                size="icon"
-                variant="default"
-                className="h-8 w-8"
-                onClick={() => openPipelineForPhase("transcript")}
-                disabled={isRunningPipeline || hasActiveJob}
-                aria-label="Transkript jetzt erstellen"
-              >
-                <Sparkles className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Transkript jetzt erstellen</TooltipContent>
-          </Tooltip>
-        ) : transcriptToolsEligible ? (
-          <>
-            {isPdf ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="outline"
-                    className="h-8 w-8"
-                    disabled={isSplittingPages || !provider}
-                    onClick={() => void runSplitPages()}
-                    aria-label="Seiten splitten"
-                  >
-                    {isSplittingPages ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Scissors className="h-4 w-4" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">Seiten splitten</TooltipContent>
-              </Tooltip>
-            ) : null}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="outline"
-                  className="h-8 w-8"
-                  onClick={() => openPipelineForPhase("transcript", true)}
-                  disabled={isRunningPipeline || hasActiveJob}
-                  aria-label="Transkript neu generieren"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Transkript neu generieren</TooltipContent>
-            </Tooltip>
-          </>
-        ) : null}
-      </div>
-    </TooltipProvider>
-  );
-}
+// TranscriptToolbarActions wurde in
+// src/components/library/file-preview/transcript-toolbar-actions.tsx
+// ausgegliedert (Welle 3-II-a Phase 2a, Schritt 4b).
+import { TranscriptToolbarActions } from './file-preview/transcript-toolbar-actions'
+// View-Komponenten unter file-preview/views/* (Welle 3-II-a Phase 2a):
+// - AudioView: rendert die Audio-Detail-Tab-Pipeline
+// - ImageView: rendert die Bild-Detail-Tab-Pipeline (kein Transcript-Tab)
+// Weitere Views (video, default, markdown, pdf, office, presentation,
+// website) folgen in Phase 2b/2c — siehe AGENT-BRIEF.md.
+import { AudioView } from './file-preview/views/audio-view'
+import { ImageView } from './file-preview/views/image-view'
+import type { PreviewViewProps } from './file-preview/views/view-props'
 
 // ReviewOriginalPane, WebsiteReviewOriginalIframe, ReviewTranscriptSplit
 // und wrapTranscriptTabWithReviewSplit wurden in
@@ -1073,432 +919,64 @@ function PreviewContent({
     return <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>;
   }
 
+  // Gemeinsames Props-Bundle fuer alle View-Komponenten unter
+  // file-preview/views/* (Welle 3-II-a Phase 2a).
+  // Pro View-Typ extrahiert aus PreviewContent-Closure; spaetere
+  // Sub-Wellen reichen dasselbe Bundle in image-view, video-view etc.
+  const viewProps: PreviewViewProps = {
+    item,
+    provider,
+    activeLibraryId,
+    activeLibrary,
+    fileType,
+    kind,
+    infoTab,
+    setInfoTab,
+    shadowTwinState,
+    storySteps,
+    transcript,
+    displayTranscriptItem,
+    transcriptHeaderExtra,
+    transformItem,
+    transformError,
+    transformHeaderExtra,
+    hasActiveJob,
+    currentJobInfo,
+    isRunningPipeline,
+    openPipelineForPhase,
+    effectiveMdIdRef,
+    isReviewMode,
+    handleReviewModeToggle,
+    isSplittingPages,
+    setIsSplittingPages,
+    onRefreshFolder,
+    isPipelineOpen,
+    setIsPipelineOpen,
+    effectiveTargetLanguage,
+    setTargetLanguage,
+    sourceLanguage,
+    setSourceLanguage,
+    templateName,
+    setTemplateName,
+    templates,
+    isLoadingTemplates,
+    llmModel,
+    setLlmModel,
+    llmModels,
+    isLoadingLlmModels,
+    runPipeline,
+    pipelineDefaultSteps,
+    pipelineDefaultForce,
+    savedCustomHint,
+  }
+
   switch (fileType) {
-    case 'audio': {
-      FileLogger.debug('PreviewContent', 'Audio-Player wird gerendert', {
-        itemId: item.id,
-        itemName: item.metadata.name
-      });
-      if (!provider) {
-        return <div className="text-sm text-muted-foreground">Kein Provider verfügbar.</div>;
-      }
-      const docModifiedAt = shadowTwinState?.transformed?.metadata.modifiedAt
-        ? new Date(shadowTwinState.transformed.metadata.modifiedAt).toISOString()
-        : undefined
-      const textStep = getStoryStep(storySteps, "text")
-      const transformStep = getStoryStep(storySteps, "transform")
-      const publishStep = getStoryStep(storySteps, "publish")
+    case 'audio':
+      return <AudioView {...viewProps} />
 
-      return (
-        <IngestionDataProvider
-          libraryId={activeLibraryId}
-          fileId={item.id}
-          docModifiedAt={docModifiedAt}
-          includeChapters={true}
-        >
-          {/* Job-Progress-Anzeige wenn ein Job laeuft */}
-          {hasActiveJob && currentJobInfo && (
-            <JobProgressBar 
-              status={currentJobInfo.status} 
-              progress={currentJobInfo.progress} 
-              message={currentJobInfo.message}
-              phase={currentJobInfo.phase}
-            />
-          )}
-          <Tabs value={infoTab} onValueChange={(v) => setInfoTab(v as typeof infoTab)} className="flex h-full flex-col">
-            {/* Tabs folgen dem Artefakt-Lebenszyklus (Original -> Transcript -> Transform -> Story -> Uebersicht). */}
-            <TabsList className="mx-3 mt-3 w-fit">
-              <TabsTrigger value="original">Original</TabsTrigger>
-              <TabsTrigger value="transcript">
-                <ArtifactTabLabel label="Transkript" icon={FileText} state={textStep?.state || null} />
-              </TabsTrigger>
-              <TabsTrigger value="transform">
-                <ArtifactTabLabel label="Transformation" icon={Sparkles} state={transformStep?.state || null} />
-              </TabsTrigger>
-              <TabsTrigger value="story">
-                <ArtifactTabLabel label="Story" icon={Upload} state={publishStep?.state || null} />
-              </TabsTrigger>
-              <TabsTrigger value="overview">Übersicht</TabsTrigger>
-            </TabsList>
+    case 'image':
+      return <ImageView {...viewProps} />
 
-            <TabsContent value="original" className="min-h-0 flex-1 overflow-hidden p-3">
-              <div className="h-full overflow-hidden rounded border">
-                <SourceAndTranscriptPane
-                  provider={provider}
-                  libraryId={activeLibraryId}
-                  sourceFile={item}
-                  streamingUrl={null}
-                  transcriptItem={transcript.transcriptItem}
-                  leftPaneMode="audio"
-                />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="transcript" className="min-h-0 flex-1 overflow-hidden p-3">
-              {wrapTranscriptTabWithReviewSplit(
-                isReviewMode,
-                <ReviewOriginalPane provider={provider} item={item} streamingUrl={null} />,
-                <ArtifactMarkdownPanel
-                  title="Transcript (aus dem Original transkribiert)"
-                  titleClassName="text-xs text-muted-foreground font-normal"
-                  headerExtra={transcriptHeaderExtra}
-                  item={displayTranscriptItem}
-                  provider={provider}
-                  libraryId={activeLibraryId || undefined}
-                  emptyHint="Noch kein Transkript vorhanden."
-                  additionalActions={
-                    <TranscriptToolbarActions
-                      isReviewMode={isReviewMode}
-                      onToggleReviewMode={handleReviewModeToggle}
-                      hasTranscriptItem={!!transcript.transcriptItem}
-                      transcriptToolsEligible={
-                        !!(transcript.transcriptItem &&
-                          ["pdf", "audio", "markdown", "docx", "xlsx", "pptx"].includes(fileType))
-                      }
-                      isPdf={false}
-                      isSplittingPages={isSplittingPages}
-                      setIsSplittingPages={setIsSplittingPages}
-                      isRunningPipeline={isRunningPipeline}
-                      hasActiveJob={hasActiveJob}
-                      openPipelineForPhase={openPipelineForPhase}
-                      activeLibraryId={activeLibraryId}
-                      transcriptItem={transcript.transcriptItem}
-                      sourceItem={item}
-                      provider={provider}
-                      onRefreshFolder={onRefreshFolder}
-                    />
-                  }
-                />,
-              )}
-            </TabsContent>
-
-            <TabsContent value="transform" className="min-h-0 flex-1 overflow-auto p-3">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs text-muted-foreground">
-                    Story-Inhalte und Metadaten (aus dem Transkript transformiert)
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {transformHeaderExtra}
-                    {!transformItem ? (
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => openPipelineForPhase("transform")}
-                        disabled={isRunningPipeline || hasActiveJob}
-                      >
-                        <Sparkles className="h-4 w-4 mr-2" />
-                        Jetzt erstellen
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openPipelineForPhase("transform", true)}
-                        disabled={isRunningPipeline || hasActiveJob}
-                      >
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Neu generieren
-                      </Button>
-                    )}
-                  </div>
-                </div>
-                {transformError ? (
-                  <Alert variant="destructive">
-                    <AlertDescription>{transformError}</AlertDescription>
-                  </Alert>
-                ) : !transformItem ? (
-                  <div className="rounded border p-3 text-sm text-muted-foreground">
-                    Keine Transformationsdaten vorhanden. Bitte stellen Sie sicher, dass die Datei verarbeitet wurde.
-                  </div>
-                ) : (
-                  <div className="rounded border">
-                    <JobReportTabWithShadowTwin 
-                      libraryId={activeLibraryId} 
-                      fileId={item.id} 
-                      fileName={item.metadata.name}
-                      parentId={item.parentId}
-                      provider={provider}
-                      resolvedMdFileId={transformItem?.id ?? undefined}
-                      ingestionTabMode="preview"
-                      effectiveMdIdRef={effectiveMdIdRef}
-                    />
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="story" className="min-h-0 flex-1 overflow-auto p-3">
-              {infoTab === "story" ? (
-                <div className="h-full overflow-auto rounded border p-3">
-                  <div className="mb-2 flex items-center justify-between">
-                    <div className="text-xs text-muted-foreground">
-                      veröffentlichte Story (aus den Artefakten der Transformation erstellt) · Diese Ansicht entspricht der Gallery-Detail Ansicht. · Übersetzungen werden separat über die Galerie-Tabelle ausgelöst (Publish-Button pro Dokument).
-                    </div>
-                    {publishStep?.state === "missing" ? (
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => openPipelineForPhase("story")}
-                        disabled={isRunningPipeline || hasActiveJob}
-                      >
-                        <Sparkles className="h-4 w-4 mr-2" />
-                        Jetzt erstellen
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openPipelineForPhase("story", true)}
-                        disabled={isRunningPipeline || hasActiveJob}
-                      >
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Erneut publizieren
-                      </Button>
-                    )}
-                  </div>
-                  <IngestionDetailPanel libraryId={activeLibraryId} fileId={item.id} />
-                </div>
-              ) : null}
-            </TabsContent>
-
-            <TabsContent value="overview" className="min-h-0 flex-1 overflow-auto p-3">
-              {infoTab === "overview" ? (
-                <div className="rounded border">
-                  <ArtifactInfoPanel
-                    libraryId={activeLibraryId}
-                    sourceFile={item}
-                    shadowTwinFolderId={shadowTwinState?.shadowTwinFolderId || null}
-                    transcriptFiles={shadowTwinState?.transcriptFiles}
-                    transformed={shadowTwinState?.transformed}
-                    targetLanguage="de"
-                  />
-                </div>
-              ) : null}
-            </TabsContent>
-          </Tabs>
-          <PipelineSheet
-            isOpen={isPipelineOpen}
-            onOpenChange={setIsPipelineOpen}
-            libraryId={activeLibraryId}
-            sourceFileName={item.metadata.name}
-            kind={(["pdf", "audio", "video", "markdown"].includes(kind) ? kind : (["docx", "xlsx", "pptx"].includes(kind) ? "office" : "other")) as "pdf" | "audio" | "video" | "markdown" | "office" | "other"}
-            targetLanguage={effectiveTargetLanguage}
-            onTargetLanguageChange={setTargetLanguage}
-            sourceLanguage={sourceLanguage}
-            onSourceLanguageChange={setSourceLanguage}
-            templateName={templateName}
-            onTemplateNameChange={setTemplateName}
-            templates={templates}
-            isLoadingTemplates={isLoadingTemplates}
-            llmModel={llmModel}
-            onLlmModelChange={setLlmModel}
-            llmModels={llmModels}
-            isLoadingLlmModels={isLoadingLlmModels}
-            onStart={runPipeline}
-            defaultSteps={pipelineDefaultSteps}
-            defaultForce={pipelineDefaultForce}
-            existingArtifacts={{
-              hasTranscript: !!transcript.transcriptItem,
-              hasTransformed: !!shadowTwinState?.transformed,
-              hasIngested: publishStep?.state !== "missing",
-            }}
-            defaultGenerateCoverImage={activeLibrary?.config?.secretaryService?.generateCoverImage}
-            defaultCustomHint={savedCustomHint}
-          />
-        </IngestionDataProvider>
-      )
-    }
-    case 'image': {
-      FileLogger.info('PreviewContent', 'ImagePreview mit Pipeline wird gerendert', {
-        itemId: item.id,
-        itemName: item.metadata.name,
-        mimeType: item.metadata.mimeType,
-      });
-      if (!provider) {
-        return <div className="text-sm text-muted-foreground">Kein Provider verfügbar.</div>;
-      }
-      const imgDocModifiedAt = shadowTwinState?.transformed?.metadata.modifiedAt
-        ? new Date(shadowTwinState.transformed.metadata.modifiedAt).toISOString()
-        : undefined
-      const imgTransformStep = getStoryStep(storySteps, "transform")
-      const imgPublishStep = getStoryStep(storySteps, "publish")
-
-      return (
-        <IngestionDataProvider
-          libraryId={activeLibraryId}
-          fileId={item.id}
-          docModifiedAt={imgDocModifiedAt}
-          includeChapters={true}
-        >
-          {hasActiveJob && currentJobInfo && (
-            <JobProgressBar 
-              status={currentJobInfo.status} 
-              progress={currentJobInfo.progress} 
-              message={currentJobInfo.message}
-              phase={currentJobInfo.phase}
-            />
-          )}
-          <Tabs value={infoTab} onValueChange={(v) => setInfoTab(v as typeof infoTab)} className="flex h-full flex-col">
-            <TabsList className="mx-3 mt-3 w-fit">
-              <TabsTrigger value="original">Original</TabsTrigger>
-              <TabsTrigger value="transform">
-                <ArtifactTabLabel label="Analyse" icon={Sparkles} state={imgTransformStep?.state || null} />
-              </TabsTrigger>
-              <TabsTrigger value="story">
-                <ArtifactTabLabel label="Story" icon={Upload} state={imgPublishStep?.state || null} />
-              </TabsTrigger>
-              <TabsTrigger value="overview">Übersicht</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="original" className="min-h-0 flex-1 overflow-hidden p-3">
-              <div className="h-full overflow-hidden rounded border">
-                <ImagePreviewComponent
-                  provider={provider}
-                  activeLibraryId={activeLibraryId}
-                  onRefreshFolder={onRefreshFolder}
-                  showTransformControls={false}
-                />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="transform" className="min-h-0 flex-1 overflow-auto p-3">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs text-muted-foreground">
-                    Bild-Analyse und extrahierte Metadaten (via Image-Analyzer)
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {transformHeaderExtra}
-                    {!transformItem ? (
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => openPipelineForPhase("transform")}
-                        disabled={isRunningPipeline || hasActiveJob}
-                      >
-                        <Sparkles className="h-4 w-4 mr-2" />
-                        Jetzt analysieren
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openPipelineForPhase("transform", true)}
-                        disabled={isRunningPipeline || hasActiveJob}
-                      >
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Neu analysieren
-                      </Button>
-                    )}
-                  </div>
-                </div>
-                {transformError ? (
-                  <Alert variant="destructive">
-                    <AlertDescription>{transformError}</AlertDescription>
-                  </Alert>
-                ) : !transformItem ? (
-                  <div className="rounded border p-3 text-sm text-muted-foreground">
-                    Noch keine Analyse vorhanden. Klicken Sie auf &quot;Jetzt analysieren&quot;, um die Bild-Analyse zu starten.
-                  </div>
-                ) : (
-                  <div className="rounded border">
-                    <JobReportTabWithShadowTwin 
-                      libraryId={activeLibraryId} 
-                      fileId={item.id} 
-                      fileName={item.metadata.name}
-                      parentId={item.parentId}
-                      provider={provider}
-                      resolvedMdFileId={transformItem?.id ?? undefined}
-                      ingestionTabMode="preview"
-                      effectiveMdIdRef={effectiveMdIdRef}
-                    />
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="story" className="min-h-0 flex-1 overflow-auto p-3">
-              {infoTab === "story" ? (
-                <div className="h-full overflow-auto rounded border p-3">
-                  <div className="mb-2 flex items-center justify-between">
-                    <div className="text-xs text-muted-foreground">
-                      veröffentlichte Story (aus der Bild-Analyse erstellt) · Übersetzungen werden separat über die Galerie-Tabelle ausgelöst (Publish-Button pro Dokument).
-                    </div>
-                    {imgPublishStep?.state === "missing" ? (
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => openPipelineForPhase("story")}
-                        disabled={isRunningPipeline || hasActiveJob}
-                      >
-                        <Sparkles className="h-4 w-4 mr-2" />
-                        Jetzt erstellen
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openPipelineForPhase("story", true)}
-                        disabled={isRunningPipeline || hasActiveJob}
-                      >
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Erneut publizieren
-                      </Button>
-                    )}
-                  </div>
-                  <IngestionDetailPanel libraryId={activeLibraryId} fileId={item.id} />
-                </div>
-              ) : null}
-            </TabsContent>
-
-            <TabsContent value="overview" className="min-h-0 flex-1 overflow-auto p-3">
-              {infoTab === "overview" ? (
-                <div className="rounded border">
-                  <ArtifactInfoPanel
-                    libraryId={activeLibraryId}
-                    sourceFile={item}
-                    shadowTwinFolderId={shadowTwinState?.shadowTwinFolderId || null}
-                    transcriptFiles={shadowTwinState?.transcriptFiles}
-                    transformed={shadowTwinState?.transformed}
-                    targetLanguage="de"
-                  />
-                </div>
-              ) : null}
-            </TabsContent>
-          </Tabs>
-          <PipelineSheet
-            isOpen={isPipelineOpen}
-            onOpenChange={setIsPipelineOpen}
-            libraryId={activeLibraryId}
-            sourceFileName={item.metadata.name}
-            kind="image"
-            targetLanguage={effectiveTargetLanguage}
-            onTargetLanguageChange={setTargetLanguage}
-            sourceLanguage={sourceLanguage}
-            onSourceLanguageChange={setSourceLanguage}
-            templateName={templateName}
-            onTemplateNameChange={setTemplateName}
-            templates={templates}
-            isLoadingTemplates={isLoadingTemplates}
-            llmModel={llmModel}
-            onLlmModelChange={setLlmModel}
-            llmModels={llmModels}
-            isLoadingLlmModels={isLoadingLlmModels}
-            onStart={runPipeline}
-            defaultSteps={pipelineDefaultSteps}
-            defaultForce={pipelineDefaultForce}
-            existingArtifacts={{
-              hasTranscript: false,
-              hasTransformed: !!shadowTwinState?.transformed,
-              hasIngested: imgPublishStep?.state !== "missing",
-            }}
-            defaultGenerateCoverImage={activeLibrary?.config?.secretaryService?.generateCoverImage}
-            defaultCustomHint={savedCustomHint}
-          />
-        </IngestionDataProvider>
-      )
-    }
     case 'video': {
       FileLogger.debug('PreviewContent', 'Video-Pipeline wird gerendert', {
         itemId: item.id,
