@@ -25,7 +25,9 @@ import { buildTwinRelativeMediaRef } from '@/lib/storage/shadow-twin-folder-name
 import { VIEW_TYPE_REGISTRY, type DetailViewType, type ViewTypeMediaConfig } from '@/lib/detail-view-types/registry'
 import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
-import { fetchShadowTwinMarkdown, updateShadowTwinMarkdown } from '@/lib/shadow-twin/shadow-twin-mongo-client'
+// fetchShadowTwinMarkdown + updateShadowTwinMarkdown wurden mit den
+// 4 async-Helpers ausgegliedert und nur noch dort verwendet
+// (Welle 3-II-c, Schritt 3/5).
 import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser'
 import type { StorageProvider } from '@/lib/storage/types'
 import type { SiblingFile } from '@/app/api/library/[libraryId]/sibling-files/route'
