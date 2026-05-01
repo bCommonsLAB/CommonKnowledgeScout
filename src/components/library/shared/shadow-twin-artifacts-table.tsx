@@ -22,44 +22,10 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 
-interface BinaryFragment {
-  sourceId: string
-  sourceName: string
-  name: string
-  kind: string
-  url?: string
-  hash?: string
-  mimeType?: string
-  size?: number
-  createdAt: string
-}
-
-interface Artifact {
-  sourceId: string
-  sourceName: string
-  artifactFileName: string
-  kind: 'transcript' | 'transformation'
-  targetLanguage: string
-  templateName?: string
-  mongoUpserted: boolean
-  filesystemDeleted?: boolean
-}
-
-interface FileEntry {
-  sourceId: string
-  sourceName: string
-  fileName: string
-  kind: string
-  mimeType?: string
-  size?: number
-  url?: string
-  hash?: string
-  mongoUpserted: boolean
-  filesystemDeleted: boolean
-  artifactKind?: 'transcript' | 'transformation'
-  targetLanguage?: string
-  templateName?: string
-}
+// 3 Type-Definitionen wurden in
+// src/components/library/shared/shadow-twin-artifacts-table/types.ts
+// ausgegliedert (Welle 3-II-d, Schritt 4/7).
+import type { BinaryFragment, Artifact, FileEntry } from './shadow-twin-artifacts-table/types'
 
 interface ShadowTwinArtifactsTableProps {
   libraryId: string
