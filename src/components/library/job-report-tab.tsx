@@ -35,6 +35,10 @@ import { buildCoverImagePromptForUIWithSource, type CoverImagePromptUIResult } f
 // src/components/library/job-report-tab/helpers.ts ausgegliedert
 // (Welle 3-II-c, Schritt 2/5).
 import { safeParseStringArray, type JobDto } from './job-report-tab/helpers'
+// Inline-Editing-Logik (editingField/Value, isSaving, saveMetaField)
+// wurde in src/hooks/library/job-report-tab/use-frontmatter-editor.ts
+// ausgegliedert (Welle 3-III-b, Schritt 2/4).
+import { useFrontmatterEditor } from '@/hooks/library/job-report-tab/use-frontmatter-editor'
 
 interface JobReportTabProps {
   libraryId: string
@@ -162,12 +166,10 @@ export function JobReportTab({
   const [isMarkdownEditing, setIsMarkdownEditing] = useState(false)
   // State für editierten Content (nur Body, ohne Frontmatter)
   const [editedContent, setEditedContent] = useState<string>('')
-  // State für Inline-Editing: aktuell bearbeitetes Metadaten-Feld (null = keines)
-  const [editingField, setEditingField] = useState<string | null>(null)
-  // State für temporären Wert beim Inline-Editing
-  const [editingValue, setEditingValue] = useState<string>('')
-  // State für Speichern-Loading
-  const [isSaving, setIsSaving] = useState(false)
+  // Inline-Editing-State + Save-Logik via useFrontmatterEditor-Hook
+  // (Welle 3-III-b, Schritt 2/4). Der Hook kapselt:
+  // - editingField, editingValue, isSaving (State)
+  // - saveMetaField (persistiert nach MongoDB ODER Filesystem)
 
   useEffect(() => {
     if (forcedTab) setActiveTab(forcedTab)
@@ -548,76 +550,33 @@ export function JobReportTab({
     setIsEditOpen(true)
   }, [provider, effectiveMdId])
 
-  // Speichert ein einzelnes Metadaten-Feld (Inline-Edit)
-  const saveMetaField = useCallback(async (fieldName: string, newValue: string) => {
-    if (!effectiveMdId || !fullContent) return
-    
-    setIsSaving(true)
-    try {
-      // Parse aktuelles Frontmatter
-      const parsed = parseSecretaryMarkdownStrict(fullContent)
-      const currentMeta = parsed.meta || {}
-      
-      // Aktualisiere das Feld
-      // Versuche JSON zu parsen (für Arrays/Objekte)
-      let parsedValue: unknown = newValue
-      if (newValue.startsWith('[') || newValue.startsWith('{')) {
-        try {
-          parsedValue = JSON.parse(newValue)
-        } catch {
-          // Kein valides JSON, verwende als String
-        }
-      }
-      currentMeta[fieldName] = parsedValue
-      
-      // Rekonstruiere Frontmatter
-      const frontmatterLines = Object.entries(currentMeta)
-        .map(([k, v]) => {
-          if (v === null || v === undefined) return `${k}: null`
-          if (Array.isArray(v)) return `${k}: ${JSON.stringify(v)}`
-          if (typeof v === 'object') return `${k}: ${JSON.stringify(v)}`
-          if (typeof v === 'string' && (v.includes('\n') || v.includes(':') || v.includes('"'))) {
-            // Multiline oder Sonderzeichen: YAML Block-Style oder Escaping
-            if (v.includes('\n')) {
-              return `${k}: |\n  ${v.split('\n').join('\n  ')}`
-            }
-            return `${k}: "${v.replace(/"/g, '\\"')}"`
-          }
-          return `${k}: ${v}`
-        })
-      const body = stripFrontmatter(fullContent)
-      const newFullContent = `---\n${frontmatterLines.join('\n')}\n---\n\n${body}`
-      
-      // Speichern
-      if (isMongoShadowTwinId(effectiveMdId)) {
-        const parts = parseMongoShadowTwinId(effectiveMdId)
-        if (!parts) throw new Error('Ungültige Mongo-ID')
-        await updateShadowTwinMarkdown(libraryId, parts, newFullContent)
-      } else if (provider) {
-        const item = await provider.getItemById(effectiveMdId)
-        if (!item || !item.parentId) throw new Error('Datei nicht gefunden')
-        const blob = new Blob([newFullContent], { type: 'text/markdown' })
-        const file = new File([blob], item.metadata.name, { type: 'text/markdown' })
-        await provider.deleteItem(item.id)
-        await provider.uploadFile(item.parentId, file)
-      }
-      
-      // Aktualisiere States
-      setFullContent(newFullContent)
-      setDebouncedContent(newFullContent)
-      const newParsed = parseSecretaryMarkdownStrict(newFullContent)
-      setFrontmatterMeta(newParsed.meta)
-      setParseErrors(newParsed.errors || [])
-      
-      toast.success(`"${fieldName}" gespeichert`)
-    } catch (e) {
-      toast.error(`Fehler: ${e instanceof Error ? e.message : 'Unbekannt'}`)
-    } finally {
-      setIsSaving(false)
-      setEditingField(null)
-      setEditingValue('')
-    }
-  }, [effectiveMdId, fullContent, libraryId, provider, stripFrontmatter])
+  // Inline-Editing-Logik via useFrontmatterEditor-Hook
+  // (Welle 3-III-b, Schritt 2/4). Aufruf MUSS hier stehen, weil der
+  // Hook stripFrontmatter (Z. 302) als Dep braucht.
+  const {
+    editingField,
+    setEditingField,
+    editingValue,
+    setEditingValue,
+    isSaving,
+    setIsSaving,
+    saveMetaField,
+  } = useFrontmatterEditor({
+    libraryId,
+    effectiveMdId,
+    fullContent,
+    provider,
+    stripFrontmatter,
+    onContentUpdated: useCallback(
+      (newContent: string, meta: Record<string, unknown>, errors: string[]) => {
+        setFullContent(newContent)
+        setDebouncedContent(newContent)
+        setFrontmatterMeta(meta)
+        setParseErrors(errors)
+      },
+      [],
+    ),
+  })
   
   // Exponiere Handler über Callbacks
   useEffect(() => {
