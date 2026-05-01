@@ -1,12 +1,17 @@
-# Welle 3-III-b — Acceptance (useFrontmatterEditor Hook fuer job-report-tab)
+# Welle 3-II-Hooks-b — Acceptance (useFrontmatterEditor Hook fuer job-report-tab)
 
-**Branch**: `cursor/refactor-welle-3-iii-b-job-report-hooks-a03a`
+**Branch**: `cursor/refactor-welle-3-iii-b-job-report-hooks-a03a` (historisch,
+vor Naming-Update)
 **Stand**: 2026-05-01
-**PR**: (folgt nach Push)
+**PR**: #41 (merged)
 
-## Plan-Anpassung gegenueber Welle-3-III-Plan
+> **Naming-Hinweis**: Initial als "Welle 3-III-b" gestartet, am
+> 2026-05-01 zu **Welle 3-II-Hooks-b** umbenannt. Siehe
+> `.cursor/rules/refactor-naming-konvention.mdc`.
 
-Im Welle-3-III-Plan war fuer 3-III-b vorgesehen:
+## Plan-Anpassung gegenueber Welle-3-II-Hooks-Plan
+
+Im Plan war fuer 3-II-Hooks-b vorgesehen:
 - `use-job-report-data` Hook (Job-Loader, Frontmatter-Parser)
 - `use-frontmatter-editor` Hook (Inline-Editing-Logik)
 
@@ -17,7 +22,7 @@ Variablen aus weit auseinanderliegenden Bereichen lesen/schreiben
 `displayedFileName`). Eine sichere Extraktion braucht Architektur-
 Entscheidungen.
 
-**Neuer Plan fuer 3-III-b**: Nur `useFrontmatterEditor` ausgliedern.
+**Neuer Plan fuer 3-II-Hooks-b**: Nur `useFrontmatterEditor` ausgliedern.
 Das ist eine eigenstaendige State-Maschine (3 States + 1 Save-Funktion)
 mit klaren Inputs/Outputs.
 
@@ -31,7 +36,7 @@ Tab-Bodies-Aufteilung (separater Refactor-Cycle).
 | 1 | useFrontmatterEditor-Hook erstellen | `src/hooks/library/job-report-tab/use-frontmatter-editor.ts` (161z) | 161 |
 | 2 | Hook in job-report-tab.tsx einbinden | `job-report-tab.tsx` -41z | 111 |
 | 3 | Char-Tests (7 Cases mit `renderHook`) | `tests/.../use-frontmatter-editor.test.tsx` | 187 |
-| 4 | Acceptance-Doc | `06-acceptance-3-iii-b.md` (folgt) | ~150 |
+| 4 | Acceptance-Doc | `06-acceptance-3-ii-hooks-b.md` | ~150 |
 
 **Brutto-Diff Gesamt**: 4 Files, **609 Zeilen** — sehr klein.
 
@@ -52,7 +57,7 @@ Mit -1.8% absolut wenig. Aber:
 - **Sicherheitsnetz** (7 Char-Tests) deckt jetzt die kritische
   Save-Logik ab (Mongo + Filesystem-Pfad, JSON-Parsing, early-return)
 
-## Future Work fuer 3-III-b (Hook 2: use-job-report-data)
+## Future Work fuer 3-II-Hooks-b (Hook 2: use-job-report-data)
 
 Der urspruenglich geplante Hook `use-job-report-data` braucht
 folgende Architektur-Vorarbeit:
@@ -65,7 +70,7 @@ folgende Architektur-Vorarbeit:
    useEffects mit komplexen Abhaengigkeiten.
 
 Empfehlung: Diese Arbeit ist gross genug fuer eine **eigene Sub-Welle
-3-III-b-2** oder gar einen **Welle 3-IV-Cycle**.
+3-II-Hooks-b-2** oder einen **eigenen Refactor-Cycle**.
 
 ## Methodik-DoD
 
@@ -99,10 +104,11 @@ brauchte ihn. Hook angepasst, kein Hotfix-PR-Cycle.
 3. **Long-running save**: Save-Button waehrend des Speicherns disabled
    (isSaving korrekt durchgereicht)
 
-Wenn OK: PR mergen, dann Welle 3-III-c (session-detail).
+Wenn OK: PR mergen, dann Welle 3-II-Hooks-c (session-detail).
 
 ## Verweise
 
-- Welle 3-III-a (Vorgaenger): PR #40
-- Welle 3-III README: `docs/refactor/welle-3-iii-hooks/README.md`
+- Welle 3-II-Hooks-a (Vorgaenger): PR #40
+- Welle 3-II-Hooks README: `docs/refactor/welle-3-ii-hooks/README.md`
+- Naming-Konvention: `.cursor/rules/refactor-naming-konvention.mdc`
 - Methodik: `.cursor/rules/refactor-batch-strategy.mdc`

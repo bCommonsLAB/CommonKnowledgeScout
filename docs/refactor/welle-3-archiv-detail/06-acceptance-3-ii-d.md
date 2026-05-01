@@ -108,8 +108,12 @@ inline und koennte in Future Work in eine separate Datei.
 ### Empfehlung
 Diese 2 Files haben keine "low-hanging fruit". Wenn sie refactored werden
 sollen, dann mit **Hook-Extraktion** (z.B. `use-session-data`,
-`use-image-generation`) — das ist Teil von Welle 3-III oder eines
-spaeteren Cycles.
+`use-image-generation`) — das wird in einer Future-Work-Welle umgesetzt.
+
+**Update 2026-05-01**: Beide Files wurden in Welle 3-II-Hooks
+(Sub-Wellen 3-II-Hooks-c und 3-II-Hooks-d, PRs #42, #43) refactored
+mit `useResolvedSessionMedia` und `useImageGeneration`. Doku:
+`../welle-3-ii-hooks/06-acceptance-3-ii-hooks-GESAMT.md`.
 
 ## Methodik-DoD
 
