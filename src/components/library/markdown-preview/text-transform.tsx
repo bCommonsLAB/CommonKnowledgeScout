@@ -26,7 +26,6 @@ import { useStorage } from '@/contexts/storage-context'
 import { StorageItem, StorageProvider } from '@/lib/storage/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import {
@@ -36,7 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Wand2, Pencil } from 'lucide-react'
+import { Wand2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { FileLogger } from '@/lib/debug/logger'
 import { TransformService, TransformSaveOptions, TransformResult } from '@/lib/transform/transform-service'
@@ -44,6 +43,7 @@ import { transformTextWithTemplate } from '@/lib/secretary/client'
 import { TransformResultHandler } from '@/components/library/transform-result-handler'
 import { SUPPORTED_LANGUAGES } from '@/lib/secretary/constants'
 import { stripAllFrontmatter, parseFrontmatter } from '@/lib/markdown/frontmatter'
+import { replacePlaceholdersInMarkdown } from '@/lib/markdown/placeholder-replacement'
 import { buildArtifactName, extractBaseName, parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
 

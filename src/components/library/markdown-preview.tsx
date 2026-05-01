@@ -1,32 +1,18 @@
 import * as React from 'react';
-// Remarkable, linkify, hljs und hljs-CSS wurden in
-// src/components/library/markdown-preview/md-renderer.ts ausgegliedert
-// (Welle 3-II-b, Schritt 3/8).
+// Nach Welle 3-II-b sind viele Imports nur noch in den ausgegliederten
+// Sub-Modulen aktiv (md-renderer, text-transform, search-popover,
+// markdown-helpers). Im Mutterfile bleiben nur die fuer den Composer
+// (MarkdownPreview-Komponente) noetigen.
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
 import { Button } from '@/components/ui/button';
-// Search/ChevronDown/ChevronUp wurden mit SearchPopover ausgegliedert
-// (Welle 3-II-b, Schritt 4/8).
 import { Wand2, Maximize2, X as CloseIcon, Copy, Check, Pencil } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useAtomValue } from "jotai";
-import { activeLibraryAtom, selectedFileAtom, libraryStatusAtom } from "@/atoms/library-atom";
-import { useStorage } from "@/contexts/storage-context";
-import { activeLibraryIdAtom } from "@/atoms/library-atom";
-import { TransformService, TransformSaveOptions, TransformResult } from "@/lib/transform/transform-service";
-import { transformTextWithTemplate } from "@/lib/secretary/client";
-import { Label } from "@/components/ui/label";
-import { TransformResultHandler } from "@/components/library/transform-result-handler";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { selectedFileAtom, activeLibraryIdAtom } from "@/atoms/library-atom";
 import { cn } from "@/lib/utils";
 import { FileLogger } from "@/lib/debug/logger"
-// SearchPopover wurde in src/components/library/markdown-preview/search-popover.tsx
-// ausgegliedert (Welle 3-II-b, Schritt 4/8).
 import { SearchPopover } from './markdown-preview/search-popover'
-import { SUPPORTED_LANGUAGES } from "@/lib/secretary/constants";
 import { stripAllFrontmatter, parseFrontmatter } from '@/lib/markdown/frontmatter'
 import {
   injectMongoTranscriptCheckLinks,
@@ -34,9 +20,6 @@ import {
   replaceCompositeSourceWikilinksWithLinks,
 } from '@/lib/markdown/composite-wiki-preview'
 import { replaceCompositeMultiPreviewBlock } from '@/lib/markdown/composite-multi-preview'
-import { replacePlaceholdersInMarkdown } from '@/lib/markdown/placeholder-replacement'
-import { buildArtifactName, extractBaseName, parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
-import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
 
 // injectPageAnchors, getYouTubeId, resolveImageUrl,
 // encodeSpacesInRelativeMarkdownHrefs und processObsidianContent wurden
