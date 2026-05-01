@@ -1,16 +1,24 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { UILogger } from '@/lib/debug/logger'
 import { Loader2, Check, RefreshCw, Info } from 'lucide-react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
+// Generation-State + API-Aufruf wurden in
+// src/hooks/library/cover-image-generator-dialog/use-image-generation.ts
+// ausgegliedert (Welle 3-III-d, Schritt 1/3).
+import {
+  useImageGeneration,
+  type GeneratedImage,
+  type GenerationSize,
+  type GenerationQuality,
+} from '@/hooks/library/cover-image-generator-dialog/use-image-generation'
 
 export type PromptSource = 'template' | 'frontmatter' | 'library_config' | 'default'
 
@@ -23,13 +31,6 @@ interface CoverImageGeneratorDialogProps {
   promptSource?: PromptSource
   /** Original-Prompt aus der Quelle (vor Variablenersetzung) */
   originalPrompt?: string | null
-}
-
-interface GeneratedImage {
-  image_base64: string
-  image_format: string
-  size: string
-  seed?: number | null
 }
 
 /**
@@ -54,33 +55,44 @@ export function CoverImageGeneratorDialog({
   promptSource,
   originalPrompt,
 }: CoverImageGeneratorDialogProps) {
+  // Prompt + Size + Quality bleiben UI-State in der Komponente
   const [prompt, setPrompt] = useState(defaultPrompt)
-  const [size, setSize] = useState<'1024x1024' | '1792x1024' | '1024x1792'>('1024x1024')
-  const [quality, setQuality] = useState<'standard' | 'hd'>('standard')
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([])
-  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null)
-  
-  // Prompt aus Template/Library neu setzen wenn Dialog geöffnet wird
-  // oder wenn sich der defaultPrompt ändert und keine Bilder generiert wurden
+  const [size, setSize] = useState<GenerationSize>('1024x1024')
+  const [quality, setQuality] = useState<GenerationQuality>('standard')
+
+  // Generation-State + Logik via Custom-Hook (Welle 3-III-d)
+  // useCallback fuer onClose, damit der Hook stabile Referenz bekommt.
+  const handleClose = useCallback(() => {
+    onOpenChange(false)
+  }, [onOpenChange])
+
+  const {
+    isGenerating,
+    generatedImages,
+    selectedImageIndex,
+    resetGeneration,
+    generate,
+    selectImage,
+  } = useImageGeneration({ onGenerated, onClose: handleClose })
+
+  // Prompt aus Template/Library neu setzen wenn Dialog geoeffnet wird
+  // oder wenn sich der defaultPrompt aendert und keine Bilder generiert wurden
   useEffect(() => {
     if (open && generatedImages.length === 0) {
       setPrompt(defaultPrompt)
     }
   }, [open, defaultPrompt, generatedImages.length])
-  
-  // Prompt auf Template/Library-Wert zurücksetzen
+
+  // Prompt auf Template/Library-Wert zuruecksetzen
   const handleRecalculatePrompt = () => {
     setPrompt(defaultPrompt)
     toast.success('Prompt wurde aus Template/Library neu berechnet')
   }
 
-  // Reset State wenn Dialog geöffnet wird
+  // Reset State wenn Dialog geschlossen wird
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
-      // Reset beim Schließen
-      setGeneratedImages([])
-      setSelectedImageIndex(null)
+      resetGeneration()
       if (!isGenerating) {
         onOpenChange(false)
       }
@@ -89,161 +101,10 @@ export function CoverImageGeneratorDialog({
     }
   }
 
-  const handleGenerate = async (variantCount: 1 | 4 = 4) => {
-    if (!prompt || prompt.trim().length === 0) {
-      toast.error('Bitte beschreiben Sie das gewünschte Bild')
-      return
-    }
+  const handleGenerate = (variantCount: 1 | 4 = 4) =>
+    generate(prompt, size, quality, variantCount)
 
-    setIsGenerating(true)
-    setGeneratedImages([])
-    setSelectedImageIndex(null)
-    
-    try {
-      UILogger.info('CoverImageGeneratorDialog', `Starte Bildgenerierung (${variantCount} ${variantCount === 1 ? 'Variante' : 'Varianten'})`, {
-        prompt: prompt.substring(0, 100),
-        size,
-        quality,
-        variantCount
-      })
-
-      // Generiere Varianten
-      const requestBody: Record<string, unknown> = {
-        prompt: prompt.trim(),
-        size,
-        quality,
-        useCache: variantCount === 1 // Bei Einzelbild Cache aktivieren für schnelleres Ergebnis
-      }
-
-      if (variantCount === 4) {
-        // 4 Varianten mit unterschiedlichen Seeds
-        const seeds = [101, 102, 103, 104]
-        requestBody.n = 4
-        requestBody.seeds = seeds
-        requestBody.useCache = false // Bei Varianten-Generierung Cache deaktivieren für unterschiedliche Ergebnisse
-      } else {
-        // Einzelnes Bild
-        requestBody.n = 1
-      }
-
-      const response = await fetch('/api/secretary/text2image/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        const errorMessage = errorData.error || `HTTP ${response.status}: ${response.statusText}`
-        UILogger.error('CoverImageGeneratorDialog', 'Fehler bei Bildgenerierung', {
-          status: response.status,
-          error: errorMessage,
-          code: errorData.code
-        })
-        toast.error(`Fehler: ${errorMessage}`)
-        return
-      }
-
-      const data = await response.json() as {
-        images?: GeneratedImage[]
-        image_base64?: string
-        image_format?: string
-        size?: string
-        error?: { code: string; message: string }
-      }
-
-      if (data.error) {
-        UILogger.error('CoverImageGeneratorDialog', 'Fehler in Response', {
-          error: data.error
-        })
-        toast.error(`Fehler: ${data.error.message}`)
-        return
-      }
-
-      // Wenn mehrere Bilder vorhanden sind
-      if (data.images && Array.isArray(data.images) && data.images.length > 0) {
-        setGeneratedImages(data.images)
-        UILogger.info('CoverImageGeneratorDialog', `${data.images.length} Varianten erfolgreich generiert`, {
-          count: data.images.length
-        })
-        return
-      }
-
-      // Fallback: Einzelnes Bild (für Abwärtskompatibilität oder n=1)
-      if (data.image_base64 && data.image_format) {
-        const singleImage: GeneratedImage = {
-          image_base64: data.image_base64,
-          image_format: data.image_format,
-          size: data.size || '1024x1024'
-        }
-        setGeneratedImages([singleImage])
-        
-        // Bild zur Vorschau anzeigen, Benutzer muss explizit bestätigen
-        // (auch bei Einzelbild - damit der Benutzer das Ergebnis prüfen kann)
-        UILogger.info('CoverImageGeneratorDialog', 'Einzelbild generiert, zeige zur Bestätigung an')
-        setSelectedImageIndex(null)
-        return
-      }
-
-      toast.error('Ungültige Response vom Server')
-    } catch (error) {
-      UILogger.error('CoverImageGeneratorDialog', 'Unerwarteter Fehler', error)
-      toast.error('Fehler beim Generieren: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'))
-    } finally {
-      setIsGenerating(false)
-    }
-  }
-
-  const handleSelectImage = async (index: number) => {
-    if (index < 0 || index >= generatedImages.length) return
-
-    const selectedImage = generatedImages[index]
-    setSelectedImageIndex(index)
-
-    try {
-      // Konvertiere Base64 zu Blob/File
-      const base64Data = selectedImage.image_base64.replace(/^data:image\/[a-z]+;base64,/, '')
-      const binaryString = atob(base64Data)
-      const bytes = new Uint8Array(binaryString.length)
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i)
-      }
-
-      // Erstelle Blob und dann File-Objekt
-      const mimeType = `image/${selectedImage.image_format}`
-      const blob = new Blob([bytes], { type: mimeType })
-      
-      // Dateiname mit Datum und Uhrzeit: cover_generated_YYYY-MM-DD_HH-MM-SS.png
-      const now = new Date()
-      const dateStr = now.toISOString().replace(/T/, '_').replace(/:/g, '-').substring(0, 19) // Format: 2026-01-20_12-35-45
-      const fileName = `cover_generated_${dateStr}.${selectedImage.image_format}`
-      const file = new File([blob], fileName, { type: mimeType })
-
-      UILogger.info('CoverImageGeneratorDialog', 'Bild ausgewählt und wird gespeichert', {
-        fileName,
-        size: file.size,
-        format: selectedImage.image_format,
-        index
-      })
-
-      // Übergebe File an Callback
-      await onGenerated(file)
-
-      toast.success('Bild erfolgreich gespeichert')
-      handleOpenChange(false)
-    } catch (error) {
-      UILogger.error('CoverImageGeneratorDialog', 'Fehler beim Speichern des ausgewählten Bildes', error)
-      toast.error('Fehler beim Speichern: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'))
-    }
-  }
-
-  const handleClose = () => {
-    if (!isGenerating) {
-      handleOpenChange(false)
-    }
-  }
+  const handleSelectImage = (index: number) => selectImage(index)
 
   // Konvertiere Base64 zu Data URL für Anzeige
   const getImageUrl = (image: GeneratedImage): string => {
