@@ -6,11 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-
-// 1:1-Kopie aus pipeline-sheet.tsx Z. 143:
-function isNonEmptyString(v: unknown): v is string {
-  return typeof v === 'string' && v.trim().length > 0
-}
+import { isNonEmptyString } from '@/components/library/flow/pipeline-sheet/helpers'
 
 describe('isNonEmptyString (pipeline-sheet) — Pure-Logik-Vertrag', () => {
   it('liefert true fuer nicht-leeren String', () => {

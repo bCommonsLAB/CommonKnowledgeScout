@@ -14,77 +14,29 @@ import { Switch } from "@/components/ui/switch"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { cn } from "@/lib/utils"
 import { DictationTextarea } from "@/components/shared/dictation-textarea"
-// Zentrale Sprachdefinitionen (Single Source of Truth für alle Sprachen im Projekt)
-import { TARGET_LANGUAGE_VALUES, TARGET_LANGUAGE_LABELS, type TargetLanguage } from "@/lib/chat/constants"
-// Zentrale Pipeline-Konfigurationstypen - Re-Export für Rückwärtskompatibilität
-import { type PipelinePolicies as PipelinePoliciesType } from "@/lib/pipeline/pipeline-config"
-export type PipelinePolicies = PipelinePoliciesType
+// Helpers, Konstanten + Types wurden in
+// src/components/library/flow/pipeline-sheet/helpers.ts ausgegliedert
+// (Welle 3-II-d, Schritt 5/7). Re-Export fuer Rueckwaerts-
+// kompatibilitaet aller Konsumenten (file-preview/views/* + andere).
+export {
+  type PipelinePolicies,
+  type CoverImageOptions,
+  type ExistingArtifacts,
+  type LlmModelOption,
+  TRANSCRIPTION_SOURCE_LANGUAGES,
+  TRANSFORMATION_TARGET_LANGUAGES,
+  isNonEmptyString,
+} from './pipeline-sheet/helpers'
 
-export interface CoverImageOptions {
-  /** Cover-Bild automatisch generieren */
-  generateCoverImage: boolean
-  /** Optionaler Prompt (überschreibt Library-Default) */
-  coverImagePrompt?: string
-}
-
-/**
- * Informationen ueber bereits vorhandene Artefakte.
- * Ermoeglicht intelligente Vorauswahl und Abhaengigkeits-Logik.
- */
-export interface ExistingArtifacts {
-  /** Transcript/Extraktion ist vorhanden */
-  hasTranscript: boolean
-  /** Transformierte Version ist vorhanden */
-  hasTransformed: boolean
-  /** Bereits indexiert/ingested */
-  hasIngested: boolean
-}
-
-/**
- * LLM-Modell für Dropdown-Auswahl
- */
-export interface LlmModelOption {
-  /** Modell-ID (z.B. 'google/gemini-2.5-flash') */
-  modelId: string
-  /** Anzeigename (z.B. 'Gemini 2.5 Flash') */
-  name: string
-  /** Beschreibung der Stärken */
-  strengths?: string
-}
-
-/**
- * Zusätzliche Whisper-Sprachen, die nicht in TARGET_LANGUAGE_LABELS stehen.
- * Werden an die zentrale Sprachliste angehängt.
- */
-const EXTRA_WHISPER_LANGUAGES: Record<string, string> = {
-  ar: 'Arabisch',
-  am: 'Amharisch',
-}
-
-/**
- * Quellsprachen für die Transkription (Whisper).
- * Abgeleitet aus den zentralen TARGET_LANGUAGE_LABELS + Whisper-spezifische Extras.
- * 'auto' = automatische Erkennung durch Whisper.
- */
-export const TRANSCRIPTION_SOURCE_LANGUAGES: readonly { value: string; label: string }[] = [
-  { value: 'auto', label: 'Automatisch erkennen' },
-  // Zentrale Sprachen (ohne 'global') + Whisper-Extras
-  ...TARGET_LANGUAGE_VALUES
-    .filter((v): v is Exclude<TargetLanguage, 'global'> => v !== 'global')
-    .map(v => ({ value: v, label: TARGET_LANGUAGE_LABELS[v] })),
-  ...Object.entries(EXTRA_WHISPER_LANGUAGES)
-    .filter(([code]) => !(code in TARGET_LANGUAGE_LABELS))
-    .map(([code, label]) => ({ value: code, label })),
-]
-
-/**
- * Zielsprachen für die Transformation.
- * Abgeleitet aus den zentralen TARGET_LANGUAGE_LABELS (ohne 'global').
- */
-export const TRANSFORMATION_TARGET_LANGUAGES: readonly { value: string; label: string }[] =
-  TARGET_LANGUAGE_VALUES
-    .filter((v): v is Exclude<TargetLanguage, 'global'> => v !== 'global')
-    .map(v => ({ value: v, label: TARGET_LANGUAGE_LABELS[v] }))
+import {
+  type PipelinePolicies,
+  type CoverImageOptions,
+  type ExistingArtifacts,
+  type LlmModelOption,
+  TRANSCRIPTION_SOURCE_LANGUAGES,
+  TRANSFORMATION_TARGET_LANGUAGES,
+  isNonEmptyString,
+} from './pipeline-sheet/helpers'
 
 interface PipelineSheetProps {
   isOpen: boolean
@@ -140,9 +92,8 @@ interface PipelineSheetProps {
   defaultCustomHint?: string
 }
 
-function isNonEmptyString(v: unknown): v is string {
-  return typeof v === "string" && v.trim().length > 0
-}
+// isNonEmptyString wurde in pipeline-sheet/helpers.ts ausgegliedert
+// (Welle 3-II-d, Schritt 5/7).
 
 export function PipelineSheet(props: PipelineSheetProps) {
   // Bei Markdown und Bildern: Extract immer deaktiviert
