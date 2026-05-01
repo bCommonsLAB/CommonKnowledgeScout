@@ -1,0 +1,121 @@
+---
+description: Naming-Konvention fuer Refactoring-Wellen und Sub-Wellen — verhindert Namens-Kollisionen zwischen Plan-Wellen und Future-Work-Wellen
+globs: docs/refactor/**/*.md,docs/refactor/**/*,.cursor/plans/**/*.md
+alwaysApply: true
+---
+
+# Naming-Konvention: Wellen, Sub-Wellen, Future-Work-Wellen
+
+## Kontext
+
+Im Plan-File `.cursor/plans/refactor-strategie-drift-eliminieren_*.plan.md`
+sind die Refactoring-**Wellen** durchnummeriert (Welle 0, 1, 2, 3-I,
+3-II, 3-III, ...). Diese Nummern sind **Plan-Reservierungen**.
+
+Beim Abarbeiten einer Welle entstehen oft **Future-Work-Wellen** —
+Refactoring-Schritte, die in der Mutter-Welle erkannt, aber bewusst
+auf später verschoben werden (z.B. Hook-Extraktion nach Helper-Extract).
+
+**Konflikt 2026-05-01**: Eine Future-Work-Welle aus 3-II ("Hooks-
+Extraktion") wurde initial als "Welle 3-III" gestartet — hat aber
+mit der noch nicht begonnenen Plan-Welle 3-III ("Galerie + Story-Mode
++ Chat") kollidiert. Resultat: 2x "Welle 3-III" in der Doku.
+
+Diese Rule verhindert solche Kollisionen.
+
+## Kernprinzip
+
+**Plan-Wellen-Nummern sind reserviert.** Sie dürfen nur für die im
+Plan-File benannten Wellen verwendet werden — auch wenn die Plan-Welle
+noch nicht begonnen wurde.
+
+**Future-Work-Wellen, die aus einer Mutter-Welle entstehen, bekommen
+den Mutter-Namen mit beschreibendem Suffix** — keine neue Wellen-Nummer.
+
+## Regeln
+
+### R1 — Plan-Wellen-Nummern nur nach Plan vergeben
+
+Welle-Nummern (`0`, `1`, `2`, `3-I`, `3-II`, `3-III`, `3-IV`, `3-V`,
+`3-VI`, `4`) entstammen dem Plan-File und sind dort definiert. Vor dem
+Anlegen eines Welle-Verzeichnisses immer im Plan-File prüfen:
+
+```bash
+grep -n "Welle 3-" .cursor/plans/refactor-strategie-drift-eliminieren_*.plan.md
+```
+
+Wenn die Nummer im Plan reserviert ist (auch für noch nicht begonnene
+Wellen), darf sie **nicht** für eine Future-Work-Welle umgewidmet
+werden.
+
+### R2 — Future-Work-Wellen mit Suffix benennen
+
+Eine Future-Work-Welle aus einer Mutter-Welle bekommt:
+
+- **Doku-Verzeichnis**: `docs/refactor/welle-<mutter>-<suffix>/`
+- **Verzeichnisname (lowercase)**: gleicher Stamm wie Mutter-Welle
+- **Sub-Wellen-Suffix (UPPERCASE)**: `<Mutter>-<Suffix>-a`, `-b`, `-c`, ...
+
+**Beispiele**:
+
+| Mutter-Welle | Future-Work-Welle | Sub-Welle | Verzeichnis |
+|---|---|---|---|
+| Welle 3-II | Welle 3-II-Hooks | 3-II-Hooks-a | `docs/refactor/welle-3-ii-hooks/` |
+| Welle 3-II | Welle 3-II-Tabs (geplant) | 3-II-Tabs-a | `docs/refactor/welle-3-ii-tabs/` |
+| Welle 3-IV | Welle 3-IV-Forms (geplant) | 3-IV-Forms-a | `docs/refactor/welle-3-iv-forms/` |
+
+### R3 — Sub-Wellen einer Plan-Welle mit Buchstaben-Suffix
+
+Innerhalb einer Plan-Welle laufen Sub-Wellen mit Buchstaben-Suffix:
+
+| Plan-Welle | Sub-Wellen |
+|---|---|
+| Welle 3-I | Welle 3-I-a, 3-I-b (falls noetig) |
+| Welle 3-II | Welle 3-II-a, 3-II-b, 3-II-c, 3-II-d |
+| Welle 3-III | Welle 3-III-a, 3-III-b, ... |
+
+### R4 — Branch-Namen folgen Welle-Namen
+
+Branch-Schema: `cursor/refactor-welle-<welle>-<beschreibung>-<suffix>`.
+
+**Beispiele**:
+- `cursor/refactor-welle-3-ii-a-preview-switch-a03a`
+- `cursor/refactor-welle-3-ii-hooks-a-media-a03a`
+- `cursor/refactor-welle-3-iii-a-gallery-a03a` (zukünftig)
+
+### R5 — Beim Konflikt: umbenennen, NICHT überschreiben
+
+Wenn eine Future-Work-Welle bereits unter einer Plan-Wellen-Nummer
+gestartet wurde (Fehler) und der Konflikt sichtbar wird:
+
+1. **Doku umbenennen** (nicht löschen): `git mv docs/refactor/welle-X-Y
+   docs/refactor/welle-Z-suffix`
+2. **Naming-Hinweis** in alle umbenannten Acceptance-Files einfügen
+   (Block "Naming-Hinweis" mit Datum + Begründung)
+3. **Branch- und PR-Titel bleiben historisch** (keine Git-Historie
+   überschreiben). Acceptance-Doku verweist auf historische Branch-Namen.
+4. **Querverweise aktualisieren** in allen Files, die auf den alten
+   Namen zeigen (`grep -r "Welle X-Y" docs/`).
+
+## Zusammenfassung der aktuellen Wellen-Stand 2026-05-01
+
+| Welle | Status | Inhalt |
+|---|---|---|
+| Welle 0 | abgeschlossen | Pilot `external-jobs` |
+| Welle 1 | abgeschlossen | Backend (`storage`, `shadow-twin`, `ingestion`) |
+| Welle 2 | abgeschlossen | Verarbeitung (`secretary`, `templates`, `chat`) |
+| Welle 3-I | abgeschlossen | App-Schale + Library-Loader |
+| Welle 3-II | abgeschlossen | Archiv-Detail (file-preview + Tabs) |
+| **Welle 3-II-Hooks** | abgeschlossen | Future-Work aus 3-II: Hook-Extraktion |
+| Welle 3-III | **OFFEN (Plan)** | Galerie + Story-Mode + Chat |
+| Welle 3-IV | offen (Plan) | Settings |
+| Welle 3-V | offen (Plan) | Job/Event-Monitor |
+| Welle 3-VI | offen (Plan) | Creation-Wizard (komplexester Kandidat) |
+| Welle 4 | offen (Plan) | event-job, Rest |
+
+## Verweise
+
+- Plan-File: `.cursor/plans/refactor-strategie-drift-eliminieren_*.plan.md`
+- Methodik: `.cursor/rules/refactor-batch-strategy.mdc`
+- Playbook: `docs/refactor/playbook.md`
+- AGENTS.md (Branching/Stop-Bedingungen)
