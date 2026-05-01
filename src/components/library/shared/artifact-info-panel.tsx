@@ -28,40 +28,16 @@ import {
 } from "@/components/ui/tooltip"
 
 // Typ aus der API – entspricht FlatArtifactEntry aus shadow-twin-repo
-interface MongoArtifact {
-  kind: "transcript" | "transformation"
-  targetLanguage: string
-  templateName?: string
-  updatedAt: string
-  createdAt: string
-  markdownLength: number
-}
-
-function formatShort(iso?: string): string {
-  if (!iso) return "—"
-  const d = new Date(iso)
-  if (!Number.isFinite(d.getTime())) return "—"
-  return d.toLocaleString("de-DE", { year: "2-digit", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
-}
-
-function sourceBaseName(sourceName: string): string {
-  const trimmed = sourceName.trim()
-  const lastDot = trimmed.lastIndexOf(".")
-  return lastDot > 0 ? trimmed.slice(0, lastDot) : trimmed
-}
-
-/** Baut den erwarteten Dateinamen fuer ein Artefakt */
-function buildFileName(base: string, artifact: MongoArtifact): string {
-  if (artifact.kind === "transcript") {
-    return `${base}.${artifact.targetLanguage}.md`
-  }
-  return `${base}.${artifact.templateName || "unknown"}.${artifact.targetLanguage}.md`
-}
-
-/** Eindeutiger Key fuer ein Artefakt (fuer React-Key und Delete-Tracking) */
-function artifactKey(a: MongoArtifact): string {
-  return `${a.kind}::${a.targetLanguage}::${a.templateName || ""}`
-}
+// MongoArtifact-Type + 4 Pure-Helpers wurden in
+// src/components/library/shared/artifact-info-panel/helpers.ts
+// ausgegliedert (Welle 3-II-d, Schritt 2/7).
+import {
+  type MongoArtifact,
+  formatShort,
+  sourceBaseName,
+  buildFileName,
+  artifactKey,
+} from './artifact-info-panel/helpers'
 
 export interface ArtifactInfoPanelProps {
   libraryId: string

@@ -12,37 +12,13 @@
  */
 
 import { describe, it, expect } from 'vitest'
-
-interface MongoArtifact {
-  kind: 'transcript' | 'transformation'
-  targetLanguage: string
-  templateName?: string
-  updatedAt: string
-  createdAt: string
-  markdownLength: number
-}
-
-// 1:1-Kopie der Pure-Logik aus artifact-info-panel.tsx (Z. 40-64).
-function formatShort(iso?: string): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (!Number.isFinite(d.getTime())) return '—'
-  return d.toLocaleString('de-DE', { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-}
-function sourceBaseName(sourceName: string): string {
-  const trimmed = sourceName.trim()
-  const lastDot = trimmed.lastIndexOf('.')
-  return lastDot > 0 ? trimmed.slice(0, lastDot) : trimmed
-}
-function buildFileName(base: string, artifact: MongoArtifact): string {
-  if (artifact.kind === 'transcript') {
-    return `${base}.${artifact.targetLanguage}.md`
-  }
-  return `${base}.${artifact.templateName || 'unknown'}.${artifact.targetLanguage}.md`
-}
-function artifactKey(a: MongoArtifact): string {
-  return `${a.kind}::${a.targetLanguage}::${a.templateName || ''}`
-}
+import {
+  type MongoArtifact,
+  formatShort,
+  sourceBaseName,
+  buildFileName,
+  artifactKey,
+} from '@/components/library/shared/artifact-info-panel/helpers'
 
 describe('formatShort (artifact-info-panel) — Pure-Logik-Vertrag', () => {
   it('liefert "—" fuer undefined/leeren String', () => {
