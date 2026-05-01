@@ -31,27 +31,10 @@ import { ArtifactEditDialog } from './shared/artifact-edit-dialog'
 import { fetchShadowTwinMarkdown, updateShadowTwinMarkdown } from '@/lib/shadow-twin/shadow-twin-mongo-client'
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
 import { buildCoverImagePromptForUIWithSource, type CoverImagePromptUIResult } from '@/lib/cover-image/prompt-builder'
-
-/**
- * Robuste Konvertierung eines Frontmatter-Werts in ein String-Array.
- * Behandelt: echte Arrays, JSON-Strings (z.B. '["a","b"]'), und undefined.
- * Notwendig, weil parseSecretaryMarkdownStrict Array-Felder unter Umständen
- * als String belässt (z.B. wenn extractBalancedJsonAfterKey fehlschlägt).
- */
-function safeParseStringArray(value: unknown): string[] | undefined {
-  if (Array.isArray(value)) {
-    return value.filter((s): s is string => typeof s === 'string')
-  }
-  if (typeof value === 'string' && value.trim().startsWith('[')) {
-    try {
-      const parsed = JSON.parse(value)
-      if (Array.isArray(parsed)) {
-        return parsed.filter((s): s is string => typeof s === 'string')
-      }
-    } catch { /* Wert ist kein gültiges JSON */ }
-  }
-  return undefined
-}
+// safeParseStringArray + JobDto-Type wurden in
+// src/components/library/job-report-tab/helpers.ts ausgegliedert
+// (Welle 3-II-c, Schritt 2/5).
+import { safeParseStringArray, type JobDto } from './job-report-tab/helpers'
 
 interface JobReportTabProps {
   libraryId: string
@@ -76,23 +59,6 @@ interface JobReportTabProps {
   onEditClick?: () => void
   // Exponiert die Transformationsdatei-ID für Header-Buttons
   effectiveMdIdRef?: React.MutableRefObject<string | null>
-}
-
-interface JobDto {
-  jobId: string
-  status: string
-  operation: string
-  worker: string
-  job_type: string
-  updatedAt: string
-  createdAt: string
-  correlation?: { source?: { itemId?: string; name?: string } }
-  parameters?: Record<string, unknown>
-  steps?: Array<{ name: string; status: string; startedAt?: string; endedAt?: string; error?: { message: string }; details?: { skipped?: boolean } }>
-  ingestion?: { vectorsUpserted?: number; index?: string; upsertAt?: string }
-  result?: { savedItemId?: string }
-  logs?: Array<{ timestamp: string; phase?: string; message?: string; progress?: number; details?: Record<string, unknown> }>
-  cumulativeMeta?: Record<string, unknown>
 }
 
 export function JobReportTab({
