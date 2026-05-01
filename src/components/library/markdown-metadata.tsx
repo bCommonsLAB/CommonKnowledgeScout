@@ -3,6 +3,17 @@ import Image from 'next/image';
 import { cn } from "@/lib/utils";
 import { FileLogger } from "@/lib/debug/logger"
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
+// Pure Helpers wurden in src/components/library/markdown-metadata/cell-utils.ts
+// ausgegliedert (Welle 3-II-b, Schritt 6/8).
+import {
+  isPlainObject,
+  truncate,
+  toDisplayString,
+  getCellType,
+  extractAndSortColumns,
+  tryParseJsonArray,
+  resolveImageUrl,
+} from './markdown-metadata/cell-utils'
 
 interface MarkdownMetadataProps {
   content: string;
@@ -24,171 +35,11 @@ export function extractFrontmatter(content: string): Record<string, unknown> | n
   return meta;
 }
 
-/**
- * Component for displaying markdown metadata/frontmatter
- */
-/**
- * Konvertiert einen relativen Pfad (bezogen auf Library-Root) zu einer Storage-API-URL
- * Der relative Pfad wird base64-kodiert und als fileId verwendet
- * 
- * @param relativePath Relativer Pfad wie "2024 SFSCON/assets/ansible/preview_001.jpg"
- * @param libraryId Die Library-ID
- * @returns Storage-API-URL oder undefined falls libraryId fehlt
- */
-function resolveImageUrl(relativePath: string | undefined, libraryId: string | undefined): string | undefined {
-  if (!relativePath || !libraryId) {
-    return relativePath; // Fallback: ursprüngliche URL verwenden
-  }
-
-  // Prüfe ob es bereits eine absolute URL ist (http/https)
-  if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
-    return relativePath;
-  }
-
-  // Normalisiere den Pfad (entferne führende/trailing Slashes)
-  const normalizedPath = relativePath.replace(/^\/+|\/+$/g, '');
-
-  // Prüfe auf Path-Traversal-Versuche
-  if (normalizedPath.includes('..')) {
-    console.warn('[MarkdownMetadata] Path traversal detected, ignoring:', normalizedPath);
-    return relativePath; // Fallback: ursprüngliche URL verwenden
-  }
-
-  // Konvertiere relativen Pfad zu base64-kodierter fileId
-  // Browser-kompatible base64-Kodierung für UTF-8-Strings
-  try {
-    // Konvertiere UTF-8-String zu Uint8Array und dann zu base64
-    const utf8Bytes = new TextEncoder().encode(normalizedPath);
-    let binary = '';
-    for (let i = 0; i < utf8Bytes.length; i++) {
-      binary += String.fromCharCode(utf8Bytes[i]);
-    }
-    const fileId = btoa(binary);
-    
-    // Provider-agnostische Streaming-URL (funktioniert für Local und OneDrive)
-    return `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(fileId)}`;
-  } catch (error) {
-    console.error('[MarkdownMetadata] Fehler beim Konvertieren des Bildpfads:', error);
-    return relativePath; // Fallback: ursprüngliche URL verwenden
-  }
-}
-
 export const MarkdownMetadata = React.memo(function MarkdownMetadata({
   content,
   className,
   libraryId
 }: MarkdownMetadataProps) {
-  function isPlainObject(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null && !Array.isArray(value)
-  }
-
-  /**
-   * Kürzt einen String auf eine maximale Länge
-   */
-  function truncate(value: string, max = 160): string {
-    return value.length > max ? `${value.slice(0, max)}…` : value
-  }
-
-  /**
-   * Konvertiert einen Wert in einen String für die Anzeige
-   */
-  function toDisplayString(value: unknown): string {
-    if (value === null || value === undefined) return '—'
-    if (typeof value === 'string') return value
-    if (typeof value === 'number' || typeof value === 'boolean') return String(value)
-    try {
-      return JSON.stringify(value)
-    } catch {
-      return String(value)
-    }
-  }
-
-  /**
-   * Bestimmt den Datentyp einer Zelle für bessere Formatierung
-   */
-  function getCellType(value: unknown): 'empty' | 'number' | 'boolean' | 'url' | 'image' | 'text' {
-    if (value === null || value === undefined || value === '') return 'empty'
-    if (typeof value === 'number') return 'number'
-    if (typeof value === 'boolean') return 'boolean'
-    if (typeof value === 'string') {
-      // Prüfe auf URL (http/https)
-      if (value.startsWith('http://') || value.startsWith('https://')) return 'url'
-      // Prüfe auf Bild-URL (endet mit Bild-Extension)
-      if (/\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i.test(value)) return 'image'
-      return 'text'
-    }
-    return 'text'
-  }
-
-  /**
-   * Ermittelt dynamisch alle Spalten eines Objekt-Arrays und sortiert sie intelligent
-   * - Spalten mit numerischen Namen (z.B. page_num, page) kommen zuerst
-   * - Spalten mit häufigen Namen (title, name, summary, etc.) kommen vor seltenen
-   * - Ansonsten alphabetisch
-   */
-  function extractAndSortColumns(objects: Record<string, unknown>[]): string[] {
-    const keySet = new Set<string>()
-    const keyFrequency = new Map<string, number>()
-
-    // Sammle alle Keys und deren Häufigkeit
-    for (const obj of objects) {
-      for (const key of Object.keys(obj)) {
-        keySet.add(key)
-        keyFrequency.set(key, (keyFrequency.get(key) || 0) + 1)
-      }
-    }
-
-    const keys = Array.from(keySet)
-
-    // Sortiere dynamisch basierend auf:
-    // 1. Namen mit numerischen Begriffen (page_num, page, index, id, etc.) zuerst
-    // 2. Häufige, semantisch wichtige Namen (title, name, summary, description, etc.)
-    // 3. Alphabetisch
-    const numericPattern = /^(page|num|index|id|order|rank|position|seq)/i
-    const semanticPattern = /^(title|name|label|summary|description|text|content|value|url|image|link|source|target|key|type|status|state|category|tag)/i
-
-    keys.sort((a, b) => {
-      const aHasNumeric = numericPattern.test(a)
-      const bHasNumeric = numericPattern.test(b)
-      const aHasSemantic = semanticPattern.test(a)
-      const bHasSemantic = semanticPattern.test(b)
-      const aFreq = keyFrequency.get(a) || 0
-      const bFreq = keyFrequency.get(b) || 0
-
-      // Numerische Keys zuerst
-      if (aHasNumeric && !bHasNumeric) return -1
-      if (!aHasNumeric && bHasNumeric) return 1
-
-      // Dann semantische Keys
-      if (aHasSemantic && !bHasSemantic) return -1
-      if (!aHasSemantic && bHasSemantic) return 1
-
-      // Dann nach Häufigkeit (häufigere zuerst)
-      if (aFreq !== bFreq) return bFreq - aFreq
-
-      // Zuletzt alphabetisch
-      return a.localeCompare(b)
-    })
-
-    return keys
-  }
-
-  /**
-   * Versucht einen Wert als JSON-Array zu parsen, falls er ein String ist
-   */
-  function tryParseJsonArray(value: unknown): unknown {
-    if (typeof value === 'string') {
-      const trimmed = value.trim()
-      if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
-        try {
-          return JSON.parse(trimmed)
-        } catch {
-          // Nicht parsen, falls Fehler
-        }
-      }
-    }
-    return value
-  }
 
   const frontmatter = React.useMemo(() => extractFrontmatter(content), [content]);
   // Versuche String-Werte die JSON-Arrays enthalten zu parsen (Fallback)
