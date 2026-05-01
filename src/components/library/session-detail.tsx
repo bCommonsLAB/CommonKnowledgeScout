@@ -22,6 +22,10 @@ import { useRouter } from "next/navigation";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { TestimonialList } from "@/components/shared/testimonial-list";
 import { useTestimonials } from "@/hooks/use-testimonials";
+// Media-Resolution-Logik (Cover/Attachments/Gallery) wurde in
+// src/hooks/library/session-detail/use-resolved-session-media.ts
+// ausgegliedert (Welle 3-III-c, Schritt 1/3).
+import { useResolvedSessionMedia } from "@/hooks/library/session-detail/use-resolved-session-media";
 
 /**
  * Interface für Session-Detail-Daten aus Event/Konferenz-Dokumenten
@@ -130,51 +134,36 @@ export function SessionDetail({
     const normalized = input.split("?")[0]?.split("#")[0] || input
     return decodeURIComponent(normalized.split("/").filter(Boolean).pop() || input)
   }, [])
-  const attachmentNames = React.useMemo(() => {
-    return Array.isArray(data.attachments_url)
-      ? data.attachments_url.filter((u): u is string => typeof u === "string" && u.trim().length > 0)
-      : (typeof data.attachments_url === "string" && data.attachments_url.trim().length > 0 ? [data.attachments_url.trim()] : [])
-  }, [data.attachments_url])
-  const galleryImageNames = React.useMemo(() => {
-    return Array.isArray(data.galleryImageUrls)
-      ? data.galleryImageUrls.filter((u): u is string => typeof u === "string" && u.trim().length > 0)
-      : []
-  }, [data.galleryImageUrls])
-  const [resolvedAttachments, setResolvedAttachments] = React.useState<Array<{ name: string; url?: string }>>([])
-  const [resolvedGalleryImages, setResolvedGalleryImages] = React.useState<Array<{ name: string; url?: string }>>([])
-  const [resolvedCoverImageUrl, setResolvedCoverImageUrl] = React.useState<string | undefined>(undefined)
+  // Media-Resolution via Custom-Hook (Welle 3-III-c). Der Hook
+  // kapselt: Frontmatter-Listen-Extraktion, ShadowTwin-Resolver-API,
+  // Provider-Fallback-Suche, Request-Dedupe, Failed-URL-Tracking.
+  const {
+    attachmentNames,
+    galleryImageNames,
+    resolvedAttachments,
+    resolvedGalleryImages,
+    resolvedCoverImageUrl,
+    unresolvedAttachmentNames,
+    unresolvedGalleryImageNames,
+    failedGalleryUrls,
+    markGalleryUrlAsFailed,
+  } = useResolvedSessionMedia({
+    libraryId,
+    fileId: data.fileId,
+    fileName: data.fileName,
+    currentFolderId,
+    provider,
+    attachmentsUrl: data.attachments_url,
+    galleryImageUrls: data.galleryImageUrls,
+    coverImageUrl: data.coverImageUrl,
+    getDisplayFileName,
+  })
+
+  // Lightbox-State + Mount-State bleiben in der Komponente.
   const [lightboxImage, setLightboxImage] = React.useState<{ name: string; url: string } | null>(null)
   const [lightboxLoadError, setLightboxLoadError] = React.useState<string | null>(null)
-  const [failedGalleryUrls, setFailedGalleryUrls] = React.useState<Set<string>>(new Set())
   const [isMounted, setIsMounted] = React.useState(false)
-  // Request-Dedupe: verhindert doppelte resolve-binary-url Aufrufe bei identischem Input.
-  const mediaResolveInFlightRef = React.useRef<Map<string, Promise<string | undefined>>>(new Map())
-  const mediaResolvedUrlCacheRef = React.useRef<Map<string, string | undefined>>(new Map())
-  const lastResolvedSignatureRef = React.useRef<string>("")
-  const unresolvedAttachmentNames = React.useMemo(
-    () => resolvedAttachments.filter((entry) => !entry.url).map((entry) => getDisplayFileName(entry.name)),
-    [resolvedAttachments, getDisplayFileName]
-  )
-  const unresolvedGalleryImageNames = React.useMemo(
-    () => resolvedGalleryImages.filter((entry) => !entry.url).map((entry) => entry.name),
-    [resolvedGalleryImages]
-  )
-  const coverImageName = React.useMemo(
-    () => (typeof data.coverImageUrl === "string" ? data.coverImageUrl.trim() : ""),
-    [data.coverImageUrl]
-  )
-  const mediaResolveSignature = React.useMemo(() => {
-    return JSON.stringify({
-      libraryId: libraryId || "",
-      fileId: data.fileId || "",
-      fileName: data.fileName || "",
-      currentFolderId: currentFolderId || "",
-      providerAvailable: !!provider,
-      attachmentNames,
-      galleryImageNames,
-      coverImageName,
-    })
-  }, [attachmentNames, coverImageName, currentFolderId, data.fileId, data.fileName, galleryImageNames, libraryId, provider])
+
   React.useEffect(() => {
     setIsMounted(true)
   }, [])
@@ -189,167 +178,6 @@ export function SessionDetail({
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [lightboxImage])
-
-  const markGalleryUrlAsFailed = React.useCallback((url: string) => {
-    setFailedGalleryUrls((prev) => {
-      if (prev.has(url)) return prev
-      const next = new Set(prev)
-      next.add(url)
-      return next
-    })
-  }, [])
-
-  React.useEffect(() => {
-    let cancelled = false
-    const folderItemsCache = new Map<string, Awaited<ReturnType<NonNullable<typeof provider>["listItemsById"]>>>()
-    const folderItemsInFlight = new Map<string, Promise<Awaited<ReturnType<NonNullable<typeof provider>["listItemsById"]>>>>()
-
-    const isAbsoluteOrApiUrl = (value: string): boolean =>
-      value.startsWith("http://") || value.startsWith("https://") || value.startsWith("/api/storage/")
-
-    async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, timeoutMs: number): Promise<Response> {
-      const controller = new AbortController()
-      const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs)
-      try {
-        return await fetch(input, { ...init, signal: controller.signal })
-      } finally {
-        window.clearTimeout(timeoutId)
-      }
-    }
-
-    function isSameEntries(
-      a: Array<{ name: string; url?: string }>,
-      b: Array<{ name: string; url?: string }>
-    ): boolean {
-      if (a.length !== b.length) return false
-      for (let i = 0; i < a.length; i += 1) {
-        if (a[i]?.name !== b[i]?.name) return false
-        if ((a[i]?.url || "") !== (b[i]?.url || "")) return false
-      }
-      return true
-    }
-
-    async function resolveMediaName(name: string, candidateFolderIds: string[]): Promise<string | undefined> {
-      if (isAbsoluteOrApiUrl(name)) return name
-      if (!libraryId || !data.fileId) return undefined
-      const dedupeKey = `${libraryId}|${data.fileId}|${currentFolderId || ""}|${candidateFolderIds.join(",")}|${name.toLowerCase()}`
-
-      if (mediaResolvedUrlCacheRef.current.has(dedupeKey)) {
-        return mediaResolvedUrlCacheRef.current.get(dedupeKey)
-      }
-      const existingInFlight = mediaResolveInFlightRef.current.get(dedupeKey)
-      if (existingInFlight) {
-        return await existingInFlight
-      }
-
-      const resolvePromise = (async (): Promise<string | undefined> => {
-        // Primär: ShadowTwinService-Resolver (storage-agnostisch)
-        try {
-          const res = await fetchWithTimeout(
-            `/api/library/${encodeURIComponent(libraryId)}/shadow-twins/resolve-binary-url`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              cache: "no-store",
-              body: JSON.stringify({
-                sourceId: data.fileId,
-                sourceName: data.fileName || "",
-                parentId: currentFolderId || "",
-                fragmentName: name,
-              }),
-            },
-            8000
-          )
-          if (res.ok) {
-            const json = await res.json() as { resolvedUrl?: string }
-            if (json.resolvedUrl) return json.resolvedUrl
-          }
-        } catch {
-          // Fallback unten
-        }
-
-        // Fallback: direkt im aktuellen Verzeichnis nach Dateiname suchen
-        if (provider && candidateFolderIds.length > 0) {
-          const loadFolderItems = async (folderId: string) => {
-            if (folderItemsCache.has(folderId)) {
-              return folderItemsCache.get(folderId) || []
-            }
-            const existingInFlight = folderItemsInFlight.get(folderId)
-            if (existingInFlight) {
-              return await existingInFlight
-            }
-            const loadPromise = provider.listItemsById(folderId)
-            folderItemsInFlight.set(folderId, loadPromise)
-            try {
-              const items = await loadPromise
-              folderItemsCache.set(folderId, items)
-              return items
-            } finally {
-              folderItemsInFlight.delete(folderId)
-            }
-          }
-
-          for (const folderId of candidateFolderIds) {
-            try {
-              const siblings = await loadFolderItems(folderId)
-              const match = siblings.find((item) =>
-                item.type === "file" && item.metadata.name.toLowerCase() === name.toLowerCase()
-              )
-              if (match) {
-                return `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(match.id)}`
-              }
-            } catch {
-              // nächster Kandidat
-            }
-          }
-        }
-        return undefined
-      })()
-
-      mediaResolveInFlightRef.current.set(dedupeKey, resolvePromise)
-      try {
-        const resolved = await resolvePromise
-        mediaResolvedUrlCacheRef.current.set(dedupeKey, resolved)
-        return resolved
-      } finally {
-        mediaResolveInFlightRef.current.delete(dedupeKey)
-      }
-    }
-
-    async function resolveAll() {
-      if (lastResolvedSignatureRef.current === mediaResolveSignature) {
-        return
-      }
-      const candidateFolderIds: string[] = []
-      if (currentFolderId) candidateFolderIds.push(currentFolderId)
-      if (provider && data.fileId) {
-        try {
-          const sourceItem = await provider.getItemById(data.fileId)
-          if (sourceItem?.parentId && !candidateFolderIds.includes(sourceItem.parentId)) {
-            candidateFolderIds.push(sourceItem.parentId)
-          }
-        } catch {
-          // Fallback bleibt currentFolderId
-        }
-      }
-
-      const attachmentEntries = await Promise.all(
-        attachmentNames.map(async (name) => ({ name, url: await resolveMediaName(name, candidateFolderIds) }))
-      )
-      const galleryEntries = await Promise.all(
-        galleryImageNames.map(async (name) => ({ name, url: await resolveMediaName(name, candidateFolderIds) }))
-      )
-      const coverImageUrl = coverImageName ? await resolveMediaName(coverImageName, candidateFolderIds) : undefined
-      if (cancelled) return
-      setResolvedAttachments((prev) => (isSameEntries(prev, attachmentEntries) ? prev : attachmentEntries))
-      setResolvedGalleryImages((prev) => (isSameEntries(prev, galleryEntries) ? prev : galleryEntries))
-      setResolvedCoverImageUrl((prev) => (prev === coverImageUrl ? prev : coverImageUrl))
-      lastResolvedSignatureRef.current = mediaResolveSignature
-    }
-
-    void resolveAll()
-    return () => { cancelled = true }
-  }, [attachmentNames, coverImageName, currentFolderId, data.fileId, data.fileName, galleryImageNames, libraryId, mediaResolveSignature, provider])
 
   const isEvent = (data.docType || '').toLowerCase() === 'event'
   const eventFileId = data.fileId
