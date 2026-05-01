@@ -6,12 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-
-// 1:1-Kopie der Pure-Logik:
-
-function stripFrontmatterBlock(markdown: string): string {
-  return markdown.replace(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/, '')
-}
+import { stripFrontmatterBlock, isCompositeContainerContent } from '@/components/library/shared/artifact-markdown-panel/helpers'
 
 describe('stripFrontmatterBlock (artifact-markdown-panel) — Pure-Logik-Vertrag', () => {
   it('entfernt Frontmatter-Block am Anfang (eine \\n nach ---)', () => {
@@ -49,19 +44,24 @@ describe('stripFrontmatterBlock (artifact-markdown-panel) — Pure-Logik-Vertrag
   })
 })
 
-// isCompositeContainerContent benoetigt parseFrontmatter — wir testen
-// nur das Fall-Verhalten "leerer String → false":
-describe('isCompositeContainerContent (artifact-markdown-panel) — Edge-Case', () => {
-  // Diese Funktion benoetigt das parseFrontmatter-Modul — wir testen
-  // nur, dass leerer Content false zurueckgibt (Pure-Edge-Case).
-  // Die echte Logik wird durch Smoke-Test im Browser verifiziert.
-  it('leerer Content liefert false (Pure-Edge-Case)', () => {
-    function isCompositeContainerContent(content: string): boolean {
-      if (!content?.trim()) return false
-      // (parseFrontmatter-Aufruf kommt hier — nicht im Test simuliert)
-      return false
-    }
+describe('isCompositeContainerContent (artifact-markdown-panel) — Edge-Cases', () => {
+  it('leerer Content liefert false', () => {
     expect(isCompositeContainerContent('')).toBe(false)
     expect(isCompositeContainerContent('   ')).toBe(false)
+  })
+
+  it('Markdown ohne kind-Frontmatter liefert false', () => {
+    expect(isCompositeContainerContent('# Heading\n\nBody')).toBe(false)
+    expect(isCompositeContainerContent('---\ntitle: X\n---\nBody')).toBe(false)
+  })
+
+  it('kind: composite-transcript liefert true', () => {
+    const md = '---\nkind: composite-transcript\n---\n\nBody'
+    expect(isCompositeContainerContent(md)).toBe(true)
+  })
+
+  it('kind: composite-multi liefert true', () => {
+    const md = '---\nkind: composite-multi\n---\n\nBody'
+    expect(isCompositeContainerContent(md)).toBe(true)
   })
 })

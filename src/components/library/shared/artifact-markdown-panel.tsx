@@ -14,7 +14,8 @@ import { Pencil } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { fetchShadowTwinMarkdown } from "@/lib/shadow-twin/shadow-twin-mongo-client"
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from "@/lib/shadow-twin/mongo-shadow-twin-id"
-import { parseFrontmatter } from "@/lib/markdown/frontmatter"
+// parseFrontmatter wurde mit isCompositeContainerContent in helpers.ts
+// ausgegliedert (Welle 3-II-d, Schritt 3/7).
 import { activeLibraryAtom, selectedFileAtom } from "@/atoms/library-atom"
 import { isFilesystemBacked } from "@/lib/storage/library-capability"
 
@@ -45,16 +46,10 @@ interface ArtifactMarkdownPanelProps {
  * Solche Container haben spezielle Wikilink-/Embed-Syntax, die nur dann
  * korrekt gerendert wird, wenn `compositeWikiPreview` gesetzt ist.
  */
-function isCompositeContainerContent(content: string): boolean {
-  if (!content?.trim()) return false
-  const { meta } = parseFrontmatter(content)
-  return meta?.kind === "composite-transcript" || meta?.kind === "composite-multi"
-}
-
-// Entfernt Frontmatter fuer reine Vorschau ohne Metadaten-Block.
-function stripFrontmatterBlock(markdown: string): string {
-  return markdown.replace(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/, "")
-}
+// 2 Pure-Helpers wurden in
+// src/components/library/shared/artifact-markdown-panel/helpers.ts
+// ausgegliedert (Welle 3-II-d, Schritt 3/7).
+import { isCompositeContainerContent, stripFrontmatterBlock } from './artifact-markdown-panel/helpers'
 
 export function ArtifactMarkdownPanel({
   title,
