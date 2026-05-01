@@ -13,7 +13,7 @@
  * Zuordnungsmodus: Slot-first (Benutzer wählt Slot, dann Medium aus Galerie)
  */
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Image as ImageIcon, User, Paperclip, X, Upload, FileText, Check, Globe, Link2, Sparkles, AlertCircle } from 'lucide-react'
@@ -21,7 +21,8 @@ import { toast } from 'sonner'
 import { UILogger } from '@/lib/debug/logger'
 import { parseCompositeSourceFilesFromMeta } from '@/lib/creation/composite-source-files-meta'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
-import { buildTwinRelativeMediaRef } from '@/lib/storage/shadow-twin-folder-name'
+// buildTwinRelativeMediaRef wurde mit der Galerie-Aggregation ausgegliedert
+// (Welle 3-III-a, Schritt 2/4 — siehe use-gallery-items.ts).
 import { VIEW_TYPE_REGISTRY, type DetailViewType, type ViewTypeMediaConfig } from '@/lib/detail-view-types/registry'
 import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
@@ -30,7 +31,8 @@ import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/m
 // (Welle 3-II-c, Schritt 3/5).
 import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser'
 import type { StorageProvider } from '@/lib/storage/types'
-import type { SiblingFile } from '@/app/api/library/[libraryId]/sibling-files/route'
+// SiblingFile-Type wird jetzt nur noch im use-gallery-items-Hook verwendet
+// (Welle 3-III-a, Schritt 2/4).
 import { CoverImageGeneratorDialog, type PromptSource } from '@/components/library/cover-image-generator-dialog'
 // Helpers + Types wurden in src/components/library/media-tab/helpers.ts
 // ausgegliedert (Welle 3-II-c, Schritt 3/5).
@@ -44,6 +46,10 @@ import {
   removeAttachment,
   removeArrayFieldItem,
 } from './media-tab/helpers'
+// Gallery-Items-Aggregation wurde in
+// src/hooks/library/media-tab/use-gallery-items.ts ausgegliedert
+// (Welle 3-III-a, Schritt 2/4).
+import { useGalleryItems } from '@/hooks/library/media-tab/use-gallery-items'
 
 export interface MediaTabProps {
   libraryId: string
@@ -126,191 +132,24 @@ export function MediaTab({
   const [isUploading, setIsUploading] = useState(false)
   const [isImageGeneratorOpen, setIsImageGeneratorOpen] = useState(false)
 
-  // Galerie: einheitlich über serverseitige Medienaggregation (wie Sammel-Transkript)
-  const [siblingFiles, setSiblingFiles] = useState<SiblingFile[]>([])
-  const [fragmentGalleryItems, setFragmentGalleryItems] = useState<Array<{
-    key: string
-    displayName: string
-    fragmentSourceId: string
-    mediaKind: 'image' | 'document'
-    previewUrl?: string
-    sourceFileName?: string
-  }>>([])
-  const [aggregatedLoading, setAggregatedLoading] = useState(false)
-  const [aggregatedError, setAggregatedError] = useState<string | null>(null)
-
-  const compositeSourceKey = useMemo(
-    () => compositeSourceNames.join('\0'),
-    [compositeSourceNames],
-  )
-
-  useEffect(() => {
-    if (!libraryId || !fileId) return
-    let cancelled = false
-    setAggregatedLoading(true)
-    setAggregatedError(null)
-
-    void (async () => {
-      try {
-        const res = await fetch(`/api/library/${encodeURIComponent(libraryId)}/aggregated-media`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            anchorSourceId: fileId,
-            targetLanguage: 'de',
-            compositeSourceFileNames: useMultiSourceAggregation ? compositeSourceNames : [],
-          }),
-        })
-        const json = await res.json().catch(() => ({})) as {
-          files?: SiblingFile[]
-          fragmentGalleryItems?: typeof fragmentGalleryItems
-          error?: string
-        }
-        if (cancelled) return
-        if (res.ok && json.files && json.fragmentGalleryItems) {
-          setSiblingFiles(json.files)
-          setFragmentGalleryItems(json.fragmentGalleryItems)
-        } else {
-          setSiblingFiles([])
-          setFragmentGalleryItems([])
-          setAggregatedError(json.error || `aggregated-media: HTTP ${res.status}`)
-          UILogger.warn('MediaTab', 'aggregated-media API nicht OK', { status: res.status, error: json.error })
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setSiblingFiles([])
-          setFragmentGalleryItems([])
-          setAggregatedError(error instanceof Error ? error.message : String(error))
-        }
-        UILogger.warn('MediaTab', 'Fehler beim Laden der aggregierten Medien', { error })
-      } finally {
-        if (!cancelled) setAggregatedLoading(false)
-      }
-    })()
-
-    return () => { cancelled = true }
-  }, [libraryId, fileId, useMultiSourceAggregation, compositeSourceKey, compositeSourceNames])
-
-  const galleryLoading = aggregatedLoading
-
-  /** Dateiname → Vorschau-URL für Slots (Cover/Galerie) ohne Abhängigkeit vom Assignment-Filter */
-  const previewUrlByFileName = useMemo(() => {
-    const m = new Map<string, string>()
-    for (const frag of fragmentGalleryItems) {
-      if (frag.displayName && frag.previewUrl) {
-        m.set(frag.displayName, frag.previewUrl)
-        if (frag.sourceFileName) {
-          m.set(buildTwinRelativeMediaRef(frag.sourceFileName, frag.displayName), frag.previewUrl)
-        }
-      }
-    }
-    for (const sib of siblingFiles) {
-      if (!m.has(sib.name) && sib.mediaKind === 'image') {
-        m.set(
-          sib.name,
-          `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(sib.id)}`
-        )
-      }
-    }
-    return m
-  }, [fragmentGalleryItems, siblingFiles, libraryId])
-
-  // Kombinierte Galerie: Siblings + Fragments, dedupliziert nach Name
-  const galleryItems = useMemo((): GalleryItem[] => {
-    const items = new Map<string, GalleryItem>()
-
-    // Fragmente aus Aggregation (kanonische Namen, stabiler Key pro Quelle+Name)
-    for (const frag of fragmentGalleryItems) {
-      if (!frag.displayName) continue
-      const kind = frag.mediaKind === 'image' ? 'image' as const : 'document' as const
-      const frontmatterRef = frag.sourceFileName
-        ? buildTwinRelativeMediaRef(frag.sourceFileName, frag.displayName)
-        : frag.displayName
-      items.set(frag.key, {
-        id: frag.key,
-        name: frag.displayName,
-        source: 'fragment',
-        mediaKind: kind,
-        previewUrl: frag.previewUrl,
-        fragmentSourceId: frag.fragmentSourceId,
-        sourceFileName: frag.sourceFileName,
-        frontmatterRef,
-      })
-    }
-
-    // Siblings: eigener Map-Key (`sibling:id`), damit Fragmente mit gleichem Dateinamen (anderes PDF) koexistieren
-    for (const sib of siblingFiles) {
-      const previewUrl = sib.mediaKind === 'image'
-        ? `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(sib.id)}`
-        : undefined
-      const kind = sib.mediaKind === 'pdf' ? 'pdf' as const
-        : sib.mediaKind === 'link' ? 'link' as const
-        : 'image' as const
-      items.set(`sibling:${sib.id}`, {
-        id: sib.id,
-        name: sib.name,
-        source: 'sibling',
-        mediaKind: kind,
-        previewUrl,
-        size: sib.size,
-      })
-    }
-
-    const findByAssignedFileName = (fileRef: string): GalleryItem | undefined => {
-      const base = fileRef.split('/').pop() || fileRef
-      const norm = fileRef.trim()
-      for (const it of items.values()) {
-        const ref = it.frontmatterRef ?? it.name
-        if (ref === fileRef || ref === norm || it.name === fileRef || it.name === base) return it
-      }
-      return undefined
-    }
-
-    // Markiere zugeordnete Dateien
-    if (frontmatterMeta) {
-      const coverUrl = frontmatterMeta.coverImageUrl as string | undefined
-      if (coverUrl) {
-        const item = findByAssignedFileName(coverUrl)
-        if (item) item.assignedTo = 'coverImageUrl'
-      }
-      if (mediaConfig.personField) {
-        const imageUrls = frontmatterMeta[mediaConfig.personField.imageKey]
-        if (Array.isArray(imageUrls)) {
-          for (const url of imageUrls) {
-            if (typeof url === 'string') {
-              const item = findByAssignedFileName(url)
-              if (item) item.assignedTo = mediaConfig.personField.imageKey
-            }
-          }
-        }
-      }
-      if (mediaConfig.galleryField) {
-        const galleryUrls = safeArray(frontmatterMeta[mediaConfig.galleryField.key])
-        for (const url of galleryUrls) {
-          const item = findByAssignedFileName(url)
-          if (item) item.assignedTo = mediaConfig.galleryField.key
-        }
-      }
-      const attachmentUrls = safeArray(frontmatterMeta.attachments_url)
-      for (const url of attachmentUrls) {
-        const item = findByAssignedFileName(url)
-        if (item) item.assignedTo = 'attachments_url'
-      }
-    }
-
-    // Filtern basierend auf aktivem Assignment
-    const result = Array.from(items.values())
-    if (activeAssignment) {
-      if (activeAssignment.fieldKey === 'url') {
-        return result.filter(item => item.mediaKind === 'link')
-      }
-      if (activeAssignment.fieldKey === 'attachments_url') {
-        return result.filter(item => item.mediaKind !== 'link')
-      }
-      return result.filter(item => item.mediaKind === 'image')
-    }
-    return result
-  }, [siblingFiles, fragmentGalleryItems, frontmatterMeta, mediaConfig, activeAssignment, libraryId])
+  // Galerie-Daten via Custom-Hook (Welle 3-III-a). Der Hook
+  // kapselt API-Aufruf, Aggregation und Assignment-Filter.
+  // siblingFiles + fragmentGalleryItems werden NICHT in der Komponente
+  // gebraucht (nur intern im Hook fuer galleryItems-Aggregation).
+  const {
+    galleryLoading,
+    aggregatedError,
+    previewUrlByFileName,
+    galleryItems,
+  } = useGalleryItems({
+    libraryId,
+    fileId,
+    useMultiSourceAggregation,
+    compositeSourceNames,
+    frontmatterMeta,
+    mediaConfig,
+    activeAssignment,
+  })
 
   // Template-Name ermitteln (für Upload-API)
   const resolvedTemplateName = useMemo(() => {
