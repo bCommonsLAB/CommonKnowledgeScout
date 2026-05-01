@@ -2,7 +2,7 @@
 
 /**
  * Characterization Tests fuer useImageGeneration-Hook
- * (Welle 3-III-d, Schritt 2/3 — Sicherheitsnetz fuer Bild-Generierung).
+ * (Welle 3-II-Hooks-d, Schritt 2/3 — Sicherheitsnetz fuer Bild-Generierung).
  *
  * Fixiert das Hook-Verhalten:
  * - Initial-State (kein Bild, nicht generierend)

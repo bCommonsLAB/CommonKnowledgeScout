@@ -24,7 +24,7 @@ import { TestimonialList } from "@/components/shared/testimonial-list";
 import { useTestimonials } from "@/hooks/use-testimonials";
 // Media-Resolution-Logik (Cover/Attachments/Gallery) wurde in
 // src/hooks/library/session-detail/use-resolved-session-media.ts
-// ausgegliedert (Welle 3-III-c, Schritt 1/3).
+// ausgegliedert (Welle 3-II-Hooks-c, Schritt 1/3).
 import { useResolvedSessionMedia } from "@/hooks/library/session-detail/use-resolved-session-media";
 
 /**
@@ -134,7 +134,7 @@ export function SessionDetail({
     const normalized = input.split("?")[0]?.split("#")[0] || input
     return decodeURIComponent(normalized.split("/").filter(Boolean).pop() || input)
   }, [])
-  // Media-Resolution via Custom-Hook (Welle 3-III-c). Der Hook
+  // Media-Resolution via Custom-Hook (Welle 3-II-Hooks-c). Der Hook
   // kapselt: Frontmatter-Listen-Extraktion, ShadowTwin-Resolver-API,
   // Provider-Fallback-Suche, Request-Dedupe, Failed-URL-Tracking.
   const {

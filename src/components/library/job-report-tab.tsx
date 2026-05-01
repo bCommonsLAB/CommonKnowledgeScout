@@ -37,7 +37,7 @@ import { buildCoverImagePromptForUIWithSource, type CoverImagePromptUIResult } f
 import { safeParseStringArray, type JobDto } from './job-report-tab/helpers'
 // Inline-Editing-Logik (editingField/Value, isSaving, saveMetaField)
 // wurde in src/hooks/library/job-report-tab/use-frontmatter-editor.ts
-// ausgegliedert (Welle 3-III-b, Schritt 2/4).
+// ausgegliedert (Welle 3-II-Hooks-b, Schritt 2/4).
 import { useFrontmatterEditor } from '@/hooks/library/job-report-tab/use-frontmatter-editor'
 
 interface JobReportTabProps {
@@ -167,7 +167,7 @@ export function JobReportTab({
   // State für editierten Content (nur Body, ohne Frontmatter)
   const [editedContent, setEditedContent] = useState<string>('')
   // Inline-Editing-State + Save-Logik via useFrontmatterEditor-Hook
-  // (Welle 3-III-b, Schritt 2/4). Der Hook kapselt:
+  // (Welle 3-II-Hooks-b, Schritt 2/4). Der Hook kapselt:
   // - editingField, editingValue, isSaving (State)
   // - saveMetaField (persistiert nach MongoDB ODER Filesystem)
 
@@ -551,7 +551,7 @@ export function JobReportTab({
   }, [provider, effectiveMdId])
 
   // Inline-Editing-Logik via useFrontmatterEditor-Hook
-  // (Welle 3-III-b, Schritt 2/4). Aufruf MUSS hier stehen, weil der
+  // (Welle 3-II-Hooks-b, Schritt 2/4). Aufruf MUSS hier stehen, weil der
   // Hook stripFrontmatter (Z. 302) als Dep braucht.
   const {
     editingField,

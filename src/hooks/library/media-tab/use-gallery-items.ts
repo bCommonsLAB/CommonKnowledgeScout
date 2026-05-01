@@ -3,7 +3,10 @@
  *
  * Hook fuer die Gallery-Items-Aggregation in `media-tab.tsx`.
  *
- * Aus `media-tab.tsx` ausgegliedert (Welle 3-III-a, Schritt 2/4).
+ * Aus `media-tab.tsx` ausgegliedert (Welle 3-II-Hooks-a, Schritt 2/4).
+ * Welle initial als "Welle 3-III-a" gestartet, am 2026-05-01 zu
+ * "Welle 3-II-Hooks-a" umbenannt — siehe
+ * .cursor/rules/refactor-naming-konvention.mdc
  *
  * Verantwortlichkeiten:
  * - Aggregierte Medien-API (sibling files + fragment gallery items) laden

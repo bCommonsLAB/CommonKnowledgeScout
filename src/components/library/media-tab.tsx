@@ -22,7 +22,7 @@ import { UILogger } from '@/lib/debug/logger'
 import { parseCompositeSourceFilesFromMeta } from '@/lib/creation/composite-source-files-meta'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 // buildTwinRelativeMediaRef wurde mit der Galerie-Aggregation ausgegliedert
-// (Welle 3-III-a, Schritt 2/4 — siehe use-gallery-items.ts).
+// (Welle 3-II-Hooks-a, Schritt 2/4 — siehe use-gallery-items.ts).
 import { VIEW_TYPE_REGISTRY, type DetailViewType, type ViewTypeMediaConfig } from '@/lib/detail-view-types/registry'
 import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
@@ -32,7 +32,7 @@ import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/m
 import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser'
 import type { StorageProvider } from '@/lib/storage/types'
 // SiblingFile-Type wird jetzt nur noch im use-gallery-items-Hook verwendet
-// (Welle 3-III-a, Schritt 2/4).
+// (Welle 3-II-Hooks-a, Schritt 2/4).
 import { CoverImageGeneratorDialog, type PromptSource } from '@/components/library/cover-image-generator-dialog'
 // Helpers + Types wurden in src/components/library/media-tab/helpers.ts
 // ausgegliedert (Welle 3-II-c, Schritt 3/5).
@@ -48,7 +48,7 @@ import {
 } from './media-tab/helpers'
 // Gallery-Items-Aggregation wurde in
 // src/hooks/library/media-tab/use-gallery-items.ts ausgegliedert
-// (Welle 3-III-a, Schritt 2/4).
+// (Welle 3-II-Hooks-a, Schritt 2/4).
 import { useGalleryItems } from '@/hooks/library/media-tab/use-gallery-items'
 
 export interface MediaTabProps {
@@ -132,7 +132,7 @@ export function MediaTab({
   const [isUploading, setIsUploading] = useState(false)
   const [isImageGeneratorOpen, setIsImageGeneratorOpen] = useState(false)
 
-  // Galerie-Daten via Custom-Hook (Welle 3-III-a). Der Hook
+  // Galerie-Daten via Custom-Hook (Welle 3-II-Hooks-a). Der Hook
   // kapselt API-Aufruf, Aggregation und Assignment-Filter.
   // siblingFiles + fragmentGalleryItems werden NICHT in der Komponente
   // gebraucht (nur intern im Hook fuer galleryItems-Aggregation).

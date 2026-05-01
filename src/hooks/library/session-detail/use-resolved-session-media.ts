@@ -5,7 +5,10 @@
  *
  * Hook fuer die Media-Resolution in `session-detail.tsx`.
  *
- * Aus `session-detail.tsx` ausgegliedert (Welle 3-III-c, Schritt 1/3).
+ * Aus `session-detail.tsx` ausgegliedert (Welle 3-II-Hooks-c, Schritt 1/3).
+ * Welle initial als "Welle 3-III-c" gestartet, am 2026-05-01 zu
+ * "Welle 3-II-Hooks-c" umbenannt — siehe
+ * .cursor/rules/refactor-naming-konvention.mdc
  *
  * Verantwortlichkeiten:
  * - Aus Frontmatter-Daten Listen extrahieren (attachments_url, galleryImageUrls, coverImageUrl)

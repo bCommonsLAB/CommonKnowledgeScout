@@ -6,7 +6,10 @@
  * Hook fuer die Bild-Generierungs-Logik im CoverImageGeneratorDialog.
  *
  * Aus `cover-image-generator-dialog.tsx` ausgegliedert
- * (Welle 3-III-d, Schritt 1/3).
+ * (Welle 3-II-Hooks-d, Schritt 1/3).
+ * Welle initial als "Welle 3-III-d" gestartet, am 2026-05-01 zu
+ * "Welle 3-II-Hooks-d" umbenannt — siehe
+ * .cursor/rules/refactor-naming-konvention.mdc
  *
  * Verantwortlichkeiten:
  * - State fuer generierte Bilder + Auswahl-Index

@@ -2,7 +2,7 @@
 
 /**
  * Characterization Tests fuer useGalleryItems-Hook
- * (Welle 3-III-a, Schritt 1/4 + Sicherheitsnetz).
+ * (Welle 3-II-Hooks-a, Schritt 1/4 + Sicherheitsnetz).
  *
  * Fixiert das Render-Verhalten des Hooks:
  * - Initial-State (loading=true, leere Listen)

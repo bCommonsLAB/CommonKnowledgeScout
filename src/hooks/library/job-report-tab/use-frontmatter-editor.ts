@@ -6,7 +6,10 @@
  * Hook fuer die Inline-Editing-Logik im Metadaten-Tab des
  * `job-report-tab.tsx`.
  *
- * Aus `job-report-tab.tsx` ausgegliedert (Welle 3-III-b, Schritt 2/4).
+ * Aus `job-report-tab.tsx` ausgegliedert (Welle 3-II-Hooks-b, Schritt 2/4).
+ * Welle initial als "Welle 3-III-b" gestartet, am 2026-05-01 zu
+ * "Welle 3-II-Hooks-b" umbenannt — siehe
+ * .cursor/rules/refactor-naming-konvention.mdc
  *
  * Verantwortlichkeiten:
  * - State fuer das aktuell bearbeitete Feld (editingField, editingValue)
