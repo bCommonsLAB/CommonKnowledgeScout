@@ -1,7 +1,7 @@
 ---
 description: Batch-Strategie fuer Refactoring-Wellen — 1 PR pro Welle mit mehreren kohaerenten Commits
-globs: docs/refactor/**/*.md,src/components/**/*.tsx,src/components/**/*.ts,src/lib/**/*.ts
-alwaysApply: true
+globs: docs/refactor/**/*.md,.cursor/plans/refactor-*.plan.md
+alwaysApply: false
 ---
 
 # Refactor-Batch-Strategie: 1 PR pro Welle

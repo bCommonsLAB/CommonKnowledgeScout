@@ -1,7 +1,7 @@
 ---
 description: Naming-Konvention fuer Refactoring-Wellen und Sub-Wellen — verhindert Namens-Kollisionen zwischen Plan-Wellen und Future-Work-Wellen
 globs: docs/refactor/**/*.md,docs/refactor/**/*,.cursor/plans/**/*.md
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Naming-Konvention: Wellen, Sub-Wellen, Future-Work-Wellen

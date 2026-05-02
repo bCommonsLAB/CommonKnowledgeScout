@@ -1,7 +1,7 @@
 ---
 description: Kosten-Strategie fuer Cloud-Agents — Hand-off-Pflicht am Welle-Ende, Modellwahl, lokale Verifikation
 globs: docs/refactor/**/*.md,.cursor/plans/**/*.md,scripts/welle-pre-merge-check.sh,AGENTS.md
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Cloud-Agent-Kosten-Strategie
