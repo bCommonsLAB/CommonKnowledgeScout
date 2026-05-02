@@ -178,5 +178,7 @@ export function useBinaryFragmentsLoader({
     return () => {
       cancelled = true;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // selectedRun?.runId statt selectedRun: bewusst — nur bei Run-Wechsel neu laden, nicht bei jedem Objekt-Update
   }, [selectedRun?.runId, activeLibraryId, setBinaryFragments, setLoadingFragments]);
 }

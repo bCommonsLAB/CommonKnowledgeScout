@@ -126,7 +126,6 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
     setBinaryFragments,
     loadingFragments,
     setLoadingFragments,
-    handleCreateNew,
     handleCancelNew,
     handleExportLibrary,
     handleImportLibrary,

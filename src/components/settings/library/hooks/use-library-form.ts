@@ -21,7 +21,6 @@ import { toast } from "@/components/ui/use-toast";
 import { librariesAtom, activeLibraryIdAtom } from "@/atoms/library-atom";
 import { StorageProviderType } from "@/types/library";
 import { useSafeUser } from "@/hooks/use-safe-user";
-import { AlertCircle } from "lucide-react";
 
 // Formular-Schema (identisch mit dem in library-form.tsx)
 export const libraryFormSchema = z.object({
@@ -425,10 +424,10 @@ export function useLibraryForm(createNew: boolean) {
         if (isNew) {
           const newLibrary = {
             ...libraryData,
-            icon: <AlertCircle className="h-4 w-4" />,
+            // icon wird vom Client-Side als React-Element erwartet — wird von der Atom-Initalisierung gesetzt
             config: { ...libraryData.config },
           };
-          setLibraries([...libraries, newLibrary]);
+          setLibraries([...libraries, newLibrary as Parameters<typeof setLibraries>[0][0]]);
           setActiveLibraryId(newLibraryId);
           setIsNew(false);
           toast({
@@ -554,7 +553,7 @@ export function useLibraryForm(createNew: boolean) {
 
         const newLibrary = {
           ...(importedLibrary as object),
-          icon: <AlertCircle className="h-4 w-4" />,
+          // icon-Platzhalter: wird von der Client-Atom-Logik gesetzt
         };
         setLibraries([...libraries, newLibrary as Parameters<typeof setLibraries>[0][0]]);
         setActiveLibraryId(importedLibrary.id as string);
