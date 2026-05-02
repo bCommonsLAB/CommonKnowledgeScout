@@ -1,509 +1,50 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
-import Image from 'next/image'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Calendar, MapPin, User, Check, X, Clock, HelpCircle, FileText, Cpu, MemoryStick, HardDrive } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import type { DocCardMeta } from '@/lib/gallery/types'
-import { SpeakerOrAuthorIcons } from './speaker-icons'
+/**
+ * src/components/library/gallery/document-card.tsx
+ *
+ * Composer-Fassade fuer DocumentCard.
+ *
+ * Wellen-3-III-a Modul-Split: Die DocumentCard ist nur noch ein
+ * **Switch-Composer**, der je nach detailViewType die passende
+ * Sub-Karte rendert. Die Card-Layouts liegen in
+ * `./document-card/<type>-card.tsx`.
+ *
+ * Vor Welle 3-III-a: 638 Zeilen, 5 inline-Funktionen.
+ * Nach Welle 3-III-a: ~60 Zeilen Composer + 5 Sub-Komponenten in
+ * eigenen Files.
+ *
+ * Verhalten 1:1 portiert — Char-Tests in
+ * tests/unit/components/library/gallery/document-card.test.tsx
+ * fixieren das Switch-Verhalten.
+ */
+
+import React from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import type { DocCardMeta } from '@/lib/gallery/types'
 import { openDocumentBySlug } from '@/utils/document-navigation'
 import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
-import {
-  coverRefNeedsApiResolution,
-  resolveCoverUrlViaApi,
-} from '@/lib/gallery/resolve-cover-url-client'
-import { displayBasenameFromCoverRef } from '@/lib/gallery/cover-ref-display-name'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { DivaTextureCard } from './document-card/diva-texture-card'
+import { ClimateActionCard } from './document-card/climate-action-card'
+import { SessionCard } from './document-card/session-card'
+import { RefurbedDeviceCard } from './document-card/refurbed-device-card'
+import { StandardCard } from './document-card/standard-card'
 
 export interface DocumentCardProps {
   doc: DocCardMeta
-  onClick?: (doc: DocCardMeta) => void // Optional: Fallback für Komponenten ohne slug
-  libraryId?: string // Optional: Falls nicht vorhanden, wird onClick verwendet
+  /** Optional: Fallback fuer Komponenten ohne slug */
+  onClick?: (doc: DocCardMeta) => void
+  /** Optional: Falls nicht vorhanden, wird onClick verwendet */
+  libraryId?: string
   /** Fallback-DetailViewType aus der Library-Config (wenn doc.detailViewType nicht gesetzt ist) */
   libraryDetailViewType?: string
-}
-
-/**
- * Status-Konfiguration für ClimateAction (vereinfacht auf 4 Kategorien)
- * Mapping der lv_bewertung-Werte auf die 4 Status-Kategorien:
- * - aktiv (grün): in_umsetzung, im_klimaplan, in_fachplaenen, neu_umsetzbar
- * - geplant (gelb): vertieft_pruefen
- * - abgelehnt (rot): nicht_umsetzbar
- * - offen (grau): unklar, undefined
- */
-type StatusColor = 'green' | 'yellow' | 'red' | 'gray'
-
-interface StatusConfig {
-  label: string
-  shortLabel: string
-  color: StatusColor
-  icon: 'check' | 'clock' | 'x' | 'help-circle'
-}
-
-const STATUS_CONFIG: Record<string, StatusConfig> = {
-  aktiv: { label: 'Aktiv', shortLabel: 'Aktiv', color: 'green', icon: 'check' },
-  geplant: { label: 'Geplant', shortLabel: 'Geplant', color: 'yellow', icon: 'clock' },
-  abgelehnt: { label: 'Abgelehnt', shortLabel: 'Abgelehnt', color: 'red', icon: 'x' },
-  offen: { label: 'Offen', shortLabel: 'Offen', color: 'gray', icon: 'help-circle' },
-}
-
-// Mapping von lv_bewertung auf vereinfachte Status-Kategorien
-function mapBewertungToStatus(bewertung?: string): string {
-  if (!bewertung) return 'offen'
-  switch (bewertung) {
-    case 'in_umsetzung':
-    case 'im_klimaplan':
-    case 'in_fachplaenen':
-    case 'neu_umsetzbar':
-      return 'aktiv'
-    case 'vertieft_pruefen':
-      return 'geplant'
-    case 'nicht_umsetzbar':
-      return 'abgelehnt'
-    case 'unklar':
-    default:
-      return 'offen'
-  }
-}
-
-// Icon-Map für die Status-Symbole
-const iconMap = {
-  check: Check,
-  clock: Clock,
-  x: X,
-  'help-circle': HelpCircle,
-}
-
-/**
- * Textur-Analyse (divaTexture): quadratische Kachel, Hintergrund aus Cover.
- * Galerie: **coverThumbnailUrl zuerst** (256×256 WebP, center-crop aus Original) —
- * sonst zieht die Karte mehrere MB Original-JPEGs pro Eintrag.
- * Detailansicht kann weiter das volle `coverImageUrl` nutzen.
- */
-function DivaTextureCard({
-  doc,
-  onClick,
-  libraryId,
-}: {
-  doc: DocCardMeta
-  onClick: () => void
-  libraryId?: string
-}) {
-  const rawRef = doc.coverThumbnailUrl || doc.coverImageUrl
-  const [displayImageUrl, setDisplayImageUrl] = useState<string | undefined>(() =>
-    rawRef && !coverRefNeedsApiResolution(rawRef) ? rawRef : undefined
-  )
-
-  // Nur-Dateiname / relativer Verweis: über API in streaming-url auflösen (siehe Media-Lifecycle-Regel).
-  useEffect(() => {
-    const ref = doc.coverThumbnailUrl || doc.coverImageUrl
-    if (!ref) {
-      setDisplayImageUrl(undefined)
-      return
-    }
-    if (!coverRefNeedsApiResolution(ref)) {
-      setDisplayImageUrl(ref)
-      return
-    }
-    // Lokale Kopien: TS narrowed `doc.fileId` nicht in async-Closures zuverlässig.
-    const effectiveLibraryId = libraryId
-    const effectiveFileId = doc.fileId
-    if (!effectiveLibraryId || !effectiveFileId) {
-      setDisplayImageUrl(undefined)
-      return
-    }
-    let cancelled = false
-    void (async () => {
-      const resolved = await resolveCoverUrlViaApi({
-        libraryId: effectiveLibraryId,
-        fileId: effectiveFileId,
-        coverRef: ref,
-        // docMetaJson.sourceFileName: echte Quell-Textur (Shadow-Twin / resolve-binary-url)
-        sourceFileName: doc.sourceFileName?.trim() || doc.fileName,
-      })
-      if (!cancelled) {
-        setDisplayImageUrl(resolved ?? undefined)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [doc.coverImageUrl, doc.coverThumbnailUrl, doc.fileId, doc.fileName, doc.sourceFileName, libraryId])
-
-  // Galerie: Primärzeile = docMetaJson.sourceFileName (Quell-Textur), sonst Cover-Basename, nicht zuerst .md-Dateiname.
-  const sourceFile = doc.sourceFileName?.trim()
-  const coverBasename =
-    displayBasenameFromCoverRef(doc.coverImageUrl) ||
-    displayBasenameFromCoverRef(doc.coverThumbnailUrl)
-  const titleOrShort = (doc.title || doc.shortTitle)?.trim()
-  const fileNameMd = doc.fileName?.trim()
-  const primaryLine = sourceFile || coverBasename || titleOrShort || fileNameMd || 'Textur'
-  const secondaryLine = (() => {
-    const tc = doc.textur_code?.trim()
-    if (sourceFile) {
-      return (
-        (titleOrShort && titleOrShort !== primaryLine ? titleOrShort : '') ||
-        (tc && tc !== primaryLine ? tc : '') ||
-        (coverBasename && coverBasename !== primaryLine ? coverBasename : '') ||
-        (fileNameMd && fileNameMd !== primaryLine ? fileNameMd : '')
-      )
-    }
-    if (coverBasename) {
-      return (
-        (titleOrShort && titleOrShort !== primaryLine ? titleOrShort : '') ||
-        (tc && tc !== primaryLine ? tc : '') ||
-        (fileNameMd && fileNameMd !== primaryLine ? fileNameMd : '')
-      )
-    }
-    if (fileNameMd) {
-      return (titleOrShort && titleOrShort !== primaryLine ? titleOrShort : '') || (tc || '')
-    }
-    return tc || ''
-  })()
-  const showSecondary =
-    secondaryLine.length > 0 && secondaryLine !== primaryLine
-
-  return (
-    <article
-      className='group relative flex flex-col aspect-square overflow-hidden rounded-lg border border-border/60 shadow-md transition-all duration-300 hover:shadow-xl hover:scale-[1.02] cursor-pointer'
-      onClick={onClick}
-      role='button'
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          onClick()
-        }
-      }}
-    >
-      {displayImageUrl ? (
-        <div
-          className='absolute inset-0 bg-neutral-200 dark:bg-neutral-800'
-          style={{
-            backgroundImage: `url(${displayImageUrl})`,
-            // 1:1 wie geliefert, kein künstliches Hoch-/Runterskalieren; zentriert, Rand abschneiden bei größeren Maps
-            backgroundRepeat: 'no-repeat',
-            backgroundSize: 'auto',
-            backgroundPosition: 'center',
-          }}
-        />
-      ) : (
-        <div className='absolute inset-0 bg-gradient-to-br from-slate-200 via-slate-300 to-slate-400 dark:from-slate-800 dark:via-slate-800 dark:to-slate-900' />
-      )}
-
-      {/* Kein Verlauf über die gesamte Kachel — Textur bleibt unverfälscht sichtbar. */}
-      <div className='relative mt-auto flex flex-col justify-end'>
-        <div
-          className={cn(
-            'px-2.5 py-2 sm:px-3 sm:py-2.5',
-            // Nur unter dem Text: halbtransparente Blende, nicht über dem Musterbereich darüber
-            // Sehr leichte Blende; Lesbarkeit primär über Text-drop-shadow
-            'rounded-b-lg bg-black/20 text-white',
-          )}
-        >
-          <p className='text-xs sm:text-sm font-semibold leading-snug truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]' title={primaryLine}>
-            {primaryLine}
-          </p>
-          {showSecondary ? (
-            <p
-              className={cn(
-                'mt-0.5 leading-snug text-white/80 line-clamp-2 drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)]',
-                // ~halbe optische Größe zum Dateinamen (dezenter Untertitel)
-                'text-[10px] sm:text-[11px] font-normal',
-                doc.textur_code && secondaryLine === doc.textur_code.trim() && 'font-mono',
-              )}
-              title={secondaryLine}
-            >
-              {secondaryLine}
-            </p>
-          ) : null}
-        </div>
-      </div>
-
-      <div className='absolute inset-x-0 bottom-0 h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left' />
-    </article>
-  )
-}
-
-/**
- * ClimateAction-Karte im Sample-App-Stil:
- * - Hintergrundbild mit Gradient von oben UND unten
- * - OBEN: Kategorie (Handlungsfeld) + Titel
- * - UNTEN: Nummer links + Status-Badge rechts (Pill mit backdrop-blur)
- * - Hover-Effekte: Scale, Schatten, Linie unten
- */
-function ClimateActionCard({ doc, onClick }: { doc: DocCardMeta; onClick: () => void }) {
-  const status = mapBewertungToStatus(doc.lv_bewertung)
-  const config = STATUS_CONFIG[status] || STATUS_CONFIG.offen
-  const IconComponent = iconMap[config.icon]
-  
-  // Thumbnail bevorzugen für Galerie-Performance, Fallback auf Original
-  const displayImageUrl = doc.coverThumbnailUrl || doc.coverImageUrl
-  
-  return (
-    <article
-      className='group relative aspect-[4/3] overflow-hidden rounded-lg shadow-md transition-all duration-300 hover:shadow-xl hover:scale-[1.02] cursor-pointer'
-      onClick={onClick}
-    >
-      {/* Hintergrundbild: Thumbnail bevorzugt für bessere Performance */}
-      {displayImageUrl ? (
-        <Image
-          src={displayImageUrl}
-          alt={doc.shortTitle || doc.title || doc.fileName || 'Cover'}
-          fill
-          className='object-cover transition-transform duration-500 group-hover:scale-105'
-          loading='lazy'
-          unoptimized
-        />
-      ) : (
-        // Fallback: Grüner Gradient wenn kein Bild vorhanden
-        <div className='absolute inset-0 bg-gradient-to-br from-green-400 to-emerald-600' />
-      )}
-      
-      {/* Dezenter Gradient nur an den Rändern für bessere Lesbarkeit */}
-      <div className='absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/50' />
-      
-      {/* Content Container */}
-      <div className='relative h-full flex flex-col justify-between p-4'>
-        {/* OBEN: Kategorie + Titel */}
-        <div>
-          {/* Kategorie (z.B. Handlungsfeld bei Klimamaßnahmen) */}
-          {doc.category && (
-            <span className='block text-[10px] font-semibold uppercase tracking-widest text-white drop-shadow-lg'>
-              {/* Doc-Translations: zeige uebersetztes Label, behalte kanonischen Wert. */}
-              {doc.categoryLabel || doc.category}
-            </span>
-          )}
-          <h3 className='text-lg font-semibold leading-tight text-white text-balance pr-4 drop-shadow-lg'>
-            {doc.shortTitle || doc.title || doc.fileName || 'Klimamaßnahme'}
-          </h3>
-        </div>
-        
-        {/* UNTEN: Nummer + Status */}
-        <div className='flex items-end justify-between'>
-          <span className='text-xs font-mono text-white drop-shadow-lg'>
-            {doc.massnahme_nr ? `Nr. ${doc.massnahme_nr}` : '–'}
-          </span>
-          
-          {/* Status-Badge als Pill mit backdrop-blur */}
-          <div
-            className={cn(
-              'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium backdrop-blur-sm',
-              config.color === 'green' && 'bg-green-600/90 text-white',
-              config.color === 'yellow' && 'bg-amber-500/90 text-white',
-              config.color === 'red' && 'bg-red-500/90 text-white',
-              config.color === 'gray' && 'bg-gray-500/90 text-white'
-            )}
-          >
-            <IconComponent className='w-3.5 h-3.5' />
-            <span className='hidden sm:inline'>{config.shortLabel}</span>
-          </div>
-        </div>
-      </div>
-      
-      {/* Hover-Linie unten */}
-      <div className='absolute inset-x-0 bottom-0 h-1 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left' />
-    </article>
-  )
-}
-
-/**
- * Session/Event-Karte im YouTube-artigen Stil:
- * - Vollfläche Hintergrundbild (coverImage) mit Gradient-Overlay
- * - OBEN: Kurztitel + Sprecher + Organisation
- * - UNTEN: Datum links + Track-Badge rechts
- * - Hover-Effekte: Scale, Schatten, Linie unten
- * - Fallback ohne Bild: Blau-Cyan Gradient
- */
-function SessionCard({ doc, onClick }: { doc: DocCardMeta; onClick: () => void }) {
-  // Thumbnail bevorzugen für Galerie-Performance, Fallback auf Original
-  const displayImageUrl = doc.coverThumbnailUrl || doc.coverImageUrl
-
-  // Sprecher-Namen als kommagetrennte Liste
-  const speakerNames = Array.isArray(doc.speakers) && doc.speakers.length > 0
-    ? doc.speakers.join(', ')
-    : undefined
-
-  // Datum formatieren (falls vorhanden)
-  const formattedDate = doc.date
-    ? new Date(doc.date).toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric', year: 'numeric' })
-    : undefined
-
-  return (
-    <article
-      className='group relative aspect-[16/9] overflow-hidden rounded-lg shadow-md transition-all duration-300 hover:shadow-xl hover:scale-[1.02] cursor-pointer'
-      onClick={onClick}
-    >
-      {/* Hintergrundbild: Thumbnail bevorzugt für bessere Performance */}
-      {displayImageUrl ? (
-        <Image
-          src={displayImageUrl}
-          alt={doc.shortTitle || doc.title || doc.fileName || 'Session'}
-          fill
-          className='object-cover transition-transform duration-500 group-hover:scale-105'
-          loading='lazy'
-          unoptimized
-        />
-      ) : (
-        // Fallback: Blau-Cyan Gradient wenn kein Bild vorhanden
-        <div className='absolute inset-0 bg-gradient-to-br from-blue-400 to-cyan-600' />
-      )}
-
-      {/* Blende: Sehr dezent, damit das Cover klarer sichtbar bleibt */}
-      <div className='absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/30' />
-
-      {/* Content Container */}
-      <div className='relative h-full flex flex-col justify-between p-4'>
-        {/* OBEN: Titel + Sprecher-Namen */}
-        <div className='pr-8'>
-          <h3 className='text-lg font-semibold leading-tight text-white drop-shadow-lg line-clamp-2'>
-            {doc.shortTitle || doc.title || doc.fileName || 'Session'}
-          </h3>
-          {speakerNames && (
-            <p className='text-sm text-white/90 mt-1 drop-shadow-lg line-clamp-1'>
-              {speakerNames}
-            </p>
-          )}
-        </div>
-
-        {/* UNTEN: Speaker-Icons + Datum/Track */}
-        <div className='flex flex-col gap-1'>
-          <SpeakerOrAuthorIcons doc={doc} compact />
-          <div className='flex items-end justify-between'>
-            <span className='text-xs text-white/80 drop-shadow-lg flex items-center gap-1'>
-              {formattedDate && (
-                <>
-                  <Calendar className='w-3 h-3' />
-                  {formattedDate}
-                </>
-              )}
-            </span>
-            {doc.track && (
-              <div className='flex items-center rounded-full px-2.5 py-1 text-xs font-medium backdrop-blur-sm bg-white/20 text-white'>
-                {doc.trackLabel || doc.track}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Jahr-Badge oben rechts */}
-      {doc.year && (
-        <div className='absolute top-3 right-3 rounded-full px-2 py-0.5 text-xs font-semibold backdrop-blur-sm bg-black/30 text-white'>
-          {String(doc.year)}
-        </div>
-      )}
-
-      {/* Hover-Linie unten */}
-      <div className='absolute inset-x-0 bottom-0 h-1 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left' />
-    </article>
-  )
-}
-
-/**
- * RefurbedDevice-Karte (gebrauchte PCs/Notebooks) im YouTube-artigen Stil:
- * - Vollflaechiges Hintergrundbild (coverImage) mit dezentem Gradient-Overlay
- * - OBEN: Geraetetyp (klein, uppercase) + Modell/Titel (gross)
- * - UNTEN: Schnellinfo-Zeile mit Prozessor, RAM, Festplatte (mit Icons)
- * - Optional: Jahr-Badge oben rechts
- * - Hover-Effekte: Scale, Schatten, Linie unten
- * - Fallback ohne Bild: Smaragd-Gradient (passt zur emerald-Akzentfarbe der Detailansicht)
- *
- * Format: aspect-[4/3] passt typisch zu PC-Produktfotos.
- */
-function RefurbedDeviceCard({ doc, onClick }: { doc: DocCardMeta; onClick: () => void }) {
-  const { t } = useTranslation()
-  // Thumbnail bevorzugen fuer Galerie-Performance, Fallback auf Original
-  const displayImageUrl = doc.coverThumbnailUrl || doc.coverImageUrl
-
-  // Lesbares Geraetetyp-Label aus i18n; bei unbekanntem Wert den raw-Wert anzeigen (kein silent fallback)
-  const geraetetypLabel = doc.geraetetyp
-    ? t(`gallery.refurbedDevice.deviceTypes.${doc.geraetetyp}`, { defaultValue: doc.geraetetyp })
-    : undefined
-
-  // Schnellinfo-Items (Prozessor, RAM, Festplatte) - leere Werte werden weggelassen
-  const quickSpecs: Array<{ icon: React.ReactNode; value: string }> = []
-  if (doc.prozessor) quickSpecs.push({ icon: <Cpu className='w-3 h-3' />, value: doc.prozessor })
-  if (doc.arbeitsspeicher) quickSpecs.push({ icon: <MemoryStick className='w-3 h-3' />, value: doc.arbeitsspeicher })
-  if (doc.festplatte) quickSpecs.push({ icon: <HardDrive className='w-3 h-3' />, value: doc.festplatte })
-
-  // Primaerer Titel: Modell (wenn gesetzt) > shortTitle > title > fileName
-  const primaryTitle = doc.modell || doc.shortTitle || doc.title || doc.fileName || 'Geraet'
-
-  return (
-    <article
-      className='group relative aspect-[4/3] overflow-hidden rounded-lg shadow-md transition-all duration-300 hover:shadow-xl hover:scale-[1.02] cursor-pointer'
-      onClick={onClick}
-    >
-      {/* Hintergrundbild: Thumbnail bevorzugt fuer bessere Performance */}
-      {displayImageUrl ? (
-        <Image
-          src={displayImageUrl}
-          alt={primaryTitle}
-          fill
-          className='object-cover transition-transform duration-500 group-hover:scale-105'
-          loading='lazy'
-          unoptimized
-        />
-      ) : (
-        // Fallback: Smaragd-Gradient (passt zum emerald-Akzent der Detailansicht)
-        <div className='absolute inset-0 bg-gradient-to-br from-emerald-400 to-teal-600' />
-      )}
-
-      {/* Gradient-Overlay: oben dezent, unten staerker fuer Lesbarkeit der Schnellinfos */}
-      <div className='absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60' />
-
-      {/* Content Container */}
-      <div className='relative h-full flex flex-col justify-between p-4'>
-        {/* OBEN: Geraetetyp + Modell/Titel */}
-        <div className='pr-8'>
-          {geraetetypLabel && (
-            <span className='block text-[10px] font-semibold uppercase tracking-widest text-white/90 drop-shadow-lg mb-1'>
-              {geraetetypLabel}
-            </span>
-          )}
-          <h3 className='text-lg font-semibold leading-tight text-white drop-shadow-lg line-clamp-2 text-balance'>
-            {primaryTitle}
-          </h3>
-        </div>
-
-        {/* UNTEN: Schnellinfo-Zeile (Prozessor, RAM, Festplatte) */}
-        {quickSpecs.length > 0 && (
-          <div className='flex flex-wrap gap-1.5'>
-            {quickSpecs.map((spec, idx) => (
-              <div
-                key={idx}
-                className='flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium backdrop-blur-sm bg-black/40 text-white/95'
-              >
-                {spec.icon}
-                <span className='line-clamp-1'>{spec.value}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Jahr-Badge oben rechts (analog Session) */}
-      {doc.year && (
-        <div className='absolute top-3 right-3 rounded-full px-2 py-0.5 text-xs font-semibold backdrop-blur-sm bg-black/30 text-white'>
-          {String(doc.year)}
-        </div>
-      )}
-
-      {/* Hover-Linie unten */}
-      <div className='absolute inset-x-0 bottom-0 h-1 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left' />
-    </article>
-  )
 }
 
 export function DocumentCard({ doc, onClick, libraryId, libraryDetailViewType }: DocumentCardProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  
+
   const handleClick = () => {
     const slug = getEffectiveDocumentNavigationSlug(doc)
     if (slug && libraryId) {
@@ -514,21 +55,21 @@ export function DocumentCard({ doc, onClick, libraryId, libraryDetailViewType }:
       console.warn('[DocumentCard] Kein navigierbarer Slug/fileId oder onClick-Callback:', doc)
     }
   }
-  
+
   // Bestimme den effektiven DetailViewType: Dokument-spezifisch oder Library-Fallback
   const effectiveDetailViewType = doc.detailViewType || libraryDetailViewType
-  
+
   // Quadratische Textur-Kachel (Hintergrund = wiederholte Cover-Textur)
   if (effectiveDetailViewType === 'divaTexture') {
     return <DivaTextureCard doc={doc} onClick={handleClick} libraryId={libraryId} />
   }
 
-  // Spezielles Layout für ClimateAction
+  // Spezielles Layout fuer ClimateAction
   if (effectiveDetailViewType === 'climateAction') {
     return <ClimateActionCard doc={doc} onClick={handleClick} />
   }
 
-  // YouTube-artiges Layout für Sessions/Events
+  // YouTube-artiges Layout fuer Sessions/Events
   if (effectiveDetailViewType === 'session') {
     return <SessionCard doc={doc} onClick={handleClick} />
   }
@@ -537,102 +78,7 @@ export function DocumentCard({ doc, onClick, libraryId, libraryDetailViewType }:
   if (effectiveDetailViewType === 'refurbedDevice') {
     return <RefurbedDeviceCard doc={doc} onClick={handleClick} />
   }
-  
-  // Standard-Layout für alle anderen Typen (Bücher, Dokumente, etc.)
-  return (
-    <Card
-      className='cursor-pointer hover:shadow-lg transition-shadow duration-200 overflow-visible bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20'
-      onClick={handleClick}
-    >
-      <CardHeader className='relative pb-1'>
-        {/* Jahr-Badge schwebend oben rechts, um mehr Breite für den Titel zu lassen */}
-        {doc.year ? (
-          <Badge variant='secondary' className='absolute top-2 right-3 text-xs px-2 py-0.5'>
-            {String(doc.year)}
-          </Badge>
-        ) : null}
 
-        <div className='flex items-start gap-3'>
-          <div className='flex items-start gap-2 flex-1 min-w-0'>
-            {/* Cover-Thumbnail + Speaker-Icons + Titel für Standard-Dokumente (Bücher, PDFs, etc.) */}
-            {(doc.coverThumbnailUrl || doc.coverImageUrl) ? (
-              <div className='flex-shrink-0 w-[80px] h-[120px] bg-secondary rounded border border-border overflow-hidden shadow-sm'>
-                <Image
-                  src={doc.coverThumbnailUrl || doc.coverImageUrl || ''}
-                  alt={doc.title || doc.shortTitle || doc.fileName || 'Cover'}
-                  width={80}
-                  height={120}
-                  className='w-full h-full object-cover'
-                  loading='lazy'
-                  unoptimized
-                />
-              </div>
-            ) : null}
-            <div className='flex-1 min-w-0'>
-              <SpeakerOrAuthorIcons doc={doc} />
-              <CardTitle className='text-lg line-clamp-2'>{doc.title || doc.shortTitle || doc.fileName || 'Dokument'}</CardTitle>
-              <CardDescription className='line-clamp-2'>{doc.shortTitle || doc.fileName}</CardDescription>
-            </div>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className='space-y-2'>
-          {Array.isArray(doc.authors) && doc.authors.length > 0 ? (
-            <div className='flex items-center text-sm text-muted-foreground'>
-              <User className='h-2.5 w-2.5 mr-2' />
-              <span className='line-clamp-2'>
-                {doc.authors.join(', ')}
-              </span>
-            </div>
-          ) : null}
-          {doc.region ? (
-            <div className='flex items-center text-sm text-muted-foreground'>
-              <MapPin className='h-2.5 w-2.5 mr-2' />
-              <span>{doc.region}</span>
-            </div>
-          ) : null}
-          {doc.pages ? (
-            <div className='flex items-center text-sm text-muted-foreground'>
-              <FileText className='h-2.5 w-2.5 mr-2' />
-              <span>{doc.pages} {doc.pages === 1 ? 'Seite' : 'Seiten'}</span>
-            </div>
-          ) : null}
-          {doc.date ? (
-            <div className='flex items-center justify-between text-sm text-muted-foreground'>
-              <div className='flex items-center'>
-                <Calendar className='h-2.5 w-2.5 mr-2' />
-                <span>{new Date(doc.date).toLocaleDateString('de-DE')}</span>
-              </div>
-              {doc.track && (
-                <Badge variant='outline' className='text-xs'>
-                  {doc.trackLabel || doc.track}
-                </Badge>
-              )}
-            </div>
-          ) : doc.track ? (
-            <div className='flex items-center justify-end text-sm text-muted-foreground'>
-              <Badge variant='outline' className='text-xs'>
-                {doc.trackLabel || doc.track}
-              </Badge>
-            </div>
-          ) : null}
-        </div>
-      </CardContent>
-    </Card>
-  )
+  // Standard-Layout fuer alle anderen Typen (Buecher, Dokumente, etc.)
+  return <StandardCard doc={doc} onClick={handleClick} />
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
