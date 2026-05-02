@@ -13,4 +13,5 @@
  * welle-3-iv-settings-contracts.mdc §4 explizit erlaubt.
  */
 
-export { StorageForm } from "./storage-form";
+// storage-form.tsx liegt noch unter settings/ (Welle 3-IV-b verschiebt es hierher)
+export { StorageForm } from "../storage-form";

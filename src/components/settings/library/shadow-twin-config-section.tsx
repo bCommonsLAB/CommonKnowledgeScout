@@ -29,13 +29,15 @@ import { Switch } from "@/components/ui/switch"
 import { toast } from "@/components/ui/use-toast"
 import { Search } from "lucide-react"
 import { useState } from "react"
-import { type Library } from "@/types/library"
+import { type Library, type ClientLibrary } from "@/types/library"
 import { getMediaStorageStrategy } from "@/lib/shadow-twin/media-storage-strategy"
 import type { AnalysisReport } from "./hooks/use-shadow-twin-migration"
 
 interface ShadowTwinConfigSectionProps {
   activeLibraryId: string | null | undefined;
-  activeLibrary: Library | undefined;
+  // ClientLibrary statt Library: library-form.tsx uebergibt ClientLibrary (kein 'transcription'-Feld).
+  // Das Prop wird in der Komponente nicht direkt verwendet (_activeLibrary-Prefix).
+  activeLibrary: ClientLibrary | undefined;
   shadowTwinMode: "legacy" | "v2";
   setShadowTwinMode: (mode: "legacy" | "v2") => void;
   shadowTwinPrimaryStore: "filesystem" | "mongo";
