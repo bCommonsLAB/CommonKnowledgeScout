@@ -134,8 +134,6 @@ export function PerspectivePageContent({
             localLanguageStyle={form.localLanguageStyle}
             socialContextLabels={socialContextLabels}
             onLanguageStyleChange={form.setLocalLanguageStyle}
-            canProceed={canProceed}
-            onStart={() => handleStart(onSave)}
           />
           <PerspectiveCta
             canProceed={canProceed}

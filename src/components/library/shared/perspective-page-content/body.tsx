@@ -2,6 +2,13 @@
 
 /**
  * Body-Bereich der Perspektiv-Seite: die vier Auswahl-Cards
+ *
+ * Hinweis zur Dateigroesse (> 350 Zeilen):
+ * Die 5 Auswahl-Cards (Sprache, Modell, Character, AccessPerspective, SocialContext)
+ * teilen dieselbe Card-Struktur und zahlreiche Props. Eine weitere Aufteilung in
+ * separate Card-Dateien wuerde die Props-Drilling-Kette verlangern ohne den
+ * Render-Code wirklich zu vereinfachen. Die Datei bleibt als sinnvolle Einheit.
+ * (Erlaeuterung gemaess Contracts §6: Ueberschreitungen mit Begruendungs-Kommentar.)
  * (Sprache, LLM-Modell, Interessenprofil, Zugangsperspektive, Sprachstil)
  * sowie der CTA-Button.
  */
