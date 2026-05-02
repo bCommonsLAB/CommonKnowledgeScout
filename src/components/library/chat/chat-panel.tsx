@@ -45,6 +45,7 @@ import type { QueryLog } from '@/types/query-log'
 import type { GalleryFilters } from '@/atoms/gallery-filters'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useGalleryData } from '@/hooks/gallery/use-gallery-data'
+import { useActiveChatId } from './chat-panel/hooks/use-active-chat-id'
 
 interface ChatPanelProps {
   libraryId: string
@@ -68,58 +69,8 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
   // Input State
   const [input, setInput] = useState('')
   
-  // Helper-Funktionen für localStorage-Persistierung von activeChatId
-  const getStoredActiveChatId = useCallback((libId: string): string | null => {
-    if (typeof window === 'undefined') return null
-    try {
-      const stored = localStorage.getItem(`chat-activeChatId-${libId}`)
-      return stored || null
-    } catch (error) {
-      // localStorage nicht verfuegbar (z.B. Private-Mode-Restriktion) — null zurueckgeben
-      console.warn('[ChatPanel] getStoredActiveChatId: localStorage-Fehler:', error)
-      return null
-    }
-  }, [])
-  
-  const saveActiveChatId = useCallback((libId: string, chatId: string | null) => {
-    if (typeof window === 'undefined') return
-    try {
-      if (chatId) {
-        localStorage.setItem(`chat-activeChatId-${libId}`, chatId)
-      } else {
-        localStorage.removeItem(`chat-activeChatId-${libId}`)
-      }
-    } catch (error) {
-      // localStorage nicht verfuegbar (z.B. Private-Mode-Restriktion) — Speicherung uebersprungen
-      console.warn('[ChatPanel] saveActiveChatId: localStorage-Fehler:', error)
-    }
-  }, [])
-  
-  // Initialisiere activeChatId aus localStorage
-  const [activeChatId, setActiveChatIdState] = useState<string | null>(() => {
-    return libraryId ? getStoredActiveChatId(libraryId) : null
-  })
-  
-  // Wrapper für setActiveChatId, der auch in localStorage speichert
-  const setActiveChatId = useCallback((chatId: string | null) => {
-    setActiveChatIdState(chatId)
-    if (libraryId) {
-      saveActiveChatId(libraryId, chatId)
-    }
-  }, [libraryId, saveActiveChatId])
-  
-  // Lade activeChatId aus localStorage, wenn libraryId sich ändert
-  useEffect(() => {
-    if (libraryId) {
-      const stored = getStoredActiveChatId(libraryId)
-      if (stored !== activeChatId) {
-        // Verwende setActiveChatIdState direkt, um Endlosschleife zu vermeiden
-        // (setActiveChatId würde auch speichern, was hier nicht nötig ist, da wir bereits aus localStorage laden)
-        setActiveChatIdState(stored)
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [libraryId, getStoredActiveChatId]) // activeChatId nicht als Dependency, um Endlosschleife zu vermeiden
+  // activeChatId mit localStorage-Persistenz (Welle 3-III-b: extrahiert in use-active-chat-id)
+  const { activeChatId, setActiveChatId } = useActiveChatId(libraryId)
   
   const [answerLength, setAnswerLength] = useState<AnswerLength>(ANSWER_LENGTH_DEFAULT)
   const setChatReferencesAtom = useSetAtom(chatReferencesAtom)
