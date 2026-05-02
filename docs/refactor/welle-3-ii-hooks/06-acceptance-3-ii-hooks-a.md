@@ -1,18 +1,27 @@
-# Welle 3-III-a — Acceptance (use-gallery-items Hook fuer media-tab)
+# Welle 3-II-Hooks-a — Acceptance (use-gallery-items Hook fuer media-tab)
 
-**Branch**: `cursor/refactor-welle-3-iii-a-media-hooks-a03a`
+**Branch**: `cursor/refactor-welle-3-iii-a-media-hooks-a03a` (historisch,
+vor Naming-Update)
 **Stand**: 2026-05-01
-**PR**: (folgt nach Push)
+**PR**: #40 (merged)
+
+> **Naming-Hinweis**: Diese Sub-Welle wurde initial als "Welle 3-III-a"
+> gestartet und am 2026-05-01 zu **Welle 3-II-Hooks-a** umbenannt
+> (Naming-Konflikt mit der noch nicht begonnenen Plan-Welle 3-III
+> "Galerie + Story-Mode + Chat"). Branch- und PR-Titel bleiben
+> historisch unverändert. Siehe
+> `.cursor/rules/refactor-naming-konvention.mdc`.
 
 ## Inhalt
 
-**Erste Sub-Welle von Welle 3-III** (Hooks-Extraktion). Extrahiert die
+**Erste Sub-Welle von Welle 3-II-Hooks** (Hooks-Extraktion als
+Future-Work aus Welle 3-II). Extrahiert die
 Galerie-Aggregation-Logik aus `media-tab.tsx` in einen Custom-Hook
 `useGalleryItems`.
 
 | Schritt | Inhalt | Neuer File / Aenderung | Brutto-Diff |
 |---|---|---|---:|
-| 1 | Welle 3-III README anlegen | `docs/refactor/welle-3-iii-hooks/README.md` | 50 |
+| 1 | Welle 3-II-Hooks README anlegen | `docs/refactor/welle-3-ii-hooks/README.md` | 50 |
 | 2 | useGalleryItems-Hook erstellen | `src/hooks/library/media-tab/use-gallery-items.ts` (273z) | 273 |
 | 3 | Hook in media-tab.tsx einbinden + Cleanup | `media-tab.tsx` -161z | 195 |
 | 4 | Char-Tests fuer Hook | `tests/unit/hooks/library/media-tab/use-gallery-items.test.tsx` (7 Cases) | 200 |
@@ -93,16 +102,16 @@ abgefangen (`useEffect`, `buildTwinRelativeMediaRef`, `SiblingFile`,
 
 Wenn OK: PR mergen, dann starte ich Welle 3-III-b (job-report-tab Hooks).
 
-## Naechste Schritte (Welle 3-III)
+## Naechste Schritte (Welle 3-II-Hooks)
 
 | Sub-Welle | Datei | Hook(s) |
 |---|---|---|
-| 3-III-b | `job-report-tab.tsx` | `use-job-report-data` + `use-frontmatter-editor` |
-| 3-III-c | `session-detail.tsx` | `use-session-data` |
-| 3-III-d | `cover-image-generator-dialog.tsx` | `use-image-generation` |
+| 3-II-Hooks-b | `job-report-tab.tsx` | `use-job-report-data` + `use-frontmatter-editor` |
+| 3-II-Hooks-c | `session-detail.tsx` | `use-session-data` |
+| 3-II-Hooks-d | `cover-image-generator-dialog.tsx` | `use-image-generation` |
 
 ## Verweise
 
-- Welle 3-III README: `docs/refactor/welle-3-iii-hooks/README.md`
+- Welle 3-II-Hooks README: `docs/refactor/welle-3-ii-hooks/README.md`
 - Welle 3-II Gesamt-Acceptance: `../welle-3-archiv-detail/06-acceptance-3-ii-GESAMT.md`
 - Methodik: `.cursor/rules/refactor-batch-strategy.mdc`

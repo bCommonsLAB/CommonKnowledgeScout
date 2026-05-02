@@ -1,12 +1,17 @@
-# Welle 3-III-d — Acceptance (useImageGeneration Hook fuer cover-image-generator-dialog)
+# Welle 3-II-Hooks-d — Acceptance (useImageGeneration Hook fuer cover-image-generator-dialog)
 
 **Branch**: `cursor/refactor-welle-3-iii-d-cover-image-hooks-a03a`
+(historisch, vor Naming-Update)
 **Stand**: 2026-05-01
-**PR**: (folgt nach Push)
+**PR**: #43 (merged)
+
+> **Naming-Hinweis**: Initial als "Welle 3-III-d" gestartet, am
+> 2026-05-01 zu **Welle 3-II-Hooks-d** umbenannt. Siehe
+> `.cursor/rules/refactor-naming-konvention.mdc`.
 
 ## Inhalt
 
-**Letzte Sub-Welle von Welle 3-III** (Hooks-Extraktion). Extrahiert die
+**Letzte Sub-Welle von Welle 3-II-Hooks** (Hooks-Extraktion). Extrahiert die
 Bild-Generierungs-Logik aus `cover-image-generator-dialog.tsx` in einen
 Custom-Hook `useImageGeneration`.
 
@@ -15,7 +20,7 @@ Custom-Hook `useImageGeneration`.
 | 1 | useImageGeneration-Hook erstellen | `src/hooks/library/cover-image-generator-dialog/use-image-generation.ts` (252z) | 252 |
 | 2 | Hook in Dialog einbinden | `cover-image-generator-dialog.tsx` -139z | 215 |
 | 3 | Char-Tests (9 Cases mit `renderHook` + fetch-Mock) | `tests/.../use-image-generation.test.tsx` | 243 |
-| 4 | Acceptance-Doc | `06-acceptance-3-iii-d.md` (folgt) | ~150 |
+| 4 | Acceptance-Doc | `06-acceptance-3-ii-hooks-d.md` | ~150 |
 
 **Brutto-Diff Gesamt**: 4 Files, **860 Zeilen** — gut unter 5.000-Limit.
 
@@ -27,7 +32,7 @@ Custom-Hook `useImageGeneration`.
 | Sub-Module unter `hooks/library/cover-image-generator-dialog/` | 0 | 1 (use-image-generation.ts, 252z) | +1 |
 | Char-Test-Cases | 0 | 9 | +9 |
 
-**Beste Reduktion in Welle 3-III** (-30.4%) — der Hook hat eine sehr
+**Beste Reduktion in Welle 3-II-Hooks** (-30.4%) — der Hook hat eine sehr
 klare Schnittstelle (2 Inputs, 7 Outputs) und kapselt eine
 geschlossene API-Logik.
 
@@ -79,12 +84,13 @@ der Build sauber durchlaeuft.
 3. **Single-Mode**: Erneut oeffnen → "Einzelnes Bild" klicken → 1 Bild
    wird generiert + auf Bestaetigung gewartet
 
-Wenn OK: PR mergen — **Welle 3-III ist abgeschlossen**.
+Wenn OK: PR mergen — **Welle 3-II-Hooks ist abgeschlossen**.
 
 ## Verweise
 
-- Welle 3-III-a (Vorgaenger): PR #40
-- Welle 3-III-b (Vorgaenger): PR #41
-- Welle 3-III-c (Vorgaenger): PR #42
-- Welle 3-III README: `docs/refactor/welle-3-iii-hooks/README.md`
+- Welle 3-II-Hooks-a (Vorgaenger): PR #40
+- Welle 3-II-Hooks-b (Vorgaenger): PR #41
+- Welle 3-II-Hooks-c (Vorgaenger): PR #42
+- Welle 3-II-Hooks README: `docs/refactor/welle-3-ii-hooks/README.md`
+- Naming-Konvention: `.cursor/rules/refactor-naming-konvention.mdc`
 - Methodik: `.cursor/rules/refactor-batch-strategy.mdc`

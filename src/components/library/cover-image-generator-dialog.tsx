@@ -12,7 +12,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { cn } from '@/lib/utils'
 // Generation-State + API-Aufruf wurden in
 // src/hooks/library/cover-image-generator-dialog/use-image-generation.ts
-// ausgegliedert (Welle 3-III-d, Schritt 1/3).
+// ausgegliedert (Welle 3-II-Hooks-d, Schritt 1/3).
 import {
   useImageGeneration,
   type GeneratedImage,
@@ -60,7 +60,7 @@ export function CoverImageGeneratorDialog({
   const [size, setSize] = useState<GenerationSize>('1024x1024')
   const [quality, setQuality] = useState<GenerationQuality>('standard')
 
-  // Generation-State + Logik via Custom-Hook (Welle 3-III-d)
+  // Generation-State + Logik via Custom-Hook (Welle 3-II-Hooks-d)
   // useCallback fuer onClose, damit der Hook stabile Referenz bekommt.
   const handleClose = useCallback(() => {
     onOpenChange(false)

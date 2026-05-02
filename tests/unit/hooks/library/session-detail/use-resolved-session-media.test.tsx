@@ -2,7 +2,7 @@
 
 /**
  * Characterization Tests fuer useResolvedSessionMedia-Hook
- * (Welle 3-III-c, Schritt 2/3 — Sicherheitsnetz fuer Media-Resolution).
+ * (Welle 3-II-Hooks-c, Schritt 2/3 — Sicherheitsnetz fuer Media-Resolution).
  *
  * Fixiert das Render-Verhalten:
  * - attachmentNames + galleryImageNames + coverImageName aus Frontmatter

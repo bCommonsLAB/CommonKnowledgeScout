@@ -1,12 +1,17 @@
-# Welle 3-III-c — Acceptance (useResolvedSessionMedia Hook fuer session-detail)
+# Welle 3-II-Hooks-c — Acceptance (useResolvedSessionMedia Hook fuer session-detail)
 
 **Branch**: `cursor/refactor-welle-3-iii-c-session-detail-hooks-a03a`
+(historisch, vor Naming-Update)
 **Stand**: 2026-05-01
-**PR**: (folgt nach Push)
+**PR**: #42 (merged)
+
+> **Naming-Hinweis**: Initial als "Welle 3-III-c" gestartet, am
+> 2026-05-01 zu **Welle 3-II-Hooks-c** umbenannt. Siehe
+> `.cursor/rules/refactor-naming-konvention.mdc`.
 
 ## Inhalt
 
-**Dritte Sub-Welle von Welle 3-III** (Hooks-Extraktion). Extrahiert die
+**Dritte Sub-Welle von Welle 3-II-Hooks** (Hooks-Extraktion). Extrahiert die
 Media-Resolution-Logik aus `session-detail.tsx` in einen Custom-Hook
 `useResolvedSessionMedia`.
 
@@ -15,7 +20,7 @@ Media-Resolution-Logik aus `session-detail.tsx` in einen Custom-Hook
 | 1 | useResolvedSessionMedia-Hook erstellen | `src/hooks/library/session-detail/use-resolved-session-media.ts` (311z) | 311 |
 | 2 | Hook in session-detail.tsx einbinden | `session-detail.tsx` -172z | 234 |
 | 3 | Char-Tests (12 Cases mit `renderHook` + fetch-Mock) | `tests/.../use-resolved-session-media.test.tsx` | 187 |
-| 4 | Acceptance-Doc | `06-acceptance-3-iii-c.md` (folgt) | ~150 |
+| 4 | Acceptance-Doc | `06-acceptance-3-ii-hooks-c.md` | ~150 |
 
 **Brutto-Diff Gesamt**: 4 Files, **882 Zeilen** — gut unter 5.000-Limit.
 
@@ -84,11 +89,12 @@ Beide vor dem Push gefangen, kein Hotfix-PR-Cycle.
    404 ist, wird es nach Image-onError als "fehlgeschlagen" markiert
    und nicht erneut versucht
 
-Wenn OK: PR mergen, dann starte ich Welle 3-III-d (cover-image-generator-dialog).
+Wenn OK: PR mergen, dann starte ich Welle 3-II-Hooks-d (cover-image-generator-dialog).
 
 ## Verweise
 
-- Welle 3-III-a (Vorgaenger): PR #40
-- Welle 3-III-b (Vorgaenger): PR #41
-- Welle 3-III README: `docs/refactor/welle-3-iii-hooks/README.md`
+- Welle 3-II-Hooks-a (Vorgaenger): PR #40
+- Welle 3-II-Hooks-b (Vorgaenger): PR #41
+- Welle 3-II-Hooks README: `docs/refactor/welle-3-ii-hooks/README.md`
+- Naming-Konvention: `.cursor/rules/refactor-naming-konvention.mdc`
 - Methodik: `.cursor/rules/refactor-batch-strategy.mdc`

@@ -34,6 +34,18 @@ todos:
     status: pending
   - id: welle-3i-schale-loader
     content: "Welle 3-I Schale+Loader: App-Schale (library.tsx, library-header.tsx, library-switcher.tsx, src/app/library/*) + Library-Loader (file-list.tsx mit 89 Hooks!, file-tree.tsx, upload-dialog.tsx, upload-area.tsx, create-library-dialog.tsx). 16 Files, 5.427 Zeilen verifiziert. Eigene Mehr-Phasen-Welle, weil file-list.tsx Sub-Modul-Split braucht. Pre-Flight-Doku komplett unter docs/refactor/welle-3-schale-loader/ (README, AGENT-BRIEF, 01-inventory, 00-audit-Vorlage)."
+    status: completed
+  - id: welle-3ii-archiv-detail
+    content: "Welle 3-II Archiv-Detail (ABGESCHLOSSEN 2026-05-01): file-preview.tsx + markdown-preview.tsx + markdown-metadata.tsx + job-report-tab.tsx + media-tab.tsx + flow/pipeline-sheet.tsx + shared/* aufgeteilt. 9 PRs (#27-#39), -4.733z (-39.7%) ueber 6 Hauptdateien, 20 neue Sub-Module, 82 neue Char-Tests. Doku: docs/refactor/welle-3-archiv-detail/06-acceptance-3-ii-GESAMT.md."
+    status: completed
+  - id: welle-3ii-hooks-future
+    content: "Welle 3-II-Hooks (Future-Work aus Welle 3-II, ABGESCHLOSSEN 2026-05-01): Hook-Extraktion fuer media-tab, job-report-tab, session-detail, cover-image-generator-dialog. 4 PRs (#40-#43), -513z (-10.9%) ueber 4 Files, 4 neue Hooks, 35 neue Char-Tests. Doku: docs/refactor/welle-3-ii-hooks/06-acceptance-3-ii-hooks-GESAMT.md. Naming-Hinweis: initial als 'Welle 3-III' gestartet, am 2026-05-01 zu 'Welle 3-II-Hooks' umbenannt (Naming-Konflikt mit Plan-Welle 3-III). Naming-Konvention: .cursor/rules/refactor-naming-konvention.mdc."
+    status: completed
+  - id: welle-3iii-galerie-story-chat
+    content: "Welle 3-III Galerie + Story-Mode + Chat (NAECHSTE Welle, ~65 Files, ~15.000 Zeilen): Konsum-Sicht/RAG-UX. Top-Files: chat/chat-panel.tsx (1.268z, 36 Hooks), gallery/gallery-root.tsx (993z, 49 Hooks), shared/perspective-page-content.tsx (926z). Sub-Wellen-Vorschlag: 3-III-a Gallery (items, grouped-items, references, facets), 3-III-b Chat (chat-Komponenten-Familie), 3-III-c Story + perspective-* (Aufwaerm-Sub-Welle). Audit-Doku unter docs/refactor/welle-3-iii-galerie-chat/ anlegen."
+    status: pending
+  - id: welle-3vi-creation-wizard-ux-first
+    content: "Welle 3-VI Creation-Wizard (Strategie 2026-05-01): User hat angemerkt, dass die Wizard-Usability aktuell nicht optimal ist. Strategie-Entscheidung: zuerst die UX-Anpassungen am Wizard durchfuehren, DANN refaktorisieren. Begruendung: Refactor sollte saubere Struktur fuer eine stabile UX liefern, nicht eine instabile UX einfrieren. User dokumentiert vorab UX-Beduerfnisse (offen). Refactoring erst nach UX-Klarheit, voraussichtlich nach Welle 3-III/IV/V."
     status: pending
 isProject: false
 ---
@@ -211,9 +223,16 @@ Priorisierung **bottom-up von der Datenquelle Richtung UX**: zuerst Backend-Laye
 
 Reihenfolge entlang der **User-Frequenz**, nicht Datei-Groesse: zuerst die UX-Welten, die der User taeglich nutzt (Schale, Archiv-Detail, Galerie/Chat); Settings und Monitor zuletzt, weil seltener Use-Case; Creation-Wizard ganz zum Schluss wegen hoechster Komplexitaet.
 
+**Wellen-Naming-Konvention (PFLICHT)**: Plan-Wellen-Nummern sind reserviert (auch fuer noch nicht begonnene Wellen). Future-Work-Wellen, die aus einer Mutter-Welle entstehen, bekommen den Mutter-Namen mit Suffix (z.B. "Welle 3-II-Hooks" als Future-Work aus Welle 3-II), KEINE neue Wellen-Nummer. Siehe [.cursor/rules/refactor-naming-konvention.mdc](.cursor/rules/refactor-naming-konvention.mdc).
+
+**Stand 2026-05-01**:
+- Welle 3-I, 3-II abgeschlossen
+- Welle 3-II-Hooks (Future-Work aus 3-II) abgeschlossen
+- Welle 3-III ("Galerie + Story-Mode + Chat") ist die naechste Welle
+
 Die Scope-Aufteilung basiert auf einer Inventur am 2026-04-28 (`scripts/ui-scope-analysis.mjs`), die 195 UI-Files in `src/components/library`, `src/app/library`, `src/components/settings`, `src/components/shared`, `src/components/event-monitor`, `src/components/creation-wizard` analysiert hat.
 
-#### Welle 3-I - App-Schale + Library-Loader (16 Files, 5.427 Zeilen verifiziert)
+#### Welle 3-I - App-Schale + Library-Loader (ABGESCHLOSSEN, PR #26)
 
 Erste UX-Welle, weil zentraler Rendezvous-Punkt aller anderen Sub-Welten: wenn die Schale stabil ist, profitieren alle nachfolgenden Wellen. Audit unter `docs/refactor/welle-3-schale-loader/`.
 
@@ -230,9 +249,11 @@ Erste UX-Welle, weil zentraler Rendezvous-Punkt aller anderen Sub-Welten: wenn d
 - [src/components/library/upload-area.tsx](src/components/library/upload-area.tsx)
 - [src/components/library/create-library-dialog.tsx](src/components/library/create-library-dialog.tsx) (435 Zeilen, 13 Hooks)
 
-#### Welle 3-II - Archiv-Detail (~65 Files, ~22.000 Zeilen, **inkl. file-preview.tsx**)
+#### Welle 3-II - Archiv-Detail (ABGESCHLOSSEN, PRs #27-#39)
 
 Detail-Ansicht einer Library-Datei. Umfasst die alte Plan-Welle 3b (`file-preview.tsx`) als Sub-Welle innerhalb 3-II, weil fachlich Teil des Archiv-Detail-Erlebnisses.
+
+**Bilanz**: -4.733z (-39.7%) ueber 6 Hauptdateien (file-preview.tsx, markdown-preview.tsx, markdown-metadata.tsx, job-report-tab.tsx, media-tab.tsx, flow/pipeline-sheet.tsx). 20 neue Sub-Module, 82 neue Char-Tests. Doku: `docs/refactor/welle-3-archiv-detail/06-acceptance-3-ii-GESAMT.md`.
 
 **Top-Files (Auszug):**
 - [src/components/library/file-preview.tsx](src/components/library/file-preview.tsx) (3.701 Zeilen, 66 Hooks, 1 leerer Catch, 1 Storage-Branch) — eigene Mehr-Phasen-Sub-Welle 3-II-a "Preview-Switch"
@@ -242,13 +263,32 @@ Detail-Ansicht einer Library-Datei. Umfasst die alte Plan-Welle 3b (`file-previe
 - `*-detail.tsx` (testimonial, climate-action, book, ingestion-book, diva-texture, ingestion-diva-texture, session)
 - `audio-*`, `video-*`, `image-*`, `pdf-*`, `text-editor`, `markdown-metadata`, `chapter-accordion`, `slide-accordion`, `flow/*`, `shared/*` (ohne perspective-*)
 
-**Sub-Wellen-Vorschlag** (im Audit-Schritt verfeinern):
-- 3-II-a: `file-preview.tsx` Modul-Split nach View-Typ (analog alter Welle 3b: views/audio, views/image, views/video, views/markdown, views/pdf, views/office, views/presentation, views/website + extension-map + preview-reducer). Bezug zu [.cursor/rules/detail-view-type-checklist.mdc](.cursor/rules/detail-view-type-checklist.mdc).
-- 3-II-b: `markdown-preview.tsx` aufsplitten + leere Catches fixen
-- 3-II-c: `job-report-tab.tsx` + `media-tab.tsx` (Tabs der Detail-View)
-- 3-II-d: `*-detail.tsx`-Familie + flow/ + shared/
+**Sub-Wellen** (alle abgeschlossen):
+- 3-II-a: `file-preview.tsx` Modul-Split (PRs #28, #29, #32, #33, #34) - 9 View-Komponenten + 5 Helper-Module
+- 3-II-b: `markdown-preview.tsx` + `markdown-metadata.tsx` (PR #36)
+- 3-II-c: `job-report-tab.tsx` + `media-tab.tsx` Helper-Extract (PR #37)
+- 3-II-d: `*-detail.tsx` + flow/ + shared/ Helper-Extract (PR #38)
 
-#### Welle 3-III - Galerie + Story-Mode + Chat (~65 Files, ~15.000 Zeilen)
+#### Welle 3-II-Hooks - Future-Work aus 3-II (ABGESCHLOSSEN, PRs #40-#43)
+
+Hook-Extraktion fuer die in 3-II nur Helper-extrahierten Files. Die Render-
+Funktionen blieben in 3-II monolithisch und liessen sich erst durch Custom-
+Hooks weiter modularisieren.
+
+**Naming-Hinweis**: Diese Welle wurde initial als "Welle 3-III" gestartet
+und am 2026-05-01 zu **Welle 3-II-Hooks** umbenannt — der Name "3-III"
+ist laut diesem Plan-File fuer die naechste Welle ("Galerie + Story-Mode
++ Chat") reserviert.
+
+**Bilanz**: -513z (-10.9%) ueber 4 Files. Hooks:
+- `useGalleryItems` (media-tab) - PR #40
+- `useFrontmatterEditor` (job-report-tab) - PR #41
+- `useResolvedSessionMedia` (session-detail) - PR #42
+- `useImageGeneration` (cover-image-generator-dialog) - PR #43
+
+Doku: `docs/refactor/welle-3-ii-hooks/06-acceptance-3-ii-hooks-GESAMT.md`.
+
+#### Welle 3-III - Galerie + Story-Mode + Chat (NAECHSTE Welle, ~65 Files, ~15.000 Zeilen)
 
 Konsum-Sicht / RAG-UX. Profitiert von Welle 2 (`chat`-Backend bereits refaktoriert, eigene `chat-contracts.mdc`).
 
@@ -288,6 +328,22 @@ Monitor ist Diagnose-Tool, kein Haupt-Use-Case. **Hohe Drift-Dichte** (12 leere 
 [src/components/creation-wizard/creation-wizard.tsx](src/components/creation-wizard/creation-wizard.tsx) (**4.220 Zeilen**, 16 Hooks, 4 leere Catches, 2 Storage-Branches, Window-Hack `__collectSourceStepBeforeLeave`). **Als allerletzte UX-Welle**, weil komplexester Kandidat — profitiert von allen vorherigen Wellen (saubere Backend-Contracts, saubere Schale, saubere Detail-View → sauberer Wizard-Flow).
 
 Gleiche 4-Phasen-Struktur wie 3-II-a: Inventur+Audit, Modul-Split (vermutlich pro Wizard-Step ein Modul), Characterization Tests, Altlast-Pass (Window-Hack eliminieren).
+
+**Strategie-Entscheidung 2026-05-01 (UX-First, NICHT Refactor-First)**: User
+hat angemerkt, dass die Wizard-Usability aktuell nicht optimal ist und in
+strukturellen UX-Aspekten geaendert werden soll. Reihenfolge ist daher
+zwingend:
+
+1. **UX-Anpassungen** am Wizard durchfuehren (User-getrieben, vorab UX-
+   Beduerfnisse dokumentieren)
+2. **DANN refaktorisieren** — Refactor friert die saubere UX-Struktur ein,
+   nicht die instabile alte
+
+Begruendung: Refactor sollte Stabilitaet liefern, nicht eine instabile
+Struktur einfrieren. Andernfalls droht Doppel-Refactor-Aufwand.
+
+UX-Beduerfnisse vorab unter `docs/creation-wizard/ux-anforderungen.md`
+sammeln (User dokumentiert).
 
 ### Welle 4 - Niedrige Prioritaet
 12. `event-job` (Lib) - eigene Domaene per ADR 0001, separat von external-jobs. UI-Teil bereits in Welle 3-V abgedeckt

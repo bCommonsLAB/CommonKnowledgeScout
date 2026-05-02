@@ -78,7 +78,7 @@ Render-Funktionen ohne klare Sub-Komponenten-Struktur. Stattdessen
 **Acceptance**: `06-acceptance-3-ii-c.md`
 
 **Bilanz**: 3.483 → 3.220 Zeilen (-7.5%) — wenig, aber konservativ
-korrekt. Future Work: Hook-Extraktion (Welle 3-III).
+korrekt. Future Work: Hook-Extraktion (Welle 3-II-Hooks, abgeschlossen).
 
 ### Welle 3-II-d — Detail + Flow + Shared (PR #38)
 
@@ -137,7 +137,7 @@ Entscheidung**. Default-Strategie:
 - Types raus
 - Render-Logik unangetastet
 
-Grosse Splits sind dann **Future Work** (Welle 3-III).
+Grosse Splits sind dann **Future Work** (Welle 3-II-Hooks, abgeschlossen).
 
 ### Lehre 5: Re-Export-Pattern haelt API stabil
 
@@ -172,7 +172,14 @@ ihre Imports nicht aendern. **Pattern fuer alle kommenden Wellen.**
 | Sub-Komponenten in eigenen Modulen | OK (9 View-Komponenten + 4 weitere Sub-Komponenten) |
 | Re-Export-Pattern bei Public-API-Komponenten (pipeline-sheet) | OK |
 
-## Future Work (kommt in Welle 3-III)
+## Future Work (umgesetzt in Welle 3-II-Hooks)
+
+> **Naming-Update 2026-05-01**: Diese Future-Work-Welle hieß initial
+> "Welle 3-III" und wurde zu **Welle 3-II-Hooks** umbenannt, weil der
+> Name "3-III" laut Plan-File für die noch nicht begonnene Welle
+> "Galerie + Story-Mode + Chat" reserviert ist.
+>
+> Acceptance-Doku: `../welle-3-ii-hooks/06-acceptance-3-ii-hooks-GESAMT.md`
 
 Folgende Files sind zwar in Welle 3-II beruehrt worden, aber haben
 **weiteres Refactor-Potenzial**, das spezielle Architektur-Entscheidungen
@@ -197,9 +204,11 @@ braucht:
 - `use-image-generation` Hook
 - Generated-Image-Grid als Sub-Komponente
 
-**Empfehlung Welle 3-III**: Diese 4 Files als Sub-Wellen 3-III-a/b/c/d
-mit fokussierter **Hook-Extraktion**. Pro Sub-Welle 1 PR mit
-~3.000-4.000 Zeilen Brutto-Diff.
+**Welle 3-II-Hooks** (umgesetzt 2026-05-01): Diese 4 Files wurden in
+Sub-Wellen 3-II-Hooks-a/b/c/d mit fokussierter **Hook-Extraktion**
+abgearbeitet. PRs #40-#43 alle gemerged. Bilanz: -513z (-10.9%) ueber
+4 Files, 4 neue Hook-Module, 35 neue Char-Tests. Vollstaendige
+Dokumentation: `../welle-3-ii-hooks/06-acceptance-3-ii-hooks-GESAMT.md`.
 
 ## User-Sign-off
 

@@ -93,9 +93,14 @@ trivial und sollten erst nach Architektur-Diskussion gemacht werden:
 - **Upload-Area + Slot-Renderer** als Sub-Komponenten
 
 ### Empfehlung
-Diese Future-Work-Items in einem separaten Refactor-Cycle (z.B.
-"Welle 3-III: Hooks-Extraktion") angehen, wenn klar ist welche
-Architektur-Form (Hooks vs. Sub-Komponenten) das Team praeferiert.
+Diese Future-Work-Items in einem separaten Refactor-Cycle angehen, wenn
+klar ist welche Architektur-Form (Hooks vs. Sub-Komponenten) das Team
+praeferiert.
+
+**Update 2026-05-01**: `use-gallery-items` wurde in Welle 3-II-Hooks-a
+(PR #40) umgesetzt. Doku: `../welle-3-ii-hooks/06-acceptance-3-ii-hooks-GESAMT.md`.
+`use-assignment-target` und Sub-Komponenten bleiben Future Work
+(Plan-Anpassung in Welle 3-II-Hooks: Logik nicht isolierbar wie geplant).
 
 ## Methodik-DoD
 

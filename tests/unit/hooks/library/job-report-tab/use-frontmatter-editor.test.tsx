@@ -2,7 +2,7 @@
 
 /**
  * Characterization Tests fuer useFrontmatterEditor-Hook
- * (Welle 3-III-b, Schritt 3/4 — Sicherheitsnetz fuer Inline-Editing).
+ * (Welle 3-II-Hooks-b, Schritt 3/4 — Sicherheitsnetz fuer Inline-Editing).
  *
  * Fixiert das Render-Verhalten:
  * - Initial-State (kein Edit-Feld, leerer Wert, nicht speichernd)

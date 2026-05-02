@@ -81,10 +81,19 @@ Vor jedem Refactor eines Moduls existiert ein Audit-File `docs/refactor/<modul>/
 - Beim Loeschen oder Verschieben von Code: zugehoerige Tests, Rules und Docs **immer** mit-anpassen — nie verwaiste Bestands-Artefakte zurueck lassen
 - Existiert noch kein Audit-File fuer ein Modul: Aufgabe abbrechen und im PR/Comment melden, dass Audit-Phase fehlt
 
+### Wellen-Naming-Konvention (PFLICHT)
+
+Plan-Wellen-Nummern (Welle 0, 1, 2, 3-I, 3-II, 3-III, ...) sind im Plan-File reserviert — auch fuer noch nicht begonnene Wellen. Future-Work-Wellen, die aus einer Mutter-Welle entstehen, bekommen den Mutter-Namen mit Suffix (z.B. **Welle 3-II-Hooks** als Future-Work aus Welle 3-II), KEINE neue Wellen-Nummer.
+
+Verbindliche Regel: `.cursor/rules/refactor-naming-konvention.mdc`.
+
+Vor dem Anlegen eines neuen `docs/refactor/welle-X-Y/`-Verzeichnisses immer im Plan-File pruefen, ob die Nummer bereits reserviert ist.
+
 ### Branching, Commits, PRs
 
 - Default-Branch dieses Repos ist `master` (nicht `main`)
 - Branch-Namensschema fuer Refactoring-Plan: `refactor/cloud-<schritt>` (z.B. `refactor/cloud-tooling-setup`)
+- Branch-Schema Welle: `cursor/refactor-welle-<welle>-<beschreibung>-<suffix>` (z.B. `cursor/refactor-welle-3-iii-a-gallery-a03a`)
 - **Pro Welle EINE PR** (siehe `.cursor/rules/refactor-batch-strategy.mdc`)
   - Mehrere kohaerente Commits, max **1.000 Zeilen Diff pro Commit** (hart)
   - Max **5.000 Zeilen Brutto-Diff pro PR** (weich, mit Begruendung mehr OK)
