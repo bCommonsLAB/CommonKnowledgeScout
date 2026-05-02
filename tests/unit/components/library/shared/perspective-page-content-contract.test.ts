@@ -10,7 +10,14 @@
  * Diese Tests beweisen, dass Konsumenten ihre Imports NICHT aendern muessen.
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+
+// Clerk initialisiert in Node-Umgebung Netzwerk-Verbindungen, die den Test-Import haengen lassen.
+// Der Mock verhindert das — der Test prueft nur den Export-Vertrag, nicht Clerk-Funktionalitaet.
+vi.mock('@clerk/nextjs', () => ({
+  useUser: () => ({ user: null, isLoaded: false, isSignedIn: false }),
+  useAuth: () => ({ userId: null, isLoaded: false, isSignedIn: false }),
+}))
 
 describe('PerspectivePageContent Export-Vertrag', () => {
   it('PerspectivePageContent ist eine Funktion (React-Komponente)', async () => {
