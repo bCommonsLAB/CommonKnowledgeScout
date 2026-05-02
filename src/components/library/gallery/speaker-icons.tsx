@@ -35,8 +35,13 @@ function normalizeImageUrls(urls: unknown): string[] | undefined {
             .filter((x: string) => x.length > 0)
           return arr.length > 0 ? arr : undefined
         }
-      } catch {
-        // Fehler beim Parsen, versuche manuell zu extrahieren
+      } catch (parseError) {
+        // Frontmatter-Felder werden manchmal als Python-aehnliche
+        // Listen serialisiert ("['a', 'b']"). Wenn JSON.parse das nicht
+        // versteht, faellt der Code auf eine Regex-basierte Extraktion
+        // zurueck. Wir loggen den Parse-Fehler bewusst (no-silent-
+        // fallbacks.mdc), damit kaputte Daten sichtbar bleiben.
+        console.warn('[speaker-icons] JSON-Parse fehlgeschlagen, faelle auf Regex-Extraktion zurueck:', parseError, { trimmed })
         const matches = trimmed.match(/(['"])((?:(?!\1).)*)\1/g)
         if (matches && matches.length > 0) {
           const arr = matches.map(m => m.slice(1, -1).trim()).filter(Boolean)

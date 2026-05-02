@@ -79,8 +79,11 @@ export function DocumentShareButton({
         url,
       })
       return true
-    } catch {
-      // User cancelled oder Fehler
+    } catch (error) {
+      // navigator.share wirft bei User-Abbruch ('AbortError') oder bei
+      // technischen Fehlern. Beides darf die UI nicht stoppen — wir
+      // loggen den Fehler aber bewusst (no-silent-fallbacks.mdc).
+      console.warn('[DocumentShareButton] navigator.share fehlgeschlagen oder vom User abgebrochen:', error)
       return false
     }
   }, [getDocumentUrl, getShareText, doc, title])
@@ -92,8 +95,11 @@ export function DocumentShareButton({
       await navigator.clipboard.writeText(url)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch {
-      // Fallback für ältere Browser
+    } catch (clipboardError) {
+      // navigator.clipboard ist in alten Browsern oder unsicheren Kontexten
+      // (HTTP statt HTTPS) nicht verfuegbar. Wir versuchen einen
+      // Fallback ueber document.execCommand und loggen die Ursache.
+      console.warn('[DocumentShareButton] navigator.clipboard nicht verfuegbar, versuche execCommand-Fallback:', clipboardError)
       try {
         const textArea = document.createElement('textarea')
         textArea.value = getDocumentUrl()
@@ -105,8 +111,10 @@ export function DocumentShareButton({
         document.body.removeChild(textArea)
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
-      } catch {
-        // Fehler beim Kopieren - ignorieren
+      } catch (execError) {
+        // Letzter Fallback ist fehlgeschlagen — Logging ist wichtig,
+        // damit User-Feedback bei kaputter Browser-API moeglich wird.
+        console.error('[DocumentShareButton] Auch execCommand-Fallback fehlgeschlagen:', execError)
       }
     }
   }, [getDocumentUrl])

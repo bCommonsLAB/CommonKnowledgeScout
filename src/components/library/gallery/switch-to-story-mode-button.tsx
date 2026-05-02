@@ -134,8 +134,12 @@ export function SwitchToStoryModeButton({
           }, 50)
         })
       })
-    } catch {
-      // Reset Flag auch bei Fehler
+    } catch (error) {
+      // Navigations-Fehler werden hier gefangen, weil `router.push`
+      // bei abgebrochenen Routen werfen kann. Wir loggen den Fehler
+      // (no-silent-fallbacks.mdc) und greifen auf den Filter-Fallback
+      // zurueck, damit der User trotzdem den Story-Modus erreicht.
+      console.warn('[SwitchToStoryModeButton] Navigation in den Story-Modus fehlgeschlagen, wende Filter-Fallback an:', error)
       if (isSwitchingRef) {
         isSwitchingRef.current = false
       }
