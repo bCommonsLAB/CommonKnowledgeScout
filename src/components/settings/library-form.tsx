@@ -6,19 +6,8 @@ import { z } from "zod"
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { v4 as uuidv4 } from "uuid"
 import { useAtom } from "jotai"
-import { useUser } from "@clerk/nextjs"
-
-/**
- * Build-Zeit-sichere Hook-Wrapper für useUser
- */
-function useSafeUser() {
-  try {
-    return useUser();
-  } catch {
-    return { user: null, isLoaded: true };
-  }
-}
 import { useRouter } from "next/navigation"
+import { useSafeUser } from "@/hooks/use-safe-user"
 
 import { Button } from "@/components/ui/button"
 import {

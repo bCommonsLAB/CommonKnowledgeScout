@@ -5,7 +5,6 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { useState, useEffect, useMemo } from "react"
 import { useAtom } from "jotai"
-import { useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
@@ -32,17 +31,7 @@ import { Switch } from "@/components/ui/switch"
 import { AlertCircle, CheckCircle2, Copy, Loader2 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { librariesAtom, activeLibraryIdAtom } from "@/atoms/library-atom"
-
-/**
- * Build-Zeit-sichere Hook-Wrapper für useUser
- */
-function useSafeUser() {
-  try {
-    return useUser();
-  } catch {
-    return { user: null, isLoaded: true };
-  }
-}
+import { useSafeUser } from "@/hooks/use-safe-user"
 
 // Schema für Public-Publishing-Formular
 const publicFormSchema = z.object({
