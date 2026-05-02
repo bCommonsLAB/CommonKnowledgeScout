@@ -75,7 +75,8 @@ flowchart TD
   s4 --> s5[5 Strangler-Fig Migration]
   s5 --> s6[6 Dead-Code entfernen]
   s6 --> s7[7 Abnahme]
-  s7 --> done[Modul gruen]
+  s7 --> s8[8 Hand-off fuer naechste Welle]
+  s8 --> done[Modul gruen]
 ```
 
 ## Schritt 0 — Bestands-Audit (Rules, Tests, Docs)
@@ -219,6 +220,7 @@ Modul gilt als "gruen", wenn alle Punkte erfuellt sind:
 - Test-Plan-File `docs/refactor/<modul>/05-user-test-plan.md` existiert (siehe R3)
 - Modul-spezifische Contract-Rule existiert
 - Acceptance-File `docs/refactor/<modul>/04-acceptance.md` existiert mit Methodik+Modul-DoD-Status
+- **Hand-off-Block** im Acceptance-Doc und PR-Body (siehe Schritt 8)
 
 **Modul-DoD** (Welle-spezifisch, im Plan VORHER festgelegt):
 
@@ -228,6 +230,36 @@ Modul gilt als "gruen", wenn alle Punkte erfuellt sind:
 - **User-Verifikation lokal** durchgefuehrt und dokumentiert (Datum, Befund, Use-Cases)
 - Konkrete Modul-Ziele (z.B. "−N leere Catches", "Datei X < Y Zeilen") erfuellt
 - `pnpm health --module <modul>` zeigt die im Plan vereinbarten Werte
+
+## Schritt 8 — Hand-off (Cloud-Agent-Kostenstrategie)
+
+Pflicht-Schritt am Welle-Ende. Verbindlich seit 2026-05-02 (siehe
+[`.cursor/rules/cloud-agent-cost-strategy.mdc`](../../.cursor/rules/cloud-agent-cost-strategy.mdc)).
+
+Jede Welle-PR endet mit einem **Hand-off-Block** im PR-Body und in der
+Antwort-Zusammenfassung. Der Block enthaelt genau die Anweisungen, die
+der User braucht, um die naechste Welle guenstig zu starten.
+
+### Pflicht-Inhalte des Hand-off-Blocks
+
+1. **Lokale Verifikation**: Aufruf von `bash scripts/welle-pre-merge-check.sh`
+   (User macht das lokal, NICHT im Cloud-Agent — spart 3-5 USD pro Welle)
+2. **Naechste Welle-Identifikation**: Name, Branch, AGENT-BRIEF-Sektion
+3. **Modellempfehlung**: Sonnet/Opus + Thinking-Level, mit Begruendung
+   (siehe `cloud-agent-cost-strategy.mdc` R2)
+4. **Agent-Typ-Empfehlung**: NEUER Agent oder Resume, mit Begruendung
+   (Default: NEUER Agent — Resume nur in Ausnahmefaellen, siehe R3)
+5. **Konkreter Start-Prompt** (kopierbar in den naechsten Cloud-Agent)
+6. **Kosten-Schaetzung** (mit/ohne Empfehlungen)
+
+### Begruendung
+
+Cache-Read-Kosten skalieren quadratisch mit Konversations­laenge. Eine
+Session ueber 5 Wellen kostet nicht 5x sondern eher 15-20x. Pro Welle
+ein neuer Agent + Sonnet statt Opus + lokal bauen = ca. 1/4 der
+Originalkosten.
+
+Vorlage: [`docs/refactor/cloud-agent-kostenoptimierung.md`](./cloud-agent-kostenoptimierung.md).
 
 ## Werkzeuge (alle in `pnpm`)
 

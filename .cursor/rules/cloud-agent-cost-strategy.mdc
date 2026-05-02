@@ -1,0 +1,208 @@
+---
+description: Kosten-Strategie fuer Cloud-Agents — Hand-off-Pflicht am Welle-Ende, Modellwahl, lokale Verifikation
+globs: docs/refactor/**/*.md,.cursor/plans/**/*.md,scripts/welle-pre-merge-check.sh,AGENTS.md
+alwaysApply: true
+---
+
+# Cloud-Agent-Kosten-Strategie
+
+## Kontext
+
+Beobachtung 2026-05-02: Eine einzige Refactoring-Session ueber mehrere
+Wellen (3-II + 3-II-Hooks + 3-III-Vorbereitung + 3-III-a) hat im
+Cursor-Cloud-Dashboard **Hunderte USD** verursacht. Hauptkosten-
+treiber:
+
+1. **Cache-Read** waechst quadratisch mit Konversations­laenge: 5 Wellen
+   in einer Session = 60+ Mio Cache-Tokens pro Tool-Call (~18 USD/Aktion)
+2. **Modell `claude-opus-4-7-thinking-xhigh`** ist die teuerste Variante
+   (~5x Sonnet, plus Reasoning-Overhead durch xhigh-Thinking)
+3. **`pnpm test/lint/build` im Cloud** kostet ~3-5 USD pro Lauf — lokal
+   kostenlos
+4. **Auto-angehaengte Cursor-Rules** an jeden Read-Tool-Call (~150z
+   pro Read, multipliziert mit Cache-Replays)
+
+Diese Rule kodifiziert die Gegenmassnahmen.
+
+## Kernprinzip
+
+**Am Ende jeder Welle (Sub-Welle inklusive) MUSS der Agent dem User
+einen expliziten Hand-off-Block liefern.** Der Hand-off enthaelt
+genau die Anweisungen, die der User braucht, um die naechste Welle
+guenstig zu starten.
+
+**Kein „mach einfach weiter"-Pattern.** Der Agent stoppt nach Welle-
+Ende, wartet auf User-OK und User-merge, und liefert dann den Hand-off
+fuer die naechste Welle.
+
+## R1 — Pflicht-Hand-off-Block am Welle-Ende
+
+Jede Welle-Acceptance-PR endet im PR-Body und in der Antwort-
+Zusammenfassung mit einem Block dieser Form:
+
+```
+## Hand-off fuer die naechste Welle
+
+### Lokale Verifikation (DURCH USER ausfuehren, vor Merge)
+
+```bash
+bash scripts/welle-pre-merge-check.sh
+```
+
+Erwartung: alles gruen. Falls rot: Befund im PR-Comment, Agent
+fixed nach.
+
+### Naechste Welle: <Name>
+
+- **Branch (geplant)**: cursor/refactor-welle-<name>-a03a
+- **Empfohlenes Modell**: <model> (Begruendung: ...)
+- **Empfohlener Agent-Typ**: NEUER Agent (kein Resume) — oder:
+  RESUME bestehender Agent (Begruendung: ...)
+- **AGENT-BRIEF lesen**: docs/refactor/<welle>/AGENT-BRIEF.md
+  Sektion "<sub-welle>"
+- **Erwartete Bilanz**: ca. -<N>z Hauptdatei, +<M> Sub-Module
+- **Erwarteter Brutto-Diff**: ~<X>z
+
+### Konkreter Start-Prompt fuer den naechsten Agent
+
+```
+Lies VOR dem Start (in dieser Reihenfolge):
+1. AGENTS.md
+2. .cursor/rules/cloud-agent-cost-strategy.mdc
+3. .cursor/rules/refactor-batch-strategy.mdc
+4. .cursor/rules/welle-<modul>-contracts.mdc
+5. docs/refactor/<modul>/AGENT-BRIEF.md (Sektion "<sub-welle>")
+6. docs/refactor/<modul>/04-altlast-pass.md (Hot-Spot-Liste)
+
+Aufgabe: <konkrete Sub-Welle, ein Satz>
+
+Branch: cursor/refactor-welle-<sub>-<suffix>
+
+Vor dem Start: pnpm install --frozen-lockfile
+Vor jedem Push: pnpm test + pnpm lint
+Build/Test-Verifikation: User macht das LOKAL via
+bash scripts/welle-pre-merge-check.sh — Agent ruft pnpm build
+nur dann auf, wenn ein konkreter Verdacht vorliegt.
+
+PR als Draft. Smoke-Test-Plan im PR-Body.
+Antworte auf Deutsch.
+```
+
+### Geschaetzte Kosten der naechsten Welle
+
+- Mit DIESEN Empfehlungen: ca. <X> USD
+- Mit Status-quo-Pattern (Opus + Cloud-Build + Resume): ca. <Y> USD
+- Spar-Faktor: <Z>x
+```
+
+Der User kopiert den Start-Prompt 1:1 in den neuen Cloud-Agent —
+fertig.
+
+## R2 — Modellwahl-Empfehlung
+
+| Welle-Typ | Empfohlenes Modell | Begruendung |
+|---|---|---|
+| Audit + Inventur (nur Doku) | claude-sonnet, thinking-medium | Mechanisch, keine Architektur |
+| Char-Tests schreiben | claude-sonnet, thinking-medium | Pattern-Replikation aus Vorbild-Wellen |
+| Pure-Helper / Hook-Extract | claude-sonnet, thinking-medium | Klare Schnittstelle, gut testbar |
+| Kleinerer Modul-Split (1 Hauptdatei) | claude-sonnet, thinking-medium | Bei klarem Vorbild aus Vorwelle |
+| Grosser Modul-Split (>1 Hauptdatei) | claude-opus, thinking-medium | Cross-File-Edits, mehr Kontext |
+| Architektur-Entscheidung | claude-opus, thinking-high | Trade-offs gegeneinander abwaegen |
+| Bug-Hunt / Latenter-Bug-Analyse | claude-opus, thinking-high | Hypothesen-Generierung |
+
+Verboten ohne Begruendung:
+- `thinking-xhigh` (selten noetig, sehr teuer)
+- `opus` fuer reine Doku-Tasks
+
+## R3 — Neuer Agent pro Sub-Welle (nicht Resume)
+
+**Default**: Pro Sub-Welle ein **neuer** Cloud-Agent.
+
+Begruendung: Cache-Kosten skalieren quadratisch. Eine Session ueber
+5 Wellen kostet nicht 5x sondern eher 15-20x.
+
+**Ausnahmen** (Resume erlaubt):
+- Hotfix in derselben Welle (z.B. Build-Fehler nach Push)
+- Sub-Welle 2 baut zwingend auf In-Memory-Erkenntnis von Sub-Welle 1
+  auf, die nicht in der Doku gelandet ist
+- Welle ist sehr kurz (< 500z Brutto-Diff erwartet)
+
+In allen anderen Faellen: NEUER Agent mit dem **Start-Prompt aus dem
+Hand-off-Block** der Vorgaenger-Welle.
+
+## R4 — Lokale Verifikation als Default, nicht als Ausnahme
+
+**Bisheriges Pattern (teuer)**: Agent macht nach jedem Commit
+`pnpm test + pnpm lint + pnpm build`. Der Build allein kostet
+3-5 USD pro Lauf.
+
+**Neues Pattern (guenstig)**: Agent macht waehrend der Arbeit:
+- `pnpm test --run <relevante-paths>` (gezielt, schnell, billig)
+- `pnpm lint` (schnell, billig)
+
+`pnpm build` wird **nicht** vom Agent ausgefuehrt, sondern vom User
+**lokal vor Merge** via:
+
+```bash
+bash scripts/welle-pre-merge-check.sh
+```
+
+Das Script macht alle 3 Checks. Wenn etwas rot ist, wird der Agent
+mit dem konkreten Befund neu beauftragt.
+
+**Ausnahme**: Wenn der Agent einen konkreten Verdacht auf einen
+Build-Fehler hat (z.B. nach Modul-Split mit vielen Imports), darf er
+**einmal** `pnpm build` ausfuehren. Mehrfaches Bauen ohne Fortschritt
+ist verboten.
+
+## R5 — Tool-Call-Disziplin
+
+- **`Grep` statt `Read` fuer Suche**: gezielte Pattern-Suche statt
+  ganze Files zu lesen
+- **`Read` mit `offset`/`limit`** bei grossen Files (>500z): nur den
+  relevanten Bereich lesen
+- **Mehrere Tool-Calls in einem Message-Batch** wenn unabhaengig
+  (gleichzeitige Reads/Greps)
+- **Keine `Read`-Wiederholungen**: wenn ein File schon gelesen wurde,
+  nicht erneut lesen ausser nach Aenderungen
+
+Negativbeispiel: 30x `Read` auf dasselbe File ueber mehrere Wellen
+hinweg in einer Session (jeder Read kostet wegen des Cursor-Rule-
+Auto-Anhangs ~150z extra plus Cache-Replay).
+
+## R6 — Doku-First-Strategie reduziert Kontext-Bedarf
+
+Wenn das Modul gut dokumentiert ist (`00-audit.md`, `01-inventory.md`,
+`AGENT-BRIEF.md`), kann ein **neuer Agent ohne Konversations-Historie
+loslegen**, weil alle Entscheidungen + Stand in der Doku stehen.
+
+Konsequenz fuer den Agent: **Doku ist die primaere Schnittstelle
+zwischen Wellen**, nicht der Chat-Verlauf. Jede Acceptance-Doc muss
+selbst-erklaerend sein.
+
+## R7 — Stop-Bedingung: Kosten-Eskalation
+
+Stoppe sofort und melde dem User, wenn:
+
+- Mehr als 3 grosse File-Reads (>500z) in derselben Welle ohne
+  Modul-Split-Fortschritt
+- `pnpm build` mehr als 2x in derselben Welle ohne Fortschritt (statt-
+  dessen User um lokale Verifikation bitten)
+- Welle-Volumen sprengt das Limit (>5.000z Brutto-Diff) — eher in
+  Sub-Sub-Welle aufteilen als auf Opus eskalieren
+
+## Geschaetzte Ersparnis
+
+| Massnahme | Erwartete Ersparnis | Kumulativ |
+|---|---:|---:|
+| Sonnet statt Opus (R2) | -50% | 50% |
+| Neuer Agent pro Sub-Welle (R3) | -40% | 30% des Originals |
+| Lokal bauen/testen (R4) | -15% | 25% des Originals |
+| Tool-Call-Disziplin (R5) | -10% | ~22% (= 1/4) |
+
+## Verweise
+
+- Lokales Pre-Merge-Script: `scripts/welle-pre-merge-check.sh`
+- Hand-off-Templates: `docs/refactor/cloud-agent-kostenoptimierung.md`
+- Methodik: `.cursor/rules/refactor-batch-strategy.mdc`
+- AGENTS.md (Pflicht-Block am Welle-Ende)
