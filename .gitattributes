@@ -1,0 +1,33 @@
+# .gitattributes
+# Verhindert, dass Git Shell-Scripts auf Windows mit CRLF auscheckt.
+# Ohne diese Datei konvertiert Git (core.autocrlf=true) alle Dateien auf CRLF,
+# was bash-Scripts mit "\r: command not found" unausfuehrbar macht.
+
+# Standard: automatische Erkennung
+* text=auto
+
+# Shell-Scripts immer mit LF (Unix-Zeilenenden)
+*.sh text eol=lf
+
+# Konfigurationsdateien immer mit LF
+*.mdc text eol=lf
+*.md  text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.ts  text eol=lf
+*.tsx text eol=lf
+*.js  text eol=lf
+*.css text eol=lf
+*.env text eol=lf
+
+# Binaerdateien: keine Zeilenenden-Konvertierung
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar binary
+*.gz binary

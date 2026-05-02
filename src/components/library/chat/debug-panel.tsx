@@ -1,6 +1,6 @@
 "use client"
 
-import type { QueryLog } from '@/types/query-log'
+import type { QueryLog, QueryRetrievalStep } from '@/types/query-log'
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
 import { DebugStepTable } from './debug-step-table'
 import { DebugTrace } from './debug-trace'

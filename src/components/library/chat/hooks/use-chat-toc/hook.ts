@@ -10,6 +10,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import type { StoryTopicsData } from '@/types/story-topics'
 import type { ChatResponse } from '@/types/chat-response'
 import { TOC_QUESTION } from '@/lib/chat/constants'
+import type { AnswerLength, Retriever, TargetLanguage, Character, AccessPerspective, SocialContext, LlmModelId } from '@/lib/chat/constants'
 import type { UseChatTOCParams, UseChatTOCResult, CachedTOC } from './types'
 
 /**
