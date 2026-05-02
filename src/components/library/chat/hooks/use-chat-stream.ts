@@ -415,7 +415,7 @@ export function useChatStream(params: UseChatStreamParams): UseChatStreamResult 
                       try {
                     element.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
                       } catch {
-                        // Ignoriere Scroll-Fehler auf älteren Geräten (kein Log erforderlich)
+                        // scrollIntoView wird auf aelteren Geraeten nicht unterstuetzt — kein Log noetig
                       }
                     } else if (attempts < 3) {
                       // Versuche es nochmal nach kurzer Verzögerung

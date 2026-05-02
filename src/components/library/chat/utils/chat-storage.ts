@@ -23,8 +23,9 @@ export function getInitialTargetLanguage(): TargetLanguage {
       const parsed = JSON.parse(stored) as TargetLanguage
       return parsed
     }
-  } catch {
-    // Ignoriere Fehler
+  } catch (error) {
+    // localStorage nicht verfuegbar oder JSON ungueltig — Default zurueckgeben
+    console.warn('[chat-storage] getInitialTargetLanguage: localStorage-Fehler:', error)
   }
   return TARGET_LANGUAGE_DEFAULT
 }
@@ -44,8 +45,9 @@ export function getInitialCharacter(): Character[] {
         return [parsed as Character]
       }
     }
-  } catch {
-    // Ignoriere Fehler
+  } catch (error) {
+    // localStorage nicht verfuegbar oder JSON ungueltig — Default zurueckgeben
+    console.warn('[chat-storage] getInitialCharacter: localStorage-Fehler:', error)
   }
   return CHARACTER_DEFAULT
 }
@@ -65,8 +67,9 @@ export function getInitialAccessPerspective(): AccessPerspective[] {
         return [parsed as AccessPerspective]
       }
     }
-  } catch {
-    // Ignoriere Fehler
+  } catch (error) {
+    // localStorage nicht verfuegbar oder JSON ungueltig — Default zurueckgeben
+    console.warn('[chat-storage] getInitialAccessPerspective: localStorage-Fehler:', error)
   }
   return ACCESS_PERSPECTIVE_DEFAULT
 }
@@ -79,8 +82,9 @@ export function getInitialSocialContext(): SocialContext {
       const parsed = JSON.parse(stored) as SocialContext
       return parsed
     }
-  } catch {
-    // Ignoriere Fehler
+  } catch (error) {
+    // localStorage nicht verfuegbar oder JSON ungueltig — Default zurueckgeben
+    console.warn('[chat-storage] getInitialSocialContext: localStorage-Fehler:', error)
   }
   return SOCIAL_CONTEXT_DEFAULT
 }
@@ -93,8 +97,9 @@ export function getInitialGenderInclusive(): boolean {
       const parsed = JSON.parse(stored) as boolean
       return parsed
     }
-  } catch {
-    // Ignoriere Fehler
+  } catch (error) {
+    // localStorage nicht verfuegbar oder JSON ungueltig — Default zurueckgeben
+    console.warn('[chat-storage] getInitialGenderInclusive: localStorage-Fehler:', error)
   }
   return GENDER_INCLUSIVE_DEFAULT
 }
@@ -107,8 +112,9 @@ export function getInitialLlmModel(): LlmModelId {
       const parsed = JSON.parse(stored) as LlmModelId
       return parsed
     }
-  } catch {
-    // Ignoriere Fehler
+  } catch (error) {
+    // localStorage nicht verfuegbar oder JSON ungueltig — Default zurueckgeben
+    console.warn('[chat-storage] getInitialLlmModel: localStorage-Fehler:', error)
   }
   return LLM_MODEL_DEFAULT
 }

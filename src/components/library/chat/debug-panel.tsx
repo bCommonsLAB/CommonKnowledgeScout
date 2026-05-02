@@ -37,6 +37,8 @@ export function DebugPanel({ log }: { log: QueryLog }) {
     try {
       return t(`chat.answerLengthLabels.${answerLength}` as 'chat.answerLengthLabels.kurz' | 'chat.answerLengthLabels.mittel' | 'chat.answerLengthLabels.ausführlich' | 'chat.answerLengthLabels.unbegrenzt') || answerLength
     } catch {
+      // t() kann fehlschlagen, wenn der Schluessel nicht im i18n-Bundle existiert —
+      // in diesem Fall wird der Rohwert (answerLength) als Fallback-Label angezeigt
       return answerLength
     }
   }

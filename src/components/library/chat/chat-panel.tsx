@@ -74,7 +74,9 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
     try {
       const stored = localStorage.getItem(`chat-activeChatId-${libId}`)
       return stored || null
-    } catch {
+    } catch (error) {
+      // localStorage nicht verfuegbar (z.B. Private-Mode-Restriktion) — null zurueckgeben
+      console.warn('[ChatPanel] getStoredActiveChatId: localStorage-Fehler:', error)
       return null
     }
   }, [])
@@ -87,8 +89,9 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
       } else {
         localStorage.removeItem(`chat-activeChatId-${libId}`)
       }
-    } catch {
-      // Ignoriere Fehler beim Speichern
+    } catch (error) {
+      // localStorage nicht verfuegbar (z.B. Private-Mode-Restriktion) — Speicherung uebersprungen
+      console.warn('[ChatPanel] saveActiveChatId: localStorage-Fehler:', error)
     }
   }, [])
   
@@ -841,8 +844,9 @@ export function ChatPanel({ libraryId, variant = 'default' }: ChatPanelProps) {
             // Wenn keine JSON-Response, verwende Status-Text
             errorMessage = res.statusText || `HTTP ${res.status}`
           }
-        } catch {
-          // Wenn Parsing fehlschlägt, verwende Status-Text
+        } catch (parseError) {
+          // JSON-Parsing der Fehlerantwort fehlgeschlagen — Status-Text als Fallback
+          console.warn('[ChatPanel] Fehler beim Parsen der Error-Response:', parseError)
           errorMessage = res.statusText || `HTTP ${res.status}`
         }
         
