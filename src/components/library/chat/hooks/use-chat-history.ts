@@ -189,8 +189,9 @@ export function useChatHistory(params: UseChatHistoryParams): UseChatHistoryResu
                 })
                 historyMessages.push(...msgs)
               }
-            } catch {
-              // Ignoriere Fehler beim Laden einzelner Queries
+            } catch (queryError) {
+              // Einzelne Query konnte nicht geladen werden — ueberspringe und fahre mit naechster fort
+              console.warn('[useChatHistory] Fehler beim Laden einer Query:', queryError)
             }
           }
 

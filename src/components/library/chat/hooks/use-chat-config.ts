@@ -101,8 +101,9 @@ export function useChatConfig(params: UseChatConfigParams) {
       if (hasLocalStorage && !localStorageLoadedRef.current) {
         localStorageLoadedRef.current = true
       }
-    } catch {
-      // Ignoriere Fehler
+    } catch (error) {
+      // localStorage nicht verfuegbar (z.B. Private-Mode-Restriktion) — Status wird nicht aktualisiert
+      console.warn('[useChatConfig] localStorage-Zugriff fehlgeschlagen:', error)
     }
   }, [isAnonymous, isEmbedded])
 

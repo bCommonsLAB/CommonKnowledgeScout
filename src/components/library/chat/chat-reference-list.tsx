@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useEffect, useCallback } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useAtomValue } from 'jotai'
 import { activeLibraryIdAtom } from '@/atoms/library-atom'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
@@ -12,6 +12,10 @@ import type { ChatResponse } from '@/types/chat-response'
 import type { QueryLog } from '@/types/query-log'
 import { useSessionHeaders } from '@/hooks/use-session-headers'
 import { useTranslation } from '@/lib/i18n/hooks'
+import {
+  getSourceTypeLabel,
+  groupReferencesByFileId,
+} from './chat-reference-list/helpers'
 
 interface ChatReferenceListProps {
   references: ChatResponse['references']
@@ -93,66 +97,8 @@ export function ChatReferenceList({ references, libraryId, queryId, onDocumentCl
     }
   }, [queryId, libraryId, sessionHeaders])
 
-  // Extrahiere sourceType aus description
-  const extractSourceType = useCallback((description: string): string | undefined => {
-    if (description.includes('Slide-Seite') || description.includes('Slide page')) return 'slides'
-    if (description.includes('Videotranskript') || description.includes('Video transcript')) return 'video_transcript'
-    if (description.includes('Markdown-Body') || description.includes('Markdown body')) return 'body'
-    if (description.includes('Kapitel') || description.includes('Chapter')) return 'chapter'
-    return undefined
-  }, [])
-
-  // Gemeinsame Funktion zum Gruppieren von Referenzen nach fileId
-  const groupReferencesByFileId = useCallback((refs: ChatResponse['references']): Array<{
-    fileName?: string
-    fileId: string
-    sourceGroups: Map<string, { sourceType: string; references: ChatResponse['references'] }>
-    references: ChatResponse['references']
-  }> => {
-    const map = new Map<string, { 
-      fileName?: string
-      fileId: string
-      sourceGroups: Map<string, { sourceType: string; references: ChatResponse['references'] }>
-      references: ChatResponse['references']
-    }>()
-    
-    for (const ref of refs) {
-      const existing = map.get(ref.fileId)
-      const sourceType = extractSourceType(ref.description) || 'unknown'
-      
-      if (existing) {
-        // Füge Referenz zu sourceGroup hinzu
-        const sourceGroup = existing.sourceGroups.get(sourceType)
-        if (sourceGroup) {
-          sourceGroup.references.push(ref)
-        } else {
-          existing.sourceGroups.set(sourceType, {
-            sourceType,
-            references: [ref],
-          })
-        }
-        existing.references.push(ref)
-        // Aktualisiere fileName falls vorhanden
-        if (ref.fileName && !existing.fileName) {
-          existing.fileName = ref.fileName
-        }
-      } else {
-        const sourceGroups = new Map<string, { sourceType: string; references: ChatResponse['references'] }>()
-        sourceGroups.set(sourceType, {
-          sourceType,
-          references: [ref],
-        })
-        map.set(ref.fileId, {
-          fileId: ref.fileId,
-          fileName: ref.fileName,
-          sourceGroups,
-          references: [ref],
-        })
-      }
-    }
-    
-    return Array.from(map.values())
-  }, [extractSourceType])
+  // extractSourceType, groupReferencesByFileId, getSourceTypeLabel sind in ./chat-reference-list/helpers.ts
+  // (Welle 3-III-b: Pure-Helper-Extraktion)
 
   // Erstelle Map von Referenznummer zu Score (aus Sources)
   // WICHTIG: Die Referenznummer entspricht der Position in der ursprünglichen Sources-Liste (1-basiert)
@@ -198,7 +144,9 @@ export function ChatReferenceList({ references, libraryId, queryId, onDocumentCl
         hasScore: scores.length > 0,
       }
     })
-  }, [references, groupReferencesByFileId, referenceScoreMap])
+  // groupReferencesByFileId ist eine stabile Pure-Funktion (importiert aus helpers.ts)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [references, referenceScoreMap])
 
   // Finde nicht verwendete Quellen (sources, die nicht in references sind)
   const unusedSources = useMemo(() => {
@@ -246,23 +194,6 @@ export function ChatReferenceList({ references, libraryId, queryId, onDocumentCl
     
     return Array.from(map.values())
   }, [unusedSources])
-
-  // Übersetze sourceType zu lesbarem Text
-  const getSourceTypeLabel = (sourceType: string): string => {
-    switch (sourceType) {
-      case 'slides':
-        return 'Slides'
-      case 'body':
-        return 'Markdown-Body'
-      case 'video_transcript':
-        return 'Video-Transkript'
-      case 'chapter':
-        return 'Kapitel'
-      default:
-        return sourceType
-    }
-  }
-
 
   // Klick auf Dokument → Öffnet Detailansicht
   const handleDocumentClick = (fileId: string, fileName?: string) => {

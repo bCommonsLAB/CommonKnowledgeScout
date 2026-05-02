@@ -13,108 +13,74 @@ import {
 } from '@/lib/chat/constants'
 
 /**
- * Lädt initiale Werte aus localStorage (client-side only)
+ * Liest einen JSON-Wert sicher aus localStorage.
+ * Gibt null zurueck, wenn der Schluessel fehlt oder JSON ungueltig ist.
+ * Loggt einen Warn-Level-Eintrag bei JSON-Parse-Fehlern.
+ */
+function safeGetLocalStorage(key: string, context: string): unknown | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const stored = localStorage.getItem(key)
+    if (stored === null) return null
+    return JSON.parse(stored)
+  } catch (error) {
+    // localStorage nicht verfuegbar oder gespeicherter JSON ungueltig — Default wird verwendet
+    console.warn(`[chat-storage] ${context}: localStorage-Fehler fuer Schluessel "${key}":`, error)
+    return null
+  }
+}
+
+/**
+ * Lädt initiale Werte aus localStorage (client-side only).
+ * Alle getInitial*-Funktionen sind reine Helfer ohne Seiteneffekte ausser localStorage-Lesen.
  */
 export function getInitialTargetLanguage(): TargetLanguage {
-  if (typeof window === 'undefined') return TARGET_LANGUAGE_DEFAULT
-  try {
-    const stored = localStorage.getItem('story-context-targetLanguage')
-    if (stored) {
-      const parsed = JSON.parse(stored) as TargetLanguage
-      return parsed
-    }
-  } catch {
-    // Ignoriere Fehler
-  }
+  const parsed = safeGetLocalStorage('story-context-targetLanguage', 'getInitialTargetLanguage')
+  if (parsed !== null) return parsed as TargetLanguage
   return TARGET_LANGUAGE_DEFAULT
 }
 
 export function getInitialCharacter(): Character[] {
-  if (typeof window === 'undefined') return CHARACTER_DEFAULT
-  try {
-    const stored = localStorage.getItem('story-context-character')
-    if (stored) {
-      const parsed = JSON.parse(stored)
-      // Migration: Konvertiere Single-Value zu Array
-      if (Array.isArray(parsed)) {
-        return parsed as Character[]
-      }
-      // Alte Single-Value-Werte zu Array konvertieren
-      if (typeof parsed === 'string') {
-        return [parsed as Character]
-      }
-    }
-  } catch {
-    // Ignoriere Fehler
+  const parsed = safeGetLocalStorage('story-context-character', 'getInitialCharacter')
+  if (parsed !== null) {
+    // Migration: Konvertiere Single-Value zu Array (Altdaten-Kompatibilitaet)
+    if (Array.isArray(parsed)) return parsed as Character[]
+    if (typeof parsed === 'string') return [parsed as Character]
   }
   return CHARACTER_DEFAULT
 }
 
 export function getInitialAccessPerspective(): AccessPerspective[] {
-  if (typeof window === 'undefined') return ACCESS_PERSPECTIVE_DEFAULT
-  try {
-    const stored = localStorage.getItem('story-context-accessPerspective')
-    if (stored) {
-      const parsed = JSON.parse(stored)
-      // Migration: Konvertiere Single-Value zu Array
-      if (Array.isArray(parsed)) {
-        return parsed as AccessPerspective[]
-      }
-      // Alte Single-Value-Werte zu Array konvertieren
-      if (typeof parsed === 'string') {
-        return [parsed as AccessPerspective]
-      }
-    }
-  } catch {
-    // Ignoriere Fehler
+  const parsed = safeGetLocalStorage('story-context-accessPerspective', 'getInitialAccessPerspective')
+  if (parsed !== null) {
+    // Migration: Konvertiere Single-Value zu Array (Altdaten-Kompatibilitaet)
+    if (Array.isArray(parsed)) return parsed as AccessPerspective[]
+    if (typeof parsed === 'string') return [parsed as AccessPerspective]
   }
   return ACCESS_PERSPECTIVE_DEFAULT
 }
 
 export function getInitialSocialContext(): SocialContext {
-  if (typeof window === 'undefined') return SOCIAL_CONTEXT_DEFAULT
-  try {
-    const stored = localStorage.getItem('story-context-socialContext')
-    if (stored) {
-      const parsed = JSON.parse(stored) as SocialContext
-      return parsed
-    }
-  } catch {
-    // Ignoriere Fehler
-  }
+  const parsed = safeGetLocalStorage('story-context-socialContext', 'getInitialSocialContext')
+  if (parsed !== null) return parsed as SocialContext
   return SOCIAL_CONTEXT_DEFAULT
 }
 
 export function getInitialGenderInclusive(): boolean {
-  if (typeof window === 'undefined') return GENDER_INCLUSIVE_DEFAULT
-  try {
-    const stored = localStorage.getItem('story-context-genderInclusive')
-    if (stored !== null) {
-      const parsed = JSON.parse(stored) as boolean
-      return parsed
-    }
-  } catch {
-    // Ignoriere Fehler
-  }
+  const parsed = safeGetLocalStorage('story-context-genderInclusive', 'getInitialGenderInclusive')
+  if (parsed !== null) return parsed as boolean
   return GENDER_INCLUSIVE_DEFAULT
 }
 
 export function getInitialLlmModel(): LlmModelId {
-  if (typeof window === 'undefined') return LLM_MODEL_DEFAULT
-  try {
-    const stored = localStorage.getItem('story-context-llmModel')
-    if (stored) {
-      const parsed = JSON.parse(stored) as LlmModelId
-      return parsed
-    }
-  } catch {
-    // Ignoriere Fehler
-  }
+  const parsed = safeGetLocalStorage('story-context-llmModel', 'getInitialLlmModel')
+  if (parsed !== null) return parsed as LlmModelId
   return LLM_MODEL_DEFAULT
 }
 
 /**
- * Speichert Chat-Kontext-Werte im localStorage
+ * Speichert Chat-Kontext-Werte im localStorage.
+ * Fehler werden geloggt; das Speichern ist Best-Effort (kein kritischer Pfad).
  */
 export function saveChatContextToLocalStorage(
   targetLanguage: TargetLanguage,
@@ -136,6 +102,3 @@ export function saveChatContextToLocalStorage(
     console.error('[chat-storage] Fehler beim Speichern in localStorage:', error)
   }
 }
-
-
-
