@@ -13,7 +13,6 @@ import type { QueryLog } from '@/types/query-log'
 import { useSessionHeaders } from '@/hooks/use-session-headers'
 import { useTranslation } from '@/lib/i18n/hooks'
 import {
-  extractSourceType,
   getSourceTypeLabel,
   groupReferencesByFileId,
 } from './chat-reference-list/helpers'
