@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { activeLibraryIdAtom, librariesAtom } from '@/atoms/library-atom'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
@@ -37,11 +37,17 @@ import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
 import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
 import dynamic from 'next/dynamic'
 import { storyCharacterAtom } from '@/atoms/story-context-atom'
+import { normalizeGalleryCardDensity } from '@/lib/gallery/gallery-card-density'
+
+// Pure-Helpers + Hooks (Welle 3-III-a Modul-Split, siehe gallery-root/)
 import {
-  normalizeGalleryCardDensity,
-  galleryCardDensityStorageKey,
-  type GalleryCardDensity,
-} from '@/lib/gallery/gallery-card-density'
+  resolveInitialDetailViewType,
+  resolveGroupByField,
+  pickFacetsForTableColumns,
+  resolveDetailViewTypeForDoc,
+} from './gallery-root/helpers'
+import { useIsMobile } from './gallery-root/hooks/use-is-mobile'
+import { useCardDensity } from './gallery-root/hooks/use-card-density'
 
 export interface GalleryRootProps {
   libraryIdProp?: string
@@ -63,18 +69,6 @@ const LazyChatPanel = dynamic(
   }
 )
 
-/** Konstante außerhalb der Komponente: stabil für useMemo-Dependencies (eslint react-hooks/exhaustive-deps). */
-const VALID_DETAIL_VIEW_TYPES: TemplatePreviewDetailViewType[] = [
-  'book',
-  'session',
-  'climateAction',
-  'testimonial',
-  'blog',
-  'divaDocument',
-  'divaTexture',
-  'refurbedDevice',
-]
-
 export function GalleryRoot({
   libraryIdProp,
   hideTabs = false,
@@ -91,7 +85,7 @@ export function GalleryRoot({
   const isClosingRef = React.useRef(false)
   const isSwitchingToStoryModeRef = React.useRef(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [isMobile, setIsMobile] = useState(false)
+  const isMobile = useIsMobile()
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const chatReferences = useAtomValue(chatReferencesAtom)
   const [showReferencesSheet, setShowReferencesSheet] = useState(false)
@@ -110,14 +104,6 @@ export function GalleryRoot({
   // Nur den Character-Atomwert lesen (leichtgewichtig).
   // Vermeidet den schweren useStoryContext-Hook inkl. Modell-Fetch im Gallery-Load.
   const character = useAtomValue(storyCharacterAtom)
-
-  // Mobile detection
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 1024)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
 
   // Lade detailViewType und groupByField direkt aus dem librariesAtom, um Flackern zu vermeiden
   const activeLibrary = libraries.find(lib => lib.id === libraryId)
@@ -139,66 +125,30 @@ export function GalleryRoot({
     })
   }, [libraryId, activeLibrary, chatConfig, rawGalleryConfig])
   
-  const initialDetailViewType = useMemo(() => {
-    const vt = rawGalleryConfig?.detailViewType
-    // Alle gültigen DetailViewTypes akzeptieren
-    const validTypes = ['book', 'session', 'climateAction', 'testimonial', 'blog', 'divaDocument', 'divaTexture', 'refurbedDevice'] as const
-    const result = validTypes.includes(vt as typeof validTypes[number]) ? vt as typeof validTypes[number] : 'book'
-    return result
-  }, [rawGalleryConfig?.detailViewType])
-  
-  // Gruppierungsfeld aus Library-Konfiguration (default: 'year')
-  // Direkt aus dem Raw-Objekt lesen, um TypeScript-Typeinschränkungen zu umgehen
-  const groupByField = (typeof rawGalleryConfig?.groupByField === 'string' && rawGalleryConfig.groupByField.length > 0) 
-    ? rawGalleryConfig.groupByField 
-    : 'year'
+  const initialDetailViewType = useMemo(
+    () => resolveInitialDetailViewType(rawGalleryConfig?.detailViewType),
+    [rawGalleryConfig?.detailViewType],
+  )
 
-  /** Library-Default für Galerie-Raster; Session-Override hat Vorrang (siehe useEffect). */
+  // Gruppierungsfeld aus Library-Konfiguration (default: 'year').
+  // Helper validiert und liefert kein silent fallback (siehe helpers.ts).
+  const groupByField = resolveGroupByField(rawGalleryConfig?.groupByField)
+
+  /** Library-Default für Galerie-Raster; Session-Override hat Vorrang (siehe useCardDensity). */
   const configCardDensity = useMemo(
     () => normalizeGalleryCardDensity(rawGalleryConfig?.galleryCardDensity),
     [rawGalleryConfig?.galleryCardDensity]
   )
-  const [cardDensity, setCardDensity] = useState<GalleryCardDensity>('comfortable')
-
-  // Effektive Dichte: zuerst sessionStorage pro Library, sonst Config-Default.
-  useEffect(() => {
-    if (!libraryId) {
-      setCardDensity(configCardDensity)
-      return
-    }
-    try {
-      const stored = sessionStorage.getItem(galleryCardDensityStorageKey(libraryId))
-      if (stored !== null) {
-        setCardDensity(normalizeGalleryCardDensity(stored))
-        return
-      }
-    } catch (e) {
-      console.warn('[GalleryRoot] sessionStorage (Karten-Dichte) lesen fehlgeschlagen:', e)
-    }
-    setCardDensity(configCardDensity)
-  }, [libraryId, configCardDensity])
-
-  const handleCardDensityChange = useCallback(
-    (density: GalleryCardDensity) => {
-      setCardDensity(density)
-      if (!libraryId) return
-      try {
-        sessionStorage.setItem(galleryCardDensityStorageKey(libraryId), density)
-      } catch (e) {
-        console.warn('[GalleryRoot] sessionStorage (Karten-Dichte) schreiben fehlgeschlagen:', e)
-      }
-    },
-    [libraryId]
-  )
+  const { cardDensity, setCardDensity: handleCardDensityChange } = useCardDensity({
+    libraryId,
+    configDefault: configCardDensity,
+  })
 
   // Facetten, die als Spalten in der Tabellenansicht angezeigt werden (showInTable === true)
-  const tableColumnFacets = React.useMemo(() => {
-    const facets = rawGalleryConfig?.facets as Array<{ metaKey?: string; label?: string; showInTable?: boolean }> | undefined
-    if (!Array.isArray(facets)) return undefined
-    return facets
-      .filter((f) => f.showInTable === true && f.metaKey && f.metaKey.length > 0)
-      .map((f) => ({ metaKey: f.metaKey!, label: f.label }))
-  }, [rawGalleryConfig?.facets])
+  const tableColumnFacets = useMemo(
+    () => pickFacetsForTableColumns(rawGalleryConfig?.facets),
+    [rawGalleryConfig?.facets],
+  )
 
   // Hooks
   const { mode, setMode, containerRef } = useGalleryMode()
@@ -426,23 +376,17 @@ export function GalleryRoot({
   // Bestimme viewType für DetailOverlay:
   // - Primär: pro Dokument über `detailViewType` (Wizard/Frontmatter)
   // - Fallback: Library-Config
-  const detailViewTypeForDoc = React.useMemo<TemplatePreviewDetailViewType>(() => {
-    if (!selectedDoc) return detailViewType as TemplatePreviewDetailViewType // Fallback auf Library-Config
+  const detailViewTypeForDoc = useMemo<TemplatePreviewDetailViewType>(() => {
+    // Library-Fallback bestimmen (zentral via util)
+    const activeLibraryForFallback = libraries.find(lib => lib.id === libraryId)
+    const libraryConfig = activeLibraryForFallback?.config?.chat
+    const libraryFallback = getDetailViewType({}, libraryConfig) as TemplatePreviewDetailViewType
 
-    // 1) Dokument-spezifisch (Wizard/Frontmatter)
-    const perDoc = typeof selectedDoc.detailViewType === 'string' ? selectedDoc.detailViewType : ''
-    if (perDoc && VALID_DETAIL_VIEW_TYPES.includes(perDoc as TemplatePreviewDetailViewType)) {
-      return perDoc as TemplatePreviewDetailViewType
-    }
+    // Wenn kein Dokument ausgewaehlt: nimm den (gerade aktiven) detailViewType der Galerie
+    if (!selectedDoc) return detailViewType as TemplatePreviewDetailViewType
 
-    // 2) Fallback: library settings
-    // (Explizit über util, damit Regeln zentral bleiben)
-    const activeLibrary = libraries.find(lib => lib.id === libraryId)
-    const libraryConfig = activeLibrary?.config?.chat
-    const result = getDetailViewType({}, libraryConfig)
-    return VALID_DETAIL_VIEW_TYPES.includes(result as TemplatePreviewDetailViewType) 
-      ? result as TemplatePreviewDetailViewType 
-      : 'book'
+    // Helper kuemmert sich um Validierung + 'book'-Fallback (kein silent fallback)
+    return resolveDetailViewTypeForDoc(selectedDoc.detailViewType, libraryFallback)
   }, [selectedDoc, detailViewType, libraries, libraryId])
 
   // Gruppiere Dokumente nach Referenzen, wenn chatReferences gesetzt ist
