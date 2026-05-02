@@ -35,8 +35,7 @@ import type { AnalysisReport } from "./hooks/use-shadow-twin-migration"
 
 interface ShadowTwinConfigSectionProps {
   activeLibraryId: string | null | undefined;
-  // ClientLibrary statt Library: library-form.tsx uebergibt ClientLibrary (kein 'transcription'-Feld).
-  // Das Prop wird in der Komponente nicht direkt verwendet (_activeLibrary-Prefix).
+    // ClientLibrary statt Library: library-form.tsx uebergibt ClientLibrary (kein 'transcription'-Feld).
   activeLibrary: ClientLibrary | undefined;
   shadowTwinMode: "legacy" | "v2";
   setShadowTwinMode: (mode: "legacy" | "v2") => void;
