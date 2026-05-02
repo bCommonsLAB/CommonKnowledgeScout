@@ -471,8 +471,9 @@ gallery: {
               } else if (event.type === 'error') {
                 console.error('Reparatur-Fehler:', event.error)
               }
-            } catch {
-              // JSON-Parse-Fehler ignorieren
+            } catch (err) {
+              // H7-Fix: SSE-Event JSON-Parse-Fehler — defensives Fallback, kein User-Impact
+              console.debug('[ChatForm] SSE-Event JSON-Parse-Fehler (Reparatur):', err)
             }
           }
         }
@@ -536,8 +537,9 @@ gallery: {
                   // Statistiken aktualisieren
                   loadThumbnailStats()
                 }
-              } catch {
-                // Parsing-Fehler ignorieren
+              } catch (err) {
+                // H8-Fix: SSE-Event JSON-Parse-Fehler — defensives Fallback, kein User-Impact
+                console.debug('[ChatForm] SSE-Event JSON-Parse-Fehler (Regenerierung):', err)
               }
             }
           }
