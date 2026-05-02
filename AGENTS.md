@@ -10,25 +10,41 @@ Diese Datei definiert verbindliche Regeln fuer alle Agenten (lokal und Cursor Cl
 - Install: `pnpm install --frozen-lockfile`
 - Node-Version: laut `.nvmrc` / engines im `package.json`
 
-### Test- und Lint-Commands (nach jeder Code-Aenderung ausfuehren)
+### Test- und Lint-Commands
 
-Reihenfolge ist verbindlich — alle vier muessen gruen sein, bevor gepusht wird:
+**Update 2026-05-02** (Kosten-Strategie, siehe [`.cursor/rules/cloud-agent-cost-strategy.mdc`](.cursor/rules/cloud-agent-cost-strategy.mdc)):
 
-1. `pnpm test`         # Vitest Unit-Tests, muss gruen sein
-2. `pnpm lint`         # ESLint via `next lint`, muss ohne neue Warnings sein
-3. `pnpm build`        # **PFLICHT** — `next build`, muss gruen sein
-4. `pnpm health`       # Modul-Health-Report (sobald Tooling-Agent gemerged ist)
+**Im Cloud-Agent waehrend der Arbeit (Pflicht):**
+1. `pnpm test --run <relevante-paths>` — gezielt, schnell, billig
+2. `pnpm lint` — vor jedem Push
+
+**`pnpm build` wird NICHT mehr im Cloud-Agent gemacht (Default).**
+Begruendung: kostet 3-5 USD pro Lauf, lokal kostenlos.
+
+**Beim User lokal vor Merge (Pflicht):**
+
+```bash
+bash scripts/welle-pre-merge-check.sh
+```
+
+Das Script faehrt `pnpm test + pnpm lint + pnpm build` und meldet,
+wenn etwas nicht gruen ist. Bei rot: User postet Befund im PR-Comment,
+Agent fixed nach.
+
+**Ausnahme im Cloud-Agent**: Wenn der Agent einen konkreten Verdacht
+auf einen Build-Fehler hat (z.B. nach Modul-Split mit vielen Imports),
+darf er **einmal** `pnpm build` ausfuehren. Mehrfaches Bauen ohne
+Fortschritt ist verboten.
 
 Bei Pipeline-Aenderungen zusaetzlich: `pnpm test:integration:api`
 (siehe `.cursor/rules/external-jobs-integration-tests.mdc`).
 
-#### Warum `pnpm build` PFLICHT ist (Lehre aus PR #29 / Hotfix #30)
+#### Warum `pnpm build` Pflicht ist (Lehre aus PR #29 / Hotfix #30)
 
 `pnpm lint` (= `next lint`) klassifiziert bestimmte Regeln (z.B.
 `@typescript-eslint/no-unused-vars`) lokal als **Warning**. Erst
 `pnpm build` (= `next build`) macht daraus harte **Errors** und bricht
-den Production-Deploy. Konsequenz: Wenn nur `pnpm test` und `pnpm lint`
-gruen sind, ist der CI-Build **nicht** zwingend gruen.
+den Production-Deploy.
 
 Symptom in CI:
 
@@ -38,9 +54,10 @@ Error: 'XYZ' is defined but never used. @typescript-eslint/no-unused-vars
 Process completed with exit code 1.
 ```
 
-Konsequenz fuer den Agent: **immer** `pnpm build` lokal vor `git push`
-ausfuehren, vor allem nach Modul-Splits (uebrig gebliebene Imports
-sind der haeufigste Trigger).
+**Konsequenz** (Update 2026-05-02): `pnpm build` muss vor jedem Merge
+gruen sein — aber **nicht zwingend im Cloud-Agent**. Stattdessen
+laeuft das Pre-Merge-Script `scripts/welle-pre-merge-check.sh` lokal
+beim User. Spart 3-5 USD pro Welle.
 
 ### Repo-Konventionen (verbindlich)
 
@@ -118,3 +135,44 @@ Vor dem Anlegen eines neuen `docs/refactor/welle-X-Y/`-Verzeichnisses immer im P
 - **Einzelner Commit** mit mehr als 1.000 Zeilen Diff (hartes Limit, splitte den Commit)
 - **PR-Gesamtvolumen** ueber 5.000 Zeilen Brutto-Diff ohne Plan-Begruendung (zu schwer reviewbar)
 - **PR-Commit-Anzahl** ueber 15 Commits ohne Plan-Begruendung (zu unstrukturiert)
+- **Kosten-Eskalation** (siehe `cloud-agent-cost-strategy.mdc` R7):
+  - Mehr als 3 grosse File-Reads (>500z) in derselben Welle ohne Modul-Split-Fortschritt
+  - `pnpm build` mehr als 2x im Agent ohne Fortschritt — stattdessen User um lokale Verifikation bitten
+
+### Hand-off am Welle-Ende (PFLICHT)
+
+Verbindlich seit 2026-05-02. Quelle: [`.cursor/rules/cloud-agent-cost-strategy.mdc`](.cursor/rules/cloud-agent-cost-strategy.mdc).
+
+Jede Welle-PR endet im PR-Body und in der Antwort an den User mit einem
+**Hand-off-Block**, der genau die Anweisungen enthaelt, die der User
+braucht, um die naechste Welle guenstig zu starten:
+
+1. Aufruf von `bash scripts/welle-pre-merge-check.sh` (lokal vor Merge)
+2. Naechste Welle-Identifikation (Name, Branch, AGENT-BRIEF-Sektion)
+3. **Modellempfehlung**: Sonnet/Opus + Thinking-Level mit Begruendung
+4. **Agent-Typ-Empfehlung**: NEUER Agent (Default) oder Resume mit Begruendung
+5. **Konkreter Start-Prompt** (kopierbar in den naechsten Cloud-Agent)
+6. **Kosten-Schaetzung** (mit/ohne Empfehlungen)
+
+Vorlage und Beispiele: [`docs/refactor/cloud-agent-kostenoptimierung.md`](docs/refactor/cloud-agent-kostenoptimierung.md).
+
+**Begruendung**: Cache-Read-Kosten skalieren quadratisch mit Konversations­
+laenge. Eine Session ueber 5 Wellen kostet nicht 5x sondern eher 15-20x.
+Pro Welle ein neuer Agent + Sonnet statt Opus + lokal bauen
+= ca. 1/4 der Originalkosten.
+
+### Modellwahl pro Welle-Typ (Empfehlung)
+
+| Welle-Typ | Modell | Thinking |
+|---|---|---|
+| Audit + Inventur (nur Doku) | claude-sonnet | medium |
+| Char-Tests schreiben (Pattern-Replikation) | claude-sonnet | medium |
+| Pure-Helper / Hook-Extract | claude-sonnet | medium |
+| Kleinerer Modul-Split (1 Hauptdatei, klares Vorbild) | claude-sonnet | medium |
+| Grosser Modul-Split (>1 Hauptdatei, Cross-File-Edits) | claude-opus | medium |
+| Architektur-Entscheidung mit Trade-offs | claude-opus | high |
+| Latenter-Bug-Analyse / Hypothesen | claude-opus | high |
+
+Verboten ohne explizite Begruendung:
+- `thinking-xhigh` (selten noetig, sehr teuer)
+- `opus` fuer reine Doku-Tasks
