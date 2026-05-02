@@ -1,0 +1,266 @@
+---
+description: Harte Invarianten fuer Welle 3-III — Galerie + Story-Mode + Chat
+globs: src/components/library/gallery/**/*.tsx,src/components/library/gallery/**/*.ts,src/components/library/chat/**/*.tsx,src/components/library/chat/**/*.ts,src/components/library/story/**/*.tsx,src/components/library/story/**/*.ts,src/components/library/shared/perspective-page-content.tsx,src/components/library/shared/perspective-display.tsx,src/components/library/filter-context-bar.tsx,src/components/library/file-category-filter.tsx
+alwaysApply: false
+---
+
+# Contracts: Welle 3-III — Galerie + Story-Mode + Chat
+
+Diese Rule kodifiziert die Invarianten fuer die UI-Bereiche
+**Galerie**, **Story-Mode** und **Chat** sowie die zugehoerigen
+Filter-Komponenten. Sie ergaenzt:
+
+- [`storage-abstraction.mdc`](mdc:.cursor/rules/storage-abstraction.mdc)
+- [`no-silent-fallbacks.mdc`](mdc:.cursor/rules/no-silent-fallbacks.mdc)
+- [`media-lifecycle.mdc`](mdc:.cursor/rules/media-lifecycle.mdc)
+- [`chat-contracts.mdc`](mdc:.cursor/rules/chat-contracts.mdc) (Backend, UI ist Konsument)
+- [`shadow-twin-architecture.mdc`](mdc:.cursor/rules/shadow-twin-architecture.mdc)
+- [`welle-3-archiv-detail-contracts.mdc`](mdc:.cursor/rules/welle-3-archiv-detail-contracts.mdc) (Welle 3-II)
+- [`welle-3-schale-loader-contracts.mdc`](mdc:.cursor/rules/welle-3-schale-loader-contracts.mdc) (Welle 3-I)
+
+## Quellen der Wahrheit (zuerst lesen)
+
+- **Galerie-Hauptkomponenten**:
+  - `gallery/gallery-root.tsx` (994z, 49 Hooks — Hot-Spot)
+  - `gallery/document-card.tsx` (639z — Render-Refactor-Kandidat)
+  - `gallery/virtualized-items-view.tsx` (470z — Performance-kritisch)
+- **Galerie-Views** (View-Modi):
+  - `gallery/items-view.tsx`, `items-table.tsx`, `items-grid.tsx`
+  - `gallery/grouped-items-view.tsx`, `grouped-items-table.tsx`, `grouped-items-grid.tsx`
+- **Galerie-Filter**:
+  - `gallery/filters-panel.tsx`, `mobile-filters-sheet.tsx`,
+    `facets-list.tsx`, `facet-group.tsx`, `document-filter-group.tsx`
+  - `filter-context-bar.tsx`, `file-category-filter.tsx`
+- **Galerie-Aktionen**:
+  - `gallery/{publish,delete,bulk-publish,bulk-delete}-document-button.tsx`
+  - `gallery/document-share-button.tsx`, `open-in-archive-button.tsx`
+  - `gallery/switch-to-story-mode-button.tsx`
+- **Galerie-References**:
+  - `gallery/references-sheet.tsx`, `references-legend.tsx`,
+    `reference-group-header.tsx`
+- **Chat-Hauptkomponenten**:
+  - `chat/chat-panel.tsx` (1.268z, 36 Hooks — groesster Hot-Spot der Welle)
+  - `chat/chat-messages-list.tsx`, `chat-message.tsx`, `chat-input.tsx`
+- **Chat-Hooks**:
+  - `chat/hooks/use-chat-stream.ts` (492z — Streaming-Reducer)
+  - `chat/hooks/use-chat-toc.ts` (328z — TOC-Builder)
+  - `chat/hooks/use-chat-history.ts`, `use-chat-config.ts`,
+    `use-chat-scroll.ts`
+- **Chat-Konfiguration**:
+  - `chat/chat-config-{bar,display,popover}.tsx`
+  - `chat/chat-conversation-item.tsx`, `chat-selector.tsx`
+- **Chat-Debug**:
+  - `chat/debug-panel.tsx`, `debug-step-table.tsx`, `debug-timeline.tsx`,
+    `debug-trace.tsx`, `processing-{logs-dialog,status}.tsx`,
+    `query-details-dialog.tsx`
+- **Chat-Sources & References**:
+  - `chat/chat-document-sources.tsx`, `chat-reference-list.tsx`
+  - `chat/chat-suggested-questions.tsx`, `chat-welcome-assistant.tsx`,
+    `chat-filters-display.tsx`
+- **Chat-Pure-Helpers**:
+  - `chat/utils/chat-utils.ts`, `chat/utils/chat-storage.ts`
+- **Story**:
+  - `story/story-mode-header.tsx`, `story-header.tsx`, `story-topics.tsx`
+- **Perspective**:
+  - `shared/perspective-page-content.tsx` (926z, 13 Hooks),
+    `shared/perspective-display.tsx`
+- **Backend-Konsumenten** (nicht in dieser Welle, aber relevant):
+  - `src/lib/chat/**` (Backend-Service-Layer, eigene `chat-contracts.mdc`)
+  - `src/lib/gallery/**` (Mappers, Query-Builder)
+
+## §1 Determinismus — UI-Komponenten sind Renderer
+
+- Galerie-/Chat-/Story-Komponenten sind **UI-Renderer**: sie nehmen
+  Props/Atom-State entgegen, rendern, und delegieren Aktionen ueber
+  HTTP-Endpoints oder Atom-Setter.
+- **Verboten** in Welle-3-III-Komponenten:
+  - Frontmatter-Schreib-Logik (gehoert in `src/lib/templates/`).
+  - Datenbank-Queries (gehoeren in `src/lib/services/`).
+  - Storage-Operationen ausser ueber `useStorageProvider()`.
+  - Pipeline-Trigger ausser ueber HTTP-API.
+  - Direkte Modell-/LLM-Calls (gehoeren in `src/lib/chat/`-Service-Layer).
+- **Erlaubt**:
+  - Lesen aus Jotai-Atoms (z.B. `selectedDocumentsAtom`,
+    `chatConfigAtom`, `galleryFiltersAtom`).
+  - Aufruf von Hooks aus `src/hooks/` und `src/components/library/chat/hooks/`.
+  - Aufruf von Helpers aus `src/lib/storage/`, `src/lib/gallery/`,
+    `src/lib/chat/`.
+  - HTTP-Endpoints unter `/api/library/...`, `/api/chat/...`,
+    `/api/pipeline/...`.
+
+## §2 Fehler-Semantik
+
+- **Kein leerer `catch {}`**. Konform zu
+  [`no-silent-fallbacks.mdc`](mdc:.cursor/rules/no-silent-fallbacks.mdc).
+  Aktuell **0 Verstoesse** in Welle 3-III — diese Welle muss diesen
+  sauberen Stand halten.
+- Jeder Catch in Welle-3-III-Komponenten muss entweder:
+  - explizit loggen (`StateLogger.warn`, `UILogger.warn`) **mit
+    Begruendungs-Kommentar**, oder
+  - werfen (`throw`), oder
+  - eine Toast-Meldung anzeigen (`toast.error(...)` oder
+    `toast({ variant: 'destructive', ... })`).
+- **Streaming-Fehler im Chat** (z.B. `use-chat-stream.ts`): IMMER
+  Fehler an UI durchreichen (Error-State im Reducer + sichtbarer
+  Fallback-Render).
+- **Render-Fehler** in grossen Komponenten (`chat-panel`,
+  `gallery-root`, `perspective-page-content`) werden via
+  React-Error-Boundary in `library.tsx` gefangen.
+
+## §3 Erlaubte / verbotene Abhaengigkeiten
+
+`src/components/library/gallery/**`,
+`src/components/library/chat/**`,
+`src/components/library/story/**`,
+`src/components/library/shared/perspective-*.tsx`,
+`src/components/library/filter-context-bar.tsx`,
+`src/components/library/file-category-filter.tsx`:
+
+- **DARF abhaengen von**:
+  - `@/atoms/**` (Jotai-State)
+  - `@/hooks/**` (React-Hooks)
+  - `@/contexts/storage-context` (Storage-Provider via Context)
+  - `@/lib/storage/types` (nur Typen)
+  - `@/lib/storage/library-capability` (Helper, kein Branch)
+  - `@/lib/gallery/**` (Mappers, Query-Builder, Document-Mappers)
+  - `@/lib/chat/types` und Pure-Helpers aus `@/lib/chat/common/**`
+    (KEINE direkten Service-Aufrufe von UI; die UI ruft die
+    `/api/chat/...`-Routen)
+  - `@/lib/templates/**` (DetailViewType-Typen, Mapper)
+  - `@/lib/mappers/doc-meta-mappers`
+  - `@/lib/debug/logger`, `@/lib/utils`, `@/lib/media-types`
+  - `@/components/ui/**` (shadcn/ui)
+  - `@/components/library/**` (untereinander erlaubt)
+  - Externe Pakete: `react`, `next`, `jotai`, `lucide-react`, `sonner`,
+    `react-markdown`, `nuqs`, `@tanstack/react-virtual`, etc.
+- **DARF NICHT abhaengen von**:
+  - `@/lib/storage/filesystem-provider`,
+    `@/lib/storage/onedrive-provider`,
+    `@/lib/storage/nextcloud-provider`,
+    `@/lib/storage/onedrive/**`, `@/lib/storage/nextcloud/**`
+    (Provider-Internals; siehe `storage-abstraction.mdc`).
+  - `@/lib/external-jobs/**` (Pipeline-Internals, nur via API).
+  - `@/lib/shadow-twin/store/**` (Server-Side-Store).
+  - `@/lib/chat/orchestrator`, `@/lib/chat/loader`,
+    `@/lib/chat/ingestion-service` (Service-Layer; nur via API!).
+  - `mongodb`, `node:fs`, `node:path` (Server-Only).
+
+## §4 Skip- / Default-Semantik
+
+- **Galerie ohne Items**: freundlicher Empty-State (z.B.
+  `<EmptyGallery>`-Render mit Hinweis auf Upload).
+- **Chat ohne Konversation**: Welcome-Assistant rendern
+  (`chat-welcome-assistant.tsx`). Niemals leeres Panel.
+- **Chat-Streaming-Abbruch**: laufender Stream zeigt
+  Abbruch-Indikator + erlaubt Retry.
+- **Story-Mode ohne Topics**: Empty-State + Verweis auf
+  Story-Generierung.
+- **Perspective ohne Daten**: Loading-Skeleton im Hook-Loading-State,
+  Empty-State im Idle-State, Error-State sichtbar.
+- **Verboten**: stiller leerer State (`return null` ohne Indikator)
+  ausser als bewusstes Conditional-Render (mit Begruendungs-Kommentar).
+
+## §5 URL-State-Vertrag (Galerie + Story)
+
+Die Galerie nutzt URL-Parameter fuer Filter, View-Modus und Auswahl:
+
+- `?view=grid|table|virtualized` — View-Modus
+- `?group=<key>` — Gruppierung
+- `?filter=<json>` — Aktive Filter (URL-encoded)
+- `?selected=<ids>` — Bulk-Selection
+- `?q=<query>` — Suchtext
+- `?perspective=<id>` — Story-/Perspective-Mode
+
+**Vertrag**:
+
+- URL-State ist **Single Source of Truth** fuer Reload-bare State.
+- `nuqs` (oder `useSearchParams`) wird verwendet, kein eigener
+  Atom-Layer fuer URL-State.
+- Atoms duerfen den URL-State **lesen**, nicht **ueberschreiben**
+  ausser durch User-Aktion.
+- Bei Modul-Splits in Sub-Welle 3-III-a muss der URL-State-Vertrag
+  stabil bleiben (Char-Tests pruefen das).
+
+## §6 Modul-Split-Vertrag (Vorbereitung fuer Sub-Wellen)
+
+Sub-Wellen 3-III-a/b/c splitten die 3 grossen Files. Der Vertrag fuer
+alle 3 Sub-Wellen:
+
+- **Composer-Fassade bleibt**: nach Modul-Split exportiert eine neue
+  Datei `gallery-root/index.tsx` (bzw. `chat-panel/index.tsx`,
+  `perspective-page-content/index.tsx`) die alte Komponente unter dem
+  alten Namen, sodass Konsumenten unangetastet bleiben.
+- **Hierarchie**: `index.tsx` → konkrete Sub-Module → Hooks → Helper.
+  Keine zirkulaeren Imports.
+- **Maximalgroesse pro Sub-Datei**: < 350 Zeilen. Ueberschreitungen
+  mit Begruendungs-Kommentar.
+- **Char-Tests vor Split**: jede Sub-Welle hat ihr eigenes
+  Char-Test-Set, das den Vertrag der Composer-Fassade fixiert.
+
+### §6a Verzeichnisstruktur (Vorschlag, in Sub-Welle verfeinern)
+
+| Hauptkomponente | Sub-Verzeichnis | Wichtigste Sub-Module |
+|---|---|---|
+| `gallery/gallery-root.tsx` | `gallery/gallery-root/` | `index.tsx`, `view-mode-switch.tsx`, `bulk-toolbar.tsx`, `hooks/use-gallery-data.ts`, `hooks/use-gallery-selection.ts`, `hooks/use-gallery-url-state.ts` |
+| `chat/chat-panel.tsx` | `chat/chat-panel/` | `index.tsx`, `panel-header.tsx`, `panel-body.tsx`, `panel-footer.tsx`, `hooks/use-chat-panel-state.ts` |
+| `shared/perspective-page-content.tsx` | `shared/perspective-page-content/` | `index.tsx`, `header.tsx`, `body.tsx`, `tabs.tsx`, `hooks/use-perspective-data.ts` |
+| `gallery/document-card.tsx` | bleibt single-file | (keine Modul-Split, aber Helper extrahieren) |
+
+## §7 Storage-Branches verboten — Helper sind erlaubt
+
+Konform mit
+[`storage-abstraction.mdc`](mdc:.cursor/rules/storage-abstraction.mdc).
+**Aktuell 0 Verstoesse** in Welle 3-III. Diese Welle muss den
+sauberen Stand halten.
+
+Verifikation:
+
+```bash
+rg "primaryStore\s*===|library\.type\s*===" \
+  src/components/library/gallery/ \
+  src/components/library/chat/ \
+  src/components/library/story/ \
+  src/components/library/shared/perspective-*.tsx \
+  src/components/library/filter-context-bar.tsx \
+  src/components/library/file-category-filter.tsx
+```
+
+Ergebnis muss **leer** sein.
+
+## §8 `'use client'`-Direktiven minimieren
+
+56 von 65 Welle-3-III-Files haben `'use client'`. Ausnahmen (alle
+korrekt: keine Hook-Use, kein Browser-API):
+
+- `gallery/publish-document-button.tsx` (Server-Action-Wrapper)
+- `gallery/publish-status-chips.tsx` (reine Render-Komponente)
+- `chat/hooks/*.ts` (5 Files; Hooks-Files brauchen die Direktive nicht,
+  weil sie nur in Client-Komponenten importiert werden)
+- `chat/utils/*.ts` (2 Files; Pure-Helper, kein Browser-API)
+
+Bei neuen Sub-Komponenten in `gallery-root/`, `chat-panel/`,
+`perspective-page-content/`: KEINE `'use client'`-Direktive setzen,
+wenn sie ueber den Composer-Index importiert werden. Falls
+Sub-Komponente neue Client-API verwendet (Browser-API, eigene
+`useState`), Direktive explizit setzen.
+
+## §9 Code-Review-Checkliste
+
+Wenn du Welle-3-III-Code anfasst:
+
+- [ ] Hat die geaenderte Datei < 350 Zeilen (besser < 250)?
+- [ ] Enthaelt der Diff einen leeren `catch {}`?
+- [ ] Importiert die Datei einen Provider direkt
+      (`filesystem-provider`, `onedrive-provider`,
+      `nextcloud-provider`)? → REFACTOREN!
+- [ ] Importiert die Datei einen `chat`-Service direkt
+      (`orchestrator`, `loader`, `ingestion-service`)? → REFACTOREN!
+- [ ] Enthaelt der Diff eine `library.type === '...'`- oder
+      `primaryStore === '...'`-Verzweigung? → Helper benutzen!
+- [ ] Wird ein leerer State (`null`) ohne sichtbaren Indikator
+      gerendert?
+- [ ] Bleibt die Composer-Fassade nach Modul-Split exportiert?
+- [ ] Sind URL-State-Parameter (`view`, `filter`, `selected`, `q`,
+      `perspective`) konform zu §5?
+- [ ] Werden Streaming-Fehler im Chat sichtbar gemacht (kein
+      Silent-Discard)?

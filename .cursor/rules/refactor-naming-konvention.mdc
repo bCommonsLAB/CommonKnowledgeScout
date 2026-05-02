@@ -97,7 +97,7 @@ gestartet wurde (Fehler) und der Konflikt sichtbar wird:
 4. **Querverweise aktualisieren** in allen Files, die auf den alten
    Namen zeigen (`grep -r "Welle X-Y" docs/`).
 
-## Zusammenfassung der aktuellen Wellen-Stand 2026-05-01
+## Zusammenfassung der aktuellen Wellen-Stand 2026-05-02
 
 | Welle | Status | Inhalt |
 |---|---|---|
@@ -107,10 +107,10 @@ gestartet wurde (Fehler) und der Konflikt sichtbar wird:
 | Welle 3-I | abgeschlossen | App-Schale + Library-Loader |
 | Welle 3-II | abgeschlossen | Archiv-Detail (file-preview + Tabs) |
 | **Welle 3-II-Hooks** | abgeschlossen | Future-Work aus 3-II: Hook-Extraktion |
-| Welle 3-III | **OFFEN (Plan)** | Galerie + Story-Mode + Chat |
+| **Welle 3-III** | **IN ARBEIT (Vorbereitungs-PR offen)** | Galerie + Story-Mode + Chat |
 | Welle 3-IV | offen (Plan) | Settings |
 | Welle 3-V | offen (Plan) | Job/Event-Monitor |
-| Welle 3-VI | offen (Plan) | Creation-Wizard (komplexester Kandidat) |
+| Welle 3-VI | offen (Plan) | Creation-Wizard (komplexester Kandidat, **UX-First-Strategie**) |
 | Welle 4 | offen (Plan) | event-job, Rest |
 
 ## Verweise
