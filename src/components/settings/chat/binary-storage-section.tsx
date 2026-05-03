@@ -23,7 +23,10 @@ import { Switch } from "@/components/ui/switch"
 import type { UseFormReturn } from "react-hook-form"
 import type { chatFormSchema } from "./hooks/use-chat-form"
 import type { z } from "zod"
-import type { Library } from "@/types/library"
+// ClientLibrary ist der maskierte UI-Typ aus librariesAtom. Der
+// Server-Typ Library gehoert nicht in UI-Sections (storage-abstraction.mdc §1).
+// Diese Section nutzt von der Library nur das Feld id (Zeilen 180, 185).
+import type { ClientLibrary } from "@/types/library"
 
 /** Thumbnail-Statistik aus useChatForm */
 interface ThumbnailStats {
@@ -42,7 +45,7 @@ interface BinaryStorageSectionProps {
   /** React-Hook-Form Instanz aus useChatForm() */
   form: UseFormReturn<z.infer<typeof chatFormSchema>>
   /** Die aktuell aktive Library (garantiert nicht null, da ChatForm-Guard schon prüft) */
-  activeLibrary: Library
+  activeLibrary: ClientLibrary
   /** Ob eigene Azure-Credentials verwendet werden (Watch-Wert) */
   azureIngestionCustom: boolean
   /** Aktueller Container-Name (Watch-Wert) */

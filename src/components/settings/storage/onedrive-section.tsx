@@ -23,7 +23,19 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import type { UseFormReturn } from "react-hook-form"
 import type { z } from "zod"
 import type { storageFormSchema } from "./hooks/use-storage-form"
-import type { Library } from "@/types/library"
+// ClientLibrary ist der maskierte UI-Typ aus librariesAtom.
+// Provider-spezifische Felder (tenantId/clientId/clientSecret) sind in
+// ClientLibrary.config nicht typisiert. Wir lesen sie via lokalem Cast,
+// analog zum Pattern in use-storage-form.ts. Ein sauberer Typ-Vertrag
+// gehoert in eine separate Architektur-Welle (ClientLibrary.config-Erweiterung).
+import type { ClientLibrary } from "@/types/library"
+
+/** Provider-spezifische OneDrive-Felder im Library-Config (nicht in ClientLibrary typisiert) */
+interface OneDriveLibraryConfig {
+  tenantId?: string
+  clientId?: string
+  clientSecret?: string
+}
 
 /** Token-Status für OneDrive-Authentifizierung */
 interface TokenStatus {
@@ -36,7 +48,7 @@ interface OneDriveSectionProps {
   /** React-Hook-Form Instanz */
   form: UseFormReturn<z.infer<typeof storageFormSchema>>
   /** Aktive Library für Konfigurations-Anzeige */
-  activeLibrary: Library
+  activeLibrary: ClientLibrary
   /** Aktueller OAuth-Token-Status */
   tokenStatus: TokenStatus
   /** Startet den OneDrive-OAuth-Flow */
@@ -55,6 +67,11 @@ export function OneDriveSection({
   handleOneDriveAuth,
   handleOneDriveLogout,
 }: OneDriveSectionProps) {
+  // Provider-spezifische Felder einmalig per Cast extrahieren — analog zu
+  // use-storage-form.ts. ClientLibrary.config typisiert OneDrive-Felder
+  // nicht; das ist der dokumentierte Drift, der in einer separaten
+  // Architektur-Welle aufgeloest wird (Erweiterung von ClientLibrary.config).
+  const onedriveCfg = activeLibrary.config as OneDriveLibraryConfig | undefined
   return (
     <>
       <FormField
@@ -64,7 +81,7 @@ export function OneDriveSection({
           <FormItem>
             <FormLabel>Tenant ID</FormLabel>
             <FormControl>
-              <Input {...field} value={String((field.value ?? activeLibrary?.config?.tenantId) ?? '')} />
+              <Input {...field} value={String((field.value ?? onedriveCfg?.tenantId) ?? '')} />
             </FormControl>
             <FormDescription>
               Die Tenant ID Ihres Microsoft Azure AD-Verzeichnisses. Lassen Sie dieses Feld leer für persönliche Microsoft-Konten.
@@ -80,7 +97,7 @@ export function OneDriveSection({
           <FormItem>
             <FormLabel>Client ID</FormLabel>
             <FormControl>
-              <Input {...field} value={String((field.value ?? activeLibrary?.config?.clientId) ?? '')} />
+              <Input {...field} value={String((field.value ?? onedriveCfg?.clientId) ?? '')} />
             </FormControl>
             <FormDescription>
               Die Client ID Ihrer Microsoft Azure AD-Anwendung.
@@ -101,7 +118,7 @@ export function OneDriveSection({
                 type="password"
                 value={field.value ?? ""}
                 placeholder={
-                  activeLibrary?.config?.clientSecret === '********'
+                  onedriveCfg?.clientSecret === '********'
                     ? "Client Secret ist gespeichert (zum Ändern neuen Wert eingeben)"
                     : "Client Secret eingeben"
                 }
@@ -109,7 +126,7 @@ export function OneDriveSection({
             </FormControl>
             <FormDescription>
               Das Client Secret Ihrer Microsoft Azure AD-Anwendung.
-              {activeLibrary?.config?.clientSecret === '********' && (
+              {onedriveCfg?.clientSecret === '********' && (
                 <span className="block mt-1 text-green-600 dark:text-green-400">
                   ✓ Ein Client Secret ist bereits gespeichert. Lassen Sie das Feld leer, um es beizubehalten.
                 </span>

@@ -19,19 +19,36 @@ import { Input } from "@/components/ui/input"
 import type { UseFormReturn } from "react-hook-form"
 import type { z } from "zod"
 import type { storageFormSchema } from "./hooks/use-storage-form"
-import type { Library } from "@/types/library"
+// ClientLibrary ist der maskierte UI-Typ aus librariesAtom.
+// Nextcloud-spezifische Felder (config.nextcloud.appPassword) sind in
+// ClientLibrary.config nicht typisiert. Lokaler Cast analog zu
+// use-storage-form.ts; sauberer Vertrag in separater Architektur-Welle.
+import type { ClientLibrary } from "@/types/library"
+
+/** Provider-spezifische Nextcloud-Felder im Library-Config (nicht in ClientLibrary typisiert) */
+interface NextcloudLibraryConfig {
+  nextcloud?: {
+    webdavUrl?: string
+    username?: string
+    appPassword?: string
+  }
+}
 
 interface NextcloudSectionProps {
   /** React-Hook-Form Instanz */
   form: UseFormReturn<z.infer<typeof storageFormSchema>>
   /** Aktive Library für Konfigurations-Anzeige */
-  activeLibrary: Library
+  activeLibrary: ClientLibrary
 }
 
 /**
  * Section-Komponente für Nextcloud/WebDAV-Konfiguration im Storage-Formular.
  */
 export function NextcloudSection({ form, activeLibrary }: NextcloudSectionProps) {
+  // Provider-spezifische Felder einmalig per Cast extrahieren — analog zu
+  // use-storage-form.ts. Siehe Begruendungs-Kommentar oben.
+  const nextcloudCfg = activeLibrary.config as NextcloudLibraryConfig | undefined
+  const appPasswordStored = nextcloudCfg?.nextcloud?.appPassword === '********'
   return (
     <>
       <FormField
@@ -87,7 +104,7 @@ export function NextcloudSection({ form, activeLibrary }: NextcloudSectionProps)
                 type="password"
                 value={field.value ?? ''}
                 placeholder={
-                  activeLibrary?.config?.nextcloud?.appPassword === '********'
+                  appPasswordStored
                     ? "App-Passwort ist gespeichert (zum Ändern neuen Wert eingeben)"
                     : "Nextcloud App-Passwort eingeben"
                 }
@@ -95,7 +112,7 @@ export function NextcloudSection({ form, activeLibrary }: NextcloudSectionProps)
             </FormControl>
             <FormDescription>
               Ein App-Passwort aus Ihrer Nextcloud-Instanz (Einstellungen → Sicherheit → Geräte & Sitzungen).
-              {activeLibrary?.config?.nextcloud?.appPassword === '********' && (
+              {appPasswordStored && (
                 <span className="block mt-1 text-green-600 dark:text-green-400">
                   ✓ Ein App-Passwort ist bereits gespeichert. Lassen Sie das Feld leer, um es beizubehalten.
                 </span>
