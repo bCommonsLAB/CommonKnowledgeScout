@@ -152,8 +152,12 @@ export function SecretaryServiceForm() {
           .map((t) => (typeof t?.name === 'string' ? t.name : ''))
           .filter((n) => n.length > 0)
         if (!cancelled) setAvailableTemplateNames(names)
-      } catch {
-        if (!cancelled) setAvailableTemplateNames([])
+      } catch (err) {
+        // H9-Fix: API-Fehler beim Laden der Template-Namen loggen
+        if (!cancelled) {
+          console.error('[SecretaryServiceForm] Template-Namen konnten nicht geladen werden:', err);
+          setAvailableTemplateNames([])
+        }
       } finally {
         if (!cancelled) setIsLoadingTemplates(false)
       }

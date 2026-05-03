@@ -1,17 +1,15 @@
 /**
- * @fileoverview Re-Exports für das Storage-Settings-Modul.
+ * Re-Exports für das Storage-Settings-Modul.
  *
- * @description
- * Welle 3-IV-a: storage-form.tsx wurde nach
- * src/components/settings/storage/ verschoben.
+ * Welle 3-IV-b: storage-form.tsx wurde nach
+ * src/components/settings/storage/storage-form.tsx verschoben.
  *
- * Die vollständige Zerlegung in Section-Komponenten
+ * Die weitere Zerlegung in Section-Komponenten
  * (local-storage-section, onedrive-section, nextcloud-section)
- * und use-storage-form.ts-Hook folgt in Welle 3-IV-b.
+ * und use-storage-form.ts-Hook ist für Welle 3-IV-c geplant.
  *
  * Hinweis: library.type-Branches in storage-form sind gemäß
  * welle-3-iv-settings-contracts.mdc §4 explizit erlaubt.
  */
 
-// storage-form.tsx liegt noch unter settings/ (Welle 3-IV-b verschiebt es hierher)
-export { StorageForm } from "../storage-form";
+export { StorageForm } from './storage-form'
