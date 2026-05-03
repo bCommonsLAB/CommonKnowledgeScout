@@ -6,12 +6,13 @@
  * Allows owners to invite and remove members. Zeigt den Einladungsstatus
  * (ausstehend/aktiv) und ermoeglicht erneutes Senden.
  * 
+ * Alle API-Aktionen und State-Verwaltung sind in useMembersActions extrahiert.
+ * 
  * @module settings
  */
 
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Table,
@@ -36,176 +37,36 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2, Trash2, Shield, Users, AlertCircle, Mail, Clock, CheckCircle2 } from "lucide-react"
-import { useToast } from "@/components/ui/use-toast"
-import type { LibraryMember, LibraryRole } from "@/types/library-members"
+import type { LibraryRole } from "@/types/library-members"
+import { useMembersActions } from "@/components/settings/hooks/use-members-actions"
 
 interface MembersListProps {
   libraryId: string
 }
 
 /**
- * Komponente fuer Liste der Library-Mitglieder mit Einladungsflow
+ * Komponente fuer Liste der Library-Mitglieder mit Einladungsflow.
+ * Delegiert API-Logik an useMembersActions.
  */
 export function MembersList({ libraryId }: MembersListProps) {
-  const { toast } = useToast()
-  const [members, setMembers] = useState<LibraryMember[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [isAddingMember, setIsAddingMember] = useState(false)
-  const [newMemberEmail, setNewMemberEmail] = useState("")
-  const [newMemberRole, setNewMemberRole] = useState<LibraryRole>("co-creator")
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [dialogError, setDialogError] = useState<string | null>(null)
-  const [removingEmail, setRemovingEmail] = useState<string | null>(null)
-  const [resendingEmail, setResendingEmail] = useState<string | null>(null)
-
-  const loadMembers = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-
-    try {
-      const response = await fetch(`/api/libraries/${libraryId}/members`)
-
-      if (!response.ok) {
-        throw new Error('Fehler beim Laden der Mitglieder')
-      }
-
-      const data = await response.json()
-      setMembers(data.members || [])
-    } catch (err) {
-      console.error('Fehler beim Laden der Mitglieder:', err)
-      setError(err instanceof Error ? err.message : 'Unbekannter Fehler')
-    } finally {
-      setLoading(false)
-    }
-  }, [libraryId])
-
-  useEffect(() => {
-    loadMembers()
-  }, [loadMembers])
-
-  async function handleInviteMember() {
-    setDialogError(null)
-    
-    if (!newMemberEmail || !newMemberEmail.includes("@")) {
-      setDialogError("Bitte geben Sie eine gueltige E-Mail-Adresse ein.")
-      return
-    }
-
-    setIsAddingMember(true)
-
-    try {
-      const response = await fetch(`/api/libraries/${libraryId}/members`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: newMemberEmail.trim(),
-          role: newMemberRole,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        setDialogError(data.error || "Fehler beim Einladen des Mitglieds")
-        return
-      }
-
-      const roleLabel = newMemberRole === 'co-creator' ? 'Co-Creator' : 'Moderator'
-      toast({
-        title: "Einladung gesendet",
-        description: data.emailSent
-          ? `Einladung als ${roleLabel} an ${newMemberEmail} gesendet.`
-          : `Einladung als ${roleLabel} erstellt. E-Mail konnte nicht gesendet werden.`,
-      })
-
-      setNewMemberEmail("")
-      setNewMemberRole("co-creator")
-      setDialogError(null)
-      setIsDialogOpen(false)
-      await loadMembers()
-    } catch (error) {
-      console.error("Fehler beim Einladen des Mitglieds:", error)
-      setDialogError(error instanceof Error ? error.message : "Unbekannter Fehler")
-    } finally {
-      setIsAddingMember(false)
-    }
-  }
-
-  /** Einladungs-E-Mail erneut senden (nur fuer pending Members) */
-  async function handleResendInvite(email: string) {
-    setResendingEmail(email)
-
-    try {
-      const response = await fetch(`/api/libraries/${libraryId}/members`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "Fehler beim erneuten Senden")
-      }
-
-      toast({
-        title: "Einladung erneut gesendet",
-        description: data.message,
-      })
-
-      await loadMembers()
-    } catch (err) {
-      console.error("Fehler beim erneuten Senden:", err)
-      toast({
-        title: "Fehler",
-        description: err instanceof Error ? err.message : "Unbekannter Fehler",
-        variant: "destructive",
-      })
-    } finally {
-      setResendingEmail(null)
-    }
-  }
-
-  async function handleRemoveMember(email: string, memberStatus?: string) {
-    const label = memberStatus === 'pending' ? 'die Einladung zurueckziehen' : 'das Mitglied entfernen'
-    if (!confirm(`Moechten Sie ${label} fuer ${email}?`)) {
-      return
-    }
-
-    setRemovingEmail(email)
-
-    try {
-      const url = `/api/libraries/${libraryId}/members?email=${encodeURIComponent(email)}`
-
-      const response = await fetch(url, { method: "DELETE" })
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "Fehler beim Entfernen des Mitglieds")
-      }
-
-      toast({
-        title: "Erfolg",
-        description: memberStatus === 'pending'
-          ? `Einladung fuer ${email} wurde zurueckgezogen.`
-          : `Mitglied ${email} wurde entfernt.`,
-      })
-
-      await loadMembers()
-    } catch (error) {
-      console.error("Fehler beim Entfernen des Mitglieds:", error)
-      toast({
-        title: "Fehler",
-        description: error instanceof Error ? error.message : "Unbekannter Fehler",
-        variant: "destructive",
-      })
-    } finally {
-      setRemovingEmail(null)
-    }
-  }
+  const {
+    members,
+    loading,
+    error,
+    isDialogOpen,
+    setIsDialogOpen,
+    newMemberEmail,
+    setNewMemberEmail,
+    newMemberRole,
+    setNewMemberRole,
+    dialogError,
+    isAddingMember,
+    handleInviteMember,
+    resendingEmail,
+    handleResendInvite,
+    removingEmail,
+    handleRemoveMember,
+  } = useMembersActions({ libraryId })
 
   if (loading) {
     return (
@@ -227,7 +88,7 @@ export function MembersList({ libraryId }: MembersListProps) {
     <div className="space-y-4">
       {/* Invite Member Button */}
       <div className="flex justify-end">
-        <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (open) setDialogError(null); }}>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); }}>
           <DialogTrigger asChild>
             <Button>
               <Mail className="h-4 w-4 mr-2" />

@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Table,
@@ -13,181 +12,56 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, CheckCircle2, XCircle, Mail, Trash2, Send, RefreshCw } from "lucide-react"
-import { useToast } from "@/components/ui/use-toast"
 import { InviteUserDialog } from "@/components/settings/invite-user-dialog"
 import type { LibraryAccessRequest } from "@/types/library-access"
+import { useAccessRequestsActions } from "@/components/settings/hooks/use-access-requests-actions"
 
 interface AccessRequestsListProps {
   libraryId: string
 }
 
 /**
- * Komponente für Liste der Zugriffsanfragen
+ * Rendert den Status einer Zugriffsanfrage als Badge.
+ */
+function getStatusBadge(status: LibraryAccessRequest['status']) {
+  switch (status) {
+    case 'pending':
+      return <Badge variant="outline">Ausstehend</Badge>
+    case 'approved':
+      return <Badge variant="default" className="bg-green-500">Genehmigt</Badge>
+    case 'rejected':
+      return <Badge variant="destructive">Abgelehnt</Badge>
+  }
+}
+
+/**
+ * Gibt ein lesbares Label fuer die Anfrage-Quelle zurueck.
+ */
+function getSourceLabel(source: LibraryAccessRequest['source']): string {
+  return source === 'self' ? 'Selbst-Anfrage' : 'Einladung'
+}
+
+/**
+ * Komponente für Liste der Zugriffsanfragen.
  * 
  * Zeigt alle Zugriffsanfragen für eine Library an und ermöglicht
  * Genehmigung/Ablehnung sowie das Versenden von Einladungen.
+ * 
+ * Alle API-Aktionen und State-Verwaltung sind in useAccessRequestsActions extrahiert.
  */
 export function AccessRequestsList({ libraryId }: AccessRequestsListProps) {
-  const { toast } = useToast()
-  const [requests, setRequests] = useState<LibraryAccessRequest[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all')
-  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set())
-
-  const loadRequests = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-
-    try {
-      const url = `/api/libraries/${libraryId}/access-requests${statusFilter !== 'all' ? `?status=${statusFilter}` : ''}`
-      const response = await fetch(url)
-
-      if (!response.ok) {
-        throw new Error('Fehler beim Laden der Zugriffsanfragen')
-      }
-
-      const data = await response.json()
-      setRequests(data.requests || [])
-    } catch (err) {
-      console.error('Fehler beim Laden der Zugriffsanfragen:', err)
-      setError(err instanceof Error ? err.message : 'Unbekannter Fehler')
-    } finally {
-      setLoading(false)
-    }
-  }, [libraryId, statusFilter])
-
-  useEffect(() => {
-    loadRequests()
-  }, [loadRequests])
-
-  async function updateRequestStatus(requestId: string, status: 'approved' | 'rejected') {
-    setProcessingIds(prev => new Set(prev).add(requestId))
-
-    try {
-      const response = await fetch(`/api/libraries/${libraryId}/access-requests/${requestId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status }),
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Fehler beim Aktualisieren des Status')
-      }
-
-      toast({
-        title: "Erfolg",
-        description: `Zugriffsanfrage wurde ${status === 'approved' ? 'genehmigt' : 'abgelehnt'}`,
-      })
-
-      // Liste neu laden
-      await loadRequests()
-    } catch (err) {
-      console.error('Fehler beim Aktualisieren des Status:', err)
-      toast({
-        title: "Fehler",
-        description: err instanceof Error ? err.message : 'Unbekannter Fehler',
-        variant: "destructive",
-      })
-    } finally {
-      setProcessingIds(prev => {
-        const next = new Set(prev)
-        next.delete(requestId)
-        return next
-      })
-    }
-  }
-
-  async function handleDeleteRequest(requestId: string) {
-    if (!confirm('Möchten Sie diese Zugriffsanfrage wirklich löschen?')) {
-      return
-    }
-
-    setProcessingIds(prev => new Set(prev).add(requestId))
-
-    try {
-      const response = await fetch(`/api/libraries/${libraryId}/access-requests/${requestId}`, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Fehler beim Löschen der Zugriffsanfrage')
-      }
-
-      toast({
-        title: "Erfolg",
-        description: 'Zugriffsanfrage wurde erfolgreich gelöscht',
-      })
-
-      // Liste neu laden
-      await loadRequests()
-    } catch (err) {
-      console.error('Fehler beim Löschen der Zugriffsanfrage:', err)
-      toast({
-        title: "Fehler",
-        description: err instanceof Error ? err.message : 'Unbekannter Fehler',
-        variant: "destructive",
-      })
-    } finally {
-      setProcessingIds(prev => {
-        const next = new Set(prev)
-        next.delete(requestId)
-        return next
-      })
-    }
-  }
-
-  async function handleResendInvite(requestId: string) {
-    setProcessingIds(prev => new Set(prev).add(requestId))
-
-    try {
-      const response = await fetch(`/api/libraries/${libraryId}/access-requests/${requestId}/resend`, {
-        method: 'POST',
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Fehler beim erneuten Versenden der Einladung')
-      }
-
-      toast({
-        title: "Erfolg",
-        description: 'Einladung wurde erfolgreich erneut versendet',
-      })
-    } catch (err) {
-      console.error('Fehler beim erneuten Versenden der Einladung:', err)
-      toast({
-        title: "Fehler",
-        description: err instanceof Error ? err.message : 'Unbekannter Fehler',
-        variant: "destructive",
-      })
-    } finally {
-      setProcessingIds(prev => {
-        const next = new Set(prev)
-        next.delete(requestId)
-        return next
-      })
-    }
-  }
-
-  function getStatusBadge(status: LibraryAccessRequest['status']) {
-    switch (status) {
-      case 'pending':
-        return <Badge variant="outline">Ausstehend</Badge>
-      case 'approved':
-        return <Badge variant="default" className="bg-green-500">Genehmigt</Badge>
-      case 'rejected':
-        return <Badge variant="destructive">Abgelehnt</Badge>
-    }
-  }
-
-  function getSourceLabel(source: LibraryAccessRequest['source']) {
-    return source === 'self' ? 'Selbst-Anfrage' : 'Einladung'
-  }
+  const {
+    requests,
+    loading,
+    error,
+    statusFilter,
+    setStatusFilter,
+    loadRequests,
+    processingIds,
+    updateRequestStatus,
+    handleDeleteRequest,
+    handleResendInvite,
+  } = useAccessRequestsActions({ libraryId })
 
   if (loading) {
     return (
@@ -390,4 +264,3 @@ export function AccessRequestsList({ libraryId }: AccessRequestsListProps) {
     </div>
   )
 }
-
