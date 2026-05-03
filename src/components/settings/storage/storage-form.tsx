@@ -1,15 +1,25 @@
 "use client"
 
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
-import { useState, useEffect, useCallback, Suspense, useMemo } from "react"
-import { useAtom, useAtomValue } from "jotai"
-import { useSearchParams } from "next/navigation"
-import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom"
-import { Button } from "@/components/ui/button"
+/**
+ * StorageForm — Formular für Storage-Einstellungen einer Library.
+ *
+ * Nutzt useStorageForm() für den gesamten State + Handler.
+ * Render-Verantwortung: Typ-Auswahl, Pfad, Typ-spezifische Sections,
+ * Test-Dialog und Speichern-Button.
+ *
+ * Sections-Split in Welle 3-IV-Settings-Sections:
+ * - OneDriveSection  (Tenant ID, Client ID, Secret, OAuth-Flow)
+ * - NextcloudSection (WebDAV-URL, Benutzername, App-Passwort)
+ * - GdriveSection    (Client ID, Client Secret)
+ *
+ * Refactored aus storage-form.tsx (Monolith, 1412z → ~250z Render-Datei).
+ */
+
+import { Suspense } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { Cloud, CheckCircle, Info } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Info } from "lucide-react"
 import {
   Form,
   FormControl,
@@ -27,9 +37,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { toast } from "sonner"
-import { StorageProviderType } from "@/types/library"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   Dialog,
   DialogContent,
@@ -37,1253 +44,115 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { toast } from "sonner"
+import { StorageProviderType } from "@/types/library"
+import { useStorageForm } from "./hooks/use-storage-form"
+import type { TestLogEntry } from "./hooks/use-storage-form"
+import { OneDriveSection } from "./onedrive-section"
+import { NextcloudSection } from "./nextcloud-section"
+import { GdriveSection } from "./gdrive-section"
 
-import { Badge } from "@/components/ui/badge"
-import { useStorage } from "@/contexts/storage-context"
-import { StorageFactory } from "@/lib/storage/storage-factory"
-import React from 'react'
+// --------------------------------------------------------------------------
+// Test-Ergebnisse rendern
+// --------------------------------------------------------------------------
 
-// Hauptschema für das Formular
-const storageFormSchema = z.object({
-  type: z.enum(["local", "onedrive", "gdrive", "nextcloud"], {
-    required_error: "Bitte wählen Sie einen Speichertyp.",
-  }),
-  path: z.string({
-    required_error: "Bitte geben Sie einen Speicherpfad ein.",
-  }),
-  // Zusätzliche Storage-Konfiguration
-  tenantId: z.string().optional(),
-  clientId: z.string().optional(),
-  clientSecret: z.string().optional(),
-  // Nextcloud/WebDAV-Konfiguration
-  nextcloudWebdavUrl: z.string().optional(),
-  nextcloudUsername: z.string().optional(),
-  nextcloudAppPassword: z.string().optional(),
-});
+function TestResultTable({ testResults }: { testResults: TestLogEntry[] }) {
+  if (testResults.length === 0) {
+    return <p className="text-muted-foreground">Testergebnisse werden geladen...</p>;
+  }
 
-type StorageFormValues = z.infer<typeof storageFormSchema>
-
-// Test-Ergebnis Typ
-interface TestLogEntry {
-  step: string;
-  status: 'success' | 'error' | 'info';
-  message: string;
-  timestamp: string;
-  details?: Record<string, unknown>;
-}
-
-// Wrapper-Komponente für useSearchParams
-function StorageFormWithSearchParams() {
-  const searchParams = useSearchParams();
-  return <StorageFormContent searchParams={searchParams} />;
-}
-
-// Hauptkomponente ohne useSearchParams
-function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | null }) {
-  const [libraries, setLibraries] = useAtom(librariesAtom);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isTesting, setIsTesting] = useState(false);
-  const [testDialogOpen, setTestDialogOpen] = useState(false);
-  const [testResults, setTestResults] = useState<TestLogEntry[]>([]);
-  const [processedAuthParams, setProcessedAuthParams] = useState(false);
-  const [tokenStatus, setTokenStatus] = useState<{
-    isAuthenticated: boolean;
-    isExpired: boolean;
-    loading: boolean;
-  }>({
-    isAuthenticated: false,
-    isExpired: false,
-    loading: false
-  });
-  const [oauthDefaults, setOauthDefaults] = useState<{
-    tenantId: string;
-    clientId: string;
-    clientSecret: string;
-  }>({
-    tenantId: "",
-    clientId: "",
-    clientSecret: "",
-  });
-  
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
-  const activeLibrary = libraries.find(lib => lib.id === activeLibraryId);
-  const { refreshLibraries, refreshAuthStatus } = useStorage();
-  
-  // Default-Werte in useMemo verpacken
-  const defaultValues = useMemo(() => ({
-    type: 'local' as StorageProviderType,
-    path: '',
-    tenantId: '',
-    clientId: '',
-    clientSecret: '',
-    nextcloudWebdavUrl: '',
-    nextcloudUsername: '',
-    nextcloudAppPassword: '',
-  }), []); // Leere Dependency-Liste, da die Werte konstant sind
-  
-  const form = useForm<StorageFormValues>({
-    resolver: zodResolver(storageFormSchema),
-    defaultValues,
-  });
-  
-  // Aktueller Storage-Typ (Fallback: aktive Library für initialen Render)
-  const currentType = form.watch("type") || (activeLibrary?.type as StorageProviderType | undefined);
-  
-  // Logging für Mount und wichtige State-Änderungen
-  useEffect(() => {
-    console.log('[StorageForm] Komponente gemountet/aktualisiert:', {
-      pathname: window.location.pathname,
-      search: window.location.search,
-      activeLibraryId,
-      activeLibraryLabel: activeLibrary?.label,
-      librariesCount: libraries.length,
-      formValues: form.getValues()
-    });
-  }, [activeLibraryId, activeLibrary, libraries.length, form]);
-  
-  // Lade OAuth-Standardwerte über die API
-  useEffect(() => {
-    async function loadOAuthDefaults() {
-      try {
-        console.log('[StorageForm] Lade OAuth-Standardwerte...');
-        const response = await fetch('/api/settings/oauth-defaults');
-        
-        if (!response.ok) {
-          throw new Error(`Fehler beim Laden der OAuth-Standardwerte: ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        console.log('[StorageForm] Geladene OAuth-Defaults:', {
-          hasDefaults: data.hasDefaults,
-          tenantId: data.defaults?.tenantId ? 'vorhanden' : 'nicht vorhanden',
-          clientId: data.defaults?.clientId ? 'vorhanden' : 'nicht vorhanden',
-          clientSecret: data.defaults?.clientSecret ? 'vorhanden' : 'nicht vorhanden',
-        });
-        
-        if (data.hasDefaults) {
-          setOauthDefaults({
-            tenantId: data.defaults.tenantId,
-            clientId: data.defaults.clientId,
-            clientSecret: data.defaults.clientSecret,
-          });
-          console.log('[StorageForm] OAuth-Standardwerte gesetzt');
-        } else {
-          console.log('[StorageForm] Keine OAuth-Standardwerte gefunden');
-        }
-      } catch (error) {
-        console.error('[StorageForm] Fehler beim Laden der OAuth-Standardwerte:', error);
-      }
-    }
-    
-    loadOAuthDefaults();
-  }, []);
-  
-  // Form mit aktiver Bibliothek befüllen
-  useEffect(() => {
-    if (activeLibrary) {
-      // Nextcloud-Config robust extrahieren (config hat [key: string]: unknown Index-Signatur)
-      const ncConfig = activeLibrary.config?.nextcloud as { webdavUrl?: string; username?: string; appPassword?: string } | undefined;
-
-      console.log('[StorageForm] Befülle Form mit Library-Daten:', {
-        libraryLabel: activeLibrary.label,
-        type: activeLibrary.type,
-        path: activeLibrary.path,
-        hasNextcloudConfig: !!ncConfig,
-        nextcloudUsername: ncConfig?.username,
-        nextcloudWebdavUrl: ncConfig?.webdavUrl,
-        configKeys: activeLibrary.config ? Object.keys(activeLibrary.config) : [],
-      });
-      
-      // Validierung: Sicherstellen, dass type ein gültiger Wert ist
-      const libraryType = activeLibrary.type as StorageProviderType;
-      if (libraryType !== 'local' && libraryType !== 'onedrive' && libraryType !== 'gdrive' && libraryType !== 'nextcloud') {
-        console.error(`[StorageForm] Ungültiger Bibliothekstyp: "${libraryType}"`);
-      }
-      const validType = libraryType;
-      
-      // Wenn Bibliothek gewechselt wird, Formular mit den Werten befüllen
-      const formData = {
-        type: validType,
-        path: activeLibrary.path || "",
-        // Alle Werte direkt aus der Bibliothek oder aus den Defaults verwenden
-        tenantId: activeLibrary.config?.tenantId as string || oauthDefaults.tenantId,
-        clientId: activeLibrary.config?.clientId as string || oauthDefaults.clientId,
-        // Für clientSecret: Wenn es maskiert ist (********), leer lassen
-        clientSecret: (activeLibrary.config?.clientSecret as string === '********') 
-          ? '' 
-          : activeLibrary.config?.clientSecret as string || oauthDefaults.clientSecret,
-        // Nextcloud-Felder aus der Config laden
-        nextcloudWebdavUrl: ncConfig?.webdavUrl || '',
-        nextcloudUsername: ncConfig?.username || '',
-        nextcloudAppPassword: (ncConfig?.appPassword === '********') 
-          ? '' 
-          : ncConfig?.appPassword || '',
-      };
-      
-      console.log('[StorageForm] Form-Daten zum Befüllen:', formData);
-      console.log('[StorageForm] Aktueller Form-Zustand vor Reset:', form.getValues());
-      
-      // Explizit die Werte setzen und dann resetten
-      form.reset(formData);
-      
-      // Zusätzlich: Nach Reset den aktuellen Zustand prüfen
-      setTimeout(() => {
-        const afterReset = form.getValues();
-        console.log('[StorageForm] Form-Zustand nach Reset:', afterReset);
-        // Sicherstellen, dass type gesetzt ist
-        if (!afterReset.type || (afterReset.type !== 'local' && afterReset.type !== 'onedrive' && afterReset.type !== 'gdrive' && afterReset.type !== 'nextcloud')) {
-          console.warn('[StorageForm] Type ist nach Reset ungültig, setze auf:', validType);
-          form.setValue('type', validType);
-        }
-      }, 0);
-      
-    } else {
-      console.log('[StorageForm] Keine aktive Library zum Befüllen der Form');
-      // Bei keiner aktiven Library, Formular auf Defaults zurücksetzen
-      form.reset(defaultValues);
-    }
-  }, [activeLibrary, form, oauthDefaults, defaultValues]);
-  
-  // Token-Status laden, wenn sich die aktive Library ändert
-  useEffect(() => {
-    async function loadTokenStatus() {
-      if (!activeLibrary || (activeLibrary.type !== 'onedrive' && activeLibrary.type !== 'gdrive')) {
-        setTokenStatus({
-          isAuthenticated: false,
-          isExpired: false,
-          loading: false
-        });
-        return;
-      }
-      
-      setTokenStatus(prev => ({ ...prev, loading: true }));
-      
-      try {
-        // Token-Status direkt aus localStorage prüfen
-        const localStorageKey = `onedrive_tokens_${activeLibrary.id}`;
-        const tokensJson = localStorage.getItem(localStorageKey);
-        
-        if (tokensJson) {
-          const tokens = JSON.parse(tokensJson);
-          const isExpired = tokens.expiry ? tokens.expiry <= Math.floor(Date.now() / 1000) : false;
-          
-          setTokenStatus({
-            isAuthenticated: true,
-            isExpired,
-            loading: false
-          });
-          
-          console.log('[StorageForm] Token-Status aus localStorage:', {
-            hasTokens: true,
-            isExpired
-          });
-        } else {
-          setTokenStatus({
-            isAuthenticated: false,
-            isExpired: false,
-            loading: false
-          });
-          
-          console.log('[StorageForm] Keine Tokens im localStorage gefunden');
-        }
-      } catch (error) {
-        console.error('[StorageForm] Fehler beim Laden des Token-Status aus localStorage:', error);
-        setTokenStatus({
-          isAuthenticated: false,
-          isExpired: false,
-          loading: false
-        });
-      }
-    }
-    
-    loadTokenStatus();
-  }, [activeLibrary]);
-
-  // Sicherstellen, dass der Speichertyp im Formular nach Reload gesetzt ist
-  useEffect(() => {
-    if (!activeLibrary) return;
-    const currentValues = form.getValues() as Partial<StorageFormValues>;
-    const nextValues: Partial<StorageFormValues> = { ...currentValues };
-    let needsReset = false;
-
-    if (activeLibrary.type && currentValues.type !== activeLibrary.type) {
-      nextValues.type = activeLibrary.type as StorageProviderType;
-      needsReset = true;
-    }
-    if (typeof currentValues.path !== 'string' || currentValues.path === '') {
-      nextValues.path = activeLibrary.path || '';
-      needsReset = true;
-    }
-    if (activeLibrary.type === 'onedrive') {
-      if (!currentValues.tenantId) { nextValues.tenantId = (activeLibrary.config?.tenantId as string) || ''; needsReset = true; }
-      if (!currentValues.clientId) { nextValues.clientId = (activeLibrary.config?.clientId as string) || ''; needsReset = true; }
-      // clientSecret nie vorbefüllen; leer lassen (Maskierung über Placeholder)
-      if (currentValues.clientSecret === undefined) { nextValues.clientSecret = ''; needsReset = true; }
-    }
-    if (activeLibrary.type === 'nextcloud') {
-      const nc = activeLibrary.config?.nextcloud as { webdavUrl?: string; username?: string; appPassword?: string } | undefined;
-      if (!currentValues.nextcloudWebdavUrl) { nextValues.nextcloudWebdavUrl = nc?.webdavUrl || ''; needsReset = true; }
-      if (!currentValues.nextcloudUsername) { nextValues.nextcloudUsername = nc?.username || ''; needsReset = true; }
-      if (currentValues.nextcloudAppPassword === undefined) { nextValues.nextcloudAppPassword = ''; needsReset = true; }
-    }
-    if (needsReset) {
-      form.reset(nextValues as StorageFormValues, { keepDefaultValues: false, keepDirty: false, keepTouched: false });
-    }
-  }, [activeLibrary, form]);
-  
-  // OAuth Erfolgs-/Fehlermeldungen aus URL-Parametern verarbeiten
-  useEffect(() => {
-    // Nur verarbeiten wenn:
-    // 1. Libraries geladen sind (sonst können wir die Library nicht finden)
-    // 2. Wir die Parameter noch nicht verarbeitet haben
-    // 3. Es überhaupt Auth-Parameter gibt
-    const hasAuthSuccess = searchParams?.get('authSuccess') === 'true';
-    const hasAuthError = searchParams?.get('authError');
-    
-    if (!processedAuthParams && libraries.length > 0 && (hasAuthSuccess || hasAuthError)) {
-      console.log('[StorageForm] useEffect für Query-Parameter ausgeführt', {
-        pathname: window.location.pathname,
-        search: window.location.search,
-        authSuccess: searchParams?.get('authSuccess'),
-        authError: searchParams?.get('authError'),
-        libraryId: searchParams?.get('libraryId'),
-        activeLibraryId,
-        librariesLoaded: libraries.length
-      });
-      
-      // Erfolgreiche Authentifizierung
-      if (hasAuthSuccess) {
-        const authenticatedLibraryId = searchParams?.get('libraryId');
-        console.log('[StorageForm] OAuth erfolgreich für Library:', authenticatedLibraryId);
-        
-        // Erfolgsmeldung setzen
-        toast.success("Authentifizierung erfolgreich", {
-          description: "Sie wurden erfolgreich bei OneDrive angemeldet."
-        });
-        
-        // Temporäre Tokens vom Server abrufen und im localStorage speichern
-        if (authenticatedLibraryId) {
-          (async () => {
-            try {
-              console.log('[StorageForm] Rufe temporäre Tokens ab...');
-              const tokenResponse = await fetch(`/api/libraries/${authenticatedLibraryId}/tokens`, {
-                method: 'POST'
-              });
-              
-              if (tokenResponse.ok) {
-                const tokenData = await tokenResponse.json();
-                if (tokenData.success && tokenData.tokens) {
-                  // Tokens im localStorage speichern
-                  const localStorageKey = `onedrive_tokens_${authenticatedLibraryId}`;
-                  localStorage.setItem(localStorageKey, JSON.stringify({
-                    accessToken: tokenData.tokens.accessToken,
-                    refreshToken: tokenData.tokens.refreshToken,
-                    expiry: parseInt(tokenData.tokens.tokenExpiry, 10)
-                  }));
-                  
-                  console.log('[StorageForm] Tokens erfolgreich im localStorage gespeichert');
-                  
-                  // Token-Status aktualisieren
-                  setTokenStatus({
-                    isAuthenticated: true,
-                    isExpired: false,
-                    loading: false
-                  });
-                  
-                  // Provider-Cache leeren, damit ein neuer Provider mit den Tokens erstellt wird
-                  try {
-                    const factory = StorageFactory.getInstance();
-                    await factory.clearProvider(authenticatedLibraryId);
-                    console.log('[StorageForm] Provider-Cache nach Token-Speicherung geleert');
-                  } catch (error) {
-                    console.error('[StorageForm] Fehler beim Leeren des Provider-Cache:', error);
-                  }
-                  
-                  // StorageContext über neue Tokens informieren
-                  await refreshAuthStatus();
-                }
-              } else {
-                console.error('[StorageForm] Fehler beim Abrufen der temporären Tokens:', tokenResponse.statusText);
-              }
-            } catch (error) {
-              console.error('[StorageForm] Fehler beim Verarbeiten der temporären Tokens:', error);
-            }
-          })();
-          
-          // Library-Daten neu laden und Formular sofort setzen
-          (async () => {
-            try {
-              const res = await fetch(`/api/libraries/${authenticatedLibraryId}`)
-              if (res.ok) {
-                const updatedLibrary = await res.json()
-                setLibraries(libraries.map(lib => lib.id === updatedLibrary.id ? updatedLibrary : lib))
-                // Formular direkt mit neuem Typ befüllen
-                form.reset({
-                  type: updatedLibrary.type,
-                  path: updatedLibrary.path || '',
-                  tenantId: updatedLibrary.config?.tenantId || oauthDefaults.tenantId,
-                  clientId: updatedLibrary.config?.clientId || oauthDefaults.clientId,
-                  clientSecret: ''
-                })
-              }
-            } catch (error) {
-              console.error('[StorageForm] Fehler beim Laden der aktualisierten Library:', error)
-            }
-          })();
-        }
-      }
-      
-      // Fehler bei der Authentifizierung
-      if (hasAuthError) {
-        const errorMessage = searchParams?.get('authError');
-        console.error('[StorageForm] OAuth-Fehler:', errorMessage);
-        toast.error("Fehler bei der Authentifizierung", {
-          description: errorMessage || "Unbekannter Fehler bei der Authentifizierung",
-        });
-      }
-      
-      // Parameter als verarbeitet markieren (nachdem Formular gesetzt wurde)
-      setProcessedAuthParams(true);
-      
-      // URL bereinigen nach der Verarbeitung
-      // Entferne die Auth-Parameter aus der URL ohne die Seite neu zu laden
-      if (typeof window !== 'undefined' && (hasAuthSuccess || hasAuthError)) {
-        const url = new URL(window.location.href);
-        url.searchParams.delete('authSuccess');
-        url.searchParams.delete('authError');
-        url.searchParams.delete('libraryId');
-        url.searchParams.delete('errorDescription');
-        window.history.replaceState({}, '', url.toString());
-        console.log('[StorageForm] URL bereinigt nach Auth-Verarbeitung');
-      }
-    }
-  }, [searchParams, libraries, activeLibraryId, processedAuthParams, setLibraries, refreshAuthStatus, form, oauthDefaults]);
-  
-  // Formular absenden
-  const onSubmit = useCallback(async (data: StorageFormValues) => {
-    if (!activeLibrary) {
-      toast.error("Fehler", {
-        description: "Keine Bibliothek ausgewählt.",
-      });
-      return;
-    }
-    
-    setIsLoading(true);
-    
-    try {
-      console.log('[StorageForm] === SUBMIT START ===');
-      console.log('[StorageForm] Formular-Rohdaten:', data);
-      console.log('[StorageForm] ClientSecret Wert:', {
-        value: data.clientSecret,
-        length: data.clientSecret?.length,
-        isMasked: data.clientSecret === '********',
-        isEmpty: data.clientSecret === '',
-        isUndefined: data.clientSecret === undefined
-      });
-      
-      // Konfiguration für die API vorbereiten
-      const config: Record<string, unknown> = {};
-      
-      // Nur die für den ausgewählten Typ relevanten Felder hinzufügen
-      if (data.type === 'onedrive' || data.type === 'gdrive') {
-        if (data.tenantId) config.tenantId = data.tenantId.trim();
-        if (data.clientId) config.clientId = data.clientId.trim();
-        // clientSecret nur senden, wenn es kein maskierter Wert ist und nicht leer (nach trim)
-        if (data.clientSecret && data.clientSecret !== '********') {
-          const trimmedSecret = data.clientSecret.trim();
-          if (trimmedSecret !== '') {
-            console.log('[StorageForm] ClientSecret wird gesendet (nicht maskiert, nicht leer, Länge:', trimmedSecret.length, ')');
-            config.clientSecret = trimmedSecret;
-          } else {
-            console.log('[StorageForm] ClientSecret wird NICHT gesendet: nur Whitespace');
-          }
-        } else {
-          console.log('[StorageForm] ClientSecret wird NICHT gesendet:', {
-            reason: data.clientSecret === '********' ? 'maskiert' : 
-                    data.clientSecret === '' ? 'leer' : 'undefined/null'
-          });
-        }
-      }
-
-      // Nextcloud-Konfiguration als verschachteltes Objekt senden
-      if (data.type === 'nextcloud') {
-        const nc: Record<string, string> = {};
-        if (data.nextcloudWebdavUrl) nc.webdavUrl = data.nextcloudWebdavUrl.trim();
-        if (data.nextcloudUsername) nc.username = data.nextcloudUsername.trim();
-        // App-Passwort nur senden, wenn nicht maskiert und nicht leer
-        if (data.nextcloudAppPassword && data.nextcloudAppPassword !== '********') {
-          const trimmed = data.nextcloudAppPassword.trim();
-          if (trimmed) nc.appPassword = trimmed;
-        }
-        if (Object.keys(nc).length > 0) {
-          config.nextcloud = nc;
-        }
-      }
-      
-      const requestBody = {
-        type: data.type,
-        path: data.path,
-        config
-      };
-      
-      console.log('[StorageForm] Request Body:', JSON.stringify(requestBody, null, 2));
-      
-      // API-Aufruf
-      const response = await fetch(`/api/libraries/${activeLibrary.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Fehler beim Speichern: ${response.statusText}`);
-      }
-      
-      const updatedLibrary = await response.json();
-      console.log('[StorageForm] Response erhalten:', {
-        id: updatedLibrary.id,
-        hasClientSecret: !!updatedLibrary.config?.clientSecret,
-        clientSecretValue: updatedLibrary.config?.clientSecret
-      });
-      console.log('[StorageForm] === SUBMIT END ===');
-      
-      // Library in der Liste aktualisieren
-      setLibraries(libraries.map(lib => lib.id === updatedLibrary.id ? updatedLibrary : lib));
-      
-      toast.success("Erfolg", {
-        description: "Die Einstellungen wurden gespeichert.",
-      });
-    } catch (error) {
-      console.error('[StorageForm] Fehler beim Speichern:', error);
-      toast.error("Fehler", {
-        description: error instanceof Error ? error.message : "Unbekannter Fehler beim Speichern",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeLibrary, libraries, setLibraries]);
-  
-  // Funktion zum Starten der OneDrive-Authentifizierung
-  const handleOneDriveAuth = useCallback(async () => {
-    if (!activeLibrary) {
-      toast.error("Fehler", {
-        description: "Keine Bibliothek ausgewählt.",
-      });
-      return;
-    }
-    
-    try {
-      // Prüfen, ob es ungespeicherte Änderungen gibt und diese speichern
-      if (form.formState.isDirty) {
-        // Zuerst die aktuellen Formularwerte speichern
-        toast.info("Speichere Änderungen", {
-          description: "Die aktuellen Konfigurationseinstellungen werden gespeichert...",
-        });
-        
-        // Die onSubmit-Funktion aufrufen, um die Änderungen zu speichern
-        await onSubmit(form.getValues());
-        
-        // Kurz warten, damit die Änderungen gespeichert werden können
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-      
-      // Die Bibliothek neu laden, um sicherzustellen, dass wir die aktuellsten Daten haben
-      const response = await fetch(`/api/libraries/${activeLibrary.id}`);
-      if (!response.ok) {
-        throw new Error(`Fehler beim Laden der Bibliothek: ${response.statusText}`);
-      }
-      
-      const updatedLibrary = await response.json();
-      console.log('[StorageForm] Verwende gespeicherte Bibliothekskonfiguration:', {
-        id: updatedLibrary.id,
-        clientId: updatedLibrary.config?.clientId ? 'vorhanden' : 'nicht vorhanden',
-        clientSecret: updatedLibrary.config?.clientSecret ? 'vorhanden' : 'nicht vorhanden'
-      });
-      
-      // Client-seitige Validierung nur für clientId (clientSecret wird server-seitig geprüft)
-      if (!updatedLibrary.config?.clientId) {
-        toast.error("Unvollständige Konfiguration", {
-          description: "Bitte geben Sie eine Client ID ein und speichern Sie die Änderungen.",
-        });
-        return;
-      }
-      
-      // Prüfe ob clientSecret vorhanden ist (maskiert oder echter Wert)
-      const hasClientSecret = updatedLibrary.config?.clientSecret && updatedLibrary.config.clientSecret !== '';
-      
-      if (!hasClientSecret) {
-        toast.error("Unvollständige Konfiguration", {
-          description: "Bitte geben Sie ein Client Secret ein und speichern Sie die Änderungen.",
-        });
-        return;
-      }
-      
-      // Debug-Informationen
-      console.log('[StorageForm] Starte OneDrive-Authentifizierung für Bibliothek:', {
-        id: updatedLibrary.id,
-        label: updatedLibrary.label,
-        type: updatedLibrary.type
-      });
-      
-      // Temporärer Provider nur für OAuth-URL (über Factory, keine direkte Provider-Instanziierung)
-      const provider = StorageFactory.getInstance().createOneDriveProviderForAuth(updatedLibrary);
-      const authUrlString = await provider.getAuthUrl();
-      
-      // State-Objekt mit Library-ID und aktueller URL erstellen (einheitliches Format)
-      const currentUrl = window.location.href;
-      const stateObj = { 
-        libraryId: updatedLibrary.id,
-        redirect: currentUrl  // Zurück zu den Settings nach der Authentifizierung
-      };
-      const urlWithState = new URL(authUrlString);
-      urlWithState.searchParams.set('state', JSON.stringify(stateObj));
-      
-      // Finale URL loggen
-      console.log('[StorageForm] Weiterleitung zu:', urlWithState.toString());
-      
-      // Zu Microsoft-Anmeldeseite weiterleiten
-      window.location.href = urlWithState.toString();
-    } catch (error) {
-      console.error('[StorageForm] Fehler beim Starten der OneDrive-Authentifizierung:', error);
-      toast.error("Fehler", {
-        description: error instanceof Error ? error.message : "Unbekannter Fehler bei der Authentifizierung",
-      });
-    }
-  }, [activeLibrary, form, onSubmit]);
-  
-  // Funktion zum Abmelden von OneDrive
-  const handleOneDriveLogout = useCallback(async () => {
-    if (!activeLibrary) {
-      toast.error("Fehler", {
-        description: "Keine Bibliothek ausgewählt.",
-      });
-      return;
-    }
-    
-    try {
-      console.log('[StorageForm] Starte OneDrive-Abmeldung für Bibliothek:', activeLibrary.id);
-      
-      const response = await fetch(`/api/libraries/${activeLibrary.id}/tokens`, {
-        method: 'DELETE',
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Fehler beim Abmelden');
-      }
-      
-      console.log('[StorageForm] OneDrive-Abmeldung erfolgreich');
-      
-      // Tokens aus localStorage entfernen
-      try {
-        const localStorageKey = `onedrive_tokens_${activeLibrary.id}`;
-        localStorage.removeItem(localStorageKey);
-        console.log(`[StorageForm] Tokens aus localStorage entfernt: ${localStorageKey}`);
-      } catch (error) {
-        console.error('[StorageForm] Fehler beim Entfernen der Tokens aus localStorage:', error);
-      }
-      
-      // Token-Status aktualisieren
-      setTokenStatus({
-        loading: false,
-        isAuthenticated: false,
-        isExpired: false
-      });
-      
-      // Bibliotheken neu laden
-      await refreshLibraries();
-      
-      // Provider-Cache leeren
-      try {
-        const factory = StorageFactory.getInstance();
-        await factory.clearProvider(activeLibrary.id);
-        console.log('[StorageForm] Provider-Cache geleert');
-      } catch (error) {
-        console.error('[StorageForm] Fehler beim Leeren des Provider-Cache:', error);
-      }
-      
-      toast.success("Erfolgreich abgemeldet", {
-        description: "Sie wurden erfolgreich von OneDrive abgemeldet.",
-      });
-      
-    } catch (error) {
-      console.error('[StorageForm] Fehler beim Abmelden von OneDrive:', error);
-      toast.error("Fehler", {
-        description: error instanceof Error ? error.message : "Unbekannter Fehler beim Abmelden",
-      });
-    }
-  }, [activeLibrary, refreshLibraries]);
-  
-  // Funktion zum Testen des Storage-Providers
-  const handleTest = async () => {
-    if (!activeLibrary) {
-      toast.error("Fehler", {
-        description: "Keine Bibliothek ausgewählt.",
-      });
-      return;
-    }
-    setIsTesting(true);
-    setTestResults([]);
-    setTestDialogOpen(true);
-    try {
-      const logs: TestLogEntry[] = [];
-      const logStep = (step: string, status: 'success' | 'error' | 'info', message: string, details?: TestLogEntry['details']) => {
-        const entry = {
-          timestamp: new Date().toISOString(),
-          step,
-          status,
-          message,
-          details
-        };
-        logs.push(entry);
-        setTestResults([...logs]);
-      };
-
-      // Clientseitiger Test (bestehender Pfad)
-      const factory = StorageFactory.getInstance();
-      const provider = await factory.getProvider(activeLibrary.id);
-
-      // Debug-Informationen über den Provider
-      if ('isAuthenticated' in provider && typeof provider.isAuthenticated === 'function') {
-        const isAuth = (provider as { isAuthenticated(): boolean }).isAuthenticated();
-        logStep("Provider-Status", "info", "Provider-Informationen", {
-          name: provider.name,
-          id: provider.id,
-          isAuthenticated: isAuth,
-          hasTokens: isAuth ? "ja" : "nein"
-        });
-      }
-
-      // Schritt 1: Konfiguration validieren
-      logStep("Validierung", "info", "Validiere Storage-Provider Konfiguration...");
-      const validationResult = await provider.validateConfiguration();
-      
-      if (!validationResult.isValid) {
-        logStep("Validierung", "error", `Storage-Provider Konfiguration ungültig: ${validationResult.error}`);
-        return;
-      }
-      
-      logStep("Validierung", "success", "Storage-Provider Konfiguration ist gültig.", {
-        validationResult
-      });
-
-      // Schritt 2: Root-Verzeichnis auflisten
-      logStep("Root-Verzeichnis", "info", "Liste Root-Verzeichnis auf...");
-      try {
-        // Verwende useRootItems Hook wenn möglich, sonst direkter Provider-Call
-        // (In diesem Test-Kontext ist direkter Call OK, da es ein einmaliger Test ist)
-        const rootItems = await provider.listItemsById('root');
-        logStep("Root-Verzeichnis", "success", `Root-Verzeichnis erfolgreich aufgelistet. ${rootItems.length} Elemente gefunden.`, {
-          itemCount: rootItems.length,
-          items: rootItems.map(item => ({
-            id: item.id,
-            name: item.metadata.name,
-            type: item.type
-          }))
-        });
-
-        // Schritt 3: Testverzeichnis erstellen
-        const testFolderName = `test-folder-${Math.random().toString(36).substring(7)}`;
-        logStep("Testverzeichnis", "info", `Erstelle Testverzeichnis "${testFolderName}"...`);
-        const testFolder = await provider.createFolder('root', testFolderName);
-        logStep("Testverzeichnis", "success", `Testverzeichnis "${testFolderName}" erfolgreich erstellt.`);
-
-        // Schritt 4: Testdatei erstellen
-        logStep("Testdatei", "info", "Erstelle Testdatei...");
-        const testFileContent = "Dies ist eine Testdatei, erstellt von Knowledge Scout Storage Tester.";
-        const testFileName = `test-file-${Math.random().toString(36).substring(7)}.txt`;
-        
-        // Blob aus String erstellen
-        const blob = new Blob([testFileContent], { type: 'text/plain' });
-        // File-Objekt erstellen
-        const testFile = new File([blob], testFileName, { type: 'text/plain' });
-        
-        const createdFile = await provider.uploadFile(testFolder.id, testFile);
-        logStep("Testdatei", "success", `Testdatei "${testFileName}" erfolgreich erstellt.`);
-
-        // Schritt 5: Verzeichnis auflisten
-        logStep("Verzeichnisinhalt", "info", `Liste Inhalt des Testverzeichnisses auf...`);
-        const folderItems = await provider.listItemsById(testFolder.id);
-        logStep("Verzeichnisinhalt", "success", `Verzeichnisinhalt erfolgreich aufgelistet. ${folderItems.length} Element(e) gefunden.`);
-
-        // Schritt 6: Datei abrufen
-        logStep("Datei abrufen", "info", "Rufe Testdatei ab...");
-        const retrievedFile = await provider.getItemById(createdFile.id);
-        logStep("Datei abrufen", "success", `Testdatei erfolgreich abgerufen: "${retrievedFile.metadata.name}" (${retrievedFile.metadata.size} Bytes)`);
-
-        // Schritt 7: Binärdaten abrufen
-        logStep("Binärdaten", "info", "Rufe Binärdaten der Testdatei ab...");
-        const binaryData = await provider.getBinary(createdFile.id);
-        const blobText = await binaryData.blob.text();
-        const verificationResult = blobText === testFileContent
-          ? "Der Inhalt der Datei stimmt mit dem ursprünglichen Inhalt überein."
-          : "Der Inhalt der Datei stimmt nicht mit dem ursprünglichen Inhalt überein!";
-        logStep("Binärdaten", "success", `Binärdaten erfolgreich abgerufen. MIME-Typ: ${binaryData.mimeType}. ${verificationResult}`);
-
-        // Schritt 8: Pfad abrufen
-        logStep("Dateipfad", "info", "Rufe Pfad der Testdatei ab...");
-        const filePath = await provider.getPathById(createdFile.id);
-        logStep("Dateipfad", "success", `Pfad erfolgreich abgerufen: ${filePath}`);
-
-        // Schritt 9: Pfad-Items abrufen (Breadcrumb-Pfad)
-        logStep("Pfad-Items", "info", "Rufe Breadcrumb-Pfad ab...");
-        const pathItems = await provider.getPathItemsById(createdFile.id);
-        logStep("Pfad-Items", "success", `Breadcrumb-Pfad: ${pathItems.map(p => p.metadata.name).join(' / ')} (${pathItems.length} Ebenen)`);
-
-        // Schritt 10: Datei umbenennen
-        const renamedName = `renamed-${testFileName}`;
-        logStep("Umbenennen", "info", `Benenne "${testFileName}" um in "${renamedName}"...`);
-        const renamedFile = await provider.renameItem(createdFile.id, renamedName);
-        const renameOk = renamedFile.metadata.name === renamedName;
-        logStep("Umbenennen", renameOk ? "success" : "error",
-          renameOk ? `Erfolgreich umbenannt zu "${renamedFile.metadata.name}".` : `Name stimmt nicht: "${renamedFile.metadata.name}" statt "${renamedName}"`);
-
-        // Schritt 11: Zweiten Testordner erstellen und Datei verschieben
-        const moveTargetName = `move-target-${testFolderName}`;
-        logStep("Verschieben", "info", `Erstelle Zielordner "${moveTargetName}" und verschiebe Datei...`);
-        const moveTarget = await provider.createFolder('root', moveTargetName);
-        await provider.moveItem(renamedFile.id, moveTarget.id);
-        const movedItems = await provider.listItemsById(moveTarget.id);
-        const moveOk = movedItems.some(i => i.metadata.name === renamedName);
-        logStep("Verschieben", moveOk ? "success" : "error",
-          moveOk ? `Datei erfolgreich nach "${moveTargetName}" verschoben.` : "Datei wurde nicht im Zielordner gefunden!");
-
-        // Schritt 12: Streaming-URL abrufen
-        const movedFile = movedItems.find(i => i.metadata.name === renamedName);
-        if (movedFile) {
-          logStep("Streaming-URL", "info", "Rufe Streaming-URL ab...");
-          const streamUrl = await provider.getStreamingUrl(movedFile.id);
-          logStep("Streaming-URL", streamUrl ? "success" : "error",
-            streamUrl ? `Streaming-URL erhalten (${streamUrl.substring(0, 80)}...)` : "Keine Streaming-URL erhalten!");
-
-          // Schritt 13: Download-URL abrufen
-          logStep("Download-URL", "info", "Rufe Download-URL ab...");
-          const downloadUrl = await provider.getDownloadUrl(movedFile.id);
-          logStep("Download-URL", downloadUrl ? "success" : "error",
-            downloadUrl ? `Download-URL erhalten (${downloadUrl.substring(0, 80)}...)` : "Keine Download-URL erhalten!");
-        }
-
-        // Schritt 14: Aufräumen - beide Testverzeichnisse löschen
-        logStep("Aufräumen", "info", "Lösche Testverzeichnisse...");
-        await provider.deleteItem(testFolder.id);
-        await provider.deleteItem(moveTarget.id);
-        logStep("Aufräumen", "success", "Alle Testverzeichnisse erfolgreich gelöscht.");
-
-        // Schritt 10: Tokens in DB speichern (für Server-Test)
-        // Nur für OneDrive-Provider: Speichere Tokens in DB, damit Server-Test funktioniert
-        // Performance: Nur speichern, wenn Tokens vorhanden sind (werden normalerweise bereits bei Refresh gespeichert)
-        if (activeLibrary && activeLibrary.type === 'onedrive' && 'accessToken' in provider) {
-          try {
-            const tokensKey = `onedrive_tokens_${activeLibrary.id}`;
-            const tokensJson = localStorage.getItem(tokensKey);
-            
-            if (tokensJson) {
-              const tokens = JSON.parse(tokensJson);
-              const tokenExpiry = tokens.expiry || Date.now() + 3600000; // Fallback: 1 Stunde
-              
-              // Prüfe, ob Tokens bereits in DB sind (optional - spart einen API-Call)
-              // Da saveTokens() bereits beim Refresh aufgerufen wird, sollten Tokens meist schon in DB sein
-              // Nur explizit speichern, wenn Client-Test erfolgreich war (für Server-Test)
-              logStep("Token-Speicherung", "info", "Stelle sicher, dass Tokens in Datenbank gespeichert sind...");
-              
-              const saveResponse = await fetch(`/api/libraries/${activeLibrary.id}/tokens`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  accessToken: tokens.accessToken,
-                  refreshToken: tokens.refreshToken,
-                  tokenExpiry: Math.floor(tokenExpiry / 1000) // Konvertiere zu Sekunden
-                })
-              });
-              
-              if (saveResponse.ok) {
-                logStep("Token-Speicherung", "success", "Tokens in Datenbank verfügbar für Server-Test.");
-              } else {
-                const errorData = await saveResponse.json().catch(() => ({ error: 'Unknown error' }));
-                logStep("Token-Speicherung", "info", `Tokens möglicherweise nicht in DB: ${errorData.error || saveResponse.statusText}`);
-              }
-            } else {
-              logStep("Token-Speicherung", "info", "Keine Tokens im localStorage gefunden - Server-Test könnte fehlschlagen.");
-            }
-          } catch (tokenError) {
-            console.error('[StorageForm] Fehler beim Speichern der Tokens:', tokenError);
-            logStep("Token-Speicherung", "error", `Fehler beim Speichern der Tokens: ${tokenError instanceof Error ? tokenError.message : String(tokenError)}`);
-          }
-        }
-
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        const errorDetails = error instanceof Error ? {
-          name: error.name,
-          message: error.message,
-          stack: error.stack,
-          cause: error.cause
-        } : error;
-        
-        // Spezielle Behandlung für Authentifizierungsfehler
-        if (errorMessage.includes('Nicht authentifiziert') || errorMessage.includes('AUTH_REQUIRED')) {
-          const safeErrorDetails = typeof errorDetails === 'object' && errorDetails !== null 
-            ? errorDetails as Record<string, unknown> 
-            : { error: errorDetails };
-          logStep("Fehler", "error", "Zugriff verweigert: Provider ist nicht authentifiziert", safeErrorDetails);
-          logStep("Hinweis", "info", "Bitte authentifizieren Sie sich zuerst in den Storage-Einstellungen");
-          return;
-        }
-        
-        const safeErrorDetails = typeof errorDetails === 'object' && errorDetails !== null 
-          ? errorDetails as Record<string, unknown> 
-          : { error: errorDetails };
-        logStep("Fehler", "error", `Test fehlgeschlagen: ${errorMessage}`, safeErrorDetails);
-      }
-
-      // Serverseitiger Test (neuer Pfad)
-      try {
-        logStep("API-Aufruf", "info", "Starte serverseitigen Storage-Test...");
-        const resp = await fetch('/api/settings/storage-test', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ libraryId: activeLibrary.id })
-        });
-        if (!resp.ok) {
-          const msg = await resp.text();
-          logStep("Server-Test", "error", `Server-Test fehlgeschlagen: ${resp.status}`, { body: msg.slice(0, 300) });
-        } else {
-          const data = await resp.json();
-          const serverLogs = Array.isArray(data.logs) ? data.logs as TestLogEntry[] : [];
-          for (const entry of serverLogs) logs.push(entry);
-          setTestResults([...logs]);
-          logStep("Server-Test", data.success ? "success" : "error", data.success ? "Server-Test abgeschlossen" : "Server-Test fehlgeschlagen");
-        }
-      } catch (e) {
-        logStep("Server-Test", "error", e instanceof Error ? e.message : String(e));
-      }
-    } catch (error) {
-      console.error('[StorageForm] Fehler beim Testen:', error);
-      toast.error("Fehler", {
-        description: error instanceof Error ? error.message : "Unbekannter Fehler beim Testen",
-      });
-    } finally {
-      setIsTesting(false);
-    }
-  };
-  
-  // Rendern der spezifischen Felder je nach Storage-Typ
-  const renderStorageTypeFields = () => {
-    switch (currentType) {
-      case "onedrive":
-        return (
-          <>
-            <FormField
-              control={form.control}
-              name="tenantId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tenant ID</FormLabel>
-                  <FormControl>
-                    <Input {...field} value={String((field.value ?? activeLibrary?.config?.tenantId) ?? '')} />
-                  </FormControl>
-                  <FormDescription>
-                    Die Tenant ID Ihres Microsoft Azure AD-Verzeichnisses. Lassen Sie dieses Feld leer für persönliche Microsoft-Konten.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="clientId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Client ID</FormLabel>
-                  <FormControl>
-                    <Input {...field} value={String((field.value ?? activeLibrary?.config?.clientId) ?? '')} />
-                  </FormControl>
-                  <FormDescription>
-                    Die Client ID Ihrer Microsoft Azure AD-Anwendung.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="clientSecret"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Client Secret</FormLabel>
-                  <FormControl>
-                    <Input 
-                      {...field} 
-                      type="password" 
-                      value={field.value ?? ""} 
-                      placeholder={
-                        activeLibrary?.config?.clientSecret === '********' 
-                          ? "Client Secret ist gespeichert (zum Ändern neuen Wert eingeben)" 
-                          : "Client Secret eingeben"
-                      }
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Das Client Secret Ihrer Microsoft Azure AD-Anwendung.
-                    {activeLibrary?.config?.clientSecret === '********' && (
-                      <span className="block mt-1 text-green-600 dark:text-green-400">
-                        ✓ Ein Client Secret ist bereits gespeichert. Lassen Sie das Feld leer, um es beizubehalten.
-                      </span>
-                    )}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <div className="mt-4">
-              <Button
-                type="button"
-                variant={tokenStatus.isAuthenticated ? "destructive" : "secondary"}
-                onClick={tokenStatus.isAuthenticated ? handleOneDriveLogout : handleOneDriveAuth}
-                className="w-full"
+  return (
+    <div className="space-y-2 max-h-[500px] overflow-y-auto">
+      <table className="w-full border-collapse table-fixed">
+        <thead className="bg-muted/50">
+          <tr className="text-xs border-b">
+            <th className="text-left p-2 font-medium w-[90px]">Datum/Zeit</th>
+            <th className="text-left p-2 font-medium w-[120px]">Funktion</th>
+            <th className="text-left p-2 font-medium">Beschreibung</th>
+            <th className="text-left p-2 font-medium w-[80px]">Status</th>
+            <th className="text-left p-2 font-medium w-[60px]">Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          {testResults
+            .filter(result => result.step !== "API-Aufruf")
+            .map((result, index) => (
+              <tr
+                key={index}
+                className={`text-xs border-b hover:bg-muted/20 ${
+                  result.status === 'error' ? 'bg-red-50 dark:bg-red-900/20' :
+                  result.status === 'success' ? 'bg-green-50 dark:bg-green-900/20' : ''
+                }`}
               >
-                <Cloud className="h-4 w-4 mr-2" />
-                {tokenStatus.isAuthenticated ? "Von OneDrive abmelden" : "Bei OneDrive anmelden"}
-              </Button>
-              <p className="text-xs text-muted-foreground mt-2">
-                {tokenStatus.isAuthenticated 
-                  ? "Klicken Sie auf den Button, um sich von OneDrive abzumelden und den Zugriff zu widerrufen."
-                  : "Klicken Sie auf den Button, um sich bei OneDrive anzumelden und Zugriff auf Ihre Dateien zu erteilen."
-                }
-              </p>
-              
-              {/* Token-Status anzeigen */}
-              {tokenStatus.loading ? (
-                <div className="mt-3 text-sm text-muted-foreground">
-                  Lade Authentifizierungsstatus...
-                </div>
-              ) : tokenStatus.isAuthenticated ? (
-                <Alert className="mt-3">
-                  <CheckCircle className="h-4 w-4" />
-                  <AlertTitle>Authentifiziert</AlertTitle>
-                  <AlertDescription>
-                    Sie sind bei OneDrive angemeldet.
-                    {tokenStatus.isExpired && (
-                      <span className="text-yellow-600 dark:text-yellow-400 block mt-1">
-                        ⚠️ Die Authentifizierung ist abgelaufen. Bitte melden Sie sich erneut an.
-                      </span>
-                    )}
-                  </AlertDescription>
-                </Alert>
-              ) : (
-                <Alert className="mt-3" variant="default">
-                  <Info className="h-4 w-4" />
-                  <AlertTitle>Nicht authentifiziert</AlertTitle>
-                  <AlertDescription>
-                    Sie müssen sich bei OneDrive anmelden, um auf Ihre Dateien zugreifen zu können.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
-          </>
-        );
-      case "gdrive":
-        return (
-          <>
-            <FormField
-              control={form.control}
-              name="clientId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Client ID</FormLabel>
-                  <FormControl>
-                    <Input {...field} value={field.value || ""} />
-                  </FormControl>
-                  <FormDescription>
-                    Die Client ID Ihrer Google Drive-Anwendung.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="clientSecret"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Client Secret</FormLabel>
-                  <FormControl>
-                    <Input {...field} type="password" value={field.value || ""} />
-                  </FormControl>
-                  <FormDescription>
-                    Das Client Secret Ihrer Google Drive-Anwendung.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </>
-        );
-      case "nextcloud":
-        return (
-          <>
-            <FormField
-              control={form.control}
-              name="nextcloudWebdavUrl"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>WebDAV-URL</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      value={field.value ?? ''}
-                      placeholder="https://cloud.example.com/remote.php/dav/files/username"
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Die vollständige WebDAV-URL Ihrer Nextcloud-Instanz.
-                    Typisches Format: https://[domain]/remote.php/dav/files/[benutzername]
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="nextcloudUsername"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Benutzername</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      value={field.value ?? ''}
-                      placeholder="Nextcloud-Benutzername"
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Ihr Nextcloud-Benutzername.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="nextcloudAppPassword"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>App-Passwort</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      type="password"
-                      value={field.value ?? ''}
-                      placeholder={
-                        activeLibrary?.config?.nextcloud?.appPassword === '********'
-                          ? "App-Passwort ist gespeichert (zum Ändern neuen Wert eingeben)"
-                          : "Nextcloud App-Passwort eingeben"
-                      }
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Ein App-Passwort aus Ihrer Nextcloud-Instanz (Einstellungen → Sicherheit → Geräte & Sitzungen).
-                    {activeLibrary?.config?.nextcloud?.appPassword === '********' && (
-                      <span className="block mt-1 text-green-600 dark:text-green-400">
-                        ✓ Ein App-Passwort ist bereits gespeichert. Lassen Sie das Feld leer, um es beizubehalten.
-                      </span>
-                    )}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </>
-        );
-      default:
-        return null;
-    }
-  };
-  
-  // Testresultate rendern
-  const renderTestResults = () => {
-    if (testResults.length === 0) {
-      return <p className="text-muted-foreground">Testergebnisse werden geladen...</p>;
-    }
-
-    // Gruppiere die Tests nach StorageProvider-Funktionen
-    const testsByFunction: Record<string, TestLogEntry[]> = {};
-    
-    testResults.forEach(result => {
-      // Ignoriere API-Aufrufe in der Hauptansicht
-      if (result.step === "API-Aufruf") return;
-      
-      // Füge den Test zur entsprechenden Funktion hinzu
-      if (!testsByFunction[result.step]) {
-        testsByFunction[result.step] = [];
-      }
-      testsByFunction[result.step].push(result);
-    });
-
-    return (
-      <div className="space-y-2 max-h-[500px] overflow-y-auto">
-        <table className="w-full border-collapse table-fixed">
-          <thead className="bg-muted/50">
-            <tr className="text-xs border-b">
-              <th className="text-left p-2 font-medium w-[90px]">Datum/Zeit</th>
-              <th className="text-left p-2 font-medium w-[120px]">Funktion</th>
-              <th className="text-left p-2 font-medium">Beschreibung</th>
-              <th className="text-left p-2 font-medium w-[80px]">Status</th>
-              <th className="text-left p-2 font-medium w-[60px]">Details</th>
-            </tr>
-          </thead>
-          <tbody>
-            {testResults
-              .filter(result => result.step !== "API-Aufruf") // Filtere API-Aufrufe aus der Hauptansicht
-              .map((result, index) => (
-                <tr 
-                  key={index} 
-                  className={`text-xs border-b hover:bg-muted/20 ${
-                    result.status === 'error' ? 'bg-red-50 dark:bg-red-900/20' : 
-                    result.status === 'success' ? 'bg-green-50 dark:bg-green-900/20' : ''
-                  }`}
-                >
-                  <td className="p-2">{result.timestamp && !isNaN(Date.parse(result.timestamp)) ? new Date(result.timestamp).toLocaleTimeString() : ''}</td>
-                  <td className="p-2">{result.step}</td>
-                  <td className="p-2 overflow-hidden text-ellipsis whitespace-nowrap" title={result.message}>{result.message}</td>
-                  <td className="p-2">
-                    <Badge 
-                      variant={
-                        result.status === 'error' ? 'destructive' :
-                        result.status === 'success' ? 'default' :
-                        'secondary'
-                      }
+                <td className="p-2">
+                  {result.timestamp && !isNaN(Date.parse(result.timestamp))
+                    ? new Date(result.timestamp).toLocaleTimeString()
+                    : ''}
+                </td>
+                <td className="p-2">{result.step}</td>
+                <td className="p-2 overflow-hidden text-ellipsis whitespace-nowrap" title={result.message}>
+                  {result.message}
+                </td>
+                <td className="p-2">
+                  <Badge
+                    variant={
+                      result.status === 'error' ? 'destructive' :
+                      result.status === 'success' ? 'default' : 'secondary'
+                    }
+                  >
+                    {result.status}
+                  </Badge>
+                </td>
+                <td className="p-2">
+                  {result.details && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2"
+                      onClick={() => {
+                        toast.info("Details", {
+                          description: typeof result.details === 'string'
+                            ? result.details
+                            : JSON.stringify(result.details),
+                        });
+                      }}
                     >
-                      {result.status}
-                    </Badge>
-                  </td>
-                  <td className="p-2">
-                    {result.details && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2"
-                        onClick={() => {
-                          toast.info("Details", {
-                            description: typeof result.details === 'string' ? result.details : JSON.stringify(result.details),
-                          });
-                        }}
-                      >
-                        <Info className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
-  
+                      <Info className="h-4 w-4" />
+                    </Button>
+                  )}
+                </td>
+              </tr>
+            ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// --------------------------------------------------------------------------
+// Haupt-Formular-Inhalt (ohne useSearchParams, da Suspense-Wrapper nötig)
+// --------------------------------------------------------------------------
+
+function StorageFormContent() {
+  const {
+    form,
+    activeLibrary,
+    currentType,
+    isLoading,
+    isTesting,
+    testDialogOpen,
+    setTestDialogOpen,
+    testResults,
+    tokenStatus,
+    onSubmit,
+    handleOneDriveAuth,
+    handleOneDriveLogout,
+    handleTest,
+  } = useStorageForm()
+
+  // Hinweis: URL-Parameter (authSuccess/authError) werden im useStorageForm Hook
+  // direkt über window.location.search verarbeitet (kein useSearchParams nötig).
+
   if (!activeLibrary) {
     return (
       <Card>
@@ -1293,24 +162,22 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
       </Card>
     )
   }
-  
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <div className="space-y-4">
+          {/* Speichertyp-Auswahl */}
           <FormField
             control={form.control}
             name="type"
             render={({ field }) => {
-              // Sicherstellen, dass immer ein gültiger Wert vorhanden ist
               const currentValue = field.value || (activeLibrary?.type as StorageProviderType) || 'local';
-              
               return (
                 <FormItem>
                   <FormLabel>Speichertyp</FormLabel>
                   <Select
                     onValueChange={(value) => {
-                      // Sicherstellen, dass der Wert gültig ist
                       if (value === 'local' || value === 'onedrive' || value === 'gdrive' || value === 'nextcloud') {
                         field.onChange(value);
                       }
@@ -1337,7 +204,8 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
               );
             }}
           />
-          
+
+          {/* Speicherpfad */}
           <FormField
             control={form.control}
             name="path"
@@ -1354,19 +222,35 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
               </FormItem>
             )}
           />
-          
-          {renderStorageTypeFields()}
-          
+
+          {/* Typ-spezifische Felder via Section-Komponenten */}
+          {currentType === 'onedrive' && (
+            <OneDriveSection
+              form={form}
+              activeLibrary={activeLibrary}
+              tokenStatus={tokenStatus}
+              handleOneDriveAuth={handleOneDriveAuth}
+              handleOneDriveLogout={handleOneDriveLogout}
+            />
+          )}
+          {currentType === 'gdrive' && (
+            <GdriveSection form={form} />
+          )}
+          {currentType === 'nextcloud' && (
+            <NextcloudSection form={form} activeLibrary={activeLibrary} />
+          )}
+
+          {/* Test- und Speichern-Buttons */}
           <div className="flex items-center justify-between">
-            <Button 
-              type="button" 
+            <Button
+              type="button"
               variant="outline"
               onClick={handleTest}
               disabled={isTesting || !activeLibrary}
             >
               {isTesting ? "Teste..." : "Storage testen"}
             </Button>
-            
+
             <Dialog open={testDialogOpen} onOpenChange={setTestDialogOpen}>
               <DialogContent>
                 <DialogHeader>
@@ -1376,22 +260,19 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
                   </DialogDescription>
                 </DialogHeader>
                 <div className="py-4">
-                  {renderTestResults()}
+                  <TestResultTable testResults={testResults} />
                 </div>
                 <div className="flex justify-end">
-                  <Button 
-                    onClick={() => setTestDialogOpen(false)} 
-                    variant="secondary"
-                  >
+                  <Button onClick={() => setTestDialogOpen(false)} variant="secondary">
                     Schließen
                   </Button>
                 </div>
               </DialogContent>
             </Dialog>
           </div>
-          
-          <Button 
-            type="submit" 
+
+          <Button
+            type="submit"
             disabled={isLoading || !form.formState.isDirty}
           >
             {isLoading ? "Wird gespeichert..." : "Einstellungen speichern"}
@@ -1402,11 +283,14 @@ function StorageFormContent({ searchParams }: { searchParams: URLSearchParams | 
   )
 }
 
-// Exportierte Komponente mit Suspense
+// --------------------------------------------------------------------------
+// Exportierte Komponente mit Suspense (für useSearchParams)
+// --------------------------------------------------------------------------
+
 export function StorageForm() {
   return (
     <Suspense fallback={<div>Lade Storage-Einstellungen...</div>}>
-      <StorageFormWithSearchParams />
+      <StorageFormContent />
     </Suspense>
   );
-} 
+}
