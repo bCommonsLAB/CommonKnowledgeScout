@@ -389,7 +389,9 @@ export function JobMonitorPanel() {
         if (!active) return;
         const names = Array.isArray(json.items) ? json.items.filter((v: unknown) => typeof v === 'string') as string[] : [];
         setBatchNames(names);
-      } catch {}
+      } catch (err) {
+        console.error('[JobMonitorPanel] Batch-Namen laden fehlgeschlagen:', err);
+      }
     }
     void loadBatches();
     return () => { active = false; };
@@ -412,7 +414,9 @@ export function JobMonitorPanel() {
         const json = await res.json();
         if (!active) return;
         setServerCounts(json.counters || null);
-      } catch {}
+      } catch (err) {
+        console.error('[JobMonitorPanel] Zähler laden fehlgeschlagen:', err);
+      }
     }
     void loadCounts();
     const t = setInterval(loadCounts, 5000);
@@ -430,7 +434,9 @@ export function JobMonitorPanel() {
         const json = await res.json();
         if (!active) return;
         setWorkerStatus(json);
-      } catch {}
+      } catch (err) {
+        console.error('[JobMonitorPanel] Worker-Status laden fehlgeschlagen:', err);
+      }
     }
     void loadWorker();
     const t = setInterval(loadWorker, 5000);
@@ -467,14 +473,14 @@ export function JobMonitorPanel() {
   // Panel-interne Items-Listen-Updates sind weiterhin mit isOpenRef.current geschützt (Zeile 494).
   useEffect(() => {
     if (!liveUpdates) {
-      if (eventRef.current) { try { eventRef.current.close(); } catch {} eventRef.current = null; }
+      if (eventRef.current) { try { eventRef.current.close(); } catch (err) { console.warn('[JobMonitorPanel] EventSource schließen fehlgeschlagen:', err); } eventRef.current = null; }
       sseRetryAttemptRef.current = 0;
       return;
     }
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     function connect() {
       if (eventRef.current) {
-        try { eventRef.current.close(); } catch {}
+        try { eventRef.current.close(); } catch (err) { console.warn('[JobMonitorPanel] EventSource schließen fehlgeschlagen:', err); }
       }
       const es = new EventSource('/api/external/jobs/stream');
       eventRef.current = es;
@@ -564,7 +570,9 @@ export function JobMonitorPanel() {
                   }
                 }))
               })
-            } catch {}
+            } catch (err) {
+              console.warn('[JobMonitorPanel] library_refresh-Event fehlgeschlagen:', err);
+            }
           }
           // UI-Liste nur aktualisieren wenn Panel geoeffnet
           if (isOpenRef.current) {
@@ -612,7 +620,9 @@ export function JobMonitorPanel() {
               return [inserted, ...prev];
             });
           }
-        } catch {}
+        } catch (err) {
+          console.warn('[JobMonitorPanel] job_update-Event verarbeiten fehlgeschlagen:', err);
+        }
       };
       es.addEventListener('job_update', onUpdate as unknown as EventListener);
       // "connected" und "ping" sind Server-Sent Events aus der Stream-Route.
@@ -620,7 +630,7 @@ export function JobMonitorPanel() {
       es.addEventListener('connected', () => { lastEventTsRef.current = Date.now(); });
       es.addEventListener('ping', () => { lastEventTsRef.current = Date.now(); });
       es.addEventListener('error', () => {
-        try { es.close(); } catch {}
+        try { es.close(); } catch (err) { console.warn('[JobMonitorPanel] EventSource schließen fehlgeschlagen:', err); }
         if (retryTimer) clearTimeout(retryTimer);
         // Reconnect mit Backoff, um Dev-Logs nicht zu fluten, wenn SSE instabil ist.
         // 0 → 1s, 1 → 2s, 2 → 4s ... bis max 30s.
@@ -695,7 +705,7 @@ export function JobMonitorPanel() {
     window.addEventListener('job_update_local', onLocal as unknown as EventListener);
     return () => {
       if (retryTimer) clearTimeout(retryTimer);
-      if (eventRef.current) try { eventRef.current.close(); } catch {}
+      if (eventRef.current) try { eventRef.current.close(); } catch (err) { console.warn('[JobMonitorPanel] EventSource schließen fehlgeschlagen:', err); }
       window.removeEventListener('job_update_local', onLocal as unknown as EventListener);
     };
   // isOpen bewusst nicht in deps: SSE soll unabhängig vom Panel-Zustand laufen.
@@ -714,7 +724,9 @@ export function JobMonitorPanel() {
       if (!res.ok) return;
       // Nach erfolgreichem Retry frisch laden
       await refreshNow();
-    } catch {}
+    } catch (err) {
+      console.error('[JobMonitorPanel] Job neu starten fehlgeschlagen:', err);
+    }
   }
   const loadMore = async () => {
     if (!hasMore || isFetchingRef.current) return;
@@ -908,7 +920,9 @@ export function JobMonitorPanel() {
                 const res = await fetch('/api/external/jobs/start-batch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 if (!res.ok) return;
                 await refreshNow();
-              } catch {}
+              } catch (err) {
+                console.error('[JobMonitorPanel] Batch-Start fehlgeschlagen:', err);
+              }
             }}>Neu starten (gefiltert)</Button>
           </div>
           {/* Globale Trace-Anzeige entfernt; Traces erscheinen inline pro Job */}
@@ -1028,7 +1042,11 @@ export function JobMonitorPanel() {
                                   if (!res.ok) return;
                                   const text = await res.text();
                                   await navigator.clipboard.writeText(text);
-                                } catch {}
+                                } catch (err) {
+                                  // Clipboard-API kann in nicht-sicheren Kontexten oder bei
+                                  // Benutzer-Ablehnung fehlschlagen — kein Toast, da kein UI-Feedback nötig
+                                  console.warn('[JobMonitorPanel] Clipboard-Copy fehlgeschlagen:', err);
+                                }
                               }}
                               className="pointer-events-auto inline-flex items-center justify-center rounded p-0.5 hover:bg-muted"
                               aria-label="Als Markdown kopieren"
@@ -1131,8 +1149,9 @@ function JobLogs({ jobId }: { jobId: string }) {
           });
         }
         setLoaded(true);
-      } catch {
-        // ignore
+      } catch (err) {
+        console.error('[JobMonitorPanel] Logs laden fehlgeschlagen:', err);
+        setLoaded(true);
       }
     }
     if (!loaded) load();
