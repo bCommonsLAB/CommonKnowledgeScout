@@ -17,15 +17,34 @@ export type JobMonitorServerCounters = {
 
 export type JobWorkerApiStatus = {
   state: "running" | "stopped";
-  stats?: { processed?: number; errors?: number; lastTickAt?: number; startedAt?: number };
+  stats?: {
+    processed?: number;
+    errors?: number;
+    lastTickAt?: number;
+    startedAt?: number;
+    reaped?: number;
+    lastReapAt?: number;
+  };
   concurrency?: number;
   intervalMs?: number;
   workerId?: string;
   jobsWorkerPoolId?: string;
+  reaperMaxAgeMs?: number;
+  reaperEveryNTicks?: number;
+  pool?: {
+    runningInPool: number | null;
+    staleRunningInPool: number | null;
+    staleThresholdMs: number;
+  };
 };
 
 export type WorkerHealthIssue = {
-  kind: "worker_fetch_failed" | "worker_stopped" | "worker_tick_stale" | "queued_stale";
+  kind:
+    | "worker_fetch_failed"
+    | "worker_stopped"
+    | "worker_tick_stale"
+    | "queued_stale"
+    | "pool_concurrency_blocked";
   message: string;
 };
 
@@ -105,6 +124,26 @@ export function computeWorkerHealth(params: {
       kind: "worker_tick_stale",
       message:
         "Der Worker läuft, aber es wurde noch kein Tick registriert — Background-Polling erreicht diese Instanz vermutlich nicht.",
+    };
+  }
+
+  // Spezifischere Diagnose vor der generischen „queued_stale“:
+  // Wenn der globale Pool gesaettigt ist UND es Stale-Running-Eintraege gibt, weiss der Nutzer
+  // sofort, warum SEINE Queue steht (auch wenn er selbst gar keine Running-Jobs hat).
+  const pool = workerStatus?.pool;
+  const concurrency = workerStatus?.concurrency;
+  if (
+    pool &&
+    typeof concurrency === "number" &&
+    typeof pool.runningInPool === "number" &&
+    typeof pool.staleRunningInPool === "number" &&
+    pool.runningInPool >= concurrency &&
+    pool.staleRunningInPool > 0
+  ) {
+    const thresholdMin = Math.max(1, Math.round(pool.staleThresholdMs / 60_000));
+    return {
+      kind: "pool_concurrency_blocked",
+      message: `Die globalen Worker-Slots sind voll (${pool.runningInPool}/${concurrency}), davon ${pool.staleRunningInPool} Karteileiche${pool.staleRunningInPool === 1 ? "" : "n"} (> ${thresholdMin} Min ohne Lebenszeichen). Der Reaper raeumt sie beim naechsten Lauf auf — danach werden deine Jobs wieder abgeholt.`,
     };
   }
 
@@ -245,6 +284,49 @@ export function JobWorkerInfoPopover({
           <div className="flex justify-between gap-2">
             <dt className="text-muted-foreground">Dispatch-Fehler (errors)</dt>
             <dd className="text-right font-mono">{stats?.errors ?? "—"}</dd>
+          </div>
+          <div className="flex justify-between gap-2">
+            <dt className="text-muted-foreground">
+              Reaper (Stale-Running → failed)
+            </dt>
+            <dd className="text-right font-mono">
+              {stats?.reaped ?? "—"}
+              {st?.reaperMaxAgeMs
+                ? ` (>${Math.max(1, Math.round(st.reaperMaxAgeMs / 60_000))} Min)`
+                : ""}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-2">
+            <dt className="text-muted-foreground">Letzter Reaper-Lauf</dt>
+            <dd className="text-right">{formatAbsTs(stats?.lastReapAt)}</dd>
+          </div>
+        </dl>
+
+        <p className="mb-1 font-medium text-[11px] text-muted-foreground">Global im Pool (alle Nutzer)</p>
+        <dl className="space-y-1.5 border-b pb-2 mb-2">
+          <div className="flex justify-between gap-2">
+            <dt className="text-muted-foreground">Running / Concurrency</dt>
+            <dd className="text-right font-mono">
+              {st?.pool?.runningInPool ?? "—"} / {st?.concurrency ?? "—"}
+            </dd>
+          </div>
+          <div
+            className={cn(
+              "flex justify-between gap-2",
+              typeof st?.pool?.staleRunningInPool === "number" &&
+                st.pool.staleRunningInPool > 0 &&
+                "text-amber-700 dark:text-amber-300",
+            )}
+          >
+            <dt className="text-muted-foreground">
+              Davon Stale-Running
+              {typeof st?.pool?.staleThresholdMs === "number"
+                ? ` (>${Math.max(1, Math.round(st.pool.staleThresholdMs / 60_000))} Min)`
+                : ""}
+            </dt>
+            <dd className="text-right font-mono">
+              {st?.pool?.staleRunningInPool ?? "—"}
+            </dd>
           </div>
         </dl>
 

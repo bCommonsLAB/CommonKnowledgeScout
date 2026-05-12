@@ -33,7 +33,14 @@ interface WorkerStats {
   lastTickAt?: number;
   processed: number;
   errors: number;
+  /** Anzahl Karteileichen, die der Reaper bisher auf `failed` gesetzt hat. */
+  reaped: number;
+  /** Zeitstempel des letzten Reaper-Laufs (auch wenn 0 Karteileichen). */
+  lastReapAt?: number;
 }
+
+const DEFAULT_REAPER_MAX_AGE_MS = 30 * 60 * 1000;
+const DEFAULT_REAPER_EVERY_N_TICKS = 10;
 
 class ExternalJobsWorkerSingleton {
   private static instance: ExternalJobsWorkerSingleton | null = null;
@@ -52,7 +59,21 @@ class ExternalJobsWorkerSingleton {
    * Default 3 — schützt gegen kurzzeitige HMR-/Compile-Hänger im Dev-Modus.
    */
   private readonly startMaxAttempts: number = Number(process.env.JOBS_WORKER_START_MAX_ATTEMPTS || '3');
-  private stats: WorkerStats = { processed: 0, errors: 0 };
+  /**
+   * Maximales Alter (ms), ab dem ein `running`-Job vom Reaper als Karteileiche markiert wird.
+   * Hintergrund: Der per-Job-Watchdog ist in-process (`global.__jobWatchdog`) und stirbt mit
+   * dem Node-Prozess. Bei Redeploy/HMR/Crash bleiben so Jobs fuer immer in `running` und
+   * blockieren die globale Concurrency. Default 30 Min — auch lang laufende Jobs (PDF/Audio)
+   * geben in der Praxis innerhalb dieser Zeit mindestens ein Update (steps/progress).
+   * Konfigurierbar via `JOBS_WORKER_REAPER_MAX_AGE_MS`.
+   */
+  private readonly reaperMaxAgeMs: number =
+    Number(process.env.JOBS_WORKER_REAPER_MAX_AGE_MS || String(DEFAULT_REAPER_MAX_AGE_MS));
+  /** Alle wievielen Ticks der Reaper laufen soll (Mongo schonen). Default 10 Ticks (~20 s). */
+  private readonly reaperEveryNTicks: number =
+    Number(process.env.JOBS_WORKER_REAPER_EVERY_N_TICKS || String(DEFAULT_REAPER_EVERY_N_TICKS));
+  private tickCounter: number = 0;
+  private stats: WorkerStats = { processed: 0, errors: 0, reaped: 0 };
   private readonly workerId: string = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
     ? (crypto as unknown as { randomUUID: () => string }).randomUUID()
     : `${process.pid || 'p'}-${Math.random().toString(36).slice(2, 8)}`;
@@ -62,7 +83,16 @@ class ExternalJobsWorkerSingleton {
     return this.instance;
   }
 
-  getStatus(): { state: WorkerState; stats: WorkerStats; intervalMs: number; concurrency: number; workerId: string; jobsWorkerPoolId: string } {
+  getStatus(): {
+    state: WorkerState;
+    stats: WorkerStats;
+    intervalMs: number;
+    concurrency: number;
+    workerId: string;
+    jobsWorkerPoolId: string;
+    reaperMaxAgeMs: number;
+    reaperEveryNTicks: number;
+  } {
     return {
       state: this.state,
       stats: { ...this.stats },
@@ -70,7 +100,14 @@ class ExternalJobsWorkerSingleton {
       concurrency: this.concurrency,
       workerId: this.workerId,
       jobsWorkerPoolId: getJobsWorkerPoolId(),
+      reaperMaxAgeMs: this.reaperMaxAgeMs,
+      reaperEveryNTicks: this.reaperEveryNTicks,
     };
+  }
+
+  /** Pool-Schwelle (ms), ab der ein `running`-Job als „stale“ gilt. Lesbar fuer API-Routen. */
+  getReaperMaxAgeMs(): number {
+    return this.reaperMaxAgeMs;
   }
 
   start(): void {
@@ -105,10 +142,35 @@ class ExternalJobsWorkerSingleton {
   private async tick(): Promise<void> {
     if (this.state !== 'running') return;
     this.stats.lastTickAt = Date.now();
+    this.tickCounter += 1;
     try {
       // Keine lauten Tick-Logs mehr
       const repo = new ExternalJobsRepository();
       const baseUrl = getPublicAppUrl();
+
+      // Reaper: alle N Ticks Karteileichen aufraeumen (statt jeden Tick → Mongo schonen).
+      // Laeuft VOR der Concurrency-Pruefung, damit ein erfolgreicher Reap im selben Tick
+      // wieder Slots freigibt.
+      if (this.reaperMaxAgeMs > 0 && this.tickCounter % Math.max(1, this.reaperEveryNTicks) === 0) {
+        try {
+          const result = await repo.reapStaleRunning(this.reaperMaxAgeMs, { workerId: this.workerId });
+          this.stats.lastReapAt = Date.now();
+          if (result.reaped > 0) {
+            this.stats.reaped += result.reaped;
+            FileLogger.warn('jobs-worker', 'Reaper hat Karteileichen aufgeraeumt', {
+              reaped: result.reaped,
+              ids: result.ids,
+              maxAgeMs: this.reaperMaxAgeMs,
+              workerId: this.workerId,
+            });
+          }
+        } catch (reapErr) {
+          FileLogger.error('jobs-worker', 'Reaper-Fehler (Tick laeuft trotzdem weiter)', {
+            err: reapErr instanceof Error ? reapErr.message : String(reapErr),
+            workerId: this.workerId,
+          });
+        }
+      }
       const tickId = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
         ? (crypto as unknown as { randomUUID: () => string }).randomUUID()
         : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`

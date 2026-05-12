@@ -594,6 +594,130 @@ export class ExternalJobsRepository {
     return col.countDocuments({ status: 'running', ...currentWorkerPoolMongoMatch() });
   }
 
+  /**
+   * Zaehlt `running`-Jobs im aktuellen Worker-Pool, deren `updatedAt` aelter ist als `maxAgeMs`.
+   *
+   * Dient ausschliesslich der Diagnose (Popover): zeigt, wie viele „Zombie“-Slots aktuell die
+   * globale Concurrency blockieren. Die eigentliche Bereinigung passiert in `reapStaleRunning`.
+   */
+  async countStaleRunning(maxAgeMs: number): Promise<number> {
+    if (!Number.isFinite(maxAgeMs) || maxAgeMs <= 0) return 0;
+    const col = await this.getCollection();
+    const cutoff = new Date(Date.now() - maxAgeMs);
+    return col.countDocuments({
+      status: 'running',
+      updatedAt: { $lt: cutoff },
+      ...currentWorkerPoolMongoMatch(),
+    });
+  }
+
+  /**
+   * Setzt `running`-Jobs im aktuellen Worker-Pool, deren `updatedAt` aelter ist als `maxAgeMs`,
+   * auf `failed`. Schreibt ein Trace-Event `stale_running_reaped` pro Job, damit man forensisch
+   * sieht, wann + von welcher Worker-Instanz aufgeraeumt wurde.
+   *
+   * WICHTIG (Watchdog ist In-Memory):
+   * Der per-Job-Watchdog (`startWatchdog`) lebt in `globalThis.__jobWatchdog` und stirbt mit dem
+   * Node-Prozess. Bei Redeploy/HMR/Crash bleiben so betroffene Jobs fuer immer in `running` und
+   * blockieren die globale Concurrency (`countRunning() >= concurrency` → kein neuer Claim).
+   * Dieser Reaper ist die DB-seitige Notbremse: er macht aus Karteileichen explizite Fehlschlaege.
+   *
+   * Race-Hinweis:
+   * Updates sind atomar pro Dokument. Der Filter prueft `status: 'running'` weiterhin, falls
+   * ein paralleler Callback den Job inzwischen sauber abgeschlossen haben sollte.
+   */
+  async reapStaleRunning(
+    maxAgeMs: number,
+    options: { workerId?: string } = {}
+  ): Promise<{ reaped: number; ids: string[] }> {
+    if (!Number.isFinite(maxAgeMs) || maxAgeMs <= 0) return { reaped: 0, ids: [] };
+    const col = await this.getCollection();
+    const now = new Date();
+    const cutoff = new Date(now.getTime() - maxAgeMs);
+    const pool = currentWorkerPoolMongoMatch();
+
+    const stale = await col
+      .find(
+        { status: 'running', updatedAt: { $lt: cutoff }, ...pool },
+        { projection: { jobId: 1, updatedAt: 1, userEmail: 1, _id: 0 } }
+      )
+      .limit(50)
+      .toArray();
+
+    if (stale.length === 0) return { reaped: 0, ids: [] };
+
+    const reapedIds: string[] = [];
+    for (const doc of stale) {
+      const jobId = (doc as unknown as { jobId?: string }).jobId;
+      const lastUpdatedRaw = (doc as unknown as { updatedAt?: unknown }).updatedAt;
+      if (!jobId) continue;
+
+      const upd = await col.updateOne(
+        { jobId, status: 'running' },
+        {
+          $set: {
+            status: 'failed',
+            updatedAt: now,
+            error: {
+              code: 'stale_running_reaped',
+              message: `Job > ${Math.floor(maxAgeMs / 1000)}s in „running“ ohne Lebenszeichen — Reaper hat ihn auf „failed“ gesetzt (Watchdog war wahrscheinlich durch Prozess-Restart verloren).`,
+              details: {
+                reapedAtMs: now.getTime(),
+                lastUpdatedAtMs:
+                  lastUpdatedRaw instanceof Date
+                    ? lastUpdatedRaw.getTime()
+                    : typeof lastUpdatedRaw === 'string' || typeof lastUpdatedRaw === 'number'
+                      ? new Date(lastUpdatedRaw).getTime()
+                      : null,
+                maxAgeMs,
+                reaperWorkerId: options.workerId ?? null,
+              },
+            },
+          },
+        }
+      );
+      if (upd.modifiedCount !== 1) continue;
+
+      reapedIds.push(jobId);
+
+      // Job-Root-Span sauber beenden, wie in setStatus(failed)
+      try {
+        await col.updateOne(
+          { jobId },
+          { $set: { 'trace.spans.$[s].endedAt': now, 'trace.spans.$[s].status': 'failed' } },
+          { arrayFilters: [ { 's.spanId': 'job', 's.endedAt': { $exists: false } } ] } as unknown as UpdateOptions
+        );
+      } catch {
+        // Trace-Span-Cleanup ist optional — bei beschaedigtem trace-Feld nicht blockieren.
+      }
+
+      // Forensisches Trace-Event je Job — nicht abbrechen, falls trace-Pfad fehlt.
+      try {
+        await this.traceAddEvent(jobId, {
+          spanId: 'job',
+          name: 'stale_running_reaped',
+          level: 'error',
+          message: `Reaper: Job lief > ${Math.floor(maxAgeMs / 1000)}s ohne Update`,
+          attributes: {
+            maxAgeMs,
+            reapedAtMs: now.getTime(),
+            lastUpdatedAtMs:
+              lastUpdatedRaw instanceof Date
+                ? lastUpdatedRaw.getTime()
+                : typeof lastUpdatedRaw === 'string' || typeof lastUpdatedRaw === 'number'
+                  ? new Date(lastUpdatedRaw).getTime()
+                  : null,
+            reaperWorkerId: options.workerId ?? null,
+          },
+        });
+      } catch {
+        // Trace-Event ist Best-Effort — bei beschaedigtem trace-Feld nicht blockieren.
+      }
+    }
+
+    return { reaped: reapedIds.length, ids: reapedIds };
+  }
+
   // ---- Trace-Unterstützung ----
   async initializeTrace(jobId: string): Promise<void> {
     const col = await this.getCollection();
