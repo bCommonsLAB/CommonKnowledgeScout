@@ -276,6 +276,31 @@
         "description": "Browse the available documents and filter by topics or authors. If you want, you can later switch to Story Mode and have the contents explained and summarized for you – adapted to your context.",
         "filterDescription": "Select topics or authors to find the contents that suit you."
       }
+    },
+    "favorites": {
+      "toggleAdd": "Add to favorites",
+      "toggleRemove": "Remove from favorites",
+      "filterOnly": "Favorites only",
+      "emptyHint": "No favorites marked yet."
+    },
+    "comments": {
+      "expand": "Expand comments",
+      "collapse": "Collapse comments",
+      "loading": "Loading comments...",
+      "empty": "No comments on this source yet.",
+      "placeholder": "Write a comment...",
+      "add": "Post comment",
+      "edit": "Edit",
+      "delete": "Delete",
+      "saveEdit": "Save",
+      "cancelEdit": "Cancel",
+      "confirmDelete": "Really delete this comment?",
+      "deletedBy": "Comment deleted by {author} on {date}",
+      "edited": "(edited)",
+      "revisionsTitle": "{count} previous version(s)",
+      "revisionsHide": "Hide versions",
+      "onlySignedIn": "Please sign in to view or leave comments.",
+      "guestVisibilityHint": "Only owners and co-creators see all comments. Your posts are visible only to you and the team."
     }
   },
   "event": {

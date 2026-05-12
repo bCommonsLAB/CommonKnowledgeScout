@@ -34,6 +34,8 @@ import { ReferencesSheet } from './references-sheet'
 import { openDocumentBySlug, closeDocument } from '@/utils/document-navigation'
 import { docMatchesNavigationSlug, getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
 import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
+import { useLibraryRole } from '@/hooks/gallery/use-library-role'
+import { useSourceFavorites } from '@/hooks/gallery/use-source-favorites'
 import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
 import dynamic from 'next/dynamic'
 import { storyCharacterAtom } from '@/atoms/story-context-atom'
@@ -217,6 +219,48 @@ export function GalleryRoot({
   // useGalleryData wird automatisch neu laden, wenn sich refreshKey ändert (über useEffect)
   const { docs, loading, error, filteredDocs, docsByYear, loadMore, hasMore, isLoadingMore, totalCount } = useGalleryData(filters, galleryDataMode, searchQuery, libraryId, { refreshKey, groupByField })
   const { isOwner } = useIsLibraryOwner(libraryId)
+
+  // Quell-Favoriten / "nur Favoriten"-Filter (URL-Param `?favorites=1`).
+  // Aktiv ausschliesslich wenn der User Owner oder Co-Creator ist; bei
+  // Gaesten/Anonymen wird der Param ignoriert (siehe Plan, Berechtigungsmatrix).
+  const { isMember: isLibraryMember } = useLibraryRole(libraryId)
+  const { favoriteIds } = useSourceFavorites(libraryId)
+  const onlyFavoritesParam = searchParams?.get('favorites') === '1'
+  const onlyFavoritesActive = onlyFavoritesParam && isLibraryMember
+  const filteredDocsByYear = React.useMemo(() => {
+    if (!onlyFavoritesActive) return docsByYear
+    const allowed = favoriteIds
+    return docsByYear
+      .map(([key, group]) => [key, group.filter((d) => d.fileId && allowed.has(d.fileId))] as [
+        number | string,
+        DocCardMeta[],
+      ])
+      .filter(([, group]) => group.length > 0)
+  }, [docsByYear, onlyFavoritesActive, favoriteIds])
+  const filteredFlat = React.useMemo(() => {
+    if (!onlyFavoritesActive) return filteredDocs
+    const allowed = favoriteIds
+    return filteredDocs.filter((d) => d.fileId && allowed.has(d.fileId))
+  }, [filteredDocs, onlyFavoritesActive, favoriteIds])
+
+  /**
+   * Effektive Werte fuer Anzeige + Bulk-Scope. Bei aktivem Favoriten-Filter
+   * wird der Server-`totalCount` ignoriert (Server kennt den Filter nicht)
+   * und wir reichen die explizite fileId-Liste an die Bulk-Buttons durch.
+   */
+  const effectiveDocCount = onlyFavoritesActive
+    ? filteredFlat.length
+    : (totalCount || filteredDocs.length)
+  const effectiveTotalCount = onlyFavoritesActive ? filteredFlat.length : totalCount
+  const explicitBulkFileIds = React.useMemo<string[] | undefined>(() => {
+    if (!onlyFavoritesActive) return undefined
+    return filteredFlat
+      .map((d) => d.fileId || d.id)
+      .filter((id): id is string => typeof id === 'string' && id.length > 0)
+  }, [onlyFavoritesActive, filteredFlat])
+  const showBulkButtons = isOwner && (
+    onlyFavoritesActive ? filteredFlat.length > 0 : filteredDocs.length > 0
+  )
   
   // `doc`-Parameter aus der URL (Auflösung erfolgt nach `allDocs`, siehe unten)
   const docSlug = searchParams?.get('doc')
@@ -660,6 +704,13 @@ export function GalleryRoot({
         </div>
       )
     }
+    if (onlyFavoritesActive && filteredFlat.length === 0) {
+      return (
+        <div className='flex flex-col items-start gap-3 text-sm text-muted-foreground'>
+          <div>{t('gallery.favorites.emptyHint', { defaultValue: 'Noch keine Favoriten markiert.' })}</div>
+        </div>
+      )
+    }
     
     // Wenn chatReferences gesetzt ist, verwende gruppierte Ansicht
     if (chatReferences && chatReferences.references && chatReferences.references.length > 0) {
@@ -686,7 +737,7 @@ export function GalleryRoot({
     // Publish/Unpublish/Re-translate werden an die Tabelle weitergereicht.
     return <ItemsView 
       viewMode={viewMode} 
-      docsByYear={docsByYear} 
+      docsByYear={filteredDocsByYear} 
       onOpen={handleOpenDocument} 
       libraryId={libraryId}
       onLoadMore={loadMore}
@@ -753,7 +804,7 @@ export function GalleryRoot({
             {/* Mobile Filter Bar */}
             <div className="lg:hidden">
               <FilterContextBar
-                docCount={totalCount || filteredDocs.length}
+                docCount={effectiveDocCount}
                 onOpenFilters={() => setShowFilters(true)}
                 onClear={handleClearFilters}
                 facetDefs={facetDefs}
@@ -762,15 +813,16 @@ export function GalleryRoot({
                 tooltip={t('gallery.storyModeTooltip')}
                 mode="gallery"
                 viewMode={viewMode}
-                filteredDocuments={filteredDocs}
+                filteredDocuments={filteredFlat}
                 libraryId={libraryId}
                 onBulkDelete={handleDocumentDeleted}
-                showBulkDelete={isOwner && filteredDocs.length > 0}
-                totalCount={totalCount}
+                showBulkDelete={showBulkButtons}
+                totalCount={effectiveTotalCount}
                 searchQuery={searchQuery}
-                showBulkPublish={isOwner && filteredDocs.length > 0}
+                showBulkPublish={showBulkButtons}
                 onBulkPublish={handleDocumentDeleted}
                 hasTranslationTargets={(activeLibrary?.config?.translations?.targetLocales?.length ?? 0) > 0}
+                explicitBulkFileIds={explicitBulkFileIds}
               />
             </div>
 
@@ -790,7 +842,7 @@ export function GalleryRoot({
                 {/* FilterContextBar immer anzeigen - wird nicht mehr durch ReferencesLegend ersetzt */}
                 <div className="flex-shrink-0">
                   <FilterContextBar
-                    docCount={totalCount || filteredDocs.length}
+                    docCount={effectiveDocCount}
                     onOpenFilters={() => setShowFilters(true)}
                     onClear={handleClearFilters}
                     hideFilterButton={true}
@@ -800,15 +852,16 @@ export function GalleryRoot({
                     tooltip={t('gallery.storyModeTooltip')}
                     mode="gallery"
                     viewMode={viewMode}
-                    filteredDocuments={filteredDocs}
+                    filteredDocuments={filteredFlat}
                     libraryId={libraryId}
                     onBulkDelete={handleDocumentDeleted}
-                    showBulkDelete={isOwner && filteredDocs.length > 0}
-                    totalCount={totalCount}
+                    showBulkDelete={showBulkButtons}
+                    totalCount={effectiveTotalCount}
                     searchQuery={searchQuery}
-                    showBulkPublish={isOwner && filteredDocs.length > 0}
+                    showBulkPublish={showBulkButtons}
                     onBulkPublish={handleDocumentDeleted}
                     hasTranslationTargets={(activeLibrary?.config?.translations?.targetLocales?.length ?? 0) > 0}
+                    explicitBulkFileIds={explicitBulkFileIds}
                   />
                 </div>
 
@@ -846,7 +899,7 @@ export function GalleryRoot({
               {!(chatReferences && chatReferences.references && chatReferences.references.length > 0) && (
                 <div className="flex-shrink-0">
                   <FilterContextBar
-                    docCount={totalCount || filteredDocs.length}
+                    docCount={effectiveDocCount}
                     onOpenFilters={() => setShowFilters(true)}
                     onClear={handleClearFilters}
                     hideFilterButton={true}

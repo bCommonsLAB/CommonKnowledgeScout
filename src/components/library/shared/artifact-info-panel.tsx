@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Trash2, X, RefreshCw } from "lucide-react"
+import { Trash2, X, RefreshCw, Download } from "lucide-react"
 import { toast } from "sonner"
 
 import { useSetAtom } from "jotai"
@@ -10,6 +10,7 @@ import type { StorageItem } from "@/lib/storage/types"
 import { IngestionStatusCompact } from "@/components/library/shared/ingestion-status-compact"
 import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom"
 import { Button } from "@/components/ui/button"
+import { fetchShadowTwinMarkdown } from "@/lib/shadow-twin/shadow-twin-mongo-client"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,6 +59,7 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
   // Alle Artefakte aus MongoDB laden (nicht gefiltert, alle Sprachen/Templates)
   const [allArtifacts, setAllArtifacts] = React.useState<MongoArtifact[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
+  const [downloadingKey, setDownloadingKey] = React.useState<string | null>(null)
 
   const fetchAllArtifacts = React.useCallback(async () => {
     if (!props.libraryId || !props.sourceFile?.id) return
@@ -94,6 +96,44 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
   // Neueste Transformation fuer Ingestion-Status
   const newestTransformation = transformations[0] || null
   const activeTemplateName = newestTransformation?.templateName || null
+
+  // Einzelnes Artefakt herunterladen (Frontmatter + Body als .md-Datei)
+  // Quelle ist immer MongoDB: ArtifactInfoPanel listet auch nur Mongo-Artefakte
+  // (siehe fetchAllArtifacts oben). Damit umgehen wir den Provider-Pfad und
+  // muessen uns keine Sorgen ueber Storage-Backends machen.
+  const handleDownloadSingle = React.useCallback(async (artifact: MongoArtifact) => {
+    if (!props.libraryId || !props.sourceFile?.id) return
+    const key = artifactKey(artifact)
+    setDownloadingKey(key)
+    try {
+      const markdown = await fetchShadowTwinMarkdown(props.libraryId, {
+        sourceId: props.sourceFile.id,
+        kind: artifact.kind,
+        targetLanguage: artifact.targetLanguage,
+        templateName: artifact.templateName,
+      })
+      if (!markdown || markdown.trim().length === 0) {
+        toast.error("Kein Markdown-Inhalt zum Download verfuegbar")
+        return
+      }
+      const fileName = buildFileName(base, artifact)
+      const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = fileName
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      toast.error("Fehler beim Download", {
+        description: error instanceof Error ? error.message : "Unbekannter Fehler",
+      })
+    } finally {
+      setDownloadingKey(null)
+    }
+  }, [props.libraryId, props.sourceFile?.id, base])
 
   // Einzelnes Artefakt loeschen
   const handleDeleteSingle = React.useCallback(async (artifact: MongoArtifact) => {
@@ -174,6 +214,7 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
     const key = artifactKey(artifact)
     const fileName = buildFileName(base, artifact)
     const isCurrentlyDeleting = deletingKey === key
+    const isCurrentlyDownloading = downloadingKey === key
 
     return (
       <div key={key} className="group flex items-center justify-between gap-2">
@@ -185,6 +226,19 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <span className="text-xs text-muted-foreground">{formatShort(artifact.updatedAt)}</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30"
+                disabled={isCurrentlyDownloading || isCurrentlyDeleting}
+                onClick={() => void handleDownloadSingle(artifact)}
+              >
+                <Download className={`h-3.5 w-3.5 ${isCurrentlyDownloading ? "animate-pulse" : ""}`} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="left">Dieses Artefakt herunterladen</TooltipContent>
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -201,7 +255,7 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
         </div>
       </div>
     )
-  }, [base, deletingKey, handleDeleteSingle])
+  }, [base, deletingKey, downloadingKey, handleDeleteSingle, handleDownloadSingle])
 
   return (
     <div className="space-y-6 p-3">

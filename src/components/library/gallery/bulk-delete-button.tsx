@@ -34,6 +34,15 @@ export interface BulkDeleteButtonProps {
   filters?: Record<string, string[] | undefined>
   /** Aktuelle Suchanfrage (für API-Aufruf) */
   searchQuery?: string
+  /**
+   * Optionale, vorab bekannte fileId-Liste fuer den Bulk-Loesch-Scope.
+   *
+   * Wenn gesetzt, ueberspringen wir den `/docs/ids`-Roundtrip und
+   * loeschen exakt diese IDs. Wird verwendet, wenn der Scope durch einen
+   * rein clientseitigen Filter (z.B. "Nur Favoriten") eingeschraenkt ist
+   * und der Server diesen Filter nicht kennt.
+   */
+  explicitFileIds?: string[]
 }
 
 /**
@@ -49,22 +58,26 @@ export function BulkDeleteButton({
   totalCount,
   filters,
   searchQuery = '',
+  explicitFileIds,
 }: BulkDeleteButtonProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const { toast } = useToast()
 
-  // Verwende totalCount falls vorhanden, sonst Anzahl der übergebenen Dokumente
-  // Für Bulk-Delete müssen wir alle gefilterten Dokumente löschen, nicht nur die aktuell geladenen
-  const documentCount = totalCount !== undefined ? totalCount : documents.length
+  // Anzeige-Anzahl: explicit > totalCount > geladene Docs.
+  const documentCount = explicitFileIds
+    ? explicitFileIds.length
+    : totalCount !== undefined
+      ? totalCount
+      : documents.length
 
-  // Extrahiere fileIds aus Dokumenten (nur gültige fileIds)
-  // Für Bulk-Delete verwenden wir die übergebenen Dokumente, aber die Anzahl kommt aus totalCount
-  const fileIds = documents
-    .map(doc => doc.fileId || doc.id)
-    .filter((id): id is string => typeof id === 'string' && id.length > 0)
+  // Sanity-Check fuer den Render-Pfad: brauchen mindestens eine fileId.
+  const fileIds = explicitFileIds && explicitFileIds.length > 0
+    ? explicitFileIds
+    : documents
+        .map(doc => doc.fileId || doc.id)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0)
 
-  // Wenn keine gültigen fileIds vorhanden sind oder keine Dokumente, zeige Button nicht an
   if (fileIds.length === 0 || documentCount === 0) {
     return null
   }
@@ -73,36 +86,38 @@ export function BulkDeleteButton({
     setIsDeleting(true)
 
     try {
-      // Für Bulk-Delete müssen wir alle gefilterten Dokumente löschen, nicht nur die aktuell geladenen
-      // Hole alle fileIds über den /ids Endpunkt, der die gleichen Filter verwendet
-      // Baue Query-Parameter aus Filtern und Search-Query
-      const params = new URLSearchParams()
-      
-      // Füge Filter hinzu
-      if (filters) {
-        Object.entries(filters).forEach(([key, values]) => {
-          if (Array.isArray(values)) {
-            values.forEach(value => params.append(key, String(value)))
-          }
-        })
+      let allFileIds: string[]
+
+      if (explicitFileIds && explicitFileIds.length > 0) {
+        // Client-seitiger Filter (z.B. "Nur Favoriten") – Server kennt
+        // diesen Scope nicht, also nutzen wir die explizite Liste direkt.
+        allFileIds = explicitFileIds
+      } else {
+        // Fallback: alle aktuell gefilterten Docs vom Server holen, damit
+        // auch Pagination-fern liegende Treffer mit erfasst werden.
+        const params = new URLSearchParams()
+        if (filters) {
+          Object.entries(filters).forEach(([key, values]) => {
+            if (Array.isArray(values)) {
+              values.forEach(value => params.append(key, String(value)))
+            }
+          })
+        }
+        if (searchQuery.trim()) {
+          params.append('search', searchQuery.trim())
+        }
+
+        const idsUrl = `/api/chat/${encodeURIComponent(libraryId)}/docs/ids${params.toString() ? `?${params.toString()}` : ''}`
+        const idsResponse = await fetch(idsUrl)
+
+        if (!idsResponse.ok) {
+          throw new Error('Fehler beim Laden der Dokument-IDs')
+        }
+
+        const idsData = await idsResponse.json()
+        allFileIds = idsData.fileIds || []
       }
-      
-      // Füge Search-Query hinzu
-      if (searchQuery.trim()) {
-        params.append('search', searchQuery.trim())
-      }
-      
-      // Baue URL für /ids Endpunkt mit aktuellen Filtern
-      const idsUrl = `/api/chat/${encodeURIComponent(libraryId)}/docs/ids${params.toString() ? `?${params.toString()}` : ''}`
-      const idsResponse = await fetch(idsUrl)
-      
-      if (!idsResponse.ok) {
-        throw new Error('Fehler beim Laden der Dokument-IDs')
-      }
-      
-      const idsData = await idsResponse.json()
-      const allFileIds = idsData.fileIds || []
-      
+
       if (allFileIds.length === 0) {
         throw new Error('Keine Dokumente zum Löschen gefunden')
       }
