@@ -281,7 +281,21 @@
       "toggleAdd": "Add to favorites",
       "toggleRemove": "Remove from favorites",
       "filterOnly": "Favorites only",
-      "emptyHint": "No favorites marked yet."
+      "emptyHint": "No favorites marked yet.",
+      "sortByStars": "Sort by stars",
+      "voterTooltipHeader": "Stars ({{count}})",
+      "aggregatedCount": "{{count}} stars from members"
+    },
+    "detail": {
+      "previous": "Previous document",
+      "next": "Next document"
+    },
+    "tinder": {
+      "toggle": "Tinder mode",
+      "onlyUnrated": "Unrated only",
+      "position": "Position {{position}}",
+      "unrated": "unrated",
+      "notImportant": "not important"
     },
     "comments": {
       "expand": "Expand comments",

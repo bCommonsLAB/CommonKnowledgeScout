@@ -308,7 +308,21 @@
       "toggleAdd": "Zu Favoriten hinzufügen",
       "toggleRemove": "Aus Favoriten entfernen",
       "filterOnly": "Nur Favoriten",
-      "emptyHint": "Noch keine Favoriten markiert."
+      "emptyHint": "Noch keine Favoriten markiert.",
+      "sortByStars": "Nach Sternen sortieren",
+      "voterTooltipHeader": "Sterne ({{count}})",
+      "aggregatedCount": "{{count}} Sterne von Mitgliedern"
+    },
+    "detail": {
+      "previous": "Vorheriges Dokument",
+      "next": "Nächstes Dokument"
+    },
+    "tinder": {
+      "toggle": "Tinder-Modus",
+      "onlyUnrated": "Nur Unbewertete",
+      "position": "Position {{position}}",
+      "unrated": "unbewertet",
+      "notImportant": "nicht wichtig"
     },
     "comments": {
       "expand": "Kommentare ausklappen",

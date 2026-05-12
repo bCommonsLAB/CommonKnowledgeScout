@@ -21,13 +21,15 @@ import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { mapBewertungToStatus, STATUS_CONFIG, STATUS_ICON_MAP } from './status-config'
+import { SourceStarsBadge } from '../source-stars-badge'
 
 export interface ClimateActionCardProps {
   doc: DocCardMeta
   onClick: () => void
+  libraryId?: string
 }
 
-export function ClimateActionCard({ doc, onClick }: ClimateActionCardProps) {
+export function ClimateActionCard({ doc, onClick, libraryId }: ClimateActionCardProps) {
   const status = mapBewertungToStatus(doc.lv_bewertung)
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.offen
   const IconComponent = STATUS_ICON_MAP[config.icon]
@@ -95,6 +97,13 @@ export function ClimateActionCard({ doc, onClick }: ClimateActionCardProps) {
           </div>
         </div>
       </div>
+
+      <SourceStarsBadge
+        libraryId={libraryId}
+        fileId={doc.fileId}
+        variant='light'
+        className='absolute top-3 left-3 z-10'
+      />
 
       {/* Hover-Linie unten */}
       <div className='absolute inset-x-0 bottom-0 h-1 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left' />

@@ -1,10 +1,25 @@
 import type { DocCardMeta } from '@/lib/gallery/types'
 
 /**
+ * Optionale Aggregations-Daten fuer Sterne-Sort.
+ *
+ * Wird aus `useAggregatedFavorites` bereitgestellt; falls die Map nicht
+ * uebergeben wird, faellt der Sort-Vergleich fuer `favoriteCount`
+ * zurueck auf 0 fuer alle Quellen (keine Sortierung).
+ */
+export interface DocSortContext {
+  favoriteCounts?: Record<string, number>
+}
+
+/**
  * Extrahiert einen vergleichbaren Wert für die Tabellen-Sortierung.
  * Titel/Arrays/Datum/Zahlen werden so aufbereitet, dass compareSortValues stabil sortiert.
  */
-export function getDocSortValue(doc: DocCardMeta, key: string): number | string | null {
+export function getDocSortValue(
+  doc: DocCardMeta,
+  key: string,
+  ctx?: DocSortContext,
+): number | string | null {
   if (key === 'title') {
     const s = doc.shortTitle || doc.title || doc.fileName
     return s ? s.toLowerCase() : null
@@ -14,6 +29,11 @@ export function getDocSortValue(doc: DocCardMeta, key: string): number | string 
     if (!t) return null
     const ms = Date.parse(t)
     return Number.isNaN(ms) ? t : ms
+  }
+  if (key === 'favoriteCount') {
+    if (!doc.fileId) return 0
+    const counts = ctx?.favoriteCounts
+    return counts ? counts[doc.fileId] || 0 : 0
   }
 
   const raw = (doc as unknown as Record<string, unknown>)[key]
@@ -48,12 +68,15 @@ export function compareDocCardMetaForColumn(
   a: DocCardMeta,
   b: DocCardMeta,
   key: string,
-  dir: 'asc' | 'desc'
+  dir: 'asc' | 'desc',
+  ctx?: DocSortContext,
 ): number {
-  const va = getDocSortValue(a, key)
-  const vb = getDocSortValue(b, key)
-  const emptyA = isEmptySortValue(va)
-  const emptyB = isEmptySortValue(vb)
+  const va = getDocSortValue(a, key, ctx)
+  const vb = getDocSortValue(b, key, ctx)
+  // favoriteCount: 0 ist ein gueltiger Wert (nicht "leer"); nur null/'' als leer behandeln.
+  const treatZeroAsEmpty = key !== 'favoriteCount'
+  const emptyA = isEmptySortValue(va) || (treatZeroAsEmpty && va === 0)
+  const emptyB = isEmptySortValue(vb) || (treatZeroAsEmpty && vb === 0)
   if (emptyA && emptyB) return 0
   if (emptyA) return 1
   if (emptyB) return -1
@@ -76,6 +99,11 @@ export function compareDocCardMetaForColumn(
 }
 
 /** Sortiert eine Dokumentenliste innerhalb einer Gruppe (z. B. ein Jahres-Block). */
-export function sortDocsByTableColumn(docs: DocCardMeta[], key: string, dir: 'asc' | 'desc'): DocCardMeta[] {
-  return [...docs].sort((x, y) => compareDocCardMetaForColumn(x, y, key, dir))
+export function sortDocsByTableColumn(
+  docs: DocCardMeta[],
+  key: string,
+  dir: 'asc' | 'desc',
+  ctx?: DocSortContext,
+): DocCardMeta[] {
+  return [...docs].sort((x, y) => compareDocCardMetaForColumn(x, y, key, dir, ctx))
 }

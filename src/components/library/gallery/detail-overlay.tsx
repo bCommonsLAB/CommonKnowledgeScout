@@ -3,7 +3,15 @@
 import React from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { X, ExternalLink } from 'lucide-react'
+import { X, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useUserStates } from '@/hooks/gallery/use-user-states'
+import { useAggregatedFavorites } from '@/hooks/gallery/use-aggregated-favorites'
+import { useLibraryRole } from '@/hooks/gallery/use-library-role'
+import { useTinderSequencer } from '@/hooks/gallery/use-tinder-sequencer'
+import { SourceStarsCell } from './source-stars-cell'
+import { TinderModeToggle } from './tinder/tinder-mode-toggle'
+import { TinderStatusBar } from './tinder/tinder-status-bar'
+import { TinderSwipeFrame } from './tinder/tinder-swipe-frame'
 import { IngestionBookDetail } from '@/components/library/ingestion-book-detail'
 import { IngestionSessionDetail } from '@/components/library/ingestion-session-detail'
 import { IngestionClimateActionDetail } from '@/components/library/ingestion-climate-action-detail'
@@ -35,6 +43,18 @@ export interface DetailOverlayProps {
   isSwitchingRef?: React.MutableRefObject<boolean>
   /** Optional: Fallback-Locale aus library.config.translations.fallbackLocale */
   fallbackLocale?: string
+  /** Vorheriges Dokument (fuer Pfeil-Navigation links). */
+  prevDoc?: DocCardMeta | null
+  /** Naechstes Dokument (fuer Pfeil-Navigation rechts). */
+  nextDoc?: DocCardMeta | null
+  /** Callback: navigiere zu einem benachbarten Dokument. */
+  onNavigateToDoc?: (doc: DocCardMeta) => void
+  /**
+   * Vollstaendige Geschwister-Liste (in der Reihenfolge der Galerie).
+   * Wird vom Tinder-Sequencer genutzt, um nach `not_important` / `favorite`
+   * einzuschraenken und unbewertete Quellen einzeln durchzugehen.
+   */
+  siblingDocs?: DocCardMeta[]
 }
 
 /**
@@ -61,8 +81,61 @@ export function DetailOverlay({
   currentMode = 'gallery',
   isSwitchingRef,
   fallbackLocale,
+  prevDoc,
+  nextDoc,
+  onNavigateToDoc,
+  siblingDocs,
 }: DetailOverlayProps) {
   const { t, locale } = useTranslation()
+  const { isMember } = useLibraryRole(libraryId)
+  const { isFavorite, isNotImportant, setState: setUserState } = useUserStates(libraryId)
+  const visibleFileIds = React.useMemo(() => (fileId ? [fileId] : []), [fileId])
+  const {
+    counts: favoriteCounts,
+    voters: favoriteVoters,
+    invalidate: invalidateFavoriteAggregation,
+  } = useAggregatedFavorites(libraryId, visibleFileIds)
+  const handleToggleFavorite = React.useCallback(
+    async (id: string) => {
+      const next = isFavorite(id) ? null : 'favorite'
+      await setUserState(id, next)
+      invalidateFavoriteAggregation(id)
+    },
+    [isFavorite, setUserState, invalidateFavoriteAggregation],
+  )
+
+  // Tinder-Mode: lokaler State (kein URL-Param, weil die Detail-Overlay
+  // an `?doc=` haengt und den Mode ohnehin nicht ueberlebt).
+  const [tinderActive, setTinderActive] = React.useState(false)
+  const [onlyUnrated, setOnlyUnrated] = React.useState(true)
+  const sequencer = useTinderSequencer({
+    docs: siblingDocs ?? [],
+    currentFileId: fileId,
+    isFavorite,
+    isNotImportant,
+    onlyUnrated: tinderActive && onlyUnrated,
+  })
+
+  const handleSwipeRight = React.useCallback(async () => {
+    if (!fileId) return
+    // Rechts = Favorit setzen + naechstes Doc.
+    await setUserState(fileId, 'favorite')
+    invalidateFavoriteAggregation(fileId)
+    if (sequencer.nextDoc && onNavigateToDoc) onNavigateToDoc(sequencer.nextDoc)
+  }, [fileId, setUserState, invalidateFavoriteAggregation, sequencer.nextDoc, onNavigateToDoc])
+
+  const handleSwipeLeft = React.useCallback(async () => {
+    if (!fileId) return
+    // Links = "nicht wichtig" + naechstes Doc.
+    await setUserState(fileId, 'not_important')
+    invalidateFavoriteAggregation(fileId)
+    if (sequencer.nextDoc && onNavigateToDoc) onNavigateToDoc(sequencer.nextDoc)
+  }, [fileId, setUserState, invalidateFavoriteAggregation, sequencer.nextDoc, onNavigateToDoc])
+
+  // Pfeile im Tinder-Mode folgen der Sequenz (gefiltert), sonst der vom
+  // Aufrufer durchgereichten Liste.
+  const effectivePrevDoc = tinderActive ? sequencer.prevDoc : prevDoc ?? null
+  const effectiveNextDoc = tinderActive ? sequencer.nextDoc : nextDoc ?? null
 
   // Vorgemappte Detail-Daten (durch doc-meta Prefetch), bereits sprach-veredelt.
   const [prefetchedBookData, setPrefetchedBookData] = React.useState<BookDetailData | null>(null)
@@ -140,8 +213,39 @@ export function DetailOverlay({
       >
         <div className='flex flex-col gap-3 p-6 border-b shrink-0'>
           <div className='flex items-center justify-between gap-4'>
-            <h2 className='text-xl font-semibold'>{displayTitle}</h2>
+            <div className='flex items-center gap-2 min-w-0 flex-1'>
+              {/* Pfeil-Navigation: vorheriges Dokument */}
+              {onNavigateToDoc && (
+                <Button
+                  variant='ghost'
+                  size='icon'
+                  type='button'
+                  disabled={!effectivePrevDoc}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (effectivePrevDoc) onNavigateToDoc(effectivePrevDoc)
+                  }}
+                  aria-label={t('gallery.detail.previous', { defaultValue: 'Vorheriges Dokument' })}
+                  title={effectivePrevDoc?.shortTitle || effectivePrevDoc?.title || effectivePrevDoc?.fileName}
+                >
+                  <ChevronLeft className='h-4 w-4' />
+                </Button>
+              )}
+              <h2 className='text-xl font-semibold truncate'>{displayTitle}</h2>
+            </div>
             <div className='flex items-center gap-2 shrink-0'>
+              {/* Sterne-Cell: eigener Stern + Counter + Tooltip (Member-only). */}
+              {isMember && fileId && (
+                <SourceStarsCell
+                  libraryId={libraryId}
+                  fileId={fileId}
+                  isFavorite={isFavorite(fileId)}
+                  count={favoriteCounts[fileId] ?? 0}
+                  voters={favoriteVoters[fileId] ?? []}
+                  onToggleFavorite={handleToggleFavorite}
+                  size='md'
+                />
+              )}
               {/* Link zur Original-Webseite (nur fuer Sessions mit URL) */}
               {viewType === 'session' && sessionUrl && (
                 <Button variant='ghost' size='sm' asChild className='text-xs'>
@@ -149,6 +253,23 @@ export function DetailOverlay({
                     <ExternalLink className='h-3 w-3' />
                     <span>{t('gallery.linkToOriginalWebsite')}</span>
                   </a>
+                </Button>
+              )}
+              {/* Pfeil-Navigation: naechstes Dokument */}
+              {onNavigateToDoc && (
+                <Button
+                  variant='ghost'
+                  size='icon'
+                  type='button'
+                  disabled={!effectiveNextDoc}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (effectiveNextDoc) onNavigateToDoc(effectiveNextDoc)
+                  }}
+                  aria-label={t('gallery.detail.next', { defaultValue: 'Naechstes Dokument' })}
+                  title={effectiveNextDoc?.shortTitle || effectiveNextDoc?.title || effectiveNextDoc?.fileName}
+                >
+                  <ChevronRight className='h-4 w-4' />
                 </Button>
               )}
               <Button variant='ghost' size='icon' onClick={(e) => { e.stopPropagation(); onClose() }}>
@@ -159,69 +280,126 @@ export function DetailOverlay({
 
           {/* Share-Button + Story-Mode-Button (Tabs entfernt – globaler LanguageSwitcher) */}
           {doc && (
-            <div className='flex items-center justify-end gap-2'>
-              <DocumentShareButton doc={doc} title={displayTitle} />
-              <SwitchToStoryModeButton
-                doc={doc}
-                currentMode={currentMode}
-                onClose={onClose}
-                isSwitchingRef={isSwitchingRef}
-              />
+            <div className='flex items-center justify-between gap-2 flex-wrap'>
+              {/* Tinder-Mode-Toggle ist Member-only und erfordert mindestens eine
+                  Geschwister-Liste, sonst macht der Mode keinen Sinn. */}
+              {isMember && Array.isArray(siblingDocs) && siblingDocs.length > 1 ? (
+                <TinderModeToggle
+                  active={tinderActive}
+                  onChange={setTinderActive}
+                  showOnlyUnratedToggle
+                  onlyUnrated={onlyUnrated}
+                  onChangeOnlyUnrated={setOnlyUnrated}
+                />
+              ) : <span />}
+              <div className='flex items-center gap-2 ml-auto'>
+                <DocumentShareButton doc={doc} title={displayTitle} />
+                <SwitchToStoryModeButton
+                  doc={doc}
+                  currentMode={currentMode}
+                  onClose={onClose}
+                  isSwitchingRef={isSwitchingRef}
+                />
+              </div>
             </div>
           )}
+
+          {tinderActive && isMember ? (
+            <TinderStatusBar
+              total={sequencer.total}
+              index={sequencer.index}
+              unratedCount={sequencer.unratedCount}
+              favoriteCount={sequencer.favoriteCount}
+              notImportantCount={sequencer.notImportantCount}
+            />
+          ) : null}
         </div>
 
         <ScrollArea className='flex-1 w-full overflow-hidden relative'>
-          <div className='p-0 w-full max-w-full overflow-x-hidden'>
-            {viewType === 'session' && (
-              <IngestionSessionDetail
+          {tinderActive && isMember && fileId ? (
+            <TinderSwipeFrame onSwipeLeft={handleSwipeLeft} onSwipeRight={handleSwipeRight}>
+              <DetailBody
+                viewType={viewType}
                 libraryId={libraryId}
                 fileId={fileId}
-                initialData={prefetchedSessionData || undefined}
-                suspendInitialFetch={!isDocMetaReady}
+                prefetchedSessionData={prefetchedSessionData}
+                prefetchedBookData={prefetchedBookData}
+                isDocMetaReady={isDocMetaReady}
                 fallbackLocale={fallbackLocale}
               />
-            )}
-            {viewType === 'climateAction' && (
-              <IngestionClimateActionDetail
-                libraryId={libraryId}
-                fileId={fileId}
-                fallbackLocale={fallbackLocale}
-              />
-            )}
-            {viewType === 'divaDocument' && (
-              <IngestionDivaDocumentDetail
-                libraryId={libraryId}
-                fileId={fileId}
-                fallbackLocale={fallbackLocale}
-              />
-            )}
-            {viewType === 'divaTexture' && (
-              <IngestionDivaTextureDetail
-                libraryId={libraryId}
-                fileId={fileId}
-              />
-            )}
-            {viewType === 'refurbedDevice' && (
-              <IngestionRefurbedDeviceDetail
-                libraryId={libraryId}
-                fileId={fileId}
-                fallbackLocale={fallbackLocale}
-              />
-            )}
-            {/* Default: Book-Detail (auch fuer testimonial, blog – vorerst) */}
-            {viewType !== 'session' && viewType !== 'climateAction' && viewType !== 'divaDocument' && viewType !== 'divaTexture' && viewType !== 'refurbedDevice' && (
-              <IngestionBookDetail
-                libraryId={libraryId}
-                fileId={fileId}
-                initialData={prefetchedBookData || undefined}
-                suspendInitialFetch={!isDocMetaReady}
-                fallbackLocale={fallbackLocale}
-              />
-            )}
-          </div>
+            </TinderSwipeFrame>
+          ) : (
+            <DetailBody
+              viewType={viewType}
+              libraryId={libraryId}
+              fileId={fileId}
+              prefetchedSessionData={prefetchedSessionData}
+              prefetchedBookData={prefetchedBookData}
+              isDocMetaReady={isDocMetaReady}
+              fallbackLocale={fallbackLocale}
+            />
+          )}
         </ScrollArea>
       </div>
+    </div>
+  )
+}
+
+interface DetailBodyProps {
+  viewType: DetailOverlayProps['viewType']
+  libraryId: string
+  fileId: string
+  prefetchedSessionData: SessionDetailData | null
+  prefetchedBookData: BookDetailData | null
+  isDocMetaReady: boolean
+  fallbackLocale?: string
+}
+
+function DetailBody({
+  viewType,
+  libraryId,
+  fileId,
+  prefetchedSessionData,
+  prefetchedBookData,
+  isDocMetaReady,
+  fallbackLocale,
+}: DetailBodyProps) {
+  return (
+    <div className='p-0 w-full max-w-full overflow-x-hidden'>
+      {viewType === 'session' && (
+        <IngestionSessionDetail
+          libraryId={libraryId}
+          fileId={fileId}
+          initialData={prefetchedSessionData || undefined}
+          suspendInitialFetch={!isDocMetaReady}
+          fallbackLocale={fallbackLocale}
+        />
+      )}
+      {viewType === 'climateAction' && (
+        <IngestionClimateActionDetail libraryId={libraryId} fileId={fileId} fallbackLocale={fallbackLocale} />
+      )}
+      {viewType === 'divaDocument' && (
+        <IngestionDivaDocumentDetail libraryId={libraryId} fileId={fileId} fallbackLocale={fallbackLocale} />
+      )}
+      {viewType === 'divaTexture' && (
+        <IngestionDivaTextureDetail libraryId={libraryId} fileId={fileId} />
+      )}
+      {viewType === 'refurbedDevice' && (
+        <IngestionRefurbedDeviceDetail libraryId={libraryId} fileId={fileId} fallbackLocale={fallbackLocale} />
+      )}
+      {viewType !== 'session' &&
+        viewType !== 'climateAction' &&
+        viewType !== 'divaDocument' &&
+        viewType !== 'divaTexture' &&
+        viewType !== 'refurbedDevice' && (
+          <IngestionBookDetail
+            libraryId={libraryId}
+            fileId={fileId}
+            initialData={prefetchedBookData || undefined}
+            suspendInitialFetch={!isDocMetaReady}
+            fallbackLocale={fallbackLocale}
+          />
+        )}
     </div>
   )
 }

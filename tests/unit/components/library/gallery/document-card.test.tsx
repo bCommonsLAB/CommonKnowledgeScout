@@ -69,6 +69,12 @@ vi.mock('@/components/library/gallery/speaker-icons', () => ({
   SpeakerOrAuthorIcons: () => <div data-testid="speaker-icons-mock" />,
 }))
 
+vi.mock('@/components/library/gallery/source-stars-badge', () => ({
+  SourceStarsBadge: (props: { libraryId?: string; fileId?: string }) => (
+    <div data-testid="source-stars-badge-mock" data-library={props.libraryId} data-file={props.fileId} />
+  ),
+}))
+
 function makeDoc(overrides: Partial<DocCardMeta> = {}): DocCardMeta {
   return {
     id: 'doc-1',
@@ -172,5 +178,24 @@ describe('DocumentCard (Switch)', () => {
     fireEvent.click(card)
     expect(onClick).toHaveBeenCalledTimes(1)
     expect(openDocumentBySlugMock).not.toHaveBeenCalled()
+  })
+
+  it('reicht libraryId + fileId an die SourceStarsBadge in jeder Card-Variante durch', () => {
+    const variants: Array<{ type?: string; doc: DocCardMeta }> = [
+      { type: undefined, doc: makeDoc({ title: 'Std' }) },
+      { type: 'climateAction', doc: makeDoc({ shortTitle: 'Klima' }) },
+      { type: 'session', doc: makeDoc({ shortTitle: 'Talk' }) },
+      { type: 'refurbedDevice', doc: makeDoc({ modell: 'X1' }) },
+      { type: 'divaTexture', doc: makeDoc({ title: 'Textur' }) },
+    ]
+    for (const v of variants) {
+      const { unmount } = render(
+        <DocumentCard doc={v.doc} libraryId="lib-99" libraryDetailViewType={v.type} />,
+      )
+      const badge = screen.getByTestId('source-stars-badge-mock')
+      expect(badge.getAttribute('data-library')).toBe('lib-99')
+      expect(badge.getAttribute('data-file')).toBe('file-1')
+      unmount()
+    }
   })
 })

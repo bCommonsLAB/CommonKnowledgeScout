@@ -25,13 +25,15 @@ import Image from 'next/image'
 import { Cpu, MemoryStick, HardDrive } from 'lucide-react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { useTranslation } from '@/lib/i18n/hooks'
+import { SourceStarsBadge } from '../source-stars-badge'
 
 export interface RefurbedDeviceCardProps {
   doc: DocCardMeta
   onClick: () => void
+  libraryId?: string
 }
 
-export function RefurbedDeviceCard({ doc, onClick }: RefurbedDeviceCardProps) {
+export function RefurbedDeviceCard({ doc, onClick, libraryId }: RefurbedDeviceCardProps) {
   const { t } = useTranslation()
   // Thumbnail bevorzugen fuer Galerie-Performance, Fallback auf Original
   const displayImageUrl = doc.coverThumbnailUrl || doc.coverImageUrl
@@ -110,6 +112,13 @@ export function RefurbedDeviceCard({ doc, onClick }: RefurbedDeviceCardProps) {
           {String(doc.year)}
         </div>
       )}
+
+      <SourceStarsBadge
+        libraryId={libraryId}
+        fileId={doc.fileId}
+        variant='light'
+        className='absolute top-3 left-3 z-10'
+      />
 
       {/* Hover-Linie unten */}
       <div className='absolute inset-x-0 bottom-0 h-1 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left' />

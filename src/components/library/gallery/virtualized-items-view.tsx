@@ -23,15 +23,16 @@ import { PublishDocumentButton } from './publish-document-button'
 import { PublishStatusBadge, TranslationStatusChips } from './publish-status-chips'
 import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
-import { useSourceFavorites } from '@/hooks/gallery/use-source-favorites'
+import { useUserStates } from '@/hooks/gallery/use-user-states'
+import { useAggregatedFavorites } from '@/hooks/gallery/use-aggregated-favorites'
 import { useSourceCommentCounts } from '@/hooks/gallery/use-source-comment-counts'
 import { formatUpsertedAt } from '@/utils/format-upserted-at'
 import { getTableColumnsForViewType } from '@/lib/detail-view-types'
 import { sortDocsByTableColumn } from '@/lib/gallery/table-sort'
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, Star } from 'lucide-react'
 import { buildGalleryDocSourcePathLine, buildGalleryDocSourcePathParts } from '@/lib/gallery/doc-source-path'
 import type { GalleryCardDensity } from '@/lib/gallery/gallery-card-density'
-import { SourceFavoriteToggle } from './source-favorite-toggle'
+import { SourceStarsCell } from './source-stars-cell'
 import { SourceCommentToggleButton } from './source-comment-toggle-button'
 import { SourceCommentsPanel } from './source-comments-panel'
 
@@ -73,6 +74,11 @@ export interface VirtualizedItemsViewProps {
    * passende Empty-States.
    */
   onlyFavorites?: boolean
+  /**
+   * Per-User-Sterne: wenn true, werden Karten/Zeilen innerhalb jeder
+   * Gruppe nach `favoriteCount` desc sortiert (auch im Grid-Modus).
+   */
+  sortByStars?: boolean
 }
 
 export function VirtualizedItemsView({
@@ -90,6 +96,7 @@ export function VirtualizedItemsView({
   cardDensity = 'comfortable',
   expectedTargetLocales,
   onPublishChanged,
+  sortByStars,
 }: VirtualizedItemsViewProps) {
   const { t, locale } = useTranslation()
   const router = useRouter()
@@ -97,7 +104,7 @@ export function VirtualizedItemsView({
   const searchParams = useSearchParams()
   const { isOwner } = useIsLibraryOwner(libraryId)
   const { isSignedIn, isMember } = useLibraryRole(libraryId)
-  const { isFavorite, toggle: toggleFavorite } = useSourceFavorites(libraryId)
+  const { isFavorite, setState: setUserState } = useUserStates(libraryId)
   // Liefert die aktuell sichtbaren fileIds fuer Bulk-Counts.
   const visibleFileIds = React.useMemo(
     () =>
@@ -106,6 +113,20 @@ export function VirtualizedItemsView({
     [docsByYear],
   )
   const { counts: commentCounts } = useSourceCommentCounts(libraryId, visibleFileIds)
+  const {
+    counts: favoriteCounts,
+    voters: favoriteVoters,
+    invalidate: invalidateFavoriteAggregation,
+  } = useAggregatedFavorites(libraryId, visibleFileIds)
+  const handleToggleFavorite = React.useCallback(
+    async (fileId: string) => {
+      const next = isFavorite(fileId) ? null : 'favorite'
+      await setUserState(fileId, next)
+      // Aggregation neu laden, damit der Counter den eigenen Toggle widerspiegelt.
+      invalidateFavoriteAggregation(fileId)
+    },
+    [isFavorite, setUserState, invalidateFavoriteAggregation],
+  )
   // Expand-State pro Quelle (Key = fileId).
   const [expandedRows, setExpandedRows] = React.useState<Set<string>>(() => new Set())
   const toggleExpanded = React.useCallback((id: string) => {
@@ -245,12 +266,26 @@ export function VirtualizedItemsView({
   }, [libraryDetailViewType, tableColumnFacets, isOwner])
 
   const displayDocsByYear = React.useMemo(() => {
+    // Globaler Stern-Sort (gilt fuer Grid und Table) hat Vorrang vor
+    // Spalten-spezifischer Tabellen-Sortierung.
+    if (sortByStars) {
+      return docsByYear.map(
+        ([groupKey, groupDocs]) =>
+          [
+            groupKey,
+            sortDocsByTableColumn(groupDocs, 'favoriteCount', 'desc', { favoriteCounts }),
+          ] as [number | string, DocCardMeta[]],
+      )
+    }
     if (viewMode !== 'table' || !sortColumn) return docsByYear
     return docsByYear.map(
       ([groupKey, groupDocs]) =>
-        [groupKey, sortDocsByTableColumn(groupDocs, sortColumn, sortDir)] as [number | string, DocCardMeta[]]
+        [
+          groupKey,
+          sortDocsByTableColumn(groupDocs, sortColumn, sortDir, { favoriteCounts }),
+        ] as [number | string, DocCardMeta[]],
     )
-  }, [docsByYear, viewMode, sortColumn, sortDir])
+  }, [docsByYear, viewMode, sortColumn, sortDir, favoriteCounts, sortByStars])
 
   const columnHeaderLabel = React.useCallback(
     (col: { key: string; labelKey?: string; label?: string }) => {
@@ -364,7 +399,38 @@ export function VirtualizedItemsView({
                     <TableHead className="w-10 shrink-0" aria-label="Kommentare" />
                   )}
                   {isMember && (
-                    <TableHead className="w-10 shrink-0" aria-label="Favorit" />
+                    <TableHead
+                      className="w-[88px] shrink-0"
+                      aria-sort={
+                        sortColumn === 'favoriteCount'
+                          ? sortDir === 'asc'
+                            ? 'ascending'
+                            : 'descending'
+                          : 'none'
+                      }
+                    >
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1.5 text-left font-medium text-muted-foreground hover:text-foreground hover:underline"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onHeaderSort('favoriteCount')
+                        }}
+                        title={t('gallery.favorites.sortByStars', { defaultValue: 'Nach Sternen sortieren' })}
+                        aria-label={t('gallery.favorites.sortByStars', { defaultValue: 'Nach Sternen sortieren' })}
+                      >
+                        <Star className="h-4 w-4 shrink-0" aria-hidden />
+                        {sortColumn === 'favoriteCount' ? (
+                          sortDir === 'asc' ? (
+                            <ArrowUp className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                          ) : (
+                            <ArrowDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                          )
+                        ) : (
+                          <ArrowUpDown className="h-3.5 w-3.5 shrink-0 opacity-60" aria-hidden />
+                        )}
+                      </button>
+                    </TableHead>
                   )}
                   <TableHead className="w-12 shrink-0" aria-label="Thumbnail" />
                   {tableColumns.map((col) => {
@@ -447,13 +513,15 @@ export function VirtualizedItemsView({
                           </TableCell>
                         )}
                         {isMember && (
-                          <TableCell className="w-10 shrink-0 p-1 align-middle" onClick={(e) => e.stopPropagation()}>
+                          <TableCell className="w-[88px] shrink-0 p-1 align-middle" onClick={(e) => e.stopPropagation()}>
                             {docFileId && libraryId ? (
-                              <SourceFavoriteToggle
+                              <SourceStarsCell
                                 libraryId={libraryId}
                                 fileId={docFileId}
                                 isFavorite={isFavorite(docFileId)}
-                                onToggle={toggleFavorite}
+                                count={favoriteCounts[docFileId] ?? 0}
+                                voters={favoriteVoters[docFileId] ?? []}
+                                onToggleFavorite={handleToggleFavorite}
                               />
                             ) : null}
                           </TableCell>

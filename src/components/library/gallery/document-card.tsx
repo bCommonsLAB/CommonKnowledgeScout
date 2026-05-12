@@ -66,19 +66,19 @@ export function DocumentCard({ doc, onClick, libraryId, libraryDetailViewType }:
 
   // Spezielles Layout fuer ClimateAction
   if (effectiveDetailViewType === 'climateAction') {
-    return <ClimateActionCard doc={doc} onClick={handleClick} />
+    return <ClimateActionCard doc={doc} onClick={handleClick} libraryId={libraryId} />
   }
 
   // YouTube-artiges Layout fuer Sessions/Events
   if (effectiveDetailViewType === 'session') {
-    return <SessionCard doc={doc} onClick={handleClick} />
+    return <SessionCard doc={doc} onClick={handleClick} libraryId={libraryId} />
   }
 
   // Vollflaechige Karte fuer gebrauchte PCs/Notebooks (refurbedDevice)
   if (effectiveDetailViewType === 'refurbedDevice') {
-    return <RefurbedDeviceCard doc={doc} onClick={handleClick} />
+    return <RefurbedDeviceCard doc={doc} onClick={handleClick} libraryId={libraryId} />
   }
 
   // Standard-Layout fuer alle anderen Typen (Buecher, Dokumente, etc.)
-  return <StandardCard doc={doc} onClick={handleClick} />
+  return <StandardCard doc={doc} onClick={handleClick} libraryId={libraryId} />
 }

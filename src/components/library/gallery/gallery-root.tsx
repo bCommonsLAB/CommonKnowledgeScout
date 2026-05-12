@@ -35,7 +35,7 @@ import { openDocumentBySlug, closeDocument } from '@/utils/document-navigation'
 import { docMatchesNavigationSlug, getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
 import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
-import { useSourceFavorites } from '@/hooks/gallery/use-source-favorites'
+import { useUserStates } from '@/hooks/gallery/use-user-states'
 import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
 import dynamic from 'next/dynamic'
 import { storyCharacterAtom } from '@/atoms/story-context-atom'
@@ -224,9 +224,12 @@ export function GalleryRoot({
   // Aktiv ausschliesslich wenn der User Owner oder Co-Creator ist; bei
   // Gaesten/Anonymen wird der Param ignoriert (siehe Plan, Berechtigungsmatrix).
   const { isMember: isLibraryMember } = useLibraryRole(libraryId)
-  const { favoriteIds } = useSourceFavorites(libraryId)
+  const { favoriteIds } = useUserStates(libraryId)
   const onlyFavoritesParam = searchParams?.get('favorites') === '1'
   const onlyFavoritesActive = onlyFavoritesParam && isLibraryMember
+  // Sort-by-stars: URL-Param `?sort=stars`. Ebenfalls Member-only.
+  const sortParam = searchParams?.get('sort')
+  const sortByStarsActive = sortParam === 'stars' && isLibraryMember
   const filteredDocsByYear = React.useMemo(() => {
     if (!onlyFavoritesActive) return docsByYear
     const allowed = favoriteIds
@@ -416,6 +419,29 @@ export function GalleryRoot({
     }
     return allDocs.find(doc => docMatchesNavigationSlug(doc, docSlug)) || null
   }, [docSlug, libraryId, loading, allDocs])
+
+  /**
+   * Geschwister-Dokumente fuer die Pfeil-Navigation in der DetailOverlay.
+   * Verwendet die aktuell sichtbare/gefilterte Liste (inkl. Favoriten-
+   * Filter und Sort-by-stars), damit die Navigation der Galerie-
+   * Anzeigereihenfolge folgt.
+   */
+  const navigationDocs = React.useMemo(() => {
+    return filteredDocsByYear.flatMap(([, group]) => group)
+  }, [filteredDocsByYear])
+  const { prevDoc, nextDoc } = React.useMemo(() => {
+    if (!selectedDoc || navigationDocs.length === 0) return { prevDoc: null, nextDoc: null }
+    const targetSlug = getEffectiveDocumentNavigationSlug(selectedDoc)
+    const idx = navigationDocs.findIndex((d) => {
+      const s = getEffectiveDocumentNavigationSlug(d)
+      return s && targetSlug && s === targetSlug
+    })
+    if (idx < 0) return { prevDoc: null, nextDoc: null }
+    return {
+      prevDoc: idx > 0 ? navigationDocs[idx - 1] : null,
+      nextDoc: idx < navigationDocs.length - 1 ? navigationDocs[idx + 1] : null,
+    }
+  }, [selectedDoc, navigationDocs])
 
   // Bestimme viewType für DetailOverlay:
   // - Primär: pro Dokument über `detailViewType` (Wizard/Frontmatter)
@@ -750,6 +776,7 @@ export function GalleryRoot({
       cardDensity={cardDensity}
       expectedTargetLocales={activeLibrary?.config?.translations?.targetLocales}
       onPublishChanged={handleDocumentDeleted}
+      sortByStars={sortByStarsActive}
     />
   }
 
@@ -949,6 +976,10 @@ export function GalleryRoot({
           isSwitchingRef={isSwitchingToStoryModeRef}
           // Fallback-Locale aus Library-Config (siehe Doc-Translations Refactor)
           fallbackLocale={activeLibrary?.config?.translations?.fallbackLocale}
+          prevDoc={prevDoc}
+          nextDoc={nextDoc}
+          onNavigateToDoc={handleOpenDocument}
+          siblingDocs={navigationDocs}
         />
       )}
 

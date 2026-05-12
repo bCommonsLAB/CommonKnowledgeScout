@@ -22,13 +22,15 @@ import Image from 'next/image'
 import { Calendar } from 'lucide-react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { SpeakerOrAuthorIcons } from '../speaker-icons'
+import { SourceStarsBadge } from '../source-stars-badge'
 
 export interface SessionCardProps {
   doc: DocCardMeta
   onClick: () => void
+  libraryId?: string
 }
 
-export function SessionCard({ doc, onClick }: SessionCardProps) {
+export function SessionCard({ doc, onClick, libraryId }: SessionCardProps) {
   // Thumbnail bevorzugen fuer Galerie-Performance, Fallback auf Original
   const displayImageUrl = doc.coverThumbnailUrl || doc.coverImageUrl
 
@@ -106,6 +108,13 @@ export function SessionCard({ doc, onClick }: SessionCardProps) {
           {String(doc.year)}
         </div>
       )}
+
+      <SourceStarsBadge
+        libraryId={libraryId}
+        fileId={doc.fileId}
+        variant='light'
+        className='absolute top-3 left-3 z-10'
+      />
 
       {/* Hover-Linie unten */}
       <div className='absolute inset-x-0 bottom-0 h-1 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left' />

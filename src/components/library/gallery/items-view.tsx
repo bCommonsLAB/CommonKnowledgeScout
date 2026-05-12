@@ -34,6 +34,12 @@ export interface ItemsViewProps {
   expectedTargetLocales?: string[]
   /** Doc-Translations Refactor: Reload-Callback nach Publish/Unpublish/Re-translate */
   onPublishChanged?: () => void
+  /**
+   * Per-User-Sterne: wenn true, werden alle Karten/Zeilen innerhalb jeder
+   * Gruppe nach `favoriteCount` desc sortiert (auch im Grid-Modus). Wirkt
+   * nur fuer Owner/Co-Creator (Aggregat-Daten sind nur dort verfuegbar).
+   */
+  sortByStars?: boolean
 }
 
 /**
@@ -55,6 +61,7 @@ export function ItemsView({
   cardDensity = 'comfortable',
   expectedTargetLocales,
   onPublishChanged,
+  sortByStars,
 }: ItemsViewProps) {
   return (
     <VirtualizedItemsView
@@ -72,6 +79,7 @@ export function ItemsView({
       cardDensity={cardDensity}
       expectedTargetLocales={expectedTargetLocales}
       onPublishChanged={onPublishChanged}
+      sortByStars={sortByStars}
     />
   )
 }

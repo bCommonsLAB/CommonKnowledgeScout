@@ -23,6 +23,7 @@ import {
   resolveCoverUrlViaApi,
 } from '@/lib/gallery/resolve-cover-url-client'
 import { displayBasenameFromCoverRef } from '@/lib/gallery/cover-ref-display-name'
+import { SourceStarsBadge } from '../source-stars-badge'
 
 export interface DivaTextureCardProps {
   doc: DocCardMeta
@@ -165,6 +166,13 @@ export function DivaTextureCard({ doc, onClick, libraryId }: DivaTextureCardProp
           ) : null}
         </div>
       </div>
+
+      <SourceStarsBadge
+        libraryId={libraryId}
+        fileId={doc.fileId}
+        variant='light'
+        className='absolute top-2 left-2 z-10'
+      />
 
       <div className='absolute inset-x-0 bottom-0 h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left' />
     </article>

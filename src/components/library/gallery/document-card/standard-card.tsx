@@ -22,18 +22,26 @@ import { Badge } from '@/components/ui/badge'
 import { Calendar, MapPin, User, FileText } from 'lucide-react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { SpeakerOrAuthorIcons } from '../speaker-icons'
+import { SourceStarsBadge } from '../source-stars-badge'
 
 export interface StandardCardProps {
   doc: DocCardMeta
   onClick: () => void
+  libraryId?: string
 }
 
-export function StandardCard({ doc, onClick }: StandardCardProps) {
+export function StandardCard({ doc, onClick, libraryId }: StandardCardProps) {
   return (
     <Card
-      className='cursor-pointer hover:shadow-lg transition-shadow duration-200 overflow-visible bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20'
+      className='cursor-pointer hover:shadow-lg transition-shadow duration-200 overflow-visible bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 relative'
       onClick={onClick}
     >
+      <SourceStarsBadge
+        libraryId={libraryId}
+        fileId={doc.fileId}
+        variant='dark'
+        className='absolute bottom-2 right-2 z-10'
+      />
       <CardHeader className='relative pb-1'>
         {/* Jahr-Badge schwebend oben rechts, um mehr Breite fuer den Titel zu lassen */}
         {doc.year ? (

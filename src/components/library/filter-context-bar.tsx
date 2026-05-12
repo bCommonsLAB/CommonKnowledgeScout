@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Filter, X, MessageCircle, ArrowRight, Star } from 'lucide-react'
+import { Filter, X, MessageCircle, ArrowRight, Star, ArrowDownWideNarrow } from 'lucide-react'
 import { useAtomValue } from 'jotai'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { useTranslation } from '@/lib/i18n/hooks'
@@ -94,11 +94,20 @@ export function FilterContextBar({
   const searchParams = useSearchParams()
   const { isMember } = useLibraryRole(libraryId)
   const onlyFavoritesActive = searchParams?.get('favorites') === '1'
+  const sortByStarsActive = searchParams?.get('sort') === 'stars'
 
   const toggleOnlyFavorites = () => {
     const params = new URLSearchParams(searchParams?.toString() ?? '')
     if (onlyFavoritesActive) params.delete('favorites')
     else params.set('favorites', '1')
+    const qs = params.toString()
+    router.push(qs ? `${pathname}?${qs}` : pathname ?? '')
+  }
+
+  const toggleSortByStars = () => {
+    const params = new URLSearchParams(searchParams?.toString() ?? '')
+    if (sortByStarsActive) params.delete('sort')
+    else params.set('sort', 'stars')
     const qs = params.toString()
     router.push(qs ? `${pathname}?${qs}` : pathname ?? '')
   }
@@ -166,6 +175,26 @@ export function FilterContextBar({
             />
             <span className="hidden lg:inline">
               {t('gallery.favorites.filterOnly', { defaultValue: 'Nur Favoriten' })}
+            </span>
+          </Button>
+        )}
+        {/* Sortierung nach Sternen (Grid + Tabelle): Member-only. */}
+        {isMember && (
+          <Button
+            variant={sortByStarsActive ? 'secondary' : 'ghost'}
+            size="sm"
+            type="button"
+            onClick={toggleSortByStars}
+            aria-pressed={sortByStarsActive}
+            className={cn(
+              'h-7 px-2 shrink-0',
+              sortByStarsActive && 'text-amber-700 dark:text-amber-300',
+            )}
+            title={t('gallery.favorites.sortByStars', { defaultValue: 'Nach Sternen sortieren' })}
+          >
+            <ArrowDownWideNarrow className="h-3.5 w-3.5 lg:mr-1" aria-hidden />
+            <span className="hidden lg:inline">
+              {t('gallery.favorites.sortByStars', { defaultValue: 'Nach Sternen sortieren' })}
             </span>
           </Button>
         )}

@@ -20,9 +20,10 @@ import { PublishDocumentButton } from './publish-document-button'
 import { PublishStatusBadge, TranslationStatusChips } from './publish-status-chips'
 import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
-import { useSourceFavorites } from '@/hooks/gallery/use-source-favorites'
+import { useUserStates } from '@/hooks/gallery/use-user-states'
+import { useAggregatedFavorites } from '@/hooks/gallery/use-aggregated-favorites'
 import { useSourceCommentCounts } from '@/hooks/gallery/use-source-comment-counts'
-import { SourceFavoriteToggle } from './source-favorite-toggle'
+import { SourceStarsCell } from './source-stars-cell'
 import { SourceCommentToggleButton } from './source-comment-toggle-button'
 import { SourceCommentsPanel } from './source-comments-panel'
 import { formatUpsertedAt } from '@/utils/format-upserted-at'
@@ -61,7 +62,7 @@ export function ItemsTable({
   const searchParams = useSearchParams()
   const { isOwner } = useIsLibraryOwner(libraryId)
   const { isSignedIn, isMember } = useLibraryRole(libraryId)
-  const { isFavorite, toggle: toggleFavorite } = useSourceFavorites(libraryId)
+  const { isFavorite, setState: setUserState } = useUserStates(libraryId)
   const visibleFileIds = React.useMemo(
     () =>
       docsByYear.flatMap(([, docs]) =>
@@ -70,6 +71,19 @@ export function ItemsTable({
     [docsByYear],
   )
   const { counts: commentCounts } = useSourceCommentCounts(libraryId, visibleFileIds)
+  const {
+    counts: favoriteCounts,
+    voters: favoriteVoters,
+    invalidate: invalidateFavoriteAggregation,
+  } = useAggregatedFavorites(libraryId, visibleFileIds)
+  const handleToggleFavorite = React.useCallback(
+    async (fileId: string) => {
+      const next = isFavorite(fileId) ? null : 'favorite'
+      await setUserState(fileId, next)
+      invalidateFavoriteAggregation(fileId)
+    },
+    [isFavorite, setUserState, invalidateFavoriteAggregation],
+  )
   const [expandedRows, setExpandedRows] = React.useState<Set<string>>(() => new Set())
   const toggleExpanded = React.useCallback((id: string) => {
     setExpandedRows((prev) => {
@@ -120,7 +134,7 @@ export function ItemsTable({
                     <TableHead className="w-10 shrink-0" aria-label="Kommentare" />
                   )}
                   {isMember && (
-                    <TableHead className="w-10 shrink-0" aria-label="Favorit" />
+                    <TableHead className="w-[88px] shrink-0" aria-label="Sterne" />
                   )}
                   <TableHead className="w-[35%]">{t('gallery.table.title')}</TableHead>
                   <TableHead className="w-[10%]">{t('gallery.table.year')}</TableHead>
@@ -166,13 +180,15 @@ export function ItemsTable({
                       </TableCell>
                     )}
                     {isMember && (
-                      <TableCell className="w-10 shrink-0 p-1 align-middle" onClick={(e) => e.stopPropagation()}>
+                      <TableCell className="w-[88px] shrink-0 p-1 align-middle" onClick={(e) => e.stopPropagation()}>
                         {docFileId && libraryId ? (
-                          <SourceFavoriteToggle
+                          <SourceStarsCell
                             libraryId={libraryId}
                             fileId={docFileId}
                             isFavorite={isFavorite(docFileId)}
-                            onToggle={toggleFavorite}
+                            count={favoriteCounts[docFileId] ?? 0}
+                            voters={favoriteVoters[docFileId] ?? []}
+                            onToggleFavorite={handleToggleFavorite}
                           />
                         ) : null}
                       </TableCell>
