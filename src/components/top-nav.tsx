@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import * as React from "react"
 import { Moon, Sun, Settings, Plus, Menu } from "lucide-react"
 import { useTheme } from "next-themes"
-import { useAtom } from "jotai"
+import { useAtom, useAtomValue } from "jotai"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -28,6 +28,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { SignInButton, UserButton, SignedIn, SignedOut } from "@clerk/nextjs"
 import { LibrarySwitcher } from "@/components/library/library-switcher"
 import { libraryAtom } from "@/atoms/library-atom"
+import { jobMonitorPanelOpenAtom } from "@/atoms/job-monitor-panel-open-atom"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { LanguageSwitcher } from "@/components/shared/language-switcher"
 import { useTranslation } from "@/lib/i18n/hooks"
@@ -86,6 +87,8 @@ export function TopNav() {
   
   // Auto-Hide beim Scrollen - verwendet gemeinsamen Hook
   const isVisible = useScrollVisibility()
+  const jobMonitorOpen = useAtomValue(jobMonitorPanelOpenAtom)
+  const showTopBar = isVisible && !jobMonitorOpen
   
   const {
     publicNavItems,
@@ -110,7 +113,7 @@ export function TopNav() {
       <div 
         className={cn(
           "border-b bg-background transition-transform duration-300 ease-in-out fixed top-0 left-0 right-0 z-50",
-          isVisible ? "translate-y-0" : "-translate-y-full"
+          showTopBar ? "translate-y-0" : "-translate-y-full"
         )}
       >
         <div className="flex h-16 items-center px-4">

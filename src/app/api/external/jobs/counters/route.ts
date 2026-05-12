@@ -17,7 +17,13 @@ export async function GET(request: NextRequest) {
 
     const repo = new ExternalJobsRepository();
     const counters = await repo.countByStatus(userEmail, { libraryId, batchName, batchId });
-    return NextResponse.json({ counters });
+    const oldest = await repo.getOldestQueuedUpdatedAt(userEmail, { libraryId, batchName, batchId });
+    return NextResponse.json({
+      counters: {
+        ...counters,
+        oldestQueuedUpdatedAt: oldest ? oldest.toISOString() : null,
+      },
+    });
   } catch {
     return NextResponse.json({ error: 'Unerwarteter Fehler' }, { status: 500 });
   }

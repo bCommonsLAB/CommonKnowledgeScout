@@ -531,6 +531,36 @@ export class ExternalJobsRepository {
     return { queued, running, completed, failed, pendingStorage, total };
   }
 
+  /**
+   * Ältestes `updatedAt` unter `queued` (gleiche Filter wie Zähler), für Job-Monitor-Stall-Erkennung.
+   */
+  async getOldestQueuedUpdatedAt(
+    userEmail: string,
+    filters: { libraryId?: string; batchName?: string; batchId?: string }
+  ): Promise<Date | null> {
+    const col = await this.getCollection();
+    const match: Record<string, unknown> = {
+      userEmail,
+      status: 'queued' as const,
+      ...currentWorkerPoolMongoMatch(),
+    };
+    if (filters.libraryId) match['libraryId'] = filters.libraryId;
+    if (filters.batchId) match['correlation.batchId'] = filters.batchId;
+    if (filters.batchName) match['correlation.batchName'] = filters.batchName;
+
+    const doc = await col
+      .find(match)
+      .sort({ updatedAt: 1 })
+      .limit(1)
+      .project({ updatedAt: 1 })
+      .next();
+    const raw = doc?.updatedAt;
+    if (!raw) return null;
+    if (raw instanceof Date) return raw;
+    if (typeof raw === 'string' || typeof raw === 'number') return new Date(raw);
+    return null;
+  }
+
   // ---- Worker-Unterstützung ----
   async claimNextQueuedJob(): Promise<ExternalJob | null> {
     const col = await this.getCollection();

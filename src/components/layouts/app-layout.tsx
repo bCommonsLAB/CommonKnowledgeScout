@@ -6,6 +6,8 @@ import { DebugFooterWrapper } from "@/components/debug/debug-footer-wrapper"
 import { JobMonitorPanel } from "@/components/shared/job-monitor-panel"
 import { useScrollVisibility } from "@/hooks/use-scroll-visibility"
 import { cn } from "@/lib/utils"
+import { useAtomValue } from "jotai"
+import { jobMonitorPanelOpenAtom } from "@/atoms/job-monitor-panel-open-atom"
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -23,6 +25,8 @@ interface AppLayoutProps {
  * - Der Sichtbarkeitswert kommt aus dem gemeinsamen Hook `useScrollVisibility`, der nur auf
  *   `window`-Scroll hört. Hook wird hier UND in `TopNav` instanziiert; beide Listener ziehen
  *   dieselbe Quelle (window.scrollY) und bleiben damit konsistent.
+ * - Wenn der Job-Monitor (`Secretary Jobs`) geöffnet ist, kollabiert das Top-Padding ebenfalls,
+ *   damit der feste Drawer nicht unter der TopNav (z-50) verschwindet — siehe `jobMonitorPanelOpenAtom`.
  */
 export function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname()
@@ -41,12 +45,14 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   // Effektive Sichtbarkeit der TopNav (gleich wie in der TopNav selbst).
   const isTopNavVisible = useScrollVisibility()
+  const jobMonitorOpen = useAtomValue(jobMonitorPanelOpenAtom)
+  const reserveTopNavSpace = isTopNavVisible && !jobMonitorOpen
 
   // Tailwind: arbitrary value, damit die Transition gezielt nur padding-top animiert.
   // 4rem == 64px == h-16 (TopNav-Höhe). Bei Hide → 0 → 64 px Inhalt rückt nach oben.
   const navPadClass = cn(
     "transition-[padding-top] duration-300 ease-in-out",
-    isTopNavVisible ? "pt-16" : "pt-0"
+    reserveTopNavSpace ? "pt-16" : "pt-0"
   )
 
   if (isScrollablePage) {
