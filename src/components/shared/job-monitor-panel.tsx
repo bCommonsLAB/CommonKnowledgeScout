@@ -926,11 +926,14 @@ export function JobMonitorPanel() {
             }}>Neu starten (gefiltert)</Button>
           </div>
           {/* Globale Trace-Anzeige entfernt; Traces erscheinen inline pro Job */}
-          <ScrollArea className="flex-1">
-            <ul className="p-3 space-y-2">
+          <ScrollArea
+            className="flex-1 min-h-0 min-w-0"
+            viewportClassName="[&>div]:!block [&>div]:!min-w-0 [&>div]:w-full"
+          >
+            <ul className="p-3 space-y-2 min-w-0 w-full">
               {items.filter(it => !hiddenIds.has(it.jobId)).map(item => (
                 <li key={item.jobId} className={cn(
-                  "border rounded-md p-2",
+                  "border rounded-md p-2 min-w-0 w-full overflow-hidden",
                   item.status === 'queued' && 'bg-blue-100/60',
                   item.status === 'running' && 'bg-yellow-100/60',
                   item.status === 'completed' && 'bg-green-100/60',
@@ -945,7 +948,7 @@ export function JobMonitorPanel() {
                       <HoverCard openDelay={200} closeDelay={100}>
                         <HoverCardTrigger asChild>
                           <div 
-                            className="truncate text-xs font-medium cursor-default flex-1"
+                            className="min-w-0 truncate text-xs font-medium cursor-default flex-1"
                             title={item.fileName || item.jobId}
                           >
                             {item.fileName ? truncateMiddle(item.fileName, 30) : (item.operation || 'job')}
@@ -1092,8 +1095,13 @@ export function JobMonitorPanel() {
                       </div>
                     )}
                   </div>
-                  <div className="mt-1 text-[10px] text-muted-foreground flex items-center justify-between gap-2">
-                    <div className="truncate" title={item.lastMessage}>{item.lastMessage || '—'}</div>
+                  <div className="mt-1 text-[10px] text-muted-foreground flex items-center justify-between gap-2 min-w-0">
+                    <div
+                      className="min-w-0 flex-1 truncate [overflow-wrap:anywhere]"
+                      title={item.lastMessage}
+                    >
+                      {item.lastMessage || '—'}
+                    </div>
                     <div className="shrink-0">{formatRelative(item.updatedAt)}</div>
                   </div>
                   {openTraces.has(item.jobId) ? (

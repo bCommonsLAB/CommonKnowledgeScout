@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Filter, X, MessageCircle, ArrowRight } from 'lucide-react'
+import { Filter, X, MessageCircle, ArrowRight, Star } from 'lucide-react'
 import { useAtomValue } from 'jotai'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { useTranslation } from '@/lib/i18n/hooks'
@@ -14,6 +14,9 @@ import type { GalleryCardDensity } from '@/lib/gallery/gallery-card-density'
 import { BulkDeleteButton } from '@/components/library/gallery/bulk-delete-button'
 import { BulkPublishButton } from '@/components/library/gallery/bulk-publish-button'
 import type { DocCardMeta } from '@/lib/gallery/types'
+import { useLibraryRole } from '@/hooks/gallery/use-library-role'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { cn } from '@/lib/utils'
 
 interface FilterContextBarProps {
   docCount: number
@@ -42,6 +45,14 @@ interface FilterContextBarProps {
   onBulkPublish?: () => void // Callback nach erfolgreichem Bulk-Publish (Refresh)
   /** Ob Uebersetzungs-Zielsprachen konfiguriert sind (Kosten-Hinweis im Dialog). */
   hasTranslationTargets?: boolean
+  /**
+   * Explizite fileId-Liste fuer Bulk-Aktionen (Publish/Delete).
+   *
+   * Wenn gesetzt, ueberschreibt sie den Server-Filter-Roundtrip in den
+   * Bulk-Buttons. Wird verwendet, wenn rein clientseitige Filter (z.B.
+   * "Nur Favoriten") aktiv sind, die der Server nicht kennt.
+   */
+  explicitBulkFileIds?: string[]
 }
 
 /**
@@ -73,10 +84,24 @@ export function FilterContextBar({
   showBulkPublish = false,
   onBulkPublish,
   hasTranslationTargets = false,
+  explicitBulkFileIds,
 }: FilterContextBarProps) {
   // Hole Filter aus Atom (zentrale Verwaltung)
   const filters = useAtomValue(galleryFiltersAtom)
   const { t } = useTranslation()
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const { isMember } = useLibraryRole(libraryId)
+  const onlyFavoritesActive = searchParams?.get('favorites') === '1'
+
+  const toggleOnlyFavorites = () => {
+    const params = new URLSearchParams(searchParams?.toString() ?? '')
+    if (onlyFavoritesActive) params.delete('favorites')
+    else params.set('favorites', '1')
+    const qs = params.toString()
+    router.push(qs ? `${pathname}?${qs}` : pathname ?? '')
+  }
   
   // Erstelle eine Map für schnelles Label-Lookup
   const labelMap = new Map<string, string>()
@@ -120,6 +145,29 @@ export function FilterContextBar({
           <Filter className="h-3 w-3 lg:mr-1" />
           <span className="hidden lg:inline">{t('gallery.filter')}</span>
         </Button>
+        )}
+        {/* Quell-Favoriten-Filter: nur sichtbar fuer Owner / Co-Creators. */}
+        {isMember && (
+          <Button
+            variant={onlyFavoritesActive ? 'secondary' : 'ghost'}
+            size="sm"
+            type="button"
+            onClick={toggleOnlyFavorites}
+            aria-pressed={onlyFavoritesActive}
+            className={cn(
+              'h-7 px-2 shrink-0',
+              onlyFavoritesActive && 'text-amber-700 dark:text-amber-300',
+            )}
+            title={t('gallery.favorites.filterOnly', { defaultValue: 'Nur Favoriten' })}
+          >
+            <Star
+              className={cn('h-3.5 w-3.5 lg:mr-1', onlyFavoritesActive && 'fill-current')}
+              aria-hidden
+            />
+            <span className="hidden lg:inline">
+              {t('gallery.favorites.filterOnly', { defaultValue: 'Nur Favoriten' })}
+            </span>
+          </Button>
         )}
       {/* Gefiltert-Badge - nur anzeigen wenn Filter aktiv sind */}
       {hasActiveFilters && (
@@ -170,8 +218,15 @@ export function FilterContextBar({
         </div>
       )}
 
-      {/* Bulk-Publish-Button - nur wenn Owner, Tabellenansicht und Dokumente gefiltert sind */}
-      {showBulkPublish && libraryId && viewMode === 'table' && totalCount !== undefined && totalCount > 0 && (
+      {/*
+        Bulk-Buttons werden auch sichtbar, wenn `explicitBulkFileIds` einen
+        client-seitigen Scope vorgibt (z.B. "Nur Favoriten") - dann ist die
+        Server-`totalCount` nicht autoritativ.
+      */}
+      {showBulkPublish && libraryId && viewMode === 'table' && (
+        ((explicitBulkFileIds && explicitBulkFileIds.length > 0) ||
+          (totalCount !== undefined && totalCount > 0))
+      ) && (
         <div className="flex items-center shrink-0">
           <BulkPublishButton
             libraryId={libraryId}
@@ -180,12 +235,15 @@ export function FilterContextBar({
             filters={filters as Record<string, string[] | undefined>}
             searchQuery={searchQuery || ''}
             hasTranslationTargets={hasTranslationTargets}
+            explicitFileIds={explicitBulkFileIds}
           />
         </div>
       )}
 
-      {/* Bulk-Delete-Button - nur wenn Owner, Tabellenansicht und Dokumente gefiltert sind */}
-      {showBulkDelete && libraryId && viewMode === 'table' && totalCount !== undefined && totalCount > 0 && (
+      {showBulkDelete && libraryId && viewMode === 'table' && (
+        ((explicitBulkFileIds && explicitBulkFileIds.length > 0) ||
+          (totalCount !== undefined && totalCount > 0))
+      ) && (
         <div className="flex items-center shrink-0">
           <BulkDeleteButton
             documents={filteredDocuments as DocCardMeta[]}
@@ -196,6 +254,7 @@ export function FilterContextBar({
             totalCount={totalCount}
             filters={filters}
             searchQuery={searchQuery || ''}
+            explicitFileIds={explicitBulkFileIds}
           />
         </div>
       )}

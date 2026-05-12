@@ -22,12 +22,18 @@ import { OpenInArchiveButton } from './open-in-archive-button'
 import { PublishDocumentButton } from './publish-document-button'
 import { PublishStatusBadge, TranslationStatusChips } from './publish-status-chips'
 import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
+import { useLibraryRole } from '@/hooks/gallery/use-library-role'
+import { useSourceFavorites } from '@/hooks/gallery/use-source-favorites'
+import { useSourceCommentCounts } from '@/hooks/gallery/use-source-comment-counts'
 import { formatUpsertedAt } from '@/utils/format-upserted-at'
 import { getTableColumnsForViewType } from '@/lib/detail-view-types'
 import { sortDocsByTableColumn } from '@/lib/gallery/table-sort'
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
 import { buildGalleryDocSourcePathLine, buildGalleryDocSourcePathParts } from '@/lib/gallery/doc-source-path'
 import type { GalleryCardDensity } from '@/lib/gallery/gallery-card-density'
+import { SourceFavoriteToggle } from './source-favorite-toggle'
+import { SourceCommentToggleButton } from './source-comment-toggle-button'
+import { SourceCommentsPanel } from './source-comments-panel'
 
 export interface VirtualizedItemsViewProps {
   viewMode: ViewMode
@@ -59,6 +65,14 @@ export interface VirtualizedItemsViewProps {
    * Wird verwendet, um die Galerie nach einer Aktion neu zu laden.
    */
   onPublishChanged?: () => void
+  /**
+   * Quell-Favoriten/Kommentare:
+   * Wenn aktiv, wird die Liste auf Favoriten gefiltert (nur fuer Member).
+   * Der Hook `useSourceFavorites` liefert das Set; das Filtern selbst macht
+   * der Caller (gallery-root) - hier informieren wir nur die UI fuer
+   * passende Empty-States.
+   */
+  onlyFavorites?: boolean
 }
 
 export function VirtualizedItemsView({
@@ -82,6 +96,26 @@ export function VirtualizedItemsView({
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const { isOwner } = useIsLibraryOwner(libraryId)
+  const { isSignedIn, isMember } = useLibraryRole(libraryId)
+  const { isFavorite, toggle: toggleFavorite } = useSourceFavorites(libraryId)
+  // Liefert die aktuell sichtbaren fileIds fuer Bulk-Counts.
+  const visibleFileIds = React.useMemo(
+    () =>
+      docsByYear
+        .flatMap(([, docs]) => docs.map((d) => d.fileId).filter((id): id is string => Boolean(id))),
+    [docsByYear],
+  )
+  const { counts: commentCounts } = useSourceCommentCounts(libraryId, visibleFileIds)
+  // Expand-State pro Quelle (Key = fileId).
+  const [expandedRows, setExpandedRows] = React.useState<Set<string>>(() => new Set())
+  const toggleExpanded = React.useCallback((id: string) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
   const parentRef = useRef<HTMLDivElement>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const scrollOffsetFromBottomRef = useRef<number | null>(null)
@@ -326,6 +360,12 @@ export function VirtualizedItemsView({
             <Table>
               <TableHeader>
                 <TableRow>
+                  {isSignedIn && (
+                    <TableHead className="w-10 shrink-0" aria-label="Kommentare" />
+                  )}
+                  {isMember && (
+                    <TableHead className="w-10 shrink-0" aria-label="Favorit" />
+                  )}
                   <TableHead className="w-12 shrink-0" aria-label="Thumbnail" />
                   {tableColumns.map((col) => {
                     const label = columnHeaderLabel(col)
@@ -383,13 +423,41 @@ export function VirtualizedItemsView({
                     isOwner && libraryId ? buildGalleryDocSourcePathLine(doc) : null
                   const hasSourcePathRow =
                     Boolean(sourcePathParts && (sourcePathParts.directory || sourcePathParts.fileName))
-                  const pathRowColSpan = 1 + tableColumns.length + (isOwner && libraryId ? 1 : 0)
+                  const leadingExtraCols =
+                    (isSignedIn ? 1 : 0) + (isMember ? 1 : 0)
+                  const pathRowColSpan =
+                    leadingExtraCols + 1 + tableColumns.length + (isOwner && libraryId ? 1 : 0)
+                  const docFileId = doc.fileId
+                  const isExpanded = Boolean(docFileId && expandedRows.has(docFileId))
                   return (
                     <React.Fragment key={doc.id}>
                       <TableRow
                         className="cursor-pointer hover:bg-muted/50 transition-colors"
                         onClick={() => handleRowClick(doc)}
                       >
+                        {isSignedIn && (
+                          <TableCell className="w-10 shrink-0 p-1 align-middle" onClick={(e) => e.stopPropagation()}>
+                            {docFileId && libraryId ? (
+                              <SourceCommentToggleButton
+                                open={isExpanded}
+                                count={commentCounts[docFileId]}
+                                onToggle={() => toggleExpanded(docFileId)}
+                              />
+                            ) : null}
+                          </TableCell>
+                        )}
+                        {isMember && (
+                          <TableCell className="w-10 shrink-0 p-1 align-middle" onClick={(e) => e.stopPropagation()}>
+                            {docFileId && libraryId ? (
+                              <SourceFavoriteToggle
+                                libraryId={libraryId}
+                                fileId={docFileId}
+                                isFavorite={isFavorite(docFileId)}
+                                onToggle={toggleFavorite}
+                              />
+                            ) : null}
+                          </TableCell>
+                        )}
                         <TableCell className="w-12 shrink-0 p-2 align-middle">
                           {(doc.coverThumbnailUrl || doc.coverImageUrl) ? (
                             <img
@@ -426,6 +494,21 @@ export function VirtualizedItemsView({
                           </TableCell>
                         )}
                       </TableRow>
+                      {/* Expand-Row mit Kommentar-Panel */}
+                      {isExpanded && docFileId && libraryId ? (
+                        <TableRow
+                          className="bg-muted/10"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <TableCell colSpan={pathRowColSpan} className="px-4 py-3 align-top">
+                            <SourceCommentsPanel
+                              libraryId={libraryId}
+                              fileId={docFileId}
+                              open
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ) : null}
                       {/* Owner: volle Breite — Zeile 1 Ordner, Zeile 2 Datei(en), umbrechend statt einer Mini-Zeile */}
                       {isOwner && libraryId && hasSourcePathRow && sourcePathParts ? (
                         <TableRow

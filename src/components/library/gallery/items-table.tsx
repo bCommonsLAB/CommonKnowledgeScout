@@ -19,6 +19,12 @@ import { DeleteDocumentButton } from './delete-document-button'
 import { PublishDocumentButton } from './publish-document-button'
 import { PublishStatusBadge, TranslationStatusChips } from './publish-status-chips'
 import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
+import { useLibraryRole } from '@/hooks/gallery/use-library-role'
+import { useSourceFavorites } from '@/hooks/gallery/use-source-favorites'
+import { useSourceCommentCounts } from '@/hooks/gallery/use-source-comment-counts'
+import { SourceFavoriteToggle } from './source-favorite-toggle'
+import { SourceCommentToggleButton } from './source-comment-toggle-button'
+import { SourceCommentsPanel } from './source-comments-panel'
 import { formatUpsertedAt } from '@/utils/format-upserted-at'
 
 export interface ItemsTableProps {
@@ -54,6 +60,25 @@ export function ItemsTable({
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const { isOwner } = useIsLibraryOwner(libraryId)
+  const { isSignedIn, isMember } = useLibraryRole(libraryId)
+  const { isFavorite, toggle: toggleFavorite } = useSourceFavorites(libraryId)
+  const visibleFileIds = React.useMemo(
+    () =>
+      docsByYear.flatMap(([, docs]) =>
+        docs.map((d) => d.fileId).filter((id): id is string => Boolean(id)),
+      ),
+    [docsByYear],
+  )
+  const { counts: commentCounts } = useSourceCommentCounts(libraryId, visibleFileIds)
+  const [expandedRows, setExpandedRows] = React.useState<Set<string>>(() => new Set())
+  const toggleExpanded = React.useCallback((id: string) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
 
   const handleRowClick = (doc: DocCardMeta) => {
     const slug = getEffectiveDocumentNavigationSlug(doc)
@@ -91,6 +116,12 @@ export function ItemsTable({
             <Table>
               <TableHeader>
                 <TableRow>
+                  {isSignedIn && (
+                    <TableHead className="w-10 shrink-0" aria-label="Kommentare" />
+                  )}
+                  {isMember && (
+                    <TableHead className="w-10 shrink-0" aria-label="Favorit" />
+                  )}
                   <TableHead className="w-[35%]">{t('gallery.table.title')}</TableHead>
                   <TableHead className="w-[10%]">{t('gallery.table.year')}</TableHead>
                   <TableHead className="w-[10%]">{t('gallery.table.track')}</TableHead>
@@ -110,12 +141,42 @@ export function ItemsTable({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {yearDocs.map((doc) => (
+                {yearDocs.map((doc) => {
+                  const docFileId = doc.fileId
+                  const isExpanded = Boolean(docFileId && expandedRows.has(docFileId))
+                  const leadingExtraCols = (isSignedIn ? 1 : 0) + (isMember ? 1 : 0)
+                  const baseCols = 5 // Title + Year + Track + Upserted + Padding-Spalte
+                  const ownerExtraCols = isOwner ? 3 : 0 // Status, Sprachen, Aktionen
+                  const expandedColSpan = leadingExtraCols + baseCols + ownerExtraCols
+                  return (
+                  <React.Fragment key={doc.id}>
                   <TableRow
-                    key={doc.id}
                     className="cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => handleRowClick(doc)}
                   >
+                    {isSignedIn && (
+                      <TableCell className="w-10 shrink-0 p-1 align-middle" onClick={(e) => e.stopPropagation()}>
+                        {docFileId && libraryId ? (
+                          <SourceCommentToggleButton
+                            open={isExpanded}
+                            count={commentCounts[docFileId]}
+                            onToggle={() => toggleExpanded(docFileId)}
+                          />
+                        ) : null}
+                      </TableCell>
+                    )}
+                    {isMember && (
+                      <TableCell className="w-10 shrink-0 p-1 align-middle" onClick={(e) => e.stopPropagation()}>
+                        {docFileId && libraryId ? (
+                          <SourceFavoriteToggle
+                            libraryId={libraryId}
+                            fileId={docFileId}
+                            isFavorite={isFavorite(docFileId)}
+                            onToggle={toggleFavorite}
+                          />
+                        ) : null}
+                      </TableCell>
+                    )}
                     <TableCell className="font-medium">
                       <div className="flex flex-col gap-1">
                         <span className="line-clamp-2">
@@ -182,7 +243,20 @@ export function ItemsTable({
                       </TableCell>
                     )}
                   </TableRow>
-                ))}
+                  {isExpanded && docFileId && libraryId ? (
+                    <TableRow className="bg-muted/10" onClick={(e) => e.stopPropagation()}>
+                      <TableCell colSpan={expandedColSpan} className="px-4 py-3 align-top">
+                        <SourceCommentsPanel
+                          libraryId={libraryId}
+                          fileId={docFileId}
+                          open
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
+                  </React.Fragment>
+                  )
+                })}
               </TableBody>
             </Table>
           </div>

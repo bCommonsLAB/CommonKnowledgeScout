@@ -51,6 +51,15 @@ export interface BulkPublishButtonProps {
   searchQuery?: string
   /** Ob Uebersetzungen konfiguriert sind – steuert den Kostenhinweis im Dialog. */
   hasTranslationTargets?: boolean
+  /**
+   * Optionale, vorab bekannte fileId-Liste fuer den Bulk-Publish-Scope.
+   *
+   * Wenn gesetzt, ueberspringen wir den `/docs/ids`-Roundtrip und
+   * publizieren exakt diese IDs. Wird verwendet, wenn der Scope durch
+   * einen rein clientseitigen Filter (z.B. "Nur Favoriten") eingeschraenkt
+   * ist und der Server diesen Filter nicht kennt.
+   */
+  explicitFileIds?: string[]
 }
 
 export function BulkPublishButton({
@@ -60,45 +69,54 @@ export function BulkPublishButton({
   filters,
   searchQuery = '',
   hasTranslationTargets = false,
+  explicitFileIds,
 }: BulkPublishButtonProps) {
   const { t } = useTranslation()
   const { toast } = useToast()
   const [isPublishing, setIsPublishing] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
 
-  // Anzahl, die wir anzeigen – basiert auf totalCount (Server-Wahrheit), faellt
-  // auf 0 zurueck falls unbekannt. Bei 0 rendern wir den Button gar nicht.
-  const documentCount = totalCount ?? 0
+  // Anzeige-Anzahl: explicit > totalCount. Bei 0 rendern wir den Button gar nicht.
+  const documentCount = explicitFileIds ? explicitFileIds.length : (totalCount ?? 0)
   if (documentCount <= 0) return null
 
   const handleBulkPublish = async () => {
     setIsPublishing(true)
 
     try {
-      // 1) fileIds fuer aktuell gefilterte Menge vom Server holen (keine
-      //    Client-Liste vertrauen – Pagination koennte unvollstaendig sein).
-      const params = new URLSearchParams()
-      if (filters) {
-        Object.entries(filters).forEach(([key, values]) => {
-          if (Array.isArray(values)) {
-            values.forEach((value) => params.append(key, String(value)))
-          }
-        })
-      }
-      if (searchQuery.trim()) {
-        params.append('search', searchQuery.trim())
+      let allFileIds: string[]
+
+      if (explicitFileIds && explicitFileIds.length > 0) {
+        // Client-seitiger Filter (z.B. "Nur Favoriten") – Server kennt
+        // diesen Scope nicht, also nutzen wir die explizite Liste direkt.
+        allFileIds = explicitFileIds
+      } else {
+        // Fallback: fileIds fuer aktuell gefilterte Menge vom Server holen
+        // (keine Client-Liste vertrauen – Pagination koennte unvollstaendig sein).
+        const params = new URLSearchParams()
+        if (filters) {
+          Object.entries(filters).forEach(([key, values]) => {
+            if (Array.isArray(values)) {
+              values.forEach((value) => params.append(key, String(value)))
+            }
+          })
+        }
+        if (searchQuery.trim()) {
+          params.append('search', searchQuery.trim())
+        }
+
+        const idsUrl = `/api/chat/${encodeURIComponent(libraryId)}/docs/ids${
+          params.toString() ? `?${params.toString()}` : ''
+        }`
+        const idsResponse = await fetch(idsUrl)
+        if (!idsResponse.ok) {
+          throw new Error(t('gallery.publishAll.errors.loadIds'))
+        }
+
+        const idsData = await idsResponse.json()
+        allFileIds = Array.isArray(idsData.fileIds) ? idsData.fileIds : []
       }
 
-      const idsUrl = `/api/chat/${encodeURIComponent(libraryId)}/docs/ids${
-        params.toString() ? `?${params.toString()}` : ''
-      }`
-      const idsResponse = await fetch(idsUrl)
-      if (!idsResponse.ok) {
-        throw new Error(t('gallery.publishAll.errors.loadIds'))
-      }
-
-      const idsData = await idsResponse.json()
-      const allFileIds: string[] = Array.isArray(idsData.fileIds) ? idsData.fileIds : []
       if (allFileIds.length === 0) {
         throw new Error(t('gallery.publishAll.errors.noDocs'))
       }

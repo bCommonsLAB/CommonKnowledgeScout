@@ -303,6 +303,31 @@
         "description": "Durchstöbere die verfügbaren Dokumente und filtere nach Themen oder Autor:innen. Wenn du möchtest, kannst du später in den Story Mode wechseln und dir die Inhalte erklären und zusammenfassen lassen – angepasst an deinen Kontext.",
         "filterDescription": "Wähle Themen oder Autor:innen aus, um die für dich passenden Inhalte zu finden."
       }
+    },
+    "favorites": {
+      "toggleAdd": "Zu Favoriten hinzufügen",
+      "toggleRemove": "Aus Favoriten entfernen",
+      "filterOnly": "Nur Favoriten",
+      "emptyHint": "Noch keine Favoriten markiert."
+    },
+    "comments": {
+      "expand": "Kommentare ausklappen",
+      "collapse": "Kommentare einklappen",
+      "loading": "Lade Kommentare...",
+      "empty": "Noch keine Kommentare zu dieser Quelle.",
+      "placeholder": "Kommentar schreiben...",
+      "add": "Kommentar absenden",
+      "edit": "Bearbeiten",
+      "delete": "Löschen",
+      "saveEdit": "Speichern",
+      "cancelEdit": "Abbrechen",
+      "confirmDelete": "Diesen Kommentar wirklich löschen?",
+      "deletedBy": "Kommentar gelöscht von {author} am {date}",
+      "edited": "(bearbeitet)",
+      "revisionsTitle": "{count} frühere Version(en)",
+      "revisionsHide": "Versionen ausblenden",
+      "onlySignedIn": "Bitte anmelden, um Kommentare zu sehen oder zu hinterlassen.",
+      "guestVisibilityHint": "Nur Owner und Co-Kreatoren sehen alle Kommentare. Deine Beiträge sind nur für dich und das Team sichtbar."
     }
   },
   "event": {
