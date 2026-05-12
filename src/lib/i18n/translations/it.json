@@ -276,6 +276,31 @@
         "description": "Sfoglia i documenti disponibili e filtra per argomenti o autori. Se vuoi, puoi passare successivamente alla modalità Storia e farti spiegare e riassumere i contenuti – adattati al tuo contesto.",
         "filterDescription": "Seleziona argomenti o autori per trovare i contenuti che ti si addicono."
       }
+    },
+    "favorites": {
+      "toggleAdd": "Aggiungi ai preferiti",
+      "toggleRemove": "Rimuovi dai preferiti",
+      "filterOnly": "Solo preferiti",
+      "emptyHint": "Nessun preferito ancora."
+    },
+    "comments": {
+      "expand": "Espandi commenti",
+      "collapse": "Comprimi commenti",
+      "loading": "Caricamento commenti...",
+      "empty": "Nessun commento su questa fonte ancora.",
+      "placeholder": "Scrivi un commento...",
+      "add": "Pubblica commento",
+      "edit": "Modifica",
+      "delete": "Elimina",
+      "saveEdit": "Salva",
+      "cancelEdit": "Annulla",
+      "confirmDelete": "Eliminare davvero questo commento?",
+      "deletedBy": "Commento eliminato da {author} il {date}",
+      "edited": "(modificato)",
+      "revisionsTitle": "{count} versione/i precedenti",
+      "revisionsHide": "Nascondi versioni",
+      "onlySignedIn": "Accedi per visualizzare o lasciare commenti.",
+      "guestVisibilityHint": "Solo proprietari e co-creatori vedono tutti i commenti. I tuoi post sono visibili solo a te e al team."
     }
   },
   "event": {

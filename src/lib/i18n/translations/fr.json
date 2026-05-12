@@ -276,6 +276,31 @@
         "description": "Parcourez les documents disponibles et filtrez par sujets ou auteurs. Si vous le souhaitez, vous pouvez ensuite passer en mode Histoire et faire expliquer et résumer les contenus pour vous – adaptés à votre contexte.",
         "filterDescription": "Sélectionnez des sujets ou des auteurs pour trouver les contenus qui vous conviennent."
       }
+    },
+    "favorites": {
+      "toggleAdd": "Ajouter aux favoris",
+      "toggleRemove": "Retirer des favoris",
+      "filterOnly": "Favoris uniquement",
+      "emptyHint": "Aucun favori pour le moment."
+    },
+    "comments": {
+      "expand": "Déplier les commentaires",
+      "collapse": "Replier les commentaires",
+      "loading": "Chargement des commentaires...",
+      "empty": "Pas encore de commentaire sur cette source.",
+      "placeholder": "Écrire un commentaire...",
+      "add": "Publier le commentaire",
+      "edit": "Modifier",
+      "delete": "Supprimer",
+      "saveEdit": "Enregistrer",
+      "cancelEdit": "Annuler",
+      "confirmDelete": "Supprimer vraiment ce commentaire ?",
+      "deletedBy": "Commentaire supprimé par {author} le {date}",
+      "edited": "(modifié)",
+      "revisionsTitle": "{count} version(s) précédente(s)",
+      "revisionsHide": "Masquer les versions",
+      "onlySignedIn": "Connectez-vous pour voir ou laisser des commentaires.",
+      "guestVisibilityHint": "Seuls les propriétaires et co-créateurs voient tous les commentaires. Vos publications ne sont visibles que par vous et l'équipe."
     }
   },
   "event": {

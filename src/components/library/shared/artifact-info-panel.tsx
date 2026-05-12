@@ -107,6 +107,7 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
     setDownloadingKey(key)
     try {
       const markdown = await fetchShadowTwinMarkdown(props.libraryId, {
+        libraryId: props.libraryId,
         sourceId: props.sourceFile.id,
         kind: artifact.kind,
         targetLanguage: artifact.targetLanguage,
