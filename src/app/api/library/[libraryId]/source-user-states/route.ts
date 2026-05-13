@@ -53,6 +53,7 @@ async function getAuthIdentity(): Promise<AuthIdentity | null> {
   const { userId } = await auth();
   if (!userId) return null;
   const user = await currentUser();
+  if (!user) return null;
   const email = getPreferredUserEmail(user);
   if (!email) return null;
   const displayName = getPreferredUserDisplayName(user);

@@ -284,6 +284,7 @@ export function GalleryRoot({
       if (!libraryId || !isLibraryMember || !mutateDoc) return
       const base =
         findDocInGroupedDocs(filteredDocsByYear, fileId) ?? findDocInGroupedDocs(docsByYear, fileId)
+      if (!base) return
       if (!base.fileId) return
       const snap = { ...base }
       const nextFav = !(base.isFavorite === true)

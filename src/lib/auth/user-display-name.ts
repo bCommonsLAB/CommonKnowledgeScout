@@ -25,7 +25,8 @@ import { getPreferredUserEmail, type ClerkUserLike as EmailClerkUserLike } from 
  * Bewusst minimal gehalten - so kann der Helper auch in Tests mit
  * einfachen Objekt-Stubs verwendet werden.
  */
-export type ClerkUserWithName = EmailClerkUserLike & {
+/** Clerk-User mit optionalen Namensfeldern; ohne `null`/`undefined` im Basistyp (siehe `ClerkUserLike`). */
+export type ClerkUserWithName = NonNullable<EmailClerkUserLike> & {
   firstName?: string | null
   lastName?: string | null
   username?: string | null
@@ -51,7 +52,9 @@ function emailPrefix(email: string): string {
  * keine E-Mail vorhanden ist, kommt ein leerer String zurueck (das
  * passiert nur fuer Stub-User in Tests).
  */
-export function getPreferredUserDisplayName(user: ClerkUserWithName): string {
+export function getPreferredUserDisplayName(
+  user: ClerkUserWithName | null | undefined
+): string {
   if (!user) return ''
   const first = trimOrEmpty(user.firstName)
   const last = trimOrEmpty(user.lastName)
