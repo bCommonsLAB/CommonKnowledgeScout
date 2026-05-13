@@ -39,6 +39,7 @@ import { parseFacetDefs } from '@/lib/chat/dynamic-facets'
 import { FileLogger } from '@/lib/debug/logger'
 import { convertMongoDocToDocCardMeta, type MongoDocForConversion } from './doc-meta-formatter'
 import type { DocCardMeta } from '@/lib/gallery/types'
+import { buildFavoriteLookupStages } from './source-user-states-repo'
 
 /**
  * Konstante für den Vector Search Index-Namen.
@@ -1100,29 +1101,64 @@ function buildGalleryProjection(
 }
 
 /**
+ * Sort-Optionen fuer Galerie-Queries.
+ *
+ * `'favoriteCount'` ist der virtuelle Sort-Schluessel fuer "nach Sternen"
+ * - er wird im Repo durch eine $lookup-Aggregation aufgeloest. Die
+ * Sekundaer-Schluessel (`year`, `upsertedAt`) sorgen fuer stabile
+ * Pagination, wenn mehrere Dokumente die gleiche Sterne-Anzahl haben.
+ */
+export type GallerySort = Record<string, 1 | -1>
+
+interface SharedFindDocsOptions {
+  /**
+   * Aktive UI-Locale fuer die Galerie. Wird genutzt, um in der Projection
+   * `docMetaJson.translations.gallery.<locale>` (und ggf. `<fallbackLocale>`)
+   * mitzuladen. So bleibt der Payload klein und es wird kein N+1 ausgeloest.
+   */
+  locale?: string
+  /** Fallback-Locale fuer den UI-Lookup (siehe `library.config.translations.fallbackLocale`) */
+  fallbackLocale?: string
+  /**
+   * E-Mail des aktuellen Users (case-insensitiv erwartet, das Repo
+   * normalisiert noch einmal). Wird fuer das `isFavorite`-Feld pro Doc
+   * gebraucht; bei anonymen Aufrufen leerer String oder undefined.
+   */
+  userEmail?: string
+}
+
+/**
+ * Prueft, ob ein Sort-Objekt nach `favoriteCount` sortiert. Ist das der
+ * Fall, muss der `$lookup`-Stage VOR `$sort/$skip/$limit` laufen, damit
+ * die Sortierung global ueber alle Pages stabil bleibt.
+ */
+function sortNeedsFavoriteLookup(sort: GallerySort | undefined): boolean {
+  if (!sort) return false
+  return Object.prototype.hasOwnProperty.call(sort, 'favoriteCount')
+}
+
+/**
  * Findet Meta-Dokumente (für Gallery-Anzeige).
+ *
+ * Liefert Sterne-Aggregation (`favoriteCount`, `favoriteVoters`,
+ * `isFavorite`) gleich mit, indem ein `$lookup` auf
+ * `source_user_states` an die Pipeline angehaengt wird. Damit muss das
+ * Frontend keinen separaten Aggregations-Endpoint mehr aufrufen.
+ *
  * @param libraryKey Collection-Name
  * @param libraryId Library-ID
  * @param filter MongoDB-Filter
- * @param options Query-Optionen
- * @returns Array von Meta-Dokumenten
+ * @param options Query-Optionen (inkl. optional `userEmail` fuer `isFavorite`)
+ * @returns Items mit Sterne-Daten + Gesamtcount
  */
 export async function findDocs(
   libraryKey: string,
   libraryId: string,
   filter: Record<string, unknown>,
-  options: {
+  options: SharedFindDocsOptions & {
     limit?: number
     skip?: number
-    sort?: Record<string, 1 | -1>
-    /**
-     * Aktive UI-Locale fuer die Galerie. Wird genutzt, um in der Projection
-     * `docMetaJson.translations.gallery.<locale>` (und ggf. `<fallbackLocale>`)
-     * mitzuladen. So bleibt der Payload klein und es wird kein N+1 ausgeloest.
-     */
-    locale?: string
-    /** Fallback-Locale fuer den UI-Lookup (siehe `library.config.translations.fallbackLocale`) */
-    fallbackLocale?: string
+    sort?: GallerySort
   } = {}
 ): Promise<{ items: DocCardMeta[]; total: number }> {
   // PERFORMANCE: Nutze direkt getCollection statt getVectorCollection, um Overhead (Dimension-Check, Index-Check) zu vermeiden
@@ -1151,34 +1187,36 @@ export async function findDocs(
     libraryId,
     ...filter,
   }
-  
-  const cursor = col.find(query, {
-    projection: buildGalleryProjection(options.locale, options.fallbackLocale),
-  })
-  
-  if (options.sort) {
-    cursor.sort(options.sort)
+
+  const projection = buildGalleryProjection(options.locale, options.fallbackLocale)
+  // `$lookup` reichert favoriteCount/favoriteVoters/isFavorite an; die
+  // Felder muessen explizit projiziert werden, sonst entfernt $project sie.
+  const projectionWithFavorites: Record<string, 0 | 1> = {
+    ...projection,
+    favoriteCount: 1,
+    favoriteVoters: 1,
+    isFavorite: 1,
   }
-  if (typeof options.skip === 'number') {
-    cursor.skip(options.skip)
-  }
-  if (typeof options.limit === 'number') {
-    cursor.limit(options.limit)
-  }
-  
-  // PERFORMANCE: Parallelize countDocuments and find queries
-  // Both queries use the same filter, so they can run in parallel
+
+  const lookupStages = buildFavoriteLookupStages(libraryId, options.userEmail)
+  const lookupBeforeSort = sortNeedsFavoriteLookup(options.sort)
+
+  const pipeline: Document[] = [{ $match: query }]
+  if (lookupBeforeSort) pipeline.push(...lookupStages)
+  if (options.sort) pipeline.push({ $sort: options.sort })
+  if (typeof options.skip === 'number' && options.skip > 0) pipeline.push({ $skip: options.skip })
+  if (typeof options.limit === 'number' && options.limit > 0) pipeline.push({ $limit: options.limit })
+  if (!lookupBeforeSort) pipeline.push(...lookupStages)
+  pipeline.push({ $project: projectionWithFavorites })
+
   const [rows, totalCount] = await Promise.all([
-    cursor.toArray(),
-    col.countDocuments(query)
+    col.aggregate(pipeline).toArray(),
+    col.countDocuments(query),
   ])
 
   return {
     items: rows.map(r => {
-      // Type-Assertion: rows enthalten fileId durch projection
       if (typeof r === 'object' && r !== null && 'fileId' in r && typeof r.fileId === 'string') {
-        // Locale-Overlay direkt im Repository: Galerie-Komponenten erhalten DocCardMeta
-        // bereits in der aktiven UI-Locale (siehe Doc-Translations Refactor).
         return convertMongoDocToDocCardMeta(r as unknown as MongoDocForConversion, {
           locale: options.locale,
           fallbackLocale: options.fallbackLocale,
@@ -1209,15 +1247,11 @@ export async function findDocsGrouped(
   libraryKey: string,
   libraryId: string,
   filter: Record<string, unknown>,
-  options: {
+  options: SharedFindDocsOptions & {
     groupBy: string
     groupOffset: number
     groupsLimit: number
-    sortWithinGroup?: Record<string, 1 | -1>
-    /** Aktive UI-Locale fuer locale-spezifische Translations (Galerie-Sub-Map) */
-    locale?: string
-    /** Fallback-Locale fuer den UI-Lookup */
-    fallbackLocale?: string
+    sortWithinGroup?: GallerySort
   }
 ): Promise<{
   groups: Array<{ key: string | number; items: DocCardMeta[] }>
@@ -1278,8 +1312,18 @@ export async function findDocsGrouped(
 
   const keys = groupKeysResult.map((r: Document) => r._id as string | number)
 
-  // Zentrale Galerie-Projection (inkl. locale-spezifischer Translations).
+  // Zentrale Galerie-Projection (inkl. locale-spezifischer Translations) +
+  // Sterne-Felder, die der `$lookup` anhaengt.
   const projection = buildGalleryProjection(options.locale, options.fallbackLocale)
+  const projectionWithFavorites: Record<string, 0 | 1> = {
+    ...projection,
+    favoriteCount: 1,
+    favoriteVoters: 1,
+    isFavorite: 1,
+  }
+
+  const lookupStages = buildFavoriteLookupStages(libraryId, options.userEmail)
+  const lookupBeforeSort = sortNeedsFavoriteLookup(sortWithinGroup)
 
   const groups: Array<{ key: string | number; items: DocCardMeta[] }> = []
 
@@ -1318,11 +1362,18 @@ export async function findDocsGrouped(
       }
     }
 
-    const cursor = col.find(
-      { ...baseQuery, ...groupFilter },
-      { projection, sort: sortWithinGroup }
-    )
-    const rows = await cursor.toArray()
+    // Aggregation pro Gruppe: $match -> [$lookup falls fuer Sort noetig]
+    // -> $sort -> $lookup -> $project. Dadurch erhaelt jede Karte
+    // direkt die Sterne-Daten und braucht keinen Folge-Round-Trip.
+    const groupPipeline: Document[] = [
+      { $match: { ...baseQuery, ...groupFilter } },
+    ]
+    if (lookupBeforeSort) groupPipeline.push(...lookupStages)
+    if (sortWithinGroup) groupPipeline.push({ $sort: sortWithinGroup })
+    if (!lookupBeforeSort) groupPipeline.push(...lookupStages)
+    groupPipeline.push({ $project: projectionWithFavorites })
+
+    const rows = await col.aggregate(groupPipeline).toArray()
     groups.push({
       key,
       items: rows.map(r => {

@@ -6,18 +6,26 @@ import { cn } from '@/lib/utils'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
 import { useUserStates } from '@/hooks/gallery/use-user-states'
-import { useAggregatedFavorites } from '@/hooks/gallery/use-aggregated-favorites'
-import { useMemberDisplayNames } from '@/hooks/gallery/use-member-display-names'
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import type { FavoriteVoter } from '@/types/source-user-state'
 
 export interface SourceStarsBadgeProps {
   libraryId?: string
   fileId?: string
+  /** Kommt aus dem Galerie-Doc (`GET docs`), nicht aus einem separaten Aggregations-Call. */
+  isFavorite: boolean
+  favoriteCount?: number
+  favoriteVoters?: FavoriteVoter[]
+  /**
+   * Stern togglen (optimistisch, wenn vom `gallery-root` durchgereicht).
+   * Ohne Callback: Fallback nur `POST source-user-states` (kein SWR-Patch).
+   */
+  onToggleFavorite?: (fileId: string) => void | Promise<void>
   /** Visuelle Variante: hell (auf dunkler Karte) oder dunkel (auf heller Karte). */
   variant?: 'light' | 'dark'
   /** Optionale CSS-Klassen fuer die Position (z.B. `absolute bottom-2 right-2`). */
@@ -27,37 +35,32 @@ export interface SourceStarsBadgeProps {
 /**
  * Dezente Stern-Badge fuer Galerie-Karten (alle 5 Card-Subtypen).
  *
- * Zeigt:
- * - Eigenen Stern (klickbar - toggelt favorite/null)
- * - Aggregierten Counter (nur wenn > 0)
- * - Tooltip mit Voter-Namen (bei Hover, lazy via `useMemberDisplayNames`)
- *
- * Member-only: rendert nichts fuer Gaeste/Anonyme. Datenfetching laeuft
- * ueber die zentralen Hooks (Atom-Cache wird mit anderen Views geteilt).
+ * Member-only: rendert nichts fuer Gaeste/Anonyme.
  */
 export function SourceStarsBadge({
   libraryId,
   fileId,
+  isFavorite,
+  favoriteCount = 0,
+  favoriteVoters,
+  onToggleFavorite,
   variant = 'dark',
   className,
 }: SourceStarsBadgeProps) {
   const { t } = useTranslation()
   const role = useLibraryRole(libraryId ?? '')
-  const userStates = useUserStates(libraryId ?? '')
-  // Array stabil halten, sonst triggert der Hook-Effect bei jedem Render
-  // einen Re-Fetch und setzt counts/voters mit neuer Referenz - was wiederum
-  // ein erneutes Rendern ausloest (infinite loop).
-  const visibleFileIds = React.useMemo(() => (fileId ? [fileId] : []), [fileId])
-  const aggregated = useAggregatedFavorites(libraryId ?? '', visibleFileIds)
-  const { resolveNames, getCachedName } = useMemberDisplayNames(libraryId ?? '')
+  const visibleForStateHook = React.useMemo(
+    () => (onToggleFavorite ? [] : fileId ? [fileId] : []),
+    [onToggleFavorite, fileId],
+  )
+  const userStates = useUserStates(libraryId ?? '', visibleForStateHook)
   const [isPending, setIsPending] = React.useState(false)
 
   if (!libraryId || !fileId) return null
   if (!role.isMember) return null
 
-  const isFavorite = userStates.isFavorite(fileId)
-  const count = aggregated.counts[fileId] ?? 0
-  const voters = aggregated.voters[fileId] ?? []
+  const count = favoriteCount
+  const voters = Array.isArray(favoriteVoters) ? favoriteVoters : []
 
   const onToggle = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -65,19 +68,15 @@ export function SourceStarsBadge({
     if (isPending) return
     setIsPending(true)
     try {
-      const next = isFavorite ? null : 'favorite'
-      await userStates.setState(fileId, next)
-      aggregated.invalidate(fileId)
+      if (onToggleFavorite) {
+        await onToggleFavorite(fileId)
+      } else {
+        const next = isFavorite ? null : 'favorite'
+        await userStates.setState(fileId, next)
+      }
     } finally {
       setIsPending(false)
     }
-  }
-
-  const handleHover = () => {
-    if (voters.length === 0) return
-    const missing = voters.filter((v) => !getCachedName(v))
-    if (missing.length === 0) return
-    void resolveNames(missing)
   }
 
   const palette =
@@ -107,8 +106,6 @@ export function SourceStarsBadge({
           palette.bg,
           className,
         )}
-        onMouseEnter={handleHover}
-        onFocus={handleHover}
       >
         <Tooltip>
           <TooltipTrigger asChild>
@@ -150,11 +147,7 @@ export function SourceStarsBadge({
               </span>
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-[280px]">
-              <VoterTooltipBody
-                voters={voters}
-                resolveNames={resolveNames}
-                getCachedName={getCachedName}
-              />
+              <VoterTooltipBody voters={voters} />
             </TooltipContent>
           </Tooltip>
         ) : null}
@@ -164,18 +157,17 @@ export function SourceStarsBadge({
 }
 
 interface VoterTooltipBodyProps {
-  voters: string[]
-  resolveNames: (emails: string[]) => Promise<void>
-  getCachedName: (email: string) => string | undefined
+  voters: FavoriteVoter[]
 }
 
-function VoterTooltipBody({ voters, resolveNames, getCachedName }: VoterTooltipBodyProps) {
+function emailPrefix(email: string): string {
+  const at = email.indexOf('@')
+  if (at <= 0) return email
+  return email.slice(0, at)
+}
+
+function VoterTooltipBody({ voters }: VoterTooltipBodyProps) {
   const { t } = useTranslation()
-  React.useEffect(() => {
-    const missing = voters.filter((v) => !getCachedName(v))
-    if (missing.length === 0) return
-    void resolveNames(missing)
-  }, [voters, resolveNames, getCachedName])
 
   return (
     <div className="flex flex-col gap-1">
@@ -186,11 +178,14 @@ function VoterTooltipBody({ voters, resolveNames, getCachedName }: VoterTooltipB
         })}
       </div>
       <ul className="flex flex-col gap-0.5">
-        {voters.map((email) => (
-          <li key={email} className="truncate text-xs">
-            {getCachedName(email) ?? email}
-          </li>
-        ))}
+        {voters.map((voter) => {
+          const name = voter.name?.trim() || emailPrefix(voter.email)
+          return (
+            <li key={voter.email} className="truncate text-xs">
+              {name}
+            </li>
+          )
+        })}
       </ul>
     </div>
   )

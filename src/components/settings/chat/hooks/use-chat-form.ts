@@ -16,7 +16,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import { useAtom } from "jotai"
 import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom"
 import { toast } from "@/components/ui/use-toast"
@@ -207,7 +207,11 @@ export function useChatForm(): UseChatFormResult {
   const [statsError, setStatsError] = useState<string | null>(null)
 
   const activeLibrary = libraries.find(lib => lib.id === activeLibraryId)
-  const defaultEmbeddings = getDefaultEmbeddings()
+  // Stabile Referenz fuer defaultEmbeddings: getDefaultEmbeddings() liefert
+  // bei jedem Aufruf ein NEUES Objekt (chatConfigSchema.parse({})). Ohne
+  // useMemo wuerde der Effekt unten bei jedem Render neu laufen und via
+  // form.reset() eine Endlosschleife ausloesen ("Maximum update depth").
+  const defaultEmbeddings = useMemo(() => getDefaultEmbeddings(), [])
 
   const form = useForm<ChatFormValues>({
     resolver: zodResolver(chatFormSchema),

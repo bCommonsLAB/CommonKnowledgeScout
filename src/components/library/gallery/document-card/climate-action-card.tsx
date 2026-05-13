@@ -27,9 +27,15 @@ export interface ClimateActionCardProps {
   doc: DocCardMeta
   onClick: () => void
   libraryId?: string
+  onToggleFavorite?: (fileId: string) => void | Promise<void>
 }
 
-export function ClimateActionCard({ doc, onClick, libraryId }: ClimateActionCardProps) {
+export function ClimateActionCard({
+  doc,
+  onClick,
+  libraryId,
+  onToggleFavorite,
+}: ClimateActionCardProps) {
   const status = mapBewertungToStatus(doc.lv_bewertung)
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.offen
   const IconComponent = STATUS_ICON_MAP[config.icon]
@@ -101,6 +107,10 @@ export function ClimateActionCard({ doc, onClick, libraryId }: ClimateActionCard
       <SourceStarsBadge
         libraryId={libraryId}
         fileId={doc.fileId}
+        isFavorite={doc.isFavorite === true}
+        favoriteCount={doc.favoriteCount}
+        favoriteVoters={doc.favoriteVoters}
+        onToggleFavorite={onToggleFavorite}
         variant='light'
         className='absolute top-3 left-3 z-10'
       />

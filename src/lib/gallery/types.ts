@@ -1,6 +1,7 @@
 'use client'
 
 import type { Item } from '@/types/item';
+import type { FavoriteVoter } from '@/types/source-user-state';
 
 export interface DocCardMeta {
   id: string
@@ -103,6 +104,26 @@ export interface DocCardMeta {
   /** Optional: weitere Display-Labels pro Facet-Key. */
   categoryLabel?: string
   trackLabel?: string
+
+  // ─── Sterne (per-User-State, server-side aggregiert) ────────────────────
+  /**
+   * Aggregierte Anzahl der `favorite`-States fuer dieses Dokument.
+   * Wird vom Galerie-Endpoint per `$lookup` direkt mitgeliefert, sodass
+   * keine separate Aggregation-Round-Trip pro Karte noetig ist.
+   * Default-Wert (auch fuer Nicht-Member): `0`.
+   */
+  favoriteCount?: number
+  /**
+   * Voter-Liste fuer den Tooltip ("wer hat gesternt"). Display-Names sind
+   * zur Schreibzeit eingefroren, sodass der Read-Pfad keinen Auth-Provider
+   * mehr fragen muss. Bei Nicht-Member: leeres Array.
+   */
+  favoriteVoters?: FavoriteVoter[]
+  /**
+   * Eigener Stern fuer den aktuellen User. Optional; wenn nicht gesetzt
+   * (z.B. anonyme User), behandelt die UI das als `false`.
+   */
+  isFavorite?: boolean
 }
 
 export interface ChapterInfo {

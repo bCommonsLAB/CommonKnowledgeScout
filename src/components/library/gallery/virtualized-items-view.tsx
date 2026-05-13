@@ -24,11 +24,11 @@ import { PublishStatusBadge, TranslationStatusChips } from './publish-status-chi
 import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
 import { useUserStates } from '@/hooks/gallery/use-user-states'
-import { useAggregatedFavorites } from '@/hooks/gallery/use-aggregated-favorites'
 import { useSourceCommentCounts } from '@/hooks/gallery/use-source-comment-counts'
 import { formatUpsertedAt } from '@/utils/format-upserted-at'
 import { getTableColumnsForViewType } from '@/lib/detail-view-types'
 import { sortDocsByTableColumn } from '@/lib/gallery/table-sort'
+import { findDocInGroupedDocs } from '@/lib/gallery/apply-favorite-optimistic'
 import { ArrowDown, ArrowUp, ArrowUpDown, Star } from 'lucide-react'
 import { buildGalleryDocSourcePathLine, buildGalleryDocSourcePathParts } from '@/lib/gallery/doc-source-path'
 import type { GalleryCardDensity } from '@/lib/gallery/gallery-card-density'
@@ -75,10 +75,11 @@ export interface VirtualizedItemsViewProps {
    */
   onlyFavorites?: boolean
   /**
-   * Per-User-Sterne: wenn true, werden Karten/Zeilen innerhalb jeder
-   * Gruppe nach `favoriteCount` desc sortiert (auch im Grid-Modus).
+   * Wenn true, liefert die API bereits global nach Sternen sortierte
+   * Daten; keine clientseitige Nachsortierung noetig.
    */
   sortByStars?: boolean
+  onToggleFavorite?: (fileId: string) => void | Promise<void>
 }
 
 export function VirtualizedItemsView({
@@ -97,6 +98,7 @@ export function VirtualizedItemsView({
   expectedTargetLocales,
   onPublishChanged,
   sortByStars,
+  onToggleFavorite,
 }: VirtualizedItemsViewProps) {
   const { t, locale } = useTranslation()
   const router = useRouter()
@@ -104,7 +106,6 @@ export function VirtualizedItemsView({
   const searchParams = useSearchParams()
   const { isOwner } = useIsLibraryOwner(libraryId)
   const { isSignedIn, isMember } = useLibraryRole(libraryId)
-  const { isFavorite, setState: setUserState } = useUserStates(libraryId)
   // Liefert die aktuell sichtbaren fileIds fuer Bulk-Counts.
   const visibleFileIds = React.useMemo(
     () =>
@@ -112,20 +113,19 @@ export function VirtualizedItemsView({
         .flatMap(([, docs]) => docs.map((d) => d.fileId).filter((id): id is string => Boolean(id))),
     [docsByYear],
   )
+  const { setState: setUserState } = useUserStates(libraryId, visibleFileIds)
   const { counts: commentCounts } = useSourceCommentCounts(libraryId, visibleFileIds)
-  const {
-    counts: favoriteCounts,
-    voters: favoriteVoters,
-    invalidate: invalidateFavoriteAggregation,
-  } = useAggregatedFavorites(libraryId, visibleFileIds)
   const handleToggleFavorite = React.useCallback(
     async (fileId: string) => {
-      const next = isFavorite(fileId) ? null : 'favorite'
-      await setUserState(fileId, next)
-      // Aggregation neu laden, damit der Counter den eigenen Toggle widerspiegelt.
-      invalidateFavoriteAggregation(fileId)
+      if (onToggleFavorite) {
+        await onToggleFavorite(fileId)
+        return
+      }
+      const doc = findDocInGroupedDocs(docsByYear, fileId)
+      const next = !(doc?.isFavorite === true)
+      await setUserState(fileId, next ? 'favorite' : null)
     },
-    [isFavorite, setUserState, invalidateFavoriteAggregation],
+    [onToggleFavorite, docsByYear, setUserState],
   )
   // Expand-State pro Quelle (Key = fileId).
   const [expandedRows, setExpandedRows] = React.useState<Set<string>>(() => new Set())
@@ -266,26 +266,13 @@ export function VirtualizedItemsView({
   }, [libraryDetailViewType, tableColumnFacets, isOwner])
 
   const displayDocsByYear = React.useMemo(() => {
-    // Globaler Stern-Sort (gilt fuer Grid und Table) hat Vorrang vor
-    // Spalten-spezifischer Tabellen-Sortierung.
-    if (sortByStars) {
-      return docsByYear.map(
-        ([groupKey, groupDocs]) =>
-          [
-            groupKey,
-            sortDocsByTableColumn(groupDocs, 'favoriteCount', 'desc', { favoriteCounts }),
-          ] as [number | string, DocCardMeta[]],
-      )
-    }
+    if (sortByStars) return docsByYear
     if (viewMode !== 'table' || !sortColumn) return docsByYear
     return docsByYear.map(
       ([groupKey, groupDocs]) =>
-        [
-          groupKey,
-          sortDocsByTableColumn(groupDocs, sortColumn, sortDir, { favoriteCounts }),
-        ] as [number | string, DocCardMeta[]],
+        [groupKey, sortDocsByTableColumn(groupDocs, sortColumn, sortDir)] as [number | string, DocCardMeta[]],
     )
-  }, [docsByYear, viewMode, sortColumn, sortDir, favoriteCounts, sortByStars])
+  }, [docsByYear, viewMode, sortColumn, sortDir, sortByStars])
 
   const columnHeaderLabel = React.useCallback(
     (col: { key: string; labelKey?: string; label?: string }) => {
@@ -359,12 +346,13 @@ export function VirtualizedItemsView({
     return (
       <div ref={parentRef}>
         <ItemsGrid
-          docsByYear={docsByYear}
+          docsByYear={displayDocsByYear}
           onOpen={onOpen}
           libraryId={libraryId}
           libraryDetailViewType={libraryDetailViewType}
           groupByField={groupByField}
           cardDensity={cardDensity}
+          onToggleFavorite={onToggleFavorite ?? handleToggleFavorite}
         />
         {/* Sentinel für Infinite Scroll */}
         {hasMore && (
@@ -518,9 +506,9 @@ export function VirtualizedItemsView({
                               <SourceStarsCell
                                 libraryId={libraryId}
                                 fileId={docFileId}
-                                isFavorite={isFavorite(docFileId)}
-                                count={favoriteCounts[docFileId] ?? 0}
-                                voters={favoriteVoters[docFileId] ?? []}
+                                isFavorite={doc.isFavorite === true}
+                                count={doc.favoriteCount ?? 0}
+                                voters={doc.favoriteVoters ?? []}
                                 onToggleFavorite={handleToggleFavorite}
                               />
                             ) : null}

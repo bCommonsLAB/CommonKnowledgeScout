@@ -59,6 +59,9 @@ Detail (warum, Symptome, Ausnahmen):
 - Aktiv: `docs/adr/0001-event-job-vs-external-jobs.md` —
   `event-job` und `external-jobs` sind getrennte Domaenen, keine
   Vermischung in PRs
+- Aktiv: `docs/adr/0002-galerie-sterne-ohne-clerk-read.md` —
+  Galerie-Sterne und Voter-Namen kommen aus MongoDB + `GET docs`,
+  nicht aus Clerk-Aggregations- oder Display-Name-Routen
 
 ## Branching, Commits, PRs (Kurz)
 

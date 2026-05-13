@@ -30,9 +30,25 @@ export interface SourceUserState {
   libraryId: string;
   fileId: string;
   userEmail: string;
+  /**
+   * Zur Schreibzeit eingefrorener Anzeigename des Users.
+   *
+   * Wird beim Setzen eines States ueber `getPreferredUserDisplayName(currentUser())`
+   * befuellt - Read-Pfade muessen damit keine Auth-API mehr fragen.
+   * Bei alten Datensaetzen kann das Feld fehlen; UI faellt auf den
+   * E-Mail-Prefix zurueck (Lazy-Backfill greift beim naechsten Toggle).
+   */
+  userDisplayName?: string;
   state: SourceUserStateValue;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/** Voter-Eintrag fuer aggregierte Favoriten (E-Mail + persistierter Display-Name). */
+export interface FavoriteVoter {
+  email: string;
+  /** Display-Name aus `source_user_states.userDisplayName`. Fallback E-Mail-Prefix. */
+  name: string;
 }
 
 /** Antwort von `GET /api/library/[libraryId]/source-user-states`. */
@@ -54,20 +70,4 @@ export interface SetUserStateResponse {
   libraryId: string;
   fileId: string;
   state: SourceUserStateValue | null;
-}
-
-/** Antwort von `GET /api/library/[libraryId]/source-favorites/aggregated`. */
-export interface AggregatedFavoritesResponse {
-  libraryId: string;
-  /** Anzahl der `favorite`-States pro fileId. */
-  counts: Record<string, number>;
-  /** E-Mails der Voter pro fileId (nur `favorite`-States). */
-  voters: Record<string, string[]>;
-}
-
-/** Antwort von `GET /api/library/[libraryId]/members/display-names`. */
-export interface MemberDisplayNamesResponse {
-  libraryId: string;
-  /** Mapping E-Mail (lowercase) -> Display-Name (Fallback E-Mail). */
-  names: Record<string, string>;
 }

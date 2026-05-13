@@ -11,8 +11,8 @@ import {
 } from '@/components/ui/tooltip'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
-import { useMemberDisplayNames } from '@/hooks/gallery/use-member-display-names'
 import { cn } from '@/lib/utils'
+import type { FavoriteVoter } from '@/types/source-user-state'
 
 export interface SourceStarsCellProps {
   libraryId: string
@@ -21,8 +21,11 @@ export interface SourceStarsCellProps {
   isFavorite: boolean
   /** Aggregierter Counter (alle Member, die `state='favorite'` haben). */
   count?: number
-  /** Voter-E-Mails (alle, auch der eigene User). Sortiert. */
-  voters?: string[]
+  /**
+   * Voter mit zur Schreibzeit eingefrorenem Display-Name. Sortiert.
+   * Kein Online-Lookup mehr; der Name kommt direkt aus dem Server-Response.
+   */
+  voters?: FavoriteVoter[]
   /** Toggelt den eigenen Stern (`favorite` <-> null). */
   onToggleFavorite: (fileId: string) => Promise<void> | void
   /** Optional: groessere Variante (z.B. fuer Detail-Header). */
@@ -33,9 +36,7 @@ export interface SourceStarsCellProps {
  * Kombinierte Stern-Spalte: eigener Stern-Toggle plus aggregierter
  * Counter mit Tooltip-Liste der Voter-Namen.
  *
- * Member-only: rendert nichts fuer Gaeste/Anonyme. Tooltip-Namen werden
- * lazy beim ersten Hover via `useMemberDisplayNames` geladen (Bundling
- * mehrerer Sterne im selben Render-Frame).
+ * Member-only: rendert nichts fuer Gaeste/Anonyme.
  */
 export function SourceStarsCell({
   libraryId,
@@ -48,13 +49,11 @@ export function SourceStarsCell({
 }: SourceStarsCellProps) {
   const { t } = useTranslation()
   const { isMember } = useLibraryRole(libraryId)
-  const { resolveNames, getCachedName } = useMemberDisplayNames(libraryId)
   const [isPending, setIsPending] = React.useState(false)
 
   if (!isMember) return null
 
   const safeVoters = Array.isArray(voters) ? voters : []
-  const hasVoters = safeVoters.length > 0
 
   const handleToggle = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -67,13 +66,6 @@ export function SourceStarsCell({
     }
   }
 
-  const handleHover = () => {
-    if (!hasVoters) return
-    const missing = safeVoters.filter((v) => !getCachedName(v))
-    if (missing.length === 0) return
-    void resolveNames(missing)
-  }
-
   const toggleLabel = isFavorite
     ? t('gallery.favorites.toggleRemove', { defaultValue: 'Aus Favoriten entfernen' })
     : t('gallery.favorites.toggleAdd', { defaultValue: 'Zu Favoriten hinzufuegen' })
@@ -83,11 +75,7 @@ export function SourceStarsCell({
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div
-        className="flex items-center gap-1"
-        onMouseEnter={handleHover}
-        onFocus={handleHover}
-      >
+      <div className="flex items-center gap-1">
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -134,7 +122,7 @@ export function SourceStarsCell({
               </span>
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-[280px]">
-              <VoterTooltipContent voters={safeVoters} resolveNames={resolveNames} getCachedName={getCachedName} />
+              <VoterTooltipContent voters={safeVoters} />
             </TooltipContent>
           </Tooltip>
         ) : null}
@@ -144,19 +132,17 @@ export function SourceStarsCell({
 }
 
 interface VoterTooltipContentProps {
-  voters: string[]
-  resolveNames: (emails: string[]) => Promise<void>
-  getCachedName: (email: string) => string | undefined
+  voters: FavoriteVoter[]
 }
 
-function VoterTooltipContent({ voters, resolveNames, getCachedName }: VoterTooltipContentProps) {
+function emailPrefix(email: string): string {
+  const at = email.indexOf('@')
+  if (at <= 0) return email
+  return email.slice(0, at)
+}
+
+function VoterTooltipContent({ voters }: VoterTooltipContentProps) {
   const { t } = useTranslation()
-  // Beim Mount des Tooltips alle fehlenden Namen on-demand resolven.
-  React.useEffect(() => {
-    const missing = voters.filter((v) => !getCachedName(v))
-    if (missing.length === 0) return
-    void resolveNames(missing)
-  }, [voters, resolveNames, getCachedName])
 
   const initials = (name: string): string => {
     const parts = name.trim().split(/\s+/)
@@ -173,10 +159,12 @@ function VoterTooltipContent({ voters, resolveNames, getCachedName }: VoterToolt
         })}
       </div>
       <ul className="flex flex-col gap-0.5">
-        {voters.map((email) => {
-          const name = getCachedName(email) ?? email
+        {voters.map((voter) => {
+          // Display-Name kommt aus dem Server (zur Schreibzeit eingefroren).
+          // Fallback fuer alte Datensaetze ohne persistierten Namen: E-Mail-Prefix.
+          const name = voter.name?.trim() || emailPrefix(voter.email)
           return (
-            <li key={email} className="flex items-center gap-2">
+            <li key={voter.email} className="flex items-center gap-2">
               <span
                 aria-hidden
                 className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-100 text-[10px] font-semibold text-amber-900 dark:bg-amber-800 dark:text-amber-50"

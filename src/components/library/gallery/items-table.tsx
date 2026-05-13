@@ -21,7 +21,7 @@ import { PublishStatusBadge, TranslationStatusChips } from './publish-status-chi
 import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
 import { useUserStates } from '@/hooks/gallery/use-user-states'
-import { useAggregatedFavorites } from '@/hooks/gallery/use-aggregated-favorites'
+import { findDocInGroupedDocs } from '@/lib/gallery/apply-favorite-optimistic'
 import { useSourceCommentCounts } from '@/hooks/gallery/use-source-comment-counts'
 import { SourceStarsCell } from './source-stars-cell'
 import { SourceCommentToggleButton } from './source-comment-toggle-button'
@@ -42,6 +42,11 @@ export interface ItemsTableProps {
   expectedTargetLocales?: string[]
   /** Callback nach Publish/Unpublish/Re-translate (zum Reload der Galerie) */
   onPublishChanged?: () => void
+  /**
+   * Stern-Toggle mit optimistischem Galerie-Cache, von `gallery-root`
+   * durchgereicht.
+   */
+  onToggleFavorite?: (fileId: string) => void | Promise<void>
 }
 
 /**
@@ -55,6 +60,7 @@ export function ItemsTable({
   onDocumentDeleted,
   expectedTargetLocales,
   onPublishChanged,
+  onToggleFavorite,
 }: ItemsTableProps) {
   const { t, locale } = useTranslation()
   const router = useRouter()
@@ -62,7 +68,6 @@ export function ItemsTable({
   const searchParams = useSearchParams()
   const { isOwner } = useIsLibraryOwner(libraryId)
   const { isSignedIn, isMember } = useLibraryRole(libraryId)
-  const { isFavorite, setState: setUserState } = useUserStates(libraryId)
   const visibleFileIds = React.useMemo(
     () =>
       docsByYear.flatMap(([, docs]) =>
@@ -70,19 +75,19 @@ export function ItemsTable({
       ),
     [docsByYear],
   )
+  const { setState: setUserState } = useUserStates(libraryId, visibleFileIds)
   const { counts: commentCounts } = useSourceCommentCounts(libraryId, visibleFileIds)
-  const {
-    counts: favoriteCounts,
-    voters: favoriteVoters,
-    invalidate: invalidateFavoriteAggregation,
-  } = useAggregatedFavorites(libraryId, visibleFileIds)
   const handleToggleFavorite = React.useCallback(
     async (fileId: string) => {
-      const next = isFavorite(fileId) ? null : 'favorite'
-      await setUserState(fileId, next)
-      invalidateFavoriteAggregation(fileId)
+      if (onToggleFavorite) {
+        await onToggleFavorite(fileId)
+        return
+      }
+      const row = findDocInGroupedDocs(docsByYear, fileId)
+      const next = !(row?.isFavorite === true)
+      await setUserState(fileId, next ? 'favorite' : null)
     },
-    [isFavorite, setUserState, invalidateFavoriteAggregation],
+    [onToggleFavorite, docsByYear, setUserState],
   )
   const [expandedRows, setExpandedRows] = React.useState<Set<string>>(() => new Set())
   const toggleExpanded = React.useCallback((id: string) => {
@@ -185,9 +190,9 @@ export function ItemsTable({
                           <SourceStarsCell
                             libraryId={libraryId}
                             fileId={docFileId}
-                            isFavorite={isFavorite(docFileId)}
-                            count={favoriteCounts[docFileId] ?? 0}
-                            voters={favoriteVoters[docFileId] ?? []}
+                            isFavorite={doc.isFavorite === true}
+                            count={doc.favoriteCount ?? 0}
+                            voters={doc.favoriteVoters ?? []}
                             onToggleFavorite={handleToggleFavorite}
                           />
                         ) : null}

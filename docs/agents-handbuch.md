@@ -35,6 +35,12 @@ verboten.
 Bei Pipeline-Aenderungen zusaetzlich: `pnpm test:integration:api`
 (siehe `.cursor/rules/external-jobs-integration-tests.mdc`).
 
+### Galerie-Sterne (Read vs. Write)
+
+- **Lesen**: `GET /api/chat/[libraryId]/docs` liefert pro Dokument `favoriteCount`, `favoriteVoters` und `isFavorite` (Mongo-Aggregation). Es gibt keine separaten Routen mehr fuer aggregierte Sterne oder Member-Display-Namen; der Read-Pfad ruft Clerk nicht auf.
+- **Schreiben**: `POST /api/library/[libraryId]/source-user-states` persistiert den Anzeigenamen beim Setzen eines Sterns.
+- **Wartung** (optional): `pnpm tsx scripts/refresh-source-user-display-names.ts --libraryId=<id> [--dryRun]` aktualisiert eingefrorene Namen aus Clerk; siehe `docs/adr/0002-galerie-sterne-ohne-clerk-read.md`.
+
 ### Warum `pnpm build` Pflicht ist (Lehre aus PR #29 / Hotfix #30)
 
 `pnpm lint` (= `next lint`) klassifiziert bestimmte Regeln (z.B.

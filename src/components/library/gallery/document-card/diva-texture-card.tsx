@@ -29,9 +29,10 @@ export interface DivaTextureCardProps {
   doc: DocCardMeta
   onClick: () => void
   libraryId?: string
+  onToggleFavorite?: (fileId: string) => void | Promise<void>
 }
 
-export function DivaTextureCard({ doc, onClick, libraryId }: DivaTextureCardProps) {
+export function DivaTextureCard({ doc, onClick, libraryId, onToggleFavorite }: DivaTextureCardProps) {
   const rawRef = doc.coverThumbnailUrl || doc.coverImageUrl
   const [displayImageUrl, setDisplayImageUrl] = useState<string | undefined>(() =>
     rawRef && !coverRefNeedsApiResolution(rawRef) ? rawRef : undefined
@@ -170,6 +171,10 @@ export function DivaTextureCard({ doc, onClick, libraryId }: DivaTextureCardProp
       <SourceStarsBadge
         libraryId={libraryId}
         fileId={doc.fileId}
+        isFavorite={doc.isFavorite === true}
+        favoriteCount={doc.favoriteCount}
+        favoriteVoters={doc.favoriteVoters}
+        onToggleFavorite={onToggleFavorite}
         variant='light'
         className='absolute top-2 left-2 z-10'
       />

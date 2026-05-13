@@ -38,9 +38,17 @@ export interface DocumentCardProps {
   libraryId?: string
   /** Fallback-DetailViewType aus der Library-Config (wenn doc.detailViewType nicht gesetzt ist) */
   libraryDetailViewType?: string
+  /** Stern-Toggle (optimistisch wenn vom Galerie-Container durchgereicht). */
+  onToggleFavorite?: (fileId: string) => void | Promise<void>
 }
 
-export function DocumentCard({ doc, onClick, libraryId, libraryDetailViewType }: DocumentCardProps) {
+export function DocumentCard({
+  doc,
+  onClick,
+  libraryId,
+  libraryDetailViewType,
+  onToggleFavorite,
+}: DocumentCardProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -61,24 +69,59 @@ export function DocumentCard({ doc, onClick, libraryId, libraryDetailViewType }:
 
   // Quadratische Textur-Kachel (Hintergrund = wiederholte Cover-Textur)
   if (effectiveDetailViewType === 'divaTexture') {
-    return <DivaTextureCard doc={doc} onClick={handleClick} libraryId={libraryId} />
+    return (
+      <DivaTextureCard
+        doc={doc}
+        onClick={handleClick}
+        libraryId={libraryId}
+        onToggleFavorite={onToggleFavorite}
+      />
+    )
   }
 
   // Spezielles Layout fuer ClimateAction
   if (effectiveDetailViewType === 'climateAction') {
-    return <ClimateActionCard doc={doc} onClick={handleClick} libraryId={libraryId} />
+    return (
+      <ClimateActionCard
+        doc={doc}
+        onClick={handleClick}
+        libraryId={libraryId}
+        onToggleFavorite={onToggleFavorite}
+      />
+    )
   }
 
   // YouTube-artiges Layout fuer Sessions/Events
   if (effectiveDetailViewType === 'session') {
-    return <SessionCard doc={doc} onClick={handleClick} libraryId={libraryId} />
+    return (
+      <SessionCard
+        doc={doc}
+        onClick={handleClick}
+        libraryId={libraryId}
+        onToggleFavorite={onToggleFavorite}
+      />
+    )
   }
 
   // Vollflaechige Karte fuer gebrauchte PCs/Notebooks (refurbedDevice)
   if (effectiveDetailViewType === 'refurbedDevice') {
-    return <RefurbedDeviceCard doc={doc} onClick={handleClick} libraryId={libraryId} />
+    return (
+      <RefurbedDeviceCard
+        doc={doc}
+        onClick={handleClick}
+        libraryId={libraryId}
+        onToggleFavorite={onToggleFavorite}
+      />
+    )
   }
 
   // Standard-Layout fuer alle anderen Typen (Buecher, Dokumente, etc.)
-  return <StandardCard doc={doc} onClick={handleClick} libraryId={libraryId} />
+  return (
+    <StandardCard
+      doc={doc}
+      onClick={handleClick}
+      libraryId={libraryId}
+      onToggleFavorite={onToggleFavorite}
+    />
+  )
 }

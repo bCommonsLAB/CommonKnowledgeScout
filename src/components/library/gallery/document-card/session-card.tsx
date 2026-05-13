@@ -28,9 +28,10 @@ export interface SessionCardProps {
   doc: DocCardMeta
   onClick: () => void
   libraryId?: string
+  onToggleFavorite?: (fileId: string) => void | Promise<void>
 }
 
-export function SessionCard({ doc, onClick, libraryId }: SessionCardProps) {
+export function SessionCard({ doc, onClick, libraryId, onToggleFavorite }: SessionCardProps) {
   // Thumbnail bevorzugen fuer Galerie-Performance, Fallback auf Original
   const displayImageUrl = doc.coverThumbnailUrl || doc.coverImageUrl
 
@@ -112,6 +113,10 @@ export function SessionCard({ doc, onClick, libraryId }: SessionCardProps) {
       <SourceStarsBadge
         libraryId={libraryId}
         fileId={doc.fileId}
+        isFavorite={doc.isFavorite === true}
+        favoriteCount={doc.favoriteCount}
+        favoriteVoters={doc.favoriteVoters}
+        onToggleFavorite={onToggleFavorite}
         variant='light'
         className='absolute top-3 left-3 z-10'
       />

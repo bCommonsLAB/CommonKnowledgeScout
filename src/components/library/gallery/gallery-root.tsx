@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { activeLibraryIdAtom, librariesAtom } from '@/atoms/library-atom'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
@@ -35,7 +35,11 @@ import { openDocumentBySlug, closeDocument } from '@/utils/document-navigation'
 import { docMatchesNavigationSlug, getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
 import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
-import { useUserStates } from '@/hooks/gallery/use-user-states'
+import { useOwnFavoriteIds, useUserStates } from '@/hooks/gallery/use-user-states'
+import { useUser } from '@clerk/nextjs'
+import { getPreferredUserEmail } from '@/lib/auth/user-email'
+import { getPreferredUserDisplayName } from '@/lib/auth/user-display-name'
+import { applyFavoriteToggleOptimistic, findDocInGroupedDocs } from '@/lib/gallery/apply-favorite-optimistic'
 import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
 import dynamic from 'next/dynamic'
 import { storyCharacterAtom } from '@/atoms/story-context-atom'
@@ -217,34 +221,90 @@ export function GalleryRoot({
   
   // Verwende refreshKey als Dependency, aber nicht als Teil des searchQuery
   // useGalleryData wird automatisch neu laden, wenn sich refreshKey ändert (über useEffect)
-  const { docs, loading, error, filteredDocs, docsByYear, loadMore, hasMore, isLoadingMore, totalCount } = useGalleryData(filters, galleryDataMode, searchQuery, libraryId, { refreshKey, groupByField })
-  const { isOwner } = useIsLibraryOwner(libraryId)
-
-  // Quell-Favoriten / "nur Favoriten"-Filter (URL-Param `?favorites=1`).
-  // Aktiv ausschliesslich wenn der User Owner oder Co-Creator ist; bei
-  // Gaesten/Anonymen wird der Param ignoriert (siehe Plan, Berechtigungsmatrix).
   const { isMember: isLibraryMember } = useLibraryRole(libraryId)
-  const { favoriteIds } = useUserStates(libraryId)
   const onlyFavoritesParam = searchParams?.get('favorites') === '1'
   const onlyFavoritesActive = onlyFavoritesParam && isLibraryMember
-  // Sort-by-stars: URL-Param `?sort=stars`. Ebenfalls Member-only.
   const sortParam = searchParams?.get('sort')
   const sortByStarsActive = sortParam === 'stars' && isLibraryMember
+
+  const {
+    docs,
+    loading,
+    error,
+    filteredDocs,
+    docsByYear,
+    loadMore,
+    hasMore,
+    isLoadingMore,
+    totalCount,
+    mutateDoc,
+  } = useGalleryData(filters, galleryDataMode, searchQuery, libraryId, {
+    refreshKey,
+    groupByField,
+    sortByStars: sortByStarsActive,
+  })
+  const { isOwner } = useIsLibraryOwner(libraryId)
+
+  // Eigene Favoriten-IDs nur laden, wenn der "Nur Favoriten"-Filter
+  // aktiv ist - Fallback bis `isFavorite` auf allen Karten verfuegbar ist.
+  const { favoriteIds } = useOwnFavoriteIds(libraryId, { enabled: onlyFavoritesActive })
+  const { user } = useUser()
+  const selfEmail = useMemo(() => getPreferredUserEmail(user), [user])
+  const selfName = useMemo(() => getPreferredUserDisplayName(user), [user])
+  const { setState: setUserStarState } = useUserStates(libraryId, [])
+
   const filteredDocsByYear = React.useMemo(() => {
     if (!onlyFavoritesActive) return docsByYear
-    const allowed = favoriteIds
     return docsByYear
-      .map(([key, group]) => [key, group.filter((d) => d.fileId && allowed.has(d.fileId))] as [
-        number | string,
-        DocCardMeta[],
-      ])
+      .map(
+        ([key, group]) =>
+          [
+            key,
+            group.filter((d) => {
+              if (!d.fileId) return false
+              if (d.isFavorite === true) return true
+              return favoriteIds.has(d.fileId)
+            }),
+          ] as [number | string, DocCardMeta[]],
+      )
       .filter(([, group]) => group.length > 0)
   }, [docsByYear, onlyFavoritesActive, favoriteIds])
+
   const filteredFlat = React.useMemo(() => {
     if (!onlyFavoritesActive) return filteredDocs
-    const allowed = favoriteIds
-    return filteredDocs.filter((d) => d.fileId && allowed.has(d.fileId))
+    return filteredDocs.filter((d) => {
+      if (!d.fileId) return false
+      if (d.isFavorite === true) return true
+      return favoriteIds.has(d.fileId)
+    })
   }, [filteredDocs, onlyFavoritesActive, favoriteIds])
+
+  const handleStarToggle = useCallback(
+    async (fileId: string) => {
+      if (!libraryId || !isLibraryMember || !mutateDoc) return
+      const base =
+        findDocInGroupedDocs(filteredDocsByYear, fileId) ?? findDocInGroupedDocs(docsByYear, fileId)
+      if (!base.fileId) return
+      const snap = { ...base }
+      const nextFav = !(base.isFavorite === true)
+      mutateDoc(fileId, (d) => applyFavoriteToggleOptimistic(d, nextFav, selfEmail, selfName))
+      try {
+        await setUserStarState(fileId, nextFav ? 'favorite' : null)
+      } catch {
+        mutateDoc(fileId, () => snap)
+      }
+    },
+    [
+      libraryId,
+      isLibraryMember,
+      mutateDoc,
+      filteredDocsByYear,
+      docsByYear,
+      selfEmail,
+      selfName,
+      setUserStarState,
+    ],
+  )
 
   /**
    * Effektive Werte fuer Anzeige + Bulk-Scope. Bei aktivem Favoriten-Filter
@@ -777,6 +837,7 @@ export function GalleryRoot({
       expectedTargetLocales={activeLibrary?.config?.translations?.targetLocales}
       onPublishChanged={handleDocumentDeleted}
       sortByStars={sortByStarsActive}
+      onToggleFavorite={handleStarToggle}
     />
   }
 
@@ -980,6 +1041,7 @@ export function GalleryRoot({
           nextDoc={nextDoc}
           onNavigateToDoc={handleOpenDocument}
           siblingDocs={navigationDocs}
+          onToggleFavorite={handleStarToggle}
         />
       )}
 

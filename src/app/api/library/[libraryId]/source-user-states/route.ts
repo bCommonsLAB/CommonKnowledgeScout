@@ -32,6 +32,7 @@ import {
 } from '@/lib/repositories/source-user-states-repo';
 import { isCoCreatorOrOwner } from '@/lib/repositories/library-members-repo';
 import { getPreferredUserEmail } from '@/lib/auth/user-email';
+import { getPreferredUserDisplayName } from '@/lib/auth/user-display-name';
 import type {
   OwnUserStatesResponse,
   SetUserStateInput,
@@ -41,22 +42,54 @@ import type {
 
 type RouteParams = { params: Promise<{ libraryId: string }> };
 
-/** Liefert die Member-E-Mail oder null wenn nicht eingeloggt. */
-async function getAuthEmail(): Promise<string | null> {
+interface AuthIdentity {
+  email: string;
+  /** Bevorzugter Anzeigename (siehe `getPreferredUserDisplayName`). */
+  displayName: string;
+}
+
+/** Liefert die Member-Identitaet oder null wenn nicht eingeloggt. */
+async function getAuthIdentity(): Promise<AuthIdentity | null> {
   const { userId } = await auth();
   if (!userId) return null;
   const user = await currentUser();
   const email = getPreferredUserEmail(user);
-  return email || null;
+  if (!email) return null;
+  const displayName = getPreferredUserDisplayName(user);
+  return { email, displayName };
+}
+
+/** Backward-kompatible Variante fuer Pfade, die nur die Mail brauchen. */
+async function getAuthEmail(): Promise<string | null> {
+  const id = await getAuthIdentity();
+  return id?.email ?? null;
+}
+
+/**
+ * Parsed `?fileIds=a,b,c` aus der URL. Leere/fehlende Liste = "alles
+ * laden" (Backward-Compat). Whitespace und Leer-Tokens werden entfernt.
+ */
+function parseFileIdsFilter(request: NextRequest): string[] | null {
+  const raw = request.nextUrl.searchParams.get('fileIds');
+  if (raw === null) return null;
+  const ids = raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  return ids;
 }
 
 /**
  * GET /api/library/[libraryId]/source-user-states
+ * Optional: `?fileIds=a,b,c` zum Filtern der Antwort auf eine Subset-
+ * Liste. Ohne Filter wird die komplette Library-Liste geliefert
+ * (Backward-Compat fuer den "Nur Favoriten"-Filter in gallery-root).
+ *
  * -> 200 { libraryId, favorites: string[], notImportant: string[] } fuer Member
  * -> 401 fuer Anonyme
  * -> 403 fuer Gaeste
  */
-export async function GET(_request: NextRequest, { params }: RouteParams) {
+export async function GET(request: NextRequest, { params }: RouteParams) {
   const email = await getAuthEmail();
   if (!email) {
     return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 });
@@ -74,7 +107,18 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  const { favorites, notImportant } = await getOwnStates(libraryId, email);
+  const fileIdsFilter = parseFileIdsFilter(request);
+  let { favorites, notImportant } = await getOwnStates(libraryId, email);
+  if (fileIdsFilter !== null) {
+    if (fileIdsFilter.length === 0) {
+      favorites = [];
+      notImportant = [];
+    } else {
+      const allowed = new Set(fileIdsFilter);
+      favorites = favorites.filter((id) => allowed.has(id));
+      notImportant = notImportant.filter((id) => allowed.has(id));
+    }
+  }
   const body: OwnUserStatesResponse = { libraryId, favorites, notImportant };
   return NextResponse.json(body);
 }
@@ -93,8 +137,8 @@ function parseStateValue(raw: unknown): SourceUserStateValue | null | 'invalid' 
  * -> 400 / 401 / 403 wie GET
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
-  const email = await getAuthEmail();
-  if (!email) {
+  const identity = await getAuthIdentity();
+  if (!identity) {
     return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 });
   }
   const { libraryId } = await params;
@@ -102,7 +146,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: 'libraryId fehlt' }, { status: 400 });
   }
 
-  const isMember = await isCoCreatorOrOwner(libraryId, email);
+  const isMember = await isCoCreatorOrOwner(libraryId, identity.email);
   if (!isMember) {
     return NextResponse.json(
       { error: 'Sterne sind nur fuer Owner und Co-Kreatoren aenderbar' },
@@ -123,7 +167,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  const result = await setState(libraryId, fileId, email, parsed);
+  const result = await setState(libraryId, fileId, identity.email, parsed, {
+    userDisplayName: identity.displayName,
+  });
   const response: SetUserStateResponse = {
     libraryId,
     fileId,

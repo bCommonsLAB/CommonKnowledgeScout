@@ -35,11 +35,15 @@ export interface ItemsViewProps {
   /** Doc-Translations Refactor: Reload-Callback nach Publish/Unpublish/Re-translate */
   onPublishChanged?: () => void
   /**
-   * Per-User-Sterne: wenn true, werden alle Karten/Zeilen innerhalb jeder
-   * Gruppe nach `favoriteCount` desc sortiert (auch im Grid-Modus). Wirkt
-   * nur fuer Owner/Co-Creator (Aggregat-Daten sind nur dort verfuegbar).
+   * Server sortiert bereits global nach Sternen, wenn `sortByStars` aktiv
+   * ist (?sort=stars). Client-Sort entfaellt dann.
    */
   sortByStars?: boolean
+  /**
+   * Stern-Toggle: optimistischer Patch + POST. Wird von gallery-root
+   * bereitgestellt; fehlt er, fallback nur API (ohne mutateDoc).
+   */
+  onToggleFavorite?: (fileId: string) => void | Promise<void>
 }
 
 /**
@@ -62,6 +66,7 @@ export function ItemsView({
   expectedTargetLocales,
   onPublishChanged,
   sortByStars,
+  onToggleFavorite,
 }: ItemsViewProps) {
   return (
     <VirtualizedItemsView
@@ -80,6 +85,7 @@ export function ItemsView({
       expectedTargetLocales={expectedTargetLocales}
       onPublishChanged={onPublishChanged}
       sortByStars={sortByStars}
+      onToggleFavorite={onToggleFavorite}
     />
   )
 }

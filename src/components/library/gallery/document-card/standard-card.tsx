@@ -28,9 +28,10 @@ export interface StandardCardProps {
   doc: DocCardMeta
   onClick: () => void
   libraryId?: string
+  onToggleFavorite?: (fileId: string) => void | Promise<void>
 }
 
-export function StandardCard({ doc, onClick, libraryId }: StandardCardProps) {
+export function StandardCard({ doc, onClick, libraryId, onToggleFavorite }: StandardCardProps) {
   return (
     <Card
       className='cursor-pointer hover:shadow-lg transition-shadow duration-200 overflow-visible bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 relative'
@@ -39,6 +40,10 @@ export function StandardCard({ doc, onClick, libraryId }: StandardCardProps) {
       <SourceStarsBadge
         libraryId={libraryId}
         fileId={doc.fileId}
+        isFavorite={doc.isFavorite === true}
+        favoriteCount={doc.favoriteCount}
+        favoriteVoters={doc.favoriteVoters}
+        onToggleFavorite={onToggleFavorite}
         variant='dark'
         className='absolute bottom-2 right-2 z-10'
       />

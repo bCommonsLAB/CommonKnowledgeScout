@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { X, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useUserStates } from '@/hooks/gallery/use-user-states'
-import { useAggregatedFavorites } from '@/hooks/gallery/use-aggregated-favorites'
+import { findDocMetaByFileId } from '@/lib/gallery/apply-favorite-optimistic'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
 import { useTinderSequencer } from '@/hooks/gallery/use-tinder-sequencer'
 import { SourceStarsCell } from './source-stars-cell'
@@ -55,6 +55,10 @@ export interface DetailOverlayProps {
    * einzuschraenken und unbewertete Quellen einzeln durchzugehen.
    */
   siblingDocs?: DocCardMeta[]
+  /**
+   * Stern togglen (optimistischer Patch + POST), wie in der Galerie.
+   */
+  onToggleFavorite?: (fileId: string) => void | Promise<void>
 }
 
 /**
@@ -85,24 +89,44 @@ export function DetailOverlay({
   nextDoc,
   onNavigateToDoc,
   siblingDocs,
+  onToggleFavorite,
 }: DetailOverlayProps) {
   const { t, locale } = useTranslation()
   const { isMember } = useLibraryRole(libraryId)
-  const { isFavorite, isNotImportant, setState: setUserState } = useUserStates(libraryId)
-  const visibleFileIds = React.useMemo(() => (fileId ? [fileId] : []), [fileId])
-  const {
-    counts: favoriteCounts,
-    voters: favoriteVoters,
-    invalidate: invalidateFavoriteAggregation,
-  } = useAggregatedFavorites(libraryId, visibleFileIds)
+  // Sichtbare/relevante fileIds: aktuelle Quelle + Geschwister fuer
+  // den Tinder-Modus (sonst kann der Sequencer nicht filtern, was
+  // bewertet wurde). Bei geschlossenem Overlay ist das Array leer.
+  const visibleFileIds = React.useMemo(() => {
+    const ids = new Set<string>()
+    if (fileId) ids.add(fileId)
+    if (Array.isArray(siblingDocs)) {
+      for (const d of siblingDocs) {
+        if (d.fileId) ids.add(d.fileId)
+      }
+    }
+    return Array.from(ids)
+  }, [fileId, siblingDocs])
+  const { isNotImportant, setState: setUserState } = useUserStates(libraryId, visibleFileIds)
+
+  const isFavoriteForSequencer = React.useCallback(
+    (id: string) => findDocMetaByFileId(doc, id, siblingDocs)?.isFavorite === true,
+    [doc, siblingDocs],
+  )
+
   const handleToggleFavorite = React.useCallback(
     async (id: string) => {
-      const next = isFavorite(id) ? null : 'favorite'
-      await setUserState(id, next)
-      invalidateFavoriteAggregation(id)
+      if (onToggleFavorite) {
+        await onToggleFavorite(id)
+        return
+      }
+      const meta = findDocMetaByFileId(doc, id, siblingDocs)
+      const next = !(meta?.isFavorite === true)
+      await setUserState(id, next ? 'favorite' : null)
     },
-    [isFavorite, setUserState, invalidateFavoriteAggregation],
+    [onToggleFavorite, doc, siblingDocs, setUserState],
   )
+
+  const starMeta = findDocMetaByFileId(doc, fileId, siblingDocs)
 
   // Tinder-Mode: lokaler State (kein URL-Param, weil die Detail-Overlay
   // an `?doc=` haengt und den Mode ohnehin nicht ueberlebt).
@@ -111,26 +135,26 @@ export function DetailOverlay({
   const sequencer = useTinderSequencer({
     docs: siblingDocs ?? [],
     currentFileId: fileId,
-    isFavorite,
+    isFavorite: isFavoriteForSequencer,
     isNotImportant,
     onlyUnrated: tinderActive && onlyUnrated,
   })
 
   const handleSwipeRight = React.useCallback(async () => {
     if (!fileId) return
-    // Rechts = Favorit setzen + naechstes Doc.
-    await setUserState(fileId, 'favorite')
-    invalidateFavoriteAggregation(fileId)
+    const meta = findDocMetaByFileId(doc, fileId, siblingDocs)
+    if (meta?.isFavorite !== true) {
+      if (onToggleFavorite) await onToggleFavorite(fileId)
+      else await setUserState(fileId, 'favorite')
+    }
     if (sequencer.nextDoc && onNavigateToDoc) onNavigateToDoc(sequencer.nextDoc)
-  }, [fileId, setUserState, invalidateFavoriteAggregation, sequencer.nextDoc, onNavigateToDoc])
+  }, [fileId, doc, siblingDocs, onToggleFavorite, setUserState, sequencer.nextDoc, onNavigateToDoc])
 
   const handleSwipeLeft = React.useCallback(async () => {
     if (!fileId) return
-    // Links = "nicht wichtig" + naechstes Doc.
     await setUserState(fileId, 'not_important')
-    invalidateFavoriteAggregation(fileId)
     if (sequencer.nextDoc && onNavigateToDoc) onNavigateToDoc(sequencer.nextDoc)
-  }, [fileId, setUserState, invalidateFavoriteAggregation, sequencer.nextDoc, onNavigateToDoc])
+  }, [fileId, setUserState, sequencer.nextDoc, onNavigateToDoc])
 
   // Pfeile im Tinder-Mode folgen der Sequenz (gefiltert), sonst der vom
   // Aufrufer durchgereichten Liste.
@@ -239,9 +263,9 @@ export function DetailOverlay({
                 <SourceStarsCell
                   libraryId={libraryId}
                   fileId={fileId}
-                  isFavorite={isFavorite(fileId)}
-                  count={favoriteCounts[fileId] ?? 0}
-                  voters={favoriteVoters[fileId] ?? []}
+                  isFavorite={starMeta?.isFavorite === true}
+                  count={starMeta?.favoriteCount ?? 0}
+                  voters={starMeta?.favoriteVoters ?? []}
                   onToggleFavorite={handleToggleFavorite}
                   size='md'
                 />

@@ -31,9 +31,15 @@ export interface RefurbedDeviceCardProps {
   doc: DocCardMeta
   onClick: () => void
   libraryId?: string
+  onToggleFavorite?: (fileId: string) => void | Promise<void>
 }
 
-export function RefurbedDeviceCard({ doc, onClick, libraryId }: RefurbedDeviceCardProps) {
+export function RefurbedDeviceCard({
+  doc,
+  onClick,
+  libraryId,
+  onToggleFavorite,
+}: RefurbedDeviceCardProps) {
   const { t } = useTranslation()
   // Thumbnail bevorzugen fuer Galerie-Performance, Fallback auf Original
   const displayImageUrl = doc.coverThumbnailUrl || doc.coverImageUrl
@@ -116,6 +122,10 @@ export function RefurbedDeviceCard({ doc, onClick, libraryId }: RefurbedDeviceCa
       <SourceStarsBadge
         libraryId={libraryId}
         fileId={doc.fileId}
+        isFavorite={doc.isFavorite === true}
+        favoriteCount={doc.favoriteCount}
+        favoriteVoters={doc.favoriteVoters}
+        onToggleFavorite={onToggleFavorite}
         variant='light'
         className='absolute top-3 left-3 z-10'
       />

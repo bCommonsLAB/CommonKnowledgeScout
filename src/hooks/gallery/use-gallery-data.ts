@@ -1,22 +1,41 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSetAtom, useAtomValue } from 'jotai'
 import { galleryDataAtom } from '@/atoms/gallery-data'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import type { ChatResponse } from '@/types/chat-response'
 import type { QueryLog } from '@/types/query-log'
 
+/**
+ * Patcht ein einzelnes Dokument im aktuellen Galerie-State (`docs` und
+ * `groups`). Wird vom optimistic-Toggle der Sterne aufgerufen, damit die
+ * Karte den neuen `favoriteCount`/`favoriteVoters`/`isFavorite` sofort
+ * widerspiegelt - ohne den teuren Server-Refetch.
+ */
+export type GalleryDocMutator = (current: DocCardMeta) => DocCardMeta
+
 export function useGalleryData(
   filters: Record<string, string[] | undefined>, 
   mode: 'gallery' | 'story', 
   searchQuery: string, 
   libraryId?: string,
-  options?: { skipApiCall?: boolean; refreshKey?: number; groupByField?: string }
+  options?: {
+    skipApiCall?: boolean
+    refreshKey?: number
+    groupByField?: string
+    /**
+     * Wenn true, wird `?sort=stars` an die Galerie-API gesendet. Damit
+     * sortiert der Server global nach `favoriteCount` (siehe Plan, Welle 2).
+     * Member-only - die API ignoriert den Param fuer Nicht-Member.
+     */
+    sortByStars?: boolean
+  }
 ) {
   const setGalleryData = useSetAtom(galleryDataAtom)
   const galleryDataFromAtom = useAtomValue(galleryDataAtom)
   const skipApiCall = options?.skipApiCall ?? false
+  const sortByStars = options?.sortByStars ?? false
   
   const [docs, setDocs] = useState<DocCardMeta[]>([])
   const [totalCount, setTotalCount] = useState<number>(0)
@@ -37,7 +56,10 @@ export function useGalleryData(
   // Memoize filters string für Dependency-Array
   const filtersString = useMemo(() => JSON.stringify(filters), [filters])
   
-  // Reset bei Filter-Änderungen oder Refresh-Key-Änderung (nur wenn nicht skipApiCall)
+  // Reset bei Filter-Änderungen, Refresh-Key oder Sort-Wechsel.
+  // Wichtig: sortByStars verhaelt sich semantisch wie ein Filter; bei
+  // Wechsel muessen wir die erste Page neu vom Server holen (sonst kommt
+  // die alte year-Sortierung zurueck).
   useEffect(() => {
     if (skipApiCall) return
     setPage(1)
@@ -47,7 +69,7 @@ export function useGalleryData(
     setGroups([])
     setTotalGroups(0)
     setIsLoadingMore(false)
-  }, [libraryId, filtersString, mode, searchQuery, skipApiCall, options?.refreshKey, groupByFieldOpt])
+  }, [libraryId, filtersString, mode, searchQuery, skipApiCall, options?.refreshKey, groupByFieldOpt, sortByStars])
   
   useEffect(() => {
     // Überspringe API-Aufruf wenn skipApiCall true ist
@@ -86,6 +108,11 @@ export function useGalleryData(
         } else {
           params.append('limit', String(LIMIT))
           params.append('skip', String((page - 1) * LIMIT))
+        }
+        if (sortByStars) {
+          // Globale Sterne-Sortierung im Server (`vector-repo.findDocs(Grouped)`),
+          // Sekundaerschluessel year/upsertedAt fuer stabile Pagination.
+          params.append('sort', 'stars')
         }
 
         const url = `/api/chat/${encodeURIComponent(libraryId)}/docs${params.toString() ? `?${params.toString()}` : ''}`
@@ -164,7 +191,7 @@ export function useGalleryData(
     load()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [libraryId, page, JSON.stringify(filters), mode, searchQuery, skipApiCall, options?.refreshKey, useGroupedApi, groupByFieldOpt])
+  }, [libraryId, page, JSON.stringify(filters), mode, searchQuery, skipApiCall, options?.refreshKey, useGroupedApi, groupByFieldOpt, sortByStars])
 
 
   const loadMore = () => {
@@ -172,6 +199,32 @@ export function useGalleryData(
       setPage(p => p + 1)
     }
   }
+
+  /**
+   * Wendet einen Mutator auf das Doc mit der angegebenen `fileId` an
+   * und propagiert die Aenderung in alle abhaengigen States (`docs`,
+   * `groups`, Atom). Wenn das Doc nicht gefunden wird, ist der Aufruf
+   * ein No-op.
+   *
+   * Wird vom optimistic-Toggle der Sterne genutzt, damit der Counter
+   * sofort reagiert; bei Fehler kann der Caller dieselbe Funktion mit
+   * dem inversen Update fuer den Rollback aufrufen.
+   */
+  const mutateDoc = useCallback(
+    (fileId: string, updater: GalleryDocMutator) => {
+      if (!fileId) return
+      const apply = (doc: DocCardMeta): DocCardMeta => {
+        if ((doc.fileId || doc.id) !== fileId) return doc
+        return updater(doc)
+      }
+      setDocs(prev => prev.map(apply))
+      setGroups(prev =>
+        prev.map(([key, items]) => [key, items.map(apply)] as [string | number, DocCardMeta[]]),
+      )
+      setGalleryData(prev => ({ ...prev, docs: prev.docs.map(apply) }))
+    },
+    [setGalleryData],
+  )
 
   // Wenn skipApiCall true ist, verwende Atom-Daten für Rückgabe
   const shouldUseAtomData = skipApiCall
@@ -237,7 +290,8 @@ export function useGalleryData(
     loadMore, 
     hasMore: finalHasMore, 
     isLoadingMore: finalIsLoadingMore, 
-    totalCount: finalTotalCount 
+    totalCount: finalTotalCount,
+    mutateDoc,
   }
 }
 

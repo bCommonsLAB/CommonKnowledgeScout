@@ -3,9 +3,29 @@ import { NextRequest, NextResponse } from 'next/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { parseFacetDefs, buildFilterFromQuery } from '@/lib/chat/dynamic-facets'
 import { facetsSelectedToMongoFilter } from '@/lib/chat/common/filters'
-import { findDocs, findDocsGrouped, getCollectionNameForLibrary, getCollectionOnly } from '@/lib/repositories/vector-repo'
+import { findDocs, findDocsGrouped, getCollectionNameForLibrary, getCollectionOnly, type GallerySort } from '@/lib/repositories/vector-repo'
 import { maybePublicationFilter } from '@/lib/chat/publication-filter'
+import { isCoCreatorOrOwner } from '@/lib/repositories/library-members-repo'
+import { getPreferredUserEmail } from '@/lib/auth/user-email'
 import type { Document } from 'mongodb'
+
+/**
+ * Parsed den `?sort`-URL-Param und liefert das passende MongoDB-Sort-Objekt.
+ *
+ * - `sort=stars` -> `{ favoriteCount: -1, year: -1, upsertedAt: -1 }`
+ *   (favoriteCount kommt durch den $lookup in vector-repo)
+ * - alles andere / fehlend -> Default `{ year: -1, upsertedAt: -1 }`
+ *
+ * Member-only: nur Owner und Co-Creators duerfen `sort=stars` nutzen.
+ * Anonyme/Guest-User bekommen den Default-Sort, damit der Endpoint keine
+ * weichen Privilege-Escalations zulaesst.
+ */
+function buildGallerySort(rawSort: string | null, isMember: boolean): GallerySort {
+  if (rawSort === 'stars' && isMember) {
+    return { favoriteCount: -1, year: -1, upsertedAt: -1 }
+  }
+  return { year: -1, upsertedAt: -1 }
+}
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
   try {
@@ -21,7 +41,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
       
       if (userId) {
         const user = await currentUser()
-        userEmail = user?.emailAddresses?.[0]?.emailAddress || ''
+        // Normalisierte Variante (lower-case, getrimmt). Wird ans Repo durchgereicht
+        // und als Voter-Match-Schluessel im $lookup genutzt.
+        userEmail = getPreferredUserEmail(user)
       }
     } catch (authError) {
       // Rate Limit Error: Loggen aber nicht abbrechen (für öffentliche Libraries)
@@ -129,15 +151,24 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
     const headerLocale = req.headers.get('x-locale') || undefined
     const fallbackLocale = ctx.library.config?.translations?.fallbackLocale || 'en'
 
+    // Sterne sind Member-only: Counts/Voter werden nur Mitgliedern (Owner +
+    // aktive Co-Creator) angezeigt. Fuer alle anderen reichen wir keinen
+    // userEmail durch -> der $lookup laeuft trotzdem (Counts sind Lookup-
+    // unabhaengig), aber `isFavorite` ist immer false.
+    const isMember = userEmail ? await isCoCreatorOrOwner(libraryId, userEmail) : false
+    const sortRaw = url.searchParams.get('sort')
+    const memberUserEmail = isMember ? userEmail : ''
+
     // Bei gruppenweiser Pagination: findDocsGrouped nutzen, sonst klassische findDocs
     if (useGrouped) {
       const groupedResult = await findDocsGrouped(libraryKey, libraryId, filter, {
         groupBy: groupByParam,
         groupOffset,
         groupsLimit,
-        sortWithinGroup: { year: -1, upsertedAt: -1 },
+        sortWithinGroup: buildGallerySort(sortRaw, isMember),
         locale: headerLocale,
         fallbackLocale,
+        userEmail: memberUserEmail,
       })
       return NextResponse.json(
         { 
@@ -153,9 +184,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
     const result = await findDocs(libraryKey, libraryId, filter, {
       limit,
       skip,
-      sort: { year: -1, upsertedAt: -1 },
+      sort: buildGallerySort(sortRaw, isMember),
       locale: headerLocale,
       fallbackLocale,
+      userEmail: memberUserEmail,
     })
     
     // Wenn includeImageUrls=true, lade Image-URLs für alle Dokumente

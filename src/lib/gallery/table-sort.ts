@@ -1,11 +1,8 @@
 import type { DocCardMeta } from '@/lib/gallery/types'
 
 /**
- * Optionale Aggregations-Daten fuer Sterne-Sort.
- *
- * Wird aus `useAggregatedFavorites` bereitgestellt; falls die Map nicht
- * uebergeben wird, faellt der Sort-Vergleich fuer `favoriteCount`
- * zurueck auf 0 fuer alle Quellen (keine Sortierung).
+ * Optionales Legacy-Mapping fuer Tabellen-Sort (Sterne), falls Docs noch
+ * kein `favoriteCount`-Feld tragen.
  */
 export interface DocSortContext {
   favoriteCounts?: Record<string, number>
@@ -32,6 +29,8 @@ export function getDocSortValue(
   }
   if (key === 'favoriteCount') {
     if (!doc.fileId) return 0
+    const fromDoc = doc.favoriteCount
+    if (typeof fromDoc === 'number' && Number.isFinite(fromDoc)) return fromDoc
     const counts = ctx?.favoriteCounts
     return counts ? counts[doc.fileId] || 0 : 0
   }

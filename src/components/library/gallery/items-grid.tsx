@@ -19,6 +19,8 @@ export interface ItemsGridProps {
   groupByField?: string
   /** Karten-Raster: kompakt vs. komfortabel (Default: comfortable) */
   cardDensity?: GalleryCardDensity
+  /** Stern-Toggle (optimistisch wenn vom Root durchgereicht). */
+  onToggleFavorite?: (fileId: string) => void | Promise<void>
 }
 
 export function ItemsGrid({
@@ -28,6 +30,7 @@ export function ItemsGrid({
   libraryDetailViewType,
   groupByField = 'year',
   cardDensity = 'comfortable',
+  onToggleFavorite,
 }: ItemsGridProps) {
   const { t } = useTranslation()
   
@@ -51,7 +54,14 @@ export function ItemsGrid({
           {/* Spalten aus Library-Config / Toggle: siehe itemsGridClassForDensity */}
           <div className={itemsGridClassForDensity(cardDensity)}>
             {groupDocs.map((doc) => (
-              <DocumentCard key={doc.id} doc={doc} onClick={onOpen} libraryId={libraryId} libraryDetailViewType={libraryDetailViewType} />
+              <DocumentCard
+                key={doc.id}
+                doc={doc}
+                onClick={onOpen}
+                libraryId={libraryId}
+                libraryDetailViewType={libraryDetailViewType}
+                onToggleFavorite={onToggleFavorite}
+              />
             ))}
           </div>
         </div>

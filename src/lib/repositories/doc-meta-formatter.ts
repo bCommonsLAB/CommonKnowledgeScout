@@ -2,6 +2,7 @@ import type { DocCardMeta } from '@/lib/gallery/types'
 import type { VectorDocument } from './vector-repo'
 import { localizeDocMetaJson } from '@/lib/i18n/get-localized'
 import type { DocTranslationsMeta } from '@/types/doc-meta'
+import type { FavoriteVoter } from '@/types/source-user-state'
 
 /**
  * Konvertiert speakers_image_url von verschiedenen Formaten zu string[]
@@ -81,6 +82,14 @@ export interface MongoDocForConversion {
   coverThumbnailUrl?: string
   upsertedAt?: string
   docMetaJson?: unknown
+  /**
+   * Aus dem $lookup auf `source_user_states` (siehe vector-repo.ts).
+   * Wird vom Galerie-Endpoint mitgeliefert; bei den meisten Aufrufern
+   * (z.B. Detail-Pfad ueber `getByFileIds`) sind die Felder undefined.
+   */
+  favoriteCount?: number
+  favoriteVoters?: FavoriteVoter[]
+  isFavorite?: boolean
 }
 
 /**
@@ -200,7 +209,37 @@ export function convertMongoDocToDocCardMeta(
     // Filter-Werte (topics/tags/category) bleiben kanonisch (siehe oben);
     // nur die Anzeige wird via Label-Maps lokalisiert.
     ...buildLocalizedLabels(rawDocMeta, options.locale, options.fallbackLocale),
+    // ─── Sterne-Aggregation aus dem $lookup ──────────────────────────────
+    ...buildFavoriteFields(doc),
   }
+}
+
+/**
+ * Liest die per `$lookup` angereicherten Sterne-Felder aus dem MongoDB-
+ * Dokument. Wird vom Galerie-Endpoint genutzt; bei Aufrufern ohne Lookup
+ * bleibt das Ergebnis leer und die UI faellt auf 0/undefined zurueck.
+ */
+function buildFavoriteFields(
+  doc: MongoDocForConversion,
+): Partial<Pick<DocCardMeta, 'favoriteCount' | 'favoriteVoters' | 'isFavorite'>> {
+  const out: Partial<Pick<DocCardMeta, 'favoriteCount' | 'favoriteVoters' | 'isFavorite'>> = {}
+  if (typeof doc.favoriteCount === 'number') out.favoriteCount = doc.favoriteCount
+  if (Array.isArray(doc.favoriteVoters)) {
+    const voters: FavoriteVoter[] = []
+    for (const v of doc.favoriteVoters) {
+      if (
+        v &&
+        typeof v === 'object' &&
+        typeof (v as FavoriteVoter).email === 'string' &&
+        typeof (v as FavoriteVoter).name === 'string'
+      ) {
+        voters.push({ email: (v as FavoriteVoter).email, name: (v as FavoriteVoter).name })
+      }
+    }
+    out.favoriteVoters = voters
+  }
+  if (typeof doc.isFavorite === 'boolean') out.isFavorite = doc.isFavorite
+  return out
 }
 
 /**
