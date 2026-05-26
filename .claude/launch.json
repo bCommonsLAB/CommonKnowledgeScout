@@ -1,0 +1,22 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "next-dev",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev"],
+      "port": 3000
+    },
+    {
+      "name": "mkdocs-serve",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["docs:serve"],
+      "port": 8000
+    },
+    {
+      "name": "electron-dev",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["electron:dev"]
+    }
+  ]
+}
