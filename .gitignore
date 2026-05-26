@@ -45,3 +45,9 @@ template-samples/diva sample content/*
 
 # Windows junction: .cursor/skills/ → .claude/skills/ (lokal pro Maschine)
 .cursor/skills
+
+# DIVA-Texture-Welle: echte Liefersystem-Sidecar + lokale Plan-Kopien
+# (Sample-JSON ist explizit committed)
+docs/diva-texture-analysen/api2_GetJsonOptionValues.json
+docs/diva-texture-analysen/*.plan.md
+docs/diva-texture-analysen/*.plan.pdf
