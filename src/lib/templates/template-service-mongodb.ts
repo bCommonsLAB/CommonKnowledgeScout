@@ -25,17 +25,89 @@ import { injectCreationIntoFrontmatter } from './template-frontmatter-utils'
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
+ * Schema-Knoten: entweder eine Typ-Beschreibung (Blatt) oder ein
+ * verschachteltes Objekt (Branch fuer Dot-Notation-Keys).
+ */
+type SchemaNode = string | SchemaTree
+interface SchemaTree {
+  [key: string]: SchemaNode
+}
+
+/**
+ * Leitet die Typ-Beschreibung eines Feldes aus rawValue/description ab.
+ *
+ * Reihenfolge: Array → Boolean → Number → String-mit-Hinweis → String.
+ */
+function determineFieldType(field: TemplateMetadataField): string {
+  const raw = field.rawValue || ''
+  const desc = field.description || ''
+  const lowerDesc = desc.toLowerCase()
+
+  if (raw.includes('[]') || lowerDesc.includes('array')) {
+    return 'string[]'
+  }
+  if (raw.includes('boolean') || lowerDesc.includes('boolean')) {
+    return 'boolean'
+  }
+  if (raw.includes('number') || lowerDesc.includes('zahl') || lowerDesc.includes('nummer')) {
+    return 'number | null'
+  }
+  if (desc) {
+    // WICHTIG: Limit auf 200 Zeichen, damit präzise Enum-Werte und
+    // Formatvorgaben (z.B. "matte | semi_gloss | glossy") nicht abgeschnitten werden.
+    const shortDesc = desc.length > 200 ? desc.substring(0, 197) + '...' : desc
+    return `string (${shortDesc})`
+  }
+  return 'string'
+}
+
+/**
+ * Fuegt einen Dot-Notation-Key (z.B. "dominantColor.hex") als verschachteltes
+ * Blatt in den Schema-Baum ein. Branches werden bei Bedarf angelegt.
+ */
+function setNestedSchemaLeaf(root: SchemaTree, dottedKey: string, typeDesc: string): void {
+  const segments = dottedKey.split('.')
+  let cursor = root
+  for (let i = 0; i < segments.length - 1; i++) {
+    const seg = segments[i]!
+    const existing = cursor[seg]
+    if (existing === undefined || typeof existing === 'string') {
+      // Neuen Branch anlegen (bzw. kollidierendes Skalar-Blatt ersetzen).
+      const branch: SchemaTree = {}
+      cursor[seg] = branch
+      cursor = branch
+    } else {
+      cursor = existing
+    }
+  }
+  cursor[segments[segments.length - 1]!] = typeDesc
+}
+
+/** Serialisiert den Schema-Baum rekursiv als eingerueckten Prosa-JSON-Block. */
+function serializeSchemaTree(node: SchemaTree, depth: number): string {
+  const indent = '  '.repeat(depth + 1)
+  const closingIndent = '  '.repeat(depth)
+  const lines = Object.entries(node).map(([key, value]) =>
+    typeof value === 'string'
+      ? `${indent}"${key}": "${value}"`
+      : `${indent}"${key}": ${serializeSchemaTree(value, depth + 1)}`,
+  )
+  return `{\n${lines.join(',\n')}\n${closingIndent}}`
+}
+
+/**
  * Generiert ein JSON-Schema-Objekt aus Template-Metadaten-Feldern.
- * 
+ *
  * Das Schema wird als Prosa-Block formatiert, damit das LLM die erwartete
- * Struktur der Antwort kennt.
- * 
+ * Struktur der Antwort kennt. Dot-Notation-Keys (z.B. "dominantColor.hex")
+ * werden in verschachtelte Objekte aufgeloest.
+ *
  * @param fields Template-Metadaten-Felder
  * @returns Formatiertes Schema als String
  */
 function generateResponseSchemaFromFields(fields: TemplateMetadataField[]): string {
-  const schemaObj: Record<string, string> = {}
-  
+  const root: SchemaTree = {}
+
   for (const field of fields) {
     // Hardcodierte Felder (ohne {{}} Placeholder) NICHT ins LLM-Schema aufnehmen.
     // Diese haben description === '' und sind System-Parameter (z.B. detailViewType, docType
@@ -48,33 +120,10 @@ function generateResponseSchemaFromFields(fields: TemplateMetadataField[]): stri
 
     // Verwende variable als Key (oder key als Fallback)
     const key = field.variable || field.key
-    
-    // Bestimme Typ-Beschreibung basierend auf rawValue oder description
-    let typeDesc = 'string'
-    const raw = field.rawValue || ''
-    const desc = field.description || ''
-    
-    // Spezialtypen erkennen
-    if (raw.includes('[]') || desc.toLowerCase().includes('array')) {
-      typeDesc = 'string[]'
-    } else if (raw.includes('number') || desc.toLowerCase().includes('zahl') || desc.toLowerCase().includes('nummer')) {
-      typeDesc = 'number | null'
-    } else if (desc) {
-      // Beschreibung als Typ-Hinweis verwenden
-      // WICHTIG: Limit auf 200 Zeichen erhöht, damit präzise Enum-Werte und
-      // Formatvorgaben (z.B. "preisliste | produktdatenblatt | ...") nicht abgeschnitten werden.
-      // Das alte Limit von 60 Zeichen hat dazu geführt, dass der Secretary Service
-      // weniger präzise Feldbeschreibungen bekam als im Template formuliert.
-      const shortDesc = desc.length > 200 ? desc.substring(0, 197) + '...' : desc
-      typeDesc = `string (${shortDesc})`
-    }
-    
-    schemaObj[key] = typeDesc
+    setNestedSchemaLeaf(root, key, determineFieldType(field))
   }
-  
-  // Formatiere als lesbaren JSON-String
-  const lines = Object.entries(schemaObj).map(([key, type]) => `  "${key}": "${type}"`)
-  return `{\n${lines.join(',\n')}\n}`
+
+  return serializeSchemaTree(root, 0)
 }
 
 /**
