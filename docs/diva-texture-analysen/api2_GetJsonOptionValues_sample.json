@@ -1,0 +1,47 @@
+{
+    "Optionvalues": {
+        "OPV3_ST_2031_0477": {
+            "VCodex": "ST_2031-0477",
+            "Name": "Feincord thyme",
+            "Image": "https://www-dev.mycatalogcenter.com/files/33/9680c4a3-fc60-4541-8738-4859d9b24e9d/OPV_50171809-0d69-4247-8c71-adee44bcb98c.jpg",
+            "ImageIndex": "0",
+            "ImageHeight": "320",
+            "ImageWidht": "320",
+            "IsTexture": "True",
+            "RGB": "585A4E",
+            "UseMapping": "4",
+            "PFTFile": "3_ST_2031_0477",
+            "IsOPVG": "0",
+            "GroupName": "Feincord",
+            "TextureName": "3_ST_2031_0477",
+            "Material": "STOFF"
+        },
+        "OPVX_SF": {
+            "VCodex": "X-SF",
+            "Name": "Anschluss Stützfuß",
+            "IsTexture": "False",
+            "IsOPVG": "0"
+        },
+        "OPV999_PGYELDA": {
+            "VCodex": "PGYELDA",
+            "Name": "Preisgruppe Yelda",
+            "IsTexture": "False",
+            "IsOPVG": "0"
+        },
+        "OPV38_RH_82_88_SH_44": {
+            "VCodex": "RH 82-88 SH 44",
+            "Name": "Gesamthöhe 82-88 cm bei Sitzhöhe 44 cm",
+            "Image": "https://www-dev.mycatalogcenter.com/files/33/9680c4a3-fc60-4541-8738-4859d9b24e9d/OPV_610c907e-f89c-4659-bd06-c8fd27df3508.png",
+            "IsTexture": "False",
+            "IsOPVG": "0"
+        },
+        "OPV37_257": {
+            "VCodex": "257",
+            "Name": "257",
+            "IsTexture": "False",
+            "IsOPVG": "0",
+            "MeasureUnit": "cm",
+            "Value": "257"
+        }
+	}
+}
