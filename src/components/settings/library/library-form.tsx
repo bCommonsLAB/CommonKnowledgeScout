@@ -188,6 +188,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
           (activeLibrary.config?.transcription as "shadowTwin" | "db") ?? "shadowTwin",
         templateDirectory:
           (activeLibrary.config?.templateDirectory as string) ?? "/templates",
+        analyzeDivaTextureInfo: activeLibrary.config?.analyzeDivaTextureInfo === true,
         storageConfig,
       });
       const configShadowTwin = activeLibrary?.config?.shadowTwin as
@@ -409,6 +410,34 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                   </FormItem>
                 )}
               />
+
+              {/* Transformation: DIVA-Liefersystem-Daten auswerten */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  Transformation
+                </h3>
+                <FormField
+                  control={form.control}
+                  name="analyzeDivaTextureInfo"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">
+                          DIVA-Liefersystem-Daten auswerten
+                        </FormLabel>
+                        <FormDescription>
+                          Zeigt im Archiv-Detail einen Tab &quot;DIVA-Info&quot;, sobald eine
+                          Sidecar-Datei (api2_GetJsonOptionValues.json) im Texturverzeichnis liegt
+                          und ein Treffer fuer die Textur existiert.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               {/* Bibliothek aktivieren */}
               <FormField

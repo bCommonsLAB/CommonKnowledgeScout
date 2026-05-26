@@ -257,6 +257,15 @@ export interface StorageConfig {
   chat?: LibraryChatConfig;
 
   /**
+   * Transformation: DIVA-Liefersystem-Daten auswerten.
+   * Wenn true, erscheint im Archiv-File-Preview ein zusaetzlicher Tab
+   * "DIVA-Info", sobald eine Sidecar-Datei (api2_GetJsonOptionValues.json)
+   * im Texturverzeichnis liegt UND ein Match fuer die Textur existiert.
+   * Default: false.
+   */
+  analyzeDivaTextureInfo?: boolean;
+
+  /**
    * Doc-Translations-Konfiguration (Sprachen, in die publizierte Dokumente uebersetzt werden).
    * Vom globalen LanguageSwitcher konsumiert; Backend-Jobs erzeugen Uebersetzungen pro Locale.
    */
@@ -456,6 +465,8 @@ export interface ClientLibrary {
     };
     /** Chat-/RAG-Konfiguration für die UI */
     chat?: LibraryChatConfig;
+    /** Transformation: DIVA-Liefersystem-Daten auswerten (DIVA-Info-Tab). Default false. */
+    analyzeDivaTextureInfo?: boolean;
     /** Doc-Translations-Konfiguration (clientseitig sichtbar, weil reine Sprach-Praeferenzen) */
     translations?: TranslationsConfig;
     /** Creation-Flow-Konfiguration für die UI */

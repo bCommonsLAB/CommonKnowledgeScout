@@ -129,7 +129,7 @@ function PreviewContent({
   pipelineOpenerRef?: React.MutableRefObject<(() => void) | null>;
   onClearCacheBeforeReview?: () => void;
 }) {
-  const [infoTab, setInfoTab] = React.useState<"original" | "transcript" | "transform" | "story" | "overview">("original")
+  const [infoTab, setInfoTab] = React.useState<"original" | "transcript" | "transform" | "story" | "overview" | "diva-info">("original")
   const transcript = useResolvedTranscriptItem({
     provider,
     libraryId: activeLibraryId,

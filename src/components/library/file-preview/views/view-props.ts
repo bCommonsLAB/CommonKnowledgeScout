@@ -25,7 +25,7 @@ import type { ResolvedTranscriptItemResult } from '@/components/library/shared/u
 import type { CompositeWikiPreviewOptions } from '@/components/library/markdown-preview'
 
 /** Tab-Identitaet (siehe `PreviewContent.infoTab`-State). */
-export type PreviewInfoTab = 'original' | 'transcript' | 'transform' | 'story' | 'overview'
+export type PreviewInfoTab = 'original' | 'transcript' | 'transform' | 'story' | 'overview' | 'diva-info'
 
 /** Pipeline-Phasen-Trigger fuer "Jetzt erstellen"/"Neu generieren"/"Erneut publizieren". */
 export type PreviewPipelinePhase = 'transcript' | 'transform' | 'story'
