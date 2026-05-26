@@ -67,13 +67,17 @@ sofern keine Konflikte in `template-samples/Diva-Texture-Analysis.md`.
 
 **Aufgabe (deterministisch, kein LLM):**
 
+> **Stand: umgesetzt & gemergt (Stufe 1).** Dieser Brief wurde nach der
+> Umsetzung mit der Realität abgeglichen (Spec-Freshness). Korrigierte
+> Abweichungen sind unten inline markiert (~~durchgestrichen~~ → korrekt).
+
 1. **Library-Setting**: Feld `analyzeDivaTextureInfo: boolean` (default `false`) in der Library-Settings-Persistenz. Wahrscheinlich [src/components/settings/library/library-form.tsx](../../../src/components/settings/library/library-form.tsx) + zugehoeriges Schema/Type. Neuer UI-Abschnitt "Transformation" mit Toggle.
 2. **Sidecar-Loader**: `src/lib/diva-texture/load-supplier-data.ts` — laedt `api2_GetJsonOptionValues.json` aus dem Library-Verzeichnis (gleiche Ebene wie die Textur) ueber `StorageProvider`. Filtert `IsTexture === "True"`. Parsed in TypeScript-Interface `OptionvalueEntry`.
-3. **Matcher**: `src/lib/diva-texture/match-texture-code.ts` — heuristisch gegen `VCodex`, `PFTFile`, `TextureName` mit Normalisierung (Bindestrich/Unterstrich-Wechsel, Prefix-Strip `3_`, Suffix-Strip `_basecolor.jpg`). Returns `{ entry: OptionvalueEntry, strategy: string } | null`. **Pino-Logging aller Versuche** (auch Misses) fuer User-Verifikation.
-4. **API-Route**: `app/api/diva-texture/supplier-data/route.ts`, `GET /api/diva-texture/supplier-data?libraryId=X&filePath=Y`. Clerk-Auth, awaited params (Next.js 13+ Pattern), Response `{ matched: boolean, entry?: OptionvalueEntry, strategy?: string, attempts: MatchAttempt[] }`.
-5. **DIVA-Info-Tab in file-preview.tsx**:
-   - Tab-Union erweitern in [src/components/library/file-preview.tsx](../../../src/components/library/file-preview.tsx) — Achtung: Welle 3-II hat hier viel umgebaut, neue Sub-Module pruefen.
-   - Tab sichtbar nur wenn `library.settings.analyzeDivaTextureInfo === true` UND API-Response `matched === true`.
+3. **Matcher**: `src/lib/diva-texture/match-texture-code.ts` — heuristisch gegen `VCodex`, `PFTFile`, `TextureName` mit Normalisierung (Bindestrich/Unterstrich-Wechsel, Prefix-Strip `3_`, Suffix-Strip `_basecolor.jpg`). Returns `{ entry: OptionvalueEntry, strategy: string } | null`. **Logging aller Versuche** (auch Misses) fuer User-Verifikation — ~~Pino~~ → **`FileLogger`** (`src/lib/debug/logger.ts`); Repo hat kein Pino als Dependency.
+4. **API-Route**: `app/api/diva-texture/supplier-data/route.ts`, `GET /api/diva-texture/supplier-data?libraryId=X&fileId=Y` (~~filePath~~ → **`fileId`**: Storage-Abstraktion ist id-basiert). Clerk-Auth, awaited params (Next.js 13+ Pattern), Response `{ matched: boolean, entry?: OptionvalueEntry, materialId?: string, strategy?: string, attempts: MatchAttempt[] }`. Siehe [api-route-conventions.md](../../architecture/api-route-conventions.md).
+5. **DIVA-Info-Tab** (~~in `file-preview.tsx`~~ → **in `image-view.tsx`**):
+   - Welle 3-II hat die Tabs aus `file-preview.tsx` in die View-Module verlagert. Der Tab wird im jeweiligen View gerendert (Bilder → [src/components/library/file-preview/views/image-view.tsx](../../../src/components/library/file-preview/views/image-view.tsx)); die `PreviewInfoTab`-Union liegt in `views/view-props.ts`. Architektur: [file-preview-tab-architecture.md](../../architecture/file-preview-tab-architecture.md).
+   - Tab sichtbar nur wenn `library.config.analyzeDivaTextureInfo === true` UND API-Response `matched === true`.
    - Tab-Label: "DIVA-Info".
 6. **View-Komponente**: `src/components/library/file-preview/views/diva-supplier-data-view.tsx`:
    - Linke Spalte: Basecolor-Bild vom Filesystem (das gerade gewaehlt ist).
@@ -81,7 +85,7 @@ sofern keine Konflikte in `template-samples/Diva-Texture-Analysis.md`.
    - Darunter: Metadaten-Tabelle (Feld → Wert: Name, GroupName, Material, VCodex, PFTFile, RGB als Color-Swatch).
    - Radio-Buttons "Quellbild fuer Analyse: [ basecolor | supplier-preview ]". Default basecolor.
    - Match-Strategie als kleine Info-Badge oben.
-7. **Persistenz Bildwahl**: Auswahl in das Material-Frontmatter schreiben — Feld `analysisSourceImage: "basecolor" | "supplier-preview"`. Edge-Case #18: an stabile Material-ID/Slug binden, nicht an `filePath`.
+7. **Persistenz Bildwahl**: ~~ins Material-Frontmatter~~ → in den **generischen Archiv-Property-Store** (MongoDB, `archive_item_properties__<libraryId>`, Route `/api/library/[libraryId]/archive-item-properties`) — Feld `analysisSourceImage: "basecolor" | "supplier-preview"`. Edge-Case #18: an die stabile Material-ID (`VCodex`) gebunden, nicht an `filePath`. Repo-Muster: [mongodb-repository-pattern.md](../../architecture/mongodb-repository-pattern.md).
 
 **Akzeptanzkriterien:**
 - Library-Settings: Toggle setzbar, persistiert.
@@ -94,7 +98,7 @@ sofern keine Konflikte in `template-samples/Diva-Texture-Analysis.md`.
 **Stop-Bedingungen (zusaetzlich zu AGENTS.md):**
 - Sidecar-Datei fehlt im Sample-Library — Pre-Flight-Hinweis an User.
 - StorageProvider hat keinen Read-Sidecar-Endpoint — Klaerung mit User vor Workaround.
-- Welle 3-II-Aenderungen am file-preview.tsx machen Tab-Einbau riskant — Pause + Status-Report.
+- ~~Welle 3-II-Aenderungen am file-preview.tsx machen Tab-Einbau riskant — Pause + Status-Report.~~ (Stufe 1 erledigt: Tab sitzt in `image-view.tsx`, s. Punkt 5.)
 
 **Hand-off:** Naechste Stufe ist **Stufe 2** (Template-Refactor). Kann nach Stufe-1-Merge parallel starten, sofern keine Datei-Konflikte erwartet.
 
