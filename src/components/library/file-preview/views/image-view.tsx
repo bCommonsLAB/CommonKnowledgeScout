@@ -28,6 +28,8 @@ import {
 } from '@/components/library/file-preview/artifact-tab-label'
 import { JobProgressBar } from '@/components/library/file-preview/job-progress-bar'
 import { JobReportTabWithShadowTwin } from '@/components/library/file-preview/job-report-tab-with-shadow-twin'
+import { useDivaSupplierData } from '@/components/library/file-preview/use-diva-supplier-data'
+import { DivaSupplierDataView } from './diva-supplier-data-view'
 import type { PreviewViewProps } from './view-props'
 
 export function ImageView(props: PreviewViewProps) {
@@ -75,6 +77,18 @@ export function ImageView(props: PreviewViewProps) {
     mimeType: item.metadata.mimeType,
   })
 
+  // DIVA-Info: nur laden, wenn das Library-Flag gesetzt ist. Der Tab erscheint
+  // nur bei einem Sidecar-Treffer (Plan Phase A/B).
+  const divaEnabled = activeLibrary?.config?.analyzeDivaTextureInfo === true
+  const diva = useDivaSupplierData({
+    enabled: divaEnabled,
+    libraryId: activeLibraryId,
+    fileId: item.id,
+  })
+  const divaEntry = diva.data?.entry
+  const divaMaterialId = diva.data?.materialId
+  const showDivaTab = divaEnabled && diva.matched && !!divaEntry && !!divaMaterialId
+
   if (!provider) {
     return <div className="text-sm text-muted-foreground">Kein Provider verfuegbar.</div>
   }
@@ -110,6 +124,7 @@ export function ImageView(props: PreviewViewProps) {
             <ArtifactTabLabel label="Story" icon={Upload} state={imgPublishStep?.state || null} />
           </TabsTrigger>
           <TabsTrigger value="overview">Uebersicht</TabsTrigger>
+          {showDivaTab ? <TabsTrigger value="diva-info">DIVA-Info</TabsTrigger> : null}
         </TabsList>
 
         <TabsContent value="original" className="min-h-0 flex-1 overflow-hidden p-3">
@@ -229,6 +244,21 @@ export function ImageView(props: PreviewViewProps) {
             </div>
           ) : null}
         </TabsContent>
+
+        {showDivaTab && divaEntry && divaMaterialId ? (
+          <TabsContent value="diva-info" className="min-h-0 flex-1 overflow-auto p-3">
+            {infoTab === 'diva-info' ? (
+              <DivaSupplierDataView
+                provider={provider}
+                activeLibraryId={activeLibraryId}
+                item={item}
+                entry={divaEntry}
+                materialId={divaMaterialId}
+                strategy={diva.data?.strategy}
+              />
+            ) : null}
+          </TabsContent>
+        ) : null}
       </Tabs>
       <PipelineSheet
         isOpen={isPipelineOpen}
