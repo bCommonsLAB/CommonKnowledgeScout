@@ -412,6 +412,8 @@ export class LibraryService {
         shadowTwin: lib.config?.shadowTwin,
         // Chat-/Galerie-Settings sind sicher und werden an den Client geliefert
         chat: lib.config?.chat,
+        // Transformation: DIVA-Liefersystem-Auswertung (Feature-Flag, kein Secret)
+        analyzeDivaTextureInfo: lib.config?.analyzeDivaTextureInfo === true,
         // Doc-Translations Refactor: Sprach-Konfiguration ist clientseitig sichtbar
         // (reine Sprach-Praeferenzen, kein Secret) und wird im LanguageSwitcher und
         // in der Galerie-Tabelle (Spalte „Sprachen") konsumiert.

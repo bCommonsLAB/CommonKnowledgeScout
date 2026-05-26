@@ -37,6 +37,8 @@ export const libraryFormSchema = z.object({
     required_error: "Bitte wählen Sie eine Transkriptionsstrategie.",
   }),
   templateDirectory: z.string().default("/templates"),
+  // Transformation: DIVA-Liefersystem-Daten auswerten (DIVA-Info-Tab). Default false.
+  analyzeDivaTextureInfo: z.boolean().default(false),
   storageConfig: z.object({
     basePath: z.string().optional(),
     clientId: z.string().optional(),
@@ -192,6 +194,7 @@ export function useLibraryForm(createNew: boolean) {
       isEnabled: true,
       transcription: "shadowTwin",
       templateDirectory: "/templates",
+      analyzeDivaTextureInfo: false,
       storageConfig: {
         basePath: "",
         clientId: "",
@@ -299,6 +302,7 @@ export function useLibraryForm(createNew: boolean) {
           (activeLibrary.config?.transcription as "shadowTwin" | "db") ?? "shadowTwin",
         templateDirectory:
           (activeLibrary.config?.templateDirectory as string) ?? "/templates",
+        analyzeDivaTextureInfo: activeLibrary.config?.analyzeDivaTextureInfo === true,
         storageConfig,
       });
     } else if (libraries.length > 0) {
@@ -325,6 +329,7 @@ export function useLibraryForm(createNew: boolean) {
           (activeLibrary.config?.transcription as "shadowTwin" | "db") ?? "shadowTwin",
         templateDirectory:
           (activeLibrary.config?.templateDirectory as string) ?? "/templates",
+        analyzeDivaTextureInfo: activeLibrary.config?.analyzeDivaTextureInfo === true,
         storageConfig,
       });
     }
@@ -401,6 +406,7 @@ export function useLibraryForm(createNew: boolean) {
             description: data.description,
             transcription: data.transcription,
             templateDirectory: data.templateDirectory,
+            analyzeDivaTextureInfo: data.analyzeDivaTextureInfo,
             shadowTwin: {
               mode: shadowTwinMode,
               primaryStore: shadowTwinPrimaryStore,
@@ -575,6 +581,7 @@ export function useLibraryForm(createNew: boolean) {
           isEnabled: importedLibrary.isEnabled as boolean,
           transcription: (importedLibrary.transcription as "shadowTwin" | "db") ?? "shadowTwin",
           templateDirectory: ((importedLibrary as { config?: Record<string, unknown> }).config?.templateDirectory as string) ?? "/templates",
+          analyzeDivaTextureInfo: ((importedLibrary as { config?: Record<string, unknown> }).config?.analyzeDivaTextureInfo as boolean) === true,
           storageConfig,
         });
 
