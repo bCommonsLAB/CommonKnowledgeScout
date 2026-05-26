@@ -1,0 +1,42 @@
+---
+description: Checkliste zum Hinzufuegen eines neuen Per-Library-Config-Felds (Typ -> ClientLibrary -> Form)
+globs: src/types/library.ts,src/lib/services/library-service.ts,src/components/settings/library/**/*.ts,src/components/settings/library/**/*.tsx
+alwaysApply: false
+---
+
+# Per-Library-Config-Feld hinzufuegen
+
+Ein neues Konfigurationsfeld pro Library beruehrt **fuenf** Stellen. Wird eine
+vergessen, geht der Wert beim Laden/Speichern/Resetten verloren. Reihenfolge:
+
+1. **Typen** — `src/types/library.ts`:
+   - Feld in `StorageConfig` (server-seitige Persistenz).
+   - Feld in `ClientLibrary.config` (nur wenn der Client es sehen darf — **keine
+     Secrets**).
+
+2. **Server → Client-Mapping** — `toClientLibraries()` in
+   `src/lib/services/library-service.ts` (`baseConfig`):
+   - Feld aus `lib.config?.<feld>` in die `ClientLibrary`-Config uebernehmen.
+   - Default explizit setzen (z. B. `=== true` fuer Booleans).
+
+3. **Form-Schema + Defaults** — `src/components/settings/library/hooks/use-library-form.ts`:
+   - Feld in `libraryFormSchema` (Zod) mit Default.
+   - Feld in `defaultValues`.
+
+4. **ALLE `form.reset(...)`-Call-Sites** (leicht zu uebersehen):
+   - in `use-library-form.ts`: `handleCancelNew`, der Populate-`useEffect`,
+     `handleImportLibrary`.
+   - in `library-form.tsx`: `handleReset`.
+   - Jede dieser Stellen muss das Feld aus `activeLibrary.config?.<feld>` lesen,
+     sonst springt es beim Reset auf `undefined`.
+
+5. **Submit** — `onSubmit` in `use-library-form.ts`: Feld in das `config`-Objekt
+   aufnehmen, das gespeichert wird.
+
+6. **UI**: `FormField` im passenden Abschnitt von `library-form.tsx`.
+
+## Referenz-Diff
+
+Das Feld `analyzeDivaTextureInfo` (DIVA-Texture-Welle) wurde exakt nach dieser
+Checkliste eingefuehrt — als Vorlage nutzbar (Suche nach `analyzeDivaTextureInfo`
+in den oben genannten Dateien).
