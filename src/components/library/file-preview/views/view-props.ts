@@ -24,7 +24,13 @@ import type { LlmModelOption, PipelinePolicies, CoverImageOptions } from '@/comp
 import type { ResolvedTranscriptItemResult } from '@/components/library/shared/use-resolved-transcript-item'
 import type { CompositeWikiPreviewOptions } from '@/components/library/markdown-preview'
 
-/** Tab-Identitaet (siehe `PreviewContent.infoTab`-State). */
+/**
+ * Tab-Identitaet (siehe `PreviewContent.infoTab`-State).
+ *
+ * Architektur + Anleitung „neuen Tab hinzufuegen": Tabs werden in den
+ * View-Komponenten (`*-view.tsx`) gerendert, NICHT in `file-preview.tsx`.
+ * Details: `docs/architecture/file-preview-tab-architecture.md`.
+ */
 export type PreviewInfoTab = 'original' | 'transcript' | 'transform' | 'story' | 'overview' | 'diva-info'
 
 /** Pipeline-Phasen-Trigger fuer "Jetzt erstellen"/"Neu generieren"/"Erneut publizieren". */

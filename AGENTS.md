@@ -31,6 +31,13 @@ Detaillierte Begruendungen + Beispiele:
 - Pipeline-Aenderungen muessen die Contracts in
   [`contracts-story-pipeline.mdc`](.cursor/rules/contracts-story-pipeline.mdc) einhalten
 
+## Querschnitt-Konventionen (vor Reverse-Engineering lesen)
+
+- MongoDB-Repos: [`mongodb-repository-pattern.md`](docs/architecture/mongodb-repository-pattern.md)
+- API-Routes: [`api-route-conventions.md`](docs/architecture/api-route-conventions.md)
+- File-Preview-Tabs: [`file-preview-tab-architecture.md`](docs/architecture/file-preview-tab-architecture.md)
+- Neues Per-Library-Config-Feld: [`library-config-field.mdc`](.cursor/rules/library-config-field.mdc)
+
 ## Test- und Lint-Commands (Kurz)
 
 **Im Cloud-Agent (Pflicht):** `pnpm test` + `pnpm lint`. Kein
