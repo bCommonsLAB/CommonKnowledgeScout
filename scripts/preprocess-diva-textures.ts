@@ -45,10 +45,17 @@ interface FolderResult {
   folderId: string
   matched: number
   unmatchedFiles: string[]
-  unmatchedEntries: number
+  /** Sidecar-Eintraege ohne Datei: "VCodex — Name" (Diagnose ausgelistet vs. Miss). */
+  unmatchedEntryLabels: string[]
   basecolorFiles: number
   /** Stoffgruppen-Verteilung der Treffer (GroupName → Anzahl). */
   groups: AttributeTally[]
+}
+
+/** Kuerzt lange Namenslisten fuer die Konsolen-Legende. */
+function preview(values: string[], max: number): string {
+  if (values.length <= max) return values.join(', ')
+  return `${values.slice(0, max).join(', ')} … und ${values.length - max} weitere`
 }
 
 /** Verarbeitet genau einen Ordner (sofern eine Sidecar vorhanden ist). */
@@ -83,7 +90,9 @@ async function processFolder(
     folderId,
     matched: plan.matches.length,
     unmatchedFiles: plan.unmatchedFiles.map((f) => f.name),
-    unmatchedEntries: plan.unmatchedEntries.length,
+    unmatchedEntryLabels: plan.unmatchedEntries.map(
+      (e) => `${e.entry.VCodex} — ${e.entry.Name ?? e.entry.GroupName ?? '?'}`,
+    ),
     basecolorFiles: plan.basecolorFileCount,
     groups: tallyMatchesByAttribute(plan.matches, 'GroupName'),
   }
@@ -129,24 +138,24 @@ async function run(options: Options): Promise<void> {
 
   let totalMatched = 0
   let totalUnmatchedFiles = 0
-  let totalUnmatchedEntries = 0
+  const allUnmatchedEntryLabels: string[] = []
   const globalGroups = new Map<string, number>()
   for (const r of results) {
     totalMatched += r.matched
     totalUnmatchedFiles += r.unmatchedFiles.length
-    totalUnmatchedEntries += r.unmatchedEntries
+    allUnmatchedEntryLabels.push(...r.unmatchedEntryLabels)
     for (const g of r.groups) globalGroups.set(g.value, (globalGroups.get(g.value) ?? 0) + g.count)
     console.log(`📁 ${r.folderId}`)
-    console.log(`   Basecolor-Dateien: ${r.basecolorFiles} · gematcht: ${r.matched} · ohne Treffer: ${r.unmatchedFiles.length} · Sidecar-Eintraege ohne Datei: ${r.unmatchedEntries}`)
+    console.log(`   Basecolor-Dateien: ${r.basecolorFiles} · gematcht: ${r.matched} · ohne Treffer: ${r.unmatchedFiles.length} · Sidecar-Eintraege ohne Datei: ${r.unmatchedEntryLabels.length}`)
     if (r.unmatchedFiles.length > 0) {
-      console.log(`   ⚠ Basecolor ohne DIVA-Info: ${r.unmatchedFiles.join(', ')}`)
+      console.log(`   ⚠ Basecolor ohne DIVA-Info: ${preview(r.unmatchedFiles, 15)}`)
     }
   }
 
   console.log('\n=== Summe ===')
   console.log(`Gematcht (mit DIVA-Info): ${totalMatched}`)
   console.log(`Basecolor ohne DIVA-Info: ${totalUnmatchedFiles}`)
-  console.log(`Sidecar-Eintraege ohne Datei (ausgelistet?): ${totalUnmatchedEntries}`)
+  console.log(`Sidecar-Eintraege ohne Datei (ausgelistet?): ${allUnmatchedEntryLabels.length}`)
 
   // Stoffgruppen-Verteilung (primaerer Gruppen-Key fuer die spaetere Ansicht).
   const sortedGroups = Array.from(globalGroups.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
@@ -154,6 +163,17 @@ async function run(options: Options): Promise<void> {
     console.log('\n=== Stoffgruppen-Verteilung (gematcht) ===')
     for (const [group, count] of sortedGroups) {
       console.log(`   ${group}: ${count}`)
+    }
+  }
+
+  // Diagnose: welche Sidecar-Eintraege fanden KEINE Datei (ausgelistet vs. Miss)?
+  if (allUnmatchedEntryLabels.length > 0) {
+    console.log('\n=== Sidecar-Eintraege ohne Datei (Diagnose) ===')
+    for (const label of allUnmatchedEntryLabels.slice(0, 60)) {
+      console.log(`   ${label}`)
+    }
+    if (allUnmatchedEntryLabels.length > 60) {
+      console.log(`   … und ${allUnmatchedEntryLabels.length - 60} weitere`)
     }
   }
 
