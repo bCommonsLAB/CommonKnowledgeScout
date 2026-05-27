@@ -30,6 +30,12 @@ Detaillierte Begruendungen + Beispiele:
 - TypeScript-Strict-Mode bleibt aktiv, `unknown` + Type-Guard statt `any`
 - Pipeline-Aenderungen muessen die Contracts in
   [`contracts-story-pipeline.mdc`](.cursor/rules/contracts-story-pipeline.mdc) einhalten
+- **Frontmatter-Format**: Template-/Material-Frontmatter ist FLACH und
+  Obsidian-kompatibel — `snake_case`-Keys auf EINER Ebene, KEINE Dot-Notation
+  (`a.b:`) und KEINE verschachtelten YAML-Objekte. Verschachtelte Datenmodelle
+  (z.B. ein Digital-Twin-Objekt) entstehen erst downstream (MongoDB), nicht im
+  Frontmatter/Template. Gilt rueckwirkend: bestehende nested Frontmatter sind
+  zu vermeiden, nicht zu erweitern.
 
 ## Querschnitt-Konventionen (vor Reverse-Engineering lesen)
 
