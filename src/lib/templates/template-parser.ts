@@ -137,10 +137,7 @@ function parseFrontmatterFields(frontmatter: string): TemplateMetadataField[] {
     if (!trimmed) continue
     
     // Suche nach Felddefinitionen mit Variable-Token: `key: {{variable|description}}`
-    // Punkte im Key sind erlaubt (Dot-Notation fuer verschachtelte Felder,
-    // z.B. `dominantColor.hex`, `visualProperties.surfaceFinish`). Der
-    // Schema-Generator loest die Dot-Notation in verschachtelte Objekte auf.
-    const fieldMatch = line.match(/^([\w.]+):\s*(.+)$/)
+    const fieldMatch = line.match(/^(\w+):\s*(.+)$/)
     if (!fieldMatch) continue
     
     const key = fieldMatch[1].trim()
