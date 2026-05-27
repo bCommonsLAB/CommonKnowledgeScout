@@ -59,6 +59,28 @@ export async function getArchiveItemProperties(
 }
 
 /**
+ * Findet alle Item-Property-Dokumente, deren `properties` ALLE angegebenen
+ * Schluessel/Werte enthalten (exakter Gleichheits-Match je Feld).
+ *
+ * Generisch gehalten — erste Nutzung: DIVA-Texturen eines Ordners
+ * (`{ divaTexture: true, divaTextureParentId: <folderId> }`).
+ *
+ * @param libraryId Library-ID.
+ * @param propertiesMatch Zu matchende Property-Schluessel/Werte.
+ */
+export async function findArchiveItemsByProperties(
+  libraryId: string,
+  propertiesMatch: Record<string, unknown>,
+): Promise<ArchiveItemPropertiesDocument[]> {
+  const col = await getCol(libraryId)
+  const query: Record<string, unknown> = { libraryId }
+  for (const [key, value] of Object.entries(propertiesMatch)) {
+    query[`properties.${key}`] = value
+  }
+  return col.find(query).toArray()
+}
+
+/**
  * Merged die uebergebenen Properties in das bestehende Dokument (Upsert) und
  * gibt den vollstaendigen Property-Satz nach dem Merge zurueck.
  */
