@@ -10,21 +10,25 @@ import {
   Layers,
   ImagePlus,
   Combine,
+  Search,
+  X,
 } from "lucide-react"
 import { StorageItem } from "@/lib/storage/types"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useStorage } from "@/contexts/storage-context";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useAtomValue, useAtom } from 'jotai';
-import { 
+import {
   activeLibraryIdAtom,
   activeLibraryAtom,
-  selectedFileAtom, 
+  selectedFileAtom,
   folderItemsAtom,
   sortedFilteredFilesAtom,
   sortFieldAtom,
   sortOrderAtom,
+  searchTermAtom,
   selectedShadowTwinAtom,
   currentFolderIdAtom
 } from '@/atoms/library-atom';
@@ -103,6 +107,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   const [activeFile, setSelectedFile] = useAtom(selectedFileAtom);
   const [, setFolderItems] = useAtom(folderItemsAtom);
   const currentCategoryFilter = useAtomValue(fileCategoryFilterAtom);
+  const [searchTerm, setSearchTerm] = useAtom(searchTermAtom);
   const allItemsInFolder = useAtomValue(folderItemsAtom);
   const currentFolderId = useAtomValue(currentFolderIdAtom);
   const navigateToFolder = useFolderNavigation();
@@ -1253,6 +1258,31 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
 
             {/* Dateikategorie-Filter (Icon-only Variante) */}
             <FileCategoryFilter iconOnly />
+
+            {/* Dateiname-Suche (filtert ueber searchTermAtom -> sortedFilteredFilesAtom). */}
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Dateien filtern (z. B. basecolor)"
+                aria-label="Dateien nach Name filtern"
+                className="h-8 w-44 pl-7 pr-7 text-xs"
+              />
+              {searchTerm !== '' && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0.5 top-1/2 h-6 w-6 -translate-y-1/2"
+                  onClick={() => setSearchTerm('')}
+                  title="Suche zuruecksetzen"
+                  aria-label="Suche zuruecksetzen"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
 
             {/* Batch-Actions: Sammel-Transkript / Löschen (Ingest nur noch über Vorschau/Pipeline/Wizard) */}
             {/* Sammel-Transkript: sichtbar wenn ≥2 Dateien insgesamt ausgewählt */}
