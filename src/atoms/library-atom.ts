@@ -297,6 +297,11 @@ itemAnnotationsStatusAtom.debugLabel = "itemAnnotationsStatusAtom"
 export const annotationFilterModeAtom = atom<AnnotationFilterMode>('all')
 annotationFilterModeAtom.debugLabel = "annotationFilterModeAtom"
 
+// Gruppierung der Dateiliste nach einem Annotation-Attribut (z.B. 'stoffgruppe').
+// null = keine Gruppierung. Generisch: jeder String-Attribut-Key ist moeglich.
+export const groupByAttributeAtom = atom<string | null>(null)
+groupByAttributeAtom.debugLabel = "groupByAttributeAtom"
+
 // Sortiert & gefiltert (nur Dateien)
 export const sortedFilteredFilesAtom = atom((get) => {
   const files = get(filesOnlyAtom)
