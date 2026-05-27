@@ -39,6 +39,8 @@ import {
 import { useMemo, useCallback } from "react"
 import { FileLogger, StateLogger } from "@/lib/debug/logger"
 import { FileCategoryFilter } from './file-category-filter';
+import { DivaInfoFilter } from './diva-info-filter';
+import { useItemAnnotations } from "@/hooks/use-item-annotations";
 import { useFolderNavigation } from "@/hooks/use-folder-navigation";
 import { useShadowTwinAnalysis } from "@/hooks/use-shadow-twin-analysis";
 import { shadowTwinAnalysisTriggerAtom, shadowTwinStateAtom } from "@/atoms/shadow-twin-atom";
@@ -106,6 +108,9 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   const allItemsInFolder = useAtomValue(folderItemsAtom);
   const currentFolderId = useAtomValue(currentFolderIdAtom);
   const navigateToFolder = useFolderNavigation();
+  // DIVA-Info-Filter: nur bei aktivierter Library-Option; laedt Annotationen des Ordners.
+  const divaEnabled = activeLibrary?.config?.analyzeDivaTextureInfo === true;
+  useItemAnnotations();
   const listContainerRef = React.useRef<HTMLDivElement | null>(null);
   
   // Prüfe, ob eine folderId in der URL steht
@@ -1253,6 +1258,9 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
 
             {/* Dateikategorie-Filter (Icon-only Variante) */}
             <FileCategoryFilter iconOnly />
+
+            {/* DIVA-Info-Filter: alle / nur mit / nur ohne (nur bei aktivierter Option) */}
+            {divaEnabled && <DivaInfoFilter />}
 
             {/* Batch-Actions: Sammel-Transkript / Löschen (Ingest nur noch über Vorschau/Pipeline/Wizard) */}
             {/* Sammel-Transkript: sichtbar wenn ≥2 Dateien insgesamt ausgewählt */}

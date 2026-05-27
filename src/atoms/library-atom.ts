@@ -277,27 +277,56 @@ export const filesOnlyAtom = atom((get) => {
   return items.filter(item => item.type === 'file')
 })
 
+// ── Generische Item-Annotationen (annotieren -> filtern -> gruppieren) ──────
+// Quelle: GET /api/library/[id]/item-annotations (MongoDB, storage-unabhaengig).
+// Keyed nach Dateiname (stabil innerhalb eines Ordners). DIVA ist der erste
+// Annotator; die Mechanik bleibt attribut-agnostisch.
+
+export type AnnotationFilterMode = 'all' | 'with' | 'without'
+export type AnnotationsStatus = 'idle' | 'loading' | 'loaded' | 'error'
+
+// Attribut-Bag je Datei (z.B. { divaTexture: true, stoffgruppe: 'Feincord', ... }).
+export const itemAnnotationsAtom = atom<Map<string, Record<string, unknown>>>(new Map())
+itemAnnotationsAtom.debugLabel = "itemAnnotationsAtom"
+
+// Ladezustand der Annotationen (fuer UI: Spinner / Fehlerhinweis, kein stiller Fallback).
+export const itemAnnotationsStatusAtom = atom<AnnotationsStatus>('idle')
+itemAnnotationsStatusAtom.debugLabel = "itemAnnotationsStatusAtom"
+
+// 3-Wege-Filter: alle / nur mit Annotation / nur ohne.
+export const annotationFilterModeAtom = atom<AnnotationFilterMode>('all')
+annotationFilterModeAtom.debugLabel = "annotationFilterModeAtom"
+
 // Sortiert & gefiltert (nur Dateien)
 export const sortedFilteredFilesAtom = atom((get) => {
   const files = get(filesOnlyAtom)
   const searchTerm = get(searchTermAtom).toLowerCase()
   const sortField = get(sortFieldAtom)
   const sortOrder = get(sortOrderAtom)
-  
+
   // Importiere die Filter-Funktionen
   const categoryFilter = get(fileCategoryFilterAtom)
+  const annotationFilter = get(annotationFilterModeAtom)
+  const annotations = get(itemAnnotationsAtom)
 
   let filtered = files.filter(item => {
     // Basis-Filter
     const basicFilter = !item.metadata.name.startsWith('.') &&
       !item.metadata.isTwin &&
       (searchTerm === '' || item.metadata.name.toLowerCase().includes(searchTerm))
-    
+
     if (!basicFilter) return false
-    
+
+    // Annotation-Filter (mit/ohne DIVA-Info): Annotation existiert pro Dateiname.
+    if (annotationFilter !== 'all') {
+      const hasAnnotation = annotations.has(item.metadata.name)
+      if (annotationFilter === 'with' && !hasAnnotation) return false
+      if (annotationFilter === 'without' && hasAnnotation) return false
+    }
+
     // Kategorie-Filter
     if (categoryFilter === 'all') return true
-    
+
     const itemCategory = getFileCategory(item)
     return itemCategory === categoryFilter
   })
