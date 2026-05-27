@@ -157,8 +157,12 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
       console.log(`[FileList Performance] Shadow-Twin-Analyse gestartet für ${allItemsInFolder.length} Dateien`);
     }
   }, [allItemsInFolder, allItemsInFolder?.length]);
-  
-  useShadowTwinAnalysis(allItemsInFolder ?? [], provider, shadowTwinAnalysisTrigger);
+
+  // Shadow-Twin-Analyse nur fuer die ANGEZEIGTEN (gefilterten) Dateien statt fuer
+  // alle Ordner-Items. In der "Mit DIVA-Info"-Ansicht reduziert das den Bulk-Resolve
+  // drastisch (z.B. 169 statt 5800); in "Alle" unveraendert.
+  const items = useAtomValue(sortedFilteredFilesAtom);
+  useShadowTwinAnalysis(items, provider, shadowTwinAnalysisTrigger);
   const shadowTwinStates = useAtomValue(shadowTwinStateAtom);
   
   // Performance-Messung: Shadow-Twin-Analyse Ende
@@ -173,7 +177,6 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   // Kein mobiles Flag mehr notwendig
 
   // Sortier-Atome VOR folders definieren, da folders diese referenziert
-  const items = useAtomValue(sortedFilteredFilesAtom);
   const [sortField, setSortField] = useAtom(sortFieldAtom);
   const [sortOrder, setSortOrder] = useAtom(sortOrderAtom);
 
