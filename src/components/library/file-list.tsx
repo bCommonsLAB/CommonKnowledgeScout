@@ -401,6 +401,31 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     return rows;
   }, [fileGroupsWithShadowTwinFolders, groupByAttribute, itemAnnotations, collapsedGroups]);
 
+  // Progressives Rendern (Windowing): nicht alle (>5000) Zeilen auf einmal in den
+  // DOM, sondern seitenweise nachladen, sobald der Sentinel in Sichtweite kommt.
+  // Loest den initialen Render-Stau; greift unabhaengig vom Storage-Backend.
+  const ROWS_PAGE_SIZE = 150;
+  const [visibleRowCount, setVisibleRowCount] = React.useState(ROWS_PAGE_SIZE);
+  const loadMoreSentinelRef = React.useRef<HTMLDivElement | null>(null);
+  // Bei Ordnerwechsel zuruecksetzen (sonst bliebe ein grosses Fenster bestehen).
+  React.useEffect(() => { setVisibleRowCount(ROWS_PAGE_SIZE); }, [currentFolderId]);
+  React.useEffect(() => {
+    const el = loadMoreSentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleRowCount((count) => Math.min(count + ROWS_PAGE_SIZE, listRows.length));
+        }
+      },
+      { root: listContainerRef.current, rootMargin: '600px' },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [listRows.length]);
+
+  const visibleRows = React.useMemo(() => listRows.slice(0, visibleRowCount), [listRows, visibleRowCount]);
+
   // Navigationsliste: nur Hauptdateien in der aktuell sichtbaren Reihenfolge
   const mainFileItems = React.useMemo(() => {
     return Array.from((fileGroupsWithShadowTwinFolders ?? new Map()).values())
@@ -1478,9 +1503,9 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
             </div>
           )}
 
-          {/* File Rows (optional nach Attribut gruppiert) */}
+          {/* File Rows (optional nach Attribut gruppiert, progressiv gerendert) */}
           <div className="divide-y">
-            {listRows.map((row) => {
+            {visibleRows.map((row) => {
               if (row.kind === 'group') {
                 const collapsed = collapsedGroups.has(row.key);
                 return (
@@ -1514,6 +1539,10 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
               );
             })}
           </div>
+          {/* Sentinel: laedt die naechste Zeilen-Seite, sobald er in Sichtweite kommt. */}
+          {visibleRowCount < listRows.length && (
+            <div ref={loadMoreSentinelRef} className="h-2 w-full" aria-hidden="true" />
+          )}
         </div>
       </div>
 
