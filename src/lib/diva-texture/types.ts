@@ -73,6 +73,10 @@ export type AnalysisSourceImage = 'basecolor' | 'supplier-preview'
 /** Antwortschema der API-Route GET /api/diva-texture/supplier-data. */
 export interface SupplierDataApiResponse {
   matched: boolean
+  /** Sidecar-Datei im Texturverzeichnis gefunden (unabhaengig vom Match). */
+  sidecarFound: boolean
+  /** Anzahl IsTexture==="True"-Eintraege in der Sidecar (nur wenn sidecarFound). */
+  entryCount?: number
   entry?: OptionvalueEntry
   /** Stabile Material-ID (= VCodex des Treffers); Bindung der Bildwahl. */
   materialId?: string

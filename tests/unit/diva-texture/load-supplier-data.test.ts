@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { loadSupplierData, SIDECAR_FILENAME } from '@/lib/diva-texture/load-supplier-data'
+import { loadSupplierData, resolveTextureDirectoryId, SIDECAR_FILENAME } from '@/lib/diva-texture/load-supplier-data'
 import type { StorageItem, StorageProvider } from '@/lib/storage/types'
 
 function makeFile(id: string, name: string): StorageItem {
@@ -18,6 +18,11 @@ function makeFile(id: string, name: string): StorageItem {
 function makeProvider(items: StorageItem[], sidecarJson: string): StorageProvider {
   const provider: Partial<StorageProvider> = {
     listItemsById: async () => items,
+    getItemById: async (id: string) => {
+      const found = items.find((it) => it.id === id)
+      if (!found) throw new Error(`Item ${id} nicht gefunden`)
+      return found
+    },
     getBinary: async () => ({ blob: new Blob([sidecarJson]), mimeType: 'application/json' }),
   }
   return provider as StorageProvider
@@ -52,5 +57,25 @@ describe('loadSupplierData', () => {
     const items = [makeFile('2', SIDECAR_FILENAME)]
     const provider = makeProvider(items, JSON.stringify({ foo: 'bar' }))
     await expect(loadSupplierData(provider, 'folder')).rejects.toThrow(/Optionvalues/)
+  })
+})
+
+describe('resolveTextureDirectoryId', () => {
+  it('liefert parentId der Textur-Datei (Sidecar-Suche im selben Verzeichnis)', async () => {
+    const texture = makeFile('tex-1', '3_ST_1_basecolor.jpg')
+    const provider = makeProvider([texture], SIDECAR_CONTENT)
+    const dirId = await resolveTextureDirectoryId(provider, 'tex-1')
+    expect(dirId).toBe('folder')
+  })
+
+  it('wirft, wenn die Textur kein parentId hat', async () => {
+    const orphan: StorageItem = {
+      id: 'orphan',
+      parentId: '',
+      type: 'file',
+      metadata: { name: 'x.jpg', size: 0, modifiedAt: new Date(), mimeType: 'image/jpeg' },
+    }
+    const provider = makeProvider([orphan], SIDECAR_CONTENT)
+    await expect(resolveTextureDirectoryId(provider, 'orphan')).rejects.toThrow(/parentId/)
   })
 })

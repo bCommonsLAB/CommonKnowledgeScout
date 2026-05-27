@@ -27,18 +27,36 @@ function isOptionvalueEntry(value: unknown): value is OptionvalueEntry {
 }
 
 /**
+ * Ermittelt die Ordner-ID des Texturverzeichnisses aus der geoeffneten Datei.
+ * Die Sidecar liegt immer auf derselben Ebene wie die Textur — parentId der
+ * Datei ist die verbindliche Quelle (nicht ein Pfad aus der Library-Root).
+ */
+export async function resolveTextureDirectoryId(
+  provider: StorageProvider,
+  textureFileId: string,
+): Promise<string> {
+  const item = await provider.getItemById(textureFileId)
+  if (!item.parentId) {
+    throw new Error(
+      `Textur-Datei "${item.metadata.name}" hat kein parentId — Sidecar kann nicht im Texturverzeichnis gesucht werden`,
+    )
+  }
+  return item.parentId
+}
+
+/**
  * Laedt die Sidecar-Datei aus dem Texturverzeichnis und gibt die
  * Textur-Eintraege zurueck.
  *
  * @param provider StorageProvider (server- oder client-seitig).
- * @param textureParentId Ordner-ID, in dem die Textur liegt.
+ * @param textureDirectoryId Ordner-ID, in dem die Textur liegt (parentId der Datei).
  * @returns SupplierData oder null, wenn keine Sidecar-Datei vorhanden ist.
  */
 export async function loadSupplierData(
   provider: StorageProvider,
-  textureParentId: string,
+  textureDirectoryId: string,
 ): Promise<SupplierData | null> {
-  const siblings = await provider.listItemsById(textureParentId)
+  const siblings = await provider.listItemsById(textureDirectoryId)
   const sidecar = siblings.find(
     (it) => it.type === 'file' && it.metadata.name.toLowerCase() === SIDECAR_FILENAME.toLowerCase(),
   )

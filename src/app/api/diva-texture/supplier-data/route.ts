@@ -14,7 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { getServerProvider } from '@/lib/storage/server-provider'
-import { loadSupplierData } from '@/lib/diva-texture/load-supplier-data'
+import { loadSupplierData, resolveTextureDirectoryId } from '@/lib/diva-texture/load-supplier-data'
 import { matchTextureCode } from '@/lib/diva-texture/match-texture-code'
 import { logMatchAttempts } from '@/lib/diva-texture/diva-texture-logger'
 import type { SupplierDataApiResponse } from '@/lib/diva-texture/types'
@@ -39,24 +39,27 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const item = await provider.getItemById(fileId)
     if (!item) return NextResponse.json({ error: 'Datei nicht gefunden' }, { status: 404 })
 
-    const supplier = await loadSupplierData(provider, item.parentId)
+    const textureDirectoryId = await resolveTextureDirectoryId(provider, fileId)
+    const supplier = await loadSupplierData(provider, textureDirectoryId)
     if (!supplier) {
-      const empty: SupplierDataApiResponse = { matched: false, attempts: [] }
+      const empty: SupplierDataApiResponse = { matched: false, sidecarFound: false, attempts: [] }
       return NextResponse.json(empty)
     }
 
     const result = matchTextureCode(item.metadata.name, supplier.entries)
     logMatchAttempts(item.metadata.name, result)
 
+    const sidecarMeta = { sidecarFound: true as const, entryCount: supplier.entries.length }
     const response: SupplierDataApiResponse = result.match
       ? {
           matched: true,
+          ...sidecarMeta,
           entry: result.match.entry,
           materialId: result.match.entry.VCodex,
           strategy: result.match.strategy,
           attempts: result.attempts,
         }
-      : { matched: false, attempts: result.attempts }
+      : { matched: false, ...sidecarMeta, attempts: result.attempts }
 
     return NextResponse.json(response)
   } catch (error) {

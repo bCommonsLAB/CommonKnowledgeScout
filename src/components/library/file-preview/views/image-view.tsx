@@ -30,6 +30,7 @@ import { JobProgressBar } from '@/components/library/file-preview/job-progress-b
 import { JobReportTabWithShadowTwin } from '@/components/library/file-preview/job-report-tab-with-shadow-twin'
 import { useDivaSupplierData } from '@/components/library/file-preview/use-diva-supplier-data'
 import { DivaSupplierDataView } from './diva-supplier-data-view'
+import { DivaSupplierNoMatchView } from './diva-supplier-no-match-view'
 import type { PreviewViewProps } from './view-props'
 
 export function ImageView(props: PreviewViewProps) {
@@ -87,7 +88,8 @@ export function ImageView(props: PreviewViewProps) {
   })
   const divaEntry = diva.data?.entry
   const divaMaterialId = diva.data?.materialId
-  const showDivaTab = divaEnabled && diva.matched && !!divaEntry && !!divaMaterialId
+  const showDivaTab =
+    divaEnabled && (diva.sidecarFound || (diva.matched && !!divaEntry && !!divaMaterialId))
 
   if (!provider) {
     return <div className="text-sm text-muted-foreground">Kein Provider verfuegbar.</div>
@@ -245,17 +247,25 @@ export function ImageView(props: PreviewViewProps) {
           ) : null}
         </TabsContent>
 
-        {showDivaTab && divaEntry && divaMaterialId ? (
+        {showDivaTab ? (
           <TabsContent value="diva-info" className="min-h-0 flex-1 overflow-auto p-3">
             {infoTab === 'diva-info' ? (
-              <DivaSupplierDataView
-                provider={provider}
-                activeLibraryId={activeLibraryId}
-                item={item}
-                entry={divaEntry}
-                materialId={divaMaterialId}
-                strategy={diva.data?.strategy}
-              />
+              diva.matched && divaEntry && divaMaterialId ? (
+                <DivaSupplierDataView
+                  provider={provider}
+                  activeLibraryId={activeLibraryId}
+                  item={item}
+                  entry={divaEntry}
+                  materialId={divaMaterialId}
+                  strategy={diva.data?.strategy}
+                />
+              ) : (
+                <DivaSupplierNoMatchView
+                  fileName={item.metadata.name}
+                  entryCount={diva.data?.entryCount ?? 0}
+                  attempts={diva.data?.attempts ?? []}
+                />
+              )
             ) : null}
           </TabsContent>
         ) : null}

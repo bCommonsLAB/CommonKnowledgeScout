@@ -16,6 +16,7 @@ import type { SupplierDataApiResponse } from '@/lib/diva-texture/types'
 export interface DivaSupplierDataState {
   loading: boolean
   matched: boolean
+  sidecarFound: boolean
   data: SupplierDataApiResponse | null
   error: string | null
 }
@@ -23,6 +24,7 @@ export interface DivaSupplierDataState {
 const INITIAL: DivaSupplierDataState = {
   loading: false,
   matched: false,
+  sidecarFound: false,
   data: null,
   error: null,
 }
@@ -51,7 +53,13 @@ export function useDivaSupplierData(args: {
       })
       .then((data) => {
         if (cancelled) return
-        setState({ loading: false, matched: data.matched === true, data, error: null })
+        setState({
+          loading: false,
+          matched: data.matched === true,
+          sidecarFound: data.sidecarFound === true,
+          data,
+          error: null,
+        })
       })
       .catch((err: unknown) => {
         if (cancelled) return
@@ -61,7 +69,7 @@ export function useDivaSupplierData(args: {
           fileId,
           error: message,
         })
-        setState({ loading: false, matched: false, data: null, error: message })
+        setState({ loading: false, matched: false, sidecarFound: false, data: null, error: message })
       })
 
     return () => {
