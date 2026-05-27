@@ -72,6 +72,22 @@ export interface SupplierData {
 /** Quellbild-Wahl fuer die spaetere Analyse (Stufe 3). */
 export type AnalysisSourceImage = 'basecolor' | 'supplier-preview'
 
+/** Eine annotierte Datei (generische Attribut-Sicht fuer Filter/Gruppierung). */
+export interface ItemAnnotation {
+  fileName: string
+  fileId: string
+  /** Stabiler Item-Key (= VCodex bei DIVA-Texturen). */
+  itemKey: string
+  /** Flache, gruppier-/filterbare Attribute (z.B. stoffgruppe, material, divaTexture). */
+  attributes: Record<string, unknown>
+}
+
+/** Antwortschema GET /api/library/[libraryId]/item-annotations?parentId=X. */
+export interface ItemAnnotationsResponse {
+  parentId: string
+  annotations: ItemAnnotation[]
+}
+
 /** Antwortschema der API-Route GET /api/diva-texture/supplier-data. */
 export interface SupplierDataApiResponse {
   matched: boolean

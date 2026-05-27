@@ -9,6 +9,7 @@ import {
   buildDivaTextureProperties,
   toDivaTextureRecord,
   DIVA_PROPERTY_KEYS,
+  DIVA_ATTRIBUTE_KEYS,
 } from '@/lib/diva-texture/supplier-properties'
 import type { ArchiveItemPropertiesDocument } from '@/lib/repositories/archive-item-properties-repo'
 import type { OptionvalueEntry } from '@/lib/diva-texture/types'
@@ -17,6 +18,7 @@ const ENTRY: OptionvalueEntry = {
   VCodex: 'ST_2031-0332',
   IsTexture: 'True',
   Material: 'STOFF',
+  GroupName: 'Feincord',
   Name: 'Feincord gold',
   RGB: 'C78E33',
 }
@@ -52,6 +54,14 @@ describe('buildDivaTextureProperties', () => {
     expect(buildDivaTextureProperties(buildArgs())).toEqual(props)
   })
 
+  it('speichert flache, gruppier-/filterbare Attribute (snake_case)', () => {
+    const props = buildDivaTextureProperties(buildArgs())
+    expect(props[DIVA_ATTRIBUTE_KEYS.stoffgruppe]).toBe('Feincord')
+    expect(props[DIVA_ATTRIBUTE_KEYS.material]).toBe('STOFF')
+    expect(props[DIVA_ATTRIBUTE_KEYS.texturName]).toBe('Feincord gold')
+    expect(props[DIVA_ATTRIBUTE_KEYS.farbeHex]).toBe('#C78E33') // Sidecar liefert ohne "#"
+  })
+
   it('nimmt den optionalen sourceFileHash in den Snapshot auf', () => {
     const props = buildDivaTextureProperties({ ...buildArgs(), sourceFileHash: 'sha256:abc' })
     expect((props[DIVA_PROPERTY_KEYS.snapshot] as { sourceFileHash?: string }).sourceFileHash).toBe('sha256:abc')
@@ -63,7 +73,7 @@ describe('toDivaTextureRecord', () => {
     return { libraryId: 'lib', itemKey, properties: props, createdAt: NOW, updatedAt: NOW }
   }
 
-  it('extrahiert den Laufzeit-Record inkl. Snapshot', () => {
+  it('extrahiert den Laufzeit-Record inkl. Snapshot + generische Attribute', () => {
     const record = toDivaTextureRecord(docFromProps(buildDivaTextureProperties(buildArgs())))
     expect(record).not.toBeNull()
     expect(record!.vcodex).toBe('ST_2031-0332')
@@ -71,6 +81,11 @@ describe('toDivaTextureRecord', () => {
     expect(record!.fileId).toBe('f1')
     expect(record!.parentId).toBe('folder-1')
     expect(record!.snapshot?.entry.Name).toBe('Feincord gold')
+    // attributes enthaelt die flachen Attribute + divaTexture, NICHT die internen Keys.
+    expect(record!.attributes[DIVA_ATTRIBUTE_KEYS.stoffgruppe]).toBe('Feincord')
+    expect(record!.attributes[DIVA_PROPERTY_KEYS.isTexture]).toBe(true)
+    expect(record!.attributes[DIVA_PROPERTY_KEYS.fileId]).toBeUndefined()
+    expect(record!.attributes[DIVA_PROPERTY_KEYS.snapshot]).toBeUndefined()
   })
 
   it('liefert null, wenn das Dokument keine DIVA-Textur ist', () => {

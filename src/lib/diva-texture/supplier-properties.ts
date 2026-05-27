@@ -33,6 +33,28 @@ export const DIVA_PROPERTY_KEYS = {
   snapshot: 'divaSupplierSnapshot',
 } as const
 
+/**
+ * Flache, gruppier-/filterbare Attribute (snake_case, Obsidian-kompatibel).
+ * Generisch gedacht: die Dateilisten-UI gruppiert/filtert nach diesen
+ * Schluesseln, ohne DIVA-spezifisch zu sein — DIVA ist nur der erste Annotator.
+ */
+export const DIVA_ATTRIBUTE_KEYS = {
+  stoffgruppe: 'stoffgruppe',
+  material: 'material',
+  texturName: 'textur_name',
+  farbeHex: 'farbe_hex',
+} as const
+
+/** Interne Steuer-/Bulk-Properties, die NICHT zur generischen Attribut-Sicht zaehlen. */
+const INTERNAL_PROPERTY_KEYS = new Set<string>([
+  DIVA_PROPERTY_KEYS.fileName,
+  DIVA_PROPERTY_KEYS.fileId,
+  DIVA_PROPERTY_KEYS.parentId,
+  DIVA_PROPERTY_KEYS.strategy,
+  DIVA_PROPERTY_KEYS.preprocessedAt,
+  DIVA_PROPERTY_KEYS.snapshot,
+])
+
 /** 1:1-Snapshot des Sidecar-Eintrags (fuer Instant-Info + Re-Analyse). */
 export interface DivaSupplierSnapshot {
   sourceFile: string
@@ -49,6 +71,8 @@ export interface DivaTextureRecord {
   parentId: string
   strategy: string
   snapshot: DivaSupplierSnapshot | null
+  /** Flache, gruppier-/filterbare Attribute (z.B. stoffgruppe, material). */
+  attributes: Record<string, unknown>
 }
 
 export interface BuildDivaPropsArgs {
@@ -61,6 +85,26 @@ export interface BuildDivaPropsArgs {
   strategy: string
   /** ISO-Zeitstempel; Default jetzt (fuer deterministische Tests setzbar). */
   now?: string
+}
+
+/** Fuegt "#" vor einen reinen 6-stelligen Hex-Wert (Sidecar liefert ohne "#"). */
+function normalizeHex(rgb: string): string {
+  const v = rgb.trim()
+  return /^[0-9a-fA-F]{6}$/.test(v) ? `#${v}` : v
+}
+
+/** Mappt einen Sidecar-Eintrag auf flache, gruppier-/filterbare Attribute. */
+export function buildFlatAttributes(entry: OptionvalueEntry): Record<string, string> {
+  const attrs: Record<string, string> = {}
+  const group = entry.GroupName?.trim()
+  const material = entry.Material?.trim()
+  const name = entry.Name?.trim()
+  const rgb = entry.RGB?.trim()
+  if (group) attrs[DIVA_ATTRIBUTE_KEYS.stoffgruppe] = group
+  if (material) attrs[DIVA_ATTRIBUTE_KEYS.material] = material
+  if (name) attrs[DIVA_ATTRIBUTE_KEYS.texturName] = name
+  if (rgb) attrs[DIVA_ATTRIBUTE_KEYS.farbeHex] = normalizeHex(rgb)
+  return attrs
 }
 
 /**
@@ -76,6 +120,7 @@ export function buildDivaTextureProperties(args: BuildDivaPropsArgs): Record<str
     ...(args.sourceFileHash ? { sourceFileHash: args.sourceFileHash } : {}),
   }
   return {
+    ...buildFlatAttributes(args.entry),
     [DIVA_PROPERTY_KEYS.isTexture]: true,
     [DIVA_PROPERTY_KEYS.fileName]: args.file.name,
     [DIVA_PROPERTY_KEYS.fileId]: args.file.id,
@@ -119,6 +164,11 @@ export function toDivaTextureRecord(doc: ArchiveItemPropertiesDocument): DivaTex
     }
   }
 
+  const attributes: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(p)) {
+    if (!INTERNAL_PROPERTY_KEYS.has(key)) attributes[key] = value
+  }
+
   return {
     vcodex: doc.itemKey,
     fileName: typeof p[DIVA_PROPERTY_KEYS.fileName] === 'string' ? (p[DIVA_PROPERTY_KEYS.fileName] as string) : '',
@@ -126,6 +176,7 @@ export function toDivaTextureRecord(doc: ArchiveItemPropertiesDocument): DivaTex
     parentId: typeof p[DIVA_PROPERTY_KEYS.parentId] === 'string' ? (p[DIVA_PROPERTY_KEYS.parentId] as string) : '',
     strategy: typeof p[DIVA_PROPERTY_KEYS.strategy] === 'string' ? (p[DIVA_PROPERTY_KEYS.strategy] as string) : '',
     snapshot,
+    attributes,
   }
 }
 
