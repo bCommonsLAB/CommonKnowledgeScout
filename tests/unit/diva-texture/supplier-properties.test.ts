@@ -81,11 +81,21 @@ describe('toDivaTextureRecord', () => {
     expect(record!.fileId).toBe('f1')
     expect(record!.parentId).toBe('folder-1')
     expect(record!.snapshot?.entry.Name).toBe('Feincord gold')
-    // attributes enthaelt die flachen Attribute + divaTexture, NICHT die internen Keys.
+    // attributes enthaelt nur die flachen Content-Attribute, KEINE Steuer-/Flag-Keys.
     expect(record!.attributes[DIVA_ATTRIBUTE_KEYS.stoffgruppe]).toBe('Feincord')
-    expect(record!.attributes[DIVA_PROPERTY_KEYS.isTexture]).toBe(true)
+    expect(record!.attributes[DIVA_ATTRIBUTE_KEYS.material]).toBe('STOFF')
+    expect(record!.attributes[DIVA_PROPERTY_KEYS.isTexture]).toBeUndefined()
     expect(record!.attributes[DIVA_PROPERTY_KEYS.fileId]).toBeUndefined()
     expect(record!.attributes[DIVA_PROPERTY_KEYS.snapshot]).toBeUndefined()
+    // Bildwahl (Stufe 1) ist ein Steuerfeld, kein gruppierbares Attribut.
+    expect(record!.attributes.analysisSourceImage).toBeUndefined()
+  })
+
+  it('schliesst analysisSourceImage (Bildwahl) aus den gruppierbaren Attributen aus', () => {
+    const props = { ...buildDivaTextureProperties(buildArgs()), analysisSourceImage: 'basecolor' }
+    const record = toDivaTextureRecord(docFromProps(props))
+    expect(record!.attributes.analysisSourceImage).toBeUndefined()
+    expect(record!.attributes[DIVA_ATTRIBUTE_KEYS.stoffgruppe]).toBe('Feincord')
   })
 
   it('liefert null, wenn das Dokument keine DIVA-Textur ist', () => {

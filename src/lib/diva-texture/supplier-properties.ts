@@ -45,14 +45,20 @@ export const DIVA_ATTRIBUTE_KEYS = {
   farbeHex: 'farbe_hex',
 } as const
 
-/** Interne Steuer-/Bulk-Properties, die NICHT zur generischen Attribut-Sicht zaehlen. */
+/**
+ * Interne Steuer-/Bulk-/Flag-Properties, die NICHT zur generischen, gruppier-
+ * baren Attribut-Sicht zaehlen (sonst tauchen sie als Gruppier-Optionen auf).
+ * Enthaelt auch `analysisSourceImage` (Bildwahl aus Stufe 1, gleicher itemKey).
+ */
 const INTERNAL_PROPERTY_KEYS = new Set<string>([
+  DIVA_PROPERTY_KEYS.isTexture,
   DIVA_PROPERTY_KEYS.fileName,
   DIVA_PROPERTY_KEYS.fileId,
   DIVA_PROPERTY_KEYS.parentId,
   DIVA_PROPERTY_KEYS.strategy,
   DIVA_PROPERTY_KEYS.preprocessedAt,
   DIVA_PROPERTY_KEYS.snapshot,
+  'analysisSourceImage',
 ])
 
 /** 1:1-Snapshot des Sidecar-Eintrags (fuer Instant-Info + Re-Analyse). */
