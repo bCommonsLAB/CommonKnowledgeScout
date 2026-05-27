@@ -119,6 +119,10 @@ export function buildFirstPassFrontmatter(args: BuildFirstPassArgs): Record<stri
   // --- availability deterministisch aus dem Pfad ---
   const { availability_scope, retailer_iln } = parseAvailabilityFromPath(filePath)
 
+  // --- group_name (Stoffgruppe) deterministisch aus dem Sidecar-Treffer ---
+  // Ermoeglicht die Galerie-Gruppierung nach Stoffgruppe (Stufe 4). Leer ohne Treffer.
+  const groupName = nonEmptyString(supplierEntry?.GroupName) ?? ''
+
   const result: Record<string, unknown> = {
     // ai_pass1-Felder (feldspezifische Kalibrierung, daher explizit)
     material_class: materialClass ?? '',
@@ -126,9 +130,10 @@ export function buildFirstPassFrontmatter(args: BuildFirstPassArgs): Record<stri
     confidence_class: confidenceClass,
     confidence_type: confidenceType,
     needs_human_review: needsHumanReview,
-    // deterministisch aus dem Pfad
+    // deterministisch aus dem Pfad / Sidecar
     availability_scope,
     retailer_iln,
+    group_name: groupName,
     // Pipeline-/System-verwaltet (nicht vom LLM)
     last_pass: 1,
     pass1_status: needsHumanReview ? ('needs_review' satisfies Pass1Status) : ('done' satisfies Pass1Status),

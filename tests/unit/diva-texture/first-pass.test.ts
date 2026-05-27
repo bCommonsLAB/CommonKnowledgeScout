@@ -104,6 +104,26 @@ describe('buildFirstPassFrontmatter — ceramic/glass/plastic ohne Type', () => 
   })
 })
 
+describe('buildFirstPassFrontmatter — group_name (Stoffgruppe, Stufe 4)', () => {
+  it('uebernimmt GroupName aus dem Sidecar-Treffer als group_name', () => {
+    const result = buildFirstPassFrontmatter({
+      llmFields: { material_class: 'fabric' },
+      supplierEntry: { VCodex: 'ST_2059-0092', IsTexture: 'True', Material: 'STOFF', GroupName: 'Savanna' },
+      filePath: PATH_ILN,
+    })
+    expect(result.group_name).toBe('Savanna')
+  })
+
+  it('group_name ist leer ohne Sidecar-Treffer', () => {
+    const result = buildFirstPassFrontmatter({
+      llmFields: { material_class: 'wood' },
+      supplierEntry: null,
+      filePath: PATH_ILN,
+    })
+    expect(result.group_name).toBe('')
+  })
+})
+
 describe('buildFirstPassFrontmatter — Pass-2-Felder + Hints', () => {
   it('haelt Pass-2-Felder leer und uebernimmt Hints unveraendert', () => {
     const result = buildFirstPassFrontmatter({
