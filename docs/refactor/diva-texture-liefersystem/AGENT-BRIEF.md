@@ -150,32 +150,53 @@ sofern keine Konflikte in `template-samples/Diva-Texture-Analysis.md`.
 
 **Branch:** `feature/diva-texture-pipeline-first-pass`
 
+> **Stand: umgesetzt (Stufe 3).** Dieser Abschnitt wurde nach der Umsetzung mit
+> der Realitaet abgeglichen (Spec-Freshness). **WICHTIG — Feldnamen-Korrektur:**
+> Die urspruengliche Stufe-3-Beschreibung nannte camelCase- und verschachtelte
+> Namen (`materialClass`, `confidence.materialClassConfidence`, `retailerILN`,
+> `aiGenerationHints`). Das ist **UEBERHOLT**. Stufe 2 hat das Template auf ein
+> FLACHES, Obsidian-kompatibles `snake_case`-Frontmatter umgestellt (Lea-Regel
+> #8). Maszgeblich sind ausschliesslich:
+> - [template-samples/Diva-Texture-Analysis.md](../../../template-samples/Diva-Texture-Analysis.md) (flaches snake_case-Frontmatter)
+> - [src/lib/diva-texture/material-field-sources.ts](../../../src/lib/diva-texture/material-field-sources.ts) (Quellen-Map + `llmFieldsForPass`)
+>
+> Korrigierte Abweichungen sind unten inline markiert (~~durchgestrichen~~ → korrekt).
+
 **Vorbedingungen:**
 - Stufe 1 + Stufe 2 gemergt.
 
-**Aufgabe:**
+**Aufgabe (umgesetzt):**
 
-1. **Pipeline-Integration**: Beim Lauf der Diva-Texture-Analyse:
-   - Sidecar-Daten aus Stufe-1-Loader holen.
-   - Bildwahl (`analysisSourceImage`) lesen — wenn `supplier-preview`, das Liefersystem-Bild **serverseitig herunterladen** (nicht aus Browser-Cache) und ans LLM senden. Stolperfalle #5 beachten.
+1. **Pipeline-Integration** ([src/app/api/external/jobs/[jobId]/start/route.ts](../../../src/app/api/external/jobs/%5BjobId%5D/start/route.ts), Image-Pfad): Beim Lauf der Diva-Texture-Analyse (erkannt am Template-`detailViewType: divaTexture`):
+   - Sidecar-Daten aus Stufe-1-Loader (`load-supplier-data.ts`) holen + matchen (`match-texture-code.ts`).
+   - Bildwahl (`analysisSourceImage`) aus dem **Archiv-Property-Store** (gebunden an VCodex) lesen — wenn `supplier-preview`, das Liefersystem-Bild **serverseitig herunterladen** (nicht aus Browser-Cache) und ans LLM senden. Stolperfalle #5 beachten.
    - Sidecar-Daten als zweiten Kontext-Block (`LIEFERSYSTEM`) neben dem bestehenden `CONTEXT`-Block ans LLM senden.
-   - DE→EN-Material-Mapping anwenden: `Material: "STOFF"` → `materialClass: "fabric"` als deterministischer Pre-Wert ans LLM mitgeben.
-2. **Lauf-Konfiguration**: Der Pass produziert **nur** `materialClass`, `materialType`, `aiGenerationHints`, `confidence.materialClassConfidence`, `confidence.materialTypeConfidence`. Andere Felder bleiben leer / werden in Stufe 5 gefuellt.
+   - DE→EN-Material-Mapping anwenden: `Material: "STOFF"` → ~~`materialClass: "fabric"`~~ → **`material_class: "fabric"`** als deterministischer Pre-Wert ans LLM mitgeben.
+2. **Lauf-Konfiguration**: Felder werden NICHT hart dupliziert, sondern ueber `llmFieldsForPass(1)` aus der Quellen-Map gezogen. Der Pass produziert **nur** ~~`materialClass`, `materialType`, `aiGenerationHints`, `confidence.materialClassConfidence`, `confidence.materialTypeConfidence`~~ → **`material_class`, `material_type`, `confidence_class`, `confidence_type`, `needs_human_review`** + die in JEDEM Pass neu erzeugten Hints **`ai_prompt_positive`, `ai_prompt_negative`, `ai_realism_notes`** (`ai_last_pass`). Andere (Pass-2-)Felder bleiben leer / werden in Stufe 5 gefuellt.
 3. **Konfidenz-Kalibrierung** (Stolperfalle #2):
-   - Liefersystem-Treffer fuer Class → `materialClassConfidence: 0.95` deterministisch gesetzt (LLM darf nicht ueberschreiben).
-   - Reiner Bild-Klassifikation ohne Liefersystem-Treffer → LLM-Wert mit Cap bei 0.8.
-4. **Availability deterministisch**: Pfad parsen → wenn enthaelt `DivaStandardMaterials`, `scope: "basic"`, `retailerILN: null`. Sonst ILN aus Pfad lesen, `retailerILN: <ILN>`.
-5. **Tests**: Pipeline-Integrationstest mit Mock-LLM, Sample-Sidecar, Sample-Bild — 4-5 Szenarien (Sidecar-Hit / kein Hit / Sidecar+LLM-Konflikt / unbekanntes Material).
+   - Liefersystem-Treffer fuer Class → ~~`materialClassConfidence: 0.95`~~ → **`confidence_class: 0.95`** deterministisch gesetzt (LLM darf nicht ueberschreiben). Treffer = `mapMaterialClass(entry.Material).isKnown === true`.
+   - Reine Bild-Klassifikation ohne Liefersystem-Treffer → LLM-Wert mit Cap bei 0.8.
+4. **Availability deterministisch** ([src/lib/diva-texture/availability-from-path.ts](../../../src/lib/diva-texture/availability-from-path.ts)): Pfad parsen → enthaelt `DivaStandardMaterials` → ~~`scope: "basic"`, `retailerILN: null`~~ → **`availability_scope: "basic"`, `retailer_iln: ""`**. Sonst 13-stellige ILN aus dem Pfad → **`retailer_iln: <ILN>`** (`availability_scope` bleibt `"basic"`).
+5. **Pipeline-/System-Felder** (NICHT vom LLM, NICHT im Antwortschema): Pipeline setzt nach dem Lauf **`last_pass: 1`** und **`pass1_status`** (`done` | `needs_review`). Die Hints (`ai_prompt_*`, `ai_realism_notes`) beziehen sich immer auf den zuletzt gelaufenen Pass (`last_pass`).
+6. **Tests**: Pipeline-Integrationstest mit Mock-LLM, Sample-Sidecar, Sample-Bild — 5 Szenarien (Sidecar-Hit / kein Hit / Sidecar+LLM-Konflikt / unbekanntes Material `isKnown=false` / ceramic ohne Type).
+
+**Umgesetzte Dateien:**
+- `src/lib/diva-texture/availability-from-path.ts` — deterministische Pfad-Ableitung.
+- `src/lib/diva-texture/liefersystem-context.ts` — LIEFERSYSTEM-Block + DE→EN-Mapping.
+- `src/lib/diva-texture/first-pass.ts` — deterministische Pass-1-Nachbearbeitung (Confidence-Kalibrierung, ceramic/glass/plastic ohne Type, Pass-2-Felder leer, `last_pass`/`pass1_status`).
+- `src/lib/diva-texture/first-pass-runner.ts` — Orchestrierung (Sidecar → Kontext → injizierter LLM-Call → Nachbearbeitung); `isDivaTextureTemplate()`.
+- Integration in `start/route.ts` (Image-Pfad) + Tests unter `tests/unit/diva-texture/`.
 
 **Akzeptanzkriterien:**
-- Lauf produziert valides JSON mit Class+Type+Confidence+AI-Hints.
-- Sidecar-Treffer fuehrt zu Class-Confidence ≥ 0.9.
-- Kein Sidecar-Treffer fuehrt zu Confidence < 0.85.
-- Lauf ist idempotent.
+- Lauf produziert valides FLACHES JSON mit nur den Pass-1-Feldern (+ Hints).
+- Sidecar-Treffer fuehrt zu `confidence_class` ≥ 0.9 (deterministisch 0.95).
+- Kein Sidecar-Treffer fuehrt zu `confidence_class` < 0.85 (Cap 0.8).
+- `last_pass: 1` + `pass1_status` gesetzt; Lauf idempotent.
 - `pnpm lint` + `pnpm test` gruen.
 
 **Stop-Bedingungen:**
 - Pipeline-Job-Architektur ist anders als erwartet (siehe `src/lib/pipeline/run-pipeline.ts`) — Klaerung.
+- Eine Folge-Stufe/dieser Pass verlangt nested Frontmatter → NICHT bauen (Lea-Regel #8).
 
 **Hand-off:** Naechste Stufe **4** (Gruppen-Klassifikation).
 
