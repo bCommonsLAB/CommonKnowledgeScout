@@ -24,7 +24,12 @@
 
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { loadSupplierData } from '@/lib/diva-texture/load-supplier-data'
-import { buildFolderPreprocessPlan, type PreprocessFile } from '@/lib/diva-texture/preprocess-folder'
+import {
+  buildFolderPreprocessPlan,
+  tallyMatchesByAttribute,
+  type PreprocessFile,
+  type AttributeTally,
+} from '@/lib/diva-texture/preprocess-folder'
 import { writeDivaTextureSnapshot } from '@/lib/diva-texture/supplier-properties'
 import type { StorageProvider } from '@/lib/storage/types'
 
@@ -42,6 +47,8 @@ interface FolderResult {
   unmatchedFiles: string[]
   unmatchedEntries: number
   basecolorFiles: number
+  /** Stoffgruppen-Verteilung der Treffer (GroupName → Anzahl). */
+  groups: AttributeTally[]
 }
 
 /** Verarbeitet genau einen Ordner (sofern eine Sidecar vorhanden ist). */
@@ -78,6 +85,7 @@ async function processFolder(
     unmatchedFiles: plan.unmatchedFiles.map((f) => f.name),
     unmatchedEntries: plan.unmatchedEntries.length,
     basecolorFiles: plan.basecolorFileCount,
+    groups: tallyMatchesByAttribute(plan.matches, 'GroupName'),
   }
 }
 
@@ -122,10 +130,12 @@ async function run(options: Options): Promise<void> {
   let totalMatched = 0
   let totalUnmatchedFiles = 0
   let totalUnmatchedEntries = 0
+  const globalGroups = new Map<string, number>()
   for (const r of results) {
     totalMatched += r.matched
     totalUnmatchedFiles += r.unmatchedFiles.length
     totalUnmatchedEntries += r.unmatchedEntries
+    for (const g of r.groups) globalGroups.set(g.value, (globalGroups.get(g.value) ?? 0) + g.count)
     console.log(`📁 ${r.folderId}`)
     console.log(`   Basecolor-Dateien: ${r.basecolorFiles} · gematcht: ${r.matched} · ohne Treffer: ${r.unmatchedFiles.length} · Sidecar-Eintraege ohne Datei: ${r.unmatchedEntries}`)
     if (r.unmatchedFiles.length > 0) {
@@ -137,6 +147,16 @@ async function run(options: Options): Promise<void> {
   console.log(`Gematcht (mit DIVA-Info): ${totalMatched}`)
   console.log(`Basecolor ohne DIVA-Info: ${totalUnmatchedFiles}`)
   console.log(`Sidecar-Eintraege ohne Datei (ausgelistet?): ${totalUnmatchedEntries}`)
+
+  // Stoffgruppen-Verteilung (primaerer Gruppen-Key fuer die spaetere Ansicht).
+  const sortedGroups = Array.from(globalGroups.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  if (sortedGroups.length > 0) {
+    console.log('\n=== Stoffgruppen-Verteilung (gematcht) ===')
+    for (const [group, count] of sortedGroups) {
+      console.log(`   ${group}: ${count}`)
+    }
+  }
+
   if (options.dryRun) console.log('\n(Dry-Run: es wurde NICHTS in MongoDB geschrieben.)')
 }
 

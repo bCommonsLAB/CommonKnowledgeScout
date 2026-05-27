@@ -9,9 +9,11 @@ import { describe, expect, it } from 'vitest'
 import {
   isBasecolorFileName,
   buildFolderPreprocessPlan,
+  tallyMatchesByAttribute,
   type PreprocessFile,
+  type PreprocessMatch,
 } from '@/lib/diva-texture/preprocess-folder'
-import type { SupplierEntry } from '@/lib/diva-texture/types'
+import type { OptionvalueEntry, SupplierEntry } from '@/lib/diva-texture/types'
 
 describe('isBasecolorFileName', () => {
   it('erkennt Basecolor-/Albedo-Maps', () => {
@@ -71,5 +73,28 @@ describe('buildFolderPreprocessPlan', () => {
     expect(plan.matches).toHaveLength(0)
     expect(plan.basecolorFileCount).toBe(0)
     expect(plan.unmatchedEntries).toHaveLength(2)
+  })
+})
+
+describe('tallyMatchesByAttribute', () => {
+  function match(group: string | undefined): PreprocessMatch {
+    const entry: OptionvalueEntry = { VCodex: `V_${group ?? 'x'}`, IsTexture: 'True', GroupName: group }
+    return { file: { id: 'f', name: 'x_basecolor.jpg' }, entryKey: 'k', entry, strategy: 's' }
+  }
+
+  it('zaehlt nach GroupName (Stoffgruppe), absteigend sortiert', () => {
+    const tally = tallyMatchesByAttribute(
+      [match('Feincord'), match('Feincord'), match('Glattleder')],
+      'GroupName',
+    )
+    expect(tally).toEqual([
+      { value: 'Feincord', count: 2 },
+      { value: 'Glattleder', count: 1 },
+    ])
+  })
+
+  it('fasst leere/fehlende Werte unter "(ohne Wert)" zusammen', () => {
+    const tally = tallyMatchesByAttribute([match(undefined), match('  ')], 'GroupName')
+    expect(tally).toEqual([{ value: '(ohne Wert)', count: 2 }])
   })
 })

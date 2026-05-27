@@ -102,3 +102,32 @@ export function buildFolderPreprocessPlan(
     basecolorFileCount: basecolorFiles.length,
   }
 }
+
+/** Zaehler eines Attribut-Wertes (z.B. Stoffgruppe → Anzahl Treffer). */
+export interface AttributeTally {
+  value: string
+  count: number
+}
+
+/**
+ * Zaehlt Treffer nach einem Sidecar-Attribut (generisch, fuer die Legende +
+ * spaeter den generischen Gruppieren-Filter). Default-Attribut: GroupName
+ * (Stoffgruppe). Leere Werte landen unter "(ohne Wert)".
+ *
+ * @param matches Treffer aus buildFolderPreprocessPlan.
+ * @param attribute Feldname im OptionvalueEntry (Default "GroupName").
+ */
+export function tallyMatchesByAttribute(
+  matches: PreprocessMatch[],
+  attribute: keyof OptionvalueEntry = 'GroupName',
+): AttributeTally[] {
+  const counts = new Map<string, number>()
+  for (const m of matches) {
+    const raw = m.entry[attribute]
+    const value = typeof raw === 'string' && raw.trim() !== '' ? raw.trim() : '(ohne Wert)'
+    counts.set(value, (counts.get(value) ?? 0) + 1)
+  }
+  return Array.from(counts.entries())
+    .map(([value, count]) => ({ value, count }))
+    .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value))
+}
