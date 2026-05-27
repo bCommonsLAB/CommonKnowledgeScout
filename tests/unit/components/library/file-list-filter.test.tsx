@@ -17,7 +17,9 @@ import { describe, it, expect } from 'vitest'
 import { createStore } from 'jotai'
 import {
   activeLibraryIdAtom,
+  annotationFilterModeAtom,
   folderItemsAtom,
+  itemAnnotationsAtom,
   searchTermAtom,
   sortedFilteredFilesAtom,
   sortFieldAtom,
@@ -138,5 +140,37 @@ describe('sortedFilteredFilesAtom (FileList Filter-Vertrag)', () => {
     const result = store.get(sortedFilteredFilesAtom)
 
     expect(result).toHaveLength(2)
+  })
+
+  describe('Annotation-Filter (mit/ohne DIVA-Info)', () => {
+    function setup() {
+      const store = createStore()
+      store.set(activeLibraryIdAtom, 'lib-1')
+      store.set(folderItemsAtom, [
+        makeFile('f1', '3_ST_2031_0332_basecolor.jpg'),
+        makeFile('f2', 'kein_muster_basecolor.jpg'),
+      ])
+      // Nur f1 ist annotiert (keyed nach Dateiname).
+      store.set(itemAnnotationsAtom, new Map([['3_ST_2031_0332_basecolor.jpg', { stoffgruppe: 'Feincord' }]]))
+      return store
+    }
+
+    it('"all" liefert alle Dateien', () => {
+      const store = setup()
+      store.set(annotationFilterModeAtom, 'all')
+      expect(store.get(sortedFilteredFilesAtom).map(i => i.id).sort()).toEqual(['f1', 'f2'])
+    })
+
+    it('"with" liefert nur annotierte Dateien', () => {
+      const store = setup()
+      store.set(annotationFilterModeAtom, 'with')
+      expect(store.get(sortedFilteredFilesAtom).map(i => i.id)).toEqual(['f1'])
+    })
+
+    it('"without" liefert nur nicht-annotierte Dateien', () => {
+      const store = setup()
+      store.set(annotationFilterModeAtom, 'without')
+      expect(store.get(sortedFilteredFilesAtom).map(i => i.id)).toEqual(['f2'])
+    })
   })
 })

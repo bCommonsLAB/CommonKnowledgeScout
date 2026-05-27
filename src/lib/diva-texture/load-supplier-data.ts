@@ -56,11 +56,15 @@ export async function loadSupplierData(
   }
 
   const entries: SupplierEntry[] = []
+  let ignoredNonTextureCount = 0
   for (const [key, raw] of Object.entries(optionvalues)) {
     if (!isOptionvalueEntry(raw)) continue
-    if (raw.IsTexture !== 'True') continue
+    if (raw.IsTexture !== 'True') {
+      ignoredNonTextureCount += 1
+      continue
+    }
     entries.push({ key, entry: raw })
   }
 
-  return { sourceFileName: sidecar.metadata.name, entries }
+  return { sourceFileName: sidecar.metadata.name, entries, ignoredNonTextureCount }
 }
