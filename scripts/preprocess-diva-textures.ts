@@ -45,8 +45,13 @@ interface FolderResult {
   folderId: string
   matched: number
   unmatchedFiles: string[]
-  /** Sidecar-Eintraege ohne Datei: "VCodex — Name" (Diagnose ausgelistet vs. Miss). */
-  unmatchedEntryLabels: string[]
+  /**
+   * FEHLER: IsTexture=True-Eintraege ohne passende Datei ("VCodex — Name").
+   * Domaenen-Regel: zu jedem IsTexture=True MUSS eine Textur existieren.
+   */
+  missingTextureLabels: string[]
+  /** Ignorierte Sidecar-Eintraege mit IsTexture !== "True". */
+  ignoredNonTexture: number
   basecolorFiles: number
   /** Stoffgruppen-Verteilung der Treffer (GroupName → Anzahl). */
   groups: AttributeTally[]
@@ -90,9 +95,10 @@ async function processFolder(
     folderId,
     matched: plan.matches.length,
     unmatchedFiles: plan.unmatchedFiles.map((f) => f.name),
-    unmatchedEntryLabels: plan.unmatchedEntries.map(
+    missingTextureLabels: plan.unmatchedEntries.map(
       (e) => `${e.entry.VCodex} — ${e.entry.Name ?? e.entry.GroupName ?? '?'}`,
     ),
+    ignoredNonTexture: supplier.ignoredNonTextureCount,
     basecolorFiles: plan.basecolorFileCount,
     groups: tallyMatchesByAttribute(plan.matches, 'GroupName'),
   }
@@ -121,7 +127,8 @@ async function collectFolderIds(
   return result
 }
 
-async function run(options: Options): Promise<void> {
+/** @returns Anzahl der Fehler (IsTexture=True ohne Datei) ueber alle Ordner. */
+async function run(options: Options): Promise<number> {
   const provider = await getServerProvider(options.userEmail, options.libraryId)
   const folderIds = await collectFolderIds(provider, options.folderId, options.recursive)
 
@@ -138,24 +145,27 @@ async function run(options: Options): Promise<void> {
 
   let totalMatched = 0
   let totalUnmatchedFiles = 0
-  const allUnmatchedEntryLabels: string[] = []
+  let totalIgnored = 0
+  const allMissingTextureLabels: string[] = []
   const globalGroups = new Map<string, number>()
   for (const r of results) {
     totalMatched += r.matched
     totalUnmatchedFiles += r.unmatchedFiles.length
-    allUnmatchedEntryLabels.push(...r.unmatchedEntryLabels)
+    totalIgnored += r.ignoredNonTexture
+    allMissingTextureLabels.push(...r.missingTextureLabels)
     for (const g of r.groups) globalGroups.set(g.value, (globalGroups.get(g.value) ?? 0) + g.count)
     console.log(`📁 ${r.folderId}`)
-    console.log(`   Basecolor-Dateien: ${r.basecolorFiles} · gematcht: ${r.matched} · ohne Treffer: ${r.unmatchedFiles.length} · Sidecar-Eintraege ohne Datei: ${r.unmatchedEntryLabels.length}`)
+    console.log(`   Basecolor-Dateien: ${r.basecolorFiles} · gematcht: ${r.matched} · Basecolor ohne DIVA-Info: ${r.unmatchedFiles.length} · ignoriert (IsTexture=false): ${r.ignoredNonTexture} · FEHLER (IsTexture=true ohne Datei): ${r.missingTextureLabels.length}`)
     if (r.unmatchedFiles.length > 0) {
-      console.log(`   ⚠ Basecolor ohne DIVA-Info: ${preview(r.unmatchedFiles, 15)}`)
+      console.log(`   Basecolor ohne DIVA-Info: ${preview(r.unmatchedFiles, 15)}`)
     }
   }
 
   console.log('\n=== Summe ===')
   console.log(`Gematcht (mit DIVA-Info): ${totalMatched}`)
-  console.log(`Basecolor ohne DIVA-Info: ${totalUnmatchedFiles}`)
-  console.log(`Sidecar-Eintraege ohne Datei (ausgelistet?): ${allUnmatchedEntryLabels.length}`)
+  console.log(`Basecolor ohne DIVA-Info (kein Sidecar-Eintrag, ok): ${totalUnmatchedFiles}`)
+  console.log(`Ignoriert (IsTexture=false): ${totalIgnored}`)
+  console.log(`FEHLER (IsTexture=true ohne Datei): ${allMissingTextureLabels.length}`)
 
   // Stoffgruppen-Verteilung (primaerer Gruppen-Key fuer die spaetere Ansicht).
   const sortedGroups = Array.from(globalGroups.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
@@ -166,18 +176,19 @@ async function run(options: Options): Promise<void> {
     }
   }
 
-  // Diagnose: welche Sidecar-Eintraege fanden KEINE Datei (ausgelistet vs. Miss)?
-  if (allUnmatchedEntryLabels.length > 0) {
-    console.log('\n=== Sidecar-Eintraege ohne Datei (Diagnose) ===')
-    for (const label of allUnmatchedEntryLabels.slice(0, 60)) {
-      console.log(`   ${label}`)
+  // Domaenen-Regel: IsTexture=True MUSS eine Datei haben — fehlende sind Fehler.
+  if (allMissingTextureLabels.length > 0) {
+    console.log(`\n❌ === FEHLER: ${allMissingTextureLabels.length} IsTexture=true-Eintraege OHNE Datei ===`)
+    for (const label of allMissingTextureLabels.slice(0, 100)) {
+      console.log(`   ❌ ${label}`)
     }
-    if (allUnmatchedEntryLabels.length > 60) {
-      console.log(`   … und ${allUnmatchedEntryLabels.length - 60} weitere`)
+    if (allMissingTextureLabels.length > 100) {
+      console.log(`   … und ${allMissingTextureLabels.length - 100} weitere`)
     }
   }
 
   if (options.dryRun) console.log('\n(Dry-Run: es wurde NICHTS in MongoDB geschrieben.)')
+  return allMissingTextureLabels.length
 }
 
 function parseArgs(): Options {
@@ -206,8 +217,10 @@ function parseArgs(): Options {
 async function main(): Promise<void> {
   const options = parseArgs()
   try {
-    await run(options)
-    process.exit(0)
+    const errorCount = await run(options)
+    // Exit-Code 2 signalisiert Datenfehler (IsTexture=true ohne Datei),
+    // 0 = sauber. 1 bleibt fuer technische Abbrueche reserviert.
+    process.exit(errorCount > 0 ? 2 : 0)
   } catch (error) {
     console.error('Preprocess fehlgeschlagen:', error instanceof Error ? error.message : error)
     process.exit(1)

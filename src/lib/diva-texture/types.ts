@@ -65,6 +65,8 @@ export interface SupplierData {
   sourceFileName: string
   /** Nur Eintraege mit IsTexture === "True". */
   entries: SupplierEntry[]
+  /** Anzahl ausgefilterter Eintraege mit IsTexture !== "True" (ignoriert). */
+  ignoredNonTextureCount: number
 }
 
 /** Quellbild-Wahl fuer die spaetere Analyse (Stufe 3). */

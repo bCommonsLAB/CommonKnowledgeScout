@@ -46,6 +46,8 @@ describe('loadSupplierData', () => {
     expect(result?.sourceFileName).toBe(SIDECAR_FILENAME)
     expect(result?.entries).toHaveLength(1)
     expect(result?.entries[0].entry.VCodex).toBe('ST-1')
+    // Die beiden IsTexture=False-Eintraege werden ignoriert + gezaehlt.
+    expect(result?.ignoredNonTextureCount).toBe(2)
   })
 
   it('wirft bei fehlendem Optionvalues-Objekt (kein stiller Fallback)', async () => {
