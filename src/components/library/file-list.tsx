@@ -46,8 +46,7 @@ import {
 import { useMemo, useCallback } from "react"
 import { FileLogger, StateLogger } from "@/lib/debug/logger"
 import { FileCategoryFilter } from './file-category-filter';
-import { DivaInfoFilter } from './diva-info-filter';
-import { GroupByControl } from './group-by-control';
+import { DivaToolsMenu } from './diva-tools-menu';
 import { useItemAnnotations } from "@/hooks/use-item-annotations";
 import { useFolderNavigation } from "@/hooks/use-folder-navigation";
 import { useShadowTwinAnalysis } from "@/hooks/use-shadow-twin-analysis";
@@ -1367,9 +1366,8 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
               )}
             </div>
 
-            {/* DIVA-Info-Filter + Gruppierung (nur bei aktivierter Option) */}
-            {divaEnabled && <DivaInfoFilter />}
-            {divaEnabled && <GroupByControl />}
+            {/* DIVA-Filter + Gruppierung gebuendelt im Popover (nur bei aktivierter Option) */}
+            {divaEnabled && <DivaToolsMenu />}
 
             {/* Batch-Actions: Sammel-Transkript / Löschen (Ingest nur noch über Vorschau/Pipeline/Wizard) */}
             {/* Sammel-Transkript: sichtbar wenn ≥2 Dateien insgesamt ausgewählt */}
