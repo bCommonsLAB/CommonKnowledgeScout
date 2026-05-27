@@ -11,12 +11,15 @@ import {
   ImagePlus,
   Combine,
   ChevronRight,
+  Search,
+  X,
 } from "lucide-react"
 import { StorageItem } from "@/lib/storage/types"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useStorage } from "@/contexts/storage-context";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useAtomValue, useAtom } from 'jotai';
 import { 
   activeLibraryIdAtom,
@@ -29,7 +32,8 @@ import {
   selectedShadowTwinAtom,
   currentFolderIdAtom,
   itemAnnotationsAtom,
-  groupByAttributeAtom
+  groupByAttributeAtom,
+  searchTermAtom
 } from '@/atoms/library-atom';
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox"
@@ -112,6 +116,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   const allItemsInFolder = useAtomValue(folderItemsAtom);
   const currentFolderId = useAtomValue(currentFolderIdAtom);
   const navigateToFolder = useFolderNavigation();
+  const [searchTerm, setSearchTerm] = useAtom(searchTermAtom);
   // DIVA-Info-Filter: nur bei aktivierter Library-Option; laedt Annotationen des Ordners.
   const divaEnabled = activeLibrary?.config?.analyzeDivaTextureInfo === true;
   useItemAnnotations();
@@ -1336,6 +1341,31 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
 
             {/* Dateikategorie-Filter (Icon-only Variante) */}
             <FileCategoryFilter iconOnly />
+
+            {/* Dateiname-Suche (filtert ueber searchTermAtom -> sortedFilteredFilesAtom). */}
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Dateien filtern (z. B. basecolor)"
+                aria-label="Dateien nach Name filtern"
+                className="h-8 w-44 pl-7 pr-7 text-xs"
+              />
+              {searchTerm !== '' && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0.5 top-1/2 h-6 w-6 -translate-y-1/2"
+                  onClick={() => setSearchTerm('')}
+                  title="Suche zuruecksetzen"
+                  aria-label="Suche zuruecksetzen"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
 
             {/* DIVA-Info-Filter + Gruppierung (nur bei aktivierter Option) */}
             {divaEnabled && <DivaInfoFilter />}
