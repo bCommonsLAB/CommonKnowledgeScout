@@ -5,7 +5,7 @@ Stand: 2026-05-26. Erstellt als Setup-Doku fuer die mehrstufige Welle.
 ## Kontext (lies das ZUERST — verbindlich)
 
 1. **Plan**: [.cursor/plans/diva-texture-liefersystem-integration_e7c2a98f.plan.md](../../../.cursor/plans/diva-texture-liefersystem-integration_e7c2a98f.plan.md) — komplette Welle, alle Stufen, Edge-Cases, Stolperfallen, User-Journey.
-2. **Spec — neues Datenmodell**: [docs/diva-texture-analysen/material-digital-twin.md](../../diva-texture-analysen/material-digital-twin.md) — Material Digital Twin Modell von Lea (verbindlich fuer Stufe 2 + 3 + 5).
+2. **Spec — Datenmodell**: [docs/diva-texture-analysen/material-digital-twin.md](../../diva-texture-analysen/material-digital-twin.md) — Material Digital Twin Modell von Lea. WICHTIG: liefert die FELD-HERKUNFT + Enum-Werte (Stufe 2/3/5), ist aber das spaetere verschachtelte MongoDB-Objekt. Das Preprocess-Template ist FLACH (snake_case, Obsidian-kompatibel) — siehe Plan Lea-Regel #8 + Quellen-Map `src/lib/diva-texture/material-field-sources.ts`.
 3. **Spec — Besprechung mit Lea**: [docs/diva-texture-analysen/besprechung-lea-materialien.md](../../diva-texture-analysen/besprechung-lea-materialien.md) — Transkript, aus dem die Regeln in Plan-Section 4 extrahiert sind.
 4. **Sample-Daten**: [docs/diva-texture-analysen/api2_GetJsonOptionValues_sample.json](../../diva-texture-analysen/api2_GetJsonOptionValues_sample.json) — Beispiel-Sidecar, Basis fuer Loader-Tests in Stufe 1.
 5. **Aktuelles Template** (wird in Stufe 2 ersetzt): [template-samples/Diva-Texture-Analysis.md](../../../template-samples/Diva-Texture-Analysis.md).
@@ -104,41 +104,45 @@ sofern keine Konflikte in `template-samples/Diva-Texture-Analysis.md`.
 
 ---
 
-## Stufe 2 — Template-Refactor auf Material Digital Twin
+## Stufe 2 — Flaches Preprocess-Template (Stand: umgesetzt)
 
 **Branch:** `feature/diva-texture-template-digital-twin`
 
+> **Stand: neu ausgerichtet 2026-05-27 (User-Entscheid).** Template ist ein
+> FLACHES, Obsidian-kompatibles Preprocess-Frontmatter — NICHT das
+> verschachtelte Digital-Twin-Modell. Die zuvor eingebaute Nested-/Dot-Notation
+> wurde zurueckgenommen.
+
 **Vorbedingungen:**
 - Stufe 0 (Setup) ist gemergt.
-- `material-digital-twin.md` komplett gelesen (Datenmodell + Enums + Beispiel-JSON in Section 14 der Spec).
-- Aktuelles Template gelesen.
+- `material-digital-twin.md` gelesen (als FELD-/Enum-Quelle, nicht als Frontmatter-Form).
+- Plan Lea-Regel #8 + #9 + AGENTS.md "Frontmatter-Format" gelesen.
 
-**Aufgabe:**
+**Aufgabe (umgesetzt):**
 
-1. **Template umstellen** [template-samples/Diva-Texture-Analysis.md](../../../template-samples/Diva-Texture-Analysis.md):
-   - Frontmatter komplett neu nach Material-Digital-Twin-Modell: `materialClass`, `materialType`, `dominantColor.hex`, `availability.scope/retailerILN`, `visualProperties.*` (alle Sub-Felder), `aiGenerationHints.positivePromptTerms/negativePromptTerms/realismNotes`, `confidence.*`.
-   - Zusatzfelder fuer diese Welle: `analysisSourceImage`, `lieferSystemSnapshot` (objekt mit Sidecar-Snapshot), `groupClassificationId`, `analysisRuns` (Array).
-   - Bestehende technische Bild-Metadaten (`breite_px`, `hoehe_px`, EXIF) bleiben — werden weiterhin von Pipeline injiziert.
-2. **System-Prompt** aktualisieren:
-   - Erklaere LIEFERSYSTEM-Block (kommt in Stufe 3, aber Template muss ihn schon erwarten/dokumentieren).
-   - Strenge Regel: "Wenn LIEFERSYSTEM gesetzt, NICHT ueberschreiben — nur ergaenzen."
-   - Enum-Werte aus der Spec uebernehmen (siehe Tabellen Section 14).
-3. **Schema-Generator pruefen**: [src/lib/templates/template-service-mongodb.ts](../../../src/lib/templates/template-service-mongodb.ts) `generateResponseSchemaFromFields()` muss das neue Frontmatter korrekt in ein JSON-Schema umsetzen. Insbesondere: nested objects (`visualProperties.surfaceFinish` etc.) muessen unterstuetzt werden — falls nicht, hier erweitern.
-4. **DE→EN Material-Mapping** als Code-Tabelle: `src/lib/diva-texture/material-class-mapping.ts` mit Mapping siehe Plan-Section 5. **Pure-Funktion, kein LLM-Call.**
-5. **Trockenlauf**: 1-2 Sample-Texturen mit dem neuen Template analysieren und manuell checken ob Output valides JSON liefert.
+1. **Template** [template-samples/Diva-Texture-Analysis.md](../../../template-samples/Diva-Texture-Analysis.md):
+   - FLACHES Frontmatter (snake_case, eine Ebene, KEINE Dot-Notation, KEINE nested Objekte).
+   - LLM-Felder Pass 1: `material_class`, `material_type` (leer fuer ceramic/glass/plastic), `confidence_class`, `confidence_type`, `needs_human_review`.
+   - LLM-Felder Pass 2: `dominant_color_hex`, `color_family`, `color_description`, `surface_finish`, `surface_relief`, `pattern_scale`, `directionality`, `perceived_softness`, `color_variation`, `confidence_visual`.
+   - LLM-Felder (letzter Pass): `ai_prompt_positive`, `ai_prompt_negative`, `ai_realism_notes`.
+   - Extraktiv aus Pfad: `iln_nummer`, `textur_code`, `availability_scope`, `retailer_iln`.
+   - Pipeline-/System-verwaltet (auskommentiert, NICHT im Schema): `last_pass`, `pass1_status`, `pass2_status`, `analysisSourceImage`, `lieferSystemSnapshot`, `groupClassificationId`, `analysisRuns` + technische Bild-Metadaten.
+   - NICHT im Template: `color.rgb`, `materialSpecificProperties` (downstream MongoDB-Objekt).
+2. **System-Prompt**: LIEFERSYSTEM-Block dokumentiert, Vorrang-Regel ("nicht ueberschreiben, nur ergaenzen"), Zwei-Pass-Erklaerung, ceramic/glass/plastic ohne material_type, Hinweis "flaches JSON".
+3. **Quellen-Map** [src/lib/diva-texture/material-field-sources.ts](../../../src/lib/diva-texture/material-field-sources.ts): Herkunft je Feld (Leas Legende, Lea-Regel #4) + `llmFieldsForPass(1|2)`.
+4. **DE→EN Material-Mapping** [src/lib/diva-texture/material-class-mapping.ts](../../../src/lib/diva-texture/material-class-mapping.ts): Pure-Funktion, kein LLM-Call.
+5. **Schema-Generator** bleibt FLACH (`generateResponseSchemaFromFields()` unveraendert/zurueckgesetzt) — keine nested-Aufloesung.
 
 **Akzeptanzkriterien:**
-- Template ist auf neues Modell umgestellt, validiert gegen Material-Digital-Twin-Spec.
-- Schema-Generator produziert vollstaendiges JSON-Schema fuer das neue Frontmatter.
-- DE→EN-Mapping mit Tests fuer alle Material-Werte aus dem Sample-JSON + erweitbar.
+- Template flach + Obsidian-kompatibel, Schema-Generator erzeugt flaches Schema (Test `diva-texture-template.test.ts`).
+- Quellen-Map deckt alle LLM-Frontmatter-Felder ab (Konsistenz-Test).
+- DE→EN-Mapping mit Tests fuer alle Sample-Werte.
 - `pnpm lint` + `pnpm test` gruen.
-- Trockenlauf an 1-2 Samples zeigt valides JSON.
 
 **Stop-Bedingungen:**
-- Schema-Generator unterstuetzt nested objects nicht und Erweiterung waere zu invasiv — Klaerung mit User.
-- Template-Service-Migration hat Tests, die unter neuem Schema brechen — pruefen ob in Stufe 2 oder spaeter zu fixen.
+- Folge-Stufe verlangt nested Frontmatter → STOP, Trennung gilt (Lea-Regel #8).
 
-**Hand-off:** Naechste Stufe **3** (1. LLM-Pass).
+**Hand-off:** Naechste Stufe **3** (1. LLM-Pass) — filtert Felder ueber `llmFieldsForPass(1)`.
 
 ---
 

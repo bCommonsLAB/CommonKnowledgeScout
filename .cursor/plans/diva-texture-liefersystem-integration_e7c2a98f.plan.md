@@ -1,21 +1,21 @@
 ---
 name: diva-texture-liefersystem-integration
-overview: "Anreicherung der DIVA-Texturanalyse mit deterministischen Stammdaten aus dem Liefersystem (api2_GetJsonOptionValues.json) und Umstellung auf das neue Material-Digital-Twin-Datenmodell. Im 1. LLM-Pass wird pro Stoffgruppe (nicht pro Muster!) nur Class+Type+Confidence bestimmt; im 2. Pass die visuellen Properties pro Muster. Der Anwender entscheidet manuell welches Quellbild (Basecolor vs. Liefersystem-Preview) verwendet wird. Quellen: docs/diva-texture-analysen/{material-digital-twin.md, besprechung-lea-materialien.md, api2_GetJsonOptionValues_sample.json}."
+overview: "Anreicherung der DIVA-Texturanalyse mit deterministischen Stammdaten aus dem Liefersystem (api2_GetJsonOptionValues.json) und Umstellung des Templates auf ein FLACHES, Obsidian-kompatibles Preprocess-Frontmatter (snake_case, KI-Kernfelder + diva-Block). WICHTIG: Das Template ist NICHT Leas verschachteltes Material-Digital-Twin-Modell — dieses nested MongoDB-Objekt entsteht erst downstream aus den flachen Feldern + Cache-/Bitmap-Daten. Im 1. LLM-Pass wird pro Stoffgruppe (nicht pro Muster!) nur Class+Type+Confidence bestimmt; im 2. Pass die visuellen Properties + Farbe pro Muster. aiGenerationHints werden in jedem Lauf neu erzeugt und beziehen sich auf den zuletzt gelaufenen Pass (Pipeline-Feld last_pass). Der Anwender entscheidet manuell welches Quellbild (Basecolor vs. Liefersystem-Preview) verwendet wird. Quellen: docs/diva-texture-analysen/{material-digital-twin.md, besprechung-lea-materialien.md, api2_GetJsonOptionValues_sample.json}."
 todos:
   - id: stufe-1-anzeige
     content: "Stufe 1 - Anzeige (umgesetzt & nach master gemergt): Library-Setting analyzeDivaTextureInfo, Sidecar-Loader, heuristischer Matcher, API-Route, neuer Tab 'DIVA-Info'. Tab wird im View-Modul image-view.tsx gerendert (NICHT file-preview.tsx; Welle-3-II hat Tabs in views/*-view.tsx verlagert). Tab zeigt Sidecar-Metadaten + beide Bilder nebeneinander (Basecolor vom Filesystem + Preview vom Sidecar-Image-URL) + Bildwahl-Toggle 'Quellbild fuer Analyse: [basecolor] [supplier-preview]'. Wahl wird im generischen Archiv-Property-Store (MongoDB archive_item_properties__<libraryId>) persistiert, gebunden an stabile Material-ID VCodex (analysisSourceImage) - NICHT im Frontmatter. Logging via FileLogger (kein Pino). Rein deterministisch, kein LLM-Call. Akzeptanz erfuellt: Flag setzbar, Tab erscheint bei Treffer, beide Bilder sichtbar, Bildwahl persistiert, Unit-Tests fuer Matcher, pnpm lint + pnpm test gruen."
     status: completed
   - id: stufe-2-template-refactor
-    content: "Stufe 2 - Template-Refactor auf Material-Digital-Twin-Modell (PR feature/diva-texture-template-digital-twin): template-samples/Diva-Texture-Analysis.md umstellen auf neue Feldstruktur (materialClass, materialType, dominantColor.hex, availability.scope/retailerILN, visualProperties.*, aiGenerationHints.positive/negative/realismNotes, confidence.materialClassConfidence/materialTypeConfidence/visualPropertiesConfidence/needsHumanReview). Frontmatter mit allen Enum-Werten aus der Doku-Tabelle. Zusatzfelder: analysisSourceImage, lieferSystemSnapshot, groupClassificationId, analysisRuns. Akzeptanz: Schema wird via template-service-mongodb.ts korrekt generiert, manueller Trockenlauf liefert valides JSON."
-    status: pending
+    content: "Stufe 2 - FLACHES Preprocess-Template (PR feature/diva-texture-template-digital-twin): template-samples/Diva-Texture-Analysis.md ist ein flaches, Obsidian-kompatibles Frontmatter (snake_case, eine Ebene, KEINE Dot-Notation, KEINE nested Objekte). LLM-Felder: material_class, material_type (leer fuer ceramic/glass/plastic), confidence_class, confidence_type, needs_human_review (Pass 1); dominant_color_hex, color_family, color_description, surface_finish/surface_relief/pattern_scale/directionality/perceived_softness/color_variation, confidence_visual (Pass 2); ai_prompt_positive/ai_prompt_negative/ai_realism_notes (immer letzter Pass). Extraktiv aus dem Pfad: iln_nummer, textur_code, availability_scope, retailer_iln. Pipeline-/System-verwaltet (auskommentiert, NICHT im Schema): last_pass, pass1_status, pass2_status, analysisSourceImage, lieferSystemSnapshot, groupClassificationId, analysisRuns + technische Bild-Metadaten. Quellen-Map src/lib/diva-texture/material-field-sources.ts dokumentiert die Herkunft je Feld (Leas Legende, Lea-Regel #4) und liefert llmFieldsForPass(). materialSpecificProperties + color.rgb sind NICHT im Template (downstream). Akzeptanz: flaches Schema wird via template-service-mongodb.ts generiert (keine nested Container), Quellen-Map deckt alle LLM-Felder ab, pnpm lint + test gruen."
+    status: completed
   - id: stufe-3-pipeline-erster-lauf
-    content: "Stufe 3 - 1. LLM-Lauf NUR Class+Type+Confidence (PR feature/diva-texture-pipeline-first-pass): Pipeline-Job liest Sidecar + Bildwahl aus Stufe 1 und gibt Sidecar als LIEFERSYSTEM-Block ans LLM. Lauf bestimmt explizit nur materialClass + materialType + Confidence + aiGenerationHints (sonst nichts). Regel: Liefersystem-Treffer = Class-Vorschlag = high-confidence (>=0.9); LLM darf nur materialType verfeinern. availability.scope/retailerILN deterministisch aus Pfad. Mapping DE->EN (STOFF->fabric etc.) als Code-Tabelle. Akzeptanz: Lauf liefert valides Class+Type+Confidence-JSON, Sidecar-Treffer fuehrt zu Confidence >=0.9, Lauf ist idempotent."
+    content: "Stufe 3 - 1. LLM-Lauf NUR Class+Type+Confidence (PR feature/diva-texture-pipeline-first-pass): Pipeline-Job liest Sidecar + Bildwahl aus Stufe 1 und gibt Sidecar als LIEFERSYSTEM-Block ans LLM. Felder via llmFieldsForPass(1) aus der Quellen-Map: material_class, material_type, confidence_class, confidence_type, needs_human_review + ai_prompt_positive/ai_prompt_negative/ai_realism_notes (Hints laufen in jedem Pass mit). Pipeline setzt last_pass=1 + pass1_status. Regel: Liefersystem-Treffer = Class-Vorschlag = high-confidence (>=0.9); LLM darf nur material_type verfeinern; ceramic/glass/plastic erhalten keinen material_type. availability_scope/retailer_iln deterministisch aus Pfad. Mapping DE->EN (STOFF->fabric etc.) als Code-Tabelle (src/lib/diva-texture/material-class-mapping.ts). Akzeptanz: Lauf liefert valides Class+Type+Confidence-JSON, Sidecar-Treffer fuehrt zu Confidence >=0.9, Lauf ist idempotent."
     status: pending
   - id: stufe-4-gruppen-klassifikation
     content: "Stufe 4 - Stoffgruppen-Klassifikation in Galerie (PR feature/diva-texture-group-classification): Galerie-Ansicht gruppiert Texturen nach GroupName (Sidecar) bzw. groupIds (Material). Pro Gruppe ein Klassifikations-Dialog mit LLM-Vorschlag aus Stufe 3 (1x repraesentatives Bild, das beste Quellbild der Gruppe) + Confidence-Anzeige + 'Uebernehmen fuer X Mitglieder'-Button. Auto-Apply-Modus: bei Confidence >= Schwellwert (Library-Setting, default 0.9) kann User 'Alle ueber Schwelle automatisch uebernehmen' triggern. Single-Material-Override-Mechanismus, der nicht von Gruppen-Klassifikation ueberschrieben wird. Akzeptanz: Pro Gruppe nur 1 LLM-Call statt N, Bulk-Apply funktioniert, Override-Schutz funktioniert, Galerie zeigt Class+Type+Confidence pro Material."
     status: pending
   - id: stufe-5-pipeline-zweiter-lauf
-    content: "Stufe 5 - 2. LLM-Lauf fuer visuelle Properties (PR feature/diva-texture-pipeline-second-pass): pro Muster (nicht pro Gruppe, weil visuelle Details variieren), nur nach Class+Type-Bestaetigung. Erweitert um surfaceFinish, surfaceRelief, patternScale, directionality, perceivedSoftness, colorVariation + materialSpecificProperties (klassenabhaengig, z.B. fabricProperties.fiberType, wood.grainType). Liefersystem-Block weiterhin als Kontext (z.B. 'Eiche geoelt' aus Stammdaten). Akzeptanz: 2. Lauf produziert valides visualProperties-Subobjekt, Confidence plausibel, klassenabhaengige Felder korrekt."
+    content: "Stufe 5 - 2. LLM-Lauf fuer visuelle Properties (PR feature/diva-texture-pipeline-second-pass): pro Muster (nicht pro Gruppe, weil visuelle Details variieren), nur nach Class+Type-Bestaetigung. Felder via llmFieldsForPass(2): dominant_color_hex, color_family, color_description, surface_finish, surface_relief, pattern_scale, directionality, perceived_softness, color_variation, confidence_visual + ai_prompt_*/ai_realism_notes (neu erzeugt). Pipeline setzt last_pass=2 + pass2_status. Liefersystem-Block weiterhin als Kontext (z.B. 'Eiche geoelt' aus Stammdaten). HINWEIS: materialSpecificProperties (klassenabhaengig, z.B. fabricProperties.fiberType, wood.grainType) gehoeren NICHT ins flache Template, sondern erst ins downstream MongoDB-Digital-Twin-Objekt. Akzeptanz: 2. Lauf produziert valide flache visuelle Felder, Confidence plausibel."
     status: pending
   - id: stufe-6-persistenz-am-material
     content: "Stufe 6 - Persistenz Liefersystem-Snapshot + Lauf-Historie (PR feature/diva-texture-persist-supplier-snapshot): Sidecar-Snapshot beim 1. Lauf in Material-Markdown-Frontmatter (lieferSystemSnapshot mit Timestamp + RawData) + Lauf-Historie (analysisRuns: Array mit Timestamp, passNumber, sourceImage, confidence, fieldsEvaluated, classifier (group|individual), groupClassificationId). Re-Analyse nutzt persistierten Snapshot ohne neuen Sidecar-Lookup. Akzeptanz: Historie nachvollziehbar im Frontmatter, idempotente Re-Analyse, Snapshot nicht verloren bei Sidecar-Aenderung."
@@ -205,22 +205,46 @@ Aus [docs/diva-texture-analysen/besprechung-lea-materialien.md](../../docs/diva-
    Quality-Assessment durch LLM oder Heuristik.**
 7. **Klassifikation pro Stoffgruppe statt pro Muster** — spart LLM-Calls und
    Klick-Aufwand bei groesseren Lieferungen.
+8. **Template = flaches Preprocess, NICHT das Digital-Twin-Modell** — das
+   Frontmatter ist flach + Obsidian-kompatibel (snake_case, eine Ebene, keine
+   Dot-Notation, keine verschachtelten Objekte). Es liefert nur die KI-Kern-
+   felder + den diva-Liefer-Block. Leas verschachteltes Material-Digital-Twin
+   ist ein SPAETERES MongoDB-Objekt, das downstream aus den flachen Feldern +
+   Cache-/Bitmap-Daten zusammengesetzt wird. Diese Trennung darf in keiner
+   Folge-Stufe wieder aufweichen (siehe AGENTS.md "Frontmatter-Format").
+9. **aiGenerationHints = letzter Pass** — ai_prompt_positive/ai_prompt_negative/
+   ai_realism_notes werden in jedem Lauf neu erzeugt. Auf welchen Pass sie sich
+   beziehen, haelt das Pipeline-Feld `last_pass` fest. Konfidenz ist pro Pass
+   getrennt (confidence_class/confidence_type = Pass 1, confidence_visual =
+   Pass 2) und der Pass-Status in pass1_status/pass2_status.
+
+### Quellen-Map (Lea-Regel #4 maschinenlesbar)
+
+Die Herkunft jedes Feldes ist in `src/lib/diva-texture/material-field-sources.ts`
+kodiert (Leas Farb-Legende): `divadata` (Liefersystem) · `ai_pass1` (Klasse/Typ)
+· `ai_pass2` (Farbe + visuelle Properties) · `ai_last_pass` (Hints) · `path`
+(deterministisch aus Pfad) · `pipeline` (Status). `llmFieldsForPass(1|2)` liefert
+die je Pass anzufragenden LLM-Felder; Folge-Stufen filtern darueber statt die
+Feldlisten zu duplizieren. Leas gruene (umgesetzt) / rote (offen) Markierungen
+sind Status, keine Quelle, und stehen daher nicht in der Map.
 
 ## 5. Mapping Sidecar → Material-Digital-Twin
 
 Aus dem Sample [api2_GetJsonOptionValues_sample.json](../../docs/diva-texture-analysen/api2_GetJsonOptionValues_sample.json):
 
-| Sidecar-Feld | Digital-Twin-Feld | Bemerkung |
-|--------------|-------------------|-----------|
-| `Name` | `name` | direkt |
-| `GroupName` | `groupIds[0]` | als ID-Slug normalisieren ("Feincord" → `feincord`) |
-| `RGB` | `dominantColor.hex` | "#" voranstellen |
-| `Material` (z.B. "STOFF") | `visualProperties.materialClass` | Mapping-Tabelle DE→EN (Stufe 3) |
-| `VCodex` / `PFTFile` / `TextureName` | Matching-Key | heuristisch, mehrere Strategien |
+Ziel sind die FLACHEN Preprocess-Keys (snake_case), nicht das nested Modell.
+
+| Sidecar-Feld | Preprocess-Feld (flach) | Bemerkung |
+|--------------|-------------------------|-----------|
+| `Name` | `title` | direkt |
+| `GroupName` | (Slug fuer Gruppierung) | als ID-Slug normalisieren ("Feincord" → `feincord`) |
+| `RGB` | `dominant_color_hex` | "#" voranstellen |
+| `Material` (z.B. "STOFF") | `material_class` | Mapping-Tabelle DE→EN (material-class-mapping.ts) |
+| `VCodex` / `PFTFile` / `TextureName` | `textur_code` / Matching-Key | heuristisch, mehrere Strategien |
 | `Image` | UI-Vergleichsbild + Quellbild-Kandidat | als HTTP-URL geladen |
 | `IsTexture` | Filter: nur "True" beruecksichtigen | sonst matcht z.B. "Stuetzfuss" |
-| Pfad enthaelt `DivaStandardMaterials` | `availability.scope = "basic"` + `retailerILN = null` | — |
-| Pfad enthaelt 13-stellige ILN | `availability.scope = "basic"` + `retailerILN = <ILN>` | — |
+| Pfad enthaelt `DivaStandardMaterials` | `availability_scope = "basic"` + `retailer_iln = ""` | — |
+| Pfad enthaelt 13-stellige ILN | `availability_scope = "basic"` + `retailer_iln = <ILN>` | — |
 
 ### DE→EN-Material-Mapping (vorlaeufig, Stufe 3 finalisieren)
 
@@ -326,3 +350,15 @@ ein Feature-Build.
   - Cloud-Workflow: pro Stufe ein Cloud-Agent, beginnend mit Stufe 1 nach
     Setup-Merge
   - AGENT-BRIEF unter `docs/refactor/diva-texture-liefersystem/AGENT-BRIEF.md`
+- 2026-05-27 — Stufe 2 neu ausgerichtet (User-Entscheid):
+  - Template ist FLACHES Preprocess-Frontmatter (snake_case, Obsidian-kompatibel),
+    NICHT das verschachtelte Digital-Twin-Modell — Trennung als Lea-Regel #8
+    festgehalten + projektweite Regel in AGENTS.md "Frontmatter-Format"
+  - Nested-Schema-/Dot-Notation-Aenderungen am template-parser /
+    template-service-mongodb zurueckgenommen (flacher Schema-Generator bleibt)
+  - aiGenerationHints = letzter Pass (Pipeline-Feld `last_pass`), Konfidenz +
+    Status pro Pass (Lea-Regel #9)
+  - ceramic/glass/plastic ohne material_type; color.rgb + materialSpecific-
+    Properties NICHT im Template (downstream MongoDB-Objekt)
+  - Quellen-Map `material-field-sources.ts` als maschinenlesbare Fassung von
+    Leas Farb-Legende (Lea-Regel #4) + `llmFieldsForPass()`
