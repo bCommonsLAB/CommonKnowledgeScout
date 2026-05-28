@@ -213,6 +213,21 @@ describe('applyClassificationToMember', () => {
     expect(meta.pass1_status).toBe('needs_review')
   })
 
+  it('setzt needs_visual_refresh=true wenn options.markVisualRefresh=true', () => {
+    const patched = applyClassificationToMember(MEMBER_MD, CLASSIFICATION, {
+      markVisualRefresh: true,
+    })
+    const { meta } = parseFrontmatter(patched)
+    expect(meta.needs_visual_refresh).toBe(true)
+  })
+
+  it('laesst needs_visual_refresh unangetastet, wenn die Option nicht gesetzt ist', () => {
+    const patched = applyClassificationToMember(MEMBER_MD, CLASSIFICATION)
+    const { meta } = parseFrontmatter(patched)
+    // war im Test-Markdown nicht gesetzt → bleibt undefined
+    expect(meta.needs_visual_refresh).toBeUndefined()
+  })
+
   it('wirft bei leerem Markdown — kein silent fallback', () => {
     expect(() => applyClassificationToMember('', CLASSIFICATION)).toThrow(/Markdown ist leer/)
   })

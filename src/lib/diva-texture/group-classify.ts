@@ -135,6 +135,16 @@ export function extractClassification(markdown: string): Pass1Classification | n
   }
 }
 
+/** Optionen fuer das Patchen eines Mitglieds. */
+export interface ApplyClassificationOptions {
+  /**
+   * Wenn `true`, wird `needs_visual_refresh: true` mit ins Frontmatter
+   * gepatcht — Signal an Stufe 5, dass die visuellen Properties unter
+   * der neuen Klasse neu zu bestimmen sind.
+   */
+  markVisualRefresh?: boolean
+}
+
 /**
  * Patcht die Pass-1-Klassifikation ins Mitglieder-Markdown.
  *
@@ -147,12 +157,17 @@ export function extractClassification(markdown: string): Pass1Classification | n
  * laesst der Batch unveraendert, weil sie pro Material verschieden sein
  * koennen — sie werden erst durch einen vollen Re-Run aktualisiert.
  *
+ * Optional setzt der Batch `needs_visual_refresh: true`, wenn sich die
+ * `material_class` durch die Propagation aendert (User-Entscheid 2026-05-28:
+ * Stufe 5 ist ein Korrektur-Lauf, der auf diesen Marker reagiert).
+ *
  * Wirft, wenn das Markdown KEIN Pass-1-Frontmatter enthaelt (kein silent
  * fallback fuer fremde Dokumente).
  */
 export function applyClassificationToMember(
   markdown: string,
   classification: Pass1Classification,
+  options: ApplyClassificationOptions = {},
 ): string {
   if (typeof markdown !== 'string' || markdown.trim().length === 0) {
     throw new Error('applyClassificationToMember: Markdown ist leer')
@@ -170,6 +185,9 @@ export function applyClassificationToMember(
     needs_human_review: classification.needs_human_review,
     last_pass: 1,
     pass1_status: classification.needs_human_review ? 'needs_review' : 'done',
+  }
+  if (options.markVisualRefresh === true) {
+    updates.needs_visual_refresh = true
   }
   return patchFrontmatter(markdown, updates)
 }

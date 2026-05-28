@@ -84,10 +84,10 @@ export function ItemsGrid({
                   size='sm'
                   className='gap-2'
                   onClick={() => setClassifyGroupName(String(groupKey))}
-                  title='Stoffgruppe klassifizieren — 1 LLM-Call propagiert auf alle Mitglieder'
+                  title='Vorhandene Pass-1-Klassifikation eines Repraesentativen auf die Mitglieder uebernehmen (kein LLM-Call)'
                 >
                   <Sparkles className='h-4 w-4' />
-                  Gruppe klassifizieren
+                  Gruppe propagieren
                 </Button>
               ) : null}
             </div>

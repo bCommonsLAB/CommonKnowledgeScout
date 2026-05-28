@@ -46,9 +46,12 @@ interface ClassificationResult {
   members: {
     total: number
     applied: string[]
+    /** Mitglieder, deren material_class durch die Propagation gewechselt hat. */
+    markedForRefresh: string[]
     skippedLocked: string[]
     skippedRejected: string[]
-    skippedRepresentativeNotFound: string[]
+    /** Mitglieder ohne vorhandenes Artefakt fuer die Propagation. */
+    skippedNoArtifact: string[]
   }
   dryRun: boolean
 }
@@ -158,11 +161,12 @@ export function GroupClassifyDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Stoffgruppe klassifizieren: {groupName}</DialogTitle>
+          <DialogTitle>Stoffgruppe propagieren: {groupName}</DialogTitle>
           <DialogDescription>
-            Ein LLM-Call auf einem repraesentativen Bild — die ermittelte
-            Klasse, der Typ und die Konfidenz werden anschliessend auf alle
-            nicht gelockten und nicht verworfenen Mitglieder uebernommen.
+            Die Klassifikation eines bereits im Archiv analysierten
+            Repraesentativen wird auf alle nicht gelockten und nicht
+            verworfenen Mitglieder uebernommen. Es laeuft KEIN neuer LLM-Call
+            — Pass 1 muss vorher pro Material via Archiv ausgefuehrt sein.
           </DialogDescription>
         </DialogHeader>
 
@@ -170,7 +174,7 @@ export function GroupClassifyDialog({
           {isLoading ? (
             <div className='flex items-center gap-2 text-sm text-muted-foreground'>
               <Loader2 className='h-4 w-4 animate-spin' />
-              LLM klassifiziert die Gruppe …
+              Lade Klassifikation des Repraesentativen …
             </div>
           ) : error ? (
             <div className='rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive'>
@@ -212,10 +216,21 @@ export function GroupClassifyDialog({
                 {preview.members.skippedRejected.length > 0
                   ? `, ${preview.members.skippedRejected.length} verworfen`
                   : ''}
+                {preview.members.skippedNoArtifact.length > 0
+                  ? `, ${preview.members.skippedNoArtifact.length} ohne Pass-1-Lauf (im Archiv ausfuehren)`
+                  : ''}
               </li>
               {preview.classification.needs_human_review ? (
                 <li className='text-amber-700 dark:text-amber-400'>
                   Diese Gruppe ist als <em>needs_human_review</em> markiert.
+                </li>
+              ) : null}
+              {preview.members.markedForRefresh.length > 0 ? (
+                <li className='text-sky-700 dark:text-sky-400'>
+                  {preview.members.markedForRefresh.length} Mitglied
+                  {preview.members.markedForRefresh.length === 1 ? '' : 'er'} wurden mit{' '}
+                  <em>needs_visual_refresh</em> markiert — ein Korrektur-Lauf im Archiv ist
+                  noetig, um die visuellen Properties zur neuen Klasse passend zu bestimmen.
                 </li>
               ) : null}
             </ul>

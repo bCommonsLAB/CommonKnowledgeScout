@@ -1597,6 +1597,13 @@ export async function setDocPass1Classification(
     needs_human_review: boolean
     last_pass: 1
     pass1_status: 'done' | 'needs_review'
+    /**
+     * Optional: setzt `docMetaJson.needs_visual_refresh` mit. `true`, wenn die
+     * Klasse durch die Propagation gegenueber dem alten Wert wechselt
+     * (Korrektur-Lauf in Stufe 5 erforderlich). `undefined` laesst den
+     * vorhandenen Wert unangetastet.
+     */
+    needs_visual_refresh?: boolean
   },
 ): Promise<boolean> {
   const col = await getCollectionOnly(libraryKey)
@@ -1608,6 +1615,9 @@ export async function setDocPass1Classification(
     'docMetaJson.needs_human_review': patch.needs_human_review,
     'docMetaJson.last_pass': patch.last_pass,
     'docMetaJson.pass1_status': patch.pass1_status,
+  }
+  if (patch.needs_visual_refresh === true) {
+    set['docMetaJson.needs_visual_refresh'] = true
   }
   const res = await col.updateOne(
     { _id: `${fileId}-meta`, kind: 'meta' } as Partial<Document>,
