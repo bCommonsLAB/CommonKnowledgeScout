@@ -28,6 +28,8 @@ const NON_FACET_FIELDS = new Set([
   'ecosocial', 'slides',
   // Sprach-/System-Felder (intern, nicht filterbar)
   'language', 'targetLanguage',
+  // DIVA-Texture: Long-Text-Felder, die als Facette keinen Sinn ergeben
+  'ai_prompt_positive', 'ai_prompt_negative', 'ai_realism_notes', 'color_description',
 ])
 
 /** Bekannte Typ-Zuordnung fuer Felder (Fallback: string) */
@@ -45,6 +47,15 @@ const FIELD_TYPE_MAP: Record<string, FacetDefUi['type']> = {
   gueltigAb: 'date',
   istVeraltet: 'boolean',
   isScan: 'boolean',
+  // DIVA-Texture (Stufe 3/4)
+  confidence_class: 'number',
+  confidence_type: 'number',
+  confidence_visual: 'number',
+  last_pass: 'number',
+  needs_human_review: 'boolean',
+  classification_locked: 'boolean',
+  classification_rejected: 'boolean',
+  needs_visual_refresh: 'boolean',
 }
 
 /** Label-Vorschlaege fuer bekannte Felder (CamelCase → lesbarer Name) */
@@ -78,6 +89,32 @@ const FIELD_LABEL_MAP: Record<string, string> = {
   lv_zustaendigkeit: 'Zuständigkeit',
   author_name: 'Author',
   author_role: 'Role',
+  // DIVA-Texture (Stufe 3/4)
+  iln_nummer: 'ILN-Nummer',
+  textur_code: 'Textur-Code',
+  availability_scope: 'Verfuegbarkeit',
+  retailer_iln: 'Retailer-ILN',
+  group_name: 'Stoffgruppe',
+  material_class: 'Material-Klasse',
+  material_type: 'Material-Typ',
+  confidence_class: 'Konfidenz Klasse',
+  confidence_type: 'Konfidenz Typ',
+  confidence_visual: 'Konfidenz Visual',
+  needs_human_review: 'Review noetig',
+  dominant_color_hex: 'Hauptfarbe (Hex)',
+  color_family: 'Farbfamilie',
+  surface_finish: 'Oberflaechen-Finish',
+  surface_relief: 'Oberflaechen-Relief',
+  pattern_scale: 'Muster-Groesse',
+  directionality: 'Richtung',
+  perceived_softness: 'Weichheit',
+  color_variation: 'Farb-Variation',
+  last_pass: 'Letzter Pass',
+  pass1_status: 'Pass-1-Status',
+  pass2_status: 'Pass-2-Status',
+  classification_locked: 'Bestaetigt (locked)',
+  classification_rejected: 'Verworfen',
+  needs_visual_refresh: 'Refresh noetig',
 }
 
 /**
