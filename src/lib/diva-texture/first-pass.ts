@@ -3,28 +3,33 @@
  *
  * @description
  * Nimmt die rohe LLM-Antwort (geparste Frontmatter-Felder) und erzeugt das
- * FLACHE Pass-1-Frontmatter gemaess Lea-Regeln + Stolperfallen:
- *  - Sidecar-Class-Treffer ueberschreibt material_class deterministisch und
- *    setzt confidence_class = 0.95 (Stolperfalle #2, Lea-Regel #2). Reine
- *    Bildklassifikation wird bei 0.8 gekappt.
+ * FLACHE Pass-1-Frontmatter:
+ *  - Sidecar-Class-Treffer ueberschreibt material_class deterministisch +
+ *    confidence_class = 0.95 (Lea-Regel #2, Stolperfalle #2). LLM-only-
+ *    Klassifikation wird bei 0.8 gekappt.
  *  - ceramic/glass/plastic erhalten KEINEN material_type.
- *  - availability_scope/retailer_iln deterministisch aus dem Pfad.
- *  - `group_name` kommt deterministisch aus `LIEFERSYSTEM.GroupName`.
- *  - Visuelle Properties (color, surface_*, pattern_scale, directionality,
- *    perceived_softness, color_variation, confidence_visual) sowie die
- *    Hints werden **unveraendert** aus der LLM-Antwort uebernommen — Stufe 3
- *    fragt seit 2026-05-28 alle Material-Felder in EINEM Call ab
- *    (User-Entscheid). Es werden KEINE Felder explizit geleert.
- *  - last_pass=1 + pass1_status werden pipeline-seitig gesetzt (nicht vom LLM).
+ *  - availability_scope/retailer_iln/group_name deterministisch aus Pfad/Sidecar.
+ *  - Visuelle Properties + Hints werden 1:1 aus der LLM-Antwort uebernommen
+ *    (Voll-Pass-Modell, User-Entscheid 2026-05-28).
+ *  - last_pass=1 + pass1_status werden pipeline-seitig gesetzt.
+ *  - Update 2 (2026-05-28): color_match_supplier/_notes + review_status
+ *    werden ueber den extrahierten Postprocessor in `review-status.ts`
+ *    korrigiert; Override-Schutz fuer manuell gesetzte Stati.
  *
- * Rein deterministisch, KEIN LLM-Call, KEINE Seiteneffekte. Idempotent:
- * gleiche Eingaben → gleiches Ergebnis.
+ * Rein deterministisch, KEIN LLM-Call, idempotent.
  */
 
 import type { AnalysisSourceImage, OptionvalueEntry } from './types'
 import { mapMaterialClass } from './material-class-mapping'
 import { fieldsForSource } from './material-field-sources'
 import { parseAvailabilityFromPath } from './availability-from-path'
+import {
+  applyReviewStatusOverrideGuard,
+  buildColorMatchOutcome,
+  type ReviewStatus,
+} from './review-status'
+
+export type { ReviewStatus } from './review-status'
 
 /** Konfidenz-Wert fuer einen Liefersystem-Class-Treffer (deterministisch). */
 const SIDECAR_CLASS_CONFIDENCE = 0.95
@@ -44,14 +49,22 @@ export interface BuildFirstPassArgs {
   /** Voller Verzeichnispfad der Textur (fuer availability/retailer_iln). */
   filePath: string
   /**
-   * Welches Quellbild tatsaechlich ans LLM ging. Wird als Snapshot ins
-   * Frontmatter geschrieben (`analysisSourceImage`), damit der Klassifizierer
-   * dem Ergebnis ansieht, ob es auf dem Basecolor oder dem Liefersystem-
-   * Preview entstanden ist — unabhaengig von einer spaeteren Praeferenz-
-   * Aenderung im Archiv-Property-Store. Default `basecolor`, falls der
-   * Aufrufer (z.B. Tests) den Wert nicht setzt.
+   * Welches Quellbild tatsaechlich ans LLM ging. Snapshot ins Frontmatter
+   * (`analysisSourceImage`) — Default `basecolor`. Update 2: Pass 1 sendet
+   * IMMER beide Bilder, der Snapshot bleibt aus Historie-Gruenden.
    */
   sourceImage?: AnalysisSourceImage
+  /**
+   * Update 2: true, wenn der Lauf tatsaechlich eine Supplier-Preview ans LLM
+   * gesendet hat. Steuert den Color-Match-Postprocessor (Edge-Case #21).
+   * Default `false`.
+   */
+  supplierPreviewSent?: boolean
+  /**
+   * Update 2: bisheriger `review_status` aus dem Frontmatter. Steuert den
+   * Override-Schutz (Stolperfalle #16). Default `nicht_geprueft`.
+   */
+  existingReviewStatus?: ReviewStatus
 }
 
 /** Coerced numerischer Wert oder null (kein stiller 0-Fallback). */
@@ -136,6 +149,14 @@ export function buildFirstPassFrontmatter(args: BuildFirstPassArgs): Record<stri
   // Ermoeglicht die Galerie-Gruppierung nach Stoffgruppe (Stufe 4). Leer ohne Treffer.
   const groupName = nonEmptyString(supplierEntry?.GroupName) ?? ''
 
+  // Update 2 (2026-05-28): Color-Match-Postprocessor + Review-Status mit
+  // Override-Schutz. Beides muss VOR dem Frontmatter-Dictionary stehen, damit
+  // wir die Felder zentral setzen und der ai_pass1-Loop sie ueberspringt.
+  const supplierPreviewSent = args.supplierPreviewSent ?? false
+  const existingReviewStatus: ReviewStatus = args.existingReviewStatus ?? 'nicht_geprueft'
+  const colorMatch = buildColorMatchOutcome(llmFields, supplierPreviewSent)
+  const reviewStatus = applyReviewStatusOverrideGuard(existingReviewStatus, colorMatch.proposedReviewStatus)
+
   const result: Record<string, unknown> = {
     // ai_pass1-Felder (feldspezifische Kalibrierung, daher explizit)
     material_class: materialClass ?? '',
@@ -143,6 +164,9 @@ export function buildFirstPassFrontmatter(args: BuildFirstPassArgs): Record<stri
     confidence_class: confidenceClass,
     confidence_type: confidenceType,
     needs_human_review: needsHumanReview,
+    // Update 2: Color-Match-Felder (ai_pass1, deterministisch korrigiert)
+    color_match_supplier: colorMatch.colorMatchSupplier,
+    color_match_notes: colorMatch.colorMatchNotes,
     // deterministisch aus dem Pfad / Sidecar
     availability_scope,
     retailer_iln,
@@ -150,6 +174,8 @@ export function buildFirstPassFrontmatter(args: BuildFirstPassArgs): Record<stri
     // Pipeline-/System-verwaltet (nicht vom LLM)
     last_pass: 1,
     pass1_status: needsHumanReview ? ('needs_review' satisfies Pass1Status) : ('done' satisfies Pass1Status),
+    // Update 2: Lebenszyklus-Status mit Override-Schutz
+    review_status: reviewStatus,
     // Snapshot des LETZTEN Lauf-Quellbilds (Stufe 3+). User-Praeferenz im
     // Archiv-Property-Store kann sich danach aendern; das hier bleibt
     // der historische Wahrheits-Anker fuer dieses Analyse-Ergebnis.
