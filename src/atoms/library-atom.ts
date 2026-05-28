@@ -297,6 +297,18 @@ itemAnnotationsStatusAtom.debugLabel = "itemAnnotationsStatusAtom"
 export const annotationFilterModeAtom = atom<AnnotationFilterMode>('all')
 annotationFilterModeAtom.debugLabel = "annotationFilterModeAtom"
 
+// Sidecar-Status fuer das aktuelle DIVA-Verzeichnis (api2_GetJsonOptionValues.json).
+// Wird vom DivaToolsMenu in der Dateilisten-Toolbar visualisiert: orange wenn
+// der Sidecar gefunden wurde, neutral wenn nicht. Kein silent fallback —
+// 'error' wird separat ausgewiesen.
+export interface DivaSidecarStatus {
+  state: 'idle' | 'loading' | 'loaded' | 'error'
+  found: boolean
+  entryCount?: number
+}
+export const divaSidecarStatusAtom = atom<DivaSidecarStatus>({ state: 'idle', found: false })
+divaSidecarStatusAtom.debugLabel = "divaSidecarStatusAtom"
+
 // Gruppierung der Dateiliste nach einem Annotation-Attribut (z.B. 'stoffgruppe').
 // null = keine Gruppierung. Generisch: jeder String-Attribut-Key ist moeglich.
 export const groupByAttributeAtom = atom<string | null>(null)

@@ -48,6 +48,7 @@ import { FileLogger, StateLogger } from "@/lib/debug/logger"
 import { FileCategoryFilter } from './file-category-filter';
 import { DivaToolsMenu } from './diva-tools-menu';
 import { useItemAnnotations } from "@/hooks/use-item-annotations";
+import { useDivaSidecarStatus } from "@/hooks/use-diva-sidecar-status";
 import { useFolderNavigation } from "@/hooks/use-folder-navigation";
 import { useShadowTwinAnalysis } from "@/hooks/use-shadow-twin-analysis";
 import { shadowTwinAnalysisTriggerAtom, shadowTwinStateAtom } from "@/atoms/shadow-twin-atom";
@@ -119,6 +120,9 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   // DIVA-Info-Filter: nur bei aktivierter Library-Option; laedt Annotationen des Ordners.
   const divaEnabled = activeLibrary?.config?.analyzeDivaTextureInfo === true;
   useItemAnnotations();
+  // Sidecar-Status (api2_GetJsonOptionValues.json im aktuellen Ordner) — wird
+  // im DivaToolsMenu visualisiert (orange wenn gefunden).
+  useDivaSidecarStatus(divaEnabled);
   const itemAnnotations = useAtomValue(itemAnnotationsAtom);
   const groupByAttribute = useAtomValue(groupByAttributeAtom);
   // Eingeklappte Gruppen (lokal, pro Ordner zuruecksetzen).
