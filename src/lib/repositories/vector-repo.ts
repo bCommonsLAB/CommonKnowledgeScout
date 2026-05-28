@@ -1578,6 +1578,44 @@ export async function setDocPublication(
 }
 
 /**
+ * Patcht die Pass-1-Klassifikation eines Materials in `docMetaJson` (Stufe 4).
+ *
+ * Nutzt dot-notation `$set`, damit andere docMetaJson-Felder unangetastet
+ * bleiben (insbesondere `group_name`, `classification_locked`, `classification_rejected`,
+ * `availability_*`). Wird vom Batch-Klassifikations-Runner pro Mitglied aufgerufen,
+ * damit die Galerie die neuen Badges sofort zeigt — ohne komplettes Re-Ingest.
+ */
+export async function setDocPass1Classification(
+  libraryKey: string,
+  fileId: string,
+  patch: {
+    material_class: string
+    material_type: string
+    confidence_class: number
+    confidence_type: number | ''
+    needs_human_review: boolean
+    last_pass: 1
+    pass1_status: 'done' | 'needs_review'
+  },
+): Promise<boolean> {
+  const col = await getCollectionOnly(libraryKey)
+  const set: Record<string, unknown> = {
+    'docMetaJson.material_class': patch.material_class,
+    'docMetaJson.material_type': patch.material_type,
+    'docMetaJson.confidence_class': patch.confidence_class,
+    'docMetaJson.confidence_type': patch.confidence_type,
+    'docMetaJson.needs_human_review': patch.needs_human_review,
+    'docMetaJson.last_pass': patch.last_pass,
+    'docMetaJson.pass1_status': patch.pass1_status,
+  }
+  const res = await col.updateOne(
+    { _id: `${fileId}-meta`, kind: 'meta' } as Partial<Document>,
+    { $set: set },
+  )
+  return res.matchedCount > 0
+}
+
+/**
  * Holt Meta-Dokumente nach FileIDs (für Kompatibilität mit doc-meta-repo).
  * @param libraryKey Collection-Name
  * @param libraryId Library-ID
