@@ -266,6 +266,14 @@ export interface StorageConfig {
   analyzeDivaTextureInfo?: boolean;
 
   /**
+   * Schwellwert fuer die Auto-Uebernahme der Stoffgruppen-Klassifikation
+   * (Stufe 4). Wenn die Klassifikations-Konfidenz `confidence_class` einer
+   * Gruppe diesen Wert erreicht, darf die UI "Alle Gruppen ueber dem Schwell-
+   * wert uebernehmen" propagieren. Default: 0.9. Bereich [0, 1].
+   */
+  autoApplyConfidenceThreshold?: number;
+
+  /**
    * Doc-Translations-Konfiguration (Sprachen, in die publizierte Dokumente uebersetzt werden).
    * Vom globalen LanguageSwitcher konsumiert; Backend-Jobs erzeugen Uebersetzungen pro Locale.
    */
@@ -467,6 +475,11 @@ export interface ClientLibrary {
     chat?: LibraryChatConfig;
     /** Transformation: DIVA-Liefersystem-Daten auswerten (DIVA-Info-Tab). Default false. */
     analyzeDivaTextureInfo?: boolean;
+    /**
+     * Schwellwert fuer Auto-Uebernahme bei Stoffgruppen-Klassifikation (Stufe 4).
+     * Bereich [0, 1], Default 0.9.
+     */
+    autoApplyConfidenceThreshold?: number;
     /** Doc-Translations-Konfiguration (clientseitig sichtbar, weil reine Sprach-Praeferenzen) */
     translations?: TranslationsConfig;
     /** Creation-Flow-Konfiguration für die UI */

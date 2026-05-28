@@ -189,6 +189,11 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
         templateDirectory:
           (activeLibrary.config?.templateDirectory as string) ?? "/templates",
         analyzeDivaTextureInfo: activeLibrary.config?.analyzeDivaTextureInfo === true,
+        autoApplyConfidenceThreshold:
+          typeof activeLibrary.config?.autoApplyConfidenceThreshold === "number" &&
+          Number.isFinite(activeLibrary.config.autoApplyConfidenceThreshold)
+            ? Math.min(1, Math.max(0, activeLibrary.config.autoApplyConfidenceThreshold))
+            : 0.9,
         storageConfig,
       });
       const configShadowTwin = activeLibrary?.config?.shadowTwin as
@@ -434,6 +439,39 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                       <FormControl>
                         <Switch checked={field.value} onCheckedChange={field.onChange} />
                       </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="autoApplyConfidenceThreshold"
+                  render={({ field }) => (
+                    <FormItem className="rounded-lg border p-4">
+                      <FormLabel className="text-base">
+                        Auto-Uebernahme ab Konfidenz (Stoffgruppe)
+                      </FormLabel>
+                      <FormDescription>
+                        Schwellwert fuer die Auto-Uebernahme der Stoffgruppen-Klassifikation
+                        (Stufe 4). Wenn der vom LLM bestimmte Wert{" "}
+                        <code>confidence_class</code> diesen Schwellwert erreicht, kann die
+                        Klassifikation ohne weitere Bestaetigung auf alle Mitglieder der Gruppe
+                        uebernommen werden. Bereich [0, 1].
+                      </FormDescription>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={1}
+                          step={0.05}
+                          value={field.value}
+                          onChange={(e) => {
+                            const v = Number(e.target.value);
+                            if (Number.isFinite(v)) field.onChange(Math.min(1, Math.max(0, v)));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
