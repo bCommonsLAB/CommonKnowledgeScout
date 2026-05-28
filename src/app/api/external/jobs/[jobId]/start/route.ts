@@ -1432,9 +1432,8 @@ export async function POST(
           model: llmModel,
         })
 
-        // Einheitlicher LLM-Call (wird im Standard- und im DIVA-Texture-Pfad
-        // wiederverwendet) — liefert das Markdown der Secretary-Antwort.
-        const callImageAnalyzer = async (
+        // Einheitlicher LLM-Call (Single-Image-Pfad fuer Standard-Image-Analyse).
+        const callImageAnalyzerSingle = async (
           image: { buffer: Buffer; fileName: string; mimeType: string },
           ctx: Record<string, unknown>,
         ): Promise<string> => {
@@ -1460,11 +1459,49 @@ export async function POST(
           return json.data.text
         }
 
-        // DIVA-Texture 1. Pass (Stufe 3): Sidecar-Kontext + deterministische
-        // Class/Type/Confidence-Nachbearbeitung. Sonst: Standard-Image-Analyse.
+        // Multi-Image-Pfad (DIVA-Texture Update 2): Basecolor-Crop + optional
+        // Supplier-Preview. Reihenfolge im `files`-Array ist semantisch
+        // relevant (Cache-Key, siehe image-analyzer.ts).
+        const callImageAnalyzerMulti = async (
+          images: Array<{ buffer: Buffer; fileName: string; mimeType: string }>,
+          ctx: Record<string, unknown>,
+        ): Promise<string> => {
+          const res = await callImageAnalyzerTemplate({
+            baseUrl,
+            apiKey,
+            files: images.map((i) => ({ file: i.buffer, fileName: i.fileName, mimeType: i.mimeType })),
+            templateContent: templateContentForImage,
+            targetLanguage,
+            context: ctx,
+            model: llmModel,
+            useCache,
+            timeoutMs: 120_000,
+            correlationHeaders,
+          })
+          const json = await res.json() as { status: string; data?: { text: string }; error?: unknown }
+          if (json.status !== 'success' || !json.data?.text) {
+            throw new Error(json.error ? JSON.stringify(json.error) : 'Image-Analyzer lieferte kein Ergebnis')
+          }
+          return json.data.text
+        }
+
+        // DIVA-Texture 1. Pass (Stufe 3 Update 2): Basecolor-Crop + Supplier-
+        // Preview → 2-Bild-LLM-Call + Color-Match-Postprocessor +
+        // review_status mit Override-Schutz. Sonst: Standard-Image-Analyse.
         const { isDivaTextureTemplate, runDivaTextureFirstPass } = await import('@/lib/diva-texture/first-pass-runner')
         if (isDivaTextureTemplate(templateContentForImage)) {
-          const { getArchiveItemProperties } = await import('@/lib/repositories/archive-item-properties-repo')
+          // Override-Schutz: bestehenden review_status aus dem Shadow-Twin lesen,
+          // damit ein erneuter Lauf manuell gesetzte Stati (abgenommen,
+          // zu_ueberarbeiten) nicht ueberschreibt (Stolperfalle #16).
+          const { readExistingDivaReviewStatus } = await import('@/lib/diva-texture/read-existing-review-status')
+          const existingReviewStatus = await readExistingDivaReviewStatus({
+            provider,
+            libraryUserEmail: job.userEmail,
+            libraryId: job.libraryId,
+            parentId: job.correlation?.source?.parentId || 'root',
+            sourceName: job.correlation?.source?.name || imageFileName,
+            sourceItemId,
+          })
           const runnerResult = await runDivaTextureFirstPass({
             provider,
             parentId: job.correlation?.source?.parentId || 'root',
@@ -1472,11 +1509,7 @@ export async function POST(
             filePath: typeof imageContext.filePath === 'string' ? imageContext.filePath : '',
             baseImage: { buffer: imageBuffer, fileName: imageFileName, mimeType: imageMimeType },
             baseContext: imageContext,
-            getImageChoice: async (materialId) => {
-              const props = await getArchiveItemProperties(job.libraryId, materialId)
-              const choice = props.analysisSourceImage
-              return choice === 'basecolor' || choice === 'supplier-preview' ? choice : null
-            },
+            existingReviewStatus,
             fetchPreviewImage: async (url) => {
               const resp = await fetch(url)
               if (!resp.ok) throw new Error(`Liefersystem-Preview nicht erreichbar: HTTP ${resp.status}`)
@@ -1485,17 +1518,19 @@ export async function POST(
               const previewName = imageFileName.replace(/\.[^.]+$/, '') + '-supplier-preview.jpg'
               return { buffer: buf, fileName: previewName, mimeType: mime }
             },
-            analyzeImage: ({ image, context }) => callImageAnalyzer(image, context),
+            analyzeImages: ({ images, context }) => callImageAnalyzerMulti(images, context),
           })
           responseData = { text: runnerResult.markdown }
           FileLogger.info('start-route', 'DIVA-Texture 1. Pass abgeschlossen', {
             jobId,
             supplierMatched: runnerResult.supplierMatched,
-            sourceImage: runnerResult.sourceImage,
+            supplierPreviewSent: runnerResult.supplierPreviewSent,
+            basecolorCrop: runnerResult.basecolorCrop,
+            existingReviewStatus,
           })
         } else {
           responseData = {
-            text: await callImageAnalyzer(
+            text: await callImageAnalyzerSingle(
               { buffer: imageBuffer, fileName: imageFileName, mimeType: imageMimeType },
               imageContext,
             ),

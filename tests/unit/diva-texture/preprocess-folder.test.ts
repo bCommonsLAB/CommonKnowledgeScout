@@ -32,14 +32,18 @@ describe('isBasecolorFileName', () => {
   })
 })
 
-function entry(key: string, vcodex: string): SupplierEntry {
-  return { key, entry: { VCodex: vcodex, IsTexture: 'True', Material: 'STOFF' } }
+/**
+ * Sidecar-Eintrag mit PFTFile fuer den Matcher (nach 2205e8a: matcht nur ueber
+ * PFTFile + TextureName, nicht mehr ueber VCodex).
+ */
+function entry(key: string, vcodex: string, pftFile: string): SupplierEntry {
+  return { key, entry: { VCodex: vcodex, IsTexture: 'True', Material: 'STOFF', PFTFile: pftFile } }
 }
 
 describe('buildFolderPreprocessPlan', () => {
   const entries: SupplierEntry[] = [
-    entry('OPV_A', 'ST_2031-0332'),
-    entry('OPV_B', 'ST_9999-0001'), // kein File dazu → unmatchedEntry
+    entry('OPV_A', 'ST_2031-0332', '3_ST_2031_0332'),
+    entry('OPV_B', 'ST_9999-0001', '9_ST_9999_0001'), // kein File dazu → unmatchedEntry
   ]
 
   const files: PreprocessFile[] = [

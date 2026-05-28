@@ -2,21 +2,12 @@
  * @fileoverview Deterministische Nachbearbeitung des Voll-Pass-1-Laufes (Stufe 3).
  *
  * @description
- * Nimmt die rohe LLM-Antwort (geparste Frontmatter-Felder) und erzeugt das
- * FLACHE Pass-1-Frontmatter:
- *  - Sidecar-Class-Treffer ueberschreibt material_class deterministisch +
- *    confidence_class = 0.95 (Lea-Regel #2, Stolperfalle #2). LLM-only-
- *    Klassifikation wird bei 0.8 gekappt.
- *  - ceramic/glass/plastic erhalten KEINEN material_type.
- *  - availability_scope/retailer_iln/group_name deterministisch aus Pfad/Sidecar.
- *  - Visuelle Properties + Hints werden 1:1 aus der LLM-Antwort uebernommen
- *    (Voll-Pass-Modell, User-Entscheid 2026-05-28).
- *  - last_pass=1 + pass1_status werden pipeline-seitig gesetzt.
- *  - Update 2 (2026-05-28): color_match_supplier/_notes + review_status
- *    werden ueber den extrahierten Postprocessor in `review-status.ts`
- *    korrigiert; Override-Schutz fuer manuell gesetzte Stati.
- *
- * Rein deterministisch, KEIN LLM-Call, idempotent.
+ * Sidecar-Treffer ueberschreibt material_class + confidence_class=0.95;
+ * LLM-only-Klassifikation wird bei 0.8 gekappt. ceramic/glass/plastic ohne
+ * material_type. Visuelle Properties + Hints 1:1 aus der LLM-Antwort
+ * (Voll-Pass-Modell, User-Entscheid 2026-05-28). Update 2 (Lea-Regeln #11/#12):
+ * color_match_supplier/_notes + review_status via `review-status.ts` mit
+ * Override-Schutz fuer manuelle Stati. Rein deterministisch, idempotent.
  */
 
 import type { AnalysisSourceImage, OptionvalueEntry } from './types'
@@ -164,7 +155,10 @@ export function buildFirstPassFrontmatter(args: BuildFirstPassArgs): Record<stri
     confidence_class: confidenceClass,
     confidence_type: confidenceType,
     needs_human_review: needsHumanReview,
-    // Update 2: Color-Match-Felder (ai_pass1, deterministisch korrigiert)
+    // Update 2: Color-Match-Felder (ai_pass1, deterministisch korrigiert).
+    // Hinweis: `null` wird vom Frontmatter-Composer geschluckt — Abwesenheit
+    // im Frontmatter hat dieselbe Semantik wie explizites `null` ("kein
+    // Vergleich gelaufen"). Stufe-4-UI behandelt beides identisch.
     color_match_supplier: colorMatch.colorMatchSupplier,
     color_match_notes: colorMatch.colorMatchNotes,
     // deterministisch aus dem Pfad / Sidecar

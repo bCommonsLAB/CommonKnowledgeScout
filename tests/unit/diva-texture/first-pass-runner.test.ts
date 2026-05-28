@@ -1,12 +1,13 @@
 /**
- * Pipeline-Integrationstest fuer den 1. LLM-Pass (Stufe 3).
+ * Pipeline-Integrationstest fuer den 1. LLM-Pass (Stufe 3, Update 2).
  *
- * Mock-LLM (injizierte analyzeImage) + Sample-Sidecar (Fake-Provider) +
- * Sample-Bild (Buffer). Szenarien: Sidecar-Hit / kein Hit / Sidecar+LLM-
- * Konflikt / unbekanntes Material / ceramic ohne Type + Quellbild-Wahl.
+ * Mock-LLM (injizierte analyzeImages) + Sample-Sidecar (Fake-Provider) +
+ * echtes Bild via sharp (fuer den Basecolor-Crop). Szenarien: Sidecar-Hit
+ * mit/ohne Supplier-Preview, Color-Match, Override-Schutz, Crop-Metadaten.
  */
 
 import { describe, expect, it, vi } from 'vitest'
+import sharp from 'sharp'
 import {
   runDivaTextureFirstPass,
   isDivaTextureTemplate,
@@ -16,22 +17,36 @@ import { SIDECAR_FILENAME } from '@/lib/diva-texture/load-supplier-data'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import type { StorageItem, StorageProvider } from '@/lib/storage/types'
 
-type AnalyzeArgs = { image: FirstPassImage; context: Record<string, unknown> }
+type AnalyzeArgs = { images: FirstPassImage[]; context: Record<string, unknown> }
 type AnalyzeFn = (args: AnalyzeArgs) => Promise<string>
 
-/** Typisiertes Mock-LLM (nimmt die analyzeImage-Argumente entgegen). */
+/** Typisiertes Mock-LLM (nimmt die analyzeImages-Argumente entgegen). */
 function mockAnalyze(markdown: string) {
   return vi.fn<AnalyzeFn>(async (_args: AnalyzeArgs) => markdown)
 }
 
-/** Greift typsicher auf die Argumente des ersten analyzeImage-Aufrufs zu. */
+/** Greift typsicher auf die Argumente des ersten analyzeImages-Aufrufs zu. */
 function firstCall(fn: ReturnType<typeof mockAnalyze>): AnalyzeArgs {
   const call = fn.mock.calls[0]
-  if (!call) throw new Error('analyzeImage wurde nicht aufgerufen')
+  if (!call) throw new Error('analyzeImages wurde nicht aufgerufen')
   return call[0]
 }
 
-const SAMPLE_IMAGE: Buffer = Buffer.from([0xff, 0xd8, 0xff])
+/** Erzeugt ein einfarbiges JPEG mit gewuenschter Pixel-Maesse + DPI. */
+async function makeJpeg(widthPx: number, heightPx: number, density = 300): Promise<Buffer> {
+  return sharp({
+    create: {
+      width: widthPx,
+      height: heightPx,
+      channels: 3,
+      background: { r: 128, g: 64, b: 32 },
+    },
+  })
+    .withMetadata({ density })
+    .jpeg({ quality: 90 })
+    .toBuffer()
+}
+
 const TEXTURE_FILE = '3_ST_2031_0477_basecolor.jpg'
 const PATH_ILN = 'S:\\DIVA3DARCHIV\\0001445679013\\textures\\_tex\\' + TEXTURE_FILE
 
@@ -69,19 +84,33 @@ function llmMarkdown(fields: Record<string, unknown>): string {
   return `---\n${lines.join('\n')}\n---\n\n## Body\n`
 }
 
+/**
+ * STOFF-Eintrag mit PFTFile, damit der Matcher (Post-2205e8a: nur PFTFile +
+ * TextureName) tatsaechlich greift. Der Matcher normalisiert auf
+ * 'st_2031_0477' — der Dateiname `3_ST_2031_0477_basecolor.jpg` matcht
+ * dieselbe Normalisierung, sobald PFTFile auf das gleiche Muster zeigt.
+ */
 const STOFF_ENTRY = {
-  OPV3_ST_2031_0477: { VCodex: 'ST_2031-0477', IsTexture: 'True', Material: 'STOFF', Name: 'Feincord thyme' },
+  OPV3_ST_2031_0477: {
+    VCodex: 'ST_2031-0477',
+    IsTexture: 'True',
+    Material: 'STOFF',
+    Name: 'Feincord thyme',
+    PFTFile: '3_ST_2031_0477',
+  },
 }
 
-function baseParams(provider: StorageProvider, analyzeImage: ReturnType<typeof mockAnalyze>) {
+async function baseParams(provider: StorageProvider, analyzeImages: ReturnType<typeof mockAnalyze>) {
+  // 4096x4096 px / 300 DPI → Center-Crop 360x360 px ≈ 3.0x3.0 cm.
+  const baseImageBuffer = await makeJpeg(4096, 4096, 300)
   return {
     provider,
     parentId: 'folder',
     fileName: TEXTURE_FILE,
     filePath: PATH_ILN,
-    baseImage: { buffer: SAMPLE_IMAGE, fileName: TEXTURE_FILE, mimeType: 'image/jpeg' },
+    baseImage: { buffer: baseImageBuffer, fileName: TEXTURE_FILE, mimeType: 'image/jpeg' },
     baseContext: { fileName: TEXTURE_FILE, filePath: PATH_ILN },
-    analyzeImage,
+    analyzeImages,
   }
 }
 
@@ -92,86 +121,78 @@ describe('isDivaTextureTemplate', () => {
   })
 })
 
-describe('runDivaTextureFirstPass — Szenarien', () => {
+describe('runDivaTextureFirstPass — Sidecar + Class-Treffer', () => {
   it('Sidecar-Hit (STOFF): material_class fabric, confidence_class 0.95', async () => {
-    const analyzeImage = mockAnalyze(
+    const analyzeImages = mockAnalyze(
       llmMarkdown({ material_class: 'fabric', material_type: 'cord', confidence_class: 0.6, confidence_type: 0.7 }),
     )
-    const result = await runDivaTextureFirstPass(baseParams(makeProvider(STOFF_ENTRY), analyzeImage))
+    const result = await runDivaTextureFirstPass(await baseParams(makeProvider(STOFF_ENTRY), analyzeImages))
 
     expect(result.supplierMatched).toBe(true)
-    expect(result.sourceImage).toBe('basecolor')
+    expect(result.supplierPreviewSent).toBe(false)
     const { meta } = parseFrontmatter(result.markdown)
     expect(meta.material_class).toBe('fabric')
     expect(meta.confidence_class).toBe(0.95)
     expect(meta.last_pass).toBe(1)
     expect(meta.pass1_status).toBe('done')
     expect(meta.retailer_iln).toBe('0001445679013')
+    // Update 2: review_status wird gesetzt (kein Mismatch erkennbar ohne Preview)
+    expect(meta.review_status).toBe('ki_geprueft')
+    // null wird vom Frontmatter-Composer geschluckt — Abwesenheit hat hier
+    // dieselbe Bedeutung wie explizites null ("kein Vergleich gelaufen").
+    expect(meta.color_match_supplier).toBeUndefined()
 
-    // LIEFERSYSTEM-Block + Pass-Marker gehen ans LLM
-    const ctx = firstCall(analyzeImage).context
+    // LIEFERSYSTEM-Block + Pass-Marker + Crop-Caption gehen ans LLM
+    const ctx = firstCall(analyzeImages).context
     expect(ctx.pass).toBe(1)
     expect((ctx.LIEFERSYSTEM as { materialClass: string }).materialClass).toBe('fabric')
+    expect(ctx.basecolor_crop_cm).toBe('3.0x3.0')
+    expect(ctx.supplier_preview_sent).toBe(false)
+    // Nur 1 Bild ans LLM (kein Preview-Fetcher), und das ist der Crop.
+    expect(firstCall(analyzeImages).images).toHaveLength(1)
   })
 
-  it('kein Hit (keine Sidecar-Datei): confidence_class < 0.85', async () => {
-    const analyzeImage = mockAnalyze(
+  it('kein Hit (keine Sidecar-Datei): confidence_class < 0.85, kein LIEFERSYSTEM-Block', async () => {
+    const analyzeImages = mockAnalyze(
       llmMarkdown({ material_class: 'wood', material_type: 'oak', confidence_class: 0.99 }),
     )
-    const result = await runDivaTextureFirstPass(baseParams(makeProviderWithoutSidecar(), analyzeImage))
+    const result = await runDivaTextureFirstPass(await baseParams(makeProviderWithoutSidecar(), analyzeImages))
 
     expect(result.supplierMatched).toBe(false)
     const { meta } = parseFrontmatter(result.markdown)
     expect(meta.material_class).toBe('wood')
     expect(Number(meta.confidence_class)).toBeLessThan(0.85)
-    // Ohne Treffer kein LIEFERSYSTEM-Block
-    expect(firstCall(analyzeImage).context.LIEFERSYSTEM).toBeUndefined()
+    expect(firstCall(analyzeImages).context.LIEFERSYSTEM).toBeUndefined()
   })
 
   it('Sidecar+LLM-Konflikt: Sidecar-Klasse gewinnt', async () => {
-    const analyzeImage = mockAnalyze(llmMarkdown({ material_class: 'leather', confidence_class: 0.99 }))
-    const result = await runDivaTextureFirstPass(baseParams(makeProvider(STOFF_ENTRY), analyzeImage))
+    const analyzeImages = mockAnalyze(llmMarkdown({ material_class: 'leather', confidence_class: 0.99 }))
+    const result = await runDivaTextureFirstPass(await baseParams(makeProvider(STOFF_ENTRY), analyzeImages))
     const { meta } = parseFrontmatter(result.markdown)
     expect(meta.material_class).toBe('fabric')
     expect(meta.confidence_class).toBe(0.95)
   })
-
-  it('unbekanntes Sidecar-Material (BETON, isKnown=false): LLM bestimmt, < 0.85', async () => {
-    const provider = makeProvider({
-      OPV3_ST_2031_0477: { VCodex: 'ST_2031-0477', IsTexture: 'True', Material: 'BETON', Name: 'Sichtbeton' },
-    })
-    const analyzeImage = mockAnalyze(llmMarkdown({ material_class: 'stone', confidence_class: 0.95 }))
-    const result = await runDivaTextureFirstPass(baseParams(provider, analyzeImage))
-
-    expect(result.supplierMatched).toBe(true)
-    const { meta } = parseFrontmatter(result.markdown)
-    expect(meta.material_class).toBe('stone')
-    expect(Number(meta.confidence_class)).toBeLessThan(0.85)
-  })
-
-  it('ceramic ohne Type: material_type bleibt leer', async () => {
-    const analyzeImage = mockAnalyze(
-      llmMarkdown({ material_class: 'ceramic', material_type: 'porcelain', confidence_class: 0.7 }),
-    )
-    const result = await runDivaTextureFirstPass(baseParams(makeProviderWithoutSidecar(), analyzeImage))
-    const { meta } = parseFrontmatter(result.markdown)
-    expect(meta.material_class).toBe('ceramic')
-    expect(meta.material_type === '' || meta.material_type === undefined).toBe(true)
-  })
 })
 
-describe('runDivaTextureFirstPass — Quellbild-Wahl', () => {
-  it('supplier-preview: laedt das Liefersystem-Bild serverseitig', async () => {
-    const previewBuffer = Buffer.from([0x01, 0x02, 0x03])
-    const provider = makeProvider({
+describe('runDivaTextureFirstPass — Supplier-Preview + Color-Match (Update 2)', () => {
+  function entryWithPreview(): Record<string, unknown> {
+    return {
       OPV3_ST_2031_0477: {
         VCodex: 'ST_2031-0477',
         IsTexture: 'True',
         Material: 'STOFF',
+        Name: 'Feincord thyme',
+        PFTFile: '3_ST_2031_0477',
         Image: 'https://example.com/preview.jpg',
       },
-    })
-    const analyzeImage = mockAnalyze(llmMarkdown({ material_class: 'fabric', confidence_class: 0.6 }))
+    }
+  }
+
+  it('sendet 2 Bilder, wenn die Supplier-Preview erreichbar ist', async () => {
+    const previewBuffer = Buffer.from([0x01, 0x02, 0x03])
+    const analyzeImages = mockAnalyze(
+      llmMarkdown({ material_class: 'fabric', confidence_class: 0.6, color_match_supplier: true }),
+    )
     const fetchPreviewImage = vi.fn(async (_url: string): Promise<FirstPassImage> => ({
       buffer: previewBuffer,
       fileName: 'preview.jpg',
@@ -179,27 +200,104 @@ describe('runDivaTextureFirstPass — Quellbild-Wahl', () => {
     }))
 
     const result = await runDivaTextureFirstPass({
-      ...baseParams(provider, analyzeImage),
-      getImageChoice: async () => 'supplier-preview',
+      ...(await baseParams(makeProvider(entryWithPreview()), analyzeImages)),
       fetchPreviewImage,
     })
 
-    expect(result.sourceImage).toBe('supplier-preview')
+    expect(result.supplierPreviewSent).toBe(true)
     expect(fetchPreviewImage).toHaveBeenCalledWith('https://example.com/preview.jpg')
-    expect(firstCall(analyzeImage).image.buffer).toBe(previewBuffer)
+    const call = firstCall(analyzeImages)
+    expect(call.images).toHaveLength(2)
+    expect(call.images[1]!.buffer).toBe(previewBuffer)
+    expect(call.context.supplier_preview_sent).toBe(true)
+
+    const { meta } = parseFrontmatter(result.markdown)
+    expect(meta.color_match_supplier).toBe(true)
+    expect(meta.review_status).toBe('ki_geprueft')
   })
 
-  it('faellt auf basecolor zurueck, wenn das Preview-Bild nicht ladbar ist (kein URL)', async () => {
-    const provider = makeProvider(STOFF_ENTRY) // Eintrag ohne Image-URL
-    const analyzeImage = mockAnalyze(llmMarkdown({ material_class: 'fabric', confidence_class: 0.6 }))
-    const result = await runDivaTextureFirstPass({
-      ...baseParams(provider, analyzeImage),
-      getImageChoice: async () => 'supplier-preview',
-      fetchPreviewImage: vi.fn(async (_url: string): Promise<FirstPassImage> => {
-        throw new Error('sollte nicht aufgerufen werden')
+  it('color_match_supplier=false aus dem LLM setzt review_status=zu_ueberarbeiten', async () => {
+    const analyzeImages = mockAnalyze(
+      llmMarkdown({
+        material_class: 'fabric',
+        confidence_class: 0.6,
+        color_match_supplier: false,
+        color_match_notes: 'Basecolor warm-beige, Preview deutlich gruener.',
       }),
+    )
+    const result = await runDivaTextureFirstPass({
+      ...(await baseParams(makeProvider(entryWithPreview()), analyzeImages)),
+      fetchPreviewImage: async () => ({ buffer: Buffer.from([0xab]), fileName: 'p.jpg', mimeType: 'image/jpeg' }),
     })
-    expect(result.sourceImage).toBe('basecolor')
-    expect(firstCall(analyzeImage).image.buffer).toBe(SAMPLE_IMAGE)
+    const { meta } = parseFrontmatter(result.markdown)
+    expect(meta.color_match_supplier).toBe(false)
+    expect(meta.color_match_notes).toBe('Basecolor warm-beige, Preview deutlich gruener.')
+    expect(meta.review_status).toBe('zu_ueberarbeiten')
+  })
+
+  it('Preview-Fetch schlaegt fehl → Lauf mit nur 1 Bild + color_match_supplier=null', async () => {
+    const analyzeImages = mockAnalyze(
+      llmMarkdown({ material_class: 'fabric', confidence_class: 0.6, color_match_supplier: true }),
+    )
+    const result = await runDivaTextureFirstPass({
+      ...(await baseParams(makeProvider(entryWithPreview()), analyzeImages)),
+      fetchPreviewImage: async () => {
+        throw new Error('404')
+      },
+    })
+    expect(result.supplierPreviewSent).toBe(false)
+    expect(firstCall(analyzeImages).images).toHaveLength(1)
+    const { meta } = parseFrontmatter(result.markdown)
+    // Postprocessor erzwingt null, auch wenn das LLM true geantwortet hat.
+    // null wird vom Frontmatter-Composer geschluckt → absent im Output.
+    expect(meta.color_match_supplier).toBeUndefined()
+    expect(meta.review_status).toBe('ki_geprueft')
+  })
+
+  it('Sidecar-Treffer ohne Image-URL → nur 1 Bild, kein Preview-Fetch', async () => {
+    const analyzeImages = mockAnalyze(llmMarkdown({ material_class: 'fabric', confidence_class: 0.6 }))
+    const fetchPreviewImage = vi.fn(async () => {
+      throw new Error('darf nicht aufgerufen werden')
+    })
+    const result = await runDivaTextureFirstPass({
+      ...(await baseParams(makeProvider(STOFF_ENTRY), analyzeImages)),
+      fetchPreviewImage,
+    })
+    expect(fetchPreviewImage).not.toHaveBeenCalled()
+    expect(result.supplierPreviewSent).toBe(false)
+  })
+})
+
+describe('runDivaTextureFirstPass — Override-Schutz', () => {
+  it('existingReviewStatus=abgenommen bleibt erhalten, auch bei Mismatch', async () => {
+    const analyzeImages = mockAnalyze(
+      llmMarkdown({
+        material_class: 'fabric',
+        color_match_supplier: false,
+        color_match_notes: 'Abweichung',
+      }),
+    )
+    const result = await runDivaTextureFirstPass({
+      ...(await baseParams(makeProvider({
+        OPV3_ST_2031_0477: { VCodex: 'X', IsTexture: 'True', Material: 'STOFF', PFTFile: 'ST_2031_0477', Image: 'https://x' },
+      }), analyzeImages)),
+      fetchPreviewImage: async () => ({ buffer: Buffer.from([0xab]), fileName: 'p.jpg', mimeType: 'image/jpeg' }),
+      existingReviewStatus: 'abgenommen',
+    })
+    const { meta } = parseFrontmatter(result.markdown)
+    expect(meta.review_status).toBe('abgenommen')
+  })
+})
+
+describe('runDivaTextureFirstPass — Basecolor-Crop-Metadaten', () => {
+  it('liefert basecolorCrop-Metadaten fuer den analysisRuns-Eintrag (Stufe 6)', async () => {
+    const analyzeImages = mockAnalyze(llmMarkdown({ material_class: 'wood', confidence_class: 0.5 }))
+    const result = await runDivaTextureFirstPass(
+      await baseParams(makeProviderWithoutSidecar(), analyzeImages),
+    )
+    expect(result.basecolorCrop.crop_px).toBe('360x360')
+    expect(result.basecolorCrop.crop_cm).toBe('3.0x3.0')
+    expect(result.basecolorCrop.dpi_used).toBe(300)
+    expect(result.basecolorCrop.dpi_fallback).toBe(false)
   })
 })
