@@ -1086,6 +1086,15 @@ function buildGalleryProjection(
     'docMetaJson.publication': 1,
     // Status pro Sprache (fuer Sprach-Chips in der Tabellenansicht)
     'docMetaJson.translationStatus': 1,
+    // Diva-Texture-Pass-1-Felder (Stufe 3/4): in der Galerie als Badges
+    // sichtbar und Basis fuer Gruppierung/Filter nach Stoffgruppe.
+    'docMetaJson.group_name': 1,
+    'docMetaJson.material_class': 1,
+    'docMetaJson.material_type': 1,
+    'docMetaJson.confidence_class': 1,
+    'docMetaJson.confidence_type': 1,
+    'docMetaJson.classification_locked': 1,
+    'docMetaJson.classification_rejected': 1,
   }
 
   // Locale-spezifische Galerie-Translations (klein, nur title/topicsLabels/etc.).
