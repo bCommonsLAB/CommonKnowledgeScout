@@ -80,6 +80,13 @@ export interface ItemAnnotation {
   itemKey: string
   /** Flache, gruppier-/filterbare Attribute (z.B. stoffgruppe, material, divaTexture). */
   attributes: Record<string, unknown>
+  /**
+   * Rohes Sidecar-Snapshot (1:1 OptionvalueEntry) — wird vom Frontend genutzt,
+   * um zusaetzliche Spalten in der Dateiliste anzuzeigen (Material, TextureName,
+   * Preview-Bitmap aus `Image`, …). Optional, weil nicht jede Annotation einen
+   * Sidecar-Treffer haben muss.
+   */
+  entry?: OptionvalueEntry
 }
 
 /** Antwortschema GET /api/library/[libraryId]/item-annotations?parentId=X. */

@@ -23,6 +23,7 @@ import {
 import { cn } from '@/lib/utils'
 import { DivaInfoFilter } from './diva-info-filter'
 import { GroupByControl } from './group-by-control'
+import { ExtraColumnsControl } from './extra-columns-control'
 
 export function DivaToolsMenu(): React.ReactElement {
   const mode = useAtomValue(annotationFilterModeAtom)
@@ -76,6 +77,10 @@ export function DivaToolsMenu(): React.ReactElement {
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">Gruppieren</Label>
           <GroupByControl className="h-8 w-full text-xs" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Zusatzspalten</Label>
+          <ExtraColumnsControl className="w-full" />
         </div>
       </PopoverContent>
     </Popover>
