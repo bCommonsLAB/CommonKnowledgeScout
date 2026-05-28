@@ -53,11 +53,9 @@ describe('matchTextureCode — Fixture', () => {
     expect(result.match?.strategy).toBe('pftfile-exact')
   })
 
-  it('VCodex-Strategie + Prefix-Strip: Dateiname ohne "3_"-Prefix trifft VCodex', () => {
+  it('Miss: Dateiname nur mit VCodex-Stamm (ohne PFTFile-Prefix) trifft nicht', () => {
     const result = matchTextureCode('ST-2031-0477_basecolor.png', entries)
-    expect(result.match).not.toBeNull()
-    expect(result.match?.strategy).toBe('vcodex-normalized')
-    expect(result.match?.entry.VCodex).toBe('ST_2031-0477')
+    expect(result.match).toBeNull()
   })
 
   it('Miss: unpassender Dateiname liefert keinen Treffer, aber Versuche', () => {
@@ -84,22 +82,12 @@ describe('matchTextureCode — synthetische Eintraege', () => {
     expect(result.match?.entry.VCodex).toBe('AB-99')
   })
 
-  it('vcodex-withprefix greift, wenn der Dateiname den Prefix selbst enthaelt', () => {
-    const entries: SupplierEntry[] = [
-      { key: 'OPV_B', entry: { VCodex: '3-XY-12', IsTexture: 'True' } },
-    ]
-    const result = matchTextureCode('3_XY_12_basecolor.jpg', entries)
-    expect(result.match?.strategy).toBe('vcodex-withprefix')
-  })
-
-  it('protokolliert pro Eintrag mehrere Strategien als Versuche', () => {
+  it('protokolliert pro Eintrag PFTFile- und TextureName-Versuche', () => {
     const entries: SupplierEntry[] = [
       { key: 'OPV_C', entry: { VCodex: 'NOPE', IsTexture: 'True', PFTFile: 'x', TextureName: 'y' } },
     ]
     const result = matchTextureCode('something.jpg', entries)
     const strategies = new Set(result.attempts.map((a) => a.strategy))
-    expect(strategies.has('pftfile-exact')).toBe(true)
-    expect(strategies.has('texturename-exact')).toBe(true)
-    expect(strategies.has('vcodex-normalized')).toBe(true)
+    expect(strategies).toEqual(new Set(['pftfile-exact', 'texturename-exact']))
   })
 })
