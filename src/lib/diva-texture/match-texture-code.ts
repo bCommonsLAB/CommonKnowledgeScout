@@ -3,9 +3,9 @@
  *
  * @description
  * Ordnet einen Texturdateinamen einem Liefersystem-Eintrag zu. Rein
- * deterministisch, KEIN LLM. Strategien gegen VCodex / PFTFile /
- * TextureName mit Bindestrich/Unterstrich-Normalisierung, Prefix-Strip
- * (z.B. "3_") und Suffix-Strip (z.B. "_basecolor.jpg"). Die Funktion ist
+ * deterministisch, KEIN LLM. Strategien gegen PFTFile / TextureName mit
+ * Bindestrich/Unterstrich-Normalisierung und Suffix-Strip (z.B.
+ * "_basecolor.jpg"). Die Funktion ist
  * pure und liefert ALLE Versuche zurueck — das Logging uebernimmt der
  * Aufrufer (siehe diva-texture-logger.ts), damit der Matcher in jeder
  * Umgebung importierbar + testbar bleibt.
@@ -47,11 +47,6 @@ function stripMapSuffix(base: string): string {
   return base
 }
 
-/** Schneidet einen fuehrenden Mapping-Prefix wie "3_" ab. */
-function stripLeadingNumericPrefix(base: string): string {
-  return base.replace(/^\d+[_-]/, '')
-}
-
 /**
  * Versucht, den Dateinamen einem Liefersystem-Eintrag zuzuordnen.
  *
@@ -62,20 +57,15 @@ function stripLeadingNumericPrefix(base: string): string {
 export function matchTextureCode(fileName: string, entries: SupplierEntry[]): MatchResult {
   const base = stripExtension(fileName)
   const noSuffix = stripMapSuffix(base)
-  const noPrefix = stripLeadingNumericPrefix(noSuffix)
-
-  const candWithPrefix = normalizeSeparators(noSuffix)
-  const candNoPrefix = normalizeSeparators(noPrefix)
+  const candidate = normalizeSeparators(noSuffix)
 
   const attempts: MatchAttempt[] = []
   let firstMatch: MatchResult['match'] = null
 
   for (const { key, entry } of entries) {
     const strategies: Array<{ id: string; field: MatchField; candidate: string; rawTarget?: string }> = [
-      { id: 'pftfile-exact', field: 'PFTFile', candidate: candWithPrefix, rawTarget: entry.PFTFile },
-      { id: 'texturename-exact', field: 'TextureName', candidate: candWithPrefix, rawTarget: entry.TextureName },
-      { id: 'vcodex-normalized', field: 'VCodex', candidate: candNoPrefix, rawTarget: entry.VCodex },
-      { id: 'vcodex-withprefix', field: 'VCodex', candidate: candWithPrefix, rawTarget: entry.VCodex },
+      { id: 'pftfile-exact', field: 'PFTFile', candidate, rawTarget: entry.PFTFile },
+      { id: 'texturename-exact', field: 'TextureName', candidate, rawTarget: entry.TextureName },
     ]
 
     for (const s of strategies) {

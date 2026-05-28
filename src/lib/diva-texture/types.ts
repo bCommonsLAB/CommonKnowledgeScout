@@ -37,11 +37,11 @@ export interface SupplierEntry {
 }
 
 /** Welches Feld ein Match-Versuch geprueft hat. */
-export type MatchField = 'VCodex' | 'PFTFile' | 'TextureName'
+export type MatchField = 'PFTFile' | 'TextureName'
 
 /** Protokoll eines einzelnen Match-Versuchs (auch Misses) fuer User-Verifikation. */
 export interface MatchAttempt {
-  /** Strategie-ID, z.B. "pftfile-exact" | "vcodex-normalized". */
+  /** Strategie-ID, z.B. "pftfile-exact" | "texturename-exact". */
   strategy: string
   field: MatchField
   /** Optionvalues-Schluessel des geprueften Eintrags. */

@@ -274,6 +274,22 @@ export interface StorageConfig {
   autoApplyConfidenceThreshold?: number;
 
   /**
+   * Default-Voreinstellungen fuer das DIVA-Toolbar-Popover in der
+   * Archiv-Dateiliste. Werden beim Library-Switch in die Atoms uebernommen;
+   * Aenderungen im Popover sind danach per-Session, ueberschreiben aber nicht
+   * automatisch die Defaults. Speichern als Standard erfolgt nur ueber das
+   * Settings-Formular.
+   */
+  divaArchiveDefaults?: {
+    /** 3-Wege-Filter: alle / nur mit DIVA-Info / nur ohne. */
+    filterMode?: 'all' | 'with' | 'without';
+    /** Gruppierungs-Attribut (z.B. `stoffgruppe`, `material`) oder `null` fuer keine. */
+    groupByAttribute?: string | null;
+    /** Zusatzspalten in der Dateiliste (z.B. `_thumbnail`, `Material`). */
+    extraColumns?: string[];
+  };
+
+  /**
    * Doc-Translations-Konfiguration (Sprachen, in die publizierte Dokumente uebersetzt werden).
    * Vom globalen LanguageSwitcher konsumiert; Backend-Jobs erzeugen Uebersetzungen pro Locale.
    */
@@ -480,6 +496,13 @@ export interface ClientLibrary {
      * Bereich [0, 1], Default 0.9.
      */
     autoApplyConfidenceThreshold?: number;
+
+    /** Defaults fuer das DIVA-Toolbar-Popover in der Archiv-Dateiliste. */
+    divaArchiveDefaults?: {
+      filterMode?: 'all' | 'with' | 'without';
+      groupByAttribute?: string | null;
+      extraColumns?: string[];
+    };
     /** Doc-Translations-Konfiguration (clientseitig sichtbar, weil reine Sprach-Praeferenzen) */
     translations?: TranslationsConfig;
     /** Creation-Flow-Konfiguration für die UI */

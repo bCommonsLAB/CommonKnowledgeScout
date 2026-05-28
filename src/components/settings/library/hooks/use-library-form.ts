@@ -42,6 +42,10 @@ export const libraryFormSchema = z.object({
   // Schwellwert fuer die Auto-Uebernahme der Stoffgruppen-Klassifikation (Stufe 4).
   // Bereich [0, 1], Default 0.9.
   autoApplyConfidenceThreshold: z.number().min(0).max(1).default(0.9),
+  // DIVA-Archive-Defaults fuer das Toolbar-Popover in der Dateiliste.
+  divaArchiveFilterMode: z.enum(['all', 'with', 'without']).default('all'),
+  divaArchiveGroupByAttribute: z.string().default(''),
+  divaArchiveExtraColumns: z.array(z.string()).default([]),
   storageConfig: z.object({
     basePath: z.string().optional(),
     clientId: z.string().optional(),
@@ -61,6 +65,31 @@ function coerceAutoApplyConfidenceThreshold(value: unknown): number {
   if (value < 0) return 0;
   if (value > 1) return 1;
   return value;
+}
+
+/**
+ * Extrahiert die persistierten DIVA-Archive-Defaults aus einer Library-Config.
+ * Kein silent fallback: leere/ungueltige Werte fuehren auf die Form-Defaults
+ * ('all' / leerer String / leeres Array) zurueck.
+ */
+function readDivaArchiveDefaults(config: Record<string, unknown> | undefined): {
+  filterMode: 'all' | 'with' | 'without';
+  groupByAttribute: string;
+  extraColumns: string[];
+} {
+  const defaults = (config?.divaArchiveDefaults ?? null) as
+    | { filterMode?: unknown; groupByAttribute?: unknown; extraColumns?: unknown }
+    | null;
+  const rawFilter = defaults?.filterMode;
+  const filterMode =
+    rawFilter === 'with' || rawFilter === 'without' || rawFilter === 'all' ? rawFilter : 'all';
+  const rawGroup = defaults?.groupByAttribute;
+  const groupByAttribute = typeof rawGroup === 'string' ? rawGroup : '';
+  const rawCols = defaults?.extraColumns;
+  const extraColumns = Array.isArray(rawCols)
+    ? rawCols.filter((c): c is string => typeof c === 'string')
+    : [];
+  return { filterMode, groupByAttribute, extraColumns };
 }
 
 /** Konfigurationstyp für Shadow-Twin-Einstellungen */
@@ -210,6 +239,9 @@ export function useLibraryForm(createNew: boolean) {
       templateDirectory: "/templates",
       analyzeDivaTextureInfo: false,
       autoApplyConfidenceThreshold: 0.9,
+      divaArchiveFilterMode: 'all' as const,
+      divaArchiveGroupByAttribute: "",
+      divaArchiveExtraColumns: [],
       storageConfig: {
         basePath: "",
         clientId: "",
@@ -321,6 +353,14 @@ export function useLibraryForm(createNew: boolean) {
         autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
           activeLibrary.config?.autoApplyConfidenceThreshold,
         ),
+        ...(() => {
+          const d = readDivaArchiveDefaults(activeLibrary.config as Record<string, unknown> | undefined);
+          return {
+            divaArchiveFilterMode: d.filterMode,
+            divaArchiveGroupByAttribute: d.groupByAttribute,
+            divaArchiveExtraColumns: d.extraColumns,
+          };
+        })(),
         storageConfig,
       });
     } else if (libraries.length > 0) {
@@ -351,6 +391,14 @@ export function useLibraryForm(createNew: boolean) {
         autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
           activeLibrary.config?.autoApplyConfidenceThreshold,
         ),
+        ...(() => {
+          const d = readDivaArchiveDefaults(activeLibrary.config as Record<string, unknown> | undefined);
+          return {
+            divaArchiveFilterMode: d.filterMode,
+            divaArchiveGroupByAttribute: d.groupByAttribute,
+            divaArchiveExtraColumns: d.extraColumns,
+          };
+        })(),
         storageConfig,
       });
     }
@@ -429,6 +477,14 @@ export function useLibraryForm(createNew: boolean) {
             templateDirectory: data.templateDirectory,
             analyzeDivaTextureInfo: data.analyzeDivaTextureInfo,
             autoApplyConfidenceThreshold: data.autoApplyConfidenceThreshold,
+            divaArchiveDefaults: {
+              filterMode: data.divaArchiveFilterMode,
+              groupByAttribute:
+                data.divaArchiveGroupByAttribute.trim() === ""
+                  ? null
+                  : data.divaArchiveGroupByAttribute,
+              extraColumns: data.divaArchiveExtraColumns,
+            },
             shadowTwin: {
               mode: shadowTwinMode,
               primaryStore: shadowTwinPrimaryStore,
@@ -607,6 +663,16 @@ export function useLibraryForm(createNew: boolean) {
           autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
             (importedLibrary as { config?: Record<string, unknown> }).config?.autoApplyConfidenceThreshold,
           ),
+          ...(() => {
+            const d = readDivaArchiveDefaults(
+              (importedLibrary as { config?: Record<string, unknown> }).config,
+            );
+            return {
+              divaArchiveFilterMode: d.filterMode,
+              divaArchiveGroupByAttribute: d.groupByAttribute,
+              divaArchiveExtraColumns: d.extraColumns,
+            };
+          })(),
           storageConfig,
         });
 
