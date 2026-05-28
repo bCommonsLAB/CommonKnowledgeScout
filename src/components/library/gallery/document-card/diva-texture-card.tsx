@@ -179,7 +179,80 @@ export function DivaTextureCard({ doc, onClick, libraryId, onToggleFavorite }: D
         className='absolute top-2 left-2 z-10'
       />
 
+      <DivaTextureClassificationBadges doc={doc} />
+
       <div className='absolute inset-x-0 bottom-0 h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left' />
     </article>
+  )
+}
+
+/**
+ * Pass-1-Klassifikations-Badges (Stufe 4): Material-Klasse + Typ + Konfidenz
+ * sowie Locked-/Rejected-Indikator. Wird in der oberen rechten Ecke gerendert
+ * und bleibt unsichtbar, wenn das Material noch keine Klassifikation hat.
+ */
+function DivaTextureClassificationBadges({ doc }: { doc: DocCardMeta }): React.ReactNode {
+  const materialClass = doc.material_class?.trim() || ''
+  const materialType = doc.material_type?.trim() || ''
+  const confidenceClass = typeof doc.confidence_class === 'number' ? doc.confidence_class : null
+  const locked = doc.classification_locked === true
+  const rejected = doc.classification_rejected === true
+
+  // Nichts zu zeigen — Karte bleibt unverfaelscht.
+  if (!materialClass && confidenceClass === null && !locked && !rejected) return null
+
+  const classLabel = materialType
+    ? `${materialClass} / ${materialType}`
+    : materialClass || '—'
+  const confidenceLabel =
+    confidenceClass !== null ? `${Math.round(confidenceClass * 100)}%` : ''
+  const confidenceTone = (() => {
+    if (confidenceClass === null) return 'bg-black/60 text-white/90'
+    if (confidenceClass >= 0.9) return 'bg-emerald-600/85 text-white'
+    if (confidenceClass >= 0.7) return 'bg-amber-500/85 text-white'
+    return 'bg-rose-600/85 text-white'
+  })()
+
+  return (
+    <div className='absolute top-2 right-2 z-10 flex flex-col items-end gap-1'>
+      {materialClass ? (
+        <span
+          className={cn(
+            'rounded-full px-2 py-0.5 text-[10px] font-medium leading-none shadow',
+            'bg-black/60 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]',
+          )}
+          title={`Material-Klasse: ${classLabel}`}
+        >
+          {classLabel}
+        </span>
+      ) : null}
+      {confidenceLabel ? (
+        <span
+          className={cn(
+            'rounded-full px-2 py-0.5 text-[10px] font-semibold leading-none shadow',
+            confidenceTone,
+          )}
+          title={`Konfidenz: ${confidenceLabel}`}
+        >
+          {confidenceLabel}
+        </span>
+      ) : null}
+      {locked ? (
+        <span
+          className='rounded-full bg-slate-200/95 px-2 py-0.5 text-[10px] font-medium leading-none text-slate-900 shadow'
+          title='Override gesetzt: Gruppen-Klassifikation ueberschreibt nicht'
+        >
+          locked
+        </span>
+      ) : null}
+      {rejected ? (
+        <span
+          className='rounded-full bg-rose-200/95 px-2 py-0.5 text-[10px] font-medium leading-none text-rose-900 shadow'
+          title='Klassifikation verworfen: Material wird nicht gruppenklassifiziert'
+        >
+          verworfen
+        </span>
+      ) : null}
+    </div>
   )
 }

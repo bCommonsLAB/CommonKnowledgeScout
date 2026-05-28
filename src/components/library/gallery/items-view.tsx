@@ -44,6 +44,10 @@ export interface ItemsViewProps {
    * bereitgestellt; fehlt er, fallback nur API (ohne mutateDoc).
    */
   onToggleFavorite?: (fileId: string) => void | Promise<void>
+  /** Stufe 4: Schwellwert fuer die Auto-Uebernahme im Klassifikations-Dialog. */
+  autoApplyConfidenceThreshold?: number
+  /** Stufe 4: Reload-Callback nach erfolgreichem Bulk-Apply. */
+  onGroupClassified?: () => void
 }
 
 /**
@@ -67,6 +71,8 @@ export function ItemsView({
   onPublishChanged,
   sortByStars,
   onToggleFavorite,
+  autoApplyConfidenceThreshold,
+  onGroupClassified,
 }: ItemsViewProps) {
   return (
     <VirtualizedItemsView
@@ -86,6 +92,8 @@ export function ItemsView({
       onPublishChanged={onPublishChanged}
       sortByStars={sortByStars}
       onToggleFavorite={onToggleFavorite}
+      autoApplyConfidenceThreshold={autoApplyConfidenceThreshold}
+      onGroupClassified={onGroupClassified}
     />
   )
 }

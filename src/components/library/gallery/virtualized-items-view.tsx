@@ -80,6 +80,13 @@ export interface VirtualizedItemsViewProps {
    */
   sortByStars?: boolean
   onToggleFavorite?: (fileId: string) => void | Promise<void>
+  /**
+   * Stufe 4: Schwellwert fuer die Auto-Uebernahme im Stoffgruppen-Klassifikations-
+   * Dialog. Wenn nicht gesetzt, faellt der Dialog auf 0.9 zurueck.
+   */
+  autoApplyConfidenceThreshold?: number
+  /** Stufe 4: Reload-Callback nach erfolgreichem Bulk-Apply. */
+  onGroupClassified?: () => void
 }
 
 export function VirtualizedItemsView({
@@ -99,6 +106,8 @@ export function VirtualizedItemsView({
   onPublishChanged,
   sortByStars,
   onToggleFavorite,
+  autoApplyConfidenceThreshold,
+  onGroupClassified,
 }: VirtualizedItemsViewProps) {
   const { t, locale } = useTranslation()
   const router = useRouter()
@@ -353,6 +362,8 @@ export function VirtualizedItemsView({
           groupByField={groupByField}
           cardDensity={cardDensity}
           onToggleFavorite={onToggleFavorite ?? handleToggleFavorite}
+          autoApplyConfidenceThreshold={autoApplyConfidenceThreshold}
+          onGroupClassified={onGroupClassified}
         />
         {/* Sentinel für Infinite Scroll */}
         {hasMore && (
