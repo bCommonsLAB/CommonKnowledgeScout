@@ -48,6 +48,9 @@ describe('Diva-Texture-Analysis.md — Struktur', () => {
       'confidence_class',
       'confidence_visual',
       'needs_human_review',
+      // Update 2 (2026-05-28): Farbtonabgleich Basecolor vs. Supplier-Preview
+      'color_match_supplier',
+      'color_match_notes',
     ]) {
       expect(keys).toContain(key)
     }
@@ -62,7 +65,15 @@ describe('Diva-Texture-Analysis.md — Struktur', () => {
   it('System-/Pipeline-Felder sind auskommentiert und KEINE LLM-Felder', () => {
     const { template } = parseTemplate(content, 'Diva-Texture-Analysis')
     const keys = template.metadata.fields.map((f) => f.key)
-    for (const key of ['last_pass', 'pass1_status', 'analysisRuns', 'lieferSystemSnapshot', 'breite_px']) {
+    for (const key of [
+      'last_pass',
+      'pass1_status',
+      'analysisRuns',
+      'lieferSystemSnapshot',
+      'breite_px',
+      // Update 2: review_status ist Pipeline-Lifecycle (auskommentiert dokumentiert)
+      'review_status',
+    ]) {
       expect(keys).not.toContain(key)
     }
   })
@@ -83,6 +94,19 @@ describe('Diva-Texture-Analysis.md — Struktur', () => {
     expect(content).toContain('group_name: string')
     expect(content).toContain('classification_locked: boolean')
     expect(content).toContain('classification_rejected: boolean')
+  })
+
+  it('Color-Match-Felder erscheinen im LLM-Schema, review_status NICHT (Update 2)', () => {
+    const tpl = deserializeTemplateFromMarkdown(content, 'Diva-Texture-Analysis', 'lib', 'u@example.com')
+    const md = serializeTemplateToMarkdown(tpl, false)
+    const schema = extractSchemaBlock(md)
+    // Color-Match-Felder gehoeren ins LLM-Schema (ai_pass1).
+    expect(schema).toContain('"color_match_supplier":')
+    expect(schema).toContain('"color_match_notes":')
+    // review_status ist Pipeline-Lifecycle, KEIN LLM-Feld.
+    expect(schema).not.toContain('"review_status":')
+    // Aber im Template als auskommentierter Lifecycle-Hinweis dokumentiert.
+    expect(content).toContain('review_status: string')
   })
 
   it('generiert ein FLACHES Antwortschema (keine verschachtelten Objekte)', () => {

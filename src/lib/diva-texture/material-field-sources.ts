@@ -35,6 +35,14 @@ export type MaterialFieldSource =
   | 'path'
   /** System-/Pipeline-Status (kein vom LLM gelieferter Wert). */
   | 'pipeline'
+  /**
+   * Lebenszyklus-Status (Lea-Regel #12, Update 2 2026-05-28): wird vom
+   * Pass-1-Postprocessor (`ki_geprueft` / `zu_ueberarbeiten`) bzw. von der
+   * Galerie-UI (`abgenommen`, manuelles `zu_ueberarbeiten`) gesetzt.
+   * Bewusst von `pipeline` getrennt, weil hier zwei Quellen schreiben
+   * (Pipeline + manuell) und ein Override-Schutz greift.
+   */
+  | 'pipeline_lifecycle'
 
 /**
  * Feld-Key → Herkunft. Keys sind die flachen Frontmatter-Keys des
@@ -55,6 +63,12 @@ export const MATERIAL_FIELD_SOURCES: Readonly<Record<string, MaterialFieldSource
   confidence_class: 'ai_pass1',
   confidence_type: 'ai_pass1',
   needs_human_review: 'ai_pass1',
+  // 1. LLM-Pass (Update 2): Farbtonabgleich Basecolor vs. Supplier-Preview.
+  // color_match_supplier ist boolean|null, color_match_notes ist Pflicht-
+  // Begruendung bei false (sonst leer). Der Postprocessor erzwingt null,
+  // wenn keine Supplier-Preview ans LLM ging.
+  color_match_supplier: 'ai_pass1',
+  color_match_notes: 'ai_pass1',
   // 2. LLM-Pass: Farbe + visuelle Eigenschaften
   dominant_color_hex: 'ai_pass2',
   color_family: 'ai_pass2',
@@ -74,6 +88,10 @@ export const MATERIAL_FIELD_SOURCES: Readonly<Record<string, MaterialFieldSource
   last_pass: 'pipeline',
   pass1_status: 'pipeline',
   pass2_status: 'pipeline',
+  // Lifecycle-Status: Pipeline-Postprocessor + manuelle Galerie-UI schreiben.
+  // Mit Override-Schutz (Pass 1 darf abgenommen + manuell zu_ueberarbeiten
+  // NICHT ueberschreiben — siehe first-pass.ts).
+  review_status: 'pipeline_lifecycle',
 } as const
 
 /** Liefert die Herkunft eines Feldes oder `undefined`, wenn unbekannt. */
