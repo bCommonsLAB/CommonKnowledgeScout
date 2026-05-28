@@ -297,6 +297,33 @@ itemAnnotationsStatusAtom.debugLabel = "itemAnnotationsStatusAtom"
 export const annotationFilterModeAtom = atom<AnnotationFilterMode>('all')
 annotationFilterModeAtom.debugLabel = "annotationFilterModeAtom"
 
+// Rohes Sidecar-Entry je Datei im aktuellen DIVA-Ordner (1:1 OptionvalueEntry).
+// Parallel zu `itemAnnotationsAtom` — die Filter/Group-Logik nutzt weiterhin
+// die flachen Attribute, waehrend die Dateiliste fuer Zusatzspalten + das
+// Preview-Thumbnail die rohen Sidecar-Felder konsumiert.
+// Bewusst `Record<string, unknown>` statt importiertem Typ — Library-Atom soll
+// nicht von Diva-spezifischen Typen abhaengen (kein Layering-Verstoss).
+export const itemSidecarEntriesAtom = atom<Map<string, Record<string, unknown>>>(new Map())
+itemSidecarEntriesAtom.debugLabel = "itemSidecarEntriesAtom"
+
+// Vom Klassifizierer in der DIVA-Toolbar gewaehlte Zusatzspalten fuer die
+// Dateiliste. Reihenfolge ist die Anzeige-Reihenfolge. Spezialschluessel
+// `_thumbnail` rendert das Preview-Bitmap aus `entry.Image`.
+export const divaExtraColumnsAtom = atom<string[]>([])
+divaExtraColumnsAtom.debugLabel = "divaExtraColumnsAtom"
+
+// Sidecar-Status fuer das aktuelle DIVA-Verzeichnis (api2_GetJsonOptionValues.json).
+// Wird vom DivaToolsMenu in der Dateilisten-Toolbar visualisiert: orange wenn
+// der Sidecar gefunden wurde, neutral wenn nicht. Kein silent fallback —
+// 'error' wird separat ausgewiesen.
+export interface DivaSidecarStatus {
+  state: 'idle' | 'loading' | 'loaded' | 'error'
+  found: boolean
+  entryCount?: number
+}
+export const divaSidecarStatusAtom = atom<DivaSidecarStatus>({ state: 'idle', found: false })
+divaSidecarStatusAtom.debugLabel = "divaSidecarStatusAtom"
+
 // Gruppierung der Dateiliste nach einem Annotation-Attribut (z.B. 'stoffgruppe').
 // null = keine Gruppierung. Generisch: jeder String-Attribut-Key ist moeglich.
 export const groupByAttributeAtom = atom<string | null>(null)

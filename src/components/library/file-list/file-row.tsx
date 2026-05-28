@@ -53,6 +53,17 @@ export interface FileRowProps {
   compact?: boolean;
   /** Fuer Cover-Thumbnail-Aufloesung (resolve-binary-url) */
   libraryId?: string;
+  /**
+   * DIVA-Toolbar: Spalten-Keys aus `divaExtraColumnsAtom`. Spezial-Key
+   * `_thumbnail` rendert das Preview-Bitmap aus `sidecarEntry.Image`,
+   * alle anderen sind reine String-Felder des `OptionvalueEntry`.
+   */
+  extraColumns?: readonly string[];
+  /**
+   * Rohes Sidecar-Snapshot (1:1 OptionvalueEntry) — falls die Datei einen
+   * DIVA-Match hat. Quelle: `itemSidecarEntriesAtom`.
+   */
+  sidecarEntry?: Record<string, unknown>;
 }
 
 export const FileRow = React.memo(function FileRow({
@@ -65,6 +76,8 @@ export const FileRow = React.memo(function FileRow({
   onRename,
   compact = false,
   libraryId,
+  extraColumns,
+  sidecarEntry,
 }: FileRowProps) {
   const [isEditing, setIsEditing] = React.useState(false);
   const [editName, setEditName] = React.useState(item.metadata.name);
@@ -309,6 +322,8 @@ export const FileRow = React.memo(function FileRow({
     );
   }
 
+  const gridTemplate = buildGridTemplate(extraColumns ?? [])
+
   return (
     <div
       id={`file-row-${item.id}`}
@@ -322,8 +337,9 @@ export const FileRow = React.memo(function FileRow({
       draggable={!isEditing}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      style={{ gridTemplateColumns: gridTemplate }}
       className={cn(
-        'w-full px-4 py-2 text-xs hover:bg-muted/50 grid grid-cols-[24px_24px_minmax(0,1fr)_56px_88px_auto] gap-2 items-center cursor-move',
+        'w-full px-4 py-2 text-xs hover:bg-muted/50 grid gap-2 items-center cursor-move',
         isSelected && 'bg-muted',
         isActive && 'bg-primary/10 border-l-2 border-primary'
       )}
@@ -383,6 +399,9 @@ export const FileRow = React.memo(function FileRow({
       <span className="text-muted-foreground tabular-nums text-[10px]">
         {formatDate(metadata.modifiedAt)}
       </span>
+      {(extraColumns ?? []).map((key) => (
+        <ExtraColumnCell key={key} columnKey={key} entry={sidecarEntry} />
+      ))}
       <div className="flex items-center justify-start gap-1">
         {/* Status-Icon: Zeigt Fortschritt der Story-Ingestion (Transcript → Transformation → Story) */}
         {(() => {
@@ -465,3 +484,116 @@ export const FileRow = React.memo(function FileRow({
     </div>
   );
 });
+
+// ─── DIVA-Zusatzspalten (Stufe 1+) ──────────────────────────────────────────
+// Eine kleine, isolierte Render-Komponente pro Zelle. Bewusst hier (statt in
+// eigenem File), weil sie ausschliesslich von FileRow konsumiert wird und
+// keine Wiederverwendung an anderer Stelle vorgesehen ist.
+
+/** Spalten-Breiten fuer das dynamische grid-template (in px-Strings). */
+const EXTRA_COLUMN_WIDTHS: Record<string, string> = {
+  _thumbnail: '36px',
+  RGB: '64px',
+}
+const DEFAULT_EXTRA_COLUMN_WIDTH = 'minmax(80px, 160px)'
+
+/**
+ * Baut den `grid-template-columns`-String fuer FileRow + Header.
+ * Basis-6-Spalten + N Zusatzspalten BEFORE der `auto`-Aktions-Spalte.
+ */
+export function buildGridTemplate(extraColumns: readonly string[]): string {
+  const base = ['24px', '24px', 'minmax(0,1fr)', '56px', '88px']
+  const extras = extraColumns.map((k) => EXTRA_COLUMN_WIDTHS[k] ?? DEFAULT_EXTRA_COLUMN_WIDTH)
+  return [...base, ...extras, 'auto'].join(' ')
+}
+
+function normalizeImageUrl(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null
+  const trimmed = raw.trim()
+  if (trimmed.length === 0) return null
+  return trimmed
+}
+
+function ExtraColumnCell({
+  columnKey,
+  entry,
+}: {
+  columnKey: string
+  entry: Record<string, unknown> | undefined
+}): React.ReactElement {
+  if (!entry) {
+    return <span className="text-muted-foreground text-[10px]" aria-hidden="true">—</span>
+  }
+  if (columnKey === '_thumbnail') {
+    const url = normalizeImageUrl(entry.Image)
+    if (!url) {
+      return (
+        <span
+          className="inline-flex h-8 w-8 items-center justify-center rounded bg-muted text-[10px] text-muted-foreground"
+          title="Kein Preview-Bild im Sidecar"
+        >
+          ?
+        </span>
+      )
+    }
+    return <ExtraColumnThumbnail url={url} />
+  }
+  if (columnKey === 'RGB') {
+    const rgb = typeof entry.RGB === 'string' ? entry.RGB.trim() : ''
+    if (rgb.length === 0) {
+      return <span className="text-muted-foreground text-[10px]">—</span>
+    }
+    const hex = /^[0-9a-fA-F]{6}$/.test(rgb) ? `#${rgb}` : rgb
+    return (
+      <div className="flex items-center gap-1.5">
+        <span
+          className="inline-block h-4 w-4 rounded border border-border"
+          style={{ backgroundColor: hex }}
+          aria-hidden="true"
+        />
+        <span className="font-mono text-[10px] text-muted-foreground" title={hex}>
+          {hex}
+        </span>
+      </div>
+    )
+  }
+  const raw = entry[columnKey]
+  const value = typeof raw === 'string' ? raw : raw === undefined || raw === null ? '' : String(raw)
+  if (value.length === 0) {
+    return <span className="text-muted-foreground text-[10px]">—</span>
+  }
+  return (
+    <span className="truncate text-[10px]" title={value}>
+      {value}
+    </span>
+  )
+}
+
+/**
+ * Preview-Thumbnail aus der Liefersystem-URL. Bei Lade-Fehler wird ein
+ * Platzhalter mit "!" gezeigt — keine Konsole/Toast (Edge-Case #1: tote
+ * URLs sind erwartbar und sollen den Bildschirm nicht zumuellen).
+ */
+function ExtraColumnThumbnail({ url }: { url: string }): React.ReactElement {
+  const [failed, setFailed] = React.useState(false)
+  if (failed) {
+    return (
+      <span
+        className="inline-flex h-8 w-8 items-center justify-center rounded bg-muted text-[10px] text-muted-foreground"
+        title={`Preview nicht erreichbar: ${url}`}
+      >
+        !
+      </span>
+    )
+  }
+  return (
+    <img
+      src={url}
+      alt="Liefersystem-Preview"
+      title={url}
+      onError={() => setFailed(true)}
+      className="h-8 w-8 rounded border border-border object-cover"
+      loading="lazy"
+    />
+  )
+}

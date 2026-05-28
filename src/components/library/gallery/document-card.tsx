@@ -40,6 +40,8 @@ export interface DocumentCardProps {
   libraryDetailViewType?: string
   /** Stern-Toggle (optimistisch wenn vom Galerie-Container durchgereicht). */
   onToggleFavorite?: (fileId: string) => void | Promise<void>
+  /** Stufe 4: Reload-Callback nach Per-Material-Korrektur (locked/rejected/Klasse). */
+  onClassificationChanged?: () => void
 }
 
 export function DocumentCard({
@@ -48,6 +50,7 @@ export function DocumentCard({
   libraryId,
   libraryDetailViewType,
   onToggleFavorite,
+  onClassificationChanged,
 }: DocumentCardProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -75,6 +78,7 @@ export function DocumentCard({
         onClick={handleClick}
         libraryId={libraryId}
         onToggleFavorite={onToggleFavorite}
+        onClassificationChanged={onClassificationChanged}
       />
     )
   }

@@ -194,6 +194,15 @@ export function convertMongoDocToDocCardMeta(
     sourcePath: typeof docMeta?.sourcePath === 'string' ? docMeta.sourcePath : undefined,
     sourceFileName: typeof docMeta?.sourceFileName === 'string' ? docMeta.sourceFileName : undefined,
     textur_code: typeof docMeta?.textur_code === 'string' ? docMeta.textur_code : undefined,
+    // Diva-Texture-Pass-1-Felder (Stufe 3/4): Klasse + Typ + Konfidenz fuer Badges/Gruppierung.
+    group_name: typeof docMeta?.group_name === 'string' ? docMeta.group_name : undefined,
+    material_class: typeof docMeta?.material_class === 'string' ? docMeta.material_class : undefined,
+    material_type: typeof docMeta?.material_type === 'string' ? docMeta.material_type : undefined,
+    confidence_class: typeof docMeta?.confidence_class === 'number' ? docMeta.confidence_class : undefined,
+    confidence_type: typeof docMeta?.confidence_type === 'number' ? docMeta.confidence_type : undefined,
+    classification_locked: docMeta?.classification_locked === true ? true : undefined,
+    classification_rejected: docMeta?.classification_rejected === true ? true : undefined,
+    needs_visual_refresh: docMeta?.needs_visual_refresh === true ? true : undefined,
     // RefurbedDevice-spezifische Felder fuer vollflaechige Gallery-Karte
     modell: typeof docMeta?.modell === 'string' ? docMeta.modell : undefined,
     geraetetyp: typeof docMeta?.geraetetyp === 'string' ? docMeta.geraetetyp : undefined,

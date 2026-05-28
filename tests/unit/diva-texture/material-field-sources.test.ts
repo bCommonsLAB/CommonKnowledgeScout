@@ -57,19 +57,31 @@ describe('fieldsForSource / llmFieldsForPass', () => {
     expect(fieldsForSource('path')).toContain('iln_nummer')
   })
 
-  it('Pass 1 liefert Klasse/Typ + Hints, NICHT die visuellen Properties', () => {
+  it('Pass 1 ist ein VOLLER Lauf — Klasse/Typ + visuelle Properties + Hints', () => {
     const fields = llmFieldsForPass(1)
+    // Klassen-Felder
     expect(fields).toContain('material_class')
+    expect(fields).toContain('material_type')
+    expect(fields).toContain('confidence_class')
+    expect(fields).toContain('confidence_type')
+    expect(fields).toContain('needs_human_review')
+    // Visuelle Properties (User-Entscheid 2026-05-28: jetzt im Voll-Pass)
+    expect(fields).toContain('surface_finish')
+    expect(fields).toContain('dominant_color_hex')
+    expect(fields).toContain('confidence_visual')
+    // Hints
     expect(fields).toContain('ai_prompt_positive')
-    expect(fields).not.toContain('surface_finish')
   })
 
-  it('Pass 2 liefert visuelle Properties + Hints, NICHT die Klasse', () => {
+  it('Pass 2 = Korrektur-Lauf: visuelle Properties + Hints, NICHT die Klasse', () => {
     const fields = llmFieldsForPass(2)
     expect(fields).toContain('surface_finish')
     expect(fields).toContain('dominant_color_hex')
     expect(fields).toContain('ai_prompt_positive')
+    // Klassen-Felder bleiben durch User-Bestaetigung fixiert und werden im
+    // Korrektur-Lauf NICHT mehr vom LLM bestimmt.
     expect(fields).not.toContain('material_class')
+    expect(fields).not.toContain('confidence_class')
   })
 })
 

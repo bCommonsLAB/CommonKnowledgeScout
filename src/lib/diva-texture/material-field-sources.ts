@@ -91,12 +91,24 @@ export function fieldsForSource(source: MaterialFieldSource): string[] {
 /**
  * LLM-Felder, die ein bestimmter Pass anfragt.
  *
- * aiGenerationHints (`ai_last_pass`) laufen in BEIDEN Paessen mit, weil sie in
- * jedem Lauf neu erzeugt werden und sich auf den jeweils letzten Pass beziehen.
+ * Hinweis (User-Entscheid 2026-05-28): Pass 1 ist seitdem ein VOLLER Lauf
+ * und fragt sowohl die Klassen-/Typ-Felder (ai_pass1) als auch die visuellen
+ * Properties (ai_pass2) plus die Hints (ai_last_pass) ab. Pass 2 ist nicht
+ * mehr der Default-zweite-Schritt, sondern der Korrektur-Lauf (Stufe 5) — er
+ * laeuft NUR auf Materialien mit `needs_visual_refresh=true` und produziert
+ * nur die visuellen Properties + Hints neu (Klasse/Typ bleiben durch die
+ * user-bestaetigten Werte fixiert).
  *
- * @param pass 1 = Klasse/Typ, 2 = visuelle Eigenschaften
+ * @param pass 1 = Voll-Lauf (alle Felder), 2 = Korrektur-Lauf (visuelle Properties + Hints)
  */
 export function llmFieldsForPass(pass: 1 | 2): string[] {
-  const passSource: MaterialFieldSource = pass === 1 ? 'ai_pass1' : 'ai_pass2'
-  return [...fieldsForSource(passSource), ...fieldsForSource('ai_last_pass')]
+  if (pass === 1) {
+    return [
+      ...fieldsForSource('ai_pass1'),
+      ...fieldsForSource('ai_pass2'),
+      ...fieldsForSource('ai_last_pass'),
+    ]
+  }
+  // Pass 2 = Korrektur-Lauf: nur visuelle Properties + Hints neu erzeugen.
+  return [...fieldsForSource('ai_pass2'), ...fieldsForSource('ai_last_pass')]
 }

@@ -67,6 +67,24 @@ describe('Diva-Texture-Analysis.md — Struktur', () => {
     }
   })
 
+  it('Stufe-4-Felder sind auskommentierte Pipeline-Felder (NICHT im LLM-Schema)', () => {
+    const tpl = deserializeTemplateFromMarkdown(content, 'Diva-Texture-Analysis', 'lib', 'u@example.com')
+    const md = serializeTemplateToMarkdown(tpl, false)
+    const schema = extractSchemaBlock(md)
+    // group_name kommt deterministisch aus dem Sidecar (Post-Processor) — das LLM
+    // soll es nicht halluzinieren (Lea-Regel "Nichts erfinden").
+    expect(schema).not.toContain('"group_name":')
+    // classification_locked/_rejected sind UI-Flags, nicht LLM-Felder.
+    expect(schema).not.toContain('"classification_locked":')
+    expect(schema).not.toContain('"classification_rejected":')
+
+    // Aber: im Template dokumentiert (auskommentiert), damit der Klassifizierer
+    // weiss, dass die Pipeline diese Felder verwaltet.
+    expect(content).toContain('group_name: string')
+    expect(content).toContain('classification_locked: boolean')
+    expect(content).toContain('classification_rejected: boolean')
+  })
+
   it('generiert ein FLACHES Antwortschema (keine verschachtelten Objekte)', () => {
     const tpl = deserializeTemplateFromMarkdown(content, 'Diva-Texture-Analysis', 'lib', 'u@example.com')
     const md = serializeTemplateToMarkdown(tpl, false)

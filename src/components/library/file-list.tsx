@@ -21,19 +21,21 @@ import { useStorage } from "@/contexts/storage-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAtomValue, useAtom } from 'jotai';
-import { 
+import {
   activeLibraryIdAtom,
   activeLibraryAtom,
-  selectedFileAtom, 
+  selectedFileAtom,
   folderItemsAtom,
   sortedFilteredFilesAtom,
   sortFieldAtom,
   sortOrderAtom,
+  searchTermAtom,
   selectedShadowTwinAtom,
   currentFolderIdAtom,
   itemAnnotationsAtom,
+  itemSidecarEntriesAtom,
   groupByAttributeAtom,
-  searchTermAtom
+  divaExtraColumnsAtom,
 } from '@/atoms/library-atom';
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox"
@@ -48,6 +50,7 @@ import { FileLogger, StateLogger } from "@/lib/debug/logger"
 import { FileCategoryFilter } from './file-category-filter';
 import { DivaToolsMenu } from './diva-tools-menu';
 import { useItemAnnotations } from "@/hooks/use-item-annotations";
+import { useDivaSidecarStatus } from "@/hooks/use-diva-sidecar-status";
 import { useFolderNavigation } from "@/hooks/use-folder-navigation";
 import { useShadowTwinAnalysis } from "@/hooks/use-shadow-twin-analysis";
 import { shadowTwinAnalysisTriggerAtom, shadowTwinStateAtom } from "@/atoms/shadow-twin-atom";
@@ -69,7 +72,7 @@ import {
   formatDate,
 } from './file-list/list-utils';
 import { SortableHeaderCell } from './file-list/sortable-header-cell';
-import { FileRow } from './file-list/file-row';
+import { FileRow, buildGridTemplate } from './file-list/file-row';
 
 // `ListCoverThumbnail`, `getFileTypeFromName`, `FileIconComponent`,
 // `formatFileSize`, `formatDate`, `SortableHeaderCell`, `FileRow` und die
@@ -112,15 +115,30 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   const [activeFile, setSelectedFile] = useAtom(selectedFileAtom);
   const [, setFolderItems] = useAtom(folderItemsAtom);
   const currentCategoryFilter = useAtomValue(fileCategoryFilterAtom);
+  const [searchTerm, setSearchTerm] = useAtom(searchTermAtom);
   const allItemsInFolder = useAtomValue(folderItemsAtom);
   const currentFolderId = useAtomValue(currentFolderIdAtom);
   const navigateToFolder = useFolderNavigation();
-  const [searchTerm, setSearchTerm] = useAtom(searchTermAtom);
   // DIVA-Info-Filter: nur bei aktivierter Library-Option; laedt Annotationen des Ordners.
   const divaEnabled = activeLibrary?.config?.analyzeDivaTextureInfo === true;
   useItemAnnotations();
+  // Sidecar-Status (api2_GetJsonOptionValues.json im aktuellen Ordner) — wird
+  // im DivaToolsMenu visualisiert (orange wenn gefunden).
+  useDivaSidecarStatus(divaEnabled);
   const itemAnnotations = useAtomValue(itemAnnotationsAtom);
   const groupByAttribute = useAtomValue(groupByAttributeAtom);
+  // DIVA-Zusatzspalten (Stufe 1+): vom Klassifizierer im DIVA-Popover gewaehlt.
+  // Sichtbar nur, wenn DIVA-Mode aktiv ist — ansonsten ignoriert die UI sie.
+  const divaExtraColumns = useAtomValue(divaExtraColumnsAtom);
+  const itemSidecarEntries = useAtomValue(itemSidecarEntriesAtom);
+  const extraColumns = React.useMemo(
+    () => (divaEnabled ? divaExtraColumns : []),
+    [divaEnabled, divaExtraColumns],
+  );
+  const divaGridTemplate = React.useMemo(
+    () => buildGridTemplate(extraColumns),
+    [extraColumns],
+  );
   // Eingeklappte Gruppen (lokal, pro Ordner zuruecksetzen).
   const [collapsedGroups, setCollapsedGroups] = React.useState<Set<string>>(new Set());
   const toggleGroup = React.useCallback((key: string) => {
@@ -1424,7 +1442,10 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
           {/* Table Header - versteckt im compact mode */}
           {!compact && (
             <div className="sticky top-0 bg-background border-b">
-              <div className="grid grid-cols-[24px_24px_minmax(0,1fr)_56px_88px_auto] gap-2 px-4 py-2 text-sm font-medium text-muted-foreground">
+              <div
+                className="grid gap-2 px-4 py-2 text-sm font-medium text-muted-foreground"
+                style={{ gridTemplateColumns: divaGridTemplate }}
+              >
                 <div className="w-6 flex items-center justify-center">
                   <Checkbox
                     checked={isAllSelected}
@@ -1454,6 +1475,11 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                   currentSortOrder={sortOrder}
                   onSort={handleSort}
                 />
+                {extraColumns.map((key) => (
+                  <span key={key} className="text-xs truncate">
+                    {key === '_thumbnail' ? 'Preview' : key}
+                  </span>
+                ))}
                 <div />
               </div>
             </div>
@@ -1491,14 +1517,16 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                 <span className="text-left truncate select-none" title={folder.metadata.name}>{folder.metadata.name}</span>
               </div>
             ) : (
-              // Normal: gleiches 6-Spalten-Grid wie Dateien (Checkbox, Icon, Name, Größe, Datum, Aktionen)
+              // Normal: gleiches Grid wie Dateien — die DIVA-Zusatzspalten
+              // bekommen Platzhalter-Zellen, damit die Spalten-Linie stabil bleibt.
               <div
                 key={folder.id}
                 role="button"
                 tabIndex={0}
                 onClick={() => navigateToFolder(folder.id)}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigateToFolder(folder.id) }}
-                className="w-full px-4 py-2 text-xs hover:bg-muted/50 grid grid-cols-[24px_24px_minmax(0,1fr)_56px_88px_auto] gap-2 items-center cursor-pointer"
+                style={{ gridTemplateColumns: divaGridTemplate }}
+                className="w-full px-4 py-2 text-xs hover:bg-muted/50 grid gap-2 items-center cursor-pointer"
               >
                 <div className="w-6 flex items-center justify-center">
                   <Checkbox
@@ -1526,6 +1554,9 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                 <span className="text-muted-foreground tabular-nums text-[10px]">
                   {formatDate(folder.metadata.modifiedAt)}
                 </span>
+                {extraColumns.map((key) => (
+                  <span key={key} aria-hidden="true" />
+                ))}
                 {/* Platzhalter für Aktionen-Spalte */}
                 <div />
               </div>
@@ -1566,6 +1597,8 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                   onRename={handleRename}
                   compact={compact}
                   libraryId={activeLibraryId ?? undefined}
+                  extraColumns={extraColumns}
+                  sidecarEntry={itemSidecarEntries.get(item.metadata.name)}
                 />
               );
             })}

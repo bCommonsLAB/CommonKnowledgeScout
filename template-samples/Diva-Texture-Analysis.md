@@ -35,14 +35,30 @@ ai_realism_notes: {{ai_realism_notes|Ein englischer Satz, worauf bei realistisch
 # pass1_status: string       (pending | done | needs_review — Class/Type-Lauf)
 # pass2_status: string       (pending | done | needs_review — visuelle Properties)
 # analysisSourceImage: "basecolor" | "supplier-preview"
-#   (Quellbild-Wahl; Stufe 1, persistiert im Property-Store an VCodex)
+#   (Snapshot des LETZTEN Lauf-Quellbilds; vom Pipeline-Postprocessor in
+#    first-pass.ts ins Frontmatter geschrieben. Die User-Praeferenz fuer den
+#    NAECHSTEN Lauf wird zusaetzlich im Archiv-Property-Store unter VCodex
+#    gehalten — die beiden Werte koennen voneinander abweichen, wenn der
+#    Klassifizierer die Wahl nach dem Lauf aendert.)
+# group_name: string
+#   (Stoffgruppe aus LIEFERSYSTEM.GroupName; Stufe 4. Wird nach dem Pass-1-LLM-
+#    Call deterministisch in first-pass.ts gepatcht — NICHT vom LLM erwartet,
+#    damit "Nichts erfinden" nicht verletzt wird. Galerie gruppiert/filtert
+#    nach diesem Feld.)
+# classification_locked: boolean
+#   (Stufe 4, Edge-Case #6: Override-Schutz fuer Einzelmaterialien. Wenn true,
+#    wird das Material vom Stoffgruppen-Bulk-Apply NICHT ueberschrieben. Wird
+#    derzeit manuell im Frontmatter gesetzt — eine UI dafuer ist Folgearbeit.)
+# classification_rejected: boolean
+#   (Stufe 4, Edge-Case #17: vom Klassifizierer verworfene Vorschlaege. Wenn
+#    true, faellt der Bulk-Apply ebenfalls aus und das Material wird als
+#    Repraesentant uebersprungen.)
 # lieferSystemSnapshot: { fetchedAt, sourceFile, sourceFileHash, entry }
 #   (1:1-Snapshot des Sidecar-Eintrags; Stufe 6)
-# groupClassificationId: string
-#   (Referenz auf den Gruppen-Klassifikations-Lauf; Stufe 4)
 # analysisRuns: Array<{ timestamp, passNumber, sourceImage, confidence,
-#                       fieldsEvaluated, classifier, groupClassificationId }>
-#   (Lauf-Historie; Stufe 6)
+#                       fieldsEvaluated, classifier }>
+#   (Lauf-Historie; Stufe 6. Hinweis: groupClassificationId wurde im
+#    vereinfachten Stufe-4-Design abgewaehlt — keine eigene Persistenz.)
 # ─── Technische Bild-Metadaten (SYSTEM-INJIZIERT aus BaseColor-Bitmap) ──────
 # Diese Felder werden von der Pipeline programmatisch aus EXIF/Datei-Header
 # extrahiert und nach der LLM-Response ins Frontmatter gemergt.

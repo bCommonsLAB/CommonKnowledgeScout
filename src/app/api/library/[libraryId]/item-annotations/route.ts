@@ -60,6 +60,10 @@ export async function GET(
         fileId: r.fileId,
         itemKey: r.vcodex,
         attributes: r.attributes,
+        // Snapshot-Entry mitsenden, damit das Frontend Sidecar-Felder
+        // (Material, TextureName, Image, …) als Zusatzspalten in der
+        // Dateiliste rendern kann (Stufe 1+).
+        entry: r.snapshot?.entry,
       })),
     }
     return NextResponse.json(response)

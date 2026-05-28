@@ -414,6 +414,9 @@ export class LibraryService {
         chat: lib.config?.chat,
         // Transformation: DIVA-Liefersystem-Auswertung (Feature-Flag, kein Secret)
         analyzeDivaTextureInfo: lib.config?.analyzeDivaTextureInfo === true,
+        // Stufe 4: Schwellwert fuer Auto-Uebernahme der Stoffgruppen-
+        // Klassifikation. Wird im Klassifikations-Dialog gelesen, kein Secret.
+        autoApplyConfidenceThreshold: lib.config?.autoApplyConfidenceThreshold,
         // Doc-Translations Refactor: Sprach-Konfiguration ist clientseitig sichtbar
         // (reine Sprach-Praeferenzen, kein Secret) und wird im LanguageSwitcher und
         // in der Galerie-Tabelle (Spalte „Sprachen") konsumiert.

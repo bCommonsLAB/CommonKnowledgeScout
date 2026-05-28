@@ -839,6 +839,8 @@ export function GalleryRoot({
       onPublishChanged={handleDocumentDeleted}
       sortByStars={sortByStarsActive}
       onToggleFavorite={handleStarToggle}
+      autoApplyConfidenceThreshold={activeLibrary?.config?.autoApplyConfidenceThreshold}
+      onGroupClassified={handleDocumentDeleted}
     />
   }
 

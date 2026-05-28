@@ -24,15 +24,27 @@ import {
 } from '@/lib/gallery/resolve-cover-url-client'
 import { displayBasenameFromCoverRef } from '@/lib/gallery/cover-ref-display-name'
 import { SourceStarsBadge } from '../source-stars-badge'
+import { DivaTextureClassificationActions } from './diva-texture-classification-actions'
 
 export interface DivaTextureCardProps {
   doc: DocCardMeta
   onClick: () => void
   libraryId?: string
   onToggleFavorite?: (fileId: string) => void | Promise<void>
+  /**
+   * Stufe 4: wird nach erfolgreicher Per-Material-Korrektur gefeuert
+   * (locked/rejected/Klasse), damit die Galerie die Snapshot-Aenderung sieht.
+   */
+  onClassificationChanged?: () => void
 }
 
-export function DivaTextureCard({ doc, onClick, libraryId, onToggleFavorite }: DivaTextureCardProps) {
+export function DivaTextureCard({
+  doc,
+  onClick,
+  libraryId,
+  onToggleFavorite,
+  onClassificationChanged,
+}: DivaTextureCardProps) {
   const rawRef = doc.coverThumbnailUrl || doc.coverImageUrl
   const [displayImageUrl, setDisplayImageUrl] = useState<string | undefined>(() =>
     rawRef && !coverRefNeedsApiResolution(rawRef) ? rawRef : undefined
@@ -179,7 +191,101 @@ export function DivaTextureCard({ doc, onClick, libraryId, onToggleFavorite }: D
         className='absolute top-2 left-2 z-10'
       />
 
+      <DivaTextureClassificationBadges doc={doc} />
+
+      {libraryId && doc.detailViewType === 'divaTexture' ? (
+        <div className='absolute bottom-12 right-2 z-10 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100'>
+          <DivaTextureClassificationActions
+            doc={doc}
+            libraryId={libraryId}
+            onChanged={onClassificationChanged}
+          />
+        </div>
+      ) : null}
+
       <div className='absolute inset-x-0 bottom-0 h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left' />
     </article>
+  )
+}
+
+/**
+ * Pass-1-Klassifikations-Badges (Stufe 4): Material-Klasse + Typ + Konfidenz
+ * sowie Locked-/Rejected-Indikator. Wird in der oberen rechten Ecke gerendert
+ * und bleibt unsichtbar, wenn das Material noch keine Klassifikation hat.
+ */
+function DivaTextureClassificationBadges({ doc }: { doc: DocCardMeta }): React.ReactNode {
+  const materialClass = doc.material_class?.trim() || ''
+  const materialType = doc.material_type?.trim() || ''
+  const confidenceClass = typeof doc.confidence_class === 'number' ? doc.confidence_class : null
+  const locked = doc.classification_locked === true
+  const rejected = doc.classification_rejected === true
+  const needsVisualRefresh = doc.needs_visual_refresh === true
+
+  // Nichts zu zeigen — Karte bleibt unverfaelscht.
+  if (!materialClass && confidenceClass === null && !locked && !rejected && !needsVisualRefresh) {
+    return null
+  }
+
+  const classLabel = materialType
+    ? `${materialClass} / ${materialType}`
+    : materialClass || '—'
+  const confidenceLabel =
+    confidenceClass !== null ? `${Math.round(confidenceClass * 100)}%` : ''
+  const confidenceTone = (() => {
+    if (confidenceClass === null) return 'bg-black/60 text-white/90'
+    if (confidenceClass >= 0.9) return 'bg-emerald-600/85 text-white'
+    if (confidenceClass >= 0.7) return 'bg-amber-500/85 text-white'
+    return 'bg-rose-600/85 text-white'
+  })()
+
+  return (
+    <div className='absolute top-2 right-2 z-10 flex flex-col items-end gap-1'>
+      {materialClass ? (
+        <span
+          className={cn(
+            'rounded-full px-2 py-0.5 text-[10px] font-medium leading-none shadow',
+            'bg-black/60 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]',
+          )}
+          title={`Material-Klasse: ${classLabel}`}
+        >
+          {classLabel}
+        </span>
+      ) : null}
+      {confidenceLabel ? (
+        <span
+          className={cn(
+            'rounded-full px-2 py-0.5 text-[10px] font-semibold leading-none shadow',
+            confidenceTone,
+          )}
+          title={`Konfidenz: ${confidenceLabel}`}
+        >
+          {confidenceLabel}
+        </span>
+      ) : null}
+      {locked ? (
+        <span
+          className='rounded-full bg-slate-200/95 px-2 py-0.5 text-[10px] font-medium leading-none text-slate-900 shadow'
+          title='Override gesetzt: Gruppen-Klassifikation ueberschreibt nicht'
+        >
+          locked
+        </span>
+      ) : null}
+      {rejected ? (
+        <span
+          className='rounded-full bg-rose-200/95 px-2 py-0.5 text-[10px] font-medium leading-none text-rose-900 shadow'
+          title='Klassifikation verworfen: Material wird nicht gruppenklassifiziert'
+        >
+          verworfen
+        </span>
+      ) : null}
+      {needsVisualRefresh ? (
+        <span
+          className='rounded-full bg-sky-200/95 px-2 py-0.5 text-[10px] font-medium leading-none text-sky-900 shadow'
+          title='Klasse wurde nachtraeglich korrigiert — Korrektur-Lauf im Archiv erforderlich'
+        >
+          refresh
+        </span>
+      ) : null}
+    </div>
   )
 }

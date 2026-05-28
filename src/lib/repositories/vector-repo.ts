@@ -1086,6 +1086,16 @@ function buildGalleryProjection(
     'docMetaJson.publication': 1,
     // Status pro Sprache (fuer Sprach-Chips in der Tabellenansicht)
     'docMetaJson.translationStatus': 1,
+    // Diva-Texture-Pass-1-Felder (Stufe 3/4): in der Galerie als Badges
+    // sichtbar und Basis fuer Gruppierung/Filter nach Stoffgruppe.
+    'docMetaJson.group_name': 1,
+    'docMetaJson.material_class': 1,
+    'docMetaJson.material_type': 1,
+    'docMetaJson.confidence_class': 1,
+    'docMetaJson.confidence_type': 1,
+    'docMetaJson.classification_locked': 1,
+    'docMetaJson.classification_rejected': 1,
+    'docMetaJson.needs_visual_refresh': 1,
   }
 
   // Locale-spezifische Galerie-Translations (klein, nur title/topicsLabels/etc.).
@@ -1560,6 +1570,54 @@ export async function setDocPublication(
       // Initial-Status fuer jede Ziel-Locale: 'pending' (Worker setzt spaeter 'done'/'failed').
       set[`docMetaJson.translationStatus.${loc}`] = 'pending'
     }
+  }
+  const res = await col.updateOne(
+    { _id: `${fileId}-meta`, kind: 'meta' } as Partial<Document>,
+    { $set: set },
+  )
+  return res.matchedCount > 0
+}
+
+/**
+ * Patcht die Pass-1-Klassifikation eines Materials in `docMetaJson` (Stufe 4).
+ *
+ * Nutzt dot-notation `$set`, damit andere docMetaJson-Felder unangetastet
+ * bleiben (insbesondere `group_name`, `classification_locked`, `classification_rejected`,
+ * `availability_*`). Wird vom Batch-Klassifikations-Runner pro Mitglied aufgerufen,
+ * damit die Galerie die neuen Badges sofort zeigt — ohne komplettes Re-Ingest.
+ */
+export async function setDocPass1Classification(
+  libraryKey: string,
+  fileId: string,
+  patch: {
+    material_class: string
+    material_type: string
+    confidence_class: number
+    confidence_type: number | ''
+    needs_human_review: boolean
+    last_pass: 1
+    pass1_status: 'done' | 'needs_review'
+    /**
+     * Optional: setzt `docMetaJson.needs_visual_refresh` mit. `true`, wenn die
+     * Klasse durch die Propagation gegenueber dem alten Wert wechselt
+     * (Korrektur-Lauf in Stufe 5 erforderlich). `undefined` laesst den
+     * vorhandenen Wert unangetastet.
+     */
+    needs_visual_refresh?: boolean
+  },
+): Promise<boolean> {
+  const col = await getCollectionOnly(libraryKey)
+  const set: Record<string, unknown> = {
+    'docMetaJson.material_class': patch.material_class,
+    'docMetaJson.material_type': patch.material_type,
+    'docMetaJson.confidence_class': patch.confidence_class,
+    'docMetaJson.confidence_type': patch.confidence_type,
+    'docMetaJson.needs_human_review': patch.needs_human_review,
+    'docMetaJson.last_pass': patch.last_pass,
+    'docMetaJson.pass1_status': patch.pass1_status,
+  }
+  if (patch.needs_visual_refresh === true) {
+    set['docMetaJson.needs_visual_refresh'] = true
   }
   const res = await col.updateOne(
     { _id: `${fileId}-meta`, kind: 'meta' } as Partial<Document>,

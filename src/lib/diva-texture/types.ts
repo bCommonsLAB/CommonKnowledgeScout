@@ -80,6 +80,13 @@ export interface ItemAnnotation {
   itemKey: string
   /** Flache, gruppier-/filterbare Attribute (z.B. stoffgruppe, material, divaTexture). */
   attributes: Record<string, unknown>
+  /**
+   * Rohes Sidecar-Snapshot (1:1 OptionvalueEntry) — wird vom Frontend genutzt,
+   * um zusaetzliche Spalten in der Dateiliste anzuzeigen (Material, TextureName,
+   * Preview-Bitmap aus `Image`, …). Optional, weil nicht jede Annotation einen
+   * Sidecar-Treffer haben muss.
+   */
+  entry?: OptionvalueEntry
 }
 
 /** Antwortschema GET /api/library/[libraryId]/item-annotations?parentId=X. */
@@ -91,6 +98,10 @@ export interface ItemAnnotationsResponse {
 /** Antwortschema der API-Route GET /api/diva-texture/supplier-data. */
 export interface SupplierDataApiResponse {
   matched: boolean
+  /** Sidecar-Datei im Texturverzeichnis gefunden (unabhaengig vom Match). */
+  sidecarFound: boolean
+  /** Anzahl IsTexture==="True"-Eintraege in der Sidecar (nur wenn sidecarFound). */
+  entryCount?: number
   entry?: OptionvalueEntry
   /** Stabile Material-ID (= VCodex des Treffers); Bindung der Bildwahl. */
   materialId?: string

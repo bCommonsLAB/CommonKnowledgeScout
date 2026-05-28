@@ -1432,26 +1432,75 @@ export async function POST(
           model: llmModel,
         })
 
-        const res = await callImageAnalyzerTemplate({
-          baseUrl,
-          apiKey,
-          file: imageBuffer,
-          fileName: imageFileName,
-          mimeType: imageMimeType,
-          templateContent: templateContentForImage,
-          targetLanguage,
-          context: imageContext,
-          model: llmModel,
-          useCache,
-          timeoutMs: 120_000,
-          correlationHeaders,
-        })
+        // Einheitlicher LLM-Call (wird im Standard- und im DIVA-Texture-Pfad
+        // wiederverwendet) — liefert das Markdown der Secretary-Antwort.
+        const callImageAnalyzer = async (
+          image: { buffer: Buffer; fileName: string; mimeType: string },
+          ctx: Record<string, unknown>,
+        ): Promise<string> => {
+          const res = await callImageAnalyzerTemplate({
+            baseUrl,
+            apiKey,
+            file: image.buffer,
+            fileName: image.fileName,
+            mimeType: image.mimeType,
+            templateContent: templateContentForImage,
+            targetLanguage,
+            context: ctx,
+            model: llmModel,
+            useCache,
+            timeoutMs: 120_000,
+            correlationHeaders,
+          })
 
-        const json = await res.json() as { status: string; data?: { text: string; structured_data?: Record<string, unknown> }; error?: unknown }
-        if (json.status !== 'success' || !json.data?.text) {
-          throw new Error(json.error ? JSON.stringify(json.error) : 'Image-Analyzer lieferte kein Ergebnis')
+          const json = await res.json() as { status: string; data?: { text: string }; error?: unknown }
+          if (json.status !== 'success' || !json.data?.text) {
+            throw new Error(json.error ? JSON.stringify(json.error) : 'Image-Analyzer lieferte kein Ergebnis')
+          }
+          return json.data.text
         }
-        responseData = json.data
+
+        // DIVA-Texture 1. Pass (Stufe 3): Sidecar-Kontext + deterministische
+        // Class/Type/Confidence-Nachbearbeitung. Sonst: Standard-Image-Analyse.
+        const { isDivaTextureTemplate, runDivaTextureFirstPass } = await import('@/lib/diva-texture/first-pass-runner')
+        if (isDivaTextureTemplate(templateContentForImage)) {
+          const { getArchiveItemProperties } = await import('@/lib/repositories/archive-item-properties-repo')
+          const runnerResult = await runDivaTextureFirstPass({
+            provider,
+            parentId: job.correlation?.source?.parentId || 'root',
+            fileName: imageFileName,
+            filePath: typeof imageContext.filePath === 'string' ? imageContext.filePath : '',
+            baseImage: { buffer: imageBuffer, fileName: imageFileName, mimeType: imageMimeType },
+            baseContext: imageContext,
+            getImageChoice: async (materialId) => {
+              const props = await getArchiveItemProperties(job.libraryId, materialId)
+              const choice = props.analysisSourceImage
+              return choice === 'basecolor' || choice === 'supplier-preview' ? choice : null
+            },
+            fetchPreviewImage: async (url) => {
+              const resp = await fetch(url)
+              if (!resp.ok) throw new Error(`Liefersystem-Preview nicht erreichbar: HTTP ${resp.status}`)
+              const buf = Buffer.from(await resp.arrayBuffer())
+              const mime = resp.headers.get('content-type') || 'image/jpeg'
+              const previewName = imageFileName.replace(/\.[^.]+$/, '') + '-supplier-preview.jpg'
+              return { buffer: buf, fileName: previewName, mimeType: mime }
+            },
+            analyzeImage: ({ image, context }) => callImageAnalyzer(image, context),
+          })
+          responseData = { text: runnerResult.markdown }
+          FileLogger.info('start-route', 'DIVA-Texture 1. Pass abgeschlossen', {
+            jobId,
+            supplierMatched: runnerResult.supplierMatched,
+            sourceImage: runnerResult.sourceImage,
+          })
+        } else {
+          responseData = {
+            text: await callImageAnalyzer(
+              { buffer: imageBuffer, fileName: imageFileName, mimeType: imageMimeType },
+              imageContext,
+            ),
+          }
+        }
       } catch (error) {
         const msg = `Image-Analyzer-Fehler: ${error instanceof Error ? error.message : String(error)}`
         FileLogger.error('start-route', msg, { jobId })

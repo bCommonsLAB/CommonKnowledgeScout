@@ -39,6 +39,9 @@ export const libraryFormSchema = z.object({
   templateDirectory: z.string().default("/templates"),
   // Transformation: DIVA-Liefersystem-Daten auswerten (DIVA-Info-Tab). Default false.
   analyzeDivaTextureInfo: z.boolean().default(false),
+  // Schwellwert fuer die Auto-Uebernahme der Stoffgruppen-Klassifikation (Stufe 4).
+  // Bereich [0, 1], Default 0.9.
+  autoApplyConfidenceThreshold: z.number().min(0).max(1).default(0.9),
   storageConfig: z.object({
     basePath: z.string().optional(),
     clientId: z.string().optional(),
@@ -48,6 +51,17 @@ export const libraryFormSchema = z.object({
 });
 
 export type LibraryFormValues = z.infer<typeof libraryFormSchema>;
+
+/**
+ * Coerced den Auto-Uebernahme-Schwellwert (Stufe 4) auf [0, 1].
+ * Default 0.9, wenn nicht gesetzt oder ausserhalb des Bereichs.
+ */
+function coerceAutoApplyConfidenceThreshold(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0.9;
+  if (value < 0) return 0;
+  if (value > 1) return 1;
+  return value;
+}
 
 /** Konfigurationstyp für Shadow-Twin-Einstellungen */
 interface ShadowTwinConfig {
@@ -195,6 +209,7 @@ export function useLibraryForm(createNew: boolean) {
       transcription: "shadowTwin",
       templateDirectory: "/templates",
       analyzeDivaTextureInfo: false,
+      autoApplyConfidenceThreshold: 0.9,
       storageConfig: {
         basePath: "",
         clientId: "",
@@ -303,6 +318,9 @@ export function useLibraryForm(createNew: boolean) {
         templateDirectory:
           (activeLibrary.config?.templateDirectory as string) ?? "/templates",
         analyzeDivaTextureInfo: activeLibrary.config?.analyzeDivaTextureInfo === true,
+        autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
+          activeLibrary.config?.autoApplyConfidenceThreshold,
+        ),
         storageConfig,
       });
     } else if (libraries.length > 0) {
@@ -330,6 +348,9 @@ export function useLibraryForm(createNew: boolean) {
         templateDirectory:
           (activeLibrary.config?.templateDirectory as string) ?? "/templates",
         analyzeDivaTextureInfo: activeLibrary.config?.analyzeDivaTextureInfo === true,
+        autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
+          activeLibrary.config?.autoApplyConfidenceThreshold,
+        ),
         storageConfig,
       });
     }
@@ -407,6 +428,7 @@ export function useLibraryForm(createNew: boolean) {
             transcription: data.transcription,
             templateDirectory: data.templateDirectory,
             analyzeDivaTextureInfo: data.analyzeDivaTextureInfo,
+            autoApplyConfidenceThreshold: data.autoApplyConfidenceThreshold,
             shadowTwin: {
               mode: shadowTwinMode,
               primaryStore: shadowTwinPrimaryStore,
@@ -582,6 +604,9 @@ export function useLibraryForm(createNew: boolean) {
           transcription: (importedLibrary.transcription as "shadowTwin" | "db") ?? "shadowTwin",
           templateDirectory: ((importedLibrary as { config?: Record<string, unknown> }).config?.templateDirectory as string) ?? "/templates",
           analyzeDivaTextureInfo: ((importedLibrary as { config?: Record<string, unknown> }).config?.analyzeDivaTextureInfo as boolean) === true,
+          autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
+            (importedLibrary as { config?: Record<string, unknown> }).config?.autoApplyConfidenceThreshold,
+          ),
           storageConfig,
         });
 

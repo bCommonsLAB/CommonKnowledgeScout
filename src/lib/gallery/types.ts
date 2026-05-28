@@ -62,6 +62,28 @@ export interface DocCardMeta {
 
   /** Diva-Texture-Analysis: Kurzcode unter dem Titel (optional) */
   textur_code?: string
+  /**
+   * Diva-Texture-Analysis (Stufe 3/4): Klasse, Typ und Konfidenz aus Pass 1.
+   * Werden in der Galerie als Badges angezeigt und ermoeglichen das Gruppieren
+   * nach Stoffgruppe (`group_name`) bzw. Material-Klasse (`material_class`).
+   * Optionale, flache snake_case-Felder aus dem Pass-1-Frontmatter.
+   */
+  group_name?: string
+  material_class?: string
+  material_type?: string
+  confidence_class?: number
+  confidence_type?: number
+  /** Stufe 4: Override-Schutz fuer Einzelmaterialien. */
+  classification_locked?: boolean
+  /** Stufe 4: vom Klassifizierer verworfene Vorschlaege bleiben markiert. */
+  classification_rejected?: boolean
+  /**
+   * Stufe 4/5 (Modell 2026-05-28): Marker fuer "Klasse wurde nachtraeglich
+   * vom Klassifizierer korrigiert — visuelle Properties brauchen einen
+   * Korrektur-Lauf, weil sie unter der alten (falschen) Klasse entstanden
+   * sein koennten." Wird vom Korrektur-Lauf in Stufe 5 wieder geleert.
+   */
+  needs_visual_refresh?: boolean
 
   // ─── RefurbedDevice-spezifische Felder fuer Gallery-Teaser ───────────────
   /** Marke + Modell in einer Zeile (z.B. "Lenovo ThinkPad T480") */
@@ -192,6 +214,14 @@ export function mapItemToDocCardMeta(item: Item): DocCardMeta {
     sourcePath: typeof item.meta.sourcePath === 'string' ? item.meta.sourcePath : undefined,
     sourceFileName: typeof item.meta.sourceFileName === 'string' ? item.meta.sourceFileName : undefined,
     textur_code: typeof item.meta.textur_code === 'string' ? item.meta.textur_code : undefined,
+    group_name: typeof item.meta.group_name === 'string' ? item.meta.group_name : undefined,
+    material_class: typeof item.meta.material_class === 'string' ? item.meta.material_class : undefined,
+    material_type: typeof item.meta.material_type === 'string' ? item.meta.material_type : undefined,
+    confidence_class: typeof item.meta.confidence_class === 'number' ? item.meta.confidence_class : undefined,
+    confidence_type: typeof item.meta.confidence_type === 'number' ? item.meta.confidence_type : undefined,
+    classification_locked: item.meta.classification_locked === true ? true : undefined,
+    classification_rejected: item.meta.classification_rejected === true ? true : undefined,
+    needs_visual_refresh: item.meta.needs_visual_refresh === true ? true : undefined,
     // RefurbedDevice-spezifische Felder fuer Gallery-Teaser (vollflaechige Karte)
     modell: typeof item.meta.modell === 'string' ? item.meta.modell : undefined,
     geraetetyp: typeof item.meta.geraetetyp === 'string' ? item.meta.geraetetyp : undefined,
