@@ -1095,6 +1095,7 @@ function buildGalleryProjection(
     'docMetaJson.confidence_type': 1,
     'docMetaJson.classification_locked': 1,
     'docMetaJson.classification_rejected': 1,
+    'docMetaJson.needs_visual_refresh': 1,
   }
 
   // Locale-spezifische Galerie-Translations (klein, nur title/topicsLabels/etc.).

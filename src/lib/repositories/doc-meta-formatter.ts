@@ -202,6 +202,7 @@ export function convertMongoDocToDocCardMeta(
     confidence_type: typeof docMeta?.confidence_type === 'number' ? docMeta.confidence_type : undefined,
     classification_locked: docMeta?.classification_locked === true ? true : undefined,
     classification_rejected: docMeta?.classification_rejected === true ? true : undefined,
+    needs_visual_refresh: docMeta?.needs_visual_refresh === true ? true : undefined,
     // RefurbedDevice-spezifische Felder fuer vollflaechige Gallery-Karte
     modell: typeof docMeta?.modell === 'string' ? docMeta.modell : undefined,
     geraetetyp: typeof docMeta?.geraetetyp === 'string' ? docMeta.geraetetyp : undefined,

@@ -197,9 +197,12 @@ function DivaTextureClassificationBadges({ doc }: { doc: DocCardMeta }): React.R
   const confidenceClass = typeof doc.confidence_class === 'number' ? doc.confidence_class : null
   const locked = doc.classification_locked === true
   const rejected = doc.classification_rejected === true
+  const needsVisualRefresh = doc.needs_visual_refresh === true
 
   // Nichts zu zeigen — Karte bleibt unverfaelscht.
-  if (!materialClass && confidenceClass === null && !locked && !rejected) return null
+  if (!materialClass && confidenceClass === null && !locked && !rejected && !needsVisualRefresh) {
+    return null
+  }
 
   const classLabel = materialType
     ? `${materialClass} / ${materialType}`
@@ -251,6 +254,14 @@ function DivaTextureClassificationBadges({ doc }: { doc: DocCardMeta }): React.R
           title='Klassifikation verworfen: Material wird nicht gruppenklassifiziert'
         >
           verworfen
+        </span>
+      ) : null}
+      {needsVisualRefresh ? (
+        <span
+          className='rounded-full bg-sky-200/95 px-2 py-0.5 text-[10px] font-medium leading-none text-sky-900 shadow'
+          title='Klasse wurde nachtraeglich korrigiert — Korrektur-Lauf im Archiv erforderlich'
+        >
+          refresh
         </span>
       ) : null}
     </div>

@@ -77,6 +77,13 @@ export interface DocCardMeta {
   classification_locked?: boolean
   /** Stufe 4: vom Klassifizierer verworfene Vorschlaege bleiben markiert. */
   classification_rejected?: boolean
+  /**
+   * Stufe 4/5 (Modell 2026-05-28): Marker fuer "Klasse wurde nachtraeglich
+   * vom Klassifizierer korrigiert — visuelle Properties brauchen einen
+   * Korrektur-Lauf, weil sie unter der alten (falschen) Klasse entstanden
+   * sein koennten." Wird vom Korrektur-Lauf in Stufe 5 wieder geleert.
+   */
+  needs_visual_refresh?: boolean
 
   // ─── RefurbedDevice-spezifische Felder fuer Gallery-Teaser ───────────────
   /** Marke + Modell in einer Zeile (z.B. "Lenovo ThinkPad T480") */
@@ -214,6 +221,7 @@ export function mapItemToDocCardMeta(item: Item): DocCardMeta {
     confidence_type: typeof item.meta.confidence_type === 'number' ? item.meta.confidence_type : undefined,
     classification_locked: item.meta.classification_locked === true ? true : undefined,
     classification_rejected: item.meta.classification_rejected === true ? true : undefined,
+    needs_visual_refresh: item.meta.needs_visual_refresh === true ? true : undefined,
     // RefurbedDevice-spezifische Felder fuer Gallery-Teaser (vollflaechige Karte)
     modell: typeof item.meta.modell === 'string' ? item.meta.modell : undefined,
     geraetetyp: typeof item.meta.geraetetyp === 'string' ? item.meta.geraetetyp : undefined,
