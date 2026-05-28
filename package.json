@@ -54,6 +54,7 @@
     "docs:history:monthly": "node --import tsx scripts/merge-history-monthly.ts",
     "docs:history:mon": "pnpm run docs:history:monthly",
     "test:vector-search": "node --import tsx scripts/test-mongodb-vector-search.ts",
+    "diva:preprocess": "node --import tsx scripts/preprocess-diva-textures.ts",
     "electron:dev": "electron electron/main.js",
     "electron:build": "next build && node scripts/generate-required-server-files.js && electron-builder --config electron-builder.yml",
     "electron:pack": "next build && node scripts/generate-required-server-files.js && electron-builder --config electron-builder.yml --dir",

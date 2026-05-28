@@ -10,6 +10,7 @@ import {
   Layers,
   ImagePlus,
   Combine,
+  ChevronRight,
   Search,
   X,
 } from "lucide-react"
@@ -30,7 +31,9 @@ import {
   sortOrderAtom,
   searchTermAtom,
   selectedShadowTwinAtom,
-  currentFolderIdAtom
+  currentFolderIdAtom,
+  itemAnnotationsAtom,
+  groupByAttributeAtom,
 } from '@/atoms/library-atom';
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox"
@@ -43,6 +46,8 @@ import {
 import { useMemo, useCallback } from "react"
 import { FileLogger, StateLogger } from "@/lib/debug/logger"
 import { FileCategoryFilter } from './file-category-filter';
+import { DivaToolsMenu } from './diva-tools-menu';
+import { useItemAnnotations } from "@/hooks/use-item-annotations";
 import { useFolderNavigation } from "@/hooks/use-folder-navigation";
 import { useShadowTwinAnalysis } from "@/hooks/use-shadow-twin-analysis";
 import { shadowTwinAnalysisTriggerAtom, shadowTwinStateAtom } from "@/atoms/shadow-twin-atom";
@@ -111,6 +116,21 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   const allItemsInFolder = useAtomValue(folderItemsAtom);
   const currentFolderId = useAtomValue(currentFolderIdAtom);
   const navigateToFolder = useFolderNavigation();
+  // DIVA-Info-Filter: nur bei aktivierter Library-Option; laedt Annotationen des Ordners.
+  const divaEnabled = activeLibrary?.config?.analyzeDivaTextureInfo === true;
+  useItemAnnotations();
+  const itemAnnotations = useAtomValue(itemAnnotationsAtom);
+  const groupByAttribute = useAtomValue(groupByAttributeAtom);
+  // Eingeklappte Gruppen (lokal, pro Ordner zuruecksetzen).
+  const [collapsedGroups, setCollapsedGroups] = React.useState<Set<string>>(new Set());
+  const toggleGroup = React.useCallback((key: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }, []);
+  React.useEffect(() => { setCollapsedGroups(new Set()); }, [currentFolderId, groupByAttribute]);
   const listContainerRef = React.useRef<HTMLDivElement | null>(null);
   
   // Prüfe, ob eine folderId in der URL steht
@@ -141,8 +161,12 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
       console.log(`[FileList Performance] Shadow-Twin-Analyse gestartet für ${allItemsInFolder.length} Dateien`);
     }
   }, [allItemsInFolder, allItemsInFolder?.length]);
-  
-  useShadowTwinAnalysis(allItemsInFolder ?? [], provider, shadowTwinAnalysisTrigger);
+
+  // Shadow-Twin-Analyse nur fuer die ANGEZEIGTEN (gefilterten) Dateien statt fuer
+  // alle Ordner-Items. In der "Mit DIVA-Info"-Ansicht reduziert das den Bulk-Resolve
+  // drastisch (z.B. 169 statt 5800); in "Alle" unveraendert.
+  const items = useAtomValue(sortedFilteredFilesAtom);
+  useShadowTwinAnalysis(items, provider, shadowTwinAnalysisTrigger);
   const shadowTwinStates = useAtomValue(shadowTwinStateAtom);
   
   // Performance-Messung: Shadow-Twin-Analyse Ende
@@ -157,7 +181,6 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   // Kein mobiles Flag mehr notwendig
 
   // Sortier-Atome VOR folders definieren, da folders diese referenziert
-  const items = useAtomValue(sortedFilteredFilesAtom);
   const [sortField, setSortField] = useAtom(sortFieldAtom);
   const [sortOrder, setSortOrder] = useAtom(sortOrderAtom);
 
@@ -350,6 +373,65 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   const fileGroupsWithShadowTwinFolders = React.useMemo(() => {
     return shouldShowItems ? fileGroups : new Map<string, FileGroup>();
   }, [shouldShowItems, fileGroups]);
+
+  // Generisches Zeilen-Modell: optional nach Annotation-Attribut gruppiert.
+  // Ohne Gruppierung: eine Datei-Zeile je FileGroup. Mit Gruppierung: einklappbarer
+  // Gruppen-Header + darunter die Datei-Zeilen. Basis fuer die Virtualisierung.
+  type ListRow =
+    | { kind: 'group'; key: string; label: string; count: number }
+    | { kind: 'file'; group: FileGroup; item: StorageItem };
+
+  const listRows = React.useMemo<ListRow[]>(() => {
+    const groupsArr = Array.from((fileGroupsWithShadowTwinFolders ?? new Map<string, FileGroup>()).values())
+      .filter((g): g is FileGroup & { baseItem: StorageItem } => Boolean(g.baseItem));
+
+    if (!groupByAttribute) {
+      return groupsArr.map((g) => ({ kind: 'file', group: g, item: g.baseItem }));
+    }
+
+    const buckets = new Map<string, Array<FileGroup & { baseItem: StorageItem }>>();
+    for (const g of groupsArr) {
+      const raw = itemAnnotations.get(g.baseItem.metadata.name)?.[groupByAttribute];
+      const value = typeof raw === 'string' && raw.trim() !== '' ? raw.trim() : `(ohne ${groupByAttribute})`;
+      if (!buckets.has(value)) buckets.set(value, []);
+      buckets.get(value)!.push(g);
+    }
+
+    const rows: ListRow[] = [];
+    for (const key of Array.from(buckets.keys()).sort((a, b) => a.localeCompare(b))) {
+      const groupItems = buckets.get(key)!;
+      rows.push({ kind: 'group', key, label: key, count: groupItems.length });
+      if (!collapsedGroups.has(key)) {
+        for (const g of groupItems) rows.push({ kind: 'file', group: g, item: g.baseItem });
+      }
+    }
+    return rows;
+  }, [fileGroupsWithShadowTwinFolders, groupByAttribute, itemAnnotations, collapsedGroups]);
+
+  // Progressives Rendern (Windowing): nicht alle (>5000) Zeilen auf einmal in den
+  // DOM, sondern seitenweise nachladen, sobald der Sentinel in Sichtweite kommt.
+  // Loest den initialen Render-Stau; greift unabhaengig vom Storage-Backend.
+  const ROWS_PAGE_SIZE = 150;
+  const [visibleRowCount, setVisibleRowCount] = React.useState(ROWS_PAGE_SIZE);
+  const loadMoreSentinelRef = React.useRef<HTMLDivElement | null>(null);
+  // Bei Ordnerwechsel zuruecksetzen (sonst bliebe ein grosses Fenster bestehen).
+  React.useEffect(() => { setVisibleRowCount(ROWS_PAGE_SIZE); }, [currentFolderId]);
+  React.useEffect(() => {
+    const el = loadMoreSentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleRowCount((count) => Math.min(count + ROWS_PAGE_SIZE, listRows.length));
+        }
+      },
+      { root: listContainerRef.current, rootMargin: '600px' },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [listRows.length]);
+
+  const visibleRows = React.useMemo(() => listRows.slice(0, visibleRowCount), [listRows, visibleRowCount]);
 
   // Navigationsliste: nur Hauptdateien in der aktuell sichtbaren Reihenfolge
   const mainFileItems = React.useMemo(() => {
@@ -1284,6 +1366,9 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
               )}
             </div>
 
+            {/* DIVA-Filter + Gruppierung gebuendelt im Popover (nur bei aktivierter Option) */}
+            {divaEnabled && <DivaToolsMenu />}
+
             {/* Batch-Actions: Sammel-Transkript / Löschen (Ingest nur noch über Vorschau/Pipeline/Wizard) */}
             {/* Sammel-Transkript: sichtbar wenn ≥2 Dateien insgesamt ausgewählt */}
             {(selectedBatchItems.length + selectedTransformationItems.length) >= 2 && (
@@ -1449,40 +1534,46 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
             </div>
           )}
 
-          {/* File Rows */}
+          {/* File Rows (optional nach Attribut gruppiert, progressiv gerendert) */}
           <div className="divide-y">
-            {(() => {
-              const renderStart = performance.now();
-              const groups = Array.from((fileGroupsWithShadowTwinFolders ?? new Map()).values());
-              const rows = groups.map((group) => {
-                // Zeige nur die Hauptdatei (baseItem) an
-                const item = group.baseItem;
-                if (!item) return null;
-                // Alte systemFolderId-Logik entfernt
-                const isActive = !!activeFile && activeFile.id === item.id
+            {visibleRows.map((row) => {
+              if (row.kind === 'group') {
+                const collapsed = collapsedGroups.has(row.key);
                 return (
-                  <FileRow
-                    key={item.id}
-                    item={item as StorageItem}
-                    isSelected={isItemSelected(item)}
-                    isActive={isActive}
-                    onSelect={() => handleSelect(item, group)}
-                    onDelete={(e) => handleDeleteClick(e, item)}
-                    fileGroup={group}
-                    onRename={handleRename}
-                    compact={compact}
-                    libraryId={activeLibraryId ?? undefined}
-                  />
+                  <button
+                    key={`group:${row.key}`}
+                    type="button"
+                    onClick={() => toggleGroup(row.key)}
+                    className="flex w-full items-center gap-2 bg-muted/50 px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                  >
+                    <ChevronRight className={cn("h-3.5 w-3.5 transition-transform", !collapsed && "rotate-90")} />
+                    <span className="truncate">{row.label}</span>
+                    <span className="ml-auto tabular-nums text-muted-foreground">{row.count}</span>
+                  </button>
                 );
-              });
-              const renderEnd = performance.now();
-              const renderDuration = renderEnd - renderStart;
-              if (renderDuration > 50) {
-                console.log(`[FileList Performance] FileRow Rendering: ${renderDuration.toFixed(2)}ms für ${groups.length} Dateien`);
               }
-              return rows;
-            })()}
+              const { group, item } = row;
+              const isActive = !!activeFile && activeFile.id === item.id;
+              return (
+                <FileRow
+                  key={item.id}
+                  item={item}
+                  isSelected={isItemSelected(item)}
+                  isActive={isActive}
+                  onSelect={() => handleSelect(item, group)}
+                  onDelete={(e) => handleDeleteClick(e, item)}
+                  fileGroup={group}
+                  onRename={handleRename}
+                  compact={compact}
+                  libraryId={activeLibraryId ?? undefined}
+                />
+              );
+            })}
           </div>
+          {/* Sentinel: laedt die naechste Zeilen-Seite, sobald er in Sichtweite kommt. */}
+          {visibleRowCount < listRows.length && (
+            <div ref={loadMoreSentinelRef} className="h-2 w-full" aria-hidden="true" />
+          )}
         </div>
       </div>
 
