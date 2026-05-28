@@ -35,7 +35,11 @@ ai_realism_notes: {{ai_realism_notes|Ein englischer Satz, worauf bei realistisch
 # pass1_status: string       (pending | done | needs_review — Class/Type-Lauf)
 # pass2_status: string       (pending | done | needs_review — visuelle Properties)
 # analysisSourceImage: "basecolor" | "supplier-preview"
-#   (Quellbild-Wahl; Stufe 1, persistiert im Property-Store an VCodex)
+#   (Snapshot des LETZTEN Lauf-Quellbilds; vom Pipeline-Postprocessor in
+#    first-pass.ts ins Frontmatter geschrieben. Die User-Praeferenz fuer den
+#    NAECHSTEN Lauf wird zusaetzlich im Archiv-Property-Store unter VCodex
+#    gehalten — die beiden Werte koennen voneinander abweichen, wenn der
+#    Klassifizierer die Wahl nach dem Lauf aendert.)
 # group_name: string
 #   (Stoffgruppe aus LIEFERSYSTEM.GroupName; Stufe 4. Wird nach dem Pass-1-LLM-
 #    Call deterministisch in first-pass.ts gepatcht — NICHT vom LLM erwartet,

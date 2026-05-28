@@ -126,6 +126,8 @@ export async function runDivaTextureFirstPass(params: RunFirstPassParams): Promi
     llmFields: meta,
     supplierEntry: entry,
     filePath: params.filePath,
+    // Snapshot ins Frontmatter: welches Bild ging an dieses LLM-Call?
+    sourceImage,
   })
   const markdown = patchFrontmatter(markdownText, pass1Fields)
 

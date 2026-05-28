@@ -180,4 +180,31 @@ describe('buildFirstPassFrontmatter — visuelle Properties + Hints (Voll-Pass)'
     }
     expect(buildFirstPassFrontmatter(args)).toEqual(buildFirstPassFrontmatter(args))
   })
+
+  it('schreibt analysisSourceImage ins Frontmatter (Snapshot des Quellbilds)', () => {
+    const basecolorResult = buildFirstPassFrontmatter({
+      llmFields: { material_class: 'fabric' },
+      supplierEntry: entry('STOFF'),
+      filePath: PATH_ILN,
+      sourceImage: 'basecolor',
+    })
+    expect(basecolorResult.analysisSourceImage).toBe('basecolor')
+
+    const supplierResult = buildFirstPassFrontmatter({
+      llmFields: { material_class: 'fabric' },
+      supplierEntry: entry('STOFF'),
+      filePath: PATH_ILN,
+      sourceImage: 'supplier-preview',
+    })
+    expect(supplierResult.analysisSourceImage).toBe('supplier-preview')
+  })
+
+  it('defaultet analysisSourceImage auf basecolor, wenn der Aufrufer keinen Wert setzt', () => {
+    const result = buildFirstPassFrontmatter({
+      llmFields: { material_class: 'fabric' },
+      supplierEntry: entry('STOFF'),
+      filePath: PATH_ILN,
+    })
+    expect(result.analysisSourceImage).toBe('basecolor')
+  })
 })

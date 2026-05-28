@@ -21,7 +21,7 @@
  * gleiche Eingaben → gleiches Ergebnis.
  */
 
-import type { OptionvalueEntry } from './types'
+import type { AnalysisSourceImage, OptionvalueEntry } from './types'
 import { mapMaterialClass } from './material-class-mapping'
 import { fieldsForSource } from './material-field-sources'
 import { parseAvailabilityFromPath } from './availability-from-path'
@@ -43,6 +43,15 @@ export interface BuildFirstPassArgs {
   supplierEntry: OptionvalueEntry | null
   /** Voller Verzeichnispfad der Textur (fuer availability/retailer_iln). */
   filePath: string
+  /**
+   * Welches Quellbild tatsaechlich ans LLM ging. Wird als Snapshot ins
+   * Frontmatter geschrieben (`analysisSourceImage`), damit der Klassifizierer
+   * dem Ergebnis ansieht, ob es auf dem Basecolor oder dem Liefersystem-
+   * Preview entstanden ist — unabhaengig von einer spaeteren Praeferenz-
+   * Aenderung im Archiv-Property-Store. Default `basecolor`, falls der
+   * Aufrufer (z.B. Tests) den Wert nicht setzt.
+   */
+  sourceImage?: AnalysisSourceImage
 }
 
 /** Coerced numerischer Wert oder null (kein stiller 0-Fallback). */
@@ -141,6 +150,10 @@ export function buildFirstPassFrontmatter(args: BuildFirstPassArgs): Record<stri
     // Pipeline-/System-verwaltet (nicht vom LLM)
     last_pass: 1,
     pass1_status: needsHumanReview ? ('needs_review' satisfies Pass1Status) : ('done' satisfies Pass1Status),
+    // Snapshot des LETZTEN Lauf-Quellbilds (Stufe 3+). User-Praeferenz im
+    // Archiv-Property-Store kann sich danach aendern; das hier bleibt
+    // der historische Wahrheits-Anker fuer dieses Analyse-Ergebnis.
+    analysisSourceImage: args.sourceImage ?? 'basecolor',
   }
 
   // Visuelle Properties (ai_pass2-Felder) + Hints (ai_last_pass) werden seit
