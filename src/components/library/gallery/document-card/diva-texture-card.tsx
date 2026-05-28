@@ -24,15 +24,27 @@ import {
 } from '@/lib/gallery/resolve-cover-url-client'
 import { displayBasenameFromCoverRef } from '@/lib/gallery/cover-ref-display-name'
 import { SourceStarsBadge } from '../source-stars-badge'
+import { DivaTextureClassificationActions } from './diva-texture-classification-actions'
 
 export interface DivaTextureCardProps {
   doc: DocCardMeta
   onClick: () => void
   libraryId?: string
   onToggleFavorite?: (fileId: string) => void | Promise<void>
+  /**
+   * Stufe 4: wird nach erfolgreicher Per-Material-Korrektur gefeuert
+   * (locked/rejected/Klasse), damit die Galerie die Snapshot-Aenderung sieht.
+   */
+  onClassificationChanged?: () => void
 }
 
-export function DivaTextureCard({ doc, onClick, libraryId, onToggleFavorite }: DivaTextureCardProps) {
+export function DivaTextureCard({
+  doc,
+  onClick,
+  libraryId,
+  onToggleFavorite,
+  onClassificationChanged,
+}: DivaTextureCardProps) {
   const rawRef = doc.coverThumbnailUrl || doc.coverImageUrl
   const [displayImageUrl, setDisplayImageUrl] = useState<string | undefined>(() =>
     rawRef && !coverRefNeedsApiResolution(rawRef) ? rawRef : undefined
@@ -180,6 +192,16 @@ export function DivaTextureCard({ doc, onClick, libraryId, onToggleFavorite }: D
       />
 
       <DivaTextureClassificationBadges doc={doc} />
+
+      {libraryId && doc.detailViewType === 'divaTexture' ? (
+        <div className='absolute bottom-12 right-2 z-10 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100'>
+          <DivaTextureClassificationActions
+            doc={doc}
+            libraryId={libraryId}
+            onChanged={onClassificationChanged}
+          />
+        </div>
+      ) : null}
 
       <div className='absolute inset-x-0 bottom-0 h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left' />
     </article>

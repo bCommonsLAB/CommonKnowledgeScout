@@ -204,3 +204,100 @@ export function classificationFieldsApplied(): string[] {
   const pass1 = fieldsForSource('ai_pass1')
   return [...pass1, 'last_pass', 'pass1_status']
 }
+
+/**
+ * Patch, den der User in der Galerie pro Material setzen darf.
+ *
+ * `material_class`/`material_type`/`confidence_class`/`confidence_type`/
+ * `needs_human_review` sind Klassifikations-Korrekturen — wenn die Klasse
+ * oder der Typ sich aendert, setzt `applyMaterialPatch` automatisch
+ * `needs_visual_refresh=true` als Signal fuer Stufe 5.
+ *
+ * `classification_locked` und `classification_rejected` sind reine
+ * UI-Flags und haben keinen Effekt auf `needs_visual_refresh`.
+ */
+export interface MaterialPatch {
+  material_class?: string
+  material_type?: string
+  confidence_class?: number
+  confidence_type?: number | ''
+  needs_human_review?: boolean
+  classification_locked?: boolean
+  classification_rejected?: boolean
+}
+
+/** Aktueller Stand der Klassifikations-Felder eines Materials. */
+export interface MaterialCurrentState {
+  material_class: string
+  material_type: string
+}
+
+export interface ApplyMaterialPatchResult {
+  /** Patch-Set, das ins Frontmatter geschrieben werden soll. */
+  updates: Record<string, unknown>
+  /** True, wenn material_class oder material_type sich aendern → Refresh-Marker. */
+  triggersVisualRefresh: boolean
+}
+
+/**
+ * Bereitet einen Per-Material-Frontmatter-Patch vor und entscheidet
+ * deterministisch, ob `needs_visual_refresh=true` mitgeschrieben werden muss.
+ *
+ * Regeln:
+ *  - Wechsel von `material_class` oder `material_type` setzt
+ *    `needs_visual_refresh=true` (Stufe-5-Trigger).
+ *  - Wechsel der Konfidenz allein loest KEIN Refresh aus.
+ *  - `classification_locked`/`_rejected` sind reine Flags, kein Refresh.
+ *  - Bei Klassen-Korrektur wird `last_pass=1` + `pass1_status` mitgeschrieben,
+ *    damit der Galerie-Snapshot konsistent bleibt.
+ *  - `undefined`-Werte im Patch werden ignoriert (kein Loeschen, kein
+ *    silent fallback).
+ *  - Aenderungen, die mit dem aktuellen Stand identisch sind, werden
+ *    nicht erneut markiert (Idempotenz).
+ */
+export function applyMaterialPatch(
+  current: MaterialCurrentState,
+  patch: MaterialPatch,
+): ApplyMaterialPatchResult {
+  const updates: Record<string, unknown> = {}
+
+  // Klassen-/Typ-Korrekturen
+  let classChanged = false
+  if (typeof patch.material_class === 'string') {
+    const next = patch.material_class.trim()
+    updates.material_class = next
+    if (next !== current.material_class) classChanged = true
+  }
+  if (typeof patch.material_type === 'string') {
+    const next = patch.material_type.trim()
+    updates.material_type = next
+    if (next !== current.material_type) classChanged = true
+  }
+  if (typeof patch.confidence_class === 'number') {
+    updates.confidence_class = patch.confidence_class
+  }
+  if (patch.confidence_type !== undefined) {
+    updates.confidence_type = patch.confidence_type
+  }
+  if (typeof patch.needs_human_review === 'boolean') {
+    updates.needs_human_review = patch.needs_human_review
+  }
+
+  // Reine UI-Flags
+  if (typeof patch.classification_locked === 'boolean') {
+    updates.classification_locked = patch.classification_locked
+  }
+  if (typeof patch.classification_rejected === 'boolean') {
+    updates.classification_rejected = patch.classification_rejected
+  }
+
+  // Bei Klassen-Wechsel: Pipeline-Status + Refresh-Marker mitschreiben
+  if (classChanged) {
+    updates.last_pass = 1
+    updates.pass1_status =
+      patch.needs_human_review === true ? 'needs_review' : 'done'
+    updates.needs_visual_refresh = true
+  }
+
+  return { updates, triggersVisualRefresh: classChanged }
+}

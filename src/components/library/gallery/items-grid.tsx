@@ -30,8 +30,9 @@ export interface ItemsGridProps {
    */
   autoApplyConfidenceThreshold?: number
   /**
-   * Stufe 4: wird nach erfolgreichem Bulk-Apply gefeuert, damit die Galerie
-   * (z.B. ueber `mutateDoc` oder Refresh) die neuen Klassifikations-Badges sieht.
+   * Stufe 4: wird nach erfolgreichem Bulk-Apply (Stoffgruppe) oder nach
+   * Per-Material-Korrektur (locked/rejected/Klasse) gefeuert, damit die Galerie
+   * die neuen Klassifikations-Badges sieht.
    */
   onGroupClassified?: () => void
 }
@@ -102,6 +103,7 @@ export function ItemsGrid({
                 libraryId={libraryId}
                 libraryDetailViewType={libraryDetailViewType}
                 onToggleFavorite={onToggleFavorite}
+                onClassificationChanged={onGroupClassified}
               />
             ))}
           </div>

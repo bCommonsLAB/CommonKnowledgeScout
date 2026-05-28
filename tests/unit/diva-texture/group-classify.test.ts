@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyClassificationToMember,
+  applyMaterialPatch,
   classificationFieldsApplied,
   extractClassification,
   pickRepresentative,
@@ -236,6 +237,67 @@ describe('applyClassificationToMember', () => {
     expect(() => applyClassificationToMember('Nur Body, kein Frontmatter.', CLASSIFICATION)).toThrow(
       /kein Frontmatter/,
     )
+  })
+})
+
+describe('applyMaterialPatch — Per-Material-Korrekturen', () => {
+  const current = { material_class: 'fabric', material_type: 'cord' }
+
+  it('Klasse aendern setzt needs_visual_refresh=true und Pipeline-Status', () => {
+    const result = applyMaterialPatch(current, { material_class: 'leather' })
+    expect(result.triggersVisualRefresh).toBe(true)
+    expect(result.updates.material_class).toBe('leather')
+    expect(result.updates.needs_visual_refresh).toBe(true)
+    expect(result.updates.last_pass).toBe(1)
+    expect(result.updates.pass1_status).toBe('done')
+  })
+
+  it('Typ aendern setzt ebenfalls needs_visual_refresh=true', () => {
+    const result = applyMaterialPatch(current, { material_type: 'velvet' })
+    expect(result.triggersVisualRefresh).toBe(true)
+    expect(result.updates.material_type).toBe('velvet')
+    expect(result.updates.needs_visual_refresh).toBe(true)
+  })
+
+  it('Klasse identisch setzen ist idempotent — kein Refresh', () => {
+    const result = applyMaterialPatch(current, { material_class: 'fabric' })
+    expect(result.triggersVisualRefresh).toBe(false)
+    expect(result.updates.material_class).toBe('fabric')
+    expect(result.updates.needs_visual_refresh).toBeUndefined()
+  })
+
+  it('classification_locked toggeln loest KEIN Refresh aus', () => {
+    const result = applyMaterialPatch(current, { classification_locked: true })
+    expect(result.triggersVisualRefresh).toBe(false)
+    expect(result.updates.classification_locked).toBe(true)
+    expect(result.updates.needs_visual_refresh).toBeUndefined()
+  })
+
+  it('classification_rejected toggeln loest KEIN Refresh aus', () => {
+    const result = applyMaterialPatch(current, { classification_rejected: true })
+    expect(result.triggersVisualRefresh).toBe(false)
+    expect(result.updates.classification_rejected).toBe(true)
+  })
+
+  it('Konfidenz allein aendern loest KEIN Refresh aus', () => {
+    const result = applyMaterialPatch(current, { confidence_class: 0.99 })
+    expect(result.triggersVisualRefresh).toBe(false)
+    expect(result.updates.confidence_class).toBe(0.99)
+    expect(result.updates.needs_visual_refresh).toBeUndefined()
+  })
+
+  it('pass1_status=needs_review wenn needs_human_review=true beim Klassen-Wechsel', () => {
+    const result = applyMaterialPatch(current, {
+      material_class: 'leather',
+      needs_human_review: true,
+    })
+    expect(result.updates.pass1_status).toBe('needs_review')
+  })
+
+  it('ignoriert nicht gesetzte Felder (kein Loeschen)', () => {
+    const result = applyMaterialPatch(current, {})
+    expect(result.triggersVisualRefresh).toBe(false)
+    expect(result.updates).toEqual({})
   })
 })
 
