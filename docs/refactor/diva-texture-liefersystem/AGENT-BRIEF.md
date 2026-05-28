@@ -26,9 +26,9 @@ Stand: 2026-05-26. Erstellt als Setup-Doku fuer die mehrstufige Welle.
 | **0** Setup | `feature/diva-texture-welle-setup` | Plan + Quell-Docs + AGENT-BRIEF | DIESE PR |
 | **1** Anzeige | `feature/diva-texture-info-tab` | Library-Setting, Sidecar-Loader + Matcher, API-Route, DIVA-Info-Tab mit Bildwahl | Cloud-Lauf NACH Setup-Merge |
 | **2** Template | `feature/diva-texture-template-digital-twin` | Template-Refactor auf Material-Digital-Twin-Modell | Cloud-Lauf NACH Stufe 1 (oder parallel — siehe R2) |
-| **3** 1. LLM-Pass | `feature/diva-texture-pipeline-first-pass` | Pipeline-Integration mit Sidecar-Kontext, nur Class+Type+Confidence | Cloud-Lauf NACH Stufe 1 + 2 |
-| **4** Gruppen-Klassifikation | `feature/diva-texture-group-classification` | Galerie-UI fuer Stoffgruppen-Bulk-Klassifikation | Cloud-Lauf NACH Stufe 3 |
-| **5** 2. LLM-Pass | `feature/diva-texture-pipeline-second-pass` | Visuelle Properties pro Muster | Cloud-Lauf NACH Stufe 4 |
+| **3** Voll-Pass 1 | `feature/diva-texture-pipeline-first-pass` | Pipeline-Integration mit Sidecar-Kontext, ALLE Material-Felder in einem LLM-Call (User-Entscheid 2026-05-28) | Cloud-Lauf NACH Stufe 1 + 2 |
+| **4** Galerie-Verifikation + Propagation | `feature/diva-texture-group-classification` | Galerie-UI zur Verifikation, Korrektur und Stoffgruppen-Propagation. KEIN LLM-Call aus der Galerie (User-Entscheid 2026-05-28) | Cloud-Lauf NACH Stufe 3 |
+| **5** Korrektur-Lauf | `feature/diva-texture-pipeline-correction-run` (frueher `-second-pass`) | Optionaler LLM-Lauf nur fuer Materialien mit `needs_visual_refresh=true` (User-Entscheid 2026-05-28) | Cloud-Lauf NACH Stufe 4 |
 | **6** Persistenz | `feature/diva-texture-persist-supplier-snapshot` | Sidecar-Snapshot + Lauf-Historie im Frontmatter | Cloud-Lauf parallel zu Stufe 4/5 moeglich |
 | **7** Migration | `chore/diva-texture-migration` (optional) | Migration bestehender Analysen | NUR wenn User entscheidet |
 
@@ -146,21 +146,24 @@ sofern keine Konflikte in `template-samples/Diva-Texture-Analysis.md`.
 
 ---
 
-## Stufe 3 — 1. LLM-Pass (Class + Type + Confidence)
+## Stufe 3 — Voller Pass-1-Lauf (alle Material-Felder)
 
 **Branch:** `feature/diva-texture-pipeline-first-pass`
 
-> **Stand: umgesetzt (Stufe 3).** Dieser Abschnitt wurde nach der Umsetzung mit
-> der Realitaet abgeglichen (Spec-Freshness). **WICHTIG — Feldnamen-Korrektur:**
-> Die urspruengliche Stufe-3-Beschreibung nannte camelCase- und verschachtelte
-> Namen (`materialClass`, `confidence.materialClassConfidence`, `retailerILN`,
-> `aiGenerationHints`). Das ist **UEBERHOLT**. Stufe 2 hat das Template auf ein
-> FLACHES, Obsidian-kompatibles `snake_case`-Frontmatter umgestellt (Lea-Regel
-> #8). Maszgeblich sind ausschliesslich:
-> - [template-samples/Diva-Texture-Analysis.md](../../../template-samples/Diva-Texture-Analysis.md) (flaches snake_case-Frontmatter)
-> - [src/lib/diva-texture/material-field-sources.ts](../../../src/lib/diva-texture/material-field-sources.ts) (Quellen-Map + `llmFieldsForPass`)
+> **Stand 2026-05-28: Modell neu ausgerichtet (User-Entscheid).** Stufe 3
+> fragt jetzt ALLE Material-Felder in EINEM LLM-Call ab — Klasse, Typ,
+> Konfidenzen, visuelle Properties, Farbe, Hints. Begruendung: das LLM
+> konditioniert Visuals intern ohnehin auf seine Klassen-Bestimmung; ein
+> gesplitteter Pass spart keine Qualitaet, kostet aber einen Extra-Call
+> im Happy Path. Eine Folge dieser Entscheidung: `llmFieldsForPass(1)`
+> liefert ab jetzt die Vereinigung der frueheren Pass-1- und Pass-2-LLM-
+> Felder; die Pass-2-spezifische Feldliste bleibt nur als Marker dessen,
+> was im Korrektur-Lauf (Stufe 5) NEU erzeugt wird, falls der User die
+> Klasse korrigiert hat.
 >
-> Korrigierte Abweichungen sind unten inline markiert (~~durchgestrichen~~ → korrekt).
+> Maszgeblich sind weiterhin:
+> - [template-samples/Diva-Texture-Analysis.md](../../../template-samples/Diva-Texture-Analysis.md)
+> - [src/lib/diva-texture/material-field-sources.ts](../../../src/lib/diva-texture/material-field-sources.ts)
 
 **Vorbedingungen:**
 - Stufe 1 + Stufe 2 gemergt.
@@ -172,7 +175,7 @@ sofern keine Konflikte in `template-samples/Diva-Texture-Analysis.md`.
    - Bildwahl (`analysisSourceImage`) aus dem **Archiv-Property-Store** (gebunden an VCodex) lesen — wenn `supplier-preview`, das Liefersystem-Bild **serverseitig herunterladen** (nicht aus Browser-Cache) und ans LLM senden. Stolperfalle #5 beachten.
    - Sidecar-Daten als zweiten Kontext-Block (`LIEFERSYSTEM`) neben dem bestehenden `CONTEXT`-Block ans LLM senden.
    - DE→EN-Material-Mapping anwenden: `Material: "STOFF"` → ~~`materialClass: "fabric"`~~ → **`material_class: "fabric"`** als deterministischer Pre-Wert ans LLM mitgeben.
-2. **Lauf-Konfiguration**: Felder werden NICHT hart dupliziert, sondern ueber `llmFieldsForPass(1)` aus der Quellen-Map gezogen. Der Pass produziert **nur** ~~`materialClass`, `materialType`, `aiGenerationHints`, `confidence.materialClassConfidence`, `confidence.materialTypeConfidence`~~ → **`material_class`, `material_type`, `confidence_class`, `confidence_type`, `needs_human_review`** + die in JEDEM Pass neu erzeugten Hints **`ai_prompt_positive`, `ai_prompt_negative`, `ai_realism_notes`** (`ai_last_pass`). Andere (Pass-2-)Felder bleiben leer / werden in Stufe 5 gefuellt.
+2. **Lauf-Konfiguration**: Felder werden NICHT hart dupliziert, sondern ueber `llmFieldsForPass(1)` aus der Quellen-Map gezogen. Ab 2026-05-28: der Pass produziert ALLE Material-Felder — **`material_class`, `material_type`, `confidence_class`, `confidence_type`, `needs_human_review`** PLUS die visuellen Properties **`dominant_color_hex`, `color_family`, `color_description`, `surface_finish`, `surface_relief`, `pattern_scale`, `directionality`, `perceived_softness`, `color_variation`, `confidence_visual`** PLUS die Hints **`ai_prompt_positive`, `ai_prompt_negative`, `ai_realism_notes`** (`ai_last_pass`). Es wird NICHTS mehr explizit leer gehalten.
 3. **Konfidenz-Kalibrierung** (Stolperfalle #2):
    - Liefersystem-Treffer fuer Class → ~~`materialClassConfidence: 0.95`~~ → **`confidence_class: 0.95`** deterministisch gesetzt (LLM darf nicht ueberschreiben). Treffer = `mapMaterialClass(entry.Material).isKnown === true`.
    - Reine Bild-Klassifikation ohne Liefersystem-Treffer → LLM-Wert mit Cap bei 0.8.
@@ -202,66 +205,123 @@ sofern keine Konflikte in `template-samples/Diva-Texture-Analysis.md`.
 
 ---
 
-## Stufe 4 — Stoffgruppen-Klassifikation in der Galerie
+## Stufe 4 — Galerie-Verifikation + Stoffgruppen-Propagation
 
 **Branch:** `feature/diva-texture-group-classification`
 
+> **Stand 2026-05-28: Modell neu ausgerichtet (User-Entscheid).** Die
+> Galerie macht KEINE LLM-Calls. Sie ist eine reine Verifikations-/
+> Korrektur-UI auf den von Stufe 3 erzeugten Daten. Die Stoffgruppen-
+> Funktion ist keine LLM-Optimierung mehr (jedes Material laeuft eh
+> eigenstaendig in Stufe 3), sondern ein Klick-Aufwand-Reduzierer fuer
+> die Klassen-Verifikation.
+
 **Vorbedingungen:**
-- Stufe 3 gemergt.
+- Stufe 3 gemergt (jedes Material hat einen vollen Pass-1-Lauf).
 
 **Aufgabe:**
 
-1. **Galerie-Gruppierung**: In [src/components/library/gallery/](../../../src/components/library/gallery/) Texturen nach `groupIds[0]` bzw. Sidecar-`GroupName` gruppieren — neue Group-By-Option oder Filter.
-2. **Klassifikations-Dialog pro Gruppe**:
-   - Button "Gruppe klassifizieren" pro Gruppe.
-   - Dialog zeigt LLM-Vorschlag aus Stufe 3 (1 LLM-Call auf repraesentativem Bild der Gruppe).
-   - Buttons: "Uebernehmen fuer alle N Mitglieder" / "Korrigieren" / "Verwerfen".
-3. **Bulk-Auto-Apply**: Library-Setting `autoApplyConfidenceThreshold` (default 0.9). Globaler Button "Alle Gruppen mit Konfidenz ≥ Schwellwert uebernehmen".
-4. **Override-Schutz** (Edge-Case #6): Material-Frontmatter-Feld `classificationLocked: boolean`. Wenn `true`, wird das Material NICHT von Gruppen-Klassifikation ueberschrieben.
-5. **Gruppen-Klassifikations-Dokument** als eigene Persistenz (siehe Stolperfalle #4): MongoDB-Collection oder eigene Markdown-Datei mit `groupClassificationId`. Material referenziert nur die ID.
-6. **Repraesentatives Bild waehlen**: bevorzugt das Material, wo Klassifizierer `analysisSourceImage: "supplier-preview"` gesetzt hat (= Liefersystem-Preview); sonst irgendein Mitglied.
+1. **Galerie-Gruppierung**: Texturen nach `group_name` gruppieren (aus
+   Sidecar via Stufe 3 ins Frontmatter gepatcht).
+2. **DivaTextureCard-Badges**: zeigt material_class / material_type +
+   Konfidenz + locked-/rejected-Indikator + `needs_visual_refresh`-Marker.
+3. **Per-Material-Aktionen** (Card oder Detail-Tab):
+   - Klasse/Typ inline editieren → Frontmatter-Patch ans Artefakt;
+     bei geaendeter Klasse: `needs_visual_refresh=true`.
+   - `classification_locked` toggeln (Override-Schutz, Edge-Case #6).
+   - `classification_rejected` toggeln (Edge-Case #17).
+4. **Stoffgruppen-Klassifikations-Dialog**:
+   - Liest die bereits vorhandene Pass-1-Klassifikation eines
+     Repraesentativen aus MongoDB (Praeferenz: Mitglied mit
+     `analysisSourceImage='supplier-preview'`).
+   - **KEIN LLM-Call.** Wenn der Repraesentativ noch keinen Pass-1 hat:
+     UI-Hinweis "Bitte zuerst Pass-1 im Archiv ausfuehren".
+   - Buttons: "Korrigieren" (inline editieren, danach apply) /
+     "Verwerfen fuer ganze Gruppe" (`classification_rejected=true`) /
+     "Uebernehmen fuer N Mitglieder".
+   - Beim Apply pro Mitglied: 5 Klassen-Felder per Frontmatter-Patch
+     (material_class, material_type, confidence_class, confidence_type,
+     needs_human_review). Wenn die Klasse sich aendert: zusaetzlich
+     `needs_visual_refresh=true`.
+5. **Bulk-Auto-Apply**: Library-Setting `autoApplyConfidenceThreshold`
+   (default 0.9). Globaler Button "Alle Gruppen mit Konfidenz ≥
+   Schwellwert uebernehmen".
+6. **Override-Schutz**: Mitglieder mit `classification_locked=true` oder
+   `classification_rejected=true` werden NICHT ueberschrieben.
 
 **Akzeptanzkriterien:**
-- Pro Gruppe: 1 LLM-Call statt N. Verifikation: in Test-Library mit 5+ Mitgliedern einer Gruppe nur 1 Anthropic-Call beobachten.
-- Bulk-Apply propagiert Class+Type+Confidence auf alle Mitglieder mit `classificationLocked === false`.
-- Override-Schutz: gelocktes Material wird nicht ueberschrieben.
-- Galerie zeigt Class+Type+Confidence pro Material (Badge / Filter).
+- Pro Gruppe: 0 LLM-Calls aus der Galerie. Verifikation: keine
+  Secretary-Aufrufe waehrend Bulk-Apply.
+- Bulk-Apply propagiert die 5 Klassen-Felder auf alle nicht
+  gelockten/nicht verworfenen Mitglieder.
+- `needs_visual_refresh` wird konsistent gesetzt, wo Klasse geaendert wurde.
+- Korrekturen werden ins Shadow-Twin-Artefakt zurueckgeschrieben
+  (Markdown + parsed Frontmatter); auch das ingestete `docMetaJson` ist
+  aktuell.
+- Galerie zeigt material_class + Typ + Konfidenz pro Material als Badge.
 - `pnpm lint` + `pnpm test` gruen.
 
 **Stop-Bedingungen:**
-- Galerie-Refactor von Welle 3-III (laut Plan unter `welle-3-iii-galerie-chat`) ist noch nicht abgeschlossen und blockiert Group-By-Erweiterung — Status-Report an User.
+- Galerie-Refactor von Welle 3-III blockiert Group-By-Erweiterung → Status-Report.
 
-**Hand-off:** Naechste Stufe **5** (2. LLM-Pass).
+**Hand-off:** Naechste Stufe **5** (Korrektur-Lauf).
 
 ---
 
-## Stufe 5 — 2. LLM-Pass (Visuelle Properties)
+## Stufe 5 — Korrektur-Lauf im Archiv (optional, on demand)
 
-**Branch:** `feature/diva-texture-pipeline-second-pass`
+**Branch:** `feature/diva-texture-pipeline-correction-run` (frueher
+`feature/diva-texture-pipeline-second-pass`).
+
+> **Stand 2026-05-28: Modell neu ausgerichtet (User-Entscheid).** Kein
+> Default-zweiter-Pass mehr. Der Korrektur-Lauf ist ein OPTIONAL
+> aufrufbarer Job fuer Materialien, deren material_class/_type
+> nachtraeglich vom Klassifizierer korrigiert wurde
+> (`needs_visual_refresh=true`).
 
 **Vorbedingungen:**
-- Stufe 4 gemergt (Class+Type stehen pro Material).
+- Stufe 4 gemergt; mindestens ein Material hat `needs_visual_refresh=true`
+  (z.B. durch Klasse-Korrektur in der Galerie oder Gruppen-Propagation
+  mit Klassen-Wechsel).
 
 **Aufgabe:**
 
-1. **Pass-2-Trigger**: Nur fuer Materialien wo Class+Type gesetzt sind. UI: pro Muster oder Bulk-per-Gruppe.
-2. **Felder**: `surfaceFinish`, `surfaceRelief`, `patternScale`, `directionality`, `perceivedSoftness`, `colorVariation`, `confidence.visualPropertiesConfidence`.
-3. **MaterialSpecificProperties** klassenabhaengig (siehe Material-Digital-Twin-Spec Tabelle Section 16):
-   - `materialClass: "fabric"` → `fabricProperties.fiberType`
-   - `materialClass: "wood"` → `wood.grainType, surfaceTreatment, constructionType`
-   - `materialClass: "stone"` → `stone.patternType, finishType, surfaceTreatment`
-   - etc.
-4. **Liefersystem-Kontext bleibt mit** (z.B. "Eiche geoelt" aus Stammdaten → `surfaceTreatment: oiled`).
-5. **Pipeline-Re-Use**: Stufe-3-Mechanik wiederverwenden, andere Felder.
+1. **Korrektur-Trigger**: Im Archiv (Shadow-Twin-View) Button "Korrektur-Lauf
+   starten", aktivierbar nur wenn `needs_visual_refresh=true`. Optional:
+   Bulk-Action "Alle Materialien mit Refresh-Marker korrigieren".
+2. **Pipeline-Job**: laeuft identisch zu Pass 1 (gleiches Template,
+   gleicher Image-Analyzer), aber mit zusaetzlichem CONTEXT-Block:
+   - `user_confirmed_material_class: <wert>`
+   - `user_confirmed_material_type: <wert>`
+   - System-Prompt-Hinweis: "Klasse + Typ sind bereits vom Klassifizierer
+     bestaetigt — bitte die visuellen Properties und Hints konsistent
+     dazu neu bestimmen, ohne die Klasse zu hinterfragen."
+3. **Nachbearbeitung**:
+   - LLM-Ergebnis: visuelle Properties (color, surface_*, pattern_scale,
+     directionality, perceived_softness, color_variation, confidence_visual)
+     + Hints (ai_prompt_*, ai_realism_notes) werden uebernommen.
+   - material_class / material_type / confidence_class / confidence_type
+     / needs_human_review bleiben durch die User-Bestaetigung fixiert.
+   - Pipeline setzt `last_pass: 2` + `pass2_status: done|needs_review`.
+   - Pipeline raeumt `needs_visual_refresh` ab.
+4. **Liefersystem-Kontext bleibt mit** (z.B. "Eiche geoelt" aus
+   Stammdaten → `surface_finish: oiled`).
+5. **Pipeline-Re-Use**: Stufe-3-Mechanik wiederverwenden, gleiche
+   Felder, anderer CONTEXT-Block.
 
 **Akzeptanzkriterien:**
-- Lauf produziert valides `visualProperties`-Objekt mit allen Pflichtfeldern.
-- Klassenabhaengige `materialSpecificProperties` korrekt gefuellt.
-- Confidence plausibel (haengt von Bildqualitaet ab — kein hard cap).
+- Korrektur-Lauf produziert visuelle Properties konsistent zur
+  user-bestaetigten Klasse.
+- material_class / material_type / confidence_class / confidence_type
+  bleiben unveraendert.
+- `needs_visual_refresh` ist nach erfolgreichem Lauf `false`.
+- `last_pass: 2` und `pass2_status` sind gesetzt.
+- Lauf ist idempotent.
 - `pnpm lint` + `pnpm test` gruen.
 
 **Stop-Bedingungen:**
-- Wenn die Bilder generell zu schlecht sind und 2. Pass nichts taugt: Status-Report an User, ggf. Bildwahl-Korrektur in Stufe 1 propagieren.
+- Wenn die Bilder generell zu schlecht sind: Status-Report, ggf.
+  Bildwahl-Korrektur in Stufe 1.
 
 **Hand-off:** Naechste Stufe **6** (Persistenz) — falls nicht schon parallel laufend.
 
