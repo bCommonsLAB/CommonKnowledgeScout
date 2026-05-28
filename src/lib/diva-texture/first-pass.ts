@@ -1,17 +1,21 @@
 /**
- * @fileoverview Deterministische Nachbearbeitung des 1. LLM-Passes (Stufe 3).
+ * @fileoverview Deterministische Nachbearbeitung des Voll-Pass-1-Laufes (Stufe 3).
  *
  * @description
  * Nimmt die rohe LLM-Antwort (geparste Frontmatter-Felder) und erzeugt das
  * FLACHE Pass-1-Frontmatter gemaess Lea-Regeln + Stolperfallen:
- *  - Felder kommen aus `llmFieldsForPass(1)` (keine harte Duplizierung).
  *  - Sidecar-Class-Treffer ueberschreibt material_class deterministisch und
  *    setzt confidence_class = 0.95 (Stolperfalle #2, Lea-Regel #2). Reine
  *    Bildklassifikation wird bei 0.8 gekappt.
  *  - ceramic/glass/plastic erhalten KEINEN material_type.
  *  - availability_scope/retailer_iln deterministisch aus dem Pfad.
- *  - Pass-2-Felder bleiben explizit leer; last_pass=1 + pass1_status werden
- *    pipeline-seitig gesetzt (nicht vom LLM).
+ *  - `group_name` kommt deterministisch aus `LIEFERSYSTEM.GroupName`.
+ *  - Visuelle Properties (color, surface_*, pattern_scale, directionality,
+ *    perceived_softness, color_variation, confidence_visual) sowie die
+ *    Hints werden **unveraendert** aus der LLM-Antwort uebernommen — Stufe 3
+ *    fragt seit 2026-05-28 alle Material-Felder in EINEM Call ab
+ *    (User-Entscheid). Es werden KEINE Felder explizit geleert.
+ *  - last_pass=1 + pass1_status werden pipeline-seitig gesetzt (nicht vom LLM).
  *
  * Rein deterministisch, KEIN LLM-Call, KEINE Seiteneffekte. Idempotent:
  * gleiche Eingaben → gleiches Ergebnis.
@@ -139,15 +143,18 @@ export function buildFirstPassFrontmatter(args: BuildFirstPassArgs): Record<stri
     pass1_status: needsHumanReview ? ('needs_review' satisfies Pass1Status) : ('done' satisfies Pass1Status),
   }
 
-  // aiGenerationHints (ai_last_pass) unveraendert uebernehmen — Feldliste aus
-  // der Quellen-Map ziehen (keine harte Duplizierung).
-  for (const field of fieldsForSource('ai_last_pass')) {
-    result[field] = llmFields[field] ?? ''
-  }
-
-  // Pass-2-Felder explizit leer halten (werden erst in Stufe 5 gefuellt).
-  for (const field of fieldsForSource('ai_pass2')) {
-    if (!(field in result)) result[field] = ''
+  // Visuelle Properties (ai_pass2-Felder) + Hints (ai_last_pass) werden seit
+  // dem Voll-Pass-Modell (User-Entscheid 2026-05-28) unveraendert aus der
+  // LLM-Antwort uebernommen — kein expliziter Leer-Loop mehr.
+  for (const field of [...fieldsForSource('ai_pass2'), ...fieldsForSource('ai_last_pass')]) {
+    // confidence_class/_type sind ai_pass1 und schon oben kalibriert behandelt.
+    if (field in result) continue
+    const raw = llmFields[field]
+    if (raw === undefined || raw === null) {
+      result[field] = ''
+    } else {
+      result[field] = raw
+    }
   }
 
   return result

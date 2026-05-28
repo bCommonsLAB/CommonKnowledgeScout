@@ -124,28 +124,57 @@ describe('buildFirstPassFrontmatter — group_name (Stoffgruppe, Stufe 4)', () =
   })
 })
 
-describe('buildFirstPassFrontmatter — Pass-2-Felder + Hints', () => {
-  it('haelt Pass-2-Felder leer und uebernimmt Hints unveraendert', () => {
+describe('buildFirstPassFrontmatter — visuelle Properties + Hints (Voll-Pass)', () => {
+  it('uebernimmt visuelle Properties und Hints unveraendert aus der LLM-Antwort', () => {
     const result = buildFirstPassFrontmatter({
       llmFields: {
         material_class: 'fabric',
         ai_prompt_positive: 'matte beige corduroy',
         ai_realism_notes: 'show ribs',
         dominant_color_hex: '#585A4E',
+        color_family: 'beige',
+        surface_finish: 'matte',
+        surface_relief: 'subtle',
+        pattern_scale: 'fine',
+        directionality: 'strong',
+        perceived_softness: 'soft',
+        color_variation: 'uniform',
+        confidence_visual: 0.82,
       },
       supplierEntry: entry('STOFF'),
       filePath: PATH_ILN,
     })
+    // Hints unveraendert
     expect(result.ai_prompt_positive).toBe('matte beige corduroy')
     expect(result.ai_realism_notes).toBe('show ribs')
-    // Pass-2-Feld wird NICHT aus llmFields uebernommen, sondern explizit geleert
+    // Visuelle Properties werden seit dem Voll-Pass-Modell UEBERNOMMEN
+    // (frueher wurden sie hier explizit geleert).
+    expect(result.dominant_color_hex).toBe('#585A4E')
+    expect(result.color_family).toBe('beige')
+    expect(result.surface_finish).toBe('matte')
+    expect(result.surface_relief).toBe('subtle')
+    expect(result.pattern_scale).toBe('fine')
+    expect(result.directionality).toBe('strong')
+    expect(result.perceived_softness).toBe('soft')
+    expect(result.color_variation).toBe('uniform')
+    expect(result.confidence_visual).toBe(0.82)
+  })
+
+  it('haelt fehlende visuelle Properties leer (keine undefined ins Frontmatter)', () => {
+    const result = buildFirstPassFrontmatter({
+      llmFields: { material_class: 'fabric' },
+      supplierEntry: entry('STOFF'),
+      filePath: PATH_ILN,
+    })
     expect(result.dominant_color_hex).toBe('')
+    expect(result.surface_finish).toBe('')
     expect(result.confidence_visual).toBe('')
+    expect(result.ai_prompt_positive).toBe('')
   })
 
   it('ist idempotent (gleiche Eingaben → gleiches Ergebnis)', () => {
     const args = {
-      llmFields: { material_class: 'fabric', confidence_class: 0.5 },
+      llmFields: { material_class: 'fabric', confidence_class: 0.5, dominant_color_hex: '#aabbcc' },
       supplierEntry: entry('STOFF'),
       filePath: PATH_ILN,
     }
