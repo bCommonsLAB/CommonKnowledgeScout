@@ -51,6 +51,7 @@ import { FileCategoryFilter } from './file-category-filter';
 import { DivaToolsMenu } from './diva-tools-menu';
 import { useItemAnnotations } from "@/hooks/use-item-annotations";
 import { useDivaSidecarStatus } from "@/hooks/use-diva-sidecar-status";
+import { useDivaArchiveDefaults } from "@/hooks/use-diva-archive-defaults";
 import { useFolderNavigation } from "@/hooks/use-folder-navigation";
 import { useShadowTwinAnalysis } from "@/hooks/use-shadow-twin-analysis";
 import { shadowTwinAnalysisTriggerAtom, shadowTwinStateAtom } from "@/atoms/shadow-twin-atom";
@@ -125,6 +126,10 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   // Sidecar-Status (api2_GetJsonOptionValues.json im aktuellen Ordner) — wird
   // im DivaToolsMenu visualisiert (orange wenn gefunden).
   useDivaSidecarStatus(divaEnabled);
+  // DIVA-Toolbar-Defaults aus der Library-Config in die Atoms uebernehmen
+  // (Filter / Gruppierung / Zusatzspalten). Bei Library-Switch greift das
+  // einmalig — Aenderungen im Popover sind danach per-Session.
+  useDivaArchiveDefaults(activeLibrary);
   const itemAnnotations = useAtomValue(itemAnnotationsAtom);
   const groupByAttribute = useAtomValue(groupByAttributeAtom);
   // DIVA-Zusatzspalten (Stufe 1+): vom Klassifizierer im DIVA-Popover gewaehlt.
@@ -211,10 +216,16 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
       return [];
     }
     const items = allItemsInFolder ?? [];
+    const normalizedSearch = searchTerm.trim().toLowerCase();
     // Shadow-Twin-Ordner nur verstecken, wenn Filesystem-Persistierung aktiv ist.
     // Ohne FS-Persistierung sind `_`-Ordner reguläre Benutzer-Verzeichnisse.
+    // Suchfilter gilt auch fuer Ordner (case-insensitiv auf den Namen) —
+    // sonst zeigt die Liste bei aktiver Suche weiterhin alle Unterordner,
+    // was als Bug wirkt.
     const filtered = items.filter(
-      item => item.type === 'folder' && (!hideShadowTwinFolders || !isShadowTwinFolderName(item.metadata.name))
+      item => item.type === 'folder'
+        && (!hideShadowTwinFolders || !isShadowTwinFolderName(item.metadata.name))
+        && (normalizedSearch === '' || item.metadata.name.toLowerCase().includes(normalizedSearch))
     );
     
     // Sortiere Ordner nach aktuellem Sortierfeld und -richtung
@@ -236,7 +247,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
       }
       return sortOrder === 'asc' ? cmp : -cmp;
     });
-  }, [allItemsInFolder, shouldShowItems, sortField, sortOrder]);
+  }, [allItemsInFolder, shouldShowItems, sortField, sortOrder, searchTerm, hideShadowTwinFolders]);
 
   // Hilfsfunktion zum Finden einer FileGroup in der Map
   const findFileGroup = useCallback((map: Map<string, FileGroup>, stem: string): FileGroup | undefined => {

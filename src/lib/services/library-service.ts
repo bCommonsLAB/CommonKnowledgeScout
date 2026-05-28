@@ -417,6 +417,9 @@ export class LibraryService {
         // Stufe 4: Schwellwert fuer Auto-Uebernahme der Stoffgruppen-
         // Klassifikation. Wird im Klassifikations-Dialog gelesen, kein Secret.
         autoApplyConfidenceThreshold: lib.config?.autoApplyConfidenceThreshold,
+        // DIVA-Archive-Defaults (Filter/Gruppierung/Zusatzspalten in der
+        // Archiv-Dateiliste). Reine UI-Voreinstellungen, kein Secret.
+        divaArchiveDefaults: lib.config?.divaArchiveDefaults,
         // Doc-Translations Refactor: Sprach-Konfiguration ist clientseitig sichtbar
         // (reine Sprach-Praeferenzen, kein Secret) und wird im LanguageSwitcher und
         // in der Galerie-Tabelle (Spalte „Sprachen") konsumiert.
