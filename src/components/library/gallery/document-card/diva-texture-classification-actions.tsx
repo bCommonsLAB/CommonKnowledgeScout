@@ -75,8 +75,8 @@ export function DivaTextureClassificationActions({
   libraryId,
   onChanged,
 }: DivaTextureClassificationActionsProps): React.ReactNode {
-  const fileId = doc.fileId
-  if (typeof fileId !== 'string' || fileId.length === 0) return null
+  const fileId =
+    typeof doc.fileId === 'string' && doc.fileId.length > 0 ? doc.fileId : null
 
   const locked = doc.classification_locked === true
   const rejected = doc.classification_rejected === true
@@ -86,6 +86,7 @@ export function DivaTextureClassificationActions({
 
   const callPatch = React.useCallback(
     async (patch: PatchBody, successMessage: string) => {
+      if (fileId === null) return
       setIsBusy(true)
       try {
         const result = await patchMaterial(libraryId, fileId, patch)
@@ -108,6 +109,8 @@ export function DivaTextureClassificationActions({
     },
     [libraryId, fileId, onChanged],
   )
+
+  if (fileId === null) return null
 
   return (
     <>
