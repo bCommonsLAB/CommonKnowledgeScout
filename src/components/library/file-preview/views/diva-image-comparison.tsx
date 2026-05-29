@@ -169,15 +169,20 @@ function pickInlineImage(
     if (cropState.kind === 'error') return { kind: 'error', message: `Crop-Fehler: ${cropState.message}` }
     const cm = parseCm(cropState.data.cropCm)
     if (cm === null) return { kind: 'error', message: 'Crop-cm-Wert nicht parsebar' }
+    // Der Source-DPI-Wert spielt im Crop-Modus keine Anzeige-Rolle mehr —
+    // das Bild wird hier 1:1 (= 96 CSS-DPI) gerendert. Der Source-DPI ist
+    // ueber den Original-Modus weiter einsehbar; eine DPI-Fallback-Warnung
+    // bleibt aber sichtbar, weil sie die Vertrauenswuerdigkeit der 4-cm-
+    // Annahme betrifft.
     return {
       kind: 'ready',
       src: cropState.data.url,
       widthCm: cm.width,
       heightCm: cm.height,
       pxLabel: `${cropState.data.cropPx} px`,
-      dpiLabel: `${cropState.data.dpiUsed} DPI`,
+      dpiLabel: null,
       warningLabel: cropState.data.dpiFallback
-        ? 'DPI-Fallback'
+        ? 'DPI-Fallback (300 angenommen)'
         : cropState.data.fullImage
           ? 'Voll-Bild (< 4 cm)'
           : null,
