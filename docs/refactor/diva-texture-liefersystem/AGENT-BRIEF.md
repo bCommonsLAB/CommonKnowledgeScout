@@ -208,10 +208,41 @@ sofern keine Konflikte in `template-samples/Diva-Texture-Analysis.md`.
 > `review_status` (`ki_geprueft` / `zu_ueberarbeiten`). Voraussetzung:
 > Stufe 2b ist gemergt (Template + Quellen-Map enthalten die 3 neuen Felder).
 >
+> **Stand 2026-05-29 (Update 3):** Optimierungen ueber Update 2 hinaus,
+> validiert mit Bulk-Lauf ueber 230 Texturen (~0,003 USD/Call, 6 von 168
+> wurden korrekt auf `zu_ueberarbeiten` gesetzt). Siehe **Follow-ups-Sektion
+> am Ende der Datei** fuer die verbliebenen, niedrig-priorisierten Punkte.
+> - **Crop-Strategie auf 4×4 cm konstant** umgestellt (statt 360×360 px):
+>   Source-DPI berechnet die Pixel-Kante, gekappt auf max. 512 px. Damit
+>   ist der `pattern_scale`-Anker physisch stabil unabhaengig von der
+>   Source-DPI. Sub-512-px-Source-DPIs senden nativ (kein Upsample).
+> - **System-Prompt-Schema-Doppelung beseitigt**: der Marker
+>   `Antwortschema` im Template-System-Prompt triggert
+>   `hasHandwrittenResponseSchema`, sodass das auto-generierte Schema nicht
+>   mehr an den System-Prompt gehaengt wird — das vollstaendige Schema
+>   liefert der Secretary im User-Prompt unter `REQUIRED FIELDS`. Spart
+>   ~1 k Tokens pro Lauf (gemessen 6554 → 5533).
+> - **Doppelter `detailViewType`** im serialisierten Frontmatter gefixt
+>   (`template-service-mongodb.ts`).
+> - **Hallu-Schutz** fuer identitaets-Felder (`iln_nummer`, `textur_code`,
+>   `title`, `slug`): neuer Helper `path-derived-fields.ts` setzt diese
+>   deterministisch aus Pfad + Sidecar; `buildFirstPassFrontmatter`
+>   ueberschreibt jeden LLM-Wert.
+> - **UI-Refactor DIVA-Info-Tab**: Inline-Switch `[Original | LLM-Crop]`
+>   mit physisch 1:1-Anzeige (96 CSS-DPI), pannbarer Fullscreen-Modal,
+>   Supplier-Preview auf 320 px Hoehe gleichgezogen. Quellbild-Radio raus
+>   (Pass 1 nutzt eh beide Bilder).
+> - **Bulk-Dialog**: erkennt jetzt markierte Dateien aus der File-List
+>   (`selectedBatchItemsAtom` + `selectedTransformationItemsAtom`),
+>   Toggle `[Auswahl | Ganzes Verzeichnis]`, Race-Condition-frei via
+>   Sequenz-Token. Damit ist das DIVA-Batch-Klassifikations-UX praktikabel.
+>
 > Maszgeblich sind weiterhin:
 > - [template-samples/Diva-Texture-Analysis.md](../../../template-samples/Diva-Texture-Analysis.md)
 > - [src/lib/diva-texture/material-field-sources.ts](../../../src/lib/diva-texture/material-field-sources.ts)
 > - [src/lib/image/exif-metadata.ts](../../../src/lib/image/exif-metadata.ts) (`extractImageMetadata` als Quelle fuer DPI)
+> - [src/lib/diva-texture/basecolor-crop.ts](../../../src/lib/diva-texture/basecolor-crop.ts) (Update 3: 4 cm konstant, 512 px Cap)
+> - [src/lib/diva-texture/path-derived-fields.ts](../../../src/lib/diva-texture/path-derived-fields.ts) (Update 3: Hallu-Schutz)
 
 **Vorbedingungen:**
 - Stufe 1 + Stufe 2 + **Stufe 2b** gemergt.
@@ -509,3 +540,109 @@ Pro Stufe-PR:
 ## Start-Prompts (kopierbar in Cloud-Agent)
 
 Siehe separate Sektion am Ende dieser Datei nach Setup-Merge.
+
+---
+
+## Follow-ups & offene Punkte (Stand 2026-05-29, nach Update 3)
+
+Niedrig-priorisierte Items, die in Update 3 bewusst nicht angefasst wurden.
+Keine Blocker fuer Stufe 4 — koennen bei Bedarf in einem eigenen kleinen
+PR nachgezogen werden.
+
+### A) Code/Pipeline
+
+1. **Re-Import-Overwrite** im Template-Import-Endpunkt.
+   - **Heute:** `POST /api/templates/import` wirft `"Template existiert
+     bereits"` bei bestehendem Template (siehe
+     `src/lib/templates/template-import-export.ts:51-55`). User muss
+     manuell loeschen + neu importieren, um System-Prompt-Updates aus
+     `template-samples/*.md` in MongoDB zu uebernehmen.
+   - **Idee:** Optionales `overwrite: true` im Request-Body, das die
+     bestehende Zeile via `updateTemplateInMongoDB` ersetzt. UI-Button mit
+     Confirm-Dialog. Verhindert Drift zwischen Repo-File und DB.
+   - **Aufwand:** ~30 Zeilen Code + 1-2 Tests.
+
+2. **`expectedFields` vs. `REQUIRED FIELDS` synchron halten.**
+   - **Heute:** der CONTEXT-Block listet 20 Felder unter `expectedFields`,
+     der Secretary baut den User-Prompt-`REQUIRED FIELDS`-Block aus 27
+     Frontmatter-Variablen (inkl. `analyse` aus dem Body). Leichte
+     Inkonsistenz; das LLM antwortet trotzdem korrekt.
+   - **Idee:** in `first-pass-runner.ts` `context.expectedFields` aus
+     `llmFieldsForPass(1)` UND Body-Variablen ableiten.
+
+3. **Bilder optional persistieren** (Pfad ins Log).
+   - **Heute:** das Secretary-Log enthaelt fuer jedes Bild nur `bytes` +
+     `hash` (siehe Logs in `docs/diva-texture-analysen/`). Reproduzieren
+     einer einzelnen Klassifikation ist ohne den Crop-Buffer nicht moeglich.
+   - **Idee:** optional in `external-jobs/storage.ts` einen Pfad neben den
+     Hash schreiben (z.B. `_debug/crops/<jobId>-crop.jpg`), durch Feature-
+     Flag schaltbar. Hilft beim Debugging einzelner Mis-Klassifikationen.
+
+4. **`color_family` lowercase normalisieren.**
+   - **Heute:** das LLM antwortet manchmal `"Beige"` / `"Orange"` (kapital),
+     obwohl die Prompt-Beispiele `beige`/`olive` zeigen.
+   - **Idee:** im Postprocessor `color_family.toLowerCase()` erzwingen.
+     Trivial, ~3 Zeilen.
+
+### B) UI / UX
+
+5. **Fullscreen-Modal**: visuell verifizieren.
+   - Code in `diva-basecolor-fullscreen-dialog.tsx` ist da. Sollte beim
+     naechsten Klick aufs Basecolor-Bild im DIVA-Info-Tab oeffnen.
+     Manuell testen, ob Pan + cm-Badge + Scrollbalken sich verhalten wie
+     gedacht.
+
+6. **DPI-Fallback-Badge**: nicht im Praxis-Lauf aufgetreten.
+   - Code-Pfad in `diva-image-comparison.tsx` zeigt
+     `"DPI-Fallback (300 angenommen)"` im LLM-Crop-Modus, wenn
+     `cropState.data.dpiFallback === true`. In den 230 DIVA-Texturen
+     gab es keine fehlenden DPI-Header. Verifizieren mit einem
+     bewusst praeparierten Bild ohne Density-Tag.
+
+7. **Edge-Case Voll-Bild < 4 cm**: nicht in Praxis getestet.
+   - DIVA-Texturen sind durchweg >4 cm physisch. Edge-Case in
+     `basecolor-crop.ts` (`fullImage: true`) ist mit Unit-Tests
+     abgedeckt, aber kein realer Lauf gegen ein < 4 cm Source-Bild.
+
+### C) Token-Optimierung Stufe 2 (optional, kein Update 4 Trigger)
+
+8. **Schema-Felder fuer LLM minimieren.**
+   - **Heute:** `REQUIRED FIELDS` im User-Prompt listet 27 Felder, davon
+     6 deterministisch aus Pfad/Sidecar (`title`, `slug`, `iln_nummer`,
+     `textur_code`, `availability_scope`, `retailer_iln`). Das LLM
+     "raet" sie korrekt, der Postprocessor ueberschreibt sie sowieso.
+   - **Idee:** die 6 Felder aus dem Template-Frontmatter rausnehmen.
+     **Aber:** der Markdown-Body referenziert `{{title}}` / `{{iln_nummer}}`
+     / `{{textur_code}}` als Anzeige-Anker — wenn die Variablen fehlen,
+     bleibt der Body leer.
+     **Workaround:** Body so umbauen, dass er die Werte vom Frontmatter
+     liest (nicht via `{{...}}`). Oder Postprocessor laesst den Body
+     nach dem LLM-Call mit den deterministischen Werten neu rendern.
+   - **Aufwand:** mittel (Template-Restruktur + Postprocessor-Anpassung
+     + Tests). Token-Einsparung pro Lauf ~150 — bei 10 k Materialien
+     ~1,5 €. Vermutlich nicht der Aufwand wert, solange das LLM die
+     Werte richtig "raet".
+
+---
+
+## Update 3 — Validierungsdaten (Bulk-Lauf 2026-05-29)
+
+Real-Lauf ueber **230 DIVA-Texturen** im Bulk-Mode (Diva3DArchiv):
+
+- **Kosten:** ~0,003 USD pro Call (range 0,00277 – 0,00307), Gesamt
+  ~0,69 USD / ~0,62 EUR. Hochrechnung Voll-Archiv (15 k Materialien):
+  ~45 EUR.
+- **Token-Verbrauch:** Input 5,0–5,7 k, Output 0,5 k → ~5,5 k pro Call.
+  Reduktion vs. Pre-Update-3-Stand: 6,55 k → 5,53 k = **15 % gespart**.
+- **Klassifikations-Verteilung:**
+  - `material_class`: 144× `fabric` + 24× `leather` (Sidecar-Treffer
+    → `confidence_class: 0.95` deterministisch).
+  - `material_type`: 42× boucle, 26× cord, 21× natural_grain_leather,
+    1× chenille, 1× faux_leather, Rest verteilt.
+  - `confidence_class`: bimodal 0,8 (24 Treffer ohne Sidecar) / 0,95
+    (144 Treffer mit Sidecar) — gemaess Kalibrierungs-Spec.
+- **Review-Status:** 6 von 168 Materialien wurden via Color-Match auf
+  `zu_ueberarbeiten` gesetzt (3,6 %). Plausibel — der Postprocessor
+  greift bei deutlichen Farbabweichungen Basecolor ↔ Supplier-Preview.
+
+→ Validierung der Stufe 2b + 3 Update 2 + 3 erfolgreich produktiv.
