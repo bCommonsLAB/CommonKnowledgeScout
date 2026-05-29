@@ -1,8 +1,9 @@
 /**
  * Tests fuer src/lib/diva-texture/basecolor-crop.ts (Stufe 3, Update 2).
  *
- * Deckt Center-Crop + DPI-Berechnung + Fallback + kleines-Bild-Fall ab.
- * Nutzt sharp zur Erzeugung von Test-Bitmaps (kein Fixture-File noetig).
+ * Deckt die 4-cm-Crop-Strategie (konstante physische Groesse) + DPI-
+ * Berechnung + Fallback + kleines-Bild-Fall ab. Nutzt sharp zur Erzeugung
+ * von Test-Bitmaps (kein Fixture-File noetig).
  */
 
 import { describe, expect, it } from 'vitest'
@@ -30,35 +31,39 @@ async function makeJpeg(
   return img.jpeg({ quality: 90 }).toBuffer()
 }
 
-describe('buildBasecolorCrop — Center-Crop bei 4K-Bild', () => {
-  it('schneidet bei 4096x4096 px / 300 DPI mittig auf 360x360 px (~3.0x3.0 cm)', async () => {
+describe('buildBasecolorCrop — 4-cm-Crop bei 4K-Bild', () => {
+  it('schneidet bei 4096x4096 px / 300 DPI mittig 472x472 px (= 4.0x4.0 cm) heraus', async () => {
+    // 4 cm * 300 DPI / 2.54 ≈ 472 px → unter MAX_OUTPUT_PX=512, nativ ausgegeben.
     const source = await makeJpeg(4096, 4096, { density: 300 })
     const result = await buildBasecolorCrop(source)
 
-    expect(result.cropPx).toBe('360x360')
+    expect(result.cropPx).toBe('472x472')
     expect(result.dpiUsed).toBe(300)
     expect(result.dpiFallback).toBe(false)
-    expect(result.cropCm).toBe('3.0x3.0')
+    expect(result.cropCm).toBe('4.0x4.0')
     expect(result.mimeType).toBe('image/jpeg')
 
-    // Crop sollte tatsaechlich 360x360 sein
     const cropMeta = await sharp(result.buffer).metadata()
-    expect(cropMeta.width).toBe(360)
-    expect(cropMeta.height).toBe(360)
+    expect(cropMeta.width).toBe(472)
+    expect(cropMeta.height).toBe(472)
   })
 
-  it('rechnet bei 600 DPI eine kleinere Realgroesse (~1.5x1.5 cm)', async () => {
+  it('kappt bei 600 DPI auf 512 px (4 cm wuerde 944 px ergeben → Downsample)', async () => {
     const source = await makeJpeg(2000, 2000, { density: 600 })
     const result = await buildBasecolorCrop(source)
 
-    expect(result.cropPx).toBe('360x360')
+    expect(result.cropPx).toBe('512x512')
     expect(result.dpiUsed).toBe(600)
-    expect(result.cropCm).toBe('1.5x1.5')
+    expect(result.cropCm).toBe('4.0x4.0')
+
+    const cropMeta = await sharp(result.buffer).metadata()
+    expect(cropMeta.width).toBe(512)
+    expect(cropMeta.height).toBe(512)
   })
 })
 
 describe('buildBasecolorCrop — DPI ohne explizite Aufloesung', () => {
-  it('uebernimmt den sharp-Default 72 DPI, wenn keine Metadaten gesetzt sind', async () => {
+  it('uebernimmt den sharp-Default 72 DPI; 4 cm = 113 px, nativ ausgegeben', async () => {
     // Hinweis: sharp setzt bei `create` immer einen Default-density von 72.
     // Der dpiFallback-Pfad in basecolor-crop greift nur bei
     // `dpi_horizontal === null` oder `<= 0` — siehe naechster Test mit Mock.
@@ -70,9 +75,9 @@ describe('buildBasecolorCrop — DPI ohne explizite Aufloesung', () => {
     const result = await buildBasecolorCrop(source)
     expect(result.dpiUsed).toBe(72)
     expect(result.dpiFallback).toBe(false)
-    expect(result.cropPx).toBe('360x360')
-    // 360 / 72 * 2.54 = 12.7
-    expect(result.cropCm).toBe('12.7x12.7')
+    // 4 cm * 72 / 2.54 = 113.39 → 113 px (unter MAX_OUTPUT_PX, kein Upsample).
+    expect(result.cropPx).toBe('113x113')
+    expect(result.cropCm).toBe('4.0x4.0')
   })
 
   it('faellt deterministisch auf 300 DPI zurueck, wenn dpi_horizontal null ist (Edge-Case #19)', async () => {
@@ -95,16 +100,17 @@ describe('buildBasecolorCrop — DPI ohne explizite Aufloesung', () => {
     const result = await buildBasecolorCrop(source, async () => fakeMeta)
     expect(result.dpiUsed).toBe(300)
     expect(result.dpiFallback).toBe(true)
-    expect(result.cropPx).toBe('360x360')
-    expect(result.cropCm).toBe('3.0x3.0')
+    expect(result.cropPx).toBe('472x472')
+    expect(result.cropCm).toBe('4.0x4.0')
   })
 })
 
 describe('buildBasecolorCrop — kleines Bild (Edge-Case #20)', () => {
-  it('gibt bei 256x256 px das Voll-Bild zurueck (kein Crop)', async () => {
+  it('gibt bei 256x256 px / 300 DPI das Voll-Bild zurueck (kleiner als 4 cm)', async () => {
     const source = await makeJpeg(256, 256, { density: 300 })
     const result = await buildBasecolorCrop(source)
 
+    expect(result.fullImage).toBe(true)
     expect(result.cropPx).toBe('256x256')
     // 256 / 300 * 2.54 = 2.1675 → 2.2 cm
     expect(result.cropCm).toBe('2.2x2.2')
@@ -114,11 +120,26 @@ describe('buildBasecolorCrop — kleines Bild (Edge-Case #20)', () => {
     expect(cropMeta.height).toBe(256)
   })
 
-  it('gibt bei genau 360x360 px ebenfalls das Voll-Bild zurueck (Crop wuerde nichts aendern)', async () => {
-    const source = await makeJpeg(360, 360, { density: 300 })
+  it('kappt das Voll-Bild auf 512 px, wenn Source-Edge groesser als MAX_OUTPUT_PX ist', async () => {
+    // 800 px @ 600 DPI = 3.4 cm → kleiner als 4 cm → fullImage true,
+    // aber 800 > 512 → proportionaler Downsample auf 512.
+    const source = await makeJpeg(800, 800, { density: 600 })
     const result = await buildBasecolorCrop(source)
-    expect(result.cropPx).toBe('360x360')
-    expect(result.cropCm).toBe('3.0x3.0')
+
+    expect(result.fullImage).toBe(true)
+    expect(result.cropPx).toBe('512x512')
+    expect(result.cropCm).toBe('3.4x3.4')
+
+    const cropMeta = await sharp(result.buffer).metadata()
+    expect(cropMeta.width).toBe(512)
+  })
+
+  it('liefert bei genau 4 cm Source (= 472 px @ 300 DPI) regulaeren Crop, kein fullImage', async () => {
+    const source = await makeJpeg(472, 472, { density: 300 })
+    const result = await buildBasecolorCrop(source)
+    expect(result.fullImage).toBe(false)
+    expect(result.cropPx).toBe('472x472')
+    expect(result.cropCm).toBe('4.0x4.0')
   })
 })
 
@@ -130,6 +151,15 @@ describe('buildBasecolorCrop — Reproducibility', () => {
     expect(a.cropPx).toBe(b.cropPx)
     expect(a.cropCm).toBe(b.cropCm)
     expect(a.dpiUsed).toBe(b.dpiUsed)
+  })
+
+  it('behandelt rechteckige Quellbilder symmetrisch (4096x2048 → quadratischer 4-cm-Crop)', async () => {
+    // 4 cm @ 300 DPI = 472 px; passt in shorter dimension (2048) → regulaerer Crop.
+    const source = await makeJpeg(4096, 2048, { density: 300 })
+    const result = await buildBasecolorCrop(source)
+    expect(result.fullImage).toBe(false)
+    expect(result.cropPx).toBe('472x472')
+    expect(result.cropCm).toBe('4.0x4.0')
   })
 })
 
@@ -151,17 +181,37 @@ describe('planBasecolorCrop — pure Plan-Berechnung', () => {
     }
   }
 
-  it('4K mit 300 DPI → 360x360 px ≈ 3.0x3.0 cm, fullImage=false', () => {
+  it('4K mit 300 DPI → 472x472 px = 4.0x4.0 cm, fullImage=false', () => {
     expect(planBasecolorCrop(meta())).toEqual({
-      cropPx: '360x360',
-      cropCm: '3.0x3.0',
+      cropPx: '472x472',
+      cropCm: '4.0x4.0',
       dpiUsed: 300,
       dpiFallback: false,
       fullImage: false,
     })
   })
 
-  it('kleines Bild (256x256) → Voll-Bild, fullImage=true', () => {
+  it('600 DPI → 512x512 px (gekappt) = 4.0x4.0 cm', () => {
+    expect(planBasecolorCrop(meta({ dpi_horizontal: 600, dpi_vertikal: 600 }))).toEqual({
+      cropPx: '512x512',
+      cropCm: '4.0x4.0',
+      dpiUsed: 600,
+      dpiFallback: false,
+      fullImage: false,
+    })
+  })
+
+  it('72 DPI → 113x113 px = 4.0x4.0 cm (kein Upsample)', () => {
+    expect(planBasecolorCrop(meta({ dpi_horizontal: 72, dpi_vertikal: 72 }))).toEqual({
+      cropPx: '113x113',
+      cropCm: '4.0x4.0',
+      dpiUsed: 72,
+      dpiFallback: false,
+      fullImage: false,
+    })
+  })
+
+  it('kleines Bild (256x256 @ 300 DPI) → Voll-Bild, fullImage=true', () => {
     const plan = planBasecolorCrop(meta({ breite_px: 256, hoehe_px: 256 }))
     expect(plan.fullImage).toBe(true)
     expect(plan.cropPx).toBe('256x256')

@@ -101,7 +101,7 @@ const STOFF_ENTRY = {
 }
 
 async function baseParams(provider: StorageProvider, analyzeImages: ReturnType<typeof mockAnalyze>) {
-  // 4096x4096 px / 300 DPI → Center-Crop 360x360 px ≈ 3.0x3.0 cm.
+  // 4096x4096 px / 300 DPI → 4-cm-Crop 472x472 px = 4.0x4.0 cm.
   const baseImageBuffer = await makeJpeg(4096, 4096, 300)
   return {
     provider,
@@ -146,7 +146,7 @@ describe('runDivaTextureFirstPass — Sidecar + Class-Treffer', () => {
     const ctx = firstCall(analyzeImages).context
     expect(ctx.pass).toBe(1)
     expect((ctx.LIEFERSYSTEM as { materialClass: string }).materialClass).toBe('fabric')
-    expect(ctx.basecolor_crop_cm).toBe('3.0x3.0')
+    expect(ctx.basecolor_crop_cm).toBe('4.0x4.0')
     expect(ctx.supplier_preview_sent).toBe(false)
     // Nur 1 Bild ans LLM (kein Preview-Fetcher), und das ist der Crop.
     expect(firstCall(analyzeImages).images).toHaveLength(1)
@@ -295,8 +295,8 @@ describe('runDivaTextureFirstPass — Basecolor-Crop-Metadaten', () => {
     const result = await runDivaTextureFirstPass(
       await baseParams(makeProviderWithoutSidecar(), analyzeImages),
     )
-    expect(result.basecolorCrop.crop_px).toBe('360x360')
-    expect(result.basecolorCrop.crop_cm).toBe('3.0x3.0')
+    expect(result.basecolorCrop.crop_px).toBe('472x472')
+    expect(result.basecolorCrop.crop_cm).toBe('4.0x4.0')
     expect(result.basecolorCrop.dpi_used).toBe(300)
     expect(result.basecolorCrop.dpi_fallback).toBe(false)
   })

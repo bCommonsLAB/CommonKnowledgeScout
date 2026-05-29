@@ -4,10 +4,12 @@
  * @fileoverview DIVA-Info-View: Liefersystem-Stammdaten + Bildwahl (Stufe 1).
  *
  * @description
- * Orchestriert Bildvergleich (DivaImageComparison), Metadaten-Tabelle
- * (DivaSupplierMetadataTable) und die Quellbild-Wahl. Die Wahl wird ueber
- * den generischen Archiv-Property-Store persistiert (Key = stabile
- * Material-ID = VCodex, Plan Edge-Case #18). Rein deterministisch, kein LLM.
+ * Orchestriert Bildvergleich (DivaImageComparison) mit Switch zwischen
+ * Original und LLM-Crop, Vollbild-Modal (DivaBasecolorFullscreenDialog),
+ * Metadaten-Tabelle (DivaSupplierMetadataTable) und die Quellbild-Wahl.
+ * Die Wahl wird ueber den generischen Archiv-Property-Store persistiert
+ * (Key = stabile Material-ID = VCodex, Plan Edge-Case #18). Rein
+ * deterministisch, kein LLM.
  */
 
 import * as React from 'react'
@@ -20,9 +22,10 @@ import { FileLogger } from '@/lib/debug/logger'
 import type { StorageProvider, StorageItem } from '@/lib/storage/types'
 import type { AnalysisSourceImage, OptionvalueEntry } from '@/lib/diva-texture/types'
 import { useDivaBasecolorInfo } from '../use-diva-basecolor-info'
-import { DivaImageComparison } from './diva-image-comparison'
+import { useDivaBasecolorCrop } from '../use-diva-basecolor-crop'
+import { DivaImageComparison, type BasecolorViewMode } from './diva-image-comparison'
+import { DivaBasecolorFullscreenDialog } from './diva-basecolor-fullscreen-dialog'
 import { DivaSupplierMetadataTable } from './diva-supplier-metadata-table'
-import { DivaBasecolorCropDialog } from './diva-basecolor-crop-dialog'
 
 const SOURCE_IMAGE_PROPERTY = 'analysisSourceImage'
 
@@ -48,8 +51,18 @@ export function DivaSupplierDataView({
   const [supplierImageError, setSupplierImageError] = React.useState(false)
   const [sourceImage, setSourceImage] = React.useState<AnalysisSourceImage>('basecolor')
   const [isSaving, setIsSaving] = React.useState(false)
-  const [cropDialogOpen, setCropDialogOpen] = React.useState(false)
-  const { data: basecolorInfo } = useDivaBasecolorInfo({ libraryId: activeLibraryId, fileId: item.id })
+  const [viewMode, setViewMode] = React.useState<BasecolorViewMode>('original')
+  const [fullscreenOpen, setFullscreenOpen] = React.useState(false)
+
+  const { data: basecolorInfo } = useDivaBasecolorInfo({
+    libraryId: activeLibraryId,
+    fileId: item.id,
+  })
+  const cropState = useDivaBasecolorCrop({
+    libraryId: activeLibraryId,
+    fileId: item.id,
+    enabled: true,
+  })
 
   // Basecolor-URL vom Provider holen (Filesystem-Bild der aktuellen Textur).
   React.useEffect(() => {
@@ -129,6 +142,8 @@ export function DivaSupplierDataView({
     [activeLibraryId, materialId, sourceImage],
   )
 
+  const sourceMeta = basecolorInfo?.source ?? null
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
@@ -142,15 +157,27 @@ export function DivaSupplierDataView({
         supplierImageUrl={entry.Image}
         supplierImageError={supplierImageError}
         onSupplierError={() => setSupplierImageError(true)}
-        basecolorMeta={basecolorInfo?.source ?? null}
-        onBasecolorClick={() => setCropDialogOpen(true)}
+        basecolorMeta={sourceMeta}
+        cropState={cropState}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        onBasecolorClick={() => setFullscreenOpen(true)}
       />
 
-      <DivaBasecolorCropDialog
-        open={cropDialogOpen}
-        onOpenChange={setCropDialogOpen}
-        libraryId={activeLibraryId}
-        fileId={item.id}
+      <DivaBasecolorFullscreenDialog
+        open={fullscreenOpen}
+        onOpenChange={setFullscreenOpen}
+        src={basecolorUrl}
+        contentWidthCm={sourceMeta?.breite_cm ?? null}
+        contentHeightCm={sourceMeta?.hoehe_cm ?? null}
+        pixelLabel={
+          sourceMeta ? `${sourceMeta.breite_px}x${sourceMeta.hoehe_px} px` : undefined
+        }
+        dpiLabel={
+          sourceMeta?.dpi_horizontal !== null && sourceMeta?.dpi_horizontal !== undefined
+            ? `${sourceMeta.dpi_horizontal} DPI`
+            : undefined
+        }
       />
 
       <div className="space-y-2 rounded-md border p-4">
