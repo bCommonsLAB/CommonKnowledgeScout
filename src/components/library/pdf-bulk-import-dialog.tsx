@@ -91,8 +91,13 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
   const [fileNamePattern, setFileNamePattern] = useState<string>('');
   // Set mit IDs der abgewaehlten Dateien (standardmaessig alle ausgewaehlt)
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
-  // Quelle der Kandidaten — siehe CandidateSource oben.
-  const [sourceMode, setSourceMode] = useState<CandidateSource>('directory');
+  // Quelle der Kandidaten — siehe CandidateSource oben. Lazy-Init aus der
+  // aktuellen Auswahl, damit der erste Scan-Trigger gleich im richtigen Mode
+  // laeuft (sonst startet ein rekursiver Scan, der gleich darauf vom Mode-
+  // Wechsel im open-edge useEffect ueberholt wird → Race).
+  const [sourceMode, setSourceMode] = useState<CandidateSource>(
+    () => (selectedFiles.length > 0 ? 'selection' : 'directory'),
+  );
 
   // Phasensteuerung: Standard nur Phase 1 (Extraktion)
   const [runMetaPhase, setRunMetaPhase] = useState<boolean>(true); // Phase 2 standardmäßig aktiv
@@ -207,6 +212,17 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
   }, [selectedFiles]);
 
   /**
+   * Sequenz-Token gegen Race-Conditions: Mode-Wechsel im open-edge useEffect
+   * laeuft asynchron, der scan-trigger useEffect feuert mehrfach hintereinander
+   * (Render 1: alte Mode, Render 2: neue Mode). Ohne Token wuerde ein noch
+   * laufender rekursiver Scan aus Render 1 die "schnellen" Selection-Ergebnisse
+   * aus Render 2 ueberschreiben (Symptom: 3 Items blitzen kurz auf, dann 5839).
+   * Bei jedem Scan-Start wird `scanSeqRef` inkrementiert; nach jedem await
+   * wird geprueft, ob die eigene Sequenz noch die aktuelle ist — sonst Abbruch.
+   */
+  const scanSeqRef = useRef(0);
+
+  /**
    * Laedt Kandidaten je nach `sourceMode`:
    *  - 'selection': aus dem Atom (instant, kein Storage-Call zum Listen)
    *  - 'directory': rekursiver Scan ab `rootFolderId`
@@ -215,6 +231,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
   const handleScan = useCallback(async () => {
     if (!provider) return;
     if (sourceMode === 'directory' && !rootFolderId) return;
+    const mySeq = ++scanSeqRef.current;
     setIsScanning(true);
     setCandidates([]);
     setPreviewItems([]);
@@ -222,6 +239,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
       const result = sourceMode === 'selection'
         ? buildSelectionCandidates()
         : await scanFolder(rootFolderId as string);
+      if (mySeq !== scanSeqRef.current) return; // stale — neuerer Scan laeuft schon
       setCandidates(result.selected);
       setExcludedIds(new Set());
       // Vorschau-Details fuer alle Kandidaten berechnen
@@ -233,6 +251,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
         if (relPath === undefined) {
           try {
             const chain = await provider.getPathItemsById(parentId);
+            if (mySeq !== scanSeqRef.current) return; // stale waehrend Pfad-Loop
             const idx = rootFolderId ? chain.findIndex((it) => it.id === rootFolderId) : -1;
             const start = idx >= 0 ? idx + 1 : 1;
             const parts = chain.slice(start).map((it) => it.metadata.name).filter(Boolean);
@@ -244,10 +263,13 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
         }
         details.push({ id: file.id, name: file.metadata.name, relPath });
       }
+      if (mySeq !== scanSeqRef.current) return;
       setPreviewItems(details);
       setStats({ totalFiles: result.total, skippedExisting: result.skipped, toProcess: result.selected.length });
     } finally {
-      setIsScanning(false);
+      // isScanning nur zuruecksetzen, wenn ICH der neueste Scan war — sonst
+      // wuerde der noch laufende neueste Scan optisch beendet wirken.
+      if (mySeq === scanSeqRef.current) setIsScanning(false);
     }
   }, [provider, rootFolderId, scanFolder, sourceMode, buildSelectionCandidates]);
 
