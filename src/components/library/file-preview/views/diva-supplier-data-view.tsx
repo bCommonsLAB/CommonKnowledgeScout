@@ -19,8 +19,10 @@ import { toast } from 'sonner'
 import { FileLogger } from '@/lib/debug/logger'
 import type { StorageProvider, StorageItem } from '@/lib/storage/types'
 import type { AnalysisSourceImage, OptionvalueEntry } from '@/lib/diva-texture/types'
+import { useDivaBasecolorInfo } from '../use-diva-basecolor-info'
 import { DivaImageComparison } from './diva-image-comparison'
 import { DivaSupplierMetadataTable } from './diva-supplier-metadata-table'
+import { DivaBasecolorCropDialog } from './diva-basecolor-crop-dialog'
 
 const SOURCE_IMAGE_PROPERTY = 'analysisSourceImage'
 
@@ -46,6 +48,8 @@ export function DivaSupplierDataView({
   const [supplierImageError, setSupplierImageError] = React.useState(false)
   const [sourceImage, setSourceImage] = React.useState<AnalysisSourceImage>('basecolor')
   const [isSaving, setIsSaving] = React.useState(false)
+  const [cropDialogOpen, setCropDialogOpen] = React.useState(false)
+  const { data: basecolorInfo } = useDivaBasecolorInfo({ libraryId: activeLibraryId, fileId: item.id })
 
   // Basecolor-URL vom Provider holen (Filesystem-Bild der aktuellen Textur).
   React.useEffect(() => {
@@ -138,6 +142,15 @@ export function DivaSupplierDataView({
         supplierImageUrl={entry.Image}
         supplierImageError={supplierImageError}
         onSupplierError={() => setSupplierImageError(true)}
+        basecolorMeta={basecolorInfo?.source ?? null}
+        onBasecolorClick={() => setCropDialogOpen(true)}
+      />
+
+      <DivaBasecolorCropDialog
+        open={cropDialogOpen}
+        onOpenChange={setCropDialogOpen}
+        libraryId={activeLibraryId}
+        fileId={item.id}
       />
 
       <div className="space-y-2 rounded-md border p-4">

@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from 'vitest'
 import sharp from 'sharp'
-import { buildBasecolorCrop } from '@/lib/diva-texture/basecolor-crop'
+import { buildBasecolorCrop, planBasecolorCrop } from '@/lib/diva-texture/basecolor-crop'
 import type { ImageTechnicalMetadata } from '@/lib/image/exif-metadata'
 
 /** Erzeugt ein einfarbiges JPEG mit gewuenschter Pixel-Maesse + optional DPI. */
@@ -130,5 +130,75 @@ describe('buildBasecolorCrop — Reproducibility', () => {
     expect(a.cropPx).toBe(b.cropPx)
     expect(a.cropCm).toBe(b.cropCm)
     expect(a.dpiUsed).toBe(b.dpiUsed)
+  })
+})
+
+describe('planBasecolorCrop — pure Plan-Berechnung', () => {
+  function meta(overrides: Partial<ImageTechnicalMetadata> = {}): ImageTechnicalMetadata {
+    return {
+      breite_px: 4096,
+      hoehe_px: 4096,
+      dpi_horizontal: 300,
+      dpi_vertikal: 300,
+      bittiefe: 24,
+      breite_cm: null,
+      hoehe_cm: null,
+      komprimierung: 'JPEG',
+      farbraum: 'sRGB',
+      erstellungsdatum: null,
+      erstellungsprogramm: '',
+      ...overrides,
+    }
+  }
+
+  it('4K mit 300 DPI → 360x360 px ≈ 3.0x3.0 cm, fullImage=false', () => {
+    expect(planBasecolorCrop(meta())).toEqual({
+      cropPx: '360x360',
+      cropCm: '3.0x3.0',
+      dpiUsed: 300,
+      dpiFallback: false,
+      fullImage: false,
+    })
+  })
+
+  it('kleines Bild (256x256) → Voll-Bild, fullImage=true', () => {
+    const plan = planBasecolorCrop(meta({ breite_px: 256, hoehe_px: 256 }))
+    expect(plan.fullImage).toBe(true)
+    expect(plan.cropPx).toBe('256x256')
+    expect(plan.cropCm).toBe('2.2x2.2')
+  })
+
+  it('fehlende DPI → Fallback 300, dpiFallback=true', () => {
+    const plan = planBasecolorCrop(meta({ dpi_horizontal: null }))
+    expect(plan.dpiUsed).toBe(300)
+    expect(plan.dpiFallback).toBe(true)
+  })
+
+  it('Plan stimmt mit buildBasecolorCrop ueberein (gleiches Meta → gleiche Masse)', async () => {
+    const source = await sharp({
+      create: { width: 4096, height: 4096, channels: 3, background: { r: 0, g: 0, b: 0 } },
+    })
+      .withMetadata({ density: 600 })
+      .jpeg()
+      .toBuffer()
+    const built = await buildBasecolorCrop(source)
+    const planned = planBasecolorCrop({
+      breite_px: 4096,
+      hoehe_px: 4096,
+      dpi_horizontal: 600,
+      dpi_vertikal: 600,
+      bittiefe: 24,
+      breite_cm: null,
+      hoehe_cm: null,
+      komprimierung: 'JPEG',
+      farbraum: 'sRGB',
+      erstellungsdatum: null,
+      erstellungsprogramm: '',
+    })
+    expect(built.cropPx).toBe(planned.cropPx)
+    expect(built.cropCm).toBe(planned.cropCm)
+    expect(built.dpiUsed).toBe(planned.dpiUsed)
+    expect(built.dpiFallback).toBe(planned.dpiFallback)
+    expect(built.fullImage).toBe(planned.fullImage)
   })
 })

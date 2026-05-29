@@ -34,20 +34,34 @@ const FALLBACK_DPI = 300
 /** Ausgabe-Format des Crops (JPEG fuer kleine Dateigroesse beim LLM). */
 const OUTPUT_MIME_TYPE = 'image/jpeg'
 
-/** Ergebnis des Basecolor-Crops. */
-export interface BasecolorCropResult {
+/**
+ * Crop-Plan: was bei einem gegebenen Original-Bild gecroppt WUERDE — ohne
+ * den eigentlichen sharp-Roundtrip. Wird von UI + LLM-Pipeline geteilt,
+ * damit die Vorschau (DivaSupplierDataView) die gleichen Masse anzeigt
+ * wie der Pass-1-Lauf tatsaechlich verwendet.
+ */
+export interface BasecolorCropPlan {
+  /** Tatsaechliche Pixel-Maesse des Crops als "BxH"-String. */
+  cropPx: string
+  /** Realgroesse des Crops in cm als "B.Bx H.H"-String. */
+  cropCm: string
+  /** Verwendete DPI (Original-DPI oder Fallback). */
+  dpiUsed: number
+  /** True, wenn der DPI-Fallback greifen musste. */
+  dpiFallback: boolean
+  /**
+   * True, wenn das Original kleiner als der Ziel-Crop ist und das Voll-Bild
+   * statt eines echten Ausschnitts ans LLM gegeben wird (Edge-Case #20).
+   */
+  fullImage: boolean
+}
+
+/** Ergebnis des Basecolor-Crops: Plan + erzeugter Bild-Buffer. */
+export interface BasecolorCropResult extends BasecolorCropPlan {
   /** JPEG-Buffer des Crops (oder Voll-Bild bei kleinem Original). */
   buffer: Buffer
   /** MIME-Type des Crops (immer JPEG). */
   mimeType: string
-  /** Tatsaechliche Pixel-Maesse des Crops als "BxH"-String, z.B. "360x360". */
-  cropPx: string
-  /** Realgroesse des Crops in cm als "B.Bx H.H"-String, z.B. "3.0x3.0". */
-  cropCm: string
-  /** Verwendete DPI (Original-DPI oder Fallback). */
-  dpiUsed: number
-  /** True, wenn der Fallback-Wert greifen musste. */
-  dpiFallback: boolean
 }
 
 /** Rundet auf 1 Nachkommastelle (3.04 → 3.0, 2.87 → 2.9). */
@@ -63,6 +77,41 @@ function formatCropCm(widthPx: number, heightPx: number, dpi: number): string {
   const widthCm = roundTo1Decimal((widthPx / dpi) * 2.54)
   const heightCm = roundTo1Decimal((heightPx / dpi) * 2.54)
   return `${widthCm.toFixed(1)}x${heightCm.toFixed(1)}`
+}
+
+/**
+ * Reine Berechnung des Crop-Plans aus den Bild-Metadaten — ohne sharp-
+ * Roundtrip. Wird von `buildBasecolorCrop` UND vom UI-Info-Endpoint
+ * geteilt (Lea-Regel: keine doppelte Logik fuer "was waere der Crop").
+ */
+export function planBasecolorCrop(meta: ImageTechnicalMetadata): BasecolorCropPlan {
+  const widthPx = meta.breite_px
+  const heightPx = meta.hoehe_px
+
+  let dpiUsed = meta.dpi_horizontal ?? FALLBACK_DPI
+  let dpiFallback = false
+  if (meta.dpi_horizontal === null || meta.dpi_horizontal <= 0) {
+    dpiUsed = FALLBACK_DPI
+    dpiFallback = true
+  }
+
+  if (widthPx <= TARGET_CROP_PX || heightPx <= TARGET_CROP_PX) {
+    return {
+      cropPx: `${widthPx}x${heightPx}`,
+      cropCm: formatCropCm(widthPx, heightPx, dpiUsed),
+      dpiUsed,
+      dpiFallback,
+      fullImage: true,
+    }
+  }
+
+  return {
+    cropPx: `${TARGET_CROP_PX}x${TARGET_CROP_PX}`,
+    cropCm: formatCropCm(TARGET_CROP_PX, TARGET_CROP_PX, dpiUsed),
+    dpiUsed,
+    dpiFallback,
+    fullImage: false,
+  }
 }
 
 /**
@@ -85,54 +134,30 @@ export async function buildBasecolorCrop(
   readMetadata: ReadImageMetadataFn = extractImageMetadata,
 ): Promise<BasecolorCropResult> {
   const meta = await readMetadata(sourceBuffer)
-  const widthPx = meta.breite_px
-  const heightPx = meta.hoehe_px
+  const plan = planBasecolorCrop(meta)
 
-  // DPI-Fallback (Edge-Case #19): Header liefert keine Aufloesung → 300 DPI
-  // annehmen. Warning ins Log + Flag im Ergebnis, damit der Lauf-Eintrag das
-  // protokollieren kann (siehe Stufe 6).
-  let dpiUsed = meta.dpi_horizontal ?? FALLBACK_DPI
-  let dpiFallback = false
-  if (meta.dpi_horizontal === null || meta.dpi_horizontal <= 0) {
-    dpiUsed = FALLBACK_DPI
-    dpiFallback = true
+  if (plan.dpiFallback) {
     FileLogger.warn('diva-texture-basecolor-crop', 'DPI fehlt im Bild-Header — Fallback 300 DPI', {
-      widthPx,
-      heightPx,
+      widthPx: meta.breite_px,
+      heightPx: meta.hoehe_px,
       fallbackDpi: FALLBACK_DPI,
     })
   }
 
-  // Edge-Case #20: Original kleiner als Ziel-Crop → Voll-Bild zurueckgeben,
-  // damit das LLM ueberhaupt etwas sieht. cm-Wert dann anhand der vollen
-  // Pixel-Masse.
-  if (widthPx <= TARGET_CROP_PX || heightPx <= TARGET_CROP_PX) {
+  // Edge-Case #20: Voll-Bild senden, sharp re-enkodiert nur als JPEG.
+  if (plan.fullImage) {
     const fullBuffer = await sharp(sourceBuffer).jpeg({ quality: 85 }).toBuffer()
-    return {
-      buffer: fullBuffer,
-      mimeType: OUTPUT_MIME_TYPE,
-      cropPx: `${widthPx}x${heightPx}`,
-      cropCm: formatCropCm(widthPx, heightPx, dpiUsed),
-      dpiUsed,
-      dpiFallback,
-    }
+    return { ...plan, buffer: fullBuffer, mimeType: OUTPUT_MIME_TYPE }
   }
 
   // Center-Crop: links/oben so setzen, dass der Ausschnitt mittig im Bild liegt.
-  const left = Math.floor((widthPx - TARGET_CROP_PX) / 2)
-  const top = Math.floor((heightPx - TARGET_CROP_PX) / 2)
+  const left = Math.floor((meta.breite_px - TARGET_CROP_PX) / 2)
+  const top = Math.floor((meta.hoehe_px - TARGET_CROP_PX) / 2)
 
   const croppedBuffer = await sharp(sourceBuffer)
     .extract({ left, top, width: TARGET_CROP_PX, height: TARGET_CROP_PX })
     .jpeg({ quality: 85 })
     .toBuffer()
 
-  return {
-    buffer: croppedBuffer,
-    mimeType: OUTPUT_MIME_TYPE,
-    cropPx: `${TARGET_CROP_PX}x${TARGET_CROP_PX}`,
-    cropCm: formatCropCm(TARGET_CROP_PX, TARGET_CROP_PX, dpiUsed),
-    dpiUsed,
-    dpiFallback,
-  }
+  return { ...plan, buffer: croppedBuffer, mimeType: OUTPUT_MIME_TYPE }
 }
