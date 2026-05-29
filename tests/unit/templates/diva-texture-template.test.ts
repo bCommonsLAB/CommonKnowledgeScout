@@ -18,12 +18,17 @@ import {
 const templatePath = join(process.cwd(), 'template-samples', 'Diva-Texture-Analysis.md')
 const content = readFileSync(templatePath, 'utf-8')
 
-/** Extrahiert den auto-generierten Schema-Block aus dem Secretary-Markdown. */
-function extractSchemaBlock(markdown: string): string {
-  const marker = 'Binding response schema'
-  const idx = markdown.indexOf(marker)
-  expect(idx).toBeGreaterThan(-1)
-  return markdown.slice(idx)
+/**
+ * Sucht ein Frontmatter-Feld im geparsten Template. Das Diva-Template duppelt
+ * das LLM-Schema NICHT mehr im System-Prompt — der Secretary baut den User-
+ * Prompt REQUIRED FIELDS direkt aus diesen `metadata.fields`. Damit ist
+ * `fields` jetzt die Single Source of Truth fuer die LLM-Erwartungen.
+ */
+function findField(
+  template: ReturnType<typeof parseTemplate>['template'],
+  key: string,
+): ReturnType<typeof parseTemplate>['template']['metadata']['fields'][number] | undefined {
+  return template.metadata.fields.find((f) => f.key === key)
 }
 
 describe('Diva-Texture-Analysis.md — Struktur', () => {
@@ -78,16 +83,14 @@ describe('Diva-Texture-Analysis.md — Struktur', () => {
     }
   })
 
-  it('Stufe-4-Felder sind auskommentierte Pipeline-Felder (NICHT im LLM-Schema)', () => {
-    const tpl = deserializeTemplateFromMarkdown(content, 'Diva-Texture-Analysis', 'lib', 'u@example.com')
-    const md = serializeTemplateToMarkdown(tpl, false)
-    const schema = extractSchemaBlock(md)
+  it('Stufe-4-Felder sind auskommentiert (NICHT als LLM-Frontmatter-Variable)', () => {
+    const { template } = parseTemplate(content, 'Diva-Texture-Analysis')
     // group_name kommt deterministisch aus dem Sidecar (Post-Processor) — das LLM
     // soll es nicht halluzinieren (Lea-Regel "Nichts erfinden").
-    expect(schema).not.toContain('"group_name":')
+    expect(findField(template, 'group_name')).toBeUndefined()
     // classification_locked/_rejected sind UI-Flags, nicht LLM-Felder.
-    expect(schema).not.toContain('"classification_locked":')
-    expect(schema).not.toContain('"classification_rejected":')
+    expect(findField(template, 'classification_locked')).toBeUndefined()
+    expect(findField(template, 'classification_rejected')).toBeUndefined()
 
     // Aber: im Template dokumentiert (auskommentiert), damit der Klassifizierer
     // weiss, dass die Pipeline diese Felder verwaltet.
@@ -96,45 +99,59 @@ describe('Diva-Texture-Analysis.md — Struktur', () => {
     expect(content).toContain('classification_rejected: boolean')
   })
 
-  it('Color-Match-Felder erscheinen im LLM-Schema, review_status NICHT (Update 2)', () => {
-    const tpl = deserializeTemplateFromMarkdown(content, 'Diva-Texture-Analysis', 'lib', 'u@example.com')
-    const md = serializeTemplateToMarkdown(tpl, false)
-    const schema = extractSchemaBlock(md)
-    // Color-Match-Felder gehoeren ins LLM-Schema (ai_pass1).
-    expect(schema).toContain('"color_match_supplier":')
-    expect(schema).toContain('"color_match_notes":')
+  it('Color-Match-Felder erscheinen als LLM-Variable, review_status NICHT (Update 2)', () => {
+    const { template } = parseTemplate(content, 'Diva-Texture-Analysis')
+    // Color-Match-Felder gehoeren ins LLM-Schema (ai_pass1) — als Frontmatter-
+    // Placeholder mit {{...|...}}-Token.
+    expect(findField(template, 'color_match_supplier')?.description).toBeTruthy()
+    expect(findField(template, 'color_match_notes')?.description).toBeTruthy()
     // review_status ist Pipeline-Lifecycle, KEIN LLM-Feld.
-    expect(schema).not.toContain('"review_status":')
+    expect(findField(template, 'review_status')).toBeUndefined()
     // Aber im Template als auskommentierter Lifecycle-Hinweis dokumentiert.
     expect(content).toContain('review_status: string')
   })
 
-  it('generiert ein FLACHES Antwortschema (keine verschachtelten Objekte)', () => {
-    const tpl = deserializeTemplateFromMarkdown(content, 'Diva-Texture-Analysis', 'lib', 'u@example.com')
-    const md = serializeTemplateToMarkdown(tpl, false)
-    const schema = extractSchemaBlock(md)
-
-    // Flache Keys vorhanden
-    expect(schema).toContain('"material_class":')
-    expect(schema).toContain('"dominant_color_hex":')
-    expect(schema).toContain('"surface_finish":')
-
-    // Typ-Erkennung
-    expect(schema).toContain('"ai_prompt_positive": "string[]"')
-    expect(schema).toContain('"confidence_class": "number | null"')
-
-    // ILN bleibt String (fuehrende Nullen!)
-    expect(schema).toContain('"iln_nummer": "string')
-    expect(schema).not.toContain('"iln_nummer": "number')
-
-    // KEINE verschachtelten Container des alten Modells
-    for (const nested of ['"visualProperties": {', '"aiGenerationHints": {', '"confidence": {', '"dominantColor": {']) {
-      expect(schema).not.toContain(nested)
+  it('alle LLM-Frontmatter-Felder sind flach + flach (snake_case, eine Ebene)', () => {
+    const { template } = parseTemplate(content, 'Diva-Texture-Analysis')
+    // Erwartete LLM-Felder vorhanden, mit nicht-leerer Beschreibung (= sind echte
+    // {{variable|description}}-Placeholders, NICHT statische rawValue-Eintraege).
+    for (const key of [
+      'material_class',
+      'dominant_color_hex',
+      'surface_finish',
+      'ai_prompt_positive',
+      'confidence_class',
+    ]) {
+      const field = findField(template, key)
+      expect(field).toBeDefined()
+      expect(field?.description?.trim().length).toBeGreaterThan(0)
     }
 
-    // System-/Hardcode-Felder nicht im Schema
-    expect(schema).not.toContain('analysisRuns')
-    expect(schema).not.toContain('detailViewType')
+    // ILN-Variable hat eine String-Typhint-Beschreibung (fuehrende Nullen)
+    expect(findField(template, 'iln_nummer')?.description).toMatch(/13-stellig|String/i)
+
+    // Snake_case, keine Dot-Notation, keine verschachtelten Keys
+    const llmKeys = template.metadata.fields
+      .filter((f) => f.description?.trim().length)
+      .map((f) => f.key)
+    expect(llmKeys.every((k) => /^[a-z_]+$/.test(k))).toBe(true)
+
+    // System-/Hardcode-Felder NICHT als LLM-Variable
+    expect(findField(template, 'analysisRuns')).toBeUndefined()
+  })
+
+  it('System-Prompt enthaelt KEIN auto-generiertes Schema (Token-Optimierung)', () => {
+    // Der "Antwortschema"-Hinweis im System-Prompt triggert
+    // hasHandwrittenResponseSchema → appendGeneratedResponseSchema haengt
+    // KEIN auto-generiertes Schema mehr an. Das vollstaendige Schema kommt
+    // vom Secretary im User-Prompt als REQUIRED FIELDS (gleiche Quelle:
+    // Frontmatter-Variablen). Spart ~3k Tokens pro Lauf.
+    const tpl = deserializeTemplateFromMarkdown(content, 'Diva-Texture-Analysis', 'lib', 'u@example.com')
+    const md = serializeTemplateToMarkdown(tpl, false)
+    expect(md).not.toContain('Binding response schema')
+    expect(md).not.toContain('IMPORTANT: Your response must be a valid JSON object where each key')
+    // Der Marker-Hinweis MUSS aber im System-Prompt stehen (sonst greift der Schutz nicht).
+    expect(md.toLowerCase()).toContain('antwortschema')
   })
 
   it('serialisiert detailViewType genau einmal ins Frontmatter (kein YAML-Duplikat)', () => {

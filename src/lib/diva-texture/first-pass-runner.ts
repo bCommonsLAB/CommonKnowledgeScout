@@ -169,6 +169,7 @@ export async function runDivaTextureFirstPass(params: RunFirstPassParams): Promi
     llmFields: meta,
     supplierEntry: entry,
     filePath: params.filePath,
+    fileName: params.fileName,
     // Snapshot ins Frontmatter: Bild 1 ist immer der Basecolor-Crop.
     sourceImage: 'basecolor',
     supplierPreviewSent: supplierPreview !== null,

@@ -14,6 +14,7 @@ import type { AnalysisSourceImage, OptionvalueEntry } from './types'
 import { mapMaterialClass } from './material-class-mapping'
 import { fieldsForSource } from './material-field-sources'
 import { parseAvailabilityFromPath } from './availability-from-path'
+import { derivePathFields } from './path-derived-fields'
 import {
   applyReviewStatusOverrideGuard,
   buildColorMatchOutcome,
@@ -37,8 +38,15 @@ export interface BuildFirstPassArgs {
   llmFields: Record<string, unknown>
   /** Gematchter Sidecar-Eintrag oder null (kein Treffer). */
   supplierEntry: OptionvalueEntry | null
-  /** Voller Verzeichnispfad der Textur (fuer availability/retailer_iln). */
+  /** Voller Verzeichnispfad der Textur (fuer availability/retailer_iln/iln_nummer). */
   filePath: string
+  /**
+   * Dateiname der Textur (fuer textur_code / title-Fallback ohne Sidecar).
+   * Optional fuer Backwards-Compat: wenn nicht gesetzt, wird der Dateiname
+   * aus dem `filePath`-Ende abgeleitet — ausreichend genau fuer alle
+   * praktischen Eingaben.
+   */
+  fileName?: string
   /**
    * Welches Quellbild tatsaechlich ans LLM ging. Snapshot ins Frontmatter
    * (`analysisSourceImage`) — Default `basecolor`. Update 2: Pass 1 sendet
@@ -89,6 +97,17 @@ function nonEmptyString(value: unknown): string | null {
 }
 
 /**
+ * Faellt aus dem Pfad das letzte Segment heraus, falls der Aufrufer den
+ * Dateinamen nicht separat uebergibt. Unterstuetzt `/` und `\` als
+ * Trenner (Linux + Windows).
+ */
+function deriveFileNameFromPath(filePath: string): string {
+  if (!filePath) return ''
+  const lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))
+  return lastSlash >= 0 ? filePath.slice(lastSlash + 1) : filePath
+}
+
+/**
  * Erzeugt das flache Pass-1-Frontmatter-Objekt (zum Patchen ins Markdown).
  */
 export function buildFirstPassFrontmatter(args: BuildFirstPassArgs): Record<string, unknown> {
@@ -136,6 +155,18 @@ export function buildFirstPassFrontmatter(args: BuildFirstPassArgs): Record<stri
   // --- availability deterministisch aus dem Pfad ---
   const { availability_scope, retailer_iln } = parseAvailabilityFromPath(filePath)
 
+  // --- Identitaets-Felder deterministisch aus Pfad + Filename + Sidecar ---
+  // (Stufe 3 Punkt 4): iln_nummer, textur_code, title, slug werden hier hart
+  // gesetzt, damit das LLM sie nicht halluzinieren kann. Sidecar hat Vorrang
+  // vor Filename-Parsing — bei Sidecar-Treffer sind alle vier Werte
+  // bekannt-konsistent zum Liefersystem.
+  const fileName = nonEmptyString(args.fileName) ?? deriveFileNameFromPath(filePath)
+  const pathFields = derivePathFields({
+    filePath,
+    fileName,
+    supplierEntry,
+  })
+
   // --- group_name (Stoffgruppe) deterministisch aus dem Sidecar-Treffer ---
   // Ermoeglicht die Galerie-Gruppierung nach Stoffgruppe (Stufe 4). Leer ohne Treffer.
   const groupName = nonEmptyString(supplierEntry?.GroupName) ?? ''
@@ -149,6 +180,13 @@ export function buildFirstPassFrontmatter(args: BuildFirstPassArgs): Record<stri
   const reviewStatus = applyReviewStatusOverrideGuard(existingReviewStatus, colorMatch.proposedReviewStatus)
 
   const result: Record<string, unknown> = {
+    // Identitaets-Felder (Stufe 3 Punkt 4): hart aus Pfad+Sidecar gesetzt,
+    // damit das LLM sie nicht halluzinieren kann. Ueberschreiben jeden
+    // LLM-Wert.
+    title: pathFields.title,
+    slug: pathFields.slug,
+    iln_nummer: pathFields.iln_nummer,
+    textur_code: pathFields.textur_code,
     // ai_pass1-Felder (feldspezifische Kalibrierung, daher explizit)
     material_class: materialClass ?? '',
     material_type: materialType,

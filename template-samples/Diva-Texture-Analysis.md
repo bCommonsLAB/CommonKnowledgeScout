@@ -217,6 +217,9 @@ HINWEIS: Technische Bild-Metadaten (Pixel, DPI, Bittiefe etc.) werden von der Pi
 programmatisch extrahiert und NACH der LLM-Analyse ins Frontmatter gemergt – sie sind
 NICHT Teil dieses Prompts.
 
-HINWEIS: Die erwartete JSON-Struktur wird vom System automatisch aus den
-Frontmatter-Feldern abgeleitet und unten angehängt. Das Schema ist FLACH
-(snake_case-Keys, eine Ebene) – keine verschachtelten Objekte.
+HINWEIS zum Antwortschema: Das vollstaendige Schema mit allen Feldnamen + Typen
+liefert der Secretary-Service AUTOMATISCH im User-Prompt unter REQUIRED FIELDS
+(generiert aus den Frontmatter-Variablen dieses Templates). Wir duplizieren es
+NICHT zusaetzlich im System-Prompt, um Tokens zu sparen. Halte dich strikt an
+die im User-Prompt gelisteten Feldnamen. Das Schema ist FLACH (snake_case-Keys,
+eine Ebene) – keine verschachtelten Objekte.

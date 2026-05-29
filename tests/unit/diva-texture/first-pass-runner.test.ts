@@ -136,6 +136,11 @@ describe('runDivaTextureFirstPass — Sidecar + Class-Treffer', () => {
     expect(meta.last_pass).toBe(1)
     expect(meta.pass1_status).toBe('done')
     expect(meta.retailer_iln).toBe('0001445679013')
+    // Punkt 4: Identitaets-Felder deterministisch aus Pfad + Sidecar.
+    expect(meta.iln_nummer).toBe('0001445679013')
+    expect(meta.textur_code).toBe('ST_2031-0477')
+    expect(meta.title).toBe('Feincord thyme')
+    expect(meta.slug).toBe('feincord-thyme')
     // Update 2: review_status wird gesetzt (kein Mismatch erkennbar ohne Preview)
     expect(meta.review_status).toBe('ki_geprueft')
     // null wird vom Frontmatter-Composer geschluckt — Abwesenheit hat hier
@@ -299,5 +304,41 @@ describe('runDivaTextureFirstPass — Basecolor-Crop-Metadaten', () => {
     expect(result.basecolorCrop.crop_cm).toBe('4.0x4.0')
     expect(result.basecolorCrop.dpi_used).toBe(300)
     expect(result.basecolorCrop.dpi_fallback).toBe(false)
+  })
+})
+
+describe('runDivaTextureFirstPass — Identitaets-Felder Hallu-Schutz (Punkt 4)', () => {
+  it('LLM liefert FALSCHE iln_nummer/textur_code/title/slug → Postprocessor ueberschreibt', async () => {
+    // Boeses LLM, das halluziniert: falsche ILN, falscher Code, falscher Title.
+    // Der Postprocessor MUSS die deterministischen Werte aus Pfad+Sidecar
+    // durchsetzen — sonst wandern halluzinierte Identitaeten in die Galerie.
+    const analyzeImages = mockAnalyze(
+      llmMarkdown({
+        material_class: 'fabric',
+        confidence_class: 0.6,
+        iln_nummer: '9999999999999',
+        textur_code: 'HALLU_XXXX-9999',
+        title: 'Halluziniertes Material',
+        slug: 'halluziniertes-material',
+      }),
+    )
+    const result = await runDivaTextureFirstPass(await baseParams(makeProvider(STOFF_ENTRY), analyzeImages))
+    const { meta } = parseFrontmatter(result.markdown)
+    expect(meta.iln_nummer).toBe('0001445679013')
+    expect(meta.textur_code).toBe('ST_2031-0477')
+    expect(meta.title).toBe('Feincord thyme')
+    expect(meta.slug).toBe('feincord-thyme')
+  })
+
+  it('ohne Sidecar → textur_code/title aus Filename, iln_nummer aus Pfad', async () => {
+    const analyzeImages = mockAnalyze(llmMarkdown({ material_class: 'wood', confidence_class: 0.5 }))
+    const result = await runDivaTextureFirstPass(
+      await baseParams(makeProviderWithoutSidecar(), analyzeImages),
+    )
+    const { meta } = parseFrontmatter(result.markdown)
+    expect(meta.iln_nummer).toBe('0001445679013')
+    expect(meta.textur_code).toBe('ST_2031-0477')
+    expect(meta.title).toBe('3_ST_2031_0477')
+    expect(meta.slug).toBe('3-st-2031-0477')
   })
 })
