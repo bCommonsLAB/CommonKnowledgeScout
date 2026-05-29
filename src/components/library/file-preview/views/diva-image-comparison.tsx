@@ -116,7 +116,10 @@ export function DivaImageComparison({
 
       <figure className="space-y-1">
         <figcaption className="text-xs text-muted-foreground">Liefersystem-Preview</figcaption>
-        <div className="flex h-48 items-center justify-center overflow-hidden rounded border bg-muted/30">
+        <div
+          className="flex items-center justify-center overflow-hidden rounded border bg-muted/30"
+          style={{ height: '320px' }}
+        >
           {supplierImageUrl && !supplierImageError ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
