@@ -255,6 +255,74 @@ curl -X POST "http://localhost:5001/api/image-analyzer/process" \
 
 Templates use the `{{name|description}}` syntax to define extractable fields. The LLM analyzes the image and fills each field based on the description.
 
+### What CKS sends vs. what the Secretary builds
+
+Calling code (CKS / `callImageAnalyzerTemplate`) submits **multipart form data** — the Secretary then constructs the actual LLM prompts from those inputs. Knowing the split avoids confusion when debugging the LLM call:
+
+```
+                CKS-Pipeline (caller)                     Secretary Service                       LLM
+                ─────────────────────                     ──────────────────                    ─────
+
+  template_content   ─────────────────────►   parses front-matter into REQUIRED FIELDS
+  (Frontmatter +                               + uses systemprompt verbatim
+   --- systemprompt)                                                                          sees:
+                                                                                              ─────
+  context (JSON, optional) ───────────────►   embeds as "CONTEXT: { … }" in user_prompt        - system_prompt
+                                                                                                (verbatim from CKS,
+  additional_field_descriptions ──────────►   merges into REQUIRED FIELDS                       optionally with an
+  (JSON, optional)                                                                              auto-generated
+                                                                                                Binding response
+  files (image binaries) ─────────────────►   forwarded 1:1 as image content blocks             schema appended
+                                                                                                — see below)
+
+  target_language ────────────────────────►   embedded as "Provide all values in language: X"  - user_prompt
+                                                                                                = "Analyze the provided
+                                                                                                   image…
+                                                                                                   CONTEXT: { … }
+                                                                                                   REQUIRED FIELDS: { … }
+                                                                                                   INSTRUCTIONS: …"
+
+                                                                                              - images
+                                                                                                (multipart, in order)
+```
+
+**Key consequences:**
+
+1. **The response schema lives in two places.** The CKS-side
+   `serializeTemplateToMarkdown` (in `template-service-mongodb.ts`)
+   appends an auto-generated `Binding response schema` block at the end
+   of the system prompt — **unless** the template's systemprompt
+   contains the literal word `Antwortschema`, `response schema`, or
+   `response format` (case-insensitive), which suppresses the auto
+   schema. Independently, the Secretary always generates a `REQUIRED
+   FIELDS` block in the user prompt from the same front-matter
+   variables. With both active, the schema appears twice — once in
+   the system prompt, once in the user prompt. For token-sensitive
+   workloads, suppress the system-prompt copy via the marker word.
+
+2. **The CONTEXT object is opaque pass-through.** Whatever JSON CKS
+   sends in `context` ends up under `"CONTEXT": { … }` in the user
+   prompt verbatim. The Secretary does not reformat it; CKS controls
+   the field names.
+
+3. **`additional_field_descriptions` overrides front-matter
+   descriptions** at the per-field level — used by the CKS pipeline
+   when the same template needs to behave differently depending on
+   runtime conditions (e.g. enum-restricted output for a specific run).
+
+4. **Image order matters and is part of the cache key.** The Secretary
+   passes images to the LLM in the order they arrive in the `files`
+   form field. The cache key includes the image hashes in that order —
+   swapping the order produces a different cache entry.
+
+**See also:**
+- `docs/architecture/template-system.md` — full template lifecycle,
+  front-matter mechanics, and `hasHandwrittenResponseSchema` details
+  on the CKS side.
+- `src/lib/secretary/image-analyzer.ts` — `callImageAnalyzerTemplate`
+  builds the multipart request; reading this file alongside this
+  section makes the wire format unambiguous.
+
 ### Example Template (`image_classify.md`)
 
 ```markdown
