@@ -1,9 +1,37 @@
 /**
  * @fileoverview Template-Parser
- * 
+ *
  * @description
  * Parser für Template-Dateien, die aus dem Storage geladen werden.
  * Extrahiert Frontmatter, Markdown Body, Systemprompt und optional den creation-Block.
+ *
+ * **Drei Frontmatter-Faelle, die der Parser unterscheidet** (relevante
+ * Mechanik fuer alle Konsumenten — siehe auch
+ * `docs/architecture/template-system.md` Abschnitt "Frontmatter-Field-Mechanik"):
+ *
+ *   1. `key: {{variable|description}}`
+ *      → Feld mit `description` aus dem Token.
+ *      → Erscheint im LLM-Schema (Auto-Schema + REQUIRED FIELDS).
+ *
+ *   2. `key: value`  (ohne {{...}}-Token)
+ *      → Feld mit `description = ''` und `rawValue = value`.
+ *      → Wird vom Schema-Generator GEFILTERT (siehe
+ *        `template-service-mongodb.ts:generateResponseSchemaFromFields`).
+ *      → Erscheint NUR als statischer Frontmatter-Wert im Output.
+ *
+ *   3. `# kommentar`
+ *      → Wird vom Field-Regex nicht erfasst, vom Parser ignoriert.
+ *      → Reine Doku fuer Template-Autoren.
+ *
+ * **Spezial-Mechanik fuer `detailViewType`:** dieses Feld wird ZUSAETZLICH
+ * separat extrahiert in `metadata.detailViewType` (Zeile 48-63), erscheint
+ * aber AUCH als generic Field im fields-Array (Fall 2). Wer das Feld dann
+ * im Serializer mehrfach schreibt, erzeugt YAML-Duplikate. Der aktuelle
+ * Serializer (`template-service-mongodb.ts`) prueft das explizit ab.
+ *
+ * Wenn neue "Sonderfelder" hinzukommen, die zentral in metadata.* abgelegt
+ * werden sollen: pruefen, ob der Parser sie ggf. aus dem fields-Array
+ * filtern muss, um den gleichen Bug zu vermeiden.
  */
 
 import type { ParsedTemplate, TemplateMetadataSchema, TemplateMetadataField, TemplateCreationConfig, TemplateValidationError, CreationFlowStepPreset, TemplatePreviewDetailViewType } from './template-types'

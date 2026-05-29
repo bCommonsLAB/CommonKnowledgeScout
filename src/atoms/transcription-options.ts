@@ -1,3 +1,28 @@
+/**
+ * @fileoverview Auswahl-Atome fuer die Multi-Select-Checkboxen in der Dateiliste.
+ *
+ * @description
+ * Die File-List verteilt markierte Items auf ZWEI globale Jotai-Atome, je
+ * nach Medientyp. Dieser Trennschnitt ist historisch gewachsen (Sammel-
+ * Transkript fuer Audio/Video, eigene Aktionen fuer Bilder/PDFs) — er ist
+ * NICHT offensichtlich am Atom-Namen ablesbar und hat in der DIVA-Texture-
+ * Bulk-Dialog-Arbeit (Mai 2026) Verwirrung erzeugt.
+ *
+ * **Mapping (siehe `mediaKindToMediaType` unten + `isItemSelected` in
+ * `file-list.tsx`):**
+ *
+ *   selectedBatchItemsAtom         ← audio, video
+ *   selectedTransformationItemsAtom ← pdf, image, docx, xlsx, pptx, markdown
+ *
+ * **Konsequenz fuer Konsumenten:** Wer "alle markierten Dateien" lesen
+ * will, muss BEIDE Atome lesen und konkatenieren — z.B. der Bulk-Process-
+ * Dialog (`pdf-bulk-import-dialog.tsx`). Wer nur Audio/Video-spezifische
+ * Aktionen braucht (Sammel-Transkript), liest nur das erste Atom.
+ *
+ * **Folge-Refactor-Idee:** ein einzelnes `selectedFilesAtom: Set<itemId>`
+ * + Helper-Selektoren je Medientyp wuerde das vereinfachen — bis dahin
+ * gilt: BEIDE Atome lesen, wenn das Feature alle Medientypen unterstuetzt.
+ */
 import { atom } from 'jotai';
 import { StorageItem } from '@/lib/storage/types';
 // Zentrale Medientyp-Definitionen für Konvertierung
