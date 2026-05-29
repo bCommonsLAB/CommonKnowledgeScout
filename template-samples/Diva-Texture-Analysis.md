@@ -105,10 +105,13 @@ Rolle:
 
 Eingabe-Blöcke (vom System mitgesendet):
 - BILDER (ab Pipeline-Stufe 3, Update 2): Es werden in der Regel ZWEI Bilder gesendet:
-  - Bild 1 = Basecolor-Ausschnitt der Textur (Center-Crop, ~360x360 px) aus der
-    Original-Bitmap im Filesystem. Die echte Realgroesse des Ausschnitts steht
-    in CONTEXT.basecolor_crop_cm (z.B. "3.0x3.0" cm) — beruecksichtige das fuer
-    pattern_scale (fine/small/medium/large).
+  - Bild 1 = Basecolor-Ausschnitt der Textur aus der Original-Bitmap im Filesystem.
+    Der Ausschnitt zeigt IMMER 4 x 4 cm physisches Material (Center-Crop). Die
+    Pixel-Kante variiert je nach Source-DPI (typisch 113–512 px) — sie ist fuer
+    die Inhalts-Klassifikation aber egal, weil die Realgroesse konstant bleibt.
+    Die echte Realgroesse steht zur Sicherheit in CONTEXT.basecolor_crop_cm
+    (in der Regel "4.0x4.0" cm; abweichend nur bei Source-Bildern, die selbst
+    kleiner als 4 cm sind — dann steht dort die tatsaechliche Voll-Bild-Groesse).
   - Bild 2 = Liefersystem-Preview aus den Stammdaten (LIEFERSYSTEM.Image).
     Kann fehlen, wenn die URL tot/nicht erreichbar ist; dann kommt nur Bild 1.
 - CONTEXT: Datei-Metadaten zur Quelldatei (siehe unten).
@@ -200,12 +203,15 @@ CONTEXT-Block (automatisch vom System mitgesendet):
 - CONTEXT.filePath: Voller Verzeichnispfad
 - CONTEXT.fileModifiedAt: Änderungsdatum (ISO-Format)
 - CONTEXT.basecolor_crop_cm (ab Update 2): Realgroesse des gesendeten Basecolor-
-  Ausschnitts in Zentimetern als "BxH"-String, z.B. "3.0x3.0". Berechnet aus
-  DPI des Originals. Nutze diese Angabe bei der pattern_scale-Schaetzung — ein
-  in 3 cm sichtbares Korn ist "small", ein in 3 cm grossflaechiges Muster
-  "large". Fehlt der Wert (z.B. weil DPI unbekannt war), fehlt auch die
-  physikalische Referenz — pattern_scale dann konservativ schaetzen und
-  confidence_visual senken.
+  Ausschnitts in Zentimetern als "BxH"-String, in der Regel "4.0x4.0".
+  Berechnet aus der DPI des Originals; weicht nur ab, wenn das Original selbst
+  kleiner als 4 cm in einer Dimension ist (Voll-Bild-Fallback). Nutze diese
+  Angabe bei der pattern_scale-Schaetzung — ein in 4 cm gerade noch erkennbares
+  Korn ist "fine"/"small", ein Muster, das in 4 cm nur wenige Repetitionen
+  zeigt, ist "medium", und ein Muster, das in 4 cm flaechenfuellend nur ein
+  bis zwei Mal vorkommt, ist "large". Fehlt der Wert (z.B. weil DPI unbekannt
+  war), fehlt auch die physikalische Referenz — pattern_scale dann konservativ
+  schaetzen und confidence_visual senken.
 
 HINWEIS: Technische Bild-Metadaten (Pixel, DPI, Bittiefe etc.) werden von der Pipeline
 programmatisch extrahiert und NACH der LLM-Analyse ins Frontmatter gemergt – sie sind

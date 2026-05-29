@@ -136,4 +136,28 @@ describe('Diva-Texture-Analysis.md — Struktur', () => {
     expect(schema).not.toContain('analysisRuns')
     expect(schema).not.toContain('detailViewType')
   })
+
+  it('serialisiert detailViewType genau einmal ins Frontmatter (kein YAML-Duplikat)', () => {
+    // Regression: der Parser nimmt `detailViewType: divaTexture` als generisches
+    // field auf, das Serialize-1.5 haengt es ZUSAETZLICH an. Folge waren zwei
+    // identische YAML-Zeilen im Output. Jetzt darf jeder Key nur einmal vorkommen.
+    const tpl = deserializeTemplateFromMarkdown(content, 'Diva-Texture-Analysis', 'lib', 'u@example.com')
+    const md = serializeTemplateToMarkdown(tpl, false)
+    const frontmatter = md.split('--- systemprompt')[0] ?? md
+    const matches = frontmatter.match(/^detailViewType:\s*\S+/gm) ?? []
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toBe('detailViewType: divaTexture')
+  })
+
+  it('System-Prompt referenziert die 4-cm-Crop-Strategie (nicht das veraltete ~360 px)', () => {
+    // Regression: nach der Crop-Umstellung auf konstant 4 x 4 cm physisch + max
+    // 512 px duerfen die alten "Center-Crop, ~360x360 px" und "z.B. \"3.0x3.0\""
+    // Beispiele nicht mehr im System-Prompt stehen, sonst widersprechen sie der
+    // tatsaechlich vom CONTEXT.basecolor_crop_cm gelieferten Realgroesse.
+    const { template } = parseTemplate(content, 'Diva-Texture-Analysis')
+    const prompt = template.systemprompt
+    expect(prompt).not.toMatch(/360x360/)
+    expect(prompt).not.toContain('"3.0x3.0"')
+    expect(prompt).toMatch(/4 x 4 cm|4\.0x4\.0/)
+  })
 })
