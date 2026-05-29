@@ -17,7 +17,6 @@ import * as React from 'react'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -100,13 +99,12 @@ export function DivaBasecolorCropDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      {/* aria-describedby=undefined: wir haben bewusst KEINE DialogDescription
+          (der fruehere Text war ein Entwickler-Hinweis, kein User-Text) —
+          das unterdrueckt die Radix-a11y-Warnung sauber. */}
+      <DialogContent className="max-w-2xl" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>An das LLM gesendeter Basecolor-Ausschnitt</DialogTitle>
-          <DialogDescription>
-            Exakt das Bild, das der Pass-1-Lauf an den Image-Analyzer schickt — berechnet
-            mit demselben Helper wie die Pipeline (keine doppelte Logik).
-          </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col items-center gap-3">
