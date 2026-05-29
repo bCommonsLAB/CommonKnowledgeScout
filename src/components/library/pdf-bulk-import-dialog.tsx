@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { activeLibraryIdAtom, currentFolderIdAtom, activeLibraryAtom } from '@/atoms/library-atom';
-import { selectedBatchItemsAtom } from '@/atoms/transcription-options';
+import { selectedBatchItemsAtom, selectedTransformationItemsAtom } from '@/atoms/transcription-options';
 import { useStorage } from '@/contexts/storage-context';
 import { StorageItem } from '@/lib/storage/types';
 import { Button } from '@/components/ui/button';
@@ -64,7 +64,17 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
   const activeLibrary = useAtomValue(activeLibraryAtom);
   const pdfOverrides = useAtomValue(pdfOverridesAtom);
   // Markierte Dateien aus der File-List (Multi-Select-Checkboxen).
-  const selectedBatchItems = useAtomValue(selectedBatchItemsAtom);
+  // Die File-List trennt nach Medientyp in zwei Atome:
+  //  - selectedBatchItemsAtom         = audio/video
+  //  - selectedTransformationItemsAtom = image/document/text (z.B. Texturen)
+  // Wir kombinieren beide, weil der Dialog jeden pipeline-faehigen Mime-Type
+  // verarbeitet — die Trennung interessiert hier nicht.
+  const selectedAudioVideo = useAtomValue(selectedBatchItemsAtom);
+  const selectedDocsTexts = useAtomValue(selectedTransformationItemsAtom);
+  const selectedFiles = useMemo(
+    () => [...selectedAudioVideo, ...selectedDocsTexts],
+    [selectedAudioVideo, selectedDocsTexts],
+  );
 
   // Lade targetLanguage aus Library-Config (config.chat.targetLanguage)
   const libraryConfigChatTargetLanguage = activeLibrary?.config?.chat?.targetLanguage;
@@ -182,7 +192,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
     let total = 0;
     let skipped = 0;
     const selected: Array<{ file: StorageItem; parentId: string }> = [];
-    for (const entry of selectedBatchItems) {
+    for (const entry of selectedFiles) {
       const file = entry.item;
       if (file.type !== 'file') continue;
       total++;
@@ -194,7 +204,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
       selected.push({ file, parentId: file.parentId });
     }
     return { total, skipped, selected };
-  }, [selectedBatchItems]);
+  }, [selectedFiles]);
 
   /**
    * Laedt Kandidaten je nach `sourceMode`:
@@ -260,7 +270,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
     setGenerateCoverImage(activeLibrary?.config?.secretaryService?.generateCoverImage === true);
     // Initial-Quelle: wenn der User vorher Dateien markiert hat, nehmen wir
     // diese Auswahl als Default — sonst rekursiver Ordner-Scan wie bisher.
-    setSourceMode(selectedBatchItems.length > 0 ? 'selection' : 'directory');
+    setSourceMode(selectedFiles.length > 0 ? 'selection' : 'directory');
     // Batch-Name vorbelegen: relativer Pfad des aktuellen Ordners (ohne führenden '/')
     (async () => {
       try {
@@ -277,7 +287,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
         // ignorieren
       }
     })();
-  }, [open, provider, rootFolderId, selectedBatchItems.length, activeLibrary?.config?.secretaryService?.generateCoverImage]);
+  }, [open, provider, rootFolderId, selectedFiles.length, activeLibrary?.config?.secretaryService?.generateCoverImage]);
 
   // Quelle gewechselt (oder Dialog frisch geoeffnet mit gesetztem Modus)
   // → Kandidaten entsprechend frisch laden. Getrennt vom Open-useEffect,
@@ -407,7 +417,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
         {/* Quelle-Umschalter: erscheint nur, wenn ueberhaupt eine Auswahl
             vorhanden ist (sonst sind beide Optionen identisch sinnlos).
             Disabled-Optik fuer den anderen Modus, klickbar zum Wechseln. */}
-        {selectedBatchItems.length > 0 && (
+        {selectedFiles.length > 0 && (
           <div className="flex items-center gap-1 rounded-md border bg-muted/30 p-1 text-sm">
             <button
               type="button"
@@ -419,7 +429,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
                   : 'text-muted-foreground hover:bg-background/50'
               }`}
             >
-              Auswahl ({selectedBatchItems.length})
+              Auswahl ({selectedFiles.length})
             </button>
             <button
               type="button"
