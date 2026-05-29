@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { activeLibraryIdAtom, currentFolderIdAtom, activeLibraryAtom } from '@/atoms/library-atom';
+import { selectedBatchItemsAtom } from '@/atoms/transcription-options';
 import { useStorage } from '@/contexts/storage-context';
 import { StorageItem } from '@/lib/storage/types';
 import { Button } from '@/components/ui/button';
@@ -45,13 +46,26 @@ interface ScanStats {
   toProcess: number;
 }
 
+/**
+ * Quelle der Batch-Kandidaten:
+ *  - 'selection' = Dateien, die in der File-List per Checkbox markiert wurden
+ *    (aus `selectedBatchItemsAtom`); kein rekursiver Scan.
+ *  - 'directory' = rekursiver Scan des aktuellen Ordners (Default ohne Auswahl).
+ *
+ * Initial-Modus wird beim Oeffnen aus der Auswahl abgeleitet: Auswahl > 0 → 'selection'.
+ * Nutzer kann jederzeit umschalten ueber den Toggle im Dialog-Header.
+ */
+type CandidateSource = 'selection' | 'directory';
+
 export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogProps) {
   const { provider } = useStorage();
   const rootFolderId = useAtomValue(currentFolderIdAtom);
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const activeLibrary = useAtomValue(activeLibraryAtom);
   const pdfOverrides = useAtomValue(pdfOverridesAtom);
-  
+  // Markierte Dateien aus der File-List (Multi-Select-Checkboxen).
+  const selectedBatchItems = useAtomValue(selectedBatchItemsAtom);
+
   // Lade targetLanguage aus Library-Config (config.chat.targetLanguage)
   const libraryConfigChatTargetLanguage = activeLibrary?.config?.chat?.targetLanguage;
   const libraryConfigPdfTemplate = activeLibrary?.config?.secretaryService?.template;
@@ -63,10 +77,12 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
   const [previewItems, setPreviewItems] = useState<Array<{ id: string; name: string; relPath: string; pages?: number }>>([]);
   const [stats, setStats] = useState<ScanStats>({ totalFiles: 0, skippedExisting: 0, toProcess: 0 });
   const [batchName, setBatchName] = useState<string>('');
-  /** Optional: z. B. `*_basecolor*` — nur passende Dateinamen in Liste & Jobs */
+  /** Nach Dateinamen-Muster (Glob mit *); leer = alle Kandidaten */
   const [fileNamePattern, setFileNamePattern] = useState<string>('');
   // Set mit IDs der abgewaehlten Dateien (standardmaessig alle ausgewaehlt)
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
+  // Quelle der Kandidaten — siehe CandidateSource oben.
+  const [sourceMode, setSourceMode] = useState<CandidateSource>('directory');
 
   // Phasensteuerung: Standard nur Phase 1 (Extraktion)
   const [runMetaPhase, setRunMetaPhase] = useState<boolean>(true); // Phase 2 standardmäßig aktiv
@@ -152,13 +168,50 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
     return { total, skipped, selected, previews };
   }, [provider, getBaseName, hasTwinInFolder, activeLibraryId]);
 
+  /**
+   * Baut die Kandidaten-Liste aus der vom Nutzer markierten Auswahl
+   * (`selectedBatchItemsAtom`). Kein rekursiver Scan — die parentId wird
+   * direkt aus dem StorageItem genommen. Unsupported-MimeTypes werden
+   * herausgefiltert (gleiches Kriterium wie der Directory-Scan).
+   */
+  const buildSelectionCandidates = useCallback((): {
+    total: number;
+    skipped: number;
+    selected: Array<{ file: StorageItem; parentId: string }>;
+  } => {
+    let total = 0;
+    let skipped = 0;
+    const selected: Array<{ file: StorageItem; parentId: string }> = [];
+    for (const entry of selectedBatchItems) {
+      const file = entry.item;
+      if (file.type !== 'file') continue;
+      total++;
+      const mediaKind = getMediaKind(file);
+      if (!isPipelineSupported(mediaKind)) {
+        skipped++;
+        continue;
+      }
+      selected.push({ file, parentId: file.parentId });
+    }
+    return { total, skipped, selected };
+  }, [selectedBatchItems]);
+
+  /**
+   * Laedt Kandidaten je nach `sourceMode`:
+   *  - 'selection': aus dem Atom (instant, kein Storage-Call zum Listen)
+   *  - 'directory': rekursiver Scan ab `rootFolderId`
+   * Berechnet jeweils anschliessend die relPath-Vorschau (gemeinsamer Loop).
+   */
   const handleScan = useCallback(async () => {
-    if (!provider || !rootFolderId) return;
+    if (!provider) return;
+    if (sourceMode === 'directory' && !rootFolderId) return;
     setIsScanning(true);
     setCandidates([]);
     setPreviewItems([]);
     try {
-      const result = await scanFolder(rootFolderId);
+      const result = sourceMode === 'selection'
+        ? buildSelectionCandidates()
+        : await scanFolder(rootFolderId as string);
       setCandidates(result.selected);
       setExcludedIds(new Set());
       // Vorschau-Details fuer alle Kandidaten berechnen
@@ -170,7 +223,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
         if (relPath === undefined) {
           try {
             const chain = await provider.getPathItemsById(parentId);
-            const idx = chain.findIndex((it) => it.id === rootFolderId);
+            const idx = rootFolderId ? chain.findIndex((it) => it.id === rootFolderId) : -1;
             const start = idx >= 0 ? idx + 1 : 1;
             const parts = chain.slice(start).map((it) => it.metadata.name).filter(Boolean);
             relPath = parts.length ? parts.join('/') : '.';
@@ -186,37 +239,53 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
     } finally {
       setIsScanning(false);
     }
-  }, [provider, rootFolderId, scanFolder]);
+  }, [provider, rootFolderId, scanFolder, sourceMode, buildSelectionCandidates]);
 
+  // Open-Edge-Detection: Init-Sequenz (Phasen-Defaults + sourceMode + batchName)
+  // soll NUR beim Uebergang false → true laufen — nicht jedes Mal, wenn
+  // `activeLibrary` o.ae. waehrend offenem Dialog ein Update triggert (sonst
+  // wuerde ein manuell umgeschalteter sourceMode zurueckspringen).
+  const wasOpenRef = useRef(false);
   useEffect(() => {
-    if (open) {
-      // Beim Öffnen immer Standard setzen: alle Phasen an, Erzwingen aus
-      setRunMetaPhase(true);
-      setRunIngestionPhase(true);
-      setForceExtract(false);
-      setForceMeta(false);
-      // Cover-Bild aus Library-Config initialisieren
-      setGenerateCoverImage(activeLibrary?.config?.secretaryService?.generateCoverImage === true);
-      // Bei Öffnen initial Scannen
-      void handleScan();
-      // Batch-Name vorbelegen: relativer Pfad des aktuellen Ordners (ohne führenden '/')
-      (async () => {
-        try {
-          if (!provider || !rootFolderId) return;
-          // Inklusive aktuellem Ordnernamen
-          const chain = await provider.getPathItemsById(rootFolderId);
-          const parts = chain
-            .filter((it) => it.id !== 'root')
-            .map((it) => (it as { metadata?: { name?: string } }).metadata?.name)
-            .filter((n): n is string => typeof n === 'string' && !!n);
-          const rel = parts.join('/') || 'root';
-          setBatchName((prev) => prev && prev.trim().length > 0 ? prev : rel);
-        } catch {
-          // ignorieren
-        }
-      })();
-    }
-  }, [open, handleScan, provider, rootFolderId]);
+    const justOpened = open && !wasOpenRef.current;
+    wasOpenRef.current = open;
+    if (!justOpened) return;
+
+    // Beim Öffnen immer Standard setzen: alle Phasen an, Erzwingen aus
+    setRunMetaPhase(true);
+    setRunIngestionPhase(true);
+    setForceExtract(false);
+    setForceMeta(false);
+    // Cover-Bild aus Library-Config initialisieren
+    setGenerateCoverImage(activeLibrary?.config?.secretaryService?.generateCoverImage === true);
+    // Initial-Quelle: wenn der User vorher Dateien markiert hat, nehmen wir
+    // diese Auswahl als Default — sonst rekursiver Ordner-Scan wie bisher.
+    setSourceMode(selectedBatchItems.length > 0 ? 'selection' : 'directory');
+    // Batch-Name vorbelegen: relativer Pfad des aktuellen Ordners (ohne führenden '/')
+    (async () => {
+      try {
+        if (!provider || !rootFolderId) return;
+        // Inklusive aktuellem Ordnernamen
+        const chain = await provider.getPathItemsById(rootFolderId);
+        const parts = chain
+          .filter((it) => it.id !== 'root')
+          .map((it) => (it as { metadata?: { name?: string } }).metadata?.name)
+          .filter((n): n is string => typeof n === 'string' && !!n);
+        const rel = parts.join('/') || 'root';
+        setBatchName((prev) => prev && prev.trim().length > 0 ? prev : rel);
+      } catch {
+        // ignorieren
+      }
+    })();
+  }, [open, provider, rootFolderId, selectedBatchItems.length, activeLibrary?.config?.secretaryService?.generateCoverImage]);
+
+  // Quelle gewechselt (oder Dialog frisch geoeffnet mit gesetztem Modus)
+  // → Kandidaten entsprechend frisch laden. Getrennt vom Open-useEffect,
+  // damit ein manueller Toggle nicht die ganze Init-Sequenz neu auslost.
+  useEffect(() => {
+    if (!open) return;
+    void handleScan();
+  }, [open, sourceMode, handleScan]);
 
   // keine lokale Optionsbearbeitung nötig; Änderungen erfolgen im Settings-Dialog
 
@@ -321,15 +390,51 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
-            <span>Verzeichnis verarbeiten</span>
+            <span>
+              {sourceMode === 'selection' ? 'Auswahl verarbeiten' : 'Verzeichnis verarbeiten'}
+            </span>
             <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)} title="Standardwerte öffnen">
               <Settings className="h-4 w-4" />
             </Button>
           </DialogTitle>
           <DialogDescription>
-            Verarbeitet alle unterstützten Dateitypen (PDF, Audio, Video, Markdown) im aktuellen Verzeichnis.
+            {sourceMode === 'selection'
+              ? 'Verarbeitet die in der Dateiliste markierten Dateien.'
+              : 'Verarbeitet alle unterstützten Dateitypen (PDF, Audio, Video, Markdown) im aktuellen Verzeichnis.'}
           </DialogDescription>
         </DialogHeader>
+
+        {/* Quelle-Umschalter: erscheint nur, wenn ueberhaupt eine Auswahl
+            vorhanden ist (sonst sind beide Optionen identisch sinnlos).
+            Disabled-Optik fuer den anderen Modus, klickbar zum Wechseln. */}
+        {selectedBatchItems.length > 0 && (
+          <div className="flex items-center gap-1 rounded-md border bg-muted/30 p-1 text-sm">
+            <button
+              type="button"
+              onClick={() => setSourceMode('selection')}
+              disabled={isScanning || isEnqueuing}
+              className={`flex-1 rounded px-3 py-1.5 transition-colors ${
+                sourceMode === 'selection'
+                  ? 'bg-background shadow-sm font-medium'
+                  : 'text-muted-foreground hover:bg-background/50'
+              }`}
+            >
+              Auswahl ({selectedBatchItems.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setSourceMode('directory')}
+              disabled={isScanning || isEnqueuing}
+              className={`flex-1 rounded px-3 py-1.5 transition-colors ${
+                sourceMode === 'directory'
+                  ? 'bg-background shadow-sm font-medium'
+                  : 'text-muted-foreground hover:bg-background/50'
+              }`}
+            >
+              Ganzes Verzeichnis
+            </button>
+          </div>
+        )}
 
         <div className="space-y-4">
           {/* Hinweisblock entfernt: Idempotenz/Gates übernehmen das Überspringen automatisch */}
@@ -442,7 +547,9 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
                 </div>
               </div>
               <Button variant="outline" size="sm" onClick={handleScan} disabled={isScanning}>
-                {isScanning ? 'Scan läuft…' : 'Neu scannen'}
+                {isScanning
+                  ? (sourceMode === 'selection' ? 'Auswahl wird geladen…' : 'Scan läuft…')
+                  : (sourceMode === 'selection' ? 'Auswahl neu laden' : 'Neu scannen')}
               </Button>
             </div>
             <Separator className="my-3" />
@@ -482,7 +589,11 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
             )}
             <ScrollArea className="h-52">
               {previewItems.length === 0 ? (
-                <div className="text-sm text-muted-foreground">Keine Kandidaten gefunden.</div>
+                <div className="text-sm text-muted-foreground">
+                  {sourceMode === 'selection'
+                    ? 'Keine unterstützten Dateien in der Auswahl.'
+                    : 'Keine Kandidaten gefunden.'}
+                </div>
               ) : matchingCandidates.length === 0 ? (
                 <div className="text-sm text-muted-foreground">Keine Datei passt zum Muster. Muster leeren oder anpassen.</div>
               ) : (
