@@ -237,6 +237,7 @@ export function GalleryRoot({
     onlyFavoritesActive || onlyStarredActive || onlyCommentedActive
   const sortParam = searchParams?.get('sort')
   const sortByStarsActive = sortParam === 'stars' && isLibraryMember
+  const sortByRatingActive = sortParam === 'rating'
 
   const {
     docs,
@@ -253,6 +254,7 @@ export function GalleryRoot({
     refreshKey,
     groupByField,
     sortByStars: sortByStarsActive,
+    sortByRating: sortByRatingActive,
   })
   const { isOwner } = useIsLibraryOwner(libraryId)
 

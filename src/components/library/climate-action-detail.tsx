@@ -7,6 +7,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { AIGeneratedNotice } from "@/components/shared/ai-generated-notice";
 import { MarkdownPreview } from "./markdown-preview";
+import { ClimateActionRating } from "./climate-action-rating";
 import { cn } from "@/lib/utils";
 
 // Status-Mapping (wie im Teaser)
@@ -77,7 +78,29 @@ export interface ClimateActionDetailData {
   arbeitsgruppe?: string;
   /** Zuständigkeit (Ressort/Gemeinde) */
   lv_zustaendigkeit?: string;
-  
+
+  // ─── LLM-Bewertung (read-only, Welle "massnahmen-graph" 1) ───────────────
+  /** CO₂-Einsparpotenzial in kt/Jahr (Südtirol). */
+  co2_einsparung_kt?: number;
+  co2_einsparung_kt_begruendung?: string;
+  /** Durchsetzbarkeit 0..1. */
+  durchsetzbarkeit?: number;
+  durchsetzbarkeit_begruendung?: string;
+  /** Kosten in EUR (Größenordnung). */
+  kosten_eur?: number;
+  kosten_eur_begruendung?: string;
+  score_wirkung?: number;
+  score_soziales?: number;
+  score_struktur?: number;
+  score_bewusstsein?: number;
+  perspektiven_begruendung?: string;
+  /** Argmax der Scores: wirkung | soziales | struktur | bewusstsein. */
+  dominant_perspektive?: string;
+  /** LLM-Modell der Bewertung (Transparenz). */
+  bewertung_modell?: string;
+  /** Datum der Bewertung (YYYY-MM-DD). */
+  bewertung_stand?: string;
+
   // Legacy-Felder (für andere Klima-Templates)
   // category ist bereits oben definiert (Klima-spezifische Felder)
   /** Sektor (z.B. "Öffentlich", "Privat", "Industrie") */
@@ -259,6 +282,9 @@ export function ClimateActionDetail({
           </div>
         )}
       </section>
+
+      {/* KI-Bewertung (read-only): Kennzahlen + Perspektiven mit Begründung */}
+      <ClimateActionRating data={data} />
 
       {/* Akteure (nur anzeigen wenn vorhanden) */}
       {actors.length > 0 && (

@@ -112,6 +112,7 @@
   },
   "gallery": {
     "gallery": "Contenus",
+    "sortByRating": "Trier par note",
     "story": "Mode Histoire",
     "switchToStoryMode": "Voir en mode Histoire",
     "storyModeTooltip": "En mode Histoire, vous pouvez vous faire expliquer les contenus dans votre langue, votre profil d'intérêts et votre contexte.",
@@ -323,6 +324,21 @@
       "revisionsHide": "Masquer les versions",
       "onlySignedIn": "Connectez-vous pour voir ou laisser des commentaires.",
       "guestVisibilityHint": "Seuls les propriétaires et co-créateurs voient tous les commentaires. Vos publications ne sont visibles que par vous et l'équipe."
+    }
+  },
+  "climateRating": {
+    "title": "Évaluation IA (Tyrol du Sud)",
+    "co2": "Réduction CO₂ (kt/an)",
+    "durchsetzbarkeit": "Faisabilité",
+    "kosten": "Coût (EUR)",
+    "costUnknown": "Coût inconnu",
+    "dominant": "dominant",
+    "aiNotice": "Estimation IA",
+    "perspective": {
+      "wirkung": "Impact",
+      "soziales": "Qualité de vie et social",
+      "struktur": "Structure et cadre",
+      "bewusstsein": "Soutien et sensibilisation"
     }
   },
   "event": {

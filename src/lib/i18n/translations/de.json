@@ -113,6 +113,7 @@
   },
   "gallery": {
     "gallery": "Inhalte",
+    "sortByRating": "Nach Rating sortieren",
     "story": "Story Mode",
     "switchToStoryMode": "In Story Mode ansehen",
     "storyModeTooltip": "Im Story Mode kannst du dir die Inhalte in deiner Sprache, deinem Interessenprofil und deinem Kontext erklären lassen.",
@@ -350,6 +351,21 @@
       "revisionsHide": "Versionen ausblenden",
       "onlySignedIn": "Bitte anmelden, um Kommentare zu sehen oder zu hinterlassen.",
       "guestVisibilityHint": "Nur Owner und Co-Kreatoren sehen alle Kommentare. Deine Beiträge sind nur für dich und das Team sichtbar."
+    }
+  },
+  "climateRating": {
+    "title": "KI-Bewertung (Südtirol)",
+    "co2": "CO₂-Einsparung (kt/Jahr)",
+    "durchsetzbarkeit": "Durchsetzbarkeit",
+    "kosten": "Kosten (EUR)",
+    "costUnknown": "Kosten unbekannt",
+    "dominant": "dominant",
+    "aiNotice": "KI-Schätzung",
+    "perspective": {
+      "wirkung": "Wirkung",
+      "soziales": "Lebensqualität & Soziales",
+      "struktur": "Struktur & Rahmenbedingungen",
+      "bewusstsein": "Unterstützung & Bewusstsein"
     }
   },
   "event": {

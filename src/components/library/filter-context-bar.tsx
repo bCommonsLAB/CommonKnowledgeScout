@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Filter, X, MessageCircle, ArrowRight, Star, ArrowDownWideNarrow, Users } from 'lucide-react'
+import { Filter, X, MessageCircle, ArrowRight, Star, ArrowDownWideNarrow, Users, Gauge } from 'lucide-react'
 import { useAtomValue } from 'jotai'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { useTranslation } from '@/lib/i18n/hooks'
@@ -97,6 +97,7 @@ export function FilterContextBar({
   const onlyStarredActive = searchParams?.get('starred') === '1'
   const onlyCommentedActive = searchParams?.get('commented') === '1'
   const sortByStarsActive = searchParams?.get('sort') === 'stars'
+  const sortByRatingActive = searchParams?.get('sort') === 'rating'
 
   const toggleOnlyFavorites = () => {
     const params = new URLSearchParams(searchParams?.toString() ?? '')
@@ -126,6 +127,14 @@ export function FilterContextBar({
     const params = new URLSearchParams(searchParams?.toString() ?? '')
     if (sortByStarsActive) params.delete('sort')
     else params.set('sort', 'stars')
+    const qs = params.toString()
+    router.push(qs ? `${pathname}?${qs}` : pathname ?? '')
+  }
+
+  const toggleSortByRating = () => {
+    const params = new URLSearchParams(searchParams?.toString() ?? '')
+    if (sortByRatingActive) params.delete('sort')
+    else params.set('sort', 'rating')
     const qs = params.toString()
     router.push(qs ? `${pathname}?${qs}` : pathname ?? '')
   }
@@ -264,6 +273,24 @@ export function FilterContextBar({
             </span>
           </Button>
         )}
+        {/* Sortierung nach Rating (Prioritaets-Score): oeffentlich. */}
+        <Button
+          variant={sortByRatingActive ? 'secondary' : 'ghost'}
+          size="sm"
+          type="button"
+          onClick={toggleSortByRating}
+          aria-pressed={sortByRatingActive}
+          className={cn(
+            'h-7 px-2 shrink-0',
+            sortByRatingActive && 'text-green-700 dark:text-green-300',
+          )}
+          title={t('gallery.sortByRating', { defaultValue: 'Nach Rating sortieren' })}
+        >
+          <Gauge className="h-3.5 w-3.5 lg:mr-1" aria-hidden />
+          <span className="hidden lg:inline">
+            {t('gallery.sortByRating', { defaultValue: 'Nach Rating sortieren' })}
+          </span>
+        </Button>
       {/* Gefiltert-Badge - nur anzeigen wenn Filter aktiv sind */}
       {hasActiveFilters && (
         <div className="text-sm text-muted-foreground shrink-0">

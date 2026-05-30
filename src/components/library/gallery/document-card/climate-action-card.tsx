@@ -89,6 +89,16 @@ export function ClimateActionCard({
             <span className='text-xs font-mono text-white drop-shadow-lg'>
               {doc.massnahme_nr ? `Nr. ${doc.massnahme_nr}` : '–'}
             </span>
+            {/* Rating-Badge (read-only): Perzentil bevorzugt, sonst Roh-Wert.
+                "Kosten unbekannt" (rating === null) zeigt keinen Wert. */}
+            {typeof doc.ratingPercentile === 'number' && (
+              <span
+                className='rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm'
+                title='KI-Prioritäts-Score (0–100)'
+              >
+                ★ {doc.ratingPercentile}
+              </span>
+            )}
             <SourceStarsBadge
               libraryId={libraryId}
               fileId={doc.fileId}

@@ -112,6 +112,7 @@
   },
   "gallery": {
     "gallery": "Contenuti",
+    "sortByRating": "Ordina per valutazione",
     "story": "Modalità Storia",
     "switchToStoryMode": "Visualizza in modalità Storia",
     "storyModeTooltip": "Nella modalità Storia, puoi farti spiegare i contenuti nella tua lingua, nel tuo profilo di interessi e nel tuo contesto.",
@@ -323,6 +324,21 @@
       "revisionsHide": "Nascondi versioni",
       "onlySignedIn": "Accedi per visualizzare o lasciare commenti.",
       "guestVisibilityHint": "Solo proprietari e co-creatori vedono tutti i commenti. I tuoi post sono visibili solo a te e al team."
+    }
+  },
+  "climateRating": {
+    "title": "Valutazione IA (Alto Adige)",
+    "co2": "Riduzione CO₂ (kt/anno)",
+    "durchsetzbarkeit": "Fattibilità",
+    "kosten": "Costo (EUR)",
+    "costUnknown": "Costo sconosciuto",
+    "dominant": "dominante",
+    "aiNotice": "Stima IA",
+    "perspective": {
+      "wirkung": "Impatto",
+      "soziales": "Qualità della vita e sociale",
+      "struktur": "Struttura e condizioni quadro",
+      "bewusstsein": "Sostegno e consapevolezza"
     }
   },
   "event": {
