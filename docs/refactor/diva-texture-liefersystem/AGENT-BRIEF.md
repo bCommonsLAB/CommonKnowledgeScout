@@ -551,7 +551,8 @@ PR nachgezogen werden.
 
 ### A) Code/Pipeline
 
-1. **Re-Import-Overwrite** im Template-Import-Endpunkt.
+1. **Re-Import-Overwrite** im Template-Import-Endpunkt
+   ([Issue #67](https://github.com/bCommonsLAB/CommonKnowledgeScout/issues/67)).
    - **Heute:** `POST /api/templates/import` wirft `"Template existiert
      bereits"` bei bestehendem Template (siehe
      `src/lib/templates/template-import-export.ts:51-55`). User muss
@@ -561,6 +562,17 @@ PR nachgezogen werden.
      bestehende Zeile via `updateTemplateInMongoDB` ersetzt. UI-Button mit
      Confirm-Dialog. Verhindert Drift zwischen Repo-File und DB.
    - **Aufwand:** ~30 Zeilen Code + 1-2 Tests.
+
+1a. **`PdfBulkImportDialog` Naming-Drift**
+    ([Issue #68](https://github.com/bCommonsLAB/CommonKnowledgeScout/issues/68)).
+    - **Heute:** Komponente heisst `PdfBulkImportDialog` / Datei
+      `pdf-bulk-import-dialog.tsx`, verarbeitet aber laengst alle
+      Medientypen (Update 3: Bild-Bulk genutzt fuer 230 DIVA-Texturen).
+      Eigene Code-Kommentare bestaetigen: `// Rueckwaertskompatible
+      Props-Benennung (Dialog unterstuetzt jetzt alle Medientypen)`.
+    - **Idee:** Rename auf `BulkProcessingDialog` /
+      `bulk-processing-dialog.tsx` in eigenem kleinen PR.
+    - **Aufwand:** ~15 Minuten (git mv + 1 Import-Update + Tests laufen).
 
 2. **`expectedFields` vs. `REQUIRED FIELDS` synchron halten.**
    - **Heute:** der CONTEXT-Block listet 20 Felder unter `expectedFields`,
