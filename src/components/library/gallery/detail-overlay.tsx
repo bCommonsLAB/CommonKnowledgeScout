@@ -3,7 +3,7 @@
 import React from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { X, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
+import { X, ExternalLink, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react'
 import { useUserStates } from '@/hooks/gallery/use-user-states'
 import { findDocMetaByFileId } from '@/lib/gallery/apply-favorite-optimistic'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
@@ -126,6 +126,12 @@ export function DetailOverlay({
   )
 
   const starMeta = findDocMetaByFileId(doc, fileId, siblingDocs)
+
+  // Ref auf die Kommentar-Sektion, damit der Header-Button dorthin scrollt.
+  const commentsRef = React.useRef<HTMLDivElement | null>(null)
+  const scrollToComments = React.useCallback(() => {
+    commentsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [])
 
   // Bewertungsmodus: lokaler State (kein URL-Param, weil die Detail-Overlay
   // an `?doc=` haengt und den Mode ohnehin nicht ueberlebt).
@@ -272,6 +278,22 @@ export function DetailOverlay({
                   size='md'
                 />
               )}
+              {/* Kommentar-Button: springt zur Kommentar-Sektion unten (mit Counter). */}
+              {isSignedIn && fileId && (
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  type='button'
+                  onClick={(e) => { e.stopPropagation(); scrollToComments() }}
+                  className='gap-1 text-xs'
+                  title={t('gallery.comments.sectionTitle', { defaultValue: 'Kommentare' })}
+                >
+                  <MessageCircle className='h-4 w-4' aria-hidden />
+                  {typeof starMeta?.commentCount === 'number' && starMeta.commentCount > 0 ? (
+                    <span className='tabular-nums'>{starMeta.commentCount}</span>
+                  ) : null}
+                </Button>
+              )}
               {/* Link zur Original-Webseite (nur fuer Sessions mit URL) */}
               {viewType === 'session' && sessionUrl && (
                 <Button variant='ghost' size='sm' asChild className='text-xs'>
@@ -354,7 +376,7 @@ export function DetailOverlay({
           />
           {/* Kommentare: sehen + selbst schreiben (Sichtbarkeit/Rollen im Panel). */}
           {isSignedIn && fileId ? (
-            <div className='border-t p-6 space-y-3'>
+            <div ref={commentsRef} className='border-t p-6 space-y-3'>
               <h3 className='text-sm font-semibold'>
                 {t('gallery.comments.sectionTitle', { defaultValue: 'Kommentare' })}
               </h3>
