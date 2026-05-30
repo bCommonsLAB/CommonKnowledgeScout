@@ -9,9 +9,8 @@ import { findDocMetaByFileId } from '@/lib/gallery/apply-favorite-optimistic'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
 import { useTinderSequencer } from '@/hooks/gallery/use-tinder-sequencer'
 import { SourceStarsCell } from './source-stars-cell'
-import { TinderModeToggle } from './tinder/tinder-mode-toggle'
-import { TinderStatusBar } from './tinder/tinder-status-bar'
-import { TinderSwipeFrame } from './tinder/tinder-swipe-frame'
+import { RatingModeBar } from './rating/rating-mode-bar'
+import { SourceCommentsPanel } from './source-comments-panel'
 import { IngestionBookDetail } from '@/components/library/ingestion-book-detail'
 import { IngestionSessionDetail } from '@/components/library/ingestion-session-detail'
 import { IngestionClimateActionDetail } from '@/components/library/ingestion-climate-action-detail'
@@ -92,7 +91,7 @@ export function DetailOverlay({
   onToggleFavorite,
 }: DetailOverlayProps) {
   const { t, locale } = useTranslation()
-  const { isMember } = useLibraryRole(libraryId)
+  const { isMember, isSignedIn } = useLibraryRole(libraryId)
   // Sichtbare/relevante fileIds: aktuelle Quelle + Geschwister fuer
   // den Tinder-Modus (sonst kann der Sequencer nicht filtern, was
   // bewertet wurde). Bei geschlossenem Overlay ist das Array leer.
@@ -128,19 +127,21 @@ export function DetailOverlay({
 
   const starMeta = findDocMetaByFileId(doc, fileId, siblingDocs)
 
-  // Tinder-Mode: lokaler State (kein URL-Param, weil die Detail-Overlay
+  // Bewertungsmodus: lokaler State (kein URL-Param, weil die Detail-Overlay
   // an `?doc=` haengt und den Mode ohnehin nicht ueberlebt).
-  const [tinderActive, setTinderActive] = React.useState(false)
+  const [ratingActive, setRatingActive] = React.useState(false)
   const [onlyUnrated, setOnlyUnrated] = React.useState(true)
   const sequencer = useTinderSequencer({
     docs: siblingDocs ?? [],
     currentFileId: fileId,
     isFavorite: isFavoriteForSequencer,
     isNotImportant,
-    onlyUnrated: tinderActive && onlyUnrated,
+    onlyUnrated: ratingActive && onlyUnrated,
   })
 
-  const handleSwipeRight = React.useCallback(async () => {
+  // "Wichtig & weiter": favorisiert die aktuelle Quelle (sofern noch nicht)
+  // und springt zur naechsten Quelle der Sequenz.
+  const handleRateImportant = React.useCallback(async () => {
     if (!fileId) return
     const meta = findDocMetaByFileId(doc, fileId, siblingDocs)
     if (meta?.isFavorite !== true) {
@@ -150,16 +151,17 @@ export function DetailOverlay({
     if (sequencer.nextDoc && onNavigateToDoc) onNavigateToDoc(sequencer.nextDoc)
   }, [fileId, doc, siblingDocs, onToggleFavorite, setUserState, sequencer.nextDoc, onNavigateToDoc])
 
-  const handleSwipeLeft = React.useCallback(async () => {
+  // "Nicht wichtig & weiter": markiert privat als nicht wichtig und springt weiter.
+  const handleRateNotImportant = React.useCallback(async () => {
     if (!fileId) return
     await setUserState(fileId, 'not_important')
     if (sequencer.nextDoc && onNavigateToDoc) onNavigateToDoc(sequencer.nextDoc)
   }, [fileId, setUserState, sequencer.nextDoc, onNavigateToDoc])
 
-  // Pfeile im Tinder-Mode folgen der Sequenz (gefiltert), sonst der vom
+  // Pfeile im Bewertungsmodus folgen der gefilterten Sequenz, sonst der vom
   // Aufrufer durchgereichten Liste.
-  const effectivePrevDoc = tinderActive ? sequencer.prevDoc : prevDoc ?? null
-  const effectiveNextDoc = tinderActive ? sequencer.nextDoc : nextDoc ?? null
+  const effectivePrevDoc = ratingActive ? sequencer.prevDoc : prevDoc ?? null
+  const effectiveNextDoc = ratingActive ? sequencer.nextDoc : nextDoc ?? null
 
   // Vorgemappte Detail-Daten (durch doc-meta Prefetch), bereits sprach-veredelt.
   const [prefetchedBookData, setPrefetchedBookData] = React.useState<BookDetailData | null>(null)
@@ -302,67 +304,63 @@ export function DetailOverlay({
             </div>
           </div>
 
-          {/* Share-Button + Story-Mode-Button (Tabs entfernt – globaler LanguageSwitcher) */}
+          {/* Share + Story-Mode (rechts) und darunter der Bewertungsmodus. */}
           {doc && (
-            <div className='flex items-center justify-between gap-2 flex-wrap'>
-              {/* Tinder-Mode-Toggle ist Member-only und erfordert mindestens eine
-                  Geschwister-Liste, sonst macht der Mode keinen Sinn. */}
+            <div className='flex flex-col gap-2'>
+              <div className='flex items-center gap-2 flex-wrap'>
+                <div className='ml-auto flex items-center gap-2'>
+                  <DocumentShareButton doc={doc} title={displayTitle} />
+                  <SwitchToStoryModeButton
+                    doc={doc}
+                    currentMode={currentMode}
+                    onClose={onClose}
+                    isSwitchingRef={isSwitchingRef}
+                  />
+                </div>
+              </div>
+              {/* Bewertungsmodus ist Member-only und braucht eine Geschwister-
+                  Liste, sonst macht das Durchgehen keinen Sinn. */}
               {isMember && Array.isArray(siblingDocs) && siblingDocs.length > 1 ? (
-                <TinderModeToggle
-                  active={tinderActive}
-                  onChange={setTinderActive}
-                  showOnlyUnratedToggle
+                <RatingModeBar
+                  active={ratingActive}
+                  onChange={setRatingActive}
                   onlyUnrated={onlyUnrated}
                   onChangeOnlyUnrated={setOnlyUnrated}
+                  total={sequencer.total}
+                  index={sequencer.index}
+                  unratedCount={sequencer.unratedCount}
+                  favoriteCount={sequencer.favoriteCount}
+                  notImportantCount={sequencer.notImportantCount}
+                  onRateImportant={handleRateImportant}
+                  onRateNotImportant={handleRateNotImportant}
+                  isCurrentFavorite={starMeta?.isFavorite === true}
+                  isCurrentNotImportant={fileId ? isNotImportant(fileId) : false}
+                  disabled={!fileId}
                 />
-              ) : <span />}
-              <div className='flex items-center gap-2 ml-auto'>
-                <DocumentShareButton doc={doc} title={displayTitle} />
-                <SwitchToStoryModeButton
-                  doc={doc}
-                  currentMode={currentMode}
-                  onClose={onClose}
-                  isSwitchingRef={isSwitchingRef}
-                />
-              </div>
+              ) : null}
             </div>
           )}
-
-          {tinderActive && isMember ? (
-            <TinderStatusBar
-              total={sequencer.total}
-              index={sequencer.index}
-              unratedCount={sequencer.unratedCount}
-              favoriteCount={sequencer.favoriteCount}
-              notImportantCount={sequencer.notImportantCount}
-            />
-          ) : null}
         </div>
 
         <ScrollArea className='flex-1 w-full overflow-hidden relative'>
-          {tinderActive && isMember && fileId ? (
-            <TinderSwipeFrame onSwipeLeft={handleSwipeLeft} onSwipeRight={handleSwipeRight}>
-              <DetailBody
-                viewType={viewType}
-                libraryId={libraryId}
-                fileId={fileId}
-                prefetchedSessionData={prefetchedSessionData}
-                prefetchedBookData={prefetchedBookData}
-                isDocMetaReady={isDocMetaReady}
-                fallbackLocale={fallbackLocale}
-              />
-            </TinderSwipeFrame>
-          ) : (
-            <DetailBody
-              viewType={viewType}
-              libraryId={libraryId}
-              fileId={fileId}
-              prefetchedSessionData={prefetchedSessionData}
-              prefetchedBookData={prefetchedBookData}
-              isDocMetaReady={isDocMetaReady}
-              fallbackLocale={fallbackLocale}
-            />
-          )}
+          <DetailBody
+            viewType={viewType}
+            libraryId={libraryId}
+            fileId={fileId}
+            prefetchedSessionData={prefetchedSessionData}
+            prefetchedBookData={prefetchedBookData}
+            isDocMetaReady={isDocMetaReady}
+            fallbackLocale={fallbackLocale}
+          />
+          {/* Kommentare: sehen + selbst schreiben (Sichtbarkeit/Rollen im Panel). */}
+          {isSignedIn && fileId ? (
+            <div className='border-t p-6 space-y-3'>
+              <h3 className='text-sm font-semibold'>
+                {t('gallery.comments.sectionTitle', { defaultValue: 'Kommentare' })}
+              </h3>
+              <SourceCommentsPanel libraryId={libraryId} fileId={fileId} open={open} />
+            </div>
+          ) : null}
         </ScrollArea>
       </div>
     </div>
