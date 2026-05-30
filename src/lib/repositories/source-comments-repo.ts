@@ -35,7 +35,7 @@
  */
 
 import { getCollection } from '@/lib/mongodb-service';
-import { ObjectId, type Collection, type WithId } from 'mongodb';
+import { ObjectId, type Collection, type Document, type WithId } from 'mongodb';
 import type {
   SourceComment,
   SourceCommentRevision,
@@ -43,6 +43,9 @@ import type {
 import { normalizeEmail } from '@/lib/auth/user-email';
 
 const COLLECTION_NAME = 'source_comments';
+
+/** Externer Name der `source_comments`-Collection fuer $lookup-Stages. */
+export const SOURCE_COMMENTS_COLLECTION = COLLECTION_NAME;
 
 /** Persistenz-Form (intern): wie SourceComment, aber ohne `id`-String */
 interface SourceCommentDoc {
@@ -318,4 +321,56 @@ export async function softDeleteComment(
     throw new SourceCommentNotFoundError(`softDeleteComment: Kommentar ${commentId} verschwunden`);
   }
   return toPublic(updated);
+}
+
+/**
+ * Liefert MongoDB-Aggregation-Stages, die `commentCount` (Anzahl nicht
+ * soft-geloeschter Kommentare) an Dokumente anhaengen. Wird von
+ * `findDocs`/`findDocsGrouped` im `vector-repo` parallel zum Sterne-Lookup
+ * verwendet, damit Galerie-Karten die Kommentar-Anzahl direkt aus dem
+ * gleichen Round-Trip bekommen.
+ *
+ * Member-only (analog `buildFavoriteLookupStages`): bei leerem `userEmail`
+ * liefert die Funktion bewusst leere Stages -> Gaeste/Anonyme bekommen
+ * keinen `commentCount` und damit kein Badge. Member sehen die Gesamtzahl
+ * aller (nicht geloeschten) Kommentare, nicht nur eigene.
+ */
+export function buildCommentLookupStages(
+  libraryId: string,
+  userEmail: string | null | undefined,
+): Document[] {
+  if (!libraryId) {
+    throw new Error('buildCommentLookupStages: libraryId ist erforderlich');
+  }
+  const normalized = userEmail ? normalizeEmail(userEmail) : '';
+  if (!normalized) return [];
+  return [
+    {
+      $lookup: {
+        from: SOURCE_COMMENTS_COLLECTION,
+        let: { fid: '$fileId' },
+        pipeline: [
+          {
+            $match: {
+              deletedAt: { $exists: false },
+              $expr: {
+                $and: [
+                  { $eq: ['$libraryId', libraryId] },
+                  { $eq: ['$fileId', '$$fid'] },
+                ],
+              },
+            },
+          },
+          { $count: 'n' },
+        ],
+        as: '__comments',
+      },
+    },
+    {
+      $addFields: {
+        commentCount: { $ifNull: [{ $arrayElemAt: ['$__comments.n', 0] }, 0] },
+      },
+    },
+    { $project: { __comments: 0 } },
+  ];
 }

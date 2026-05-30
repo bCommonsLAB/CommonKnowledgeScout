@@ -281,6 +281,10 @@
       "toggleAdd": "Ajouter aux favoris",
       "toggleRemove": "Retirer des favoris",
       "filterOnly": "Favoris uniquement",
+      "filterOnlyTooltip": "Uniquement mes favoris",
+      "starredFilter": "Avec étoiles",
+      "starredFilterTooltip": "Toutes les sources favorisées par au moins un membre",
+      "starredEmptyHint": "Aucune source avec étoile pour le moment.",
       "emptyHint": "Aucun favori pour le moment.",
       "sortByStars": "Trier par étoiles",
       "voterTooltipHeader": "Étoiles ({{count}})",
@@ -298,6 +302,10 @@
       "notImportant": "pas important"
     },
     "comments": {
+      "filter": "Avec commentaires",
+      "filterTooltip": "Uniquement les sources avec commentaires",
+      "filterEmptyHint": "Aucune source avec commentaires pour le moment.",
+      "badge": "{{count}} commentaires",
       "expand": "Déplier les commentaires",
       "collapse": "Replier les commentaires",
       "loading": "Chargement des commentaires...",

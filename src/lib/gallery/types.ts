@@ -146,6 +146,12 @@ export interface DocCardMeta {
    * (z.B. anonyme User), behandelt die UI das als `false`.
    */
   isFavorite?: boolean
+  /**
+   * Aggregierte Anzahl nicht-geloeschter Kommentare fuer dieses Dokument.
+   * Wird vom Galerie-Endpoint per `$lookup` mitgeliefert (member-only, wie
+   * die Sterne). Default/Nicht-Member: `undefined` -> UI behandelt als 0.
+   */
+  commentCount?: number
 }
 
 export interface ChapterInfo {

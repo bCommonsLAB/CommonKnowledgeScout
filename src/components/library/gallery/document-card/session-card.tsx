@@ -23,6 +23,7 @@ import { Calendar } from 'lucide-react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { SpeakerOrAuthorIcons } from '../speaker-icons'
 import { SourceStarsBadge } from '../source-stars-badge'
+import { SourceCommentsBadge } from '../source-comments-badge'
 
 export interface SessionCardProps {
   doc: DocCardMeta
@@ -110,16 +111,23 @@ export function SessionCard({ doc, onClick, libraryId, onToggleFavorite }: Sessi
         </div>
       )}
 
-      <SourceStarsBadge
-        libraryId={libraryId}
-        fileId={doc.fileId}
-        isFavorite={doc.isFavorite === true}
-        favoriteCount={doc.favoriteCount}
-        favoriteVoters={doc.favoriteVoters}
-        onToggleFavorite={onToggleFavorite}
-        variant='light'
-        className='absolute top-3 left-3 z-10'
-      />
+      <div className='absolute top-3 left-3 z-10 flex items-center gap-1.5'>
+        <SourceStarsBadge
+          libraryId={libraryId}
+          fileId={doc.fileId}
+          isFavorite={doc.isFavorite === true}
+          favoriteCount={doc.favoriteCount}
+          favoriteVoters={doc.favoriteVoters}
+          onToggleFavorite={onToggleFavorite}
+          variant='light'
+        />
+        <SourceCommentsBadge
+          libraryId={libraryId}
+          fileId={doc.fileId}
+          commentCount={doc.commentCount}
+          variant='light'
+        />
+      </div>
 
       {/* Hover-Linie unten */}
       <div className='absolute inset-x-0 bottom-0 h-1 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left' />

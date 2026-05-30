@@ -281,6 +281,10 @@
       "toggleAdd": "Añadir a favoritos",
       "toggleRemove": "Quitar de favoritos",
       "filterOnly": "Solo favoritos",
+      "filterOnlyTooltip": "Solo mis propios favoritos",
+      "starredFilter": "Con estrellas",
+      "starredFilterTooltip": "Todas las fuentes marcadas como favoritas por al menos un miembro",
+      "starredEmptyHint": "Aún ninguna fuente con estrella.",
       "emptyHint": "Aún no hay favoritos.",
       "sortByStars": "Ordenar por estrellas",
       "voterTooltipHeader": "Estrellas ({{count}})",
@@ -298,6 +302,10 @@
       "notImportant": "no importante"
     },
     "comments": {
+      "filter": "Con comentarios",
+      "filterTooltip": "Solo fuentes con comentarios",
+      "filterEmptyHint": "Aún ninguna fuente con comentarios.",
+      "badge": "{{count}} comentarios",
       "expand": "Expandir comentarios",
       "collapse": "Contraer comentarios",
       "loading": "Cargando comentarios...",

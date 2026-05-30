@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Filter, X, MessageCircle, ArrowRight, Star, ArrowDownWideNarrow } from 'lucide-react'
+import { Filter, X, MessageCircle, ArrowRight, Star, ArrowDownWideNarrow, Users } from 'lucide-react'
 import { useAtomValue } from 'jotai'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { useTranslation } from '@/lib/i18n/hooks'
@@ -94,12 +94,30 @@ export function FilterContextBar({
   const searchParams = useSearchParams()
   const { isMember } = useLibraryRole(libraryId)
   const onlyFavoritesActive = searchParams?.get('favorites') === '1'
+  const onlyStarredActive = searchParams?.get('starred') === '1'
+  const onlyCommentedActive = searchParams?.get('commented') === '1'
   const sortByStarsActive = searchParams?.get('sort') === 'stars'
 
   const toggleOnlyFavorites = () => {
     const params = new URLSearchParams(searchParams?.toString() ?? '')
     if (onlyFavoritesActive) params.delete('favorites')
     else params.set('favorites', '1')
+    const qs = params.toString()
+    router.push(qs ? `${pathname}?${qs}` : pathname ?? '')
+  }
+
+  const toggleOnlyStarred = () => {
+    const params = new URLSearchParams(searchParams?.toString() ?? '')
+    if (onlyStarredActive) params.delete('starred')
+    else params.set('starred', '1')
+    const qs = params.toString()
+    router.push(qs ? `${pathname}?${qs}` : pathname ?? '')
+  }
+
+  const toggleOnlyCommented = () => {
+    const params = new URLSearchParams(searchParams?.toString() ?? '')
+    if (onlyCommentedActive) params.delete('commented')
+    else params.set('commented', '1')
     const qs = params.toString()
     router.push(qs ? `${pathname}?${qs}` : pathname ?? '')
   }
@@ -155,7 +173,7 @@ export function FilterContextBar({
           <span className="hidden lg:inline">{t('gallery.filter')}</span>
         </Button>
         )}
-        {/* Quell-Favoriten-Filter: nur sichtbar fuer Owner / Co-Creators. */}
+        {/* "Nur Favoriten": nur die EIGENEN Sterne. Owner / Co-Creators only. */}
         {isMember && (
           <Button
             variant={onlyFavoritesActive ? 'secondary' : 'ghost'}
@@ -167,7 +185,9 @@ export function FilterContextBar({
               'h-7 px-2 shrink-0',
               onlyFavoritesActive && 'text-amber-700 dark:text-amber-300',
             )}
-            title={t('gallery.favorites.filterOnly', { defaultValue: 'Nur Favoriten' })}
+            title={t('gallery.favorites.filterOnlyTooltip', {
+              defaultValue: 'Nur meine eigenen Favoriten',
+            })}
           >
             <Star
               className={cn('h-3.5 w-3.5 lg:mr-1', onlyFavoritesActive && 'fill-current')}
@@ -175,6 +195,52 @@ export function FilterContextBar({
             />
             <span className="hidden lg:inline">
               {t('gallery.favorites.filterOnly', { defaultValue: 'Nur Favoriten' })}
+            </span>
+          </Button>
+        )}
+        {/* "Mit Sternen": Team-Aggregat - alle Quellen mit mind. 1 Stern
+            (irgendein Mitglied). Eigenes Icon (Team) zur Abgrenzung vom
+            persoenlichen Stern. */}
+        {isMember && (
+          <Button
+            variant={onlyStarredActive ? 'secondary' : 'ghost'}
+            size="sm"
+            type="button"
+            onClick={toggleOnlyStarred}
+            aria-pressed={onlyStarredActive}
+            className={cn(
+              'h-7 px-2 shrink-0',
+              onlyStarredActive && 'text-amber-700 dark:text-amber-300',
+            )}
+            title={t('gallery.favorites.starredFilterTooltip', {
+              defaultValue: 'Alle Quellen, die mindestens ein Mitglied favorisiert hat',
+            })}
+          >
+            <Users className="h-3.5 w-3.5 lg:mr-1" aria-hidden />
+            <span className="hidden lg:inline">
+              {t('gallery.favorites.starredFilter', { defaultValue: 'Mit Sternen' })}
+            </span>
+          </Button>
+        )}
+        {/* "Mit Kommentaren": alle Quellen mit mind. 1 Kommentar. Member-only. */}
+        {isMember && (
+          <Button
+            variant={onlyCommentedActive ? 'secondary' : 'ghost'}
+            size="sm"
+            type="button"
+            onClick={toggleOnlyCommented}
+            aria-pressed={onlyCommentedActive}
+            className={cn(
+              'h-7 px-2 shrink-0',
+              onlyCommentedActive && 'text-amber-700 dark:text-amber-300',
+            )}
+            title={t('gallery.comments.filterTooltip', {
+              defaultValue: 'Nur Quellen mit Kommentaren',
+            })}
+          >
+            <MessageCircle className="h-3.5 w-3.5 lg:mr-1" aria-hidden />
+            <span className="hidden lg:inline">
+              {t('gallery.comments.filter', { defaultValue: 'Mit Kommentaren' })}
             </span>
           </Button>
         )}

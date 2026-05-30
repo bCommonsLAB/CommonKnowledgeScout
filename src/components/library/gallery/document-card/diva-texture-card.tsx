@@ -24,6 +24,7 @@ import {
 } from '@/lib/gallery/resolve-cover-url-client'
 import { displayBasenameFromCoverRef } from '@/lib/gallery/cover-ref-display-name'
 import { SourceStarsBadge } from '../source-stars-badge'
+import { SourceCommentsBadge } from '../source-comments-badge'
 import { DivaTextureClassificationActions } from './diva-texture-classification-actions'
 
 export interface DivaTextureCardProps {
@@ -180,16 +181,23 @@ export function DivaTextureCard({
         </div>
       </div>
 
-      <SourceStarsBadge
-        libraryId={libraryId}
-        fileId={doc.fileId}
-        isFavorite={doc.isFavorite === true}
-        favoriteCount={doc.favoriteCount}
-        favoriteVoters={doc.favoriteVoters}
-        onToggleFavorite={onToggleFavorite}
-        variant='light'
-        className='absolute top-2 left-2 z-10'
-      />
+      <div className='absolute top-2 left-2 z-10 flex items-center gap-1.5'>
+        <SourceStarsBadge
+          libraryId={libraryId}
+          fileId={doc.fileId}
+          isFavorite={doc.isFavorite === true}
+          favoriteCount={doc.favoriteCount}
+          favoriteVoters={doc.favoriteVoters}
+          onToggleFavorite={onToggleFavorite}
+          variant='light'
+        />
+        <SourceCommentsBadge
+          libraryId={libraryId}
+          fileId={doc.fileId}
+          commentCount={doc.commentCount}
+          variant='light'
+        />
+      </div>
 
       <DivaTextureClassificationBadges doc={doc} />
 

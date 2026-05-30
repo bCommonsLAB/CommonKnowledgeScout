@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { mapBewertungToStatus, STATUS_CONFIG, STATUS_ICON_MAP } from './status-config'
 import { SourceStarsBadge } from '../source-stars-badge'
+import { SourceCommentsBadge } from '../source-comments-badge'
 
 export interface ClimateActionCardProps {
   doc: DocCardMeta
@@ -82,11 +83,28 @@ export function ClimateActionCard({
           </h3>
         </div>
 
-        {/* UNTEN: Nummer + Status */}
-        <div className='flex items-end justify-between'>
-          <span className='text-xs font-mono text-white drop-shadow-lg'>
-            {doc.massnahme_nr ? `Nr. ${doc.massnahme_nr}` : '–'}
-          </span>
+        {/* UNTEN: Nummer + Sterne/Kommentare (links), Status (rechts) */}
+        <div className='flex items-end justify-between gap-2'>
+          <div className='flex items-center gap-2'>
+            <span className='text-xs font-mono text-white drop-shadow-lg'>
+              {doc.massnahme_nr ? `Nr. ${doc.massnahme_nr}` : '–'}
+            </span>
+            <SourceStarsBadge
+              libraryId={libraryId}
+              fileId={doc.fileId}
+              isFavorite={doc.isFavorite === true}
+              favoriteCount={doc.favoriteCount}
+              favoriteVoters={doc.favoriteVoters}
+              onToggleFavorite={onToggleFavorite}
+              variant='light'
+            />
+            <SourceCommentsBadge
+              libraryId={libraryId}
+              fileId={doc.fileId}
+              commentCount={doc.commentCount}
+              variant='light'
+            />
+          </div>
 
           {/* Status-Badge als Pill mit backdrop-blur */}
           <div
@@ -103,17 +121,6 @@ export function ClimateActionCard({
           </div>
         </div>
       </div>
-
-      <SourceStarsBadge
-        libraryId={libraryId}
-        fileId={doc.fileId}
-        isFavorite={doc.isFavorite === true}
-        favoriteCount={doc.favoriteCount}
-        favoriteVoters={doc.favoriteVoters}
-        onToggleFavorite={onToggleFavorite}
-        variant='light'
-        className='absolute top-3 left-3 z-10'
-      />
 
       {/* Hover-Linie unten */}
       <div className='absolute inset-x-0 bottom-0 h-1 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left' />

@@ -281,6 +281,10 @@
       "toggleAdd": "Add to favorites",
       "toggleRemove": "Remove from favorites",
       "filterOnly": "Favorites only",
+      "filterOnlyTooltip": "Only my own favorites",
+      "starredFilter": "With stars",
+      "starredFilterTooltip": "All sources favorited by at least one member",
+      "starredEmptyHint": "No source with a star yet.",
       "emptyHint": "No favorites marked yet.",
       "sortByStars": "Sort by stars",
       "voterTooltipHeader": "Stars ({{count}})",
@@ -298,6 +302,10 @@
       "notImportant": "not important"
     },
     "comments": {
+      "filter": "With comments",
+      "filterTooltip": "Only sources with comments",
+      "filterEmptyHint": "No source with comments yet.",
+      "badge": "{{count}} comments",
       "expand": "Expand comments",
       "collapse": "Collapse comments",
       "loading": "Loading comments...",

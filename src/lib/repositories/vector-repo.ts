@@ -40,6 +40,7 @@ import { FileLogger } from '@/lib/debug/logger'
 import { convertMongoDocToDocCardMeta, type MongoDocForConversion } from './doc-meta-formatter'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { buildFavoriteLookupStages } from './source-user-states-repo'
+import { buildCommentLookupStages } from './source-comments-repo'
 
 /**
  * Konstante für den Vector Search Index-Namen.
@@ -1206,9 +1207,13 @@ export async function findDocs(
     favoriteCount: 1,
     favoriteVoters: 1,
     isFavorite: 1,
+    commentCount: 1,
   }
 
-  const lookupStages = buildFavoriteLookupStages(libraryId, options.userEmail)
+  const lookupStages = [
+    ...buildFavoriteLookupStages(libraryId, options.userEmail),
+    ...buildCommentLookupStages(libraryId, options.userEmail),
+  ]
   const lookupBeforeSort = sortNeedsFavoriteLookup(options.sort)
 
   const pipeline: Document[] = [{ $match: query }]
@@ -1330,9 +1335,13 @@ export async function findDocsGrouped(
     favoriteCount: 1,
     favoriteVoters: 1,
     isFavorite: 1,
+    commentCount: 1,
   }
 
-  const lookupStages = buildFavoriteLookupStages(libraryId, options.userEmail)
+  const lookupStages = [
+    ...buildFavoriteLookupStages(libraryId, options.userEmail),
+    ...buildCommentLookupStages(libraryId, options.userEmail),
+  ]
   const lookupBeforeSort = sortNeedsFavoriteLookup(sortWithinGroup)
 
   const groups: Array<{ key: string | number; items: DocCardMeta[] }> = []

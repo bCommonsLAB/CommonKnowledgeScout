@@ -75,6 +75,12 @@ vi.mock('@/components/library/gallery/source-stars-badge', () => ({
   ),
 }))
 
+vi.mock('@/components/library/gallery/source-comments-badge', () => ({
+  SourceCommentsBadge: (props: { libraryId?: string; fileId?: string }) => (
+    <div data-testid="source-comments-badge-mock" data-library={props.libraryId} data-file={props.fileId} />
+  ),
+}))
+
 function makeDoc(overrides: Partial<DocCardMeta> = {}): DocCardMeta {
   return {
     id: 'doc-1',
