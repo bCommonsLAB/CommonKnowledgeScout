@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 
 /**
- * Smoke-Tests fuer die Sterne-Toggles in `FilterContextBar` (Welle B).
+ * Smoke-Tests fuer die Sterne-Toggles in `FilterContextBar`.
  *
  * Sicherheitsnetz fuer:
  * - Toggle "Nur Favoriten" (URL-Param `?favorites=1`)
+ * - Toggle "Mit Sternen" (URL-Param `?starred=1`)
  * - Toggle "Nach Sternen sortieren" (URL-Param `?sort=stars`)
- * - Beide Buttons sind nur fuer Member sichtbar.
+ * - Alle Toggles sind nur fuer Member sichtbar.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -77,11 +78,14 @@ describe('FilterContextBar / Sterne-Toggles', () => {
     expect(screen.getByTitle('Nach Sternen sortieren')).toBeTruthy()
   })
 
-  it('versteckt beide Toggles fuer Nicht-Member', () => {
+  it('versteckt alle Toggles fuer Nicht-Member', () => {
     mockIsMember = false
     render(<FilterContextBar docCount={5} onOpenFilters={() => {}} onClear={() => {}} libraryId="lib-1" />)
     expect(screen.queryByTitle('Nach Sternen sortieren')).toBeNull()
-    expect(screen.queryByTitle('Nur Favoriten')).toBeNull()
+    expect(screen.queryByTitle('Nur meine eigenen Favoriten')).toBeNull()
+    expect(
+      screen.queryByTitle('Alle Quellen, die mindestens ein Mitglied favorisiert hat'),
+    ).toBeNull()
   })
 
   it('Klick auf Sort-by-stars setzt URL-Param ?sort=stars', () => {
@@ -103,8 +107,28 @@ describe('FilterContextBar / Sterne-Toggles', () => {
 
   it('Klick auf Nur-Favoriten setzt URL-Param ?favorites=1', () => {
     render(<FilterContextBar docCount={5} onOpenFilters={() => {}} onClear={() => {}} libraryId="lib-1" />)
-    fireEvent.click(screen.getByTitle('Nur Favoriten'))
+    fireEvent.click(screen.getByTitle('Nur meine eigenen Favoriten'))
     const url = String(pushMock.mock.calls[0][0])
+    expect(url).toContain('favorites=1')
+  })
+
+  it('Klick auf Mit-Sternen setzt URL-Param ?starred=1', () => {
+    render(<FilterContextBar docCount={5} onOpenFilters={() => {}} onClear={() => {}} libraryId="lib-1" />)
+    fireEvent.click(
+      screen.getByTitle('Alle Quellen, die mindestens ein Mitglied favorisiert hat'),
+    )
+    const url = String(pushMock.mock.calls[0][0])
+    expect(url).toContain('starred=1')
+  })
+
+  it('Klick auf Mit-Sternen entfernt starred, wenn schon aktiv', () => {
+    currentSearch = 'starred=1&favorites=1'
+    render(<FilterContextBar docCount={5} onOpenFilters={() => {}} onClear={() => {}} libraryId="lib-1" />)
+    fireEvent.click(
+      screen.getByTitle('Alle Quellen, die mindestens ein Mitglied favorisiert hat'),
+    )
+    const url = String(pushMock.mock.calls[0][0])
+    expect(url).not.toContain('starred=1')
     expect(url).toContain('favorites=1')
   })
 })

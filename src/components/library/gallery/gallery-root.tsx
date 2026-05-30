@@ -224,6 +224,12 @@ export function GalleryRoot({
   const { isMember: isLibraryMember } = useLibraryRole(libraryId)
   const onlyFavoritesParam = searchParams?.get('favorites') === '1'
   const onlyFavoritesActive = onlyFavoritesParam && isLibraryMember
+  // "Mit Sternen": Team-Aggregat-Filter (mind. 1 Stern von irgendeinem
+  // Mitglied, inkl. eigener). Unabhaengig von "Nur Favoriten" (= nur eigene);
+  // beide koennen kombiniert werden (Schnittmenge).
+  const onlyStarredParam = searchParams?.get('starred') === '1'
+  const onlyStarredActive = onlyStarredParam && isLibraryMember
+  const anyStarFilterActive = onlyFavoritesActive || onlyStarredActive
   const sortParam = searchParams?.get('sort')
   const sortByStarsActive = sortParam === 'stars' && isLibraryMember
 
@@ -253,31 +259,38 @@ export function GalleryRoot({
   const selfName = useMemo(() => getPreferredUserDisplayName(user), [user])
   const { setState: setUserStarState } = useUserStates(libraryId, [])
 
+  // Gemeinsames Praedikat fuer die clientseitigen Stern-Filter:
+  // - "Nur Favoriten": nur eigene Sterne (isFavorite, favoriteIds als Fallback).
+  // - "Mit Sternen": Team-Aggregat (favoriteCount > 0).
+  // Beide aktiv = Schnittmenge.
+  const matchesStarFilters = React.useCallback(
+    (d: DocCardMeta): boolean => {
+      if (!d.fileId) return false
+      if (onlyFavoritesActive && !(d.isFavorite === true || favoriteIds.has(d.fileId))) {
+        return false
+      }
+      if (onlyStarredActive && (d.favoriteCount ?? 0) <= 0) {
+        return false
+      }
+      return true
+    },
+    [onlyFavoritesActive, onlyStarredActive, favoriteIds],
+  )
+
   const filteredDocsByYear = React.useMemo(() => {
-    if (!onlyFavoritesActive) return docsByYear
+    if (!anyStarFilterActive) return docsByYear
     return docsByYear
       .map(
         ([key, group]) =>
-          [
-            key,
-            group.filter((d) => {
-              if (!d.fileId) return false
-              if (d.isFavorite === true) return true
-              return favoriteIds.has(d.fileId)
-            }),
-          ] as [number | string, DocCardMeta[]],
+          [key, group.filter(matchesStarFilters)] as [number | string, DocCardMeta[]],
       )
       .filter(([, group]) => group.length > 0)
-  }, [docsByYear, onlyFavoritesActive, favoriteIds])
+  }, [docsByYear, anyStarFilterActive, matchesStarFilters])
 
   const filteredFlat = React.useMemo(() => {
-    if (!onlyFavoritesActive) return filteredDocs
-    return filteredDocs.filter((d) => {
-      if (!d.fileId) return false
-      if (d.isFavorite === true) return true
-      return favoriteIds.has(d.fileId)
-    })
-  }, [filteredDocs, onlyFavoritesActive, favoriteIds])
+    if (!anyStarFilterActive) return filteredDocs
+    return filteredDocs.filter(matchesStarFilters)
+  }, [filteredDocs, anyStarFilterActive, matchesStarFilters])
 
   const handleStarToggle = useCallback(
     async (fileId: string) => {
@@ -312,18 +325,18 @@ export function GalleryRoot({
    * wird der Server-`totalCount` ignoriert (Server kennt den Filter nicht)
    * und wir reichen die explizite fileId-Liste an die Bulk-Buttons durch.
    */
-  const effectiveDocCount = onlyFavoritesActive
+  const effectiveDocCount = anyStarFilterActive
     ? filteredFlat.length
     : (totalCount || filteredDocs.length)
-  const effectiveTotalCount = onlyFavoritesActive ? filteredFlat.length : totalCount
+  const effectiveTotalCount = anyStarFilterActive ? filteredFlat.length : totalCount
   const explicitBulkFileIds = React.useMemo<string[] | undefined>(() => {
-    if (!onlyFavoritesActive) return undefined
+    if (!anyStarFilterActive) return undefined
     return filteredFlat
       .map((d) => d.fileId || d.id)
       .filter((id): id is string => typeof id === 'string' && id.length > 0)
-  }, [onlyFavoritesActive, filteredFlat])
+  }, [anyStarFilterActive, filteredFlat])
   const showBulkButtons = isOwner && (
-    onlyFavoritesActive ? filteredFlat.length > 0 : filteredDocs.length > 0
+    anyStarFilterActive ? filteredFlat.length > 0 : filteredDocs.length > 0
   )
   
   // `doc`-Parameter aus der URL (Auflösung erfolgt nach `allDocs`, siehe unten)
@@ -791,10 +804,17 @@ export function GalleryRoot({
         </div>
       )
     }
-    if (onlyFavoritesActive && filteredFlat.length === 0) {
+    if (anyStarFilterActive && filteredFlat.length === 0) {
+      // "Mit Sternen" allein -> eigener Hinweis; sonst (auch kombiniert) der
+      // klassische Favoriten-Hinweis.
+      const starredOnly = onlyStarredActive && !onlyFavoritesActive
       return (
         <div className='flex flex-col items-start gap-3 text-sm text-muted-foreground'>
-          <div>{t('gallery.favorites.emptyHint', { defaultValue: 'Noch keine Favoriten markiert.' })}</div>
+          <div>
+            {starredOnly
+              ? t('gallery.favorites.starredEmptyHint', { defaultValue: 'Noch keine Quelle mit Stern.' })
+              : t('gallery.favorites.emptyHint', { defaultValue: 'Noch keine Favoriten markiert.' })}
+          </div>
         </div>
       )
     }
