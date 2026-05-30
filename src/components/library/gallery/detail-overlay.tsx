@@ -235,6 +235,20 @@ export function DetailOverlay({
     void loadDocMeta()
   }, [open, libraryId, fileId, viewType, locale, fallbackLocale])
 
+  // Kommentar-Sektion (eine Instanz). Position haengt vom Modus ab:
+  // im Bewertungsmodus oben (schnell kommentieren vor "Wichtig & weiter"),
+  // sonst unten unter den Infos. Der Debug-Block der Detail-Komponenten ist
+  // dev-only und in Produktion nicht vorhanden.
+  const commentsBlock =
+    isSignedIn && fileId ? (
+      <div ref={commentsRef} className='border-t p-6 space-y-3'>
+        <h3 className='text-sm font-semibold'>
+          {t('gallery.comments.sectionTitle', { defaultValue: 'Kommentare' })}
+        </h3>
+        <SourceCommentsPanel libraryId={libraryId} fileId={fileId} open={open} />
+      </div>
+    ) : null
+
   if (!open) return null
   return (
     <div className='fixed inset-0 z-[60]'>
@@ -365,6 +379,8 @@ export function DetailOverlay({
         </div>
 
         <ScrollArea className='flex-1 w-full overflow-hidden relative'>
+          {/* Bewertungsmodus: Kommentare oben, direkt unter der Leiste. */}
+          {ratingActive ? commentsBlock : null}
           <DetailBody
             viewType={viewType}
             libraryId={libraryId}
@@ -374,15 +390,8 @@ export function DetailOverlay({
             isDocMetaReady={isDocMetaReady}
             fallbackLocale={fallbackLocale}
           />
-          {/* Kommentare: sehen + selbst schreiben (Sichtbarkeit/Rollen im Panel). */}
-          {isSignedIn && fileId ? (
-            <div ref={commentsRef} className='border-t p-6 space-y-3'>
-              <h3 className='text-sm font-semibold'>
-                {t('gallery.comments.sectionTitle', { defaultValue: 'Kommentare' })}
-              </h3>
-              <SourceCommentsPanel libraryId={libraryId} fileId={fileId} open={open} />
-            </div>
-          ) : null}
+          {/* Normalmodus: Kommentare unten, unter den Infos. */}
+          {!ratingActive ? commentsBlock : null}
         </ScrollArea>
       </div>
     </div>
