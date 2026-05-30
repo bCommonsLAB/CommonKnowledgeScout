@@ -2,29 +2,26 @@
  * @fileoverview Deterministische Nachbearbeitung des Voll-Pass-1-Laufes (Stufe 3).
  *
  * @description
- * Nimmt die rohe LLM-Antwort (geparste Frontmatter-Felder) und erzeugt das
- * FLACHE Pass-1-Frontmatter gemaess Lea-Regeln + Stolperfallen:
- *  - Sidecar-Class-Treffer ueberschreibt material_class deterministisch und
- *    setzt confidence_class = 0.95 (Stolperfalle #2, Lea-Regel #2). Reine
- *    Bildklassifikation wird bei 0.8 gekappt.
- *  - ceramic/glass/plastic erhalten KEINEN material_type.
- *  - availability_scope/retailer_iln deterministisch aus dem Pfad.
- *  - `group_name` kommt deterministisch aus `LIEFERSYSTEM.GroupName`.
- *  - Visuelle Properties (color, surface_*, pattern_scale, directionality,
- *    perceived_softness, color_variation, confidence_visual) sowie die
- *    Hints werden **unveraendert** aus der LLM-Antwort uebernommen — Stufe 3
- *    fragt seit 2026-05-28 alle Material-Felder in EINEM Call ab
- *    (User-Entscheid). Es werden KEINE Felder explizit geleert.
- *  - last_pass=1 + pass1_status werden pipeline-seitig gesetzt (nicht vom LLM).
- *
- * Rein deterministisch, KEIN LLM-Call, KEINE Seiteneffekte. Idempotent:
- * gleiche Eingaben → gleiches Ergebnis.
+ * Sidecar-Treffer ueberschreibt material_class + confidence_class=0.95;
+ * LLM-only-Klassifikation wird bei 0.8 gekappt. ceramic/glass/plastic ohne
+ * material_type. Visuelle Properties + Hints 1:1 aus der LLM-Antwort
+ * (Voll-Pass-Modell, User-Entscheid 2026-05-28). Update 2 (Lea-Regeln #11/#12):
+ * color_match_supplier/_notes + review_status via `review-status.ts` mit
+ * Override-Schutz fuer manuelle Stati. Rein deterministisch, idempotent.
  */
 
 import type { AnalysisSourceImage, OptionvalueEntry } from './types'
 import { mapMaterialClass } from './material-class-mapping'
 import { fieldsForSource } from './material-field-sources'
 import { parseAvailabilityFromPath } from './availability-from-path'
+import { derivePathFields } from './path-derived-fields'
+import {
+  applyReviewStatusOverrideGuard,
+  buildColorMatchOutcome,
+  type ReviewStatus,
+} from './review-status'
+
+export type { ReviewStatus } from './review-status'
 
 /** Konfidenz-Wert fuer einen Liefersystem-Class-Treffer (deterministisch). */
 const SIDECAR_CLASS_CONFIDENCE = 0.95
@@ -41,17 +38,32 @@ export interface BuildFirstPassArgs {
   llmFields: Record<string, unknown>
   /** Gematchter Sidecar-Eintrag oder null (kein Treffer). */
   supplierEntry: OptionvalueEntry | null
-  /** Voller Verzeichnispfad der Textur (fuer availability/retailer_iln). */
+  /** Voller Verzeichnispfad der Textur (fuer availability/retailer_iln/iln_nummer). */
   filePath: string
   /**
-   * Welches Quellbild tatsaechlich ans LLM ging. Wird als Snapshot ins
-   * Frontmatter geschrieben (`analysisSourceImage`), damit der Klassifizierer
-   * dem Ergebnis ansieht, ob es auf dem Basecolor oder dem Liefersystem-
-   * Preview entstanden ist — unabhaengig von einer spaeteren Praeferenz-
-   * Aenderung im Archiv-Property-Store. Default `basecolor`, falls der
-   * Aufrufer (z.B. Tests) den Wert nicht setzt.
+   * Dateiname der Textur (fuer textur_code / title-Fallback ohne Sidecar).
+   * Optional fuer Backwards-Compat: wenn nicht gesetzt, wird der Dateiname
+   * aus dem `filePath`-Ende abgeleitet — ausreichend genau fuer alle
+   * praktischen Eingaben.
+   */
+  fileName?: string
+  /**
+   * Welches Quellbild tatsaechlich ans LLM ging. Snapshot ins Frontmatter
+   * (`analysisSourceImage`) — Default `basecolor`. Update 2: Pass 1 sendet
+   * IMMER beide Bilder, der Snapshot bleibt aus Historie-Gruenden.
    */
   sourceImage?: AnalysisSourceImage
+  /**
+   * Update 2: true, wenn der Lauf tatsaechlich eine Supplier-Preview ans LLM
+   * gesendet hat. Steuert den Color-Match-Postprocessor (Edge-Case #21).
+   * Default `false`.
+   */
+  supplierPreviewSent?: boolean
+  /**
+   * Update 2: bisheriger `review_status` aus dem Frontmatter. Steuert den
+   * Override-Schutz (Stolperfalle #16). Default `nicht_geprueft`.
+   */
+  existingReviewStatus?: ReviewStatus
 }
 
 /** Coerced numerischer Wert oder null (kein stiller 0-Fallback). */
@@ -82,6 +94,17 @@ function clamp(value: number, max: number): number {
 
 function nonEmptyString(value: unknown): string | null {
   return typeof value === 'string' && value.trim() !== '' ? value.trim() : null
+}
+
+/**
+ * Faellt aus dem Pfad das letzte Segment heraus, falls der Aufrufer den
+ * Dateinamen nicht separat uebergibt. Unterstuetzt `/` und `\` als
+ * Trenner (Linux + Windows).
+ */
+function deriveFileNameFromPath(filePath: string): string {
+  if (!filePath) return ''
+  const lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))
+  return lastSlash >= 0 ? filePath.slice(lastSlash + 1) : filePath
 }
 
 /**
@@ -132,17 +155,50 @@ export function buildFirstPassFrontmatter(args: BuildFirstPassArgs): Record<stri
   // --- availability deterministisch aus dem Pfad ---
   const { availability_scope, retailer_iln } = parseAvailabilityFromPath(filePath)
 
+  // --- Identitaets-Felder deterministisch aus Pfad + Filename + Sidecar ---
+  // (Stufe 3 Punkt 4): iln_nummer, textur_code, title, slug werden hier hart
+  // gesetzt, damit das LLM sie nicht halluzinieren kann. Sidecar hat Vorrang
+  // vor Filename-Parsing — bei Sidecar-Treffer sind alle vier Werte
+  // bekannt-konsistent zum Liefersystem.
+  const fileName = nonEmptyString(args.fileName) ?? deriveFileNameFromPath(filePath)
+  const pathFields = derivePathFields({
+    filePath,
+    fileName,
+    supplierEntry,
+  })
+
   // --- group_name (Stoffgruppe) deterministisch aus dem Sidecar-Treffer ---
   // Ermoeglicht die Galerie-Gruppierung nach Stoffgruppe (Stufe 4). Leer ohne Treffer.
   const groupName = nonEmptyString(supplierEntry?.GroupName) ?? ''
 
+  // Update 2 (2026-05-28): Color-Match-Postprocessor + Review-Status mit
+  // Override-Schutz. Beides muss VOR dem Frontmatter-Dictionary stehen, damit
+  // wir die Felder zentral setzen und der ai_pass1-Loop sie ueberspringt.
+  const supplierPreviewSent = args.supplierPreviewSent ?? false
+  const existingReviewStatus: ReviewStatus = args.existingReviewStatus ?? 'nicht_geprueft'
+  const colorMatch = buildColorMatchOutcome(llmFields, supplierPreviewSent)
+  const reviewStatus = applyReviewStatusOverrideGuard(existingReviewStatus, colorMatch.proposedReviewStatus)
+
   const result: Record<string, unknown> = {
+    // Identitaets-Felder (Stufe 3 Punkt 4): hart aus Pfad+Sidecar gesetzt,
+    // damit das LLM sie nicht halluzinieren kann. Ueberschreiben jeden
+    // LLM-Wert.
+    title: pathFields.title,
+    slug: pathFields.slug,
+    iln_nummer: pathFields.iln_nummer,
+    textur_code: pathFields.textur_code,
     // ai_pass1-Felder (feldspezifische Kalibrierung, daher explizit)
     material_class: materialClass ?? '',
     material_type: materialType,
     confidence_class: confidenceClass,
     confidence_type: confidenceType,
     needs_human_review: needsHumanReview,
+    // Update 2: Color-Match-Felder (ai_pass1, deterministisch korrigiert).
+    // Hinweis: `null` wird vom Frontmatter-Composer geschluckt — Abwesenheit
+    // im Frontmatter hat dieselbe Semantik wie explizites `null` ("kein
+    // Vergleich gelaufen"). Stufe-4-UI behandelt beides identisch.
+    color_match_supplier: colorMatch.colorMatchSupplier,
+    color_match_notes: colorMatch.colorMatchNotes,
     // deterministisch aus dem Pfad / Sidecar
     availability_scope,
     retailer_iln,
@@ -150,6 +206,8 @@ export function buildFirstPassFrontmatter(args: BuildFirstPassArgs): Record<stri
     // Pipeline-/System-verwaltet (nicht vom LLM)
     last_pass: 1,
     pass1_status: needsHumanReview ? ('needs_review' satisfies Pass1Status) : ('done' satisfies Pass1Status),
+    // Update 2: Lebenszyklus-Status mit Override-Schutz
+    review_status: reviewStatus,
     // Snapshot des LETZTEN Lauf-Quellbilds (Stufe 3+). User-Praeferenz im
     // Archiv-Property-Store kann sich danach aendern; das hier bleibt
     // der historische Wahrheits-Anker fuer dieses Analyse-Ergebnis.

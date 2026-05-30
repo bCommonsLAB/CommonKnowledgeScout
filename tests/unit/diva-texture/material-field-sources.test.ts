@@ -31,6 +31,10 @@ describe('MATERIAL_FIELD_SOURCES — Zuordnung', () => {
     ['ai_realism_notes', 'ai_last_pass'],
     ['last_pass', 'pipeline'],
     ['pass1_status', 'pipeline'],
+    // Update 2 (2026-05-28): Color-Match + Review-Status
+    ['color_match_supplier', 'ai_pass1'],
+    ['color_match_notes', 'ai_pass1'],
+    ['review_status', 'pipeline_lifecycle'],
   ]
 
   for (const [field, source] of cases) {
@@ -71,6 +75,16 @@ describe('fieldsForSource / llmFieldsForPass', () => {
     expect(fields).toContain('confidence_visual')
     // Hints
     expect(fields).toContain('ai_prompt_positive')
+    // Update 2 (2026-05-28): Farbtonabgleich Basecolor vs. Supplier-Preview
+    expect(fields).toContain('color_match_supplier')
+    expect(fields).toContain('color_match_notes')
+  })
+
+  it('llmFieldsForPass enthaelt KEINE Lifecycle-Felder (review_status ist Pipeline-Schutz)', () => {
+    const fields1 = llmFieldsForPass(1)
+    const fields2 = llmFieldsForPass(2)
+    expect(fields1).not.toContain('review_status')
+    expect(fields2).not.toContain('review_status')
   })
 
   it('Pass 2 = Korrektur-Lauf: visuelle Properties + Hints, NICHT die Klasse', () => {

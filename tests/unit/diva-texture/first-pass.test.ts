@@ -208,3 +208,95 @@ describe('buildFirstPassFrontmatter — visuelle Properties + Hints (Voll-Pass)'
     expect(result.analysisSourceImage).toBe('basecolor')
   })
 })
+
+describe('buildFirstPassFrontmatter — Color-Match-Postprocessor (Update 2)', () => {
+  it('ohne Supplier-Preview: color_match_supplier=null, notes leer, review_status=ki_geprueft', () => {
+    const result = buildFirstPassFrontmatter({
+      llmFields: { material_class: 'fabric', color_match_supplier: 'true', color_match_notes: 'irrelevant' },
+      supplierEntry: entry('STOFF'),
+      filePath: PATH_ILN,
+      supplierPreviewSent: false,
+    })
+    expect(result.color_match_supplier).toBeNull()
+    expect(result.color_match_notes).toBe('')
+    expect(result.review_status).toBe('ki_geprueft')
+  })
+
+  it('mit Supplier-Preview + LLM-match=true: notes werden geleert (Stolperfalle Edge-Case #22)', () => {
+    const result = buildFirstPassFrontmatter({
+      llmFields: { material_class: 'fabric', color_match_supplier: true, color_match_notes: 'sollte weg' },
+      supplierEntry: entry('STOFF'),
+      filePath: PATH_ILN,
+      supplierPreviewSent: true,
+    })
+    expect(result.color_match_supplier).toBe(true)
+    expect(result.color_match_notes).toBe('')
+    expect(result.review_status).toBe('ki_geprueft')
+  })
+
+  it('mit Supplier-Preview + LLM-match=false: notes bleiben, review_status=zu_ueberarbeiten', () => {
+    const result = buildFirstPassFrontmatter({
+      llmFields: {
+        material_class: 'fabric',
+        color_match_supplier: false,
+        color_match_notes: 'Basecolor warm-beige, Preview deutlich gruener.',
+      },
+      supplierEntry: entry('STOFF'),
+      filePath: PATH_ILN,
+      supplierPreviewSent: true,
+    })
+    expect(result.color_match_supplier).toBe(false)
+    expect(result.color_match_notes).toBe('Basecolor warm-beige, Preview deutlich gruener.')
+    expect(result.review_status).toBe('zu_ueberarbeiten')
+  })
+
+  it('mit Supplier-Preview + ungueltiger LLM-Antwort: color_match=null, review_status=ki_geprueft', () => {
+    const result = buildFirstPassFrontmatter({
+      llmFields: { material_class: 'fabric', color_match_supplier: 'maybe' },
+      supplierEntry: entry('STOFF'),
+      filePath: PATH_ILN,
+      supplierPreviewSent: true,
+    })
+    expect(result.color_match_supplier).toBeNull()
+    expect(result.review_status).toBe('ki_geprueft')
+  })
+})
+
+describe('buildFirstPassFrontmatter — Override-Schutz review_status (Stolperfalle #16)', () => {
+  const baseArgs = (existing: string | undefined, mismatch: boolean) => ({
+    llmFields: mismatch
+      ? { material_class: 'fabric', color_match_supplier: false, color_match_notes: 'Abweichung' }
+      : { material_class: 'fabric', color_match_supplier: true },
+    supplierEntry: entry('STOFF'),
+    filePath: PATH_ILN,
+    supplierPreviewSent: true,
+    existingReviewStatus: existing as 'nicht_geprueft' | 'ki_geprueft' | 'zu_ueberarbeiten' | 'abgenommen' | undefined,
+  })
+
+  it('nicht_geprueft (initial) wird durch Pass 1 ueberschrieben', () => {
+    const ok = buildFirstPassFrontmatter(baseArgs('nicht_geprueft', false))
+    expect(ok.review_status).toBe('ki_geprueft')
+    const mismatch = buildFirstPassFrontmatter(baseArgs('nicht_geprueft', true))
+    expect(mismatch.review_status).toBe('zu_ueberarbeiten')
+  })
+
+  it('ki_geprueft wird durch Pass 1 ueberschrieben (auch von ki_geprueft → zu_ueberarbeiten)', () => {
+    const r = buildFirstPassFrontmatter(baseArgs('ki_geprueft', true))
+    expect(r.review_status).toBe('zu_ueberarbeiten')
+  })
+
+  it('abgenommen bleibt erhalten, auch bei Mismatch', () => {
+    const r = buildFirstPassFrontmatter(baseArgs('abgenommen', true))
+    expect(r.review_status).toBe('abgenommen')
+  })
+
+  it('zu_ueberarbeiten (manuell) bleibt erhalten, auch wenn der neue Lauf match=true liefert', () => {
+    const r = buildFirstPassFrontmatter(baseArgs('zu_ueberarbeiten', false))
+    expect(r.review_status).toBe('zu_ueberarbeiten')
+  })
+
+  it('Default ohne existingReviewStatus = nicht_geprueft → wird ueberschrieben', () => {
+    const r = buildFirstPassFrontmatter(baseArgs(undefined, false))
+    expect(r.review_status).toBe('ki_geprueft')
+  })
+})

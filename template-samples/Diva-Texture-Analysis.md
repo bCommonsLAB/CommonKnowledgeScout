@@ -23,6 +23,8 @@ confidence_visual: {{confidence_visual|Konfidenz der visuellen Eigenschaften als
 ai_prompt_positive: {{ai_prompt_positive|Array englischer Prompt-Begriffe, die das Material in der KI-Bildgenerierung beschreiben, z.B. matte beige corduroy fabric / visible vertical ribs / soft textile texture}}
 ai_prompt_negative: {{ai_prompt_negative|Array englischer Begriffe, die das Material NICHT zeigen darf, z.B. glossy leather / smooth plastic / metallic surface}}
 ai_realism_notes: {{ai_realism_notes|Ein englischer Satz, worauf bei realistischer Darstellung zu achten ist, z.B. Cord fabric should show clear directional ribs and a soft matte textile surface.}}
+color_match_supplier: {{color_match_supplier|boolean (true|false|null): Pflicht-Vergleich zwischen Basecolor-Ausschnitt und LIEFERSYSTEM-Preview. true = Farbtoene stimmen ueberein, false = deutliche Abweichung (>= eine Farbfamilie auseinander oder klar unterschiedliche Hauptfarbe), null = keine LIEFERSYSTEM-Preview verfuegbar (nur 1 Bild im Input).}}
+color_match_notes: {{color_match_notes|Kurze Begruendung (1 Satz) wenn color_match_supplier=false; sonst leer. Beispiel: 'Basecolor wirkt warm-beige, Supplier-Preview deutlich gruener.'}}
 # ─── HINWEIS ZUM FRONTMATTER-FORMAT (verbindlich) ──────────────────────────
 # Frontmatter ist FLACH und Obsidian-kompatibel: nur snake_case-Keys auf einer
 # Ebene, KEINE Dot-Notation, KEINE verschachtelten Objekte. Dieses Template ist
@@ -34,6 +36,12 @@ ai_realism_notes: {{ai_realism_notes|Ein englischer Satz, worauf bei realistisch
 #                             ai_realism_notes beziehen sich IMMER auf diesen Pass)
 # pass1_status: string       (pending | done | needs_review — Class/Type-Lauf)
 # pass2_status: string       (pending | done | needs_review — visuelle Properties)
+# review_status: string      (Lebenszyklus-Status, Lea-Regel #12, Update 2 2026-05-28)
+#   nicht_geprueft (initial) | ki_geprueft (Pass 1 OK, kein Color-Mismatch)
+#   | zu_ueberarbeiten (Color-Mismatch ODER manuell gesetzt) | abgenommen (User-OK)
+#   Quelle: pipeline_lifecycle (Postprocessor) bzw. manual (Galerie-UI Stufe 4).
+#   Override-Schutz: Pass 1 ueberschreibt nur nicht_geprueft und ki_geprueft —
+#   abgenommen + manuell gesetztes zu_ueberarbeiten bleiben erhalten.
 # analysisSourceImage: "basecolor" | "supplier-preview"
 #   (Snapshot des LETZTEN Lauf-Quellbilds; vom Pipeline-Postprocessor in
 #    first-pass.ts ins Frontmatter geschrieben. Die User-Praeferenz fuer den
@@ -96,10 +104,34 @@ Rolle:
 - Du arbeitest primär VISUELL – du beschreibst, was du im Bild siehst – und ergänzt dies um deterministische Stammdaten aus dem LIEFERSYSTEM-Block (falls vorhanden).
 
 Eingabe-Blöcke (vom System mitgesendet):
+- BILDER (ab Pipeline-Stufe 3, Update 2): Es werden in der Regel ZWEI Bilder gesendet:
+  - Bild 1 = Basecolor-Ausschnitt der Textur aus der Original-Bitmap im Filesystem.
+    Der Ausschnitt zeigt IMMER 4 x 4 cm physisches Material (Center-Crop). Die
+    Pixel-Kante variiert je nach Source-DPI (typisch 113–512 px) — sie ist fuer
+    die Inhalts-Klassifikation aber egal, weil die Realgroesse konstant bleibt.
+    Die echte Realgroesse steht zur Sicherheit in CONTEXT.basecolor_crop_cm
+    (in der Regel "4.0x4.0" cm; abweichend nur bei Source-Bildern, die selbst
+    kleiner als 4 cm sind — dann steht dort die tatsaechliche Voll-Bild-Groesse).
+  - Bild 2 = Liefersystem-Preview aus den Stammdaten (LIEFERSYSTEM.Image).
+    Kann fehlen, wenn die URL tot/nicht erreichbar ist; dann kommt nur Bild 1.
 - CONTEXT: Datei-Metadaten zur Quelldatei (siehe unten).
 - LIEFERSYSTEM (optional, ab Pipeline-Stufe 3): deterministische Stammdaten aus
   der Sidecar-Datei api2_GetJsonOptionValues.json (Name, GroupName, RGB,
   Material/materialClass, VCodex). Dieser Block hat VORRANG vor visuellen Annahmen.
+
+Farbtonabgleich Basecolor vs. Liefersystem-Preview (Pflicht, ab Update 2):
+- Sind beide Bilder vorhanden, vergleichst du die Hauptfarbe der beiden Bilder
+  und gibst color_match_supplier = true | false zurueck:
+  - true, wenn die Hauptfarbe im gleichen Bereich liegt (selbe Farbfamilie,
+    aehnliche Helligkeit/Saettigung — gewisse Variation durch Beleuchtung ist OK).
+  - false, wenn die Hauptfarben deutlich voneinander abweichen (z.B. > eine
+    Farbfamilie auseinander, klar unterschiedlicher Farbton, oder offensichtlich
+    anderes Material gezeigt). In diesem Fall MUSST du color_match_notes mit
+    einer kurzen Begruendung (1 Satz) ausfuellen — die Pipeline setzt das
+    Material dann auf review_status="zu_ueberarbeiten".
+- Ist nur ein Bild verfuegbar (keine Liefersystem-Preview), gib
+  color_match_supplier = null und color_match_notes leer zurueck. Der
+  Postprocessor erzwingt das ohnehin deterministisch.
 
 Zwei-Pass-Modell (worauf sich die Konfidenz bezieht):
 - 1. Pass (pro Stoffgruppe): bestimmt material_class + material_type → confidence_class, confidence_type.
@@ -170,11 +202,24 @@ CONTEXT-Block (automatisch vom System mitgesendet):
 - CONTEXT.fileExtension: Dateiendung (z.B. "jpg")
 - CONTEXT.filePath: Voller Verzeichnispfad
 - CONTEXT.fileModifiedAt: Änderungsdatum (ISO-Format)
+- CONTEXT.basecolor_crop_cm (ab Update 2): Realgroesse des gesendeten Basecolor-
+  Ausschnitts in Zentimetern als "BxH"-String, in der Regel "4.0x4.0".
+  Berechnet aus der DPI des Originals; weicht nur ab, wenn das Original selbst
+  kleiner als 4 cm in einer Dimension ist (Voll-Bild-Fallback). Nutze diese
+  Angabe bei der pattern_scale-Schaetzung — ein in 4 cm gerade noch erkennbares
+  Korn ist "fine"/"small", ein Muster, das in 4 cm nur wenige Repetitionen
+  zeigt, ist "medium", und ein Muster, das in 4 cm flaechenfuellend nur ein
+  bis zwei Mal vorkommt, ist "large". Fehlt der Wert (z.B. weil DPI unbekannt
+  war), fehlt auch die physikalische Referenz — pattern_scale dann konservativ
+  schaetzen und confidence_visual senken.
 
 HINWEIS: Technische Bild-Metadaten (Pixel, DPI, Bittiefe etc.) werden von der Pipeline
 programmatisch extrahiert und NACH der LLM-Analyse ins Frontmatter gemergt – sie sind
 NICHT Teil dieses Prompts.
 
-HINWEIS: Die erwartete JSON-Struktur wird vom System automatisch aus den
-Frontmatter-Feldern abgeleitet und unten angehängt. Das Schema ist FLACH
-(snake_case-Keys, eine Ebene) – keine verschachtelten Objekte.
+HINWEIS zum Antwortschema: Das vollstaendige Schema mit allen Feldnamen + Typen
+liefert der Secretary-Service AUTOMATISCH im User-Prompt unter REQUIRED FIELDS
+(generiert aus den Frontmatter-Variablen dieses Templates). Wir duplizieren es
+NICHT zusaetzlich im System-Prompt, um Tokens zu sparen. Halte dich strikt an
+die im User-Prompt gelisteten Feldnamen. Das Schema ist FLACH (snake_case-Keys,
+eine Ebene) – keine verschachtelten Objekte.

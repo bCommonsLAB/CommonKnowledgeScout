@@ -257,9 +257,16 @@ export function serializeTemplateToMarkdown(
     }
   }
   
-  // 1.5. detailViewType hinzufügen (falls gesetzt)
+  // 1.5. detailViewType hinzufügen (falls gesetzt UND nicht schon als regulaeres
+  // Frontmatter-Feld vorhanden). Hintergrund: parseFrontmatterFields nimmt jede
+  // Zeile als generisches field auf, also auch `detailViewType: divaTexture` —
+  // ohne diesen Doppel-Check wuerden zwei identische YAML-Zeilen geschrieben
+  // (YAML-Duplikat-Key, vom LLM/Frontmatter-Parser unschoen interpretiert).
   if (template.metadata.detailViewType) {
-    frontmatterLines.push(`detailViewType: ${template.metadata.detailViewType}`)
+    const alreadyInFields = template.metadata.fields.some((f) => f.key === 'detailViewType')
+    if (!alreadyInFields) {
+      frontmatterLines.push(`detailViewType: ${template.metadata.detailViewType}`)
+    }
   }
   
   let frontmatter = `---\n${frontmatterLines.join('\n')}\n---`

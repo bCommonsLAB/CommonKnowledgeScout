@@ -1,24 +1,23 @@
 /**
- * @fileoverview Orchestrierung des 1. LLM-Passes (Stufe 3).
+ * @fileoverview Orchestrierung des 1. LLM-Passes (Stufe 3, Update 2).
  *
  * @description
- * Bindet Sidecar-Loader (Stufe 1) + Matcher + DE→EN-Mapping + LLM-Call +
- * deterministische Nachbearbeitung zusammen. Der eigentliche LLM-Call wird als
- * Abhaengigkeit injiziert (`analyzeImage`) — dadurch ist die Pipeline mit
- * Mock-LLM testbar und unabhaengig vom Secretary-Service/Route-Code.
+ * Bindet Sidecar-Loader/Matcher + Basecolor-Crop + Multi-Image-LLM-Call +
+ * deterministische Nachbearbeitung zusammen. `analyzeImages` wird als
+ * Abhaengigkeit injiziert (Mock-LLM-testbar).
  *
- * Ablauf:
- *  1. Sidecar laden + Dateiname matchen (Treffer = OptionvalueEntry | null).
- *  2. LIEFERSYSTEM-Block bauen (DE→EN-Mapping) und neben CONTEXT ans LLM geben.
- *  3. Quellbild-Wahl (basecolor | supplier-preview) lesen; bei supplier-preview
- *     das Liefersystem-Bild serverseitig laden (Stolperfalle #5).
- *  4. LLM-Call ausfuehren, Antwort deterministisch nachbearbeiten
- *     (buildFirstPassFrontmatter) und ins Markdown patchen.
+ * Ablauf (Update 2): Sidecar laden+matchen → LIEFERSYSTEM-Block →
+ * Basecolor-Crop ZUR LAUFZEIT (Lea-Regel #13, cropCm in CONTEXT) →
+ * Supplier-Preview best-effort laden → 1- oder 2-Bild-LLM-Call →
+ * Postprocessor (Color-Match + Override-Schutz, Lea-Regeln #11/#12).
  *
- * KEIN direkter Storage-Backend-Zugriff (nur ueber StorageProvider).
+ * Lea-Regel #11: die Bildwahl `analysisSourceImage` aus Stufe 1 wird
+ * IGNORIERT — Bild 1 ist immer der Basecolor-Crop. Der Snapshot im
+ * Frontmatter steht entsprechend fix auf `'basecolor'`.
  */
 
 import type { StorageProvider } from '@/lib/storage/types'
+import { FileLogger } from '@/lib/debug/logger'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { patchFrontmatter } from '@/lib/markdown/frontmatter-patch'
 import { loadSupplierData } from './load-supplier-data'
@@ -26,8 +25,10 @@ import { matchTextureCode } from './match-texture-code'
 import { logMatchAttempts } from './diva-texture-logger'
 import { buildLiefersystemBlock } from './liefersystem-context'
 import { buildFirstPassFrontmatter } from './first-pass'
+import { isReviewStatus, type ReviewStatus } from './review-status'
+import { buildBasecolorCrop } from './basecolor-crop'
 import { llmFieldsForPass } from './material-field-sources'
-import type { AnalysisSourceImage, OptionvalueEntry } from './types'
+import type { OptionvalueEntry } from './types'
 
 /** Marker im Template-Frontmatter, der eine DIVA-Texturanalyse kennzeichnet. */
 const DIVA_TEXTURE_MARKER = /detailViewType\s*:\s*divaTexture/i
@@ -37,7 +38,7 @@ export function isDivaTextureTemplate(templateContent: string): boolean {
   return DIVA_TEXTURE_MARKER.test(templateContent)
 }
 
-/** Ein Bild fuer den LLM-Call (Quelle: Basecolor oder Liefersystem-Preview). */
+/** Ein Bild fuer den LLM-Call (Crop, Original-Basecolor oder Supplier-Preview). */
 export interface FirstPassImage {
   buffer: Buffer
   fileName: string
@@ -52,16 +53,20 @@ export interface RunFirstPassParams {
   fileName: string
   /** Voller Pfad der Textur (fuer availability/retailer_iln). */
   filePath: string
-  /** Basecolor-Bild + Default-Quelle. */
+  /** Original-Basecolor-Bild (wird zur Laufzeit zugeschnitten). */
   baseImage: FirstPassImage
   /** Bereits aufgebauter CONTEXT-Block (fileName, filePath, …). */
   baseContext: Record<string, unknown>
-  /** Liest die persistierte Quellbild-Wahl anhand der Material-ID (VCodex). */
-  getImageChoice?: (materialId: string) => Promise<AnalysisSourceImage | null>
+  /** Bestehender review_status aus dem Frontmatter (Override-Schutz). */
+  existingReviewStatus?: ReviewStatus
   /** Laedt das Liefersystem-Preview-Bild serverseitig (Stolperfalle #5). */
   fetchPreviewImage?: (url: string) => Promise<FirstPassImage>
-  /** Fuehrt den eigentlichen LLM-Bild-Analyse-Call aus, liefert Markdown. */
-  analyzeImage: (args: { image: FirstPassImage; context: Record<string, unknown> }) => Promise<string>
+  /**
+   * Fuehrt den eigentlichen Multi-Image-LLM-Bild-Analyse-Call aus.
+   * Erwartet 1 oder 2 Bilder; die Reihenfolge ist semantisch:
+   * 1 = Basecolor-Crop, 2 (optional) = Supplier-Preview.
+   */
+  analyzeImages: (args: { images: FirstPassImage[]; context: Record<string, unknown> }) => Promise<string>
 }
 
 export interface RunFirstPassResult {
@@ -69,34 +74,51 @@ export interface RunFirstPassResult {
   markdown: string
   /** true, wenn ein Sidecar-Eintrag gematcht wurde. */
   supplierMatched: boolean
-  /** Welches Quellbild tatsaechlich an das LLM ging. */
-  sourceImage: AnalysisSourceImage
+  /**
+   * true, wenn der Lauf tatsaechlich eine Supplier-Preview ans LLM gesendet
+   * hat (Sidecar-Treffer + Image-URL + Fetch erfolgreich).
+   */
+  supplierPreviewSent: boolean
+  /** Lauf-Metadaten des Basecolor-Crops (fuer Stufe 6 analysisRuns). */
+  basecolorCrop: {
+    crop_px: string
+    crop_cm: string
+    dpi_used: number
+    dpi_fallback: boolean
+  }
 }
 
 /**
- * Ermittelt das zu verwendende Quellbild (Default: basecolor).
- * Bei `supplier-preview` mit erreichbarem Liefersystem-Bild wird dieses
- * serverseitig geladen; faellt es aus, bleibt basecolor (explizit, geloggt).
+ * Versucht, das Supplier-Preview-Bild zu laden. Bei Fehler wird die Exception
+ * geschluckt und null zurueckgegeben — der Lauf laeuft dann mit nur einem
+ * Bild und der Postprocessor erzwingt `color_match_supplier=null`.
+ * Hinweis: Das ist KEIN stiller Fallback im Sinne der no-silent-fallbacks-
+ * Regel — das Verhalten ist explizit dokumentiert (Edge-Case #21) und der
+ * Fehler wird via FileLogger sichtbar gemacht.
  */
-async function resolveSourceImage(
+async function tryFetchSupplierPreview(
   params: RunFirstPassParams,
   entry: OptionvalueEntry | null,
-): Promise<{ image: FirstPassImage; sourceImage: AnalysisSourceImage }> {
-  const fallback = { image: params.baseImage, sourceImage: 'basecolor' as const }
-  if (!entry || !params.getImageChoice) return fallback
-
-  const choice = await params.getImageChoice(entry.VCodex)
-  if (choice !== 'supplier-preview') return fallback
-
+): Promise<FirstPassImage | null> {
+  if (!entry || !params.fetchPreviewImage) return null
   const previewUrl = typeof entry.Image === 'string' ? entry.Image.trim() : ''
-  if (previewUrl === '' || !params.fetchPreviewImage) return fallback
-
-  const preview = await params.fetchPreviewImage(previewUrl)
-  return { image: preview, sourceImage: 'supplier-preview' }
+  if (previewUrl === '') return null
+  try {
+    return await params.fetchPreviewImage(previewUrl)
+  } catch (error) {
+    FileLogger.warn('diva-texture-first-pass', 'Supplier-Preview konnte nicht geladen werden — Lauf mit nur einem Bild', {
+      previewUrl,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return null
+  }
 }
 
 /**
  * Fuehrt den 1. LLM-Pass aus und liefert das nachbearbeitete Markdown.
+ *
+ * Sendet immer den Basecolor-Crop; bei verfuegbarer Supplier-Preview
+ * zusaetzlich ein 2. Bild + den Farbtonabgleich-Auftrag im System-Prompt.
  */
 export async function runDivaTextureFirstPass(params: RunFirstPassParams): Promise<RunFirstPassResult> {
   // 1. Sidecar laden + matchen
@@ -107,29 +129,63 @@ export async function runDivaTextureFirstPass(params: RunFirstPassParams): Promi
   logMatchAttempts(params.fileName, matchResult)
   const entry = matchResult.match?.entry ?? null
 
-  // 2. LIEFERSYSTEM-Block + Pass-Metadaten in den Kontext
+  // 2. Basecolor zur Laufzeit zuschneiden (Update 2, Lea-Regel #13)
+  const crop = await buildBasecolorCrop(params.baseImage.buffer)
+  const baseColorCropFileName = params.baseImage.fileName.replace(/\.[^.]+$/, '') + '-crop.jpg'
+  const baseCropImage: FirstPassImage = {
+    buffer: crop.buffer,
+    fileName: baseColorCropFileName,
+    mimeType: crop.mimeType,
+  }
+
+  // 3. Supplier-Preview serverseitig laden (best effort)
+  const supplierPreview = await tryFetchSupplierPreview(params, entry)
+
+  // 4. CONTEXT + LIEFERSYSTEM + Pass-Metadaten + Crop-Info
   const context: Record<string, unknown> = {
     ...params.baseContext,
     pass: 1,
     expectedFields: llmFieldsForPass(1),
+    basecolor_crop_cm: crop.cropCm,
+    basecolor_crop_px: crop.cropPx,
+    supplier_preview_sent: supplierPreview !== null,
   }
   const liefersystem = buildLiefersystemBlock(entry)
   if (liefersystem) context.LIEFERSYSTEM = liefersystem
 
-  // 3. Quellbild bestimmen (basecolor | supplier-preview serverseitig)
-  const { image, sourceImage } = await resolveSourceImage(params, entry)
-
-  // 4. LLM-Call + deterministische Nachbearbeitung
-  const markdownText = await params.analyzeImage({ image, context })
+  // 5. LLM-Call (1 oder 2 Bilder) + deterministische Nachbearbeitung
+  const images: FirstPassImage[] = supplierPreview ? [baseCropImage, supplierPreview] : [baseCropImage]
+  const markdownText = await params.analyzeImages({ images, context })
   const { meta } = parseFrontmatter(markdownText)
+
+  // Bestehenden review_status aus dem Frontmatter lesen (Override-Schutz):
+  // primaer aus params.existingReviewStatus (Aufrufer kennt den Vorzustand),
+  // sekundaer aus der LLM-Antwort (falls das Template das Feld zurueckspiegelt).
+  const existingFromArgs = params.existingReviewStatus
+  const existingFromMeta = isReviewStatus(meta.review_status) ? meta.review_status : undefined
+  const existingReviewStatus: ReviewStatus = existingFromArgs ?? existingFromMeta ?? 'nicht_geprueft'
+
   const pass1Fields = buildFirstPassFrontmatter({
     llmFields: meta,
     supplierEntry: entry,
     filePath: params.filePath,
-    // Snapshot ins Frontmatter: welches Bild ging an dieses LLM-Call?
-    sourceImage,
+    fileName: params.fileName,
+    // Snapshot ins Frontmatter: Bild 1 ist immer der Basecolor-Crop.
+    sourceImage: 'basecolor',
+    supplierPreviewSent: supplierPreview !== null,
+    existingReviewStatus,
   })
   const markdown = patchFrontmatter(markdownText, pass1Fields)
 
-  return { markdown, supplierMatched: entry !== null, sourceImage }
+  return {
+    markdown,
+    supplierMatched: entry !== null,
+    supplierPreviewSent: supplierPreview !== null,
+    basecolorCrop: {
+      crop_px: crop.cropPx,
+      crop_cm: crop.cropCm,
+      dpi_used: crop.dpiUsed,
+      dpi_fallback: crop.dpiFallback,
+    },
+  }
 }
