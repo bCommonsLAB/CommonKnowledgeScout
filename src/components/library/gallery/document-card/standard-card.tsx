@@ -23,6 +23,7 @@ import { Calendar, MapPin, User, FileText } from 'lucide-react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { SpeakerOrAuthorIcons } from '../speaker-icons'
 import { SourceStarsBadge } from '../source-stars-badge'
+import { SourceCommentsBadge } from '../source-comments-badge'
 
 export interface StandardCardProps {
   doc: DocCardMeta
@@ -37,16 +38,23 @@ export function StandardCard({ doc, onClick, libraryId, onToggleFavorite }: Stan
       className='cursor-pointer hover:shadow-lg transition-shadow duration-200 overflow-visible bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 relative'
       onClick={onClick}
     >
-      <SourceStarsBadge
-        libraryId={libraryId}
-        fileId={doc.fileId}
-        isFavorite={doc.isFavorite === true}
-        favoriteCount={doc.favoriteCount}
-        favoriteVoters={doc.favoriteVoters}
-        onToggleFavorite={onToggleFavorite}
-        variant='dark'
-        className='absolute bottom-2 right-2 z-10'
-      />
+      <div className='absolute bottom-2 right-2 z-10 flex items-center gap-1.5'>
+        <SourceStarsBadge
+          libraryId={libraryId}
+          fileId={doc.fileId}
+          isFavorite={doc.isFavorite === true}
+          favoriteCount={doc.favoriteCount}
+          favoriteVoters={doc.favoriteVoters}
+          onToggleFavorite={onToggleFavorite}
+          variant='dark'
+        />
+        <SourceCommentsBadge
+          libraryId={libraryId}
+          fileId={doc.fileId}
+          commentCount={doc.commentCount}
+          variant='dark'
+        />
+      </div>
       <CardHeader className='relative pb-1'>
         {/* Jahr-Badge schwebend oben rechts, um mehr Breite fuer den Titel zu lassen */}
         {doc.year ? (

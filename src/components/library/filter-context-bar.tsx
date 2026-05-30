@@ -95,6 +95,7 @@ export function FilterContextBar({
   const { isMember } = useLibraryRole(libraryId)
   const onlyFavoritesActive = searchParams?.get('favorites') === '1'
   const onlyStarredActive = searchParams?.get('starred') === '1'
+  const onlyCommentedActive = searchParams?.get('commented') === '1'
   const sortByStarsActive = searchParams?.get('sort') === 'stars'
 
   const toggleOnlyFavorites = () => {
@@ -109,6 +110,14 @@ export function FilterContextBar({
     const params = new URLSearchParams(searchParams?.toString() ?? '')
     if (onlyStarredActive) params.delete('starred')
     else params.set('starred', '1')
+    const qs = params.toString()
+    router.push(qs ? `${pathname}?${qs}` : pathname ?? '')
+  }
+
+  const toggleOnlyCommented = () => {
+    const params = new URLSearchParams(searchParams?.toString() ?? '')
+    if (onlyCommentedActive) params.delete('commented')
+    else params.set('commented', '1')
     const qs = params.toString()
     router.push(qs ? `${pathname}?${qs}` : pathname ?? '')
   }
@@ -210,6 +219,28 @@ export function FilterContextBar({
             <Users className="h-3.5 w-3.5 lg:mr-1" aria-hidden />
             <span className="hidden lg:inline">
               {t('gallery.favorites.starredFilter', { defaultValue: 'Mit Sternen' })}
+            </span>
+          </Button>
+        )}
+        {/* "Mit Kommentaren": alle Quellen mit mind. 1 Kommentar. Member-only. */}
+        {isMember && (
+          <Button
+            variant={onlyCommentedActive ? 'secondary' : 'ghost'}
+            size="sm"
+            type="button"
+            onClick={toggleOnlyCommented}
+            aria-pressed={onlyCommentedActive}
+            className={cn(
+              'h-7 px-2 shrink-0',
+              onlyCommentedActive && 'text-amber-700 dark:text-amber-300',
+            )}
+            title={t('gallery.comments.filterTooltip', {
+              defaultValue: 'Nur Quellen mit Kommentaren',
+            })}
+          >
+            <MessageCircle className="h-3.5 w-3.5 lg:mr-1" aria-hidden />
+            <span className="hidden lg:inline">
+              {t('gallery.comments.filter', { defaultValue: 'Mit Kommentaren' })}
             </span>
           </Button>
         )}

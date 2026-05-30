@@ -329,6 +329,10 @@
       "notImportant": "nicht wichtig"
     },
     "comments": {
+      "filter": "Mit Kommentaren",
+      "filterTooltip": "Nur Quellen mit Kommentaren",
+      "filterEmptyHint": "Noch keine Quelle mit Kommentaren.",
+      "badge": "{{count}} Kommentare",
       "expand": "Kommentare ausklappen",
       "collapse": "Kommentare einklappen",
       "loading": "Lade Kommentare...",

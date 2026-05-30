@@ -6,6 +6,7 @@
  * Sicherheitsnetz fuer:
  * - Toggle "Nur Favoriten" (URL-Param `?favorites=1`)
  * - Toggle "Mit Sternen" (URL-Param `?starred=1`)
+ * - Toggle "Mit Kommentaren" (URL-Param `?commented=1`)
  * - Toggle "Nach Sternen sortieren" (URL-Param `?sort=stars`)
  * - Alle Toggles sind nur fuer Member sichtbar.
  */
@@ -86,6 +87,7 @@ describe('FilterContextBar / Sterne-Toggles', () => {
     expect(
       screen.queryByTitle('Alle Quellen, die mindestens ein Mitglied favorisiert hat'),
     ).toBeNull()
+    expect(screen.queryByTitle('Nur Quellen mit Kommentaren')).toBeNull()
   })
 
   it('Klick auf Sort-by-stars setzt URL-Param ?sort=stars', () => {
@@ -130,5 +132,12 @@ describe('FilterContextBar / Sterne-Toggles', () => {
     const url = String(pushMock.mock.calls[0][0])
     expect(url).not.toContain('starred=1')
     expect(url).toContain('favorites=1')
+  })
+
+  it('Klick auf Mit-Kommentaren setzt URL-Param ?commented=1', () => {
+    render(<FilterContextBar docCount={5} onOpenFilters={() => {}} onClear={() => {}} libraryId="lib-1" />)
+    fireEvent.click(screen.getByTitle('Nur Quellen mit Kommentaren'))
+    const url = String(pushMock.mock.calls[0][0])
+    expect(url).toContain('commented=1')
   })
 })

@@ -302,6 +302,10 @@
       "notImportant": "not important"
     },
     "comments": {
+      "filter": "With comments",
+      "filterTooltip": "Only sources with comments",
+      "filterEmptyHint": "No source with comments yet.",
+      "badge": "{{count}} comments",
       "expand": "Expand comments",
       "collapse": "Collapse comments",
       "loading": "Loading comments...",

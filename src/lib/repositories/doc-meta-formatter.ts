@@ -90,6 +90,8 @@ export interface MongoDocForConversion {
   favoriteCount?: number
   favoriteVoters?: FavoriteVoter[]
   isFavorite?: boolean
+  /** Anzahl nicht-geloeschter Kommentare (vom Galerie-$lookup; member-only). */
+  commentCount?: number
 }
 
 /**
@@ -230,9 +232,10 @@ export function convertMongoDocToDocCardMeta(
  */
 function buildFavoriteFields(
   doc: MongoDocForConversion,
-): Partial<Pick<DocCardMeta, 'favoriteCount' | 'favoriteVoters' | 'isFavorite'>> {
-  const out: Partial<Pick<DocCardMeta, 'favoriteCount' | 'favoriteVoters' | 'isFavorite'>> = {}
+): Partial<Pick<DocCardMeta, 'favoriteCount' | 'favoriteVoters' | 'isFavorite' | 'commentCount'>> {
+  const out: Partial<Pick<DocCardMeta, 'favoriteCount' | 'favoriteVoters' | 'isFavorite' | 'commentCount'>> = {}
   if (typeof doc.favoriteCount === 'number') out.favoriteCount = doc.favoriteCount
+  if (typeof doc.commentCount === 'number') out.commentCount = doc.commentCount
   if (Array.isArray(doc.favoriteVoters)) {
     const voters: FavoriteVoter[] = []
     for (const v of doc.favoriteVoters) {

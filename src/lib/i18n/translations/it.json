@@ -302,6 +302,10 @@
       "notImportant": "non importante"
     },
     "comments": {
+      "filter": "Con commenti",
+      "filterTooltip": "Solo fonti con commenti",
+      "filterEmptyHint": "Ancora nessuna fonte con commenti.",
+      "badge": "{{count}} commenti",
       "expand": "Espandi commenti",
       "collapse": "Comprimi commenti",
       "loading": "Caricamento commenti...",
