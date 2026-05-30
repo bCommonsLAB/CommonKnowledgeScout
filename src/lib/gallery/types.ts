@@ -45,6 +45,47 @@ export interface DocCardMeta {
   /** Kategorie für Facettenfilter (z.B. Handlungsfeld bei Klimamaßnahmen) */
   category?: string
 
+  // ─── Klimamaßnahmen-Bewertung (LLM-Schätzung, Welle "massnahmen-graph" 1) ──
+  /** Geschätztes CO₂-Einsparpotenzial in kt/Jahr (Südtirol-Maßstab). */
+  co2_einsparung_kt?: number
+  /** Begründung der CO₂-Größenordnung (Südtirol-Bezug). */
+  co2_einsparung_kt_begruendung?: string
+  /** Durchsetzbarkeit 0..1 (0 = kaum, 1 = breiter Konsens). */
+  durchsetzbarkeit?: number
+  /** Begründung der Durchsetzbarkeit (Widerstände, Akteure). */
+  durchsetzbarkeit_begruendung?: string
+  /** Geschätzte Kosten in EUR (Größenordnung). */
+  kosten_eur?: number
+  /** Begründung der Kostenschätzung. */
+  kosten_eur_begruendung?: string
+  /** Perspektive Wirkung / Emissionsminderung 0..1. */
+  score_wirkung?: number
+  /** Perspektive Lebensqualität & Soziales 0..1. */
+  score_soziales?: number
+  /** Perspektive Struktur & Rahmenbedingungen 0..1. */
+  score_struktur?: number
+  /** Perspektive Unterstützung & Bewusstsein 0..1. */
+  score_bewusstsein?: number
+  /** Begründung des Perspektiven-Profils (Südtirol-Bezug). */
+  perspektiven_begruendung?: string
+  /** Argmax der vier Scores: wirkung | soziales | struktur | bewusstsein. */
+  dominant_perspektive?: string
+  /** LLM-Modell der Bewertung (Transparenz). */
+  bewertung_modell?: string
+  /** Datum der Bewertung (YYYY-MM-DD). */
+  bewertung_stand?: string
+  /**
+   * Roh-Rating (= co2 * durchsetzbarkeit / kosten), vom Server berechnet.
+   * `null`/undefined = "Kosten unbekannt" oder zu wenig Daten (kein Silent
+   * Fallback — sortiert mit `rating desc` ans Ende).
+   */
+  rating?: number | null
+  /**
+   * Perzentil-Score 0..100 des Ratings relativ zur geladenen Galerie-Menge
+   * (client-seitig berechnet). `undefined` wenn kein gültiges Roh-Rating.
+   */
+  ratingPercentile?: number
+
   // Session/Event-spezifische Felder für Gallery-Karten
   /** Organisation des Sprechers/Events (z.B. "Universität Innsbruck") */
   organisation?: string
@@ -213,6 +254,21 @@ export function mapItemToDocCardMeta(item: Item): DocCardMeta {
     lv_bewertung: item.meta.lv_bewertung as string | undefined,
     // category mit Fallback auf handlungsfeld für ältere Daten in der DB
     category: (item.meta.category || item.meta.handlungsfeld) as string | undefined,
+    // Klimamaßnahmen-Bewertung (LLM-Schätzung)
+    co2_einsparung_kt: typeof item.meta.co2_einsparung_kt === 'number' ? item.meta.co2_einsparung_kt : undefined,
+    co2_einsparung_kt_begruendung: typeof item.meta.co2_einsparung_kt_begruendung === 'string' ? item.meta.co2_einsparung_kt_begruendung : undefined,
+    durchsetzbarkeit: typeof item.meta.durchsetzbarkeit === 'number' ? item.meta.durchsetzbarkeit : undefined,
+    durchsetzbarkeit_begruendung: typeof item.meta.durchsetzbarkeit_begruendung === 'string' ? item.meta.durchsetzbarkeit_begruendung : undefined,
+    kosten_eur: typeof item.meta.kosten_eur === 'number' ? item.meta.kosten_eur : undefined,
+    kosten_eur_begruendung: typeof item.meta.kosten_eur_begruendung === 'string' ? item.meta.kosten_eur_begruendung : undefined,
+    score_wirkung: typeof item.meta.score_wirkung === 'number' ? item.meta.score_wirkung : undefined,
+    score_soziales: typeof item.meta.score_soziales === 'number' ? item.meta.score_soziales : undefined,
+    score_struktur: typeof item.meta.score_struktur === 'number' ? item.meta.score_struktur : undefined,
+    score_bewusstsein: typeof item.meta.score_bewusstsein === 'number' ? item.meta.score_bewusstsein : undefined,
+    perspektiven_begruendung: typeof item.meta.perspektiven_begruendung === 'string' ? item.meta.perspektiven_begruendung : undefined,
+    dominant_perspektive: typeof item.meta.dominant_perspektive === 'string' ? item.meta.dominant_perspektive : undefined,
+    bewertung_modell: typeof item.meta.bewertung_modell === 'string' ? item.meta.bewertung_modell : undefined,
+    bewertung_stand: typeof item.meta.bewertung_stand === 'string' ? item.meta.bewertung_stand : undefined,
     // Session/Event-spezifische Felder
     organisation: item.meta.organisation as string | undefined,
     tags: Array.isArray(item.meta.tags) ? item.meta.tags as string[] : undefined,

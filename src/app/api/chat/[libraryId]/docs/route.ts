@@ -14,15 +14,23 @@ import type { Document } from 'mongodb'
  *
  * - `sort=stars` -> `{ favoriteCount: -1, year: -1, upsertedAt: -1 }`
  *   (favoriteCount kommt durch den $lookup in vector-repo)
+ * - `sort=rating` -> `{ rating: -1, year: -1, upsertedAt: -1 }`
+ *   (rating kommt durch den $addFields-Stage in vector-repo; `null` =
+ *   "Kosten unbekannt" sortiert dabei ans Ende)
  * - alles andere / fehlend -> Default `{ year: -1, upsertedAt: -1 }`
  *
  * Member-only: nur Owner und Co-Creators duerfen `sort=stars` nutzen.
  * Anonyme/Guest-User bekommen den Default-Sort, damit der Endpoint keine
- * weichen Privilege-Escalations zulaesst.
+ * weichen Privilege-Escalations zulaesst. `sort=rating` ist dagegen
+ * oeffentlich (keine privilegierten Daten — die Bewertung ist Teil des
+ * veroeffentlichten Dokuments).
  */
 function buildGallerySort(rawSort: string | null, isMember: boolean): GallerySort {
   if (rawSort === 'stars' && isMember) {
     return { favoriteCount: -1, year: -1, upsertedAt: -1 }
+  }
+  if (rawSort === 'rating') {
+    return { rating: -1, year: -1, upsertedAt: -1 }
   }
   return { year: -1, upsertedAt: -1 }
 }

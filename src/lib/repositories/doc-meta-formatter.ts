@@ -92,6 +92,12 @@ export interface MongoDocForConversion {
   isFavorite?: boolean
   /** Anzahl nicht-geloeschter Kommentare (vom Galerie-$lookup; member-only). */
   commentCount?: number
+  /**
+   * Roh-Rating aus dem `$addFields`-Stage in `findDocs(Grouped)`
+   * (= co2 * durchsetzbarkeit / kosten). `null` = "Kosten unbekannt".
+   * Bei Aufrufern ohne diesen Stage (z. B. Detail-Pfad) undefined.
+   */
+  rating?: number | null
 }
 
 /**
@@ -187,6 +193,23 @@ export function convertMongoDocToDocCardMeta(
     massnahme_nr: (docMeta?.massnahme_nr as string | undefined),
     lv_bewertung: (docMeta?.lv_bewertung as string | undefined),
     arbeitsgruppe: (docMeta?.arbeitsgruppe as string | undefined),
+    // Klimamaßnahmen-Bewertung (Zahlen + Begründungen aus docMetaJson)
+    co2_einsparung_kt: typeof docMeta?.co2_einsparung_kt === 'number' ? docMeta.co2_einsparung_kt : undefined,
+    co2_einsparung_kt_begruendung: typeof docMeta?.co2_einsparung_kt_begruendung === 'string' ? docMeta.co2_einsparung_kt_begruendung : undefined,
+    durchsetzbarkeit: typeof docMeta?.durchsetzbarkeit === 'number' ? docMeta.durchsetzbarkeit : undefined,
+    durchsetzbarkeit_begruendung: typeof docMeta?.durchsetzbarkeit_begruendung === 'string' ? docMeta.durchsetzbarkeit_begruendung : undefined,
+    kosten_eur: typeof docMeta?.kosten_eur === 'number' ? docMeta.kosten_eur : undefined,
+    kosten_eur_begruendung: typeof docMeta?.kosten_eur_begruendung === 'string' ? docMeta.kosten_eur_begruendung : undefined,
+    score_wirkung: typeof docMeta?.score_wirkung === 'number' ? docMeta.score_wirkung : undefined,
+    score_soziales: typeof docMeta?.score_soziales === 'number' ? docMeta.score_soziales : undefined,
+    score_struktur: typeof docMeta?.score_struktur === 'number' ? docMeta.score_struktur : undefined,
+    score_bewusstsein: typeof docMeta?.score_bewusstsein === 'number' ? docMeta.score_bewusstsein : undefined,
+    perspektiven_begruendung: typeof docMeta?.perspektiven_begruendung === 'string' ? docMeta.perspektiven_begruendung : undefined,
+    dominant_perspektive: typeof docMeta?.dominant_perspektive === 'string' ? docMeta.dominant_perspektive : undefined,
+    bewertung_modell: typeof docMeta?.bewertung_modell === 'string' ? docMeta.bewertung_modell : undefined,
+    bewertung_stand: typeof docMeta?.bewertung_stand === 'string' ? docMeta.bewertung_stand : undefined,
+    // Roh-Rating aus dem $addFields-Stage (null = "Kosten unbekannt")
+    rating: typeof doc.rating === 'number' ? doc.rating : (doc.rating === null ? null : undefined),
     // Session/Event-spezifische Felder
     organisation: (typeof doc.organisation === 'string' ? doc.organisation : undefined)
       || (docMeta?.organisation as string | undefined),
