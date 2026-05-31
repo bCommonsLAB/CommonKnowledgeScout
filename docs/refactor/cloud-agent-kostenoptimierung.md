@@ -135,6 +135,34 @@ dort vom Agent eingehalten:
 - Mehrere unabhaengige Tool-Calls in einem Message-Batch
 - Keine `Read`-Wiederholungen ohne Code-Aenderung
 
+## Hebel 5: Diagnose-Disziplin (Lehre aus Welle-1-Test)
+
+Zwei Muster haben in einer Session viel Token verbrannt, obwohl die
+Ursache trivial war:
+
+### „Feature erscheint nicht im UI" — erst Branch/Build, dann Code
+
+Bevor der Render-Pfad oder die Pipeline gelesen wird, in dieser
+Reihenfolge pruefen (Sekunden statt Datei-Archaeologie):
+
+```bash
+git branch --show-current                       # Laeuft der erwartete Branch?
+grep -c <NeueKomponente> <erwartete-datei.tsx>   # 0 = Code fehlt im Branch
+rm -rf .next && pnpm dev                          # sonst Next.js-Build-Cache
+```
+
+Häufigste Ursache war NICHT ein Bug, sondern: User lief auf seinem
+`feature/*`-Branch, waehrend der neue Code auf dem Cloud-`claude/*`-Branch
+lag. Render-Pfad-Lesen (`Read` ueber 5+ Komponenten) erst, wenn diese drei
+Checks den Code im laufenden Branch bestaetigen.
+
+### Keine Vektor-/Embedding-Dumps in den Chat
+
+Beim Teilen von `docMetaJson`, MongoDB-Docs o.ä. zum Debuggen das Feld
+`embedding` (und andere grosse Vektoren) vorher entfernen. Ein einzelner
+Embedding-Vektor sind ~1.500 Float-Werte = tausende Tokens reines Rauschen.
+Nur die fuer die Frage relevanten Felder einfuegen.
+
 ## Hand-off-Block-Template (am Ende jeder Welle-PR)
 
 Jede Welle-PR endet mit diesem Block. Der Agent fuellt die Platzhalter
