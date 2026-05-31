@@ -353,7 +353,9 @@
       "saveDefaultHint": "S’applique à TOUS les utilisateurs de cette bibliothèque (propriétaire uniquement).",
       "saving": "Enregistrement …",
       "saved": "Valeur par défaut du graphe enregistrée",
-      "saveError": "Échec de l’enregistrement"
+      "saveError": "Échec de l’enregistrement",
+      "similarityLoading": "Recherche de documents similaires …",
+      "similarityError": "Impossible de charger les voisins"
     }
   },
   "climateRating": {

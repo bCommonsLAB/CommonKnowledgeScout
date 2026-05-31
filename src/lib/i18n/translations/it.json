@@ -353,7 +353,9 @@
       "saveDefaultHint": "Vale per TUTTI gli utenti di questa biblioteca (solo owner).",
       "saving": "Salvataggio …",
       "saved": "Predefinito del grafo salvato",
-      "saveError": "Salvataggio non riuscito"
+      "saveError": "Salvataggio non riuscito",
+      "similarityLoading": "Ricerca di documenti simili …",
+      "similarityError": "Impossibile caricare i vicini"
     }
   },
   "climateRating": {

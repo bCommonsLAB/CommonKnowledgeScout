@@ -353,7 +353,9 @@
       "saveDefaultHint": "Applies to ALL users of this library (owner only).",
       "saving": "Saving …",
       "saved": "Graph default saved",
-      "saveError": "Save failed"
+      "saveError": "Save failed",
+      "similarityLoading": "Searching for similar documents …",
+      "similarityError": "Could not load neighbors"
     }
   },
   "climateRating": {
