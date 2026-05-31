@@ -1,0 +1,189 @@
+'use client'
+
+/**
+ * DocGraph — generischer Beziehungs-/Metadaten-Graph als dritter Galerie-Modus.
+ *
+ * Orchestriert die Kantenquellen-Auswahl, hält den LIVE-Editier-State (Felder,
+ * Modus, minShared, colorMap — ephemer, ohne Config-Persistenz) und rendert
+ * Selector + Live-Controls + Szene + Legende. Knoten = die übergebenen,
+ * gefilterten Dokumente; Klick öffnet die bestehende Detailansicht.
+ */
+
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { DocCardMeta } from '@/lib/gallery/types'
+import type { GalleryGraphConfig } from '@/types/library'
+import { useTranslation } from '@/lib/i18n/hooks'
+import { useSharedMetaEdges } from '@/hooks/gallery/use-shared-meta-edges'
+import { EdgeSourceSelector } from './edge-source-selector'
+import { GraphControls } from './graph-controls'
+import { DocGraphScene } from './doc-graph-scene'
+import { DocGraphLegend } from './doc-graph-legend'
+import { readString } from './graph-encodings'
+import type { EdgeSourceSelection } from './graph-types'
+
+interface DocGraphProps {
+  docs: DocCardMeta[]
+  graph: GalleryGraphConfig
+  onOpenDocument: (doc: DocCardMeta) => void
+  /** Optionale Anzeigenamen je meta-Feld (aus den Facetten-Definitionen). */
+  fieldLabels?: Record<string, string>
+  /**
+   * Nur Owner: aktuelle Live-Einstellung als Library-Default speichern. Fehlt
+   * der Callback (Nicht-Owner), wird kein Speichern-Button gezeigt.
+   */
+  onSaveDefault?: (graph: GalleryGraphConfig) => Promise<void> | void
+}
+
+const EXCLUDE_FIELDS = new Set([
+  'id', 'fileId', 'slug', 'title', 'shortTitle', 'fileName', 'sourcePath',
+  'sourceFileName', 'coverImageUrl', 'coverThumbnailUrl', 'date', 'upsertedAt',
+  'bewertung_stand', 'bewertung_modell', 'detailViewType', 'docType',
+])
+
+export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, onSaveDefault }: DocGraphProps) {
+  const { t } = useTranslation()
+  const sharedMeta = graph.edgeSources?.sharedMeta
+  const defaultMode = sharedMeta?.mode ?? 'projection'
+  const configFields = useMemo(() => sharedMeta?.fields?.filter((f) => f.length > 0) ?? [], [sharedMeta?.fields])
+
+  // Live-Editier-State (ephemer; aus der Config geseedet, beim Library-Wechsel neu).
+  const [liveFields, setLiveFields] = useState<string[]>(configFields)
+  const [liveColorMap, setLiveColorMap] = useState<Record<string, string>>(graph.colorMap ?? {})
+  const [minShared, setMinShared] = useState<number>(sharedMeta?.minShared ?? 1)
+  const [selection, setSelection] = useState<EdgeSourceSelection | null>(() =>
+    configFields.length ? { kind: 'sharedMeta', field: configFields[0], mode: defaultMode } : null,
+  )
+  useEffect(() => {
+    setLiveFields(configFields)
+    setLiveColorMap(graph.colorMap ?? {})
+    setMinShared(sharedMeta?.minShared ?? 1)
+    setSelection(configFields.length ? { kind: 'sharedMeta', field: configFields[0], mode: defaultMode } : null)
+  }, [graph, configFields, defaultMode, sharedMeta?.minShared])
+
+  // Aktive Auswahl gültig halten, wenn Felder live hinzugefügt/entfernt werden.
+  useEffect(() => {
+    if (selection?.kind === 'sharedMeta' && !liveFields.includes(selection.field)) {
+      setSelection(liveFields.length ? { kind: 'sharedMeta', field: liveFields[0], mode: selection.mode } : null)
+    } else if (!selection && liveFields.length) {
+      setSelection({ kind: 'sharedMeta', field: liveFields[0], mode: defaultMode })
+    }
+  }, [liveFields, selection, defaultMode])
+
+  const defaultNotImplemented = graph.defaultEdgeSource && graph.defaultEdgeSource !== 'sharedMeta'
+
+  // Vorschläge: kategorische/Array-meta-Keys aus den Docs + Facetten-Felder.
+  const availableFields = useMemo(() => {
+    const set = new Set<string>([...configFields, ...Object.keys(fieldLabels ?? {})])
+    for (const d of docs.slice(0, 100)) {
+      for (const [k, v] of Object.entries(d as unknown as Record<string, unknown>)) {
+        if (typeof v === 'string' && v.length > 0) set.add(k)
+        else if (Array.isArray(v) && v.some((x) => typeof x === 'string')) set.add(k)
+      }
+    }
+    return [...set].filter((k) => !EXCLUDE_FIELDS.has(k) && !k.endsWith('_begruendung')).sort()
+  }, [docs, fieldLabels, configFields])
+
+  const colorValues = useMemo(() => {
+    if (!graph.colorField) return []
+    const set = new Set<string>()
+    for (const d of docs) { const v = readString(d, graph.colorField); if (v) set.add(v) }
+    return [...set].slice(0, 50)
+  }, [docs, graph.colorField])
+
+  // Container messen (ResizeObserver) für das SVG-Layout.
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [size, setSize] = useState({ width: 0, height: 0 })
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const ro = new ResizeObserver((entries) => {
+      const r = entries[0]?.contentRect
+      if (r) setSize({ width: Math.floor(r.width), height: Math.floor(r.height) })
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  const activeField = selection?.kind === 'sharedMeta' ? selection.field : ''
+  const activeMode = selection?.kind === 'sharedMeta' ? selection.mode : defaultMode
+  const data = useSharedMetaEdges({
+    docs, field: activeField, mode: activeMode, minShared,
+    maxEdgesPerNode: graph.maxEdgesPerNode, maxEdgesTotal: graph.maxEdgesTotal,
+  })
+
+  return (
+    <div className="flex h-full min-h-[60vh] flex-col gap-2">
+      <div className="flex flex-shrink-0 flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {selection && (
+            <EdgeSourceSelector selection={selection} onChange={setSelection} sharedMetaFields={liveFields} fieldLabels={fieldLabels} />
+          )}
+          <GraphControls
+            fields={liveFields}
+            onFieldsChange={setLiveFields}
+            availableFields={availableFields}
+            fieldLabels={fieldLabels}
+            mode={activeMode}
+            onModeChange={(mode) => setSelection((s) => (s?.kind === 'sharedMeta' ? { ...s, mode } : s))}
+            minShared={minShared}
+            onMinSharedChange={setMinShared}
+            colorField={graph.colorField}
+            colorValues={colorValues}
+            colorMap={liveColorMap}
+            onColorMapChange={setLiveColorMap}
+            onSave={onSaveDefault ? () => onSaveDefault({
+              ...graph,
+              colorMap: liveColorMap,
+              defaultEdgeSource: 'sharedMeta',
+              edgeSources: {
+                ...graph.edgeSources,
+                sharedMeta: {
+                  ...(graph.edgeSources?.sharedMeta ?? {}),
+                  enabled: true,
+                  fields: liveFields,
+                  mode: activeMode,
+                  minShared,
+                },
+              },
+            }) : undefined}
+          />
+        </div>
+        {defaultNotImplemented && <span className="text-xs text-muted-foreground">{t('gallery.graph.comingSoon')}</span>}
+      </div>
+      <div ref={containerRef} className="relative flex-1 overflow-hidden rounded-md border bg-muted/20">
+        {liveFields.length === 0 ? (
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center text-sm text-muted-foreground">
+            {t('gallery.graph.noFields')}
+          </div>
+        ) : size.width > 0 && data.links.length === 0 ? (
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+            {t('gallery.graph.noEdges')}
+          </div>
+        ) : null}
+        {size.width > 0 && liveFields.length > 0 && (
+          <DocGraphScene
+            data={data}
+            docs={docs}
+            encodings={{
+              sizeField: graph.sizeField,
+              colorField: graph.colorField,
+              opacityField: graph.opacityField,
+              colorMap: liveColorMap,
+            }}
+            width={size.width}
+            height={size.height}
+            onOpenDocument={onOpenDocument}
+          />
+        )}
+        <DocGraphLegend
+          sizeField={graph.sizeField}
+          colorField={graph.colorField}
+          opacityField={graph.opacityField}
+          colorMap={liveColorMap}
+          nodeCount={data.nodes.length}
+          edgeCount={data.links.length}
+        />
+      </div>
+    </div>
+  )
+}

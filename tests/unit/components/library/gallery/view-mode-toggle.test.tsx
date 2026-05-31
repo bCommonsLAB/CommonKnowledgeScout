@@ -49,6 +49,20 @@ describe('ViewModeToggle', () => {
     expect(onChange).toHaveBeenCalledWith('table')
   })
 
+  it('zeigt den Graph-Button NUR, wenn showGraph=true (Default: aus)', () => {
+    const { rerender } = render(<ViewModeToggle viewMode="grid" onViewModeChange={vi.fn()} />)
+    expect(screen.queryByLabelText('gallery.viewMode.graph')).toBeNull()
+    rerender(<ViewModeToggle viewMode="grid" onViewModeChange={vi.fn()} showGraph />)
+    expect(screen.getByLabelText('gallery.viewMode.graph')).toBeTruthy()
+  })
+
+  it('ruft onViewModeChange mit "graph" auf, wenn Graph-Button geklickt wird', () => {
+    const onChange = vi.fn()
+    render(<ViewModeToggle viewMode="grid" onViewModeChange={onChange} showGraph />)
+    fireEvent.click(screen.getByLabelText('gallery.viewMode.graph'))
+    expect(onChange).toHaveBeenCalledWith('graph')
+  })
+
   it('rendert in compact-Variante ohne Label-Text', () => {
     render(<ViewModeToggle viewMode="grid" onViewModeChange={vi.fn()} compact />)
     // Im compact-Mode ist `!compact && <span>...</span>` false → kein Label-Text

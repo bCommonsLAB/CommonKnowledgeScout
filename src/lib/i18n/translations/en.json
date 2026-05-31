@@ -199,7 +199,8 @@
     },
     "viewMode": {
       "grid": "Gallery",
-      "table": "Table"
+      "table": "Table",
+      "graph": "Graph"
     },
     "cardDensityToggleAria": "Card grid: comfortable or compact",
     "cardDensityComfortable": "Comfortable",
@@ -324,6 +325,35 @@
       "revisionsHide": "Hide versions",
       "onlySignedIn": "Please sign in to view or leave comments.",
       "guestVisibilityHint": "Only owners and co-creators see all comments. Your posts are visible only to you and the team."
+    },
+    "graph": {
+      "connectBy": "Connect by",
+      "modeHub": "Tag hubs",
+      "modeProjection": "Document links",
+      "sourceRelations": "Computed relations",
+      "sourceSimilarity": "Similarity",
+      "comingSoon": "This edge source arrives in a later wave.",
+      "noEdges": "No connections for the current selection.",
+      "noFields": "No metadata fields configured for the graph.",
+      "disabled": "Graph mode is not enabled for this library.",
+      "legendSize": "Size",
+      "legendColor": "Color",
+      "legendOpacity": "Opacity",
+      "legendHub": "Metadata node",
+      "nodes": "Nodes",
+      "edges": "Edges",
+      "resetZoom": "Reset view",
+      "customize": "Customize",
+      "controlsFields": "Connect by (fields)",
+      "controlsAddField": "Add field …",
+      "controlsMode": "Mode",
+      "controlsMinShared": "Min. shared values",
+      "controlsColors": "Colors",
+      "saveDefault": "Save as default",
+      "saveDefaultHint": "Applies to ALL users of this library (owner only).",
+      "saving": "Saving …",
+      "saved": "Graph default saved",
+      "saveError": "Save failed"
     }
   },
   "climateRating": {
@@ -581,7 +611,20 @@
       "indexMissingToast": "Index \"{indexName}\" does not exist yet. Please click \"Create index\".",
       "errorCreatingIndex": "Error creating index",
       "errorRebuildingIndex": "Error starting ingestion:",
-      "jobId": "Job ID:"
+      "jobId": "Job ID:",
+      "graphTitle": "Graph mode",
+      "graphDescription": "Interactive relationship/metadata graph as a third gallery mode.",
+      "graphEnabled": "Enable graph mode",
+      "graphEnabledDescription": "Shows a graph toggle next to gallery/table in the gallery.",
+      "graphDefaultEdgeSource": "Default edge source",
+      "graphDefaultEdgeSourceDescription": "Which source the graph preselects on open.",
+      "graphEdgeSourceSharedMeta": "Shared metadata",
+      "graphEdgeSourceRelations": "Computed relations (later)",
+      "graphEdgeSourceSimilarity": "Similarity (later)",
+      "graphSizeField": "Size field",
+      "graphColorField": "Color field",
+      "graphOpacityField": "Opacity field",
+      "graphEncodingsHint": "Meta field names for the generic node encodings (numeric for size/opacity, categorical for color)."
     },
     "translations": {
       "title": "Document translations",
@@ -680,4 +723,3 @@
     "collaboration": "– in collaboration with open communities and research partners."
   }
 }
-

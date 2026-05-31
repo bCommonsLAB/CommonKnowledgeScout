@@ -8,7 +8,7 @@ import { ViewModeToggle } from './view-mode-toggle'
 import { GalleryCardDensityToggle } from './gallery-card-density-toggle'
 import type { GalleryCardDensity } from '@/lib/gallery/gallery-card-density'
 
-export type ViewMode = 'grid' | 'table'
+export type ViewMode = 'grid' | 'table' | 'graph'
 
 export interface GalleryStickyHeaderProps {
   headline: string
@@ -22,6 +22,8 @@ export interface GalleryStickyHeaderProps {
   /** Nur bei Grid: Karten-Raster kompakt vs. komfortabel */
   cardDensity?: GalleryCardDensity
   onCardDensityChange?: (density: GalleryCardDensity) => void
+  /** Graph-Modus als dritte Ansicht anbieten (nur wenn pro Library aktiviert). */
+  showGraph?: boolean
 }
 
 /**
@@ -42,6 +44,7 @@ export function GalleryStickyHeader(props: GalleryStickyHeaderProps) {
     onViewModeChange,
     cardDensity = 'comfortable',
     onCardDensityChange,
+    showGraph = false,
   } = props
 
   // Verwende gemeinsamen Scroll-Visibility-Hook (wie TopNav)
@@ -92,7 +95,7 @@ export function GalleryStickyHeader(props: GalleryStickyHeaderProps) {
                 onCardDensityChange={onCardDensityChange}
               />
             )}
-            <ViewModeToggle viewMode={viewMode} onViewModeChange={onViewModeChange} />
+            <ViewModeToggle viewMode={viewMode} onViewModeChange={onViewModeChange} showGraph={showGraph} />
           </div>
         )}
       </div>

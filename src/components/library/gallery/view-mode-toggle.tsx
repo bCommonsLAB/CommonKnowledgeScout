@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { Button } from '@/components/ui/button'
-import { Grid3x3, Table2 } from 'lucide-react'
+import { Grid3x3, Table2, Network } from 'lucide-react'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { cn } from '@/lib/utils'
 import type { ViewMode } from './gallery-sticky-header'
@@ -14,13 +14,15 @@ export interface ViewModeToggleProps {
   onViewModeChange: (mode: ViewMode) => void
   /** Kompakte Variante (kleinere Buttons) */
   compact?: boolean
+  /** Graph-Modus als dritten Button anbieten (nur wenn pro Library aktiviert). */
+  showGraph?: boolean
 }
 
 /**
  * Wiederverwendbare View-Mode-Toggle-Komponente
  * Zeigt Buttons zum Wechseln zwischen Grid- und Tabellenansicht
  */
-export function ViewModeToggle({ viewMode, onViewModeChange, compact = false }: ViewModeToggleProps) {
+export function ViewModeToggle({ viewMode, onViewModeChange, compact = false, showGraph = false }: ViewModeToggleProps) {
   const { t } = useTranslation()
 
   return (
@@ -54,6 +56,21 @@ export function ViewModeToggle({ viewMode, onViewModeChange, compact = false }: 
         <Table2 className={cn(compact ? "h-3 w-3" : "h-4 w-4")} />
         {!compact && <span className="hidden sm:inline">{t('gallery.viewMode.table')}</span>}
       </Button>
+      {showGraph && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onViewModeChange('graph')}
+          className={cn(
+            compact ? "h-7 px-2 gap-1" : "h-8 px-3 gap-2",
+            viewMode === 'graph' && "bg-background shadow-sm"
+          )}
+          aria-label={t('gallery.viewMode.graph')}
+        >
+          <Network className={cn(compact ? "h-3 w-3" : "h-4 w-4")} />
+          {!compact && <span className="hidden sm:inline">{t('gallery.viewMode.graph')}</span>}
+        </Button>
+      )}
     </div>
   )
 }
