@@ -939,6 +939,7 @@ export function GalleryRoot({
       cardDensity={cardDensity}
       expectedTargetLocales={activeLibrary?.config?.translations?.targetLocales}
       onPublishChanged={handleDocumentDeleted}
+      relationsEnabled={graphConfig?.edgeSources?.relations?.enabled === true}
       sortByStars={sortByStarsActive}
       onToggleFavorite={handleStarToggle}
       autoApplyConfidenceThreshold={activeLibrary?.config?.autoApplyConfidenceThreshold}

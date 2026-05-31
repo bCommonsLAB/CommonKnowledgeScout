@@ -392,7 +392,8 @@
       "relationsRecomputeError": "Neuberechnung fehlgeschlagen",
       "relationsStale": "Veraltet – Katalog hat sich geändert",
       "relationsNeverComputed": "Noch nicht berechnet",
-      "relationsComputedAt": "Berechnet am"
+      "relationsComputedAt": "Berechnet am",
+      "relationsRecomputeRow": "Beziehungen für diese Maßnahme berechnen"
     }
   },
   "climateRating": {

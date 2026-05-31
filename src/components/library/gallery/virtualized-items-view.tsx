@@ -20,6 +20,7 @@ import { ItemsGrid } from './items-grid'
 import { DeleteDocumentButton } from './delete-document-button'
 import { OpenInArchiveButton } from './open-in-archive-button'
 import { PublishDocumentButton } from './publish-document-button'
+import { DocRelationsButton } from './doc-relations-button'
 import { PublishStatusBadge, TranslationStatusChips } from './publish-status-chips'
 import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
@@ -67,6 +68,13 @@ export interface VirtualizedItemsViewProps {
    */
   onPublishChanged?: () => void
   /**
+   * Quelle A (Beziehungs-Graph): wenn `true`, zeigt die Tabelle pro Zeile einen
+   * Trigger „Beziehungen für diese Maßnahme berechnen" (Owner/Co-Creator) neben
+   * dem Publish-Button. Aus `library.config.chat.gallery.graph.edgeSources.
+   * relations.enabled`.
+   */
+  relationsEnabled?: boolean
+  /**
    * Quell-Favoriten/Kommentare:
    * Wenn aktiv, wird die Liste auf Favoriten gefiltert (nur fuer Member).
    * Der Hook `useSourceFavorites` liefert das Set; das Filtern selbst macht
@@ -104,6 +112,7 @@ export function VirtualizedItemsView({
   cardDensity = 'comfortable',
   expectedTargetLocales,
   onPublishChanged,
+  relationsEnabled,
   sortByStars,
   onToggleFavorite,
   autoApplyConfidenceThreshold,
@@ -551,6 +560,14 @@ export function VirtualizedItemsView({
                                 libraryId={libraryId}
                                 onChanged={onPublishChanged}
                               />
+                              {/* Quelle A: ausgehende Beziehungen DIESER Maßnahme neu berechnen */}
+                              {relationsEnabled && (
+                                <DocRelationsButton
+                                  doc={doc}
+                                  libraryId={libraryId}
+                                  onChanged={onPublishChanged}
+                                />
+                              )}
                               <OpenInArchiveButton doc={doc} libraryId={libraryId} />
                               <DeleteDocumentButton
                                 doc={doc}

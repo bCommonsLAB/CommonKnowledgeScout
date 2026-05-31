@@ -365,7 +365,8 @@
       "relationsRecomputeError": "Recompute failed",
       "relationsStale": "Outdated – the catalog has changed",
       "relationsNeverComputed": "Not computed yet",
-      "relationsComputedAt": "Computed on"
+      "relationsComputedAt": "Computed on",
+      "relationsRecomputeRow": "Compute relations for this measure"
     }
   },
   "climateRating": {
