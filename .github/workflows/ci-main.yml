@@ -115,8 +115,34 @@ jobs:
           git remote set-url origin https://x-access-token:${{ secrets.CI_PAT }}@github.com/${{ github.repository }}.git
           git add VERSION
           git commit -m "Bump version to ${{ steps.bump.outputs.new_version }} [skip ci]"
-          git tag -a -m "${{ steps.bump.outputs.new_version }}" v${{ steps.bump.outputs.new_version }}
-          git push --follow-tags
+          # Robuster Push gegen konkurrierende master-Updates: Laeuft der Remote
+          # waehrend des (minutenlangen) Docker-Builds weiter (z.B. ein zweiter
+          # PR-Merge), wird der Bump-Commit auf den aktuellen master rebased und
+          # erneut gepusht. Der Tag wird erst NACH erfolgreichem Push gesetzt,
+          # damit er garantiert auf dem finalen Commit sitzt (Rebase verschiebt
+          # sonst den Branch, nicht den Tag).
+          pushed=false
+          for attempt in 1 2 3 4 5; do
+            if git push origin HEAD:master; then
+              pushed=true
+              echo "Bump-Commit gepusht (Versuch ${attempt})."
+              break
+            fi
+            echo "Push abgelehnt - hole aktuellen master und rebase (Versuch ${attempt}/5)."
+            git fetch origin master
+            if ! git rebase origin/master; then
+              echo "Rebase-Konflikt (VERSION evtl. parallel gebumpt) - Abbruch."
+              git rebase --abort || true
+              exit 1
+            fi
+            sleep "$((attempt * 5))"
+          done
+          if [ "${pushed}" != "true" ]; then
+            echo "Push nach 5 Versuchen fehlgeschlagen."
+            exit 1
+          fi
+          git tag -a -m "${{ steps.bump.outputs.new_version }}" "v${{ steps.bump.outputs.new_version }}"
+          git push origin "v${{ steps.bump.outputs.new_version }}"
           
       - name: Publish Release
         uses: softprops/action-gh-release@v2
