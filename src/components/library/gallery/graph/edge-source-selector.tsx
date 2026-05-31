@@ -13,7 +13,6 @@ import {
   Select, SelectContent, SelectGroup, SelectItem, SelectLabel,
   SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/lib/i18n/hooks'
 import type { EdgeSourceSelection } from './graph-types'
 
@@ -65,25 +64,6 @@ export function EdgeSourceSelector({ selection, onChange, sharedMetaFields, fiel
           </SelectItem>
         </SelectContent>
       </Select>
-
-      {selection.kind === 'sharedMeta' && (
-        <div className="flex items-center gap-1 rounded-md border p-1">
-          <Button
-            type="button" variant="ghost" size="sm"
-            className={`h-6 px-2 ${currentMode === 'projection' ? 'bg-background shadow-sm' : ''}`}
-            onClick={() => onChange({ ...selection, mode: 'projection' })}
-          >
-            {t('gallery.graph.modeProjection')}
-          </Button>
-          <Button
-            type="button" variant="ghost" size="sm"
-            className={`h-6 px-2 ${currentMode === 'hub' ? 'bg-background shadow-sm' : ''}`}
-            onClick={() => onChange({ ...selection, mode: 'hub' })}
-          >
-            {t('gallery.graph.modeHub')}
-          </Button>
-        </div>
-      )}
     </div>
   )
 }

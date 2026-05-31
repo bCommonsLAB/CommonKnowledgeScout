@@ -342,7 +342,13 @@
       "legendHub": "Nœud de métadonnées",
       "nodes": "Nœuds",
       "edges": "Arêtes",
-      "resetZoom": "Réinitialiser la vue"
+      "resetZoom": "Réinitialiser la vue",
+      "customize": "Personnaliser",
+      "controlsFields": "Connecter par (champs)",
+      "controlsAddField": "Ajouter un champ …",
+      "controlsMode": "Mode",
+      "controlsMinShared": "Valeurs communes min.",
+      "controlsColors": "Couleurs"
     }
   },
   "climateRating": {

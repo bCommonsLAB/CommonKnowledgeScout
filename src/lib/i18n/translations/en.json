@@ -342,7 +342,13 @@
       "legendHub": "Metadata node",
       "nodes": "Nodes",
       "edges": "Edges",
-      "resetZoom": "Reset view"
+      "resetZoom": "Reset view",
+      "customize": "Customize",
+      "controlsFields": "Connect by (fields)",
+      "controlsAddField": "Add field …",
+      "controlsMode": "Mode",
+      "controlsMinShared": "Min. shared values",
+      "controlsColors": "Colors"
     }
   },
   "climateRating": {

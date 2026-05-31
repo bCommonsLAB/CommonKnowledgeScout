@@ -59,9 +59,21 @@ export function hubRadius(count: number): number {
 }
 
 /**
- * Knotenfarbe aus `colorField` + `colorMap`. Werte ohne Map-Eintrag bekommen
- * eine stabile Palette-Farbe (deterministisch über den Wert), kein zufälliges
- * Ausweichen. Ohne `colorField`: neutrale Default-Farbe.
+ * Effektive Farbe eines kategorischen Werts: `colorMap`-Eintrag, sonst eine
+ * stabile (deterministische) Palette-Farbe über den Wert — kein zufälliges
+ * Ausweichen. Wird auch vom Live-Editor genutzt, um den aktuellen Swatch zu
+ * zeigen.
+ */
+export function colorForValue(value: string, colorMap: Record<string, string> | undefined): string {
+  if (colorMap && colorMap[value]) return colorMap[value]
+  let hash = 0
+  for (let i = 0; i < value.length; i++) hash = (hash * 31 + value.charCodeAt(i)) >>> 0
+  return DEFAULT_PALETTE[hash % DEFAULT_PALETTE.length]
+}
+
+/**
+ * Knotenfarbe aus `colorField` + `colorMap`. Ohne `colorField` (oder Wert):
+ * neutrale Default-Farbe.
  */
 export function nodeColor(
   doc: DocCardMeta,
@@ -70,10 +82,7 @@ export function nodeColor(
 ): string {
   const value = readString(doc, colorField)
   if (!value) return DEFAULT_PALETTE[7]
-  if (colorMap && colorMap[value]) return colorMap[value]
-  let hash = 0
-  for (let i = 0; i < value.length; i++) hash = (hash * 31 + value.charCodeAt(i)) >>> 0
-  return DEFAULT_PALETTE[hash % DEFAULT_PALETTE.length]
+  return colorForValue(value, colorMap)
 }
 
 /** Knoten-Deckkraft aus `opacityField` (0..1), geklemmt; Default 1. */

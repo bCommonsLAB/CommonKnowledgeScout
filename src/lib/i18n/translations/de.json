@@ -369,7 +369,13 @@
       "legendHub": "Metadaten-Knoten",
       "nodes": "Knoten",
       "edges": "Kanten",
-      "resetZoom": "Ansicht zurücksetzen"
+      "resetZoom": "Ansicht zurücksetzen",
+      "customize": "Anpassen",
+      "controlsFields": "Verbinde nach (Felder)",
+      "controlsAddField": "Feld hinzufügen …",
+      "controlsMode": "Modus",
+      "controlsMinShared": "Min. gemeinsame Werte",
+      "controlsColors": "Farben"
     }
   },
   "climateRating": {
