@@ -355,7 +355,17 @@
       "saved": "Predefinito del grafo salvato",
       "saveError": "Salvataggio non riuscito",
       "similarityLoading": "Ricerca di documenti simili …",
-      "similarityError": "Impossibile caricare i vicini"
+      "similarityError": "Impossibile caricare i vicini",
+      "relationsLoading": "Caricamento delle relazioni calcolate …",
+      "relationsError": "Impossibile caricare le relazioni",
+      "relationsNoEdges": "Nessuna relazione calcolata per la selezione corrente. Proprietari/co-creatori possono ricalcolarle.",
+      "relationsRecompute": "Ricalcola",
+      "relationsRecomputing": "Calcolo …",
+      "relationsRecomputeQueued": "Ricalcolo avviato",
+      "relationsRecomputeError": "Ricalcolo non riuscito",
+      "relationsStale": "Obsoleto – il catalogo è cambiato",
+      "relationsNeverComputed": "Non ancora calcolato",
+      "relationsComputedAt": "Calcolato il"
     }
   },
   "climateRating": {

@@ -21,7 +21,7 @@
 
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { LibraryService } from '@/lib/services/library-service'
-import { getCollectionNameForLibrary, findDocs } from '@/lib/repositories/vector-repo'
+import { getCollectionNameForLibrary, findDocs, findDocSummaries } from '@/lib/repositories/vector-repo'
 import { callLlmJson } from '@/lib/chat/common/llm'
 import { computeCatalogHash } from '@/lib/gallery/relations-staleness'
 import {
@@ -80,6 +80,14 @@ export async function runDocRelationsPhase(job: ExternalJob): Promise<DocRelatio
 
   const { items } = await findDocs(libraryKey, job.libraryId, {}, { limit: CATALOG_LIMIT })
 
+  // Summaries separat laden (nicht Teil von DocCardMeta) und per fileId mergen.
+  const summaryRows = await findDocSummaries(libraryKey, job.libraryId, {}, { limit: CATALOG_LIMIT }, true)
+  const summaryByFileId = new Map<string, string>()
+  for (const r of summaryRows) {
+    const s = r.summary || r.teaser || r.docSummary
+    if (r.fileId && s) summaryByFileId.set(r.fileId, s)
+  }
+
   // slug→fileId-Brücke: Dokumente ohne slug können nicht referenziert werden.
   const slugToFileId = new Map<string, string>()
   const catalog: RelationsCatalogEntry[] = []
@@ -89,7 +97,7 @@ export async function runDocRelationsPhase(job: ExternalJob): Promise<DocRelatio
     if (fileId) hashEntries.push({ fileId, updatedAt: d.upsertedAt })
     if (!d.slug || !fileId) continue
     slugToFileId.set(d.slug, fileId)
-    catalog.push({ slug: d.slug, title: d.title || d.slug, summary: d.summary })
+    catalog.push({ slug: d.slug, title: d.title || d.slug, summary: summaryByFileId.get(fileId) })
   }
   const catalogHash = computeCatalogHash(hashEntries)
 

@@ -355,7 +355,17 @@
       "saved": "Graph default saved",
       "saveError": "Save failed",
       "similarityLoading": "Searching for similar documents …",
-      "similarityError": "Could not load neighbors"
+      "similarityError": "Could not load neighbors",
+      "relationsLoading": "Loading computed relations …",
+      "relationsError": "Could not load relations",
+      "relationsNoEdges": "No computed relations for the current selection. Owners/co-creators can recompute them.",
+      "relationsRecompute": "Recompute",
+      "relationsRecomputing": "Computing …",
+      "relationsRecomputeQueued": "Recompute started",
+      "relationsRecomputeError": "Recompute failed",
+      "relationsStale": "Outdated – the catalog has changed",
+      "relationsNeverComputed": "Not computed yet",
+      "relationsComputedAt": "Computed on"
     }
   },
   "climateRating": {

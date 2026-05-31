@@ -15,10 +15,12 @@ import type { GalleryGraphConfig } from '@/types/library'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useSharedMetaEdges } from '@/hooks/gallery/use-shared-meta-edges'
 import { useSimilarityEdges } from '@/hooks/gallery/use-similarity-edges'
+import { useRelationsEdges } from '@/hooks/gallery/use-relations-edges'
 import { EdgeSourceSelector } from './edge-source-selector'
 import { GraphControls } from './graph-controls'
 import { DocGraphScene } from './doc-graph-scene'
 import { DocGraphLegend } from './doc-graph-legend'
+import { DocGraphRelationsBar } from './doc-graph-relations-bar'
 import { readString } from './graph-encodings'
 import type { EdgeSourceSelection } from './graph-types'
 
@@ -35,6 +37,8 @@ interface DocGraphProps {
    * der Callback (Nicht-Owner), wird kein Speichern-Button gezeigt.
    */
   onSaveDefault?: (graph: GalleryGraphConfig) => Promise<void> | void
+  /** Owner/Co-Creator: berechnete Beziehungen (Quelle A) neu berechnen. */
+  canManageRelations?: boolean
 }
 
 /** Default-Nachbarzahl je Knoten für Quelle C, wenn nicht konfiguriert. */
@@ -46,7 +50,7 @@ const EXCLUDE_FIELDS = new Set([
   'bewertung_stand', 'bewertung_modell', 'detailViewType', 'docType',
 ])
 
-export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, onSaveDefault }: DocGraphProps) {
+export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, onSaveDefault, canManageRelations }: DocGraphProps) {
   const { t } = useTranslation()
   const sharedMeta = graph.edgeSources?.sharedMeta
   const defaultMode = sharedMeta?.mode ?? 'projection'
@@ -59,14 +63,21 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
   const similarityEnabled = graph.edgeSources?.similarity?.enabled !== false
   const similarityTopK = graph.edgeSources?.similarity?.topK ?? DEFAULT_SIMILARITY_TOP_K
 
+  // Quelle A (berechnete Beziehungen, Welle 4): nur aktiv, wenn explizit
+  // konfiguriert (`edgeSources.relations.enabled`), da sie einen Vorberechnungs-
+  // Lauf braucht. Kein impliziter Default.
+  const relationsEnabled = graph.edgeSources?.relations?.enabled === true
+
   // Anfangsauswahl: Config-Default respektieren, sonst erstes sharedMeta-Feld,
   // sonst (falls aktiv) Ähnlichkeit. Kein Silent Fallback auf eine inaktive Quelle.
   const initialSelection = useMemo<EdgeSourceSelection | null>(() => {
+    if (graph.defaultEdgeSource === 'relations' && relationsEnabled) return { kind: 'relations' }
     if (graph.defaultEdgeSource === 'similarity' && similarityEnabled) return { kind: 'similarity' }
     if (configFields.length) return { kind: 'sharedMeta', field: configFields[0], mode: defaultMode }
     if (similarityEnabled) return { kind: 'similarity' }
+    if (relationsEnabled) return { kind: 'relations' }
     return null
-  }, [graph.defaultEdgeSource, similarityEnabled, configFields, defaultMode])
+  }, [graph.defaultEdgeSource, similarityEnabled, relationsEnabled, configFields, defaultMode])
 
   // Live-Editier-State (ephemer; aus der Config geseedet, beim Library-Wechsel neu).
   const [liveFields, setLiveFields] = useState<string[]>(configFields)
@@ -94,8 +105,7 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
   }, [liveFields, selection, defaultMode, similarityEnabled])
 
   const isSimilarity = selection?.kind === 'similarity'
-  // Quelle A (relations) ist noch nicht implementiert (Welle 4).
-  const defaultNotImplemented = graph.defaultEdgeSource === 'relations'
+  const isRelations = selection?.kind === 'relations'
 
   // Vorschläge: kategorische/Array-meta-Keys aus den Docs + Facetten-Felder.
   const availableFields = useMemo(() => {
@@ -142,7 +152,12 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
     minWeight: graph.minWeight,
     maxEdgesPerNode: graph.maxEdgesPerNode, maxEdgesTotal: graph.maxEdgesTotal,
   })
-  const data = isSimilarity ? similarity.data : sharedData
+  const relations = useRelationsEdges({
+    docs, libraryId, enabled: isRelations,
+    minWeight: graph.minWeight,
+    maxEdgesPerNode: graph.maxEdgesPerNode, maxEdgesTotal: graph.maxEdgesTotal,
+  })
+  const data = isRelations ? relations.data : isSimilarity ? similarity.data : sharedData
 
   return (
     <div className="flex h-full min-h-[60vh] flex-col gap-2">
@@ -155,10 +170,11 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
               sharedMetaFields={liveFields}
               fieldLabels={fieldLabels}
               similarityEnabled={similarityEnabled}
+              relationsEnabled={relationsEnabled}
             />
           )}
           {/* Live-Editor (Felder/Modus/Farben) ist sharedMeta-spezifisch. */}
-          {!isSimilarity && (
+          {!isSimilarity && !isRelations && (
             <GraphControls
               fields={liveFields}
               onFieldsChange={setLiveFields}
@@ -189,11 +205,33 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
               }) : undefined}
             />
           )}
+          {/* Quelle A: Staleness-Hinweis + Recompute (Owner/Co-Creator). */}
+          {isRelations && (
+            <DocGraphRelationsBar
+              libraryId={libraryId}
+              canManage={canManageRelations}
+              stale={relations.stale}
+              computedAt={relations.computedAt}
+            />
+          )}
         </div>
-        {defaultNotImplemented && <span className="text-xs text-muted-foreground">{t('gallery.graph.comingSoon')}</span>}
       </div>
       <div ref={containerRef} className="relative flex-1 overflow-hidden rounded-md border bg-muted/20">
-        {isSimilarity ? (
+        {isRelations ? (
+          relations.loading ? (
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center text-sm text-muted-foreground">
+              {t('gallery.graph.relationsLoading')}
+            </div>
+          ) : relations.error ? (
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-w-md text-center text-sm text-destructive">
+              {t('gallery.graph.relationsError')}: {relations.error}
+            </div>
+          ) : size.width > 0 && data.links.length === 0 ? (
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-w-md text-center text-sm text-muted-foreground">
+              {t('gallery.graph.relationsNoEdges')}
+            </div>
+          ) : null
+        ) : isSimilarity ? (
           similarity.loading ? (
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center text-sm text-muted-foreground">
               {t('gallery.graph.similarityLoading')}
@@ -216,7 +254,7 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
             {t('gallery.graph.noEdges')}
           </div>
         ) : null}
-        {size.width > 0 && (isSimilarity || liveFields.length > 0) && (
+        {size.width > 0 && (isRelations || isSimilarity || liveFields.length > 0) && (
           <DocGraphScene
             data={data}
             docs={docs}

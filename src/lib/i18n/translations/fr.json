@@ -355,7 +355,17 @@
       "saved": "Valeur par défaut du graphe enregistrée",
       "saveError": "Échec de l’enregistrement",
       "similarityLoading": "Recherche de documents similaires …",
-      "similarityError": "Impossible de charger les voisins"
+      "similarityError": "Impossible de charger les voisins",
+      "relationsLoading": "Chargement des relations calculées …",
+      "relationsError": "Impossible de charger les relations",
+      "relationsNoEdges": "Aucune relation calculée pour la sélection actuelle. Les propriétaires/co-créateurs peuvent les recalculer.",
+      "relationsRecompute": "Recalculer",
+      "relationsRecomputing": "Calcul …",
+      "relationsRecomputeQueued": "Recalcul lancé",
+      "relationsRecomputeError": "Échec du recalcul",
+      "relationsStale": "Obsolète – le catalogue a changé",
+      "relationsNeverComputed": "Pas encore calculé",
+      "relationsComputedAt": "Calculé le"
     }
   },
   "climateRating": {

@@ -382,7 +382,17 @@
       "saved": "Graph-Standard gespeichert",
       "saveError": "Speichern fehlgeschlagen",
       "similarityLoading": "Ähnliche Dokumente werden gesucht …",
-      "similarityError": "Nachbarn konnten nicht geladen werden"
+      "similarityError": "Nachbarn konnten nicht geladen werden",
+      "relationsLoading": "Berechnete Beziehungen werden geladen …",
+      "relationsError": "Beziehungen konnten nicht geladen werden",
+      "relationsNoEdges": "Keine berechneten Beziehungen für die aktuelle Auswahl. Owner/Co-Creator können sie neu berechnen.",
+      "relationsRecompute": "Neu berechnen",
+      "relationsRecomputing": "Wird berechnet …",
+      "relationsRecomputeQueued": "Neuberechnung gestartet",
+      "relationsRecomputeError": "Neuberechnung fehlgeschlagen",
+      "relationsStale": "Veraltet – Katalog hat sich geändert",
+      "relationsNeverComputed": "Noch nicht berechnet",
+      "relationsComputedAt": "Berechnet am"
     }
   },
   "climateRating": {
