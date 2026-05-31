@@ -75,6 +75,15 @@ const LazyChatPanel = dynamic(
   }
 )
 
+// Graph-Modus client-only laden (D3 nutzt Browser-APIs; kein SSR).
+const LazyDocGraph = dynamic(
+  () => import('@/components/library/gallery/graph/doc-graph').then((module) => module.DocGraph),
+  {
+    ssr: false,
+    loading: () => <div className='text-sm text-muted-foreground p-4'>Lade Graph…</div>,
+  }
+)
+
 export function GalleryRoot({
   libraryIdProp,
   hideTabs = false,
@@ -354,6 +363,24 @@ export function GalleryRoot({
   const docSlug = searchParams?.get('doc')
 
   const { facetDefs } = useGalleryFacets(libraryId, filters)
+
+  // Graph-Modus (Welle 2): pro Library über config.chat.gallery.graph aktiviert.
+  const graphConfig = activeLibrary?.config?.chat?.gallery?.graph
+  const graphEnabled = graphConfig?.enabled === true
+  // Anzeigenamen je meta-Feld für den Kantenquellen-Selektor (aus Facetten).
+  const facetFieldLabels = React.useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const def of facetDefs) {
+      if (def.metaKey && def.label) map[def.metaKey] = def.label
+    }
+    return map
+  }, [facetDefs])
+
+  // Fällt der Graph-Modus weg (Config deaktiviert), darf keine 'graph'-Ansicht
+  // hängen bleiben — explizit auf 'grid' zurücksetzen (kein stiller Render-Müll).
+  React.useEffect(() => {
+    if (!graphEnabled && viewMode === 'graph') setViewMode('grid')
+  }, [graphEnabled, viewMode])
 
   // Dynamischer Platzhalter für das Suchfeld basierend auf den tatsächlich durchsuchten Feldern
   // Die Suche durchsucht: title, shortTitle + alle String/String[]-Facetten
@@ -832,6 +859,19 @@ export function GalleryRoot({
       )
     }
     
+    // Graph-Modus (Welle 2): teilt den gefilterten Galerie-Bestand + Filter-Sidebar.
+    // Klick auf einen Knoten öffnet die bestehende DetailOverlay (handleOpenDocument).
+    if (viewMode === 'graph' && graphConfig) {
+      return (
+        <LazyDocGraph
+          docs={filteredFlat}
+          graph={graphConfig}
+          onOpenDocument={handleOpenDocument}
+          fieldLabels={facetFieldLabels}
+        />
+      )
+    }
+
     // Wenn chatReferences gesetzt ist, verwende gruppierte Ansicht
     if (chatReferences && chatReferences.references && chatReferences.references.length > 0) {
       return (
@@ -922,6 +962,7 @@ export function GalleryRoot({
             onViewModeChange={setViewMode}
             cardDensity={cardDensity}
             onCardDensityChange={handleCardDensityChange}
+            showGraph={graphEnabled}
           />
 
           <div className='flex-1 min-h-0 overflow-hidden flex flex-col'>
