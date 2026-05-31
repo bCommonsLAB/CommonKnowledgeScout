@@ -4,11 +4,18 @@
  * @description
  * Reine, testbare Bausteine der Quelle-A-Phase (Zielbild §5.1/§5.5): das
  * Zod-/JSON-Schema des strukturierten LLM-Outputs und der Prompt-Aufbau aus
- * dem Katalog (slug/Titel/Summary) plus optionalem Fokus (eine Maßnahme).
+ * dem Katalog (slug/Titel/Summary/Gruppe) plus optionalem Fokus (eine Maßnahme).
  *
- * Generisch: der Beziehungstyp (`relationType`, Default „unterstuetzt") und ein
- * optionaler `relationPrompt` kommen aus der Per-Library-Config — es gibt KEINE
- * Klima-Hardcodierung hier.
+ * Generisch: Beziehungstyp (`relationType`, Default „unterstuetzt"), ein
+ * optionaler `relationPrompt` (domänenspezifischer Richtungs-Prior, z.B. „struk-
+ * turelle/bewusstseinsbildende Maßnahmen wirken auf soziale/wirksame") und ein
+ * generisches Gruppen-Label (z.B. die Perspektive aus `colorField`) kommen aus
+ * der Per-Library-Config — KEINE Klima-Hardcodierung hier.
+ *
+ * Strategie (vom Nutzer entschieden): pro Maßnahme der VOLLE Katalog im Kontext;
+ * das Modell wählt selbst die wichtigsten unterstützten Maßnahmen aus
+ * (Top-N), statt alle-zu-allen zu bewerten. Caching/Vorfilterung folgt als
+ * eigene Optimierungswelle.
  */
 
 import * as z from 'zod'
@@ -18,6 +25,8 @@ export interface RelationsCatalogEntry {
   slug: string
   title: string
   summary?: string
+  /** Generischer Klassifikations-/Gruppen-Wert (z.B. `dominant_perspektive`). */
+  group?: string
 }
 
 /** Vom LLM gelieferte, slug-basierte Kante (vor der fileId-Auflösung). */
@@ -56,17 +65,31 @@ export const relationsSchemaJson = JSON.stringify({
   required: ['edges'],
 })
 
+/** Default-Obergrenze der wichtigsten ausgehenden Kanten je Maßnahme. */
+export const DEFAULT_MAX_OUTGOING = 10
+
 export interface BuildRelationsMessagesArgs {
   catalog: RelationsCatalogEntry[]
   /** Generischer Beziehungstyp (Default „unterstuetzt"). */
   relationType: string
-  /** Optionaler, library-spezifischer Zusatz-Prompt. */
+  /** Optionaler, library-spezifischer Richtungs-Prior (freier Text). */
   relationPrompt?: string
   /**
    * Fokus auf EINE Maßnahme: dann nur deren AUSGEHENDE Kanten anfordern
    * (`sourceSlug === focusSlug`). Fehlt der Fokus → ganze Library.
    */
   focusSlug?: string
+  /** Obergrenze der wichtigsten ausgehenden Kanten je Maßnahme (Default 10). */
+  maxOutgoing?: number
+  /** Generischer Name der Gruppen-Dimension (z.B. „Perspektive"), nur Anzeige. */
+  groupLabel?: string
+}
+
+/** Formatiert eine Katalog-Zeile: `- slug=… [Gruppe] | Titel | Summary`. */
+function formatEntry(d: RelationsCatalogEntry): string {
+  const group = d.group ? ` [${d.group}]` : ''
+  const summary = d.summary ? ` | ${d.summary.slice(0, 280)}` : ''
+  return `- slug=${d.slug}${group} | ${d.title}${summary}`
 }
 
 /** Baut die system/user-Messages für `callLlmJson`. */
@@ -75,26 +98,31 @@ export function buildRelationsMessages(args: BuildRelationsMessagesArgs): Array<
   content: string
 }> {
   const { catalog, relationType, relationPrompt, focusSlug } = args
+  const maxOutgoing = args.maxOutgoing ?? DEFAULT_MAX_OUTGOING
+  const groupLabel = args.groupLabel || 'Gruppe'
 
   const scopeLine = focusSlug
-    ? `Gib AUSSCHLIESSLICH ausgehende Kanten der Maßnahme mit slug="${focusSlug}" zurück (sourceSlug muss "${focusSlug}" sein).`
-    : 'Gib die wichtigsten gerichteten Kanten zwischen den Dokumenten zurück.'
+    ? `Betrachte AUSSCHLIESSLICH die Maßnahme mit slug="${focusSlug}". Finde unter allen Dokumenten die wichtigsten (höchstens ${maxOutgoing}), die diese Maßnahme ${relationType} bzw. ermöglicht — sourceSlug MUSS "${focusSlug}" sein.`
+    : `Gib je Maßnahme höchstens ${maxOutgoing} ausgehende Kanten zurück — nur die wichtigsten.`
+
+  const hasGroups = catalog.some((d) => d.group)
+  const groupHint = hasGroups
+    ? `Jeder Eintrag trägt in [eckigen Klammern] seine ${groupLabel}. Nutze sie als Orientierung für die wahrscheinliche Wirkrichtung. Unterstützung kann grundsätzlich in alle Richtungen gehen — die ${groupLabel} ist nur ein Hinweis, keine harte Regel.`
+    : ''
 
   const system = [
     `Du analysierst einen Katalog von Dokumenten und bestimmst gerichtete, gewichtete Beziehungen vom Typ "${relationType}".`,
-    `Eine Kante A → B bedeutet: "A ${relationType} B". weight ist die Stärke der Abhängigkeit zwischen 0 und 1.`,
-    'Verwende NUR die unten gelisteten slugs. Erfinde keine slugs. Lass schwache/spekulative Kanten weg.',
+    `Eine Kante A → B bedeutet: "A ${relationType} B". weight ist die Stärke zwischen 0 und 1.`,
+    'Bewerte NICHT alle-zu-allen. Wähle nur die wichtigsten, belastbaren Beziehungen aus; lass schwache/spekulative Kanten weg.',
+    'Verwende NUR die unten gelisteten slugs. Erfinde keine slugs.',
     'Gib zu jeder Kante eine kurze, konkrete rationale (ein Satz).',
     scopeLine,
-    relationPrompt ? `Zusätzliche Vorgabe: ${relationPrompt}` : '',
+    groupHint,
+    relationPrompt ? `Domänen-Hinweis zur Wirkrichtung: ${relationPrompt}` : '',
     'Antworte ausschließlich als JSON gemäß Schema { "edges": [ { "sourceSlug", "targetSlug", "weight", "rationale" } ] }.',
   ].filter(Boolean).join('\n')
 
-  const docList = catalog
-    .map((d) => `- slug=${d.slug} | ${d.title}${d.summary ? ` | ${d.summary.slice(0, 280)}` : ''}`)
-    .join('\n')
-
-  const user = `Dokumente (${catalog.length}):\n${docList}`
+  const user = `Dokumente (${catalog.length}):\n${catalog.map(formatEntry).join('\n')}`
 
   return [
     { role: 'system', content: system },

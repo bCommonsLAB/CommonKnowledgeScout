@@ -33,6 +33,7 @@ import {
   buildRelationsMessages,
   relationsSchemaJson,
   RelationsResultSchema,
+  DEFAULT_MAX_OUTGOING,
   type RelationsCatalogEntry,
 } from './doc-relations-prompt'
 import type { ExternalJob } from '@/types/external-job'
@@ -40,6 +41,8 @@ import type { ExternalJob } from '@/types/external-job'
 const DEFAULT_RELATION_TYPE = 'unterstuetzt'
 const DEFAULT_MODEL = 'gpt-4.1-mini'
 const CATALOG_LIMIT = 500
+/** Feld, dessen Wert generisch als Gruppen-Label dient, wenn `colorField` fehlt. */
+const DEFAULT_GROUP_FIELD = 'dominant_perspektive'
 
 interface DocRelationsOptions {
   phase?: string
@@ -68,15 +71,24 @@ export async function runDocRelationsPhase(job: ExternalJob): Promise<DocRelatio
   const repo = new ExternalJobsRepository()
   const opts = (job.correlation?.options || {}) as DocRelationsOptions
   const scope: 'source' | 'library' = opts.scope === 'source' ? 'source' : 'library'
-  const relationType = opts.relationType || DEFAULT_RELATION_TYPE
   const model = opts.model || DEFAULT_MODEL
 
   await repo.updateStep(job.jobId, 'phase-doc-relations', { status: 'running', startedAt: new Date() })
 
-  // ── 1) Library + Katalog laden ───────────────────────────────────────────
+  // ── 1) Library + Config + Katalog laden ───────────────────────────────────
   const library = await LibraryService.getInstance().getLibraryById(job.libraryId)
   if (!library) throw new Error('phase-doc-relations: Library nicht gefunden')
   const libraryKey = getCollectionNameForLibrary(library)
+
+  // Config ist Quelle der Wahrheit (Job-Optionen übersteuern nur explizit).
+  const graphConfig = library.config?.chat?.gallery?.graph
+  const relationsConfig = graphConfig?.edgeSources?.relations
+  const relationType = opts.relationType || relationsConfig?.relationType || DEFAULT_RELATION_TYPE
+  const relationPrompt = opts.relationPrompt || relationsConfig?.relationPrompt
+  // Generisches Gruppen-Label = die kategorische Encoding-Dimension des Graphen
+  // (Klima: `dominant_perspektive`). Kein Hardcoding — nur ein Default.
+  const groupField = graphConfig?.colorField || DEFAULT_GROUP_FIELD
+  const maxOutgoing = graphConfig?.maxEdgesPerNode ?? DEFAULT_MAX_OUTGOING
 
   const { items } = await findDocs(libraryKey, job.libraryId, {}, { limit: CATALOG_LIMIT })
 
@@ -97,7 +109,9 @@ export async function runDocRelationsPhase(job: ExternalJob): Promise<DocRelatio
     if (fileId) hashEntries.push({ fileId, updatedAt: d.upsertedAt })
     if (!d.slug || !fileId) continue
     slugToFileId.set(d.slug, fileId)
-    catalog.push({ slug: d.slug, title: d.title || d.slug, summary: summaryByFileId.get(fileId) })
+    const groupRaw = (d as unknown as Record<string, unknown>)[groupField]
+    const group = typeof groupRaw === 'string' && groupRaw.length > 0 ? groupRaw : undefined
+    catalog.push({ slug: d.slug, title: d.title || d.slug, summary: summaryByFileId.get(fileId), group })
   }
   const catalogHash = computeCatalogHash(hashEntries)
 
@@ -111,7 +125,7 @@ export async function runDocRelationsPhase(job: ExternalJob): Promise<DocRelatio
 
   // ── 2) LLM-Pass ──────────────────────────────────────────────────────────
   const messages = buildRelationsMessages({
-    catalog, relationType, relationPrompt: opts.relationPrompt, focusSlug,
+    catalog, relationType, relationPrompt, focusSlug, maxOutgoing, groupLabel: groupField,
   })
   const { data } = await callLlmJson(
     {
