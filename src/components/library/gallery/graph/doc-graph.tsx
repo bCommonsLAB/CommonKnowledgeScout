@@ -27,6 +27,11 @@ interface DocGraphProps {
   onOpenDocument: (doc: DocCardMeta) => void
   /** Optionale Anzeigenamen je meta-Feld (aus den Facetten-Definitionen). */
   fieldLabels?: Record<string, string>
+  /**
+   * Nur Owner: aktuelle Live-Einstellung als Library-Default speichern. Fehlt
+   * der Callback (Nicht-Owner), wird kein Speichern-Button gezeigt.
+   */
+  onSaveDefault?: (graph: GalleryGraphConfig) => Promise<void> | void
 }
 
 const EXCLUDE_FIELDS = new Set([
@@ -35,7 +40,7 @@ const EXCLUDE_FIELDS = new Set([
   'bewertung_stand', 'bewertung_modell', 'detailViewType', 'docType',
 ])
 
-export function DocGraph({ docs, graph, onOpenDocument, fieldLabels }: DocGraphProps) {
+export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, onSaveDefault }: DocGraphProps) {
   const { t } = useTranslation()
   const sharedMeta = graph.edgeSources?.sharedMeta
   const defaultMode = sharedMeta?.mode ?? 'projection'
@@ -126,6 +131,21 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels }: DocGraphP
             colorValues={colorValues}
             colorMap={liveColorMap}
             onColorMapChange={setLiveColorMap}
+            onSave={onSaveDefault ? () => onSaveDefault({
+              ...graph,
+              colorMap: liveColorMap,
+              defaultEdgeSource: 'sharedMeta',
+              edgeSources: {
+                ...graph.edgeSources,
+                sharedMeta: {
+                  ...(graph.edgeSources?.sharedMeta ?? {}),
+                  enabled: true,
+                  fields: liveFields,
+                  mode: activeMode,
+                  minShared,
+                },
+              },
+            }) : undefined}
           />
         </div>
         {defaultNotImplemented && <span className="text-xs text-muted-foreground">{t('gallery.graph.comingSoon')}</span>}

@@ -348,7 +348,12 @@
       "controlsAddField": "Ajouter un champ …",
       "controlsMode": "Mode",
       "controlsMinShared": "Valeurs communes min.",
-      "controlsColors": "Couleurs"
+      "controlsColors": "Couleurs",
+      "saveDefault": "Enregistrer par défaut",
+      "saveDefaultHint": "S’applique à TOUS les utilisateurs de cette bibliothèque (propriétaire uniquement).",
+      "saving": "Enregistrement …",
+      "saved": "Valeur par défaut du graphe enregistrée",
+      "saveError": "Échec de l’enregistrement"
     }
   },
   "climateRating": {

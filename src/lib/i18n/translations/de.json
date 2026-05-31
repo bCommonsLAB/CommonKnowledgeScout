@@ -375,7 +375,12 @@
       "controlsAddField": "Feld hinzufügen …",
       "controlsMode": "Modus",
       "controlsMinShared": "Min. gemeinsame Werte",
-      "controlsColors": "Farben"
+      "controlsColors": "Farben",
+      "saveDefault": "Als Standard speichern",
+      "saveDefaultHint": "Gilt fuer ALLE Nutzer dieser Bibliothek (nur Owner).",
+      "saving": "Speichern …",
+      "saved": "Graph-Standard gespeichert",
+      "saveError": "Speichern fehlgeschlagen"
     }
   },
   "climateRating": {

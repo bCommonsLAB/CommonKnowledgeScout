@@ -37,16 +37,28 @@ interface GraphControlsProps {
   colorValues: string[]
   colorMap: Record<string, string>
   onColorMapChange: (map: Record<string, string>) => void
+  /**
+   * Nur Owner: aktuelle Einstellung als Library-Default speichern (gilt fuer
+   * ALLE Nutzer). Fehlt der Callback, wird kein Speichern-Button gezeigt.
+   */
+  onSave?: () => Promise<void> | void
 }
 
 export function GraphControls(props: GraphControlsProps) {
   const {
     fields, onFieldsChange, availableFields, fieldLabels,
     mode, onModeChange, minShared, onMinSharedChange,
-    colorField, colorValues, colorMap, onColorMapChange,
+    colorField, colorValues, colorMap, onColorMapChange, onSave,
   } = props
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  const handleSave = async () => {
+    if (!onSave) return
+    setSaving(true)
+    try { await onSave() } finally { setSaving(false) }
+  }
 
   const label = (f: string) => fieldLabels?.[f] || f
   const addable = availableFields.filter((f) => !fields.includes(f))
@@ -131,6 +143,15 @@ export function GraphControls(props: GraphControlsProps) {
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {onSave && (
+          <div className="space-y-1 border-t pt-3">
+            <Button type="button" size="sm" className="w-full" disabled={saving} onClick={handleSave}>
+              {saving ? t('gallery.graph.saving') : t('gallery.graph.saveDefault')}
+            </Button>
+            <p className="text-xs text-muted-foreground">{t('gallery.graph.saveDefaultHint')}</p>
           </div>
         )}
       </PopoverContent>

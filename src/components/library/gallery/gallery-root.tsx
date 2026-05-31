@@ -15,6 +15,7 @@ import { GroupedItemsView } from '@/components/library/gallery/grouped-items-vie
 import { groupDocsByReferences } from '@/hooks/gallery/use-gallery-data'
 import type { ViewMode } from '@/components/library/gallery/gallery-sticky-header'
 import { useSessionHeaders } from '@/hooks/use-session-headers'
+import { toast } from '@/components/ui/use-toast'
 import type { QueryLog } from '@/types/query-log'
 import type { ChatResponse } from '@/types/chat-response'
 import { MobileFiltersSheet } from '@/components/library/gallery/mobile-filters-sheet'
@@ -95,6 +96,7 @@ export function GalleryRoot({
   const libraryIdFromAtom = useAtomValue(activeLibraryIdAtom)
   const libraryId = libraryIdProp || libraryIdFromAtom
   const libraries = useAtomValue(librariesAtom)
+  const setLibraries = useSetAtom(librariesAtom)
   const [filters, setFilters] = useAtom(galleryFiltersAtom)
   const [showFilters, setShowFilters] = useState(false)
   const isClosingRef = React.useRef(false)
@@ -381,6 +383,30 @@ export function GalleryRoot({
   React.useEffect(() => {
     if (!graphEnabled && viewMode === 'graph') setViewMode('grid')
   }, [graphEnabled, viewMode])
+
+  // Owner speichert die aktuelle Graph-Einstellung als Library-Default
+  // (config.chat.gallery.graph). Gilt fuer ALLE Nutzer der Library -> nur Owner.
+  // chat wird serverseitig flach gemergt -> die VOLLSTAENDIGE gallery senden,
+  // damit detailViewType/facets nicht verloren gehen.
+  const handleSaveGraphDefault = React.useCallback(async (nextGraph: import('@/types/library').GalleryGraphConfig) => {
+    if (!libraryId || !activeLibrary || !isOwner) return
+    const existingGallery = (activeLibrary.config?.chat?.gallery ?? {}) as Record<string, unknown>
+    const galleryPayload = { ...existingGallery, graph: nextGraph }
+    const res = await fetch(`/api/libraries/${encodeURIComponent(libraryId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...(sessionHeaders as Record<string, string>) },
+      body: JSON.stringify({ id: libraryId, config: { chat: { gallery: galleryPayload } } }),
+    })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      toast({ title: t('gallery.graph.saveError'), description: j?.error || res.statusText, variant: 'destructive' })
+      return
+    }
+    setLibraries(libraries.map((l) => l.id === libraryId
+      ? ({ ...l, config: { ...l.config, chat: { ...l.config?.chat, gallery: galleryPayload } } } as typeof l)
+      : l))
+    toast({ title: t('gallery.graph.saved') })
+  }, [libraryId, activeLibrary, isOwner, sessionHeaders, setLibraries, libraries, t])
 
   // Dynamischer Platzhalter für das Suchfeld basierend auf den tatsächlich durchsuchten Feldern
   // Die Suche durchsucht: title, shortTitle + alle String/String[]-Facetten
@@ -868,6 +894,7 @@ export function GalleryRoot({
           graph={graphConfig}
           onOpenDocument={handleOpenDocument}
           fieldLabels={facetFieldLabels}
+          onSaveDefault={isOwner ? handleSaveGraphDefault : undefined}
         />
       )
     }

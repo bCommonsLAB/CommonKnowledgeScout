@@ -348,7 +348,12 @@
       "controlsAddField": "Añadir campo …",
       "controlsMode": "Modo",
       "controlsMinShared": "Valores compartidos mín.",
-      "controlsColors": "Colores"
+      "controlsColors": "Colores",
+      "saveDefault": "Guardar como predeterminado",
+      "saveDefaultHint": "Se aplica a TODOS los usuarios de esta biblioteca (solo propietario).",
+      "saving": "Guardando …",
+      "saved": "Predeterminado del grafo guardado",
+      "saveError": "Error al guardar"
     }
   },
   "climateRating": {

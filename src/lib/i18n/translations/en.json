@@ -348,7 +348,12 @@
       "controlsAddField": "Add field …",
       "controlsMode": "Mode",
       "controlsMinShared": "Min. shared values",
-      "controlsColors": "Colors"
+      "controlsColors": "Colors",
+      "saveDefault": "Save as default",
+      "saveDefaultHint": "Applies to ALL users of this library (owner only).",
+      "saving": "Saving …",
+      "saved": "Graph default saved",
+      "saveError": "Save failed"
     }
   },
   "climateRating": {
