@@ -33,7 +33,6 @@ sprache: de
 docType: klimamassnahme
 detailViewType: climateAction
 coverImagePrompt: Erstelle ein Hintergrundbild für einen Blogartikel einer Klimamassnahme. Es sollen Menschen in einem Südtiroler Umfeld gezeigt werden, wie diese Massnahme ihren Alltag erleichtert. WICHTIG: Kein Text, keine Schrift, keine Beschriftungen, keine Overlays auf dem Bild – es wird als Hintergrundbild verwendet und mit Text überlagert. Thema:
-detailViewType: climateAction
 ---
 
 ## {{title}}
