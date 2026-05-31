@@ -133,6 +133,15 @@ Siehe `.cursor/rules/refactor-batch-strategy.mdc`.
   - `pnpm build` mehr als 2x im Agent ohne Fortschritt — stattdessen
     User um lokale Verifikation bitten
 
+### Diagnose-Reihenfolge bei „laeuft nicht wie erwartet"
+
+Bei UI-/Verhaltens-Reports des Users zuerst **Branch- und Build-Identitaet**
+verifizieren (`git branch --show-current`, `grep -c <Komponente> <Datei>`,
+`.next` loeschen + Dev-Neustart), BEVOR Quellcode-Archaeologie ueber den
+Render-Pfad beginnt. Lehre aus dem Welle-1-Test: Die Ursache war ein
+Branch-Mismatch, nicht ein Bug — siehe
+[`cloud-agent-kostenoptimierung.md` Hebel 5](refactor/cloud-agent-kostenoptimierung.md).
+
 ## 5. Hand-off am Welle-Ende (PFLICHT)
 
 Verbindlich seit 2026-05-02. Quelle:
