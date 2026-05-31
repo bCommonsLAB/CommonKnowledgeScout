@@ -18,6 +18,10 @@ import { IngestionDivaDocumentDetail } from '@/components/library/ingestion-diva
 import { IngestionDivaTextureDetail } from '@/components/library/ingestion-diva-texture-detail'
 import { IngestionRefurbedDeviceDetail } from '@/components/library/ingestion-refurbed-device-detail'
 import { useTranslation } from '@/lib/i18n/hooks'
+import { useAtomValue } from 'jotai'
+import { librariesAtom } from '@/atoms/library-atom'
+import { SdgProfile } from '@/components/library/gallery/sdg-profile'
+import { extractSdgValues, extractSdgBegruendung, hasSdgData } from '@/lib/gallery/sdg-meta'
 import { SwitchToStoryModeButton } from '@/components/library/gallery/switch-to-story-mode-button'
 import { DocumentShareButton } from '@/components/library/gallery/document-share-button'
 import type { BookDetailData } from '@/components/library/book-detail'
@@ -92,6 +96,9 @@ export function DetailOverlay({
 }: DetailOverlayProps) {
   const { t, locale } = useTranslation()
   const { isMember, isSignedIn } = useLibraryRole(libraryId)
+  // SDG-Profil ist ein library-uebergreifendes Anzeige-Flag (kein Secret).
+  const libraries = useAtomValue(librariesAtom)
+  const sdgEnabled = libraries.find((l) => l.id === libraryId)?.config?.enableSdgProfile === true
   // Sichtbare/relevante fileIds: aktuelle Quelle + Geschwister fuer
   // den Tinder-Modus (sonst kann der Sequencer nicht filtern, was
   // bewertet wurde). Bei geschlossenem Overlay ist das Array leer.
@@ -174,6 +181,8 @@ export function DetailOverlay({
   const [prefetchedSessionData, setPrefetchedSessionData] = React.useState<SessionDetailData | null>(null)
   const [isDocMetaReady, setIsDocMetaReady] = React.useState(false)
   const [sessionUrl, setSessionUrl] = React.useState<string | null>(null)
+  // Lokalisiertes docMetaJson fuer das generische SDG-Profil (alle View-Typen).
+  const [sdgDocMeta, setSdgDocMeta] = React.useState<Record<string, unknown> | null>(null)
 
   // Display-Title (i18n)
   const getDisplayTitle = () => {
@@ -195,12 +204,14 @@ export function DetailOverlay({
       setPrefetchedSessionData(null)
       setIsDocMetaReady(false)
       setSessionUrl(null)
+      setSdgDocMeta(null)
       return
     }
 
     setPrefetchedBookData(null)
     setPrefetchedSessionData(null)
     setIsDocMetaReady(false)
+    setSdgDocMeta(null)
 
     const loadDocMeta = async () => {
       try {
@@ -214,6 +225,8 @@ export function DetailOverlay({
         // Locale-Veredelung VOR dem Detail-Mapping
         const localized = localizeDocMetaJson(docMetaJson, locale, fallbackLocale)
         const localizedJson = { ...json, docMetaJson: localized }
+        // Raw (lokalisiertes) docMetaJson fuer das generische SDG-Profil behalten.
+        setSdgDocMeta(localized as Record<string, unknown>)
 
         if (viewType === 'session') {
           try { setPrefetchedSessionData(mapToSessionDetail(localizedJson as unknown)) } catch { setPrefetchedSessionData(null) }
@@ -390,6 +403,16 @@ export function DetailOverlay({
             isDocMetaReady={isDocMetaReady}
             fallbackLocale={fallbackLocale}
           />
+          {/* Generisches SDG-Profil (library-uebergreifend, flag-gesteuert):
+              nur wenn aktiviert UND die SDG-Felder in den Metadaten vorhanden sind. */}
+          {sdgEnabled && sdgDocMeta && hasSdgData(sdgDocMeta) ? (
+            <div className='px-6 pb-6'>
+              <SdgProfile
+                values={extractSdgValues(sdgDocMeta)}
+                begruendung={extractSdgBegruendung(sdgDocMeta)}
+              />
+            </div>
+          ) : null}
           {/* Normalmodus: Kommentare unten, unter den Infos. */}
           {!ratingActive ? commentsBlock : null}
         </ScrollArea>

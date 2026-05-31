@@ -322,6 +322,14 @@ export interface StorageConfig {
   analyzeDivaTextureInfo?: boolean;
 
   /**
+   * Anzeige: Generisches SDG-Profil (17 Nachhaltigkeitsziele) in der
+   * Detailansicht. Wenn true, wird das SDG-Rad gerendert, sofern die Felder
+   * `sdg_1..sdg_17` (+ optional `sdg_begruendung`) in `docMetaJson` vorhanden
+   * sind. Library-/Story-uebergreifend nutzbar. Default: false.
+   */
+  enableSdgProfile?: boolean;
+
+  /**
    * Schwellwert fuer die Auto-Uebernahme der Stoffgruppen-Klassifikation
    * (Stufe 4). Wenn die Klassifikations-Konfidenz `confidence_class` einer
    * Gruppe diesen Wert erreicht, darf die UI "Alle Gruppen ueber dem Schwell-
@@ -547,6 +555,8 @@ export interface ClientLibrary {
     chat?: LibraryChatConfig;
     /** Transformation: DIVA-Liefersystem-Daten auswerten (DIVA-Info-Tab). Default false. */
     analyzeDivaTextureInfo?: boolean;
+    /** Anzeige: Generisches SDG-Profil (SDG-Rad) in der Detailansicht. Default false. */
+    enableSdgProfile?: boolean;
     /**
      * Schwellwert fuer Auto-Uebernahme bei Stoffgruppen-Klassifikation (Stufe 4).
      * Bereich [0, 1], Default 0.9.

@@ -27,6 +27,24 @@ perspektiven_begruendung: {{perspektiven_begruendung|GENERATIV: Begründung des 
 dominant_perspektive: {{dominant_perspektive|GENERATIV: Argmax der vier Scores: wirkung | soziales | struktur | bewusstsein}}
 bewertung_modell: {{bewertung_modell|GENERATIV: Name des bewertenden LLM-Modells (Transparenz)}}
 bewertung_stand: {{bewertung_stand|GENERATIV: Datum der Bewertung im Format YYYY-MM-DD}}
+sdg_1: {{sdg_1|GENERATIV: Unterstützungsgrad SDG 1 (Keine Armut) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_2: {{sdg_2|GENERATIV: Unterstützungsgrad SDG 2 (Kein Hunger) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_3: {{sdg_3|GENERATIV: Unterstützungsgrad SDG 3 (Gesundheit und Wohlergehen) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_4: {{sdg_4|GENERATIV: Unterstützungsgrad SDG 4 (Hochwertige Bildung) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_5: {{sdg_5|GENERATIV: Unterstützungsgrad SDG 5 (Geschlechtergleichheit) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_6: {{sdg_6|GENERATIV: Unterstützungsgrad SDG 6 (Sauberes Wasser und Sanitäreinrichtungen) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_7: {{sdg_7|GENERATIV: Unterstützungsgrad SDG 7 (Bezahlbare und saubere Energie) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_8: {{sdg_8|GENERATIV: Unterstützungsgrad SDG 8 (Menschenwürdige Arbeit und Wirtschaftswachstum) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_9: {{sdg_9|GENERATIV: Unterstützungsgrad SDG 9 (Industrie, Innovation und Infrastruktur) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_10: {{sdg_10|GENERATIV: Unterstützungsgrad SDG 10 (Weniger Ungleichheiten) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_11: {{sdg_11|GENERATIV: Unterstützungsgrad SDG 11 (Nachhaltige Städte und Gemeinden) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_12: {{sdg_12|GENERATIV: Unterstützungsgrad SDG 12 (Nachhaltiger Konsum und Produktion) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_13: {{sdg_13|GENERATIV: Unterstützungsgrad SDG 13 (Maßnahmen zum Klimaschutz) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_14: {{sdg_14|GENERATIV: Unterstützungsgrad SDG 14 (Leben unter Wasser) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_15: {{sdg_15|GENERATIV: Unterstützungsgrad SDG 15 (Leben an Land) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_16: {{sdg_16|GENERATIV: Unterstützungsgrad SDG 16 (Frieden, Gerechtigkeit und starke Institutionen) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_17: {{sdg_17|GENERATIV: Unterstützungsgrad SDG 17 (Partnerschaften zur Erreichung der Ziele) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_begruendung: {{sdg_begruendung|GENERATIV: EINE gemeinsame Begründung des SDG-Profils mit Südtirol-Bezug (2-3 Sätze), nennt die am stärksten unterstützten Ziele}}
 region: Südtirol
 tags: {{tags|Array, normalisiert: lowercase, kebab-case}}
 sprache: de
@@ -103,6 +121,22 @@ WICHTIG - Zwei Arten von Feldern:
    - Fehlt die Datenbasis für eine Zahl: null zurückgeben (NICHT raten);
      die zugehörige Begründung erklärt dann kurz, warum keine Schätzung möglich ist
 
+4. SDG-PROFIL (GENERATIV, KI-Einschätzung über die 17 UN-Nachhaltigkeitsziele):
+   - sdg_1 .. sdg_17: Unterstützungsgrad der Maßnahme je Ziel im Bereich 0..1
+     (0 = kein Beitrag, 1 = sehr starker Beitrag), jeweils nur die Zahl
+   - Reihenfolge der Ziele: 1 Keine Armut, 2 Kein Hunger, 3 Gesundheit und
+     Wohlergehen, 4 Hochwertige Bildung, 5 Geschlechtergleichheit, 6 Sauberes
+     Wasser und Sanitäreinrichtungen, 7 Bezahlbare und saubere Energie,
+     8 Menschenwürdige Arbeit und Wirtschaftswachstum, 9 Industrie, Innovation
+     und Infrastruktur, 10 Weniger Ungleichheiten, 11 Nachhaltige Städte und
+     Gemeinden, 12 Nachhaltiger Konsum und Produktion, 13 Maßnahmen zum
+     Klimaschutz, 14 Leben unter Wasser, 15 Leben an Land, 16 Frieden,
+     Gerechtigkeit und starke Institutionen, 17 Partnerschaften zur Erreichung
+     der Ziele
+   - Fehlt für ein Ziel die Datenbasis: null (NICHT raten)
+   - sdg_begruendung: EINE gemeinsame, kurze Begründung (2-3 Sätze) mit
+     Südtirol-Bezug, die die am stärksten unterstützten Ziele benennt
+
 Formatierungsregeln für generative Texte:
 - Exakt die angegebene Zeilenzahl einhalten (5-6/5/4/3 Zeilen)
 - Keine Aufzählungen, nur Fließtext
@@ -173,6 +207,24 @@ Antwortschema:
   "dominant_perspektive": "string (wirkung | soziales | struktur | bewusstsein)",
   "bewertung_modell": "string (Name des bewertenden LLM-Modells)",
   "bewertung_stand": "string (YYYY-MM-DD)",
+  "sdg_1": "number | null (0..1)",
+  "sdg_2": "number | null (0..1)",
+  "sdg_3": "number | null (0..1)",
+  "sdg_4": "number | null (0..1)",
+  "sdg_5": "number | null (0..1)",
+  "sdg_6": "number | null (0..1)",
+  "sdg_7": "number | null (0..1)",
+  "sdg_8": "number | null (0..1)",
+  "sdg_9": "number | null (0..1)",
+  "sdg_10": "number | null (0..1)",
+  "sdg_11": "number | null (0..1)",
+  "sdg_12": "number | null (0..1)",
+  "sdg_13": "number | null (0..1)",
+  "sdg_14": "number | null (0..1)",
+  "sdg_15": "number | null (0..1)",
+  "sdg_16": "number | null (0..1)",
+  "sdg_17": "number | null (0..1)",
+  "sdg_begruendung": "string (gemeinsame Begründung mit Südtirol-Bezug)",
   "year": "number | null",
   "region": "Südtirol",
   "tags": "string[]",

@@ -369,6 +369,29 @@
       "relationsRecomputeRow": "Calculer les relations pour cette mesure"
     }
   },
+  "sdgProfile": {
+    "title": "Contribution aux objectifs de développement durable (ODD)",
+    "aiNotice": "Estimation IA",
+    "noData": "Pas d'estimation",
+    "begruendungLabel": "Justification",
+    "sdg1": "Pas de pauvreté",
+    "sdg2": "Faim « zéro »",
+    "sdg3": "Bonne santé et bien-être",
+    "sdg4": "Éducation de qualité",
+    "sdg5": "Égalité entre les sexes",
+    "sdg6": "Eau propre et assainissement",
+    "sdg7": "Énergie propre et d'un coût abordable",
+    "sdg8": "Travail décent et croissance économique",
+    "sdg9": "Industrie, innovation et infrastructure",
+    "sdg10": "Inégalités réduites",
+    "sdg11": "Villes et communautés durables",
+    "sdg12": "Consommation et production responsables",
+    "sdg13": "Mesures relatives à la lutte contre les changements climatiques",
+    "sdg14": "Vie aquatique",
+    "sdg15": "Vie terrestre",
+    "sdg16": "Paix, justice et institutions efficaces",
+    "sdg17": "Partenariats pour la réalisation des objectifs"
+  },
   "climateRating": {
     "title": "Évaluation IA (Tyrol du Sud)",
     "co2": "Réduction CO₂ (kt/an)",

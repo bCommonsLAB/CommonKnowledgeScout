@@ -369,6 +369,29 @@
       "relationsRecomputeRow": "Calcular relaciones para esta medida"
     }
   },
+  "sdgProfile": {
+    "title": "Contribución a los Objetivos de Desarrollo Sostenible (ODS)",
+    "aiNotice": "Estimación de IA",
+    "noData": "Sin estimación",
+    "begruendungLabel": "Justificación",
+    "sdg1": "Fin de la pobreza",
+    "sdg2": "Hambre cero",
+    "sdg3": "Salud y bienestar",
+    "sdg4": "Educación de calidad",
+    "sdg5": "Igualdad de género",
+    "sdg6": "Agua limpia y saneamiento",
+    "sdg7": "Energía asequible y no contaminante",
+    "sdg8": "Trabajo decente y crecimiento económico",
+    "sdg9": "Industria, innovación e infraestructura",
+    "sdg10": "Reducción de las desigualdades",
+    "sdg11": "Ciudades y comunidades sostenibles",
+    "sdg12": "Producción y consumo responsables",
+    "sdg13": "Acción por el clima",
+    "sdg14": "Vida submarina",
+    "sdg15": "Vida de ecosistemas terrestres",
+    "sdg16": "Paz, justicia e instituciones sólidas",
+    "sdg17": "Alianzas para lograr los objetivos"
+  },
   "climateRating": {
     "title": "Evaluación IA (Tirol del Sur)",
     "co2": "Reducción CO₂ (kt/año)",

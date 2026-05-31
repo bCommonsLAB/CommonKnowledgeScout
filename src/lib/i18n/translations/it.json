@@ -369,6 +369,29 @@
       "relationsRecomputeRow": "Calcola le relazioni per questa misura"
     }
   },
+  "sdgProfile": {
+    "title": "Contributo agli Obiettivi di Sviluppo Sostenibile (OSS)",
+    "aiNotice": "Stima IA",
+    "noData": "Nessuna stima",
+    "begruendungLabel": "Motivazione",
+    "sdg1": "Sconfiggere la povertà",
+    "sdg2": "Sconfiggere la fame",
+    "sdg3": "Salute e benessere",
+    "sdg4": "Istruzione di qualità",
+    "sdg5": "Parità di genere",
+    "sdg6": "Acqua pulita e servizi igienico-sanitari",
+    "sdg7": "Energia pulita e accessibile",
+    "sdg8": "Lavoro dignitoso e crescita economica",
+    "sdg9": "Imprese, innovazione e infrastrutture",
+    "sdg10": "Ridurre le disuguaglianze",
+    "sdg11": "Città e comunità sostenibili",
+    "sdg12": "Consumo e produzione responsabili",
+    "sdg13": "Lotta contro il cambiamento climatico",
+    "sdg14": "La vita sott'acqua",
+    "sdg15": "La vita sulla terra",
+    "sdg16": "Pace, giustizia e istituzioni solide",
+    "sdg17": "Partnership per gli obiettivi"
+  },
   "climateRating": {
     "title": "Valutazione IA (Alto Adige)",
     "co2": "Riduzione CO₂ (kt/anno)",

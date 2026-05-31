@@ -396,6 +396,29 @@
       "relationsRecomputeRow": "Beziehungen für diese Maßnahme berechnen"
     }
   },
+  "sdgProfile": {
+    "title": "Beitrag zu den Nachhaltigkeitszielen (SDGs)",
+    "aiNotice": "KI-Schätzung",
+    "noData": "Keine Einschätzung",
+    "begruendungLabel": "Begründung",
+    "sdg1": "Keine Armut",
+    "sdg2": "Kein Hunger",
+    "sdg3": "Gesundheit und Wohlergehen",
+    "sdg4": "Hochwertige Bildung",
+    "sdg5": "Geschlechtergleichheit",
+    "sdg6": "Sauberes Wasser und Sanitäreinrichtungen",
+    "sdg7": "Bezahlbare und saubere Energie",
+    "sdg8": "Menschenwürdige Arbeit und Wirtschaftswachstum",
+    "sdg9": "Industrie, Innovation und Infrastruktur",
+    "sdg10": "Weniger Ungleichheiten",
+    "sdg11": "Nachhaltige Städte und Gemeinden",
+    "sdg12": "Nachhaltiger Konsum und Produktion",
+    "sdg13": "Maßnahmen zum Klimaschutz",
+    "sdg14": "Leben unter Wasser",
+    "sdg15": "Leben an Land",
+    "sdg16": "Frieden, Gerechtigkeit und starke Institutionen",
+    "sdg17": "Partnerschaften zur Erreichung der Ziele"
+  },
   "climateRating": {
     "title": "KI-Bewertung (Südtirol)",
     "co2": "CO₂-Einsparung (kt/Jahr)",
