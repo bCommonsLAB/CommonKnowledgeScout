@@ -33,16 +33,20 @@ function valuesOf(doc: DocCardMeta, field: string): string[] {
   return []
 }
 
-function docId(doc: DocCardMeta): string {
+export function docId(doc: DocCardMeta): string {
   return doc.fileId || doc.id
 }
 
-function toDocNode(doc: DocCardMeta): GraphNode {
+/**
+ * Baut einen Dokument-Knoten aus `DocCardMeta`. Exportiert, damit andere
+ * Kantenquellen (z. B. Quelle C — Ähnlichkeit) dieselbe Knoten-Form nutzen.
+ */
+export function toDocNode(doc: DocCardMeta): GraphNode {
   return { id: docId(doc), kind: 'doc', label: doc.title || doc.shortTitle || doc.slug || docId(doc), doc }
 }
 
 /** Begrenzt Kanten global (Top-N nach Gewicht) und pro Knoten (Hairball-Schutz). */
-function limitLinks(links: GraphLink[], maxPerNode?: number, maxTotal?: number): GraphLink[] {
+export function limitLinks(links: GraphLink[], maxPerNode?: number, maxTotal?: number): GraphLink[] {
   const sorted = [...links].sort((a, b) => b.weight - a.weight)
   const perNode = new Map<string, number>()
   const out: GraphLink[] = []
