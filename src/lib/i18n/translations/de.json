@@ -380,7 +380,9 @@
       "saveDefaultHint": "Gilt fuer ALLE Nutzer dieser Bibliothek (nur Owner).",
       "saving": "Speichern …",
       "saved": "Graph-Standard gespeichert",
-      "saveError": "Speichern fehlgeschlagen"
+      "saveError": "Speichern fehlgeschlagen",
+      "similarityLoading": "Ähnliche Dokumente werden gesucht …",
+      "similarityError": "Nachbarn konnten nicht geladen werden"
     }
   },
   "climateRating": {

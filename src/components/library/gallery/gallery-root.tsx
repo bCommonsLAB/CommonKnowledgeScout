@@ -894,6 +894,7 @@ export function GalleryRoot({
           graph={graphConfig}
           onOpenDocument={handleOpenDocument}
           fieldLabels={facetFieldLabels}
+          libraryId={libraryId || undefined}
           onSaveDefault={isOwner ? handleSaveGraphDefault : undefined}
         />
       )

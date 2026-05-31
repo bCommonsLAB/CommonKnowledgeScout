@@ -353,7 +353,9 @@
       "saveDefaultHint": "Se aplica a TODOS los usuarios de esta biblioteca (solo propietario).",
       "saving": "Guardando …",
       "saved": "Predeterminado del grafo guardado",
-      "saveError": "Error al guardar"
+      "saveError": "Error al guardar",
+      "similarityLoading": "Buscando documentos similares …",
+      "similarityError": "No se pudieron cargar los vecinos"
     }
   },
   "climateRating": {

@@ -14,6 +14,7 @@ import type { DocCardMeta } from '@/lib/gallery/types'
 import type { GalleryGraphConfig } from '@/types/library'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useSharedMetaEdges } from '@/hooks/gallery/use-shared-meta-edges'
+import { useSimilarityEdges } from '@/hooks/gallery/use-similarity-edges'
 import { EdgeSourceSelector } from './edge-source-selector'
 import { GraphControls } from './graph-controls'
 import { DocGraphScene } from './doc-graph-scene'
@@ -27,6 +28,8 @@ interface DocGraphProps {
   onOpenDocument: (doc: DocCardMeta) => void
   /** Optionale Anzeigenamen je meta-Feld (aus den Facetten-Definitionen). */
   fieldLabels?: Record<string, string>
+  /** Library-ID — für Quelle C (Ähnlichkeit) zum Laden der Nachbarn nötig. */
+  libraryId?: string
   /**
    * Nur Owner: aktuelle Live-Einstellung als Library-Default speichern. Fehlt
    * der Callback (Nicht-Owner), wird kein Speichern-Button gezeigt.
@@ -34,42 +37,65 @@ interface DocGraphProps {
   onSaveDefault?: (graph: GalleryGraphConfig) => Promise<void> | void
 }
 
+/** Default-Nachbarzahl je Knoten für Quelle C, wenn nicht konfiguriert. */
+const DEFAULT_SIMILARITY_TOP_K = 6
+
 const EXCLUDE_FIELDS = new Set([
   'id', 'fileId', 'slug', 'title', 'shortTitle', 'fileName', 'sourcePath',
   'sourceFileName', 'coverImageUrl', 'coverThumbnailUrl', 'date', 'upsertedAt',
   'bewertung_stand', 'bewertung_modell', 'detailViewType', 'docType',
 ])
 
-export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, onSaveDefault }: DocGraphProps) {
+export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, onSaveDefault }: DocGraphProps) {
   const { t } = useTranslation()
   const sharedMeta = graph.edgeSources?.sharedMeta
   const defaultMode = sharedMeta?.mode ?? 'projection'
   const configFields = useMemo(() => sharedMeta?.fields?.filter((f) => f.length > 0) ?? [], [sharedMeta?.fields])
 
+  // Quelle C ist generisch immer verfügbar (Vektoren existieren ohnehin pro
+  // Dokument, Zielbild §5.3) — sie braucht KEINE Feld-Konfiguration wie Quelle B.
+  // Daher standardmäßig aktiv; nur explizit `enabled: false` blendet sie aus.
+  // Libraries ohne Embeddings zeigen dann sauber "Keine Verbindungen".
+  const similarityEnabled = graph.edgeSources?.similarity?.enabled !== false
+  const similarityTopK = graph.edgeSources?.similarity?.topK ?? DEFAULT_SIMILARITY_TOP_K
+
+  // Anfangsauswahl: Config-Default respektieren, sonst erstes sharedMeta-Feld,
+  // sonst (falls aktiv) Ähnlichkeit. Kein Silent Fallback auf eine inaktive Quelle.
+  const initialSelection = useMemo<EdgeSourceSelection | null>(() => {
+    if (graph.defaultEdgeSource === 'similarity' && similarityEnabled) return { kind: 'similarity' }
+    if (configFields.length) return { kind: 'sharedMeta', field: configFields[0], mode: defaultMode }
+    if (similarityEnabled) return { kind: 'similarity' }
+    return null
+  }, [graph.defaultEdgeSource, similarityEnabled, configFields, defaultMode])
+
   // Live-Editier-State (ephemer; aus der Config geseedet, beim Library-Wechsel neu).
   const [liveFields, setLiveFields] = useState<string[]>(configFields)
   const [liveColorMap, setLiveColorMap] = useState<Record<string, string>>(graph.colorMap ?? {})
   const [minShared, setMinShared] = useState<number>(sharedMeta?.minShared ?? 1)
-  const [selection, setSelection] = useState<EdgeSourceSelection | null>(() =>
-    configFields.length ? { kind: 'sharedMeta', field: configFields[0], mode: defaultMode } : null,
-  )
+  const [selection, setSelection] = useState<EdgeSourceSelection | null>(initialSelection)
   useEffect(() => {
     setLiveFields(configFields)
     setLiveColorMap(graph.colorMap ?? {})
     setMinShared(sharedMeta?.minShared ?? 1)
-    setSelection(configFields.length ? { kind: 'sharedMeta', field: configFields[0], mode: defaultMode } : null)
-  }, [graph, configFields, defaultMode, sharedMeta?.minShared])
+    setSelection(initialSelection)
+  }, [graph, configFields, sharedMeta?.minShared, initialSelection])
 
-  // Aktive Auswahl gültig halten, wenn Felder live hinzugefügt/entfernt werden.
+  // sharedMeta-Auswahl gültig halten, wenn Felder live hinzugefügt/entfernt
+  // werden. Ähnlichkeits-/Relations-Auswahl bleibt davon unberührt.
   useEffect(() => {
     if (selection?.kind === 'sharedMeta' && !liveFields.includes(selection.field)) {
-      setSelection(liveFields.length ? { kind: 'sharedMeta', field: liveFields[0], mode: selection.mode } : null)
-    } else if (!selection && liveFields.length) {
-      setSelection({ kind: 'sharedMeta', field: liveFields[0], mode: defaultMode })
+      if (liveFields.length) setSelection({ kind: 'sharedMeta', field: liveFields[0], mode: selection.mode })
+      else if (similarityEnabled) setSelection({ kind: 'similarity' })
+      else setSelection(null)
+    } else if (!selection) {
+      if (liveFields.length) setSelection({ kind: 'sharedMeta', field: liveFields[0], mode: defaultMode })
+      else if (similarityEnabled) setSelection({ kind: 'similarity' })
     }
-  }, [liveFields, selection, defaultMode])
+  }, [liveFields, selection, defaultMode, similarityEnabled])
 
-  const defaultNotImplemented = graph.defaultEdgeSource && graph.defaultEdgeSource !== 'sharedMeta'
+  const isSimilarity = selection?.kind === 'similarity'
+  // Quelle A (relations) ist noch nicht implementiert (Welle 4).
+  const defaultNotImplemented = graph.defaultEdgeSource === 'relations'
 
   // Vorschläge: kategorische/Array-meta-Keys aus den Docs + Facetten-Felder.
   const availableFields = useMemo(() => {
@@ -106,52 +132,82 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, onSaveDefau
 
   const activeField = selection?.kind === 'sharedMeta' ? selection.field : ''
   const activeMode = selection?.kind === 'sharedMeta' ? selection.mode : defaultMode
-  const data = useSharedMetaEdges({
+  // Beide Quellen-Hooks laufen immer (Rules of Hooks); aktiv ist nur eine.
+  const sharedData = useSharedMetaEdges({
     docs, field: activeField, mode: activeMode, minShared,
     maxEdgesPerNode: graph.maxEdgesPerNode, maxEdgesTotal: graph.maxEdgesTotal,
   })
+  const similarity = useSimilarityEdges({
+    docs, libraryId, enabled: isSimilarity, topK: similarityTopK,
+    minWeight: graph.minWeight,
+    maxEdgesPerNode: graph.maxEdgesPerNode, maxEdgesTotal: graph.maxEdgesTotal,
+  })
+  const data = isSimilarity ? similarity.data : sharedData
 
   return (
     <div className="flex h-full min-h-[60vh] flex-col gap-2">
       <div className="flex flex-shrink-0 flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           {selection && (
-            <EdgeSourceSelector selection={selection} onChange={setSelection} sharedMetaFields={liveFields} fieldLabels={fieldLabels} />
+            <EdgeSourceSelector
+              selection={selection}
+              onChange={setSelection}
+              sharedMetaFields={liveFields}
+              fieldLabels={fieldLabels}
+              similarityEnabled={similarityEnabled}
+            />
           )}
-          <GraphControls
-            fields={liveFields}
-            onFieldsChange={setLiveFields}
-            availableFields={availableFields}
-            fieldLabels={fieldLabels}
-            mode={activeMode}
-            onModeChange={(mode) => setSelection((s) => (s?.kind === 'sharedMeta' ? { ...s, mode } : s))}
-            minShared={minShared}
-            onMinSharedChange={setMinShared}
-            colorField={graph.colorField}
-            colorValues={colorValues}
-            colorMap={liveColorMap}
-            onColorMapChange={setLiveColorMap}
-            onSave={onSaveDefault ? () => onSaveDefault({
-              ...graph,
-              colorMap: liveColorMap,
-              defaultEdgeSource: 'sharedMeta',
-              edgeSources: {
-                ...graph.edgeSources,
-                sharedMeta: {
-                  ...(graph.edgeSources?.sharedMeta ?? {}),
-                  enabled: true,
-                  fields: liveFields,
-                  mode: activeMode,
-                  minShared,
+          {/* Live-Editor (Felder/Modus/Farben) ist sharedMeta-spezifisch. */}
+          {!isSimilarity && (
+            <GraphControls
+              fields={liveFields}
+              onFieldsChange={setLiveFields}
+              availableFields={availableFields}
+              fieldLabels={fieldLabels}
+              mode={activeMode}
+              onModeChange={(mode) => setSelection((s) => (s?.kind === 'sharedMeta' ? { ...s, mode } : s))}
+              minShared={minShared}
+              onMinSharedChange={setMinShared}
+              colorField={graph.colorField}
+              colorValues={colorValues}
+              colorMap={liveColorMap}
+              onColorMapChange={setLiveColorMap}
+              onSave={onSaveDefault ? () => onSaveDefault({
+                ...graph,
+                colorMap: liveColorMap,
+                defaultEdgeSource: 'sharedMeta',
+                edgeSources: {
+                  ...graph.edgeSources,
+                  sharedMeta: {
+                    ...(graph.edgeSources?.sharedMeta ?? {}),
+                    enabled: true,
+                    fields: liveFields,
+                    mode: activeMode,
+                    minShared,
+                  },
                 },
-              },
-            }) : undefined}
-          />
+              }) : undefined}
+            />
+          )}
         </div>
         {defaultNotImplemented && <span className="text-xs text-muted-foreground">{t('gallery.graph.comingSoon')}</span>}
       </div>
       <div ref={containerRef} className="relative flex-1 overflow-hidden rounded-md border bg-muted/20">
-        {liveFields.length === 0 ? (
+        {isSimilarity ? (
+          similarity.loading ? (
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center text-sm text-muted-foreground">
+              {t('gallery.graph.similarityLoading')}
+            </div>
+          ) : similarity.error ? (
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-w-md text-center text-sm text-destructive">
+              {t('gallery.graph.similarityError')}: {similarity.error}
+            </div>
+          ) : size.width > 0 && data.links.length === 0 ? (
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+              {t('gallery.graph.noEdges')}
+            </div>
+          ) : null
+        ) : liveFields.length === 0 ? (
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center text-sm text-muted-foreground">
             {t('gallery.graph.noFields')}
           </div>
@@ -160,7 +216,7 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, onSaveDefau
             {t('gallery.graph.noEdges')}
           </div>
         ) : null}
-        {size.width > 0 && liveFields.length > 0 && (
+        {size.width > 0 && (isSimilarity || liveFields.length > 0) && (
           <DocGraphScene
             data={data}
             docs={docs}
