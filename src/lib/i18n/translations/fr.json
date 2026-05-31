@@ -199,7 +199,8 @@
     },
     "viewMode": {
       "grid": "Galerie",
-      "table": "Tableau"
+      "table": "Tableau",
+      "graph": "Graphe"
     },
     "cardDensityToggleAria": "Grille de cartes : confortable ou compacte",
     "cardDensityComfortable": "Confortable",
@@ -324,6 +325,24 @@
       "revisionsHide": "Masquer les versions",
       "onlySignedIn": "Connectez-vous pour voir ou laisser des commentaires.",
       "guestVisibilityHint": "Seuls les propriétaires et co-créateurs voient tous les commentaires. Vos publications ne sont visibles que par vous et l'équipe."
+    },
+    "graph": {
+      "connectBy": "Connecter par",
+      "modeHub": "Hubs de tags",
+      "modeProjection": "Liens entre documents",
+      "sourceRelations": "Relations calculées",
+      "sourceSimilarity": "Similarité",
+      "comingSoon": "Cette source d’arêtes arrive dans une vague ultérieure.",
+      "noEdges": "Aucune connexion pour la sélection actuelle.",
+      "noFields": "Aucun champ de métadonnées configuré pour le graphe.",
+      "disabled": "Le mode graphe n’est pas activé pour cette bibliothèque.",
+      "legendSize": "Taille",
+      "legendColor": "Couleur",
+      "legendOpacity": "Opacité",
+      "legendHub": "Nœud de métadonnées",
+      "nodes": "Nœuds",
+      "edges": "Arêtes",
+      "resetZoom": "Réinitialiser la vue"
     }
   },
   "climateRating": {
@@ -581,7 +600,20 @@
       "indexMissingToast": "L'index \"{indexName}\" n'existe pas encore. Veuillez cliquer sur \"Créer l'index\".",
       "errorCreatingIndex": "Erreur lors de la création de l'index",
       "errorRebuildingIndex": "Erreur lors du démarrage de l'ingestion :",
-      "jobId": "ID du travail :"
+      "jobId": "ID du travail :",
+      "graphTitle": "Mode graphe",
+      "graphDescription": "Graphe interactif de relations/métadonnées comme troisième mode de la galerie.",
+      "graphEnabled": "Activer le mode graphe",
+      "graphEnabledDescription": "Affiche un sélecteur de graphe à côté de galerie/tableau.",
+      "graphDefaultEdgeSource": "Source d’arêtes par défaut",
+      "graphDefaultEdgeSourceDescription": "Quelle source le graphe présélectionne à l’ouverture.",
+      "graphEdgeSourceSharedMeta": "Métadonnées communes",
+      "graphEdgeSourceRelations": "Relations calculées (plus tard)",
+      "graphEdgeSourceSimilarity": "Similarité (plus tard)",
+      "graphSizeField": "Champ taille",
+      "graphColorField": "Champ couleur",
+      "graphOpacityField": "Champ opacité",
+      "graphEncodingsHint": "Noms de champs méta pour les encodages génériques des nœuds (numériques pour taille/opacité, catégoriels pour couleur)."
     },
     "translations": {
       "title": "Traductions des documents",
@@ -680,4 +712,3 @@
     "collaboration": "– en collaboration avec des communautés ouvertes et des partenaires de recherche."
   }
 }
-

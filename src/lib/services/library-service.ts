@@ -411,6 +411,7 @@ export class LibraryService {
         // Shadow-Twin-Modus ist kein Secret und muss für UI/Flows sichtbar sein
         shadowTwin: lib.config?.shadowTwin,
         // Chat-/Galerie-Settings sind sicher und werden an den Client geliefert
+        // (inkl. chat.gallery.graph — generische Graph-Modus-Config, kein Secret).
         chat: lib.config?.chat,
         // Transformation: DIVA-Liefersystem-Auswertung (Feature-Flag, kein Secret)
         analyzeDivaTextureInfo: lib.config?.analyzeDivaTextureInfo === true,

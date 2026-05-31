@@ -73,6 +73,57 @@ export interface TranslationsConfig {
 }
 
 /**
+ * Generische Graph-Modus-Konfiguration pro Library
+ * (Zielbild §8: `config.chat.gallery.graph`).
+ *
+ * Macht den Beziehungs-/Metadaten-Graphen GENERISCH: Knoten-Encodings
+ * (Größe/Farbe/Deckkraft) und Kantenquellen sind reine Feldnamen-Verweise auf
+ * `DocCardMeta`-Schlüssel — der Graph kennt keine Klima-Felder. Die Klima-
+ * Belegung (co2_einsparung_kt=Größe, dominant_perspektive=Farbe,
+ * durchsetzbarkeit=Deckkraft) ist nur die Konfiguration EINER Library.
+ *
+ * Flach im Sinne der Frontmatter-Regel ist hier NICHT gefordert: Dies ist
+ * Library-Config (MongoDB, downstream), kein Template-Frontmatter.
+ */
+export interface GalleryGraphConfig {
+  /** Graph-Modus als dritter ViewMode (`grid|table|graph`) aktivieren. */
+  enabled?: boolean;
+  /** Vorausgewählte Kantenquelle. */
+  defaultEdgeSource?: 'relations' | 'sharedMeta' | 'similarity';
+  /** Numerischer meta-Key → Knotengröße (z.B. `co2_einsparung_kt`). */
+  sizeField?: string;
+  /** `0..1` meta-Key → Knoten-Deckkraft (z.B. `durchsetzbarkeit`). */
+  opacityField?: string;
+  /** Kategorischer meta-Key → Knoten-Farbe (z.B. `dominant_perspektive`). */
+  colorField?: string;
+  /** Wert → Farbe (Hex/CSS) für `colorField`. */
+  colorMap?: Record<string, string>;
+  /** Anzeige-Begrenzung: max. Kanten pro Knoten (Hairball-Schutz). */
+  maxEdgesPerNode?: number;
+  /** Anzeige-Begrenzung: max. Kanten gesamt. */
+  maxEdgesTotal?: number;
+  /** Mindest-Gewicht, ab dem eine Kante gezeigt wird (`0..1`). */
+  minWeight?: number;
+  /** Umschaltbare Kantenquellen (Zielbild §5). */
+  edgeSources?: {
+    /** Quelle A — berechnete Beziehungen (LLM), ab Welle 4. */
+    relations?: { enabled?: boolean; relationType?: string; relationPrompt?: string };
+    /** Quelle B — gemeinsame Metadaten (Obsidian-Stil), ab Welle 2. */
+    sharedMeta?: {
+      enabled?: boolean;
+      /** Meta-Felder, über die sich Dokumente verbinden (z.B. `category`, `tags`). */
+      fields?: string[];
+      /** `hub` = bipartite Tag-Hubs, `projection` = Dokument↔Dokument. */
+      mode?: 'hub' | 'projection';
+      /** Projektion: Mindestanzahl geteilter Werte für eine Kante. */
+      minShared?: number;
+    };
+    /** Quelle C — Embedding-Ähnlichkeit, ab Welle 3. */
+    similarity?: { enabled?: boolean; topK?: number };
+  };
+}
+
+/**
  * Chat/RAG-spezifische Konfiguration pro Library.
  * UI-Parameter, Feature-Flags und optionale Modell-/Store-Overrides.
  * Der Vektor-Index leitet sich standardmäßig aus dem Library-Namen ab,
@@ -165,6 +216,11 @@ export interface LibraryChatConfig {
       visible?: boolean;
       buckets?: Array<{ label: string; min: number; max: number }>;
     }>;
+    /**
+     * Generische Graph-Modus-Konfiguration (Zielbild §8). Liegt unter
+     * `chat.gallery`, damit sie neben `detailViewType`/`facets` editierbar ist.
+     */
+    graph?: GalleryGraphConfig;
   };
 
   }

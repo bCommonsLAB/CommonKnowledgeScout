@@ -34,6 +34,7 @@ import { useChatForm } from './hooks/use-chat-form'
 import { RetrievalConfigSection } from './retrieval-config-section'
 import { ModelConfigSection } from './model-config-section'
 import { GalleryConfigSection } from './gallery-config-section'
+import { GraphConfigSection } from './graph-config-section'
 import { BinaryStorageSection } from './binary-storage-section'
 
 export function ChatForm() {
@@ -170,6 +171,9 @@ export function ChatForm() {
 
                 {/* ===== Wissensgalerie → GalleryConfigSection ===== */}
         <GalleryConfigSection form={form} />
+
+                {/* ===== Graph-Modus → GraphConfigSection ===== */}
+        <GraphConfigSection form={form} />
 
                 {/* ===== Binary Storage → BinaryStorageSection ===== */}
         <BinaryStorageSection

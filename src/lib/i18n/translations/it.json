@@ -199,7 +199,8 @@
     },
     "viewMode": {
       "grid": "Galleria",
-      "table": "Tabella"
+      "table": "Tabella",
+      "graph": "Grafo"
     },
     "cardDensityToggleAria": "Griglia schede: comoda o compatta",
     "cardDensityComfortable": "Comoda",
@@ -324,6 +325,24 @@
       "revisionsHide": "Nascondi versioni",
       "onlySignedIn": "Accedi per visualizzare o lasciare commenti.",
       "guestVisibilityHint": "Solo proprietari e co-creatori vedono tutti i commenti. I tuoi post sono visibili solo a te e al team."
+    },
+    "graph": {
+      "connectBy": "Collega per",
+      "modeHub": "Hub di tag",
+      "modeProjection": "Collegamenti tra documenti",
+      "sourceRelations": "Relazioni calcolate",
+      "sourceSimilarity": "Similarità",
+      "comingSoon": "Questa sorgente di archi arriverà in un’ondata successiva.",
+      "noEdges": "Nessun collegamento per la selezione attuale.",
+      "noFields": "Nessun campo di metadati configurato per il grafo.",
+      "disabled": "La modalità grafo non è attiva per questa biblioteca.",
+      "legendSize": "Dimensione",
+      "legendColor": "Colore",
+      "legendOpacity": "Opacità",
+      "legendHub": "Nodo di metadati",
+      "nodes": "Nodi",
+      "edges": "Archi",
+      "resetZoom": "Reimposta vista"
     }
   },
   "climateRating": {
@@ -581,7 +600,20 @@
       "indexMissingToast": "L'indice \"{indexName}\" non esiste ancora. Clicca \"Crea indice\".",
       "errorCreatingIndex": "Errore durante la creazione dell'indice",
       "errorRebuildingIndex": "Errore durante l'avvio dell'ingestione:",
-      "jobId": "ID Job:"
+      "jobId": "ID Job:",
+      "graphTitle": "Modalità grafo",
+      "graphDescription": "Grafo interattivo di relazioni/metadati come terza modalità della galleria.",
+      "graphEnabled": "Attiva la modalità grafo",
+      "graphEnabledDescription": "Mostra un selettore grafo accanto a galleria/tabella.",
+      "graphDefaultEdgeSource": "Sorgente archi predefinita",
+      "graphDefaultEdgeSourceDescription": "Quale sorgente il grafo preseleziona all’apertura.",
+      "graphEdgeSourceSharedMeta": "Metadati condivisi",
+      "graphEdgeSourceRelations": "Relazioni calcolate (in seguito)",
+      "graphEdgeSourceSimilarity": "Similarità (in seguito)",
+      "graphSizeField": "Campo dimensione",
+      "graphColorField": "Campo colore",
+      "graphOpacityField": "Campo opacità",
+      "graphEncodingsHint": "Nomi dei campi meta per le codifiche generiche dei nodi (numerici per dimensione/opacità, categorici per colore)."
     },
     "translations": {
       "title": "Traduzioni dei documenti",
@@ -680,4 +712,3 @@
     "collaboration": "– in collaborazione con comunità aperte e partner di ricerca."
   }
 }
-

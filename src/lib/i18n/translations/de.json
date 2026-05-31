@@ -47,7 +47,7 @@
       },
       "human": {
         "title": "Menschlich",
-        "description": "Die Grundlage sind echte Stimmen, keine künstlichen Meinungen."      
+        "description": "Die Grundlage sind echte Stimmen, keine künstlichen Meinungen."
       },
       "trustworthy": {
         "title": "Vertrauenswürdig",
@@ -226,7 +226,8 @@
     },
     "viewMode": {
       "grid": "Galerie",
-      "table": "Tabelle"
+      "table": "Tabelle",
+      "graph": "Graph"
     },
     "cardDensityToggleAria": "Karten-Raster: komfortabel oder kompakt",
     "cardDensityComfortable": "Komfortabel",
@@ -351,6 +352,24 @@
       "revisionsHide": "Versionen ausblenden",
       "onlySignedIn": "Bitte anmelden, um Kommentare zu sehen oder zu hinterlassen.",
       "guestVisibilityHint": "Nur Owner und Co-Kreatoren sehen alle Kommentare. Deine Beiträge sind nur für dich und das Team sichtbar."
+    },
+    "graph": {
+      "connectBy": "Verbinde nach",
+      "modeHub": "Tag-Hubs",
+      "modeProjection": "Dokument-Verbindungen",
+      "sourceRelations": "Berechnete Beziehungen",
+      "sourceSimilarity": "Ähnlichkeit",
+      "comingSoon": "Diese Kantenquelle kommt in einer späteren Welle.",
+      "noEdges": "Keine Verbindungen für die aktuelle Auswahl.",
+      "noFields": "Keine Metadaten-Felder für den Graph konfiguriert.",
+      "disabled": "Der Graph-Modus ist für diese Bibliothek nicht aktiviert.",
+      "legendSize": "Größe",
+      "legendColor": "Farbe",
+      "legendOpacity": "Deckkraft",
+      "legendHub": "Metadaten-Knoten",
+      "nodes": "Knoten",
+      "edges": "Kanten",
+      "resetZoom": "Ansicht zurücksetzen"
     }
   },
   "climateRating": {
@@ -610,7 +629,20 @@
       "indexMissingToast": "Index \"{indexName}\" existiert noch nicht. Bitte \"Index anlegen\" klicken.",
       "errorCreatingIndex": "Fehler beim Anlegen des Index",
       "errorRebuildingIndex": "Fehler beim Starten der Ingestion:",
-      "jobId": "Job-ID:"
+      "jobId": "Job-ID:",
+      "graphTitle": "Graph-Modus",
+      "graphDescription": "Interaktiver Beziehungs-/Metadaten-Graph als dritter Galerie-Modus.",
+      "graphEnabled": "Graph-Modus aktivieren",
+      "graphEnabledDescription": "Blendet in der Galerie einen Graph-Umschalter neben Galerie/Tabelle ein.",
+      "graphDefaultEdgeSource": "Standard-Kantenquelle",
+      "graphDefaultEdgeSourceDescription": "Welche Quelle der Graph beim Öffnen vorauswählt.",
+      "graphEdgeSourceSharedMeta": "Gemeinsame Metadaten",
+      "graphEdgeSourceRelations": "Berechnete Beziehungen (später)",
+      "graphEdgeSourceSimilarity": "Ähnlichkeit (später)",
+      "graphSizeField": "Größe-Feld",
+      "graphColorField": "Farbe-Feld",
+      "graphOpacityField": "Deckkraft-Feld",
+      "graphEncodingsHint": "Meta-Feldnamen für die generischen Knoten-Encodings (numerisch für Größe/Deckkraft, kategorisch für Farbe)."
     },
     "indexDefinition": {
       "title": "MongoDB Vector Search Index-Definition",
@@ -727,4 +759,3 @@
     "collaboration": "– in Zusammenarbeit mit offenen Communities und Forschungspartner:innen."
   }
 }
-

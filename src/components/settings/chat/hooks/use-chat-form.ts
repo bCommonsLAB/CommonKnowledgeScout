@@ -111,6 +111,40 @@ export const chatFormSchema = z.object({
       },
       z.enum(['compact', 'comfortable']).default('comfortable')
     ),
+    /**
+     * Generische Graph-Modus-Config (Zielbild §8). Komplexe Felder
+     * (colorMap, edgeSources) werden in der Settings-UI nicht editiert, aber
+     * über `form.reset`/`onSubmit` durchgereicht — damit beim Speichern keine
+     * Werte verloren gehen (library-config-field.mdc, Schritt 4/5).
+     */
+    graph: z.object({
+      enabled: z.boolean().default(false),
+      defaultEdgeSource: z.enum(['relations', 'sharedMeta', 'similarity']).default('sharedMeta'),
+      sizeField: z.string().optional(),
+      opacityField: z.string().optional(),
+      colorField: z.string().optional(),
+      colorMap: z.record(z.string()).optional(),
+      maxEdgesPerNode: z.coerce.number().int().positive().optional(),
+      maxEdgesTotal: z.coerce.number().int().positive().optional(),
+      minWeight: z.coerce.number().min(0).max(1).optional(),
+      edgeSources: z.object({
+        relations: z.object({
+          enabled: z.boolean().optional(),
+          relationType: z.string().optional(),
+          relationPrompt: z.string().optional(),
+        }).optional(),
+        sharedMeta: z.object({
+          enabled: z.boolean().optional(),
+          fields: z.array(z.string()).optional(),
+          mode: z.enum(['hub', 'projection']).optional(),
+          minShared: z.coerce.number().int().positive().optional(),
+        }).optional(),
+        similarity: z.object({
+          enabled: z.boolean().optional(),
+          topK: z.coerce.number().int().positive().optional(),
+        }).optional(),
+      }).optional(),
+    }).optional(),
   }).optional(),
   /** Azure Blob Ingestion: Binary Storage */
   ingestionStorageUseCustom: z.boolean().optional(),
@@ -231,6 +265,7 @@ export function useChatForm(): UseChatFormResult {
         groupByField: 'year',
         facets: getDefaultFacets().slice(0, 6),
         galleryCardDensity: 'comfortable',
+        graph: { enabled: false, defaultEdgeSource: 'sharedMeta' },
       },
       ingestionStorageUseCustom: false,
       ingestionConnectionString: '',
@@ -254,6 +289,7 @@ export function useChatForm(): UseChatFormResult {
         groupByField?: string
         facets?: unknown
         galleryCardDensity?: unknown
+        graph?: import('@/types/library').GalleryGraphConfig
       } | undefined
       const detailViewType = galleryConfig?.detailViewType
 
@@ -313,6 +349,20 @@ export function useChatForm(): UseChatFormResult {
           groupByField: typeof galleryConfig?.groupByField === 'string' ? galleryConfig.groupByField : 'year',
           facets: facetsArray,
           galleryCardDensity: normalizeGalleryCardDensity(galleryConfig?.galleryCardDensity),
+          // Graph-Config vollständig durchreichen (inkl. colorMap/edgeSources),
+          // damit beim Speichern keine Werte verloren gehen.
+          graph: {
+            enabled: galleryConfig?.graph?.enabled === true,
+            defaultEdgeSource: galleryConfig?.graph?.defaultEdgeSource ?? 'sharedMeta',
+            sizeField: galleryConfig?.graph?.sizeField,
+            opacityField: galleryConfig?.graph?.opacityField,
+            colorField: galleryConfig?.graph?.colorField,
+            colorMap: galleryConfig?.graph?.colorMap,
+            maxEdgesPerNode: galleryConfig?.graph?.maxEdgesPerNode,
+            maxEdgesTotal: galleryConfig?.graph?.maxEdgesTotal,
+            minWeight: galleryConfig?.graph?.minWeight,
+            edgeSources: galleryConfig?.graph?.edgeSources,
+          },
         },
         ingestionStorageUseCustom: typeof (activeLibrary.config?.ingestionStorage as { useCustomConfig?: boolean })?.useCustomConfig === 'boolean'
           ? (activeLibrary.config?.ingestionStorage as { useCustomConfig?: boolean })!.useCustomConfig

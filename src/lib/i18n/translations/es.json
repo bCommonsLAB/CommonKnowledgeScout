@@ -199,7 +199,8 @@
     },
     "viewMode": {
       "grid": "Galería",
-      "table": "Tabla"
+      "table": "Tabla",
+      "graph": "Grafo"
     },
     "cardDensityToggleAria": "Cuadrícula de tarjetas: cómoda o compacta",
     "cardDensityComfortable": "Cómoda",
@@ -324,6 +325,24 @@
       "revisionsHide": "Ocultar versiones",
       "onlySignedIn": "Inicia sesión para ver o dejar comentarios.",
       "guestVisibilityHint": "Solo propietarios y co-creadores ven todos los comentarios. Tus publicaciones solo son visibles para ti y el equipo."
+    },
+    "graph": {
+      "connectBy": "Conectar por",
+      "modeHub": "Hubs de etiquetas",
+      "modeProjection": "Enlaces entre documentos",
+      "sourceRelations": "Relaciones calculadas",
+      "sourceSimilarity": "Similitud",
+      "comingSoon": "Esta fuente de aristas llega en una ola posterior.",
+      "noEdges": "Sin conexiones para la selección actual.",
+      "noFields": "No hay campos de metadatos configurados para el grafo.",
+      "disabled": "El modo grafo no está activado para esta biblioteca.",
+      "legendSize": "Tamaño",
+      "legendColor": "Color",
+      "legendOpacity": "Opacidad",
+      "legendHub": "Nodo de metadatos",
+      "nodes": "Nodos",
+      "edges": "Aristas",
+      "resetZoom": "Restablecer vista"
     }
   },
   "climateRating": {
@@ -581,7 +600,20 @@
       "indexMissingToast": "El índice \"{indexName}\" aún no existe. Por favor haga clic en \"Crear índice\".",
       "errorCreatingIndex": "Error al crear el índice",
       "errorRebuildingIndex": "Error al iniciar la ingesta:",
-      "jobId": "ID del trabajo:"
+      "jobId": "ID del trabajo:",
+      "graphTitle": "Modo grafo",
+      "graphDescription": "Grafo interactivo de relaciones/metadatos como tercer modo de la galería.",
+      "graphEnabled": "Activar el modo grafo",
+      "graphEnabledDescription": "Muestra un selector de grafo junto a galería/tabla.",
+      "graphDefaultEdgeSource": "Fuente de aristas predeterminada",
+      "graphDefaultEdgeSourceDescription": "Qué fuente preselecciona el grafo al abrir.",
+      "graphEdgeSourceSharedMeta": "Metadatos compartidos",
+      "graphEdgeSourceRelations": "Relaciones calculadas (más adelante)",
+      "graphEdgeSourceSimilarity": "Similitud (más adelante)",
+      "graphSizeField": "Campo tamaño",
+      "graphColorField": "Campo color",
+      "graphOpacityField": "Campo opacidad",
+      "graphEncodingsHint": "Nombres de campos meta para las codificaciones genéricas de nodos (numéricos para tamaño/opacidad, categóricos para color)."
     },
     "translations": {
       "title": "Traducciones de documentos",
@@ -680,4 +712,3 @@
     "collaboration": "– en colaboración con comunidades abiertas y socios de investigación."
   }
 }
-
