@@ -119,6 +119,9 @@ importers:
       cmdk:
         specifier: 1.0.0
         version: 1.0.0(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      d3:
+        specifier: ^7
+        version: 7.9.0
       date-fns:
         specifier: ^3.6.0
         version: 3.6.0
@@ -270,6 +273,9 @@ importers:
       '@types/better-sqlite3':
         specifier: 7.6.11
         version: 7.6.11
+      '@types/d3':
+        specifier: ^7
+        version: 7.4.3
       '@types/mime-types':
         specifier: ^2.1.4
         version: 2.1.4
@@ -2914,6 +2920,7 @@ packages:
   '@xmldom/xmldom@0.8.11':
     resolution: {integrity: sha512-cQzWCtO6C8TQiYl1ruKNn2U6Ao4o4WBBcbL61yJl84x+j5sOWWFU9X7DpND8XZG3daDppSsigMdfAIl2upQBRw==}
     engines: {node: '>=10.0.0'}
+    deprecated: this version has critical issues, please update to the latest version
 
   abbrev@3.0.1:
     resolution: {integrity: sha512-AO2ac6pjRB3SJmGJo+v5/aK6Omggp6fsLrs6wN9bd35ulu4cCwaAU9+7ZhXjeqHVkaHThLuzH0nZr0YpCDhygg==}
