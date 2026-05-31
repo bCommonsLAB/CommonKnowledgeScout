@@ -52,7 +52,11 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
   const defaultMode = sharedMeta?.mode ?? 'projection'
   const configFields = useMemo(() => sharedMeta?.fields?.filter((f) => f.length > 0) ?? [], [sharedMeta?.fields])
 
-  const similarityEnabled = graph.edgeSources?.similarity?.enabled === true
+  // Quelle C ist generisch immer verfügbar (Vektoren existieren ohnehin pro
+  // Dokument, Zielbild §5.3) — sie braucht KEINE Feld-Konfiguration wie Quelle B.
+  // Daher standardmäßig aktiv; nur explizit `enabled: false` blendet sie aus.
+  // Libraries ohne Embeddings zeigen dann sauber "Keine Verbindungen".
+  const similarityEnabled = graph.edgeSources?.similarity?.enabled !== false
   const similarityTopK = graph.edgeSources?.similarity?.topK ?? DEFAULT_SIMILARITY_TOP_K
 
   // Anfangsauswahl: Config-Default respektieren, sonst erstes sharedMeta-Feld,
