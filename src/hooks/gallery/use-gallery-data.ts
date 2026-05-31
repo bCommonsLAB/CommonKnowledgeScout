@@ -4,8 +4,22 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSetAtom, useAtomValue } from 'jotai'
 import { galleryDataAtom } from '@/atoms/gallery-data'
 import type { DocCardMeta } from '@/lib/gallery/types'
+import { assignRatingPercentiles } from '@/lib/gallery/rating'
 import type { ChatResponse } from '@/types/chat-response'
 import type { QueryLog } from '@/types/query-log'
+
+/**
+ * Reichert eine geladene Dokumentmenge um `ratingPercentile` an — den
+ * Perzentil-Score 0..100 des Server-`rating` relativ zur geladenen Menge.
+ * Dokumente ohne gültiges Roh-Rating (`null` = "Kosten unbekannt") bleiben
+ * ohne Perzentil und verfälschen die Skala nicht (kein Silent Fallback).
+ */
+function withRatingPercentiles(items: DocCardMeta[]): DocCardMeta[] {
+  const hasAnyRating = items.some(d => typeof d.rating === 'number')
+  if (!hasAnyRating) return items
+  const percentiles = assignRatingPercentiles(items.map(d => d.rating ?? null))
+  return items.map((d, i) => (percentiles[i] === undefined ? d : { ...d, ratingPercentile: percentiles[i] }))
+}
 
 /**
  * Patcht ein einzelnes Dokument im aktuellen Galerie-State (`docs` und
@@ -30,12 +44,19 @@ export function useGalleryData(
      * Member-only - die API ignoriert den Param fuer Nicht-Member.
      */
     sortByStars?: boolean
+    /**
+     * Wenn true, wird `?sort=rating` an die Galerie-API gesendet. Der Server
+     * sortiert dann global nach dem Roh-`rating` (= co2*durchsetzbarkeit/
+     * kosten); "Kosten unbekannt" (rating null) landet ans Ende. Oeffentlich.
+     */
+    sortByRating?: boolean
   }
 ) {
   const setGalleryData = useSetAtom(galleryDataAtom)
   const galleryDataFromAtom = useAtomValue(galleryDataAtom)
   const skipApiCall = options?.skipApiCall ?? false
   const sortByStars = options?.sortByStars ?? false
+  const sortByRating = options?.sortByRating ?? false
   
   const [docs, setDocs] = useState<DocCardMeta[]>([])
   const [totalCount, setTotalCount] = useState<number>(0)
@@ -69,7 +90,7 @@ export function useGalleryData(
     setGroups([])
     setTotalGroups(0)
     setIsLoadingMore(false)
-  }, [libraryId, filtersString, mode, searchQuery, skipApiCall, options?.refreshKey, groupByFieldOpt, sortByStars])
+  }, [libraryId, filtersString, mode, searchQuery, skipApiCall, options?.refreshKey, groupByFieldOpt, sortByStars, sortByRating])
   
   useEffect(() => {
     // Überspringe API-Aufruf wenn skipApiCall true ist
@@ -113,6 +134,9 @@ export function useGalleryData(
           // Globale Sterne-Sortierung im Server (`vector-repo.findDocs(Grouped)`),
           // Sekundaerschluessel year/upsertedAt fuer stabile Pagination.
           params.append('sort', 'stars')
+        } else if (sortByRating) {
+          // Globale Rating-Sortierung im Server (rating desc, null ans Ende).
+          params.append('sort', 'rating')
         }
 
         const url = `/api/chat/${encodeURIComponent(libraryId)}/docs${params.toString() ? `?${params.toString()}` : ''}`
@@ -129,7 +153,9 @@ export function useGalleryData(
           const serverTotalDocs = typeof data.total === 'number' ? data.total : 0
           const groupOffset = (page - 1) * GROUPS_LIMIT
           const hasMoreGroups = groupOffset + newGroups.length < totalG
-          const newGroupTuples = newGroups.map(g => [g.key, g.items] as [string | number, DocCardMeta[]])
+          const newGroupTuples = newGroups.map(
+            g => [g.key, withRatingPercentiles(g.items)] as [string | number, DocCardMeta[]],
+          )
           const newFlat = newGroupTuples.flatMap(([, items]) => items)
 
           setGroups(prev => isFirstPage ? newGroupTuples : [...prev, ...newGroupTuples])
@@ -147,7 +173,7 @@ export function useGalleryData(
             hasMore: hasMoreGroups,
           }))
         } else if (!useGroupedApi && !cancelled && Array.isArray(data?.items)) {
-          const newItems = data.items as DocCardMeta[]
+          const newItems = withRatingPercentiles(data.items as DocCardMeta[])
           const total = typeof data.total === 'number' ? data.total : newItems.length
           const hasMoreData = newItems.length === LIMIT
           const updatedDocs = isFirstPage ? newItems : [...docs, ...newItems]
@@ -191,7 +217,7 @@ export function useGalleryData(
     load()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [libraryId, page, JSON.stringify(filters), mode, searchQuery, skipApiCall, options?.refreshKey, useGroupedApi, groupByFieldOpt, sortByStars])
+  }, [libraryId, page, JSON.stringify(filters), mode, searchQuery, skipApiCall, options?.refreshKey, useGroupedApi, groupByFieldOpt, sortByStars, sortByRating])
 
 
   const loadMore = () => {

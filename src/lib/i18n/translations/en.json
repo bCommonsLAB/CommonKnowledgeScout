@@ -112,6 +112,7 @@
   },
   "gallery": {
     "gallery": "Contents",
+    "sortByRating": "Sort by rating",
     "story": "Story Mode",
     "switchToStoryMode": "View in Story Mode",
     "storyModeTooltip": "In Story Mode, you can have the contents explained to you in your language, your interest profile, and your context.",
@@ -323,6 +324,21 @@
       "revisionsHide": "Hide versions",
       "onlySignedIn": "Please sign in to view or leave comments.",
       "guestVisibilityHint": "Only owners and co-creators see all comments. Your posts are visible only to you and the team."
+    }
+  },
+  "climateRating": {
+    "title": "AI assessment (South Tyrol)",
+    "co2": "CO₂ reduction (kt/year)",
+    "durchsetzbarkeit": "Feasibility",
+    "kosten": "Cost (EUR)",
+    "costUnknown": "Cost unknown",
+    "dominant": "dominant",
+    "aiNotice": "AI estimate",
+    "perspective": {
+      "wirkung": "Impact",
+      "soziales": "Quality of life & social",
+      "struktur": "Structure & framework",
+      "bewusstsein": "Support & awareness"
     }
   },
   "event": {

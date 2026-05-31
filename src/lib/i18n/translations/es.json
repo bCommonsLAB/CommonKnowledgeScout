@@ -112,6 +112,7 @@
   },
   "gallery": {
     "gallery": "Contenidos",
+    "sortByRating": "Ordenar por valoración",
     "story": "Modo Historia",
     "switchToStoryMode": "Ver en modo Historia",
     "storyModeTooltip": "En el modo Historia, puedes hacerte explicar los contenidos en tu idioma, tu perfil de intereses y tu contexto.",
@@ -323,6 +324,21 @@
       "revisionsHide": "Ocultar versiones",
       "onlySignedIn": "Inicia sesión para ver o dejar comentarios.",
       "guestVisibilityHint": "Solo propietarios y co-creadores ven todos los comentarios. Tus publicaciones solo son visibles para ti y el equipo."
+    }
+  },
+  "climateRating": {
+    "title": "Evaluación IA (Tirol del Sur)",
+    "co2": "Reducción CO₂ (kt/año)",
+    "durchsetzbarkeit": "Viabilidad",
+    "kosten": "Coste (EUR)",
+    "costUnknown": "Coste desconocido",
+    "dominant": "dominante",
+    "aiNotice": "Estimación IA",
+    "perspective": {
+      "wirkung": "Impacto",
+      "soziales": "Calidad de vida y social",
+      "struktur": "Estructura y marco",
+      "bewusstsein": "Apoyo y concienciación"
     }
   },
   "event": {

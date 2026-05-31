@@ -359,6 +359,21 @@ export function mapToClimateActionDetail(input: unknown): ClimateActionDetailDat
     
     // category mit Fallback auf handlungsfeld für ältere Daten in der DB
     category: toStr(docMetaJson.category) || toStr(docMetaJson.handlungsfeld),
+    // LLM-Bewertung (Zahlen + Begründungen) — read-only Anzeige
+    co2_einsparung_kt: toNum(docMetaJson.co2_einsparung_kt),
+    co2_einsparung_kt_begruendung: toStr(docMetaJson.co2_einsparung_kt_begruendung),
+    durchsetzbarkeit: toNum(docMetaJson.durchsetzbarkeit),
+    durchsetzbarkeit_begruendung: toStr(docMetaJson.durchsetzbarkeit_begruendung),
+    kosten_eur: toNum(docMetaJson.kosten_eur),
+    kosten_eur_begruendung: toStr(docMetaJson.kosten_eur_begruendung),
+    score_wirkung: toNum(docMetaJson.score_wirkung),
+    score_soziales: toNum(docMetaJson.score_soziales),
+    score_struktur: toNum(docMetaJson.score_struktur),
+    score_bewusstsein: toNum(docMetaJson.score_bewusstsein),
+    perspektiven_begruendung: toStr(docMetaJson.perspektiven_begruendung),
+    dominant_perspektive: toStr(docMetaJson.dominant_perspektive),
+    bewertung_modell: toStr(docMetaJson.bewertung_modell),
+    bewertung_stand: toStr(docMetaJson.bewertung_stand),
     sector: toStr(docMetaJson.sector),
     region: toStr(docMetaJson.region),
     year: ((): number | string | undefined => {

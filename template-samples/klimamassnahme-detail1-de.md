@@ -13,13 +13,26 @@ vorschlag_quelle: {{vorschlag_quelle|Klimabürgerrat | Stakeholder Forum Klima}}
 vorschlag_text: {{vorschlag_text|Originaltext des Vorschlags (extraktiv, 1:1 aus "Vorschlag Klimabürgerrat")}}
 lv_rueckmeldung: {{lv_rueckmeldung|Originaltext der Landesverwaltung (extraktiv, 1:1 aus "Rückmeldung Landesverwaltung")}}
 year: {{year|Jahr (YYYY) oder null}}
+co2_einsparung_kt: {{co2_einsparung_kt|GENERATIV: Geschätztes CO₂-Einsparpotenzial in Kilotonnen/Jahr für Südtirol (nur Zahl, z.B. 12.5). Bei fehlender Basis null}}
+co2_einsparung_kt_begruendung: {{co2_einsparung_kt_begruendung|GENERATIV: Begründung der Größenordnung mit konkretem Südtirol-Bezug (1-2 Sätze)}}
+durchsetzbarkeit: {{durchsetzbarkeit|GENERATIV: Durchsetzbarkeit 0..1 (0=kaum durchsetzbar, 1=breiter Konsens), nur Zahl}}
+durchsetzbarkeit_begruendung: {{durchsetzbarkeit_begruendung|GENERATIV: Begründung (Widerstände, Akteure) mit Südtirol-Bezug (1-2 Sätze)}}
+kosten_eur: {{kosten_eur|GENERATIV: Geschätzte Kosten in Euro (Größenordnung, nur Zahl). Bei unbekannten Kosten null}}
+kosten_eur_begruendung: {{kosten_eur_begruendung|GENERATIV: Begründung der Kostenschätzung mit Südtirol-Bezug (1-2 Sätze)}}
+score_wirkung: {{score_wirkung|GENERATIV: Perspektive Wirkung/Emissionsminderung 0..1, nur Zahl}}
+score_soziales: {{score_soziales|GENERATIV: Perspektive Lebensqualität & Soziales 0..1, nur Zahl}}
+score_struktur: {{score_struktur|GENERATIV: Perspektive Struktur & Rahmenbedingungen 0..1, nur Zahl}}
+score_bewusstsein: {{score_bewusstsein|GENERATIV: Perspektive Unterstützung & Bewusstsein 0..1, nur Zahl}}
+perspektiven_begruendung: {{perspektiven_begruendung|GENERATIV: Begründung des Perspektiven-Profils mit Südtirol-Bezug (1-2 Sätze)}}
+dominant_perspektive: {{dominant_perspektive|GENERATIV: Argmax der vier Scores: wirkung | soziales | struktur | bewusstsein}}
+bewertung_modell: {{bewertung_modell|GENERATIV: Name des bewertenden LLM-Modells (Transparenz)}}
+bewertung_stand: {{bewertung_stand|GENERATIV: Datum der Bewertung im Format YYYY-MM-DD}}
 region: Südtirol
 tags: {{tags|Array, normalisiert: lowercase, kebab-case}}
 sprache: de
 docType: klimamassnahme
 detailViewType: climateAction
 coverImagePrompt: Erstelle ein Hintergrundbild für einen Blogartikel einer Klimamassnahme. Es sollen Menschen in einem Südtiroler Umfeld gezeigt werden, wie diese Massnahme ihren Alltag erleichtert. WICHTIG: Kein Text, keine Schrift, keine Beschriftungen, keine Overlays auf dem Bild – es wird als Hintergrundbild verwendet und mit Text überlagert. Thema:
-detailViewType: climateAction
 ---
 
 ## {{title}}
@@ -77,6 +90,19 @@ WICHTIG - Zwei Arten von Feldern:
    - Exakt die angegebene Zeilenzahl einhalten
    - Nur Fließtext, keine Aufzählungen
 
+3. BEWERTUNGS-Felder (GENERATIV, KI-Einschätzung mit Begründung):
+   - co2_einsparung_kt, durchsetzbarkeit, kosten_eur (jeweils + *_begruendung)
+   - score_wirkung, score_soziales, score_struktur, score_bewusstsein
+     (+ gemeinsame perspektiven_begruendung)
+   - dominant_perspektive, bewertung_modell, bewertung_stand
+   - Jede Zahl ist eine fundierte Schätzung im SÜDTIROL-Maßstab
+   - Zu JEDER Zahl gehört eine kurze Begründung MIT Südtirol-Bezug
+   - durchsetzbarkeit und score_* liegen im Bereich 0..1
+   - dominant_perspektive = Perspektive mit dem höchsten score_* (Argmax):
+     wirkung | soziales | struktur | bewusstsein
+   - Fehlt die Datenbasis für eine Zahl: null zurückgeben (NICHT raten);
+     die zugehörige Begründung erklärt dann kurz, warum keine Schätzung möglich ist
+
 Formatierungsregeln für generative Texte:
 - Exakt die angegebene Zeilenzahl einhalten (5-6/5/4/3 Zeilen)
 - Keine Aufzählungen, nur Fließtext
@@ -133,6 +159,20 @@ Antwortschema:
   "was_vorgeschlagen": "string",
   "position_lv": "string",
   "fazit": "string",
+  "co2_einsparung_kt": "number | null (CO₂-Einsparung kt/Jahr, Südtirol)",
+  "co2_einsparung_kt_begruendung": "string (Begründung mit Südtirol-Bezug)",
+  "durchsetzbarkeit": "number | null (0..1)",
+  "durchsetzbarkeit_begruendung": "string (Begründung mit Südtirol-Bezug)",
+  "kosten_eur": "number | null (Kosten in EUR, Größenordnung)",
+  "kosten_eur_begruendung": "string (Begründung mit Südtirol-Bezug)",
+  "score_wirkung": "number | null (0..1)",
+  "score_soziales": "number | null (0..1)",
+  "score_struktur": "number | null (0..1)",
+  "score_bewusstsein": "number | null (0..1)",
+  "perspektiven_begruendung": "string (Begründung mit Südtirol-Bezug)",
+  "dominant_perspektive": "string (wirkung | soziales | struktur | bewusstsein)",
+  "bewertung_modell": "string (Name des bewertenden LLM-Modells)",
+  "bewertung_stand": "string (YYYY-MM-DD)",
   "year": "number | null",
   "region": "Südtirol",
   "tags": "string[]",
