@@ -269,6 +269,25 @@ export function ClimateActionDetail({
       {data.was_vorgeschlagen && (
         <section className="mb-6">
           <h2 className="text-base font-semibold text-foreground mb-2">Was wird vorgeschlagen?</h2>
+
+          {/* Konsent der Stakeholder – eingebettet, auf-/zuklappbar (default offen) */}
+          <div className="rounded-md border border-border px-3 mb-3">
+            <Accordion type="multiple">
+              <AccordionItem value="konsent" defaultOpen className="border-b-0">
+                <AccordionTrigger className="py-3 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+                  Konsent der Stakeholder
+                </AccordionTrigger>
+                <AccordionContent>
+                  <StakeholderPositions embedded />
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
+
+          {/* Konsens (KI-formuliert → blau) */}
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+            Konsens
+          </div>
           <AiText content={data.was_vorgeschlagen} />
           {data.vorschlag_text && (
             <div className="mt-2">
@@ -360,16 +379,6 @@ export function ClimateActionDetail({
                   </div>
                 </div>
               )}
-            </AccordionContent>
-          </AccordionItem>
-
-          {/* Konsent der Stakeholder */}
-          <AccordionItem value="konsent" className="last:border-b-0">
-            <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
-              Konsent der Stakeholder
-            </AccordionTrigger>
-            <AccordionContent>
-              <StakeholderPositions konsens={data.konsens_text} embedded />
             </AccordionContent>
           </AccordionItem>
 
