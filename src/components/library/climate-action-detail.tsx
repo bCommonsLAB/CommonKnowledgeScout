@@ -8,6 +8,7 @@ import Image from "next/image";
 import { AIGeneratedNotice } from "@/components/shared/ai-generated-notice";
 import { MarkdownPreview } from "./markdown-preview";
 import { ClimateActionRating } from "./climate-action-rating";
+import { StakeholderPositions } from "./gallery/stakeholder-positions";
 import { cn } from "@/lib/utils";
 
 // Status-Mapping (wie im Teaser)
@@ -78,6 +79,10 @@ export interface ClimateActionDetailData {
   arbeitsgruppe?: string;
   /** Zuständigkeit (Ressort/Gemeinde) */
   lv_zustaendigkeit?: string;
+  /** Positionen-Schachbrett (schematisch): Begründung der Landesverwaltung */
+  position_landesverwaltung_begruendung?: string;
+  /** Konsens/Consent-Text (vorerst meist leer) */
+  konsens_text?: string;
 
   // ─── LLM-Bewertung (read-only, Welle "massnahmen-graph" 1) ───────────────
   /** CO₂-Einsparpotenzial in kt/Jahr (Südtirol). */
@@ -315,6 +320,14 @@ export function ClimateActionDetail({
           </div>
         </section>
       )}
+
+      {/* Positionen der Interessengruppen (schematisches Schachbrett) +
+          Konsens/Consent. Nur Landesverwaltung aktiv, Rest angedeutet. */}
+      <StakeholderPositions
+        position={data.lv_bewertung}
+        begruendung={data.position_landesverwaltung_begruendung}
+        konsens={data.konsens_text}
+      />
 
       {/* Markdown-Body */}
       {data.markdown && (

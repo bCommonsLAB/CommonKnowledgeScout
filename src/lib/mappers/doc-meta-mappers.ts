@@ -356,7 +356,11 @@ export function mapToClimateActionDetail(input: unknown): ClimateActionDetailDat
     arbeitsgruppe: toStr(docMetaJson.arbeitsgruppe),
     // lv_zustaendigkeit = Zuständige Stelle (Ressort/Gemeinde)
     lv_zustaendigkeit: toStr(docMetaJson.lv_zustaendigkeit),
-    
+    // Positionen-Schachbrett (schematisch): Begründung der Landesverwaltung +
+    // Konsens/Consent-Text. Vollausbau siehe Zielbild-Doku.
+    position_landesverwaltung_begruendung: toStr(docMetaJson.position_landesverwaltung_begruendung),
+    konsens_text: toStr(docMetaJson.konsens_text),
+
     // category mit Fallback auf handlungsfeld für ältere Daten in der DB
     category: toStr(docMetaJson.category) || toStr(docMetaJson.handlungsfeld),
     // LLM-Bewertung (Zahlen + Begründungen) — read-only Anzeige
