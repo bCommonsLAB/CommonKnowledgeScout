@@ -21,7 +21,6 @@ import Image from 'next/image'
 import { Gauge } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { DocCardMeta } from '@/lib/gallery/types'
-import { computePriorityIndexDisplay } from '@/lib/gallery/rating'
 import { mapBewertungToStatus, STATUS_CONFIG, STATUS_ICON_MAP } from './status-config'
 import { SourceStarsBadge } from '../source-stars-badge'
 import { SourceCommentsBadge } from '../source-comments-badge'
@@ -94,22 +93,15 @@ export function ClimateActionCard({
             {/* Prioritäts-Indikator (read-only): CO₂ × Durchsetzbarkeit ÷ Kosten
                 (je Mio €). Identischer Wert wie in der Detailansicht. NICHT die
                 Zustimmung der Nutzer (das sind die Sterne). */}
-            {(() => {
-              const prio = computePriorityIndexDisplay({
-                impact: doc.co2_einsparung_kt,
-                feasibility: doc.durchsetzbarkeit,
-                cost: doc.kosten_eur,
-              })
-              return prio !== null ? (
-                <span
-                  className='inline-flex items-center gap-1 rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm'
-                  title='Prioritäts-Indikator: CO₂-Einsparung × Durchsetzbarkeit ÷ Kosten (je Mio €). Nicht zu verwechseln mit der Zustimmung der Nutzer (Sterne).'
-                >
-                  <Gauge className='h-3 w-3' aria-hidden />
-                  Prio {prio.toFixed(1)}
-                </span>
-              ) : null
-            })()}
+            {typeof doc.prioritaets_index === 'number' && (
+              <span
+                className='inline-flex items-center gap-1 rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm'
+                title='Prioritäts-Indikator: CO₂-Einsparung × Durchsetzbarkeit ÷ Kosten (je Mio €). Nicht zu verwechseln mit der Zustimmung der Nutzer (Sterne).'
+              >
+                <Gauge className='h-3 w-3' aria-hidden />
+                Prio {doc.prioritaets_index.toFixed(1)}
+              </span>
+            )}
             <SourceStarsBadge
               libraryId={libraryId}
               fileId={doc.fileId}

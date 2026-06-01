@@ -4,7 +4,6 @@ import * as React from "react";
 import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n/hooks";
-import { computePriorityIndexDisplay } from "@/lib/gallery/rating";
 import {
   Tooltip,
   TooltipContent,
@@ -81,6 +80,8 @@ export interface ClimateActionRatingData {
   dominant_perspektive?: string;
   bewertung_modell?: string;
   bewertung_stand?: string;
+  /** Persistierter Prioritäts-Indikator (statt Laufzeitberechnung). */
+  prioritaets_index?: number;
 }
 
 interface ClimateActionRatingProps {
@@ -123,13 +124,8 @@ export function ClimateActionRating({ data, embedded = false }: ClimateActionRat
 
   const dominant = data.dominant_perspektive;
 
-  // Prioritäts-Indikator: kt × Durchsetzbarkeit ÷ Kosten (je Mio €). Gemeinsamer
-  // Helfer → identischer Wert in Galerie UND Detailansicht.
-  const ratingIndex = computePriorityIndexDisplay({
-    impact: data.co2_einsparung_kt,
-    feasibility: data.durchsetzbarkeit,
-    cost: data.kosten_eur,
-  });
+  // Prioritäts-Indikator: persistiertes Feld (beim Transform berechnet).
+  const ratingIndex = typeof data.prioritaets_index === 'number' ? data.prioritaets_index : null;
 
   const body = (
     <TooltipProvider delayDuration={150}>

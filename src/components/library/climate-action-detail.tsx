@@ -126,6 +126,8 @@ export interface ClimateActionDetailData {
   bewertung_modell?: string;
   /** Datum der Bewertung (YYYY-MM-DD). */
   bewertung_stand?: string;
+  /** Persistierter Prioritäts-Indikator (co2 × durchsetzbarkeit ÷ kosten, je Mio €). */
+  prioritaets_index?: number;
 
   // Legacy-Felder (für andere Klima-Templates)
   // category ist bereits oben definiert (Klima-spezifische Felder)

@@ -14,9 +14,8 @@ import type { Document } from 'mongodb'
  *
  * - `sort=stars` -> `{ favoriteCount: -1, year: -1, upsertedAt: -1 }`
  *   (favoriteCount kommt durch den $lookup in vector-repo)
- * - `sort=rating` -> `{ rating: -1, year: -1, upsertedAt: -1 }`
- *   (rating kommt durch den $addFields-Stage in vector-repo; `null` =
- *   "Kosten unbekannt" sortiert dabei ans Ende)
+ * - `sort=rating` -> `{ 'docMetaJson.prioritaets_index': -1, year: -1, upsertedAt: -1 }`
+ *   (persistierter Prioritäts-Indikator; fehlend/null sortiert in MongoDB-desc ans Ende)
  * - alles andere / fehlend -> Default `{ year: -1, upsertedAt: -1 }`
  *
  * Member-only: nur Owner und Co-Creators duerfen `sort=stars` nutzen.
@@ -30,7 +29,7 @@ function buildGallerySort(rawSort: string | null, isMember: boolean): GallerySor
     return { favoriteCount: -1, year: -1, upsertedAt: -1 }
   }
   if (rawSort === 'rating') {
-    return { rating: -1, year: -1, upsertedAt: -1 }
+    return { 'docMetaJson.prioritaets_index': -1, year: -1, upsertedAt: -1 }
   }
   return { year: -1, upsertedAt: -1 }
 }

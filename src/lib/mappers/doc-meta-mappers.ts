@@ -389,6 +389,7 @@ export function mapToClimateActionDetail(input: unknown): ClimateActionDetailDat
     dominant_perspektive: toStr(docMetaJson.dominant_perspektive),
     bewertung_modell: toStr(docMetaJson.bewertung_modell),
     bewertung_stand: toStr(docMetaJson.bewertung_stand),
+    prioritaets_index: toNum(docMetaJson.prioritaets_index),
     sector: toStr(docMetaJson.sector),
     region: toStr(docMetaJson.region),
     year: ((): number | string | undefined => {

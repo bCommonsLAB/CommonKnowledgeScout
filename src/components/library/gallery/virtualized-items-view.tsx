@@ -28,7 +28,6 @@ import { useUserStates } from '@/hooks/gallery/use-user-states'
 import { useSourceCommentCounts } from '@/hooks/gallery/use-source-comment-counts'
 import { formatUpsertedAt } from '@/utils/format-upserted-at'
 import { sortDocsByTableColumn } from '@/lib/gallery/table-sort'
-import { computePriorityIndexDisplay } from '@/lib/gallery/rating'
 import { findDocInGroupedDocs } from '@/lib/gallery/apply-favorite-optimistic'
 import { ArrowDown, ArrowUp, ArrowUpDown, Star } from 'lucide-react'
 import { buildGalleryDocSourcePathLine, buildGalleryDocSourcePathParts } from '@/lib/gallery/doc-source-path'
@@ -355,15 +354,10 @@ export function VirtualizedItemsView({
         />
       )
     }
-    // Berechnete Prio-Indikator-Spalte (CO₂ × Durchsetzbarkeit ÷ Kosten je Mio €).
+    // Prio-Indikator-Spalte: persistiertes Feld (beim Transform berechnet).
     if (key === '__priorityIndex') {
-      const prio = computePriorityIndexDisplay({
-        impact: doc.co2_einsparung_kt,
-        feasibility: doc.durchsetzbarkeit,
-        cost: doc.kosten_eur,
-      })
       return (
-        <span className="tabular-nums">{prio !== null ? prio.toFixed(1) : <span className="text-muted-foreground">–</span>}</span>
+        <span className="tabular-nums">{typeof doc.prioritaets_index === 'number' ? doc.prioritaets_index.toFixed(1) : <span className="text-muted-foreground">–</span>}</span>
       )
     }
     // KI-Werte hübsch formatieren: 0..1-Scores als Prozent, Kosten mit Tausender-Punkt.
