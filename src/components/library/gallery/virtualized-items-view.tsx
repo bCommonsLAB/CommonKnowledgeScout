@@ -28,6 +28,7 @@ import { useUserStates } from '@/hooks/gallery/use-user-states'
 import { useSourceCommentCounts } from '@/hooks/gallery/use-source-comment-counts'
 import { formatUpsertedAt } from '@/utils/format-upserted-at'
 import { sortDocsByTableColumn } from '@/lib/gallery/table-sort'
+import { computePriorityIndexDisplay } from '@/lib/gallery/rating'
 import { findDocInGroupedDocs } from '@/lib/gallery/apply-favorite-optimistic'
 import { ArrowDown, ArrowUp, ArrowUpDown, Star } from 'lucide-react'
 import { buildGalleryDocSourcePathLine, buildGalleryDocSourcePathParts } from '@/lib/gallery/doc-source-path'
@@ -255,7 +256,7 @@ export function VirtualizedItemsView({
   // Doc-Translations Refactor: fuer Owner injizieren wir vor der upsertedAt-Spalte
   // zwei zusaetzliche Spalten: 'publication' (Status-Badge) und 'languages' (Locale-Chips).
   const tableColumns = React.useMemo(() => {
-    const baseColumns = (() => {
+    const rawBase = (() => {
       if (tableColumnFacets && tableColumnFacets.length > 0) {
         return [
           { key: 'title', labelKey: 'gallery.table.title' as const },
@@ -271,6 +272,10 @@ export function VirtualizedItemsView({
         { key: 'upsertedAt', labelKey: 'gallery.table.upsertedAt' as const },
       ]
     })()
+    // Berechnete Prio-Indikator-Spalte (vor dem Datum) – nur für climateAction.
+    const baseColumns = libraryDetailViewType === 'climateAction'
+      ? [...rawBase.slice(0, -1), { key: '__priorityIndex', label: 'Prio-Indikator' }, ...rawBase.slice(-1)]
+      : rawBase
     if (!isOwner) return baseColumns
     // Vor der letzten Spalte (typischerweise upsertedAt) die zwei neuen Spalten einfuegen.
     const insertAt = Math.max(0, baseColumns.length - 1)
@@ -283,7 +288,7 @@ export function VirtualizedItemsView({
       ...ownerColumns,
       ...baseColumns.slice(insertAt),
     ]
-  }, [tableColumnFacets, isOwner])
+  }, [tableColumnFacets, isOwner, libraryDetailViewType])
 
   const displayDocsByYear = React.useMemo(() => {
     if (sortByStars) return docsByYear
@@ -349,6 +354,26 @@ export function VirtualizedItemsView({
           expectedLocales={expectedTargetLocales}
         />
       )
+    }
+    // Berechnete Prio-Indikator-Spalte (CO₂ × Durchsetzbarkeit ÷ Kosten je Mio €).
+    if (key === '__priorityIndex') {
+      const prio = computePriorityIndexDisplay({
+        impact: doc.co2_einsparung_kt,
+        feasibility: doc.durchsetzbarkeit,
+        cost: doc.kosten_eur,
+      })
+      return (
+        <span className="tabular-nums">{prio !== null ? prio.toFixed(1) : <span className="text-muted-foreground">–</span>}</span>
+      )
+    }
+    // KI-Werte hübsch formatieren: 0..1-Scores als Prozent, Kosten mit Tausender-Punkt.
+    const PERCENT_KEYS = new Set(['durchsetzbarkeit', 'score_wirkung', 'score_soziales', 'score_struktur', 'score_bewusstsein'])
+    const rawNum = (doc as unknown as Record<string, unknown>)[key]
+    if (PERCENT_KEYS.has(key) && typeof rawNum === 'number') {
+      return <span className="tabular-nums">{Math.round(rawNum * 100)} %</span>
+    }
+    if (key === 'kosten_eur' && typeof rawNum === 'number') {
+      return <span className="tabular-nums">{rawNum.toLocaleString('de-DE')}</span>
     }
     const raw = (doc as unknown as Record<string, unknown>)[key]
     if (raw === undefined || raw === null) return <span className="text-muted-foreground">-</span>
