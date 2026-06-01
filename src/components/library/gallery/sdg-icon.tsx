@@ -7,10 +7,12 @@ import { sdgIconPath } from "@/lib/gallery/sdg-meta";
 /**
  * src/components/library/gallery/sdg-icon.tsx
  *
- * Quadratische SDG-Kachel in offizieller Farbe. Laedt das offizielle UN-Icon
- * aus `public/sdg-icons/sdg-<id>.svg`. Fehlt die Datei, bleibt die farbige
- * Kachel mit der Ziel-Nummer als Fallback sichtbar (kein Silent Fallback auf
- * leer). Reiner Renderer (kein Storage-/DB-Zugriff).
+ * Quadratische SDG-Kachel mit offiziellem UN-Icon aus
+ * `public/sdg-icons/E-WEB-Goal-NN.png`. Fehlt die Datei, bleibt die Ziel-Nummer
+ * als Fallback sichtbar (kein Silent Fallback auf leer). Reiner Renderer.
+ *
+ * `muted`: Icon dezent in Graustufen + halbtransparent; faerbt sich bei Hover
+ * auf dem umschliessenden `.group`-Element in die Echtfarbe (group-hover).
  */
 
 interface SdgIconProps {
@@ -20,6 +22,8 @@ interface SdgIconProps {
   color: string;
   /** Kantenlaenge in px. Default 32. */
   size?: number;
+  /** Dezent (Graustufen/transparent) mit Echtfarbe bei group-hover. */
+  muted?: boolean;
   className?: string;
 }
 
@@ -28,6 +32,7 @@ export function SdgIcon({
   id,
   color,
   size = 32,
+  muted = false,
   className,
 }: SdgIconProps): React.JSX.Element {
   const [hasIcon, setHasIcon] = React.useState(true);
@@ -38,17 +43,24 @@ export function SdgIcon({
         "relative inline-flex items-center justify-center overflow-hidden rounded-[3px]",
         className,
       )}
-      style={{ backgroundColor: color, width: size, height: size }}
+      style={{
+        backgroundColor: muted ? "transparent" : color,
+        width: size,
+        height: size,
+      }}
     >
-      {/* Fallback (immer im Hintergrund): Ziel-Nummer auf farbiger Kachel. */}
+      {/* Fallback (Hintergrund): Ziel-Nummer, falls das Icon nicht laedt. */}
       <span
-        className="absolute inset-0 flex items-center justify-center font-bold leading-none text-white"
+        className={cn(
+          "absolute inset-0 flex items-center justify-center font-bold leading-none",
+          muted ? "text-muted-foreground" : "text-white",
+        )}
         style={{ fontSize: Math.max(9, size * 0.42) }}
         aria-hidden
       >
         {id}
       </span>
-      {/* Offizielles Icon ueberlagert die Kachel, sobald es laedt. */}
+      {/* Offizielles Icon. Im muted-Modus s/w + transparent, Echtfarbe bei Hover. */}
       {hasIcon ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -56,7 +68,11 @@ export function SdgIcon({
           alt=""
           width={size}
           height={size}
-          className="relative h-full w-full object-contain"
+          className={cn(
+            "relative h-full w-full object-contain",
+            muted &&
+              "opacity-40 grayscale transition-[opacity,filter] duration-150 group-hover:opacity-100 group-hover:grayscale-0",
+          )}
           onError={() => setHasIcon(false)}
         />
       ) : null}

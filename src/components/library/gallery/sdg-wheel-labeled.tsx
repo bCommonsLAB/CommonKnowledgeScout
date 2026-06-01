@@ -77,20 +77,26 @@ export function SdgWheelLabeled({
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  className="absolute -translate-x-1/2 -translate-y-1/2 rounded-[3px] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="group absolute -translate-x-1/2 -translate-y-1/2 rounded-[3px] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   style={{ left: pos.x, top: pos.y }}
                   aria-label={`SDG ${sdg.id}: ${title} – ${valueText}`}
                 >
-                  <SdgIcon id={sdg.id} color={sdg.color} size={tile} />
+                  <SdgIcon id={sdg.id} color={sdg.color} size={tile} muted />
                 </button>
               </TooltipTrigger>
-              <TooltipContent className="max-w-[220px]">
-                <span className="font-medium">
-                  {sdg.id}. {title}
-                </span>
-                <span className="ml-2 tabular-nums text-muted-foreground">
-                  {valueText}
-                </span>
+              <TooltipContent className="max-w-[240px]">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="inline-block h-3 w-3 shrink-0 rounded-sm"
+                    style={{ backgroundColor: sdg.color }}
+                    aria-hidden
+                  />
+                  <span className="font-medium">SDG {sdg.id}</span>
+                  <span className="ml-auto pl-3 font-semibold tabular-nums">
+                    {valueText}
+                  </span>
+                </div>
+                <div className="mt-0.5 text-muted-foreground">{title}</div>
               </TooltipContent>
             </Tooltip>
           );

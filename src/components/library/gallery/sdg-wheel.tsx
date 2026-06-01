@@ -102,6 +102,26 @@ export function SdgWheel({
       role="img"
       aria-label="SDG-Profil"
     >
+      {/* Dezenter grauer Rahmen: Aussen-/Innenkreis + Speichen an den
+          Segmentgrenzen, damit die Tortenstuecke nicht "in der Luft haengen". */}
+      <g
+        className="text-muted-foreground/30"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1}
+      >
+        <circle cx={c} cy={c} r={outerRadius} />
+        <circle cx={c} cy={c} r={innerRadius} />
+        {SDG_LIST.map((_, i) => {
+          const b = spokeAngleDeg(i, count) - segWidth / 2;
+          const p1 = polarToCartesian(c, c, innerRadius, b);
+          const p2 = polarToCartesian(c, c, outerRadius, b);
+          return (
+            <line key={`spoke-${i}`} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} />
+          );
+        })}
+      </g>
+
       {SDG_LIST.map((sdg, index) => {
         const mid = spokeAngleDeg(index, count);
         const start = mid - segWidth / 2 + gap / 2;
@@ -111,22 +131,16 @@ export function SdgWheel({
         const label = labelForId ? labelForId(sdg.id) : `SDG ${sdg.id}`;
         const valueText = value === null ? "–" : `${Math.round(value * 100)}%`;
 
+        // Leere/0-Segmente: nur der graue Rahmen bleibt sichtbar.
+        if (value === null || value <= 0) return null;
+
         return (
           <g key={sdg.id}>
             <title>{`SDG ${sdg.id}: ${label} · ${valueText}`}</title>
-            {/* Track (volles Segment, blass) */}
             <path
-              d={wedgePath(c, c, innerRadius, outerRadius, start, end)}
+              d={wedgePath(c, c, innerRadius, r, start, end)}
               fill={sdg.color}
-              fillOpacity={0.12}
             />
-            {/* Gefuellter Anteil (innen -> aussen) */}
-            {value !== null && value > 0 && (
-              <path
-                d={wedgePath(c, c, innerRadius, r, start, end)}
-                fill={sdg.color}
-              />
-            )}
           </g>
         );
       })}
