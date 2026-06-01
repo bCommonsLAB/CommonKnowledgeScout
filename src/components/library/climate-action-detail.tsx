@@ -274,7 +274,7 @@ export function ClimateActionDetail({
           <div className="rounded-md border border-border px-3 mb-3">
             <Accordion type="multiple">
               <AccordionItem value="konsent" defaultOpen className="border-b-0">
-                <AccordionTrigger className="py-3 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+                <AccordionTrigger className="py-3 px-3 rounded-md bg-muted/50 text-xs font-semibold uppercase tracking-wide text-foreground hover:bg-muted hover:no-underline">
                   Konsent der Stakeholder
                 </AccordionTrigger>
                 <AccordionContent>
@@ -338,7 +338,7 @@ export function ClimateActionDetail({
         <Accordion type="multiple">
           {/* Maßnahmen-Details */}
           <AccordionItem value="details" className="last:border-b-0">
-            <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+            <AccordionTrigger className="py-4 px-3 rounded-md bg-muted/50 text-xs font-semibold uppercase tracking-wide text-foreground hover:bg-muted hover:no-underline">
               Maßnahmen-Details
             </AccordionTrigger>
             <AccordionContent>
@@ -385,7 +385,7 @@ export function ClimateActionDetail({
           {/* Beteiligte Akteure */}
           {actors.length > 0 && (
             <AccordionItem value="akteure" className="last:border-b-0">
-              <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+              <AccordionTrigger className="py-4 px-3 rounded-md bg-muted/50 text-xs font-semibold uppercase tracking-wide text-foreground hover:bg-muted hover:no-underline">
                 Beteiligte Akteure
               </AccordionTrigger>
               <AccordionContent>
@@ -403,12 +403,15 @@ export function ClimateActionDetail({
           {/* KI-Einschätzung (statt wissenschaftlicher Einschätzung) */}
           {hasRating && (
             <AccordionItem value="ki" defaultOpen className="last:border-b-0">
-              <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+              <AccordionTrigger className="py-4 px-3 rounded-md bg-muted/50 text-xs font-semibold uppercase tracking-wide text-foreground hover:bg-muted hover:no-underline">
                 KI-Einschätzung{' '}
                 <span className="normal-case font-normal text-muted-foreground">(statt wissenschaftlicher Einschätzung)</span>
               </AccordionTrigger>
               <AccordionContent>
-                <ClimateActionRating data={data} embedded />
+                {/* KI-Einschätzung ist KI-generiert → Werte blau (Provenienz). */}
+                <div className="[&_.font-mono]:text-blue-700 dark:[&_.font-mono]:text-blue-300">
+                  <ClimateActionRating data={data} embedded />
+                </div>
               </AccordionContent>
             </AccordionItem>
           )}
@@ -416,7 +419,7 @@ export function ClimateActionDetail({
           {/* SDG-Einschätzung (Rad) */}
           {hasSdg && (
             <AccordionItem value="sdg" defaultOpen className="last:border-b-0">
-              <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+              <AccordionTrigger className="py-4 px-3 rounded-md bg-muted/50 text-xs font-semibold uppercase tracking-wide text-foreground hover:bg-muted hover:no-underline">
                 SDG-Einschätzung
               </AccordionTrigger>
               <AccordionContent>

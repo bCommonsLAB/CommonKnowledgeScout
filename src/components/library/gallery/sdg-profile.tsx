@@ -46,7 +46,7 @@ export function SdgProfile({
           <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
             {t("sdgProfile.begruendungLabel")}
           </h3>
-          <p className="text-xs text-foreground/90 whitespace-pre-line">
+          <p className="text-xs whitespace-pre-line text-blue-800 dark:text-blue-300">
             {begruendung}
           </p>
         </div>

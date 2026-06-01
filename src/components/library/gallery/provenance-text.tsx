@@ -45,8 +45,8 @@ export function AiText({
     <div
       className={cn(
         "prose prose-sm dark:prose-invert max-w-none break-words leading-relaxed",
-        "prose-p:text-blue-800 prose-li:text-blue-800 prose-strong:text-blue-900 prose-a:text-blue-700",
-        "dark:prose-p:text-blue-300 dark:prose-li:text-blue-300 dark:prose-strong:text-blue-200 dark:prose-a:text-blue-300",
+        "[&_p]:text-blue-800 [&_li]:text-blue-800 [&_strong]:text-blue-900 [&_a]:text-blue-700",
+        "dark:[&_p]:text-blue-300 dark:[&_li]:text-blue-300 dark:[&_strong]:text-blue-200 dark:[&_a]:text-blue-300",
         className,
       )}
     >
@@ -78,7 +78,7 @@ export function OriginalQuote({
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="z-[70] max-h-80 w-80 max-w-[90vw] overflow-auto"
+        className="z-[70] max-h-96 w-[32rem] max-w-[92vw] overflow-auto"
       >
         <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
           Originaltext (Quelle)
