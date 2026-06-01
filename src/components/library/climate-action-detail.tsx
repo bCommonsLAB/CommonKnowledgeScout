@@ -297,6 +297,14 @@ export function ClimateActionDetail({
               />
             </div>
           )}
+          {/* Metadaten des Stakeholder-Prozesses */}
+          {(data.arbeitsgruppe || data.massnahme_nr) && (
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              {data.arbeitsgruppe && <span>Arbeitsgruppe: {data.arbeitsgruppe}</span>}
+              {data.arbeitsgruppe && data.massnahme_nr && <span> · </span>}
+              {data.massnahme_nr && <span>Maßnahme Nr. {data.massnahme_nr}</span>}
+            </p>
+          )}
         </section>
       )}
 
@@ -336,52 +344,6 @@ export function ClimateActionDetail({
       {/* Aufklappbare Detail-Abschnitte (Accordion) – nach dem Bericht */}
       <div className="bg-card border border-border rounded-lg px-4 mb-6">
         <Accordion type="multiple">
-          {/* Maßnahmen-Details */}
-          <AccordionItem value="details" className="last:border-b-0">
-            <AccordionTrigger className="py-4 px-3 rounded-md bg-muted/50 text-xs font-semibold uppercase tracking-wide text-foreground hover:bg-muted hover:no-underline">
-              Maßnahmen-Details
-            </AccordionTrigger>
-            <AccordionContent>
-              <div className="space-y-2 text-xs">
-                {data.massnahme_nr && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Maßnahme Nr.:</span>
-                    <span className="font-mono">{data.massnahme_nr}</span>
-                  </div>
-                )}
-                {data.arbeitsgruppe && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Arbeitsgruppe:</span>
-                    <span>{data.arbeitsgruppe}</span>
-                  </div>
-                )}
-                {data.category && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Kategorie:</span>
-                    <span>{data.category}</span>
-                  </div>
-                )}
-                {data.region && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Region:</span>
-                    <span>{data.region}</span>
-                  </div>
-                )}
-              </div>
-              {tags.length > 0 && (
-                <div className="mt-4 pt-3 border-t border-border">
-                  <div className="flex flex-wrap gap-1.5">
-                    {tags.map((tag) => (
-                      <Badge key={tag} variant="outline" className="text-xs">
-                        <Tag className="w-2.5 h-2.5 mr-1" />{tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </AccordionContent>
-          </AccordionItem>
-
           {/* Beteiligte Akteure */}
           {actors.length > 0 && (
             <AccordionItem value="akteure" className="last:border-b-0">
@@ -429,6 +391,17 @@ export function ClimateActionDetail({
           )}
         </Accordion>
       </div>
+
+      {/* Tags ganz unten angehaengt */}
+      {tags.length > 0 && (
+        <div className="mb-6 flex flex-wrap gap-1.5">
+          {tags.map((tag) => (
+            <Badge key={tag} variant="outline" className="text-xs">
+              <Tag className="w-2.5 h-2.5 mr-1" />{tag}
+            </Badge>
+          ))}
+        </div>
+      )}
 
       {/* KI-Hinweis */}
       <AIGeneratedNotice compact className="mt-6" />
