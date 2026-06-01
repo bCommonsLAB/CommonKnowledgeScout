@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Sparkles, Quote } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Quote } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { MarkdownPreview } from "../markdown-preview";
 import {
   Popover,
   PopoverContent,
@@ -14,13 +15,23 @@ import {
  * src/components/library/gallery/provenance-text.tsx
  *
  * Generelle Provenienz-Kennzeichnung von Inhalten:
- * - `AiText`   : KI-generierter/redaktioneller Text → BLAU eingefaerbt + dezentes
- *                KI-Symbol. So ist auf einen Blick erkennbar, was die KI formuliert hat.
- * - `OriginalQuote`: transkribierter Originaltext (aus der Quelle) → neutral/grau,
- *                hinter einem Symbol als Popover (spart Platz auf der Seite).
+ * - `AiText`        : KI-/redaktionell formulierter Text → BLAU. Auf einen Blick
+ *                     erkennbar, was die KI formuliert hat.
+ * - `OriginalQuote` : transkribierter Originaltext (aus der Quelle) → neutral/grau,
+ *                     hinter einem Symbol als Popover (spart Platz).
  *
- * Beide rendern Markdown ueber `MarkdownPreview` (Links etc. bleiben erhalten).
+ * Gerendert wird reines Markdown ueber `react-markdown` (nur Text + Links, KEINE
+ * Editor-/Toolbar-Chrome). Markdown-Syntax (z.B. Links) wird aufgeloest.
  */
+
+const REMARK = [remarkGfm];
+
+/** Links immer in neuem Tab, sicher. */
+const LINK_COMPONENT = {
+  a: (props: React.ComponentPropsWithoutRef<"a">) => (
+    <a {...props} target="_blank" rel="noopener noreferrer" />
+  ),
+};
 
 /** KI-/redaktionell formulierter Text (blau). */
 export function AiText({
@@ -31,16 +42,17 @@ export function AiText({
   className?: string;
 }): React.JSX.Element {
   return (
-    <div className={cn("text-sm", className)}>
-      <div
-        className={cn(
-          "prose prose-sm dark:prose-invert max-w-none",
-          "[&_p]:text-blue-800 [&_li]:text-blue-800 [&_strong]:text-blue-900",
-          "dark:[&_p]:text-blue-300 dark:[&_li]:text-blue-300 dark:[&_strong]:text-blue-200",
-        )}
-      >
-        <MarkdownPreview content={content} compact={true} className="min-h-0 w-full" />
-      </div>
+    <div
+      className={cn(
+        "prose prose-sm dark:prose-invert max-w-none break-words leading-relaxed",
+        "prose-p:text-blue-800 prose-li:text-blue-800 prose-strong:text-blue-900 prose-a:text-blue-700",
+        "dark:prose-p:text-blue-300 dark:prose-li:text-blue-300 dark:prose-strong:text-blue-200 dark:prose-a:text-blue-300",
+        className,
+      )}
+    >
+      <ReactMarkdown remarkPlugins={REMARK} components={LINK_COMPONENT}>
+        {content}
+      </ReactMarkdown>
     </div>
   );
 }
@@ -71,20 +83,12 @@ export function OriginalQuote({
         <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
           Originaltext (Quelle)
         </div>
-        <div className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground">
-          <MarkdownPreview content={content} compact={true} className="min-h-0 w-full" />
+        <div className="prose prose-sm dark:prose-invert max-w-none break-words text-muted-foreground prose-a:text-foreground">
+          <ReactMarkdown remarkPlugins={REMARK} components={LINK_COMPONENT}>
+            {content}
+          </ReactMarkdown>
         </div>
       </PopoverContent>
     </Popover>
-  );
-}
-
-/** Kleines KI-Symbol (optional zur Kennzeichnung von KI-Abschnitten). */
-export function AiBadge({ className }: { className?: string }): React.JSX.Element {
-  return (
-    <Sparkles
-      className={cn("h-3 w-3 text-blue-600 dark:text-blue-400", className)}
-      aria-label="KI-generiert"
-    />
   );
 }
