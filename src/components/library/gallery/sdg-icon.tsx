@@ -49,17 +49,20 @@ export function SdgIcon({
         height: size,
       }}
     >
-      {/* Fallback (Hintergrund): Ziel-Nummer, falls das Icon nicht laedt. */}
-      <span
-        className={cn(
-          "absolute inset-0 flex items-center justify-center font-bold leading-none",
-          muted ? "text-muted-foreground" : "text-white",
-        )}
-        style={{ fontSize: Math.max(9, size * 0.42) }}
-        aria-hidden
-      >
-        {id}
-      </span>
+      {/* Fallback NUR wenn das Icon nicht laedt: Ziel-Nummer auf der Kachel.
+          (Das offizielle Icon enthaelt seine Nummer bereits selbst.) */}
+      {!hasIcon && (
+        <span
+          className={cn(
+            "absolute inset-0 flex items-center justify-center font-bold leading-none",
+            muted ? "text-muted-foreground" : "text-white",
+          )}
+          style={{ fontSize: Math.max(9, size * 0.42) }}
+          aria-hidden
+        >
+          {id}
+        </span>
+      )}
       {/* Offizielles Icon. Im muted-Modus s/w + transparent, Echtfarbe bei Hover. */}
       {hasIcon ? (
         // eslint-disable-next-line @next/next/no-img-element

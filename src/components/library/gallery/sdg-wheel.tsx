@@ -90,7 +90,7 @@ export function SdgWheel({
   const innerRadius = Math.max(10, size * 0.1);
   const count = SDG_LIST.length;
   const segWidth = 360 / count;
-  const gap = 3; // Grad Abstand zwischen Segmenten
+  const gap = 0; // Wedges fuellen die Zelle bis zu den Speichen (keine Zwischenraeume)
   const byId = new Map(values.map((v) => [v.id, v.value]));
 
   return (
@@ -102,26 +102,7 @@ export function SdgWheel({
       role="img"
       aria-label="SDG-Profil"
     >
-      {/* Dezenter grauer Rahmen: Aussen-/Innenkreis + Speichen an den
-          Segmentgrenzen, damit die Tortenstuecke nicht "in der Luft haengen". */}
-      <g
-        className="text-muted-foreground/30"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={1}
-      >
-        <circle cx={c} cy={c} r={outerRadius} />
-        <circle cx={c} cy={c} r={innerRadius} />
-        {SDG_LIST.map((_, i) => {
-          const b = spokeAngleDeg(i, count) - segWidth / 2;
-          const p1 = polarToCartesian(c, c, innerRadius, b);
-          const p2 = polarToCartesian(c, c, outerRadius, b);
-          return (
-            <line key={`spoke-${i}`} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} />
-          );
-        })}
-      </g>
-
+      {/* Farbige Tortensegmente (innen -> aussen gefuellt) */}
       {SDG_LIST.map((sdg, index) => {
         const mid = spokeAngleDeg(index, count);
         const start = mid - segWidth / 2 + gap / 2;
@@ -144,6 +125,26 @@ export function SdgWheel({
           </g>
         );
       })}
+
+      {/* Grauer Rahmen ZULETZT (on top): Aussen-/Innenkreis + Speichen als
+          Zell-Trenner, damit die Segmente sauber an die Speichen anschliessen. */}
+      <g
+        className="text-muted-foreground/40"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1}
+      >
+        <circle cx={c} cy={c} r={outerRadius} />
+        <circle cx={c} cy={c} r={innerRadius} />
+        {SDG_LIST.map((_, i) => {
+          const b = spokeAngleDeg(i, count) - segWidth / 2;
+          const p1 = polarToCartesian(c, c, innerRadius, b);
+          const p2 = polarToCartesian(c, c, outerRadius, b);
+          return (
+            <line key={`spoke-${i}`} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} />
+          );
+        })}
+      </g>
     </svg>
   );
 }

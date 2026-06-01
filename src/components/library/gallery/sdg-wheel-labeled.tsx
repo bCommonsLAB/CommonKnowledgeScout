@@ -84,7 +84,7 @@ export function SdgWheelLabeled({
                   <SdgIcon id={sdg.id} color={sdg.color} size={tile} muted />
                 </button>
               </TooltipTrigger>
-              <TooltipContent className="max-w-[240px]">
+              <TooltipContent className="z-[70] max-w-[240px]">
                 <div className="flex items-center gap-2">
                   <span
                     className="inline-block h-3 w-3 shrink-0 rounded-sm"
