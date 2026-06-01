@@ -27,7 +27,6 @@ import { useLibraryRole } from '@/hooks/gallery/use-library-role'
 import { useUserStates } from '@/hooks/gallery/use-user-states'
 import { useSourceCommentCounts } from '@/hooks/gallery/use-source-comment-counts'
 import { formatUpsertedAt } from '@/utils/format-upserted-at'
-import { getTableColumnsForViewType } from '@/lib/detail-view-types'
 import { sortDocsByTableColumn } from '@/lib/gallery/table-sort'
 import { findDocInGroupedDocs } from '@/lib/gallery/apply-favorite-optimistic'
 import { ArrowDown, ArrowUp, ArrowUpDown, Star } from 'lucide-react'
@@ -264,10 +263,13 @@ export function VirtualizedItemsView({
           { key: 'upsertedAt', labelKey: 'gallery.table.upsertedAt' as const },
         ]
       }
-      return getTableColumnsForViewType(libraryDetailViewType).map((col) => ({
-        key: col.key,
-        labelKey: col.labelKey,
-      }))
+      // Ohne explizit konfigurierte Spalten (Facetten mit showInTable=true) zeigen
+      // wir NUR Titel + Datum – NICHT automatisch alle View-Type-Spalten (sonst
+      // wird die Tabelle viel zu breit). Spalten werden in den Galerie-Facetten gewählt.
+      return [
+        { key: 'title', labelKey: 'gallery.table.title' as const },
+        { key: 'upsertedAt', labelKey: 'gallery.table.upsertedAt' as const },
+      ]
     })()
     if (!isOwner) return baseColumns
     // Vor der letzten Spalte (typischerweise upsertedAt) die zwei neuen Spalten einfuegen.
@@ -281,7 +283,7 @@ export function VirtualizedItemsView({
       ...ownerColumns,
       ...baseColumns.slice(insertAt),
     ]
-  }, [libraryDetailViewType, tableColumnFacets, isOwner])
+  }, [tableColumnFacets, isOwner])
 
   const displayDocsByYear = React.useMemo(() => {
     if (sortByStars) return docsByYear
@@ -487,7 +489,7 @@ export function VirtualizedItemsView({
                       </TableHead>
                     )
                   })}
-                  {isOwner && <TableHead className="w-[140px] shrink-0" />}
+                  {isOwner && <TableHead className="w-[140px] shrink-0 sticky right-0 bg-background z-10" />}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -552,7 +554,7 @@ export function VirtualizedItemsView({
                           </TableCell>
                         ))}
                         {isOwner && libraryId && (
-                          <TableCell className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <TableCell className="shrink-0 sticky right-0 bg-background z-10" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center gap-1">
                               {/* Doc-Translations Refactor: Publish/Unpublish/Re-translate Aktion */}
                               <PublishDocumentButton
