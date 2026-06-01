@@ -41,6 +41,13 @@ import type { ExternalJob } from '@/types/external-job'
 const DEFAULT_RELATION_TYPE = 'unterstuetzt'
 const DEFAULT_MODEL = 'gpt-4.1-mini'
 const CATALOG_LIMIT = 500
+/**
+ * Obergrenze für den Pro-Maßnahme-Lauf (scope='library' = N fokussierte
+ * LLM-Pässe). Schützt vor versehentlich teuren Läufen; für größere Kataloge ist
+ * das skalierbare Provides/Requires-Verfahren vorgesehen
+ * (docs/architecture/massnahmen-beziehungen-skalierung.md).
+ */
+const MAX_LIBRARY_FOCUS = 150
 /** Feld, dessen Wert generisch als Gruppen-Label dient, wenn `colorField` fehlt. */
 const DEFAULT_GROUP_FIELD = 'dominant_perspektive'
 
@@ -123,47 +130,84 @@ export async function runDocRelationsPhase(job: ExternalJob): Promise<DocRelatio
     if (!focusSlug) throw new Error('phase-doc-relations: Quell-Dokument nicht im Katalog (slug fehlt?)')
   }
 
-  // ── 2) LLM-Pass ──────────────────────────────────────────────────────────
-  const messages = buildRelationsMessages({
-    catalog, relationType, relationPrompt, focusSlug, maxOutgoing, groupLabel: groupField,
-  })
-  const { data } = await callLlmJson(
-    {
-      apiKey: library.config?.publicPublishing?.apiKey,
-      model,
-      temperature: 0.2,
-      responseFormat: { type: 'json_object' },
-      messages,
-    },
-    RelationsResultSchema,
-    relationsSchemaJson,
-  )
-
-  // ── 3) slug→fileId auflösen + gegen Katalog validieren ───────────────────
+  // ── 2)+3) Fokussierte LLM-Pässe ───────────────────────────────────────────
+  // Ein Pass je Maßnahme (focusSlug) liefert deren AUSGEHENDE Kanten. Sowohl
+  // scope='source' (1 Pass) als auch scope='library' (N Pässe, gründlich pro
+  // Knoten) nutzen denselben fokussierten Pfad. Kein katalogweiter Sammel-Pass
+  // mehr (der lieferte pro Knoten zu wenige Kanten).
   const computedAt = new Date()
   const computedBy = model
   const edges: DocRelationEdge[] = []
   const unknownSlugs = new Set<string>()
-  for (const e of data.edges) {
-    const sourceFileId = slugToFileId.get(e.sourceSlug)
-    const targetFileId = slugToFileId.get(e.targetSlug)
-    if (!sourceFileId) { unknownSlugs.add(e.sourceSlug); continue }
-    if (!targetFileId) { unknownSlugs.add(e.targetSlug); continue }
-    if (sourceFileId === targetFileId) continue // keine Selbstkanten
-    if (scope === 'source' && sourceFileId !== opts.sourceFileId) continue
-    edges.push({
-      libraryId: job.libraryId,
-      sourceFileId,
-      targetFileId,
-      sourceSlug: e.sourceSlug,
-      targetSlug: e.targetSlug,
-      weight: clampWeight(e.weight),
-      rationale: e.rationale,
-      relationType,
-      computedAt,
-      computedBy,
-      catalogHash,
+  let edgesProposed = 0
+  // Außerhalb der Closure auslesen (TS-Narrowing von `library` greift dort nicht).
+  const apiKey = library.config?.publicPublishing?.apiKey
+
+  async function runFocusPass(passFocusSlug: string, restrictSourceFileId: string): Promise<void> {
+    const messages = buildRelationsMessages({
+      catalog, relationType, relationPrompt, focusSlug: passFocusSlug, maxOutgoing, groupLabel: groupField,
     })
+    const { data } = await callLlmJson(
+      {
+        apiKey,
+        model,
+        temperature: 0.2,
+        responseFormat: { type: 'json_object' },
+        messages,
+      },
+      RelationsResultSchema,
+      relationsSchemaJson,
+    )
+    edgesProposed += data.edges.length
+    for (const e of data.edges) {
+      const sourceFileId = slugToFileId.get(e.sourceSlug)
+      const targetFileId = slugToFileId.get(e.targetSlug)
+      if (!sourceFileId) { unknownSlugs.add(e.sourceSlug); continue }
+      if (!targetFileId) { unknownSlugs.add(e.targetSlug); continue }
+      if (sourceFileId === targetFileId) continue // keine Selbstkanten
+      // Nur die ausgehenden Kanten der fokussierten Maßnahme übernehmen.
+      if (sourceFileId !== restrictSourceFileId) continue
+      edges.push({
+        libraryId: job.libraryId,
+        sourceFileId,
+        targetFileId,
+        sourceSlug: e.sourceSlug,
+        targetSlug: e.targetSlug,
+        weight: clampWeight(e.weight),
+        rationale: e.rationale,
+        relationType,
+        computedAt,
+        computedBy,
+        catalogHash,
+      })
+    }
+  }
+
+  if (scope === 'source') {
+    await runFocusPass(focusSlug as string, opts.sourceFileId as string)
+  } else {
+    // scope='library': je referenzierbarer Maßnahme EIN fokussierter Pass.
+    const focusable = catalog
+      .map((c) => ({ slug: c.slug, fileId: slugToFileId.get(c.slug) }))
+      .filter((c): c is { slug: string; fileId: string } => Boolean(c.fileId))
+    if (focusable.length > MAX_LIBRARY_FOCUS) {
+      throw new Error(
+        `phase-doc-relations: Katalog zu groß für den Pro-Maßnahme-Lauf ` +
+        `(${focusable.length} > ${MAX_LIBRARY_FOCUS}). Für große Kataloge ist das ` +
+        `skalierbare Provides/Requires-Verfahren vorgesehen ` +
+        `(docs/architecture/massnahmen-beziehungen-skalierung.md).`,
+      )
+    }
+    await repo.traceAddEvent(job.jobId, {
+      spanId: 'job',
+      name: 'doc_relations_library_focus_passes',
+      level: 'info',
+      message: `Pro-Maßnahme-Lauf: ${focusable.length} fokussierte LLM-Pässe`,
+      attributes: { passes: focusable.length },
+    })
+    for (const c of focusable) {
+      await runFocusPass(c.slug, c.fileId)
+    }
   }
 
   // Unbekannte Referenzen protokollieren (kein Silent Fallback, §5.4).
@@ -192,7 +236,7 @@ export async function runDocRelationsPhase(job: ExternalJob): Promise<DocRelatio
   return {
     scope,
     catalogSize: catalog.length,
-    edgesProposed: data.edges.length,
+    edgesProposed,
     edgesWritten: written.inserted,
     unknownSlugs: unknownSlugs.size,
   }
