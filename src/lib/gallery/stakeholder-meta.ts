@@ -15,10 +15,13 @@ import {
 /**
  * src/lib/gallery/stakeholder-meta.ts
  *
- * Feste Taxonomie der Interessengruppen fuer den Positionen-Vergleich
- * (Schachbrett). SCHEMATISCH: aktuell ist nur `landesverwaltung` aktiv, die
- * uebrigen Gruppen werden nur ausgegraut angedeutet (noch ohne Funktion).
- * Reine Daten (kein Storage/DB). Vollausbau siehe
+ * Feste Taxonomie der Interessengruppen fuer den Konsent-Vergleich
+ * (Schachbrett). Die Landesverwaltung ist KEIN Akteur unter vielen, sondern die
+ * "Schlussredaktion" (Zustaendigkeit/Umsetzbarkeit) und wird in einem EIGENEN
+ * Detail-Abschnitt gezeigt, nicht im Schachbrett (`STAKEHOLDER_KONSENT`).
+ *
+ * SCHEMATISCH: die Akteur-Kacheln sind aktuell nur ausgegraut angedeutet (noch
+ * ohne Funktion). Reine Daten (kein Storage/DB). Vollausbau siehe
  * docs/architecture/massnahmen-positionen-wahlomat-zielbild.md
  */
 
@@ -31,13 +34,18 @@ export interface StakeholderInfo {
   color: string;
   /** Icon (Lucide). */
   icon: LucideIcon;
-  /** Schematik: nur aktive Kacheln sind anklickbar/befuellt. */
-  active?: boolean;
 }
 
-/** Die 10 Interessengruppen. Reihenfolge = Anzeige im Raster. */
-export const STAKEHOLDER_LIST: readonly StakeholderInfo[] = [
-  { key: "landesverwaltung", label: "Landesverwaltung", color: "#64748b", icon: Landmark, active: true },
+/** Sonderrolle: die Landesverwaltung (eigener Abschnitt, Schlussredaktion). */
+export const LANDESVERWALTUNG: StakeholderInfo = {
+  key: "landesverwaltung",
+  label: "Landesverwaltung",
+  color: "#64748b",
+  icon: Landmark,
+};
+
+/** Akteure fuer das Konsent-Schachbrett (ohne Landesverwaltung). */
+export const STAKEHOLDER_KONSENT: readonly StakeholderInfo[] = [
   { key: "politik", label: "Politik", color: "#6366f1", icon: Vote },
   { key: "gemeinden", label: "Gemeinden", color: "#14b8a6", icon: Building2 },
   { key: "wirtschaft", label: "Wirtschaft", color: "#f59e0b", icon: Briefcase },

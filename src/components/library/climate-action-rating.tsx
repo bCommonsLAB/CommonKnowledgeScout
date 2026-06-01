@@ -35,6 +35,8 @@ export interface ClimateActionRatingData {
 
 interface ClimateActionRatingProps {
   data: ClimateActionRatingData;
+  /** Eingebettet (z.B. im Accordion): ohne eigene Card + Ueberschrift. */
+  embedded?: boolean;
 }
 
 /** Perspektiven-Reihenfolge + Farb-Klassen (generische Knoten-Farbe spaeter). */
@@ -59,7 +61,7 @@ function Reason({ text }: { text?: string }) {
  * Bewertungs-Sektion. Rendert nichts, wenn keinerlei Bewertungsdaten
  * vorliegen (bewusstes Conditional-Render — alte Maßnahmen ohne Bewertung).
  */
-export function ClimateActionRating({ data }: ClimateActionRatingProps) {
+export function ClimateActionRating({ data, embedded = false }: ClimateActionRatingProps) {
   const { t } = useTranslation();
 
   const hasMetrics =
@@ -71,12 +73,8 @@ export function ClimateActionRating({ data }: ClimateActionRatingProps) {
 
   const dominant = data.dominant_perspektive;
 
-  return (
-    <section className="bg-card border border-border rounded-lg p-4 mb-6">
-      <h2 className="text-xs font-semibold text-foreground mb-3 uppercase tracking-wide">
-        {t("climateRating.title", { defaultValue: "KI-Bewertung (Südtirol)" })}
-      </h2>
-
+  const body = (
+    <>
       {hasMetrics && (
         <div className="space-y-3 text-sm">
           {isNum(data.co2_einsparung_kt) && (
@@ -158,6 +156,17 @@ export function ClimateActionRating({ data }: ClimateActionRatingProps) {
           {data.bewertung_stand ? ` · ${data.bewertung_stand}` : ""}
         </p>
       )}
+    </>
+  );
+
+  if (embedded) return <div className="text-sm">{body}</div>;
+
+  return (
+    <section className="bg-card border border-border rounded-lg p-4 mb-6">
+      <h2 className="text-xs font-semibold text-foreground mb-3 uppercase tracking-wide">
+        {t("climateRating.title", { defaultValue: "KI-Bewertung (Südtirol)" })}
+      </h2>
+      {body}
     </section>
   );
 }

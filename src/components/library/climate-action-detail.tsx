@@ -2,13 +2,14 @@
 
 import * as React from "react";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Leaf, Users, Building2, Tag, Check, X, Clock, HelpCircle } from "lucide-react";
+import { ArrowLeft, Leaf, Users, Building2, Tag, Check, X, Clock, HelpCircle, Landmark } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { AIGeneratedNotice } from "@/components/shared/ai-generated-notice";
 import { MarkdownPreview } from "./markdown-preview";
 import { ClimateActionRating } from "./climate-action-rating";
 import { StakeholderPositions } from "./gallery/stakeholder-positions";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
 
 // Status-Mapping (wie im Teaser)
@@ -164,6 +165,10 @@ export function ClimateActionDetail({
   const actors = Array.isArray(data.actors) ? data.actors : [];
   const sdgs = Array.isArray(data.sdgs) ? data.sdgs : [];
   const tags = Array.isArray(data.tags) ? data.tags : [];
+  const hasRating = [
+    data.co2_einsparung_kt, data.durchsetzbarkeit, data.kosten_eur,
+    data.score_wirkung, data.score_soziales, data.score_struktur, data.score_bewusstsein,
+  ].some((v) => typeof v === "number" && Number.isFinite(v));
 
   return (
     <div className="container max-w-2xl mx-auto px-4 py-6">
@@ -230,115 +235,154 @@ export function ClimateActionDetail({
         </div>
       )}
 
-      {/* Maßnahmen-Details mit den wichtigsten Klima-Metadaten */}
-      <section className="bg-card border border-border rounded-lg p-4 mb-6">
-        <h2 className="text-xs font-semibold text-foreground mb-3 uppercase tracking-wide flex items-center gap-2">
-          <Leaf className="w-3 h-3" />Maßnahmen-Details
-        </h2>
-        <div className="space-y-2 text-xs">
-          {data.massnahme_nr && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Maßnahme Nr.:</span>
-              <span className="font-mono">{data.massnahme_nr}</span>
-            </div>
-          )}
-          {data.arbeitsgruppe && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Arbeitsgruppe:</span>
-              <span>{data.arbeitsgruppe}</span>
-            </div>
-          )}
-          {data.category && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Kategorie:</span>
-              <span>{data.category}</span>
-            </div>
-          )}
-          {data.lv_zustaendigkeit && (
-            <div className="flex justify-between gap-4">
-              <span className="text-muted-foreground flex-shrink-0">Zuständigkeit:</span>
-              <span className="text-right">{data.lv_zustaendigkeit}</span>
-            </div>
-          )}
-          {data.lv_bewertung && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">LV-Bewertung:</span>
-              <span>{data.lv_bewertung.replace(/_/g, ' ')}</span>
-            </div>
-          )}
-          {data.region && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Region:</span>
-              <span>{data.region}</span>
-            </div>
-          )}
-        </div>
-        
-        {/* Tags als Badges */}
-        {tags.length > 0 && (
-          <div className="mt-4 pt-3 border-t border-border">
-            <div className="flex flex-wrap gap-1.5">
-              {tags.map((tag) => (
-                <Badge key={tag} variant="outline" className="text-xs">
-                  <Tag className="w-2.5 h-2.5 mr-1" />{tag}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
-      </section>
+      {/* Aufgeräumter Body: aufklappbare Abschnitte (Accordion) */}
+      <div className="bg-card border border-border rounded-lg px-4 mb-6">
+        <Accordion type="multiple">
+          {/* Maßnahmen-Details */}
+          <AccordionItem value="details" defaultOpen className="last:border-b-0">
+            <AccordionTrigger className="text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+              <span className="flex items-center gap-2"><Leaf className="w-3 h-3" />Maßnahmen-Details</span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="space-y-2 text-xs">
+                {data.massnahme_nr && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Maßnahme Nr.:</span>
+                    <span className="font-mono">{data.massnahme_nr}</span>
+                  </div>
+                )}
+                {data.arbeitsgruppe && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Arbeitsgruppe:</span>
+                    <span>{data.arbeitsgruppe}</span>
+                  </div>
+                )}
+                {data.category && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Kategorie:</span>
+                    <span>{data.category}</span>
+                  </div>
+                )}
+                {data.region && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Region:</span>
+                    <span>{data.region}</span>
+                  </div>
+                )}
+              </div>
+              {tags.length > 0 && (
+                <div className="mt-4 pt-3 border-t border-border">
+                  <div className="flex flex-wrap gap-1.5">
+                    {tags.map((tag) => (
+                      <Badge key={tag} variant="outline" className="text-xs">
+                        <Tag className="w-2.5 h-2.5 mr-1" />{tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </AccordionContent>
+          </AccordionItem>
 
-      {/* KI-Bewertung (read-only): Kennzahlen + Perspektiven mit Begründung */}
-      <ClimateActionRating data={data} />
+          {/* KI-Einschätzung (read-only) */}
+          {hasRating && (
+            <AccordionItem value="ki" defaultOpen className="last:border-b-0">
+              <AccordionTrigger className="text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+                <span className="flex items-center gap-2"><Leaf className="w-3 h-3" />KI-Einschätzung</span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <ClimateActionRating data={data} embedded />
+              </AccordionContent>
+            </AccordionItem>
+          )}
 
-      {/* Akteure (nur anzeigen wenn vorhanden) */}
-      {actors.length > 0 && (
-        <section className="bg-card border border-border rounded-lg p-4 mb-6">
-          <h2 className="text-xs font-semibold text-foreground mb-3 uppercase tracking-wide flex items-center gap-2">
-            <Users className="w-3 h-3" />Beteiligte Akteure
-          </h2>
-          <div className="flex flex-wrap gap-1.5">
-            {actors.map((actor) => (
-              <Badge key={actor} variant="secondary" className="text-xs">
-                <Building2 className="w-2.5 h-2.5 mr-1" />{actor}
-              </Badge>
-            ))}
-          </div>
-        </section>
-      )}
+          {/* Position der Landesverwaltung (Schlussredaktion: zuständig? umsetzbar?) */}
+          <AccordionItem value="lv" defaultOpen className="last:border-b-0">
+            <AccordionTrigger className="text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+              <span className="flex items-center gap-2"><Landmark className="w-3 h-3" />Position der Landesverwaltung</span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="space-y-2 text-xs">
+                {data.lv_bewertung && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Einschätzung:</span>
+                    <span>{data.lv_bewertung.replace(/_/g, ' ')}</span>
+                  </div>
+                )}
+                {data.lv_zustaendigkeit && (
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground flex-shrink-0">Zuständigkeit:</span>
+                    <span className="text-right">{data.lv_zustaendigkeit}</span>
+                  </div>
+                )}
+              </div>
+              <p className="mt-2 text-xs whitespace-pre-line text-foreground/90">
+                {data.position_landesverwaltung_begruendung || (
+                  <span className="italic text-muted-foreground">Noch keine ausführliche Begründung hinterlegt.</span>
+                )}
+              </p>
+            </AccordionContent>
+          </AccordionItem>
 
-      {/* SDGs (nur anzeigen wenn vorhanden) */}
-      {sdgs.length > 0 && (
-        <section className="bg-card border border-border rounded-lg p-4 mb-6">
-          <h2 className="text-xs font-semibold text-foreground mb-3 uppercase tracking-wide">
-            Nachhaltigkeitsziele (SDGs)
-          </h2>
-          <div className="flex flex-wrap gap-1.5">
-            {sdgs.map((sdg) => (
-              <Badge key={sdg} variant="outline" className="text-xs">{sdg}</Badge>
-            ))}
-          </div>
-        </section>
-      )}
+          {/* Konsent der Interessengruppen (Akteure + Konsens) */}
+          <AccordionItem value="konsent" defaultOpen className="last:border-b-0">
+            <AccordionTrigger className="text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+              <span className="flex items-center gap-2"><Users className="w-3 h-3" />Konsent der Interessengruppen</span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <StakeholderPositions konsens={data.konsens_text} embedded />
+            </AccordionContent>
+          </AccordionItem>
 
-      {/* Positionen der Interessengruppen (schematisches Schachbrett) +
-          Konsens/Consent. Nur Landesverwaltung aktiv, Rest angedeutet. */}
-      <StakeholderPositions
-        position={data.lv_bewertung}
-        begruendung={data.position_landesverwaltung_begruendung}
-        konsens={data.konsens_text}
-      />
+          {/* Beteiligte Akteure */}
+          {actors.length > 0 && (
+            <AccordionItem value="akteure" className="last:border-b-0">
+              <AccordionTrigger className="text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+                <span className="flex items-center gap-2"><Building2 className="w-3 h-3" />Beteiligte Akteure</span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="flex flex-wrap gap-1.5">
+                  {actors.map((actor) => (
+                    <Badge key={actor} variant="secondary" className="text-xs">
+                      <Building2 className="w-2.5 h-2.5 mr-1" />{actor}
+                    </Badge>
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          )}
 
-      {/* Markdown-Body */}
-      {data.markdown && (
-        <div className="prose prose-slate dark:prose-invert max-w-none mb-6">
-          <MarkdownPreview 
-            content={data.markdown} 
-            compact={true}
-            className="min-h-0 w-full"
-          />
-        </div>
-      )}
+          {/* Nachhaltigkeitsziele (SDGs) – Legacy-Badges */}
+          {sdgs.length > 0 && (
+            <AccordionItem value="sdgs" className="last:border-b-0">
+              <AccordionTrigger className="text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+                Nachhaltigkeitsziele (SDGs)
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="flex flex-wrap gap-1.5">
+                  {sdgs.map((sdg) => (
+                    <Badge key={sdg} variant="outline" className="text-xs">{sdg}</Badge>
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          )}
+
+          {/* Volltext (standardmäßig zugeklappt) */}
+          {data.markdown && (
+            <AccordionItem value="volltext" className="last:border-b-0">
+              <AccordionTrigger className="text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+                Volltext
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="prose prose-slate dark:prose-invert max-w-none">
+                  <MarkdownPreview content={data.markdown} compact={true} className="min-h-0 w-full" />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          )}
+        </Accordion>
+      </div>
 
       {/* KI-Hinweis am Ende der Seite */}
       <AIGeneratedNotice compact />
