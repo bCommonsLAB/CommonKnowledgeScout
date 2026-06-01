@@ -6,6 +6,7 @@ import {
   extractSdgValues,
   extractSdgBegruendung,
   hasSdgData,
+  sdgIconPath,
 } from '@/lib/gallery/sdg-meta'
 import {
   spokeAngleDeg,
@@ -95,5 +96,10 @@ describe('sdg-wheel Geometrie', () => {
     const p = polarToCartesian(50, 50, 40, -90)
     expect(p.x).toBeCloseTo(50, 5)
     expect(p.y).toBeCloseTo(10, 5)
+  })
+
+  it('sdgIconPath erzeugt den Asset-Pfad je Ziel-Nummer', () => {
+    expect(sdgIconPath(1)).toBe('/sdg-icons/sdg-1.svg')
+    expect(sdgIconPath(17)).toBe('/sdg-icons/sdg-17.svg')
   })
 })

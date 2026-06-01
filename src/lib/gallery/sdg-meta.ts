@@ -52,6 +52,15 @@ export const SDG_LIST: readonly SdgInfo[] = [
 /** Metadatenschluessel der gemeinsamen Begruendung. */
 export const SDG_BEGRUENDUNG_KEY = "sdg_begruendung";
 
+/**
+ * Pfad zum offiziellen UN-SDG-Icon. Die Assets liegen unter
+ * `public/sdg-icons/sdg-<id>.svg` (siehe `public/sdg-icons/README.md`). Fehlt
+ * eine Datei, faellt die UI auf eine farbige Kachel mit der Ziel-Nummer zurueck.
+ */
+export function sdgIconPath(id: number): string {
+  return `/sdg-icons/sdg-${id}.svg`;
+}
+
 /** Ein gemessener SDG-Unterstuetzungsgrad (oder `null`, wenn nicht vorhanden). */
 export interface SdgValue {
   id: number;
