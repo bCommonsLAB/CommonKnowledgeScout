@@ -268,8 +268,8 @@ export function ClimateActionDetail({
         <section className="mb-6">
           <h2 className="text-base font-semibold text-foreground mb-2">Was wird vorgeschlagen?</h2>
 
-          {/* Konsent der Stakeholder – eingebettet, auf-/zuklappbar (default offen) */}
-          <div className="rounded-md border border-border px-3 mb-3">
+          {/* Konsent der Stakeholder – eingebettet, auf-/zuklappbar (default offen), buendig */}
+          <div className="mb-3">
             <Accordion type="multiple">
               <AccordionItem value="konsent" defaultOpen className="border-b-0">
                 <AccordionTrigger className="py-3 px-3 rounded-md bg-muted/50 text-xs font-semibold uppercase tracking-wide text-foreground hover:bg-muted hover:no-underline">
@@ -295,13 +295,22 @@ export function ClimateActionDetail({
               />
             </div>
           )}
-          {/* Metadaten des Stakeholder-Prozesses */}
+          {/* Metadaten des Stakeholder-Prozesses (gleiches Format wie bei der LV) */}
           {(data.arbeitsgruppe || data.massnahme_nr) && (
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              {data.arbeitsgruppe && <span>Arbeitsgruppe: {data.arbeitsgruppe}</span>}
-              {data.arbeitsgruppe && data.massnahme_nr && <span> · </span>}
-              {data.massnahme_nr && <span>Maßnahme Nr. {data.massnahme_nr}</span>}
-            </p>
+            <div className="space-y-2 text-xs mt-3">
+              {data.arbeitsgruppe && (
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground flex-shrink-0">Arbeitsgruppe:</span>
+                  <span className="text-right">{data.arbeitsgruppe}</span>
+                </div>
+              )}
+              {data.massnahme_nr && (
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground flex-shrink-0">Maßnahme Nr.:</span>
+                  <span className="text-right">{data.massnahme_nr}</span>
+                </div>
+              )}
+            </div>
           )}
         </section>
       )}
@@ -360,6 +369,13 @@ export function ClimateActionDetail({
                 <span className="normal-case font-normal text-muted-foreground">(statt wissenschaftlicher Einschätzung)</span>
               </AccordionTrigger>
               <AccordionContent>
+                {/* Kurze, neutrale Einleitung (von uns, nicht KI → grau) */}
+                <p className="text-xs text-muted-foreground mb-3">
+                  Solange keine wissenschaftliche Einschätzung vorliegt, ordnet eine KI die Maßnahme grob ein:
+                  nach vier Wirkungsperspektiven (Wirkung, Lebensqualität &amp; Soziales, Struktur &amp;
+                  Rahmenbedingungen, Unterstützung &amp; Bewusstsein) sowie nach Durchsetzbarkeit und Kosten.
+                  Die Werte sind Schätzungen zur Orientierung, keine gesicherten Fakten.
+                </p>
                 {/* KI-Einschätzung ist KI-generiert → Werte UND Begründungen blau (Provenienz). */}
                 <div className="[&_.font-mono]:text-blue-700 [&_p]:text-blue-700 dark:[&_.font-mono]:text-blue-300 dark:[&_p]:text-blue-300">
                   <ClimateActionRating data={data} embedded />

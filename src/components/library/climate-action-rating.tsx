@@ -75,50 +75,8 @@ export function ClimateActionRating({ data, embedded = false }: ClimateActionRat
 
   const body = (
     <>
-      {hasMetrics && (
-        <div className="space-y-3 text-sm">
-          {isNum(data.co2_einsparung_kt) && (
-            <div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">
-                  {t("climateRating.co2", { defaultValue: "CO₂-Einsparung (kt/Jahr)" })}
-                </span>
-                <span className="font-mono">{data.co2_einsparung_kt}</span>
-              </div>
-              <Reason text={data.co2_einsparung_kt_begruendung} />
-            </div>
-          )}
-          {isNum(data.durchsetzbarkeit) && (
-            <div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">
-                  {t("climateRating.durchsetzbarkeit", { defaultValue: "Durchsetzbarkeit" })}
-                </span>
-                <span className="font-mono">
-                  {Math.round(data.durchsetzbarkeit * 100)}%
-                </span>
-              </div>
-              <Reason text={data.durchsetzbarkeit_begruendung} />
-            </div>
-          )}
-          <div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">
-                {t("climateRating.kosten", { defaultValue: "Kosten (EUR)" })}
-              </span>
-              <span className="font-mono">
-                {isNum(data.kosten_eur)
-                  ? data.kosten_eur.toLocaleString("de-DE")
-                  : t("climateRating.costUnknown", { defaultValue: "Kosten unbekannt" })}
-              </span>
-            </div>
-            <Reason text={data.kosten_eur_begruendung} />
-          </div>
-        </div>
-      )}
-
       {hasScores && (
-        <div className={cn("space-y-2", hasMetrics && "mt-4 pt-3 border-t border-border")}>
+        <div className="space-y-2 text-sm">
           {PERSPECTIVES.map((p) => {
             const value = data[p.key] as number | undefined;
             if (!isNum(value)) return null;
@@ -146,6 +104,48 @@ export function ClimateActionRating({ data, embedded = false }: ClimateActionRat
             );
           })}
           <Reason text={data.perspektiven_begruendung} />
+        </div>
+      )}
+
+      {hasMetrics && (
+        <div className={cn("space-y-3 text-sm", hasScores && "mt-4 pt-3 border-t border-border")}>
+          {isNum(data.durchsetzbarkeit) && (
+            <div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">
+                  {t("climateRating.durchsetzbarkeit", { defaultValue: "Durchsetzbarkeit" })}
+                </span>
+                <span className="font-mono">
+                  {Math.round(data.durchsetzbarkeit * 100)}%
+                </span>
+              </div>
+              <Reason text={data.durchsetzbarkeit_begruendung} />
+            </div>
+          )}
+          {isNum(data.co2_einsparung_kt) && (
+            <div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">
+                  {t("climateRating.co2", { defaultValue: "CO₂-Einsparung (kt/Jahr)" })}
+                </span>
+                <span className="font-mono">{data.co2_einsparung_kt}</span>
+              </div>
+              <Reason text={data.co2_einsparung_kt_begruendung} />
+            </div>
+          )}
+          <div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">
+                {t("climateRating.kosten", { defaultValue: "Kosten (EUR)" })}
+              </span>
+              <span className="font-mono">
+                {isNum(data.kosten_eur)
+                  ? data.kosten_eur.toLocaleString("de-DE")
+                  : t("climateRating.costUnknown", { defaultValue: "Kosten unbekannt" })}
+              </span>
+            </div>
+            <Reason text={data.kosten_eur_begruendung} />
+          </div>
         </div>
       )}
 
