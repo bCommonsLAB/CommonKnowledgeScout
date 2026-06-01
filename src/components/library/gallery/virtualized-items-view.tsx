@@ -421,7 +421,9 @@ export function VirtualizedItemsView({
             </h3>
           )}
           <div className="rounded-md border">
-            <Table>
+            {/* Mindestbreite: sonst quetscht `w-full` die Spalten in schmale
+                (mobile) Viewports statt horizontal zu scrollen. */}
+            <Table className="min-w-[760px]">
               <TableHeader>
                 <TableRow>
                   {isSignedIn && (
