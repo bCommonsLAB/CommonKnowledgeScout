@@ -31,6 +31,7 @@ import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver'
 import { buildTransformationBody } from '@/lib/external-jobs/template-body-builder'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { LibraryService } from '@/lib/services/library-service'
+import { getMetaByFileId, getCollectionNameForLibrary } from '@/lib/repositories/vector-repo'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import { isValidDetailViewType, validateMetadataForViewType, formatValidationWarning } from '@/lib/detail-view-types'
 import { computeRatingRaw } from '@/lib/gallery/rating'
@@ -1309,6 +1310,42 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
   
   let mergedMeta = { ...(existingMeta || {}), ...fixedFieldsFromTemplate, ...finalMeta, ...ssotFlat } as Record<string, unknown>
   if (initialChapters) (mergedMeta as { chapters: Array<Record<string, unknown>> }).chapters = initialChapters
+
+  // Cover-Bild aus dem bestehenden Mongo-Dokument in die Frontmatter uebernehmen.
+  // existingMeta (Datei-Frontmatter) enthaelt bei KI-generierten Covers oft kein
+  // coverImageUrl (das Cover liegt nur in docMetaJson). Ohne diesen Carry-Forward
+  // wuerde die neu geschriebene Transformations-Datei das Cover-Feld verlieren.
+  // Greift nur als Fallback (mergedMeta hat noch kein Cover) und macht zugleich die
+  // "nicht neu generieren, wenn Cover existiert"-Logik weiter unten korrekt.
+  if (
+    library &&
+    existingFileId &&
+    (typeof mergedMeta.coverImageUrl !== 'string' || (mergedMeta.coverImageUrl as string).trim().length === 0)
+  ) {
+    try {
+      const libraryKey = getCollectionNameForLibrary(library)
+      const existingMetaDoc = await getMetaByFileId(libraryKey, existingFileId)
+      const existingDocMeta = (existingMetaDoc as { docMetaJson?: Record<string, unknown> } | null)?.docMetaJson
+      const prevCover = existingDocMeta?.coverImageUrl
+      if (typeof prevCover === 'string' && prevCover.trim().length > 0) {
+        mergedMeta.coverImageUrl = prevCover
+        const prevThumb = existingDocMeta?.coverThumbnailUrl
+        if (typeof prevThumb === 'string' && prevThumb.trim().length > 0) {
+          mergedMeta.coverThumbnailUrl = prevThumb
+        }
+        bufferLog(jobId, {
+          phase: 'cover_image_carry_forward',
+          message: `Bestehendes Cover-Bild aus Mongo in Frontmatter uebernommen: ${prevCover}`,
+        })
+      }
+    } catch (error) {
+      FileLogger.warn('phase-template', 'Carry-Forward des bestehenden Cover-Bilds (Mongo) fehlgeschlagen', {
+        jobId,
+        existingFileId,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
 
   // Öffnen aus Galerie/Explore erfolgt über docMetaJson.slug.
   // Secretary liefert dieses Feld oft nicht; deshalb stabilen Fallback aus dem Artefaktnamen setzen.
