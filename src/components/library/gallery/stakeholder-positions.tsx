@@ -71,7 +71,7 @@ export function StakeholderPositions({
     <section className="bg-card border border-border rounded-lg p-4 mb-6">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-foreground">
-          Konsent der Interessengruppen
+          Konsent der Stakeholder
         </h2>
         <span className="text-[10px] text-muted-foreground">Schematisch</span>
       </div>

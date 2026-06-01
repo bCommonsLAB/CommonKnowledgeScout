@@ -406,8 +406,10 @@ export function DetailOverlay({
             fallbackLocale={fallbackLocale}
           />
           {/* Generisches SDG-Profil (library-uebergreifend, flag-gesteuert):
-              nur wenn aktiviert UND die SDG-Felder in den Metadaten vorhanden sind. */}
-          {sdgEnabled && sdgDocMeta && hasSdgData(sdgDocMeta) ? (
+              nur wenn aktiviert UND die SDG-Felder vorhanden sind. Fuer
+              climateAction NICHT hier — die Klima-Detailansicht rendert das
+              SDG-Rad selbst als Accordion-Abschnitt (nach der KI-Einschaetzung). */}
+          {sdgEnabled && viewType !== 'climateAction' && sdgDocMeta && hasSdgData(sdgDocMeta) ? (
             <div className='px-6 pb-6'>
               <SdgProfile
                 values={extractSdgValues(sdgDocMeta)}

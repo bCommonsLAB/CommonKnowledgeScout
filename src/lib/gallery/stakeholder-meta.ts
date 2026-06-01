@@ -1,14 +1,11 @@
 import {
   Landmark,
-  Vote,
   Building2,
   Briefcase,
   Wheat,
   Mountain,
   Leaf,
   HeartHandshake,
-  GraduationCap,
-  Users,
   type LucideIcon,
 } from "lucide-react";
 
@@ -44,15 +41,18 @@ export const LANDESVERWALTUNG: StakeholderInfo = {
   icon: Landmark,
 };
 
-/** Akteure fuer das Konsent-Schachbrett (ohne Landesverwaltung). */
+/**
+ * Stakeholder fuer das Konsent-Schachbrett. OHNE Landesverwaltung (eigener
+ * Abschnitt, Schlussredaktion) sowie OHNE Politik, Wissenschaft und Buerger:
+ * Politik/Wissenschaft sind keine Stakeholder im engeren Sinn (Wissenschaft =
+ * eigener Einschaetzungs-Abschnitt), Buerger werden ueber den Kommentarbereich
+ * abgebildet.
+ */
 export const STAKEHOLDER_KONSENT: readonly StakeholderInfo[] = [
-  { key: "politik", label: "Politik", color: "#6366f1", icon: Vote },
   { key: "gemeinden", label: "Gemeinden", color: "#14b8a6", icon: Building2 },
   { key: "wirtschaft", label: "Wirtschaft", color: "#f59e0b", icon: Briefcase },
   { key: "landwirtschaft", label: "Landwirtschaft", color: "#22c55e", icon: Wheat },
   { key: "tourismus", label: "Tourismus", color: "#06b6d4", icon: Mountain },
   { key: "umweltverbaende", label: "Umweltverbände", color: "#10b981", icon: Leaf },
   { key: "sozial", label: "Sozialbereich", color: "#f43f5e", icon: HeartHandshake },
-  { key: "wissenschaft", label: "Wissenschaft", color: "#8b5cf6", icon: GraduationCap },
-  { key: "buerger", label: "Bürger", color: "#f97316", icon: Users },
 ] as const;

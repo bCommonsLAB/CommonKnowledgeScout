@@ -2,13 +2,15 @@
 
 import * as React from "react";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Leaf, Users, Building2, Tag, Check, X, Clock, HelpCircle, Landmark } from "lucide-react";
+import { ArrowLeft, Leaf, Users, Building2, Tag, Check, X, Clock, HelpCircle, Landmark, GraduationCap } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { AIGeneratedNotice } from "@/components/shared/ai-generated-notice";
 import { MarkdownPreview } from "./markdown-preview";
 import { ClimateActionRating } from "./climate-action-rating";
 import { StakeholderPositions } from "./gallery/stakeholder-positions";
+import { SdgProfile } from "./gallery/sdg-profile";
+import type { SdgValue } from "@/lib/gallery/sdg-meta";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
 
@@ -84,6 +86,10 @@ export interface ClimateActionDetailData {
   position_landesverwaltung_begruendung?: string;
   /** Konsens/Consent-Text (vorerst meist leer) */
   konsens_text?: string;
+  /** SDG-Profil: 17 Unterstuetzungsgrade (fuer das SDG-Rad). */
+  sdgValues?: SdgValue[];
+  /** Gemeinsame SDG-Begruendung. */
+  sdgBegruendung?: string;
 
   // ─── LLM-Bewertung (read-only, Welle "massnahmen-graph" 1) ───────────────
   /** CO₂-Einsparpotenzial in kt/Jahr (Südtirol). */
@@ -163,8 +169,8 @@ export function ClimateActionDetail({
   const title = data.title || "—";
   // authors und topics sind für zukünftige Erweiterungen reserviert
   const actors = Array.isArray(data.actors) ? data.actors : [];
-  const sdgs = Array.isArray(data.sdgs) ? data.sdgs : [];
   const tags = Array.isArray(data.tags) ? data.tags : [];
+  const hasSdg = (data.sdgValues ?? []).some((v) => v.value !== null);
   const hasRating = [
     data.co2_einsparung_kt, data.durchsetzbarkeit, data.kosten_eur,
     data.score_wirkung, data.score_soziales, data.score_struktur, data.score_bewusstsein,
@@ -284,11 +290,14 @@ export function ClimateActionDetail({
             </AccordionContent>
           </AccordionItem>
 
-          {/* KI-Einschätzung (read-only) */}
+          {/* KI-Einschätzung – steht (noch) anstelle einer wissenschaftlichen Einschätzung */}
           {hasRating && (
             <AccordionItem value="ki" defaultOpen className="last:border-b-0">
               <AccordionTrigger className="text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
-                <span className="flex items-center gap-2"><Leaf className="w-3 h-3" />KI-Einschätzung</span>
+                <span className="flex items-center gap-2">
+                  <GraduationCap className="w-3 h-3" />KI-Einschätzung
+                  <span className="normal-case font-normal text-muted-foreground">(statt wissenschaftlicher Einschätzung)</span>
+                </span>
               </AccordionTrigger>
               <AccordionContent>
                 <ClimateActionRating data={data} embedded />
@@ -296,7 +305,61 @@ export function ClimateActionDetail({
             </AccordionItem>
           )}
 
-          {/* Position der Landesverwaltung (Schlussredaktion: zuständig? umsetzbar?) */}
+          {/* SDG-Einschätzung (Rad) – direkt nach der KI-Einschätzung */}
+          {hasSdg && (
+            <AccordionItem value="sdg" defaultOpen className="last:border-b-0">
+              <AccordionTrigger className="text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+                <span className="flex items-center gap-2"><Leaf className="w-3 h-3" />SDG-Einschätzung</span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <SdgProfile values={data.sdgValues ?? []} begruendung={data.sdgBegruendung} embedded />
+              </AccordionContent>
+            </AccordionItem>
+          )}
+
+          {/* Konsent der Stakeholder (Akteure + Konsens) */}
+          <AccordionItem value="konsent" defaultOpen className="last:border-b-0">
+            <AccordionTrigger className="text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+              <span className="flex items-center gap-2"><Users className="w-3 h-3" />Konsent der Stakeholder</span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <StakeholderPositions konsens={data.konsens_text} embedded />
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* Beteiligte Akteure */}
+          {actors.length > 0 && (
+            <AccordionItem value="akteure" className="last:border-b-0">
+              <AccordionTrigger className="text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+                <span className="flex items-center gap-2"><Building2 className="w-3 h-3" />Beteiligte Akteure</span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="flex flex-wrap gap-1.5">
+                  {actors.map((actor) => (
+                    <Badge key={actor} variant="secondary" className="text-xs">
+                      <Building2 className="w-2.5 h-2.5 mr-1" />{actor}
+                    </Badge>
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          )}
+
+          {/* Volltext (standardmäßig zugeklappt) */}
+          {data.markdown && (
+            <AccordionItem value="volltext" className="last:border-b-0">
+              <AccordionTrigger className="text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+                Volltext
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="prose prose-slate dark:prose-invert max-w-none">
+                  <MarkdownPreview content={data.markdown} compact={true} className="min-h-0 w-full" />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          )}
+
+          {/* Position der Landesverwaltung (Schlussredaktion) – an letzter Stelle */}
           <AccordionItem value="lv" defaultOpen className="last:border-b-0">
             <AccordionTrigger className="text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
               <span className="flex items-center gap-2"><Landmark className="w-3 h-3" />Position der Landesverwaltung</span>
@@ -323,64 +386,6 @@ export function ClimateActionDetail({
               </p>
             </AccordionContent>
           </AccordionItem>
-
-          {/* Konsent der Interessengruppen (Akteure + Konsens) */}
-          <AccordionItem value="konsent" defaultOpen className="last:border-b-0">
-            <AccordionTrigger className="text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
-              <span className="flex items-center gap-2"><Users className="w-3 h-3" />Konsent der Interessengruppen</span>
-            </AccordionTrigger>
-            <AccordionContent>
-              <StakeholderPositions konsens={data.konsens_text} embedded />
-            </AccordionContent>
-          </AccordionItem>
-
-          {/* Beteiligte Akteure */}
-          {actors.length > 0 && (
-            <AccordionItem value="akteure" className="last:border-b-0">
-              <AccordionTrigger className="text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
-                <span className="flex items-center gap-2"><Building2 className="w-3 h-3" />Beteiligte Akteure</span>
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="flex flex-wrap gap-1.5">
-                  {actors.map((actor) => (
-                    <Badge key={actor} variant="secondary" className="text-xs">
-                      <Building2 className="w-2.5 h-2.5 mr-1" />{actor}
-                    </Badge>
-                  ))}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          )}
-
-          {/* Nachhaltigkeitsziele (SDGs) – Legacy-Badges */}
-          {sdgs.length > 0 && (
-            <AccordionItem value="sdgs" className="last:border-b-0">
-              <AccordionTrigger className="text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
-                Nachhaltigkeitsziele (SDGs)
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="flex flex-wrap gap-1.5">
-                  {sdgs.map((sdg) => (
-                    <Badge key={sdg} variant="outline" className="text-xs">{sdg}</Badge>
-                  ))}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          )}
-
-          {/* Volltext (standardmäßig zugeklappt) */}
-          {data.markdown && (
-            <AccordionItem value="volltext" className="last:border-b-0">
-              <AccordionTrigger className="text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
-                Volltext
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="prose prose-slate dark:prose-invert max-w-none">
-                  <MarkdownPreview content={data.markdown} compact={true} className="min-h-0 w-full" />
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          )}
         </Accordion>
       </div>
 

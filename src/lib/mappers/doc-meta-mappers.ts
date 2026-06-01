@@ -10,6 +10,7 @@ import type { ClimateActionDetailData } from '@/components/library/climate-actio
 import type { DivaDocumentDetailData } from '@/components/library/diva-document-detail'
 import type { DivaTextureDetailData } from '@/components/library/diva-texture-detail'
 import type { RefurbedDeviceDetailData } from '@/components/library/refurbed-device-detail'
+import { extractSdgValues, extractSdgBegruendung } from '@/lib/gallery/sdg-meta'
 
 /**
  * Mapper: API-Response → BookDetailData
@@ -360,6 +361,9 @@ export function mapToClimateActionDetail(input: unknown): ClimateActionDetailDat
     // Konsens/Consent-Text. Vollausbau siehe Zielbild-Doku.
     position_landesverwaltung_begruendung: toStr(docMetaJson.position_landesverwaltung_begruendung),
     konsens_text: toStr(docMetaJson.konsens_text),
+    // SDG-Profil (17 Unterstuetzungsgrade + Begruendung) fuer das Accordion.
+    sdgValues: extractSdgValues(docMetaJson),
+    sdgBegruendung: extractSdgBegruendung(docMetaJson) ?? undefined,
 
     // category mit Fallback auf handlungsfeld für ältere Daten in der DB
     category: toStr(docMetaJson.category) || toStr(docMetaJson.handlungsfeld),
