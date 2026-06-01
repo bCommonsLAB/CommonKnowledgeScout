@@ -630,6 +630,8 @@
       "socialContext": "Sozialer Kontext/Sprachebene",
       "socialContextDescription": "Sprachstil und Komplexität der Antworten.",
       "galleryDetailViewType": "Galerie: Detailansicht-Typ",
+      "galleryShowSdgProfile": "Galerie: SDG-Profil anzeigen",
+      "galleryShowSdgProfileDescription": "Zeigt in der Detailansicht ein SDG-Rad (17 Nachhaltigkeitsziele), sobald die Felder sdg_1..sdg_17 (und optional sdg_begruendung) in den Metadaten vorhanden sind. Library-übergreifend nutzbar.",
       "galleryDetailViewTypeDescription": "Legt fest, welches Detail-View-Format in der Galerie verwendet wird: Book für klassische Dokumente mit Kapiteln, Session für Event-Präsentationen mit Slides.",
       "galleryCardDensity": "Galerie: Karten-Raster (Standard)",
       "galleryCardDensityDescription": "Standard für die Raster-Dichte in der Wissensgalerie (Grid). Nutzer können pro Sitzung umschalten; ohne Wahl gilt dieser Standard.",

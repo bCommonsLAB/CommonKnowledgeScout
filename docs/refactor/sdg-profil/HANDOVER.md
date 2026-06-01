@@ -14,9 +14,10 @@
 - 17 SDG-Unterstützungsgrade `sdg_1..sdg_17` (`0..1`) + EINE gemeinsame `sdg_begruendung`.
 - Anzeige als „SDG-Rad" (SVG, 17 Speichen, offizielle SDG-Farben, von innen nach
   außen gefüllt) in der Detailansicht.
-- **Generisch & flag-gesteuert**: Per-Library-Flag `enableSdgProfile`. Ist es aktiv und
-  sind die Felder in `docMetaJson` vorhanden, erscheint das Rad in der Detailansicht
-  JEDER Library (Einhängepunkt: `detail-overlay.tsx`).
+- **Generisch & flag-gesteuert**: Story-/Galerie-Flag `config.chat.gallery.showSdgProfile`
+  (Settings: Story → Galerie → „SDG-Profil anzeigen"). Ist es aktiv und sind die Felder
+  in `docMetaJson` vorhanden, erscheint das Rad in der Detailansicht JEDER Library
+  (Einhängepunkt: `detail-overlay.tsx`).
 - **Facetten: nur config-basiert** (kein Code). Felder sind als Metadaten ohnehin
   filterbar.
 - **Klima-Template befüllt** als erste Daten-Instanz.
@@ -41,8 +42,8 @@
 
 ## 3. Wichtige Dateien (SDG-Feature)
 
-- `src/types/library.ts` — Flag `enableSdgProfile`
-- `src/lib/services/library-service.ts`, `src/components/settings/library/...` — Flag-Verdrahtung + Settings-Switch
+- `src/types/library.ts` — Flag `config.chat.gallery.showSdgProfile`
+- `src/components/settings/chat/gallery-config-section.tsx` + `hooks/use-chat-form.ts` — Settings-Switch unter Story → Galerie
 - `src/components/library/gallery/detail-overlay.tsx` — generischer Einhängepunkt
 - `src/components/library/gallery/sdg-wheel.tsx`, `sdg-profile.tsx` — Anzeige
 - `src/lib/gallery/sdg-meta.ts` — 17 SDGs (Farben/Keys) + Extraktion aus docMetaJson

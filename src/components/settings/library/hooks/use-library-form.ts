@@ -39,8 +39,6 @@ export const libraryFormSchema = z.object({
   templateDirectory: z.string().default("/templates"),
   // Transformation: DIVA-Liefersystem-Daten auswerten (DIVA-Info-Tab). Default false.
   analyzeDivaTextureInfo: z.boolean().default(false),
-  // Anzeige: Generisches SDG-Profil (SDG-Rad) in der Detailansicht. Default false.
-  enableSdgProfile: z.boolean().default(false),
   // Schwellwert fuer die Auto-Uebernahme der Stoffgruppen-Klassifikation (Stufe 4).
   // Bereich [0, 1], Default 0.9.
   autoApplyConfidenceThreshold: z.number().min(0).max(1).default(0.9),
@@ -240,7 +238,6 @@ export function useLibraryForm(createNew: boolean) {
       transcription: "shadowTwin",
       templateDirectory: "/templates",
       analyzeDivaTextureInfo: false,
-      enableSdgProfile: false,
       autoApplyConfidenceThreshold: 0.9,
       divaArchiveFilterMode: 'all' as const,
       divaArchiveGroupByAttribute: "",
@@ -353,7 +350,6 @@ export function useLibraryForm(createNew: boolean) {
         templateDirectory:
           (activeLibrary.config?.templateDirectory as string) ?? "/templates",
         analyzeDivaTextureInfo: activeLibrary.config?.analyzeDivaTextureInfo === true,
-        enableSdgProfile: activeLibrary.config?.enableSdgProfile === true,
         autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
           activeLibrary.config?.autoApplyConfidenceThreshold,
         ),
@@ -392,7 +388,6 @@ export function useLibraryForm(createNew: boolean) {
         templateDirectory:
           (activeLibrary.config?.templateDirectory as string) ?? "/templates",
         analyzeDivaTextureInfo: activeLibrary.config?.analyzeDivaTextureInfo === true,
-        enableSdgProfile: activeLibrary.config?.enableSdgProfile === true,
         autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
           activeLibrary.config?.autoApplyConfidenceThreshold,
         ),
@@ -481,7 +476,6 @@ export function useLibraryForm(createNew: boolean) {
             transcription: data.transcription,
             templateDirectory: data.templateDirectory,
             analyzeDivaTextureInfo: data.analyzeDivaTextureInfo,
-            enableSdgProfile: data.enableSdgProfile,
             autoApplyConfidenceThreshold: data.autoApplyConfidenceThreshold,
             divaArchiveDefaults: {
               filterMode: data.divaArchiveFilterMode,
@@ -666,7 +660,6 @@ export function useLibraryForm(createNew: boolean) {
           transcription: (importedLibrary.transcription as "shadowTwin" | "db") ?? "shadowTwin",
           templateDirectory: ((importedLibrary as { config?: Record<string, unknown> }).config?.templateDirectory as string) ?? "/templates",
           analyzeDivaTextureInfo: ((importedLibrary as { config?: Record<string, unknown> }).config?.analyzeDivaTextureInfo as boolean) === true,
-          enableSdgProfile: ((importedLibrary as { config?: Record<string, unknown> }).config?.enableSdgProfile as boolean) === true,
           autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
             (importedLibrary as { config?: Record<string, unknown> }).config?.autoApplyConfidenceThreshold,
           ),

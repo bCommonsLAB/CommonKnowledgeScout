@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import { FacetDefsEditor } from '@/components/settings/FacetDefsEditor'
 import { useTranslation } from '@/lib/i18n/hooks'
 import type { UseFormReturn } from "react-hook-form"
@@ -98,6 +99,24 @@ export function GalleryConfigSection({ form }: GalleryConfigSectionProps) {
             </FormItem>
           );
         }}
+      />
+
+      <FormField
+        control={form.control}
+        name="gallery.showSdgProfile"
+        render={({ field }) => (
+          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+            <div className="space-y-0.5">
+              <FormLabel>{t('settings.chatForm.galleryShowSdgProfile')}</FormLabel>
+              <FormDescription>
+                {t('settings.chatForm.galleryShowSdgProfileDescription')}
+              </FormDescription>
+            </div>
+            <FormControl>
+              <Switch checked={field.value === true} onCheckedChange={field.onChange} />
+            </FormControl>
+          </FormItem>
+        )}
       />
 
       <FormField

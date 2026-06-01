@@ -189,7 +189,6 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
         templateDirectory:
           (activeLibrary.config?.templateDirectory as string) ?? "/templates",
         analyzeDivaTextureInfo: activeLibrary.config?.analyzeDivaTextureInfo === true,
-        enableSdgProfile: activeLibrary.config?.enableSdgProfile === true,
         autoApplyConfidenceThreshold:
           typeof activeLibrary.config?.autoApplyConfidenceThreshold === "number" &&
           Number.isFinite(activeLibrary.config.autoApplyConfidenceThreshold)
@@ -452,28 +451,6 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                           Zeigt im Archiv-Detail einen Tab &quot;DIVA-Info&quot;, sobald eine
                           Sidecar-Datei (api2_GetJsonOptionValues.json) im Texturverzeichnis liegt
                           und ein Treffer fuer die Textur existiert.
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="enableSdgProfile"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-base">
-                          SDG-Profil anzeigen
-                        </FormLabel>
-                        <FormDescription>
-                          Zeigt in der Detailansicht ein SDG-Rad (17 Nachhaltigkeitsziele),
-                          sobald die Felder sdg_1..sdg_17 (und optional sdg_begruendung) in den
-                          Metadaten vorhanden sind. Library-uebergreifend nutzbar.
                         </FormDescription>
                       </div>
                       <FormControl>

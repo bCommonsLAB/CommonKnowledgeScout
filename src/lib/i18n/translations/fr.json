@@ -601,6 +601,8 @@
       "socialContext": "Contexte social/Niveau de langue",
       "socialContextDescription": "Style de langue et complexité des réponses.",
       "galleryDetailViewType": "Galerie : Type de vue détaillée",
+      "galleryShowSdgProfile": "Galerie : Afficher le profil ODD",
+      "galleryShowSdgProfileDescription": "Affiche une roue ODD (17 objectifs de développement durable) dans la vue détaillée dès que les champs sdg_1..sdg_17 (et éventuellement sdg_begruendung) sont présents dans les métadonnées. Utilisable sur toutes les bibliothèques.",
       "galleryDetailViewTypeDescription": "Détermine le format de vue détaillée utilisé dans la galerie : Livre pour les documents classiques avec chapitres, Session pour les présentations d'événements avec diapositives.",
       "galleryCardDensity": "Galerie : Grille de cartes (par défaut)",
       "galleryCardDensityDescription": "Densité de grille par défaut dans la galerie de connaissances. Les utilisateurs peuvent la modifier par session ; cette valeur s'applique en l'absence de préférence enregistrée.",

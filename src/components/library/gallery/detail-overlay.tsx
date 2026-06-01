@@ -97,8 +97,10 @@ export function DetailOverlay({
   const { t, locale } = useTranslation()
   const { isMember, isSignedIn } = useLibraryRole(libraryId)
   // SDG-Profil ist ein library-uebergreifendes Anzeige-Flag (kein Secret).
+  // Wohnt unter der Story-/Galerie-Config (config.chat.gallery.showSdgProfile),
+  // nicht in der Library-Storage-Config.
   const libraries = useAtomValue(librariesAtom)
-  const sdgEnabled = libraries.find((l) => l.id === libraryId)?.config?.enableSdgProfile === true
+  const sdgEnabled = libraries.find((l) => l.id === libraryId)?.config?.chat?.gallery?.showSdgProfile === true
   // Sichtbare/relevante fileIds: aktuelle Quelle + Geschwister fuer
   // den Tinder-Modus (sonst kann der Sequencer nicht filtern, was
   // bewertet wurde). Bei geschlossenem Overlay ist das Array leer.

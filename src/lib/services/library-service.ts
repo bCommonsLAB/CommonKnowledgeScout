@@ -415,8 +415,6 @@ export class LibraryService {
         chat: lib.config?.chat,
         // Transformation: DIVA-Liefersystem-Auswertung (Feature-Flag, kein Secret)
         analyzeDivaTextureInfo: lib.config?.analyzeDivaTextureInfo === true,
-        // Anzeige: Generisches SDG-Profil in der Detailansicht (Feature-Flag, kein Secret)
-        enableSdgProfile: lib.config?.enableSdgProfile === true,
         // Stufe 4: Schwellwert fuer Auto-Uebernahme der Stoffgruppen-
         // Klassifikation. Wird im Klassifikations-Dialog gelesen, kein Secret.
         autoApplyConfidenceThreshold: lib.config?.autoApplyConfidenceThreshold,

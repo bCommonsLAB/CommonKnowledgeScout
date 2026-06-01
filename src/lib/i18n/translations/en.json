@@ -601,6 +601,8 @@
       "socialContext": "Social context/Language level",
       "socialContextDescription": "Language style and complexity of answers.",
       "galleryDetailViewType": "Gallery: Detail view type",
+      "galleryShowSdgProfile": "Gallery: Show SDG profile",
+      "galleryShowSdgProfileDescription": "Shows an SDG wheel (17 Sustainable Development Goals) in the detail view as soon as the fields sdg_1..sdg_17 (and optionally sdg_begruendung) are present in the metadata. Usable across libraries.",
       "galleryDetailViewTypeDescription": "Determines which detail view format is used in the gallery: Book for classic documents with chapters, Session for event presentations with slides.",
       "galleryCardDensity": "Gallery: Card grid (default)",
       "galleryCardDensityDescription": "Default grid density in the knowledge gallery. Users can override per session; this value applies when no override is stored.",

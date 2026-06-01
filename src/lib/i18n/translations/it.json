@@ -601,6 +601,8 @@
       "socialContext": "Contesto sociale/Livello linguistico",
       "socialContextDescription": "Stile linguistico e complessità delle risposte.",
       "galleryDetailViewType": "Galleria: Tipo vista dettaglio",
+      "galleryShowSdgProfile": "Galleria: Mostra profilo OSS",
+      "galleryShowSdgProfileDescription": "Mostra una ruota OSS (17 Obiettivi di Sviluppo Sostenibile) nella vista dettaglio non appena i campi sdg_1..sdg_17 (e facoltativamente sdg_begruendung) sono presenti nei metadati. Utilizzabile su tutte le librerie.",
       "galleryDetailViewTypeDescription": "Determina quale formato di vista dettaglio viene utilizzato nella galleria: Book per documenti classici con capitoli, Session per presentazioni di eventi con slide.",
       "galleryCardDensity": "Galleria: Griglia schede (predefinito)",
       "galleryCardDensityDescription": "Densità predefinita del raster nella galleria della conoscenza. Gli utenti possono cambiarla per sessione; questo valore vale se non è memorizzata alcuna scelta.",
