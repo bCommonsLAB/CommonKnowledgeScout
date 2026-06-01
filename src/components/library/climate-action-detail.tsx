@@ -239,9 +239,9 @@ export function ClimateActionDetail({
         })()}
       </div>
 
-      {/* Zusammenfassung (ohne Rahmen) */}
+      {/* Zusammenfassung (KI-generiert → blau) */}
       {data.summary && (
-        <p className="text-sm text-muted-foreground leading-relaxed text-pretty mb-6">{data.summary}</p>
+        <p className="text-sm leading-relaxed text-pretty mb-6 text-blue-800 dark:text-blue-300">{data.summary}</p>
       )}
       
       {/* Cover-Bild in voller Breite (nach Zusammenfassung) */}
@@ -341,8 +341,8 @@ export function ClimateActionDetail({
         )}
       </section>
 
-      {/* Aufklappbare Detail-Abschnitte (Accordion) – nach dem Bericht */}
-      <div className="bg-card border border-border rounded-lg px-4 mb-6">
+      {/* Aufklappbare Detail-Abschnitte (Accordion) – buendig mit dem Fließtext */}
+      <div className="mb-6">
         <Accordion type="multiple">
           {/* Beteiligte Akteure */}
           {actors.length > 0 && (
@@ -370,8 +370,8 @@ export function ClimateActionDetail({
                 <span className="normal-case font-normal text-muted-foreground">(statt wissenschaftlicher Einschätzung)</span>
               </AccordionTrigger>
               <AccordionContent>
-                {/* KI-Einschätzung ist KI-generiert → Werte blau (Provenienz). */}
-                <div className="[&_.font-mono]:text-blue-700 dark:[&_.font-mono]:text-blue-300">
+                {/* KI-Einschätzung ist KI-generiert → Werte UND Begründungen blau (Provenienz). */}
+                <div className="[&_.font-mono]:text-blue-700 [&_p]:text-blue-700 dark:[&_.font-mono]:text-blue-300 dark:[&_p]:text-blue-300">
                   <ClimateActionRating data={data} embedded />
                 </div>
               </AccordionContent>
