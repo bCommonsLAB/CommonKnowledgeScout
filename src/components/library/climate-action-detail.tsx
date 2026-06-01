@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Building2, Tag, Check, X, Clock, HelpCircle, Bug } from "lucide-react";
+import { ArrowLeft, Building2, Tag, Check, X, Clock, HelpCircle, Bug, Brain, Globe, Users } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { AIGeneratedNotice } from "@/components/shared/ai-generated-notice";
@@ -273,9 +273,9 @@ export function ClimateActionDetail({
             <Accordion type="multiple">
               <AccordionItem value="konsent" defaultOpen className="border-b-0">
                 <AccordionTrigger className="py-3 px-3 rounded-md bg-muted/50 text-xs font-semibold uppercase tracking-wide text-foreground hover:bg-muted hover:no-underline">
-                  Konsent der Stakeholder
+                  <span className="flex items-center gap-2"><Users className="w-3.5 h-3.5 shrink-0" />Konsent der Stakeholder</span>
                 </AccordionTrigger>
-                <AccordionContent>
+                <AccordionContent className="px-3 pb-4 pt-1">
                   <StakeholderPositions embedded />
                 </AccordionContent>
               </AccordionItem>
@@ -345,11 +345,11 @@ export function ClimateActionDetail({
         <Accordion type="multiple">
           {/* Beteiligte Akteure */}
           {actors.length > 0 && (
-            <AccordionItem value="akteure" className="last:border-b-0">
+            <AccordionItem value="akteure" className="border-b-0 mb-2">
               <AccordionTrigger className="py-4 px-3 rounded-md bg-muted/50 text-xs font-semibold uppercase tracking-wide text-foreground hover:bg-muted hover:no-underline">
-                Beteiligte Akteure
+                <span className="flex items-center gap-2"><Building2 className="w-3.5 h-3.5 shrink-0" />Beteiligte Akteure</span>
               </AccordionTrigger>
-              <AccordionContent>
+              <AccordionContent className="px-3 pb-4 pt-1">
                 <div className="flex flex-wrap gap-1.5">
                   {actors.map((actor) => (
                     <Badge key={actor} variant="secondary" className="text-xs">
@@ -363,12 +363,14 @@ export function ClimateActionDetail({
 
           {/* KI-Einschätzung (statt wissenschaftlicher Einschätzung) */}
           {hasRating && (
-            <AccordionItem value="ki" defaultOpen className="last:border-b-0">
+            <AccordionItem value="ki" defaultOpen className="border-b-0 mb-2">
               <AccordionTrigger className="py-4 px-3 rounded-md bg-muted/50 text-xs font-semibold uppercase tracking-wide text-foreground hover:bg-muted hover:no-underline">
-                KI-Einschätzung{' '}
-                <span className="normal-case font-normal text-muted-foreground">(statt wissenschaftlicher Einschätzung)</span>
+                <span className="flex items-center gap-2">
+                  <Brain className="w-3.5 h-3.5 shrink-0" />KI-Einschätzung{' '}
+                  <span className="normal-case font-normal text-muted-foreground">(statt wissenschaftlicher Einschätzung)</span>
+                </span>
               </AccordionTrigger>
-              <AccordionContent>
+              <AccordionContent className="px-3 pb-4 pt-1">
                 {/* Kurze, neutrale Einleitung (von uns, nicht KI → grau) */}
                 <p className="text-xs text-muted-foreground mb-3">
                   Solange keine wissenschaftliche Einschätzung vorliegt, ordnet eine KI die Maßnahme grob ein:
@@ -386,11 +388,11 @@ export function ClimateActionDetail({
 
           {/* SDG-Einschätzung (Rad) */}
           {hasSdg && (
-            <AccordionItem value="sdg" defaultOpen className="last:border-b-0">
+            <AccordionItem value="sdg" defaultOpen className="border-b-0 mb-2">
               <AccordionTrigger className="py-4 px-3 rounded-md bg-muted/50 text-xs font-semibold uppercase tracking-wide text-foreground hover:bg-muted hover:no-underline">
-                SDG-Einschätzung
+                <span className="flex items-center gap-2"><Globe className="w-3.5 h-3.5 shrink-0" />SDG-Einschätzung</span>
               </AccordionTrigger>
-              <AccordionContent>
+              <AccordionContent className="px-3 pb-4 pt-1">
                 <SdgProfile values={data.sdgValues ?? []} begruendung={data.sdgBegruendung} embedded />
               </AccordionContent>
             </AccordionItem>
