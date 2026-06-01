@@ -29,6 +29,8 @@ const PARAM_INFO: Record<string, string> = {
   co2: "Geschätztes CO₂-Einsparpotenzial in Kilotonnen pro Jahr für Südtirol (absolute Größenordnung).",
   kosten:
     "Geschätzte Kosten in Euro (Größenordnung). 'Kosten unbekannt', wenn keine belastbare Schätzung möglich ist.",
+  indikator:
+    "Prioritäts-Indikator zum Sortieren der Maßnahmen: CO₂-Einsparpotenzial (kt/Jahr) × Durchsetzbarkeit ÷ Kosten (je Mio €). Höher = mehr Wirkung pro investiertem Euro. Nur berechenbar, wenn CO₂, Durchsetzbarkeit und Kosten vorliegen.",
 };
 
 /** Kleines i-Symbol mit Erklärung als Tooltip. */
@@ -120,6 +122,16 @@ export function ClimateActionRating({ data, embedded = false }: ClimateActionRat
 
   const dominant = data.dominant_perspektive;
 
+  // Prioritäts-Indikator: kt × Durchsetzbarkeit ÷ Kosten (je Mio €). Nur wenn
+  // alle drei Werte vorliegen (kein Silent Fallback auf 0).
+  const ratingIndex = (() => {
+    const c = data.co2_einsparung_kt;
+    const dz = data.durchsetzbarkeit;
+    const k = data.kosten_eur;
+    if (isNum(c) && isNum(dz) && isNum(k) && k > 0) return (c * dz) / (k / 1_000_000);
+    return null;
+  })();
+
   const body = (
     <TooltipProvider delayDuration={150}>
       {hasScores && (
@@ -157,6 +169,19 @@ export function ClimateActionRating({ data, embedded = false }: ClimateActionRat
 
       {hasMetrics && (
         <div className={cn("space-y-3 text-sm", hasScores && "mt-4 pt-3 border-t border-border")}>
+          {/* CO₂-Einsparung zuerst – immer sichtbar (auch ohne Wert). */}
+          <div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">
+                {t("climateRating.co2", { defaultValue: "CO₂-Einsparung (kt/Jahr)" })}
+                <InfoTip text={PARAM_INFO.co2} />
+              </span>
+              <span className="font-mono">
+                {isNum(data.co2_einsparung_kt) ? data.co2_einsparung_kt : "keine Angabe"}
+              </span>
+            </div>
+            <Reason text={data.co2_einsparung_kt_begruendung} />
+          </div>
           {isNum(data.durchsetzbarkeit) && (
             <div>
               <div className="flex justify-between">
@@ -169,18 +194,6 @@ export function ClimateActionRating({ data, embedded = false }: ClimateActionRat
                 </span>
               </div>
               <Reason text={data.durchsetzbarkeit_begruendung} />
-            </div>
-          )}
-          {isNum(data.co2_einsparung_kt) && (
-            <div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">
-                  {t("climateRating.co2", { defaultValue: "CO₂-Einsparung (kt/Jahr)" })}
-                  <InfoTip text={PARAM_INFO.co2} />
-                </span>
-                <span className="font-mono">{data.co2_einsparung_kt}</span>
-              </div>
-              <Reason text={data.co2_einsparung_kt_begruendung} />
             </div>
           )}
           <div>
@@ -196,6 +209,24 @@ export function ClimateActionRating({ data, embedded = false }: ClimateActionRat
               </span>
             </div>
             <Reason text={data.kosten_eur_begruendung} />
+          </div>
+
+          {/* Prioritäts-Indikator: kt × Durchsetzbarkeit ÷ Kosten (je Mio €) */}
+          <div className="mt-3 pt-3 border-t border-border">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-foreground">
+                Prioritäts-Indikator
+                <InfoTip text={PARAM_INFO.indikator} />
+              </span>
+              <span className="font-mono font-semibold">
+                {ratingIndex !== null ? ratingIndex.toFixed(1) : "–"}
+              </span>
+            </div>
+            {ratingIndex === null && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Nicht berechenbar — CO₂-Einsparung und/oder Kosten fehlen.
+              </p>
+            )}
           </div>
         </div>
       )}
