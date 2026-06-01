@@ -53,12 +53,14 @@ export const SDG_LIST: readonly SdgInfo[] = [
 export const SDG_BEGRUENDUNG_KEY = "sdg_begruendung";
 
 /**
- * Pfad zum offiziellen UN-SDG-Icon. Die Assets liegen unter
- * `public/sdg-icons/sdg-<id>.svg` (siehe `public/sdg-icons/README.md`). Fehlt
- * eine Datei, faellt die UI auf eine farbige Kachel mit der Ziel-Nummer zurueck.
+ * Pfad zum offiziellen UN-SDG-Icon. Die Assets liegen unter `public/sdg-icons/`
+ * mit den unveraenderten offiziellen Dateinamen `E-WEB-Goal-01.png` ..
+ * `E-WEB-Goal-17.png` (zweistellig, fuehrende Null). Fehlt eine Datei, faellt
+ * die UI auf eine farbige Kachel mit der Ziel-Nummer zurueck.
  */
 export function sdgIconPath(id: number): string {
-  return `/sdg-icons/sdg-${id}.svg`;
+  const padded = String(id).padStart(2, "0");
+  return `/sdg-icons/E-WEB-Goal-${padded}.png`;
 }
 
 /** Ein gemessener SDG-Unterstuetzungsgrad (oder `null`, wenn nicht vorhanden). */

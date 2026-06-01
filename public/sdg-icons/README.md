@@ -7,26 +7,26 @@ leeres Rad).
 
 ## Benötigte Dateien
 
-17 SVG-Dateien, exakt benannt nach Ziel-Nummer:
+17 offizielle Icon-Dateien mit den **unveränderten** UN-Originalnamen
+(zweistellig, führende Null):
 
 ```
-public/sdg-icons/sdg-1.svg
-public/sdg-icons/sdg-2.svg
+public/sdg-icons/E-WEB-Goal-01.png
+public/sdg-icons/E-WEB-Goal-02.png
 ...
-public/sdg-icons/sdg-17.svg
+public/sdg-icons/E-WEB-Goal-17.png
 ```
 
 Der Pfad wird zentral in `src/lib/gallery/sdg-meta.ts` (`sdgIconPath`) erzeugt —
-falls du eine andere Benennung brauchst, dort anpassen.
+falls du eine andere Benennung/ein anderes Format brauchst, dort anpassen.
 
 ## Quelle
 
 Offizielles UN-Material:
 <https://www.un.org/sustainabledevelopment/news/communications-material/>
 („SDG icons" / „Colour wheel and icons", verfügbar als EPS/SVG/PNG je Sprache).
-
-Die UN-Dateien heißen typischerweise `E-WEB-Goal-01.svg` … `E-WEB-Goal-17.svg`.
-Beim Ablegen in `sdg-1.svg` … `sdg-17.svg` umbenennen (führende Null entfernen).
+Die Goal-Icons heißen dort bereits `E-WEB-Goal-01` … `E-WEB-Goal-17` und werden
+ohne Umbenennen direkt verwendet (hier als PNG abgelegt).
 
 ## Lizenz / Nutzungshinweis
 

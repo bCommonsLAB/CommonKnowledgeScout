@@ -98,8 +98,8 @@ describe('sdg-wheel Geometrie', () => {
     expect(p.y).toBeCloseTo(10, 5)
   })
 
-  it('sdgIconPath erzeugt den Asset-Pfad je Ziel-Nummer', () => {
-    expect(sdgIconPath(1)).toBe('/sdg-icons/sdg-1.svg')
-    expect(sdgIconPath(17)).toBe('/sdg-icons/sdg-17.svg')
+  it('sdgIconPath erzeugt den Asset-Pfad je Ziel-Nummer (offizielle Benennung)', () => {
+    expect(sdgIconPath(1)).toBe('/sdg-icons/E-WEB-Goal-01.png')
+    expect(sdgIconPath(17)).toBe('/sdg-icons/E-WEB-Goal-17.png')
   })
 })
