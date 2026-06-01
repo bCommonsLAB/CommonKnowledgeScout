@@ -151,7 +151,27 @@ Das Modell erlaubt ein **Primär-Schema + referenzierte Schemas**, nicht streng
   generische Merge-Runtime (Phase 3a), dann die Editoren (Phase 4) — Runtime
   **vor** Editor.
 
+## Nachtrag 2026-05-31 — Verfeinerungen aus Phase 2 (vorgeschlagen)
+
+Die Zerlegung von `event-finalize` und `pdfanalyse-commoning`
+(`docs/refactor/welle-3-vi-creation-wizard/phase-2-test-library.md`) hat drei
+Modell-Verfeinerungen ergeben. Sie ändern das Datenmodell, nicht die
+Grundsatz-Trennung. **Owner-Bestätigung offen.**
+
+- **R1 — Schema-Extension**: Schemas können erweitern (`event-final extends
+  event`). Zu unterscheiden von `relatedSchemas` (Referenz auf Quell-Schemas).
+  Beide Mechanismen nötig.
+- **R2 — Schema-Config/Parameter (4. Kategorie)**: parametrierbare Teile
+  (kontrolliertes Vokabular, Kanon-Listen) sind **Config pro Library**, kein
+  Template-Fork. Kollabiert Duplikation (`pdfanalyse` ×4 → 1 Schema + 3 Configs).
+  Aktualisierte Kategorien: **Schema | Schema-Config | Wizard | Run-Input**.
+- **R3 — System-Felder nie als Wizard-Bindung**: `editDraft` bindet nur
+  Inhalts-Felder; System-Felder (`slug`, `docType`, `originalFileId`,
+  `*WriteKey`, `finalRunId`, `eventStatus`) sind auto-gesetzt.
+
 ## Verweise
+- `docs/refactor/welle-3-vi-creation-wizard/phase-2-test-library.md`
+- `docs/refactor/welle-3-vi-creation-wizard/beispiel-zerlegung-event-creation.md`
 - `docs/refactor/welle-3-vi-creation-wizard/phase-1-use-case-inventur.md`
 - `docs/analysis/wizard-template-schwachstellen-architektur-und-ux.md`
 - ADR-0004 (Inbox-/Submission-Modell)
