@@ -73,10 +73,6 @@ coverImagePrompt: Erstelle ein Hintergrundbild für einen Blogartikel einer Klim
 > **Originaltext Landesverwaltung:**
 > {{lv_rueckmeldung}}
 
-## Fazit laut Landesverwaltung
-
-{{fazit|Blogtext (3 Zeilen): Was bedeutet das für die Zukunft? Kurzer, sachlicher Ausblick ohne politische Wertung.}}
-
 *Maßnahme Nr. {{massnahme_nr}} · {{category}} · Zuständig: {{lv_zustaendigkeit}}*
 
 --- systemprompt
@@ -103,7 +99,7 @@ WICHTIG - Zwei Arten von Feldern:
    - lv_bewertung: Mapping aus "Bewertung"
 
 2. GENERATIVE Felder (im Body definiert, vom LLM neu formulieren):
-   - einleitung, was_vorgeschlagen, position_lv, fazit
+   - einleitung, was_vorgeschlagen, position_lv
    - Basieren auf den Quelltexten, werden aber neu formuliert
    - Exakt die angegebene Zeilenzahl einhalten
    - Nur Fließtext, keine Aufzählungen
@@ -192,7 +188,6 @@ Antwortschema:
   "einleitung": "string",
   "was_vorgeschlagen": "string",
   "position_lv": "string",
-  "fazit": "string",
   "co2_einsparung_kt": "number | null (CO₂-Einsparung kt/Jahr, Südtirol)",
   "co2_einsparung_kt_begruendung": "string (Begründung mit Südtirol-Bezug)",
   "durchsetzbarkeit": "number | null (0..1)",

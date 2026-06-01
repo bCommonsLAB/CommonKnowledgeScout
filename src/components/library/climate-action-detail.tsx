@@ -104,8 +104,6 @@ export interface ClimateActionDetailData {
   position_lv?: string;
   /** Originale Rückmeldung der Landesverwaltung (Zitat). */
   lv_rueckmeldung?: string;
-  /** Fazit (laut Landesverwaltung). */
-  fazit?: string;
 
   // ─── LLM-Bewertung (read-only, Welle "massnahmen-graph" 1) ───────────────
   /** CO₂-Einsparpotenzial in kt/Jahr (Südtirol). */
@@ -329,14 +327,6 @@ export function ClimateActionDetail({
         {data.lv_rueckmeldung && (
           <div className="mt-2">
             <OriginalQuote content={data.lv_rueckmeldung} label="Originale Rückmeldung" />
-          </div>
-        )}
-        {data.fazit && (
-          <div className="mt-3">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-              Fazit laut Landesverwaltung
-            </div>
-            <AiText content={data.fazit} />
           </div>
         )}
       </section>

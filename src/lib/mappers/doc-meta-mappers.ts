@@ -371,7 +371,6 @@ export function mapToClimateActionDetail(input: unknown): ClimateActionDetailDat
     vorschlag_quelle: toStr(docMetaJson.vorschlag_quelle),
     position_lv: toStr(docMetaJson.position_lv),
     lv_rueckmeldung: toStr(docMetaJson.lv_rueckmeldung),
-    fazit: toStr(docMetaJson.fazit),
 
     // category mit Fallback auf handlungsfeld für ältere Daten in der DB
     category: toStr(docMetaJson.category) || toStr(docMetaJson.handlungsfeld),
