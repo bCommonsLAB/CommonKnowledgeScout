@@ -10,6 +10,7 @@
 
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { readNumber, readString } from './graph-encodings'
+import { computePriorityIndexDisplay } from '@/lib/gallery/rating'
 
 interface DocGraphTooltipProps {
   doc: DocCardMeta
@@ -43,9 +44,18 @@ export function DocGraphTooltip({ doc, x, y, fields }: DocGraphTooltipProps) {
       style={{ left: x + 12, top: y + 12 }}
     >
       <div className="mb-1 font-semibold text-sm leading-tight">{doc.title || doc.shortTitle || doc.slug || doc.id}</div>
-      {typeof doc.ratingPercentile === 'number' && (
-        <div className="mb-1 text-muted-foreground">Rating: {Math.round(doc.ratingPercentile)}/100</div>
-      )}
+      {(() => {
+        // Prioritäts-Indikator (CO₂ × Durchsetzbarkeit ÷ Kosten je Mio €) – NICHT
+        // die Zustimmung der Nutzer. Identischer Wert wie Detail/Badge/Tabelle.
+        const prio = computePriorityIndexDisplay({
+          impact: doc.co2_einsparung_kt,
+          feasibility: doc.durchsetzbarkeit,
+          cost: doc.kosten_eur,
+        })
+        return prio !== null ? (
+          <div className="mb-1 text-muted-foreground">Prioritäts-Indikator: {prio.toFixed(1)}</div>
+        ) : null
+      })()}
       {rows.length === 0 ? (
         <div className="text-muted-foreground">—</div>
       ) : (
