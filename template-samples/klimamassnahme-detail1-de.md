@@ -13,11 +13,11 @@ vorschlag_quelle: {{vorschlag_quelle|Klimabürgerrat | Stakeholder Forum Klima}}
 vorschlag_text: {{vorschlag_text|Originaltext des Vorschlags (extraktiv, 1:1 aus "Vorschlag Klimabürgerrat")}}
 lv_rueckmeldung: {{lv_rueckmeldung|Originaltext der Landesverwaltung (extraktiv, 1:1 aus "Rückmeldung Landesverwaltung")}}
 year: {{year|Jahr (YYYY) oder null}}
-co2_einsparung_kt: {{co2_einsparung_kt|GENERATIV: Geschätztes CO₂-Einsparpotenzial in Kilotonnen/Jahr für Südtirol (nur Zahl, z.B. 12.5). Bei fehlender Basis null}}
+co2_einsparung_kt: {{co2_einsparung_kt|GENERATIV: Geschätztes CO₂-Einsparpotenzial in Kilotonnen/Jahr für Südtirol (nur Zahl, z.B. 12.5). NIE leer/null: bei fehlender Datenbasis eine grobe Mindestschätzung 0.1 eintragen}}
 co2_einsparung_kt_begruendung: {{co2_einsparung_kt_begruendung|GENERATIV: Begründung der Größenordnung mit konkretem Südtirol-Bezug (1-2 Sätze)}}
 durchsetzbarkeit: {{durchsetzbarkeit|GENERATIV: Durchsetzbarkeit 0..1 (0=kaum durchsetzbar, 1=breiter Konsens), nur Zahl}}
 durchsetzbarkeit_begruendung: {{durchsetzbarkeit_begruendung|GENERATIV: Begründung (Widerstände, Akteure) mit Südtirol-Bezug (1-2 Sätze)}}
-kosten_eur: {{kosten_eur|GENERATIV: Geschätzte Kosten in Euro (Größenordnung, nur Zahl). Bei unbekannten Kosten null}}
+kosten_eur: {{kosten_eur|GENERATIV: Geschätzte Kosten in Euro (Größenordnung, nur Zahl). NIE leer/null: bei unbekannten Kosten grobe Mindestschätzung 30000 eintragen}}
 kosten_eur_begruendung: {{kosten_eur_begruendung|GENERATIV: Begründung der Kostenschätzung mit Südtirol-Bezug (1-2 Sätze)}}
 score_wirkung: {{score_wirkung|GENERATIV: Perspektive Wirkung/Emissionsminderung 0..1, nur Zahl}}
 score_soziales: {{score_soziales|GENERATIV: Perspektive Lebensqualität & Soziales 0..1, nur Zahl}}
@@ -27,6 +27,24 @@ perspektiven_begruendung: {{perspektiven_begruendung|GENERATIV: Begründung des 
 dominant_perspektive: {{dominant_perspektive|GENERATIV: Argmax der vier Scores: wirkung | soziales | struktur | bewusstsein}}
 bewertung_modell: {{bewertung_modell|GENERATIV: Name des bewertenden LLM-Modells (Transparenz)}}
 bewertung_stand: {{bewertung_stand|GENERATIV: Datum der Bewertung im Format YYYY-MM-DD}}
+sdg_1: {{sdg_1|GENERATIV: Unterstützungsgrad SDG 1 (Keine Armut) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_2: {{sdg_2|GENERATIV: Unterstützungsgrad SDG 2 (Kein Hunger) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_3: {{sdg_3|GENERATIV: Unterstützungsgrad SDG 3 (Gesundheit und Wohlergehen) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_4: {{sdg_4|GENERATIV: Unterstützungsgrad SDG 4 (Hochwertige Bildung) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_5: {{sdg_5|GENERATIV: Unterstützungsgrad SDG 5 (Geschlechtergleichheit) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_6: {{sdg_6|GENERATIV: Unterstützungsgrad SDG 6 (Sauberes Wasser und Sanitäreinrichtungen) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_7: {{sdg_7|GENERATIV: Unterstützungsgrad SDG 7 (Bezahlbare und saubere Energie) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_8: {{sdg_8|GENERATIV: Unterstützungsgrad SDG 8 (Menschenwürdige Arbeit und Wirtschaftswachstum) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_9: {{sdg_9|GENERATIV: Unterstützungsgrad SDG 9 (Industrie, Innovation und Infrastruktur) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_10: {{sdg_10|GENERATIV: Unterstützungsgrad SDG 10 (Weniger Ungleichheiten) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_11: {{sdg_11|GENERATIV: Unterstützungsgrad SDG 11 (Nachhaltige Städte und Gemeinden) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_12: {{sdg_12|GENERATIV: Unterstützungsgrad SDG 12 (Nachhaltiger Konsum und Produktion) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_13: {{sdg_13|GENERATIV: Unterstützungsgrad SDG 13 (Maßnahmen zum Klimaschutz) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_14: {{sdg_14|GENERATIV: Unterstützungsgrad SDG 14 (Leben unter Wasser) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_15: {{sdg_15|GENERATIV: Unterstützungsgrad SDG 15 (Leben an Land) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_16: {{sdg_16|GENERATIV: Unterstützungsgrad SDG 16 (Frieden, Gerechtigkeit und starke Institutionen) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_17: {{sdg_17|GENERATIV: Unterstützungsgrad SDG 17 (Partnerschaften zur Erreichung der Ziele) 0..1, nur Zahl. Bei fehlender Basis null}}
+sdg_begruendung: {{sdg_begruendung|GENERATIV: EINE gemeinsame Begründung des SDG-Profils mit Südtirol-Bezug (2-3 Sätze), nennt die am stärksten unterstützten Ziele}}
 region: Südtirol
 tags: {{tags|Array, normalisiert: lowercase, kebab-case}}
 sprache: de
@@ -55,10 +73,6 @@ coverImagePrompt: Erstelle ein Hintergrundbild für einen Blogartikel einer Klim
 > **Originaltext Landesverwaltung:**
 > {{lv_rueckmeldung}}
 
-## Fazit laut Landesverwaltung
-
-{{fazit|Blogtext (3 Zeilen): Was bedeutet das für die Zukunft? Kurzer, sachlicher Ausblick ohne politische Wertung.}}
-
 *Maßnahme Nr. {{massnahme_nr}} · {{category}} · Zuständig: {{lv_zustaendigkeit}}*
 
 --- systemprompt
@@ -85,7 +99,7 @@ WICHTIG - Zwei Arten von Feldern:
    - lv_bewertung: Mapping aus "Bewertung"
 
 2. GENERATIVE Felder (im Body definiert, vom LLM neu formulieren):
-   - einleitung, was_vorgeschlagen, position_lv, fazit
+   - einleitung, was_vorgeschlagen, position_lv
    - Basieren auf den Quelltexten, werden aber neu formuliert
    - Exakt die angegebene Zeilenzahl einhalten
    - Nur Fließtext, keine Aufzählungen
@@ -100,8 +114,28 @@ WICHTIG - Zwei Arten von Feldern:
    - durchsetzbarkeit und score_* liegen im Bereich 0..1
    - dominant_perspektive = Perspektive mit dem höchsten score_* (Argmax):
      wirkung | soziales | struktur | bewusstsein
-   - Fehlt die Datenbasis für eine Zahl: null zurückgeben (NICHT raten);
+   - Fehlt die Datenbasis für durchsetzbarkeit/score_*: null zurückgeben (NICHT raten);
      die zugehörige Begründung erklärt dann kurz, warum keine Schätzung möglich ist
+   - AUSNAHME co2_einsparung_kt und kosten_eur: NIE null. Ohne Datenbasis eine grobe
+     Mindestschätzung eintragen (co2_einsparung_kt = 0.1, kosten_eur = 30000) und in
+     der Begründung kennzeichnen, dass es eine grobe Annahme ist. So bleibt der
+     Prioritäts-Indikator immer berechenbar.
+
+4. SDG-PROFIL (GENERATIV, KI-Einschätzung über die 17 UN-Nachhaltigkeitsziele):
+   - sdg_1 .. sdg_17: Unterstützungsgrad der Maßnahme je Ziel im Bereich 0..1
+     (0 = kein Beitrag, 1 = sehr starker Beitrag), jeweils nur die Zahl
+   - Reihenfolge der Ziele: 1 Keine Armut, 2 Kein Hunger, 3 Gesundheit und
+     Wohlergehen, 4 Hochwertige Bildung, 5 Geschlechtergleichheit, 6 Sauberes
+     Wasser und Sanitäreinrichtungen, 7 Bezahlbare und saubere Energie,
+     8 Menschenwürdige Arbeit und Wirtschaftswachstum, 9 Industrie, Innovation
+     und Infrastruktur, 10 Weniger Ungleichheiten, 11 Nachhaltige Städte und
+     Gemeinden, 12 Nachhaltiger Konsum und Produktion, 13 Maßnahmen zum
+     Klimaschutz, 14 Leben unter Wasser, 15 Leben an Land, 16 Frieden,
+     Gerechtigkeit und starke Institutionen, 17 Partnerschaften zur Erreichung
+     der Ziele
+   - Fehlt für ein Ziel die Datenbasis: null (NICHT raten)
+   - sdg_begruendung: EINE gemeinsame, kurze Begründung (2-3 Sätze) mit
+     Südtirol-Bezug, die die am stärksten unterstützten Ziele benennt
 
 Formatierungsregeln für generative Texte:
 - Exakt die angegebene Zeilenzahl einhalten (5-6/5/4/3 Zeilen)
@@ -158,12 +192,11 @@ Antwortschema:
   "einleitung": "string",
   "was_vorgeschlagen": "string",
   "position_lv": "string",
-  "fazit": "string",
-  "co2_einsparung_kt": "number | null (CO₂-Einsparung kt/Jahr, Südtirol)",
+  "co2_einsparung_kt": "number (CO₂-Einsparung kt/Jahr, Südtirol; nie null – min. grobe Schätzung 0.1)",
   "co2_einsparung_kt_begruendung": "string (Begründung mit Südtirol-Bezug)",
   "durchsetzbarkeit": "number | null (0..1)",
   "durchsetzbarkeit_begruendung": "string (Begründung mit Südtirol-Bezug)",
-  "kosten_eur": "number | null (Kosten in EUR, Größenordnung)",
+  "kosten_eur": "number (Kosten in EUR, Größenordnung; nie null – min. grobe Schätzung 30000)",
   "kosten_eur_begruendung": "string (Begründung mit Südtirol-Bezug)",
   "score_wirkung": "number | null (0..1)",
   "score_soziales": "number | null (0..1)",
@@ -173,6 +206,24 @@ Antwortschema:
   "dominant_perspektive": "string (wirkung | soziales | struktur | bewusstsein)",
   "bewertung_modell": "string (Name des bewertenden LLM-Modells)",
   "bewertung_stand": "string (YYYY-MM-DD)",
+  "sdg_1": "number | null (0..1)",
+  "sdg_2": "number | null (0..1)",
+  "sdg_3": "number | null (0..1)",
+  "sdg_4": "number | null (0..1)",
+  "sdg_5": "number | null (0..1)",
+  "sdg_6": "number | null (0..1)",
+  "sdg_7": "number | null (0..1)",
+  "sdg_8": "number | null (0..1)",
+  "sdg_9": "number | null (0..1)",
+  "sdg_10": "number | null (0..1)",
+  "sdg_11": "number | null (0..1)",
+  "sdg_12": "number | null (0..1)",
+  "sdg_13": "number | null (0..1)",
+  "sdg_14": "number | null (0..1)",
+  "sdg_15": "number | null (0..1)",
+  "sdg_16": "number | null (0..1)",
+  "sdg_17": "number | null (0..1)",
+  "sdg_begruendung": "string (gemeinsame Begründung mit Südtirol-Bezug)",
   "year": "number | null",
   "region": "Südtirol",
   "tags": "string[]",

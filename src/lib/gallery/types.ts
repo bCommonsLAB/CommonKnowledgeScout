@@ -75,6 +75,12 @@ export interface DocCardMeta {
   /** Datum der Bewertung (YYYY-MM-DD). */
   bewertung_stand?: string
   /**
+   * Prioritäts-Indikator (= co2 * durchsetzbarkeit / kosten, skaliert je Mio €),
+   * deterministisch beim Transform berechnet und PERSISTIERT (docMetaJson).
+   * Einzige Quelle der Wahrheit für Anzeige + Sortierung (keine Laufzeitformel).
+   */
+  prioritaets_index?: number
+  /**
    * Roh-Rating (= co2 * durchsetzbarkeit / kosten), vom Server berechnet.
    * `null`/undefined = "Kosten unbekannt" oder zu wenig Daten (kein Silent
    * Fallback — sortiert mit `rating desc` ans Ende).
@@ -269,6 +275,7 @@ export function mapItemToDocCardMeta(item: Item): DocCardMeta {
     dominant_perspektive: typeof item.meta.dominant_perspektive === 'string' ? item.meta.dominant_perspektive : undefined,
     bewertung_modell: typeof item.meta.bewertung_modell === 'string' ? item.meta.bewertung_modell : undefined,
     bewertung_stand: typeof item.meta.bewertung_stand === 'string' ? item.meta.bewertung_stand : undefined,
+    prioritaets_index: typeof item.meta.prioritaets_index === 'number' ? item.meta.prioritaets_index : undefined,
     // Session/Event-spezifische Felder
     organisation: item.meta.organisation as string | undefined,
     tags: Array.isArray(item.meta.tags) ? item.meta.tags as string[] : undefined,

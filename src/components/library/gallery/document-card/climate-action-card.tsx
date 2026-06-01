@@ -18,6 +18,7 @@
 
 import React from 'react'
 import Image from 'next/image'
+import { Gauge } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { mapBewertungToStatus, STATUS_CONFIG, STATUS_ICON_MAP } from './status-config'
@@ -89,14 +90,16 @@ export function ClimateActionCard({
             <span className='text-xs font-mono text-white drop-shadow-lg'>
               {doc.massnahme_nr ? `Nr. ${doc.massnahme_nr}` : '–'}
             </span>
-            {/* Rating-Badge (read-only): Perzentil bevorzugt, sonst Roh-Wert.
-                "Kosten unbekannt" (rating === null) zeigt keinen Wert. */}
-            {typeof doc.ratingPercentile === 'number' && (
+            {/* Prioritäts-Indikator (read-only): CO₂ × Durchsetzbarkeit ÷ Kosten
+                (je Mio €). Identischer Wert wie in der Detailansicht. NICHT die
+                Zustimmung der Nutzer (das sind die Sterne). */}
+            {typeof doc.prioritaets_index === 'number' && (
               <span
-                className='rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm'
-                title='KI-Prioritäts-Score (0–100)'
+                className='inline-flex items-center gap-1 rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm'
+                title='Prioritäts-Indikator: CO₂-Einsparung × Durchsetzbarkeit ÷ Kosten (je Mio €). Nicht zu verwechseln mit der Zustimmung der Nutzer (Sterne).'
               >
-                ★ {doc.ratingPercentile}
+                <Gauge className='h-3 w-3' aria-hidden />
+                Prio {doc.prioritaets_index.toFixed(1)}
               </span>
             )}
             <SourceStarsBadge

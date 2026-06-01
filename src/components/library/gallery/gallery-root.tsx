@@ -896,6 +896,7 @@ export function GalleryRoot({
           fieldLabels={facetFieldLabels}
           libraryId={libraryId || undefined}
           onSaveDefault={isOwner ? handleSaveGraphDefault : undefined}
+          canManageRelations={isLibraryMember}
         />
       )
     }
@@ -938,6 +939,7 @@ export function GalleryRoot({
       cardDensity={cardDensity}
       expectedTargetLocales={activeLibrary?.config?.translations?.targetLocales}
       onPublishChanged={handleDocumentDeleted}
+      relationsEnabled={graphConfig?.edgeSources?.relations?.enabled === true}
       sortByStars={sortByStarsActive}
       onToggleFavorite={handleStarToggle}
       autoApplyConfidenceThreshold={activeLibrary?.config?.autoApplyConfidenceThreshold}
@@ -1016,6 +1018,7 @@ export function GalleryRoot({
                 onBulkPublish={handleDocumentDeleted}
                 hasTranslationTargets={(activeLibrary?.config?.translations?.targetLocales?.length ?? 0) > 0}
                 explicitBulkFileIds={explicitBulkFileIds}
+                relationsEnabled={graphConfig?.edgeSources?.relations?.enabled === true}
               />
             </div>
 
@@ -1055,6 +1058,7 @@ export function GalleryRoot({
                     onBulkPublish={handleDocumentDeleted}
                     hasTranslationTargets={(activeLibrary?.config?.translations?.targetLocales?.length ?? 0) > 0}
                     explicitBulkFileIds={explicitBulkFileIds}
+                    relationsEnabled={graphConfig?.edgeSources?.relations?.enabled === true}
                   />
                 </div>
 

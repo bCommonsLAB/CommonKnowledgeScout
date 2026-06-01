@@ -13,6 +13,7 @@ import type { ViewMode } from '@/components/library/gallery/gallery-sticky-heade
 import type { GalleryCardDensity } from '@/lib/gallery/gallery-card-density'
 import { BulkDeleteButton } from '@/components/library/gallery/bulk-delete-button'
 import { BulkPublishButton } from '@/components/library/gallery/bulk-publish-button'
+import { RecomputeAllRelationsButton } from '@/components/library/gallery/recompute-all-relations-button'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
@@ -43,6 +44,8 @@ interface FilterContextBarProps {
   // Bulk-Publish Props (identischer Owner-Scope wie Bulk-Delete, daher eigene Flag)
   showBulkPublish?: boolean // Ob Bulk-Publish-Button angezeigt werden soll
   onBulkPublish?: () => void // Callback nach erfolgreichem Bulk-Publish (Refresh)
+  /** Quelle A aktiv (config.chat.gallery.graph.edgeSources.relations.enabled): zeigt „Beziehungen für alle berechnen" neben Publish. */
+  relationsEnabled?: boolean
   /** Ob Uebersetzungs-Zielsprachen konfiguriert sind (Kosten-Hinweis im Dialog). */
   hasTranslationTargets?: boolean
   /**
@@ -85,6 +88,7 @@ export function FilterContextBar({
   onBulkPublish,
   hasTranslationTargets = false,
   explicitBulkFileIds,
+  relationsEnabled = false,
 }: FilterContextBarProps) {
   // Hole Filter aus Atom (zentrale Verwaltung)
   const filters = useAtomValue(galleryFiltersAtom)
@@ -284,11 +288,11 @@ export function FilterContextBar({
             'h-7 px-2 shrink-0',
             sortByRatingActive && 'text-green-700 dark:text-green-300',
           )}
-          title={t('gallery.sortByRating', { defaultValue: 'Nach Rating sortieren' })}
+          title={t('gallery.sortByRating', { defaultValue: 'Nach Prioritäts-Indikator sortieren' })}
         >
           <Gauge className="h-3.5 w-3.5 lg:mr-1" aria-hidden />
           <span className="hidden lg:inline">
-            {t('gallery.sortByRating', { defaultValue: 'Nach Rating sortieren' })}
+            {t('gallery.sortByRating', { defaultValue: 'Nach Prioritäts-Indikator sortieren' })}
           </span>
         </Button>
       {/* Gefiltert-Badge - nur anzeigen wenn Filter aktiv sind */}
@@ -359,6 +363,13 @@ export function FilterContextBar({
             hasTranslationTargets={hasTranslationTargets}
             explicitFileIds={explicitBulkFileIds}
           />
+        </div>
+      )}
+
+      {/* Quelle A: Beziehungen für ALLE berechnen – neben „publizieren" (gleicher Owner-Scope). */}
+      {relationsEnabled && showBulkPublish && libraryId && viewMode === 'table' && (
+        <div className="flex items-center shrink-0">
+          <RecomputeAllRelationsButton libraryId={libraryId} onChanged={onBulkPublish} />
         </div>
       )}
 

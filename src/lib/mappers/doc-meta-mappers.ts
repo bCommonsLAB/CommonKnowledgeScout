@@ -10,6 +10,7 @@ import type { ClimateActionDetailData } from '@/components/library/climate-actio
 import type { DivaDocumentDetailData } from '@/components/library/diva-document-detail'
 import type { DivaTextureDetailData } from '@/components/library/diva-texture-detail'
 import type { RefurbedDeviceDetailData } from '@/components/library/refurbed-device-detail'
+import { extractSdgValues, extractSdgBegruendung } from '@/lib/gallery/sdg-meta'
 
 /**
  * Mapper: API-Response → BookDetailData
@@ -356,7 +357,21 @@ export function mapToClimateActionDetail(input: unknown): ClimateActionDetailDat
     arbeitsgruppe: toStr(docMetaJson.arbeitsgruppe),
     // lv_zustaendigkeit = Zuständige Stelle (Ressort/Gemeinde)
     lv_zustaendigkeit: toStr(docMetaJson.lv_zustaendigkeit),
-    
+    // Positionen-Schachbrett (schematisch): Begründung der Landesverwaltung +
+    // Konsens/Consent-Text. Vollausbau siehe Zielbild-Doku.
+    position_landesverwaltung_begruendung: toStr(docMetaJson.position_landesverwaltung_begruendung),
+    konsens_text: toStr(docMetaJson.konsens_text),
+    // SDG-Profil (17 Unterstuetzungsgrade + Begruendung) fuer das Accordion.
+    sdgValues: extractSdgValues(docMetaJson),
+    sdgBegruendung: extractSdgBegruendung(docMetaJson) ?? undefined,
+    // Strukturierte Inhalts-Felder → Accordion-Abschnitte (statt langem Body).
+    einleitung: toStr(docMetaJson.einleitung),
+    was_vorgeschlagen: toStr(docMetaJson.was_vorgeschlagen),
+    vorschlag_text: toStr(docMetaJson.vorschlag_text),
+    vorschlag_quelle: toStr(docMetaJson.vorschlag_quelle),
+    position_lv: toStr(docMetaJson.position_lv),
+    lv_rueckmeldung: toStr(docMetaJson.lv_rueckmeldung),
+
     // category mit Fallback auf handlungsfeld für ältere Daten in der DB
     category: toStr(docMetaJson.category) || toStr(docMetaJson.handlungsfeld),
     // LLM-Bewertung (Zahlen + Begründungen) — read-only Anzeige
@@ -374,6 +389,7 @@ export function mapToClimateActionDetail(input: unknown): ClimateActionDetailDat
     dominant_perspektive: toStr(docMetaJson.dominant_perspektive),
     bewertung_modell: toStr(docMetaJson.bewertung_modell),
     bewertung_stand: toStr(docMetaJson.bewertung_stand),
+    prioritaets_index: toNum(docMetaJson.prioritaets_index),
     sector: toStr(docMetaJson.sector),
     region: toStr(docMetaJson.region),
     year: ((): number | string | undefined => {

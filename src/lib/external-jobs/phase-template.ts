@@ -33,6 +33,7 @@ import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { LibraryService } from '@/lib/services/library-service'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import { isValidDetailViewType, validateMetadataForViewType, formatValidationWarning } from '@/lib/detail-view-types'
+import { computeRatingRaw } from '@/lib/gallery/rating'
 import { extractForwardedTemplateSourceFrontmatter } from '@/lib/external-jobs/template-source-frontmatter'
 import { buildDocumentSlugFallback } from '@/lib/documents/document-slug'
 
@@ -1314,7 +1315,23 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
   if (typeof mergedMeta.slug !== 'string' || mergedMeta.slug.trim().length === 0) {
     mergedMeta.slug = buildDocumentSlugFallback(uniqueName, sourceName, mergedMeta.title as string | undefined)
   }
-  
+
+  // Prioritäts-Indikator deterministisch aus den KI-Bewertungsfeldern berechnen
+  // und PERSISTIEREN (statt Laufzeitberechnung in der Galerie): CO₂ ×
+  // Durchsetzbarkeit ÷ Kosten, skaliert „je Mio €" (lesbarer Wert, 1 Nachkomma).
+  // Fehlende/0-Kosten → kein Wert (kein Silent Fallback).
+  {
+    const impact = typeof mergedMeta.co2_einsparung_kt === 'number' ? mergedMeta.co2_einsparung_kt : null
+    const feasibility = typeof mergedMeta.durchsetzbarkeit === 'number' ? mergedMeta.durchsetzbarkeit : null
+    const cost = typeof mergedMeta.kosten_eur === 'number' ? mergedMeta.kosten_eur : null
+    const rating = computeRatingRaw({ impact, feasibility, cost })
+    if (rating.status === 'ok') {
+      mergedMeta.prioritaets_index = Math.round(rating.raw * 1_000_000 * 10) / 10
+    } else {
+      delete mergedMeta.prioritaets_index
+    }
+  }
+
   // customHint 1:1 als Metadatum speichern (für Nachvollziehbarkeit und Re-Open).
   // Wird NACH dem Merge gesetzt, damit der Benutzerwert nicht vom LLM-Output überschrieben wird.
   if (customHintValue) {

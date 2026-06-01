@@ -39,6 +39,14 @@ export interface GraphLink {
   target: string | GraphNode
   /** Kantengewicht (Anzahl/Stärke geteilter Werte bzw. 0..1). */
   weight: number
+  /**
+   * Gerichtete Kante (Quelle A — berechnete „Supports"-Beziehungen, Welle 4):
+   * source → target. Die Szene zeichnet dann eine Pfeilspitze. Quelle B/C sind
+   * ungerichtet (Feld fehlt/false).
+   */
+  directed?: boolean
+  /** Kurze Begründung der Kante (nur Quelle A). */
+  rationale?: string
 }
 
 export interface GraphData {

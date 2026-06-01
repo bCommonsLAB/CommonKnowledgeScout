@@ -69,6 +69,17 @@ export function computeRatingRaw(input: RatingInput): RatingRawResult {
 }
 
 /**
+ * Anzeige-tauglicher Prioritäts-Indikator: der Roh-Wert skaliert auf "je Mio."
+ * der Kosten-Einheit (raw × 1_000_000), damit eine lesbare Zahl entsteht
+ * (z. B. 2.4 statt 0.0000024). Identischer Wert in Galerie UND Detailansicht.
+ * `null`, wenn nicht berechenbar (Kosten unbekannt / zu wenig Daten).
+ */
+export function computePriorityIndexDisplay(input: RatingInput): number | null {
+  const result = computeRatingRaw(input)
+  return result.status === 'ok' ? result.raw * 1_000_000 : null
+}
+
+/**
  * Berechnet den Perzentil-Score (0..100) eines Roh-Werts relativ zu einer
  * Verteilung aller Roh-Werte einer Library/Auswahl.
  *

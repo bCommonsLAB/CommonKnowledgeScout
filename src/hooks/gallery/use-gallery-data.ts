@@ -4,22 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSetAtom, useAtomValue } from 'jotai'
 import { galleryDataAtom } from '@/atoms/gallery-data'
 import type { DocCardMeta } from '@/lib/gallery/types'
-import { assignRatingPercentiles } from '@/lib/gallery/rating'
 import type { ChatResponse } from '@/types/chat-response'
 import type { QueryLog } from '@/types/query-log'
-
-/**
- * Reichert eine geladene Dokumentmenge um `ratingPercentile` an — den
- * Perzentil-Score 0..100 des Server-`rating` relativ zur geladenen Menge.
- * Dokumente ohne gültiges Roh-Rating (`null` = "Kosten unbekannt") bleiben
- * ohne Perzentil und verfälschen die Skala nicht (kein Silent Fallback).
- */
-function withRatingPercentiles(items: DocCardMeta[]): DocCardMeta[] {
-  const hasAnyRating = items.some(d => typeof d.rating === 'number')
-  if (!hasAnyRating) return items
-  const percentiles = assignRatingPercentiles(items.map(d => d.rating ?? null))
-  return items.map((d, i) => (percentiles[i] === undefined ? d : { ...d, ratingPercentile: percentiles[i] }))
-}
 
 /**
  * Patcht ein einzelnes Dokument im aktuellen Galerie-State (`docs` und
@@ -154,7 +140,7 @@ export function useGalleryData(
           const groupOffset = (page - 1) * GROUPS_LIMIT
           const hasMoreGroups = groupOffset + newGroups.length < totalG
           const newGroupTuples = newGroups.map(
-            g => [g.key, withRatingPercentiles(g.items)] as [string | number, DocCardMeta[]],
+            g => [g.key, g.items] as [string | number, DocCardMeta[]],
           )
           const newFlat = newGroupTuples.flatMap(([, items]) => items)
 
@@ -173,7 +159,7 @@ export function useGalleryData(
             hasMore: hasMoreGroups,
           }))
         } else if (!useGroupedApi && !cancelled && Array.isArray(data?.items)) {
-          const newItems = withRatingPercentiles(data.items as DocCardMeta[])
+          const newItems = data.items as DocCardMeta[]
           const total = typeof data.total === 'number' ? data.total : newItems.length
           const hasMoreData = newItems.length === LIMIT
           const updatedDocs = isFirstPage ? newItems : [...docs, ...newItems]

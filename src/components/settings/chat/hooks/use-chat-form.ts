@@ -111,6 +111,8 @@ export const chatFormSchema = z.object({
       },
       z.enum(['compact', 'comfortable']).default('comfortable')
     ),
+    // Anzeige: Generisches SDG-Profil (SDG-Rad) in der Detailansicht. Default false.
+    showSdgProfile: z.boolean().optional().default(false),
     /**
      * Generische Graph-Modus-Config (Zielbild §8). Komplexe Felder
      * (colorMap, edgeSources) werden in der Settings-UI nicht editiert, aber
@@ -265,6 +267,7 @@ export function useChatForm(): UseChatFormResult {
         groupByField: 'year',
         facets: getDefaultFacets().slice(0, 6),
         galleryCardDensity: 'comfortable',
+        showSdgProfile: false,
         graph: { enabled: false, defaultEdgeSource: 'sharedMeta' },
       },
       ingestionStorageUseCustom: false,
@@ -289,6 +292,7 @@ export function useChatForm(): UseChatFormResult {
         groupByField?: string
         facets?: unknown
         galleryCardDensity?: unknown
+        showSdgProfile?: unknown
         graph?: import('@/types/library').GalleryGraphConfig
       } | undefined
       const detailViewType = galleryConfig?.detailViewType
@@ -349,6 +353,7 @@ export function useChatForm(): UseChatFormResult {
           groupByField: typeof galleryConfig?.groupByField === 'string' ? galleryConfig.groupByField : 'year',
           facets: facetsArray,
           galleryCardDensity: normalizeGalleryCardDensity(galleryConfig?.galleryCardDensity),
+          showSdgProfile: galleryConfig?.showSdgProfile === true,
           // Graph-Config vollständig durchreichen (inkl. colorMap/edgeSources),
           // damit beim Speichern keine Werte verloren gehen.
           graph: {

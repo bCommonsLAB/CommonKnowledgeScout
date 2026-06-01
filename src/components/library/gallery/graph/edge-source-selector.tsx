@@ -6,9 +6,10 @@
  * Quelle B (gemeinsame Metadaten): pro konfiguriertem Feld eine
  * „Verbinde nach …"-Option plus ein Hub/Projektion-Umschalter.
  * Quelle C (Ähnlichkeit, Welle 3): aktivierbar via `similarityEnabled`
- * (aus `edgeSources.similarity.enabled`). Quelle A (Beziehungen) erscheint
- * weiterhin deaktiviert mit „später"-Hinweis (kein Silent Fallback — die
- * Optionen sind explizit sichtbar).
+ * (aus `edgeSources.similarity.enabled`). Quelle A (berechnete Beziehungen,
+ * Welle 4): aktivierbar via `relationsEnabled` (aus `edgeSources.relations.
+ * enabled`). Inaktive Quellen bleiben sichtbar deaktiviert mit „später"-Hinweis
+ * (kein Silent Fallback — die Optionen sind explizit sichtbar).
  */
 
 import {
@@ -27,9 +28,11 @@ interface EdgeSourceSelectorProps {
   fieldLabels?: Record<string, string>
   /** Quelle C (Ähnlichkeit) auswählbar, wenn `edgeSources.similarity.enabled`. */
   similarityEnabled?: boolean
+  /** Quelle A (berechnete Beziehungen) auswählbar, wenn `edgeSources.relations.enabled`. */
+  relationsEnabled?: boolean
 }
 
-export function EdgeSourceSelector({ selection, onChange, sharedMetaFields, fieldLabels, similarityEnabled }: EdgeSourceSelectorProps) {
+export function EdgeSourceSelector({ selection, onChange, sharedMetaFields, fieldLabels, similarityEnabled, relationsEnabled }: EdgeSourceSelectorProps) {
   const { t } = useTranslation()
 
   const currentMode = selection.kind === 'sharedMeta' ? selection.mode : 'projection'
@@ -45,8 +48,11 @@ export function EdgeSourceSelector({ selection, onChange, sharedMetaFields, fiel
       onChange({ kind: 'similarity' })
       return
     }
-    // relations ist noch nicht verfügbar (Welle 4) — ignorieren statt still
-    // umzubiegen.
+    if (value === 'relations') {
+      onChange({ kind: 'relations' })
+      return
+    }
+    // Unbekannter/deaktivierter Wert — ignorieren statt still umzubiegen.
     console.warn('[EdgeSourceSelector] Kantenquelle nicht verfügbar:', value)
   }
 
@@ -68,8 +74,9 @@ export function EdgeSourceSelector({ selection, onChange, sharedMetaFields, fiel
             {t('gallery.graph.sourceSimilarity')}
             {!similarityEnabled && ` · ${t('gallery.graph.comingSoon')}`}
           </SelectItem>
-          <SelectItem value="relations" disabled>
-            {t('gallery.graph.sourceRelations')} · {t('gallery.graph.comingSoon')}
+          <SelectItem value="relations" disabled={!relationsEnabled}>
+            {t('gallery.graph.sourceRelations')}
+            {!relationsEnabled && ` · ${t('gallery.graph.comingSoon')}`}
           </SelectItem>
         </SelectContent>
       </Select>

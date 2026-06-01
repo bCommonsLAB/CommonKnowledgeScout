@@ -235,7 +235,30 @@ export async function POST(
         return NextResponse.json({ error: msg }, { status: 500 })
       }
     }
-    
+
+    // ─── Doc-Relations (Quelle A, Welle 4): katalogweiter LLM-Pass ───
+    // Wie Translation eine schmale Phase ohne Storage/Secretary-Datei-Pfad
+    // (ADR 0001). Die Phase laedt den Katalog aus Mongo, ruft das LLM und
+    // schreibt die Kanten nach doc_relations__<libraryId>.
+    if (job.job_type === 'doc-relations' && job.operation === 'recompute') {
+      try {
+        const { runDocRelationsPhase } = await import('@/lib/external-jobs/phase-doc-relations')
+        const result = await runDocRelationsPhase(job)
+        return NextResponse.json({ ok: true, phase: 'doc-relations', result }, { status: 200 })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        FileLogger.error('start-route', 'phase-doc-relations failed', { jobId, error: msg })
+        try {
+          await repo.setStatus(jobId, 'failed', { error: { code: 'doc_relations_failed', message: msg } })
+        } catch (statusErr) {
+          FileLogger.warn('start-route', 'setStatus(failed) nach doc-relations-Fehler misslang', {
+            jobId, error: statusErr instanceof Error ? statusErr.message : String(statusErr),
+          })
+        }
+        return NextResponse.json({ error: msg }, { status: 500 })
+      }
+    }
+
     // WICHTIG: Watchdog SOFORT starten, damit Job nicht hängen bleibt, wenn Start-Endpoint fehlschlägt
     // Timeout: 10 Minuten (600_000 ms) - sollte ausreichen für Datei-Laden, Preprocessing, Request, etc.
     // Der Watchdog wird später via bumpWatchdog aktualisiert, wenn Callbacks vom Secretary Service kommen

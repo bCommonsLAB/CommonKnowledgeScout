@@ -72,17 +72,37 @@ export function DocGraphScene({ data, docs, encodings, width, height, onOpenDocu
         {t('gallery.graph.resetZoom')}
       </Button>
       <svg ref={svgRef} width={width} height={height} className="touch-none select-none" onClick={() => setSelectedId(null)}>
+        <defs>
+          {/* Pfeilspitze für gerichtete Kanten (Quelle A, Welle 4). */}
+          <marker
+            id="doc-graph-arrow" viewBox="0 0 10 10" refX={9} refY={5}
+            markerWidth={6} markerHeight={6} orient="auto-start-reverse"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" className="fill-muted-foreground" />
+          </marker>
+        </defs>
         <g transform={`translate(${transform.x},${transform.y}) scale(${transform.k})`}>
           {data.links.map((l, i) => {
             const s = l.source as GraphNode, t = l.target as GraphNode
             if (typeof s !== 'object' || typeof t !== 'object') return null
             const visible = !neighbors || (neighbors.has(s.id) && neighbors.has(t.id))
+            // Gerichtete Kanten: Endpunkt um den Ziel-Radius zurückziehen, damit
+            // die Pfeilspitze nicht unter dem Knoten verschwindet.
+            let x2 = t.x ?? 0, y2 = t.y ?? 0
+            if (l.directed) {
+              const dx = (t.x ?? 0) - (s.x ?? 0), dy = (t.y ?? 0) - (s.y ?? 0)
+              const len = Math.hypot(dx, dy) || 1
+              const off = radiusOf(t) + 3
+              x2 = (t.x ?? 0) - (dx / len) * off
+              y2 = (t.y ?? 0) - (dy / len) * off
+            }
             return (
               <line
-                key={i} x1={s.x} y1={s.y} x2={t.x} y2={t.y}
+                key={i} x1={s.x} y1={s.y} x2={x2} y2={y2}
                 stroke="currentColor" className="text-muted-foreground"
                 strokeOpacity={visible ? 0.35 : 0.05}
                 strokeWidth={Math.min(5, 0.6 + l.weight)}
+                markerEnd={l.directed && visible ? 'url(#doc-graph-arrow)' : undefined}
               />
             )
           })}
