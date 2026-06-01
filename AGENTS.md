@@ -75,6 +75,10 @@ Detail (warum, Symptome, Ausnahmen):
 - Aktiv: `docs/adr/0002-galerie-sterne-ohne-clerk-read.md` —
   Galerie-Sterne und Voter-Namen kommen aus MongoDB + `GET docs`,
   nicht aus Clerk-Aggregations- oder Display-Name-Routen
+- Vorgeschlagen: `docs/adr/0003-wizard-schema-template-trennen.md` —
+  Wizard (Flow/UI, generisch) und Schema-Template (Datenmodell + Renderer +
+  Extractor, pro docType) werden getrennt und zur Laufzeit gemerged;
+  Feld-Bindungsmodell bewusst offen
 - Vorgeschlagen: `docs/adr/0004-capture-publish-entkopplung-inbox-modell.md` —
   Creation-Wizard schreibt bei Erfassung nie direkt in den Ziel-Provider;
   Submissions landen in interner Inbox (MongoDB + Azure Blob), Publikation
