@@ -366,7 +366,7 @@ export function ClimateActionDetail({
             <AccordionItem value="ki" defaultOpen className="border-b-0 mb-2">
               <AccordionTrigger className="py-4 px-3 rounded-md bg-muted/50 text-xs font-semibold uppercase tracking-wide text-foreground hover:bg-muted hover:no-underline">
                 <span className="flex items-center gap-2">
-                  <Brain className="w-3.5 h-3.5 shrink-0" />KI-Einschätzung{' '}
+                  <Brain className="w-3.5 h-3.5 shrink-0" />KI-Einschätzung (Südtirol){' '}
                   <span className="normal-case font-normal text-muted-foreground">(statt wissenschaftlicher Einschätzung)</span>
                 </span>
               </AccordionTrigger>

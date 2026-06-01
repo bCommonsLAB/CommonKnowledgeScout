@@ -1,8 +1,55 @@
 "use client";
 
 import * as React from "react";
+import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n/hooks";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+/**
+ * Erklaerungen je Parameter (entsprechen dem an das LLM gesendeten Prompt).
+ * Werden hinter einem kleinen i-Symbol als Tooltip angezeigt.
+ */
+const PARAM_INFO: Record<string, string> = {
+  wirkung:
+    "Perspektive Wirkung / Emissionsminderung: Wie stark trägt die Maßnahme zur Reduktion von Treibhausgasen bei? Skala 0–100 % (qualitativ, nicht in Tonnen). Die absolute CO₂-Einsparung steht separat weiter unten.",
+  soziales:
+    "Perspektive Lebensqualität & Soziales: Wie stark verbessert die Maßnahme Lebensqualität und soziale Gerechtigkeit? Skala 0–100 %.",
+  struktur:
+    "Perspektive Struktur & Rahmenbedingungen: Wie stark stärkt die Maßnahme Strukturen, Institutionen und Rahmenbedingungen? Skala 0–100 %.",
+  bewusstsein:
+    "Perspektive Unterstützung & Bewusstsein: Wie stark fördert die Maßnahme Bewusstsein, Wissen und öffentliche Unterstützung? Skala 0–100 %.",
+  durchsetzbarkeit:
+    "Durchsetzbarkeit: Wie leicht ist die Maßnahme politisch und gesellschaftlich umsetzbar? Skala 0–100 % (0 = kaum durchsetzbar, 100 = breiter Konsens).",
+  co2: "Geschätztes CO₂-Einsparpotenzial in Kilotonnen pro Jahr für Südtirol (absolute Größenordnung).",
+  kosten:
+    "Geschätzte Kosten in Euro (Größenordnung). 'Kosten unbekannt', wenn keine belastbare Schätzung möglich ist.",
+};
+
+/** Kleines i-Symbol mit Erklärung als Tooltip. */
+function InfoTip({ text }: { text: string }): React.JSX.Element {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label="Erklärung"
+          className="ml-1 inline-flex align-middle text-muted-foreground/60 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-full"
+        >
+          <Info className="h-3 w-3" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent className="z-[70] max-w-xs text-xs font-normal normal-case tracking-normal">
+        {text}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 /**
  * src/components/library/climate-action-rating.tsx
@@ -74,7 +121,7 @@ export function ClimateActionRating({ data, embedded = false }: ClimateActionRat
   const dominant = data.dominant_perspektive;
 
   const body = (
-    <>
+    <TooltipProvider delayDuration={150}>
       {hasScores && (
         <div className="space-y-2 text-sm">
           {PERSPECTIVES.map((p) => {
@@ -91,6 +138,7 @@ export function ClimateActionRating({ data, embedded = false }: ClimateActionRat
                         {t("climateRating.dominant", { defaultValue: "dominant" })}
                       </span>
                     )}
+                    <InfoTip text={PARAM_INFO[p.id]} />
                   </span>
                   <span className="font-mono">{Math.round(value * 100)}%</span>
                 </div>
@@ -114,6 +162,7 @@ export function ClimateActionRating({ data, embedded = false }: ClimateActionRat
               <div className="flex justify-between">
                 <span className="text-muted-foreground">
                   {t("climateRating.durchsetzbarkeit", { defaultValue: "Durchsetzbarkeit" })}
+                  <InfoTip text={PARAM_INFO.durchsetzbarkeit} />
                 </span>
                 <span className="font-mono">
                   {Math.round(data.durchsetzbarkeit * 100)}%
@@ -127,6 +176,7 @@ export function ClimateActionRating({ data, embedded = false }: ClimateActionRat
               <div className="flex justify-between">
                 <span className="text-muted-foreground">
                   {t("climateRating.co2", { defaultValue: "CO₂-Einsparung (kt/Jahr)" })}
+                  <InfoTip text={PARAM_INFO.co2} />
                 </span>
                 <span className="font-mono">{data.co2_einsparung_kt}</span>
               </div>
@@ -137,6 +187,7 @@ export function ClimateActionRating({ data, embedded = false }: ClimateActionRat
             <div className="flex justify-between">
               <span className="text-muted-foreground">
                 {t("climateRating.kosten", { defaultValue: "Kosten (EUR)" })}
+                <InfoTip text={PARAM_INFO.kosten} />
               </span>
               <span className="font-mono">
                 {isNum(data.kosten_eur)
@@ -156,7 +207,7 @@ export function ClimateActionRating({ data, embedded = false }: ClimateActionRat
           {data.bewertung_stand ? ` · ${data.bewertung_stand}` : ""}
         </p>
       )}
-    </>
+    </TooltipProvider>
   );
 
   if (embedded) return <div className="text-sm">{body}</div>;
