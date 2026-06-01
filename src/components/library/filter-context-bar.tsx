@@ -284,11 +284,11 @@ export function FilterContextBar({
             'h-7 px-2 shrink-0',
             sortByRatingActive && 'text-green-700 dark:text-green-300',
           )}
-          title={t('gallery.sortByRating', { defaultValue: 'Nach Rating sortieren' })}
+          title={t('gallery.sortByRating', { defaultValue: 'Nach Prioritäts-Indikator sortieren' })}
         >
           <Gauge className="h-3.5 w-3.5 lg:mr-1" aria-hidden />
           <span className="hidden lg:inline">
-            {t('gallery.sortByRating', { defaultValue: 'Nach Rating sortieren' })}
+            {t('gallery.sortByRating', { defaultValue: 'Nach Prioritäts-Indikator sortieren' })}
           </span>
         </Button>
       {/* Gefiltert-Badge - nur anzeigen wenn Filter aktiv sind */}

@@ -112,7 +112,7 @@
   },
   "gallery": {
     "gallery": "Contenus",
-    "sortByRating": "Trier par note",
+    "sortByRating": "Trier par indice de priorité",
     "story": "Mode Histoire",
     "switchToStoryMode": "Voir en mode Histoire",
     "storyModeTooltip": "En mode Histoire, vous pouvez vous faire expliquer les contenus dans votre langue, votre profil d'intérêts et votre contexte.",

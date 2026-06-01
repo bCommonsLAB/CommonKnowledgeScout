@@ -112,7 +112,7 @@
   },
   "gallery": {
     "gallery": "Contents",
-    "sortByRating": "Sort by rating",
+    "sortByRating": "Sort by priority index",
     "story": "Story Mode",
     "switchToStoryMode": "View in Story Mode",
     "storyModeTooltip": "In Story Mode, you can have the contents explained to you in your language, your interest profile, and your context.",
