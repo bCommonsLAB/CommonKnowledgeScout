@@ -2,14 +2,14 @@
 
 import * as React from "react";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Leaf, Users, Building2, Tag, Check, X, Clock, HelpCircle, Landmark, GraduationCap } from "lucide-react";
+import { ArrowLeft, Building2, Tag, Check, X, Clock, HelpCircle, Bug } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { AIGeneratedNotice } from "@/components/shared/ai-generated-notice";
-import { MarkdownPreview } from "./markdown-preview";
 import { ClimateActionRating } from "./climate-action-rating";
 import { StakeholderPositions } from "./gallery/stakeholder-positions";
 import { SdgProfile } from "./gallery/sdg-profile";
+import { AiText, OriginalQuote } from "./gallery/provenance-text";
 import type { SdgValue } from "@/lib/gallery/sdg-meta";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
@@ -183,6 +183,7 @@ export function ClimateActionDetail({
   showBackLink = false 
 }: ClimateActionDetailProps) {
   const title = data.title || "—";
+  const [debugOpen, setDebugOpen] = React.useState(false);
   // authors und topics sind für zukünftige Erweiterungen reserviert
   const actors = Array.isArray(data.actors) ? data.actors : [];
   const tags = Array.isArray(data.tags) ? data.tags : [];
@@ -263,7 +264,7 @@ export function ClimateActionDetail({
           {/* Maßnahmen-Details */}
           <AccordionItem value="details" defaultOpen className="last:border-b-0">
             <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
-              <span className="flex items-center gap-2"><Leaf className="w-3 h-3" />Maßnahmen-Details</span>
+              Maßnahmen-Details
             </AccordionTrigger>
             <AccordionContent>
               <div className="space-y-2 text-xs">
@@ -306,67 +307,34 @@ export function ClimateActionDetail({
             </AccordionContent>
           </AccordionItem>
 
-          {/* Worum geht es? (Einleitung / Kontext) */}
+          {/* Worum geht es? (KI-formulierter Text → blau) */}
           {data.einleitung && (
             <AccordionItem value="einleitung" defaultOpen className="last:border-b-0">
               <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
                 Worum geht es?
               </AccordionTrigger>
               <AccordionContent>
-                <div className="prose prose-sm dark:prose-invert max-w-none">
-                  <MarkdownPreview content={data.einleitung} compact={true} className="min-h-0 w-full" />
-                </div>
+                <AiText content={data.einleitung} />
               </AccordionContent>
             </AccordionItem>
           )}
 
-          {/* Was wird vorgeschlagen? (redaktioneller Text + Originalzitat) */}
+          {/* Was wird vorgeschlagen? (KI-Text blau + Originaltext im Popover) */}
           {data.was_vorgeschlagen && (
             <AccordionItem value="vorschlag" defaultOpen className="last:border-b-0">
               <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
                 Was wird vorgeschlagen?
               </AccordionTrigger>
               <AccordionContent>
-                <div className="prose prose-sm dark:prose-invert max-w-none">
-                  <MarkdownPreview content={data.was_vorgeschlagen} compact={true} className="min-h-0 w-full" />
-                </div>
+                <AiText content={data.was_vorgeschlagen} />
                 {data.vorschlag_text && (
-                  <div className="mt-3 border-l-2 border-border pl-3">
-                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
-                      Originaltext{data.vorschlag_quelle ? ` · ${data.vorschlag_quelle}` : ''}
-                    </div>
-                    <div className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground">
-                      <MarkdownPreview content={data.vorschlag_text} compact={true} className="min-h-0 w-full" />
-                    </div>
+                  <div className="mt-2">
+                    <OriginalQuote
+                      content={data.vorschlag_text}
+                      label={`Originaltext${data.vorschlag_quelle ? ` · ${data.vorschlag_quelle}` : ''}`}
+                    />
                   </div>
                 )}
-              </AccordionContent>
-            </AccordionItem>
-          )}
-
-          {/* KI-Einschätzung – steht (noch) anstelle einer wissenschaftlichen Einschätzung */}
-          {hasRating && (
-            <AccordionItem value="ki" defaultOpen className="last:border-b-0">
-              <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
-                <span className="flex items-center gap-2">
-                  <GraduationCap className="w-3 h-3" />KI-Einschätzung
-                  <span className="normal-case font-normal text-muted-foreground">(statt wissenschaftlicher Einschätzung)</span>
-                </span>
-              </AccordionTrigger>
-              <AccordionContent>
-                <ClimateActionRating data={data} embedded />
-              </AccordionContent>
-            </AccordionItem>
-          )}
-
-          {/* SDG-Einschätzung (Rad) – direkt nach der KI-Einschätzung */}
-          {hasSdg && (
-            <AccordionItem value="sdg" defaultOpen className="last:border-b-0">
-              <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
-                <span className="flex items-center gap-2"><Leaf className="w-3 h-3" />SDG-Einschätzung</span>
-              </AccordionTrigger>
-              <AccordionContent>
-                <SdgProfile values={data.sdgValues ?? []} begruendung={data.sdgBegruendung} embedded />
               </AccordionContent>
             </AccordionItem>
           )}
@@ -374,7 +342,7 @@ export function ClimateActionDetail({
           {/* Konsent der Stakeholder (Akteure + Konsens) */}
           <AccordionItem value="konsent" defaultOpen className="last:border-b-0">
             <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
-              <span className="flex items-center gap-2"><Users className="w-3 h-3" />Konsent der Stakeholder</span>
+              Konsent der Stakeholder
             </AccordionTrigger>
             <AccordionContent>
               <StakeholderPositions konsens={data.konsens_text} embedded />
@@ -385,7 +353,7 @@ export function ClimateActionDetail({
           {actors.length > 0 && (
             <AccordionItem value="akteure" className="last:border-b-0">
               <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
-                <span className="flex items-center gap-2"><Building2 className="w-3 h-3" />Beteiligte Akteure</span>
+                Beteiligte Akteure
               </AccordionTrigger>
               <AccordionContent>
                 <div className="flex flex-wrap gap-1.5">
@@ -399,10 +367,10 @@ export function ClimateActionDetail({
             </AccordionItem>
           )}
 
-          {/* Position der Landesverwaltung (Schlussredaktion) – an letzter Stelle */}
+          {/* Position der Landesverwaltung (Schlussredaktion) */}
           <AccordionItem value="lv" defaultOpen className="last:border-b-0">
             <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
-              <span className="flex items-center gap-2"><Landmark className="w-3 h-3" />Position der Landesverwaltung</span>
+              Position der Landesverwaltung
             </AccordionTrigger>
             <AccordionContent>
               <div className="space-y-2 text-xs">
@@ -420,18 +388,13 @@ export function ClimateActionDetail({
                 )}
               </div>
               {data.position_lv && (
-                <div className="prose prose-sm dark:prose-invert max-w-none mt-3">
-                  <MarkdownPreview content={data.position_lv} compact={true} className="min-h-0 w-full" />
+                <div className="mt-3">
+                  <AiText content={data.position_lv} />
                 </div>
               )}
               {data.lv_rueckmeldung && (
-                <div className="mt-3 border-l-2 border-border pl-3">
-                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
-                    Originale Rückmeldung
-                  </div>
-                  <div className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground">
-                    <MarkdownPreview content={data.lv_rueckmeldung} compact={true} className="min-h-0 w-full" />
-                  </div>
+                <div className="mt-2">
+                  <OriginalQuote content={data.lv_rueckmeldung} label="Originale Rückmeldung" />
                 </div>
               )}
               {data.fazit && (
@@ -439,9 +402,7 @@ export function ClimateActionDetail({
                   <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
                     Fazit laut Landesverwaltung
                   </div>
-                  <div className="prose prose-sm dark:prose-invert max-w-none">
-                    <MarkdownPreview content={data.fazit} compact={true} className="min-h-0 w-full" />
-                  </div>
+                  <AiText content={data.fazit} />
                 </div>
               )}
               {!data.position_lv && !data.fazit && (
@@ -449,33 +410,61 @@ export function ClimateActionDetail({
               )}
             </AccordionContent>
           </AccordionItem>
+
+          {/* KI-Einschätzung (statt wissenschaftlicher Einschätzung) – ans Ende gerueckt */}
+          {hasRating && (
+            <AccordionItem value="ki" defaultOpen className="last:border-b-0">
+              <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+                KI-Einschätzung{' '}
+                <span className="normal-case font-normal text-muted-foreground">(statt wissenschaftlicher Einschätzung)</span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <ClimateActionRating data={data} embedded />
+              </AccordionContent>
+            </AccordionItem>
+          )}
+
+          {/* SDG-Einschätzung (Rad) – ganz am Ende */}
+          {hasSdg && (
+            <AccordionItem value="sdg" defaultOpen className="last:border-b-0">
+              <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+                SDG-Einschätzung
+              </AccordionTrigger>
+              <AccordionContent>
+                <SdgProfile values={data.sdgValues ?? []} begruendung={data.sdgBegruendung} embedded />
+              </AccordionContent>
+            </AccordionItem>
+          )}
         </Accordion>
       </div>
 
-      {/* Debug-Modus */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="mt-6 mb-2 p-2 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded">
-          <div className="font-semibold text-green-800 dark:text-green-200 mb-1">🌱 Debug: ClimateActionDetail</div>
-          <div className="text-xs text-green-700 dark:text-green-300">
-            <div><strong>Detailansicht:</strong> ClimateActionDetail</div>
-            <div><strong>Kategorie:</strong> {data.category || '—'}</div>
-            <div><strong>Status:</strong> {data.status || '—'}</div>
-          </div>
-        </div>
-      )}
-
-      {/* Footer mit technischen Infos */}
-      <div className="mt-6 text-xs text-muted-foreground border-t pt-2">
-        <div className="flex flex-wrap gap-1">
-          {data.fileName && <span>Dateiname: {data.fileName}</span>}
-          {typeof data.chunkCount === 'number' && <span>Chunks: {data.chunkCount}</span>}
-          {data.fileId && <span>fileId: {data.fileId}</span>}
-          {data.upsertedAt && <span>upsertedAt: {new Date(data.upsertedAt).toLocaleString('de-DE')}</span>}
-        </div>
-      </div>
-
-      {/* KI-Hinweis ganz am Ende der Seite */}
+      {/* KI-Hinweis */}
       <AIGeneratedNotice compact className="mt-6" />
+
+      {/* Technische Infos / Debug – minimal, hinter einem kleinen Button (Anwender ignorieren das) */}
+      <div className="mt-4 border-t pt-2">
+        <button
+          type="button"
+          onClick={() => setDebugOpen((v) => !v)}
+          className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/60 hover:text-muted-foreground"
+          aria-expanded={debugOpen}
+        >
+          <Bug className="h-3 w-3" />Debug
+        </button>
+        {debugOpen && (
+          <div className="mt-2 space-y-1 text-[11px] text-muted-foreground">
+            {process.env.NODE_ENV === 'development' && (
+              <div>ClimateActionDetail · Kategorie: {data.category || '—'} · Status: {data.status || '—'}</div>
+            )}
+            <div className="flex flex-wrap gap-x-3 gap-y-1 break-all">
+              {data.fileName && <span>Dateiname: {data.fileName}</span>}
+              {typeof data.chunkCount === 'number' && <span>Chunks: {data.chunkCount}</span>}
+              {data.fileId && <span>fileId: {data.fileId}</span>}
+              {data.upsertedAt && <span>upsertedAt: {new Date(data.upsertedAt).toLocaleString('de-DE')}</span>}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
