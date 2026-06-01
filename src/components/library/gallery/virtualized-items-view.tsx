@@ -21,6 +21,7 @@ import { DeleteDocumentButton } from './delete-document-button'
 import { OpenInArchiveButton } from './open-in-archive-button'
 import { PublishDocumentButton } from './publish-document-button'
 import { DocRelationsButton } from './doc-relations-button'
+import { RecomputeAllRelationsButton } from './recompute-all-relations-button'
 import { PublishStatusBadge, TranslationStatusChips } from './publish-status-chips'
 import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
@@ -392,6 +393,13 @@ export function VirtualizedItemsView({
   const showGroupHeaders = groupByField !== 'none'
   return (
     <div ref={parentRef}>
+      {/* Kopf-Aktion: Beziehungen (Quelle A) für ALLE Einträge neu berechnen.
+          Pendant zum Per-Zeile-Button. Nur Owner + wenn Quelle A aktiviert. */}
+      {relationsEnabled && isOwner && libraryId && (
+        <div className="mb-3 flex justify-end">
+          <RecomputeAllRelationsButton libraryId={libraryId} onChanged={onPublishChanged} />
+        </div>
+      )}
       {displayDocsByYear.map(([groupKey, groupDocs]) => (
         <div key={String(groupKey)} className="mb-6">
           {showGroupHeaders && (
