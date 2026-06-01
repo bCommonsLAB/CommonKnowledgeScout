@@ -1023,7 +1023,7 @@ export function GalleryRoot({
             </div>
 
             {/* Desktop: Grid-Layout */}
-            <div className="hidden lg:grid lg:grid-cols-[280px_1fr] lg:gap-3 flex-1 min-h-0 overflow-hidden">
+            <div className="hidden lg:grid lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-3 flex-1 min-h-0 overflow-hidden">
               {/* Filters Panel (linke Spalte) */}
               <FiltersPanel
                 facetDefs={facetDefs}
@@ -1034,7 +1034,7 @@ export function GalleryRoot({
               />
 
               {/* Items Panel (rechte Spalte) */}
-              <div className="flex flex-col min-h-0 overflow-hidden flex-1">
+              <div className="flex flex-col min-h-0 min-w-0 overflow-hidden flex-1">
                 {/* FilterContextBar immer anzeigen - wird nicht mehr durch ReferencesLegend ersetzt */}
                 <div className="flex-shrink-0">
                   <FilterContextBar
@@ -1063,18 +1063,21 @@ export function GalleryRoot({
                 </div>
 
                 <section
-                  className="flex-1 flex flex-col min-h-0 overflow-y-auto overscroll-contain"
+                  className="flex-1 flex flex-col min-h-0 min-w-0 overflow-y-auto overscroll-contain"
                   data-gallery-section
                 >
-                  <div>{renderItemsView()}</div>
+                  <div className="min-w-0">{renderItemsView()}</div>
                 </section>
               </div>
             </div>
 
             {/* Mobile: Items View */}
-            <section className="lg:hidden w-full flex flex-col min-h-0 flex-1" data-gallery-section>
-              <ScrollArea className="flex-1 min-h-0">
-                <div className="pr-4">{renderItemsView()}</div>
+            <section className="lg:hidden w-full min-w-0 flex flex-col min-h-0 flex-1" data-gallery-section>
+              {/* viewportClassName ueberschreibt Radix' internes display:table am
+                  Inhalts-Wrapper -> block + volle Breite, damit der Tabellen-eigene
+                  overflow-auto-Container horizontal scrollt statt auf 760px aufzublaehen. */}
+              <ScrollArea className="flex-1 min-h-0" viewportClassName="[&>div]:!block">
+                <div className="pr-4 min-w-0">{renderItemsView()}</div>
               </ScrollArea>
             </section>
           </div>
