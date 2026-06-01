@@ -258,11 +258,67 @@ export function ClimateActionDetail({
         </div>
       )}
 
-      {/* Aufgeräumter Body: aufklappbare Abschnitte (Accordion) */}
+      {/* Bericht als Fließtext (kein Accordion) – gut lesbar unter dem Bild */}
+      {data.einleitung && (
+        <section className="mb-6">
+          <h2 className="text-base font-semibold text-foreground mb-2">Worum geht es?</h2>
+          <AiText content={data.einleitung} />
+        </section>
+      )}
+
+      {data.was_vorgeschlagen && (
+        <section className="mb-6">
+          <h2 className="text-base font-semibold text-foreground mb-2">Was wird vorgeschlagen?</h2>
+          <AiText content={data.was_vorgeschlagen} />
+          {data.vorschlag_text && (
+            <div className="mt-2">
+              <OriginalQuote
+                content={data.vorschlag_text}
+                label={`Originaltext${data.vorschlag_quelle ? ` · ${data.vorschlag_quelle}` : ''}`}
+              />
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Position der Landesverwaltung – Resümee/Bericht (Fließtext) */}
+      <section className="mb-6">
+        <h2 className="text-base font-semibold text-foreground mb-2">Position der Landesverwaltung</h2>
+        <div className="space-y-2 text-xs mb-2">
+          {data.lv_bewertung && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Einschätzung:</span>
+              <span>{data.lv_bewertung.replace(/_/g, ' ')}</span>
+            </div>
+          )}
+          {data.lv_zustaendigkeit && (
+            <div className="flex justify-between gap-4">
+              <span className="text-muted-foreground flex-shrink-0">Zuständigkeit:</span>
+              <span className="text-right">{data.lv_zustaendigkeit}</span>
+            </div>
+          )}
+        </div>
+        {data.position_lv && <AiText content={data.position_lv} />}
+        {data.lv_rueckmeldung && (
+          <div className="mt-2">
+            <OriginalQuote content={data.lv_rueckmeldung} label="Originale Rückmeldung" />
+          </div>
+        )}
+        {data.fazit && (
+          <div className="mt-3">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+              Fazit laut Landesverwaltung
+            </div>
+            <AiText content={data.fazit} />
+          </div>
+        )}
+      </section>
+
+      {/* Aufklappbare Detail-Abschnitte (Accordion) – nach dem Bericht */}
       <div className="bg-card border border-border rounded-lg px-4 mb-6">
         <Accordion type="multiple">
           {/* Maßnahmen-Details */}
-          <AccordionItem value="details" defaultOpen className="last:border-b-0">
+          <AccordionItem value="details" className="last:border-b-0">
             <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
               Maßnahmen-Details
             </AccordionTrigger>
@@ -307,40 +363,8 @@ export function ClimateActionDetail({
             </AccordionContent>
           </AccordionItem>
 
-          {/* Worum geht es? (KI-formulierter Text → blau) */}
-          {data.einleitung && (
-            <AccordionItem value="einleitung" defaultOpen className="last:border-b-0">
-              <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
-                Worum geht es?
-              </AccordionTrigger>
-              <AccordionContent>
-                <AiText content={data.einleitung} />
-              </AccordionContent>
-            </AccordionItem>
-          )}
-
-          {/* Was wird vorgeschlagen? (KI-Text blau + Originaltext im Popover) */}
-          {data.was_vorgeschlagen && (
-            <AccordionItem value="vorschlag" defaultOpen className="last:border-b-0">
-              <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
-                Was wird vorgeschlagen?
-              </AccordionTrigger>
-              <AccordionContent>
-                <AiText content={data.was_vorgeschlagen} />
-                {data.vorschlag_text && (
-                  <div className="mt-2">
-                    <OriginalQuote
-                      content={data.vorschlag_text}
-                      label={`Originaltext${data.vorschlag_quelle ? ` · ${data.vorschlag_quelle}` : ''}`}
-                    />
-                  </div>
-                )}
-              </AccordionContent>
-            </AccordionItem>
-          )}
-
-          {/* Konsent der Stakeholder (Akteure + Konsens) */}
-          <AccordionItem value="konsent" defaultOpen className="last:border-b-0">
+          {/* Konsent der Stakeholder */}
+          <AccordionItem value="konsent" className="last:border-b-0">
             <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
               Konsent der Stakeholder
             </AccordionTrigger>
@@ -367,51 +391,7 @@ export function ClimateActionDetail({
             </AccordionItem>
           )}
 
-          {/* Position der Landesverwaltung (Schlussredaktion) */}
-          <AccordionItem value="lv" defaultOpen className="last:border-b-0">
-            <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
-              Position der Landesverwaltung
-            </AccordionTrigger>
-            <AccordionContent>
-              <div className="space-y-2 text-xs">
-                {data.lv_bewertung && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Einschätzung:</span>
-                    <span>{data.lv_bewertung.replace(/_/g, ' ')}</span>
-                  </div>
-                )}
-                {data.lv_zustaendigkeit && (
-                  <div className="flex justify-between gap-4">
-                    <span className="text-muted-foreground flex-shrink-0">Zuständigkeit:</span>
-                    <span className="text-right">{data.lv_zustaendigkeit}</span>
-                  </div>
-                )}
-              </div>
-              {data.position_lv && (
-                <div className="mt-3">
-                  <AiText content={data.position_lv} />
-                </div>
-              )}
-              {data.lv_rueckmeldung && (
-                <div className="mt-2">
-                  <OriginalQuote content={data.lv_rueckmeldung} label="Originale Rückmeldung" />
-                </div>
-              )}
-              {data.fazit && (
-                <div className="mt-3">
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                    Fazit laut Landesverwaltung
-                  </div>
-                  <AiText content={data.fazit} />
-                </div>
-              )}
-              {!data.position_lv && !data.fazit && (
-                <p className="mt-2 text-xs italic text-muted-foreground">Noch keine ausführliche Begründung hinterlegt.</p>
-              )}
-            </AccordionContent>
-          </AccordionItem>
-
-          {/* KI-Einschätzung (statt wissenschaftlicher Einschätzung) – ans Ende gerueckt */}
+          {/* KI-Einschätzung (statt wissenschaftlicher Einschätzung) */}
           {hasRating && (
             <AccordionItem value="ki" defaultOpen className="last:border-b-0">
               <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
@@ -424,7 +404,7 @@ export function ClimateActionDetail({
             </AccordionItem>
           )}
 
-          {/* SDG-Einschätzung (Rad) – ganz am Ende */}
+          {/* SDG-Einschätzung (Rad) */}
           {hasSdg && (
             <AccordionItem value="sdg" defaultOpen className="last:border-b-0">
               <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
