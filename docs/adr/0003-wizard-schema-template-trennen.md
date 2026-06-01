@@ -1,7 +1,7 @@
 # ADR 0003 — Wizard und Schema-Template trennen
 
-- **Status**: Vorgeschlagen (Trennung vom Owner bestätigt 2026-05-31;
-  Feld-Bindungsmodell bewusst offen)
+- **Status**: Vorgeschlagen (Trennung + Verfeinerungen R1/R2/R3 vom Owner
+  bestätigt 2026-05-31; nur Feld-Bindungsmodell O1 bewusst offen)
 - **Datum**: 2026-05-31
 - **Kontext**: Neuordnung Creation-Wizard (Welle 3-VI), siehe
   `docs/refactor/welle-3-vi-creation-wizard/00-refactor-plan.md`,
@@ -151,23 +151,26 @@ Das Modell erlaubt ein **Primär-Schema + referenzierte Schemas**, nicht streng
   generische Merge-Runtime (Phase 3a), dann die Editoren (Phase 4) — Runtime
   **vor** Editor.
 
-## Nachtrag 2026-05-31 — Verfeinerungen aus Phase 2 (vorgeschlagen)
+## Nachtrag 2026-05-31 — Verfeinerungen aus Phase 2 (bestätigt)
 
 Die Zerlegung von `event-finalize` und `pdfanalyse-commoning`
 (`docs/refactor/welle-3-vi-creation-wizard/phase-2-test-library.md`) hat drei
 Modell-Verfeinerungen ergeben. Sie ändern das Datenmodell, nicht die
-Grundsatz-Trennung. **Owner-Bestätigung offen.**
+Grundsatz-Trennung. **Vom Owner bestätigt (2026-05-31).**
 
-- **R1 — Schema-Extension**: Schemas können erweitern (`event-final extends
-  event`). Zu unterscheiden von `relatedSchemas` (Referenz auf Quell-Schemas).
-  Beide Mechanismen nötig.
-- **R2 — Schema-Config/Parameter (4. Kategorie)**: parametrierbare Teile
+- **R1 — Schema-Extension** ✅: Schemas dürfen erweitern (`event-final extends
+  event`) statt zu kopieren. Zu unterscheiden von `relatedSchemas` (Referenz
+  auf Quell-Schemas). Beide Mechanismen nötig.
+- **R2 — Schema-Config/Parameter (4. Kategorie)** ✅: parametrierbare Teile
   (kontrolliertes Vokabular, Kanon-Listen) sind **Config pro Library**, kein
   Template-Fork. Kollabiert Duplikation (`pdfanalyse` ×4 → 1 Schema + 3 Configs).
   Aktualisierte Kategorien: **Schema | Schema-Config | Wizard | Run-Input**.
-- **R3 — System-Felder nie als Wizard-Bindung**: `editDraft` bindet nur
+- **R3 — System-Felder nie als Wizard-Bindung** ✅: `editDraft` bindet nur
   Inhalts-Felder; System-Felder (`slug`, `docType`, `originalFileId`,
   `*WriteKey`, `finalRunId`, `eventStatus`) sind auto-gesetzt.
+
+Weiterhin offen: **O1** (Feld-Bindungsmodell generisch vs. rollenbasiert) —
+Entscheidung nach der physischen Test-Library.
 
 ## Verweise
 - `docs/refactor/welle-3-vi-creation-wizard/phase-2-test-library.md`
