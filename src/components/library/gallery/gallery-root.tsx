@@ -1018,6 +1018,7 @@ export function GalleryRoot({
                 onBulkPublish={handleDocumentDeleted}
                 hasTranslationTargets={(activeLibrary?.config?.translations?.targetLocales?.length ?? 0) > 0}
                 explicitBulkFileIds={explicitBulkFileIds}
+                relationsEnabled={graphConfig?.edgeSources?.relations?.enabled === true}
               />
             </div>
 
@@ -1057,6 +1058,7 @@ export function GalleryRoot({
                     onBulkPublish={handleDocumentDeleted}
                     hasTranslationTargets={(activeLibrary?.config?.translations?.targetLocales?.length ?? 0) > 0}
                     explicitBulkFileIds={explicitBulkFileIds}
+                    relationsEnabled={graphConfig?.edgeSources?.relations?.enabled === true}
                   />
                 </div>
 
