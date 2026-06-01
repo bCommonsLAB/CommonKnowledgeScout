@@ -510,7 +510,7 @@ export function VirtualizedItemsView({
                       </TableHead>
                     )
                   })}
-                  {isOwner && <TableHead className="w-[140px] shrink-0 sticky right-0 bg-background z-10" />}
+                  {isOwner && <TableHead className="w-[140px] shrink-0" />}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -575,7 +575,7 @@ export function VirtualizedItemsView({
                           </TableCell>
                         ))}
                         {isOwner && libraryId && (
-                          <TableCell className="shrink-0 sticky right-0 bg-background z-10" onClick={(e) => e.stopPropagation()}>
+                          <TableCell className="shrink-0" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center gap-1">
                               {/* Doc-Translations Refactor: Publish/Unpublish/Re-translate Aktion */}
                               <PublishDocumentButton
