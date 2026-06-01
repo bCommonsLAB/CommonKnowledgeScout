@@ -69,6 +69,29 @@ export function GraphConfigSection({ form }: GraphConfigSectionProps) {
 
       <FormField
         control={form.control}
+        name="gallery.graph.edgeSources.relations.enabled"
+        render={({ field }) => (
+          <FormItem className="flex items-center justify-between rounded-md border p-3">
+            <div className="space-y-0.5">
+              <FormLabel>
+                {t('settings.chatForm.graphRelationsEnabled', { defaultValue: 'Beziehungen (Quelle A) berechnen' })}
+              </FormLabel>
+              <FormDescription>
+                {t('settings.chatForm.graphRelationsEnabledDescription', {
+                  defaultValue:
+                    'Erlaubt das Berechnen gerichteter „unterstützt"-Kanten per LLM: Trigger pro Zeile und „für alle" im Tabellen-Kopf, sowie die Auswahl der Kantenquelle „Beziehungen" im Graph.',
+                })}
+              </FormDescription>
+            </div>
+            <FormControl>
+              <Switch checked={field.value === true} onCheckedChange={field.onChange} />
+            </FormControl>
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
         name="gallery.graph.defaultEdgeSource"
         render={({ field }) => (
           <FormItem>
