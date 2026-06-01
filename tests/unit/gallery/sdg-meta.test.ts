@@ -12,6 +12,7 @@ import {
   spokeAngleDeg,
   fillRadius,
   polarToCartesian,
+  wedgePath,
 } from '@/components/library/gallery/sdg-wheel'
 
 describe('sdg-meta Stammdaten', () => {
@@ -101,5 +102,13 @@ describe('sdg-wheel Geometrie', () => {
   it('sdgIconPath erzeugt den Asset-Pfad je Ziel-Nummer (offizielle Benennung)', () => {
     expect(sdgIconPath(1)).toBe('/sdg-icons/E-WEB-Goal-01.png')
     expect(sdgIconPath(17)).toBe('/sdg-icons/E-WEB-Goal-17.png')
+  })
+
+  it('wedgePath liefert einen geschlossenen Pfad mit zwei Boegen', () => {
+    const d = wedgePath(100, 100, 20, 80, -90, -70)
+    expect(d.startsWith('M ')).toBe(true)
+    expect(d.trim().endsWith('Z')).toBe(true)
+    // zwei Arc-Kommandos (aeusserer + innerer Bogen)
+    expect((d.match(/A /g) ?? []).length).toBe(2)
   })
 })
