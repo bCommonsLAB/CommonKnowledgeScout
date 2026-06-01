@@ -411,6 +411,12 @@ export function VirtualizedItemsView({
   const showGroupHeaders = groupByField !== 'none'
   return (
     <div ref={parentRef}>
+      {/* EIN gemeinsamer Breiten-Container fuer ALLE Gruppen: w-max = Breite der
+          breitesten Tabelle. Dadurch scrollt der Panel-Container (data-gallery-section
+          bzw. die mobile ScrollArea) horizontal als EINE Einheit statt pro Gruppe.
+          Die einzelnen Tabellen sind w-full = diese gemeinsame Breite und laufen
+          daher nicht mehr einzeln ueber. */}
+      <div className="w-max min-w-[760px]">
       {displayDocsByYear.map(([groupKey, groupDocs]) => (
         <div key={String(groupKey)} className="mb-6">
           {showGroupHeaders && (
@@ -421,9 +427,9 @@ export function VirtualizedItemsView({
             </h3>
           )}
           <div className="rounded-md border">
-            {/* Mindestbreite: sonst quetscht `w-full` die Spalten in schmale
-                (mobile) Viewports statt horizontal zu scrollen. */}
-            <Table className="min-w-[760px]">
+            {/* Breite kommt vom gemeinsamen w-max-Container oben; die Tabelle
+                fuellt diese (w-full) und scrollt NICHT mehr einzeln. */}
+            <Table>
               <TableHeader>
                 <TableRow>
                   {isSignedIn && (
@@ -645,6 +651,7 @@ export function VirtualizedItemsView({
           </div>
         </div>
       ))}
+      </div>
       {/* Sentinel für Infinite Scroll */}
       {hasMore && (
         <div ref={sentinelRef} className="h-20 flex items-center justify-center py-4">
