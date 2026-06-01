@@ -1,6 +1,6 @@
 import {
   Landmark,
-  Building2,
+  Palette,
   Briefcase,
   Wheat,
   Mountain,
@@ -49,7 +49,7 @@ export const LANDESVERWALTUNG: StakeholderInfo = {
  * abgebildet.
  */
 export const STAKEHOLDER_KONSENT: readonly StakeholderInfo[] = [
-  { key: "gemeinden", label: "Gemeinden", color: "#14b8a6", icon: Building2 },
+  { key: "kultur", label: "Kultur", color: "#a855f7", icon: Palette },
   { key: "wirtschaft", label: "Wirtschaft", color: "#f59e0b", icon: Briefcase },
   { key: "landwirtschaft", label: "Landwirtschaft", color: "#22c55e", icon: Wheat },
   { key: "tourismus", label: "Tourismus", color: "#06b6d4", icon: Mountain },
