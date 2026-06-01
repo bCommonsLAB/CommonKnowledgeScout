@@ -91,6 +91,22 @@ export interface ClimateActionDetailData {
   /** Gemeinsame SDG-Begruendung. */
   sdgBegruendung?: string;
 
+  // ─── Strukturierte Inhalts-Felder (Template) → Accordion-Abschnitte ────────
+  /** Einleitung / Kontext. */
+  einleitung?: string;
+  /** Was wird vorgeschlagen (redaktioneller Text). */
+  was_vorgeschlagen?: string;
+  /** Originaltext des Vorschlags (Zitat). */
+  vorschlag_text?: string;
+  /** Quelle des Vorschlags (z.B. Stakeholder Forum Klima). */
+  vorschlag_quelle?: string;
+  /** Position der Landesverwaltung (redaktioneller Prosatext). */
+  position_lv?: string;
+  /** Originale Rückmeldung der Landesverwaltung (Zitat). */
+  lv_rueckmeldung?: string;
+  /** Fazit (laut Landesverwaltung). */
+  fazit?: string;
+
   // ─── LLM-Bewertung (read-only, Welle "massnahmen-graph" 1) ───────────────
   /** CO₂-Einsparpotenzial in kt/Jahr (Südtirol). */
   co2_einsparung_kt?: number;
@@ -246,7 +262,7 @@ export function ClimateActionDetail({
         <Accordion type="multiple">
           {/* Maßnahmen-Details */}
           <AccordionItem value="details" defaultOpen className="last:border-b-0">
-            <AccordionTrigger className="text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+            <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
               <span className="flex items-center gap-2"><Leaf className="w-3 h-3" />Maßnahmen-Details</span>
             </AccordionTrigger>
             <AccordionContent>
@@ -290,10 +306,48 @@ export function ClimateActionDetail({
             </AccordionContent>
           </AccordionItem>
 
+          {/* Worum geht es? (Einleitung / Kontext) */}
+          {data.einleitung && (
+            <AccordionItem value="einleitung" defaultOpen className="last:border-b-0">
+              <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+                Worum geht es?
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <MarkdownPreview content={data.einleitung} compact={true} className="min-h-0 w-full" />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          )}
+
+          {/* Was wird vorgeschlagen? (redaktioneller Text + Originalzitat) */}
+          {data.was_vorgeschlagen && (
+            <AccordionItem value="vorschlag" defaultOpen className="last:border-b-0">
+              <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+                Was wird vorgeschlagen?
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <MarkdownPreview content={data.was_vorgeschlagen} compact={true} className="min-h-0 w-full" />
+                </div>
+                {data.vorschlag_text && (
+                  <div className="mt-3 border-l-2 border-border pl-3">
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+                      Originaltext{data.vorschlag_quelle ? ` · ${data.vorschlag_quelle}` : ''}
+                    </div>
+                    <div className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground">
+                      <MarkdownPreview content={data.vorschlag_text} compact={true} className="min-h-0 w-full" />
+                    </div>
+                  </div>
+                )}
+              </AccordionContent>
+            </AccordionItem>
+          )}
+
           {/* KI-Einschätzung – steht (noch) anstelle einer wissenschaftlichen Einschätzung */}
           {hasRating && (
             <AccordionItem value="ki" defaultOpen className="last:border-b-0">
-              <AccordionTrigger className="text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+              <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
                 <span className="flex items-center gap-2">
                   <GraduationCap className="w-3 h-3" />KI-Einschätzung
                   <span className="normal-case font-normal text-muted-foreground">(statt wissenschaftlicher Einschätzung)</span>
@@ -308,7 +362,7 @@ export function ClimateActionDetail({
           {/* SDG-Einschätzung (Rad) – direkt nach der KI-Einschätzung */}
           {hasSdg && (
             <AccordionItem value="sdg" defaultOpen className="last:border-b-0">
-              <AccordionTrigger className="text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+              <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
                 <span className="flex items-center gap-2"><Leaf className="w-3 h-3" />SDG-Einschätzung</span>
               </AccordionTrigger>
               <AccordionContent>
@@ -319,7 +373,7 @@ export function ClimateActionDetail({
 
           {/* Konsent der Stakeholder (Akteure + Konsens) */}
           <AccordionItem value="konsent" defaultOpen className="last:border-b-0">
-            <AccordionTrigger className="text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+            <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
               <span className="flex items-center gap-2"><Users className="w-3 h-3" />Konsent der Stakeholder</span>
             </AccordionTrigger>
             <AccordionContent>
@@ -330,7 +384,7 @@ export function ClimateActionDetail({
           {/* Beteiligte Akteure */}
           {actors.length > 0 && (
             <AccordionItem value="akteure" className="last:border-b-0">
-              <AccordionTrigger className="text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+              <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
                 <span className="flex items-center gap-2"><Building2 className="w-3 h-3" />Beteiligte Akteure</span>
               </AccordionTrigger>
               <AccordionContent>
@@ -345,23 +399,9 @@ export function ClimateActionDetail({
             </AccordionItem>
           )}
 
-          {/* Volltext (standardmäßig zugeklappt) */}
-          {data.markdown && (
-            <AccordionItem value="volltext" className="last:border-b-0">
-              <AccordionTrigger className="text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
-                Volltext
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="prose prose-slate dark:prose-invert max-w-none">
-                  <MarkdownPreview content={data.markdown} compact={true} className="min-h-0 w-full" />
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          )}
-
           {/* Position der Landesverwaltung (Schlussredaktion) – an letzter Stelle */}
           <AccordionItem value="lv" defaultOpen className="last:border-b-0">
-            <AccordionTrigger className="text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
+            <AccordionTrigger className="py-4 text-xs font-semibold uppercase tracking-wide text-foreground hover:no-underline">
               <span className="flex items-center gap-2"><Landmark className="w-3 h-3" />Position der Landesverwaltung</span>
             </AccordionTrigger>
             <AccordionContent>
@@ -379,18 +419,38 @@ export function ClimateActionDetail({
                   </div>
                 )}
               </div>
-              <p className="mt-2 text-xs whitespace-pre-line text-foreground/90">
-                {data.position_landesverwaltung_begruendung || (
-                  <span className="italic text-muted-foreground">Noch keine ausführliche Begründung hinterlegt.</span>
-                )}
-              </p>
+              {data.position_lv && (
+                <div className="prose prose-sm dark:prose-invert max-w-none mt-3">
+                  <MarkdownPreview content={data.position_lv} compact={true} className="min-h-0 w-full" />
+                </div>
+              )}
+              {data.lv_rueckmeldung && (
+                <div className="mt-3 border-l-2 border-border pl-3">
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+                    Originale Rückmeldung
+                  </div>
+                  <div className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground">
+                    <MarkdownPreview content={data.lv_rueckmeldung} compact={true} className="min-h-0 w-full" />
+                  </div>
+                </div>
+              )}
+              {data.fazit && (
+                <div className="mt-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                    Fazit laut Landesverwaltung
+                  </div>
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                    <MarkdownPreview content={data.fazit} compact={true} className="min-h-0 w-full" />
+                  </div>
+                </div>
+              )}
+              {!data.position_lv && !data.fazit && (
+                <p className="mt-2 text-xs italic text-muted-foreground">Noch keine ausführliche Begründung hinterlegt.</p>
+              )}
             </AccordionContent>
           </AccordionItem>
         </Accordion>
       </div>
-
-      {/* KI-Hinweis am Ende der Seite */}
-      <AIGeneratedNotice compact />
 
       {/* Debug-Modus */}
       {process.env.NODE_ENV === 'development' && (
@@ -413,6 +473,9 @@ export function ClimateActionDetail({
           {data.upsertedAt && <span>upsertedAt: {new Date(data.upsertedAt).toLocaleString('de-DE')}</span>}
         </div>
       </div>
+
+      {/* KI-Hinweis ganz am Ende der Seite */}
+      <AIGeneratedNotice compact className="mt-6" />
     </div>
   );
 }

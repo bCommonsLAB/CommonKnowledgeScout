@@ -364,6 +364,14 @@ export function mapToClimateActionDetail(input: unknown): ClimateActionDetailDat
     // SDG-Profil (17 Unterstuetzungsgrade + Begruendung) fuer das Accordion.
     sdgValues: extractSdgValues(docMetaJson),
     sdgBegruendung: extractSdgBegruendung(docMetaJson) ?? undefined,
+    // Strukturierte Inhalts-Felder → Accordion-Abschnitte (statt langem Body).
+    einleitung: toStr(docMetaJson.einleitung),
+    was_vorgeschlagen: toStr(docMetaJson.was_vorgeschlagen),
+    vorschlag_text: toStr(docMetaJson.vorschlag_text),
+    vorschlag_quelle: toStr(docMetaJson.vorschlag_quelle),
+    position_lv: toStr(docMetaJson.position_lv),
+    lv_rueckmeldung: toStr(docMetaJson.lv_rueckmeldung),
+    fazit: toStr(docMetaJson.fazit),
 
     // category mit Fallback auf handlungsfeld für ältere Daten in der DB
     category: toStr(docMetaJson.category) || toStr(docMetaJson.handlungsfeld),
