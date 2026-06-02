@@ -114,10 +114,16 @@ export function useRelationsEdges(params: UseRelationsEdgesParams): RelationsEdg
       setLoading(true)
       setError(null)
       try {
-        const search = new URLSearchParams()
-        search.set('fileIds', ids.join(','))
-        const requestUrl = `/api/library/${encodeURIComponent(currentLibraryId)}/doc-relations?${search.toString()}`
-        const res = await fetch(requestUrl, { cache: 'no-store', signal: controller.signal })
+        // POST statt GET: bei vielen Knoten (Hunderte) sprengt eine fileIds-Query
+        // die Header-Grenze des Servers (HTTP 431). fileIds gehen daher in den Body.
+        const requestUrl = `/api/library/${encodeURIComponent(currentLibraryId)}/doc-relations`
+        const res = await fetch(requestUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileIds: ids }),
+          cache: 'no-store',
+          signal: controller.signal,
+        })
         const ct = res.headers.get('content-type') || ''
         if (!ct.includes('application/json')) throw new Error(`Ungültige Antwort: ${res.status}`)
         const data = await res.json()

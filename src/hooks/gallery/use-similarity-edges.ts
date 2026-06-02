@@ -104,11 +104,16 @@ export function useSimilarityEdges(params: UseSimilarityEdgesParams): Similarity
       setLoading(true)
       setError(null)
       try {
-        const search = new URLSearchParams()
-        search.set('topK', String(topK))
-        search.set('fileIds', ids.join(','))
-        const requestUrl = `/api/chat/${encodeURIComponent(currentLibraryId)}/doc-neighbors?${search.toString()}`
-        const res = await fetch(requestUrl, { cache: 'no-store', signal: controller.signal })
+        // POST statt GET: bei vielen Knoten (Hunderte) sprengt eine fileIds-Query
+        // die Header-Grenze des Servers (HTTP 431). fileIds gehen daher in den Body.
+        const requestUrl = `/api/chat/${encodeURIComponent(currentLibraryId)}/doc-neighbors`
+        const res = await fetch(requestUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileIds: ids, topK }),
+          cache: 'no-store',
+          signal: controller.signal,
+        })
         const ct = res.headers.get('content-type') || ''
         if (!ct.includes('application/json')) throw new Error(`Ungültige Antwort: ${res.status}`)
         const data = await res.json()
