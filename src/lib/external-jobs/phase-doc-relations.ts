@@ -24,6 +24,7 @@ import { LibraryService } from '@/lib/services/library-service'
 import { getCollectionNameForLibrary, findDocs, findDocSummaries } from '@/lib/repositories/vector-repo'
 import { callLlmJson } from '@/lib/chat/common/llm'
 import { facetsSelectedToMongoFilter } from '@/lib/chat/common/filters'
+import { MAX_LIBRARY_FOCUS } from '@/lib/gallery/relations-limits'
 import { computeCatalogHash } from '@/lib/gallery/relations-staleness'
 import {
   replaceEdgesForSource,
@@ -44,11 +45,11 @@ const DEFAULT_MODEL = 'gpt-4.1-mini'
 const CATALOG_LIMIT = 500
 /**
  * Obergrenze für den Pro-Maßnahme-Lauf (scope='library' = N fokussierte
- * LLM-Pässe). Schützt vor versehentlich teuren Läufen; für größere Kataloge ist
- * das skalierbare Provides/Requires-Verfahren vorgesehen
+ * LLM-Pässe): siehe `MAX_LIBRARY_FOCUS` (oben importiert, geteilt mit dem
+ * UI-Button gegen Drift). Schützt vor versehentlich teuren Läufen; für größere
+ * Kataloge ist das skalierbare Provides/Requires-Verfahren vorgesehen
  * (docs/architecture/massnahmen-beziehungen-skalierung.md).
  */
-const MAX_LIBRARY_FOCUS = 150
 /** Feld, dessen Wert generisch als Gruppen-Label dient, wenn `colorField` fehlt. */
 const DEFAULT_GROUP_FIELD = 'dominant_perspektive'
 
