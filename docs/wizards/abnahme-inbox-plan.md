@@ -53,10 +53,12 @@ sondern es später erneut versucht.
 
 ## Bausteine (Reihenfolge)
 
-- **B6 — Inhaltliche Pflichtfelder (Vorarbeit, klein):** reine Funktion
-  `contentRequiredFields(viewType)` = `requiredFields` − technische Felder
-  (`language`, `targetLanguage`, `slug`, `docType`, …; zentrale Liste).
-  + Unit-Tests. *Voraussetzung für die Abnahme-Ansicht.*
+- **B6 — Inhaltliche Pflichtfelder (Vorarbeit, klein):** ✅ **gebaut**
+  (`src/lib/detail-view-types/content-fields.ts`): `contentRequiredFields(viewType)`
+  = `requiredFields` − technische Felder (`TECHNICAL_REQUIRED_FIELDS`:
+  `language`, `targetLanguage`, `slug`, `docType`). 13 Unit-Tests
+  (`tests/unit/templates/content-fields.test.ts`). Dient generischem Wizard **und**
+  Abnahme.
 - **W1 — Submission-Modell + Repo:** Typen, MongoDB-Repo (CRUD +
   Status-Übergänge als Funktionen), Azure-Blob-Inbox-Bereich. Tests, keine UI.
 - **W2 — Erfassung → Inbox:** Analyse-/Wizard-Ergebnis erzeugt
