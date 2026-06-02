@@ -1,7 +1,8 @@
 # ADR 0003 — Wizard und Schema-Template trennen
 
 - **Status**: Vorgeschlagen (Trennung + Verfeinerungen R1/R2/R3 vom Owner
-  bestätigt 2026-05-31; nur Feld-Bindungsmodell O1 bewusst offen)
+  bestätigt 2026-05-31; Feld-Bindungsmodell O1 an der physischen Test-Library
+  entschieden 2026-06-02 — siehe Nachtrag unten)
 - **Datum**: 2026-05-31
 - **Kontext**: Neuordnung Creation-Wizard (Welle 3-VI), siehe
   `docs/refactor/welle-3-vi-creation-wizard/00-refactor-plan.md`,
@@ -169,8 +170,94 @@ Grundsatz-Trennung. **Vom Owner bestätigt (2026-05-31).**
   Inhalts-Felder; System-Felder (`slug`, `docType`, `originalFileId`,
   `*WriteKey`, `finalRunId`, `eventStatus`) sind auto-gesetzt.
 
-Weiterhin offen: **O1** (Feld-Bindungsmodell generisch vs. rollenbasiert) —
-Entscheidung nach der physischen Test-Library.
+**O1** (Feld-Bindungsmodell) ist mit der physischen Test-Library entschieden —
+siehe nächster Nachtrag.
+
+## Nachtrag 2026-06-02 — O1 entschieden: generische, schema-getriebene Bindung
+
+**Entscheidung: Option (a) generisch — gewählt.** Die Variante (b) rollenbasiert
+wird **verworfen**. Der Wizard bindet nicht mehr an konkrete Feldnamen und nicht
+an ein Rollen-Vokabular, sondern an **Feld-Metadaten, die das Schema besitzt**.
+
+### Grundlage: die realen Fälle der Kitchen-Sink-Library
+
+Seed in lokale Dev-DB + Inspektion (`scripts/inspect-test-library.ts`) ergaben
+über alle 6 Fixtures dasselbe Muster:
+
+| Template | Konsument | gebundene Felder (`editDraft.fields`) | NICHT gebunden |
+|---|---|---|---|
+| event | Wizard | title, summary, event_date, location, filename | docType, detailViewType, slug, source_language |
+| event-final | Wizard | title, summary, bodyInText, eindruckDerTeilnehmer, testimonials | docType, detailViewType, extends, relatedSchemas, source_language |
+| testimonial | Wizard | title, statement, author_name, author_image_url 🖼, filename | docType, detailViewType, source_language, relatedSchemas |
+| dialograum | Wizard | title, summary, result_text, filename | docType, detailViewType, slug, source_language, relatedSchemas |
+| pc-steckbrief | Wizard | title, device_type, cpu, ram_gb, storage_gb, condition_grade, filename | docType, detailViewType, slug, source_language |
+| pdfanalyse | schema-only | — (kein Wizard) | — |
+
+Drei Beobachtungen entscheiden:
+
+1. **Keine Rollen-Indirektion in der Praxis.** Jeder Wizard bindet exakt die
+   **Inhalts-Felder seines eigenen Schemas** mit konkreten Namen. **Kein** Fall
+   verweist auf eine abstrakte Rolle, die das Schema pro Use-Case anders mappt.
+   Ein Rollen-Vokabular (b) hätte **null Konsumenten** — es wäre genau die
+   spekulative Generalität, vor der die `contra`-Spalte von (b) selbst warnt
+   („ein Rollen-Vokabular muss gepflegt werden").
+2. **Die Ausschluss-Menge ist vollständig vorhersagbar.** „NICHT gebunden" sind
+   ausnahmslos **System-/Struktur-/Config-Felder** (`docType`, `detailViewType`,
+   `slug`, `source_language`, `extends`, `relatedSchemas`). R3 („System-Felder
+   nie als Wizard-Bindung") ist damit aus der **Feld-Art** ableitbar — keine
+   handgepflegte Ausschlussliste pro Template nötig.
+3. **Render-Hinweise sind feld-intrinsisch.** `imageFieldKeys:
+   [author_image_url]` ist eine Eigenschaft des Feldes (es *ist* ein Bild),
+   liegt heute aber fälschlich am Wizard-Step.
+
+### Befund am heutigen Code (Drift, den (a) behebt)
+
+`src/components/creation-wizard/steps/edit-draft-step.tsx` belegt das Problem:
+die *generische* Komponente trägt **hartkodiertes Domänenwissen** —
+`getFieldLabel` (Label-Map `title→Titel`, `speakers→Sprecher`, …), Array-Erkennung
+per Name (`tags`/`topics`/`affiliations`), Textarea-Heuristik
+(`summary`/`experience`/`insight`) und Picker-Sonderfälle
+(`wizard_testimonial_template_id`). Genau das ist das im Haupttext (oben) gewarnte
+„Wizard klebt am Event-Schema". Fehlt `editDraft.fields`, rendert die Komponente
+still **alle** Felder (Silent-Fallback, den die Kompatibilitätsprüfung ersetzt).
+
+### Das gewählte Modell
+
+- **Das Schema besitzt die Feld-Metadaten** pro Feld: `kind`
+  (`content` | `system` | `structural`), `inputType`
+  (`text` | `textarea` | `image` | `array` | …), `label`/`description`, `order`,
+  optional `group`.
+- **Der generische Edit-Step bindet** = „alle Felder mit `kind=content`, in
+  Schema-Reihenfolge". R3 fällt als Daten-Eigenschaft heraus
+  (`kind != content` ⇒ nie editierbar) — Ausschlusslisten und Silent-Fallback
+  entfallen.
+- **Render-Hinweise** (`textarea`/`array`/`image`/Label) wandern aus den
+  hartkodierten Wizard-Heuristiken in die Schema-Feld-Metadaten →
+  `imageFieldKeys` wird `inputType: image` am Feld.
+- **Wizard-eigene Felder** (`filename`) bleiben generische Wizard-Mechanik
+  (Output-Benennung, bereits in `output.fileName` / `wizardOnlyMetadataKeys`
+  deklariert), kein Schema-Inhalt — der Wizard nennt dafür weiterhin keinen
+  Domänen-Feldnamen.
+
+### Bewusst zurückgestellt (YAGNI, dokumentierter Notausgang)
+
+Feinere Kuratierung pro Step (anderes Subset/andere Reihenfolge als „alle
+Inhalts-Felder") über **schema-definierte, benannte Feld-Gruppen** (`group:core`),
+die der Wizard-Step referenziert — **weiterhin ohne konkrete Feldnamen**. Kein
+Fixture braucht heute zwei Wizards über *einem* Schema mit unterschiedlichem
+Feld-Subset; erst wenn dieser Fall real auftritt, wird die Gruppen-Referenz
+ergänzt. Bis dahin genügt „alle Inhalts-Felder in Schema-Reihenfolge".
+
+### Konsequenz für die Migration (Phase 3a)
+
+- `flow.steps[].fields` und `flow.steps[].imageFieldKeys` entfallen aus dem
+  Wizard; ihre Information wandert als Feld-Metadaten ins Schema.
+- `edit-draft-step.tsx` rendert rein aus Feld-Metadaten; die hartkodierten
+  Label-/Array-/Textarea-/Picker-Heuristiken werden entfernt.
+- Der Silent-Fallback „keine `fields` ⇒ alle Felder" wird zur
+  Kompatibilitätsprüfung (Schema ohne `content`-Feld ⇒ klarer Fehler).
+
+**Damit ist O1 geschlossen.**
 
 ## Verweise
 - `docs/refactor/welle-3-vi-creation-wizard/phase-2-test-library.md`
