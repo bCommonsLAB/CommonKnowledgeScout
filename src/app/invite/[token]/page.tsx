@@ -236,7 +236,7 @@ export default function InviteAcceptPage() {
   }
 
   if (status === 'success') {
-    const roleLabel = memberRole === 'co-creator' ? 'Co-Creator' : memberRole === 'moderator' ? 'Moderator' : null
+    const roleLabel = memberRole === 'co-creator' ? 'Co-Creator' : memberRole === 'contributor' ? 'Mitwirkender' : memberRole === 'moderator' ? 'Moderator' : null
     const successMessage = inviteType === 'member' && roleLabel
       ? `Sie sind jetzt ${roleLabel} dieser Library und koennen sofort loslegen.`
       : 'Ihre Einladung wurde erfolgreich angenommen. Sie haben nun Zugriff auf die Library.'

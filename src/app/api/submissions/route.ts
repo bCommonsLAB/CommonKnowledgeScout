@@ -17,12 +17,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { getPreferredUserEmail } from '@/lib/auth/user-email';
 import { LibraryService } from '@/lib/services/library-service';
-import { isCoCreatorOrOwner } from '@/lib/repositories/library-members-repo';
+import { getActiveMemberRole, isCoCreatorOrOwner } from '@/lib/repositories/library-members-repo';
 import { createSubmission, listSubmissions } from '@/lib/repositories/wizard-submissions-repo';
-import { buildCaptureSubmissionInput, parseCaptureBody } from '@/lib/submissions/submission-capture';
+import {
+  buildCaptureSubmissionInput,
+  parseCaptureBody,
+  resolveCreatorRole,
+} from '@/lib/submissions/submission-capture';
 import { isSubmissionStatus } from '@/lib/submissions/submission-status';
 import { FileLogger } from '@/lib/debug/logger';
-import type { SubmissionCreatorRole } from '@/types/wizard-submission';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -40,14 +43,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const body = parseCaptureBody(raw);
 
-    // Rechte + Rolle ableiten: Owner ueber Library-Besitz, sonst aktiver Co-Creator.
+    // Rechte + Rolle ableiten: Owner ueber Library-Besitz, sonst aktive Mitglieds-Rolle.
+    // Erfassen duerfen Owner, Co-Creator und Contributor (ADR-0004 E2); sonst 403.
     const isOwner = (await LibraryService.getInstance().getLibrary(email, body.libraryId)) !== null;
-    let createdByRole: SubmissionCreatorRole;
-    if (isOwner) {
-      createdByRole = 'owner';
-    } else if (await isCoCreatorOrOwner(body.libraryId, email)) {
-      createdByRole = 'co-creator';
-    } else {
+    const memberRole = isOwner ? null : await getActiveMemberRole(body.libraryId, email);
+    const createdByRole = resolveCreatorRole(isOwner, memberRole);
+    if (!createdByRole) {
       return NextResponse.json({ error: 'Keine Berechtigung zum Erfassen' }, { status: 403 });
     }
 

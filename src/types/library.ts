@@ -638,10 +638,11 @@ export interface ClientLibrary {
    * Zugriffsrolle des aktuellen Users fuer diese Library.
    * - 'owner': Voller Zugriff inkl. Settings
    * - 'co-creator': Voller Arbeitszugriff (Archiv, Explore, Story, Templates), kein Settings-Zugang
+   * - 'contributor': Darf erfassen (Submissions) + eigenen Preview sehen, nicht publizieren (ADR-0004 E2)
    * - 'moderator': Zugriffsanfragen verwalten
    * - 'reader': Nur Lese-Zugriff (ueber Einladung/Access Request)
    */
-  accessRole?: 'owner' | 'co-creator' | 'moderator' | 'reader';
+  accessRole?: 'owner' | 'co-creator' | 'contributor' | 'moderator' | 'reader';
 }
 
 /**

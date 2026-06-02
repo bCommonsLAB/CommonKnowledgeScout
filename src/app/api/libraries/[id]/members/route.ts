@@ -117,9 +117,9 @@ export async function POST(
       );
     }
 
-    if (role !== 'moderator' && role !== 'co-creator') {
+    if (role !== 'moderator' && role !== 'co-creator' && role !== 'contributor') {
       return NextResponse.json(
-        { error: 'Ungueltige Rolle. Erlaubt sind "moderator" und "co-creator".' },
+        { error: 'Ungueltige Rolle. Erlaubt sind "moderator", "co-creator" und "contributor".' },
         { status: 400 }
       );
     }
@@ -160,7 +160,7 @@ export async function POST(
       inviterName
     );
 
-    const roleLabel = role === 'co-creator' ? 'Co-Creator' : 'Moderator';
+    const roleLabel = role === 'co-creator' ? 'Co-Creator' : role === 'contributor' ? 'Mitwirkender' : 'Moderator';
 
     if (!emailSent) {
       console.warn('[API] Einladungs-E-Mail konnte nicht gesendet werden, Einladung wurde trotzdem erstellt.');

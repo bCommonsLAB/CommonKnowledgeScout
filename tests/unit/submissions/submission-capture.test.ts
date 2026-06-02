@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCaptureSubmissionInput,
   parseCaptureBody,
+  resolveCreatorRole,
   type CaptureBody,
 } from '@/lib/submissions/submission-capture';
 
@@ -113,5 +114,22 @@ describe('buildCaptureSubmissionInput', () => {
     expect(minimal).not.toHaveProperty('binaryRefs');
     expect(minimal).not.toHaveProperty('target');
     expect(minimal).not.toHaveProperty('writeKey');
+  });
+});
+
+describe('resolveCreatorRole', () => {
+  it('Owner -> owner (unabhaengig von der Mitglieds-Rolle)', () => {
+    expect(resolveCreatorRole(true, null)).toBe('owner');
+    expect(resolveCreatorRole(true, 'co-creator')).toBe('owner');
+  });
+
+  it('co-creator und contributor duerfen erfassen', () => {
+    expect(resolveCreatorRole(false, 'co-creator')).toBe('co-creator');
+    expect(resolveCreatorRole(false, 'contributor')).toBe('contributor');
+  });
+
+  it('moderator und Nicht-Mitglied -> null (kein Erfass-Recht, kein stiller Fallback)', () => {
+    expect(resolveCreatorRole(false, 'moderator')).toBeNull();
+    expect(resolveCreatorRole(false, null)).toBeNull();
   });
 });

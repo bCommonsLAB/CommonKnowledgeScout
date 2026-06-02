@@ -14,6 +14,7 @@ const h = vi.hoisted(() => ({
   getPreferredUserEmail: vi.fn(),
   getLibrary: vi.fn(),
   isCoCreatorOrOwner: vi.fn(),
+  getActiveMemberRole: vi.fn(),
   createSubmission: vi.fn(),
   listSubmissions: vi.fn(),
 }));
@@ -26,7 +27,10 @@ vi.mock('@/lib/auth/user-email', async (importActual) => ({
 vi.mock('@/lib/services/library-service', () => ({
   LibraryService: { getInstance: () => ({ getLibrary: h.getLibrary }) },
 }));
-vi.mock('@/lib/repositories/library-members-repo', () => ({ isCoCreatorOrOwner: h.isCoCreatorOrOwner }));
+vi.mock('@/lib/repositories/library-members-repo', () => ({
+  isCoCreatorOrOwner: h.isCoCreatorOrOwner,
+  getActiveMemberRole: h.getActiveMemberRole,
+}));
 vi.mock('@/lib/repositories/wizard-submissions-repo', () => ({
   createSubmission: h.createSubmission,
   listSubmissions: h.listSubmissions,
@@ -88,22 +92,22 @@ describe('POST /api/submissions', () => {
     expect(h.createSubmission).not.toHaveBeenCalled();
   });
 
-  it('403 weder Owner noch Co-Creator', async () => {
+  it('403 ohne Erfass-Recht (z.B. moderator oder Nicht-Mitglied)', async () => {
     login('u@example.com');
     h.getLibrary.mockResolvedValue(null);
-    h.isCoCreatorOrOwner.mockResolvedValue(false);
+    h.getActiveMemberRole.mockResolvedValue('moderator');
     const res = await POST(postReq(VALID));
     expect(res.status).toBe(403);
     expect(h.createSubmission).not.toHaveBeenCalled();
   });
 
-  it('201 Owner -> Submission pending mit Rolle owner', async () => {
+  it('201 Owner -> Submission pending mit Rolle owner (kein Member-Lookup noetig)', async () => {
     login('u@example.com');
     h.getLibrary.mockResolvedValue({ id: 'lib-1' });
     h.createSubmission.mockResolvedValue({ id: 'sub-1', status: 'pending' });
     const res = await POST(postReq(VALID));
     expect(res.status).toBe(201);
-    expect(h.createSubmission).toHaveBeenCalledTimes(1);
+    expect(h.getActiveMemberRole).not.toHaveBeenCalled();
     expect(h.createSubmission.mock.calls[0][0]).toMatchObject({
       libraryId: 'lib-1',
       createdBy: 'u@example.com',
@@ -116,11 +120,21 @@ describe('POST /api/submissions', () => {
   it('201 Co-Creator -> Rolle co-creator', async () => {
     login('u@example.com');
     h.getLibrary.mockResolvedValue(null);
-    h.isCoCreatorOrOwner.mockResolvedValue(true);
+    h.getActiveMemberRole.mockResolvedValue('co-creator');
     h.createSubmission.mockResolvedValue({ id: 'sub-2' });
     const res = await POST(postReq(VALID));
     expect(res.status).toBe(201);
     expect(h.createSubmission.mock.calls[0][0].createdByRole).toBe('co-creator');
+  });
+
+  it('201 Contributor -> Rolle contributor (ADR-0004 E2)', async () => {
+    login('u@example.com');
+    h.getLibrary.mockResolvedValue(null);
+    h.getActiveMemberRole.mockResolvedValue('contributor');
+    h.createSubmission.mockResolvedValue({ id: 'sub-3' });
+    const res = await POST(postReq(VALID));
+    expect(res.status).toBe(201);
+    expect(h.createSubmission.mock.calls[0][0].createdByRole).toBe('contributor');
   });
 });
 

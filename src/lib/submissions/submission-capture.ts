@@ -16,12 +16,29 @@
  */
 
 import { buildInboxBinaryRef } from '@/lib/submissions/inbox-blob';
+import type { LibraryRole } from '@/types/library-members';
 import type {
   CreateSubmissionInput,
   SubmissionBinaryRef,
   SubmissionCreatorRole,
   SubmissionTarget,
 } from '@/types/wizard-submission';
+
+/**
+ * Leitet die Erfasser-Rolle aus Library-Besitz + aktiver Mitglieds-Rolle ab.
+ * Erfassen duerfen nur Owner, Co-Creator und Contributor (ADR-0004); Moderator,
+ * Reader oder Nicht-Mitglieder erhalten `null` (kein Recht). Explizit, kein
+ * stiller Fallback - neue Rollen muessen hier bewusst eingeordnet werden.
+ */
+export function resolveCreatorRole(
+  isOwner: boolean,
+  memberRole: LibraryRole | null,
+): SubmissionCreatorRole | null {
+  if (isOwner) return 'owner';
+  if (memberRole === 'co-creator') return 'co-creator';
+  if (memberRole === 'contributor') return 'contributor';
+  return null;
+}
 
 function asNonEmptyString(value: unknown, field: string): string {
   if (typeof value !== 'string' || value.length === 0) {

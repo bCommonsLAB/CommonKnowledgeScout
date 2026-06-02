@@ -135,7 +135,7 @@ export function useMembersActions({
         return
       }
 
-      const roleLabel = newMemberRole === 'co-creator' ? 'Co-Creator' : 'Moderator'
+      const roleLabel = newMemberRole === 'co-creator' ? 'Co-Creator' : newMemberRole === 'contributor' ? 'Mitwirkender' : 'Moderator'
       toast({
         title: 'Einladung gesendet',
         description: data.emailSent
