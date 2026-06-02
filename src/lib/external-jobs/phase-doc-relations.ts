@@ -43,7 +43,9 @@ import type { ExternalJob } from '@/types/external-job'
 
 const DEFAULT_RELATION_TYPE = 'unterstuetzt'
 const DEFAULT_MODEL = 'gpt-4.1-mini'
-const CATALOG_LIMIT = 500
+// Katalog = Kandidaten-ZIELE einer fokussierten Maßnahme; muss die ganze
+// Library abdecken (sonst werden Ziele jenseits des Limits nie gefunden).
+const CATALOG_LIMIT = 1000
 /**
  * Obergrenze für den Pro-Maßnahme-Lauf (scope='library' = N fokussierte
  * LLM-Pässe): siehe `MAX_LIBRARY_FOCUS` (oben importiert, geteilt mit dem
@@ -63,6 +65,12 @@ interface DocRelationsOptions {
   model?: string
   /** Aktive Galerie-Facetten-Filter ({ metaKey: string[] }); grenzt den Katalog ein. */
   filters?: Record<string, string[]>
+  /**
+   * Batch-Fokus: Wenn gesetzt, werden bei scope='library' NUR die ausgehenden
+   * Kanten dieser Maßnahmen berechnet (eine Batch der „alle berechnen"-Aufteilung).
+   * Der Katalog (Kandidaten-Ziele) bleibt davon unberührt.
+   */
+  focusFileIds?: string[]
 }
 
 export interface DocRelationsPhaseResult {
@@ -225,9 +233,13 @@ export async function runDocRelationsPhase(job: ExternalJob): Promise<DocRelatio
     await runFocusPass(focusSlug as string, opts.sourceFileId as string)
   } else {
     // scope='library': je referenzierbarer Maßnahme EIN fokussierter Pass.
+    // Batch-Fokus: auf die übergebene Teilmenge einschränken (Aufteilung von
+    // „alle berechnen"), sonst der ganze (gefilterte) Katalog.
+    const focusSet = opts.focusFileIds && opts.focusFileIds.length > 0 ? new Set(opts.focusFileIds) : null
     const focusable = catalog
       .map((c) => ({ slug: c.slug, fileId: slugToFileId.get(c.slug) }))
       .filter((c): c is { slug: string; fileId: string } => Boolean(c.fileId))
+      .filter((c) => !focusSet || focusSet.has(c.fileId))
     focusedSourceIds.push(...focusable.map((c) => c.fileId))
     if (focusable.length > MAX_LIBRARY_FOCUS) {
       throw new Error(
@@ -267,10 +279,13 @@ export async function runDocRelationsPhase(job: ExternalJob): Promise<DocRelatio
   // berechneten Quellen ersetzen — sonst loescht jeder Gruppenlauf die Kanten
   // aller anderen Gruppen (replaceAllEdgesForLibrary = deleteMany({libraryId})).
   // Voll-Lauf ohne Filter: kompletter Rebuild (raeumt verwaiste Kanten).
+  const isBatch = Boolean(opts.focusFileIds && opts.focusFileIds.length > 0)
   let written: { deleted: number; inserted: number }
   if (scope === 'source') {
     written = await replaceEdgesForSource(job.libraryId, opts.sourceFileId as string, edges)
-  } else if (hasFilter) {
+  } else if (hasFilter || isBatch) {
+    // Teilmenge (Filter oder Batch): nur die Kanten der berechneten Quellen
+    // ersetzen — andere Gruppen/Batches bleiben erhalten.
     written = await replaceEdgesForSources(job.libraryId, focusedSourceIds, edges)
   } else {
     written = await replaceAllEdgesForLibrary(job.libraryId, edges)

@@ -34,6 +34,13 @@ export interface EnqueueDocRelationsArgs {
    * der Nutzer „in Gruppen" analysieren und bleibt unter der Pro-Maßnahme-Grenze.
    */
   filters?: Record<string, string[]>
+  /**
+   * Batch-Fokus (Aufteilung von „alle berechnen"): nur die ausgehenden Kanten
+   * dieser Maßnahmen berechnen. Der Katalog (Kandidaten-Ziele) bleibt voll.
+   */
+  focusFileIds?: string[]
+  /** Optionale Batch-Position fürs Job-Label (z. B. 2/13). */
+  batchInfo?: { index: number; total: number }
 }
 
 export interface EnqueueDocRelationsResult {
@@ -51,7 +58,9 @@ export async function enqueueDocRelationsJob(
 
   const label = args.scope === 'source'
     ? `Beziehungen: ${args.sourceName || args.sourceFileId || 'Maßnahme'}`
-    : 'Beziehungen: ganze Bibliothek'
+    : args.batchInfo
+      ? `Beziehungen: Batch ${args.batchInfo.index}/${args.batchInfo.total}`
+      : 'Beziehungen: ganze Bibliothek'
 
   const job: ExternalJob = {
     jobId,
@@ -79,6 +88,7 @@ export async function enqueueDocRelationsJob(
         relationType: args.relationType,
         relationPrompt: args.relationPrompt,
         filters: args.filters && Object.keys(args.filters).length > 0 ? args.filters : undefined,
+        focusFileIds: args.focusFileIds && args.focusFileIds.length > 0 ? args.focusFileIds : undefined,
       },
     },
     createdAt: new Date(),

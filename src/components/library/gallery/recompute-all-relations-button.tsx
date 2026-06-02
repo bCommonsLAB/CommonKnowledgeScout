@@ -5,10 +5,12 @@
  *
  * @description
  * Owner/Co-Creator-Aktion im Kopf der Tabellenansicht: berechnet die
- * „Supports"-Kanten (Quelle A) fuer ALLE Maßnahmen der Library neu
- * (`scope: 'library'`). Pendant zum Per-Zeile-Button (`DocRelationsButton`,
- * `scope: 'source'`). Ruft `POST /api/library/[libraryId]/doc-relations/recompute`
- * und oeffnet das Job-Monitor-Panel. Kein Silent Fallback: Fehler als Toast.
+ * „Supports"-Kanten (Quelle A) fuer ALLE (optional gefilterten) Maßnahmen neu
+ * (`scope: 'library'`). Die Route teilt den Bestand serverseitig in Batches auf
+ * und legt je Batch EINEN Hintergrund-Job an — funktioniert daher unabhaengig
+ * von der Katalog-/Gruppengroesse. Pendant zum Per-Zeile-Button
+ * (`DocRelationsButton`, `scope: 'source'`). Oeffnet das Job-Monitor-Panel.
+ * Kein Silent Fallback: Fehler als Toast.
  *
  * @module components/library/gallery
  */
@@ -21,14 +23,13 @@ import { useToast } from '@/components/ui/use-toast'
 import { jobMonitorPanelOpenAtom } from '@/atoms/job-monitor-panel-open-atom'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { useTranslation } from '@/lib/i18n/hooks'
-import { MAX_LIBRARY_FOCUS } from '@/lib/gallery/relations-limits'
 
 export interface RecomputeAllRelationsButtonProps {
   libraryId: string
   /**
-   * Anzahl der aktuell (gefiltert) sichtbaren Quellen. Der Lauf verarbeitet
-   * genau diese Teilmenge; ueber `MAX_LIBRARY_FOCUS` wird der Button gesperrt
-   * (sonst bricht der Job serverseitig ab) und weist auf das Filtern hin.
+   * Anzahl der aktuell (gefiltert) sichtbaren Quellen — nur fuer die Anzeige.
+   * Der Lauf wird serverseitig automatisch in Batches aufgeteilt, daher keine
+   * Obergrenze im Button mehr.
    */
   docCount: number
   /** Callback nach erfolgreichem Anstoßen der Neuberechnung. */
@@ -39,8 +40,8 @@ export function RecomputeAllRelationsButton({ libraryId, docCount, onChanged }: 
   const { t } = useTranslation()
   const { toast } = useToast()
   const setJobPanelOpen = useSetAtom(jobMonitorPanelOpenAtom)
-  // Aktive Galerie-Filter mitgeben: so wird nur die gefilterte Gruppe analysiert
-  // (bleibt unter der Pro-Maßnahme-Grenze, ermoeglicht „in Gruppen testen").
+  // Aktive Galerie-Filter mitgeben: ist ein Filter aktiv, wird nur diese
+  // Teilmenge berechnet; sonst der ganze Bestand (in Batches).
   const filters = useAtomValue(galleryFiltersAtom)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -58,9 +59,15 @@ export function RecomputeAllRelationsButton({ libraryId, docCount, onChanged }: 
           body: JSON.stringify({ scope: 'library', filters: activeFilters }),
         },
       )
-      const data = await res.json().catch(() => ({}))
+      const data = (await res.json().catch(() => ({}))) as { error?: string; batches?: number; sources?: number }
       if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`)
-      toast({ title: t('gallery.graph.relationsRecomputeQueued') })
+      toast({
+        title: t('gallery.graph.relationsRecomputeQueued'),
+        description:
+          typeof data.batches === 'number'
+            ? `${data.sources ?? ''} Maßnahmen in ${data.batches} Batches gestartet.`
+            : undefined,
+      })
       setJobPanelOpen(true)
       onChanged?.()
     } catch (err) {
@@ -75,9 +82,6 @@ export function RecomputeAllRelationsButton({ libraryId, docCount, onChanged }: 
     }
   }
 
-  // Ueber dem Limit: Lauf wuerde serverseitig abbrechen -> Button sperren und
-  // klar auf "Gruppe filtern" hinweisen (statt den 500>150-Fehler zu provozieren).
-  const overLimit = docCount > MAX_LIBRARY_FOCUS
   const label = t('gallery.graph.relationsRecomputeAll', { defaultValue: 'Beziehungen berechnen' })
 
   return (
@@ -86,13 +90,9 @@ export function RecomputeAllRelationsButton({ libraryId, docCount, onChanged }: 
       variant="outline"
       size="sm"
       className="h-8 gap-1"
-      disabled={isLoading || overLimit || docCount === 0}
+      disabled={isLoading || docCount === 0}
       onClick={recompute}
-      title={
-        overLimit
-          ? `Zu viele Maßnahmen (${docCount}). Auf eine Gruppe filtern (max. ${MAX_LIBRARY_FOCUS}), dann berechnen.`
-          : `Berechnet die Beziehungen für die aktuell gefilterten ${docCount} Maßnahmen.`
-      }
+      title={`Berechnet die Beziehungen für ${docCount} Maßnahmen (serverseitig in Batches).`}
     >
       <Waypoints className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} aria-hidden />
       {label} ({docCount})
