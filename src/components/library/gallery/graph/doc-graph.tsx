@@ -167,7 +167,11 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
             <EdgeSourceSelector
               selection={selection}
               onChange={setSelection}
-              sharedMetaFields={liveFields}
+              // Ohne konfigurierte sharedMeta.fields auf die auto-erkannten Felder
+              // zurueckfallen — sonst zeigt "Gemeinsame Metadaten" nur eine leere
+              // Gruppenueberschrift und ist nicht auswaehlbar (Henne-Ei: der
+              // Feld-Editor erscheint erst, wenn sharedMeta bereits aktiv ist).
+              sharedMetaFields={liveFields.length ? liveFields : availableFields}
               fieldLabels={fieldLabels}
               similarityEnabled={similarityEnabled}
               relationsEnabled={relationsEnabled}
