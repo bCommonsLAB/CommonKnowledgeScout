@@ -17,11 +17,12 @@
 'use client'
 
 import React, { useState } from 'react'
-import { useSetAtom } from 'jotai'
+import { useSetAtom, useAtomValue } from 'jotai'
 import { Waypoints } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/use-toast'
 import { jobMonitorPanelOpenAtom } from '@/atoms/job-monitor-panel-open-atom'
+import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { useTranslation } from '@/lib/i18n/hooks'
 import type { DocCardMeta } from '@/lib/gallery/types'
 
@@ -36,6 +37,9 @@ export function DocRelationsButton({ doc, libraryId, onChanged }: DocRelationsBu
   const { t } = useTranslation()
   const { toast } = useToast()
   const setJobPanelOpen = useSetAtom(jobMonitorPanelOpenAtom)
+  // Aktive Galerie-Filter mitgeben: stellt sicher, dass die Maßnahme im (ggf.
+  // großen) Katalog gefunden wird (gefilterte Teilmenge statt CATALOG_LIMIT-Cap).
+  const filters = useAtomValue(galleryFiltersAtom)
   const [isLoading, setIsLoading] = useState(false)
 
   const fileId = doc.fileId || doc.id
@@ -44,6 +48,9 @@ export function DocRelationsButton({ doc, libraryId, onChanged }: DocRelationsBu
   async function recompute() {
     setIsLoading(true)
     try {
+      const activeFilters = Object.fromEntries(
+        Object.entries(filters).filter(([, v]) => Array.isArray(v) && v.length > 0),
+      )
       const res = await fetch(
         `/api/library/${encodeURIComponent(libraryId)}/doc-relations/recompute`,
         {
@@ -53,6 +60,7 @@ export function DocRelationsButton({ doc, libraryId, onChanged }: DocRelationsBu
             scope: 'source',
             sourceFileId: fileId,
             sourceName: doc.title || doc.shortTitle || doc.fileName,
+            filters: activeFilters,
           }),
         },
       )

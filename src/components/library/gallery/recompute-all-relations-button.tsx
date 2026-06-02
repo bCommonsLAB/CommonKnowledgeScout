@@ -14,11 +14,12 @@
  */
 
 import React, { useState } from 'react'
-import { useSetAtom } from 'jotai'
+import { useSetAtom, useAtomValue } from 'jotai'
 import { Waypoints } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/use-toast'
 import { jobMonitorPanelOpenAtom } from '@/atoms/job-monitor-panel-open-atom'
+import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { useTranslation } from '@/lib/i18n/hooks'
 
 export interface RecomputeAllRelationsButtonProps {
@@ -31,17 +32,23 @@ export function RecomputeAllRelationsButton({ libraryId, onChanged }: RecomputeA
   const { t } = useTranslation()
   const { toast } = useToast()
   const setJobPanelOpen = useSetAtom(jobMonitorPanelOpenAtom)
+  // Aktive Galerie-Filter mitgeben: so wird nur die gefilterte Gruppe analysiert
+  // (bleibt unter der Pro-Maßnahme-Grenze, ermoeglicht „in Gruppen testen").
+  const filters = useAtomValue(galleryFiltersAtom)
   const [isLoading, setIsLoading] = useState(false)
 
   async function recompute() {
     setIsLoading(true)
     try {
+      const activeFilters = Object.fromEntries(
+        Object.entries(filters).filter(([, v]) => Array.isArray(v) && v.length > 0),
+      )
       const res = await fetch(
         `/api/library/${encodeURIComponent(libraryId)}/doc-relations/recompute`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scope: 'library' }),
+          body: JSON.stringify({ scope: 'library', filters: activeFilters }),
         },
       )
       const data = await res.json().catch(() => ({}))
