@@ -317,11 +317,13 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
   climateAction: {
     requiredFields: ['title', 'category', 'language', 'targetLanguage'],
     optionalFields: [
+      // vorschlag_quelle bewusst zuerst: erscheint als erste Facette/Tabellenspalte
+      // (Default-Reihenfolge = Registry-Reihenfolge in generateDefaultFacets).
+      'vorschlag_quelle',
       'summary',
       'massnahme_nr',
       'lv_bewertung',
       'arbeitsgruppe',
-      'vorschlag_quelle',
       'lv_zustaendigkeit',
       'tags',
       'coverImageUrl',
