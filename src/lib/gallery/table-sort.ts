@@ -34,6 +34,11 @@ export function getDocSortValue(
     const counts = ctx?.favoriteCounts
     return counts ? counts[doc.fileId] || 0 : 0
   }
+  // Synthetische Prio-Indikator-Spalte: das echte Feld heisst prioritaets_index.
+  if (key === '__priorityIndex') {
+    const v = (doc as unknown as { prioritaets_index?: unknown }).prioritaets_index
+    return typeof v === 'number' && Number.isFinite(v) ? v : null
+  }
 
   const raw = (doc as unknown as Record<string, unknown>)[key]
   if (raw === undefined || raw === null) return null
