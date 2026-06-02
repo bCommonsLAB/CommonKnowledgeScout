@@ -53,6 +53,9 @@
 |---|---|---|
 | [Dokumente hochladen → analysieren → abnehmen → publizieren](dokument-upload-analyse-publizieren.md) | Library per Upload aufbauen, Hintergrund-Analyse, Freigabe, Publikation | 🟡 Entwurf — **aktueller Fokus** |
 
+Dazu: [Bestandsaufnahme (was existiert)](dokument-upload-analyse-publizieren-bestandsaufnahme.md)
+· [Umsetzungsplan Abnahme/Inbox (ADR-0004)](abnahme-inbox-plan.md)
+
 ### Querschnitt-Prinzip (gilt für alle Flows)
 
 Jeder Flow erzeugt ein Ergebnis eines bestimmten **DetailViewType**. Dessen
