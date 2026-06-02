@@ -15,8 +15,8 @@ lv_rueckmeldung: {{lv_rueckmeldung|Originaltext der Landesverwaltung (extraktiv,
 year: {{year|Jahr (YYYY) oder null}}
 co2_einsparung_kt: {{co2_einsparung_kt|GENERATIV: Geschätztes CO₂-Einsparpotenzial in Kilotonnen/Jahr für Südtirol (nur Zahl, z.B. 12.5). NIE leer/null: bei fehlender Datenbasis eine grobe Mindestschätzung 0.1 eintragen}}
 co2_einsparung_kt_begruendung: {{co2_einsparung_kt_begruendung|GENERATIV: Begründung der Größenordnung mit konkretem Südtirol-Bezug (1-2 Sätze)}}
-durchsetzbarkeit: {{durchsetzbarkeit|GENERATIV: Durchsetzbarkeit 0..1 (0=kaum durchsetzbar, 1=breiter Konsens), nur Zahl}}
-durchsetzbarkeit_begruendung: {{durchsetzbarkeit_begruendung|GENERATIV: Begründung (Widerstände, Akteure) mit Südtirol-Bezug (1-2 Sätze)}}
+durchsetzbarkeit: {{durchsetzbarkeit|GENERATIV: Durchsetzbarkeit 0..1 (0=kaum durchsetzbar, 1=breiter Konsens), nur Zahl. NIE leer/null: bei fehlender Datenbasis 0.5 (mittlere Einschätzung) eintragen}}
+durchsetzbarkeit_begruendung: {{durchsetzbarkeit_begruendung|GENERATIV: Begründung (Widerstände, Akteure) mit Südtirol-Bezug (1-2 Sätze). Wurde der Wert mangels Datenbasis auf 0.5 geschätzt, das ausdrücklich anmerken}}
 kosten_eur: {{kosten_eur|GENERATIV: Geschätzte Kosten in Euro (Größenordnung, nur Zahl). NIE leer/null: bei unbekannten Kosten grobe Mindestschätzung 30000 eintragen}}
 kosten_eur_begruendung: {{kosten_eur_begruendung|GENERATIV: Begründung der Kostenschätzung mit Südtirol-Bezug (1-2 Sätze)}}
 score_wirkung: {{score_wirkung|GENERATIV: Perspektive Wirkung/Emissionsminderung 0..1, nur Zahl}}
@@ -114,11 +114,13 @@ WICHTIG - Zwei Arten von Feldern:
    - durchsetzbarkeit und score_* liegen im Bereich 0..1
    - dominant_perspektive = Perspektive mit dem höchsten score_* (Argmax):
      wirkung | soziales | struktur | bewusstsein
-   - Fehlt die Datenbasis für durchsetzbarkeit/score_*: null zurückgeben (NICHT raten);
+   - Fehlt die Datenbasis für score_*: null zurückgeben (NICHT raten);
      die zugehörige Begründung erklärt dann kurz, warum keine Schätzung möglich ist
-   - AUSNAHME co2_einsparung_kt und kosten_eur: NIE null. Ohne Datenbasis eine grobe
-     Mindestschätzung eintragen (co2_einsparung_kt = 0.1, kosten_eur = 30000) und in
-     der Begründung kennzeichnen, dass es eine grobe Annahme ist. So bleibt der
+   - AUSNAHME co2_einsparung_kt, durchsetzbarkeit und kosten_eur (die drei Inputs des
+     Prioritäts-Indikators): NIE null. Ohne Datenbasis eine grobe Schätzung eintragen
+     (co2_einsparung_kt = 0.1, durchsetzbarkeit = 0.5 = mittlere Einschätzung,
+     kosten_eur = 30000) und in der JEWEILIGEN Begründung ausdrücklich kennzeichnen,
+     dass der Wert mangels Datenbasis geschätzt/geraten wurde. So bleibt der
      Prioritäts-Indikator immer berechenbar.
 
 4. SDG-PROFIL (GENERATIV, KI-Einschätzung über die 17 UN-Nachhaltigkeitsziele):
@@ -194,7 +196,7 @@ Antwortschema:
   "position_lv": "string",
   "co2_einsparung_kt": "number (CO₂-Einsparung kt/Jahr, Südtirol; nie null – min. grobe Schätzung 0.1)",
   "co2_einsparung_kt_begruendung": "string (Begründung mit Südtirol-Bezug)",
-  "durchsetzbarkeit": "number | null (0..1)",
+  "durchsetzbarkeit": "number (0..1; nie null – ohne Datenbasis 0.5, in Begründung kennzeichnen)",
   "durchsetzbarkeit_begruendung": "string (Begründung mit Südtirol-Bezug)",
   "kosten_eur": "number (Kosten in EUR, Größenordnung; nie null – min. grobe Schätzung 30000)",
   "kosten_eur_begruendung": "string (Begründung mit Südtirol-Bezug)",

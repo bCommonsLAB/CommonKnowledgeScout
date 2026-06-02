@@ -298,12 +298,18 @@ export function ClimateActionDetail({
             </div>
           )}
           {/* Metadaten des Stakeholder-Prozesses (gleiches Format wie bei der LV) */}
-          {(data.arbeitsgruppe || data.massnahme_nr) && (
+          {(data.arbeitsgruppe || data.vorschlag_quelle || data.massnahme_nr) && (
             <div className="space-y-2 text-xs mt-3">
               {data.arbeitsgruppe && (
                 <div className="flex justify-between gap-4">
                   <span className="text-muted-foreground flex-shrink-0">Arbeitsgruppe:</span>
                   <span className="text-right">{data.arbeitsgruppe}</span>
+                </div>
+              )}
+              {data.vorschlag_quelle && (
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground flex-shrink-0">Quelle:</span>
+                  <span className="text-right">{data.vorschlag_quelle}</span>
                 </div>
               )}
               {data.massnahme_nr && (
