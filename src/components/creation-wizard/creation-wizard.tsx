@@ -30,6 +30,7 @@ import { applyEventFrontmatterDefaults } from "@/lib/events/event-frontmatter-de
 import type { WizardSource } from "@/lib/creation/corpus"
 import { buildCorpusText, buildTranscriptMarkdown, isCorpusTooLarge, truncateCorpus } from "@/lib/creation/corpus"
 import { filterWizardSteps, canProceedFromStep, resolveWizardPreviewViewType } from "@/lib/creation/wizard-flow"
+import { editableContentFields } from "@/lib/creation/editable-fields"
 import { parseFrontmatter } from "@/lib/markdown/frontmatter"
 import { createMarkdownWithFrontmatter } from "@/lib/markdown/compose"
 import { resolveArtifactClient } from "@/lib/shadow-twin/artifact-client"
@@ -3064,10 +3065,13 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           || wizardState.generatedDraft?.markdown 
           || ""
         
-        // Feld-Auswahl: aus editDraft.fields (falls definiert)
+        // Feld-Auswahl (ADR-0003 / O1, Phase 3a): editDraft.fields als optionaler
+        // Override; sonst GENERISCH aus dem Schema ableiten (Inhalts-Felder ohne
+        // System-/Struktur-Felder) statt still auf ALLE Felder zu fallen.
+        const derivedEditableFields = editableContentFields(template.metadata.fields.map((f) => f.key))
         const userRelevantFields = currentStep.fields && currentStep.fields.length > 0
           ? currentStep.fields
-          : undefined
+          : (derivedEditableFields.length > 0 ? derivedEditableFields : undefined)
         
         // PDF-HITL: Wenn wir hier ohne Draft landen, ist das ein Flow-Fehler (sonst sieht man "leere" Screens).
         if (isPdfAnalyse && Object.keys(initialMetadata).length === 0 && initialDraftText.trim().length === 0) {
