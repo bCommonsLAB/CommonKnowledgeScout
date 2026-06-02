@@ -9,3 +9,13 @@
  * auseinanderdriften.
  */
 export const MAX_LIBRARY_FOCUS = 150
+
+/**
+ * Batch-Größe für „alle Beziehungen berechnen": Die Recompute-Route teilt den
+ * (gefilterten oder vollen) Maßnahmen-Bestand in Batches dieser Größe auf und
+ * legt je Batch EINEN Hintergrund-Job an. So funktioniert „für alle" unabhängig
+ * von der Katalog-/Gruppengröße, jeder Job bleibt klein/robust, und Batches
+ * schreiben additiv (replaceEdgesForSources) statt sich gegenseitig zu löschen.
+ */
+export const RELATIONS_BATCH_SIZE = 50
+
