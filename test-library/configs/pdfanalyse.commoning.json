@@ -1,0 +1,16 @@
+{
+  "schema": "pdfanalyse",
+  "configId": "commoning",
+  "label": "Commoning",
+  "note": "🎯 TARGET (ADR-0003 R2): Schema-Config pro Library. Vom heutigen Runtime noch nicht konsumiert.",
+  "topicsVocabulary": [
+    "commons",
+    "commoning",
+    "governance",
+    "peer-production",
+    "stewardship",
+    "shared-infrastructure",
+    "collective-action",
+    "open-knowledge"
+  ]
+}

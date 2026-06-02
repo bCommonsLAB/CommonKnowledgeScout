@@ -1,0 +1,16 @@
+{
+  "schema": "pdfanalyse",
+  "configId": "klima",
+  "label": "Klima",
+  "note": "🎯 TARGET (ADR-0003 R2): Schema-Config pro Library. Vom heutigen Runtime noch nicht konsumiert.",
+  "topicsVocabulary": [
+    "climate-mitigation",
+    "climate-adaptation",
+    "emissions",
+    "renewable-energy",
+    "carbon-budget",
+    "climate-policy",
+    "resilience",
+    "biodiversity"
+  ]
+}
