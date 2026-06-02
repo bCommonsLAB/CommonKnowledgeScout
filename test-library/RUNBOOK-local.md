@@ -34,8 +34,27 @@ Ergebnis: 6 Templates unter `libraryId=test-kitchen-sink` in der Collection
 
 Die Templates hängen an `libraryId=test-kitchen-sink`. Damit der Wizard sie
 zeigt, muss eine Library mit **genau dieser ID** existieren und dem Seed-User
-zugeordnet sein. Lege sie über die App an (Settings → Libraries) oder passe
-`TEST_LIBRARY_ID` auf eine bestehende Test-Library an und seede erneut.
+zugeordnet sein.
+
+**Achtung:** Neue Libraries bekommen im UI eine zufällige **UUID** als ID
+(`uuidv4()` in `use-library-form.ts`) — die ID lässt sich dort **nicht** auf
+`test-kitchen-sink` setzen. Praktischer Weg:
+
+1. Library im UI anlegen (Settings → Libraries), Typ **local** genügt.
+2. Echte ID herausfinden:
+   ```bash
+   TEST_LIBRARY_USER=peter.aichner@crystal-design.com pnpm tsx scripts/list-libraries.ts
+   ```
+3. Templates auf diese ID neu seeden:
+   ```bash
+   TEST_LIBRARY_ID=<echte-uuid> \
+   TEST_LIBRARY_USER=peter.aichner@crystal-design.com \
+     pnpm tsx scripts/seed-test-library.ts
+   ```
+
+Die Creation-Typen-Liste des Wizards kommt aus den Templates (gefiltert nach
+`libraryId`, gemerged mit Built-ins) — Seeden genügt, keine separate
+`config.creation.types`-Pflege nötig.
 
 ## 4. Wizard manuell durchklicken (Smoke-Test)
 
