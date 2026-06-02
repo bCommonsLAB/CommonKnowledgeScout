@@ -1385,39 +1385,52 @@ export class IngestionService {
       // gespeicherten Dokuments (gleiche fileId) als expliziten Carry-Forward
       // uebernehmen. Wird ein neues Cover generiert, ist coverImageUrl bereits
       // gesetzt und dieser Block greift nicht.
-      if (!isSessionMode) {
-        const newCover = docMetaJsonObj.coverImageUrl
-        const hasNewCover = typeof newCover === 'string' && newCover.trim().length > 0
-        if (!hasNewCover) {
-          try {
-            const existingMetaDoc = await getMetaByFileId(libraryKey, fileId)
-            const existingDocMeta = existingMetaDoc?.docMetaJson as Record<string, unknown> | undefined
-            const prevCover = existingDocMeta?.coverImageUrl
-            if (typeof prevCover === 'string' && prevCover.trim().length > 0) {
-              docMetaJsonObj.coverImageUrl = prevCover
-              const prevThumb = existingDocMeta?.coverThumbnailUrl
-              if (typeof prevThumb === 'string' && prevThumb.trim().length > 0) {
-                docMetaJsonObj.coverThumbnailUrl = prevThumb
-              }
-              FileLogger.info('ingestion', 'Bestehendes Cover-Bild bewahrt (neue Transformation lieferte keins)', {
-                fileId,
-                coverImageUrl: prevCover,
-                coverThumbnailUrl: docMetaJsonObj.coverThumbnailUrl,
-              })
-              if (jobId) {
-                bufferLog(jobId, {
-                  phase: 'cover_image_preserved',
-                  message: `Bestehendes Cover-Bild bewahrt: ${prevCover}`,
-                })
-              }
+      // Diagnose-Felder: landen im Job-Trace (sichtbar im Job-Dokument als
+      // 'cover_preserve'-Event) UND in der lokalen Dev-Konsole (FileLogger).
+      const coverPreserveDiag: Record<string, unknown> = {
+        fileId,
+        isSessionMode,
+        newCoverPresent:
+          typeof docMetaJsonObj.coverImageUrl === 'string' &&
+          (docMetaJsonObj.coverImageUrl as string).trim().length > 0,
+        existingDocFound: false,
+        existingHadCover: false,
+        preserved: false,
+        preservedThumbnail: false,
+      }
+      if (!isSessionMode && !coverPreserveDiag.newCoverPresent) {
+        try {
+          const existingMetaDoc = await getMetaByFileId(libraryKey, fileId)
+          coverPreserveDiag.existingDocFound = !!existingMetaDoc
+          const existingDocMeta = existingMetaDoc?.docMetaJson as Record<string, unknown> | undefined
+          const prevCover = existingDocMeta?.coverImageUrl
+          coverPreserveDiag.existingHadCover = typeof prevCover === 'string' && prevCover.trim().length > 0
+          coverPreserveDiag.existingCoverPreview = typeof prevCover === 'string' ? prevCover.slice(0, 120) : null
+          if (typeof prevCover === 'string' && prevCover.trim().length > 0) {
+            docMetaJsonObj.coverImageUrl = prevCover
+            coverPreserveDiag.preserved = true
+            const prevThumb = existingDocMeta?.coverThumbnailUrl
+            if (typeof prevThumb === 'string' && prevThumb.trim().length > 0) {
+              docMetaJsonObj.coverThumbnailUrl = prevThumb
+              coverPreserveDiag.preservedThumbnail = true
             }
-          } catch (error) {
-            FileLogger.warn('ingestion', 'Carry-Forward des bestehenden Cover-Bilds fehlgeschlagen', {
-              fileId,
-              error: error instanceof Error ? error.message : String(error),
-            })
           }
+        } catch (error) {
+          coverPreserveDiag.error = error instanceof Error ? error.message : String(error)
         }
+      } else {
+        coverPreserveDiag.skippedReason = isSessionMode ? 'session_mode' : 'new_cover_present'
+      }
+      FileLogger.info('ingestion', 'Cover-Bewahrung (Mongo)', coverPreserveDiag)
+      if (jobId) {
+        try {
+          await repo.traceAddEvent(jobId, {
+            spanId: 'ingest',
+            name: 'cover_preserve',
+            level: coverPreserveDiag.error ? 'warn' : 'info',
+            attributes: coverPreserveDiag,
+          })
+        } catch { /* Trace-Fehler nicht eskalieren */ }
       }
 
       // Meta-Dokument erstellen und speichern (ersetzt doc_meta Collection)

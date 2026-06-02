@@ -1325,35 +1325,57 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     typeof sourceItemId === 'string' && sourceItemId.length > 0 && sourceItemId !== 'unknown'
       ? sourceItemId
       : undefined
-  if (
-    library &&
-    coverLookupId &&
-    (typeof mergedMeta.coverImageUrl !== 'string' || (mergedMeta.coverImageUrl as string).trim().length === 0)
-  ) {
+  const mergedMetaHadCover =
+    typeof mergedMeta.coverImageUrl === 'string' && (mergedMeta.coverImageUrl as string).trim().length > 0
+  // Diagnose-Felder: landen im Job-Trace (sichtbar im Job-Dokument) UND in der
+  // lokalen Dev-Konsole (FileLogger). So ist im Test nachvollziehbar, ob der
+  // Carry-Forward lief, welcher Key genutzt wurde und ob ein Cover gefunden wurde.
+  const coverDiag: Record<string, unknown> = {
+    coverLookupId: coverLookupId ?? null,
+    mergedMetaHadCover,
+    existingDocFound: false,
+    existingHadCover: false,
+    applied: false,
+    appliedThumbnail: false,
+  }
+  if (library && coverLookupId && !mergedMetaHadCover) {
     try {
       const libraryKey = getCollectionNameForLibrary(library)
+      coverDiag.libraryKey = libraryKey
       const existingMetaDoc = await getMetaByFileId(libraryKey, coverLookupId)
+      coverDiag.existingDocFound = !!existingMetaDoc
       const existingDocMeta = (existingMetaDoc as { docMetaJson?: Record<string, unknown> } | null)?.docMetaJson
       const prevCover = existingDocMeta?.coverImageUrl
+      coverDiag.existingHadCover = typeof prevCover === 'string' && prevCover.trim().length > 0
+      coverDiag.existingCoverPreview = typeof prevCover === 'string' ? prevCover.slice(0, 120) : null
       if (typeof prevCover === 'string' && prevCover.trim().length > 0) {
         mergedMeta.coverImageUrl = prevCover
+        coverDiag.applied = true
         const prevThumb = existingDocMeta?.coverThumbnailUrl
         if (typeof prevThumb === 'string' && prevThumb.trim().length > 0) {
           mergedMeta.coverThumbnailUrl = prevThumb
+          coverDiag.appliedThumbnail = true
         }
-        bufferLog(jobId, {
-          phase: 'cover_image_carry_forward',
-          message: `Bestehendes Cover-Bild aus Mongo in Frontmatter uebernommen: ${prevCover}`,
-        })
       }
     } catch (error) {
-      FileLogger.warn('phase-template', 'Carry-Forward des bestehenden Cover-Bilds (Mongo) fehlgeschlagen', {
-        jobId,
-        coverLookupId,
-        error: error instanceof Error ? error.message : String(error),
-      })
+      coverDiag.error = error instanceof Error ? error.message : String(error)
     }
+  } else {
+    coverDiag.skippedReason = !library
+      ? 'no_library'
+      : !coverLookupId
+        ? 'no_source_item_id'
+        : 'merged_meta_already_has_cover'
   }
+  FileLogger.info('phase-template', 'Cover-Carry-Forward (Frontmatter)', { jobId, ...coverDiag })
+  try {
+    await repo.traceAddEvent(jobId, {
+      spanId: 'template',
+      name: 'cover_carry_forward',
+      level: coverDiag.error ? 'warn' : 'info',
+      attributes: coverDiag,
+    })
+  } catch { /* Trace-Fehler nicht eskalieren */ }
 
   // Öffnen aus Galerie/Explore erfolgt über docMetaJson.slug.
   // Secretary liefert dieses Feld oft nicht; deshalb stabilen Fallback aus dem Artefaktnamen setzen.
