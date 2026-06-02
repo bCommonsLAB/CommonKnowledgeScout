@@ -50,6 +50,15 @@ const EXCLUDE_FIELDS = new Set([
   'bewertung_stand', 'bewertung_modell', 'detailViewType', 'docType',
 ])
 
+/**
+ * Kuratierte „Verbinde nach"-Felder für Klimamaßnahmen, falls der Owner keine
+ * `sharedMeta.fields` konfiguriert hat. Reihenfolge = Anzeigereihenfolge; nur
+ * Felder, die in den geladenen Karten tatsächlich vorkommen, werden gezeigt.
+ */
+const CLIMATE_ACTION_SHARED_META_FIELDS = [
+  'arbeitsgruppe', 'category', 'vorschlag_quelle', 'dominant_perspektive', 'lv_bewertung', 'tags',
+]
+
 export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, onSaveDefault, canManageRelations }: DocGraphProps) {
   const { t } = useTranslation()
   const sharedMeta = graph.edgeSources?.sharedMeta
@@ -119,6 +128,21 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
     return [...set].filter((k) => !EXCLUDE_FIELDS.has(k) && !k.endsWith('_begruendung')).sort()
   }, [docs, fieldLabels, configFields])
 
+  // Fallback-Felder für den „Verbinde nach"-Selektor, wenn keine sharedMeta.fields
+  // konfiguriert sind: für Klimamaßnahmen die kuratierte Liste (nur vorhandene),
+  // sonst die volle Auto-Erkennung. Verhindert, dass „Gemeinsame Metadaten" leer
+  // und damit nicht auswählbar ist.
+  const sharedMetaFallbackFields = useMemo(() => {
+    const isClimateAction = docs.some(
+      (d) => (d as { detailViewType?: string }).detailViewType === 'climateAction',
+    )
+    if (isClimateAction) {
+      const present = CLIMATE_ACTION_SHARED_META_FIELDS.filter((f) => availableFields.includes(f))
+      if (present.length > 0) return present
+    }
+    return availableFields
+  }, [docs, availableFields])
+
   const colorValues = useMemo(() => {
     if (!graph.colorField) return []
     const set = new Set<string>()
@@ -171,7 +195,7 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
               // zurueckfallen — sonst zeigt "Gemeinsame Metadaten" nur eine leere
               // Gruppenueberschrift und ist nicht auswaehlbar (Henne-Ei: der
               // Feld-Editor erscheint erst, wenn sharedMeta bereits aktiv ist).
-              sharedMetaFields={liveFields.length ? liveFields : availableFields}
+              sharedMetaFields={liveFields.length ? liveFields : sharedMetaFallbackFields}
               fieldLabels={fieldLabels}
               similarityEnabled={similarityEnabled}
               relationsEnabled={relationsEnabled}

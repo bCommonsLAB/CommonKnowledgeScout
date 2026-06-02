@@ -28,6 +28,7 @@ import { MAX_LIBRARY_FOCUS } from '@/lib/gallery/relations-limits'
 import { computeCatalogHash } from '@/lib/gallery/relations-staleness'
 import {
   replaceEdgesForSource,
+  replaceEdgesForSources,
   replaceAllEdgesForLibrary,
   type DocRelationEdge,
 } from '@/lib/repositories/doc-relations-repo'
@@ -218,6 +219,8 @@ export async function runDocRelationsPhase(job: ExternalJob): Promise<DocRelatio
     }
   }
 
+  // fileIds der in diesem Lauf fokussierten Maßnahmen (für gezieltes Ersetzen).
+  const focusedSourceIds: string[] = []
   if (scope === 'source') {
     await runFocusPass(focusSlug as string, opts.sourceFileId as string)
   } else {
@@ -225,6 +228,7 @@ export async function runDocRelationsPhase(job: ExternalJob): Promise<DocRelatio
     const focusable = catalog
       .map((c) => ({ slug: c.slug, fileId: slugToFileId.get(c.slug) }))
       .filter((c): c is { slug: string; fileId: string } => Boolean(c.fileId))
+    focusedSourceIds.push(...focusable.map((c) => c.fileId))
     if (focusable.length > MAX_LIBRARY_FOCUS) {
       throw new Error(
         `phase-doc-relations: Katalog zu groß für den Pro-Maßnahme-Lauf ` +
@@ -259,9 +263,18 @@ export async function runDocRelationsPhase(job: ExternalJob): Promise<DocRelatio
   }
 
   // ── 4) Atomar ersetzen (Zielbild §5.5) ───────────────────────────────────
-  const written = scope === 'source'
-    ? await replaceEdgesForSource(job.libraryId, opts.sourceFileId as string, edges)
-    : await replaceAllEdgesForLibrary(job.libraryId, edges)
+  // WICHTIG: Bei aktivem Galerie-Filter (gruppenweiser Lauf) NUR die Kanten der
+  // berechneten Quellen ersetzen — sonst loescht jeder Gruppenlauf die Kanten
+  // aller anderen Gruppen (replaceAllEdgesForLibrary = deleteMany({libraryId})).
+  // Voll-Lauf ohne Filter: kompletter Rebuild (raeumt verwaiste Kanten).
+  let written: { deleted: number; inserted: number }
+  if (scope === 'source') {
+    written = await replaceEdgesForSource(job.libraryId, opts.sourceFileId as string, edges)
+  } else if (hasFilter) {
+    written = await replaceEdgesForSources(job.libraryId, focusedSourceIds, edges)
+  } else {
+    written = await replaceAllEdgesForLibrary(job.libraryId, edges)
+  }
 
   await repo.updateStep(job.jobId, 'phase-doc-relations', {
     status: 'completed',

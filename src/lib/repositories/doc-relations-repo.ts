@@ -131,6 +131,27 @@ export async function replaceEdgesForSource(
 }
 
 /**
+ * Ersetzt die ausgehenden Kanten MEHRERER Quell-Maßnahmen atomar:
+ * `deleteMany({libraryId, sourceFileId: {$in}})` + `insertMany`. Anders als
+ * `replaceAllEdgesForLibrary` bleiben Kanten ANDERER Quellen erhalten — nötig
+ * für das gruppenweise Neuberechnen (Galerie-Filter): jeder Gruppenlauf ersetzt
+ * nur die Kanten der berechneten Maßnahmen, frühere Gruppen gehen NICHT verloren.
+ */
+export async function replaceEdgesForSources(
+  libraryId: string,
+  sourceFileIds: string[],
+  edges: DocRelationEdge[],
+): Promise<{ deleted: number; inserted: number }> {
+  await ensureIndexes(libraryId)
+  const col = await getCol(libraryId)
+  if (sourceFileIds.length === 0) return { deleted: 0, inserted: 0 }
+  const del = await col.deleteMany({ libraryId, sourceFileId: { $in: sourceFileIds } })
+  if (edges.length === 0) return { deleted: del.deletedCount ?? 0, inserted: 0 }
+  const res = await col.insertMany(edges)
+  return { deleted: del.deletedCount ?? 0, inserted: res.insertedCount ?? 0 }
+}
+
+/**
  * Ersetzt ALLE Kanten einer Library atomar (Zielbild §5.5b):
  * `deleteMany({libraryId})` + `insertMany`.
  */
