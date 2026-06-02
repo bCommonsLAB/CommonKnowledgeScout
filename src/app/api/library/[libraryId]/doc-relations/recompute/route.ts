@@ -13,6 +13,8 @@ interface RecomputeBody {
   sourceName?: string
   relationType?: string
   relationPrompt?: string
+  /** Aktive Galerie-Facetten-Filter ({ metaKey: string[] }) zum Eingrenzen des Katalogs. */
+  filters?: Record<string, string[]>
 }
 
 /**
@@ -52,6 +54,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: 'sourceFileId fehlt (scope=source)' }, { status: 400 })
     }
 
+    const filters =
+      body.filters && typeof body.filters === 'object' && !Array.isArray(body.filters)
+        ? body.filters
+        : undefined
+
     const { jobId } = await enqueueDocRelationsJob({
       libraryId,
       userEmail,
@@ -60,6 +67,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       sourceName: body.sourceName,
       relationType: body.relationType,
       relationPrompt: body.relationPrompt,
+      filters,
     })
 
     return NextResponse.json({ ok: true, jobId, scope }, { status: 202 })

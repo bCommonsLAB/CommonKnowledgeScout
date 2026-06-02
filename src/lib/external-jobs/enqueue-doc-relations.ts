@@ -28,6 +28,12 @@ export interface EnqueueDocRelationsArgs {
   relationPrompt?: string
   /** Anzeige-Label im Job-Monitor-Panel. */
   sourceName?: string
+  /**
+   * Aktive Galerie-Facetten-Filter ({ metaKey: string[] }). Wenn gesetzt, wird
+   * der Beziehungs-Katalog auf die gefilterte Teilmenge eingeschränkt — so kann
+   * der Nutzer „in Gruppen" analysieren und bleibt unter der Pro-Maßnahme-Grenze.
+   */
+  filters?: Record<string, string[]>
 }
 
 export interface EnqueueDocRelationsResult {
@@ -72,6 +78,7 @@ export async function enqueueDocRelationsJob(
         sourceFileId: args.sourceFileId,
         relationType: args.relationType,
         relationPrompt: args.relationPrompt,
+        filters: args.filters && Object.keys(args.filters).length > 0 ? args.filters : undefined,
       },
     },
     createdAt: new Date(),
