@@ -321,6 +321,7 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
       'massnahme_nr',
       'lv_bewertung',
       'arbeitsgruppe',
+      'vorschlag_quelle',
       'lv_zustaendigkeit',
       'tags',
       'coverImageUrl',

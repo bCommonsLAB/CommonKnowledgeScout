@@ -193,6 +193,7 @@ export function convertMongoDocToDocCardMeta(
     massnahme_nr: (docMeta?.massnahme_nr as string | undefined),
     lv_bewertung: (docMeta?.lv_bewertung as string | undefined),
     arbeitsgruppe: (docMeta?.arbeitsgruppe as string | undefined),
+    vorschlag_quelle: (docMeta?.vorschlag_quelle as string | undefined),
     // Klimamaßnahmen-Bewertung (Zahlen + Begründungen aus docMetaJson)
     co2_einsparung_kt: typeof docMeta?.co2_einsparung_kt === 'number' ? docMeta.co2_einsparung_kt : undefined,
     co2_einsparung_kt_begruendung: typeof docMeta?.co2_einsparung_kt_begruendung === 'string' ? docMeta.co2_einsparung_kt_begruendung : undefined,

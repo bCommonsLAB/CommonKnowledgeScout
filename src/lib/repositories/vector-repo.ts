@@ -1067,6 +1067,7 @@ function buildGalleryProjection(
     'docMetaJson.massnahme_nr': 1,
     'docMetaJson.lv_bewertung': 1,
     'docMetaJson.arbeitsgruppe': 1,
+    'docMetaJson.vorschlag_quelle': 1,
     // Klimamaßnahmen-Bewertung (LLM-Schätzung + Begründungen)
     'docMetaJson.co2_einsparung_kt': 1,
     'docMetaJson.co2_einsparung_kt_begruendung': 1,

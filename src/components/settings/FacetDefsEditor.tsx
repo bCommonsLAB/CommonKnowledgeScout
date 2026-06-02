@@ -94,6 +94,7 @@ const FIELD_LABEL_MAP: Record<string, string> = {
   waehrung: 'Währung',
   preistyp: 'Preistyp',
   arbeitsgruppe: 'Arbeitsgruppe',
+  vorschlag_quelle: 'Quelle des Vorschlags',
   lv_bewertung: 'LV-Bewertung',
   lv_zustaendigkeit: 'Zuständigkeit',
   // KI-Einschätzung (read-only)
@@ -148,7 +149,7 @@ const TABLE_ONLY_FIELDS = new Set([
   'bewertung_modell', 'bewertung_stand',
 ])
 /** Felder, die per Default als Filter UND als Tabellenspalte erscheinen. */
-const FILTER_AND_TABLE_FIELDS = new Set(['dominant_perspektive'])
+const FILTER_AND_TABLE_FIELDS = new Set(['dominant_perspektive', 'vorschlag_quelle'])
 
 /**
  * Generiert Standard-Facetten aus der VIEW_TYPE_REGISTRY.

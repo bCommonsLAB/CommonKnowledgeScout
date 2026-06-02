@@ -40,6 +40,8 @@ export interface DocCardMeta {
   massnahme_nr?: string
   /** Arbeitsgruppe (z.B. "Energie", "Mobilität") */
   arbeitsgruppe?: string
+  /** Quelle des Vorschlags (z.B. "Stakeholder Forum Klima") */
+  vorschlag_quelle?: string
   /** Bewertung der Landesverwaltung (z.B. "in_umsetzung", "nicht_umsetzbar") */
   lv_bewertung?: string
   /** Kategorie für Facettenfilter (z.B. Handlungsfeld bei Klimamaßnahmen) */
@@ -257,6 +259,7 @@ export function mapItemToDocCardMeta(item: Item): DocCardMeta {
     // Klimamaßnahmen-spezifische Felder
     massnahme_nr: item.meta.massnahme_nr as string | undefined,
     arbeitsgruppe: item.meta.arbeitsgruppe as string | undefined,
+    vorschlag_quelle: item.meta.vorschlag_quelle as string | undefined,
     lv_bewertung: item.meta.lv_bewertung as string | undefined,
     // category mit Fallback auf handlungsfeld für ältere Daten in der DB
     category: (item.meta.category || item.meta.handlungsfeld) as string | undefined,
