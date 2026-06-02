@@ -42,8 +42,9 @@ sondern es später erneut versucht.
 ## Rollen & Rechte
 
 - **Erfassen** (Submission anlegen): neue Rolle **`contributor`**, dazu
-  `co-creator`, `owner` — **plus** kontolos per **Write-Key/QR**.
-- **Abnehmen + Publizieren**: `co-creator`, `owner` (Reviewer-Recht).
+  `co-creator`, `owner`. (Kontolos per **Write-Key/QR**: spätere Scheibe.)
+- **Abnehmen + Publizieren**: **nur** `co-creator`, `owner`. **`moderator`
+  gibt keine Inhalte frei** (verwaltet nur Zugriffsanfragen).
 - **Co-Autor-Pfad:** hat der Erfasser bereits Publish-Recht → kann im selben
   Flow freigeben.
 - **Zustandsübergänge** (wer darf):
@@ -70,8 +71,11 @@ sondern es später erneut versucht.
   `ready` + Re-Auth-Aufforderung + Retry; **Storage offline** → Backoff-Retry,
   kein halb-geschriebener Zustand; **Erfolg** → Ziel-Provider + RAG-Index +
   `published`. Nutzt vorhandene Publish-Routen + Job-Infra.
-- **W6 — Aufräum-Policy:** `published`/`rejected` Submissions/Blobs nach Frist
-  entfernen.
+- **W6 — Aufräum-Policy:** `published`/`rejected` Submissions/Blobs nach
+  **pro-Library konfigurierbarer Frist** (Default 30 Tage) entfernen.
+
+> **Spätere Scheiben (bewusst nach dem Kern):** Excel-Analyse-Pfad;
+> Write-Key/QR-Generalisierung (kontoloses Erfassen).
 
 ## Geplante API-Routen
 
@@ -94,19 +98,25 @@ sondern es später erneut versucht.
 
 - [ ] `contributor` erfasst → Submission `pending`, **Preview sichtbar**, kein Publish.
 - [ ] `owner`/`co-creator` erfasst → Co-Autor-Pfad: sofort publizierbar.
-- [ ] Write-Key/QR (kontolos) → Submission ohne Login, landet in Inbox.
 - [ ] Promotion bei **abgelaufenem Token** → bleibt `ready`, Re-Auth, Retry — **kein Absturz**.
 - [ ] Promotion bei **Storage offline** → Backoff-Retry, kein halb-geschriebener Zustand.
 - [ ] Reviewer lehnt ab → `rejected`, **kein** Ziel-Schreiben.
+- [ ] `moderator` kann **nicht** freigeben (nur `co-creator`/`owner`).
 - [ ] B6: `contentRequiredFields(viewType)` schließt technische Felder aus (Unit-Test).
+- [ ] *(spätere Scheibe)* Write-Key/QR (kontolos) → Submission ohne Login.
+
+## Entschieden (2026-06-02)
+
+- **Freigaberecht:** nur `co-creator` + `owner` (moderator nicht).
+- **Excel:** spätere Scheibe — Start mit PDF/Markdown.
+- **Aufbewahrung:** pro Library konfigurierbar (Default 30 Tage).
+- **Write-Key/QR:** spätere Scheibe — Start mit eingeloggten Erfassern.
 
 ## Offene Fragen / Risiken
 
-- Darf `moderator` auch freigeben, oder nur `co-creator`/`owner`?
-- **Excel/Markdown-Upload:** eigener Analyse-Pfad nötig (Excel fehlt heute).
-- **Write-Key generalisieren** (heute nur `testimonialWriteKey`): Umfang/Sicherheit?
-- **Aufbewahrung:** Frist für `published`/`rejected` vor Cleanup?
 - Multi-Schema-Submissions (z.B. „Event finalisieren") — wie referenziert?
+- Genaue technische Liste „technische Felder" für B6 (Start:
+  `language`, `targetLanguage`, `slug`, `docType`).
 
 ## Aufwand & Empfehlung
 
