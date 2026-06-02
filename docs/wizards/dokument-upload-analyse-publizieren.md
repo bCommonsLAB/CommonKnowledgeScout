@@ -53,14 +53,15 @@ wird es **ins Internet publiziert**.
 
 ### 4 — Abnahme (Human-in-the-Loop) ⭐
 - **Mensch:** prüft das Ergebnis und **korrigiert fehlende/falsche Metadaten**.
-- **System:** zeigt **genau die Felder zur Abnahme, die der Ziel-DetailViewType
-  als Pflicht definiert** (`VIEW_TYPE_REGISTRY.requiredFields`) — **systemisch
-  abgeleitet**, nicht pro Vorlage diktiert.
+- **System:** zeigt zur Abnahme **nur die *inhaltlichen* Pflichtfelder** des
+  Ziel-DetailViewType (`VIEW_TYPE_REGISTRY.requiredFields` **ohne** technische
+  Felder wie `language`/`targetLanguage`) — **systemisch abgeleitet**, nicht pro
+  Vorlage diktiert. Felder mit **niedriger Analyse-Confidence werden
+  hervorgehoben**, damit der Mensch gezielt das Wackelige prüft.
 - **Warum:** der DetailViewType bestimmt, was im Internet sichtbar ist → seine
-  Pflichtfelder sind genau das, was stimmen muss.
-- **Falle:** zu viele Felder überfordern; technische Pflichtfelder (z.B.
-  `language`, `targetLanguage`) gehören evtl. **nicht** in die menschliche
-  Abnahme (→ Offene Fragen).
+  inhaltlichen Pflichtfelder sind genau das, was stimmen muss; Confidence lenkt
+  die Aufmerksamkeit.
+- **Falle:** zu viele Felder überfordern → bewusst nur inhaltliche Pflichtfelder.
 
 ### 5 — Publikation
 - **Mensch:** gibt frei. · **System:** veröffentlicht ins Internet (Story-
@@ -80,20 +81,25 @@ wird es **ins Internet publiziert**.
 
 - [ ] `auto` Akzeptierte Typen: PDF, Excel, Markdown; Audio/Media werden
   abgelehnt (klare Meldung).
-- [ ] `auto-🎯` Die Abnahme-Felder eines Ergebnisses = `requiredFields` seines
-  DetailViewType (aus `VIEW_TYPE_REGISTRY`), nicht hartkodiert.
+- [ ] `auto-🎯` Die Abnahme-Felder eines Ergebnisses = die **inhaltlichen**
+  `requiredFields` seines DetailViewType (aus `VIEW_TYPE_REGISTRY`, **ohne**
+  `language`/`targetLanguage`), nicht hartkodiert.
+- [ ] `auto-🎯` Felder mit niedriger Confidence werden in der Abnahme markiert.
 - [ ] `auto-🎯` Ohne Abnahme erfolgt **keine** Publikation.
 - [ ] `UI` Upload mehrerer Dokumente funktioniert; Fortschritt sichtbar.
 - [ ] `UI` Analyse-Ergebnis ist vor Publikation editierbar.
 - [ ] `UI` Nach Freigabe ist das Dokument über die öffentliche Library erreichbar.
 
+## Entschieden (2026-06-02)
+
+- **Abnahme nur inhaltliche Pflichtfelder** — technische (`language`,
+  `targetLanguage`) ausgenommen.
+- **Confidence-gesteuert** — unsichere Felder werden hervorgehoben.
+
 ## Offene Fragen
 
-- **Welche Pflichtfelder zur Abnahme?** Alle `requiredFields` des DetailViewType,
-  oder nur die **inhaltlichen** (technische wie `language`/`targetLanguage`
-  ausnehmen)? → vermutlich „nur inhaltliche".
-- **Confidence-getrieben?** `pdfanalyse` liefert Confidence pro Feld — sollen
-  Felder mit niedriger Confidence in der Abnahme **hervorgehoben** werden?
 - **Excel/Markdown:** Nutzen sie denselben `pdfanalyse`-Extractor oder eigene?
 - **Sammel-Abnahme:** ein Review pro Dokument, oder Stapel-Freigabe mehrerer?
 - Verhältnis zu ADR-0004: ist die „Inbox" der Ort dieser Abnahme?
+- **Wie unterscheiden wir „inhaltlich" vs. „technisch"** bei den Pflichtfeldern
+  technisch sauber (feste Ausschlussliste vs. Markierung im Registry)?
