@@ -47,6 +47,19 @@
 | [Event finalisieren](event-final.md) | event (extends) / session | 🟢 Entwurf |
 | ~~pdfanalyse~~ | book | ➖ kein Assistent (schema-only, läuft im Hintergrund) |
 
+**Flows (kein Schritt-Assistent, aber gleiches Konzept-Format):**
+
+| Flow | Worum | Status |
+|---|---|---|
+| [Dokumente hochladen → analysieren → abnehmen → publizieren](dokument-upload-analyse-publizieren.md) | Library per Upload aufbauen, Hintergrund-Analyse, Freigabe, Publikation | 🟡 Entwurf — **aktueller Fokus** |
+
+### Querschnitt-Prinzip (gilt für alle Flows)
+
+Jeder Flow erzeugt ein Ergebnis eines bestimmten **DetailViewType**. Dessen
+**Pflichtfelder** (`VIEW_TYPE_REGISTRY.requiredFields`) sind das, was am Ende
+**abgenommen** werden muss — **systemisch ableitbar**, nicht pro Vorlage
+diktiert. (Offen: ob nur die *inhaltlichen* Pflichtfelder gemeint sind.)
+
 Die `auto`-Erfolgskriterien sind in
 [`tests/unit/creation/wizard-concepts.test.ts`](../../tests/unit/creation/wizard-concepts.test.ts)
 abgesichert (Soll-Verhalten je Assistent: Quelltypen, gebundene Felder, Renderer
