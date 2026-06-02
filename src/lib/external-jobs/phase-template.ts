@@ -1317,14 +1317,22 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
   // wuerde die neu geschriebene Transformations-Datei das Cover-Feld verlieren.
   // Greift nur als Fallback (mergedMeta hat noch kein Cover) und macht zugleich die
   // "nicht neu generieren, wenn Cover existiert"-Logik weiter unten korrekt.
+  // WICHTIG: Das Vector-Meta-Dokument ist mit der QUELL-itemId verschluesselt
+  // (`${sourceItemId}-meta`), NICHT mit der Transformations-Artefakt-ID
+  // (existingFileId). Deshalb hier sourceItemId als Lookup-Key (gleicher Key wie
+  // der Ingestion-Carry-Forward).
+  const coverLookupId =
+    typeof sourceItemId === 'string' && sourceItemId.length > 0 && sourceItemId !== 'unknown'
+      ? sourceItemId
+      : undefined
   if (
     library &&
-    existingFileId &&
+    coverLookupId &&
     (typeof mergedMeta.coverImageUrl !== 'string' || (mergedMeta.coverImageUrl as string).trim().length === 0)
   ) {
     try {
       const libraryKey = getCollectionNameForLibrary(library)
-      const existingMetaDoc = await getMetaByFileId(libraryKey, existingFileId)
+      const existingMetaDoc = await getMetaByFileId(libraryKey, coverLookupId)
       const existingDocMeta = (existingMetaDoc as { docMetaJson?: Record<string, unknown> } | null)?.docMetaJson
       const prevCover = existingDocMeta?.coverImageUrl
       if (typeof prevCover === 'string' && prevCover.trim().length > 0) {
@@ -1341,7 +1349,7 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     } catch (error) {
       FileLogger.warn('phase-template', 'Carry-Forward des bestehenden Cover-Bilds (Mongo) fehlgeschlagen', {
         jobId,
-        existingFileId,
+        coverLookupId,
         error: error instanceof Error ? error.message : String(error),
       })
     }
