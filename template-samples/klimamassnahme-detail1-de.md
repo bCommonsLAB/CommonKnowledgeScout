@@ -13,12 +13,12 @@ vorschlag_quelle: {{vorschlag_quelle|Klimabürgerrat | Stakeholder Forum Klima}}
 vorschlag_text: {{vorschlag_text|Originaltext des Vorschlags (extraktiv, 1:1 aus "Vorschlag Klimabürgerrat")}}
 lv_rueckmeldung: {{lv_rueckmeldung|Originaltext der Landesverwaltung (extraktiv, 1:1 aus "Rückmeldung Landesverwaltung")}}
 year: {{year|Jahr (YYYY) oder null}}
-co2_einsparung_kt: {{co2_einsparung_kt|GENERATIV: Geschätztes CO₂-Einsparpotenzial in Kilotonnen/Jahr für Südtirol (nur Zahl, z.B. 12.5). NIE leer/null: bei fehlender Datenbasis eine grobe Mindestschätzung 0.1 eintragen}}
-co2_einsparung_kt_begruendung: {{co2_einsparung_kt_begruendung|GENERATIV: Begründung der Größenordnung mit konkretem Südtirol-Bezug (1-2 Sätze)}}
-durchsetzbarkeit: {{durchsetzbarkeit|GENERATIV: Durchsetzbarkeit 0..1 (0=kaum durchsetzbar, 1=breiter Konsens), nur Zahl. NIE leer/null: bei fehlender Datenbasis 0.5 (mittlere Einschätzung) eintragen}}
-durchsetzbarkeit_begruendung: {{durchsetzbarkeit_begruendung|GENERATIV: Begründung (Widerstände, Akteure) mit Südtirol-Bezug (1-2 Sätze). Wurde der Wert mangels Datenbasis auf 0.5 geschätzt, das ausdrücklich anmerken}}
-kosten_eur: {{kosten_eur|GENERATIV: Geschätzte Kosten in Euro (Größenordnung, nur Zahl). NIE leer/null: bei unbekannten Kosten grobe Mindestschätzung 30000 eintragen}}
-kosten_eur_begruendung: {{kosten_eur_begruendung|GENERATIV: Begründung der Kostenschätzung mit Südtirol-Bezug (1-2 Sätze)}}
+co2_einsparung_kt: {{co2_einsparung_kt|GENERATIV: Einsparpotenzial CO₂ in kt/Jahr für Südtirol (optimistisches Goodwill-Szenario, nur Zahl). Potenzialrechnung mit Südtirol-Kenndaten als Orientierung (s. systemprompt). NIE leer/null: Fallback 0.1}}
+co2_einsparung_kt_begruendung: {{co2_einsparung_kt_begruendung|GENERATIV: Rechenweg in 1-2 Sätzen: welche Kenndaten, welcher betroffene Anteil, welche Annahme — mit Südtirol-Bezug}}
+durchsetzbarkeit: {{durchsetzbarkeit|GENERATIV: Durchsetzbarkeit 0..1 im optimistischen Goodwill-Szenario (nur Zahl). NIE leer/null: Fallback 0.5}}
+durchsetzbarkeit_begruendung: {{durchsetzbarkeit_begruendung|GENERATIV: Begründung (Akteure, Konsens) mit Südtirol-Bezug (1-2 Sätze). Goodwill-Annahme und ggf. Unsicherheit kurz benennen}}
+kosten_eur: {{kosten_eur|GENERATIV: Geschätzte Umsetzungskosten in Euro (Größenordnung, optimistisches Szenario, nur Zahl). Orientierung an vergleichbaren Südtirol-Programmen. NIE leer/null: Fallback 30000}}
+kosten_eur_begruendung: {{kosten_eur_begruendung|GENERATIV: Begründung der Kostenschätzung mit Südtirol-Bezug und Vergleichsgröße (1-2 Sätze)}}
 score_wirkung: {{score_wirkung|GENERATIV: Perspektive Wirkung/Emissionsminderung 0..1, nur Zahl}}
 score_soziales: {{score_soziales|GENERATIV: Perspektive Lebensqualität & Soziales 0..1, nur Zahl}}
 score_struktur: {{score_struktur|GENERATIV: Perspektive Struktur & Rahmenbedingungen 0..1, nur Zahl}}
@@ -117,11 +117,39 @@ WICHTIG - Zwei Arten von Feldern:
    - Fehlt die Datenbasis für score_*: null zurückgeben (NICHT raten);
      die zugehörige Begründung erklärt dann kurz, warum keine Schätzung möglich ist
    - AUSNAHME co2_einsparung_kt, durchsetzbarkeit und kosten_eur (die drei Inputs des
-     Prioritäts-Indikators): NIE null. Ohne Datenbasis eine grobe Schätzung eintragen
-     (co2_einsparung_kt = 0.1, durchsetzbarkeit = 0.5 = mittlere Einschätzung,
-     kosten_eur = 30000) und in der JEWEILIGEN Begründung ausdrücklich kennzeichnen,
-     dass der Wert mangels Datenbasis geschätzt/geraten wurde. So bleibt der
-     Prioritäts-Indikator immer berechenbar.
+     Prioritäts-Indikators): NIE null. Ohne exakte Maßnahmen-Kenndaten trotzdem eine
+     grobe Potenzialschätzung eintragen (Fallbacks: co2_einsparung_kt = 0.1,
+     durchsetzbarkeit = 0.5, kosten_eur = 30000). So bleibt der Prioritäts-Indikator
+     immer berechenbar.
+
+   Potenzial-Schätzung für den Prioritäts-Indikator (co2, durchsetzbarkeit, kosten):
+   - Ziel: ein **Einsparpotenzial** berechnen — nicht Status-quo oder Worst-Case
+   - Szenario: **optimistisch mit Goodwill** — Land, Gemeinden, Wirtschaft und
+     Bürger:innen kooperieren; die Maßnahme wird ernsthaft und zügig umgesetzt
+   - Methode: grobe **Wahrscheinlichkeits-/Potenzialrechnung**, wenn im Quelltext
+     keine exakten Kenndaten stehen:
+     1. Maßnahme auf betroffenen Sektor/Teilbereich beziehen (Handlungsfeld,
+        Zuständigkeit, Zielgruppe aus dem Dokument)
+     2. Mehrere **für Südtirol bekannte Orientierungs-Kenndaten** heranziehen
+        (nicht erfinden, sondern etablierte Größenordnungen nutzen), z. B.:
+        - Bevölkerung ~530.000 Einwohner:innen
+        - Territoriale Treibhausgasemissionen ~7–8 Mio. t CO₂eq/Jahr (Größenordnung
+          Klimaplan Südtirol)
+        - Sektoranteile grob: Verkehr ~30–40 %, Gebäude ~25–30 %, Landwirtschaft
+          ~10–15 %, übrige Sektoren/Tourismus/Industrie
+        - Typische Größenordnungen öffentlicher Klimaprogramme (Kommunen, Land,
+          Förderungen) als Kosten-Anker
+     3. Potenzialformel (vereinfacht): betroffener Anteil am Sektor × plausible
+        Umsetzungs-/Durchdringungsquote im Goodwill-Szenario × spezifische
+        Einsparung pro Einheit → kt CO₂/Jahr; Unsicherheit in der Begründung
+        transparent machen (Rechenweg in 1–2 Sätzen)
+     4. durchsetzbarkeit: im Goodwill-Szenario bewerten; positive LV-Rückmeldung
+        oder „neu und umsetzbar" → eher 0.6–0.9; Widerstände benennen, aber nicht
+        pessimistisch unterbewerten
+     5. kosten_eur: Größenordnung aus vergleichbaren Maßnahmen/Programmen im
+        Südtirol-Kontext; Skalierung an betroffene Zielgröße (Haushalte, km, MW, …)
+   - Die Begründungen sollen den **Rechenweg oder die Vergleichsgröße** nennen,
+     nicht nur „geschätzt wegen fehlender Daten"
 
 4. SDG-PROFIL (GENERATIV, KI-Einschätzung über die 17 UN-Nachhaltigkeitsziele):
    - sdg_1 .. sdg_17: Unterstützungsgrad der Maßnahme je Ziel im Bereich 0..1
@@ -194,12 +222,12 @@ Antwortschema:
   "einleitung": "string",
   "was_vorgeschlagen": "string",
   "position_lv": "string",
-  "co2_einsparung_kt": "number (CO₂-Einsparung kt/Jahr, Südtirol; nie null – min. grobe Schätzung 0.1)",
-  "co2_einsparung_kt_begruendung": "string (Begründung mit Südtirol-Bezug)",
-  "durchsetzbarkeit": "number (0..1; nie null – ohne Datenbasis 0.5, in Begründung kennzeichnen)",
-  "durchsetzbarkeit_begruendung": "string (Begründung mit Südtirol-Bezug)",
-  "kosten_eur": "number (Kosten in EUR, Größenordnung; nie null – min. grobe Schätzung 30000)",
-  "kosten_eur_begruendung": "string (Begründung mit Südtirol-Bezug)",
+  "co2_einsparung_kt": "number (Einsparpotenzial kt/Jahr, optimistisches Goodwill-Szenario; Potenzialrechnung mit Südtirol-Kenndaten; nie null – Fallback 0.1)",
+  "co2_einsparung_kt_begruendung": "string (Rechenweg/Annahmen mit Südtirol-Bezug)",
+  "durchsetzbarkeit": "number (0..1, Goodwill-Szenario; nie null – Fallback 0.5)",
+  "durchsetzbarkeit_begruendung": "string (Akteure/Konsens mit Südtirol-Bezug)",
+  "kosten_eur": "number (Umsetzungskosten EUR, Größenordnung; nie null – Fallback 30000)",
+  "kosten_eur_begruendung": "string (Vergleichsgröße/Kostentreiber mit Südtirol-Bezug)",
   "score_wirkung": "number | null (0..1)",
   "score_soziales": "number | null (0..1)",
   "score_struktur": "number | null (0..1)",
