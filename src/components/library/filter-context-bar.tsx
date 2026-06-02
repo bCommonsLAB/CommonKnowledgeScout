@@ -369,7 +369,7 @@ export function FilterContextBar({
       {/* Quelle A: Beziehungen für ALLE berechnen – neben „publizieren" (gleicher Owner-Scope). */}
       {relationsEnabled && showBulkPublish && libraryId && viewMode === 'table' && (
         <div className="flex items-center shrink-0">
-          <RecomputeAllRelationsButton libraryId={libraryId} onChanged={onBulkPublish} />
+          <RecomputeAllRelationsButton libraryId={libraryId} docCount={totalCount ?? docCount} onChanged={onBulkPublish} />
         </div>
       )}
 

@@ -21,14 +21,21 @@ import { useToast } from '@/components/ui/use-toast'
 import { jobMonitorPanelOpenAtom } from '@/atoms/job-monitor-panel-open-atom'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { useTranslation } from '@/lib/i18n/hooks'
+import { MAX_LIBRARY_FOCUS } from '@/lib/gallery/relations-limits'
 
 export interface RecomputeAllRelationsButtonProps {
   libraryId: string
+  /**
+   * Anzahl der aktuell (gefiltert) sichtbaren Quellen. Der Lauf verarbeitet
+   * genau diese Teilmenge; ueber `MAX_LIBRARY_FOCUS` wird der Button gesperrt
+   * (sonst bricht der Job serverseitig ab) und weist auf das Filtern hin.
+   */
+  docCount: number
   /** Callback nach erfolgreichem Anstoßen der Neuberechnung. */
   onChanged?: () => void
 }
 
-export function RecomputeAllRelationsButton({ libraryId, onChanged }: RecomputeAllRelationsButtonProps) {
+export function RecomputeAllRelationsButton({ libraryId, docCount, onChanged }: RecomputeAllRelationsButtonProps) {
   const { t } = useTranslation()
   const { toast } = useToast()
   const setJobPanelOpen = useSetAtom(jobMonitorPanelOpenAtom)
@@ -68,17 +75,27 @@ export function RecomputeAllRelationsButton({ libraryId, onChanged }: RecomputeA
     }
   }
 
+  // Ueber dem Limit: Lauf wuerde serverseitig abbrechen -> Button sperren und
+  // klar auf "Gruppe filtern" hinweisen (statt den 500>150-Fehler zu provozieren).
+  const overLimit = docCount > MAX_LIBRARY_FOCUS
+  const label = t('gallery.graph.relationsRecomputeAll', { defaultValue: 'Beziehungen berechnen' })
+
   return (
     <Button
       type="button"
       variant="outline"
       size="sm"
       className="h-8 gap-1"
-      disabled={isLoading}
+      disabled={isLoading || overLimit || docCount === 0}
       onClick={recompute}
+      title={
+        overLimit
+          ? `Zu viele Maßnahmen (${docCount}). Auf eine Gruppe filtern (max. ${MAX_LIBRARY_FOCUS}), dann berechnen.`
+          : `Berechnet die Beziehungen für die aktuell gefilterten ${docCount} Maßnahmen.`
+      }
     >
       <Waypoints className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} aria-hidden />
-      {t('gallery.graph.relationsRecomputeAll', { defaultValue: 'Beziehungen für alle berechnen' })}
+      {label} ({docCount})
     </Button>
   )
 }
