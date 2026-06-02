@@ -9,7 +9,7 @@
  * gefilterten Dokumente; Klick öffnet die bestehende Detailansicht.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import type { GalleryGraphConfig } from '@/types/library'
 import { useTranslation } from '@/lib/i18n/hooks'
@@ -116,6 +116,18 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
   const isSimilarity = selection?.kind === 'similarity'
   const isRelations = selection?.kind === 'relations'
 
+  // Auswahl aus dem Selektor übernehmen. Wird ein sharedMeta-Feld gewählt, das
+  // (noch) nicht in liveFields steht — z. B. aus den Fallback-/Default-Feldern,
+  // wenn der Owner keine sharedMeta.fields konfiguriert hat —, wird es ergänzt.
+  // Sonst würde der Gültigkeits-Guard oben die Auswahl sofort verwerfen und auf
+  // Ähnlichkeit zurückspringen.
+  const handleSelectionChange = useCallback((next: EdgeSourceSelection) => {
+    if (next.kind === 'sharedMeta' && next.field) {
+      setLiveFields((prev) => (prev.includes(next.field) ? prev : [...prev, next.field]))
+    }
+    setSelection(next)
+  }, [])
+
   // Vorschläge: kategorische/Array-meta-Keys aus den Docs + Facetten-Felder.
   const availableFields = useMemo(() => {
     const set = new Set<string>([...configFields, ...Object.keys(fieldLabels ?? {})])
@@ -190,7 +202,7 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
           {selection && (
             <EdgeSourceSelector
               selection={selection}
-              onChange={setSelection}
+              onChange={handleSelectionChange}
               // Ohne konfigurierte sharedMeta.fields auf die auto-erkannten Felder
               // zurueckfallen — sonst zeigt "Gemeinsame Metadaten" nur eine leere
               // Gruppenueberschrift und ist nicht auswaehlbar (Henne-Ei: der
