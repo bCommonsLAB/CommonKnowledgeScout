@@ -147,6 +147,21 @@ export default clerkMiddleware(async (auth, req) => {
     }
   }
 
+  // Dynamische Ausnahme: Read-only Graph-Datenquellen für anonyme Nutzer
+  // öffentlicher Libraries — Ähnlichkeit (doc-neighbors) und berechnete
+  // Beziehungen (doc-relations). Beide nutzen POST (fileIds im Body, gegen
+  // HTTP-431 bei vielen Knoten), daher GET UND POST erlauben. Die Handler
+  // prüfen selbst, ob die Library öffentlich ist. NICHT erfasst:
+  // /doc-relations/recompute (owner-only Schreib-Lauf) — der bleibt geschützt.
+  if (!isPublic) {
+    const path = req.nextUrl.pathname;
+    const isNeighborsPath = /^\/api\/chat\/[^/]+\/doc-neighbors$/.test(path);
+    const isRelationsReadPath = /^\/api\/library\/[^/]+\/doc-relations$/.test(path);
+    if ((req.method === 'GET' || req.method === 'POST') && (isNeighborsPath || isRelationsReadPath)) {
+      isPublic = true;
+    }
+  }
+
   // Dynamische Ausnahme: Nur POST /api/external/jobs/:jobId erlauben (nicht /stream)
   if (!isPublic) {
     const path = req.nextUrl.pathname;
