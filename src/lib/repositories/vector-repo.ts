@@ -1403,8 +1403,13 @@ export async function findDocsGrouped(
     // Aggregation pro Gruppe: $match -> [$lookup falls fuer Sort noetig]
     // -> $sort -> $lookup -> $project. Dadurch erhaelt jede Karte
     // direkt die Sterne-Daten und braucht keinen Folge-Round-Trip.
+    // WICHTIG: baseQuery UND groupFilter per $and kombinieren, nicht spreaden.
+    // Beide können einen `$or` enthalten (baseQuery = Freitext-Suche,
+    // groupFilter = Gruppenschlüssel). Beim Spread `{ ...baseQuery, ...groupFilter }`
+    // würde groupFilter.$or den Such-`$or` ÜBERSCHREIBEN -> der Suchfilter ginge
+    // in der Gruppen-Mitgliederliste verloren (Count gefiltert, Liste zeigt alle).
     const groupPipeline: Document[] = [
-      { $match: { ...baseQuery, ...groupFilter } },
+      { $match: { $and: [baseQuery, groupFilter] } },
     ]
     if (lookupBeforeSort) groupPipeline.push(...lookupStages)
     if (sortWithinGroup) groupPipeline.push({ $sort: sortWithinGroup })
