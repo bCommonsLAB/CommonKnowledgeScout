@@ -62,7 +62,11 @@ const CLIMATE_ACTION_SHARED_META_FIELDS = [
 export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, onSaveDefault, canManageRelations }: DocGraphProps) {
   const { t } = useTranslation()
   const sharedMeta = graph.edgeSources?.sharedMeta
-  const defaultMode = sharedMeta?.mode ?? 'projection'
+  // Default 'hub' (bipartite Stern-Cluster) statt 'projection': Letzteres
+  // verbindet ALLE Maßnahmen einer Gruppe paarweise (Cliquen) -> bei großen
+  // Gruppen unlesbarer Hairball (Tausende Kanten). 'hub' macht je Gruppe EINEN
+  // Knoten -> als Wolke/Cluster wahrnehmbar. Per „Anpassen" umstellbar.
+  const defaultMode = sharedMeta?.mode ?? 'hub'
   const configFields = useMemo(() => sharedMeta?.fields?.filter((f) => f.length > 0) ?? [], [sharedMeta?.fields])
 
   // Quelle C ist generisch immer verfügbar (Vektoren existieren ohnehin pro

@@ -125,11 +125,18 @@ export function DocGraphScene({ data, docs, encodings, width, height, onOpenDocu
                   if (!isHub && n.doc) onOpenDocument(n.doc)
                 }}
               >
-                <circle
-                  r={r} fill={fill} fillOpacity={opacity}
-                  stroke={isHub ? '#475569' : '#ffffff'} strokeWidth={isHub ? 1.5 : 1}
-                  strokeDasharray={isHub ? '3 2' : undefined}
-                />
+                {isHub ? (
+                  // Gruppen-/Hub-Knoten (z. B. Arbeitsgruppe, Kategorie): als
+                  // abgerundetes Quadrat, damit Cluster-Zentren klar von den
+                  // runden Maßnahmen-Knoten unterscheidbar sind.
+                  <rect
+                    x={-r} y={-r} width={r * 2} height={r * 2} rx={3}
+                    fill={fill} fillOpacity={opacity}
+                    stroke="#475569" strokeWidth={1.5} strokeDasharray="3 2"
+                  />
+                ) : (
+                  <circle r={r} fill={fill} fillOpacity={opacity} stroke="#ffffff" strokeWidth={1} />
+                )}
                 {(isHub || r > 16) && (
                   <text x={r + 3} y={4} fontSize={11} className="fill-foreground" style={{ pointerEvents: 'none' }}>
                     {n.label.length > 28 ? `${n.label.slice(0, 27)}…` : n.label}
