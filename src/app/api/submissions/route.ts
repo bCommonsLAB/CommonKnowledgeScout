@@ -23,6 +23,7 @@ import {
   buildCaptureSubmissionInput,
   parseCaptureBody,
   resolveCreatorRole,
+  type CaptureBody,
 } from '@/lib/submissions/submission-capture';
 import { isSubmissionStatus } from '@/lib/submissions/submission-status';
 import { FileLogger } from '@/lib/debug/logger';
@@ -34,14 +35,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const email = getPreferredUserEmail(await currentUser());
     if (!email) return NextResponse.json({ error: 'User-Email unbekannt' }, { status: 400 });
 
-    let raw: unknown;
+    let body: CaptureBody;
     try {
-      raw = await request.json();
-    } catch {
-      return NextResponse.json({ error: 'Ungueltiger JSON-Body' }, { status: 400 });
+      body = parseCaptureBody(await request.json());
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : 'Ungueltige Eingabe' },
+        { status: 400 },
+      );
     }
-
-    const body = parseCaptureBody(raw);
 
     // Rechte + Rolle ableiten: Owner ueber Library-Besitz, sonst aktive Mitglieds-Rolle.
     // Erfassen duerfen Owner, Co-Creator und Contributor (ADR-0004 E2); sonst 403.
@@ -58,10 +60,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ submission }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Interner Fehler';
-    // Eingabe-/Validierungsfehler aus parseCaptureBody -> 400, sonst 500.
-    const isValidation = message.startsWith('parseCaptureBody:');
     FileLogger.error('api/submissions POST', 'Submission anlegen fehlgeschlagen', message);
-    return NextResponse.json({ error: message }, { status: isValidation ? 400 : 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 

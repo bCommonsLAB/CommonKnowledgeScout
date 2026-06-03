@@ -22,6 +22,7 @@ import type {
   SubmissionBinaryRef,
   SubmissionCreatorRole,
   SubmissionTarget,
+  UpdateSubmissionMetadataInput,
 } from '@/types/wizard-submission';
 
 /**
@@ -42,14 +43,14 @@ export function resolveCreatorRole(
 
 function asNonEmptyString(value: unknown, field: string): string {
   if (typeof value !== 'string' || value.length === 0) {
-    throw new Error(`parseCaptureBody: ${field} muss ein nicht-leerer String sein`);
+    throw new Error(`submission-input: ${field} muss ein nicht-leerer String sein`);
   }
   return value;
 }
 
 function asRecord(value: unknown, field: string): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new Error(`parseCaptureBody: ${field} muss ein Objekt sein`);
+    throw new Error(`submission-input: ${field} muss ein Objekt sein`);
   }
   return value as Record<string, unknown>;
 }
@@ -58,7 +59,7 @@ function asConfidence(value: unknown): Record<string, number> {
   const rec = asRecord(value, 'confidence');
   for (const [key, val] of Object.entries(rec)) {
     if (typeof val !== 'number' || Number.isNaN(val) || val < 0 || val > 1) {
-      throw new Error(`parseCaptureBody: confidence["${key}"] muss eine Zahl 0..1 sein`);
+      throw new Error(`submission-input: confidence["${key}"] muss eine Zahl 0..1 sein`);
     }
   }
   return rec as Record<string, number>;
@@ -66,7 +67,7 @@ function asConfidence(value: unknown): Record<string, number> {
 
 function asBinaryRefs(value: unknown): SubmissionBinaryRef[] {
   if (!Array.isArray(value)) {
-    throw new Error('parseCaptureBody: binaryRefs muss ein Array sein');
+    throw new Error('submission-input: binaryRefs muss ein Array sein');
   }
   return value.map((raw) => {
     const r = asRecord(raw, 'binaryRefs[]');
@@ -108,7 +109,7 @@ export interface CaptureBody {
 export function parseCaptureBody(body: unknown): CaptureBody {
   const b = asRecord(body, 'body');
   if (typeof b.markdownBody !== 'string') {
-    throw new Error('parseCaptureBody: markdownBody muss ein String sein');
+    throw new Error('submission-input: markdownBody muss ein String sein');
   }
   const result: CaptureBody = {
     libraryId: asNonEmptyString(b.libraryId, 'libraryId'),
@@ -155,4 +156,23 @@ export function buildCaptureSubmissionInput(
   if (body.target !== undefined) input.target = body.target;
   if (ctx.writeKey !== undefined) input.writeKey = ctx.writeKey;
   return input;
+}
+
+/**
+ * Parst + validiert eine redaktionelle Korrektur (PATCH-Body der Abnahme, W4).
+ * Nur die uebergebenen Felder werden gesetzt; wirft bei ungueltiger Eingabe.
+ */
+export function parseReviewEdit(body: unknown): UpdateSubmissionMetadataInput {
+  const b = asRecord(body, 'body');
+  const result: UpdateSubmissionMetadataInput = {};
+  if (b.metadata !== undefined) result.metadata = asRecord(b.metadata, 'metadata');
+  if (b.markdownBody !== undefined) {
+    if (typeof b.markdownBody !== 'string') {
+      throw new Error('submission-input: markdownBody muss ein String sein');
+    }
+    result.markdownBody = b.markdownBody;
+  }
+  if (b.confidence !== undefined) result.confidence = asConfidence(b.confidence);
+  if (b.target !== undefined) result.target = asTarget(b.target);
+  return result;
 }
