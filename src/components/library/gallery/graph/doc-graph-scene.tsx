@@ -10,6 +10,7 @@
  */
 
 import { useCallback, useMemo, useState } from 'react'
+import { Maximize2, Minimize2, Focus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/lib/i18n/hooks'
 import type { DocCardMeta } from '@/lib/gallery/types'
@@ -35,13 +36,20 @@ interface DocGraphSceneProps {
    * Enabler-Maßnahmen mit großer indirekter Wirkung sichtbar.
    */
   showEnablers?: boolean
+  /** Vollbild-Status (vom Container/doc-graph verwaltet) + Umschalter. */
+  isFullscreen?: boolean
+  onToggleFullscreen?: () => void
 }
 
-export function DocGraphScene({ data, docs, encodings, width, height, onOpenDocument, showEnablers }: DocGraphSceneProps) {
+export function DocGraphScene({ data, docs, encodings, width, height, onOpenDocument, showEnablers, isFullscreen, onToggleFullscreen }: DocGraphSceneProps) {
   const { sizeField, colorField, opacityField, colorMap } = encodings
   const { t } = useTranslation()
   const [hovered, setHovered] = useState<GraphNode | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  // Fokus-/Isolier-Modus: markierte Maßnahme + nur ihre Abhängigen zeigen
+  // (unterstützende und unterstützt-von). Stellt den Klick auf „markieren"
+  // statt „öffnen" um; Doppelklick öffnet weiterhin die Detailansicht.
+  const [isolate, setIsolate] = useState(false)
 
   const domainMax = useMemo(() => maxOf(docs, sizeField), [docs, sizeField])
   const radiusOf = useCallback(
@@ -97,17 +105,39 @@ export function DocGraphScene({ data, docs, encodings, width, height, onOpenDocu
 
   // version wird gelesen, damit das Re-Render pro Tick die mutierten x/y zeigt.
   void version
-  const dim = (id: string) => (neighbors && !neighbors.has(id) ? 0.15 : 1)
+  // Im Isolier-Modus Nicht-Nachbarn ganz ausblenden (0), sonst nur abblenden.
+  const dim = (id: string) => (neighbors && !neighbors.has(id) ? (isolate ? 0 : 0.15) : 1)
 
   return (
     <div className="relative h-full w-full overflow-hidden">
-      <Button
-        type="button" variant="outline" size="sm"
-        className="absolute right-3 top-3 z-20 h-7"
-        onClick={resetZoom}
-      >
-        {t('gallery.graph.resetZoom')}
-      </Button>
+      <div className="absolute right-3 top-3 z-20 flex items-center gap-1.5">
+        <Button
+          type="button"
+          variant={isolate ? 'default' : 'outline'}
+          size="sm"
+          className="h-7 gap-1"
+          aria-pressed={isolate}
+          onClick={() => setIsolate((v) => !v)}
+          title={t('gallery.graph.focusDependents', { defaultValue: 'Nur Abhängige (markierte Maßnahme isolieren)' })}
+        >
+          <Focus className="h-3.5 w-3.5" aria-hidden />
+          {t('gallery.graph.focusDependents', { defaultValue: 'Nur Abhängige' })}
+        </Button>
+        <Button type="button" variant="outline" size="sm" className="h-7" onClick={resetZoom}>
+          {t('gallery.graph.resetZoom')}
+        </Button>
+        {onToggleFullscreen && (
+          <Button
+            type="button" variant="outline" size="sm" className="h-7 w-7 p-0"
+            onClick={onToggleFullscreen}
+            title={t(isFullscreen ? 'gallery.graph.exitFullscreen' : 'gallery.graph.fullscreen', {
+              defaultValue: isFullscreen ? 'Vollbild verlassen' : 'Vollbild',
+            })}
+          >
+            {isFullscreen ? <Minimize2 className="h-4 w-4" aria-hidden /> : <Maximize2 className="h-4 w-4" aria-hidden />}
+          </Button>
+        )}
+      </div>
       <svg ref={svgRef} width={width} height={height} className="touch-none select-none" onClick={() => setSelectedId(null)}>
         <defs>
           {/* Pfeilspitze für gerichtete Kanten (Quelle A, Welle 4). */}
@@ -137,7 +167,7 @@ export function DocGraphScene({ data, docs, encodings, width, height, onOpenDocu
               <line
                 key={i} x1={s.x} y1={s.y} x2={x2} y2={y2}
                 stroke="currentColor" className="text-muted-foreground"
-                strokeOpacity={visible ? 0.35 : 0.05}
+                strokeOpacity={visible ? 0.35 : (isolate ? 0 : 0.05)}
                 strokeWidth={Math.min(5, 0.6 + l.weight)}
                 markerEnd={l.directed && visible ? 'url(#doc-graph-arrow)' : undefined}
               />
@@ -147,18 +177,30 @@ export function DocGraphScene({ data, docs, encodings, width, height, onOpenDocu
             const r = radiusOf(n)
             const isHub = n.kind === 'hub'
             const fill = isHub ? '#94a3b8' : nodeColor(n.doc as DocCardMeta, colorField, colorMap)
-            const opacity = (isHub ? 0.9 : nodeOpacity(n.doc as DocCardMeta, opacityField)) * dim(n.id)
+            const opacity = isHub ? 0.9 : nodeOpacity(n.doc as DocCardMeta, opacityField)
+            const groupDim = dim(n.id)
             return (
               <g
                 key={n.id}
                 transform={`translate(${n.x ?? 0},${n.y ?? 0})`}
                 className="cursor-pointer"
+                opacity={groupDim}
+                style={{ pointerEvents: groupDim === 0 ? 'none' : undefined }}
                 onPointerDown={(e) => onNodePointerDown(n, e)}
                 onMouseEnter={() => !isHub && setHovered(n)}
                 onMouseLeave={() => setHovered(null)}
                 onClick={(e) => {
                   e.stopPropagation()
+                  // Isolier-Modus: markieren (toggeln), NICHT öffnen.
+                  if (isolate) {
+                    setSelectedId((cur) => (cur === n.id ? null : n.id))
+                    return
+                  }
                   setSelectedId(n.id)
+                  if (!isHub && n.doc) onOpenDocument(n.doc)
+                }}
+                onDoubleClick={(e) => {
+                  e.stopPropagation()
                   if (!isHub && n.doc) onOpenDocument(n.doc)
                 }}
               >
@@ -168,8 +210,8 @@ export function DocGraphScene({ data, docs, encodings, width, height, onOpenDocu
                   const halo = !isHub ? haloRadiusOf(n) : null
                   return halo ? (
                     <circle
-                      r={halo} fill="#fdba74" fillOpacity={0.12 * dim(n.id)}
-                      stroke="#fb923c" strokeOpacity={0.85 * dim(n.id)}
+                      r={halo} fill="#fdba74" fillOpacity={0.12}
+                      stroke="#fb923c" strokeOpacity={0.85}
                       strokeWidth={1.5} strokeDasharray="4 3"
                       style={{ pointerEvents: 'none' }}
                     />

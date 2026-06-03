@@ -21,7 +21,7 @@ import { useTranslation } from '@/lib/i18n/hooks'
 
 interface DocGraphRelationsBarProps {
   libraryId?: string
-  /** Owner/Co-Creator → „Neu berechnen"-Button sichtbar. */
+  /** Owner → „Neu berechnen"-Button sichtbar (bewusst nur Owner). */
   canManage?: boolean
   /** `true` = veraltet, `null` = noch nie berechnet. */
   stale: boolean | null

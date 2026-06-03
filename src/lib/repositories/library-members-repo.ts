@@ -467,6 +467,26 @@ export async function listMembershipsByEmail(
  * @param userEmail Benutzer-E-Mail
  * @returns true wenn Benutzer Owner oder aktiver Co-Creator ist
  */
+/**
+ * Prueft, ob der Nutzer OWNER der Library ist (nicht Co-Creator). Owner-Scoping
+ * laeuft ueber `getLibrary(userEmail, libraryId)`, das die Library nur fuer den
+ * Eigentuemer zurueckgibt. Fuer Aktionen, die bewusst nur dem Owner offenstehen
+ * sollen (z. B. der teure Beziehungs-Recompute).
+ */
+export async function isLibraryOwner(
+  libraryId: string,
+  userEmail: string
+): Promise<boolean> {
+  const normalizedUserEmail = normalizeEmail(userEmail);
+  const libraryService = LibraryService.getInstance();
+  try {
+    const library = await libraryService.getLibrary(normalizedUserEmail, libraryId);
+    return Boolean(library);
+  } catch {
+    return false;
+  }
+}
+
 export async function isCoCreatorOrOwner(
   libraryId: string,
   userEmail: string

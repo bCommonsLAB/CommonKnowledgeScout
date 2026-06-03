@@ -100,6 +100,8 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
   // „Enabler darstellen" (nur Beziehungen): Halo nach akkumulierter Wirkung der
   // ermöglichten Ziele.
   const [showEnablers, setShowEnablers] = useState(false)
+  // Vollbild-Umschaltung der Graph-Ansicht (CSS-basiert, kein Fullscreen-API).
+  const [isFullscreen, setIsFullscreen] = useState(false)
   useEffect(() => {
     setLiveFields(configFields)
     setLiveColorMap(graph.colorMap ?? {})
@@ -274,7 +276,14 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
           )}
         </div>
       </div>
-      <div ref={containerRef} className="relative flex-1 overflow-hidden rounded-md border bg-muted/20">
+      <div
+        ref={containerRef}
+        className={
+          isFullscreen
+            ? 'fixed inset-0 z-50 overflow-hidden border bg-background'
+            : 'relative flex-1 overflow-hidden rounded-md border bg-muted/20'
+        }
+      >
         {isRelations ? (
           relations.loading ? (
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center text-sm text-muted-foreground">
@@ -326,6 +335,8 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
             height={size.height}
             onOpenDocument={onOpenDocument}
             showEnablers={isRelations && showEnablers}
+            isFullscreen={isFullscreen}
+            onToggleFullscreen={() => setIsFullscreen((v) => !v)}
           />
         )}
         <DocGraphLegend

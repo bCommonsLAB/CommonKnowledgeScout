@@ -1,7 +1,7 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { getPreferredUserEmail } from '@/lib/auth/user-email'
-import { isCoCreatorOrOwner } from '@/lib/repositories/library-members-repo'
+import { isLibraryOwner } from '@/lib/repositories/library-members-repo'
 import { enqueueDocRelationsJob } from '@/lib/external-jobs/enqueue-doc-relations'
 import { LibraryService } from '@/lib/services/library-service'
 import { getCollectionNameForLibrary, findDocs } from '@/lib/repositories/vector-repo'
@@ -47,8 +47,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const userEmail = getPreferredUserEmail(user)
     if (!userEmail) return NextResponse.json({ error: 'Benutzer-E-Mail nicht verfügbar' }, { status: 403 })
 
-    const allowed = await isCoCreatorOrOwner(libraryId, userEmail)
-    if (!allowed) return NextResponse.json({ error: 'Nur Owner/Co-Creator dürfen neu berechnen' }, { status: 403 })
+    // Bewusst NUR Owner: der Beziehungs-Recompute ist ein teurer, komplexer
+    // Batch-LLM-Lauf und soll nur vom Eigentuemer angestossen werden.
+    const allowed = await isLibraryOwner(libraryId, userEmail)
+    if (!allowed) return NextResponse.json({ error: 'Nur der Owner darf Beziehungen neu berechnen' }, { status: 403 })
 
     let body: RecomputeBody = {}
     try {
