@@ -97,6 +97,8 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
   const [liveColorMap, setLiveColorMap] = useState<Record<string, string>>(graph.colorMap ?? {})
   const [minShared, setMinShared] = useState<number>(sharedMeta?.minShared ?? 1)
   const [selection, setSelection] = useState<EdgeSourceSelection | null>(initialSelection)
+  // „Supporter darstellen" (nur Beziehungen): Halo nach akkumulierter Wirkung.
+  const [showSupporters, setShowSupporters] = useState(false)
   useEffect(() => {
     setLiveFields(configFields)
     setLiveColorMap(graph.colorMap ?? {})
@@ -251,12 +253,23 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
           )}
           {/* Quelle A: Staleness-Hinweis + Recompute (Owner/Co-Creator). */}
           {isRelations && (
-            <DocGraphRelationsBar
-              libraryId={libraryId}
-              canManage={canManageRelations}
-              stale={relations.stale}
-              computedAt={relations.computedAt}
-            />
+            <>
+              <DocGraphRelationsBar
+                libraryId={libraryId}
+                canManage={canManageRelations}
+                stale={relations.stale}
+                computedAt={relations.computedAt}
+              />
+              <label className="flex cursor-pointer select-none items-center gap-1.5 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={showSupporters}
+                  onChange={(e) => setShowSupporters(e.target.checked)}
+                  className="h-3.5 w-3.5 accent-orange-400"
+                />
+                {t('gallery.graph.showSupporters', { defaultValue: 'Supporter darstellen' })}
+              </label>
+            </>
           )}
         </div>
       </div>
@@ -311,6 +324,7 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
             width={size.width}
             height={size.height}
             onOpenDocument={onOpenDocument}
+            showSupporters={isRelations && showSupporters}
           />
         )}
         <DocGraphLegend
