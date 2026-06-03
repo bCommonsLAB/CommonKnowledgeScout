@@ -62,7 +62,11 @@ const CLIMATE_ACTION_SHARED_META_FIELDS = [
 export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, onSaveDefault, canManageRelations }: DocGraphProps) {
   const { t } = useTranslation()
   const sharedMeta = graph.edgeSources?.sharedMeta
-  const defaultMode = sharedMeta?.mode ?? 'projection'
+  // Default 'hub' (bipartite Stern-Cluster) statt 'projection': Letzteres
+  // verbindet ALLE Maßnahmen einer Gruppe paarweise (Cliquen) -> bei großen
+  // Gruppen unlesbarer Hairball (Tausende Kanten). 'hub' macht je Gruppe EINEN
+  // Knoten -> als Wolke/Cluster wahrnehmbar. Per „Anpassen" umstellbar.
+  const defaultMode = sharedMeta?.mode ?? 'hub'
   const configFields = useMemo(() => sharedMeta?.fields?.filter((f) => f.length > 0) ?? [], [sharedMeta?.fields])
 
   // Quelle C ist generisch immer verfügbar (Vektoren existieren ohnehin pro
@@ -93,6 +97,9 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
   const [liveColorMap, setLiveColorMap] = useState<Record<string, string>>(graph.colorMap ?? {})
   const [minShared, setMinShared] = useState<number>(sharedMeta?.minShared ?? 1)
   const [selection, setSelection] = useState<EdgeSourceSelection | null>(initialSelection)
+  // „Enabler darstellen" (nur Beziehungen): Halo nach akkumulierter Wirkung der
+  // ermöglichten Ziele.
+  const [showEnablers, setShowEnablers] = useState(false)
   useEffect(() => {
     setLiveFields(configFields)
     setLiveColorMap(graph.colorMap ?? {})
@@ -247,12 +254,23 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
           )}
           {/* Quelle A: Staleness-Hinweis + Recompute (Owner/Co-Creator). */}
           {isRelations && (
-            <DocGraphRelationsBar
-              libraryId={libraryId}
-              canManage={canManageRelations}
-              stale={relations.stale}
-              computedAt={relations.computedAt}
-            />
+            <>
+              <DocGraphRelationsBar
+                libraryId={libraryId}
+                canManage={canManageRelations}
+                stale={relations.stale}
+                computedAt={relations.computedAt}
+              />
+              <label className="flex cursor-pointer select-none items-center gap-1.5 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={showEnablers}
+                  onChange={(e) => setShowEnablers(e.target.checked)}
+                  className="h-3.5 w-3.5 accent-orange-400"
+                />
+                {t('gallery.graph.showEnablers', { defaultValue: 'Enabler darstellen' })}
+              </label>
+            </>
           )}
         </div>
       </div>
@@ -307,6 +325,7 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
             width={size.width}
             height={size.height}
             onOpenDocument={onOpenDocument}
+            showEnablers={isRelations && showEnablers}
           />
         )}
         <DocGraphLegend

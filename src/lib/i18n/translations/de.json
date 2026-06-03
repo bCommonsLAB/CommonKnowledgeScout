@@ -370,6 +370,7 @@
       "nodes": "Knoten",
       "edges": "Kanten",
       "resetZoom": "Ansicht zurücksetzen",
+      "showEnablers": "Enabler darstellen",
       "customize": "Anpassen",
       "controlsFields": "Verbinde nach (Felder)",
       "controlsAddField": "Feld hinzufügen …",

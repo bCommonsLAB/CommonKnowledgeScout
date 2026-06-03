@@ -17,7 +17,7 @@ import type { GraphData, GraphNode } from './graph-types'
 import { endpointId } from './graph-types'
 import { useGraphSimulation } from './use-graph-simulation'
 import { DocGraphTooltip } from './doc-graph-tooltip'
-import { nodeColor, nodeOpacity, nodeRadius, hubRadius, maxOf } from './graph-encodings'
+import { nodeColor, nodeOpacity, nodeRadius, hubRadius, maxOf, readNumber } from './graph-encodings'
 
 interface Encodings { sizeField?: string; colorField?: string; opacityField?: string; colorMap?: Record<string, string> }
 
@@ -28,9 +28,16 @@ interface DocGraphSceneProps {
   width: number
   height: number
   onOpenDocument: (doc: DocCardMeta) => void
+  /**
+   * „Enabler darstellen" (nur Beziehungen/Quelle A): zeichnet um jeden Knoten
+   * einen strichlierten hellorangen Halo, dessen Größe die akkumulierte Wirkung
+   * (sizeField) der von ihm ermöglichten Ziel-Maßnahmen zeigt. Macht kleine
+   * Enabler-Maßnahmen mit großer indirekter Wirkung sichtbar.
+   */
+  showEnablers?: boolean
 }
 
-export function DocGraphScene({ data, docs, encodings, width, height, onOpenDocument }: DocGraphSceneProps) {
+export function DocGraphScene({ data, docs, encodings, width, height, onOpenDocument, showEnablers }: DocGraphSceneProps) {
   const { sizeField, colorField, opacityField, colorMap } = encodings
   const { t } = useTranslation()
   const [hovered, setHovered] = useState<GraphNode | null>(null)
@@ -40,6 +47,36 @@ export function DocGraphScene({ data, docs, encodings, width, height, onOpenDocu
   const radiusOf = useCallback(
     (n: GraphNode) => (n.kind === 'hub' ? hubRadius(n.hubCount ?? 1) : nodeRadius(n.doc as DocCardMeta, sizeField, domainMax)),
     [sizeField, domainMax],
+  )
+
+  // Enabler-Score je Knoten: Summe der Wirkung (sizeField) der ermöglichten
+  // Ziele, gewichtet mit dem Kantengewicht. Nur über gerichtete Kanten (Quelle A).
+  const enablerScore = useMemo(() => {
+    const m = new Map<string, number>()
+    if (!showEnablers) return m
+    for (const l of data.links) {
+      if (!l.directed) continue
+      const s = l.source as GraphNode, t = l.target as GraphNode
+      if (typeof s !== 'object' || typeof t !== 'object') continue
+      const impact = t.kind === 'hub' ? 0 : (readNumber(t.doc as DocCardMeta, sizeField) ?? 0)
+      if (impact <= 0) continue
+      const w = typeof l.weight === 'number' ? l.weight : 1
+      m.set(s.id, (m.get(s.id) ?? 0) + impact * w)
+    }
+    return m
+  }, [showEnablers, data.links, sizeField])
+  const maxEnabler = useMemo(
+    () => (enablerScore.size ? Math.max(...enablerScore.values()) : 0),
+    [enablerScore],
+  )
+  // Halo-Radius: Basis-Radius + sqrt-skalierter Zuschlag (Fläche ~ Score).
+  const haloRadiusOf = useCallback(
+    (n: GraphNode): number | null => {
+      const score = enablerScore.get(n.id) ?? 0
+      if (score <= 0 || maxEnabler <= 0) return null
+      return radiusOf(n) + 6 + Math.sqrt(score / maxEnabler) * 30
+    },
+    [enablerScore, maxEnabler, radiusOf],
   )
 
   const { version, transform, svgRef, resetZoom, onNodePointerDown } = useGraphSimulation({
@@ -125,11 +162,31 @@ export function DocGraphScene({ data, docs, encodings, width, height, onOpenDocu
                   if (!isHub && n.doc) onOpenDocument(n.doc)
                 }}
               >
-                <circle
-                  r={r} fill={fill} fillOpacity={opacity}
-                  stroke={isHub ? '#475569' : '#ffffff'} strokeWidth={isHub ? 1.5 : 1}
-                  strokeDasharray={isHub ? '3 2' : undefined}
-                />
+                {(() => {
+                  // Enabler-Halo (strichliert, hell orange): akkumulierte
+                  // Wirkung der ermöglichten Ziele. Hinter dem Knoten gezeichnet.
+                  const halo = !isHub ? haloRadiusOf(n) : null
+                  return halo ? (
+                    <circle
+                      r={halo} fill="#fdba74" fillOpacity={0.12 * dim(n.id)}
+                      stroke="#fb923c" strokeOpacity={0.85 * dim(n.id)}
+                      strokeWidth={1.5} strokeDasharray="4 3"
+                      style={{ pointerEvents: 'none' }}
+                    />
+                  ) : null
+                })()}
+                {isHub ? (
+                  // Gruppen-/Hub-Knoten (z. B. Arbeitsgruppe, Kategorie): als
+                  // abgerundetes Quadrat, damit Cluster-Zentren klar von den
+                  // runden Maßnahmen-Knoten unterscheidbar sind.
+                  <rect
+                    x={-r} y={-r} width={r * 2} height={r * 2} rx={3}
+                    fill={fill} fillOpacity={opacity}
+                    stroke="#475569" strokeWidth={1.5} strokeDasharray="3 2"
+                  />
+                ) : (
+                  <circle r={r} fill={fill} fillOpacity={opacity} stroke="#ffffff" strokeWidth={1} />
+                )}
                 {(isHub || r > 16) && (
                   <text x={r + 3} y={4} fontSize={11} className="fill-foreground" style={{ pointerEvents: 'none' }}>
                     {n.label.length > 28 ? `${n.label.slice(0, 27)}…` : n.label}
