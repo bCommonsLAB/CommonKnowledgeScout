@@ -343,6 +343,7 @@
       "nodes": "Nodi",
       "edges": "Archi",
       "resetZoom": "Reimposta vista",
+      "showEnablers": "Mostra enabler",
       "customize": "Personalizza",
       "controlsFields": "Collega per (campi)",
       "controlsAddField": "Aggiungi campo …",

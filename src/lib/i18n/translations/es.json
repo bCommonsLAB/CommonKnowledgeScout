@@ -343,6 +343,7 @@
       "nodes": "Nodos",
       "edges": "Aristas",
       "resetZoom": "Restablecer vista",
+      "showEnablers": "Mostrar enablers",
       "customize": "Personalizar",
       "controlsFields": "Conectar por (campos)",
       "controlsAddField": "Añadir campo …",
