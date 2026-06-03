@@ -78,3 +78,32 @@ Inbox-Strang (ADR-0003/0004) — keine Vermischung der Domaenen.
   Invite-/Accept-Seiten (Storage-Auth eingeben + testen).
 - `.cursor/rules/storage-abstraction.mdc` — Member-Kontext in der
   Storage-Aufloesung dokumentieren.
+
+## Nachtrag 2026-06-03 — ID-/Sicht-Konsistenz bei eigener Identitaet (deponiert)
+
+Wenn Owner und Co-Creator auf **denselben Verzeichnissen** arbeiten, jeder aber
+mit **eigener Identitaet/Auth**, muss die Sicht **dauerhaft identisch** bleiben:
+**File-/Ordner-IDs muessen ueber beide Identitaeten hinweg dieselben sein**. Das
+System haengt an **stabilen IDs** (Shadow Twins, Vektor-Daten, Item-Properties an
+einem stabilen `itemKey`/VCodex — siehe
+[`mongodb-repository-pattern.md`](../architecture/mongodb-repository-pattern.md),
+Abschnitt „Stabile Keys"). Identitaets-/konto-spezifische Provider-IDs (z.B.
+OneDrive-/SharePoint-Item-IDs pro Konto) wuerden die geteilten MongoDB-Daten
+brechen.
+
+**Konsequenzen / vorgeschlagene Massnahmen (zu bestaetigen):**
+
+- **Rechte-/Zuordnungs-Verwaltung in der gemeinsamen Schicht (MongoDB) halten;**
+  der Storage-Provider liefert nur die Dateien, die geteilte Identitaet der
+  Inhalte (stabiler Key) lebt zentral — nicht pro Provider-Konto.
+  *(Interpretation der akustisch unklaren Passage — vom Owner zu bestaetigen.)*
+- **Paritaets-Pruefung:** ein Werkzeug/Dienst (ggf. Desktop) analysiert die
+  Dateien des Co-Creators und prueft, ob **File-IDs und Zugriffsrechte zwischen
+  Owner- und Co-Creator-Sicht identisch** sind.
+- **Pruefung beim Oeffnen eines Verzeichnisses:** bei jedem Oeffnen die IDs/Rechte
+  vergleichen und **Abweichungen sofort sichtbar** machen.
+
+**Offene Frage (Kern):** Wie werden stabile IDs ueber Identitaeten hinweg
+garantiert? (a) der Provider liefert fuer dieselbe geteilte Ressource identische
+IDs, oder (b) ein **ID-Mapping in MongoDB** (Owner-ID ↔ Member-ID) auf einen
+stabilen Schluessel (Pfad/VCodex), falls die Provider-IDs pro Konto abweichen.
