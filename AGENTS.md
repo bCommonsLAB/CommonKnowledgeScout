@@ -83,6 +83,10 @@ Detail (warum, Symptome, Ausnahmen):
   Creation-Wizard schreibt bei Erfassung nie direkt in den Ziel-Provider;
   Submissions landen in interner Inbox (MongoDB + Azure Blob), Publikation
   ist ein rechte-gateter, idempotenter Promotion-Job
+- Vorgeschlagen (deponiert): `docs/adr/0005-co-creator-eigene-storage-auth.md` —
+  Co-Creator mit „Zugriff Archiv" nutzen kuenftig EIGENE Storage-Auth
+  (OneDrive/Nextcloud) statt der Owner-Credentials; Galerie/Erkunden (MongoDB)
+  vs. Archiv (Storage) trennen; Auth bei Invite eingeben + testen — spaeterer Schritt
 
 ## Branching, Commits, PRs (Kurz)
 
