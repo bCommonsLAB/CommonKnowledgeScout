@@ -896,7 +896,7 @@ export function GalleryRoot({
           fieldLabels={facetFieldLabels}
           libraryId={libraryId || undefined}
           onSaveDefault={isOwner ? handleSaveGraphDefault : undefined}
-          canManageRelations={isLibraryMember}
+          canManageRelations={isOwner}
         />
       )
     }
