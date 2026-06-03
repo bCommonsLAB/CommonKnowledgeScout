@@ -414,9 +414,11 @@ export function GalleryRoot({
     // "Titel" ist immer dabei (fest codiert in der Such-API)
     const fields = [t('gallery.searchFieldTitle') || 'Titel']
     
-    // Füge Labels aller String/String[]-Facetten hinzu
+    // Füge Labels aller durchsuchbaren Facetten hinzu (String/String[] sowie
+    // Zahl-Facetten wie massnahme_nr — diese werden serverseitig per $toString
+    // durchsucht, siehe docs-Route).
     for (const def of facetDefs) {
-      if (def.type === 'string' || def.type === 'string[]') {
+      if (def.type === 'string' || def.type === 'string[]' || def.type === 'number' || def.type === 'integer-range') {
         // Verwende das Label, falls vorhanden, sonst den metaKey
         const label = def.label || def.metaKey
         if (label && !fields.includes(label)) {

@@ -137,6 +137,20 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
         if (def.type === 'string' || def.type === 'string[]') {
           searchFields.push({ [def.metaKey]: searchRegex })
           searchFields.push({ [`docMetaJson.${def.metaKey}`]: searchRegex })
+        } else if (def.type === 'number' || def.type === 'integer-range') {
+          // Zahl-Facetten (z. B. massnahme_nr) durchsuchbar machen — egal ob als
+          // Zahl oder String gespeichert: Wert per $toString in Text wandeln und
+          // gegen die (Teilstring-)Suche matchen. Sonst findet die Freitextsuche
+          // z. B. eine Maßnahmennummer nie (Regex greift nicht auf Number-Feldern).
+          searchFields.push({
+            $expr: {
+              $regexMatch: {
+                input: { $toString: { $ifNull: [`$docMetaJson.${def.metaKey}`, ''] } },
+                regex: search,
+                options: 'i',
+              },
+            },
+          })
         }
       }
       
