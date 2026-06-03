@@ -29,15 +29,15 @@ interface DocGraphSceneProps {
   height: number
   onOpenDocument: (doc: DocCardMeta) => void
   /**
-   * „Supporter darstellen" (nur Beziehungen/Quelle A): zeichnet um jeden Knoten
+   * „Enabler darstellen" (nur Beziehungen/Quelle A): zeichnet um jeden Knoten
    * einen strichlierten hellorangen Halo, dessen Größe die akkumulierte Wirkung
-   * (sizeField) der von ihm unterstützten Ziel-Maßnahmen zeigt. Macht kleine
-   * Unterstützungs-Maßnahmen mit großer indirekter Wirkung sichtbar.
+   * (sizeField) der von ihm ermöglichten Ziel-Maßnahmen zeigt. Macht kleine
+   * Enabler-Maßnahmen mit großer indirekter Wirkung sichtbar.
    */
-  showSupporters?: boolean
+  showEnablers?: boolean
 }
 
-export function DocGraphScene({ data, docs, encodings, width, height, onOpenDocument, showSupporters }: DocGraphSceneProps) {
+export function DocGraphScene({ data, docs, encodings, width, height, onOpenDocument, showEnablers }: DocGraphSceneProps) {
   const { sizeField, colorField, opacityField, colorMap } = encodings
   const { t } = useTranslation()
   const [hovered, setHovered] = useState<GraphNode | null>(null)
@@ -49,11 +49,11 @@ export function DocGraphScene({ data, docs, encodings, width, height, onOpenDocu
     [sizeField, domainMax],
   )
 
-  // Supporter-Score je Knoten: Summe der Wirkung (sizeField) der unterstützten
+  // Enabler-Score je Knoten: Summe der Wirkung (sizeField) der ermöglichten
   // Ziele, gewichtet mit dem Kantengewicht. Nur über gerichtete Kanten (Quelle A).
-  const supporterScore = useMemo(() => {
+  const enablerScore = useMemo(() => {
     const m = new Map<string, number>()
-    if (!showSupporters) return m
+    if (!showEnablers) return m
     for (const l of data.links) {
       if (!l.directed) continue
       const s = l.source as GraphNode, t = l.target as GraphNode
@@ -64,19 +64,19 @@ export function DocGraphScene({ data, docs, encodings, width, height, onOpenDocu
       m.set(s.id, (m.get(s.id) ?? 0) + impact * w)
     }
     return m
-  }, [showSupporters, data.links, sizeField])
-  const maxSupporter = useMemo(
-    () => (supporterScore.size ? Math.max(...supporterScore.values()) : 0),
-    [supporterScore],
+  }, [showEnablers, data.links, sizeField])
+  const maxEnabler = useMemo(
+    () => (enablerScore.size ? Math.max(...enablerScore.values()) : 0),
+    [enablerScore],
   )
   // Halo-Radius: Basis-Radius + sqrt-skalierter Zuschlag (Fläche ~ Score).
   const haloRadiusOf = useCallback(
     (n: GraphNode): number | null => {
-      const score = supporterScore.get(n.id) ?? 0
-      if (score <= 0 || maxSupporter <= 0) return null
-      return radiusOf(n) + 6 + Math.sqrt(score / maxSupporter) * 30
+      const score = enablerScore.get(n.id) ?? 0
+      if (score <= 0 || maxEnabler <= 0) return null
+      return radiusOf(n) + 6 + Math.sqrt(score / maxEnabler) * 30
     },
-    [supporterScore, maxSupporter, radiusOf],
+    [enablerScore, maxEnabler, radiusOf],
   )
 
   const { version, transform, svgRef, resetZoom, onNodePointerDown } = useGraphSimulation({
@@ -163,8 +163,8 @@ export function DocGraphScene({ data, docs, encodings, width, height, onOpenDocu
                 }}
               >
                 {(() => {
-                  // Supporter-Halo (strichliert, hell orange): akkumulierte
-                  // Wirkung der unterstützten Ziele. Hinter dem Knoten gezeichnet.
+                  // Enabler-Halo (strichliert, hell orange): akkumulierte
+                  // Wirkung der ermöglichten Ziele. Hinter dem Knoten gezeichnet.
                   const halo = !isHub ? haloRadiusOf(n) : null
                   return halo ? (
                     <circle

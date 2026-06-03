@@ -343,7 +343,7 @@
       "nodes": "Nodes",
       "edges": "Edges",
       "resetZoom": "Reset view",
-      "showSupporters": "Show supporters",
+      "showEnablers": "Show enablers",
       "customize": "Customize",
       "controlsFields": "Connect by (fields)",
       "controlsAddField": "Add field …",
