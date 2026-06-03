@@ -343,6 +343,7 @@
       "nodes": "Nœuds",
       "edges": "Arêtes",
       "resetZoom": "Réinitialiser la vue",
+      "showEnablers": "Afficher les enablers",
       "customize": "Personnaliser",
       "controlsFields": "Connecter par (champs)",
       "controlsAddField": "Ajouter un champ …",
