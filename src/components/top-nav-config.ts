@@ -48,6 +48,10 @@ export function buildTopNavConfig({
       name: t('navigation.gallery'),
       href: '/library/gallery',
     },
+    {
+      name: 'Wartekorb',
+      href: '/library/inbox',
+    },
     ...(webViewEnabled && webViewTestHref ? [{
       name: t('navigation.webView'),
       href: webViewTestHref,
