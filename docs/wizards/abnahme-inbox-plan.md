@@ -125,3 +125,27 @@ sondern es später erneut versucht.
 Mehrwöchig, in Scheiben. **Empfohlener Start: B6** (klein, testbar, sofort
 nützlich), dann **W1 + W2** (Inbox-Kern), danach W4 (Abnahme-UI) als sichtbarer
 Mehrwert; W3/W5/W6 begleitend.
+
+## Architektur-Update 2026-06-04 — vereinte Architektur + Wellen-Plan
+
+Siehe [ADR-0004 Nachtrag (II)](../adr/0004-capture-publish-entkopplung-inbox-modell.md)
+und [Contributor-PDF-Upload-Wizard](contributor-pdf-upload-wizard.md). Kernidee:
+**Wartekorb = Governance**, **dünner Blob-Inbox-Provider = Transport** → die
+bestehende Pipeline läuft unverändert über den Provider (kein Doppel-Code).
+
+**Bereits gebaut (lokal verifiziert 2026-06-04):** W1 (Submission-Modell + Repo +
+Status-Maschine), W3 (`contributor`-Rolle), W4 (**Wartekorb**-Review-UI
+`/library/inbox`), B6 (`contentRequiredFields`). Stufe-A-API end-to-end getestet.
+
+**Wellen (Reihenfolge — Provider zuerst, damit kein Wegwerf-Upload entsteht):**
+
+| Welle | Inhalt | Reuse / Hinweis |
+|---|---|---|
+| **I — Dünner Inbox-Provider** | Blob-gestützter `StorageProvider`, NUR Inbox; Pfad `{libraryId}/inbox/{username}/{hash}.{ext}`; content-addressed, **kein** move/rename; als Provider-Typ registriert (`storage-factory.ts`); read/delete-only exponiert | **Start:** verifizieren, welche `StorageProvider`-Methoden die Analyse-Pipeline INNERHALB der Inbox wirklich aufruft (move/rename/createFolder?). Baut auf `AzureStorageService` (Leaf-Ops ~70% da) + braucht hierarchisches Listing |
+| **II — Stufe A (Upload)** | Einstieg „Inhalte erfassen" (rechte-gated, Galerie/Erkunden) + Wizard-Upload **über Welle I** → `pending`-Submission → Wartekorb | nutzt W1/W3/W4; KEIN Wegwerf-Upload |
+| **III — Stufe B (Analyse)** | Transcript + Transform (bestehende Secretary-/external-Job-Pipeline) laufen **über den Inbox-Provider** (off the Owner-Archiv); Contributor prüft/bestätigt Metadaten/Body/Kapitel im Wizard | maximaler Reuse; Bilder → Blob-Inbox |
+| **IV — Owner-Sichten** | Archiv-Modus zeigt Inbox (read/delete-only) + library-übergreifende **Briefansicht** | |
+| **V — W5 Promote** | Freigegebene Submission → Owner-Provider schreiben + RAG-Index → `published` (ersetzt `wizard-artifact-promotion.ts`) | einziger Ziel-Provider-Schreibschritt |
+
+**Aus Scope (vorerst):** Excel; Write-Key/QR (kontolos); Auto-Publish-Frage für
+Archiv-Nutzer.

@@ -148,3 +148,75 @@ draft → pending → ready → publishing → published
 - ADR-0001 (Job-Domänen getrennt halten)
 - Künftiges ADR-0003 (Wizard/Schema-Trennung) — kombinierbar: die Submission
   referenziert Wizard + Schema getrennt.
+
+## Nachtrag 2026-06-04 — Erfassungs-Einstieg nach Rechten (Zwei-Pfade-Modell)
+
+**Kontext:** Beim lokalen Testen (Wartekorb gebaut) wurde klar, dass der
+*Erfassungs-Einstieg* für Nutzer **ohne Archiv-Zugang** im Konzept fehlte. Die
+ursprüngliche Konsequenz „Inbox-UI im Archiv" betraf nur die **Reviewer**-Seite
+(Abnahme), nicht den Einstieg der Erfasser.
+
+**Zwei Pfade nach Rechten (bestätigt vom Owner):**
+
+| Wer | Pfad | Abnahme |
+|---|---|---|
+| **Archiv-Zugang** (owner / co-creator) | Upload → direkte/konventionelle Verarbeitung (Co-Autor-Pfad, E3) | nein — selbst berechtigt |
+| **Kein** Archiv-Zugang (**contributor**) | **Wizard komplett in der Quarantäne** (= Inbox, nur MongoDB + Blob, off-target): Upload → Transkript → Transform → Story-Preview → Submit → **Wartekorb** | ja — Reviewer (co-creator/owner) |
+
+**Einstiegspunkt (neue Entscheidung):** Der Erfassungs-Einstieg folgt der
+bestehenden Trennung **Archiv = Storage** vs. **Galerie/Erkunden = MongoDB**
+(vgl. ADR-0002/0005). Da die Quarantäne MongoDB-Welt ist, gehört der
+contributor-Einstieg **in die Galerie/Erkunden-Ansicht**: ein rechte-gateter
+Button **„Inhalte erfassen"** (sichtbar für contributor/co-creator/owner). Der
+`+`-Einstieg im Archiv bleibt der Pfad für Archiv-Nutzer.
+
+**Folge für W2 (Invariante schärfen):** Der Contributor-Wizard darf **keinen**
+Provider berühren — PDF in den Blob-Inbox-Bereich, Transkript/Transform
+**off-target**, Ergebnis als `pending`-Submission. (Heute schreibt der Wizard
+direkt → für Archiv-lose Nutzer nicht tragfähig.)
+
+**Offen / zu bestätigen:** Laufen Archiv-Nutzer durch *dieselbe* Mechanik (Inbox
++ sofortiges Auto-Publish = Co-Autor-Pfad) oder **umgehen** sie die Inbox ganz
+(rein konventionell)? Betrifft nur den Archiv-Pfad, nicht den Contributor-Flow.
+
+## Nachtrag 2026-06-04 (II) — Vereinte Architektur: dünner Blob-Inbox-Provider
+
+**Entscheidung:** Die in dieser ADR zunächst verworfene Option „Interner Provider"
+wird **gezielt für den Inbox-Bereich** wieder aufgenommen — als **dünner,
+Blob-gestützter `StorageProvider`**, der NUR die Quarantäne bedient. So läuft die
+**bestehende Pipeline (Upload/Wizard/Analyse/Asset) unverändert** über den Provider
+(**kein Doppel-Code**), während Quarantäne-Grenze + Immer-verfügbar-Garantie
+erhalten bleiben.
+
+**Warum jetzt machbar (der Grund der Verwerfung 2026-05-31 entfällt hier):**
+Inbox-Blobs sind **content-adressiert + unveränderlich bis zur Promotion** →
+**kein move/rename** → der harte Flat-Store-Teil (Ordner-Hierarchie, stabile IDs,
+Reparenting; Konflikt mit ADR-0005) wird **umgangen**. Der Provider braucht nur die
+machbare Teilmenge (`uploadFile`, `getBinary`, `listItemsById`, `exists`,
+`deleteItem`, virtuelle Ordner via Prefix). Blob hat **kein OAuth-Token-Problem**.
+
+**Rollen-Trennung bleibt:** Wartekorb = **Governance** (Prüf-Gate, Spine dieser
+ADR); Blob-Provider = **Transport** (wo die Bytes liegen). **W5** (Promotion Inbox
+→ Owner-Provider + RAG) bleibt der einzige Schritt, der den Ziel-Provider schreibt.
+
+**NICHT vollwertiger Library-Provider:** Der Blob-Provider wird NICHT als normaler
+Library-Backend gebunden, durch den der Wizard bei der Erfassung schreibt — das
+würde die Erfassung wieder an Storage-Verfügbarkeit koppeln und den Flat-Store-/
+ID-Konflikt einführen. Er ist **auf die Inbox beschränkt**.
+
+**Ein flacher Speicher für alles:** EIN Blob-Storage (des Owners) trägt die Inbox
+**aller** Libraries + **aller** Contributoren, getrennt über Pfad-Prefix.
+Vorschlag: `{libraryId}/inbox/{username}/{hash}.{ext}` (Aufteilung Username-Ordner
+vs. reines Content-Addressing in Welle I finalisieren — Trade-off Dedup ↔ Übersicht).
+
+**Owner-Sichten:**
+- **Pro Library:** der bestehende **Wartekorb** (Dokumente EINER Library prüfen).
+- **Archiv-Modus:** Owner sieht die Inbox einer Library als Speicher-Bereich —
+  **nur lesen + löschen**, kein Verschieben/Umbenennen/Ändern (schützt die
+  content-adressierte Verdrahtung).
+- **Library-übergreifend:** eine **Briefansicht** über ALLE Libraries des Owners
+  (Überblick über Contributor-Beiträge) — **ersetzt den Wartekorb nicht**.
+
+**Wellen:** I dünner Inbox-Provider · II Stufe A (Upload über Provider) · III Stufe
+B (Transcript/Transform im Wizard) · IV Owner-Sichten · V W5 Promote. Details:
+`docs/wizards/abnahme-inbox-plan.md`.
