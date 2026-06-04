@@ -79,7 +79,7 @@ Inbox-Strang (ADR-0003/0004) — keine Vermischung der Domaenen.
 - `.cursor/rules/storage-abstraction.mdc` — Member-Kontext in der
   Storage-Aufloesung dokumentieren.
 
-## Nachtrag 2026-06-03 — ID-/Sicht-Konsistenz bei eigener Identitaet (deponiert)
+## Nachtrag 2026-06-03 — Storage-verwaltete Rechte + ID-/Sicht-Konsistenz (deponiert)
 
 Wenn Owner und Co-Creator auf **denselben Verzeichnissen** arbeiten, jeder aber
 mit **eigener Identitaet/Auth**, muss die Sicht **dauerhaft identisch** bleiben:
@@ -87,23 +87,33 @@ mit **eigener Identitaet/Auth**, muss die Sicht **dauerhaft identisch** bleiben:
 System haengt an **stabilen IDs** (Shadow Twins, Vektor-Daten, Item-Properties an
 einem stabilen `itemKey`/VCodex — siehe
 [`mongodb-repository-pattern.md`](../architecture/mongodb-repository-pattern.md),
-Abschnitt „Stabile Keys"). Identitaets-/konto-spezifische Provider-IDs (z.B.
-OneDrive-/SharePoint-Item-IDs pro Konto) wuerden die geteilten MongoDB-Daten
-brechen.
+Abschnitt „Stabile Keys").
 
-**Konsequenzen / vorgeschlagene Massnahmen (zu bestaetigen):**
+### Rechte-Modell (korrigiert): Rechte liegen im Storage, nicht in KnowledgeScout
 
-- **Rechte-/Zuordnungs-Verwaltung in der gemeinsamen Schicht (MongoDB) halten;**
-  der Storage-Provider liefert nur die Dateien, die geteilte Identitaet der
-  Inhalte (stabiler Key) lebt zentral — nicht pro Provider-Konto.
-  *(Interpretation der akustisch unklaren Passage — vom Owner zu bestaetigen.)*
-- **Paritaets-Pruefung:** ein Werkzeug/Dienst (ggf. Desktop) analysiert die
-  Dateien des Co-Creators und prueft, ob **File-IDs und Zugriffsrechte zwischen
-  Owner- und Co-Creator-Sicht identisch** sind.
-- **Pruefung beim Oeffnen eines Verzeichnisses:** bei jedem Oeffnen die IDs/Rechte
-  vergleichen und **Abweichungen sofort sichtbar** machen.
+- **Die Zugriffsrechte auf Verzeichnisse verwaltet der Storage-Provider** (z.B.
+  Nextcloud-/OneDrive-Sharing), **nicht** KnowledgeScout/MongoDB. Lade ich jemanden
+  als Co-Creator ein, muss das betreffende **Verzeichnis im Provider mit ihm
+  geteilt** sein — KnowledgeScout vergibt keine Storage-Rechte, sondern **nutzt**
+  die im Provider gesetzten.
+- **Der Owner bestimmt das (geteilte) Root-Verzeichnis.** Der Co-Creator gibt
+  **sein eigenes Root-Verzeichnis** an, weil die Pfad-/Verzeichnisstruktur aus
+  seiner Sicht i.d.R. **abweicht** (geteilte Ordner liegen bei ihm unter einem
+  anderen Pfad — analog dem heutigen `localPathOverride`).
+- **Validierung beim Login/Connect:** Verbindet sich ein Member, prueft
+  KnowledgeScout, dass er **nicht nur gueltige Provider-Credentials hat, sondern
+  auch Zugriff auf genau dieses gemeinsame Root-Verzeichnis** — sonst kein
+  Archiv-Zugriff (kein stiller Fallback).
 
-**Offene Frage (Kern):** Wie werden stabile IDs ueber Identitaeten hinweg
-garantiert? (a) der Provider liefert fuer dieselbe geteilte Ressource identische
-IDs, oder (b) ein **ID-Mapping in MongoDB** (Owner-ID ↔ Member-ID) auf einen
-stabilen Schluessel (Pfad/VCodex), falls die Provider-IDs pro Konto abweichen.
+### ID-/Datei-Konsistenz (offen — erst untersuchen)
+
+- Kernfrage: Findet der Co-Creator im Storage **dieselben Dateien mit denselben
+  IDs** wie der Owner? Bei **Filesystem/Netzlaufwerk** einfach verifizierbar — eine
+  **Testdatei** ueber den gemeinsamen Pfad zeigt, ob beide dieselbe Datei sehen.
+  Bei **OneDrive/Nextcloud ist offen**, ob geteilte Ressourcen konto-uebergreifend
+  **identische IDs** liefern — das muessen wir **zuerst untersuchen**.
+- Moegliche Massnahme (nach Untersuchung): **Paritaets-Check** (Testdatei/Probe
+  beim Anmelden und/oder beim Oeffnen eines Verzeichnisses), der abweichende
+  IDs/Rechte **sofort sichtbar** macht. Weichen Provider-IDs pro Konto ab →
+  **stabiler Schluessel statt Provider-ID** (Pfad/VCodex) bzw. ID-Mapping in
+  MongoDB.
