@@ -28,7 +28,7 @@
  */
 
 import { StorageProvider, StorageItem, StorageValidationResult } from './types';
-import { ClientLibrary } from '@/types/library';
+import { ClientLibrary, StorageConfig } from '@/types/library';
 import { OneDriveProvider } from './onedrive-provider';
 import { getSupportedLibraryTypesString } from './supported-types';
 import { AuthLogger } from '@/lib/debug/logger';
@@ -767,6 +767,19 @@ export class StorageFactory {
           (provider as unknown as { setUserEmail?: (e: string) => void }).setUserEmail?.(this.userEmail);
         }
         break;
+      case 'inbox': {
+        // Interner, NUR serverseitig konstruierter Inbox-Provider (ADR-0004 II):
+        // duenner, content-adressierter Blob-Bereich; kein Client-Proxy.
+        // Dynamischer Import, damit @azure/storage-blob nicht im Client-Bundle landet.
+        if (!this.serverContext) {
+          throw new Error('Inbox-Provider ist nur im Server-Kontext verfügbar (kein Client-Proxy).');
+        }
+        const { InboxBlobProvider } = await import('./inbox/inbox-blob-provider');
+        const { AzureInboxBlobStore } = await import('./inbox/azure-inbox-blob-store');
+        const inboxConfig = (library.config as unknown as StorageConfig | undefined) ?? null;
+        provider = new InboxBlobProvider(library.id, new AzureInboxBlobStore(inboxConfig));
+        break;
+      }
       default:
         console.warn(`StorageFactory: Nicht unterstützter Bibliothekstyp "${library.type}" für Bibliothek "${library.label}"`);
         console.info(`StorageFactory: Unterstützte Typen: ${getSupportedLibraryTypesString()}`);

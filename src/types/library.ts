@@ -51,7 +51,10 @@ export interface FavoriteEntry {
  * Supported storage provider types.
  * Each type represents a different storage backend implementation.
  */
-export type StorageProviderType = 'local' | 'onedrive' | 'gdrive' | 'nextcloud';
+export type StorageProviderType = 'local' | 'onedrive' | 'gdrive' | 'nextcloud' | 'inbox';
+// 'inbox' ist ein INTERNER, nur serverseitig konstruierter Provider (ADR-0004 II):
+// duenner, content-adressierter Blob-Bereich fuer die Quarantaene. Er ist KEIN vom
+// User waehlbarer Library-Typ — bewusst NICHT in den Settings-Formularen gelistet.
 
 /**
  * Konfiguration fuer Dokumenten-Uebersetzungen pro Library.

@@ -23,7 +23,9 @@
  * - None (pure type definitions and utilities)
  */
 
-export const SUPPORTED_LIBRARY_TYPES = ['local', 'onedrive', 'nextcloud'] as const;
+// 'inbox': interner Blob-Inbox-Provider (ADR-0004 II) — von der Factory konstruierbar,
+// aber NICHT in den Library-Anlage-/Settings-Formularen waehlbar (Guardrail).
+export const SUPPORTED_LIBRARY_TYPES = ['local', 'onedrive', 'nextcloud', 'inbox'] as const;
 export type SupportedLibraryType = typeof SUPPORTED_LIBRARY_TYPES[number];
 
 /**
