@@ -17,6 +17,8 @@ const h = vi.hoisted(() => ({
   getActiveMemberRole: vi.fn(),
   createSubmission: vi.fn(),
   listSubmissions: vi.fn(),
+  getInboxProvider: vi.fn(),
+  uploadInboxBinary: vi.fn(),
 }));
 
 vi.mock('@clerk/nextjs/server', () => ({ auth: h.auth, currentUser: h.currentUser }));
@@ -35,6 +37,11 @@ vi.mock('@/lib/repositories/wizard-submissions-repo', () => ({
   createSubmission: h.createSubmission,
   listSubmissions: h.listSubmissions,
 }));
+vi.mock('@/lib/storage/inbox/inbox-provider-entry', () => ({
+  getInboxProvider: h.getInboxProvider,
+  inboxUsernameFromEmail: (email: string) => email,
+}));
+vi.mock('@/lib/submissions/inbox-upload', () => ({ uploadInboxBinary: h.uploadInboxBinary }));
 
 import { POST, GET } from '@/app/api/submissions/route';
 
@@ -63,6 +70,23 @@ function postReq(body: unknown): NextRequest {
 
 function getReq(query: string): NextRequest {
   return new NextRequest(`http://localhost/api/submissions${query}`, { method: 'GET' });
+}
+
+const MULTIPART_FIELDS = {
+  libraryId: 'lib-1',
+  wizardId: 'pdf-upload',
+  docType: 'pdfanalyse',
+  detailViewType: 'book',
+  markdownBody: '',
+  metadata: JSON.stringify({ title: 'Quelle.pdf' }),
+};
+
+function postMultipart(fields: Record<string, string>, withFile = true): NextRequest {
+  const form = new FormData();
+  for (const [k, v] of Object.entries(fields)) form.set(k, v);
+  if (withFile) form.set('file', new File([Buffer.from('%PDF-1.4')], 'Quelle.pdf', { type: 'application/pdf' }));
+  // FormData als Body setzt content-type multipart/form-data inkl. boundary.
+  return new NextRequest('http://localhost/api/submissions', { method: 'POST', body: form });
 }
 
 beforeEach(() => {
@@ -135,6 +159,44 @@ describe('POST /api/submissions', () => {
     const res = await POST(postReq(VALID));
     expect(res.status).toBe(201);
     expect(h.createSubmission.mock.calls[0][0].createdByRole).toBe('contributor');
+  });
+});
+
+describe('POST /api/submissions (multipart, Stufe A)', () => {
+  it('201: laedt die Binaerquelle ueber den Inbox-Provider und merged die Ref', async () => {
+    login('u@example.com');
+    h.getLibrary.mockResolvedValue(null);
+    h.getActiveMemberRole.mockResolvedValue('contributor');
+    h.getInboxProvider.mockResolvedValue({ id: 'lib-1' });
+    const ref = { hash: 'abc', url: 'https://blob/lib-1/inbox/u@example.com/abc.pdf', fileName: 'Quelle.pdf', contentType: 'application/pdf', size: 8 };
+    h.uploadInboxBinary.mockResolvedValue(ref);
+    h.createSubmission.mockResolvedValue({ id: 'sub-pdf', status: 'pending' });
+
+    const res = await POST(postMultipart(MULTIPART_FIELDS));
+    expect(res.status).toBe(201);
+    expect(h.getInboxProvider).toHaveBeenCalledWith('u@example.com', 'lib-1');
+    const input = h.createSubmission.mock.calls[0][0];
+    expect(input).toMatchObject({ libraryId: 'lib-1', createdByRole: 'contributor', status: 'pending', docType: 'pdfanalyse', detailViewType: 'book' });
+    expect(input.binaryRefs).toEqual([ref]);
+  });
+
+  it('400, wenn die Datei fehlt (kein Upload, kein Submit)', async () => {
+    login('u@example.com');
+    h.getLibrary.mockResolvedValue({ id: 'lib-1' });
+    const res = await POST(postMultipart(MULTIPART_FIELDS, false));
+    expect(res.status).toBe(400);
+    expect(h.getInboxProvider).not.toHaveBeenCalled();
+    expect(h.createSubmission).not.toHaveBeenCalled();
+  });
+
+  it('403 ohne Erfass-Recht -> kein Upload (Rechte vor dem Blob)', async () => {
+    login('u@example.com');
+    h.getLibrary.mockResolvedValue(null);
+    h.getActiveMemberRole.mockResolvedValue('moderator');
+    const res = await POST(postMultipart(MULTIPART_FIELDS));
+    expect(res.status).toBe(403);
+    expect(h.uploadInboxBinary).not.toHaveBeenCalled();
+    expect(h.createSubmission).not.toHaveBeenCalled();
   });
 });
 

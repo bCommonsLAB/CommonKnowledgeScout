@@ -1,25 +1,22 @@
 /**
- * @fileoverview Azure-Blob-Inbox-Bereich fuer Submission-Binaerquellen (ADR-0004).
+ * @fileoverview Inbox-Binaer-Helfer: Endung + SubmissionBinaryRef (ADR-0004).
  *
  * @description
- * Reine Helfer, die definieren, WO Submission-Binaerdaten im Azure-Blob liegen
- * (content-addressed, library-scoped) und wie eine `SubmissionBinaryRef`
- * aufgebaut wird. Der eigentliche Upload (Buffer -> Blob) gehoert in die
- * Erfassungs-Welle (W2) und nutzt `AzureStorageService`; W1 definiert nur die
- * Adressierung + Referenz-Form.
+ * Reine Helfer rund um Submission-Binaerquellen: Datei-Endung normalisieren und
+ * eine `SubmissionBinaryRef` aufbauen. Die Adressierung (WO ein Blob liegt) ist
+ * seit Welle II-A KEIN separater Helfer mehr — sie gehoert ausschliesslich dem
+ * `InboxBlobProvider` (`src/lib/storage/inbox/`), damit Capture- und
+ * Provider-Pfad konvergieren (single source of truth fuer Pfade). Der Upload
+ * laeuft ueber `uploadInboxBinary` (`inbox-upload.ts`).
  *
  * Invariante (ADR-0004): KEINE Binaerdaten in MongoDB - nur diese Referenz.
  *
- * @see docs/adr/0004-capture-publish-entkopplung-inbox-modell.md
- * @see src/lib/services/azure-storage-service.ts (sanitizeLibraryId)
+ * @see src/lib/submissions/inbox-upload.ts
+ * @see src/lib/storage/inbox/inbox-path.ts
  * @module lib/submissions
  */
 
-import { sanitizeLibraryId } from '@/lib/services/azure-storage-service';
 import type { SubmissionBinaryRef } from '@/types/wizard-submission';
-
-/** Pfad-Segment des Inbox-Bereichs (getrennt von `books`/`sessions`). */
-export const INBOX_SCOPE = 'inbox';
 
 /**
  * Normalisiert die Dateiendung (lowercase, ohne fuehrenden Punkt).
@@ -30,24 +27,6 @@ export function extractFileExtension(fileName: string): string {
   const dot = fileName.lastIndexOf('.');
   if (dot < 0 || dot === fileName.length - 1) return '';
   return fileName.slice(dot + 1).toLowerCase();
-}
-
-/**
- * Content-addressed Blob-Pfad im Inbox-Bereich:
- *   {sanitizedLibraryId}/inbox/{hash}[.{extension}]
- * Dedup je Library ueber den Hash (analog Bild-Upload).
- */
-export function getInboxBlobPath(
-  libraryId: string,
-  hash: string,
-  extension: string,
-): string {
-  if (!libraryId) throw new Error('getInboxBlobPath: libraryId ist erforderlich');
-  if (!hash) throw new Error('getInboxBlobPath: hash ist erforderlich');
-  const lib = sanitizeLibraryId(libraryId);
-  const ext = extension.replace(/^\.+/, '').toLowerCase();
-  const file = ext ? `${hash}.${ext}` : hash;
-  return `${lib}/${INBOX_SCOPE}/${file}`;
 }
 
 /** Eingabe fuer `buildInboxBinaryRef`. */

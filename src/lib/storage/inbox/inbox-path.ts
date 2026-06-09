@@ -13,11 +13,12 @@
  */
 
 import type { StorageItem } from '../types';
-// Dieselbe Sanitisierung wie die Erfassungs-Welle (src/lib/submissions/inbox-blob.ts),
-// damit Provider- und Capture-Pfade deterministisch uebereinstimmen.
+// Der Provider ist seit Welle II-A die einzige Pfad-Autoritaet der Inbox; die
+// Capture-Route laedt ueber ihn (uploadInboxBinary) und uebernimmt damit dieselbe
+// Sanitisierung — Provider- und Capture-Pfad konvergieren ohne zweiten Helfer.
 import { sanitizeLibraryId } from '@/lib/services/azure-storage-service';
 
-/** Pfad-Segment des Inbox-Bereichs (identisch zu src/lib/submissions/inbox-blob.ts). */
+/** Pfad-Segment des Inbox-Bereichs. */
 const INBOX_SCOPE = 'inbox';
 
 /** Spezial-ID fuer die Inbox-Wurzel einer Library. */
