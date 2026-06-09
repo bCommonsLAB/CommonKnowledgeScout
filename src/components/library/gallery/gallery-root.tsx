@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FilterContextBar } from '@/components/library/filter-context-bar'
 import { StoryModeHeader } from '@/components/library/story/story-mode-header'
 import { GalleryStickyHeader } from '@/components/library/gallery/gallery-sticky-header'
+import { CaptureContentButton } from '@/components/submissions/capture-content-button'
 import { FiltersPanel } from '@/components/library/gallery/filters-panel'
 import { ItemsView } from '@/components/library/gallery/items-view'
 import { GroupedItemsView } from '@/components/library/gallery/grouped-items-view'
@@ -991,6 +992,7 @@ export function GalleryRoot({
             cardDensity={cardDensity}
             onCardDensityChange={handleCardDensityChange}
             showGraph={graphEnabled}
+            actions={<CaptureContentButton libraryId={libraryId} />}
           />
 
           <div className='flex-1 min-h-0 overflow-hidden flex flex-col'>

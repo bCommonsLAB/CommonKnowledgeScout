@@ -24,6 +24,8 @@ export interface GalleryStickyHeaderProps {
   onCardDensityChange?: (density: GalleryCardDensity) => void
   /** Graph-Modus als dritte Ansicht anbieten (nur wenn pro Library aktiviert). */
   showGraph?: boolean
+  /** Optionale Aktionen rechts in der Toolbar (z.B. „Inhalte erfassen"). */
+  actions?: React.ReactNode
 }
 
 /**
@@ -45,6 +47,7 @@ export function GalleryStickyHeader(props: GalleryStickyHeaderProps) {
     cardDensity = 'comfortable',
     onCardDensityChange,
     showGraph = false,
+    actions,
   } = props
 
   // Verwende gemeinsamen Scroll-Visibility-Hook (wie TopNav)
@@ -98,6 +101,7 @@ export function GalleryStickyHeader(props: GalleryStickyHeaderProps) {
             <ViewModeToggle viewMode={viewMode} onViewModeChange={onViewModeChange} showGraph={showGraph} />
           </div>
         )}
+        {actions ? <div className="flex items-center gap-2 shrink-0">{actions}</div> : null}
       </div>
     </div>
   )
