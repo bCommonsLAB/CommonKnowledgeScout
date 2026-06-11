@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "@/components/ui/use-toast"
+import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog"
 import { Search } from "lucide-react"
 import { useState } from "react"
 import { type Library, type ClientLibrary } from "@/types/library"
@@ -392,15 +393,22 @@ export function ShadowTwinConfigSection({
               oder für die Einrichtung auf einem neuen System.
             </p>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!activeLibraryId || isSyncRunning}
-            onClick={() => void runDirectionalSync("to-storage")}
-          >
-            <Search className={`h-4 w-4 mr-2 ${isSyncRunning ? "animate-spin" : ""}`} />
-            {isSyncRunning ? "Exportiert…" : "Exportieren"}
-          </Button>
+          <ConfirmActionDialog
+            title="Alle Artefakte ins Dateisystem exportieren?"
+            description="Schreibt alle Artefakte und Bilder aus dem Cache ins Dateisystem. Vorhandene Artefakt-Dateien werden dabei überschrieben."
+            confirmLabel="Exportieren"
+            onConfirm={() => void runDirectionalSync("to-storage")}
+            trigger={
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!activeLibraryId || isSyncRunning}
+              >
+                <Search className={`h-4 w-4 mr-2 ${isSyncRunning ? "animate-spin" : ""}`} />
+                {isSyncRunning ? "Exportiert…" : "Exportieren"}
+              </Button>
+            }
+          />
         </div>
       </div>
     </div>

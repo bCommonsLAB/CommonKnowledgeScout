@@ -14,6 +14,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog"
 import {
   Table,
   TableBody,
@@ -253,21 +254,33 @@ export function MembersList({ libraryId }: MembersListProps) {
                         )}
                       </Button>
                     )}
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleRemoveMember(member.userEmail, member.status)}
-                      disabled={removingEmail === member.userEmail}
-                    >
-                      {removingEmail === member.userEmail ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <>
-                          <Trash2 className="h-4 w-4 mr-1" />
-                          {member.status === 'pending' ? 'Zurueckziehen' : 'Entfernen'}
-                        </>
-                      )}
-                    </Button>
+                    <ConfirmActionDialog
+                      title={member.status === 'pending'
+                        ? `Einladung für ${member.userEmail} zurückziehen?`
+                        : `Mitglied ${member.userEmail} entfernen?`}
+                      description={member.status === 'pending'
+                        ? 'Der Einladungslink wird ungültig; Sie können die Person später erneut einladen.'
+                        : 'Die Person verliert sofort den Zugriff auf alle Inhalte dieser Bibliothek. Für erneuten Zugang ist eine neue Einladung nötig.'}
+                      confirmLabel={member.status === 'pending' ? 'Zurückziehen' : 'Entfernen'}
+                      destructive
+                      onConfirm={() => void handleRemoveMember(member.userEmail, member.status)}
+                      trigger={
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          disabled={removingEmail === member.userEmail}
+                        >
+                          {removingEmail === member.userEmail ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              {member.status === 'pending' ? 'Zurueckziehen' : 'Entfernen'}
+                            </>
+                          )}
+                        </Button>
+                      }
+                    />
                   </TableCell>
                 </TableRow>
               ))}

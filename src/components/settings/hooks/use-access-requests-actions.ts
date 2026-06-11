@@ -142,12 +142,11 @@ export function useAccessRequestsActions({
     }
   }
 
-  /** Loescht eine Zugriffsanfrage nach Bestaetigungs-Dialog */
+  /**
+   * Loescht eine Zugriffsanfrage. Die Bestaetigung uebernimmt der
+   * ConfirmActionDialog in der Liste (Welle 3-IV-UX-3d).
+   */
   async function handleDeleteRequest(requestId: string) {
-    if (!confirm('Möchten Sie diese Zugriffsanfrage wirklich löschen?')) {
-      return
-    }
-
     addProcessingId(requestId)
 
     try {

@@ -15,6 +15,7 @@
  */
 
 import { Button } from "@/components/ui/button"
+import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog"
 import {
   Dialog,
   DialogContent,
@@ -595,21 +596,20 @@ export function MigrationWizardSection({
               >
                 Schließen
               </Button>
-              <Button
-                type="button"
-                onClick={() => {
-                  const cleanupText = dryRunCleanupFilesystem
-                    ? "(Dateien im Storage werden nach dem Import gelöscht)"
-                    : "(Dateien im Storage bleiben erhalten)";
-                  const confirmed = window.confirm(
-                    `Artefakte aus dem Dateisystem laden ${cleanupText}. Fortfahren?`
-                  );
-                  if (confirmed) void runShadowTwinMigration();
-                }}
-                disabled={dryRunRunning}
-              >
-                {dryRunRunning ? "Läuft…" : "Laden"}
-              </Button>
+              <ConfirmActionDialog
+                title="Artefakte aus dem Dateisystem laden?"
+                description={dryRunCleanupFilesystem
+                  ? "Nach dem erfolgreichen Import werden die Artefakt-Dateien im Storage GELÖSCHT. Dieser Schritt kann nicht rückgängig gemacht werden."
+                  : "Die Artefakte werden in den Cache importiert; die Dateien im Storage bleiben erhalten."}
+                confirmLabel="Laden"
+                destructive={dryRunCleanupFilesystem}
+                onConfirm={() => void runShadowTwinMigration()}
+                trigger={
+                  <Button type="button" disabled={dryRunRunning}>
+                    {dryRunRunning ? "Läuft…" : "Laden"}
+                  </Button>
+                }
+              />
             </DialogFooter>
           </DialogContent>
         </Dialog>

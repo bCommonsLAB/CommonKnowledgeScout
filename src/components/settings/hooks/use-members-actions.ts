@@ -191,13 +191,13 @@ export function useMembersActions({
     }
   }
 
-  /** Entfernt Mitglied oder zieht ausstehende Einladung zurueck */
+  /**
+   * Entfernt Mitglied oder zieht ausstehende Einladung zurueck.
+   * Die Bestaetigung uebernimmt der ConfirmActionDialog in der Liste
+   * (Welle 3-IV-UX-3d) — hier wird direkt ausgefuehrt.
+   */
   async function handleRemoveMember(email: string, memberStatus?: string) {
-    const label = memberStatus === 'pending' ? 'die Einladung zurueckziehen' : 'das Mitglied entfernen'
-    if (!confirm(`Moechten Sie ${label} fuer ${email}?`)) {
-      return
-    }
-
+    void memberStatus
     setRemovingEmail(email)
 
     try {
