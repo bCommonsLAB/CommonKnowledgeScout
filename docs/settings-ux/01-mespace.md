@@ -2,7 +2,9 @@
 
 Einstufung: **K**ern (jeder Owner) · **G**estaltung (einfach, optional) ·
 **E**xperte · **W**artung (selten, destruktiv) · **V**eraltet/defekt (→ 04).
-„Heute" = Tab/Komponente im Ist-Zustand.
+Gliederung nach User-Review 2026-06-11 (Festlegungen F1–F8, siehe README §6).
+**Leitnutzer:** Laie baut eine Library aus PDF-Dokumenten oder Interviews —
+alles Technische läuft mit Standardwerten und liegt unter „Erweitert".
 
 ## Grundlagen
 
@@ -14,69 +16,74 @@ Einstufung: **K**ern (jeder Owner) · **G**estaltung (einfach, optional) ·
 | … die Library endgültig löschen | Allgemein, Gefahrenzone | K | Bestätigungs-Dialog vorhanden — Vorbild für andere destruktive Aktionen |
 | … eine interne Beschreibung hinterlegen | Allgemein | V | wird nirgends angezeigt (E4) |
 
-## Speicherort
+## Speicherort — wird WIZARD (F1–F4, Design: [05-storage-wizard.md](05-storage-wizard.md))
 
 | Story | Heute | Stufe | Anmerkung |
 |---|---|---|---|
-| … wählen, wo meine Dateien liegen (lokal/OneDrive/Nextcloud) | Storage „Speichertyp" | K | Typ-Wechsel bestehender Library heute OHNE Warnung — Gefahren-UX nötig |
-| … den Wurzelpfad festlegen | Storage „Speicherpfad" | K | Placeholder nicht provider-spezifisch — verwirrend |
-| … mich per Klick bei OneDrive an-/abmelden | Storage, OAuth-Flow | K | Abmelden kappt Zugriff ohne Bestätigung |
-| … sehen, ob meine Cloud-Verbindung aktiv ist | Storage, Token-Status | K | nur localStorage-basiert, kein Server-Ping |
-| … OneDrive-App-Zugangsdaten hinterlegen (Tenant/Client/Secret) | Storage | E | Azure-Portal-Wissen nötig; System-Defaults via `oauth-defaults` unsichtbar — Zwei-Ebenen-Logik erklären oder verbergen |
-| … Nextcloud per WebDAV anbinden (URL/User/App-Passwort) | Storage | E | exaktes URL-Format nötig, kein Validierungs-Feedback |
-| … Google Drive anbinden | Storage | V | Attrappe: kein Provider, kein OAuth (E3) |
-| … die Verbindung testen, bevor ich arbeite | Storage „Storage testen" | K | Ergebnis-Dialog zeigt rohe Logs — Einsteiger-Ansicht nötig |
+| … meinen Speicherort geführt einrichten: Provider → Anmelden → Verzeichnis → Test | Storage-Formular, frei editierbar | K | Wurzelverzeichnis aus Storage-Listing wählen, KEIN Freitext-Pfad; Wizard endet IMMER mit Verbindungstest (separater Test-Button entfällt) |
+| … mich neu anmelden, wenn mein Zugang abgelaufen ist | passiver Token-Status-Alert | K | Re-Auth-Flow extrahiert + app-weit: Trigger auch beim Archiv-Einstieg mit ungültigem Token (F2) — häufigste Fehlerquelle heute |
+| … sehen, ob meine Verbindung aktiv ist | Token-Status (localStorage) | K | server-seitig prüfen (04/D7) |
+| … App-Zugangsdaten einsehen (Tenant/Client/Secret, Nextcloud-App-Passwort) | editierbare Formularfelder | E | nach Einrichtung read-only (F3); Änderung nur durch erneuten Wizard-Durchlauf |
+| … Google Drive anbinden | `gdrive-section` | V | entfernen (F4) |
+
+## Inhaltstyp & Detailansicht — eigener Bereich mit Assistent (F5, F6)
+
+| Story | Heute | Stufe | Anmerkung |
+|---|---|---|---|
+| … den Inhaltstyp meiner Library festlegen (Bücher, Sessions, Klima-Aktionen …) | Story „Detailansicht-Typ" | K | als kleiner **Assistent**: Typ wählen → typabhängige Folgefragen; lädt Standard-Facetten für die Galerie mit |
+| … typabhängige Optionen setzen (z.B. SDG-Profil nur bei Klima-Inhalten) | Story „SDG-Profil anzeigen" | G | erscheint nur, wenn der Inhaltstyp es hergibt (F6) — nicht mehr als freier Schalter |
+| … sehen, wie die Detailansicht für meinen Typ aussieht | — | G | Vorschau/Beispiel im Assistenten (neu) |
+
+## Galerie — wie man Stories findet (F5)
+
+| Story | Heute | Stufe | Anmerkung |
+|---|---|---|---|
+| … Kartendichte und Gruppierung einstellen | Story „Wissensgalerie" | G | |
+| … Standard-Filter für meinen Inhaltstyp übernehmen | Story „Standard für …" | G | kommt aus dem Inhaltstyp-Assistenten |
+| … Filter/Facetten im Detail konfigurieren | `FacetDefsEditor` | E | bleibt im Galerie-Bereich, aber als klar abgegrenztes Experten-Werkzeug (9 Felder je Facette + JSON-Import/Export) |
+| … den Wissens-Graphen ein-/ausschalten | Story „Graph-Modus" | G | nur An/Aus ist Einsteiger-tauglich |
+
+## Chat (F5)
+
+| Story | Heute | Stufe | Anmerkung |
+|---|---|---|---|
+| … Hinweistext, Zeichenlimit und Warnmeldung des Eingabefelds anpassen | Story „Chat UI" | G | |
+| … Footer-Text und -Link setzen | Story | G | |
+| … Ton/Stil der KI-Antworten wählen (Charakter, Sozialkontext) | Story „Eigene Perspektive" | G | laienverständlich formulieren |
+| … Sprache der Antworten festlegen | Story „Zielsprache" | K | Dublette mit Verarbeitung auflösen (04/C2) — EIN Ort |
 
 ## Verarbeitung (redaktionell)
 
 | Story | Heute | Stufe | Anmerkung |
 |---|---|---|---|
-| … festlegen, wie Text aus PDFs extrahiert wird | Transformation „PDF-Extraktionsmethode" | E | Dropdown zeigt rohe Werte (`mistral_ocr`, `llm_and_ocr` …) ohne Erklärung; Default inkonsistent (Schema `native` vs. Reset `mistral_ocr`) |
-| … ein Standard-Template für die Transformation wählen | Transformation „Template" | K | Dropdown aus MongoDB + Custom-Eingabe — gut |
-| … das LLM-Modell für Transformation wählen | Transformation | E | |
-| … die Zielsprache der Inhalte festlegen | Transformation „Zielsprache" | K | doppelt geführt mit `chat.targetLanguage` (04 / C2) |
+| … ein Standard-Template für die Transformation wählen | Transformation „Template" | K | Dropdown aus MongoDB + Custom — gut |
+| … die Zielsprache der Inhalte festlegen | Transformation | K | siehe Dublette (Chat) |
 | … automatisch ein Cover-Bild erzeugen lassen | Transformation | G | |
-| … den Prompt für Cover-Bilder anpassen | Transformation „Coverbild-Prompt" | E | Template-Variablen `{{title}}`/`{{summary}}` |
+| … den Prompt für Cover-Bilder anpassen | Transformation „Coverbild-Prompt" | E | → Erweitert |
 
-## Erlebnis (Story + Galerie)
+## Erweitert (Experten-Werkzeuge und Wartung — F7, F8)
 
 | Story | Heute | Stufe | Anmerkung |
 |---|---|---|---|
-| … Hinweistext/Zeichenlimit/Warnung des Chat-Eingabefelds anpassen | Story „Chat UI" | G | |
-| … Footer-Text und -Link im Chat setzen | Story | G | |
-| … Sprache der Chat-Antworten festlegen | Story „Zielsprache" | K | siehe Dublette oben |
-| … Ton/Stil der KI-Antworten wählen (Charakter, Sozialkontext) | Story „Eigene Perspektive" | G | gut laienverständlich machbar |
-| … das LLM-Modell für Chat-Antworten wählen | Story | E/V? | `models.chat` wird vermutlich nirgends gelesen — prüfen (04 / B5) |
-| … den Inhaltstyp der Library festlegen (book, session, climateAction …) | Story „Detailansicht-Typ" | K | bestimmt Detail-Layout; `testimonial`/`blog` still deprecated (E5) |
-| … SDG-Profil in der Detailansicht zeigen | Story | G | nur für bestimmte Inhaltstypen relevant — daran koppeln |
-| … Kartendichte und Gruppierung der Galerie einstellen | Story „Wissensgalerie" | G | |
-| … Filter/Facetten der Galerie konfigurieren | Story, `FacetDefsEditor` | E | 9 Felder je Facette + JSON-Import/Export — reines Experten-Werkzeug, heute mitten in der Galerie-Sektion |
-| … Standard-Facetten für meinen Inhaltstyp laden | Story „Standard für …" | G | guter Einsteiger-Einstieg in Facetten |
-| … den Wissens-Graphen aktivieren | Story „Graph-Modus" | G | An/Aus ist einfach … |
-| … Graph-Darstellung steuern (Kantenquelle, Größe/Farbe/Transparenz-Felder) | Story | E | … Feld-Encoding ist Expertenwissen |
+| … das LLM-Modell für Chat-Antworten wählen | Story | E | per F8 zu Erweitert; vorher B5 klären (wird der Wert überhaupt gelesen?) |
+| … das LLM-Modell für die Transformation wählen | Transformation | E | F8 |
+| … die PDF-Extraktionsmethode ändern | Transformation | E | Standardwert für Laien; rohe Enum-Werte ersetzen |
+| … Embedding-Modell, Dimension, Chunking konfigurieren | Story „RAG Konfiguration" | E | Standardwerte; Änderung erzwingt Re-Indexierung — Hinweis nötig |
+| … den Such-Index verwalten | „SearchIndex"-Dialog, `index-definition-dialog` | E/W | **F7: automatisieren** — Anlage/Rebuild ohne User-Aktion (z.B. nach Facetten-/Embedding-Änderung); Dialoge nur noch als Experten-Diagnose; Atlas-Definition-Kopieren entfällt für normale Nutzer |
+| … Graph-Darstellung im Detail steuern (Kantenquelle, Größe/Farbe/Transparenz) | Story „Graph-Modus" | E | |
 | … KI-Beziehungsanalyse erlauben | Story „Beziehungen berechnen" | E | schaltet teure LLM-Läufe frei |
-| … DIVA-Lieferdaten auswerten + Archiv-Defaults setzen | Allgemein, DIVA-Block | E | branchenspezifisch — nur bei DIVA-Inhaltstypen zeigen |
-| … Schwellwert für Auto-Klassifikation setzen | Allgemein „Auto-Übernahme ab Konfidenz" | E | gehört fachlich zur Galerie/Klassifikation, nicht zu Stammdaten |
-
-## Erweitert (Experten-Werkzeuge und Wartung)
-
-| Story | Heute | Stufe | Anmerkung |
-|---|---|---|---|
-| … Embedding-Modell, Dimension, Chunk-Größe/-Overlap konfigurieren | Story „RAG Konfiguration" | E | Änderung erzwingt Re-Indexierung — heute kein Hinweis |
-| … den Such-Index prüfen/anlegen/löschen | Story „SearchIndex"-Dialog | E/W | Index löschen unterbricht Suche; Dialog gut absichert |
-| … die Atlas-Index-Definition kopieren | `index-definition-dialog` | E | |
-| … pro Library eigenen Azure-Blob-Container nutzen | Story „Binary Storage" | E | fachlich Storage-Thema, nicht Story (Sektion verschieben) |
-| … Thumbnail-Bestand sehen und reparieren | Story „Binary Storage" | W | SSE-Streams; „Neu berechnen" überschreibt ALLE Thumbnails |
-| … prüfen, ob Storage und Cache synchron sind (Dry-Run) | Allgemein „Analysieren" | W | sinnvolles Diagnose-Tool |
-| … Cache-Artefakte ins Dateisystem exportieren | Allgemein „Exportieren" | W | überschreibt ohne Bestätigung |
-| … Dateisystem-Artefakte in den Cache importieren (Migration) | Allgemein, Migration-Wizard | W | inkl. destruktivem „Dateien aufräumen"-Switch; `window.confirm` |
-| … fehlerhafte Sprach-Artefakte analysieren und löschen | Allgemein „Sprach-Bereinigung" | W | unwiderruflich; Analyse-vor-Löschen-Muster ist gut |
-| … Speicherstrategie (Cache/Dateisystem/Azure) steuern und sehen | Allgemein, Shadow-Twin-Flags + Strategie-Panel | E | „Primary Store (Legacy)"-Wording; Legacy-Modus-Upgrade als Banner statt Feld (04 / C1) |
-| … Library-Konfiguration als JSON exportieren/importieren | Allgemein, Import/Export-Card | E | Import ohne Bestätigung |
-| … eigene Service-Verbindung konfigurieren (API-URL/Key, Desktop-Modus) | Transformation „Secretary Service" | E | Betreiber-Thema; apiKey geht heute an den Client (04 / D5) |
-| … Teams-Stream-Relay steuern | Transformation, Panel | E | Electron-only, im Web unsichtbar |
+| … pro Library eigenen Azure-Blob-Container nutzen | Story „Binary Storage" | E | F8; fachlich Storage-Thema (04/C4) |
+| … Thumbnail-Bestand sehen und reparieren | Story „Binary Storage" | W | F8; „Neu berechnen" überschreibt ALLE Thumbnails |
+| … Cache/Speicherstrategie steuern (Shadow-Twin-Flags, Strategie-Panel) | Allgemein | E | F8; Legacy-Upgrade als Banner statt Feld (04/C1) |
+| … Storage↔Cache-Sync prüfen, exportieren, migrieren, Sprach-Artefakte bereinigen | Allgemein (Analyse/Export/Migration/Bereinigung) | W | destruktive Aktionen mit einheitlichem Bestätigungs-Muster (04/D3, D6) |
+| … Library-Konfiguration als JSON exportieren/importieren | Allgemein, Import/Export-Card | E | F8 |
+| … eigene Service-Verbindung konfigurieren (API-URL/Key, Desktop-Modus) | Transformation „Secretary Service" | E | F8; apiKey-Maskierung fixen (04/D5) |
+| … DIVA-Lieferdaten auswerten + Archiv-Defaults setzen | Allgemein, DIVA-Block | E | F8; nur bei DIVA-Inhaltstypen zeigen |
+| … Schwellwert für Auto-Klassifikation setzen | Allgemein „Auto-Übernahme ab Konfidenz" | E | F8 |
+| … Teams-Stream-Relay steuern | Transformation, Panel | E | Electron-only |
 
 ## Zählung
 
-~55 Stories. Davon Einsteiger-relevant (K+G): ~24 — der Rest ist Experten-/
-Wartungs-Territorium, das heute ungeschützt zwischen den Kern-Feldern liegt.
+~50 Stories. Einsteiger-Pfad (K+G) nach dem neuen Schnitt: **~20 Stories in
+fünf kleinen Bereichen** (Grundlagen, Speicherort-Wizard, Inhaltstyp-Assistent,
+Galerie, Chat, Verarbeitung) — alles andere liegt gebündelt unter „Erweitert".

@@ -19,7 +19,7 @@ Befunde der Code-Inventur 2026-06-11. Gruppiert nach Handlungstyp.
 | B1 | `transcription`-Select („Shadow Twin" vs. „In Datenbank") wird nirgends als Bedingung ausgewertet — Scheinkontrolle | nur Durchreichung in `library-service.ts`, `export/route.ts` | E4 |
 | B2 | `config.templateDirectory` wird nie gelesen | nur Settings + `create-library-dialog.tsx` | E4 |
 | B3 | `config.description` wird nirgends angezeigt | nur Formular + Export | E4 |
-| B4 | Google Drive ist Attrappe: Felder speichern, aber kein Provider, keine OAuth-Route, kein Factory-Zweig | `storage/gdrive-section.tsx`; kein `gdrive-provider.ts` in `src/lib/storage/` | E3 |
+| B4 | Google Drive ist Attrappe: Felder speichern, aber kein Provider, keine OAuth-Route, kein Factory-Zweig | `storage/gdrive-section.tsx`; kein `gdrive-provider.ts` in `src/lib/storage/` | **F4 entschieden: entfernen** |
 | B5 | `chatLlmModel` → `config.chat.models.chat` ohne gefundenen Downstream-Leser (nicht in `config/route.ts`-Antwort, nicht im Orchestrator) | `use-chat-form.ts`, `model-config-section.tsx`; grep `models\.chat` = 2 Settings-Dateien | verifizieren, dann entfernen oder verdrahten |
 | B6 | Galerie-Texte halbfertig: `galleryHeadline/Subtitle/Description/FilterDescription` im Zod-Schema + Defaults (SFSCon-Hardcodes!), aber kein FormField, fehlt im PUT-Body; API-Merge + Galerie-Leser existieren | `public/public-form.tsx:66-69,120-143,211-222`; `api/libraries/[id]/public/route.ts:152-157`; `lib/gallery/api.ts` | E2 |
 | B7 | `testimonial`/`blog` als `detailViewType` still deprecated: im Schema/Validierung, nicht im Dropdown | `use-chat-form.ts:300` vs. `gallery-config-section.tsx:87-93` | E5 |
@@ -51,6 +51,6 @@ Befunde der Code-Inventur 2026-06-11. Gruppiert nach Handlungstyp.
 ## Empfohlene Reihenfolge
 
 1. **A komplett** — eigenständige Cleanup-PR, kein Verhaltens-Risiko (knip danach)
-2. **B nach User-Entscheidungen E2–E5** — je Feld: ersatzlos streichen (inkl. Schema + Bestandsdaten-Hinweis) oder fertigbauen
+2. **B nach User-Entscheidungen E2/E4/E5** — je Feld: ersatzlos streichen (inkl. Schema + Bestandsdaten-Hinweis) oder fertigbauen; B4 ist per F4 entschieden (Google Drive entfernen) und kann mit in die Cleanup-PR
 3. **C im Zuge des Raum-Umbaus** (Welle 3-IV-UX-2/3) — Verschieben + Umbenennen
 4. **D als Gefahren-UX-Paket** — einheitliches Bestätigungs-Muster (Vorbild: Lösch-Dialog der Library), D4/D5 vorab prüfen
