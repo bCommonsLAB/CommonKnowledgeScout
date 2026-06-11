@@ -11,9 +11,10 @@ export default function ChatSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium">Story</h3>
+        <h3 className="text-lg font-medium">Chat</h3>
         <p className="text-sm text-muted-foreground">
-          Konfigurieren Sie die Story-Einstellungen für die aktuell ausgewählte Bibliothek. Diese Einstellungen beeinflussen den Chat und die Wissensgalerie.
+          Texte und Tonfall des Chats für die aktuell ausgewählte Bibliothek.
+          Inhaltstyp und Galerie haben eigene Bereiche im meSpace.
         </p>
       </div>
       <Separator />

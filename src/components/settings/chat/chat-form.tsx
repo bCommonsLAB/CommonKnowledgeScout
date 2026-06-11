@@ -1,17 +1,15 @@
 "use client"
 
 /**
- * ChatForm — Formular für Chat-Einstellungen einer Library.
+ * ChatForm — Seite "Chat" (meSpace, Welle 3-IV-UX-3a).
  *
- * Nutzt useChatForm() für den gesamten State + Handler.
- * Render-Verantwortung: Sections, Formfelder, Buttons.
+ * Enthaelt nur noch die Einsteiger-Einstellungen: Chat-UI-Texte und
+ * Perspektive (Sprache/Tonfall). Inhaltstyp, Galerie und die
+ * Experten-Teile (RAG, LLM, Index, Binary Storage) liegen in eigenen
+ * Bereichen: content-type-form, gallery-form, chat-advanced-form.
  *
- * Extrahiert aus src/components/settings/chat-form.tsx (Welle 3-IV-b).
- * Sections-Split in Welle 3-IV-Settings-Sections:
- * - RetrievalConfigSection  (RAG Konfiguration)
- * - ModelConfigSection      (Eigene Perspektive: LLM, Sprache, Charakter)
- * - GalleryConfigSection    (Wissensgalerie)
- * - BinaryStorageSection    (Azure Blob + Thumbnails)
+ * Nutzt den vollen useChatForm-Hook (siehe Hinweis in
+ * content-type-form.tsx — Submit sendet die vollstaendige Config).
  */
 
 import { Button } from "@/components/ui/button"
@@ -24,52 +22,13 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { IndexDefinitionDialog } from '@/components/settings/index-definition-dialog'
-import { SearchIndexDialog } from '@/components/settings/search-index-dialog'
 import { useTranslation } from '@/lib/i18n/hooks'
-import { toast } from "@/components/ui/use-toast"
 import { useChatForm } from './hooks/use-chat-form'
-// Hinweis: useStoryContext wird nicht mehr in chat-form.tsx benötigt,
-// da ModelConfigSection diesen Hook intern verwendet.
-import { RetrievalConfigSection } from './retrieval-config-section'
 import { ModelConfigSection } from './model-config-section'
-import { GalleryConfigSection } from './gallery-config-section'
-import { GraphConfigSection } from './graph-config-section'
-import { BinaryStorageSection } from './binary-storage-section'
 
 export function ChatForm() {
   const { t } = useTranslation()
-
-  const {
-    form,
-    activeLibrary,
-    isLoading,
-    showIndexDialog,
-    setShowIndexDialog,
-    showSearchIndexDialog,
-    setShowSearchIndexDialog,
-    indexDefinition,
-    collectionName,
-    thumbnailStats,
-    isRepairingThumbnails,
-    repairProgress,
-    repairTotal,
-    isRegeneratingThumbnails,
-    regenerateProgress,
-    regenerateTotal,
-    variantStats,
-    isRepairingVariants,
-    isLoadingStats,
-    statsError,
-    azureIngestionCustom,
-    azureContainerWatched,
-    defaultEmbeddings,
-    loadThumbnailStats,
-    handleRepairThumbnails,
-    handleRegenerateThumbnails,
-    handleRepairVariants,
-    onSubmit,
-  } = useChatForm()
+  const { form, activeLibrary, isLoading, onSubmit } = useChatForm()
 
   if (!activeLibrary) {
     return (
@@ -161,84 +120,15 @@ export function ChatForm() {
           </div>
         </div>
 
-        {/* ===== RAG Konfiguration → RetrievalConfigSection ===== */}
-        <RetrievalConfigSection form={form} defaultEmbeddings={defaultEmbeddings} />
-
-        {/* ===== Eigene Perspektive → ModelConfigSection ===== */}
+        {/* ===== Eigene Perspektive ===== */}
         <ModelConfigSection form={form} />
 
-                {/* ===== Wissensgalerie → GalleryConfigSection ===== */}
-        <GalleryConfigSection form={form} />
-
-                {/* ===== Graph-Modus → GraphConfigSection ===== */}
-        <GraphConfigSection form={form} />
-
-                {/* ===== Binary Storage → BinaryStorageSection ===== */}
-        <BinaryStorageSection
-          form={form}
-          activeLibrary={activeLibrary}
-          azureIngestionCustom={azureIngestionCustom}
-          azureContainerWatched={azureContainerWatched}
-          thumbnailStats={thumbnailStats}
-          isRepairingThumbnails={isRepairingThumbnails}
-          repairProgress={repairProgress}
-          repairTotal={repairTotal}
-          isRegeneratingThumbnails={isRegeneratingThumbnails}
-          regenerateProgress={regenerateProgress}
-          regenerateTotal={regenerateTotal}
-          variantStats={variantStats}
-          isRepairingVariants={isRepairingVariants}
-          isLoadingStats={isLoadingStats}
-          statsError={statsError}
-          loadThumbnailStats={loadThumbnailStats}
-          handleRepairThumbnails={handleRepairThumbnails}
-          handleRegenerateThumbnails={handleRegenerateThumbnails}
-          handleRepairVariants={handleRepairVariants}
-        />
-
-                <div className="flex items-center justify-between gap-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              if (activeLibrary) {
-                setShowSearchIndexDialog(true)
-              } else {
-                toast({
-                  title: t('settings.chatForm.error'),
-                  description: t('settings.chatForm.noLibrarySelected'),
-                  variant: 'destructive'
-                })
-              }
-            }}
-          >
-            SearchIndex
-          </Button>
-          <Button
-            type="submit"
-            disabled={isLoading}
-          >
+        <div className="flex justify-end">
+          <Button type="submit" disabled={isLoading}>
             {isLoading ? t('settings.chatForm.saving') : t('settings.chatForm.save')}
           </Button>
         </div>
       </form>
-
-      {/* Index Definition Dialog */}
-      <IndexDefinitionDialog
-        open={showIndexDialog}
-        onOpenChange={setShowIndexDialog}
-        collectionName={collectionName}
-        indexDefinition={indexDefinition}
-      />
-
-      {/* SearchIndex Dialog */}
-      {activeLibrary && (
-        <SearchIndexDialog
-          open={showSearchIndexDialog}
-          onOpenChange={setShowSearchIndexDialog}
-          libraryId={activeLibrary.id}
-        />
-      )}
     </Form>
   )
 }
