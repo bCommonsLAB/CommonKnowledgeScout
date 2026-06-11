@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/dialog"
 import { AlertCircle, Plus, Trash2 } from "lucide-react"
 import { CreateLibraryDialog } from "@/components/library/create-library-dialog"
+import { CORE_CONTENT_TYPES } from "@/components/settings/chat/content-type-section"
 
 import { useLibraryForm } from "./hooks/use-library-form"
 
@@ -132,6 +133,48 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                   </FormItem>
                 )}
               />
+
+              {/* Onboarding: Inhaltstyp direkt bei der Erstellung waehlen —
+                  Name + Inhaltstyp reichen, alles Weitere hat Standardwerte
+                  (Petra-Review Punkt 2). */}
+              {isNew && (
+                <FormField
+                  control={form.control}
+                  name="detailViewType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Was wird Ihre Bibliothek enthalten?</FormLabel>
+                      <FormControl>
+                        <div className="grid gap-3 md:grid-cols-3">
+                          {CORE_CONTENT_TYPES.map(option => (
+                            <Card
+                              key={option.value}
+                              role="button"
+                              onClick={() => field.onChange(option.value)}
+                              className={`cursor-pointer transition-colors ${
+                                field.value === option.value
+                                  ? "border-primary ring-1 ring-primary"
+                                  : "hover:border-muted-foreground/40"
+                              }`}
+                            >
+                              <CardContent className="p-4">
+                                <p className="text-sm font-medium">{option.title}</p>
+                                <p className="text-xs text-muted-foreground mt-1">{option.description}</p>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        Mehr braucht es nicht — Quelle, Vorlage und Darstellung
+                        haben sinnvolle Standardwerte und lassen sich danach im
+                        Archiv anpassen.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               {/* Bibliothek aktivieren */}
               <FormField

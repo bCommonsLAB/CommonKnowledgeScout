@@ -8,7 +8,7 @@ import { librariesAtom } from "@/atoms/library-atom"
 import { LibraryForm } from "@/components/settings/library-form"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Plus, BookOpen, Cloud, FolderOpen, Users, Globe, ChevronRight } from "lucide-react"
+import { Plus, BookOpen, Users, Globe, ChevronRight } from "lucide-react"
 import { useUserRole } from "@/hooks/use-user-role"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Info } from "lucide-react"
@@ -171,53 +171,18 @@ export function SettingsClient() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FolderOpen className="w-5 h-5" />
-                Lokale Bibliothek
-              </CardTitle>
-              <CardDescription>
-                Erstellen Sie eine Bibliothek auf Ihrem lokalen Dateisystem für direkten Zugriff auf Ihre Dateien.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
-                Ideal für Dokumente, die Sie lokal verwalten möchten. Die Dateien bleiben auf Ihrem Computer.
-              </p>
-              <Button className="w-full" onClick={() => setCreateNewLibrary(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Lokale Bibliothek erstellen
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Cloud className="w-5 h-5" />
-                Cloud-Bibliothek
-              </CardTitle>
-              <CardDescription>
-                Verbinden Sie sich mit OneDrive, Nextcloud oder anderen Cloud-Speicherdiensten.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
-                Greifen Sie auf Ihre Cloud-Dateien zu und verwalten Sie sie zentral in Knowledge Scout.
-              </p>
-              <Button variant="outline" className="w-full" onClick={() => setCreateNewLibrary(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Cloud-Bibliothek erstellen
-              </Button>
-            </CardContent>
-          </Card>
+        <div className="flex justify-center">
+          <Button size="lg" onClick={() => setCreateNewLibrary(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Erste Bibliothek erstellen
+          </Button>
         </div>
 
         <div className="text-center">
           <p className="text-sm text-muted-foreground">
-            Sie können später jederzeit weitere Bibliotheken hinzufügen oder diese Einstellungen ändern.
+            Sie brauchen nur einen Namen und den Inhaltstyp — Quelle (lokal
+            oder Cloud) und alles Weitere richten Sie danach Schritt für
+            Schritt ein.
           </p>
         </div>
       </div>

@@ -13,6 +13,7 @@
  */
 
 import Link from "next/link"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { FormControl, FormDescription, FormField, FormItem, FormLabel } from "@/components/ui/form"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -21,7 +22,7 @@ import { Switch } from "@/components/ui/switch"
 import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog"
 import { generateDefaultFacets } from "@/components/settings/FacetDefsEditor"
 import { toast } from "sonner"
-import { Info } from "lucide-react"
+import { ChevronDown, ChevronRight, Info } from "lucide-react"
 import type { UseFormReturn } from "react-hook-form"
 import type { chatFormSchema } from "./hooks/use-chat-form"
 import type { z } from "zod"
@@ -31,8 +32,8 @@ interface ContentTypeSectionProps {
   form: UseFormReturn<z.infer<typeof chatFormSchema>>
 }
 
-/** Waehlbare Inhaltstypen mit Anwender-Erklaerung */
-const CONTENT_TYPE_OPTIONS = [
+/** Kern-Inhaltstypen mit Anwender-Erklaerung (Petra-Pfad) */
+export const CORE_CONTENT_TYPES = [
   {
     value: 'book' as const,
     title: 'Bücher & Dokumente',
@@ -48,27 +49,35 @@ const CONTENT_TYPE_OPTIONS = [
     title: 'Klima-Maßnahmen',
     description: 'Maßnahmenkatalog mit Bewertungen, Zuständigkeiten und SDG-Bezug.',
   },
+]
+
+/** Branchenspezifische Typen — fuer die meisten Anwender irrelevant (Aufklapper) */
+export const SPECIAL_CONTENT_TYPES = [
   {
     value: 'divaDocument' as const,
     title: 'DIVA-Dokumente',
-    description: 'Branchenspezifisch: Dokumente aus dem DIVA-Liefersystem.',
+    description: 'Dokumente aus dem DIVA-Liefersystem.',
   },
   {
     value: 'divaTexture' as const,
     title: 'DIVA-Texturen',
-    description: 'Branchenspezifisch: Textur-Bibliothek mit Material-Attributen.',
+    description: 'Textur-Bibliothek mit Material-Attributen.',
   },
   {
     value: 'refurbedDevice' as const,
     title: 'Refurbished-Geräte',
-    description: 'Branchenspezifisch: Geräte-Katalog mit technischen Daten.',
+    description: 'Geräte-Katalog mit technischen Daten.',
   },
 ]
+
+const SPECIAL_VALUES: string[] = SPECIAL_CONTENT_TYPES.map(o => o.value)
 
 export function ContentTypeSection({ form }: ContentTypeSectionProps) {
   const currentType = form.watch('gallery.detailViewType') || 'book'
   const defaultFacets = generateDefaultFacets(currentType)
   const currentFacets = form.watch('gallery.facets') || []
+  // Branchen-Typen nur aufgeklappt zeigen, wenn die Library so einen nutzt
+  const [showSpecialTypes, setShowSpecialTypes] = useState(SPECIAL_VALUES.includes(currentType))
 
   return (
     <div className="space-y-6">
@@ -80,9 +89,9 @@ export function ContentTypeSection({ form }: ContentTypeSectionProps) {
         </p>
       </div>
 
-      {/* Schritt 1: Typ-Karten */}
-      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-        {CONTENT_TYPE_OPTIONS.map(option => (
+      {/* Schritt 1: Kern-Typen prominent */}
+      <div className="grid gap-3 md:grid-cols-3">
+        {CORE_CONTENT_TYPES.map(option => (
           <Card
             key={option.value}
             role="button"
@@ -99,6 +108,39 @@ export function ContentTypeSection({ form }: ContentTypeSectionProps) {
             </CardHeader>
           </Card>
         ))}
+      </div>
+
+      {/* Branchenspezifische Typen im Aufklapper (Petra-Review Punkt 8) */}
+      <div>
+        <button
+          type="button"
+          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          onClick={() => setShowSpecialTypes(v => !v)}
+        >
+          {showSpecialTypes ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          Branchenspezifische Typen
+        </button>
+        {showSpecialTypes && (
+          <div className="grid gap-3 md:grid-cols-3 mt-3">
+            {SPECIAL_CONTENT_TYPES.map(option => (
+              <Card
+                key={option.value}
+                role="button"
+                onClick={() => form.setValue('gallery.detailViewType', option.value, { shouldDirty: true })}
+                className={`cursor-pointer transition-colors ${
+                  currentType === option.value
+                    ? 'border-primary ring-1 ring-primary'
+                    : 'hover:border-muted-foreground/40'
+                }`}
+              >
+                <CardHeader className="p-4">
+                  <CardTitle className="text-sm">{option.title}</CardTitle>
+                  <CardDescription className="text-xs">{option.description}</CardDescription>
+                </CardHeader>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Bestands-Hinweis fuer nicht mehr waehlbare Typen */}

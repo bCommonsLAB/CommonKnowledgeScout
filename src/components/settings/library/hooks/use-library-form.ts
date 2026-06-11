@@ -32,6 +32,11 @@ export const libraryFormSchema = z.object({
     required_error: "Bitte wählen Sie einen Speichertyp.",
   }),
   isEnabled: z.boolean().default(true),
+  // Inhaltstyp bei der Erstellung (Onboarding "Name + Inhaltstyp = fertig",
+  // Petra-Review Punkt 2). Wird nur bei isNew in config.chat.gallery gesendet.
+  detailViewType: z
+    .enum(["book", "session", "climateAction", "testimonial", "blog", "divaDocument", "divaTexture", "refurbedDevice"])
+    .default("book"),
   // Transformation: DIVA-Liefersystem-Daten auswerten (DIVA-Info-Tab). Default false.
   analyzeDivaTextureInfo: z.boolean().default(false),
   // Schwellwert fuer die Auto-Uebernahme der Stoffgruppen-Klassifikation (Stufe 4).
@@ -228,6 +233,7 @@ export function useLibraryForm(createNew: boolean) {
       path: "",
       type: "local",
       isEnabled: true,
+      detailViewType: "book",
       analyzeDivaTextureInfo: false,
       autoApplyConfidenceThreshold: 0.9,
       divaArchiveFilterMode: 'all' as const,
@@ -452,6 +458,12 @@ export function useLibraryForm(createNew: boolean) {
           type: data.type as StorageProviderType,
           isEnabled: data.isEnabled,
           config: {
+            // Onboarding: Inhaltstyp gehoert zur Erstellung; bei Updates
+            // verwaltet ihn der Inhaltstyp-Assistent (config.chat bleibt
+            // hier unangetastet, der Server merged config).
+            ...(isNew
+              ? { chat: { gallery: { detailViewType: data.detailViewType ?? "book" } } }
+              : {}),
             analyzeDivaTextureInfo: data.analyzeDivaTextureInfo,
             autoApplyConfidenceThreshold: data.autoApplyConfidenceThreshold,
             divaArchiveDefaults: {
