@@ -23,7 +23,8 @@
 
 import type { CompleteArgs, JobResult } from '@/types/external-jobs'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
-import { drainBufferedLogs } from '@/lib/external-jobs-log-buffer'
+import { bufferLog, drainBufferedLogs } from '@/lib/external-jobs-log-buffer'
+import { applyAnalysisResult, extractSubmissionIdFromJob } from '@/lib/submissions/submission-analysis'
 import { clearWatchdog } from '@/lib/external-jobs-watchdog'
 import { buildProvider } from '@/lib/external-jobs/provider'
 import { parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
@@ -232,6 +233,26 @@ export async function setJobCompleted(args: CompleteArgs): Promise<JobResult> {
   }
 
   mergedResult.savedItemId = savedItemId
+
+  // Welle III: Ergebnis-Rueckfluss in die korrelierte Submission (Inbox-Analyse).
+  // Bewusst VOR setStatus('completed') und ohne catch: schlaegt der Rueckfluss
+  // fehl, darf der Job nicht 'completed' melden (Retry statt stillem Teilzustand).
+  const jobDoc = job ?? ctx.job
+  const submissionId = extractSubmissionIdFromJob(jobDoc)
+  if (submissionId) {
+    const provider = await buildProvider({
+      userEmail: jobDoc.userEmail,
+      libraryId: jobDoc.libraryId,
+      jobId: ctx.jobId,
+      repo,
+      providerScope: jobDoc.providerScope,
+    })
+    await applyAnalysisResult({ submissionId, savedItemId, provider })
+    bufferLog(ctx.jobId, {
+      phase: 'submission_result_applied',
+      message: `Analyse-Ergebnis in Submission ${submissionId} uebernommen`,
+    })
+  }
 
   await repo.setResult(ctx.jobId, ctx.job.payload || {}, mergedResult as unknown as typeof ctx.job.result)
   await repo.setStatus(ctx.jobId, 'completed')
