@@ -4,8 +4,8 @@ import { Separator } from "@/components/ui/separator"
 import { SettingsClient } from "./settings-client"
 
 export const metadata: Metadata = {
-  title: "Bibliothek - Allgemeine Einstellungen",
-  description: "Verwalten Sie die allgemeinen Einstellungen Ihrer Bibliothek.",
+  title: "Bibliothek verwalten - Übersicht",
+  description: "Übersicht der drei Räume: meSpace, weSpace und usSpace.",
 }
 
 // Fallback-Komponente für die Suspense-Boundary
@@ -28,9 +28,10 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium">Allgemeine Einstellungen</h3>
+        <h3 className="text-lg font-medium">Übersicht</h3>
         <p className="text-sm text-muted-foreground">
-          Verwalten Sie die grundlegenden Einstellungen Ihrer Bibliothek.
+          Wählen Sie einen Raum: meSpace (Bibliothek aufbauen), weSpace (mit
+          vertrauten Personen teilen) oder usSpace (veröffentlichen).
         </p>
       </div>
       <Separator />
