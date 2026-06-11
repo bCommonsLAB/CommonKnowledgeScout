@@ -30,13 +30,6 @@ describe('NextcloudSectionProps Props-Kontrakt', () => {
   })
 })
 
-describe('GdriveSectionProps Props-Kontrakt', () => {
-  it('hat die erwarteten Props-Felder im Interface', () => {
-    const requiredProps = ['form'] as const
-    expect(requiredProps).toHaveLength(1)
-  })
-})
-
 // --------------------------------------------------------------------------
 // Export-Kontrakt: named exports, keine default exports
 // --------------------------------------------------------------------------
@@ -54,14 +47,6 @@ describe('Storage Section-Komponenten Export-Kontrakt', () => {
       '@/components/settings/storage/nextcloud-section'
     )
     expect(typeof mod.NextcloudSection).toBe('function')
-    expect(mod.default).toBeUndefined()
-  })
-
-  it('GdriveSection ist als named export definiert', async () => {
-    const mod = await import(
-      '@/components/settings/storage/gdrive-section'
-    )
-    expect(typeof mod.GdriveSection).toBe('function')
     expect(mod.default).toBeUndefined()
   })
 })

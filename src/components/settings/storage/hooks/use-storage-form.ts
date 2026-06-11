@@ -29,13 +29,15 @@ import { StorageFactory } from "@/lib/storage/storage-factory"
 
 /** Haupt-Zod-Schema für das Storage-Formular */
 export const storageFormSchema = z.object({
+  // 'gdrive' ist Legacy (nie funktionsfaehig, UI bietet es nicht mehr an, F4) —
+  // bleibt im Enum, damit Bestands-Libraries mit diesem Typ ladbar bleiben.
   type: z.enum(["local", "onedrive", "gdrive", "nextcloud"], {
     required_error: "Bitte wählen Sie einen Speichertyp.",
   }),
   path: z.string({
     required_error: "Bitte geben Sie einen Speicherpfad ein.",
   }),
-  // Zusätzliche Storage-Konfiguration für OneDrive/GDrive
+  // Zusätzliche Storage-Konfiguration für OneDrive
   tenantId: z.string().optional(),
   clientId: z.string().optional(),
   clientSecret: z.string().optional(),
@@ -239,10 +241,10 @@ export function useStorageForm(): UseStorageFormResult {
     }
   }, [activeLibrary, form, oauthDefaults, defaultValues]);
 
-  // Token-Status laden (OneDrive/GDrive) bei Library-Wechsel
+  // Token-Status laden (OneDrive) bei Library-Wechsel
   useEffect(() => {
     async function loadTokenStatus() {
-      if (!activeLibrary || (activeLibrary.type !== 'onedrive' && activeLibrary.type !== 'gdrive')) {
+      if (!activeLibrary || activeLibrary.type !== 'onedrive') {
         setTokenStatus({ isAuthenticated: false, isExpired: false, loading: false });
         return;
       }
@@ -414,7 +416,7 @@ export function useStorageForm(): UseStorageFormResult {
 
       const config: Record<string, unknown> = {};
 
-      if (data.type === 'onedrive' || data.type === 'gdrive') {
+      if (data.type === 'onedrive') {
         if (data.tenantId) config.tenantId = data.tenantId.trim();
         if (data.clientId) config.clientId = data.clientId.trim();
         if (data.clientSecret && data.clientSecret !== '********') {

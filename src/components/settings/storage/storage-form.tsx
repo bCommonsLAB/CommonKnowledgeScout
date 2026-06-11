@@ -10,7 +10,6 @@
  * Sections-Split in Welle 3-IV-Settings-Sections:
  * - OneDriveSection  (Tenant ID, Client ID, Secret, OAuth-Flow)
  * - NextcloudSection (WebDAV-URL, Benutzername, App-Passwort)
- * - GdriveSection    (Client ID, Client Secret)
  *
  * Refactored aus storage-form.tsx (Monolith, 1412z → ~250z Render-Datei).
  */
@@ -50,7 +49,6 @@ import { useStorageForm } from "./hooks/use-storage-form"
 import type { TestLogEntry } from "./hooks/use-storage-form"
 import { OneDriveSection } from "./onedrive-section"
 import { NextcloudSection } from "./nextcloud-section"
-import { GdriveSection } from "./gdrive-section"
 
 // --------------------------------------------------------------------------
 // Test-Ergebnisse rendern
@@ -178,7 +176,7 @@ function StorageFormContent() {
                   <FormLabel>Speichertyp</FormLabel>
                   <Select
                     onValueChange={(value) => {
-                      if (value === 'local' || value === 'onedrive' || value === 'gdrive' || value === 'nextcloud') {
+                      if (value === 'local' || value === 'onedrive' || value === 'nextcloud') {
                         field.onChange(value);
                       }
                     }}
@@ -192,7 +190,6 @@ function StorageFormContent() {
                     <SelectContent>
                       <SelectItem value="local">Lokales Dateisystem</SelectItem>
                       <SelectItem value="onedrive">Microsoft OneDrive</SelectItem>
-                      <SelectItem value="gdrive">Google Drive</SelectItem>
                       <SelectItem value="nextcloud">Nextcloud (WebDAV)</SelectItem>
                     </SelectContent>
                   </Select>
@@ -232,9 +229,6 @@ function StorageFormContent() {
               handleOneDriveAuth={handleOneDriveAuth}
               handleOneDriveLogout={handleOneDriveLogout}
             />
-          )}
-          {currentType === 'gdrive' && (
-            <GdriveSection form={form} />
           )}
           {currentType === 'nextcloud' && (
             <NextcloudSection form={form} activeLibrary={activeLibrary} />
