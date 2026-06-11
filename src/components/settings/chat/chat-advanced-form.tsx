@@ -19,6 +19,8 @@ import { useChatForm } from './hooks/use-chat-form'
 import { RetrievalConfigSection } from './retrieval-config-section'
 import { LlmModelSection } from './llm-model-section'
 import { BinaryStorageSection } from './binary-storage-section'
+import { GraphAdvancedSection } from './graph-advanced-section'
+import { FacetDefsEditor } from '@/components/settings/FacetDefsEditor'
 
 export function ChatAdvancedForm() {
   const { t } = useTranslation()
@@ -65,6 +67,24 @@ export function ChatAdvancedForm() {
         <RetrievalConfigSection form={form} defaultEmbeddings={defaultEmbeddings} />
 
         <LlmModelSection form={form} />
+
+        {/* Facetten im Detail (Petra-Review Punkt 3: aus Explore hierher) */}
+        <div className="space-y-4">
+          <div className="border-b pb-2">
+            <h3 className="text-lg font-semibold">Galerie-Filter (Facetten)</h3>
+            <p className="text-sm text-muted-foreground">
+              Feinjustierung der Explore-Filter. Empfehlungen je Inhaltstyp
+              übernehmen Sie bequemer im Archiv unter „Inhaltstyp“.
+            </p>
+          </div>
+          <FacetDefsEditor
+            value={form.watch("gallery.facets") || []}
+            onChange={(v) => form.setValue("gallery.facets", v, { shouldDirty: true })}
+            detailViewType={form.watch("gallery.detailViewType")}
+          />
+        </div>
+
+        <GraphAdvancedSection form={form} />
 
         <BinaryStorageSection
           form={form}

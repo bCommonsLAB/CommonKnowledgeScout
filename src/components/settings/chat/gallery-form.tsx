@@ -12,7 +12,6 @@
 
 import { Button } from "@/components/ui/button"
 import { Form } from "@/components/ui/form"
-import { IndexDefinitionDialog } from '@/components/settings/index-definition-dialog'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useChatForm } from './hooks/use-chat-form'
 import { GalleryConfigSection } from './gallery-config-section'
@@ -20,16 +19,7 @@ import { GraphConfigSection } from './graph-config-section'
 
 export function GalleryForm() {
   const { t } = useTranslation()
-  const {
-    form,
-    activeLibrary,
-    isLoading,
-    onSubmit,
-    showIndexDialog,
-    setShowIndexDialog,
-    indexDefinition,
-    collectionName,
-  } = useChatForm()
+  const { form, activeLibrary, isLoading, onSubmit } = useChatForm()
 
   if (!activeLibrary) {
     return (
@@ -48,13 +38,6 @@ export function GalleryForm() {
           </Button>
         </div>
       </form>
-
-      <IndexDefinitionDialog
-        open={showIndexDialog}
-        onOpenChange={setShowIndexDialog}
-        collectionName={collectionName}
-        indexDefinition={indexDefinition}
-      />
     </Form>
   )
 }

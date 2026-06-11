@@ -23,7 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { FacetDefsEditor } from '@/components/settings/FacetDefsEditor'
 import { useTranslation } from '@/lib/i18n/hooks'
 import type { UseFormReturn } from "react-hook-form"
 import type { chatFormSchema } from "./hooks/use-chat-form"
@@ -129,15 +128,11 @@ export function GalleryConfigSection({ form }: GalleryConfigSectionProps) {
         }}
       />
 
-      <div className="grid gap-3">
-        <FormLabel>{t('settings.chatForm.galleryFacets')}</FormLabel>
-        <FormDescription>{t('settings.chatForm.galleryFacetsDescription')}</FormDescription>
-        <FacetDefsEditor
-          value={form.watch("gallery.facets") || []}
-          onChange={(v) => form.setValue("gallery.facets", v, { shouldDirty: true })}
-          detailViewType={form.watch("gallery.detailViewType")}
-        />
-      </div>
+      <p className="text-xs text-muted-foreground">
+        Die Filter (Facetten) übernehmen Sie als Empfehlung im Archiv unter
+        „Inhaltstyp“; die Feinjustierung einzelner Facetten liegt unter
+        „Erweitert“.
+      </p>
     </div>
   )
 }
