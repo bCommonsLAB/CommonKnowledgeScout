@@ -40,8 +40,8 @@ einheitlichem Freitext, einheitlicher Wiedervorlage („erneut senden") und
 können vorerst getrennt bleiben (UI-Vereinheitlichung zuerst, Daten-Migration
 später als eigene Entscheidung).
 
-Offene User-Entscheidung E1 (README §6): Gehören aktiv eingeladene Leser zu
-weSpace (Empfehlung) oder zu usSpace?
+Entschieden (E1, 2026-06-11): Aktiv eingeladene Leser gehören zu **weSpace**.
+usSpace behält nur die anonyme Öffentlichkeit und Anfragen Fremder.
 
 ## Zählung
 

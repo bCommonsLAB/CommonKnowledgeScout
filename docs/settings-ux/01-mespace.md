@@ -14,7 +14,7 @@ alles Technische läuft mit Standardwerten und liegt unter „Erweitert".
 | … eine neue Library anlegen (lokal oder Cloud) | Allgemein, Willkommens-Ansicht | K | guter Einsteiger-Flow vorhanden (`settings-client.tsx`) |
 | … die Library vorübergehend deaktivieren | Allgemein „Bibliothek aktivieren" | G | |
 | … die Library endgültig löschen | Allgemein, Gefahrenzone | K | Bestätigungs-Dialog vorhanden — Vorbild für andere destruktive Aktionen |
-| … eine interne Beschreibung hinterlegen | Allgemein | V | wird nirgends angezeigt (E4) |
+| … eine interne Beschreibung hinterlegen | Allgemein | V | E4 entschieden: streichen, ggf. in usSpace-Beschreibung aufgehen |
 
 ## Speicherort — wird WIZARD (F1–F4, Design: [05-storage-wizard.md](05-storage-wizard.md))
 
@@ -30,7 +30,7 @@ alles Technische läuft mit Standardwerten und liegt unter „Erweitert".
 
 | Story | Heute | Stufe | Anmerkung |
 |---|---|---|---|
-| … den Inhaltstyp meiner Library festlegen (Bücher, Sessions, Klima-Aktionen …) | Story „Detailansicht-Typ" | K | als kleiner **Assistent**: Typ wählen → typabhängige Folgefragen; lädt Standard-Facetten für die Galerie mit |
+| … den Inhaltstyp meiner Library festlegen (Bücher, Sessions, Klima-Aktionen …) | Story „Detailansicht-Typ" | K | als kleiner **Assistent**: Typ wählen → typabhängige Folgefragen; lädt Standard-Facetten für die Galerie mit; `testimonial`/`blog` reaktivieren (E5) |
 | … typabhängige Optionen setzen (z.B. SDG-Profil nur bei Klima-Inhalten) | Story „SDG-Profil anzeigen" | G | erscheint nur, wenn der Inhaltstyp es hergibt (F6) — nicht mehr als freier Schalter |
 | … sehen, wie die Detailansicht für meinen Typ aussieht | — | G | Vorschau/Beispiel im Assistenten (neu) |
 

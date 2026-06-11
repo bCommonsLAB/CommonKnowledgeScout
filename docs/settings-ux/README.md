@@ -110,23 +110,23 @@ Speicherort-Wizard-Design: [05-storage-wizard.md](05-storage-wizard.md).
 | F7 | **Such-Index automatisieren** (Anlage/Rebuild ohne User-Aktion); Index-/Atlas-Dialoge nur noch Experten-Diagnose |
 | F8 | Zusätzlich unter „Erweitert": LLM-Modell (Chat + Transformation), Embeddings/Chunking, Atlas-Index, Azure Blob/Thumbnails, Cache/Speicherstrategie, JSON-Import/Export, Service-Verbindungen, DIVA-Auswertung, Auto-Klassifikations-Schwelle |
 
-### Offene Fragen
+### Entschiedene Fragen (User, 2026-06-11)
 
-| # | Frage | Empfehlung |
+| # | Frage | Entscheidung |
 |---|---|---|
-| E1 | „Leser einladen" → weSpace oder usSpace? | weSpace: alle aktiv eingeladenen Personen; usSpace nur anonyme Öffentlichkeit + Anfragen Fremder |
-| E2 | Galerie-Texte (Schema ohne UI): fertig bauen oder streichen? | fertig bauen in usSpace (Galerie liest die Werte bereits) |
-| E4 | `transcription`, `templateDirectory`, `description`: ersatzlos streichen? | streichen; `description` ggf. mit usSpace-Beschreibung zusammenlegen |
-| E5 | `testimonial`/`blog` ViewTypes: reaktivieren oder aus Schema entfernen? | aus Schema entfernen, Bestandsdaten migrieren |
-| E6 | Experten-Zugang: Bereich „Erweitert" pro Raum oder globaler Experten-Toggle? | Bereich pro Raum (sichtbar, aber abgegrenzt — kein versteckter Modus) |
-| E7 | Moderator-Zugang zu „Zugang & Anfragen" ohne Owner-Settings? | ja, rollen-sensitive Navigation statt Alles-oder-Nichts |
+| E1 | „Leser einladen" → weSpace oder usSpace? | **weSpace**: alle aktiv eingeladenen Personen; usSpace nur anonyme Öffentlichkeit + Anfragen Fremder |
+| E2 | Galerie-Texte (Schema ohne UI) | **fertig bauen** in usSpace (Galerie liest die Werte bereits) |
+| E4 | `transcription`, `templateDirectory`, `description` | **ersatzlos streichen**; `description` ggf. mit usSpace-Beschreibung zusammenlegen |
+| E5 | `testimonial`/`blog` ViewTypes | **reaktivieren** (zurück ins Dropdown — abweichend von der Empfehlung „entfernen") |
+| E6 | Experten-Zugang | Bereich **„Erweitert" pro Raum** (sichtbar, aber abgegrenzt — kein versteckter Modus) |
+| E7 | Moderator-Zugang zu „Zugang & Anfragen" ohne Owner-Settings? | **ja** — rollen-sensitive Navigation statt Alles-oder-Nichts |
 
 ## 7. Umsetzungs-Wellen (Vorschlag)
 
 | Welle | Inhalt | Risiko |
 |---|---|---|
 | 3-IV-UX-0 | Toter Code raus (Liste A in 04) — sofort möglich | keins |
-| 3-IV-UX-1 | User-Review dieses Konzepts — F1–F8 festgelegt, offen E1/E2/E4–E7 | — |
+| 3-IV-UX-1 | User-Review — ABGESCHLOSSEN 2026-06-11: F1–F8 festgelegt, E1–E7 entschieden | — |
 | 3-IV-UX-2 | Neue Navigation (3 Räume + meSpace-Bereiche), bestehende Forms verschieben (keine Logik-Änderung) | klein |
 | 3-IV-UX-3 | meSpace: Speicherort-Wizard + Re-Auth-Flow (F1–F3), Einsteiger/Erweitert-Trennung, Inhaltstyp-Assistent (F6), Gefahren-UX | mittel–groß |
 | 3-IV-UX-4 | weSpace: Einladungs-Vereinheitlichung + Personen-Übersicht | mittel |
