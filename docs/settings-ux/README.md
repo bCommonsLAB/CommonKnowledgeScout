@@ -129,7 +129,11 @@ Speicherort-Wizard-Design: [05-storage-wizard.md](05-storage-wizard.md).
 | 3-IV-UX-0 | Toter Code raus (A1–A5 + B1–B4 aus 04) — ERLEDIGT 2026-06-11 | keins |
 | 3-IV-UX-1 | User-Review — ABGESCHLOSSEN 2026-06-11: F1–F8 festgelegt, E1–E7 entschieden | — |
 | 3-IV-UX-2 | Neue Navigation (3 Räume), Raum-Übersicht mit Erklär-Karten, gruppierte Sidebar mit Erklärtexten, LibraryForm → `/settings/general` — ERLEDIGT 2026-06-11 (`ce08aed`) | klein |
-| 3-IV-UX-3 | meSpace: Speicherort-Wizard + Re-Auth-Flow (F1–F3), Einsteiger/Erweitert-Trennung, Inhaltstyp-Assistent (F6), Gefahren-UX | mittel–groß |
+| 3-IV-UX-3a | meSpace: Einsteiger/Erweitert-Trennung (F5/F8) — ERLEDIGT 2026-06-11 (`c3881b0`…`32dc786`): 7 Bereiche (Grundlagen, Speicherort, Inhaltstyp, Galerie, Chat, Verarbeitung, Erweitert); Muster „voller Hook, partielles Rendering" (kein Merge-Risiko). Abweichung: Cover-Prompt blieb bei Verarbeitung (Kontext-Kohäsion mit Cover-Toggle) | mittel |
+| 3-IV-UX-3b | Speicherort-Wizard (F1, F3; löst D1/D2) | groß |
+| 3-IV-UX-3c | Re-Auth-Flow app-weit (F2, D7) | mittel |
+| 3-IV-UX-3d | Gefahren-UX-Paket (D3, D6) | klein |
+| 3-IV-UX-3e | Inhaltstyp-Assistent (F6) | mittel |
 | 3-IV-UX-4 | weSpace: Einladungs-Vereinheitlichung + Personen-Übersicht | mittel |
 | 3-IV-UX-5 | usSpace: Veröffentlichungs-Flow + Galerie-Texte (E2) | mittel |
 | danach | Code-Refactor friert neue Struktur ein (ersetzt offene 3-IV-Splits) | — |
