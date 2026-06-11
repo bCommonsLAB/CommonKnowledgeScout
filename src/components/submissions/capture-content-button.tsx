@@ -161,8 +161,8 @@ export function CaptureContentButton({ libraryId }: CaptureContentButtonProps) {
         </div>
 
         <DialogFooter className="items-center gap-2 sm:justify-between">
-          <Link href="/library/inbox" className="text-xs text-muted-foreground underline">
-            Zum Wartekorb
+          <Link href="/library/my-submissions" className="text-xs text-muted-foreground underline">
+            Meine Beiträge
           </Link>
           <Button onClick={() => void handleSubmit()} disabled={!file || isUploading}>
             {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

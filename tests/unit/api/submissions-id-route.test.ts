@@ -94,13 +94,25 @@ describe('PATCH /api/submissions/[id]', () => {
     expect((await patchCall('s1', { markdownBody: 'x' })).status).toBe(404);
   });
 
-  it('403 wenn kein Reviewer (Erfasser darf nicht korrigieren)', async () => {
-    login('anna@example.com');
+  it('403 wenn weder Erfasser noch Reviewer (Fremder)', async () => {
+    login('fremd@example.com');
     h.getSubmissionById.mockResolvedValue({ id: 's1', libraryId: 'lib-1', createdBy: 'anna@example.com' });
     h.isCoCreatorOrOwner.mockResolvedValue(false);
     const res = await patchCall('s1', { markdownBody: 'x' });
     expect(res.status).toBe(403);
     expect(h.updateSubmissionMetadata).not.toHaveBeenCalled();
+  });
+
+  it('200 fuer den Erfasser selbst (Stufe-B-Korrektur, ohne Review-Recht), E-Mail normalisiert', async () => {
+    login('Anna@Example.com');
+    h.getSubmissionById.mockResolvedValue({ id: 's1', libraryId: 'lib-1', createdBy: 'anna@example.com' });
+    h.isCoCreatorOrOwner.mockResolvedValue(false);
+    h.updateSubmissionMetadata.mockResolvedValue({ id: 's1', markdownBody: 'neu' });
+    const res = await patchCall('s1', { markdownBody: 'neu' });
+    expect(res.status).toBe(200);
+    expect(h.updateSubmissionMetadata).toHaveBeenCalledWith('s1', { markdownBody: 'neu' });
+    // Erfasser ist bereits berechtigt -> kein Reviewer-Check noetig.
+    expect(h.isCoCreatorOrOwner).not.toHaveBeenCalled();
   });
 
   it('400 bei ungueltigem Body (metadata kein Objekt)', async () => {

@@ -5,8 +5,9 @@
  * - `GET /api/submissions/[id]` — Detail inkl. Markdown + Metadaten fuer die
  *   Preview aus dem Staging (ADR-0004 §E4). Sichtbar fuer Reviewer
  *   (`co-creator`/`owner`) oder den Erfasser selbst.
- * - `PATCH /api/submissions/[id]` — redaktionelle Korrektur der Abnahme (W4),
- *   nur Reviewer; nur im editierbaren Status (sonst 409).
+ * - `PATCH /api/submissions/[id]` — redaktionelle Korrektur: Reviewer
+ *   (`co-creator`/`owner`) ODER der Erfasser selbst (Contributor prueft sein
+ *   Analyse-Ergebnis, Welle III-4b); nur im editierbaren Status (sonst 409).
  *
  * Freigabe/Ablehnung liegen in den Unterrouten `approve`/`reject`.
  *
@@ -66,8 +67,10 @@ export async function PATCH(
     const { id } = await params;
     const existing = await getSubmissionById(id);
     if (!existing) return NextResponse.json({ error: 'Submission nicht gefunden' }, { status: 404 });
-    // Korrektur ist Reviewer-Sache (co-creator/owner); contributor editiert nicht.
-    if (!(await isCoCreatorOrOwner(existing.libraryId, email))) {
+    // Korrektur darf der Erfasser selbst (Stufe-B-Pruefung) ODER ein Reviewer
+    // (co-creator/owner). Der editierbare Status wird im Repo erzwungen (409).
+    const isAuthor = existing.createdBy === normalizeEmail(email);
+    if (!isAuthor && !(await isCoCreatorOrOwner(existing.libraryId, email))) {
       return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 });
     }
 

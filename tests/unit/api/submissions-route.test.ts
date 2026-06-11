@@ -232,4 +232,14 @@ describe('GET /api/submissions', () => {
     expect((await res.json()).submissions).toHaveLength(1);
     expect(h.listSubmissions).toHaveBeenCalledWith('lib-1', { status: 'pending' });
   });
+
+  it('mine=true: eigene Beitraege ohne Reviewer-Recht (createdBy-Filter)', async () => {
+    login('anna@example.com');
+    h.listSubmissions.mockResolvedValue([{ id: 's1' }]);
+    const res = await GET(getReq('?libraryId=lib-1&mine=true'));
+    expect(res.status).toBe(200);
+    // Kein Reviewer-Check noetig; Filter auf den Erfasser.
+    expect(h.isCoCreatorOrOwner).not.toHaveBeenCalled();
+    expect(h.listSubmissions).toHaveBeenCalledWith('lib-1', { createdBy: 'anna@example.com' });
+  });
 });

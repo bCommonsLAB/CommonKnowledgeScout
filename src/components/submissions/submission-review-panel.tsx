@@ -16,16 +16,12 @@
 'use client';
 
 import { useState } from 'react';
-import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { SubmissionEditFields } from '@/components/submissions/submission-edit-fields';
 import {
-  CONFIDENCE_TONE_BADGE,
   buildReviewFields,
-  confidencePercent,
   hasMissingRequiredFields,
 } from '@/lib/submissions/submission-review';
 import type { WizardSubmission } from '@/types/wizard-submission';
@@ -36,14 +32,6 @@ interface SubmissionReviewPanelProps {
   onApprove: () => void;
   onReject: (note: string) => void;
   isBusy?: boolean;
-}
-
-/** Wandelt einen Feldwert in einen editierbaren String (generisch, text-first). */
-function toInputValue(value: unknown): string {
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  if (value === null || value === undefined) return '';
-  return JSON.stringify(value);
 }
 
 export function SubmissionReviewPanel({
@@ -62,44 +50,13 @@ export function SubmissionReviewPanel({
 
   return (
     <div className="flex flex-col gap-4 p-4">
-      <div className="flex flex-col gap-3">
-        {fields.map((field) => (
-          <div key={field.key} className="flex flex-col gap-1">
-            <Label htmlFor={`field-${field.key}`} className="flex items-center gap-2">
-              <span>{field.key}</span>
-              {field.isRequired && <span className="text-xs text-muted-foreground">Pflicht</span>}
-              {field.confidence !== undefined && field.tone && (
-                <Badge
-                  className={cn('border-0', CONFIDENCE_TONE_BADGE[field.tone])}
-                  title="Analyse-Sicherheit"
-                >
-                  {confidencePercent(field.confidence)}
-                </Badge>
-              )}
-            </Label>
-            <Input
-              id={`field-${field.key}`}
-              value={toInputValue(metadata[field.key])}
-              aria-invalid={field.isMissing}
-              className={cn(field.isMissing && 'border-rose-500')}
-              onChange={(event) =>
-                setMetadata((current) => ({ ...current, [field.key]: event.target.value }))
-              }
-            />
-            {field.isMissing && <span className="text-xs text-rose-600">Pflichtfeld fehlt</span>}
-          </div>
-        ))}
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="submission-markdown">Inhalt</Label>
-        <Textarea
-          id="submission-markdown"
-          rows={8}
-          value={markdownBody}
-          onChange={(event) => setMarkdownBody(event.target.value)}
-        />
-      </div>
+      <SubmissionEditFields
+        fields={fields}
+        metadata={metadata}
+        markdownBody={markdownBody}
+        onFieldChange={(key, value) => setMetadata((current) => ({ ...current, [key]: value }))}
+        onMarkdownChange={setMarkdownBody}
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="outline" disabled={isBusy} onClick={() => onSave(metadata, markdownBody)}>

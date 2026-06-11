@@ -10,6 +10,8 @@
  *   Rechte: `owner`/`co-creator`/`contributor` (ADR-0004 E2; Write-Key/QR spaeter).
  * - `GET /api/submissions?libraryId=…&status=…` — Inbox-Liste, rechte-gated
  *   (Reviewer: `co-creator`/`owner`).
+ * - `GET /api/submissions?libraryId=…&mine=true` — eigene Beitraege des
+ *   Erfassers (Contributor-Pruef-Sicht, Welle III-4b); kein Reviewer-Recht noetig.
  *
  * @see docs/architecture/api-route-conventions.md
  * @see docs/adr/0004-capture-publish-entkopplung-inbox-modell.md
@@ -114,7 +116,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const libraryId = request.nextUrl.searchParams.get('libraryId') ?? '';
     if (!libraryId) return NextResponse.json({ error: 'libraryId fehlt' }, { status: 400 });
 
-    if (!(await isCoCreatorOrOwner(libraryId, email))) {
+    // `mine=true`: eigene Beitraege des Erfassers (kein Reviewer-Recht noetig).
+    // Sonst: Inbox-Liste, nur fuer Reviewer (co-creator/owner).
+    const mine = request.nextUrl.searchParams.get('mine') === 'true';
+    if (!mine && !(await isCoCreatorOrOwner(libraryId, email))) {
       return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 });
     }
 
@@ -125,6 +130,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const submissions = await listSubmissions(libraryId, {
       ...(statusParam !== null ? { status: statusParam } : {}),
+      ...(mine ? { createdBy: email } : {}),
     });
     return NextResponse.json({ submissions });
   } catch (error) {
