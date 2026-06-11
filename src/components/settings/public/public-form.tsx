@@ -36,11 +36,11 @@ import { useSafeUser } from "@/hooks/use-safe-user"
 // Schema für Public-Publishing-Formular
 const publicFormSchema = z.object({
   slugName: z.string({
-    required_error: "Bitte geben Sie einen Slug-Namen ein.",
+    required_error: "Bitte geben Sie eine Web-Adresse ein.",
   })
-    .min(3, "Der Slug muss mindestens 3 Zeichen lang sein.")
-    .max(50, "Der Slug darf maximal 50 Zeichen lang sein.")
-    .regex(/^[a-z0-9-]+$/, "Der Slug darf nur Kleinbuchstaben, Zahlen und Bindestriche enthalten."),
+    .min(3, "Die Web-Adresse muss mindestens 3 Zeichen lang sein.")
+    .max(50, "Die Web-Adresse darf maximal 50 Zeichen lang sein.")
+    .regex(/^[a-z0-9-]+$/, "Die Web-Adresse darf nur Kleinbuchstaben, Zahlen und Bindestriche enthalten."),
   publicName: z.string({
     required_error: "Bitte geben Sie einen öffentlichen Namen ein.",
   })
@@ -278,14 +278,14 @@ export function PublicForm() {
     if (isCheckingSlug) {
       toast({
         title: 'Bitte kurz warten',
-        description: 'Der Slug wird noch auf Verfügbarkeit geprüft.',
+        description: 'Die Web-Adresse wird noch auf Verfügbarkeit geprüft.',
       })
       return false
     }
     if (slugAvailable === false) {
       toast({
-        title: 'Slug nicht verfügbar',
-        description: 'Dieser Slug ist bereits vergeben. Bitte einen anderen wählen.',
+        title: 'Web-Adresse nicht verfügbar',
+        description: 'Diese Web-Adresse ist bereits vergeben. Bitte eine andere wählen.',
         variant: 'destructive',
       })
       return false
@@ -338,7 +338,7 @@ export function PublicForm() {
     if (!publicLink) {
       toast({
         title: "Kein Link verfügbar",
-        description: "Bitte zuerst einen gültigen Slug setzen.",
+        description: "Bitte zuerst eine gültige Web-Adresse setzen.",
         variant: "destructive",
       })
       return
@@ -607,7 +607,7 @@ export function PublicForm() {
               name="slugName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Slug-Name</FormLabel>
+                  <FormLabel>Web-Adresse (Slug)</FormLabel>
                   <FormControl>
                     <div className="flex items-center gap-2">
                       <Input
@@ -634,7 +634,7 @@ export function PublicForm() {
                     Eindeutiger Name für die URL (z.B. /explore/sfscon-talks). Nur Kleinbuchstaben, Zahlen und Bindestriche erlaubt.
                   </FormDescription>
                   {slugAvailable === false && (
-                    <FormMessage>Dieser Slug-Name ist bereits vergeben.</FormMessage>
+                    <FormMessage>Diese Web-Adresse ist bereits vergeben.</FormMessage>
                   )}
                   <FormMessage />
                 </FormItem>
@@ -647,7 +647,7 @@ export function PublicForm() {
                 <Input
                   value={publicLink}
                   readOnly
-                  placeholder="Wird automatisch aus dem Slug erstellt"
+                  placeholder="Wird automatisch aus der Web-Adresse erstellt"
                   aria-label="Öffentlicher Link"
                   disabled={!isPublic || !slugName || slugName.length < 3 || slugAvailable === false}
                 />
@@ -663,7 +663,7 @@ export function PublicForm() {
                 </Button>
               </div>
               <FormDescription>
-                Dieser Link führt direkt zur öffentlichen Ansicht (auch wenn „Show on Homepage“ deaktiviert ist).
+                Dieser Link führt direkt zur öffentlichen Ansicht (auch wenn „Auf der Startseite anzeigen“ deaktiviert ist).
               </FormDescription>
             </div>
 
@@ -673,7 +673,7 @@ export function PublicForm() {
               render={({ field }) => (
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                   <div className="space-y-0.5">
-                    <FormLabel className="text-base">Show on Homepage</FormLabel>
+                    <FormLabel className="text-base">Auf der Startseite anzeigen</FormLabel>
                     <FormDescription>
                       Wenn deaktiviert, ist die Library weiterhin über den Slug erreichbar, wird aber nicht auf der Homepage gelistet.
                     </FormDescription>
