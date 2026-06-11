@@ -51,20 +51,13 @@ export function SecretaryServiceForm() {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8" autoComplete="off">
         <div className="space-y-4">
-          <div className="border-b pb-2">
-            <h3 className="text-lg font-semibold">Transformation</h3>
-            <p className="text-sm text-muted-foreground">
-              Wandelt Ihre Dokumente mit einem Template in strukturierte Inhalte um.
-            </p>
-          </div>
-
-          {/* Template-Auswahl */}
+          {/* Template-Auswahl — der "Journalist" der Verarbeitung */}
           <FormField
             control={form.control}
             name="pdfTemplate"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Template</FormLabel>
+                <FormLabel>Vorlage — Ihr Journalist</FormLabel>
                 <FormControl>
                   <div className="flex flex-col gap-2">
                     {templateMode === 'select' ? (
@@ -115,7 +108,9 @@ export function SecretaryServiceForm() {
                   </div>
                 </FormControl>
                 <FormDescription>
-                  Standard-Template für die Transformation. Definiert die Ausgabestruktur.
+                  Wie ein Journalist macht die Vorlage aus dem Rohmaterial einen
+                  strukturierten Beitrag: Sie bestimmt, welche Abschnitte und
+                  Felder dabei entstehen.
                 </FormDescription>
                 <FormMessage />
               </FormItem>

@@ -169,14 +169,14 @@ export function StorageSummary({ hook, onChangeStorage }: StorageSummaryProps) {
           </AlertDialog>
         )}
 
-        {/* D1: Speicherort-Wechsel nur mit Warnung */}
+        {/* D1: Quellen-Wechsel nur mit Warnung */}
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="outline" className="ml-auto">Speicherort ändern…</Button>
+            <Button variant="outline" className="ml-auto">Quelle ändern…</Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Speicherort wirklich ändern?</AlertDialogTitle>
+              <AlertDialogTitle>Quelle wirklich ändern?</AlertDialogTitle>
               <AlertDialogDescription>
                 Ihre Dateien werden dabei NICHT verschoben. Wenn die Bibliothek bereits
                 Inhalte hat, zeigt sie nach dem Wechsel auf einen anderen Ort — bestehende

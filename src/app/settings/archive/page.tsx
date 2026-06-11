@@ -23,22 +23,22 @@ export default function ArchiveSettingsPage() {
       <div>
         <h3 className="text-lg font-medium">Archiv</h3>
         <p className="text-sm text-muted-foreground mt-1 max-w-3xl">
-          Das Archiv ist der Arbeitsbereich Ihrer Bibliothek. So hängt alles
-          zusammen: Ihre Dokumente liegen in einem <strong>Speicherort</strong> (1).
-          Der <strong>Inhaltstyp</strong> (2) legt fest, was Ihre Bibliothek
-          enthält und wie es in Archiv, Explore und Story dargestellt wird.
-          Bei der <strong>Verarbeitung</strong> (3) werden neue Dokumente
-          transkribiert und mit einem Template in diesen Inhaltstyp verwandelt.
+          Im Archiv verarbeiten Sie bestehende Quellen zu Inhalten Ihrer
+          Bibliothek: Ihre Dokumente liegen in einer <strong>Quelle</strong> (1).
+          Der <strong>Inhaltstyp</strong> (2) legt fest, was daraus entsteht und
+          wie es in Archiv, Explore und Story dargestellt wird. Die{" "}
+          <strong>Verarbeitung</strong> (3) ist Ihr Journalist-Moment: Eine
+          Vorlage verwandelt das Rohmaterial in strukturierte Beiträge.
         </p>
       </div>
       <Separator />
 
-      {/* 1 — Speicherort */}
+      {/* 1 — Quelle */}
       <section className="space-y-3">
         <div>
-          <h4 className="text-base font-semibold">1 · Speicherort</h4>
+          <h4 className="text-base font-semibold">1 · Quelle</h4>
           <p className="text-sm text-muted-foreground">
-            Wo die Dateien Ihres Archivs liegen — lokal oder in Ihrer Cloud.
+            Woher die Dokumente Ihres Archivs kommen — lokal oder aus Ihrer Cloud.
           </p>
         </div>
         <StorageForm />
@@ -65,10 +65,11 @@ export default function ArchiveSettingsPage() {
       {/* 3 — Verarbeitung */}
       <section className="space-y-3">
         <div>
-          <h4 className="text-base font-semibold">3 · Verarbeitung</h4>
+          <h4 className="text-base font-semibold">3 · Verarbeitung — Ihr Journalist-Moment</h4>
           <p className="text-sm text-muted-foreground">
-            Wie neue Dokumente zu Wissen werden: Template, Zielsprache und
-            Cover-Bild für die Transformation.
+            Eine Vorlage verwandelt das Rohmaterial Ihrer Dokumente in
+            strukturierte Beiträge. Diese Standardwerte gelten, wenn Sie im
+            Archiv Dokumente verarbeiten.
           </p>
         </div>
         <SecretaryServiceForm />

@@ -46,7 +46,7 @@ const PROVIDER_OPTIONS = [
     type: "nextcloud" as const,
     icon: Server,
     title: "Nextcloud (WebDAV)",
-    description: "Dateien liegen in Ihrer Nextcloud — Zugriff per App-Passwort.",
+    description: "Für Fortgeschrittene: Dateien liegen in Ihrer Nextcloud — Zugriff per App-Passwort.",
   },
 ]
 
@@ -119,7 +119,7 @@ export function StorageWizard({ hook, initialStep = 1, onFinished, canCancel }: 
     setStep(4)
   }
 
-  const stepTitles = ["Speicherart", "Anmelden", "Verzeichnis", "Verbindungstest"]
+  const stepTitles = ["Quelle", "Anmelden", "Verzeichnis", "Verbindungstest"]
 
   return (
     <Form {...form}>
@@ -153,7 +153,7 @@ export function StorageWizard({ hook, initialStep = 1, onFinished, canCancel }: 
         {/* Schritt 1: Provider */}
         {step === 1 && (
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">Wo sollen die Dateien dieser Bibliothek liegen?</p>
+            <p className="text-sm text-muted-foreground">Woher kommen die Dokumente dieser Bibliothek?</p>
             <div className="grid gap-3 md:grid-cols-3">
               {PROVIDER_OPTIONS.map(option => (
                 <Card
