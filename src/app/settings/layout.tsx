@@ -20,7 +20,7 @@ const sidebarGroups: SidebarNavGroup[] = [
     description: "Aufbauen & gestalten — gegliedert wie die App: Archiv, Explore, Story.",
     items: [
       { title: "Library", href: "/settings/general" },
-      { title: "Archiv", href: "/settings/archive" },
+      { title: "Archive", href: "/settings/archive" },
       { title: "Explore", href: "/settings/explore" },
       { title: "Story", href: "/settings/story" },
       { title: "Erweitert", href: "/settings/advanced" },

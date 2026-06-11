@@ -107,7 +107,8 @@ Speicherort-Wizard-Design: [05-storage-wizard.md](05-storage-wizard.md).
 | F6 | Inhaltstyp als kleiner **Assistent**: Typ wählen → typabhängige Folgefragen (SDG-Profil nur für Klima-Inhalte u.ä.) |
 | F7 | **Such-Index automatisieren** (Anlage/Rebuild ohne User-Aktion); Index-/Atlas-Dialoge nur noch Experten-Diagnose |
 | F8 | Zusätzlich unter „Erweitert": LLM-Modell (Chat + Transformation), Embeddings/Chunking, Atlas-Index, Azure Blob/Thumbnails, Cache/Speicherstrategie, JSON-Import/Export, Service-Verbindungen, DIVA-Auswertung, Auto-Klassifikations-Schwelle |
-| F9 | (Review 2026-06-11, Devil's Advocate aus Laiensicht) meSpace folgt der **App-Navigation** statt System-Domänen: Library, **Archiv** (= Speicherort + Verarbeitung + Inhaltstyp + Übersetzungen als EINE Erzählung mit Erklär-Intro), **Explore** (= Galerie/Facetten), **Story** (= Chat). Alte Routen leiten weiter. Begründung: Laien ordnen Einstellungen den Orten zu, die sie aus der App kennen — nicht den technischen Domänen |
+| F9 | (Review 2026-06-11, Devil's Advocate aus Laiensicht) meSpace folgt der **App-Navigation** statt System-Domänen: Library, **Archive** (= Quelle + Inhaltstyp + Verarbeitung + Übersetzungen als EINE Erzählung mit Erklär-Intro), **Explore** (= Galerie/Facetten), **Story** (= Chat). Alte Routen leiten weiter. Begründung: Laien ordnen Einstellungen den Orten zu, die sie aus der App kennen — nicht den technischen Domänen |
+| F10 | (Petra-Walkthrough 2026-06-11) Sprach- und Vereinfachungs-Paket: **„Quelle" statt „Speicherort"** (es geht um bestehende Quellen, die verarbeitet werden); Template = **„Vorlage — Ihr Journalist"** (Journalist-Metapher); Onboarding = **Name + Inhaltstyp, fertig** (Willkommens-CTA statt Lokal/Cloud-Scheinwahl, Kern-Typ-Karten in der Erstellen-Form); Facetten-Editor + Graph-Encoding + Branchen-Typen (DIVA/Refurbished) in die Experten-Ebene; kontextspezifische Speichern-Buttons; usSpace: „Web-Adresse (Slug)" + deutsche Labels |
 
 ### Entschiedene Fragen (User, 2026-06-11)
 
@@ -146,3 +147,7 @@ Kontext zu T1: `testimonial`/`blog` bleiben aktive **Dokument-Typen**
 (Creation-Wizard, Templates, Übersetzungs-Pipeline). Als **Library-weiter
 Galerie-Typ** werden sie nicht angeboten — das Dropdown bleibt bei 6 Typen;
 die Schema-Einträge bleiben für Abwärtskompatibilität und Dokument-Ebene.
+
+| # | TODO | Stand |
+|---|---|---|
+| T2 | **Zero-Config-Onboarding** (User-Vision 2026-06-11): Ein vorkonfigurierter **Default-Cloudspeicher** wird serverseitig bereitgestellt — neue Bibliotheken brauchen dann KEINE Quellen-Einrichtung mehr (OneDrive/Nextcloud werden reine Experten-Optionen). Dazu **Heuristiken statt Konfiguration**: Standard-**Vorlage (Journalist)** je Inhaltstyp automatisch wählen, Facetten kommen bereits heute als Empfehlung je Typ. Ziel: „Library benennen, Inhaltstyp wählen — fertig." | UI-Seite vorbereitet (Onboarding fragt nur Name + Inhaltstyp, F10); Backend (managed Storage, Template-Heuristik) offen |

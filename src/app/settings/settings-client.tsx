@@ -27,7 +27,7 @@ const spaceCards = [
       "sie in der Galerie erkundet) und Story (das Gespräch mit den Inhalten).",
     links: [
       { title: "Library", href: "/settings/general" },
-      { title: "Archiv", href: "/settings/archive" },
+      { title: "Archive", href: "/settings/archive" },
       { title: "Explore", href: "/settings/explore" },
       { title: "Story", href: "/settings/story" },
       { title: "Erweitert", href: "/settings/advanced" },

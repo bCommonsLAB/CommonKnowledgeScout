@@ -21,7 +21,7 @@ export default function ArchiveSettingsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h3 className="text-lg font-medium">Archiv</h3>
+        <h3 className="text-lg font-medium">Archive</h3>
         <p className="text-sm text-muted-foreground mt-1 max-w-3xl">
           Im Archiv verarbeiten Sie bestehende Quellen zu Inhalten Ihrer
           Bibliothek: Ihre Dokumente liegen in einer <strong>Quelle</strong> (1).
