@@ -196,7 +196,7 @@ export function SecretaryServiceForm() {
             type="submit"
             disabled={isLoading || !form.formState.isDirty}
           >
-            {isLoading ? "Wird gespeichert..." : "Einstellungen speichern"}
+            {isLoading ? "Wird gespeichert..." : "Verarbeitung speichern"}
           </Button>
         </div>
       </form>

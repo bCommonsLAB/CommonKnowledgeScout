@@ -43,8 +43,8 @@ export function GalleryForm() {
         <GalleryConfigSection form={form} />
         <GraphConfigSection form={form} />
         <div className="flex justify-end">
-          <Button type="submit" disabled={isLoading}>
-            {isLoading ? t('settings.chatForm.saving') : t('settings.chatForm.save')}
+          <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
+            {isLoading ? t('settings.chatForm.saving') : 'Explore-Einstellungen speichern'}
           </Button>
         </div>
       </form>

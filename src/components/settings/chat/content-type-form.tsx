@@ -30,8 +30,8 @@ export function ContentTypeForm() {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <ContentTypeSection form={form} />
         <div className="flex justify-end">
-          <Button type="submit" disabled={isLoading}>
-            {isLoading ? t('settings.chatForm.saving') : t('settings.chatForm.save')}
+          <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
+            {isLoading ? t('settings.chatForm.saving') : 'Inhaltstyp speichern'}
           </Button>
         </div>
       </form>
