@@ -15,6 +15,7 @@ API `PUT /api/libraries/[id]/public`, `publish-site`/`depublish-site`.
 | … Icon und Hintergrundbild wählen | Icon-Dropdown, Bild-URL | G | Bild nur als externe URL, kein Upload |
 | … entscheiden, ob meine Library auf der Plattform-Startseite erscheint | „Show on Homepage" | G | englisches Label im deutschen UI |
 | … Galerie-Texte (Headline, Untertitel, Filter-Erklärung) pflegen | — | K | **defekt**: Schema + Defaults existieren (SFSCon-Hardcodes), kein UI-Feld, wird nie gesendet; Galerie liest die Werte bereits — E2 entschieden: **fertig bauen** |
+| … meine Inhalte in anderen Sprachen anbieten (Dokument-Übersetzungen) | „Öffentlicher Auftritt" (seit 2026-06-11; vorher Story-Tab) | G | Teilen-Thema: Inhalte für anderssprachiges Publikum zugänglich machen |
 
 ## Stories — Startseite
 

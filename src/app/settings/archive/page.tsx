@@ -4,7 +4,6 @@ import { Separator } from "@/components/ui/separator"
 import { StorageForm } from "@/components/settings/storage-form"
 import { SecretaryServiceForm } from "@/components/settings/secretary-service-form"
 import { ContentTypeForm } from "@/components/settings/chat"
-import { TranslationsForm } from "@/components/settings/translations-form"
 
 export const metadata: Metadata = {
   title: "Bibliothek - Archiv",
@@ -67,14 +66,11 @@ export default function ArchiveSettingsPage() {
           <h4 className="text-base font-semibold">3 · Inhaltstyp</h4>
           <p className="text-sm text-muted-foreground">
             Was Ihre Bibliothek enthält — bestimmt das Layout in Archiv,
-            Explore und Story sowie die Sprachen Ihrer Inhalte.
+            Explore und Story.
           </p>
         </div>
         <Suspense fallback={<SectionLoader />}>
           <ContentTypeForm />
-        </Suspense>
-        <Suspense fallback={<SectionLoader />}>
-          <TranslationsForm />
         </Suspense>
       </section>
     </div>
