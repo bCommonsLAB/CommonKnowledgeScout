@@ -25,10 +25,10 @@ export default function ArchiveSettingsPage() {
         <p className="text-sm text-muted-foreground mt-1 max-w-3xl">
           Das Archiv ist der Arbeitsbereich Ihrer Bibliothek. So hängt alles
           zusammen: Ihre Dokumente liegen in einem <strong>Speicherort</strong> (1).
-          Bei der <strong>Verarbeitung</strong> (2) werden sie transkribiert und mit
-          einem Template in strukturierte Inhalte verwandelt. Als welcher{" "}
-          <strong>Inhaltstyp</strong> (3) sie dann im Archiv, in Explore und in
-          Story erscheinen, legen Sie darunter fest.
+          Der <strong>Inhaltstyp</strong> (2) legt fest, was Ihre Bibliothek
+          enthält und wie es in Archiv, Explore und Story dargestellt wird.
+          Bei der <strong>Verarbeitung</strong> (3) werden neue Dokumente
+          transkribiert und mit einem Template in diesen Inhaltstyp verwandelt.
         </p>
       </div>
       <Separator />
@@ -46,24 +46,10 @@ export default function ArchiveSettingsPage() {
 
       <Separator />
 
-      {/* 2 — Verarbeitung */}
+      {/* 2 — Inhaltstyp */}
       <section className="space-y-3">
         <div>
-          <h4 className="text-base font-semibold">2 · Verarbeitung</h4>
-          <p className="text-sm text-muted-foreground">
-            Wie neue Dokumente zu Wissen werden: Template, Zielsprache und
-            Cover-Bild für die Transformation.
-          </p>
-        </div>
-        <SecretaryServiceForm />
-      </section>
-
-      <Separator />
-
-      {/* 3 — Inhaltstyp */}
-      <section className="space-y-3">
-        <div>
-          <h4 className="text-base font-semibold">3 · Inhaltstyp</h4>
+          <h4 className="text-base font-semibold">2 · Inhaltstyp</h4>
           <p className="text-sm text-muted-foreground">
             Was Ihre Bibliothek enthält — bestimmt das Layout in Archiv,
             Explore und Story.
@@ -72,6 +58,20 @@ export default function ArchiveSettingsPage() {
         <Suspense fallback={<SectionLoader />}>
           <ContentTypeForm />
         </Suspense>
+      </section>
+
+      <Separator />
+
+      {/* 3 — Verarbeitung */}
+      <section className="space-y-3">
+        <div>
+          <h4 className="text-base font-semibold">3 · Verarbeitung</h4>
+          <p className="text-sm text-muted-foreground">
+            Wie neue Dokumente zu Wissen werden: Template, Zielsprache und
+            Cover-Bild für die Transformation.
+          </p>
+        </div>
+        <SecretaryServiceForm />
       </section>
     </div>
   )
