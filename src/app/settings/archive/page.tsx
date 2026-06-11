@@ -1,0 +1,82 @@
+import { Metadata } from "next"
+import { Suspense } from "react"
+import { Separator } from "@/components/ui/separator"
+import { StorageForm } from "@/components/settings/storage-form"
+import { SecretaryServiceForm } from "@/components/settings/secretary-service-form"
+import { ContentTypeForm } from "@/components/settings/chat"
+import { TranslationsForm } from "@/components/settings/translations-form"
+
+export const metadata: Metadata = {
+  title: "Bibliothek - Archiv",
+  description: "Wo Ihre Dokumente liegen und wie sie zu Wissen werden.",
+}
+
+function SectionLoader() {
+  return <div className="text-center text-muted-foreground">Lädt...</div>
+}
+
+// meSpace > Archiv (User-Entscheid 2026-06-11): Speicherort, Verarbeitung
+// und Inhaltstyp bilden EINE Erzaehlung — gegliedert wie die App-Navigation
+// (Archive/Explore/Story), damit Laien die Settings dem Ort zuordnen koennen.
+export default function ArchiveSettingsPage() {
+  return (
+    <div className="space-y-8">
+      <div>
+        <h3 className="text-lg font-medium">Archiv</h3>
+        <p className="text-sm text-muted-foreground mt-1 max-w-3xl">
+          Das Archiv ist der Arbeitsbereich Ihrer Bibliothek. So hängt alles
+          zusammen: Ihre Dokumente liegen in einem <strong>Speicherort</strong> (1).
+          Bei der <strong>Verarbeitung</strong> (2) werden sie transkribiert und mit
+          einem Template in strukturierte Inhalte verwandelt. Als welcher{" "}
+          <strong>Inhaltstyp</strong> (3) sie dann im Archiv, in Explore und in
+          Story erscheinen, legen Sie darunter fest.
+        </p>
+      </div>
+      <Separator />
+
+      {/* 1 — Speicherort */}
+      <section className="space-y-3">
+        <div>
+          <h4 className="text-base font-semibold">1 · Speicherort</h4>
+          <p className="text-sm text-muted-foreground">
+            Wo die Dateien Ihres Archivs liegen — lokal oder in Ihrer Cloud.
+          </p>
+        </div>
+        <StorageForm />
+      </section>
+
+      <Separator />
+
+      {/* 2 — Verarbeitung */}
+      <section className="space-y-3">
+        <div>
+          <h4 className="text-base font-semibold">2 · Verarbeitung</h4>
+          <p className="text-sm text-muted-foreground">
+            Wie neue Dokumente zu Wissen werden: Template, Zielsprache und
+            Cover-Bild für die Transformation.
+          </p>
+        </div>
+        <SecretaryServiceForm />
+      </section>
+
+      <Separator />
+
+      {/* 3 — Inhaltstyp */}
+      <section className="space-y-3">
+        <div>
+          <h4 className="text-base font-semibold">3 · Inhaltstyp</h4>
+          <p className="text-sm text-muted-foreground">
+            Was Ihre Bibliothek enthält — bestimmt das Layout in Archiv,
+            Explore und Story sowie die Sprachen Ihrer Inhalte.
+          </p>
+        </div>
+        <Suspense fallback={<SectionLoader />}>
+          <ContentTypeForm />
+        </Suspense>
+        <Suspense fallback={<SectionLoader />}>
+          <TranslationsForm />
+        </Suspense>
+      </section>
+    </div>
+  )
+}

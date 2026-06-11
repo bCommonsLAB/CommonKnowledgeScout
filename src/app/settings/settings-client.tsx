@@ -22,16 +22,14 @@ const spaceCards = [
     space: "meSpace",
     title: "Meine Bibliothek",
     description:
-      "Bauen Sie Ihre eigene Bibliothek auf: Legen Sie fest, wo Ihre Dateien " +
-      "liegen, wie Dokumente zu Wissen verarbeitet werden und wie Story, " +
-      "Galerie und Chat für Ihre Inhalte aussehen.",
+      "Bauen Sie Ihre eigene Bibliothek auf — gegliedert wie die App: das " +
+      "Archiv (wo Dokumente liegen und zu Wissen werden), Explore (wie man " +
+      "sie in der Galerie erkundet) und Story (das Gespräch mit den Inhalten).",
     links: [
-      { title: "Grundlagen", href: "/settings/general" },
-      { title: "Speicherort", href: "/settings/storage" },
-      { title: "Inhaltstyp", href: "/settings/content-type" },
-      { title: "Galerie", href: "/settings/gallery" },
-      { title: "Chat", href: "/settings/chat" },
-      { title: "Verarbeitung", href: "/settings/secretary-service" },
+      { title: "Library", href: "/settings/general" },
+      { title: "Archiv", href: "/settings/archive" },
+      { title: "Explore", href: "/settings/explore" },
+      { title: "Story", href: "/settings/story" },
       { title: "Erweitert", href: "/settings/advanced" },
     ],
   },

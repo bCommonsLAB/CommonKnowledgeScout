@@ -495,7 +495,7 @@ export function useLibraryForm(createNew: boolean) {
             title: "Bibliothek erstellt",
             description: `Die Bibliothek "${data.label}" wurde erfolgreich erstellt.`,
           });
-          router.push("/settings/storage");
+          router.push("/settings/archive");
         } else {
           const updatedLibraries = libraries.map((lib) =>
             lib.id === libraryData.id

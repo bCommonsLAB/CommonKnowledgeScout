@@ -70,16 +70,13 @@ zu prüfen, wenn die Rolle das nächste Mal angefasst wird.
 
 ```
 Bibliothek verwalten
-├── meSpace — Meine Bibliothek
-│   ├── Grundlagen        (Name, Status, Neu, Löschen)
-│   ├── Speicherort       (WIZARD: Provider → Anmelden → Verzeichnis wählen
-│   │                      → Abschluss-Test; Design: 05-storage-wizard.md)
-│   ├── Inhaltstyp        (ASSISTENT: Typ wählen → typabhängige Folgefragen,
-│   │                      Detailansicht, SDG nur wo sinnvoll)
-│   ├── Galerie           (wie man Stories findet: Dichte, Gruppierung,
-│   │                      Standard-Filter; Facetten-Editor als Experten-Teil)
-│   ├── Chat              (Eingabefeld-Texte, Ton/Stil, Antwortsprache)
-│   ├── Verarbeitung      (Template → Zielsprache → Cover, redaktionell)
+├── meSpace — Meine Bibliothek (F9: gegliedert wie die App-Navigation)
+│   ├── Library           (Name, Status, Neu, Löschen)
+│   ├── Archiv            (Erzählung „1 Speicherort → 2 Verarbeitung →
+│   │                      3 Inhaltstyp": Storage-WIZARD, Template/Sprache/
+│   │                      Cover, Inhaltstyp-ASSISTENT + Übersetzungen)
+│   ├── Explore           (Galerie: Dichte, Gruppierung, Facetten, Graph)
+│   ├── Story             (Eingabefeld-Texte, Ton/Stil, Antwortsprache)
 │   └── Erweitert         (LLM-Modelle, RAG, Index — automatisiert, Graph-
 │                          Encoding, Azure/Thumbnails, Cache, DIVA, Auto-
 │                          Klassifikation, Import/Export, Service-Verbindung)
@@ -110,6 +107,7 @@ Speicherort-Wizard-Design: [05-storage-wizard.md](05-storage-wizard.md).
 | F6 | Inhaltstyp als kleiner **Assistent**: Typ wählen → typabhängige Folgefragen (SDG-Profil nur für Klima-Inhalte u.ä.) |
 | F7 | **Such-Index automatisieren** (Anlage/Rebuild ohne User-Aktion); Index-/Atlas-Dialoge nur noch Experten-Diagnose |
 | F8 | Zusätzlich unter „Erweitert": LLM-Modell (Chat + Transformation), Embeddings/Chunking, Atlas-Index, Azure Blob/Thumbnails, Cache/Speicherstrategie, JSON-Import/Export, Service-Verbindungen, DIVA-Auswertung, Auto-Klassifikations-Schwelle |
+| F9 | (Review 2026-06-11, Devil's Advocate aus Laiensicht) meSpace folgt der **App-Navigation** statt System-Domänen: Library, **Archiv** (= Speicherort + Verarbeitung + Inhaltstyp + Übersetzungen als EINE Erzählung mit Erklär-Intro), **Explore** (= Galerie/Facetten), **Story** (= Chat). Alte Routen leiten weiter. Begründung: Laien ordnen Einstellungen den Orten zu, die sie aus der App kennen — nicht den technischen Domänen |
 
 ### Entschiedene Fragen (User, 2026-06-11)
 

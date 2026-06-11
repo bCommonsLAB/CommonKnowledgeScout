@@ -153,7 +153,7 @@ export function ContentTypeSection({ form }: ContentTypeSectionProps) {
             <p className="text-xs text-muted-foreground mt-1">
               Für diesen Inhaltstyp gibt es {defaultFacets.length} empfohlene
               Filter (aktuell konfiguriert: {currentFacets.length}). Feinjustierung
-              jederzeit unter <Link href="/settings/gallery" className="underline">Galerie</Link>.
+              jederzeit unter <Link href="/settings/explore" className="underline">Explore</Link>.
             </p>
           </div>
           <ConfirmActionDialog
