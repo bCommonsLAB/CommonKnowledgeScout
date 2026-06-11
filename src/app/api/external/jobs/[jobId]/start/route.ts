@@ -27,7 +27,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuth, currentUser } from '@clerk/nextjs/server'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
-import { getServerProvider } from '@/lib/storage/server-provider'
+import { resolveJobProvider } from '@/lib/external-jobs/provider'
 import { getPublicAppUrl, isElectronMode, getJobsWorkerPoolId } from '@/lib/env'
 import { streamSecretaryJob } from '@/lib/external-jobs/secretary-sse-client'
 import { mapSyncResponseToCallbackBody, mapSSEResultToCallbackBody, postToSelfCallback } from '@/lib/external-jobs/offline-callback'
@@ -306,15 +306,21 @@ export async function POST(
     // Secretary-Aufruf vorbereiten (aus alter Retry-Startlogik entnommen, minimal)
     // Diagnose-Log: Storage-Provider-Aufbau ist ein häufiger Hänger (WebDAV/OAuth-Refresh).
     // Ohne Eingangs-Log + Dauer können wir nicht unterscheiden, ob der Hang hier oder später passiert.
-    let provider: Awaited<ReturnType<typeof getServerProvider>>
+    let provider: Awaited<ReturnType<typeof resolveJobProvider>>
     const providerStartedAt = Date.now();
     FileLogger.info('start-route', 'Lade Storage-Provider', {
       jobId,
       userEmail: job.userEmail,
       libraryId: job.libraryId,
+      providerScope: job.providerScope || 'archive',
     });
     try {
-      provider = await getServerProvider(job.userEmail, job.libraryId)
+      // Provider-Weiche (Welle III): Inbox-Jobs lesen/schreiben in der Quarantaene.
+      provider = await resolveJobProvider({
+        userEmail: job.userEmail,
+        libraryId: job.libraryId,
+        providerScope: job.providerScope,
+      })
       FileLogger.info('start-route', 'Storage-Provider geladen', {
         jobId,
         elapsedMs: Date.now() - providerStartedAt,

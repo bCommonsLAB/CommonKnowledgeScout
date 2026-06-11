@@ -107,7 +107,7 @@ export async function setJobCompleted(args: CompleteArgs): Promise<JobResult> {
   if (!savedItemId && transformedId) savedItemId = transformedId
 
   if (sourceItemId && sourceName && sourceParentId && job) {
-    const provider = await buildProvider({ userEmail: job.userEmail, libraryId: job.libraryId, jobId: ctx.jobId, repo })
+    const provider = await buildProvider({ userEmail: job.userEmail, libraryId: job.libraryId, jobId: ctx.jobId, repo, providerScope: job.providerScope })
     // Bei Ingest-only Jobs (Template deaktiviert): Transformation als Fallback akzeptieren
     // Grund: Ingest-only kann eine bereits existierende Transformation ingesten
     const ingestOnly = !templateEnabled && !extractEnabled && ingestEnabled

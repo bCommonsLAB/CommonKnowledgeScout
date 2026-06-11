@@ -27,13 +27,12 @@
 
 import type { RequestContext } from '@/types/external-jobs'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
-import { buildProvider } from './provider'
+import { buildProvider, resolveShadowTwinLibrary } from './provider'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
 import { clearWatchdog } from '@/lib/external-jobs-watchdog'
 import { getJobEventBus } from '@/lib/events/job-event-bus'
 import { writeArtifact } from '@/lib/shadow-twin/artifact-writer'
 import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
-import { LibraryService } from '@/lib/services/library-service'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { persistShadowTwinToMongo } from '@/lib/shadow-twin/shadow-twin-mongo-writer'
 import { FileLogger } from '@/lib/debug/logger'
@@ -111,7 +110,12 @@ export async function runExtractOnly(
   const shadowTwinFolderId: string | undefined = job.shadowTwinState?.shadowTwinFolderId
 
   // Prüfe Shadow-Twin-Konfiguration (Mongo oder Filesystem) - einmalig für den gesamten Extract-Only-Lauf
-  const library = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
+  // Inbox-Scope => null => Filesystem-Default (Blob via Inbox-Provider), siehe resolveShadowTwinLibrary.
+  const library = await resolveShadowTwinLibrary({
+    userEmail: job.userEmail,
+    libraryId: job.libraryId,
+    providerScope: job.providerScope,
+  })
   const shadowTwinConfig = getShadowTwinConfig(library)
   // WICHTIG: persistShadowTwinToMongo verwendet bereits intern den ShadowTwinService,
   // daher ist die Store-Entscheidung dort zentralisiert.
@@ -133,6 +137,7 @@ export async function runExtractOnly(
         libraryId: job.libraryId,
         jobId,
         repo,
+        providerScope: job.providerScope,
       })
       
       const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
@@ -193,8 +198,12 @@ export async function runExtractOnly(
       if (savedItemId && job.correlation?.source?.itemId) {
         try {
           const { analyzeShadowTwinWithService } = await import('@/lib/shadow-twin/analyze-shadow-twin')
-          const { LibraryService } = await import('@/lib/services/library-service')
-          const library = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
+          // Inbox-Scope => null => Filesystem-Detection ueber den Inbox-Provider.
+          const library = await resolveShadowTwinLibrary({
+            userEmail: job.userEmail,
+            libraryId: job.libraryId,
+            providerScope: job.providerScope,
+          })
           const lang = (job.correlation?.options as { targetLanguage?: string } | undefined)?.targetLanguage || 'de'
           const updatedShadowTwinState = await analyzeShadowTwinWithService(job.correlation.source.itemId, provider, job.userEmail, library, lang)
           if (updatedShadowTwinState) {
@@ -242,6 +251,7 @@ export async function runExtractOnly(
           libraryId: job.libraryId,
           jobId,
           repo,
+          providerScope: job.providerScope,
         })
         const lang = (job.correlation.options?.targetLanguage as string | undefined) || 'de'
         const parentId = job.correlation?.source?.parentId || 'root'
@@ -359,6 +369,7 @@ export async function runExtractOnly(
         libraryId: job.libraryId,
         jobId,
         repo,
+        providerScope: job.providerScope,
       })
       
       bufferLog(jobId, {

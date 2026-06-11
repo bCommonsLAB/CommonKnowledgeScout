@@ -17,7 +17,7 @@ import { runIngestion } from '@/lib/external-jobs/ingest'
 import { getJobEventBus } from '@/lib/events/job-event-bus'
 import { handleJobError } from '@/lib/external-jobs/error-handler'
 import { FileLogger } from '@/lib/debug/logger'
-import { getServerProvider } from '@/lib/storage/server-provider'
+import { resolveJobProvider } from '@/lib/external-jobs/provider'
 import { loadShadowTwinMarkdown } from '@/lib/external-jobs/phase-shadow-twin-loader'
 import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import { INGEST_META_SOURCE_FILE_NAME_KEY } from '@/lib/ingestion/ingest-meta-keys'
@@ -58,7 +58,14 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
   } = args
 
   const { jobId, job } = ctx
-  
+
+  // Inbox-Jobs duerfen NIE in den Owner-RAG-Index schreiben (ADR-0004: Ingest
+  // gehoert zur Publikation, W5). Aufrufer setzen phases.ingest=false; dieser
+  // Wurf faengt Fehlkonfiguration laut ab (kein stiller Skip).
+  if (job.providerScope === 'inbox') {
+    throw new Error('phase-ingest: Ingest ist fuer Inbox-Jobs nicht erlaubt (ADR-0004; Publikation = W5).')
+  }
+
   // Lade Job-Dokument neu, um sicherzustellen, dass shadowTwinState aktuell ist
   // (kann sich während der Verarbeitung ändern)
   const freshJob = await repo.get(jobId)
@@ -160,7 +167,11 @@ export async function runIngestPhase(args: IngestPhaseArgs): Promise<IngestPhase
   }
 
   // Verwende übergebenen Provider oder erstelle Fallback-Provider für Bild-Verarbeitung (Cover + Markdown-Bilder)
-  const ingestionProvider = provider || await getServerProvider(job.userEmail, job.libraryId)
+  const ingestionProvider = provider || await resolveJobProvider({
+    userEmail: job.userEmail,
+    libraryId: job.libraryId,
+    providerScope: job.providerScope,
+  })
   
   // Stabiler Schlüssel: Original-Quell-Item (PDF) bevorzugen, sonst Shadow‑Twin, sonst Fallback
   const fileId = (job.correlation.source?.itemId as string | undefined) || savedItemId || `${jobId}-md`

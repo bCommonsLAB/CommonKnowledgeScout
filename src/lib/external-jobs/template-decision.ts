@@ -37,7 +37,11 @@ export async function decideTemplateRun(args: TemplateDecisionArgs): Promise<Tem
   // Repair-Probe: vorhandener Shadow‑Twin unvollständig?
   let needsRepair = false
   try {
-    const provider = await (await import('@/lib/storage/server-provider')).getServerProvider(ctx.job.userEmail, ctx.job.libraryId)
+    const provider = await (await import('@/lib/external-jobs/provider')).resolveJobProvider({
+      userEmail: ctx.job.userEmail,
+      libraryId: ctx.job.libraryId,
+      providerScope: ctx.job.providerScope,
+    })
     const parentId = ctx.job.correlation?.source?.parentId || 'root'
     void (await provider.getPathById(parentId))
     const rawName = ctx.job.correlation?.source?.name || 'document.pdf'
