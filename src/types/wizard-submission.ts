@@ -52,6 +52,12 @@ export interface SubmissionBinaryRef {
   contentType: string;
   /** Groesse in Bytes, falls bekannt */
   size?: number;
+  /**
+   * StorageItem-ID der Quelle im Inbox-Provider (Welle III). Damit kann die
+   * Analyse-Pipeline die Datei ueber das Provider-Interface laden, ohne Pfade
+   * zu rekonstruieren. Optional: Refs aus Stufe A vor Welle III haben keine.
+   */
+  itemId?: string;
 }
 
 /** Ziel der spaeteren Publikation (Provider-Ordner/Slug). */

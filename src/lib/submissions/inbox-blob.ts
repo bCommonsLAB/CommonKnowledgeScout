@@ -36,6 +36,8 @@ export interface InboxBinaryRefInput {
   fileName: string;
   contentType: string;
   size?: number;
+  /** StorageItem-ID der Quelle im Inbox-Provider (optional, Welle III). */
+  itemId?: string;
 }
 
 /**
@@ -45,7 +47,7 @@ export interface InboxBinaryRefInput {
 export function buildInboxBinaryRef(
   input: InboxBinaryRefInput,
 ): SubmissionBinaryRef {
-  const { hash, url, fileName, contentType, size } = input;
+  const { hash, url, fileName, contentType, size, itemId } = input;
   if (!hash) throw new Error('buildInboxBinaryRef: hash ist erforderlich');
   if (!url) throw new Error('buildInboxBinaryRef: url ist erforderlich');
   if (!fileName) throw new Error('buildInboxBinaryRef: fileName ist erforderlich');
@@ -54,5 +56,6 @@ export function buildInboxBinaryRef(
   }
   const ref: SubmissionBinaryRef = { hash, url, fileName, contentType };
   if (size !== undefined) ref.size = size;
+  if (itemId !== undefined) ref.itemId = itemId;
   return ref;
 }

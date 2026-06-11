@@ -55,5 +55,8 @@ export async function uploadInboxBinary(
     fileName: file.name,
     contentType,
     size: buffer.length,
+    // Provider-Item-ID der Quelle: erlaubt der Analyse-Pipeline (Welle III),
+    // die Datei ueber das Provider-Interface zu laden (keine Pfad-Rekonstruktion).
+    itemId: item.id,
   });
 }

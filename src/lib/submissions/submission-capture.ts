@@ -77,6 +77,7 @@ function asBinaryRefs(value: unknown): SubmissionBinaryRef[] {
       fileName: asNonEmptyString(r.fileName, 'binaryRefs[].fileName'),
       contentType: asNonEmptyString(r.contentType, 'binaryRefs[].contentType'),
       size: typeof r.size === 'number' ? r.size : undefined,
+      itemId: r.itemId !== undefined ? asNonEmptyString(r.itemId, 'binaryRefs[].itemId') : undefined,
     });
   });
 }

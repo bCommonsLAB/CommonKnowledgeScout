@@ -77,6 +77,8 @@ describe('uploadInboxBinary', () => {
       fileName: 'Quelle.pdf',
       contentType: 'application/pdf',
       size: Buffer.from('%PDF-1.4 hallo').length,
+      // Provider-Item-ID der Quelle (Welle III: Anker fuer die Analyse-Pipeline).
+      itemId: expectedPath,
     });
   });
 
