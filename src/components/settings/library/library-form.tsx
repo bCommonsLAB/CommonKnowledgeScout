@@ -32,7 +32,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
@@ -182,12 +181,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
         label: activeLibrary.label,
         path: activeLibrary.path,
         type: activeLibrary.type,
-        description: (activeLibrary.config?.description as string) ?? "",
         isEnabled: activeLibrary.isEnabled,
-        transcription:
-          (activeLibrary.config?.transcription as "shadowTwin" | "db") ?? "shadowTwin",
-        templateDirectory:
-          (activeLibrary.config?.templateDirectory as string) ?? "/templates",
         analyzeDivaTextureInfo: activeLibrary.config?.analyzeDivaTextureInfo === true,
         autoApplyConfidenceThreshold:
           typeof activeLibrary.config?.autoApplyConfidenceThreshold === "number" &&
@@ -298,61 +292,6 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                 )}
               />
 
-              {/* Beschreibung */}
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Beschreibung</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Beschreibung der Bibliothek"
-                        className="resize-none"
-                        {...field}
-                        value={field.value ?? ""}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Eine kurze Beschreibung der Bibliothek und ihres Inhalts.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Transkriptionsstrategie */}
-              <FormField
-                control={form.control}
-                name="transcription"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Transkriptionsstrategie</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      value={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Transkriptionsstrategie auswählen" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="shadowTwin">
-                          Neben Originaldatei speichern (Shadow Twin)
-                        </SelectItem>
-                        <SelectItem value="db">In Datenbank speichern</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      Festlegen, wie Transkriptionen gespeichert werden sollen.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               {/* Shadow-Twin-Konfiguration */}
               {!isNew && activeLibrary && (
                 <ShadowTwinConfigSection
@@ -413,25 +352,6 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                   runLanguageCleanup={runLanguageCleanup}
                 />
               )}
-
-              {/* Template-Verzeichnis */}
-              <FormField
-                control={form.control}
-                name="templateDirectory"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Template-Verzeichnis</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="/templates" />
-                    </FormControl>
-                    <FormDescription>
-                      Verzeichnis in der Bibliothek, in dem die Secretary Service Templates
-                      gespeichert werden.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
               {/* Transformation: DIVA-Liefersystem-Daten auswerten */}
               <div className="space-y-3">

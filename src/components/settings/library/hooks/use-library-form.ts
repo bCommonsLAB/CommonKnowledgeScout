@@ -31,12 +31,7 @@ export const libraryFormSchema = z.object({
   type: z.enum(["local", "onedrive", "gdrive", "nextcloud"], {
     required_error: "Bitte wählen Sie einen Speichertyp.",
   }),
-  description: z.string().optional(),
   isEnabled: z.boolean().default(true),
-  transcription: z.enum(["shadowTwin", "db"], {
-    required_error: "Bitte wählen Sie eine Transkriptionsstrategie.",
-  }),
-  templateDirectory: z.string().default("/templates"),
   // Transformation: DIVA-Liefersystem-Daten auswerten (DIVA-Info-Tab). Default false.
   analyzeDivaTextureInfo: z.boolean().default(false),
   // Schwellwert fuer die Auto-Uebernahme der Stoffgruppen-Klassifikation (Stufe 4).
@@ -232,10 +227,7 @@ export function useLibraryForm(createNew: boolean) {
       label: "",
       path: "",
       type: "local",
-      description: "",
       isEnabled: true,
-      transcription: "shadowTwin",
-      templateDirectory: "/templates",
       analyzeDivaTextureInfo: false,
       autoApplyConfidenceThreshold: 0.9,
       divaArchiveFilterMode: 'all' as const,
@@ -342,12 +334,7 @@ export function useLibraryForm(createNew: boolean) {
         label: activeLibrary.label,
         path: activeLibrary.path,
         type: activeLibrary.type,
-        description: (activeLibrary.config?.description as string) ?? "",
         isEnabled: activeLibrary.isEnabled,
-        transcription:
-          (activeLibrary.config?.transcription as "shadowTwin" | "db") ?? "shadowTwin",
-        templateDirectory:
-          (activeLibrary.config?.templateDirectory as string) ?? "/templates",
         analyzeDivaTextureInfo: activeLibrary.config?.analyzeDivaTextureInfo === true,
         autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
           activeLibrary.config?.autoApplyConfidenceThreshold,
@@ -380,12 +367,7 @@ export function useLibraryForm(createNew: boolean) {
         label: activeLibrary.label,
         path: activeLibrary.path,
         type: activeLibrary.type,
-        description: (activeLibrary.config?.description as string) ?? "",
         isEnabled: activeLibrary.isEnabled,
-        transcription:
-          (activeLibrary.config?.transcription as "shadowTwin" | "db") ?? "shadowTwin",
-        templateDirectory:
-          (activeLibrary.config?.templateDirectory as string) ?? "/templates",
         analyzeDivaTextureInfo: activeLibrary.config?.analyzeDivaTextureInfo === true,
         autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
           activeLibrary.config?.autoApplyConfidenceThreshold,
@@ -469,11 +451,7 @@ export function useLibraryForm(createNew: boolean) {
           path: data.path,
           type: data.type as StorageProviderType,
           isEnabled: data.isEnabled,
-          transcription: data.transcription,
           config: {
-            description: data.description,
-            transcription: data.transcription,
-            templateDirectory: data.templateDirectory,
             analyzeDivaTextureInfo: data.analyzeDivaTextureInfo,
             autoApplyConfidenceThreshold: data.autoApplyConfidenceThreshold,
             divaArchiveDefaults: {
@@ -654,10 +632,7 @@ export function useLibraryForm(createNew: boolean) {
           label: importedLibrary.label as string,
           path: importedLibrary.path as string,
           type: importedLibrary.type as "local" | "onedrive" | "gdrive" | "nextcloud",
-          description: ((importedLibrary as { config?: Record<string, unknown> }).config?.description as string) ?? "",
           isEnabled: importedLibrary.isEnabled as boolean,
-          transcription: (importedLibrary.transcription as "shadowTwin" | "db") ?? "shadowTwin",
-          templateDirectory: ((importedLibrary as { config?: Record<string, unknown> }).config?.templateDirectory as string) ?? "/templates",
           analyzeDivaTextureInfo: ((importedLibrary as { config?: Record<string, unknown> }).config?.analyzeDivaTextureInfo as boolean) === true,
           autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
             (importedLibrary as { config?: Record<string, unknown> }).config?.autoApplyConfidenceThreshold,

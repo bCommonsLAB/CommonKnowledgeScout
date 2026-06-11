@@ -159,7 +159,6 @@ export function CreateLibraryDialog({
               collectionName: buildCollectionNameForLibraryId(newLibraryId),
             },
           },
-          description: `Kopie von ${activeLibrary.label}`,
         }
 
         // Legacy-Felder explizit entfernen, damit keine veraltete Index-Logik erhalten bleibt.
@@ -196,9 +195,6 @@ export function CreateLibraryDialog({
           type: "local" as StorageProviderType,
           isEnabled: true,
           config: {
-            description: "",
-            transcription: "shadowTwin",
-            templateDirectory: "/templates",
             shadowTwin: {
               mode: "legacy",
               primaryStore: "filesystem",
