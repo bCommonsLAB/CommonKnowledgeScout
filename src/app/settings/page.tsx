@@ -30,8 +30,7 @@ export default function SettingsPage() {
       <div>
         <h3 className="text-lg font-medium">Übersicht</h3>
         <p className="text-sm text-muted-foreground">
-          Wählen Sie einen Raum: meSpace (Bibliothek aufbauen), weSpace (mit
-          vertrauten Personen teilen) oder usSpace (veröffentlichen).
+          Wählen Sie, was Sie tun möchten — jede Karte erklärt ihren Raum.
         </p>
       </div>
       <Separator />

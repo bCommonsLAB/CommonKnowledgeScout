@@ -5,10 +5,11 @@ import { SidebarNav, type SidebarNavGroup } from "@/components/settings/sidebar-
 import { useAtomValue } from "jotai"
 import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom"
 import { useMemo } from "react"
+import { usePathname } from "next/navigation"
 import { Info } from "lucide-react"
 
-// Übersichts-Link oberhalb der Raum-Gruppen
-const overviewItems = [{ title: "Übersicht", href: "/settings" }]
+// Übersichts-Link oberhalb der Raum-Gruppe
+const overviewItems = [{ title: "← Übersicht", href: "/settings" }]
 
 // Die drei Räume (Konzept: docs/settings-ux/README.md §2 und §5).
 // Jede Gruppe traegt einen Erklaertext fuer Anwender ohne Technik-Wissen.
@@ -48,17 +49,31 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const activeLibraryId = useAtomValue(activeLibraryIdAtom)
   const libraries = useAtomValue(librariesAtom)
+  const pathname = usePathname()
 
   const activeLibrary = libraries.find(lib => lib.id === activeLibraryId)
   const isCoCreator = activeLibrary?.accessRole === 'co-creator'
 
-  // Co-Creators sehen keine Settings-Tabs (Einstellungen liegen beim Owner)
-  const navGroups = useMemo(() => {
-    if (isCoCreator) return []
-    return sidebarGroups
-  }, [isCoCreator])
+  // Sidebar zeigt NUR den Raum, fuer den sich der User entschieden hat —
+  // auf der Uebersicht (/settings) uebernehmen die Karten die Navigation.
+  // Co-Creators sehen keine Settings-Tabs (Einstellungen liegen beim Owner).
+  const activeGroup = useMemo(() => {
+    if (isCoCreator || !pathname || pathname === "/settings") return undefined
+    const exact = sidebarGroups.find(g => g.items.some(i => i.href === pathname))
+    if (exact) return exact
+    // Fallback fuer kuenftige Unterrouten: laengster Pfad-Prefix gewinnt
+    let best: { group: SidebarNavGroup; len: number } | undefined
+    for (const group of sidebarGroups) {
+      for (const item of group.items) {
+        if (pathname.startsWith(item.href + "/") && (!best || item.href.length > best.len)) {
+          best = { group, len: item.href.length }
+        }
+      }
+    }
+    return best?.group
+  }, [isCoCreator, pathname])
 
-  const hasNav = navGroups.length > 0
+  const hasNav = activeGroup !== undefined
 
   return (
     <div className="flex flex-col h-full">
@@ -91,7 +106,9 @@ export default function Layout({ children }: LayoutProps) {
             </p>
           </div>
           <Separator className="my-4" />
-          {hasNav && <SidebarNav items={overviewItems} groups={navGroups} />}
+          {hasNav && activeGroup && (
+            <SidebarNav items={overviewItems} groups={[activeGroup]} />
+          )}
           <div className="mt-6">{children}</div>
         </div>
       </div>
@@ -110,9 +127,9 @@ export default function Layout({ children }: LayoutProps) {
             <Separator className="my-6" />
 
             <div className="flex flex-col space-y-8 lg:flex-row lg:space-x-12 lg:space-y-0">
-              {hasNav && (
+              {hasNav && activeGroup && (
                 <aside className="-mx-4 lg:w-1/5">
-                  <SidebarNav items={overviewItems} groups={navGroups} />
+                  <SidebarNav items={overviewItems} groups={[activeGroup]} />
                 </aside>
               )}
               <div className="flex-1 min-w-0">{children}</div>
