@@ -155,7 +155,7 @@ const FILTER_AND_TABLE_FIELDS = new Set(['dominant_perspektive', 'vorschlag_quel
  * Generiert Standard-Facetten aus der VIEW_TYPE_REGISTRY.
  * Filtert Felder die als Facette keinen Sinn ergeben (URLs, Freitexte, Objekte).
  */
-function generateDefaultFacets(viewType: string): FacetDefUi[] {
+export function generateDefaultFacets(viewType: string): FacetDefUi[] {
   if (!isValidDetailViewType(viewType)) return []
   const required = getRequiredFields(viewType)
   const optional = getOptionalFields(viewType)

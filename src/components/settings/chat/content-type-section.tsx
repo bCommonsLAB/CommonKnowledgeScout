@@ -1,30 +1,27 @@
 "use client"
 
 /**
- * ContentTypeSection — Inhaltstyp & Detailansicht.
+ * ContentTypeSection — Inhaltstyp-Assistent (Welle 3-IV-UX-3e, F6).
  *
- * Extrahiert aus gallery-config-section.tsx (Welle 3-IV-UX-3a):
- * Der Inhaltstyp bestimmt das Layout der Detailansicht und ist die
- * Grundlage fuer typabhaengige Optionen (z.B. SDG-Profil).
+ * Statt eines nackten Dropdowns: Typ-Karten mit Erklaerung, danach
+ * typabhaengige Folgefragen (SDG-Profil nur fuer Klima-Inhalte,
+ * DIVA-Hinweis fuer DIVA-Typen) und die Uebernahme der empfohlenen
+ * Galerie-Filter fuer den gewaehlten Typ.
+ *
+ * testimonial/blog sind bewusst nicht waehlbar (E5 revidiert):
+ * sie bleiben Dokument-Typen des Creation-Wizards.
  */
 
-import {
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { FormControl, FormDescription, FormField, FormItem, FormLabel } from "@/components/ui/form"
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Switch } from "@/components/ui/switch"
-import { useTranslation } from '@/lib/i18n/hooks'
+import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog"
+import { generateDefaultFacets } from "@/components/settings/FacetDefsEditor"
+import { toast } from "sonner"
+import { Info } from "lucide-react"
 import type { UseFormReturn } from "react-hook-form"
 import type { chatFormSchema } from "./hooks/use-chat-form"
 import type { z } from "zod"
@@ -34,89 +31,149 @@ interface ContentTypeSectionProps {
   form: UseFormReturn<z.infer<typeof chatFormSchema>>
 }
 
-/**
- * Section-Komponente für Inhaltstyp und typabhängige Detail-Optionen.
- */
+/** Waehlbare Inhaltstypen mit Anwender-Erklaerung */
+const CONTENT_TYPE_OPTIONS = [
+  {
+    value: 'book' as const,
+    title: 'Bücher & Dokumente',
+    description: 'PDFs, Texte und Publikationen — der Standard für Dokumenten-Sammlungen.',
+  },
+  {
+    value: 'session' as const,
+    title: 'Event & Sessions',
+    description: 'Vorträge und Gespräche einer Veranstaltung, mit Sprechern und Medien.',
+  },
+  {
+    value: 'climateAction' as const,
+    title: 'Klima-Maßnahmen',
+    description: 'Maßnahmenkatalog mit Bewertungen, Zuständigkeiten und SDG-Bezug.',
+  },
+  {
+    value: 'divaDocument' as const,
+    title: 'DIVA-Dokumente',
+    description: 'Branchenspezifisch: Dokumente aus dem DIVA-Liefersystem.',
+  },
+  {
+    value: 'divaTexture' as const,
+    title: 'DIVA-Texturen',
+    description: 'Branchenspezifisch: Textur-Bibliothek mit Material-Attributen.',
+  },
+  {
+    value: 'refurbedDevice' as const,
+    title: 'Refurbished-Geräte',
+    description: 'Branchenspezifisch: Geräte-Katalog mit technischen Daten.',
+  },
+]
+
 export function ContentTypeSection({ form }: ContentTypeSectionProps) {
-  const { t } = useTranslation()
+  const currentType = form.watch('gallery.detailViewType') || 'book'
+  const defaultFacets = generateDefaultFacets(currentType)
+  const currentFacets = form.watch('gallery.facets') || []
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="border-b pb-2">
-        <h3 className="text-lg font-semibold">Inhaltstyp & Detailansicht</h3>
+        <h3 className="text-lg font-semibold">Was enthält Ihre Bibliothek?</h3>
         <p className="text-sm text-muted-foreground">
-          Was enthält Ihre Bibliothek? Der Inhaltstyp bestimmt, mit welchem
-          Layout Ihre Dokumente angezeigt werden.
+          Der Inhaltstyp bestimmt das Layout der Detailansicht und die
+          empfohlenen Filter der Galerie.
         </p>
       </div>
 
-      <FormField
-        control={form.control}
-        name="gallery.detailViewType"
-        render={({ field }) => {
-          const currentValue = field.value || 'book';
-          return (
-            <FormItem>
-              <FormLabel>{t('settings.chatForm.galleryDetailViewType')}</FormLabel>
-              <Select
-                value={currentValue}
-                onValueChange={(value) => {
-                  if (
-                    value === 'book' ||
-                    value === 'session' ||
-                    value === 'climateAction' ||
-                    value === 'testimonial' ||
-                    value === 'blog' ||
-                    value === 'divaDocument' ||
-                    value === 'divaTexture' ||
-                    value === 'refurbedDevice'
-                  ) {
-                    field.onChange(value);
-                  } else {
-                    console.warn('[ContentTypeSection] Ungültiger detailViewType ignoriert:', value);
-                  }
-                }}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="book">{t('settings.chatForm.detailViewTypeBook')}</SelectItem>
-                  <SelectItem value="session">{t('settings.chatForm.detailViewTypeSession')}</SelectItem>
-                  <SelectItem value="climateAction">{t('settings.chatForm.detailViewTypeClimateAction')}</SelectItem>
-                  <SelectItem value="divaDocument">{t('settings.chatForm.detailViewTypeDivaDocument')}</SelectItem>
-                  <SelectItem value="divaTexture">{t('settings.chatForm.detailViewTypeDivaTexture')}</SelectItem>
-                  <SelectItem value="refurbedDevice">{t('settings.chatForm.detailViewTypeRefurbedDevice')}</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormDescription>
-                {t('settings.chatForm.galleryDetailViewTypeDescription')}
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          );
-        }}
-      />
+      {/* Schritt 1: Typ-Karten */}
+      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        {CONTENT_TYPE_OPTIONS.map(option => (
+          <Card
+            key={option.value}
+            role="button"
+            onClick={() => form.setValue('gallery.detailViewType', option.value, { shouldDirty: true })}
+            className={`cursor-pointer transition-colors ${
+              currentType === option.value
+                ? 'border-primary ring-1 ring-primary'
+                : 'hover:border-muted-foreground/40'
+            }`}
+          >
+            <CardHeader className="p-4">
+              <CardTitle className="text-sm">{option.title}</CardTitle>
+              <CardDescription className="text-xs">{option.description}</CardDescription>
+            </CardHeader>
+          </Card>
+        ))}
+      </div>
 
-      <FormField
-        control={form.control}
-        name="gallery.showSdgProfile"
-        render={({ field }) => (
-          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-            <div className="space-y-0.5">
-              <FormLabel>{t('settings.chatForm.galleryShowSdgProfile')}</FormLabel>
-              <FormDescription>
-                {t('settings.chatForm.galleryShowSdgProfileDescription')}
-              </FormDescription>
-            </div>
-            <FormControl>
-              <Switch checked={field.value === true} onCheckedChange={field.onChange} />
-            </FormControl>
-          </FormItem>
-        )}
-      />
+      {/* Bestands-Hinweis fuer nicht mehr waehlbare Typen */}
+      {(currentType === 'testimonial' || currentType === 'blog') && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            Diese Bibliothek nutzt den Typ &quot;{currentType}&quot;, der nicht mehr als
+            Bibliotheks-Typ angeboten wird. Wählen Sie eine Karte, um zu wechseln.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Schritt 2: typabhaengige Folgefragen */}
+      {currentType === 'climateAction' && (
+        <FormField
+          control={form.control}
+          name="gallery.showSdgProfile"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <FormLabel>SDG-Profil anzeigen</FormLabel>
+                <FormDescription>
+                  Zeigt das Nachhaltigkeits-Rad (UN-Ziele) in der Detailansicht
+                  Ihrer Maßnahmen.
+                </FormDescription>
+              </div>
+              <FormControl>
+                <Switch checked={field.value === true} onCheckedChange={field.onChange} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+      )}
+
+      {(currentType === 'divaTexture' || currentType === 'divaDocument') && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            Für DIVA-Inhalte gibt es zusätzliche Auswertungs-Optionen
+            (Liefersystem-Daten, Archiv-Voreinstellungen) im Bereich{' '}
+            <Link href="/settings/advanced" className="underline">Erweitert</Link>.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Schritt 3: empfohlene Galerie-Filter uebernehmen */}
+      {defaultFacets.length > 0 && (
+        <div className="flex items-start justify-between gap-4 rounded-lg border p-4">
+          <div>
+            <p className="text-sm font-medium">Empfohlene Galerie-Filter</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Für diesen Inhaltstyp gibt es {defaultFacets.length} empfohlene
+              Filter (aktuell konfiguriert: {currentFacets.length}). Feinjustierung
+              jederzeit unter <Link href="/settings/gallery" className="underline">Galerie</Link>.
+            </p>
+          </div>
+          <ConfirmActionDialog
+            title={`${defaultFacets.length} empfohlene Filter übernehmen?`}
+            description="Ihre aktuelle Filter-Konfiguration der Galerie wird dabei ersetzt. Speichern Sie anschließend, um die Änderung zu übernehmen."
+            confirmLabel="Übernehmen"
+            onConfirm={() => {
+              form.setValue('gallery.facets', defaultFacets, { shouldDirty: true })
+              toast.success(`${defaultFacets.length} empfohlene Filter gesetzt`, {
+                description: 'Bitte speichern, um die Änderung zu übernehmen.',
+              })
+            }}
+            trigger={
+              <Button type="button" variant="outline" size="sm" className="shrink-0">
+                Übernehmen
+              </Button>
+            }
+          />
+        </div>
+      )}
     </div>
   )
 }
