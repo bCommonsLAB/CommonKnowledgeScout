@@ -59,35 +59,46 @@ const spaceCards = [
   },
 ]
 
-function SpaceOverview() {
+function SpaceOverview({ onCreateNew }: { onCreateNew: () => void }) {
   return (
-    <div className="grid gap-4 md:grid-cols-3">
-      {spaceCards.map((card) => (
-        <Card key={card.id} className="flex flex-col">
-          <CardHeader>
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <card.icon className="w-4 h-4" />
-              {card.space}
-            </div>
-            <CardTitle className="text-lg">{card.title}</CardTitle>
-            <CardDescription>{card.description}</CardDescription>
-          </CardHeader>
-          <CardContent className="mt-auto">
-            <nav className="flex flex-col gap-1">
-              {card.links.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-muted"
-                >
-                  {link.title}
-                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                </Link>
-              ))}
-            </nav>
-          </CardContent>
-        </Card>
-      ))}
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-3">
+        {spaceCards.map((card) => (
+          <Card key={card.id} className="flex flex-col">
+            <CardHeader>
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <card.icon className="w-4 h-4" />
+                {card.space}
+              </div>
+              <CardTitle className="text-lg">{card.title}</CardTitle>
+              <CardDescription>{card.description}</CardDescription>
+            </CardHeader>
+            <CardContent className="mt-auto">
+              <nav className="flex flex-col gap-1">
+                {card.links.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-muted"
+                  >
+                    {link.title}
+                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                  </Link>
+                ))}
+              </nav>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <div className="flex items-center justify-between rounded-lg border border-dashed p-4">
+        <p className="text-sm text-muted-foreground">
+          Sie möchten eine weitere Bibliothek aufbauen?
+        </p>
+        <Button variant="outline" onClick={onCreateNew}>
+          <Plus className="w-4 h-4 mr-2" />
+          Neue Bibliothek erstellen
+        </Button>
+      </div>
     </div>
   )
 }
@@ -218,5 +229,5 @@ export function SettingsClient() {
   }
 
   // Bestehende Benutzer: Raum-Übersicht (meSpace / weSpace / usSpace)
-  return <SpaceOverview />
+  return <SpaceOverview onCreateNew={() => setCreateNewLibrary(true)} />
 }
