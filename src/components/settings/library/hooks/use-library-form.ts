@@ -116,7 +116,6 @@ export function useLibraryForm(createNew: boolean) {
 
   // Shadow-Twin-Konfiguration States
   const [shadowTwinMode, setShadowTwinMode] = useState<"legacy" | "v2">("legacy");
-  const [isUpgradingShadowTwinMode, setIsUpgradingShadowTwinMode] = useState(false);
   const [shadowTwinPrimaryStore, setShadowTwinPrimaryStore] = useState<"filesystem" | "mongo">(
     "filesystem"
   );
@@ -768,8 +767,6 @@ export function useLibraryForm(createNew: boolean) {
     // Shadow-Twin Config
     shadowTwinMode,
     setShadowTwinMode,
-    isUpgradingShadowTwinMode,
-    setIsUpgradingShadowTwinMode,
     shadowTwinPrimaryStore,
     setShadowTwinPrimaryStore,
     shadowTwinPersistToFilesystem,

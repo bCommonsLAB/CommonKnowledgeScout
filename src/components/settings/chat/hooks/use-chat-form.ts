@@ -194,8 +194,6 @@ export interface UseChatFormResult {
   isRepairingVariants: boolean
   isLoadingStats: boolean
   statsError: string | null
-  healthResult: Record<string, unknown> | null
-  healthError: string | null
   azureIngestionCustom: boolean
   azureContainerWatched: string
   defaultEmbeddings: ReturnType<typeof getDefaultEmbeddings>
@@ -215,8 +213,6 @@ export function useChatForm(): UseChatFormResult {
   const [libraries, setLibraries] = useAtom(librariesAtom)
   const [activeLibraryId] = useAtom(activeLibraryIdAtom)
   const [isLoading, setIsLoading] = useState(false)
-  const [healthResult] = useState<Record<string, unknown> | null>(null)
-  const [healthError] = useState<string | null>(null)
   const [showIndexDialog, setShowIndexDialog] = useState(false)
   const [showSearchIndexDialog, setShowSearchIndexDialog] = useState(false)
   const [indexDefinition, setIndexDefinition] = useState<string>('')
@@ -283,9 +279,6 @@ export function useChatForm(): UseChatFormResult {
   useEffect(() => {
     if (activeLibrary?.config?.chat) {
       const c = activeLibrary.config.chat as unknown as Record<string, unknown>
-
-      console.log('[ChatForm] ===== LIBRARY LADEN START =====');
-      console.log('[ChatForm] Active Library ID:', activeLibrary.id);
 
       const galleryConfig = c.gallery as {
         detailViewType?: unknown
@@ -598,8 +591,6 @@ export function useChatForm(): UseChatFormResult {
 
   // Formular absenden
   async function onSubmit(data: ChatFormValues) {
-    console.log('[ChatForm] ✅ onSubmit wurde aufgerufen!')
-
     setIsLoading(true)
     try {
       if (!activeLibrary) throw new Error(t('settings.chatForm.noLibrarySelected'))
@@ -711,8 +702,6 @@ export function useChatForm(): UseChatFormResult {
     isRepairingVariants,
     isLoadingStats,
     statsError,
-    healthResult,
-    healthError,
     azureIngestionCustom,
     azureContainerWatched,
     defaultEmbeddings,

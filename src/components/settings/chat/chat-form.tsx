@@ -61,8 +61,6 @@ export function ChatForm() {
     isRepairingVariants,
     isLoadingStats,
     statsError,
-    healthResult,
-    healthError,
     azureIngestionCustom,
     azureContainerWatched,
     defaultEmbeddings,
@@ -223,37 +221,6 @@ export function ChatForm() {
             {isLoading ? t('settings.chatForm.saving') : t('settings.chatForm.save')}
           </Button>
         </div>
-
-        {(healthResult || healthError) && (
-          <div className="rounded-md border bg-muted/30 p-3">
-            <div className="text-xs text-muted-foreground mb-2">
-              {t('settings.chatForm.indexStatus')}
-            </div>
-            {healthError ? (
-              <div className="text-sm text-destructive">{healthError}</div>
-            ) : (healthResult as { exists?: boolean } | null)?.exists === true ? (
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-green-600 dark:text-green-400">{t('settings.chatForm.indexExists')}</div>
-                <div className="text-xs space-y-1">
-                  <div><span className="text-muted-foreground">{t('settings.chatForm.index')}</span> {String((healthResult as Record<string, unknown>).expectedIndexName || (healthResult as Record<string, unknown>).expectedIndex || '')}</div>
-                  <div><span className="text-muted-foreground">{t('settings.chatForm.vectors')}</span> {(((healthResult as Record<string, unknown>).vectorCount as number) || 0).toLocaleString('de-DE')}</div>
-                  <div><span className="text-muted-foreground">{t('settings.chatForm.dimension')}</span> {String((healthResult as Record<string, unknown>).dimension || '')}</div>
-                  <div><span className="text-muted-foreground">{t('settings.chatForm.status')}</span> {(healthResult as Record<string, unknown>).status ? String((healthResult as Record<string, unknown>).status) : 'Unknown'}</div>
-                </div>
-              </div>
-            ) : (healthResult as { exists?: boolean } | null)?.exists === false ? (
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-orange-600 dark:text-orange-400">{t('settings.chatForm.indexMissing')}</div>
-                <div className="text-xs">
-                  <div><span className="text-muted-foreground">{t('settings.chatForm.expectedName')}</span> {String((healthResult as Record<string, unknown>).expectedIndexName || (healthResult as Record<string, unknown>).expectedIndex || '')}</div>
-                  <div className="text-sm text-muted-foreground mt-2">{t('settings.chatForm.indexMissingDescription')}</div>
-                </div>
-              </div>
-            ) : (
-              <pre className="text-xs whitespace-pre-wrap break-words">{healthResult ? JSON.stringify(healthResult, null, 2) : ''}</pre>
-            )}
-          </div>
-        )}
       </form>
 
       {/* Index Definition Dialog */}
