@@ -38,9 +38,10 @@ Library aufbauen, in der Regel aus PDF-Dokumenten oder Interviews. Alles
 Technische (Index, Embeddings, LLM-Modelle, Cache, Azure) läuft mit
 Standardwerten und ohne sichtbare Konfiguration.
 
-**Begriffskollision (zu klären):** „WeSpace" bezeichnet im Code heute die
-Gast-Rolle (`settings-client.tsx`: „Gast (WeSpace)"). Wenn weSpace/usSpace
-Navigationsbegriffe werden, braucht die Gast-Rolle einen neuen Namen.
+**Begriffskollision (teilentschärft 2026-06-11):** „WeSpace" bezeichnete im
+Code auch die Gast-Rolle. Der sichtbare Gast-Hinweis nennt jetzt nur noch
+„Gast" (Welle UX-2); interne Bezeichner (z.B. in `use-user-role`) sind noch
+zu prüfen, wenn die Rolle das nächste Mal angefasst wird.
 
 ## 3. Personas und Rollen
 
@@ -127,7 +128,7 @@ Speicherort-Wizard-Design: [05-storage-wizard.md](05-storage-wizard.md).
 |---|---|---|
 | 3-IV-UX-0 | Toter Code raus (A1–A5 + B1–B4 aus 04) — ERLEDIGT 2026-06-11 | keins |
 | 3-IV-UX-1 | User-Review — ABGESCHLOSSEN 2026-06-11: F1–F8 festgelegt, E1–E7 entschieden | — |
-| 3-IV-UX-2 | Neue Navigation (3 Räume + meSpace-Bereiche), bestehende Forms verschieben (keine Logik-Änderung) | klein |
+| 3-IV-UX-2 | Neue Navigation (3 Räume), Raum-Übersicht mit Erklär-Karten, gruppierte Sidebar mit Erklärtexten, LibraryForm → `/settings/general` — ERLEDIGT 2026-06-11 (`ce08aed`) | klein |
 | 3-IV-UX-3 | meSpace: Speicherort-Wizard + Re-Auth-Flow (F1–F3), Einsteiger/Erweitert-Trennung, Inhaltstyp-Assistent (F6), Gefahren-UX | mittel–groß |
 | 3-IV-UX-4 | weSpace: Einladungs-Vereinheitlichung + Personen-Übersicht | mittel |
 | 3-IV-UX-5 | usSpace: Veröffentlichungs-Flow + Galerie-Texte (E2) | mittel |
