@@ -117,7 +117,7 @@ Speicherort-Wizard-Design: [05-storage-wizard.md](05-storage-wizard.md).
 | E1 | „Leser einladen" → weSpace oder usSpace? | **weSpace**: alle aktiv eingeladenen Personen; usSpace nur anonyme Öffentlichkeit + Anfragen Fremder |
 | E2 | Galerie-Texte (Schema ohne UI) | **fertig bauen** in usSpace (Galerie liest die Werte bereits) |
 | E4 | `transcription`, `templateDirectory`, `description` | **ersatzlos streichen**; `description` ggf. mit usSpace-Beschreibung zusammenlegen |
-| E5 | `testimonial`/`blog` ViewTypes | **reaktivieren** (zurück ins Dropdown — abweichend von der Empfehlung „entfernen") |
+| E5 | `testimonial`/`blog` ViewTypes | **revidiert nach Code-Vertiefung**: NICHT als Library-Typ reaktivieren. Testimonials sind Ergänzung der Event-Detailansicht (`session`) — Fertigstellung als Produkt-TODO T1 (§8). `blog` bleibt Dokument-Typ im Schema |
 | E6 | Experten-Zugang | Bereich **„Erweitert" pro Raum** (sichtbar, aber abgegrenzt — kein versteckter Modus) |
 | E7 | Moderator-Zugang zu „Zugang & Anfragen" ohne Owner-Settings? | **ja** — rollen-sensitive Navigation statt Alles-oder-Nichts |
 
@@ -132,3 +132,14 @@ Speicherort-Wizard-Design: [05-storage-wizard.md](05-storage-wizard.md).
 | 3-IV-UX-4 | weSpace: Einladungs-Vereinheitlichung + Personen-Übersicht | mittel |
 | 3-IV-UX-5 | usSpace: Veröffentlichungs-Flow + Galerie-Texte (E2) | mittel |
 | danach | Code-Refactor friert neue Struktur ein (ersetzt offene 3-IV-Splits) | — |
+
+## 8. Festgehaltene Produkt-TODOs (außerhalb der Settings-UX)
+
+| # | TODO | Stand |
+|---|---|---|
+| T1 | **Event + Testimonials fertigstellen** (User, 2026-06-11: „Event ist eine wichtige Detailansicht und Testimonials eine Ergänzung"). Testimonials in der Event-/Session-Detailansicht anzeigen; `TestimonialDetail` in Story-View/Galerie verdrahten — Code-TODOs in `story-view.tsx:133-147` („Für jetzt: Fallback auf SessionDetail/BookDetail") | Feature hat mal ansatzweise funktioniert. Bausteine vorhanden: `TestimonialDetail`-Komponente, `mapToTestimonialDetail`, `use-testimonials` + `/api/public/testimonials`, `dialograum-discovery`, `event-testimonial-discovery` |
+
+Kontext zu T1: `testimonial`/`blog` bleiben aktive **Dokument-Typen**
+(Creation-Wizard, Templates, Übersetzungs-Pipeline). Als **Library-weiter
+Galerie-Typ** werden sie nicht angeboten — das Dropdown bleibt bei 6 Typen;
+die Schema-Einträge bleiben für Abwärtskompatibilität und Dokument-Ebene.

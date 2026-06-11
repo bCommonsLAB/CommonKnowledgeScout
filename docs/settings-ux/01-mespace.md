@@ -30,7 +30,7 @@ alles Technische läuft mit Standardwerten und liegt unter „Erweitert".
 
 | Story | Heute | Stufe | Anmerkung |
 |---|---|---|---|
-| … den Inhaltstyp meiner Library festlegen (Bücher, Sessions, Klima-Aktionen …) | Story „Detailansicht-Typ" | K | als kleiner **Assistent**: Typ wählen → typabhängige Folgefragen; lädt Standard-Facetten für die Galerie mit; `testimonial`/`blog` reaktivieren (E5) |
+| … den Inhaltstyp meiner Library festlegen (Bücher, Sessions, Klima-Aktionen …) | Story „Detailansicht-Typ" | K | als kleiner **Assistent**: Typ wählen → typabhängige Folgefragen; lädt Standard-Facetten für die Galerie mit; `testimonial`/`blog` bleiben Dokument-Typen, kein Library-Typ (E5 revidiert → README §8/T1) |
 | … typabhängige Optionen setzen (z.B. SDG-Profil nur bei Klima-Inhalten) | Story „SDG-Profil anzeigen" | G | erscheint nur, wenn der Inhaltstyp es hergibt (F6) — nicht mehr als freier Schalter |
 | … sehen, wie die Detailansicht für meinen Typ aussieht | — | G | Vorschau/Beispiel im Assistenten (neu) |
 
