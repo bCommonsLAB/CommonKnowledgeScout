@@ -1,7 +1,6 @@
 import { Suspense } from "react"
 import { Separator } from "@/components/ui/separator"
 import { ChatForm } from "@/components/settings/chat-form"
-import { TranslationsForm } from "@/components/settings/translations-form"
 
 function ChatFormWrapper() {
   return <ChatForm />
@@ -20,11 +19,6 @@ export default function ChatSettingsPage() {
       <Separator />
       <Suspense fallback={<div className="text-center text-muted-foreground">Lädt...</div>}>
         <ChatFormWrapper />
-      </Suspense>
-      {/* Doc-Translations Refactor: separate Sektion fuer Sprach-Konfiguration. */}
-      <Separator />
-      <Suspense fallback={<div className="text-center text-muted-foreground">Lädt...</div>}>
-        <TranslationsForm />
       </Suspense>
     </div>
   )
