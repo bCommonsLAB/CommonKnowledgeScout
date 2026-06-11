@@ -28,8 +28,11 @@ const spaceCards = [
     links: [
       { title: "Grundlagen", href: "/settings/general" },
       { title: "Speicherort", href: "/settings/storage" },
+      { title: "Inhaltstyp", href: "/settings/content-type" },
+      { title: "Galerie", href: "/settings/gallery" },
+      { title: "Chat", href: "/settings/chat" },
       { title: "Verarbeitung", href: "/settings/secretary-service" },
-      { title: "Story & Galerie", href: "/settings/chat" },
+      { title: "Erweitert", href: "/settings/advanced" },
     ],
   },
   {
