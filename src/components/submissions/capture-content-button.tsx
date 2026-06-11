@@ -91,7 +91,34 @@ export function CaptureContentButton({ libraryId }: CaptureContentButtonProps) {
         const data = (await res.json().catch(() => null)) as { error?: string } | null;
         throw new Error(data?.error ?? `Upload fehlgeschlagen (HTTP ${res.status})`);
       }
-      toast({ title: 'Beitrag erfasst', description: 'Dein PDF liegt jetzt im Wartekorb.' });
+
+      // Stufe B (Welle III): Analyse direkt anstossen — Transkript+Transform laufen
+      // als Inbox-Job, das Ergebnis fliesst in die Submission im Wartekorb zurueck.
+      // Ein Fehlschlag hier laesst die pending-Submission intakt (Analyse ist
+      // spaeter erneut startbar) und wird sichtbar gemeldet, nicht verschluckt.
+      const created = (await res.json()) as { submission?: { id?: string } };
+      const submissionId = created.submission?.id;
+      if (submissionId) {
+        const analyzeRes = await fetch(
+          `/api/submissions/${encodeURIComponent(submissionId)}/analyze`,
+          { method: 'POST' },
+        );
+        if (analyzeRes.ok) {
+          toast({
+            title: 'Beitrag erfasst — Analyse gestartet',
+            description: 'Das Ergebnis erscheint im Wartekorb, sobald die Analyse fertig ist.',
+          });
+        } else {
+          const data = (await analyzeRes.json().catch(() => null)) as { error?: string } | null;
+          toast({
+            title: 'Beitrag erfasst — Analyse nicht gestartet',
+            description: data?.error ?? `Analyse-Start fehlgeschlagen (HTTP ${analyzeRes.status})`,
+            variant: 'destructive',
+          });
+        }
+      } else {
+        toast({ title: 'Beitrag erfasst', description: 'Dein PDF liegt jetzt im Wartekorb.' });
+      }
       setOpen(false);
       setFile(null);
     } catch (error) {
@@ -113,8 +140,9 @@ export function CaptureContentButton({ libraryId }: CaptureContentButtonProps) {
         <DialogHeader>
           <DialogTitle>Inhalte erfassen</DialogTitle>
           <DialogDescription>
-            PDF auswaehlen und hochladen. Der Beitrag landet im Wartekorb und wird dort geprueft.
-            Schritt 2 — Metadaten pruefen &amp; korrigieren folgt.
+            PDF auswaehlen und hochladen. Der Beitrag wird automatisch analysiert
+            (Transkript + Metadaten) und landet im Wartekorb zur Pruefung.
+            Schritt 2 — Metadaten selbst pruefen &amp; korrigieren folgt.
           </DialogDescription>
         </DialogHeader>
 
