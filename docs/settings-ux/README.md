@@ -125,7 +125,7 @@ Speicherort-Wizard-Design: [05-storage-wizard.md](05-storage-wizard.md).
 
 | Welle | Inhalt | Risiko |
 |---|---|---|
-| 3-IV-UX-0 | Toter Code raus (Liste A in 04) — sofort möglich | keins |
+| 3-IV-UX-0 | Toter Code raus (A1–A5 + B1–B4 aus 04) — ERLEDIGT 2026-06-11 | keins |
 | 3-IV-UX-1 | User-Review — ABGESCHLOSSEN 2026-06-11: F1–F8 festgelegt, E1–E7 entschieden | — |
 | 3-IV-UX-2 | Neue Navigation (3 Räume + meSpace-Bereiche), bestehende Forms verschieben (keine Logik-Änderung) | klein |
 | 3-IV-UX-3 | meSpace: Speicherort-Wizard + Re-Auth-Flow (F1–F3), Einsteiger/Erweitert-Trennung, Inhaltstyp-Assistent (F6), Gefahren-UX | mittel–groß |

@@ -20,7 +20,7 @@ Befunde der Code-Inventur 2026-06-11. Gruppiert nach Handlungstyp.
 | B2 | `config.templateDirectory` wird nie gelesen | nur Settings + `create-library-dialog.tsx` | **E4: streichen** |
 | B3 | `config.description` wird nirgends angezeigt | nur Formular + Export | **E4: streichen**, ggf. in usSpace-Beschreibung aufgehen |
 | B4 | Google Drive ist Attrappe: Felder speichern, aber kein Provider, keine OAuth-Route, kein Factory-Zweig | `storage/gdrive-section.tsx`; kein `gdrive-provider.ts` in `src/lib/storage/` | **F4 entschieden: entfernen** |
-| B5 | `chatLlmModel` → `config.chat.models.chat` ohne gefundenen Downstream-Leser (nicht in `config/route.ts`-Antwort, nicht im Orchestrator) | `use-chat-form.ts`, `model-config-section.tsx`; grep `models\.chat` = 2 Settings-Dateien | verifizieren, dann entfernen oder verdrahten |
+| B5 | ~~`chatLlmModel` ohne Downstream-Leser~~ — **Verifikation 2026-06-11: Verdacht widerlegt.** `config.chat.models.chat` wird von den Chat-API-Routen gelesen (`api/chat/[libraryId]/route.ts:244,332`, `adhoc/route.ts:44`) als Fallback ohne Modell-Parameter | — | kein Handlungsbedarf; Feld bleibt (per F8 unter „Erweitert") |
 | B6 | Galerie-Texte halbfertig: `galleryHeadline/Subtitle/Description/FilterDescription` im Zod-Schema + Defaults (SFSCon-Hardcodes!), aber kein FormField, fehlt im PUT-Body; API-Merge + Galerie-Leser existieren | `public/public-form.tsx:66-69,120-143,211-222`; `api/libraries/[id]/public/route.ts:152-157`; `lib/gallery/api.ts` | **E2: fertig bauen** (usSpace) |
 | B7 | `testimonial`/`blog` im Schema, nicht im Dropdown — Vertiefung 2026-06-11: KEIN Defekt, sondern halbfertiges Feature. Dokument-Ebene aktiv (Wizard, Templates, Testimonial-API); Galerie-/Story-Ansichten fehlen (TODOs in `story-view.tsx:133-147`) | `use-chat-form.ts:300` vs. `gallery-config-section.tsx:87-93` | **E5 revidiert: NICHT reaktivieren** — Testimonial-Integration als Produkt-TODO T1 (README §8); Schema bleibt |
 
@@ -50,7 +50,12 @@ Befunde der Code-Inventur 2026-06-11. Gruppiert nach Handlungstyp.
 
 ## Empfohlene Reihenfolge
 
-1. **A komplett** — eigenständige Cleanup-PR, kein Verhaltens-Risiko (knip danach)
-2. **B ist vollständig entschieden (2026-06-11)**: B1–B3 streichen (E4) und B4 entfernen (F4) — beides mit in die Cleanup-PR; B5 vorher verifizieren; B6 fertigbauen in usSpace (E2); B7 unverändert lassen (E5 revidiert — Produkt-TODO T1 statt Settings-Änderung)
+**Stand 2026-06-11: A1–A5, B1–B4 UMGESETZT** (Welle 3-IV-UX-0, Commits
+`18919d6`, `56574df`, `916886e`, `e92a630`; 1674 Tests grün, Lint sauber).
+B5 verifiziert (kein Handlungsbedarf). Offen aus diesem Dokument: B6
+(usSpace-Welle), C komplett (Raum-Umbau), D komplett (Gefahren-UX-Paket).
+
+1. ~~**A komplett** — eigenständige Cleanup-PR~~ erledigt
+2. ~~**B1–B4**~~ erledigt; B6 fertigbauen in usSpace (E2); B7 unverändert lassen (E5 revidiert — Produkt-TODO T1 statt Settings-Änderung)
 3. **C im Zuge des Raum-Umbaus** (Welle 3-IV-UX-2/3) — Verschieben + Umbenennen
 4. **D als Gefahren-UX-Paket** — einheitliches Bestätigungs-Muster (Vorbild: Lösch-Dialog der Library), D4/D5 vorab prüfen
