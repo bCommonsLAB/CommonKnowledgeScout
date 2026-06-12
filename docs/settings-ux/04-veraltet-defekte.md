@@ -43,8 +43,8 @@ Befunde der Code-Inventur 2026-06-11. Gruppiert nach Handlungstyp.
 | D1 | Speichertyp-Wechsel bestehender Library ohne Warnung/Migrationshinweis — gravierendste stille Gefahr | `storage-form.tsx` → `PATCH /api/libraries/{id}` |
 | D2 | „Von OneDrive abmelden" kappt Zugriff sofort, ohne Bestätigung | `use-storage-form.ts` (`DELETE …/tokens`) |
 | D3 | 4× `window.confirm()` statt Design-System-Dialog: Migration laden, Sprach-Artefakte löschen, Mitglied entfernen, Anfrage entfernen | `use-shadow-twin-migration.ts`, `language-cleanup-section.tsx`, `use-members-actions.ts`, `use-access-requests-actions.ts` |
-| D4 | **Prüfen (sicherheitsrelevant):** Entzieht das Löschen einer genehmigten Zugriffsanfrage den Leser-Zugriff tatsächlich? | `DELETE /api/libraries/[id]/access-requests/[requestId]` — Zugriffsprüfung nachvollziehen |
-| D5 | `secretaryService.apiKey` geht unmaskiert an den Client (via `librariesAtom`), während Storage-Secrets maskiert werden (`'********'`) | `secretary-service-form.tsx:95` vs. Maskierung in `library-service.ts` |
+| D4 | ~~Entzieht Löschen einer genehmigten Anfrage den Zugriff?~~ — **GEPRÜFT + GEFIXT 2026-06-12**: Zugriffsprüfungen lesen live aus `library_access_requests` (kein zweiter Persistenzort); einziges Leck war der 10s-In-Memory-Cache des access-check — jetzt ausgelagert (`lib/library-access/access-check-cache.ts`) und bei Statusänderung/Löschung invalidiert | erledigt |
+| D5 | ~~`secretaryService.apiKey` unmaskiert~~ — **GEFIXT 2026-06-12**: apiKey UND Azure-`connectionString` werden in `toClientLibraries` maskiert; `preserveMaskedSecrets()` in `updateLibrary` schützt alle 5 Secret-Pfade vor Masken-Überschreibung (6 Char-Tests); Klartext-Logging entfernt | erledigt |
 | D6 | Dateisystem-Export und JSON-Import ohne Bestätigung | `import-export-section.tsx` |
 | D7 | OneDrive-Token-Status nur aus `localStorage`, kein Server-Check; bei Ablauf kein geführtes Re-Auth | `use-storage-form.ts`, `storage-context.tsx` |
 

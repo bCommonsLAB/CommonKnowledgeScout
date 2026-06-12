@@ -133,8 +133,8 @@ Speicherort-Wizard-Design: [05-storage-wizard.md](05-storage-wizard.md).
 | 3-IV-UX-3c | Re-Auth-Flow app-weit (F2) — ERLEDIGT 2026-06-11 (`bcead07`): globaler StorageReauthDialog + onedrive-reauth-Lib; D7 teilgelöst (Token-Übernahme app-weit, Server-Check weiter offen) | mittel |
 | 3-IV-UX-3d | Gefahren-UX-Paket (D3, D6) — ERLEDIGT 2026-06-11 (`5f0b2df`): ConfirmActionDialog ersetzt 4× window.confirm + Export-Bestätigung | klein |
 | 3-IV-UX-3e | Inhaltstyp-Assistent (F6) — ERLEDIGT 2026-06-11: Typ-Karten, SDG nur bei Klima, DIVA-Hinweis, empfohlene Filter übernehmbar | mittel |
-| 3-IV-UX-4 | weSpace: Einladungs-Vereinheitlichung + Personen-Übersicht | mittel |
-| 3-IV-UX-5 | usSpace: Veröffentlichungs-Flow + Galerie-Texte (E2) | mittel |
+| 3-IV-UX-4 | weSpace — ERLEDIGT 2026-06-12: EIN Einladungs-Flow mit Rollenwahl (Leser via invites-API), ReadersList (Leser erstmals sichtbar, Zugriff entziehbar), E7 Moderator-Bereich „Moderation" statt Alles-oder-Nichts | mittel |
+| 3-IV-UX-5 | usSpace — ERLEDIGT 2026-06-12: Status-Header („Was sehen Fremde JETZT?"), Galerie-Texte mit UI-Feldern + PUT-Body (E2-Defekt behoben, SFSCon-Hardcodes → Placeholder) | mittel |
 | danach | Code-Refactor friert neue Struktur ein (ersetzt offene 3-IV-Splits) | — |
 
 ## 8. Festgehaltene Produkt-TODOs (außerhalb der Settings-UX)
