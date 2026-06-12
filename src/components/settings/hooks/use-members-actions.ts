@@ -36,9 +36,12 @@ interface UseMembersActionsReturn {
   /** E-Mail-Eingabe im Einladungs-Dialog */
   newMemberEmail: string
   setNewMemberEmail: (email: string) => void
-  /** Rollen-Auswahl im Einladungs-Dialog */
-  newMemberRole: LibraryRole
-  setNewMemberRole: (role: LibraryRole) => void
+  /** Rollen-Auswahl im Einladungs-Dialog ('reader' laeuft ueber invites-API) */
+  newMemberRole: LibraryRole | 'reader'
+  setNewMemberRole: (role: LibraryRole | 'reader') => void
+  /** Persoenliche Nachricht (nur fuer Leser-Einladungen) */
+  inviteMessage: string
+  setInviteMessage: (message: string) => void
   /** Fehlermeldung innerhalb des Dialogs */
   dialogError: string | null
   /** Wird gesetzt wenn Einladung gesendet wird */
@@ -70,9 +73,12 @@ export function useMembersActions({
   const [error, setError] = useState<string | null>(null)
 
   // --- Dialog-State ---
+  // Vereinter Einladungs-Flow (Welle 3-IV-UX-4): 'reader' laeuft ueber die
+  // invites-API (Zugriffsanfrage), co-creator/moderator ueber die members-API.
   const [isAddingMember, setIsAddingMember] = useState(false)
   const [newMemberEmail, setNewMemberEmail] = useState('')
-  const [newMemberRole, setNewMemberRole] = useState<LibraryRole>('co-creator')
+  const [newMemberRole, setNewMemberRole] = useState<LibraryRole | 'reader'>('reader')
+  const [inviteMessage, setInviteMessage] = useState('')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [dialogError, setDialogError] = useState<string | null>(null)
 
@@ -119,6 +125,37 @@ export function useMembersActions({
     setIsAddingMember(true)
 
     try {
+      // Leser laufen ueber die invites-API (LibraryAccessRequest) — sie sind
+      // keine Mitglieder, sondern erhalten nach Annahme Lesezugriff.
+      if (newMemberRole === 'reader') {
+        const response = await fetch(`/api/libraries/${libraryId}/invites`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: newMemberEmail.trim(),
+            inviteMessage: inviteMessage.trim() || undefined,
+          }),
+        })
+
+        const data = await response.json()
+
+        if (!response.ok) {
+          setDialogError(data.error ?? 'Fehler beim Einladen des Lesers')
+          return
+        }
+
+        toast({
+          title: 'Leser-Einladung gesendet',
+          description: `Die Person erscheint nach Annahme der Einladung unter „Leser".`,
+        })
+
+        setNewMemberEmail('')
+        setInviteMessage('')
+        setDialogError(null)
+        setIsDialogOpen(false)
+        return
+      }
+
       const response = await fetch(`/api/libraries/${libraryId}/members`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -144,7 +181,7 @@ export function useMembersActions({
       })
 
       setNewMemberEmail('')
-      setNewMemberRole('co-creator')
+      setNewMemberRole('reader')
       setDialogError(null)
       setIsDialogOpen(false)
       await loadMembers()
@@ -241,6 +278,8 @@ export function useMembersActions({
     setNewMemberEmail,
     newMemberRole,
     setNewMemberRole,
+    inviteMessage,
+    setInviteMessage,
     dialogError,
     isAddingMember,
     handleInviteMember,

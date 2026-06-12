@@ -106,12 +106,12 @@ export function InviteUserDialog({ libraryId, onInviteSent }: InviteUserDialogPr
       <DialogTrigger asChild>
         <Button>
           <UserPlus className="h-4 w-4 mr-2" />
-          Benutzer einladen
+          Leser einladen
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Benutzer einladen</DialogTitle>
+          <DialogTitle>Leser einladen</DialogTitle>
           <DialogDescription>
             Laden Sie einen Benutzer per E-Mail ein, um Zugriff auf diese Library zu erhalten.
             Der eingeladene Benutzer erhält einen Link per E-Mail und kann nach der Anmeldung automatisch auf die Library zugreifen.

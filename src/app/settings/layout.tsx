@@ -30,7 +30,7 @@ const sidebarGroups: SidebarNavGroup[] = [
     id: "wespace",
     title: "weSpace · Gemeinsam arbeiten",
     description: "Die Bibliothek mit vertrauten Personen teilen und Rollen vergeben.",
-    items: [{ title: "Mitglieder", href: "/settings/public/members" }],
+    items: [{ title: "Personen", href: "/settings/public/members" }],
   },
   {
     id: "usspace",
@@ -43,6 +43,16 @@ const sidebarGroups: SidebarNavGroup[] = [
   },
 ]
 
+// E7 (Welle 3-IV-UX-4): Moderatoren einer fremden Bibliothek sehen statt
+// ALLER Owner-Tabs nur ihren Verwaltungsbereich (Anfragen + Leser einladen).
+// Die Personen-Seite bleibt Owner-only (members-API liefert Moderatoren 403).
+const moderatorGroup: SidebarNavGroup = {
+  id: "moderation",
+  title: "Moderation",
+  description: "Zugriffsanfragen dieser Bibliothek verwalten und Leser einladen.",
+  items: [{ title: "Zugriffsanfragen", href: "/settings/public/access-requests" }],
+}
+
 interface LayoutProps {
   children: React.ReactNode
 }
@@ -54,12 +64,15 @@ export default function Layout({ children }: LayoutProps) {
 
   const activeLibrary = libraries.find(lib => lib.id === activeLibraryId)
   const isCoCreator = activeLibrary?.accessRole === 'co-creator'
+  const isModerator = activeLibrary?.accessRole === 'moderator'
 
   // Sidebar zeigt NUR den Raum, fuer den sich der User entschieden hat —
   // auf der Uebersicht (/settings) uebernehmen die Karten die Navigation.
   // Co-Creators sehen keine Settings-Tabs (Einstellungen liegen beim Owner).
   const activeGroup = useMemo(() => {
     if (isCoCreator || !pathname || pathname === "/settings") return undefined
+    // Moderatoren haben genau einen Verwaltungsbereich (E7)
+    if (isModerator) return moderatorGroup
     const exact = sidebarGroups.find(g => g.items.some(i => i.href === pathname))
     if (exact) return exact
     // Fallback fuer kuenftige Unterrouten: laengster Pfad-Prefix gewinnt
@@ -72,7 +85,7 @@ export default function Layout({ children }: LayoutProps) {
       }
     }
     return best?.group
-  }, [isCoCreator, pathname])
+  }, [isCoCreator, isModerator, pathname])
 
   const hasNav = activeGroup !== undefined
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useSearchParams, useRouter } from "next/navigation"
 import { useAtomValue } from "jotai"
-import { librariesAtom } from "@/atoms/library-atom"
+import { librariesAtom, activeLibraryIdAtom } from "@/atoms/library-atom"
 import { LibraryForm } from "@/components/settings/library-form"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -42,7 +42,7 @@ const spaceCards = [
       "Teilen Sie Ihre Bibliothek mit Personen, denen Sie vertrauen: Laden " +
       "Sie Mitglieder ein und vergeben Sie Rollen — vom Mitleser bis zum " +
       "Mitgestalter.",
-    links: [{ title: "Mitglieder", href: "/settings/public/members" }],
+    links: [{ title: "Personen", href: "/settings/public/members" }],
   },
   {
     id: "usspace",
@@ -108,9 +108,14 @@ export function SettingsClient() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const libraries = useAtomValue(librariesAtom)
+  const activeLibraryId = useAtomValue(activeLibraryIdAtom)
   const { isCreator } = useUserRole()
   const [isNewUser, setIsNewUser] = useState(false)
   const [createNewLibrary, setCreateNewLibrary] = useState(false)
+
+  // E7: Moderatoren einer fremden Bibliothek duerfen die Anfragen verwalten
+  const isModerator =
+    libraries.find(lib => lib.id === activeLibraryId)?.accessRole === 'moderator'
 
   useEffect(() => {
     // Prüfe, ob der newUser-Parameter in der URL ist oder ob keine Bibliotheken vorhanden sind
@@ -120,13 +125,13 @@ export function SettingsClient() {
     setIsNewUser(hasNewUserParam || hasNoLibraries)
   }, [searchParams, libraries.length])
 
-  // Wenn Gast, leite zur Homepage weiter
+  // Wenn Gast (und kein Moderator, E7), leite zur Homepage weiter
   useEffect(() => {
-    if (!isCreator && typeof window !== 'undefined') {
+    if (!isCreator && !isModerator && typeof window !== 'undefined') {
       // Gäste sollten nicht auf /settings sein - leite zur Homepage weiter
       router.replace('/')
     }
-  }, [isCreator, router])
+  }, [isCreator, isModerator, router])
 
   // URL bereinigen, wenn Bibliotheken vorhanden sind und newUser-Parameter gesetzt ist
   useEffect(() => {
@@ -140,6 +145,26 @@ export function SettingsClient() {
 
   // Wenn Gast, zeige Hinweis, dass keine Libraries erstellt werden können
   if (!isCreator) {
+    // E7: Moderatoren sehen ihren Verwaltungsbereich statt des Gast-Hinweises
+    if (isModerator) {
+      return (
+        <div className="space-y-6">
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>Moderation</AlertTitle>
+            <AlertDescription className="flex items-center justify-between gap-4">
+              <span>
+                Sie moderieren diese Bibliothek: Zugriffsanfragen verwalten und
+                Leser einladen.
+              </span>
+              <Button asChild size="sm">
+                <Link href="/settings/public/access-requests">Zugriffsanfragen öffnen</Link>
+              </Button>
+            </AlertDescription>
+          </Alert>
+        </div>
+      )
+    }
     return (
       <div className="space-y-6">
         <Alert>
