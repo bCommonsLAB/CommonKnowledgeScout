@@ -622,23 +622,71 @@ export function useChatForm(): UseChatFormResult {
           '',
       }
 
+      // F11: Konsistenz Inhaltstyp ↔ Vorlage beim Typ-Wechsel sicherstellen.
+      // Eine fest gewaehlte Standard-Vorlage eines ANDEREN Typs wird auf
+      // 'Automatisch' ('') zurueckgesetzt; Experten-Vorlagen bleiben mit
+      // Warnhinweis bestehen.
+      const prevViewType = (activeLibrary.config?.chat as { gallery?: { detailViewType?: string } } | undefined)
+        ?.gallery?.detailViewType ?? 'book'
+      const nextViewType = (data.gallery as { detailViewType?: string } | undefined)?.detailViewType ?? 'book'
+      const currentTemplate = ((activeLibrary.config?.secretaryService as { template?: string } | undefined)
+        ?.template ?? '').trim()
+      let secretaryServiceUpdate: Record<string, unknown> | undefined
+      let templateNotice: { title: string; description: string } | undefined
+      if (nextViewType !== prevViewType && currentTemplate !== '') {
+        const { isBuiltinDefaultTemplateName, getDefaultTemplateNameForViewType } = await import(
+          '@/lib/templates/default-templates'
+        )
+        if (
+          isBuiltinDefaultTemplateName(currentTemplate) &&
+          currentTemplate.toLowerCase() !== getDefaultTemplateNameForViewType(nextViewType).toLowerCase()
+        ) {
+          secretaryServiceUpdate = {
+            ...(activeLibrary.config?.secretaryService as Record<string, unknown> | undefined),
+            template: '',
+          }
+          templateNotice = {
+            title: 'Vorlage umgestellt',
+            description: `Die Vorlage folgt jetzt automatisch dem neuen Inhaltstyp „${nextViewType}“.`,
+          }
+        } else if (!isBuiltinDefaultTemplateName(currentTemplate)) {
+          templateNotice = {
+            title: 'Experten-Vorlage prüfen',
+            description: `Die Vorlage „${currentTemplate}“ bleibt aktiv — bitte unter Erweitert prüfen, ob sie zum Inhaltstyp „${nextViewType}“ passt.`,
+          }
+        }
+      }
+
       const response = await fetch(`/api/libraries/${encodeURIComponent(activeLibrary.id)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: activeLibrary.id,
-          config: { chat: chatConfig, ingestionStorage },
+          config: {
+            chat: chatConfig,
+            ingestionStorage,
+            ...(secretaryServiceUpdate ? { secretaryService: secretaryServiceUpdate } : {}),
+          },
         }),
       })
       const respJson = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(`${t('settings.chatForm.errorSaving')} ${respJson?.error || response.statusText}`)
 
       const updatedLibraries = libraries.map(lib => lib.id === activeLibrary.id
-        ? { ...lib, config: { ...lib.config, chat: chatConfig, ingestionStorage } }
+        ? {
+            ...lib,
+            config: {
+              ...lib.config,
+              chat: chatConfig,
+              ingestionStorage,
+              ...(secretaryServiceUpdate ? { secretaryService: secretaryServiceUpdate } : {}),
+            },
+          }
         : lib)
       setLibraries(updatedLibraries)
 
       toast({ title: t('settings.chatForm.saved'), description: `Library: ${activeLibrary.label}` })
+      if (templateNotice) toast(templateNotice)
 
       // Prüfe ob Array-Facetten vorhanden sind oder geändert wurden
       const newFacets = data.gallery?.facets || []

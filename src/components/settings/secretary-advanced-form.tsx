@@ -24,16 +24,33 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { LlmModelSelector } from "@/components/ui/llm-model-selector"
 import { useSecretaryServiceForm } from "./hooks/use-secretary-service-form"
+import { getDefaultTemplateNameForViewType } from "@/lib/templates/default-templates"
+import { checkTemplateConsistency } from "@/lib/templates/template-consistency"
 
 export function SecretaryAdvancedForm() {
   const {
     form,
     activeLibrary,
     isLoading,
+    isLoadingTemplates,
+    templateMode,
+    setTemplateMode,
+    mergedTemplateNames,
+    hasMongoTemplates,
+    templatesMeta,
+    libraryViewType,
     isCustomConfig,
     hasCustomApiUrl,
     onSubmit,
   } = useSecretaryServiceForm()
+
+  // Live-Konsistenz der gewaehlten Vorlage (F11)
+  const watchedTemplate = (form.watch('pdfTemplate') ?? '').trim()
+  const consistency = checkTemplateConsistency({
+    templateName: watchedTemplate,
+    viewType: libraryViewType,
+    knownTemplates: templatesMeta,
+  })
 
   if (!activeLibrary) {
     return (
@@ -46,6 +63,108 @@ export function SecretaryAdvancedForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8" autoComplete="off">
+        {/* ===== Vorlage (Experten-Auswahl, F11) ===== */}
+        <div className="space-y-4">
+          <div className="border-b pb-2">
+            <h3 className="text-lg font-semibold">Vorlage (Journalist)</h3>
+            <p className="text-sm text-muted-foreground">
+              Welche Vorlage die Verarbeitung nutzt. „Automatisch“ garantiert
+              die zum Inhaltstyp passende Standard-Vorlage — Abweichungen sind
+              Experten-Sache und werden beim Speichern geprüft.
+            </p>
+          </div>
+
+          <FormField
+            control={form.control}
+            name="pdfTemplate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Vorlage</FormLabel>
+                <FormControl>
+                  <div className="flex flex-col gap-2">
+                    {templateMode === 'select' ? (
+                      <select
+                        className="border rounded h-9 px-2 w-full"
+                        value={typeof field.value === 'string' ? field.value : ''}
+                        onChange={(e) => {
+                          const next = e.target.value
+                          if (next === '__custom__') {
+                            setTemplateMode('custom')
+                            return
+                          }
+                          field.onChange(next)
+                        }}
+                        disabled={isLoadingTemplates && !hasMongoTemplates}
+                      >
+                        <option value="">
+                          {`Automatisch — Standard für „${libraryViewType}“ (empfohlen)`}
+                        </option>
+                        {mergedTemplateNames.map((name) => {
+                          const meta = templatesMeta.find(
+                            (t) => t.name.toLowerCase() === name.toLowerCase()
+                          )
+                          const suffix = meta?.builtin
+                            ? ' (Standard)'
+                            : meta?.detailViewType
+                            ? meta.detailViewType === libraryViewType
+                              ? ' ✓'
+                              : ` — Typ: ${meta.detailViewType}`
+                            : ''
+                          return (
+                            <option key={name} value={name}>{`${name}${suffix}`}</option>
+                          )
+                        })}
+                        <option value="__custom__">Benutzerdefiniert…</option>
+                      </select>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="z. B. pdfanalyse-commoning"
+                          value={typeof field.value === 'string' ? field.value : ''}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          autoComplete="off"
+                          spellCheck={false}
+                          autoCapitalize="none"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            const val = (typeof field.value === 'string' ? field.value : '').trim()
+                            if (val && !mergedTemplateNames.some((n) => n.toLowerCase() === val.toLowerCase())) {
+                              field.onChange('')
+                            }
+                            setTemplateMode('select')
+                          }}
+                        >
+                          Aus Liste
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </FormControl>
+                <FormDescription>
+                  Standard-Vorlage des Inhaltstyps: <code>{getDefaultTemplateNameForViewType(libraryViewType)}</code>
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Live-Konsistenz-Hinweis (F11) */}
+          <p
+            className={
+              consistency.level === 'error'
+                ? 'text-sm text-destructive'
+                : consistency.level === 'warn'
+                ? 'text-sm text-amber-600 dark:text-amber-400'
+                : 'text-sm text-muted-foreground'
+            }
+          >
+            {consistency.message}
+          </p>
+        </div>
+
         {/* ===== Transkription & Modellwahl ===== */}
         <div className="space-y-4">
           <div className="border-b pb-2">

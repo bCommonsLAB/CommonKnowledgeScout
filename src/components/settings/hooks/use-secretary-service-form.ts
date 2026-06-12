@@ -21,6 +21,10 @@ import { useAtom } from "jotai"
 import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom"
 import { toast } from "@/components/ui/use-toast"
 import { mergeTemplateNames } from "@/lib/templates/template-options"
+import {
+  checkTemplateConsistency,
+  type KnownTemplateMeta,
+} from "@/lib/templates/template-consistency"
 
 // Formular-Schema mit Validierung
 export const secretaryServiceFormSchema = z.object({
@@ -52,10 +56,17 @@ export function useSecretaryServiceForm() {
   const [activeLibraryId] = useAtom(activeLibraryIdAtom)
   const [isLoading, setIsLoading] = useState(false)
   const [availableTemplateNames, setAvailableTemplateNames] = useState<string[]>([])
+  // F11: Vorlagen-Metadaten (detailViewType + Felder) fuer die Konsistenz-Pruefung
+  const [templatesMeta, setTemplatesMeta] = useState<KnownTemplateMeta[]>([])
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false)
 
   // Aktuelle Bibliothek aus dem globalen Zustand
   const activeLibrary = libraries.find(lib => lib.id === activeLibraryId)
+
+  // Inhaltstyp der Library — Bezugspunkt der Vorlagen-Konsistenz (F11)
+  const libraryViewType =
+    (activeLibrary?.config?.chat as { gallery?: { detailViewType?: string } } | undefined)
+      ?.gallery?.detailViewType ?? 'book'
 
   const form = useForm<SecretaryServiceFormValues>({
     resolver: zodResolver(secretaryServiceFormSchema),
@@ -145,12 +156,35 @@ export function useSecretaryServiceForm() {
         }
         const data = await response.json()
         const templates = Array.isArray((data as { templates?: unknown }).templates)
-          ? (data as { templates: Array<{ name?: unknown }> }).templates
+          ? (data as {
+              templates: Array<{
+                name?: unknown
+                builtin?: unknown
+                metadata?: { detailViewType?: unknown; fields?: Array<{ key?: unknown }> }
+              }>
+            }).templates
           : []
         const names = templates
           .map((t) => (typeof t?.name === 'string' ? t.name : ''))
           .filter((n) => n.length > 0)
-        if (!cancelled) setAvailableTemplateNames(names)
+        // F11: Metadaten fuer Konsistenz-Pruefung und Experten-Auswahl
+        const meta: KnownTemplateMeta[] = templates
+          .filter((t) => typeof t?.name === 'string' && (t.name as string).length > 0)
+          .map((t) => ({
+            name: t.name as string,
+            detailViewType:
+              typeof t.metadata?.detailViewType === 'string' ? t.metadata.detailViewType : undefined,
+            fieldKeys: Array.isArray(t.metadata?.fields)
+              ? t.metadata.fields
+                  .map((f) => (typeof f?.key === 'string' ? f.key : ''))
+                  .filter((k) => k.length > 0)
+              : [],
+            builtin: t.builtin === true,
+          }))
+        if (!cancelled) {
+          setAvailableTemplateNames(names)
+          setTemplatesMeta(meta)
+        }
       } catch (err) {
         // H9-Fix: API-Fehler beim Laden der Template-Namen loggen
         if (!cancelled) {
@@ -166,6 +200,25 @@ export function useSecretaryServiceForm() {
   }, [activeLibraryId])
 
   async function onSubmit(data: SecretaryServiceFormValues) {
+    // F11: Konsistenz Inhaltstyp ↔ Vorlage VOR dem Speichern pruefen —
+    // das Datenmodell darf nicht inkonsistent persistiert werden.
+    const consistency = checkTemplateConsistency({
+      templateName: data.pdfTemplate,
+      viewType: libraryViewType,
+      knownTemplates: templatesMeta,
+    })
+    if (consistency.level === 'error') {
+      toast({
+        title: 'Vorlage passt nicht zum Inhaltstyp',
+        description: consistency.message,
+        variant: 'destructive',
+      })
+      return
+    }
+    if (consistency.level === 'warn') {
+      toast({ title: 'Hinweis zur Vorlage', description: consistency.message })
+    }
+
     setIsLoading(true)
 
     try {
@@ -263,6 +316,8 @@ export function useSecretaryServiceForm() {
     setTemplateMode,
     mergedTemplateNames,
     hasMongoTemplates,
+    templatesMeta,
+    libraryViewType,
     isCustomConfig,
     hasCustomApiUrl,
     onSubmit,

@@ -12,6 +12,7 @@
  * Form-State, Submit sendet die vollstaendige secretaryService-Config.
  */
 
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -22,20 +23,25 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useSecretaryServiceForm } from "./hooks/use-secretary-service-form"
+import { isBuiltinDefaultTemplateName } from "@/lib/templates/default-templates"
+import {
+  CORE_CONTENT_TYPES,
+  SPECIAL_CONTENT_TYPES,
+} from "@/components/settings/chat/content-type-section"
+
+// Anwender-Label je Inhaltstyp (fuer die Vorlagen-Anzeige)
+const TYPE_TITLES: Record<string, string> = Object.fromEntries(
+  [...CORE_CONTENT_TYPES, ...SPECIAL_CONTENT_TYPES].map(o => [o.value, o.title])
+)
 
 export function SecretaryServiceForm() {
   const {
     form,
     activeLibrary,
     isLoading,
-    isLoadingTemplates,
-    templateMode,
-    setTemplateMode,
-    mergedTemplateNames,
-    hasMongoTemplates,
+    libraryViewType,
     onSubmit,
   } = useSecretaryServiceForm()
 
@@ -51,71 +57,30 @@ export function SecretaryServiceForm() {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8" autoComplete="off">
         <div className="space-y-4">
-          {/* Template-Auswahl — der "Journalist" der Verarbeitung */}
-          <FormField
-            control={form.control}
-            name="pdfTemplate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Vorlage — Ihr Journalist</FormLabel>
-                <FormControl>
-                  <div className="flex flex-col gap-2">
-                    {templateMode === 'select' ? (
-                      <select
-                        className="border rounded h-9 px-2 w-full"
-                        value={typeof field.value === 'string' ? field.value : ''}
-                        onChange={(e) => {
-                          const next = e.target.value
-                          if (next === '__custom__') {
-                            setTemplateMode('custom')
-                            return
-                          }
-                          field.onChange(next)
-                        }}
-                        disabled={isLoadingTemplates && !hasMongoTemplates}
-                      >
-                        <option value="">{isLoadingTemplates ? 'Lade Templates…' : '(kein Default)'}</option>
-                        {mergedTemplateNames.map((name) => (
-                          <option key={name} value={name}>{name}</option>
-                        ))}
-                        <option value="__custom__">Benutzerdefiniert…</option>
-                      </select>
-                    ) : (
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="z. B. pdfanalyse-commoning"
-                          value={typeof field.value === 'string' ? field.value : ''}
-                          onChange={(e) => field.onChange(e.target.value)}
-                          autoComplete="off"
-                          spellCheck={false}
-                          autoCapitalize="none"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            const val = (typeof field.value === 'string' ? field.value : '').trim()
-                            if (val && !mergedTemplateNames.some((n) => n.toLowerCase() === val.toLowerCase())) {
-                              field.onChange('')
-                            }
-                            setTemplateMode('select')
-                          }}
-                        >
-                          Aus Liste
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </FormControl>
-                <FormDescription>
+          {/* Wirksame Vorlage (F11): Die Auswahl ist Experten-Sache und liegt
+              unter Erweitert — hier nur die verstaendliche Anzeige. */}
+          {(() => {
+            const currentTemplate = (form.watch('pdfTemplate') ?? '').trim()
+            const typeTitle = TYPE_TITLES[libraryViewType] ?? libraryViewType
+            const effectiveLabel =
+              currentTemplate === ''
+                ? `Automatisch: Standard für „${typeTitle}“`
+                : isBuiltinDefaultTemplateName(currentTemplate)
+                ? `Standard für „${typeTitle}“ (fest gewählt)`
+                : `Experten-Vorlage: „${currentTemplate}“`
+            return (
+              <div className="rounded-lg border p-4 space-y-1">
+                <p className="text-sm font-medium">Vorlage — Ihr Journalist</p>
+                <p className="text-sm">{effectiveLabel}</p>
+                <p className="text-xs text-muted-foreground">
                   Wie ein Journalist macht die Vorlage aus dem Rohmaterial einen
-                  strukturierten Beitrag: Sie bestimmt, welche Abschnitte und
-                  Felder dabei entstehen.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                  strukturierten Beitrag — passend zum Inhaltstyp Ihrer
+                  Bibliothek. Eine andere Vorlage wählen nur Experten unter{" "}
+                  <Link href="/settings/advanced" className="underline">Erweitert</Link>.
+                </p>
+              </div>
+            )
+          })()}
 
           {/* Zielsprache */}
           <FormField
