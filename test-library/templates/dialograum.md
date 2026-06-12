@@ -6,6 +6,8 @@ slug: {{slug|Kurz-Slug für URLs (optional)}}
 summary: {{summary|Zusammenfassung des Ergebnisses}}
 result_text: {{result_text|Das ausformulierte Ergebnis des Dialograums}}
 filename: {{filename|Dateiname ohne .md (nur Wizard)}}
+language: de
+targetLanguage: de
 source_language: de
 relatedSchemas: testimonial
 creation:

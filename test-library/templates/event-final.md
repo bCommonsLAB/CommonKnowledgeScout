@@ -10,6 +10,8 @@ summary: {{summary|Kurzbeschreibung des Events}}
 bodyInText: {{bodyInText|Ausformulierter Fließtext des finalen Berichts}}
 eindruckDerTeilnehmer: {{eindruckDerTeilnehmer|Verdichteter Eindruck der Teilnehmenden}}
 testimonials: {{testimonials|Eingebundene Testimonials (aus selectRelatedTestimonials)}}
+language: de
+targetLanguage: de
 source_language: de
 # --- System-Felder (R3): auto-gesetzt, NIE als editDraft-Feld binden ---
 # slug, originalFileId, finalRunId, eventStatus

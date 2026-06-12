@@ -6,6 +6,8 @@ statement: {{statement|Das eigentliche Zitat / die Aussage}}
 author_name: {{author_name|Name der sprechenden Person}}
 author_image_url: {{author_image_url|Porträtbild (optional)}}
 filename: {{filename|Dateiname ohne .md (nur Wizard)}}
+language: de
+targetLanguage: de
 source_language: de
 # related: dieses Schema bezieht sich auf event (Quelle/Kontext)
 relatedSchemas: event

@@ -8,6 +8,7 @@ title: {{title|Titel des analysierten Dokuments}}
 authors: {{authors|Autor:innen (kommasepariert)}}
 year: {{year|Erscheinungsjahr}}
 language: {{language|Sprache des Dokuments}}
+targetLanguage: {{targetLanguage|Zielsprache der Analyse, i.d.R. gleich language}}
 abstract: {{abstract|Kurz-Abstract}}
 keywords: {{keywords|Schlüsselbegriffe (kommasepariert)}}
 topics: {{topics|Kontrolliertes Vokabular — siehe Schema-Config (configs/)}}

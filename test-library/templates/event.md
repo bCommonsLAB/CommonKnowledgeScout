@@ -7,6 +7,8 @@ summary: {{summary|Kurzbeschreibung des Events}}
 event_date: {{event_date|Datum des Events (YYYY-MM-DD)}}
 location: {{location|Ort des Events (optional)}}
 filename: {{filename|Dateiname ohne .md (nur Wizard)}}
+language: de
+targetLanguage: de
 source_language: de
 creation:
   supportedSources:

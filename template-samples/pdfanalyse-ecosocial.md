@@ -13,6 +13,7 @@ coverImageUrl: {{coverImageUrl|Filename of the cover image (e.g. from embedded i
 year: {{year|YYYY or null (primarily from imprint/colophon; no fallback to directory path)}}
 region: {{region|Region/country; only if explicitly mentioned in the document}}
 language: {{language|Document language, e.g. "de" or "en"}}
+targetLanguage: {{targetLanguage|Target language of the analysis, usually equal to language}}
 pages: {{pages|Number of pages, from Markdown page markers; if not determinable: null}}
 source: {{source|Publisher/press/journal/organization; primarily from imprint}}
 seriesOrJournal: {{seriesOrJournal|Series/journal name (only if explicit in the document)}}
