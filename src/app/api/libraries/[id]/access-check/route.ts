@@ -18,37 +18,8 @@ import { auth, currentUser } from '@clerk/nextjs/server';
 import { LibraryService } from '@/lib/services/library-service';
 import { getAccessRequestByUserAndLibrary, hasUserAccess } from '@/lib/repositories/library-access-repo';
 import { isModeratorOrOwner } from '@/lib/repositories/library-members-repo';
-
-// In-Memory Cache für Access-Check-Ergebnisse (verhindert Rate Limiting)
-// Key: `${libraryId}:${userEmail}`, Value: { result, timestamp }
-const accessCheckCache = new Map<string, { result: unknown; timestamp: number }>();
-const CACHE_TTL_MS = 10000; // 10 Sekunden Cache
-
-// Helper: Cache-Key generieren
-function getCacheKey(libraryId: string, userEmail: string): string {
-  return `${libraryId}:${userEmail}`;
-}
-
-// Helper: Cache abrufen
-function getCachedResult(libraryId: string, userEmail: string): unknown | null {
-  const key = getCacheKey(libraryId, userEmail);
-  const cached = accessCheckCache.get(key);
-  if (!cached) return null;
-  
-  const age = Date.now() - cached.timestamp;
-  if (age > CACHE_TTL_MS) {
-    accessCheckCache.delete(key);
-    return null;
-  }
-  
-  return cached.result;
-}
-
-// Helper: Cache setzen
-function setCachedResult(libraryId: string, userEmail: string, result: unknown): void {
-  const key = getCacheKey(libraryId, userEmail);
-  accessCheckCache.set(key, { result, timestamp: Date.now() });
-}
+// D4-Fix: Cache ausgelagert, damit Statusaenderungen ihn invalidieren koennen
+import { getCachedResult, setCachedResult } from '@/lib/library-access/access-check-cache';
 
 // Helper: Clerk-Aufruf mit Retry-Logic
 async function getCurrentUserWithRetry(maxRetries = 3, retryDelay = 1000): Promise<ReturnType<typeof currentUser>> {
