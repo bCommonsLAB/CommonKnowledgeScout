@@ -28,7 +28,7 @@ Befunde der Code-Inventur 2026-06-11. Gruppiert nach Handlungstyp.
 
 | # | Befund | Beleg |
 |---|---|---|
-| C1 | Shadow-Twin-Legacy-„Modus" als Formularfeld getarnt; v2-only Runtime → gehört als einmaliger Warn-Banner mit Upgrade-Aktion | `shadow-twin-config-section.tsx`; UI-Text „nicht mehr unterstützt (v2-only Runtime)" |
+| C1 | ~~Shadow-Twin-Legacy-„Modus" als Formularfeld~~ — **ERLEDIGT 2026-06-12**: Modus-Block und Primary-Store-Dropdown entfernt (v2/Cache sind fixiert, Speichern normalisiert Alt-Configs); Bestands-Libraries mit legacy-Flag sehen nur noch einen Upgrade-Banner; neue Libraries starten mit v2/Cache statt legacy (`create-library-dialog`) | `shadow-twin-config-section.tsx`, `use-library-form.ts` |
 | C2 | `targetLanguage` doppelt: `secretaryService.targetLanguage` mit Fallback `chat.targetLanguage` | `secretary-service-form.tsx:86-90` |
 | C3 | `SearchIndexDialog`/`IndexDefinitionDialog` liegen top-level, werden nur von `chat/chat-form.tsx` genutzt | Imports `chat-form.tsx:27-28` |
 | C4 | Binary-Storage/Azure-Sektion im „Story"-Tab — Storage-Thema im Chat-Formular (vgl. `storage-abstraction.mdc`) | `chat/binary-storage-section.tsx` |

@@ -50,10 +50,6 @@ export function LibraryAdvancedForm() {
     setIsImportDialogOpen,
     activeLibraryId,
     activeLibrary,
-    shadowTwinMode,
-    setShadowTwinMode,
-    shadowTwinPrimaryStore,
-    setShadowTwinPrimaryStore,
     shadowTwinPersistToFilesystem,
     setShadowTwinPersistToFilesystem,
     shadowTwinAllowFilesystemFallback,
@@ -151,10 +147,6 @@ export function LibraryAdvancedForm() {
             <ShadowTwinConfigSection
               activeLibraryId={activeLibraryId}
               activeLibrary={activeLibrary}
-              shadowTwinMode={shadowTwinMode}
-              setShadowTwinMode={setShadowTwinMode}
-              shadowTwinPrimaryStore={shadowTwinPrimaryStore}
-              setShadowTwinPrimaryStore={setShadowTwinPrimaryStore}
               shadowTwinPersistToFilesystem={shadowTwinPersistToFilesystem}
               setShadowTwinPersistToFilesystem={setShadowTwinPersistToFilesystem}
               shadowTwinAllowFilesystemFallback={shadowTwinAllowFilesystemFallback}
@@ -169,7 +161,6 @@ export function LibraryAdvancedForm() {
 
             <MigrationWizardSection
               activeLibraryId={activeLibraryId}
-              shadowTwinPrimaryStore={shadowTwinPrimaryStore}
               isDryRunOpen={isDryRunOpen}
               setIsDryRunOpen={setIsDryRunOpen}
               dryRunRecursive={dryRunRecursive}

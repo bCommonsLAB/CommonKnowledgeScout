@@ -92,13 +92,6 @@ function readDivaArchiveDefaults(config: Record<string, unknown> | undefined): {
   return { filterMode, groupByAttribute, extraColumns };
 }
 
-/** Konfigurationstyp für Shadow-Twin-Einstellungen */
-interface ShadowTwinConfig {
-  primaryStore: "filesystem" | "mongo";
-  persistToFilesystem: boolean;
-  allowFilesystemFallback: boolean;
-}
-
 /**
  * Haupt-Hook für das Library-Settings-Formular.
  * Gibt Form-Objekt, Zustand und alle Handler zurück.
@@ -114,17 +107,17 @@ export function useLibraryForm(createNew: boolean) {
   const [libraries, setLibraries] = useAtom(librariesAtom);
   const [activeLibraryId, setActiveLibraryId] = useAtom(activeLibraryIdAtom);
 
-  // Shadow-Twin-Konfiguration States
-  const [shadowTwinMode, setShadowTwinMode] = useState<"legacy" | "v2">("legacy");
-  const [shadowTwinPrimaryStore, setShadowTwinPrimaryStore] = useState<"filesystem" | "mongo">(
-    "filesystem"
-  );
+  // Shadow-Twin-Flags (v2-only Runtime: mode und primaryStore sind fixiert
+  // — beim Speichern wird immer v2/Cache geschrieben, das UI zeigt nur noch
+  // die optionalen Dateisystem-Flags)
   const [shadowTwinPersistToFilesystem, setShadowTwinPersistToFilesystem] = useState(true);
   const [shadowTwinAllowFilesystemFallback, setShadowTwinAllowFilesystemFallback] =
     useState(true);
   const [azureConfigured, setAzureConfigured] = useState<boolean | null>(null);
-  const shadowTwinConfigRef = useRef<ShadowTwinConfig>({
-    primaryStore: "filesystem",
+  const shadowTwinConfigRef = useRef<{
+    persistToFilesystem: boolean;
+    allowFilesystemFallback: boolean;
+  }>({
     persistToFilesystem: true,
     allowFilesystemFallback: true,
   });
@@ -254,32 +247,20 @@ export function useLibraryForm(createNew: boolean) {
     defaultValues,
   });
 
-  // Shadow-Twin-Config aus Library ableiten
+  // Shadow-Twin-Flags aus Library ableiten (v2-only: mode/primaryStore fix)
   useEffect(() => {
-    const modeFromLibrary = activeLibrary?.config?.shadowTwin
-      ? (activeLibrary.config.shadowTwin as { mode?: unknown }).mode
-      : undefined;
-    setShadowTwinMode(modeFromLibrary === "v2" ? "v2" : "legacy");
-
     const configShadowTwin = activeLibrary?.config?.shadowTwin as
       | {
-          primaryStore?: "filesystem" | "mongo";
           persistToFilesystem?: boolean;
           allowFilesystemFallback?: boolean;
         }
       | undefined;
 
-    const primaryStore = configShadowTwin?.primaryStore ?? "filesystem";
     const nextSnapshot = {
-      primaryStore,
-      persistToFilesystem:
-        typeof configShadowTwin?.persistToFilesystem === "boolean"
-          ? configShadowTwin.persistToFilesystem
-          : primaryStore === "filesystem",
+      persistToFilesystem: configShadowTwin?.persistToFilesystem ?? true,
       allowFilesystemFallback: configShadowTwin?.allowFilesystemFallback ?? true,
     };
     shadowTwinConfigRef.current = nextSnapshot;
-    setShadowTwinPrimaryStore(primaryStore);
     setShadowTwinPersistToFilesystem(nextSnapshot.persistToFilesystem);
     setShadowTwinAllowFilesystemFallback(nextSnapshot.allowFilesystemFallback);
   }, [activeLibrary?.id, activeLibrary?.config]);
@@ -320,7 +301,6 @@ export function useLibraryForm(createNew: boolean) {
     setIsNew(true);
     setActiveLibraryId("");
     form.reset(defaultValues);
-    setShadowTwinPrimaryStore("filesystem");
     setShadowTwinPersistToFilesystem(true);
     setShadowTwinAllowFilesystemFallback(true);
   }, [form, defaultValues, setActiveLibraryId]);
@@ -402,11 +382,10 @@ export function useLibraryForm(createNew: boolean) {
   const isShadowTwinConfigDirty = useMemo(() => {
     const current = shadowTwinConfigRef.current;
     return (
-      shadowTwinPrimaryStore !== current.primaryStore ||
       shadowTwinPersistToFilesystem !== current.persistToFilesystem ||
       shadowTwinAllowFilesystemFallback !== current.allowFilesystemFallback
     );
-  }, [shadowTwinPrimaryStore, shadowTwinPersistToFilesystem, shadowTwinAllowFilesystemFallback]);
+  }, [shadowTwinPersistToFilesystem, shadowTwinAllowFilesystemFallback]);
 
   /** Submit: Bibliothek speichern (neu erstellen oder aktualisieren) */
   const onSubmit = useCallback(
@@ -475,8 +454,10 @@ export function useLibraryForm(createNew: boolean) {
               extraColumns: data.divaArchiveExtraColumns,
             },
             shadowTwin: {
-              mode: shadowTwinMode,
-              primaryStore: shadowTwinPrimaryStore,
+              // v2-only Runtime: Speichern normalisiert Alt-Configs auf
+              // v2/Cache (User-Entscheid 2026-06-12, 04/C1).
+              mode: "v2",
+              primaryStore: "mongo",
               persistToFilesystem: shadowTwinPersistToFilesystem,
               allowFilesystemFallback: shadowTwinAllowFilesystemFallback,
             },
@@ -541,8 +522,6 @@ export function useLibraryForm(createNew: boolean) {
       setLibraries,
       setActiveLibraryId,
       router,
-      shadowTwinMode,
-      shadowTwinPrimaryStore,
       shadowTwinPersistToFilesystem,
       shadowTwinAllowFilesystemFallback,
     ]
@@ -752,10 +731,6 @@ export function useLibraryForm(createNew: boolean) {
     setActiveLibraryId,
     activeLibrary,
     // Shadow-Twin Config
-    shadowTwinMode,
-    setShadowTwinMode,
-    shadowTwinPrimaryStore,
-    setShadowTwinPrimaryStore,
     shadowTwinPersistToFilesystem,
     setShadowTwinPersistToFilesystem,
     shadowTwinAllowFilesystemFallback,

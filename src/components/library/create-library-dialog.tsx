@@ -196,8 +196,10 @@ export function CreateLibraryDialog({
           isEnabled: true,
           config: {
             shadowTwin: {
-              mode: "legacy",
-              primaryStore: "filesystem",
+              // v2-only Runtime: Neue Libraries starten direkt mit
+              // v2/Cache (User-Entscheid 2026-06-12, vorher legacy).
+              mode: "v2",
+              primaryStore: "mongo",
               persistToFilesystem: true,
               allowFilesystemFallback: true,
             },
