@@ -14,6 +14,7 @@ const h = vi.hoisted(() => ({
   getPreferredUserEmail: vi.fn(),
   isCoCreatorOrOwner: vi.fn(),
   getSubmissionById: vi.fn(),
+  loadTemplateFromMongoDB: vi.fn(),
   getInboxProvider: vi.fn(),
   getItemById: vi.fn(),
   create: vi.fn(),
@@ -33,6 +34,9 @@ vi.mock('@/lib/repositories/library-members-repo', () => ({
 }));
 vi.mock('@/lib/repositories/wizard-submissions-repo', () => ({
   getSubmissionById: h.getSubmissionById,
+}));
+vi.mock('@/lib/templates/template-service-mongodb', () => ({
+  loadTemplateFromMongoDB: h.loadTemplateFromMongoDB,
 }));
 vi.mock('@/lib/storage/inbox/inbox-provider-entry', () => ({
   getInboxProvider: h.getInboxProvider,
@@ -95,6 +99,8 @@ function login(email: string): void {
 beforeEach(() => {
   vi.resetAllMocks();
   h.hashSecret.mockReturnValue('hash');
+  // Default: das Template existiert (Pre-flight-Check besteht).
+  h.loadTemplateFromMongoDB.mockResolvedValue({ name: 'pdfanalyse', libraryId: 'lib-1' });
   h.getInboxProvider.mockResolvedValue({ getItemById: h.getItemById });
   h.getItemById.mockResolvedValue({ id: 'lib-1/inbox/anna/abc.pdf', parentId: 'lib-1/inbox/anna/' });
 });
@@ -123,6 +129,19 @@ describe('POST /api/submissions/[id]/analyze', () => {
     login('anna@example.com');
     h.getSubmissionById.mockResolvedValue({ ...SUBMISSION, status: 'ready' });
     expect((await POST(req(), { params })).status).toBe(409);
+  });
+
+  it('422 wenn das docType-Template in der Library fehlt (Pre-flight, kein Job)', async () => {
+    login('anna@example.com');
+    h.getSubmissionById.mockResolvedValue(SUBMISSION);
+    h.loadTemplateFromMongoDB.mockResolvedValue(null);
+    const res = await POST(req(), { params });
+    expect(res.status).toBe(422);
+    expect((await res.json()).error).toMatch(/pdfanalyse/);
+    expect(h.loadTemplateFromMongoDB).toHaveBeenCalledWith('pdfanalyse', 'lib-1', 'anna@example.com');
+    // Kein Provider-Zugriff, kein Job: fail-fast vor jeder teuren Operation.
+    expect(h.getInboxProvider).not.toHaveBeenCalled();
+    expect(h.create).not.toHaveBeenCalled();
   });
 
   it('422 wenn die Ref keine itemId traegt (Alt-Upload, Re-Upload noetig)', async () => {

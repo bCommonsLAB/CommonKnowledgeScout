@@ -21,6 +21,7 @@ import { isCoCreatorOrOwner } from '@/lib/repositories/library-members-repo';
 import { getSubmissionById } from '@/lib/repositories/wizard-submissions-repo';
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
 import { getInboxProvider } from '@/lib/storage/inbox/inbox-provider-entry';
+import { loadTemplateFromMongoDB } from '@/lib/templates/template-service-mongodb';
 import {
   buildSubmissionAnalysisJob,
   buildSubmissionAnalysisParameters,
@@ -69,6 +70,22 @@ export async function POST(
     } catch (error) {
       return NextResponse.json(
         { error: error instanceof Error ? error.message : 'Keine analysierbare Quelle' },
+        { status: 422 },
+      );
+    }
+
+    // Pre-flight: Das Transform-Template (= docType) MUSS in der Library existieren —
+    // dieselbe Lookup-Logik wie der spaetere Transform-Schritt. Fehlt es, scheitert
+    // der Job sonst erst spaet + unsichtbar; hier sofort als 422 mit klarer Ursache
+    // (kein verwaister failed-Job, no-silent-fallbacks).
+    const template = await loadTemplateFromMongoDB(submission.docType, submission.libraryId, email);
+    if (!template) {
+      return NextResponse.json(
+        {
+          error:
+            `Template "${submission.docType}" fehlt in dieser Library. ` +
+            'Bitte den Owner bitten, es unter Einstellungen → Verarbeitung anzulegen.',
+        },
         { status: 422 },
       );
     }
