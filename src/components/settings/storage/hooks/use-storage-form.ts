@@ -23,6 +23,24 @@ import { StorageProviderType } from "@/types/library"
 import { useStorage } from "@/contexts/storage-context"
 import { StorageFactory } from "@/lib/storage/storage-factory"
 
+/** Im Settings-Formular waehlbare Storage-Typen ('inbox' ist intern, ADR-0004 II). */
+const STORAGE_FORM_STORAGE_TYPES = ["local", "onedrive", "gdrive", "nextcloud"] as const;
+
+/** Mappt StorageProviderType auf den Form-Enum; 'inbox' ist kein User-Typ. */
+function toStorageFormStorageType(
+  type: StorageProviderType,
+): (typeof STORAGE_FORM_STORAGE_TYPES)[number] {
+  if (
+    type !== "local" &&
+    type !== "onedrive" &&
+    type !== "gdrive" &&
+    type !== "nextcloud"
+  ) {
+    throw new Error(`Ungueltiger Bibliothekstyp fuer Storage-Settings: "${type}"`);
+  }
+  return type;
+}
+
 // --------------------------------------------------------------------------
 // Schema
 // --------------------------------------------------------------------------
@@ -31,7 +49,7 @@ import { StorageFactory } from "@/lib/storage/storage-factory"
 export const storageFormSchema = z.object({
   // 'gdrive' ist Legacy (nie funktionsfaehig, UI bietet es nicht mehr an, F4) —
   // bleibt im Enum, damit Bestands-Libraries mit diesem Typ ladbar bleiben.
-  type: z.enum(["local", "onedrive", "gdrive", "nextcloud"], {
+  type: z.enum(STORAGE_FORM_STORAGE_TYPES, {
     required_error: "Bitte wählen Sie einen Speichertyp.",
   }),
   path: z.string({
@@ -125,7 +143,7 @@ export function useStorageForm(): UseStorageFormResult {
 
   // Stable default values — als useMemo damit kein re-render-Loop in useEffect
   const defaultValues = useMemo(() => ({
-    type: 'local' as StorageProviderType,
+    type: 'local' as const,
     path: '',
     tenantId: '',
     clientId: '',
@@ -205,11 +223,11 @@ export function useStorageForm(): UseStorageFormResult {
         nextcloudWebdavUrl: ncConfig?.webdavUrl,
       });
 
-      const libraryType = activeLibrary.type as StorageProviderType;
+      const libraryType = activeLibrary.type;
       if (libraryType !== 'local' && libraryType !== 'onedrive' && libraryType !== 'gdrive' && libraryType !== 'nextcloud') {
         console.error(`[StorageForm] Ungültiger Bibliothekstyp: "${libraryType}"`);
       }
-      const validType = libraryType;
+      const validType = toStorageFormStorageType(libraryType);
 
       const formData = {
         type: validType,
@@ -280,7 +298,7 @@ export function useStorageForm(): UseStorageFormResult {
     let needsReset = false;
 
     if (activeLibrary.type && currentValues.type !== activeLibrary.type) {
-      nextValues.type = activeLibrary.type as StorageProviderType;
+      nextValues.type = toStorageFormStorageType(activeLibrary.type);
       needsReset = true;
     }
     if (typeof currentValues.path !== 'string' || currentValues.path === '') {
