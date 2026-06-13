@@ -30,7 +30,8 @@ pnpm dev          # → http://localhost:3000
 | 1.3 | Archive: Quelle-Wizard Schritt 1 „Lokales Dateisystem" → Weiter | Schritt 2 (Anmelden) wird übersprungen, direkt Schritt 3 |
 | 1.4 | Pfad zum PDF-Ordner eingeben → „Übernehmen & Verbindung testen" | Schritt 4 startet den Test automatisch; grünes „Verbindung funktioniert"; „Fertig" erst bei Grün aktiv |
 | 1.5 | Nach „Fertig" | Quelle als Read-only-Zusammenfassung; Abschnitte 2 (Inhaltstyp) + 3 (Verarbeitung — „Ihr Journalist-Moment") sichtbar |
-| 1.6 | Abschnitt 3: „Vorlage — Ihr Journalist" wählen, Zielsprache, „Verarbeitung speichern" | Button nur bei Änderungen aktiv; Erfolgs-Toast |
+| 1.6 | Abschnitt 3 „Verarbeitung — Ihr Journalist-Moment" ansehen | Vorlage ist READ-ONLY: „Automatisch: Standard für „Bücher & Dokumente"" (F11 — keine Auswahl mehr im Archiv); Zielsprache/Cover änderbar, „Verarbeitung speichern" nur bei Änderungen aktiv |
+| 1.6b | **F11-Check:** Erweitert → „Vorlage (Journalist)": absichtlich `standard-session` wählen → „Verarbeitung speichern" | Live-Hinweis wird rot; Speichern wird mit Toast „Vorlage passt nicht zum Inhaltstyp" BLOCKIERT; zurück auf „Automatisch" → speichert |
 | 1.7 | **Echtdaten:** In der App (Archive-Hauptnavigation) ein PDF öffnen und transformieren | Verarbeitung läuft mit der gewählten Vorlage; Ergebnis erscheint als Inhaltstyp |
 | 1.8 | Settings → Archive → Inhaltstyp: „Empfohlene Filter übernehmen" → bestätigen → „Inhaltstyp speichern" | Bestätigungs-Dialog; Toast „Bitte speichern…"; danach unter **Explore** sichtbar |
 | 1.9 | Explore-Seite (Settings) + Explore in der App | Dichte/Gruppierung/Graph-Schalter (KEINE Facetten-Tabelle, KEIN Encoding); Galerie zeigt die Filter |
