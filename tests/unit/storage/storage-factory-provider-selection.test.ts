@@ -84,6 +84,24 @@ describe('StorageFactory.getProvider — Provider-Auswahl je library.type', () =
     expect(provider.id).toBe('lib-nextcloud')
   })
 
+  it('liefert InboxBlobProvider fuer library.type="inbox" im Server-Kontext', async () => {
+    const factory = StorageFactory.getInstance()
+    factory.setServerContext(true)
+    factory.setLibraries([makeLibrary('lib-inbox', 'inbox')])
+
+    const provider = await factory.getProvider('lib-inbox')
+
+    expect(provider.name).toBe('Inbox (Azure Blob)')
+    expect(provider.id).toBe('lib-inbox')
+  })
+
+  it('wirft fuer library.type="inbox" ohne Server-Kontext (kein Client-Proxy)', async () => {
+    const factory = StorageFactory.getInstance()
+    factory.setLibraries([makeLibrary('lib-inbox-client', 'inbox')])
+
+    await expect(factory.getProvider('lib-inbox-client')).rejects.toThrow(/Server-Kontext/)
+  })
+
   it('cached die Provider-Instanz pro libraryId', async () => {
     const factory = StorageFactory.getInstance()
     factory.setLibraries([makeLibrary('lib-cached', 'local')])

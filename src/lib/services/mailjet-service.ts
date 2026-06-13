@@ -224,7 +224,7 @@ export class MailjetService {
     inviterName: string
   ): Promise<boolean> {
     try {
-      const roleLabel = role === 'co-creator' ? 'Co-Creator' : 'Moderator';
+      const roleLabel = role === 'co-creator' ? 'Co-Creator' : role === 'contributor' ? 'Mitwirkender' : 'Moderator';
       const subject = `Einladung als ${roleLabel} fuer "${libraryName}"`;
 
       const mailjet = getMailjetClient();

@@ -14,8 +14,11 @@
  * - 'moderator': Kann Zugriffsanfragen verwalten und Einladungen senden, kein Zugang zu Library-Einstellungen
  * - 'co-creator': Voller Arbeitszugriff (Archiv, Explore, Story, Templates), aber kein Zugang zu Settings.
  *   Arbeitet auf derselben libraryId wie der Owner (geteilte Shadow Twins, Stories, Vektor-Daten).
+ * - 'contributor': Darf erfassen (Submissions anlegen) und den eigenen Preview sehen,
+ *   aber NICHT publizieren, abnehmen oder Co-Creator-Arbeit leisten (ADR-0004 E2).
+ *   Liegt zwischen `reader` und `co-creator`.
  */
-export type LibraryRole = 'owner' | 'moderator' | 'co-creator';
+export type LibraryRole = 'owner' | 'moderator' | 'co-creator' | 'contributor';
 
 /** Einladungsstatus eines Mitglieds */
 export type MemberStatus = 'pending' | 'active' | 'declined';

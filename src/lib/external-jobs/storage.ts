@@ -25,7 +25,7 @@
 import type { SaveMarkdownArgs, SaveMarkdownResult } from '@/types/external-jobs'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
-import { getServerProvider } from '@/lib/storage/server-provider'
+import { resolveJobProvider, resolveShadowTwinLibrary } from '@/lib/external-jobs/provider'
 import { getJobEventBus } from '@/lib/events/job-event-bus'
 import { writeArtifact } from '@/lib/shadow-twin/artifact-writer'
 import type { StorageItem } from '@/lib/storage/types'
@@ -33,7 +33,6 @@ import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
 import { parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import { loadTemplateFromMongoDB } from '@/lib/templates/template-service-mongodb'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
-import { LibraryService } from '@/lib/services/library-service'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { persistShadowTwinToMongo } from '@/lib/shadow-twin/shadow-twin-mongo-writer'
 import { buildMongoShadowTwinItem } from '@/lib/shadow-twin/mongo-shadow-twin-item'
@@ -42,7 +41,11 @@ import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdownResult> {
   const { ctx, parentId, fileName, markdown, artifactKey: explicitArtifactKey, zipArchives, jobId } = args
   const repo = new ExternalJobsRepository()
-  const provider = await getServerProvider(ctx.job.userEmail, ctx.job.libraryId)
+  const provider = await resolveJobProvider({
+    userEmail: ctx.job.userEmail,
+    libraryId: ctx.job.libraryId,
+    providerScope: ctx.job.providerScope,
+  })
 
   // DETERMINISTISCHE ARCHITEKTUR: Verwende einfach parentId, das bereits korrekt gesetzt wurde
   // Der Kontext wurde beim Job-Start bestimmt und im Job-State gespeichert
@@ -172,16 +175,32 @@ export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdown
     }
   }
 
-  // Shadow-Twin-Konfiguration laden (Mongo oder Filesystem).
-  const library = await LibraryService.getInstance().getLibrary(ctx.job.userEmail, ctx.job.libraryId)
+  // Inbox-Scope (ADR-0004 II): Die Submission ist die Mongo-Repraesentanz der
+  // Quarantaene — es gibt KEINEN Mongo-Shadow-Twin. Artefakte gehen ausschliesslich
+  // ueber den (Inbox-)Provider in den Blob-Bereich; Library-Config ist hier irrelevant.
+  const isInboxScope = ctx.job.providerScope === 'inbox'
+  if (isInboxScope) {
+    bufferLog(ctx.jobId, {
+      phase: 'markdown_save_inbox_scope',
+      message: 'Inbox-Scope: kein Mongo-Shadow-Twin, Artefakt geht in den Blob-Inbox-Bereich',
+    })
+  }
+
+  // Shadow-Twin-Konfiguration laden (Mongo oder Filesystem); Inbox-Scope liefert
+  // null => Filesystem-Default (Blob via Inbox-Provider), siehe resolveShadowTwinLibrary.
+  const library = await resolveShadowTwinLibrary({
+    userEmail: ctx.job.userEmail,
+    libraryId: ctx.job.libraryId,
+    providerScope: ctx.job.providerScope,
+  })
   const shadowTwinConfig = getShadowTwinConfig(library)
   const persistToFilesystem = shadowTwinConfig.persistToFilesystem ?? true
 
   let mongoMarkdown = finalMarkdown
   let virtualItem: StorageItem | null = null
-  
+
   // Verwende ShadowTwinService für zentrale Store-Entscheidung
-  if (ctx.job.correlation?.source?.itemId) {
+  if (!isInboxScope && ctx.job.correlation?.source?.itemId) {
     try {
       const sourceItem = await provider.getItemById(ctx.job.correlation.source.itemId)
       

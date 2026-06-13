@@ -16,9 +16,8 @@
 
 import type { RequestContext } from '@/types/external-jobs'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
-import { buildProvider } from '@/lib/external-jobs/provider'
+import { buildProvider, resolveShadowTwinLibrary } from '@/lib/external-jobs/provider'
 import { findPdfMarkdown, decideNeedExtract } from '@/lib/external-jobs/preprocess-core'
-import { LibraryService } from '@/lib/services/library-service'
 
 export interface PreprocessPdfExtractResult {
   hasMarkdown: boolean
@@ -48,9 +47,10 @@ export async function preprocessorPdfExtract(
   const parentId = job.correlation?.source?.parentId || 'root'
 
   const repo = new ExternalJobsRepository()
-  const provider = await buildProvider({ userEmail, libraryId, jobId, repo })
+  const provider = await buildProvider({ userEmail, libraryId, jobId, repo, providerScope: job.providerScope })
 
-  const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
+  // Inbox-Scope => null => Filesystem-Detection ueber den Inbox-Provider.
+  const library = await resolveShadowTwinLibrary({ userEmail, libraryId, providerScope: job.providerScope })
   const sourceItemId = job.correlation?.source?.itemId
   const sourceName = job.correlation?.source?.name
   const found = await findPdfMarkdown(

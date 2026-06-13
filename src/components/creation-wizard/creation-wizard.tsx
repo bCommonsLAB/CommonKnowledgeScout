@@ -29,6 +29,8 @@ import { buildDictationDraftFromSources, suggestDictationFileBaseName } from "@/
 import { applyEventFrontmatterDefaults } from "@/lib/events/event-frontmatter-defaults"
 import type { WizardSource } from "@/lib/creation/corpus"
 import { buildCorpusText, buildTranscriptMarkdown, isCorpusTooLarge, truncateCorpus } from "@/lib/creation/corpus"
+import { filterWizardSteps, canProceedFromStep, resolveWizardPreviewViewType } from "@/lib/creation/wizard-flow"
+import { editableContentFields } from "@/lib/creation/editable-fields"
 import { parseFrontmatter } from "@/lib/markdown/frontmatter"
 import { createMarkdownWithFrontmatter } from "@/lib/markdown/compose"
 import { resolveArtifactClient } from "@/lib/shadow-twin/artifact-client"
@@ -191,13 +193,11 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
   }, [])
 
   function resolveTemplateDetailViewType(): 'book' | 'session' | 'testimonial' | 'blog' {
-    // SSOT: Template-Detailansicht (im Template-Editor Tab "Detail-Ansicht")
-    const metaDvt = template?.metadata?.detailViewType
-    if (metaDvt === 'book' || metaDvt === 'session' || metaDvt === 'testimonial' || metaDvt === 'blog') return metaDvt
-    // Backward compatibility: ältere Templates hatten teils `creation.preview.detailViewType`
-    const legacy = template?.creation?.preview?.detailViewType
-    if (legacy === 'book' || legacy === 'session' || legacy === 'testimonial' || legacy === 'blog') return legacy
-    return 'session'
+    // SSOT + bekannte 4-vs-8-Drift: siehe resolveWizardPreviewViewType (wizard-flow.ts).
+    return resolveWizardPreviewViewType({
+      metadata: template?.metadata,
+      creation: template?.creation,
+    })
   }
   
   // Wizard Session Logging (DSGVO-konform)
@@ -737,15 +737,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
   }
 
   const rawSteps = creation.flow.steps
-  const hasSelectFolderArtifactsStep = rawSteps.some((s) => s.preset === 'selectFolderArtifacts')
-  // sourceFolderId kommt oft mit (Zielordner beim Anlegen aus dem Explorer). collectSource nur dann
-  // entfernen, wenn der Flow wirklich Ordner-Artefakte nutzt — sonst fehlt z. B. der Diktat-Textschritt.
-  const steps = rawSteps.filter((s) => {
-    if (s.preset === 'collectSource' && sourceFolderId && hasSelectFolderArtifactsStep) return false
-    if (s.preset === 'selectFolderArtifacts' && !sourceFolderId) return false
-    if (s.preset === 'generateDraft' && !sourceFolderId) return false
-    return true
-  })
+  // Step-Sichtbarkeit zentral in wizard-flow.ts (testbare Naht für Phase 3a).
+  const steps = filterWizardSteps(rawSteps, { sourceFolderId })
   const currentStep = steps[wizardState.currentStepIndex]
   const isFirstStep = wizardState.currentStepIndex === 0
   const isLastStep = wizardState.currentStepIndex === steps.length - 1
@@ -3072,10 +3065,13 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           || wizardState.generatedDraft?.markdown 
           || ""
         
-        // Feld-Auswahl: aus editDraft.fields (falls definiert)
+        // Feld-Auswahl (ADR-0003 / O1, Phase 3a): editDraft.fields als optionaler
+        // Override; sonst GENERISCH aus dem Schema ableiten (Inhalts-Felder ohne
+        // System-/Struktur-Felder) statt still auf ALLE Felder zu fallen.
+        const derivedEditableFields = editableContentFields(template.metadata.fields.map((f) => f.key))
         const userRelevantFields = currentStep.fields && currentStep.fields.length > 0
           ? currentStep.fields
-          : undefined
+          : (derivedEditableFields.length > 0 ? derivedEditableFields : undefined)
         
         // PDF-HITL: Wenn wir hier ohne Draft landen, ist das ein Flow-Fehler (sonst sieht man "leere" Screens).
         if (isPdfAnalyse && Object.keys(initialMetadata).length === 0 && initialDraftText.trim().length === 0) {
@@ -4066,51 +4062,20 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     }
   }
 
-  const canProceed = () => {
-    switch (currentStep.preset) {
-      case "welcome":
-        return true
-      case "collectSource":
-        // Während wir Metadaten laden/extrahieren, darf "Weiter" nicht klickbar sein.
-        if (wizardState.isExtracting) return false
-        // Weiter möglich, wenn:
-        // 1) Quellen bereits vorhanden sind, ODER
-        // 2) CollectSourceStep meldet "can proceed" (z.B. Text eingegeben oder PDF gewählt), ODER
-        // 3) Legacy: collectedInput reicht
-        if (wizardState.sources.length > 0) return true
-        if (collectSourceCanProceed) return true
-        return !!wizardState.collectedInput?.content
-      case "reviewMarkdown":
-        if (wizardState.isExtracting) return false
-        if (!wizardState.draftText || wizardState.draftText.trim().length === 0) return false
-        return !!wizardState.hasConfirmedMarkdown
-      case "generateDraft":
-        // Im Interview-Modus ist generateDraft zwingend
-        // Im Form-Modus ist generateDraft optional (kann übersprungen werden)
-        if (wizardState.mode === 'interview') {
-          return !!wizardState.generatedDraft
-        }
-        return true // Im Form-Modus kann man auch ohne generateDraft weiter
-      case "editDraft":
-        return true // EditDraft ist immer editierbar, keine Validierung nötig
-      case "uploadImages":
-        return true // uploadImages ist immer optional (kann übersprungen werden)
-      case "selectRelatedTestimonials":
-        return true // selectRelatedTestimonials ist immer optional (kann übersprungen werden)
-      case "selectFolderArtifacts":
-        return wizardState.sources.length > 0
-      case "previewDetail":
-        return true
-      case "completion":
-        return true
-      case "publish":
-        // "Weiter/Fertig" erst nach erfolgreichem Publish erlauben
-        if (wizardState.isPublishing) return false
-        return !!wizardState.isPublished
-      default:
-        return false
-    }
-  }
+  const canProceed = () =>
+    // Per-Preset-Gating zentral in wizard-flow.ts (testbare Naht für Phase 3a).
+    canProceedFromStep(currentStep.preset, {
+      isExtracting: wizardState.isExtracting,
+      sourcesCount: wizardState.sources.length,
+      collectSourceCanProceed,
+      hasCollectedInput: !!wizardState.collectedInput?.content,
+      draftText: wizardState.draftText,
+      hasConfirmedMarkdown: wizardState.hasConfirmedMarkdown,
+      mode: wizardState.mode,
+      hasGeneratedDraft: !!wizardState.generatedDraft,
+      isPublishing: wizardState.isPublishing,
+      isPublished: wizardState.isPublished,
+    })
 
   return (
     <Card className="p-6">

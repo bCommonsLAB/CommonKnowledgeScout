@@ -32,6 +32,7 @@ interface PendingInvitesDialogProps {
 function roleLabel(role: string): string {
   switch (role) {
     case 'co-creator': return 'Co-Creator'
+    case 'contributor': return 'Mitwirkender'
     case 'moderator': return 'Moderator'
     case 'reader': return 'Leser'
     default: return role

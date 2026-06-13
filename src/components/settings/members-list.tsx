@@ -147,6 +147,14 @@ export function MembersList({ libraryId }: MembersListProps) {
                         </span>
                       </div>
                     </SelectItem>
+                    <SelectItem value="contributor">
+                      <div className="flex flex-col">
+                        <span className="font-medium">Mitwirkender</span>
+                        <span className="text-xs text-muted-foreground">
+                          Darf erfassen (Beitraege einreichen), aber nicht publizieren
+                        </span>
+                      </div>
+                    </SelectItem>
                     <SelectItem value="moderator">
                       <div className="flex flex-col">
                         <span className="font-medium">Moderator</span>
@@ -232,6 +240,11 @@ export function MembersList({ libraryId }: MembersListProps) {
                       <Badge variant="default" className="bg-blue-600">
                         <Users className="h-3 w-3 mr-1" />
                         Co-Creator
+                      </Badge>
+                    ) : member.role === 'contributor' ? (
+                      <Badge variant="default" className="bg-teal-600">
+                        <Users className="h-3 w-3 mr-1" />
+                        Mitwirkender
                       </Badge>
                     ) : (
                       <Badge variant="outline">

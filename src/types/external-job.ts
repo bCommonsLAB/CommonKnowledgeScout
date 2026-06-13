@@ -5,6 +5,14 @@ export type ExternalJobStatus =
   | 'failed'
   | 'pending-storage';
 
+/**
+ * Storage-Bereich, in dem ein Job arbeitet (ADR-0004 II, Welle III):
+ * - 'archive': Owner-Archiv via getServerProvider (Default; fehlendes Feld = Legacy-Job).
+ * - 'inbox': Quarantaene via getInboxProvider — die Pipeline laeuft off-target
+ *   (kein Mongo-Shadow-Twin, kein RAG-Ingest; Publikation bleibt W5).
+ */
+export type ExternalJobProviderScope = 'archive' | 'inbox';
+
 export interface ExternalJobCorrelationSource {
   itemId?: string;
   parentId?: string;
@@ -100,6 +108,11 @@ export interface ExternalJob {
   workerStartAttempts?: number;
   libraryId: string;
   userEmail: string;
+  /**
+   * Provider-Weiche der Pipeline (siehe ExternalJobProviderScope).
+   * Fehlt das Feld, gilt 'archive' (Legacy-Jobs vor Welle III).
+   */
+  providerScope?: ExternalJobProviderScope;
   correlation: ExternalJobCorrelation;
   processId?: string;
   payload?: ExternalJobPayloadMeta;

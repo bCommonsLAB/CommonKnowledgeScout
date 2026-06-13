@@ -9,6 +9,7 @@ summary: {{summary|Kurze, gut lesbare Zusammenfassung in 120-220 Wörtern. Fokus
 date: {{date|Datum der Besprechung (ISO wenn klar erkennbar, sonst "")}}
 year: {{year|YYYY oder null wenn nicht sicher erkennbar}}
 language: {{language|Sprache des Transkripts, z.B. de oder en}}
+targetLanguage: {{targetLanguage|Zielsprache der Analyse, i.d.R. gleich language}}
 participants: {{participants|Array mit genannten Personen, dedupliziert}}
 organisation: {{organisation|Organisation oder Team, nur wenn explizit genannt}}
 meetingType: {{meetingType|Eine aus: koordination, retrospektive, strategie, interview, other}}

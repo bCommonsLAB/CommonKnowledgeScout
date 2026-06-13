@@ -8,7 +8,7 @@ import { getPreferredUserEmail } from '@/lib/auth/user-email'
 
 /**
  * Mögliche Rollen des aktuellen Users in einer bestimmten Library.
- * - `owner` / `co-creator` / `moderator` / `reader`: aus `librariesAtom.accessRole`.
+ * - `owner` / `co-creator` / `contributor` / `moderator` / `reader`: aus `librariesAtom.accessRole`.
  * - `guest`: eingeloggt, aber Library nicht im Atom (z.B. fremder
  *   Explore-Besucher mit Account auf einer Public-Library).
  * - `anonymous`: nicht eingeloggt.
@@ -16,6 +16,7 @@ import { getPreferredUserEmail } from '@/lib/auth/user-email'
 export type LibraryRoleClient =
   | 'owner'
   | 'co-creator'
+  | 'contributor'
   | 'moderator'
   | 'reader'
   | 'guest'

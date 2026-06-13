@@ -51,7 +51,10 @@ export interface FavoriteEntry {
  * Supported storage provider types.
  * Each type represents a different storage backend implementation.
  */
-export type StorageProviderType = 'local' | 'onedrive' | 'gdrive' | 'nextcloud';
+export type StorageProviderType = 'local' | 'onedrive' | 'gdrive' | 'nextcloud' | 'inbox';
+// 'inbox' ist ein INTERNER, nur serverseitig konstruierter Provider (ADR-0004 II):
+// duenner, content-adressierter Blob-Bereich fuer die Quarantaene. Er ist KEIN vom
+// User waehlbarer Library-Typ — bewusst NICHT in den Settings-Formularen gelistet.
 
 /**
  * Konfiguration fuer Dokumenten-Uebersetzungen pro Library.
@@ -645,10 +648,11 @@ export interface ClientLibrary {
    * Zugriffsrolle des aktuellen Users fuer diese Library.
    * - 'owner': Voller Zugriff inkl. Settings
    * - 'co-creator': Voller Arbeitszugriff (Archiv, Explore, Story, Templates), kein Settings-Zugang
+   * - 'contributor': Darf erfassen (Submissions) + eigenen Preview sehen, nicht publizieren (ADR-0004 E2)
    * - 'moderator': Zugriffsanfragen verwalten
    * - 'reader': Nur Lese-Zugriff (ueber Einladung/Access Request)
    */
-  accessRole?: 'owner' | 'co-creator' | 'moderator' | 'reader';
+  accessRole?: 'owner' | 'co-creator' | 'contributor' | 'moderator' | 'reader';
 }
 
 /**

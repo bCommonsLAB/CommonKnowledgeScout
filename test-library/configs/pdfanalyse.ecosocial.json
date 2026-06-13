@@ -1,0 +1,16 @@
+{
+  "schema": "pdfanalyse",
+  "configId": "ecosocial",
+  "label": "Eco-Social",
+  "note": "🎯 TARGET (ADR-0003 R2): Schema-Config pro Library. Vom heutigen Runtime noch nicht konsumiert.",
+  "topicsVocabulary": [
+    "ecological-transformation",
+    "social-justice",
+    "degrowth",
+    "circular-economy",
+    "solidarity-economy",
+    "just-transition",
+    "care-work",
+    "wellbeing-economy"
+  ]
+}

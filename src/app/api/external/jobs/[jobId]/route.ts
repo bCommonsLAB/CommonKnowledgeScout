@@ -33,7 +33,6 @@ import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
 // import { FileSystemProvider } from '@/lib/storage/filesystem-provider';
 // import { ImageExtractionService } from '@/lib/transform/image-extraction-service';
 // import { TransformService } from '@/lib/transform/transform-service';
-import { LibraryService } from '@/lib/services/library-service';
 import { FileLogger } from '@/lib/debug/logger';
 import { getJobEventBus } from '@/lib/events/job-event-bus';
 import { bufferLog, drainBufferedLogs } from '@/lib/external-jobs-log-buffer';
@@ -43,7 +42,7 @@ import { readContext } from '@/lib/external-jobs/context'
 import { authorizeCallback, hasInternalTokenBypass } from '@/lib/external-jobs/auth'
 import { readPhasesAndPolicies } from '@/lib/external-jobs/policies'
 import { handleProgressIfAny } from '@/lib/external-jobs/progress'
-import { buildProvider } from '@/lib/external-jobs/provider'
+import { buildProvider, resolveJobLibrary, resolveShadowTwinLibrary } from '@/lib/external-jobs/provider'
 import { runExtractOnly } from '@/lib/external-jobs/extract-only'
 import { downloadMistralOcrRaw } from '@/lib/external-jobs/mistral-ocr-download'
 import { resolveLibrarySecretaryConfig } from '@/lib/external-jobs/secretary-url'
@@ -539,7 +538,13 @@ export async function POST(
     let _libraryConfig: NonNullable<import('@/types/library').Library['config']>['secretaryService'] | undefined
     let secretaryOverride: import('@/lib/external-jobs/secretary-url').SecretaryUrlConfig = {}
     try {
-      const earlyLib = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
+      // Scope-Weiche: Inbox-Jobs laden die Library owner-unabhaengig (Secretary-Config
+      // der Library gilt auch fuer Contributor-Analysen in der Quarantaene).
+      const earlyLib = await resolveJobLibrary({
+        userEmail: job.userEmail,
+        libraryId: job.libraryId,
+        providerScope: job.providerScope,
+      })
       const resolved = resolveLibrarySecretaryConfig(earlyLib)
       _libraryConfig = resolved.effective
       secretaryOverride = resolved.override
@@ -661,9 +666,15 @@ export async function POST(
     }
 
     // Bibliothek laden (um Typ zu bestimmen).
-    // getLibrary() statt getUserLibraries(), damit Co-Creator auf die Config zugreifen können.
-    const libraryService = LibraryService.getInstance();
-    const lib = await libraryService.getLibrary(job.userEmail, job.libraryId);
+    // Scope-Weiche (Welle III): Archive-Jobs owner-/membership-gebunden (getLibrary,
+    // damit Co-Creator auf die Config zugreifen koennen); Inbox-Jobs owner-unabhaengig
+    // (getLibraryById) — Contributoren haben bewusst keinen Archiv-Zugriff (ADR-0004),
+    // die Template-Phase darf trotzdem laufen.
+    const lib = await resolveJobLibrary({
+      userEmail: job.userEmail,
+      libraryId: job.libraryId,
+      providerScope: job.providerScope,
+    });
 
     try { await repo.traceAddEvent(jobId, { spanId: 'template', name: 'callback_before_library' }) } catch {}
 
@@ -679,7 +690,7 @@ export async function POST(
 
         // Einheitliche Serverinitialisierung des Providers (DB-Config, Token enthalten)
         // Provider wird einmal erstellt und an alle Module weitergegeben
-        const provider = await buildProvider({ userEmail: job.userEmail, libraryId: job.libraryId, jobId, repo })
+        const provider = await buildProvider({ userEmail: job.userEmail, libraryId: job.libraryId, jobId, repo, providerScope: job.providerScope })
 
         // DETERMINISTISCHE ARCHITEKTUR: Verwende Shadow-Twin-Verzeichnis aus Job-State
         // Der Kontext wurde beim Job-Start bestimmt und im Job-State gespeichert
@@ -720,7 +731,12 @@ export async function POST(
             
             // Sammle ZIP-Daten für direkten Upload (wenn persistToFilesystem=false)
             // WICHTIG: Bilder müssen hier gesammelt werden, damit sie mit dem Transcript in MongoDB gespeichert werden
-            const library = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
+            // Inbox-Scope => null => Filesystem-Default (Blob via Inbox-Provider), siehe resolveShadowTwinLibrary.
+            const library = await resolveShadowTwinLibrary({
+              userEmail: job.userEmail,
+              libraryId: job.libraryId,
+              providerScope: job.providerScope,
+            })
             const shadowTwinConfig = getShadowTwinConfig(library)
             const persistToFilesystem = shadowTwinConfig.persistToFilesystem ?? true
             
@@ -844,8 +860,12 @@ export async function POST(
               try {
                 const { analyzeShadowTwinWithService } = await import('@/lib/shadow-twin/analyze-shadow-twin')
                 const { toMongoShadowTwinState } = await import('@/lib/shadow-twin/shared')
-                const { LibraryService } = await import('@/lib/services/library-service')
-                const library = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
+                // Inbox-Scope => null => Filesystem-Detection ueber den Inbox-Provider.
+                const library = await resolveShadowTwinLibrary({
+                  userEmail: job.userEmail,
+                  libraryId: job.libraryId,
+                  providerScope: job.providerScope,
+                })
                 const lang = (job.correlation?.options as { targetLanguage?: string } | undefined)?.targetLanguage || 'de'
                 const updatedShadowTwinState = await analyzeShadowTwinWithService(job.correlation.source.itemId, provider, job.userEmail, library, lang)
                 if (updatedShadowTwinState) {
@@ -890,7 +910,12 @@ export async function POST(
         const imagesPhaseEnabledEffective = (job.job_type === 'pdf' || job.job_type === 'office') ? imagesPhaseEnabled : false
         
         // Prüfe Shadow-Twin-Konfiguration für Bilder-Verarbeitung
-        const libraryForImages = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
+        // Inbox-Scope => null => Filesystem-Default (Bilder via Inbox-Provider in den Blob).
+        const libraryForImages = await resolveShadowTwinLibrary({
+          userEmail: job.userEmail,
+          libraryId: job.libraryId,
+          providerScope: job.providerScope,
+        })
         const shadowTwinConfigForImages = getShadowTwinConfig(libraryForImages)
         const persistToFilesystemForImages = shadowTwinConfigForImages.persistToFilesystem ?? true
         

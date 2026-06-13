@@ -75,6 +75,18 @@ Detail (warum, Symptome, Ausnahmen):
 - Aktiv: `docs/adr/0002-galerie-sterne-ohne-clerk-read.md` —
   Galerie-Sterne und Voter-Namen kommen aus MongoDB + `GET docs`,
   nicht aus Clerk-Aggregations- oder Display-Name-Routen
+- Vorgeschlagen: `docs/adr/0003-wizard-schema-template-trennen.md` —
+  Wizard (Flow/UI, generisch) und Schema-Template (Datenmodell + Renderer +
+  Extractor, pro docType) werden getrennt und zur Laufzeit gemerged;
+  Feld-Bindungsmodell bewusst offen
+- Vorgeschlagen: `docs/adr/0004-capture-publish-entkopplung-inbox-modell.md` —
+  Creation-Wizard schreibt bei Erfassung nie direkt in den Ziel-Provider;
+  Submissions landen in interner Inbox (MongoDB + Azure Blob), Publikation
+  ist ein rechte-gateter, idempotenter Promotion-Job
+- Vorgeschlagen (deponiert): `docs/adr/0005-co-creator-eigene-storage-auth.md` —
+  Co-Creator mit „Zugriff Archiv" nutzen kuenftig EIGENE Storage-Auth
+  (OneDrive/Nextcloud) statt der Owner-Credentials; Galerie/Erkunden (MongoDB)
+  vs. Archiv (Storage) trennen; Auth bei Invite eingeben + testen — spaeterer Schritt
 
 ## Branching, Commits, PRs (Kurz)
 

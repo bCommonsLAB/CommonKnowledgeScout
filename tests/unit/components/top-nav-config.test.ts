@@ -30,6 +30,7 @@ describe('buildTopNavConfig', () => {
     expect(result.publicNavItems.map((item) => item.href)).toEqual(['/', '/docs/'])
     expect(result.primaryProtectedNavItems.map((item) => item.href)).toContain('/library')
     expect(result.primaryProtectedNavItems.map((item) => item.href)).toContain('/library/gallery')
+    expect(result.primaryProtectedNavItems.map((item) => item.href)).toContain('/library/inbox')
     expect(result.primaryProtectedNavItems.map((item) => item.href)).toContain('/explore/test?view=site')
     expect(result.secondaryNavItems.map((item) => item.href)).toEqual([
       '/templates',

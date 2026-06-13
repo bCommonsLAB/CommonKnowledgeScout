@@ -519,6 +519,30 @@ export async function isCoCreatorOrOwner(
       role: 'co-creator',
       ...activeStatusFilter,
     }));
-  
+
   return member !== null;
+}
+
+/**
+ * Liefert die Rolle eines AKTIVEN Mitglieds (oder null, wenn kein aktives
+ * Mitglied). Owner sind keine Member-Eintraege - sie werden separat ueber den
+ * Library-Besitz (`getLibrary`) erkannt. Wird fuer die feingranulare
+ * Erfasser-Rollen-Ableitung gebraucht (z.B. `contributor` vs. `co-creator`),
+ * die `isCoCreatorOrOwner` (nur Co-Creator/Owner) bewusst NICHT abdeckt.
+ */
+export async function getActiveMemberRole(
+  libraryId: string,
+  userEmail: string,
+): Promise<LibraryRole | null> {
+  const normalizedUserEmail = normalizeEmail(userEmail);
+  const col = await getMembersCollection();
+  const activeStatusFilter = { $or: [{ status: 'active' as const }, { status: { $exists: false } }] };
+  const member =
+    (await col.findOne({ libraryId, userEmail: normalizedUserEmail, ...activeStatusFilter })) ||
+    (await col.findOne({
+      libraryId,
+      userEmail: { $regex: buildCaseInsensitiveEmailRegex(normalizedUserEmail) },
+      ...activeStatusFilter,
+    }));
+  return member ? member.role : null;
 }

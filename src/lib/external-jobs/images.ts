@@ -30,7 +30,7 @@
 import type { ImagesArgs, ImagesResult, RequestContext } from '@/types/external-jobs'
 import type { StorageProvider } from '@/lib/storage/types'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
-import { getServerProvider } from '@/lib/storage/server-provider'
+import { resolveJobProvider } from '@/lib/external-jobs/provider'
 import { ImageExtractionService } from '@/lib/transform/image-extraction-service'
 import { resolveSecretaryUrl, getSecretaryAuthHeaders, type SecretaryUrlConfig } from './secretary-url'
 import { findOrCreateShadowTwinFolder, prepareImageProcessingContext } from './shadow-twin-helpers'
@@ -629,7 +629,11 @@ export async function maybeProcessImages(args: ImagesArgs): Promise<ImagesResult
   }
   const arrayBuf = await resp.arrayBuffer()
   const base64Zip = Buffer.from(arrayBuf).toString('base64')
-  const provider = await getServerProvider(ctx.job.userEmail, ctx.job.libraryId)
+  const provider = await resolveJobProvider({
+    userEmail: ctx.job.userEmail,
+    libraryId: ctx.job.libraryId,
+    providerScope: ctx.job.providerScope,
+  })
   const { originalItemForImages, textContents } = prepareImageProcessingContext(
     provider,
     ctx.job,

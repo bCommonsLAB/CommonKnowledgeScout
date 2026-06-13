@@ -12,6 +12,7 @@ docType: {{docType|Eine aus: article, report, study, brochure, law, guideline, t
 year: {{year|YYYY oder null (primär aus Impressum/Colophon; kein Rückgriff auf Verzeichnispfad)}}
 region: {{region|Region/Land; nur wenn explizit im Dokument genannt}}
 language: {{language|Dokumentsprache, z. B. "de" oder "en"}}
+targetLanguage: {{targetLanguage|Zielsprache der Analyse, i.d.R. gleich language}}
 pages: {{pages|Anzahl der Seiten, aus Markdown-Seitenmarkern; wenn nicht bestimmbar: null}}
 source: {{source|Herausgeber/Verlag/Zeitschrift/Organisation; primär aus Impressum}}
 seriesOrJournal: {{seriesOrJournal|Serien-/Zeitschriftenname (falls im Dokument explizit)}}

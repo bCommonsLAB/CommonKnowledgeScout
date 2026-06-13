@@ -90,7 +90,7 @@ export async function POST(
     const libraryService = LibraryService.getInstance();
     const library = await libraryService.getLibraryById(member.libraryId);
     const librarySlug = library?.config?.publicPublishing?.slugName || '';
-    const roleLabel = member.role === 'co-creator' ? 'Co-Creator' : 'Moderator';
+    const roleLabel = member.role === 'co-creator' ? 'Co-Creator' : member.role === 'contributor' ? 'Mitwirkender' : 'Moderator';
 
     console.log(`[API] Mitglieder-Einladung akzeptiert: ${userEmail} als ${roleLabel} fuer Library ${member.libraryId}`);
 
