@@ -17,6 +17,7 @@
 
 import type { ExternalJob, ExternalJobStep } from '@/types/external-job';
 import type { SubmissionBinaryRef, WizardSubmission } from '@/types/wizard-submission';
+import { getDefaultTemplateNameForViewType } from '@/lib/templates/default-templates';
 
 /**
  * Stufe-B-Analyse-Defaults: Mistral-OCR mit allen Bild-Flags (wie der globale
@@ -75,16 +76,21 @@ export function buildSubmissionAnalysisSteps(): ExternalJobStep[] {
 }
 
 /**
- * Job-Parameter: Template = docType der Submission (z.B. 'pdfanalyse'),
- * Ingest explizit deaktiviert (phases + policy — complete.ts markiert den
- * Step als skipped; phase-ingest wirft zusaetzlich bei Inbox-Scope).
+ * Job-Parameter (Welle III, an F11 angeglichen): Als Template gilt die im Code
+ * persistierte **Standard-Vorlage des `detailViewType`** (z.B. `standard-book`),
+ * NICHT der docType. So nutzt die Inbox-Analyse dieselbe Builtin-Default-Vorlage
+ * wie die Archiv-Pipeline (`pickTemplate`/`getDefaultTemplateNameForViewType`) —
+ * garantiert vorhanden (kein MongoDB-Roundtrip), fuehrt language/targetLanguage,
+ * kein Bedarf an einem user-erstellten `pdfanalyse`-Template mehr.
+ * Ingest bleibt deaktiviert (phases + policy — complete.ts markiert skipped;
+ * phase-ingest wirft zusaetzlich bei Inbox-Scope; Publikation = W5).
  */
 export function buildSubmissionAnalysisParameters(
   submission: WizardSubmission,
 ): Record<string, unknown> {
   return {
     ...SUBMISSION_ANALYSIS_DEFAULTS,
-    template: submission.docType,
+    template: getDefaultTemplateNameForViewType(submission.detailViewType),
     phases: { extract: true, template: true, ingest: false },
     policies: { extract: 'do', metadata: 'do', ingest: 'ignore' },
   };

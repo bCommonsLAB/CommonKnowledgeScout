@@ -14,7 +14,6 @@ const h = vi.hoisted(() => ({
   getPreferredUserEmail: vi.fn(),
   isCoCreatorOrOwner: vi.fn(),
   getSubmissionById: vi.fn(),
-  loadTemplateFromMongoDB: vi.fn(),
   getInboxProvider: vi.fn(),
   getItemById: vi.fn(),
   create: vi.fn(),
@@ -35,9 +34,8 @@ vi.mock('@/lib/repositories/library-members-repo', () => ({
 vi.mock('@/lib/repositories/wizard-submissions-repo', () => ({
   getSubmissionById: h.getSubmissionById,
 }));
-vi.mock('@/lib/templates/template-service-mongodb', () => ({
-  loadTemplateFromMongoDB: h.loadTemplateFromMongoDB,
-}));
+// default-templates (F11) laeuft ECHT (reine Funktionen) — kein Mock; so testen
+// wir die echte Builtin-Aufloesung 'standard-book' der Inbox-Analyse.
 vi.mock('@/lib/storage/inbox/inbox-provider-entry', () => ({
   getInboxProvider: h.getInboxProvider,
 }));
@@ -99,8 +97,7 @@ function login(email: string): void {
 beforeEach(() => {
   vi.resetAllMocks();
   h.hashSecret.mockReturnValue('hash');
-  // Default: das Template existiert (Pre-flight-Check besteht).
-  h.loadTemplateFromMongoDB.mockResolvedValue({ name: 'pdfanalyse', libraryId: 'lib-1' });
+  // detailViewType 'book' -> Builtin 'standard-book' existiert real (kein Mock noetig).
   h.getInboxProvider.mockResolvedValue({ getItemById: h.getItemById });
   h.getItemById.mockResolvedValue({ id: 'lib-1/inbox/anna/abc.pdf', parentId: 'lib-1/inbox/anna/' });
 });
@@ -131,15 +128,13 @@ describe('POST /api/submissions/[id]/analyze', () => {
     expect((await POST(req(), { params })).status).toBe(409);
   });
 
-  it('422 wenn das docType-Template in der Library fehlt (Pre-flight, kein Job)', async () => {
+  it('422 wenn der detailViewType kein Builtin-Standard-Template hat (Pre-flight, kein Job)', async () => {
     login('anna@example.com');
-    h.getSubmissionById.mockResolvedValue(SUBMISSION);
-    h.loadTemplateFromMongoDB.mockResolvedValue(null);
+    // Unbekannter detailViewType -> kein 'standard-<typ>'-Builtin -> 422 vor jeder teuren Operation.
+    h.getSubmissionById.mockResolvedValue({ ...SUBMISSION, detailViewType: 'unbekannterTyp' });
     const res = await POST(req(), { params });
     expect(res.status).toBe(422);
-    expect((await res.json()).error).toMatch(/pdfanalyse/);
-    expect(h.loadTemplateFromMongoDB).toHaveBeenCalledWith('pdfanalyse', 'lib-1', 'anna@example.com');
-    // Kein Provider-Zugriff, kein Job: fail-fast vor jeder teuren Operation.
+    expect((await res.json()).error).toMatch(/detailViewType|unbekannt/i);
     expect(h.getInboxProvider).not.toHaveBeenCalled();
     expect(h.create).not.toHaveBeenCalled();
   });
@@ -182,8 +177,9 @@ describe('POST /api/submissions/[id]/analyze', () => {
     // Ingest ist deaktiviert (Publikation = W5).
     const params2 = h.initializeSteps.mock.calls[0][2];
     expect(params2.phases).toEqual({ extract: true, template: true, ingest: false });
+    // F11: Template = Builtin-Standard des detailViewType 'book', nicht der docType.
     expect(params2.policies.ingest).toBe('ignore');
-    expect(params2.template).toBe('pdfanalyse');
+    expect(params2.template).toBe('standard-book');
   });
 
   it('202 Reviewer (co-creator/owner) darf ebenfalls starten', async () => {

@@ -21,7 +21,10 @@ import { isCoCreatorOrOwner } from '@/lib/repositories/library-members-repo';
 import { getSubmissionById } from '@/lib/repositories/wizard-submissions-repo';
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository';
 import { getInboxProvider } from '@/lib/storage/inbox/inbox-provider-entry';
-import { loadTemplateFromMongoDB } from '@/lib/templates/template-service-mongodb';
+import {
+  getDefaultTemplateNameForViewType,
+  resolveBuiltinDefaultTemplateByName,
+} from '@/lib/templates/default-templates';
 import {
   buildSubmissionAnalysisJob,
   buildSubmissionAnalysisParameters,
@@ -74,17 +77,18 @@ export async function POST(
       );
     }
 
-    // Pre-flight: Das Transform-Template (= docType) MUSS in der Library existieren —
-    // dieselbe Lookup-Logik wie der spaetere Transform-Schritt. Fehlt es, scheitert
-    // der Job sonst erst spaet + unsichtbar; hier sofort als 422 mit klarer Ursache
-    // (kein verwaister failed-Job, no-silent-fallbacks).
-    const template = await loadTemplateFromMongoDB(submission.docType, submission.libraryId, email);
-    if (!template) {
+    // Pre-flight (an F11 angeglichen): Die Inbox-Analyse nutzt die im Code
+    // persistierte Standard-Vorlage des detailViewType (z.B. 'standard-book').
+    // Hier fruehzeitig pruefen, dass dazu ein Builtin existiert — sonst scheitert
+    // der Transform-Schritt spaet + unsichtbar (no-silent-fallbacks). Kein
+    // user-erstelltes Template noetig; nur ein bekannter detailViewType.
+    const defaultTemplateName = getDefaultTemplateNameForViewType(submission.detailViewType);
+    if (!resolveBuiltinDefaultTemplateByName(defaultTemplateName)) {
       return NextResponse.json(
         {
           error:
-            `Template "${submission.docType}" fehlt in dieser Library. ` +
-            'Bitte den Owner bitten, es unter Einstellungen → Verarbeitung anzulegen.',
+            `Kein Standard-Template fuer detailViewType "${submission.detailViewType}". ` +
+            'Die Submission wurde mit einem unbekannten Typ erfasst.',
         },
         { status: 422 },
       );
