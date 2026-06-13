@@ -1,5 +1,5 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 
 /** Gespeicherte Login-Session (gitignored, niemals committen) */
 export const AUTH_FILE = 'tmp/e2e-auth.json'
@@ -82,7 +82,9 @@ interface ClientLibraryLike {
 
 /** Holt die Bibliotheken des eingeloggten Owners über die API */
 export async function getLibraries(page: Page): Promise<ClientLibraryLike[]> {
-  const res = await page.request.get('/api/libraries')
+  // Langes Timeout: der erste AUTHENTIFIZIERTE Hit kompiliert die Route + macht
+  // den MongoDB-Cold-Connect und kann so >20s (das Default-actionTimeout) dauern.
+  const res = await page.request.get('/api/libraries', { timeout: 90_000 })
   if (!res.ok()) throw new Error(`GET /api/libraries → HTTP ${res.status()}`)
   const data = (await res.json()) as ClientLibraryLike[]
   if (!Array.isArray(data)) throw new Error('GET /api/libraries lieferte kein Array (nicht eingeloggt?)')

@@ -21,7 +21,7 @@
 |---|---|---|
 | Archiv-Pipeline (pdf/audio/md) | ✅ fertig | ✅ API-Integration-Harness |
 | Settings-UX (me/we/usSpace, F1–F11, E1–E7, Security) | ✅ implementiert | Unit grün; **E2E-Harness da, Folgeplan offen** (`docs/settings-ux/07-…`) |
-| Inbox I–III (Provider, Capture-Upload, „Inhalte erfassen", providerScope, Analyze-Route, Flowback, „Meine Beiträge", Pre-flight) | ✅ implementiert + unit-getestet | ❌ **kein Akzeptanz-Test** (weder E2E noch Integration) |
+| Inbox I–III (Provider, Capture-Upload, „Inhalte erfassen", providerScope, Analyze-Route, Flowback, „Meine Beiträge", Pre-flight) | ✅ implementiert + unit-getestet | 🟡 **E2E-Akzeptanz Capture→Wartekorb grün** (`06-inbox-capture`, I0–I5; inkl. `providerScope=inbox` + Inbox-Blob-Pfad); Flowback/Stufe B noch offen (`07-…`) |
 | **F11 ↔ Inbox-Analyse-Template** | 🟡 divergiert (s. §3) | — (Blocker beim manuellen Test) |
 | Inbox IV (Owner-Sichten) | ⛔ nicht begonnen | — |
 | Inbox V (Promote/Publish) | ⛔ nicht begonnen | — |
@@ -80,7 +80,7 @@ Dafür Backend-Assert-Helfer in `e2e/helpers.ts` bauen, z.B.:
 | Settings Akt 1 (Verarbeitung) | `e2e/02-akt1-verarbeitung.spec.ts` | 🟡 |
 | Settings Akt 2 (Cloud) | `e2e/03-akt2-cloud.spec.ts` | 🟡 |
 | Settings Akt 3 (Publish) | `e2e/04-akt3-publish.spec.ts` | 🟡 |
-| **Inbox: Erfassen → Wartekorb** | `e2e/06-inbox-capture.spec.ts` *(zu erstellen)* | ⛔ |
+| **Inbox: Erfassen → Wartekorb** | `e2e/06-inbox-capture.spec.ts` | ✅ grün (I0–I5 PASS; I6 manuell — Stufe B) |
 | **Inbox: Analyse → Flowback** | `e2e/07-inbox-analyse.spec.ts` *(zu erstellen)* | ⛔ |
 
 ## 5. Arbeitspakete (unabhängig; je grüner Test = erledigt)

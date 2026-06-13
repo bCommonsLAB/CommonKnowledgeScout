@@ -86,7 +86,8 @@ test('Inbox: Erfassen → Wartekorb (WP-3)', async ({ page }) => {
 
     await d.step('I4', '„Meine Beiträge" zeigt die Submission', async () => {
       await gotoApp(page, '/library/my-submissions')
-      await expect(page.getByText('Meine Beiträge')).toBeVisible({ timeout: 30_000 })
+      // Heading-Rolle statt getByText: vermeidet Strict-Mode-Treffer auf <header> + <h1>.
+      await expect(page.getByRole('heading', { name: /Meine Beiträge/ })).toBeVisible({ timeout: 30_000 })
       // Titel der Stufe-A-Submission = Dateiname.
       await expect(page.getByText(PDF_FILE.name).first()).toBeVisible({ timeout: 30_000 })
       return 'Submission im eigenen Wartekorb sichtbar'

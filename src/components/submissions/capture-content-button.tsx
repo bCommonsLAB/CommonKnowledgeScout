@@ -30,7 +30,9 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { toast } from '@/components/ui/use-toast';
+// sonner ist der im Layout gemountete Toaster (<Toaster richColors />); das
+// shadcn-use-toast hat keinen Renderer im Baum, seine Toasts wuerden nie sichtbar.
+import { toast } from 'sonner';
 
 // Stufe A erzeugt eine fixe Submission-Form (PDF -> Buchanalyse, noch keine Analyse).
 const CAPTURE_DEFAULTS = { wizardId: 'pdf-upload', docType: 'pdfanalyse', detailViewType: 'book' };
@@ -104,20 +106,18 @@ export function CaptureContentButton({ libraryId }: CaptureContentButtonProps) {
           { method: 'POST' },
         );
         if (analyzeRes.ok) {
-          toast({
-            title: 'Beitrag erfasst — Analyse gestartet',
+          toast.success('Beitrag erfasst — Analyse gestartet', {
             description: 'Das Ergebnis erscheint im Wartekorb, sobald die Analyse fertig ist.',
           });
         } else {
           const data = (await analyzeRes.json().catch(() => null)) as { error?: string } | null;
-          toast({
-            title: 'Beitrag erfasst — Analyse nicht gestartet',
+          // Erfassung gelang, nur die Analyse nicht: Warnung statt Fehler.
+          toast.warning('Beitrag erfasst — Analyse nicht gestartet', {
             description: data?.error ?? `Analyse-Start fehlgeschlagen (HTTP ${analyzeRes.status})`,
-            variant: 'destructive',
           });
         }
       } else {
-        toast({ title: 'Beitrag erfasst', description: 'Dein PDF liegt jetzt im Wartekorb.' });
+        toast.success('Beitrag erfasst', { description: 'Dein PDF liegt jetzt im Wartekorb.' });
       }
       setOpen(false);
       setFile(null);

@@ -10,8 +10,10 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { CaptureContentButton } from '@/components/submissions/capture-content-button';
 
-const toastMock = vi.hoisted(() => vi.fn());
-vi.mock('@/components/ui/use-toast', () => ({ toast: toastMock }));
+// sonner ist der real gemountete Toaster; der Button nutzt toast.success/.warning.
+const toastSuccess = vi.hoisted(() => vi.fn());
+const toastWarning = vi.hoisted(() => vi.fn());
+vi.mock('sonner', () => ({ toast: { success: toastSuccess, warning: toastWarning } }));
 
 function mockCapture(canCapture: boolean): void {
   global.fetch = vi.fn().mockResolvedValue({
@@ -68,8 +70,9 @@ it('stoesst nach erfolgreichem Upload die Analyse an (Welle III)', async () => {
 
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
   expect(fetchMock.mock.calls[2][0]).toBe('/api/submissions/sub-1/analyze');
-  expect(toastMock).toHaveBeenCalledWith(
-    expect.objectContaining({ title: expect.stringContaining('Analyse gestartet') }),
+  expect(toastSuccess).toHaveBeenCalledWith(
+    expect.stringContaining('Analyse gestartet'),
+    expect.objectContaining({ description: expect.any(String) }),
   );
 });
 
@@ -91,11 +94,8 @@ it('meldet einen fehlgeschlagenen Analyse-Start sichtbar (Submission bleibt erha
   fireEvent.click(screen.getByRole('button', { name: /Hochladen/i }));
 
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
-  expect(toastMock).toHaveBeenCalledWith(
-    expect.objectContaining({
-      title: expect.stringContaining('Analyse nicht gestartet'),
-      description: 'Keine analysierbare Quelle',
-      variant: 'destructive',
-    }),
+  expect(toastWarning).toHaveBeenCalledWith(
+    expect.stringContaining('Analyse nicht gestartet'),
+    expect.objectContaining({ description: 'Keine analysierbare Quelle' }),
   );
 });
