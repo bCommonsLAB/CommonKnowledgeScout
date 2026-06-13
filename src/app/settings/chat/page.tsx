@@ -1,32 +1,7 @@
-import { Suspense } from "react"
-import { Separator } from "@/components/ui/separator"
-import { ChatForm } from "@/components/settings/chat-form"
-import { TranslationsForm } from "@/components/settings/translations-form"
+import { redirect } from "next/navigation"
 
-function ChatFormWrapper() {
-  return <ChatForm />
+// Welle 3-IV-UX (User-Entscheid 2026-06-11): Settings folgen jetzt der
+// App-Navigation — diese Route ist nach /settings/story umgezogen.
+export default function RedirectPage() {
+  redirect("/settings/story")
 }
-
-export default function ChatSettingsPage() {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-medium">Story</h3>
-        <p className="text-sm text-muted-foreground">
-          Konfigurieren Sie die Story-Einstellungen für die aktuell ausgewählte Bibliothek. Diese Einstellungen beeinflussen den Chat und die Wissensgalerie.
-        </p>
-      </div>
-      <Separator />
-      <Suspense fallback={<div className="text-center text-muted-foreground">Lädt...</div>}>
-        <ChatFormWrapper />
-      </Suspense>
-      {/* Doc-Translations Refactor: separate Sektion fuer Sprach-Konfiguration. */}
-      <Separator />
-      <Suspense fallback={<div className="text-center text-muted-foreground">Lädt...</div>}>
-        <TranslationsForm />
-      </Suspense>
-    </div>
-  )
-}
-
-

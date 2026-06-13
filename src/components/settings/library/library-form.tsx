@@ -1,18 +1,18 @@
 "use client"
 
 /**
- * @fileoverview Library-Settings-Formular — Haupt-Render-Komponente.
+ * @fileoverview Library-Settings-Formular — Grundlagen (meSpace).
  *
  * @description
- * Refactored in Welle 3-IV-a: Von 2.222 Zeilen auf ~400 Zeilen reduziert.
- * Alle Sections und Hooks sind in separate Module extrahiert:
- * - use-library-form.ts: Form-State + alle CRUD-Handler
- * - use-shadow-twin-migration.ts: Migration/Sync-Callbacks
- * - use-shadow-twin-analysis.ts: Lade-Hooks (Runs + Fragments)
- * - shadow-twin-config-section.tsx: Shadow-Twin-Flags + Strategie-Vorschau
- * - migration-wizard-section.tsx: Dialog "Aus Dateisystem laden"
- * - language-cleanup-section.tsx: Dialog "Artefakte nach Sprache bereinigen"
- * - import-export-section.tsx: Export/Import für Library-Konfiguration
+ * Seit Welle 3-IV-UX-3a enthaelt diese Form nur noch die
+ * Einsteiger-Grundlagen: Name, Aktiv-Status, Neue Bibliothek,
+ * Speichern/Zuruecksetzen und die Gefahrenzone (Loeschen).
+ * Die Experten-Teile (Shadow-Twin/Cache, Migration, Sprach-
+ * Bereinigung, DIVA, Auto-Klassifikation, Import/Export) liegen in
+ * library-advanced-form.tsx (Bereich "Erweitert").
+ *
+ * Nutzt den vollen useLibraryForm-Hook: react-hook-form haelt alle
+ * Werte im State, Submit sendet die vollstaendige Struktur wie bisher.
  */
 
 import {
@@ -25,14 +25,6 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
@@ -47,26 +39,18 @@ import {
 } from "@/components/ui/dialog"
 import { AlertCircle, Plus, Trash2 } from "lucide-react"
 import { CreateLibraryDialog } from "@/components/library/create-library-dialog"
+import { CORE_CONTENT_TYPES } from "@/components/settings/chat/content-type-section"
 
 import { useLibraryForm } from "./hooks/use-library-form"
-import { useShadowTwinMigration } from "./hooks/use-shadow-twin-migration"
-import { useMigrationRunsLoader, useBinaryFragmentsLoader } from "./hooks/use-shadow-twin-analysis"
-import { ShadowTwinConfigSection } from "./shadow-twin-config-section"
-import { MigrationWizardSection } from "./migration-wizard-section"
-import { LanguageCleanupSection } from "./language-cleanup-section"
-import { ImportExportSection } from "./import-export-section"
 
 interface LibraryFormProps {
   createNew?: boolean;
 }
 
 /**
- * Library-Settings-Formular.
- * Composites alle Section-Komponenten.
+ * Grundlagen-Formular der Bibliothek.
  */
 export function LibraryForm({ createNew = false }: LibraryFormProps) {
-  const hook = useLibraryForm(createNew);
-
   const {
     form,
     onSubmit,
@@ -75,164 +59,17 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
     setIsNew,
     isDeleteDialogOpen,
     setIsDeleteDialogOpen,
-    isImportDialogOpen,
-    setIsImportDialogOpen,
     isCreateDialogOpen,
     setIsCreateDialogOpen,
-    activeLibraryId,
     activeLibrary,
-    shadowTwinMode,
-    setShadowTwinMode,
-    shadowTwinPrimaryStore,
-    setShadowTwinPrimaryStore,
-    shadowTwinPersistToFilesystem,
-    setShadowTwinPersistToFilesystem,
-    shadowTwinAllowFilesystemFallback,
-    setShadowTwinAllowFilesystemFallback,
-    azureConfigured,
-    isShadowTwinConfigDirty,
-    shadowTwinConfigRef,
-    isDryRunOpen,
-    setIsDryRunOpen,
-    dryRunRecursive,
-    setDryRunRecursive,
-    dryRunCleanupFilesystem,
-    setDryRunCleanupFilesystem,
-    dryRunRunning,
-    setDryRunRunning,
-    dryRunError,
-    setDryRunError,
-    isSyncRunning,
-    setIsSyncRunning,
-    isLangCleanupOpen,
-    setIsLangCleanupOpen,
-    langCleanupLang,
-    setLangCleanupLang,
-    isLangAnalyzing,
-    setIsLangAnalyzing,
-    isLangDeleting,
-    setIsLangDeleting,
-    langCleanupResult,
-    setLangCleanupResult,
-    isAnalyzing,
-    setIsAnalyzing,
-    analysisReport,
-    setAnalysisReport,
-    migrationRuns,
-    setMigrationRuns,
-    selectedRunId,
-    setSelectedRunId,
-    binaryFragments,
-    setBinaryFragments,
-    loadingFragments,
-    setLoadingFragments,
     handleCancelNew,
-    handleExportLibrary,
-    handleImportLibrary,
     handleDeleteLibrary,
-  } = hook;
-
-  // Migration-Callbacks
-  const { runShadowTwinMigration, runDirectionalSync, runAnalysis, runLanguageCleanup } =
-    useShadowTwinMigration({
-      activeLibraryId,
-      dryRunRecursive,
-      dryRunCleanupFilesystem,
-      langCleanupLang,
-      setDryRunRunning,
-      setDryRunError,
-      setMigrationRuns,
-      setSelectedRunId,
-      setIsSyncRunning,
-      setIsAnalyzing,
-      setAnalysisReport,
-      setIsLangAnalyzing,
-      setIsLangDeleting,
-      setLangCleanupResult,
-    });
-
-  // Migration-Runs + Fragments laden
-  const migrationRunsArray = Array.isArray(migrationRuns) ? migrationRuns : [];
-  const selectedRun = migrationRunsArray.find((run) => run.runId === selectedRunId) ?? null;
-
-  useMigrationRunsLoader({
-    isDryRunOpen,
-    activeLibraryId,
-    setMigrationRuns,
-    setSelectedRunId,
-  });
-
-  useBinaryFragmentsLoader({
-    selectedRun,
-    activeLibraryId,
-    setBinaryFragments,
-    setLoadingFragments,
-  });
+  } = useLibraryForm(createNew);
 
   /** Formular-Reset auf aktuelle Library zurücksetzen */
   const handleReset = () => {
     if (activeLibrary) {
-      const storageConfig = {
-        basePath: activeLibrary.path,
-        clientId: (activeLibrary.config?.clientId as string) ?? "",
-        clientSecret: (activeLibrary.config?.clientSecret as string) ?? "",
-        redirectUri: (activeLibrary.config?.redirectUri as string) ?? "",
-      };
-      form.reset({
-        label: activeLibrary.label,
-        path: activeLibrary.path,
-        type: activeLibrary.type,
-        description: (activeLibrary.config?.description as string) ?? "",
-        isEnabled: activeLibrary.isEnabled,
-        transcription:
-          (activeLibrary.config?.transcription as "shadowTwin" | "db") ?? "shadowTwin",
-        templateDirectory:
-          (activeLibrary.config?.templateDirectory as string) ?? "/templates",
-        analyzeDivaTextureInfo: activeLibrary.config?.analyzeDivaTextureInfo === true,
-        autoApplyConfidenceThreshold:
-          typeof activeLibrary.config?.autoApplyConfidenceThreshold === "number" &&
-          Number.isFinite(activeLibrary.config.autoApplyConfidenceThreshold)
-            ? Math.min(1, Math.max(0, activeLibrary.config.autoApplyConfidenceThreshold))
-            : 0.9,
-        ...(() => {
-          const raw = (activeLibrary.config?.divaArchiveDefaults ?? null) as
-            | { filterMode?: unknown; groupByAttribute?: unknown; extraColumns?: unknown }
-            | null;
-          const fm = raw?.filterMode;
-          const filterMode =
-            fm === "with" || fm === "without" || fm === "all" ? fm : ("all" as const);
-          const gb = raw?.groupByAttribute;
-          const cols = raw?.extraColumns;
-          return {
-            divaArchiveFilterMode: filterMode,
-            divaArchiveGroupByAttribute: typeof gb === "string" ? gb : "",
-            divaArchiveExtraColumns: Array.isArray(cols)
-              ? cols.filter((c): c is string => typeof c === "string")
-              : [],
-          };
-        })(),
-        storageConfig,
-      });
-      const configShadowTwin = activeLibrary?.config?.shadowTwin as
-        | {
-            primaryStore?: "filesystem" | "mongo";
-            persistToFilesystem?: boolean;
-            allowFilesystemFallback?: boolean;
-          }
-        | undefined;
-      const primaryStore = configShadowTwin?.primaryStore ?? "filesystem";
-      const nextSnapshot = {
-        primaryStore,
-        persistToFilesystem:
-          typeof configShadowTwin?.persistToFilesystem === "boolean"
-            ? configShadowTwin.persistToFilesystem
-            : primaryStore === "filesystem",
-        allowFilesystemFallback: configShadowTwin?.allowFilesystemFallback ?? true,
-      };
-      shadowTwinConfigRef.current = nextSnapshot;
-      setShadowTwinPrimaryStore(nextSnapshot.primaryStore);
-      setShadowTwinPersistToFilesystem(nextSnapshot.persistToFilesystem);
-      setShadowTwinAllowFilesystemFallback(nextSnapshot.allowFilesystemFallback);
+      form.reset();
     }
   };
 
@@ -277,9 +114,8 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          {/* Allgemeine Einstellungen */}
           <Card>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-6 pt-6">
               {/* Name */}
               <FormField
                 control={form.control}
@@ -298,289 +134,47 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
                 )}
               />
 
-              {/* Beschreibung */}
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Beschreibung</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Beschreibung der Bibliothek"
-                        className="resize-none"
-                        {...field}
-                        value={field.value ?? ""}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Eine kurze Beschreibung der Bibliothek und ihres Inhalts.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Transkriptionsstrategie */}
-              <FormField
-                control={form.control}
-                name="transcription"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Transkriptionsstrategie</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      value={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Transkriptionsstrategie auswählen" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="shadowTwin">
-                          Neben Originaldatei speichern (Shadow Twin)
-                        </SelectItem>
-                        <SelectItem value="db">In Datenbank speichern</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      Festlegen, wie Transkriptionen gespeichert werden sollen.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Shadow-Twin-Konfiguration */}
-              {!isNew && activeLibrary && (
-                <ShadowTwinConfigSection
-                  activeLibraryId={activeLibraryId}
-                  activeLibrary={activeLibrary}
-                  shadowTwinMode={shadowTwinMode}
-                  setShadowTwinMode={setShadowTwinMode}
-                  shadowTwinPrimaryStore={shadowTwinPrimaryStore}
-                  setShadowTwinPrimaryStore={setShadowTwinPrimaryStore}
-                  shadowTwinPersistToFilesystem={shadowTwinPersistToFilesystem}
-                  setShadowTwinPersistToFilesystem={setShadowTwinPersistToFilesystem}
-                  shadowTwinAllowFilesystemFallback={shadowTwinAllowFilesystemFallback}
-                  setShadowTwinAllowFilesystemFallback={setShadowTwinAllowFilesystemFallback}
-                  azureConfigured={azureConfigured}
-                  isSyncRunning={isSyncRunning}
-                  runDirectionalSync={runDirectionalSync}
-                  isAnalyzing={isAnalyzing}
-                  analysisReport={analysisReport}
-                  runAnalysis={runAnalysis}
-                />
-              )}
-
-              {/* Migration-Wizard */}
-              {!isNew && activeLibrary && (
-                <MigrationWizardSection
-                  activeLibraryId={activeLibraryId}
-                  shadowTwinPrimaryStore={shadowTwinPrimaryStore}
-                  isDryRunOpen={isDryRunOpen}
-                  setIsDryRunOpen={setIsDryRunOpen}
-                  dryRunRecursive={dryRunRecursive}
-                  setDryRunRecursive={setDryRunRecursive}
-                  dryRunCleanupFilesystem={dryRunCleanupFilesystem}
-                  setDryRunCleanupFilesystem={setDryRunCleanupFilesystem}
-                  dryRunRunning={dryRunRunning}
-                  dryRunError={dryRunError}
-                  migrationRunsArray={migrationRunsArray}
-                  selectedRunId={selectedRunId}
-                  setSelectedRunId={setSelectedRunId}
-                  selectedRun={selectedRun}
-                  binaryFragments={binaryFragments}
-                  loadingFragments={loadingFragments}
-                  runShadowTwinMigration={runShadowTwinMigration}
-                />
-              )}
-
-              {/* Sprach-Bereinigung */}
-              {!isNew && activeLibrary && (
-                <LanguageCleanupSection
-                  activeLibraryId={activeLibraryId}
-                  isLangCleanupOpen={isLangCleanupOpen}
-                  setIsLangCleanupOpen={setIsLangCleanupOpen}
-                  langCleanupLang={langCleanupLang}
-                  setLangCleanupLang={setLangCleanupLang}
-                  isLangAnalyzing={isLangAnalyzing}
-                  isLangDeleting={isLangDeleting}
-                  langCleanupResult={langCleanupResult}
-                  setLangCleanupResult={setLangCleanupResult}
-                  runLanguageCleanup={runLanguageCleanup}
-                />
-              )}
-
-              {/* Template-Verzeichnis */}
-              <FormField
-                control={form.control}
-                name="templateDirectory"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Template-Verzeichnis</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="/templates" />
-                    </FormControl>
-                    <FormDescription>
-                      Verzeichnis in der Bibliothek, in dem die Secretary Service Templates
-                      gespeichert werden.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Transformation: DIVA-Liefersystem-Daten auswerten */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                  Transformation
-                </h3>
+              {/* Onboarding: Inhaltstyp direkt bei der Erstellung waehlen —
+                  Name + Inhaltstyp reichen, alles Weitere hat Standardwerte
+                  (Petra-Review Punkt 2). */}
+              {isNew && (
                 <FormField
                   control={form.control}
-                  name="analyzeDivaTextureInfo"
+                  name="detailViewType"
                   render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-base">
-                          DIVA-Liefersystem-Daten auswerten
-                        </FormLabel>
-                        <FormDescription>
-                          Zeigt im Archiv-Detail einen Tab &quot;DIVA-Info&quot;, sobald eine
-                          Sidecar-Datei (api2_GetJsonOptionValues.json) im Texturverzeichnis liegt
-                          und ein Treffer fuer die Textur existiert.
-                        </FormDescription>
-                      </div>
+                    <FormItem>
+                      <FormLabel>Was wird Ihre Bibliothek enthalten?</FormLabel>
                       <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                        <div className="grid gap-3 md:grid-cols-3">
+                          {CORE_CONTENT_TYPES.map(option => (
+                            <Card
+                              key={option.value}
+                              role="button"
+                              onClick={() => field.onChange(option.value)}
+                              className={`cursor-pointer transition-colors ${
+                                field.value === option.value
+                                  ? "border-primary ring-1 ring-primary"
+                                  : "hover:border-muted-foreground/40"
+                              }`}
+                            >
+                              <CardContent className="p-4">
+                                <p className="text-sm font-medium">{option.title}</p>
+                                <p className="text-xs text-muted-foreground mt-1">{option.description}</p>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
                       </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="autoApplyConfidenceThreshold"
-                  render={({ field }) => (
-                    <FormItem className="rounded-lg border p-4">
-                      <FormLabel className="text-base">
-                        Auto-Uebernahme ab Konfidenz (Stoffgruppe)
-                      </FormLabel>
                       <FormDescription>
-                        Schwellwert fuer die Auto-Uebernahme der Stoffgruppen-Klassifikation
-                        (Stufe 4). Wenn der vom LLM bestimmte Wert{" "}
-                        <code>confidence_class</code> diesen Schwellwert erreicht, kann die
-                        Klassifikation ohne weitere Bestaetigung auf alle Mitglieder der Gruppe
-                        uebernommen werden. Bereich [0, 1].
+                        Mehr braucht es nicht — Quelle, Vorlage und Darstellung
+                        haben sinnvolle Standardwerte und lassen sich danach im
+                        Archiv anpassen.
                       </FormDescription>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min={0}
-                          max={1}
-                          step={0.05}
-                          value={field.value}
-                          onChange={(e) => {
-                            const v = Number(e.target.value);
-                            if (Number.isFinite(v)) field.onChange(Math.min(1, Math.max(0, v)));
-                          }}
-                        />
-                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-
-                {/* DIVA-Archive-Defaults: Toolbar-Voreinstellungen fuer die
-                    Archiv-Dateiliste. */}
-                <div className="rounded-lg border p-4 space-y-4">
-                  <div>
-                    <h4 className="text-base font-medium">DIVA-Einstellungen (Archiv-Dateiliste)</h4>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Default-Werte fuer das DIVA-Toolbar-Popover: Filter,
-                      Gruppierung, Zusatzspalten. Diese werden beim Oeffnen der
-                      Bibliothek in die Toolbar uebernommen.
-                    </p>
-                  </div>
-
-                  <FormField
-                    control={form.control}
-                    name="divaArchiveFilterMode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Filter-Default</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="all">Alle Dateien</SelectItem>
-                            <SelectItem value="with">Nur mit DIVA-Info</SelectItem>
-                            <SelectItem value="without">Nur ohne DIVA-Info</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="divaArchiveGroupByAttribute"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Gruppieren nach (Default)</FormLabel>
-                        <FormDescription>
-                          Annotations-Attribut, z.B. <code>stoffgruppe</code>,{" "}
-                          <code>material</code>, <code>textur_name</code>, <code>farbe_hex</code>.
-                          Leer = keine Gruppierung.
-                        </FormDescription>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            placeholder="z.B. stoffgruppe"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="divaArchiveExtraColumns"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Zusatzspalten (Default)</FormLabel>
-                        <FormDescription>
-                          Komma-separierte Liste von Sidecar-Feldern, die in der
-                          Dateiliste angezeigt werden. <code>_thumbnail</code>
-                          {" "}rendert das Preview-Bitmap. Beispiel:{" "}
-                          <code>_thumbnail, Material, TextureName, RGB</code>.
-                        </FormDescription>
-                        <FormControl>
-                          <Input
-                            value={field.value.join(", ")}
-                            placeholder="_thumbnail, Material, TextureName"
-                            onChange={(e) => {
-                              const parts = e.target.value
-                                .split(",")
-                                .map((s) => s.trim())
-                                .filter((s) => s.length > 0);
-                              field.onChange(parts);
-                            }}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
+              )}
 
               {/* Bibliothek aktivieren */}
               <FormField
@@ -603,17 +197,6 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
             </CardContent>
           </Card>
 
-          {/* Import/Export */}
-          <ImportExportSection
-            isNew={isNew}
-            isLoading={isLoading}
-            isImportDialogOpen={isImportDialogOpen}
-            setIsImportDialogOpen={setIsImportDialogOpen}
-            activeLibraryLabel={activeLibrary?.label}
-            handleExportLibrary={handleExportLibrary}
-            handleImportLibrary={handleImportLibrary}
-          />
-
           {/* Formular-Aktionen */}
           <div className="flex justify-between">
             {!isNew && (
@@ -628,9 +211,7 @@ export function LibraryForm({ createNew = false }: LibraryFormProps) {
             )}
             <Button
               type="submit"
-              disabled={
-                isLoading || (!isNew && !form.formState.isDirty && !isShadowTwinConfigDirty)
-              }
+              disabled={isLoading || (!isNew && !form.formState.isDirty)}
             >
               {isLoading
                 ? "Wird gespeichert..."

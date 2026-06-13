@@ -1,6 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog"
 import {
   Table,
   TableBody,
@@ -238,21 +239,31 @@ export function AccessRequestsList({ libraryId }: AccessRequestsListProps) {
                         )}
                       </Button>
                     )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleDeleteRequest(request.id)}
-                      disabled={processingIds.has(request.id)}
-                    >
-                      {processingIds.has(request.id) ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <>
-                          <Trash2 className="h-4 w-4 mr-1" />
-                          Entfernen
-                        </>
-                      )}
-                    </Button>
+                    <ConfirmActionDialog
+                      title="Zugriffsanfrage endgültig entfernen?"
+                      description={request.status === 'approved'
+                        ? 'Diese Anfrage wurde genehmigt — durch das Entfernen kann die Person den Lesezugriff auf die Bibliothek verlieren.'
+                        : 'Der Eintrag wird endgültig gelöscht; die Person kann jederzeit eine neue Anfrage stellen.'}
+                      confirmLabel="Entfernen"
+                      destructive
+                      onConfirm={() => void handleDeleteRequest(request.id)}
+                      trigger={
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={processingIds.has(request.id)}
+                        >
+                          {processingIds.has(request.id) ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Entfernen
+                            </>
+                          )}
+                        </Button>
+                      }
+                    />
                   </div>
                 </TableCell>
               </TableRow>

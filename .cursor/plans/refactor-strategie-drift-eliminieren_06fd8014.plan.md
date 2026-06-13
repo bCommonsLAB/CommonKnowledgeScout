@@ -41,6 +41,9 @@ todos:
   - id: welle-3ii-hooks-future
     content: "Welle 3-II-Hooks (Future-Work aus Welle 3-II, ABGESCHLOSSEN 2026-05-01): Hook-Extraktion fuer media-tab, job-report-tab, session-detail, cover-image-generator-dialog. 4 PRs (#40-#43), -513z (-10.9%) ueber 4 Files, 4 neue Hooks, 35 neue Char-Tests. Doku: docs/refactor/welle-3-ii-hooks/06-acceptance-3-ii-hooks-GESAMT.md. Naming-Hinweis: initial als 'Welle 3-III' gestartet, am 2026-05-01 zu 'Welle 3-II-Hooks' umbenannt (Naming-Konflikt mit Plan-Welle 3-III). Naming-Konvention: .cursor/rules/refactor-naming-konvention.mdc."
     status: completed
+  - id: welle-3iv-settings-und-ux
+    content: "Welle 3-IV Settings (ABGESCHLOSSEN 2026-05-03 als Refactor, 2026-06-12 als UX-Redesign): Refactor-Doku unter docs/refactor/welle-3-iv-settings/. Anschliessend user-getriebenes UX-Redesign Welle 3-IV-UX (me/we/usSpace, App-Nav-Gliederung Library/Archive/Explore/Story, Quelle-Wizard mit Re-Auth, Inhaltstyp-Assistent, Experten-Ebene, Gefahren-UX, weSpace-Personen, usSpace-Status und Galerie-Texte, Sicherheits-Fixes D4/D5). Konzept und Stand: docs/settings-ux/README.md. Offen dort: F7-Index-Automatisierung, D7-Server-Token-Check, Produkt-TODOs T1/T2."
+    status: completed
   - id: welle-3iii-galerie-story-chat
     content: "Welle 3-III Galerie + Story-Mode + Chat (NAECHSTE Welle, ~65 Files, ~15.000 Zeilen): Konsum-Sicht/RAG-UX. Top-Files: chat/chat-panel.tsx (1.268z, 36 Hooks), gallery/gallery-root.tsx (993z, 49 Hooks), shared/perspective-page-content.tsx (926z). Sub-Wellen-Vorschlag: 3-III-a Gallery (items, grouped-items, references, facets), 3-III-b Chat (chat-Komponenten-Familie), 3-III-c Story + perspective-* (Aufwaerm-Sub-Welle). Audit-Doku unter docs/refactor/welle-3-iii-galerie-chat/ anlegen."
     status: pending

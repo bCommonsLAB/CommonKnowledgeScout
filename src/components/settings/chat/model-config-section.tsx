@@ -1,11 +1,11 @@
 "use client"
 
 /**
- * ModelConfigSection — LLM-Modell und Perspektive (Eigene Perspektive).
+ * ModelConfigSection — Perspektive der Chat-Antworten.
  *
- * Extrahiert aus chat-form.tsx (Welle 3-IV-Settings-Sections-Split).
- * Enthält die Section "Eigene Perspektive" mit LLM-Modell-Auswahl,
- * Zielsprache, Charakter und SozialemKontext.
+ * Enthält Zielsprache, Charakter und Sozialkontext. Die LLM-Modell-
+ * Auswahl liegt seit Welle 3-IV-UX-3a in llm-model-section.tsx
+ * (Bereich "Erweitert", F8).
  */
 
 import {
@@ -31,7 +31,6 @@ import {
   SOCIAL_CONTEXT_DEFAULT,
   SOCIAL_CONTEXT_VALUES,
 } from '@/lib/chat/constants'
-import { LlmModelSelector } from "@/components/ui/llm-model-selector"
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useStoryContext } from '@/hooks/use-story-context'
 import type { UseFormReturn } from "react-hook-form"
@@ -44,8 +43,8 @@ interface ModelConfigSectionProps {
 }
 
 /**
- * Section-Komponente für LLM-Modell und Perspektiv-Einstellungen.
- * Rendert LLM-Modell-Selector, Zielsprache, Charakter und Sozialkontext.
+ * Section-Komponente für Perspektiv-Einstellungen.
+ * Rendert Zielsprache, Charakter und Sozialkontext.
  */
 export function ModelConfigSection({ form }: ModelConfigSectionProps) {
   const { t } = useTranslation()
@@ -55,27 +54,9 @@ export function ModelConfigSection({ form }: ModelConfigSectionProps) {
       <div className="border-b pb-2">
         <h3 className="text-lg font-semibold">Eigene Perspektive</h3>
         <p className="text-sm text-muted-foreground">
-          LLM-Einstellungen und Perspektive für Chat-Antworten.
+          Sprache und Tonfall der Chat-Antworten.
         </p>
       </div>
-
-      <FormField
-        control={form.control}
-        name="chatLlmModel"
-        render={({ field }) => (
-          <FormItem>
-            <LlmModelSelector
-              value={field.value || ''}
-              onChange={(v) => field.onChange(v)}
-              label="LLM-Modell"
-              placeholder="(kein Default)"
-              description="Standard-LLM-Modell für Chat-Antworten."
-              variant="form"
-            />
-            <FormMessage />
-          </FormItem>
-        )}
-      />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <FormField

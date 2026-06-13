@@ -15,6 +15,11 @@ import {
   deleteTemplateFromMongoDB,
 } from '@/lib/templates/template-service-mongodb'
 import { TemplateRepository } from '@/lib/repositories/template-repo'
+import {
+  isBuiltinDefaultTemplateName,
+  listBuiltinDefaultTemplates,
+  toBuiltinTemplateDocument,
+} from '@/lib/templates/default-templates'
 
 /**
  * Hilfsfunktion zum Abrufen der Benutzer-E-Mail-Adresse
@@ -61,8 +66,17 @@ export async function GET(request: NextRequest) {
     const isAdmin = false
     
     const templates = await listTemplatesFromMongoDB(libraryId, userEmail, isAdmin)
-    
-    return NextResponse.json({ templates })
+
+    // F11: Standard-Vorlagen (im Code persistiert) immer mitliefern —
+    // zuerst in der Liste, mit builtin-Flag (read-only fuer Clients).
+    // Namens-Kollisionen kann es nicht geben: POST/PUT/DELETE blocken
+    // die reservierten Namen.
+    const builtins = listBuiltinDefaultTemplates().map(t => ({
+      ...toBuiltinTemplateDocument(t, libraryId),
+      builtin: true,
+    }))
+
+    return NextResponse.json({ templates: [...builtins, ...templates] })
   } catch (error) {
     console.error('[API][Templates] Fehler beim Laden:', error)
     return NextResponse.json(
@@ -93,6 +107,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'name und libraryId sind erforderlich' },
         { status: 400 }
+      )
+    }
+
+    // F11: Reservierte Standard-Vorlagen-Namen sind nicht ueberschreibbar
+    if (isBuiltinDefaultTemplateName(name)) {
+      return NextResponse.json(
+        { error: `"${name}" ist eine eingebaute Standard-Vorlage und kann nicht überschrieben werden` },
+        { status: 409 }
       )
     }
 
@@ -146,6 +168,14 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json(
         { error: 'templateId und libraryId sind erforderlich' },
         { status: 400 }
+      )
+    }
+
+    // F11: Standard-Vorlagen sind read-only
+    if (isBuiltinDefaultTemplateName(templateId) || String(templateId).startsWith('builtin:')) {
+      return NextResponse.json(
+        { error: 'Eingebaute Standard-Vorlagen können nicht bearbeitet werden' },
+        { status: 409 }
       )
     }
 
@@ -214,6 +244,14 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json(
         { error: 'templateId und libraryId sind erforderlich' },
         { status: 400 }
+      )
+    }
+
+    // F11: Standard-Vorlagen sind read-only
+    if (isBuiltinDefaultTemplateName(templateId) || templateId.startsWith('builtin:')) {
+      return NextResponse.json(
+        { error: 'Eingebaute Standard-Vorlagen können nicht gelöscht werden' },
+        { status: 409 }
       )
     }
 

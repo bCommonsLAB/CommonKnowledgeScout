@@ -10,6 +10,7 @@
  */
 
 import { Button } from "@/components/ui/button"
+import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog"
 import {
   Dialog,
   DialogContent,
@@ -192,28 +193,29 @@ export function LanguageCleanupSection({
               >
                 Schließen
               </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                disabled={
-                  !langCleanupResult ||
-                  !langCleanupResult.dryRun ||
-                  langCleanupResult.totalArtifacts === 0 ||
-                  isLangDeleting
+              <ConfirmActionDialog
+                title={`${langCleanupResult?.totalArtifacts ?? 0} Artefakte (${langCleanupResult?.targetLanguage?.toUpperCase() ?? ""}) unwiderruflich löschen?`}
+                description={`Dieser Vorgang entfernt die Artefakte in ${langCleanupResult?.totalFiles ?? 0} Dateien aus Cache UND Storage. Er kann nicht rückgängig gemacht werden.`}
+                confirmLabel="Unwiderruflich löschen"
+                destructive
+                onConfirm={() => void runLanguageCleanup(false)}
+                trigger={
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    disabled={
+                      !langCleanupResult ||
+                      !langCleanupResult.dryRun ||
+                      langCleanupResult.totalArtifacts === 0 ||
+                      isLangDeleting
+                    }
+                  >
+                    {isLangDeleting
+                      ? "Löscht…"
+                      : `${langCleanupResult?.totalArtifacts ?? 0} Artefakte löschen`}
+                  </Button>
                 }
-                onClick={() => {
-                  const count = langCleanupResult?.totalArtifacts ?? 0;
-                  const lang = langCleanupResult?.targetLanguage?.toUpperCase() ?? "";
-                  const confirmed = window.confirm(
-                    `${count} Artefakte (${lang}) in ${langCleanupResult?.totalFiles ?? 0} Dateien unwiderruflich löschen?\n\nDieser Vorgang entfernt die Artefakte aus Cache und Storage.`
-                  );
-                  if (confirmed) void runLanguageCleanup(false);
-                }}
-              >
-                {isLangDeleting
-                  ? "Löscht…"
-                  : `${langCleanupResult?.totalArtifacts ?? 0} Artefakte löschen`}
-              </Button>
+              />
             </DialogFooter>
           </DialogContent>
         </Dialog>

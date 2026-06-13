@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { getAccessRequestById, updateAccessRequestStatus, deleteAccessRequest } from '@/lib/repositories/library-access-repo';
 import { isModeratorOrOwner } from '@/lib/repositories/library-members-repo';
+import { invalidateAccessCheckCache } from '@/lib/library-access/access-check-cache';
 import { LibraryService } from '@/lib/services/library-service';
 import { MailjetService } from '@/lib/services/mailjet-service';
 import type { AccessRequestStatus } from '@/types/library-access';
@@ -97,6 +98,10 @@ export async function PUT(
         { status: 500 }
       );
     }
+
+    // D4-Fix: Access-Check-Cache des Betroffenen sofort invalidieren,
+    // damit Genehmigen/Ablehnen ohne Cache-Nachlauf wirkt.
+    invalidateAccessCheckCache(libraryId, accessRequest.userEmail);
 
     // Library-Informationen für E-Mail laden
     const libraryService = LibraryService.getInstance();
@@ -198,6 +203,10 @@ export async function DELETE(
         { status: 500 }
       );
     }
+
+    // D4-Fix: Bei geloeschter (ggf. genehmigter) Anfrage verliert der
+    // Betroffene den Zugriff sofort — nicht erst nach Cache-Ablauf.
+    invalidateAccessCheckCache(libraryId, accessRequest.userEmail);
 
     return NextResponse.json({
       success: true,

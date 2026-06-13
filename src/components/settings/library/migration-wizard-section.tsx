@@ -15,6 +15,7 @@
  */
 
 import { Button } from "@/components/ui/button"
+import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog"
 import {
   Dialog,
   DialogContent,
@@ -51,7 +52,6 @@ import type { BinaryFragment } from "./hooks/use-shadow-twin-analysis"
 
 interface MigrationWizardSectionProps {
   activeLibraryId: string | null | undefined;
-  shadowTwinPrimaryStore: "filesystem" | "mongo";
   isDryRunOpen: boolean;
   setIsDryRunOpen: (v: boolean) => void;
   dryRunRecursive: boolean;
@@ -214,7 +214,6 @@ function buildFileGroups(
  */
 export function MigrationWizardSection({
   activeLibraryId,
-  shadowTwinPrimaryStore,
   isDryRunOpen,
   setIsDryRunOpen,
   dryRunRecursive,
@@ -260,23 +259,11 @@ export function MigrationWizardSection({
                     werden aktualisiert, fehlende werden neu erstellt.
                   </span>
                   <span className="block text-xs text-muted-foreground mt-1 space-y-1">
+                    {/* v2-only: Cache ist immer der primaere Speicher */}
                     <span className="block">
-                      <strong>Aktuelles Ziel:</strong> Artefakte werden primär im{" "}
-                      <span className="font-mono">
-                        {shadowTwinPrimaryStore === "mongo" ? "Cache" : "Dateisystem"}
-                      </span>{" "}
-                      gespeichert.
+                      <strong>Ziel:</strong> Artefakte werden primär im{" "}
+                      <span className="font-mono">Cache</span> gespeichert.
                     </span>
-                    {shadowTwinPrimaryStore === "mongo" ? (
-                      <span className="block text-green-600 dark:text-green-400">
-                        ✓ Cache ist als primärer Speicher aktiviert.
-                      </span>
-                    ) : (
-                      <span className="block text-amber-600 dark:text-amber-400">
-                        ⚠ Bitte setze den primären Speicher auf &quot;Cache&quot; in den Einstellungen,
-                        bevor du die Migration startest.
-                      </span>
-                    )}
                     <span className="block">Dieser Lauf verwendet die Library‑Root.</span>
                   </span>
                 </div>
@@ -595,21 +582,20 @@ export function MigrationWizardSection({
               >
                 Schließen
               </Button>
-              <Button
-                type="button"
-                onClick={() => {
-                  const cleanupText = dryRunCleanupFilesystem
-                    ? "(Dateien im Storage werden nach dem Import gelöscht)"
-                    : "(Dateien im Storage bleiben erhalten)";
-                  const confirmed = window.confirm(
-                    `Artefakte aus dem Dateisystem laden ${cleanupText}. Fortfahren?`
-                  );
-                  if (confirmed) void runShadowTwinMigration();
-                }}
-                disabled={dryRunRunning}
-              >
-                {dryRunRunning ? "Läuft…" : "Laden"}
-              </Button>
+              <ConfirmActionDialog
+                title="Artefakte aus dem Dateisystem laden?"
+                description={dryRunCleanupFilesystem
+                  ? "Nach dem erfolgreichen Import werden die Artefakt-Dateien im Storage GELÖSCHT. Dieser Schritt kann nicht rückgängig gemacht werden."
+                  : "Die Artefakte werden in den Cache importiert; die Dateien im Storage bleiben erhalten."}
+                confirmLabel="Laden"
+                destructive={dryRunCleanupFilesystem}
+                onConfirm={() => void runShadowTwinMigration()}
+                trigger={
+                  <Button type="button" disabled={dryRunRunning}>
+                    {dryRunRunning ? "Läuft…" : "Laden"}
+                  </Button>
+                }
+              />
             </DialogFooter>
           </DialogContent>
         </Dialog>
