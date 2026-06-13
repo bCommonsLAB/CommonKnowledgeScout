@@ -18,11 +18,19 @@ test('Login-Session bereitstellen', async ({ browser }) => {
   const page = await context.newPage()
   await setupClerkTestingToken({ page })
 
+  // Resilient gegen den teuren ERSTEN authentifizierten Hit: /api/libraries
+  // kompiliert die Route + verbindet MongoDB und kann so >20s brauchen. Langes
+  // Per-Request-Timeout + catch->false, damit ein transienter Timeout das
+  // Login-Polling NICHT abbricht (sonst wird die Session nie gespeichert).
   const isAuthed = async (): Promise<boolean> => {
-    const res = await page.request.get('/api/libraries')
-    if (res.status() !== 200) return false
-    const body = await res.json().catch(() => null)
-    return Array.isArray(body)
+    try {
+      const res = await page.request.get('/api/libraries', { timeout: 90_000 })
+      if (res.status() !== 200) return false
+      const body = await res.json().catch(() => null)
+      return Array.isArray(body)
+    } catch {
+      return false
+    }
   }
 
   await page.goto('/')
