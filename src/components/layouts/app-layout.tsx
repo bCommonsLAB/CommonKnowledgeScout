@@ -39,6 +39,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   // ausblenden lassen. Im App-Zweig sorgt `min-height: calc(100vh + 2px)` für die nötige
   // minimale window-Scrollbarkeit, die das Hide auslöst (gleiches Verhalten wie `/library/*`).
   const isScrollablePage = pathname === '/' ||
+    pathname === '/start' ||
     pathname?.startsWith('/docs') ||
     pathname === '/info' ||
     pathname?.startsWith('/integration-tests')

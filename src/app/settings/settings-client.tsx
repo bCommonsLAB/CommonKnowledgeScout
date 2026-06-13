@@ -5,113 +5,26 @@ import Link from "next/link"
 import { useSearchParams, useRouter } from "next/navigation"
 import { useAtomValue } from "jotai"
 import { librariesAtom, activeLibraryIdAtom } from "@/atoms/library-atom"
-import { LibraryForm } from "@/components/settings/library-form"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Plus, BookOpen, Users, Globe, ChevronRight } from "lucide-react"
+import { Plus, BookOpen, Info } from "lucide-react"
 import { useUserRole } from "@/hooks/use-user-role"
+import { useStorage } from "@/contexts/storage-context"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Info } from "lucide-react"
-
-// Raum-Karten der Übersicht: Erklärung der drei Räume für Anwender
-// ohne Technik-Wissen (Konzept: docs/settings-ux/README.md §2/§5).
-const spaceCards = [
-  {
-    id: "mespace",
-    icon: BookOpen,
-    space: "meSpace",
-    title: "Meine Bibliothek",
-    description:
-      "Bauen Sie Ihre eigene Bibliothek auf — gegliedert wie die App: das " +
-      "Archiv (wo Dokumente liegen und zu Wissen werden), Explore (wie man " +
-      "sie in der Galerie erkundet) und Story (das Gespräch mit den Inhalten).",
-    links: [
-      { title: "Library", href: "/settings/general" },
-      { title: "Archive", href: "/settings/archive" },
-      { title: "Explore", href: "/settings/explore" },
-      { title: "Story", href: "/settings/story" },
-      { title: "Erweitert", href: "/settings/advanced" },
-    ],
-  },
-  {
-    id: "wespace",
-    icon: Users,
-    space: "weSpace",
-    title: "Gemeinsam arbeiten",
-    description:
-      "Teilen Sie Ihre Bibliothek mit Personen, denen Sie vertrauen: Laden " +
-      "Sie Mitglieder ein und vergeben Sie Rollen — vom Mitleser bis zum " +
-      "Mitgestalter.",
-    links: [{ title: "Personen", href: "/settings/public/members" }],
-  },
-  {
-    id: "usspace",
-    icon: Globe,
-    space: "usSpace",
-    title: "Veröffentlichen",
-    description:
-      "Machen Sie Ihre Bibliothek öffentlich zugänglich: mit eigenem Link " +
-      "und Startseite — und behalten Sie die Kontrolle darüber, wer Zugang " +
-      "bekommt.",
-    links: [
-      { title: "Öffentlicher Auftritt", href: "/settings/public" },
-      { title: "Zugriffsanfragen", href: "/settings/public/access-requests" },
-    ],
-  },
-]
-
-function SpaceOverview({ onCreateNew }: { onCreateNew: () => void }) {
-  return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
-        {spaceCards.map((card) => (
-          <Card key={card.id} className="flex flex-col">
-            <CardHeader>
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                <card.icon className="w-4 h-4" />
-                {card.space}
-              </div>
-              <CardTitle className="text-lg">{card.title}</CardTitle>
-              <CardDescription>{card.description}</CardDescription>
-            </CardHeader>
-            <CardContent className="mt-auto">
-              <nav className="flex flex-col gap-1">
-                {card.links.map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-muted"
-                  >
-                    {link.title}
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                  </Link>
-                ))}
-              </nav>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      <div className="flex items-center justify-between rounded-lg border border-dashed p-4">
-        <p className="text-sm text-muted-foreground">
-          Sie möchten eine weitere Bibliothek aufbauen?
-        </p>
-        <Button variant="outline" onClick={onCreateNew}>
-          <Plus className="w-4 h-4 mr-2" />
-          Neue Bibliothek erstellen
-        </Button>
-      </div>
-    </div>
-  )
-}
+import { SpaceOverview } from "@/components/spaces/space-overview"
+import { CreateLibraryWizard } from "@/components/flows/create-library-wizard"
 
 export function SettingsClient() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const libraries = useAtomValue(librariesAtom)
   const activeLibraryId = useAtomValue(activeLibraryIdAtom)
-  const { isCreator } = useUserRole()
+  const { isCreator, isLoaded: isRoleLoaded } = useUserRole()
+  // isLoading: solange die Bibliotheken noch geladen werden, darf NICHT
+  // weitergeleitet werden (sonst Cold-Load-Bounce, weil isCreator anfangs
+  // gegen leere libraries false ist).
+  const { isLoading: isLibrariesLoading } = useStorage()
   const [isNewUser, setIsNewUser] = useState(false)
-  const [createNewLibrary, setCreateNewLibrary] = useState(false)
+  const [wizardOpen, setWizardOpen] = useState(false)
 
   // E7: Moderatoren einer fremden Bibliothek duerfen die Anfragen verwalten
   const isModerator =
@@ -125,13 +38,16 @@ export function SettingsClient() {
     setIsNewUser(hasNewUserParam || hasNoLibraries)
   }, [searchParams, libraries.length])
 
-  // Wenn Gast (und kein Moderator, E7), leite zur Homepage weiter
+  // Wenn Gast (und kein Moderator, E7), leite zur Homepage weiter.
+  // WICHTIG: Erst weiterleiten, wenn die Rolle wirklich geladen ist
+  // (isRoleLoaded) UND die Bibliotheken fertig geladen sind. Sonst wirft der
+  // Cold-Load Creators faelschlich auf '/', weil isCreator anfangs gegen die
+  // noch leeren libraries false ist.
   useEffect(() => {
-    if (!isCreator && !isModerator && typeof window !== 'undefined') {
-      // Gäste sollten nicht auf /settings sein - leite zur Homepage weiter
+    if (isRoleLoaded && !isLibrariesLoading && !isCreator && !isModerator && typeof window !== 'undefined') {
       router.replace('/')
     }
-  }, [isCreator, isModerator, router])
+  }, [isRoleLoaded, isLibrariesLoading, isCreator, isModerator, router])
 
   // URL bereinigen, wenn Bibliotheken vorhanden sind und newUser-Parameter gesetzt ist
   useEffect(() => {
@@ -178,47 +94,46 @@ export function SettingsClient() {
     )
   }
 
-  // Wenn es ein neuer Benutzer ist, zeige eine spezielle Willkommensansicht
-  if (isNewUser && !createNewLibrary) {
-    return (
-      <div className="space-y-6">
-        <div className="text-center space-y-4">
-          <div className="flex justify-center">
-            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-              <BookOpen className="w-8 h-8 text-primary" />
+  // Creator: entweder Willkommensansicht (neuer Nutzer) oder Raum-Übersicht.
+  // Der Anlage-Wizard ist als Dialog stets verfügbar.
+  return (
+    <>
+      {isNewUser ? (
+        <div className="space-y-6">
+          <div className="text-center space-y-4">
+            <div className="flex justify-center">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                <BookOpen className="w-8 h-8 text-primary" />
+              </div>
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold">Willkommen bei Knowledge Scout!</h2>
+              <p className="text-muted-foreground mt-2">
+                Erstellen Sie Ihre erste Bibliothek, um mit der Organisation Ihrer Dokumente zu beginnen.
+              </p>
             </div>
           </div>
-          <div>
-            <h2 className="text-2xl font-bold">Willkommen bei Knowledge Scout!</h2>
-            <p className="text-muted-foreground mt-2">
-              Erstellen Sie Ihre erste Bibliothek, um mit der Organisation Ihrer Dokumente zu beginnen.
+
+          <div className="flex justify-center">
+            <Button size="lg" onClick={() => setWizardOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Erste Bibliothek erstellen
+            </Button>
+          </div>
+
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground">
+              Sie brauchen nur einen Namen und den Inhaltstyp — Quelle (lokal
+              oder Cloud) und alles Weitere richten Sie danach Schritt für
+              Schritt ein.
             </p>
           </div>
         </div>
+      ) : (
+        <SpaceOverview onCreateNew={() => setWizardOpen(true)} />
+      )}
 
-        <div className="flex justify-center">
-          <Button size="lg" onClick={() => setCreateNewLibrary(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Erste Bibliothek erstellen
-          </Button>
-        </div>
-
-        <div className="text-center">
-          <p className="text-sm text-muted-foreground">
-            Sie brauchen nur einen Namen und den Inhaltstyp — Quelle (lokal
-            oder Cloud) und alles Weitere richten Sie danach Schritt für
-            Schritt ein.
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  // Neue Bibliothek wird erstellt: direkt das Grundlagen-Formular zeigen
-  if (createNewLibrary) {
-    return <LibraryForm createNew={true} />
-  }
-
-  // Bestehende Benutzer: Raum-Übersicht (meSpace / weSpace / usSpace)
-  return <SpaceOverview onCreateNew={() => setCreateNewLibrary(true)} />
+      <CreateLibraryWizard open={wizardOpen} onOpenChange={setWizardOpen} />
+    </>
+  )
 }

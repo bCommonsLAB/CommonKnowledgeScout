@@ -31,7 +31,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useAtom } from 'jotai';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { librariesAtom, activeLibraryIdAtom, libraryStatusAtom } from '@/atoms/library-atom';
 import { StorageFactory } from '@/lib/storage/storage-factory';
 import { ClientLibrary } from "@/types/library";
@@ -124,6 +124,7 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
   const { user, isLoaded: isUserLoaded } = useSafeUser();
   const { isCreator } = useUserRole();
   const pathname = usePathname();
+  const router = useRouter();
 
   // Auth-Debug-Logging entfernt (zu viele Logs bei jedem Auth-Status-Update)
   
@@ -383,11 +384,12 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
             if (!currentPath.startsWith('/settings')) {
               setHasRedirectedToSettings(true);
               
-              // Nur Creators zu /settings weiterleiten
+              // Nur Creators zum angemeldeten Dashboard weiterleiten (dort
+              // bietet der Anlage-Wizard die erste Bibliothek an).
               if (isCreator) {
-                AuthLogger.info('StorageContext', 'Creator without libraries - redirecting to settings');
+                AuthLogger.info('StorageContext', 'Creator without libraries - redirecting to /start');
                 setTimeout(() => {
-                  window.location.href = '/settings?newUser=true';
+                  window.location.href = '/start';
                 }, 500);
                 return;
               } else {
@@ -412,16 +414,19 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
             if (validStoredId) {
               setActiveLibraryId(storedLibraryId);
             } else {
-              if (storedLibraryId && !isValidUUID) {
-                AuthLogger.warn('StorageContext', 'Invalid library ID found in localStorage - cleaning up', {
-                  storedLibraryId
+              // KEIN Auto-Select der ersten Bibliothek mehr: Ohne gueltige
+              // gespeicherte Auswahl bleibt der Zustand bewusst "keine Library
+              // gewaehlt" (siehe noLibrarySelectedAtom). Das verhindert, dass eine
+              // Library mit abgelaufenem Token automatisch geladen wird und den
+              // globalen Re-Auth-Dialog erzwingt. Die Auswahl trifft der Nutzer
+              // auf dem Dashboard (/start) oder ueber den Library-Switcher.
+              if (storedLibraryId) {
+                AuthLogger.info('StorageContext', 'Keine gueltige gespeicherte Library - starte ohne Auswahl', {
+                  storedLibraryId,
                 });
                 localStorage.removeItem('activeLibraryId');
               }
-              
-              const firstLibId = workableLibraries[0].id;
-              setActiveLibraryId(firstLibId);
-              localStorage.setItem('activeLibraryId', firstLibId);
+              setActiveLibraryId("");
             }
           } else {
             AuthLogger.warn('StorageContext', 'No workable libraries available', {
@@ -854,6 +859,15 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
         isAuthRequired={isAuthRequired}
         libraryStatus={libraryStatus}
         refreshAuthStatus={refreshAuthStatus}
+        onDismissLibrary={() => {
+          // "Später": Bibliothek deselektieren statt die UI zu blockieren.
+          // Der Nutzer landet im "keine Library gewählt"-Zustand auf dem
+          // Dashboard und kann dort eine andere Bibliothek wählen oder sich
+          // bei Bedarf neu anmelden.
+          setActiveLibraryId("");
+          if (typeof window !== 'undefined') localStorage.removeItem('activeLibraryId');
+          router.push('/start');
+        }}
       />
     </StorageContext.Provider>
   );
