@@ -97,10 +97,11 @@ describe('buildSubmissionAnalysisJob', () => {
     });
   });
 
-  it('Parameter: Template = docType, Ingest deaktiviert (Publikation = W5)', () => {
+  it('Parameter: Template = Standard-Vorlage des detailViewType (F11), Ingest deaktiviert (W5)', () => {
+    // detailViewType 'book' -> Builtin-Default 'standard-book' (nicht der docType 'pdfanalyse').
     const params = buildSubmissionAnalysisParameters(submissionWith([PDF_REF]));
     expect(params).toMatchObject({
-      template: 'pdfanalyse',
+      template: 'standard-book',
       phases: { extract: true, template: true, ingest: false },
       policies: { ingest: 'ignore' },
     });
