@@ -22,13 +22,31 @@ import { librariesAtom, activeLibraryIdAtom } from "@/atoms/library-atom";
 import { StorageProviderType } from "@/types/library";
 import { useSafeUser } from "@/hooks/use-safe-user";
 
+/** Im Settings-Formular waehlbare Storage-Typen ('inbox' ist intern, ADR-0004 II). */
+const LIBRARY_FORM_STORAGE_TYPES = ["local", "onedrive", "gdrive", "nextcloud"] as const;
+
+/** Mappt StorageProviderType auf den Form-Enum; 'inbox' ist kein User-Typ. */
+function toLibraryFormStorageType(
+  type: StorageProviderType,
+): (typeof LIBRARY_FORM_STORAGE_TYPES)[number] {
+  if (
+    type !== "local" &&
+    type !== "onedrive" &&
+    type !== "gdrive" &&
+    type !== "nextcloud"
+  ) {
+    throw new Error(`Ungueltiger Bibliothekstyp fuer Library-Settings: "${type}"`);
+  }
+  return type;
+}
+
 // Formular-Schema (identisch mit dem in library-form.tsx)
 export const libraryFormSchema = z.object({
   label: z
     .string({ required_error: "Bitte geben Sie einen Namen ein." })
     .min(3, "Der Name muss mindestens 3 Zeichen lang sein."),
   path: z.string({ required_error: "Bitte geben Sie einen Speicherpfad ein." }),
-  type: z.enum(["local", "onedrive", "gdrive", "nextcloud"], {
+  type: z.enum(LIBRARY_FORM_STORAGE_TYPES, {
     required_error: "Bitte wählen Sie einen Speichertyp.",
   }),
   isEnabled: z.boolean().default(true),
@@ -319,7 +337,7 @@ export function useLibraryForm(createNew: boolean) {
       form.reset({
         label: activeLibrary.label,
         path: activeLibrary.path,
-        type: activeLibrary.type,
+        type: toLibraryFormStorageType(activeLibrary.type),
         isEnabled: activeLibrary.isEnabled,
         analyzeDivaTextureInfo: activeLibrary.config?.analyzeDivaTextureInfo === true,
         autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
@@ -352,7 +370,7 @@ export function useLibraryForm(createNew: boolean) {
       form.reset({
         label: activeLibrary.label,
         path: activeLibrary.path,
-        type: activeLibrary.type,
+        type: toLibraryFormStorageType(activeLibrary.type),
         isEnabled: activeLibrary.isEnabled,
         analyzeDivaTextureInfo: activeLibrary.config?.analyzeDivaTextureInfo === true,
         autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
