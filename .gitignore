@@ -10,6 +10,9 @@ test-results/
 playwright-report/
 playwright/.cache/
 
+# lokale Arbeitsdateien (E2E-Login-Session, Test-Quelldaten — nie committen)
+tmp/
+
 # next.js
 .next/
 out/
