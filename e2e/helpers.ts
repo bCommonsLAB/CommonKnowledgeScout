@@ -215,3 +215,86 @@ export async function createLibraryViaUi(page: Page, name: string): Promise<stri
   if (!id) throw new Error(`Anlage von "${name}" nicht über die API bestätigt`)
   return id
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Backend-Invarianten für den Inbox-/Submission-Flow (Welle II/III, WP-3)
+//
+// E2E prüft nicht nur die UX, sondern auch Backend-Fakten, die der Browser nicht
+// zeigt: Submission-Status, Inbox-Blob-Pfad, providerScope des Analyse-Jobs.
+// Direkt-Zugriff auf MongoDB wie in den Spotchecks (S3).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Minimal getypte Sicht auf ein wizard_submissions-Dokument. */
+export interface SubmissionDocLike {
+  _id?: unknown
+  libraryId?: string
+  status?: string
+  createdBy?: string
+  createdByRole?: string
+  detailViewType?: string
+  binaryRefs?: Array<{ url?: string; itemId?: string; contentType?: string }>
+  createdAt?: string
+  updatedAt?: string
+}
+
+/** Minimal getypte Sicht auf ein external_jobs-Dokument. */
+export interface JobDocLike {
+  jobId?: string
+  providerScope?: string
+  status?: string
+  correlation?: { options?: { submissionId?: string } }
+}
+
+/** Öffnet eine MongoDB-Verbindung aus .env, führt `fn` aus, schließt sicher. */
+export async function withMongo<T>(fn: (db: import('mongodb').Db) => Promise<T>): Promise<T> {
+  const { MongoClient } = await import('mongodb')
+  const uri = readEnvVar('MONGODB_URI')
+  const dbName = readEnvVar('MONGODB_DATABASE_NAME')
+  if (!uri || !dbName) throw new Error('MONGODB_URI / MONGODB_DATABASE_NAME nicht aus .env lesbar')
+  const client = new MongoClient(uri)
+  try {
+    await client.connect()
+    return await fn(client.db(dbName))
+  } finally {
+    await client.close()
+  }
+}
+
+/** Neueste Submission einer Library (optional gefiltert auf einen Erfasser). */
+export async function findLatestSubmission(
+  libraryId: string,
+  createdBy?: string,
+): Promise<SubmissionDocLike | null> {
+  return withMongo(async db => {
+    const filter: Record<string, unknown> = { libraryId }
+    if (createdBy) filter.createdBy = createdBy.toLowerCase()
+    const docs = await db
+      .collection<SubmissionDocLike>('wizard_submissions')
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .limit(1)
+      .toArray()
+    return docs[0] ?? null
+  })
+}
+
+/** Analyse-Job zu einer Submission (correlation.options.submissionId). */
+export async function findAnalyzeJob(submissionId: string): Promise<JobDocLike | null> {
+  return withMongo(async db => {
+    const doc = await db
+      .collection<JobDocLike>('external_jobs')
+      .findOne({ 'correlation.options.submissionId': submissionId })
+    return doc ?? null
+  })
+}
+
+/** Invariante: Binärquelle liegt im Inbox-Bereich, nie im Ziel-Archiv (ADR-0004). */
+export function assertInboxBinaryRef(sub: SubmissionDocLike): string {
+  const ref = sub.binaryRefs?.[0]
+  if (!ref) throw new Error('Submission hat keine binaryRefs')
+  const where = ref.itemId ?? ref.url ?? ''
+  if (!where.includes('/inbox/')) {
+    throw new Error(`Binärquelle nicht im Inbox-Bereich: ${where.slice(0, 80)}`)
+  }
+  return where
+}

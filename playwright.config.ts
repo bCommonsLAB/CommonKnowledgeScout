@@ -47,7 +47,7 @@ export default defineConfig({
     },
     {
       name: 'drehbuch',
-      testMatch: /\d{2}-(akt|spotchecks).*\.spec\.ts/,
+      testMatch: /\d{2}-(akt|spotchecks|inbox).*\.spec\.ts/,
       dependencies: ['setup'],
       use: { storageState: 'tmp/e2e-auth.json' },
     },
