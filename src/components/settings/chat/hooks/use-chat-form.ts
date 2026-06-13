@@ -629,11 +629,16 @@ export function useChatForm(): UseChatFormResult {
       const prevViewType = (activeLibrary.config?.chat as { gallery?: { detailViewType?: string } } | undefined)
         ?.gallery?.detailViewType ?? 'book'
       const nextViewType = (data.gallery as { detailViewType?: string } | undefined)?.detailViewType ?? 'book'
-      const currentTemplate = ((activeLibrary.config?.secretaryService as { template?: string } | undefined)
-        ?.template ?? '').trim()
-      let secretaryServiceUpdate: Record<string, unknown> | undefined
+      // Bestehende Secretary-Service-Config (bereits korrekt typisiert) festhalten,
+      // damit beim Template-Reset die Pflichtfelder (apiUrl/apiKey) erhalten bleiben
+      // und der Typ nicht auf Record<string, unknown> aufgeweitet wird.
+      const existingSecretary = activeLibrary.config?.secretaryService
+      const currentTemplate = (existingSecretary?.template ?? '').trim()
+      let secretaryServiceUpdate: NonNullable<typeof existingSecretary> | undefined
       let templateNotice: { title: string; description: string } | undefined
-      if (nextViewType !== prevViewType && currentTemplate !== '') {
+      // existingSecretary im Guard mitpruefen: currentTemplate !== '' impliziert es zwar
+      // zur Laufzeit, aber TypeScript braucht das explizite Narrowing.
+      if (nextViewType !== prevViewType && currentTemplate !== '' && existingSecretary) {
         const { isBuiltinDefaultTemplateName, getDefaultTemplateNameForViewType } = await import(
           '@/lib/templates/default-templates'
         )
@@ -642,7 +647,7 @@ export function useChatForm(): UseChatFormResult {
           currentTemplate.toLowerCase() !== getDefaultTemplateNameForViewType(nextViewType).toLowerCase()
         ) {
           secretaryServiceUpdate = {
-            ...(activeLibrary.config?.secretaryService as Record<string, unknown> | undefined),
+            ...existingSecretary,
             template: '',
           }
           templateNotice = {
