@@ -35,6 +35,7 @@ import { useTranslation } from "@/lib/i18n/hooks"
 import { useScrollVisibility } from "@/hooks/use-scroll-visibility"
 import { useUserRole } from "@/hooks/use-user-role"
 import { buildTopNavConfig } from "@/components/top-nav-config"
+import { CreateLibraryWizard } from "@/components/flows/create-library-wizard"
 
 export function TopNav() {
   const pathname = usePathname()
@@ -61,7 +62,12 @@ export function TopNav() {
   const isStoryMode = searchParams?.get('mode') === 'story'
 
   const [open, setOpen] = React.useState(false)
-  
+  const [wizardOpen, setWizardOpen] = React.useState(false)
+
+  // "Home" führt eingeloggte Creator auf das angemeldete Dashboard (/start),
+  // anonyme Besucher weiterhin auf die Marketing-Startseite (/).
+  const navHref = (href: string) => (href === '/' && isCreator ? '/start' : href)
+
   // Hilfsfunktion um zu prüfen, ob ein Nav-Item aktiv ist
   const isActiveNavItem = (href: string) => {
     if (href === '/docs/') {
@@ -133,13 +139,13 @@ export function TopNav() {
                 {publicNavItems.map((item) => (
                   <Link
                     key={item.href}
-                    href={item.href}
+                    href={navHref(item.href)}
                     onClick={() => setOpen(false)}
                     target={item.newTab ? "_blank" : undefined}
                     rel={item.newTab ? "noreferrer" : undefined}
                     className={cn(
                       "block rounded-md px-3 py-2 text-sm",
-                      pathname === item.href ? "bg-muted text-primary" : "text-foreground hover:bg-muted"
+                      pathname === navHref(item.href) ? "bg-muted text-primary" : "text-foreground hover:bg-muted"
                     )}
                   >
                     {item.name}
@@ -221,12 +227,12 @@ export function TopNav() {
               {publicNavItems.map((item) => (
                 <Link
                   key={item.href}
-                  href={item.href}
+                  href={navHref(item.href)}
                   target={item.newTab ? "_blank" : undefined}
                   rel={item.newTab ? "noreferrer" : undefined}
                   className={cn(
                     "flex h-7 items-center justify-center rounded-full px-4 text-center text-sm font-medium transition-colors hover:text-primary",
-                    pathname === item.href
+                    pathname === navHref(item.href)
                       ? "bg-muted text-primary"
                       : "text-muted-foreground hover:text-primary"
                   )}
@@ -274,8 +280,8 @@ export function TopNav() {
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button 
-                            onClick={() => router.push('/settings?newUser=true')}
+                          <Button
+                            onClick={() => setWizardOpen(true)}
                             className="gap-2"
                           >
                             <Plus className="h-4 w-4" />
@@ -359,7 +365,8 @@ export function TopNav() {
         </div>
       </div>
 
-
+      {/* Anlage-Wizard (Petra-Flow): vom "Neue Bibliothek"-Button geöffnet */}
+      <CreateLibraryWizard open={wizardOpen} onOpenChange={setWizardOpen} />
     </>
   )
-} 
+}

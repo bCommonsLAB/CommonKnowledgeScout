@@ -82,6 +82,13 @@ export const activeLibraryIdAtom = atom(
 )
 activeLibraryIdAtom.debugLabel = "activeLibraryIdAtom"
 
+// Klares Signal fuer den "keine Library gewaehlt"-Zustand: true, solange keine
+// aktive Library gesetzt ist (z.B. nach dem Login ohne gespeicherte Auswahl oder
+// nach dem Deselektieren im Re-Auth-Dialog). UI/Guards pruefen dieses Atom statt
+// ueberall activeLibraryId === "" zu streuen.
+export const noLibrarySelectedAtom = atom(get => get(activeLibraryIdAtom) === "")
+noLibrarySelectedAtom.debugLabel = "noLibrarySelectedAtom"
+
 // Bibliotheken-Atom
 export const librariesAtom = atom(
   get => get(libraryAtom).libraries,

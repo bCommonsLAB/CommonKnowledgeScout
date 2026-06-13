@@ -38,6 +38,12 @@ interface StorageReauthDialogProps {
   isAuthRequired: boolean
   libraryStatus: string
   refreshAuthStatus: () => void
+  /**
+   * "Später": Bibliothek deselektieren (in den "keine Library gewählt"-Zustand
+   * wechseln), statt nur den Dialog lokal auszublenden. Verhindert, dass der
+   * Dialog bei jedem Seitenladen erneut blockiert.
+   */
+  onDismissLibrary?: (libraryId: string) => void
 }
 
 export function StorageReauthDialog({
@@ -45,6 +51,7 @@ export function StorageReauthDialog({
   isAuthRequired,
   libraryStatus,
   refreshAuthStatus,
+  onDismissLibrary,
 }: StorageReauthDialogProps) {
   const pathname = usePathname()
   const [dismissedForLibrary, setDismissedForLibrary] = useState<string | null>(null)
@@ -121,7 +128,10 @@ export function StorageReauthDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (!next && currentLibrary) setDismissedForLibrary(currentLibrary.id)
+        if (!next && currentLibrary) {
+          setDismissedForLibrary(currentLibrary.id)
+          onDismissLibrary?.(currentLibrary.id)
+        }
       }}
     >
       <DialogContent>
@@ -139,7 +149,11 @@ export function StorageReauthDialog({
         <DialogFooter>
           <Button
             variant="outline"
-            onClick={() => currentLibrary && setDismissedForLibrary(currentLibrary.id)}
+            onClick={() => {
+              if (!currentLibrary) return
+              setDismissedForLibrary(currentLibrary.id)
+              onDismissLibrary?.(currentLibrary.id)
+            }}
           >
             Später
           </Button>
