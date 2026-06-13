@@ -317,6 +317,9 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
   climateAction: {
     requiredFields: ['title', 'category', 'language', 'targetLanguage'],
     optionalFields: [
+      // vorschlag_quelle bewusst zuerst: erscheint als erste Facette/Tabellenspalte
+      // (Default-Reihenfolge = Registry-Reihenfolge in generateDefaultFacets).
+      'vorschlag_quelle',
       'summary',
       'massnahme_nr',
       'lv_bewertung',
@@ -324,6 +327,17 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
       'lv_zustaendigkeit',
       'tags',
       'coverImageUrl',
+      // KI-Einschätzung (read-only) – als Facetten/Tabellenspalten verfügbar machen.
+      'co2_einsparung_kt',
+      'durchsetzbarkeit',
+      'kosten_eur',
+      'score_wirkung',
+      'score_soziales',
+      'score_struktur',
+      'score_bewusstsein',
+      'dominant_perspektive',
+      'bewertung_modell',
+      'bewertung_stand',
     ],
     labelKey: 'gallery.detailViewTypeClimateAction',
     descriptionKey: 'gallery.detailViewTypeClimateActionDescription',

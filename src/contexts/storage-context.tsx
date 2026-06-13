@@ -41,6 +41,7 @@ import { useUserRole } from '@/hooks/use-user-role';
 import { StorageProvider, StorageItem, StorageError } from '@/lib/storage/types';
 import { AuthLogger } from '@/lib/debug/logger';
 import { isSupportedLibraryType } from '@/lib/storage/supported-types';
+import { StorageReauthDialog } from '@/components/shared/storage-reauth-dialog';
 
 // Erweitere den StorageProvider um getAuthInfo
 interface ExtendedStorageProvider extends StorageProvider {
@@ -846,6 +847,14 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
   return (
     <StorageContext.Provider value={value}>
       {children}
+      {/* App-weiter Re-Auth-Dialog (Welle 3-IV-UX-3c, F2): erscheint bei
+          abgelaufener/fehlender Storage-Anmeldung ausserhalb der Settings. */}
+      <StorageReauthDialog
+        currentLibrary={currentLibrary}
+        isAuthRequired={isAuthRequired}
+        libraryStatus={libraryStatus}
+        refreshAuthStatus={refreshAuthStatus}
+      />
     </StorageContext.Provider>
   );
-}; 
+};

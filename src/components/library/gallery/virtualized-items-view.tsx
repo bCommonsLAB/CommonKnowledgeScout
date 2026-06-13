@@ -20,13 +20,13 @@ import { ItemsGrid } from './items-grid'
 import { DeleteDocumentButton } from './delete-document-button'
 import { OpenInArchiveButton } from './open-in-archive-button'
 import { PublishDocumentButton } from './publish-document-button'
+import { DocRelationsButton } from './doc-relations-button'
 import { PublishStatusBadge, TranslationStatusChips } from './publish-status-chips'
 import { useIsLibraryOwner } from '@/hooks/gallery/use-is-library-owner'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
 import { useUserStates } from '@/hooks/gallery/use-user-states'
 import { useSourceCommentCounts } from '@/hooks/gallery/use-source-comment-counts'
 import { formatUpsertedAt } from '@/utils/format-upserted-at'
-import { getTableColumnsForViewType } from '@/lib/detail-view-types'
 import { sortDocsByTableColumn } from '@/lib/gallery/table-sort'
 import { findDocInGroupedDocs } from '@/lib/gallery/apply-favorite-optimistic'
 import { ArrowDown, ArrowUp, ArrowUpDown, Star } from 'lucide-react'
@@ -67,6 +67,13 @@ export interface VirtualizedItemsViewProps {
    */
   onPublishChanged?: () => void
   /**
+   * Quelle A (Beziehungs-Graph): wenn `true`, zeigt die Tabelle pro Zeile einen
+   * Trigger „Beziehungen für diese Maßnahme berechnen" (Owner/Co-Creator) neben
+   * dem Publish-Button. Aus `library.config.chat.gallery.graph.edgeSources.
+   * relations.enabled`.
+   */
+  relationsEnabled?: boolean
+  /**
    * Quell-Favoriten/Kommentare:
    * Wenn aktiv, wird die Liste auf Favoriten gefiltert (nur fuer Member).
    * Der Hook `useSourceFavorites` liefert das Set; das Filtern selbst macht
@@ -104,6 +111,7 @@ export function VirtualizedItemsView({
   cardDensity = 'comfortable',
   expectedTargetLocales,
   onPublishChanged,
+  relationsEnabled,
   sortByStars,
   onToggleFavorite,
   autoApplyConfidenceThreshold,
@@ -247,7 +255,7 @@ export function VirtualizedItemsView({
   // Doc-Translations Refactor: fuer Owner injizieren wir vor der upsertedAt-Spalte
   // zwei zusaetzliche Spalten: 'publication' (Status-Badge) und 'languages' (Locale-Chips).
   const tableColumns = React.useMemo(() => {
-    const baseColumns = (() => {
+    const rawBase = (() => {
       if (tableColumnFacets && tableColumnFacets.length > 0) {
         return [
           { key: 'title', labelKey: 'gallery.table.title' as const },
@@ -255,11 +263,18 @@ export function VirtualizedItemsView({
           { key: 'upsertedAt', labelKey: 'gallery.table.upsertedAt' as const },
         ]
       }
-      return getTableColumnsForViewType(libraryDetailViewType).map((col) => ({
-        key: col.key,
-        labelKey: col.labelKey,
-      }))
+      // Ohne explizit konfigurierte Spalten (Facetten mit showInTable=true) zeigen
+      // wir NUR Titel + Datum – NICHT automatisch alle View-Type-Spalten (sonst
+      // wird die Tabelle viel zu breit). Spalten werden in den Galerie-Facetten gewählt.
+      return [
+        { key: 'title', labelKey: 'gallery.table.title' as const },
+        { key: 'upsertedAt', labelKey: 'gallery.table.upsertedAt' as const },
+      ]
     })()
+    // Berechnete Prio-Indikator-Spalte (vor dem Datum) – nur für climateAction.
+    const baseColumns = libraryDetailViewType === 'climateAction'
+      ? [...rawBase.slice(0, -1), { key: '__priorityIndex', label: 'Prio-Indikator' }, ...rawBase.slice(-1)]
+      : rawBase
     if (!isOwner) return baseColumns
     // Vor der letzten Spalte (typischerweise upsertedAt) die zwei neuen Spalten einfuegen.
     const insertAt = Math.max(0, baseColumns.length - 1)
@@ -272,7 +287,7 @@ export function VirtualizedItemsView({
       ...ownerColumns,
       ...baseColumns.slice(insertAt),
     ]
-  }, [libraryDetailViewType, tableColumnFacets, isOwner])
+  }, [tableColumnFacets, isOwner, libraryDetailViewType])
 
   const displayDocsByYear = React.useMemo(() => {
     if (sortByStars) return docsByYear
@@ -339,6 +354,21 @@ export function VirtualizedItemsView({
         />
       )
     }
+    // Prio-Indikator-Spalte: persistiertes Feld (beim Transform berechnet).
+    if (key === '__priorityIndex') {
+      return (
+        <span className="tabular-nums">{typeof doc.prioritaets_index === 'number' ? doc.prioritaets_index.toFixed(1) : <span className="text-muted-foreground">–</span>}</span>
+      )
+    }
+    // KI-Werte hübsch formatieren: 0..1-Scores als Prozent, Kosten mit Tausender-Punkt.
+    const PERCENT_KEYS = new Set(['durchsetzbarkeit', 'score_wirkung', 'score_soziales', 'score_struktur', 'score_bewusstsein'])
+    const rawNum = (doc as unknown as Record<string, unknown>)[key]
+    if (PERCENT_KEYS.has(key) && typeof rawNum === 'number') {
+      return <span className="tabular-nums">{Math.round(rawNum * 100)} %</span>
+    }
+    if (key === 'kosten_eur' && typeof rawNum === 'number') {
+      return <span className="tabular-nums">{rawNum.toLocaleString('de-DE')}</span>
+    }
     const raw = (doc as unknown as Record<string, unknown>)[key]
     if (raw === undefined || raw === null) return <span className="text-muted-foreground">-</span>
     if (Array.isArray(raw)) {
@@ -381,6 +411,12 @@ export function VirtualizedItemsView({
   const showGroupHeaders = groupByField !== 'none'
   return (
     <div ref={parentRef}>
+      {/* EIN gemeinsamer Breiten-Container fuer ALLE Gruppen: w-max = Breite der
+          breitesten Tabelle. Dadurch scrollt der Panel-Container (data-gallery-section
+          bzw. die mobile ScrollArea) horizontal als EINE Einheit statt pro Gruppe.
+          Die einzelnen Tabellen sind w-full = diese gemeinsame Breite und laufen
+          daher nicht mehr einzeln ueber. */}
+      <div className="w-max min-w-[760px]">
       {displayDocsByYear.map(([groupKey, groupDocs]) => (
         <div key={String(groupKey)} className="mb-6">
           {showGroupHeaders && (
@@ -391,6 +427,8 @@ export function VirtualizedItemsView({
             </h3>
           )}
           <div className="rounded-md border">
+            {/* Breite kommt vom gemeinsamen w-max-Container oben; die Tabelle
+                fuellt diese (w-full) und scrollt NICHT mehr einzeln. */}
             <Table>
               <TableHeader>
                 <TableRow>
@@ -551,6 +589,14 @@ export function VirtualizedItemsView({
                                 libraryId={libraryId}
                                 onChanged={onPublishChanged}
                               />
+                              {/* Quelle A: ausgehende Beziehungen DIESER Maßnahme neu berechnen */}
+                              {relationsEnabled && (
+                                <DocRelationsButton
+                                  doc={doc}
+                                  libraryId={libraryId}
+                                  onChanged={onPublishChanged}
+                                />
+                              )}
                               <OpenInArchiveButton doc={doc} libraryId={libraryId} />
                               <DeleteDocumentButton
                                 doc={doc}
@@ -605,6 +651,7 @@ export function VirtualizedItemsView({
           </div>
         </div>
       ))}
+      </div>
       {/* Sentinel für Infinite Scroll */}
       {hasMore && (
         <div ref={sentinelRef} className="h-20 flex items-center justify-center py-4">

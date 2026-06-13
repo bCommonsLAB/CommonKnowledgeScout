@@ -9,16 +9,18 @@
  * gefilterten Dokumente; Klick öffnet die bestehende Detailansicht.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import type { GalleryGraphConfig } from '@/types/library'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useSharedMetaEdges } from '@/hooks/gallery/use-shared-meta-edges'
 import { useSimilarityEdges } from '@/hooks/gallery/use-similarity-edges'
+import { useRelationsEdges } from '@/hooks/gallery/use-relations-edges'
 import { EdgeSourceSelector } from './edge-source-selector'
 import { GraphControls } from './graph-controls'
 import { DocGraphScene } from './doc-graph-scene'
 import { DocGraphLegend } from './doc-graph-legend'
+import { DocGraphRelationsBar } from './doc-graph-relations-bar'
 import { readString } from './graph-encodings'
 import type { EdgeSourceSelection } from './graph-types'
 
@@ -35,6 +37,8 @@ interface DocGraphProps {
    * der Callback (Nicht-Owner), wird kein Speichern-Button gezeigt.
    */
   onSaveDefault?: (graph: GalleryGraphConfig) => Promise<void> | void
+  /** Owner/Co-Creator: berechnete Beziehungen (Quelle A) neu berechnen. */
+  canManageRelations?: boolean
 }
 
 /** Default-Nachbarzahl je Knoten für Quelle C, wenn nicht konfiguriert. */
@@ -46,10 +50,23 @@ const EXCLUDE_FIELDS = new Set([
   'bewertung_stand', 'bewertung_modell', 'detailViewType', 'docType',
 ])
 
-export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, onSaveDefault }: DocGraphProps) {
+/**
+ * Kuratierte „Verbinde nach"-Felder für Klimamaßnahmen, falls der Owner keine
+ * `sharedMeta.fields` konfiguriert hat. Reihenfolge = Anzeigereihenfolge; nur
+ * Felder, die in den geladenen Karten tatsächlich vorkommen, werden gezeigt.
+ */
+const CLIMATE_ACTION_SHARED_META_FIELDS = [
+  'arbeitsgruppe', 'category', 'vorschlag_quelle', 'dominant_perspektive', 'lv_bewertung', 'tags',
+]
+
+export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, onSaveDefault, canManageRelations }: DocGraphProps) {
   const { t } = useTranslation()
   const sharedMeta = graph.edgeSources?.sharedMeta
-  const defaultMode = sharedMeta?.mode ?? 'projection'
+  // Default 'hub' (bipartite Stern-Cluster) statt 'projection': Letzteres
+  // verbindet ALLE Maßnahmen einer Gruppe paarweise (Cliquen) -> bei großen
+  // Gruppen unlesbarer Hairball (Tausende Kanten). 'hub' macht je Gruppe EINEN
+  // Knoten -> als Wolke/Cluster wahrnehmbar. Per „Anpassen" umstellbar.
+  const defaultMode = sharedMeta?.mode ?? 'hub'
   const configFields = useMemo(() => sharedMeta?.fields?.filter((f) => f.length > 0) ?? [], [sharedMeta?.fields])
 
   // Quelle C ist generisch immer verfügbar (Vektoren existieren ohnehin pro
@@ -59,20 +76,32 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
   const similarityEnabled = graph.edgeSources?.similarity?.enabled !== false
   const similarityTopK = graph.edgeSources?.similarity?.topK ?? DEFAULT_SIMILARITY_TOP_K
 
+  // Quelle A (berechnete Beziehungen, Welle 4): nur aktiv, wenn explizit
+  // konfiguriert (`edgeSources.relations.enabled`), da sie einen Vorberechnungs-
+  // Lauf braucht. Kein impliziter Default.
+  const relationsEnabled = graph.edgeSources?.relations?.enabled === true
+
   // Anfangsauswahl: Config-Default respektieren, sonst erstes sharedMeta-Feld,
   // sonst (falls aktiv) Ähnlichkeit. Kein Silent Fallback auf eine inaktive Quelle.
   const initialSelection = useMemo<EdgeSourceSelection | null>(() => {
+    if (graph.defaultEdgeSource === 'relations' && relationsEnabled) return { kind: 'relations' }
     if (graph.defaultEdgeSource === 'similarity' && similarityEnabled) return { kind: 'similarity' }
     if (configFields.length) return { kind: 'sharedMeta', field: configFields[0], mode: defaultMode }
     if (similarityEnabled) return { kind: 'similarity' }
+    if (relationsEnabled) return { kind: 'relations' }
     return null
-  }, [graph.defaultEdgeSource, similarityEnabled, configFields, defaultMode])
+  }, [graph.defaultEdgeSource, similarityEnabled, relationsEnabled, configFields, defaultMode])
 
   // Live-Editier-State (ephemer; aus der Config geseedet, beim Library-Wechsel neu).
   const [liveFields, setLiveFields] = useState<string[]>(configFields)
   const [liveColorMap, setLiveColorMap] = useState<Record<string, string>>(graph.colorMap ?? {})
   const [minShared, setMinShared] = useState<number>(sharedMeta?.minShared ?? 1)
   const [selection, setSelection] = useState<EdgeSourceSelection | null>(initialSelection)
+  // „Enabler darstellen" (nur Beziehungen): Halo nach akkumulierter Wirkung der
+  // ermöglichten Ziele.
+  const [showEnablers, setShowEnablers] = useState(false)
+  // Vollbild-Umschaltung der Graph-Ansicht (CSS-basiert, kein Fullscreen-API).
+  const [isFullscreen, setIsFullscreen] = useState(false)
   useEffect(() => {
     setLiveFields(configFields)
     setLiveColorMap(graph.colorMap ?? {})
@@ -94,8 +123,19 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
   }, [liveFields, selection, defaultMode, similarityEnabled])
 
   const isSimilarity = selection?.kind === 'similarity'
-  // Quelle A (relations) ist noch nicht implementiert (Welle 4).
-  const defaultNotImplemented = graph.defaultEdgeSource === 'relations'
+  const isRelations = selection?.kind === 'relations'
+
+  // Auswahl aus dem Selektor übernehmen. Wird ein sharedMeta-Feld gewählt, das
+  // (noch) nicht in liveFields steht — z. B. aus den Fallback-/Default-Feldern,
+  // wenn der Owner keine sharedMeta.fields konfiguriert hat —, wird es ergänzt.
+  // Sonst würde der Gültigkeits-Guard oben die Auswahl sofort verwerfen und auf
+  // Ähnlichkeit zurückspringen.
+  const handleSelectionChange = useCallback((next: EdgeSourceSelection) => {
+    if (next.kind === 'sharedMeta' && next.field) {
+      setLiveFields((prev) => (prev.includes(next.field) ? prev : [...prev, next.field]))
+    }
+    setSelection(next)
+  }, [])
 
   // Vorschläge: kategorische/Array-meta-Keys aus den Docs + Facetten-Felder.
   const availableFields = useMemo(() => {
@@ -108,6 +148,21 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
     }
     return [...set].filter((k) => !EXCLUDE_FIELDS.has(k) && !k.endsWith('_begruendung')).sort()
   }, [docs, fieldLabels, configFields])
+
+  // Fallback-Felder für den „Verbinde nach"-Selektor, wenn keine sharedMeta.fields
+  // konfiguriert sind: für Klimamaßnahmen die kuratierte Liste (nur vorhandene),
+  // sonst die volle Auto-Erkennung. Verhindert, dass „Gemeinsame Metadaten" leer
+  // und damit nicht auswählbar ist.
+  const sharedMetaFallbackFields = useMemo(() => {
+    const isClimateAction = docs.some(
+      (d) => (d as { detailViewType?: string }).detailViewType === 'climateAction',
+    )
+    if (isClimateAction) {
+      const present = CLIMATE_ACTION_SHARED_META_FIELDS.filter((f) => availableFields.includes(f))
+      if (present.length > 0) return present
+    }
+    return availableFields
+  }, [docs, availableFields])
 
   const colorValues = useMemo(() => {
     if (!graph.colorField) return []
@@ -142,7 +197,12 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
     minWeight: graph.minWeight,
     maxEdgesPerNode: graph.maxEdgesPerNode, maxEdgesTotal: graph.maxEdgesTotal,
   })
-  const data = isSimilarity ? similarity.data : sharedData
+  const relations = useRelationsEdges({
+    docs, libraryId, enabled: isRelations,
+    minWeight: graph.minWeight,
+    maxEdgesPerNode: graph.maxEdgesPerNode, maxEdgesTotal: graph.maxEdgesTotal,
+  })
+  const data = isRelations ? relations.data : isSimilarity ? similarity.data : sharedData
 
   return (
     <div className="flex h-full min-h-[60vh] flex-col gap-2">
@@ -151,14 +211,19 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
           {selection && (
             <EdgeSourceSelector
               selection={selection}
-              onChange={setSelection}
-              sharedMetaFields={liveFields}
+              onChange={handleSelectionChange}
+              // Ohne konfigurierte sharedMeta.fields auf die auto-erkannten Felder
+              // zurueckfallen — sonst zeigt "Gemeinsame Metadaten" nur eine leere
+              // Gruppenueberschrift und ist nicht auswaehlbar (Henne-Ei: der
+              // Feld-Editor erscheint erst, wenn sharedMeta bereits aktiv ist).
+              sharedMetaFields={liveFields.length ? liveFields : sharedMetaFallbackFields}
               fieldLabels={fieldLabels}
               similarityEnabled={similarityEnabled}
+              relationsEnabled={relationsEnabled}
             />
           )}
           {/* Live-Editor (Felder/Modus/Farben) ist sharedMeta-spezifisch. */}
-          {!isSimilarity && (
+          {!isSimilarity && !isRelations && (
             <GraphControls
               fields={liveFields}
               onFieldsChange={setLiveFields}
@@ -189,11 +254,51 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
               }) : undefined}
             />
           )}
+          {/* Quelle A: Staleness-Hinweis + Recompute (Owner/Co-Creator). */}
+          {isRelations && (
+            <>
+              <DocGraphRelationsBar
+                libraryId={libraryId}
+                canManage={canManageRelations}
+                stale={relations.stale}
+                computedAt={relations.computedAt}
+              />
+              <label className="flex cursor-pointer select-none items-center gap-1.5 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={showEnablers}
+                  onChange={(e) => setShowEnablers(e.target.checked)}
+                  className="h-3.5 w-3.5 accent-orange-400"
+                />
+                {t('gallery.graph.showEnablers', { defaultValue: 'Enabler darstellen' })}
+              </label>
+            </>
+          )}
         </div>
-        {defaultNotImplemented && <span className="text-xs text-muted-foreground">{t('gallery.graph.comingSoon')}</span>}
       </div>
-      <div ref={containerRef} className="relative flex-1 overflow-hidden rounded-md border bg-muted/20">
-        {isSimilarity ? (
+      <div
+        ref={containerRef}
+        className={
+          isFullscreen
+            ? 'fixed inset-0 z-50 overflow-hidden border bg-background'
+            : 'relative flex-1 overflow-hidden rounded-md border bg-muted/20'
+        }
+      >
+        {isRelations ? (
+          relations.loading ? (
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center text-sm text-muted-foreground">
+              {t('gallery.graph.relationsLoading')}
+            </div>
+          ) : relations.error ? (
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-w-md text-center text-sm text-destructive">
+              {t('gallery.graph.relationsError')}: {relations.error}
+            </div>
+          ) : size.width > 0 && data.links.length === 0 ? (
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-w-md text-center text-sm text-muted-foreground">
+              {t('gallery.graph.relationsNoEdges')}
+            </div>
+          ) : null
+        ) : isSimilarity ? (
           similarity.loading ? (
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center text-sm text-muted-foreground">
               {t('gallery.graph.similarityLoading')}
@@ -216,7 +321,7 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
             {t('gallery.graph.noEdges')}
           </div>
         ) : null}
-        {size.width > 0 && (isSimilarity || liveFields.length > 0) && (
+        {size.width > 0 && (isRelations || isSimilarity || liveFields.length > 0) && (
           <DocGraphScene
             data={data}
             docs={docs}
@@ -229,6 +334,9 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
             width={size.width}
             height={size.height}
             onOpenDocument={onOpenDocument}
+            showEnablers={isRelations && showEnablers}
+            isFullscreen={isFullscreen}
+            onToggleFullscreen={() => setIsFullscreen((v) => !v)}
           />
         )}
         <DocGraphLegend

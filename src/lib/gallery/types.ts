@@ -40,6 +40,8 @@ export interface DocCardMeta {
   massnahme_nr?: string
   /** Arbeitsgruppe (z.B. "Energie", "Mobilität") */
   arbeitsgruppe?: string
+  /** Quelle des Vorschlags (z.B. "Stakeholder Forum Klima") */
+  vorschlag_quelle?: string
   /** Bewertung der Landesverwaltung (z.B. "in_umsetzung", "nicht_umsetzbar") */
   lv_bewertung?: string
   /** Kategorie für Facettenfilter (z.B. Handlungsfeld bei Klimamaßnahmen) */
@@ -74,6 +76,12 @@ export interface DocCardMeta {
   bewertung_modell?: string
   /** Datum der Bewertung (YYYY-MM-DD). */
   bewertung_stand?: string
+  /**
+   * Prioritäts-Indikator (= co2 * durchsetzbarkeit / kosten, skaliert je Mio €),
+   * deterministisch beim Transform berechnet und PERSISTIERT (docMetaJson).
+   * Einzige Quelle der Wahrheit für Anzeige + Sortierung (keine Laufzeitformel).
+   */
+  prioritaets_index?: number
   /**
    * Roh-Rating (= co2 * durchsetzbarkeit / kosten), vom Server berechnet.
    * `null`/undefined = "Kosten unbekannt" oder zu wenig Daten (kein Silent
@@ -251,6 +259,7 @@ export function mapItemToDocCardMeta(item: Item): DocCardMeta {
     // Klimamaßnahmen-spezifische Felder
     massnahme_nr: item.meta.massnahme_nr as string | undefined,
     arbeitsgruppe: item.meta.arbeitsgruppe as string | undefined,
+    vorschlag_quelle: item.meta.vorschlag_quelle as string | undefined,
     lv_bewertung: item.meta.lv_bewertung as string | undefined,
     // category mit Fallback auf handlungsfeld für ältere Daten in der DB
     category: (item.meta.category || item.meta.handlungsfeld) as string | undefined,
@@ -269,6 +278,7 @@ export function mapItemToDocCardMeta(item: Item): DocCardMeta {
     dominant_perspektive: typeof item.meta.dominant_perspektive === 'string' ? item.meta.dominant_perspektive : undefined,
     bewertung_modell: typeof item.meta.bewertung_modell === 'string' ? item.meta.bewertung_modell : undefined,
     bewertung_stand: typeof item.meta.bewertung_stand === 'string' ? item.meta.bewertung_stand : undefined,
+    prioritaets_index: typeof item.meta.prioritaets_index === 'number' ? item.meta.prioritaets_index : undefined,
     // Session/Event-spezifische Felder
     organisation: item.meta.organisation as string | undefined,
     tags: Array.isArray(item.meta.tags) ? item.meta.tags as string[] : undefined,

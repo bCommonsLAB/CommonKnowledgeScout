@@ -49,8 +49,8 @@ export function LibrarySwitcher({
    */
   const handleLibraryCreated = (libraryId: string) => {
     StateLogger.info('LibrarySwitcher', 'Neue Bibliothek erstellt, navigiere zu Settings', { libraryId })
-    // Navigiere zu den Settings für weitere Konfiguration
-    router.push('/settings')
+    // Navigiere zu den Grundlagen-Settings (meSpace) für weitere Konfiguration
+    router.push('/settings/general')
   }
 
   const handleLibraryChange = (value: string) => {

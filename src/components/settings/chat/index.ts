@@ -4,5 +4,8 @@
  */
 
 export { ChatForm } from './chat-form'
+export { ContentTypeForm } from './content-type-form'
+export { GalleryForm } from './gallery-form'
+export { ChatAdvancedForm } from './chat-advanced-form'
 export { useChatForm, chatFormSchema } from './hooks/use-chat-form'
 export type { ChatFormValues } from './hooks/use-chat-form'

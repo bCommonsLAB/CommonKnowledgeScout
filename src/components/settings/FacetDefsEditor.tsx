@@ -44,6 +44,15 @@ const FIELD_TYPE_MAP: Record<string, FacetDefUi['type']> = {
   year: 'number',
   pages: 'number',
   massnahme_nr: 'number',
+  // KI-Einschätzung (read-only): kontinuierliche Zahlen
+  co2_einsparung_kt: 'number',
+  durchsetzbarkeit: 'number',
+  kosten_eur: 'number',
+  score_wirkung: 'number',
+  score_soziales: 'number',
+  score_struktur: 'number',
+  score_bewusstsein: 'number',
+  bewertung_stand: 'date',
   gueltigAb: 'date',
   istVeraltet: 'boolean',
   isScan: 'boolean',
@@ -85,8 +94,20 @@ const FIELD_LABEL_MAP: Record<string, string> = {
   waehrung: 'Währung',
   preistyp: 'Preistyp',
   arbeitsgruppe: 'Arbeitsgruppe',
+  vorschlag_quelle: 'Quelle des Vorschlags',
   lv_bewertung: 'LV-Bewertung',
   lv_zustaendigkeit: 'Zuständigkeit',
+  // KI-Einschätzung (read-only)
+  co2_einsparung_kt: 'CO₂ (kt/Jahr)',
+  durchsetzbarkeit: 'Durchsetzbarkeit',
+  kosten_eur: 'Kosten (EUR)',
+  score_wirkung: 'Wirkung',
+  score_soziales: 'Lebensqualität & Soziales',
+  score_struktur: 'Struktur & Rahmen',
+  score_bewusstsein: 'Unterstützung & Bewusstsein',
+  dominant_perspektive: 'Dominante Perspektive',
+  bewertung_modell: 'KI-Modell',
+  bewertung_stand: 'KI-Stand',
   author_name: 'Author',
   author_role: 'Role',
   // DIVA-Texture (Stufe 3/4)
@@ -118,10 +139,23 @@ const FIELD_LABEL_MAP: Record<string, string> = {
 }
 
 /**
+ * Felder, die per Default NUR als Tabellenspalte (zum Kontrollieren) erscheinen,
+ * NICHT als Filter-Facette links — kontinuierliche KI-Zahlen ergeben als
+ * kategoriale Checkbox-Facette keinen Sinn (Range-Slider gibt es noch nicht).
+ */
+const TABLE_ONLY_FIELDS = new Set([
+  'co2_einsparung_kt', 'durchsetzbarkeit', 'kosten_eur',
+  'score_wirkung', 'score_soziales', 'score_struktur', 'score_bewusstsein',
+  'bewertung_modell', 'bewertung_stand',
+])
+/** Felder, die per Default als Filter UND als Tabellenspalte erscheinen. */
+const FILTER_AND_TABLE_FIELDS = new Set(['dominant_perspektive', 'vorschlag_quelle'])
+
+/**
  * Generiert Standard-Facetten aus der VIEW_TYPE_REGISTRY.
  * Filtert Felder die als Facette keinen Sinn ergeben (URLs, Freitexte, Objekte).
  */
-function generateDefaultFacets(viewType: string): FacetDefUi[] {
+export function generateDefaultFacets(viewType: string): FacetDefUi[] {
   if (!isValidDetailViewType(viewType)) return []
   const required = getRequiredFields(viewType)
   const optional = getOptionalFields(viewType)
@@ -137,8 +171,9 @@ function generateDefaultFacets(viewType: string): FacetDefUi[] {
       max: undefined,
       columns: 1,
       multi: (FIELD_TYPE_MAP[key] === 'string[]'),
-      visible: true,
-      showInTable: false,
+      // KI-Zahlen: nur Tabellenspalte (kein Filter). dominant_perspektive: beides.
+      visible: !TABLE_ONLY_FIELDS.has(key),
+      showInTable: TABLE_ONLY_FIELDS.has(key) || FILTER_AND_TABLE_FIELDS.has(key),
     }))
 }
 

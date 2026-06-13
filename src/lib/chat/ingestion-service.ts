@@ -5,7 +5,7 @@ import { embedDocumentWithSecretary } from '@/lib/chat/rag-embeddings'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { getTopLevelValue, validateAndSanitizeFrontmatter } from '@/lib/chat/dynamic-facets'
-import { upsertVectors, upsertVectorMeta, deleteVectorsByFileId, ensureFacetIndexes } from '@/lib/repositories/vector-repo'
+import { upsertVectors, upsertVectorMeta, deleteVectorsByFileId, ensureFacetIndexes, getMetaByFileId } from '@/lib/repositories/vector-repo'
 import { getRetrieverContext } from '@/lib/chat/retriever-context'
 import type { DocMeta, ChapterMetaEntry } from '@/types/doc-meta'
 import type { StorageProvider } from '@/lib/storage/types'
@@ -1377,6 +1377,62 @@ export class IngestionService {
         },
       })
       
+      // Cover-Bild bewahren: upsertVectorMeta ersetzt docMetaJson per $set komplett.
+      // Liefert die (neue) Transformation kein coverImageUrl — etwa weil
+      // generateCoverImage=false ist oder das neue Template kein Cover-Feld im
+      // Frontmatter mitbringt — wuerde ein bereits vorhandenes Cover sonst aus dem
+      // bestehenden Mongo-Dokument geloescht. Darum hier das Cover des aktuell
+      // gespeicherten Dokuments (gleiche fileId) als expliziten Carry-Forward
+      // uebernehmen. Wird ein neues Cover generiert, ist coverImageUrl bereits
+      // gesetzt und dieser Block greift nicht.
+      // Diagnose-Felder: landen im Job-Trace (sichtbar im Job-Dokument als
+      // 'cover_preserve'-Event) UND in der lokalen Dev-Konsole (FileLogger).
+      const coverPreserveDiag: Record<string, unknown> = {
+        fileId,
+        isSessionMode,
+        newCoverPresent:
+          typeof docMetaJsonObj.coverImageUrl === 'string' &&
+          (docMetaJsonObj.coverImageUrl as string).trim().length > 0,
+        existingDocFound: false,
+        existingHadCover: false,
+        preserved: false,
+        preservedThumbnail: false,
+      }
+      if (!isSessionMode && !coverPreserveDiag.newCoverPresent) {
+        try {
+          const existingMetaDoc = await getMetaByFileId(libraryKey, fileId)
+          coverPreserveDiag.existingDocFound = !!existingMetaDoc
+          const existingDocMeta = existingMetaDoc?.docMetaJson as Record<string, unknown> | undefined
+          const prevCover = existingDocMeta?.coverImageUrl
+          coverPreserveDiag.existingHadCover = typeof prevCover === 'string' && prevCover.trim().length > 0
+          coverPreserveDiag.existingCoverPreview = typeof prevCover === 'string' ? prevCover.slice(0, 120) : null
+          if (typeof prevCover === 'string' && prevCover.trim().length > 0) {
+            docMetaJsonObj.coverImageUrl = prevCover
+            coverPreserveDiag.preserved = true
+            const prevThumb = existingDocMeta?.coverThumbnailUrl
+            if (typeof prevThumb === 'string' && prevThumb.trim().length > 0) {
+              docMetaJsonObj.coverThumbnailUrl = prevThumb
+              coverPreserveDiag.preservedThumbnail = true
+            }
+          }
+        } catch (error) {
+          coverPreserveDiag.error = error instanceof Error ? error.message : String(error)
+        }
+      } else {
+        coverPreserveDiag.skippedReason = isSessionMode ? 'session_mode' : 'new_cover_present'
+      }
+      FileLogger.info('ingestion', 'Cover-Bewahrung (Mongo)', coverPreserveDiag)
+      if (jobId) {
+        try {
+          await repo.traceAddEvent(jobId, {
+            spanId: 'ingest',
+            name: 'cover_preserve',
+            level: coverPreserveDiag.error ? 'warn' : 'info',
+            attributes: coverPreserveDiag,
+          })
+        } catch { /* Trace-Fehler nicht eskalieren */ }
+      }
+
       // Meta-Dokument erstellen und speichern (ersetzt doc_meta Collection)
       const metaDoc = buildMetaDocument(
         mongoDoc,

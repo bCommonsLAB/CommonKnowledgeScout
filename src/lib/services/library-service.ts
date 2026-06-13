@@ -36,6 +36,70 @@ export interface UserLibraries {
 }
 
 /**
+ * Erkennt Maskierungs-Sentinels, die toClientLibraries()/maskApiKey()
+ * an den Client liefern ('********', '••••…', 'abc….................xyz').
+ * Exportiert fuer Char-Tests (D5-Fix, 2026-06-12).
+ */
+export function isMaskedSecret(value: unknown): boolean {
+  if (typeof value !== 'string' || value === '') return false;
+  return (
+    value === '********' ||
+    value.includes('••••') ||
+    value.includes('....................')
+  );
+}
+
+/**
+ * D5-Fix: Beim Speichern duerfen maskierte Secrets den Bestand nicht
+ * ueberschreiben. Clients senden die Maske unveraendert zurueck, wenn
+ * der User das Feld nicht angefasst hat — hier wird sie durch den
+ * gespeicherten Wert ersetzt (bzw. entfernt, wenn kein Bestand existiert).
+ */
+export function preserveMaskedSecrets(incoming: Library, existing: Library | undefined): Library {
+  const result = { ...incoming, config: { ...(incoming.config ?? {}) } } as Library;
+  const cfg = result.config as Record<string, unknown>;
+  const prev = (existing?.config ?? {}) as Record<string, unknown>;
+
+  const restore = (
+    obj: Record<string, unknown>,
+    prevObj: Record<string, unknown> | undefined,
+    key: string
+  ) => {
+    if (!isMaskedSecret(obj[key])) return;
+    const prevVal = prevObj?.[key];
+    if (typeof prevVal === 'string' && prevVal !== '') {
+      obj[key] = prevVal;
+    } else {
+      delete obj[key];
+    }
+  };
+
+  // Top-Level-Secret (OneDrive/GDrive)
+  restore(cfg, prev, 'clientSecret');
+
+  // Verschachtelte Secret-Traeger (Kopie, damit das Original unberuehrt bleibt)
+  const nestedSecretPaths: Array<[string, string]> = [
+    ['nextcloud', 'appPassword'],
+    ['secretaryService', 'apiKey'],
+    ['ingestionStorage', 'connectionString'],
+    ['publicPublishing', 'apiKey'],
+  ];
+  for (const [parent, key] of nestedSecretPaths) {
+    const child = cfg[parent];
+    if (child && typeof child === 'object') {
+      cfg[parent] = { ...(child as Record<string, unknown>) };
+      restore(
+        cfg[parent] as Record<string, unknown>,
+        prev[parent] as Record<string, unknown> | undefined,
+        key
+      );
+    }
+  }
+
+  return result;
+}
+
+/**
  * Service zur Verwaltung der Bibliotheken in MongoDB
  */
 export class LibraryService {
@@ -258,24 +322,23 @@ export class LibraryService {
   async updateLibrary(email: string, updatedLibrary: Library): Promise<boolean> {
     try {
       console.log('[LibraryService] === UPDATE LIBRARY START ===');
+      // D5-Fix: Secret-Werte gehoeren nicht ins Log (vorher stand hier
+      // clientSecretValue im Klartext).
       console.log('[LibraryService] Aktualisiere Library:', updatedLibrary.id);
-      console.log('[LibraryService] Config vor Update:', {
-        hasClientSecret: !!updatedLibrary.config?.clientSecret,
-        clientSecretValue: updatedLibrary.config?.clientSecret,
-        configKeys: updatedLibrary.config ? Object.keys(updatedLibrary.config) : [],
-        hasPublicPublishing: !!updatedLibrary.config?.publicPublishing,
-        publicPublishing: updatedLibrary.config?.publicPublishing
-      });
-      
+
       const libraries = await this.getUserLibraries(email);
       const index = libraries.findIndex(lib => lib.id === updatedLibrary.id);
-      
+
+      // D5-Fix: Maskierte Secrets durch Bestandswerte ersetzen
+      const existing = index === -1 ? undefined : libraries[index];
+      const sanitizedLibrary = preserveMaskedSecrets(updatedLibrary, existing);
+
       if (index === -1) {
         // Wenn die Bibliothek nicht existiert, hinzufügen
-        libraries.push(updatedLibrary);
+        libraries.push(sanitizedLibrary);
       } else {
         // Sonst aktualisieren
-        libraries[index] = updatedLibrary;
+        libraries[index] = sanitizedLibrary;
       }
       
       console.log('[LibraryService] Rufe updateUserLibraries auf...');
@@ -406,8 +469,25 @@ export class LibraryService {
       // Basis-Konfiguration für alle Bibliothekstypen (nur sichere Felder)
       const baseConfig = {
         transcription: lib.transcription,
-        secretaryService: lib.config?.secretaryService,
-        ingestionStorage: lib.config?.ingestionStorage,
+        // D5-Fix: apiKey maskiert an den Client — beim Speichern stellt
+        // preserveMaskedSecrets() den Bestandswert wieder her.
+        secretaryService: lib.config?.secretaryService
+          ? {
+              ...lib.config.secretaryService,
+              apiKey: lib.config.secretaryService.apiKey
+                ? this.maskApiKey(lib.config.secretaryService.apiKey)
+                : undefined,
+            }
+          : undefined,
+        // D5-Fix: Azure-ConnectionString ist ein Voll-Secret → nur Maske.
+        ingestionStorage: lib.config?.ingestionStorage
+          ? {
+              ...lib.config.ingestionStorage,
+              connectionString: lib.config.ingestionStorage.connectionString
+                ? '********'
+                : undefined,
+            }
+          : undefined,
         // Shadow-Twin-Modus ist kein Secret und muss für UI/Flows sichtbar sein
         shadowTwin: lib.config?.shadowTwin,
         // Chat-/Galerie-Settings sind sicher und werden an den Client geliefert

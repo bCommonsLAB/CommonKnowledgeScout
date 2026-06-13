@@ -90,8 +90,8 @@ export interface ExternalJobShadowTwinState {
 export interface ExternalJob {
   jobId: string;
   jobSecretHash: string; // sha256 of secret
-  job_type: 'pdf' | 'audio' | 'video' | 'image' | 'text' | string;
-  operation: 'extract' | 'transcribe' | 'transform' | 'summarize' | string;
+  job_type: 'pdf' | 'audio' | 'video' | 'image' | 'text' | 'translation' | 'doc-relations' | string;
+  operation: 'extract' | 'transcribe' | 'transform' | 'summarize' | 'translate' | 'recompute' | string;
   worker: 'secretary' | string;
   status: ExternalJobStatus;
   /**

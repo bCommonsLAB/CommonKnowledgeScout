@@ -193,6 +193,7 @@ export function convertMongoDocToDocCardMeta(
     massnahme_nr: (docMeta?.massnahme_nr as string | undefined),
     lv_bewertung: (docMeta?.lv_bewertung as string | undefined),
     arbeitsgruppe: (docMeta?.arbeitsgruppe as string | undefined),
+    vorschlag_quelle: (docMeta?.vorschlag_quelle as string | undefined),
     // Klimamaßnahmen-Bewertung (Zahlen + Begründungen aus docMetaJson)
     co2_einsparung_kt: typeof docMeta?.co2_einsparung_kt === 'number' ? docMeta.co2_einsparung_kt : undefined,
     co2_einsparung_kt_begruendung: typeof docMeta?.co2_einsparung_kt_begruendung === 'string' ? docMeta.co2_einsparung_kt_begruendung : undefined,
@@ -208,6 +209,8 @@ export function convertMongoDocToDocCardMeta(
     dominant_perspektive: typeof docMeta?.dominant_perspektive === 'string' ? docMeta.dominant_perspektive : undefined,
     bewertung_modell: typeof docMeta?.bewertung_modell === 'string' ? docMeta.bewertung_modell : undefined,
     bewertung_stand: typeof docMeta?.bewertung_stand === 'string' ? docMeta.bewertung_stand : undefined,
+    // Persistierter Prioritäts-Indikator (beim Transform berechnet) – einzige Quelle.
+    prioritaets_index: typeof docMeta?.prioritaets_index === 'number' ? docMeta.prioritaets_index : undefined,
     // Roh-Rating aus dem $addFields-Stage (null = "Kosten unbekannt")
     rating: typeof doc.rating === 'number' ? doc.rating : (doc.rating === null ? null : undefined),
     // Session/Event-spezifische Felder

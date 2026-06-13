@@ -14,3 +14,4 @@
  */
 
 export { LibraryForm } from "./library-form";
+export { LibraryAdvancedForm } from "./library-advanced-form";

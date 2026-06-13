@@ -25,6 +25,9 @@ const ScrollArea = React.forwardRef<
       {children}
     </ScrollAreaPrimitive.Viewport>
     <ScrollBar />
+    {/* Horizontale Bildlaufleiste: Radix blendet sie automatisch aus, wenn es
+        keinen horizontalen Ueberlauf gibt -> fuer rein vertikale Inhalte unsichtbar. */}
+    <ScrollBar orientation="horizontal" />
     <ScrollAreaPrimitive.Corner />
   </ScrollAreaPrimitive.Root>
 ))

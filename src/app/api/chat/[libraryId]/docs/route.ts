@@ -14,9 +14,8 @@ import type { Document } from 'mongodb'
  *
  * - `sort=stars` -> `{ favoriteCount: -1, year: -1, upsertedAt: -1 }`
  *   (favoriteCount kommt durch den $lookup in vector-repo)
- * - `sort=rating` -> `{ rating: -1, year: -1, upsertedAt: -1 }`
- *   (rating kommt durch den $addFields-Stage in vector-repo; `null` =
- *   "Kosten unbekannt" sortiert dabei ans Ende)
+ * - `sort=rating` -> `{ 'docMetaJson.prioritaets_index': -1, year: -1, upsertedAt: -1 }`
+ *   (persistierter Prioritäts-Indikator; fehlend/null sortiert in MongoDB-desc ans Ende)
  * - alles andere / fehlend -> Default `{ year: -1, upsertedAt: -1 }`
  *
  * Member-only: nur Owner und Co-Creators duerfen `sort=stars` nutzen.
@@ -30,7 +29,7 @@ function buildGallerySort(rawSort: string | null, isMember: boolean): GallerySor
     return { favoriteCount: -1, year: -1, upsertedAt: -1 }
   }
   if (rawSort === 'rating') {
-    return { rating: -1, year: -1, upsertedAt: -1 }
+    return { 'docMetaJson.prioritaets_index': -1, year: -1, upsertedAt: -1 }
   }
   return { year: -1, upsertedAt: -1 }
 }
@@ -138,6 +137,20 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
         if (def.type === 'string' || def.type === 'string[]') {
           searchFields.push({ [def.metaKey]: searchRegex })
           searchFields.push({ [`docMetaJson.${def.metaKey}`]: searchRegex })
+        } else if (def.type === 'number' || def.type === 'integer-range') {
+          // Zahl-Facetten (z. B. massnahme_nr) durchsuchbar machen — egal ob als
+          // Zahl oder String gespeichert: Wert per $toString in Text wandeln und
+          // gegen die (Teilstring-)Suche matchen. Sonst findet die Freitextsuche
+          // z. B. eine Maßnahmennummer nie (Regex greift nicht auf Number-Feldern).
+          searchFields.push({
+            $expr: {
+              $regexMatch: {
+                input: { $toString: { $ifNull: [`$docMetaJson.${def.metaKey}`, ''] } },
+                regex: search,
+                options: 'i',
+              },
+            },
+          })
         }
       }
       

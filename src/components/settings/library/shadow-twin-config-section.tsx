@@ -4,9 +4,11 @@
  * @fileoverview Shadow-Twin-Konfigurationsbereich für die Library-Einstellungen.
  *
  * @description
- * Extrahiert aus library-form.tsx (Welle 3-IV-a Modul-Split).
- * Zeigt Shadow-Twin-Flags (Primary Store, Persist to Filesystem, Filesystem Fallback),
- * die Analyse-Funktion sowie die Media-Storage-Strategie-Vorschau.
+ * Seit dem Alt-Logik-Cleanup (2026-06-12, v2-only Runtime) stark gekuerzt:
+ * Modus-Anzeige und Primary-Store-Auswahl sind entfernt — es gilt immer
+ * v2 mit Cache als primaerem Speicher. Sichtbar bleiben die optionalen
+ * Dateisystem-Flags, Strategie-Vorschau, Analyse und Export; Bestands-
+ * Libraries mit legacy-Flag erhalten einen Upgrade-Banner.
  *
  * Hinweis: library.type-Branches in Settings sind gemäß storage-abstraction.mdc
  * und welle-3-iv-settings-contracts.mdc §4 explizit erlaubt.
@@ -14,19 +16,12 @@
 
 import { Button } from "@/components/ui/button"
 import {
-  FormControl,
   FormDescription,
   FormLabel,
 } from "@/components/ui/form"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "@/components/ui/use-toast"
+import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog"
 import { Search } from "lucide-react"
 import { useState } from "react"
 import { type Library, type ClientLibrary } from "@/types/library"
@@ -37,10 +32,6 @@ interface ShadowTwinConfigSectionProps {
   activeLibraryId: string | null | undefined;
     // ClientLibrary statt Library: library-form.tsx uebergibt ClientLibrary (kein 'transcription'-Feld).
   activeLibrary: ClientLibrary | undefined;
-  shadowTwinMode: "legacy" | "v2";
-  setShadowTwinMode: (mode: "legacy" | "v2") => void;
-  shadowTwinPrimaryStore: "filesystem" | "mongo";
-  setShadowTwinPrimaryStore: (v: "filesystem" | "mongo") => void;
   shadowTwinPersistToFilesystem: boolean;
   setShadowTwinPersistToFilesystem: (v: boolean) => void;
   shadowTwinAllowFilesystemFallback: boolean;
@@ -59,11 +50,7 @@ interface ShadowTwinConfigSectionProps {
  */
 export function ShadowTwinConfigSection({
   activeLibraryId,
-  activeLibrary: _activeLibrary,
-  shadowTwinMode,
-  setShadowTwinMode,
-  shadowTwinPrimaryStore,
-  setShadowTwinPrimaryStore,
+  activeLibrary,
   shadowTwinPersistToFilesystem,
   setShadowTwinPersistToFilesystem,
   shadowTwinAllowFilesystemFallback,
@@ -76,8 +63,15 @@ export function ShadowTwinConfigSection({
   runAnalysis,
 }: ShadowTwinConfigSectionProps) {
   const [isUpgradingShadowTwinMode, setIsUpgradingShadowTwinMode] = useState(false);
+  const [justUpgraded, setJustUpgraded] = useState(false);
 
-  /** Upgrade-Handler: Shadow-Twin-Modus von legacy auf v2 umstellen */
+  // Alt-Bestand erkennen: Die Runtime ist v2-only — der Banner erscheint
+  // NUR noch, solange eine Bestands-Library das alte legacy-Flag traegt
+  // (User-Entscheid 2026-06-12: Alt-Logik entfernen, 04/C1).
+  const configMode = (activeLibrary?.config?.shadowTwin as { mode?: unknown } | undefined)?.mode;
+  const isLegacy = !justUpgraded && configMode !== "v2";
+
+  /** Upgrade-Handler: Bestands-Library auf v2 heben (setzt nur das Flag) */
   const handleUpgradeToV2 = async () => {
     if (!activeLibraryId) return;
 
@@ -98,7 +92,7 @@ export function ShadowTwinConfigSection({
       }
 
       await response.json();
-      setShadowTwinMode("v2");
+      setJustUpgraded(true);
 
       toast({
         title: "Shadow-Twin-Modus aktualisiert",
@@ -117,12 +111,12 @@ export function ShadowTwinConfigSection({
     }
   };
 
-  /** Leitet die Strategie clientseitig aus den Flags + azureConfigured ab */
+  /** Leitet die Strategie clientseitig aus den Flags + azureConfigured ab (v2: Cache ist primär) */
   const computeStrategy = () => {
     const previewLib = {
       config: {
         shadowTwin: {
-          primaryStore: shadowTwinPrimaryStore,
+          primaryStore: "mongo",
           persistToFilesystem: shadowTwinPersistToFilesystem,
           allowFilesystemFallback: shadowTwinAllowFilesystemFallback,
         },
@@ -146,74 +140,37 @@ export function ShadowTwinConfigSection({
 
   return (
     <div className="space-y-4 rounded-lg border p-4">
-      {/* Shadow-Twin-Modus */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="text-sm font-medium">Shadow-Twin-Modus</h4>
-            <p className="text-sm text-muted-foreground">
-              Aktueller Modus: <span className="font-mono">{shadowTwinMode}</span>
-            </p>
-          </div>
-        </div>
-        {shadowTwinMode === "legacy" && (
-          <div className="mt-4">
-            <p className="text-sm text-muted-foreground">
-              Dieser Modus ist in der Anwendung nicht mehr unterstützt (v2-only Runtime).
-              Bitte stelle die Library auf{" "}
-              <span className="font-mono">v2</span> um, damit normale Verarbeitung/Erstellung wieder
-              möglich ist.
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => void handleUpgradeToV2()}
-              disabled={isUpgradingShadowTwinMode}
-            >
-              {isUpgradingShadowTwinMode ? "Stelle um..." : "Auf v2 umstellen"}
-            </Button>
-            <p className="text-xs text-muted-foreground mt-2">
-              Setzt nur das Konfigurations-Flag. Eine Migration/Repair bestehender Artefakte erfolgt
-              bewusst später.
-            </p>
-          </div>
-        )}
-        {shadowTwinMode === "v2" && (
-          <p className="text-xs text-muted-foreground">
-            Diese Bibliothek verwendet bereits den v2-Modus.
+      {/* Alt-Bestand: Hinweis nur fuer Libraries mit altem legacy-Flag */}
+      {isLegacy && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 space-y-2">
+          <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+            Diese Bibliothek nutzt noch das alte Format (legacy)
           </p>
-        )}
-      </div>
-
-      {/* Primärer Speicher + Flags */}
-      <div className="border-t pt-4 space-y-3">
-        <div>
-          <h4 className="text-sm font-medium">Primärer Speicher</h4>
-          <p className="text-xs text-muted-foreground">
-            Diese Flags steuern den primären Store und optionale Filesystem‑Writes.
+          <p className="text-xs text-amber-800 dark:text-amber-200">
+            Verarbeitung und Erstellung funktionieren erst nach der Umstellung
+            auf v2. Es wird nur das Konfigurations-Flag gesetzt — bestehende
+            Artefakte bleiben unverändert.
           </p>
-        </div>
-        <div className="space-y-2">
-          <FormLabel>Primary Store</FormLabel>
-          <Select
-            value={shadowTwinPrimaryStore}
-            onValueChange={(value) =>
-              setShadowTwinPrimaryStore(value as "filesystem" | "mongo")
-            }
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void handleUpgradeToV2()}
+            disabled={isUpgradingShadowTwinMode}
           >
-            <FormControl>
-              <SelectTrigger>
-                <SelectValue placeholder="Store auswählen" />
-              </SelectTrigger>
-            </FormControl>
-            <SelectContent>
-              <SelectItem value="filesystem">Dateisystem (Legacy)</SelectItem>
-              <SelectItem value="mongo">Cache (empfohlen)</SelectItem>
-            </SelectContent>
-          </Select>
-          <FormDescription>
-            Legt fest, ob Artefakte primär aus dem Dateisystem oder aus dem Cache gelesen werden.
-          </FormDescription>
+            {isUpgradingShadowTwinMode ? "Stelle um..." : "Auf v2 umstellen"}
+          </Button>
+        </div>
+      )}
+
+      {/* Dateisystem-Optionen (Artefakte liegen im Cache; Dateisystem optional) */}
+      <div className="space-y-3">
+        <div>
+          <h4 className="text-sm font-medium">Dateisystem-Optionen</h4>
+          <p className="text-xs text-muted-foreground">
+            Artefakte liegen im Cache. Optional können sie zusätzlich ins
+            Dateisystem geschrieben bzw. von dort gelesen werden.
+          </p>
         </div>
         <div className="flex items-center justify-between rounded border p-3">
           <div>
@@ -392,15 +349,22 @@ export function ShadowTwinConfigSection({
               oder für die Einrichtung auf einem neuen System.
             </p>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!activeLibraryId || isSyncRunning}
-            onClick={() => void runDirectionalSync("to-storage")}
-          >
-            <Search className={`h-4 w-4 mr-2 ${isSyncRunning ? "animate-spin" : ""}`} />
-            {isSyncRunning ? "Exportiert…" : "Exportieren"}
-          </Button>
+          <ConfirmActionDialog
+            title="Alle Artefakte ins Dateisystem exportieren?"
+            description="Schreibt alle Artefakte und Bilder aus dem Cache ins Dateisystem. Vorhandene Artefakt-Dateien werden dabei überschrieben."
+            confirmLabel="Exportieren"
+            onConfirm={() => void runDirectionalSync("to-storage")}
+            trigger={
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!activeLibraryId || isSyncRunning}
+              >
+                <Search className={`h-4 w-4 mr-2 ${isSyncRunning ? "animate-spin" : ""}`} />
+                {isSyncRunning ? "Exportiert…" : "Exportieren"}
+              </Button>
+            }
+          />
         </div>
       </div>
     </div>

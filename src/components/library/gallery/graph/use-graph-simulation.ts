@@ -52,7 +52,7 @@ export function useGraphSimulation(params: UseGraphSimulationParams): UseGraphSi
       .force('link', forceLink<GraphNode, GraphLink>(links).id((d) => d.id).distance(90).strength(0.4))
       .force('charge', forceManyBody().strength(-180))
       .force('center', forceCenter(width / 2, height / 2))
-      .force('collide', forceCollide<GraphNode>().radius((d) => radiusOf(d) + 4))
+      .force('collide', forceCollide<GraphNode>().radius((d) => radiusOf(d) + 4).iterations(2))
       .on('tick', () => setVersion((v) => (v + 1) % 1_000_000))
     simRef.current = sim
     return () => { sim.stop() }
@@ -63,18 +63,44 @@ export function useGraphSimulation(params: UseGraphSimulationParams): UseGraphSi
     if (!svgRef.current) return
     const svgSel = select<SVGSVGElement, unknown>(svgRef.current)
     const z = zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.2, 4])
+      .scaleExtent([0.02, 4])
       .on('zoom', (e) => setTransform({ x: e.transform.x, y: e.transform.y, k: e.transform.k }))
     zoomRef.current = z
     svgSel.call(z)
     return () => { svgSel.on('.zoom', null) }
   }, [])
 
+  // „Ansicht zurücksetzen" = Zoom-to-fit: alle Knoten (inkl. Radius) in den
+  // sichtbaren Bereich einpassen, statt nur auf Maßstab 1 zu setzen. So bleiben
+  // auch weit auseinander gedriftete Cluster vollständig sichtbar.
   const resetZoom = useCallback(() => {
-    if (svgRef.current && zoomRef.current) {
-      select<SVGSVGElement, unknown>(svgRef.current).call(zoomRef.current.transform, zoomIdentity)
+    const svg = svgRef.current
+    const z = zoomRef.current
+    if (!svg || !z) return
+    if (!nodes.length) {
+      select<SVGSVGElement, unknown>(svg).call(z.transform, zoomIdentity)
+      return
     }
-  }, [])
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+    for (const n of nodes) {
+      const r = radiusOf(n)
+      const x = n.x ?? 0, y = n.y ?? 0
+      if (x - r < minX) minX = x - r
+      if (y - r < minY) minY = y - r
+      if (x + r > maxX) maxX = x + r
+      if (y + r > maxY) maxY = y + r
+    }
+    const w = maxX - minX, h = maxY - minY
+    if (!(w > 0) || !(h > 0)) {
+      select<SVGSVGElement, unknown>(svg).call(z.transform, zoomIdentity)
+      return
+    }
+    const pad = 48
+    const k = Math.max(0.02, Math.min(4, Math.min((width - pad * 2) / w, (height - pad * 2) / h)))
+    const tx = width / 2 - k * (minX + maxX) / 2
+    const ty = height / 2 - k * (minY + maxY) / 2
+    select<SVGSVGElement, unknown>(svg).call(z.transform, zoomIdentity.translate(tx, ty).scale(k))
+  }, [nodes, radiusOf, width, height])
 
   // Drag eines Knotens: Pointer-Koordinaten → Simulationskoordinaten.
   const onNodePointerDown = useCallback((node: GraphNode, event: React.PointerEvent) => {

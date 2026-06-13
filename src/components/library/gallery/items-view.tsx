@@ -34,6 +34,8 @@ export interface ItemsViewProps {
   expectedTargetLocales?: string[]
   /** Doc-Translations Refactor: Reload-Callback nach Publish/Unpublish/Re-translate */
   onPublishChanged?: () => void
+  /** Quelle A: Per-Zeile-Trigger „Beziehungen berechnen" zeigen (Graph aktiv). */
+  relationsEnabled?: boolean
   /**
    * Server sortiert bereits global nach Sternen, wenn `sortByStars` aktiv
    * ist (?sort=stars). Client-Sort entfaellt dann.
@@ -69,6 +71,7 @@ export function ItemsView({
   cardDensity = 'comfortable',
   expectedTargetLocales,
   onPublishChanged,
+  relationsEnabled,
   sortByStars,
   onToggleFavorite,
   autoApplyConfidenceThreshold,
@@ -90,6 +93,7 @@ export function ItemsView({
       cardDensity={cardDensity}
       expectedTargetLocales={expectedTargetLocales}
       onPublishChanged={onPublishChanged}
+      relationsEnabled={relationsEnabled}
       sortByStars={sortByStars}
       onToggleFavorite={onToggleFavorite}
       autoApplyConfidenceThreshold={autoApplyConfidenceThreshold}

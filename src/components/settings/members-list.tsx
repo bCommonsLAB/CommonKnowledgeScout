@@ -14,6 +14,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog"
 import {
   Table,
   TableBody,
@@ -59,6 +60,8 @@ export function MembersList({ libraryId }: MembersListProps) {
     setNewMemberEmail,
     newMemberRole,
     setNewMemberRole,
+    inviteMessage,
+    setInviteMessage,
     dialogError,
     isAddingMember,
     handleInviteMember,
@@ -92,14 +95,15 @@ export function MembersList({ libraryId }: MembersListProps) {
           <DialogTrigger asChild>
             <Button>
               <Mail className="h-4 w-4 mr-2" />
-              Mitglied einladen
+              Person einladen
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Mitglied einladen</DialogTitle>
+              <DialogTitle>Person einladen</DialogTitle>
               <DialogDescription>
                 Die eingeladene Person erhaelt eine E-Mail mit einem Bestaetigungslink.
+                Die Rolle bestimmt, was sie in Ihrer Bibliothek darf.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
@@ -118,13 +122,23 @@ export function MembersList({ libraryId }: MembersListProps) {
                 <Label htmlFor="member-role">Rolle *</Label>
                 <Select
                   value={newMemberRole}
-                  onValueChange={(val) => setNewMemberRole(val as LibraryRole)}
+                  onValueChange={(val) => setNewMemberRole(val as LibraryRole | 'reader')}
                   disabled={isAddingMember}
                 >
                   <SelectTrigger id="member-role">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    {/* Vereinter Einladungs-Flow (UX-4): Leser zuerst — der
+                        haeufigste Fall; laeuft ueber die invites-API. */}
+                    <SelectItem value="reader">
+                      <div className="flex flex-col">
+                        <span className="font-medium">Leser</span>
+                        <span className="text-xs text-muted-foreground">
+                          Nur lesen — sieht Galerie, Story und Inhalte
+                        </span>
+                      </div>
+                    </SelectItem>
                     <SelectItem value="co-creator">
                       <div className="flex flex-col">
                         <span className="font-medium">Co-Creator</span>
@@ -152,6 +166,18 @@ export function MembersList({ libraryId }: MembersListProps) {
                   </SelectContent>
                 </Select>
               </div>
+              {newMemberRole === 'reader' && (
+                <div className="space-y-2">
+                  <Label htmlFor="invite-message">Persönliche Nachricht (optional)</Label>
+                  <Input
+                    id="invite-message"
+                    placeholder="z. B. Schau dir unsere Bibliothek an!"
+                    value={inviteMessage}
+                    onChange={(e) => setInviteMessage(e.target.value)}
+                    disabled={isAddingMember}
+                  />
+                </div>
+              )}
             </div>
             {/* Fehlermeldung direkt im Dialog */}
             {dialogError && (
@@ -266,21 +292,33 @@ export function MembersList({ libraryId }: MembersListProps) {
                         )}
                       </Button>
                     )}
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleRemoveMember(member.userEmail, member.status)}
-                      disabled={removingEmail === member.userEmail}
-                    >
-                      {removingEmail === member.userEmail ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <>
-                          <Trash2 className="h-4 w-4 mr-1" />
-                          {member.status === 'pending' ? 'Zurueckziehen' : 'Entfernen'}
-                        </>
-                      )}
-                    </Button>
+                    <ConfirmActionDialog
+                      title={member.status === 'pending'
+                        ? `Einladung für ${member.userEmail} zurückziehen?`
+                        : `Mitglied ${member.userEmail} entfernen?`}
+                      description={member.status === 'pending'
+                        ? 'Der Einladungslink wird ungültig; Sie können die Person später erneut einladen.'
+                        : 'Die Person verliert sofort den Zugriff auf alle Inhalte dieser Bibliothek. Für erneuten Zugang ist eine neue Einladung nötig.'}
+                      confirmLabel={member.status === 'pending' ? 'Zurückziehen' : 'Entfernen'}
+                      destructive
+                      onConfirm={() => void handleRemoveMember(member.userEmail, member.status)}
+                      trigger={
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          disabled={removingEmail === member.userEmail}
+                        >
+                          {removingEmail === member.userEmail ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              {member.status === 'pending' ? 'Zurueckziehen' : 'Entfernen'}
+                            </>
+                          )}
+                        </Button>
+                      }
+                    />
                   </TableCell>
                 </TableRow>
               ))}

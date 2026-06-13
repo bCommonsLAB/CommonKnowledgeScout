@@ -1067,6 +1067,7 @@ function buildGalleryProjection(
     'docMetaJson.massnahme_nr': 1,
     'docMetaJson.lv_bewertung': 1,
     'docMetaJson.arbeitsgruppe': 1,
+    'docMetaJson.vorschlag_quelle': 1,
     // Klimamaßnahmen-Bewertung (LLM-Schätzung + Begründungen)
     'docMetaJson.co2_einsparung_kt': 1,
     'docMetaJson.co2_einsparung_kt_begruendung': 1,
@@ -1082,6 +1083,7 @@ function buildGalleryProjection(
     'docMetaJson.dominant_perspektive': 1,
     'docMetaJson.bewertung_modell': 1,
     'docMetaJson.bewertung_stand': 1,
+    'docMetaJson.prioritaets_index': 1,
     'docMetaJson.organisation': 1,
     'docMetaJson.topics': 1,
     'docMetaJson.tags': 1,
@@ -1164,47 +1166,6 @@ function sortNeedsFavoriteLookup(sort: GallerySort | undefined): boolean {
 }
 
 /**
- * `$addFields`-Stage, die das Roh-`rating` aus den Bewertungsfeldern
- * berechnet (= co2_einsparung_kt * durchsetzbarkeit / kosten_eur).
- *
- * Keine Silent Fallbacks (siehe `no-silent-fallbacks.mdc`): Sind Impact,
- * Durchsetzbarkeit oder Kosten nicht numerisch — oder sind die Kosten
- * `<= 0` ("Kosten unbekannt") — wird `rating: null` gesetzt. `null`
- * sortiert bei `{ rating: -1 }` ans Ende, statt durch ein Epsilon
- * faelschlich nach oben zu schiessen. Die Util in `@/lib/gallery/rating`
- * spiegelt dieselbe Logik fuer Tests/Client.
- */
-function buildRatingAddFieldsStage(): Document {
-  return {
-    $addFields: {
-      rating: {
-        $let: {
-          vars: {
-            impact: '$docMetaJson.co2_einsparung_kt',
-            feas: '$docMetaJson.durchsetzbarkeit',
-            cost: '$docMetaJson.kosten_eur',
-          },
-          in: {
-            $cond: [
-              {
-                $and: [
-                  { $isNumber: '$$impact' },
-                  { $isNumber: '$$feas' },
-                  { $isNumber: '$$cost' },
-                  { $gt: ['$$cost', 0] },
-                ],
-              },
-              { $divide: [{ $multiply: ['$$impact', '$$feas'] }, '$$cost'] },
-              null,
-            ],
-          },
-        },
-      },
-    },
-  }
-}
-
-/**
  * Findet Meta-Dokumente (für Gallery-Anzeige).
  *
  * Liefert Sterne-Aggregation (`favoriteCount`, `favoriteVoters`,
@@ -1264,7 +1225,6 @@ export async function findDocs(
     favoriteVoters: 1,
     isFavorite: 1,
     commentCount: 1,
-    rating: 1,
   }
 
   const lookupStages = [
@@ -1273,9 +1233,9 @@ export async function findDocs(
   ]
   const lookupBeforeSort = sortNeedsFavoriteLookup(options.sort)
 
-  // Rating wird VOR dem $sort berechnet, damit `sort=rating` global ueber
-  // alle Pages stabil bleibt (analog zum favoriteCount-Lookup).
-  const pipeline: Document[] = [{ $match: query }, buildRatingAddFieldsStage()]
+  // Prioritäts-Indikator ist ein PERSISTIERTES Feld (docMetaJson.prioritaets_index);
+  // `sort=rating` sortiert direkt danach – keine $addFields-Laufzeitberechnung nötig.
+  const pipeline: Document[] = [{ $match: query }]
   if (lookupBeforeSort) pipeline.push(...lookupStages)
   if (options.sort) pipeline.push({ $sort: options.sort })
   if (typeof options.skip === 'number' && options.skip > 0) pipeline.push({ $skip: options.skip })
@@ -1395,7 +1355,6 @@ export async function findDocsGrouped(
     favoriteVoters: 1,
     isFavorite: 1,
     commentCount: 1,
-    rating: 1,
   }
 
   const lookupStages = [
@@ -1444,9 +1403,13 @@ export async function findDocsGrouped(
     // Aggregation pro Gruppe: $match -> [$lookup falls fuer Sort noetig]
     // -> $sort -> $lookup -> $project. Dadurch erhaelt jede Karte
     // direkt die Sterne-Daten und braucht keinen Folge-Round-Trip.
+    // WICHTIG: baseQuery UND groupFilter per $and kombinieren, nicht spreaden.
+    // Beide können einen `$or` enthalten (baseQuery = Freitext-Suche,
+    // groupFilter = Gruppenschlüssel). Beim Spread `{ ...baseQuery, ...groupFilter }`
+    // würde groupFilter.$or den Such-`$or` ÜBERSCHREIBEN -> der Suchfilter ginge
+    // in der Gruppen-Mitgliederliste verloren (Count gefiltert, Liste zeigt alle).
     const groupPipeline: Document[] = [
-      { $match: { ...baseQuery, ...groupFilter } },
-      buildRatingAddFieldsStage(),
+      { $match: { $and: [baseQuery, groupFilter] } },
     ]
     if (lookupBeforeSort) groupPipeline.push(...lookupStages)
     if (sortWithinGroup) groupPipeline.push({ $sort: sortWithinGroup })

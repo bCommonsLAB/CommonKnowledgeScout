@@ -14,6 +14,7 @@ import { useEffect, useState } from "react"
 import { useAtom } from "jotai"
 import { activeLibraryIdAtom } from "@/atoms/library-atom"
 import { MembersList } from "@/components/settings/members-list"
+import { ReadersList } from "@/components/settings/readers-list"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, Loader2 } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
@@ -123,13 +124,19 @@ export default function MembersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium">Mitglieder verwalten</h3>
+        <h3 className="text-lg font-medium">Personen & Rollen</h3>
         <p className="text-sm text-muted-foreground">
-          Verwalten Sie die Mitglieder Ihrer Library. Co-Creators haben vollen Arbeitszugriff (Archiv, Explore, Story, Templates). Moderatoren koennen Zugriffsanfragen verwalten und Einladungen versenden.
+          Alle Personen mit Zugang zu Ihrer Bibliothek — mit einem Einladungs-Flow
+          für alle Rollen: <strong>Leser</strong> sehen nur die Inhalte,{" "}
+          <strong>Moderatoren</strong> verwalten Zugriffsanfragen,{" "}
+          <strong>Co-Creators</strong> arbeiten voll mit (ohne Einstellungen).
         </p>
       </div>
       <Separator />
       <MembersList libraryId={activeLibraryId} />
+      <Separator />
+      {/* UX-4: Leser waren bisher nirgends als Personen sichtbar */}
+      <ReadersList libraryId={activeLibraryId} />
     </div>
   )
 }

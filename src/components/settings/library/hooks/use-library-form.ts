@@ -31,12 +31,12 @@ export const libraryFormSchema = z.object({
   type: z.enum(["local", "onedrive", "gdrive", "nextcloud"], {
     required_error: "Bitte wählen Sie einen Speichertyp.",
   }),
-  description: z.string().optional(),
   isEnabled: z.boolean().default(true),
-  transcription: z.enum(["shadowTwin", "db"], {
-    required_error: "Bitte wählen Sie eine Transkriptionsstrategie.",
-  }),
-  templateDirectory: z.string().default("/templates"),
+  // Inhaltstyp bei der Erstellung (Onboarding "Name + Inhaltstyp = fertig",
+  // Petra-Review Punkt 2). Wird nur bei isNew in config.chat.gallery gesendet.
+  detailViewType: z
+    .enum(["book", "session", "climateAction", "testimonial", "blog", "divaDocument", "divaTexture", "refurbedDevice"])
+    .default("book"),
   // Transformation: DIVA-Liefersystem-Daten auswerten (DIVA-Info-Tab). Default false.
   analyzeDivaTextureInfo: z.boolean().default(false),
   // Schwellwert fuer die Auto-Uebernahme der Stoffgruppen-Klassifikation (Stufe 4).
@@ -92,13 +92,6 @@ function readDivaArchiveDefaults(config: Record<string, unknown> | undefined): {
   return { filterMode, groupByAttribute, extraColumns };
 }
 
-/** Konfigurationstyp für Shadow-Twin-Einstellungen */
-interface ShadowTwinConfig {
-  primaryStore: "filesystem" | "mongo";
-  persistToFilesystem: boolean;
-  allowFilesystemFallback: boolean;
-}
-
 /**
  * Haupt-Hook für das Library-Settings-Formular.
  * Gibt Form-Objekt, Zustand und alle Handler zurück.
@@ -114,18 +107,17 @@ export function useLibraryForm(createNew: boolean) {
   const [libraries, setLibraries] = useAtom(librariesAtom);
   const [activeLibraryId, setActiveLibraryId] = useAtom(activeLibraryIdAtom);
 
-  // Shadow-Twin-Konfiguration States
-  const [shadowTwinMode, setShadowTwinMode] = useState<"legacy" | "v2">("legacy");
-  const [isUpgradingShadowTwinMode, setIsUpgradingShadowTwinMode] = useState(false);
-  const [shadowTwinPrimaryStore, setShadowTwinPrimaryStore] = useState<"filesystem" | "mongo">(
-    "filesystem"
-  );
+  // Shadow-Twin-Flags (v2-only Runtime: mode und primaryStore sind fixiert
+  // — beim Speichern wird immer v2/Cache geschrieben, das UI zeigt nur noch
+  // die optionalen Dateisystem-Flags)
   const [shadowTwinPersistToFilesystem, setShadowTwinPersistToFilesystem] = useState(true);
   const [shadowTwinAllowFilesystemFallback, setShadowTwinAllowFilesystemFallback] =
     useState(true);
   const [azureConfigured, setAzureConfigured] = useState<boolean | null>(null);
-  const shadowTwinConfigRef = useRef<ShadowTwinConfig>({
-    primaryStore: "filesystem",
+  const shadowTwinConfigRef = useRef<{
+    persistToFilesystem: boolean;
+    allowFilesystemFallback: boolean;
+  }>({
     persistToFilesystem: true,
     allowFilesystemFallback: true,
   });
@@ -233,10 +225,8 @@ export function useLibraryForm(createNew: boolean) {
       label: "",
       path: "",
       type: "local",
-      description: "",
       isEnabled: true,
-      transcription: "shadowTwin",
-      templateDirectory: "/templates",
+      detailViewType: "book",
       analyzeDivaTextureInfo: false,
       autoApplyConfidenceThreshold: 0.9,
       divaArchiveFilterMode: 'all' as const,
@@ -257,32 +247,20 @@ export function useLibraryForm(createNew: boolean) {
     defaultValues,
   });
 
-  // Shadow-Twin-Config aus Library ableiten
+  // Shadow-Twin-Flags aus Library ableiten (v2-only: mode/primaryStore fix)
   useEffect(() => {
-    const modeFromLibrary = activeLibrary?.config?.shadowTwin
-      ? (activeLibrary.config.shadowTwin as { mode?: unknown }).mode
-      : undefined;
-    setShadowTwinMode(modeFromLibrary === "v2" ? "v2" : "legacy");
-
     const configShadowTwin = activeLibrary?.config?.shadowTwin as
       | {
-          primaryStore?: "filesystem" | "mongo";
           persistToFilesystem?: boolean;
           allowFilesystemFallback?: boolean;
         }
       | undefined;
 
-    const primaryStore = configShadowTwin?.primaryStore ?? "filesystem";
     const nextSnapshot = {
-      primaryStore,
-      persistToFilesystem:
-        typeof configShadowTwin?.persistToFilesystem === "boolean"
-          ? configShadowTwin.persistToFilesystem
-          : primaryStore === "filesystem",
+      persistToFilesystem: configShadowTwin?.persistToFilesystem ?? true,
       allowFilesystemFallback: configShadowTwin?.allowFilesystemFallback ?? true,
     };
     shadowTwinConfigRef.current = nextSnapshot;
-    setShadowTwinPrimaryStore(primaryStore);
     setShadowTwinPersistToFilesystem(nextSnapshot.persistToFilesystem);
     setShadowTwinAllowFilesystemFallback(nextSnapshot.allowFilesystemFallback);
   }, [activeLibrary?.id, activeLibrary?.config]);
@@ -323,7 +301,6 @@ export function useLibraryForm(createNew: boolean) {
     setIsNew(true);
     setActiveLibraryId("");
     form.reset(defaultValues);
-    setShadowTwinPrimaryStore("filesystem");
     setShadowTwinPersistToFilesystem(true);
     setShadowTwinAllowFilesystemFallback(true);
   }, [form, defaultValues, setActiveLibraryId]);
@@ -343,12 +320,7 @@ export function useLibraryForm(createNew: boolean) {
         label: activeLibrary.label,
         path: activeLibrary.path,
         type: activeLibrary.type,
-        description: (activeLibrary.config?.description as string) ?? "",
         isEnabled: activeLibrary.isEnabled,
-        transcription:
-          (activeLibrary.config?.transcription as "shadowTwin" | "db") ?? "shadowTwin",
-        templateDirectory:
-          (activeLibrary.config?.templateDirectory as string) ?? "/templates",
         analyzeDivaTextureInfo: activeLibrary.config?.analyzeDivaTextureInfo === true,
         autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
           activeLibrary.config?.autoApplyConfidenceThreshold,
@@ -381,12 +353,7 @@ export function useLibraryForm(createNew: boolean) {
         label: activeLibrary.label,
         path: activeLibrary.path,
         type: activeLibrary.type,
-        description: (activeLibrary.config?.description as string) ?? "",
         isEnabled: activeLibrary.isEnabled,
-        transcription:
-          (activeLibrary.config?.transcription as "shadowTwin" | "db") ?? "shadowTwin",
-        templateDirectory:
-          (activeLibrary.config?.templateDirectory as string) ?? "/templates",
         analyzeDivaTextureInfo: activeLibrary.config?.analyzeDivaTextureInfo === true,
         autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
           activeLibrary.config?.autoApplyConfidenceThreshold,
@@ -415,11 +382,10 @@ export function useLibraryForm(createNew: boolean) {
   const isShadowTwinConfigDirty = useMemo(() => {
     const current = shadowTwinConfigRef.current;
     return (
-      shadowTwinPrimaryStore !== current.primaryStore ||
       shadowTwinPersistToFilesystem !== current.persistToFilesystem ||
       shadowTwinAllowFilesystemFallback !== current.allowFilesystemFallback
     );
-  }, [shadowTwinPrimaryStore, shadowTwinPersistToFilesystem, shadowTwinAllowFilesystemFallback]);
+  }, [shadowTwinPersistToFilesystem, shadowTwinAllowFilesystemFallback]);
 
   /** Submit: Bibliothek speichern (neu erstellen oder aktualisieren) */
   const onSubmit = useCallback(
@@ -470,11 +436,13 @@ export function useLibraryForm(createNew: boolean) {
           path: data.path,
           type: data.type as StorageProviderType,
           isEnabled: data.isEnabled,
-          transcription: data.transcription,
           config: {
-            description: data.description,
-            transcription: data.transcription,
-            templateDirectory: data.templateDirectory,
+            // Onboarding: Inhaltstyp gehoert zur Erstellung; bei Updates
+            // verwaltet ihn der Inhaltstyp-Assistent (config.chat bleibt
+            // hier unangetastet, der Server merged config).
+            ...(isNew
+              ? { chat: { gallery: { detailViewType: data.detailViewType ?? "book" } } }
+              : {}),
             analyzeDivaTextureInfo: data.analyzeDivaTextureInfo,
             autoApplyConfidenceThreshold: data.autoApplyConfidenceThreshold,
             divaArchiveDefaults: {
@@ -486,8 +454,10 @@ export function useLibraryForm(createNew: boolean) {
               extraColumns: data.divaArchiveExtraColumns,
             },
             shadowTwin: {
-              mode: shadowTwinMode,
-              primaryStore: shadowTwinPrimaryStore,
+              // v2-only Runtime: Speichern normalisiert Alt-Configs auf
+              // v2/Cache (User-Entscheid 2026-06-12, 04/C1).
+              mode: "v2",
+              primaryStore: "mongo",
               persistToFilesystem: shadowTwinPersistToFilesystem,
               allowFilesystemFallback: shadowTwinAllowFilesystemFallback,
             },
@@ -518,7 +488,7 @@ export function useLibraryForm(createNew: boolean) {
             title: "Bibliothek erstellt",
             description: `Die Bibliothek "${data.label}" wurde erfolgreich erstellt.`,
           });
-          router.push("/settings/storage");
+          router.push("/settings/archive");
         } else {
           const updatedLibraries = libraries.map((lib) =>
             lib.id === libraryData.id
@@ -552,8 +522,6 @@ export function useLibraryForm(createNew: boolean) {
       setLibraries,
       setActiveLibraryId,
       router,
-      shadowTwinMode,
-      shadowTwinPrimaryStore,
       shadowTwinPersistToFilesystem,
       shadowTwinAllowFilesystemFallback,
     ]
@@ -655,10 +623,7 @@ export function useLibraryForm(createNew: boolean) {
           label: importedLibrary.label as string,
           path: importedLibrary.path as string,
           type: importedLibrary.type as "local" | "onedrive" | "gdrive" | "nextcloud",
-          description: ((importedLibrary as { config?: Record<string, unknown> }).config?.description as string) ?? "",
           isEnabled: importedLibrary.isEnabled as boolean,
-          transcription: (importedLibrary.transcription as "shadowTwin" | "db") ?? "shadowTwin",
-          templateDirectory: ((importedLibrary as { config?: Record<string, unknown> }).config?.templateDirectory as string) ?? "/templates",
           analyzeDivaTextureInfo: ((importedLibrary as { config?: Record<string, unknown> }).config?.analyzeDivaTextureInfo as boolean) === true,
           autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
             (importedLibrary as { config?: Record<string, unknown> }).config?.autoApplyConfidenceThreshold,
@@ -766,12 +731,6 @@ export function useLibraryForm(createNew: boolean) {
     setActiveLibraryId,
     activeLibrary,
     // Shadow-Twin Config
-    shadowTwinMode,
-    setShadowTwinMode,
-    isUpgradingShadowTwinMode,
-    setIsUpgradingShadowTwinMode,
-    shadowTwinPrimaryStore,
-    setShadowTwinPrimaryStore,
     shadowTwinPersistToFilesystem,
     setShadowTwinPersistToFilesystem,
     shadowTwinAllowFilesystemFallback,
