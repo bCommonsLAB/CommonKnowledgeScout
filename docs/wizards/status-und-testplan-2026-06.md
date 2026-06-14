@@ -1,5 +1,8 @@
 # Status & Testplan — Inbox/Upload + Settings-UX (Stand 2026-06-13)
 
+> **Gesamt-Reihenfolge:** siehe `docs/roadmap-formatunabhaengige-library-und-onboarding.md`
+> (Plan 1 zuerst, dann Plan 2). Dieses Doc ist die Detail-/Testsicht des Inbox/Wizard-Strangs.
+>
 > Einstiegs-Doc nach der Integration mehrerer Wellen auf `master`. Zweck:
 > Überblick zurückgewinnen, klare „erledigt = grüner Test"-Definition, und
 > unabhängige Arbeitspakete für (auch parallele) Folge-Sessions.

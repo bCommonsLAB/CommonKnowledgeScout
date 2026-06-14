@@ -4,6 +4,17 @@ Verbindliche Kurz-Regeln fuer alle Agenten (lokal und Cursor Cloud).
 Detaillierte Begruendungen + Beispiele:
 [`docs/agents-handbuch.md`](docs/agents-handbuch.md).
 
+## Aktueller Fahrplan (zuerst lesen)
+
+Verbindliche **Reihenfolge** der aktuellen Arbeit (Stand 2026-06-14) — EINE Quelle,
+damit Sessions nicht doppelt bauen:
+[`docs/roadmap-formatunabhaengige-library-und-onboarding.md`](docs/roadmap-formatunabhaengige-library-und-onboarding.md).
+
+Kurz: **Plan 1** (Library formatunabhaengig & konsistent: A1/A2/A4) ZUERST, **danach
+Plan 2** (Onboarding-Flow: 2a Templates entflechten → 2b generischer Assistent). Das
+A0-Fundament (Basis-Feld-Contract + Integritaets-Gates) ist bereits auf `master`. Der
+Kickoff fuer Plan 1 (neue/Online-Session) steht im Fahrplan-Dokument.
+
 ## Setup
 
 - Package Manager: `pnpm@9.15.3`
@@ -14,8 +25,9 @@ Detaillierte Begruendungen + Beispiele:
 
 1. `.cursorrules`
 2. Alle `.cursor/rules/*.mdc` mit `alwaysApply: true`
-3. Diese Datei
-4. Bei Refactor-Tasks: `docs/refactor/<modul>/00-audit.md` (Bestands-
+3. Diese Datei — insb. den Abschnitt „Aktueller Fahrplan"
+4. [`docs/roadmap-formatunabhaengige-library-und-onboarding.md`](docs/roadmap-formatunabhaengige-library-und-onboarding.md) (Reihenfolge + Plan-1-Kickoff)
+5. Bei Refactor-Tasks: `docs/refactor/<modul>/00-audit.md` (Bestands-
    Audit) und `docs/refactor/<modul>/AGENT-BRIEF.md` (falls vorhanden)
 
 ## Repo-Konventionen
