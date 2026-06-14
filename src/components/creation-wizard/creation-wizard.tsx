@@ -6,14 +6,14 @@ import type { TemplateDocument, CreationSource, CreationSourceType } from "@/lib
 import { CollectSourceStep } from "./steps/collect-source-step"
 import { GenerateDraftStep } from "./steps/generate-draft-step"
 import { EditDraftStep } from "./steps/edit-draft-step"
-import { WelcomeStep } from "./steps/welcome-step"
+import { renderRegisteredStep, isStepMigrated } from "./engine/step-registry"
+import type { StepRenderContext } from "./engine/step-render-context"
 import { PreviewDetailStep } from "./steps/preview-detail-step"
 import { UploadImagesStep } from "./steps/upload-images-step"
 import { SelectRelatedTestimonialsStep } from "./steps/select-related-testimonials-step"
 import { SelectFolderArtifactsStep } from "./steps/select-folder-artifacts-step"
 import { ReviewMarkdownStep } from "./steps/review-markdown-step"
 import { PublishStep } from "./steps/publish-step"
-import { CompletionStep } from "./steps/completion-step"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -2872,23 +2872,14 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
   }
   
   const renderStep = () => {
+    // Datengetriebene Engine zuerst (Sub-Welle 3-VI-d): bereits migrierte Presets
+    // rendert die Step-Registry; alles Übrige übernimmt vorerst der Legacy-Switch.
+    if (isStepMigrated(currentStep.preset)) {
+      const stepRenderContext: StepRenderContext = { template, creation, currentStep }
+      return renderRegisteredStep(currentStep.preset, stepRenderContext)
+    }
+
     switch (currentStep.preset) {
-      case "welcome": {
-        const fallbackTitle = creation.ui?.displayName || template.name || "Vorlage"
-        const welcomeMarkdown =
-          creation.welcome?.markdown?.trim()
-            ? creation.welcome.markdown
-            : `## Willkommen\n\nHier erstellen wir gemeinsam **${fallbackTitle}**.\n\n- Du wählst eine Methode (erzählen, Webseite, Text, Datei oder Formular)\n- Wir erstellen einen ersten Vorschlag\n- Du prüfst kurz und speicherst\n`
-
-        return (
-          <WelcomeStep
-            title={currentStep.title || "Willkommen"}
-            markdown={welcomeMarkdown}
-          />
-        )
-      }
-
-
       case "collectSource":
         return (
           <CollectSourceStep
@@ -3432,9 +3423,6 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           />
         )
       }
-
-      case "completion":
-        return <CompletionStep />
 
       case "publish": {
         const onPublish = async () => {
