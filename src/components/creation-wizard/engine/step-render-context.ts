@@ -11,23 +11,46 @@
  * @see docs/refactor/welle-3-vi-creation-wizard/00-refactor-plan.md (Sub-Welle d)
  */
 
+import type { Dispatch, MutableRefObject, SetStateAction } from "react"
 import type { TemplateDocument, CreationFlowStepRef } from "@/lib/templates/template-types"
 import type { WizardSource } from "@/lib/creation/corpus"
+import type { WizardSessionEvent } from "@/types/wizard-session"
+import type { WizardState } from "./wizard-state"
 
 /** Narrowter Creation-Block — nach dem Guard im Wizard immer vorhanden. */
 export type WizardCreation = NonNullable<TemplateDocument["creation"]>
+
+/** Storage-Provider-Typ exakt wie aus `useStorage` (ohne den internen Typ zu exportieren). */
+export type WizardStorageProvider = ReturnType<typeof import("@/contexts/storage-context").useStorage>["provider"]
+
+/** Logging-Funktion des Wizards (best-effort, blockiert den Wizard nicht). */
+export type LogWizardEvent = (
+  sessionId: string,
+  event: Omit<WizardSessionEvent, "eventId" | "timestamp">
+) => Promise<void>
 
 export interface StepRenderContext {
   template: TemplateDocument
   creation: WizardCreation
   currentStep: CreationFlowStepRef
   libraryId: string
+  templateId: string
+  /** Veränderlicher Wizard-State (1:1 wie im Kern; Sub-Welle 3-VI-c ersetzt ihn durch Atoms). */
+  wizardState: WizardState
+  setWizardState: Dispatch<SetStateAction<WizardState>>
+  provider: WizardStorageProvider
+  currentFolderId?: string
   /** Bereits gesammelte Quellen (Multi-Source). */
   sources: WizardSource[]
   /** Seed-Datei (z. B. Dialograum/Event), falls der Wizard damit gestartet wurde. */
   seedFileIdState?: string
   /** Quell-Ordner-Kontext (nur Folder-Flows). */
   sourceFolderId?: string
+  /** Vorwärts-Navigation (handleNext) — von Steps mit Auto-Advance genutzt. */
+  onNext: () => void
+  /** Aktuelle Wizard-Session-ID (best-effort Logging). */
+  wizardSessionIdRef: MutableRefObject<string | null>
+  logWizardEvent: LogWizardEvent
   /** Auswahl-Handler des selectRelatedTestimonials-Steps (stabiler Callback). */
   onTestimonialSelectionChange: (sources: WizardSource[]) => void
   /** Auswahl-Handler des selectFolderArtifacts-Steps (stabiler Callback). */

@@ -17,12 +17,14 @@ import { WelcomeStep } from '@/components/creation-wizard/steps/welcome-step'
 import { CompletionStep } from '@/components/creation-wizard/steps/completion-step'
 import { SelectRelatedTestimonialsStep } from '@/components/creation-wizard/steps/select-related-testimonials-step'
 import { SelectFolderArtifactsStep } from '@/components/creation-wizard/steps/select-folder-artifacts-step'
+import { ReviewMarkdownStep } from '@/components/creation-wizard/steps/review-markdown-step'
 
 function ctxFor(step: CreationFlowStepRef): StepRenderContext {
   return {
     template: { name: 'Testvorlage' },
     creation: { welcome: { markdown: '## Hallo' } },
     currentStep: step,
+    wizardState: { currentStepIndex: 0, sources: [] },
   } as unknown as StepRenderContext
 }
 
@@ -75,6 +77,12 @@ describe('Step-Registry — migrierte Presets', () => {
     expect((node as ReactElement).type).toBe(SelectFolderArtifactsStep)
   })
 
+  it('reviewMarkdown rendert die ReviewMarkdownStep-Komponente', () => {
+    expect(isStepMigrated('reviewMarkdown')).toBe(true)
+    const node = renderRegisteredStep('reviewMarkdown', ctxFor({ id: 'R', preset: 'reviewMarkdown' }))
+    expect((node as ReactElement).type).toBe(ReviewMarkdownStep)
+  })
+
   it('noch nicht migrierte Presets liefern undefined (Legacy-Switch übernimmt)', () => {
     const pending: CreationFlowStepPreset[] = [
       'collectSource',
@@ -83,7 +91,6 @@ describe('Step-Registry — migrierte Presets', () => {
       'uploadImages',
       'previewDetail',
       'publish',
-      'reviewMarkdown',
     ]
     for (const p of pending) {
       expect(isStepMigrated(p)).toBe(false)

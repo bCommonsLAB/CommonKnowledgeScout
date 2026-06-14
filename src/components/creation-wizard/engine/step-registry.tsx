@@ -21,6 +21,7 @@ import { WelcomeStep } from "../steps/welcome-step"
 import { CompletionStep } from "../steps/completion-step"
 import { SelectRelatedTestimonialsStep } from "../steps/select-related-testimonials-step"
 import { SelectFolderArtifactsStep } from "../steps/select-folder-artifacts-step"
+import { ReviewMarkdownStep } from "../steps/review-markdown-step"
 import type { StepRenderContext } from "./step-render-context"
 
 /** Ein Renderer baut aus dem Kontext das React-Element des Steps. */
@@ -73,6 +74,35 @@ function renderSelectFolderArtifactsStep(ctx: StepRenderContext): ReactNode {
   )
 }
 
+function renderReviewMarkdownStep(ctx: StepRenderContext): ReactNode {
+  const { currentStep, wizardState, setWizardState, wizardSessionIdRef, logWizardEvent, provider, currentFolderId } = ctx
+  return (
+    <ReviewMarkdownStep
+      title={currentStep.title || "Markdown prüfen"}
+      markdown={wizardState.draftText || ""}
+      onMarkdownChange={(next) => setWizardState((prev) => ({ ...prev, draftText: next }))}
+      isConfirmed={!!wizardState.hasConfirmedMarkdown}
+      onConfirmedChange={(next) => {
+        setWizardState((prev) => ({ ...prev, hasConfirmedMarkdown: next }))
+
+        // Log markdown_confirmed Event
+        if (next && wizardSessionIdRef.current) {
+          logWizardEvent(wizardSessionIdRef.current, {
+            eventType: 'markdown_confirmed',
+            stepIndex: wizardState.currentStepIndex,
+            stepPreset: currentStep.preset,
+          }).catch((error) => console.warn('[Wizard] Fehler beim Loggen von markdown_confirmed:', error))
+        }
+      }}
+      isProcessing={wizardState.isExtracting}
+      processingProgress={wizardState.processingProgress}
+      processingMessage={wizardState.processingMessage}
+      provider={provider || null}
+      currentFolderId={wizardState.pdfTranscriptFolderId || currentFolderId || 'root'}
+    />
+  )
+}
+
 /**
  * Bereits auf die Engine migrierte Presets. Fehlt ein Preset hier, übernimmt
  * der Legacy-Switch im Wizard-Kern (schrittweise Ablösung).
@@ -82,6 +112,7 @@ const STEP_RENDERERS: Partial<Record<CreationFlowStepPreset, StepRenderer>> = {
   completion: renderCompletionStep,
   selectRelatedTestimonials: renderSelectRelatedTestimonialsStep,
   selectFolderArtifacts: renderSelectFolderArtifactsStep,
+  reviewMarkdown: renderReviewMarkdownStep,
 }
 
 /** Ist dieses Preset bereits auf die Engine migriert? */

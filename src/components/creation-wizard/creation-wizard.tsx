@@ -2,15 +2,15 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { loadTemplateConfig } from "@/lib/templates/template-service-client"
-import type { TemplateDocument, CreationSource, CreationSourceType } from "@/lib/templates/template-types"
+import type { TemplateDocument } from "@/lib/templates/template-types"
 import { CollectSourceStep } from "./steps/collect-source-step"
 import { GenerateDraftStep } from "./steps/generate-draft-step"
 import { EditDraftStep } from "./steps/edit-draft-step"
 import { renderRegisteredStep, isStepMigrated } from "./engine/step-registry"
 import type { StepRenderContext } from "./engine/step-render-context"
+import type { WizardState } from "./engine/wizard-state"
 import { PreviewDetailStep } from "./steps/preview-detail-step"
 import { UploadImagesStep } from "./steps/upload-images-step"
-import { ReviewMarkdownStep } from "./steps/review-markdown-step"
 import { PublishStep } from "./steps/publish-step"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -59,60 +59,6 @@ declare global {
 
 function nowMs(): number {
   return Date.now()
-}
-
-interface WizardState {
-  currentStepIndex: number
-  mode?: 'interview' | 'form' // Eingabemodus (wird im Briefing-Step gewählt)
-  selectedSource?: CreationSource
-  // Multi-Source: Liste aller Quellen
-  sources: WizardSource[]
-  // Legacy: collectedInput (wird schrittweise durch sources ersetzt)
-  collectedInput?: {
-    type: CreationSourceType
-    content: string
-  }
-  generatedDraft?: {
-    metadata: Record<string, unknown>
-    markdown: string
-  }
-  reviewedFields?: Record<string, unknown>
-  // Form-Modus: direkte Bearbeitung
-  draftMetadata?: Record<string, unknown>
-  draftText?: string
-  // Loading-State für Re-Extract
-  isExtracting?: boolean
-  // PDF HITL: Progress-Anzeige für Jobs (Extract/Template/Ingest)
-  processingProgress?: number
-  processingMessage?: string
-  // PDF HITL: finaler Publish-Schritt (User sieht Publizieren explizit)
-  isPublishing?: boolean
-  publishingProgress?: number
-  publishingMessage?: string
-  publishError?: string
-  isPublished?: boolean
-  /** Optional: Kurze Abschluss-Statistiken (für Publish-Step) */
-  publishStats?: { documents: number; images: number; sources: number }
-  /** Optional: Zielordner für "Im Explorer öffnen" */
-  publishTargetFolderId?: string
-  /** Optional: Ziel-Slug für "Im Explorer öffnen" (Gallery) */
-  publishTargetSlug?: string
-  // PDF HITL: Tracking
-  pdfBaseFileId?: string
-  pdfTranscriptFileId?: string
-  /** Parent-Folder der Transcript-Datei (wichtig für MarkdownPreview: relative Images auflösen) */
-  pdfTranscriptFolderId?: string
-  pdfTransformFileId?: string
-  hasConfirmedMarkdown?: boolean
-  // Human-in-the-loop: Quellen-Bestätigung
-  hasConfirmedSources?: boolean
-  extractionError?: string
-  // Bild-Upload: ausgewählte Dateien pro Bildfeld-Key
-  imageFiles?: Record<string, File | null>
-  // Bild-URLs: einzeln (string) oder Array (string[]) pro Bildfeld-Key
-  imageUrls?: Record<string, string | string[]>
-  // Upload-State: welche Bilder gerade hochgeladen werden
-  isUploadingImages?: Record<string, boolean>
 }
 
 interface CreationWizardProps {
@@ -2878,9 +2824,17 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         creation,
         currentStep,
         libraryId,
+        templateId,
+        wizardState,
+        setWizardState,
+        provider,
+        currentFolderId,
         sources: wizardState.sources,
         seedFileIdState,
         sourceFolderId,
+        onNext: handleNext,
+        wizardSessionIdRef,
+        logWizardEvent,
         onTestimonialSelectionChange: handleTestimonialSelectionChange,
         onFolderArtifactSelectionChange: handleFolderArtifactSelectionChange,
       }
@@ -2950,33 +2904,6 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             template={template}
             steps={steps}
             onCanProceedChange={setCollectSourceCanProceed}
-          />
-        )
-
-      case "reviewMarkdown":
-        return (
-          <ReviewMarkdownStep
-            title={currentStep.title || "Markdown prüfen"}
-            markdown={wizardState.draftText || ""}
-            onMarkdownChange={(next) => setWizardState(prev => ({ ...prev, draftText: next }))}
-            isConfirmed={!!wizardState.hasConfirmedMarkdown}
-            onConfirmedChange={(next) => {
-              setWizardState(prev => ({ ...prev, hasConfirmedMarkdown: next }))
-              
-              // Log markdown_confirmed Event
-              if (next && wizardSessionIdRef.current) {
-                logWizardEvent(wizardSessionIdRef.current, {
-                  eventType: 'markdown_confirmed',
-                  stepIndex: wizardState.currentStepIndex,
-                  stepPreset: currentStep.preset,
-                }).catch(error => console.warn('[Wizard] Fehler beim Loggen von markdown_confirmed:', error))
-              }
-            }}
-            isProcessing={wizardState.isExtracting}
-            processingProgress={wizardState.processingProgress}
-            processingMessage={wizardState.processingMessage}
-            provider={provider || null}
-            currentFolderId={wizardState.pdfTranscriptFolderId || currentFolderId || 'root'}
           />
         )
 
