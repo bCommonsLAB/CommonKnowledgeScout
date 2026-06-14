@@ -10,6 +10,7 @@ import dynamic from "next/dynamic"
 import { useTranslation } from "@/lib/i18n/hooks"
 import { Button } from "@/components/ui/button"
 import { librariesAtom, activeLibraryIdAtom } from '@/atoms/library-atom'
+import { LibraryVerificationWarning } from '@/components/library/library-verification-warning'
 import type { ClientLibrary } from '@/types/library'
 import type { Character, SocialContext, TargetLanguage } from '@/lib/chat/constants'
 
@@ -420,6 +421,10 @@ export default function ExplorePage() {
               {t('explore.publicLibrary')}
             </p>
           </div>
+        </div>
+        {/* A1: Nicht-blockierende Warnung beim Öffnen, falls die Library nicht geprüft ist. */}
+        <div className="px-3 pb-2 sm:px-4 sm:pb-3">
+          <LibraryVerificationWarning context="public-open" libraryId={library.id} />
         </div>
       </div>
 
