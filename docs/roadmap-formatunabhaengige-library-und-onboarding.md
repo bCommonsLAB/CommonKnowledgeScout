@@ -43,6 +43,9 @@ deterministisch und verlässlich (niemand kann die Ordnung aushebeln).
 - ▢ **A1** — „Geprüft"-Status pro Library + Prüfen/Reparieren. **Achtung:** die
   Veröffentlichungs-Sperre („nur Geprüfte dürfen publizieren") an den **Promote-
   Schritt** von Plan 2 hängen, keinen zweiten Publish-Pfad bauen (siehe Konflikte).
+  *Integrationspunkt:* der Promote-Job entsteht in Plan 2 (ADR-0004 §E3 +
+  `docs/wizards/status-und-testplan-2026-06.md` WP-6 / „Inbox V"). Existiert er noch
+  nicht, baut A1 zunächst nur Status+Check+Repair; die Sperre wird dort angedockt.
 - ▢ **A2** — Experten-Ansicht (prüfen/reparieren) + Status-Abzeichen beim Öffnen +
   Basis-Filter in den Einstellungen sperren (nicht entfernbar).
 - ▢ **A4** — gemischte Galerie/Story aufpolieren: Filter als Vereinigung über
@@ -69,6 +72,8 @@ vielen fast gleichen Kopien) werden **wiederverwendbare Bausteine**:
   (baut auf dem schon gemergten `editableContentFields`/Phase 3a-1 auf).
 
 Status: **geplant + erster Baustein (3a-1) gemerged; Hauptteil offen.**
+Kickoff für 2a/2b: **Umbauplan §8** („Kickoff … U0 zuerst") — derselbe Strang, neuer
+Agent pro Arbeitspaket.
 Detail: `docs/adr/0003-wizard-schema-template-trennen.md`,
 `docs/refactor/welle-3-vi-creation-wizard/` (`00-refactor-plan.md`,
 `phase-1-use-case-inventur.md`, `phase-2-test-library.md`,
@@ -99,7 +104,8 @@ Detail: `docs/wizards/umbauplan-generischer-erfassungs-wizard.md` (U0–U8),
 ## Empfohlene nächste Schritte
 
 1. **Klein & entsperrend:** WP-1 (F11 ↔ Inbox-Analyse versöhnen) — kleiner Fix,
-   macht das Fundament wirklich lauffähig.
+   macht das Fundament wirklich lauffähig. **Scope-Hinweis:** WP-1 blockiert nur die
+   **Inbox-E2E-Verifikation**, NICHT A1 — A1 kann parallel/ohne WP-1 starten.
 2. **Plan 1 abschließen:** A2 + A4 (billig, sichtbar), dann A1 (mit Promote-Abstimmung).
 3. **Plan 2:** 2a Entflechten (auf dem gemergten 3a-1 + Sicherheitsnetz + Test-Library
    aufbauen) → 2b Assistent (U0 → …).
