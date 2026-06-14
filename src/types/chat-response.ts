@@ -10,6 +10,8 @@ export interface ChatResponse {
     fileId: string
     fileName?: string
     description: string
+    /** Inhaltstyp des referenzierten Dokuments (A4: formatgerechte Story-Verweise). */
+    detailViewType?: string
   }>
   /** Array mit 7 nächsten sinnvollen Fragen basierend auf dem Kontext */
   suggestedQuestions: string[]

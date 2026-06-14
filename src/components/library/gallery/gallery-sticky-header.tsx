@@ -6,6 +6,7 @@ import { Search } from 'lucide-react'
 import { useScrollVisibility } from '@/hooks/use-scroll-visibility'
 import { ViewModeToggle } from './view-mode-toggle'
 import { GalleryCardDensityToggle } from './gallery-card-density-toggle'
+import { LibraryVerificationBadge } from '@/components/library/library-verification-badge'
 import type { GalleryCardDensity } from '@/lib/gallery/gallery-card-density'
 
 export type ViewMode = 'grid' | 'table' | 'graph'
@@ -70,7 +71,11 @@ export function GalleryStickyHeader(props: GalleryStickyHeaderProps) {
         }}
       >
         <div className="py-4 space-y-2">
-          <h2 className="text-3xl font-bold">{headline}</h2>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-3xl font-bold">{headline}</h2>
+            {/* Verifikations-Status beim Öffnen — nur für Mitglieder sichtbar (A2). */}
+            <LibraryVerificationBadge />
+          </div>
           {subtitle ? <p className="text-sm text-muted-foreground font-medium">{subtitle}</p> : null}
           {description ? (
             <p className="text-sm leading-relaxed text-muted-foreground max-w-3xl">{description}</p>
