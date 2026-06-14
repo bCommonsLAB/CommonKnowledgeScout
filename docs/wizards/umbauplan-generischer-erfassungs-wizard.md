@@ -6,6 +6,10 @@
 > abgespeckte Inbox-Speicherung läuft und mit **allen** Schemas/`detailViewType`s
 > funktioniert.
 >
+> **Reihenfolge/Kontext:** Dieser Plan ist **Plan 2b** im Gesamt-Fahrplan
+> `docs/roadmap-formatunabhaengige-library-und-onboarding.md`. Davor laufen **Plan 1**
+> (Library formatunabhängig) und **Plan 2a** (Templates entflechten, ADR-0003).
+>
 > **Pflichtlektüre:** `docs/adr/0003-wizard-schema-template-trennen.md`,
 > `docs/adr/0004-capture-publish-entkopplung-inbox-modell.md`,
 > `docs/refactor/welle-3-vi-creation-wizard/00-refactor-plan.md` + `SESSION-HANDOFF.md`,
