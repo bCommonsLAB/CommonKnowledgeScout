@@ -21,6 +21,9 @@ import {
   renderSelectFolderArtifactsStep,
 } from "./renderers/selection-step-renderers"
 import { renderReviewMarkdownStep, renderGenerateDraftStep } from "./renderers/draft-step-renderers"
+import { renderEditDraftStep } from "./renderers/edit-draft-renderer"
+import { renderUploadImagesStep } from "./renderers/upload-images-renderer"
+import { renderPreviewDetailStep } from "./renderers/preview-detail-renderer"
 
 /**
  * Bereits auf die Engine migrierte Presets. Fehlt ein Preset hier, übernimmt
@@ -33,6 +36,9 @@ const STEP_RENDERERS: Partial<Record<CreationFlowStepPreset, StepRenderer>> = {
   selectFolderArtifacts: renderSelectFolderArtifactsStep,
   reviewMarkdown: renderReviewMarkdownStep,
   generateDraft: renderGenerateDraftStep,
+  editDraft: renderEditDraftStep,
+  uploadImages: renderUploadImagesStep,
+  previewDetail: renderPreviewDetailStep,
 }
 
 /** Ist dieses Preset bereits auf die Engine migriert? */

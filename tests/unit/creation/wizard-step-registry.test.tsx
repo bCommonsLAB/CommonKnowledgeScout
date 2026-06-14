@@ -99,12 +99,15 @@ describe('Step-Registry — migrierte Presets', () => {
     expect((node as ReactElement).type).not.toBe(GenerateDraftStep)
   })
 
+  it('editDraft / uploadImages / previewDetail sind migriert', () => {
+    for (const p of ['editDraft', 'uploadImages', 'previewDetail'] as const) {
+      expect(isStepMigrated(p)).toBe(true)
+    }
+  })
+
   it('noch nicht migrierte Presets liefern undefined (Legacy-Switch übernimmt)', () => {
     const pending: CreationFlowStepPreset[] = [
       'collectSource',
-      'editDraft',
-      'uploadImages',
-      'previewDetail',
       'publish',
     ]
     for (const p of pending) {

@@ -14,6 +14,7 @@
 import type { Dispatch, MutableRefObject, ReactNode, SetStateAction } from "react"
 import type { TemplateDocument, CreationFlowStepRef } from "@/lib/templates/template-types"
 import type { WizardSource } from "@/lib/creation/corpus"
+import type { WizardPreviewViewType } from "@/lib/creation/wizard-flow"
 import type { WizardSessionEvent } from "@/types/wizard-session"
 import type { WizardState } from "./wizard-state"
 
@@ -35,6 +36,7 @@ export interface StepRenderContext {
   currentStep: CreationFlowStepRef
   libraryId: string
   templateId: string
+  typeId: string
   /** Veränderlicher Wizard-State (1:1 wie im Kern; Sub-Welle 3-VI-c ersetzt ihn durch Atoms). */
   wizardState: WizardState
   setWizardState: Dispatch<SetStateAction<WizardState>>
@@ -55,6 +57,12 @@ export interface StepRenderContext {
   onTestimonialSelectionChange: (sources: WizardSource[]) => void
   /** Auswahl-Handler des selectFolderArtifacts-Steps (stabiler Callback). */
   onFolderArtifactSelectionChange: (sources: WizardSource[]) => void
+  /** DSGVO-konformes Logging editierter Metadaten (debounced; nur Keys/Counts). */
+  scheduleMetadataEditedLog: (metadata: Record<string, unknown>) => void
+  /** Rendert `template.markdownBody` mit {{var|…}}-Tokens (für previewDetail-Fallback). */
+  renderTemplateBody: (args: { body: string; values: Record<string, unknown> }) => string
+  /** Auflösung des Preview-Renderers (4-vs-8-Drift bewusst beibehalten). */
+  resolveDetailViewType: () => WizardPreviewViewType
 }
 
 /** Ein Renderer baut aus dem Kontext das React-Element des Steps (ohne Hooks). */

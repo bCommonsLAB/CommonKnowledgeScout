@@ -4,16 +4,12 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import { loadTemplateConfig } from "@/lib/templates/template-service-client"
 import type { TemplateDocument } from "@/lib/templates/template-types"
 import { CollectSourceStep } from "./steps/collect-source-step"
-import { EditDraftStep } from "./steps/edit-draft-step"
 import { renderRegisteredStep, isStepMigrated } from "./engine/step-registry"
 import type { StepRenderContext } from "./engine/step-render-context"
 import type { WizardState } from "./engine/wizard-state"
-import { PreviewDetailStep } from "./steps/preview-detail-step"
-import { UploadImagesStep } from "./steps/upload-images-step"
 import { PublishStep } from "./steps/publish-step"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { toast } from "sonner"
 import { useStorage } from "@/contexts/storage-context"
@@ -27,7 +23,6 @@ import { applyEventFrontmatterDefaults } from "@/lib/events/event-frontmatter-de
 import type { WizardSource } from "@/lib/creation/corpus"
 import { buildCorpusText, buildTranscriptMarkdown, isCorpusTooLarge, truncateCorpus } from "@/lib/creation/corpus"
 import { filterWizardSteps, canProceedFromStep, resolveWizardPreviewViewType } from "@/lib/creation/wizard-flow"
-import { editableContentFields } from "@/lib/creation/editable-fields"
 import { parseFrontmatter } from "@/lib/markdown/frontmatter"
 import { createMarkdownWithFrontmatter } from "@/lib/markdown/compose"
 import { resolveArtifactClient } from "@/lib/shadow-twin/artifact-client"
@@ -2824,6 +2819,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         currentStep,
         libraryId,
         templateId,
+        typeId,
         wizardState,
         setWizardState,
         provider,
@@ -2836,6 +2832,9 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         logWizardEvent,
         onTestimonialSelectionChange: handleTestimonialSelectionChange,
         onFolderArtifactSelectionChange: handleFolderArtifactSelectionChange,
+        scheduleMetadataEditedLog,
+        renderTemplateBody,
+        resolveDetailViewType: resolveTemplateDetailViewType,
       }
       return renderRegisteredStep(currentStep.preset, stepRenderContext)
     }
@@ -2905,353 +2904,6 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             onCanProceedChange={setCollectSourceCanProceed}
           />
         )
-
-      case "editDraft": {
-        const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
-        // Initialisiere draftMetadata/draftText falls noch nicht vorhanden
-        const initialMetadata = wizardState.draftMetadata 
-          || wizardState.reviewedFields 
-          || wizardState.generatedDraft?.metadata 
-          || {}
-        const initialDraftText = wizardState.draftText 
-          || wizardState.generatedDraft?.markdown 
-          || ""
-        
-        // Feld-Auswahl (ADR-0003 / O1, Phase 3a): editDraft.fields als optionaler
-        // Override; sonst GENERISCH aus dem Schema ableiten (Inhalts-Felder ohne
-        // System-/Struktur-Felder) statt still auf ALLE Felder zu fallen.
-        const derivedEditableFields = editableContentFields(template.metadata.fields.map((f) => f.key))
-        const userRelevantFields = currentStep.fields && currentStep.fields.length > 0
-          ? currentStep.fields
-          : (derivedEditableFields.length > 0 ? derivedEditableFields : undefined)
-        
-        // PDF-HITL: Wenn wir hier ohne Draft landen, ist das ein Flow-Fehler (sonst sieht man "leere" Screens).
-        if (isPdfAnalyse && Object.keys(initialMetadata).length === 0 && initialDraftText.trim().length === 0) {
-          return (
-            <Alert>
-              <AlertTitle>Keine Metadaten vorhanden</AlertTitle>
-              <AlertDescription>
-                Es wurden noch keine Metadaten/Markdown erzeugt. Bitte gehe zurück und starte zuerst OCR (und danach Template/Metadaten).
-              </AlertDescription>
-            </Alert>
-          )
-        }
-
-        // Wenn Felder definiert sind, zeige den Step auch bei leerem Metadata (User kann direkt eingeben)
-        // Wenn keine Felder definiert sind UND Metadata leer ist, zeige Fehlermeldung
-        if (!userRelevantFields && Object.keys(initialMetadata).length === 0) {
-          return (
-            <div className="text-center text-muted-foreground p-8">
-              Bitte zuerst Eingaben machen (URL/Text/Datei/Audio).
-            </div>
-          )
-        }
-        
-        // Markdown-Tab nur anzeigen, wenn Text vorhanden ist (Diktat: Tabs aus — nur Dateiname)
-        const isBuiltinDictation = templateId === 'audio-transcript-de'
-        const showMarkdownTab = initialDraftText.trim().length > 0
-        
-        // Bildfelder: aus editDraft.imageFieldKeys (falls definiert)
-        const imageFieldKeys = currentStep.imageFieldKeys && currentStep.imageFieldKeys.length > 0
-          ? currentStep.imageFieldKeys
-          : undefined
-
-        return (
-          <EditDraftStep
-            templateMetadata={template.metadata}
-            draftMetadata={initialMetadata}
-            draftText={initialDraftText}
-            sources={wizardState.sources}
-            // Nur benutzerrelevante Felder anzeigen (aus editDraft.fields)
-            userRelevantFields={userRelevantFields}
-            showMarkdownTab={showMarkdownTab}
-            suppressMarkdownTab={isBuiltinDictation}
-            headingOverride={currentStep.title}
-            subheadingOverride={currentStep.description}
-            hideSourcesFooter={isBuiltinDictation}
-            imageFieldKeys={imageFieldKeys}
-            libraryId={libraryId}
-            onMetadataChange={(metadata) => {
-              setWizardState(prev => {
-                // Extrahiere Bild-URLs (Strings und Arrays)
-                const newImageUrls: Record<string, string | string[]> = {}
-                if (imageFieldKeys) {
-                  for (const key of imageFieldKeys) {
-                    const value = metadata[key]
-                    if (typeof value === 'string' && value.trim().length > 0) {
-                      newImageUrls[key] = value
-                    } else if (Array.isArray(value) && value.length > 0) {
-                      newImageUrls[key] = value as string[]
-                    }
-                  }
-                }
-                return {
-                  ...prev,
-                  draftMetadata: metadata,
-                  reviewedFields: metadata,
-                  imageUrls: {
-                    ...(prev.imageUrls || {}),
-                    ...newImageUrls
-                  }
-                }
-              })
-
-              // DSGVO: nur Keys/Counts loggen, kein Inhalt
-              scheduleMetadataEditedLog(metadata)
-            }}
-            onDraftTextChange={(text) => {
-              setWizardState(prev => ({ ...prev, draftText: text }))
-            }}
-          />
-        )
-      }
-
-      case "uploadImages": {
-        // Bildfelder kommen aus dem aktuellen Step (fields)
-        const imageFieldKeys = currentStep.fields || []
-        
-        if (imageFieldKeys.length === 0) {
-          return (
-            <div className="text-center text-muted-foreground p-8">
-              Keine Bildfelder konfiguriert. Bitte im Template-Editor Bildfelder für diesen Step auswählen.
-            </div>
-          )
-        }
-
-        // Konvertiere fieldKeys zu imageFields-Format für UploadImagesStep.
-        // Array-Felder (rawValue enthält "Array") bekommen multiple=true.
-        const imageFields = imageFieldKeys.map(key => {
-          const fieldMeta = template.metadata.fields.find(f => f.key === key)
-          const isArray = fieldMeta?.rawValue?.includes("Array") || false
-          return {
-            key,
-            label: fieldMeta?.description || key,
-            multiple: isArray,
-          }
-        })
-
-        return (
-          <UploadImagesStep
-            imageFields={imageFields}
-            selectedFiles={wizardState.imageFiles || {}}
-            imageUrls={wizardState.imageUrls}
-            isUploadingImages={wizardState.isUploadingImages}
-            libraryId={libraryId}
-            sourceFolderId={sourceFolderId}
-            onChangeSelectedFiles={(key, file) => {
-              setWizardState(prev => ({
-                ...prev,
-                imageFiles: {
-                  ...(prev.imageFiles || {}),
-                  [key]: file,
-                },
-                isUploadingImages: {
-                  ...(prev.isUploadingImages || {}),
-                  [key]: file !== null,
-                },
-              }))
-            }}
-            onUploadComplete={(key, url) => {
-              setWizardState(prev => {
-                const isMultiple = imageFields.find(f => f.key === key)?.multiple
-                const existing = prev.imageUrls?.[key]
-
-                // Array-Felder: URL an bestehendes Array anhängen
-                let newValue: string | string[]
-                if (isMultiple) {
-                  const arr = Array.isArray(existing) ? existing : (typeof existing === 'string' && existing ? [existing] : [])
-                  newValue = [...arr, url]
-                } else {
-                  newValue = url
-                }
-
-                const newImageUrls = {
-                  ...(prev.imageUrls || {}),
-                  [key]: newValue,
-                }
-                const baseMetadata = prev.draftMetadata || prev.reviewedFields || prev.generatedDraft?.metadata || {}
-                const updatedMetadata = {
-                  ...baseMetadata,
-                  ...newImageUrls,
-                }
-                return {
-                  ...prev,
-                  imageUrls: newImageUrls,
-                  draftMetadata: updatedMetadata,
-                  reviewedFields: prev.reviewedFields ? {
-                    ...prev.reviewedFields,
-                    ...newImageUrls,
-                  } : prev.reviewedFields,
-                  isUploadingImages: {
-                    ...(prev.isUploadingImages || {}),
-                    [key]: false,
-                  },
-                }
-              })
-            }}
-            onRemoveArrayImage={(key, index) => {
-              setWizardState(prev => {
-                const existing = prev.imageUrls?.[key]
-                if (!Array.isArray(existing)) return prev
-
-                const updated = existing.filter((_, i) => i !== index)
-                const newImageUrls = {
-                  ...(prev.imageUrls || {}),
-                  [key]: updated,
-                }
-                const baseMetadata = prev.draftMetadata || prev.reviewedFields || prev.generatedDraft?.metadata || {}
-                const updatedMetadata = {
-                  ...baseMetadata,
-                  ...newImageUrls,
-                }
-                return {
-                  ...prev,
-                  imageUrls: newImageUrls,
-                  draftMetadata: updatedMetadata,
-                  reviewedFields: prev.reviewedFields ? {
-                    ...prev.reviewedFields,
-                    ...newImageUrls,
-                  } : prev.reviewedFields,
-                }
-              })
-            }}
-          />
-        )
-      }
-
-      case "previewDetail": {
-        const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
-        const baseMetadata =
-          wizardState.reviewedFields ||
-          wizardState.generatedDraft?.metadata ||
-          wizardState.draftMetadata ||
-          {}
-        
-        // Merge Bild-URLs in baseMetadata für Preview
-        const metadataWithImages = {
-          ...baseMetadata,
-          ...(wizardState.imageUrls || {}),
-        }
-
-        // UX/SSOT: Preview soll den korrekten docType anzeigen (z.B. Badge "Event").
-        // Der docType wird sonst erst beim Speichern via applyEventFrontmatterDefaults gesetzt.
-        // Für die Vorschau reichen Minimal-Heuristiken.
-        const previewMetadata: Record<string, unknown> = { ...metadataWithImages }
-        const currentDocType = typeof previewMetadata.docType === 'string' ? previewMetadata.docType.trim().toLowerCase() : ''
-        const typeIdLower = String(typeId || '').toLowerCase()
-        if (!currentDocType && typeIdLower.includes('event')) {
-          previewMetadata.docType = 'event'
-          // eventStatus ist optional, hilft aber beim UI-Labeling
-          if (previewMetadata.eventStatus === undefined) previewMetadata.eventStatus = 'open'
-        }
-        
-        const preferredPreviewMarkdown =
-          wizardState.generatedDraft?.markdown ||
-          wizardState.draftText ||
-          ""
-
-        // Wenn kein Markdown vorhanden ist, rendere es aus template.markdownBody (z.B. {{summaryInText}})
-        let previewMarkdown =
-          preferredPreviewMarkdown.trim().length > 0
-            ? preferredPreviewMarkdown
-            : renderTemplateBody({ body: template.markdownBody || "", values: metadataWithImages })
-
-        // Füge Bild automatisch oben im Preview-Markdown ein (nach Teaser, falls vorhanden)
-        const uploadImagesStep = creation?.flow.steps.find(step => step.preset === 'uploadImages')
-        const imageFieldKeys = uploadImagesStep?.fields || []
-        
-        // Finde das erste Bildfeld mit einer URL
-        let firstImageUrl: string | undefined
-        let firstImageKey: string | undefined
-        for (const fieldKey of imageFieldKeys) {
-          const imageUrl = wizardState.imageUrls?.[fieldKey] || metadataWithImages[fieldKey]
-          if (imageUrl && typeof imageUrl === 'string' && imageUrl.trim().length > 0) {
-            firstImageUrl = imageUrl
-            firstImageKey = fieldKey
-            break
-          }
-        }
-
-        if (firstImageUrl && firstImageKey) {
-          // Prüfe, ob Bild bereits im Markdown vorhanden ist
-          if (!previewMarkdown.includes(firstImageUrl)) {
-            // Suche nach Teaser im Markdown (verschiedene Formate)
-            const teaserText = metadataWithImages.teaser as string | undefined
-            let teaserMatch: RegExpMatchArray | null = null
-            let teaserEnd = 0
-            
-            if (teaserText && typeof teaserText === 'string' && teaserText.trim().length > 0) {
-              // Suche nach Teaser-Text im Markdown (erste 100 Zeichen für Matching)
-              const teaserSnippet = teaserText.substring(0, 100).trim()
-              const escapedSnippet = teaserSnippet.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-              const teaserPattern = new RegExp(`(${escapedSnippet})`, 'i')
-              teaserMatch = previewMarkdown.match(teaserPattern)
-              
-              if (teaserMatch && teaserMatch.index !== undefined) {
-                // Finde das Ende des Absatzes nach dem Teaser
-                const afterTeaserStart = teaserMatch.index + teaserMatch[0].length
-                const afterTeaser = previewMarkdown.substring(afterTeaserStart)
-                const nextParagraphMatch = afterTeaser.match(/\n\n|\n##/)
-                teaserEnd = nextParagraphMatch 
-                  ? afterTeaserStart + nextParagraphMatch.index! + nextParagraphMatch[0].length
-                  : afterTeaserStart + afterTeaser.length
-              }
-            }
-            
-            // Fallback: Suche nach "Teaser:" Label
-            if (!teaserMatch) {
-              const teaserLabelPattern = /(?:^|\n)(?:##\s+)?Teaser[:\s]*\n([^\n]+(?:\n[^\n]+)*?)(?=\n\n|\n##|$)/i
-              const labelMatch = previewMarkdown.match(teaserLabelPattern)
-              if (labelMatch && labelMatch.index !== undefined) {
-                teaserEnd = labelMatch.index + labelMatch[0].length
-                teaserMatch = labelMatch
-              }
-            }
-            
-            if (teaserMatch && teaserEnd > 0) {
-              // Teaser gefunden: Füge Bild direkt nach Teaser ein
-              const beforeTeaser = previewMarkdown.substring(0, teaserEnd)
-              const afterTeaser = previewMarkdown.substring(teaserEnd)
-              previewMarkdown = beforeTeaser + `\n\n![${firstImageKey}](${firstImageUrl})\n\n` + afterTeaser
-            } else {
-              // Kein Teaser gefunden: Füge Bild ganz oben ein
-              previewMarkdown = `![${firstImageKey}](${firstImageUrl})\n\n` + previewMarkdown
-            }
-          }
-        }
-
-        const detailViewType = resolveTemplateDetailViewType()
-
-        if (isPdfAnalyse && Object.keys(baseMetadata).length === 0 && preferredPreviewMarkdown.trim().length === 0) {
-          return (
-            <Alert>
-              <AlertTitle>Keine Vorschau verfügbar</AlertTitle>
-              <AlertDescription>
-                Es gibt noch keine Metadaten/Markdown für die Vorschau. Bitte gehe zurück und führe zuerst OCR + Template aus.
-              </AlertDescription>
-            </Alert>
-          )
-        }
-
-        if (Object.keys(baseMetadata).length === 0) {
-          return (
-            <div className="text-center text-muted-foreground p-8">
-              Bitte zuerst Daten ausfüllen oder auslesen.
-            </div>
-          )
-        }
-
-        return (
-          <PreviewDetailStep
-            detailViewType={detailViewType}
-            metadata={previewMetadata}
-            markdown={previewMarkdown}
-            libraryId={libraryId}
-            provider={provider}
-            currentFolderId={wizardState.pdfTranscriptFolderId || currentFolderId || 'root'}
-          />
-        )
-      }
 
       case "publish": {
         const onPublish = async () => {
