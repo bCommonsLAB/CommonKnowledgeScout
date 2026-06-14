@@ -10,11 +10,9 @@ import { renderRegisteredStep, isStepMigrated } from "./engine/step-registry"
 import type { StepRenderContext } from "./engine/step-render-context"
 import { PreviewDetailStep } from "./steps/preview-detail-step"
 import { UploadImagesStep } from "./steps/upload-images-step"
-import { SelectRelatedTestimonialsStep } from "./steps/select-related-testimonials-step"
-import { SelectFolderArtifactsStep } from "./steps/select-folder-artifacts-step"
 import { ReviewMarkdownStep } from "./steps/review-markdown-step"
 import { PublishStep } from "./steps/publish-step"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ChevronLeft, ChevronRight } from "lucide-react"
@@ -2875,7 +2873,17 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     // Datengetriebene Engine zuerst (Sub-Welle 3-VI-d): bereits migrierte Presets
     // rendert die Step-Registry; alles Übrige übernimmt vorerst der Legacy-Switch.
     if (isStepMigrated(currentStep.preset)) {
-      const stepRenderContext: StepRenderContext = { template, creation, currentStep }
+      const stepRenderContext: StepRenderContext = {
+        template,
+        creation,
+        currentStep,
+        libraryId,
+        sources: wizardState.sources,
+        seedFileIdState,
+        sourceFolderId,
+        onTestimonialSelectionChange: handleTestimonialSelectionChange,
+        onFolderArtifactSelectionChange: handleFolderArtifactSelectionChange,
+      }
       return renderRegisteredStep(currentStep.preset, stepRenderContext)
     }
 
@@ -3254,38 +3262,6 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                 }
               })
             }}
-          />
-        )
-      }
-
-      case "selectRelatedTestimonials": {
-        return (
-          <SelectRelatedTestimonialsStep
-            sources={wizardState.sources}
-            seedSourceId={seedFileIdState ? `file-${seedFileIdState}` : undefined}
-            onSelectionChange={handleTestimonialSelectionChange}
-          />
-        )
-      }
-
-      case "selectFolderArtifacts": {
-        if (!sourceFolderId || !libraryId) {
-          return (
-            <Card>
-              <CardContent className="py-6">
-                <p className="text-sm text-muted-foreground">
-                  Kein Verzeichnis-Kontext. Bitte starte den Wizard aus einem Verzeichnis heraus.
-                </p>
-              </CardContent>
-            </Card>
-          )
-        }
-        return (
-          <SelectFolderArtifactsStep
-            libraryId={libraryId}
-            folderId={sourceFolderId}
-            targetLanguage="de"
-            onSelectionChange={handleFolderArtifactSelectionChange}
           />
         )
       }

@@ -15,6 +15,8 @@ import type { StepRenderContext } from '@/components/creation-wizard/engine/step
 import type { CreationFlowStepPreset, CreationFlowStepRef } from '@/lib/templates/template-types'
 import { WelcomeStep } from '@/components/creation-wizard/steps/welcome-step'
 import { CompletionStep } from '@/components/creation-wizard/steps/completion-step'
+import { SelectRelatedTestimonialsStep } from '@/components/creation-wizard/steps/select-related-testimonials-step'
+import { SelectFolderArtifactsStep } from '@/components/creation-wizard/steps/select-folder-artifacts-step'
 
 function ctxFor(step: CreationFlowStepRef): StepRenderContext {
   return {
@@ -52,14 +54,33 @@ describe('Step-Registry — migrierte Presets', () => {
     expect(node.props.markdown).toContain('Testvorlage')
   })
 
+  it('selectRelatedTestimonials rendert die SelectRelatedTestimonialsStep-Komponente', () => {
+    expect(isStepMigrated('selectRelatedTestimonials')).toBe(true)
+    const node = renderRegisteredStep('selectRelatedTestimonials', ctxFor({ id: 'T', preset: 'selectRelatedTestimonials' }))
+    expect((node as ReactElement).type).toBe(SelectRelatedTestimonialsStep)
+  })
+
+  it('selectFolderArtifacts: ohne Ordner-Kontext Hinweis-Card, mit Kontext die Step-Komponente', () => {
+    expect(isStepMigrated('selectFolderArtifacts')).toBe(true)
+    // Ohne sourceFolderId/libraryId -> Hinweis-Card (kein SelectFolderArtifactsStep).
+    const noCtx = renderRegisteredStep('selectFolderArtifacts', ctxFor({ id: 'F', preset: 'selectFolderArtifacts' }))
+    expect((noCtx as ReactElement).type).not.toBe(SelectFolderArtifactsStep)
+    // Mit Kontext -> die echte Step-Komponente.
+    const withCtx = {
+      ...ctxFor({ id: 'F', preset: 'selectFolderArtifacts' }),
+      sourceFolderId: 'folder-1',
+      libraryId: 'lib-1',
+    } as unknown as StepRenderContext
+    const node = renderRegisteredStep('selectFolderArtifacts', withCtx)
+    expect((node as ReactElement).type).toBe(SelectFolderArtifactsStep)
+  })
+
   it('noch nicht migrierte Presets liefern undefined (Legacy-Switch übernimmt)', () => {
     const pending: CreationFlowStepPreset[] = [
       'collectSource',
       'generateDraft',
       'editDraft',
       'uploadImages',
-      'selectRelatedTestimonials',
-      'selectFolderArtifacts',
       'previewDetail',
       'publish',
       'reviewMarkdown',

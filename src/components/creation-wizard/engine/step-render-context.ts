@@ -12,6 +12,7 @@
  */
 
 import type { TemplateDocument, CreationFlowStepRef } from "@/lib/templates/template-types"
+import type { WizardSource } from "@/lib/creation/corpus"
 
 /** Narrowter Creation-Block — nach dem Guard im Wizard immer vorhanden. */
 export type WizardCreation = NonNullable<TemplateDocument["creation"]>
@@ -20,4 +21,15 @@ export interface StepRenderContext {
   template: TemplateDocument
   creation: WizardCreation
   currentStep: CreationFlowStepRef
+  libraryId: string
+  /** Bereits gesammelte Quellen (Multi-Source). */
+  sources: WizardSource[]
+  /** Seed-Datei (z. B. Dialograum/Event), falls der Wizard damit gestartet wurde. */
+  seedFileIdState?: string
+  /** Quell-Ordner-Kontext (nur Folder-Flows). */
+  sourceFolderId?: string
+  /** Auswahl-Handler des selectRelatedTestimonials-Steps (stabiler Callback). */
+  onTestimonialSelectionChange: (sources: WizardSource[]) => void
+  /** Auswahl-Handler des selectFolderArtifacts-Steps (stabiler Callback). */
+  onFolderArtifactSelectionChange: (sources: WizardSource[]) => void
 }

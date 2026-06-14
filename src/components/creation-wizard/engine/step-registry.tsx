@@ -16,8 +16,11 @@
 
 import type { ReactNode } from "react"
 import type { CreationFlowStepPreset } from "@/lib/templates/template-types"
+import { Card, CardContent } from "@/components/ui/card"
 import { WelcomeStep } from "../steps/welcome-step"
 import { CompletionStep } from "../steps/completion-step"
+import { SelectRelatedTestimonialsStep } from "../steps/select-related-testimonials-step"
+import { SelectFolderArtifactsStep } from "../steps/select-folder-artifacts-step"
 import type { StepRenderContext } from "./step-render-context"
 
 /** Ein Renderer baut aus dem Kontext das React-Element des Steps. */
@@ -36,6 +39,40 @@ function renderWelcomeStep(ctx: StepRenderContext): ReactNode {
 
 const renderCompletionStep: StepRenderer = () => <CompletionStep />
 
+function renderSelectRelatedTestimonialsStep(ctx: StepRenderContext): ReactNode {
+  const { sources, seedFileIdState, onTestimonialSelectionChange } = ctx
+  return (
+    <SelectRelatedTestimonialsStep
+      sources={sources}
+      seedSourceId={seedFileIdState ? `file-${seedFileIdState}` : undefined}
+      onSelectionChange={onTestimonialSelectionChange}
+    />
+  )
+}
+
+function renderSelectFolderArtifactsStep(ctx: StepRenderContext): ReactNode {
+  const { sourceFolderId, libraryId, onFolderArtifactSelectionChange } = ctx
+  if (!sourceFolderId || !libraryId) {
+    return (
+      <Card>
+        <CardContent className="py-6">
+          <p className="text-sm text-muted-foreground">
+            Kein Verzeichnis-Kontext. Bitte starte den Wizard aus einem Verzeichnis heraus.
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
+  return (
+    <SelectFolderArtifactsStep
+      libraryId={libraryId}
+      folderId={sourceFolderId}
+      targetLanguage="de"
+      onSelectionChange={onFolderArtifactSelectionChange}
+    />
+  )
+}
+
 /**
  * Bereits auf die Engine migrierte Presets. Fehlt ein Preset hier, übernimmt
  * der Legacy-Switch im Wizard-Kern (schrittweise Ablösung).
@@ -43,6 +80,8 @@ const renderCompletionStep: StepRenderer = () => <CompletionStep />
 const STEP_RENDERERS: Partial<Record<CreationFlowStepPreset, StepRenderer>> = {
   welcome: renderWelcomeStep,
   completion: renderCompletionStep,
+  selectRelatedTestimonials: renderSelectRelatedTestimonialsStep,
+  selectFolderArtifacts: renderSelectFolderArtifactsStep,
 }
 
 /** Ist dieses Preset bereits auf die Engine migriert? */
