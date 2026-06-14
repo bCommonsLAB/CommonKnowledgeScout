@@ -26,6 +26,8 @@ import { useSourceCommentCounts } from '@/hooks/gallery/use-source-comment-count
 import { SourceStarsCell } from './source-stars-cell'
 import { SourceCommentToggleButton } from './source-comment-toggle-button'
 import { SourceCommentsPanel } from './source-comments-panel'
+import { ViewTypeBadge } from '@/components/library/view-type-badge'
+import { getPresentDetailViewTypes } from '@/lib/detail-view-types/view-type-display'
 import { formatUpsertedAt } from '@/utils/format-upserted-at'
 
 export interface ItemsTableProps {
@@ -89,6 +91,13 @@ export function ItemsTable({
     },
     [onToggleFavorite, docsByYear, setUserState],
   )
+  // A4: In gemischten Libraries (mehrere DetailViewTypes) eine Format-Spalte je
+  // Dokument zeigen. Bei nur EINEM Typ ist das redundant → ausblenden.
+  const showFormatColumn = React.useMemo(() => {
+    const all = docsByYear.flatMap(([, docs]) => docs.map((d) => d.detailViewType))
+    return getPresentDetailViewTypes(all).length > 1
+  }, [docsByYear])
+
   const [expandedRows, setExpandedRows] = React.useState<Set<string>>(() => new Set())
   const toggleExpanded = React.useCallback((id: string) => {
     setExpandedRows((prev) => {
@@ -142,6 +151,11 @@ export function ItemsTable({
                     <TableHead className="w-[88px] shrink-0" aria-label="Sterne" />
                   )}
                   <TableHead className="w-[35%]">{t('gallery.table.title')}</TableHead>
+                  {showFormatColumn && (
+                    <TableHead className="w-[12%]">
+                      {t('gallery.table.format', { defaultValue: 'Format' })}
+                    </TableHead>
+                  )}
                   <TableHead className="w-[10%]">{t('gallery.table.year')}</TableHead>
                   <TableHead className="w-[10%]">{t('gallery.table.track')}</TableHead>
                   {/* Doc-Translations Refactor: Publikations- und Sprachen-Spalten */}
@@ -164,7 +178,7 @@ export function ItemsTable({
                   const docFileId = doc.fileId
                   const isExpanded = Boolean(docFileId && expandedRows.has(docFileId))
                   const leadingExtraCols = (isSignedIn ? 1 : 0) + (isMember ? 1 : 0)
-                  const baseCols = 5 // Title + Year + Track + Upserted + Padding-Spalte
+                  const baseCols = 5 + (showFormatColumn ? 1 : 0) // Title + (Format) + Year + Track + Upserted + Padding-Spalte
                   const ownerExtraCols = isOwner ? 3 : 0 // Status, Sprachen, Aktionen
                   const expandedColSpan = leadingExtraCols + baseCols + ownerExtraCols
                   return (
@@ -208,6 +222,11 @@ export function ItemsTable({
                         </span>
                       </div>
                     </TableCell>
+                    {showFormatColumn && (
+                      <TableCell>
+                        <ViewTypeBadge detailViewType={doc.detailViewType} />
+                      </TableCell>
+                    )}
                     <TableCell>
                       {doc.year ? (
                         <Badge variant="secondary" className="text-xs">
