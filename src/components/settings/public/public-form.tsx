@@ -32,6 +32,7 @@ import { AlertCircle, CheckCircle2, Copy, Globe, Loader2, Lock, ShieldCheck } fr
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { librariesAtom, activeLibraryIdAtom } from "@/atoms/library-atom"
 import { useSafeUser } from "@/hooks/use-safe-user"
+import { LibraryVerificationWarning } from "@/components/library/library-verification-warning"
 
 // Schema für Public-Publishing-Formular
 const publicFormSchema = z.object({
@@ -430,6 +431,9 @@ export function PublicForm() {
   return (
     <Form {...form} key={activeLibraryId}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* A1: Nicht-blockierende Warnung, falls die Library nicht geprüft ist. */}
+        <LibraryVerificationWarning context="publish" libraryId={activeLibraryId ?? undefined} />
+
         {/* Status auf einen Blick: Was sehen Fremde JETZT? */}
         <Alert
           className={
