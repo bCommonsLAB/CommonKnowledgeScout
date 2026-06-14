@@ -50,6 +50,13 @@ export interface StepRenderContext {
   sourceFolderId?: string
   /** Vorwärts-Navigation (handleNext) — von Steps mit Auto-Advance genutzt. */
   onNext: () => void
+  /** Sichtbare Steps des Laufs (collectSource gibt sie an den Step weiter). */
+  steps: CreationFlowStepRef[]
+  /** Quelle hinzufügen/entfernen (Multi-Source). */
+  addSource: (source: WizardSource) => Promise<void>
+  removeSource: (sourceId: string) => Promise<void>
+  /** collectSource meldet, ob „Weiter" freigeschaltet werden darf. */
+  setCollectSourceCanProceed: Dispatch<SetStateAction<boolean>>
   /** Aktuelle Wizard-Session-ID (best-effort Logging). */
   wizardSessionIdRef: MutableRefObject<string | null>
   logWizardEvent: LogWizardEvent

@@ -24,6 +24,7 @@ import { renderReviewMarkdownStep, renderGenerateDraftStep } from "./renderers/d
 import { renderEditDraftStep } from "./renderers/edit-draft-renderer"
 import { renderUploadImagesStep } from "./renderers/upload-images-renderer"
 import { renderPreviewDetailStep } from "./renderers/preview-detail-renderer"
+import { renderCollectSourceStep } from "./renderers/collect-source-renderer"
 
 /**
  * Bereits auf die Engine migrierte Presets. Fehlt ein Preset hier, übernimmt
@@ -39,6 +40,7 @@ const STEP_RENDERERS: Partial<Record<CreationFlowStepPreset, StepRenderer>> = {
   editDraft: renderEditDraftStep,
   uploadImages: renderUploadImagesStep,
   previewDetail: renderPreviewDetailStep,
+  collectSource: renderCollectSourceStep,
 }
 
 /** Ist dieses Preset bereits auf die Engine migriert? */

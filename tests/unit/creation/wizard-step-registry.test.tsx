@@ -19,11 +19,12 @@ import { SelectRelatedTestimonialsStep } from '@/components/creation-wizard/step
 import { SelectFolderArtifactsStep } from '@/components/creation-wizard/steps/select-folder-artifacts-step'
 import { ReviewMarkdownStep } from '@/components/creation-wizard/steps/review-markdown-step'
 import { GenerateDraftStep } from '@/components/creation-wizard/steps/generate-draft-step'
+import { CollectSourceStep } from '@/components/creation-wizard/steps/collect-source-step'
 
 function ctxFor(step: CreationFlowStepRef): StepRenderContext {
   return {
     template: { name: 'Testvorlage' },
-    creation: { welcome: { markdown: '## Hallo' } },
+    creation: { welcome: { markdown: '## Hallo' }, supportedSources: [] },
     currentStep: step,
     wizardState: { currentStepIndex: 0, sources: [] },
   } as unknown as StepRenderContext
@@ -99,17 +100,19 @@ describe('Step-Registry — migrierte Presets', () => {
     expect((node as ReactElement).type).not.toBe(GenerateDraftStep)
   })
 
-  it('editDraft / uploadImages / previewDetail sind migriert', () => {
-    for (const p of ['editDraft', 'uploadImages', 'previewDetail'] as const) {
+  it('editDraft / uploadImages / previewDetail / collectSource sind migriert', () => {
+    for (const p of ['editDraft', 'uploadImages', 'previewDetail', 'collectSource'] as const) {
       expect(isStepMigrated(p)).toBe(true)
     }
   })
 
-  it('noch nicht migrierte Presets liefern undefined (Legacy-Switch übernimmt)', () => {
-    const pending: CreationFlowStepPreset[] = [
-      'collectSource',
-      'publish',
-    ]
+  it('collectSource rendert die CollectSourceStep-Komponente', () => {
+    const node = renderRegisteredStep('collectSource', ctxFor({ id: 'CS', preset: 'collectSource' }))
+    expect((node as ReactElement).type).toBe(CollectSourceStep)
+  })
+
+  it('nur publish bleibt im Legacy-Switch (Spezialfälle -> Sub-Welle e)', () => {
+    const pending: CreationFlowStepPreset[] = ['publish']
     for (const p of pending) {
       expect(isStepMigrated(p)).toBe(false)
       expect(renderRegisteredStep(p, ctxFor({ id: 'X', preset: p }))).toBeUndefined()

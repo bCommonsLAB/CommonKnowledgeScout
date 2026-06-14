@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { loadTemplateConfig } from "@/lib/templates/template-service-client"
 import type { TemplateDocument } from "@/lib/templates/template-types"
-import { CollectSourceStep } from "./steps/collect-source-step"
 import { renderRegisteredStep, isStepMigrated } from "./engine/step-registry"
 import type { StepRenderContext } from "./engine/step-render-context"
 import type { WizardState } from "./engine/wizard-state"
@@ -2828,6 +2827,10 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         seedFileIdState,
         sourceFolderId,
         onNext: handleNext,
+        steps,
+        addSource,
+        removeSource,
+        setCollectSourceCanProceed,
         wizardSessionIdRef,
         logWizardEvent,
         onTestimonialSelectionChange: handleTestimonialSelectionChange,
@@ -2840,71 +2843,6 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     }
 
     switch (currentStep.preset) {
-      case "collectSource":
-        return (
-          <CollectSourceStep
-            source={wizardState.selectedSource}
-            mode={wizardState.mode}
-            // Legacy: Fallback für altes System
-            onCollect={(content) => {
-              setWizardState(prev => ({
-                ...prev,
-                collectedInput: {
-                  type: wizardState.selectedSource!.type,
-                  content,
-                },
-              }))
-            }}
-            onCollectStructured={(result) => {
-              setWizardState(prev => ({
-                ...prev,
-                generatedDraft: {
-                  metadata: result.metadata,
-                  markdown: result.markdown || "",
-                },
-              }))
-            }}
-            collectedInput={wizardState.collectedInput?.content}
-            // Multi-Source: Neue Props
-            sources={wizardState.sources}
-            onAddSource={addSource}
-            onRemoveSource={removeSource}
-            isExtracting={wizardState.isExtracting}
-            processingProgress={wizardState.processingProgress}
-            processingMessage={wizardState.processingMessage}
-            templateId={templateId}
-            libraryId={libraryId}
-            provider={provider || undefined}
-            targetFolderId={currentFolderId}
-            // Quelle-Auswahl (wenn source nicht gesetzt). Ordner-Typ „folder“ nur in speziellen Flows (nicht für Diktat).
-            supportedSources={creation.supportedSources.filter((s) => s.type !== 'folder')}
-            selectedSource={wizardState.selectedSource}
-            onSourceSelect={(source) => {
-              setWizardState(prev => ({ ...prev, selectedSource: source }))
-            }}
-            onModeSelect={(mode) => {
-              setWizardState(prev => ({
-                ...prev,
-                mode,
-                selectedSource: mode === 'form' ? undefined : prev.selectedSource,
-                collectedInput: mode === 'form' ? undefined : prev.collectedInput,
-              }))
-            }}
-            onResetSourceSelection={() => {
-              // Nutzer möchte die Quelle neu wählen: Auswahl + Eingaben zurücksetzen
-              setWizardState(prev => ({
-                ...prev,
-                selectedSource: undefined,
-                collectedInput: undefined,
-                mode: 'interview',
-              }))
-            }}
-            template={template}
-            steps={steps}
-            onCanProceedChange={setCollectSourceCanProceed}
-          />
-        )
-
       case "publish": {
         const onPublish = async () => {
           const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
