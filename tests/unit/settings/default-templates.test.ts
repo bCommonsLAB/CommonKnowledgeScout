@@ -15,6 +15,7 @@ import {
   listBuiltinDefaultTemplates,
 } from '@/lib/templates/default-templates'
 import { validateTemplateForViewType } from '@/lib/detail-view-types/validation'
+import { BASE_REQUIRED_FIELDS, missingBaseFields } from '@/lib/detail-view-types/base-fields'
 import {
   DETAIL_VIEW_TYPES,
   getOptionalFields,
@@ -28,6 +29,23 @@ describe('Standard-Vorlagen (default-templates)', () => {
       const fieldKeys = template.metadata.fields.map(f => f.key)
       const result = validateTemplateForViewType(fieldKeys, viewType)
       expect(result.isValid, `Pflichtfelder fehlen fuer ${viewType}: ${result.missingRequired.join(', ')}`).toBe(true)
+    }
+  })
+
+  it('deckt fuer JEDEN Inhaltstyp die verbindlichen Basis-Felder ab', () => {
+    for (const viewType of DETAIL_VIEW_TYPES) {
+      const template = getBuiltinDefaultTemplate(viewType)
+      const fieldKeys = template.metadata.fields.map(f => f.key)
+      const missing = missingBaseFields(fieldKeys)
+      expect(missing, `Basis-Felder fehlen fuer ${viewType}: ${missing.join(', ')}`).toEqual([])
+    }
+  })
+
+  it('hat fuer jedes Basis-Feld eine nicht-leere LLM-Beschreibung', () => {
+    const template = getBuiltinDefaultTemplate('book')
+    const byKey = Object.fromEntries(template.metadata.fields.map(f => [f.key, f]))
+    for (const base of BASE_REQUIRED_FIELDS) {
+      expect(byKey[base]?.description.trim().length, `Leere Beschreibung: ${base}`).toBeGreaterThan(0)
     }
   })
 

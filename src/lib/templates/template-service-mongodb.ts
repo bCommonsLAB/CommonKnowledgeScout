@@ -7,10 +7,15 @@
  * Verwende stattdessen die API-Routes (/api/templates).
  */
 
-import type { TemplateDocument, TemplateMetadataField } from './template-types'
+import type { TemplateDocument, TemplateMetadataField, TemplateMetadataSchema } from './template-types'
 import { TemplateRepository } from '@/lib/repositories/template-repo'
 import { parseTemplate } from './template-parser'
 import { injectCreationIntoFrontmatter } from './template-frontmatter-utils'
+import { describeField } from './default-templates'
+import { validateTemplateIntegrity, TemplateIntegrityError } from './template-integrity'
+import { BASE_REQUIRED_FIELDS } from '@/lib/detail-view-types/base-fields'
+import { getRequiredFields, isValidDetailViewType } from '@/lib/detail-view-types/registry'
+import { isTechnicalField } from '@/lib/detail-view-types/content-fields'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ANTWORTSCHEMA-GENERIERUNG
@@ -177,15 +182,79 @@ export async function loadTemplateFromMongoDB(
 }
 
 /**
- * Speichert ein Template in MongoDB
- * 
+ * Stellt sicher, dass eine Vorlage die SYSTEM-gesetzten Pflichtfelder traegt:
+ * die verbindlichen Basis-Felder (gemeinsamer Nenner, base-fields.ts) und die
+ * TECHNISCHEN Pflichtfelder des deklarierten Inhaltstyps (z.B. targetLanguage).
+ * INHALTLICHE Pflichtfelder (z.B. category bei climateAction) werden NICHT
+ * injiziert — sie muessen redaktionell vorhanden sein und werden vom Gate
+ * erzwungen. Idempotent: bereits vorhandene Felder bleiben unveraendert.
+ */
+export function ensureContractFields(metadata: TemplateMetadataSchema): TemplateMetadataSchema {
+  const present = new Set(metadata.fields.map((f) => f.key))
+  const toInject: string[] = []
+
+  for (const key of BASE_REQUIRED_FIELDS) {
+    if (!present.has(key)) toInject.push(key)
+  }
+
+  const viewType = (metadata.detailViewType ?? '').trim()
+  if (isValidDetailViewType(viewType)) {
+    for (const key of getRequiredFields(viewType)) {
+      if (isTechnicalField(key) && !present.has(key) && !toInject.includes(key)) {
+        toInject.push(key)
+      }
+    }
+  }
+
+  if (toInject.length === 0) return metadata
+
+  const injected: TemplateMetadataField[] = toInject.map((key) => ({
+    key,
+    variable: key,
+    description: describeField(key),
+    rawValue: '',
+  }))
+  return { ...metadata, fields: [...metadata.fields, ...injected] }
+}
+
+/**
+ * Reichert die Metadaten um die Contract-Felder an und ERZWINGT das
+ * Integritaets-Gate (no-silent-fallbacks.mdc). Wirft `TemplateIntegrityError`
+ * bei harten Fehlern (Aufrufer mappen das auf HTTP 422). Gibt die
+ * angereicherten Metadaten zurueck.
+ */
+function enforceTemplateContract(
+  metadata: TemplateMetadataSchema,
+  templateName: string,
+): TemplateMetadataSchema {
+  const enriched = ensureContractFields(metadata)
+  const result = validateTemplateIntegrity({
+    fieldKeys: enriched.fields.map((f) => f.key),
+    detailViewType: enriched.detailViewType,
+    templateName,
+  })
+  if (!result.ok) {
+    throw new TemplateIntegrityError(result.errors, result.warnings)
+  }
+  return enriched
+}
+
+/**
+ * Speichert ein Template in MongoDB.
+ *
+ * Erzwingt VOR dem Speichern den Konsistenz-Contract: Basis-/Technik-Felder
+ * werden injiziert, anschliessend validiert (gueltiger detailViewType +
+ * Pflichtfeld-Abdeckung). Bei Verstoss: TemplateIntegrityError (kein stilles
+ * Speichern). Greift sowohl fuer POST /api/templates als auch fuer den Import.
+ *
  * @param template Template-Dokument (ohne _id, createdAt, updatedAt, version)
  * @returns Erstelltes Template-Dokument
  */
 export async function saveTemplateToMongoDB(
   template: Omit<TemplateDocument, '_id' | 'createdAt' | 'updatedAt' | 'version'>
 ): Promise<TemplateDocument> {
-  return await TemplateRepository.create(template)
+  const metadata = enforceTemplateContract(template.metadata, template.name)
+  return await TemplateRepository.create({ ...template, metadata })
 }
 
 /**
@@ -205,7 +274,13 @@ export async function updateTemplateInMongoDB(
   userEmail: string,
   isAdmin?: boolean
 ): Promise<TemplateDocument | null> {
-  return await TemplateRepository.update(templateId, libraryId, updates, userEmail, isAdmin)
+  // Grandfathering: Der Contract wird nur erzwungen, wenn die Metadaten
+  // tatsaechlich geaendert werden. Reine systemprompt-/Body-/creation-Updates
+  // an Altbestand bleiben moeglich.
+  const nextUpdates = updates.metadata
+    ? { ...updates, metadata: enforceTemplateContract(updates.metadata, String(templateId)) }
+    : updates
+  return await TemplateRepository.update(templateId, libraryId, nextUpdates, userEmail, isAdmin)
 }
 
 /**
