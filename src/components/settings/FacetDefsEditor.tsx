@@ -7,9 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
-import { Trash2, Upload, Copy, Check, AlertTriangle, CheckCircle2, RotateCcw } from 'lucide-react'
+import { Trash2, Upload, Copy, Check, AlertTriangle, CheckCircle2, RotateCcw, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { getRequiredFields, getOptionalFields, isValidDetailViewType } from '@/lib/detail-view-types'
+import { isBaseFacetField } from '@/lib/detail-view-types/base-fields'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // STANDARD-FACETTEN AUS REGISTRY GENERIEREN
@@ -346,6 +347,11 @@ export function FacetDefsEditor({ value, onChange, detailViewType }: FacetDefsEd
         </div>
       )}
       
+      <p className="flex items-center gap-1 text-xs text-muted-foreground">
+        <Lock className="w-3 h-3" />
+        Basis-Facetten (date, authors, source, tags) sind verbindlich und gesperrt.
+      </p>
+
       <div className="overflow-auto rounded border">
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
@@ -365,26 +371,33 @@ export function FacetDefsEditor({ value, onChange, detailViewType }: FacetDefsEd
           <tbody>
             {defs.map((d, i) => {
               const fieldStatus = isKnownField(d.metaKey)
+              // Basis-Facetten (date/authors/source/tags) sind verbindlich und
+              // werden serverseitig erzwungen → im Editor gesperrt (A0/A1/A2).
+              const locked = isBaseFacetField(d.metaKey)
               return (
               <tr key={i} className="border-t">
                 <td className="px-0 py-2 align-middle">
                   <div className="flex items-center gap-1">
-                    <Input 
-                      placeholder="metaKey" 
-                      value={d.metaKey} 
-                      onChange={e => update(i, { metaKey: e.target.value })} 
+                    <Input
+                      placeholder="metaKey"
+                      value={d.metaKey}
+                      onChange={e => update(i, { metaKey: e.target.value })}
+                      disabled={locked}
                       className={`w-full ${
-                        fieldStatus === false 
-                          ? 'border-yellow-500 focus-visible:ring-yellow-500' 
-                          : fieldStatus === true 
-                            ? 'border-green-500 focus-visible:ring-green-500' 
+                        fieldStatus === false
+                          ? 'border-yellow-500 focus-visible:ring-yellow-500'
+                          : fieldStatus === true
+                            ? 'border-green-500 focus-visible:ring-green-500'
                             : ''
-                      }`} 
+                      }`}
                     />
-                    {fieldStatus === true && (
+                    {locked && (
+                      <Lock className="w-4 h-4 text-muted-foreground flex-shrink-0" aria-label="Basis-Facette (gesperrt)" />
+                    )}
+                    {!locked && fieldStatus === true && (
                       <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" aria-label="In Registry bekannt" />
                     )}
-                    {fieldStatus === false && (
+                    {!locked && fieldStatus === false && (
                       <AlertTriangle className="w-4 h-4 text-yellow-600 flex-shrink-0" aria-label="Nicht in Registry" />
                     )}
                   </div>
@@ -393,8 +406,9 @@ export function FacetDefsEditor({ value, onChange, detailViewType }: FacetDefsEd
                   <Input placeholder="Label" value={d.label || ''} onChange={e => update(i, { label: e.target.value })} className="w-full" />
                 </td>
                 <td className="px-0 py-2 align-middle">
-                  <Select 
-                    value={d.type || 'string'} 
+                  <Select
+                    value={d.type || 'string'}
+                    disabled={locked}
                     onValueChange={(v) => {
                       // NUR valide Typen akzeptieren (leere Strings ignorieren!)
                       if (v && types.includes(v as FacetDefUi['type'])) {
@@ -447,19 +461,27 @@ export function FacetDefsEditor({ value, onChange, detailViewType }: FacetDefsEd
                   </Select>
                 </td>
                 <td className="px-1 py-2 align-middle">
-                  <Switch checked={!!d.multi} onCheckedChange={(v) => update(i, { multi: v })} />
+                  <Switch checked={!!d.multi} disabled={locked} onCheckedChange={(v) => update(i, { multi: v })} />
                 </td>
                 <td className="px-1 py-2 align-middle">
-                  <Switch checked={!!d.visible} onCheckedChange={(v) => update(i, { visible: v })} />
+                  <Switch checked={!!d.visible} disabled={locked} onCheckedChange={(v) => update(i, { visible: v })} />
                 </td>
                 <td className="px-1 py-2 align-middle" title="Als Spalte in der Galerie-Tabellenansicht anzeigen">
                   <Switch checked={!!d.showInTable} onCheckedChange={(v) => update(i, { showInTable: v })} />
                 </td>
                 <td className="px-0 py-2 align-middle">
                   <div className="flex items-center gap-0">
-                    <Button type="button" variant="outline" size="sm" onClick={() => move(i, -1)} disabled={i === 0} className="h-8 w-8 p-0">↑</Button>
-                    <Button type="button" variant="outline" size="sm" onClick={() => move(i, +1)} disabled={i === defs.length - 1} className="h-8 w-8 p-0">↓</Button>
-                    <Button type="button" variant="ghost" size="sm" onClick={() => remove(i)} className="h-8 w-8 p-0" title="Entfernen">
+                    <Button type="button" variant="outline" size="sm" onClick={() => move(i, -1)} disabled={locked || i === 0} className="h-8 w-8 p-0">↑</Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => move(i, +1)} disabled={locked || i === defs.length - 1} className="h-8 w-8 p-0">↓</Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => remove(i)}
+                      disabled={locked}
+                      className="h-8 w-8 p-0"
+                      title={locked ? 'Basis-Facette: nicht entfernbar' : 'Entfernen'}
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>

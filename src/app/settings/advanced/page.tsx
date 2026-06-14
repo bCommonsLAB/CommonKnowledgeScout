@@ -7,6 +7,7 @@ import { LibraryAdvancedForm } from "@/components/settings/library"
 import { ChatAdvancedForm } from "@/components/settings/chat"
 import { SecretaryAdvancedForm } from "@/components/settings/secretary-advanced-form"
 import { TeamsStreamRelayPanel } from "@/components/settings/teams-stream-relay-panel"
+import { LibraryVerificationPanel } from "@/components/settings/library-verification-panel"
 
 export const metadata: Metadata = {
   title: "Bibliothek - Erweitert",
@@ -42,6 +43,14 @@ export default function AdvancedSettingsPage() {
         <Suspense fallback={<div className="text-center text-muted-foreground">Lädt...</div>}>
           <ChatAdvancedForm />
         </Suspense>
+      </section>
+
+      <Separator />
+
+      {/* Verifikation: Status + Prüfen/Reparieren (Welle A1/A2) */}
+      <section className="space-y-2">
+        <h4 className="text-base font-semibold">Verifikation</h4>
+        <LibraryVerificationPanel />
       </section>
 
       <Separator />
