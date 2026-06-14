@@ -7,101 +7,20 @@
  * Wizard-Kern weiterhin über den Legacy-Switch — so bleibt jeder Schritt
  * verhaltenstreu und einzeln prüfbar.
  *
- * Bewusst rein und seiteneffektfrei: ein Renderer baut nur ein React-Element
- * aus dem `StepRenderContext` und ruft KEINE Hooks auf.
+ * Diese Datei ist reine Verdrahtung; die Renderer liegen unter `renderers/`.
  *
- * @see docs/creation-wizard/ux-anforderungen.md (B2: feste Default-Labels)
  * @see docs/refactor/welle-3-vi-creation-wizard/00-refactor-plan.md (Sub-Welle d)
  */
 
 import type { ReactNode } from "react"
 import type { CreationFlowStepPreset } from "@/lib/templates/template-types"
-import { Card, CardContent } from "@/components/ui/card"
-import { WelcomeStep } from "../steps/welcome-step"
-import { CompletionStep } from "../steps/completion-step"
-import { SelectRelatedTestimonialsStep } from "../steps/select-related-testimonials-step"
-import { SelectFolderArtifactsStep } from "../steps/select-folder-artifacts-step"
-import { ReviewMarkdownStep } from "../steps/review-markdown-step"
-import type { StepRenderContext } from "./step-render-context"
-
-/** Ein Renderer baut aus dem Kontext das React-Element des Steps. */
-export type StepRenderer = (ctx: StepRenderContext) => ReactNode
-
-function renderWelcomeStep(ctx: StepRenderContext): ReactNode {
-  const { template, creation, currentStep } = ctx
-  const fallbackTitle = creation.ui?.displayName || template.name || "Vorlage"
-  const welcomeMarkdown =
-    creation.welcome?.markdown?.trim()
-      ? creation.welcome.markdown
-      : `## Willkommen\n\nHier erstellen wir gemeinsam **${fallbackTitle}**.\n\n- Du wählst eine Methode (erzählen, Webseite, Text, Datei oder Formular)\n- Wir erstellen einen ersten Vorschlag\n- Du prüfst kurz und speicherst\n`
-
-  return <WelcomeStep title={currentStep.title || "Willkommen"} markdown={welcomeMarkdown} />
-}
-
-const renderCompletionStep: StepRenderer = () => <CompletionStep />
-
-function renderSelectRelatedTestimonialsStep(ctx: StepRenderContext): ReactNode {
-  const { sources, seedFileIdState, onTestimonialSelectionChange } = ctx
-  return (
-    <SelectRelatedTestimonialsStep
-      sources={sources}
-      seedSourceId={seedFileIdState ? `file-${seedFileIdState}` : undefined}
-      onSelectionChange={onTestimonialSelectionChange}
-    />
-  )
-}
-
-function renderSelectFolderArtifactsStep(ctx: StepRenderContext): ReactNode {
-  const { sourceFolderId, libraryId, onFolderArtifactSelectionChange } = ctx
-  if (!sourceFolderId || !libraryId) {
-    return (
-      <Card>
-        <CardContent className="py-6">
-          <p className="text-sm text-muted-foreground">
-            Kein Verzeichnis-Kontext. Bitte starte den Wizard aus einem Verzeichnis heraus.
-          </p>
-        </CardContent>
-      </Card>
-    )
-  }
-  return (
-    <SelectFolderArtifactsStep
-      libraryId={libraryId}
-      folderId={sourceFolderId}
-      targetLanguage="de"
-      onSelectionChange={onFolderArtifactSelectionChange}
-    />
-  )
-}
-
-function renderReviewMarkdownStep(ctx: StepRenderContext): ReactNode {
-  const { currentStep, wizardState, setWizardState, wizardSessionIdRef, logWizardEvent, provider, currentFolderId } = ctx
-  return (
-    <ReviewMarkdownStep
-      title={currentStep.title || "Markdown prüfen"}
-      markdown={wizardState.draftText || ""}
-      onMarkdownChange={(next) => setWizardState((prev) => ({ ...prev, draftText: next }))}
-      isConfirmed={!!wizardState.hasConfirmedMarkdown}
-      onConfirmedChange={(next) => {
-        setWizardState((prev) => ({ ...prev, hasConfirmedMarkdown: next }))
-
-        // Log markdown_confirmed Event
-        if (next && wizardSessionIdRef.current) {
-          logWizardEvent(wizardSessionIdRef.current, {
-            eventType: 'markdown_confirmed',
-            stepIndex: wizardState.currentStepIndex,
-            stepPreset: currentStep.preset,
-          }).catch((error) => console.warn('[Wizard] Fehler beim Loggen von markdown_confirmed:', error))
-        }
-      }}
-      isProcessing={wizardState.isExtracting}
-      processingProgress={wizardState.processingProgress}
-      processingMessage={wizardState.processingMessage}
-      provider={provider || null}
-      currentFolderId={wizardState.pdfTranscriptFolderId || currentFolderId || 'root'}
-    />
-  )
-}
+import type { StepRenderContext, StepRenderer } from "./step-render-context"
+import { renderWelcomeStep, renderCompletionStep } from "./renderers/static-step-renderers"
+import {
+  renderSelectRelatedTestimonialsStep,
+  renderSelectFolderArtifactsStep,
+} from "./renderers/selection-step-renderers"
+import { renderReviewMarkdownStep, renderGenerateDraftStep } from "./renderers/draft-step-renderers"
 
 /**
  * Bereits auf die Engine migrierte Presets. Fehlt ein Preset hier, übernimmt
@@ -113,6 +32,7 @@ const STEP_RENDERERS: Partial<Record<CreationFlowStepPreset, StepRenderer>> = {
   selectRelatedTestimonials: renderSelectRelatedTestimonialsStep,
   selectFolderArtifacts: renderSelectFolderArtifactsStep,
   reviewMarkdown: renderReviewMarkdownStep,
+  generateDraft: renderGenerateDraftStep,
 }
 
 /** Ist dieses Preset bereits auf die Engine migriert? */

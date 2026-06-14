@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import { loadTemplateConfig } from "@/lib/templates/template-service-client"
 import type { TemplateDocument } from "@/lib/templates/template-types"
 import { CollectSourceStep } from "./steps/collect-source-step"
-import { GenerateDraftStep } from "./steps/generate-draft-step"
 import { EditDraftStep } from "./steps/edit-draft-step"
 import { renderRegisteredStep, isStepMigrated } from "./engine/step-registry"
 import type { StepRenderContext } from "./engine/step-render-context"
@@ -2904,79 +2903,6 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             template={template}
             steps={steps}
             onCanProceedChange={setCollectSourceCanProceed}
-          />
-        )
-
-      case "generateDraft":
-        // Im Interview-Modus ist generateDraft zwingend nach collectSource
-        // Im Form-Modus kann generateDraft optional sein
-        // Finalize/Seed-Flows können ohne collectedInput arbeiten (Sources sind bereits gesetzt).
-        if (wizardState.mode === 'interview' && !wizardState.collectedInput && wizardState.sources.length === 0) {
-          return (
-            <div className="text-center text-muted-foreground p-8">
-              Bitte zuerst Eingaben sammeln.
-            </div>
-          )
-        }
-        const isEventFinalize = (templateId || '').toLowerCase() === 'event-finalize-de'
-        // Im Form-Modus kann generateDraft auch ohne collectedInput aufgerufen werden (z.B. zur Initialbefüllung)
-        const inputForGeneration = wizardState.collectedInput?.content || buildCorpusText(wizardState.sources)
-        return (
-          <GenerateDraftStep
-            templateId={templateId}
-            libraryId={libraryId}
-            input={inputForGeneration}
-            onGenerateStarted={() => {
-              const sessionId = wizardSessionIdRef.current
-              if (!sessionId) return
-              void logWizardEventClient(sessionId, {
-                eventType: 'job_started',
-                stepIndex: wizardState.currentStepIndex,
-                stepPreset: currentStep?.preset,
-                metadata: {
-                  sourcesCount: wizardState.sources.length,
-                  corpusLength: inputForGeneration.length,
-                  templateId,
-                },
-              })
-            }}
-            onGenerate={(draft) => {
-              setWizardState(prev => ({
-                ...prev,
-                generatedDraft: draft,
-                // Im Form-Modus: Initialisiere draftMetadata und draftText aus generatedDraft
-                draftMetadata: prev.mode === 'form' ? draft.metadata : prev.draftMetadata,
-                draftText: prev.mode === 'form' ? draft.markdown : prev.draftText,
-              }))
-              const sessionId = wizardSessionIdRef.current
-              if (!sessionId) return
-              void logWizardEventClient(sessionId, {
-                eventType: 'job_completed',
-                stepIndex: wizardState.currentStepIndex,
-                stepPreset: currentStep?.preset,
-                metadata: {
-                  sourcesCount: wizardState.sources.length,
-                  corpusLength: inputForGeneration.length,
-                  metadataKeys: Object.keys(draft.metadata || {}).length,
-                  markdownLength: (draft.markdown || '').length,
-                },
-              })
-            }}
-            onGenerateFailed={(error) => {
-              const sessionId = wizardSessionIdRef.current
-              if (!sessionId) return
-              const msg = error instanceof Error ? error.message : String(error)
-              void logWizardEventClient(sessionId, {
-                eventType: 'job_failed',
-                stepIndex: wizardState.currentStepIndex,
-                stepPreset: currentStep?.preset,
-                error: { code: 'process_text_failed', message: msg },
-              })
-            }}
-            generatedDraft={wizardState.generatedDraft}
-            autoAdvance={isEventFinalize}
-            onAdvance={() => handleNext()}
-            showResultPreview={!isEventFinalize}
           />
         )
 

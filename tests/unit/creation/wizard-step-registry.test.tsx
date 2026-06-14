@@ -18,6 +18,7 @@ import { CompletionStep } from '@/components/creation-wizard/steps/completion-st
 import { SelectRelatedTestimonialsStep } from '@/components/creation-wizard/steps/select-related-testimonials-step'
 import { SelectFolderArtifactsStep } from '@/components/creation-wizard/steps/select-folder-artifacts-step'
 import { ReviewMarkdownStep } from '@/components/creation-wizard/steps/review-markdown-step'
+import { GenerateDraftStep } from '@/components/creation-wizard/steps/generate-draft-step'
 
 function ctxFor(step: CreationFlowStepRef): StepRenderContext {
   return {
@@ -83,10 +84,24 @@ describe('Step-Registry — migrierte Presets', () => {
     expect((node as ReactElement).type).toBe(ReviewMarkdownStep)
   })
 
+  it('generateDraft rendert die GenerateDraftStep-Komponente (Form-Modus)', () => {
+    expect(isStepMigrated('generateDraft')).toBe(true)
+    const node = renderRegisteredStep('generateDraft', ctxFor({ id: 'G', preset: 'generateDraft' }))
+    expect((node as ReactElement).type).toBe(GenerateDraftStep)
+  })
+
+  it('generateDraft: Interview-Modus ohne Eingabe zeigt Hinweis statt Step', () => {
+    const ctx = {
+      ...ctxFor({ id: 'G', preset: 'generateDraft' }),
+      wizardState: { currentStepIndex: 0, sources: [], mode: 'interview' },
+    } as unknown as StepRenderContext
+    const node = renderRegisteredStep('generateDraft', ctx)
+    expect((node as ReactElement).type).not.toBe(GenerateDraftStep)
+  })
+
   it('noch nicht migrierte Presets liefern undefined (Legacy-Switch übernimmt)', () => {
     const pending: CreationFlowStepPreset[] = [
       'collectSource',
-      'generateDraft',
       'editDraft',
       'uploadImages',
       'previewDetail',

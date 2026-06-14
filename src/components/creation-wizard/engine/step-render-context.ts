@@ -11,7 +11,7 @@
  * @see docs/refactor/welle-3-vi-creation-wizard/00-refactor-plan.md (Sub-Welle d)
  */
 
-import type { Dispatch, MutableRefObject, SetStateAction } from "react"
+import type { Dispatch, MutableRefObject, ReactNode, SetStateAction } from "react"
 import type { TemplateDocument, CreationFlowStepRef } from "@/lib/templates/template-types"
 import type { WizardSource } from "@/lib/creation/corpus"
 import type { WizardSessionEvent } from "@/types/wizard-session"
@@ -56,3 +56,6 @@ export interface StepRenderContext {
   /** Auswahl-Handler des selectFolderArtifacts-Steps (stabiler Callback). */
   onFolderArtifactSelectionChange: (sources: WizardSource[]) => void
 }
+
+/** Ein Renderer baut aus dem Kontext das React-Element des Steps (ohne Hooks). */
+export type StepRenderer = (ctx: StepRenderContext) => ReactNode
