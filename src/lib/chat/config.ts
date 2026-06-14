@@ -26,6 +26,7 @@
 
 import * as z from 'zod'
 import { LibraryChatConfig } from '@/types/library'
+import { BASE_FACET_DEFS } from '@/lib/detail-view-types/base-fields'
 import {
   TARGET_LANGUAGE_ZOD_ENUM,
   TARGET_LANGUAGE_DEFAULT,
@@ -40,28 +41,37 @@ import {
   normalizeAccessPerspectiveToArray,
 } from './constants'
 
-/**
- * Zentrale Default-Facetten-Definition
- * Wird verwendet für neue Libraries oder wenn keine Facetten konfiguriert sind
- */
-export function getDefaultFacets(): Array<{
+/** Eine Default-Facetten-Definition (Basis-Facetten tragen `mandatory: true`). */
+export interface DefaultFacet {
   metaKey: string
   label: string
   type: 'string' | 'number' | 'boolean' | 'string[]' | 'date' | 'integer-range'
   multi: boolean
   visible: boolean
-}> {
-  return [
-    { metaKey: 'authors', label: 'Authors', type: 'string[]', multi: true, visible: true },
+  /** Verbindliche Basis-Facette (nicht entfernbar). Siehe base-fields.ts. */
+  mandatory?: boolean
+}
+
+/**
+ * Zentrale Default-Facetten-Definition.
+ * Wird verwendet für neue Libraries oder wenn keine Facetten konfiguriert sind.
+ *
+ * Reihenfolge: zuerst die verbindlichen Basis-Facetten (gemeinsamer Nenner jeder
+ * Library, `mandatory: true`, siehe `BASE_FACET_DEFS`), danach ergaenzende Defaults.
+ * `authors`/`source`/`tags` stammen aus den Basis-Facetten und werden hier nicht
+ * dupliziert; `year` bleibt als abgeleitete (nicht verbindliche) Facette erhalten.
+ */
+export function getDefaultFacets(): DefaultFacet[] {
+  const base: DefaultFacet[] = BASE_FACET_DEFS.map((d) => ({ ...d }))
+  const additional: DefaultFacet[] = [
     { metaKey: 'year', label: 'Year', type: 'number', multi: true, visible: true },
     { metaKey: 'region', label: 'Region', type: 'string', multi: true, visible: true },
     { metaKey: 'docType', label: 'DocType', type: 'string', multi: true, visible: true },
-    { metaKey: 'source', label: 'Source', type: 'string', multi: true, visible: true },
-    { metaKey: 'tags', label: 'Tags', type: 'string[]', multi: true, visible: true },
     { metaKey: 'topics', label: 'Topics', type: 'string[]', multi: true, visible: false },
     { metaKey: 'language', label: 'Language', type: 'string', multi: true, visible: false },
     { metaKey: 'commercialStatus', label: 'Commercial', type: 'string', multi: true, visible: false },
   ]
+  return [...base, ...additional]
 }
 
 /**
@@ -122,6 +132,8 @@ export const chatConfigSchema = z.object({
       type: z.enum(['string','number','boolean','string[]','date','integer-range']).default('string'),
       multi: z.boolean().default(true),
       visible: z.boolean().default(true),
+      // Verbindliche Basis-Facette (nicht entfernbar); wird beim Parsen erzwungen.
+      mandatory: z.boolean().optional(),
       buckets: z.array(z.object({ label: z.string(), min: z.number().int(), max: z.number().int() })).optional(),
     })).default(getDefaultFacets())
   }).default({

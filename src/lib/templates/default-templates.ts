@@ -25,6 +25,7 @@ import {
   isValidDetailViewType,
   type DetailViewType,
 } from '@/lib/detail-view-types/registry'
+import { BASE_REQUIRED_FIELDS } from '@/lib/detail-view-types/base-fields'
 
 /** Namens-Praefix der Standard-Vorlagen (reserviert, nicht ueberschreibbar) */
 export const DEFAULT_TEMPLATE_PREFIX = 'standard-'
@@ -38,6 +39,7 @@ const FIELD_DESCRIPTIONS: Record<string, string> = {
     'Eine ausfuehrliche Zusammenfassung: zuerst ein kurzer Ueberblick, danach in sinnvolle Abschnitte gegliedert (Abschnitts-Titel fett, Absaetze mit \\n getrennt)',
   language: 'Sprache des Originaldokuments als ISO-Code (z.B. de, en)',
   targetLanguage: 'Zielsprache dieser Ausgabe als ISO-Code (z.B. de, en)',
+  date: 'Datum des Inhalts im Format yyyy-mm-dd (Erscheinen/Aufnahme/Veranstaltung), falls erkennbar',
   authors: 'Alle Autorinnen und Autoren, kommagetrennt',
   authors_image_url: 'URL eines Autorenbilds, falls im Material vorhanden — sonst leer lassen',
   year: 'Erscheinungs- bzw. Aufnahmejahr (yyyy)',
@@ -82,7 +84,8 @@ const VIEW_TYPE_PROMPT_FOCUS: Record<DetailViewType, string> = {
   refurbedDevice: 'Du extrahierst technische Daten und Zustand eines aufbereiteten Geraets.',
 }
 
-function describeField(key: string): string {
+/** LLM-Anweisung fuer ein Feld (kuratiert, sonst generischer Fallback). */
+export function describeField(key: string): string {
   return FIELD_DESCRIPTIONS[key] ?? `Das Feld "${key}" passend aus dem Material befuellen — falls nicht erkennbar, leer lassen`
 }
 
@@ -102,7 +105,17 @@ export function isBuiltinDefaultTemplateName(name: string | undefined | null): b
 
 /** Markdown-Quelltext einer Standard-Vorlage generieren (Registry-getrieben) */
 export function buildDefaultTemplateMarkdown(viewType: DetailViewType): string {
-  const fields = [...getRequiredFields(viewType), ...getOptionalFields(viewType)]
+  // Verbindliche Basis-Felder zuerst (gemeinsamer Nenner jeder Library, siehe
+  // base-fields.ts), danach die typ-spezifischen Pflicht- und optionalen Felder.
+  // Dedupliziert: Basis-Felder, die ein Typ ohnehin fuehrt (z.B. title, language),
+  // erscheinen nur einmal.
+  const seen = new Set<string>()
+  const fields: string[] = []
+  for (const key of [...BASE_REQUIRED_FIELDS, ...getRequiredFields(viewType), ...getOptionalFields(viewType)]) {
+    if (seen.has(key)) continue
+    seen.add(key)
+    fields.push(key)
+  }
   const frontmatterLines = fields.map(key => `${key}: {{${key}|${describeField(key)}}}`)
   // detailViewType als hartes Feld (ohne {{}}): wird nicht ans LLM gegeben,
   // macht die Vorlage selbst-beschreibend und konsistenz-pruefbar.

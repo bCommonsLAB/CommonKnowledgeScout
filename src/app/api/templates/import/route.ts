@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { importTemplateFromStorage, listTemplatesInStorage } from '@/lib/templates/template-import-export'
 import { getServerProvider } from '@/lib/storage/server-provider'
+import { TemplateIntegrityError } from '@/lib/templates/template-integrity'
 
 async function getUserEmail(): Promise<string | null> {
   const { userId } = await auth()
@@ -73,9 +74,16 @@ export async function POST(request: NextRequest) {
     // Storage Provider erstellen
     const provider = await getServerProvider(userEmail, libraryId)
     const result = await importTemplateFromStorage(provider, fileName, libraryId, userEmail)
-    
+
     return NextResponse.json(result)
   } catch (error) {
+    // Konsistenz-Contract verletzt → 422 statt stillem Import (no-silent-fallbacks).
+    if (error instanceof TemplateIntegrityError) {
+      return NextResponse.json(
+        { error: error.message, details: error.errors, warnings: error.warnings },
+        { status: 422 }
+      )
+    }
     console.error('[API][Templates][Import] Fehler:', error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Unbekannter Fehler' },

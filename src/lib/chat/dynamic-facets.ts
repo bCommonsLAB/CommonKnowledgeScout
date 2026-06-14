@@ -1,6 +1,7 @@
 import { normalizeChatConfig } from '@/lib/chat/config'
 import { Library } from '@/types/library'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
+import { BASE_FACET_DEFS, isBaseFacetField } from '@/lib/detail-view-types/base-fields'
 
 export type FacetType = 'string' | 'number' | 'boolean' | 'string[]' | 'date' | 'integer-range'
 
@@ -17,6 +18,8 @@ export interface FacetDef {
   type: FacetType
   multi: boolean
   visible: boolean
+  /** Verbindliche Basis-Facette (nicht entfernbar). Siehe base-fields.ts. */
+  mandatory?: boolean
   // Zusatzattribute für Anzeige/Aggregation
   sort?: 'alpha' | 'count'
   max?: number
@@ -56,9 +59,25 @@ export function parseFacetDefs(library: Library): FacetDef[] {
     })
   }
   
+  // Verbindliche Basis-Facetten erzwingen: immer vorhanden, immer zuerst, nicht
+  // entfernbar. User-Eintraege fuer Basis-Keys werden durch die kanonische
+  // Definition ersetzt (Determinismus). Der Anwender kann nur ZUSAETZLICHE
+  // Facetten ergaenzen. Siehe base-fields.ts / no-silent-fallbacks.mdc.
+  const baseDefs: FacetDef[] = BASE_FACET_DEFS.map((d) => ({
+    metaKey: d.metaKey,
+    label: d.label,
+    type: d.type as FacetType,
+    multi: d.multi,
+    visible: d.visible,
+    mandatory: true,
+    sort: 'alpha',
+    columns: 1,
+  }))
+  const merged: FacetDef[] = [...baseDefs, ...out.filter((d) => !isBaseFacetField(d.metaKey))]
+
   // Cache speichern
-  facetDefsCache.set(cacheKey, { defs: out, timestamp: now })
-  
+  facetDefsCache.set(cacheKey, { defs: merged, timestamp: now })
+
   // Alte Cache-Einträge aufräumen (alle 10 Minuten)
   if (facetDefsCache.size > 100) {
     for (const [key, entry] of facetDefsCache.entries()) {
@@ -67,8 +86,8 @@ export function parseFacetDefs(library: Library): FacetDef[] {
       }
     }
   }
-  
-  return out
+
+  return merged
 }
 
 export function getTopLevelValue(rawMeta: Record<string, unknown> | undefined, def: FacetDef): unknown {

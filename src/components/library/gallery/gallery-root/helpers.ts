@@ -4,7 +4,8 @@
  * Pure-Helpers fuer GalleryRoot — aus gallery-root.tsx ausgegliedert
  * (Welle 3-III-a, Schritt 2/N).
  *
- * Verhalten 1:1 portiert. Keine React-Imports, keine Side-Effects.
+ * Keine React-Imports. Reine Helper — Ausnahme: `resolveDetailViewTypeForDoc`
+ * loggt unbekannte Typen explizit (no-silent-fallbacks.mdc).
  */
 
 import type { TemplatePreviewDetailViewType } from '@/lib/templates/template-types'
@@ -85,17 +86,29 @@ export function pickFacetsForTableColumns(
  * 2. Sonst: nutze den Library-Default (libraryDetailViewType).
  * 3. Wenn auch der Library-Default unbekannt ist: 'book' als Fallback.
  *
+ * KEIN stiller Fallback (no-silent-fallbacks.mdc): Ein gesetzter, aber
+ * unbekannter `detailViewType` (z.B. Template erzeugt einen nicht
+ * registrierten Typ) wird EXPLIZIT geloggt, statt unbemerkt als 'book' zu
+ * rendern. Ein fehlender (undefined/leerer) Wert ist der dokumentierte
+ * Normalfall und wird nicht geloggt.
+ *
  * Aus dem useMemo `detailViewTypeForDoc` ausgegliedert.
  */
 export function resolveDetailViewTypeForDoc(
   perDocViewType: unknown,
   libraryFallback: TemplatePreviewDetailViewType,
 ): TemplatePreviewDetailViewType {
-  if (
-    typeof perDocViewType === 'string' &&
-    VALID_DETAIL_VIEW_TYPES.includes(perDocViewType as TemplatePreviewDetailViewType)
-  ) {
-    return perDocViewType as TemplatePreviewDetailViewType
+  if (typeof perDocViewType === 'string' && perDocViewType.length > 0) {
+    if (VALID_DETAIL_VIEW_TYPES.includes(perDocViewType as TemplatePreviewDetailViewType)) {
+      return perDocViewType as TemplatePreviewDetailViewType
+    }
+    console.warn(
+      `[detailViewType] Unbekannter detailViewType "${perDocViewType}" am Dokument — Fallback auf Library-Default "${libraryFallback}". Template/Registry pruefen.`,
+    )
   }
-  return VALID_DETAIL_VIEW_TYPES.includes(libraryFallback) ? libraryFallback : 'book'
+  if (VALID_DETAIL_VIEW_TYPES.includes(libraryFallback)) return libraryFallback
+  console.warn(
+    `[detailViewType] Ungueltiger Library-Default "${libraryFallback}" — Fallback auf "book". Library-Konfiguration pruefen.`,
+  )
+  return 'book'
 }

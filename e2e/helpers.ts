@@ -1,5 +1,5 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { expect, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 
 /** Gespeicherte Login-Session (gitignored, niemals committen) */
 export const AUTH_FILE = 'tmp/e2e-auth.json'
@@ -84,11 +84,22 @@ interface ClientLibraryLike {
 export async function getLibraries(page: Page): Promise<ClientLibraryLike[]> {
   // Langes Timeout: der erste AUTHENTIFIZIERTE Hit kompiliert die Route + macht
   // den MongoDB-Cold-Connect und kann so >20s (das Default-actionTimeout) dauern.
-  const res = await page.request.get('/api/libraries', { timeout: 90_000 })
-  if (!res.ok()) throw new Error(`GET /api/libraries → HTTP ${res.status()}`)
-  const data = (await res.json()) as ClientLibraryLike[]
-  if (!Array.isArray(data)) throw new Error('GET /api/libraries lieferte kein Array (nicht eingeloggt?)')
-  return data
+  // Zusätzlich bis zu 2 Versuche: der Dev-Server spitzt unter E2E-Last die
+  // Antwortzeit gelegentlich über das Timeout — ein zweiter Versuch fängt den
+  // transienten Spike ab (sonst kippen Folge-Schritte wie activateLibrary).
+  let lastErr: unknown
+  for (let versuch = 0; versuch < 2; versuch++) {
+    try {
+      const res = await page.request.get('/api/libraries', { timeout: 90_000 })
+      if (!res.ok()) throw new Error(`GET /api/libraries → HTTP ${res.status()}`)
+      const data = (await res.json()) as ClientLibraryLike[]
+      if (!Array.isArray(data)) throw new Error('GET /api/libraries lieferte kein Array (nicht eingeloggt?)')
+      return data
+    } catch (error) {
+      lastErr = error
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr))
 }
 
 const libName = (l: ClientLibraryLike): string => l.label ?? l.name ?? ''
@@ -170,6 +181,41 @@ export async function expectSaved(page: Page): Promise<void> {
 }
 
 /**
+ * Filtert einen Locator auf die SICHTBAREN Treffer. Die Settings-Seiten rendern
+ * ihren Inhalt doppelt (mobile + Desktop-Layout); die erste Kopie ist im
+ * Test-Viewport unsichtbar. Ohne diesen Filter trifft `.first()` die versteckte
+ * Variante und Aktionen laufen in den Timeout (Befund WP-4).
+ */
+export function vis(loc: Locator): Locator {
+  return loc.filter({ visible: true })
+}
+
+/**
+ * Löst eine Speichern-Aktion aus und wartet auf die ERFOLGREICHE Library-
+ * Mutation statt auf einen Toast. Die Settings-Speichern-Toasts laufen über das
+ * nirgends gemountete shadcn-`use-toast` und sind damit unsichtbar (Befund WP-3/
+ * WP-4) — der Netzwerk-Effekt ist das verlässliche Erfolgssignal. Abgedeckt:
+ * Chat/Explore/Inhaltstyp (PATCH /api/libraries/:id), Verarbeitung
+ * (POST /api/libraries), Veröffentlichung (PUT …/public), Einladung
+ * (POST …/invites).
+ */
+export async function saveAndWait(
+  page: Page,
+  trigger: () => Promise<void>,
+  timeout = 30_000,
+): Promise<void> {
+  const waitResp = page.waitForResponse(
+    r =>
+      /\/api\/libraries/.test(r.url()) &&
+      ['POST', 'PATCH', 'PUT'].includes(r.request().method()) &&
+      r.ok(),
+    { timeout },
+  )
+  await trigger()
+  await waitResp
+}
+
+/**
  * Schließt den globalen „Anmeldung erforderlich"-Re-Auth-Dialog, falls offen.
  * Dieser erscheint beim App-Start automatisch, sobald irgendeine OneDrive-
  * Bibliothek abgelaufene Tokens hat (z. B. „Onedrive Test"), und blockiert mit
@@ -215,6 +261,36 @@ export async function createLibraryViaUi(page: Page, name: string): Promise<stri
   await expect.poll(() => findLibraryId(page, name), { timeout: 30_000 }).not.toBeNull()
   const id = await findLibraryId(page, name)
   if (!id) throw new Error(`Anlage von "${name}" nicht über die API bestätigt`)
+  return id
+}
+
+/**
+ * Legt eine Bibliothek über den NEUEN Anlage-Wizard an (A–E-Flow):
+ * `/start` → „Neue Bibliothek" → `CreateLibraryWizard` (Name + Inhaltstyp-Karte)
+ * → „Bibliothek erstellen". Anders als der Switcher-Dialog kann hier die
+ * Inhaltstyp-Karte gewählt werden (Standard: „Bücher & Dokumente" = book).
+ * Wir verlassen uns NICHT auf die Auto-Weiterleitung des Hooks, sondern
+ * bestätigen die Anlage über die API.
+ */
+export async function createLibraryViaWizard(
+  page: Page,
+  name: string,
+  contentType: RegExp = /Bücher & Dokumente/,
+): Promise<string> {
+  await page.goto('/start', { waitUntil: 'domcontentloaded' })
+  await dismissReauthDialog(page)
+  await vis(page.getByRole('button', { name: /Neue Bibliothek/i })).first().click({ timeout: 30_000 })
+  const dlg = page.getByRole('dialog')
+  await dlg.getByLabel('Name').waitFor({ state: 'visible', timeout: 15_000 })
+  await dlg.getByLabel('Name').fill(name)
+  // Inhaltstyp-Karte (role=button) auswählen
+  await dlg.locator('[role="button"]').filter({ hasText: contentType }).first().click()
+  await dlg.getByRole('button', { name: 'Bibliothek erstellen' }).click()
+  // 60s: der ERSTE POST /api/libraries kompiliert die Route + schreibt MongoDB
+  // (kalt > 30s) — die Bibliothek erscheint im GET erst nach dem Commit.
+  await expect.poll(() => findLibraryId(page, name), { timeout: 60_000 }).not.toBeNull()
+  const id = await findLibraryId(page, name)
+  if (!id) throw new Error(`Wizard-Anlage von "${name}" nicht über die API bestätigt`)
   return id
 }
 

@@ -20,6 +20,16 @@ import {
   listBuiltinDefaultTemplates,
   toBuiltinTemplateDocument,
 } from '@/lib/templates/default-templates'
+import { TemplateIntegrityError } from '@/lib/templates/template-integrity'
+
+/** Mappt einen Konsistenz-Contract-Verstoss auf HTTP 422 (sonst null). */
+function integrityErrorResponse(error: unknown): NextResponse | null {
+  if (!(error instanceof TemplateIntegrityError)) return null
+  return NextResponse.json(
+    { error: error.message, details: error.errors, warnings: error.warnings },
+    { status: 422 }
+  )
+}
 
 /**
  * Hilfsfunktion zum Abrufen der Benutzer-E-Mail-Adresse
@@ -139,6 +149,8 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ template })
   } catch (error) {
+    const integrity = integrityErrorResponse(error)
+    if (integrity) return integrity
     console.error('[API][Templates] Fehler beim Erstellen:', error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Unbekannter Fehler' },
@@ -214,6 +226,8 @@ export async function PUT(request: NextRequest) {
     
     return NextResponse.json({ template })
   } catch (error) {
+    const integrity = integrityErrorResponse(error)
+    if (integrity) return integrity
     console.error('[API][Templates] Fehler beim Aktualisieren:', error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Unbekannter Fehler' },
