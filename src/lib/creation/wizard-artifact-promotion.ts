@@ -1,7 +1,16 @@
 /**
- * @fileoverview Wizard Artefakte "promoten" (Variante C)
+ * @fileoverview Wizard Artefakte "promoten" (Variante C) — ALT-KEIM (ADR-0004).
  *
- * Ziel:
+ * @deprecated Same-Provider-Move (`.wizard-sources` -> Zielordner). Abgeloest
+ * durch den Inbox->Ziel-Publish-Pfad: `src/lib/submissions/promotion.ts`
+ * (`promoteSubmission`) + `POST /api/submissions/[id]/promote`. Dieser Move
+ * widerspricht der ADR-0004-Invariante (Erfassung beruehrt den Ziel-Provider
+ * nie). Die Aufrufer in `creation-wizard.tsx` (Import + Zeilen 241, 2279, 3858)
+ * werden im lokalen Flow-/UI-Wiring (Stufe B, siehe
+ * docs/wizards/HANDOFF-2026-06-03-cloud.md) entfernt; bis dahin bleibt die
+ * Funktion fuer den bestehenden Wizard-Save erhalten.
+ *
+ * Ziel (Alt-Verhalten):
  * - Wizard arbeitet in `.wizard-sources` (Staging)
  * - Beim finalen Speichern werden Basisdatei + Artefakte in den Zielordner verschoben
  * - Optional: Staging kann danach leer sein (kein Löschen nötig, da move)
