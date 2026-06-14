@@ -40,6 +40,8 @@ export function getSourceTypeLabel(sourceType: string): string {
 export interface GroupedReference {
   fileName?: string
   fileId: string
+  /** Inhaltstyp des Dokuments (A4) — aus der ersten Referenz mit Typ. */
+  detailViewType?: string
   sourceGroups: Map<string, { sourceType: string; references: ChatResponse['references'] }>
   references: ChatResponse['references']
 }
@@ -73,6 +75,10 @@ export function groupReferencesByFileId(refs: ChatResponse['references']): Group
       if (ref.fileName && !existing.fileName) {
         existing.fileName = ref.fileName
       }
+      // detailViewType aus der ersten Referenz uebernehmen, die einen traegt.
+      if (ref.detailViewType && !existing.detailViewType) {
+        existing.detailViewType = ref.detailViewType
+      }
     } else {
       const sourceGroups = new Map<string, { sourceType: string; references: ChatResponse['references'] }>()
       sourceGroups.set(sourceType, {
@@ -82,6 +88,7 @@ export function groupReferencesByFileId(refs: ChatResponse['references']): Group
       map.set(ref.fileId, {
         fileId: ref.fileId,
         fileName: ref.fileName,
+        detailViewType: ref.detailViewType,
         sourceGroups,
         references: [ref],
       })

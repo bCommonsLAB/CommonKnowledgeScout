@@ -42,6 +42,7 @@ import { chunkSummaryRetriever } from '@/lib/chat/retrievers/chunk-summary'
 import type { ChatResponse } from '@/types/chat-response'
 import type { NormalizedChatConfig } from '@/lib/chat/config'
 import type { StoryTopicsData } from '@/types/story-topics'
+import { attachViewTypeToReferences, buildViewTypeByFileId } from '@/lib/chat/reference-view-type'
 
 export interface OrchestratorInput extends RetrieverInput {
   retriever: 'chunk' | 'chunkSummary' | 'summary'
@@ -489,6 +490,28 @@ export async function runChatOrchestrated(run: OrchestratorInput): Promise<Orche
     references = usedReferences.length > 0
       ? allReferences.filter(ref => usedReferences.includes(ref.number))
       : allReferences // Fallback: If none found, show all
+  }
+
+  // A4: References um den Inhaltstyp (detailViewType) anreichern — fuer
+  // formatgerechte Story-Verweise. VOR dem Persistieren, damit auch der
+  // Cache-Pfad den Typ traegt. Anreicherung ist ein optionaler UI-Hinweis:
+  // Fehler werden EXPLIZIT geloggt (no-silent-fallbacks) und gefaehrden die
+  // Antwort nicht.
+  if (references.length > 0) {
+    const collectionName = run.chatConfig?.vectorStore?.collectionName
+    if (collectionName) {
+      try {
+        const uniqueFileIds = [...new Set(references.map((r) => r.fileId).filter(Boolean))]
+        const { getByFileIds } = await import('@/lib/repositories/vector-repo')
+        const metaByFileId = await getByFileIds(collectionName, run.libraryId, uniqueFileIds)
+        references = attachViewTypeToReferences(references, buildViewTypeByFileId(metaByFileId))
+      } catch (error) {
+        console.warn(
+          '[orchestrator] detailViewType-Anreicherung der References fehlgeschlagen:',
+          error instanceof Error ? error.message : String(error)
+        )
+      }
+    }
   }
 
   await finalizeQueryLog(run.queryId, {

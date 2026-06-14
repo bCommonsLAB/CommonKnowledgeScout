@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { FileText, ExternalLink } from 'lucide-react'
+import { ViewTypeBadge } from '@/components/library/view-type-badge'
 import type { ChatResponse } from '@/types/chat-response'
 import type { QueryLog } from '@/types/query-log'
 import { useSessionHeaders } from '@/hooks/use-session-headers'
@@ -246,6 +247,11 @@ export function ChatReferenceList({ references, libraryId, queryId, onDocumentCl
                         <span className="text-xs font-medium truncate">
                           {doc.fileName || doc.fileId.slice(0, 30)}
                         </span>
+                        {/* A4: formatgerechter Verweis — Inhaltstyp je Dokument. */}
+                        <ViewTypeBadge
+                          detailViewType={doc.detailViewType}
+                          className="h-4 px-1 text-[10px] shrink-0"
+                        />
                       </div>
                     </div>
                     <Button
