@@ -40,7 +40,6 @@ import type { WizardSessionEvent } from "@/types/wizard-session"
 import {
   createWizardSessionClient,
   logWizardEventClient,
-  addJobIdToSessionClient,
   finalizeWizardSessionClient,
   getFilePathsClient,
   getUserIdentifierClient,
@@ -1069,17 +1068,15 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       }
 
       // Quelle existiert noch nicht: Hinzufügen
-      const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
-      // Nur file-transcript-de: Datei-Pipeline; Diktat (audio-transcript-de): direkter Text-Entwurf ohne process-text.
+      // Nur file-transcript-de: Datei-Compute erst beim Verlassen von collectSource; Diktat
+      // (audio-transcript-de): direkter Text-Entwurf ohne process-text.
       const isBuiltinFileTranscript = templateId === 'file-transcript-de'
       finalSources = [...prev.sources, source]
       return {
         ...prev,
         sources: finalSources,
         selectedSource: isSingleSupportedSource ? prev.selectedSource : undefined,
-        // Für pdfanalyse: Metadaten erst nach "Weiter" laden, nicht sofort im Hintergrund.
-        // Built-in Transkript-Templates: Extraktion erst beim Verlassen von collectSource (Secretary-Pipelines).
-        generatedDraft: isPdfAnalyse || isBuiltinFileTranscript ? undefined : prev.generatedDraft,
+        generatedDraft: isBuiltinFileTranscript ? undefined : prev.generatedDraft,
       }
     })
 
@@ -1097,13 +1094,12 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       })
     }
 
-    // Verarbeitung: pdfanalyse/file-transcript-de separat; Diktat ohne LLM; sonst process-text.
-    const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
+    // Verarbeitung: file-transcript-de berechnet Datei-Medien im Step; Diktat ohne LLM; sonst process-text.
     const isBuiltinFileTranscript = templateId === 'file-transcript-de'
     const isBuiltinDictation = templateId === 'audio-transcript-de'
     if (isBuiltinDictation) {
       applyDirectDictationDraft(finalSources)
-    } else if (!isPdfAnalyse && !isBuiltinFileTranscript) {
+    } else if (!isBuiltinFileTranscript) {
       await runExtraction(finalSources)
     }
   }
@@ -1112,13 +1108,12 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
    * Entfernt eine Quelle und triggert automatische Transformation.
    */
   const removeSource = async (sourceId: string) => {
-    const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
     const isBuiltinFileTranscript = templateId === 'file-transcript-de'
     const newSources = wizardState.sources.filter(s => s.id !== sourceId)
-    setWizardState(prev => ({ 
-      ...prev, 
+    setWizardState(prev => ({
+      ...prev,
       sources: newSources,
-      generatedDraft: isPdfAnalyse || isBuiltinFileTranscript ? undefined : prev.generatedDraft,
+      generatedDraft: isBuiltinFileTranscript ? undefined : prev.generatedDraft,
     }))
 
     // Log source_removed Event (best effort)
@@ -1131,7 +1126,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     const isBuiltinDictation = templateId === 'audio-transcript-de'
     if (isBuiltinDictation) {
       applyDirectDictationDraft(newSources)
-    } else if (!isPdfAnalyse && !isBuiltinFileTranscript) {
+    } else if (!isBuiltinFileTranscript) {
       await runExtraction(newSources)
     }
   }
@@ -1171,205 +1166,12 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
 
     // Beim Verlassen von collectSource: Füge noch nicht hinzugefügte Quelle hinzu
     if (currentStep.preset === 'collectSource') {
-      let justAddedSource: WizardSource | null = null
       const createSource = window.__collectSourceStepBeforeLeave
       if (createSource && typeof createSource === 'function') {
         const newSource = createSource()
         if (newSource) {
-          justAddedSource = newSource
           await addSource(newSource)
         }
-      }
-
-      // PDF HITL: Nach "Weiter" starten wir erst die Verarbeitung (Extract-only) und bleiben dabei auf diesem Screen.
-      const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
-      if (isPdfAnalyse) {
-        if (!provider) {
-          toast.error('Storage ist noch nicht bereit', { description: 'Bitte kurz warten und dann erneut auf „Weiter“ klicken.' })
-          if (wizardSessionIdRef.current) {
-            void logWizardEventClient(wizardSessionIdRef.current, {
-              eventType: 'error',
-              error: { code: 'pdf_collect_missing_provider', message: 'provider fehlt beim Klick auf Weiter' },
-            })
-          }
-          return
-        }
-        if (!libraryId) {
-          toast.error('Kontext fehlt', { description: 'libraryId fehlt – bitte Seite neu laden.' })
-          if (wizardSessionIdRef.current) {
-            void logWizardEventClient(wizardSessionIdRef.current, {
-              eventType: 'error',
-              error: { code: 'pdf_collect_missing_libraryId', message: 'libraryId fehlt beim Klick auf Weiter' },
-            })
-          }
-          return
-        }
-        // Wichtig: State-Updates via addSource() sind in diesem Tick noch nicht garantiert sichtbar.
-        // Darum nutzen wir primär die Quelle, die wir gerade hinzugefügt haben.
-        const baseFileIdFromJustAdded =
-          justAddedSource?.kind === 'file' && typeof justAddedSource.id === 'string' && justAddedSource.id.startsWith('file-')
-            ? justAddedSource.id.replace(/^file-/, '')
-            : ''
-        const fileSource = baseFileIdFromJustAdded
-          ? null
-          : [...wizardState.sources].reverse().find(s => s.kind === 'file' && typeof s.id === 'string' && s.id.startsWith('file-'))
-        const baseFileId = baseFileIdFromJustAdded || (fileSource ? fileSource.id.replace(/^file-/, '') : '')
-        if (!baseFileId) {
-          toast.error('Bitte zuerst eine PDF auswählen', { description: 'Es wurde keine Datei gefunden, die verarbeitet werden kann.' })
-          if (wizardSessionIdRef.current) {
-            void logWizardEventClient(wizardSessionIdRef.current, {
-              eventType: 'error',
-              error: { code: 'pdf_collect_missing_baseFileId', message: 'baseFileId konnte nicht bestimmt werden' },
-            })
-          }
-          return
-        }
-        if (baseFileId) {
-          // Step 1: Extract-only Job starten
-          setWizardState(prev => ({
-            ...prev,
-            isExtracting: true,
-            processingProgress: 0,
-            processingMessage: 'OCR/Artefakte starten…',
-            pdfBaseFileId: baseFileId,
-          }))
-          let extractJobId = ''
-          try {
-            const baseItem = await provider.getItemById(baseFileId)
-            const wizardFolderId = baseItem.parentId || 'root'
-            const fileName = baseItem.metadata?.name || 'document.pdf'
-            const mimeType = baseItem.metadata?.mimeType || 'application/pdf'
-
-            const form = new FormData()
-            form.append('originalItemId', baseFileId)
-            form.append('parentId', wizardFolderId)
-            form.append('fileName', fileName)
-            form.append('mimeType', mimeType)
-            form.append('targetLanguage', 'de')
-            form.append('extractionMethod', 'mistral_ocr')
-            form.append('includeOcrImages', 'true')
-            // Hard-Rename: getrennte Flags fuer Preview (Low-Res) und HighRes (200 DPI)
-            form.append('includePreviewPages', 'true')
-            form.append('includeHighResPages', 'true')
-            form.append('useCache', 'false')
-            // Extract-only: keine Metadaten, kein Ingest
-            form.append('policies', JSON.stringify({ extract: 'do', metadata: 'ignore', ingest: 'ignore' }))
-
-            const res = await fetch('/api/secretary/process-pdf', { method: 'POST', headers: { 'X-Library-Id': libraryId }, body: form })
-            const json = await res.json().catch(() => ({} as Record<string, unknown>))
-            if (!res.ok) {
-              const msg = typeof (json as { error?: unknown }).error === 'string' ? (json as { error: string }).error : `HTTP ${res.status}`
-              throw new Error(msg)
-            }
-            extractJobId = typeof (json as { job?: { id?: unknown } }).job?.id === 'string' ? (json as { job: { id: string } }).job.id : ''
-            if (!extractJobId) throw new Error('Job-ID fehlt in Response')
-
-            // Log job_started Event
-            if (wizardSessionIdRef.current) {
-              await addJobIdToSessionClient(wizardSessionIdRef.current, extractJobId, 'pdf_extract')
-            }
-
-            const completion = await waitForJobCompletionWithProgress({
-              jobId: extractJobId,
-              timeoutMs: 8 * 60_000,
-              onProgress: (evt) => {
-                setWizardState(prev => ({
-                  ...prev,
-                  processingProgress: typeof evt.progress === 'number' ? evt.progress : prev.processingProgress,
-                  processingMessage: evt.message || prev.processingMessage,
-                }))
-              }
-            })
-
-            const transcriptFileId = completion.result?.savedItemId
-            if (!transcriptFileId) throw new Error('Extract abgeschlossen, aber result.savedItemId fehlt (Transcript).')
-            const transcriptItemForFolder = await provider.getItemById(transcriptFileId)
-            const transcriptFolderId = transcriptItemForFolder.parentId || 'root'
-            const { blob } = await provider.getBinary(transcriptFileId)
-            const transcript = await blob.text()
-
-            // Log job_completed Event
-            if (wizardSessionIdRef.current) {
-              await logWizardEventClient(wizardSessionIdRef.current, {
-                eventType: 'job_completed',
-                jobId: extractJobId,
-                jobType: 'pdf_extract',
-                fileIds: {
-                  transcriptFileId,
-                  baseFileId: baseFileId,
-                },
-              })
-            }
-
-            // Nächster Step: Markdown Review
-            setWizardState(prev => ({
-              ...prev,
-              isExtracting: false,
-              processingProgress: undefined,
-              processingMessage: undefined,
-              pdfTranscriptFileId: transcriptFileId,
-              pdfTranscriptFolderId: transcriptFolderId,
-              draftText: transcript,
-              hasConfirmedMarkdown: false,
-              // Wir bleiben im Interview-Modus, aber springen zum nächsten Step
-              currentStepIndex: Math.min(prev.currentStepIndex + 1, steps.length - 1),
-            }))
-            
-            // Log step_changed Event
-            if (wizardSessionIdRef.current) {
-              const newIndex = Math.min(wizardState.currentStepIndex + 1, steps.length - 1)
-              const newStep = steps[newIndex]
-              await logWizardEventClient(wizardSessionIdRef.current, {
-                eventType: 'step_changed',
-                stepIndex: newIndex,
-                stepPreset: newStep?.preset,
-              })
-            }
-            
-            return
-          } catch (error) {
-            setWizardState(prev => ({
-              ...prev,
-              isExtracting: false,
-              processingProgress: undefined,
-              processingMessage: undefined,
-              extractionError: error instanceof Error ? error.message : 'Unbekannter Fehler',
-            }))
-            
-            // Log job_failed Event (wenn Job-ID bekannt)
-            if (wizardSessionIdRef.current && extractJobId) {
-              try {
-                await logWizardEventClient(wizardSessionIdRef.current, {
-                  eventType: 'job_failed',
-                  jobId: extractJobId,
-                  jobType: 'pdf_extract',
-                  error: {
-                    code: 'pdf_extract_failed',
-                    message: error instanceof Error ? error.message : 'Unbekannter Fehler',
-                  },
-                })
-              } catch (logError) {
-                console.warn('[Wizard] Fehler beim Loggen von job_failed:', logError)
-              }
-            }
-
-            // Log error Event
-            if (wizardSessionIdRef.current) {
-              await logWizardEventClient(wizardSessionIdRef.current, {
-                eventType: 'error',
-                error: {
-                  code: 'pdf_extract_failed',
-                  message: error instanceof Error ? error.message : 'Unbekannter Fehler',
-                },
-              })
-            }
-            
-            toast.error('PDF-Verarbeitung fehlgeschlagen', { description: error instanceof Error ? error.message : 'Unbekannter Fehler' })
-            return
-          }
-        }
-        // WICHTIG: pdfanalyse darf nie in die generische Step-Advance-Logik fallen.
-        return
       }
 
       // U6: file-transcript-de erfasst hier nur die Datei (sie liegt im Speicher).
@@ -1478,199 +1280,6 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         toast.error('Verarbeitung fehlgeschlagen', { description: msg })
       }
       return
-    }
-
-    // PDF HITL: Nach Markdown-Review startet die Metadaten/Template-Phase (und optional Ingest)
-    if (currentStep.preset === 'reviewMarkdown') {
-      const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
-      if (isPdfAnalyse) {
-        if (!provider || !wizardState.pdfBaseFileId || !wizardState.pdfTranscriptFileId) {
-          toast.error('PDF-Status unvollständig', { description: 'Bitte gehe zurück und starte zuerst die PDF-Verarbeitung (OCR).' })
-          if (wizardSessionIdRef.current) {
-            void logWizardEventClient(wizardSessionIdRef.current, {
-              eventType: 'error',
-              error: { code: 'pdf_review_missing_state', message: 'pdfBaseFileId/pdfTranscriptFileId/provider fehlt beim Klick auf Weiter' },
-            })
-          }
-          return
-        }
-        if (!wizardState.hasConfirmedMarkdown) {
-          toast.error('Bitte Markdown bestätigen', { description: 'Aktiviere die Checkbox, dass du das Markdown geprüft hast.' })
-          return
-        }
-        const updatedMarkdown = (wizardState.draftText || '').trim()
-        if (!updatedMarkdown) {
-          toast.error('Markdown ist leer', { description: 'Bitte korrigiere das Markdown oder gehe zurück.' })
-          return
-        }
-
-        setWizardState(prev => ({
-          ...prev,
-          isExtracting: true,
-          processingProgress: 0,
-          processingMessage: 'Metadaten/Template starten…',
-        }))
-
-        let templateJobId = ''
-        try {
-          // 1) Korrigiertes Transcript zurück ins Shadow‑Twin schreiben (delete+upload, da kein overwrite-by-id)
-          const transcriptItem = await provider.getItemById(wizardState.pdfTranscriptFileId)
-          const transcriptParentId = transcriptItem.parentId || 'root'
-          const transcriptName = transcriptItem.metadata?.name || 'transcript.de.md'
-          await provider.deleteItem(wizardState.pdfTranscriptFileId)
-          const uploaded = await provider.uploadFile(
-            transcriptParentId,
-            new File([updatedMarkdown], transcriptName, { type: 'text/markdown' })
-          )
-
-          // 2) Job 2: Template + Ingest (extract ignore, gate nutzt vorhandenes Transcript im Shadow‑Twin)
-          const baseItem = await provider.getItemById(wizardState.pdfBaseFileId)
-          const wizardFolderId = baseItem.parentId || 'root'
-          const fileName = baseItem.metadata?.name || 'document.pdf'
-          const mimeType = baseItem.metadata?.mimeType || 'application/pdf'
-
-          const form = new FormData()
-          form.append('originalItemId', wizardState.pdfBaseFileId)
-          form.append('parentId', wizardFolderId)
-          form.append('fileName', fileName)
-          form.append('mimeType', mimeType)
-          form.append('targetLanguage', 'de')
-          form.append('extractionMethod', 'mistral_ocr')
-          form.append('includeOcrImages', 'true')
-          // Hard-Rename: getrennte Flags fuer Preview (Low-Res) und HighRes (200 DPI)
-          form.append('includePreviewPages', 'true')
-          form.append('includeHighResPages', 'true')
-          form.append('useCache', 'false')
-          form.append('template', 'pdfanalyse')
-          // PDF Human-in-the-loop: Job2 erzeugt/aktualisiert das Transformations-Artefakt,
-          // aber "Publizieren/Ingest" passiert erst beim expliziten Speichern im Wizard.
-          form.append('policies', JSON.stringify({ extract: 'ignore', metadata: 'do', ingest: 'ignore' }))
-
-          const res = await fetch('/api/secretary/process-pdf', { method: 'POST', headers: { 'X-Library-Id': libraryId }, body: form })
-          const json = await res.json().catch(() => ({} as Record<string, unknown>))
-          if (!res.ok) {
-            const msg = typeof (json as { error?: unknown }).error === 'string' ? (json as { error: string }).error : `HTTP ${res.status}`
-            throw new Error(msg)
-          }
-          templateJobId = typeof (json as { job?: { id?: unknown } }).job?.id === 'string' ? (json as { job: { id: string } }).job.id : ''
-          if (!templateJobId) throw new Error('Job-ID fehlt in Response')
-
-          // Log job_started Event (Template Phase)
-          if (wizardSessionIdRef.current) {
-            await addJobIdToSessionClient(wizardSessionIdRef.current, templateJobId, 'pdf_template')
-          }
-
-          const completion = await waitForJobCompletionWithProgress({
-            jobId: templateJobId,
-            timeoutMs: 8 * 60_000,
-            onProgress: (evt) => {
-              setWizardState(prev => ({
-                ...prev,
-                processingProgress: typeof evt.progress === 'number' ? evt.progress : prev.processingProgress,
-                processingMessage: evt.message || prev.processingMessage,
-              }))
-            }
-          })
-
-          const transformFileId = completion.result?.savedItemId
-          if (!transformFileId) {
-            // Absichtlich hart: wenn das fehlt oder falsch ist, muss der zentrale Job-Contract gefixt werden,
-            // statt im Wizard "auszugleichen" (sonst debuggen wir am Symptom vorbei).
-            throw new Error('Template abgeschlossen, aber result.savedItemId (Transformation) fehlt.')
-          }
-
-          const { blob } = await provider.getBinary(transformFileId)
-          const content = await blob.text()
-          const { meta, body } = parseFrontmatter(content)
-
-          // Log job_completed Event (Template Phase)
-          if (wizardSessionIdRef.current) {
-            await logWizardEventClient(wizardSessionIdRef.current, {
-              eventType: 'job_completed',
-              jobId: templateJobId,
-              jobType: 'pdf_template',
-              fileIds: {
-                transformFileId,
-                baseFileId: wizardState.pdfBaseFileId,
-                transcriptFileId: uploaded.id,
-              },
-            })
-          }
-
-          // 3) In EditDraft springen (Metadaten prüfen)
-          setWizardState(prev => ({
-            ...prev,
-            isExtracting: false,
-            processingProgress: undefined,
-            processingMessage: undefined,
-            pdfTranscriptFileId: uploaded.id,
-            pdfTranscriptFolderId: transcriptParentId,
-            pdfTransformFileId: transformFileId,
-            generatedDraft: { metadata: (meta && typeof meta === 'object') ? (meta as Record<string, unknown>) : {}, markdown: typeof body === 'string' ? body : '' },
-            draftMetadata: (meta && typeof meta === 'object') ? (meta as Record<string, unknown>) : prev.draftMetadata,
-            draftText: typeof body === 'string' ? body : prev.draftText,
-            currentStepIndex: Math.min(prev.currentStepIndex + 1, steps.length - 1),
-          }))
-          
-          // Log step_changed Event
-          if (wizardSessionIdRef.current) {
-            const newIndex = Math.min(wizardState.currentStepIndex + 1, steps.length - 1)
-            const newStep = steps[newIndex]
-            logWizardEventClient(wizardSessionIdRef.current, {
-              eventType: 'step_changed',
-              stepIndex: newIndex,
-              stepPreset: newStep?.preset,
-            }).catch(error => console.warn('[Wizard] Fehler beim Loggen von step_changed:', error))
-          }
-          
-          return
-        } catch (error) {
-          setWizardState(prev => ({
-            ...prev,
-            isExtracting: false,
-            processingProgress: undefined,
-            processingMessage: undefined,
-            extractionError: error instanceof Error ? error.message : 'Unbekannter Fehler',
-          }))
-          
-          // Log job_failed Event (wenn Job-ID bekannt)
-          if (wizardSessionIdRef.current && templateJobId) {
-            try {
-              await logWizardEventClient(wizardSessionIdRef.current, {
-                eventType: 'job_failed',
-                jobId: templateJobId,
-                jobType: 'pdf_template',
-                error: {
-                  code: 'pdf_template_failed',
-                  message: error instanceof Error ? error.message : 'Unbekannter Fehler',
-                },
-              })
-            } catch (logError) {
-              console.warn('[Wizard] Fehler beim Loggen von job_failed:', logError)
-            }
-          }
-
-          // Log error Event
-          if (wizardSessionIdRef.current) {
-            try {
-              await logWizardEvent(wizardSessionIdRef.current, {
-                eventType: 'error',
-                error: {
-                  code: 'pdf_template_failed',
-                  message: error instanceof Error ? error.message : 'Unbekannter Fehler',
-                },
-              })
-            } catch (logError) {
-              console.warn('[Wizard] Fehler beim Loggen von error:', logError)
-            }
-          }
-          
-          toast.error('Metadaten/Template fehlgeschlagen', { description: error instanceof Error ? error.message : 'Unbekannter Fehler' })
-          return
-        }
-        // WICHTIG: pdfanalyse darf nie in die generische Step-Advance-Logik fallen.
-        return
-      }
     }
 
     // Generischer Advance (ohne Template-Spezialfälle): Skip-Regeln zentral in
