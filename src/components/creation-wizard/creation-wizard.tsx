@@ -10,7 +10,7 @@ import { resolveNextStepIndex } from "./engine/wizard-navigation"
 import { selectCanonicalMetadata, selectCanonicalMarkdown } from "./engine/wizard-metadata"
 import { buildWizardFrontmatter } from "@/lib/creation/wizard-frontmatter"
 import { buildWizardCaptureBody } from "@/lib/creation/wizard-capture"
-import { submitWizardCapture, approveSubmission, promoteSubmission } from "@/lib/creation/wizard-submit"
+import { submitWizardCapture, updateSubmission, approveSubmission, promoteSubmission } from "@/lib/creation/wizard-submit"
 import { PublishStep } from "./steps/publish-step"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -2899,18 +2899,35 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                   ? frontmatterMetadata.slug
                   : undefined
 
-              // 2) Submission anlegen (immer Inbox — Funktioniert-immer-Garantie).
+              // 2) Submission in den Wartekorb legen (immer Inbox — Funktioniert-immer-Garantie).
+              //    Datei-Flow (U6): Die beim Compute angelegte Submission wird
+              //    aktualisiert (PATCH) statt einer zweiten angelegt — EIN
+              //    Submission-Commit (ADR-0004, behebt KI-1). Text/URL ohne
+              //    Vorab-Submission: neu anlegen.
               setWizardState(prev => ({ ...prev, publishingProgress: 50, publishingMessage: 'Im Wartekorb anlegen…' }))
-              const captureBody = buildWizardCaptureBody({
-                libraryId,
-                wizardId: templateId,
-                docType,
-                detailViewType,
-                markdownBody: markdown,
-                metadata: frontmatterMetadata,
-                target: { folderId: currentFolderId, slug },
-              })
-              const { id: submissionId } = await submitWizardCapture(captureBody)
+              const target: { folderId?: string; slug?: string } = {}
+              if (currentFolderId && currentFolderId.trim().length > 0) target.folderId = currentFolderId
+              if (slug) target.slug = slug
+              let submissionId: string
+              if (wizardState.submissionId) {
+                await updateSubmission(wizardState.submissionId, {
+                  markdownBody: markdown,
+                  metadata: frontmatterMetadata,
+                  ...(target.folderId || target.slug ? { target } : {}),
+                })
+                submissionId = wizardState.submissionId
+              } else {
+                const captureBody = buildWizardCaptureBody({
+                  libraryId,
+                  wizardId: templateId,
+                  docType,
+                  detailViewType,
+                  markdownBody: markdown,
+                  metadata: frontmatterMetadata,
+                  target: { folderId: currentFolderId, slug },
+                })
+                submissionId = (await submitWizardCapture(captureBody)).id
+              }
 
               // 3) Owner: sofort veröffentlichen (approve -> promote). Sonst: Wartekorb.
               const currentLib = libraries.find((l) => l.id === libraryId)

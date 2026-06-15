@@ -110,9 +110,6 @@ export function templateDocumentToCreationType(
       ? 'Mic'
       : creation.ui?.icon || deriveIconFromTemplateName(templateName)
 
-  // Datei transkribieren: Flow noch nicht stabil — in der Liste sichtbar, Start gesperrt
-  const isFileTranscriptDe = templateName === 'file-transcript-de'
-
   return {
     id: templateName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
     label: displayName,
@@ -121,10 +118,6 @@ export function templateDocumentToCreationType(
     icon,
     source,
     isReadonly: source === 'builtin',
-    disabled: isFileTranscriptDe,
-    disabledHint: isFileTranscriptDe
-      ? 'Noch nicht startbar — die Verarbeitung wird gerade überarbeitet.'
-      : undefined,
   }
 }
 

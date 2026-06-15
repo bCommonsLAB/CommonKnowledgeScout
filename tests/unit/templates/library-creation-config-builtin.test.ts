@@ -45,7 +45,8 @@ describe('mergeCreationTypesWithBuiltins', () => {
     expect(audio?.source).toBe('library')
     const file = merged.find((t) => t.templateId === 'file-transcript-de')
     expect(file?.source).toBe('builtin')
-    expect(file?.disabled).toBe(true)
-    expect(file?.disabledHint).toBeTruthy()
+    // U6a: file-transcript-de ist wieder startbar (Compute laeuft off-target ueber
+    // die Inbox, computeFileMediaDraft) — nicht mehr gesperrt.
+    expect(file?.disabled).toBeFalsy()
   })
 })
