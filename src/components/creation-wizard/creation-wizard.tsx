@@ -21,7 +21,8 @@ import { useRouter } from "next/navigation"
 import { useAtomValue } from "jotai"
 import { currentFolderIdAtom, librariesAtom } from "@/atoms/library-atom"
 import { buildCreationFileName } from "@/lib/creation/file-name"
-import { runBuiltinTemplateExtract } from "@/lib/creation/builtin-collect-extract"
+import { computeFileMediaDraft } from "@/lib/creation/wizard-file-compute"
+import { buildCaptureComputeFields } from "@/lib/creation/capture-compute-fields"
 import { buildDictationDraftFromSources, suggestDictationFileBaseName } from "@/lib/creation/builtin-dictation-draft"
 import { applyEventFrontmatterDefaults } from "@/lib/events/event-frontmatter-defaults"
 import type { WizardSource } from "@/lib/creation/corpus"
@@ -1400,25 +1401,25 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         return
       }
 
-      // Built-in „Datei transkribieren“: Secretary-Pipeline beim Verlassen von collectSource (nur Datei-Upload)
+      // Built-in „Datei transkribieren“ (U6): Off-target-Compute über die Inbox.
+      // Die im Speicher gehaltene Datei wird über computeFileMediaDraft in die
+      // Quarantäne geladen, dort analysiert (providerScope='inbox') und das
+      // Ergebnis als Entwurf zurückgespiegelt — NIE ins Archiv (ADR-0004).
       if (templateId === 'file-transcript-de') {
-        if (!provider) {
-          toast.error('Storage ist noch nicht bereit', { description: 'Bitte kurz warten und erneut auf „Weiter“ klicken.' })
-          return
-        }
         if (!libraryId) {
           toast.error('Kontext fehlt', { description: 'libraryId fehlt – bitte Seite neu laden.' })
           return
         }
-        const baseFileIdFromJustAdded =
-          justAddedSource?.kind === 'file' && typeof justAddedSource.id === 'string' && justAddedSource.id.startsWith('file-')
-            ? justAddedSource.id.replace(/^file-/, '')
-            : ''
-        const fileSource = baseFileIdFromJustAdded
+        if (!template) {
+          toast.error('Template ist nicht geladen', { description: 'Bitte Seite neu laden.' })
+          return
+        }
+        const fileFromJustAdded = justAddedSource?.kind === 'file' ? justAddedSource.file : undefined
+        const fileSource = fileFromJustAdded
           ? null
-          : [...wizardState.sources].reverse().find(s => s.kind === 'file' && typeof s.id === 'string' && s.id.startsWith('file-'))
-        const baseFileId = baseFileIdFromJustAdded || (fileSource ? fileSource.id.replace(/^file-/, '') : '')
-        if (!baseFileId) {
+          : [...wizardState.sources].reverse().find(s => s.kind === 'file' && s.file instanceof File)
+        const file = fileFromJustAdded ?? fileSource?.file
+        if (!file) {
           toast.error('Bitte zuerst eine Datei auswählen', { description: 'Es wurde keine Datei gefunden, die verarbeitet werden kann.' })
           return
         }
@@ -1431,18 +1432,28 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         }))
 
         try {
-          const { markdown, metadata } = await runBuiltinTemplateExtract({
-            templateId,
-            provider,
+          const fields = buildCaptureComputeFields({
             libraryId,
-            baseFileId,
-            onProgress: (p) => {
-              setWizardState(prev => ({
-                ...prev,
-                processingProgress: typeof p.progress === 'number' ? p.progress : prev.processingProgress,
-                processingMessage: p.message || prev.processingMessage,
-              }))
-            },
+            wizardId: templateId,
+            detailViewType: resolveTemplateDetailViewType(),
+            fields: template.metadata.fields,
+            fileName: file.name,
+          })
+          const result = await computeFileMediaDraft({
+            file,
+            fields,
+            waitForJob: (jobId) =>
+              waitForJobCompletionWithProgress({
+                jobId,
+                timeoutMs: 8 * 60 * 1000,
+                onProgress: (evt) => {
+                  setWizardState(prev => ({
+                    ...prev,
+                    processingProgress: typeof evt.progress === 'number' ? evt.progress : prev.processingProgress,
+                    processingMessage: evt.message || prev.processingMessage,
+                  }))
+                },
+              }),
           })
 
           setWizardState(prev => ({
@@ -1450,9 +1461,10 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
             isExtracting: false,
             processingProgress: undefined,
             processingMessage: undefined,
-            generatedDraft: { metadata, markdown },
-            draftMetadata: metadata,
-            draftText: markdown,
+            submissionId: result.submissionId,
+            generatedDraft: { metadata: result.draft.metadata, markdown: result.draft.markdown },
+            draftMetadata: result.draft.metadata,
+            draftText: result.draft.markdown,
             currentStepIndex: Math.min(prev.currentStepIndex + 1, steps.length - 1),
           }))
 

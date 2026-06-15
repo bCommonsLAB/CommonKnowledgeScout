@@ -33,6 +33,12 @@ export interface WizardState {
   draftText?: string
   // Loading-State für Re-Extract
   isExtracting?: boolean
+  /**
+   * U6: ID der beim Off-target-Compute angelegten Inbox-Submission
+   * (computeFileMediaDraft). Beim Publish wird DIESE Submission aktualisiert
+   * (PATCH) statt einer zweiten angelegt — EIN Submission-Commit (ADR-0004).
+   */
+  submissionId?: string
   // PDF HITL: Progress-Anzeige für Jobs (Extract/Template/Ingest)
   processingProgress?: number
   processingMessage?: string

@@ -27,6 +27,14 @@ export interface WizardSource {
   // Für 'file':
   fileName?: string
   extractedText?: string  // Extrahierter Text für LLM
+  /**
+   * Rohe Datei (nur im Speicher, NICHT serialisierbar): bei Off-target-Erfassung
+   * (storageScope='inbox', U6) wird die Datei NICHT vorab ins Archiv geladen,
+   * sondern hier gehalten und beim Compute über computeFileMediaDraft in die
+   * Inbox hochgeladen (ADR-0004). Geht bei Resume verloren — bewusst, da eine
+   * noch nicht berechnete Datei-Erfassung nicht fortgesetzt wird.
+   */
+  file?: File
 
   /**
    * Metadaten aus dem Shadow-Twin-Frontmatter (attachments_url, attachment_links, url, video_url, …).
