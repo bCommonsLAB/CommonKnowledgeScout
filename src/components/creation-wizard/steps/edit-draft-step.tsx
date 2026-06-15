@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, type ReactNode } from "react"
 import { Upload, Loader2, X } from "lucide-react"
 import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -17,6 +17,24 @@ import type { WizardSource } from "@/lib/creation/corpus"
 import { CompactSourcesInfo } from "@/components/creation-wizard/components/compact-sources-info"
 import { DictationTextarea } from "@/components/shared/dictation-textarea"
 import { resolveFieldLabel, resolveFieldIsArrayInput, isWizardPickerField, isTextareaFieldByName } from "@/lib/creation/field-render-hints"
+
+/** Gemeinsame Klassen für Text-Eingaben/Textareas im Feld-Layout. */
+const FIELD_INPUT_CLASS =
+  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base dark:border-slate-500 dark:bg-slate-600 dark:text-white"
+
+/**
+ * Kompakte Feldzeile: Label links (schmale, gedämpfte Spalte), Steuerelement
+ * rechts; feine Trennlinie statt schwerer Karte. Auf schmalen Screens stapelt
+ * es (Label über Feld). (UX: editDraft-Layout, 2026-06-15.)
+ */
+function FieldRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="grid grid-cols-1 gap-1.5 border-b border-slate-100 py-3 last:border-b-0 sm:grid-cols-[11rem_1fr] sm:items-start sm:gap-4 dark:border-slate-700/60">
+      <label className="text-sm font-medium text-slate-500 dark:text-slate-400 sm:pt-2">{label}</label>
+      <div className="min-w-0">{children}</div>
+    </div>
+  )
+}
 
 interface EditDraftStepProps {
   templateMetadata: TemplateMetadataSchema
@@ -223,16 +241,9 @@ export function EditDraftStep({
     const label = getFieldLabel(field.key)
 
     return (
-      <div
-        key={field.key}
-        className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-600 dark:bg-slate-700"
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1">
-            <label className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</label>
-            <div className="mt-2">
-              <div className="border-2 border-dashed border-slate-300 dark:border-slate-500 rounded-lg p-6 text-center">
-                {isUploading ? (
+      <FieldRow key={field.key} label={label}>
+        <div className="border-2 border-dashed border-slate-300 dark:border-slate-500 rounded-lg p-4 text-center">
+          {isUploading ? (
                   <div className="flex flex-col items-center gap-2">
                     <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
                     <span className="text-sm text-slate-500">Wird hochgeladen...</span>
@@ -280,10 +291,7 @@ export function EditDraftStep({
                   </>
                 )}
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
+        </FieldRow>
     )
   }
 
@@ -295,9 +303,7 @@ export function EditDraftStep({
     const displayValue = isArray ? (value as string[]).join(", ") : String(value || "")
 
     // Render-Hinweis zentral (U3): Picker-Erkennung aus field-render-hints.ts.
-    const isPickerField = isWizardPickerField(field.key)
-
-    if (isPickerField) {
+    if (isWizardPickerField(field.key)) {
       const filter = (opt: { id: string; label: string }) => {
         const idLower = opt.id.toLowerCase()
         if (field.key === 'wizard_testimonial_template_id') return idLower.includes('testimonial')
@@ -306,101 +312,75 @@ export function EditDraftStep({
       }
       const options = creationTemplateOptions.filter(filter)
       const current = typeof value === 'string' ? value : ''
-
       return (
-        <div
-          key={field.key}
-          className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-600 dark:bg-slate-700"
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <label className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</label>
-              <div className="mt-2">
-                {libraryId && options.length > 0 ? (
-                  <Select
-                    value={current}
-                    onValueChange={(v) => updateFieldValue(field.key, v)}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Wizard auswählen…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {options.map((opt) => (
-                        <SelectItem key={opt.id} value={opt.id}>
-                          {opt.label} <span className="text-xs text-muted-foreground">({opt.id})</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <input
-                    type="text"
-                    value={displayValue}
-                    onChange={(e) => updateFieldValue(field.key, e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base dark:border-slate-500 dark:bg-slate-600 dark:text-white"
-                    placeholder="Template-ID (Name) eingeben…"
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+        <FieldRow key={field.key} label={label}>
+          {libraryId && options.length > 0 ? (
+            <Select value={current} onValueChange={(v) => updateFieldValue(field.key, v)}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Wizard auswählen…" />
+              </SelectTrigger>
+              <SelectContent>
+                {options.map((opt) => (
+                  <SelectItem key={opt.id} value={opt.id}>
+                    {opt.label} <span className="text-xs text-muted-foreground">({opt.id})</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <input
+              type="text"
+              value={displayValue}
+              onChange={(e) => updateFieldValue(field.key, e.target.value)}
+              className={FIELD_INPUT_CLASS}
+              placeholder="Template-ID (Name) eingeben…"
+            />
+          )}
+        </FieldRow>
       )
     }
 
-    // Für Text-Felder mit Diktat: Nutze generische DictationTextarea
+    // Text-Felder (inkl. Diktat): Mikrofon dezent im Feld, Auto-Höhe bis 5 Zeilen,
+    // danach manuelles Vergrößern (resize-y).
     if (!isArray && !imageFieldKeys?.includes(field.key)) {
-      // Startet einzeilig, kann manuell vergrößert werden (UI‑Wunsch im Wizard).
       return (
-        <div
-          key={field.key}
-          className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-600 dark:bg-slate-700"
-        >
+        <FieldRow key={field.key} label={label}>
           <DictationTextarea
             label={label}
             value={displayValue}
             onChange={(next) => updateFieldValue(field.key, next)}
             placeholder="Hier eingeben..."
             rows={1}
+            maxAutoRows={5}
             showOscilloscope={true}
-            variant="inline"
+            variant="overlay"
             className="[&_textarea]:w-full [&_textarea]:min-h-[2.5rem] [&_textarea]:resize-y [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 [&_textarea]:bg-white [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-base dark:[&_textarea]:border-slate-500 dark:[&_textarea]:bg-slate-600 dark:[&_textarea]:text-white"
           />
-        </div>
+        </FieldRow>
       )
     }
 
-    // Für normale Input-Felder (ohne Diktat): Standard-Input/Textarea
+    // Array-/Listenfelder (kommagetrennt): einfaches Eingabefeld.
     return (
-      <div
-        key={field.key}
-        className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-600 dark:bg-slate-700"
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1">
-            <label className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</label>
-            <div className="mt-1">
-              {isLongText || isTextareaFieldByName(field.key) ? (
-                <textarea
-                  value={displayValue}
-                  onChange={(e) => updateFieldValue(field.key, e.target.value)}
-                  rows={4}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base dark:border-slate-500 dark:bg-slate-600 dark:text-white"
-                  placeholder="Hier eingeben..."
-                />
-              ) : (
-                <input
-                  type="text"
-                  value={displayValue}
-                  onChange={(e) => updateFieldValue(field.key, e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base dark:border-slate-500 dark:bg-slate-600 dark:text-white"
-                  placeholder="Hier eingeben..."
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      <FieldRow key={field.key} label={label}>
+        {isLongText || isTextareaFieldByName(field.key) ? (
+          <textarea
+            value={displayValue}
+            onChange={(e) => updateFieldValue(field.key, e.target.value)}
+            rows={4}
+            className={FIELD_INPUT_CLASS}
+            placeholder="Hier eingeben..."
+          />
+        ) : (
+          <input
+            type="text"
+            value={displayValue}
+            onChange={(e) => updateFieldValue(field.key, e.target.value)}
+            className={FIELD_INPUT_CLASS}
+            placeholder="Hier eingeben..."
+          />
+        )}
+      </FieldRow>
     )
   }
 
@@ -425,7 +405,7 @@ export function EditDraftStep({
           </TabsList>
 
           <TabsContent value="metadata" className="mt-6">
-            <div className="space-y-4">
+            <div>
               {(() => {
                 // Filtere Felder: Nur benutzerrelevante anzeigen (aus editDraft.fields)
                 const fieldsToShow = userRelevantFields && userRelevantFields.length > 0
@@ -471,7 +451,7 @@ export function EditDraftStep({
           </TabsContent>
         </Tabs>
       ) : (
-        <div className="mt-8 space-y-4">
+        <div className="mt-8">
           {(() => {
             // Filtere Felder: Nur benutzerrelevante anzeigen (aus reviewFields Steps)
             const fieldsToShow = userRelevantFields && userRelevantFields.length > 0

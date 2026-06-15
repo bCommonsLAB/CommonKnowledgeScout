@@ -111,3 +111,17 @@
 Mit dieser Abnahme starten die Sub-Wellen 3-VI-b…f
 (`docs/refactor/welle-3-vi-creation-wizard/00-refactor-plan.md`) bzw. die
 Arbeitspakete U1…U8 (`docs/wizards/umbauplan-generischer-erfassungs-wizard.md`).
+
+## Nachtrag 2026-06-15 — editDraft-Feld-Layout (abgenommen)
+
+Beim U3-Smoke-Test entschieden (Owner): Die Felder im Bearbeiten-Schritt waren
+zu „rahmenlastig". Neues, kompaktes Layout:
+
+- **Label links** (schmale, gedämpfte Spalte), **Eingabe rechts**; auf schmalen
+  Screens stapelt es (Label über Feld).
+- **Keine Karten** mehr pro Feld — nur eine **feine Trennlinie** zwischen den
+  Zeilen, wenig Padding.
+- **Mikrofon dezent oben rechts IM Feld** (neue `variant="overlay"` der geteilten
+  `DictationTextarea`; andere Screens unverändert).
+- **Text-Felder** wachsen automatisch bis **max. 5 Zeilen**, danach manuelles
+  Vergrößern (`resize-y`).
