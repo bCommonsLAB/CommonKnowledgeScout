@@ -8,6 +8,7 @@ import type { StepRenderContext } from "./engine/step-render-context"
 import type { WizardState } from "./engine/wizard-state"
 import { resolveNextStepIndex } from "./engine/wizard-navigation"
 import { selectCanonicalMetadata, selectCanonicalMarkdown } from "./engine/wizard-metadata"
+import { buildWizardFrontmatter } from "@/lib/creation/wizard-frontmatter"
 import { PublishStep } from "./steps/publish-step"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -1887,29 +1888,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
        * das LLM hat aber "video" zurückgegeben → Template-Wert muss Vorrang haben.
        */
       const frontmatterKeys = new Set(template.metadata.fields.map((f) => f.key))
-      const frontmatterMetadata: Record<string, unknown> = {}
-      for (const key of frontmatterKeys) {
-        const field = template.metadata.fields.find((f) => f.key === key)
-        const isHardcoded = field && (!field.description || field.description.trim() === '')
-
-        if (isHardcoded && field?.rawValue) {
-          // Hardcodiertes Feld: Template-rawValue hat Vorrang (LLM darf nicht überschreiben)
-          const rv = field.rawValue
-          if (rv === 'true') frontmatterMetadata[key] = true
-          else if (rv === 'false') frontmatterMetadata[key] = false
-          else frontmatterMetadata[key] = rv
-        } else if (key in metadataWithImages) {
-          frontmatterMetadata[key] = metadataWithImages[key]
-        } else {
-          // Template-Default: rawValue verwenden, wenn Feld keinen Wert aus Formular/LLM hat
-          const rv = field?.rawValue
-          if (rv !== undefined && rv !== '') {
-            if (rv === 'true') frontmatterMetadata[key] = true
-            else if (rv === 'false') frontmatterMetadata[key] = false
-            else frontmatterMetadata[key] = rv
-          }
-        }
-      }
+      // Frontmatter-Aufbau zentral in wizard-frontmatter.ts (geteilt mit Promote/Inbox, U4).
+      const frontmatterMetadata = buildWizardFrontmatter(template.metadata.fields, metadataWithImages)
 
       applyEventFrontmatterDefaults({
         frontmatterKeys,

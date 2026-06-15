@@ -29,6 +29,7 @@ import { join } from 'node:path'
 import { parseTemplate } from '@/lib/templates/template-parser'
 import { buildCreationFileName } from '@/lib/creation/file-name'
 import { selectCanonicalMetadata, selectCanonicalMarkdown } from '@/components/creation-wizard/engine/wizard-metadata'
+import { buildWizardFrontmatter } from '@/lib/creation/wizard-frontmatter'
 
 const TEMPLATES_DIR = join(process.cwd(), 'test-library', 'templates')
 
@@ -76,32 +77,17 @@ interface FieldLike {
   rawValue: string
 }
 
-/** Spiegel des Frontmatter-Aufbaus creation-wizard.tsx ~Z. 1971-1994. */
+/**
+ * Frontmatter-Aufbau wird inzwischen vom ECHTEN Modul geliefert (U4 hat ihn als
+ * `wizard-frontmatter.ts` herausgelöst, damit Direkt-Schreiben UND Promote/Inbox
+ * dieselbe Quelle nutzen). Spiegel durch echten Import ersetzt — Assertions
+ * unverändert.
+ */
 function buildFrontmatterMetadata(
   fields: FieldLike[],
   metadataWithImages: Record<string, unknown>
 ): Record<string, unknown> {
-  const frontmatterKeys = new Set(fields.map((f) => f.key))
-  const out: Record<string, unknown> = {}
-  for (const key of frontmatterKeys) {
-    const field = fields.find((f) => f.key === key)
-    const isHardcoded = field && (!field.description || field.description.trim() === '')
-    if (isHardcoded && field?.rawValue) {
-      out[key] = coerce(field.rawValue)
-    } else if (key in metadataWithImages) {
-      out[key] = metadataWithImages[key]
-    } else {
-      const rv = field?.rawValue
-      if (rv !== undefined && rv !== '') out[key] = coerce(rv)
-    }
-  }
-  return out
-}
-
-function coerce(rv: string): unknown {
-  if (rv === 'true') return true
-  if (rv === 'false') return false
-  return rv
+  return buildWizardFrontmatter(fields, metadataWithImages)
 }
 
 describe('baseMetadata-Fallback-Kette', () => {
