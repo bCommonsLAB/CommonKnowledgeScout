@@ -6,10 +6,10 @@
 import { describe, expect, it } from 'vitest';
 import { parseMultipartCapture } from '@/lib/submissions/capture-multipart';
 
-function form(fields: Record<string, string>, file?: File): FormData {
+function form(fields: Record<string, string>, ...files: File[]): FormData {
   const f = new FormData();
   for (const [k, v] of Object.entries(fields)) f.set(k, v);
-  if (file) f.set('file', file);
+  for (const file of files) f.append('file', file);
   return f;
 }
 
@@ -22,13 +22,13 @@ const VALID = {
   metadata: JSON.stringify({ title: 'Quelle.pdf' }),
 };
 
-function pdf(): File {
-  return new File([Buffer.from('%PDF-1.4')], 'Quelle.pdf', { type: 'application/pdf' });
+function pdf(name = 'Quelle.pdf'): File {
+  return new File([Buffer.from('%PDF-1.4')], name, { type: 'application/pdf' });
 }
 
 describe('parseMultipartCapture', () => {
-  it('liefert validierten CaptureBody + Datei', () => {
-    const { body, file } = parseMultipartCapture(form(VALID, pdf()));
+  it('liefert validierten CaptureBody + Datei (Einzeldatei)', () => {
+    const { body, files } = parseMultipartCapture(form(VALID, pdf()));
     expect(body).toMatchObject({
       libraryId: 'lib-1',
       wizardId: 'pdf-upload',
@@ -37,10 +37,15 @@ describe('parseMultipartCapture', () => {
       markdownBody: '',
       metadata: { title: 'Quelle.pdf' },
     });
-    expect(file.name).toBe('Quelle.pdf');
+    expect(files.map((f) => f.name)).toEqual(['Quelle.pdf']);
   });
 
-  it('wirft, wenn die Datei fehlt', () => {
+  it('nimmt mehrere Dateien auf (Ordner-Erfassung, U5e)', () => {
+    const { files } = parseMultipartCapture(form(VALID, pdf('a.pdf'), pdf('b.pdf'), pdf('c.pdf')));
+    expect(files.map((f) => f.name)).toEqual(['a.pdf', 'b.pdf', 'c.pdf']);
+  });
+
+  it('wirft, wenn keine Datei dabei ist', () => {
     expect(() => parseMultipartCapture(form(VALID))).toThrow(/Datei \(file\) fehlt/);
   });
 

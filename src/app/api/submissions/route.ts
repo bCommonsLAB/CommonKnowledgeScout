@@ -33,6 +33,7 @@ import { getInboxProvider, inboxUsernameFromEmail } from '@/lib/storage/inbox/in
 import { uploadInboxBinary } from '@/lib/submissions/inbox-upload';
 import { isSubmissionStatus } from '@/lib/submissions/submission-status';
 import { FileLogger } from '@/lib/debug/logger';
+import type { SubmissionBinaryRef } from '@/types/wizard-submission';
 
 /** Legt die `pending`-Submission an, nachdem die Rechte geprueft wurden (403 wenn ohne Recht). */
 async function createPendingSubmission(body: CaptureBody, email: string): Promise<NextResponse> {
@@ -47,11 +48,13 @@ async function createPendingSubmission(body: CaptureBody, email: string): Promis
 }
 
 /**
- * Stufe A: Binaerquelle ueber den Inbox-Provider in `{libraryId}/inbox/{username}/...`
- * hochladen (NIE in den Ziel-Provider — ADR-0004-Invariante), dann Submission anlegen.
+ * Stufe A: Binaerquelle(n) ueber den Inbox-Provider in `{libraryId}/inbox/{username}/...`
+ * hochladen (NIE in den Ziel-Provider — ADR-0004-Invariante), dann EINE Submission
+ * mit allen Refs anlegen. Mehrere Dateien = Ordner-Erfassung (U5e); jede Quelle
+ * wird zu einem `binaryRef` derselben Submission.
  */
 async function captureWithBinary(request: NextRequest, email: string): Promise<NextResponse> {
-  let parsed: { body: CaptureBody; file: File };
+  let parsed: { body: CaptureBody; files: File[] };
   try {
     parsed = parseMultipartCapture(await request.formData());
   } catch (error) {
@@ -68,8 +71,12 @@ async function captureWithBinary(request: NextRequest, email: string): Promise<N
   }
 
   const provider = await getInboxProvider(email, parsed.body.libraryId);
-  const ref = await uploadInboxBinary(provider, inboxUsernameFromEmail(email), parsed.file);
-  const body: CaptureBody = { ...parsed.body, binaryRefs: [...(parsed.body.binaryRefs ?? []), ref] };
+  const username = inboxUsernameFromEmail(email);
+  const refs: SubmissionBinaryRef[] = [];
+  for (const file of parsed.files) {
+    refs.push(await uploadInboxBinary(provider, username, file));
+  }
+  const body: CaptureBody = { ...parsed.body, binaryRefs: [...(parsed.body.binaryRefs ?? []), ...refs] };
 
   const submission = await createSubmission(
     buildCaptureSubmissionInput(body, { createdBy: email, createdByRole }),

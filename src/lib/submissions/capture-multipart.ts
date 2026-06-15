@@ -34,13 +34,14 @@ function stringField(form: FormData, field: string): string {
 
 /**
  * Zerlegt einen Multipart-Erfassungs-Request in den validierten `CaptureBody`
- * (ohne Binaerdaten) und die hochzuladende `file`. Wirft bei fehlender Datei
- * oder ungueltigen Inhaltsfeldern (kein stiller Fallback) — der Route-Handler
- * mappt das auf HTTP 400.
+ * (ohne Binaerdaten) und die hochzuladenden `files`. Akzeptiert **mehrere**
+ * `file`-Eintraege (Ordner-Erfassung, U5e) — eine einzelne Datei ist der
+ * Sonderfall mit Laenge 1. Wirft bei fehlender Datei oder ungueltigen
+ * Inhaltsfeldern (kein stiller Fallback) — der Route-Handler mappt das auf HTTP 400.
  */
-export function parseMultipartCapture(form: FormData): { body: CaptureBody; file: File } {
-  const file = form.get('file');
-  if (!(file instanceof File)) {
+export function parseMultipartCapture(form: FormData): { body: CaptureBody; files: File[] } {
+  const files = form.getAll('file').filter((f): f is File => f instanceof File);
+  if (files.length === 0) {
     throw new Error('submission-input: Datei (file) fehlt');
   }
 
@@ -57,5 +58,5 @@ export function parseMultipartCapture(form: FormData): { body: CaptureBody; file
 
   // Validierung + Mapping ueber den bestehenden Parser (gleiche Fehler-Semantik).
   const body = parseCaptureBody(candidate);
-  return { body, file };
+  return { body, files };
 }
