@@ -48,3 +48,39 @@ export function isWizardSystemField(fieldKey: string): boolean {
 export function editableContentFields(schemaFieldKeys: string[]): string[] {
   return schemaFieldKeys.filter((key) => !isWizardSystemField(key))
 }
+
+/** Ergebnis der editDraft-Feld-Auflösung inkl. Kompatibilitätsprüfung. */
+export interface EditableFieldsResolution {
+  ok: boolean
+  /** Final anzuzeigende Felder (nur bei `ok: true`). */
+  fields?: string[]
+  /** Grund der Inkompatibilität (nur bei `ok: false`). */
+  reason?: 'missing-bound-fields' | 'no-content-fields'
+  /** Gebundene Felder, die im Schema fehlen (nur bei `missing-bound-fields`). */
+  missingFields?: string[]
+}
+
+/**
+ * Löst auf, welche Felder der editDraft-Step zeigt — und ersetzt den früheren
+ * Silent-Fallback durch eine klare Kompatibilitätsprüfung (ADR-0003 O1):
+ *
+ * - `overrideFields` (Wizard `editDraft.fields`) gesetzt: alle müssen im Schema
+ *   existieren, sonst `missing-bound-fields` (statt stillem Verwerfen).
+ * - sonst: generisch alle Inhalts-Felder; hat das Schema keine, `no-content-fields`
+ *   (statt still ALLE Felder zu rendern).
+ */
+export function resolveEditableFields(args: {
+  schemaFieldKeys: string[]
+  overrideFields?: string[]
+}): EditableFieldsResolution {
+  const { schemaFieldKeys, overrideFields } = args
+  if (overrideFields && overrideFields.length > 0) {
+    const known = new Set(schemaFieldKeys)
+    const missingFields = overrideFields.filter((key) => !known.has(key))
+    if (missingFields.length > 0) return { ok: false, reason: 'missing-bound-fields', missingFields }
+    return { ok: true, fields: overrideFields }
+  }
+  const content = editableContentFields(schemaFieldKeys)
+  if (content.length === 0) return { ok: false, reason: 'no-content-fields' }
+  return { ok: true, fields: content }
+}

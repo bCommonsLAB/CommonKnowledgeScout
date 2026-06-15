@@ -2,21 +2,18 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { loadTemplateConfig } from "@/lib/templates/template-service-client"
-import type { TemplateDocument, CreationSource, CreationSourceType } from "@/lib/templates/template-types"
-import { CollectSourceStep } from "./steps/collect-source-step"
-import { GenerateDraftStep } from "./steps/generate-draft-step"
-import { EditDraftStep } from "./steps/edit-draft-step"
-import { WelcomeStep } from "./steps/welcome-step"
-import { PreviewDetailStep } from "./steps/preview-detail-step"
-import { UploadImagesStep } from "./steps/upload-images-step"
-import { SelectRelatedTestimonialsStep } from "./steps/select-related-testimonials-step"
-import { SelectFolderArtifactsStep } from "./steps/select-folder-artifacts-step"
-import { ReviewMarkdownStep } from "./steps/review-markdown-step"
+import type { TemplateDocument } from "@/lib/templates/template-types"
+import { renderRegisteredStep, isStepMigrated } from "./engine/step-registry"
+import type { StepRenderContext } from "./engine/step-render-context"
+import type { WizardState } from "./engine/wizard-state"
+import { resolveNextStepIndex } from "./engine/wizard-navigation"
+import { selectCanonicalMetadata, selectCanonicalMarkdown } from "./engine/wizard-metadata"
+import { buildWizardFrontmatter } from "@/lib/creation/wizard-frontmatter"
+import { buildWizardCaptureBody } from "@/lib/creation/wizard-capture"
+import { submitWizardCapture, approveSubmission, promoteSubmission } from "@/lib/creation/wizard-submit"
 import { PublishStep } from "./steps/publish-step"
-import { CompletionStep } from "./steps/completion-step"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { toast } from "sonner"
 import { useStorage } from "@/contexts/storage-context"
@@ -30,7 +27,6 @@ import { applyEventFrontmatterDefaults } from "@/lib/events/event-frontmatter-de
 import type { WizardSource } from "@/lib/creation/corpus"
 import { buildCorpusText, buildTranscriptMarkdown, isCorpusTooLarge, truncateCorpus } from "@/lib/creation/corpus"
 import { filterWizardSteps, canProceedFromStep, resolveWizardPreviewViewType } from "@/lib/creation/wizard-flow"
-import { editableContentFields } from "@/lib/creation/editable-fields"
 import { parseFrontmatter } from "@/lib/markdown/frontmatter"
 import { createMarkdownWithFrontmatter } from "@/lib/markdown/compose"
 import { resolveArtifactClient } from "@/lib/shadow-twin/artifact-client"
@@ -61,60 +57,6 @@ declare global {
 
 function nowMs(): number {
   return Date.now()
-}
-
-interface WizardState {
-  currentStepIndex: number
-  mode?: 'interview' | 'form' // Eingabemodus (wird im Briefing-Step gewählt)
-  selectedSource?: CreationSource
-  // Multi-Source: Liste aller Quellen
-  sources: WizardSource[]
-  // Legacy: collectedInput (wird schrittweise durch sources ersetzt)
-  collectedInput?: {
-    type: CreationSourceType
-    content: string
-  }
-  generatedDraft?: {
-    metadata: Record<string, unknown>
-    markdown: string
-  }
-  reviewedFields?: Record<string, unknown>
-  // Form-Modus: direkte Bearbeitung
-  draftMetadata?: Record<string, unknown>
-  draftText?: string
-  // Loading-State für Re-Extract
-  isExtracting?: boolean
-  // PDF HITL: Progress-Anzeige für Jobs (Extract/Template/Ingest)
-  processingProgress?: number
-  processingMessage?: string
-  // PDF HITL: finaler Publish-Schritt (User sieht Publizieren explizit)
-  isPublishing?: boolean
-  publishingProgress?: number
-  publishingMessage?: string
-  publishError?: string
-  isPublished?: boolean
-  /** Optional: Kurze Abschluss-Statistiken (für Publish-Step) */
-  publishStats?: { documents: number; images: number; sources: number }
-  /** Optional: Zielordner für "Im Explorer öffnen" */
-  publishTargetFolderId?: string
-  /** Optional: Ziel-Slug für "Im Explorer öffnen" (Gallery) */
-  publishTargetSlug?: string
-  // PDF HITL: Tracking
-  pdfBaseFileId?: string
-  pdfTranscriptFileId?: string
-  /** Parent-Folder der Transcript-Datei (wichtig für MarkdownPreview: relative Images auflösen) */
-  pdfTranscriptFolderId?: string
-  pdfTransformFileId?: string
-  hasConfirmedMarkdown?: boolean
-  // Human-in-the-loop: Quellen-Bestätigung
-  hasConfirmedSources?: boolean
-  extractionError?: string
-  // Bild-Upload: ausgewählte Dateien pro Bildfeld-Key
-  imageFiles?: Record<string, File | null>
-  // Bild-URLs: einzeln (string) oder Array (string[]) pro Bildfeld-Key
-  imageUrls?: Record<string, string | string[]>
-  // Upload-State: welche Bilder gerade hochgeladen werden
-  isUploadingImages?: Record<string, boolean>
 }
 
 interface CreationWizardProps {
@@ -1731,35 +1673,20 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       }
     }
 
-    setWizardState(prev => {
-      const nextRawIndex = prev.currentStepIndex + 1
-      const nextStep = steps[nextRawIndex]
-
-      // UX: Form-Modus kann Zwischenschritte überspringen — aber collectSource NIEMALS,
-      // sonst fehlt die Quelle (Text/Datei/URL) und Nutzer landen direkt im editDraft.
-      if (prev.mode === 'form') {
-        if (nextStep?.preset === 'collectSource') {
-          return { ...prev, currentStepIndex: nextRawIndex }
-        }
-        const editDraftIndex = steps.findIndex((s, idx) => idx > prev.currentStepIndex && s.preset === 'editDraft')
-        if (editDraftIndex >= 0) {
-          return { ...prev, currentStepIndex: editDraftIndex }
-        }
-      }
-
-      if (nextStep?.preset === 'chooseSource' && prev.selectedSource) {
-        return { ...prev, currentStepIndex: Math.min(nextRawIndex + 1, steps.length - 1) }
-      }
-
-      // UX: Wenn wir bereits structured_data haben (durch Multi-Source Re-Extract), ist generateDraft redundant.
-      // WICHTIG: Nur überspringen, wenn der Draft wirklich existiert.
-      // `sources.length > 0` ist KEIN Indikator für einen generierten Draft (z.B. Finalize-Flow lädt Sources automatisch).
-      if (nextStep?.preset === 'generateDraft' && !!prev.generatedDraft) {
-        return { ...prev, currentStepIndex: Math.min(nextRawIndex + 1, steps.length - 1) }
-      }
-
-      return { ...prev, currentStepIndex: nextRawIndex }
-    })
+    // Generischer Advance (ohne Template-Spezialfälle): Skip-Regeln zentral in
+    // wizard-navigation.ts (testbare Naht, Sub-Welle 3-VI-d).
+    setWizardState(prev => ({
+      ...prev,
+      currentStepIndex: resolveNextStepIndex(
+        {
+          currentStepIndex: prev.currentStepIndex,
+          mode: prev.mode,
+          hasSelectedSource: !!prev.selectedSource,
+          hasGeneratedDraft: !!prev.generatedDraft,
+        },
+        steps
+      ),
+    }))
     
     // Log step_changed Event
     if (wizardSessionIdRef.current) {
@@ -1843,14 +1770,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     try {
       // Bestimme Metadaten und Markdown-Text
       // Priorität: draftMetadata/draftText (Form-Modus) > reviewedFields/generatedDraft (Interview-Modus)
-      const baseMetadata = wizardState.draftMetadata 
-        || wizardState.reviewedFields 
-        || wizardState.generatedDraft?.metadata 
-        || {}
-      
-      const preferredMarkdown = wizardState.draftText 
-        || wizardState.generatedDraft?.markdown 
-        || ""
+      const baseMetadata = selectCanonicalMetadata(wizardState)
+      const preferredMarkdown = selectCanonicalMarkdown(wizardState)
 
       if (Object.keys(baseMetadata).length === 0 && !preferredMarkdown.trim()) {
         toast.error("Keine Daten zum Speichern vorhanden")
@@ -1969,29 +1890,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
        * das LLM hat aber "video" zurückgegeben → Template-Wert muss Vorrang haben.
        */
       const frontmatterKeys = new Set(template.metadata.fields.map((f) => f.key))
-      const frontmatterMetadata: Record<string, unknown> = {}
-      for (const key of frontmatterKeys) {
-        const field = template.metadata.fields.find((f) => f.key === key)
-        const isHardcoded = field && (!field.description || field.description.trim() === '')
-
-        if (isHardcoded && field?.rawValue) {
-          // Hardcodiertes Feld: Template-rawValue hat Vorrang (LLM darf nicht überschreiben)
-          const rv = field.rawValue
-          if (rv === 'true') frontmatterMetadata[key] = true
-          else if (rv === 'false') frontmatterMetadata[key] = false
-          else frontmatterMetadata[key] = rv
-        } else if (key in metadataWithImages) {
-          frontmatterMetadata[key] = metadataWithImages[key]
-        } else {
-          // Template-Default: rawValue verwenden, wenn Feld keinen Wert aus Formular/LLM hat
-          const rv = field?.rawValue
-          if (rv !== undefined && rv !== '') {
-            if (rv === 'true') frontmatterMetadata[key] = true
-            else if (rv === 'false') frontmatterMetadata[key] = false
-            else frontmatterMetadata[key] = rv
-          }
-        }
-      }
+      // Frontmatter-Aufbau zentral in wizard-frontmatter.ts (geteilt mit Promote/Inbox, U4).
+      const frontmatterMetadata = buildWizardFrontmatter(template.metadata.fields, metadataWithImages)
 
       applyEventFrontmatterDefaults({
         frontmatterKeys,
@@ -2872,570 +2772,40 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
   }
   
   const renderStep = () => {
+    // Datengetriebene Engine zuerst (Sub-Welle 3-VI-d): bereits migrierte Presets
+    // rendert die Step-Registry; alles Übrige übernimmt vorerst der Legacy-Switch.
+    if (isStepMigrated(currentStep.preset)) {
+      const stepRenderContext: StepRenderContext = {
+        template,
+        creation,
+        currentStep,
+        libraryId,
+        templateId,
+        typeId,
+        wizardState,
+        setWizardState,
+        provider,
+        currentFolderId,
+        sources: wizardState.sources,
+        seedFileIdState,
+        sourceFolderId,
+        onNext: handleNext,
+        steps,
+        addSource,
+        removeSource,
+        setCollectSourceCanProceed,
+        wizardSessionIdRef,
+        logWizardEvent,
+        onTestimonialSelectionChange: handleTestimonialSelectionChange,
+        onFolderArtifactSelectionChange: handleFolderArtifactSelectionChange,
+        scheduleMetadataEditedLog,
+        renderTemplateBody,
+        resolveDetailViewType: resolveTemplateDetailViewType,
+      }
+      return renderRegisteredStep(currentStep.preset, stepRenderContext)
+    }
+
     switch (currentStep.preset) {
-      case "welcome": {
-        const fallbackTitle = creation.ui?.displayName || template.name || "Vorlage"
-        const welcomeMarkdown =
-          creation.welcome?.markdown?.trim()
-            ? creation.welcome.markdown
-            : `## Willkommen\n\nHier erstellen wir gemeinsam **${fallbackTitle}**.\n\n- Du wählst eine Methode (erzählen, Webseite, Text, Datei oder Formular)\n- Wir erstellen einen ersten Vorschlag\n- Du prüfst kurz und speicherst\n`
-
-        return (
-          <WelcomeStep
-            title={currentStep.title || "Willkommen"}
-            markdown={welcomeMarkdown}
-          />
-        )
-      }
-
-
-      case "collectSource":
-        return (
-          <CollectSourceStep
-            source={wizardState.selectedSource}
-            mode={wizardState.mode}
-            // Legacy: Fallback für altes System
-            onCollect={(content) => {
-              setWizardState(prev => ({
-                ...prev,
-                collectedInput: {
-                  type: wizardState.selectedSource!.type,
-                  content,
-                },
-              }))
-            }}
-            onCollectStructured={(result) => {
-              setWizardState(prev => ({
-                ...prev,
-                generatedDraft: {
-                  metadata: result.metadata,
-                  markdown: result.markdown || "",
-                },
-              }))
-            }}
-            collectedInput={wizardState.collectedInput?.content}
-            // Multi-Source: Neue Props
-            sources={wizardState.sources}
-            onAddSource={addSource}
-            onRemoveSource={removeSource}
-            isExtracting={wizardState.isExtracting}
-            processingProgress={wizardState.processingProgress}
-            processingMessage={wizardState.processingMessage}
-            templateId={templateId}
-            libraryId={libraryId}
-            provider={provider || undefined}
-            targetFolderId={currentFolderId}
-            // Quelle-Auswahl (wenn source nicht gesetzt). Ordner-Typ „folder“ nur in speziellen Flows (nicht für Diktat).
-            supportedSources={creation.supportedSources.filter((s) => s.type !== 'folder')}
-            selectedSource={wizardState.selectedSource}
-            onSourceSelect={(source) => {
-              setWizardState(prev => ({ ...prev, selectedSource: source }))
-            }}
-            onModeSelect={(mode) => {
-              setWizardState(prev => ({
-                ...prev,
-                mode,
-                selectedSource: mode === 'form' ? undefined : prev.selectedSource,
-                collectedInput: mode === 'form' ? undefined : prev.collectedInput,
-              }))
-            }}
-            onResetSourceSelection={() => {
-              // Nutzer möchte die Quelle neu wählen: Auswahl + Eingaben zurücksetzen
-              setWizardState(prev => ({
-                ...prev,
-                selectedSource: undefined,
-                collectedInput: undefined,
-                mode: 'interview',
-              }))
-            }}
-            template={template}
-            steps={steps}
-            onCanProceedChange={setCollectSourceCanProceed}
-          />
-        )
-
-      case "reviewMarkdown":
-        return (
-          <ReviewMarkdownStep
-            title={currentStep.title || "Markdown prüfen"}
-            markdown={wizardState.draftText || ""}
-            onMarkdownChange={(next) => setWizardState(prev => ({ ...prev, draftText: next }))}
-            isConfirmed={!!wizardState.hasConfirmedMarkdown}
-            onConfirmedChange={(next) => {
-              setWizardState(prev => ({ ...prev, hasConfirmedMarkdown: next }))
-              
-              // Log markdown_confirmed Event
-              if (next && wizardSessionIdRef.current) {
-                logWizardEvent(wizardSessionIdRef.current, {
-                  eventType: 'markdown_confirmed',
-                  stepIndex: wizardState.currentStepIndex,
-                  stepPreset: currentStep.preset,
-                }).catch(error => console.warn('[Wizard] Fehler beim Loggen von markdown_confirmed:', error))
-              }
-            }}
-            isProcessing={wizardState.isExtracting}
-            processingProgress={wizardState.processingProgress}
-            processingMessage={wizardState.processingMessage}
-            provider={provider || null}
-            currentFolderId={wizardState.pdfTranscriptFolderId || currentFolderId || 'root'}
-          />
-        )
-
-      case "generateDraft":
-        // Im Interview-Modus ist generateDraft zwingend nach collectSource
-        // Im Form-Modus kann generateDraft optional sein
-        // Finalize/Seed-Flows können ohne collectedInput arbeiten (Sources sind bereits gesetzt).
-        if (wizardState.mode === 'interview' && !wizardState.collectedInput && wizardState.sources.length === 0) {
-          return (
-            <div className="text-center text-muted-foreground p-8">
-              Bitte zuerst Eingaben sammeln.
-            </div>
-          )
-        }
-        const isEventFinalize = (templateId || '').toLowerCase() === 'event-finalize-de'
-        // Im Form-Modus kann generateDraft auch ohne collectedInput aufgerufen werden (z.B. zur Initialbefüllung)
-        const inputForGeneration = wizardState.collectedInput?.content || buildCorpusText(wizardState.sources)
-        return (
-          <GenerateDraftStep
-            templateId={templateId}
-            libraryId={libraryId}
-            input={inputForGeneration}
-            onGenerateStarted={() => {
-              const sessionId = wizardSessionIdRef.current
-              if (!sessionId) return
-              void logWizardEventClient(sessionId, {
-                eventType: 'job_started',
-                stepIndex: wizardState.currentStepIndex,
-                stepPreset: currentStep?.preset,
-                metadata: {
-                  sourcesCount: wizardState.sources.length,
-                  corpusLength: inputForGeneration.length,
-                  templateId,
-                },
-              })
-            }}
-            onGenerate={(draft) => {
-              setWizardState(prev => ({
-                ...prev,
-                generatedDraft: draft,
-                // Im Form-Modus: Initialisiere draftMetadata und draftText aus generatedDraft
-                draftMetadata: prev.mode === 'form' ? draft.metadata : prev.draftMetadata,
-                draftText: prev.mode === 'form' ? draft.markdown : prev.draftText,
-              }))
-              const sessionId = wizardSessionIdRef.current
-              if (!sessionId) return
-              void logWizardEventClient(sessionId, {
-                eventType: 'job_completed',
-                stepIndex: wizardState.currentStepIndex,
-                stepPreset: currentStep?.preset,
-                metadata: {
-                  sourcesCount: wizardState.sources.length,
-                  corpusLength: inputForGeneration.length,
-                  metadataKeys: Object.keys(draft.metadata || {}).length,
-                  markdownLength: (draft.markdown || '').length,
-                },
-              })
-            }}
-            onGenerateFailed={(error) => {
-              const sessionId = wizardSessionIdRef.current
-              if (!sessionId) return
-              const msg = error instanceof Error ? error.message : String(error)
-              void logWizardEventClient(sessionId, {
-                eventType: 'job_failed',
-                stepIndex: wizardState.currentStepIndex,
-                stepPreset: currentStep?.preset,
-                error: { code: 'process_text_failed', message: msg },
-              })
-            }}
-            generatedDraft={wizardState.generatedDraft}
-            autoAdvance={isEventFinalize}
-            onAdvance={() => handleNext()}
-            showResultPreview={!isEventFinalize}
-          />
-        )
-
-      case "editDraft": {
-        const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
-        // Initialisiere draftMetadata/draftText falls noch nicht vorhanden
-        const initialMetadata = wizardState.draftMetadata 
-          || wizardState.reviewedFields 
-          || wizardState.generatedDraft?.metadata 
-          || {}
-        const initialDraftText = wizardState.draftText 
-          || wizardState.generatedDraft?.markdown 
-          || ""
-        
-        // Feld-Auswahl (ADR-0003 / O1, Phase 3a): editDraft.fields als optionaler
-        // Override; sonst GENERISCH aus dem Schema ableiten (Inhalts-Felder ohne
-        // System-/Struktur-Felder) statt still auf ALLE Felder zu fallen.
-        const derivedEditableFields = editableContentFields(template.metadata.fields.map((f) => f.key))
-        const userRelevantFields = currentStep.fields && currentStep.fields.length > 0
-          ? currentStep.fields
-          : (derivedEditableFields.length > 0 ? derivedEditableFields : undefined)
-        
-        // PDF-HITL: Wenn wir hier ohne Draft landen, ist das ein Flow-Fehler (sonst sieht man "leere" Screens).
-        if (isPdfAnalyse && Object.keys(initialMetadata).length === 0 && initialDraftText.trim().length === 0) {
-          return (
-            <Alert>
-              <AlertTitle>Keine Metadaten vorhanden</AlertTitle>
-              <AlertDescription>
-                Es wurden noch keine Metadaten/Markdown erzeugt. Bitte gehe zurück und starte zuerst OCR (und danach Template/Metadaten).
-              </AlertDescription>
-            </Alert>
-          )
-        }
-
-        // Wenn Felder definiert sind, zeige den Step auch bei leerem Metadata (User kann direkt eingeben)
-        // Wenn keine Felder definiert sind UND Metadata leer ist, zeige Fehlermeldung
-        if (!userRelevantFields && Object.keys(initialMetadata).length === 0) {
-          return (
-            <div className="text-center text-muted-foreground p-8">
-              Bitte zuerst Eingaben machen (URL/Text/Datei/Audio).
-            </div>
-          )
-        }
-        
-        // Markdown-Tab nur anzeigen, wenn Text vorhanden ist (Diktat: Tabs aus — nur Dateiname)
-        const isBuiltinDictation = templateId === 'audio-transcript-de'
-        const showMarkdownTab = initialDraftText.trim().length > 0
-        
-        // Bildfelder: aus editDraft.imageFieldKeys (falls definiert)
-        const imageFieldKeys = currentStep.imageFieldKeys && currentStep.imageFieldKeys.length > 0
-          ? currentStep.imageFieldKeys
-          : undefined
-
-        return (
-          <EditDraftStep
-            templateMetadata={template.metadata}
-            draftMetadata={initialMetadata}
-            draftText={initialDraftText}
-            sources={wizardState.sources}
-            // Nur benutzerrelevante Felder anzeigen (aus editDraft.fields)
-            userRelevantFields={userRelevantFields}
-            showMarkdownTab={showMarkdownTab}
-            suppressMarkdownTab={isBuiltinDictation}
-            headingOverride={currentStep.title}
-            subheadingOverride={currentStep.description}
-            hideSourcesFooter={isBuiltinDictation}
-            imageFieldKeys={imageFieldKeys}
-            libraryId={libraryId}
-            onMetadataChange={(metadata) => {
-              setWizardState(prev => {
-                // Extrahiere Bild-URLs (Strings und Arrays)
-                const newImageUrls: Record<string, string | string[]> = {}
-                if (imageFieldKeys) {
-                  for (const key of imageFieldKeys) {
-                    const value = metadata[key]
-                    if (typeof value === 'string' && value.trim().length > 0) {
-                      newImageUrls[key] = value
-                    } else if (Array.isArray(value) && value.length > 0) {
-                      newImageUrls[key] = value as string[]
-                    }
-                  }
-                }
-                return {
-                  ...prev,
-                  draftMetadata: metadata,
-                  reviewedFields: metadata,
-                  imageUrls: {
-                    ...(prev.imageUrls || {}),
-                    ...newImageUrls
-                  }
-                }
-              })
-
-              // DSGVO: nur Keys/Counts loggen, kein Inhalt
-              scheduleMetadataEditedLog(metadata)
-            }}
-            onDraftTextChange={(text) => {
-              setWizardState(prev => ({ ...prev, draftText: text }))
-            }}
-          />
-        )
-      }
-
-      case "uploadImages": {
-        // Bildfelder kommen aus dem aktuellen Step (fields)
-        const imageFieldKeys = currentStep.fields || []
-        
-        if (imageFieldKeys.length === 0) {
-          return (
-            <div className="text-center text-muted-foreground p-8">
-              Keine Bildfelder konfiguriert. Bitte im Template-Editor Bildfelder für diesen Step auswählen.
-            </div>
-          )
-        }
-
-        // Konvertiere fieldKeys zu imageFields-Format für UploadImagesStep.
-        // Array-Felder (rawValue enthält "Array") bekommen multiple=true.
-        const imageFields = imageFieldKeys.map(key => {
-          const fieldMeta = template.metadata.fields.find(f => f.key === key)
-          const isArray = fieldMeta?.rawValue?.includes("Array") || false
-          return {
-            key,
-            label: fieldMeta?.description || key,
-            multiple: isArray,
-          }
-        })
-
-        return (
-          <UploadImagesStep
-            imageFields={imageFields}
-            selectedFiles={wizardState.imageFiles || {}}
-            imageUrls={wizardState.imageUrls}
-            isUploadingImages={wizardState.isUploadingImages}
-            libraryId={libraryId}
-            sourceFolderId={sourceFolderId}
-            onChangeSelectedFiles={(key, file) => {
-              setWizardState(prev => ({
-                ...prev,
-                imageFiles: {
-                  ...(prev.imageFiles || {}),
-                  [key]: file,
-                },
-                isUploadingImages: {
-                  ...(prev.isUploadingImages || {}),
-                  [key]: file !== null,
-                },
-              }))
-            }}
-            onUploadComplete={(key, url) => {
-              setWizardState(prev => {
-                const isMultiple = imageFields.find(f => f.key === key)?.multiple
-                const existing = prev.imageUrls?.[key]
-
-                // Array-Felder: URL an bestehendes Array anhängen
-                let newValue: string | string[]
-                if (isMultiple) {
-                  const arr = Array.isArray(existing) ? existing : (typeof existing === 'string' && existing ? [existing] : [])
-                  newValue = [...arr, url]
-                } else {
-                  newValue = url
-                }
-
-                const newImageUrls = {
-                  ...(prev.imageUrls || {}),
-                  [key]: newValue,
-                }
-                const baseMetadata = prev.draftMetadata || prev.reviewedFields || prev.generatedDraft?.metadata || {}
-                const updatedMetadata = {
-                  ...baseMetadata,
-                  ...newImageUrls,
-                }
-                return {
-                  ...prev,
-                  imageUrls: newImageUrls,
-                  draftMetadata: updatedMetadata,
-                  reviewedFields: prev.reviewedFields ? {
-                    ...prev.reviewedFields,
-                    ...newImageUrls,
-                  } : prev.reviewedFields,
-                  isUploadingImages: {
-                    ...(prev.isUploadingImages || {}),
-                    [key]: false,
-                  },
-                }
-              })
-            }}
-            onRemoveArrayImage={(key, index) => {
-              setWizardState(prev => {
-                const existing = prev.imageUrls?.[key]
-                if (!Array.isArray(existing)) return prev
-
-                const updated = existing.filter((_, i) => i !== index)
-                const newImageUrls = {
-                  ...(prev.imageUrls || {}),
-                  [key]: updated,
-                }
-                const baseMetadata = prev.draftMetadata || prev.reviewedFields || prev.generatedDraft?.metadata || {}
-                const updatedMetadata = {
-                  ...baseMetadata,
-                  ...newImageUrls,
-                }
-                return {
-                  ...prev,
-                  imageUrls: newImageUrls,
-                  draftMetadata: updatedMetadata,
-                  reviewedFields: prev.reviewedFields ? {
-                    ...prev.reviewedFields,
-                    ...newImageUrls,
-                  } : prev.reviewedFields,
-                }
-              })
-            }}
-          />
-        )
-      }
-
-      case "selectRelatedTestimonials": {
-        return (
-          <SelectRelatedTestimonialsStep
-            sources={wizardState.sources}
-            seedSourceId={seedFileIdState ? `file-${seedFileIdState}` : undefined}
-            onSelectionChange={handleTestimonialSelectionChange}
-          />
-        )
-      }
-
-      case "selectFolderArtifacts": {
-        if (!sourceFolderId || !libraryId) {
-          return (
-            <Card>
-              <CardContent className="py-6">
-                <p className="text-sm text-muted-foreground">
-                  Kein Verzeichnis-Kontext. Bitte starte den Wizard aus einem Verzeichnis heraus.
-                </p>
-              </CardContent>
-            </Card>
-          )
-        }
-        return (
-          <SelectFolderArtifactsStep
-            libraryId={libraryId}
-            folderId={sourceFolderId}
-            targetLanguage="de"
-            onSelectionChange={handleFolderArtifactSelectionChange}
-          />
-        )
-      }
-
-      case "previewDetail": {
-        const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
-        const baseMetadata =
-          wizardState.reviewedFields ||
-          wizardState.generatedDraft?.metadata ||
-          wizardState.draftMetadata ||
-          {}
-        
-        // Merge Bild-URLs in baseMetadata für Preview
-        const metadataWithImages = {
-          ...baseMetadata,
-          ...(wizardState.imageUrls || {}),
-        }
-
-        // UX/SSOT: Preview soll den korrekten docType anzeigen (z.B. Badge "Event").
-        // Der docType wird sonst erst beim Speichern via applyEventFrontmatterDefaults gesetzt.
-        // Für die Vorschau reichen Minimal-Heuristiken.
-        const previewMetadata: Record<string, unknown> = { ...metadataWithImages }
-        const currentDocType = typeof previewMetadata.docType === 'string' ? previewMetadata.docType.trim().toLowerCase() : ''
-        const typeIdLower = String(typeId || '').toLowerCase()
-        if (!currentDocType && typeIdLower.includes('event')) {
-          previewMetadata.docType = 'event'
-          // eventStatus ist optional, hilft aber beim UI-Labeling
-          if (previewMetadata.eventStatus === undefined) previewMetadata.eventStatus = 'open'
-        }
-        
-        const preferredPreviewMarkdown =
-          wizardState.generatedDraft?.markdown ||
-          wizardState.draftText ||
-          ""
-
-        // Wenn kein Markdown vorhanden ist, rendere es aus template.markdownBody (z.B. {{summaryInText}})
-        let previewMarkdown =
-          preferredPreviewMarkdown.trim().length > 0
-            ? preferredPreviewMarkdown
-            : renderTemplateBody({ body: template.markdownBody || "", values: metadataWithImages })
-
-        // Füge Bild automatisch oben im Preview-Markdown ein (nach Teaser, falls vorhanden)
-        const uploadImagesStep = creation?.flow.steps.find(step => step.preset === 'uploadImages')
-        const imageFieldKeys = uploadImagesStep?.fields || []
-        
-        // Finde das erste Bildfeld mit einer URL
-        let firstImageUrl: string | undefined
-        let firstImageKey: string | undefined
-        for (const fieldKey of imageFieldKeys) {
-          const imageUrl = wizardState.imageUrls?.[fieldKey] || metadataWithImages[fieldKey]
-          if (imageUrl && typeof imageUrl === 'string' && imageUrl.trim().length > 0) {
-            firstImageUrl = imageUrl
-            firstImageKey = fieldKey
-            break
-          }
-        }
-
-        if (firstImageUrl && firstImageKey) {
-          // Prüfe, ob Bild bereits im Markdown vorhanden ist
-          if (!previewMarkdown.includes(firstImageUrl)) {
-            // Suche nach Teaser im Markdown (verschiedene Formate)
-            const teaserText = metadataWithImages.teaser as string | undefined
-            let teaserMatch: RegExpMatchArray | null = null
-            let teaserEnd = 0
-            
-            if (teaserText && typeof teaserText === 'string' && teaserText.trim().length > 0) {
-              // Suche nach Teaser-Text im Markdown (erste 100 Zeichen für Matching)
-              const teaserSnippet = teaserText.substring(0, 100).trim()
-              const escapedSnippet = teaserSnippet.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-              const teaserPattern = new RegExp(`(${escapedSnippet})`, 'i')
-              teaserMatch = previewMarkdown.match(teaserPattern)
-              
-              if (teaserMatch && teaserMatch.index !== undefined) {
-                // Finde das Ende des Absatzes nach dem Teaser
-                const afterTeaserStart = teaserMatch.index + teaserMatch[0].length
-                const afterTeaser = previewMarkdown.substring(afterTeaserStart)
-                const nextParagraphMatch = afterTeaser.match(/\n\n|\n##/)
-                teaserEnd = nextParagraphMatch 
-                  ? afterTeaserStart + nextParagraphMatch.index! + nextParagraphMatch[0].length
-                  : afterTeaserStart + afterTeaser.length
-              }
-            }
-            
-            // Fallback: Suche nach "Teaser:" Label
-            if (!teaserMatch) {
-              const teaserLabelPattern = /(?:^|\n)(?:##\s+)?Teaser[:\s]*\n([^\n]+(?:\n[^\n]+)*?)(?=\n\n|\n##|$)/i
-              const labelMatch = previewMarkdown.match(teaserLabelPattern)
-              if (labelMatch && labelMatch.index !== undefined) {
-                teaserEnd = labelMatch.index + labelMatch[0].length
-                teaserMatch = labelMatch
-              }
-            }
-            
-            if (teaserMatch && teaserEnd > 0) {
-              // Teaser gefunden: Füge Bild direkt nach Teaser ein
-              const beforeTeaser = previewMarkdown.substring(0, teaserEnd)
-              const afterTeaser = previewMarkdown.substring(teaserEnd)
-              previewMarkdown = beforeTeaser + `\n\n![${firstImageKey}](${firstImageUrl})\n\n` + afterTeaser
-            } else {
-              // Kein Teaser gefunden: Füge Bild ganz oben ein
-              previewMarkdown = `![${firstImageKey}](${firstImageUrl})\n\n` + previewMarkdown
-            }
-          }
-        }
-
-        const detailViewType = resolveTemplateDetailViewType()
-
-        if (isPdfAnalyse && Object.keys(baseMetadata).length === 0 && preferredPreviewMarkdown.trim().length === 0) {
-          return (
-            <Alert>
-              <AlertTitle>Keine Vorschau verfügbar</AlertTitle>
-              <AlertDescription>
-                Es gibt noch keine Metadaten/Markdown für die Vorschau. Bitte gehe zurück und führe zuerst OCR + Template aus.
-              </AlertDescription>
-            </Alert>
-          )
-        }
-
-        if (Object.keys(baseMetadata).length === 0) {
-          return (
-            <div className="text-center text-muted-foreground p-8">
-              Bitte zuerst Daten ausfüllen oder auslesen.
-            </div>
-          )
-        }
-
-        return (
-          <PreviewDetailStep
-            detailViewType={detailViewType}
-            metadata={previewMetadata}
-            markdown={previewMarkdown}
-            libraryId={libraryId}
-            provider={provider}
-            currentFolderId={wizardState.pdfTranscriptFolderId || currentFolderId || 'root'}
-          />
-        )
-      }
-
-      case "completion":
-        return <CompletionStep />
-
       case "publish": {
         const onPublish = async () => {
           const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
@@ -3466,87 +2836,93 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           // Generic Publish: Save + optional Ingest (z.B. Event-Erstellung).
           // ingestOnFinish: false = nur Archiv, keine Ingestion (User kann später aus Archiv ingestieren).
           if (isGenericPublish) {
-            // Explizit Publish-Step aus Template laden (currentStep kann durch Filter abweichen)
-            const publishStepFromTemplate = template.creation?.flow?.steps?.find((s) => s.preset === 'publish')
-            const ingestOnFinish = publishStepFromTemplate?.ingestOnFinish ?? currentStep?.ingestOnFinish
-            const shouldIngest = ingestOnFinish !== false
+            // U4.1 / ADR-0004: Erfassung schreibt NIE direkt ins Ziel — die Story
+            // geht IMMER in den Wartekorb (Submission, off-target). Owner publiziert
+            // sofort (approve -> promote); Co-Autor/Contributor: bleibt im Wartekorb.
             setWizardState(prev => ({
               ...prev,
               isPublishing: true,
               publishError: undefined,
               publishingProgress: 10,
-              publishingMessage: 'Speichern…',
+              publishingMessage: 'Story zusammenstellen…',
             }))
             try {
-              const saveRes = await handleSave({ navigateToLibrary: false, ingestEvent: false, finalizeSession: false })
-              const savedItemId = saveRes?.savedItemId
-              const savedFileName = saveRes?.fileName
-              const targetFolderId = saveRes?.targetFolderId
-              const targetSlug = saveRes?.slug
-              if (!savedItemId) throw new Error('Speichern fehlgeschlagen (savedItemId fehlt).')
+              // 1) Finales Frontmatter + Dateiname bauen (geteilte Helfer, kein Schreiben).
+              const baseMetadata = selectCanonicalMetadata(wizardState)
+              const markdown = selectCanonicalMarkdown(wizardState)
+              const createInOwnFolder = creation.output?.createInOwnFolder === true
+              const wizardOnlyKeys = creation.output?.wizardOnlyMetadataKeys ?? []
+              const filenameOverride =
+                typeof baseMetadata.filename === 'string' && baseMetadata.filename.trim().length > 0
+                  ? baseMetadata.filename.trim()
+                  : undefined
+              const { fileName, updatedMetadata: finalMetadata } = buildCreationFileName({
+                typeId,
+                metadata: baseMetadata,
+                config: { ...creation.output?.fileName, ensureUnique: createInOwnFolder },
+                overrideBaseName: filenameOverride,
+              })
+              const finalMetadataForFrontmatter = { ...finalMetadata }
+              for (const k of wizardOnlyKeys) delete finalMetadataForFrontmatter[k]
+              const ownerId = fileName.replace(/\.[^.]+$/, '')
+              const detailViewType = resolveTemplateDetailViewType()
+              const metadataWithImages = { ...finalMetadataForFrontmatter, ...(wizardState.imageUrls || {}) }
+              const frontmatterKeys = new Set(template.metadata.fields.map((f) => f.key))
+              const frontmatterMetadata = buildWizardFrontmatter(template.metadata.fields, metadataWithImages)
+              applyEventFrontmatterDefaults({
+                frontmatterKeys,
+                frontmatter: frontmatterMetadata,
+                typeId,
+                ownerId,
+                detailViewType,
+                generateUuid: () => crypto.randomUUID(),
+              })
 
-              if (shouldIngest) {
-                setWizardState(prev => ({
-                  ...prev,
-                  publishingProgress: 70,
-                  publishingMessage: 'Ingestion starten…',
-                }))
+              const docType =
+                typeof frontmatterMetadata.docType === 'string' && frontmatterMetadata.docType.trim().length > 0
+                  ? frontmatterMetadata.docType
+                  : detailViewType
+              const slug =
+                typeof frontmatterMetadata.slug === 'string' && frontmatterMetadata.slug.trim().length > 0
+                  ? frontmatterMetadata.slug
+                  : undefined
 
-                const ingestStartedAt = nowMs()
-                if (sessionIdForLogs) {
-                  void logWizardEventClient(sessionIdForLogs, {
-                    eventType: 'ingest_started',
-                    stepIndex: wizardState.currentStepIndex,
-                    stepPreset: currentStep?.preset,
-                    fileIds: { savedItemId },
-                    metadata: { mode: 'generic_publish' },
-                  })
-                }
-                const ingestRes = await fetch(`/api/chat/${encodeURIComponent(libId)}/ingest-markdown`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ fileId: savedItemId, fileName: savedFileName }),
-                })
-                if (!ingestRes.ok) {
-                  const errorText = await ingestRes.text().catch(() => 'Unknown error')
-                  if (sessionIdForLogs) {
-                    const durationMs = Math.max(0, nowMs() - ingestStartedAt)
-                    void logWizardEventClient(sessionIdForLogs, {
-                      eventType: 'ingest_failed',
-                      stepIndex: wizardState.currentStepIndex,
-                      stepPreset: currentStep?.preset,
-                      fileIds: { savedItemId },
-                      metadata: { durationMs, mode: 'generic_publish' },
-                      error: { code: 'ingest_failed', message: errorText },
-                    })
-                  }
-                  throw new Error(`Ingestion fehlgeschlagen: ${errorText}`)
-                }
-                if (sessionIdForLogs) {
-                  const durationMs = Math.max(0, nowMs() - ingestStartedAt)
-                  void logWizardEventClient(sessionIdForLogs, {
-                    eventType: 'ingest_completed',
-                    stepIndex: wizardState.currentStepIndex,
-                    stepPreset: currentStep?.preset,
-                    fileIds: { savedItemId },
-                    metadata: { durationMs, mode: 'generic_publish' },
-                  })
-                }
+              // 2) Submission anlegen (immer Inbox — Funktioniert-immer-Garantie).
+              setWizardState(prev => ({ ...prev, publishingProgress: 50, publishingMessage: 'Im Wartekorb anlegen…' }))
+              const captureBody = buildWizardCaptureBody({
+                libraryId,
+                wizardId: templateId,
+                docType,
+                detailViewType,
+                markdownBody: markdown,
+                metadata: frontmatterMetadata,
+                target: { folderId: currentFolderId, slug },
+              })
+              const { id: submissionId } = await submitWizardCapture(captureBody)
+
+              // 3) Owner: sofort veröffentlichen (approve -> promote). Sonst: Wartekorb.
+              const currentLib = libraries.find((l) => l.id === libraryId)
+              const isOwner = (currentLib?.accessRole ?? 'owner') === 'owner'
+              let savedItemId: string | undefined
+              if (isOwner) {
+                setWizardState(prev => ({ ...prev, publishingProgress: 75, publishingMessage: 'Veröffentlichen…' }))
+                await approveSubmission(submissionId)
+                const promoteRes = await promoteSubmission(submissionId)
+                savedItemId = promoteRes.savedItemId
               }
 
               const imagesCount = Object.keys(wizardState.imageUrls || {}).length
               const sourcesCount = Array.isArray(wizardState.sources) ? wizardState.sources.length : 0
-
               setWizardState(prev => ({
                 ...prev,
                 isPublishing: false,
                 isPublished: true,
                 publishingProgress: 100,
-                publishingMessage: 'Fertig.',
+                publishingMessage: isOwner ? 'Veröffentlicht.' : 'Im Wartekorb — wird geprüft.',
                 publishStats: { documents: 1, images: imagesCount, sources: sourcesCount },
-                publishTargetFolderId: targetFolderId,
-                // Slug nur bei Ingestion – sonst Gallery-Lookup schlägt fehl (Dokument nicht indiziert)
-                publishTargetSlug: shouldIngest ? (targetSlug || prev.publishTargetSlug) : undefined,
+                publishTargetFolderId: currentFolderId,
+                // Slug nur bei Owner-Publikation (sonst noch nicht im Ziel/Index)
+                publishTargetSlug: isOwner ? slug : undefined,
               }))
               if (sessionIdForLogs) {
                 const durationMs = Math.max(0, nowMs() - publishStartedAt)
@@ -3554,30 +2930,16 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                   eventType: 'publish_completed',
                   stepIndex: wizardState.currentStepIndex,
                   stepPreset: currentStep?.preset,
-                  metadata: { durationMs, mode: 'generic' },
+                  metadata: { durationMs, mode: isOwner ? 'inbox_owner_promote' : 'inbox_pending', submissionId },
                 })
-              }
-
-              // Wizard-Session erst ganz am Ende finalisieren (nach ingest/publish),
-              // damit wizard_completed zeitlich korrekt ist.
-              if (sessionIdForLogs) {
                 try {
-                  const filePaths = await getFilePaths(provider, { savedItemId })
-                  await logWizardEventClient(sessionIdForLogs, {
-                    eventType: 'wizard_completed',
-                    stepIndex: wizardState.currentStepIndex,
-                    stepPreset: 'publish',
-                    fileIds: { savedItemId },
-                    filePaths: { savedPath: filePaths.savedPath },
-                  })
                   wizardSessionCompletedRef.current = true
                   await finalizeWizardSessionClient(sessionIdForLogs, 'completed', {
                     finalStepIndex: wizardState.currentStepIndex,
-                    finalFileIds: { savedItemId },
-                    finalFilePaths: { savedPath: filePaths.savedPath },
+                    finalFileIds: savedItemId ? { savedItemId } : undefined,
                   })
                 } catch (error) {
-                  console.warn('[Wizard] Fehler beim Finalisieren der Session (Generic Publish):', error)
+                  console.warn('[Wizard] Fehler beim Finalisieren der Session (Inbox-Publish):', error)
                 }
               }
               return
@@ -3590,14 +2952,14 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                 publishingProgress: prev.publishingProgress ?? 0,
                 publishingMessage: msg,
               }))
-              toast.error('Publizieren fehlgeschlagen', { description: msg })
+              toast.error('Veröffentlichen fehlgeschlagen', { description: msg })
               if (sessionIdForLogs) {
                 const durationMs = Math.max(0, nowMs() - publishStartedAt)
                 void logWizardEventClient(sessionIdForLogs, {
                   eventType: 'publish_failed',
                   stepIndex: wizardState.currentStepIndex,
                   stepPreset: currentStep?.preset,
-                  metadata: { durationMs, mode: 'generic' },
+                  metadata: { durationMs, mode: 'inbox' },
                   error: { code: 'publish_failed', message: msg },
                 })
               }

@@ -14,6 +14,7 @@ import { parseTemplate } from '@/lib/templates/template-parser'
 import {
   editableContentFields,
   isWizardSystemField,
+  resolveEditableFields,
 } from '@/lib/creation/editable-fields'
 
 const TEMPLATES_DIR = join(process.cwd(), 'test-library', 'templates')
@@ -64,6 +65,41 @@ describe('isWizardSystemField', () => {
   it('inhaltliche Felder bleiben editierbar', () => {
     for (const f of ['title', 'summary', 'statement', 'author_name', 'cpu', 'filename']) {
       expect(isWizardSystemField(f)).toBe(false)
+    }
+  })
+})
+
+describe('resolveEditableFields — Kompatibilitätsprüfung (U3)', () => {
+  it('ohne Override: generische Inhalts-Felder', () => {
+    expect(
+      resolveEditableFields({ schemaFieldKeys: ['title', 'docType', 'summary'] })
+    ).toEqual({ ok: true, fields: ['title', 'summary'] })
+  })
+
+  it('Override gewinnt, wenn alle Felder im Schema existieren', () => {
+    expect(
+      resolveEditableFields({ schemaFieldKeys: ['title', 'summary', 'location'], overrideFields: ['summary', 'title'] })
+    ).toEqual({ ok: true, fields: ['summary', 'title'] })
+  })
+
+  it('Override mit fehlendem Feld -> klarer Fehler (kein Silent-Drop)', () => {
+    expect(
+      resolveEditableFields({ schemaFieldKeys: ['title', 'summary'], overrideFields: ['title', 'phantom'] })
+    ).toEqual({ ok: false, reason: 'missing-bound-fields', missingFields: ['phantom'] })
+  })
+
+  it('Schema ohne Inhaltsfeld -> klarer Fehler statt ALLE Felder', () => {
+    expect(
+      resolveEditableFields({ schemaFieldKeys: ['docType', 'slug', 'detailViewType'] })
+    ).toEqual({ ok: false, reason: 'no-content-fields' })
+  })
+
+  it('echte Fixtures sind kompatibel (ok)', () => {
+    for (const name of WIZARDS) {
+      const t = load(name)
+      const schemaFieldKeys = t.metadata.fields.map((f) => f.key)
+      const overrideFields = t.creation?.flow.steps.find((s) => s.preset === 'editDraft')?.fields
+      expect(resolveEditableFields({ schemaFieldKeys, overrideFields }).ok).toBe(true)
     }
   })
 })

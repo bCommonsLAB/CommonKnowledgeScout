@@ -719,8 +719,20 @@ export class StorageFactory {
     let provider: StorageProvider;
     switch (library.type) {
       case 'local':
-        provider = new LocalStorageProvider(library, this.apiBaseUrl || undefined);
-        //console.log(`StorageFactory: LocalStorageProvider erstellt für "${library.path}"`);
+        if (this.serverContext) {
+          // Server-Kontext: direkter Node-fs-Provider statt HTTP-Proxy (kein
+          // Clerk-Session noetig). Ermoeglicht serverseitiges Schreiben in lokale
+          // Libraries, u.a. Promote (Inbox -> lokales Archiv, KI-2). Dynamischer
+          // Import, damit `fs` nicht im Client-Bundle landet.
+          if (!library.path || library.path.trim().length === 0) {
+            throw new Error('Lokale Library hat keinen Speicherpfad konfiguriert.');
+          }
+          const { FileSystemProvider } = await import('./filesystem-provider');
+          provider = new FileSystemProvider(library.path);
+        } else {
+          // Client-Kontext: HTTP-Proxy, der /api/storage/filesystem (mit Session) aufruft.
+          provider = new LocalStorageProvider(library, this.apiBaseUrl || undefined);
+        }
         // Set user email if available
         if (this.userEmail && 'setUserEmail' in (provider as unknown as { setUserEmail?: (e: string) => void })) {
           (provider as unknown as { setUserEmail?: (e: string) => void }).setUserEmail?.(this.userEmail);

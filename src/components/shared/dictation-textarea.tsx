@@ -51,8 +51,10 @@ export function DictationTextarea(props: {
    * Optional: Layout-Variante (default: 'default').
    * - 'default': Label oben, Button rechts daneben, Textarea darunter
    * - 'inline': Label links, Button rechts, Textarea darunter (kompakter)
+   * - 'overlay': nur Textarea; Mikrofon dezent oben rechts IM Feld (Label kommt
+   *   vom Parent). Auto-Höhe bis maxAutoRows, danach manuelles Vergrößern.
    */
-  variant?: "default" | "inline"
+  variant?: "default" | "inline" | "overlay"
   /**
    * Optional: CSS-Klassen für Container.
    */
@@ -182,6 +184,41 @@ export function DictationTextarea(props: {
               rows={rows}
               disabled={disabled}
             />
+          </>
+        ) : variant === "overlay" ? (
+          <>
+            <div className="relative">
+              <Textarea
+                ref={textareaRef}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder={placeholder || "Hier eingeben..."}
+                rows={rows}
+                disabled={disabled}
+                aria-label={label}
+                className="pr-9"
+              />
+              {canUseMediaRecorder ? (
+                <button
+                  type="button"
+                  onClick={handleMicClick}
+                  disabled={disabled || isTranscribing}
+                  className={`absolute top-1.5 right-1.5 rounded-md p-1.5 transition-colors ${
+                    isRecording
+                      ? "bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400"
+                      : "text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-700"
+                  }`}
+                  aria-label={isRecording ? "Aufnahme stoppen" : "Diktieren"}
+                  title={isRecording ? "Aufnahme stoppen" : "Diktieren"}
+                >
+                  {isTranscribing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
+                </button>
+              ) : null}
+            </div>
+            {showOscilloscope && isRecording && liveStream ? (
+              <AudioOscilloscope stream={liveStream} isActive={true} />
+            ) : null}
+            {error ? <div className="text-xs text-destructive">{error}</div> : null}
           </>
         ) : (
           <>
