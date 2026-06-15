@@ -84,7 +84,7 @@ Dafür Backend-Assert-Helfer in `e2e/helpers.ts` bauen, z.B.:
 | Settings Akt 2 (Cloud) | `e2e/03-akt2-cloud.spec.ts` | ✅ grün (2.1a; 2.1b–2.4 manuell — OneDrive-Login) |
 | Settings Akt 3 (Publish) | `e2e/04-akt3-publish.spec.ts` | ✅ grün (3.1/3.3/3.5–3.7; 3.2/3.4/3.8/3.9 manuell — 2. Account) |
 | **Inbox: Erfassen → Wartekorb** | `e2e/06-inbox-capture.spec.ts` | ✅ grün (I0–I5 PASS; I6 manuell — Stufe B) |
-| **Inbox: Analyse → Flowback** | `e2e/07-inbox-analyse.spec.ts` *(zu erstellen)* | ⛔ |
+| **Inbox: Analyse → Flowback** | `e2e/07-inbox-analyse.spec.ts` | 🟡 Entwurf (U5d, Audio → Flowback; lokal mit Secretary verifizieren) |
 
 ## 5. Arbeitspakete (unabhängig; je grüner Test = erledigt)
 
