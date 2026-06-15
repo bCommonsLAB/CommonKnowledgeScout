@@ -5,7 +5,13 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { resolveFieldLabel, resolveFieldIsArrayInput, type FieldHintInput } from '@/lib/creation/field-render-hints'
+import {
+  resolveFieldLabel,
+  resolveFieldIsArrayInput,
+  isWizardPickerField,
+  isTextareaFieldByName,
+  type FieldHintInput,
+} from '@/lib/creation/field-render-hints'
 
 const fields: FieldHintInput[] = [
   { key: 'title', variable: 'title', description: 'Titel des Events. Mehr Details hier.' },
@@ -52,5 +58,37 @@ describe('resolveFieldIsArrayInput', () => {
 
   it('unbekanntes Feld (kein Schema-Feld) -> false', () => {
     expect(resolveFieldIsArrayInput('gibtsNicht', fields)).toBe(false)
+  })
+})
+
+describe('isWizardPickerField', () => {
+  it('erkennt die Folge-Wizard-Picker-Felder', () => {
+    expect(isWizardPickerField('wizard_testimonial_template_id')).toBe(true)
+    expect(isWizardPickerField('wizard_finalize_template_id')).toBe(true)
+  })
+
+  it('normale Felder sind keine Picker', () => {
+    expect(isWizardPickerField('title')).toBe(false)
+    expect(isWizardPickerField('tags')).toBe(false)
+  })
+})
+
+describe('isTextareaFieldByName', () => {
+  it('summary + Felder mit Teilstring experience/insight/important -> true', () => {
+    expect(isTextareaFieldByName('summary')).toBe(true)
+    expect(isTextareaFieldByName('speaker_experience')).toBe(true)
+    expect(isTextareaFieldByName('key_insight')).toBe(true)
+    expect(isTextareaFieldByName('important_notes')).toBe(true)
+  })
+
+  it('Ist-Verhalten: Teilstring-Match ist case-sensitive (camelCase greift NICHT)', () => {
+    // Dokumentiert: includes("experience") matcht "userExperience" nicht (großes E).
+    expect(isTextareaFieldByName('userExperience')).toBe(false)
+    expect(isTextareaFieldByName('keyInsight')).toBe(false)
+  })
+
+  it('normale Felder -> false', () => {
+    expect(isTextareaFieldByName('title')).toBe(false)
+    expect(isTextareaFieldByName('location')).toBe(false)
   })
 })

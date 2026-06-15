@@ -66,3 +66,28 @@ export function resolveFieldIsArrayInput(fieldKey: string, fields: readonly Fiel
   if (!field) return false
   return field.rawValue?.includes("Array") === true || ARRAY_FIELD_KEYS.has(fieldKey)
 }
+
+/** Wizard-eigene Picker-Felder (Auswahl eines Folge-Wizards). */
+export const WIZARD_PICKER_FIELD_KEYS: ReadonlySet<string> = new Set<string>([
+  "wizard_testimonial_template_id",
+  "wizard_finalize_template_id",
+])
+
+/** Wird dieses Feld als Auswahl-Picker (Folge-Wizard) gerendert? */
+export function isWizardPickerField(fieldKey: string): boolean {
+  return WIZARD_PICKER_FIELD_KEYS.has(fieldKey)
+}
+
+/**
+ * Namens-Heuristik: soll das Feld mehrzeilig (Textarea) statt einzeilig
+ * gerendert werden? Spiegelt die Bedingung aus `renderField` (ohne den
+ * laufzeitabhängigen `isLongText`-Teil, der im Component bleibt).
+ */
+export function isTextareaFieldByName(fieldKey: string): boolean {
+  return (
+    fieldKey === "summary" ||
+    fieldKey.includes("experience") ||
+    fieldKey.includes("insight") ||
+    fieldKey.includes("important")
+  )
+}

@@ -16,7 +16,7 @@ import type { TemplateMetadataSchema } from "@/lib/templates/template-types"
 import type { WizardSource } from "@/lib/creation/corpus"
 import { CompactSourcesInfo } from "@/components/creation-wizard/components/compact-sources-info"
 import { DictationTextarea } from "@/components/shared/dictation-textarea"
-import { resolveFieldLabel, resolveFieldIsArrayInput } from "@/lib/creation/field-render-hints"
+import { resolveFieldLabel, resolveFieldIsArrayInput, isWizardPickerField, isTextareaFieldByName } from "@/lib/creation/field-render-hints"
 
 interface EditDraftStepProps {
   templateMetadata: TemplateMetadataSchema
@@ -294,11 +294,10 @@ export function EditDraftStep({
     const isLongText = typeof value === "string" && value.length > 120
     const displayValue = isArray ? (value as string[]).join(", ") : String(value || "")
 
-    const isWizardPickerField =
-      field.key === 'wizard_testimonial_template_id' ||
-      field.key === 'wizard_finalize_template_id'
+    // Render-Hinweis zentral (U3): Picker-Erkennung aus field-render-hints.ts.
+    const isPickerField = isWizardPickerField(field.key)
 
-    if (isWizardPickerField) {
+    if (isPickerField) {
       const filter = (opt: { id: string; label: string }) => {
         const idLower = opt.id.toLowerCase()
         if (field.key === 'wizard_testimonial_template_id') return idLower.includes('testimonial')
@@ -381,7 +380,7 @@ export function EditDraftStep({
           <div className="flex-1">
             <label className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</label>
             <div className="mt-1">
-              {isLongText || field.key === "summary" || field.key.includes("experience") || field.key.includes("insight") || field.key.includes("important") ? (
+              {isLongText || isTextareaFieldByName(field.key) ? (
                 <textarea
                   value={displayValue}
                   onChange={(e) => updateFieldValue(field.key, e.target.value)}
