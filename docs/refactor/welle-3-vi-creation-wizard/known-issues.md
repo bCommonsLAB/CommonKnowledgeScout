@@ -24,3 +24,24 @@
 - **Zuständige Sub-Welle:** **U4 / 3-VI-e** („Persistenz vereinheitlichen": EIN
   atomarer Submission-Commit statt 3 konkurrierender Speicherpfade + Shadow-Twin-
   Upsert). Bis dahin: offener Alt-Bug.
+
+## KI-2 — Promote schreibt nicht in LOKALE Filesystem-Libraries (nur Cloud)
+
+- **Gefunden:** 2026-06-15 beim U4.1-E2E (Owner-Sofort-Publikation).
+- **Symptom:** `POST /api/submissions/[id]/promote 503` bei einer `local`-Library
+  („Bibliothek nicht gefunden", `storage-factory.ts` listItemsById → 404). Auf
+  einer **Cloud-Library (OneDrive) funktioniert der komplette Rundlauf** ✅
+  (Wartekorb → approve → promote → Datei + RAG-Index).
+- **Ursache:** `local`-Libraries bekommen IMMER den HTTP-Proxy-Provider
+  (`LocalStorageProvider`, `storage-factory.ts:721`), der `/api/storage/filesystem`
+  aufruft. Beim Direkt-Schreiben im Wizard lief das clientseitig (mit Session);
+  **Promote läuft serverseitig ohne Clerk-Session** → die server-zu-server-Aufrufe
+  mit `?email=` (`/api/storage/filesystem`, auch `/api/libraries/[id]/tokens`)
+  liefern 404. Cloud-Provider haben server-kontext-fähige Direkt-Provider (+
+  Token-Fallback) und funktionieren deshalb.
+- **Kein U4-Verdrahtungsfehler:** Capture/Approve/Promote-auf-Cloud sind grün;
+  die Story bleibt bei Fehler sicher `ready` im Wartekorb (idempotent retry-bar).
+- **Fix (Storage-Domäne):** im Server-Kontext für `local` einen direkten
+  Node-fs-Provider nutzen (statt HTTP-Proxy) ODER die server-zu-server-
+  Library-Auflösung der Routen reparieren. Eigene, sorgfältige Storage-Aufgabe.
+
