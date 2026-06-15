@@ -34,11 +34,11 @@ creation:
     markdown: |
       ## Willkommen
 
-      Hier erfassen wir ein **Diktat**: Unter „Erzähl mir was“ tippst oder sprichst du deinen Text. Danach nur noch **Dateiname** und Speichern — die Datei landet im **aktuellen Ordner**, ohne Extra-Unterordner.
+      Hier erfassen wir ein **Diktat**: Unter „Erzähl mir was“ tippst oder sprichst du deinen Text. Danach nur noch **Dateiname** und **Veröffentlichen** — dein Beitrag landet im **Wartekorb** (als Owner sofort veröffentlicht).
 
       - Eine Quelle: Text (tippen oder diktieren)
       - Dein Text wird direkt übernommen
-      - Dateiname eingeben und fertig
+      - Dateiname eingeben und veröffentlichen
   output:
     fileName:
       metadataFieldKey: title
@@ -62,6 +62,10 @@ creation:
         description: "Nur der Dateiname (ohne Endung md). Der Text aus dem vorigen Schritt wird übernommen."
         fields:
           - filename
+      - id: Publish
+        preset: publish
+        title: "Veröffentlichen"
+        ingestOnFinish: false
   ui:
     displayName: "Diktat erfassen"
     description: "Text tippen oder diktieren und als bearbeitbares Transkript speichern"
