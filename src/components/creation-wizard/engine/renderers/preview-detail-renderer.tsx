@@ -9,15 +9,14 @@ import type { ReactNode } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { PreviewDetailStep } from "../../steps/preview-detail-step"
 import type { StepRenderContext } from "../step-render-context"
+import { selectCanonicalMetadata, selectCanonicalMarkdown } from "../wizard-metadata"
 
 export function renderPreviewDetailStep(ctx: StepRenderContext): ReactNode {
   const { templateId, typeId, template, creation, wizardState, libraryId, provider, currentFolderId, renderTemplateBody, resolveDetailViewType } = ctx
   const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
-  const baseMetadata =
-    wizardState.reviewedFields ||
-    wizardState.generatedDraft?.metadata ||
-    wizardState.draftMetadata ||
-    {}
+  // U2: kanonische Quelle (vereinheitlicht die frühere previewDetail-Drift —
+  // zeigt jetzt die zuletzt editierten Werte statt ggf. veralteter generierter).
+  const baseMetadata = selectCanonicalMetadata(wizardState)
 
   // Merge Bild-URLs in baseMetadata für Preview
   const metadataWithImages = {
@@ -37,10 +36,9 @@ export function renderPreviewDetailStep(ctx: StepRenderContext): ReactNode {
     if (previewMetadata.eventStatus === undefined) previewMetadata.eventStatus = 'open'
   }
 
-  const preferredPreviewMarkdown =
-    wizardState.generatedDraft?.markdown ||
-    wizardState.draftText ||
-    ""
+  // U2: kanonische Quelle — draftText (editiert) hat Vorrang vor generatedDraft.markdown.
+  // Behebt die frühere Vorschau-Veraltung, wenn der Markdown-Text editiert wurde.
+  const preferredPreviewMarkdown = selectCanonicalMarkdown(wizardState)
 
   // Wenn kein Markdown vorhanden ist, rendere es aus template.markdownBody (z.B. {{summaryInText}})
   let previewMarkdown =
