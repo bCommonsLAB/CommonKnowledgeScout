@@ -16,6 +16,7 @@ import type { TemplateMetadataSchema } from "@/lib/templates/template-types"
 import type { WizardSource } from "@/lib/creation/corpus"
 import { CompactSourcesInfo } from "@/components/creation-wizard/components/compact-sources-info"
 import { DictationTextarea } from "@/components/shared/dictation-textarea"
+import { resolveFieldLabel, resolveFieldIsArrayInput } from "@/lib/creation/field-render-hints"
 
 interface EditDraftStepProps {
   templateMetadata: TemplateMetadataSchema
@@ -136,38 +137,17 @@ export function EditDraftStep({
    * Konvertiert Feldnamen zu benutzerfreundlichen Labels.
    */
   function getFieldLabel(fieldKey: string): string {
-    const field = templateMetadata.fields.find(f => f.key === fieldKey || f.variable === fieldKey)
-    if (field?.description) {
-      // Nutze den ersten Teil der Beschreibung als Label, falls vorhanden
-      return field.description.split('.')[0] || fieldKey
-    }
-    
-    // Fallback: Konvertiere camelCase zu lesbarem Text
-    const labelMap: Record<string, string> = {
-      title: "Titel",
-      filename: "Dateiname (ohne .md)",
-      shortTitle: "Kurztitel",
-      summary: "Zusammenfassung",
-      teaser: "Teaser",
-      date: "Datum",
-      starttime: "Startzeit",
-      endtime: "Endzeit",
-      location: "Ort",
-      tags: "Tags",
-      speakers: "Sprecher",
-      affiliations: "Organisationen",
-      topics: "Themen",
-    }
-    return labelMap[fieldKey] || fieldKey
+    // Render-Hinweis zentral (U3): Label aus field-render-hints.ts.
+    return resolveFieldLabel(fieldKey, templateMetadata.fields)
   }
 
   /**
    * Aktualisiert einen Metadaten-Wert direkt (automatisches Speichern)
    */
   function updateFieldValue(fieldKey: string, newValue: string) {
-    const field = templateMetadata.fields.find(f => f.key === fieldKey || f.variable === fieldKey)
-    const isArray = field && (field.rawValue?.includes("Array") || fieldKey === "tags" || fieldKey === "topics" || fieldKey === "affiliations")
-    
+    // Render-Hinweis zentral (U3): Array-Eingabe aus field-render-hints.ts.
+    const isArray = resolveFieldIsArrayInput(fieldKey, templateMetadata.fields)
+
     const processedValue = isArray
       ? newValue.split(",").map(t => t.trim()).filter(Boolean)
       : newValue
