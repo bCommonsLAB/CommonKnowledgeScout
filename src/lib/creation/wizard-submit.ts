@@ -1,0 +1,40 @@
+/**
+ * U4.1 — Client-Service: Wizard-Ergebnis in den Wartekorb legen (ADR-0004).
+ *
+ * Dünner, getesteter Wrapper um `POST /api/submissions`. Der Server prüft Rechte,
+ * leitet Identität ab und legt die Submission `pending` an (Capture-Invariante).
+ * Wirft bei HTTP-Fehler mit Server-Meldung (kein Silent-Fallback).
+ *
+ * @see src/lib/creation/wizard-capture.ts (Body-Mapping, U4.0)
+ * @see docs/adr/0004-capture-publish-entkopplung-inbox-modell.md
+ */
+
+import type { CaptureBody } from '@/lib/submissions/submission-capture'
+
+export interface WizardSubmitResult {
+  /** ID der angelegten (pending) Submission. */
+  id: string
+}
+
+function readError(json: unknown, status: number): string {
+  if (json && typeof json === 'object' && typeof (json as { error?: unknown }).error === 'string') {
+    return (json as { error: string }).error
+  }
+  return `HTTP ${status}`
+}
+
+/** Legt aus dem CaptureBody eine `pending`-Submission an und liefert ihre ID. */
+export async function submitWizardCapture(body: CaptureBody): Promise<WizardSubmitResult> {
+  const res = await fetch('/api/submissions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const json: unknown = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(readError(json, res.status))
+
+  const submission = (json && typeof json === 'object') ? (json as { submission?: { id?: unknown } }).submission : undefined
+  const id = submission && typeof submission.id === 'string' ? submission.id : ''
+  if (!id) throw new Error('Submission angelegt, aber id fehlt in der Antwort')
+  return { id }
+}
