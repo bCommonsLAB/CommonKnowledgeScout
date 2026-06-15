@@ -1401,95 +1401,112 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         return
       }
 
-      // Built-in „Datei transkribieren“ (U6): Off-target-Compute über die Inbox.
-      // Die im Speicher gehaltene Datei wird über computeFileMediaDraft in die
-      // Quarantäne geladen, dort analysiert (providerScope='inbox') und das
-      // Ergebnis als Entwurf zurückgespiegelt — NIE ins Archiv (ADR-0004).
+      // U6: file-transcript-de erfasst hier nur die Datei (sie liegt im Speicher).
+      // Inhaltstyp-Wahl + Off-target-Compute folgen im selectSchemaType-Step. Hier
+      // explizit vorrücken (NICHT über resolveNextStepIndex, dessen Form-Modus-Skip
+      // selectSchemaType überspringen würde).
       if (templateId === 'file-transcript-de') {
-        if (!libraryId) {
-          toast.error('Kontext fehlt', { description: 'libraryId fehlt – bitte Seite neu laden.' })
-          return
-        }
-        if (!template) {
-          toast.error('Template ist nicht geladen', { description: 'Bitte Seite neu laden.' })
-          return
-        }
-        const fileFromJustAdded = justAddedSource?.kind === 'file' ? justAddedSource.file : undefined
-        const fileSource = fileFromJustAdded
-          ? null
-          : [...wizardState.sources].reverse().find(s => s.kind === 'file' && s.file instanceof File)
-        const file = fileFromJustAdded ?? fileSource?.file
-        if (!file) {
-          toast.error('Bitte zuerst eine Datei auswählen', { description: 'Es wurde keine Datei gefunden, die verarbeitet werden kann.' })
-          return
-        }
-
-        setWizardState(prev => ({
-          ...prev,
-          isExtracting: true,
-          processingProgress: 0,
-          processingMessage: 'Datei wird verarbeitet…',
-        }))
-
-        try {
-          const fields = buildCaptureComputeFields({
-            libraryId,
-            wizardId: templateId,
-            detailViewType: resolveTemplateDetailViewType(),
-            fields: template.metadata.fields,
-            fileName: file.name,
+        const nextIndex = Math.min(wizardState.currentStepIndex + 1, steps.length - 1)
+        setWizardState(prev => ({ ...prev, currentStepIndex: Math.min(prev.currentStepIndex + 1, steps.length - 1) }))
+        if (wizardSessionIdRef.current) {
+          await logWizardEventClient(wizardSessionIdRef.current, {
+            eventType: 'step_changed',
+            stepIndex: nextIndex,
+            stepPreset: steps[nextIndex]?.preset,
           })
-          const result = await computeFileMediaDraft({
-            file,
-            fields,
-            waitForJob: (jobId) =>
-              waitForJobCompletionWithProgress({
-                jobId,
-                timeoutMs: 8 * 60 * 1000,
-                onProgress: (evt) => {
-                  setWizardState(prev => ({
-                    ...prev,
-                    processingProgress: typeof evt.progress === 'number' ? evt.progress : prev.processingProgress,
-                    processingMessage: evt.message || prev.processingMessage,
-                  }))
-                },
-              }),
-          })
-
-          setWizardState(prev => ({
-            ...prev,
-            isExtracting: false,
-            processingProgress: undefined,
-            processingMessage: undefined,
-            submissionId: result.submissionId,
-            generatedDraft: { metadata: result.draft.metadata, markdown: result.draft.markdown },
-            draftMetadata: result.draft.metadata,
-            draftText: result.draft.markdown,
-            currentStepIndex: Math.min(prev.currentStepIndex + 1, steps.length - 1),
-          }))
-
-          if (wizardSessionIdRef.current) {
-            const newIndex = Math.min(wizardState.currentStepIndex + 1, steps.length - 1)
-            const newStep = steps[newIndex]
-            await logWizardEventClient(wizardSessionIdRef.current, {
-              eventType: 'step_changed',
-              stepIndex: newIndex,
-              stepPreset: newStep?.preset,
-            })
-          }
-        } catch (error) {
-          const msg = error instanceof Error ? error.message : 'Unbekannter Fehler'
-          setWizardState(prev => ({
-            ...prev,
-            isExtracting: false,
-            processingProgress: undefined,
-            processingMessage: undefined,
-            extractionError: msg,
-          }))
-          toast.error('Verarbeitung fehlgeschlagen', { description: msg })
         }
         return
       }
+    }
+
+    // U6: Inhaltstyp gewählt → Datei jetzt off-target berechnen (computeFileMediaDraft).
+    // Die im Speicher gehaltene Datei wandert in die Inbox-Quarantäne, wird mit dem
+    // Standard-Template des gewählten detailViewType analysiert und als Entwurf
+    // zurückgespiegelt — NIE ins Archiv (ADR-0004).
+    if (currentStep.preset === 'selectSchemaType') {
+      if (!libraryId) {
+        toast.error('Kontext fehlt', { description: 'libraryId fehlt – bitte Seite neu laden.' })
+        return
+      }
+      const selectedType = wizardState.selectedDetailViewType
+      if (!selectedType) {
+        toast.error('Bitte einen Inhaltstyp wählen')
+        return
+      }
+      const fileSource = [...wizardState.sources].reverse().find(s => s.kind === 'file' && s.file instanceof File)
+      const file = fileSource?.file
+      if (!file) {
+        toast.error('Bitte zuerst eine Datei auswählen', { description: 'Es wurde keine Datei gefunden, die verarbeitet werden kann.' })
+        return
+      }
+
+      setWizardState(prev => ({
+        ...prev,
+        isExtracting: true,
+        processingProgress: 0,
+        processingMessage: 'Datei wird verarbeitet…',
+      }))
+
+      try {
+        // Generischer Capture: docType folgt dem gewählten Inhaltstyp (fields leer
+        // → buildCaptureComputeFields nutzt den detailViewType als docType), nicht
+        // dem festen docType des Capture-Templates.
+        const fields = buildCaptureComputeFields({
+          libraryId,
+          wizardId: templateId,
+          detailViewType: selectedType,
+          fields: [],
+          fileName: file.name,
+        })
+        const result = await computeFileMediaDraft({
+          file,
+          fields,
+          waitForJob: (jobId) =>
+            waitForJobCompletionWithProgress({
+              jobId,
+              timeoutMs: 8 * 60 * 1000,
+              onProgress: (evt) => {
+                setWizardState(prev => ({
+                  ...prev,
+                  processingProgress: typeof evt.progress === 'number' ? evt.progress : prev.processingProgress,
+                  processingMessage: evt.message || prev.processingMessage,
+                }))
+              },
+            }),
+        })
+
+        setWizardState(prev => ({
+          ...prev,
+          isExtracting: false,
+          processingProgress: undefined,
+          processingMessage: undefined,
+          submissionId: result.submissionId,
+          generatedDraft: { metadata: result.draft.metadata, markdown: result.draft.markdown },
+          draftMetadata: result.draft.metadata,
+          draftText: result.draft.markdown,
+          currentStepIndex: Math.min(prev.currentStepIndex + 1, steps.length - 1),
+        }))
+
+        if (wizardSessionIdRef.current) {
+          const newIndex = Math.min(wizardState.currentStepIndex + 1, steps.length - 1)
+          await logWizardEventClient(wizardSessionIdRef.current, {
+            eventType: 'step_changed',
+            stepIndex: newIndex,
+            stepPreset: steps[newIndex]?.preset,
+          })
+        }
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Unbekannter Fehler'
+        setWizardState(prev => ({
+          ...prev,
+          isExtracting: false,
+          processingProgress: undefined,
+          processingMessage: undefined,
+          extractionError: msg,
+        }))
+        toast.error('Verarbeitung fehlgeschlagen', { description: msg })
+      }
+      return
     }
 
     // PDF HITL: Nach Markdown-Review startet die Metadaten/Template-Phase (und optional Ingest)

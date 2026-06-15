@@ -115,6 +115,9 @@ creation:
       - id: Collect
         preset: collectSource
         title: "Datei auswählen"
+      - id: SelectType
+        preset: selectSchemaType
+        title: "Inhaltstyp wählen"
       - id: Review
         preset: editDraft
         title: "Inhalt und Dateiname prüfen"
