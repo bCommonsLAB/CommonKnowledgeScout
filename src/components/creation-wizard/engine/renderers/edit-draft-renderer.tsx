@@ -6,7 +6,7 @@
 
 import type { ReactNode } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { editableContentFields } from "@/lib/creation/editable-fields"
+import { resolveEditableFields } from "@/lib/creation/editable-fields"
 import { EditDraftStep } from "../../steps/edit-draft-step"
 import type { StepRenderContext } from "../step-render-context"
 import { selectCanonicalMetadata, selectCanonicalMarkdown } from "../wizard-metadata"
@@ -18,13 +18,13 @@ export function renderEditDraftStep(ctx: StepRenderContext): ReactNode {
   const initialMetadata = selectCanonicalMetadata(wizardState)
   const initialDraftText = selectCanonicalMarkdown(wizardState)
 
-  // Feld-Auswahl (ADR-0003 / O1, Phase 3a): editDraft.fields als optionaler
-  // Override; sonst GENERISCH aus dem Schema ableiten (Inhalts-Felder ohne
-  // System-/Struktur-Felder) statt still auf ALLE Felder zu fallen.
-  const derivedEditableFields = editableContentFields(template.metadata.fields.map((f) => f.key))
-  const userRelevantFields = currentStep.fields && currentStep.fields.length > 0
-    ? currentStep.fields
-    : (derivedEditableFields.length > 0 ? derivedEditableFields : undefined)
+  // Feld-Auswahl + Kompatibilitätsprüfung (ADR-0003 / O1): editDraft.fields als
+  // optionaler Override, sonst generisch aus dem Schema. Statt stillem Fallback
+  // jetzt ein klarer Fehler (UX C3) bei kaputter/leerer Vorlage.
+  const resolution = resolveEditableFields({
+    schemaFieldKeys: template.metadata.fields.map((f) => f.key),
+    overrideFields: currentStep.fields,
+  })
 
   // PDF-HITL: Wenn wir hier ohne Draft landen, ist das ein Flow-Fehler (sonst sieht man "leere" Screens).
   if (isPdfAnalyse && Object.keys(initialMetadata).length === 0 && initialDraftText.trim().length === 0) {
@@ -38,15 +38,28 @@ export function renderEditDraftStep(ctx: StepRenderContext): ReactNode {
     )
   }
 
-  // Wenn Felder definiert sind, zeige den Step auch bei leerem Metadata (User kann direkt eingeben)
-  // Wenn keine Felder definiert sind UND Metadata leer ist, zeige Fehlermeldung
-  if (!userRelevantFields && Object.keys(initialMetadata).length === 0) {
+  // Kompatibilitätsprüfung: kaputte/leere Vorlage -> klare Meldung (freundlich,
+  // technischer Grund im Details-Aufklapper) statt stillem Verhalten.
+  if (!resolution.ok) {
+    const detail =
+      resolution.reason === 'missing-bound-fields'
+        ? `Im Schema fehlende, gebundene Felder: ${(resolution.missingFields ?? []).join(', ')}`
+        : 'Das Schema enthält kein bearbeitbares Inhaltsfeld.'
     return (
-      <div className="text-center text-muted-foreground p-8">
-        Bitte zuerst Eingaben machen (URL/Text/Datei/Audio).
-      </div>
+      <Alert>
+        <AlertTitle>Diese Vorlage ist unvollständig</AlertTitle>
+        <AlertDescription>
+          Sie kann gerade nicht zum Bearbeiten verwendet werden. Bitte wende dich an die Administration.
+          <details className="mt-2">
+            <summary className="cursor-pointer text-xs">Technische Details</summary>
+            <div className="mt-1 text-xs">{detail}</div>
+          </details>
+        </AlertDescription>
+      </Alert>
     )
   }
+
+  const userRelevantFields = resolution.fields
 
   // Markdown-Tab nur anzeigen, wenn Text vorhanden ist (Diktat: Tabs aus — nur Dateiname)
   const isBuiltinDictation = templateId === 'audio-transcript-de'
