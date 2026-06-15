@@ -38,3 +38,28 @@ export async function submitWizardCapture(body: CaptureBody): Promise<WizardSubm
   if (!id) throw new Error('Submission angelegt, aber id fehlt in der Antwort')
   return { id }
 }
+
+async function postSubmissionAction(id: string, action: 'approve' | 'promote'): Promise<unknown> {
+  const res = await fetch(`/api/submissions/${encodeURIComponent(id)}/${action}`, { method: 'POST' })
+  const json: unknown = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(readError(json, res.status))
+  return json
+}
+
+/** Freigabe: `pending → ready` (Reviewer-Recht). */
+export async function approveSubmission(id: string): Promise<void> {
+  await postSubmissionAction(id, 'approve')
+}
+
+/**
+ * Owner-Sofort-Publikation: `ready → published` (schreibt Ziel-Provider + RAG).
+ * Liefert die geschriebene Datei-ID, falls vorhanden.
+ */
+export async function promoteSubmission(id: string): Promise<{ savedItemId?: string }> {
+  const json = await postSubmissionAction(id, 'promote')
+  const savedItemId =
+    json && typeof json === 'object' && typeof (json as { savedItemId?: unknown }).savedItemId === 'string'
+      ? (json as { savedItemId: string }).savedItemId
+      : undefined
+  return { savedItemId }
+}

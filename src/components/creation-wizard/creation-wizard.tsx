@@ -9,6 +9,8 @@ import type { WizardState } from "./engine/wizard-state"
 import { resolveNextStepIndex } from "./engine/wizard-navigation"
 import { selectCanonicalMetadata, selectCanonicalMarkdown } from "./engine/wizard-metadata"
 import { buildWizardFrontmatter } from "@/lib/creation/wizard-frontmatter"
+import { buildWizardCaptureBody } from "@/lib/creation/wizard-capture"
+import { submitWizardCapture, approveSubmission, promoteSubmission } from "@/lib/creation/wizard-submit"
 import { PublishStep } from "./steps/publish-step"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -2834,87 +2836,93 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           // Generic Publish: Save + optional Ingest (z.B. Event-Erstellung).
           // ingestOnFinish: false = nur Archiv, keine Ingestion (User kann später aus Archiv ingestieren).
           if (isGenericPublish) {
-            // Explizit Publish-Step aus Template laden (currentStep kann durch Filter abweichen)
-            const publishStepFromTemplate = template.creation?.flow?.steps?.find((s) => s.preset === 'publish')
-            const ingestOnFinish = publishStepFromTemplate?.ingestOnFinish ?? currentStep?.ingestOnFinish
-            const shouldIngest = ingestOnFinish !== false
+            // U4.1 / ADR-0004: Erfassung schreibt NIE direkt ins Ziel — die Story
+            // geht IMMER in den Wartekorb (Submission, off-target). Owner publiziert
+            // sofort (approve -> promote); Co-Autor/Contributor: bleibt im Wartekorb.
             setWizardState(prev => ({
               ...prev,
               isPublishing: true,
               publishError: undefined,
               publishingProgress: 10,
-              publishingMessage: 'Speichern…',
+              publishingMessage: 'Story zusammenstellen…',
             }))
             try {
-              const saveRes = await handleSave({ navigateToLibrary: false, ingestEvent: false, finalizeSession: false })
-              const savedItemId = saveRes?.savedItemId
-              const savedFileName = saveRes?.fileName
-              const targetFolderId = saveRes?.targetFolderId
-              const targetSlug = saveRes?.slug
-              if (!savedItemId) throw new Error('Speichern fehlgeschlagen (savedItemId fehlt).')
+              // 1) Finales Frontmatter + Dateiname bauen (geteilte Helfer, kein Schreiben).
+              const baseMetadata = selectCanonicalMetadata(wizardState)
+              const markdown = selectCanonicalMarkdown(wizardState)
+              const createInOwnFolder = creation.output?.createInOwnFolder === true
+              const wizardOnlyKeys = creation.output?.wizardOnlyMetadataKeys ?? []
+              const filenameOverride =
+                typeof baseMetadata.filename === 'string' && baseMetadata.filename.trim().length > 0
+                  ? baseMetadata.filename.trim()
+                  : undefined
+              const { fileName, updatedMetadata: finalMetadata } = buildCreationFileName({
+                typeId,
+                metadata: baseMetadata,
+                config: { ...creation.output?.fileName, ensureUnique: createInOwnFolder },
+                overrideBaseName: filenameOverride,
+              })
+              const finalMetadataForFrontmatter = { ...finalMetadata }
+              for (const k of wizardOnlyKeys) delete finalMetadataForFrontmatter[k]
+              const ownerId = fileName.replace(/\.[^.]+$/, '')
+              const detailViewType = resolveTemplateDetailViewType()
+              const metadataWithImages = { ...finalMetadataForFrontmatter, ...(wizardState.imageUrls || {}) }
+              const frontmatterKeys = new Set(template.metadata.fields.map((f) => f.key))
+              const frontmatterMetadata = buildWizardFrontmatter(template.metadata.fields, metadataWithImages)
+              applyEventFrontmatterDefaults({
+                frontmatterKeys,
+                frontmatter: frontmatterMetadata,
+                typeId,
+                ownerId,
+                detailViewType,
+                generateUuid: () => crypto.randomUUID(),
+              })
 
-              if (shouldIngest) {
-                setWizardState(prev => ({
-                  ...prev,
-                  publishingProgress: 70,
-                  publishingMessage: 'Ingestion starten…',
-                }))
+              const docType =
+                typeof frontmatterMetadata.docType === 'string' && frontmatterMetadata.docType.trim().length > 0
+                  ? frontmatterMetadata.docType
+                  : detailViewType
+              const slug =
+                typeof frontmatterMetadata.slug === 'string' && frontmatterMetadata.slug.trim().length > 0
+                  ? frontmatterMetadata.slug
+                  : undefined
 
-                const ingestStartedAt = nowMs()
-                if (sessionIdForLogs) {
-                  void logWizardEventClient(sessionIdForLogs, {
-                    eventType: 'ingest_started',
-                    stepIndex: wizardState.currentStepIndex,
-                    stepPreset: currentStep?.preset,
-                    fileIds: { savedItemId },
-                    metadata: { mode: 'generic_publish' },
-                  })
-                }
-                const ingestRes = await fetch(`/api/chat/${encodeURIComponent(libId)}/ingest-markdown`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ fileId: savedItemId, fileName: savedFileName }),
-                })
-                if (!ingestRes.ok) {
-                  const errorText = await ingestRes.text().catch(() => 'Unknown error')
-                  if (sessionIdForLogs) {
-                    const durationMs = Math.max(0, nowMs() - ingestStartedAt)
-                    void logWizardEventClient(sessionIdForLogs, {
-                      eventType: 'ingest_failed',
-                      stepIndex: wizardState.currentStepIndex,
-                      stepPreset: currentStep?.preset,
-                      fileIds: { savedItemId },
-                      metadata: { durationMs, mode: 'generic_publish' },
-                      error: { code: 'ingest_failed', message: errorText },
-                    })
-                  }
-                  throw new Error(`Ingestion fehlgeschlagen: ${errorText}`)
-                }
-                if (sessionIdForLogs) {
-                  const durationMs = Math.max(0, nowMs() - ingestStartedAt)
-                  void logWizardEventClient(sessionIdForLogs, {
-                    eventType: 'ingest_completed',
-                    stepIndex: wizardState.currentStepIndex,
-                    stepPreset: currentStep?.preset,
-                    fileIds: { savedItemId },
-                    metadata: { durationMs, mode: 'generic_publish' },
-                  })
-                }
+              // 2) Submission anlegen (immer Inbox — Funktioniert-immer-Garantie).
+              setWizardState(prev => ({ ...prev, publishingProgress: 50, publishingMessage: 'Im Wartekorb anlegen…' }))
+              const captureBody = buildWizardCaptureBody({
+                libraryId,
+                wizardId: templateId,
+                docType,
+                detailViewType,
+                markdownBody: markdown,
+                metadata: frontmatterMetadata,
+                target: { folderId: currentFolderId, slug },
+              })
+              const { id: submissionId } = await submitWizardCapture(captureBody)
+
+              // 3) Owner: sofort veröffentlichen (approve -> promote). Sonst: Wartekorb.
+              const currentLib = libraries.find((l) => l.id === libraryId)
+              const isOwner = (currentLib?.accessRole ?? 'owner') === 'owner'
+              let savedItemId: string | undefined
+              if (isOwner) {
+                setWizardState(prev => ({ ...prev, publishingProgress: 75, publishingMessage: 'Veröffentlichen…' }))
+                await approveSubmission(submissionId)
+                const promoteRes = await promoteSubmission(submissionId)
+                savedItemId = promoteRes.savedItemId
               }
 
               const imagesCount = Object.keys(wizardState.imageUrls || {}).length
               const sourcesCount = Array.isArray(wizardState.sources) ? wizardState.sources.length : 0
-
               setWizardState(prev => ({
                 ...prev,
                 isPublishing: false,
                 isPublished: true,
                 publishingProgress: 100,
-                publishingMessage: 'Fertig.',
+                publishingMessage: isOwner ? 'Veröffentlicht.' : 'Im Wartekorb — wird geprüft.',
                 publishStats: { documents: 1, images: imagesCount, sources: sourcesCount },
-                publishTargetFolderId: targetFolderId,
-                // Slug nur bei Ingestion – sonst Gallery-Lookup schlägt fehl (Dokument nicht indiziert)
-                publishTargetSlug: shouldIngest ? (targetSlug || prev.publishTargetSlug) : undefined,
+                publishTargetFolderId: currentFolderId,
+                // Slug nur bei Owner-Publikation (sonst noch nicht im Ziel/Index)
+                publishTargetSlug: isOwner ? slug : undefined,
               }))
               if (sessionIdForLogs) {
                 const durationMs = Math.max(0, nowMs() - publishStartedAt)
@@ -2922,30 +2930,16 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                   eventType: 'publish_completed',
                   stepIndex: wizardState.currentStepIndex,
                   stepPreset: currentStep?.preset,
-                  metadata: { durationMs, mode: 'generic' },
+                  metadata: { durationMs, mode: isOwner ? 'inbox_owner_promote' : 'inbox_pending', submissionId },
                 })
-              }
-
-              // Wizard-Session erst ganz am Ende finalisieren (nach ingest/publish),
-              // damit wizard_completed zeitlich korrekt ist.
-              if (sessionIdForLogs) {
                 try {
-                  const filePaths = await getFilePaths(provider, { savedItemId })
-                  await logWizardEventClient(sessionIdForLogs, {
-                    eventType: 'wizard_completed',
-                    stepIndex: wizardState.currentStepIndex,
-                    stepPreset: 'publish',
-                    fileIds: { savedItemId },
-                    filePaths: { savedPath: filePaths.savedPath },
-                  })
                   wizardSessionCompletedRef.current = true
                   await finalizeWizardSessionClient(sessionIdForLogs, 'completed', {
                     finalStepIndex: wizardState.currentStepIndex,
-                    finalFileIds: { savedItemId },
-                    finalFilePaths: { savedPath: filePaths.savedPath },
+                    finalFileIds: savedItemId ? { savedItemId } : undefined,
                   })
                 } catch (error) {
-                  console.warn('[Wizard] Fehler beim Finalisieren der Session (Generic Publish):', error)
+                  console.warn('[Wizard] Fehler beim Finalisieren der Session (Inbox-Publish):', error)
                 }
               }
               return
@@ -2958,14 +2952,14 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                 publishingProgress: prev.publishingProgress ?? 0,
                 publishingMessage: msg,
               }))
-              toast.error('Publizieren fehlgeschlagen', { description: msg })
+              toast.error('Veröffentlichen fehlgeschlagen', { description: msg })
               if (sessionIdForLogs) {
                 const durationMs = Math.max(0, nowMs() - publishStartedAt)
                 void logWizardEventClient(sessionIdForLogs, {
                   eventType: 'publish_failed',
                   stepIndex: wizardState.currentStepIndex,
                   stepPreset: currentStep?.preset,
-                  metadata: { durationMs, mode: 'generic' },
+                  metadata: { durationMs, mode: 'inbox' },
                   error: { code: 'publish_failed', message: msg },
                 })
               }
