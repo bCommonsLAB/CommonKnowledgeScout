@@ -989,35 +989,6 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     })
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async function resolvePdfAnalyseTransformFileId(args: {
-    baseFileId: string
-    targetLanguage: string
-  }): Promise<string | undefined> {
-    // Frontend darf nicht selbst Shadow-Twin Dateien suchen (list+match).
-    // Wir lösen das serverseitig über den zentralen Resolver auf.
-    if (!provider || !libraryId) return undefined
-    try {
-      const baseItem = await provider.getItemById(args.baseFileId)
-      const sourceName = String(baseItem?.metadata?.name || '')
-      const parentId = String(baseItem?.parentId || '')
-      if (!sourceName || !parentId) return undefined
-
-      const resolved = await resolveArtifactClient({
-        libraryId,
-        sourceId: args.baseFileId,
-        sourceName,
-        parentId,
-        targetLanguage: args.targetLanguage,
-        templateName: 'pdfanalyse',
-        preferredKind: 'transformation',
-      })
-      return resolved?.fileId
-    } catch {
-      return undefined
-    }
-  }
-
   /**
    * Fügt eine neue Quelle hinzu und triggert automatische Transformation.
    * Wenn bereits eine Text-Quelle existiert, wird diese aktualisiert statt eine neue zu erstellen.
