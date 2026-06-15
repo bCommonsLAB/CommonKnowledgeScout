@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { submitWizardCapture } from '@/lib/creation/wizard-submit'
+import { submitWizardCapture, updateSubmission } from '@/lib/creation/wizard-submit'
 import type { CaptureBody } from '@/lib/submissions/submission-capture'
 
 const body: CaptureBody = {
@@ -55,5 +55,34 @@ describe('submitWizardCapture', () => {
   it('wirft, wenn die Antwort keine id enthält', async () => {
     mockFetch(201, { submission: {} })
     await expect(submitWizardCapture(body)).rejects.toThrow(/id fehlt/)
+  })
+})
+
+describe('updateSubmission', () => {
+  it('schickt PATCH an /api/submissions/[id] mit dem Korrektur-Body', async () => {
+    mockFetch(200, { submission: { id: 'sub-9' } })
+    const input = { markdownBody: '## Neu', metadata: { title: 'Korrigiert' } }
+    await updateSubmission('sub-9', input)
+    const call = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0]
+    expect(call[0]).toBe('/api/submissions/sub-9')
+    expect(call[1]).toMatchObject({ method: 'PATCH' })
+    expect(JSON.parse((call[1] as { body: string }).body)).toEqual(input)
+  })
+
+  it('encodiert die Submission-ID in der URL', async () => {
+    mockFetch(200, { submission: { id: 'a/b' } })
+    await updateSubmission('a/b', { markdownBody: 'x' })
+    const call = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0]
+    expect(call[0]).toBe('/api/submissions/a%2Fb')
+  })
+
+  it('wirft mit Server-Meldung bei HTTP-Fehler (kein Silent-Fallback)', async () => {
+    mockFetch(409, { error: 'Submission nicht editierbar' })
+    await expect(updateSubmission('sub-9', { markdownBody: 'x' })).rejects.toThrow('Submission nicht editierbar')
+  })
+
+  it('wirft mit HTTP-Status, wenn keine Fehlermeldung kommt', async () => {
+    mockFetch(500, {})
+    await expect(updateSubmission('sub-9', { markdownBody: 'x' })).rejects.toThrow('HTTP 500')
   })
 })

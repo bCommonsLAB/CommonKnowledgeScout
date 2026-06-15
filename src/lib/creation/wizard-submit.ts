@@ -10,6 +10,7 @@
  */
 
 import type { CaptureBody } from '@/lib/submissions/submission-capture'
+import type { UpdateSubmissionMetadataInput } from '@/types/wizard-submission'
 
 export interface WizardSubmitResult {
   /** ID der angelegten (pending) Submission. */
@@ -37,6 +38,24 @@ export async function submitWizardCapture(body: CaptureBody): Promise<WizardSubm
   const id = submission && typeof submission.id === 'string' ? submission.id : ''
   if (!id) throw new Error('Submission angelegt, aber id fehlt in der Antwort')
   return { id }
+}
+
+/**
+ * Aktualisiert eine bestehende (editierbare) Submission redaktionell
+ * (Markdown/Metadaten/Ziel) ueber `PATCH /api/submissions/[id]`. Genutzt vom
+ * Datei-Flow: die beim Compute angelegte Submission (computeFileMediaDraft) wird
+ * beim Publish mit dem editierten Entwurf aktualisiert — EIN Submission-Commit
+ * statt einer zweiten Submission (ADR-0004). Wirft bei HTTP-Fehler mit
+ * Server-Meldung (kein Silent-Fallback).
+ */
+export async function updateSubmission(id: string, input: UpdateSubmissionMetadataInput): Promise<void> {
+  const res = await fetch(`/api/submissions/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const json: unknown = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(readError(json, res.status))
 }
 
 async function postSubmissionAction(id: string, action: 'approve' | 'promote'): Promise<unknown> {
