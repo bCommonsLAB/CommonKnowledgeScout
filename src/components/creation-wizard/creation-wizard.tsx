@@ -6,6 +6,7 @@ import type { TemplateDocument } from "@/lib/templates/template-types"
 import { renderRegisteredStep, isStepMigrated } from "./engine/step-registry"
 import type { StepRenderContext } from "./engine/step-render-context"
 import type { WizardState } from "./engine/wizard-state"
+import { resolveNextStepIndex } from "./engine/wizard-navigation"
 import { PublishStep } from "./steps/publish-step"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -1668,35 +1669,20 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       }
     }
 
-    setWizardState(prev => {
-      const nextRawIndex = prev.currentStepIndex + 1
-      const nextStep = steps[nextRawIndex]
-
-      // UX: Form-Modus kann Zwischenschritte überspringen — aber collectSource NIEMALS,
-      // sonst fehlt die Quelle (Text/Datei/URL) und Nutzer landen direkt im editDraft.
-      if (prev.mode === 'form') {
-        if (nextStep?.preset === 'collectSource') {
-          return { ...prev, currentStepIndex: nextRawIndex }
-        }
-        const editDraftIndex = steps.findIndex((s, idx) => idx > prev.currentStepIndex && s.preset === 'editDraft')
-        if (editDraftIndex >= 0) {
-          return { ...prev, currentStepIndex: editDraftIndex }
-        }
-      }
-
-      if (nextStep?.preset === 'chooseSource' && prev.selectedSource) {
-        return { ...prev, currentStepIndex: Math.min(nextRawIndex + 1, steps.length - 1) }
-      }
-
-      // UX: Wenn wir bereits structured_data haben (durch Multi-Source Re-Extract), ist generateDraft redundant.
-      // WICHTIG: Nur überspringen, wenn der Draft wirklich existiert.
-      // `sources.length > 0` ist KEIN Indikator für einen generierten Draft (z.B. Finalize-Flow lädt Sources automatisch).
-      if (nextStep?.preset === 'generateDraft' && !!prev.generatedDraft) {
-        return { ...prev, currentStepIndex: Math.min(nextRawIndex + 1, steps.length - 1) }
-      }
-
-      return { ...prev, currentStepIndex: nextRawIndex }
-    })
+    // Generischer Advance (ohne Template-Spezialfälle): Skip-Regeln zentral in
+    // wizard-navigation.ts (testbare Naht, Sub-Welle 3-VI-d).
+    setWizardState(prev => ({
+      ...prev,
+      currentStepIndex: resolveNextStepIndex(
+        {
+          currentStepIndex: prev.currentStepIndex,
+          mode: prev.mode,
+          hasSelectedSource: !!prev.selectedSource,
+          hasGeneratedDraft: !!prev.generatedDraft,
+        },
+        steps
+      ),
+    }))
     
     // Log step_changed Event
     if (wizardSessionIdRef.current) {
