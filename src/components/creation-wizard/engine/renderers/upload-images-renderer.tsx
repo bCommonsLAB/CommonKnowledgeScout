@@ -7,6 +7,7 @@
 import type { ReactNode } from "react"
 import { UploadImagesStep } from "../../steps/upload-images-step"
 import type { StepRenderContext } from "../step-render-context"
+import { selectCanonicalMetadata } from "../wizard-metadata"
 
 export function renderUploadImagesStep(ctx: StepRenderContext): ReactNode {
   const { currentStep, template, wizardState, libraryId, sourceFolderId, setWizardState } = ctx
@@ -72,7 +73,7 @@ export function renderUploadImagesStep(ctx: StepRenderContext): ReactNode {
             ...(prev.imageUrls || {}),
             [key]: newValue,
           }
-          const baseMetadata = prev.draftMetadata || prev.reviewedFields || prev.generatedDraft?.metadata || {}
+          const baseMetadata = selectCanonicalMetadata(prev)
           const updatedMetadata = {
             ...baseMetadata,
             ...newImageUrls,
@@ -102,7 +103,7 @@ export function renderUploadImagesStep(ctx: StepRenderContext): ReactNode {
             ...(prev.imageUrls || {}),
             [key]: updated,
           }
-          const baseMetadata = prev.draftMetadata || prev.reviewedFields || prev.generatedDraft?.metadata || {}
+          const baseMetadata = selectCanonicalMetadata(prev)
           const updatedMetadata = {
             ...baseMetadata,
             ...newImageUrls,

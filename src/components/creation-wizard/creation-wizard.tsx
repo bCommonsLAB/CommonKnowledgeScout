@@ -7,6 +7,7 @@ import { renderRegisteredStep, isStepMigrated } from "./engine/step-registry"
 import type { StepRenderContext } from "./engine/step-render-context"
 import type { WizardState } from "./engine/wizard-state"
 import { resolveNextStepIndex } from "./engine/wizard-navigation"
+import { selectCanonicalMetadata, selectCanonicalMarkdown } from "./engine/wizard-metadata"
 import { PublishStep } from "./steps/publish-step"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -1766,14 +1767,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     try {
       // Bestimme Metadaten und Markdown-Text
       // Priorität: draftMetadata/draftText (Form-Modus) > reviewedFields/generatedDraft (Interview-Modus)
-      const baseMetadata = wizardState.draftMetadata 
-        || wizardState.reviewedFields 
-        || wizardState.generatedDraft?.metadata 
-        || {}
-      
-      const preferredMarkdown = wizardState.draftText 
-        || wizardState.generatedDraft?.markdown 
-        || ""
+      const baseMetadata = selectCanonicalMetadata(wizardState)
+      const preferredMarkdown = selectCanonicalMarkdown(wizardState)
 
       if (Object.keys(baseMetadata).length === 0 && !preferredMarkdown.trim()) {
         toast.error("Keine Daten zum Speichern vorhanden")

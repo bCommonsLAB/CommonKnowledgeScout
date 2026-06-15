@@ -28,6 +28,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseTemplate } from '@/lib/templates/template-parser'
 import { buildCreationFileName } from '@/lib/creation/file-name'
+import { selectCanonicalMetadata, selectCanonicalMarkdown } from '@/components/creation-wizard/engine/wizard-metadata'
 
 const TEMPLATES_DIR = join(process.cwd(), 'test-library', 'templates')
 
@@ -43,14 +44,18 @@ interface WizardSaveStateLike {
   draftText?: string
 }
 
-/** Spiegel von creation-wizard.tsx ~Z. 1846-1849. */
+/**
+ * `selectBaseMetadata`/`selectPreferredMarkdown` werden inzwischen vom ECHTEN
+ * Modul geliefert (Sub-Welle 3-VI-c hat sie als `wizard-metadata.ts`
+ * herausgelöst). Die früheren Closure-Spiegel sind damit durch echte Importe
+ * ersetzt — die Assertions bleiben gültig (Reihenfolge unverändert).
+ */
 function selectBaseMetadata(s: WizardSaveStateLike): Record<string, unknown> {
-  return s.draftMetadata || s.reviewedFields || s.generatedDraft?.metadata || {}
+  return selectCanonicalMetadata(s)
 }
 
-/** Spiegel von creation-wizard.tsx ~Z. 1851-1853. */
 function selectPreferredMarkdown(s: WizardSaveStateLike): string {
-  return s.draftText || s.generatedDraft?.markdown || ''
+  return selectCanonicalMarkdown(s)
 }
 
 /** Spiegel des Leer-Guards (~Z. 1855): nichts zu speichern. */

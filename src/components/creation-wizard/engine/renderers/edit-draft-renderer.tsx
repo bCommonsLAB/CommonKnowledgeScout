@@ -9,18 +9,14 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { editableContentFields } from "@/lib/creation/editable-fields"
 import { EditDraftStep } from "../../steps/edit-draft-step"
 import type { StepRenderContext } from "../step-render-context"
+import { selectCanonicalMetadata, selectCanonicalMarkdown } from "../wizard-metadata"
 
 export function renderEditDraftStep(ctx: StepRenderContext): ReactNode {
   const { templateId, template, currentStep, wizardState, setWizardState, libraryId, scheduleMetadataEditedLog } = ctx
   const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
   // Initialisiere draftMetadata/draftText falls noch nicht vorhanden
-  const initialMetadata = wizardState.draftMetadata
-    || wizardState.reviewedFields
-    || wizardState.generatedDraft?.metadata
-    || {}
-  const initialDraftText = wizardState.draftText
-    || wizardState.generatedDraft?.markdown
-    || ""
+  const initialMetadata = selectCanonicalMetadata(wizardState)
+  const initialDraftText = selectCanonicalMarkdown(wizardState)
 
   // Feld-Auswahl (ADR-0003 / O1, Phase 3a): editDraft.fields als optionaler
   // Override; sonst GENERISCH aus dem Schema ableiten (Inhalts-Felder ohne
