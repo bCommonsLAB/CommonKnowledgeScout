@@ -1,19 +1,17 @@
 // @vitest-environment jsdom
 /**
- * Tests fuer den „Inhalte erfassen"-Button (ADR-0004 II, Welle II-A + III):
+ * Tests fuer den „Inhalte erfassen"-Button (ADR-0004 II; U6):
  * - Sichtbarkeit NUR bei canCapture=true (contributor/co-creator/owner).
- * - Nach erfolgreichem Upload wird die Stufe-B-Analyse angestossen (Welle III).
- * Fetch + Toast sind gemockt.
+ * - Klick navigiert in den generischen Erfassungs-Wizard (kein Inline-Upload mehr).
+ * Fetch + Router sind gemockt.
  */
 
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { CaptureContentButton } from '@/components/submissions/capture-content-button';
 
-// sonner ist der real gemountete Toaster; der Button nutzt toast.success/.warning.
-const toastSuccess = vi.hoisted(() => vi.fn());
-const toastWarning = vi.hoisted(() => vi.fn());
-vi.mock('sonner', () => ({ toast: { success: toastSuccess, warning: toastWarning } }));
+const push = vi.hoisted(() => vi.fn());
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 
 function mockCapture(canCapture: boolean): void {
   global.fetch = vi.fn().mockResolvedValue({
@@ -24,6 +22,7 @@ function mockCapture(canCapture: boolean): void {
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  push.mockClear();
 });
 afterEach(cleanup);
 
@@ -49,53 +48,9 @@ it('rendert nichts und prueft nicht ohne libraryId', () => {
   expect(global.fetch).not.toHaveBeenCalled();
 });
 
-it('stoesst nach erfolgreichem Upload die Analyse an (Welle III)', async () => {
-  const fetchMock = vi
-    .fn()
-    // 1) Capture-Berechtigung
-    .mockResolvedValueOnce({ ok: true, json: async () => ({ canCapture: true, role: 'contributor' }) })
-    // 2) Upload -> pending Submission
-    .mockResolvedValueOnce({ ok: true, json: async () => ({ submission: { id: 'sub-1' } }) })
-    // 3) Analyse-Start
-    .mockResolvedValueOnce({ ok: true, json: async () => ({ status: 'accepted', jobId: 'job-1' }) });
-  global.fetch = fetchMock as unknown as typeof fetch;
-
+it('navigiert beim Klick in den Erfassungs-Wizard', async () => {
+  mockCapture(true);
   render(<CaptureContentButton libraryId="lib-1" />);
   fireEvent.click(await screen.findByRole('button', { name: /Inhalte erfassen/i }));
-
-  const input = (await screen.findByLabelText(/PDF-Datei/i)) as HTMLInputElement;
-  const file = new File(['%PDF-1.4'], 'Quelle.pdf', { type: 'application/pdf' });
-  fireEvent.change(input, { target: { files: [file] } });
-  fireEvent.click(screen.getByRole('button', { name: /Hochladen/i }));
-
-  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
-  expect(fetchMock.mock.calls[2][0]).toBe('/api/submissions/sub-1/analyze');
-  expect(toastSuccess).toHaveBeenCalledWith(
-    expect.stringContaining('Analyse gestartet'),
-    expect.objectContaining({ description: expect.any(String) }),
-  );
-});
-
-it('meldet einen fehlgeschlagenen Analyse-Start sichtbar (Submission bleibt erhalten)', async () => {
-  const fetchMock = vi
-    .fn()
-    .mockResolvedValueOnce({ ok: true, json: async () => ({ canCapture: true, role: 'contributor' }) })
-    .mockResolvedValueOnce({ ok: true, json: async () => ({ submission: { id: 'sub-1' } }) })
-    .mockResolvedValueOnce({ ok: false, status: 422, json: async () => ({ error: 'Keine analysierbare Quelle' }) });
-  global.fetch = fetchMock as unknown as typeof fetch;
-
-  render(<CaptureContentButton libraryId="lib-1" />);
-  fireEvent.click(await screen.findByRole('button', { name: /Inhalte erfassen/i }));
-
-  const input = (await screen.findByLabelText(/PDF-Datei/i)) as HTMLInputElement;
-  fireEvent.change(input, {
-    target: { files: [new File(['%PDF-1.4'], 'Quelle.pdf', { type: 'application/pdf' })] },
-  });
-  fireEvent.click(screen.getByRole('button', { name: /Hochladen/i }));
-
-  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
-  expect(toastWarning).toHaveBeenCalledWith(
-    expect.stringContaining('Analyse nicht gestartet'),
-    expect.objectContaining({ description: 'Keine analysierbare Quelle' }),
-  );
+  expect(push).toHaveBeenCalledWith('/library/create/file-transcript-de');
 });

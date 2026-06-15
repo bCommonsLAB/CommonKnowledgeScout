@@ -1,52 +1,39 @@
 /**
- * @fileoverview „Inhalte erfassen"-Button fuer Galerie/Erkunden (ADR-0004 II, Welle II-A).
+ * @fileoverview „Inhalte erfassen"-Button fuer Galerie/Erkunden (ADR-0004 II; U6).
  *
  * @description
- * Rechte-gateter Einstieg in die Erfassung (Stufe A: PDF-Upload). Sichtbar nur fuer
+ * Rechte-gateter Einstieg in die Erfassung. Sichtbar nur fuer
  * `owner`/`co-creator`/`contributor` — die Berechtigung kommt serverseitig aus
- * `GET /api/libraries/[id]/me/capture` (der Client-Atom kennt `contributor` nicht
- * zuverlaessig). Beim Absenden laedt `POST /api/submissions` (multipart) die Datei
- * ueber den Inbox-Provider in die Quarantaene und legt eine `pending`-Submission an,
- * die im Wartekorb erscheint. Der Ziel-Provider wird NIE beruehrt (ADR-0004).
+ * `GET /api/libraries/[id]/me/capture`. Seit U6 fuehrt der Button NICHT mehr in
+ * einen Inline-Upload-Dialog, sondern in den **generischen Erfassungs-Wizard**
+ * (`/library/create/<wizard>`): erklaeren → hochladen → Inhaltstyp waehlen →
+ * berechnen → pruefen → in den Wartekorb. Erfassung laeuft off-target ueber die
+ * Inbox; der Ziel-Provider wird NIE beruehrt (ADR-0004).
  *
- * @see src/app/api/submissions/route.ts
- * @see docs/wizards/contributor-pdf-upload-wizard.md
+ * @see src/app/library/create/[typeId]/page.tsx (Wizard-Route)
+ * @see docs/wizards/umbauplan-generischer-erfassungs-wizard.md (U6)
  */
 
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { FilePlus2, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { FilePlus2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-// sonner ist der im Layout gemountete Toaster (<Toaster richColors />); das
-// shadcn-use-toast hat keinen Renderer im Baum, seine Toasts wuerden nie sichtbar.
-import { toast } from 'sonner';
 
-// Stufe A erzeugt eine fixe Submission-Form (PDF -> Buchanalyse, noch keine Analyse).
-const CAPTURE_DEFAULTS = { wizardId: 'pdf-upload', docType: 'pdfanalyse', detailViewType: 'book' };
+/**
+ * Generischer Erfassungs-Wizard (Datei-Upload + Inhaltstyp-Wahl, off-target).
+ * Als `typeId` der Wizard-Route; der Flow ist medien-agnostisch (PDF/Audio).
+ */
+const CAPTURE_WIZARD_TYPE_ID = 'file-transcript-de';
 
 export interface CaptureContentButtonProps {
   libraryId?: string;
 }
 
 export function CaptureContentButton({ libraryId }: CaptureContentButtonProps) {
+  const router = useRouter();
   const [canCapture, setCanCapture] = useState(false);
-  const [open, setOpen] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Erfass-Berechtigung serverseitig pruefen; bei Fehler fail-closed (Button verborgen).
   useEffect(() => {
@@ -74,102 +61,15 @@ export function CaptureContentButton({ libraryId }: CaptureContentButtonProps) {
 
   if (!libraryId || !canCapture) return null;
 
-  async function handleSubmit(): Promise<void> {
-    if (!file || !libraryId) return;
-    setIsUploading(true);
-    setError(null);
-    try {
-      const form = new FormData();
-      form.set('file', file);
-      form.set('libraryId', libraryId);
-      form.set('wizardId', CAPTURE_DEFAULTS.wizardId);
-      form.set('docType', CAPTURE_DEFAULTS.docType);
-      form.set('detailViewType', CAPTURE_DEFAULTS.detailViewType);
-      form.set('markdownBody', '');
-      form.set('metadata', JSON.stringify({ title: file.name }));
-
-      const res = await fetch('/api/submissions', { method: 'POST', body: form });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(data?.error ?? `Upload fehlgeschlagen (HTTP ${res.status})`);
-      }
-
-      // Stufe B (Welle III): Analyse direkt anstossen — Transkript+Transform laufen
-      // als Inbox-Job, das Ergebnis fliesst in die Submission im Wartekorb zurueck.
-      // Ein Fehlschlag hier laesst die pending-Submission intakt (Analyse ist
-      // spaeter erneut startbar) und wird sichtbar gemeldet, nicht verschluckt.
-      const created = (await res.json()) as { submission?: { id?: string } };
-      const submissionId = created.submission?.id;
-      if (submissionId) {
-        const analyzeRes = await fetch(
-          `/api/submissions/${encodeURIComponent(submissionId)}/analyze`,
-          { method: 'POST' },
-        );
-        if (analyzeRes.ok) {
-          toast.success('Beitrag erfasst — Analyse gestartet', {
-            description: 'Das Ergebnis erscheint im Wartekorb, sobald die Analyse fertig ist.',
-          });
-        } else {
-          const data = (await analyzeRes.json().catch(() => null)) as { error?: string } | null;
-          // Erfassung gelang, nur die Analyse nicht: Warnung statt Fehler.
-          toast.warning('Beitrag erfasst — Analyse nicht gestartet', {
-            description: data?.error ?? `Analyse-Start fehlgeschlagen (HTTP ${analyzeRes.status})`,
-          });
-        }
-      } else {
-        toast.success('Beitrag erfasst', { description: 'Dein PDF liegt jetzt im Wartekorb.' });
-      }
-      setOpen(false);
-      setFile(null);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Unbekannter Fehler beim Upload');
-    } finally {
-      setIsUploading(false);
-    }
-  }
-
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="shrink-0">
-          <FilePlus2 className="mr-2 h-4 w-4" />
-          Inhalte erfassen
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Inhalte erfassen</DialogTitle>
-          <DialogDescription>
-            PDF auswaehlen und hochladen. Der Beitrag wird automatisch analysiert
-            (Transkript + Metadaten) und landet im Wartekorb zur Pruefung.
-            Schritt 2 — Metadaten selbst pruefen &amp; korrigieren folgt.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-2">
-          <Label htmlFor="capture-file">PDF-Datei</Label>
-          <Input
-            id="capture-file"
-            type="file"
-            accept="application/pdf,.pdf"
-            onChange={(e) => {
-              setError(null);
-              setFile(e.target.files?.[0] ?? null);
-            }}
-          />
-          {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-        </div>
-
-        <DialogFooter className="items-center gap-2 sm:justify-between">
-          <Link href="/library/my-submissions" className="text-xs text-muted-foreground underline">
-            Meine Beiträge
-          </Link>
-          <Button onClick={() => void handleSubmit()} disabled={!file || isUploading}>
-            {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Hochladen
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <Button
+      variant="outline"
+      size="sm"
+      className="shrink-0"
+      onClick={() => router.push(`/library/create/${CAPTURE_WIZARD_TYPE_ID}`)}
+    >
+      <FilePlus2 className="mr-2 h-4 w-4" />
+      Inhalte erfassen
+    </Button>
   );
 }
