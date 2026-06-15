@@ -3466,6 +3466,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       hasGeneratedDraft: !!wizardState.generatedDraft,
       isPublishing: wizardState.isPublishing,
       isPublished: wizardState.isPublished,
+      selectedDetailViewType: wizardState.selectedDetailViewType,
     })
 
   return (

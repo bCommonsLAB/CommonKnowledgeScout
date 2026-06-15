@@ -34,6 +34,12 @@ export interface WizardState {
   // Loading-State für Re-Extract
   isExtracting?: boolean
   /**
+   * U6: Nach dem Upload gewählter Inhaltstyp (selectSchemaType-Step). Bestimmt
+   * das Analyse-Standard-Template (standard-<viewType>) + den detailViewType der
+   * Submission. Bleibt undefined, bis der Nutzer wählt (kein stiller Default).
+   */
+  selectedDetailViewType?: string
+  /**
    * U6: ID der beim Off-target-Compute angelegten Inbox-Submission
    * (computeFileMediaDraft). Beim Publish wird DIESE Submission aktualisiert
    * (PATCH) statt einer zweiten angelegt — EIN Submission-Commit (ADR-0004).

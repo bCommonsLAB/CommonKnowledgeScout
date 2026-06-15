@@ -56,6 +56,8 @@ export interface WizardProceedContext {
   hasGeneratedDraft?: boolean
   isPublishing?: boolean
   isPublished?: boolean
+  /** Nach dem Upload gewaehlter Inhaltstyp (selectSchemaType, U6). */
+  selectedDetailViewType?: string
 }
 
 /**
@@ -89,6 +91,9 @@ export function canProceedFromStep(
       return true
     case 'selectFolderArtifacts':
       return ctx.sourcesCount > 0
+    case 'selectSchemaType':
+      // Erst weiter, wenn ein Inhaltstyp gewaehlt ist (kein stiller Default).
+      return typeof ctx.selectedDetailViewType === 'string' && ctx.selectedDetailViewType.length > 0
     case 'previewDetail':
       return true
     case 'completion':

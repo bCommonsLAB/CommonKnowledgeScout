@@ -25,6 +25,7 @@ import { renderEditDraftStep } from "./renderers/edit-draft-renderer"
 import { renderUploadImagesStep } from "./renderers/upload-images-renderer"
 import { renderPreviewDetailStep } from "./renderers/preview-detail-renderer"
 import { renderCollectSourceStep } from "./renderers/collect-source-renderer"
+import { renderSelectSchemaTypeStep } from "./renderers/select-schema-type-renderer"
 
 /**
  * Bereits auf die Engine migrierte Presets. Fehlt ein Preset hier, übernimmt
@@ -41,6 +42,7 @@ const STEP_RENDERERS: Partial<Record<CreationFlowStepPreset, StepRenderer>> = {
   uploadImages: renderUploadImagesStep,
   previewDetail: renderPreviewDetailStep,
   collectSource: renderCollectSourceStep,
+  selectSchemaType: renderSelectSchemaTypeStep,
 }
 
 /** Ist dieses Preset bereits auf die Engine migriert? */

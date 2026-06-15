@@ -82,6 +82,12 @@ describe('canProceedFromStep — Per-Preset-Gating', () => {
     expect(canProceedFromStep('selectFolderArtifacts', { sourcesCount: 2 })).toBe(true)
   })
 
+  it('selectSchemaType: erst nach Inhaltstyp-Wahl (U6)', () => {
+    expect(canProceedFromStep('selectSchemaType', { sourcesCount: 1 })).toBe(false)
+    expect(canProceedFromStep('selectSchemaType', { sourcesCount: 1, selectedDetailViewType: '' })).toBe(false)
+    expect(canProceedFromStep('selectSchemaType', { sourcesCount: 1, selectedDetailViewType: 'book' })).toBe(true)
+  })
+
   it('generateDraft: im Interview-Modus Entwurf nötig, im Form-Modus frei', () => {
     expect(canProceedFromStep('generateDraft', { sourcesCount: 1, mode: 'interview', hasGeneratedDraft: false })).toBe(false)
     expect(canProceedFromStep('generateDraft', { sourcesCount: 1, mode: 'interview', hasGeneratedDraft: true })).toBe(true)
