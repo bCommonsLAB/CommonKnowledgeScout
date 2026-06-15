@@ -89,6 +89,13 @@ function postMultipart(fields: Record<string, string>, withFile = true): NextReq
   return new NextRequest('http://localhost/api/submissions', { method: 'POST', body: form });
 }
 
+function postMultipartFiles(fields: Record<string, string>, fileNames: string[]): NextRequest {
+  const form = new FormData();
+  for (const [k, v] of Object.entries(fields)) form.set(k, v);
+  for (const name of fileNames) form.append('file', new File([Buffer.from('%PDF-1.4')], name, { type: 'application/pdf' }));
+  return new NextRequest('http://localhost/api/submissions', { method: 'POST', body: form });
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
 });
@@ -178,6 +185,22 @@ describe('POST /api/submissions (multipart, Stufe A)', () => {
     const input = h.createSubmission.mock.calls[0][0];
     expect(input).toMatchObject({ libraryId: 'lib-1', createdByRole: 'contributor', status: 'pending', docType: 'pdfanalyse', detailViewType: 'book' });
     expect(input.binaryRefs).toEqual([ref]);
+  });
+
+  it('201 (Ordner, U5e): laedt mehrere Quellen hoch und merged alle Refs in EINE Submission', async () => {
+    login('u@example.com');
+    h.getLibrary.mockResolvedValue({ id: 'lib-1' });
+    h.getInboxProvider.mockResolvedValue({ id: 'lib-1' });
+    h.uploadInboxBinary
+      .mockResolvedValueOnce({ hash: 'a', url: 'https://blob/lib-1/inbox/u@example.com/a.pdf', fileName: 'a.pdf', contentType: 'application/pdf' })
+      .mockResolvedValueOnce({ hash: 'b', url: 'https://blob/lib-1/inbox/u@example.com/b.pdf', fileName: 'b.pdf', contentType: 'application/pdf' });
+    h.createSubmission.mockResolvedValue({ id: 'sub-folder', status: 'pending' });
+
+    const res = await POST(postMultipartFiles(MULTIPART_FIELDS, ['a.pdf', 'b.pdf']));
+    expect(res.status).toBe(201);
+    expect(h.uploadInboxBinary).toHaveBeenCalledTimes(2);
+    const input = h.createSubmission.mock.calls[0][0];
+    expect(input.binaryRefs.map((r: { fileName: string }) => r.fileName)).toEqual(['a.pdf', 'b.pdf']);
   });
 
   it('400, wenn die Datei fehlt (kein Upload, kein Submit)', async () => {

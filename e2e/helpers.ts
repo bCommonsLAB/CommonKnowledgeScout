@@ -304,12 +304,15 @@ export async function createLibraryViaWizard(
 
 /** Minimal getypte Sicht auf ein wizard_submissions-Dokument. */
 export interface SubmissionDocLike {
-  _id?: unknown
+  _id?: import('mongodb').ObjectId
   libraryId?: string
   status?: string
   createdBy?: string
   createdByRole?: string
+  docType?: string
   detailViewType?: string
+  metadata?: Record<string, unknown>
+  markdownBody?: string
   binaryRefs?: Array<{ url?: string; itemId?: string; contentType?: string }>
   createdAt?: string
   updatedAt?: string
@@ -318,6 +321,7 @@ export interface SubmissionDocLike {
 /** Minimal getypte Sicht auf ein external_jobs-Dokument. */
 export interface JobDocLike {
   jobId?: string
+  job_type?: string
   providerScope?: string
   status?: string
   correlation?: { options?: { submissionId?: string } }
@@ -353,6 +357,17 @@ export async function findLatestSubmission(
       .limit(1)
       .toArray()
     return docs[0] ?? null
+  })
+}
+
+/** Eine Submission per String-_id (zum Abpollen des Flowbacks nach der Analyse). */
+export async function findSubmissionById(submissionId: string): Promise<SubmissionDocLike | null> {
+  const { ObjectId } = await import('mongodb')
+  return withMongo(async db => {
+    const doc = await db
+      .collection<SubmissionDocLike>('wizard_submissions')
+      .findOne({ _id: new ObjectId(submissionId) })
+    return doc ?? null
   })
 }
 

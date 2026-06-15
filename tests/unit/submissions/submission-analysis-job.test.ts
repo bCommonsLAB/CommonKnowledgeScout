@@ -1,7 +1,8 @@
 /**
- * Tests fuer die reine Analyse-Job-Fabrik (Welle III):
- * pickAnalyzableBinaryRef (explizite Fehler) + buildSubmissionAnalysisJob
- * (Inbox-Scope, Ingest deaktiviert, Submission-Korrelation).
+ * Tests fuer die reine Analyse-Job-Fabrik (Welle III; U5b medien-agnostisch):
+ * pickAnalyzableSource (explizite Fehler + Medien-Aufloesung) +
+ * buildSubmissionAnalysisJob (Inbox-Scope, Ingest deaktiviert, Submission-
+ * Korrelation) fuer PDF (unveraendert) UND Audio.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -9,7 +10,7 @@ import {
   buildSubmissionAnalysisJob,
   buildSubmissionAnalysisParameters,
   buildSubmissionAnalysisSteps,
-  pickAnalyzableBinaryRef,
+  pickAnalyzableSource,
 } from '@/lib/submissions/submission-analysis-job';
 import type { WizardSubmission, SubmissionBinaryRef } from '@/types/wizard-submission';
 
@@ -19,6 +20,14 @@ const PDF_REF: SubmissionBinaryRef = {
   fileName: 'Quelle.pdf',
   contentType: 'application/pdf',
   itemId: 'lib-1/inbox/alice/abc.pdf',
+};
+
+const AUDIO_REF: SubmissionBinaryRef = {
+  hash: 'def',
+  url: 'https://blob/lib-1/inbox/alice/def.mp3',
+  fileName: 'Interview.mp3',
+  contentType: 'audio/mpeg',
+  itemId: 'lib-1/inbox/alice/def.mp3',
 };
 
 function submissionWith(refs: SubmissionBinaryRef[]): WizardSubmission {
@@ -44,26 +53,37 @@ function submissionWith(refs: SubmissionBinaryRef[]): WizardSubmission {
   };
 }
 
-describe('pickAnalyzableBinaryRef', () => {
-  it('liefert die erste PDF-Ref mit itemId', () => {
-    expect(pickAnalyzableBinaryRef(submissionWith([PDF_REF]))).toEqual(PDF_REF);
+describe('pickAnalyzableSource', () => {
+  it('liefert die erste PDF-Ref mit itemId + Medien-Identitaet', () => {
+    expect(pickAnalyzableSource(submissionWith([PDF_REF]))).toEqual({
+      ref: PDF_REF,
+      media: { jobType: 'pdf', mediaType: 'pdf', extractStepName: 'extract_pdf' },
+    });
   });
 
-  it('wirft bei leeren Refs, ohne PDF und ohne itemId (klare Ursachen)', () => {
-    expect(() => pickAnalyzableBinaryRef(submissionWith([]))).toThrow(/keine Binaerquelle/);
+  it('liefert Audio-Refs mit dem Audio-Medien-Mapping', () => {
+    expect(pickAnalyzableSource(submissionWith([AUDIO_REF]))).toEqual({
+      ref: AUDIO_REF,
+      media: { jobType: 'audio', mediaType: 'audio', extractStepName: 'extract_audio' },
+    });
+  });
+
+  it('wirft bei leeren Refs, ohne unterstuetzten Typ und ohne itemId (klare Ursachen)', () => {
+    expect(() => pickAnalyzableSource(submissionWith([]))).toThrow(/keine Binaerquelle/);
     expect(() =>
-      pickAnalyzableBinaryRef(submissionWith([{ ...PDF_REF, contentType: 'image/png' }])),
-    ).toThrow(/keine PDF/);
+      pickAnalyzableSource(submissionWith([{ ...PDF_REF, contentType: 'image/png' }])),
+    ).toThrow(/keine analysierbare Binaerquelle/);
     expect(() =>
-      pickAnalyzableBinaryRef(submissionWith([{ ...PDF_REF, itemId: undefined }])),
+      pickAnalyzableSource(submissionWith([{ ...PDF_REF, itemId: undefined }])),
     ).toThrow(/itemId/);
   });
 });
 
-describe('buildSubmissionAnalysisJob', () => {
+describe('buildSubmissionAnalysisJob — PDF (unveraendert)', () => {
+  const source = pickAnalyzableSource(submissionWith([PDF_REF]));
   const job = buildSubmissionAnalysisJob({
     submission: submissionWith([PDF_REF]),
-    ref: PDF_REF,
+    source,
     parentId: 'lib-1/inbox/alice/',
     userEmail: 'anna@example.com',
     jobId: 'job-1',
@@ -83,7 +103,7 @@ describe('buildSubmissionAnalysisJob', () => {
     });
   });
 
-  it('korreliert Quelle (itemId/parentId vom Provider) und Submission', () => {
+  it('korreliert Quelle (itemId/parentId vom Provider) und Submission, PDF-OCR-Optionen', () => {
     expect(job.correlation.source).toMatchObject({
       mediaType: 'pdf',
       name: 'Quelle.pdf',
@@ -98,18 +118,53 @@ describe('buildSubmissionAnalysisJob', () => {
   });
 
   it('Parameter: Template = Standard-Vorlage des detailViewType (F11), Ingest deaktiviert (W5)', () => {
-    // detailViewType 'book' -> Builtin-Default 'standard-book' (nicht der docType 'pdfanalyse').
-    const params = buildSubmissionAnalysisParameters(submissionWith([PDF_REF]));
+    const params = buildSubmissionAnalysisParameters(submissionWith([PDF_REF]), source.media);
     expect(params).toMatchObject({
       template: 'standard-book',
+      extractionMethod: 'mistral_ocr',
       phases: { extract: true, template: true, ingest: false },
       policies: { ingest: 'ignore' },
     });
   });
 
   it('Steps entsprechen dem process-pdf-Muster', () => {
-    expect(buildSubmissionAnalysisSteps().map((s) => s.name)).toEqual([
+    expect(buildSubmissionAnalysisSteps(source.media.extractStepName).map((s) => s.name)).toEqual([
       'extract_pdf',
+      'transform_template',
+      'ingest_rag',
+    ]);
+  });
+});
+
+describe('buildSubmissionAnalysisJob — Audio', () => {
+  const source = pickAnalyzableSource(submissionWith([AUDIO_REF]));
+  const job = buildSubmissionAnalysisJob({
+    submission: submissionWith([AUDIO_REF]),
+    source,
+    parentId: 'lib-1/inbox/alice/',
+    userEmail: 'anna@example.com',
+    jobId: 'job-2',
+    jobSecretHash: 'hash-2',
+  });
+
+  it('ist ein queued Audio-Job im Inbox-Scope', () => {
+    expect(job).toMatchObject({ job_type: 'audio', providerScope: 'inbox', operation: 'extract' });
+    expect(job.correlation.source).toMatchObject({ mediaType: 'audio', name: 'Interview.mp3' });
+  });
+
+  it('correlation.options nutzt Audio-Optionen (sourceLanguage), KEINE OCR-Flags', () => {
+    expect(job.correlation.options).toMatchObject({
+      submissionId: 'sub-1',
+      targetLanguage: 'de',
+      sourceLanguage: 'auto',
+    });
+    expect(job.correlation.options).not.toHaveProperty('extractionMethod');
+    expect(job.correlation.options).not.toHaveProperty('includeOcrImages');
+  });
+
+  it('Steps starten mit extract_audio', () => {
+    expect(buildSubmissionAnalysisSteps(source.media.extractStepName).map((s) => s.name)).toEqual([
+      'extract_audio',
       'transform_template',
       'ingest_rag',
     ]);

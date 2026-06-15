@@ -29,7 +29,8 @@ import {
   buildSubmissionAnalysisJob,
   buildSubmissionAnalysisParameters,
   buildSubmissionAnalysisSteps,
-  pickAnalyzableBinaryRef,
+  pickAnalyzableSource,
+  type AnalyzableSource,
 } from '@/lib/submissions/submission-analysis-job';
 import { getJobEventBus } from '@/lib/events/job-event-bus';
 import { FileLogger } from '@/lib/debug/logger';
@@ -67,15 +68,16 @@ export async function POST(
       );
     }
 
-    let ref;
+    let source: AnalyzableSource;
     try {
-      ref = pickAnalyzableBinaryRef(submission);
+      source = pickAnalyzableSource(submission);
     } catch (error) {
       return NextResponse.json(
         { error: error instanceof Error ? error.message : 'Keine analysierbare Quelle' },
         { status: 422 },
       );
     }
+    const { ref, media } = source;
 
     // Pre-flight (an F11 angeglichen): Die Inbox-Analyse nutzt die im Code
     // persistierte Standard-Vorlage des detailViewType (z.B. 'standard-book').
@@ -104,7 +106,7 @@ export async function POST(
     const jobSecret = crypto.randomBytes(24).toString('base64url');
     const job = buildSubmissionAnalysisJob({
       submission,
-      ref,
+      source,
       parentId: sourceItem.parentId,
       userEmail: email,
       jobId,
@@ -112,7 +114,11 @@ export async function POST(
     });
 
     await repo.create(job);
-    await repo.initializeSteps(jobId, buildSubmissionAnalysisSteps(), buildSubmissionAnalysisParameters(submission));
+    await repo.initializeSteps(
+      jobId,
+      buildSubmissionAnalysisSteps(media.extractStepName),
+      buildSubmissionAnalysisParameters(submission, media),
+    );
     try {
       await repo.initializeTrace(jobId);
       await repo.traceAddEvent(jobId, {
