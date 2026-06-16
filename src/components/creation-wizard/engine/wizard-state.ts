@@ -48,6 +48,8 @@ export interface WizardState {
   // PDF HITL: Progress-Anzeige für Jobs (Extract/Template/Ingest)
   processingProgress?: number
   processingMessage?: string
+  /** U6: Pipeline-Phase des Analyse-Jobs (für das Schritt-Label im Capture-Wizard). */
+  processingPhase?: string
   // PDF HITL: finaler Publish-Schritt (User sieht Publizieren explizit)
   isPublishing?: boolean
   publishingProgress?: number

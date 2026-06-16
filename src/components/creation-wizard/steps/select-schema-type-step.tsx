@@ -2,9 +2,10 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { Check, Loader2 } from "lucide-react"
+import { Check } from "lucide-react"
 import { DETAIL_VIEW_TYPES } from "@/lib/detail-view-types/registry"
 import { VIEW_TYPE_LABELS } from "@/lib/detail-view-types/view-type-display"
+import { JobProgressBar } from "@/components/library/file-preview/job-progress-bar"
 
 interface SelectSchemaTypeStepProps {
   /** Aktuell gewählter Inhaltstyp (detailViewType) oder undefined. */
@@ -13,8 +14,12 @@ interface SelectSchemaTypeStepProps {
   onSelect: (detailViewType: string) => void
   /** Läuft die Off-target-Berechnung gerade (nach „Weiter")? */
   isProcessing?: boolean
+  /** Fortschritt 0..100 der Berechnung (vom Secretary). */
+  processingProgress?: number
   /** Fortschritts-/Status-Text während der Berechnung. */
   processingMessage?: string
+  /** Pipeline-Phase (extract/transform/ingest) für das Schritt-Label. */
+  processingPhase?: string
   /** Fehlermeldung der letzten Berechnung (falls fehlgeschlagen). */
   error?: string
 }
@@ -34,7 +39,9 @@ export function SelectSchemaTypeStep({
   selected,
   onSelect,
   isProcessing = false,
+  processingProgress,
   processingMessage,
+  processingPhase,
   error,
 }: SelectSchemaTypeStepProps) {
   if (isProcessing) {
@@ -43,15 +50,18 @@ export function SelectSchemaTypeStep({
         <CardHeader>
           <CardTitle>Datei wird verarbeitet</CardTitle>
           <CardDescription>
-            Der Inhalt wird in der Inbox extrahiert bzw. transkribiert. Das kann
-            einen Moment dauern — bitte warten.
+            Der Inhalt wird in der Inbox extrahiert bzw. transkribiert — du wirst
+            Schritt für Schritt informiert. Das kann einen Moment dauern.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            <span>{processingMessage || "Datei wird verarbeitet…"}</span>
-          </div>
+        <CardContent className="px-0">
+          {/* Gleiche Progress-Logik wie im Archiv (Phase-Label + Fortschritt + Meldung). */}
+          <JobProgressBar
+            status="running"
+            progress={processingProgress}
+            message={processingMessage}
+            phase={processingPhase}
+          />
         </CardContent>
       </Card>
     )

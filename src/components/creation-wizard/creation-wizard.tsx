@@ -878,6 +878,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     status: string
     progress?: number
     message?: string
+    /** Pipeline-Phase (extract_pdf/transform_template/ingest_rag …) für das Schritt-Label. */
+    phase?: string
     result?: { savedItemId?: string }
     shadowTwinFolderId?: string | null
   }
@@ -1218,6 +1220,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         isExtracting: true,
         processingProgress: 0,
         processingMessage: 'Datei wird verarbeitet…',
+        processingPhase: undefined,
+        extractionError: undefined,
       }))
 
       try {
@@ -1243,6 +1247,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                   ...prev,
                   processingProgress: typeof evt.progress === 'number' ? evt.progress : prev.processingProgress,
                   processingMessage: evt.message || prev.processingMessage,
+                  processingPhase: evt.phase || prev.processingPhase,
                 }))
               },
             }),
@@ -1253,6 +1258,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           isExtracting: false,
           processingProgress: undefined,
           processingMessage: undefined,
+          processingPhase: undefined,
           submissionId: result.submissionId,
           generatedDraft: { metadata: result.draft.metadata, markdown: result.draft.markdown },
           draftMetadata: result.draft.metadata,
@@ -1275,6 +1281,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
           isExtracting: false,
           processingProgress: undefined,
           processingMessage: undefined,
+          processingPhase: undefined,
           extractionError: msg,
         }))
         toast.error('Verarbeitung fehlgeschlagen', { description: msg })
