@@ -82,10 +82,14 @@ describe('canProceedFromStep — Per-Preset-Gating', () => {
     expect(canProceedFromStep('selectFolderArtifacts', { sourcesCount: 2 })).toBe(true)
   })
 
-  it('selectSchemaType: erst nach Inhaltstyp-Wahl (U6)', () => {
+  it('selectSchemaType: erst nach Inhaltstyp-Wahl, gesperrt während Compute (U6)', () => {
     expect(canProceedFromStep('selectSchemaType', { sourcesCount: 1 })).toBe(false)
     expect(canProceedFromStep('selectSchemaType', { sourcesCount: 1, selectedDetailViewType: '' })).toBe(false)
     expect(canProceedFromStep('selectSchemaType', { sourcesCount: 1, selectedDetailViewType: 'book' })).toBe(true)
+    // Während der Berechnung gesperrt (kein Doppel-Start).
+    expect(
+      canProceedFromStep('selectSchemaType', { sourcesCount: 1, selectedDetailViewType: 'book', isExtracting: true }),
+    ).toBe(false)
   })
 
   it('generateDraft: im Interview-Modus Entwurf nötig, im Form-Modus frei', () => {

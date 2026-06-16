@@ -102,6 +102,16 @@ creation:
       type: file
       label: "Datei hochladen"
       helpText: "PDF, Audio, Bild oder Video. Inhalt wird extrahiert bzw. transkribiert; Ergebnis vor dem Speichern editierbar."
+  welcome:
+    markdown: |
+      ## Willkommen
+
+      Hier **importierst** du eine Datei (PDF oder Audio) und wir **verarbeiten** sie für dich — der Beitrag landet danach im **Wartekorb** (als Owner sofort veröffentlicht).
+
+      - Datei hochladen
+      - Inhaltstyp wählen (z.B. Buch, Session)
+      - Wir extrahieren bzw. transkribieren den Inhalt
+      - Du prüfst das Ergebnis und legst es ab
   output:
     fileName:
       metadataFieldKey: title
@@ -134,8 +144,8 @@ creation:
         title: "Speichern"
         ingestOnFinish: false
   ui:
-    displayName: "Datei transkribieren"
-    description: "Datei hochladen, Inhalt extrahieren und als bearbeitbares Transkript speichern"
+    displayName: "Datei importieren und verarbeiten"
+    description: "Datei hochladen, Inhalt automatisch extrahieren/transkribieren und als Beitrag in den Wartekorb legen"
     icon: "Upload"
 ---
 

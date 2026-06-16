@@ -50,7 +50,7 @@ test('Inbox: Erfassen → Wizard (WP-3 / U6)', async ({ page }) => {
       await page.getByRole('button', { name: /Inhalte erfassen/i }).click()
       // Der Button navigiert in den Wizard (file-transcript-de); kein Inline-Dialog mehr.
       await expect(page).toHaveURL(/\/library\/create\/file-transcript-de/, { timeout: 30_000 })
-      await expect(page.getByRole('heading', { name: /Datei transkribieren/i })).toBeVisible({ timeout: 30_000 })
+      await expect(page.getByRole('heading', { name: /Datei importieren und verarbeiten/i })).toBeVisible({ timeout: 30_000 })
       return 'Wizard-Route geöffnet, Einstiegs-Schritt sichtbar'
     })
 

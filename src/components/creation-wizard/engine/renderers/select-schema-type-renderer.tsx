@@ -18,6 +18,9 @@ export function renderSelectSchemaTypeStep(ctx: StepRenderContext): ReactNode {
       onSelect={(detailViewType) => {
         setWizardState((prev) => ({ ...prev, selectedDetailViewType: detailViewType }))
       }}
+      isProcessing={wizardState.isExtracting}
+      processingMessage={wizardState.processingMessage}
+      error={wizardState.extractionError}
     />
   )
 }

@@ -92,7 +92,9 @@ export function canProceedFromStep(
     case 'selectFolderArtifacts':
       return ctx.sourcesCount > 0
     case 'selectSchemaType':
-      // Erst weiter, wenn ein Inhaltstyp gewaehlt ist (kein stiller Default).
+      // Waehrend der Off-target-Berechnung gesperrt; sonst erst weiter, wenn ein
+      // Inhaltstyp gewaehlt ist (kein stiller Default).
+      if (ctx.isExtracting) return false
       return typeof ctx.selectedDetailViewType === 'string' && ctx.selectedDetailViewType.length > 0
     case 'previewDetail':
       return true
