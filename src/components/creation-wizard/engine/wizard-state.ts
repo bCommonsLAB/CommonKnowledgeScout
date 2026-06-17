@@ -64,10 +64,16 @@ export interface WizardState {
   isPublished?: boolean
   /** Optional: Kurze Abschluss-Statistiken (für Publish-Step) */
   publishStats?: { documents: number; images: number; sources: number }
-  /** Optional: Zielordner für "Im Explorer öffnen" */
+  /** Optional: Zielordner für "Im Archiv öffnen" */
   publishTargetFolderId?: string
-  /** Optional: Ziel-Slug für "Im Explorer öffnen" (Gallery) */
+  /** Optional: Anzeigename des Zielordners (z.B. "inbox") für die Summary */
+  publishTargetFolderName?: string
+  /** Optional: Ziel-Slug für "Im Archiv öffnen" (Gallery) */
   publishTargetSlug?: string
+  /** Optional: Name(n) der erfassten Quelle(n) für die Summary (z.B. PDF-Dateiname) */
+  publishSourceNames?: string[]
+  /** Optional: Name der generierten Markdown-Datei für die Summary */
+  publishGeneratedFileName?: string
   // PDF HITL: Tracking
   pdfBaseFileId?: string
   pdfTranscriptFileId?: string

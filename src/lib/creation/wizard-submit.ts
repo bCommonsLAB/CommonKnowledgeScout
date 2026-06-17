@@ -74,11 +74,23 @@ export async function approveSubmission(id: string): Promise<void> {
  * Owner-Sofort-Publikation: `ready → published` (schreibt Ziel-Provider + RAG).
  * Liefert die geschriebene Datei-ID, falls vorhanden.
  */
-export async function promoteSubmission(id: string): Promise<{ savedItemId?: string }> {
+export async function promoteSubmission(id: string): Promise<{
+  savedItemId?: string
+  /** Dateiname der geschriebenen Markdown-Datei (z.B. `mein-titel.md`). */
+  fileName?: string
+  /** ID des tatsaechlich genutzten Zielordners (explizit oder `root/inbox`). */
+  targetFolderId?: string
+  /** Anzeigename des Zielordners (nur Default-Pfad bekannt, sonst undefined). */
+  targetFolderName?: string
+}> {
   const json = await postSubmissionAction(id, 'promote')
-  const savedItemId =
-    json && typeof json === 'object' && typeof (json as { savedItemId?: unknown }).savedItemId === 'string'
-      ? (json as { savedItemId: string }).savedItemId
-      : undefined
-  return { savedItemId }
+  const obj = json && typeof json === 'object' ? (json as Record<string, unknown>) : {}
+  const readString = (key: string): string | undefined =>
+    typeof obj[key] === 'string' ? (obj[key] as string) : undefined
+  return {
+    savedItemId: readString('savedItemId'),
+    fileName: readString('fileName'),
+    targetFolderId: readString('targetFolderId'),
+    targetFolderName: readString('targetFolderName'),
+  }
 }

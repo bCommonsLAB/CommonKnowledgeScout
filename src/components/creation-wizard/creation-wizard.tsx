@@ -11,6 +11,7 @@ import { selectCanonicalMetadata, selectCanonicalMarkdown } from "./engine/wizar
 import { buildWizardFrontmatter } from "@/lib/creation/wizard-frontmatter"
 import { buildWizardCaptureBody } from "@/lib/creation/wizard-capture"
 import { submitWizardCapture, updateSubmission, approveSubmission, promoteSubmission } from "@/lib/creation/wizard-submit"
+import { describeSourceNames } from "@/lib/creation/source-display"
 import { PublishStep } from "./steps/publish-step"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -2433,6 +2434,10 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
 
     switch (currentStep.preset) {
       case "publish": {
+        // Ausnahmefall „Nur importieren und transkribieren": KEINE Publikation/
+        // Ingestion. Steuert Wortlaut (kein „publizieren") und Navigation (Archiv
+        // statt Galerie) im gesamten Publish-Step.
+        const transcriptOnly = wizardState.captureTranscriptOnly === true
         const onPublish = async () => {
           const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
           const isEventPublishFinal = (templateId || '').toLowerCase().includes('event-publish-final')
@@ -2518,9 +2523,17 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
               //    aktualisiert (PATCH) statt einer zweiten angelegt — EIN
               //    Submission-Commit (ADR-0004, behebt KI-1). Text/URL ohne
               //    Vorab-Submission: neu anlegen.
-              setWizardState(prev => ({ ...prev, publishingProgress: 50, publishingMessage: 'Im Wartekorb anlegen…' }))
+              setWizardState(prev => ({ ...prev, publishingProgress: 50, publishingMessage: transcriptOnly ? 'Vorbereiten…' : 'Im Wartekorb anlegen…' }))
+              // Nur einen WIRKLICH gewaehlten Ordner als Ziel senden. Aus der Galerie
+              // ist `currentFolderId` === 'root' (implizit, nicht gewaehlt) — das
+              // duerfen wir NICHT als Ziel setzen, sonst landet alles im Root. Leer
+              // lassen → die Promotion nutzt den Standard-Ordner `root/inbox`.
+              const chosenFolderId =
+                currentFolderId && currentFolderId.trim().length > 0 && currentFolderId !== 'root'
+                  ? currentFolderId
+                  : undefined
               const target: { folderId?: string; slug?: string } = {}
-              if (currentFolderId && currentFolderId.trim().length > 0) target.folderId = currentFolderId
+              if (chosenFolderId) target.folderId = chosenFolderId
               if (slug) target.slug = slug
               let submissionId: string
               if (wizardState.submissionId) {
@@ -2538,7 +2551,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                   detailViewType,
                   markdownBody: markdown,
                   metadata: frontmatterMetadata,
-                  target: { folderId: currentFolderId, slug },
+                  target: { folderId: chosenFolderId, slug },
                 })
                 submissionId = (await submitWizardCapture(captureBody)).id
               }
@@ -2547,25 +2560,43 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
               const currentLib = libraries.find((l) => l.id === libraryId)
               const isOwner = (currentLib?.accessRole ?? 'owner') === 'owner'
               let savedItemId: string | undefined
+              // Realer Zielordner + generierte Datei kommen aus der Promotion (Owner-Pfad).
+              // Beim Wartekorb (Nicht-Owner) gibt es noch kein Ziel — bleibt undefined.
+              let promotedFolderId: string | undefined
+              let promotedFolderName: string | undefined
+              let generatedFileName: string | undefined
               if (isOwner) {
-                setWizardState(prev => ({ ...prev, publishingProgress: 75, publishingMessage: 'Veröffentlichen…' }))
+                setWizardState(prev => ({ ...prev, publishingProgress: 75, publishingMessage: transcriptOnly ? 'Im Archiv speichern…' : 'Veröffentlichen…' }))
                 await approveSubmission(submissionId)
                 const promoteRes = await promoteSubmission(submissionId)
                 savedItemId = promoteRes.savedItemId
+                promotedFolderId = promoteRes.targetFolderId
+                promotedFolderName = promoteRes.targetFolderName
+                generatedFileName = promoteRes.fileName
               }
 
               const imagesCount = Object.keys(wizardState.imageUrls || {}).length
               const sourcesCount = Array.isArray(wizardState.sources) ? wizardState.sources.length : 0
+              // Quell-Anzeigenamen für die Summary ableiten (Datei -> Name, URL -> URL, Text -> Label).
+              const sourceNames = describeSourceNames(wizardState.sources)
               setWizardState(prev => ({
                 ...prev,
                 isPublishing: false,
                 isPublished: true,
                 publishingProgress: 100,
-                publishingMessage: isOwner ? 'Veröffentlicht.' : 'Im Wartekorb — wird geprüft.',
+                publishingMessage: isOwner
+                  ? (transcriptOnly ? 'Im Archiv gespeichert.' : 'Veröffentlicht.')
+                  : 'Im Wartekorb — wird geprüft.',
                 publishStats: { documents: 1, images: imagesCount, sources: sourcesCount },
-                publishTargetFolderId: currentFolderId,
-                // Slug nur bei Owner-Publikation (sonst noch nicht im Ziel/Index)
-                publishTargetSlug: isOwner ? slug : undefined,
+                // Owner: realer Ordner aus der Promotion; sonst Fallback auf den UI-Ordner.
+                publishTargetFolderId: promotedFolderId ?? currentFolderId,
+                publishTargetFolderName: promotedFolderName,
+                publishSourceNames: sourceNames,
+                publishGeneratedFileName: generatedFileName,
+                // Slug nur bei echter Owner-Publikation (Galerie-Deeplink). Bei
+                // transcript-only gibt es keine Publikation -> kein Slug -> die
+                // Summary navigiert in den Datei-Browser (Archiv), nicht in die Galerie.
+                publishTargetSlug: isOwner && !transcriptOnly ? slug : undefined,
               }))
               if (sessionIdForLogs) {
                 const durationMs = Math.max(0, nowMs() - publishStartedAt)
@@ -2718,7 +2749,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                 publishingProgress: prev.publishingProgress ?? 0,
                 publishingMessage: msg,
               }))
-              toast.error('Publizieren fehlgeschlagen', { description: msg })
+              toast.error(transcriptOnly ? 'Speichern fehlgeschlagen' : 'Publizieren fehlgeschlagen', { description: msg })
               if (sessionIdForLogs) {
                 const durationMs = Math.max(0, nowMs() - publishStartedAt)
                 void logWizardEventClient(sessionIdForLogs, {
@@ -2791,7 +2822,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                 publishingProgress: prev.publishingProgress ?? 0,
                 publishingMessage: msg,
               }))
-              toast.error('Publizieren fehlgeschlagen', { description: msg })
+              toast.error(transcriptOnly ? 'Speichern fehlgeschlagen' : 'Publizieren fehlgeschlagen', { description: msg })
               if (sessionIdForLogs) {
                 const durationMs = Math.max(0, nowMs() - publishStartedAt)
                 void logWizardEventClient(sessionIdForLogs, {
@@ -3006,7 +3037,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
               publishingProgress: prev.publishingProgress ?? 0,
               publishingMessage: msg,
             }))
-            toast.error('Publizieren fehlgeschlagen', { description: msg })
+            toast.error(transcriptOnly ? 'Speichern fehlgeschlagen' : 'Publizieren fehlgeschlagen', { description: msg })
             if (sessionIdForLogs) {
               const durationMs = Math.max(0, nowMs() - publishStartedAt)
               void logWizardEventClient(sessionIdForLogs, {
@@ -3022,8 +3053,12 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
 
         return (
           <PublishStep
-            title={currentStep.title || "Publizieren"}
-            description={currentStep.description || "Jetzt wird das Ergebnis final gespeichert und für die Suche indiziert."}
+            title={currentStep.title || (transcriptOnly ? "Im Archiv speichern" : "Publizieren")}
+            description={currentStep.description || (transcriptOnly
+              ? "Die Datei wird importiert und das Transkript im Archiv gespeichert."
+              : "Jetzt wird das Ergebnis final gespeichert und für die Suche indiziert.")}
+            runningLabel={transcriptOnly ? "Speichern läuft…" : undefined}
+            startingLabel={transcriptOnly ? "Speichern wird gestartet…" : undefined}
             onPublish={onPublish}
             isPublishing={!!wizardState.isPublishing}
             publishingProgress={typeof wizardState.publishingProgress === 'number' ? wizardState.publishingProgress : 0}
@@ -3042,16 +3077,47 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                   : ''
               router.push(`/library${folderParam}`)
             }}
-            goToLibraryLabel="Im Explorer öffnen"
+            goToLibraryLabel="Im Archiv öffnen"
             successMessage={currentStep?.ingestOnFinish === false
               ? "Das Ergebnis wurde im Archiv gespeichert. Ingestion kann später aus dem Archiv erfolgen."
               : undefined}
           >
             {wizardState.publishStats ? (
-              <div className="text-xs text-muted-foreground space-y-1">
-                <div>Dokumente: <span className="font-mono">{wizardState.publishStats.documents}</span></div>
-                <div>Bilder: <span className="font-mono">{wizardState.publishStats.images}</span></div>
-                <div>Quellen: <span className="font-mono">{wizardState.publishStats.sources}</span></div>
+              <div className="text-xs text-muted-foreground space-y-2">
+                {/* Quelle(n): zeigt z.B. den hochgeladenen PDF-Dateinamen */}
+                {wizardState.publishSourceNames && wizardState.publishSourceNames.length > 0 ? (
+                  <div>
+                    <span className="font-medium text-foreground">Quelle:</span>{" "}
+                    <span className="font-mono break-all">{wizardState.publishSourceNames.join(", ")}</span>
+                  </div>
+                ) : null}
+                {/* Owner-Pfad: Zielordner + generierte Datei sind bekannt.
+                    Nicht-Owner (kein generierter Dateiname): Hinweis auf Wartekorb. */}
+                {wizardState.publishGeneratedFileName ? (
+                  <>
+                    <div>
+                      <span className="font-medium text-foreground">Zielordner:</span>{" "}
+                      <span className="font-mono break-all">
+                        {wizardState.publishTargetFolderName ||
+                          wizardState.publishTargetFolderId ||
+                          "—"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-foreground">Generierte Datei:</span>{" "}
+                      <span className="font-mono break-all">{wizardState.publishGeneratedFileName}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <span className="font-medium text-foreground">Status:</span> Im Wartekorb — wird geprüft.
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
+                  <span>Dokumente: <span className="font-mono">{wizardState.publishStats.documents}</span></span>
+                  <span>Bilder: <span className="font-mono">{wizardState.publishStats.images}</span></span>
+                  <span>Quellen: <span className="font-mono">{wizardState.publishStats.sources}</span></span>
+                </div>
               </div>
             ) : null}
           </PublishStep>

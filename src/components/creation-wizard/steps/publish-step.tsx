@@ -27,6 +27,11 @@ interface PublishStepProps {
   children?: React.ReactNode
   /** Optional: Erfolgsmeldung (Standard: "Das Ergebnis wurde gespeichert und indiziert.") */
   successMessage?: string
+  /** Optional: Ueberschrift waehrend des Laufs (Standard: "Publizieren läuft…").
+   *  Fuer Nicht-Publikations-Fluesse (z.B. transcript-only) ueberschreibbar. */
+  runningLabel?: string
+  /** Optional: Ueberschrift vor dem Start (Standard: "Publizieren wird gestartet…"). */
+  startingLabel?: string
 }
 
 /**
@@ -47,6 +52,8 @@ export function PublishStep({
   goToLibraryLabel = "Zur Bibliothek",
   children,
   successMessage = "Das Ergebnis wurde gespeichert und indiziert.",
+  runningLabel = "Publizieren läuft…",
+  startingLabel = "Publizieren wird gestartet…",
 }: PublishStepProps) {
   const didStartRef = React.useRef(false)
 
@@ -85,7 +92,7 @@ export function PublishStep({
           <div className="rounded-md border bg-muted/20 p-4">
             <div className="flex items-center gap-2 text-sm font-medium">
               {isPublishing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {isPublishing ? "Publizieren läuft…" : "Publizieren wird gestartet…"}
+              {isPublishing ? runningLabel : startingLabel}
             </div>
             <div className="mt-1 text-xs text-muted-foreground">
               {publishingMessage || "Bitte warten…"}
