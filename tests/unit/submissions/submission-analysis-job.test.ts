@@ -123,7 +123,17 @@ describe('buildSubmissionAnalysisJob — PDF (unveraendert)', () => {
       template: 'standard-book',
       extractionMethod: 'mistral_ocr',
       phases: { extract: true, template: true, ingest: false },
-      policies: { ingest: 'ignore' },
+      policies: { extract: 'do', metadata: 'do', ingest: 'ignore' },
+    });
+  });
+
+  it('5a transcriptOnly: Transform-Phase aus, Metadaten-Policy ignore (nur Extract)', () => {
+    const params = buildSubmissionAnalysisParameters(submissionWith([PDF_REF]), source.media, {
+      transcriptOnly: true,
+    });
+    expect(params).toMatchObject({
+      phases: { extract: true, template: false, ingest: false },
+      policies: { extract: 'do', metadata: 'ignore', ingest: 'ignore' },
     });
   });
 

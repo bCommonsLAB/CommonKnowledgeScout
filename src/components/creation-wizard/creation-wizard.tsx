@@ -1203,8 +1203,10 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         toast.error('Kontext fehlt', { description: 'libraryId fehlt – bitte Seite neu laden.' })
         return
       }
+      // 5a: „Nur importieren und transkribieren" oder ein Inhaltstyp — genau eins.
+      const transcriptOnly = wizardState.captureTranscriptOnly === true
       const selectedType = wizardState.selectedDetailViewType
-      if (!selectedType) {
+      if (!transcriptOnly && !selectedType) {
         toast.error('Bitte einen Inhaltstyp wählen')
         return
       }
@@ -1228,16 +1230,24 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         // Generischer Capture: docType folgt dem gewählten Inhaltstyp (fields leer
         // → buildCaptureComputeFields nutzt den detailViewType als docType), nicht
         // dem festen docType des Capture-Templates.
+        // 5a: Bei „Nur transkribieren" rendert die Submission als session
+        // (standard-session existiert, kein Pre-flight-Umbau) und der docType
+        // ist 'transcript'.
+        const effectiveDetailViewType = transcriptOnly ? 'session' : (selectedType as string)
+        const computeFields = transcriptOnly
+          ? [{ key: 'docType', rawValue: 'transcript' }]
+          : []
         const fields = buildCaptureComputeFields({
           libraryId,
           wizardId: templateId,
-          detailViewType: selectedType,
-          fields: [],
+          detailViewType: effectiveDetailViewType,
+          fields: computeFields,
           fileName: file.name,
         })
         const result = await computeFileMediaDraft({
           file,
           fields,
+          transcriptOnly,
           waitForJob: (jobId) =>
             waitForJobCompletionWithProgress({
               jobId,
@@ -3071,6 +3081,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       isPublishing: wizardState.isPublishing,
       isPublished: wizardState.isPublished,
       selectedDetailViewType: wizardState.selectedDetailViewType,
+      captureTranscriptOnly: wizardState.captureTranscriptOnly,
     })
 
   return (

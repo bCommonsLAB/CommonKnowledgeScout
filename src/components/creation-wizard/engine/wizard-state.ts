@@ -40,6 +40,12 @@ export interface WizardState {
    */
   selectedDetailViewType?: string
   /**
+   * 5a: Option „Nur importieren und transkribieren" — nur Extract, keine
+   * Transformation. Schließt die Inhaltstyp-Wahl gegenseitig aus
+   * (selectedDetailViewType bleibt dann undefined).
+   */
+  captureTranscriptOnly?: boolean
+  /**
    * U6: ID der beim Off-target-Compute angelegten Inbox-Submission
    * (computeFileMediaDraft). Beim Publish wird DIESE Submission aktualisiert
    * (PATCH) statt einer zweiten angelegt — EIN Submission-Commit (ADR-0004).

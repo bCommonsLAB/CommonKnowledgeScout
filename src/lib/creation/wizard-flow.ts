@@ -58,6 +58,8 @@ export interface WizardProceedContext {
   isPublished?: boolean
   /** Nach dem Upload gewaehlter Inhaltstyp (selectSchemaType, U6). */
   selectedDetailViewType?: string
+  /** 5a: Option „Nur importieren und transkribieren" gewaehlt (statt Inhaltstyp). */
+  captureTranscriptOnly?: boolean
 }
 
 /**
@@ -93,8 +95,9 @@ export function canProceedFromStep(
       return ctx.sourcesCount > 0
     case 'selectSchemaType':
       // Waehrend der Off-target-Berechnung gesperrt; sonst erst weiter, wenn ein
-      // Inhaltstyp gewaehlt ist (kein stiller Default).
+      // Inhaltstyp gewaehlt ODER „Nur transkribieren" (5a) aktiv ist (kein stiller Default).
       if (ctx.isExtracting) return false
+      if (ctx.captureTranscriptOnly) return true
       return typeof ctx.selectedDetailViewType === 'string' && ctx.selectedDetailViewType.length > 0
     case 'previewDetail':
       return true

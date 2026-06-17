@@ -82,6 +82,22 @@ describe('startSubmissionAnalysis', () => {
     const fetchImpl = mockFetch([{ ok: true, status: 202, body: { status: 'accepted' } }])
     await expect(startSubmissionAnalysis('sub-1', fetchImpl)).rejects.toThrow(/jobId fehlt/)
   })
+
+  it('ohne transcriptOnly: POST ohne Body (Standard = Transform)', async () => {
+    const fetchImpl = mockFetch([{ ok: true, status: 202, body: { jobId: 'job-1' } }])
+    await startSubmissionAnalysis('sub-1', fetchImpl)
+    const init = fetchImpl.mock.calls[0][1] as RequestInit
+    expect(init.method).toBe('POST')
+    expect(init.body).toBeUndefined()
+  })
+
+  it('5a transcriptOnly: POSTet Body { mode: "transcript" }', async () => {
+    const fetchImpl = mockFetch([{ ok: true, status: 202, body: { jobId: 'job-1' } }])
+    await startSubmissionAnalysis('sub-1', fetchImpl, { transcriptOnly: true })
+    const init = fetchImpl.mock.calls[0][1] as RequestInit
+    expect(init.method).toBe('POST')
+    expect(init.body).toBe(JSON.stringify({ mode: 'transcript' }))
+  })
 })
 
 describe('fetchSubmissionDraft', () => {
@@ -119,6 +135,18 @@ describe('computeFileMediaDraft — Orchestrierung', () => {
       '/api/submissions/sub-1/analyze',
       '/api/submissions/sub-1',
     ])
+  })
+
+  it('5a: reicht transcriptOnly an den Analyse-Start durch (mode im Body)', async () => {
+    const fetchImpl = mockFetch([
+      { ok: true, status: 201, body: { submission: { id: 'sub-1' } } },
+      { ok: true, status: 202, body: { jobId: 'job-1' } },
+      { ok: true, status: 200, body: { submission: { metadata: { title: 'T' }, markdownBody: '## Body' } } },
+    ])
+    const waitForJob = vi.fn(async () => undefined)
+    await computeFileMediaDraft({ file: PDF, fields: FIELDS, waitForJob, fetchImpl, transcriptOnly: true })
+    const analyzeInit = fetchImpl.mock.calls[1][1] as RequestInit
+    expect(analyzeInit.body).toBe(JSON.stringify({ mode: 'transcript' }))
   })
 
   it('bricht ab, bevor gewartet wird, wenn die Analyse nicht startet', async () => {

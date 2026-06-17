@@ -88,6 +88,17 @@ export function buildSubmissionAnalysisSteps(
   ];
 }
 
+/** Optionen der Job-Parameter-Fabrik (5a: Transkript-only). */
+export interface BuildSubmissionAnalysisParametersOptions {
+  /**
+   * 5a — „Nur importieren und transkribieren": schaltet die Transform-Phase ab.
+   * Es laeuft nur der Extract-Schritt; die Pipeline markiert `transform_template`
+   * als `phase_disabled` und der Rueckfluss (`applyAnalysisResult`) schreibt das
+   * reine Transkript in die Submission.
+   */
+  transcriptOnly?: boolean;
+}
+
 /**
  * Job-Parameter (Welle III, an F11 angeglichen): Als Template gilt die im Code
  * persistierte **Standard-Vorlage des `detailViewType`** (z.B. `standard-book`),
@@ -95,17 +106,27 @@ export function buildSubmissionAnalysisSteps(
  * wie die Archiv-Pipeline (`pickTemplate`/`getDefaultTemplateNameForViewType`).
  * Ingest bleibt deaktiviert (phases + policy). Medienspezifische Optionen
  * (OCR-Flags bei PDF, Quellsprache bei Audio) kommen aus `buildAnalysisMediaOptions`.
+ *
+ * Bei `opts.transcriptOnly` (5a) faellt die Transform-Phase weg (`template:false`)
+ * und die Metadaten-Policy wird `ignore` — es entsteht nur das Transkript.
  */
 export function buildSubmissionAnalysisParameters(
   submission: WizardSubmission,
   media: AnalyzableMedia,
+  opts?: BuildSubmissionAnalysisParametersOptions,
 ): Record<string, unknown> {
+  const transcriptOnly = opts?.transcriptOnly === true;
   return {
     ...SUBMISSION_ANALYSIS_DEFAULTS,
     ...buildAnalysisMediaOptions(media.jobType),
     template: getDefaultTemplateNameForViewType(submission.detailViewType),
-    phases: { extract: true, template: true, ingest: false },
-    policies: { extract: 'do', metadata: 'do', ingest: 'ignore' },
+    // Transform-Phase nur bei voller Aufbereitung; bei transcriptOnly nur Extract.
+    phases: { extract: true, template: !transcriptOnly, ingest: false },
+    policies: {
+      extract: 'do',
+      metadata: transcriptOnly ? 'ignore' : 'do',
+      ingest: 'ignore',
+    },
   };
 }
 

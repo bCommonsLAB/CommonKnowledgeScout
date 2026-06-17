@@ -16,7 +16,21 @@ export function renderSelectSchemaTypeStep(ctx: StepRenderContext): ReactNode {
     <SelectSchemaTypeStep
       selected={wizardState.selectedDetailViewType}
       onSelect={(detailViewType) => {
-        setWizardState((prev) => ({ ...prev, selectedDetailViewType: detailViewType }))
+        // Inhaltstyp wählen schließt „Nur transkribieren" aus (gegenseitig exklusiv, 5a).
+        setWizardState((prev) => ({
+          ...prev,
+          selectedDetailViewType: detailViewType,
+          captureTranscriptOnly: false,
+        }))
+      }}
+      transcriptOnly={wizardState.captureTranscriptOnly}
+      onSelectTranscriptOnly={() => {
+        // „Nur transkribieren" schließt die Inhaltstyp-Wahl aus (5a).
+        setWizardState((prev) => ({
+          ...prev,
+          captureTranscriptOnly: true,
+          selectedDetailViewType: undefined,
+        }))
       }}
       isProcessing={wizardState.isExtracting}
       processingProgress={wizardState.processingProgress}
