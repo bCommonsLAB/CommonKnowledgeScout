@@ -21,6 +21,7 @@ const h = vi.hoisted(() => ({
   initializeTrace: vi.fn(),
   traceAddEvent: vi.fn(),
   hashSecret: vi.fn(() => 'hash'),
+  tickNow: vi.fn(async () => undefined),
 }));
 
 vi.mock('@clerk/nextjs/server', () => ({ auth: h.auth, currentUser: h.currentUser }));
@@ -50,6 +51,14 @@ vi.mock('@/lib/external-jobs-repository', () => ({
 }));
 vi.mock('@/lib/events/job-event-bus', () => ({
   getJobEventBus: () => ({ emitUpdate: vi.fn() }),
+}));
+// Worker mocken: kein echtes setInterval im Test, und der Poke ist pruefbar.
+vi.mock('@/lib/external-jobs-worker', () => ({
+  ExternalJobsWorker: {
+    tickNow: h.tickNow,
+    getStatus: () => ({ state: 'running' }),
+    start: vi.fn(),
+  },
 }));
 
 import { POST } from '@/app/api/submissions/[id]/analyze/route';
@@ -97,6 +106,8 @@ function login(email: string): void {
 beforeEach(() => {
   vi.resetAllMocks();
   h.hashSecret.mockReturnValue('hash');
+  // resetAllMocks loescht die Implementierung — tickNow muss ein Promise liefern.
+  h.tickNow.mockResolvedValue(undefined);
   // detailViewType 'book' -> Builtin 'standard-book' existiert real (kein Mock noetig).
   h.getInboxProvider.mockResolvedValue({ getItemById: h.getItemById });
   h.getItemById.mockResolvedValue({ id: 'lib-1/inbox/anna/abc.pdf', parentId: 'lib-1/inbox/anna/' });
@@ -158,6 +169,9 @@ describe('POST /api/submissions/[id]/analyze', () => {
     expect((await res.json()).jobId).toBeTruthy();
     // Erfasser braucht keinen Reviewer-Check.
     expect(h.isCoCreatorOrOwner).not.toHaveBeenCalled();
+    // Worker wird sofort angestossen, damit der Job nicht erst beim naechsten
+    // Hintergrund-Poll startet (behebt den Wizard-Timeout).
+    expect(h.tickNow).toHaveBeenCalled();
 
     const job = h.create.mock.calls[0][0];
     expect(job).toMatchObject({

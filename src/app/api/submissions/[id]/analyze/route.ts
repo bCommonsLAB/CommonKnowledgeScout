@@ -33,6 +33,7 @@ import {
   type AnalyzableSource,
 } from '@/lib/submissions/submission-analysis-job';
 import { getJobEventBus } from '@/lib/events/job-event-bus';
+import { ExternalJobsWorker } from '@/lib/external-jobs-worker';
 import { FileLogger } from '@/lib/debug/logger';
 
 export const runtime = 'nodejs';
@@ -176,6 +177,31 @@ export async function POST(
       submissionId: submission.id,
       libraryId: submission.libraryId,
     });
+
+    // Worker sofort anstossen (best-effort, in-process): Der queued Job soll nicht
+    // erst beim naechsten Hintergrund-Poll starten — oder gar nicht, falls der
+    // Worker in dieser Instanz noch nicht laeuft (Dev/HMR). Schon der Import oben
+    // startet den Worker per Auto-Start; `tickNow` dispatcht zusaetzlich sofort.
+    // Spiegelt den Tick der normalen Pipeline (api/pipeline/process). Fire-and-
+    // forget: blockiert die 202-Antwort nicht; bei Fehler holt der Poll den Job.
+    try {
+      if (typeof ExternalJobsWorker.tickNow === 'function') {
+        void ExternalJobsWorker.tickNow().catch((err) => {
+          FileLogger.warn('api/submissions analyze', 'Worker-Tick nach Job-Anlage fehlgeschlagen', {
+            jobId,
+            err: err instanceof Error ? err.message : String(err),
+          });
+        });
+      } else if (ExternalJobsWorker.getStatus().state !== 'running') {
+        ExternalJobsWorker.start();
+      }
+    } catch (err) {
+      FileLogger.warn('api/submissions analyze', 'Worker-Poke nach Job-Anlage fehlgeschlagen', {
+        jobId,
+        err: err instanceof Error ? err.message : String(err),
+      });
+    }
+
     return NextResponse.json({ status: 'accepted', jobId }, { status: 202 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Interner Fehler';
