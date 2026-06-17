@@ -24,17 +24,9 @@ import {
   getSubmissionById,
 } from '@/lib/repositories/wizard-submissions-repo';
 import { getServerProvider } from '@/lib/storage/server-provider';
-import { getInboxProvider } from '@/lib/storage/inbox/inbox-provider-entry';
 import { IngestionService } from '@/lib/chat/ingestion-service';
-import {
-  promoteSubmission,
-  type LoadOriginalFn,
-  type WriteTranscriptArtifactFn,
-} from '@/lib/submissions/promotion';
-import { LibraryService } from '@/lib/services/library-service';
-import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config';
-import { writeArtifact } from '@/lib/shadow-twin/artifact-writer';
-import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service';
+import { promoteSubmission } from '@/lib/submissions/promotion';
+import { buildPromotionInjections } from '@/lib/submissions/promote-injections';
 import { classifyPromotionError, type PromotionFailure } from '@/lib/submissions/promotion-errors';
 import { FileLogger } from '@/lib/debug/logger';
 
@@ -91,54 +83,13 @@ export async function performPromotion(id: string): Promise<NextResponse> {
     try {
       const provider = await getServerProvider(email, publishing.libraryId);
 
-      // Befund B: Original(e) aus der Inbox-Quarantaene zusaetzlich ins Ziel
-      // kopieren. Nur wenn Binaer-Quellen vorliegen (Text-/URL-Submissions
-      // haben keine) — sonst kein Inbox-Provider noetig.
-      let loadOriginal: LoadOriginalFn | undefined;
-      if (publishing.binaryRefs.length > 0) {
-        const inboxProvider = await getInboxProvider(email, publishing.libraryId);
-        loadOriginal = async (ref) => {
-          if (!ref.itemId) {
-            // Kein stiller Fallback: Legacy-Ref ohne Inbox-Item-ID -> laut scheitern.
-            throw new Error(`Promotion: binaryRef ohne itemId (${ref.fileName}) - Original nicht ladbar`);
-          }
-          const { blob } = await inboxProvider.getBinary(ref.itemId);
-          return blob;
-        };
-      }
-
-      // Befund B2a: Transcript-only (docType='transcript') legt das Transkript als
-      // Shadow-Twin der Ziel-Quelle ab — kanonisch ueber die bestehenden Primitive,
-      // KEINE Doppellogik. Filesystem-Libraries schreiben in den Dot-Folder
-      // (`writeArtifact`), Mongo-Libraries in den Mongo-Store (`ShadowTwinService`).
-      // Die Store-Wahl folgt `getShadowTwinConfig` (storage-agnostisch).
-      const writeTranscriptArtifact: WriteTranscriptArtifactFn = async ({
-        sourceId,
-        sourceName,
-        parentId,
-        markdown,
-        targetLanguage,
-      }) => {
-        const library = await LibraryService.getInstance().getLibraryById(publishing.libraryId);
-        if (!library) {
-          throw new Error(`Promotion: Library nicht gefunden: ${publishing.libraryId}`);
-        }
-        const cfg = getShadowTwinConfig(library);
-        if (cfg.primaryStore === 'mongo') {
-          const svc = await ShadowTwinService.create({ library, userEmail: email, sourceId, sourceName, parentId });
-          const res = await svc.upsertMarkdown({ kind: 'transcript', targetLanguage, markdown });
-          return { artifactId: res.id, artifactName: res.name };
-        }
-        // Filesystem-Default: kanonisch in den Dot-Folder `.{source}/` schreiben.
-        const res = await writeArtifact(provider, {
-          key: { sourceId, kind: 'transcript', targetLanguage },
-          sourceName,
-          parentId,
-          content: markdown,
-          createFolder: true,
-        });
-        return { artifactId: res.file.id, artifactName: res.file.metadata.name };
-      };
+      // Storage-nahe Injektionen (B1 Original-Kopie, B2a Transkript-Twin, B2d
+      // Asset-Spiegelung) gebuendelt bauen — `promoteSubmission` bleibt rein.
+      const { loadOriginal, writeTranscriptArtifact, mirrorAssets } = await buildPromotionInjections({
+        email,
+        submission: publishing,
+        provider,
+      });
 
       const result = await promoteSubmission({
         submission: publishing,
@@ -148,6 +99,7 @@ export async function performPromotion(id: string): Promise<NextResponse> {
         userEmail: email,
         loadOriginal,
         writeTranscriptArtifact,
+        mirrorAssets,
       });
       const published = await changeSubmissionStatus(id, {
         to: 'published',

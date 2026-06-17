@@ -7,6 +7,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   promoteSubmission,
+  type MirrorAssetsArgs,
   type PromotionProvider,
   type WriteTranscriptArtifactArgs,
 } from '@/lib/submissions/promotion';
@@ -330,6 +331,64 @@ describe('promoteSubmission', () => {
       targetFolderId: 'folder-9',
       copiedOriginalNames: ['Invoice.pdf'],
     });
+  });
+
+  // ---- Befund B2d: Extract-Assets (Bilder) ins Ziel spiegeln ----
+
+  it('B2d: spiegelt die Extract-Assets ueber die injizierte mirrorAssets-Fn und reicht die Namen durch', async () => {
+    const uploadFile = vi.fn(async (_folderId: string, file: File) => fileItem('id-' + file.name, file.name));
+    const listItemsById = vi.fn(async () => [] as StorageItem[]);
+    const upsertMarkdown = vi.fn(async () => ({}));
+    const loadOriginal = vi.fn(async () => new Blob(['PDF'], { type: 'application/pdf' }));
+    const writeTranscriptArtifact = vi.fn(async (_args: WriteTranscriptArtifactArgs) => ({
+      artifactId: 'art-1',
+      artifactName: 'Invoice.de.md',
+    }));
+    const mirrorAssets = vi.fn(async (_args: MirrorAssetsArgs) => ({
+      mirroredNames: ['page_001.png', 'page_002.png'],
+    }));
+
+    const result = await promoteSubmission({
+      submission: transcriptSub(),
+      provider: { uploadFile, listItemsById, createFolder: noopCreateFolder() },
+      upsertMarkdown,
+      userEmail: 'rev@example.com',
+      loadOriginal,
+      writeTranscriptArtifact,
+      mirrorAssets,
+    });
+
+    // Anker = dieselbe Ziel-PDF wie beim Transkript; Inbox-Quelle = original Ref.
+    expect(mirrorAssets).toHaveBeenCalledTimes(1);
+    const args = mirrorAssets.mock.calls[0][0];
+    expect(args.targetSourceId).toBe('id-Invoice.pdf');
+    expect(args.parentId).toBe('folder-9');
+    expect(args.sourceRef.itemId).toBe('inbox-pdf-1');
+    expect(args.sourceRef.fileName).toBe('Invoice.pdf');
+    expect(result.mirroredAssetNames).toEqual(['page_001.png', 'page_002.png']);
+  });
+
+  it('B2d: ohne mirrorAssets bleiben Original + Transkript unberuehrt (leere Asset-Liste)', async () => {
+    const uploadFile = vi.fn(async (_folderId: string, file: File) => fileItem('id-' + file.name, file.name));
+    const listItemsById = vi.fn(async () => [] as StorageItem[]);
+    const upsertMarkdown = vi.fn(async () => ({}));
+    const loadOriginal = vi.fn(async () => new Blob(['PDF'], { type: 'application/pdf' }));
+    const writeTranscriptArtifact = vi.fn(async (_args: WriteTranscriptArtifactArgs) => ({
+      artifactId: 'art-1',
+      artifactName: 'Invoice.de.md',
+    }));
+
+    const result = await promoteSubmission({
+      submission: transcriptSub(),
+      provider: { uploadFile, listItemsById, createFolder: noopCreateFolder() },
+      upsertMarkdown,
+      userEmail: 'rev@example.com',
+      loadOriginal,
+      writeTranscriptArtifact,
+    });
+
+    expect(result.mirroredAssetNames).toEqual([]);
+    expect(writeTranscriptArtifact).toHaveBeenCalledTimes(1);
   });
 
   it('B2a: wirft, wenn writeTranscriptArtifact fehlt (kein stiller Fallback)', async () => {

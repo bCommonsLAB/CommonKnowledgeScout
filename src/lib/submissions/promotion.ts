@@ -16,11 +16,32 @@
  * @module lib/submissions
  */
 
-import type { StorageItem, StorageProvider } from '@/lib/storage/types';
+import type { StorageItem } from '@/lib/storage/types';
 import { createMarkdownWithFrontmatter } from '@/lib/markdown/compose';
 import { buildDocumentSlugFallback } from '@/lib/documents/document-slug';
-import type { SubmissionBinaryRef, WizardSubmission } from '@/types/wizard-submission';
+import type { WizardSubmission } from '@/types/wizard-submission';
 import { copyOriginalsToTarget, promoteTranscriptOnly } from '@/lib/submissions/promotion-transcript';
+import type {
+  PromoteSubmissionArgs,
+  PromotionProvider,
+  PromotionResult,
+  ResolvedTargetFolder,
+} from '@/lib/submissions/promotion-types';
+
+// Vertraege der Publikation liegen in `promotion-types.ts` (200-Zeilen-Grenze);
+// hier re-exportiert, damit die Import-Oberflaeche (Routes/Tests) stabil bleibt.
+export type {
+  PromotionProvider,
+  UpsertMarkdownFn,
+  LoadOriginalFn,
+  WriteTranscriptArtifactArgs,
+  WriteTranscriptArtifactFn,
+  MirrorAssetsArgs,
+  MirrorAssetsFn,
+  PromoteSubmissionArgs,
+  PromotionResult,
+  ResolvedTargetFolder,
+} from '@/lib/submissions/promotion-types';
 
 /**
  * Name des Standard-Zielordners unter Root, wenn der Erfasser kein Ziel gewaehlt
@@ -31,104 +52,6 @@ import { copyOriginalsToTarget, promoteTranscriptOnly } from '@/lib/submissions/
  * ein normaler Ablage-Ordner IN der Ziel-Library NACH der Publikation.
  */
 export const DEFAULT_PUBLISH_FOLDER_NAME = 'inbox';
-
-/** Schmaler Provider-Ausschnitt, den die Publikation braucht (vereinfacht Fakes). */
-export type PromotionProvider = Pick<StorageProvider, 'listItemsById' | 'uploadFile' | 'createFolder'>;
-
-/**
- * Ingestion-Funktion (injiziert). Entspricht den Pflicht-Parametern von
- * `IngestionService.upsertMarkdown` - die weiteren Parameter (jobId, provider,
- * ...) bleiben hier bewusst aussen vor.
- */
-export type UpsertMarkdownFn = (
-  userEmail: string,
-  libraryId: string,
-  fileId: string,
-  fileName: string,
-  markdown: string,
-  meta?: Record<string, unknown>,
-) => Promise<unknown>;
-
-/**
- * Laedt das Original-Binary einer Inbox-Quelle (injiziert; liest aus dem
- * Inbox-Provider). Wird genutzt, um das hochgeladene Original (z.B. PDF) beim
- * Publizieren zusaetzlich in den Ziel-Ordner zu kopieren (Befund B). Fehlt die
- * Funktion, wird kein Original kopiert (z.B. Text-/URL-Submissions ohne Binaer).
- */
-export type LoadOriginalFn = (ref: SubmissionBinaryRef) => Promise<Blob>;
-
-/** Eingabe fuer das Schreiben eines Transkript-Shadow-Twins der Ziel-Quelle. */
-export interface WriteTranscriptArtifactArgs {
-  /** fileId der Ziel-Quelle (kopiertes Original, z.B. PDF) - Shadow-Twin-Anker. */
-  sourceId: string;
-  /** Dateiname der Ziel-Quelle (z.B. `godaddy_peter2.pdf`). */
-  sourceName: string;
-  /** Eltern-Ordner der Quelle im Ziel-Provider. */
-  parentId: string;
-  /** Transkript-Inhalt (reiner Body, ohne Frontmatter). */
-  markdown: string;
-  /** Zielsprache des Transkripts (z.B. `de`). */
-  targetLanguage: string;
-}
-
-/**
- * Schreibt das Transkript als Shadow-Twin der Ziel-Quelle (injiziert). Die
- * konkrete Ablage (Filesystem-Dot-Folder via `writeArtifact` vs. Mongo via
- * `ShadowTwinService`) entscheidet der Aufrufer anhand der Library-Config —
- * `promotion.ts` bleibt storage-agnostisch.
- */
-export type WriteTranscriptArtifactFn = (
-  args: WriteTranscriptArtifactArgs,
-) => Promise<{ artifactId: string; artifactName: string }>;
-
-/** Eingabe fuer `promoteSubmission`. */
-export interface PromoteSubmissionArgs {
-  submission: WizardSubmission;
-  provider: PromotionProvider;
-  upsertMarkdown: UpsertMarkdownFn;
-  /** Akteur (normalisierte E-Mail) - fuer die Ingestion-Zuordnung. */
-  userEmail: string;
-  /**
-   * Optional: laedt Original-Binaries aus der Inbox, damit sie zusaetzlich zum
-   * generierten Markdown in den Ziel-Ordner kopiert werden (Original im Archiv).
-   */
-  loadOriginal?: LoadOriginalFn;
-  /**
-   * Optional (PFLICHT fuer `docType==='transcript'`): schreibt das Transkript als
-   * Shadow-Twin der Ziel-Quelle. Fehlt sie im Transkript-Pfad, wird laut geworfen.
-   */
-  writeTranscriptArtifact?: WriteTranscriptArtifactFn;
-}
-
-/** Ergebnis einer Publikation. */
-export interface PromotionResult {
-  /** ID der geschriebenen Markdown-Datei im Ziel-Provider. */
-  savedItemId: string;
-  /** Dateiname im Ziel (z.B. `mein-titel.md`). */
-  fileName: string;
-  /** War die Datei schon vorhanden (Idempotenz-Wiederholung)? */
-  alreadyPresent: boolean;
-  /** ID des tatsaechlich genutzten Zielordners (explizit gewaehlt oder `root/inbox`). */
-  targetFolderId: string;
-  /**
-   * Anzeigename des Zielordners (z.B. `inbox`). Nur bekannt, wenn der Ordner hier
-   * gefunden/angelegt wurde (Default-Pfad). Bei explizit uebergebener `folderId`
-   * (Owner-Ordner-Picker, noch nicht aktiv) bleibt der Name `undefined` — die UI
-   * faellt dann auf die ID zurueck, ohne stillen Default.
-   */
-  targetFolderName?: string;
-  /**
-   * Namen der zusaetzlich aus der Inbox in den Ziel-Ordner kopierten Originale
-   * (z.B. `Invoice.pdf`). Leer, wenn kein Original vorhanden/kopiert wurde.
-   */
-  copiedOriginalNames: string[];
-}
-
-/** Aufgeloester Zielordner: ID immer, Anzeigename nur im Default-Pfad bekannt. */
-export interface ResolvedTargetFolder {
-  id: string;
-  name?: string;
-}
 
 /**
  * Leitet den Ziel-Dateinamen deterministisch aus Slug/Titel/ID ab. Kein stiller
@@ -179,7 +102,7 @@ async function resolveTargetFolder(
  * (Token/Speicher -> Ruecksprung auf `ready`).
  */
 export async function promoteSubmission(args: PromoteSubmissionArgs): Promise<PromotionResult> {
-  const { submission, provider, upsertMarkdown, userEmail, loadOriginal, writeTranscriptArtifact } = args;
+  const { submission, provider, upsertMarkdown, userEmail, loadOriginal, writeTranscriptArtifact, mirrorAssets } = args;
 
   // Kein Ziel gewaehlt -> Standard-Ordner `root/inbox` (find-or-create), statt in
   // den Root zu schreiben. Explizit gewaehltes `folderId` bleibt unveraendert.
@@ -209,6 +132,7 @@ export async function promoteSubmission(args: PromoteSubmissionArgs): Promise<Pr
       targetItems,
       copiedNames,
       writeTranscriptArtifact,
+      mirrorAssets,
     });
   }
 

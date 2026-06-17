@@ -20,6 +20,7 @@ import type { StorageItem } from '@/lib/storage/types';
 import type { WizardSubmission } from '@/types/wizard-submission';
 import type {
   LoadOriginalFn,
+  MirrorAssetsFn,
   PromotionProvider,
   PromotionResult,
   ResolvedTargetFolder,
@@ -87,8 +88,9 @@ export async function promoteTranscriptOnly(args: {
   targetItems: Map<string, StorageItem>;
   copiedNames: string[];
   writeTranscriptArtifact?: WriteTranscriptArtifactFn;
+  mirrorAssets?: MirrorAssetsFn;
 }): Promise<PromotionResult> {
-  const { submission, folderId, targetFolder, targetItems, copiedNames, writeTranscriptArtifact } = args;
+  const { submission, folderId, targetFolder, targetItems, copiedNames, writeTranscriptArtifact, mirrorAssets } = args;
 
   if (!writeTranscriptArtifact) {
     throw new Error('Transcript-Promotion: writeTranscriptArtifact-Abhaengigkeit fehlt');
@@ -116,6 +118,18 @@ export async function promoteTranscriptOnly(args: {
     targetLanguage: TRANSCRIPT_DEFAULT_LANGUAGE,
   });
 
+  // B2d: Beim Extract erzeugte Bilder/Assets aus der Inbox ins Ziel spiegeln
+  // (additive Anreicherung). Der Anker ist dieselbe Ziel-PDF wie beim Transkript.
+  let mirroredAssetNames: string[] = [];
+  if (mirrorAssets) {
+    const res = await mirrorAssets({
+      sourceRef: carrierRef,
+      targetSourceId: carrier.id,
+      parentId: folderId,
+    });
+    mirroredAssetNames = res.mirroredNames;
+  }
+
   return {
     savedItemId: artifact.artifactId,
     fileName: artifact.artifactName,
@@ -123,5 +137,6 @@ export async function promoteTranscriptOnly(args: {
     targetFolderId: folderId,
     targetFolderName: targetFolder.name,
     copiedOriginalNames: copiedNames,
+    mirroredAssetNames,
   };
 }
