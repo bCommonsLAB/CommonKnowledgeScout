@@ -29,8 +29,7 @@ import type { RequestContext } from '@/types/external-jobs'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { buildProvider, resolveShadowTwinLibrary } from './provider'
 import { bufferLog } from '@/lib/external-jobs-log-buffer'
-import { clearWatchdog } from '@/lib/external-jobs-watchdog'
-import { getJobEventBus } from '@/lib/events/job-event-bus'
+import { finalizeJobCompletion } from '@/lib/external-jobs/finalize-completion'
 import { writeArtifact } from '@/lib/shadow-twin/artifact-writer'
 import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
@@ -745,27 +744,26 @@ export async function runExtractOnly(
     await repo.traceEndSpan(jobId, 'extract', 'completed', {})
   } catch {}
 
-  // WICHTIG (Global Contract):
-  // In Integration-Tests (und auch im UI) wird der Job per Polling beobachtet. Wenn wir
-  // `status=completed` setzen, bevor `result.savedItemId` gespeichert wurde, entsteht ein
-  // Race-Condition-Fenster: Polling sieht "completed" → liest ein leeres result → Contract verletzt.
-  // Deshalb: erst Result/Payload persistieren, dann Status auf completed setzen.
-  await repo.setResult(
+  // Einheitlicher Abschluss (gemeinsam mit dem Normalpfad in finalize-completion.ts):
+  // 1) Submission-Rückfluss (applyAnalysisResult) VOR `completed` — DAS war im
+  //    Extract-Only-Pfad bisher NICHT enthalten (Ursache des fehlenden Transkripts
+  //    bei „Nur importieren und transkribieren"). 2) erst Result, dann Status
+  //    (kein Polling-Race). 3) Watchdog stoppen + SSE-Event.
+  await finalizeJobCompletion({
+    repo,
     jobId,
-    {
+    job,
+    savedItemId,
+    payload: {
       extracted_text: extractedText,
       images_archive_url: imagesArchiveUrlFromWorker || undefined,
       metadata: (body?.data as { metadata?: unknown })?.metadata as Record<string, unknown> | undefined,
     },
-    {
+    resultRefs: {
       savedItemId,
       savedItems: savedItems.length > 0 ? savedItems : savedItemId ? [savedItemId] : [],
-    }
-  )
-
-  // Set job status to completed (nachdem result gespeichert wurde)
-  await repo.setStatus(jobId, 'completed')
-  clearWatchdog(jobId)
+    },
+  })
 
   // Shadow-Twin-State nach Abschluss des Extract-Only-Laufs explizit auf "ready" setzen,
   // sofern bereits ein Shadow-Twin-State existiert. Damit ist für das UI klar erkennbar,
@@ -798,18 +796,6 @@ export async function runExtractOnly(
     phase: 'completed',
     message: 'Job abgeschlossen (extract only: phases disabled)',
   } as unknown as Record<string, unknown>)
-  getJobEventBus().emitUpdate(job.userEmail, {
-    type: 'job_update',
-    jobId,
-    status: 'completed',
-    progress: 100,
-    updatedAt: new Date().toISOString(),
-    message: 'completed',
-    jobType: job.job_type,
-    fileName: job.correlation?.source?.name,
-    sourceItemId: job.correlation?.source?.itemId,
-    result: { savedItemId },
-  })
 
   return { savedItemId, savedItems }
 }

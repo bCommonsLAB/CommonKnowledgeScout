@@ -22,16 +22,14 @@
  */
 
 import type { CompleteArgs, JobResult } from '@/types/external-jobs'
+import type { ExternalJob } from '@/types/external-job'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
-import { bufferLog, drainBufferedLogs } from '@/lib/external-jobs-log-buffer'
-import { applyAnalysisResult, extractSubmissionIdFromJob } from '@/lib/submissions/submission-analysis'
-import { clearWatchdog } from '@/lib/external-jobs-watchdog'
 import { buildProvider } from '@/lib/external-jobs/provider'
+import { finalizeJobCompletion } from '@/lib/external-jobs/finalize-completion'
 import { parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import { parseMongoShadowTwinId, isMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import { LibraryService } from '@/lib/services/library-service'
-import { getJobEventBus } from '@/lib/events/job-event-bus'
 import path from 'path'
 
 export async function setJobCompleted(args: CompleteArgs): Promise<JobResult> {
@@ -234,59 +232,19 @@ export async function setJobCompleted(args: CompleteArgs): Promise<JobResult> {
 
   mergedResult.savedItemId = savedItemId
 
-  // Welle III: Ergebnis-Rueckfluss in die korrelierte Submission (Inbox-Analyse).
-  // Bewusst VOR setStatus('completed') und ohne catch: schlaegt der Rueckfluss
-  // fehl, darf der Job nicht 'completed' melden (Retry statt stillem Teilzustand).
+  // Vereinheitlichter Abschluss (Submission-Rückfluss + Result + Status + Event).
+  // Liegt in `finalize-completion.ts`, damit der Extract-Only-Pfad denselben
+  // Tail nutzt und der Rückfluss nicht mehr nur in EINEM Pfad lebt.
   const jobDoc = job ?? ctx.job
-  const submissionId = extractSubmissionIdFromJob(jobDoc)
-  if (submissionId) {
-    const provider = await buildProvider({
-      userEmail: jobDoc.userEmail,
-      libraryId: jobDoc.libraryId,
-      jobId: ctx.jobId,
-      repo,
-      providerScope: jobDoc.providerScope,
-    })
-    await applyAnalysisResult({ submissionId, savedItemId, provider })
-    bufferLog(ctx.jobId, {
-      phase: 'submission_result_applied',
-      message: `Analyse-Ergebnis in Submission ${submissionId} uebernommen`,
-    })
-  }
+  await finalizeJobCompletion({
+    repo,
+    jobId: ctx.jobId,
+    job: jobDoc,
+    savedItemId,
+    payload: ctx.job.payload || {},
+    resultRefs: mergedResult as unknown as ExternalJob['result'],
+  })
 
-  await repo.setResult(ctx.jobId, ctx.job.payload || {}, mergedResult as unknown as typeof ctx.job.result)
-  await repo.setStatus(ctx.jobId, 'completed')
-  // Buffered Logs nicht erneut in trace persistieren – Replays vermeiden
-  void drainBufferedLogs(ctx.jobId)
-  // WICHTIG: Watchdog stoppen, damit der Job nicht nach Timeout fälschlicherweise als "failed" markiert wird
-  try {
-    clearWatchdog(ctx.jobId)
-  } catch (error) {
-    // Watchdog-Fehler nicht kritisch - Job ist bereits abgeschlossen
-    console.warn('[setJobCompleted] Fehler beim Stoppen des Watchdogs', {
-      jobId: ctx.jobId,
-      error: error instanceof Error ? error.message : String(error)
-    })
-  }
-  
-  // SSE-Event fuer Job-Abschluss senden (fuer UI-Aktualisierung)
-  try {
-    getJobEventBus().emitUpdate(job?.userEmail || ctx.job?.userEmail || '', {
-      type: 'job_update',
-      jobId: ctx.jobId,
-      status: 'completed',
-      progress: 100,
-      updatedAt: new Date().toISOString(),
-      message: 'completed',
-      jobType: job?.job_type || ctx.job?.job_type,
-      fileName: job?.correlation?.source?.name || ctx.job?.correlation?.source?.name,
-      sourceItemId: sourceItemId || ctx.job?.correlation?.source?.itemId,
-      result: { savedItemId },
-    })
-  } catch {
-    // SSE-Fehler nicht kritisch - Job ist bereits abgeschlossen
-  }
-  
   return { status: 'ok', jobId: ctx.jobId }
 }
 
