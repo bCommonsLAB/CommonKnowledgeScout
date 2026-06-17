@@ -52,5 +52,5 @@ it('navigiert beim Klick in den Erfassungs-Wizard', async () => {
   mockCapture(true);
   render(<CaptureContentButton libraryId="lib-1" />);
   fireEvent.click(await screen.findByRole('button', { name: /Inhalte erfassen/i }));
-  expect(push).toHaveBeenCalledWith('/library/create/file-transcript-de');
+  expect(push).toHaveBeenCalledWith('/library/create/file-transcript-de?from=gallery');
 });

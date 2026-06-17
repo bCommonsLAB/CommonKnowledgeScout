@@ -66,7 +66,9 @@ export function CaptureContentButton({ libraryId }: CaptureContentButtonProps) {
       variant="outline"
       size="sm"
       className="shrink-0"
-      onClick={() => router.push(`/library/create/${CAPTURE_WIZARD_TYPE_ID}`)}
+      // from=gallery: der Zurück-Link im Wizard führt zurück nach Erkunden
+      // (Einstieg war die Galerie), nicht in die Wizard-Auswahl.
+      onClick={() => router.push(`/library/create/${CAPTURE_WIZARD_TYPE_ID}?from=gallery`)}
     >
       <FilePlus2 className="mr-2 h-4 w-4" />
       Inhalte erfassen
