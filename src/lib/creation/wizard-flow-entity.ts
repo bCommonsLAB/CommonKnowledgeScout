@@ -40,6 +40,23 @@ export function isSchemaDoc(doc: { kind?: TemplateDocKind }): boolean {
   return resolveTemplateDocKind(doc) === 'schema'
 }
 
+/**
+ * Teilt Template-Dokumente in Schemas und Flow-Entitaeten (W-A-3). Schema-Listen
+ * (Editor, Inhaltstyp-Ableitung) duerfen Flow-Entitaeten NICHT enthalten;
+ * Flow-Listen (kuenftiger Wizard-Editor) nur diese.
+ */
+export function partitionTemplateDocsByKind<T extends { kind?: TemplateDocKind }>(
+  docs: readonly T[],
+): { schemas: T[]; flows: T[] } {
+  const schemas: T[] = []
+  const flows: T[] = []
+  for (const doc of docs) {
+    if (isWizardFlowDoc(doc)) flows.push(doc)
+    else schemas.push(doc)
+  }
+  return { schemas, flows }
+}
+
 /** Stabile ID/Name des generischen Standard-Flows (Seed-Anker fuer W-D). */
 export const STANDARD_CAPTURE_FLOW_ID = 'standard-capture'
 

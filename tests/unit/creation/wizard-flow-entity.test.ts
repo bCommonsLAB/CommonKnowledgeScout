@@ -4,6 +4,7 @@ import {
   resolveTemplateDocKind,
   isWizardFlowDoc,
   isSchemaDoc,
+  partitionTemplateDocsByKind,
   resolveWizardFlow,
   STANDARD_CAPTURE_FLOW,
   STANDARD_CAPTURE_FLOW_ID,
@@ -27,6 +28,24 @@ describe('isWizardFlowDoc / isSchemaDoc', () => {
     expect(isWizardFlowDoc({})).toBe(false)
     expect(isSchemaDoc({})).toBe(true)
     expect(isSchemaDoc({ kind: 'wizard' })).toBe(false)
+  })
+})
+
+describe('partitionTemplateDocsByKind', () => {
+  it('trennt Schemas (inkl. Bestand ohne kind) von Flow-Entitaeten', () => {
+    const docs = [
+      { id: 'a', kind: 'schema' as const },
+      { id: 'b' }, // Bestand → schema
+      { id: 'c', kind: 'wizard' as const },
+      { id: 'd', kind: 'wizard' as const },
+    ]
+    const { schemas, flows } = partitionTemplateDocsByKind(docs)
+    expect(schemas.map((d) => d.id)).toEqual(['a', 'b'])
+    expect(flows.map((d) => d.id)).toEqual(['c', 'd'])
+  })
+
+  it('leere Eingabe → leere Partitionen', () => {
+    expect(partitionTemplateDocsByKind([])).toEqual({ schemas: [], flows: [] })
   })
 })
 
