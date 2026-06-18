@@ -47,6 +47,18 @@ im Code eingebackenes Sonder-Template.
   **keine** per-Library-Auswahl/Reihenfolge/An-Aus. → Kuratierung fehlt komplett.
 - **`transcriptOnly` ist verstreut.** ~15 `if (transcriptOnly)` in
   `creation-wizard.tsx` (Labels/Zähler/Speichern) statt einer sauberen Betriebsart.
+- **Einstiege sind heute rollen-/ort-asymmetrisch (verifiziert 2026-06-18):**
+  - **Explorer/Galerie:** `CaptureContentButton` (`capture-content-button.tsx`)
+    geht **direkt** zum EINEN Wizard `file-transcript-de` (hardcodiert,
+    `?from=gallery`). Sichtbar für owner/co-creator/**contributor** via
+    `GET /api/libraries/[id]/me/capture` (sonst fail-closed verborgen). **Keine
+    Übersicht.** Anonyme User: kein Button (`canCapture` braucht eine Rolle).
+  - **Archiv:** Header-„+" (`library-header.tsx`) → `/library/create` = die
+    **Übersicht/Chooser** (`getLibraryCreationConfig` listet alle). Archiv ist der
+    Datei-Browser (owner/co-creator).
+  → **Die Wizard-Übersicht fehlt im Explorer für Contributoren.** „Contributor →
+  Wartekorb" ist hingegen schon erzwungen (Promote owner/co-creator-gated; im
+  Wizard nur `isOwner` sofort, sonst Wartekorb).
 
 ## 3. Was der bestehende Plan schon abdeckt (nutzen, nicht neu erfinden)
 
@@ -81,6 +93,26 @@ enabled }` + optional ein `defaultFlowId`. Auflösung:
   (= Standard-Wizard + ggf. alle Schema-gebundenen), **kein** stiller Voll-Dump.
 - So ist „welche Wizards hinter *Inhalte erfassen*" **pro Library** bewusst gesetzt.
 
+#### Δ2b — Einstieg × Rolle × Speicherziel (aus dem Test-Befund)
+
+Die Kuratierung braucht eine **Rollen-/Einstiegs-Dimension**, weil derselbe
+„Inhalte erfassen"-Punkt je nach Ort und Rolle anders aussieht:
+
+| Einstieg | Rolle | Was angeboten wird | Speicherziel |
+|---|---|---|---|
+| Explorer | anonym | **kein Zugang** (entschieden 2026-06-18: keine anonyme Erfassung) | — |
+| Explorer | contributor | **kuratierte Übersicht** (heute: nur 1 Wizard) | **immer Wartekorb** |
+| Explorer | owner/co-creator | kuratierte Übersicht | Wartekorb od. sofort Promote |
+| Archiv | owner/co-creator | kuratierte Übersicht | Wartekorb od. sofort Promote |
+
+Konkrete Lücke (heute nicht erfüllt): **die kuratierte Übersicht muss auch im
+Explorer für Contributoren** erscheinen (statt nur des einen hardcodierten
+`file-transcript-de`). Die „Contributor → Wartekorb"-Invariante ist bereits da
+(Promote owner/co-creator-gated) und bleibt; es geht NUR um den **Übersichts-
+Einstieg**. Dafür: `capture-content-button` von „direkt 1 Wizard" auf „kuratierte
+Auswahl öffnen" heben (dieselbe Liste wie der Archiv-Chooser, gefiltert nach
+Rolle/Einstieg), Speicherziel bleibt off-target Inbox.
+
 ### Δ3 — Import-/Diktat-Flow als gespeicherter Standard-Wizard
 
 `file-transcript-de` / `audio-transcript-de` von **hardcodiert** → **gespeicherter
@@ -108,8 +140,12 @@ Transformation" (Schema = nativer Quelltyp, nur Extract/Transkript) zusammenfass
 - **W-D:** Built-in-Flows → gespeicherte Standard-Flows migrieren (Seed), Code-
   Fallback nur für leere Libraries. → erfüllt Δ3.
 - **W-E:** `transcriptOnly`-Betriebsart entwirren (mit U4). → erfüllt Δ4.
+- **W-F:** **Explorer-Übersicht für Contributoren.** `capture-content-button`
+  öffnet die **kuratierte Auswahl** (rollen-/einstiegs-gefiltert) statt direkt
+  `file-transcript-de`; Speicherziel bleibt off-target Wartekorb. → erfüllt Δ2b.
 
-Abhängigkeiten: W-A vor W-B/W-D; W-B vor W-C; W-E mit U4. Alles **nach Plan 1**.
+Abhängigkeiten: W-A vor W-B/W-D; W-B vor W-C; W-C vor W-F; W-E mit U4. Alles
+**nach Plan 1**.
 
 ## 6. Offene Entscheidungen (vor Bau klären)
 
@@ -126,6 +162,11 @@ Abhängigkeiten: W-A vor W-B/W-D; W-B vor W-C; W-E mit U4. Alles **nach Plan 1**
    müssen bewusst aktiviert werden (verhindert Wildwuchs, kein Silent-Voll-Dump).
 4. **Community-Sharing der Flows** (ADR-0003-Ziel) — erst nach stabiler Runtime
    (U8), hier nur nicht verbauen.
+5. **Anonyme Erfassung (Explorer): ENTSCHIEDEN — nein.** Erfassung bleibt
+   rollen-gated (mindestens `contributor`); anonyme/Login-lose Erfassung ist
+   **nicht** vorgesehen. Entspricht dem heutigen `canCapture` (fail-closed ohne
+   Rolle). W-F betrifft also ausschließlich **Contributoren** (und owner/
+   co-creator), nicht anonyme Besucher.
 
 ## 7. Reihenfolge-Vorbehalt
 
