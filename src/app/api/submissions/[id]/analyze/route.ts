@@ -33,13 +33,14 @@ import {
   type AnalyzableSource,
 } from '@/lib/submissions/submission-analysis-job';
 import { getJobEventBus } from '@/lib/events/job-event-bus';
+import { ExternalJobsWorker } from '@/lib/external-jobs-worker';
 import { FileLogger } from '@/lib/debug/logger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   try {
@@ -48,6 +49,26 @@ export async function POST(
     if (!userId) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 });
     const email = getPreferredUserEmail(await currentUser());
     if (!email) return NextResponse.json({ error: 'User-Email unbekannt' }, { status: 400 });
+
+    // 5a: Optionaler Body `{ mode?: 'transcript' }`. Fehlt der Body, gilt die
+    // volle Aufbereitung (Transform) — das ist der dokumentierte Default, kein
+    // stiller Fallback. Ein unbekannter mode-Wert wird laut abgelehnt.
+    let transcriptOnly = false;
+    try {
+      const body: unknown = await req.json();
+      if (body && typeof body === 'object' && 'mode' in body) {
+        const mode = (body as { mode?: unknown }).mode;
+        if (mode === 'transcript') transcriptOnly = true;
+        else if (mode !== undefined) {
+          return NextResponse.json(
+            { error: `Unbekannter mode: "${String(mode)}" (erlaubt: "transcript")` },
+            { status: 400 },
+          );
+        }
+      }
+    } catch {
+      // Kein/ungueltiger JSON-Body = Standard-Analyse (Transform). POST ohne Body erlaubt.
+    }
 
     const submission = await getSubmissionById(id);
     if (!submission) {
@@ -117,7 +138,7 @@ export async function POST(
     await repo.initializeSteps(
       jobId,
       buildSubmissionAnalysisSteps(media.extractStepName),
-      buildSubmissionAnalysisParameters(submission, media),
+      buildSubmissionAnalysisParameters(submission, media, { transcriptOnly }),
     );
     try {
       await repo.initializeTrace(jobId);
@@ -156,6 +177,31 @@ export async function POST(
       submissionId: submission.id,
       libraryId: submission.libraryId,
     });
+
+    // Worker sofort anstossen (best-effort, in-process): Der queued Job soll nicht
+    // erst beim naechsten Hintergrund-Poll starten — oder gar nicht, falls der
+    // Worker in dieser Instanz noch nicht laeuft (Dev/HMR). Schon der Import oben
+    // startet den Worker per Auto-Start; `tickNow` dispatcht zusaetzlich sofort.
+    // Spiegelt den Tick der normalen Pipeline (api/pipeline/process). Fire-and-
+    // forget: blockiert die 202-Antwort nicht; bei Fehler holt der Poll den Job.
+    try {
+      if (typeof ExternalJobsWorker.tickNow === 'function') {
+        void ExternalJobsWorker.tickNow().catch((err) => {
+          FileLogger.warn('api/submissions analyze', 'Worker-Tick nach Job-Anlage fehlgeschlagen', {
+            jobId,
+            err: err instanceof Error ? err.message : String(err),
+          });
+        });
+      } else if (ExternalJobsWorker.getStatus().state !== 'running') {
+        ExternalJobsWorker.start();
+      }
+    } catch (err) {
+      FileLogger.warn('api/submissions analyze', 'Worker-Poke nach Job-Anlage fehlgeschlagen', {
+        jobId,
+        err: err instanceof Error ? err.message : String(err),
+      });
+    }
+
     return NextResponse.json({ status: 'accepted', jobId }, { status: 202 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Interner Fehler';

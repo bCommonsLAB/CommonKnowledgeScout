@@ -10,7 +10,8 @@ import { resolveNextStepIndex } from "./engine/wizard-navigation"
 import { selectCanonicalMetadata, selectCanonicalMarkdown } from "./engine/wizard-metadata"
 import { buildWizardFrontmatter } from "@/lib/creation/wizard-frontmatter"
 import { buildWizardCaptureBody } from "@/lib/creation/wizard-capture"
-import { submitWizardCapture, approveSubmission, promoteSubmission } from "@/lib/creation/wizard-submit"
+import { submitWizardCapture, updateSubmission, approveSubmission, promoteSubmission } from "@/lib/creation/wizard-submit"
+import { describeSourceNames } from "@/lib/creation/source-display"
 import { PublishStep } from "./steps/publish-step"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -21,7 +22,8 @@ import { useRouter } from "next/navigation"
 import { useAtomValue } from "jotai"
 import { currentFolderIdAtom, librariesAtom } from "@/atoms/library-atom"
 import { buildCreationFileName } from "@/lib/creation/file-name"
-import { runBuiltinTemplateExtract } from "@/lib/creation/builtin-collect-extract"
+import { computeFileMediaDraft } from "@/lib/creation/wizard-file-compute"
+import { buildCaptureComputeFields } from "@/lib/creation/capture-compute-fields"
 import { buildDictationDraftFromSources, suggestDictationFileBaseName } from "@/lib/creation/builtin-dictation-draft"
 import { applyEventFrontmatterDefaults } from "@/lib/events/event-frontmatter-defaults"
 import type { WizardSource } from "@/lib/creation/corpus"
@@ -39,7 +41,6 @@ import type { WizardSessionEvent } from "@/types/wizard-session"
 import {
   createWizardSessionClient,
   logWizardEventClient,
-  addJobIdToSessionClient,
   finalizeWizardSessionClient,
   getFilePathsClient,
   getUserIdentifierClient,
@@ -878,6 +879,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     status: string
     progress?: number
     message?: string
+    /** Pipeline-Phase (extract_pdf/transform_template/ingest_rag …) für das Schritt-Label. */
+    phase?: string
     result?: { savedItemId?: string }
     shadowTwinFolderId?: string | null
   }
@@ -988,35 +991,6 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     })
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async function resolvePdfAnalyseTransformFileId(args: {
-    baseFileId: string
-    targetLanguage: string
-  }): Promise<string | undefined> {
-    // Frontend darf nicht selbst Shadow-Twin Dateien suchen (list+match).
-    // Wir lösen das serverseitig über den zentralen Resolver auf.
-    if (!provider || !libraryId) return undefined
-    try {
-      const baseItem = await provider.getItemById(args.baseFileId)
-      const sourceName = String(baseItem?.metadata?.name || '')
-      const parentId = String(baseItem?.parentId || '')
-      if (!sourceName || !parentId) return undefined
-
-      const resolved = await resolveArtifactClient({
-        libraryId,
-        sourceId: args.baseFileId,
-        sourceName,
-        parentId,
-        targetLanguage: args.targetLanguage,
-        templateName: 'pdfanalyse',
-        preferredKind: 'transformation',
-      })
-      return resolved?.fileId
-    } catch {
-      return undefined
-    }
-  }
-
   /**
    * Fügt eine neue Quelle hinzu und triggert automatische Transformation.
    * Wenn bereits eine Text-Quelle existiert, wird diese aktualisiert statt eine neue zu erstellen.
@@ -1097,17 +1071,15 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       }
 
       // Quelle existiert noch nicht: Hinzufügen
-      const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
-      // Nur file-transcript-de: Datei-Pipeline; Diktat (audio-transcript-de): direkter Text-Entwurf ohne process-text.
+      // Nur file-transcript-de: Datei-Compute erst beim Verlassen von collectSource; Diktat
+      // (audio-transcript-de): direkter Text-Entwurf ohne process-text.
       const isBuiltinFileTranscript = templateId === 'file-transcript-de'
       finalSources = [...prev.sources, source]
       return {
         ...prev,
         sources: finalSources,
         selectedSource: isSingleSupportedSource ? prev.selectedSource : undefined,
-        // Für pdfanalyse: Metadaten erst nach "Weiter" laden, nicht sofort im Hintergrund.
-        // Built-in Transkript-Templates: Extraktion erst beim Verlassen von collectSource (Secretary-Pipelines).
-        generatedDraft: isPdfAnalyse || isBuiltinFileTranscript ? undefined : prev.generatedDraft,
+        generatedDraft: isBuiltinFileTranscript ? undefined : prev.generatedDraft,
       }
     })
 
@@ -1125,13 +1097,12 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       })
     }
 
-    // Verarbeitung: pdfanalyse/file-transcript-de separat; Diktat ohne LLM; sonst process-text.
-    const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
+    // Verarbeitung: file-transcript-de berechnet Datei-Medien im Step; Diktat ohne LLM; sonst process-text.
     const isBuiltinFileTranscript = templateId === 'file-transcript-de'
     const isBuiltinDictation = templateId === 'audio-transcript-de'
     if (isBuiltinDictation) {
       applyDirectDictationDraft(finalSources)
-    } else if (!isPdfAnalyse && !isBuiltinFileTranscript) {
+    } else if (!isBuiltinFileTranscript) {
       await runExtraction(finalSources)
     }
   }
@@ -1140,13 +1111,12 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
    * Entfernt eine Quelle und triggert automatische Transformation.
    */
   const removeSource = async (sourceId: string) => {
-    const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
     const isBuiltinFileTranscript = templateId === 'file-transcript-de'
     const newSources = wizardState.sources.filter(s => s.id !== sourceId)
-    setWizardState(prev => ({ 
-      ...prev, 
+    setWizardState(prev => ({
+      ...prev,
       sources: newSources,
-      generatedDraft: isPdfAnalyse || isBuiltinFileTranscript ? undefined : prev.generatedDraft,
+      generatedDraft: isBuiltinFileTranscript ? undefined : prev.generatedDraft,
     }))
 
     // Log source_removed Event (best effort)
@@ -1159,7 +1129,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     const isBuiltinDictation = templateId === 'audio-transcript-de'
     if (isBuiltinDictation) {
       applyDirectDictationDraft(newSources)
-    } else if (!isPdfAnalyse && !isBuiltinFileTranscript) {
+    } else if (!isBuiltinFileTranscript) {
       await runExtraction(newSources)
     }
   }
@@ -1199,478 +1169,135 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
 
     // Beim Verlassen von collectSource: Füge noch nicht hinzugefügte Quelle hinzu
     if (currentStep.preset === 'collectSource') {
-      let justAddedSource: WizardSource | null = null
       const createSource = window.__collectSourceStepBeforeLeave
       if (createSource && typeof createSource === 'function') {
         const newSource = createSource()
         if (newSource) {
-          justAddedSource = newSource
           await addSource(newSource)
         }
       }
 
-      // PDF HITL: Nach "Weiter" starten wir erst die Verarbeitung (Extract-only) und bleiben dabei auf diesem Screen.
-      const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
-      if (isPdfAnalyse) {
-        if (!provider) {
-          toast.error('Storage ist noch nicht bereit', { description: 'Bitte kurz warten und dann erneut auf „Weiter“ klicken.' })
-          if (wizardSessionIdRef.current) {
-            void logWizardEventClient(wizardSessionIdRef.current, {
-              eventType: 'error',
-              error: { code: 'pdf_collect_missing_provider', message: 'provider fehlt beim Klick auf Weiter' },
-            })
-          }
-          return
-        }
-        if (!libraryId) {
-          toast.error('Kontext fehlt', { description: 'libraryId fehlt – bitte Seite neu laden.' })
-          if (wizardSessionIdRef.current) {
-            void logWizardEventClient(wizardSessionIdRef.current, {
-              eventType: 'error',
-              error: { code: 'pdf_collect_missing_libraryId', message: 'libraryId fehlt beim Klick auf Weiter' },
-            })
-          }
-          return
-        }
-        // Wichtig: State-Updates via addSource() sind in diesem Tick noch nicht garantiert sichtbar.
-        // Darum nutzen wir primär die Quelle, die wir gerade hinzugefügt haben.
-        const baseFileIdFromJustAdded =
-          justAddedSource?.kind === 'file' && typeof justAddedSource.id === 'string' && justAddedSource.id.startsWith('file-')
-            ? justAddedSource.id.replace(/^file-/, '')
-            : ''
-        const fileSource = baseFileIdFromJustAdded
-          ? null
-          : [...wizardState.sources].reverse().find(s => s.kind === 'file' && typeof s.id === 'string' && s.id.startsWith('file-'))
-        const baseFileId = baseFileIdFromJustAdded || (fileSource ? fileSource.id.replace(/^file-/, '') : '')
-        if (!baseFileId) {
-          toast.error('Bitte zuerst eine PDF auswählen', { description: 'Es wurde keine Datei gefunden, die verarbeitet werden kann.' })
-          if (wizardSessionIdRef.current) {
-            void logWizardEventClient(wizardSessionIdRef.current, {
-              eventType: 'error',
-              error: { code: 'pdf_collect_missing_baseFileId', message: 'baseFileId konnte nicht bestimmt werden' },
-            })
-          }
-          return
-        }
-        if (baseFileId) {
-          // Step 1: Extract-only Job starten
-          setWizardState(prev => ({
-            ...prev,
-            isExtracting: true,
-            processingProgress: 0,
-            processingMessage: 'OCR/Artefakte starten…',
-            pdfBaseFileId: baseFileId,
-          }))
-          let extractJobId = ''
-          try {
-            const baseItem = await provider.getItemById(baseFileId)
-            const wizardFolderId = baseItem.parentId || 'root'
-            const fileName = baseItem.metadata?.name || 'document.pdf'
-            const mimeType = baseItem.metadata?.mimeType || 'application/pdf'
-
-            const form = new FormData()
-            form.append('originalItemId', baseFileId)
-            form.append('parentId', wizardFolderId)
-            form.append('fileName', fileName)
-            form.append('mimeType', mimeType)
-            form.append('targetLanguage', 'de')
-            form.append('extractionMethod', 'mistral_ocr')
-            form.append('includeOcrImages', 'true')
-            // Hard-Rename: getrennte Flags fuer Preview (Low-Res) und HighRes (200 DPI)
-            form.append('includePreviewPages', 'true')
-            form.append('includeHighResPages', 'true')
-            form.append('useCache', 'false')
-            // Extract-only: keine Metadaten, kein Ingest
-            form.append('policies', JSON.stringify({ extract: 'do', metadata: 'ignore', ingest: 'ignore' }))
-
-            const res = await fetch('/api/secretary/process-pdf', { method: 'POST', headers: { 'X-Library-Id': libraryId }, body: form })
-            const json = await res.json().catch(() => ({} as Record<string, unknown>))
-            if (!res.ok) {
-              const msg = typeof (json as { error?: unknown }).error === 'string' ? (json as { error: string }).error : `HTTP ${res.status}`
-              throw new Error(msg)
-            }
-            extractJobId = typeof (json as { job?: { id?: unknown } }).job?.id === 'string' ? (json as { job: { id: string } }).job.id : ''
-            if (!extractJobId) throw new Error('Job-ID fehlt in Response')
-
-            // Log job_started Event
-            if (wizardSessionIdRef.current) {
-              await addJobIdToSessionClient(wizardSessionIdRef.current, extractJobId, 'pdf_extract')
-            }
-
-            const completion = await waitForJobCompletionWithProgress({
-              jobId: extractJobId,
-              timeoutMs: 8 * 60_000,
-              onProgress: (evt) => {
-                setWizardState(prev => ({
-                  ...prev,
-                  processingProgress: typeof evt.progress === 'number' ? evt.progress : prev.processingProgress,
-                  processingMessage: evt.message || prev.processingMessage,
-                }))
-              }
-            })
-
-            const transcriptFileId = completion.result?.savedItemId
-            if (!transcriptFileId) throw new Error('Extract abgeschlossen, aber result.savedItemId fehlt (Transcript).')
-            const transcriptItemForFolder = await provider.getItemById(transcriptFileId)
-            const transcriptFolderId = transcriptItemForFolder.parentId || 'root'
-            const { blob } = await provider.getBinary(transcriptFileId)
-            const transcript = await blob.text()
-
-            // Log job_completed Event
-            if (wizardSessionIdRef.current) {
-              await logWizardEventClient(wizardSessionIdRef.current, {
-                eventType: 'job_completed',
-                jobId: extractJobId,
-                jobType: 'pdf_extract',
-                fileIds: {
-                  transcriptFileId,
-                  baseFileId: baseFileId,
-                },
-              })
-            }
-
-            // Nächster Step: Markdown Review
-            setWizardState(prev => ({
-              ...prev,
-              isExtracting: false,
-              processingProgress: undefined,
-              processingMessage: undefined,
-              pdfTranscriptFileId: transcriptFileId,
-              pdfTranscriptFolderId: transcriptFolderId,
-              draftText: transcript,
-              hasConfirmedMarkdown: false,
-              // Wir bleiben im Interview-Modus, aber springen zum nächsten Step
-              currentStepIndex: Math.min(prev.currentStepIndex + 1, steps.length - 1),
-            }))
-            
-            // Log step_changed Event
-            if (wizardSessionIdRef.current) {
-              const newIndex = Math.min(wizardState.currentStepIndex + 1, steps.length - 1)
-              const newStep = steps[newIndex]
-              await logWizardEventClient(wizardSessionIdRef.current, {
-                eventType: 'step_changed',
-                stepIndex: newIndex,
-                stepPreset: newStep?.preset,
-              })
-            }
-            
-            return
-          } catch (error) {
-            setWizardState(prev => ({
-              ...prev,
-              isExtracting: false,
-              processingProgress: undefined,
-              processingMessage: undefined,
-              extractionError: error instanceof Error ? error.message : 'Unbekannter Fehler',
-            }))
-            
-            // Log job_failed Event (wenn Job-ID bekannt)
-            if (wizardSessionIdRef.current && extractJobId) {
-              try {
-                await logWizardEventClient(wizardSessionIdRef.current, {
-                  eventType: 'job_failed',
-                  jobId: extractJobId,
-                  jobType: 'pdf_extract',
-                  error: {
-                    code: 'pdf_extract_failed',
-                    message: error instanceof Error ? error.message : 'Unbekannter Fehler',
-                  },
-                })
-              } catch (logError) {
-                console.warn('[Wizard] Fehler beim Loggen von job_failed:', logError)
-              }
-            }
-
-            // Log error Event
-            if (wizardSessionIdRef.current) {
-              await logWizardEventClient(wizardSessionIdRef.current, {
-                eventType: 'error',
-                error: {
-                  code: 'pdf_extract_failed',
-                  message: error instanceof Error ? error.message : 'Unbekannter Fehler',
-                },
-              })
-            }
-            
-            toast.error('PDF-Verarbeitung fehlgeschlagen', { description: error instanceof Error ? error.message : 'Unbekannter Fehler' })
-            return
-          }
-        }
-        // WICHTIG: pdfanalyse darf nie in die generische Step-Advance-Logik fallen.
-        return
-      }
-
-      // Built-in „Datei transkribieren“: Secretary-Pipeline beim Verlassen von collectSource (nur Datei-Upload)
+      // U6: file-transcript-de erfasst hier nur die Datei (sie liegt im Speicher).
+      // Inhaltstyp-Wahl + Off-target-Compute folgen im selectSchemaType-Step. Hier
+      // explizit vorrücken (NICHT über resolveNextStepIndex, dessen Form-Modus-Skip
+      // selectSchemaType überspringen würde).
       if (templateId === 'file-transcript-de') {
-        if (!provider) {
-          toast.error('Storage ist noch nicht bereit', { description: 'Bitte kurz warten und erneut auf „Weiter“ klicken.' })
-          return
-        }
-        if (!libraryId) {
-          toast.error('Kontext fehlt', { description: 'libraryId fehlt – bitte Seite neu laden.' })
-          return
-        }
-        const baseFileIdFromJustAdded =
-          justAddedSource?.kind === 'file' && typeof justAddedSource.id === 'string' && justAddedSource.id.startsWith('file-')
-            ? justAddedSource.id.replace(/^file-/, '')
-            : ''
-        const fileSource = baseFileIdFromJustAdded
-          ? null
-          : [...wizardState.sources].reverse().find(s => s.kind === 'file' && typeof s.id === 'string' && s.id.startsWith('file-'))
-        const baseFileId = baseFileIdFromJustAdded || (fileSource ? fileSource.id.replace(/^file-/, '') : '')
-        if (!baseFileId) {
-          toast.error('Bitte zuerst eine Datei auswählen', { description: 'Es wurde keine Datei gefunden, die verarbeitet werden kann.' })
-          return
-        }
-
-        setWizardState(prev => ({
-          ...prev,
-          isExtracting: true,
-          processingProgress: 0,
-          processingMessage: 'Datei wird verarbeitet…',
-        }))
-
-        try {
-          const { markdown, metadata } = await runBuiltinTemplateExtract({
-            templateId,
-            provider,
-            libraryId,
-            baseFileId,
-            onProgress: (p) => {
-              setWizardState(prev => ({
-                ...prev,
-                processingProgress: typeof p.progress === 'number' ? p.progress : prev.processingProgress,
-                processingMessage: p.message || prev.processingMessage,
-              }))
-            },
+        const nextIndex = Math.min(wizardState.currentStepIndex + 1, steps.length - 1)
+        setWizardState(prev => ({ ...prev, currentStepIndex: Math.min(prev.currentStepIndex + 1, steps.length - 1) }))
+        if (wizardSessionIdRef.current) {
+          await logWizardEventClient(wizardSessionIdRef.current, {
+            eventType: 'step_changed',
+            stepIndex: nextIndex,
+            stepPreset: steps[nextIndex]?.preset,
           })
-
-          setWizardState(prev => ({
-            ...prev,
-            isExtracting: false,
-            processingProgress: undefined,
-            processingMessage: undefined,
-            generatedDraft: { metadata, markdown },
-            draftMetadata: metadata,
-            draftText: markdown,
-            currentStepIndex: Math.min(prev.currentStepIndex + 1, steps.length - 1),
-          }))
-
-          if (wizardSessionIdRef.current) {
-            const newIndex = Math.min(wizardState.currentStepIndex + 1, steps.length - 1)
-            const newStep = steps[newIndex]
-            await logWizardEventClient(wizardSessionIdRef.current, {
-              eventType: 'step_changed',
-              stepIndex: newIndex,
-              stepPreset: newStep?.preset,
-            })
-          }
-        } catch (error) {
-          const msg = error instanceof Error ? error.message : 'Unbekannter Fehler'
-          setWizardState(prev => ({
-            ...prev,
-            isExtracting: false,
-            processingProgress: undefined,
-            processingMessage: undefined,
-            extractionError: msg,
-          }))
-          toast.error('Verarbeitung fehlgeschlagen', { description: msg })
         }
         return
       }
     }
 
-    // PDF HITL: Nach Markdown-Review startet die Metadaten/Template-Phase (und optional Ingest)
-    if (currentStep.preset === 'reviewMarkdown') {
-      const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
-      if (isPdfAnalyse) {
-        if (!provider || !wizardState.pdfBaseFileId || !wizardState.pdfTranscriptFileId) {
-          toast.error('PDF-Status unvollständig', { description: 'Bitte gehe zurück und starte zuerst die PDF-Verarbeitung (OCR).' })
-          if (wizardSessionIdRef.current) {
-            void logWizardEventClient(wizardSessionIdRef.current, {
-              eventType: 'error',
-              error: { code: 'pdf_review_missing_state', message: 'pdfBaseFileId/pdfTranscriptFileId/provider fehlt beim Klick auf Weiter' },
-            })
-          }
-          return
-        }
-        if (!wizardState.hasConfirmedMarkdown) {
-          toast.error('Bitte Markdown bestätigen', { description: 'Aktiviere die Checkbox, dass du das Markdown geprüft hast.' })
-          return
-        }
-        const updatedMarkdown = (wizardState.draftText || '').trim()
-        if (!updatedMarkdown) {
-          toast.error('Markdown ist leer', { description: 'Bitte korrigiere das Markdown oder gehe zurück.' })
-          return
-        }
+    // U6: Inhaltstyp gewählt → Datei jetzt off-target berechnen (computeFileMediaDraft).
+    // Die im Speicher gehaltene Datei wandert in die Inbox-Quarantäne, wird mit dem
+    // Standard-Template des gewählten detailViewType analysiert und als Entwurf
+    // zurückgespiegelt — NIE ins Archiv (ADR-0004).
+    if (currentStep.preset === 'selectSchemaType') {
+      if (!libraryId) {
+        toast.error('Kontext fehlt', { description: 'libraryId fehlt – bitte Seite neu laden.' })
+        return
+      }
+      // 5a: „Nur importieren und transkribieren" oder ein Inhaltstyp — genau eins.
+      const transcriptOnly = wizardState.captureTranscriptOnly === true
+      const selectedType = wizardState.selectedDetailViewType
+      if (!transcriptOnly && !selectedType) {
+        toast.error('Bitte einen Inhaltstyp wählen')
+        return
+      }
+      const fileSource = [...wizardState.sources].reverse().find(s => s.kind === 'file' && s.file instanceof File)
+      const file = fileSource?.file
+      if (!file) {
+        toast.error('Bitte zuerst eine Datei auswählen', { description: 'Es wurde keine Datei gefunden, die verarbeitet werden kann.' })
+        return
+      }
+
+      setWizardState(prev => ({
+        ...prev,
+        isExtracting: true,
+        processingProgress: 0,
+        processingMessage: 'Datei wird verarbeitet…',
+        processingPhase: undefined,
+        extractionError: undefined,
+      }))
+
+      try {
+        // Generischer Capture: docType folgt dem gewählten Inhaltstyp (fields leer
+        // → buildCaptureComputeFields nutzt den detailViewType als docType), nicht
+        // dem festen docType des Capture-Templates.
+        // 5a: Bei „Nur transkribieren" rendert die Submission als session
+        // (standard-session existiert, kein Pre-flight-Umbau) und der docType
+        // ist 'transcript'.
+        const effectiveDetailViewType = transcriptOnly ? 'session' : (selectedType as string)
+        const computeFields = transcriptOnly
+          ? [{ key: 'docType', rawValue: 'transcript' }]
+          : []
+        const fields = buildCaptureComputeFields({
+          libraryId,
+          wizardId: templateId,
+          detailViewType: effectiveDetailViewType,
+          fields: computeFields,
+          fileName: file.name,
+        })
+        const result = await computeFileMediaDraft({
+          file,
+          fields,
+          transcriptOnly,
+          waitForJob: (jobId) =>
+            waitForJobCompletionWithProgress({
+              jobId,
+              timeoutMs: 8 * 60 * 1000,
+              onProgress: (evt) => {
+                setWizardState(prev => ({
+                  ...prev,
+                  processingProgress: typeof evt.progress === 'number' ? evt.progress : prev.processingProgress,
+                  processingMessage: evt.message || prev.processingMessage,
+                  processingPhase: evt.phase || prev.processingPhase,
+                }))
+              },
+            }),
+        })
 
         setWizardState(prev => ({
           ...prev,
-          isExtracting: true,
-          processingProgress: 0,
-          processingMessage: 'Metadaten/Template starten…',
+          isExtracting: false,
+          processingProgress: undefined,
+          processingMessage: undefined,
+          processingPhase: undefined,
+          submissionId: result.submissionId,
+          generatedDraft: { metadata: result.draft.metadata, markdown: result.draft.markdown },
+          draftMetadata: result.draft.metadata,
+          draftText: result.draft.markdown,
+          currentStepIndex: Math.min(prev.currentStepIndex + 1, steps.length - 1),
         }))
 
-        let templateJobId = ''
-        try {
-          // 1) Korrigiertes Transcript zurück ins Shadow‑Twin schreiben (delete+upload, da kein overwrite-by-id)
-          const transcriptItem = await provider.getItemById(wizardState.pdfTranscriptFileId)
-          const transcriptParentId = transcriptItem.parentId || 'root'
-          const transcriptName = transcriptItem.metadata?.name || 'transcript.de.md'
-          await provider.deleteItem(wizardState.pdfTranscriptFileId)
-          const uploaded = await provider.uploadFile(
-            transcriptParentId,
-            new File([updatedMarkdown], transcriptName, { type: 'text/markdown' })
-          )
-
-          // 2) Job 2: Template + Ingest (extract ignore, gate nutzt vorhandenes Transcript im Shadow‑Twin)
-          const baseItem = await provider.getItemById(wizardState.pdfBaseFileId)
-          const wizardFolderId = baseItem.parentId || 'root'
-          const fileName = baseItem.metadata?.name || 'document.pdf'
-          const mimeType = baseItem.metadata?.mimeType || 'application/pdf'
-
-          const form = new FormData()
-          form.append('originalItemId', wizardState.pdfBaseFileId)
-          form.append('parentId', wizardFolderId)
-          form.append('fileName', fileName)
-          form.append('mimeType', mimeType)
-          form.append('targetLanguage', 'de')
-          form.append('extractionMethod', 'mistral_ocr')
-          form.append('includeOcrImages', 'true')
-          // Hard-Rename: getrennte Flags fuer Preview (Low-Res) und HighRes (200 DPI)
-          form.append('includePreviewPages', 'true')
-          form.append('includeHighResPages', 'true')
-          form.append('useCache', 'false')
-          form.append('template', 'pdfanalyse')
-          // PDF Human-in-the-loop: Job2 erzeugt/aktualisiert das Transformations-Artefakt,
-          // aber "Publizieren/Ingest" passiert erst beim expliziten Speichern im Wizard.
-          form.append('policies', JSON.stringify({ extract: 'ignore', metadata: 'do', ingest: 'ignore' }))
-
-          const res = await fetch('/api/secretary/process-pdf', { method: 'POST', headers: { 'X-Library-Id': libraryId }, body: form })
-          const json = await res.json().catch(() => ({} as Record<string, unknown>))
-          if (!res.ok) {
-            const msg = typeof (json as { error?: unknown }).error === 'string' ? (json as { error: string }).error : `HTTP ${res.status}`
-            throw new Error(msg)
-          }
-          templateJobId = typeof (json as { job?: { id?: unknown } }).job?.id === 'string' ? (json as { job: { id: string } }).job.id : ''
-          if (!templateJobId) throw new Error('Job-ID fehlt in Response')
-
-          // Log job_started Event (Template Phase)
-          if (wizardSessionIdRef.current) {
-            await addJobIdToSessionClient(wizardSessionIdRef.current, templateJobId, 'pdf_template')
-          }
-
-          const completion = await waitForJobCompletionWithProgress({
-            jobId: templateJobId,
-            timeoutMs: 8 * 60_000,
-            onProgress: (evt) => {
-              setWizardState(prev => ({
-                ...prev,
-                processingProgress: typeof evt.progress === 'number' ? evt.progress : prev.processingProgress,
-                processingMessage: evt.message || prev.processingMessage,
-              }))
-            }
+        if (wizardSessionIdRef.current) {
+          const newIndex = Math.min(wizardState.currentStepIndex + 1, steps.length - 1)
+          await logWizardEventClient(wizardSessionIdRef.current, {
+            eventType: 'step_changed',
+            stepIndex: newIndex,
+            stepPreset: steps[newIndex]?.preset,
           })
-
-          const transformFileId = completion.result?.savedItemId
-          if (!transformFileId) {
-            // Absichtlich hart: wenn das fehlt oder falsch ist, muss der zentrale Job-Contract gefixt werden,
-            // statt im Wizard "auszugleichen" (sonst debuggen wir am Symptom vorbei).
-            throw new Error('Template abgeschlossen, aber result.savedItemId (Transformation) fehlt.')
-          }
-
-          const { blob } = await provider.getBinary(transformFileId)
-          const content = await blob.text()
-          const { meta, body } = parseFrontmatter(content)
-
-          // Log job_completed Event (Template Phase)
-          if (wizardSessionIdRef.current) {
-            await logWizardEventClient(wizardSessionIdRef.current, {
-              eventType: 'job_completed',
-              jobId: templateJobId,
-              jobType: 'pdf_template',
-              fileIds: {
-                transformFileId,
-                baseFileId: wizardState.pdfBaseFileId,
-                transcriptFileId: uploaded.id,
-              },
-            })
-          }
-
-          // 3) In EditDraft springen (Metadaten prüfen)
-          setWizardState(prev => ({
-            ...prev,
-            isExtracting: false,
-            processingProgress: undefined,
-            processingMessage: undefined,
-            pdfTranscriptFileId: uploaded.id,
-            pdfTranscriptFolderId: transcriptParentId,
-            pdfTransformFileId: transformFileId,
-            generatedDraft: { metadata: (meta && typeof meta === 'object') ? (meta as Record<string, unknown>) : {}, markdown: typeof body === 'string' ? body : '' },
-            draftMetadata: (meta && typeof meta === 'object') ? (meta as Record<string, unknown>) : prev.draftMetadata,
-            draftText: typeof body === 'string' ? body : prev.draftText,
-            currentStepIndex: Math.min(prev.currentStepIndex + 1, steps.length - 1),
-          }))
-          
-          // Log step_changed Event
-          if (wizardSessionIdRef.current) {
-            const newIndex = Math.min(wizardState.currentStepIndex + 1, steps.length - 1)
-            const newStep = steps[newIndex]
-            logWizardEventClient(wizardSessionIdRef.current, {
-              eventType: 'step_changed',
-              stepIndex: newIndex,
-              stepPreset: newStep?.preset,
-            }).catch(error => console.warn('[Wizard] Fehler beim Loggen von step_changed:', error))
-          }
-          
-          return
-        } catch (error) {
-          setWizardState(prev => ({
-            ...prev,
-            isExtracting: false,
-            processingProgress: undefined,
-            processingMessage: undefined,
-            extractionError: error instanceof Error ? error.message : 'Unbekannter Fehler',
-          }))
-          
-          // Log job_failed Event (wenn Job-ID bekannt)
-          if (wizardSessionIdRef.current && templateJobId) {
-            try {
-              await logWizardEventClient(wizardSessionIdRef.current, {
-                eventType: 'job_failed',
-                jobId: templateJobId,
-                jobType: 'pdf_template',
-                error: {
-                  code: 'pdf_template_failed',
-                  message: error instanceof Error ? error.message : 'Unbekannter Fehler',
-                },
-              })
-            } catch (logError) {
-              console.warn('[Wizard] Fehler beim Loggen von job_failed:', logError)
-            }
-          }
-
-          // Log error Event
-          if (wizardSessionIdRef.current) {
-            try {
-              await logWizardEvent(wizardSessionIdRef.current, {
-                eventType: 'error',
-                error: {
-                  code: 'pdf_template_failed',
-                  message: error instanceof Error ? error.message : 'Unbekannter Fehler',
-                },
-              })
-            } catch (logError) {
-              console.warn('[Wizard] Fehler beim Loggen von error:', logError)
-            }
-          }
-          
-          toast.error('Metadaten/Template fehlgeschlagen', { description: error instanceof Error ? error.message : 'Unbekannter Fehler' })
-          return
         }
-        // WICHTIG: pdfanalyse darf nie in die generische Step-Advance-Logik fallen.
-        return
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Unbekannter Fehler'
+        setWizardState(prev => ({
+          ...prev,
+          isExtracting: false,
+          processingProgress: undefined,
+          processingMessage: undefined,
+          processingPhase: undefined,
+          extractionError: msg,
+        }))
+        toast.error('Verarbeitung fehlgeschlagen', { description: msg })
       }
+      return
     }
 
     // Generischer Advance (ohne Template-Spezialfälle): Skip-Regeln zentral in
@@ -2807,6 +2434,10 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
 
     switch (currentStep.preset) {
       case "publish": {
+        // Ausnahmefall „Nur importieren und transkribieren": KEINE Publikation/
+        // Ingestion. Steuert Wortlaut (kein „publizieren") und Navigation (Archiv
+        // statt Galerie) im gesamten Publish-Step.
+        const transcriptOnly = wizardState.captureTranscriptOnly === true
         const onPublish = async () => {
           const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
           const isEventPublishFinal = (templateId || '').toLowerCase().includes('event-publish-final')
@@ -2887,42 +2518,102 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                   ? frontmatterMetadata.slug
                   : undefined
 
-              // 2) Submission anlegen (immer Inbox — Funktioniert-immer-Garantie).
-              setWizardState(prev => ({ ...prev, publishingProgress: 50, publishingMessage: 'Im Wartekorb anlegen…' }))
-              const captureBody = buildWizardCaptureBody({
-                libraryId,
-                wizardId: templateId,
-                docType,
-                detailViewType,
-                markdownBody: markdown,
-                metadata: frontmatterMetadata,
-                target: { folderId: currentFolderId, slug },
-              })
-              const { id: submissionId } = await submitWizardCapture(captureBody)
+              // 2) Submission in den Wartekorb legen (immer Inbox — Funktioniert-immer-Garantie).
+              //    Datei-Flow (U6): Die beim Compute angelegte Submission wird
+              //    aktualisiert (PATCH) statt einer zweiten angelegt — EIN
+              //    Submission-Commit (ADR-0004, behebt KI-1). Text/URL ohne
+              //    Vorab-Submission: neu anlegen.
+              setWizardState(prev => ({ ...prev, publishingProgress: 50, publishingMessage: transcriptOnly ? 'Vorbereiten…' : 'Im Wartekorb anlegen…' }))
+              // Nur ein EXPLIZIT uebergebenes Ziel (URL/Child-Flow via
+              // `targetFolderIdProp`) gilt als gewaehlter Ordner. Der ambiente
+              // Galerie-Ordner (`currentFolderIdAtom`) darf NICHT still zum Ziel
+              // werden: er kann die ECHTE Root-/Ordner-ID des Providers enthalten
+              // (nicht nur den Sentinel 'root'), wodurch der dokumentierte
+              // `root/inbox`-Default umgangen wuerde und die Datei im Galerie-
+              // Ordner/Root landet. Galerie-Start ("Inhalte erfassen") uebergibt
+              // bewusst KEIN Ziel → leer lassen → Promotion nutzt `root/inbox`.
+              const chosenFolderId =
+                targetFolderIdProp && targetFolderIdProp.trim().length > 0 && targetFolderIdProp !== 'root'
+                  ? targetFolderIdProp
+                  : undefined
+              const target: { folderId?: string; slug?: string } = {}
+              if (chosenFolderId) target.folderId = chosenFolderId
+              if (slug) target.slug = slug
+              let submissionId: string
+              if (wizardState.submissionId) {
+                await updateSubmission(wizardState.submissionId, {
+                  markdownBody: markdown,
+                  metadata: frontmatterMetadata,
+                  ...(target.folderId || target.slug ? { target } : {}),
+                })
+                submissionId = wizardState.submissionId
+              } else {
+                const captureBody = buildWizardCaptureBody({
+                  libraryId,
+                  wizardId: templateId,
+                  docType,
+                  detailViewType,
+                  markdownBody: markdown,
+                  metadata: frontmatterMetadata,
+                  target: { folderId: chosenFolderId, slug },
+                })
+                submissionId = (await submitWizardCapture(captureBody)).id
+              }
 
               // 3) Owner: sofort veröffentlichen (approve -> promote). Sonst: Wartekorb.
               const currentLib = libraries.find((l) => l.id === libraryId)
               const isOwner = (currentLib?.accessRole ?? 'owner') === 'owner'
               let savedItemId: string | undefined
+              // Realer Zielordner + generierte Datei kommen aus der Promotion (Owner-Pfad).
+              // Beim Wartekorb (Nicht-Owner) gibt es noch kein Ziel — bleibt undefined.
+              let promotedFolderId: string | undefined
+              let promotedFolderName: string | undefined
+              let generatedFileName: string | undefined
+              // Gespiegelte Asset-Namen aus der Promotion (transcript-only/B2d).
+              let mirroredAssetNames: string[] = []
               if (isOwner) {
-                setWizardState(prev => ({ ...prev, publishingProgress: 75, publishingMessage: 'Veröffentlichen…' }))
+                setWizardState(prev => ({ ...prev, publishingProgress: 75, publishingMessage: transcriptOnly ? 'Im Archiv speichern…' : 'Veröffentlichen…' }))
                 await approveSubmission(submissionId)
                 const promoteRes = await promoteSubmission(submissionId)
                 savedItemId = promoteRes.savedItemId
+                promotedFolderId = promoteRes.targetFolderId
+                promotedFolderName = promoteRes.targetFolderName
+                generatedFileName = promoteRes.fileName
+                mirroredAssetNames = promoteRes.mirroredAssetNames
               }
 
-              const imagesCount = Object.keys(wizardState.imageUrls || {}).length
+              // Bilder-/Assets-Zähler:
+              // - transcript-only: aus den gespiegelten Assets. "Bilder" = nur
+              //   Inhaltsbilder (img-N aus dem OCR); "Assets" = alle gespiegelten
+              //   Medien (zusätzlich Seitenrenderings page_NNN + Thumbnails
+              //   preview_NNN). Klassifikation explizit über das OCR-Namensschema.
+              // - sonst: hochgeladene Cover-/Inhaltsbilder wie bisher.
+              const isContentImageName = (name: string): boolean => /^img-\d+\.[a-z0-9]+$/i.test(name)
+              const imagesCount = transcriptOnly
+                ? mirroredAssetNames.filter(isContentImageName).length
+                : Object.keys(wizardState.imageUrls || {}).length
+              const assetsCount = transcriptOnly ? mirroredAssetNames.length : undefined
               const sourcesCount = Array.isArray(wizardState.sources) ? wizardState.sources.length : 0
+              // Quell-Anzeigenamen für die Summary ableiten (Datei -> Name, URL -> URL, Text -> Label).
+              const sourceNames = describeSourceNames(wizardState.sources)
               setWizardState(prev => ({
                 ...prev,
                 isPublishing: false,
                 isPublished: true,
                 publishingProgress: 100,
-                publishingMessage: isOwner ? 'Veröffentlicht.' : 'Im Wartekorb — wird geprüft.',
-                publishStats: { documents: 1, images: imagesCount, sources: sourcesCount },
-                publishTargetFolderId: currentFolderId,
-                // Slug nur bei Owner-Publikation (sonst noch nicht im Ziel/Index)
-                publishTargetSlug: isOwner ? slug : undefined,
+                publishingMessage: isOwner
+                  ? (transcriptOnly ? 'Im Archiv gespeichert.' : 'Veröffentlicht.')
+                  : 'Im Wartekorb — wird geprüft.',
+                publishStats: { documents: 1, images: imagesCount, sources: sourcesCount, assets: assetsCount },
+                // Owner: realer Ordner aus der Promotion; sonst Fallback auf den UI-Ordner.
+                publishTargetFolderId: promotedFolderId ?? currentFolderId,
+                publishTargetFolderName: promotedFolderName,
+                publishSourceNames: sourceNames,
+                publishGeneratedFileName: generatedFileName,
+                // Slug nur bei echter Owner-Publikation (Galerie-Deeplink). Bei
+                // transcript-only gibt es keine Publikation -> kein Slug -> die
+                // Summary navigiert in den Datei-Browser (Archiv), nicht in die Galerie.
+                publishTargetSlug: isOwner && !transcriptOnly ? slug : undefined,
               }))
               if (sessionIdForLogs) {
                 const durationMs = Math.max(0, nowMs() - publishStartedAt)
@@ -3075,7 +2766,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                 publishingProgress: prev.publishingProgress ?? 0,
                 publishingMessage: msg,
               }))
-              toast.error('Publizieren fehlgeschlagen', { description: msg })
+              toast.error(transcriptOnly ? 'Speichern fehlgeschlagen' : 'Publizieren fehlgeschlagen', { description: msg })
               if (sessionIdForLogs) {
                 const durationMs = Math.max(0, nowMs() - publishStartedAt)
                 void logWizardEventClient(sessionIdForLogs, {
@@ -3148,7 +2839,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                 publishingProgress: prev.publishingProgress ?? 0,
                 publishingMessage: msg,
               }))
-              toast.error('Publizieren fehlgeschlagen', { description: msg })
+              toast.error(transcriptOnly ? 'Speichern fehlgeschlagen' : 'Publizieren fehlgeschlagen', { description: msg })
               if (sessionIdForLogs) {
                 const durationMs = Math.max(0, nowMs() - publishStartedAt)
                 void logWizardEventClient(sessionIdForLogs, {
@@ -3363,7 +3054,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
               publishingProgress: prev.publishingProgress ?? 0,
               publishingMessage: msg,
             }))
-            toast.error('Publizieren fehlgeschlagen', { description: msg })
+            toast.error(transcriptOnly ? 'Speichern fehlgeschlagen' : 'Publizieren fehlgeschlagen', { description: msg })
             if (sessionIdForLogs) {
               const durationMs = Math.max(0, nowMs() - publishStartedAt)
               void logWizardEventClient(sessionIdForLogs, {
@@ -3379,8 +3070,12 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
 
         return (
           <PublishStep
-            title={currentStep.title || "Publizieren"}
-            description={currentStep.description || "Jetzt wird das Ergebnis final gespeichert und für die Suche indiziert."}
+            title={currentStep.title || (transcriptOnly ? "Im Archiv speichern" : "Publizieren")}
+            description={currentStep.description || (transcriptOnly
+              ? "Die Datei wird importiert und das Transkript im Archiv gespeichert."
+              : "Jetzt wird das Ergebnis final gespeichert und für die Suche indiziert.")}
+            runningLabel={transcriptOnly ? "Speichern läuft…" : undefined}
+            startingLabel={transcriptOnly ? "Speichern wird gestartet…" : undefined}
             onPublish={onPublish}
             isPublishing={!!wizardState.isPublishing}
             publishingProgress={typeof wizardState.publishingProgress === 'number' ? wizardState.publishingProgress : 0}
@@ -3399,16 +3094,52 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                   : ''
               router.push(`/library${folderParam}`)
             }}
-            goToLibraryLabel="Im Explorer öffnen"
+            goToLibraryLabel="Im Archiv öffnen"
             successMessage={currentStep?.ingestOnFinish === false
               ? "Das Ergebnis wurde im Archiv gespeichert. Ingestion kann später aus dem Archiv erfolgen."
               : undefined}
           >
             {wizardState.publishStats ? (
-              <div className="text-xs text-muted-foreground space-y-1">
-                <div>Dokumente: <span className="font-mono">{wizardState.publishStats.documents}</span></div>
-                <div>Bilder: <span className="font-mono">{wizardState.publishStats.images}</span></div>
-                <div>Quellen: <span className="font-mono">{wizardState.publishStats.sources}</span></div>
+              <div className="text-xs text-muted-foreground space-y-2">
+                {/* Quelle(n): zeigt z.B. den hochgeladenen PDF-Dateinamen */}
+                {wizardState.publishSourceNames && wizardState.publishSourceNames.length > 0 ? (
+                  <div>
+                    <span className="font-medium text-foreground">Quelle:</span>{" "}
+                    <span className="font-mono break-all">{wizardState.publishSourceNames.join(", ")}</span>
+                  </div>
+                ) : null}
+                {/* Owner-Pfad: Zielordner + generierte Datei sind bekannt.
+                    Nicht-Owner (kein generierter Dateiname): Hinweis auf Wartekorb. */}
+                {wizardState.publishGeneratedFileName ? (
+                  <>
+                    <div>
+                      <span className="font-medium text-foreground">Zielordner:</span>{" "}
+                      <span className="font-mono break-all">
+                        {wizardState.publishTargetFolderName ||
+                          wizardState.publishTargetFolderId ||
+                          "—"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-foreground">Generierte Datei:</span>{" "}
+                      <span className="font-mono break-all">{wizardState.publishGeneratedFileName}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <span className="font-medium text-foreground">Status:</span> Im Wartekorb — wird geprüft.
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
+                  <span>Dokumente: <span className="font-mono">{wizardState.publishStats.documents}</span></span>
+                  <span>Bilder: <span className="font-mono">{wizardState.publishStats.images}</span></span>
+                  {/* Assets nur im transcript-only-Flow gesetzt: alle gespiegelten
+                      Medien (Inhaltsbilder + Seitenrenderings + Thumbnails). */}
+                  {typeof wizardState.publishStats.assets === 'number' ? (
+                    <span>Assets: <span className="font-mono">{wizardState.publishStats.assets}</span></span>
+                  ) : null}
+                  <span>Quellen: <span className="font-mono">{wizardState.publishStats.sources}</span></span>
+                </div>
               </div>
             ) : null}
           </PublishStep>
@@ -3437,6 +3168,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       hasGeneratedDraft: !!wizardState.generatedDraft,
       isPublishing: wizardState.isPublishing,
       isPublished: wizardState.isPublished,
+      selectedDetailViewType: wizardState.selectedDetailViewType,
+      captureTranscriptOnly: wizardState.captureTranscriptOnly,
     })
 
   return (

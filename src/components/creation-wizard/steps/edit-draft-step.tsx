@@ -433,7 +433,13 @@ export function EditDraftStep({
 
           <TabsContent value="markdown" className="mt-6">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-500 dark:text-slate-400">Text bearbeiten</label>
+              {/* Bewusst ein Quelltext-Editor (Markdown), KEINE gerenderte Vorschau:
+                  Bilder bleiben hier als Markdown-Referenz (z.B. ![img-1.jpeg](img-1.jpeg))
+                  sichtbar. Gerendert (mit Bildern/Formatierung) wird erst nach dem
+                  Import im Archiv. */}
+              <label className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                Quelltext bearbeiten (Markdown)
+              </label>
               <textarea
                 value={localDraftText}
                 onChange={(e) => {
@@ -445,6 +451,7 @@ export function EditDraftStep({
                 placeholder="Text hier eingeben..."
               />
               <p className="text-xs text-slate-500 dark:text-slate-400">
+                Markdown-Quelltext — Bilder und Formatierung erscheinen nach dem Import im Archiv.
                 Änderungen werden automatisch gespeichert.
               </p>
             </div>

@@ -96,14 +96,28 @@ export async function uploadFileMediaToInbox(
   return id
 }
 
+/** Optionen fuer den Analyse-Start (5a: Transkript-only). */
+export interface StartSubmissionAnalysisOptions {
+  /** 5a: Nur Transkript (extract), keine Transformation. */
+  transcriptOnly?: boolean
+}
+
 /** Startet die Inbox-Analyse (U5b) und liefert die Job-ID. */
 export async function startSubmissionAnalysis(
   submissionId: string,
   fetchImpl: FetchImpl,
+  opts?: StartSubmissionAnalysisOptions,
 ): Promise<string> {
-  const res = await fetchImpl(`/api/submissions/${encodeURIComponent(submissionId)}/analyze`, {
-    method: 'POST',
-  })
+  // 5a: Bei „Nur importieren und transkribieren" den Modus an die Route geben.
+  // Ohne transcriptOnly bleibt der Body leer (Standard = Transform), kein Default-Body.
+  const init: RequestInit = opts?.transcriptOnly
+    ? {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'transcript' }),
+      }
+    : { method: 'POST' }
+  const res = await fetchImpl(`/api/submissions/${encodeURIComponent(submissionId)}/analyze`, init)
   const json: unknown = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(readError(json, res.status))
 
@@ -148,6 +162,8 @@ export interface ComputeFileMediaDraftArgs {
   waitForJob: WaitForJob
   /** Injizierbar fuer Tests; Default: globales fetch. */
   fetchImpl?: FetchImpl
+  /** 5a: Nur Transkript (extract), keine Transformation. */
+  transcriptOnly?: boolean
 }
 
 /**
@@ -159,7 +175,9 @@ export async function computeFileMediaDraft(
 ): Promise<FileMediaComputeResult> {
   const doFetch: FetchImpl = args.fetchImpl ?? ((input, init) => fetch(input, init))
   const submissionId = await uploadFileMediaToInbox(args.file, args.fields, doFetch)
-  const jobId = await startSubmissionAnalysis(submissionId, doFetch)
+  const jobId = await startSubmissionAnalysis(submissionId, doFetch, {
+    transcriptOnly: args.transcriptOnly,
+  })
   await args.waitForJob(jobId)
   return fetchSubmissionDraft(submissionId, doFetch)
 }

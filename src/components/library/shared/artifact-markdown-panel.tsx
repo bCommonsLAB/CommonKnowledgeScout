@@ -27,6 +27,12 @@ interface ArtifactMarkdownPanelProps {
   item: StorageItem | null
   provider: StorageProvider | null
   libraryId?: string
+  /**
+   * Optional: fileId des Quelldokuments (Traeger, z.B. PDF). Wird an
+   * `MarkdownPreview` durchgereicht, damit eingebettete Bilder praezise gegen
+   * den richtigen Shadow-Twin aufgeloest werden (keine fremden Bilder).
+   */
+  sourceId?: string
   emptyHint: string
   stripFrontmatter?: boolean
   onSaved?: (item: StorageItem) => void
@@ -58,6 +64,7 @@ export function ArtifactMarkdownPanel({
   item,
   provider,
   libraryId,
+  sourceId,
   emptyHint,
   stripFrontmatter = false,
   onSaved,
@@ -296,6 +303,7 @@ export function ArtifactMarkdownPanel({
         <MarkdownPreview
           content={previewContent}
           currentFolderId={currentItem.parentId}
+          sourceId={sourceId}
           provider={provider}
           className="max-h-[70vh]"
           compact

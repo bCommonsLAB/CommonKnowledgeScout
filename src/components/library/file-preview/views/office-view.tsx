@@ -160,6 +160,7 @@ export function OfficeView(props: PreviewViewProps) {
               title="Transcript (aus dem Original extrahiert)"
               titleClassName="text-xs text-muted-foreground font-normal"
               item={transcript.transcriptItem}
+              sourceId={item.id}
               provider={provider}
               libraryId={activeLibraryId || undefined}
               emptyHint="Noch kein Transkript vorhanden."

@@ -57,6 +57,10 @@ export function getYouTubeId(url: string): string | null {
  * @param imagePath Relativer Bildpfad (z.B. "img-0.jpeg")
  * @param currentFolderId ID des aktuellen Verzeichnisses (base64-encoded fileId)
  * @param libraryId Die Library-ID
+ * @param sourceId Optional: fileId des Quelldokuments (Traeger). Wird als
+ *                 `&sourceId=` an die streaming-url gehaengt, damit die Bild-
+ *                 Aufloesung praezise auf dessen Shadow-Twin gescoped wird
+ *                 (verhindert dokumentuebergreifende Namens-Kollisionen).
  * @param baseItem Optional: Die Basisdatei (z.B. PDF) fuer Shadow-Twin-Aufloesung
  * @param provider Optional: Storage Provider fuer Shadow-Twin-Aufloesung
  * @returns Storage-API-URL oder urspruenglicher Pfad bei Fehler
@@ -65,6 +69,7 @@ export function resolveImageUrl(
   imagePath: string,
   currentFolderId: string,
   libraryId: string | undefined,
+  sourceId?: string,
   baseItem?: { id: string } | null,
   provider?: StorageProvider | null,
 ): string {
@@ -135,7 +140,10 @@ export function resolveImageUrl(
     }
     const fileId = btoa(binary)
 
-    const resolvedUrl = `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(fileId)}`
+    // sourceId (Traeger-fileId) anhaengen, damit die Route die Bild-Aufloesung
+    // praezise auf den richtigen Shadow-Twin scoped (kein library-weites Raten).
+    const sourceIdParam = sourceId ? `&sourceId=${encodeURIComponent(sourceId)}` : ''
+    const resolvedUrl = `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(fileId)}${sourceIdParam}`
 
     if (currentFolderId !== 'root') {
       FileLogger.debug('markdown-helpers', 'Bild-URL erfolgreich aufgeloest', {
@@ -181,6 +189,8 @@ export function encodeSpacesInRelativeMarkdownHrefs(text: string): string {
  * @param provider Storage-Provider (nur fuer Existenz-Pruefung — keine
  *                 Calls hier)
  * @param libraryId Library-ID fuer URL-Konstruktion
+ * @param sourceId Optional: fileId des Quelldokuments (Traeger) fuer die
+ *                 sourceId-praezise Bild-Aufloesung (siehe `resolveImageUrl`).
  * @returns Vorverarbeiteter Markdown-Inhalt
  */
 export function processObsidianContent(
@@ -188,6 +198,7 @@ export function processObsidianContent(
   currentFolderId: string = 'root',
   provider: StorageProvider | null = null,
   libraryId: string | undefined = undefined,
+  sourceId?: string,
 ): string {
   if (!provider) return content
 
@@ -266,7 +277,7 @@ export function processObsidianContent(
     content = content.replace(
       /!\[(.*?)\]\((?!http)(.*?)\)/g,
       (match, alt, imagePath) => {
-        const resolvedUrl = resolveImageUrl(imagePath, currentFolderId, libraryId)
+        const resolvedUrl = resolveImageUrl(imagePath, currentFolderId, libraryId, sourceId)
         return `![${alt}](${resolvedUrl})`
       },
     )
@@ -274,7 +285,7 @@ export function processObsidianContent(
     content = content.replace(
       /<img-(\d+\.(?:jpeg|jpg|png|gif|webp))>/gi,
       (match, imagePath) => {
-        const resolvedUrl = resolveImageUrl(imagePath, currentFolderId, libraryId)
+        const resolvedUrl = resolveImageUrl(imagePath, currentFolderId, libraryId, sourceId)
         return `![${imagePath}](${resolvedUrl})`
       },
     )
@@ -282,7 +293,7 @@ export function processObsidianContent(
     content = content.replace(
       /<img\s+src=["'](?!http)([^"']+)["'][^>]*>/gi,
       (match, imagePath) => {
-        const resolvedUrl = resolveImageUrl(imagePath, currentFolderId, libraryId)
+        const resolvedUrl = resolveImageUrl(imagePath, currentFolderId, libraryId, sourceId)
         return `<img src="${resolvedUrl}">`
       },
     )

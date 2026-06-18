@@ -82,6 +82,24 @@ describe('canProceedFromStep — Per-Preset-Gating', () => {
     expect(canProceedFromStep('selectFolderArtifacts', { sourcesCount: 2 })).toBe(true)
   })
 
+  it('selectSchemaType: erst nach Inhaltstyp-Wahl, gesperrt während Compute (U6)', () => {
+    expect(canProceedFromStep('selectSchemaType', { sourcesCount: 1 })).toBe(false)
+    expect(canProceedFromStep('selectSchemaType', { sourcesCount: 1, selectedDetailViewType: '' })).toBe(false)
+    expect(canProceedFromStep('selectSchemaType', { sourcesCount: 1, selectedDetailViewType: 'book' })).toBe(true)
+    // Während der Berechnung gesperrt (kein Doppel-Start).
+    expect(
+      canProceedFromStep('selectSchemaType', { sourcesCount: 1, selectedDetailViewType: 'book', isExtracting: true }),
+    ).toBe(false)
+  })
+
+  it('selectSchemaType: „Nur transkribieren" (5a) erlaubt ohne Inhaltstyp, Compute sperrt weiter', () => {
+    expect(canProceedFromStep('selectSchemaType', { sourcesCount: 1, captureTranscriptOnly: true })).toBe(true)
+    // Auch transcriptOnly ist während der laufenden Berechnung gesperrt.
+    expect(
+      canProceedFromStep('selectSchemaType', { sourcesCount: 1, captureTranscriptOnly: true, isExtracting: true }),
+    ).toBe(false)
+  })
+
   it('generateDraft: im Interview-Modus Entwurf nötig, im Form-Modus frei', () => {
     expect(canProceedFromStep('generateDraft', { sourcesCount: 1, mode: 'interview', hasGeneratedDraft: false })).toBe(false)
     expect(canProceedFromStep('generateDraft', { sourcesCount: 1, mode: 'interview', hasGeneratedDraft: true })).toBe(true)

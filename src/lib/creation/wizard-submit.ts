@@ -10,6 +10,7 @@
  */
 
 import type { CaptureBody } from '@/lib/submissions/submission-capture'
+import type { UpdateSubmissionMetadataInput } from '@/types/wizard-submission'
 
 export interface WizardSubmitResult {
   /** ID der angelegten (pending) Submission. */
@@ -39,6 +40,24 @@ export async function submitWizardCapture(body: CaptureBody): Promise<WizardSubm
   return { id }
 }
 
+/**
+ * Aktualisiert eine bestehende (editierbare) Submission redaktionell
+ * (Markdown/Metadaten/Ziel) ueber `PATCH /api/submissions/[id]`. Genutzt vom
+ * Datei-Flow: die beim Compute angelegte Submission (computeFileMediaDraft) wird
+ * beim Publish mit dem editierten Entwurf aktualisiert — EIN Submission-Commit
+ * statt einer zweiten Submission (ADR-0004). Wirft bei HTTP-Fehler mit
+ * Server-Meldung (kein Silent-Fallback).
+ */
+export async function updateSubmission(id: string, input: UpdateSubmissionMetadataInput): Promise<void> {
+  const res = await fetch(`/api/submissions/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const json: unknown = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(readError(json, res.status))
+}
+
 async function postSubmissionAction(id: string, action: 'approve' | 'promote'): Promise<unknown> {
   const res = await fetch(`/api/submissions/${encodeURIComponent(id)}/${action}`, { method: 'POST' })
   const json: unknown = await res.json().catch(() => ({}))
@@ -55,11 +74,31 @@ export async function approveSubmission(id: string): Promise<void> {
  * Owner-Sofort-Publikation: `ready → published` (schreibt Ziel-Provider + RAG).
  * Liefert die geschriebene Datei-ID, falls vorhanden.
  */
-export async function promoteSubmission(id: string): Promise<{ savedItemId?: string }> {
+export async function promoteSubmission(id: string): Promise<{
+  savedItemId?: string
+  /** Dateiname der geschriebenen Markdown-Datei (z.B. `mein-titel.md`). */
+  fileName?: string
+  /** ID des tatsaechlich genutzten Zielordners (explizit oder `root/inbox`). */
+  targetFolderId?: string
+  /** Anzeigename des Zielordners (nur Default-Pfad bekannt, sonst undefined). */
+  targetFolderName?: string
+  /** Gespiegelte Asset-Dateinamen (transcript-only/B2d) fuer Bilder/Assets-Zaehler. */
+  mirroredAssetNames: string[]
+}> {
   const json = await postSubmissionAction(id, 'promote')
-  const savedItemId =
-    json && typeof json === 'object' && typeof (json as { savedItemId?: unknown }).savedItemId === 'string'
-      ? (json as { savedItemId: string }).savedItemId
-      : undefined
-  return { savedItemId }
+  const obj = json && typeof json === 'object' ? (json as Record<string, unknown>) : {}
+  const readString = (key: string): string | undefined =>
+    typeof obj[key] === 'string' ? (obj[key] as string) : undefined
+  // mirroredAssetNames defensiv lesen: nur String-Eintraege uebernehmen.
+  const rawMirrored = obj['mirroredAssetNames']
+  const mirroredAssetNames = Array.isArray(rawMirrored)
+    ? rawMirrored.filter((n): n is string => typeof n === 'string')
+    : []
+  return {
+    savedItemId: readString('savedItemId'),
+    fileName: readString('fileName'),
+    targetFolderId: readString('targetFolderId'),
+    targetFolderName: readString('targetFolderName'),
+    mirroredAssetNames,
+  }
 }

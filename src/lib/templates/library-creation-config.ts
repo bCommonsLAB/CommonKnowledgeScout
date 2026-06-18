@@ -110,8 +110,11 @@ export function templateDocumentToCreationType(
       ? 'Mic'
       : creation.ui?.icon || deriveIconFromTemplateName(templateName)
 
-  // Datei transkribieren: Flow noch nicht stabil — in der Liste sichtbar, Start gesperrt
-  const isFileTranscriptDe = templateName === 'file-transcript-de'
+  // U6c: Der separate pdfanalyse-HITL-Flow schrieb direkt ins Archiv (Shadow-Twin)
+  // und ist stillgelegt — PDFs laufen jetzt über „Inhalte erfassen" (generischer
+  // Wizard, off-target in den Wartekorb). Karte bleibt sichtbar, Start gesperrt;
+  // der tote HITL-Code wird in U6e entfernt.
+  const isPdfAnalyse = templateName.toLowerCase() === 'pdfanalyse'
 
   return {
     id: templateName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
@@ -121,9 +124,9 @@ export function templateDocumentToCreationType(
     icon,
     source,
     isReadonly: source === 'builtin',
-    disabled: isFileTranscriptDe,
-    disabledHint: isFileTranscriptDe
-      ? 'Noch nicht startbar — die Verarbeitung wird gerade überarbeitet.'
+    disabled: isPdfAnalyse,
+    disabledHint: isPdfAnalyse
+      ? 'Bitte „Inhalte erfassen" nutzen — PDFs werden dort analysiert und landen im Wartekorb.'
       : undefined,
   }
 }

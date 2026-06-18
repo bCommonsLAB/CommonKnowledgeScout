@@ -13,6 +13,7 @@ describe('builtin-creation-templates', () => {
       'welcome',
       'collectSource',
       'editDraft',
+      'publish',
     ])
     expect(t?.creation?.output?.wizardOnlyMetadataKeys).toContain('filename')
     expect(t?.creation?.supportedSources?.[0]?.type).toBe('text')

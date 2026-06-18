@@ -33,21 +33,49 @@ export interface WizardState {
   draftText?: string
   // Loading-State für Re-Extract
   isExtracting?: boolean
+  /**
+   * U6: Nach dem Upload gewählter Inhaltstyp (selectSchemaType-Step). Bestimmt
+   * das Analyse-Standard-Template (standard-<viewType>) + den detailViewType der
+   * Submission. Bleibt undefined, bis der Nutzer wählt (kein stiller Default).
+   */
+  selectedDetailViewType?: string
+  /**
+   * 5a: Option „Nur importieren und transkribieren" — nur Extract, keine
+   * Transformation. Schließt die Inhaltstyp-Wahl gegenseitig aus
+   * (selectedDetailViewType bleibt dann undefined).
+   */
+  captureTranscriptOnly?: boolean
+  /**
+   * U6: ID der beim Off-target-Compute angelegten Inbox-Submission
+   * (computeFileMediaDraft). Beim Publish wird DIESE Submission aktualisiert
+   * (PATCH) statt einer zweiten angelegt — EIN Submission-Commit (ADR-0004).
+   */
+  submissionId?: string
   // PDF HITL: Progress-Anzeige für Jobs (Extract/Template/Ingest)
   processingProgress?: number
   processingMessage?: string
+  /** U6: Pipeline-Phase des Analyse-Jobs (für das Schritt-Label im Capture-Wizard). */
+  processingPhase?: string
   // PDF HITL: finaler Publish-Schritt (User sieht Publizieren explizit)
   isPublishing?: boolean
   publishingProgress?: number
   publishingMessage?: string
   publishError?: string
   isPublished?: boolean
-  /** Optional: Kurze Abschluss-Statistiken (für Publish-Step) */
-  publishStats?: { documents: number; images: number; sources: number }
-  /** Optional: Zielordner für "Im Explorer öffnen" */
+  /** Optional: Kurze Abschluss-Statistiken (für Publish-Step).
+   *  `assets` zählt zusätzlich ALLE gespiegelten Medien (Seiten/Thumbnails),
+   *  `images` nur die Inhaltsbilder — nur im transcript-only-Flow gesetzt. */
+  publishStats?: { documents: number; images: number; sources: number; assets?: number }
+  /** Optional: Zielordner für "Im Archiv öffnen" */
   publishTargetFolderId?: string
-  /** Optional: Ziel-Slug für "Im Explorer öffnen" (Gallery) */
+  /** Optional: Anzeigename des Zielordners (z.B. "inbox") für die Summary */
+  publishTargetFolderName?: string
+  /** Optional: Ziel-Slug für "Im Archiv öffnen" (Gallery) */
   publishTargetSlug?: string
+  /** Optional: Name(n) der erfassten Quelle(n) für die Summary (z.B. PDF-Dateiname) */
+  publishSourceNames?: string[]
+  /** Optional: Name der generierten Markdown-Datei für die Summary */
+  publishGeneratedFileName?: string
   // PDF HITL: Tracking
   pdfBaseFileId?: string
   pdfTranscriptFileId?: string

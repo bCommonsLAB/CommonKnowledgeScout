@@ -26,6 +26,7 @@ import {
 import { getServerProvider } from '@/lib/storage/server-provider';
 import { IngestionService } from '@/lib/chat/ingestion-service';
 import { promoteSubmission } from '@/lib/submissions/promotion';
+import { buildPromotionInjections } from '@/lib/submissions/promote-injections';
 import { classifyPromotionError, type PromotionFailure } from '@/lib/submissions/promotion-errors';
 import { FileLogger } from '@/lib/debug/logger';
 
@@ -81,12 +82,24 @@ export async function performPromotion(id: string): Promise<NextResponse> {
 
     try {
       const provider = await getServerProvider(email, publishing.libraryId);
+
+      // Storage-nahe Injektionen (B1 Original-Kopie, B2a Transkript-Twin, B2d
+      // Asset-Spiegelung) gebuendelt bauen — `promoteSubmission` bleibt rein.
+      const { loadOriginal, writeTranscriptArtifact, mirrorAssets } = await buildPromotionInjections({
+        email,
+        submission: publishing,
+        provider,
+      });
+
       const result = await promoteSubmission({
         submission: publishing,
         provider,
         upsertMarkdown: (userEmail, libraryId, fileId, fileName, markdown, meta) =>
           IngestionService.upsertMarkdown(userEmail, libraryId, fileId, fileName, markdown, meta),
         userEmail: email,
+        loadOriginal,
+        writeTranscriptArtifact,
+        mirrorAssets,
       });
       const published = await changeSubmissionStatus(id, {
         to: 'published',
@@ -94,7 +107,18 @@ export async function performPromotion(id: string): Promise<NextResponse> {
         at: new Date().toISOString(),
         note: `Veroeffentlicht: ${result.savedItemId}`,
       });
-      return NextResponse.json({ submission: published, savedItemId: result.savedItemId });
+      // Zielordner + Dateiname an den Client zurueck, damit die Wizard-Summary
+      // den realen Speicherort zeigen kann (Quelle/Zielordner/generierte Datei).
+      return NextResponse.json({
+        submission: published,
+        savedItemId: result.savedItemId,
+        fileName: result.fileName,
+        targetFolderId: result.targetFolderId,
+        targetFolderName: result.targetFolderName,
+        // Gespiegelte Assets (transcript-only/B2d) fuer die Wizard-Summary
+        // (Bilder/Assets-Zaehler). Normalpfad: leeres Array.
+        mirroredAssetNames: result.mirroredAssetNames ?? [],
+      });
     } catch (error) {
       // Token/Speicher/Konfig: Ruecksprung auf `ready`, nie `failed` - retry-bar.
       const failure = classifyPromotionError(error);

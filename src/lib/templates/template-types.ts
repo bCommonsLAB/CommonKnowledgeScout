@@ -42,13 +42,14 @@ export interface CreationSource {
  * - `completion`: Abschluss-Step nach Speichern – zeigt Erfolgsmeldung und „Weiter zur Library“
  * - `selectRelatedTestimonials`: Auswahl/Exclude von gefundenen Testimonials (für Dialograum-Ergebnis)
  * - `selectFolderArtifacts`: Auswahl von Artefakten aus einem Verzeichnis (für Folder-Flow)
+ * - `selectSchemaType`: Inhaltstyp (detailViewType) nach dem Upload waehlen (Inbox-Capture, U6)
  */
-export type CreationFlowStepPreset = 
+export type CreationFlowStepPreset =
   | 'welcome'
   | 'chooseSource'
-  | 'collectSource' 
+  | 'collectSource'
   | 'reviewMarkdown'
-  | 'generateDraft' 
+  | 'generateDraft'
   | 'previewDetail'
   | 'publish'
   | 'completion'
@@ -56,6 +57,7 @@ export type CreationFlowStepPreset =
   | 'uploadImages'
   | 'selectRelatedTestimonials'
   | 'selectFolderArtifacts'
+  | 'selectSchemaType'
 
 /**
  * Optionaler Welcome-Step Inhalt (Markdown)

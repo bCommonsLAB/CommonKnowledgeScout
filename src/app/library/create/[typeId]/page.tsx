@@ -11,6 +11,30 @@ import { Skeleton } from "@/components/ui/skeleton"
 import type { LibraryCreationType } from "@/lib/templates/library-creation-config"
 import { useSearchParams } from "next/navigation"
 
+/**
+ * Bekannte Einstiegspunkte des Wizards → wohin der Zurück-Link führt. Aus der
+ * Galerie/Erkunden (`from=gallery`) gehört der Nutzer zurück nach Erkunden, NICHT
+ * in die Wizard-Auswahl. Default (kein/unbekannter `from`): die Wizard-Auswahl —
+ * der dokumentierte Standard für den Einstieg über `/library/create`.
+ */
+const BACK_TARGETS: Record<string, { href: string; label: string }> = {
+  gallery: { href: '/library/gallery', label: 'Zurück zu Erkunden' },
+}
+const DEFAULT_BACK_TARGET = { href: '/library/create', label: 'Zurück zur Auswahl' }
+
+/** Zurück-Link oben links — einheitlich über alle Render-Zweige der Seite. */
+function BackLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4"
+    >
+      <ArrowLeft className="w-4 h-4" />
+      {label}
+    </Link>
+  )
+}
+
 export default function CreateWizardPage({ params }: { params: Promise<{ typeId: string }> }) {
   const { typeId } = use(params)
   const searchParams = useSearchParams()
@@ -24,6 +48,10 @@ export default function CreateWizardPage({ params }: { params: Promise<{ typeId:
   const seedFileId = searchParams.get('seedFileId') || undefined
   const targetFolderId = searchParams.get('targetFolderId') || undefined
   const sourceFolderId = searchParams.get('sourceFolderId') || undefined
+
+  // Herkunft des Einstiegs steuert nur den Zurück-Link (kein Daten-Effekt).
+  const fromParam = searchParams.get('from') || undefined
+  const backTarget = (fromParam && BACK_TARGETS[fromParam]) || DEFAULT_BACK_TARGET
 
   useEffect(() => {
     async function loadCreationType() {
@@ -61,10 +89,7 @@ export default function CreateWizardPage({ params }: { params: Promise<{ typeId:
     return (
       <div className="container max-w-4xl py-12">
         <div className="mb-8">
-          <Link href="/library/create" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4">
-            <ArrowLeft className="w-4 h-4" />
-            Zurück zur Auswahl
-          </Link>
+          <BackLink href={backTarget.href} label={backTarget.label} />
           <Skeleton className="h-8 w-64 mb-2" />
           <Skeleton className="h-4 w-96" />
         </div>
@@ -76,10 +101,7 @@ export default function CreateWizardPage({ params }: { params: Promise<{ typeId:
     return (
       <div className="container max-w-4xl py-12">
         <div className="mb-8">
-          <Link href="/library/create" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4">
-            <ArrowLeft className="w-4 h-4" />
-            Zurück zur Auswahl
-          </Link>
+          <BackLink href={backTarget.href} label={backTarget.label} />
           <h1 className="text-3xl font-bold mb-2">Creation-Typ nicht gefunden</h1>
           <p className="text-muted-foreground">
             Der angeforderte Creation-Typ &quot;{typeId}&quot; existiert nicht in dieser Bibliothek.
@@ -93,10 +115,7 @@ export default function CreateWizardPage({ params }: { params: Promise<{ typeId:
     return (
       <div className="container max-w-4xl py-12">
         <div className="mb-8">
-          <Link href="/library/create" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4">
-            <ArrowLeft className="w-4 h-4" />
-            Zurück zur Auswahl
-          </Link>
+          <BackLink href={backTarget.href} label={backTarget.label} />
           <h1 className="text-3xl font-bold mb-2">{creationType.label}</h1>
           <p className="text-muted-foreground">{creationType.description}</p>
           <p className="mt-4 text-muted-foreground">
@@ -111,10 +130,7 @@ export default function CreateWizardPage({ params }: { params: Promise<{ typeId:
     <div className="min-h-screen bg-background">
       <div className="container max-w-4xl py-12">
         <div className="mb-8">
-          <Link href="/library/create" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4">
-            <ArrowLeft className="w-4 h-4" />
-            Zurück zur Auswahl
-          </Link>
+          <BackLink href={backTarget.href} label={backTarget.label} />
           <h1 className="text-3xl font-bold mb-2">{creationType.label}</h1>
           <p className="text-muted-foreground">{creationType.description}</p>
         </div>

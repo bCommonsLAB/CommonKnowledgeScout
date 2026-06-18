@@ -732,6 +732,28 @@ export function CollectSourceStep({
     if (!file) return
 
     try {
+      // U6: Off-target-Erfassung (file-transcript-de) — die Datei wird NICHT ins
+      // Archiv geladen, sondern bleibt im Speicher und wandert beim Compute über
+      // computeFileMediaDraft in die Inbox (ADR-0004). Gilt für ALLE Dateitypen
+      // (auch PDF), daher VOR der isPdf-Weiche.
+      if (singleFileUploadMode === 'generic') {
+        setErrorMessage(null)
+        const prepared: WizardSource = {
+          id: `file-${Date.now()}`,
+          kind: 'file',
+          fileName: file.name,
+          file,
+          extractedText: '',
+          summary: file.name,
+          createdAt: new Date(),
+        }
+        setPendingFileSource(prepared)
+        toast.success('Datei bereit', {
+          description: 'Klicke „Weiter“, um die Verarbeitung zu starten.',
+        })
+        return
+      }
+
       const lowerName = String(file.name || '').toLowerCase()
       const isPdf = file.type === 'application/pdf' || lowerName.endsWith('.pdf')
 
@@ -773,36 +795,6 @@ export function CollectSourceStep({
         }
         setPendingFileSource(prepared)
         toast.success('PDF bereit', { description: 'Klicke „Weiter“, um OCR/Artefakte zu starten.' })
-        return
-      }
-
-      // Built-in file-transcript-de: Binärdateien (Audio/Video/Bild) ohne file.text()
-      if (singleFileUploadMode === 'generic') {
-        setErrorMessage(null)
-        if (!provider || !libraryId) {
-          toast.error('Upload benötigt Storage + Library', {
-            description: 'Bitte im Archiv/Library starten oder sicherstellen, dass provider+libraryId verfügbar sind.',
-          })
-          return
-        }
-        const wizardFolderId = await ensureWizardSourcesFolderId()
-        const uploadName = `${Date.now()}-${file.name}`
-        const uploaded = await provider.uploadFile(
-          wizardFolderId,
-          new File([file], uploadName, { type: file.type || 'application/octet-stream' })
-        )
-        const prepared: WizardSource = {
-          id: `file-${uploaded.id}`,
-          kind: 'file',
-          fileName: uploaded.metadata?.name || uploadName,
-          extractedText: '',
-          summary: uploaded.metadata?.name || uploadName,
-          createdAt: new Date(),
-        }
-        setPendingFileSource(prepared)
-        toast.success('Datei bereit', {
-          description: 'Klicke „Weiter“, um die Verarbeitung zu starten.',
-        })
         return
       }
 

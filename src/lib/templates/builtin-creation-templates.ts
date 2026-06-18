@@ -34,11 +34,11 @@ creation:
     markdown: |
       ## Willkommen
 
-      Hier erfassen wir ein **Diktat**: Unter „Erzähl mir was“ tippst oder sprichst du deinen Text. Danach nur noch **Dateiname** und Speichern — die Datei landet im **aktuellen Ordner**, ohne Extra-Unterordner.
+      Hier erfassen wir ein **Diktat**: Unter „Erzähl mir was“ tippst oder sprichst du deinen Text. Danach nur noch **Dateiname** und **Veröffentlichen** — dein Beitrag landet im **Wartekorb** (als Owner sofort veröffentlicht).
 
       - Eine Quelle: Text (tippen oder diktieren)
       - Dein Text wird direkt übernommen
-      - Dateiname eingeben und fertig
+      - Dateiname eingeben und veröffentlichen
   output:
     fileName:
       metadataFieldKey: title
@@ -62,6 +62,10 @@ creation:
         description: "Nur der Dateiname (ohne Endung md). Der Text aus dem vorigen Schritt wird übernommen."
         fields:
           - filename
+      - id: Publish
+        preset: publish
+        title: "Veröffentlichen"
+        ingestOnFinish: false
   ui:
     displayName: "Diktat erfassen"
     description: "Text tippen oder diktieren und als bearbeitbares Transkript speichern"
@@ -98,6 +102,16 @@ creation:
       type: file
       label: "Datei hochladen"
       helpText: "PDF, Audio, Bild oder Video. Inhalt wird extrahiert bzw. transkribiert; Ergebnis vor dem Speichern editierbar."
+  welcome:
+    markdown: |
+      ## Willkommen
+
+      Hier **importierst** du eine Datei (PDF oder Audio) und wir **verarbeiten** sie für dich — der Beitrag landet danach im **Wartekorb** (als Owner sofort veröffentlicht).
+
+      - Datei hochladen
+      - Inhaltstyp wählen (z.B. Buch, Session)
+      - Wir extrahieren bzw. transkribieren den Inhalt
+      - Du prüfst das Ergebnis und legst es ab
   output:
     fileName:
       metadataFieldKey: title
@@ -115,6 +129,9 @@ creation:
       - id: Collect
         preset: collectSource
         title: "Datei auswählen"
+      - id: SelectType
+        preset: selectSchemaType
+        title: "Inhaltstyp wählen"
       - id: Review
         preset: editDraft
         title: "Inhalt und Dateiname prüfen"
@@ -127,8 +144,8 @@ creation:
         title: "Speichern"
         ingestOnFinish: false
   ui:
-    displayName: "Datei transkribieren"
-    description: "Datei hochladen, Inhalt extrahieren und als bearbeitbares Transkript speichern"
+    displayName: "Datei importieren und verarbeiten"
+    description: "Datei hochladen, Inhalt automatisch extrahieren/transkribieren und als Beitrag in den Wartekorb legen"
     icon: "Upload"
 ---
 

@@ -15,6 +15,7 @@ const h = vi.hoisted(() => ({
   getSubmissionById: vi.fn(),
   changeSubmissionStatus: vi.fn(),
   getServerProvider: vi.fn(),
+  getInboxProvider: vi.fn(),
   upsertMarkdown: vi.fn(),
   promoteSubmission: vi.fn(),
 }));
@@ -30,8 +31,17 @@ vi.mock('@/lib/repositories/wizard-submissions-repo', () => ({
   changeSubmissionStatus: h.changeSubmissionStatus,
 }));
 vi.mock('@/lib/storage/server-provider', () => ({ getServerProvider: h.getServerProvider }));
+vi.mock('@/lib/storage/inbox/inbox-provider-entry', () => ({ getInboxProvider: h.getInboxProvider }));
 vi.mock('@/lib/chat/ingestion-service', () => ({ IngestionService: { upsertMarkdown: h.upsertMarkdown } }));
 vi.mock('@/lib/submissions/promotion', () => ({ promoteSubmission: h.promoteSubmission }));
+// Schwer-Imports von promote-actions (transcript-Shadow-Twin). Werden hier nie
+// aufgerufen (promoteSubmission ist gemockt) — nur Import-Schutz fuer den Test.
+vi.mock('@/lib/services/library-service', () => ({
+  LibraryService: { getInstance: () => ({ getLibraryById: vi.fn() }) },
+}));
+vi.mock('@/lib/shadow-twin/shadow-twin-config', () => ({ getShadowTwinConfig: vi.fn() }));
+vi.mock('@/lib/shadow-twin/artifact-writer', () => ({ writeArtifact: vi.fn() }));
+vi.mock('@/lib/shadow-twin/store/shadow-twin-service', () => ({ ShadowTwinService: { create: vi.fn() } }));
 
 import { POST as promote } from '@/app/api/submissions/[id]/promote/route';
 import { StorageError } from '@/lib/storage/types';
@@ -47,7 +57,7 @@ function req(id: string): NextRequest {
   return new NextRequest(`http://localhost/api/submissions/${id}/promote`, { method: 'POST' });
 }
 
-const ready = { id: 's1', libraryId: 'lib-1', status: 'ready', createdBy: 'anna@example.com' };
+const ready = { id: 's1', libraryId: 'lib-1', status: 'ready', createdBy: 'anna@example.com', binaryRefs: [] };
 
 /** changeSubmissionStatus liefert nacheinander den jeweils gesetzten Status zurueck. */
 function statusReturns(...statuses: string[]): void {
@@ -111,11 +121,23 @@ describe('promote', () => {
     h.isCoCreatorOrOwner.mockResolvedValue(true);
     statusReturns('publishing', 'published');
     h.getServerProvider.mockResolvedValue({});
-    h.promoteSubmission.mockResolvedValue({ savedItemId: 'doc-1', fileName: 'x.md', alreadyPresent: false });
+    h.promoteSubmission.mockResolvedValue({
+      savedItemId: 'doc-1',
+      fileName: 'x.md',
+      alreadyPresent: false,
+      targetFolderId: 'inbox-1',
+      targetFolderName: 'inbox',
+    });
 
     const res = await promote(req('s1'), params('s1'));
     expect(res.status).toBe(200);
-    await expect(res.json()).resolves.toMatchObject({ savedItemId: 'doc-1' });
+    // Route reicht Zielordner + Dateiname an den Client zurueck (Wizard-Summary).
+    await expect(res.json()).resolves.toMatchObject({
+      savedItemId: 'doc-1',
+      fileName: 'x.md',
+      targetFolderId: 'inbox-1',
+      targetFolderName: 'inbox',
+    });
 
     expect(h.changeSubmissionStatus).toHaveBeenCalledTimes(2);
     expect(h.changeSubmissionStatus.mock.calls[0][1]).toMatchObject({ to: 'publishing', actor: 'rev@example.com' });
