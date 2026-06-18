@@ -140,6 +140,21 @@ klein, weil der Owner die Spalten ohnehin schon je Library wählt
 (alle Formate inkl. unbekannt) + Snapshot/RTL für `ReferenceList`; Playwright-E2E:
 Story mit gemischten Anhängen rendert Player/Thumbnail/Button sichtbar.
 
+**Status (2026-06-18, Welle 1 umgesetzt):**
+- ✅ `reference-format.ts` + 20 Unit-Tests (Formate, Query/Fragment, Encoding,
+  Web-ohne-Warn).
+- ✅ `reference-list.tsx` + 4 RTL-Tests (DOM je Format, Gruppen-Reihenfolge, Titel).
+- ✅ `book-detail.tsx` umgestellt; `isPdfUrl`/`classifyAttachments`/
+  `extractDisplayName` entfernt; Quell-Button nutzt `classifyReference`.
+- ⏭️ **`session-detail.tsx` bewusst NICHT** umgestellt: löst Anhänge über einen
+  eigenen Medien-Hook auf (`useSessionMedia`, `attachmentNames`,
+  `video_url`/`galleryImageUrls` separat). Sauberer Folge-Schritt (eigene PR),
+  damit die Medien-Auflösung nicht regressiert.
+- ⏭️ **Playwright-E2E offen:** braucht laufende App + Clerk-Login + MongoDB +
+  publizierte Story mit gemischten Anhängen (im Cloud-Agent nicht lauffähig).
+  Die sichtbare Per-Format-Darstellung ist über die RTL-Tests (echtes DOM)
+  abgedeckt; E2E beim User lokal nachziehen, wenn eine Test-Story bereitsteht.
+
 ### A4a — Typ als Leitfilter, adaptive Facetten (Welle 2)
 
 **Modell (Owner-Entscheidung 2026-06-18):** Der Inhaltstyp ist der **erste**
