@@ -147,21 +147,23 @@ Transformation" (Schema = nativer Quelltyp, nur Extract/Transkript) zusammenfass
 Abhängigkeiten: W-A vor W-B/W-D; W-B vor W-C; W-C vor W-F; W-E mit U4. Alles
 **nach Plan 1**.
 
-## 6. Offene Entscheidungen (vor Bau klären)
+## 6. Entscheidungen (Stand 2026-06-18 — alle bestätigt)
 
-1. **Bindungs-Granularität des Standard-Wizards:** Ein Flow mit
-   `selectSchemaType`-Schritt (Schema zur Laufzeit, wie heute `file-transcript-de`)
-   ODER pro Schema ein vorgebundener Flow-Eintrag in der Kuratierung?
-   *Empfehlung:* beides zulassen — Kuratierung referenziert entweder „Flow +
-   freie Schemawahl" oder „Flow + festes Schema".
-2. **Speicherort der Flow-Entität:** eigene Mongo-Sammlung vs. erweitertes
-   Template-Repo mit `type: 'wizard' | 'schema'`. *Empfehlung:* an die 2a-
-   Entscheidung koppeln (ADR-0003 U8/Editoren), nicht vorwegnehmen.
-3. **Kuratierungs-Default ohne Config:** nur Standard-Wizard, oder Standard +
-   alle schema-gebundenen? *Empfehlung:* nur Standard-Wizard sichtbar; weitere
-   müssen bewusst aktiviert werden (verhindert Wildwuchs, kein Silent-Voll-Dump).
-4. **Community-Sharing der Flows** (ADR-0003-Ziel) — erst nach stabiler Runtime
-   (U8), hier nur nicht verbauen.
+1. **Bindungs-Granularität des Standard-Wizards: ENTSCHIEDEN — beides zulassen.**
+   Der Standard-Wizard fragt den Typ zur Laufzeit (`selectSchemaType`, wie heute
+   `file-transcript-de`); spezielle Wizards sind pro Schema **vorgebunden**. Die
+   Kuratierung referenziert also entweder „Flow + freie Schemawahl" oder „Flow +
+   festes Schema".
+2. **Speicherort der Flow-Entität: ENTSCHIEDEN — an Plan 2a koppeln.** Jetzt NICHT
+   festlegen (eigene Mongo-Sammlung vs. Template-Repo mit `type: 'wizard'|'schema'`);
+   Entscheidung fällt mit der Entflechtung (ADR-0003, U8/Editoren). Für den Nutzer
+   sichtbar ändert sich dadurch nichts.
+3. **Kuratierungs-Default ohne Config: ENTSCHIEDEN — nur Standard-Wizard.** Fehlt
+   die `captureWizards`-Config, ist **nur der Standard-Wizard** sichtbar; weitere
+   müssen **bewusst aktiviert** werden (kein stiller Voll-Dump aller Templates).
+4. **Community-Sharing der Flows: ENTSCHIEDEN — später, Tür offen lassen.** Erst
+   nach stabiler Runtime (U8) entscheiden; jetzt nur nichts verbauen, was es
+   später verhindert.
 5. **Anonyme Erfassung (Explorer): ENTSCHIEDEN — nein.** Erfassung bleibt
    rollen-gated (mindestens `contributor`); anonyme/Login-lose Erfassung ist
    **nicht** vorgesehen. Entspricht dem heutigen `canCapture` (fail-closed ohne
