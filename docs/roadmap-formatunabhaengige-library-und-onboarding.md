@@ -58,6 +58,17 @@ Architektur-Grundlage: **ADR-0003** (Wizard ⊥ Schema trennen, O1 generisch) un
 **ADR-0004** (Inbox/Submission, Erfassen ⟂ Veröffentlichen). Bauplan: der
 **Umbauplan** (`docs/wizards/umbauplan-generischer-erfassungs-wizard.md`, U0–U8).
 
+> **Präzisierungen (2026-06-18, entschieden — vor Plan-2-Bau lesen):**
+> - `docs/wizards/plan-praezisierung-inhalte-erfassen-kuratierte-wizards.md` —
+>   „Inhalte erfassen" als pro Library **kuratierte** Wizard-Liste; Flow als
+>   geteilte Entität (Redundanz weg); Wizard-Editor vom Template-Editor
+>   entkoppeln; Einstieg×Rolle×Speicherziel (Contributor-Übersicht im Explorer,
+>   keine anonyme Erfassung); Arbeitspakete W-A…W-G; Entscheidungen 1–5 geschlossen.
+> - `docs/wizards/gesamtbild-und-schnellspur-einfach.md` — Gesamtbild + Standort +
+>   Schnellspur-Streichliste (Verzeichnis-Upload u. a.) in einfacher Sprache.
+> - `docs/analysis/wizard-zwei-eingaenge-einfach.md` — „eine Maschine, mehrere
+>   Türen"; der Import-Flow ist ein **eingebautes Template** (`file-transcript-de`).
+
 ### 2a — Templates entflechten (zuerst, Daten-Fundament)
 
 Aus **einem starren Template** (Daten + Aussehen + KI-Anweisung + Klick-Ablauf, in
