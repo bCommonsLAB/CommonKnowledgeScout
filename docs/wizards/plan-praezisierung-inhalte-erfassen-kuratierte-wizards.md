@@ -145,6 +145,36 @@ Die verstreuten `if (transcriptOnly)` zu EINER Betriebsart „Flow ohne
 Transformation" (Schema = nativer Quelltyp, nur Extract/Transkript) zusammenfassen
 — im Zuge von U1/U4 (Step-Engine + ein Submission-Commit), nicht als Extra-Pfad.
 
+### Klarstellung: „Werden die Abnahme-Felder dann nicht kompliziert?"
+
+Häufige (berechtigte) Sorge: im Wizard werden Felder angezeigt/abgenommen, die an
+ein bestimmtes Template hängen — wird das mit einem generischen Flow nicht kompliziert?
+
+**Nein — es wird einfacher; die Komplexität ist die von heute.** Heute steckt
+Feldwissen **im Wizard** (`edit-draft-step.tsx`: hartkodierte `getFieldLabel`-Map,
+Textarea-/Array-Heuristiken) → der Schritt klebt am Template. Der Plan dreht das um:
+
+- Felder gehören ins **Schema** als Feld-Metadaten (`kind=content/system/structural`,
+  `inputType`, `label`, `order`) — ADR-0003 O1.
+- Der Abnahme-/Edit-Schritt ist **generisch**: „alle `kind=content`-Felder in
+  Schema-Reihenfolge". Der Flow **nennt nie einen Feldnamen**.
+- Laufzeit: **Flow (generisch) + Schema (Felder) → Merge.** Welche Felder
+  abgenommen werden, bestimmt das gebundene Schema, nicht der Flow.
+
+**Schon halb gebaut (verifiziert):** `editableContentFields()`
+(`src/lib/creation/editable-fields.ts`) = generische Feld-Bindung, bereits
+gemergt; **generische Abnahme** läuft über `submission-review.ts`
+(`contentRequiredFields(detailViewType)`) + `submission-edit-fields.tsx` —
+template-übergreifend. Offen ist nur, das hartkodierte Wissen aus
+`edit-draft-step.tsx` in die Schema-Feld-Metadaten zu verschieben (O1, gehört zu W-A).
+
+**Editor-Aufteilung passt dazu:** Schema-Editor = *welche* Felder (Label/Typ/
+Pflicht/Reihenfolge); Wizard-Editor = *Schritte* + Texte (ohne Feldnamen).
+
+**Einziger echter Vertrag:** Ein Wizard bindet ein Schema (fest oder via
+`selectSchemaType`) + **Kompatibilitätsprüfung** (editDraft-Schritt ⇒ Schema
+braucht `content`-Felder) — ersetzt den heutigen stillen „zeig alle"-Fallback.
+
 ## 5. Arbeitspakete (eingehängt in den bestehenden U-Strang)
 
 > DoD je WP: `pnpm test` + `pnpm lint` grün; sichtbare Story als E2E.
