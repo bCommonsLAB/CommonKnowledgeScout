@@ -1,6 +1,9 @@
 # Test-Befunde nach B2d (transcript-only): „Bilder: 0" + fremde Bilder
 
-Status: UMGESETZT (V1 + Zähler-Fix). Branch: `claude/confident-maxwell-9sz7cq`.
+Status: UMGESETZT (V1 + Zähler-Fix) — mit OFFENER Coverage-Lücke beim
+`sourceId`-Fix (siehe Abschnitt „Coverage-Lücke" unten und
+`wizard-transcript-only-offene-testszenarien.md` Abschnitt D).
+Branch: `claude/confident-maxwell-9sz7cq`.
 Test: „Inhalte erfassen" → `blog-writer-pilot.pdf` → „Nur importieren und
 transkribieren" → im Archiv (`Onedrive Test / inbox 2`) angezeigt.
 
@@ -161,6 +164,29 @@ Empfehlung: V1 als korrekter Fix (app-weit), abgesichert durch den einen
 Laufzeit-Messwert (Blob-URL des fremden Bildes → `sourceId`-Segment). Falls V1
 wegen fehlendem Quellkontext in der fileId nicht sauber geht, V2 als
 begrenzter Sofort-Fix für den Wizard-Flow.
+
+## Coverage-Lücke beim `sourceId`-Fix (Befund 2, OFFEN)
+
+Der `sourceId`-präzise Lese-Pfad wirkt nur, wo der Renderer die Träger-`sourceId`
+auch mitgibt. Verdrahtet ist das aktuell NUR in den File-Preview-Views
+**pdf / audio / video / office**.
+
+Noch OHNE `sourceId` (treffen weiter den library-weiten Legacy-Pfad und können
+daher dieselben „fremden Bilder" zeigen, sobald generische Namen wie
+`img-0.jpeg` vorkommen):
+
+- `src/components/library/file-preview/views/website-view.tsx` (4× `ArtifactMarkdownPanel`)
+- `src/components/library/file-preview/views/markdown-view.tsx` (2×)
+- Galerie-/Detail-Ansichten, die Transkripte/Transformationen mit Bildern
+  rendern (außerhalb der File-Preview-Views) — noch nicht auditiert.
+
+Risiko: geringer (diese Artefakte haben seltener OCR-`img-N`-Bilder), aber real
+und latent. Fix wäre gleichförmig: `sourceId={item.id}` (Träger-fileId)
+durchreichen — analog pdf-view. Der library-weite Pfad in
+`GET /api/storage/streaming-url` bleibt bewusst als Fallback (Rückwärts-
+kompatibilität), ist also kein Blocker, aber langfristig härtbar.
+
+Tracking: `wizard-transcript-only-offene-testszenarien.md` Abschnitt D.
 
 ## Fazit
 
