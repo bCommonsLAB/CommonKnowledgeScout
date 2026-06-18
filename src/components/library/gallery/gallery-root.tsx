@@ -1150,6 +1150,9 @@ export function GalleryRoot({
         onChange={setFacet}
         title={t('gallery.filter')}
         description={texts.filterDescription}
+        viewTypes={viewTypes}
+        selectedViewType={selectedViewType}
+        onSelectViewType={handleSelectViewType}
       />
 
       {/* Detail Overlay - reagiert nur auf URL-Parameter */}

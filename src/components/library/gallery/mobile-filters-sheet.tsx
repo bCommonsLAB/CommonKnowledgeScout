@@ -4,6 +4,7 @@ import React from 'react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { DocumentFilterGroup } from './document-filter-group'
 import { FacetsList } from './facets-list'
+import { ViewTypeLeadFilter } from './view-type-lead-filter'
 
 export interface MobileFiltersSheetProps {
   open: boolean
@@ -13,9 +14,13 @@ export interface MobileFiltersSheetProps {
   onChange: (name: string, values: string[]) => void
   title: string
   description?: string
+  /** A4a — Typ-Leitfilter (gemischte Libraries). Optional. */
+  viewTypes?: string[]
+  selectedViewType?: string | null
+  onSelectViewType?: (viewType: string | null) => void
 }
 
-export function MobileFiltersSheet({ open, onOpenChange, facetDefs, selected, onChange, title, description }: MobileFiltersSheetProps) {
+export function MobileFiltersSheet({ open, onOpenChange, facetDefs, selected, onChange, title, description, viewTypes, selectedViewType, onSelectViewType }: MobileFiltersSheetProps) {
   // Extrahiere shortTitle-Filter
   const shortTitleFilter = selected.shortTitle
   const hasShortTitleFilter = Array.isArray(shortTitleFilter) && shortTitleFilter.length > 0
@@ -28,6 +33,15 @@ export function MobileFiltersSheet({ open, onOpenChange, facetDefs, selected, on
           {description ? <SheetDescription className="text-sm">{description}</SheetDescription> : null}
         </SheetHeader>
         <div className="mt-6 space-y-3">
+          {/* A4a — Typ-Leitfilter zuerst (erscheint nur bei >= 2 Typen) */}
+          {viewTypes && onSelectViewType ? (
+            <ViewTypeLeadFilter
+              viewTypes={viewTypes}
+              selected={selectedViewType ?? null}
+              onSelect={onSelectViewType}
+            />
+          ) : null}
+
           {/* Dokumentenfilter - spezielle Behandlung */}
           {hasShortTitleFilter && (
             <DocumentFilterGroup
