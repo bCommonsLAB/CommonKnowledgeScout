@@ -36,6 +36,13 @@ import { writeArtifact } from "@/lib/shadow-twin/artifact-writer"
 import { findRelatedTestimonials } from "@/lib/creation/dialograum-discovery"
 import { findRelatedEventTestimonialsFilesystem } from "@/lib/creation/event-testimonial-discovery"
 import { promoteWizardArtifacts } from "@/lib/creation/wizard-artifact-promotion"
+import {
+  resolveOperatingMode,
+  isTranscriptOnly,
+  effectiveDetailViewTypeForMode,
+  transcriptComputeFields,
+  wizardPublishCopy,
+} from "@/lib/creation/operating-mode"
 import { useUser } from "@clerk/nextjs"
 import type { WizardSessionEvent } from "@/types/wizard-session"
 import {
@@ -1205,7 +1212,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         return
       }
       // 5a: „Nur importieren und transkribieren" oder ein Inhaltstyp — genau eins.
-      const transcriptOnly = wizardState.captureTranscriptOnly === true
+      const mode = resolveOperatingMode(wizardState)
+      const transcriptOnly = isTranscriptOnly(mode)
       const selectedType = wizardState.selectedDetailViewType
       if (!transcriptOnly && !selectedType) {
         toast.error('Bitte einen Inhaltstyp wählen')
@@ -1234,10 +1242,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         // 5a: Bei „Nur transkribieren" rendert die Submission als session
         // (standard-session existiert, kein Pre-flight-Umbau) und der docType
         // ist 'transcript'.
-        const effectiveDetailViewType = transcriptOnly ? 'session' : (selectedType as string)
-        const computeFields = transcriptOnly
-          ? [{ key: 'docType', rawValue: 'transcript' }]
-          : []
+        const effectiveDetailViewType = effectiveDetailViewTypeForMode(mode, selectedType)
+        const computeFields = transcriptComputeFields(mode)
         const fields = buildCaptureComputeFields({
           libraryId,
           wizardId: templateId,
@@ -2437,7 +2443,9 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         // Ausnahmefall „Nur importieren und transkribieren": KEINE Publikation/
         // Ingestion. Steuert Wortlaut (kein „publizieren") und Navigation (Archiv
         // statt Galerie) im gesamten Publish-Step.
-        const transcriptOnly = wizardState.captureTranscriptOnly === true
+        const mode = resolveOperatingMode(wizardState)
+        const transcriptOnly = isTranscriptOnly(mode)
+        const publishCopy = wizardPublishCopy(mode)
         const onPublish = async () => {
           const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
           const isEventPublishFinal = (templateId || '').toLowerCase().includes('event-publish-final')
@@ -2523,7 +2531,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
               //    aktualisiert (PATCH) statt einer zweiten angelegt — EIN
               //    Submission-Commit (ADR-0004, behebt KI-1). Text/URL ohne
               //    Vorab-Submission: neu anlegen.
-              setWizardState(prev => ({ ...prev, publishingProgress: 50, publishingMessage: transcriptOnly ? 'Vorbereiten…' : 'Im Wartekorb anlegen…' }))
+              setWizardState(prev => ({ ...prev, publishingProgress: 50, publishingMessage: publishCopy.prepareMessage }))
               // Nur ein EXPLIZIT uebergebenes Ziel (URL/Child-Flow via
               // `targetFolderIdProp`) gilt als gewaehlter Ordner. Der ambiente
               // Galerie-Ordner (`currentFolderIdAtom`) darf NICHT still zum Ziel
@@ -2572,7 +2580,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
               // Gespiegelte Asset-Namen aus der Promotion (transcript-only/B2d).
               let mirroredAssetNames: string[] = []
               if (isOwner) {
-                setWizardState(prev => ({ ...prev, publishingProgress: 75, publishingMessage: transcriptOnly ? 'Im Archiv speichern…' : 'Veröffentlichen…' }))
+                setWizardState(prev => ({ ...prev, publishingProgress: 75, publishingMessage: publishCopy.finalizeMessage }))
                 await approveSubmission(submissionId)
                 const promoteRes = await promoteSubmission(submissionId)
                 savedItemId = promoteRes.savedItemId
@@ -2602,7 +2610,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                 isPublished: true,
                 publishingProgress: 100,
                 publishingMessage: isOwner
-                  ? (transcriptOnly ? 'Im Archiv gespeichert.' : 'Veröffentlicht.')
+                  ? publishCopy.ownerSuccessMessage
                   : 'Im Wartekorb — wird geprüft.',
                 publishStats: { documents: 1, images: imagesCount, sources: sourcesCount, assets: assetsCount },
                 // Owner: realer Ordner aus der Promotion; sonst Fallback auf den UI-Ordner.
@@ -2766,7 +2774,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                 publishingProgress: prev.publishingProgress ?? 0,
                 publishingMessage: msg,
               }))
-              toast.error(transcriptOnly ? 'Speichern fehlgeschlagen' : 'Publizieren fehlgeschlagen', { description: msg })
+              toast.error(publishCopy.errorToastTitle, { description: msg })
               if (sessionIdForLogs) {
                 const durationMs = Math.max(0, nowMs() - publishStartedAt)
                 void logWizardEventClient(sessionIdForLogs, {
@@ -2839,7 +2847,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                 publishingProgress: prev.publishingProgress ?? 0,
                 publishingMessage: msg,
               }))
-              toast.error(transcriptOnly ? 'Speichern fehlgeschlagen' : 'Publizieren fehlgeschlagen', { description: msg })
+              toast.error(publishCopy.errorToastTitle, { description: msg })
               if (sessionIdForLogs) {
                 const durationMs = Math.max(0, nowMs() - publishStartedAt)
                 void logWizardEventClient(sessionIdForLogs, {
@@ -3054,7 +3062,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
               publishingProgress: prev.publishingProgress ?? 0,
               publishingMessage: msg,
             }))
-            toast.error(transcriptOnly ? 'Speichern fehlgeschlagen' : 'Publizieren fehlgeschlagen', { description: msg })
+            toast.error(publishCopy.errorToastTitle, { description: msg })
             if (sessionIdForLogs) {
               const durationMs = Math.max(0, nowMs() - publishStartedAt)
               void logWizardEventClient(sessionIdForLogs, {
@@ -3070,12 +3078,10 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
 
         return (
           <PublishStep
-            title={currentStep.title || (transcriptOnly ? "Im Archiv speichern" : "Publizieren")}
-            description={currentStep.description || (transcriptOnly
-              ? "Die Datei wird importiert und das Transkript im Archiv gespeichert."
-              : "Jetzt wird das Ergebnis final gespeichert und für die Suche indiziert.")}
-            runningLabel={transcriptOnly ? "Speichern läuft…" : undefined}
-            startingLabel={transcriptOnly ? "Speichern wird gestartet…" : undefined}
+            title={currentStep.title || publishCopy.stepTitle}
+            description={currentStep.description || publishCopy.stepDescription}
+            runningLabel={publishCopy.runningLabel}
+            startingLabel={publishCopy.startingLabel}
             onPublish={onPublish}
             isPublishing={!!wizardState.isPublishing}
             publishingProgress={typeof wizardState.publishingProgress === 'number' ? wizardState.publishingProgress : 0}
