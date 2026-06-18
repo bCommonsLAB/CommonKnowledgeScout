@@ -1,10 +1,13 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
-import { parseFacetDefs, buildFilterFromQuery } from '@/lib/chat/dynamic-facets'
+import { buildFilterFromQuery } from '@/lib/chat/dynamic-facets'
+import { resolveFacetScope } from '@/lib/chat/facet-scope'
 import { facetsSelectedToMongoFilter } from '@/lib/chat/common/filters'
-import { findDocs, findDocsGrouped, getCollectionNameForLibrary, getCollectionOnly, type GallerySort } from '@/lib/repositories/vector-repo'
+import { findDocs, findDocsGrouped, distinctViewTypes, getCollectionNameForLibrary, getCollectionOnly, type GallerySort } from '@/lib/repositories/vector-repo'
 import { maybePublicationFilter } from '@/lib/chat/publication-filter'
+import { isValidDetailViewType } from '@/lib/detail-view-types/registry'
+import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
 import { isCoCreatorOrOwner } from '@/lib/repositories/library-members-repo'
 import { getPreferredUserEmail } from '@/lib/auth/user-email'
 import type { Document } from 'mongodb'
@@ -74,9 +77,20 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
     }
 
     const url = new URL(req.url)
-    const defs = parseFacetDefs(ctx.library)
     const libraryKey = getCollectionNameForLibrary(ctx.library)
-    
+
+    // A4a — Typ als Leitfilter: optionaler `detailViewType`-Parameter scoped die
+    // Facetten + filtert die Liste streng auf den gewaehlten Typ.
+    const selectedTypeRaw = url.searchParams.get('detailViewType')
+    const selectedType = selectedTypeRaw && selectedTypeRaw.trim() ? selectedTypeRaw.trim() : null
+    if (selectedType && !isValidDetailViewType(selectedType)) {
+      return NextResponse.json({ error: `Unbekannter detailViewType „${selectedType}".` }, { status: 400 })
+    }
+    const libraryDefaultType = getDetailViewType({}, ctx.library.config?.chat)
+    const presentTypes = selectedType ? [] : await distinctViewTypes(libraryKey, libraryId)
+    const scope = resolveFacetScope({ library: ctx.library, selectedType, presentTypes, libraryDefaultType })
+    const defs = scope.defs
+
     // PERFORMANCE: Index-Erstellung zur Laufzeit entfernen
     // await ensureFacetIndexes(libraryKey, defs)
     const builtin = buildFilterFromQuery(url, defs)
@@ -97,6 +111,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
           filter[def.metaKey] = value
         }
       }
+    }
+
+    // A4a: strenger Typ-Filter (nur bei gewaehltem Typ). Per $and anhaengen,
+    // damit ein eventuelles $or (Default-Typ-Einbezug / Suche) erhalten bleibt.
+    if (scope.typeFilter) {
+      const existing = Array.isArray(filter.$and) ? filter.$and : []
+      filter.$and = [...existing, scope.typeFilter]
     }
 
     // Prüfe, ob Image-URLs mitgeladen werden sollen (für Kompatibilität)

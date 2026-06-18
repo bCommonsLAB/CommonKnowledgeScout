@@ -1514,6 +1514,29 @@ export async function aggregateFacets(
 }
 
 /**
+ * Liefert die distinkten `detailViewType`-Werte der Meta-Dokumente einer
+ * Library (Plan 1 · A4a — Typ-Leitfilter). Dokumente OHNE Typ tauchen NICHT
+ * auf — sie gelten als Library-Default und werden vom Aufrufer ergaenzt.
+ * Coalesct Top-Level und `docMetaJson.detailViewType` (wie aggregateFacets).
+ */
+export async function distinctViewTypes(
+  libraryKey: string,
+  libraryId: string,
+): Promise<string[]> {
+  const col = await getCollection<Document>(libraryKey)
+  const rows = await col
+    .aggregate([
+      { $match: { kind: 'meta', libraryId } },
+      { $addFields: { __dvt: { $ifNull: ['$detailViewType', '$docMetaJson.detailViewType'] } } },
+      { $match: { __dvt: { $type: 'string', $ne: '' } } },
+      { $group: { _id: '$__dvt' } },
+      { $sort: { _id: 1 } },
+    ])
+    .toArray()
+  return rows.map((r) => String((r as { _id: unknown })._id)).filter((v) => v.length > 0)
+}
+
+/**
  * Holt Meta-Dokument nach FileID.
  * @param libraryKey Collection-Name
  * @param fileId File-ID
