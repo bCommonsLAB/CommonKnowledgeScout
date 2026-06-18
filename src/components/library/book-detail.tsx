@@ -2,12 +2,14 @@
 
 import * as React from "react";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Calendar, FileText, MapPin, BookOpen, Tag, ExternalLink, Globe, Paperclip } from "lucide-react";
+import { ArrowLeft, Calendar, FileText, MapPin, BookOpen, Tag, ExternalLink, Globe } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { ChapterAccordion } from "./chapter-accordion";
 import { AIGeneratedNotice } from "@/components/shared/ai-generated-notice";
 import { MarkdownPreview } from "./markdown-preview";
+import { ReferenceList } from "./story/reference-list";
+import { classifyReference } from "@/lib/library/reference-format";
 
 export interface Chapter {
   order: number;
@@ -59,9 +61,7 @@ export function BookDetail({ data, backHref = "/library", showBackLink = false }
   const authors = Array.isArray(data.authors) ? data.authors : [];
 
   // URL-Klassifikation: PDF oder Webseite → immer prominent als Button
-  const urlIsPdf = data.url ? isPdfUrl(data.url) : false
-  // Attachments in Dokumente vs. Links aufteilen (url NICHT enthalten, da eigener Button)
-  const attachmentGroups = classifyAttachments(data.attachments_url)
+  const urlIsPdf = data.url ? classifyReference(data.url) === 'pdf' : false
 
   return (
     <div className="container max-w-2xl mx-auto px-4 py-6">
@@ -170,62 +170,9 @@ export function BookDetail({ data, backHref = "/library", showBackLink = false }
         </section>
       )}
 
-      {/* Dokumente & Links aus attachments_url – nach Zusammenfassung, vor Metadaten */}
-      {(attachmentGroups.documents.length > 0 || attachmentGroups.links.length > 0) && (
-        <section className="bg-card border border-border rounded-lg p-5 mb-6">
-          {/* Dokumente (PDF-Anhänge) */}
-          {attachmentGroups.documents.length > 0 && (
-            <div className={attachmentGroups.links.length > 0 ? 'mb-4' : ''}>
-              <h2 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide flex items-center gap-2">
-                <Paperclip className="w-4 h-4" />
-                Dokumente
-              </h2>
-              <ul className="space-y-1.5">
-                {attachmentGroups.documents.map((url, idx) => (
-                  <li key={idx}>
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
-                    >
-                      <FileText className="w-3.5 h-3.5 flex-shrink-0" />
-                      <span className="truncate">{extractDisplayName(url)}</span>
-                      <ExternalLink className="w-3 h-3 flex-shrink-0 text-muted-foreground" />
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Web-Links aus Attachments */}
-          {attachmentGroups.links.length > 0 && (
-            <div>
-              <h2 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide flex items-center gap-2">
-                <Globe className="w-4 h-4" />
-                Links
-              </h2>
-              <ul className="space-y-1.5">
-                {attachmentGroups.links.map((url, idx) => (
-                  <li key={idx}>
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
-                    >
-                      <Globe className="w-3.5 h-3.5 flex-shrink-0" />
-                      <span className="truncate">{extractDisplayName(url)}</span>
-                      <ExternalLink className="w-3 h-3 flex-shrink-0 text-muted-foreground" />
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </section>
-      )}
+      {/* Verweise/Anhänge aus attachments_url, je Format gerendert (A4c) –
+           nach Zusammenfassung, vor Metadaten. url hat oben einen eigenen Button. */}
+      <ReferenceList references={data.attachments_url} title="Dokumente & Links" />
 
       <div className="grid grid-cols-2 gap-3 mb-6">
         <section className="bg-card border border-border rounded-lg p-4">
@@ -301,63 +248,7 @@ export default BookDetail;
 
 // ── Hilfsfunktionen ──────────────────────────────────────────────────────────
 
-/** Erkennt PDF-URLs anhand Dateiendung oder Azure Blob Storage Muster */
-function isPdfUrl(url: string): boolean {
-  try {
-    const pathname = new URL(url).pathname.toLowerCase()
-    // Explizite .pdf-Endung
-    if (pathname.endsWith('.pdf')) return true
-    // Azure Blob Storage mit PDF-Dateinamen (URL-encoded Leerzeichen möglich)
-    if (pathname.includes('.pdf')) return true
-  } catch {
-    // Relative URL oder ungültig
-    if (url.toLowerCase().endsWith('.pdf')) return true
-  }
-  return false
-}
-
-/**
- * Klassifiziert attachments_url in Dokumente (PDFs) und Web-Links.
- * data.url wird hier NICHT berücksichtigt (hat eigenen prominenten Button).
- */
-function classifyAttachments(
-  attachmentsUrl: string[] | undefined
-): { documents: string[]; links: string[] } {
-  const documents: string[] = []
-  const links: string[] = []
-
-  if (attachmentsUrl) {
-    for (const u of attachmentsUrl) {
-      if (isPdfUrl(u)) {
-        documents.push(u)
-      } else {
-        links.push(u)
-      }
-    }
-  }
-
-  return { documents, links }
-}
-
 /** Wandelt literal escaped Newlines (\\n) in echte Zeilenumbrüche um */
 function normalizeEscapedNewlines(text: string): string {
   return text.replace(/\\n/g, '\n')
-}
-
-/** Extrahiert einen lesbaren Anzeigenamen aus einer URL */
-function extractDisplayName(url: string): string {
-  try {
-    const parsed = new URL(url)
-    // Für Blob-Storage: Dateiname aus Pfad
-    const segments = parsed.pathname.split('/').filter(Boolean)
-    const lastSegment = segments[segments.length - 1]
-    if (lastSegment && lastSegment.includes('.')) {
-      return decodeURIComponent(lastSegment)
-    }
-    // Für Webseiten: Hostname + Pfad
-    const path = parsed.pathname.length > 1 ? parsed.pathname : ''
-    return `${parsed.hostname}${path}`
-  } catch {
-    return url
-  }
 }
