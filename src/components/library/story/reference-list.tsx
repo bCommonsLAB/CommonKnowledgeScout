@@ -8,11 +8,15 @@ import {
   groupReferencesByFormat,
   type ClassifiedReference,
   type ReferenceFormat,
+  type ReferenceInput,
 } from "@/lib/library/reference-format"
 
 interface ReferenceListProps {
-  /** Verweise/Anhaenge als URL-Liste (z.B. data.attachments_url). */
-  references: string[] | undefined
+  /**
+   * Verweise/Anhaenge: reine URLs (z.B. data.attachments_url) ODER
+   * `{ url, name }` (aufgeloeste Links, Format aus dem Dateinamen).
+   */
+  references: ReferenceInput[] | undefined
   /** Optionaler Abschnitts-Titel (Default: „Anhänge"). */
   title?: string
 }

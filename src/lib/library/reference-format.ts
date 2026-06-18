@@ -33,6 +33,14 @@ export interface ClassifiedReference {
 }
 
 /**
+ * Eingabe fuer `classifyReferences`: entweder eine reine URL (Endung bestimmt
+ * Format + Anzeige) ODER `{ url, name }` — dann bestimmt `name` (z.B. der
+ * Original-Dateiname) Format UND Anzeige, waehrend `url` nur der Link ist.
+ * Noetig, wenn der Link eine aufgeloeste Blob-URL OHNE Endung ist (Session).
+ */
+export type ReferenceInput = string | { url: string; name?: string }
+
+/**
  * Stabile Gruppen-Reihenfolge fuer die Anzeige (Medien zuerst, Web zuletzt).
  * Exhaustiv ueber `ReferenceFormat` — neue Formate hier ERGAENZEN.
  */
@@ -121,16 +129,24 @@ export function referenceDisplayName(url: string): string {
 
 /**
  * Klassifiziert eine Liste von Verweisen (leere/whitespace-Eintraege fallen
- * weg). Reihenfolge bleibt die der Eingabe.
+ * weg). Reihenfolge bleibt die der Eingabe. Akzeptiert reine URLs ODER
+ * `{ url, name }` (dann bestimmt `name` Format + Anzeige).
  */
-export function classifyReferences(urls: readonly string[] | undefined): ClassifiedReference[] {
-  if (!Array.isArray(urls)) return []
+export function classifyReferences(
+  inputs: readonly ReferenceInput[] | undefined,
+): ClassifiedReference[] {
+  if (!Array.isArray(inputs)) return []
   const out: ClassifiedReference[] = []
-  for (const raw of urls) {
-    if (typeof raw !== 'string') continue
-    const url = raw.trim()
+  for (const raw of inputs) {
+    const url = (typeof raw === 'string' ? raw : raw?.url ?? '').trim()
     if (!url) continue
-    out.push({ url, format: classifyReference(url), name: referenceDisplayName(url) })
+    const name = typeof raw === 'string' ? '' : (raw.name ?? '').trim()
+    const classifyKey = name || url
+    out.push({
+      url,
+      format: classifyReference(classifyKey),
+      name: name || referenceDisplayName(url),
+    })
   }
   return out
 }

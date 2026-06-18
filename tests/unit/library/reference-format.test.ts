@@ -72,6 +72,23 @@ describe('classifyReferences', () => {
   it('liefert [] bei undefined', () => {
     expect(classifyReferences(undefined)).toEqual([])
   })
+
+  it('klassifiziert {url,name} nach dem Namen, verlinkt aber die URL', () => {
+    // Aufgeloeste Blob-URL ohne Endung, Format steckt im Dateinamen.
+    const out = classifyReferences([
+      { url: 'https://blob.core/api/storage?id=abc', name: 'Folien.pdf' },
+    ])
+    expect(out[0]).toEqual({
+      url: 'https://blob.core/api/storage?id=abc',
+      format: 'pdf',
+      name: 'Folien.pdf',
+    })
+  })
+
+  it('faellt ohne Namen auf die URL-Klassifikation zurueck', () => {
+    const out = classifyReferences([{ url: 'https://x/clip.mp4' }])
+    expect(out[0]).toMatchObject({ format: 'video', name: 'clip.mp4' })
+  })
 })
 
 describe('groupReferencesByFormat', () => {
