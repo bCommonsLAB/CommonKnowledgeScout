@@ -146,10 +146,10 @@ Story mit gemischten Anhängen rendert Player/Thumbnail/Button sichtbar.
 - ✅ `reference-list.tsx` + 4 RTL-Tests (DOM je Format, Gruppen-Reihenfolge, Titel).
 - ✅ `book-detail.tsx` umgestellt; `isPdfUrl`/`classifyAttachments`/
   `extractDisplayName` entfernt; Quell-Button nutzt `classifyReference`.
-- ⏭️ **`session-detail.tsx` bewusst NICHT** umgestellt: löst Anhänge über einen
-  eigenen Medien-Hook auf (`useSessionMedia`, `attachmentNames`,
-  `video_url`/`galleryImageUrls` separat). Sauberer Folge-Schritt (eigene PR),
-  damit die Medien-Auflösung nicht regressiert.
+- ✅ **`session-detail.tsx` umgestellt:** aufgelöste Anhänge laufen über
+  `ReferenceList`. Dafür nimmt `classifyReferences` jetzt `{url,name}` —
+  Klassifikation/Anzeige nach Dateiname, Link auf die aufgelöste Blob-URL.
+  Nicht-auflösbare Anhänge bleiben als Hinweis; Medien-Auflösung unverändert.
 - ⏭️ **Playwright-E2E offen:** braucht laufende App + Clerk-Login + MongoDB +
   publizierte Story mit gemischten Anhängen (im Cloud-Agent nicht lauffähig).
   Die sichtbare Per-Format-Darstellung ist über die RTL-Tests (echtes DOM)
@@ -205,9 +205,8 @@ Facetten + alle Dokumente.
 - ⚠️ **Wichtig (Regressionsschutz):** `commonFacetDefs` scoped erst ab **2**
   vorhandenen Typen. Einzeltyp-Libraries (die Mehrheit) behalten exakt die
   heutige volle Facettenliste — es ändert sich für sie nichts.
-- ⏭️ **Mobile:** Der Leitfilter ist aktuell in der **Desktop**-Filterspalte. Für
-  den mobilen Filter-Sheet (`MobileFiltersSheet`) als kleiner Folge-Schritt
-  nachziehen (Slot/Prop ergänzen).
+- ✅ **Mobile:** Leitfilter auch im `MobileFiltersSheet` (optionale Props),
+  oben im Sheet. Desktop UND Mobile abgedeckt.
 - ⏭️ **E2E offen** (lokal): Typ wählen → Facetten passen sich an + Liste nur
   dieser Typ; „Alle" → gemeinsame Facetten + alle Dokumente.
 
@@ -312,7 +311,6 @@ Modell-Empfehlung: Sonnet (UI-Wiring) für A4c/A4b; **Opus** für A4a
 - Story-Anhänge je Format (`[data-format="image|video|audio"]` in `ReferenceList`).
 
 **Offene Folge-Schritte (klein):**
-- A4c: `session-detail.tsx` auf `ReferenceList` umstellen (eigene Medien-Auflösung
-  beachten).
-- A4a: Leitfilter auch in den **mobilen** Filter-Sheet hängen.
-- A4b: optionaler Settings-Hilfetext zu „In Tabelle zeigen".
+- ✅ A4c session-detail + ✅ A4a mobiler Leitfilter — in dieser Session erledigt.
+- A4b: optionaler Settings-Hilfetext zu „In Tabelle zeigen" (kosmetisch).
+- Playwright-E2E (lokal, s.o.) für beide Stories.
