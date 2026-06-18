@@ -119,6 +119,26 @@ Rolle/Einstieg), Speicherziel bleibt off-target Inbox.
 geteilter Flow** (seedbar), referenziert das passende Schema. Built-in-Fallback im
 Code bleibt nur als Notnagel für leere Libraries (kein Silent-Override).
 
+### Δ5 — Wizard-Editor vom Template-Editor entkoppeln (folgt Δ1)
+
+**Anforderung:** Die einzelnen Wizard-Schritte müssen editierbar sein (Texte:
+Titel/Beschreibung pro Schritt, Welcome, Reihenfolge).
+
+**Heute (verifiziert):** Diese Fähigkeit existiert bereits als
+`CreationFlowEditor` — aber als **Tab *innerhalb* des Template-Editors**
+(`structured-template-editor.tsx`, Tab „Creation Flow"; editiert Schritt-Liste,
+Titel/Beschreibung, Quellen, Welcome, + JSON-Import/Export). Es ist also an EIN
+Template **gekoppelt**.
+
+**Ziel (ADR-0003 „zwei Editoren"):** **Schema-Editor** (Datenmodell) getrennt vom
+**Wizard-Editor** (Ablauf + Schritt-Texte). **Wichtig zur Zeitplanung:** Die
+Entkopplung ist **nicht** U8-Spätkram, sondern die **direkte Folge von Δ1** —
+sobald der Flow ein *geteilter* Baustein ist, ergibt „Flow im Editor *eines*
+Templates bearbeiten" keinen Sinn mehr (man editiert einen von vielen Schemas
+geteilten Ablauf). Der Wizard-Editor bearbeitet künftig die **geteilte
+Flow-Entität**. Den vorhandenen `CreationFlowEditor` dabei **wiederverwenden**
+(herauslösen), nicht neu bauen.
+
 ### Δ4 — `transcriptOnly` zur sauberen Betriebsart bündeln
 
 Die verstreuten `if (transcriptOnly)` zu EINER Betriebsart „Flow ohne
@@ -143,8 +163,12 @@ Transformation" (Schema = nativer Quelltyp, nur Extract/Transkript) zusammenfass
 - **W-F:** **Explorer-Übersicht für Contributoren.** `capture-content-button`
   öffnet die **kuratierte Auswahl** (rollen-/einstiegs-gefiltert) statt direkt
   `file-transcript-de`; Speicherziel bleibt off-target Wartekorb. → erfüllt Δ2b.
+- **W-G:** **Wizard-Editor entkoppeln.** `CreationFlowEditor` aus dem Template-
+  Editor herauslösen → eigenständiger Wizard-Editor auf der **geteilten
+  Flow-Entität** (Schritt-Texte/Reihenfolge editierbar). Läuft mit W-A (Flow-
+  Trennung). → erfüllt Δ5.
 
-Abhängigkeiten: W-A vor W-B/W-D; W-B vor W-C; W-C vor W-F; W-E mit U4. Alles
+Abhängigkeiten: W-A vor W-B/W-D/W-G; W-B vor W-C; W-C vor W-F; W-E mit U4. Alles
 **nach Plan 1**.
 
 ## 6. Entscheidungen (Stand 2026-06-18 — alle bestätigt)

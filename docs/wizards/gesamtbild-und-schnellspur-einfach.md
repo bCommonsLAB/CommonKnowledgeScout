@@ -49,8 +49,10 @@ Viel Komplexität, für den Kern nicht nötig → weglassen oder später:
   eine URL**.
 - **Zwei Verarbeitungs-Wege**: nur EINEN behalten (Pipeline off-target), den
   synchronen Textweg nicht doppelt pflegen.
-- **Visuelle Editoren** (Schema-/Wizard-Editor als UI): später; anfangs feste/
-  voreingestellte Wizards.
+- **Editoren — differenziert:** Den **Wizard-Editor** (Schritt-Texte bearbeiten)
+  NICHT wegwerfen — die Fähigkeit gibt es heute schon (`CreationFlowEditor`); er
+  wird mit der Flow-Trennung nur **entkoppelt** (eigener Editor). Was wirklich
+  **später** kann: ein komfortabler **Schema-Editor** und fancy Authoring-UI.
 - **Community-Sharing**: schon auf „später" entschieden.
 - **Alle 8 Inhaltstypen perfekt**: erst die paar real genutzten.
 - **Politur der gemischten Galerie (A4)**: auf das Nötigste.
