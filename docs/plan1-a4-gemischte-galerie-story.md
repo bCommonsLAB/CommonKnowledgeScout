@@ -305,12 +305,20 @@ Modell-Empfehlung: Sonnet (UI-Wiring) für A4c/A4b; **Opus** für A4a
 4. **Story/BookDetail** mit gemischten Anhängen → Bild=Vorschau, Audio/Video=
    Player, PDF/Datei=Knopf, Link=Globe.
 
-**Playwright-E2E (lokal nachziehen):**
-- `e2e/…` Galerie: Leitfilter klicken → Facetten/Liste ändern sich (Selektoren:
-  `[data-testid="view-type-lead-filter"]`).
-- Story-Anhänge je Format (`[data-format="image|video|audio"]` in `ReferenceList`).
+**Playwright-E2E — Gerüst angelegt (`e2e/08-a4-galerie-story.spec.ts`):**
+- Läuft unter dem `drehbuch`-Projekt (`pnpm test:e2e`); `playwright.config.ts`
+  `testMatch` um `a4` erweitert. Start: `pnpm dev` muss laufen.
+- **Vor dem ersten Lauf** drei Konstanten oben im Spec setzen:
+  `LIB_MIXED` (≥2 Typen), `LIB_SINGLE` (1 Typ), `STORY_PATH` (Story mit
+  gemischten Anhängen). Nicht gesetzte Werte → Schritt wird `MANUELL` statt rot.
+- Abgedeckt: A4a-1 Leitfilter sichtbar (gemischt), A4a-2 Typ-Wahl sendet
+  `?detailViewType=` an facets/docs (Beweis der Server-Verdrahtung), A4a-3
+  „Alle" entfernt den Param, A4a-4 Einzeltyp zeigt KEINEN Leitfilter
+  (Regression), A4c-1 Story-Anhänge je Format (`[data-format=…]`, Bild=`<img>`,
+  Audio/Video=Player).
 
 **Offene Folge-Schritte (klein):**
 - ✅ A4c session-detail + ✅ A4a mobiler Leitfilter — in dieser Session erledigt.
 - A4b: optionaler Settings-Hilfetext zu „In Tabelle zeigen" (kosmetisch).
-- Playwright-E2E (lokal, s.o.) für beide Stories.
+- ✅ Playwright-E2E-Gerüst angelegt (`e2e/08-a4-galerie-story.spec.ts`) —
+  lokal nur noch die drei Test-Daten-Konstanten ausfüllen und `pnpm test:e2e`.
