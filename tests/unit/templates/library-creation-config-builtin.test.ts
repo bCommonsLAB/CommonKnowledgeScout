@@ -83,4 +83,27 @@ describe('mergeCreationTypesWithBuiltins', () => {
     expect(row?.disabled).toBe(true)
     expect(row?.disabledHint).toMatch(/Inhalte erfassen/)
   })
+
+  it('W-A: eine Wizard-Flow-Entitaet (kind:wizard) ist KEIN Inhaltstyp', () => {
+    const flowDoc: TemplateDocument = {
+      _id: 'lib-1:standard-capture',
+      name: 'standard-capture',
+      libraryId: 'lib-1',
+      user: 'u@test',
+      kind: 'wizard',
+      metadata: { fields: [], rawFrontmatter: '' },
+      systemprompt: '',
+      markdownBody: '',
+      creation: {
+        supportedSources: [{ id: 'file', type: 'file', label: 'Datei', helpText: '' }],
+        flow: { steps: [{ id: 'w', preset: 'welcome', title: 'W' }, { id: 'p', preset: 'publish', title: 'P' }] },
+        ui: { displayName: 'Inhalt erfassen', description: 'desc', icon: 'Upload' },
+      },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      version: 1,
+    }
+    // Trotz vorhandenem creation-Block liefert die Inhaltstyp-Ableitung null.
+    expect(templateDocumentToCreationType(flowDoc, 'library')).toBeNull()
+  })
 })

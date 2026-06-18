@@ -8,6 +8,7 @@
 
 import type { ParsedTemplate, TemplateDocument } from './template-types'
 import { listBuiltinCreationTemplates } from '@/lib/templates/builtin-creation-templates'
+import { isWizardFlowDoc } from '@/lib/creation/wizard-flow-entity'
 
 /**
  * Creation-Typ-Definition aus Template
@@ -87,6 +88,11 @@ export function templateDocumentToCreationType(
   template: TemplateDocument,
   source: 'library' | 'builtin'
 ): LibraryCreationType | null {
+  // W-A/Δ1: Eine herausgeloeste Wizard-Flow-Entitaet (`kind:'wizard'`) ist KEIN
+  // Schema-Inhaltstyp und gehoert nicht in die Inhaltstyp-Ableitung.
+  if (isWizardFlowDoc(template)) {
+    return null
+  }
   if (
     !template.creation ||
     template.creation.supportedSources.length === 0 ||
