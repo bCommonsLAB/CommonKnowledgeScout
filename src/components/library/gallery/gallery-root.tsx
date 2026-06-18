@@ -11,6 +11,7 @@ import { StoryModeHeader } from '@/components/library/story/story-mode-header'
 import { GalleryStickyHeader } from '@/components/library/gallery/gallery-sticky-header'
 import { CaptureContentButton } from '@/components/submissions/capture-content-button'
 import { FiltersPanel } from '@/components/library/gallery/filters-panel'
+import { ViewTypeLeadFilter } from '@/components/library/gallery/view-type-lead-filter'
 import { ItemsView } from '@/components/library/gallery/items-view'
 import { GroupedItemsView } from '@/components/library/gallery/grouped-items-view'
 import { groupDocsByReferences } from '@/hooks/gallery/use-gallery-data'
@@ -365,7 +366,7 @@ export function GalleryRoot({
   // `doc`-Parameter aus der URL (Auflösung erfolgt nach `allDocs`, siehe unten)
   const docSlug = searchParams?.get('doc')
 
-  const { facetDefs } = useGalleryFacets(libraryId, filters)
+  const { facetDefs, viewTypes } = useGalleryFacets(libraryId, filters)
 
   // Graph-Modus (Welle 2): pro Library über config.chat.gallery.graph aktiviert.
   const graphConfig = activeLibrary?.config?.chat?.gallery?.graph
@@ -843,6 +844,10 @@ export function GalleryRoot({
     })
   }
 
+  // A4a — Typ-Leitfilter: der gewaehlte Inhaltstyp lebt als Filter `detailViewType`.
+  const selectedViewType = (filters as Record<string, string[] | undefined>).detailViewType?.[0] ?? null
+  const handleSelectViewType = (vt: string | null) => setFacet('detailViewType', vt ? [vt] : [])
+
   // Handler für Dokument-Löschung: Trigger Refresh
   const handleDocumentDeleted = React.useCallback(() => {
     // Trigger Refresh durch Änderung des refreshKey
@@ -1028,14 +1033,21 @@ export function GalleryRoot({
 
             {/* Desktop: Grid-Layout */}
             <div className="hidden lg:grid lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-3 flex-1 min-h-0 overflow-hidden">
-              {/* Filters Panel (linke Spalte) */}
-              <FiltersPanel
-                facetDefs={facetDefs}
-                selected={filters as Record<string, string[] | undefined>}
-                onChange={setFacet}
-                title={t('gallery.filter')}
-                description={texts.filterDescription}
-              />
+              {/* Filters Panel (linke Spalte): Typ-Leitfilter zuerst (A4a), dann Facetten */}
+              <div className="flex flex-col min-h-0 overflow-hidden">
+                <ViewTypeLeadFilter
+                  viewTypes={viewTypes}
+                  selected={selectedViewType}
+                  onSelect={handleSelectViewType}
+                />
+                <FiltersPanel
+                  facetDefs={facetDefs}
+                  selected={filters as Record<string, string[] | undefined>}
+                  onChange={setFacet}
+                  title={t('gallery.filter')}
+                  description={texts.filterDescription}
+                />
+              </div>
 
               {/* Items Panel (rechte Spalte) */}
               <div className="flex flex-col min-h-0 min-w-0 overflow-hidden flex-1">

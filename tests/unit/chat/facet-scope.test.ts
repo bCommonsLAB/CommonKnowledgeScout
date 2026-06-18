@@ -60,14 +60,20 @@ describe('commonFacetDefs', () => {
     expect(k).toEqual(expect.arrayContaining(['year', 'pages', 'track', 'customX']))
   })
 
-  it('verwirft ungueltige Typen (mit Warnung) und scoped auf die gueltigen', () => {
+  it('bei nur EINEM Typ bleibt die volle Liste (kein Scoping, keine Regression)', () => {
+    const lib = makeLibrary(CONFIGURED)
+    const k = keys(commonFacetDefs(lib, ['book']))
+    expect(k).toEqual(expect.arrayContaining(['pages', 'track']))
+  })
+
+  it('verwirft ungueltige Typen (mit Warnung); ein verbleibender Typ = keine Scoping', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const lib = makeLibrary(CONFIGURED)
     const k = keys(commonFacetDefs(lib, ['book', 'bogus']))
     expect(warn).toHaveBeenCalled()
-    // nur book → pages (book-Feld) bleibt, track (session) nicht
+    // nur ein gueltiger Typ → volle Liste (track bleibt)
     expect(k).toContain('pages')
-    expect(k).not.toContain('track')
+    expect(k).toContain('track')
     warn.mockRestore()
   })
 })

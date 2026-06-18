@@ -35,8 +35,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ lib
       return NextResponse.json({ error: `Unbekannter detailViewType „${selectedType}".` }, { status: 400 })
     }
     const libraryDefaultType = getDetailViewType({}, ctx.library.config?.chat)
-    const presentTypes = selectedType ? [] : await distinctViewTypes(libraryKey, libraryId)
-    const scope = resolveFacetScope({ library: ctx.library, selectedType, presentTypes, libraryDefaultType })
+    // Immer die vorhandenen Typen ermitteln: dienen als Leitfilter-Optionen (UI)
+    // UND als Basis fuer die gemeinsamen Facetten (ohne Typ-Wahl).
+    const availableViewTypes = await distinctViewTypes(libraryKey, libraryId)
+    const scope = resolveFacetScope({
+      library: ctx.library,
+      selectedType,
+      presentTypes: selectedType ? [] : availableViewTypes,
+      libraryDefaultType,
+    })
 
     // Alle (gescopten) Definitionen: für buildFilterFromQuery (auch unsichtbare Facetten)
     const defs = scope.defs
@@ -80,7 +87,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ lib
       const limited = typeof d.max === 'number' ? sorted.slice(0, d.max) : sorted
       return { metaKey: d.metaKey, label: d.label || d.metaKey, type: d.type, options: limited, columns: d.columns || 1 }
     })
-    return NextResponse.json({ facets: out }, { status: 200 })
+    // A4a: vorhandene Typen + aktuelle Wahl mitliefern (UI-Leitfilter).
+    return NextResponse.json(
+      { facets: out, viewTypes: availableViewTypes, selectedViewType: scope.selectedType },
+      { status: 200 },
+    )
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unbekannter Fehler'
     return NextResponse.json({ error: msg }, { status: 500 })

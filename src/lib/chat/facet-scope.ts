@@ -69,13 +69,16 @@ export function facetDefsForType(library: Library, viewType: string): FacetDef[]
 
 /**
  * GEMEINSAME Facetten (ohne Typ-Wahl): Basis + konfigurierte Facetten, die in
- * ALLEN vorhandenen Typen vorkommen + globale. Ohne (gueltige) vorhandene Typen
- * bleibt die volle konfigurierte Liste (heutiges Verhalten).
+ * ALLEN vorhandenen Typen vorkommen + globale.
+ *
+ * Scoping greift NUR bei GEMISCHTEN Libraries (>= 2 Typen). Bei 0 oder 1 Typ
+ * bleibt die volle konfigurierte Liste (heutiges Verhalten) — so aendert sich
+ * fuer bestehende Einzeltyp-Libraries garantiert nichts (keine Regression).
  */
 export function commonFacetDefs(library: Library, presentTypes: readonly string[]): FacetDef[] {
   const validTypes = dedupeValidTypes(presentTypes)
   const all = parseFacetDefs(library)
-  if (validTypes.length === 0) return all
+  if (validTypes.length < 2) return all
   const fieldSets = validTypes.map((t) => fieldSetForType(t))
   return all.filter((d) =>
     isBaseFacetField(d.metaKey)

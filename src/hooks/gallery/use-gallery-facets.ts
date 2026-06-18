@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 
 export function useGalleryFacets(libraryId?: string, filters?: Record<string, string[] | undefined>) {
   const [facetDefs, setFacetDefs] = useState<Array<{ metaKey: string; label: string; type: string; options: Array<{ value: string; count: number }> }>>([])
+  // A4a — vorhandene Inhaltstypen (Leitfilter-Optionen, gemischte Libraries).
+  const [viewTypes, setViewTypes] = useState<string[]>([])
 
   useEffect(() => {
     let cancelled = false
@@ -18,7 +20,10 @@ export function useGalleryFacets(libraryId?: string, filters?: Record<string, st
         const url = `/api/chat/${encodeURIComponent(libraryId)}/facets${params.toString() ? `?${params.toString()}` : ''}`
         const res = await fetch(url, { cache: 'no-store' })
         const data = await res.json()
-        if (!cancelled && res.ok) setFacetDefs(Array.isArray(data?.facets) ? data.facets : [])
+        if (!cancelled && res.ok) {
+          setFacetDefs(Array.isArray(data?.facets) ? data.facets : [])
+          setViewTypes(Array.isArray(data?.viewTypes) ? data.viewTypes : [])
+        }
       } catch {
         // ignore
       }
@@ -28,7 +33,7 @@ export function useGalleryFacets(libraryId?: string, filters?: Record<string, st
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [libraryId, JSON.stringify(filters || {})])
 
-  return { facetDefs, setFacetDefs }
+  return { facetDefs, setFacetDefs, viewTypes }
 }
 
 
