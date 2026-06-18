@@ -45,6 +45,13 @@ export interface CompositeWikiPreviewOptions {
 interface MarkdownPreviewProps {
   content: string;
   currentFolderId?: string;
+  /**
+   * Optional: fileId des Quelldokuments (Traeger, z.B. PDF). Wird an die
+   * Bild-Aufloesung (`streaming-url`) als `&sourceId=` durchgereicht, damit
+   * generisch benannte OCR-Bilder (img-0.jpeg) praezise gegen den richtigen
+   * Shadow-Twin aufgeloest werden — verhindert fremde Bilder im Transkript.
+   */
+  sourceId?: string;
   provider?: StorageProvider | null;
   className?: string;
   onTransform?: () => void;
@@ -76,6 +83,7 @@ import { md } from './markdown-preview/md-renderer'
 export const MarkdownPreview = React.memo(function MarkdownPreview({
   content,
   currentFolderId = 'root',
+  sourceId,
   provider = null,
   className,
   onTransform,
@@ -177,7 +185,8 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
       mainContent,
       currentFolderId,
       provider,
-      activeLibraryId
+      activeLibraryId,
+      sourceId
     );
 
     const rendered = md.render(processedContent);
@@ -208,7 +217,7 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
           }
           
           // Resolve relative URLs
-          const resolvedUrl = resolveImageUrl(imagePath, currentFolderId, activeLibraryId);
+          const resolvedUrl = resolveImageUrl(imagePath, currentFolderId, activeLibraryId, sourceId);
           
           // Ersetze src-Attribut
           let updatedAttributes = attributes.replace(/src=["'][^"']+["']/i, `src="${resolvedUrl}"`);
@@ -236,7 +245,7 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
       processedHtml = processedHtml.replace(
         /&lt;img-(\d+\.(?:jpeg|jpg|png|gif|webp))&gt;/gi,
         (match, imagePath) => {
-          const resolvedUrl = resolveImageUrl(imagePath, currentFolderId, activeLibraryId);
+          const resolvedUrl = resolveImageUrl(imagePath, currentFolderId, activeLibraryId, sourceId);
           const safeImagePath = imagePath.replace(/'/g, "\\'");
           return `<img src="${resolvedUrl}" alt="${imagePath}" loading="lazy" onerror="this.onerror=null; this.style.display='none'; const placeholder=document.createElement('div'); placeholder.className='text-xs text-muted-foreground text-center p-2 border border-dashed border-muted-foreground/20 rounded bg-muted/30'; placeholder.textContent='${safeImagePath} nicht verfügbar'; this.parentNode?.appendChild(placeholder);">`;
         }
@@ -246,7 +255,7 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
       processedHtml = processedHtml.replace(
         /<img-(\d+\.(?:jpeg|jpg|png|gif|webp))>/gi,
         (match, imagePath) => {
-          const resolvedUrl = resolveImageUrl(imagePath, currentFolderId, activeLibraryId);
+          const resolvedUrl = resolveImageUrl(imagePath, currentFolderId, activeLibraryId, sourceId);
           const safeImagePath = imagePath.replace(/'/g, "\\'");
           return `<img src="${resolvedUrl}" alt="${imagePath}" loading="lazy" onerror="this.onerror=null; this.style.display='none'; const placeholder=document.createElement('div'); placeholder.className='text-xs text-muted-foreground text-center p-2 border border-dashed border-muted-foreground/20 rounded bg-muted/30'; placeholder.textContent='${safeImagePath} nicht verfügbar'; this.parentNode?.appendChild(placeholder);">`;
         }
@@ -256,7 +265,7 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
     }
     
     return rendered;
-  }, [content, currentFolderId, provider, activeLibraryId, compositeWikiPreview]);
+  }, [content, currentFolderId, sourceId, provider, activeLibraryId, compositeWikiPreview]);
   
   // Logging nach dem Rendern in useEffect
   React.useEffect(() => {
@@ -788,6 +797,7 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
   return (
     prevProps.content === nextProps.content &&
     prevProps.currentFolderId === nextProps.currentFolderId &&
+    prevProps.sourceId === nextProps.sourceId &&
     prevProps.provider === nextProps.provider &&
     prevProps.className === nextProps.className &&
     prevProps.onTransform === nextProps.onTransform &&

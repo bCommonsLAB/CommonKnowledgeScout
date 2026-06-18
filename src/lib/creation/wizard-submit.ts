@@ -82,15 +82,23 @@ export async function promoteSubmission(id: string): Promise<{
   targetFolderId?: string
   /** Anzeigename des Zielordners (nur Default-Pfad bekannt, sonst undefined). */
   targetFolderName?: string
+  /** Gespiegelte Asset-Dateinamen (transcript-only/B2d) fuer Bilder/Assets-Zaehler. */
+  mirroredAssetNames: string[]
 }> {
   const json = await postSubmissionAction(id, 'promote')
   const obj = json && typeof json === 'object' ? (json as Record<string, unknown>) : {}
   const readString = (key: string): string | undefined =>
     typeof obj[key] === 'string' ? (obj[key] as string) : undefined
+  // mirroredAssetNames defensiv lesen: nur String-Eintraege uebernehmen.
+  const rawMirrored = obj['mirroredAssetNames']
+  const mirroredAssetNames = Array.isArray(rawMirrored)
+    ? rawMirrored.filter((n): n is string => typeof n === 'string')
+    : []
   return {
     savedItemId: readString('savedItemId'),
     fileName: readString('fileName'),
     targetFolderId: readString('targetFolderId'),
     targetFolderName: readString('targetFolderName'),
+    mirroredAssetNames,
   }
 }

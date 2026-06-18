@@ -80,9 +80,26 @@ async function resolveTargetFolder(
   provider: PromotionProvider,
   explicitFolderId: string | undefined,
 ): Promise<ResolvedTargetFolder> {
-  // Explizit gewaehlter Ordner: ID steht fest, Name ist hier nicht bekannt
-  // (kein zusaetzlicher Lookup ueber den schmalen Provider) — UI faellt auf ID.
-  if (explicitFolderId) return { id: explicitFolderId };
+  // Explizit gewaehlter Ordner: ID steht fest. Den Anzeigenamen via optionalem
+  // `getItemById` aufloesen (nur Anzeige), damit die Summary keinen kryptischen
+  // fileId-Rohwert zeigt. Schlaegt der Lookup fehl / fehlt die Methode, bleibt der
+  // Name `undefined` — die UI faellt dann bewusst auf die ID zurueck (kein
+  // stiller Default-Name).
+  if (explicitFolderId) {
+    if (provider.getItemById) {
+      try {
+        const folder = await provider.getItemById(explicitFolderId);
+        const name = folder?.metadata?.name;
+        if (typeof name === 'string' && name.trim().length > 0) {
+          return { id: explicitFolderId, name };
+        }
+      } catch {
+        // Name-Lookup ist rein kosmetisch — ein Fehler darf die Publikation nicht
+        // stoppen. Ohne Name faellt die UI auf die ID zurueck (dokumentiert).
+      }
+    }
+    return { id: explicitFolderId };
+  }
   const rootItems = await provider.listItemsById('root');
   const existing = rootItems.find(
     (it) => it.type === 'folder' && it.metadata?.name === DEFAULT_PUBLISH_FOLDER_NAME,

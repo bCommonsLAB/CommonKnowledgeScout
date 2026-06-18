@@ -154,6 +154,7 @@ export function PdfView(props: PreviewViewProps) {
               titleClassName="text-xs text-muted-foreground font-normal"
               headerExtra={transcriptHeaderExtra}
               item={displayTranscriptItem}
+              sourceId={item.id}
               provider={provider}
               libraryId={activeLibraryId || undefined}
               emptyHint="Noch kein Transkript vorhanden."

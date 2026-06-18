@@ -2524,13 +2524,17 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
               //    Submission-Commit (ADR-0004, behebt KI-1). Text/URL ohne
               //    Vorab-Submission: neu anlegen.
               setWizardState(prev => ({ ...prev, publishingProgress: 50, publishingMessage: transcriptOnly ? 'Vorbereiten…' : 'Im Wartekorb anlegen…' }))
-              // Nur einen WIRKLICH gewaehlten Ordner als Ziel senden. Aus der Galerie
-              // ist `currentFolderId` === 'root' (implizit, nicht gewaehlt) — das
-              // duerfen wir NICHT als Ziel setzen, sonst landet alles im Root. Leer
-              // lassen → die Promotion nutzt den Standard-Ordner `root/inbox`.
+              // Nur ein EXPLIZIT uebergebenes Ziel (URL/Child-Flow via
+              // `targetFolderIdProp`) gilt als gewaehlter Ordner. Der ambiente
+              // Galerie-Ordner (`currentFolderIdAtom`) darf NICHT still zum Ziel
+              // werden: er kann die ECHTE Root-/Ordner-ID des Providers enthalten
+              // (nicht nur den Sentinel 'root'), wodurch der dokumentierte
+              // `root/inbox`-Default umgangen wuerde und die Datei im Galerie-
+              // Ordner/Root landet. Galerie-Start ("Inhalte erfassen") uebergibt
+              // bewusst KEIN Ziel → leer lassen → Promotion nutzt `root/inbox`.
               const chosenFolderId =
-                currentFolderId && currentFolderId.trim().length > 0 && currentFolderId !== 'root'
-                  ? currentFolderId
+                targetFolderIdProp && targetFolderIdProp.trim().length > 0 && targetFolderIdProp !== 'root'
+                  ? targetFolderIdProp
                   : undefined
               const target: { folderId?: string; slug?: string } = {}
               if (chosenFolderId) target.folderId = chosenFolderId
@@ -2565,6 +2569,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
               let promotedFolderId: string | undefined
               let promotedFolderName: string | undefined
               let generatedFileName: string | undefined
+              // Gespiegelte Asset-Namen aus der Promotion (transcript-only/B2d).
+              let mirroredAssetNames: string[] = []
               if (isOwner) {
                 setWizardState(prev => ({ ...prev, publishingProgress: 75, publishingMessage: transcriptOnly ? 'Im Archiv speichern…' : 'Veröffentlichen…' }))
                 await approveSubmission(submissionId)
@@ -2573,9 +2579,20 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                 promotedFolderId = promoteRes.targetFolderId
                 promotedFolderName = promoteRes.targetFolderName
                 generatedFileName = promoteRes.fileName
+                mirroredAssetNames = promoteRes.mirroredAssetNames
               }
 
-              const imagesCount = Object.keys(wizardState.imageUrls || {}).length
+              // Bilder-/Assets-Zähler:
+              // - transcript-only: aus den gespiegelten Assets. "Bilder" = nur
+              //   Inhaltsbilder (img-N aus dem OCR); "Assets" = alle gespiegelten
+              //   Medien (zusätzlich Seitenrenderings page_NNN + Thumbnails
+              //   preview_NNN). Klassifikation explizit über das OCR-Namensschema.
+              // - sonst: hochgeladene Cover-/Inhaltsbilder wie bisher.
+              const isContentImageName = (name: string): boolean => /^img-\d+\.[a-z0-9]+$/i.test(name)
+              const imagesCount = transcriptOnly
+                ? mirroredAssetNames.filter(isContentImageName).length
+                : Object.keys(wizardState.imageUrls || {}).length
+              const assetsCount = transcriptOnly ? mirroredAssetNames.length : undefined
               const sourcesCount = Array.isArray(wizardState.sources) ? wizardState.sources.length : 0
               // Quell-Anzeigenamen für die Summary ableiten (Datei -> Name, URL -> URL, Text -> Label).
               const sourceNames = describeSourceNames(wizardState.sources)
@@ -2587,7 +2604,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                 publishingMessage: isOwner
                   ? (transcriptOnly ? 'Im Archiv gespeichert.' : 'Veröffentlicht.')
                   : 'Im Wartekorb — wird geprüft.',
-                publishStats: { documents: 1, images: imagesCount, sources: sourcesCount },
+                publishStats: { documents: 1, images: imagesCount, sources: sourcesCount, assets: assetsCount },
                 // Owner: realer Ordner aus der Promotion; sonst Fallback auf den UI-Ordner.
                 publishTargetFolderId: promotedFolderId ?? currentFolderId,
                 publishTargetFolderName: promotedFolderName,
@@ -3116,6 +3133,11 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                 <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
                   <span>Dokumente: <span className="font-mono">{wizardState.publishStats.documents}</span></span>
                   <span>Bilder: <span className="font-mono">{wizardState.publishStats.images}</span></span>
+                  {/* Assets nur im transcript-only-Flow gesetzt: alle gespiegelten
+                      Medien (Inhaltsbilder + Seitenrenderings + Thumbnails). */}
+                  {typeof wizardState.publishStats.assets === 'number' ? (
+                    <span>Assets: <span className="font-mono">{wizardState.publishStats.assets}</span></span>
+                  ) : null}
                   <span>Quellen: <span className="font-mono">{wizardState.publishStats.sources}</span></span>
                 </div>
               </div>

@@ -36,7 +36,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { getRequestPublicOrigin } from '@/lib/http/request-public-origin'
 import { getServerProvider } from '@/lib/storage/server-provider'
-import { findBinaryFragmentInLibraryByLookupName } from '@/lib/repositories/shadow-twin-repo'
+import { findBinaryFragmentInLibraryByLookupName, getShadowTwinBinaryFragments } from '@/lib/repositories/shadow-twin-repo'
+import { matchBinaryFragmentByLookupName } from '@/lib/shadow-twin/binary-fragment-lookup'
 import { LibraryService } from '@/lib/services/library-service'
 import { resolveAzureStorageConfig } from '@/lib/config/azure-storage'
 import { getMediaStorageStrategy } from '@/lib/shadow-twin/media-storage-strategy'
@@ -49,6 +50,12 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const libraryId = searchParams.get('libraryId')
   const fileId = searchParams.get('fileId')
+  // Optional: fileId des Quelldokuments (z.B. Traeger-PDF). Wenn gesetzt, wird die
+  // Bild-Aufloesung PRAEZISE auf dessen Shadow-Twin gescoped. Das verhindert
+  // dokumentuebergreifende Namens-Kollisionen bei generischen OCR-Namen
+  // (z.B. img-0.jpeg), die zuvor library-weit "erster Treffer gewinnt" aufgeloest
+  // wurden (Ursache fremder Bilder im Transkript).
+  const sourceId = searchParams.get('sourceId')
 
   if (!libraryId || !fileId) {
     return NextResponse.json(
@@ -77,16 +84,38 @@ export async function GET(request: NextRequest) {
     // der Library zu suchen, BEVOR wir den Storage-Provider bemuehen.
     const lookupName = extractLookupNameFromFileId(fileId)
     if (lookupName && looksLikeImage(lookupName)) {
-      const fragment = await findBinaryFragmentInLibraryByLookupName(libraryId, lookupName)
-      if (fragment?.url) {
-        if (process.env.MEDIA_TAB_RESOLUTION_TRACE === '1') {
-          FileLogger.info('storage/streaming-url/trace', '302 (Mongo-Hit): Bild via binaryFragments aufgeloest', {
-            libraryId,
-            lookupName,
-            url: fragment.url,
-          })
+      if (sourceId) {
+        // PRAEZISER Pfad: nur die Fragmente DIESES Quell-Shadow-Twins durchsuchen.
+        // Kein library-weiter Fallback bei Fehltreffer — lieber zum Provider-/
+        // Filesystem-Pfad unten als ein fremdes Bild zurueckzugeben (kein Silent-
+        // Fallback auf "erster Namenstreffer der Library").
+        const sourceFragments = await getShadowTwinBinaryFragments(libraryId, sourceId)
+        const scoped = matchBinaryFragmentByLookupName(sourceFragments, lookupName)
+        if (scoped?.url) {
+          if (process.env.MEDIA_TAB_RESOLUTION_TRACE === '1') {
+            FileLogger.info('storage/streaming-url/trace', '302 (Mongo-Hit, sourceId-scoped): Bild aufgeloest', {
+              libraryId,
+              sourceId,
+              lookupName,
+              url: scoped.url,
+            })
+          }
+          return NextResponse.redirect(scoped.url, 302)
         }
-        return NextResponse.redirect(fragment.url, 302)
+      } else {
+        // Legacy-Pfad (ohne sourceId): library-weite Namenssuche. Beibehalten fuer
+        // Aufrufer, die (noch) keinen Quellkontext mitgeben.
+        const fragment = await findBinaryFragmentInLibraryByLookupName(libraryId, lookupName)
+        if (fragment?.url) {
+          if (process.env.MEDIA_TAB_RESOLUTION_TRACE === '1') {
+            FileLogger.info('storage/streaming-url/trace', '302 (Mongo-Hit): Bild via binaryFragments aufgeloest', {
+              libraryId,
+              lookupName,
+              url: fragment.url,
+            })
+          }
+          return NextResponse.redirect(fragment.url, 302)
+        }
       }
     }
 

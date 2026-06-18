@@ -14,8 +14,14 @@
 import type { StorageProvider } from '@/lib/storage/types';
 import type { SubmissionBinaryRef, WizardSubmission } from '@/types/wizard-submission';
 
-/** Schmaler Provider-Ausschnitt, den die Publikation braucht (vereinfacht Fakes). */
-export type PromotionProvider = Pick<StorageProvider, 'listItemsById' | 'uploadFile' | 'createFolder'>;
+/**
+ * Schmaler Provider-Ausschnitt, den die Publikation braucht (vereinfacht Fakes).
+ * `getItemById` ist OPTIONAL: nur fuer die Anzeige des Ordnernamens bei einem
+ * explizit gewaehlten Zielordner. Fehlt es (z.B. in schlanken Test-Fakes), faellt
+ * die UI ohne stillen Default auf die ID zurueck.
+ */
+export type PromotionProvider = Pick<StorageProvider, 'listItemsById' | 'uploadFile' | 'createFolder'>
+  & Partial<Pick<StorageProvider, 'getItemById'>>;
 
 /**
  * Ingestion-Funktion (injiziert). Entspricht den Pflicht-Parametern von

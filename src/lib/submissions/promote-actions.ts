@@ -115,6 +115,9 @@ export async function performPromotion(id: string): Promise<NextResponse> {
         fileName: result.fileName,
         targetFolderId: result.targetFolderId,
         targetFolderName: result.targetFolderName,
+        // Gespiegelte Assets (transcript-only/B2d) fuer die Wizard-Summary
+        // (Bilder/Assets-Zaehler). Normalpfad: leeres Array.
+        mirroredAssetNames: result.mirroredAssetNames ?? [],
       });
     } catch (error) {
       // Token/Speicher/Konfig: Ruecksprung auf `ready`, nie `failed` - retry-bar.

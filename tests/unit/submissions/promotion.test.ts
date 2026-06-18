@@ -108,6 +108,40 @@ describe('promoteSubmission', () => {
     expect(meta).toEqual({ title: 'Mein Titel' });
   });
 
+  it('expliziter Ordner: loest den Anzeigenamen via getItemById auf (keine rohe fileId)', async () => {
+    const uploadFile = vi.fn(async (_folderId: string, file: File) => fileItem('new-1', file.name));
+    const listItemsById = vi.fn(async () => [] as StorageItem[]);
+    const getItemById = vi.fn(async (id: string) => folderItem(id, 'Mein Zielordner'));
+    const upsertMarkdown = vi.fn(async () => ({}));
+
+    const result = await promoteSubmission({
+      submission: baseSubmission({ target: { folderId: 'folder-9' } }),
+      provider: { uploadFile, listItemsById, createFolder: noopCreateFolder(), getItemById },
+      upsertMarkdown,
+      userEmail: 'rev@example.com',
+    });
+
+    expect(getItemById).toHaveBeenCalledWith('folder-9');
+    expect(result.targetFolderId).toBe('folder-9');
+    expect(result.targetFolderName).toBe('Mein Zielordner');
+  });
+
+  it('expliziter Ordner ohne getItemById: Name bleibt undefined (UI faellt auf ID zurueck)', async () => {
+    const uploadFile = vi.fn(async (_folderId: string, file: File) => fileItem('new-1', file.name));
+    const listItemsById = vi.fn(async () => [] as StorageItem[]);
+    const upsertMarkdown = vi.fn(async () => ({}));
+
+    const result = await promoteSubmission({
+      submission: baseSubmission({ target: { folderId: 'folder-9' } }),
+      provider: { uploadFile, listItemsById, createFolder: noopCreateFolder() },
+      upsertMarkdown,
+      userEmail: 'rev@example.com',
+    });
+
+    expect(result.targetFolderId).toBe('folder-9');
+    expect(result.targetFolderName).toBeUndefined();
+  });
+
   it('Token weg: StorageError(AUTH_ERROR) -> wirft, nichts ingestet', async () => {
     const uploadFile = vi.fn(async () => {
       throw new StorageError('Zugriff verweigert', 'AUTH_ERROR', 'onedrive');

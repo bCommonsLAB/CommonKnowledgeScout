@@ -62,8 +62,10 @@ export interface WizardState {
   publishingMessage?: string
   publishError?: string
   isPublished?: boolean
-  /** Optional: Kurze Abschluss-Statistiken (für Publish-Step) */
-  publishStats?: { documents: number; images: number; sources: number }
+  /** Optional: Kurze Abschluss-Statistiken (für Publish-Step).
+   *  `assets` zählt zusätzlich ALLE gespiegelten Medien (Seiten/Thumbnails),
+   *  `images` nur die Inhaltsbilder — nur im transcript-only-Flow gesetzt. */
+  publishStats?: { documents: number; images: number; sources: number; assets?: number }
   /** Optional: Zielordner für "Im Archiv öffnen" */
   publishTargetFolderId?: string
   /** Optional: Anzeigename des Zielordners (z.B. "inbox") für die Summary */
