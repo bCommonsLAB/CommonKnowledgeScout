@@ -14,9 +14,11 @@ A4 macht eine **themenzentrierte Library mit gemischten Inhaltstypen** (mehrere
 `detailViewType` in EINER Library) in der Galerie/Story sauber bedienbar. Drei
 Bausteine laut Roadmap:
 
-- **A4a — Filter als Vereinigung über Typen.** Die Facetten-Seitenleiste (und die
-  Filter-Anwendung) sollen die **Vereinigung** der relevanten Facetten der
-  *tatsächlich vorhandenen* Typen zeigen, statt nur die eine, library-weite Liste.
+- **A4a — Typ als Leitfilter, adaptive Facetten.** Der Inhaltstyp ist der erste
+  Filter. Ohne Typ-Wahl zeigt die Seitenleiste nur die **gemeinsamen** Facetten
+  der vorhandenen Typen; mit Typ-Wahl passen sich die übrigen Facetten an den Typ
+  an, und die Liste zeigt streng nur Dokumente dieses Typs. (Entschieden
+  2026-06-18 — ersetzt die frühere „OR-Vereinigung", siehe §6.)
 - **A4b — Tabellen-Spalten je Typ.** Die Tabellenansicht soll Spalten passend zu
   den vorhandenen Typen führen, statt einer starren Einheits-Spaltenmenge.
 - **A4c — Story-Verweise je Dokument formatgerecht.** Verweise/Anhänge in einer
@@ -74,33 +76,35 @@ Erfassungs-Mechanik (das ist Plan 2). A3 gehört NICHT hierher (→ Plan 2).
   fertige Format-Erkennung (markdown/video/audio/image/pdf/office/website). Plus
   `src/components/library/file-preview/views/*` als Per-Format-Renderer-Vorbild.
 
-## 3) Design-Konflikte (NICHT still entscheiden)
+## 3) Design-Konflikte — durch Owner-Entscheidung 2026-06-18 aufgelöst
 
-1. **Tabellen-Breite (A4b).** Der Code entscheidet bewusst gegen
-   Auto-Spalten-Ableitung aus dem Typ („sonst wird die Tabelle viel zu breit",
-   `virtualized-items-view.tsx:266`). „Spalten je Typ" naiv als Vereinigung
-   ALLER `optionalFields` würde genau das wieder einführen. → A4b braucht eine
-   **Begrenzungs-Regel** (Owner-Entscheidung), siehe §6 Offene Punkte.
-2. **Per-Typ-Facetten-Datenmodell (A4a).** Die Registry führt Feld-Keys, aber
-   keine Facetten-Typen. Eine echte Typ-Facette braucht `type`/`multi`. Drei
-   Optionen (siehe §6) — bis dahin ist A4a nicht eindeutig baubar.
-3. **Filter-Semantik (A4a).** „Vereinigung" heißt server-seitig OR über Typen
-   (`(typ=A ∧ f) ∨ (typ=B ∧ f)`), nicht nur eine größere Sidebar. Das berührt
-   `aggregateFacets` + `findDocs(Grouped)`. Eigene PR-Größe.
+Die zwei früheren Konflikte sind jetzt **entschieden** (Details + Begründung in
+§6). Kurzfassung des gewählten Modells:
+
+- **Typ als Leitfilter (A4a).** Der Inhaltstyp ist der **erste** Filter. Ohne
+  Typ-Wahl zeigt die Seitenleiste **nur gemeinsame Facetten**; mit Typ-Wahl
+  **passen sich die übrigen Facetten an** den Typ an und die Liste zeigt
+  **streng nur** Dokumente dieses Typs. → Kein „OR-über-Typen" nötig (das
+  strenge Filtern macht die komplexe Server-Aggregation überflüssig).
+- **Tabellen-Spalten: Owner wählt je Library (A4b).** Keine Auto-Ableitung aus
+  dem Typ (die bewusste Entscheidung in `virtualized-items-view.tsx:266` bleibt
+  gültig). Der Owner bestimmt die Spalten pro Library — der vorhandene
+  `showInTable`-Mechanismus ist genau das. A4b wird damit klein.
 
 ## 4) Empfohlene Reihenfolge (zuerst sichtbar & konfliktfrei)
 
 | # | Baustein | Risiko | Konflikt | PR-Größe |
 |---|----------|--------|----------|----------|
 | 1 | **A4c — Story-Verweise je Format** | niedrig | keiner | klein–mittel |
-| 2 | **A4b — Tabellen-Spalten je Typ** | mittel | Tabellen-Breite | mittel |
-| 3 | **A4a — Facetten-Union + Filter** | hoch | Datenmodell + Filter-Semantik | groß (ggf. 2 PRs) |
+| 2 | **A4a — Typ-Leitfilter (adaptive Facetten)** | mittel | entschieden (§6) | mittel |
+| 3 | **A4b — Tabellen-Spalten (Owner je Library)** | niedrig | entschieden (§6) | klein |
 
 Begründung: A4c ist self-contained, sichtbar, ohne Design-Konflikt und reused
-den vorhandenen Format-Dispatch — ideale erste, grün lieferbare Welle. A4b danach
-(eine Owner-Entscheidung). A4a zuletzt, weil es zwei offene Entscheidungen und die
-größte Server-Fläche hat; ggf. in „Sidebar-Union" (read) und „Filter-Union"
-(query) splitten.
+den vorhandenen Format-Dispatch — ideale erste, grün lieferbare Welle. A4a
+danach: durch den „Typ als Leitfilter" + strenges Filtern wird die Engine
+**einfacher** als ursprünglich gedacht (keine OR-Aggregation). A4b zuletzt und
+klein, weil der Owner die Spalten ohnehin schon je Library wählt
+(`showInTable`) — hier reicht Feinschliff für gemischte Ansichten.
 
 ## 5) Bauplan je Baustein
 
@@ -136,62 +140,80 @@ größte Server-Fläche hat; ggf. in „Sidebar-Union" (read) und „Filter-Unio
 (alle Formate inkl. unbekannt) + Snapshot/RTL für `ReferenceList`; Playwright-E2E:
 Story mit gemischten Anhängen rendert Player/Thumbnail/Button sichtbar.
 
-### A4b — Tabellen-Spalten je Typ (Welle 2)
+### A4a — Typ als Leitfilter, adaptive Facetten (Welle 2)
 
-**Neues, reines Modul:** `src/lib/gallery/type-columns.ts`
-- `presentViewTypes(docs: Pick<DocCardMeta,'detailViewType'>[], libraryFallback: string): string[]`
-  — distinkte, validierte Typen in der aktuellen Ansicht (nutzt
-  `resolveDetailViewTypeForDoc`). Storage-agnostisch.
-- `unionTableColumnsForTypes(types: string[], cap: number): TableColumnDef[]`
-  — Vereinigung von `getTableColumnsForViewType(t)` je Typ, dedupliziert, mit
-  **Begrenzung** `cap` (Owner-Regel, §6) und deterministischer Reihenfolge
-  (Basis zuerst). Unbekannter Typ → übersprungen + `console.warn`.
-- Voll unit-getestet in `tests/unit/gallery/type-columns.test.ts`.
+**Modell (Owner-Entscheidung 2026-06-18):** Der Inhaltstyp ist der **erste**
+Filter. Ohne Typ-Wahl → nur **gemeinsame** Facetten (Schnittmenge der
+vorhandenen Typen; Basis-Facetten sind immer dabei). Mit Typ-Wahl → Basis +
+die Facetten **dieses einen** Typs, und die Ergebnisliste zeigt **streng nur**
+Dokumente dieses Typs. → Keine OR-über-Typen-Aggregation nötig.
 
-**Integration:** `virtualized-items-view.tsx` `tableColumns`-Memo erweitern:
-- Reihenfolge der Quellen: (1) explizite `showInTable`-Facetten (Bestand, hat
-  Vorrang), sonst (2) **wenn >1 Typ vorhanden** → `unionTableColumnsForTypes`,
-  sonst (3) Bestands-Default (`title`+`upsertedAt`). Owner-/climateAction-Spalten
-  bleiben unverändert.
+**Server: vorhandene Typen kennen**
+- Kleine Repo-Funktion `distinctViewTypes(libraryKey, libraryId): string[]` in
+  `vector-repo.ts` (distinct `detailViewType` über `kind:'meta'`). Liefert die
+  Typen, die als Leitfilter-Optionen angeboten werden.
 
-**DoD:** Unit-Tests (1 Typ, mehrere Typen, Cap greift, unbekannter Typ);
-`pnpm test`+`pnpm lint` grün; E2E: gemischte Library zeigt sinnvolle Spalten,
-keine überbreite Tabelle.
+**Neues, reines Modul:** `src/lib/chat/facet-scope.ts` (<200 Z., unit-testbar)
+- `commonFacetDefs(library, presentTypes): FacetDef[]` — Basis-Facetten + die
+  konfigurierten Facetten, deren `metaKey` in **allen** vorhandenen Typen
+  vorkommt (Schnittmenge via `getOptionalFields`/`getRequiredFields`).
+- `facetDefsForType(library, viewType): FacetDef[]` — Basis + konfigurierte
+  Facetten, deren `metaKey` zum gewählten Typ gehört (Registry-Felder dieses
+  Typs). Unbekannter Typ → `console.warn`, nur Basis (kein stiller Default).
+- Liefert je nach „Typ gewählt?" das passende Set für Sidebar UND Filter.
 
-### A4a — Facetten-Union + Filter (Welle 3, ggf. 2 PRs)
+**Server-Wiring (klein, kein OR):**
+- `facets/route.ts` + `docs/route.ts`: Liest den optionalen Leitfilter
+  `detailViewType` aus der Query. Gesetzt → Filter erhält `detailViewType: <typ>`
+  (strenges Filtern, AND wie bisher) und nutzt `facetDefsForType`. Nicht gesetzt
+  → `commonFacetDefs`. Die bestehende `buildFilterFromQuery`/`aggregateFacets`
+  bleiben unverändert (nur die Facetten-Liste + ein zusätzliches AND-Kriterium).
 
-**Voraussetzung:** Owner-Entscheidung zum Per-Typ-Facetten-Datenmodell (§6).
+**UI:** Seitenleiste setzt den Typ-Leitfilter an die erste Stelle (Liste aus
+`distinctViewTypes`); bei Wechsel laden die übrigen Facetten neu. Storage-
+agnostisch (rein über die Facetten-API, kein `library.type`).
 
-**3a (read — Sidebar-Union):**
-- Neues reines Modul `src/lib/chat/facet-union.ts`:
-  `unionFacetDefsForTypes(library, presentTypes): FacetDef[]` = Basis-Facetten +
-  konfigurierte + (je nach §6-Entscheidung) typ-spezifische — dedupliziert,
-  deterministisch. Voll unit-testbar.
-- Verbraucht serverseitig die distinkten `detailViewType`-Werte (neue kleine
-  Repo-Funktion `distinctViewTypes(libraryKey, libraryId)` in `vector-repo.ts`).
-- `facets/route.ts` nutzt die Union statt `parseFacetDefs` pur.
+**DoD:** Unit-Tests (`commonFacetDefs`: Schnittmenge korrekt; `facetDefsForType`:
+Typ-Felder + unbekannter Typ); `pnpm test`+`pnpm lint` grün; E2E: Typ wählen →
+Facetten passen sich an, Liste zeigt nur diesen Typ; Typ abwählen → gemeinsame
+Facetten + alle Dokumente.
 
-**3b (query — Filter-Union/OR):**
-- `buildFilterFromQuery` um Typ-bewusste OR-Verknüpfung erweitern (bzw. neuer
-  `buildUnionFilter`), sodass typ-spezifische Facetten Dokumente anderer Typen
-  nicht fälschlich ausschließen. `aggregateFacets`/`findDocs` entsprechend.
-- Harte Tests gegen die OR-Semantik (Doku A Typ X + Doku B Typ Y).
+### A4b — Tabellen-Spalten: Owner wählt je Library (Welle 3, klein)
 
-**DoD:** Unit + Integration grün; E2E: Filtern nach einer typ-spezifischen
-Facette schließt fremd-typische Dokumente nicht aus.
+**Modell (Owner-Entscheidung 2026-06-18):** Keine Auto-Ableitung aus dem Typ.
+Der Owner bestimmt die Spalten pro Library — der vorhandene `showInTable`-
+Mechanismus (`pickFacetsForTableColumns`, `gallery-root/helpers.ts`) ist genau
+das. Damit bleibt die Tabelle schmal und vorhersehbar.
 
-## 6) Offene Punkte (Owner-Entscheidung nötig)
+**Was bleibt zu tun (Feinschliff, nicht Neubau):**
+- Sicherstellen, dass `showInTable`-Spalten + `getCellValue` mit gemischten
+  Typen sauber funktionieren (fehlendes Feld → „-", schon vorhanden).
+- Wenn der Typ-Leitfilter (A4a) aktiv ist, dürfen die Owner-Spalten dieses Typs
+  gezeigt werden (Spaltenwahl bleibt Owner-Sache, passt sich aber an den
+  gewählten Typ an).
+- Doku/Settings-Hinweis: „Spalten der Tabellenansicht = Facetten mit
+  ‚In Tabelle zeigen'."
 
-1. **A4b Spalten-Begrenzung:** feste Obergrenze (z. B. max. 5 Spalten) ODER
-   „nur Felder, die in ≥2 vorhandenen Typen vorkommen" ODER Owner wählt je
-   Library? *Empfehlung:* feste, kleine Obergrenze + Basis-Felder zuerst.
-2. **A4a Per-Typ-Facetten-Datenmodell:**
-   - (i) Facetten bleiben rein library-konfiguriert; „Union" = nur OR-Filter +
-     Sidebar zeigt alle konfigurierten (kleinster Eingriff). *Empfehlung.*
-   - (ii) Registry um optionale `facetFields` (typisiert) je ViewType erweitern.
-   - (iii) Per-Typ-Facetten in die Library-Config (`facetsByType`).
-3. **A4a Filter-Semantik bei gemischten Selektionen:** Basis-Facetten weiter UND,
-   typ-spezifische als OR je Typ? (Empfehlung: ja.)
+**DoD:** Unit-Tests für die Spalten-Auswahl bei gemischten Typen; `pnpm test`
++ `pnpm lint` grün; E2E: Owner-konfigurierte Spalten erscheinen, keine
+überbreite Tabelle.
+
+## 6) Entschieden (Owner, 2026-06-18)
+
+1. **Tabellen-Spalten (A4b):** **Owner wählt je Library.** Keine Auto-Ableitung
+   aus dem Typ; der vorhandene `showInTable`-Mechanismus bleibt die Quelle der
+   Spalten. → A4b wird klein (Feinschliff statt Neubau).
+2. **Filter-Quelle / Per-Typ-Facetten (A4a):** **Typ als Leitfilter.** Der
+   Inhaltstyp ist der erste Filter; die übrigen Facetten **passen sich an** den
+   gewählten Typ an. Ohne Typ-Wahl → nur **gemeinsame** Facetten. Die Facetten
+   bleiben library-konfiguriert; gescoped wird über die Registry-Felder des Typs
+   (keine neue Datenstruktur nötig).
+3. **Filter-Semantik (A4a):** **Streng filtern.** Ein gewählter Typ zeigt nur
+   Dokumente dieses Typs (AND mit `detailViewType`). → Kein OR-über-Typen, die
+   Server-Aggregation bleibt unverändert.
+
+> Folge: A4a wird **einfacher** als zunächst geplant (keine OR-Aggregation,
+> kein neues Facetten-Datenmodell), A4b **kleiner** (Owner-Mechanismus existiert).
 
 ## 7) Konventionen & Leitplanken (für jede Welle)
 
@@ -216,5 +238,7 @@ Welle 1 = **A4c**. Reihenfolge der Commits:
    (classifyAttachments entfernen)`
 4. `test(e2e): A4c-4 Story mit gemischten Anhängen`
 
+Danach Welle 2 = **A4a** (Typ-Leitfilter), Welle 3 = **A4b** (Spalten-Feinschliff).
+
 Modell-Empfehlung: Sonnet (UI-Wiring) für A4c/A4b; **Opus** für A4a
-(Architektur/Filter-Engine). Agent-Typ: neuer Agent je Welle.
+(Facetten-Scope-Engine). Agent-Typ: neuer Agent je Welle.
