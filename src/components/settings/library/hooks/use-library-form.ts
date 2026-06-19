@@ -20,6 +20,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/use-toast";
 import { librariesAtom, activeLibraryIdAtom } from "@/atoms/library-atom";
 import { StorageProviderType } from "@/types/library";
+import type { CaptureWizardsConfig } from "@/types/library";
 import { useSafeUser } from "@/hooks/use-safe-user";
 
 /** Im Settings-Formular waehlbare Storage-Typen ('inbox' ist intern, ADR-0004 II). */
@@ -57,6 +58,21 @@ export const libraryFormSchema = z.object({
     .default("book"),
   // Transformation: DIVA-Liefersystem-Daten auswerten (DIVA-Info-Tab). Default false.
   analyzeDivaTextureInfo: z.boolean().default(false),
+  // Plan 2 · W-C: Kuratierung der „Inhalte erfassen"-Wizards (optional).
+  captureWizards: z
+    .object({
+      wizards: z.array(
+        z.object({
+          flowId: z.string(),
+          schemaRef: z.string().optional(),
+          label: z.string().optional(),
+          icon: z.string().optional(),
+          enabled: z.boolean(),
+        }),
+      ),
+      defaultFlowId: z.string().optional(),
+    })
+    .optional(),
   // Schwellwert fuer die Auto-Uebernahme der Stoffgruppen-Klassifikation (Stufe 4).
   // Bereich [0, 1], Default 0.9.
   autoApplyConfidenceThreshold: z.number().min(0).max(1).default(0.9),
@@ -246,6 +262,7 @@ export function useLibraryForm(createNew: boolean) {
       isEnabled: true,
       detailViewType: "book",
       analyzeDivaTextureInfo: false,
+      captureWizards: undefined,
       autoApplyConfidenceThreshold: 0.9,
       divaArchiveFilterMode: 'all' as const,
       divaArchiveGroupByAttribute: "",
@@ -340,6 +357,7 @@ export function useLibraryForm(createNew: boolean) {
         type: toLibraryFormStorageType(activeLibrary.type),
         isEnabled: activeLibrary.isEnabled,
         analyzeDivaTextureInfo: activeLibrary.config?.analyzeDivaTextureInfo === true,
+        captureWizards: activeLibrary.config?.captureWizards,
         autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
           activeLibrary.config?.autoApplyConfidenceThreshold,
         ),
@@ -373,6 +391,7 @@ export function useLibraryForm(createNew: boolean) {
         type: toLibraryFormStorageType(activeLibrary.type),
         isEnabled: activeLibrary.isEnabled,
         analyzeDivaTextureInfo: activeLibrary.config?.analyzeDivaTextureInfo === true,
+        captureWizards: activeLibrary.config?.captureWizards,
         autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
           activeLibrary.config?.autoApplyConfidenceThreshold,
         ),
@@ -462,6 +481,7 @@ export function useLibraryForm(createNew: boolean) {
               ? { chat: { gallery: { detailViewType: data.detailViewType ?? "book" } } }
               : {}),
             analyzeDivaTextureInfo: data.analyzeDivaTextureInfo,
+            captureWizards: data.captureWizards,
             autoApplyConfidenceThreshold: data.autoApplyConfidenceThreshold,
             divaArchiveDefaults: {
               filterMode: data.divaArchiveFilterMode,
@@ -643,6 +663,7 @@ export function useLibraryForm(createNew: boolean) {
           type: importedLibrary.type as "local" | "onedrive" | "gdrive" | "nextcloud",
           isEnabled: importedLibrary.isEnabled as boolean,
           analyzeDivaTextureInfo: ((importedLibrary as { config?: Record<string, unknown> }).config?.analyzeDivaTextureInfo as boolean) === true,
+          captureWizards: (importedLibrary as { config?: Record<string, unknown> }).config?.captureWizards as CaptureWizardsConfig | undefined,
           autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
             (importedLibrary as { config?: Record<string, unknown> }).config?.autoApplyConfidenceThreshold,
           ),
