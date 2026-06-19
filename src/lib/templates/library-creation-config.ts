@@ -9,6 +9,11 @@
 import type { ParsedTemplate, TemplateDocument } from './template-types'
 import { listBuiltinCreationTemplates } from '@/lib/templates/builtin-creation-templates'
 import { isWizardFlowDoc } from '@/lib/creation/wizard-flow-entity'
+import {
+  curateCreationTypes,
+  buildStandardWizardCreationType,
+  type CaptureWizardsConfig,
+} from '@/lib/creation/capture-wizards'
 
 /**
  * Creation-Typ-Definition aus Template
@@ -167,11 +172,20 @@ export function mergeCreationTypesWithBuiltins(
 
 /**
  * Lädt die Creation-Typen aus MongoDB-Templates und ergänzt Built-in-Standardvorlagen.
- * 
+ *
+ * W-B: Ist `captureWizards` gesetzt, wird die Liste KURATIERT (Auswahl +
+ * Reihenfolge, Entscheidung #3). Ohne Config bleibt das Bestandsverhalten
+ * (alle Templates mit `creation`-Block) — der „nur Standard-Wizard"-Default
+ * wird erst mit W-C aktiviert (das das Config-Feld + die Settings-UI liefert).
+ *
  * @param libraryId Library-ID
+ * @param captureWizards Optionale Kuratierungs-Config der Library
  * @returns Array von Creation-Typen
  */
-export async function getLibraryCreationConfig(libraryId: string): Promise<LibraryCreationType[]> {
+export async function getLibraryCreationConfig(
+  libraryId: string,
+  captureWizards?: CaptureWizardsConfig
+): Promise<LibraryCreationType[]> {
   try {
     // Lade alle Templates der Library
     const response = await fetch(`/api/templates?libraryId=${encodeURIComponent(libraryId)}`)
@@ -185,7 +199,11 @@ export async function getLibraryCreationConfig(libraryId: string): Promise<Libra
     }
 
     // Platzhalter-Owner nur für Listen-Merge; echte User-Mail liefert die Config-API beim Template-Laden.
-    return mergeCreationTypesWithBuiltins(templates, libraryId, 'builtin@local')
+    const merged = mergeCreationTypesWithBuiltins(templates, libraryId, 'builtin@local')
+    if (!captureWizards) return merged
+    return curateCreationTypes(merged, captureWizards, {
+      standardWizard: buildStandardWizardCreationType(),
+    })
   } catch (error) {
     console.error('[getLibraryCreationConfig] Fehler:', error)
     return []
