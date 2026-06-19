@@ -9,6 +9,8 @@
 
 import { parseTemplate } from '@/lib/templates/template-parser'
 import type { TemplateDocument } from '@/lib/templates/template-types'
+import { buildStandardCaptureFlowDoc } from '@/lib/creation/flow-seed'
+import { STANDARD_CAPTURE_FLOW_ID } from '@/lib/creation/wizard-flow-entity'
 
 /** Bekannte Built-in-Template-Namen (gleichzeitig API-/Wizard-`templateId`) */
 export const BUILTIN_CREATION_TEMPLATE_NAMES = ['audio-transcript-de', 'file-transcript-de'] as const
@@ -199,6 +201,19 @@ export function getBuiltinCreationTemplate(
   if (name === 'file-transcript-de') {
     const { template } = parseTemplate(FILE_TRANSCRIPT_DE_MD, 'file-transcript-de')
     return parsedToDocument('file-transcript-de', template, libraryId, userEmail)
+  }
+  // W-D: Der generische Standard-Flow wird aus dem Code geliefert (Code-Fallback,
+  // kein Mongo-Seed noetig). Ein per W-A-2 geseedeter, editierbarer Flow gewinnt,
+  // weil der Config-Route-Loader zuerst MongoDB fragt.
+  if (name === STANDARD_CAPTURE_FLOW_ID) {
+    const now = new Date()
+    return {
+      ...buildStandardCaptureFlowDoc(libraryId, userEmail),
+      _id: name,
+      createdAt: now,
+      updatedAt: now,
+      version: 1,
+    }
   }
   return null
 }

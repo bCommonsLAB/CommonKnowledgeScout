@@ -16,6 +16,13 @@ describe('mergeCreationTypesWithBuiltins', () => {
     expect(audio?.icon).toBe('Mic')
   })
 
+  it('W-D: der generische Standard-Wizard ist immer als Karte enthalten', () => {
+    const merged = mergeCreationTypesWithBuiltins([], 'lib-1', 'user@test.local')
+    const standard = merged.find((t) => t.id === 'standard-capture')
+    expect(standard).toBeDefined()
+    expect(standard?.templateId).toBe('standard-capture')
+  })
+
   it('Library-Template überschreibt Built-in mit gleichem Namen', () => {
     const mongoAudio: TemplateDocument = {
       _id: 'audio-transcript-de',
