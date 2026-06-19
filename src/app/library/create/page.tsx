@@ -58,7 +58,9 @@ export default function CreateContentPage() {
 
       setIsLoading(true)
       try {
-        const types = await getLibraryCreationConfig(activeLibrary.id)
+        // W-C: kuratierte Liste, wenn die Library `captureWizards` gesetzt hat;
+        // sonst Bestandsverhalten (curateCreationTypes greift nur bei Config).
+        const types = await getLibraryCreationConfig(activeLibrary.id, activeLibrary.config?.captureWizards)
         setCreationTypes(types)
       } catch (error) {
         console.error('Fehler beim Laden der Creation-Typen:', error)

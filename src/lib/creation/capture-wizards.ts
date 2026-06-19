@@ -13,28 +13,11 @@
  */
 
 import type { LibraryCreationType } from '@/lib/templates/library-creation-config'
+import type { CaptureWizardRef, CaptureWizardsConfig } from '@/types/library'
 import { STANDARD_CAPTURE_FLOW_ID } from './wizard-flow-entity'
 
-/** Ein kuratierter Wizard-Eintrag (Δ2): Flow + optional festes Schema. */
-export interface CaptureWizardRef {
-  /** Referenz auf den Flow (Flow-Entitaet bzw. Creation-Typ-`id`/`templateId`). */
-  flowId: string
-  /** Optional fest gebundenes Schema (sonst Laufzeit-Wahl via selectSchemaType). */
-  schemaRef?: string
-  /** Optionaler Anzeigename (ueberschreibt den abgeleiteten). */
-  label?: string
-  /** Optionales Icon (ueberschreibt das abgeleitete). */
-  icon?: string
-  /** Nur aktivierte Eintraege erscheinen. */
-  enabled: boolean
-}
-
-/** Per-Library-Kuratierung: geordnete Wizard-Liste + optionaler Default. */
-export interface CaptureWizardsConfig {
-  wizards: CaptureWizardRef[]
-  /** `flowId`, der zuerst/als Default erscheint (falls aufloesbar). */
-  defaultFlowId?: string
-}
+// Re-Export, damit Bestands-Importe aus diesem Modul weiter funktionieren.
+export type { CaptureWizardRef, CaptureWizardsConfig }
 
 /** Der generische Standard-Wizard als Auswahl-Karte (Flow-Entitaet). */
 export function buildStandardWizardCreationType(): LibraryCreationType {
