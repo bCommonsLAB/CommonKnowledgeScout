@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { LibraryService } from '@/lib/services/library-service'
+import { stripLibraryConfigSecrets } from '@/lib/library/config-export'
 import type { Library } from '@/types/library'
 
 async function getUserEmail(): Promise<string | null> {
@@ -59,50 +60,19 @@ export async function GET(
       )
     }
 
-    // Erstelle Export-Objekt ohne sensible Daten
+    // Erstelle Export-Objekt ohne sensible Daten.
+    // Variante B: KOMPLETTE config uebernehmen, nur Secrets per Deny-List
+    // entfernen (stripLibraryConfigSecrets). So gehen keine Nicht-Secret-
+    // Felder mehr still verloren (z.B. nextcloud-URL, shadowTwin, translations).
     const exportData: Partial<Library> = {
       label: library.label,
       path: library.path,
       type: library.type,
       isEnabled: library.isEnabled,
       transcription: library.transcription,
-      config: library.config ? {
-        // Secretary Service Config (ohne API-Keys)
-        secretaryService: library.config.secretaryService ? {
-          useCustomConfig: library.config.secretaryService.useCustomConfig ?? false,
-          apiUrl: library.config.secretaryService.apiUrl || '',
-          apiKey: '', // API-Key wird nicht exportiert
-          // Phase 1: Transkription
-          pdfExtractionMethod: library.config.secretaryService.pdfExtractionMethod,
-          // Phase 2: Transformation
-          template: library.config.secretaryService.template,
-          llmModel: library.config.secretaryService.llmModel,
-          targetLanguage: library.config.secretaryService.targetLanguage,
-          generateCoverImage: library.config.secretaryService.generateCoverImage,
-          coverImagePrompt: library.config.secretaryService.coverImagePrompt,
-          useDirectConnection: library.config.secretaryService.useDirectConnection ?? false,
-        } : undefined,
-
-        ingestionStorage: library.config.ingestionStorage
-          ? {
-              useCustomConfig: library.config.ingestionStorage.useCustomConfig ?? false,
-              connectionString: '',
-              containerName: library.config.ingestionStorage.containerName || '',
-            }
-          : undefined,
-        
-        // Chat Config (vollständig exportieren)
-        chat: library.config.chat,
-        
-        // Creation Config (vollständig exportieren)
-        creation: library.config.creation,
-        
-        // Public Publishing (ohne API-Key)
-        publicPublishing: library.config.publicPublishing ? {
-          ...library.config.publicPublishing,
-          apiKey: undefined, // API-Key wird nicht exportiert
-        } : undefined,
-      } : undefined,
+      config: library.config
+        ? stripLibraryConfigSecrets(library.config)
+        : undefined,
     }
 
     // JSON als Download zurückgeben
