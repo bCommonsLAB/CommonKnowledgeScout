@@ -9,8 +9,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { LibraryService } from '@/lib/services/library-service'
+import { prepareImportedLibraryConfig } from '@/lib/library/config-export'
 import { v4 as uuidv4 } from 'uuid'
-import type { Library } from '@/types/library'
+import type { Library, StorageConfig } from '@/types/library'
 
 async function getUserEmail(): Promise<string | null> {
   const { userId } = await auth()
@@ -48,7 +49,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Erstelle neue Library mit neuer ID
+    // Erstelle neue Library mit neuer ID.
+    // Variante B: KOMPLETTE config 1:1 uebernehmen. prepareImportedLibraryConfig
+    // entfernt defensiv alle Secrets und deaktiviert benutzerdefinierte
+    // Verbindungen, bis der Anwender die Secrets neu eingibt. So gehen keine
+    // Nicht-Secret-Felder mehr still verloren.
     const newLibrary: Library = {
       id: uuidv4(), // Neue ID generieren
       label: libraryData.label,
@@ -56,46 +61,9 @@ export async function POST(request: NextRequest) {
       type: libraryData.type,
       isEnabled: libraryData.isEnabled !== undefined ? libraryData.isEnabled : true,
       transcription: libraryData.transcription || 'shadowTwin',
-      config: {
-        // Nur existierende StorageConfig-Felder verwenden
-        
-        // Secretary Service Config (ohne API-Key, muss neu konfiguriert werden)
-        secretaryService: libraryData.config?.secretaryService ? {
-          // Beim Import ist useCustomConfig deaktiviert, bis der Benutzer API-Key neu eingibt
-          useCustomConfig: false,
-          apiUrl: libraryData.config.secretaryService.apiUrl || '',
-          apiKey: '', // API-Key muss neu eingegeben werden
-          // Phase 1: Transkription
-          pdfExtractionMethod: libraryData.config.secretaryService.pdfExtractionMethod,
-          // Phase 2: Transformation
-          template: libraryData.config.secretaryService.template,
-          llmModel: libraryData.config.secretaryService.llmModel,
-          targetLanguage: libraryData.config.secretaryService.targetLanguage,
-          generateCoverImage: libraryData.config.secretaryService.generateCoverImage,
-          coverImagePrompt: libraryData.config.secretaryService.coverImagePrompt,
-          useDirectConnection: libraryData.config.secretaryService.useDirectConnection ?? false,
-        } : undefined,
-
-        ingestionStorage: libraryData.config?.ingestionStorage
-          ? {
-              useCustomConfig: false,
-              connectionString: '',
-              containerName: libraryData.config.ingestionStorage.containerName || '',
-            }
-          : undefined,
-        
-        // Chat Config
-        chat: libraryData.config?.chat,
-        
-        // Creation Config
-        creation: libraryData.config?.creation,
-        
-        // Public Publishing (ohne API-Key)
-        publicPublishing: libraryData.config?.publicPublishing ? {
-          ...libraryData.config.publicPublishing,
-          apiKey: undefined, // API-Key muss neu eingegeben werden
-        } : undefined,
-      },
+      config: libraryData.config
+        ? prepareImportedLibraryConfig(libraryData.config as StorageConfig)
+        : undefined,
     }
 
     const libraryService = LibraryService.getInstance()
