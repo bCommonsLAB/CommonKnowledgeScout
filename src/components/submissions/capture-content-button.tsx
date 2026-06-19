@@ -4,11 +4,11 @@
  * @description
  * Rechte-gateter Einstieg in die Erfassung. Sichtbar nur fuer
  * `owner`/`co-creator`/`contributor` — die Berechtigung kommt serverseitig aus
- * `GET /api/libraries/[id]/me/capture`. Seit U6 fuehrt der Button NICHT mehr in
- * einen Inline-Upload-Dialog, sondern in den **generischen Erfassungs-Wizard**
- * (`/library/create/<wizard>`): erklaeren → hochladen → Inhaltstyp waehlen →
- * berechnen → pruefen → in den Wartekorb. Erfassung laeuft off-target ueber die
- * Inbox; der Ziel-Provider wird NIE beruehrt (ADR-0004).
+ * `GET /api/libraries/[id]/me/capture`. Der Button fuehrt in die **kuratierte
+ * Wizard-Uebersicht** (`/library/create`, W-F/Δ2b) — nicht mehr direkt in EINEN
+ * hartkodierten Wizard. Dort waehlt der Nutzer aus den pro Library kuratierten
+ * Wizards (W-B/W-C). Erfassung laeuft off-target ueber die Inbox; der
+ * Ziel-Provider wird NIE beruehrt (ADR-0004).
  *
  * @see src/app/library/create/[typeId]/page.tsx (Wizard-Route)
  * @see docs/wizards/umbauplan-generischer-erfassungs-wizard.md (U6)
@@ -20,12 +20,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FilePlus2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-
-/**
- * Generischer Erfassungs-Wizard (Datei-Upload + Inhaltstyp-Wahl, off-target).
- * Als `typeId` der Wizard-Route; der Flow ist medien-agnostisch (PDF/Audio).
- */
-const CAPTURE_WIZARD_TYPE_ID = 'file-transcript-de';
 
 export interface CaptureContentButtonProps {
   libraryId?: string;
@@ -66,9 +60,9 @@ export function CaptureContentButton({ libraryId }: CaptureContentButtonProps) {
       variant="outline"
       size="sm"
       className="shrink-0"
-      // from=gallery: der Zurück-Link im Wizard führt zurück nach Erkunden
-      // (Einstieg war die Galerie), nicht in die Wizard-Auswahl.
-      onClick={() => router.push(`/library/create/${CAPTURE_WIZARD_TYPE_ID}?from=gallery`)}
+      // from=gallery: die Übersicht reicht es an den gewählten Wizard weiter,
+      // damit dessen Zurück-Link nach Erkunden (Galerie) führt.
+      onClick={() => router.push('/library/create?from=gallery')}
     >
       <FilePlus2 className="mr-2 h-4 w-4" />
       Inhalte erfassen
