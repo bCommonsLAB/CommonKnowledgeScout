@@ -17,10 +17,11 @@ import { getServerProvider } from '@/lib/storage/server-provider'
 import { LibraryService } from '@/lib/services/library-service'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { generateShadowTwinFolderNameVariants } from '@/lib/storage/shadow-twin'
+import { isShadowTwinFolderName } from '@/lib/storage/shadow-twin-folder-name'
 import { parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
-import { persistShadowTwinFilesToMongo } from '@/lib/shadow-twin/shadow-twin-migration-writer'
+import { prepareSourceArtifacts, upsertArtifactFromPrepared, type PreparedSource } from '@/lib/shadow-twin/shadow-twin-migration-writer'
 import { FileLogger } from '@/lib/debug/logger'
-import { startMigrationRun, appendMigrationStep, finishMigrationRun } from '@/lib/repositories/shadow-twin-migration-repo'
+import { startMigrationRun, appendMigrationStep, finishMigrationRun, isCancelRequested } from '@/lib/repositories/shadow-twin-migration-repo'
 import { randomUUID } from 'crypto'
 
 interface MigrationRequestBody {
@@ -29,6 +30,8 @@ interface MigrationRequestBody {
   cleanupFilesystem?: boolean
   dryRun?: boolean
   limit?: number
+  /** Optional vom Client vorgegebene Run-ID, damit der Client sofort pollen/abbrechen kann. */
+  runId?: string
 }
 
 interface MigrationReport {
@@ -87,7 +90,11 @@ async function listFilesRecursively(cache: FolderCache, folderId: string, recurs
 
     for (const item of items) {
       if (item.type === 'folder') {
-        if (recursive) queue.push(item.id)
+        // Shadow-Twin-Ordner (_…/.…) sind KEINE Quellen und werden beim Quellen-Scan
+        // NICHT durchsucht. Ihre Inhalte (Artefakte/Bilder) werden gezielt über den
+        // Twin-Ordner der jeweiligen Quelle geladen — nicht als eigene Quellen behandelt.
+        // So zählt "x von y" nur echte Quelldateien (z.B. PDFs) und nicht jede page_NNN-Datei.
+        if (recursive && !isShadowTwinFolderName(item.metadata.name)) queue.push(item.id)
         continue
       }
       files.push(item)
@@ -137,6 +144,13 @@ function collectArtifactsForSource(args: {
   const consider = (item: StorageItem) => {
     if (item.type !== 'file') return
     if (seen.has(item.id)) return
+    // WICHTIG: Nur Dateien akzeptieren, deren Name tatsächlich zum Quell-Basisnamen gehört
+    // ({base}.{lang}.md, {base}.{template}.{lang}.md, …). Andernfalls würden rohe Seiten-OCR-
+    // Dateien wie "page_001.en.md" über den konservativen Parser-Fallback fälschlich als
+    // Transkript des PDFs erkannt — und könnten im selben Artefakt-Slot (transcript.{lang})
+    // das echte, zusammenhängende Transkript überschreiben. Diese Seiten-Markdowns werden
+    // bewusst ignoriert (sie sind reine Zwischendaten).
+    if (!item.metadata.name.toLowerCase().startsWith(`${sourceBaseName.toLowerCase()}.`)) return
     const parsed = parseArtifactName(item.metadata.name, sourceBaseName)
     if (!parsed.kind || !parsed.targetLanguage) return
     // Nur 'transcript' und 'transformation' Artefakte migrieren, 'raw' überspringen
@@ -206,7 +220,8 @@ export async function POST(
       return NextResponse.json({ error: 'Mongo ist nicht aktiv' }, { status: 400 })
     }
 
-    runId = randomUUID()
+    // Client darf eine runId vorgeben (für sofortiges Polling/Abbrechen). Sonst generieren.
+    runId = typeof body.runId === 'string' && body.runId.trim().length > 0 ? body.runId.trim() : randomUUID()
     const startedAt = new Date().toISOString()
     // Stelle sicher, dass alle Parameter explizit gesetzt werden
     const migrationParams = {
@@ -258,12 +273,27 @@ export async function POST(
       }
     }
 
-    // Fortschritts-Update alle 20 Dateien in MongoDB speichern
+    // Fortschritts-Update regelmäßig in MongoDB schreiben (UI pollt diese Steps).
     let lastProgressAt = Date.now()
-    const PROGRESS_INTERVAL_MS = 15_000
+    const PROGRESS_INTERVAL_MS = 2_000
+
+    // Abbruch-Check gedrosselt (nicht bei jeder Quelle ein DB-Read).
+    let lastCancelCheckAt = Date.now()
+    const CANCEL_CHECK_INTERVAL_MS = 2_000
+    let cancelled = false
 
     for (const source of files) {
       report.sourcesScanned += 1
+
+      // Kooperativer Abbruch: Flag gedrosselt prüfen und Schleife sauber verlassen.
+      if (runId && Date.now() - lastCancelCheckAt > CANCEL_CHECK_INTERVAL_MS) {
+        lastCancelCheckAt = Date.now()
+        const wantsCancel = await isCancelRequested(runId).catch(() => false)
+        if (wantsCancel) {
+          cancelled = true
+          break
+        }
+      }
 
       // Periodisches Fortschritts-Update (verhindert "stuck"-Eindruck)
       if (runId && Date.now() - lastProgressAt > PROGRESS_INTERVAL_MS) {
@@ -294,17 +324,29 @@ export async function POST(
         })
         report.artifactsFound += artifacts.length
 
+        // Variante 1+2+3: Bilder/Markdown des Twin-Ordners EINMAL pro Quelle vorbereiten
+        // (statt - wie bisher - pro Artefakt erneut alle Bilder ueber WebDAV zu laden).
+        let prepared: PreparedSource | null = null
+        if (!body.dryRun && artifacts.length > 0) {
+          prepared = await prepareSourceArtifacts({
+            libraryId,
+            userEmail,
+            sourceItem: source,
+            provider,
+            shadowTwinFolderId: shadowTwinFolder?.id,
+          })
+        }
+
         // Verarbeite jedes Artefakt (jedes wird zu einem eigenen MongoDB-Dokument)
         for (const artifact of artifacts) {
-          if (!body.dryRun) {
-            // Neue Migration: Scant alle Dateien im Shadow-Twin-Ordner ohne Markdown-Analyse
-            const mongoResult = await persistShadowTwinFilesToMongo({
+          if (!body.dryRun && prepared) {
+            // Nur noch Markdown laden/rewriten + upserten; Bilder sind bereits vorbereitet.
+            await upsertArtifactFromPrepared({
               libraryId,
               userEmail,
               sourceItem: source,
-              provider,
               artifactKey: artifact.key,
-              shadowTwinFolderId: shadowTwinFolder?.id,
+              prepared,
             })
             report.artifactsUpserted += 1
             if (report.upsertedArtifacts && report.upsertedArtifacts.length < MAX_UPSERT_DETAILS) {
@@ -318,7 +360,7 @@ export async function POST(
                 targetLanguage: artifact.key.targetLanguage,
                 templateName: artifact.key.templateName,
                 mongoUpserted: true,
-                blobImages: mongoResult.imageFiles,
+                blobImages: prepared.counts.imageFiles,
                 blobErrors: 0,
                 filesystemDeleted: !!body.cleanupFilesystem,
               })
@@ -364,9 +406,11 @@ export async function POST(
       }
     }
 
-    await appendMigrationStep(runId, { name: 'completed', at: new Date().toISOString() })
-    await finishMigrationRun(runId, { status: 'completed', report })
-    return NextResponse.json({ report, runId }, { status: 200 })
+    // Abschluss: bei Abbruch Status 'cancelled' mit Teil-Report (Import bleibt erhalten).
+    const finalStatus = cancelled ? 'cancelled' : 'completed'
+    await appendMigrationStep(runId, { name: finalStatus, at: new Date().toISOString() })
+    await finishMigrationRun(runId, { status: finalStatus, report })
+    return NextResponse.json({ report, runId, status: finalStatus }, { status: 200 })
   } catch (error) {
     FileLogger.error('shadow-twins/migrate', 'Migration fehlgeschlagen', { error })
     // Best effort: schreibe Failure, falls Run bereits gestartet wurde.

@@ -13,7 +13,9 @@ export interface ShadowTwinMigrationRun {
   runId: string
   libraryId: string
   userEmail: string
-  status: 'running' | 'completed' | 'failed'
+  status: 'running' | 'completed' | 'failed' | 'cancelled'
+  /** Vom Client gesetzt (Cancel-Route). Die Migrations-Schleife prüft das Flag kooperativ. */
+  cancelRequested?: boolean
   params: {
     folderId: string
     recursive: boolean
@@ -104,4 +106,34 @@ export async function listMigrationRuns(args: { libraryId: string; limit?: numbe
   const col = await getMigrationCollection()
   const limit = args.limit && args.limit > 0 ? args.limit : 20
   return col.find({ libraryId: args.libraryId }).sort({ startedAt: -1 }).limit(limit).toArray()
+}
+
+/**
+ * Lädt einen einzelnen Run (inkl. steps) für die Status-/Fortschritts-Abfrage.
+ */
+export async function getMigrationRun(runId: string): Promise<ShadowTwinMigrationRun | null> {
+  const col = await getMigrationCollection()
+  return col.findOne({ runId })
+}
+
+/**
+ * Setzt das kooperative Abbruch-Flag. Die Migrations-Schleife liest es gedrosselt
+ * und beendet den Lauf sauber mit Teil-Report (Status 'cancelled').
+ */
+export async function requestMigrationCancel(runId: string): Promise<boolean> {
+  const col = await getMigrationCollection()
+  const result = await col.updateOne(
+    { runId, status: 'running' },
+    { $set: { cancelRequested: true } }
+  )
+  return result.matchedCount > 0
+}
+
+/**
+ * Leichte Abfrage nur des Cancel-Flags (Projection), für den Schleifen-Check.
+ */
+export async function isCancelRequested(runId: string): Promise<boolean> {
+  const col = await getMigrationCollection()
+  const doc = await col.findOne({ runId }, { projection: { cancelRequested: 1 } })
+  return doc?.cancelRequested === true
 }

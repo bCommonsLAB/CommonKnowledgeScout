@@ -12,8 +12,39 @@
  * - loadMigrationRuns: Lädt Migration-Runs aus der API
  */
 
-import { useCallback } from "react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "@/components/ui/use-toast";
+
+/** Live-Fortschritt eines Migrations-Laufs (aus den Mongo-Steps abgeleitet). */
+export interface MigrationProgress {
+  scanned: number;
+  total: number;
+  upserted: number;
+  status: "running" | "completed" | "failed" | "cancelled";
+}
+
+/**
+ * Leitet aus einem Run-Dokument (inkl. steps) den aktuellen Fortschritt ab.
+ * scan_done liefert die Gesamtzahl (total), progress-Steps die laufenden Zähler.
+ */
+function deriveProgress(run: {
+  status: MigrationProgress["status"];
+  steps?: Array<{ name: string; meta?: Record<string, unknown> }>;
+}): MigrationProgress {
+  let scanned = 0;
+  let total = 0;
+  let upserted = 0;
+  for (const step of run.steps ?? []) {
+    const meta = step.meta ?? {};
+    if (step.name === "scan_done" && typeof meta.files === "number") total = meta.files;
+    if (step.name === "progress") {
+      if (typeof meta.scanned === "number") scanned = meta.scanned;
+      if (typeof meta.total === "number") total = meta.total;
+      if (typeof meta.upserted === "number") upserted = meta.upserted;
+    }
+  }
+  return { scanned, total, upserted, status: run.status };
+}
 
 /** Typ für einen einzelnen Migration-Run */
 export interface MigrationRun {
@@ -116,9 +147,26 @@ export function useShadowTwinMigration({
   setIsLangDeleting,
   setLangCleanupResult,
 }: UseShadowTwinMigrationProps) {
+  // Auswahl des zu rekonstruierenden Verzeichnisses (Default: Library-Root).
+  const [selectedFolderId, setSelectedFolderId] = useState<string>("root");
+  const [selectedFolderPath, setSelectedFolderPath] = useState<string>("/");
+  // Live-Fortschritt + aktuelle Run-ID (für Polling/Abbruch).
+  const [migrationProgress, setMigrationProgress] = useState<MigrationProgress | null>(null);
+  const [currentRunId, setCurrentRunId] = useState<string | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
+  // Polling-Interval-Handle (wird im finally aufgeräumt).
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  /** Setzt das aktuell gewählte Zielverzeichnis (aus dem StorageDirectoryPicker). */
+  const setSelectedFolder = useCallback((folderId: string, path: string) => {
+    setSelectedFolderId(folderId || "root");
+    setSelectedFolderPath(path || "/");
+  }, []);
+
   /**
    * Startet die Migration: Artefakte aus dem Dateisystem in den Cache laden.
    * H2-Fix: Fehler werden geloggt + User via Toast informiert.
+   * Pollt während des Laufs den Fortschritt (x/y) über die Run-Status-Route.
    */
   const runShadowTwinMigration = useCallback(async () => {
     if (!activeLibraryId) {
@@ -130,23 +178,50 @@ export function useShadowTwinMigration({
       return;
     }
 
+    // Client-seitige Run-ID, damit wir sofort pollen und abbrechen können.
+    const runId = crypto.randomUUID();
+    setCurrentRunId(runId);
+    setIsCancelling(false);
+    setMigrationProgress({ scanned: 0, total: 0, upserted: 0, status: "running" });
     setDryRunRunning(true);
     setDryRunError(null);
+
+    // Fortschritt regelmäßig abfragen (Steps werden serverseitig geschrieben).
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(() => {
+      void (async () => {
+        try {
+          const r = await fetch(
+            `/api/library/${activeLibraryId}/shadow-twins/migrations/${runId}`
+          );
+          if (!r.ok) return;
+          const j = (await r.json()) as {
+            run?: { status: MigrationProgress["status"]; steps?: Array<{ name: string; meta?: Record<string, unknown> }> };
+          };
+          if (j.run) setMigrationProgress(deriveProgress(j.run));
+        } catch {
+          // Polling-Fehler sind unkritisch – nächster Tick versucht es erneut.
+        }
+      })();
+    }, 2500);
+
     try {
       const res = await fetch(`/api/library/${activeLibraryId}/shadow-twins/migrate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          folderId: "root",
+          folderId: selectedFolderId || "root",
           recursive: dryRunRecursive,
           dryRun: false,
           cleanupFilesystem: dryRunCleanupFilesystem,
+          runId,
         }),
       });
 
       const json = (await res.json().catch(() => ({}))) as {
         report?: Record<string, unknown>;
         runId?: string;
+        status?: MigrationProgress["status"];
         error?: string;
       };
       if (!res.ok) {
@@ -183,10 +258,12 @@ export function useShadowTwinMigration({
           setSelectedRunId(json.runId as string);
         }
       }
+      const wasCancelled = json.status === "cancelled";
       toast({
-        title: "Import abgeschlossen",
-        description:
-          "Die Artefakte wurden aus dem Dateisystem in den Cache geladen. Der Report wird in der Tabelle angezeigt.",
+        title: wasCancelled ? "Import abgebrochen" : "Import abgeschlossen",
+        description: wasCancelled
+          ? "Der Lauf wurde abgebrochen. Bereits importierte Artefakte bleiben erhalten."
+          : "Die Artefakte wurden aus dem Dateisystem in den Cache geladen. Der Report wird in der Tabelle angezeigt.",
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -197,10 +274,17 @@ export function useShadowTwinMigration({
         variant: "destructive",
       });
     } finally {
+      // Polling stoppen und letzten Fortschritt einmal final aktualisieren.
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
       setDryRunRunning(false);
+      setIsCancelling(false);
     }
   }, [
     activeLibraryId,
+    selectedFolderId,
     dryRunRecursive,
     dryRunCleanupFilesystem,
     setDryRunRunning,
@@ -208,6 +292,33 @@ export function useShadowTwinMigration({
     setMigrationRuns,
     setSelectedRunId,
   ]);
+
+  /**
+   * Bricht den laufenden Migrations-Lauf kooperativ ab (DELETE auf die Run-Route).
+   * Der Server beendet die Schleife sauber; bereits importierte Artefakte bleiben erhalten.
+   */
+  const cancelMigration = useCallback(async () => {
+    if (!activeLibraryId || !currentRunId) return;
+    setIsCancelling(true);
+    try {
+      const res = await fetch(
+        `/api/library/${activeLibraryId}/shadow-twins/migrations/${currentRunId}`,
+        { method: "DELETE" }
+      );
+      if (!res.ok) {
+        const j = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(j.error ?? `HTTP ${res.status}`);
+      }
+      toast({
+        title: "Abbruch angefordert",
+        description: "Der Lauf wird nach dem aktuellen Schritt beendet.",
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setIsCancelling(false);
+      toast({ title: "Abbruch fehlgeschlagen", description: message, variant: "destructive" });
+    }
+  }, [activeLibraryId, currentRunId]);
 
   /**
    * Sync mit Richtungswahl: Export (to-storage), Import (to-cache), oder bidirektional.
@@ -383,5 +494,13 @@ export function useShadowTwinMigration({
     runDirectionalSync,
     runAnalysis,
     runLanguageCleanup,
+    // Verzeichnis-Auswahl + Live-Fortschritt + Abbruch
+    selectedFolderId,
+    selectedFolderPath,
+    setSelectedFolder,
+    migrationProgress,
+    currentRunId,
+    isCancelling,
+    cancelMigration,
   };
 }

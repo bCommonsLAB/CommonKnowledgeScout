@@ -47,7 +47,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { Upload } from "lucide-react"
-import type { MigrationRun } from "./hooks/use-shadow-twin-migration"
+import { StorageDirectoryPicker } from "@/components/settings/storage/storage-directory-picker"
+import { MigrationProgress } from "./migration-progress"
+import type { MigrationRun, MigrationProgress as MigrationProgressData } from "./hooks/use-shadow-twin-migration"
 import type { BinaryFragment } from "./hooks/use-shadow-twin-analysis"
 
 interface MigrationWizardSectionProps {
@@ -67,6 +69,13 @@ interface MigrationWizardSectionProps {
   binaryFragments: BinaryFragment[];
   loadingFragments: boolean;
   runShadowTwinMigration: () => Promise<void>;
+  /** Verzeichnis-Auswahl (Einzel-Verzeichnis rekonstruieren) */
+  selectedFolderPath: string;
+  setSelectedFolder: (folderId: string, path: string) => void;
+  /** Live-Fortschritt + Abbruch */
+  migrationProgress: MigrationProgressData | null;
+  isCancelling: boolean;
+  cancelMigration: () => void;
 }
 
 /**
@@ -229,6 +238,11 @@ export function MigrationWizardSection({
   binaryFragments,
   loadingFragments,
   runShadowTwinMigration,
+  selectedFolderPath,
+  setSelectedFolder,
+  migrationProgress,
+  isCancelling,
+  cancelMigration,
 }: MigrationWizardSectionProps) {
   return (
     <div className="border-t pt-4">
@@ -264,12 +278,30 @@ export function MigrationWizardSection({
                       <strong>Ziel:</strong> Artefakte werden primär im{" "}
                       <span className="font-mono">Cache</span> gespeichert.
                     </span>
-                    <span className="block">Dieser Lauf verwendet die Library‑Root.</span>
+                    <span className="block">
+                      Gewähltes Verzeichnis:{" "}
+                      <span className="font-mono">{selectedFolderPath || "/"}</span>
+                    </span>
                   </span>
                 </div>
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 min-w-0">
+              {/* Einzel-Verzeichnis wählen (Default: Library-Root). */}
+              {activeLibraryId ? (
+                <div className="rounded border p-3 space-y-2">
+                  <FormLabel className="text-sm">Verzeichnis wählen</FormLabel>
+                  <FormDescription>
+                    Nur das gewählte Verzeichnis wird rekonstruiert. Ohne Auswahl wird die
+                    Library‑Root verwendet.
+                  </FormDescription>
+                  <StorageDirectoryPicker
+                    libraryId={activeLibraryId}
+                    onPathChange={() => { /* Pfad-Anzeige läuft über onSelectFolder */ }}
+                    onSelectFolder={setSelectedFolder}
+                  />
+                </div>
+              ) : null}
               <div className="flex items-center justify-between rounded border p-3">
                 <div>
                   <FormLabel className="text-sm">Unterordner einbeziehen</FormLabel>
@@ -292,6 +324,13 @@ export function MigrationWizardSection({
               {dryRunError ? (
                 <p className="text-xs text-destructive">{dryRunError}</p>
               ) : null}
+              {/* Live-Fortschritt (x von y) + Abbrechen während des Laufs */}
+              <MigrationProgress
+                running={dryRunRunning}
+                progress={migrationProgress}
+                isCancelling={isCancelling}
+                onCancel={cancelMigration}
+              />
               <div className="border-t pt-3">
                 <div className="text-sm font-medium">Bisherige Läufe</div>
                 {migrationRunsArray.length === 0 ? (
