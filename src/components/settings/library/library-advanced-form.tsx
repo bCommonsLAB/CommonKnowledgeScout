@@ -39,6 +39,7 @@ import { ShadowTwinConfigSection } from "./shadow-twin-config-section"
 import { MigrationWizardSection } from "./migration-wizard-section"
 import { LanguageCleanupSection } from "./language-cleanup-section"
 import { ImportExportSection } from "./import-export-section"
+import { CaptureWizardsEditor } from "./capture-wizards-editor"
 
 export function LibraryAdvancedForm() {
   const {
@@ -204,6 +205,36 @@ export function LibraryAdvancedForm() {
               langCleanupResult={langCleanupResult}
               setLangCleanupResult={setLangCleanupResult}
               runLanguageCleanup={runLanguageCleanup}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Inhalte erfassen (Wizard-Kuratierung, Plan 2 · W-C) */}
+        <Card>
+          <CardContent className="space-y-3 pt-6">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Inhalte erfassen
+            </h3>
+            <FormField
+              control={form.control}
+              name="captureWizards"
+              render={({ field }) => (
+                <FormItem className="rounded-lg border p-4">
+                  <FormLabel className="text-base">Welche Wizards anbieten</FormLabel>
+                  <FormDescription>
+                    Waehle, welche Erfassungs-Wizards unter &quot;Inhalte erfassen&quot; erscheinen,
+                    in welcher Reihenfolge und welcher der Default ist. Ohne Auswahl gilt das
+                    Bestandsverhalten.
+                  </FormDescription>
+                  <FormControl>
+                    <CaptureWizardsEditor
+                      libraryId={activeLibraryId ?? undefined}
+                      value={field.value}
+                      onChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
             />
           </CardContent>
         </Card>

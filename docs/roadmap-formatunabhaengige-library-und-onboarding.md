@@ -50,6 +50,8 @@ deterministisch und verlässlich (niemand kann die Ordnung aushebeln).
   Basis-Filter in den Einstellungen sperren (nicht entfernbar).
 - ▢ **A4** — gemischte Galerie/Story aufpolieren: Filter als Vereinigung über
   Typen, Tabellen-Spalten je Typ, Story-Verweise je Dokument formatgerecht.
+  Detail-Bauplan (3 Wellen, Design-Konflikte, Reihenfolge):
+  [`plan1-a4-gemischte-galerie-story.md`](plan1-a4-gemischte-galerie-story.md).
 - ⨯ **A3 entfällt hier** → wandert in Plan 2 (Wizard), siehe Konflikte.
 
 ## Plan 2 — Onboarding-Flow

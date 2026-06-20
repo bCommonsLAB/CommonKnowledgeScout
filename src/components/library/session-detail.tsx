@@ -22,6 +22,7 @@ import { useRouter } from "next/navigation";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { TestimonialList } from "@/components/shared/testimonial-list";
 import { useTestimonials } from "@/hooks/use-testimonials";
+import { ReferenceList } from "@/components/library/story/reference-list";
 // Media-Resolution-Logik (Cover/Attachments/Gallery) wurde in
 // src/hooks/library/session-detail/use-resolved-session-media.ts
 // ausgegliedert (Welle 3-II-Hooks-c, Schritt 1/3).
@@ -384,43 +385,15 @@ export function SessionDetail({
                 <p className="text-sm text-muted-foreground mb-4">{data.organisation}</p>
               )}
 
-              {/* PDF-Links dezent anzeigen (Dateiname + PDF-Icon + Öffnen-Icon) */}
+              {/* Anhänge je Format gerendert (A4c). Klassifikation nach dem
+                  Original-Dateinamen, Link auf die aufgelöste (Blob-)URL. */}
               {attachmentNames.length > 0 && (() => {
-                if (attachmentNames.length === 0) return null
+                const resolvedRefs = attachmentNames
+                  .map((fileName, idx) => ({ name: getDisplayFileName(fileName), url: resolvedAttachments[idx]?.url }))
+                  .filter((x): x is { name: string; url: string } => typeof x.url === 'string' && x.url.length > 0)
                 return (
-                  <div className="mb-6 space-y-1.5">
-                    <div className="space-y-1">
-                      {attachmentNames.map((fileName, idx) => {
-                        const displayName = getDisplayFileName(fileName)
-                        const resolved = resolvedAttachments[idx]
-                        if (!resolved?.url) {
-                          return (
-                            <div
-                              key={idx}
-                              className="inline-flex items-center gap-2 text-sm text-muted-foreground"
-                              title={`Nicht auflösbar: ${displayName}`}
-                            >
-                              <FileText className="w-4 h-4" />
-                              <span className="truncate max-w-[520px]">{displayName}</span>
-                            </div>
-                          )
-                        }
-                        return (
-                          <a
-                            key={idx}
-                            href={resolved.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                            title={displayName}
-                          >
-                            <FileText className="w-4 h-4" />
-                            <span className="truncate max-w-[520px]">{displayName}</span>
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
-                        )
-                      })}
-                    </div>
+                  <div className="mb-6">
+                    <ReferenceList references={resolvedRefs} title="Anhänge" />
                     {unresolvedAttachmentNames.length > 0 && (
                       <p className="text-xs text-amber-700 dark:text-amber-400">
                         Nicht auflösbare Anhänge in der Vorschau: {unresolvedAttachmentNames.join(", ")}

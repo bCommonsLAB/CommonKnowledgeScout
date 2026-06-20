@@ -1,9 +1,12 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
-import { parseFacetDefs, buildFilterFromQuery } from '@/lib/chat/dynamic-facets'
-import { aggregateFacets, getCollectionNameForLibrary } from '@/lib/repositories/vector-repo'
+import { buildFilterFromQuery } from '@/lib/chat/dynamic-facets'
+import { resolveFacetScope } from '@/lib/chat/facet-scope'
+import { aggregateFacets, distinctViewTypes, getCollectionNameForLibrary } from '@/lib/repositories/vector-repo'
 import { maybePublicationFilter } from '@/lib/chat/publication-filter'
+import { isValidDetailViewType } from '@/lib/detail-view-types/registry'
+import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
   try {
@@ -21,17 +24,33 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ lib
       return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
     }
 
-    // Alle Definitionen: für buildFilterFromQuery (URL-Parameter auch bei unsichtbaren Facetten)
-    const defs = parseFacetDefs(ctx.library)
+    const libraryKey = getCollectionNameForLibrary(ctx.library)
+    const url = new URL(_req.url)
+
+    // A4a — Typ als Leitfilter: optionaler `detailViewType`-Parameter scoped die
+    // Facetten (gemeinsam ohne Wahl, typ-spezifisch mit Wahl) + filtert streng.
+    const selectedTypeRaw = url.searchParams.get('detailViewType')
+    const selectedType = selectedTypeRaw && selectedTypeRaw.trim() ? selectedTypeRaw.trim() : null
+    if (selectedType && !isValidDetailViewType(selectedType)) {
+      return NextResponse.json({ error: `Unbekannter detailViewType „${selectedType}".` }, { status: 400 })
+    }
+    const libraryDefaultType = getDetailViewType({}, ctx.library.config?.chat)
+    // Immer die vorhandenen Typen ermitteln: dienen als Leitfilter-Optionen (UI)
+    // UND als Basis fuer die gemeinsamen Facetten (ohne Typ-Wahl).
+    const availableViewTypes = await distinctViewTypes(libraryKey, libraryId)
+    const scope = resolveFacetScope({
+      library: ctx.library,
+      selectedType,
+      presentTypes: selectedType ? [] : availableViewTypes,
+      libraryDefaultType,
+    })
+
+    // Alle (gescopten) Definitionen: für buildFilterFromQuery (auch unsichtbare Facetten)
+    const defs = scope.defs
     // Nur sichtbare Facetten: Sidebar/„Filter“-Navigation entspricht „Sichtbar“ in Story-Config
     const visibleDefs = defs.filter((d) => d.visible)
-    const libraryKey = getCollectionNameForLibrary(ctx.library)
-    
-    // PERFORMANCE: Index-Erstellung zur Laufzeit entfernen
-    // await ensureFacetIndexes(libraryKey, defs)
-    
+
     // Filter aus Query-Parametern extrahieren (konsistent mit /docs Route)
-    const url = new URL(_req.url)
     const builtin = buildFilterFromQuery(url, defs)
     // buildFilterFromQuery liefert normalisierte Filter-Form; auf MongoDB-Form abbilden
     // Dynamisch alle Facetten-Filter hinzufügen (nicht nur hardcodierte Liste)
@@ -40,6 +59,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ lib
       if (builtin[def.metaKey]) {
         filter[def.metaKey] = builtin[def.metaKey]
       }
+    }
+
+    // A4a: strenger Typ-Filter (nur bei gewaehltem Typ). Per $and anhaengen,
+    // damit ein eventuelles $or (Default-Typ-Einbezug) nichts ueberschreibt.
+    if (scope.typeFilter) {
+      const existing = Array.isArray(filter.$and) ? filter.$and : []
+      filter.$and = [...existing, scope.typeFilter]
     }
 
     // Doc-Publication: Drafts werden bei nicht-Owner-Sichten aus den Facetten-
@@ -61,7 +87,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ lib
       const limited = typeof d.max === 'number' ? sorted.slice(0, d.max) : sorted
       return { metaKey: d.metaKey, label: d.label || d.metaKey, type: d.type, options: limited, columns: d.columns || 1 }
     })
-    return NextResponse.json({ facets: out }, { status: 200 })
+    // A4a: vorhandene Typen + aktuelle Wahl mitliefern (UI-Leitfilter).
+    return NextResponse.json(
+      { facets: out, viewTypes: availableViewTypes, selectedViewType: scope.selectedType },
+      { status: 200 },
+    )
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unbekannter Fehler'
     return NextResponse.json({ error: msg }, { status: 500 })

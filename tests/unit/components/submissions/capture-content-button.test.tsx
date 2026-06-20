@@ -48,9 +48,9 @@ it('rendert nichts und prueft nicht ohne libraryId', () => {
   expect(global.fetch).not.toHaveBeenCalled();
 });
 
-it('navigiert beim Klick in den Erfassungs-Wizard', async () => {
+it('navigiert beim Klick in die kuratierte Wizard-Uebersicht (W-F)', async () => {
   mockCapture(true);
   render(<CaptureContentButton libraryId="lib-1" />);
   fireEvent.click(await screen.findByRole('button', { name: /Inhalte erfassen/i }));
-  expect(push).toHaveBeenCalledWith('/library/create/file-transcript-de?from=gallery');
+  expect(push).toHaveBeenCalledWith('/library/create?from=gallery');
 });

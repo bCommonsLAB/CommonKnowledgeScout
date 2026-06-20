@@ -48,6 +48,16 @@ export default function CreateContentPage() {
 
   // sourceFolderId aus URL übernehmen (wenn Nutzer aus Verzeichnis kam)
   const sourceFolderId = searchParams.get('sourceFolderId') || undefined
+  // from=gallery (W-F): an den gewählten Wizard weiterreichen, damit dessen
+  // Zurück-Link zum Einstieg (Galerie) führt.
+  const fromParam = searchParams.get('from') || undefined
+  const typeQuery = (() => {
+    const qp = new URLSearchParams()
+    if (sourceFolderId) qp.set('sourceFolderId', sourceFolderId)
+    if (fromParam) qp.set('from', fromParam)
+    const s = qp.toString()
+    return s ? `?${s}` : ''
+  })()
 
   useEffect(() => {
     async function loadCreationTypes() {
@@ -58,7 +68,9 @@ export default function CreateContentPage() {
 
       setIsLoading(true)
       try {
-        const types = await getLibraryCreationConfig(activeLibrary.id)
+        // W-C: kuratierte Liste, wenn die Library `captureWizards` gesetzt hat;
+        // sonst Bestandsverhalten (curateCreationTypes greift nur bei Config).
+        const types = await getLibraryCreationConfig(activeLibrary.id, activeLibrary.config?.captureWizards)
         setCreationTypes(types)
       } catch (error) {
         console.error('Fehler beim Laden der Creation-Typen:', error)
@@ -129,9 +141,7 @@ export default function CreateContentPage() {
               type.templateId === 'audio-transcript-de'
                 ? Mic
                 : getIconComponent(type.icon)
-            const typeUrl = sourceFolderId
-              ? `/library/create/${type.id}?sourceFolderId=${encodeURIComponent(sourceFolderId)}`
-              : `/library/create/${type.id}`
+            const typeUrl = `/library/create/${type.id}${typeQuery}`
             const isDisabled = type.disabled === true
 
             return (

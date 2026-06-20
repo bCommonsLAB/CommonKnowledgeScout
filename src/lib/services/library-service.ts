@@ -495,6 +495,8 @@ export class LibraryService {
         chat: lib.config?.chat,
         // Transformation: DIVA-Liefersystem-Auswertung (Feature-Flag, kein Secret)
         analyzeDivaTextureInfo: lib.config?.analyzeDivaTextureInfo === true,
+        // Plan 2 · W-C: Kuratierung der „Inhalte erfassen"-Wizards (kein Secret).
+        captureWizards: lib.config?.captureWizards,
         // Stufe 4: Schwellwert fuer Auto-Uebernahme der Stoffgruppen-
         // Klassifikation. Wird im Klassifikations-Dialog gelesen, kein Secret.
         autoApplyConfidenceThreshold: lib.config?.autoApplyConfidenceThreshold,

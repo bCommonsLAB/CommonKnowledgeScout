@@ -16,6 +16,7 @@ import { validateTemplateIntegrity, TemplateIntegrityError } from './template-in
 import { BASE_REQUIRED_FIELDS } from '@/lib/detail-view-types/base-fields'
 import { getRequiredFields, isValidDetailViewType } from '@/lib/detail-view-types/registry'
 import { isTechnicalField } from '@/lib/detail-view-types/content-fields'
+import { partitionTemplateDocsByKind } from '@/lib/creation/wizard-flow-entity'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ANTWORTSCHEMA-GENERIERUNG
@@ -148,19 +149,33 @@ ${generatedSchema}`
 }
 
 /**
- * Lädt alle Templates einer Library aus MongoDB
- * 
+ * Lädt alle **Schema**-Templates einer Library aus MongoDB.
+ *
+ * W-A-3: Herausgelöste Wizard-Flow-Entitäten (`kind:'wizard'`) werden hier
+ * ausgeschlossen — diese Liste speist Schema-Editor und Inhaltstyp-Ableitung,
+ * ein Flow ist kein Schema. (Bestand ohne `kind` bleibt enthalten = `schema`.)
+ *
  * @param libraryId Library-ID
  * @param userEmail User-Email für Berechtigungsprüfung
  * @param isAdmin Optional: Ob User Admin ist
- * @returns Array von Template-Dokumenten
+ * @returns Array von Schema-Template-Dokumenten
  */
 export async function listTemplatesFromMongoDB(
   libraryId: string,
   userEmail: string,
   isAdmin?: boolean
 ): Promise<TemplateDocument[]> {
-  return await TemplateRepository.findByLibraryId(libraryId, userEmail, isAdmin)
+  const docs = await TemplateRepository.findByLibraryId(libraryId, userEmail, isAdmin)
+  return partitionTemplateDocsByKind(docs).schemas
+}
+
+/**
+ * Lädt die **Wizard-Flow-Entitäten** (`kind:'wizard'`) einer Library (W-A-3).
+ * Gegenstück zu `listTemplatesFromMongoDB`; Basis für den späteren Wizard-Editor
+ * (W-G) und die Flow-Auflösung der Kuratierung (W-B).
+ */
+export async function listFlowEntitiesFromMongoDB(libraryId: string): Promise<TemplateDocument[]> {
+  return await TemplateRepository.findByLibraryIdAndKind(libraryId, 'wizard')
 }
 
 /**

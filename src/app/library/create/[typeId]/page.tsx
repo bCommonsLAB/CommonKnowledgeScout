@@ -143,6 +143,8 @@ export default function CreateWizardPage({ params }: { params: Promise<{ typeId:
           seedFileId={seedFileId}
           targetFolderId={targetFolderId || sourceFolderId}
           sourceFolderId={sourceFolderId}
+          // from=gallery: Abschluss führt zurück nach Erkunden statt ins Archiv.
+          returnHref={fromParam === 'gallery' ? BACK_TARGETS.gallery.href : undefined}
         />
       </div>
     </div>

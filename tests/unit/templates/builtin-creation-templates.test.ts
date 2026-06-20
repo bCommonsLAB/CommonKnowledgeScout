@@ -25,4 +25,17 @@ describe('builtin-creation-templates', () => {
     expect(isBuiltinCreationTemplateName('audio-transcript-de')).toBe(true)
     expect(isBuiltinCreationTemplateName('unknown')).toBe(false)
   })
+
+  it('W-D: liefert den generischen Standard-Flow aus dem Code (kind:wizard)', () => {
+    const t = getBuiltinCreationTemplate('standard-capture', 'lib-x', 'u@test')
+    expect(t).not.toBeNull()
+    expect(t?.kind).toBe('wizard')
+    expect(t?.creation?.flow.steps.map((s) => s.preset)).toEqual([
+      'welcome',
+      'collectSource',
+      'selectSchemaType',
+      'editDraft',
+      'publish',
+    ])
+  })
 })

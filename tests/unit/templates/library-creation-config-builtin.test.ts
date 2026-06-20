@@ -16,6 +16,16 @@ describe('mergeCreationTypesWithBuiltins', () => {
     expect(audio?.icon).toBe('Mic')
   })
 
+  it('W-D: der Standard-Wizard ist als Karte da und laeuft ueber file-transcript-de', () => {
+    const merged = mergeCreationTypesWithBuiltins([], 'lib-1', 'user@test.local')
+    const standard = merged.find((t) => t.id === 'standard-capture')
+    expect(standard).toBeDefined()
+    expect(standard?.templateId).toBe('file-transcript-de')
+    // ersetzt die separate file-transcript-de-Karte (keine Dopplung)
+    expect(merged.filter((t) => t.templateId === 'file-transcript-de')).toHaveLength(1)
+    expect(merged.some((t) => t.id === 'file-transcript-de')).toBe(false)
+  })
+
   it('Library-Template überschreibt Built-in mit gleichem Namen', () => {
     const mongoAudio: TemplateDocument = {
       _id: 'audio-transcript-de',
@@ -82,5 +92,28 @@ describe('mergeCreationTypesWithBuiltins', () => {
     const row = templateDocumentToCreationType(pdf, 'library')
     expect(row?.disabled).toBe(true)
     expect(row?.disabledHint).toMatch(/Inhalte erfassen/)
+  })
+
+  it('W-A: eine Wizard-Flow-Entitaet (kind:wizard) ist KEIN Inhaltstyp', () => {
+    const flowDoc: TemplateDocument = {
+      _id: 'lib-1:standard-capture',
+      name: 'standard-capture',
+      libraryId: 'lib-1',
+      user: 'u@test',
+      kind: 'wizard',
+      metadata: { fields: [], rawFrontmatter: '' },
+      systemprompt: '',
+      markdownBody: '',
+      creation: {
+        supportedSources: [{ id: 'file', type: 'file', label: 'Datei', helpText: '' }],
+        flow: { steps: [{ id: 'w', preset: 'welcome', title: 'W' }, { id: 'p', preset: 'publish', title: 'P' }] },
+        ui: { displayName: 'Inhalt erfassen', description: 'desc', icon: 'Upload' },
+      },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      version: 1,
+    }
+    // Trotz vorhandenem creation-Block liefert die Inhaltstyp-Ableitung null.
+    expect(templateDocumentToCreationType(flowDoc, 'library')).toBeNull()
   })
 })

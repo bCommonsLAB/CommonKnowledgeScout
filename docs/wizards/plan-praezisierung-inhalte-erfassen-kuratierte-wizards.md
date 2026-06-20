@@ -190,6 +190,13 @@ braucht `content`-Felder) — ersetzt den heutigen stillen „zeig alle"-Fallbac
 - **W-D:** Built-in-Flows → gespeicherte Standard-Flows migrieren (Seed), Code-
   Fallback nur für leere Libraries. → erfüllt Δ3.
 - **W-E:** `transcriptOnly`-Betriebsart entwirren (mit U4). → erfüllt Δ4.
+  **Status 2026-06-18 (Kern umgesetzt):** Reines Modul
+  `src/lib/creation/operating-mode.ts` (`WizardOperatingMode` +
+  `resolveOperatingMode`/`isTranscriptOnly` + `effectiveDetailViewTypeForMode`
+  + `transcriptComputeFields` + `wizardPublishCopy`, 9 Unit-Tests).
+  `creation-wizard.tsx` nutzt das Modul; die verstreuten Publish-Wortlaute sind
+  zentralisiert, verbleibende `transcriptOnly`-Booleans sind rein strukturell.
+  Offen: tiefere Integration in die Step-Engine (zusammen mit U4).
 - **W-F:** **Explorer-Übersicht für Contributoren.** `capture-content-button`
   öffnet die **kuratierte Auswahl** (rollen-/einstiegs-gefiltert) statt direkt
   `file-transcript-de`; Speicherziel bleibt off-target Wartekorb. → erfüllt Δ2b.

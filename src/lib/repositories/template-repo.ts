@@ -11,9 +11,9 @@
  * - TemplateRepository: Repository class for template operations
  */
 
-import type { Collection } from 'mongodb'
+import type { Collection, Filter } from 'mongodb'
 import { getCollection } from '@/lib/mongodb-service'
-import type { TemplateDocument } from '@/lib/templates/template-types'
+import type { TemplateDocument, TemplateDocKind } from '@/lib/templates/template-types'
 
 const COLLECTION_NAME = 'templates'
 let collectionCache: Collection<TemplateDocument> | null = null
@@ -110,7 +110,27 @@ export class TemplateRepository {
     
     // Admin sieht alle Templates, normale User nur Templates ihrer Library
     const filter = admin ? {} : { libraryId }
-    
+
+    return await col.find(filter).sort({ updatedAt: -1 }).toArray()
+  }
+
+  /**
+   * Lädt Template-Dokumente einer Library, gefiltert nach `kind` (W-A).
+   * Bestands-Dokumente OHNE `kind` zählen als `schema` (siehe
+   * `resolveTemplateDocKind`) — daher matcht `schema` auch fehlende Felder.
+   *
+   * @param libraryId Library-ID
+   * @param kind `'schema'` (inkl. Bestand) oder `'wizard'` (Flow-Entitäten)
+   */
+  static async findByLibraryIdAndKind(
+    libraryId: string,
+    kind: TemplateDocKind
+  ): Promise<TemplateDocument[]> {
+    const col = await this.getCollection()
+    const filter: Filter<TemplateDocument> =
+      kind === 'schema'
+        ? { libraryId, $or: [{ kind: 'schema' }, { kind: { $exists: false } }] }
+        : { libraryId, kind }
     return await col.find(filter).sort({ updatedAt: -1 }).toArray()
   }
 

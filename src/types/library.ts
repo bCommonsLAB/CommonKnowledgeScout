@@ -236,13 +236,37 @@ export interface LibraryChatConfig {
   }
 
 /**
+ * Ein kuratierter Wizard-Eintrag (Plan 2 · W-B/W-C, Δ2): Flow + optional festes
+ * Schema. Steht hier (Types-Heimat); die Auswahl-Engine importiert von hier.
+ */
+export interface CaptureWizardRef {
+  /** Referenz auf den Flow (Flow-Entitaet bzw. Creation-Typ-`id`/`templateId`). */
+  flowId: string;
+  /** Optional fest gebundenes Schema (sonst Laufzeit-Wahl via selectSchemaType). */
+  schemaRef?: string;
+  /** Optionaler Anzeigename (ueberschreibt den abgeleiteten). */
+  label?: string;
+  /** Optionales Icon (ueberschreibt das abgeleitete). */
+  icon?: string;
+  /** Nur aktivierte Eintraege erscheinen. */
+  enabled: boolean;
+}
+
+/** Per-Library-Kuratierung der „Inhalte erfassen"-Wizards (W-C, Δ2). */
+export interface CaptureWizardsConfig {
+  wizards: CaptureWizardRef[];
+  /** `flowId`, der zuerst/als Default erscheint (falls aufloesbar). */
+  defaultFlowId?: string;
+}
+
+/**
  * Configuration options for storage providers.
  * Contains provider-specific settings and authentication details.
  */
 export interface StorageConfig {
   /** OAuth client ID for authentication */
   clientId?: string;
-  
+
   /** OAuth client secret (server-side only) */
   clientSecret?: string;
   
@@ -330,6 +354,13 @@ export interface StorageConfig {
    * Default: false.
    */
   analyzeDivaTextureInfo?: boolean;
+
+  /**
+   * Plan 2 · W-C (Δ2): Per-Library-Kuratierung der „Inhalte erfassen"-Wizards.
+   * Fehlt das Feld, gilt das Bestandsverhalten; gesetzt → kuratierte Auswahl/
+   * Reihenfolge (siehe `curateCreationTypes`). KEIN Secret.
+   */
+  captureWizards?: CaptureWizardsConfig;
 
   /**
    * Schwellwert fuer die Auto-Uebernahme der Stoffgruppen-Klassifikation
@@ -557,6 +588,8 @@ export interface ClientLibrary {
     chat?: LibraryChatConfig;
     /** Transformation: DIVA-Liefersystem-Daten auswerten (DIVA-Info-Tab). Default false. */
     analyzeDivaTextureInfo?: boolean;
+    /** Plan 2 · W-C: Kuratierung der „Inhalte erfassen"-Wizards (kein Secret). */
+    captureWizards?: CaptureWizardsConfig;
     /**
      * Schwellwert fuer Auto-Uebernahme bei Stoffgruppen-Klassifikation (Stufe 4).
      * Bereich [0, 1], Default 0.9.

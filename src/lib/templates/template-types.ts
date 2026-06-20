@@ -311,8 +311,22 @@ export interface TemplateValidationError {
 }
 
 /**
+ * Art eines Template-Dokuments (Plan 2 · W-A / Δ1, „Weg B").
+ *
+ * - `schema`: klassisches Schema-Template (Datenmodell + Systemprompt + Body;
+ *   ggf. noch ein gebuendelter `creation`-Block aus der Zeit vor der Entflechtung).
+ * - `wizard`: eine herausgeloeste **Wizard-Flow-Entitaet** — traegt NUR den
+ *   `creation`-Block (den Ablauf), kein Datenmodell. Wird von Schemas referenziert.
+ *
+ * Fehlt `kind` an einem Bestands-Dokument, ist es ein `schema` (einziger Typ
+ * vor der Entflechtung) — dokumentierte Migrations-Interpretation, kein stiller
+ * Fehler-Default (siehe `resolveTemplateDocKind`).
+ */
+export type TemplateDocKind = 'schema' | 'wizard'
+
+/**
  * MongoDB-Dokument für Template-Storage
- * 
+ *
  * Repräsentiert ein Template als JSON-Objekt in MongoDB.
  */
 export interface TemplateDocument {
@@ -324,7 +338,12 @@ export interface TemplateDocument {
   libraryId: string
   /** User-Email (Owner) */
   user: string
-  
+  /**
+   * Art des Dokuments (W-A): `schema` (Default/Bestand) oder `wizard`
+   * (herausgeloeste Flow-Entitaet). Optional fuer Rueckwaertskompatibilitaet.
+   */
+  kind?: TemplateDocKind
+
   /** Metadaten-Schema (Frontmatter als strukturiertes Objekt) */
   metadata: TemplateMetadataSchema
   /** Systemprompt für LLM-Transformation */

@@ -20,6 +20,7 @@ import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import type { TemplateCreationConfig, TemplateMetadataSchema, TemplateMetadataField, TemplatePreviewDetailViewType } from '@/lib/templates/template-types'
 import { buildCreationFileName } from '@/lib/creation/file-name'
+import { isTemplateCreationConfig } from '@/lib/creation/creation-flow-validation'
 import { injectCreationIntoFrontmatter } from '@/lib/templates/template-frontmatter-utils'
 import { validateTemplateForViewType, getRequiredFields, getOptionalFields, type ValidationResult } from '@/lib/detail-view-types'
 import { AlertTriangle, CheckCircle2, Check } from 'lucide-react'
@@ -671,60 +672,11 @@ function CreationFlowEditor({
   const [showStepDetails, setShowStepDetails] = React.useState(true)
 
   // --- Import/Export nur für den creation-Block (Flow), unabhängig vom restlichen Template ---
+  // Typ-Guards (W-G/Δ5) liegen herausgelöst in `creation-flow-validation.ts`,
+  // damit der künftige eigenständige Wizard-Editor sie wiederverwenden kann.
   const flowFileInputRef = React.useRef<HTMLInputElement | null>(null)
   const [isFlowImportOpen, setIsFlowImportOpen] = React.useState(false)
   const [flowImportJson, setFlowImportJson] = React.useState('')
-
-  function isRecord(value: unknown): value is Record<string, unknown> {
-    return !!value && typeof value === 'object' && !Array.isArray(value)
-  }
-
-  function isStringArray(value: unknown): value is string[] {
-    return Array.isArray(value) && value.every((v) => typeof v === 'string')
-  }
-
-  function isSupportedSource(value: unknown): value is { id: string; type: string; label: string; helpText?: string } {
-    if (!isRecord(value)) return false
-    if (typeof value.id !== 'string') return false
-    if (typeof value.type !== 'string') return false
-    if (typeof value.label !== 'string') return false
-    if (value.helpText !== undefined && typeof value.helpText !== 'string') return false
-    return true
-  }
-
-  function isFlowStep(value: unknown): value is { id: string; preset: string; title?: string; description?: string; fields?: string[]; imageFieldKeys?: string[] } {
-    if (!isRecord(value)) return false
-    if (typeof value.id !== 'string') return false
-    if (typeof value.preset !== 'string') return false
-    if (value.title !== undefined && typeof value.title !== 'string') return false
-    if (value.description !== undefined && typeof value.description !== 'string') return false
-    if (value.fields !== undefined && !isStringArray(value.fields)) return false
-    if (value.imageFieldKeys !== undefined && !isStringArray(value.imageFieldKeys)) return false
-    return true
-  }
-
-  function isTemplateCreationConfig(value: unknown): value is TemplateCreationConfig {
-    if (!isRecord(value)) return false
-    if (!Array.isArray(value.supportedSources) || !value.supportedSources.every(isSupportedSource)) return false
-    if (!isRecord(value.flow)) return false
-    if (!Array.isArray(value.flow.steps) || !value.flow.steps.every(isFlowStep)) return false
-    if (value.followWizards !== undefined) {
-      if (!isRecord(value.followWizards)) return false
-      const fw = value.followWizards as Record<string, unknown>
-      if (fw.testimonialTemplateId !== undefined && typeof fw.testimonialTemplateId !== 'string') return false
-      if (fw.finalizeTemplateId !== undefined && typeof fw.finalizeTemplateId !== 'string') return false
-      if (fw.publishTemplateId !== undefined && typeof fw.publishTemplateId !== 'string') return false
-    }
-    // Optional blocks: preview/output/ui/welcome
-    if (value.preview !== undefined) {
-      if (!isRecord(value.preview)) return false
-      if (value.preview.detailViewType !== undefined && typeof value.preview.detailViewType !== 'string') return false
-    }
-    if (value.output !== undefined && !isRecord(value.output)) return false
-    if (value.ui !== undefined && !isRecord(value.ui)) return false
-    if (value.welcome !== undefined && !isRecord(value.welcome)) return false
-    return true
-  }
 
   function downloadJsonFile(args: { filename: string; data: unknown }): void {
     const content = JSON.stringify(args.data, null, 2)

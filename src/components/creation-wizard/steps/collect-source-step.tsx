@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils"
 import { X } from "lucide-react"
 import type { StorageProvider } from "@/lib/storage/types"
 import { Progress } from "@/components/ui/progress"
+import { flowComputesFileInSchemaTypeStep } from "@/lib/creation/file-flow"
 
 interface CollectSourceStepProps {
   source?: CreationSource // Optional: Wenn nicht gesetzt, zeige Quelle-Auswahl
@@ -509,10 +510,12 @@ export function CollectSourceStep({
 
   /**
    * pdf: bisheriges PDF-HITL / pdfanalyse
-   * generic: Built-in file-transcript-de (PDF + diverse Medien, Dispatch im Wizard)
+   * generic: Off-target-Datei-Flow (PDF + diverse Medien, Dispatch im Wizard).
+   * Flow-basiert (selectSchemaType-Schritt) statt hartkodierter Template-IDs —
+   * gilt für file-transcript-de UND den generischen standard-capture-Flow.
    */
   const singleFileUploadMode: 'pdf' | 'generic' =
-    templateId === 'file-transcript-de' ? 'generic' : 'pdf'
+    flowComputesFileInSchemaTypeStep(steps) ? 'generic' : 'pdf'
 
   // JETZT können wir frühe Returns machen (nach allen Hooks)
   // Wenn keine Quelle ausgewählt ist, zeige Quelle-Auswahl

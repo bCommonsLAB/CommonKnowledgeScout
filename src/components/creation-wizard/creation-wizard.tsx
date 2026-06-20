@@ -24,6 +24,7 @@ import { currentFolderIdAtom, librariesAtom } from "@/atoms/library-atom"
 import { buildCreationFileName } from "@/lib/creation/file-name"
 import { computeFileMediaDraft } from "@/lib/creation/wizard-file-compute"
 import { buildCaptureComputeFields } from "@/lib/creation/capture-compute-fields"
+import { flowComputesFileInSchemaTypeStep } from "@/lib/creation/file-flow"
 import { buildDictationDraftFromSources, suggestDictationFileBaseName } from "@/lib/creation/builtin-dictation-draft"
 import { applyEventFrontmatterDefaults } from "@/lib/events/event-frontmatter-defaults"
 import type { WizardSource } from "@/lib/creation/corpus"
@@ -36,6 +37,13 @@ import { writeArtifact } from "@/lib/shadow-twin/artifact-writer"
 import { findRelatedTestimonials } from "@/lib/creation/dialograum-discovery"
 import { findRelatedEventTestimonialsFilesystem } from "@/lib/creation/event-testimonial-discovery"
 import { promoteWizardArtifacts } from "@/lib/creation/wizard-artifact-promotion"
+import {
+  resolveOperatingMode,
+  isTranscriptOnly,
+  effectiveDetailViewTypeForMode,
+  transcriptComputeFields,
+  wizardPublishCopy,
+} from "@/lib/creation/operating-mode"
 import { useUser } from "@clerk/nextjs"
 import type { WizardSessionEvent } from "@/types/wizard-session"
 import {
@@ -72,9 +80,15 @@ interface CreationWizardProps {
   targetFolderId?: string
   /** Optional: Verzeichnis mit Artefakten – bei Folder-Flow werden hieraus Quellen geladen */
   sourceFolderId?: string
+  /**
+   * Optional: Ziel beim Abschluss („Fertig"/„Weiter zur Library"). Wird gesetzt,
+   * wenn der Einstieg woanders war als das Archiv (z. B. `from=gallery` →
+   * `/library/gallery`). Fehlt er, gilt das bisherige Archiv-Verhalten.
+   */
+  returnHref?: string
 }
 
-export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, seedFileId, targetFolderId: targetFolderIdProp, sourceFolderId }: CreationWizardProps) {
+export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, seedFileId, targetFolderId: targetFolderIdProp, sourceFolderId, returnHref }: CreationWizardProps) {
   const [template, setTemplate] = useState<TemplateDocument | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [wizardState, setWizardState] = useState<WizardState>({
@@ -94,6 +108,14 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
   // Verwende targetFolderIdProp, falls gesetzt (für Child-Flows), sonst currentFolderIdAtom
   const currentFolderId = targetFolderIdProp || currentFolderIdAtomValue
   const router = useRouter()
+
+  // Off-target-Datei-Flow? Ein Flow mit `selectSchemaType`-Schritt berechnet die
+  // Datei im Schritt (computeFileMediaDraft), NICHT synchron via process-text.
+  // Flow-basiert statt hartkodierter Template-IDs — gilt fuer file-transcript-de
+  // UND den generischen standard-capture-Flow (verhindert den Fehler
+  // „Template 'standard-capture' nicht gefunden", weil die Flow-ID sonst
+  // faelschlich als Schema-Template an process-text geschickt wuerde).
+  const computesFileInStep = flowComputesFileInSchemaTypeStep(template?.creation?.flow?.steps)
 
   // WICHTIG: Stabilisiere Callback für Testimonial-Auswahl, um Endlosschleifen zu vermeiden
   const handleTestimonialSelectionChange = useCallback((selectedSources: WizardSource[]) => {
@@ -1071,15 +1093,14 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       }
 
       // Quelle existiert noch nicht: Hinzufügen
-      // Nur file-transcript-de: Datei-Compute erst beim Verlassen von collectSource; Diktat
-      // (audio-transcript-de): direkter Text-Entwurf ohne process-text.
-      const isBuiltinFileTranscript = templateId === 'file-transcript-de'
+      // Off-target-Datei-Flows (selectSchemaType-Schritt): Datei-Compute erst im
+      // Schritt; Diktat (audio-transcript-de): direkter Text-Entwurf ohne process-text.
       finalSources = [...prev.sources, source]
       return {
         ...prev,
         sources: finalSources,
         selectedSource: isSingleSupportedSource ? prev.selectedSource : undefined,
-        generatedDraft: isBuiltinFileTranscript ? undefined : prev.generatedDraft,
+        generatedDraft: computesFileInStep ? undefined : prev.generatedDraft,
       }
     })
 
@@ -1097,12 +1118,11 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       })
     }
 
-    // Verarbeitung: file-transcript-de berechnet Datei-Medien im Step; Diktat ohne LLM; sonst process-text.
-    const isBuiltinFileTranscript = templateId === 'file-transcript-de'
+    // Verarbeitung: Off-target-Datei-Flows berechnen Datei-Medien im Step; Diktat ohne LLM; sonst process-text.
     const isBuiltinDictation = templateId === 'audio-transcript-de'
     if (isBuiltinDictation) {
       applyDirectDictationDraft(finalSources)
-    } else if (!isBuiltinFileTranscript) {
+    } else if (!computesFileInStep) {
       await runExtraction(finalSources)
     }
   }
@@ -1111,12 +1131,11 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
    * Entfernt eine Quelle und triggert automatische Transformation.
    */
   const removeSource = async (sourceId: string) => {
-    const isBuiltinFileTranscript = templateId === 'file-transcript-de'
     const newSources = wizardState.sources.filter(s => s.id !== sourceId)
     setWizardState(prev => ({
       ...prev,
       sources: newSources,
-      generatedDraft: isBuiltinFileTranscript ? undefined : prev.generatedDraft,
+      generatedDraft: computesFileInStep ? undefined : prev.generatedDraft,
     }))
 
     // Log source_removed Event (best effort)
@@ -1129,23 +1148,24 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     const isBuiltinDictation = templateId === 'audio-transcript-de'
     if (isBuiltinDictation) {
       applyDirectDictationDraft(newSources)
-    } else if (!isBuiltinFileTranscript) {
+    } else if (!computesFileInStep) {
       await runExtraction(newSources)
     }
   }
 
   const handleNext = async () => {
     if (isLastStep) {
-      // Completion-Step: "Weiter zur Library" navigiert zum Explorer (mit Ordner, falls bekannt)
+      // Completion-Step: "Weiter zur Library" — zurück zum Einstieg. Kam der
+      // Nutzer aus Erkunden (returnHref), dorthin; sonst ins Archiv (mit Ordner).
       if (currentStep.preset === 'completion') {
         const folderId = wizardState.publishTargetFolderId || currentFolderId
         const folderParam = folderId && folderId.trim().length > 0 ? `?folderId=${encodeURIComponent(folderId)}` : ''
-        router.push(`/library${folderParam}`)
+        router.push(returnHref ?? `/library${folderParam}`)
         return
       }
-      // Publish-Step: "Fertig" navigiert nur noch zurück. Der Step selbst finalisiert Session/Publish.
+      // Publish-Step: "Fertig" navigiert nur noch zurück (zum Einstieg).
       if (currentStep.preset === 'publish') {
-        router.push("/library")
+        router.push(returnHref ?? "/library")
         return
       }
       // Letzter Step ohne Publish/Completion: Speichern und navigieren (z. B. Diktat: editDraft ist final)
@@ -1177,11 +1197,12 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         }
       }
 
-      // U6: file-transcript-de erfasst hier nur die Datei (sie liegt im Speicher).
+      // U6: Off-target-Datei-Flows erfassen hier nur die Datei (sie liegt im Speicher).
       // Inhaltstyp-Wahl + Off-target-Compute folgen im selectSchemaType-Step. Hier
       // explizit vorrücken (NICHT über resolveNextStepIndex, dessen Form-Modus-Skip
-      // selectSchemaType überspringen würde).
-      if (templateId === 'file-transcript-de') {
+      // selectSchemaType überspringen würde). Gilt für file-transcript-de UND
+      // den generischen standard-capture-Flow (flow-basiert, kein ID-Sonderfall).
+      if (computesFileInStep) {
         const nextIndex = Math.min(wizardState.currentStepIndex + 1, steps.length - 1)
         setWizardState(prev => ({ ...prev, currentStepIndex: Math.min(prev.currentStepIndex + 1, steps.length - 1) }))
         if (wizardSessionIdRef.current) {
@@ -1205,7 +1226,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         return
       }
       // 5a: „Nur importieren und transkribieren" oder ein Inhaltstyp — genau eins.
-      const transcriptOnly = wizardState.captureTranscriptOnly === true
+      const mode = resolveOperatingMode(wizardState)
+      const transcriptOnly = isTranscriptOnly(mode)
       const selectedType = wizardState.selectedDetailViewType
       if (!transcriptOnly && !selectedType) {
         toast.error('Bitte einen Inhaltstyp wählen')
@@ -1234,10 +1256,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         // 5a: Bei „Nur transkribieren" rendert die Submission als session
         // (standard-session existiert, kein Pre-flight-Umbau) und der docType
         // ist 'transcript'.
-        const effectiveDetailViewType = transcriptOnly ? 'session' : (selectedType as string)
-        const computeFields = transcriptOnly
-          ? [{ key: 'docType', rawValue: 'transcript' }]
-          : []
+        const effectiveDetailViewType = effectiveDetailViewTypeForMode(mode, selectedType)
+        const computeFields = transcriptComputeFields(mode)
         const fields = buildCaptureComputeFields({
           libraryId,
           wizardId: templateId,
@@ -2357,9 +2377,10 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       }
       
       if (opts?.navigateToLibrary !== false) {
-        // UX: Wenn wir wissen, in welchem Ordner gespeichert wurde, direkt dorthin navigieren.
+        // Kam der Nutzer aus Erkunden (returnHref), dorthin zurück; sonst in den
+        // gespeicherten Ordner im Archiv.
         const folderParam = targetFolderId ? `?folderId=${encodeURIComponent(targetFolderId)}` : ''
-        router.push(`/library${folderParam}`)
+        router.push(returnHref ?? `/library${folderParam}`)
       }
 
       return { savedItemId, fileName: targetFileName, targetFolderId, slug: slugForSave }
@@ -2437,7 +2458,9 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         // Ausnahmefall „Nur importieren und transkribieren": KEINE Publikation/
         // Ingestion. Steuert Wortlaut (kein „publizieren") und Navigation (Archiv
         // statt Galerie) im gesamten Publish-Step.
-        const transcriptOnly = wizardState.captureTranscriptOnly === true
+        const mode = resolveOperatingMode(wizardState)
+        const transcriptOnly = isTranscriptOnly(mode)
+        const publishCopy = wizardPublishCopy(mode)
         const onPublish = async () => {
           const isPdfAnalyse = (templateId || '').toLowerCase() === 'pdfanalyse'
           const isEventPublishFinal = (templateId || '').toLowerCase().includes('event-publish-final')
@@ -2523,7 +2546,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
               //    aktualisiert (PATCH) statt einer zweiten angelegt — EIN
               //    Submission-Commit (ADR-0004, behebt KI-1). Text/URL ohne
               //    Vorab-Submission: neu anlegen.
-              setWizardState(prev => ({ ...prev, publishingProgress: 50, publishingMessage: transcriptOnly ? 'Vorbereiten…' : 'Im Wartekorb anlegen…' }))
+              setWizardState(prev => ({ ...prev, publishingProgress: 50, publishingMessage: publishCopy.prepareMessage }))
               // Nur ein EXPLIZIT uebergebenes Ziel (URL/Child-Flow via
               // `targetFolderIdProp`) gilt als gewaehlter Ordner. Der ambiente
               // Galerie-Ordner (`currentFolderIdAtom`) darf NICHT still zum Ziel
@@ -2572,7 +2595,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
               // Gespiegelte Asset-Namen aus der Promotion (transcript-only/B2d).
               let mirroredAssetNames: string[] = []
               if (isOwner) {
-                setWizardState(prev => ({ ...prev, publishingProgress: 75, publishingMessage: transcriptOnly ? 'Im Archiv speichern…' : 'Veröffentlichen…' }))
+                setWizardState(prev => ({ ...prev, publishingProgress: 75, publishingMessage: publishCopy.finalizeMessage }))
                 await approveSubmission(submissionId)
                 const promoteRes = await promoteSubmission(submissionId)
                 savedItemId = promoteRes.savedItemId
@@ -2602,7 +2625,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                 isPublished: true,
                 publishingProgress: 100,
                 publishingMessage: isOwner
-                  ? (transcriptOnly ? 'Im Archiv gespeichert.' : 'Veröffentlicht.')
+                  ? publishCopy.ownerSuccessMessage
                   : 'Im Wartekorb — wird geprüft.',
                 publishStats: { documents: 1, images: imagesCount, sources: sourcesCount, assets: assetsCount },
                 // Owner: realer Ordner aus der Promotion; sonst Fallback auf den UI-Ordner.
@@ -2766,7 +2789,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                 publishingProgress: prev.publishingProgress ?? 0,
                 publishingMessage: msg,
               }))
-              toast.error(transcriptOnly ? 'Speichern fehlgeschlagen' : 'Publizieren fehlgeschlagen', { description: msg })
+              toast.error(publishCopy.errorToastTitle, { description: msg })
               if (sessionIdForLogs) {
                 const durationMs = Math.max(0, nowMs() - publishStartedAt)
                 void logWizardEventClient(sessionIdForLogs, {
@@ -2839,7 +2862,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                 publishingProgress: prev.publishingProgress ?? 0,
                 publishingMessage: msg,
               }))
-              toast.error(transcriptOnly ? 'Speichern fehlgeschlagen' : 'Publizieren fehlgeschlagen', { description: msg })
+              toast.error(publishCopy.errorToastTitle, { description: msg })
               if (sessionIdForLogs) {
                 const durationMs = Math.max(0, nowMs() - publishStartedAt)
                 void logWizardEventClient(sessionIdForLogs, {
@@ -3054,7 +3077,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
               publishingProgress: prev.publishingProgress ?? 0,
               publishingMessage: msg,
             }))
-            toast.error(transcriptOnly ? 'Speichern fehlgeschlagen' : 'Publizieren fehlgeschlagen', { description: msg })
+            toast.error(publishCopy.errorToastTitle, { description: msg })
             if (sessionIdForLogs) {
               const durationMs = Math.max(0, nowMs() - publishStartedAt)
               void logWizardEventClient(sessionIdForLogs, {
@@ -3070,12 +3093,10 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
 
         return (
           <PublishStep
-            title={currentStep.title || (transcriptOnly ? "Im Archiv speichern" : "Publizieren")}
-            description={currentStep.description || (transcriptOnly
-              ? "Die Datei wird importiert und das Transkript im Archiv gespeichert."
-              : "Jetzt wird das Ergebnis final gespeichert und für die Suche indiziert.")}
-            runningLabel={transcriptOnly ? "Speichern läuft…" : undefined}
-            startingLabel={transcriptOnly ? "Speichern wird gestartet…" : undefined}
+            title={currentStep.title || publishCopy.stepTitle}
+            description={currentStep.description || publishCopy.stepDescription}
+            runningLabel={publishCopy.runningLabel}
+            startingLabel={publishCopy.startingLabel}
             onPublish={onPublish}
             isPublishing={!!wizardState.isPublishing}
             publishingProgress={typeof wizardState.publishingProgress === 'number' ? wizardState.publishingProgress : 0}
@@ -3087,14 +3108,19 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                 router.push(`/library/gallery?doc=${encodeURIComponent(wizardState.publishTargetSlug)}`)
                 return
               }
-              // Fallback: File-Explorer folderId
+              // Kam der Nutzer aus Erkunden (returnHref), dorthin zurück …
+              if (returnHref) {
+                router.push(returnHref)
+                return
+              }
+              // … sonst Fallback: File-Explorer folderId (Archiv).
               const folderParam =
                 wizardState.publishTargetFolderId && wizardState.publishTargetFolderId.trim().length > 0
                   ? `?folderId=${encodeURIComponent(wizardState.publishTargetFolderId)}`
                   : ''
               router.push(`/library${folderParam}`)
             }}
-            goToLibraryLabel="Im Archiv öffnen"
+            goToLibraryLabel={returnHref ? 'Zu Erkunden' : 'Im Archiv öffnen'}
             successMessage={currentStep?.ingestOnFinish === false
               ? "Das Ergebnis wurde im Archiv gespeichert. Ingestion kann später aus dem Archiv erfolgen."
               : undefined}
