@@ -10,7 +10,7 @@
  * Drive-/WebDAV-Root).
  */
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Folder, FolderPlus, Loader2, RefreshCw } from "lucide-react"
@@ -26,9 +26,15 @@ interface StorageDirectoryPickerProps {
   libraryId: string
   /** Wird bei jeder Auswahl-Änderung mit dem Pfad (Breadcrumb-Join) aufgerufen */
   onPathChange: (path: string) => void
+  /**
+   * Optional: Wird zusätzlich zu onPathChange mit der Ordner-ID (opaque, providerspezifisch)
+   * und dem Anzeige-Pfad aufgerufen. Wird z.B. von der Migration benötigt, die einen
+   * `folderId` an die API durchreicht (storage-abstrakt, kein Backend-Wissen im UI).
+   */
+  onSelectFolder?: (folderId: string, path: string) => void
 }
 
-export function StorageDirectoryPicker({ libraryId, onPathChange }: StorageDirectoryPickerProps) {
+export function StorageDirectoryPicker({ libraryId, onPathChange, onSelectFolder }: StorageDirectoryPickerProps) {
   const [crumbs, setCrumbs] = useState<Crumb[]>([{ id: "root", name: "" }])
   const [folders, setFolders] = useState<StorageItem[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -59,9 +65,30 @@ export function StorageDirectoryPicker({ libraryId, onPathChange }: StorageDirec
     void loadFolder(currentFolder.id)
   }, [currentFolder.id, loadFolder])
 
+  // onPathChange in einer Ref halten: Die Callback wird vom Wizard als
+  // Inline-Pfeilfunktion uebergeben und hat bei jedem Render eine neue
+  // Identitaet. Ohne die Ref wuerde der Pfad-Effekt unten bei JEDEM Render
+  // feuern und damit die manuelle Eingabe im Pfad-Feld sofort wieder auf den
+  // Breadcrumb-Wert ("/") zuruecksetzen.
+  const onPathChangeRef = useRef(onPathChange)
   useEffect(() => {
-    onPathChange(currentPath === "" ? "/" : `/${currentPath}`)
-  }, [currentPath, onPathChange])
+    onPathChangeRef.current = onPathChange
+  }, [onPathChange])
+
+  // Gleiche Ref-Technik für die optionale Ordner-ID-Callback.
+  const onSelectFolderRef = useRef(onSelectFolder)
+  useEffect(() => {
+    onSelectFolderRef.current = onSelectFolder
+  }, [onSelectFolder])
+
+  // Pfad nur bei echter Navigation (Breadcrumb-Aenderung) an den Wizard melden,
+  // NICHT bei jedem Render. So bleibt eine manuelle Eingabe erhalten.
+  useEffect(() => {
+    const displayPath = currentPath === "" ? "/" : `/${currentPath}`
+    onPathChangeRef.current(displayPath)
+    // Aktuell gewählter Ordner = letzter Breadcrumb. Dessen opaque id an Aufrufer melden.
+    onSelectFolderRef.current?.(currentFolder.id, displayPath)
+  }, [currentPath, currentFolder.id])
 
   const enterFolder = (item: StorageItem) => {
     setCrumbs(prev => [...prev, { id: item.id, name: item.metadata.name }])

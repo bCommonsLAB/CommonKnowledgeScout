@@ -96,9 +96,19 @@ export function LibraryAdvancedForm() {
   } = useLibraryForm(false)
 
   // Migration-Callbacks
-  const { runShadowTwinMigration, runDirectionalSync, runAnalysis, runLanguageCleanup } =
-    useShadowTwinMigration({
+  const {
+    runShadowTwinMigration,
+    runDirectionalSync,
+    runAnalysis,
+    runLanguageCleanup,
+    selectedFolderPath,
+    setSelectedFolder,
+    migrationProgress,
+    isCancelling,
+    cancelMigration,
+  } = useShadowTwinMigration({
       activeLibraryId,
+      isDryRunOpen,
       dryRunRecursive,
       dryRunCleanupFilesystem,
       langCleanupLang,
@@ -177,6 +187,11 @@ export function LibraryAdvancedForm() {
               binaryFragments={binaryFragments}
               loadingFragments={loadingFragments}
               runShadowTwinMigration={runShadowTwinMigration}
+              selectedFolderPath={selectedFolderPath}
+              setSelectedFolder={setSelectedFolder}
+              migrationProgress={migrationProgress}
+              isCancelling={isCancelling}
+              cancelMigration={cancelMigration}
             />
 
             <LanguageCleanupSection

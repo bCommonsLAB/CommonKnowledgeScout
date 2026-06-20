@@ -316,7 +316,7 @@ export function AudioView(props: PreviewViewProps) {
         defaultSteps={pipelineDefaultSteps}
         defaultForce={pipelineDefaultForce}
         existingArtifacts={{
-          hasTranscript: !!transcript.transcriptItem,
+          hasTranscript: !!displayTranscriptItem,
           hasTransformed: !!shadowTwinState?.transformed,
           hasIngested: publishStep?.state !== 'missing',
         }}
