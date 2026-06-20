@@ -143,11 +143,31 @@ jobs:
       # Bump-Commit liegt bereits auf master (siehe "Reserve version"), der
       # lokale HEAD zeigt darauf - der Tag landet also garantiert auf dem
       # richtigen Commit. Kein Rebase noetig, da die Version bereits gesperrt ist.
+      #
+      # Idempotent: electron-builder kann den Tag bereits via GitHub-Release-API
+      # angelegt haben, wenn electron-build parallel master HEAD (neue VERSION)
+      # statt des ci-main-Tags auscheckt (siehe electron-build.yml).
       - name: Tag and push
         run: |
           set -euo pipefail
-          git tag -a -m "${{ steps.reserve.outputs.new_version }}" "v${{ steps.reserve.outputs.new_version }}"
-          git push origin "v${{ steps.reserve.outputs.new_version }}"
+          VERSION="${{ steps.reserve.outputs.new_version }}"
+          TAG="v${VERSION}"
+          git config user.name github-actions[bot]
+          git config user.email github-actions[bot]@users.noreply.github.com
+          git remote set-url origin https://x-access-token:${{ secrets.CI_PAT }}@github.com/${{ github.repository }}.git
+          git tag -f -a -m "${VERSION}" "${TAG}"
+          REMOTE_SHA=$(git ls-remote origin "refs/tags/${TAG}^{}" 2>/dev/null | awk '{print $1}' || true)
+          HEAD_SHA=$(git rev-parse HEAD)
+          if [ -n "${REMOTE_SHA}" ]; then
+            if [ "${REMOTE_SHA}" = "${HEAD_SHA}" ]; then
+              echo "Tag ${TAG} existiert remote bereits auf HEAD (${HEAD_SHA}) - OK."
+            else
+              echo "Tag ${TAG} zeigt auf ${REMOTE_SHA}, erwartet ${HEAD_SHA} - force push."
+              git push origin "${TAG}" --force
+            fi
+          else
+            git push origin "${TAG}"
+          fi
 
       - name: Publish Release
         uses: softprops/action-gh-release@v2
