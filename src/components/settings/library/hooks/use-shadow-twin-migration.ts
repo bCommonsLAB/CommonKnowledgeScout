@@ -12,7 +12,7 @@
  * - loadMigrationRuns: Lädt Migration-Runs aus der API
  */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "@/components/ui/use-toast";
 
 /** Live-Fortschritt eines Migrations-Laufs (aus den Mongo-Steps abgeleitet). */
@@ -99,6 +99,8 @@ export interface AnalysisReport {
 /** Props für den useShadowTwinMigration Hook */
 interface UseShadowTwinMigrationProps {
   activeLibraryId: string | null | undefined;
+  /** Ob der "Aus Dateisystem laden"-Dialog offen ist (für Resume eines laufenden Laufs). */
+  isDryRunOpen: boolean;
   dryRunRecursive: boolean;
   dryRunCleanupFilesystem: boolean;
   langCleanupLang: string;
@@ -133,6 +135,7 @@ export interface LangCleanupResult {
  */
 export function useShadowTwinMigration({
   activeLibraryId,
+  isDryRunOpen,
   dryRunRecursive,
   dryRunCleanupFilesystem,
   langCleanupLang,
@@ -154,8 +157,12 @@ export function useShadowTwinMigration({
   const [migrationProgress, setMigrationProgress] = useState<MigrationProgress | null>(null);
   const [currentRunId, setCurrentRunId] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
-  // Polling-Interval-Handle (wird im finally aufgeräumt).
+  // Polling-Interval-Handle (lebt unabhängig vom POST, bis der Lauf terminal ist).
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Run-ID, die der Poller/das Refokus-Event aktuell beobachtet (null = kein aktiver Lauf).
+  const activeRunIdRef = useRef<string | null>(null);
+  // Verhindert doppelte Finalisierung/Toast (POST-Erfolg UND Poller könnten beide auslösen).
+  const finalizedRunRef = useRef<string | null>(null);
 
   /** Setzt das aktuell gewählte Zielverzeichnis (aus dem StorageDirectoryPicker). */
   const setSelectedFolder = useCallback((folderId: string, path: string) => {
@@ -164,9 +171,141 @@ export function useShadowTwinMigration({
   }, []);
 
   /**
+   * Lädt die Migration-Runs neu und wählt den angegebenen Lauf aus.
+   * Wird nach Abschluss eines Laufs aufgerufen, damit der Report sofort sichtbar ist.
+   */
+  const refreshRuns = useCallback(
+    async (selectRunId: string) => {
+      if (!activeLibraryId) return;
+      try {
+        const runsRes = await fetch(
+          `/api/library/${activeLibraryId}/shadow-twins/migrations?limit=10`
+        );
+        if (!runsRes.ok) return;
+        const runsJson = (await runsRes.json()) as {
+          runs?: Array<{
+            runId: string;
+            status: "running" | "completed" | "failed";
+            params?: {
+              folderId?: string;
+              recursive?: boolean;
+              dryRun?: boolean;
+              cleanupFilesystem?: boolean;
+              limit?: number;
+            };
+            startedAt: string;
+          }>;
+        };
+        const runsArray = Array.isArray(runsJson.runs) ? runsJson.runs : [];
+        // Dry-Runs und Runs ohne params herausfiltern (wie im initialen Loader).
+        const runs = runsArray.filter(
+          (run): run is typeof run & { params: NonNullable<typeof run.params> } =>
+            !!run?.params && !run.params.dryRun
+        );
+        setMigrationRuns(runs);
+        setSelectedRunId(selectRunId);
+      } catch (err) {
+        console.error("[LibraryForm] Runs-Refresh fehlgeschlagen:", err);
+      }
+    },
+    [activeLibraryId, setMigrationRuns, setSelectedRunId]
+  );
+
+  /** Stoppt das Polling und räumt den Interval-Handle auf. */
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  /**
+   * Finalisiert einen Lauf GENAU EINMAL: Polling stoppen, UI zurücksetzen,
+   * Runs neu laden und passenden Toast zeigen. Wird ausgelöst, sobald der
+   * Server-Status terminal ist (completed/failed/cancelled).
+   */
+  const finalizeRun = useCallback(
+    (runId: string, status: MigrationProgress["status"]) => {
+      if (finalizedRunRef.current === runId) return;
+      finalizedRunRef.current = runId;
+      stopPolling();
+      activeRunIdRef.current = null;
+      setDryRunRunning(false);
+      setIsCancelling(false);
+      void refreshRuns(runId);
+      if (status === "failed") {
+        toast({
+          title: "Import fehlgeschlagen",
+          description: "Der Lauf wurde mit Fehlern beendet. Details stehen im Report.",
+          variant: "destructive",
+        });
+      } else if (status === "cancelled") {
+        toast({
+          title: "Import abgebrochen",
+          description:
+            "Der Lauf wurde abgebrochen. Bereits importierte Artefakte bleiben erhalten.",
+        });
+      } else {
+        toast({
+          title: "Import abgeschlossen",
+          description:
+            "Die Artefakte wurden aus dem Dateisystem in den Cache geladen. Der Report wird in der Tabelle angezeigt.",
+        });
+      }
+    },
+    [stopPolling, refreshRuns, setDryRunRunning]
+  );
+
+  /**
+   * Fragt den Run-Status EINMAL ab, aktualisiert den Fortschritt und
+   * finalisiert bei Endzustand. Fehler sind unkritisch (nächster Tick).
+   */
+  const pollRunOnce = useCallback(
+    async (runId: string) => {
+      if (!activeLibraryId) return;
+      try {
+        const r = await fetch(
+          `/api/library/${activeLibraryId}/shadow-twins/migrations/${runId}`
+        );
+        if (!r.ok) return;
+        const j = (await r.json()) as {
+          run?: {
+            status: MigrationProgress["status"];
+            steps?: Array<{ name: string; meta?: Record<string, unknown> }>;
+          };
+        };
+        if (!j.run) return;
+        const derived = deriveProgress(j.run);
+        setMigrationProgress(derived);
+        if (derived.status !== "running") finalizeRun(runId, derived.status);
+      } catch {
+        // Polling-Fehler sind unkritisch – nächster Tick versucht es erneut.
+      }
+    },
+    [activeLibraryId, finalizeRun]
+  );
+
+  /** Startet das Polling für einen Lauf (idempotent, 2,5s-Intervall). */
+  const startPolling = useCallback(
+    (runId: string) => {
+      activeRunIdRef.current = runId;
+      finalizedRunRef.current = null;
+      stopPolling();
+      pollRef.current = setInterval(() => {
+        void pollRunOnce(runId);
+      }, 2500);
+    },
+    [pollRunOnce, stopPolling]
+  );
+
+  /**
    * Startet die Migration: Artefakte aus dem Dateisystem in den Cache laden.
-   * H2-Fix: Fehler werden geloggt + User via Toast informiert.
-   * Pollt während des Laufs den Fortschritt (x/y) über die Run-Status-Route.
+   *
+   * Robustheit (Variante B): Das Polling läuft UNABHÄNGIG vom langen POST und
+   * finalisiert erst beim terminalen Server-Status. So bleibt die Anzeige korrekt,
+   * selbst wenn der POST von einem Proxy gekappt wird oder der Tab zwischendurch
+   * schläft. Echte Server-Fehler (HTTP 4xx/5xx mit JSON) werden sofort gemeldet;
+   * Netzwerk-/Timeout-Abbrüche überlässt der Client dem Poller.
    */
   const runShadowTwinMigration = useCallback(async () => {
     if (!activeLibraryId) {
@@ -186,24 +325,8 @@ export function useShadowTwinMigration({
     setDryRunRunning(true);
     setDryRunError(null);
 
-    // Fortschritt regelmäßig abfragen (Steps werden serverseitig geschrieben).
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(() => {
-      void (async () => {
-        try {
-          const r = await fetch(
-            `/api/library/${activeLibraryId}/shadow-twins/migrations/${runId}`
-          );
-          if (!r.ok) return;
-          const j = (await r.json()) as {
-            run?: { status: MigrationProgress["status"]; steps?: Array<{ name: string; meta?: Record<string, unknown> }> };
-          };
-          if (j.run) setMigrationProgress(deriveProgress(j.run));
-        } catch {
-          // Polling-Fehler sind unkritisch – nächster Tick versucht es erneut.
-        }
-      })();
-    }, 2500);
+    // Poller starten — er besitzt ab jetzt die Finalisierung (Toast + UI-Reset).
+    startPolling(runId);
 
     try {
       const res = await fetch(`/api/library/${activeLibraryId}/shadow-twins/migrate`, {
@@ -219,79 +342,97 @@ export function useShadowTwinMigration({
       });
 
       const json = (await res.json().catch(() => ({}))) as {
-        report?: Record<string, unknown>;
         runId?: string;
         status?: MigrationProgress["status"];
         error?: string;
       };
+
       if (!res.ok) {
-        throw new Error(json.error ?? `HTTP ${res.status}`);
+        // Echter Server-Fehler (z.B. 400 "Mongo inaktiv"): sofort als Fehler beenden.
+        // finalizedRunRef setzen, damit der Poller nicht zusätzlich finalisiert.
+        finalizedRunRef.current = runId;
+        stopPolling();
+        activeRunIdRef.current = null;
+        const message = json.error ?? `HTTP ${res.status}`;
+        setDryRunError(message);
+        setDryRunRunning(false);
+        setIsCancelling(false);
+        toast({ title: "Import fehlgeschlagen", description: message, variant: "destructive" });
+        return;
       }
 
-      // Nach erfolgreichem Upsert: Migration-Runs neu laden und den neuen Run auswählen
-      if (json.runId) {
-        const runsRes = await fetch(
-          `/api/library/${activeLibraryId}/shadow-twins/migrations?limit=10`
-        );
-        if (runsRes.ok) {
-          const runsJson = (await runsRes.json()) as {
-            runs?: Array<{
-              runId: string;
-              status: "running" | "completed" | "failed";
-              params?: {
-                folderId?: string;
-                recursive?: boolean;
-                dryRun?: boolean;
-                cleanupFilesystem?: boolean;
-                limit?: number;
-              };
-              startedAt: string;
-            }>;
-          };
-          const runsArray = Array.isArray(runsJson.runs) ? runsJson.runs : [];
-          // Dry-Runs und Runs ohne params herausfiltern
-          const runs = runsArray.filter(
-            (run): run is typeof run & { params: NonNullable<typeof run.params> } =>
-              !!run?.params && !run.params.dryRun
-          );
-          setMigrationRuns(runs);
-          setSelectedRunId(json.runId as string);
-        }
-      }
-      const wasCancelled = json.status === "cancelled";
-      toast({
-        title: wasCancelled ? "Import abgebrochen" : "Import abgeschlossen",
-        description: wasCancelled
-          ? "Der Lauf wurde abgebrochen. Bereits importierte Artefakte bleiben erhalten."
-          : "Die Artefakte wurden aus dem Dateisystem in den Cache geladen. Der Report wird in der Tabelle angezeigt.",
-      });
+      // Erfolg: Der POST hat das Endergebnis geliefert. Sofort einmal pollen,
+      // damit der Endzustand ohne Warten auf den nächsten Tick finalisiert wird.
+      await pollRunOnce(runId);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setDryRunError(message);
-      toast({
-        title: "Import fehlgeschlagen",
-        description: message,
-        variant: "destructive",
-      });
-    } finally {
-      // Polling stoppen und letzten Fortschritt einmal final aktualisieren.
-      if (pollRef.current) {
-        clearInterval(pollRef.current);
-        pollRef.current = null;
-      }
-      setDryRunRunning(false);
-      setIsCancelling(false);
+      // Netzwerk-/Timeout-Abbruch (z.B. Proxy kappt den langen POST): NICHT als
+      // Fehlschlag werten — der Server kann noch laufen. Der Poller ermittelt den
+      // Endzustand. Ein sofortiger Poll aktualisiert den Status direkt.
+      console.warn("[LibraryForm] Migration-POST unterbrochen, Polling übernimmt:", error);
+      await pollRunOnce(runId);
     }
   }, [
     activeLibraryId,
     selectedFolderId,
     dryRunRecursive,
     dryRunCleanupFilesystem,
+    startPolling,
+    pollRunOnce,
+    stopPolling,
     setDryRunRunning,
     setDryRunError,
-    setMigrationRuns,
-    setSelectedRunId,
   ]);
+
+  // Aufräumen beim Unmount: laufendes Polling stoppen (kein Memory-Leak).
+  useEffect(() => stopPolling, [stopPolling]);
+
+  // Bei Tab-Refokus sofort den Status abfragen (Hintergrund-Timer sind gedrosselt).
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === "visible" && activeRunIdRef.current) {
+        void pollRunOnce(activeRunIdRef.current);
+      }
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [pollRunOnce]);
+
+  // Versöhnung beim Öffnen: Falls der jüngste Lauf noch läuft, Anzeige + Polling
+  // wieder aufnehmen (deckt Reload während eines Laufs / Wiederkehr nach Schlaf ab).
+  useEffect(() => {
+    if (!isDryRunOpen || !activeLibraryId) return;
+    if (pollRef.current) return; // bereits am Pollen (laufende Session)
+    let cancelled = false;
+    async function resumeIfRunning() {
+      try {
+        const res = await fetch(
+          `/api/library/${activeLibraryId}/shadow-twins/migrations?limit=1`
+        );
+        if (!res.ok) return;
+        const json = (await res.json()) as {
+          runs?: Array<{
+            runId: string;
+            status: MigrationProgress["status"];
+            params?: { dryRun?: boolean };
+          }>;
+        };
+        const latest = (json.runs ?? [])[0];
+        if (cancelled || !latest) return;
+        if (latest.status === "running" && !latest.params?.dryRun) {
+          setCurrentRunId(latest.runId);
+          setDryRunRunning(true);
+          startPolling(latest.runId);
+          void pollRunOnce(latest.runId); // sofort echte Steps holen
+        }
+      } catch (err) {
+        console.error("[LibraryForm] Resume-Check fehlgeschlagen:", err);
+      }
+    }
+    void resumeIfRunning();
+    return () => {
+      cancelled = true;
+    };
+  }, [isDryRunOpen, activeLibraryId, startPolling, pollRunOnce, setDryRunRunning]);
 
   /**
    * Bricht den laufenden Migrations-Lauf kooperativ ab (DELETE auf die Run-Route).

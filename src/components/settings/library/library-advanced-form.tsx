@@ -107,6 +107,7 @@ export function LibraryAdvancedForm() {
     cancelMigration,
   } = useShadowTwinMigration({
       activeLibraryId,
+      isDryRunOpen,
       dryRunRecursive,
       dryRunCleanupFilesystem,
       langCleanupLang,
