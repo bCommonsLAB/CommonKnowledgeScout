@@ -31,7 +31,7 @@ jobs:
     environment: prod
     name: CI Prod
     outputs:
-      version: ${{ steps.bump.outputs.new_version }}
+      version: ${{ steps.reserve.outputs.new_version }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -53,36 +53,66 @@ jobs:
           # Cache wird nicht benötigt, da der Build komplett im Docker-Container läuft
           # Dependencies werden im Container installiert, nicht auf dem Runner
 
-      - name: read version sources
-        id: read_version
+      # Version ZUERST auf master sperren (vor dem minutenlangen Docker-Build).
+      # So ist das Race-Fenster nur wenige Sekunden gross und der Docker-Tag
+      # kann garantiert mit der final gesperrten Git-Version uebereinstimmen.
+      # Bei Push-Ablehnung wird KEIN Rebase versucht (das fuehrte frueher zu
+      # VERSION-Konflikten), sondern hart auf den aktuellen master zurueck-
+      # gesetzt und neu gebumpt -> konfliktfrei.
+      - name: Reserve version on master
+        id: reserve
         run: |
-          FILE_VERSION=$(tr -d '[:space:]' < VERSION)
-          LATEST_TAG=$(git tag --list 'v*' --sort=-version:refname | head -n 1 || true)
-          TAG_VERSION="${LATEST_TAG#v}"
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email github-actions[bot]@users.noreply.github.com
+          git remote set-url origin https://x-access-token:${{ secrets.CI_PAT }}@github.com/${{ github.repository }}.git
 
-          if [ -n "$TAG_VERSION" ]; then
-            BASE_VERSION=$(printf '%s\n%s\n' "$FILE_VERSION" "$TAG_VERSION" | sort -V | tail -n 1)
-          else
-            BASE_VERSION="$FILE_VERSION"
+          # Patch-Bump in Bash: letzte Komponente +1 (kein externes Action noetig).
+          bump_patch() {
+            local major minor patch
+            IFS='.' read -r major minor patch <<< "$1"
+            echo "${major}.${minor}.$((patch + 1))"
+          }
+
+          # Basis = groesste bekannte Version aus VERSION-Datei und neuestem v*-Tag.
+          compute_new() {
+            local file_version latest_tag tag_version base
+            file_version=$(tr -d '[:space:]' < VERSION)
+            latest_tag=$(git tag --list 'v*' --sort=-version:refname | head -n 1 || true)
+            tag_version="${latest_tag#v}"
+            if [ -n "$tag_version" ]; then
+              base=$(printf '%s\n%s\n' "$file_version" "$tag_version" | sort -V | tail -n 1)
+            else
+              base="$file_version"
+            fi
+            bump_patch "$base"
+          }
+
+          new_version=""
+          pushed=false
+          for attempt in 1 2 3 4 5; do
+            new_version=$(compute_new)
+            echo "Versuch ${attempt}: bumpe auf ${new_version}."
+            echo "${new_version}" > VERSION
+            git add VERSION
+            git commit -m "Bump version to ${new_version} [skip ci]"
+            if git push origin HEAD:master; then
+              pushed=true
+              echo "Version ${new_version} auf master gesperrt (Versuch ${attempt})."
+              break
+            fi
+            echo "Push abgelehnt - master hat sich bewegt. Reset + Neu-Bump (Versuch ${attempt}/5)."
+            git fetch --tags --force origin master
+            git reset --hard origin/master
+            sleep "$((attempt * 5))"
+          done
+
+          if [ "${pushed}" != "true" ]; then
+            echo "Version-Reservierung nach 5 Versuchen fehlgeschlagen."
+            exit 1
           fi
 
-          echo "FILE_VERSION=$FILE_VERSION" >> $GITHUB_OUTPUT
-          echo "TAG_VERSION=$TAG_VERSION" >> $GITHUB_OUTPUT
-          echo "BASE_VERSION=$BASE_VERSION" >> $GITHUB_OUTPUT
-
-          echo "Version aus Datei: $FILE_VERSION"
-          echo "Neuester Tag: ${TAG_VERSION:-<kein Tag>}"
-          echo "Basis für Bump: $BASE_VERSION"
-
-      - name: bump version
-        id: bump
-        uses: cbrgm/semver-bump-action@main
-        with:
-          current-version: ${{ steps.read_version.outputs.BASE_VERSION }}
-          bump-level: patch
-
-      - name: write version file
-        run: echo "${{ steps.bump.outputs.new_version }}" > VERSION
+          echo "new_version=${new_version}" >> "$GITHUB_OUTPUT"
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -96,7 +126,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/bcommonslab/commonkno:latest,ghcr.io/bcommonslab/commonkno:${{ steps.bump.outputs.new_version }}
+          tags: ghcr.io/bcommonslab/commonkno:latest,ghcr.io/bcommonslab/commonkno:${{ steps.reserve.outputs.new_version }}
           build-args: |
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
             CLERK_SECRET_KEY=${{ secrets.CLERK_SECRET_KEY }}
@@ -108,48 +138,23 @@ jobs:
             MONGODB_DATABASE_NAME=${{ secrets.MONGODB_DATABASE_NAME }}
             MONGODB_COLLECTION_NAME=${{ secrets.MONGODB_COLLECTION_NAME }}
             
-      - name: Push version commit and tag
+      # Tag erst NACH erfolgreichem Docker-Build setzen, damit ein fehl-
+      # geschlagener Build keinen verwaisten Tag/Release hinterlaesst. Der
+      # Bump-Commit liegt bereits auf master (siehe "Reserve version"), der
+      # lokale HEAD zeigt darauf - der Tag landet also garantiert auf dem
+      # richtigen Commit. Kein Rebase noetig, da die Version bereits gesperrt ist.
+      - name: Tag and push
         run: |
-          git config user.name github-actions[bot]
-          git config user.email github-actions[bot]@users.noreply.github.com
-          git remote set-url origin https://x-access-token:${{ secrets.CI_PAT }}@github.com/${{ github.repository }}.git
-          git add VERSION
-          git commit -m "Bump version to ${{ steps.bump.outputs.new_version }} [skip ci]"
-          # Robuster Push gegen konkurrierende master-Updates: Laeuft der Remote
-          # waehrend des (minutenlangen) Docker-Builds weiter (z.B. ein zweiter
-          # PR-Merge), wird der Bump-Commit auf den aktuellen master rebased und
-          # erneut gepusht. Der Tag wird erst NACH erfolgreichem Push gesetzt,
-          # damit er garantiert auf dem finalen Commit sitzt (Rebase verschiebt
-          # sonst den Branch, nicht den Tag).
-          pushed=false
-          for attempt in 1 2 3 4 5; do
-            if git push origin HEAD:master; then
-              pushed=true
-              echo "Bump-Commit gepusht (Versuch ${attempt})."
-              break
-            fi
-            echo "Push abgelehnt - hole aktuellen master und rebase (Versuch ${attempt}/5)."
-            git fetch origin master
-            if ! git rebase origin/master; then
-              echo "Rebase-Konflikt (VERSION evtl. parallel gebumpt) - Abbruch."
-              git rebase --abort || true
-              exit 1
-            fi
-            sleep "$((attempt * 5))"
-          done
-          if [ "${pushed}" != "true" ]; then
-            echo "Push nach 5 Versuchen fehlgeschlagen."
-            exit 1
-          fi
-          git tag -a -m "${{ steps.bump.outputs.new_version }}" "v${{ steps.bump.outputs.new_version }}"
-          git push origin "v${{ steps.bump.outputs.new_version }}"
-          
+          set -euo pipefail
+          git tag -a -m "${{ steps.reserve.outputs.new_version }}" "v${{ steps.reserve.outputs.new_version }}"
+          git push origin "v${{ steps.reserve.outputs.new_version }}"
+
       - name: Publish Release
         uses: softprops/action-gh-release@v2
         with:
           prerelease: false
           generate_release_notes: true
-          tag_name: v${{ steps.bump.outputs.new_version }}
+          tag_name: v${{ steps.reserve.outputs.new_version }}
       # This currently does not work, because dokploy will not pull the latest image, manually change the tag in dokploy. 
       - name: Trigger deployment
         run: curl -X GET https://dokploy.bcommonslab.org/api/deploy/compose/evw5skg-YMLsoiJx17t-m
