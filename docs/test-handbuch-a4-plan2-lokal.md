@@ -1,5 +1,9 @@
 # Lokales Prüf-Handbuch — A4 + Plan 2 (W-A…W-G)
 
+> **Offene Punkte / Hand-off für die nächste Session:**
+> [`handoff-offene-punkte-2026-06.md`](handoff-offene-punkte-2026-06.md)
+> (Befunde A/B/C, Bugs 2a/2b, Merge-Schritte).
+>
 > Stand 2026-06-19. Ziel: **mit kleinstmöglichem Aufwand das meiste prüfen**.
 > Reihenfolge = Nutzen/Aufwand. Branch:
 > `claude/library-verification-status-a1-cgg7qv`. Sprache einfach gehalten.
