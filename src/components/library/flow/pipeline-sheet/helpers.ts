@@ -83,3 +83,102 @@ export const TRANSFORMATION_TARGET_LANGUAGES: readonly { value: string; label: s
 export function isNonEmptyString(v: unknown): v is string {
   return typeof v === 'string' && v.trim().length > 0
 }
+
+// =============================================================================
+// PIPELINE-PLAN: Force gilt ab Einstiegspunkt ABWAERTS, nie aufwaerts.
+// =============================================================================
+
+/** Die drei Pipeline-Phasen in fester Reihenfolge. */
+export type PipelinePhase = 'transcript' | 'transform' | 'story'
+
+/**
+ * Rang der Phasen. Bestimmt "vorgelagert" (kleiner) vs. "nachgelagert" (groesser).
+ * transcript(0) -> transform(1) -> story(2).
+ */
+export const PHASE_RANK: Record<PipelinePhase, number> = {
+  transcript: 0,
+  transform: 1,
+  story: 2,
+}
+
+/** Was mit einer Phase beim Start passiert (fuer den Bestaetigungsdialog). */
+export type PipelinePlanAction = 'create' | 'overwrite' | 'reuse'
+
+/** Eine Zeile im Bestaetigungsdialog (eine pro relevanter Phase). */
+export interface PipelinePlanLine {
+  phase: PipelinePhase
+  action: PipelinePlanAction
+}
+
+/** Eingabe fuer {@link buildPipelinePlan}. */
+export interface PipelinePlanInput {
+  /** Markdown/Bild: keine Transkript-Phase. */
+  skipExtract: boolean
+  /** Rang des Einstiegspunkts (woher der Job gestartet wurde). */
+  entryRank: number
+  /** Welche Phasen aktuell aktiviert sind. */
+  enabled: { extract: boolean; transform: boolean; ingest: boolean }
+  /** Welche Artefakte bereits existieren. */
+  existing: ExistingArtifacts
+  /** Ueberschreiben-Modus aktiv (Force). */
+  force: boolean
+}
+
+/** Ergebnis von {@link buildPipelinePlan}. */
+export interface PipelinePlanResult {
+  /** Policies fuer die Pipeline-API. */
+  policies: PipelinePolicies
+  /** Klartext-Zeilen fuer den Bestaetigungsdialog. */
+  lines: PipelinePlanLine[]
+  /** True, wenn mindestens ein bestehendes Artefakt ueberschrieben wird. */
+  hasOverwrite: boolean
+}
+
+/**
+ * Leitet aus Aktivierung, Einstiegspunkt und vorhandenen Artefakten die
+ * Pipeline-Policies UND eine menschenlesbare Zusammenfassung ab.
+ *
+ * Kernregel: `force` setzt eine Phase nur dann auf 'force', wenn die Phase
+ * AKTIV ist, ihr Rang >= Einstiegspunkt-Rang ist (also nicht vorgelagert) UND
+ * das Artefakt bereits existiert. Vorgelagerte Schritte werden so NIE neu
+ * berechnet (z.B. kein erneutes OCR-Transkript, wenn man nur transformiert).
+ */
+export function buildPipelinePlan(input: PipelinePlanInput): PipelinePlanResult {
+  // Directive einer einzelnen Phase bestimmen.
+  const directive = (enabled: boolean, rank: number, exists: boolean): 'ignore' | 'do' | 'force' => {
+    if (!enabled) return 'ignore'
+    // Force nur ab Einstiegspunkt abwaerts und nur wenn etwas zu ueberschreiben ist.
+    if (input.force && rank >= input.entryRank && exists) return 'force'
+    return 'do'
+  }
+
+  const policies: PipelinePolicies = {
+    extract: input.skipExtract
+      ? 'ignore'
+      : directive(input.enabled.extract, PHASE_RANK.transcript, input.existing.hasTranscript),
+    metadata: directive(input.enabled.transform, PHASE_RANK.transform, input.existing.hasTransformed),
+    ingest: directive(input.enabled.ingest, PHASE_RANK.story, input.existing.hasIngested),
+  }
+
+  // Klartext-Zeile aus Policy + Existenz ableiten (konsistent mit Gate-Verhalten).
+  const lineAction = (policy: 'ignore' | 'do' | 'force', exists: boolean): PipelinePlanAction | null => {
+    if (policy === 'force') return 'overwrite'
+    // 'do' respektiert das Gate: existiert das Artefakt, wird es wiederverwendet.
+    if (policy === 'do') return exists ? 'reuse' : 'create'
+    // 'ignore': nur als wiederverwendet anzeigen, wenn es existiert.
+    return exists ? 'reuse' : null
+  }
+
+  const lines: PipelinePlanLine[] = []
+  if (!input.skipExtract) {
+    const a = lineAction(policies.extract, input.existing.hasTranscript)
+    if (a) lines.push({ phase: 'transcript', action: a })
+  }
+  const at = lineAction(policies.metadata, input.existing.hasTransformed)
+  if (at) lines.push({ phase: 'transform', action: at })
+  const ai = lineAction(policies.ingest, input.existing.hasIngested)
+  if (ai) lines.push({ phase: 'story', action: ai })
+
+  const hasOverwrite = lines.some(l => l.action === 'overwrite')
+  return { policies, lines, hasOverwrite }
+}

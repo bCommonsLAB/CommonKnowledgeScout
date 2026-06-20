@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { toast } from "sonner"
-import { FileText, Sparkles, Upload, Check, ChevronDown, Settings } from "lucide-react"
+import { FileText, Sparkles, Upload, Check, ChevronDown, Settings, RefreshCw } from "lucide-react"
 import Link from "next/link"
 
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -33,6 +33,9 @@ import {
   type CoverImageOptions,
   type ExistingArtifacts,
   type LlmModelOption,
+  type PipelinePhase,
+  PHASE_RANK,
+  buildPipelinePlan,
   TRANSCRIPTION_SOURCE_LANGUAGES,
   TRANSFORMATION_TARGET_LANGUAGES,
   isNonEmptyString,
@@ -77,6 +80,13 @@ interface PipelineSheetProps {
    */
   defaultForce?: boolean
   /**
+   * Einstiegspunkt der Pipeline (woher der Job gestartet wurde).
+   * Steuert, ab welcher Phase "Ueberschreiben" wirkt: nur diese Phase und
+   * NACHGELAGERTE Phasen werden erzwungen, vorgelagerte bleiben erhalten.
+   * Default: 'transcript' (voller Lauf, z.B. allgemeiner Opener).
+   */
+  entryPhase?: PipelinePhase
+  /**
    * Default-Wert fuer Cover-Bild-Generierung (aus Library-Config).
    */
   defaultGenerateCoverImage?: boolean
@@ -105,6 +115,19 @@ export function PipelineSheet(props: PipelineSheetProps) {
   const hasTranscript = props.existingArtifacts?.hasTranscript ?? false
   const hasTransformed = props.existingArtifacts?.hasTransformed ?? false
   const hasIngested = props.existingArtifacts?.hasIngested ?? false
+
+  // Einstiegspunkt-Rang: bestimmt, ab welcher Phase "Ueberschreiben" wirkt.
+  // Quelle: explizites entryPhase-Prop, sonst die niedrigste aktive defaultStep-Phase.
+  // Default: transcript(0) -> voller Lauf (z.B. allgemeiner Opener).
+  const entryRank = React.useMemo(() => {
+    if (props.entryPhase) return PHASE_RANK[props.entryPhase]
+    const ds = props.defaultSteps
+    if (!ds) return PHASE_RANK.transcript
+    if (!skipExtract && ds.extract) return PHASE_RANK.transcript
+    if (ds.metadata) return PHASE_RANK.transform
+    if (ds.ingest) return PHASE_RANK.story
+    return PHASE_RANK.transcript
+  }, [props.entryPhase, props.defaultSteps, skipExtract])
   
   const [shouldExtract, setShouldExtract] = React.useState(false)
   const [shouldTransform, setShouldTransform] = React.useState(false)
@@ -131,28 +154,27 @@ export function PipelineSheet(props: PipelineSheetProps) {
       length: hintValue.length,
     })
     
-    if (props.defaultSteps) {
-      // defaultSteps respektieren
-      // Wenn Force aktiv, dann auch vorhandene Artefakte ueberschreiben -> Step aktivieren
-      // Sonst: nur aktivieren wenn Artefakt nicht vorhanden
-      // Bei Markdown: Extract immer false
-      if (skipExtract) {
-        setShouldExtract(false)
-      } else {
-        // Wenn Force aktiv oder Transcript nicht vorhanden -> aktivieren wenn in defaultSteps
-        setShouldExtract(props.defaultSteps.extract && (forceMode || !hasTranscript))
-      }
-      // Wenn Force aktiv oder Transformed nicht vorhanden -> aktivieren wenn in defaultSteps
-      setShouldTransform(props.defaultSteps.metadata && (forceMode || !hasTransformed))
-      // Wenn Force aktiv oder Ingested nicht vorhanden -> aktivieren wenn in defaultSteps
-      setShouldIngest(props.defaultSteps.ingest && (forceMode || !hasIngested))
+    if (forceMode) {
+      // Ueberschreiben-Modus: Einstiegspunkt-Phase UND nachgelagerte Phasen
+      // aktivieren, sofern deren Artefakt existiert (es wird ungueltig und neu
+      // erstellt). VORGELAGERTE Phasen bleiben deaktiviert -> werden NICHT neu
+      // berechnet (z.B. kein erneutes OCR-Transkript beim Transformieren).
+      setShouldExtract(!skipExtract && entryRank === PHASE_RANK.transcript)
+      setShouldTransform(entryRank <= PHASE_RANK.transform && (entryRank === PHASE_RANK.transform || hasTransformed))
+      setShouldIngest(entryRank === PHASE_RANK.story || hasIngested)
+    } else if (props.defaultSteps) {
+      // Normalfall (kein Force): Schritt nur aktivieren, wenn das Artefakt fehlt.
+      // Bei Markdown: Extract immer false.
+      setShouldExtract(!skipExtract && props.defaultSteps.extract && !hasTranscript)
+      setShouldTransform(props.defaultSteps.metadata && !hasTransformed)
+      setShouldIngest(props.defaultSteps.ingest && !hasIngested)
     } else {
       // Keine defaultSteps: Alles aus
       setShouldExtract(false)
       setShouldTransform(false)
       setShouldIngest(false)
     }
-  }, [props.isOpen, props.defaultSteps, props.defaultForce, props.defaultGenerateCoverImage, props.defaultCustomHint, skipExtract, hasTranscript, hasTransformed, hasIngested])
+  }, [props.isOpen, props.defaultSteps, props.defaultForce, props.defaultGenerateCoverImage, props.defaultCustomHint, skipExtract, entryRank, hasTranscript, hasTransformed, hasIngested])
 
   // Separater Effect: Cover-Bild-Generierung aktualisieren, wenn der Wert spaeter verfuegbar wird
   // (activeLibrary wird asynchron geladen, deshalb kann der Wert beim ersten Oeffnen noch undefined sein)
@@ -178,17 +200,6 @@ export function PipelineSheet(props: PipelineSheetProps) {
     }
   }, [shouldIngest, hasTransformed, shouldTransform])
 
-  // Wenn "Erzwingen" aktiviert wird, aktiviere alle Schritte die vorher vorhanden waren
-  const handleForceChange = React.useCallback((checked: boolean) => {
-    setShouldForce(checked)
-    // Wenn Force aktiviert und defaultSteps vorhanden, setze entsprechend
-    if (checked && props.defaultSteps) {
-      if (!skipExtract) setShouldExtract(props.defaultSteps.extract)
-      setShouldTransform(props.defaultSteps.metadata)
-      setShouldIngest(props.defaultSteps.ingest)
-    }
-  }, [props.defaultSteps, skipExtract])
-
   // Automatisch erstes Template auswaehlen, wenn keines ausgewaehlt und Templates verfuegbar
   React.useEffect(() => {
     if (!props.templateName && props.templates.length > 0 && !props.isLoadingTemplates) {
@@ -197,10 +208,15 @@ export function PipelineSheet(props: PipelineSheetProps) {
   }, [props.templates, props.templateName, props.isLoadingTemplates, props.onTemplateNameChange])
 
   const templateSelectValue = props.templateName || (props.templates.length > 0 ? props.templates[0] : "__none__")
-  
-  // Berechne ob ein Schritt deaktiviert sein sollte (vorhanden und nicht erzwingen)
-  const extractDisabled = skipExtract || (hasTranscript && !shouldForce)
-  const transformDisabled = hasTransformed && !shouldForce
+
+  // Berechne ob ein Schritt deaktiviert sein sollte.
+  // Ein vorhandenes Artefakt ist nur dann (per Ueberschreiben) aktivierbar,
+  // wenn die Phase NICHT vorgelagert zum Einstiegspunkt ist. So bleibt z.B. das
+  // Transkript gesperrt, wenn man ab der Transformation startet.
+  const extractInScope = entryRank === PHASE_RANK.transcript
+  const transformInScope = entryRank <= PHASE_RANK.transform
+  const extractDisabled = skipExtract || (hasTranscript && !(shouldForce && extractInScope))
+  const transformDisabled = hasTransformed && !(shouldForce && transformInScope)
   const ingestDisabled = hasIngested && !shouldForce
   
   // Button nur aktivieren wenn mindestens ein Schritt gewaehlt UND keine Ladeoperation laeuft
@@ -211,25 +227,17 @@ export function PipelineSheet(props: PipelineSheetProps) {
   const enabledCount = [shouldExtract, shouldTransform, shouldIngest].filter(Boolean).length
   const totalSteps = skipExtract ? 2 : 3
 
-  const start = React.useCallback(async () => {
-    if (!canStart) {
-      toast.error("Keine Schritte ausgewaehlt", { description: "Bitte mindestens einen Schritt auswaehlen." })
-      return
-    }
+  // Plan (Policies + Klartext-Zeilen) aus aktuellem Zustand ableiten.
+  const plan = React.useMemo(() => buildPipelinePlan({
+    skipExtract,
+    entryRank,
+    enabled: { extract: shouldExtract, transform: shouldTransform, ingest: shouldIngest },
+    existing: { hasTranscript, hasTransformed, hasIngested },
+    force: shouldForce,
+  }), [skipExtract, entryRank, shouldExtract, shouldTransform, shouldIngest, hasTranscript, hasTransformed, hasIngested, shouldForce])
 
-    if (shouldTransform && !isNonEmptyString(props.templateName)) {
-      toast.error("Template fehlt", { description: "Bitte ein Template auswaehlen, oder Transformation deaktivieren." })
-      return
-    }
-
-    const active: "do" | "force" = shouldForce ? "force" : "do"
-    // Bei Markdown: extract immer "ignore" (Textquelle bereits vorhanden)
-    const policies: PipelinePolicies = {
-      extract: skipExtract ? "ignore" : (shouldExtract ? active : "ignore"),
-      metadata: shouldTransform ? active : "ignore",
-      ingest: shouldIngest ? active : "ignore",
-    }
-
+  // Tatsaechlicher Pipeline-Start.
+  const runStart = React.useCallback(async () => {
     setIsSubmitting(true)
     try {
       // customHint: Immer übergeben wenn Transform aktiv – auch leeren String bei explizitem Löschen.
@@ -242,7 +250,7 @@ export function PipelineSheet(props: PipelineSheetProps) {
         sourceLanguage: shouldExtract && props.sourceLanguage && props.sourceLanguage !== 'auto'
           ? props.sourceLanguage
           : undefined,
-        policies,
+        policies: plan.policies,
         // Cover-Bild-Generierung nur wenn Transform aktiv
         coverImage: shouldTransform ? {
           generateCoverImage: shouldGenerateCoverImage,
@@ -255,7 +263,22 @@ export function PipelineSheet(props: PipelineSheetProps) {
     } finally {
       setIsSubmitting(false)
     }
-  }, [canStart, props, shouldExtract, shouldForce, shouldIngest, shouldTransform, shouldGenerateCoverImage, customHint, skipExtract])
+  }, [props, plan.policies, shouldExtract, shouldIngest, shouldTransform, shouldGenerateCoverImage, customHint])
+
+  // Start-Geste: validieren, dann starten. Der Ueberschreiben-Status ist bereits
+  // direkt an den Schritten sichtbar (Badge "wird ueberschrieben") — kein
+  // zusaetzlicher Bestaetigungsdialog noetig.
+  const start = React.useCallback(async () => {
+    if (!canStart) {
+      toast.error("Keine Schritte ausgewaehlt", { description: "Bitte mindestens einen Schritt auswaehlen." })
+      return
+    }
+    if (shouldTransform && !isNonEmptyString(props.templateName)) {
+      toast.error("Template fehlt", { description: "Bitte ein Template auswaehlen, oder Transformation deaktivieren." })
+      return
+    }
+    await runStart()
+  }, [canStart, shouldTransform, props.templateName, runStart])
 
   // Step-Definitionen fuer das Rendering
   const steps = [
@@ -275,6 +298,8 @@ export function PipelineSheet(props: PipelineSheetProps) {
       // Quellsprache-Auswahl nur bei Audio/Video anzeigen (PDFs und Office werden immer 'auto' erkannt)
       hasOptions: (props.kind === 'audio' || props.kind === 'video') && !extractDisabled,
       hasExisting: hasTranscript && !skipExtract,
+      // Wird ein bestehendes Artefakt tatsaechlich ueberschrieben? (Policy 'force')
+      willOverwrite: plan.policies.extract === 'force',
       hidden: skipExtract,
     },
     {
@@ -290,6 +315,7 @@ export function PipelineSheet(props: PipelineSheetProps) {
       disabled: transformDisabled,
       hasOptions: true,
       hasExisting: hasTransformed,
+      willOverwrite: plan.policies.metadata === 'force',
     },
     {
       id: 3,
@@ -303,6 +329,7 @@ export function PipelineSheet(props: PipelineSheetProps) {
       setEnabled: setShouldIngest,
       disabled: ingestDisabled,
       hasExisting: hasIngested,
+      willOverwrite: plan.policies.ingest === 'force',
     },
   ]
 
@@ -384,9 +411,16 @@ export function PipelineSheet(props: PipelineSheetProps) {
                             {step.title}
                           </h4>
                           {step.hasExisting && (
-                            <span className="flex items-center gap-1 text-xs text-green-600">
-                              <Check className="h-3 w-3" /> Vorhanden
-                            </span>
+                            step.willOverwrite ? (
+                              // Bestehendes Artefakt wird beim Start ueberschrieben.
+                              <span className="flex items-center gap-1 text-xs text-amber-600">
+                                <RefreshCw className="h-3 w-3" /> wird ueberschrieben
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 text-xs text-green-600">
+                                <Check className="h-3 w-3" /> Vorhanden
+                              </span>
+                            )
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground leading-relaxed">
@@ -585,24 +619,6 @@ export function PipelineSheet(props: PipelineSheetProps) {
             </div>
           </div>
 
-          {/* Force Overwrite Option */}
-          <div className="mt-6 flex items-center justify-between rounded-lg border bg-muted/30 p-4">
-            <div className="space-y-0.5">
-              <Label htmlFor="force-overwrite" className="text-sm font-medium cursor-pointer">
-                Bestehende Assets ueberschreiben
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                {shouldForce 
-                  ? "Werden neu generiert (ueberschrieben)." 
-                  : "Wenn vorhanden, diesen Schritt ueberspringen."}
-              </p>
-            </div>
-            <Switch
-              id="force-overwrite"
-              checked={shouldForce}
-              onCheckedChange={handleForceChange}
-            />
-          </div>
         </div>
 
         {/* Footer */}
