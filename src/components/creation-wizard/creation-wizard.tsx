@@ -79,9 +79,15 @@ interface CreationWizardProps {
   targetFolderId?: string
   /** Optional: Verzeichnis mit Artefakten – bei Folder-Flow werden hieraus Quellen geladen */
   sourceFolderId?: string
+  /**
+   * Optional: Ziel beim Abschluss („Fertig"/„Weiter zur Library"). Wird gesetzt,
+   * wenn der Einstieg woanders war als das Archiv (z. B. `from=gallery` →
+   * `/library/gallery`). Fehlt er, gilt das bisherige Archiv-Verhalten.
+   */
+  returnHref?: string
 }
 
-export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, seedFileId, targetFolderId: targetFolderIdProp, sourceFolderId }: CreationWizardProps) {
+export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, seedFileId, targetFolderId: targetFolderIdProp, sourceFolderId, returnHref }: CreationWizardProps) {
   const [template, setTemplate] = useState<TemplateDocument | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [wizardState, setWizardState] = useState<WizardState>({
@@ -1143,16 +1149,17 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
 
   const handleNext = async () => {
     if (isLastStep) {
-      // Completion-Step: "Weiter zur Library" navigiert zum Explorer (mit Ordner, falls bekannt)
+      // Completion-Step: "Weiter zur Library" — zurück zum Einstieg. Kam der
+      // Nutzer aus Erkunden (returnHref), dorthin; sonst ins Archiv (mit Ordner).
       if (currentStep.preset === 'completion') {
         const folderId = wizardState.publishTargetFolderId || currentFolderId
         const folderParam = folderId && folderId.trim().length > 0 ? `?folderId=${encodeURIComponent(folderId)}` : ''
-        router.push(`/library${folderParam}`)
+        router.push(returnHref ?? `/library${folderParam}`)
         return
       }
-      // Publish-Step: "Fertig" navigiert nur noch zurück. Der Step selbst finalisiert Session/Publish.
+      // Publish-Step: "Fertig" navigiert nur noch zurück (zum Einstieg).
       if (currentStep.preset === 'publish') {
-        router.push("/library")
+        router.push(returnHref ?? "/library")
         return
       }
       // Letzter Step ohne Publish/Completion: Speichern und navigieren (z. B. Diktat: editDraft ist final)
@@ -2363,9 +2370,10 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       }
       
       if (opts?.navigateToLibrary !== false) {
-        // UX: Wenn wir wissen, in welchem Ordner gespeichert wurde, direkt dorthin navigieren.
+        // Kam der Nutzer aus Erkunden (returnHref), dorthin zurück; sonst in den
+        // gespeicherten Ordner im Archiv.
         const folderParam = targetFolderId ? `?folderId=${encodeURIComponent(targetFolderId)}` : ''
-        router.push(`/library${folderParam}`)
+        router.push(returnHref ?? `/library${folderParam}`)
       }
 
       return { savedItemId, fileName: targetFileName, targetFolderId, slug: slugForSave }
@@ -3093,14 +3101,19 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
                 router.push(`/library/gallery?doc=${encodeURIComponent(wizardState.publishTargetSlug)}`)
                 return
               }
-              // Fallback: File-Explorer folderId
+              // Kam der Nutzer aus Erkunden (returnHref), dorthin zurück …
+              if (returnHref) {
+                router.push(returnHref)
+                return
+              }
+              // … sonst Fallback: File-Explorer folderId (Archiv).
               const folderParam =
                 wizardState.publishTargetFolderId && wizardState.publishTargetFolderId.trim().length > 0
                   ? `?folderId=${encodeURIComponent(wizardState.publishTargetFolderId)}`
                   : ''
               router.push(`/library${folderParam}`)
             }}
-            goToLibraryLabel="Im Archiv öffnen"
+            goToLibraryLabel={returnHref ? 'Zu Erkunden' : 'Im Archiv öffnen'}
             successMessage={currentStep?.ingestOnFinish === false
               ? "Das Ergebnis wurde im Archiv gespeichert. Ingestion kann später aus dem Archiv erfolgen."
               : undefined}
