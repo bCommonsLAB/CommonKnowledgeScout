@@ -57,7 +57,6 @@ export function MarkdownView(props: PreviewViewProps) {
     setInfoTab,
     shadowTwinState,
     storySteps,
-    transcript,
     displayTranscriptItem,
     transcriptHeaderExtra,
     transformItem,
