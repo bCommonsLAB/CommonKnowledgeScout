@@ -103,3 +103,31 @@ In `.github/workflows/ci-main.yml`:
 
 > Hinweis: Der Tag wird bewusst erst **nach** dem Build erzeugt, damit ein
 > fehlgeschlagener Build keinen verwaisten Tag/Release hinterlässt.
+
+## Folge-Race: electron-build vs. spaetes Tagging (PR #109, v1.2.108)
+
+Variante A loest den VERSION-Rebase-Konflikt, erzeugt aber ein neues Fenster:
+
+1. **ci-main Run A** (PR #108) endet erfolgreich → Tag `v1.2.107`, startet
+   `electron-build`.
+2. **ci-main Run B** (PR #109) reserviert waehrenddessen `1.2.108` auf
+   `master` (VERSION-Commit, noch **ohne** Git-Tag).
+3. **electron-build** checkt `master` HEAD aus → liest `VERSION=1.2.108`.
+4. `electron-builder --publish always` legt Tag `v1.2.108` + Release an.
+5. **ci-main Run B** scheitert in „Tag and push": `already exists`.
+
+Symptom im Log:
+
+```
+! [rejected] v1.2.108 -> v1.2.108 (already exists)
+```
+
+**Fix (zwei Teile):**
+
+1. `electron-build.yml`: Nach `workflow_run` auf den **neuesten v\*-Tag**
+   pinnen, nicht auf `master` HEAD.
+2. `ci-main.yml` „Tag and push": idempotent — wenn Remote-Tag bereits auf
+   HEAD zeigt, Schritt erfolgreich beenden (sonst `--force`).
+
+Der Git-Merge (PR #109) war trotzdem erfolgreich; nur der Post-Merge-CI-Lauf
+und der Dokploy-Trigger (`Trigger deployment`) blieben aus.

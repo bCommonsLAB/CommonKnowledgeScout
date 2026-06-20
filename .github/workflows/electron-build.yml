@@ -1,8 +1,10 @@
 name: electron-build
 
-# Startet automatisch nachdem ci-main erfolgreich durchgelaufen ist,
-# damit der Version-Tag und das GitHub Release bereits existieren.
-# Kann auch manuell gestartet werden.
+# Startet automatisch nachdem ci-main erfolgreich durchgelaufen ist.
+# Checkout erfolgt auf den neuesten v*-Tag (ci-main-Release), NICHT auf
+# master HEAD — sonst liest ein paralleler ci-main-Run schon die naechste
+# VERSION-Reservierung und electron-builder legt vorzeitig Tag/Release an.
+# Kann auch manuell gestartet werden (dann master HEAD).
 on:
   workflow_run:
     workflows: ["ci-main"]
@@ -24,8 +26,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: master
           fetch-depth: 0
+
+      # workflow_run: Pin auf den Tag, den ci-main gerade erzeugt hat.
+      # master HEAD kann inzwischen schon die VERSION des naechsten Runs tragen.
+      - name: Pin to ci-main release tag
+        if: github.event_name == 'workflow_run'
+        shell: bash
+        run: |
+          git fetch --tags origin
+          TAG=$(git tag --list 'v*' --sort=-version:refname | head -n 1)
+          if [ -z "$TAG" ]; then
+            echo "Kein v*-Release-Tag gefunden."
+            exit 1
+          fi
+          echo "Checkout ${TAG} (nicht master HEAD)."
+          git checkout "$TAG"
+
+      - name: Checkout master (manual)
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: git checkout master
 
       - uses: pnpm/action-setup@v4
         with:
