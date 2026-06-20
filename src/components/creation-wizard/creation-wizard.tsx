@@ -24,6 +24,7 @@ import { currentFolderIdAtom, librariesAtom } from "@/atoms/library-atom"
 import { buildCreationFileName } from "@/lib/creation/file-name"
 import { computeFileMediaDraft } from "@/lib/creation/wizard-file-compute"
 import { buildCaptureComputeFields } from "@/lib/creation/capture-compute-fields"
+import { flowComputesFileInSchemaTypeStep } from "@/lib/creation/file-flow"
 import { buildDictationDraftFromSources, suggestDictationFileBaseName } from "@/lib/creation/builtin-dictation-draft"
 import { applyEventFrontmatterDefaults } from "@/lib/events/event-frontmatter-defaults"
 import type { WizardSource } from "@/lib/creation/corpus"
@@ -107,6 +108,14 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
   // Verwende targetFolderIdProp, falls gesetzt (für Child-Flows), sonst currentFolderIdAtom
   const currentFolderId = targetFolderIdProp || currentFolderIdAtomValue
   const router = useRouter()
+
+  // Off-target-Datei-Flow? Ein Flow mit `selectSchemaType`-Schritt berechnet die
+  // Datei im Schritt (computeFileMediaDraft), NICHT synchron via process-text.
+  // Flow-basiert statt hartkodierter Template-IDs — gilt fuer file-transcript-de
+  // UND den generischen standard-capture-Flow (verhindert den Fehler
+  // „Template 'standard-capture' nicht gefunden", weil die Flow-ID sonst
+  // faelschlich als Schema-Template an process-text geschickt wuerde).
+  const computesFileInStep = flowComputesFileInSchemaTypeStep(template?.creation?.flow?.steps)
 
   // WICHTIG: Stabilisiere Callback für Testimonial-Auswahl, um Endlosschleifen zu vermeiden
   const handleTestimonialSelectionChange = useCallback((selectedSources: WizardSource[]) => {
@@ -1084,15 +1093,14 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       }
 
       // Quelle existiert noch nicht: Hinzufügen
-      // Nur file-transcript-de: Datei-Compute erst beim Verlassen von collectSource; Diktat
-      // (audio-transcript-de): direkter Text-Entwurf ohne process-text.
-      const isBuiltinFileTranscript = templateId === 'file-transcript-de'
+      // Off-target-Datei-Flows (selectSchemaType-Schritt): Datei-Compute erst im
+      // Schritt; Diktat (audio-transcript-de): direkter Text-Entwurf ohne process-text.
       finalSources = [...prev.sources, source]
       return {
         ...prev,
         sources: finalSources,
         selectedSource: isSingleSupportedSource ? prev.selectedSource : undefined,
-        generatedDraft: isBuiltinFileTranscript ? undefined : prev.generatedDraft,
+        generatedDraft: computesFileInStep ? undefined : prev.generatedDraft,
       }
     })
 
@@ -1110,12 +1118,11 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       })
     }
 
-    // Verarbeitung: file-transcript-de berechnet Datei-Medien im Step; Diktat ohne LLM; sonst process-text.
-    const isBuiltinFileTranscript = templateId === 'file-transcript-de'
+    // Verarbeitung: Off-target-Datei-Flows berechnen Datei-Medien im Step; Diktat ohne LLM; sonst process-text.
     const isBuiltinDictation = templateId === 'audio-transcript-de'
     if (isBuiltinDictation) {
       applyDirectDictationDraft(finalSources)
-    } else if (!isBuiltinFileTranscript) {
+    } else if (!computesFileInStep) {
       await runExtraction(finalSources)
     }
   }
@@ -1124,12 +1131,11 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
    * Entfernt eine Quelle und triggert automatische Transformation.
    */
   const removeSource = async (sourceId: string) => {
-    const isBuiltinFileTranscript = templateId === 'file-transcript-de'
     const newSources = wizardState.sources.filter(s => s.id !== sourceId)
     setWizardState(prev => ({
       ...prev,
       sources: newSources,
-      generatedDraft: isBuiltinFileTranscript ? undefined : prev.generatedDraft,
+      generatedDraft: computesFileInStep ? undefined : prev.generatedDraft,
     }))
 
     // Log source_removed Event (best effort)
@@ -1142,7 +1148,7 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     const isBuiltinDictation = templateId === 'audio-transcript-de'
     if (isBuiltinDictation) {
       applyDirectDictationDraft(newSources)
-    } else if (!isBuiltinFileTranscript) {
+    } else if (!computesFileInStep) {
       await runExtraction(newSources)
     }
   }
@@ -1191,11 +1197,12 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
         }
       }
 
-      // U6: file-transcript-de erfasst hier nur die Datei (sie liegt im Speicher).
+      // U6: Off-target-Datei-Flows erfassen hier nur die Datei (sie liegt im Speicher).
       // Inhaltstyp-Wahl + Off-target-Compute folgen im selectSchemaType-Step. Hier
       // explizit vorrücken (NICHT über resolveNextStepIndex, dessen Form-Modus-Skip
-      // selectSchemaType überspringen würde).
-      if (templateId === 'file-transcript-de') {
+      // selectSchemaType überspringen würde). Gilt für file-transcript-de UND
+      // den generischen standard-capture-Flow (flow-basiert, kein ID-Sonderfall).
+      if (computesFileInStep) {
         const nextIndex = Math.min(wizardState.currentStepIndex + 1, steps.length - 1)
         setWizardState(prev => ({ ...prev, currentStepIndex: Math.min(prev.currentStepIndex + 1, steps.length - 1) }))
         if (wizardSessionIdRef.current) {
