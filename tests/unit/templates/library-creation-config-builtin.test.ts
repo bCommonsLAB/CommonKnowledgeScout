@@ -16,11 +16,14 @@ describe('mergeCreationTypesWithBuiltins', () => {
     expect(audio?.icon).toBe('Mic')
   })
 
-  it('W-D: der generische Standard-Wizard ist immer als Karte enthalten', () => {
+  it('W-D: der Standard-Wizard ist als Karte da und laeuft ueber file-transcript-de', () => {
     const merged = mergeCreationTypesWithBuiltins([], 'lib-1', 'user@test.local')
     const standard = merged.find((t) => t.id === 'standard-capture')
     expect(standard).toBeDefined()
-    expect(standard?.templateId).toBe('standard-capture')
+    expect(standard?.templateId).toBe('file-transcript-de')
+    // ersetzt die separate file-transcript-de-Karte (keine Dopplung)
+    expect(merged.filter((t) => t.templateId === 'file-transcript-de')).toHaveLength(1)
+    expect(merged.some((t) => t.id === 'file-transcript-de')).toBe(false)
   })
 
   it('Library-Template überschreibt Built-in mit gleichem Namen', () => {

@@ -19,13 +19,22 @@ import { STANDARD_CAPTURE_FLOW_ID } from './wizard-flow-entity'
 // Re-Export, damit Bestands-Importe aus diesem Modul weiter funktionieren.
 export type { CaptureWizardRef, CaptureWizardsConfig }
 
-/** Der generische Standard-Wizard als Auswahl-Karte (Flow-Entitaet). */
+/**
+ * Der generische Standard-Wizard als Auswahl-Karte.
+ *
+ * W-D-Fix: Die Karte traegt zwar die Identitaet `standard-capture` (Route +
+ * Kuratierungs-Referenz), laeuft aber ueber den **erprobten** generischen Flow
+ * `file-transcript-de` (vollwertiges Template mit Systemprompt). Der reine
+ * Flow-Entitaets-Eintrag `standard-capture` allein ist nicht transformierbar
+ * (kein Schema/Systemprompt) — er dient erst, wenn ein gespeicherter, gebundener
+ * Flow existiert (W-A/W-G).
+ */
 export function buildStandardWizardCreationType(): LibraryCreationType {
   return {
     id: STANDARD_CAPTURE_FLOW_ID,
     label: 'Inhalt erfassen',
     description: 'Quelle hochladen, Inhaltstyp waehlen und als Beitrag in den Wartekorb legen',
-    templateId: STANDARD_CAPTURE_FLOW_ID,
+    templateId: 'file-transcript-de',
     icon: 'Upload',
     source: 'builtin',
     isReadonly: true,

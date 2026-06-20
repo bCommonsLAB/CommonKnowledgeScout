@@ -20,9 +20,9 @@ const available: LibraryCreationType[] = [
 ]
 
 describe('buildStandardWizardCreationType', () => {
-  it('ist die Standard-Flow-Karte', () => {
+  it('ist die Standard-Flow-Karte (laeuft ueber file-transcript-de)', () => {
     expect(standardWizard.id).toBe(STANDARD_CAPTURE_FLOW_ID)
-    expect(standardWizard.templateId).toBe(STANDARD_CAPTURE_FLOW_ID)
+    expect(standardWizard.templateId).toBe('file-transcript-de')
     expect(standardWizard.isReadonly).toBe(true)
   })
 })

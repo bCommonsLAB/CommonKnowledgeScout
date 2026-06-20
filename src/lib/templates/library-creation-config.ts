@@ -167,12 +167,19 @@ export function mergeCreationTypesWithBuiltins(
     if (row) fromBuiltin.push(row)
   }
 
-  // W-D: Der generische Standard-Wizard ist immer waehlbar (eigene Karte, NICHT
-  // ueber templateDocumentToCreationType, da Flow-Entitaeten dort uebersprungen
-  // werden). Lauffaehig via getBuiltinCreationTemplate(STANDARD_CAPTURE_FLOW_ID).
-  const merged = [...fromMongo, ...fromBuiltin]
+  // W-D: Der generische Standard-Wizard ist immer waehlbar (eigene Karte mit
+  // Label „Inhalt erfassen"). Er laeuft ueber `file-transcript-de` und ERSETZT
+  // dessen separate Karte (gleicher Flow) an Ort und Stelle, statt zu doppeln.
   const standard = buildStandardWizardCreationType()
-  if (!merged.some((t) => t.id === standard.id)) merged.push(standard)
+  let replaced = false
+  const merged = [...fromMongo, ...fromBuiltin].map((t) => {
+    if (t.templateId === standard.templateId) {
+      replaced = true
+      return standard
+    }
+    return t
+  })
+  if (!replaced && !merged.some((t) => t.id === standard.id)) merged.push(standard)
   return merged
 }
 
