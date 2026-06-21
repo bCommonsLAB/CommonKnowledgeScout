@@ -271,3 +271,36 @@ Nicht abgebildet: eigenes CSS/JS, Scroll-/Lottie-Animationen, Parallax,
 Cookie-Consent, mehrseitige Navigation, interaktive Widgets. Gewinn:
 durchsuchbar, RAG-fähig, übersetzbar, galerie-integriert, ein Speicherort statt
 drei, ein Publish-Begriff, schneller login-freier Render.
+
+## 15. Roadmap / Priorisierung (Pilot zuerst)
+
+Begründung: UX und Ladezeit sind das am schwersten Korrigierbare und der Punkt,
+der die Architektur bestätigt oder widerlegt. Deshalb zuerst ein **hardcodierter
+Frontend-Pilot**, der genau das misst — ohne Backend, Import oder Übersetzung.
+Erst wenn UX + Ladezeit überzeugen, folgen Datenpflege und Übersetzung.
+
+### Phase 0 — Pilot (hardcodiertes Frontend, nur UX + Ladezeit)
+- `website-detail`-Renderer: Hero, Sektions-Parser (§5.2), MarkdownPreview je
+  Sektion, Video-Embed (PeerTube), CTA.
+- Pilot-Route als **Server-Component** (kein Clerk, kein Fetch) mit dem
+  aufbereiteten „Oldies for Future"-Inhalt (Hero + 3–4 Sektionen + Zitat + CTA).
+- **Mock** Side-Banner + **Mock** dynamisches Menü (hardcodierte Daten).
+- `next/image` (Hero `priority`), Ladezeit messen (Lighthouse/Netzwerk).
+- Liefert die **Best-Case-Ladezeit als Zielmarke** für die spätere echte Route.
+- Bewusst NICHT: echte Daten, Import, Übersetzung, Persistenz.
+
+### Phase 1 — Renderer + Datenmodell produktiv (nach Pilot-OK)
+Registry `website` + `translatable`, Mapper, Renderer-Case, Galerie-Card,
+Sektions-Validierung (kein Silent Fallback), PeerTube-Whitelist.
+
+### Phase 2 — Import (Wizard)
+Secretary-Website-Template + `mapStructuredDataToWebsite` + Wizard-Source
+„Website-URL" + Bild-Erfassung.
+
+### Phase 3 — Banner/Menü an Live-Daten + Root/Homepage
+Banner an `docs?sort=rating`, Menü an `docs?detailViewType=website` (menu_order),
+Library-Config-Startseite (E2), Root `/` = Landingpage (E7).
+
+### Phase 4 — Übersetzung + Performance + Cleanup
+`translatable` verifizieren + Round-Trip-Marker-Test (§8b); Quick-Wins → später
+RSC/ISR/Cache (E8); `web/`-Abkündigung (E4).
