@@ -15,6 +15,7 @@ import { NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { getPreferredUserEmail } from '@/lib/auth/user-email';
 import { resolveCaptureRole } from '@/lib/submissions/capture-access';
+import { seedStandardCaptureFlowForLibrary } from '@/lib/creation/flow-seed';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -31,5 +32,22 @@ export async function GET(
   if (!email) return NextResponse.json({ error: 'User-Email unbekannt' }, { status: 400 });
 
   const role = await resolveCaptureRole(email, libraryId);
+
+  // W-A Stufe 1: Den generischen Standard-Erfassungs-Ablauf idempotent in der DB
+  // anlegen, sobald jemand mit Erfass-Recht den Capture-Kontext oeffnet (deckt
+  // neue UND bestehende Libraries ab). Der Seed prueft selbst auf Existenz
+  // (idempotent). Ein Fehler darf die Berechtigungs-Antwort NICHT blockieren,
+  // wird aber geloggt (kein stiller Fallback).
+  if (role !== null) {
+    try {
+      await seedStandardCaptureFlowForLibrary(libraryId, email);
+    } catch (err) {
+      console.warn(
+        `[me/capture] Auto-Seed des Standard-Ablaufs fehlgeschlagen (libraryId=${libraryId}):`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
+
   return NextResponse.json({ canCapture: role !== null, role }, { status: 200 });
 }
