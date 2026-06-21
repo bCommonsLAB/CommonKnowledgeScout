@@ -17,6 +17,19 @@ import type { WizardSource } from "@/lib/creation/corpus"
 import { CompactSourcesInfo } from "@/components/creation-wizard/components/compact-sources-info"
 import { DictationTextarea } from "@/components/shared/dictation-textarea"
 import { resolveFieldLabel, resolveFieldIsArrayInput, isWizardPickerField, isTextareaFieldByName } from "@/lib/creation/field-render-hints"
+import { stripAllFrontmatter } from "@/lib/markdown/frontmatter"
+import { buildWizardFrontmatter } from "@/lib/creation/wizard-frontmatter"
+
+/**
+ * Formatiert einen Frontmatter-Wert fuer die schreibgeschuetzte Debug-Anzeige.
+ * Reine Anzeige — keine Persistenz (die echte Serialisierung passiert im Promote).
+ */
+function formatFrontmatterValue(v: unknown): string {
+  if (typeof v === "string") return v
+  if (typeof v === "number" || typeof v === "boolean") return String(v)
+  if (Array.isArray(v) || (v && typeof v === "object")) return JSON.stringify(v)
+  return ""
+}
 
 /** Gemeinsame Klassen für Text-Eingaben/Textareas im Feld-Layout. */
 const FIELD_INPUT_CLASS =
@@ -432,29 +445,58 @@ export function EditDraftStep({
           </TabsContent>
 
           <TabsContent value="markdown" className="mt-6">
-            <div className="space-y-2">
-              {/* Bewusst ein Quelltext-Editor (Markdown), KEINE gerenderte Vorschau:
-                  Bilder bleiben hier als Markdown-Referenz (z.B. ![img-1.jpeg](img-1.jpeg))
-                  sichtbar. Gerendert (mit Bildern/Formatierung) wird erst nach dem
-                  Import im Archiv. */}
-              <label className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                Quelltext bearbeiten (Markdown)
-              </label>
-              <textarea
-                value={localDraftText}
-                onChange={(e) => {
-                  setLocalDraftText(e.target.value)
-                  onDraftTextChange(e.target.value)
-                }}
-                rows={20}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-sm dark:border-slate-500 dark:bg-slate-600 dark:text-white"
-                placeholder="Text hier eingeben..."
-              />
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Markdown-Quelltext — Bilder und Formatierung erscheinen nach dem Import im Archiv.
-                Änderungen werden automatisch gespeichert.
-              </p>
-            </div>
+            {(() => {
+              // Beide Flows (Text + Datei) zeigen im Text-Tab NUR den Body. Das
+              // Frontmatter wird beim Veroeffentlichen ohnehin aus den Feldern neu
+              // gebaut (createMarkdownWithFrontmatter strippt den Body). So gibt es
+              // keine zwei konkurrierenden Quellen im sichtbaren Editor.
+              const bodyOnlyDraft = stripAllFrontmatter(localDraftText)
+              // Echtes, berechnetes Frontmatter (alle Schema-Felder inkl. hardcodierter
+              // System-Felder wie detailViewType/docType) — nur Anzeige, schreibgeschuetzt.
+              const previewFrontmatter = buildWizardFrontmatter(templateMetadata.fields, localMetadata)
+              const frontmatterKeys = Object.keys(previewFrontmatter)
+              return (
+                <div className="space-y-2">
+                  {/* Bewusst ein Quelltext-Editor (Markdown), KEINE gerenderte Vorschau:
+                      Bilder bleiben hier als Markdown-Referenz (z.B. ![img-1.jpeg](img-1.jpeg))
+                      sichtbar. Gerendert (mit Bildern/Formatierung) wird erst nach dem
+                      Import im Archiv. */}
+                  <label className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                    Quelltext bearbeiten (nur Inhalt)
+                  </label>
+                  <textarea
+                    value={bodyOnlyDraft}
+                    onChange={(e) => {
+                      setLocalDraftText(e.target.value)
+                      onDraftTextChange(e.target.value)
+                    }}
+                    rows={20}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-sm dark:border-slate-500 dark:bg-slate-600 dark:text-white"
+                    placeholder="Text hier eingeben..."
+                  />
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Nur der Inhalt — die Metadaten bearbeitest du im Tab „Felder“. Bilder und
+                    Formatierung erscheinen nach dem Import im Archiv. Änderungen werden
+                    automatisch gespeichert.
+                  </p>
+
+                  {/* Debug: das echte Frontmatter (schreibgeschuetzt), z.B. zur Kontrolle,
+                      ob detailViewType/docType korrekt gesetzt sind. */}
+                  {frontmatterKeys.length > 0 && (
+                    <details className="rounded-lg border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-800/40">
+                      <summary className="cursor-pointer text-xs font-medium text-slate-500 dark:text-slate-400">
+                        Frontmatter anzeigen (schreibgeschützt) · {frontmatterKeys.length} Felder
+                      </summary>
+                      <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap break-words font-mono text-xs text-slate-600 dark:text-slate-300">
+                        {frontmatterKeys
+                          .map((k) => `${k}: ${formatFrontmatterValue(previewFrontmatter[k])}`)
+                          .join("\n")}
+                      </pre>
+                    </details>
+                  )}
+                </div>
+              )
+            })()}
           </TabsContent>
         </Tabs>
       ) : (
