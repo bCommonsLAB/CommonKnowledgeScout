@@ -95,9 +95,12 @@ describe('promoteSubmission', () => {
     expect(file.type).toBe('text/markdown');
     const written = await file.text();
     expect(written).toContain('title: "Mein Titel"');
+    // System-Felder werden deterministisch ins Frontmatter erzwungen (Variante A).
+    expect(written).toContain('docType: "testimonial"');
+    expect(written).toContain('detailViewType: "testimonial"');
     expect(written).toContain('# Body');
 
-    // Ingestion mit derselben Datei-ID + Markdown + flacher Meta.
+    // Ingestion mit derselben Datei-ID + Markdown + flacher Meta (inkl. System-Felder).
     expect(upsertMarkdown).toHaveBeenCalledTimes(1);
     const [u, lib, fileId, fileName, md, meta] = upsertMarkdown.mock.calls[0];
     expect(u).toBe('rev@example.com');
@@ -105,7 +108,56 @@ describe('promoteSubmission', () => {
     expect(fileId).toBe('new-1');
     expect(fileName).toBe('mein-titel.md');
     expect(md).toContain('# Body');
-    expect(meta).toEqual({ title: 'Mein Titel' });
+    expect(meta).toEqual({ title: 'Mein Titel', docType: 'testimonial', detailViewType: 'testimonial' });
+  });
+
+  it('Variante A: erzwingt detailViewType/docType auch wenn sie in metadata fehlen (Event -> session, nicht "book")', async () => {
+    const uploadFile = vi.fn(async (_folderId: string, file: File) => fileItem('new-1', file.name));
+    const listItemsById = vi.fn(async () => [] as StorageItem[]);
+    const upsertMarkdown = vi.fn(async () => ({}));
+    const provider: PromotionProvider = { uploadFile, listItemsById, createFolder: noopCreateFolder() };
+
+    // Reale Bug-Lage: docType=event, detailViewType=session als Top-Level-Felder,
+    // aber metadata enthaelt KEINS davon (hardcodierte Felder fehlen nach Analyse).
+    await promoteSubmission({
+      submission: baseSubmission({
+        docType: 'event',
+        detailViewType: 'session',
+        metadata: { title: 'Mein Event' },
+      }),
+      provider,
+      upsertMarkdown,
+      userEmail: 'rev@example.com',
+    });
+
+    const written = await uploadFile.mock.calls[0][1].text();
+    expect(written).toContain('docType: "event"');
+    expect(written).toContain('detailViewType: "session"');
+    const meta = upsertMarkdown.mock.calls[0][5];
+    expect(meta).toMatchObject({ docType: 'event', detailViewType: 'session' });
+  });
+
+  it('Variante A: ein abweichender metadata-Wert wird vom Top-Level-System-Feld ueberschrieben', async () => {
+    const uploadFile = vi.fn(async (_folderId: string, file: File) => fileItem('new-1', file.name));
+    const listItemsById = vi.fn(async () => [] as StorageItem[]);
+    const upsertMarkdown = vi.fn(async () => ({}));
+    const provider: PromotionProvider = { uploadFile, listItemsById, createFolder: noopCreateFolder() };
+
+    // metadata.detailViewType ist falsch (z.B. LLM-Leak "video") -> Top-Level gewinnt.
+    await promoteSubmission({
+      submission: baseSubmission({
+        docType: 'event',
+        detailViewType: 'session',
+        metadata: { title: 'Mein Event', detailViewType: 'video' },
+      }),
+      provider,
+      upsertMarkdown,
+      userEmail: 'rev@example.com',
+    });
+
+    const written = await uploadFile.mock.calls[0][1].text();
+    expect(written).toContain('detailViewType: "session"');
+    expect(written).not.toContain('detailViewType: "video"');
   });
 
   it('expliziter Ordner: loest den Anzeigenamen via getItemById auf (keine rohe fileId)', async () => {
