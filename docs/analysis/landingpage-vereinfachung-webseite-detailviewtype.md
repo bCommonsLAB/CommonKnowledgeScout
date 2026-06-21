@@ -155,6 +155,38 @@ fehlt → ans Ende sortieren (sichtbar, kein stilles Verschlucken).
 - **Speicherung:** Capture→Inbox→Promotion wie jedes Dokument (ADR 0004,
   `src/lib/submissions/promotion.ts`).
 
+## 8b. Mehrsprachigkeit (gleiche Verwaltung wie jedes Dokument — KEINE Sonderbehandlung)
+
+Übersetzung ist eine **generische Querschnitt-Funktion**, gesteuert durch die
+`translatable`-Spec in der detailViewType-Registry. Jeder Typ erbt sie
+automatisch — `website` ebenso.
+
+- **Dispatch:** `phase-translations.ts` mappt nur `book`/`session`/
+  `refurbedDevice` auf Spezial-Übersetzer; **alle übrigen** (also auch
+  `website`) laufen über `translateGenericData`
+  (`src/lib/external-jobs/phase-translations.ts:114-193`,
+  `src/lib/chat/common/document-translation.ts:623,630`), der die
+  `translatable`-Spec aus `getTranslatableFields(viewType)` liest.
+- **Body wird übersetzt:** Das Feld `markdown` (der gesamte Body) steht in der
+  `translatable.text`-Spec und wird mitübersetzt, mit expliziter Anweisung
+  „Markdown-Formatierung beibehalten"
+  (`document-translation.ts:137,422`). Eingebettete Bild-URLs bleiben erhalten.
+- **Speicherung:** flach in `docMetaJson.translations.{gallery|detail}.<locale>`
+  (`src/types/doc-meta.ts:92-94`) — **keine** separaten `.de.md`/`.en.md`-Dateien,
+  **nicht** im Frontmatter. Abruf über die Fallback-Kette in
+  `src/lib/i18n/get-localized.ts`.
+- **Trigger:** Publish enqueued pro Ziel-Locale aus
+  `library.config.translations.targetLocales` einen `translation`-Job.
+
+→ **Für `website` reicht es, in der Registry die `translatable`-Felder zu
+setzen** (`title`, `hero_subtitle`, `cta_label` scope `both`; `markdown` scope
+`detail`). Kein eigener Übersetzer, keine separate Verwaltung.
+
+**Ein Stolperstein (Guard nötig):** Die HTML-Sektions-Marker
+(`<!-- section … -->`, §5.2) gehen als Teil des Markdown-Texts mit ans LLM.
+Dass sie unverändert erhalten bleiben, ist plausibel, aber **nicht getestet** →
+Snapshot-/Round-Trip-Test, der nach Übersetzung Marker-Erhalt prüft.
+
 ## 9. Public-Rendering, Root & Homepage (E7)
 
 **Eine Library = ganze Site.** Root `/` rendert die Landingpage **der**
@@ -206,7 +238,9 @@ Zu entfernen/abklemmen (eigener, isolierter Cleanup-Schritt):
 
 1. Registry: `'website'` zu `DETAIL_VIEW_TYPES` + Eintrag (required `title`;
    optional `hero_subtitle`, `hero_image`, `video_url`, `cta_label`, `cta_url`,
-   `menu_order`, `prioritaets_index`) — `detail-view-types/registry.ts`.
+   `menu_order`, `prioritaets_index`) **inkl. `translatable`-Spec**
+   (`title`/`hero_subtitle`/`cta_label` = `both`, `markdown` = `detail`) —
+   `detail-view-types/registry.ts`. Damit erbt der Typ Mehrsprachigkeit (§8b).
 2. Mapper `mapToWebsiteDetail()` — `src/lib/mappers/doc-meta-mappers.ts`.
 3. Sektions-Parser (HTML-Kommentar-Marker) + `website-detail.tsx` (Hero +
    Sektionen via MarkdownPreview + Video + CTA).
@@ -228,6 +262,8 @@ Zu entfernen/abklemmen (eigener, isolierter Cleanup-Schritt):
 - Mechanismus zur Auswahl der Root-Library (Env vs. globale Einstellung, E7).
 - Reihenfolge der Implementierung: Vorschlag, **Renderer + Datenmodell**
   (Schritte 1–4) zuerst, dann Import, dann Banner/Menü/Root, dann Cleanup.
+- Round-Trip-Test: bleiben die Sektions-Marker (§5.2) nach Übersetzung erhalten?
+  (§8b-Guard)
 
 ## 14. Bewusste Abgrenzung (kein 1:1-Klon)
 
