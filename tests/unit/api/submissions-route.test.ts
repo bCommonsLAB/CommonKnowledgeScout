@@ -221,6 +221,24 @@ describe('POST /api/submissions (multipart, Stufe A)', () => {
     expect(h.uploadInboxBinary).not.toHaveBeenCalled();
     expect(h.createSubmission).not.toHaveBeenCalled();
   });
+
+  it('413 bei zu grosser Datei -> kein Upload, kein Submit (Crash-Haertung 1b)', async () => {
+    login('u@example.com');
+    h.getLibrary.mockResolvedValue({ id: 'lib-1' });
+    // Winziges Limit erzwingt den Guard schon bei der 8-Byte-Test-PDF.
+    const prev = process.env.SUBMISSION_MAX_FILE_BYTES;
+    process.env.SUBMISSION_MAX_FILE_BYTES = '1';
+    try {
+      const res = await POST(postMultipart(MULTIPART_FIELDS));
+      expect(res.status).toBe(413);
+      expect(h.getInboxProvider).not.toHaveBeenCalled();
+      expect(h.uploadInboxBinary).not.toHaveBeenCalled();
+      expect(h.createSubmission).not.toHaveBeenCalled();
+    } finally {
+      if (prev === undefined) delete process.env.SUBMISSION_MAX_FILE_BYTES;
+      else process.env.SUBMISSION_MAX_FILE_BYTES = prev;
+    }
+  });
 });
 
 describe('GET /api/submissions', () => {
