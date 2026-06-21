@@ -18,6 +18,7 @@
 
 import type { StorageItem } from '@/lib/storage/types';
 import { createMarkdownWithFrontmatter } from '@/lib/markdown/compose';
+import { buildPublishFrontmatter } from '@/lib/submissions/publish-frontmatter';
 import { buildDocumentSlugFallback } from '@/lib/documents/document-slug';
 import type { WizardSubmission } from '@/types/wizard-submission';
 import { copyOriginalsToTarget, promoteTranscriptOnly } from '@/lib/submissions/promotion-transcript';
@@ -155,7 +156,16 @@ export async function promoteSubmission(args: PromoteSubmissionArgs): Promise<Pr
 
   // Normalfall (Dokumententyp): Standalone-Markdown + RAG-Ingest (heutiges Verhalten).
   const fileName = resolvePublishFileName(submission);
-  const markdown = createMarkdownWithFrontmatter(submission.markdownBody, submission.metadata);
+  // Variante A: System-Felder (docType/detailViewType) deterministisch ins
+  // Frontmatter erzwingen. Sie liegen als validierte Top-Level-Felder vor; das
+  // Frontmatter entstand aber bisher nur aus `submission.metadata`, wodurch
+  // hardcodierte Felder wie `detailViewType` verloren gingen (Event -> "book").
+  const frontmatter = buildPublishFrontmatter({
+    metadata: submission.metadata,
+    docType: submission.docType,
+    detailViewType: submission.detailViewType,
+  });
+  const markdown = createMarkdownWithFrontmatter(submission.markdownBody, frontmatter);
   const existing = findExistingFile(folderItems, fileName);
   let savedItemId: string;
   if (existing) {
@@ -167,8 +177,9 @@ export async function promoteSubmission(args: PromoteSubmissionArgs): Promise<Pr
   }
 
   // RAG-Ingestion ist selbst idempotent (loescht alte Vektoren je fileId zuerst),
-  // daher auch bei Wiederholung sicher.
-  await upsertMarkdown(userEmail, submission.libraryId, savedItemId, fileName, markdown, submission.metadata);
+  // daher auch bei Wiederholung sicher. Dieselbe (um System-Felder angereicherte)
+  // Meta wie im Frontmatter -> docMetaJson bleibt konsistent zur Datei.
+  await upsertMarkdown(userEmail, submission.libraryId, savedItemId, fileName, markdown, frontmatter);
 
   return {
     savedItemId,
