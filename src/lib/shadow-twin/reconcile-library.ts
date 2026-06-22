@@ -130,6 +130,9 @@ export async function reconcileLibrary(args: {
       (it) =>
         it.type === 'file' &&
         it.metadata.name.toLowerCase().endsWith('.md') &&
+        // WICHTIG: Nur echte Artefakte DIESER Quelle ({base}.…). Sonst werden
+        // per-Seite-OCR-Dateien (page_001.en.md) faelschlich als Transkript gewertet.
+        it.metadata.name.startsWith(`${sourceBaseName}.`) &&
         parseArtifactName(it.metadata.name, sourceBaseName).kind === 'transcript',
     )
     const deadPageMd = items

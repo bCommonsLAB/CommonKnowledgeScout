@@ -105,6 +105,8 @@ async function listTranscriptCandidates(
       (it) =>
         it.type === 'file' &&
         it.metadata.name.toLowerCase().endsWith('.md') &&
+        // Nur echte Artefakte DIESER Quelle ({base}.…) — keine per-Seite-OCR-Dateien.
+        it.metadata.name.startsWith(`${sourceBaseName}.`) &&
         parseArtifactName(it.metadata.name, sourceBaseName).kind === 'transcript',
     )
 

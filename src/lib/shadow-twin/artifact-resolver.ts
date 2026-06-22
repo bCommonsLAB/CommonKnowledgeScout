@@ -159,6 +159,9 @@ async function resolveArtifactV2(
       if (item.type !== 'file') continue;
       if (item.id === sourceItemId) continue;
       if (!item.metadata.name.toLowerCase().endsWith('.md')) continue;
+      // Nur echte Artefakte DIESER Quelle ({base}.…) — sonst werden per-Seite-OCR-Dateien
+      // (page_001.en.md) faelschlich als Transkript-Variante gewertet.
+      if (!item.metadata.name.startsWith(`${sourceBaseName}.`)) continue;
       const parsed = parseArtifactName(item.metadata.name, sourceBaseName);
       if (parsed.kind !== 'transcript') continue;
       candidates.push(item);
