@@ -417,6 +417,70 @@ export async function loadShadowTwinMarkdown(
       }
     }
 
+    // Priorität 5: Sprach-toleranter Transkript-Fallback (sprach-neutrales Modell).
+    // Ein Transkript ist die Originalsprache des Dokuments (rohes OCR/Extraktion) und damit
+    // sprach-neutral — die Zielsprache betrifft nur die AUSGABE der Transformation, nicht die
+    // EINGABE. Falls die vorherigen Prioritäten kein Transkript geliefert haben (z.B. weil oben
+    // die Library-Auflösung scheiterte oder Altdaten unter einer anderen Sprache liegen), laden
+    // wir das vorhandene Transkript explizit über das Repo.
+    // KEIN stiller Fallback: Verwendung wird geloggt (siehe no-silent-fallbacks.mdc).
+    try {
+      const { getAllArtifacts } = await import('@/lib/repositories/shadow-twin-repo')
+      const all = await getAllArtifacts({ libraryId: job.libraryId, sourceId: sourceItemId })
+      const transcripts = all.filter((a) => a.kind === 'transcript')
+
+      if (transcripts.length > 0) {
+        const library = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
+        if (library) {
+          const service = new ShadowTwinService({
+            library,
+            userEmail: job.userEmail,
+            sourceId: sourceItemId,
+            sourceName: originalName,
+            parentId,
+            provider,
+          })
+
+          // Sprach-neutral: getMarkdown ignoriert die Sprache für Transkripte (ein Record pro Quelle).
+          const transcriptResult = await service.getMarkdown({
+            kind: 'transcript',
+            targetLanguage: lang,
+          })
+
+          if (transcriptResult) {
+            FileLogger.info('phase-shadow-twin-loader', 'Transkript-Sprach-Fallback verwendet (sprach-neutrales Transkript als Transformations-Eingabe)', {
+              jobId,
+              purpose,
+              sourceItemId,
+              requestedLanguage: lang,
+              availableTranscripts: transcripts.length,
+              fileId: transcriptResult.id,
+              fileName: transcriptResult.name,
+            })
+
+            const parsed = parseSecretaryMarkdownStrict(transcriptResult.markdown)
+            const meta = (parsed?.meta && typeof parsed.meta === 'object' && !Array.isArray(parsed.meta))
+              ? (parsed.meta as Record<string, unknown>)
+              : {}
+
+            return {
+              markdown: transcriptResult.markdown,
+              meta,
+              fileId: transcriptResult.id,
+              fileName: transcriptResult.name,
+              loadedArtifactKind: 'transcript',
+            }
+          }
+        }
+      }
+    } catch (error) {
+      FileLogger.warn('phase-shadow-twin-loader', 'Transkript-Sprach-Fallback fehlgeschlagen', {
+        jobId,
+        purpose,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+
     // Kein Transkript gefunden
     FileLogger.warn('phase-shadow-twin-loader', 'Transkript nicht gefunden (forTemplateTransformation)', {
       jobId,
