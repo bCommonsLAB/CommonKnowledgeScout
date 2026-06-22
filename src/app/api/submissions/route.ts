@@ -29,11 +29,21 @@ import {
 } from '@/lib/submissions/submission-capture';
 import { parseMultipartCapture } from '@/lib/submissions/capture-multipart';
 import { resolveCaptureRole } from '@/lib/submissions/capture-access';
+import {
+  resolveCaptureSizeLimits,
+  checkDeclaredTotalSize,
+  checkParsedFileSizes,
+} from '@/lib/submissions/capture-size-guard';
 import { getInboxProvider, inboxUsernameFromEmail } from '@/lib/storage/inbox/inbox-provider-entry';
 import { uploadInboxBinary } from '@/lib/submissions/inbox-upload';
 import { isSubmissionStatus } from '@/lib/submissions/submission-status';
 import { FileLogger } from '@/lib/debug/logger';
+import { registerProcessErrorLogging } from '@/lib/debug/process-error-logging';
 import type { SubmissionBinaryRef } from '@/types/wizard-submission';
+
+// Diagnose-Netz (Variante C): unbehandelte Fehler protokollieren, statt den
+// Prozess kommentarlos sterben zu lassen. Idempotent — laeuft pro Worker einmal.
+registerProcessErrorLogging();
 
 /** Legt die `pending`-Submission an, nachdem die Rechte geprueft wurden (403 wenn ohne Recht). */
 async function createPendingSubmission(body: CaptureBody, email: string): Promise<NextResponse> {
@@ -54,6 +64,13 @@ async function createPendingSubmission(body: CaptureBody, email: string): Promis
  * wird zu einem `binaryRef` derselben Submission.
  */
 async function captureWithBinary(request: NextRequest, email: string): Promise<NextResponse> {
+  const limits = resolveCaptureSizeLimits();
+
+  // Pre-Parse-Guard: deklarierte Gesamtgroesse pruefen, BEVOR `formData()` den
+  // kompletten Upload in den RAM puffert (sonst Dev-OOM -> ERR_EMPTY_RESPONSE).
+  const declared = checkDeclaredTotalSize(request.headers.get('content-length'), limits);
+  if (declared) return NextResponse.json({ error: declared.message }, { status: 413 });
+
   let parsed: { body: CaptureBody; files: File[] };
   try {
     parsed = parseMultipartCapture(await request.formData());
@@ -63,6 +80,11 @@ async function captureWithBinary(request: NextRequest, email: string): Promise<N
       { status: 400 },
     );
   }
+
+  // Post-Parse-Guard (autoritativ): tatsaechliche Datei-Groessen pro Datei + Summe
+  // pruefen, BEVOR `uploadInboxBinary` jede Datei erneut komplett in den RAM laedt.
+  const violation = checkParsedFileSizes(parsed.files, limits);
+  if (violation) return NextResponse.json({ error: violation.message }, { status: 413 });
 
   // Rechte VOR dem Upload pruefen — kein verwaister Blob ohne Berechtigung.
   const createdByRole = await resolveCaptureRole(email, parsed.body.libraryId);
