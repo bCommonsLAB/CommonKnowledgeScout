@@ -3,16 +3,27 @@
 Status: ENTWURF für lokale Session
 Erstellt: Remote-Session (peter.aichner)
 Zielbranch lokal: von `master` (enthält die gemergten Transkript-Änderungen, in denen das Problem auftritt)
+Umfang (erweitert 2026-06-22): **ALLE Artefakte**, nicht nur `transcript`. Entscheidung des
+Users in lokaler Session: Untersuchung in EINEM Wasch, Reparatur in Familien (siehe §1a, §4).
 
 ---
 
 ## 0. Ziel & Leitprinzipien
 
-**Ziel:** Ein **deterministisches** Daten- und Dateimodell für Shadow-Twins. Genau **eine** kanonische Stelle, die „Quelle → Artefakte (transcript / transformation / …)" auflöst; **alle** Konsumenten nutzen dieses eine Objekt. **Alle Fallbacks entfernen.** Ein **Reparaturskript** bringt MongoDB + Filesystem in den konsistenten Zustand, der die Fallbacks überflüssig macht.
+**Ziel:** Ein **deterministisches** Daten- und Dateimodell für Shadow-Twins über **alle
+Artefakt-Familien** (Markdown: transcript / transformation / canonical / raw — sowie Binär:
+Bilder, Seiten-Renders, previews/thumbnails). Genau **eine** kanonische Stelle, die „Quelle →
+Artefakte" auflöst; **alle** Konsumenten nutzen dieses eine Objekt. **Alle Fallbacks entfernen.**
+Ein **Reparaturskript** bringt MongoDB + Filesystem in den konsistenten Zustand, der die
+Fallbacks überflüssig macht. **Zugleich Performance-Ziel:** Verzeichnis- und Datei-Öffnen sind
+heute spürbar langsam — die vielen redundanten, parallelen Resolver-Calls (mehrfache Reads pro
+Datei, Storage-Fallbacks, Lese-getriggerte Reconstructs) sind ein Hauptkostentreiber. Weniger
+Pfade = weniger I/O = schneller. Performance ist ein **explizites Abnahmekriterium** (§7).
 
 **Leitprinzipien:**
 - **Lesen hat NIE Schreib-Nebenwirkungen.** (Heutiges Hauptübel: `lazyReconstructToMongo` / `importStorageArtifacts` schreiben beim Lesen.)
 - **Eine Quelle der Wahrheit** pro Lese-Frage. Keine parallelen Resolver.
+- **Schnell durch Determinismus:** genau **ein** Resolver-Call pro Frage, **ein** DB-Read statt N Fallback-Versuche, **kein** Storage-Roundtrip beim Lesen. Redundanz ist sowohl Korrektheits- als auch Performance-Bug.
 - **Kein stiller Fallback** (vgl. `no-silent-fallbacks.mdc`). Fehlt etwas → klarer Fehler/leeres Ergebnis, nicht „irgendwas Ähnliches".
 - **MongoDB = primär** für die Auflösung; Filesystem ist Spiegel/Export, **nie** Lese-Quelle für „welches Artefakt ist gültig".
 - **Reparatur statt Toleranz:** statt tolerante Reader bauen wir die Daten so um, dass exakte Reader genügen.
@@ -25,6 +36,13 @@ Zielbranch lokal: von `master` (enthält die gemergten Transkript-Änderungen, i
 - **Transkript-Tab** zeigt Inhalt `# page_020.jpeg … Seite: 20` → nur **eine Seite** (Spenden-/Impressumseite), obwohl `pages: 20`.
 - **Übersicht** listet als Transkript `_Ökoniomie_en_Innen.md` (ORIGINAL, **22:41**), Transformationen `…tamera.en.md` (22:32) und `…tamera-extract-en.en.md` (22:26).
 - **Verdacht:** Das Transkript (22:41) ist **neuer** als die Transformationen → nach den Transformationen hat ein **Lese-getriggerter Reconstruct/Import** das (volle) Transkript mit einer **einseitigen** `{base}.md` **überschrieben**. Begünstigt durch die kürzlich gemergten Änderungen: suffixlose `{base}.md` + toleranter `pickBestTranscript` + `readTranscriptRecord` („neuester gewinnt").
+
+> **BESTÄTIGT durch Daten (Phase 0c, 2026-06-23, dev-DB)** — Details in `02-trace-open-file.md`:
+> - libraryId `bf29edda-…`, Collection `shadow_twins__bf29edda-…`, sourceId `QXJ0aWNsZXMv…` (`Articles/_Ökoniomie_en_Innen.pdf`).
+> - `transcript`: single-record, **908 Zeichen, 1 Seite** (`page_020.jpeg`), `updatedAt 2026-06-22T20:41:34Z` (= 22:41 lokal). Transformationen 20:26 / 20:32 → **Transkript ist nachweislich später geschrieben.**
+> - **Korrektur zum Verdacht:** Es ist **kein** Legacy-Map → die „neuester-gewinnt"-Toleranz in `readTranscriptRecord` ist hier NICHT der Täter. Täter ist ein **Write beim Lesen** (zwei Pfade, Code-Beleg in `02-trace-open-file.md`): **(1) Client-Auto-Reconstruct** — `use-shadow-twin-analysis.ts` ruft beim Öffnen automatisch `importStorageArtifacts` → `POST /shadow-twins/reconstruct` für jede Quelle, deren Artefakt eine echte Storage-ID hat (`foundFromStorage`); **(2) Server-`lazyReconstructToMongo`** in `getMarkdown` bei Mongo-Miss. Beide ausgelöst durch Library-Config **`allowFilesystemFallback: true` + `persistToFilesystem: true`** (Storage = Nextcloud/WebDAV) + eine **veraltete suffixlose `_Ökoniomie_en_Innen.md`** im Storage. Der Markdown-Inhalt trägt intern „erstellt am 19.5.2026" → alter Storage-Artefakt importiert.
+> - `binaryFragments: 0` (Seiten-JPGs nur im Storage). `filesystemSync.enabled: false`.
+> - ⚠️ **Security-Nebenbefund:** Nextcloud-`appPassword` liegt **im Klartext** in der Library-Config (MongoDB) — verstößt gegen die Secret-Masking-Regel; separat beheben.
 
 **Parallele Auflösungs-Pfade (Server) — zu auditieren:**
 1. `getAllArtifacts(libraryId, sourceId)` (`src/lib/repositories/shadow-twin-repo.ts`) → flache Liste; transcript via `readTranscriptRecord` (Single-Record / Legacy-Map „neuester gewinnt").
@@ -45,6 +63,39 @@ Plus die Loader-Kette `loadShadowTwinMarkdown('forTemplateTransformation' | 'for
 
 ---
 
+## 1a. Artefakt-Universum (verifiziert, lokale Session 2026-06-22)
+
+Der Shadow-Twin ist **mehr** als das Transkript. Es gibt **drei Familien** (Code-Beleg
+`src/lib/shadow-twin/artifact-types.ts:28` + `store/shadow-twin-store.ts`):
+
+| Familie | Konkret | Speicher | Auflöse-Logik | Risiko |
+|---|---|---|---|---|
+| **Markdown** | `transcript`, `transformation`, `canonical`, `raw` | MongoDB `artifacts.*` | mehrere parallele Pfade, geteilte Funktionen (`selectShadowTwinArtifact`, `resolveArtifact`, `readTranscriptRecord`) | **HOCH** — transcript (Chaos-Zentrum) + transformation (latent dieselbe Krankheit) |
+| **Binär** | eingebettete Bilder, Seiten-Renders (`page_NNN.jpeg`, `variant='page-render'`, `pageNumber`), `preview`, `thumbnail` | MongoDB-Fragmente + Azure/Storage | 1 Lookup + Alias-Abgleich (Name/URL/Hash) + 3 **Lese**-Fallbacks | NIEDRIG — Fallbacks lesen nur, **kein** Zurückschreiben |
+| **Zwischendaten** | per-Seite-Markdown (`page_NNN.md`) | nur Arbeitsverzeichnis | bewusst **nicht** als Artefakt registriert | — siehe unten |
+
+**Per-Seite-Markdown (`page_NNN.md`) = totes Gewicht (bestätigt):**
+- Erzeugt in `src/lib/transform/image-extraction-service.ts` (`page_NNN.md`).
+- **Absichtlich nicht** in Mongo registriert: `reconstruct-from-storage.ts` überspringt Dateien,
+  die nicht mit `{sourceBaseName}.` beginnen; `shadow-twins/migrate` warnt, rohe Seiten-OCR würde
+  „das echte Transkript überschreiben".
+- **Einziger Leser:** `src/lib/pdf/page-filename-heuristic.ts` (Ableitung sprechender Dateinamen)
+  + `markdown-page-splitter.ts` (Seiten-Marker im **Transkript**, nicht die `.md`-Dateien selbst).
+- → Nicht im Datenmodell, nicht im UI sichtbar. **Kandidat: nicht mehr erzeugen / nur Arbeitsdatei.**
+
+**Auflöse-Pfade pro Markdown-Typ (zu auditieren in Phase 1):**
+- `transcript`: 3+ Pfade (Mongo-Legacy-Toleranz `readTranscriptRecord`, Filesystem-Fallback
+  `pickBestTranscript`, `ShadowTwinService`-Orchestrierung) **+ Schreib-Nebenwirkung** `lazyReconstructToMongo`.
+- `transformation`: 2 Pfade (Mongo-direkt + `resolveArtifact`); Toleranz „ohne Template-Name →
+  neuestes gewinnt" = dieselbe Bauart wie transcript, nur (noch) nicht eskaliert.
+- `canonical` / `raw`: je 1 Pfad (Mongo-direkt), kaum genutzt.
+
+**Binär-Auflösung (gesünder, eigene Spur):** `POST /shadow-twins/resolve-binary-url`
+(`matchBinaryFragmentByLookupName`, `binary-fragment-lookup.ts`) → Mongo-Fragmentliste →
+Shadow-Folder → Sibling. Fallbacks vorhanden, aber **read-only** → nicht zerstörerisch.
+
+---
+
 ## 2. Phase 0 — Reproduktion & Log-Audit (lokal, ZUERST)
 
 **Logging-Quellen** (`FileLogger`, `src/lib/debug/logger.ts`):
@@ -56,20 +107,34 @@ Plus die Loader-Kette `loadShadowTwinMarkdown('forTemplateTransformation' | 'for
 1. `pnpm dev` starten, Terminal-Log leeren.
 2. Das Articles-Verzeichnis öffnen.
 3. Erfassen: welche Endpunkte/Resolver feuern, **wie oft** (Redundanz!), ob **Reconstruct/Import** ausgelöst wird (Pfad 7), ob mehrere Quellen parallel analysiert werden.
-4. Notieren in `docs/refactor/shadow-twin-deterministic/01-trace-open-dir.md`.
+4. **Performance messen (Baseline):** Wall-Clock bis Verzeichnis sichtbar; Anzahl HTTP-Calls + langsamste Calls (Network-Tab / `preview_network`); Calls **pro Datei** (skaliert die Liste linear?).
+5. Notieren in `docs/refactor/shadow-twin-deterministic/01-trace-open-dir.md`.
 
 **Schritt 0b — Einzelne Datei öffnen (`_Ökoniomie_en_Innen.pdf`):**
 1. Terminal-Log + Browser-Konsole leeren.
-2. Datei öffnen, Transkript-Tab + Übersicht + Story-Tab je einmal anklicken.
-3. Erfassen pro Tab: welcher Resolver-Pfad, welche fileId/Name, **doppelte Reads**, **Schreib-Nebenwirkungen** (suche `lazyReconstruct`, `reconstruct`, `Storage-Import`).
-4. Notieren in `02-trace-open-file.md`.
+2. Datei öffnen, **alle** Tabs je einmal anklicken: Transkript, Übersicht, Story, **und alle, die
+   Bilder/Seiten-Renders zeigen** (inline-Bilder im Markdown, preview/thumbnail).
+3. Erfassen pro Tab — für **jede Artefakt-Familie**: welcher Resolver-Pfad, welche fileId/Name,
+   **doppelte Reads**, **Schreib-Nebenwirkungen** (suche `lazyReconstruct`, `reconstruct`,
+   `Storage-Import`, `resolve-binary-url`).
+4. **Performance messen (Baseline):** Wall-Clock je Tab bis Inhalt sichtbar; Anzahl + Dauer der
+   HTTP-Calls pro Tab; markieren, welche Calls den Tab-Wechsel blockieren (synchron) und welche
+   redundant sind.
+5. Notieren in `02-trace-open-file.md` — getrennt nach Familie (Markdown / Binär), plus „feuert
+   per-Seite-`page_NNN.md` irgendwo als Leser?" (Erwartung: nein).
 
-**Schritt 0c — Daten-Snapshot:**
-- Mongo: `db.shadow_twins__<libraryId>.findOne({ sourceId: "<id>" }, { 'artifacts.transcript': 1, sourceName:1, updatedAt:1 })` → Form (Single-Record vs Legacy-Map?), `markdown`-Länge, `updatedAt`.
-- Filesystem: Inhalt des Shadow-Twin-Ordners der PDF (welche `.md`-Dateien? gibt es eine partielle `_Ökoniomie_en_Innen.md`?).
+**Schritt 0c — Daten-Snapshot (alle Artefakte):**
+- Mongo, ganzes Dokument der Quelle:
+  `db.shadow_twins__<libraryId>.findOne({ sourceId: "<id>" }, { artifacts:1, binaryFragments:1, sourceName:1, updatedAt:1 })`
+  → pro Artefakt: Form (Single-Record vs Legacy-Map?), `markdown`-Länge, `updatedAt`; bei
+  `transformation` die Template×Sprache-Map; bei Binär die Fragment-Liste (`variant`, `pageNumber`).
+- Filesystem: Inhalt des Shadow-Twin-Ordners der PDF (welche `.md`, welche `page_NNN.jpeg`,
+  welche `page_NNN.md`? gibt es eine partielle `_Ökoniomie_en_Innen.md`?).
 - ⚠️ **Vorher `mongodump`** der Collection.
 
-**Erwartete Erkenntnisse:** Welche Pfade redundant feuern; ob ein Lese-Vorgang das Transkript überschreibt; ob die Daten (Mongo/FS) bereits inkonsistent sind.
+**Erwartete Erkenntnisse:** Welche Pfade redundant feuern (pro Familie); ob ein Lese-Vorgang ein
+Artefakt überschreibt (transcript, evtl. transformation); ob die Daten (Mongo/FS) inkonsistent
+sind; wie viele verwaiste `page_NNN.md` herumliegen.
 
 ---
 
@@ -89,20 +154,31 @@ Deliverable: `03-audit.md` (vollständige Tabelle + Entscheidung je Pfad).
 
 ## 4. Phase 2 — Zielmodell definieren (deterministisch)
 
-**Daten-Contract (MongoDB):**
+**Daten-Contract (MongoDB) — ganze Markdown-Familie:**
 - `artifacts.transcript` = genau **ein** `ShadowTwinArtifactRecord` (sprach-neutral). **Keine** Legacy-`{lang}`-Map mehr (per Reparatur kollabiert).
 - `artifacts.transformation[templateName][targetLanguage]` = genau ein Record.
+- `artifacts.canonical[targetLanguage]` / `artifacts.raw` = je genau ein Record (heute schon 1 Pfad — mit aufnehmen, damit sie nicht später driften).
 - Optional Integritäts-Invarianten: `pages > 1` ⇒ Transkript darf nicht „eine Seite" sein (Heuristik: Anzahl Seiten-Marker / Länge); sonst „needs-reextract".
+
+**Binär-Familie (eigene, gesündere Spur):** Auflösung bleibt bei `resolve-binary-url` /
+`matchBinaryFragmentByLookupName`, wird aber in denselben Contract eingehängt (read-only, kein
+Reconstruct beim Lesen). Niedrigere Priorität — erst nach der Markdown-Familie anfassen.
+
+**Per-Seite-`page_NNN.md`:** Einzelentscheidung in `04-zielmodell.md` festhalten — nicht mehr
+erzeugen ODER explizit als „Arbeitsdatei, nie Artefakt" kennzeichnen. Keine Auflöse-Logik nötig.
 
 **Dateimodell (Filesystem-Spiegel):**
 - Deterministischer Name je Artefakt; **ein** Speicherort. Filesystem ist **Export/Spiegel**, **nie** Auflösungs-Quelle.
 
-**Eine kanonische Auflösung:**
+**Eine kanonische Auflösung (deckt alle Markdown-Artefakte ab):**
 ```ts
 // Vorschlag: src/lib/shadow-twin/resolve-shadow-twin.ts
 resolveShadowTwinArtifacts(libraryId, sourceId): {
   transcript: ResolvedArtifact | null,
-  transformations: ResolvedArtifact[],
+  transformations: ResolvedArtifact[],   // alle Template×Sprache
+  canonical: ResolvedArtifact[],         // pro Sprache
+  raw: ResolvedArtifact | null,
+  binaries: ResolvedBinaryFragment[],    // read-only-Spur, optional zunächst separat
 }
 ```
 - **Pure read aus MongoDB**, exakt (kein Filesystem-Fallback, kein Reconstruct, kein „bestes raten").
@@ -111,7 +187,7 @@ resolveShadowTwinArtifacts(libraryId, sourceId): {
 
 **Schreiben strikt getrennt:** Reconstruct/Import nur als **explizite** Aktion (Button/Skript), nie als Lese-Nebenwirkung.
 
-Deliverable: `04-zielmodell.md` (Contract + Resolver-Signatur + Konsumenten-Liste).
+Deliverable: `04-zielmodell.md` (Contract + Resolver-Signatur + Konsumenten-Liste + per-Seite-md-Entscheidung).
 
 ---
 
@@ -120,10 +196,14 @@ Deliverable: `04-zielmodell.md` (Contract + Resolver-Signatur + Konsumenten-List
 `scripts/repair-shadow-twins.ts` (idempotent, `--dry-run`, pro Library):
 1. **Transkript-Map kollabieren:** Legacy `transcript.{lang}` → Single-Record.
    - ⚠️ **WICHTIG:** **„vollständigster gewinnt", NICHT „neuester gewinnt".** (Das „neueste" war hier die kaputte Einseiten-Version — Ursache des Chaos.) Heuristik: längster `markdown` / meiste Seiten-Marker.
-2. **Kaputte Transkripte erkennen & melden:** `pages > 1` aber Transkript hat nur 1 Seiten-Marker → in Report als „re-extract nötig" markieren (NICHT automatisch löschen).
-3. **Filesystem-Abgleich:** verwaiste/partielle `{base}.md` erkennen; gegen Mongo-Wahrheit spiegeln oder melden.
-4. **Report-first:** Dry-Run gibt Tabelle aus (Quelle, vorher/nachher, Aktion). Erst mit `--apply` schreiben.
-5. **Backup-Pflicht** im Skript-Header dokumentieren.
+2. **Transformation/canonical normalisieren:** sicherstellen, dass `transformation[template][lang]`
+   und `canonical[lang]` je genau ein Record sind (Duplikate/Toleranz-Reste entfernen, „neuester gewinnt"
+   nur hier zulässig, da diese user-autored sind — im Report ausweisen).
+3. **Kaputte Transkripte erkennen & melden:** `pages > 1` aber Transkript hat nur 1 Seiten-Marker → in Report als „re-extract nötig" markieren (NICHT automatisch löschen).
+4. **Filesystem-Abgleich:** verwaiste/partielle `{base}.md` erkennen; **verwaiste `page_NNN.md`
+   zählen/melden** (Kandidaten zum Löschen, nicht automatisch). Gegen Mongo-Wahrheit spiegeln oder melden.
+5. **Report-first:** Dry-Run gibt Tabelle aus (Quelle, vorher/nachher, Aktion). Erst mit `--apply` schreiben.
+6. **Backup-Pflicht** im Skript-Header dokumentieren.
 
 Deliverable: Skript + `05-repair-report-beispiel.md`.
 
@@ -147,6 +227,10 @@ Deliverable: Skript + `05-repair-report-beispiel.md`.
 
 - **Unit:** `resolveShadowTwinArtifacts` (Single-Record vorhanden; kein Artefakt → null; Legacy-Map nach Reparatur nicht mehr nötig → optional Test, dass Legacy NICHT mehr toleriert wird).
 - **Integration (lokal):** Datei öffnen → **genau ein** Resolver-Call, **keine** Schreib-Nebenwirkung in den Logs; Transkript-Tab + Übersicht zeigen **dasselbe** Artefakt (Name + Inhalt konsistent).
+- **Performance (Abnahmekriterium):** dieselbe Messung wie Phase 0 (0a/0b) wiederholen und
+  vergleichen — Ziel: deutlich weniger HTTP-Calls pro Datei (Redundanz weg), spürbar schnelleres
+  Verzeichnis- und Datei-Öffnen, **0** Schreib-Calls beim Lesen. Vorher/Nachher-Zahlen in
+  `05-`/Verifikations-Doc festhalten.
 - `pnpm test` + `pnpm lint` grün.
 
 ---
