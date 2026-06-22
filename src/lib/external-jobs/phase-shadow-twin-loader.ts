@@ -544,14 +544,35 @@ export async function loadShadowTwinMarkdown(
           provider,
         })
 
-        // Zuerst Transformation versuchen (falls Template vorhanden)
-        const transformationResult = templateName
+        // Transformation bevorzugen. Zuerst exakt (mit templateName, falls vorhanden),
+        // sonst template-agnostisch: der Store waehlt via selectShadowTwinArtifact die beste
+        // vorhandene Transformation — auch wenn templateName/Sprache nicht exakt passen
+        // (z.B. Publish-Job laeuft mit Library-Sprache 'en', Transformation liegt unter 'de').
+        // WICHTIG: Verhindert, dass beim Publizieren faelschlich das Transkript (rohes OCR)
+        // als "Story" landet, obwohl eine Transformation existiert.
+        let transformationResult = templateName
           ? await service.getMarkdown({
               kind: 'transformation',
               targetLanguage: lang,
               templateName,
             })
           : null
+
+        if (!transformationResult) {
+          transformationResult = await service.getMarkdown({
+            kind: 'transformation',
+            targetLanguage: lang,
+          })
+          if (transformationResult) {
+            FileLogger.info('phase-shadow-twin-loader', 'Transformation template-agnostisch geladen (kein exakter templateName/Sprache-Treffer)', {
+              jobId,
+              purpose,
+              requestedTemplateName: templateName || null,
+              requestedLanguage: lang,
+              fileName: transformationResult.name,
+            })
+          }
+        }
 
         if (transformationResult) {
           FileLogger.info('phase-shadow-twin-loader', 'Transformation über ShadowTwinService geladen', {
@@ -583,7 +604,10 @@ export async function loadShadowTwinMarkdown(
         })
 
         if (transcriptResult) {
-          FileLogger.info('phase-shadow-twin-loader', 'Fallback: Transkript über ShadowTwinService geladen (keine Transformation)', {
+          // Bewusst WARN: Es existiert KEINE Transformation, daher wird das (rohe) Transkript
+          // als Ingest-/Story-Quelle verwendet. Das ist nur fuer echte Passthrough-Faelle
+          // (keine Transformation) korrekt — bei vorhandener Transformation darf das nie passieren.
+          FileLogger.warn('phase-shadow-twin-loader', 'Fallback: Transkript als Ingest-Quelle (keine Transformation gefunden)', {
             jobId,
             purpose,
             fileId: transcriptResult.id,
