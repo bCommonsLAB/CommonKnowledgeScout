@@ -68,7 +68,7 @@ export interface StepRenderContext {
   scheduleMetadataEditedLog: (metadata: Record<string, unknown>) => void
   /** Rendert `template.markdownBody` mit {{var|…}}-Tokens (für previewDetail-Fallback). */
   renderTemplateBody: (args: { body: string; values: Record<string, unknown> }) => string
-  /** Auflösung des Preview-Renderers (4-vs-8-Drift bewusst beibehalten). */
+  /** Auflösung des Preview-Renderers über die geteilte Registry (alle detailViewTypes). */
   resolveDetailViewType: () => WizardPreviewViewType
 }
 

@@ -57,9 +57,8 @@ const WIZARDS = [
     name: 'pc-steckbrief',
     sources: ['text'],
     editFields: ['title', 'device_type', 'cpu', 'ram_gb', 'storage_gb', 'condition_grade', 'filename'],
-    // Renderer-Drift: Schema sagt refurbedDevice, Wizard-Preview liefert session.
-    schemaRenderer: 'refurbedDevice',
-    renderer: 'session',
+    // Drift behoben: Wizard-Preview nutzt die geteilte Registry -> refurbedDevice.
+    renderer: 'refurbedDevice',
     mustHavePresets: ['previewDetail', 'publish'],
     ingestOnFinish: false,
   },
@@ -86,7 +85,7 @@ describe.each(WIZARDS)('Wizard-Konzept: $name', (w) => {
     expect(editStep(t.creation!.flow.steps)?.fields ?? []).toEqual([...w.editFields])
   })
 
-  it('Vorschau-Renderer wie im Konzept (inkl. Drift)', () => {
+  it('Vorschau-Renderer wie im Konzept (geteilte Registry, kein Drift)', () => {
     expect(resolveWizardPreviewViewType(load(w.name))).toBe(w.renderer)
   })
 
@@ -113,13 +112,6 @@ describe.each(WIZARDS)('Wizard-Konzept: $name', (w) => {
     it('markiert die dokumentierten Bild-Felder', () => {
       const step = editStep(load(w.name).creation!.flow.steps)
       expect(step?.imageFieldKeys ?? []).toEqual([...w.imageFields])
-    })
-  }
-
-  if ('schemaRenderer' in w && w.schemaRenderer) {
-    it('Schema-Renderer weicht vom Wizard-Preview ab (Drift dokumentiert)', () => {
-      expect(load(w.name).metadata.detailViewType).toBe(w.schemaRenderer)
-      expect(resolveWizardPreviewViewType(load(w.name))).not.toBe(w.schemaRenderer)
     })
   }
 
