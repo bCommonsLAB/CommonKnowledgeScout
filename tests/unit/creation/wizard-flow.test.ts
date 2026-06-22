@@ -113,7 +113,7 @@ describe('canProceedFromStep — Per-Preset-Gating', () => {
   })
 })
 
-describe('resolveWizardPreviewViewType — Renderer-Auflösung inkl. Drift', () => {
+describe('resolveWizardPreviewViewType — Renderer-Auflösung über geteilte Registry', () => {
   it.each([
     ['event', 'session'],
     ['event-final', 'session'],
@@ -123,10 +123,26 @@ describe('resolveWizardPreviewViewType — Renderer-Auflösung inkl. Drift', () 
     expect(resolveWizardPreviewViewType(loadFixture(name))).toBe(expected)
   })
 
-  it('pc-steckbrief: refurbedDevice ist dem Wizard-Preview unbekannt → Drift-Fallback session', () => {
+  it('pc-steckbrief: refurbedDevice wird korrekt aufgelöst (kein stiller session-Fallback mehr)', () => {
     const t = loadFixture('pc-steckbrief')
     expect(t.metadata.detailViewType).toBe('refurbedDevice')
-    expect(resolveWizardPreviewViewType(t)).toBe('session')
+    expect(resolveWizardPreviewViewType(t)).toBe('refurbedDevice')
+  })
+
+  it('Legacy-Pfad: nimmt creation.preview.detailViewType, wenn metadata keinen Typ hat', () => {
+    expect(
+      resolveWizardPreviewViewType({ creation: { preview: { detailViewType: 'climateAction' } } }),
+    ).toBe('climateAction')
+  })
+
+  it('wirft bei unbekanntem detailViewType (kein stiller Fallback)', () => {
+    expect(() => resolveWizardPreviewViewType({ metadata: { detailViewType: 'banana' } })).toThrow(
+      /ungueltiger oder fehlender detailViewType: "banana"/,
+    )
+  })
+
+  it('wirft bei fehlendem detailViewType (A0-Basis-Feld-Contract)', () => {
+    expect(() => resolveWizardPreviewViewType({})).toThrow(/detailViewType: \(fehlt\)/)
   })
 })
 

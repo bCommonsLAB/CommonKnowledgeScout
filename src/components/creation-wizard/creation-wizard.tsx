@@ -29,7 +29,7 @@ import { buildDictationDraftFromSources, suggestDictationFileBaseName } from "@/
 import { applyEventFrontmatterDefaults } from "@/lib/events/event-frontmatter-defaults"
 import type { WizardSource } from "@/lib/creation/corpus"
 import { buildCorpusText, buildTranscriptMarkdown, isCorpusTooLarge, truncateCorpus } from "@/lib/creation/corpus"
-import { filterWizardSteps, canProceedFromStep, resolveWizardPreviewViewType } from "@/lib/creation/wizard-flow"
+import { filterWizardSteps, canProceedFromStep, resolveWizardPreviewViewType, type WizardPreviewViewType } from "@/lib/creation/wizard-flow"
 import { parseFrontmatter } from "@/lib/markdown/frontmatter"
 import { createMarkdownWithFrontmatter } from "@/lib/markdown/compose"
 import { resolveArtifactClient } from "@/lib/shadow-twin/artifact-client"
@@ -157,8 +157,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     })
   }, [])
 
-  function resolveTemplateDetailViewType(): 'book' | 'session' | 'testimonial' | 'blog' {
-    // SSOT + bekannte 4-vs-8-Drift: siehe resolveWizardPreviewViewType (wizard-flow.ts).
+  function resolveTemplateDetailViewType(): WizardPreviewViewType {
+    // SSOT über die geteilte Registry: alle detailViewTypes, kein 'session'-Drift.
     return resolveWizardPreviewViewType({
       metadata: template?.metadata,
       creation: template?.creation,
