@@ -10,7 +10,7 @@ sourceType: {{sourceType|One of: pdf, audio, transcript, other. Classify the inp
 docType: {{docType|One of: article, report, study, book, brochure, lecture, interview, transcript, other}}
 
 # Core metadata (for cards, gallery listing, facets)
-title: {{title|Clear, readable title (max 80 chars). No colons or trailing punctuation.}}
+title: {{title|Full title EXACTLY as it appears in the source (title page / main heading). Extractive — no invention, no rewriting, no shortening.}}
 shortTitle: {{shortTitle|≤40 characters, readable, no trailing punctuation}}
 slug: {{slug|ASCII, lowercase, kebab-case; normalize diacritics (ä→ae, ö→oe, ü→ue, ß→ss); max 80; no double hyphens}}
 teaser: {{teaser|2–3 inviting sentences for preview cards. Not identical to summary.}}
