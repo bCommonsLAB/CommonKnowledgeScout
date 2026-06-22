@@ -276,9 +276,9 @@ export async function PATCH(
     console.log(`[API] Request Body:`, JSON.stringify(patchData, null, 2));
     console.log(`[API] Config Keys:`, patchData.config ? Object.keys(patchData.config) : []);
     if (patchData.config?.clientSecret) {
+      // Kein Secret-Wert ins Log (no-silent-fallbacks / keine Secrets loggen).
       console.log(`[API] ClientSecret im Request:`, {
-        value: patchData.config.clientSecret,
-        length: patchData.config.clientSecret.length,
+        hasValue: typeof patchData.config.clientSecret === 'string' && patchData.config.clientSecret.length > 0,
         isMasked: patchData.config.clientSecret === '********'
       });
     }
@@ -294,10 +294,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 });
     }
     
-    // Debug: Zeige existierende Config
+    // Debug: Zeige existierende Config (ohne Secret-Werte zu loggen)
     console.log(`[API] Existierende Config:`, {
       hasClientSecret: !!existingLibrary.config?.clientSecret,
-      clientSecretValue: existingLibrary.config?.clientSecret,
       configKeys: existingLibrary.config ? Object.keys(existingLibrary.config) : []
     });
     
@@ -307,7 +306,9 @@ export async function PATCH(
     if (patchData.config) {
       // Für jedes Feld in der neuen Config
       for (const [key, value] of Object.entries(patchData.config)) {
-        console.log(`[API] Verarbeite Config-Feld: ${key} = ${key === 'clientSecret' ? '[REDACTED]' : value}`);
+        // Nur den Feldnamen loggen – Werte koennen Secrets (clientSecret,
+        // nextcloud.appPassword, …) enthalten und gehoeren nicht ins Log.
+        console.log(`[API] Verarbeite Config-Feld: ${key}`);
         
         // Spezielle Behandlung für clientSecret
         if (key === 'clientSecret') {

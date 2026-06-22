@@ -29,7 +29,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const refreshToken = cfg?.refreshToken as string | undefined
     const tokenExpiry = cfg?.tokenExpiry as number | string | undefined
 
-    // Debug-Informationen zurückgeben
+    // Debug-Informationen zurückgeben (keine Token-Fragmente: auch Teil-
+    // Secrets gehoeren weder ins Log noch in eine Response).
     const debugInfo = {
       libraryId: id,
       libraryLabel: lib.label,
@@ -39,9 +40,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       hasRefreshToken: !!refreshToken,
       hasTokenExpiry: !!tokenExpiry,
       tokenExpiryValue: tokenExpiry,
-      // Zeige erste/last 10 Zeichen der Tokens für Debugging (nicht vollständig aus Sicherheitsgründen)
-      accessTokenPreview: accessToken ? `${accessToken.substring(0, 10)}...${accessToken.substring(accessToken.length - 10)}` : null,
-      refreshTokenPreview: refreshToken ? `${refreshToken.substring(0, 10)}...${refreshToken.substring(refreshToken.length - 10)}` : null,
     }
 
     if (!accessToken || !refreshToken) {

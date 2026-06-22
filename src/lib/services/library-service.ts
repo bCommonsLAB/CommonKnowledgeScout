@@ -27,6 +27,12 @@ import { getCollection } from '@/lib/mongodb-service';
 import { Library, ClientLibrary, FavoriteEntry } from '@/types/library';
 import { shouldShowOnHomepage } from '@/lib/public-publishing';
 import { buildCaseInsensitiveEmailRegex, normalizeEmail } from '@/lib/auth/user-email';
+import { isMaskedSecret } from '@/lib/security/masked-secret';
+import {
+  decryptLibrariesSecrets,
+  decryptLibrarySecrets,
+  encryptLibrariesSecrets,
+} from '@/lib/security/library-credentials';
 
 export interface UserLibraries {
   email: string;  // Statt userId eine E-Mail-Adresse verwenden
@@ -38,16 +44,11 @@ export interface UserLibraries {
 /**
  * Erkennt Maskierungs-Sentinels, die toClientLibraries()/maskApiKey()
  * an den Client liefern ('********', '••••…', 'abc….................xyz').
- * Exportiert fuer Char-Tests (D5-Fix, 2026-06-12).
+ * Re-Export aus `@/lib/security/masked-secret` (neutrale Heimat ohne
+ * zirkulaere Abhaengigkeit zur Encryption-Schicht). Exportiert fuer
+ * Char-Tests (D5-Fix, 2026-06-12).
  */
-export function isMaskedSecret(value: unknown): boolean {
-  if (typeof value !== 'string' || value === '') return false;
-  return (
-    value === '********' ||
-    value.includes('••••') ||
-    value.includes('....................')
-  );
-}
+export { isMaskedSecret };
 
 /**
  * D5-Fix: Beim Speichern duerfen maskierte Secrets den Bestand nicht
@@ -169,8 +170,10 @@ export class LibraryService {
           console.log(`Duplikat gefunden und übersprungen: Bibliothek mit ID ${lib.id} (${lib.label})`);
         }
       }
-      
-      return uniqueLibraries;
+
+      // Secrets at-rest: in der DB liegen Zugangsdaten verschluesselt; hier am
+      // Lese-Rand zu Klartext entschluesseln (Legacy-Klartext bleibt unveraendert).
+      return decryptLibrariesSecrets(uniqueLibraries);
     } catch (error) {
       console.error('Fehler beim Abrufen der Bibliotheken:', error);
       throw error;
@@ -274,38 +277,42 @@ export class LibraryService {
       if (!normalizedEmail) return false;
 
       const collection = await getCollection<UserLibraries>(this.collectionName);
-      
+
+      // Secrets at-rest: am Schreib-Rand alle Zugangsdaten verschluesseln
+      // (idempotent; bereits verschluesselte Werte bleiben unveraendert).
+      const encryptedLibraries = encryptLibrariesSecrets(libraries);
+
       // Prüfen, ob bereits ein Eintrag existiert
       // Wichtig: wir suchen auch case-insensitiv, um existierende Daten nicht "zu verlieren".
       const existingEntry =
         (await collection.findOne({ email: normalizedEmail })) ||
         (await collection.findOne({ email: { $regex: buildCaseInsensitiveEmailRegex(normalizedEmail) } }));
-      
+
       if (existingEntry) {
         // Vorhandenen Eintrag aktualisieren
         const result = await collection.updateOne(
           // Update auf dem tatsächlich gefundenen Key, um keine Duplikate zu erzeugen.
           // (Optional könnte man hier auch eine Migration auf normalisierte Emails durchführen.)
           { email: existingEntry.email },
-          { 
-            $set: { 
-              libraries,
+          {
+            $set: {
+              libraries: encryptedLibraries,
               name: userName || existingEntry.name || 'Unbekannter Benutzer',
               lastUpdated: new Date()
-            } 
+            }
           }
         );
-        
+
         return result.acknowledged;
       } else {
         // Neuen Eintrag erstellen
         const result = await collection.insertOne({
           email: normalizedEmail,
           name: userName || 'Unbekannter Benutzer',
-          libraries,
+          libraries: encryptedLibraries,
           lastUpdated: new Date()
         });
-        
+
         return result.acknowledged;
       }
     } catch (error) {
@@ -721,10 +728,10 @@ export class LibraryService {
       ];
       
       const publicLibraries = await collection.aggregate<Library>(pipeline).toArray();
-      
+
       console.log('[getAllPublicLibraries] Gefundene öffentliche Libraries:', publicLibraries.length);
-      
-      return publicLibraries;
+
+      return decryptLibrariesSecrets(publicLibraries);
     } catch (error) {
       console.error('[getAllPublicLibraries] Fehler beim Abrufen der öffentlichen Bibliotheken:', error);
       throw error;
@@ -766,8 +773,8 @@ export class LibraryService {
       console.log('[LibraryService] Führe MongoDB-Aggregation aus...');
       const results = await collection.aggregate<Library>(pipeline).toArray();
       console.log('[LibraryService] Aggregation-Ergebnis:', results.length, 'Library(s) gefunden');
-      
-      return results.length > 0 ? results[0] : null;
+
+      return results.length > 0 ? decryptLibrarySecrets(results[0]) : null;
     } catch (error) {
       console.error('[LibraryService] Fehler beim Abrufen der öffentlichen Bibliothek nach ID:', error);
       throw error;
@@ -806,8 +813,8 @@ export class LibraryService {
       ];
       
       const results = await collection.aggregate<Library>(pipeline).toArray();
-      
-      return results.length > 0 ? results[0] : null;
+
+      return results.length > 0 ? decryptLibrarySecrets(results[0]) : null;
     } catch (error) {
       console.error('Fehler beim Abrufen der öffentlichen Bibliothek nach Slug:', error);
       throw error;
@@ -833,7 +840,7 @@ export class LibraryService {
         { $replaceRoot: { newRoot: '$libraries' } },
       ];
       const results = await collection.aggregate<Library>(pipeline).toArray();
-      return results.length > 0 ? results[0] : null;
+      return results.length > 0 ? decryptLibrarySecrets(results[0]) : null;
     } catch (error) {
       console.error('[LibraryService] Fehler bei getLibraryByPublishingSlug:', error);
       throw error;
@@ -859,7 +866,7 @@ export class LibraryService {
       ];
       
       const results = await collection.aggregate<Library>(pipeline).toArray();
-      return results.length > 0 ? results[0] : null;
+      return results.length > 0 ? decryptLibrarySecrets(results[0]) : null;
     } catch (error) {
       console.error('[LibraryService] Fehler beim Abrufen der Bibliothek nach ID:', error);
       return null;

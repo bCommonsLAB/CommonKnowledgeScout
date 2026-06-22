@@ -121,6 +121,7 @@ The application requires several environment variables to be configured. Create 
 | `MONGODB_URI` | Yes | MongoDB connection string |
 | `MONGODB_DATABASE_NAME` | Yes | Database name |
 | `MONGODB_COLLECTION_NAME` | No | Collection name (default: `libraries`) |
+| `CREDENTIALS_ENCRYPTION_KEY` | Yes¹ | 32-byte key (Base64 or Hex) for AES-256-GCM encryption-at-rest of stored storage credentials. Generate: `openssl rand -base64 32`. ¹Required as soon as any library stores credentials. After setting it, migrate existing plaintext via `pnpm tsx scripts/migrate-encrypt-credentials.ts`. Keep the key stable — without it the encrypted secrets cannot be read. |
 
 #### LLM Chat Configuration
 
