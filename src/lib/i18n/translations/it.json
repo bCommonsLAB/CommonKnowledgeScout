@@ -265,6 +265,8 @@
     "detailViewTypeDivaTextureDescription": "Vista dettaglio per analisi delle texture con metadati strutturati.",
     "detailViewTypeRefurbedDevice": "RefurbedDevice (PC/Notebook usati)",
     "detailViewTypeRefurbedDeviceDescription": "Vista dettaglio per PC e notebook usati regalati a studenti, insegnanti e famiglie.",
+    "detailViewTypeWebsite": "Sito web (Landing page)",
+    "detailViewTypeWebsiteDescription": "Landing page come documento: hero con titolo/sottotitolo, sezioni di contenuto, video e invito all'azione.",
     "texts": {
       "session": {
         "headline": "Scopri i contenuti di questo evento",

@@ -54,7 +54,7 @@ export const libraryFormSchema = z.object({
   // Inhaltstyp bei der Erstellung (Onboarding "Name + Inhaltstyp = fertig",
   // Petra-Review Punkt 2). Wird nur bei isNew in config.chat.gallery gesendet.
   detailViewType: z
-    .enum(["book", "session", "climateAction", "testimonial", "blog", "divaDocument", "divaTexture", "refurbedDevice"])
+    .enum(["book", "session", "climateAction", "testimonial", "blog", "divaDocument", "divaTexture", "refurbedDevice", "website"])
     .default("book"),
   // Transformation: DIVA-Liefersystem-Daten auswerten (DIVA-Info-Tab). Default false.
   analyzeDivaTextureInfo: z.boolean().default(false),

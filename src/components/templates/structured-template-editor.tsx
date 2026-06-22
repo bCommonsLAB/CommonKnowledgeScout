@@ -622,6 +622,7 @@ export function StructuredTemplateEditor({ markdownBody, metadata, systemprompt,
                 <SelectItem value="divaDocument">DivaDocument</SelectItem>
                 <SelectItem value="divaTexture">DivaTexture (Texturanalyse)</SelectItem>
                 <SelectItem value="refurbedDevice">RefurbedDevice (Gebrauchte PCs/Notebooks)</SelectItem>
+                <SelectItem value="website">Webseite (Landingpage)</SelectItem>
               </SelectContent>
             </Select>
             

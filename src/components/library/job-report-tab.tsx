@@ -1720,6 +1720,7 @@ export function JobReportTab({
                   divaDocument: ['title', 'dokumentTyp', 'produktname', 'lieferant'],
                   divaTexture: ['title'],
                   refurbedDevice: ['title', 'modell'],
+                  website: ['title'],
                 }
                 const requiredFields = requiredFieldsByType[effectivePreviewType] || ['title']
                 const missingFields = requiredFields.filter(field => {

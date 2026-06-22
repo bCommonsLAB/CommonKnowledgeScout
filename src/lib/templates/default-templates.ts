@@ -82,6 +82,7 @@ const VIEW_TYPE_PROMPT_FOCUS: Record<DetailViewType, string> = {
   divaDocument: 'Du extrahierst strukturierte Produktdaten aus DIVA-Lieferdokumenten.',
   divaTexture: 'Du extrahierst Material- und Texturattribute aus DIVA-Lieferdaten.',
   refurbedDevice: 'Du extrahierst technische Daten und Zustand eines aufbereiteten Geraets.',
+  website: 'Du strukturierst eine Webseite/Landingpage in Hero, Inhalts-Sektionen und Aufruf zur Handlung.',
 }
 
 /** LLM-Anweisung fuer ein Feld (kuratiert, sonst generischer Fallback). */

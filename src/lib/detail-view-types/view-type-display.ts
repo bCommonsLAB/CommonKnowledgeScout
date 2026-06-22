@@ -22,6 +22,7 @@ export const VIEW_TYPE_LABELS: Record<DetailViewType, string> = {
   divaDocument: 'DIVA-Dokument',
   divaTexture: 'DIVA-Textur',
   refurbedDevice: 'Refurbed-Gerät',
+  website: 'Webseite',
 }
 
 /** Liefert das Format-Label oder `null` (unbekannter/fehlender Typ). */

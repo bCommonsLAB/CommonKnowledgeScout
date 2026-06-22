@@ -265,6 +265,8 @@
     "detailViewTypeDivaTextureDescription": "Vue détaillée pour l'analyse de textures avec métadonnées structurées.",
     "detailViewTypeRefurbedDevice": "RefurbedDevice (PC/Portables d'occasion)",
     "detailViewTypeRefurbedDeviceDescription": "Vue détaillée pour PC et portables d'occasion offerts à des élèves, enseignants et familles.",
+    "detailViewTypeWebsite": "Site web (Landing page)",
+    "detailViewTypeWebsiteDescription": "Landing page sous forme de document : hero avec titre/sous-titre, sections de contenu, vidéo et appel à l'action.",
     "texts": {
       "session": {
         "headline": "Découvrez les contenus de cet événement",

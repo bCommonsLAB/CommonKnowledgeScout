@@ -17,6 +17,8 @@ export function isSafeVideoIframeSrc(raw: string): boolean {
     const host = parsed.hostname.toLowerCase()
     if (host.includes('youtube.com') || host === 'youtu.be') return true
     if (host.includes('vimeo.com')) return true
+    // PeerTube-Embed (instanzunabhaengig, z. B. peertube.uno): /videos/embed/<id>
+    if (/\/videos\/embed\//.test(parsed.pathname)) return true
     // Direkte Video-Dateien (kein Audio — iframe ist dafür ungeeignet)
     if (/\.(mp4|webm)(\?|$)/i.test(parsed.pathname)) return true
     return false

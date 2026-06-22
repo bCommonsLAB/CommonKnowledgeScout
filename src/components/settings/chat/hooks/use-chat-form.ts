@@ -82,7 +82,7 @@ export const chatFormSchema = z.object({
         if (val === '' || val === undefined || val === null) return 'book';
         return val;
       },
-      z.enum(['book', 'session', 'climateAction', 'testimonial', 'blog', 'divaDocument', 'divaTexture', 'refurbedDevice']).default('book')
+      z.enum(['book', 'session', 'climateAction', 'testimonial', 'blog', 'divaDocument', 'divaTexture', 'refurbedDevice', 'website']).default('book')
     ),
     // Gruppierung: 'none' = keine, 'year' = nach Jahr, oder ein Facetten-Key
     groupByField: z.preprocess(
@@ -290,7 +290,7 @@ export function useChatForm(): UseChatFormResult {
       } | undefined
       const detailViewType = galleryConfig?.detailViewType
 
-      const validDetailViewTypes = ['book', 'session', 'climateAction', 'testimonial', 'blog', 'divaDocument', 'divaTexture', 'refurbedDevice'] as const
+      const validDetailViewTypes = ['book', 'session', 'climateAction', 'testimonial', 'blog', 'divaDocument', 'divaTexture', 'refurbedDevice', 'website'] as const
       type DetailViewType = typeof validDetailViewTypes[number]
       let finalViewType: DetailViewType = 'book'
       if (typeof detailViewType === 'string' && validDetailViewTypes.includes(detailViewType as DetailViewType)) {

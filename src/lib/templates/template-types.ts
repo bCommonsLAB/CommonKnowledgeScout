@@ -70,7 +70,7 @@ export interface TemplateCreationWelcomeConfig {
   markdown: string
 }
 
-export type TemplatePreviewDetailViewType = 'book' | 'session' | 'testimonial' | 'blog' | 'climateAction' | 'divaDocument' | 'divaTexture' | 'refurbedDevice'
+export type TemplatePreviewDetailViewType = 'book' | 'session' | 'testimonial' | 'blog' | 'climateAction' | 'divaDocument' | 'divaTexture' | 'refurbedDevice' | 'website'
 
 export interface TemplateCreationPreviewConfig {
   /**

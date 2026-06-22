@@ -292,6 +292,8 @@
     "detailViewTypeDivaTextureDescription": "Detailansicht für Texturanalysen mit strukturierten Metadaten.",
     "detailViewTypeRefurbedDevice": "RefurbedDevice (Gebrauchte PCs/Notebooks)",
     "detailViewTypeRefurbedDeviceDescription": "Detailansicht für gebrauchte PCs und Notebooks, die an Schüler, Lehrer und Familien verschenkt werden.",
+    "detailViewTypeWebsite": "Webseite (Landingpage)",
+    "detailViewTypeWebsiteDescription": "Landingpage als Dokument: Hero mit Titel/Untertitel, Inhalts-Sektionen, Video und Aufruf zur Handlung.",
     "texts": {
       "session": {
         "headline": "Entdecke die Inhalte dieses Events",

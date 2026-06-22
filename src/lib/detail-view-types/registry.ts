@@ -28,7 +28,7 @@ import { z } from 'zod'
  * Alle verfügbaren DetailViewTypes als const Array.
  * Dies ist die einzige Stelle, an der neue ViewTypes hinzugefügt werden müssen.
  */
-export const DETAIL_VIEW_TYPES = ['book', 'session', 'testimonial', 'blog', 'climateAction', 'divaDocument', 'divaTexture', 'refurbedDevice'] as const
+export const DETAIL_VIEW_TYPES = ['book', 'session', 'testimonial', 'blog', 'climateAction', 'divaDocument', 'divaTexture', 'refurbedDevice', 'website'] as const
 
 /**
  * Union Type aller gültigen DetailViewTypes.
@@ -510,6 +510,44 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
       text: [],
       arrayOfText: [],
       topicLike: [],
+    },
+  },
+  website: {
+    requiredFields: ['title', 'language', 'targetLanguage'],
+    optionalFields: [
+      'hero_subtitle',
+      'hero_image',
+      'video_url',
+      'cta_label',
+      'cta_url',
+      'menu_order',
+      'prioritaets_index',
+      'coverImageUrl',
+      'markdown',
+      'source_url',
+      'tags',
+      'docType',
+    ],
+    labelKey: 'gallery.detailViewTypeWebsite',
+    descriptionKey: 'gallery.detailViewTypeWebsiteDescription',
+    mediaConfig: {
+      coverImage: true,
+      attachments: false,
+      urlField: false,
+    },
+    /**
+     * website: flache Hero-/CTA-Felder + Markdown-Body werden uebersetzt.
+     * Sektionen leben im `markdown` (ein Textfeld) -> generischer Translator.
+     */
+    translatable: {
+      text: [
+        { key: 'title', scope: 'both' },
+        { key: 'hero_subtitle', scope: 'both' },
+        { key: 'cta_label', scope: 'both' },
+        { key: 'markdown', scope: 'detail' },
+      ],
+      arrayOfText: [],
+      topicLike: [{ key: 'tags', scope: 'both' }],
     },
   },
 }

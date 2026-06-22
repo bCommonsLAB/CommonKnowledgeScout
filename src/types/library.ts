@@ -202,7 +202,7 @@ export interface LibraryChatConfig {
   /** Gallery-Konfiguration für die Wissensgalerie */
   gallery?: {
     /** Typ der Detailansicht für verschiedene Dokumenttypen */
-    detailViewType?: 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog' | 'divaDocument' | 'divaTexture' | 'refurbedDevice';
+    detailViewType?: 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog' | 'divaDocument' | 'divaTexture' | 'refurbedDevice' | 'website';
     /**
      * Anzeige: Generisches SDG-Profil (SDG-Rad, 17 Nachhaltigkeitsziele) in der
      * Detailansicht. Wenn true, wird das Rad gerendert, sofern die Felder
