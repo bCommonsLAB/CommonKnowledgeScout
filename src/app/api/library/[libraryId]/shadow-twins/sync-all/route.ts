@@ -30,6 +30,7 @@ import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import {
   getShadowTwinsBySourceIds,
   updateShadowTwinArtifactMarkdown,
+  readTranscriptRecord,
   type ShadowTwinDocument,
   type ShadowTwinArtifactRecord,
   type MongoBinaryFragment,
@@ -502,9 +503,11 @@ export async function POST(
       report.withShadowTwin++
       const sourceModifiedAt = toDate(file.metadata.modifiedAt)
 
-      // Transcript-Artefakte
-      if (doc.artifacts?.transcript) {
-        for (const [lang, record] of Object.entries(doc.artifacts.transcript)) {
+      // Transcript-Artefakt (sprach-neutral: max. ein Record pro Quelle; Helper toleriert Legacy-Map)
+      {
+        const transcriptRecord = readTranscriptRecord(doc)
+        const transcriptEntries: Array<[string, ShadowTwinArtifactRecord]> = transcriptRecord ? [['', transcriptRecord]] : []
+        for (const [lang, record] of transcriptEntries) {
           const result = await syncArtifact(
             cache, provider, libraryId, doc, sourceModifiedAt,
             'transcript', lang, record, undefined, storageExpected, direction, dryRun,

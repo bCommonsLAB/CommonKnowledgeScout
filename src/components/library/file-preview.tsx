@@ -241,6 +241,11 @@ function PreviewContent({
   // Lokaler Trigger: Erhöhung erzwingt erneutes Laden aller Artefakte (loadAllArtifacts-Effect).
   // Wird vom Fallback-Polling gesetzt, wenn der Job als abgeschlossen erkannt wird.
   const [artifactsRefreshTrigger, setArtifactsRefreshTrigger] = React.useState(0)
+  // Globaler Shadow-Twin-Re-Analyse-Trigger: aktualisiert Tab-Status (useStoryStatus) UND
+  // shadowTwinStateAtom (Wizard hasTransformed). MUSS nach Job-Ende ebenfalls gebumpt werden,
+  // sonst bleiben Transformation-Tab/Wizard veraltet, wenn das Job-Panel geschlossen war
+  // (dessen SSE-Burst greift dann nicht).
+  const setShadowTwinAnalysisTrigger = useSetAtom(shadowTwinAnalysisTriggerAtom)
   React.useEffect(() => {
     if (!activeLibraryId || !item.id) return
     let cancelled = false
@@ -837,6 +842,7 @@ function PreviewContent({
     if (!pendingJobId || !activeLibraryId) return
 
     let stopped = false
+    let lateTimer: ReturnType<typeof setTimeout> | null = null
     let pollCount = 0
     const MAX_POLLS = 30 // max ~4 Minuten
 
@@ -848,8 +854,14 @@ function PreviewContent({
         if (!res.ok || stopped) return
         const data = await res.json() as { status?: string }
         if (data.status === 'completed' || data.status === 'failed') {
-          // Job fertig: Artefakte direkt neu laden (direkter Trigger für loadAllArtifacts-Effect)
+          // Job fertig:
+          // 1) Artefakt-Dropdown-Listen neu laden (loadAllArtifacts-Effect)
           setArtifactsRefreshTrigger((v) => v + 1)
+          // 2) Shadow-Twin-Re-Analyse anstossen -> aktualisiert Tab-Status (useStoryStatus) UND
+          //    shadowTwinStateAtom (Wizard hasTransformed), auch wenn das Job-Panel geschlossen war.
+          //    Kleiner Nachschlag fuer eventuelle Storage-Latenz (analog Panel-Burst).
+          setShadowTwinAnalysisTrigger((v) => v + 1)
+          lateTimer = setTimeout(() => setShadowTwinAnalysisTrigger((v) => v + 1), 1500)
           setPendingJobId(null)
           stopped = true
         }
@@ -864,8 +876,9 @@ function PreviewContent({
     return () => {
       stopped = true
       clearInterval(interval)
+      if (lateTimer) clearTimeout(lateTimer)
     }
-  }, [pendingJobId, activeLibraryId, setArtifactsRefreshTrigger])
+  }, [pendingJobId, activeLibraryId, setArtifactsRefreshTrigger, setShadowTwinAnalysisTrigger])
 
   // async function loadRagStatus() {
   //   try {

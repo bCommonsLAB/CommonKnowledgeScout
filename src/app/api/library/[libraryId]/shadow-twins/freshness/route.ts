@@ -17,7 +17,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { LibraryService } from '@/lib/services/library-service'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
-import { getShadowTwinsBySourceIds, type ShadowTwinDocument } from '@/lib/repositories/shadow-twin-repo'
+import { getShadowTwinsBySourceIds, readTranscriptRecord, type ShadowTwinDocument, type ShadowTwinArtifactRecord } from '@/lib/repositories/shadow-twin-repo'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import { findShadowTwinFolder } from '@/lib/storage/shadow-twin'
@@ -212,9 +212,11 @@ export async function POST(
     const parentId = body.parentId || doc?.parentId || ''
 
     if (doc) {
-      // Transcript-Artefakte verarbeiten
-      if (doc.artifacts?.transcript) {
-        for (const [lang, record] of Object.entries(doc.artifacts.transcript)) {
+      // Transcript-Artefakt (sprach-neutral: max. ein Record pro Quelle; Helper toleriert Legacy-Map) verarbeiten
+      {
+        const transcriptRecord = readTranscriptRecord(doc)
+        const transcriptEntries: Array<[string, ShadowTwinArtifactRecord]> = transcriptRecord ? [['', transcriptRecord]] : []
+        for (const [lang, record] of transcriptEntries) {
           const fileName = buildArtifactName(
             { sourceId: body.sourceId, kind: 'transcript', targetLanguage: lang },
             doc.sourceName || sourceName

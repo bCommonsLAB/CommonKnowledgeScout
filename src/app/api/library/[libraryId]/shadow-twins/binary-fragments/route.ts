@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { LibraryService } from '@/lib/services/library-service'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
-import { getShadowTwinsBySourceIds } from '@/lib/repositories/shadow-twin-repo'
+import { getShadowTwinsBySourceIds, readTranscriptRecord, type ShadowTwinArtifactRecord } from '@/lib/repositories/shadow-twin-repo'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { isAbsoluteLoopbackMediaUrl } from '@/lib/storage/non-portable-media-url'
 import { FileLogger } from '@/lib/debug/logger'
@@ -114,9 +114,11 @@ export async function POST(
       // Ordnernamen einmalig pro parentId aufloesen
       const parentName = await resolveParentName(doc.parentId)
 
-      // Extrahiere Transcript-Artefakte
-      if (doc.artifacts?.transcript) {
-        for (const [targetLanguage] of Object.entries(doc.artifacts.transcript)) {
+      // Extrahiere Transcript-Artefakt (sprach-neutral: max. ein Record pro Quelle; Helper toleriert Legacy-Map)
+      {
+        const transcriptRecord = readTranscriptRecord(doc)
+        const transcriptEntries: Array<[string, ShadowTwinArtifactRecord]> = transcriptRecord ? [['', transcriptRecord]] : []
+        for (const [targetLanguage] of transcriptEntries) {
           const { buildArtifactName } = await import('@/lib/shadow-twin/artifact-naming')
           const artifactFileName = buildArtifactName(
             {

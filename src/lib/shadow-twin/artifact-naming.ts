@@ -5,7 +5,7 @@
  * Zentrale Funktionen zum Parsen und Generieren von Artefakt-Dateinamen.
  * 
  * Namenskonventionen:
- * - Transcript: {baseName}.{language}.md (z.B. "audio.de.md")
+ * - Transcript: {baseName}.md (sprach-neutral, z.B. "audio.md"); Legacy: {baseName}.{language}.md
  * - Transformation: {baseName}.{templateName}.{language}.md (z.B. "audio.Besprechung.de.md")
  * - Canonical: {baseName}.canonical.{language}.md (z.B. "document.canonical.de.md")
  * - Raw: {baseName}.raw.{ext} (z.B. "document.raw.html", "document.raw.csv")
@@ -186,8 +186,10 @@ export function buildArtifactName(
   const sourceBaseName = path.parse(sourceFileName).name;
   
   if (key.kind === 'transcript') {
-    // Transcript: {baseName}.{language}.md
-    return `${sourceBaseName}.${key.targetLanguage}.md`;
+    // Transcript: sprach-neutral -> {baseName}.md (KEIN Sprach-Suffix).
+    // Pro Quelle gibt es genau ein Transkript (Originalsprache des Dokuments);
+    // die Zielsprache betrifft nur Transformationen, nicht das Transkript.
+    return `${sourceBaseName}.md`;
   } else if (key.kind === 'transformation') {
     // Transformation: {baseName}.{templateName}.{language}.md
     if (!key.templateName) {

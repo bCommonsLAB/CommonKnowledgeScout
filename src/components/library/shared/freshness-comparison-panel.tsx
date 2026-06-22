@@ -256,7 +256,7 @@ export function FreshnessComparisonPanel({
                     <td className="px-2 py-1">
                       <div className="font-medium">
                         {art.kind === "transcript" ? "Transcript" : "Transformation"}
-                        <span className="text-muted-foreground ml-1">({art.targetLanguage})</span>
+                        <span className="text-muted-foreground ml-1">({art.kind === "transcript" ? "Original" : art.targetLanguage})</span>
                       </div>
                       <div className="text-[10px] text-muted-foreground truncate max-w-[200px]" title={art.fileName}>
                         {art.fileName}

@@ -47,28 +47,46 @@ export function migrateDocumentImages(doc: Record<string, unknown>): MigrateDocu
 
   for (const [topKey, topVal] of Object.entries(artifacts)) {
     if (topKey === 'transcript') {
-      const langs = (topVal ?? {}) as Record<string, unknown>
-      const newLangs: Record<string, unknown> = {}
-      for (const [lang, recRaw] of Object.entries(langs)) {
-        const rec = recRaw as Record<string, unknown>
-        const md = typeof rec?.markdown === 'string' ? rec.markdown : null
-        if (md) {
-          stats.artifactsScanned++
-          const r = freezeMarkdownImageUrls(md, fragments)
-          if (r.replacedCount > 0) {
-            stats.artifactsChanged++
-            stats.totalReplacements += r.replacedCount
-            changed = true
-            newLangs[lang] = { ...rec, markdown: r.markdown }
-          } else {
-            newLangs[lang] = rec
-          }
-          stats.unresolved.push(...r.unresolved)
+      const rec = (topVal ?? {}) as Record<string, unknown>
+      // NEU: Transkript ist sprach-neutral -> EIN Record (erkennbar am String-Feld `markdown`).
+      if (typeof rec.markdown === 'string') {
+        const md = rec.markdown
+        stats.artifactsScanned++
+        const r = freezeMarkdownImageUrls(md, fragments)
+        if (r.replacedCount > 0) {
+          stats.artifactsChanged++
+          stats.totalReplacements += r.replacedCount
+          changed = true
+          newArtifacts[topKey] = { ...rec, markdown: r.markdown }
         } else {
-          newLangs[lang] = rec
+          newArtifacts[topKey] = rec
         }
+        stats.unresolved.push(...r.unresolved)
+      } else {
+        // LEGACY: sprach-gekeyte Map Record<lang, record>.
+        const langs = rec
+        const newLangs: Record<string, unknown> = {}
+        for (const [lang, recRaw] of Object.entries(langs)) {
+          const lrec = recRaw as Record<string, unknown>
+          const md = typeof lrec?.markdown === 'string' ? lrec.markdown : null
+          if (md) {
+            stats.artifactsScanned++
+            const r = freezeMarkdownImageUrls(md, fragments)
+            if (r.replacedCount > 0) {
+              stats.artifactsChanged++
+              stats.totalReplacements += r.replacedCount
+              changed = true
+              newLangs[lang] = { ...lrec, markdown: r.markdown }
+            } else {
+              newLangs[lang] = lrec
+            }
+            stats.unresolved.push(...r.unresolved)
+          } else {
+            newLangs[lang] = lrec
+          }
+        }
+        newArtifacts[topKey] = newLangs
       }
-      newArtifacts[topKey] = newLangs
     } else if (topKey === 'transformation') {
       const templates = (topVal ?? {}) as Record<string, unknown>
       const newTemplates: Record<string, unknown> = {}

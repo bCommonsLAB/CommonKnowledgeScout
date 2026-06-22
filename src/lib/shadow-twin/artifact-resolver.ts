@@ -128,12 +128,54 @@ async function resolveArtifactV2(
   // Bestimme ArtifactKind
   const kind: ArtifactKind = preferredKind || (templateName ? 'transformation' : 'transcript');
 
-  // Verwende zentrale buildArtifactName() Funktion für konsistente Namensgenerierung
+  // Verwende zentrale buildArtifactName() Funktion für konsistente Namensgenerierung.
+  // Transkripte sind sprach-neutral -> kein exakter Sprach-Dateiname; Auswahl via pickBestTranscript().
   const expectedFileName = kind === 'transformation'
     ? (templateName
       ? buildArtifactName({ sourceId: sourceItemId, kind: 'transformation', targetLanguage, templateName }, sourceName)
       : null)
-    : buildArtifactName({ sourceId: sourceItemId, kind: 'transcript', targetLanguage }, sourceName);
+    : null;
+
+  const asTime = (value: unknown): number => {
+    if (value instanceof Date) return value.getTime();
+    if (typeof value === 'string') {
+      const t = new Date(value).getTime();
+      return Number.isFinite(t) ? t : 0;
+    }
+    return 0;
+  };
+
+  /**
+   * Transkript-Auflösung ist sprach-neutral:
+   * - bevorzugt den sprach-neutralen Dateinamen `{base}.md`
+   * - toleriert Legacy `{base}.{lang}.md` (irgendeine Sprache)
+   * - schließt die Quelldatei selbst aus (z.B. Markdown-Quellen heißen ebenfalls `{base}.md`)
+   */
+  function pickBestTranscript(items: StorageItem[]): StorageItem | null {
+    const candidates: StorageItem[] = [];
+    for (const item of items) {
+      if (item.type !== 'file') continue;
+      if (item.id === sourceItemId) continue;
+      if (!item.metadata.name.toLowerCase().endsWith('.md')) continue;
+      const parsed = parseArtifactName(item.metadata.name, sourceBaseName);
+      if (parsed.kind !== 'transcript') continue;
+      candidates.push(item);
+    }
+    if (candidates.length === 0) return null;
+
+    const neutralName = `${sourceBaseName}.md`;
+    const neutral = candidates.find(item => item.metadata.name === neutralName);
+    if (neutral) return neutral;
+
+    // Legacy: neueste Sprach-Variante wählen, bei Gleichstand stabil nach Name.
+    candidates.sort((a, b) => {
+      const at = asTime(a.metadata.modifiedAt);
+      const bt = asTime(b.metadata.modifiedAt);
+      if (bt !== at) return bt - at;
+      return a.metadata.name.localeCompare(b.metadata.name);
+    });
+    return candidates[0];
+  }
 
   /**
    * WICHTIG (v2): Transformationen benötigen i.d.R. `templateName` (Dateiformat: base.template.lang.md).
@@ -156,15 +198,6 @@ async function resolveArtifactV2(
     if (candidates.length === 0) return null;
     if (candidates.length === 1) return candidates[0];
 
-    const asTime = (value: unknown): number => {
-      if (value instanceof Date) return value.getTime();
-      if (typeof value === 'string') {
-        const t = new Date(value).getTime();
-        return Number.isFinite(t) ? t : 0;
-      }
-      return 0;
-    };
-
     // Neueste zuerst; bei Gleichstand: Name stabil sortieren
     candidates.sort((a, b) => {
       const at = asTime(a.metadata.modifiedAt);
@@ -182,14 +215,20 @@ async function resolveArtifactV2(
   if (shadowTwinFolder) {
     // PERFORMANCE: provider.listItemsById wird durch cachedProvider gecacht
     const items = await provider.listItemsById(shadowTwinFolder.id);
-    const artifactFile = expectedFileName
-      ? items.find(item => item.type === 'file' && item.metadata.name === expectedFileName)
-      : (kind === 'transformation' ? pickBestTransformation(items) : null);
+    const artifactFile = kind === 'transcript'
+      ? pickBestTranscript(items)
+      : (expectedFileName
+        ? items.find(item => item.type === 'file' && item.metadata.name === expectedFileName)
+        : (kind === 'transformation' ? pickBestTransformation(items) : null));
 
     if (artifactFile) {
-      // Prüfe ob der Dateiname zur erwarteten Semantik passt
+      // Prüfe ob der Dateiname zur erwarteten Semantik passt.
+      // Transkripte sind sprach-neutral -> nur kind prüfen, Sprache ignorieren.
       const parsed = parseArtifactName(artifactFile.metadata.name, sourceBaseName);
-      if (parsed.kind === kind && parsed.targetLanguage === targetLanguage) {
+      const matches = kind === 'transcript'
+        ? parsed.kind === 'transcript'
+        : (parsed.kind === kind && parsed.targetLanguage === targetLanguage);
+      if (matches) {
         return {
           kind,
           fileId: artifactFile.id,
@@ -203,13 +242,18 @@ async function resolveArtifactV2(
 
   // 2. Fallback: Suche als Sibling-Datei
   const siblings = await provider.listItemsById(parentId);
-  const artifactFile = expectedFileName
-    ? siblings.find(item => item.type === 'file' && item.metadata.name === expectedFileName)
-    : (kind === 'transformation' ? pickBestTransformation(siblings) : null);
+  const artifactFile = kind === 'transcript'
+    ? pickBestTranscript(siblings)
+    : (expectedFileName
+      ? siblings.find(item => item.type === 'file' && item.metadata.name === expectedFileName)
+      : (kind === 'transformation' ? pickBestTransformation(siblings) : null));
 
   if (artifactFile) {
     const parsed = parseArtifactName(artifactFile.metadata.name, sourceBaseName);
-    if (parsed.kind === kind && parsed.targetLanguage === targetLanguage) {
+    const matches = kind === 'transcript'
+      ? parsed.kind === 'transcript'
+      : (parsed.kind === kind && parsed.targetLanguage === targetLanguage);
+    if (matches) {
       return {
         kind,
         fileId: artifactFile.id,

@@ -33,7 +33,8 @@ describe('resolveArtifact (baseName with dots)', () => {
       preferredKind: 'transcript',
     })
 
-    expect(found?.fileName).toBe('Commoning vs. Kommerz.de.md')
+    // Transkript ist sprach-neutral: der suffixlose Name `{base}.md` ist kanonisch und gewinnt.
+    expect(found?.fileName).toBe('Commoning vs. Kommerz.md')
   })
 })
 
