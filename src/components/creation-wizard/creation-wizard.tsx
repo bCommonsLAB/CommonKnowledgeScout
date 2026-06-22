@@ -157,8 +157,8 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
     })
   }, [])
 
-  function resolveTemplateDetailViewType(): 'book' | 'session' | 'testimonial' | 'blog' {
-    // SSOT + bekannte 4-vs-8-Drift: siehe resolveWizardPreviewViewType (wizard-flow.ts).
+  function resolveTemplateDetailViewType(): 'book' | 'session' | 'testimonial' | 'blog' | 'website' {
+    // SSOT + bekannte Drift: siehe resolveWizardPreviewViewType (wizard-flow.ts).
     return resolveWizardPreviewViewType({
       metadata: template?.metadata,
       creation: template?.creation,

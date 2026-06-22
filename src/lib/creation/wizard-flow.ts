@@ -111,14 +111,15 @@ export function canProceedFromStep(
   }
 }
 
-/** Vom Wizard-Preview heute unterstützte Renderer (4 von 8 — siehe Drift unten). */
-export type WizardPreviewViewType = 'book' | 'session' | 'testimonial' | 'blog'
+/** Vom Wizard-Preview heute unterstützte Renderer (5 von 9 — siehe Drift unten). */
+export type WizardPreviewViewType = 'book' | 'session' | 'testimonial' | 'blog' | 'website'
 
 const WIZARD_PREVIEW_VIEW_TYPES: readonly WizardPreviewViewType[] = [
   'book',
   'session',
   'testimonial',
   'blog',
+  'website',
 ]
 
 function isWizardPreviewViewType(v: unknown): v is WizardPreviewViewType {
@@ -129,7 +130,7 @@ function isWizardPreviewViewType(v: unknown): v is WizardPreviewViewType {
  * Renderer-Auflösung des Wizard-Previews. Spiegelt `resolveTemplateDetailViewType`
  * aus `creation-wizard.tsx`.
  *
- * **Bekannte Drift (ADR-0003)**: Der Wizard-Preview kennt nur 4 der 8 Typen aus
+ * **Bekannte Drift (ADR-0003)**: Der Wizard-Preview kennt nur 5 der 9 Typen aus
  * `VIEW_TYPE_REGISTRY` und fällt für alle übrigen (z.B. `refurbedDevice`) still
  * auf `'session'` zurück. Phase 3a ersetzt das durch die geteilte Registry.
  */
