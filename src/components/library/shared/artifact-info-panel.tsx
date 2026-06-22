@@ -161,7 +161,7 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
       }
 
       const label = artifact.kind === "transcript"
-        ? `Transcript (${artifact.targetLanguage})`
+        ? `Transcript (Original)`
         : `Transformation (${artifact.targetLanguage}/${artifact.templateName})`
       toast.success("Artefakt geloescht", { description: label })
 
@@ -271,7 +271,7 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
       <div key={key} className="group flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase">
-            {artifact.targetLanguage}
+            {artifact.kind === "transcript" ? "Original" : artifact.targetLanguage}
           </span>
           <span className="min-w-0 truncate text-xs text-muted-foreground">{fileName}</span>
         </div>
