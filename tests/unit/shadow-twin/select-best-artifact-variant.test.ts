@@ -70,8 +70,19 @@ describe('selectBestArtifactVariant', () => {
     const b = variant('b.md', pages(10) + '\nVariante B') // gleiche Score, anderer Inhalt
     const res = selectBestArtifactVariant([a, b])
     expect(res.conflict).toBe(true)
-    expect(res.best).toBeNull()
-    expect(res.deletable).toEqual([]) // bei Konflikt nichts loeschen
+    // best ist auch bei Konflikt deterministisch gefuellt (lexikographisch kleinster Name) –
+    // Lese-Pfade brauchen ein Ergebnis; geloescht wird aber nichts.
+    expect(res.best?.ref).toBe('a.md')
+    expect(res.deletable).toEqual([])
+  })
+
+  it('Konflikt: kanonischer Name gewinnt fuer best, trotzdem nichts loeschbar', () => {
+    const canonical = variant('doc.md', pages(10) + '\nVariante A')
+    const other = variant('doc.en.md', pages(10) + '\nVariante B')
+    const res = selectBestArtifactVariant([other, canonical], 'doc.md')
+    expect(res.conflict).toBe(true)
+    expect(res.best?.name).toBe('doc.md')
+    expect(res.deletable).toEqual([])
   })
 
   it('einzelne Variante: ist Gewinner, nichts loeschbar', () => {

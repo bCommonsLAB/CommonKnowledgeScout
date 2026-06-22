@@ -44,11 +44,18 @@ export interface ArtifactVariant<TRef> {
 }
 
 export interface SelectBestResult<TRef> {
-  /** Gewinner (vollstaendigste Variante) oder null (leer ODER Konflikt). */
+  /**
+   * Gewinner (vollstaendigste Variante). Immer deterministisch gefuellt, sobald es
+   * eine nicht-leere Variante gibt — auch bei Konflikt (fuer Lese-Pfade). Nur null,
+   * wenn keine nicht-leere Variante existiert.
+   */
   best: ArtifactVariant<TRef> | null
   /** true, wenn zwei gleich-vollstaendige Varianten unterschiedlichen Inhalt haben. */
   conflict: boolean
-  /** Loeschbar: strikt unterlegen ODER inhaltsgleich (redundant) zum Gewinner. Leer bei Konflikt. */
+  /**
+   * Loeschbar: strikt unterlegen ODER inhaltsgleich (redundant) zum Gewinner.
+   * **Leer bei Konflikt** (Reconcile meldet + ueberspringt, loescht nichts).
+   */
   deletable: ArtifactVariant<TRef>[]
 }
 
@@ -98,20 +105,22 @@ export function selectBestArtifactVariant<TRef>(
 
   // Alle mit Top-Score; Konflikt, wenn diese unterschiedlichen Inhalt haben.
   const leaders = nonEmpty.filter((s) => sameScore(s, top))
-  const distinctLeaderContents = new Set(leaders.map((s) => s.content))
-  if (distinctLeaderContents.size > 1) {
-    return { best: null, conflict: true, deletable: [] }
-  }
+  const conflict = new Set(leaders.map((s) => s.content)).size > 1
 
-  // Gewinner: unter den (inhaltsgleichen) Leadern der mit kanonischem Namen, sonst der erste.
-  const winner = (canonicalName && leaders.find((s) => s.variant.name === canonicalName)) || leaders[0]
+  // Deterministischer Gewinner: kanonischer Name, sonst lexikographisch kleinster Name.
+  // Auch bei Konflikt gefuellt, damit Lese-Pfade immer ein stabiles Ergebnis bekommen.
+  const winner =
+    (canonicalName && leaders.find((s) => s.variant.name === canonicalName)) ||
+    [...leaders].sort((a, b) => (a.variant.name || '').localeCompare(b.variant.name || ''))[0]
 
-  // Loeschbar: jede andere Variante, die inhaltsgleich (redundant) ODER strikt unterlegen ist.
-  // (Gleich-Score-mit-anderem-Inhalt kann hier nicht mehr auftreten — das waere Konflikt.)
-  const deletable = scored
-    .filter((s) => s.variant !== winner.variant)
-    .filter((s) => s.content === winner.content || isHigher(winner, s))
-    .map((s) => s.variant)
+  // Bei Konflikt nichts loeschen. Sonst: jede andere Variante, die inhaltsgleich
+  // (redundant) ODER strikt unterlegen ist (kann hier nicht gleich-Score-anderer-Inhalt sein).
+  const deletable = conflict
+    ? []
+    : scored
+        .filter((s) => s.variant !== winner.variant)
+        .filter((s) => s.content === winner.content || isHigher(winner, s))
+        .map((s) => s.variant)
 
-  return { best: winner.variant, conflict: false, deletable }
+  return { best: winner.variant, conflict, deletable }
 }
