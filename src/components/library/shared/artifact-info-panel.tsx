@@ -1,13 +1,14 @@
 "use client"
 
 import * as React from "react"
-import { Trash2, X, RefreshCw, Download } from "lucide-react"
+import { Trash2, X, RefreshCw, Download, DownloadCloud } from "lucide-react"
 import { toast } from "sonner"
 
 import { useSetAtom } from "jotai"
 
 import type { StorageItem } from "@/lib/storage/types"
 import { IngestionStatusCompact } from "@/components/library/shared/ingestion-status-compact"
+import { BinaryFragmentsSection } from "@/components/library/shared/artifact-info-panel/binary-fragments-section"
 import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom"
 import { Button } from "@/components/ui/button"
 import { fetchShadowTwinMarkdown } from "@/lib/shadow-twin/shadow-twin-mongo-client"
@@ -53,7 +54,10 @@ export interface ArtifactInfoPanelProps {
 export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
   const base = React.useMemo(() => sourceBaseName(props.sourceFile.metadata.name), [props.sourceFile.metadata.name])
   const [isDeleting, setIsDeleting] = React.useState(false)
+  const [isImporting, setIsImporting] = React.useState(false)
   const [deletingKey, setDeletingKey] = React.useState<string | null>(null)
+  // Erhoeht sich nach Import/Loeschen, um die Binaries-Sektion neu laden zu lassen.
+  const [reloadSignal, setReloadSignal] = React.useState(0)
   const triggerShadowTwinAnalysis = useSetAtom(shadowTwinAnalysisTriggerAtom)
 
   // Alle Artefakte aus MongoDB laden (nicht gefiltert, alle Sprachen/Templates)
@@ -199,6 +203,7 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
 
       toast.success("Alle Artefakte geloescht")
       await fetchAllArtifacts()
+      setReloadSignal((v) => v + 1)
       triggerShadowTwinAnalysis((v) => v + 1)
       props.onArtifactsDeleted?.()
     } catch (error) {
@@ -209,6 +214,51 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
       setIsDeleting(false)
     }
   }, [props.libraryId, props.sourceFile?.id, props.onArtifactsDeleted, triggerShadowTwinAnalysis, fetchAllArtifacts])
+
+  // Alle Artefakte aus dem Storage in den Cache uebernehmen (Rekonstruktion).
+  // Nutzt den bestehenden reconstruct-Endpunkt: Markdown + Bilder (page_*/preview_*)
+  // werden nach Mongo/Azure uebernommen (siehe reconstruct-from-storage.ts, Variante 2).
+  const handleImportFromStorage = React.useCallback(async () => {
+    if (!props.libraryId || !props.sourceFile?.id || !props.sourceFile?.parentId) return
+    setIsImporting(true)
+    try {
+      const res = await fetch(
+        `/api/library/${encodeURIComponent(props.libraryId)}/shadow-twins/reconstruct`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sourceId: props.sourceFile.id, parentId: props.sourceFile.parentId }),
+        }
+      )
+      const data = await res.json().catch(() => ({})) as { reconstructed?: number; failed?: number; artifacts?: unknown[]; error?: string; message?: string }
+
+      if (!res.ok) {
+        toast.error("Übernahme fehlgeschlagen", { description: data.error || `HTTP ${res.status}` })
+        return
+      }
+
+      if (typeof data.reconstructed === "number" && data.reconstructed > 0) {
+        toast.success("Aus Speicher übernommen", {
+          description: `${data.reconstructed} Artefakt${data.reconstructed > 1 ? "e" : ""} in den Cache übernommen.`,
+        })
+      } else if (Array.isArray(data.artifacts) && data.artifacts.length === 0) {
+        toast.info("Nichts gefunden", { description: data.message || "Keine Artefakte im Speicher gefunden." })
+      } else {
+        toast.info("Übernahme abgeschlossen")
+      }
+
+      await fetchAllArtifacts()
+      setReloadSignal((v) => v + 1)
+      triggerShadowTwinAnalysis((v) => v + 1)
+      props.onArtifactsDeleted?.()
+    } catch (error) {
+      toast.error("Fehler bei der Übernahme", {
+        description: error instanceof Error ? error.message : "Unbekannter Fehler",
+      })
+    } finally {
+      setIsImporting(false)
+    }
+  }, [props.libraryId, props.sourceFile?.id, props.sourceFile?.parentId, props.onArtifactsDeleted, triggerShadowTwinAnalysis, fetchAllArtifacts])
 
   // Einzelne Artefakt-Zeile rendern
   const renderArtifactRow = React.useCallback((artifact: MongoArtifact) => {
@@ -318,16 +368,39 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
         )}
       </div>
 
-      {/* Alle Artefakte loeschen */}
-      {hasArtifacts && (
-        <div className="border-t pt-4">
+      {/* Bilder & Binärdateien (Seiten-Renderings, Previews, OCR-Bilder) */}
+      <div className="space-y-2">
+        <div className="text-sm font-semibold">Bilder & Binärdateien</div>
+        <BinaryFragmentsSection
+          libraryId={props.libraryId}
+          sourceId={props.sourceFile.id}
+          reloadSignal={reloadSignal}
+        />
+      </div>
+
+      {/* Aktionen: aus Storage uebernehmen + alle loeschen */}
+      <div className="border-t pt-4 flex flex-wrap items-center gap-2">
+        {/* Aus Speicher uebernehmen: Markdown + Bilder aus dem Storage in den Cache rekonstruieren */}
+        {props.sourceFile.parentId && (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isImporting || isDeleting}
+            onClick={() => void handleImportFromStorage()}
+          >
+            <DownloadCloud className={`h-4 w-4 mr-2 ${isImporting ? "animate-pulse" : ""}`} />
+            {isImporting ? "Wird übernommen..." : "Alle Artefakte aus Storage übernehmen"}
+          </Button>
+        )}
+
+        {hasArtifacts && (
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
                 className="text-destructive hover:text-destructive"
-                disabled={isDeleting}
+                disabled={isDeleting || isImporting}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 {isDeleting ? "Wird geloescht..." : `Alle Artefakte loeschen (${allArtifacts.length})`}
@@ -352,8 +425,8 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="border-t pt-2">
         <div className="text-[11px] text-muted-foreground truncate">fileId: {props.sourceFile.id}</div>
