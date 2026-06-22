@@ -16,7 +16,7 @@ import { resolveArtifact, type ResolvedArtifact } from '@/lib/shadow-twin/artifa
 import { LibraryService } from '@/lib/services/library-service';
 import type { StorageItem, StorageProvider } from '@/lib/storage/types';
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config';
-import { getShadowTwinsBySourceIds } from '@/lib/repositories/shadow-twin-repo';
+import { getShadowTwinsBySourceIds, readTranscriptRecord } from '@/lib/repositories/shadow-twin-repo';
 import { selectShadowTwinArtifact } from '@/lib/shadow-twin/shadow-twin-select';
 import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming';
 import { buildMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id';
@@ -434,8 +434,9 @@ export async function POST(
           selectedTemplate: selected?.templateName ?? null,
           hasRecord: !!selected?.record,
           docArtifactKeys: {
-            hasTranscript: !!doc.artifacts?.transcript,
-            transcriptLangs: doc.artifacts?.transcript ? Object.keys(doc.artifacts.transcript) : [],
+            // Transkript ist sprach-neutral: ein Record pro Quelle (Helper toleriert Legacy-Map).
+            hasTranscript: readTranscriptRecord(doc) !== null,
+            transcriptLangs: readTranscriptRecord(doc) ? [''] : [],
             hasTransformation: !!doc.artifacts?.transformation,
             transformationTemplates: doc.artifacts?.transformation ? Object.keys(doc.artifacts.transformation) : [],
           },

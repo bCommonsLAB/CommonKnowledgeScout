@@ -27,6 +27,7 @@
 import {
   getShadowTwinsBySourceIds,
   getShadowTwinArtifact,
+  readTranscriptRecord,
   toArtifactKey,
 } from '@/lib/repositories/shadow-twin-repo'
 import { getServerProvider } from '@/lib/storage/server-provider'
@@ -207,9 +208,8 @@ export async function buildCompositeReference(
     // Default-Modus: nur Nicht-`.md`/Nicht-Bild-Quellen brauchen ein Transcript.
     if (!compositeSourceExpectsTranscript(item)) continue
 
-    const hasTranscript = doc?.artifacts?.transcript
-      && typeof doc.artifacts.transcript === 'object'
-      && Object.keys(doc.artifacts.transcript as Record<string, unknown>).length > 0
+    // Transkript ist sprach-neutral (ein Record pro Quelle); Helper toleriert Legacy-Map.
+    const hasTranscript = readTranscriptRecord(doc) !== null
 
     if (!hasTranscript) {
       missingTranscripts.push(item.name)

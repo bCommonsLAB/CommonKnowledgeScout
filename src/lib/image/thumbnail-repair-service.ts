@@ -12,7 +12,7 @@
  */
 
 import { getCollection } from '@/lib/mongodb-service'
-import { getShadowTwinCollectionName } from '@/lib/repositories/shadow-twin-repo'
+import { getShadowTwinCollectionName, readTranscriptRecord } from '@/lib/repositories/shadow-twin-repo'
 import { 
   generateThumbnail, 
   generateThumbnailFileName, 
@@ -67,7 +67,9 @@ interface ShadowTwinForRepair {
   sourceName: string
   binaryFragments?: BinaryFragment[]
   artifacts: {
-    transcript?: Record<string, { frontmatter?: Record<string, unknown>; markdown: string }>
+    // Transkript ist sprach-neutral (ein Record pro Quelle). Legacy-Map wird beim Lesen
+    // von readTranscriptRecord() toleriert.
+    transcript?: { frontmatter?: Record<string, unknown>; markdown: string; updatedAt?: string }
     transformation?: Record<string, Record<string, { frontmatter?: Record<string, unknown>; markdown: string }>>
   }
 }
@@ -373,16 +375,13 @@ export async function* repairThumbnailsForLibrary(
       // damit die URLs direkt in der Galerie funktionieren.
       const artifactUpdates: Record<string, unknown> = {}
       
-      // Durchsuche transcript-Artefakte
-      if (twin.artifacts?.transcript) {
-        for (const [lang, artifact] of Object.entries(twin.artifacts.transcript)) {
-          if (artifact.frontmatter?.coverImageUrl && !artifact.frontmatter?.coverThumbnailUrl) {
-            const patchedMarkdown = patchFrontmatter(artifact.markdown, { coverThumbnailUrl: thumbnailUrl })
-            artifactUpdates[`artifacts.transcript.${lang}.markdown`] = patchedMarkdown
-            artifactUpdates[`artifacts.transcript.${lang}.frontmatter.coverThumbnailUrl`] = thumbnailUrl
-            artifactUpdates[`artifacts.transcript.${lang}.updatedAt`] = new Date().toISOString()
-          }
-        }
+      // Transkript-Artefakt (sprach-neutral, ein Record pro Quelle; Helper toleriert Legacy-Map)
+      const transcriptRecord = readTranscriptRecord(twin)
+      if (transcriptRecord?.frontmatter?.coverImageUrl && !transcriptRecord.frontmatter?.coverThumbnailUrl) {
+        const patchedMarkdown = patchFrontmatter(transcriptRecord.markdown, { coverThumbnailUrl: thumbnailUrl })
+        artifactUpdates[`artifacts.transcript.markdown`] = patchedMarkdown
+        artifactUpdates[`artifacts.transcript.frontmatter.coverThumbnailUrl`] = thumbnailUrl
+        artifactUpdates[`artifacts.transcript.updatedAt`] = new Date().toISOString()
       }
       
       // Durchsuche transformation-Artefakte
@@ -809,16 +808,13 @@ export async function* regenerateAllThumbnails(
       // Aktualisiere coverThumbnailUrl in allen Artefakten
       const artifactUpdates: Record<string, unknown> = {}
       
-      // Durchsuche transcript-Artefakte
-      if (twin.artifacts?.transcript) {
-        for (const [lang, artifact] of Object.entries(twin.artifacts.transcript)) {
-          if (artifact.frontmatter?.coverImageUrl) {
-            const patchedMarkdown = patchFrontmatter(artifact.markdown, { coverThumbnailUrl: thumbnailUrl })
-            artifactUpdates[`artifacts.transcript.${lang}.markdown`] = patchedMarkdown
-            artifactUpdates[`artifacts.transcript.${lang}.frontmatter.coverThumbnailUrl`] = thumbnailUrl
-            artifactUpdates[`artifacts.transcript.${lang}.updatedAt`] = new Date().toISOString()
-          }
-        }
+      // Transkript-Artefakt (sprach-neutral, ein Record pro Quelle; Helper toleriert Legacy-Map)
+      const transcriptRecord = readTranscriptRecord(twin)
+      if (transcriptRecord?.frontmatter?.coverImageUrl) {
+        const patchedMarkdown = patchFrontmatter(transcriptRecord.markdown, { coverThumbnailUrl: thumbnailUrl })
+        artifactUpdates[`artifacts.transcript.markdown`] = patchedMarkdown
+        artifactUpdates[`artifacts.transcript.frontmatter.coverThumbnailUrl`] = thumbnailUrl
+        artifactUpdates[`artifacts.transcript.updatedAt`] = new Date().toISOString()
       }
       
       // Durchsuche transformation-Artefakte
