@@ -68,9 +68,9 @@ describe('buildFileName (artifact-info-panel) — Pure-Logik-Vertrag', () => {
     markdownLength: 100,
   }
 
-  it('Transcript: base.targetLanguage.md', () => {
-    expect(buildFileName('audio', { ...baseArtifact, kind: 'transcript', targetLanguage: 'de' })).toBe('audio.de.md')
-    expect(buildFileName('audio', { ...baseArtifact, kind: 'transcript', targetLanguage: 'en' })).toBe('audio.en.md')
+  it('Transcript: sprach-neutral -> base.md (unabhängig von targetLanguage)', () => {
+    expect(buildFileName('audio', { ...baseArtifact, kind: 'transcript', targetLanguage: 'de' })).toBe('audio.md')
+    expect(buildFileName('audio', { ...baseArtifact, kind: 'transcript', targetLanguage: 'en' })).toBe('audio.md')
   })
 
   it('Transformation: base.template.targetLanguage.md', () => {
