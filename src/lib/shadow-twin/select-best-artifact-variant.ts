@@ -32,6 +32,23 @@ export function countPageMarkers(markdown: string): number {
   return matches ? matches.length : 0
 }
 
+/**
+ * Zaehlt DISTINKTE Seitenzahlen (echte Seitenanzahl, nicht Marker).
+ * `page_020` und „Seite: 20" zaehlen als eine Seite (20). Fuer die
+ * Neu-Extraktions-Heuristik (1 Seite trotz mehr erwartet).
+ */
+export function countDistinctPages(markdown: string): number {
+  if (!markdown) return 0
+  const pages = new Set<number>()
+  const re = /page_(\d+)|seite\s*[:\-]?\s*(\d+)/gi
+  let m: RegExpExecArray | null
+  while ((m = re.exec(markdown)) !== null) {
+    const num = Number.parseInt(m[1] ?? m[2], 10)
+    if (Number.isFinite(num)) pages.add(num)
+  }
+  return pages.size
+}
+
 export interface ArtifactVariant<TRef> {
   /** Opaque Referenz (StorageItem, Mongo-Record, …) — nur der Caller interpretiert sie. */
   ref: TRef
