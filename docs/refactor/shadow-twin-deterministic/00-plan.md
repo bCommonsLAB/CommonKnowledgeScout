@@ -25,7 +25,12 @@ Pfade = weniger I/O = schneller. Performance ist ein **explizites Abnahmekriteri
 - **Eine Quelle der Wahrheit** pro Lese-Frage. Keine parallelen Resolver.
 - **Schnell durch Determinismus:** genau **ein** Resolver-Call pro Frage, **ein** DB-Read statt N Fallback-Versuche, **kein** Storage-Roundtrip beim Lesen. Redundanz ist sowohl Korrektheits- als auch Performance-Bug.
 - **Kein stiller Fallback** (vgl. `no-silent-fallbacks.mdc`). Fehlt etwas → klarer Fehler/leeres Ergebnis, nicht „irgendwas Ähnliches".
-- **MongoDB = primär** für die Auflösung; Filesystem ist Spiegel/Export, **nie** Lese-Quelle für „welches Artefakt ist gültig".
+- **Zwei Rollen, klar getrennt:** **Storage = dauerhafte Quelle** der Artefakte (die Daten leben dort);
+  **Mongo = schnelle, jederzeit aus dem Storage neu aufbaubare Projektion** und die **einzige Lese-Quelle**
+  für „welches Artefakt ist gültig". Beim **Lesen** ist Storage nie Auflösungs-Quelle (kein Fallback, kein Write).
+- **Befüllen/Reparieren ist explizit & wiederverwendbar:** Storage→Mongo läuft über **eine** korrekte
+  Auswahl-Logik (vollständigster gewinnt) und eine **wiederholbare per-Library-Reconcile** — kein
+  Wegwerf-Skript, da viele Libraries laufend zu pflegen sind.
 - **Reparatur statt Toleranz:** statt tolerante Reader bauen wir die Daten so um, dass exakte Reader genügen.
 
 ---
@@ -42,6 +47,10 @@ Pfade = weniger I/O = schneller. Performance ist ein **explizites Abnahmekriteri
 > - `transcript`: single-record, **908 Zeichen, 1 Seite** (`page_020.jpeg`), `updatedAt 2026-06-22T20:41:34Z` (= 22:41 lokal). Transformationen 20:26 / 20:32 → **Transkript ist nachweislich später geschrieben.**
 > - **Korrektur zum Verdacht:** Es ist **kein** Legacy-Map → die „neuester-gewinnt"-Toleranz in `readTranscriptRecord` ist hier NICHT der Täter. Täter ist ein **Write beim Lesen** (zwei Pfade, Code-Beleg in `02-trace-open-file.md`): **(1) Client-Auto-Reconstruct** — `use-shadow-twin-analysis.ts` ruft beim Öffnen automatisch `importStorageArtifacts` → `POST /shadow-twins/reconstruct` für jede Quelle, deren Artefakt eine echte Storage-ID hat (`foundFromStorage`); **(2) Server-`lazyReconstructToMongo`** in `getMarkdown` bei Mongo-Miss. Beide ausgelöst durch Library-Config **`allowFilesystemFallback: true` + `persistToFilesystem: true`** (Storage = Nextcloud/WebDAV) + eine **veraltete suffixlose `_Ökoniomie_en_Innen.md`** im Storage. Der Markdown-Inhalt trägt intern „erstellt am 19.5.2026" → alter Storage-Artefakt importiert.
 > - `binaryFragments: 0` (Seiten-JPGs nur im Storage). `filesystemSync.enabled: false`.
+> - ✅ **Recovery möglich (User bestätigt 2026-06-23):** Im Nextcloud-Shadow-Twin-Ordner liegt noch eine
+>   **volle** Transkript-Variante (vgl. `9783927266575_Interior.md`/`.en.md`, je 450 KB). → Reparatur
+>   holt die volle Version zurück, **keine Neu-Extraktion nötig**. Der Import hatte nur die falsche
+>   (kleine, suffixlose) `{base}.md` gewählt (`pickBestTranscript` bevorzugt suffixlos).
 > - ⚠️ **Security-Nebenbefund:** Nextcloud-`appPassword` liegt **im Klartext** in der Library-Config (MongoDB) — verstößt gegen die Secret-Masking-Regel; separat beheben.
 
 **Parallele Auflösungs-Pfade (Server) — zu auditieren:**
@@ -191,21 +200,47 @@ Deliverable: `04-zielmodell.md` (Contract + Resolver-Signatur + Konsumenten-List
 
 ---
 
-## 5. Phase 3 — Reparaturskript (Mongo + Filesystem)
+## 5. Phase 3 — Storage-Load reparieren + wiederverwendbare Library-Reconcile
 
-`scripts/repair-shadow-twins.ts` (idempotent, `--dry-run`, pro Library):
+**Kein Wegwerf-Skript.** Der eigentliche Fehler steckt in der **Auswahl-Logik beim Storage-Laden**
+(`pickBestTranscript`/`reconstructFromFolder`/`sync-from-storage` wählen *suffixlos* bzw. *neuer*
+statt *vollständigster*). Diese Logik wird **an einer Stelle korrigiert** und von allen
+Storage→Mongo-Pfaden geteilt — dann ist sowohl der laufende Import als auch jede Reparatur korrekt.
+
+Source-of-Truth-Modell (bestätigt durch den Fall): **Storage = dauerhafte Quelle der Artefakte;
+Mongo = schnelle, jederzeit aus dem Storage neu aufbaubare Projektion.** Lesen bleibt deterministisch
+aus Mongo (Phase 2/4); **Befüllen/Reparieren** ist eine **explizite, wiederholbare** Operation.
+
+**5a — Geteilte Auswahl-Logik korrigieren** (`selectBestArtifactVariant`): über **alle** `.md`-Varianten
+einer Quelle (Storage `{base}.md` + `{base}.{lang}.md` **und** Mongo-Record) den **vollständigsten**
+wählen (Inhalt/Seiten-Marker), **nicht** suffixlos-bevorzugt, **nicht** neuester. Ersetzt die Heuristik
+in `pickBestTranscript`/`reconstructFromFolder`/`sync-from-storage`.
+
+**5b — Wiederverwendbare per-Library-Reconcile** (Endpoint + UI-Action „Library reparieren", idempotent,
+**Dry-Run/Preview zuerst**, batch über alle Quellen einer Library, für **beliebig viele Libraries**
+wiederholbar). Nutzt 5a. Algorithmus pro Quelle:
 1. **Transkript-Map kollabieren:** Legacy `transcript.{lang}` → Single-Record.
    - ⚠️ **WICHTIG:** **„vollständigster gewinnt", NICHT „neuester gewinnt".** (Das „neueste" war hier die kaputte Einseiten-Version — Ursache des Chaos.) Heuristik: längster `markdown` / meiste Seiten-Marker.
 2. **Transformation/canonical normalisieren:** sicherstellen, dass `transformation[template][lang]`
    und `canonical[lang]` je genau ein Record sind (Duplikate/Toleranz-Reste entfernen, „neuester gewinnt"
    nur hier zulässig, da diese user-autored sind — im Report ausweisen).
-3. **Kaputte Transkripte erkennen & melden:** `pages > 1` aber Transkript hat nur 1 Seiten-Marker → in Report als „re-extract nötig" markieren (NICHT automatisch löschen).
-4. **Filesystem-Abgleich:** verwaiste/partielle `{base}.md` erkennen; **verwaiste `page_NNN.md`
-   zählen/melden** (Kandidaten zum Löschen, nicht automatisch). Gegen Mongo-Wahrheit spiegeln oder melden.
-5. **Report-first:** Dry-Run gibt Tabelle aus (Quelle, vorher/nachher, Aktion). Erst mit `--apply` schreiben.
-6. **Backup-Pflicht** im Skript-Header dokumentieren.
+3. **Storage-Recovery (Transkript aus Storage zurückholen):** Das volle Transkript liegt i.d.R. **noch
+   im Nextcloud-Shadow-Twin-Ordner** (bestätigt 2026-06-23: `9783927266575_Interior.md` + `.en.md`, je 450 KB).
+   Daher: **alle** `.md`-Varianten der Quelle vergleichen — Mongo-Record **und** Storage (`{base}.md`
+   UND `{base}.{lang}.md`) — und die **vollständigste** wählen (Inhalt/Seiten-Marker), **nicht** nach
+   Suffix (suffixlos ≠ besser!) und **nicht** nach Datum. Ist die Storage-Version voller als Mongo →
+   Mongo daraus wiederherstellen. ⚠️ Genau hier wählt das heutige `pickBestTranscript` falsch
+   (bevorzugt suffixlose `{base}.md`, die bei Ökoniomie die kaputte Einzelseite war).
+4. **Nur wenn NIRGENDS eine volle Version existiert:** `pages > 1` aber alle Varianten 1 Seite →
+   als „re-extract nötig" melden (NICHT automatisch löschen).
+5. **Filesystem-Abgleich:** verwaiste/partielle `{base}.md` + **verwaiste `page_NNN.md`** zählen/melden
+   (Kandidaten zum Löschen, nicht automatisch).
+6. **Report-first:** Dry-Run gibt Tabelle aus (Quelle, vorher/nachher, Aktion). Erst mit `--apply` schreiben.
+7. **Backup-Pflicht** (mongodump) vor `--apply`/Schreiben dokumentieren.
 
-Deliverable: Skript + `05-repair-report-beispiel.md`.
+Deliverable: geteilte `selectBestArtifactVariant` (5a) + Reconcile-Endpoint/UI-Action (5b) +
+`05-reconcile-report-beispiel.md`. (Optional ein dünner CLI-Wrapper für Batch über mehrere Libraries —
+nutzt denselben Code, nicht eine zweite Implementierung.)
 
 ---
 
@@ -218,8 +253,10 @@ Deliverable: Skript + `05-repair-report-beispiel.md`.
    - `allowFilesystemFallback` beim **Lesen** — raus.
    - `pickBestTranscript`-Toleranz / „neuester gewinnt" in `readTranscriptRecord` — durch exakten Single-Record-Read ersetzen.
    - 3 Client-Transkript-Quellen → **1**.
-   - Reconstruct/Import nur noch explizit (Button), nie automatisch in `useShadowTwinAnalysis`.
-4. Reconstruct ist nach der Reparatur unnötig (Daten sind konsistent) → entweder entfernen oder klar als „manuelle Wartung" kennzeichnen.
+   - Auto-Import beim Öffnen (`importStorageArtifacts` in `useShadowTwinAnalysis`) — raus (nie als Lese-Nebenwirkung).
+4. Reconstruct/Sync **bleiben** (Storage = Quelle), aber: (a) mit korrigierter Auswahl aus Phase 3 (5a),
+   (b) nur **explizit** ausgelöst, (c) als die **wiederverwendbare Library-Reconcile** (5b) — nicht als
+   Wegwerf-Pfad. So ist „Aus Storage laden" dauerhaft korrekt für alle Libraries, nicht nur einmalig repariert.
 
 ---
 

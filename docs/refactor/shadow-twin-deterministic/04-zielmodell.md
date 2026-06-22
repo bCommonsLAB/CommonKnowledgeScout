@@ -121,3 +121,54 @@ Gemessen gegen die Baseline (01/02):
 
 > Reihenfolge wichtig: erst Resolver+Migration, dann Reader verschärfen — sonst brechen
 > un-reparierte Libraries (Legacy-Map, fehlende Fragment-URLs).
+
+---
+
+## 9. Storage-Contract & Reconcile (Entscheidungen 2026-06-23)
+
+**Grundsatz:** Auch der **Storage** wird repariert, nicht nur Mongo. Der Storage ist die dauerhafte
+Quelle — ist er inkonsistent (volle `.en.md` + kaputte `.md` nebeneinander), bleibt jede Mongo-Reparatur
+fragil. Ziel: deterministisches, kanonisches Layout im Storage **und** in Mongo.
+
+### 9.1 Kanonisches Storage-Layout (pro Quelle, im Shadow-Twin-Ordner)
+
+| Artefakt | Kanonischer Dateiname | Regel |
+|---|---|---|
+| Transkript | **`{base}.md`** (suffixlos, sprach-neutral) | **genau eine** Datei; Inhalt = vollständigste Variante |
+| Transformation | `{base}.{template}.{lang}.md` | je Template×Sprache eine |
+| canonical / raw | `{base}.canonical.{lang}.md` / `{base}.raw.{ext}` | wie gehabt |
+| Seiten-Render | `page_NNN.jpeg` | **behalten** (als Mongo-`binaryFragment` registrieren) |
+| per-Seite-Markdown | `page_NNN.md` | **entfernen** (totes Gewicht) |
+| Vorschau/Thumbnail | `preview_NNN.jpg` / Thumbnail | wie bestehend |
+
+### 9.2 Geteilte Auswahl `selectBestArtifactVariant` (Kern-Fix, ersetzt suffixlos/neuer)
+
+- **Input:** alle Kandidaten einer Quelle — Storage `{base}.md` + `{base}.{lang}.md` **und** Mongo-Record.
+- **Regel:** **vollständigster gewinnt** = max( Seiten-Marker-Anzahl, dann Markdown-Länge ).
+  **Nicht** suffixlos-bevorzugt, **nicht** neuester.
+- **Gewinner → in beide schreiben:** kanonische `{base}.md` (Storage) **und** `artifacts.transcript` (Mongo).
+- **Genutzt von:** Reconcile (5b), `reconstruct`, `sync-from-storage`, Import — eine Implementierung.
+
+### 9.3 Reconcile-Algorithmus (per Quelle; idempotent; Dry-Run zuerst)
+
+1. Kandidaten sammeln (Storage-Varianten + Mongo).
+2. `selectBestArtifactVariant` → Gewinner.
+3. Gewinner als kanonische `{base}.md` (Storage) + `artifacts.transcript` (Mongo) persistieren.
+4. **Löschen** der strikt unterlegenen Storage-Varianten (`{base}.{lang}.md`, alte kaputte `{base}.md`).
+5. tote `page_NNN.md` löschen.
+6. Transformationen analog normalisieren (Namensschema, Duplikate).
+7. fehlende `binaryFragment`-URLs (P1) beim Durchlauf in Mongo nachtragen.
+
+### 9.4 Harte Sicherheitsregeln (Löschen ist irreversibel)
+
+- **Nur löschen, was strikt kleiner ist** (weniger Seiten-Marker bzw. kürzer) als die **bereits
+  persistierte** kanonische Version. Die vollste/einzige Kopie wird **nie** gelöscht.
+- **Konflikt** (zwei „volle", aber **unterschiedlicher** Inhalt) → **melden + überspringen**, nichts
+  löschen, nichts überschreiben. Manuell entscheiden.
+- **`needs-reextract`**: `pages > 1`, aber **alle** Varianten 1 Seite → melden, nichts löschen.
+- **Dry-Run/Preview Pflicht** vor `--apply`/Schreiben; **mongodump** vorher. Idempotent: 2. Lauf = No-Op.
+
+### 9.5 Reconcile-Report (Deliverable `05-reconcile-report-beispiel.md`)
+
+Pro Quelle: gewählte kanonische Version (Quelle storage/mongo + Größe/Seiten), zu löschende Dateien,
+Konflikte, `needs-reextract`, nachgetragene Fragment-URLs. Erst nach Sichtung `--apply`.
