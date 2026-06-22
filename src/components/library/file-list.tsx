@@ -54,7 +54,7 @@ import { useDivaSidecarStatus } from "@/hooks/use-diva-sidecar-status";
 import { useDivaArchiveDefaults } from "@/hooks/use-diva-archive-defaults";
 import { useFolderNavigation } from "@/hooks/use-folder-navigation";
 import { useShadowTwinAnalysis } from "@/hooks/use-shadow-twin-analysis";
-import { shadowTwinAnalysisTriggerAtom, shadowTwinStateAtom } from "@/atoms/shadow-twin-atom";
+import { shadowTwinAnalysisTriggerAtom, shadowTwinStateAtom, shadowTwinImportActivityAtom } from "@/atoms/shadow-twin-atom";
 import { isShadowTwinFolderName } from "@/lib/storage/shadow-twin";
 import { shouldFilterShadowTwinFolders } from "@/lib/storage/shadow-twin-folder-name";
 import { isImageMediaFromName } from "@/lib/media-types";
@@ -175,6 +175,8 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   // Shadow-Twin-Analyse für alle Dateien im Ordner
   // Shadow-Twin-Analyse mit Trigger für manuelles Neustarten
   const [shadowTwinAnalysisTrigger, setShadowTwinAnalysisTrigger] = useAtom(shadowTwinAnalysisTriggerAtom);
+  // Sichtbarer Storage-Import-Status (Artefakte aus Speicher in den Cache uebernehmen)
+  const importActivity = useAtomValue(shadowTwinImportActivityAtom);
   
   // Performance-Messung: Shadow-Twin-Analyse Start
   const shadowTwinAnalysisStartRef = React.useRef<number | null>(null);
@@ -1394,6 +1396,24 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                 </Button>
               )}
             </div>
+
+            {/* Storage-Import-Aktivitaet: zeigt an, dass Artefakte aus dem Speicher
+                in den Cache importiert werden (gleiche Stelle wie andere Aktivitaeten). */}
+            {importActivity.active && (
+              <span
+                className="inline-flex items-center gap-1.5 rounded border border-blue-300 bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-900 dark:border-blue-700 dark:bg-blue-950/30 dark:text-blue-200"
+                aria-live="polite"
+                title="Artefakte aus dem Speicher werden importiert"
+              >
+                <RefreshCw className="h-3 w-3 animate-spin" />
+                Importiere aus Speicher
+                {importActivity.total > 0 && (
+                  <span className="tabular-nums">
+                    {importActivity.done}/{importActivity.total}
+                  </span>
+                )}
+              </span>
+            )}
 
             {/* DIVA-Filter + Gruppierung gebuendelt im Popover (nur bei aktivierter Option) */}
             {divaEnabled && <DivaToolsMenu />}
