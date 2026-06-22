@@ -90,6 +90,27 @@ Invarianten:
 > Compute → Ablösung → Promote). Jedes WP endet grün (Unit + Playwright-E2E nach
 > der vereinheitlichten Methode aus `status-und-testplan-2026-06.md`).
 
+> **Fortschritt (Stand 2026-06-22):**
+> - ✅ **U0–U2** (PR #102): Sicherheitsnetz, datengetriebene Step-Engine, kanonischer State.
+> - 🟡 **U3** (PR #102, teils): schema-getriebener `editDraft` (`selectEditableFields`,
+>   O1-Groundwork `editableContentFields`) gemergt; die volle `kind`/`inputType`-
+>   Feld-Taxonomie ist Teil von **Plan 2a** (Entflechten).
+> - 🟡 **U4** (PR #102): Wizard → Wartekorb für **Text/URL** gemergt; Datei-Medien als
+>   `binaryRefs` in die Inbox hängen an U5.
+> - ✅ **U5a** (PR #103): `resolveComputeMode` (text-sync vs inbox-job, reine Naht).
+>   ✅ **U5b**: medien-agnostische Analyse-Job-Fabrik (`submission-media.ts`: PDF + Audio).
+>   ✅ **U5e**: Multi-Binary-Inbox-Capture (Ordner).
+>   ▢ **U5c — OFFEN (nächstes WP):** `resolveComputeMode` in den Wizard verdrahten —
+>   Datei-Medien laufen über den Inbox-Analyse-Job statt synchron über `process-text`.
+> - ▢ **U6 — OFFEN:** PDF-Button → EIN generischer Einstieg.
+> - ✅ **U7** (`feat/inbox-promote`): Promote Inbox → Archiv + RAG.
+> - ▢ **U8** (Editoren): später.
+> - Nebenfix (PR #115, Merge ausstehend): Preview-Renderer-Drift behoben —
+>   `resolveWizardPreviewViewType` kennt alle 8 `detailViewType`s, kein stiller
+>   `'session'`-Fallback mehr.
+>
+> Kickoff-Briefs für U5c + U6: siehe §8.1.
+
 - **U0 · Sicherheitsnetz** (3-VI-a): Audit + Characterization-Tests des heutigen
   Wizards (Flow-Steuerung, Persistenz-Mapping, Job-Runner). **DoD:** `pnpm test` grün, Ist-Verhalten als Snapshot.
 - **U1 · Step-Engine + Preset-Registry** (3-VI-d): datengetriebene State-Machine
@@ -158,6 +179,67 @@ schon als `feat/inbox-promote`).
 
 > **Modell:** Opus (Architektur/Engine). **Pro WP neuer Agent** mit dem
 > jeweiligen U-Abschnitt als Brief + dieses Doc + die zwei ADRs als Pflichtlektüre.
+
+## 8.1 Nächste WPs (Stand 2026-06-22): U5c, dann U6
+
+> **Wichtig (Verifikation):** U5c und U6 berühren UI + API + Job-Pipeline im noch
+> wenig getesteten Monolithen. DoD ist hier ein **grüner Playwright-E2E** plus die
+> Backend-Invariante — das braucht eine **laufende App + MongoDB + echten Storage**
+> und läuft daher **lokal** (nicht in einer reinen Cloud-Session). Pro WP ein
+> Feature-Branch von `master`, **neuer Opus-Agent**, PR erst wenn grün.
+
+### Kickoff U5c — Compute-Verdrahtung (Datei-Medien off-target)
+
+```
+Branch von master (z.B. feature/wizard-u5c-compute-wiring). Pflichtlektüre:
+docs/wizards/umbauplan-generischer-erfassungs-wizard.md (§3 Compute-Pfade, §5 U5),
+docs/adr/0003-wizard-schema-template-trennen.md, docs/adr/0004-capture-publish-
+entkopplung-inbox-modell.md, docs/wizards/status-und-testplan-2026-06.md, .cursorrules,
+alle .cursor/rules/*.mdc mit alwaysApply, AGENTS.md.
+
+Ziel U5c: Die zwei Compute-Pfade versöhnen. Der Wizard transformiert heute ALLES
+synchron über POST /api/secretary/process-text (generate-draft-step.tsx). Künftig:
+Text/URL bleibt text-sync; Datei-Medien (PDF/Audio) laufen über den Inbox-Analyse-
+Job (providerScope='inbox') statt synchron. Pro Quelle entscheidet die schon
+gemergte, reine Funktion resolveComputeMode (src/lib/creation/compute-mode.ts) —
+KEINE neuen if(templateId===)-Sonderfälle.
+
+Bestehende Bausteine (nutzen, NICHT neu bauen): resolveComputeMode (compute-mode.ts),
+buildSubmissionAnalysisJob/buildSubmissionAnalysisParameters/pickAnalyzableSource
+(src/lib/submissions/submission-analysis-job.ts), submission-media.ts (PDF+Audio),
+Route POST /api/submissions/[id]/analyze (src/app/api/submissions/[id]/analyze/route.ts),
+der Ergebnis-Rückfluss applyAnalysisResult (submission-analysis.ts).
+
+Im Fokus (UI/Verdrahtung): src/components/creation-wizard/steps/generate-draft-step.tsx
+und der Aufrufpfad in creation-wizard.tsx (Stellen mit process-text). Datei-Medien:
+erst Submission anlegen (binaryRefs in Inbox) -> analyze-Job starten -> auf Completion
+warten/pollen -> Ergebnis fließt in die Submission. Text/URL unverändert sync.
+
+DoD: je Quelltyp ein grüner Fall — Text/URL (text-sync) und PDF + Audio (inbox-job)
+— mit Flowback in die Submission; Pipeline off-target (providerScope='inbox'), KEIN
+Archiv-Schreibzugriff. Unit für die Entscheidungs-/Parameter-Naht; Playwright-E2E
+nach status-und-testplan-2026-06.md. Regeln: Code engl., Kommentare/Commits dt.,
+Dateien <=200 Z., kein any / leeres catch, KEINE Silent Fallbacks, UI kennt kein
+Storage-Backend. Auf dem Branch committen, PR erst wenn grün.
+```
+
+### Kickoff U6 — PDF-Button → EIN generischer Einstieg (nach U5c)
+
+```
+Branch von master (z.B. feature/wizard-u6-single-entry). Pflichtlektüre wie U5c.
+
+Ziel U6: Den hart auf PDF/pdfanalyse/book verdrahteten Capture-Einstieg
+(src/components/submissions/capture-content-button.tsx) durch den generischen
+Wizard ersetzen: „Wizard starten mit storageScope=inbox + Schema-/Typ-Auswahl"
+über die bestehende Route src/app/library/create/[typeId]/page.tsx. Den separaten
+Upload-Dialog + die Hartverdrahtung entfernen. Einstieg/Sichtbarkeit pro Rolle
+gemäß ADR-0004 (contributor/co-creator/owner) beibehalten.
+
+DoD: Capture-E2E (06-inbox-capture aus status-und-testplan-2026-06.md) grün ÜBER
+den generischen Wizard; keine PDF/book-Hartverdrahtung mehr. Regeln wie U5c.
+Voraussetzung: U5c gemergt (Datei-Medien laufen off-target).
+```
+
 
 ## 9. Ist-Code-Karte (Stand 2026-06-14, Zeilen ggf. neu verifizieren)
 
