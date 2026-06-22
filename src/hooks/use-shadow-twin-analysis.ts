@@ -23,6 +23,61 @@ import { batchResolveArtifactsClient } from '@/lib/shadow-twin/artifact-client';
 import { FileLogger } from '@/lib/debug/logger';
 import { useAtomValue } from 'jotai';
 import { activeLibraryIdAtom, librariesAtom } from '@/atoms/library-atom';
+import { shadowTwinImportActivityAtom, type ShadowTwinImportActivity } from '@/atoms/shadow-twin-atom';
+import { TARGET_LANGUAGE_DEFAULT } from '@/lib/chat/constants';
+import { isMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id';
+import { toast } from 'sonner';
+
+/**
+ * Importiert im Storage gefundene Shadow-Twin-Artefakte in die MongoDB der
+ * aktiven Library (Rekonstruktion). Sichtbar via Aktivitaets-Atom + Toast.
+ *
+ * Nutzt den bestehenden, getesteten Reconstruct-Endpunkt. Laeuft nur einmal
+ * pro Ordner: nach dem Import liefert der Server Mongo-Artefakte (virtuelle IDs),
+ * sodass kein erneuter Import getriggert wird.
+ */
+async function importStorageArtifacts(
+  libraryId: string,
+  targets: Array<{ sourceId: string; parentId: string }>,
+  setActivity: (value: ShadowTwinImportActivity) => void,
+): Promise<void> {
+  const total = targets.length
+  setActivity({ active: true, total, done: 0 })
+  let imported = 0
+  try {
+    for (let i = 0; i < targets.length; i++) {
+      const target = targets[i]
+      try {
+        const res = await fetch(
+          `/api/library/${encodeURIComponent(libraryId)}/shadow-twins/reconstruct`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sourceId: target.sourceId, parentId: target.parentId }),
+          },
+        )
+        if (res.ok) {
+          const data = (await res.json().catch(() => null)) as { reconstructed?: number } | null
+          if (data && typeof data.reconstructed === 'number') imported += data.reconstructed
+        }
+      } catch (err) {
+        // Einzel-Fehler darf den Gesamt-Import nicht abbrechen.
+        FileLogger.warn('useShadowTwinAnalysis', 'Storage-Import einer Quelle fehlgeschlagen', {
+          sourceId: target.sourceId,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      }
+      setActivity({ active: true, total, done: i + 1 })
+    }
+    if (imported > 0) {
+      toast.success('Artefakte aus Speicher importiert', {
+        description: `${imported} Artefakt${imported > 1 ? 'e' : ''} in den Cache uebernommen.`,
+      })
+    }
+  } finally {
+    setActivity({ active: false, total: 0, done: 0 })
+  }
+}
 
 /**
  * Hook für automatische Shadow-Twin-Analyse aller Dateien im Ordner
@@ -40,6 +95,7 @@ export function useShadowTwinAnalysis(
   forceRefresh?: number
 ): Map<string, ShadowTwinState> {
   const setShadowTwinState = useSetAtom(shadowTwinStateAtom);
+  const setImportActivity = useSetAtom(shadowTwinImportActivityAtom);
   const libraryId = useAtomValue(activeLibraryIdAtom);
   const libraries = useAtomValue(librariesAtom);
   
@@ -50,6 +106,15 @@ export function useShadowTwinAnalysis(
   // Prüfe Shadow-Twin-Konfiguration (shadowTwin ist Teil von StorageConfig, nicht ClientLibrary)
   const shadowTwinConfig = activeLibrary?.config?.shadowTwin as { primaryStore?: 'filesystem' | 'mongo' } | undefined;
   const isMongoMode = shadowTwinConfig?.primaryStore === 'mongo';
+
+  // Effektive Zielsprache der Library bestimmen (statt hardcodiert 'de').
+  // Priorität: Verarbeitung (secretaryService) → Story (chat) → globaler Default.
+  // Grund: Artefakt-Dateinamen tragen die Sprache (z.B. "...en.md"); ohne die
+  // richtige Sprache findet der Resolver englische Artefakte nicht.
+  const effectiveTargetLanguage =
+    activeLibrary?.config?.secretaryService?.targetLanguage ||
+    activeLibrary?.config?.chat?.targetLanguage ||
+    TARGET_LANGUAGE_DEFAULT;
   
   const previousItemsRef = useRef<Map<string, { modifiedAt?: Date; parentId?: string }>>(new Map());
   const isAnalyzingRef = useRef(false);
@@ -219,7 +284,8 @@ export function useShadowTwinAnalysis(
               sourceId: item.id,
               sourceName: item.metadata.name,
               parentId: item.parentId!,
-              targetLanguage: 'de', // Standard-Sprache
+              // Library-Zielsprache statt hardcodiert 'de' (siehe effectiveTargetLanguage oben)
+              targetLanguage: effectiveTargetLanguage,
             }));
 
           if (sources.length === 0) {
@@ -252,6 +318,13 @@ export function useShadowTwinAnalysis(
           const analyzedAt = Date.now()
           const currentFileById = new Map<string, StorageItem>()
           for (const it of currentFileItems) currentFileById.set(it.id, it)
+
+          // Storage-Import-Kandidaten sammeln:
+          // Im Mongo-Modus liefert der Server fuer Mongo-Artefakte virtuelle IDs.
+          // Hat ein gefundenes Artefakt dagegen eine ECHTE Storage-ID, stammt es aus
+          // dem Filesystem-Fallback (z.B. parallele Installation) und ist noch NICHT
+          // in der MongoDB DIESER Library. Solche Quellen importieren wir sichtbar.
+          const storageImportTargets: Array<{ sourceId: string; parentId: string }> = []
 
           setShadowTwinState((prev) => {
             const next = new Map<string, FrontendShadowTwinState>()
@@ -305,6 +378,16 @@ export function useShadowTwinAnalysis(
               }
               const shadowTwinFolderId = transformation?.shadowTwinFolderId || transcript?.shadowTwinFolderId
 
+              // Storage-Fund erkennen: echte Storage-ID (keine virtuelle Mongo-ID).
+              if (isMongoMode && it.parentId) {
+                const foundFromStorage =
+                  (transformation?.item && !isMongoShadowTwinId(transformation.item.id)) ||
+                  (transcript?.item && !isMongoShadowTwinId(transcript.item.id))
+                if (foundFromStorage) {
+                  storageImportTargets.push({ sourceId: it.id, parentId: it.parentId })
+                }
+              }
+
               // Binary-Uploads sind möglich wenn:
               // - MongoDB-Modus aktiv ist (Upload geht direkt nach Azure), ODER
               // - Ein shadowTwinFolderId vorhanden ist (Filesystem-Modus)
@@ -351,6 +434,13 @@ export function useShadowTwinAnalysis(
               analyzedCount: itemsToAnalyze.length,
               totalFiles: itemsToAnalyze.length,
             });
+          }
+
+          // Sichtbarer Storage-Import: gefundene Artefakte in MongoDB nachfuehren,
+          // damit sie persistent sind (Folgeaufrufe ohne FS-Scan) und der Anwender
+          // sieht, dass gerade importiert wird (Aktivitaets-Indikator + Toast).
+          if (libraryId && storageImportTargets.length > 0) {
+            void importStorageArtifacts(libraryId, storageImportTargets, setImportActivity)
           }
         } catch (error) {
           isAnalyzingRef.current = false;

@@ -16,6 +16,10 @@ import { findShadowTwinFolder } from '@/lib/storage/shadow-twin'
 import { reconstructFromFolder } from '@/lib/shadow-twin/reconstruct-from-storage'
 import { FileLogger } from '@/lib/debug/logger'
 
+// Rekonstruktion laedt Seiten-Renderings/Previews nach Azure (Variante 2) –
+// das kann bei vielen Bildern dauern. Zeitlimit grosszuegig setzen.
+export const maxDuration = 300
+
 interface ReconstructRequest {
   sourceId: string
   parentId: string
