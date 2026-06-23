@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Trash2, X, RefreshCw, Download, DownloadCloud } from "lucide-react"
+import { Trash2, X, RefreshCw, Download, DownloadCloud, Wrench } from "lucide-react"
 import { toast } from "sonner"
 
 import { useSetAtom } from "jotai"
@@ -40,6 +40,7 @@ import {
   buildFileName,
   artifactKey,
 } from './artifact-info-panel/helpers'
+import { useSourceReconcile, reconcileHasChanges } from './artifact-info-panel/use-source-reconcile'
 
 export interface ArtifactInfoPanelProps {
   libraryId: string
@@ -260,6 +261,16 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
     }
   }, [props.libraryId, props.sourceFile?.id, props.sourceFile?.parentId, props.onArtifactsDeleted, triggerShadowTwinAnalysis, fetchAllArtifacts])
 
+  // Reconcile (Transkript reparieren): vollstaendigste Version -> kanonische {base}.md + Mongo,
+  // unterlegene Varianten loeschen. Vorschau (Dry-Run) -> Bestaetigung -> Apply.
+  const handleReconcileApplied = React.useCallback(() => {
+    void fetchAllArtifacts()
+    setReloadSignal((v) => v + 1)
+    triggerShadowTwinAnalysis((v) => v + 1)
+    props.onArtifactsDeleted?.()
+  }, [fetchAllArtifacts, triggerShadowTwinAnalysis, props.onArtifactsDeleted])
+  const reconcile = useSourceReconcile(props.libraryId, props.sourceFile?.id, handleReconcileApplied)
+
   // Einzelne Artefakt-Zeile rendern
   const renderArtifactRow = React.useCallback((artifact: MongoArtifact) => {
     const key = artifactKey(artifact)
@@ -393,6 +404,17 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
           </Button>
         )}
 
+        {/* Transkript reparieren: vollstaendigste Version gewinnt (Vorschau -> Apply) */}
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={reconcile.isBusy || isImporting || isDeleting}
+          onClick={() => void reconcile.runPreview()}
+        >
+          <Wrench className={`h-4 w-4 mr-2 ${reconcile.isBusy ? "animate-pulse" : ""}`} />
+          {reconcile.isBusy ? "Prüfe…" : "Transkript reparieren"}
+        </Button>
+
         {hasArtifacts && (
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -427,6 +449,43 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
           </AlertDialog>
         )}
       </div>
+
+      {/* Reconcile-Vorschau / Bestätigung */}
+      <AlertDialog open={reconcile.open} onOpenChange={reconcile.setOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Transkript reparieren?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                {!reconcile.preview ? (
+                  <span>Keine Daten.</span>
+                ) : reconcile.preview.status === "conflict" ? (
+                  <span>Konflikt: mehrere gleich vollständige, aber unterschiedliche Versionen. Bitte manuell prüfen — es wird nichts geändert.</span>
+                ) : reconcile.preview.status === "needs-reextract" ? (
+                  <span>Alle gefundenen Versionen haben nur 1 Seite (mehr erwartet). Neu-Extraktion nötig — es wird nichts gelöscht.</span>
+                ) : !reconcileHasChanges(reconcile.preview) ? (
+                  <span>Bereits korrekt — nichts zu tun.</span>
+                ) : (
+                  <>
+                    <div>Vollständigste Version: <b>{reconcile.preview.winnerName}</b> ({reconcile.preview.winnerPages} Seiten, {reconcile.preview.winnerOrigin}).</div>
+                    <div>Wird als kanonische Version gesetzt (Storage + Datenbank).</div>
+                    {reconcile.preview.deleted.length > 0 && (
+                      <div>Wird gelöscht: {reconcile.preview.deleted.join(", ")}</div>
+                    )}
+                    <div className="text-muted-foreground">Diese Aktion kann nicht rückgängig gemacht werden.</div>
+                  </>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Schließen</AlertDialogCancel>
+            {reconcileHasChanges(reconcile.preview) && (
+              <AlertDialogAction onClick={() => void reconcile.runApply()}>Reparieren</AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="border-t pt-2">
         <div className="text-[11px] text-muted-foreground truncate">fileId: {props.sourceFile.id}</div>
