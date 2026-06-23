@@ -246,26 +246,28 @@ export interface TransformerChatParams {
 
 /**
  * Ruft den LLM Broker Chat-Endpoint des Secretary Services auf.
- * 
- * Verwendet application/x-www-form-urlencoded für Request-Body.
- * 
+ *
+ * Verwendet application/json für den Request-Body. Form-encoded Requests
+ * werden vom Secretary Service nicht mehr akzeptiert (Werkzeug-Limit 500 kB).
+ *
  * @param p Chat-Parameter
  * @returns Response vom Secretary Service
  */
 export async function callTransformerChat(p: TransformerChatParams): Promise<Response> {
-  const formData = new URLSearchParams()
-  formData.append('messages', JSON.stringify(p.messages))
-  
-  if (p.model) formData.append('model', p.model)
-  if (p.provider) formData.append('provider', p.provider)
-  if (p.temperature !== undefined) formData.append('temperature', String(p.temperature))
-  if (p.maxTokens !== undefined) formData.append('max_tokens', String(p.maxTokens))
-  if (p.responseFormat) formData.append('response_format', p.responseFormat)
-  if (p.schemaJson) formData.append('schema_json', p.schemaJson)
-  if (p.schemaId) formData.append('schema_id', p.schemaId)
-  if (p.strict !== undefined) formData.append('strict', String(p.strict))
-  formData.append('use_cache', String(p.useCache ?? true))
-  if (p.timeoutMs !== undefined) formData.append('timeout_ms', String(p.timeoutMs))
+  const jsonBody: Record<string, unknown> = {
+    messages: p.messages,
+    use_cache: p.useCache ?? true,
+  }
+
+  if (p.model) jsonBody.model = p.model
+  if (p.provider) jsonBody.provider = p.provider
+  if (p.temperature !== undefined) jsonBody.temperature = p.temperature
+  if (p.maxTokens !== undefined) jsonBody.max_tokens = p.maxTokens
+  if (p.responseFormat) jsonBody.response_format = p.responseFormat
+  if (p.schemaJson) jsonBody.schema_json = p.schemaJson
+  if (p.schemaId) jsonBody.schema_id = p.schemaId
+  if (p.strict !== undefined) jsonBody.strict = p.strict
+  if (p.timeoutMs !== undefined) jsonBody.timeout_ms = p.timeoutMs
   
   // Logging der Parameter für Debugging (ohne sensible Daten)
   console.log('[Secretary Adapter] callTransformerChat Parameters:', {
@@ -288,7 +290,7 @@ export async function callTransformerChat(p: TransformerChatParams): Promise<Res
   
   const headers: Record<string, string> = {
     'Accept': 'application/json',
-    'Content-Type': 'application/x-www-form-urlencoded',
+    'Content-Type': 'application/json',
   }
   
   if (p.apiKey) {
@@ -301,7 +303,7 @@ export async function callTransformerChat(p: TransformerChatParams): Promise<Res
       p.url,
       {
         method: 'POST',
-        body: formData.toString(),
+        body: JSON.stringify(jsonBody),
         headers,
         timeoutMs: p.timeoutMs
       }

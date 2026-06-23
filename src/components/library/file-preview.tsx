@@ -36,6 +36,7 @@ import { parseSecretaryMarkdownStrict } from "@/lib/secretary/response-parser"
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { isFilesystemBacked } from '@/lib/storage/library-capability'
 import { useShadowTwinFreshnessApi } from "@/hooks/use-shadow-twin-freshness"
+import { useSourceArtifacts, useInvalidateSourceArtifacts } from "@/hooks/use-source-artifacts"
 import { ShadowTwinSyncBanner } from "@/components/library/shared/shadow-twin-sync-banner"
 import { loadPdfDefaults } from "@/lib/pdf-defaults"
 import { getEffectivePdfDefaults } from "@/atoms/pdf-defaults"
@@ -233,108 +234,87 @@ function PreviewContent({
   }, [currentJobInfo?.updatedAt, STALE_JOB_THRESHOLD_MS])
   const hasActiveJob = !isJobStale && (currentJobInfo?.status === 'queued' || currentJobInfo?.status === 'running')
 
-  // Alle verfügbaren Transkripte (alle Sprachen) aus MongoDB laden.
-  // Die Batch-Resolve-API liefert nur ein Transkript pro Source, daher holen wir
-  // bei der ausgewählten Datei alle Sprach-Varianten über die Shadow-Twins-API.
-  const [allTranscriptFiles, setAllTranscriptFiles] = React.useState<StorageItem[]>([])
-  const [allTransformationFiles, setAllTransformationFiles] = React.useState<StorageItem[]>([])
-  // Lokaler Trigger: Erhöhung erzwingt erneutes Laden aller Artefakte (loadAllArtifacts-Effect).
-  // Wird vom Fallback-Polling gesetzt, wenn der Job als abgeschlossen erkannt wird.
-  const [artifactsRefreshTrigger, setArtifactsRefreshTrigger] = React.useState(0)
+  // Alle Artefakte (alle Sprachen/Templates) der aktuellen Quelle.
+  // Geteilter React-Query-Cache (queryKey pro Library+Quelle): dedupliziert mit dem
+  // Artefakt-Info-Panel und verhindert das Mehrfach-Laden beim Datei-Oeffnen, das der
+  // alte Effect durch wackelige Job-/Twin-Dependencies erzeugte (Re-Trace R2: 3x).
+  const { data: sourceArtifacts } = useSourceArtifacts(activeLibraryId, item.id)
+  const invalidateSourceArtifacts = useInvalidateSourceArtifacts()
   // Globaler Shadow-Twin-Re-Analyse-Trigger: aktualisiert Tab-Status (useStoryStatus) UND
   // shadowTwinStateAtom (Wizard hasTransformed). MUSS nach Job-Ende ebenfalls gebumpt werden,
   // sonst bleiben Transformation-Tab/Wizard veraltet, wenn das Job-Panel geschlossen war
   // (dessen SSE-Burst greift dann nicht).
   const setShadowTwinAnalysisTrigger = useSetAtom(shadowTwinAnalysisTriggerAtom)
-  React.useEffect(() => {
-    if (!activeLibraryId || !item.id) return
-    let cancelled = false
-    async function loadAllArtifacts() {
-      try {
-        const res = await fetch(
-          `/api/library/${encodeURIComponent(activeLibraryId)}/shadow-twins/${encodeURIComponent(item.id)}?ts=${Date.now()}`,
-          { cache: 'no-store' }
-        )
-        if (!res.ok || cancelled) return
-        const data = await res.json() as {
-          artifacts?: Array<{ kind: string; targetLanguage: string; markdownLength: number; updatedAt: string; templateName?: string }>
-        }
-        if (cancelled || !data.artifacts) return
-        // Nur Transkripte filtern und als virtuelle StorageItems erstellen
-        const transcriptArtifacts = data.artifacts
-          .filter((a) => a.kind === 'transcript')
-          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-        const transformationArtifacts = data.artifacts
-          .filter((a) => a.kind === 'transformation')
-          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-        if (transcriptArtifacts.length <= 1) {
-          // Nur ein Transkript → kein Dropdown nötig, bleibe bei der bestehenden Logik
-          setAllTranscriptFiles([])
-        } else {
-          const baseName = item.metadata.name.replace(/\.[^.]+$/, '')
-          const virtualItems: StorageItem[] = transcriptArtifacts.map((a) => {
-            const fileName = `${baseName}.${a.targetLanguage}.md`
-            // Mongo-Shadow-Twin-ID (Format: mongo-shadow-twin:<libraryId>::<sourceId>::<kind>::<lang>::<template?>)
-            const parts = [activeLibraryId, item.id, 'transcript', a.targetLanguage, ''].map(encodeURIComponent)
-            const mongoId = `mongo-shadow-twin:${parts.join('::')}`
-            return {
-              id: mongoId,
-              parentId: item.parentId ?? '',
-              type: 'file' as const,
-              metadata: {
-                name: fileName,
-                size: a.markdownLength ?? 0,
-                modifiedAt: new Date(a.updatedAt ?? Date.now()),
-                mimeType: 'text/markdown',
-                isTwin: true,
-              },
-            }
-          })
-          if (!cancelled) setAllTranscriptFiles(virtualItems)
-        }
 
-        const baseName = item.metadata.name.replace(/\.[^.]+$/, '')
-        const virtualTransformItems: StorageItem[] = transformationArtifacts.map((a) => {
-          const templateName = typeof a.templateName === 'string' && a.templateName.trim().length > 0
-            ? a.templateName
-            : 'template'
-          const fileName = `${baseName}.${templateName}.${a.targetLanguage}.md`
-          const parts = [activeLibraryId, item.id, 'transformation', a.targetLanguage, templateName].map(encodeURIComponent)
-          const mongoId = `mongo-shadow-twin:${parts.join('::')}`
-          return {
-            id: mongoId,
-            parentId: item.parentId ?? '',
-            type: 'file' as const,
-            metadata: {
-              name: fileName,
-              size: a.markdownLength ?? 0,
-              modifiedAt: new Date(a.updatedAt ?? Date.now()),
-              mimeType: 'text/markdown',
-              isTwin: true,
-            },
-          }
-        })
-        if (!cancelled) setAllTransformationFiles(virtualTransformItems)
-      } catch {
-        // Fehler ignorieren – Dropdown bleibt ausgeblendet
-      }
+  // Nach Job-Ende die Artefakt-Liste gezielt neu laden — NUR beim echten Uebergang aus
+  // einem aktiven Status ('queued'/'running') nach 'completed'. Die blosse Atom-Hydration
+  // undefined -> 'completed' (bereits fertige Datei) zaehlt NICHT, sonst entsteht ein
+  // ueberfluessiges zweites Laden direkt nach dem Oeffnen.
+  const prevJobStatusRef = React.useRef(currentJobInfo?.status)
+  React.useEffect(() => {
+    const prev = prevJobStatusRef.current
+    const curr = currentJobInfo?.status
+    prevJobStatusRef.current = curr
+    const wasActive = prev === 'queued' || prev === 'running'
+    if (wasActive && curr === 'completed' && activeLibraryId && item.id) {
+      void invalidateSourceArtifacts(activeLibraryId, item.id)
     }
-    void loadAllArtifacts()
-    return () => { cancelled = true }
-    // transcript.transcriptItem triggert Neuladen, wenn ein neues Transkript erstellt wird
-    // currentJobInfo aktualisiert Artefakte direkt nach Job-Ende (ohne Dateiwechsel)
-    // artifactsRefreshTrigger: direkter Fallback-Trigger vom Polling-Mechanismus
-  }, [
-    activeLibraryId,
-    item.id,
-    item.metadata.name,
-    item.parentId,
-    transcript.transcriptItem,
-    shadowTwinState?.transformed?.id,
-    currentJobInfo?.status,
-    currentJobInfo?.updatedAt,
-    artifactsRefreshTrigger,
-  ])
+  }, [currentJobInfo?.status, activeLibraryId, item.id, invalidateSourceArtifacts])
+
+  // Virtuelle StorageItems je Sprache aus den Mongo-Artefakten ableiten (Dropdowns).
+  // Mongo-Shadow-Twin-ID-Format: mongo-shadow-twin:<libraryId>::<sourceId>::<kind>::<lang>::<template?>
+  const allTranscriptFiles = React.useMemo<StorageItem[]>(() => {
+    const transcriptArtifacts = (sourceArtifacts ?? [])
+      .filter((a) => a.kind === 'transcript')
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    // Nur ein Transkript → kein Dropdown noetig; Reader faellt auf den Shadow-Twin-State zurueck.
+    if (transcriptArtifacts.length <= 1) return []
+    const baseName = item.metadata.name.replace(/\.[^.]+$/, '')
+    return transcriptArtifacts.map((a) => {
+      const fileName = `${baseName}.${a.targetLanguage}.md`
+      const parts = [activeLibraryId ?? '', item.id, 'transcript', a.targetLanguage, ''].map(encodeURIComponent)
+      const mongoId = `mongo-shadow-twin:${parts.join('::')}`
+      return {
+        id: mongoId,
+        parentId: item.parentId ?? '',
+        type: 'file' as const,
+        metadata: {
+          name: fileName,
+          size: a.markdownLength ?? 0,
+          modifiedAt: new Date(a.updatedAt ?? Date.now()),
+          mimeType: 'text/markdown',
+          isTwin: true,
+        },
+      }
+    })
+  }, [sourceArtifacts, activeLibraryId, item.id, item.metadata.name, item.parentId])
+
+  const allTransformationFiles = React.useMemo<StorageItem[]>(() => {
+    const transformationArtifacts = (sourceArtifacts ?? [])
+      .filter((a) => a.kind === 'transformation')
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    const baseName = item.metadata.name.replace(/\.[^.]+$/, '')
+    return transformationArtifacts.map((a) => {
+      const templateName = typeof a.templateName === 'string' && a.templateName.trim().length > 0
+        ? a.templateName
+        : 'template'
+      const fileName = `${baseName}.${templateName}.${a.targetLanguage}.md`
+      const parts = [activeLibraryId ?? '', item.id, 'transformation', a.targetLanguage, templateName].map(encodeURIComponent)
+      const mongoId = `mongo-shadow-twin:${parts.join('::')}`
+      return {
+        id: mongoId,
+        parentId: item.parentId ?? '',
+        type: 'file' as const,
+        metadata: {
+          name: fileName,
+          size: a.markdownLength ?? 0,
+          modifiedAt: new Date(a.updatedAt ?? Date.now()),
+          mimeType: 'text/markdown',
+          isTwin: true,
+        },
+      }
+    })
+  }, [sourceArtifacts, activeLibraryId, item.id, item.metadata.name, item.parentId])
 
   // Verfügbare Transkripte: bevorzuge die vollständige Liste aus der API,
   // Fallback auf die Einzeldatei aus dem Shadow-Twin-State
@@ -482,8 +462,8 @@ function PreviewContent({
     setInfoTab("original");
     setSelectedTranscriptIdx(0);
     setSelectedTransformationIdx(0);
-    setAllTranscriptFiles([]);
-    setAllTransformationFiles([]);
+    // allTranscriptFiles/allTransformationFiles sind jetzt abgeleitete Memos (queryKey
+    // an item.id gebunden) und setzen sich beim Dateiwechsel automatisch zurueck.
   }, [item.id]);
 
   React.useEffect(() => {
@@ -835,9 +815,8 @@ function PreviewContent({
   // Fallback-Polling: wenn nach einem Pipeline-Start die SSE-Events ausbleiben
   // (z.B. weil der Job-Monitor-Panel-SSE noch nicht verbunden war), prüfen wir
   // alle 8 Sekunden den Job-Status direkt über die REST-API.
-  // Sobald der Job abgeschlossen ist, wird loadAllArtifacts automatisch neu getriggert,
-  // indem currentJobInfo über den Jotai-Atom aktualisiert wird.
-  // Alternativ: direkte Shadow-Twin-Analyse neu triggern, falls currentJobInfo fehlt.
+  // Sobald der Job abgeschlossen ist, wird der geteilte Artefakt-Query invalidiert
+  // (frisches Laden der Dropdown-Listen) und die Shadow-Twin-Analyse neu getriggert.
   React.useEffect(() => {
     if (!pendingJobId || !activeLibraryId) return
 
@@ -855,8 +834,8 @@ function PreviewContent({
         const data = await res.json() as { status?: string }
         if (data.status === 'completed' || data.status === 'failed') {
           // Job fertig:
-          // 1) Artefakt-Dropdown-Listen neu laden (loadAllArtifacts-Effect)
-          setArtifactsRefreshTrigger((v) => v + 1)
+          // 1) Artefakt-Dropdown-Listen neu laden (geteilten Query-Cache invalidieren)
+          if (activeLibraryId && item.id) void invalidateSourceArtifacts(activeLibraryId, item.id)
           // 2) Shadow-Twin-Re-Analyse anstossen -> aktualisiert Tab-Status (useStoryStatus) UND
           //    shadowTwinStateAtom (Wizard hasTransformed), auch wenn das Job-Panel geschlossen war.
           //    Kleiner Nachschlag fuer eventuelle Storage-Latenz (analog Panel-Burst).
@@ -878,7 +857,7 @@ function PreviewContent({
       clearInterval(interval)
       if (lateTimer) clearTimeout(lateTimer)
     }
-  }, [pendingJobId, activeLibraryId, setArtifactsRefreshTrigger, setShadowTwinAnalysisTrigger])
+  }, [pendingJobId, activeLibraryId, item.id, invalidateSourceArtifacts, setShadowTwinAnalysisTrigger])
 
   // async function loadRagStatus() {
   //   try {

@@ -22,8 +22,11 @@ export interface SelectedShadowTwinArtifact {
  * Fuer Transformationen wird das neueste Artefakt (updatedAt) pro Sprache genommen.
  *
  * Transkripte sind sprach-neutral (ein Record pro Quelle = Originalsprache); targetLanguage
- * ist hier irrelevant. Fuer Transformationen gilt: wenn die angeforderte Sprache nicht
- * existiert, wird auf die erste verfuegbare Sprache zurueckgefallen.
+ * ist hier irrelevant. Fuer Transformationen gilt EXAKTER Sprach-Match: existiert die
+ * angeforderte Sprache nicht, wird `null` zurueckgegeben — KEIN stiller Cross-Sprach-Fallback
+ * (siehe no-silent-fallbacks.mdc). Unter mehreren Templates derselben Sprache gewinnt das
+ * neueste (`updatedAt`); die Template-Wahl ist hier bewusst agnostisch (Aufrufer mit bekanntem
+ * Template adressieren das Artefakt direkt ueber `getShadowTwinArtifact`).
  */
 export function selectShadowTwinArtifact(
   doc: ShadowTwinDocument,
@@ -42,17 +45,14 @@ export function selectShadowTwinArtifact(
   let best: SelectedShadowTwinArtifact | null = null
   for (const [templateName, langs] of Object.entries(transformations)) {
     if (!langs || typeof langs !== 'object') continue
-    const langEntries = Object.entries(langs)
-    if (langEntries.length === 0) continue
-    // Bevorzugt angeforderte Sprache, sonst erste verfuegbare
-    const preferred = langEntries.find(([lang]) => lang === targetLanguage)
-    const [actualLang, record] = preferred ?? langEntries[0]
-    if (!best) {
-      best = { kind: 'transformation', targetLanguage: actualLang, templateName, record }
-      continue
-    }
-    if (record.updatedAt > best.record.updatedAt) {
-      best = { kind: 'transformation', targetLanguage: actualLang, templateName, record }
+    const langEntries = Object.entries(langs) as Array<[string, ShadowTwinArtifactRecord]>
+    // Exakter Sprach-Match: Templates ohne die angeforderte Sprache werden uebersprungen.
+    // KEIN stiller Fallback auf eine andere Sprache (no-silent-fallbacks.mdc).
+    const match = langEntries.find(([lang]) => lang === targetLanguage)
+    if (!match) continue
+    const record = match[1]
+    if (!best || record.updatedAt > best.record.updatedAt) {
+      best = { kind: 'transformation', targetLanguage, templateName, record }
     }
   }
   return best
