@@ -41,6 +41,7 @@ import {
   artifactKey,
 } from './artifact-info-panel/helpers'
 import { useSourceReconcile, reconcileHasChanges } from './artifact-info-panel/use-source-reconcile'
+import { useSourceArtifacts, useInvalidateSourceArtifacts } from '@/hooks/use-source-artifacts'
 
 export interface ArtifactInfoPanelProps {
   libraryId: string
@@ -61,32 +62,25 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
   const [reloadSignal, setReloadSignal] = React.useState(0)
   const triggerShadowTwinAnalysis = useSetAtom(shadowTwinAnalysisTriggerAtom)
 
-  // Alle Artefakte aus MongoDB laden (nicht gefiltert, alle Sprachen/Templates)
-  const [allArtifacts, setAllArtifacts] = React.useState<MongoArtifact[]>([])
-  const [isLoading, setIsLoading] = React.useState(true)
+  // Alle Artefakte aus MongoDB laden (alle Sprachen/Templates) — geteilter
+  // React-Query-Cache (dedupliziert mit der Datei-Vorschau, siehe Re-Trace R2).
+  const artifactsQuery = useSourceArtifacts(props.libraryId, props.sourceFile?.id)
+  const invalidateSourceArtifacts = useInvalidateSourceArtifacts()
+  // useMemo: stabile Referenz, sonst rechnen die abgeleiteten Memos bei jedem Render neu.
+  const allArtifacts = React.useMemo(
+    () => (artifactsQuery.data ?? []) as MongoArtifact[],
+    [artifactsQuery.data]
+  )
+  // isFetching (statt isLoading): Spinner dreht auch beim erneuten Laden nach Invalidierung.
+  const isLoading = artifactsQuery.isFetching
   const [downloadingKey, setDownloadingKey] = React.useState<string | null>(null)
 
-  const fetchAllArtifacts = React.useCallback(async () => {
-    if (!props.libraryId || !props.sourceFile?.id) return
-    setIsLoading(true)
-    try {
-      const res = await fetch(
-        `/api/library/${encodeURIComponent(props.libraryId)}/shadow-twins/${encodeURIComponent(props.sourceFile.id)}`
-      )
-      if (res.ok) {
-        const data = await res.json() as { artifacts?: MongoArtifact[] }
-        setAllArtifacts(data.artifacts || [])
-      }
-    } catch {
-      // Fehler beim Laden – leer bleiben
-    } finally {
-      setIsLoading(false)
+  // Erzwingt frisches Laden bei allen Consumern (nach Loeschen/Import/Re-Analyse).
+  const refreshArtifacts = React.useCallback(async () => {
+    if (props.libraryId && props.sourceFile?.id) {
+      await invalidateSourceArtifacts(props.libraryId, props.sourceFile.id)
     }
-  }, [props.libraryId, props.sourceFile?.id])
-
-  React.useEffect(() => {
-    void fetchAllArtifacts()
-  }, [fetchAllArtifacts])
+  }, [invalidateSourceArtifacts, props.libraryId, props.sourceFile?.id])
 
   const transcripts = React.useMemo(
     () => allArtifacts.filter((a) => a.kind === "transcript"),
@@ -104,7 +98,7 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
 
   // Einzelnes Artefakt herunterladen (Frontmatter + Body als .md-Datei)
   // Quelle ist immer MongoDB: ArtifactInfoPanel listet auch nur Mongo-Artefakte
-  // (siehe fetchAllArtifacts oben). Damit umgehen wir den Provider-Pfad und
+  // (siehe artifactsQuery oben). Damit umgehen wir den Provider-Pfad und
   // muessen uns keine Sorgen ueber Storage-Backends machen.
   const handleDownloadSingle = React.useCallback(async (artifact: MongoArtifact) => {
     if (!props.libraryId || !props.sourceFile?.id) return
@@ -167,7 +161,7 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
       toast.success("Artefakt geloescht", { description: label })
 
       // Liste und Shadow-Twin-Analyse aktualisieren
-      await fetchAllArtifacts()
+      await refreshArtifacts()
       triggerShadowTwinAnalysis((v) => v + 1)
       props.onArtifactsDeleted?.()
     } catch (error) {
@@ -177,7 +171,7 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
     } finally {
       setDeletingKey(null)
     }
-  }, [props.libraryId, props.sourceFile?.id, props.onArtifactsDeleted, triggerShadowTwinAnalysis, fetchAllArtifacts])
+  }, [props.libraryId, props.sourceFile?.id, props.onArtifactsDeleted, triggerShadowTwinAnalysis, refreshArtifacts])
 
   // Alle Artefakte loeschen
   const handleDeleteAll = React.useCallback(async () => {
@@ -203,7 +197,7 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
       }
 
       toast.success("Alle Artefakte geloescht")
-      await fetchAllArtifacts()
+      await refreshArtifacts()
       setReloadSignal((v) => v + 1)
       triggerShadowTwinAnalysis((v) => v + 1)
       props.onArtifactsDeleted?.()
@@ -214,7 +208,7 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
     } finally {
       setIsDeleting(false)
     }
-  }, [props.libraryId, props.sourceFile?.id, props.onArtifactsDeleted, triggerShadowTwinAnalysis, fetchAllArtifacts])
+  }, [props.libraryId, props.sourceFile?.id, props.onArtifactsDeleted, triggerShadowTwinAnalysis, refreshArtifacts])
 
   // Alle Artefakte aus dem Storage in den Cache uebernehmen (Rekonstruktion).
   // Nutzt den bestehenden reconstruct-Endpunkt: Markdown + Bilder (page_*/preview_*)
@@ -248,7 +242,7 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
         toast.info("Übernahme abgeschlossen")
       }
 
-      await fetchAllArtifacts()
+      await refreshArtifacts()
       setReloadSignal((v) => v + 1)
       triggerShadowTwinAnalysis((v) => v + 1)
       props.onArtifactsDeleted?.()
@@ -259,16 +253,16 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
     } finally {
       setIsImporting(false)
     }
-  }, [props.libraryId, props.sourceFile?.id, props.sourceFile?.parentId, props.onArtifactsDeleted, triggerShadowTwinAnalysis, fetchAllArtifacts])
+  }, [props.libraryId, props.sourceFile?.id, props.sourceFile?.parentId, props.onArtifactsDeleted, triggerShadowTwinAnalysis, refreshArtifacts])
 
   // Reconcile (Transkript reparieren): vollstaendigste Version -> kanonische {base}.md + Mongo,
   // unterlegene Varianten loeschen. Vorschau (Dry-Run) -> Bestaetigung -> Apply.
   const handleReconcileApplied = React.useCallback(() => {
-    void fetchAllArtifacts()
+    void refreshArtifacts()
     setReloadSignal((v) => v + 1)
     triggerShadowTwinAnalysis((v) => v + 1)
     props.onArtifactsDeleted?.()
-  }, [fetchAllArtifacts, triggerShadowTwinAnalysis, props.onArtifactsDeleted])
+  }, [refreshArtifacts, triggerShadowTwinAnalysis, props.onArtifactsDeleted])
   const reconcile = useSourceReconcile(props.libraryId, props.sourceFile?.id, handleReconcileApplied)
 
   // Einzelne Artefakt-Zeile rendern
@@ -330,7 +324,7 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
             <button
               type="button"
               className="p-1 rounded hover:bg-muted text-muted-foreground"
-              onClick={() => void fetchAllArtifacts()}
+              onClick={() => void refreshArtifacts()}
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
             </button>
