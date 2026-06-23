@@ -30,6 +30,14 @@ const PAGE_RENDER_RE = /^page_(\d+)\.(jpe?g|png|webp)$/i
 /** Vorschau-Bilder (Thumbnails): preview_001.jpg etc. */
 const PREVIEW_RE = /^preview_(\d+)\.(jpe?g|png|webp)$/i
 
+/**
+ * True, wenn die Datei ein registrierbares Seiten-Rendering/Preview ist
+ * (page_NNN.* / preview_NNN.*). Genutzt fuer die Dry-Run-Zaehlung im Reconcile.
+ */
+export function isReconstructablePageImage(name: string): boolean {
+  return IMAGE_EXT_RE.test(name) && (PAGE_RENDER_RE.test(name) || PREVIEW_RE.test(name))
+}
+
 /** MIME-Type aus Dateiendung ableiten (nur Bild-Formate). */
 function imageMimeFromName(name: string): string {
   const lower = name.toLowerCase()
@@ -243,27 +251,24 @@ export async function reconstructFromFolder(args: {
  * als binaryFragments. Nur im Mongo-Modus (Azure ist dort die Lese-Quelle); im
  * reinen Filesystem-Modus liegen die Bilder bereits am primaeren Ort.
  */
-async function reconstructPageImages(args: {
+export async function reconstructPageImages(args: {
   provider: StorageProvider
   libraryId: string
   userEmail: string
   sourceItem: StorageItem
   parentId: string
   items: StorageItem[]
-}): Promise<void> {
+}): Promise<number> {
   const { provider, libraryId, userEmail, sourceItem, parentId, items } = args
 
   const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
-  if (!library) return
+  if (!library) return 0
 
   // Gate: Nur Mongo-Primaer spiegelt nach Azure. Filesystem-Primaer braucht das nicht.
-  if (getShadowTwinConfig(library).primaryStore !== 'mongo') return
+  if (getShadowTwinConfig(library).primaryStore !== 'mongo') return 0
 
-  const imageFiles = items.filter(
-    (it) => it.type === 'file' && IMAGE_EXT_RE.test(it.metadata.name) &&
-      (PAGE_RENDER_RE.test(it.metadata.name) || PREVIEW_RE.test(it.metadata.name)),
-  )
-  if (imageFiles.length === 0) return
+  const imageFiles = items.filter((it) => it.type === 'file' && isReconstructablePageImage(it.metadata.name))
+  if (imageFiles.length === 0) return 0
 
   const service = new ShadowTwinService({
     library,
@@ -304,4 +309,5 @@ async function reconstructPageImages(args: {
       sourceId: sourceItem.id,
     })
   }
+  return mirrored
 }
