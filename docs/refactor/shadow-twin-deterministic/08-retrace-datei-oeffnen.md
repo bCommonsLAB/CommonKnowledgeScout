@@ -98,3 +98,46 @@ Zweiter manueller Durchklick mit eingebauten Fixes (Datei diesmal
 
 > Belege: Server-Log-Auswertung 2026-06-23 (Re-Trace #1 Datei `9783927266575_Interior.pdf`;
 > Verifikation #3 Datei `_Ökoniomie_en_Innen.pdf`). Alles read-only; **0 Writes** bestätigt.
+
+---
+
+## E. R2 umgesetzt + verifiziert (TanStack Query)
+
+R2 wurde idiomatisch gelöst: Einführung von `@tanstack/react-query` + `QueryProvider`
+(Root-Layout). Datei-Vorschau und Artefakt-Info-Panel nutzen jetzt den geteilten Hook
+`useSourceArtifacts` (`src/hooks/use-source-artifacts.ts`, queryKey pro Library+Quelle).
+
+- **Ursache 1 (Vorschau lud 2×):** Der alte Effect hing an wackeligen Job-/Twin-Atom-
+  Dependencies → Re-Run kurz nach dem Öffnen. Behoben: queryKey hängt an Quell-Identität,
+  nicht an Render-State. Job-Ende-Refresh nur noch beim echten Übergang `running/queued →
+  completed` (nicht bei Atom-Hydration `undefined → completed`).
+- **Ursache 2 (komponentenübergreifend):** Beide Komponenten teilen denselben queryKey →
+  React-Query dedupliziert.
+- **Live verifiziert (Server-Probe `[R2PROBE-LIST-GET]`):** **genau 1×** Listen-Call pro
+  Datei-Öffnen (vorher 3×). Probe danach wieder entfernt.
+- Offen bleibt **R2-ingestion-status** (2×, verschiedene Komponenten/Params) — separat.
+
+Commit: `perf(shadow-twin): geteilter React-Query-Cache fuer Artefakt-Liste (R2)`.
+
+---
+
+## F. Daten-Befund (NICHT R2/Öffnen): Über-Maskierung in neuer Transform-Pipeline
+
+Beim Verifizieren der Transformation von `_Ökoniomie_en_Innen.pdf` zeigte der Tab einen
+JSON-Parse-Fehler. Inspektion des Mongo-Datensatzes (read-only) belegt: **kein Schreiben
+beim Öffnen**, sondern ein Generierungs-/Serialisierungs-Bug in der NEUEN Pipeline.
+
+- Zwei `en`-Transformationen: `tamera-extract-en` (08:10, **einfach** maskiert, gültig:
+  `title: "ABOUT THE \"HUMANIZATION OF MONEY\" …"`) und `tamera` (09:49:50, **mehrfach**
+  maskiert + „Content-Snippet"-Fehlertext als Inhalt → kaputt).
+- Das kaputte `tamera`-Artefakt stammt aus PR #119 („tamera-template-unify") + Secretary-
+  Commit `da8db8ce` („callTransformerChat auf JSON-Body umstellen"). Die Metadaten-Quotes
+  werden beim Re-Serialisieren **mehrfach escaped** (jede Runde eine Ebene).
+- `selectShadowTwinArtifact` (A1) wählt korrekt das **neueste** gleichsprachige Artefakt →
+  `tamera` (kaputt) statt `tamera-extract-en` (gültig). A1 ist nicht die Ursache.
+- **0 Writes beim Öffnen bleibt bestätigt:** `updatedAt` änderte sich bei späteren
+  Öffnungen NICHT (blieb 09:49:50). Der Schaden entstand einmalig bei der Generierung.
+
+**Owner:** die Session mit dem tamera/Secretary-Work (PR #119 / `da8db8ce`). **Sofort-Fix
+je Datei:** „Neu generieren". **Root-Cause:** Quote-Über-Maskierung im Extraktions-/
+Speicherpfad der neuen Pipeline.
