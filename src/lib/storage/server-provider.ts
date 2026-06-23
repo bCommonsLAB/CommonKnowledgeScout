@@ -104,11 +104,11 @@ export async function getServerProvider(userEmail: string, libraryId: string): P
     config: (lib.config as unknown as Record<string, unknown>) || {}
   }]);
 
-  // Cache leeren, damit ein frischer Provider mit aktuellen DB-Credentials erstellt wird.
-  // Ohne dies wuerde ein gecachter Provider mit veralteten Zugangsdaten zurueckgegeben,
-  // weil setLibraries den Cache nur bei geaenderten IDs leert (nicht bei Config-Aenderungen).
-  await factory.clearProvider(lib.id);
-
+  // Kein pauschales clearProvider mehr: der Factory-Cache ist config-bewusst
+  // (Fingerprint aus Typ/Pfad/Config/Kontext). Geaenderte DB-Credentials oder ein
+  // anderer effektiver Pfad (Co-Creator-Override) weichen im Key ab und erzwingen
+  // automatisch einen Neubau; unveraenderte Config wird ueber den ganzen Batch
+  // wiederverwendet (kein WebDAV-Reconnect pro Aufruf).
   const provider = await factory.getProvider(lib.id);
 
   // Stelle sicher, dass userEmail im Provider gesetzt ist (fuer Token-Loading)
