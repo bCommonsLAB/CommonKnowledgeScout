@@ -44,8 +44,40 @@ export const ListCoverThumbnail = React.memo(function ListCoverThumbnail({
     isAbsoluteUrl ? coverImageUrl : null
   );
 
+  // T1 (Lazy-Load): Die teure URL-Aufloesung (resolve-binary-url) erst ausloesen,
+  // wenn das Thumbnail (fast) im Viewport ist — statt fuer ALLE Listen-Zeilen sofort
+  // beim Mount (Thumbnail-Sturm beim Ordner/Datei-Oeffnen). Absolute URLs brauchen
+  // keinen Call und gelten sofort als sichtbar.
+  const [isVisible, setIsVisible] = React.useState(isAbsoluteUrl);
+  const elementRef = React.useRef<HTMLElement | null>(null);
+  const setElementRef = React.useCallback((el: HTMLElement | null) => {
+    elementRef.current = el;
+  }, []);
+
   React.useEffect(() => {
-    if (isAbsoluteUrl || resolvedUrl !== null) return;
+    if (isVisible) return;
+    const el = elementRef.current;
+    // Fallback ohne IntersectionObserver (SSR/Test): sofort laden -> kein Regress.
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setIsVisible(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      // etwas vorladen, bevor die Zeile wirklich sichtbar wird (sanftes Scrollen)
+      { rootMargin: '200px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isVisible]);
+
+  React.useEffect(() => {
+    if (isAbsoluteUrl || resolvedUrl !== null || !isVisible) return;
     let cancelled = false;
     (async () => {
       try {
@@ -69,7 +101,7 @@ export const ListCoverThumbnail = React.memo(function ListCoverThumbnail({
     return () => {
       cancelled = true;
     };
-  }, [libraryId, sourceId, sourceName, parentId, coverImageUrl, isAbsoluteUrl, resolvedUrl]);
+  }, [libraryId, sourceId, sourceName, parentId, coverImageUrl, isAbsoluteUrl, resolvedUrl, isVisible]);
 
   if (resolvedUrl) {
     // ESLint warnt vor <img>; ein <Image> wuerde aber Server-Resolution
@@ -78,6 +110,7 @@ export const ListCoverThumbnail = React.memo(function ListCoverThumbnail({
     // eslint-disable-next-line @next/next/no-img-element
     return (
       <img
+        ref={setElementRef}
         src={resolvedUrl}
         alt=""
         className={cn('h-6 w-6 rounded object-cover flex-shrink-0', className)}
@@ -85,6 +118,7 @@ export const ListCoverThumbnail = React.memo(function ListCoverThumbnail({
       />
     );
   }
-  // Platzhalter waehrend des Ladens oder bei Fehler (vermeidet Layout-Sprung)
-  return <div className={cn('h-6 w-6 rounded bg-muted flex-shrink-0 animate-pulse', className)} />;
+  // Platzhalter waehrend des Ladens/vor Sichtbarkeit (vermeidet Layout-Sprung);
+  // traegt die ref, damit der IntersectionObserver das Sichtbarwerden erkennt.
+  return <div ref={setElementRef} className={cn('h-6 w-6 rounded bg-muted flex-shrink-0 animate-pulse', className)} />;
 });
