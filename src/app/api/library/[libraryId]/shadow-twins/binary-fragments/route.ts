@@ -14,6 +14,7 @@ import { getShadowTwinsBySourceIds, readTranscriptRecord, type ShadowTwinArtifac
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { isAbsoluteLoopbackMediaUrl } from '@/lib/storage/non-portable-media-url'
 import { FileLogger } from '@/lib/debug/logger'
+import { mapWithConcurrency } from '@/lib/utils/concurrency'
 
 export async function POST(
   request: NextRequest,
@@ -110,6 +111,10 @@ export async function POST(
     // Typ für Bild-Varianten
     type ImageVariant = 'original' | 'thumbnail' | 'preview'
 
+    // Rohe Fragmente einsammeln; die teure getStreamingUrl-Aufloesung passiert danach
+    // gebuendelt + begrenzt parallel (B3) statt seriell pro Fragment.
+    const rawFragments: Array<{ sourceId: string; sourceName: string; parentName: string; fragment: Record<string, unknown> }> = []
+
     for (const [sourceId, doc] of docs.entries()) {
       // Ordnernamen einmalig pro parentId aufloesen
       const parentName = await resolveParentName(doc.parentId)
@@ -168,52 +173,61 @@ export async function POST(
         }
       }
 
-      // Extrahiere binaryFragments mit resolvedUrl
+      // binaryFragments nur einsammeln (Aufloesung folgt gebuendelt nach der Schleife)
       if (doc.binaryFragments && Array.isArray(doc.binaryFragments)) {
         for (const fragment of doc.binaryFragments) {
-          const url = fragment.url as string | undefined
-          const fileId = fragment.fileId as string | undefined
-          
-          // Generiere resolvedUrl: Azure-URL (bevorzugt) oder provider-aufgelöste Streaming-URL
-          let resolvedUrl: string | undefined
-          if (url && !isAbsoluteLoopbackMediaUrl(url)) {
-            // Azure oder andere öffentliche URL — nicht Dev-localhost-Proxy aus Mongo.
-            resolvedUrl = url
-          } else if (fileId) {
-            // Über Provider auflösen (provider-agnostisch) oder Streaming-URL als Fallback
-            if (storageProvider) {
-              try {
-                resolvedUrl = await storageProvider.getStreamingUrl(fileId)
-              } catch {
-                resolvedUrl = `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(fileId)}`
-              }
-            } else {
-              resolvedUrl = `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(fileId)}`
-            }
-          }
-          
-          fragments.push({
-            sourceId,
-            sourceName: doc.sourceName,
-            parentName: parentName || undefined,
-            name: (fragment.name as string) || 'Unbekannt',
-            // kind aus Fragment, oder aus mimeType/Dateiname ableiten (für ältere Daten ohne kind-Feld)
-            kind: (fragment.kind as string)
-              || (fragment.mimeType && (fragment.mimeType as string).startsWith('image/') ? 'image' : undefined)
-              || (/\.(jpeg|jpg|png|gif|webp|svg|bmp)$/i.test((fragment.name as string) || '') ? 'image' : 'binary'),
-            url,
-            fileId,
-            resolvedUrl,
-            hash: fragment.hash as string | undefined,
-            mimeType: fragment.mimeType as string | undefined,
-            size: fragment.size as number | undefined,
-            createdAt: (fragment.createdAt as string) || new Date().toISOString(),
-            variant: fragment.variant as ImageVariant | undefined,
-            sourceHash: fragment.sourceHash as string | undefined,
-          })
+          rawFragments.push({ sourceId, sourceName: doc.sourceName, parentName, fragment: fragment as Record<string, unknown> })
         }
       }
     }
+
+    // resolvedUrl je Fragment BEGRENZT PARALLEL aufloesen (statt seriell ~1,5 s/Bild).
+    // Azure/oeffentliche URLs brauchen keinen Call; nur fileId-Fragmente rufen
+    // getStreamingUrl. Bounded concurrency haelt Nextcloud unter dem Rate-Limit (429).
+    const STREAMING_URL_CONCURRENCY = 8
+    const resolvedUrls = await mapWithConcurrency(
+      rawFragments,
+      STREAMING_URL_CONCURRENCY,
+      async ({ fragment }): Promise<string | undefined> => {
+        const url = fragment.url as string | undefined
+        const fileId = fragment.fileId as string | undefined
+        // Azure oder andere oeffentliche URL — nicht Dev-localhost-Proxy aus Mongo.
+        if (url && !isAbsoluteLoopbackMediaUrl(url)) return url
+        if (fileId) {
+          if (storageProvider) {
+            try {
+              return await storageProvider.getStreamingUrl(fileId)
+            } catch {
+              return `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(fileId)}`
+            }
+          }
+          return `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(fileId)}`
+        }
+        return undefined
+      }
+    )
+
+    rawFragments.forEach(({ sourceId, sourceName, parentName, fragment }, i) => {
+      fragments.push({
+        sourceId,
+        sourceName,
+        parentName: parentName || undefined,
+        name: (fragment.name as string) || 'Unbekannt',
+        // kind aus Fragment, oder aus mimeType/Dateiname ableiten (für ältere Daten ohne kind-Feld)
+        kind: (fragment.kind as string)
+          || (fragment.mimeType && (fragment.mimeType as string).startsWith('image/') ? 'image' : undefined)
+          || (/\.(jpeg|jpg|png|gif|webp|svg|bmp)$/i.test((fragment.name as string) || '') ? 'image' : 'binary'),
+        url: fragment.url as string | undefined,
+        fileId: fragment.fileId as string | undefined,
+        resolvedUrl: resolvedUrls[i],
+        hash: fragment.hash as string | undefined,
+        mimeType: fragment.mimeType as string | undefined,
+        size: fragment.size as number | undefined,
+        createdAt: (fragment.createdAt as string) || new Date().toISOString(),
+        variant: fragment.variant as ImageVariant | undefined,
+        sourceHash: fragment.sourceHash as string | undefined,
+      })
+    })
 
     return NextResponse.json({ fragments, artifacts }, { status: 200 })
   } catch (error) {
