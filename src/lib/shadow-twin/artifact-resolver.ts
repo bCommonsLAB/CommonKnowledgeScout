@@ -167,12 +167,23 @@ async function resolveArtifactV2(
       candidates.push(item);
     }
     if (candidates.length === 0) return null;
+
+    // Kanonischer, sprach-neutraler Name `{base}.md` ist autoritativ (Doc §9.1: genau eine
+    // Datei, in die Reconcile die vollstaendigste Variante schreibt). Existiert er, gewinnt er
+    // ohne Inhalt-Read — auch wenn der baseName Punkte enthaelt (z.B. "Commoning vs. Kommerz.md").
+    // WICHTIG: Vergleich ueber den EXAKTEN Namen, nicht ueber Suffix-/Punkt-Heuristik, damit
+    // ".Kommerz" nicht faelschlich als Sprach-/Template-Teil gilt.
+    const canonicalName = `${sourceBaseName}.md`;
+    const canonical = candidates.find((item) => item.metadata.name === canonicalName);
+    if (canonical) return canonical;
+
     // Eine Variante: kein Inhalt-Read noetig.
     if (candidates.length === 1) return candidates[0];
 
-    // Mehrere Varianten -> VOLLSTAENDIGSTER gewinnt (Inhalt laden), NICHT suffixlos/neuer.
+    // Mehrere Legacy-Varianten ({base}.{lang}.md) ohne kanonische Datei ->
+    // VOLLSTAENDIGSTER gewinnt (Inhalt laden), NICHT neuester.
     // Genau hier hat die alte Heuristik die kaputte Einzelseite gewaehlt (Ökoniomie-Regression).
-    const { best, conflict } = await selectFullestStorageVariant(provider, candidates, `${sourceBaseName}.md`);
+    const { best, conflict } = await selectFullestStorageVariant(provider, candidates, canonicalName);
     if (conflict) {
       FileLogger.warn('artifact-resolver', 'Transkript-Konflikt: gleich vollstaendig, aber anderer Inhalt', {
         sourceBaseName,
