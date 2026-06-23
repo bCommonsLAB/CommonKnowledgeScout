@@ -30,7 +30,8 @@ import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import { buildTranscriptReconcilePlan, type ReconcileCandidate, type ReconcileStatus } from './reconcile-plan'
 import { FileLogger } from '@/lib/debug/logger'
 
-const PAGE_MD_RE = /^page_\d+\.md$/i
+// Per-Seite-OCR (totes Gewicht): page_001.md UND page_001.en.md (Sprach-Suffix optional).
+const PAGE_MD_RE = /^page_\d+(\.[a-z]{2,3})?\.md$/i
 
 export interface ReconcileSourceResult {
   sourceId: string
@@ -136,7 +137,14 @@ export async function reconcileLibrary(args: {
         parseArtifactName(it.metadata.name, sourceBaseName).kind === 'transcript',
     )
     const deadPageMd = items
-      .filter((it) => it.type === 'file' && PAGE_MD_RE.test(it.metadata.name))
+      .filter(
+        (it) =>
+          it.type === 'file' &&
+          PAGE_MD_RE.test(it.metadata.name) &&
+          // Schutz: eine Quelle, die selbst "page_NNN.*" heisst, haette ihr Transkript
+          // als "page_NNN.md" — das ist KEIN totes Gewicht. Nur fremde page_NNN entfernen.
+          !it.metadata.name.startsWith(`${sourceBaseName}.`),
+      )
       .map((it) => ({ fileId: it.id, name: it.metadata.name }))
 
     const storageCandidates: ReconcileCandidate[] = await Promise.all(
@@ -191,9 +199,15 @@ export async function reconcileLibrary(args: {
         await provider.deleteItem(d.fileId)
         row.deleted.push(d.name)
       } catch (err) {
-        FileLogger.warn('shadow-twins/reconcile', 'Loeschen fehlgeschlagen', {
-          fileId: d.fileId, name: d.name, error: err instanceof Error ? err.message : String(err),
-        })
+        const msg = err instanceof Error ? err.message : String(err)
+        // 404/Not Found = Datei ist bereits weg (z.B. von upsertMarkdown ersetzt) -> Ziel erreicht.
+        if (/404|not found/i.test(msg)) {
+          row.deleted.push(d.name)
+        } else {
+          FileLogger.warn('shadow-twins/reconcile', 'Loeschen fehlgeschlagen', {
+            fileId: d.fileId, name: d.name, error: msg,
+          })
+        }
       }
     }
     results.push(row)
