@@ -8,6 +8,7 @@ import { ChatAdvancedForm } from "@/components/settings/chat"
 import { SecretaryAdvancedForm } from "@/components/settings/secretary-advanced-form"
 import { TeamsStreamRelayPanel } from "@/components/settings/teams-stream-relay-panel"
 import { LibraryVerificationPanel } from "@/components/settings/library-verification-panel"
+import { ShadowTwinReconcilePanel } from "@/components/settings/shadow-twin-reconcile-panel"
 
 export const metadata: Metadata = {
   title: "Bibliothek - Erweitert",
@@ -51,6 +52,14 @@ export default function AdvancedSettingsPage() {
       <section className="space-y-2">
         <h4 className="text-base font-semibold">Verifikation</h4>
         <LibraryVerificationPanel />
+      </section>
+
+      <Separator />
+
+      {/* Speicher synchronisieren: Library-weiter Shadow-Twin-Reconcile (Transkripte + Bilder/B1) */}
+      <section className="space-y-2">
+        <h4 className="text-base font-semibold">Mit Speicher synchronisieren</h4>
+        <ShadowTwinReconcilePanel />
       </section>
 
       <Separator />

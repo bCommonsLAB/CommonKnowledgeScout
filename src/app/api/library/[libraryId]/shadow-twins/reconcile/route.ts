@@ -53,6 +53,7 @@ export async function POST(
       changed: report.changed,
       conflicts: report.conflicts,
       needsReextract: report.needsReextract,
+      images: report.images,
     })
 
     return NextResponse.json(report)

@@ -7,20 +7,7 @@ import type { FrontendShadowTwinState } from "@/atoms/shadow-twin-atom"
 import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom"
 import type { StorageItem } from "@/lib/storage/types"
 import { getStoryMediaType, getTextStepLabel, type StoryStepStatus } from "@/components/library/shared/story-status"
-
-interface IngestionStatusCompactDto {
-  indexExists: boolean
-  doc: {
-    exists: boolean
-    status: "ok" | "stale" | "not_indexed"
-    title?: string
-    user?: string
-    chunkCount?: number
-    chaptersCount?: number
-    upsertedAt?: string
-  }
-  chapters: []
-}
+import { useIngestionStatus, useInvalidateIngestionStatus } from "@/hooks/use-ingestion-status"
 
 interface UseStoryStatusArgs {
   libraryId: string
@@ -42,9 +29,6 @@ function toIso(value: unknown): string | undefined {
   return undefined
 }
 
-const ingestionCache = new Map<string, { at: number; value: IngestionStatusCompactDto }>()
-const INGESTION_CACHE_TTL_MS = 20_000
-
 export function useStoryStatus(args: UseStoryStatusArgs): UseStoryStatusResult {
   const mediaType = React.useMemo(() => (args.file ? getStoryMediaType(args.file) : "unknown"), [args.file])
   const hasText = Boolean(args.shadowTwinState?.transcriptFiles && args.shadowTwinState.transcriptFiles.length > 0)
@@ -57,61 +41,33 @@ export function useStoryStatus(args: UseStoryStatusArgs): UseStoryStatusResult {
 
   // Trigger-Atom abonnieren, um bei Job-Abschluss neu zu laden
   const shadowTwinTrigger = useAtomValue(shadowTwinAnalysisTriggerAtom)
+  const invalidate = useInvalidateIngestionStatus()
 
   const shouldFetchPublish = Boolean(args.file && (hasTransform || hasText))
-  const [publishData, setPublishData] = React.useState<IngestionStatusCompactDto | null>(null)
-  const [publishError, setPublishError] = React.useState<string | null>(null)
-  const [isPublishLoading, setIsPublishLoading] = React.useState(false)
 
+  // Geteilter Ingestion-Status (compact) — derselbe React-Query-Cache wie der
+  // IngestionDataProvider, statt einer eigenen TTL-Map. Nur laden, wenn ueberhaupt
+  // Text/Transformation vorliegt (sonst kann es keinen Publish-Status geben).
+  const fileId = args.file?.id
+  const statusQuery = useIngestionStatus(args.libraryId, fileId, {
+    docModifiedAt,
+    enabled: shouldFetchPublish,
+  })
+
+  const publishData = statusQuery.data ?? null
+  const isPublishLoading = statusQuery.isLoading
+  const publishError = statusQuery.error
+    ? (statusQuery.error instanceof Error ? statusQuery.error.message : String(statusQuery.error))
+    : null
+
+  // Bei Job-Abschluss neu laden — nur beim echten WECHSEL des Trigger-Werts (nicht initial).
+  const prevTrigger = React.useRef(shadowTwinTrigger)
   React.useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      setPublishError(null)
-      setPublishData(null)
-      setIsPublishLoading(false)
-
-      if (!shouldFetchPublish) return
-      if (!args.libraryId) return
-      if (!args.file) return
-
-      // Cache-Key enthaelt auch den Trigger-Wert, damit bei Job-Abschluss neu geladen wird
-      const cacheKey = `${args.libraryId}:${args.file.id}:${docModifiedAt || ""}:${shadowTwinTrigger}`
-      const cached = ingestionCache.get(cacheKey)
-      if (cached && Date.now() - cached.at < INGESTION_CACHE_TTL_MS) {
-        setPublishData(cached.value)
-        return
-      }
-
-      try {
-        setIsPublishLoading(true)
-        const url = `/api/chat/${encodeURIComponent(args.libraryId)}/ingestion-status?fileId=${encodeURIComponent(args.file.id)}&compact=1${
-          docModifiedAt ? `&docModifiedAt=${encodeURIComponent(docModifiedAt)}` : ""
-        }`
-        const res = await fetch(url, { cache: "no-store" })
-        const json = (await res.json()) as unknown
-        if (!res.ok) {
-          const msg = typeof (json as { error?: unknown })?.error === "string" ? (json as { error: string }).error : "Ingestion-Status konnte nicht geladen werden"
-          throw new Error(msg)
-        }
-        const dto = json as IngestionStatusCompactDto
-        if (cancelled) return
-        ingestionCache.set(cacheKey, { at: Date.now(), value: dto })
-        setPublishData(dto)
-      } catch (e) {
-        if (cancelled) return
-        setPublishError(e instanceof Error ? e.message : String(e))
-      } finally {
-        if (!cancelled) setIsPublishLoading(false)
-      }
+    if (prevTrigger.current !== shadowTwinTrigger) {
+      prevTrigger.current = shadowTwinTrigger
+      if (args.libraryId && fileId) void invalidate(args.libraryId, fileId)
     }
-
-    void load()
-    return () => {
-      cancelled = true
-    }
-    // shadowTwinTrigger: Bei Job-Abschluss wird die Ingestion-Status neu geladen
-  }, [args.libraryId, args.file, docModifiedAt, shouldFetchPublish, shadowTwinTrigger])
+  }, [shadowTwinTrigger, args.libraryId, fileId, invalidate])
 
   const steps = React.useMemo<StoryStepStatus[]>(() => {
     const textLabel = getTextStepLabel(mediaType)
@@ -143,5 +99,3 @@ export function useStoryStatus(args: UseStoryStatusArgs): UseStoryStatusResult {
 
   return { steps, isPublishLoading }
 }
-
-

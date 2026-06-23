@@ -28,6 +28,7 @@ import { findShadowTwinFolder } from '@/lib/storage/shadow-twin'
 import { parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import { buildTranscriptReconcilePlan, type ReconcileCandidate, type ReconcileStatus } from './reconcile-plan'
+import { reconstructPageImages, isReconstructablePageImage } from './reconstruct-from-storage'
 import { FileLogger } from '@/lib/debug/logger'
 
 // Per-Seite-OCR (totes Gewicht): page_001.md UND page_001.en.md (Sprach-Suffix optional).
@@ -45,6 +46,9 @@ export interface ReconcileSourceResult {
   /** Geloeschte (apply) bzw. zu loeschende (dry-run) Dateinamen. */
   deleted: string[]
   note?: string
+  /** B1: Anzahl Seiten-/Preview-Bilder, die registriert WUERDEN (dry-run) bzw. wurden (apply). */
+  imagesToRegister?: number
+  imagesRegistered?: number
 }
 
 export interface ReconcileReport {
@@ -54,6 +58,8 @@ export interface ReconcileReport {
   changed: number
   conflicts: number
   needsReextract: number
+  /** B1: Summe registrierter (apply) bzw. registrierbarer (dry-run) Bilder ueber alle Quellen. */
+  images: number
   results: ReconcileSourceResult[]
 }
 
@@ -179,8 +185,16 @@ export async function reconcileLibrary(args: {
     row.winnerOrigin = plan.winnerOrigin
     row.winnerPages = plan.winnerPages
 
+    // B1: fehlende Bild-Fragmente. NUR Quellen OHNE binaryFragments registrieren
+    // (bereits registrierte nicht erneut hochladen). Unabhaengig vom Transkript-Status.
+    const hasFragments = Array.isArray(doc.binaryFragments) && doc.binaryFragments.length > 0
+    const pageImageCount = hasFragments
+      ? 0
+      : items.filter((it) => it.type === 'file' && isReconstructablePageImage(it.metadata.name)).length
+
     if (!apply) {
       row.deleted = plan.deletions.map((d) => d.name) // wuerde geloescht
+      if (pageImageCount > 0) row.imagesToRegister = pageImageCount // wuerde registriert
       results.push(row)
       continue
     }
@@ -210,6 +224,24 @@ export async function reconcileLibrary(args: {
         }
       }
     }
+
+    // B1 (apply): fehlende Bild-Fragmente registrieren (page_*/preview_* -> Azure + Mongo).
+    // reconstructPageImages ist Mongo-gated + ueberspringt leere Faelle; gibt die Anzahl zurueck.
+    if (pageImageCount > 0) {
+      try {
+        const sourceItem = await provider.getItemById(doc.sourceId)
+        row.imagesRegistered = await reconstructPageImages({
+          provider, libraryId, userEmail, sourceItem, parentId, items,
+        })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        row.note = (row.note ? `${row.note}; ` : '') + `Bild-Registrierung fehlgeschlagen: ${msg}`
+        FileLogger.warn('shadow-twins/reconcile', 'Bild-Registrierung fehlgeschlagen', {
+          sourceId: doc.sourceId, error: msg,
+        })
+      }
+    }
+
     results.push(row)
   }
 
@@ -217,9 +249,13 @@ export async function reconcileLibrary(args: {
     libraryId,
     apply,
     totalSources: results.length,
-    changed: results.filter((r) => r.wroteCanonical || r.updatedMongo || r.deleted.length > 0).length,
+    changed: results.filter(
+      (r) => r.wroteCanonical || r.updatedMongo || r.deleted.length > 0 ||
+        (r.imagesRegistered ?? 0) > 0 || (r.imagesToRegister ?? 0) > 0,
+    ).length,
     conflicts: results.filter((r) => r.status === 'conflict').length,
     needsReextract: results.filter((r) => r.status === 'needs-reextract').length,
+    images: results.reduce((sum, r) => sum + (r.imagesRegistered ?? r.imagesToRegister ?? 0), 0),
     results,
   }
 }

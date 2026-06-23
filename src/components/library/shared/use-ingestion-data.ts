@@ -3,11 +3,20 @@
 import * as React from "react"
 import { useAtomValue } from "jotai"
 import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom"
+import {
+  useIngestionStatus,
+  useInvalidateIngestionStatus,
+  type IngestionStatusResponse,
+} from "@/hooks/use-ingestion-status"
 
 /**
  * Gemeinsamer Hook für Ingestion-Daten (MongoDB).
  * Wird von Story View und Story Info verwendet, um doppelte API-Calls zu vermeiden.
- * 
+ *
+ * Backing: geteilter React-Query-Cache (`useIngestionStatus`) — dadurch teilen sich ALLE
+ * Consumer derselben (Datei, Variante) EINEN Request, nicht mehr nur innerhalb eines
+ * Context-Providers (Re-Trace R2: ingestion-status mehrfach pro Öffnen).
+ *
  * Die Daten kommen aus der ingestion-status API (mit chapters, wenn nicht compact).
  */
 export interface IngestionData {
@@ -59,8 +68,8 @@ interface UseIngestionDataResult {
 }
 
 /**
- * Lädt Ingestion-Daten aus MongoDB (via ingestion-status API).
- * 
+ * Lädt Ingestion-Daten aus MongoDB (via geteiltem ingestion-status-Query).
+ *
  * @param libraryId - Library ID
  * @param fileId - File ID
  * @param docModifiedAt - Optional: Dokument-Modifikationsdatum für Staleness-Check
@@ -72,50 +81,31 @@ export function useIngestionData(
   docModifiedAt?: string,
   includeChapters = false
 ): UseIngestionDataResult {
-  const [data, setData] = React.useState<IngestionData | null>(null)
-  const [loading, setLoading] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
-
   // Trigger-Atom abonnieren, um bei Job-Abschluss neu zu laden
   const shadowTwinTrigger = useAtomValue(shadowTwinAnalysisTriggerAtom)
+  const invalidate = useInvalidateIngestionStatus()
 
-  const load = React.useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const params = new URLSearchParams()
-      params.set("fileId", fileId)
-      if (docModifiedAt) {
-        params.set("docModifiedAt", docModifiedAt)
-      }
-      // Wenn chapters benötigt werden, nicht compact verwenden
-      if (includeChapters) {
-        params.set("includeChapters", "true")
-      } else {
-        params.set("compact", "1")
-      }
+  const query = useIngestionStatus(libraryId, fileId, { includeChapters, docModifiedAt })
 
-      const res = await fetch(
-        `/api/chat/${encodeURIComponent(libraryId)}/ingestion-status?${params.toString()}`,
-        { cache: "no-store" }
-      )
-      const json = await res.json()
-      if (!res.ok) {
-        throw new Error(typeof json?.error === "string" ? json.error : "Ingestion-Status konnte nicht geladen werden")
-      }
-      setData(json as IngestionData)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Unbekannter Fehler")
-    } finally {
-      setLoading(false)
-    }
-  }, [libraryId, fileId, docModifiedAt, includeChapters])
-
+  // Bei Job-Abschluss neu laden — nur beim echten WECHSEL des Trigger-Werts (nicht initial,
+  // sonst unnötiges Refetch direkt nach dem Mount).
+  const prevTrigger = React.useRef(shadowTwinTrigger)
   React.useEffect(() => {
-    void load()
-    // shadowTwinTrigger: Bei Job-Abschluss werden die Ingestion-Daten neu geladen
-  }, [load, shadowTwinTrigger, fileId])
+    if (prevTrigger.current !== shadowTwinTrigger) {
+      prevTrigger.current = shadowTwinTrigger
+      if (libraryId && fileId) void invalidate(libraryId, fileId)
+    }
+  }, [shadowTwinTrigger, libraryId, fileId, invalidate])
 
-  return { data, loading, error, refetch: load }
+  const refetch = React.useCallback(async () => {
+    if (libraryId && fileId) await invalidate(libraryId, fileId)
+  }, [invalidate, libraryId, fileId])
+
+  return {
+    // IngestionStatusResponse ist strukturell ein IngestionData (docMetaJson nur optional ergänzt).
+    data: (query.data as IngestionStatusResponse | undefined) ? (query.data as unknown as IngestionData) : null,
+    loading: query.isFetching,
+    error: query.error ? (query.error instanceof Error ? query.error.message : String(query.error)) : null,
+    refetch,
+  }
 }
-
