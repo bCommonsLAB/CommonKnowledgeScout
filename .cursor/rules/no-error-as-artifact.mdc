@@ -1,0 +1,45 @@
+---
+description: Transform-/Extraktionsergebnisse vor dem Persistieren validieren — Fehlermeldungen des Extraktors duerfen kein Artefakt werden
+globs: src/lib/external-jobs/**/*.ts,src/lib/transform/**/*.ts,src/lib/shadow-twin/**/*.ts
+alwaysApply: false
+---
+
+# Kein Fehler-Text als Artefakt
+
+Der externe Secretary-/Extraktor-Dienst kann bei ungueltigem LLM-Output eine
+**Fehlermeldung IN das Ergebnis** schreiben (z.B. `structured_data.title =
+"Fehler bei der Extraktion: JSON konnte nicht geparst werden … Content-Snippet: {…}"`).
+Wird das ungeprueft gespeichert, landet eine (oft mehrfach maskierte) Fehlermeldung als
+gueltige Transformation in der Datenbank — der Nutzer sieht Muell statt Inhalt.
+
+## §1 Strukturelle Akzeptanz reicht NICHT
+
+- „`structured_data` ist ein Objekt" bzw. „`meta !== null`" ist **kein** Erfolgskriterium.
+- Vor dem Persistieren muss der **Inhalt** validiert werden: Sieht ein Feld wie eine
+  Extraktor-Fehlermeldung aus, ist der Lauf **fehlgeschlagen**, nicht erfolgreich.
+
+## §2 Bei Fehler: Job fehlschlagen, nicht speichern
+
+- Erkennt der Code eine Extraktor-Fehlermeldung (konservativ, z.B. mehrere spezifische
+  Marker wie `Content-Snippet:` + `konnte nicht geparst`), wirft er (bzw. setzt
+  `templateStatus = 'failed'`) — statt `upsert`/`saveMarkdown` aufzurufen.
+- Der bestehende Fehlerpfad (failed-Status, Trace-Event) greift dann; es wird **kein**
+  Artefakt geschrieben.
+- Konform mit `no-silent-fallbacks.mdc`: laut fehlschlagen statt still Muell persistieren.
+
+## §3 Leeres Markdown ist ebenfalls ein Fehler
+
+Bereits etabliert (Defense-in-Depth): `ShadowTwinService.upsertMarkdown()` wirft bei
+leerem/Whitespace-Markdown. Diese Regel erweitert das um den Fall „nicht leer, aber
+inhaltlich eine Fehlermeldung".
+
+## §4 Code-Review-Checkliste
+
+- [ ] Wird ein Transform-/Extraktionsergebnis vor `upsert`/`saveMarkdown` inhaltlich
+      validiert (nicht nur strukturell „Objekt vorhanden")?
+- [ ] Fuehrt ein erkannter Extraktor-Fehler zu einem **fehlgeschlagenen Job** statt zu
+      einem gespeicherten Artefakt?
+- [ ] Ist der Inhalts-Guard konservativ (mehrere spezifische Marker), um Falsch-Positive
+      bei legitimen Inhalten zu vermeiden?
+- [ ] Verifikation: nach „Neu generieren" zeigt der gespeicherte MongoDB-Datensatz
+      echten Inhalt (siehe [Verifikations-Playbook](mdc:docs/guides/verification-playbook.md)).

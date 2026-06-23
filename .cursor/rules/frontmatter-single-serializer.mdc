@@ -1,0 +1,61 @@
+---
+description: Frontmatter wird ausschliesslich ueber den zentralen Serializer geschrieben (idempotent, symmetrisch zum Parser) — kein hand-rolled Escaping
+globs: src/lib/markdown/**/*.ts,src/lib/external-jobs/**/*.ts,src/lib/shadow-twin/**/*.ts,src/lib/secretary/**/*.ts
+alwaysApply: false
+---
+
+# Frontmatter: ein Serializer, idempotent
+
+Markdown-Frontmatter (Titel, Metadaten) wird in dieser Codebase **mehrfach** durch den
+Zyklus *schreiben → lesen → schreiben* geschickt (Transform-Pipeline, Reconcile,
+detailViewType-Injektion). Damit ein Re-Save **nichts veraendert**, muss die Serialisierung
+**idempotent** und **symmetrisch zum Parser** sein.
+
+Verletzt eine Stelle das, akkumulieren sich Escaping-Ebenen: `"` → `\"` → `\\\"` → …
+Das zerstoert Metadaten mit Anfuehrungszeichen ueber mehrere Laeufe (real passiert mit
+`title: "ABOUT THE \"HUMANIZATION OF MONEY\""`).
+
+## §1 Genau EIN Serializer
+
+- Frontmatter wird **ausschliesslich** ueber `createMarkdownWithFrontmatter`
+  (`src/lib/markdown/compose.ts`) erzeugt. Diese escaped String-Werte via `JSON.stringify`.
+- Gelesen/dekodiert wird ueber `parseFrontmatter` / `parseSecretaryMarkdownStrict`
+  (`src/lib/markdown/frontmatter.ts`, `src/lib/secretary/response-parser.ts`) — die
+  quoted Strings via `JSON.parse` **vollstaendig dekodieren**.
+- Serializer (`JSON.stringify`) und Parser (`JSON.parse`) sind damit symmetrisch →
+  ein Round-Trip ist idempotent.
+
+## §2 Verbotene Anti-Pattern
+
+- **Kein hand-rolled Escaping** beim Frontmatter-Schreiben, insbesondere:
+  - `` `${key}: "${value.replace(/"/g, '\\"')}"` `` — escaped keine Backslashes,
+    ist asymmetrisch zum Parser und verdoppelt Ebenen bei bereits escapten Werten.
+  - manuelles Zusammenbauen von `---\n…\n---` mit eigener Wert-Formatierung.
+- **Kein zweiter, paralleler Frontmatter-Serializer.** Wer Frontmatter neu schreiben muss
+  (z.B. ein Feld ergaenzen), liest mit `parseFrontmatter`, mutiert das Meta-Objekt und
+  ruft erneut `createMarkdownWithFrontmatter(body, meta)` auf.
+
+## §3 Wenn der Parser einen Wert NICHT dekodiert
+
+Bekommt der Serializer einen String, der bereits Escapes enthaelt (weil der Parser ihn
+nicht dekodiert hat), entsteht Doppel-Encoding. Symptom-Fix ist NICHT „nochmal escapen",
+sondern die **Asymmetrie beseitigen** (Parser dekodiert den Fall, oder der Wert kommt
+bereits dekodiert an). Siehe `no-silent-fallbacks.mdc`: lieber laut falsch als still
+mehrfach maskiert.
+
+## §4 Verifikation
+
+- Idempotenz ist **unit-testbar**: `createMarkdownWithFrontmatter` → `parseFrontmatter`
+  → `createMarkdownWithFrontmatter` muss identisch sein, auch fuer Werte mit `"` UND `\`.
+  Referenz: `tests/unit/markdown/frontmatter-roundtrip.test.ts`.
+- Bei echten Daten ist der gespeicherte MongoDB-Datensatz der Beweis
+  (siehe [Verifikations-Playbook](mdc:docs/guides/verification-playbook.md), Regel 1).
+
+## §5 Code-Review-Checkliste
+
+- [ ] Wird Frontmatter ausschliesslich via `createMarkdownWithFrontmatter` geschrieben?
+- [ ] Gibt es irgendwo `.replace(/"/g, …)` o.ae. zum Frontmatter-Escapen? → entfernen.
+- [ ] Liest jede Re-Serialisierung vorher mit `parseFrontmatter` (statt Roh-String zu
+      manipulieren)?
+- [ ] Gibt es einen Round-Trip-Test (Quotes + Backslashes), wenn neue Frontmatter-Pfade
+      hinzukommen?
