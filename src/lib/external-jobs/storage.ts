@@ -33,6 +33,7 @@ import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
 import { parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import { loadTemplateFromMongoDB } from '@/lib/templates/template-service-mongodb'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
+import { createMarkdownWithFrontmatter } from '@/lib/markdown/compose'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { persistShadowTwinToMongo } from '@/lib/shadow-twin/shadow-twin-mongo-writer'
 import { buildMongoShadowTwinItem } from '@/lib/shadow-twin/mongo-shadow-twin-item'
@@ -139,23 +140,18 @@ export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdown
         // Füge detailViewType hinzu (nur wenn noch nicht vorhanden)
         if (!meta.detailViewType) {
           meta.detailViewType = template.metadata.detailViewType as string | undefined
-          
-          // Serialisiere Frontmatter neu
-          const frontmatterLines: string[] = []
-          for (const [key, value] of Object.entries(meta)) {
-            if (value === undefined) continue
-            if (typeof value === 'string') {
-              frontmatterLines.push(`${key}: "${value.replace(/"/g, '\\"')}"`)
-            } else if (typeof value === 'number' || typeof value === 'boolean') {
-              frontmatterLines.push(`${key}: ${value}`)
-            } else {
-              frontmatterLines.push(`${key}: ${JSON.stringify(value)}`)
-            }
-          }
-          
-          const newFrontmatter = `---\n${frontmatterLines.join('\n')}\n---`
-          finalMarkdown = `${newFrontmatter}\n\n${parsed.body}`
-          
+
+          // Frontmatter ueber DENSELBEN Serializer wie compose neu schreiben
+          // (JSON.stringify je Wert) — symmetrisch zum Parser (JSON.parse), damit ein
+          // Re-Save IDEMPOTENT bleibt und Quotes/Backslashes NICHT mehrfach maskiert
+          // werden. Das alte manuelle `value.replace(/"/g,'\\"')` escapte keine
+          // Backslashes und war asymmetrisch -> Quote-Ueber-Maskierung ueber mehrere Laeufe.
+          // undefined-Werte weiterhin auslassen (compose wuerde sie als "" schreiben).
+          const cleanedMeta = Object.fromEntries(
+            Object.entries(meta).filter(([, value]) => value !== undefined)
+          )
+          finalMarkdown = createMarkdownWithFrontmatter(parsed.body, cleanedMeta)
+
           bufferLog(ctx.jobId, {
             phase: 'markdown_save_detailviewtype',
             message: `detailViewType "${template.metadata.detailViewType}" aus Template ins Frontmatter eingefügt`,
