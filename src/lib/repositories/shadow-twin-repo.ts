@@ -204,6 +204,15 @@ export async function getShadowTwinsBySourceIds(args: {
   return new Map(docs.map((doc) => [doc.sourceId, doc]))
 }
 
+/**
+ * Liest ALLE Shadow-Twin-Dokumente einer Library (fuer Reconcile/Wartung).
+ * Achtung: kann gross sein — nur fuer explizite Wartungs-Operationen nutzen.
+ */
+export async function getAllShadowTwins(libraryId: string): Promise<ShadowTwinDocument[]> {
+  const col = await getShadowTwinCollection(libraryId)
+  return col.find({ libraryId }).toArray()
+}
+
 export async function getShadowTwinArtifact(args: {
   libraryId: string
   sourceId: string

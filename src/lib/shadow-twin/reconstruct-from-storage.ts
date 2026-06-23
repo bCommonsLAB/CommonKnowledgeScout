@@ -13,6 +13,7 @@
  */
 
 import { parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
+import { selectFullestStorageVariant } from '@/lib/shadow-twin/select-fullest-storage-variant'
 import { upsertShadowTwinArtifact } from '@/lib/repositories/shadow-twin-repo'
 import { persistShadowTwinToMongo } from '@/lib/shadow-twin/shadow-twin-mongo-writer'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
@@ -88,6 +89,30 @@ export async function reconstructFromFolder(args: {
   // Basisname der Quelldatei fuer parseArtifactName
   const sourceBaseName = sourceName.replace(/\.[^.]+$/, '')
 
+  // Transkript ist sprach-neutral (genau EIN Record). Bei mehreren Varianten
+  // ({base}.md + {base}.{lang}.md) darf NICHT die zuletzt verarbeitete gewinnen
+  // (das hat _Ökoniomie_en_Innen.pdf zerstoert). Vorab den VOLLSTAENDIGSTEN bestimmen;
+  // im Loop werden alle anderen Transkript-Varianten uebersprungen.
+  const transcriptCandidates = mdFiles.filter(
+    (f) =>
+      f.metadata.name.startsWith(`${sourceBaseName}.`) &&
+      parseArtifactName(f.metadata.name, sourceBaseName).kind === 'transcript',
+  )
+  let transcriptWinnerId: string | null = null
+  let transcriptConflict = false
+  if (transcriptCandidates.length === 1) {
+    transcriptWinnerId = transcriptCandidates[0].id
+  } else if (transcriptCandidates.length > 1) {
+    const sel = await selectFullestStorageVariant(provider, transcriptCandidates, `${sourceBaseName}.md`)
+    transcriptConflict = sel.conflict
+    transcriptWinnerId = sel.best?.ref.id ?? null
+    if (transcriptConflict) {
+      FileLogger.warn('shadow-twins/reconstruct', 'Transkript-Konflikt: nicht eindeutig – Transkript uebersprungen', {
+        sourceId, candidates: transcriptCandidates.map((c) => c.metadata.name),
+      })
+    }
+  }
+
   // Quell-Item einmalig laden: wird vom kanonischen Writer (persistShadowTwinToMongo)
   // benoetigt. Faellt das fehl, nutzen wir den schlanken Fallback (nur Markdown).
   let sourceItem: StorageItem | null = null
@@ -115,6 +140,15 @@ export async function reconstructFromFolder(args: {
     }
 
     const parsed = parseArtifactName(fileName, sourceBaseName)
+
+    // Nur die vollstaendigste Transkript-Variante uebernehmen (siehe Pre-Pass oben);
+    // bei Konflikt gar keine. Andere Transkript-Varianten still ueberspringen.
+    if (parsed.kind === 'transcript' && (transcriptConflict || mdFile.id !== transcriptWinnerId)) {
+      FileLogger.debug('shadow-twins/reconstruct', 'Transkript-Variante nicht vollstaendigster Gewinner – uebersprungen', {
+        fileName, sourceId, winnerId: transcriptWinnerId, conflict: transcriptConflict,
+      })
+      continue
+    }
 
     if (!parsed.kind || !parsed.targetLanguage) {
       FileLogger.warn('shadow-twins/reconstruct', 'Artefakt-Datei konnte nicht zugeordnet werden', {
