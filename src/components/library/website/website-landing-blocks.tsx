@@ -6,6 +6,8 @@
 
 import * as React from 'react'
 import type { WebsiteSection } from '@/lib/website/types'
+import { md } from '@/components/library/markdown-preview/md-renderer'
+import { cn } from '@/lib/utils'
 
 const BG_CLASS: Record<WebsiteSection['bg'], string> = {
   default: 'bg-background text-foreground',
@@ -14,39 +16,22 @@ const BG_CLASS: Record<WebsiteSection['bg'], string> = {
   brand: 'bg-emerald-700 text-emerald-50',
 }
 
-/** Minimaler Markdown-Renderer (Pilot): Ueberschrift, Zitat, Absatz. */
-export function renderMarkdownText(markdown: string): React.ReactNode {
-  const blocks = markdown
-    .split(/\n{2,}/)
-    .map((b) => b.trim())
-    .filter(Boolean)
-  return blocks.map((block, i) => {
-    if (block.startsWith('## ')) {
-      return (
-        <h2 key={i} className="text-2xl md:text-3xl font-semibold mb-4">
-          {block.slice(3).trim()}
-        </h2>
-      )
-    }
-    const lines = block.split('\n')
-    if (lines.every((l) => l.trim().startsWith('>'))) {
-      const quote = lines.map((l) => l.replace(/^>\s?/, '').trim())
-      return (
-        <blockquote key={i} className="border-l-4 border-current/40 pl-4 text-xl italic">
-          {quote.map((l, j) => (
-            <p key={j} className={j === quote.length - 1 ? 'not-italic text-sm mt-2 opacity-80' : ''}>
-              {l}
-            </p>
-          ))}
-        </blockquote>
-      )
-    }
-    return (
-      <p key={i} className="mb-4 leading-relaxed">
-        {block}
-      </p>
-    )
-  })
+/**
+ * Rendert den Sektions-Markdown ueber den App-weiten Remarkable-Renderer (`md`)
+ * in einem `prose`-Container: Ueberschriften, Absaetze, Listen, Links, Fett,
+ * Blockquotes, Zeilenumbrueche (md ist mit `breaks`+`linkify` konfiguriert).
+ *
+ * `invert` (helle Schrift auf dunklem/brand-Hintergrund) nutzt `prose-invert`.
+ * Inhalt ist kuratiert/uebersetzt (vertrauenswuerdig) — gleiches Muster wie
+ * die MarkdownPreview-Komponente.
+ */
+export function renderMarkdownText(markdown: string, invert = false): React.ReactElement {
+  return (
+    <div
+      className={cn('prose prose-neutral max-w-none', invert && 'prose-invert')}
+      dangerouslySetInnerHTML={{ __html: md.render(markdown) }}
+    />
+  )
 }
 
 /** Eine Inhalts-Sektion gemaess Layout/Hintergrund. */
@@ -54,6 +39,8 @@ export function SectionBlock({ section }: { section: WebsiteSection }): React.Re
   const hasImage = Boolean(section.imageUrl) && section.layout !== 'text-only'
   const twoCol = section.layout === 'image-left' || section.layout === 'image-right'
   const imageFirst = section.layout === 'image-left'
+  // Helle Schrift auf dunklem/brand-Hintergrund -> prose-invert.
+  const invert = section.bg === 'dark' || section.bg === 'brand'
 
   return (
     <section className={`py-14 px-6 ${BG_CLASS[section.bg]}`}>
@@ -88,10 +75,10 @@ export function SectionBlock({ section }: { section: WebsiteSection }): React.Re
               ? imageFirst
                 ? 'md:order-2'
                 : 'md:order-1'
-              : 'max-w-3xl mx-auto text-center'
+              : 'mx-auto max-w-3xl'
           }
         >
-          {renderMarkdownText(section.markdown)}
+          {renderMarkdownText(section.markdown, invert)}
         </div>
       </div>
     </section>
