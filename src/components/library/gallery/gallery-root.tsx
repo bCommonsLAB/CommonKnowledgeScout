@@ -57,6 +57,7 @@ import {
 } from './gallery-root/helpers'
 import { useIsMobile } from './gallery-root/hooks/use-is-mobile'
 import { useCardDensity } from './gallery-root/hooks/use-card-density'
+import { WebsiteLandingLive } from '@/components/library/website/website-landing-live'
 
 export interface GalleryRootProps {
   libraryIdProp?: string
@@ -92,7 +93,6 @@ export function GalleryRoot({
   hideTabs = false,
   siteViewSrc = null,
   showSiteTab = false,
-  siteSandbox = "allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox",
 }: GalleryRootProps) {
   const { t } = useTranslation()
   const libraryIdFromAtom = useAtomValue(activeLibraryIdAtom)
@@ -974,12 +974,13 @@ export function GalleryRoot({
       <Tabs value={mode} className="flex-1 min-h-0 flex flex-col">
         {mode === 'site' && hasSiteView && (
         <TabsContent value="site" className="flex-1 min-h-0 m-0 mt-0 flex flex-col overflow-hidden data-[state=active]:flex">
-          <iframe
-            title={t('explore.homepageFrameTitle')}
-            src={siteViewSrc}
-            className="h-full w-full min-h-[50vh] rounded-md border bg-background"
-            sandbox={siteSandbox}
-          />
+          {/* Phase 3 (E4/E7): Statt des alten web/-Snapshot-iframes rendert die
+             „Startseite" jetzt die produktive website-Landingpage aus Live-Daten. */}
+          {libraryId ? (
+            <WebsiteLandingLive libraryId={libraryId} onShowGallery={() => setMode('gallery')} />
+          ) : (
+            <div className="p-6 text-sm text-muted-foreground">{t('gallery.loading')}</div>
+          )}
         </TabsContent>
         )}
 
