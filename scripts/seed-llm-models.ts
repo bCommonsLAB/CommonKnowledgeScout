@@ -7,7 +7,7 @@
  * - openai/gpt-oss-120b
  * - mistralai/mistral-small-3.2-24b-instruct
  * - deepseek/deepseek-v3.2
- * - openai/gpt-5.2
+ * - openai/gpt-5.5
  * - anthropic/claude-3-haiku
  * 
  * Usage: pnpm tsx scripts/seed-llm-models.ts
@@ -39,7 +39,7 @@ const models: LlmModel[] = [
     supportedLanguages: [
       'global', 'de', 'en', 'it', 'fr', 'es', 'pt', 'nl', 'no', 'da', 'sv', 'fi',
       'pl', 'cs', 'hu', 'ro', 'bg', 'el', 'tr', 'ru', 'uk', 'zh', 'ko', 'ja',
-      'hr', 'sr', 'bs', 'sl', 'sk', 'lt', 'lv', 'et', 'id', 'ms', 'hi', 'sw', 'yo', 'zu'
+      'hr', 'sr', 'bs', 'sl', 'sk', 'lt', 'lv', 'et', 'id', 'ms', 'hi', 'sw', 'yo', 'zu', 'am'
     ],
     strengths: 'Schnell, kostengünstig, gut für einfache Fragen',
     url: 'https://openrouter.ai/models/google/gemini-2.5-flash',
@@ -117,17 +117,17 @@ const models: LlmModel[] = [
     updatedAt: new Date().toISOString(),
   },
   {
-    _id: 'openai/gpt-5.2',
-    name: 'GPT 5.2',
+    _id: 'openai/gpt-5.5',
+    name: 'GPT 5.5',
     provider: 'openai',
-    modelId: 'openai/gpt-5.2',
+    modelId: 'openai/gpt-5.5',
     supportedLanguages: [
       'global', 'de', 'en', 'it', 'fr', 'es', 'pt', 'nl', 'no', 'da', 'sv', 'fi',
       'pl', 'cs', 'hu', 'ro', 'bg', 'el', 'tr', 'ru', 'uk', 'zh', 'ko', 'ja',
       'hr', 'sr', 'bs', 'sl', 'sk', 'lt', 'lv', 'et', 'id', 'ms', 'hi', 'sw', 'yo', 'zu'
     ],
     strengths: 'Höchste Qualität, ideal für komplexe und anspruchsvolle Fragen',
-    url: 'https://openrouter.ai/models/openai/gpt-5.2',
+    url: 'https://openrouter.ai/models/openai/gpt-5.5',
     isActive: true,
     order: 6,
     createdAt: new Date().toISOString(),

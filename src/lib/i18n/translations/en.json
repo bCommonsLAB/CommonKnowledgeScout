@@ -497,7 +497,7 @@
       "basicSupport": {
         "title": "🌱 Basic Knowledge",
         "description": "This language supports simple texts, but complex grammar can be difficult. Answers may be simplified.",
-        "languages": "Swahili, Yoruba, Zulu"
+        "languages": "Swahili, Yoruba, Zulu, Amharic"
       }
     },
     "languageLabels": {
@@ -538,7 +538,8 @@
       "hi": "Hindi",
       "sw": "Swahili",
       "yo": "Yoruba",
-      "zu": "Zulu"
+      "zu": "Zulu",
+      "am": "Amharic"
     },
     "perspectivePage": {
       "title": "How should answers be formulated for you?",

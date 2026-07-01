@@ -497,7 +497,7 @@
       "basicSupport": {
         "title": "🌱 Connaissances de base",
         "description": "Cette langue prend en charge les textes simples, mais la grammaire complexe peut être difficile. Les réponses peuvent être simplifiées.",
-        "languages": "Swahili, Yoruba, Zulu"
+        "languages": "Swahili, Yoruba, Zulu, Amharique"
       }
     },
     "languageLabels": {
@@ -538,7 +538,8 @@
       "hi": "Hindi",
       "sw": "Swahili",
       "yo": "Yoruba",
-      "zu": "Zulu"
+      "zu": "Zulu",
+      "am": "Amharique"
     },
     "perspectivePage": {
       "title": "Comment les réponses doivent-elles être formulées pour vous ?",
