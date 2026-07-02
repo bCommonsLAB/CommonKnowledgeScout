@@ -524,7 +524,7 @@
       "basicSupport": {
         "title": "🌱 Grundkenntnisse",
         "description": "Diese Sprache unterstützt einfache Texte, aber komplexere Grammatik kann schwierig sein. Antworten können vereinfacht sein.",
-        "languages": "Swahili, Yoruba, Zulu"
+        "languages": "Swahili, Yoruba, Zulu, Amharisch, Oromo"
       }
     },
     "languageLabels": {
@@ -565,7 +565,9 @@
       "hi": "Hindi",
       "sw": "Swahili",
       "yo": "Yoruba",
-      "zu": "Zulu"
+      "zu": "Zulu",
+      "am": "Amharisch",
+      "om": "Oromo (Afaan Oromoo)"
     },
     "perspectivePage": {
       "title": "Wie sollen Antworten für dich formuliert sein?",
