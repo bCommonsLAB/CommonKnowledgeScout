@@ -144,6 +144,7 @@ export type TargetLanguage =
   | 'yo' // Yoruba
   | 'zu' // Zulu
   | 'am' // Amharisch
+  | 'om' // Oromo (Afaan Oromoo)
 
 /**
  * Sprachkategorien für Warnhinweise
@@ -156,7 +157,7 @@ export const LANGUAGE_CATEGORIES = {
   /** 🌐 Gut unterstützt: Funktionieren gut, aber mit etwas geringerer Präzision */
   WELL_SUPPORTED: ['hr', 'sr', 'bs', 'sl', 'sk', 'lt', 'lv', 'et', 'id', 'ms', 'hi'] as const,
   /** 🌱 Grundkenntnisse: Einfache Texte möglich, komplexere Grammatik kann schwierig sein */
-  BASIC_SUPPORT: ['sw', 'yo', 'zu', 'am'] as const,
+  BASIC_SUPPORT: ['sw', 'yo', 'zu', 'am', 'om'] as const,
 } as const
 
 /**
@@ -252,13 +253,14 @@ export const TARGET_LANGUAGE_LABELS: Record<TargetLanguage, string> = {
   yo: 'Yoruba',
   zu: 'Zulu',
   am: 'Amharisch',
+  om: 'Oromo (Afaan Oromoo)',
 }
 
 export const TARGET_LANGUAGE_ZOD_ENUM = z.enum([
   'global',
   'en', 'de', 'it', 'fr', 'es', 'pt', 'nl', 'no', 'da', 'sv', 'fi', 'pl', 'cs', 'hu', 'ro', 'bg', 'el', 'tr', 'ru', 'uk', 'zh', 'ko', 'ja',
   'hr', 'sr', 'bs', 'sl', 'sk', 'lt', 'lv', 'et', 'id', 'ms', 'hi',
-  'sw', 'yo', 'zu', 'am',
+  'sw', 'yo', 'zu', 'am', 'om',
 ])
 
 // ============================================================================

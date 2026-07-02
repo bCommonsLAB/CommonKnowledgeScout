@@ -124,7 +124,7 @@ const models: LlmModel[] = [
     supportedLanguages: [
       'global', 'de', 'en', 'it', 'fr', 'es', 'pt', 'nl', 'no', 'da', 'sv', 'fi',
       'pl', 'cs', 'hu', 'ro', 'bg', 'el', 'tr', 'ru', 'uk', 'zh', 'ko', 'ja',
-      'hr', 'sr', 'bs', 'sl', 'sk', 'lt', 'lv', 'et', 'id', 'ms', 'hi', 'sw', 'yo', 'zu'
+      'hr', 'sr', 'bs', 'sl', 'sk', 'lt', 'lv', 'et', 'id', 'ms', 'hi', 'sw', 'yo', 'zu', 'om'
     ],
     strengths: 'Höchste Qualität, ideal für komplexe und anspruchsvolle Fragen',
     url: 'https://openrouter.ai/models/openai/gpt-5.5',
