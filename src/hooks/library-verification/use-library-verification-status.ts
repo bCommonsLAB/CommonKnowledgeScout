@@ -8,17 +8,25 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import type { LibraryVerificationStatus, VerificationSummary } from '@/lib/library-verification/types'
+import type {
+  DocumentVerificationResult,
+  LibraryVerificationStatus,
+  VerificationSummary,
+} from '@/lib/library-verification/types'
 
 interface VerifyStatusResponse {
   status: LibraryVerificationStatus
   summary?: VerificationSummary
+  /** Detail-Log des juengsten Laufs (beim Speichern gekappte Doc-Liste). */
+  documents?: DocumentVerificationResult[]
   lastRun?: { createdAt?: string } | null
 }
 
 export interface UseLibraryVerificationStatusResult {
   status: LibraryVerificationStatus | null
   summary: VerificationSummary | null
+  /** Problematische Dokumente des juengsten Laufs (fuer die Befund-Liste). */
+  documents: DocumentVerificationResult[]
   lastRunAt: string | null
   isLoading: boolean
   error: string | null
@@ -31,6 +39,7 @@ export function useLibraryVerificationStatus(
 ): UseLibraryVerificationStatusResult {
   const [status, setStatus] = useState<LibraryVerificationStatus | null>(null)
   const [summary, setSummary] = useState<VerificationSummary | null>(null)
+  const [documents, setDocuments] = useState<DocumentVerificationResult[]>([])
   const [lastRunAt, setLastRunAt] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -45,6 +54,7 @@ export function useLibraryVerificationStatus(
       const data = (await res.json()) as VerifyStatusResponse
       setStatus(data.status)
       setSummary(data.summary ?? null)
+      setDocuments(Array.isArray(data.documents) ? data.documents : [])
       setLastRunAt(data.lastRun?.createdAt ?? null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Status-Abruf fehlgeschlagen')
@@ -57,5 +67,5 @@ export function useLibraryVerificationStatus(
     void refresh()
   }, [refresh])
 
-  return { status, summary, lastRunAt, isLoading, error, refresh }
+  return { status, summary, documents, lastRunAt, isLoading, error, refresh }
 }

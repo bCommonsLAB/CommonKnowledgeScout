@@ -61,6 +61,9 @@ export async function GET(
       libraryId,
       status: latest.status,
       summary: latest.summary,
+      // Detail-Log: problematische Dokumente des Laufs (gekappt auf
+      // MAX_STORED_DOCUMENTS beim Speichern) — fuer die Befund-Liste im Panel.
+      documents: latest.documents ?? [],
       lastRun: {
         runId: latest.runId,
         mode: latest.mode,

@@ -75,6 +75,20 @@ export interface DocumentVerificationResult {
 /** Aggregierte Befund-Zaehlung je Code (fuer Audit + UI). */
 export type IssueCountByCode = Partial<Record<VerificationIssueCode, number>>
 
+/**
+ * Aggregation je Code+Feld — das Detail-Log des Laufs. Im Gegensatz zur
+ * gekappten `documents`-Liste UNGEKAPPT, damit die Zahlen auch bei grossen
+ * Libraries stimmen. `sampleMessage` macht den Befund ohne Doc-Liste lesbar.
+ */
+export interface IssueFieldCount {
+  code: VerificationIssueCode
+  /** Betroffenes Feld; '' wenn feldlos (z.B. undetermined-detail-view-type). */
+  field: string
+  count: number
+  /** Meldung des ersten Vorkommens (repraesentativ). */
+  sampleMessage: string
+}
+
 /** Zusammenfassung eines Laufs. */
 export interface VerificationSummary {
   scanned: number
@@ -88,6 +102,8 @@ export interface VerificationSummary {
   /** Tatsaechlich reparierte Dokumente (nur im `repair`-Modus > 0). */
   repairedDocuments: number
   issuesByCode: IssueCountByCode
+  /** Detail-Aggregation je Code+Feld (fehlt bei Laeufen vor diesem Feature). */
+  issuesByField?: IssueFieldCount[]
 }
 
 /** Vollstaendiger Bericht eines Verifikations-Laufs. */
