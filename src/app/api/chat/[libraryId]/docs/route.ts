@@ -126,8 +126,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
     // Pagination params (flache Liste)
     const limitParam = url.searchParams.get('limit')
     const skipParam = url.searchParams.get('skip')
-    const limit = limitParam ? parseInt(limitParam, 10) : 50 // Default auf 50 für bessere Performance
-    const skip = skipParam ? parseInt(skipParam, 10) : 0
+    // Default 50 (Performance); hartes Cap 500, damit kein Client beliebig
+    // große Payloads anfordern kann (Batch-Loader nutzen limit+skip).
+    const parsedLimit = limitParam ? parseInt(limitParam, 10) : 50
+    const limit = Math.min(500, Math.max(1, Number.isFinite(parsedLimit) ? parsedLimit : 50))
+    const parsedSkip = skipParam ? parseInt(skipParam, 10) : 0
+    const skip = Math.max(0, Number.isFinite(parsedSkip) ? parsedSkip : 0)
 
     // Gruppenweise Pagination (fließendes Scrollen bei Gruppierung nach Handlungsfeld etc.)
     const groupByParam = url.searchParams.get('groupBy')

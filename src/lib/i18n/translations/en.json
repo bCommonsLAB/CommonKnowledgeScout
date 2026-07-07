@@ -370,7 +370,10 @@
       "relationsStale": "Outdated – the catalog has changed",
       "relationsNeverComputed": "Not computed yet",
       "relationsComputedAt": "Computed on",
-      "relationsRecomputeRow": "Compute relations for this measure"
+      "relationsRecomputeRow": "Compute relations for this measure",
+      "loadingAll": "Loading all documents… {loaded}/{total}",
+      "loadAllError": "Documents could not be fully loaded",
+      "truncatedNotice": "The graph shows the first {loaded} of {total} documents."
     }
   },
   "sdgProfile": {
