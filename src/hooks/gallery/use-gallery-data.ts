@@ -36,6 +36,13 @@ export function useGalleryData(
      * kosten); "Kosten unbekannt" (rating null) landet ans Ende. Oeffentlich.
      */
     sortByRating?: boolean
+    /**
+     * Globale Spalten-Sortierung der Tabellenansicht: sendet
+     * `?sortField=<key>&sortDir=<dir>` und erzwingt die FLACHE Liste
+     * (Gruppierung aus — Spaltenkopf-Sort = EINE Rangliste ueber alles).
+     * Hat Vorrang vor sortByStars/sortByRating.
+     */
+    sortByColumn?: { field: string; dir: 'asc' | 'desc' } | null
   }
 ) {
   const setGalleryData = useSetAtom(galleryDataAtom)
@@ -43,7 +50,10 @@ export function useGalleryData(
   const skipApiCall = options?.skipApiCall ?? false
   const sortByStars = options?.sortByStars ?? false
   const sortByRating = options?.sortByRating ?? false
-  
+  const sortByColumn = options?.sortByColumn ?? null
+  // Stabiler Dependency-Schluessel (unabhaengig von der Objekt-Identitaet des Callers)
+  const sortByColumnKey = sortByColumn ? `${sortByColumn.field}:${sortByColumn.dir}` : ''
+
   const [docs, setDocs] = useState<DocCardMeta[]>([])
   const [totalCount, setTotalCount] = useState<number>(0)
   const [loading, setLoading] = useState(false)
@@ -53,9 +63,10 @@ export function useGalleryData(
   const [hasMore, setHasMore] = useState(true)
   const LIMIT = 50
 
-  // Gruppenweise Pagination: State für serverseitig gruppierte Antworten (fließendes Scrollen)
+  // Gruppenweise Pagination: State für serverseitig gruppierte Antworten (fließendes Scrollen).
+  // Spalten-Sortierung erzwingt die flache Liste (Server lehnt groupBy+sortField ab).
   const groupByFieldOpt = options?.groupByField ?? 'year'
-  const useGroupedApi = groupByFieldOpt !== 'none'
+  const useGroupedApi = groupByFieldOpt !== 'none' && !sortByColumn
   const GROUPS_LIMIT = 5
   const [groups, setGroups] = useState<Array<[string | number, DocCardMeta[]]>>([])
   const [, setTotalGroups] = useState(0)
@@ -76,7 +87,7 @@ export function useGalleryData(
     setGroups([])
     setTotalGroups(0)
     setIsLoadingMore(false)
-  }, [libraryId, filtersString, mode, searchQuery, skipApiCall, options?.refreshKey, groupByFieldOpt, sortByStars, sortByRating])
+  }, [libraryId, filtersString, mode, searchQuery, skipApiCall, options?.refreshKey, groupByFieldOpt, sortByStars, sortByRating, sortByColumnKey])
   
   useEffect(() => {
     // Überspringe API-Aufruf wenn skipApiCall true ist
@@ -116,7 +127,12 @@ export function useGalleryData(
           params.append('limit', String(LIMIT))
           params.append('skip', String((page - 1) * LIMIT))
         }
-        if (sortByStars) {
+        if (sortByColumn) {
+          // Globale Spalten-Sortierung im Server (flache Liste, leere Werte
+          // ans Ende, stabile Sekundaerschluessel — siehe column-sort.ts).
+          params.append('sortField', sortByColumn.field)
+          params.append('sortDir', sortByColumn.dir)
+        } else if (sortByStars) {
           // Globale Sterne-Sortierung im Server (`vector-repo.findDocs(Grouped)`),
           // Sekundaerschluessel year/upsertedAt fuer stabile Pagination.
           params.append('sort', 'stars')
@@ -203,7 +219,7 @@ export function useGalleryData(
     load()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [libraryId, page, JSON.stringify(filters), mode, searchQuery, skipApiCall, options?.refreshKey, useGroupedApi, groupByFieldOpt, sortByStars, sortByRating])
+  }, [libraryId, page, JSON.stringify(filters), mode, searchQuery, skipApiCall, options?.refreshKey, useGroupedApi, groupByFieldOpt, sortByStars, sortByRating, sortByColumnKey])
 
 
   const loadMore = () => {
@@ -254,7 +270,9 @@ export function useGalleryData(
   const groupByField = options?.groupByField || 'year'
   
   const groupedDocsClient = useMemo(() => {
-    if (groupByField === 'none') {
+    // Spalten-Sortierung: KEINE clientseitige Re-Gruppierung — die Antwort
+    // ist eine global sortierte flache Liste und muss es bleiben.
+    if (groupByField === 'none' || sortByColumn) {
       return [['', finalFilteredDocs] as [string, DocCardMeta[]]]
     }
     const grouped = new Map<number | string, DocCardMeta[]>()
@@ -286,7 +304,7 @@ export function useGalleryData(
       return String(keyA).localeCompare(String(keyB), 'de')
     })
     return sorted
-  }, [finalFilteredDocs, groupByField])
+  }, [finalFilteredDocs, groupByField, sortByColumn])
 
   const groupedDocs = useGroupedApi ? groups : groupedDocsClient
   

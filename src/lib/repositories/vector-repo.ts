@@ -41,6 +41,7 @@ import { convertMongoDocToDocCardMeta, type MongoDocForConversion } from './doc-
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { buildFavoriteLookupStages } from './source-user-states-repo'
 import { buildCommentLookupStages } from './source-comments-repo'
+import { buildColumnSortStages, type GalleryColumnSortSpec } from '@/lib/gallery/column-sort'
 
 /**
  * Konstante für den Vector Search Index-Namen.
@@ -1187,6 +1188,12 @@ export async function findDocs(
     limit?: number
     skip?: number
     sort?: GallerySort
+    /**
+     * Globale Spalten-Sortierung (Tabellenansicht): validierte Spec aus dem
+     * API-Layer. Hat Vorrang vor `sort`; leere Werte sortieren ans Ende
+     * (siehe lib/gallery/column-sort.ts).
+     */
+    columnSort?: GalleryColumnSortSpec
   } = {}
 ): Promise<{ items: DocCardMeta[]; total: number }> {
   // PERFORMANCE: Nutze direkt getCollection statt getVectorCollection, um Overhead (Dimension-Check, Index-Check) zu vermeiden
@@ -1231,13 +1238,18 @@ export async function findDocs(
     ...buildFavoriteLookupStages(libraryId, options.userEmail),
     ...buildCommentLookupStages(libraryId, options.userEmail),
   ]
-  const lookupBeforeSort = sortNeedsFavoriteLookup(options.sort)
+  const columnSort = options.columnSort
+  const lookupBeforeSort =
+    sortNeedsFavoriteLookup(options.sort) || columnSort?.source === 'favorites'
 
   // Prioritäts-Indikator ist ein PERSISTIERTES Feld (docMetaJson.prioritaets_index);
   // `sort=rating` sortiert direkt danach – keine $addFields-Laufzeitberechnung nötig.
+  // columnSort (Tabellen-Spaltenkopf) hat Vorrang vor `sort` und sortiert
+  // global VOR $skip/$limit — leere Werte ans Ende (buildColumnSortStages).
   const pipeline: Document[] = [{ $match: query }]
   if (lookupBeforeSort) pipeline.push(...lookupStages)
-  if (options.sort) pipeline.push({ $sort: options.sort })
+  if (columnSort) pipeline.push(...(buildColumnSortStages(columnSort) as Document[]))
+  else if (options.sort) pipeline.push({ $sort: options.sort })
   if (typeof options.skip === 'number' && options.skip > 0) pipeline.push({ $skip: options.skip })
   if (typeof options.limit === 'number' && options.limit > 0) pipeline.push({ $limit: options.limit })
   if (!lookupBeforeSort) pipeline.push(...lookupStages)

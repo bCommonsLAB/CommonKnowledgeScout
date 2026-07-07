@@ -9,6 +9,7 @@ import { maybePublicationFilter } from '@/lib/chat/publication-filter'
 import { isValidDetailViewType } from '@/lib/detail-view-types/registry'
 import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
 import { isCoCreatorOrOwner } from '@/lib/repositories/library-members-repo'
+import { resolveColumnSort } from '@/lib/gallery/column-sort'
 import { getPreferredUserEmail } from '@/lib/auth/user-email'
 import type { Document } from 'mongodb'
 
@@ -205,6 +206,27 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
     const sortRaw = url.searchParams.get('sort')
     const memberUserEmail = isMember ? userEmail : ''
 
+    // Globale Spalten-Sortierung (Tabellenansicht): sortField/sortDir werden
+    // gegen die Facetten-Whitelist validiert; ungültig -> expliziter Fehler
+    // (kein Silent Fallback). Nur in der flachen Liste sinnvoll — kombiniert
+    // mit gruppenweiser Pagination ist die Anfrage widersprüchlich.
+    const columnSortRes = resolveColumnSort(
+      url.searchParams.get('sortField'),
+      url.searchParams.get('sortDir'),
+      defs,
+      isMember,
+    )
+    if (columnSortRes && !columnSortRes.ok) {
+      return NextResponse.json({ error: columnSortRes.error }, { status: columnSortRes.status })
+    }
+    const columnSort = columnSortRes?.ok ? columnSortRes.spec : undefined
+    if (columnSort && useGrouped) {
+      return NextResponse.json(
+        { error: 'sortField ist nicht mit groupBy kombinierbar (flache Liste anfordern)' },
+        { status: 400 }
+      )
+    }
+
     // Bei gruppenweiser Pagination: findDocsGrouped nutzen, sonst klassische findDocs
     if (useGrouped) {
       const groupedResult = await findDocsGrouped(libraryKey, libraryId, filter, {
@@ -230,7 +252,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
     const result = await findDocs(libraryKey, libraryId, filter, {
       limit,
       skip,
-      sort: buildGallerySort(sortRaw, isMember),
+      // columnSort (Spaltenkopf) hat Vorrang; sonst Default/stars/rating.
+      sort: columnSort ? undefined : buildGallerySort(sortRaw, isMember),
+      columnSort,
       locale: headerLocale,
       fallbackLocale,
       userEmail: memberUserEmail,

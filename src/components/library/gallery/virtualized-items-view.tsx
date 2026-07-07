@@ -86,6 +86,17 @@ export interface VirtualizedItemsViewProps {
    * Daten; keine clientseitige Nachsortierung noetig.
    */
   sortByStars?: boolean
+  /**
+   * Globale Spalten-Sortierung (serverseitig): aktueller Zustand. Nur
+   * relevant, wenn `onServerSortChange` gesetzt ist.
+   */
+  serverSort?: { column: string; dir: 'asc' | 'desc' } | null
+  /**
+   * Wenn gesetzt, sortieren Spaltenkopf-Klicks SERVERSEITIG ueber den
+   * gesamten Bestand (Zyklus asc -> desc -> aus) statt nur die geladenen
+   * Zeilen clientseitig umzuordnen. `null` = Sortierung aufheben.
+   */
+  onServerSortChange?: (next: { column: string; dir: 'asc' | 'desc' } | null) => void
   onToggleFavorite?: (fileId: string) => void | Promise<void>
   /**
    * Stufe 4: Schwellwert fuer die Auto-Uebernahme im Stoffgruppen-Klassifikations-
@@ -113,6 +124,8 @@ export function VirtualizedItemsView({
   onPublishChanged,
   relationsEnabled,
   sortByStars,
+  serverSort,
+  onServerSortChange,
   onToggleFavorite,
   autoApplyConfidenceThreshold,
   onGroupClassified,
@@ -160,9 +173,17 @@ export function VirtualizedItemsView({
   const scrollContainerRef = useRef<HTMLElement | null>(null)
   const prevDocsLengthRef = useRef<number>(0)
 
-  /** Tabellen-Sortierung: nur innerhalb jeder Gruppe (z. B. Jahr), nicht global über Gruppen hinweg */
-  const [sortColumn, setSortColumn] = React.useState<string | null>(null)
-  const [sortDir, setSortDir] = React.useState<'asc' | 'desc'>('asc')
+  /**
+   * Tabellen-Sortierung: Mit `onServerSortChange` (Galerie-Hauptpfad) sortiert
+   * der SERVER global ueber den gesamten Bestand; der lokale State bleibt als
+   * Legacy-Pfad fuer Aufrufer ohne Server-Sort (z. B. Chat-Referenzansicht) —
+   * dort wird nur innerhalb der geladenen Gruppen sortiert.
+   */
+  const serverSortEnabled = Boolean(onServerSortChange)
+  const [localSortColumn, setLocalSortColumn] = React.useState<string | null>(null)
+  const [localSortDir, setLocalSortDir] = React.useState<'asc' | 'desc'>('asc')
+  const sortColumn = serverSortEnabled ? (serverSort?.column ?? null) : localSortColumn
+  const sortDir = serverSortEnabled ? (serverSort?.dir ?? 'asc') : localSortDir
 
   // Finde den Scroll-Container einmal beim Mount
   useEffect(() => {
@@ -290,13 +311,14 @@ export function VirtualizedItemsView({
   }, [tableColumnFacets, isOwner, libraryDetailViewType])
 
   const displayDocsByYear = React.useMemo(() => {
-    if (sortByStars) return docsByYear
+    // Serverseitige Sortierung (global) liefert die Daten fertig sortiert.
+    if (serverSortEnabled || sortByStars) return docsByYear
     if (viewMode !== 'table' || !sortColumn) return docsByYear
     return docsByYear.map(
       ([groupKey, groupDocs]) =>
         [groupKey, sortDocsByTableColumn(groupDocs, sortColumn, sortDir)] as [number | string, DocCardMeta[]],
     )
-  }, [docsByYear, viewMode, sortColumn, sortDir, sortByStars])
+  }, [docsByYear, viewMode, sortColumn, sortDir, sortByStars, serverSortEnabled])
 
   const columnHeaderLabel = React.useCallback(
     (col: { key: string; labelKey?: string; label?: string }) => {
@@ -307,16 +329,30 @@ export function VirtualizedItemsView({
     [t]
   )
 
+  // Owner-Statusspalten sind synthetisch (Badges) und nicht sortierbar.
+  const nonSortableColumns = React.useMemo(() => new Set(['publication', 'languages']), [])
+
   const onHeaderSort = React.useCallback((key: string) => {
-    setSortColumn((prev) => {
+    if (serverSortEnabled) {
+      // Server-Sort: Zyklus asc -> desc -> aus (aus = Standardansicht mit Gruppen).
+      const next =
+        sortColumn !== key
+          ? { column: key, dir: 'asc' as const }
+          : sortDir === 'asc'
+            ? { column: key, dir: 'desc' as const }
+            : null
+      onServerSortChange?.(next)
+      return
+    }
+    setLocalSortColumn((prev) => {
       if (prev === key) {
-        setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+        setLocalSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
         return prev
       }
-      setSortDir('asc')
+      setLocalSortDir('asc')
       return key
     })
-  }, [])
+  }, [serverSortEnabled, sortColumn, sortDir, onServerSortChange])
 
   // Zellwert für eine Spalte aus doc lesen (inkl. title, upsertedAt, Arrays)
   const getCellValue = (doc: DocCardMeta, key: string): React.ReactNode => {
@@ -473,6 +509,13 @@ export function VirtualizedItemsView({
                   {tableColumns.map((col) => {
                     const label = columnHeaderLabel(col)
                     const isSorted = sortColumn === col.key
+                    if (nonSortableColumns.has(col.key)) {
+                      return (
+                        <TableHead key={col.key} className="whitespace-nowrap">
+                          <span className="font-medium text-muted-foreground">{label}</span>
+                        </TableHead>
+                      )
+                    }
                     return (
                       <TableHead
                         key={col.key}

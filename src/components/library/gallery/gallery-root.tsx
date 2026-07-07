@@ -253,6 +253,16 @@ export function GalleryRoot({
   const sortByStarsActive = sortParam === 'stars' && isLibraryMember
   const sortByRatingActive = sortParam === 'rating'
 
+  // Globale Spalten-Sortierung der Tabellenansicht (serverseitig, ueber den
+  // GESAMTEN gefilterten Bestand). Aktiv nur im Table-Mode; die synthetische
+  // Prio-Spalte wird auf das persistierte Feld gemappt.
+  const [tableSort, setTableSort] = useState<{ column: string; dir: 'asc' | 'desc' } | null>(null)
+  const tableSortForApi = useMemo(() => {
+    if (!tableSort || viewMode !== 'table') return null
+    const field = tableSort.column === '__priorityIndex' ? 'prioritaets_index' : tableSort.column
+    return { field, dir: tableSort.dir }
+  }, [tableSort, viewMode])
+
   const {
     docs,
     loading,
@@ -269,6 +279,7 @@ export function GalleryRoot({
     groupByField,
     sortByStars: sortByStarsActive,
     sortByRating: sortByRatingActive,
+    sortByColumn: tableSortForApi,
   })
   const { isOwner } = useIsLibraryOwner(libraryId)
 
@@ -980,13 +991,16 @@ export function GalleryRoot({
       isLoadingMore={isLoadingMore}
       onDocumentDeleted={handleDocumentDeleted}
       libraryDetailViewType={detailViewType}
-      groupByField={groupByField}
+      // Aktive Spalten-Sortierung = flache globale Rangliste ohne Gruppen-Header.
+      groupByField={tableSortForApi ? 'none' : groupByField}
       tableColumnFacets={tableColumnFacets}
       cardDensity={cardDensity}
       expectedTargetLocales={activeLibrary?.config?.translations?.targetLocales}
       onPublishChanged={handleDocumentDeleted}
       relationsEnabled={graphConfig?.edgeSources?.relations?.enabled === true}
       sortByStars={sortByStarsActive}
+      serverSort={tableSort}
+      onServerSortChange={setTableSort}
       onToggleFavorite={handleStarToggle}
       autoApplyConfidenceThreshold={activeLibrary?.config?.autoApplyConfidenceThreshold}
       onGroupClassified={handleDocumentDeleted}
