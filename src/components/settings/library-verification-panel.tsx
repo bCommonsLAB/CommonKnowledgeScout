@@ -13,6 +13,7 @@ import { Loader2, RefreshCw, Wrench } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { activeLibraryAtom } from '@/atoms/library-atom'
 import { LibraryVerificationBadgeView } from '@/components/library/library-verification-badge'
+import { LibraryVerificationDetails } from '@/components/settings/library-verification-details'
 import { useLibraryVerificationStatus } from '@/hooks/library-verification/use-library-verification-status'
 import { useLibraryVerificationRun } from '@/hooks/library-verification/use-library-verification-run'
 import type { VerificationSummary } from '@/lib/library-verification/types'
@@ -44,10 +45,8 @@ function SummaryView({ summary }: { summary: VerificationSummary }) {
 export function LibraryVerificationPanel() {
   const activeLibrary = useAtomValue(activeLibraryAtom)
   const libraryId = activeLibrary?.id
-  const { status, summary, lastRunAt, isLoading, error, refresh } = useLibraryVerificationStatus(
-    libraryId,
-    !!libraryId
-  )
+  const { status, summary, documents, lastRunAt, isLoading, error, refresh } =
+    useLibraryVerificationStatus(libraryId, !!libraryId)
   const { state, run } = useLibraryVerificationRun(libraryId)
 
   if (!activeLibrary) {
@@ -106,6 +105,10 @@ export function LibraryVerificationPanel() {
       )}
 
       {effectiveSummary && <SummaryView summary={effectiveSummary} />}
+      {/* Detail-Log: Befunde je Feld + betroffene Dokumente (nach refresh()). */}
+      {effectiveSummary && (
+        <LibraryVerificationDetails summary={effectiveSummary} documents={documents} />
+      )}
     </div>
   )
 }

@@ -41,6 +41,10 @@ export interface ItemsViewProps {
    * ist (?sort=stars). Client-Sort entfaellt dann.
    */
   sortByStars?: boolean
+  /** Globale Spalten-Sortierung (serverseitig): aktueller Zustand. */
+  serverSort?: { column: string; dir: 'asc' | 'desc' } | null
+  /** Spaltenkopf-Klicks sortieren serverseitig (asc -> desc -> aus). */
+  onServerSortChange?: (next: { column: string; dir: 'asc' | 'desc' } | null) => void
   /**
    * Stern-Toggle: optimistischer Patch + POST. Wird von gallery-root
    * bereitgestellt; fehlt er, fallback nur API (ohne mutateDoc).
@@ -73,6 +77,8 @@ export function ItemsView({
   onPublishChanged,
   relationsEnabled,
   sortByStars,
+  serverSort,
+  onServerSortChange,
   onToggleFavorite,
   autoApplyConfidenceThreshold,
   onGroupClassified,
@@ -95,6 +101,8 @@ export function ItemsView({
       onPublishChanged={onPublishChanged}
       relationsEnabled={relationsEnabled}
       sortByStars={sortByStars}
+      serverSort={serverSort}
+      onServerSortChange={onServerSortChange}
       onToggleFavorite={onToggleFavorite}
       autoApplyConfidenceThreshold={autoApplyConfidenceThreshold}
       onGroupClassified={onGroupClassified}
