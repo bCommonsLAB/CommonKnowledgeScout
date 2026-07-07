@@ -370,7 +370,10 @@
       "relationsStale": "Obsolète – le catalogue a changé",
       "relationsNeverComputed": "Pas encore calculé",
       "relationsComputedAt": "Calculé le",
-      "relationsRecomputeRow": "Calculer les relations pour cette mesure"
+      "relationsRecomputeRow": "Calculer les relations pour cette mesure",
+      "loadingAll": "Chargement de tous les documents… {loaded}/{total}",
+      "loadAllError": "Impossible de charger tous les documents",
+      "truncatedNotice": "Le graphe affiche les {loaded} premiers documents sur {total}."
     }
   },
   "sdgProfile": {

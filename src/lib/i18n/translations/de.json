@@ -397,7 +397,10 @@
       "relationsStale": "Veraltet – Katalog hat sich geändert",
       "relationsNeverComputed": "Noch nicht berechnet",
       "relationsComputedAt": "Berechnet am",
-      "relationsRecomputeRow": "Beziehungen für diese Maßnahme berechnen"
+      "relationsRecomputeRow": "Beziehungen für diese Maßnahme berechnen",
+      "loadingAll": "Lade alle Dokumente… {loaded}/{total}",
+      "loadAllError": "Dokumente konnten nicht vollständig geladen werden",
+      "truncatedNotice": "Der Graph zeigt die ersten {loaded} von {total} Dokumenten."
     }
   },
   "sdgProfile": {

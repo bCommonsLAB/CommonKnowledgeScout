@@ -26,6 +26,7 @@ import { useGalleryMode } from '@/hooks/gallery/use-gallery-mode'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useGalleryConfig } from '@/hooks/gallery/use-gallery-config'
 import { useGalleryData } from '@/hooks/gallery/use-gallery-data'
+import { useAllGalleryDocs } from '@/hooks/gallery/use-all-gallery-docs'
 import { useGalleryFacets } from '@/hooks/gallery/use-gallery-facets'
 import { useGalleryEvents } from '@/hooks/gallery/use-gallery-events'
 import { useTranslation } from '@/lib/i18n/hooks'
@@ -385,6 +386,19 @@ export function GalleryRoot({
   React.useEffect(() => {
     if (!graphEnabled && viewMode === 'graph') setViewMode('grid')
   }, [graphEnabled, viewMode])
+
+  // Graph-Modus braucht den GANZEN gefilterten Bestand, nicht nur die per
+  // Scroll-Pagination geladenen Seiten (sonst fehlen Knoten unsichtbar).
+  // Batchweises Nachladen, der Graph wächst progressiv mit.
+  const isGraphActive = viewMode === 'graph' && graphEnabled
+  const allGraphDocs = useAllGalleryDocs(filters, searchQuery, libraryId, {
+    enabled: isGraphActive,
+    refreshKey,
+  })
+  const graphDocs = React.useMemo(() => {
+    if (!anyEngagementFilterActive) return allGraphDocs.docs
+    return allGraphDocs.docs.filter(matchesEngagementFilters)
+  }, [allGraphDocs.docs, anyEngagementFilterActive, matchesEngagementFilters])
 
   // Owner speichert die aktuelle Graph-Einstellung als Library-Default
   // (config.chat.gallery.graph). Gilt fuer ALLE Nutzer der Library -> nur Owner.
@@ -893,19 +907,43 @@ export function GalleryRoot({
       )
     }
     
-    // Graph-Modus (Welle 2): teilt den gefilterten Galerie-Bestand + Filter-Sidebar.
-    // Klick auf einen Knoten öffnet die bestehende DetailOverlay (handleOpenDocument).
+    // Graph-Modus (Welle 2): nutzt den KOMPLETTEN gefilterten Bestand
+    // (useAllGalleryDocs, batchweise) + Filter-Sidebar. Klick auf einen
+    // Knoten öffnet die bestehende DetailOverlay (handleOpenDocument).
     if (viewMode === 'graph' && graphConfig) {
       return (
-        <LazyDocGraph
-          docs={filteredFlat}
-          graph={graphConfig}
-          onOpenDocument={handleOpenDocument}
-          fieldLabels={facetFieldLabels}
-          libraryId={libraryId || undefined}
-          onSaveDefault={isOwner ? handleSaveGraphDefault : undefined}
-          canManageRelations={isOwner}
-        />
+        <div className='flex h-full flex-col gap-2'>
+          {allGraphDocs.error ? (
+            <div className='text-sm text-destructive'>
+              {t('gallery.graph.loadAllError', { defaultValue: 'Dokumente konnten nicht vollständig geladen werden' })}: {allGraphDocs.error}
+            </div>
+          ) : allGraphDocs.loading ? (
+            <div className='text-sm text-muted-foreground' role='status'>
+              {t('gallery.graph.loadingAll', {
+                loaded: allGraphDocs.loadedCount,
+                total: allGraphDocs.totalCount || '…',
+                defaultValue: 'Lade alle Dokumente… {loaded}/{total}',
+              })}
+            </div>
+          ) : allGraphDocs.truncated ? (
+            <div className='text-sm text-muted-foreground'>
+              {t('gallery.graph.truncatedNotice', {
+                loaded: allGraphDocs.loadedCount,
+                total: allGraphDocs.totalCount,
+                defaultValue: 'Der Graph zeigt die ersten {loaded} von {total} Dokumenten.',
+              })}
+            </div>
+          ) : null}
+          <LazyDocGraph
+            docs={graphDocs}
+            graph={graphConfig}
+            onOpenDocument={handleOpenDocument}
+            fieldLabels={facetFieldLabels}
+            libraryId={libraryId || undefined}
+            onSaveDefault={isOwner ? handleSaveGraphDefault : undefined}
+            canManageRelations={isOwner}
+          />
+        </div>
       )
     }
 

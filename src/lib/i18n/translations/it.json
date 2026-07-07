@@ -370,7 +370,10 @@
       "relationsStale": "Obsoleto – il catalogo è cambiato",
       "relationsNeverComputed": "Non ancora calcolato",
       "relationsComputedAt": "Calcolato il",
-      "relationsRecomputeRow": "Calcola le relazioni per questa misura"
+      "relationsRecomputeRow": "Calcola le relazioni per questa misura",
+      "loadingAll": "Caricamento di tutti i documenti… {loaded}/{total}",
+      "loadAllError": "Impossibile caricare completamente i documenti",
+      "truncatedNotice": "Il grafo mostra i primi {loaded} di {total} documenti."
     }
   },
   "sdgProfile": {

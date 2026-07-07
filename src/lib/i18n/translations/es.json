@@ -370,7 +370,10 @@
       "relationsStale": "Desactualizado: el catálogo ha cambiado",
       "relationsNeverComputed": "Aún no calculado",
       "relationsComputedAt": "Calculado el",
-      "relationsRecomputeRow": "Calcular relaciones para esta medida"
+      "relationsRecomputeRow": "Calcular relaciones para esta medida",
+      "loadingAll": "Cargando todos los documentos… {loaded}/{total}",
+      "loadAllError": "No se pudieron cargar todos los documentos",
+      "truncatedNotice": "El grafo muestra los primeros {loaded} de {total} documentos."
     }
   },
   "sdgProfile": {
