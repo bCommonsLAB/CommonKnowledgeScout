@@ -32,6 +32,9 @@ todos:
   - id: llm-sums-ui
     content: "Stufe 3d — UI: Tabellen-Fusszeile und Graph-Panel zeigen ZUSAETZLICH die LLM-bereinigte Summe (sum(wert_k * korrektur_faktor_k)) als dritte Zahl neben naiv und alpha-bereinigt, mit Datum/Modell aus korrektur_stand/korrektur_modell im Tooltip. Fehlen die Faktoren (Lauf nie ausgefuehrt / neue Docs ohne Faktor), wird die LLM-Summe NICHT angezeigt bzw. mit 'X ohne Faktor' gekennzeichnet — kein stilles Mischen von Massnahmen mit und ohne Korrektur. Spanne bleibt: naive Summe ist die Obergrenze."
     status: pending
+  - id: llm-report-output
+    content: "Stufe 3e — Bericht-Ausgabe (User-Wunsch 2026-07-08): der LLM-Lauf liefert neben den maschinenlesbaren Faktoren einen menschenlesbaren BERICHT (Markdown, persistiert neben dem Lauf): (1) uebersichtliche Ergebnis-Tabelle — pro Massnahme Nr, Titel, CO2 naiv, Faktor, CO2 bereinigt, Kosten naiv, Kosten-Faktor, Kosten bereinigt, ueberlappt-mit, Kurzbegruendung; am Ende die Summenzeile (naiv vs. bereinigt). (2) Prosa-Zusammenfassung (Executive Summary): Themenfelder/Cluster benennen und erklaeren, Groessenordnungen einordnen (welche Cluster tragen wie viel kt, wo liegen die grossen Hebel), Handlungsempfehlungen ('was waere jetzt zu tun' — z.B. welche Massnahmen-Buendel zuerst, wo Buendelung Kosten spart). Anzeige: eigener Tab/Abschnitt (z.B. im Graph- oder Berichts-Bereich) mit Markdown-Renderer; Export als Markdown-Datei moeglich."
+    status: pending
 ---
 
 # Summen und Synergie-Aggregation
@@ -106,6 +109,14 @@ Ablauf (User-Entscheid 2026-07-08):
    Formel wie Stufe 2, nur mit LLM-Urteil statt (1 - alpha*s_kj)-Produkt.
    Die Similarity-Kanten aus Stufe 2 dienen als Pruef-Hinweise im Prompt,
    beschraenken das LLM aber nicht (es darf eigene Cluster erkennen).
+
+Der Lauf liefert ZWEI Artefakte (User-Wunsch 2026-07-08): die
+maschinenlesbaren Faktoren (fuer die Summen in Fusszeile/Panel) UND einen
+menschenlesbaren Markdown-Bericht — uebersichtliche Ergebnis-Tabelle
+(naiv/Faktor/bereinigt je Massnahme, Summenzeile) plus Prosa-Summary, die
+Themenfelder/Cluster erklaert, Groessenordnungen einordnet und
+Handlungsempfehlungen gibt ("was waere jetzt zu tun"). Details Todo
+llm-report-output.
 
 GRENZE Stufe 3 (ebenfalls transparent machen): auch LLM-Urteile sind
 Schaetzungen. Deshalb Begruendungspflicht pro Faktor, korrektur_modell +
