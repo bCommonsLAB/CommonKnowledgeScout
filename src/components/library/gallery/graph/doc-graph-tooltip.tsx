@@ -43,6 +43,10 @@ export function DocGraphTooltip({ doc, x, y, fields }: DocGraphTooltipProps) {
       style={{ left: x + 12, top: y + 12 }}
     >
       <div className="mb-1 font-semibold text-sm leading-tight">{doc.title || doc.shortTitle || doc.slug || doc.id}</div>
+      {/* Maßnahmen-Nr. identifiziert die Quelle eindeutig (wie auf der Karte). */}
+      {doc.massnahme_nr && (
+        <div className="mb-1 text-muted-foreground">Nr. {doc.massnahme_nr}</div>
+      )}
       {typeof doc.prioritaets_index === 'number' && (
         <div className="mb-1 text-muted-foreground">Prioritäts-Indikator: {doc.prioritaets_index.toFixed(1)}</div>
       )}

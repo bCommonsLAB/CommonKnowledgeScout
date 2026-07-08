@@ -17,6 +17,7 @@ import { GroupedItemsView } from '@/components/library/gallery/grouped-items-vie
 import { groupDocsByReferences } from '@/hooks/gallery/use-gallery-data'
 import type { ViewMode } from '@/components/library/gallery/gallery-sticky-header'
 import { useSessionHeaders } from '@/hooks/use-session-headers'
+import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { toast } from '@/components/ui/use-toast'
 import type { QueryLog } from '@/types/query-log'
 import type { ChatResponse } from '@/types/chat-response'
@@ -105,6 +106,10 @@ export function GalleryRoot({
   const isClosingRef = React.useRef(false)
   const isSwitchingToStoryModeRef = React.useRef(false)
   const [searchQuery, setSearchQuery] = useState('')
+  // Suche debounced an die Daten-Hooks reichen: ohne Debounce loest jeder
+  // Tastendruck einen kompletten Refetch + Listen-Neuaufbau aus (Befund
+  // 2026-07-08). Das Eingabefeld bleibt an `searchQuery` gebunden.
+  const debouncedSearchQuery = useDebouncedValue(searchQuery, 300)
   const isMobile = useIsMobile()
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const chatReferences = useAtomValue(chatReferencesAtom)
@@ -274,7 +279,7 @@ export function GalleryRoot({
     isLoadingMore,
     totalCount,
     mutateDoc,
-  } = useGalleryData(filters, galleryDataMode, searchQuery, libraryId, {
+  } = useGalleryData(filters, galleryDataMode, debouncedSearchQuery, libraryId, {
     refreshKey,
     groupByField,
     sortByStars: sortByStarsActive,
@@ -402,7 +407,7 @@ export function GalleryRoot({
   // Scroll-Pagination geladenen Seiten (sonst fehlen Knoten unsichtbar).
   // Batchweises Nachladen, der Graph wächst progressiv mit.
   const isGraphActive = viewMode === 'graph' && graphEnabled
-  const allGraphDocs = useAllGalleryDocs(filters, searchQuery, libraryId, {
+  const allGraphDocs = useAllGalleryDocs(filters, debouncedSearchQuery, libraryId, {
     enabled: isGraphActive,
     refreshKey,
   })
@@ -945,15 +950,23 @@ export function GalleryRoot({
               })}
             </div>
           ) : null}
-          <LazyDocGraph
-            docs={graphDocs}
-            graph={graphConfig}
-            onOpenDocument={handleOpenDocument}
-            fieldLabels={facetFieldLabels}
-            libraryId={libraryId || undefined}
-            onSaveDefault={isOwner ? handleSaveGraphDefault : undefined}
-            canManageRelations={isOwner}
-          />
+          {/* Graph erst mounten, wenn ALLE Batches geladen sind: sonst startet
+              nach jedem 200er-Batch die D3-Simulation neu und die teure
+              Kanten-Berechnung (doc-neighbors) feuert mit wachsender ID-Liste
+              mehrfach — bei 606 Docs konkurrierten diese Aggregationen mit dem
+              Batch-Loader um DB-Connections (Timeouts, Befund 2026-07-08).
+              Bei Fehler zeigen wir den Teilbestand, statt gar nichts. */}
+          {!allGraphDocs.loading && graphDocs.length > 0 && (
+            <LazyDocGraph
+              docs={graphDocs}
+              graph={graphConfig}
+              onOpenDocument={handleOpenDocument}
+              fieldLabels={facetFieldLabels}
+              libraryId={libraryId || undefined}
+              onSaveDefault={isOwner ? handleSaveGraphDefault : undefined}
+              canManageRelations={isOwner}
+            />
+          )}
         </div>
       )
     }
@@ -1074,7 +1087,7 @@ export function GalleryRoot({
                 onBulkDelete={handleDocumentDeleted}
                 showBulkDelete={showBulkButtons}
                 totalCount={effectiveTotalCount}
-                searchQuery={searchQuery}
+                searchQuery={debouncedSearchQuery}
                 showBulkPublish={showBulkButtons}
                 onBulkPublish={handleDocumentDeleted}
                 hasTranslationTargets={(activeLibrary?.config?.translations?.targetLocales?.length ?? 0) > 0}
@@ -1083,7 +1096,10 @@ export function GalleryRoot({
               />
             </div>
 
-            {/* Desktop: Grid-Layout */}
+            {/* Desktop: Grid-Layout. Nur mounten wenn Desktop aktiv — sonst
+                laufen Liste/Graph doppelt (CSS versteckt nur die Anzeige,
+                Hooks + D3 rechnen trotzdem; Befund 2026-07-08). */}
+            {!isMobile && (
             <div className="hidden lg:grid lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-3 flex-1 min-h-0 overflow-hidden">
               {/* Filters Panel (linke Spalte): Typ-Leitfilter zuerst (A4a), dann Facetten */}
               <div className="flex flex-col min-h-0 overflow-hidden">
@@ -1121,7 +1137,7 @@ export function GalleryRoot({
                     onBulkDelete={handleDocumentDeleted}
                     showBulkDelete={showBulkButtons}
                     totalCount={effectiveTotalCount}
-                    searchQuery={searchQuery}
+                    searchQuery={debouncedSearchQuery}
                     showBulkPublish={showBulkButtons}
                     onBulkPublish={handleDocumentDeleted}
                     hasTranslationTargets={(activeLibrary?.config?.translations?.targetLocales?.length ?? 0) > 0}
@@ -1138,8 +1154,10 @@ export function GalleryRoot({
                 </section>
               </div>
             </div>
+            )}
 
-            {/* Mobile: Items View */}
+            {/* Mobile: Items View. Gegenstueck zum Desktop-Mount oben. */}
+            {isMobile && (
             <section className="lg:hidden w-full min-w-0 flex flex-col min-h-0 flex-1" data-gallery-section>
               {/* viewportClassName ueberschreibt Radix' internes display:table am
                   Inhalts-Wrapper -> block + volle Breite, damit der Tabellen-eigene
@@ -1148,6 +1166,7 @@ export function GalleryRoot({
                 <div className="pr-4 min-w-0">{renderItemsView()}</div>
               </ScrollArea>
             </section>
+            )}
           </div>
         </TabsContent>
         )}
@@ -1162,6 +1181,9 @@ export function GalleryRoot({
             <div className="min-h-0 flex flex-col overflow-hidden rounded-md">
               <LazyChatPanel libraryId={libraryId} variant='embedded' />
             </div>
+            {/* Nur auf Desktop mounten — auf Mobil war die Spalte bisher nur
+                CSS-versteckt und hat Liste/Hooks trotzdem doppelt betrieben. */}
+            {!isMobile && (
             <div className="hidden lg:flex flex-col min-h-0 overflow-hidden rounded-md">
               {/* FilterContextBar nur anzeigen wenn KEINE Antwort-Referenzen angezeigt werden (Answer-Modus) */}
               {!(chatReferences && chatReferences.references && chatReferences.references.length > 0) && (
@@ -1188,6 +1210,7 @@ export function GalleryRoot({
                 <div>{renderItemsView()}</div>
               </section>
             </div>
+            )}
           </div>
         </TabsContent>
         )}

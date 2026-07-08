@@ -349,8 +349,11 @@ export function mapToClimateActionDetail(input: unknown): ClimateActionDetailDat
     url: toStr(docMetaJson.url),
     
     // Klima-spezifische Felder (Template: klimamassnahme-detail)
-    // massnahme_nr = Maßnahmen-Nummer
-    massnahme_nr: toStr(docMetaJson.massnahme_nr),
+    // massnahme_nr = Maßnahmen-Nummer. In der DB als ZAHL persistiert
+    // (Facetten-Typ number) — toStr() allein liefert dafür undefined,
+    // deshalb zusätzlich den Zahl-Pfad abdecken.
+    massnahme_nr: toStr(docMetaJson.massnahme_nr)
+      ?? (toNum(docMetaJson.massnahme_nr) !== undefined ? String(docMetaJson.massnahme_nr) : undefined),
     // lv_bewertung = Bewertung der Landesverwaltung
     lv_bewertung: toStr(docMetaJson.lv_bewertung),
     // arbeitsgruppe = Arbeitsgruppe (Energie, Mobilität, Wohnen, etc.)
