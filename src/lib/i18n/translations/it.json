@@ -338,6 +338,15 @@
       "alphaNone": "Nessuna sinergia",
       "alphaModerate": "Moderata",
       "alphaStrong": "Forte",
+      "reportButton": "Report sinergie",
+      "reportTitle": "Report sinergie (LLM)",
+      "reportDescription": "Analisi LLM delle sovrapposizioni di impatto e delle sinergie di costo sull'intero insieme.",
+      "reportMeta": "Data: {date} · Modello: {model} · Stima — la somma semplice resta il limite superiore.",
+      "reportEmpty": "Nessun report calcolato finora.",
+      "reportRecompute": "Ricalcola",
+      "reportStarted": "Job avviato — il risultato apparirà qui al termine.",
+      "reportDownload": "Scarica come Markdown",
+      "reportError": "Impossibile caricare il report",
       "methodNote": "La somma corretta sconta le voci simili: la più grande conta per intero, ogni successiva viene scontata in base alla similarità con quelle già contate. La similarità deriva da embedding testuali e misura la vicinanza tematica, non una reale sovrapposizione dell'impatto. La somma semplice è il limite superiore; quella corretta, una stima prudente."
     },
     "graph": {

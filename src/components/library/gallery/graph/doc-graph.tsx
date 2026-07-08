@@ -353,7 +353,13 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
             Greedy-Abzinsung. Rendert nichts, wenn der ViewType keine
             Summenfelder definiert. */}
         {isSimilarity && !similarity.loading && !similarity.error && (
-          <GraphSumsPanel docs={docs} edges={similarity.rawEdges} fieldLabels={fieldLabels} />
+          <GraphSumsPanel
+            docs={docs}
+            edges={similarity.rawEdges}
+            fieldLabels={fieldLabels}
+            libraryId={libraryId}
+            canManageReport={canManageRelations}
+          />
         )}
       </div>
     </div>

@@ -338,6 +338,15 @@
       "alphaNone": "Aucune synergie",
       "alphaModerate": "Modérée",
       "alphaStrong": "Forte",
+      "reportButton": "Rapport de synergies",
+      "reportTitle": "Rapport de synergies (LLM)",
+      "reportDescription": "Analyse LLM des chevauchements d'impact et des synergies de coûts sur l'ensemble complet.",
+      "reportMeta": "Date : {date} · Modèle : {model} · Estimation — la somme simple reste la borne supérieure.",
+      "reportEmpty": "Aucun rapport calculé pour le moment.",
+      "reportRecompute": "Recalculer",
+      "reportStarted": "Tâche lancée — le résultat apparaîtra ici une fois terminée.",
+      "reportDownload": "Télécharger en Markdown",
+      "reportError": "Impossible de charger le rapport",
       "methodNote": "La somme corrigée décote les entrées similaires : la plus grande compte entièrement, chaque suivante est décotée selon sa similarité avec celles déjà comptées. La similarité provient d'embeddings de texte et mesure la proximité thématique, pas un chevauchement réel de l'impact. La somme simple est la borne supérieure ; la somme corrigée, une estimation prudente."
     },
     "graph": {

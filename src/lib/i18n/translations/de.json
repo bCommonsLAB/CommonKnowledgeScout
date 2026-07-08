@@ -365,6 +365,15 @@
       "alphaNone": "Keine Synergie",
       "alphaModerate": "Moderat",
       "alphaStrong": "Stark",
+      "reportButton": "Synergie-Bericht",
+      "reportTitle": "Synergie-Bericht (LLM)",
+      "reportDescription": "LLM-Analyse der Wirkungs-Überlappungen und Kosten-Synergien über den gesamten Bestand.",
+      "reportMeta": "Stand: {date} · Modell: {model} · Schätzung — die naive Summe bleibt die Obergrenze.",
+      "reportEmpty": "Noch kein Bericht berechnet.",
+      "reportRecompute": "Neu berechnen",
+      "reportStarted": "Bericht-Job gestartet — das Ergebnis erscheint hier nach Abschluss.",
+      "reportDownload": "Als Markdown herunterladen",
+      "reportError": "Bericht konnte nicht geladen werden",
       "methodNote": "Die bereinigte Summe zinst ähnliche Einträge ab: der größte zählt voll, jeder weitere mit Abschlag je Ähnlichkeit zu bereits gezählten. Die Ähnlichkeit stammt aus Text-Embeddings und misst thematische Nähe, nicht echte Wirkungs-Überlappung. Die einfache Summe ist die Obergrenze, die bereinigte eine konservative Schätzung."
     },
     "graph": {

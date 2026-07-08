@@ -12,11 +12,18 @@
 
 import { useTranslation } from '@/lib/i18n/hooks'
 import type { GallerySumsState } from '@/hooks/gallery/use-gallery-sums'
+import { OverlapReportDialog } from './overlap-report-dialog'
 
 export interface TableSumsFooterProps {
   sumsState: GallerySumsState
   /** Anzeigenamen je Feld (aus den Facetten-Definitionen); Fallback: Key. */
   fieldLabels?: Record<string, string>
+  /** Fuer den Synergie-Bericht (Stufe 3): nur fuer Member sichtbar. */
+  libraryId?: string
+  /** Member sehen den Bericht-Button (GET ist member-only). */
+  showReport?: boolean
+  /** Owner duerfen den Bericht neu berechnen. */
+  canManageReport?: boolean
 }
 
 /** Zahlformat wie die Tabellenzellen: tabular-nums, de-DE, max. 1 Nachkommastelle. */
@@ -24,7 +31,13 @@ function formatSum(value: number): string {
   return value.toLocaleString('de-DE', { maximumFractionDigits: 1 })
 }
 
-export function TableSumsFooter({ sumsState, fieldLabels }: TableSumsFooterProps) {
+export function TableSumsFooter({
+  sumsState,
+  fieldLabels,
+  libraryId,
+  showReport,
+  canManageReport,
+}: TableSumsFooterProps) {
   const { t } = useTranslation()
   const { sums, total, loading, error } = sumsState
 
@@ -46,8 +59,13 @@ export function TableSumsFooter({ sumsState, fieldLabels }: TableSumsFooterProps
 
   return (
     <div className="mb-6 rounded-md border bg-muted/20 px-4 py-3">
-      <div className="mb-2 text-xs font-medium text-muted-foreground">
-        {t('gallery.sums.title', { total })}
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="text-xs font-medium text-muted-foreground">
+          {t('gallery.sums.title', { total })}
+        </span>
+        {libraryId && showReport && (
+          <OverlapReportDialog libraryId={libraryId} canManage={canManageReport} />
+        )}
       </div>
       <div className="flex flex-wrap gap-x-8 gap-y-2">
         {Object.entries(sums).map(([field, agg]) => (

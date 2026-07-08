@@ -20,6 +20,7 @@ import type { SimilarityNeighborEdge } from '@/hooks/gallery/use-similarity-edge
 import { computeSynergyAdjustedSum } from '@/lib/graph/synergy-sum'
 import { getSummableFields, isValidDetailViewType } from '@/lib/detail-view-types/registry'
 import { useTranslation } from '@/lib/i18n/hooks'
+import { OverlapReportDialog } from '../overlap-report-dialog'
 
 export interface GraphSumsPanelProps {
   docs: DocCardMeta[]
@@ -27,6 +28,9 @@ export interface GraphSumsPanelProps {
   edges: SimilarityNeighborEdge[]
   /** Anzeigenamen je meta-Feld (aus den Facetten-Definitionen). */
   fieldLabels?: Record<string, string>
+  /** Fuer den Synergie-Bericht (Stufe 3, Owner-only sichtbar). */
+  libraryId?: string
+  canManageReport?: boolean
 }
 
 /** Alpha-Stufen laut Plan: Keine Synergie / Moderat / Stark. */
@@ -40,7 +44,7 @@ function formatSum(value: number): string {
   return value.toLocaleString('de-DE', { maximumFractionDigits: 1 })
 }
 
-export function GraphSumsPanel({ docs, edges, fieldLabels }: GraphSumsPanelProps) {
+export function GraphSumsPanel({ docs, edges, fieldLabels, libraryId, canManageReport }: GraphSumsPanelProps) {
   const { t } = useTranslation()
   const [alpha, setAlpha] = useState<number>(0.5)
 
@@ -111,6 +115,11 @@ export function GraphSumsPanel({ docs, edges, fieldLabels }: GraphSumsPanelProps
           </div>
         ))}
       </div>
+      {libraryId && canManageReport && (
+        <div className="mt-2 border-t pt-2">
+          <OverlapReportDialog libraryId={libraryId} canManage />
+        </div>
+      )}
     </div>
   )
 }

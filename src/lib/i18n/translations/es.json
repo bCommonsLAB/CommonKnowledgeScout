@@ -338,6 +338,15 @@
       "alphaNone": "Sin sinergia",
       "alphaModerate": "Moderada",
       "alphaStrong": "Fuerte",
+      "reportButton": "Informe de sinergias",
+      "reportTitle": "Informe de sinergias (LLM)",
+      "reportDescription": "Análisis LLM de solapamientos de impacto y sinergias de costes de todo el conjunto.",
+      "reportMeta": "Fecha: {date} · Modelo: {model} · Estimación — la suma simple sigue siendo el límite superior.",
+      "reportEmpty": "Aún no se ha calculado ningún informe.",
+      "reportRecompute": "Recalcular",
+      "reportStarted": "Trabajo iniciado — el resultado aparecerá aquí al finalizar.",
+      "reportDownload": "Descargar como Markdown",
+      "reportError": "No se pudo cargar el informe",
       "methodNote": "La suma ajustada descuenta entradas similares: la mayor cuenta por completo y cada siguiente se descuenta según su similitud con las ya contadas. La similitud proviene de embeddings de texto y mide cercanía temática, no un solapamiento real del impacto. La suma simple es el límite superior; la ajustada, una estimación conservadora."
     },
     "graph": {

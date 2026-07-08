@@ -338,6 +338,15 @@
       "alphaNone": "No synergy",
       "alphaModerate": "Moderate",
       "alphaStrong": "Strong",
+      "reportButton": "Synergy report",
+      "reportTitle": "Synergy report (LLM)",
+      "reportDescription": "LLM analysis of impact overlaps and cost synergies across the entire set.",
+      "reportMeta": "As of: {date} · Model: {model} · Estimate — the simple total remains the upper bound.",
+      "reportEmpty": "No report computed yet.",
+      "reportRecompute": "Recompute",
+      "reportStarted": "Report job started — the result will appear here once finished.",
+      "reportDownload": "Download as Markdown",
+      "reportError": "Report could not be loaded",
       "methodNote": "The adjusted total discounts similar entries: the largest counts in full, each further entry is discounted by its similarity to entries already counted. Similarity comes from text embeddings and measures thematic closeness, not actual overlap of impact. The simple total is the upper bound; the adjusted total is a conservative estimate."
     },
     "graph": {

@@ -713,6 +713,9 @@ export function VirtualizedItemsView({
               .filter((f) => Boolean(f.label))
               .map((f) => [f.metaKey, f.label as string]),
           )}
+          libraryId={libraryId}
+          showReport={isMember}
+          canManageReport={isOwner}
         />
       )}
       </div>
