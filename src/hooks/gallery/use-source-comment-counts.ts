@@ -48,8 +48,15 @@ export function useSourceCommentCounts(
 
     const handle = setTimeout(async () => {
       try {
-        const url = `/api/library/${encodeURIComponent(libraryId)}/source-comments?fileIds=${encodeURIComponent(missing.join(','))}`
-        const res = await fetch(url, { cache: 'no-store' })
+        // POST mit Body statt GET-Query: bei grossen Libraries sprengen die
+        // base64-kodierten fileIds sonst das URL-Limit (HTTP 431).
+        const url = `/api/library/${encodeURIComponent(libraryId)}/source-comments/counts`
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileIds: missing }),
+          cache: 'no-store',
+        })
         if (!res.ok) {
           throw new Error(`Counts konnten nicht geladen werden (HTTP ${res.status})`)
         }

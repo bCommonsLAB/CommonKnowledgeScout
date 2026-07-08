@@ -9,7 +9,9 @@
  * gefilterten Bestand — sonst fehlen Knoten, ohne dass es sichtbar ist.
  * Dieser Hook ist bewusst von der Galerie-Pagination entkoppelt: Er läuft nur
  * bei aktivem Graph-Modus (`enabled`) und aktualisiert `docs` nach jedem
- * Batch, damit der Graph progressiv wächst.
+ * Batch — das treibt die Fortschrittsanzeige. Der Graph selbst wird vom
+ * Aufrufer (gallery-root) erst gemountet, wenn `loading` false ist, damit
+ * D3-Layout und Kanten-Berechnung genau EINMAL laufen (nicht pro Batch).
  */
 
 import { useEffect, useMemo, useState } from 'react'
