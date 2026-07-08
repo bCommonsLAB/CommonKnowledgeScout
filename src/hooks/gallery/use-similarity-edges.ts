@@ -70,6 +70,12 @@ export interface UseSimilarityEdgesParams {
 
 export interface SimilarityEdgesResult {
   data: GraphData
+  /**
+   * Ungefilterte Server-Kanten (vor minWeight/limitLinks): Datenbasis fuer
+   * die Synergie-Summe im Graph-Panel — die Anzeige-Limits (Hairball-Schutz)
+   * duerfen die Rechnung nicht verfaelschen.
+   */
+  rawEdges: SimilarityNeighborEdge[]
   loading: boolean
   error: string | null
 }
@@ -173,5 +179,5 @@ export function useSimilarityEdges(params: UseSimilarityEdgesParams): Similarity
     [docs, rawEdges, minWeight, maxEdgesPerNode, maxEdgesTotal],
   )
 
-  return { data, loading, error }
+  return { data, rawEdges, loading, error }
 }

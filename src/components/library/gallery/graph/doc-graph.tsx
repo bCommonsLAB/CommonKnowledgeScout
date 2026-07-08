@@ -21,6 +21,7 @@ import { GraphControls } from './graph-controls'
 import { DocGraphScene } from './doc-graph-scene'
 import { DocGraphLegend } from './doc-graph-legend'
 import { DocGraphRelationsBar } from './doc-graph-relations-bar'
+import { GraphSumsPanel } from './graph-sums-panel'
 import { readString } from './graph-encodings'
 import type { EdgeSourceSelection } from './graph-types'
 
@@ -347,6 +348,13 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
           nodeCount={data.nodes.length}
           edgeCount={data.links.length}
         />
+        {/* Summen-Panel (Plan summen-und-synergie-aggregation): nur bei aktiver
+            Aehnlichkeits-Quelle — die rohen Kanten sind die Datenbasis der
+            Greedy-Abzinsung. Rendert nichts, wenn der ViewType keine
+            Summenfelder definiert. */}
+        {isSimilarity && !similarity.loading && !similarity.error && (
+          <GraphSumsPanel docs={docs} edges={similarity.rawEdges} fieldLabels={fieldLabels} />
+        )}
       </div>
     </div>
   )
