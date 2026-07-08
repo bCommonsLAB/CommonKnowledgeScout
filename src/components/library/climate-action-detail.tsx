@@ -207,11 +207,22 @@ export function ClimateActionDetail({
 
       {/* Header: Kategorie → Titel → Status-Badge */}
       <div className="mb-6">
-        {/* Kategorie als Text oben */}
-        {data.category && (
-          <span className="inline-block text-xs font-semibold uppercase tracking-widest text-green-700 dark:text-green-400 mb-2">
-            {data.category}
-          </span>
+        {/* Kategorie + Maßnahmen-Nr. als Zeile oben. Die Nr. identifiziert die
+            Maßnahme eindeutig (auf der Galerie-Karte bereits sichtbar) und
+            gehört daher prominent in den Kopf, nicht nur in die Detail-Liste. */}
+        {(data.category || data.massnahme_nr) && (
+          <div className="mb-2 flex items-baseline gap-2">
+            {data.category && (
+              <span className="text-xs font-semibold uppercase tracking-widest text-green-700 dark:text-green-400">
+                {data.category}
+              </span>
+            )}
+            {data.massnahme_nr && (
+              <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+                Nr. {data.massnahme_nr}
+              </span>
+            )}
+          </div>
         )}
         
         {/* Titel */}
