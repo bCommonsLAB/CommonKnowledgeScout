@@ -106,20 +106,51 @@ export function useSimilarityEdges(params: UseSimilarityEdgesParams): Similarity
       try {
         // POST statt GET: bei vielen Knoten (Hunderte) sprengt eine fileIds-Query
         // die Header-Grenze des Servers (HTTP 431). fileIds gehen daher in den Body.
+        //
+        // Chunking: der Server verarbeitet max. 200 Seeds pro Request (MAX_NODES,
+        // sonst wurden Bibliotheken >200 Docs still auf die ersten 200 gekappt).
+        // Wir fragen deshalb SEQUENZIELL in 200er-Portionen an — sequenziell,
+        // damit nicht mehrere schwere Vector-Aggregationen gleichzeitig den
+        // Mongo-Connection-Pool belegen (Befund 2026-07-08). `neighborScope`
+        // erlaubt Kanten zwischen den Chunks (kompletter sichtbarer Bestand).
+        const CHUNK_SIZE = 200
         const requestUrl = `/api/chat/${encodeURIComponent(currentLibraryId)}/doc-neighbors`
-        const res = await fetch(requestUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fileIds: ids, topK }),
-          cache: 'no-store',
-          signal: controller.signal,
-        })
-        const ct = res.headers.get('content-type') || ''
-        if (!ct.includes('application/json')) throw new Error(`Ungültige Antwort: ${res.status}`)
-        const data = await res.json()
-        if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Fehler beim Laden der Nachbarn')
-        if (!cancelled && Array.isArray(data?.edges)) {
-          setRawEdges(data.edges as SimilarityNeighborEdge[])
+        const pairWeight = new Map<string, number>()
+        for (let offset = 0; offset < ids.length; offset += CHUNK_SIZE) {
+          const chunk = ids.slice(offset, offset + CHUNK_SIZE)
+          const res = await fetch(requestUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fileIds: chunk,
+              topK,
+              ...(ids.length > CHUNK_SIZE ? { neighborScope: ids } : {}),
+            }),
+            cache: 'no-store',
+            signal: controller.signal,
+          })
+          const ct = res.headers.get('content-type') || ''
+          if (!ct.includes('application/json')) throw new Error(`Ungültige Antwort: ${res.status}`)
+          const data = await res.json()
+          if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Fehler beim Laden der Nachbarn')
+          if (cancelled) return
+          const chunkEdges = Array.isArray(data?.edges) ? (data.edges as SimilarityNeighborEdge[]) : []
+          // Über Chunk-Grenzen kann dasselbe Paar doppelt auftauchen —
+          // ungerichtet deduplizieren, stärkstes Gewicht behalten.
+          for (const edge of chunkEdges) {
+            const [a, b] = edge.source < edge.target ? [edge.source, edge.target] : [edge.target, edge.source]
+            const key = `${a}|${b}`
+            const prev = pairWeight.get(key)
+            if (prev === undefined || edge.weight > prev) pairWeight.set(key, edge.weight)
+          }
+        }
+        if (!cancelled) {
+          setRawEdges(
+            [...pairWeight.entries()].map(([key, weight]) => {
+              const [source, target] = key.split('|')
+              return { source, target, weight }
+            }),
+          )
         }
       } catch (e) {
         if (cancelled || (e instanceof DOMException && e.name === 'AbortError')) return

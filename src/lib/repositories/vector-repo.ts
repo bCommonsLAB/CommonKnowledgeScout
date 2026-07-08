@@ -705,7 +705,14 @@ export async function queryVectors(
   topK: number,
   filter: Record<string, unknown>,
   dimension: number,
-  library: Library
+  library: Library,
+  /**
+   * `maxTimeMS`: hartes Server-Zeitlimit fuer die Aggregation. Ohne Limit
+   * blockiert eine haengende Vector-Suche die Pool-Connection minutenlang
+   * (Befund doc-neighbors 2026-07-08). Optional — Standard: kein Limit,
+   * bestehende Aufrufer (Chat-Retrieval) bleiben unveraendert.
+   */
+  opts?: { maxTimeMS?: number }
 ): Promise<QueryMatch[]> {
   validateDimension(dimension)
   validateLibrary(library)
@@ -815,7 +822,9 @@ export async function queryVectors(
   
   let results: Document[]
   try {
-    results = await col.aggregate(pipeline).toArray()
+    results = await col
+      .aggregate(pipeline, opts?.maxTimeMS ? { maxTimeMS: opts.maxTimeMS } : undefined)
+      .toArray()
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error)
     
@@ -945,11 +954,13 @@ export async function queryDocuments(
   topK: number,
   filter: Record<string, unknown> = {},
   dimension: number,
-  library: Library
+  library: Library,
+  /** Optionales Zeitlimit fuer die Aggregation — siehe `queryVectors`. */
+  opts?: { maxTimeMS?: number }
 ): Promise<QueryMatch[]> {
   validateDimension(dimension)
   validateLibrary(library)
-  
+
   return queryVectors(
     libraryKey,
     queryVector,
@@ -959,7 +970,8 @@ export async function queryDocuments(
       kind: 'meta', // Nur Meta-Dokumente
     },
     dimension,
-    library
+    library,
+    opts
   )
 }
 
