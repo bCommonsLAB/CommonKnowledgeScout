@@ -35,6 +35,8 @@ import type { GalleryCardDensity } from '@/lib/gallery/gallery-card-density'
 import { SourceStarsCell } from './source-stars-cell'
 import { SourceCommentToggleButton } from './source-comment-toggle-button'
 import { SourceCommentsPanel } from './source-comments-panel'
+import { TableSumsFooter } from './table-sums-footer'
+import type { GallerySumsState } from '@/hooks/gallery/use-gallery-sums'
 
 export interface VirtualizedItemsViewProps {
   viewMode: ViewMode
@@ -105,6 +107,12 @@ export interface VirtualizedItemsViewProps {
   autoApplyConfidenceThreshold?: number
   /** Stufe 4: Reload-Callback nach erfolgreichem Bulk-Apply. */
   onGroupClassified?: () => void
+  /**
+   * Summen-Fusszeile (Plan summen-und-synergie-aggregation): serverseitig
+   * ueber den GESAMTEN gefilterten Bestand aggregierte Summen der additiven
+   * Zahlenfelder. Nur im Table-Mode gerendert; null/undefined = keine Summen.
+   */
+  tableSums?: GallerySumsState | null
 }
 
 export function VirtualizedItemsView({
@@ -129,6 +137,7 @@ export function VirtualizedItemsView({
   onToggleFavorite,
   autoApplyConfidenceThreshold,
   onGroupClassified,
+  tableSums,
 }: VirtualizedItemsViewProps) {
   const { t, locale } = useTranslation()
   const router = useRouter()
@@ -694,6 +703,18 @@ export function VirtualizedItemsView({
           </div>
         </div>
       ))}
+      {/* Summen-Fusszeile: Server-Aggregat ueber den GESAMTEN gefilterten
+          Bestand (nicht nur die geladenen Zeilen), Labels aus den Facetten. */}
+      {tableSums && (
+        <TableSumsFooter
+          sumsState={tableSums}
+          fieldLabels={Object.fromEntries(
+            (tableColumnFacets ?? [])
+              .filter((f) => Boolean(f.label))
+              .map((f) => [f.metaKey, f.label as string]),
+          )}
+        />
+      )}
       </div>
       {/* Sentinel für Infinite Scroll */}
       {hasMore && (

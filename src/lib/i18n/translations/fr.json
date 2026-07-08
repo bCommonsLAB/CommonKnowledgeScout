@@ -326,6 +326,20 @@
       "onlySignedIn": "Connectez-vous pour voir ou laisser des commentaires.",
       "guestVisibilityHint": "Seuls les propriétaires et co-créateurs voient tous les commentaires. Vos publications ne sont visibles que par vous et l'équipe."
     },
+    "sums": {
+      "title": "Sommes sur {total} sources (ensemble filtré complet)",
+      "loading": "Calcul des sommes…",
+      "loadError": "Impossible de charger les sommes",
+      "missing": "{count} sans valeur",
+      "graphTitle": "Sommes (estimation)",
+      "naive": "Somme simple",
+      "adjusted": "Corrigée des synergies",
+      "alphaLabel": "Hypothèse de synergie",
+      "alphaNone": "Aucune synergie",
+      "alphaModerate": "Modérée",
+      "alphaStrong": "Forte",
+      "methodNote": "La somme corrigée décote les entrées similaires : la plus grande compte entièrement, chaque suivante est décotée selon sa similarité avec celles déjà comptées. La similarité provient d'embeddings de texte et mesure la proximité thématique, pas un chevauchement réel de l'impact. La somme simple est la borne supérieure ; la somme corrigée, une estimation prudente."
+    },
     "graph": {
       "connectBy": "Connecter par",
       "modeHub": "Hubs de tags",

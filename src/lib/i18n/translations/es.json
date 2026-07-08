@@ -326,6 +326,20 @@
       "onlySignedIn": "Inicia sesión para ver o dejar comentarios.",
       "guestVisibilityHint": "Solo propietarios y co-creadores ven todos los comentarios. Tus publicaciones solo son visibles para ti y el equipo."
     },
+    "sums": {
+      "title": "Sumas de {total} fuentes (todo el conjunto filtrado)",
+      "loading": "Calculando sumas…",
+      "loadError": "No se pudieron cargar las sumas",
+      "missing": "{count} sin dato",
+      "graphTitle": "Sumas (estimación)",
+      "naive": "Suma simple",
+      "adjusted": "Ajustada por sinergia",
+      "alphaLabel": "Supuesto de sinergia",
+      "alphaNone": "Sin sinergia",
+      "alphaModerate": "Moderada",
+      "alphaStrong": "Fuerte",
+      "methodNote": "La suma ajustada descuenta entradas similares: la mayor cuenta por completo y cada siguiente se descuenta según su similitud con las ya contadas. La similitud proviene de embeddings de texto y mide cercanía temática, no un solapamiento real del impacto. La suma simple es el límite superior; la ajustada, una estimación conservadora."
+    },
     "graph": {
       "connectBy": "Conectar por",
       "modeHub": "Hubs de etiquetas",

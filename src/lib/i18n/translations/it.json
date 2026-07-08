@@ -326,6 +326,20 @@
       "onlySignedIn": "Accedi per visualizzare o lasciare commenti.",
       "guestVisibilityHint": "Solo proprietari e co-creatori vedono tutti i commenti. I tuoi post sono visibili solo a te e al team."
     },
+    "sums": {
+      "title": "Somme su {total} fonti (intero insieme filtrato)",
+      "loading": "Calcolo delle somme…",
+      "loadError": "Impossibile caricare le somme",
+      "missing": "{count} senza valore",
+      "graphTitle": "Somme (stima)",
+      "naive": "Somma semplice",
+      "adjusted": "Corretta per sinergie",
+      "alphaLabel": "Ipotesi di sinergia",
+      "alphaNone": "Nessuna sinergia",
+      "alphaModerate": "Moderata",
+      "alphaStrong": "Forte",
+      "methodNote": "La somma corretta sconta le voci simili: la più grande conta per intero, ogni successiva viene scontata in base alla similarità con quelle già contate. La similarità deriva da embedding testuali e misura la vicinanza tematica, non una reale sovrapposizione dell'impatto. La somma semplice è il limite superiore; quella corretta, una stima prudente."
+    },
     "graph": {
       "connectBy": "Collega per",
       "modeHub": "Hub di tag",
