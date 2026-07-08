@@ -259,6 +259,29 @@ export async function POST(
       }
     }
 
+    // ─── Overlap-Bericht (Stufe 3): Long-Context-LLM-Pass + Markdown-Bericht ───
+    // Schmale Phase ohne Storage/Secretary-Datei-Pfad (ADR 0001, analog
+    // doc-relations): laedt den Katalog aus Mongo, ruft das LLM ueber den
+    // Secretary Service und schreibt Bericht + korrektur_*-Faktoren zurueck.
+    if (job.job_type === 'overlap-report' && job.operation === 'recompute') {
+      try {
+        const { runOverlapReportPhase } = await import('@/lib/external-jobs/phase-overlap-report')
+        const result = await runOverlapReportPhase(job)
+        return NextResponse.json({ ok: true, phase: 'overlap-report', result }, { status: 200 })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        FileLogger.error('start-route', 'phase-overlap-report failed', { jobId, error: msg })
+        try {
+          await repo.setStatus(jobId, 'failed', { error: { code: 'overlap_report_failed', message: msg } })
+        } catch (statusErr) {
+          FileLogger.warn('start-route', 'setStatus(failed) nach overlap-report-Fehler misslang', {
+            jobId, error: statusErr instanceof Error ? statusErr.message : String(statusErr),
+          })
+        }
+        return NextResponse.json({ error: msg }, { status: 500 })
+      }
+    }
+
     // WICHTIG: Watchdog SOFORT starten, damit Job nicht hängen bleibt, wenn Start-Endpoint fehlschlägt
     // Timeout: 10 Minuten (600_000 ms) - sollte ausreichen für Datei-Laden, Preprocessing, Request, etc.
     // Der Watchdog wird später via bumpWatchdog aktualisiert, wenn Callbacks vom Secretary Service kommen
