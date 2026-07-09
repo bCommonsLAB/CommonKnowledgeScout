@@ -35,6 +35,8 @@ import type { GalleryCardDensity } from '@/lib/gallery/gallery-card-density'
 import { SourceStarsCell } from './source-stars-cell'
 import { SourceCommentToggleButton } from './source-comment-toggle-button'
 import { SourceCommentsPanel } from './source-comments-panel'
+import { TableSumsFooter } from './table-sums-footer'
+import type { GallerySumsState } from '@/hooks/gallery/use-gallery-sums'
 
 export interface VirtualizedItemsViewProps {
   viewMode: ViewMode
@@ -105,6 +107,12 @@ export interface VirtualizedItemsViewProps {
   autoApplyConfidenceThreshold?: number
   /** Stufe 4: Reload-Callback nach erfolgreichem Bulk-Apply. */
   onGroupClassified?: () => void
+  /**
+   * Summen-Fusszeile (Plan summen-und-synergie-aggregation): serverseitig
+   * ueber den GESAMTEN gefilterten Bestand aggregierte Summen der additiven
+   * Zahlenfelder. Nur im Table-Mode gerendert; null/undefined = keine Summen.
+   */
+  tableSums?: GallerySumsState | null
 }
 
 export function VirtualizedItemsView({
@@ -129,6 +137,7 @@ export function VirtualizedItemsView({
   onToggleFavorite,
   autoApplyConfidenceThreshold,
   onGroupClassified,
+  tableSums,
 }: VirtualizedItemsViewProps) {
   const { t, locale } = useTranslation()
   const router = useRouter()
@@ -701,6 +710,26 @@ export function VirtualizedItemsView({
           {isLoadingMore ? (
             <span className="text-sm text-muted-foreground">Lade weitere Dokumente...</span>
           ) : null}
+        </div>
+      )}
+      {/* Summen-Fusszeile: Server-Aggregat ueber den GESAMTEN gefilterten
+          Bestand (nicht nur die geladenen Zeilen), Labels aus den Facetten.
+          Sticky am unteren Scrollport-Rand: die Summe ist ladeunabhaengig und
+          bleibt beim Nachladen/Scrollen (auch horizontal, left-0) sichtbar,
+          statt vom nachgeladenen Content nach unten geschoben zu werden. */}
+      {tableSums && (
+        <div className="sticky bottom-0 left-0 z-10 pb-2">
+          <TableSumsFooter
+            sumsState={tableSums}
+            fieldLabels={Object.fromEntries(
+              (tableColumnFacets ?? [])
+                .filter((f) => Boolean(f.label))
+                .map((f) => [f.metaKey, f.label as string]),
+            )}
+            libraryId={libraryId}
+            showReport={isMember}
+            canManageReport={isOwner}
+          />
         </div>
       )}
     </div>

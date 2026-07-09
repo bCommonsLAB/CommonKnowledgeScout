@@ -29,6 +29,8 @@ import { useGalleryConfig } from '@/hooks/gallery/use-gallery-config'
 import { useGalleryData } from '@/hooks/gallery/use-gallery-data'
 import { useAllGalleryDocs } from '@/hooks/gallery/use-all-gallery-docs'
 import { useGalleryFacets } from '@/hooks/gallery/use-gallery-facets'
+import { useGallerySums } from '@/hooks/gallery/use-gallery-sums'
+import { getSummableFields } from '@/lib/detail-view-types/registry'
 import { useGalleryEvents } from '@/hooks/gallery/use-gallery-events'
 import { useTranslation } from '@/lib/i18n/hooks'
 import type { DocCardMeta } from '@/lib/gallery/types'
@@ -287,6 +289,20 @@ export function GalleryRoot({
     sortByColumn: tableSortForApi,
   })
   const { isOwner } = useIsLibraryOwner(libraryId)
+
+  // Summen-Fusszeile (Plan summen-und-synergie-aggregation): serverseitiges
+  // Aggregat ueber den GESAMTEN gefilterten Bestand. Nur im Table-Mode und
+  // nur, wenn der ViewType additive Summenfelder definiert. Bei aktiven
+  // Engagement-Filtern (nur clientseitig) waere die Server-Summe still
+  // falsch -> bewusst deaktivieren statt Falsches anzeigen.
+  const summableFields = useMemo(() => getSummableFields(detailViewType), [detailViewType])
+  const tableSums = useGallerySums(filters, debouncedSearchQuery, libraryId, {
+    enabled:
+      viewMode === 'table' &&
+      summableFields.length > 0 &&
+      !(onlyFavoritesActive || onlyStarredActive || onlyCommentedActive),
+    refreshKey,
+  })
 
   // Eigene Favoriten-IDs nur laden, wenn der "Nur Favoriten"-Filter
   // aktiv ist - Fallback bis `isFavorite` auf allen Karten verfuegbar ist.
@@ -1017,6 +1033,7 @@ export function GalleryRoot({
       onToggleFavorite={handleStarToggle}
       autoApplyConfidenceThreshold={activeLibrary?.config?.autoApplyConfidenceThreshold}
       onGroupClassified={handleDocumentDeleted}
+      tableSums={viewMode === 'table' ? tableSums : null}
     />
   }
 

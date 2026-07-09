@@ -432,7 +432,10 @@ export default function ExplorePage() {
          Trennlinie des Page-Headers andocken — analog zur Library-Gallery-Ansicht.
          Seitliches und unteres Padding bleiben wie zuvor (Inhalte sollen nicht am Rand kleben). */}
       <div className="flex-1 min-h-0 overflow-hidden px-2 pt-0 pb-2 sm:px-4 sm:pb-4">
-        <div className="h-full min-h-0 overflow-hidden">
+        {/* flex flex-col noetig: sonst ist das flex-1 des GalleryClient-Rootes wirkungslos,
+           der Inhalt waechst ueber die Wrapper-Hoehe hinaus und overflow-hidden schneidet
+           unten ab (Symptom: Summen-Fusszeile der Tabelle nicht/halb sichtbar). */}
+        <div className="flex h-full min-h-0 flex-col overflow-hidden">
           <GalleryClient
             libraryIdProp={library.id}
             hideTabs={false}

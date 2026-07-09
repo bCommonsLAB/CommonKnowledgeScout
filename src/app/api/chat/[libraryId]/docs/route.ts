@@ -6,7 +6,8 @@ import { resolveFacetScope } from '@/lib/chat/facet-scope'
 import { facetsSelectedToMongoFilter } from '@/lib/chat/common/filters'
 import { findDocs, findDocsGrouped, distinctViewTypes, getCollectionNameForLibrary, getCollectionOnly, type GallerySort } from '@/lib/repositories/vector-repo'
 import { maybePublicationFilter } from '@/lib/chat/publication-filter'
-import { isValidDetailViewType } from '@/lib/detail-view-types/registry'
+import { isValidDetailViewType, getSummableFields } from '@/lib/detail-view-types/registry'
+import { aggregateDocFieldSums } from '@/lib/repositories/vector-repo-sums'
 import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
 import { isCoCreatorOrOwner } from '@/lib/repositories/library-members-repo'
 import { resolveColumnSort } from '@/lib/gallery/column-sort'
@@ -188,6 +189,23 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
     // Bestandsdokumente OHNE das Feld bleiben sichtbar (lax/backwards-compatible).
     const pubFilter = await maybePublicationFilter(libraryId, userEmail || null)
     if (pubFilter) Object.assign(filter, pubFilter)
+
+    // ?aggregate=sums — Summen additiver Zahlenfelder ueber den GESAMTEN
+    // gefilterten Bestand (Tabellen-Fusszeile). Nutzt exakt den oben gebauten
+    // Filter (Facetten + Suche + Typ + Publication); Pagination/Sort/GroupBy
+    // sind hier bewusst irrelevant. Felder = Positivliste der Registry.
+    if (url.searchParams.get('aggregate') === 'sums') {
+      const effectiveType = selectedType ?? libraryDefaultType
+      const sumFields = getSummableFields(effectiveType)
+      if (sumFields.length === 0) {
+        return NextResponse.json(
+          { error: `Fuer den Typ „${effectiveType}" sind keine Summenfelder definiert.` },
+          { status: 400 }
+        )
+      }
+      const sumsResult = await aggregateDocFieldSums(libraryKey, libraryId, filter, sumFields)
+      return NextResponse.json(sumsResult, { status: 200 })
+    }
 
     // Locale fuer Doc-Translations:
     //   1. `x-locale`-Header (durch middleware.ts gesetzt)

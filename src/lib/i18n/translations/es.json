@@ -326,6 +326,32 @@
       "onlySignedIn": "Inicia sesión para ver o dejar comentarios.",
       "guestVisibilityHint": "Solo propietarios y co-creadores ven todos los comentarios. Tus publicaciones solo son visibles para ti y el equipo."
     },
+    "sums": {
+      "title": "Sumas de {total} fuentes (todo el conjunto filtrado)",
+      "loading": "Calculando sumas…",
+      "loadError": "No se pudieron cargar las sumas",
+      "missing": "{count} sin dato",
+      "graphTitle": "Sumas (estimación)",
+      "naive": "Suma simple",
+      "adjusted": "Ajustada por sinergia",
+      "alphaLabel": "Supuesto de sinergia",
+      "alphaNone": "Sin sinergia",
+      "alphaModerate": "Moderada",
+      "alphaStrong": "Fuerte",
+      "reportButton": "Informe de sinergias",
+      "reportTitle": "Informe de sinergias (LLM)",
+      "reportDescription": "Análisis LLM de solapamientos de impacto y sinergias de costes de todo el conjunto.",
+      "reportMeta": "Fecha: {date} · Modelo: {model} · Estimación — la suma simple sigue siendo el límite superior.",
+      "reportEmpty": "Aún no se ha calculado ningún informe.",
+      "reportRecompute": "Recalcular",
+      "reportStarted": "Trabajo iniciado — el resultado aparecerá aquí al finalizar.",
+      "reportDownload": "Descargar como Markdown",
+      "reportError": "No se pudo cargar el informe",
+      "methodNote": "La suma ajustada descuenta entradas similares: la mayor cuenta por completo y cada siguiente se descuenta según su similitud con las ya contadas. La similitud proviene de embeddings de texto y mide cercanía temática, no un solapamiento real del impacto. La suma simple es el límite superior; la ajustada, una estimación conservadora.",
+      "enablerReportButton": "Informe de facilitadores",
+      "enablerReportTitle": "Informe de facilitadores (palanca)",
+      "enablerReportDescription": "Análisis determinista de las relaciones calculadas: qué medidas habilitan el mayor impacto en otras (efecto palanca, sin cálculos LLM)."
+    },
     "graph": {
       "connectBy": "Conectar por",
       "modeHub": "Hubs de etiquetas",
@@ -373,7 +399,14 @@
       "relationsRecomputeRow": "Calcular relaciones para esta medida",
       "loadingAll": "Cargando todos los documentos… {loaded}/{total}",
       "loadAllError": "No se pudieron cargar todos los documentos",
-      "truncatedNotice": "El grafo muestra los primeros {loaded} de {total} documentos."
+      "truncatedNotice": "El grafo muestra los primeros {loaded} de {total} documentos.",
+      "similarityRecomputeQueued": "Cálculo de vecinos iniciado",
+      "similarityRecomputeError": "Error al iniciar el cálculo",
+      "similarityNeverComputed": "Vecinos aún no calculados",
+      "similarityStale": "Desactualizado: el catálogo ha cambiado",
+      "similarityComputedAt": "Calculado",
+      "similarityRecomputing": "Calculando…",
+      "similarityRecompute": "Recalcular vecinos"
     }
   },
   "sdgProfile": {

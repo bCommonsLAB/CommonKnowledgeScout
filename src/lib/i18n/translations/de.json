@@ -353,6 +353,32 @@
       "onlySignedIn": "Bitte anmelden, um Kommentare zu sehen oder zu hinterlassen.",
       "guestVisibilityHint": "Nur Owner und Co-Kreatoren sehen alle Kommentare. Deine Beiträge sind nur für dich und das Team sichtbar."
     },
+    "sums": {
+      "title": "Summen über {total} Quellen (gesamter gefilterter Bestand)",
+      "loading": "Berechne Summen…",
+      "loadError": "Summen konnten nicht geladen werden",
+      "missing": "{count} ohne Angabe",
+      "graphTitle": "Summen (Schätzung)",
+      "naive": "Einfache Summe",
+      "adjusted": "Synergiebereinigt",
+      "alphaLabel": "Synergie-Annahme",
+      "alphaNone": "Keine Synergie",
+      "alphaModerate": "Moderat",
+      "alphaStrong": "Stark",
+      "reportButton": "Synergie-Bericht",
+      "reportTitle": "Synergie-Bericht (LLM)",
+      "reportDescription": "LLM-Analyse der Wirkungs-Überlappungen und Kosten-Synergien über den gesamten Bestand.",
+      "reportMeta": "Stand: {date} · Modell: {model} · Schätzung — die naive Summe bleibt die Obergrenze.",
+      "reportEmpty": "Noch kein Bericht berechnet.",
+      "reportRecompute": "Neu berechnen",
+      "reportStarted": "Bericht-Job gestartet — das Ergebnis erscheint hier nach Abschluss.",
+      "reportDownload": "Als Markdown herunterladen",
+      "reportError": "Bericht konnte nicht geladen werden",
+      "methodNote": "Die bereinigte Summe zinst ähnliche Einträge ab: der größte zählt voll, jeder weitere mit Abschlag je Ähnlichkeit zu bereits gezählten. Die Ähnlichkeit stammt aus Text-Embeddings und misst thematische Nähe, nicht echte Wirkungs-Überlappung. Die einfache Summe ist die Obergrenze, die bereinigte eine konservative Schätzung.",
+      "enablerReportButton": "Enabler-Bericht",
+      "enablerReportTitle": "Enabler-Bericht (Hebel-Massnahmen)",
+      "enablerReportDescription": "Deterministische Auswertung der berechneten Beziehungen: welche Massnahmen ermöglichen die grösste Wirkung bei anderen (Hebelwirkung, kein LLM-Rechnen)."
+    },
     "graph": {
       "connectBy": "Verbinde nach",
       "modeHub": "Tag-Hubs",
@@ -400,7 +426,14 @@
       "relationsRecomputeRow": "Beziehungen für diese Maßnahme berechnen",
       "loadingAll": "Lade alle Dokumente… {loaded}/{total}",
       "loadAllError": "Dokumente konnten nicht vollständig geladen werden",
-      "truncatedNotice": "Der Graph zeigt die ersten {loaded} von {total} Dokumenten."
+      "truncatedNotice": "Der Graph zeigt die ersten {loaded} von {total} Dokumenten.",
+      "similarityRecomputeQueued": "Nachbar-Berechnung gestartet",
+      "similarityRecomputeError": "Fehler beim Start der Berechnung",
+      "similarityNeverComputed": "Nachbarn noch nicht berechnet",
+      "similarityStale": "Veraltet – Katalog hat sich geändert",
+      "similarityComputedAt": "Berechnet",
+      "similarityRecomputing": "Berechne…",
+      "similarityRecompute": "Nachbarn neu berechnen"
     }
   },
   "sdgProfile": {

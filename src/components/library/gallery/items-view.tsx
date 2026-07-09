@@ -5,6 +5,7 @@ import type { DocCardMeta } from '@/lib/gallery/types'
 import type { ViewMode } from './gallery-sticky-header'
 import { VirtualizedItemsView } from './virtualized-items-view'
 import type { GalleryCardDensity } from '@/lib/gallery/gallery-card-density'
+import type { GallerySumsState } from '@/hooks/gallery/use-gallery-sums'
 
 export interface ItemsViewProps {
   /** View-Mode: 'grid' für Galerie-Ansicht, 'table' für Tabellen-Ansicht */
@@ -54,6 +55,8 @@ export interface ItemsViewProps {
   autoApplyConfidenceThreshold?: number
   /** Stufe 4: Reload-Callback nach erfolgreichem Bulk-Apply. */
   onGroupClassified?: () => void
+  /** Summen-Fusszeile (Table-Mode): Server-Aggregat ueber den gefilterten Bestand. */
+  tableSums?: GallerySumsState | null
 }
 
 /**
@@ -82,6 +85,7 @@ export function ItemsView({
   onToggleFavorite,
   autoApplyConfidenceThreshold,
   onGroupClassified,
+  tableSums,
 }: ItemsViewProps) {
   return (
     <VirtualizedItemsView
@@ -106,6 +110,7 @@ export function ItemsView({
       onToggleFavorite={onToggleFavorite}
       autoApplyConfidenceThreshold={autoApplyConfidenceThreshold}
       onGroupClassified={onGroupClassified}
+      tableSums={tableSums}
     />
   )
 }

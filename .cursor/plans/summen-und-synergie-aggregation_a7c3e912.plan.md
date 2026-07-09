@@ -1,6 +1,6 @@
 ---
 name: Summen und Synergie-Aggregation (Tabelle + Graph)
-overview: Zwei Stufen. Stufe 1 — Tabellenansicht bekommt eine Summen-Fusszeile fuer Zahlenfelder (z.B. co2_einsparung_kt, kosten_eur), serverseitig ueber den GESAMTEN gefilterten Bestand aggregiert (nicht nur die geladenen Zeilen). Stufe 2 — der Graph-Modus bekommt ein Summen-Panel, das zusaetzlich eine synergiebereinigte Summe zeigt, die die vorhandenen Aehnlichkeits-Kanten als Naeherung fuer Wirkungs-/Kosten-Ueberlappung nutzt (Greedy-Abzinsung, einstellbares Alpha). Kennzeichnung als Schaetzung ist Pflicht.
+overview: Drei Stufen. Stufe 1 — Tabellenansicht bekommt eine Summen-Fusszeile fuer Zahlenfelder (z.B. co2_einsparung_kt, kosten_eur), serverseitig ueber den GESAMTEN gefilterten Bestand aggregiert (nicht nur die geladenen Zeilen). Stufe 2 — der Graph-Modus bekommt ein Summen-Panel, das zusaetzlich eine synergiebereinigte Summe zeigt, die die vorhandenen Aehnlichkeits-Kanten als Naeherung fuer Wirkungs-/Kosten-Ueberlappung nutzt (Greedy-Abzinsung, einstellbares Alpha). Stufe 3 — LLM-Overlap-Bericht: ein Long-Context-Lauf (1M Token) bekommt die wirkungsstaerksten Massnahmen als Tabelle und entscheidet pro Massnahme FACHLICH, ob sich Wirkung/Kosten mit bereits gezaehlten Massnahmen ueberlappen (Korrekturfaktoren + Begruendung, persistiert); ersetzt den Alpha-Proxy durch ein auditierbares Urteil. Kennzeichnung als Schaetzung ist in allen Stufen Pflicht. Stufe 4 (KONZEPT 2026-07-09, noch nicht umsetzen) — Enabler-Hebel: Massnahmen erben anteilig die bereinigte Wirkung der von ihnen aktivierten Massnahmen (Computed-Relations-Kanten); Bericht identifiziert je Cluster die TOP-Hebel.
 todos:
   - id: sums-api
     content: "Serverseitige Summen: docs-Route (src/app/api/chat/[libraryId]/docs/route.ts) um ?aggregate=sums erweitern ODER eigener schlanker Endpoint. Aggregiert per Mongo ueber den gesamten gefilterten Bestand (gleiche Filter-/Search-Logik wie die Liste). Response pro Feld: { sum, count, missing } — fehlende Werte NICHT als 0 zaehlen, sondern explizit melden (no-silent-fallbacks)."
@@ -20,6 +20,24 @@ todos:
   - id: verify
     content: "Live-Verifikation gegen Prod-DB (MONGODB_DATABASE_NAME_PROD in .env aktivieren, danach zuruecksetzen; Worktree-Server auf Port 3001 via launch-Config next-dev-3001): Klimamassnahmen (606 Docs). Tabellen-Summe muss dem direkten Mongo-Aggregat entsprechen (read-only Query als Goldstandard); Graph-Panel: bereinigte Summe <= naive Summe, alpha=0 identisch; keine neuen Request-Schleifen (Netzwerk-Tab)."
     status: pending
+  - id: llm-context-export
+    content: "Stufe 3a — Kontext-Export: Endpoint/Job baut aus dem gefilterten Bestand die LLM-Eingabe: Massnahmen absteigend nach co2_einsparung_kt sortiert als kompakte Tabelle (massnahme_nr, Titel, Kurzbeschreibung/summary, co2_einsparung_kt, kosten_eur), Auswahl per Wirkungs-Schwelle bzw. Top-N (Default: alle mit CO2-Angabe; Massnahmen OHNE Angabe explizit als eigener Abschnitt ausweisen, nicht still weglassen). Die vorhandenen Similarity-Kanten (doc-neighbors) werden als Pruef-Hinweise mitgegeben: 'Paar (nr_a, nr_b) ist textlich aehnlich — entscheide, ob echte Wirkungs-Ueberlappung vorliegt'. Ausgabe passt in 1M-Token-Kontext (600 Massnahmen kompakt ~ deutlich darunter). UMGESETZT 2026-07-08: overlap-report-prompt.ts (selectOverlapMeasures, buildOverlapCatalogTable, Hinweise via buildNeighborsPayload)."
+    status: completed
+  - id: llm-overlap-job
+    content: "Stufe 3b — LLM-Lauf (external-job, ADR-0001 beachten): Prompt verlangt Greedy-Semantik konsistent zu Stufe 2 — Liste ist absteigend nach Wirkung sortiert, pro Massnahme ein Korrekturfaktor [0..1] RELATIV zu den weiter oben stehenden (bereits gezaehlten) Massnahmen. ZWEI getrennte Faktoren: korrektur_faktor_co2 (Doppelzaehlung geteilter Emissionen) und korrektur_faktor_kosten (Kosten-Synergien durch Buendelung/gemeinsame Infrastruktur) — getrennt begruendet. Pflicht-Output pro Massnahme: beide Faktoren, ueberlappt_mit (massnahme_nrs), kurze Begruendung. Strukturiert (JSON) zurueck, Zod-validiert; Beispiel im Prompt: 'PV auf Schulen' vs. 'PV auf Spitaelern' = textlich aehnlich, KEINE Ueberlappung, Faktor 1.0. UMGESETZT 2026-07-08: phase-overlap-report.ts (Faktoren via callLlmJson/Secretary-Chat, Output-Chunks a 50; Prosa via /transformer/template mit editierbarem Template — User-Entscheid; Modell als Parameter, POST overlap-report/recompute)."
+    status: completed
+  - id: llm-overlap-persist
+    content: "Stufe 3c — Persistenz als read-only KI-Einschaetzung analog bewertung_*: pro Massnahme korrektur_faktor_co2, korrektur_faktor_kosten, korrektur_ueberlappt_mit, korrektur_begruendung, korrektur_modell, korrektur_stand in docMetaJson (FLACHE snake_case-Keys, Frontmatter-Contract). Lauf ist idempotent wiederholbar; alter Stand wird ueberschrieben, korrektur_stand macht die Version sichtbar. UMGESETZT 2026-07-08: overlap-report-repo.ts (Berichte in overlap_reports, Faktoren via setDocOverlapFactors; Massnahmen ohne LLM-Faktor werden NICHT beschrieben)."
+    status: completed
+  - id: llm-sums-ui
+    content: "Stufe 3d — UI: Tabellen-Fusszeile und Graph-Panel zeigen ZUSAETZLICH die LLM-bereinigte Summe (sum(wert_k * korrektur_faktor_k)) als dritte Zahl neben naiv und alpha-bereinigt, mit Datum/Modell aus korrektur_stand/korrektur_modell im Tooltip. Fehlen die Faktoren (Lauf nie ausgefuehrt / neue Docs ohne Faktor), wird die LLM-Summe NICHT angezeigt bzw. mit 'X ohne Faktor' gekennzeichnet — kein stilles Mischen von Massnahmen mit und ohne Korrektur. Spanne bleibt: naive Summe ist die Obergrenze."
+    status: pending
+  - id: enabler-leverage-concept
+    content: "Stufe 4 (KONZEPT, User-Wunsch 2026-07-09 — Umsetzung erst nach Klaerung der restlichen Stolpersteine): Enabler-Hebel aus den Computed Relations. Kennzahl 'Hebelwirkung' pro Massnahme aus den gerichteten unterstuetzt/ermoeglicht-Kanten (doc_relations__<libraryId>): Enabler erben ANTEILIG die (Stufe-3-bereinigte) CO2-Wirkung der von ihnen aktivierten Massnahmen; Mehrfach-Enabler teilen sich die Wirkung (Gewichts-Normierung), Daempfung beta pro Hop; v1 nur 1 Hop. ENTSCHIEDEN 2026-07-09: beta-Default 0.5; KEINE Kosten-Vererbung (gesucht sind die Enabler mit der groessten zukuenftigen Wirkung, kostenunabhaengig). Eigene Wirkung und Hebelwirkung sind ZWEI GETRENNTE Kennzahlen (nie addieren — Doppelzaehlung). Bericht: pro Cluster die TOP-Hebel-Massnahmen. Details im Abschnitt 'Methodik (Stufe 4)'. UMGESETZT 2026-07-09: enabler-leverage.ts (pure, 10 Unit-Tests), overlap-report-leverage.ts (Kanten laden, hebel_* persistieren, Markdown-Abschnitt 'Hebel-Massnahmen' je Cluster inkl. Staleness-Note), Integration in phase-overlap-report; Live-Lauf gegen Prod: 594 Enabler, Top-Hebel Netzvorbereitung dezentrale Stromerzeugung (eigene 13,5 kt -> Hebel 105,7 kt)."
+    status: completed
+  - id: llm-report-output
+    content: "Stufe 3e — Bericht-Ausgabe (User-Wunsch 2026-07-08): der LLM-Lauf liefert neben den maschinenlesbaren Faktoren einen menschenlesbaren BERICHT (Markdown, persistiert neben dem Lauf): (1) uebersichtliche Ergebnis-Tabelle — pro Massnahme Nr, Titel, CO2 naiv, Faktor, CO2 bereinigt, Kosten naiv, Kosten-Faktor, Kosten bereinigt, ueberlappt-mit, Kurzbegruendung; am Ende die Summenzeile (naiv vs. bereinigt). (2) Prosa-Zusammenfassung (Executive Summary): Themenfelder/Cluster benennen und erklaeren, Groessenordnungen einordnen (welche Cluster tragen wie viel kt, wo liegen die grossen Hebel), Handlungsempfehlungen ('was waere jetzt zu tun' — z.B. welche Massnahmen-Buendel zuerst, wo Buendelung Kosten spart). Anzeige: eigener Tab/Abschnitt (z.B. im Graph- oder Berichts-Bereich) mit Markdown-Renderer; Export als Markdown-Datei moeglich. UMGESETZT 2026-07-08: Tabelle+Summen deterministisch in Code (overlap-report-build.ts), Prosa via /transformer/template (editierbares Template overlap-report-template.ts, context=strukturiertes JSON, model=Parameter); UI overlap-report-dialog.tsx (Fusszeile + Graph-Panel, Markdown-Anzeige, .md-Download, Neu-berechnen)."
+    status: completed
 ---
 
 # Summen und Synergie-Aggregation
@@ -68,6 +86,140 @@ sind textlich fast identisch, ihre Einsparungen addieren sich aber voll).
 Deshalb: immer als Spanne anzeigen (naive Summe = Obergrenze, bereinigt =
 konservative Schaetzung), nie als "die Summe" ausgeben. Fuer Kosten denselben
 Mechanismus, aber eigener (vorsichtigerer) Default.
+
+## Methodik (Stufe 3 — LLM-Overlap-Bericht)
+
+Stufe 3 behebt genau diese Grenze: statt thematische Naehe pauschal (alpha)
+als Ueberlappung zu interpretieren, entscheidet ein Long-Context-LLM-Lauf
+(1M Token) pro Massnahme FACHLICH, ob eine Ueberlappung vorliegt.
+
+Ablauf (User-Entscheid 2026-07-08):
+
+1. Export: der gefilterte Bestand (z.B. 606 Klimamassnahmen) wird absteigend
+   nach co2_einsparung_kt sortiert und als kompakte Tabelle in den Kontext
+   gegeben (Nr, Titel, Kurzbeschreibung, CO2, Kosten). Auswahl per
+   Wirkungs-Schwelle/Top-N — es bleiben die wirkungsrelevanten (~100)
+   Massnahmen; Massnahmen ohne CO2-Angabe werden als eigener Abschnitt
+   ausgewiesen (no-silent-fallbacks), nicht still verworfen.
+2. Das LLM vergibt pro Massnahme — in Listenreihenfolge, also GREEDY
+   konsistent zu Stufe 2 — Korrekturfaktoren [0..1] relativ zu den bereits
+   gezaehlten Massnahmen weiter oben: korrektur_faktor_co2 (Doppelzaehlung)
+   und korrektur_faktor_kosten (Kosten-Synergien), je mit Begruendung und
+   Liste der ueberlappenden massnahme_nrs. Beispielanker im Prompt:
+   "PV auf Schulen" vs. "PV auf Spitaelern" = aehnlich, KEINE Ueberlappung,
+   Faktor 1.0.
+3. Bereinigte Summe Stufe 3 = sum(wert_k * korrektur_faktor_k) — dieselbe
+   Formel wie Stufe 2, nur mit LLM-Urteil statt (1 - alpha*s_kj)-Produkt.
+   Die Similarity-Kanten aus Stufe 2 dienen als Pruef-Hinweise im Prompt,
+   beschraenken das LLM aber nicht (es darf eigene Cluster erkennen).
+
+Der Lauf liefert ZWEI Artefakte (User-Wunsch 2026-07-08): die
+maschinenlesbaren Faktoren (fuer die Summen in Fusszeile/Panel) UND einen
+menschenlesbaren Markdown-Bericht — uebersichtliche Ergebnis-Tabelle
+(naiv/Faktor/bereinigt je Massnahme, Summenzeile) plus Prosa-Summary, die
+Themenfelder/Cluster erklaert, Groessenordnungen einordnet und
+Handlungsempfehlungen gibt ("was waere jetzt zu tun"). Details Todo
+llm-report-output.
+
+GRENZE Stufe 3 (ebenfalls transparent machen): auch LLM-Urteile sind
+Schaetzungen. Deshalb Begruendungspflicht pro Faktor, korrektur_modell +
+korrektur_stand persistieren (versioniert, wiederholbar), Stichproben-Review
+durch Menschen; die naive Summe bleibt als Obergrenze immer sichtbar.
+Wirkung und Kosten sind semantisch VERSCHIEDEN zu korrigieren: Wirkung =
+Doppelzaehlung geteilter Emissionen (Abzug wegen Ueberschneidung), Kosten =
+Synergie durch Buendelung (Abzug wegen gemeinsamer Infrastruktur/Beschaffung)
+— getrennte Faktoren, getrennte Begruendungen.
+
+## Methodik (Stufe 4 — Enabler-Hebel, KONZEPT 2026-07-09)
+
+Status: KONZEPT — festgehalten vor der Umsetzung (User-Wunsch), zuerst
+Review/Entscheid der offenen Punkte unten.
+
+### Motivation
+
+Die Computed Relations (Quelle A, `doc_relations__<libraryId>`) sind gerichtete,
+gewichtete Kanten "A unterstuetzt/ermoeglicht B" (weight in [0..1], LLM-vergeben,
+max. 10 ausgehende je Massnahme, rationale pro Kante). Viele Enabler-Massnahmen
+(Struktur/Bewusstsein, z.B. "Klimacheck fuer politische Entscheidungen") haben
+selbst co2_einsparung_kt ~ 0 und sind in der reinen Wirkungs-Summe unsichtbar —
+obwohl sie die grossen Massnahmen erst ermoeglichen. Stufe 4 macht diesen Hebel
+sichtbar: Enabler erben ANTEILIG die Wirkung der von ihnen aktivierten
+Massnahmen ("indirekte Wirkung").
+
+### Rechenmodell (Code, deterministisch — LLM nur fuer Prosa)
+
+Pro Massnahme ZWEI getrennte Kennzahlen, die NIE addiert werden (sonst neue
+Doppelzaehlung — B's Wirkung wuerde bei B UND bei A gezaehlt):
+
+1. **Eigene Wirkung (bereinigt)** = `co2_k * korrektur_faktor_co2_k`
+   (Stufe-3-Faktor; fehlt er, naive co2_k mit Kennzeichnung "ohne Faktor").
+2. **Hebelwirkung** = Wirkung, die die Massnahme bei ANDEREN aktiviert:
+
+   `Hebel_A = beta * Sum ueber B mit Kante A->B [ anteil_AB * EigeneWirkung_B ]`
+
+   - `anteil_AB = w_AB / Sum_j (w_jB)` — hat B mehrere Enabler, TEILEN sie sich
+     B's Wirkung (Normierung ueber die eingehenden Kanten-Gewichte). Ohne diese
+     Normierung wuerde B's Wirkung an jeden Enabler voll vererbt =
+     Doppelzaehlung, genau der Effekt, den Stufe 3 bei den Summen wegrechnet.
+   - Vererbt wird die STUFE-3-BEREINIGTE Wirkung von B — so werden die
+     Overlap-Synergien nicht ein zweites Mal mitvererbt.
+   - `beta` in [0..1] = Kredit-Daempfung ("wieviel der Wirkung schreibt man dem
+     Enabler zu"): ein Enabler VERURSACHT die Wirkung nicht allein. Default
+     konservativ (z.B. 0.5), im UI/Bericht als Annahme ausweisen (analog alpha
+     in Stufe 2).
+   - **v1: nur 1 Hop.** Der Relations-Graph hat Zyklen (LLM-Kanten, alle
+     Richtungen erlaubt) — transitive Vererbung (A ermoeglicht B ermoeglicht C)
+     braeuchte Zyklenbehandlung (Fixpunkt-Propagation mit beta^tiefe,
+     PageRank-artig, oder DAG-Reduktion). Das ist Stufe-4b-Material; 1 Hop ist
+     auditierbar und erklaerbar ("A aktiviert B1..Bn, davon x% Anteil").
+
+### Cluster + Bericht
+
+Ziel-Output: der Bericht identifiziert je Cluster die TOP-Massnahmen nach
+indirekter Wirkung ("groesste Hebel").
+
+- Cluster-Quelle v1: vorhandene Gruppen-Dimension (z.B. `arbeitsgruppe` oder
+  `dominant_perspektive` — dieselbe group-Logik wie der Relations-Prompt).
+  Alternativen spaeter: Themenfelder aus dem Stufe-3-Bericht (LLM) oder
+  Graph-Communities (Louvain) auf den Relations-Kanten.
+- Bericht-Abschnitt "Hebel-Massnahmen" (Erweiterung des Overlap-Berichts oder
+  eigener Bericht): pro Cluster Top-N Tabelle mit: Nr, Titel, eigene Wirkung
+  (bereinigt), Hebelwirkung (geschaetzt), Summe der Anteile, Top-3 aktivierte
+  Massnahmen (mit Kanten-rationale). Kennzahlen rechnet CODE (analog
+  overlap-report-build); das LLM schreibt nur den Prosa-Teil (Template-Ansatz
+  wie Stufe 3e, editierbare Vorlage).
+
+### Persistenz (analog korrektur_*)
+
+Flache read-only Keys in docMetaJson (Frontmatter-Contract, versioniert):
+`hebel_co2_kt`, `hebel_aktiviert` (Liste massnahme_nrs), `hebel_beta`,
+`hebel_stand`, `hebel_relations_stand` (Zeitstempel des Relations-Laufs, siehe
+Stolperstein). KEINE Kosten-Keys (Entscheid 2026-07-09, s.u.).
+
+### Entscheide (User, 2026-07-09)
+
+- **beta-Default 0.5** — passt; im UI/Bericht als Annahme ausweisen und
+  "Hebelwirkung ist eine Zuschreibungs-Schaetzung, keine additive kt-Zahl"
+  strikt getrennt von den Fusszeilen-Summen halten.
+- **KEINE Kosten-Vererbung.** Gesucht sind die Enabler mit der groessten
+  ZUKUENFTIGEN Wirkung — kostenunabhaengig. Hebel-Kennzahl nur fuer CO2;
+  Kosten bleiben Sache der Stufe-3-Summen.
+
+### Stolpersteine / offene Entscheide (vor Umsetzung klaeren)
+
+1. **Staleness (ENTSCHIEDEN 2026-07-09):** Nur eine WARNUNG — Neuberechnung der
+   Relations ist teuer, der Anwender entscheidet, ob sie sich rentiert. Der
+   Hebel-Lauf persistiert den Relations-Stand (`hebel_relations_stand`) und der
+   Bericht weist ihn aus; kein erzwungener Recompute, kein Blockieren.
+2. **Kanten-Qualitaet:** weight ist LLM-Schaetzung; max. 10 ausgehende Kanten je
+   Massnahme sind ein Cap, kein Vollbild. Im Bericht als Annahme nennen.
+3. **no-silent-fallbacks:** Massnahme ohne ausgehende Kanten -> Hebel 0 ist ein
+   ECHTES Ergebnis (anzeigen). Fehlen die Relations-Daten der Library komplett
+   -> Abschnitt nicht rendern, Hinweis "Beziehungen zuerst berechnen" (kein
+   stilles 0).
+4. **Cap-Konsistenz:** Stufe 3 analysiert Top-150 nach CO2 — Enabler mit CO2=0
+   fallen da raus, sind aber fuer Stufe 4 zentral. Der Hebel-Lauf braucht den
+   VOLLEN Bestand (bzw. eigene Auswahl-Logik), nicht das Stufe-3-Cap.
 
 ## Kontrakte / Stolpersteine
 
