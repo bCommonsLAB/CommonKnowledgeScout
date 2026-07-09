@@ -30,10 +30,17 @@ const DEFAULT_TOP_K = 6
 const MAX_TOP_K = 30
 /** Seeds pro Batch (Embeddings-Ladung + Schreib-BulkWrite). */
 const SEED_BATCH = 200
-/** Parallele Vector-Suchen (wie doc-neighbors-service; M10-schonend). */
-const SEARCH_CONCURRENCY = 4
-/** Hartes Zeitlimit pro Vector-Suche. */
-const SEARCH_MAX_TIME_MS = 15000
+/**
+ * Parallele Vector-Suchen. BEWUSST 1 (sequenziell): auf einem RAM-gebundenen
+ * Cluster (Prod M10, 2 GB, 2048-dim-Indizes) konkurrieren mehrere gleichzeitige
+ * Vector-Suchen um denselben HNSW-Index-Cache und laufen ALLE in den Timeout
+ * (Befund 2026-07-09: Concurrency 4 → Masse "operation exceeded time limit").
+ * Sequenziell haelt den Index warm (gemessen: erste Suche ~7 s kalt, danach
+ * ~0,5 s) — langsamer, aber vollstaendig und ohne den Cluster lahmzulegen.
+ */
+const SEARCH_CONCURRENCY = 1
+/** Hartes Zeitlimit pro Vector-Suche (kalte M10-Suche kann >15 s brauchen). */
+const SEARCH_MAX_TIME_MS = 30000
 
 export interface SimilarityPersistResult {
   processed: number
