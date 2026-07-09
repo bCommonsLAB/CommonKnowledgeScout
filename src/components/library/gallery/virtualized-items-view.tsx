@@ -703,21 +703,6 @@ export function VirtualizedItemsView({
           </div>
         </div>
       ))}
-      {/* Summen-Fusszeile: Server-Aggregat ueber den GESAMTEN gefilterten
-          Bestand (nicht nur die geladenen Zeilen), Labels aus den Facetten. */}
-      {tableSums && (
-        <TableSumsFooter
-          sumsState={tableSums}
-          fieldLabels={Object.fromEntries(
-            (tableColumnFacets ?? [])
-              .filter((f) => Boolean(f.label))
-              .map((f) => [f.metaKey, f.label as string]),
-          )}
-          libraryId={libraryId}
-          showReport={isMember}
-          canManageReport={isOwner}
-        />
-      )}
       </div>
       {/* Sentinel für Infinite Scroll */}
       {hasMore && (
@@ -725,6 +710,26 @@ export function VirtualizedItemsView({
           {isLoadingMore ? (
             <span className="text-sm text-muted-foreground">Lade weitere Dokumente...</span>
           ) : null}
+        </div>
+      )}
+      {/* Summen-Fusszeile: Server-Aggregat ueber den GESAMTEN gefilterten
+          Bestand (nicht nur die geladenen Zeilen), Labels aus den Facetten.
+          Sticky am unteren Scrollport-Rand: die Summe ist ladeunabhaengig und
+          bleibt beim Nachladen/Scrollen (auch horizontal, left-0) sichtbar,
+          statt vom nachgeladenen Content nach unten geschoben zu werden. */}
+      {tableSums && (
+        <div className="sticky bottom-0 left-0 z-10 pb-2">
+          <TableSumsFooter
+            sumsState={tableSums}
+            fieldLabels={Object.fromEntries(
+              (tableColumnFacets ?? [])
+                .filter((f) => Boolean(f.label))
+                .map((f) => [f.metaKey, f.label as string]),
+            )}
+            libraryId={libraryId}
+            showReport={isMember}
+            canManageReport={isOwner}
+          />
         </div>
       )}
     </div>
