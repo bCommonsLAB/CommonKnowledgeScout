@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getPreferredUserEmail } from '@/lib/auth/user-email'
 import { isLibraryOwner } from '@/lib/repositories/library-members-repo'
 import { enqueueOverlapReportJob } from '@/lib/external-jobs/enqueue-overlap-report'
+import { ExternalJobsWorker } from '@/lib/external-jobs-worker'
+import { FileLogger } from '@/lib/debug/logger'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -59,6 +61,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         typeof body.reportTemplateId === 'string' && body.reportTemplateId.trim()
           ? body.reportTemplateId.trim()
           : undefined,
+    })
+    // Worker sofort anstossen (Muster aus submissions/analyze): Enqueue allein
+    // startet keinen Lauf — ohne Tick bliebe der Job dauerhaft `queued`, wenn
+    // der Worker-Intervall in diesem Prozess noch nie gestartet wurde.
+    void ExternalJobsWorker.tickNow().catch((err) => {
+      FileLogger.warn('overlap-report', 'tickNow nach Enqueue fehlgeschlagen (Job bleibt queued)', {
+        jobId,
+        error: err instanceof Error ? err.message : String(err),
+      })
     })
     return NextResponse.json({ ok: true, jobId }, { status: 202 })
   } catch (err) {

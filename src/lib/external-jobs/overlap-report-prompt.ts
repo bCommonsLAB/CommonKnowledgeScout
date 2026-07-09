@@ -130,7 +130,10 @@ Regeln:
 - begruendung: EIN kurzer Satz pro Massnahme (warum dieser Faktor).
 - Im Zweifel konservativ zaehlen (Faktor NIEDRIGER ansetzen), aber nie unter das fachlich
   Begruendbare.
-- Antworte NUR mit JSON nach dem vorgegebenen Schema.`
+- Antworte AUSSCHLIESSLICH als JSON gemaess Schema
+  { "measures": [ { "ref": "1", "faktor_co2": 1.0, "faktor_kosten": 1.0,
+    "ueberlappt_mit": ["2", "17"], "begruendung": "..." } ] }.
+  "ref" ist IMMER ein String; alle fuenf Felder sind Pflicht.`
 
 export interface BuildFactorsMessagesArgs {
   catalogTable: string

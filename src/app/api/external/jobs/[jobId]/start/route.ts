@@ -264,22 +264,28 @@ export async function POST(
     // doc-relations): laedt den Katalog aus Mongo, ruft das LLM ueber den
     // Secretary Service und schreibt Bericht + korrektur_*-Faktoren zurueck.
     if (job.job_type === 'overlap-report' && job.operation === 'recompute') {
-      try {
-        const { runOverlapReportPhase } = await import('@/lib/external-jobs/phase-overlap-report')
-        const result = await runOverlapReportPhase(job)
-        return NextResponse.json({ ok: true, phase: 'overlap-report', result }, { status: 200 })
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err)
-        FileLogger.error('start-route', 'phase-overlap-report failed', { jobId, error: msg })
+      // WICHTIG: Diese Phase laeuft MINUTEN (Long-Context-LLM ueber den ganzen
+      // Katalog). Der Worker-Dispatch bricht seinen fetch nach 60s ab und
+      // requeued den Job — ein synchrones Await hier fuehrte zu Mehrfachstarts
+      // derselben Phase (beobachtet 2026-07-09). Daher: sofort 202 antworten,
+      // Phase detached laufen lassen; Status/Fehler schreibt die Phase selbst.
+      const { runOverlapReportPhase } = await import('@/lib/external-jobs/phase-overlap-report')
+      void (async () => {
         try {
-          await repo.setStatus(jobId, 'failed', { error: { code: 'overlap_report_failed', message: msg } })
-        } catch (statusErr) {
-          FileLogger.warn('start-route', 'setStatus(failed) nach overlap-report-Fehler misslang', {
-            jobId, error: statusErr instanceof Error ? statusErr.message : String(statusErr),
-          })
+          await runOverlapReportPhase(job)
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          FileLogger.error('start-route', 'phase-overlap-report failed', { jobId, error: msg })
+          try {
+            await repo.setStatus(jobId, 'failed', { error: { code: 'overlap_report_failed', message: msg } })
+          } catch (statusErr) {
+            FileLogger.warn('start-route', 'setStatus(failed) nach overlap-report-Fehler misslang', {
+              jobId, error: statusErr instanceof Error ? statusErr.message : String(statusErr),
+            })
+          }
         }
-        return NextResponse.json({ error: msg }, { status: 500 })
-      }
+      })()
+      return NextResponse.json({ ok: true, phase: 'overlap-report', started: true }, { status: 202 })
     }
 
     // WICHTIG: Watchdog SOFORT starten, damit Job nicht hängen bleibt, wenn Start-Endpoint fehlschlägt
