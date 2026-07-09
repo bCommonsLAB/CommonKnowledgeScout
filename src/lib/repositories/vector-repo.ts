@@ -1258,7 +1258,10 @@ export async function findDocs(
   // `sort=rating` sortiert direkt danach – keine $addFields-Laufzeitberechnung nötig.
   // columnSort (Tabellen-Spaltenkopf) hat Vorrang vor `sort` und sortiert
   // global VOR $skip/$limit — leere Werte ans Ende (buildColumnSortStages).
-  const pipeline: Document[] = [{ $match: query }]
+  // PERFORMANCE: Embedding (43KB/Doc) SOFORT ausschliessen — die Galerie
+  // braucht es nie, aber $sort haelt sonst die vollen Dokumente im Heap.
+  // Gemessen 2026-07-09 (606 Docs, Atlas): limit=200 4,7s -> 1,6s.
+  const pipeline: Document[] = [{ $match: query }, { $project: { embedding: 0 } }]
   if (lookupBeforeSort) pipeline.push(...lookupStages)
   if (columnSort) pipeline.push(...(buildColumnSortStages(columnSort) as Document[]))
   else if (options.sort) pipeline.push({ $sort: options.sort })
@@ -1434,6 +1437,8 @@ export async function findDocsGrouped(
     // in der Gruppen-Mitgliederliste verloren (Count gefiltert, Liste zeigt alle).
     const groupPipeline: Document[] = [
       { $match: { $and: [baseQuery, groupFilter] } },
+      // PERFORMANCE: Embedding vor Sort/Lookup ausschliessen (siehe findDocs).
+      { $project: { embedding: 0 } },
     ]
     if (lookupBeforeSort) groupPipeline.push(...lookupStages)
     if (sortWithinGroup) groupPipeline.push({ $sort: sortWithinGroup })
