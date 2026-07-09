@@ -45,6 +45,7 @@ import {
   type AppliedFactors,
   type ReportProseSections,
 } from './overlap-report-build'
+import { runLeveragePass } from './overlap-report-leverage'
 import type { ExternalJob } from '@/types/external-job'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import type { Library } from '@/types/library'
@@ -73,6 +74,8 @@ export interface OverlapReportPhaseResult {
   missingCo2: number
   withoutFactor: number
   reportChars: number
+  /** Stufe 4: Anzahl Massnahmen mit Enabler-Hebel (>= 1 Beziehungs-Kante). */
+  enablers: number
 }
 
 /** Deterministisch auf [0..1] begrenzen (dokumentiert, analog clampWeight). */
@@ -182,12 +185,29 @@ export async function runOverlapReportPhase(job: ExternalJob): Promise<OverlapRe
 
   // ── 5) Persistieren (Bericht + Faktoren je Massnahme) ────────────────────
   const createdAt = new Date()
+  const stand = createdAt.toISOString()
+
+  // Stufe 4: Enabler-Hebel aus den Computed Relations — VOLLER Bestand (items),
+  // nicht das Stufe-3-Cap: Enabler haben oft CO2=0 und fehlen in `selected`.
+  const factorCo2ByFileId = new Map<string, number>()
+  for (const e of selected) {
+    const f = factorsByRef.get(e.ref)
+    if (f) factorCo2ByFileId.set(e.fileId, f.faktorCo2)
+  }
+  const groupField = library.config?.chat?.gallery?.graph?.colorField || 'dominant_perspektive'
+  const leverage = await runLeveragePass({
+    libraryId: job.libraryId, libraryKey, items, factorCo2ByFileId, groupField, stand,
+  })
+  await repo.traceAddEvent(job.jobId, {
+    spanId: 'phase-overlap-report', name: 'overlap_leverage_computed', level: 'info',
+    attributes: { enablers: leverage.enablers, persisted: leverage.persisted },
+  }).catch(() => {})
+
   const markdown = assembleOverlapReport({
     sections, resultTable, stats, model, createdAt,
     missingCo2Titles: missingCo2.map((e) => e.title),
-  })
+  }) + leverage.markdownSection
   await insertOverlapReport({ libraryId: job.libraryId, createdAt, model, markdown, stats, filters: opts.filters })
-  const stand = createdAt.toISOString()
   for (const e of selected) {
     const f = factorsByRef.get(e.ref)
     if (!f) continue // ohne Faktor nichts schreiben (kein stilles 1.0)
@@ -198,12 +218,16 @@ export async function runOverlapReportPhase(job: ExternalJob): Promise<OverlapRe
 
   await repo.updateStep(job.jobId, 'phase-overlap-report', {
     status: 'completed', endedAt: new Date(),
-    details: { measures: selected.length, withoutFactor: stats.withoutFactor, missingCo2: stats.missingCo2 },
+    details: {
+      measures: selected.length, withoutFactor: stats.withoutFactor,
+      missingCo2: stats.missingCo2, enablers: leverage.enablers,
+    },
   })
   await repo.setStatus(job.jobId, 'completed')
   return {
     measures: selected.length, missingCo2: stats.missingCo2,
     withoutFactor: stats.withoutFactor, reportChars: markdown.length,
+    enablers: leverage.enablers,
   }
 }
 

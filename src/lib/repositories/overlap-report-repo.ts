@@ -110,3 +110,42 @@ export async function setDocOverlapFactors(
   )
   return res.matchedCount > 0
 }
+
+/** Enabler-Hebel einer Massnahme (Stufe 4 — deterministisch aus den Kanten). */
+export interface DocLeverage {
+  /** Anteilig geerbte, bereinigte CO2-Wirkung (kt/Jahr, Schaetzung). */
+  hebelCo2Kt: number
+  /** Kurzlabels (Nr/Titel) der wichtigsten aktivierten Massnahmen. */
+  aktiviert: string[]
+  beta: number
+  /** ISO-Zeitstempel des Hebel-Laufs (Versionierung, analog korrektur_stand). */
+  stand: string
+  /** ISO-Zeitstempel der zugrunde liegenden Relations-Berechnung (Staleness). */
+  relationsStand: string | null
+}
+
+/**
+ * Schreibt die Hebel-Kennzahl als flache read-only Keys in `docMetaJson`
+ * (analog korrektur_*; NUR CO2 — Kosten-Vererbung bewusst nicht, Plan-Entscheid
+ * 2026-07-09). Nur fuer Massnahmen mit >= 1 Enabler-Kante aufrufen.
+ */
+export async function setDocLeverage(
+  libraryKey: string,
+  fileId: string,
+  leverage: DocLeverage,
+): Promise<boolean> {
+  const col = await getCollectionOnly(libraryKey)
+  const res = await col.updateOne(
+    { _id: `${fileId}-meta`, kind: 'meta' } as Partial<Document>,
+    {
+      $set: {
+        'docMetaJson.hebel_co2_kt': leverage.hebelCo2Kt,
+        'docMetaJson.hebel_aktiviert': leverage.aktiviert,
+        'docMetaJson.hebel_beta': leverage.beta,
+        'docMetaJson.hebel_stand': leverage.stand,
+        'docMetaJson.hebel_relations_stand': leverage.relationsStand,
+      },
+    },
+  )
+  return res.matchedCount > 0
+}
