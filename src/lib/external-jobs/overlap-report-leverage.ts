@@ -17,7 +17,22 @@
 import { getDocRelations, getLatestCatalogHash } from '@/lib/repositories/doc-relations-repo'
 import { computeEnablerLeverage, type LeverageEntry } from '@/lib/graph/enabler-leverage'
 import { setDocLeverage } from '@/lib/repositories/overlap-report-repo'
-import type { DocCardMeta } from '@/lib/gallery/types'
+
+/**
+ * Minimaler Eingabe-Vertrag je Dokument (strukturell kompatibel zu
+ * DocCardMeta): so kann der Pass sowohl aus der Overlap-Phase (findDocs)
+ * als auch aus dem eigenstaendigen Enabler-Bericht (lean Mongo-Query)
+ * gefuettert werden. Facetten-Felder (groupField) liegen als Zusatz-Keys an.
+ */
+export interface LeverageDocInput {
+  id?: string
+  fileId?: string
+  title?: string
+  shortTitle?: string
+  fileName?: string
+  co2_einsparung_kt?: number
+  massnahme_nr?: string | number
+}
 
 /** Plan-Entscheid 2026-07-09: Kredit-Daempfung Default. */
 export const DEFAULT_LEVERAGE_BETA = 0.5
@@ -32,7 +47,7 @@ export interface LeveragePassArgs {
   libraryId: string
   libraryKey: string
   /** VOLLER Bestand (nicht das Stufe-3-Cap — Enabler haben oft CO2=0). */
-  items: DocCardMeta[]
+  items: LeverageDocInput[]
   /** korrektur_faktor_co2 je fileId aus dem Faktoren-Pass (nur analysierte). */
   factorCo2ByFileId: Map<string, number>
   /** Cluster-Dimension (graphConfig.colorField, z.B. dominant_perspektive). */

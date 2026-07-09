@@ -1127,6 +1127,11 @@ function buildGalleryProjection(
     'docMetaJson.classification_locked': 1,
     'docMetaJson.classification_rejected': 1,
     'docMetaJson.needs_visual_refresh': 1,
+    // Stufe 4c: persistierte Aehnlichkeits-Nachbarn (Top-K je Doc) + Stand.
+    // Der Graph-Modus baut daraus die Similarity-Kanten OHNE Live-Vector-Suche
+    // (Plan summen-und-synergie-aggregation, Todo similarity-persist).
+    'docMetaJson.similarity_neighbors': 1,
+    'docMetaJson.similarity_stand': 1,
   }
 
   // Locale-spezifische Galerie-Translations (klein, nur title/topicsLabels/etc.).

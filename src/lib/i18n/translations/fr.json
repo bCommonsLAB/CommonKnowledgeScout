@@ -347,7 +347,10 @@
       "reportStarted": "Tâche lancée — le résultat apparaîtra ici une fois terminée.",
       "reportDownload": "Télécharger en Markdown",
       "reportError": "Impossible de charger le rapport",
-      "methodNote": "La somme corrigée décote les entrées similaires : la plus grande compte entièrement, chaque suivante est décotée selon sa similarité avec celles déjà comptées. La similarité provient d'embeddings de texte et mesure la proximité thématique, pas un chevauchement réel de l'impact. La somme simple est la borne supérieure ; la somme corrigée, une estimation prudente."
+      "methodNote": "La somme corrigée décote les entrées similaires : la plus grande compte entièrement, chaque suivante est décotée selon sa similarité avec celles déjà comptées. La similarité provient d'embeddings de texte et mesure la proximité thématique, pas un chevauchement réel de l'impact. La somme simple est la borne supérieure ; la somme corrigée, une estimation prudente.",
+      "enablerReportButton": "Rapport des facilitateurs",
+      "enablerReportTitle": "Rapport des facilitateurs (levier)",
+      "enablerReportDescription": "Analyse déterministe des relations calculées : quelles mesures permettent le plus grand impact chez les autres (effet de levier, sans calcul LLM)."
     },
     "graph": {
       "connectBy": "Connecter par",
@@ -396,7 +399,14 @@
       "relationsRecomputeRow": "Calculer les relations pour cette mesure",
       "loadingAll": "Chargement de tous les documents… {loaded}/{total}",
       "loadAllError": "Impossible de charger tous les documents",
-      "truncatedNotice": "Le graphe affiche les {loaded} premiers documents sur {total}."
+      "truncatedNotice": "Le graphe affiche les {loaded} premiers documents sur {total}.",
+      "similarityRecomputeQueued": "Calcul des voisins lancé",
+      "similarityRecomputeError": "Échec du démarrage du calcul",
+      "similarityNeverComputed": "Voisins pas encore calculés",
+      "similarityStale": "Obsolète – le catalogue a changé",
+      "similarityComputedAt": "Calculé",
+      "similarityRecomputing": "Calcul…",
+      "similarityRecompute": "Recalculer les voisins"
     }
   },
   "sdgProfile": {

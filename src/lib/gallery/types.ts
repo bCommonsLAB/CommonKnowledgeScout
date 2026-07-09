@@ -201,6 +201,16 @@ export interface DocCardMeta {
    * die Sterne). Default/Nicht-Member: `undefined` -> UI behandelt als 0.
    */
   commentCount?: number
+
+  // ─── Persistierte Aehnlichkeits-Nachbarn (Graph-Quelle C, Stufe 4c) ───────
+  /**
+   * Top-K semantische Nachbarn (fileId + Vector-Score), beim Recompute
+   * persistiert. Der Graph baut die Similarity-Kanten daraus OHNE Live-Vector-
+   * Suche — reist mit dem geladenen Doc mit (null Extra-Request).
+   */
+  similarity_neighbors?: Array<{ fileId: string; weight: number }>
+  /** ISO-Zeitstempel der letzten Nachbar-Berechnung (Staleness). */
+  similarity_stand?: string
 }
 
 export interface ChapterInfo {

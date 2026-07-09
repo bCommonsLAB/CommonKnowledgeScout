@@ -37,16 +37,24 @@ export interface OverlapReportStats {
   adjustedKosten: number
 }
 
+/**
+ * Berichts-Art in `overlap_reports`: 'overlap' = LLM-Synergie-Bericht
+ * (Stufe 3), 'enabler' = deterministischer Enabler-Hebel-Bericht (Stufe 4b,
+ * User-Wunsch 2026-07-09). Fehlendes Feld = 'overlap' (Bestand vor Stufe 4b).
+ */
+export type OverlapReportKind = 'overlap' | 'enabler'
+
 export interface OverlapReportDoc {
   libraryId: string
   createdAt: Date
-  /** LLM-Modell des Laufs (korrektur_modell). */
+  /** LLM-Modell des Laufs (korrektur_modell); 'deterministic' beim Enabler-Bericht. */
   model: string
   /** Vollstaendiger Bericht als Markdown (Prosa + Ergebnis-Tabelle). */
   markdown: string
   stats: OverlapReportStats
   /** Galerie-Filter des Laufs (leer = ganze Library). */
   filters?: Record<string, string[]>
+  kind?: OverlapReportKind
 }
 
 let reportsCol: Collection<OverlapReportDoc> | null = null
@@ -67,10 +75,20 @@ export async function insertOverlapReport(doc: OverlapReportDoc): Promise<void> 
   await col.insertOne(doc)
 }
 
-/** Juengster Bericht einer Library (null = noch nie gerechnet). */
-export async function getLatestOverlapReport(libraryId: string): Promise<OverlapReportDoc | null> {
+/**
+ * Juengster Bericht einer Library je Art (null = noch nie gerechnet).
+ * Bestand ohne `kind`-Feld zaehlt als 'overlap' (Rueckwaertskompatibilitaet).
+ */
+export async function getLatestOverlapReport(
+  libraryId: string,
+  kind: OverlapReportKind = 'overlap',
+): Promise<OverlapReportDoc | null> {
   const col = await getReportsCol()
-  return col.findOne({ libraryId }, { sort: { createdAt: -1 }, projection: { _id: 0 } })
+  const kindFilter =
+    kind === 'overlap'
+      ? { $or: [{ kind: 'overlap' as const }, { kind: { $exists: false } }] }
+      : { kind }
+  return col.findOne({ libraryId, ...kindFilter }, { sort: { createdAt: -1 }, projection: { _id: 0 } })
 }
 
 /** Korrekturfaktoren einer Massnahme (LLM-Urteil eines Laufs). */

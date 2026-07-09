@@ -347,7 +347,10 @@
       "reportStarted": "Job avviato — il risultato apparirà qui al termine.",
       "reportDownload": "Scarica come Markdown",
       "reportError": "Impossibile caricare il report",
-      "methodNote": "La somma corretta sconta le voci simili: la più grande conta per intero, ogni successiva viene scontata in base alla similarità con quelle già contate. La similarità deriva da embedding testuali e misura la vicinanza tematica, non una reale sovrapposizione dell'impatto. La somma semplice è il limite superiore; quella corretta, una stima prudente."
+      "methodNote": "La somma corretta sconta le voci simili: la più grande conta per intero, ogni successiva viene scontata in base alla similarità con quelle già contate. La similarità deriva da embedding testuali e misura la vicinanza tematica, non una reale sovrapposizione dell'impatto. La somma semplice è il limite superiore; quella corretta, una stima prudente.",
+      "enablerReportButton": "Report degli abilitatori",
+      "enablerReportTitle": "Report degli abilitatori (leva)",
+      "enablerReportDescription": "Analisi deterministica delle relazioni calcolate: quali misure abilitano il maggiore impatto nelle altre (effetto leva, senza calcoli LLM)."
     },
     "graph": {
       "connectBy": "Collega per",
@@ -396,7 +399,14 @@
       "relationsRecomputeRow": "Calcola le relazioni per questa misura",
       "loadingAll": "Caricamento di tutti i documenti… {loaded}/{total}",
       "loadAllError": "Impossibile caricare completamente i documenti",
-      "truncatedNotice": "Il grafo mostra i primi {loaded} di {total} documenti."
+      "truncatedNotice": "Il grafo mostra i primi {loaded} di {total} documenti.",
+      "similarityRecomputeQueued": "Calcolo dei vicini avviato",
+      "similarityRecomputeError": "Avvio del calcolo non riuscito",
+      "similarityNeverComputed": "Vicini non ancora calcolati",
+      "similarityStale": "Obsoleto – il catalogo è cambiato",
+      "similarityComputedAt": "Calcolato",
+      "similarityRecomputing": "Calcolo…",
+      "similarityRecompute": "Ricalcola i vicini"
     }
   },
   "sdgProfile": {

@@ -1,14 +1,17 @@
 'use client'
 
 /**
- * OverlapReportDialog — Anzeige + Anstoss des LLM-Synergie-Berichts
- * (Plan summen-und-synergie-aggregation, Stufe 3e).
+ * OverlapReportDialog — Anzeige + Anstoss der Galerie-Berichte.
  *
- * Laedt beim Oeffnen den juengsten Bericht (`GET overlap-report/latest`,
- * member-only) und rendert ihn als Markdown. Owner koennen einen neuen Lauf
- * anstossen (`POST overlap-report/recompute` -> external-job, Ergebnis
- * erscheint nach Abschluss beim naechsten Oeffnen) und den Bericht als
- * .md-Datei herunterladen.
+ * Zwei Varianten (Plan summen-und-synergie-aggregation):
+ * - 'overlap' (Stufe 3e): LLM-Synergie-Bericht. Recompute startet einen
+ *   external-job; das Ergebnis erscheint beim naechsten Oeffnen.
+ * - 'enabler' (Stufe 4b): deterministischer Hebel-Bericht aus den Computed
+ *   Relations. Recompute rechnet SYNCHRON (~1-2s) — der neue Bericht wird
+ *   direkt nachgeladen.
+ *
+ * Laedt beim Oeffnen den juengsten Bericht (`GET .../latest`, member-only)
+ * und rendert ihn als Markdown; Download als .md-Datei.
  */
 
 import React from 'react'
@@ -32,14 +35,46 @@ interface LatestReport {
   model: string
 }
 
+export type ReportDialogVariant = 'overlap' | 'enabler'
+
+/** API-Basis + i18n-Schluessel je Variante (Keys liegen unter gallery.sums.*). */
+const VARIANTS: Record<ReportDialogVariant, {
+  apiBase: string
+  buttonKey: string
+  titleKey: string
+  descriptionKey: string
+  filePrefix: string
+  /** Recompute antwortet synchron mit fertigem Bericht (kein Job). */
+  syncRecompute: boolean
+}> = {
+  overlap: {
+    apiBase: 'overlap-report',
+    buttonKey: 'gallery.sums.reportButton',
+    titleKey: 'gallery.sums.reportTitle',
+    descriptionKey: 'gallery.sums.reportDescription',
+    filePrefix: 'synergie-bericht',
+    syncRecompute: false,
+  },
+  enabler: {
+    apiBase: 'enabler-report',
+    buttonKey: 'gallery.sums.enablerReportButton',
+    titleKey: 'gallery.sums.enablerReportTitle',
+    descriptionKey: 'gallery.sums.enablerReportDescription',
+    filePrefix: 'enabler-bericht',
+    syncRecompute: true,
+  },
+}
+
 export interface OverlapReportDialogProps {
   libraryId: string
   /** Owner darf neu berechnen; Member sehen nur den Bericht. */
   canManage?: boolean
+  variant?: ReportDialogVariant
 }
 
-export function OverlapReportDialog({ libraryId, canManage }: OverlapReportDialogProps) {
+export function OverlapReportDialog({ libraryId, canManage, variant = 'overlap' }: OverlapReportDialogProps) {
   const { t } = useTranslation()
+  const cfg = VARIANTS[variant]
   const [open, setOpen] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
   const [starting, setStarting] = React.useState(false)
@@ -50,7 +85,7 @@ export function OverlapReportDialog({ libraryId, canManage }: OverlapReportDialo
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/library/${encodeURIComponent(libraryId)}/overlap-report/latest`, {
+      const res = await fetch(`/api/library/${encodeURIComponent(libraryId)}/${cfg.apiBase}/latest`, {
         cache: 'no-store',
       })
       if (res.status === 404) {
@@ -66,7 +101,7 @@ export function OverlapReportDialog({ libraryId, canManage }: OverlapReportDialo
     } finally {
       setLoading(false)
     }
-  }, [libraryId])
+  }, [libraryId, cfg.apiBase])
 
   React.useEffect(() => {
     if (open) void loadLatest()
@@ -75,7 +110,7 @@ export function OverlapReportDialog({ libraryId, canManage }: OverlapReportDialo
   const handleRecompute = React.useCallback(async () => {
     setStarting(true)
     try {
-      const res = await fetch(`/api/library/${encodeURIComponent(libraryId)}/overlap-report/recompute`, {
+      const res = await fetch(`/api/library/${encodeURIComponent(libraryId)}/${cfg.apiBase}/recompute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
@@ -83,6 +118,8 @@ export function OverlapReportDialog({ libraryId, canManage }: OverlapReportDialo
       const data = await res.json()
       if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : res.statusText)
       toast({ title: t('gallery.sums.reportStarted') })
+      // Synchrone Variante (enabler): Bericht ist fertig -> sofort anzeigen.
+      if (cfg.syncRecompute) await loadLatest()
     } catch (e) {
       toast({
         title: t('gallery.sums.reportError'),
@@ -92,7 +129,7 @@ export function OverlapReportDialog({ libraryId, canManage }: OverlapReportDialo
     } finally {
       setStarting(false)
     }
-  }, [libraryId, t])
+  }, [libraryId, t, cfg.apiBase, cfg.syncRecompute, loadLatest])
 
   const handleDownload = React.useCallback(() => {
     if (!report) return
@@ -100,10 +137,10 @@ export function OverlapReportDialog({ libraryId, canManage }: OverlapReportDialo
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `synergie-bericht-${report.createdAt.slice(0, 10)}.md`
+    a.download = `${cfg.filePrefix}-${report.createdAt.slice(0, 10)}.md`
     a.click()
     URL.revokeObjectURL(url)
-  }, [report])
+  }, [report, cfg.filePrefix])
 
   return (
     <>
@@ -115,16 +152,16 @@ export function OverlapReportDialog({ libraryId, canManage }: OverlapReportDialo
         onClick={() => setOpen(true)}
       >
         <FileText className="h-3.5 w-3.5" aria-hidden />
-        {t('gallery.sums.reportButton')}
+        {t(cfg.buttonKey)}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="flex max-h-[85vh] max-w-3xl flex-col">
           <DialogHeader>
-            <DialogTitle>{t('gallery.sums.reportTitle')}</DialogTitle>
+            <DialogTitle>{t(cfg.titleKey)}</DialogTitle>
             <DialogDescription>
               {report
                 ? t('gallery.sums.reportMeta', { date: report.createdAt.slice(0, 10), model: report.model })
-                : t('gallery.sums.reportDescription')}
+                : t(cfg.descriptionKey)}
             </DialogDescription>
           </DialogHeader>
           <div className="min-h-0 flex-1 overflow-y-auto rounded-md border bg-muted/10 p-4">

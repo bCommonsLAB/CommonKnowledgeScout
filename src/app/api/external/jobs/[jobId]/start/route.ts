@@ -288,6 +288,29 @@ export async function POST(
       return NextResponse.json({ ok: true, phase: 'overlap-report', started: true }, { status: 202 })
     }
 
+    // ─── Aehnlichkeits-Nachbarn (Stufe 4c): deterministischer Vector-Pass ────
+    // Wie overlap-report ein langlaufender Pass (1 Vector-Suche je Doc, Minuten):
+    // sofort 202, Phase detached; Status/Fehler schreibt die Phase selbst.
+    if (job.job_type === 'doc-similarity' && job.operation === 'recompute') {
+      const { runDocSimilarityPhase } = await import('@/lib/external-jobs/phase-doc-similarity')
+      void (async () => {
+        try {
+          await runDocSimilarityPhase(job)
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          FileLogger.error('start-route', 'phase-doc-similarity failed', { jobId, error: msg })
+          try {
+            await repo.setStatus(jobId, 'failed', { error: { code: 'doc_similarity_failed', message: msg } })
+          } catch (statusErr) {
+            FileLogger.warn('start-route', 'setStatus(failed) nach doc-similarity-Fehler misslang', {
+              jobId, error: statusErr instanceof Error ? statusErr.message : String(statusErr),
+            })
+          }
+        }
+      })()
+      return NextResponse.json({ ok: true, phase: 'doc-similarity', started: true }, { status: 202 })
+    }
+
     // WICHTIG: Watchdog SOFORT starten, damit Job nicht hängen bleibt, wenn Start-Endpoint fehlschlägt
     // Timeout: 10 Minuten (600_000 ms) - sollte ausreichen für Datei-Laden, Preprocessing, Request, etc.
     // Der Watchdog wird später via bumpWatchdog aktualisiert, wenn Callbacks vom Secretary Service kommen

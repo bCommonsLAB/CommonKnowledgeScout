@@ -347,7 +347,10 @@
       "reportStarted": "Report job started — the result will appear here once finished.",
       "reportDownload": "Download as Markdown",
       "reportError": "Report could not be loaded",
-      "methodNote": "The adjusted total discounts similar entries: the largest counts in full, each further entry is discounted by its similarity to entries already counted. Similarity comes from text embeddings and measures thematic closeness, not actual overlap of impact. The simple total is the upper bound; the adjusted total is a conservative estimate."
+      "methodNote": "The adjusted total discounts similar entries: the largest counts in full, each further entry is discounted by its similarity to entries already counted. Similarity comes from text embeddings and measures thematic closeness, not actual overlap of impact. The simple total is the upper bound; the adjusted total is a conservative estimate.",
+      "enablerReportButton": "Enabler report",
+      "enablerReportTitle": "Enabler report (leverage)",
+      "enablerReportDescription": "Deterministic analysis of the computed relations: which measures enable the largest impact in others (leverage, no LLM math)."
     },
     "graph": {
       "connectBy": "Connect by",
@@ -396,7 +399,14 @@
       "relationsRecomputeRow": "Compute relations for this measure",
       "loadingAll": "Loading all documents… {loaded}/{total}",
       "loadAllError": "Documents could not be fully loaded",
-      "truncatedNotice": "The graph shows the first {loaded} of {total} documents."
+      "truncatedNotice": "The graph shows the first {loaded} of {total} documents.",
+      "similarityRecomputeQueued": "Neighbor computation started",
+      "similarityRecomputeError": "Failed to start computation",
+      "similarityNeverComputed": "Neighbors not computed yet",
+      "similarityStale": "Outdated – the catalog has changed",
+      "similarityComputedAt": "Computed",
+      "similarityRecomputing": "Computing…",
+      "similarityRecompute": "Recompute neighbors"
     }
   },
   "sdgProfile": {

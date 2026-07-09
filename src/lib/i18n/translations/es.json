@@ -347,7 +347,10 @@
       "reportStarted": "Trabajo iniciado — el resultado aparecerá aquí al finalizar.",
       "reportDownload": "Descargar como Markdown",
       "reportError": "No se pudo cargar el informe",
-      "methodNote": "La suma ajustada descuenta entradas similares: la mayor cuenta por completo y cada siguiente se descuenta según su similitud con las ya contadas. La similitud proviene de embeddings de texto y mide cercanía temática, no un solapamiento real del impacto. La suma simple es el límite superior; la ajustada, una estimación conservadora."
+      "methodNote": "La suma ajustada descuenta entradas similares: la mayor cuenta por completo y cada siguiente se descuenta según su similitud con las ya contadas. La similitud proviene de embeddings de texto y mide cercanía temática, no un solapamiento real del impacto. La suma simple es el límite superior; la ajustada, una estimación conservadora.",
+      "enablerReportButton": "Informe de facilitadores",
+      "enablerReportTitle": "Informe de facilitadores (palanca)",
+      "enablerReportDescription": "Análisis determinista de las relaciones calculadas: qué medidas habilitan el mayor impacto en otras (efecto palanca, sin cálculos LLM)."
     },
     "graph": {
       "connectBy": "Conectar por",
@@ -396,7 +399,14 @@
       "relationsRecomputeRow": "Calcular relaciones para esta medida",
       "loadingAll": "Cargando todos los documentos… {loaded}/{total}",
       "loadAllError": "No se pudieron cargar todos los documentos",
-      "truncatedNotice": "El grafo muestra los primeros {loaded} de {total} documentos."
+      "truncatedNotice": "El grafo muestra los primeros {loaded} de {total} documentos.",
+      "similarityRecomputeQueued": "Cálculo de vecinos iniciado",
+      "similarityRecomputeError": "Error al iniciar el cálculo",
+      "similarityNeverComputed": "Vecinos aún no calculados",
+      "similarityStale": "Desactualizado: el catálogo ha cambiado",
+      "similarityComputedAt": "Calculado",
+      "similarityRecomputing": "Calculando…",
+      "similarityRecompute": "Recalcular vecinos"
     }
   },
   "sdgProfile": {
