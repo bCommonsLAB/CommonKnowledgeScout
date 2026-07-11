@@ -20,6 +20,7 @@ import {
   listBuiltinDefaultTemplates,
   toBuiltinTemplateDocument,
 } from '@/lib/templates/default-templates'
+import { listBuiltinReportTemplates } from '@/lib/templates/report-templates'
 import { TemplateIntegrityError } from '@/lib/templates/template-integrity'
 
 /** Mappt einen Konsistenz-Contract-Verstoss auf HTTP 422 (sonst null). */
@@ -86,7 +87,16 @@ export async function GET(request: NextRequest) {
       builtin: true,
     }))
 
-    return NextResponse.json({ templates: [...builtins, ...templates] })
+    // Bericht-Vorlagen (Wirkungs-/Enabler-Bericht) ebenfalls sichtbar machen
+    // (Transparenz: Prompt-Design + Bericht-Layout). Ihre Namen sind bewusst
+    // NICHT reserviert: eine Library-Kopie gleichen Namens uebersteuert den
+    // Builtin beim Bericht-Lauf (report-template-resolver.ts).
+    const reportBuiltins = listBuiltinReportTemplates().map(t => ({
+      ...toBuiltinTemplateDocument(t, libraryId),
+      builtin: true,
+    }))
+
+    return NextResponse.json({ templates: [...builtins, ...reportBuiltins, ...templates] })
   } catch (error) {
     console.error('[API][Templates] Fehler beim Laden:', error)
     return NextResponse.json(
