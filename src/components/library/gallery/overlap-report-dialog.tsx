@@ -3,8 +3,9 @@
 /**
  * OverlapReportDialog — Anzeige + Anstoss der Galerie-Berichte.
  *
- * Zwei Varianten (Plan summen-und-synergie-aggregation):
- * - 'overlap' (Stufe 3e): LLM-Synergie-Bericht. Recompute startet einen
+ * Zwei EIGENSTAENDIGE Berichte (Plan summen-und-synergie-aggregation,
+ * Entscheid revidiert 2026-07-11 — kein Anhaengen mehr aneinander):
+ * - 'overlap' (Stufe 3e): LLM-Wirkungsbericht. Recompute startet einen
  *   external-job; das Ergebnis erscheint beim naechsten Oeffnen.
  * - 'enabler' (Stufe 4b): deterministischer Hebel-Bericht aus den Computed
  *   Relations. Recompute rechnet SYNCHRON (~1-2s) — der neue Bericht wird
@@ -52,7 +53,7 @@ const VARIANTS: Record<ReportDialogVariant, {
     buttonKey: 'gallery.sums.reportButton',
     titleKey: 'gallery.sums.reportTitle',
     descriptionKey: 'gallery.sums.reportDescription',
-    filePrefix: 'synergie-bericht',
+    filePrefix: 'wirkungsbericht',
     syncRecompute: false,
   },
   enabler: {

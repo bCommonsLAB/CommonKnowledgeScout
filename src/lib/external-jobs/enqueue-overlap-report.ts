@@ -52,7 +52,7 @@ export async function enqueueOverlapReportJob(
       jobId,
       libraryId: args.libraryId,
       source: {
-        name: 'Synergie-Bericht (LLM)',
+        name: 'Wirkungsbericht (LLM)',
         mediaType: 'overlap-report',
       },
       options: {

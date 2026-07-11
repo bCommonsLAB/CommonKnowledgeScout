@@ -18,7 +18,7 @@ export interface TableSumsFooterProps {
   sumsState: GallerySumsState
   /** Anzeigenamen je Feld (aus den Facetten-Definitionen); Fallback: Key. */
   fieldLabels?: Record<string, string>
-  /** Fuer den Synergie-Bericht (Stufe 3): nur fuer Member sichtbar. */
+  /** Fuer den Wirkungsbericht (Stufe 3): nur fuer Member sichtbar. */
   libraryId?: string
   /** Member sehen den Bericht-Button (GET ist member-only). */
   showReport?: boolean

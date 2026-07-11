@@ -23,7 +23,7 @@ export const OVERLAP_REPORT_FIELDS = ['title', 'themenfelder', 'groessenordnunge
 
 /** Eingebautes Default-Template (Format wie serializeTemplateToMarkdown, ohne creation-Block). */
 export const DEFAULT_OVERLAP_REPORT_TEMPLATE = `---
-title: {{title|Kurzer, sachlicher Titel des Berichts (max. 80 Zeichen)}}
+title: {{title|Kurzer, sachlicher Titel des Berichts (max. 80 Zeichen), beginnend mit "Wirkungsbericht"}}
 themenfelder: {{themenfelder|Markdown-Abschnitt: welche inhaltlichen Cluster/Themenfelder es gibt, wo sie sich ueberschneiden und welche Massnahmen (Nr) dazugehoeren. 2-5 Absaetze.}}
 groessenordnungen: {{groessenordnungen|Markdown-Abschnitt: welche Cluster/Massnahmen wie viel beitragen (kt CO2, EUR), wo die grossen Hebel liegen, wie weit naive und bereinigte Summe auseinanderliegen und warum. Zahlen NUR aus der Vorlage uebernehmen, nicht selbst rechnen.}}
 handlungsempfehlungen: {{handlungsempfehlungen|Markdown-Abschnitt: konkrete, priorisierte Empfehlungen — welche Massnahmen-Buendel zuerst, wo Buendelung Kosten spart, wo Daten fehlen ("was waere jetzt zu tun").}}

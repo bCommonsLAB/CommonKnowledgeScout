@@ -28,7 +28,7 @@ export interface GraphSumsPanelProps {
   edges: SimilarityNeighborEdge[]
   /** Anzeigenamen je meta-Feld (aus den Facetten-Definitionen). */
   fieldLabels?: Record<string, string>
-  /** Fuer den Synergie-Bericht (Stufe 3, Owner-only sichtbar). */
+  /** Fuer den Wirkungsbericht (Stufe 3, Owner-only sichtbar). */
   libraryId?: string
   canManageReport?: boolean
 }

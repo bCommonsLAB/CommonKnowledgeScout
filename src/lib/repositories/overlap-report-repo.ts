@@ -38,9 +38,10 @@ export interface OverlapReportStats {
 }
 
 /**
- * Berichts-Art in `overlap_reports`: 'overlap' = LLM-Synergie-Bericht
- * (Stufe 3), 'enabler' = deterministischer Enabler-Hebel-Bericht (Stufe 4b,
- * User-Wunsch 2026-07-09). Fehlendes Feld = 'overlap' (Bestand vor Stufe 4b).
+ * Berichts-Art in `overlap_reports`: 'overlap' = LLM-Wirkungsbericht
+ * (Stufe 3, bis 2026-07-11 "Synergie-Bericht"), 'enabler' = deterministischer
+ * Enabler-Hebel-Bericht (Stufe 4b). Beide sind EIGENSTAENDIG (Entscheid
+ * revidiert 2026-07-11). Fehlendes Feld = 'overlap' (Bestand vor Stufe 4b).
  */
 export type OverlapReportKind = 'overlap' | 'enabler'
 
