@@ -1,7 +1,8 @@
 /**
- * Unit-Tests fuer die puren Bausteine des LLM-Overlap-Berichts (Stufe 3):
- * Massnahmen-Auswahl (Sortierung, Cap, missing), Summen-Berechnung
- * (deterministisch in Code, ohne-Faktor-Handling) und Bericht-Assembly.
+ * Unit-Tests fuer die puren Bausteine des LLM-Overlap-/Wirkungsberichts
+ * (Stufe 3): Massnahmen-Auswahl (Sortierung, Cap, missing), Summen-Berechnung
+ * (deterministisch in Code, ohne-Faktor-Handling) und das template-getriebene
+ * Bericht-Layout (Builtin-Vorlagen + Body-Rendering, seit 2026-07-11).
  */
 
 import { describe, it, expect } from 'vitest'
@@ -13,9 +14,15 @@ import {
 import {
   computeOverlapTotals,
   buildOverlapResultTable,
-  assembleOverlapReport,
+  buildMissingCo2Section,
   type AppliedFactors,
 } from '@/lib/external-jobs/overlap-report-build'
+import {
+  getBuiltinReportTemplate,
+  listBuiltinReportTemplates,
+  REPORT_TEMPLATE_NAMES,
+} from '@/lib/templates/report-templates'
+import { renderTemplateBody } from '@/lib/external-jobs/template-body-builder'
 
 const factors = (co2: number, kosten: number, mit: string[] = []): AppliedFactors => ({
   faktorCo2: co2,
@@ -115,29 +122,65 @@ describe('buildOverlapCatalogTable / buildOverlapFactorsMessages', () => {
   })
 })
 
-describe('assembleOverlapReport', () => {
-  it('setzt Prosa-Abschnitte, Tabelle, missing-Sektion und Grenzen zusammen', () => {
-    const markdown = assembleOverlapReport({
-      sections: {
-        title: 'Testbericht',
+describe('report-templates (Builtin-Vorlagen)', () => {
+  it('beide Vorlagen sind parsebar und tragen die erwarteten LLM-Felder', () => {
+    const wirkung = getBuiltinReportTemplate('overlap')
+    expect(wirkung.name).toBe(REPORT_TEMPLATE_NAMES.overlap)
+    expect(wirkung.metadata.fields.map((f) => f.key)).toEqual([
+      'title', 'themenfelder', 'groessenordnungen', 'handlungsempfehlungen',
+    ])
+    expect(wirkung.systemprompt).toContain('Rechne NICHT selbst')
+
+    const enabler = getBuiltinReportTemplate('enabler')
+    expect(enabler.name).toBe(REPORT_TEMPLATE_NAMES.enabler)
+    expect(enabler.metadata.fields.map((f) => f.key)).toEqual([
+      'title', 'cluster_analyse', 'handlungsempfehlungen',
+    ])
+    expect(listBuiltinReportTemplates()).toHaveLength(2)
+  })
+
+  it('Body-Variablen der Vorlagen decken die Code-Variablen ab', () => {
+    // Der Bericht entsteht per renderTemplateBody: LLM-Felder + diese
+    // deterministischen Variablen muessen im jeweiligen Body vorkommen.
+    const wirkungBody = getBuiltinReportTemplate('overlap').markdownBody
+    for (const key of ['kennzahlen', 'ergebnis_tabelle', 'ohne_angabe', 'stand', 'modell']) {
+      expect(wirkungBody).toContain(`{{${key}}}`)
+    }
+    const enablerBody = getBuiltinReportTemplate('enabler').markdownBody
+    for (const key of ['kennzahlen', 'hebel_tabellen', 'beta', 'beziehungs_stand', 'stand', 'modell']) {
+      expect(enablerBody).toContain(`{{${key}}}`)
+    }
+  })
+
+  it('rendert den Wirkungsbericht-Body vollstaendig (keine offenen Platzhalter)', () => {
+    const body = getBuiltinReportTemplate('overlap').markdownBody
+    const markdown = renderTemplateBody({
+      body,
+      values: {
+        title: 'Wirkungsbericht Test',
         themenfelder: 'Cluster X.',
         groessenordnungen: 'Viel.',
         handlungsempfehlungen: 'Tun.',
+        kennzahlen: '- Analysierte Massnahmen: 2',
+        ergebnis_tabelle: '| Nr |',
+        ohne_angabe: buildMissingCo2Section(['Ohne Angabe GmbH']),
+        stand: '2026-07-11',
+        modell: 'test-model',
       },
-      resultTable: '| Nr |',
-      stats: {
-        measures: 2, missingCo2: 1, dropped: 0, withoutFactor: 0,
-        naiveCo2: 150, adjustedCo2: 125, naiveKosten: 0, adjustedKosten: 0,
-      },
-      model: 'test-model',
-      createdAt: new Date('2026-07-08T12:00:00Z'),
-      missingCo2Titles: ['Ohne Angabe GmbH'],
     })
-    expect(markdown).toContain('# Testbericht')
-    expect(markdown).toContain('## Themenfelder')
+    expect(markdown).toContain('# Wirkungsbericht Test')
     expect(markdown).toContain('## Ergebnis-Tabelle')
     expect(markdown).toContain('Ohne Angabe GmbH')
-    expect(markdown).toContain('## Methodik und Grenzen')
-    expect(markdown).toContain('2026-07-08')
+    expect(markdown).toContain('2026-07-11')
+    expect(markdown).not.toContain('{{')
+  })
+})
+
+describe('buildMissingCo2Section', () => {
+  it('leer bei vollstaendigen Daten, sonst sichtbare Liste', () => {
+    expect(buildMissingCo2Section([])).toBe('')
+    const section = buildMissingCo2Section(['A', 'B'])
+    expect(section).toContain('## Massnahmen ohne CO2-Angabe')
+    expect(section).toContain('- A')
   })
 })
