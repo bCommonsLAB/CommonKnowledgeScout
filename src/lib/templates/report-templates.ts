@@ -147,6 +147,14 @@ const MARKDOWN_BY_KIND: Record<ReportTemplateKind, string> = {
   enabler: ENABLER_TEMPLATE,
 }
 
+/**
+ * Roh-Markdown einer Bericht-Vorlage — Quelle der Sample-Dateien unter
+ * template-samples/ (Konsistenz-Test haelt beide synchron).
+ */
+export function getReportTemplateMarkdown(kind: ReportTemplateKind): string {
+  return MARKDOWN_BY_KIND[kind]
+}
+
 const cache = new Map<ReportTemplateKind, ParsedTemplate>()
 
 /** Builtin-Bericht-Vorlage als ParsedTemplate (gecacht, Parse-Fehler = Bug). */

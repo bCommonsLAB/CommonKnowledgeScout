@@ -19,10 +19,13 @@ import {
 } from '@/lib/external-jobs/overlap-report-build'
 import {
   getBuiltinReportTemplate,
+  getReportTemplateMarkdown,
   listBuiltinReportTemplates,
   REPORT_TEMPLATE_NAMES,
 } from '@/lib/templates/report-templates'
 import { renderTemplateBody } from '@/lib/external-jobs/template-body-builder'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 const factors = (co2: number, kosten: number, mit: string[] = []): AppliedFactors => ({
   faktorCo2: co2,
@@ -173,6 +176,25 @@ describe('report-templates (Builtin-Vorlagen)', () => {
     expect(markdown).toContain('Ohne Angabe GmbH')
     expect(markdown).toContain('2026-07-11')
     expect(markdown).not.toContain('{{')
+  })
+})
+
+describe('template-samples Snapshots', () => {
+  it('Sample-Dateien sind identisch mit den Builtin-Vorlagen (kein Drift)', () => {
+    // Entwicklungs-Konvention: jede Vorlage liegt auch als Datei unter
+    // template-samples/. Aendert sich der Builtin, MUSS die Datei neu
+    // generiert werden (getReportTemplateMarkdown -> Datei schreiben).
+    const samples: Array<['overlap' | 'enabler', string]> = [
+      ['overlap', 'bericht-wirkung-de.md'],
+      ['enabler', 'bericht-enabler-de.md'],
+    ]
+    for (const [kind, fileName] of samples) {
+      const filePath = join(process.cwd(), 'template-samples', fileName)
+      const fileContent = readFileSync(filePath, 'utf-8')
+      expect(fileContent, `template-samples/${fileName} weicht vom Builtin ab`).toBe(
+        getReportTemplateMarkdown(kind),
+      )
+    }
   })
 })
 
