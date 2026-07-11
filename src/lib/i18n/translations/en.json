@@ -350,7 +350,7 @@
       "methodNote": "The adjusted total discounts similar entries: the largest counts in full, each further entry is discounted by its similarity to entries already counted. Similarity comes from text embeddings and measures thematic closeness, not actual overlap of impact. The simple total is the upper bound; the adjusted total is a conservative estimate.",
       "enablerReportButton": "Enabler report",
       "enablerReportTitle": "Enabler report (leverage)",
-      "enablerReportDescription": "Deterministic analysis of the computed relations: which measures enable the largest impact in others (leverage, no LLM math)."
+      "enablerReportDescription": "Leverage analysis of the computed relations: which enablers per cluster unlock the largest impact — leverage computed deterministically, prose explanation via template (LLM)."
     },
     "graph": {
       "connectBy": "Connect by",

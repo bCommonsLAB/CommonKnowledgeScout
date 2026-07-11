@@ -311,6 +311,27 @@ export async function POST(
       return NextResponse.json({ ok: true, phase: 'doc-similarity', started: true }, { status: 202 })
     }
 
+    // ─── Enabler-Bericht (Stufe 4b, template-getrieben): Hebel deterministisch,
+    // Prosa via /transformer/template — eigener schmaler Branch analog oben.
+    if (job.job_type === 'enabler-report' && job.operation === 'recompute') {
+      try {
+        const { runEnablerReportPhase } = await import('@/lib/external-jobs/phase-enabler-report')
+        const result = await runEnablerReportPhase(job)
+        return NextResponse.json({ ok: true, phase: 'enabler-report', result }, { status: 200 })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        FileLogger.error('start-route', 'phase-enabler-report failed', { jobId, error: msg })
+        try {
+          await repo.setStatus(jobId, 'failed', { error: { code: 'enabler_report_failed', message: msg } })
+        } catch (statusErr) {
+          FileLogger.warn('start-route', 'setStatus(failed) nach enabler-report-Fehler misslang', {
+            jobId, error: statusErr instanceof Error ? statusErr.message : String(statusErr),
+          })
+        }
+        return NextResponse.json({ error: msg }, { status: 500 })
+      }
+    }
+
     // WICHTIG: Watchdog SOFORT starten, damit Job nicht hängen bleibt, wenn Start-Endpoint fehlschlägt
     // Timeout: 10 Minuten (600_000 ms) - sollte ausreichen für Datei-Laden, Preprocessing, Request, etc.
     // Der Watchdog wird später via bumpWatchdog aktualisiert, wenn Callbacks vom Secretary Service kommen

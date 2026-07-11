@@ -350,7 +350,7 @@
       "methodNote": "La suma ajustada descuenta entradas similares: la mayor cuenta por completo y cada siguiente se descuenta según su similitud con las ya contadas. La similitud proviene de embeddings de texto y mide cercanía temática, no un solapamiento real del impacto. La suma simple es el límite superior; la ajustada, una estimación conservadora.",
       "enablerReportButton": "Informe de facilitadores",
       "enablerReportTitle": "Informe de facilitadores (palanca)",
-      "enablerReportDescription": "Análisis determinista de las relaciones calculadas: qué medidas habilitan el mayor impacto en otras (efecto palanca, sin cálculos LLM)."
+      "enablerReportDescription": "Análisis de palanca de las relaciones calculadas: qué facilitadores por clúster habilitan el mayor impacto — palanca calculada de forma determinista, explicación en prosa mediante plantilla (LLM)."
     },
     "graph": {
       "connectBy": "Conectar por",

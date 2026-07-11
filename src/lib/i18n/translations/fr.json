@@ -350,7 +350,7 @@
       "methodNote": "La somme corrigée décote les entrées similaires : la plus grande compte entièrement, chaque suivante est décotée selon sa similarité avec celles déjà comptées. La similarité provient d'embeddings de texte et mesure la proximité thématique, pas un chevauchement réel de l'impact. La somme simple est la borne supérieure ; la somme corrigée, une estimation prudente.",
       "enablerReportButton": "Rapport des facilitateurs",
       "enablerReportTitle": "Rapport des facilitateurs (levier)",
-      "enablerReportDescription": "Analyse déterministe des relations calculées : quelles mesures permettent le plus grand impact chez les autres (effet de levier, sans calcul LLM)."
+      "enablerReportDescription": "Analyse de levier des relations calculées : quels facilitateurs par cluster débloquent le plus grand impact — levier calculé de manière déterministe, explication en prose via modèle (LLM)."
     },
     "graph": {
       "connectBy": "Connecter par",

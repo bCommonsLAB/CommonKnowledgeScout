@@ -350,7 +350,7 @@
       "methodNote": "La somma corretta sconta le voci simili: la più grande conta per intero, ogni successiva viene scontata in base alla similarità con quelle già contate. La similarità deriva da embedding testuali e misura la vicinanza tematica, non una reale sovrapposizione dell'impatto. La somma semplice è il limite superiore; quella corretta, una stima prudente.",
       "enablerReportButton": "Report degli abilitatori",
       "enablerReportTitle": "Report degli abilitatori (leva)",
-      "enablerReportDescription": "Analisi deterministica delle relazioni calcolate: quali misure abilitano il maggiore impatto nelle altre (effetto leva, senza calcoli LLM)."
+      "enablerReportDescription": "Analisi della leva delle relazioni calcolate: quali abilitatori per cluster sbloccano il maggiore impatto — leva calcolata in modo deterministico, spiegazione in prosa tramite modello (LLM)."
     },
     "graph": {
       "connectBy": "Collega per",

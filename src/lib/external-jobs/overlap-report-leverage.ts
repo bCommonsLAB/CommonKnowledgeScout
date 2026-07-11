@@ -5,13 +5,15 @@
  * @description
  * Deterministisch (kein LLM): laedt die Computed-Relations-Kanten, rechnet je
  * Enabler die anteilig geerbte, Stufe-3-bereinigte CO2-Wirkung
- * (computeEnablerLeverage, beta-Daempfung, 1 Hop) und liefert den Markdown-
- * Abschnitt "Hebel-Massnahmen" (TOP-N je Cluster) plus Persistenz der
- * hebel_*-Keys. Staleness der Kanten ist NUR eine Warnung im Bericht —
+ * (computeEnablerLeverage, beta-Daempfung, 1 Hop), persistiert die
+ * hebel_*-Keys und liefert TOP-N je Cluster als Markdown-Tabellen
+ * ({{hebel_tabellen}}) UND strukturiert (context-JSON) — das Bericht-LAYOUT
+ * inkl. Erklaertexten lebt seit 2026-07-11 im editierbaren Template
+ * (report-templates.ts). Staleness der Kanten ist NUR eine Warnung —
  * Neuberechnung ist teuer, der Anwender entscheidet (Entscheid 2026-07-09).
  *
  * @usedIn
- * - src/lib/external-jobs/phase-overlap-report.ts
+ * - src/lib/external-jobs/phase-enabler-report.ts
  */
 
 import { getDocRelations, getLatestCatalogHash } from '@/lib/repositories/doc-relations-repo'
@@ -57,13 +59,36 @@ export interface LeveragePassArgs {
   beta?: number
 }
 
+/** Eine Hebel-Zeile fuer Kontext-JSON und Tabelle. */
+export interface LeverageClusterRow {
+  nr?: string
+  titel: string
+  /** Eigene, Stufe-3-bereinigte Wirkung (kt); undefined = ohne CO2-Angabe. */
+  eigene?: number
+  /** Hebelwirkung (kt, Zuschreibungs-Schaetzung). */
+  hebel: number
+  /** Wichtigste aktivierte Massnahmen ("Nr. X Titel (NN %)"). */
+  aktiviert: string[]
+}
+
+export interface LeverageCluster {
+  cluster: string
+  rows: LeverageClusterRow[]
+}
+
 export interface LeveragePassResult {
-  /** Markdown-Abschnitt fuer den Bericht ('' nie — auch der Hinweis-Fall ist Text). */
-  markdownSection: string
+  /** Markdown-Tabellen je Cluster ({{hebel_tabellen}} im Bericht-Template). */
+  tablesMarkdown: string
+  /** TOP-Hebel je Cluster, strukturiert (context-JSON des LLM-Passes). */
+  clusters: LeverageCluster[]
   /** Anzahl Enabler (>= 1 gueltige Kante). */
   enablers: number
   /** Anzahl persistierter hebel_*-Docs. */
   persisted: number
+  /** ISO-Zeitstempel der zugrunde liegenden Relations-Berechnung. */
+  relationsStand: string | null
+  /** Verwendete Kredit-Daempfung ({{beta}} im Bericht-Template). */
+  beta: number
 }
 
 interface DocInfo {
@@ -79,75 +104,67 @@ function label(info: DocInfo | undefined, fallbackId: string): string {
   return info.nr ? `Nr. ${info.nr} ${info.title}` : info.title
 }
 
-/** Markdown-Tabellen je Cluster aus den Hebel-Eintraegen (pure, testbar). */
-export function buildLeverageSection(args: {
+/** TOP-Hebel je Cluster strukturiert einsammeln (pure, testbar). */
+export function collectLeverageClusters(args: {
   infoByFileId: Map<string, DocInfo>
   leverageByFileId: Map<string, LeverageEntry>
-  beta: number
-  relationsStand: string | null
-}): string {
+}): LeverageCluster[] {
   const rows = [...args.leverageByFileId.entries()]
     .map(([fileId, entry]) => ({ fileId, entry, info: args.infoByFileId.get(fileId) }))
     .filter((r) => r.info)
     .sort((a, b) => b.entry.leverage - a.entry.leverage)
 
-  const byCluster = new Map<string, typeof rows>()
+  const byCluster = new Map<string, LeverageClusterRow[]>()
+  // Cluster-Reihenfolge = groesster Hebel zuerst (rows sind global sortiert).
   for (const r of rows) {
     const cluster = r.info!.cluster
     const list = byCluster.get(cluster) ?? []
-    list.push(r)
+    if (list.length < TOP_N_PER_CLUSTER) {
+      list.push({
+        nr: r.info!.nr,
+        titel: r.info!.title,
+        eigene: r.info!.ownValue,
+        hebel: r.entry.leverage,
+        aktiviert: r.entry.activated
+          .slice(0, TOP_ACTIVATED)
+          .map((a) => `${label(args.infoByFileId.get(a.targetId), a.targetId)} (${Math.round(a.share * 100)} %)`),
+      })
+    }
     byCluster.set(cluster, list)
   }
-  // Cluster absteigend nach ihrem groessten Hebel (rows sind global sortiert).
-  const clusterParts: string[] = []
-  for (const [cluster, list] of byCluster) {
+  return [...byCluster.entries()].map(([cluster, clusterRows]) => ({ cluster, rows: clusterRows }))
+}
+
+/** Markdown-Tabellen je Cluster ({{hebel_tabellen}}; Erklaertext lebt im Template). */
+export function buildLeverageTables(clusters: LeverageCluster[]): string {
+  const parts: string[] = []
+  for (const { cluster, rows } of clusters) {
     const lines = [
       `### ${cluster}`,
       '',
       '| Nr | Titel | Eigene Wirkung bereinigt (kt) | Hebelwirkung (kt, Schaetzung) | Aktiviert (Top 3) |',
       '|---|---|---|---|---|',
     ]
-    for (const r of list.slice(0, TOP_N_PER_CLUSTER)) {
-      const activated = r.entry.activated
-        .slice(0, TOP_ACTIVATED)
-        .map((a) => `${label(args.infoByFileId.get(a.targetId), a.targetId)} (${Math.round(a.share * 100)} %)`)
-        .join('; ')
+    for (const r of rows) {
       lines.push(
-        `| ${r.info!.nr ?? '–'} | ${r.info!.title.replace(/\|/g, '/')} ` +
-          `| ${typeof r.info!.ownValue === 'number' ? fmt(r.info!.ownValue) : '–'} ` +
-          `| ${fmt(r.entry.leverage)} | ${activated || '–'} |`,
+        `| ${r.nr ?? '–'} | ${r.titel.replace(/\|/g, '/')} ` +
+          `| ${typeof r.eigene === 'number' ? fmt(r.eigene) : '–'} ` +
+          `| ${fmt(r.hebel)} | ${r.aktiviert.join('; ') || '–'} |`,
       )
     }
-    clusterParts.push(lines.join('\n'))
+    parts.push(lines.join('\n'))
   }
-
-  const standNote = args.relationsStand
-    ? `Beziehungs-Stand: ${args.relationsStand.slice(0, 10)} — der Katalog kann sich seither geaendert haben; ` +
-      `eine Neuberechnung der Beziehungen ist teuer, ob sie sich lohnt, entscheidet der Anwender.`
-    : 'Beziehungs-Stand unbekannt.'
-
-  return (
-    `\n\n## Hebel-Massnahmen (Enabler)\n\n` +
-    `Enabler erben ANTEILIG die bereinigte CO2-Wirkung der Massnahmen, die sie ermoeglichen ` +
-    `(1 Hop; mehrere Enabler teilen sich die Wirkung; Daempfung beta = ${fmt(args.beta)}). ` +
-    `Die Hebelwirkung ist eine ZUSCHREIBUNGS-SCHAETZUNG und wird NIE zur eigenen Wirkung addiert ` +
-    `— sonst wuerde dieselbe Einsparung doppelt gezaehlt. ${standNote}\n\n` +
-    clusterParts.join('\n\n')
-  )
+  return parts.join('\n\n')
 }
 
-/** Hinweis-Abschnitt, wenn (noch) keine Beziehungen berechnet wurden. */
-const NO_RELATIONS_SECTION =
-  `\n\n## Hebel-Massnahmen (Enabler)\n\n` +
-  `Fuer diese Library sind keine berechneten Beziehungen vorhanden — zuerst ` +
-  `"Beziehungen berechnen" ausfuehren, dann liefert der naechste Bericht die TOP-Hebel je Cluster.`
-
-/** Laedt Kanten, rechnet Hebel, persistiert hebel_* und baut den Abschnitt. */
+/** Laedt Kanten, rechnet Hebel, persistiert hebel_* und liefert Tabellen + Cluster. */
 export async function runLeveragePass(args: LeveragePassArgs): Promise<LeveragePassResult> {
   const beta = args.beta ?? DEFAULT_LEVERAGE_BETA
   const edges = await getDocRelations(args.libraryId)
   if (edges.length === 0) {
-    return { markdownSection: NO_RELATIONS_SECTION, enablers: 0, persisted: 0 }
+    throw new Error(
+      'Enabler-Bericht: keine berechneten Beziehungen vorhanden — zuerst "Beziehungen berechnen" ausfuehren.',
+    )
   }
   const { computedAt } = await getLatestCatalogHash(args.libraryId)
   const relationsStand = computedAt ? computedAt.toISOString() : null
@@ -191,6 +208,13 @@ export async function runLeveragePass(args: LeveragePassArgs): Promise<LeverageP
     if (ok) persisted += 1
   }
 
-  const markdownSection = buildLeverageSection({ infoByFileId, leverageByFileId, beta, relationsStand })
-  return { markdownSection, enablers: leverageByFileId.size, persisted }
+  const clusters = collectLeverageClusters({ infoByFileId, leverageByFileId })
+  return {
+    tablesMarkdown: buildLeverageTables(clusters),
+    clusters,
+    enablers: leverageByFileId.size,
+    persisted,
+    relationsStand,
+    beta,
+  }
 }

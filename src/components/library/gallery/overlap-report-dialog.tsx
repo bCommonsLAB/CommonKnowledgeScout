@@ -7,9 +7,9 @@
  * Entscheid revidiert 2026-07-11 — kein Anhaengen mehr aneinander):
  * - 'overlap' (Stufe 3e): LLM-Wirkungsbericht. Recompute startet einen
  *   external-job; das Ergebnis erscheint beim naechsten Oeffnen.
- * - 'enabler' (Stufe 4b): deterministischer Hebel-Bericht aus den Computed
- *   Relations. Recompute rechnet SYNCHRON (~1-2s) — der neue Bericht wird
- *   direkt nachgeladen.
+ * - 'enabler' (Stufe 4b): Hebel-Bericht aus den Computed Relations — Hebel
+ *   deterministisch, Prosa via Template-LLM-Pass; seit 2026-07-11 ebenfalls
+ *   external-job (Ergebnis erscheint beim naechsten Oeffnen).
  *
  * Laedt beim Oeffnen den juengsten Bericht (`GET .../latest`, member-only)
  * und rendert ihn als Markdown; Download als .md-Datei.
@@ -62,7 +62,7 @@ const VARIANTS: Record<ReportDialogVariant, {
     titleKey: 'gallery.sums.enablerReportTitle',
     descriptionKey: 'gallery.sums.enablerReportDescription',
     filePrefix: 'enabler-bericht',
-    syncRecompute: true,
+    syncRecompute: false,
   },
 }
 
