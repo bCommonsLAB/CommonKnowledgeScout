@@ -20,10 +20,9 @@ import { LibraryService } from '@/lib/services/library-service'
 import { getCollectionNameForLibrary, findDocs, findDocSummaries } from '@/lib/repositories/vector-repo'
 import { facetsSelectedToMongoFilter } from '@/lib/chat/common/filters'
 import { callLlmJson } from '@/lib/chat/common/llm'
-import { callTemplateTransform } from '@/lib/secretary/adapter'
-import { getSecretaryConfig } from '@/lib/env'
 import { buildNeighborsPayload, MAX_NODES } from '@/lib/graph/doc-neighbors-service'
-import { resolveOverlapReportTemplate, OVERLAP_REPORT_FIELDS } from './overlap-report-template'
+import { runReportTransform } from './report-transform'
+import { renderTemplateBody } from './template-body-builder'
 import {
   insertOverlapReport,
   setDocOverlapFactors,
@@ -41,9 +40,8 @@ import {
   computeOverlapTotals,
   buildOverlapResultTable,
   buildOverlapStatsText,
-  assembleOverlapReport,
+  buildMissingCo2Section,
   type AppliedFactors,
-  type ReportProseSections,
 } from './overlap-report-build'
 import type { ExternalJob } from '@/types/external-job'
 import type { DocCardMeta } from '@/lib/gallery/types'
@@ -158,18 +156,18 @@ export async function runOverlapReportPhase(job: ExternalJob): Promise<OverlapRe
   }
 
   // ── 4) Summen + Tabelle deterministisch, Prosa via Transform-by-Template ──
-  // Der Secretary-Endpoint /transformer/template bekommt die Ergebnis-Tabelle
-  // als Quelltext, die Rohdaten als strukturiertes JSON im context-Parameter
-  // und das (frei waehlbare, z.B. 1M-Kontext-) Modell als Parameter. Das
-  // Template (System-Prompt + Abschnitts-Prompts) ist editierbar
-  // (reportTemplateId), sonst greift der eingebaute Default.
+  // Vorlage 'bericht-wirkung' (Builtin oder Library-Kopie, reportTemplateId
+  // uebersteuert) definiert Schema, Bericht-Layout (Body-Variablen) und
+  // Systemprompt; das Modell ist Parameter des Laufs.
   const totals = computeOverlapTotals(selected, factorsByRef)
   const stats: OverlapReportStats = {
     measures: selected.length, missingCo2: missingCo2.length, dropped, ...totals,
   }
   const resultTable = buildOverlapResultTable(selected, factorsByRef)
-  const sections = await runReportTemplateTransform({
-    job, repo, model, resultTable, statsText: buildOverlapStatsText(stats),
+  const statsText = buildOverlapStatsText(stats)
+  const { llmFields, markdownBody } = await runReportTransform({
+    kind: 'overlap', job, repo, spanId: 'phase-overlap-report', model,
+    sourceText: `Kennzahlen:\n${statsText}\n\nErgebnis-Tabelle:\n\n${resultTable}`,
     reportTemplateId: opts.reportTemplateId,
     contextJson: {
       stats,
@@ -180,16 +178,23 @@ export async function runOverlapReportPhase(job: ExternalJob): Promise<OverlapRe
     },
   })
 
-  // ── 5) Persistieren (Bericht + Faktoren je Massnahme) ────────────────────
-  // Entscheid REVIDIERT 2026-07-11: der Enabler-Hebel-Abschnitt wird NICHT
-  // mehr angehaengt — der Enabler-Bericht ist ein eigenstaendiger Bericht
-  // (kind 'enabler', enabler-report/recompute, deterministisch ohne LLM).
+  // ── 5) Bericht aus dem Template-Body rendern + persistieren ──────────────
+  // LLM-Felder + deterministische Code-Variablen fuellen das Layout der
+  // Vorlage. Der Enabler-Hebel ist ein EIGENSTAENDIGER Bericht (Entscheid
+  // revidiert 2026-07-11) und haengt hier nicht mehr an.
   const createdAt = new Date()
   const stand = createdAt.toISOString()
-  const markdown = assembleOverlapReport({
-    sections, resultTable, stats, model, createdAt,
-    missingCo2Titles: missingCo2.map((e) => e.title),
-  })
+  const markdown = renderTemplateBody({
+    body: markdownBody,
+    values: {
+      ...llmFields,
+      kennzahlen: statsText,
+      ergebnis_tabelle: resultTable,
+      ohne_angabe: buildMissingCo2Section(missingCo2.map((e) => e.title)),
+      stand: stand.slice(0, 10),
+      modell: model,
+    },
+  }).trim()
   await insertOverlapReport({ libraryId: job.libraryId, createdAt, model, markdown, stats, filters: opts.filters })
   for (const e of selected) {
     const f = factorsByRef.get(e.ref)
@@ -210,56 +215,6 @@ export async function runOverlapReportPhase(job: ExternalJob): Promise<OverlapRe
   return {
     measures: selected.length, missingCo2: stats.missingCo2,
     withoutFactor: stats.withoutFactor, reportChars: markdown.length,
-  }
-}
-
-/**
- * Prosa-Abschnitte via Secretary `/transformer/template` erzeugen.
- * Wirft, wenn Pflicht-Felder fehlen (kein stiller Leer-Bericht).
- */
-async function runReportTemplateTransform(args: {
-  job: ExternalJob
-  repo: ExternalJobsRepository
-  model: string
-  resultTable: string
-  statsText: string
-  reportTemplateId?: string
-  contextJson: Record<string, unknown>
-}): Promise<ReportProseSections> {
-  const { baseUrl, apiKey } = getSecretaryConfig()
-  if (!baseUrl) throw new Error('phase-overlap-report: SECRETARY_SERVICE_URL nicht konfiguriert')
-  const template = await resolveOverlapReportTemplate(args.job.libraryId, args.job.userEmail, args.reportTemplateId)
-  await args.repo.traceAddEvent(args.job.jobId, {
-    spanId: 'phase-overlap-report', name: 'overlap_report_template_resolved', level: 'info',
-    attributes: { source: template.source, templateId: template.templateId },
-  }).catch(() => {})
-
-  const resp = await callTemplateTransform({
-    url: `${baseUrl}/transformer/template`,
-    text: `Kennzahlen:\n${args.statsText}\n\nErgebnis-Tabelle:\n\n${args.resultTable}`,
-    targetLanguage: 'de',
-    templateContent: template.templateContent,
-    context: args.contextJson,
-    useCache: false,
-    apiKey,
-    timeoutMs: Number(process.env.EXTERNAL_TEMPLATE_TIMEOUT_MS || process.env.EXTERNAL_REQUEST_TIMEOUT_MS || 600000),
-    model: args.model,
-  })
-  const data = (await resp.json()) as { data?: { structured_data?: unknown } }
-  const structured = data?.data?.structured_data
-  if (!structured || typeof structured !== 'object') {
-    throw new Error('phase-overlap-report: Template-Transform lieferte kein structured_data')
-  }
-  const s = structured as Record<string, unknown>
-  const missing = OVERLAP_REPORT_FIELDS.filter((k) => !(typeof s[k] === 'string' && (s[k] as string).trim().length > 0))
-  if (missing.length > 0) {
-    throw new Error(`phase-overlap-report: Bericht-Vorlage lieferte leere Felder: ${missing.join(', ')}`)
-  }
-  return {
-    title: (s.title as string).trim(),
-    themenfelder: (s.themenfelder as string).trim(),
-    groessenordnungen: (s.groessenordnungen as string).trim(),
-    handlungsempfehlungen: (s.handlungsempfehlungen as string).trim(),
   }
 }
 

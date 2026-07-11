@@ -95,45 +95,15 @@ export function buildOverlapStatsText(stats: OverlapReportStats): string {
   return lines.join('\n')
 }
 
-/** Prosa-Abschnitte aus dem Template-Transform (flache Frontmatter-Felder). */
-export interface ReportProseSections {
-  title: string
-  themenfelder: string
-  groessenordnungen: string
-  handlungsempfehlungen: string
-}
-
-export interface AssembleReportArgs {
-  sections: ReportProseSections
-  resultTable: string
-  stats: OverlapReportStats
-  model: string
-  createdAt: Date
-  /** Titel der nicht analysierten Massnahmen ohne CO2-Angabe. */
-  missingCo2Titles: string[]
-}
-
-/** Setzt den vollstaendigen Bericht zusammen (Kopf + Prosa + Tabelle + Grenzen). */
-export function assembleOverlapReport(args: AssembleReportArgs): string {
-  const missingSection = args.missingCo2Titles.length
-    ? `\n\n## Massnahmen ohne CO2-Angabe (nicht analysiert)\n\n` +
-      args.missingCo2Titles.map((t) => `- ${t}`).join('\n')
-    : ''
+/**
+ * "Ohne Angabe"-Abschnitt als Body-Variable ({{ohne_angabe}}) — leerer String,
+ * wenn alle Massnahmen einen CO2-Wert haben. Das Bericht-LAYOUT kommt seit
+ * 2026-07-11 aus dem Template-Body (renderTemplateBody), nicht mehr aus Code.
+ */
+export function buildMissingCo2Section(titles: string[]): string {
+  if (titles.length === 0) return ''
   return (
-    `# ${args.sections.title}\n\n` +
-    `*Stand: ${args.createdAt.toISOString().slice(0, 10)} · Modell: ${args.model} · ` +
-    `Alle bereinigten Werte sind SCHAETZUNGEN; die naive Summe ist die Obergrenze.*\n\n` +
-    `${buildOverlapStatsText(args.stats)}\n\n` +
-    `## Themenfelder\n\n${args.sections.themenfelder.trim()}\n\n` +
-    `## Groessenordnungen\n\n${args.sections.groessenordnungen.trim()}\n\n` +
-    `## Was jetzt zu tun waere\n\n${args.sections.handlungsempfehlungen.trim()}\n\n` +
-    `## Ergebnis-Tabelle\n\n${args.resultTable}` +
-    missingSection +
-    `\n\n## Methodik und Grenzen\n\n` +
-    `Die Faktoren stammen aus einem LLM-Lauf (greedy, absteigend nach Wirkung: jede Massnahme ` +
-    `wird relativ zu den bereits gezaehlten bewertet). Auch LLM-Urteile sind Schaetzungen — ` +
-    `jede Zeile traegt eine Begruendung und sollte stichprobenartig geprueft werden. ` +
-    `Faktor CO2 korrigiert Doppelzaehlung geteilter Emissionen; Faktor Kosten schaetzt ` +
-    `Synergien durch Buendelung (gemeinsame Infrastruktur/Beschaffung).`
+    `## Massnahmen ohne CO2-Angabe (nicht analysiert)\n\n` +
+    titles.map((t) => `- ${t}`).join('\n')
   )
 }
