@@ -240,12 +240,15 @@ export function FacetDefsEditor({ value, onChange, detailViewType }: FacetDefsEd
     return new Set([...required, ...optional])
   }, [detailViewType])
   
-  // Prüfe welche Facetten-Keys nicht in der Registry sind
+  // Prüfe welche Facetten-Keys nicht in der Registry sind. Basis-Facetten
+  // (date/authors/source/tags) sind IMMER gueltig (library-uebergreifender
+  // Pflicht-Contract, siehe base-fields.ts) — sie duerfen nie als "nicht in
+  // Registry" gemeldet werden, obwohl sie in keinem ViewType-Registry stehen.
   const unknownFacets = useMemo(() => {
     if (!knownFields) return []
     return defs
       .map((d, index) => ({ metaKey: d.metaKey, index }))
-      .filter(({ metaKey }) => metaKey && !knownFields.has(metaKey))
+      .filter(({ metaKey }) => metaKey && !knownFields.has(metaKey) && !isBaseFacetField(metaKey))
   }, [defs, knownFields])
 
   function update(index: number, patch: Partial<FacetDefUi>) {
