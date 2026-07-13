@@ -50,16 +50,21 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ lib
     // Nur sichtbare Facetten: Sidebar/„Filter“-Navigation entspricht „Sichtbar“ in Story-Config
     const visibleDefs = defs.filter((d) => d.visible)
 
-    // Filter aus Query-Parametern extrahieren (konsistent mit /docs Route)
+    // Filter aus Query-Parametern extrahieren (konsistent mit /docs Route).
+    // Disjunctive faceting (Befund 2026-07-13): die Facetten-AUSWAHL wird
+    // getrennt uebergeben — beim Zaehlen einer Facette gelten alle Auswahlen
+    // ausser der eigenen. Sonst filtert sich eine Single-Wert-Facette nach dem
+    // ersten Klick selbst leer und Multi-Select ist im UI unmoeglich.
     const builtin = buildFilterFromQuery(url, defs)
-    // buildFilterFromQuery liefert normalisierte Filter-Form; auf MongoDB-Form abbilden
-    // Dynamisch alle Facetten-Filter hinzufügen (nicht nur hardcodierte Liste)
-    const filter: Record<string, unknown> = {}
+    const facetSelections: Record<string, unknown> = {}
     for (const def of defs) {
       if (builtin[def.metaKey]) {
-        filter[def.metaKey] = builtin[def.metaKey]
+        facetSelections[def.metaKey] = builtin[def.metaKey]
       }
     }
+
+    // Facetten-unabhaengige Basis-Bedingungen (gelten fuer ALLE Gruppen).
+    const filter: Record<string, unknown> = {}
 
     // A4a: strenger Typ-Filter (nur bei gewaehltem Typ). Per $and anhaengen,
     // damit ein eventuelles $or (Default-Typ-Einbezug) nichts ueberschreibt.
@@ -77,7 +82,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ lib
       libraryKey,
       libraryId,
       filter,
-      visibleDefs.map((d) => ({ metaKey: d.metaKey, type: d.type, label: d.label }))
+      visibleDefs.map((d) => ({ metaKey: d.metaKey, type: d.type, label: d.label })),
+      facetSelections
     )
     const out = visibleDefs.map((d) => {
       const options = counts[d.metaKey] || []
