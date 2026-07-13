@@ -1481,52 +1481,73 @@ export async function aggregateFacets(
   libraryKey: string,
   libraryId: string,
   filter: Record<string, unknown>,
-  defs: Array<{ metaKey: string; type: string; label?: string }>
+  defs: Array<{ metaKey: string; type: string; label?: string }>,
+  /**
+   * Aktive Facetten-AUSWAHL je metaKey (disjunctive faceting): beim Zaehlen
+   * einer Facette werden alle Auswahlen AUSSER der eigenen angewendet. Sonst
+   * filtert sich eine Single-Wert-Facette nach dem ersten Klick selbst leer
+   * und Multi-Select ist im UI unmoeglich (Befund 2026-07-13). `filter`
+   * enthaelt dann nur noch die facetten-unabhaengigen Bedingungen
+   * (Typ-Filter, Publikation, Suche).
+   */
+  facetSelections: Record<string, unknown> = {}
 ): Promise<Record<string, Array<{ value: string; count: number }>>> {
   // PERFORMANCE: Nutze direkt getCollection statt getVectorCollection, um Overhead (Dimension-Check, Index-Check) zu vermeiden
   const col = await getCollection<Document>(libraryKey)
-  
+
   const match: Record<string, unknown> = {
     kind: 'meta', // Nur Meta-Dokumente!
     libraryId,
     ...filter,
   }
-  
+
+  const selectionKeys = Object.keys(facetSelections)
   const facetStages: Record<string, Document[]> = {}
-  
+
   for (const d of defs) {
     const key = d.metaKey
     if (!key) continue
-    
+
     const arr: Document[] = []
-    
+
+    // Disjunctive faceting: alle Facetten-Auswahlen AUSSER der eigenen —
+    // so bleiben die weiteren Werte der eigenen Gruppe anklickbar (Multi).
+    const others: Record<string, unknown> = {}
+    for (const sk of selectionKeys) {
+      if (sk !== key) others[sk] = facetSelections[sk]
+    }
+    if (Object.keys(others).length > 0) arr.push({ $match: others })
+
     // Suche sowohl auf Top-Level als auch in docMetaJson
     // Verwende $ifNull um den ersten vorhandenen Wert zu nehmen
     const topLevelField = `$${key}`
     const docMetaField = `$docMetaJson.${key}`
-    
+
     // Projektiere ein virtuelles Feld, das den Wert von Top-Level oder docMetaJson nimmt
-    arr.push({ 
-      $addFields: { 
-        [`__facet_${key}`]: { $ifNull: [topLevelField, docMetaField] } 
-      } 
+    arr.push({
+      $addFields: {
+        [`__facet_${key}`]: { $ifNull: [topLevelField, docMetaField] }
+      }
     })
-    
+
     // Null/fehlende ausschließen (auf dem virtuellen Feld)
     arr.push({ $match: { [`__facet_${key}`]: { $exists: true, $ne: null } } })
-    
+
     if (d.type === 'string[]') {
       arr.push({ $unwind: `$__facet_${key}` })
     }
-    
+
     arr.push({ $group: { _id: `$__facet_${key}`, count: { $sum: 1 } } })
     arr.push({ $sort: { _id: 1 } })
-    
+
     facetStages[key] = arr
   }
-  
+
   const pipeline: Document[] = [
     { $match: match },
+    // PERFORMANCE: Embedding (43KB/Doc) nicht durch die $facet-Stage schleppen
+    // (gleiche RAM-Falle wie in findDocs, Befund 2026-07-09).
+    { $project: { embedding: 0 } },
     { $facet: facetStages },
   ]
   
