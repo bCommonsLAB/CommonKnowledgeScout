@@ -47,4 +47,4 @@ next-env.d.ts
 template-samples/diva sample content/*
 
 # Windows junction: .cursor/skills/ → .claude/skills/ (lokal pro Maschine)
-.cursor/skills
+.cursor/skillsbackups/
