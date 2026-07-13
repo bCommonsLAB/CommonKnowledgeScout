@@ -48,3 +48,6 @@ template-samples/diva sample content/*
 
 # Windows junction: .cursor/skills/ → .claude/skills/ (lokal pro Maschine)
 .cursor/skills
+
+# Reparatur-/Migrations-Backups (enthalten Prod-Daten, nie committen)
+backups/
