@@ -21,8 +21,28 @@ describe('builtin-creation-templates', () => {
     expect(t?.creation?.welcome?.markdown).toContain('Diktat')
   })
 
+  it('liefert website-de mit URL-Quelle, website-Renderer und Sektions-Body', () => {
+    const t = getBuiltinCreationTemplate('website-de', 'lib-x', 'u@test')
+    expect(t).not.toBeNull()
+    expect(t?.name).toBe('website-de')
+    expect(t?.metadata.detailViewType).toBe('website')
+    const sourceTypes = t?.creation?.supportedSources?.map((s) => s.type) ?? []
+    expect(sourceTypes).toContain('url')
+    const presets = t?.creation?.flow.steps.map((s) => s.preset) ?? []
+    expect(presets).toEqual(['welcome', 'collectSource', 'generateDraft', 'editDraft', 'previewDetail', 'publish'])
+    expect(t?.creation?.preview?.detailViewType).toBe('website')
+    const fieldKeys = t?.metadata.fields?.map((f) => f.key) ?? []
+    expect(fieldKeys).toContain('title')
+    expect(fieldKeys).toContain('hero_subtitle')
+    expect(t?.creation?.output?.wizardOnlyMetadataKeys).toContain('filename')
+    // System-Prompt steuert das Body-Feld + die Sektions-Konvention
+    expect(t?.systemprompt).toContain('website_body')
+    expect(t?.systemprompt).toContain('Sektions-Mark')
+  })
+
   it('isBuiltinCreationTemplateName', () => {
     expect(isBuiltinCreationTemplateName('audio-transcript-de')).toBe(true)
+    expect(isBuiltinCreationTemplateName('website-de')).toBe(true)
     expect(isBuiltinCreationTemplateName('unknown')).toBe(false)
   })
 

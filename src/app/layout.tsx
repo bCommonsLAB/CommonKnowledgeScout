@@ -36,6 +36,7 @@ import { LocaleGate } from '@/components/providers/locale-gate'
 import { QueryProvider } from '@/components/providers/query-provider'
 import { AppLayout } from "@/components/layouts/app-layout"
 import { HomeLayout } from "@/components/layouts/home-layout"
+import { getRootLandingTargetForHost } from "@/lib/root-landing"
 import { ConditionalFooter } from "@/components/home/conditional-footer"
 import { AutoAcceptInvites } from "@/components/auth/auto-accept-invites"
 import { headers, cookies } from 'next/headers'
@@ -114,6 +115,14 @@ export default async function RootLayout({
     );
   }
 
+  // E7 + Variante B: Slug der Root-Landingpage (oder null) fuer den aktuellen
+  // Host. Nur im Runtime-Zweig gelesen, damit der Build-Zweig keinen DB-Zugriff
+  // ausloest. AppLayout blendet damit die Shell auf `/` serverseitig aus (kein
+  // TopNav-Flash). Host-abhaengig, damit eine gemappte Domain (z.B.
+  // oldiesforfuture.org) shell-frei rendert, knowledgescout.org aber unveraendert bleibt.
+  const rootLandingHost = headersList.get('x-forwarded-host') ?? headersList.get('host')
+  const rootLandingSlug = (await getRootLandingTargetForHost(rootLandingHost))?.slug ?? null
+
   return (
     <ClerkWrapper>
       <html lang={serverLocale} suppressHydrationWarning>
@@ -132,7 +141,7 @@ export default async function RootLayout({
                     <TooltipProvider>
                       <div className="relative min-h-screen flex flex-col">
                         <NuqsAdapter>
-                          <AppLayout>
+                          <AppLayout rootLandingSlug={rootLandingSlug}>
                             {children}
                           </AppLayout>
                         </NuqsAdapter>

@@ -82,6 +82,8 @@ export interface DocCardMeta {
    * Einzige Quelle der Wahrheit für Anzeige + Sortierung (keine Laufzeitformel).
    */
   prioritaets_index?: number
+  /** website (E6): Position im dynamischen Landingpage-Menue (kleiner = weiter vorne). */
+  menu_order?: number
   /**
    * Roh-Rating (= co2 * durchsetzbarkeit / kosten), vom Server berechnet.
    * `null`/undefined = "Kosten unbekannt" oder zu wenig Daten (kein Silent
@@ -289,6 +291,7 @@ export function mapItemToDocCardMeta(item: Item): DocCardMeta {
     bewertung_modell: typeof item.meta.bewertung_modell === 'string' ? item.meta.bewertung_modell : undefined,
     bewertung_stand: typeof item.meta.bewertung_stand === 'string' ? item.meta.bewertung_stand : undefined,
     prioritaets_index: typeof item.meta.prioritaets_index === 'number' ? item.meta.prioritaets_index : undefined,
+    menu_order: typeof item.meta.menu_order === 'number' ? item.meta.menu_order : undefined,
     // Session/Event-spezifische Felder
     organisation: item.meta.organisation as string | undefined,
     tags: Array.isArray(item.meta.tags) ? item.meta.tags as string[] : undefined,

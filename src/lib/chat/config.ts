@@ -125,7 +125,7 @@ export const chatConfigSchema = z.object({
   tocSummaryField: z.enum(['summary', 'teaser']).optional(),
   gallery: z.object({
     // Typ der Detailansicht: 'book' für klassische Dokumente, 'session' für Event-Sessions, 'climateAction' für Klimamaßnahmen, 'refurbedDevice' für gebrauchte PCs/Notebooks etc.
-    detailViewType: z.enum(['book', 'session', 'climateAction', 'testimonial', 'blog', 'divaDocument', 'divaTexture', 'refurbedDevice']).default('book'),
+    detailViewType: z.enum(['book', 'session', 'climateAction', 'testimonial', 'blog', 'divaDocument', 'divaTexture', 'refurbedDevice', 'website']).default('book'),
     facets: z.array(z.object({
       metaKey: z.string().min(1), // Top‑Level Feld in docMetaJson (gleichzeitig Query-Param-Name)
       label: z.string().min(1).optional(),

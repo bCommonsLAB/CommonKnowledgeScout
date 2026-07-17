@@ -42,7 +42,6 @@ export async function GET() {
     // Nur sichere Daten zurückgeben (ohne API-Keys, Secrets, etc.)
     const safeLibraries = homepageLibraries.map(lib => {
       const pub = lib.config?.publicPublishing
-      const sitePublished = pub?.sitePublished === true
       return {
         id: lib.id,
         label: pub?.publicName || lib.label,
@@ -51,10 +50,6 @@ export async function GET() {
         icon: pub?.icon,
         backgroundImageUrl: pub?.backgroundImageUrl,
         requiresAuth: pub?.requiresAuth === true,
-        sitePublished,
-        siteVersion: sitePublished ? pub?.siteVersion : undefined,
-        sitePublishedAt: sitePublished ? pub?.sitePublishedAt : undefined,
-        siteUrl: sitePublished ? pub?.siteUrl : undefined,
         chat: lib.config?.chat,
       }
     });

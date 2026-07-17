@@ -11,6 +11,12 @@ import { jobMonitorPanelOpenAtom } from "@/atoms/job-monitor-panel-open-atom"
 
 interface AppLayoutProps {
   children: React.ReactNode
+  /**
+   * E7: Slug der designierten Root-Library (vom RootLayout serverseitig gesetzt).
+   * Auf `/` mit gesetztem Slug wird die App-Shell ausgeblendet (shell-freie
+   * oeffentliche Landingpage) — serverseitig entschieden, daher kein Flash.
+   */
+  rootLandingSlug?: string | null
 }
 
 /**
@@ -28,8 +34,11 @@ interface AppLayoutProps {
  * - Wenn der Job-Monitor (`Secretary Jobs`) geöffnet ist, kollabiert das Top-Padding ebenfalls,
  *   damit der feste Drawer nicht unter der TopNav (z-50) verschwindet — siehe `jobMonitorPanelOpenAtom`.
  */
-export function AppLayout({ children }: AppLayoutProps) {
+export function AppLayout({ children, rootLandingSlug = null }: AppLayoutProps) {
   const pathname = usePathname()
+  // E7: Shell-frei auf der Root-Landingpage (`/` mit konfigurierter Root-Library).
+  // Serverseitig + Client konsistent (kein Flash). Early-Return erst NACH allen Hooks.
+  const hideAppChrome = pathname === '/' && Boolean(rootLandingSlug)
 
   // Homepage, Docs, Info-Seiten und bestimmte Tools bekommen scrollbares Layout.
   // Hinweis: `/explore/*` ist BEWUSST kein scrollbares Layout, obwohl die URL danach klingt.
@@ -55,6 +64,11 @@ export function AppLayout({ children }: AppLayoutProps) {
     "transition-[padding-top] duration-300 ease-in-out",
     reserveTopNavSpace ? "pt-16" : "pt-0"
   )
+
+  // E7: Shell-frei (keine TopNav / kein Secretary-Jobs-Panel) — nach allen Hooks.
+  if (hideAppChrome) {
+    return <>{children}</>
+  }
 
   if (isScrollablePage) {
     // Wichtig: KEIN inneres `overflow-y-auto`, sonst scrollt nicht das Window, sondern dieser

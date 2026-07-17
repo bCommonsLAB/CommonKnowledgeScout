@@ -23,4 +23,9 @@ describe('isSafeVideoIframeSrc', () => {
     expect(isSafeVideoIframeSrc('https://cdn.example.com/clips/x.mp4')).toBe(true)
     expect(isSafeVideoIframeSrc('https://cdn.example.com/x.webm?token=1')).toBe(true)
   })
+
+  it('accepts PeerTube embed URLs (instance-independent)', () => {
+    expect(isSafeVideoIframeSrc('https://peertube.uno/videos/embed/aCkAAGUmJPd8XujxU7gZJq')).toBe(true)
+    expect(isSafeVideoIframeSrc('https://video.example.org/videos/embed/abc123')).toBe(true)
+  })
 })

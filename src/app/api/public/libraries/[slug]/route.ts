@@ -47,9 +47,8 @@ export async function GET(
     }
 
     const pub = library.config?.publicPublishing
-    const sitePublished = pub?.sitePublished === true
 
-    // Nur sichere Daten zurückgeben. Live-Startseiten-URL nur bei explizitem Publish (kein stiller Fallback).
+    // Nur sichere Daten zurückgeben.
     const safeLibrary = {
       id: library.id,
       label: pub?.publicName || library.label,
@@ -58,10 +57,6 @@ export async function GET(
       icon: pub?.icon,
       requiresAuth: pub?.requiresAuth === true,
       siteEnabled: pub?.siteEnabled === true,
-      sitePublished,
-      siteVersion: sitePublished ? pub?.siteVersion : undefined,
-      sitePublishedAt: sitePublished ? pub?.sitePublishedAt : undefined,
-      siteUrl: sitePublished ? pub?.siteUrl : undefined,
       // Chat-Config ist bereits öffentlich sicher (keine Secrets)
       chat: library.config?.chat,
     };

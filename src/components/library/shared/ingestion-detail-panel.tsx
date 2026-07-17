@@ -9,6 +9,7 @@ import { IngestionClimateActionDetail } from "@/components/library/ingestion-cli
 import { IngestionDivaDocumentDetail } from "@/components/library/ingestion-diva-document-detail"
 import { IngestionDivaTextureDetail } from "@/components/library/ingestion-diva-texture-detail"
 import { IngestionRefurbedDeviceDetail } from "@/components/library/ingestion-refurbed-device-detail"
+import { IngestionWebsiteDetail } from "@/components/library/ingestion-website-detail"
 import { librariesAtom } from "@/atoms/library-atom"
 import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom"
 import { getDetailViewType } from "@/lib/templates/detail-view-type-utils"
@@ -100,6 +101,10 @@ export function IngestionDetailPanel({ libraryId, fileId }: IngestionDetailPanel
 
   if (viewType === "refurbedDevice") {
     return <IngestionRefurbedDeviceDetail libraryId={libraryId} fileId={fileId} />
+  }
+
+  if (viewType === "website") {
+    return <IngestionWebsiteDetail libraryId={libraryId} fileId={fileId} />
   }
 
   return <IngestionBookDetail libraryId={libraryId} fileId={fileId} />

@@ -37,6 +37,12 @@ export function useGalleryData(
      */
     sortByRating?: boolean
     /**
+     * Schliesst einen `detailViewType` serverseitig aus der Liste aus (z.B.
+     * `website` in der oeffentlichen Slug-Galerie). Wirkt auf Liste, Gruppierung
+     * UND Zaehlung, weil serverseitig gefiltert wird.
+     */
+    excludeDetailViewType?: string
+    /**
      * Globale Spalten-Sortierung der Tabellenansicht: sendet
      * `?sortField=<key>&sortDir=<dir>` und erzwingt die FLACHE Liste
      * (Gruppierung aus — Spaltenkopf-Sort = EINE Rangliste ueber alles).
@@ -50,6 +56,7 @@ export function useGalleryData(
   const skipApiCall = options?.skipApiCall ?? false
   const sortByStars = options?.sortByStars ?? false
   const sortByRating = options?.sortByRating ?? false
+  const excludeDetailViewType = options?.excludeDetailViewType
   const sortByColumn = options?.sortByColumn ?? null
   // Stabiler Dependency-Schluessel (unabhaengig von der Objekt-Identitaet des Callers)
   const sortByColumnKey = sortByColumn ? `${sortByColumn.field}:${sortByColumn.dir}` : ''
@@ -87,7 +94,7 @@ export function useGalleryData(
     setGroups([])
     setTotalGroups(0)
     setIsLoadingMore(false)
-  }, [libraryId, filtersString, mode, searchQuery, skipApiCall, options?.refreshKey, groupByFieldOpt, sortByStars, sortByRating, sortByColumnKey])
+  }, [libraryId, filtersString, mode, searchQuery, skipApiCall, options?.refreshKey, groupByFieldOpt, sortByStars, sortByRating, excludeDetailViewType, sortByColumnKey])
   
   useEffect(() => {
     // Überspringe API-Aufruf wenn skipApiCall true ist
@@ -139,6 +146,9 @@ export function useGalleryData(
         } else if (sortByRating) {
           // Globale Rating-Sortierung im Server (rating desc, null ans Ende).
           params.append('sort', 'rating')
+        }
+        if (excludeDetailViewType) {
+          params.append('excludeDetailViewType', excludeDetailViewType)
         }
 
         const url = `/api/chat/${encodeURIComponent(libraryId)}/docs${params.toString() ? `?${params.toString()}` : ''}`
@@ -219,7 +229,7 @@ export function useGalleryData(
     load()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [libraryId, page, JSON.stringify(filters), mode, searchQuery, skipApiCall, options?.refreshKey, useGroupedApi, groupByFieldOpt, sortByStars, sortByRating, sortByColumnKey])
+  }, [libraryId, page, JSON.stringify(filters), mode, searchQuery, skipApiCall, options?.refreshKey, useGroupedApi, groupByFieldOpt, sortByStars, sortByRating, excludeDetailViewType, sortByColumnKey])
 
 
   const loadMore = () => {

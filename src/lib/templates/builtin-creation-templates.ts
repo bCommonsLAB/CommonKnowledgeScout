@@ -13,7 +13,7 @@ import { buildStandardCaptureFlowDoc } from '@/lib/creation/flow-seed'
 import { STANDARD_CAPTURE_FLOW_ID } from '@/lib/creation/wizard-flow-entity'
 
 /** Bekannte Built-in-Template-Namen (gleichzeitig API-/Wizard-`templateId`) */
-export const BUILTIN_CREATION_TEMPLATE_NAMES = ['audio-transcript-de', 'file-transcript-de'] as const
+export const BUILTIN_CREATION_TEMPLATE_NAMES = ['audio-transcript-de', 'file-transcript-de', 'website-de'] as const
 
 export type BuiltinCreationTemplateName = (typeof BUILTIN_CREATION_TEMPLATE_NAMES)[number]
 
@@ -163,6 +163,115 @@ Antwortschema (JSON):
 { "title": "string", "summary": "string", "sourceType": "string" }
 `.trim()
 
+const WEBSITE_DE_MD = `
+---
+docType: website
+detailViewType: website
+language: de
+targetLanguage: de
+title: {{title|Titel der Webseite (prägnant, max. 70 Zeichen)}}
+hero_subtitle: {{hero_subtitle|Untertitel / Claim für den Hero-Bereich (1 Satz)}}
+hero_image: {{hero_image|URL des prominentesten Bilds (Hero). Absolute URL von der Seite, sonst leer.}}
+video_url: {{video_url|Embed-URL eines Videos (PeerTube/YouTube/Vimeo), falls vorhanden, sonst leer.}}
+cta_label: {{cta_label|Beschriftung des wichtigsten Handlungsaufrufs (z.B. "Jetzt mitmachen"), sonst leer.}}
+cta_url: {{cta_url|Ziel-URL des Handlungsaufrufs (absolute URL), sonst leer.}}
+tags: {{tags|Themen-Tags als Array (z.B. ["klima", "engagement"])}}
+slug: {{slug|Kurz-Slug für URLs (optional)}}
+filename: {{filename|Dateiname ohne .md (nur Wizard)}}
+creation:
+  preview:
+    detailViewType: website
+  supportedSources:
+    - id: url
+      type: url
+      label: "Webseite importieren"
+      helpText: "Füge einen Link ein. Wir lesen Titel, Untertitel, Bilder und Inhalt aus und strukturieren sie als Landingpage."
+    - id: text
+      type: text
+      label: "Text einfügen"
+      helpText: "Alternativ den Inhalt direkt einfügen."
+  welcome:
+    markdown: |
+      ## Webseite als Beitrag
+
+      Importiere eine bestehende Webseite: Link einfügen, wir strukturieren sie als
+      Landingpage — Hero, Inhalts-Sektionen, Video und Handlungsaufruf.
+
+      - Automatische Extraktion von Titel, Untertitel und Hero-Bild
+      - Inhalt wird in Sektionen gegliedert (Markdown)
+      - Du kannst alles vor dem Speichern anpassen
+  output:
+    fileName:
+      metadataFieldKey: title
+      autoFillMetadataField: true
+      extension: md
+      fallbackPrefix: "webseite"
+    createInOwnFolder: false
+    wizardOnlyMetadataKeys:
+      - filename
+  flow:
+    steps:
+      - id: Welcome
+        preset: welcome
+        title: "Willkommen"
+      - id: CollectSource
+        preset: collectSource
+        title: "Webseite-Link"
+      - id: Generate
+        preset: generateDraft
+        title: "Webseite strukturieren"
+      - id: Details
+        preset: editDraft
+        title: "Inhalt prüfen"
+        fields:
+          - title
+          - hero_subtitle
+          - hero_image
+          - video_url
+          - cta_label
+          - cta_url
+          - tags
+      - id: Preview
+        preset: previewDetail
+        title: "Vorschau"
+      - id: Publish
+        preset: publish
+        title: "Speichern"
+        description: "Die Webseite wird als Beitrag gespeichert und muss noch publiziert werden."
+        ingestOnFinish: false
+  ui:
+    displayName: "Webseite importieren"
+    description: "Eine bestehende Webseite als Landingpage-Beitrag erfassen"
+    icon: "Globe"
+---
+
+{{website_body|Gib den Hauptinhalt der Seite als Markdown aus, OHNE den Hero (Titel, Untertitel, Hero-Bild) zu wiederholen. Gliedere den Inhalt in Sektionen mit HTML-Kommentar-Markern im Format <!-- section layout=image-right bg=light --> ... <!-- /section -->. Jede Sektion: eine H2-Überschrift, optional ein Bild ![alt](url) und Absätze. Erlaubte layout-Werte: image-left, image-right, full-image, text-only. Erlaubte bg-Werte: default, light, dark, brand. Wechsle Bild-Positionen sinnvoll ab; Zitate als Blockquote in einer text-only-Sektion. Verwende nur Bild-URLs, die auf der Seite vorkommen. Erfinde nichts.}}
+
+--- systemprompt
+Rolle:
+- Du strukturierst eine bestehende Webseite zu einer Landingpage: flache Hero-/Meta-Felder + ein gegliederter Markdown-Body.
+
+Anweisung:
+- Extrahiere die Hero-/Meta-Felder (title, hero_subtitle, hero_image, video_url, cta_label, cta_url, tags) aus dem Seiteninhalt.
+- hero_image, video_url, cta_url, cta_label: nur ausfüllen, wenn klar erkennbar, sonst leer ("").
+- website_body: der Hauptinhalt als Markdown, gegliedert mit Sektions-Markern (siehe Body-Anweisung). Den Hero NICHT wiederholen.
+- Verwende ausschließlich Inhalte und Bild-URLs, die in den Quellen vorkommen. Keine Halluzinationen, keine erfundenen Zitate oder Zahlen.
+- Antworte ausschließlich mit einem gültigen JSON-Objekt.
+
+Antwortschema (MUSS exakt ein JSON-Objekt sein):
+{
+  "title": "string",
+  "hero_subtitle": "string",
+  "hero_image": "string (URL oder leer)",
+  "video_url": "string (URL oder leer)",
+  "cta_label": "string",
+  "cta_url": "string (URL oder leer)",
+  "tags": "string[]",
+  "slug": "string",
+  "website_body": "string (Markdown mit Sektions-Markern)"
+}
+`.trim()
+
 function parsedToDocument(
   name: string,
   parsed: ReturnType<typeof parseTemplate>['template'],
@@ -201,6 +310,10 @@ export function getBuiltinCreationTemplate(
   if (name === 'file-transcript-de') {
     const { template } = parseTemplate(FILE_TRANSCRIPT_DE_MD, 'file-transcript-de')
     return parsedToDocument('file-transcript-de', template, libraryId, userEmail)
+  }
+  if (name === 'website-de') {
+    const { template } = parseTemplate(WEBSITE_DE_MD, 'website-de')
+    return parsedToDocument('website-de', template, libraryId, userEmail)
   }
   // W-D: Der generische Standard-Flow wird aus dem Code geliefert (Code-Fallback,
   // kein Mongo-Seed noetig). Ein per W-A-2 geseedeter, editierbarer Flow gewinnt,

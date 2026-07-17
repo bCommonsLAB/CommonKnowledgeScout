@@ -5,18 +5,28 @@ import { useEffect, useRef } from 'react'
 
 export type GalleryMode = 'site' | 'gallery' | 'story'
 
-export function useGalleryMode() {
+/**
+ * @param defaultMode Ansicht, wenn kein expliziter `view`/`mode`-Query-Parameter
+ *   gesetzt ist. Fuer Libraries mit eigener Website (`siteEnabled`) uebergibt die
+ *   Explore-Seite `'site'`, damit der Slug direkt die Landingpage zeigt statt der Galerie.
+ */
+export function useGalleryMode(defaultMode: GalleryMode = 'gallery') {
   const router = useRouter()
   const searchParams = useSearchParams()
   const pathname = usePathname()
   const modeParam = searchParams?.get('mode')
   const viewParam = searchParams?.get('view')
+  // `view=gallery` ist explizit noetig, damit man aus einem Site-Default heraus
+  // in die Galerie wechseln und dort bleiben kann (sonst wuerde die leere URL
+  // wieder auf den Site-Default zurueckfallen).
   const mode = (
     viewParam === 'site'
       ? 'site'
-      : modeParam === 'story'
-        ? 'story'
-        : 'gallery'
+      : viewParam === 'gallery'
+        ? 'gallery'
+        : modeParam === 'story'
+          ? 'story'
+          : defaultMode
   ) as GalleryMode
 
   const containerRef = useRef<HTMLDivElement>(null)
@@ -63,10 +73,13 @@ export function useGalleryMode() {
     
     // Startseite, Inhalte und Story teilen sich dieselbe Gallery-Ansicht.
     // Wir räumen die konkurrierenden Query-Parameter jeweils weg, damit die URL eindeutig bleibt.
+    // Ist der Ziel-Modus zugleich der Default, wird der `view`-Parameter entfernt (saubere URL);
+    // sonst explizit gesetzt (auch `view=gallery`, wenn der Default `site` ist).
     if (newMode === 'site') {
       params.delete('doc')
       params.delete('mode')
-      params.set('view', 'site')
+      if (defaultMode === 'site') params.delete('view')
+      else params.set('view', 'site')
       console.log('[useGalleryMode] ✅ Site-Mode gesetzt')
     } else if (newMode === 'story') {
       const hadDoc = params.has('doc')
@@ -79,8 +92,9 @@ export function useGalleryMode() {
         paramsNachher: params.toString(),
       })
     } else {
-      params.delete('view')
       params.delete('mode')
+      if (defaultMode === 'gallery') params.delete('view')
+      else params.set('view', 'gallery')
       console.log('[useGalleryMode] ✅ Gallery-Mode gesetzt')
     }
     

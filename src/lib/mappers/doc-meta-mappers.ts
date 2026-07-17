@@ -10,6 +10,7 @@ import type { ClimateActionDetailData } from '@/components/library/climate-actio
 import type { DivaDocumentDetailData } from '@/components/library/diva-document-detail'
 import type { DivaTextureDetailData } from '@/components/library/diva-texture-detail'
 import type { RefurbedDeviceDetailData } from '@/components/library/refurbed-device-detail'
+import type { WebsiteDetailData } from '@/components/library/website-detail'
 import { extractSdgValues, extractSdgBegruendung } from '@/lib/gallery/sdg-meta'
 
 /**
@@ -310,6 +311,36 @@ export function mapToTestimonialDetail(input: unknown): TestimonialDetailData {
   };
 
   return data;
+}
+
+/**
+ * Mapper: API-Response → WebsiteDetailData
+ * Extrahiert Hero-/CTA-Felder und den Markdown-Body fuer detailViewType `website`.
+ */
+export function mapToWebsiteDetail(input: unknown): WebsiteDetailData {
+  const root = (input && typeof input === 'object') ? input as Record<string, unknown> : {};
+  const docMetaJson = (root.docMetaJson && typeof root.docMetaJson === 'object')
+    ? root.docMetaJson as Record<string, unknown>
+    : {};
+
+  const toStr = (v: unknown): string | undefined => {
+    if (typeof v === 'string' && v.trim().length > 0) return v.trim();
+    return undefined;
+  };
+
+  return {
+    title: toStr(docMetaJson.title) || '—',
+    heroSubtitle: toStr(docMetaJson.hero_subtitle),
+    heroImageUrl: toStr(docMetaJson.hero_image) || toStr(docMetaJson.coverImageUrl),
+    heroImageAlt: toStr(docMetaJson.hero_image_alt),
+    videoUrl: toStr(docMetaJson.video_url),
+    ctaLabel: toStr(docMetaJson.cta_label),
+    ctaUrl: toStr(docMetaJson.cta_url),
+    markdown: toStr(docMetaJson.markdown),
+    fileId: toStr(root.fileId),
+    fileName: toStr(root.fileName),
+    upsertedAt: toStr(root.upsertedAt),
+  };
 }
 
 /**

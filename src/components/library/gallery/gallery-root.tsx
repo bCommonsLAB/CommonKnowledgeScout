@@ -61,17 +61,22 @@ import {
 } from './gallery-root/helpers'
 import { useIsMobile } from './gallery-root/hooks/use-is-mobile'
 import { useCardDensity } from './gallery-root/hooks/use-card-density'
+import { WebsiteLandingLive } from '@/components/library/website/website-landing-live'
 
 export interface GalleryRootProps {
   libraryIdProp?: string
   /** Wenn true, werden die Tabs nicht gerendert (z.B. wenn sie bereits im Header sind) */
   hideTabs?: boolean
-  /** Optionale Startseiten-Vorschau (Draft oder veröffentlichte Live-Site) */
-  siteViewSrc?: string | null
-  /** Steuert, ob der Tab "Startseite" angeboten wird */
+  /** Steuert, ob der Tab "Startseite" (Website-Landingpage) angeboten wird */
   showSiteTab?: boolean
-  /** Sandbox für die eingebettete Startseite */
-  siteSandbox?: string
+  /** Wenn true, ist die Website-Landingpage die Standard-Ansicht (statt der Galerie). */
+  defaultToSite?: boolean
+  /**
+   * Wenn true, werden `website`-Docs aus der Galerie-Liste (und Zaehlung)
+   * ausgeblendet. Website-Docs sind strukturell fuer die Landingpage/das Menue —
+   * in der oeffentlichen Slug-Ansicht kein Galerie-Inhalt.
+   */
+  hideWebsiteDocs?: boolean
 }
 
 const LazyChatPanel = dynamic(
@@ -94,9 +99,9 @@ const LazyDocGraph = dynamic(
 export function GalleryRoot({
   libraryIdProp,
   hideTabs = false,
-  siteViewSrc = null,
   showSiteTab = false,
-  siteSandbox = "allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox",
+  defaultToSite = false,
+  hideWebsiteDocs = false,
 }: GalleryRootProps) {
   const { t } = useTranslation()
   const libraryIdFromAtom = useAtomValue(activeLibraryIdAtom)
@@ -178,8 +183,10 @@ export function GalleryRoot({
   )
 
   // Hooks
-  const { mode, setMode, containerRef } = useGalleryMode()
-  const hasSiteView = showSiteTab && typeof siteViewSrc === 'string' && siteViewSrc.length > 0
+  const { mode, setMode, containerRef } = useGalleryMode(defaultToSite ? 'site' : 'gallery')
+  // Die Website-Landingpage (WebsiteLandingLive) speist sich aus Live-Docs — sie
+  // braucht keinen iframe-`siteViewSrc` mehr. Der Tab erscheint, sobald er erlaubt ist.
+  const hasSiteView = showSiteTab
 
   // Kein stiller Fallback: Wenn kein Site-Tab erlaubt ist, aber ?view=site in der URL steht,
   // springen wir explizit zurück auf Inhalte.
@@ -286,6 +293,7 @@ export function GalleryRoot({
     groupByField,
     sortByStars: sortByStarsActive,
     sortByRating: sortByRatingActive,
+    excludeDetailViewType: hideWebsiteDocs ? 'website' : undefined,
     sortByColumn: tableSortForApi,
   })
   const { isOwner } = useIsLibraryOwner(libraryId)
@@ -1056,12 +1064,13 @@ export function GalleryRoot({
       <Tabs value={mode} className="flex-1 min-h-0 flex flex-col">
         {mode === 'site' && hasSiteView && (
         <TabsContent value="site" className="flex-1 min-h-0 m-0 mt-0 flex flex-col overflow-hidden data-[state=active]:flex">
-          <iframe
-            title={t('explore.homepageFrameTitle')}
-            src={siteViewSrc}
-            className="h-full w-full min-h-[50vh] rounded-md border bg-background"
-            sandbox={siteSandbox}
-          />
+          {/* Phase 3 (E4/E7): Statt des alten web/-Snapshot-iframes rendert die
+             „Startseite" jetzt die produktive website-Landingpage aus Live-Daten. */}
+          {libraryId ? (
+            <WebsiteLandingLive libraryId={libraryId} onShowGallery={() => setMode('gallery')} />
+          ) : (
+            <div className="p-6 text-sm text-muted-foreground">{t('gallery.loading')}</div>
+          )}
         </TabsContent>
         )}
 

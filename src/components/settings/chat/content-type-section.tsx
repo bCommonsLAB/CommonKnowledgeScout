@@ -68,6 +68,11 @@ export const SPECIAL_CONTENT_TYPES = [
     title: 'Refurbished-Geräte',
     description: 'Geräte-Katalog mit technischen Daten.',
   },
+  {
+    value: 'website' as const,
+    title: 'Webseiten / Landingpages',
+    description: 'Seiten mit Hero, Inhalts-Sektionen und Aufruf zur Handlung.',
+  },
 ]
 
 const SPECIAL_VALUES: string[] = SPECIAL_CONTENT_TYPES.map(o => o.value)

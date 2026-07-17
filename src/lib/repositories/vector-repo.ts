@@ -1097,6 +1097,8 @@ function buildGalleryProjection(
     'docMetaJson.bewertung_modell': 1,
     'docMetaJson.bewertung_stand': 1,
     'docMetaJson.prioritaets_index': 1,
+    // website (E6): Menue-Reihenfolge fuer das dynamische Landingpage-Menue.
+    'docMetaJson.menu_order': 1,
     'docMetaJson.organisation': 1,
     'docMetaJson.topics': 1,
     'docMetaJson.tags': 1,

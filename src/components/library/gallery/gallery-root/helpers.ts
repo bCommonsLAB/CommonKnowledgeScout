@@ -25,6 +25,7 @@ export const VALID_DETAIL_VIEW_TYPES: TemplatePreviewDetailViewType[] = [
   'divaDocument',
   'divaTexture',
   'refurbedDevice',
+  'website',
 ]
 
 /**
