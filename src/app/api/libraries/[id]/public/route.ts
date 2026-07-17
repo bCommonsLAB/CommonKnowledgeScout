@@ -155,13 +155,9 @@ export async function PUT(
             description: gallery.description !== undefined ? gallery.description : prevPub?.gallery?.description,
             filterDescription: gallery.filterDescription !== undefined ? gallery.filterDescription : prevPub?.gallery?.filterDescription,
           } : prevPub?.gallery,
-          // Startseiten-Tab bewusst ein-/ausblenden. Fehlend => false, damit keine Library
-          // ungefragt eine Webansicht bekommt.
+          // Website-Landingpage am Slug bewusst ein-/ausblenden. Fehlend => false,
+          // damit keine Library ungefragt eine Webansicht bekommt.
           siteEnabled: siteEnabled === true,
-          sitePublished: prevPub?.sitePublished,
-          siteUrl: prevPub?.siteUrl,
-          siteVersion: prevPub?.siteVersion,
-          sitePublishedAt: prevPub?.sitePublishedAt,
         },
       },
     };

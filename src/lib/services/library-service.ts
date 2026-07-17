@@ -525,10 +525,6 @@ export class LibraryService {
             ? this.maskApiKey(lib.config.publicPublishing.apiKey)
             : undefined,
           siteEnabled: lib.config.publicPublishing.siteEnabled === true,
-          sitePublished: lib.config.publicPublishing.sitePublished,
-          siteUrl: lib.config.publicPublishing.siteUrl,
-          siteVersion: lib.config.publicPublishing.siteVersion,
-          sitePublishedAt: lib.config.publicPublishing.sitePublishedAt,
         } : undefined
       } as Record<string, unknown>;
       

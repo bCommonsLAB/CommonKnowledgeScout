@@ -120,6 +120,24 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
       filter.$and = [...existing, scope.typeFilter]
     }
 
+    // Exclude-Filter: schliesst einen detailViewType aus der Liste aus (z.B.
+    // `website` in der oeffentlichen Slug-Galerie — Website-Docs sind
+    // strukturell fuer die Landingpage/das Menue, kein Galerie-Inhalt).
+    // Prueft beide Ablagen (Top-Level + docMetaJson), da der Typ in beiden liegen kann.
+    const excludeTypeRaw = url.searchParams.get('excludeDetailViewType')
+    const excludeType = excludeTypeRaw && excludeTypeRaw.trim() ? excludeTypeRaw.trim() : null
+    if (excludeType) {
+      if (!isValidDetailViewType(excludeType)) {
+        return NextResponse.json({ error: `Unbekannter detailViewType „${excludeType}".` }, { status: 400 })
+      }
+      const existing = Array.isArray(filter.$and) ? filter.$and : []
+      filter.$and = [
+        ...existing,
+        { detailViewType: { $ne: excludeType } },
+        { 'docMetaJson.detailViewType': { $ne: excludeType } },
+      ]
+    }
+
     // Prüfe, ob Image-URLs mitgeladen werden sollen (für Kompatibilität)
     const includeImageUrls = url.searchParams.get('includeImageUrls') === 'true'
     

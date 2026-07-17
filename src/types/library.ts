@@ -474,18 +474,12 @@ export interface StorageConfig {
       topicsIntro?: string;
     };
     /**
-     * Veröffentlichte Startseite (Snapshot in Azure, anonym über Slug erreichbar).
-     * Draft bleibt im Library-Storage unter `web/` bis explizit publiziert.
+     * Website-Landingpage am Slug: Wenn `true`, zeigt `/explore/<slug>` die aus
+     * Live-Dokumenten (`detailViewType: website`, Menue nach `menu_order`)
+     * gerenderte Landingpage statt der Galerie. Ersetzt das fruehere
+     * `web/`-Snapshot-Publishing (kein Azure-Snapshot mehr).
      */
     siteEnabled?: boolean;
-    /** Veröffentlichte Startseite (Snapshot in Azure, anonym über Slug erreichbar). */
-    sitePublished?: boolean;
-    /** Öffentliche URL der `index.html` (Azure Blob) */
-    siteUrl?: string;
-    /** Monoton steigende Version bei Neu-Veröffentlichung */
-    siteVersion?: number;
-    /** ISO-Zeitpunkt der letzten Veröffentlichung */
-    sitePublishedAt?: string;
   };
 }
 
@@ -651,12 +645,8 @@ export interface ClientLibrary {
         /** Erklärungstext zur Themenübersicht */
         topicsIntro?: string;
       };
-      /** Veröffentlichte Startseite (Azure), siehe serverseitiges publicPublishing */
+      /** Website-Landingpage am Slug (siehe serverseitiges publicPublishing.siteEnabled) */
       siteEnabled?: boolean;
-      sitePublished?: boolean;
-      siteUrl?: string;
-      siteVersion?: number;
-      sitePublishedAt?: string;
     };
     /** Nextcloud/WebDAV-Konfiguration (maskiertes App-Passwort fuer die UI) */
     nextcloud?: {

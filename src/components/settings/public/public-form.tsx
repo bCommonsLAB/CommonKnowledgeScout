@@ -97,8 +97,6 @@ export function PublicForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingSlug, setIsCheckingSlug] = useState(false);
   const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
-  const [sitePublishLoading, setSitePublishLoading] = useState(false);
-  const [siteDepublishLoading, setSiteDepublishLoading] = useState(false);
   const [libraries, setLibraries] = useAtom(librariesAtom);
   const [activeLibraryId] = useAtom(activeLibraryIdAtom);
 
@@ -426,7 +424,6 @@ export function PublicForm() {
   // Status-Header (UX-5): Sichtbarkeit aus den (ggf. ungespeicherten) Schaltern
   const watchedIsPublic = form.watch("isPublic")
   const watchedRequiresAuth = form.watch("requiresAuth")
-  const sitePublished = activeLibrary.config?.publicPublishing?.sitePublished === true
 
   return (
     <Form {...form} key={activeLibraryId}>
@@ -462,8 +459,7 @@ export function PublicForm() {
               ? watchedRequiresAuth
                 ? "Fremde sehen die Bibliothek erst nach genehmigter Zugriffsanfrage."
                 : "Jeder mit dem Link sieht die Galerie dieser Bibliothek."
-              : "Nur Sie und eingeladene Personen sehen diese Bibliothek."}{" "}
-            Startseite: {sitePublished ? "veröffentlicht" : "nicht veröffentlicht"}.
+              : "Nur Sie und eingeladene Personen sehen diese Bibliothek."}
           </AlertDescription>
         </Alert>
 
@@ -488,13 +484,13 @@ export function PublicForm() {
           )}
         />
 
-        {/* Startseite (web/): unabhängig vom Public-Flag — Publish läuft über eigene API (Owner + Co-Creator). */}
+        {/* Website-Landingpage: zeigt am Slug die Website statt der Galerie (Live-Docs, kein Snapshot). */}
         {activeLibraryId && slugName && slugName.length >= 3 && (
           <div className="rounded-lg border p-4 space-y-3">
             <div>
-              <h3 className="text-base font-semibold">Startseite verwalten</h3>
+              <h3 className="text-base font-semibold">Website-Landingpage</h3>
               <p className="text-sm text-muted-foreground">
-                Entwurf liegt im Storage unter <code className="text-xs">web/</code>. Testen im Explore-Modus; Live erst nach explizitem Veröffentlichen (Azure-Snapshot).
+                Wird aus den Dokumenten mit <code className="text-xs">detailViewType: website</code> gerendert (Menü nach <code className="text-xs">menu_order</code>). Kein <code className="text-xs">web/</code>-Snapshot mehr.
               </p>
             </div>
             <FormField
@@ -503,9 +499,9 @@ export function PublicForm() {
               render={({ field }) => (
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                   <div className="space-y-0.5">
-                    <FormLabel className="text-base">Startseite anzeigen</FormLabel>
+                    <FormLabel className="text-base">Website am Slug anzeigen</FormLabel>
                     <FormDescription>
-                      Zeigt den Tab „Startseite“ in Explore und in der normalen Galerie-Ansicht an. Wenn deaktiviert, bleibt die Website verborgen, auch wenn Dateien unter <code className="text-xs">web/</code> liegen.
+                      Wenn aktiviert, öffnet der Slug (<code className="text-xs">/explore/{slugName}</code>) direkt die Website-Landingpage statt der Galerie. Die Galerie bleibt über das Menü erreichbar.
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -517,113 +513,19 @@ export function PublicForm() {
                 </FormItem>
               )}
             />
-            {activeLibrary?.config?.publicPublishing?.sitePublished && (
-              <p className="text-sm">
-                Live-Version v{activeLibrary.config.publicPublishing.siteVersion ?? '—'}
-                {activeLibrary.config.publicPublishing.sitePublishedAt
-                  ? ` · ${new Date(activeLibrary.config.publicPublishing.sitePublishedAt).toLocaleString()}`
-                  : ''}
-              </p>
-            )}
             {siteEnabled && (
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
                   variant="secondary"
-                  disabled={isLoading || sitePublishLoading || siteDepublishLoading || isCheckingSlug || slugAvailable !== true}
+                  disabled={isLoading || isCheckingSlug || slugAvailable !== true}
                   onClick={async () => {
                     const persisted = await ensurePublicSettingsPersistedForSiteActions()
                     if (!persisted) return
-                    window.open(`/explore/${encodeURIComponent(slugName)}?view=site`, '_blank', 'noopener,noreferrer')
+                    window.open(`/explore/${encodeURIComponent(slugName)}`, '_blank', 'noopener,noreferrer')
                   }}
                 >
-                  Draft testen
-                </Button>
-                <Button
-                  type="button"
-                  disabled={isLoading || sitePublishLoading || siteDepublishLoading || isCheckingSlug || slugAvailable !== true}
-                  onClick={async () => {
-                    if (!activeLibraryId) return
-                    const persisted = await ensurePublicSettingsPersistedForSiteActions()
-                    if (!persisted) return
-                    setSitePublishLoading(true)
-                    try {
-                      const res = await fetch(`/api/library/${encodeURIComponent(activeLibraryId)}/publish-site`, {
-                        method: 'POST',
-                      })
-                      const data = await res.json().catch(() => ({}))
-                      if (!res.ok) {
-                        throw new Error(typeof data.error === 'string' ? data.error : 'Veröffentlichen fehlgeschlagen')
-                      }
-                      toast({
-                        title: 'Startseite veröffentlicht',
-                        description: data.siteUrl ? `Version ${data.siteVersion}` : 'OK',
-                      })
-                      router.refresh()
-                      if (user?.primaryEmailAddress?.emailAddress) {
-                        const librariesResponse = await fetch(
-                          `/api/libraries?email=${encodeURIComponent(user.primaryEmailAddress.emailAddress)}`,
-                        )
-                        if (librariesResponse.ok) {
-                          const updatedLibraries = await librariesResponse.json()
-                          if (Array.isArray(updatedLibraries)) setLibraries(updatedLibraries)
-                        }
-                      }
-                    } catch (e) {
-                      toast({
-                        title: 'Fehler',
-                        description: e instanceof Error ? e.message : 'Veröffentlichen fehlgeschlagen',
-                        variant: 'destructive',
-                      })
-                    } finally {
-                      setSitePublishLoading(false)
-                    }
-                  }}
-                >
-                  {sitePublishLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  {activeLibrary?.config?.publicPublishing?.sitePublished
-                    ? 'Neu veröffentlichen'
-                    : 'Veröffentlichen'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={sitePublishLoading || siteDepublishLoading || !activeLibrary?.config?.publicPublishing?.sitePublished}
-                  onClick={async () => {
-                    if (!activeLibraryId) return
-                    setSiteDepublishLoading(true)
-                    try {
-                      const res = await fetch(`/api/library/${encodeURIComponent(activeLibraryId)}/depublish-site`, {
-                        method: 'POST',
-                      })
-                      const data = await res.json().catch(() => ({}))
-                      if (!res.ok) {
-                        throw new Error(typeof data.error === 'string' ? data.error : 'Depublizieren fehlgeschlagen')
-                      }
-                      toast({ title: 'Live-Startseite deaktiviert', description: 'Anonyme Nutzer sehen nur noch die Galerie.' })
-                      router.refresh()
-                      if (user?.primaryEmailAddress?.emailAddress) {
-                        const librariesResponse = await fetch(
-                          `/api/libraries?email=${encodeURIComponent(user.primaryEmailAddress.emailAddress)}`,
-                        )
-                        if (librariesResponse.ok) {
-                          const updatedLibraries = await librariesResponse.json()
-                          if (Array.isArray(updatedLibraries)) setLibraries(updatedLibraries)
-                        }
-                      }
-                    } catch (e) {
-                      toast({
-                        title: 'Fehler',
-                        description: e instanceof Error ? e.message : 'Depublizieren fehlgeschlagen',
-                        variant: 'destructive',
-                      })
-                    } finally {
-                      setSiteDepublishLoading(false)
-                    }
-                  }}
-                >
-                  {siteDepublishLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  Depublizieren
+                  Website öffnen
                 </Button>
               </div>
             )}

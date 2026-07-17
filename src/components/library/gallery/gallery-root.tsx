@@ -63,12 +63,16 @@ export interface GalleryRootProps {
   libraryIdProp?: string
   /** Wenn true, werden die Tabs nicht gerendert (z.B. wenn sie bereits im Header sind) */
   hideTabs?: boolean
-  /** Optionale Startseiten-Vorschau (Draft oder veröffentlichte Live-Site) */
-  siteViewSrc?: string | null
-  /** Steuert, ob der Tab "Startseite" angeboten wird */
+  /** Steuert, ob der Tab "Startseite" (Website-Landingpage) angeboten wird */
   showSiteTab?: boolean
-  /** Sandbox für die eingebettete Startseite */
-  siteSandbox?: string
+  /** Wenn true, ist die Website-Landingpage die Standard-Ansicht (statt der Galerie). */
+  defaultToSite?: boolean
+  /**
+   * Wenn true, werden `website`-Docs aus der Galerie-Liste (und Zaehlung)
+   * ausgeblendet. Website-Docs sind strukturell fuer die Landingpage/das Menue —
+   * in der oeffentlichen Slug-Ansicht kein Galerie-Inhalt.
+   */
+  hideWebsiteDocs?: boolean
 }
 
 const LazyChatPanel = dynamic(
@@ -91,8 +95,9 @@ const LazyDocGraph = dynamic(
 export function GalleryRoot({
   libraryIdProp,
   hideTabs = false,
-  siteViewSrc = null,
   showSiteTab = false,
+  defaultToSite = false,
+  hideWebsiteDocs = false,
 }: GalleryRootProps) {
   const { t } = useTranslation()
   const libraryIdFromAtom = useAtomValue(activeLibraryIdAtom)
@@ -170,8 +175,10 @@ export function GalleryRoot({
   )
 
   // Hooks
-  const { mode, setMode, containerRef } = useGalleryMode()
-  const hasSiteView = showSiteTab && typeof siteViewSrc === 'string' && siteViewSrc.length > 0
+  const { mode, setMode, containerRef } = useGalleryMode(defaultToSite ? 'site' : 'gallery')
+  // Die Website-Landingpage (WebsiteLandingLive) speist sich aus Live-Docs — sie
+  // braucht keinen iframe-`siteViewSrc` mehr. Der Tab erscheint, sobald er erlaubt ist.
+  const hasSiteView = showSiteTab
 
   // Kein stiller Fallback: Wenn kein Site-Tab erlaubt ist, aber ?view=site in der URL steht,
   // springen wir explizit zurück auf Inhalte.
@@ -268,6 +275,7 @@ export function GalleryRoot({
     groupByField,
     sortByStars: sortByStarsActive,
     sortByRating: sortByRatingActive,
+    excludeDetailViewType: hideWebsiteDocs ? 'website' : undefined,
   })
   const { isOwner } = useIsLibraryOwner(libraryId)
 

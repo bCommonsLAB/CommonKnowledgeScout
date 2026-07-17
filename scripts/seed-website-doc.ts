@@ -16,16 +16,21 @@ import * as dotenv from 'dotenv'
 
 dotenv.config()
 
-const LIBRARY_ID = 'eec9f788-880a-41c5-a668-f325c4a0039b'
-const COLLECTION = 'doc_meta__dadf3a40-3e00-4f1d-993f-3d8af7ee5385'
+// Ziel-Library + Collection sind per Env ueberschreibbar, damit derselbe Seed
+// gegen die ECHTE Oldies-Library (5a28b4bd) statt der Cloud-Wegwerf-Library laufen kann.
+// Defaults = urspruengliche Cloud-Werte (Rueckwaertskompatibilitaet).
+const LIBRARY_ID = process.env.SEED_LIBRARY_ID || 'eec9f788-880a-41c5-a668-f325c4a0039b'
+const COLLECTION = process.env.SEED_COLLECTION || 'doc_meta__dadf3a40-3e00-4f1d-993f-3d8af7ee5385'
 
-// Bild-Basis: vorhandene (auth-gegatete) web/-Route der Quell-Library.
-const IMG = `/api/library/${LIBRARY_ID}/web/web/images`
+// Bild-Basis: per Env ueberschreibbar. Default = auth-gegatete web/-Route
+// (nur eingeloggt sichtbar). Mit SEED_IMG_BASE koennen oeffentliche Azure-Blob-URLs
+// gesetzt werden, damit die Bilder ANONYM laden (siehe mirror-website-images-to-blob.ts).
+const IMG = process.env.SEED_IMG_BASE || `/api/library/${LIBRARY_ID}/web/web/images`
 
 const HOME_MARKDOWN = `
 <!-- section layout=image-right bg=light -->
 ## Wer sind wir?
-![Gruppenfoto Oldies for Future](${IMG}/IMG-20230419-WA0003.jpg)
+![Gruppenfoto Oldies for Future](${IMG}/cover_gruppenbild1.jpg)
 
 Wir „Oldies for Future" wollen uns mit den jungen Menschen solidarisieren und sie in ihren Anliegen und Forderungen nach einer lebenswerten Zukunft unterstützen.
 

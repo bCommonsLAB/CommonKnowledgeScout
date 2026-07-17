@@ -67,6 +67,10 @@ export function WebsiteLandingLive({
 }: WebsiteLandingLiveProps): React.ReactElement {
   const { t, locale } = useTranslation()
   const router = useRouter()
+  // Galerie-Ziel im Root-Modus: `/explore/<slug>` defaultet jetzt auf die
+  // Website (Site-Mode). Fuer „mehr Inhalte"/Banner-Karten muss daher explizit
+  // `?view=gallery` gesetzt werden, sonst landet man wieder auf der Website.
+  const galleryBaseHref = exploreBaseHref ? `${exploreBaseHref}?view=gallery` : null
   const [menuDocs, setMenuDocs] = React.useState<DocCardMeta[]>([])
   const [bannerDocs, setBannerDocs] = React.useState<DocCardMeta[]>([])
   const [selectedFileId, setSelectedFileId] = React.useState<string | null>(null)
@@ -183,7 +187,7 @@ export function WebsiteLandingLive({
               <h2 className="text-2xl font-semibold">Mehr aus dieser Bibliothek</h2>
               <button
                 type="button"
-                onClick={() => (exploreBaseHref ? router.push(exploreBaseHref) : onShowGallery?.())}
+                onClick={() => (galleryBaseHref ? router.push(galleryBaseHref) : onShowGallery?.())}
                 className="whitespace-nowrap text-sm font-medium text-emerald-700 hover:underline"
               >
                 mehr Inhalte →
@@ -191,13 +195,14 @@ export function WebsiteLandingLive({
             </div>
             <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
               {bannerDocs.map((d) =>
-                exploreBaseHref ? (
+                galleryBaseHref ? (
                   // Root-Modus: Karte navigiert in die Explore-Galerie (Detail-Overlay dort).
+                  // `view=gallery` ist noetig, damit die Galerie (nicht die Website) laedt.
                   <DocumentCard
                     key={d.fileId ?? d.id}
                     doc={d}
                     onClick={() =>
-                      router.push(`${exploreBaseHref}?doc=${getEffectiveDocumentNavigationSlug(d) ?? ''}`)
+                      router.push(`${galleryBaseHref}&doc=${getEffectiveDocumentNavigationSlug(d) ?? ''}`)
                     }
                   />
                 ) : (

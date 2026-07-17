@@ -4,6 +4,8 @@
  *
  * Aufruf:  node --import tsx scripts/set-root-library.ts [slug]
  *          (ohne Argument: Default 'oldiesforfuture')
+ *          node --import tsx scripts/set-root-library.ts none   -> leert die Einstellung
+ *          (`/` zeigt dann wieder die KnowledgeScout-Uebersicht)
  */
 
 import { MongoClient } from 'mongodb'
@@ -11,7 +13,9 @@ import * as dotenv from 'dotenv'
 
 dotenv.config()
 
-const SLUG = process.argv[2] || 'oldiesforfuture'
+const RAW_ARG = process.argv[2] || 'oldiesforfuture'
+// 'none' (oder leer) leert die Einstellung -> `/` faellt auf die KnowledgeScout-Uebersicht zurueck.
+const SLUG: string | null = RAW_ARG === 'none' ? null : RAW_ARG
 const COLLECTION = 'app_config'
 const SINGLETON_ID = 'global'
 
@@ -36,7 +40,7 @@ async function main(): Promise<void> {
       { upsert: true },
     )
     console.log(
-      `[set-root-library] DB=${dbName} rootLibrarySlug='${SLUG}' ` +
+      `[set-root-library] DB=${dbName} rootLibrarySlug=${SLUG === null ? '(geleert)' : `'${SLUG}'`} ` +
         `matched=${res.matchedCount} upserted=${res.upsertedId ? 'ja' : 'nein'} modified=${res.modifiedCount}`,
     )
   } finally {

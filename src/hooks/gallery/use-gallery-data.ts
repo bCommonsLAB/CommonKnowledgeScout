@@ -36,6 +36,12 @@ export function useGalleryData(
      * kosten); "Kosten unbekannt" (rating null) landet ans Ende. Oeffentlich.
      */
     sortByRating?: boolean
+    /**
+     * Schliesst einen `detailViewType` serverseitig aus der Liste aus (z.B.
+     * `website` in der oeffentlichen Slug-Galerie). Wirkt auf Liste, Gruppierung
+     * UND Zaehlung, weil serverseitig gefiltert wird.
+     */
+    excludeDetailViewType?: string
   }
 ) {
   const setGalleryData = useSetAtom(galleryDataAtom)
@@ -43,6 +49,7 @@ export function useGalleryData(
   const skipApiCall = options?.skipApiCall ?? false
   const sortByStars = options?.sortByStars ?? false
   const sortByRating = options?.sortByRating ?? false
+  const excludeDetailViewType = options?.excludeDetailViewType
   
   const [docs, setDocs] = useState<DocCardMeta[]>([])
   const [totalCount, setTotalCount] = useState<number>(0)
@@ -76,7 +83,7 @@ export function useGalleryData(
     setGroups([])
     setTotalGroups(0)
     setIsLoadingMore(false)
-  }, [libraryId, filtersString, mode, searchQuery, skipApiCall, options?.refreshKey, groupByFieldOpt, sortByStars, sortByRating])
+  }, [libraryId, filtersString, mode, searchQuery, skipApiCall, options?.refreshKey, groupByFieldOpt, sortByStars, sortByRating, excludeDetailViewType])
   
   useEffect(() => {
     // Überspringe API-Aufruf wenn skipApiCall true ist
@@ -123,6 +130,9 @@ export function useGalleryData(
         } else if (sortByRating) {
           // Globale Rating-Sortierung im Server (rating desc, null ans Ende).
           params.append('sort', 'rating')
+        }
+        if (excludeDetailViewType) {
+          params.append('excludeDetailViewType', excludeDetailViewType)
         }
 
         const url = `/api/chat/${encodeURIComponent(libraryId)}/docs${params.toString() ? `?${params.toString()}` : ''}`
@@ -203,7 +213,7 @@ export function useGalleryData(
     load()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [libraryId, page, JSON.stringify(filters), mode, searchQuery, skipApiCall, options?.refreshKey, useGroupedApi, groupByFieldOpt, sortByStars, sortByRating])
+  }, [libraryId, page, JSON.stringify(filters), mode, searchQuery, skipApiCall, options?.refreshKey, useGroupedApi, groupByFieldOpt, sortByStars, sortByRating, excludeDetailViewType])
 
 
   const loadMore = () => {

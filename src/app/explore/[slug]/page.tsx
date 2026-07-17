@@ -34,10 +34,6 @@ interface ExploreLibraryPayload {
   /** Nur bei Member-Explore: ob die Library öffentlich geschaltet ist */
   isPublic?: boolean
   siteEnabled?: boolean
-  sitePublished?: boolean
-  siteUrl?: string
-  siteVersion?: number
-  sitePublishedAt?: string
   exploreContext?: 'public' | 'member'
   chat?: {
     gallery?: {
@@ -107,10 +103,6 @@ export default function ExplorePage() {
           isPublic: ctx === 'public' ? true : (loadedLibrary.isPublic === true),
           requiresAuth: loadedLibrary.requiresAuth,
           siteEnabled: loadedLibrary.siteEnabled,
-          sitePublished: loadedLibrary.sitePublished,
-          siteUrl: loadedLibrary.siteUrl,
-          siteVersion: loadedLibrary.siteVersion,
-          sitePublishedAt: loadedLibrary.sitePublishedAt,
         }
       }
     }
@@ -302,25 +294,10 @@ export default function ExplorePage() {
     }
   }
 
-  const draftSitePath = library
-    ? `/api/library/${encodeURIComponent(library.id)}/web/web/index.html`
-    : ''
-
-  const showSiteTab =
-    library?.siteEnabled === true &&
-    (
-      exploreContext === 'member' ||
-      (library?.sitePublished === true && Boolean(library?.siteUrl))
-    )
-
-  const siteIframeSrc =
-    library
-      ? exploreContext === 'member'
-        ? draftSitePath
-        : library.sitePublished && library.siteUrl
-          ? library.siteUrl
-          : ''
-      : ''
+  // Website-Landingpage (WebsiteLandingLive) speist sich aus Live-Docs und ist
+  // fuer alle (auch anonyme) Besucher der oeffentlichen Library nutzbar.
+  // Trigger ist allein das Flag `siteEnabled` — kein Legacy-web/-Snapshot mehr.
+  const showSiteTab = library?.siteEnabled === true
 
   if (loading || !userLoaded) {
     return (
@@ -437,12 +414,8 @@ export default function ExplorePage() {
             libraryIdProp={library.id}
             hideTabs={false}
             showSiteTab={showSiteTab}
-            siteViewSrc={siteIframeSrc}
-            siteSandbox={
-              exploreContext === 'member'
-                ? "allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
-                : "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
-            }
+            defaultToSite={showSiteTab}
+            hideWebsiteDocs={true}
           />
         </div>
       </div>

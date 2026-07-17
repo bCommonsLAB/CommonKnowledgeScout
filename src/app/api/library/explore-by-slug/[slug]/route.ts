@@ -54,10 +54,6 @@ export async function GET(
       isPublic: pub?.isPublic === true,
       chat: library.config?.chat,
       siteEnabled: pub?.siteEnabled === true,
-      sitePublished: pub?.sitePublished === true,
-      siteUrl: pub?.siteUrl,
-      siteVersion: pub?.siteVersion,
-      sitePublishedAt: pub?.sitePublishedAt,
       exploreContext: 'member' as const,
     }
 
