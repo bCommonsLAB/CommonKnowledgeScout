@@ -25,7 +25,6 @@ import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service';
 import type { Library } from '@/types/library';
 import { buildMongoShadowTwinItem } from '@/lib/shadow-twin/mongo-shadow-twin-item';
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id';
-import { getShadowTwinsBySourceIds, type ShadowTwinArtifactRecord } from '@/lib/repositories/shadow-twin-repo';
 
 /**
  * Prüft, ob eine Datei eine Markdown-Datei ist
@@ -325,38 +324,9 @@ export async function analyzeShadowTwinWithService(
           }
         }
 
-        // Alle Transkript-Sprachen aus MongoDB laden (nicht nur die angefragte targetLanguage)
-        // Das ermöglicht das Sprach-Dropdown im Transkript-Tab.
-        if (library) {
-          try {
-            const docs = await getShadowTwinsBySourceIds({
-              libraryId: library.id,
-              sourceIds: [sourceItemId],
-            })
-            const doc = docs.get(sourceItemId)
-            if (doc?.artifacts?.transcript) {
-              const allTranscriptLangs = Object.keys(doc.artifacts.transcript)
-              if (allTranscriptLangs.length > 1) {
-                // Mehrere Sprachen vorhanden: erstelle StorageItems für alle
-                transcriptFiles = allTranscriptLangs.map((lang) => {
-                  const record = (doc.artifacts.transcript as Record<string, ShadowTwinArtifactRecord>)[lang]
-                  return buildMongoShadowTwinItem({
-                    libraryId: library.id,
-                    sourceId: sourceItemId,
-                    sourceName,
-                    parentId,
-                    kind: 'transcript',
-                    targetLanguage: lang,
-                    markdownLength: record?.markdown?.length ?? 0,
-                    updatedAt: record?.updatedAt ?? new Date().toISOString(),
-                  })
-                })
-              }
-            }
-          } catch {
-            // Fehler beim Laden aller Sprachen – einzelnes Transkript bleibt bestehen
-          }
-        }
+        // Transkript ist sprach-neutral: genau EIN Record pro Quelle. Die frühere
+        // Mehrsprachen-Expansion (Sprach-Dropdown) entfällt; das oben gesetzte
+        // transcriptFiles (einzelnes Transkript) bleibt bestehen.
 
         // Suche Transformation (ohne templateName - wir nehmen die erste gefundene)
         // WICHTIG: Für präzise Suche müsste templateName bekannt sein, hier nehmen wir "beste" Transformation

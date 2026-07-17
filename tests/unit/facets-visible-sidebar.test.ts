@@ -36,14 +36,14 @@ describe('Facetten: Sichtbarkeit für Filter-Navigation', () => {
     expect(visibleDefs.map((d) => d.metaKey)).toEqual(['date', 'authors', 'source', 'tags', 'year'])
   })
 
-  it('Basis-Facetten sind nicht entfernbar und kanonisch (Anwender kann sie nicht aushebeln)', () => {
+  it('Basis-Facetten bleiben kanonisch (Typ/Existenz/mandatory) — NUR die Sichtbarkeit ist steuerbar', () => {
     const lib = {
       id: 'test-lib-mandatory',
       config: {
         chat: {
           gallery: {
             facets: [
-              // Anwender versucht, 'date' umzutypisieren/zu verstecken und laesst tags/authors/source weg.
+              // Anwender versucht 'date' umzutypisieren UND blendet es aus.
               { metaKey: 'date', label: 'Falsch', type: 'string', multi: true, visible: false },
               { metaKey: 'extra', label: 'Extra', type: 'string', multi: true, visible: true },
             ],
@@ -59,9 +59,15 @@ describe('Facetten: Sichtbarkeit für Filter-Navigation', () => {
       expect(byKey[key]).toBeTruthy()
       expect(byKey[key].mandatory).toBe(true)
     }
-    // Kanonisch erzwungen: User-Typ 'string' und visible:false fuer 'date' werden ignoriert.
+    // Typ bleibt kanonisch erzwungen: User-'string' wird ignoriert.
     expect(byKey.date.type).toBe('date')
-    expect(byKey.date.visible).toBe(true)
+    // ABER Sichtbarkeit ist jetzt user-steuerbar (Entscheid 2026-07-09): redundante
+    // Basis-Facetten (z.B. authors/source = vorschlag_quelle) duerfen ausgeblendet
+    // werden. 'date' wurde vom User auf visible:false gesetzt -> respektiert.
+    expect(byKey.date.visible).toBe(false)
+    // Nicht gesetzte Basis-Facetten bleiben sichtbar (Default true).
+    expect(byKey.authors.visible).toBe(true)
+    expect(byKey.source.visible).toBe(true)
     // Zusaetzliche (Nicht-Basis-)Facette bleibt erhalten.
     expect(byKey.extra).toBeTruthy()
     expect(byKey.extra.mandatory).toBeUndefined()

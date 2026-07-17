@@ -50,3 +50,27 @@ shadowTwinStateAtom.debugLabel = 'shadowTwinStateAtom';
  */
 export const shadowTwinAnalysisTriggerAtom = atom<number>(0);
 shadowTwinAnalysisTriggerAtom.debugLabel = 'shadowTwinAnalysisTriggerAtom';
+
+/**
+ * Sichtbarer Import-/Verarbeitungs-Status fuer Storage-Artefakte.
+ *
+ * Wird gesetzt, wenn Artefakte einer parallel laufenden Installation im Storage
+ * gefunden und in die MongoDB DIESER Library importiert werden (siehe
+ * use-shadow-twin-analysis.ts). Die File-Liste zeigt dafuer einen Aktivitaets-
+ * Indikator an derselben Stelle, an der sonst Verarbeitungsaktivitaeten erscheinen.
+ *
+ * - active: laeuft gerade ein Import?
+ * - total/done: Fortschritt (Anzahl Quellen)
+ */
+export interface ShadowTwinImportActivity {
+  active: boolean;
+  total: number;
+  done: number;
+}
+
+export const shadowTwinImportActivityAtom = atom<ShadowTwinImportActivity>({
+  active: false,
+  total: 0,
+  done: 0,
+});
+shadowTwinImportActivityAtom.debugLabel = 'shadowTwinImportActivityAtom';

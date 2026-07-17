@@ -208,6 +208,25 @@ export async function runTemplateTransform(args: TemplateRunArgs): Promise<Templ
       const structuredRaw = d?.structured_data
       const normalized = normalizeStructuredData(structuredRaw)
       if (normalized) {
+        // GUARD: Der Secretary-Extraktor kann bei ungueltigem LLM-JSON die Fehlermeldung
+        // IN das structured_data schreiben (z.B. title/bodyInText = "Fehler bei der
+        // Extraktion: ... Content-Snippet: {...}"). Diese darf NICHT als gueltiges Artefakt
+        // persistiert werden — sonst landet eine (mehrfach maskierte) Fehlermeldung als
+        // Transformation. Konservativ: mind. 2 spezifische Marker in EINEM Feld.
+        const extractionErrorMarkers = ['Fehler bei der Extraktion', 'Content-Snippet:', 'konnte nicht geparst werden', 'JSON konnte nicht']
+        const isExtractionError = Object.values(normalized).some(
+          (v) => typeof v === 'string' && extractionErrorMarkers.filter((m) => v.includes(m)).length >= 2
+        )
+        if (isExtractionError) {
+          const errorMsg = 'Secretary lieferte eine Extraktions-Fehlermeldung als structured_data (ungueltiges LLM-JSON) — Job fehlschlagen statt ein kaputtes Artefakt zu persistieren'
+          bufferLog(jobId, { phase: 'transform_meta_failed', message: errorMsg })
+          const error = new Error(errorMsg) as Error & { status?: number; statusText?: string; responseData?: unknown }
+          error.status = resp.status
+          error.statusText = resp.statusText
+          error.responseData = data
+          throw error
+        }
+
         // Debug/Trace: Wir loggen NUR Keys + Längen, keine Inhalte (PII/Größe).
         // Ziel: sichtbar machen, ob Secretary z.B. `intro`, `worum`, `was` etc. tatsächlich liefert.
         try {

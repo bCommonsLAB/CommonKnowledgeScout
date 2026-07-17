@@ -160,6 +160,14 @@ export interface ViewTypeConfig {
    * Single Source of Truth fuer Backend-Job und UI-Lookup.
    */
   translatable: TranslatableSpec
+  /**
+   * Positivliste ADDITIVER Zahlenfelder fuer die Summen-Aggregation
+   * (Tabellen-Fusszeile + Graph-Summen-Panel). Bewusst KEINE Automatik ueber
+   * alle number-Facetten: Scores wie `durchsetzbarkeit` sind nicht additiv,
+   * ihre Summe waere fachlich sinnlos. v1-Entscheid laut Plan
+   * summen-und-synergie-aggregation: explizite Liste pro ViewType.
+   */
+  summableFields?: string[]
 }
 
 /**
@@ -341,6 +349,8 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
     ],
     labelKey: 'gallery.detailViewTypeClimateAction',
     descriptionKey: 'gallery.detailViewTypeClimateActionDescription',
+    // Nur additive Groessen summieren (kt CO2/Jahr, EUR). Scores bleiben draussen.
+    summableFields: ['co2_einsparung_kt', 'kosten_eur'],
     mediaConfig: {
       coverImage: true,
       attachments: false,
@@ -612,6 +622,17 @@ export function getTranslatableFieldsForScope(
     topicLike: all.topicLike.filter(filterFn),
     nested: scope === 'detail' ? all.nested : undefined,
   }
+}
+
+/**
+ * Liefert die Positivliste additiver Zahlenfelder eines ViewTypes fuer die
+ * Summen-Aggregation. Leeres Array = fuer diesen Typ sind keine Summen
+ * definiert (Fusszeile/Panel werden dann nicht angezeigt).
+ */
+export function getSummableFields(viewType: string | undefined): string[] {
+  if (!viewType) return []
+  const config = getViewTypeConfig(viewType)
+  return config?.summableFields ?? []
 }
 
 /**

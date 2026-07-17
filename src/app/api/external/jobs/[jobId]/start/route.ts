@@ -259,6 +259,58 @@ export async function POST(
       }
     }
 
+    // ─── Overlap-Bericht (Stufe 3): Long-Context-LLM-Pass + Markdown-Bericht ───
+    // Schmale Phase ohne Storage/Secretary-Datei-Pfad (ADR 0001, analog
+    // doc-relations): laedt den Katalog aus Mongo, ruft das LLM ueber den
+    // Secretary Service und schreibt Bericht + korrektur_*-Faktoren zurueck.
+    if (job.job_type === 'overlap-report' && job.operation === 'recompute') {
+      // WICHTIG: Diese Phase laeuft MINUTEN (Long-Context-LLM ueber den ganzen
+      // Katalog). Der Worker-Dispatch bricht seinen fetch nach 60s ab und
+      // requeued den Job — ein synchrones Await hier fuehrte zu Mehrfachstarts
+      // derselben Phase (beobachtet 2026-07-09). Daher: sofort 202 antworten,
+      // Phase detached laufen lassen; Status/Fehler schreibt die Phase selbst.
+      const { runOverlapReportPhase } = await import('@/lib/external-jobs/phase-overlap-report')
+      void (async () => {
+        try {
+          await runOverlapReportPhase(job)
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          FileLogger.error('start-route', 'phase-overlap-report failed', { jobId, error: msg })
+          try {
+            await repo.setStatus(jobId, 'failed', { error: { code: 'overlap_report_failed', message: msg } })
+          } catch (statusErr) {
+            FileLogger.warn('start-route', 'setStatus(failed) nach overlap-report-Fehler misslang', {
+              jobId, error: statusErr instanceof Error ? statusErr.message : String(statusErr),
+            })
+          }
+        }
+      })()
+      return NextResponse.json({ ok: true, phase: 'overlap-report', started: true }, { status: 202 })
+    }
+
+    // ─── Aehnlichkeits-Nachbarn (Stufe 4c): deterministischer Vector-Pass ────
+    // Wie overlap-report ein langlaufender Pass (1 Vector-Suche je Doc, Minuten):
+    // sofort 202, Phase detached; Status/Fehler schreibt die Phase selbst.
+    if (job.job_type === 'doc-similarity' && job.operation === 'recompute') {
+      const { runDocSimilarityPhase } = await import('@/lib/external-jobs/phase-doc-similarity')
+      void (async () => {
+        try {
+          await runDocSimilarityPhase(job)
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          FileLogger.error('start-route', 'phase-doc-similarity failed', { jobId, error: msg })
+          try {
+            await repo.setStatus(jobId, 'failed', { error: { code: 'doc_similarity_failed', message: msg } })
+          } catch (statusErr) {
+            FileLogger.warn('start-route', 'setStatus(failed) nach doc-similarity-Fehler misslang', {
+              jobId, error: statusErr instanceof Error ? statusErr.message : String(statusErr),
+            })
+          }
+        }
+      })()
+      return NextResponse.json({ ok: true, phase: 'doc-similarity', started: true }, { status: 202 })
+    }
+
     // WICHTIG: Watchdog SOFORT starten, damit Job nicht hängen bleibt, wenn Start-Endpoint fehlschlägt
     // Timeout: 10 Minuten (600_000 ms) - sollte ausreichen für Datei-Laden, Preprocessing, Request, etc.
     // Der Watchdog wird später via bumpWatchdog aktualisiert, wenn Callbacks vom Secretary Service kommen

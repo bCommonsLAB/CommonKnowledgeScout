@@ -112,6 +112,23 @@ describe('StorageFactory.getProvider — Provider-Auswahl je library.type', () =
     expect(a).toBe(b)
   })
 
+  it('verwendet den Cache bei gleicher Config wieder, baut bei geaenderter Config neu', async () => {
+    const factory = StorageFactory.getInstance()
+
+    const cfg = (appPassword: string) => ({ nextcloud: { webdavUrl: 'https://nc.test', username: 'u', appPassword } })
+
+    factory.setLibraries([makeLibrary('lib-cfg', 'nextcloud', { config: cfg('secret-1') })])
+    const a = await factory.getProvider('lib-cfg')
+
+    // Gleiche Config (neues Objekt, gleicher Inhalt) -> selbe Instanz
+    factory.setLibraries([makeLibrary('lib-cfg', 'nextcloud', { config: cfg('secret-1') })])
+    expect(await factory.getProvider('lib-cfg')).toBe(a)
+
+    // Geaenderte Credentials -> Config-Key weicht ab -> neue Instanz
+    factory.setLibraries([makeLibrary('lib-cfg', 'nextcloud', { config: cfg('secret-2') })])
+    expect(await factory.getProvider('lib-cfg')).not.toBe(a)
+  })
+
   it('wirft LibraryNotFoundError mit errorCode bei unbekannter libraryId', async () => {
     const factory = StorageFactory.getInstance()
     factory.setLibraries([makeLibrary('lib-known', 'local')])

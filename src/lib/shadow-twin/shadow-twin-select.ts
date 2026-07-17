@@ -8,6 +8,7 @@
 
 import type { ArtifactKind } from '@/lib/shadow-twin/artifact-types'
 import type { ShadowTwinArtifactRecord, ShadowTwinDocument } from '@/lib/repositories/shadow-twin-repo'
+import { readTranscriptRecord } from '@/lib/repositories/shadow-twin-repo'
 
 export interface SelectedShadowTwinArtifact {
   kind: ArtifactKind
@@ -20,9 +21,12 @@ export interface SelectedShadowTwinArtifact {
  * Waehlt ein Artefakt passend zu preferredKind und targetLanguage.
  * Fuer Transformationen wird das neueste Artefakt (updatedAt) pro Sprache genommen.
  *
- * WICHTIG: Wenn die angeforderte Sprache nicht existiert, wird auf die erste
- * verfuegbare Sprache zurueckgefallen. Sonst wuerde z.B. ein englisches
- * Transkript (transcript.en) nicht angezeigt, wenn die UI targetLanguage 'de' erwartet.
+ * Transkripte sind sprach-neutral (ein Record pro Quelle = Originalsprache); targetLanguage
+ * ist hier irrelevant. Fuer Transformationen gilt EXAKTER Sprach-Match: existiert die
+ * angeforderte Sprache nicht, wird `null` zurueckgegeben — KEIN stiller Cross-Sprach-Fallback
+ * (siehe no-silent-fallbacks.mdc). Unter mehreren Templates derselben Sprache gewinnt das
+ * neueste (`updatedAt`); die Template-Wahl ist hier bewusst agnostisch (Aufrufer mit bekanntem
+ * Template adressieren das Artefakt direkt ueber `getShadowTwinArtifact`).
  */
 export function selectShadowTwinArtifact(
   doc: ShadowTwinDocument,
@@ -30,31 +34,25 @@ export function selectShadowTwinArtifact(
   targetLanguage: string
 ): SelectedShadowTwinArtifact | null {
   if (preferredKind === 'transcript') {
-    const transcriptByLang = doc.artifacts.transcript
-    if (!transcriptByLang || typeof transcriptByLang !== 'object') return null
-    const entries = Object.entries(transcriptByLang)
-    if (entries.length === 0) return null
-    // Bevorzugt angeforderte Sprache, sonst erste verfuegbare (z.B. transcript.en wenn nur en existiert)
-    const preferred = entries.find(([lang]) => lang === targetLanguage)
-    const [actualLang, record] = preferred ?? entries[0]
-    return { kind: 'transcript', targetLanguage: actualLang, record }
+    // Sprach-neutral: genau ein Transkript-Record (Helper toleriert Legacy-Map).
+    const record = readTranscriptRecord(doc)
+    if (!record) return null
+    // Leerer targetLanguage: das Transkript hat keine Zielsprache (Originalsprache des Dokuments).
+    return { kind: 'transcript', targetLanguage: '', record }
   }
 
   const transformations = doc.artifacts.transformation || {}
   let best: SelectedShadowTwinArtifact | null = null
   for (const [templateName, langs] of Object.entries(transformations)) {
     if (!langs || typeof langs !== 'object') continue
-    const langEntries = Object.entries(langs)
-    if (langEntries.length === 0) continue
-    // Bevorzugt angeforderte Sprache, sonst erste verfuegbare
-    const preferred = langEntries.find(([lang]) => lang === targetLanguage)
-    const [actualLang, record] = preferred ?? langEntries[0]
-    if (!best) {
-      best = { kind: 'transformation', targetLanguage: actualLang, templateName, record }
-      continue
-    }
-    if (record.updatedAt > best.record.updatedAt) {
-      best = { kind: 'transformation', targetLanguage: actualLang, templateName, record }
+    const langEntries = Object.entries(langs) as Array<[string, ShadowTwinArtifactRecord]>
+    // Exakter Sprach-Match: Templates ohne die angeforderte Sprache werden uebersprungen.
+    // KEIN stiller Fallback auf eine andere Sprache (no-silent-fallbacks.mdc).
+    const match = langEntries.find(([lang]) => lang === targetLanguage)
+    if (!match) continue
+    const record = match[1]
+    if (!best || record.updatedAt > best.record.updatedAt) {
+      best = { kind: 'transformation', targetLanguage, templateName, record }
     }
   }
   return best

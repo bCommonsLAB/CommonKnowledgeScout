@@ -55,6 +55,7 @@ Kickoff fuer Plan 1 (neue/Online-Session) steht im Fahrplan-Dokument.
 - API-Routes: [`api-route-conventions.md`](docs/architecture/api-route-conventions.md)
 - File-Preview-Tabs: [`file-preview-tab-architecture.md`](docs/architecture/file-preview-tab-architecture.md)
 - Neues Per-Library-Config-Feld: [`library-config-field.mdc`](.cursor/rules/library-config-field.mdc)
+- Lokale Live-Verifikation (ohne Zeit zu verlieren): [`verification-playbook.md`](docs/guides/verification-playbook.md)
 
 ## Test- und Lint-Commands (Kurz)
 

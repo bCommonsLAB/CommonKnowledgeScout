@@ -16,6 +16,7 @@ import type {
   CreationFlowStepRef,
   CreationFlowStepPreset,
 } from '@/lib/templates/template-types'
+import { isValidDetailViewType, type DetailViewType } from '@/lib/detail-view-types/registry'
 
 /**
  * Sichtbare Steps eines Flows. Spiegelt `creation-wizard.tsx` (Step-Filter):
@@ -111,38 +112,35 @@ export function canProceedFromStep(
   }
 }
 
-/** Vom Wizard-Preview heute unterstützte Renderer (5 von 9 — siehe Drift unten). */
-export type WizardPreviewViewType = 'book' | 'session' | 'testimonial' | 'blog' | 'website'
-
-const WIZARD_PREVIEW_VIEW_TYPES: readonly WizardPreviewViewType[] = [
-  'book',
-  'session',
-  'testimonial',
-  'blog',
-  'website',
-]
-
-function isWizardPreviewViewType(v: unknown): v is WizardPreviewViewType {
-  return typeof v === 'string' && WIZARD_PREVIEW_VIEW_TYPES.includes(v as WizardPreviewViewType)
-}
+/**
+ * Vom Wizard-Preview unterstützte Renderer = die geteilte `DetailViewType`-Menge
+ * aus der Registry. Der Preview nutzt denselben `DetailViewRenderer` wie das
+ * Archiv und kennt damit ALLE Typen — kein 4-von-8-Drift, kein stiller
+ * `'session'`-Fallback mehr (ADR-0003 Phase 3a).
+ */
+export type WizardPreviewViewType = DetailViewType
 
 /**
  * Renderer-Auflösung des Wizard-Previews. Spiegelt `resolveTemplateDetailViewType`
- * aus `creation-wizard.tsx`.
+ * aus `creation-wizard.tsx` und nutzt die geteilte Registry (`VIEW_TYPE_REGISTRY`):
+ * `metadata.detailViewType` hat Vorrang, danach der Legacy-Pfad
+ * `creation.preview.detailViewType`.
  *
- * **Bekannte Drift (ADR-0003)**: Der Wizard-Preview kennt nur 5 der 9 Typen aus
- * `VIEW_TYPE_REGISTRY` und fällt für alle übrigen (z.B. `refurbedDevice`) still
- * auf `'session'` zurück. Phase 3a ersetzt das durch die geteilte Registry.
+ * **Kein stiller Fallback:** ein gesetzter, aber unbekannter Typ ist ein echter
+ * Datenfehler; ein fehlender Typ verletzt den A0-Basis-Feld-Contract. Beides
+ * wirft laut, statt still auf `'session'` umzubiegen.
  */
 export function resolveWizardPreviewViewType(template: {
   metadata?: { detailViewType?: string }
   creation?: { preview?: { detailViewType?: string } }
 }): WizardPreviewViewType {
-  const metaDvt = template.metadata?.detailViewType
-  if (isWizardPreviewViewType(metaDvt)) return metaDvt
-  const legacy = template.creation?.preview?.detailViewType
-  if (isWizardPreviewViewType(legacy)) return legacy
-  return 'session'
+  const candidate = template.metadata?.detailViewType ?? template.creation?.preview?.detailViewType
+  if (isValidDetailViewType(candidate)) return candidate
+  throw new Error(
+    `resolveWizardPreviewViewType: ungueltiger oder fehlender detailViewType: ${
+      candidate === undefined ? '(fehlt)' : `"${candidate}"`
+    }`,
+  )
 }
 
 /**

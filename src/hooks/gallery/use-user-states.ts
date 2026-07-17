@@ -9,13 +9,14 @@ import type {
 } from '@/types/source-user-state'
 
 /**
- * Per-User-Zustand pro Quelle: lazy bulk-loaded ueber `?fileIds=...`.
+ * Per-User-Zustand pro Quelle: lazy bulk-loaded ueber
+ * `POST source-user-states/bulk` (fileIds im JSON-Body).
  *
  * Hintergrund: Bei Galerien mit hunderten/tausenden Quellen wuerde ein
  * "alles auf einmal laden"-Pattern den Server bombardieren oder grosse
  * Antworten erzeugen. Stattdessen meldet jede Karte ihre `fileId` an,
  * der Hook batch'd die Anfragen in 200-ms-Fenstern und feuert pro
- * Library nur einen einzigen GET-Request fuer alle in diesem Fenster
+ * Library nur einen einzigen Request fuer alle in diesem Fenster
  * angemeldeten IDs ab. Mehrere Hook-Instanzen teilen sich den Modul-
  * Cache.
  *
@@ -69,9 +70,16 @@ async function flushPending(libraryId: string): Promise<void> {
   // Mounts in der Zwischenzeit nichts duplizieren.
   for (const id of ids) cache.seen.add(id)
 
-  const url = `/api/library/${encodeURIComponent(libraryId)}/source-user-states?fileIds=${encodeURIComponent(ids.join(','))}`
+  // POST mit Body statt GET-Query: bei grossen Libraries sprengen die
+  // base64-kodierten fileIds sonst das URL-Limit (HTTP 431).
+  const url = `/api/library/${encodeURIComponent(libraryId)}/source-user-states/bulk`
   try {
-    const res = await fetch(url, { cache: 'no-store' })
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileIds: ids }),
+      cache: 'no-store',
+    })
     if (!res.ok) {
       throw new Error(`Eigene Sterne konnten nicht geladen werden (HTTP ${res.status})`)
     }

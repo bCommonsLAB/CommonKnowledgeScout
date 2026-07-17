@@ -21,6 +21,18 @@ vi.mock('@/lib/repositories/shadow-twin-repo', () => {
     toArtifactKey: (args: { sourceId: string; kind: string; targetLanguage: string; templateName?: string }) => ({
       ...args,
     }),
+    // Sprach-neutrales Transkript: ein Record pro Quelle; toleriert Legacy-Map (neuester gewinnt).
+    readTranscriptRecord: (doc?: { artifacts?: { transcript?: unknown } | null } | null) => {
+      const raw = doc?.artifacts?.transcript
+      if (!raw || typeof raw !== 'object') return null
+      if (typeof (raw as { markdown?: unknown }).markdown === 'string') return raw
+      const records = Object.values(raw as Record<string, { markdown?: unknown; updatedAt?: string }>).filter(
+        (r) => !!r && typeof r === 'object' && typeof r.markdown === 'string'
+      )
+      if (records.length === 0) return null
+      records.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
+      return records[0]
+    },
   }
 })
 

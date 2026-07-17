@@ -137,7 +137,7 @@ describe('writeArtifact', () => {
       expect(result.location).toBe('dotFolder');
       expect(result.shadowTwinFolderId).toBe(shadowTwinFolderId);
       expect(result.wasUpdated).toBe(false);
-      expect(result.file.metadata.name).toBe('document.de.md');
+      expect(result.file.metadata.name).toBe('document.md');
       expect(mockProvider.uploadFile).toHaveBeenCalledTimes(1);
     });
 
@@ -148,7 +148,7 @@ describe('writeArtifact', () => {
       const existingFile: StorageItem = {
         id: 'existing-1',
         type: 'file',
-        metadata: { name: 'document.de.md' },
+        metadata: { name: 'document.md' },
         parentId: shadowTwinFolderId,
       };
       const shadowTwinFolder: StorageItem = {
@@ -206,11 +206,11 @@ describe('writeArtifact', () => {
       expect(result.location).toBe('sibling');
       expect(result.shadowTwinFolderId).toBeUndefined();
       expect(result.wasUpdated).toBe(false);
-      expect(result.file.metadata.name).toBe('document.de.md');
+      expect(result.file.metadata.name).toBe('document.md');
       expect(mockProvider.uploadFile).toHaveBeenCalledTimes(1);
       expect(mockProvider.uploadFile).toHaveBeenCalledWith(
         parentId,
-        expect.objectContaining({ name: 'document.de.md' })
+        expect.objectContaining({ name: 'document.md' })
       );
     });
 
@@ -220,7 +220,7 @@ describe('writeArtifact', () => {
       const existingFile: StorageItem = {
         id: 'existing-1',
         type: 'file',
-        metadata: { name: 'document.de.md' },
+        metadata: { name: 'document.md' },
         parentId,
       };
 

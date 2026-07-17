@@ -35,7 +35,8 @@ export function sourceBaseName(sourceName: string): string {
 /** Baut den erwarteten Dateinamen fuer ein Artefakt. */
 export function buildFileName(base: string, artifact: MongoArtifact): string {
   if (artifact.kind === 'transcript') {
-    return `${base}.${artifact.targetLanguage}.md`
+    // Transkript ist sprach-neutral -> kein Sprach-Suffix.
+    return `${base}.md`
   }
   return `${base}.${artifact.templateName || 'unknown'}.${artifact.targetLanguage}.md`
 }

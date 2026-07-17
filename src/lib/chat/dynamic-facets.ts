@@ -63,12 +63,21 @@ export function parseFacetDefs(library: Library): FacetDef[] {
   // entfernbar. User-Eintraege fuer Basis-Keys werden durch die kanonische
   // Definition ersetzt (Determinismus). Der Anwender kann nur ZUSAETZLICHE
   // Facetten ergaenzen. Siehe base-fields.ts / no-silent-fallbacks.mdc.
+  //
+  // AUSNAHME `visible`: die Sichtbarkeit darf der Anwender auch bei Basis-
+  // Facetten steuern (z.B. authors/source ausblenden, wenn sie dieselben Werte
+  // wie eine spezifische Facette tragen). Das Feld bleibt Pflicht (Existenz +
+  // Reihenfolge + Typ kanonisch), nur seine Anzeige im Filter wird respektiert.
+  const userVisibleByBaseKey = new Map<string, boolean>()
+  for (const d of out) {
+    if (isBaseFacetField(d.metaKey)) userVisibleByBaseKey.set(d.metaKey, d.visible)
+  }
   const baseDefs: FacetDef[] = BASE_FACET_DEFS.map((d) => ({
     metaKey: d.metaKey,
     label: d.label,
     type: d.type as FacetType,
     multi: d.multi,
-    visible: d.visible,
+    visible: userVisibleByBaseKey.has(d.metaKey) ? userVisibleByBaseKey.get(d.metaKey)! : d.visible,
     mandatory: true,
     sort: 'alpha',
     columns: 1,

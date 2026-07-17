@@ -80,8 +80,12 @@ export interface ClimateActionDetailData {
   lv_bewertung?: string;
   /** Arbeitsgruppe (Energie, Mobilität, Wohnen, etc.) */
   arbeitsgruppe?: string;
-  /** Zuständigkeit (Ressort/Gemeinde) */
-  lv_zustaendigkeit?: string;
+  /**
+   * Zuständigkeit (Ressort/Gemeinde). Seit der Facetten-Vereinheitlichung
+   * 2026-07-13 ein Array kanonischer Zuständigkeiten; Alt-Bestand kann noch
+   * als `;`-verketteter String vorliegen — die Anzeige behandelt beides.
+   */
+  lv_zustaendigkeit?: string | string[];
   /** Positionen-Schachbrett (schematisch): Begründung der Landesverwaltung */
   position_landesverwaltung_begruendung?: string;
   /** Konsens/Consent-Text (vorerst meist leer) */
@@ -207,11 +211,22 @@ export function ClimateActionDetail({
 
       {/* Header: Kategorie → Titel → Status-Badge */}
       <div className="mb-6">
-        {/* Kategorie als Text oben */}
-        {data.category && (
-          <span className="inline-block text-xs font-semibold uppercase tracking-widest text-green-700 dark:text-green-400 mb-2">
-            {data.category}
-          </span>
+        {/* Kategorie + Maßnahmen-Nr. als Zeile oben. Die Nr. identifiziert die
+            Maßnahme eindeutig (auf der Galerie-Karte bereits sichtbar) und
+            gehört daher prominent in den Kopf, nicht nur in die Detail-Liste. */}
+        {(data.category || data.massnahme_nr) && (
+          <div className="mb-2 flex items-baseline gap-2">
+            {data.category && (
+              <span className="text-xs font-semibold uppercase tracking-widest text-green-700 dark:text-green-400">
+                {data.category}
+              </span>
+            )}
+            {data.massnahme_nr && (
+              <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+                Nr. {data.massnahme_nr}
+              </span>
+            )}
+          </div>
         )}
         
         {/* Titel */}
@@ -336,7 +351,11 @@ export function ClimateActionDetail({
           {data.lv_zustaendigkeit && (
             <div className="flex justify-between gap-4">
               <span className="text-muted-foreground flex-shrink-0">Zuständigkeit:</span>
-              <span className="text-right">{data.lv_zustaendigkeit}</span>
+              <span className="text-right">
+                {Array.isArray(data.lv_zustaendigkeit)
+                  ? data.lv_zustaendigkeit.join('; ')
+                  : data.lv_zustaendigkeit}
+              </span>
             </div>
           )}
         </div>

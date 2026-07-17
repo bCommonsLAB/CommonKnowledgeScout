@@ -33,6 +33,7 @@ import { ClerkProvider } from "@clerk/nextjs"
 import { StorageContextProvider } from '@/contexts/storage-context'
 import { JotaiLocaleProvider } from '@/components/providers/jotai-locale-provider'
 import { LocaleGate } from '@/components/providers/locale-gate'
+import { QueryProvider } from '@/components/providers/query-provider'
 import { AppLayout } from "@/components/layouts/app-layout"
 import { HomeLayout } from "@/components/layouts/home-layout"
 import { getRootLandingTargetForHost } from "@/lib/root-landing"
@@ -94,15 +95,17 @@ export default async function RootLayout({
             <JotaiLocaleProvider serverLocale={serverLocale}>
               <LocaleGate>
                 <StorageContextProvider>
-                  <TooltipProvider>
-                    <NuqsAdapter>
-                      <HomeLayout>
-                        {children}
-                      </HomeLayout>
-                    </NuqsAdapter>
-                    <ConditionalFooter />
-                    <Toaster richColors />
-                  </TooltipProvider>
+                  <QueryProvider>
+                    <TooltipProvider>
+                      <NuqsAdapter>
+                        <HomeLayout>
+                          {children}
+                        </HomeLayout>
+                      </NuqsAdapter>
+                      <ConditionalFooter />
+                      <Toaster richColors />
+                    </TooltipProvider>
+                  </QueryProvider>
                 </StorageContextProvider>
               </LocaleGate>
             </JotaiLocaleProvider>
@@ -133,18 +136,20 @@ export default async function RootLayout({
             <JotaiLocaleProvider serverLocale={serverLocale}>
               <LocaleGate>
                 <StorageContextProvider>
-                  <AutoAcceptInvites />
-                  <TooltipProvider>
-                    <div className="relative min-h-screen flex flex-col">
-                      <NuqsAdapter>
-                        <AppLayout rootLandingSlug={rootLandingSlug}>
-                          {children}
-                        </AppLayout>
-                      </NuqsAdapter>
-                      <ConditionalFooter />
-                    </div>
-                    <Toaster richColors />
-                  </TooltipProvider>
+                  <QueryProvider>
+                    <AutoAcceptInvites />
+                    <TooltipProvider>
+                      <div className="relative min-h-screen flex flex-col">
+                        <NuqsAdapter>
+                          <AppLayout rootLandingSlug={rootLandingSlug}>
+                            {children}
+                          </AppLayout>
+                        </NuqsAdapter>
+                        <ConditionalFooter />
+                      </div>
+                      <Toaster richColors />
+                    </TooltipProvider>
+                  </QueryProvider>
                 </StorageContextProvider>
               </LocaleGate>
             </JotaiLocaleProvider>

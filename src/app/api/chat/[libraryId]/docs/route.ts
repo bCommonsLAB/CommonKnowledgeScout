@@ -6,9 +6,11 @@ import { resolveFacetScope } from '@/lib/chat/facet-scope'
 import { facetsSelectedToMongoFilter } from '@/lib/chat/common/filters'
 import { findDocs, findDocsGrouped, distinctViewTypes, getCollectionNameForLibrary, getCollectionOnly, type GallerySort } from '@/lib/repositories/vector-repo'
 import { maybePublicationFilter } from '@/lib/chat/publication-filter'
-import { isValidDetailViewType } from '@/lib/detail-view-types/registry'
+import { isValidDetailViewType, getSummableFields } from '@/lib/detail-view-types/registry'
+import { aggregateDocFieldSums } from '@/lib/repositories/vector-repo-sums'
 import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
 import { isCoCreatorOrOwner } from '@/lib/repositories/library-members-repo'
+import { resolveColumnSort } from '@/lib/gallery/column-sort'
 import { getPreferredUserEmail } from '@/lib/auth/user-email'
 import type { Document } from 'mongodb'
 
@@ -144,8 +146,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
     // Pagination params (flache Liste)
     const limitParam = url.searchParams.get('limit')
     const skipParam = url.searchParams.get('skip')
-    const limit = limitParam ? parseInt(limitParam, 10) : 50 // Default auf 50 für bessere Performance
-    const skip = skipParam ? parseInt(skipParam, 10) : 0
+    // Default 50 (Performance); hartes Cap 500, damit kein Client beliebig
+    // große Payloads anfordern kann (Batch-Loader nutzen limit+skip).
+    const parsedLimit = limitParam ? parseInt(limitParam, 10) : 50
+    const limit = Math.min(500, Math.max(1, Number.isFinite(parsedLimit) ? parsedLimit : 50))
+    const parsedSkip = skipParam ? parseInt(skipParam, 10) : 0
+    const skip = Math.max(0, Number.isFinite(parsedSkip) ? parsedSkip : 0)
 
     // Gruppenweise Pagination (fließendes Scrollen bei Gruppierung nach Handlungsfeld etc.)
     const groupByParam = url.searchParams.get('groupBy')
@@ -202,6 +208,23 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
     const pubFilter = await maybePublicationFilter(libraryId, userEmail || null)
     if (pubFilter) Object.assign(filter, pubFilter)
 
+    // ?aggregate=sums — Summen additiver Zahlenfelder ueber den GESAMTEN
+    // gefilterten Bestand (Tabellen-Fusszeile). Nutzt exakt den oben gebauten
+    // Filter (Facetten + Suche + Typ + Publication); Pagination/Sort/GroupBy
+    // sind hier bewusst irrelevant. Felder = Positivliste der Registry.
+    if (url.searchParams.get('aggregate') === 'sums') {
+      const effectiveType = selectedType ?? libraryDefaultType
+      const sumFields = getSummableFields(effectiveType)
+      if (sumFields.length === 0) {
+        return NextResponse.json(
+          { error: `Fuer den Typ „${effectiveType}" sind keine Summenfelder definiert.` },
+          { status: 400 }
+        )
+      }
+      const sumsResult = await aggregateDocFieldSums(libraryKey, libraryId, filter, sumFields)
+      return NextResponse.json(sumsResult, { status: 200 })
+    }
+
     // Locale fuer Doc-Translations:
     //   1. `x-locale`-Header (durch middleware.ts gesetzt)
     //   2. Fallback aus library.config.translations.fallbackLocale
@@ -218,6 +241,27 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
     const isMember = userEmail ? await isCoCreatorOrOwner(libraryId, userEmail) : false
     const sortRaw = url.searchParams.get('sort')
     const memberUserEmail = isMember ? userEmail : ''
+
+    // Globale Spalten-Sortierung (Tabellenansicht): sortField/sortDir werden
+    // gegen die Facetten-Whitelist validiert; ungültig -> expliziter Fehler
+    // (kein Silent Fallback). Nur in der flachen Liste sinnvoll — kombiniert
+    // mit gruppenweiser Pagination ist die Anfrage widersprüchlich.
+    const columnSortRes = resolveColumnSort(
+      url.searchParams.get('sortField'),
+      url.searchParams.get('sortDir'),
+      defs,
+      isMember,
+    )
+    if (columnSortRes && !columnSortRes.ok) {
+      return NextResponse.json({ error: columnSortRes.error }, { status: columnSortRes.status })
+    }
+    const columnSort = columnSortRes?.ok ? columnSortRes.spec : undefined
+    if (columnSort && useGrouped) {
+      return NextResponse.json(
+        { error: 'sortField ist nicht mit groupBy kombinierbar (flache Liste anfordern)' },
+        { status: 400 }
+      )
+    }
 
     // Bei gruppenweiser Pagination: findDocsGrouped nutzen, sonst klassische findDocs
     if (useGrouped) {
@@ -244,7 +288,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
     const result = await findDocs(libraryKey, libraryId, filter, {
       limit,
       skip,
-      sort: buildGallerySort(sortRaw, isMember),
+      // columnSort (Spaltenkopf) hat Vorrang; sonst Default/stars/rating.
+      sort: columnSort ? undefined : buildGallerySort(sortRaw, isMember),
+      columnSort,
       locale: headerLocale,
       fallbackLocale,
       userEmail: memberUserEmail,

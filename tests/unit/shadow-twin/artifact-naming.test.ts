@@ -93,14 +93,14 @@ describe('parseArtifactName', () => {
 });
 
 describe('buildArtifactName', () => {
-  it('sollte Transcript-Dateinamen generieren', () => {
+  it('sollte Transcript-Dateinamen generieren (sprach-neutral, suffixlos)', () => {
     const key: ArtifactKey = {
       sourceId: 'source-123',
       kind: 'transcript',
       targetLanguage: 'de',
     };
-    expect(buildArtifactName(key, 'audio.mp3')).toBe('audio.de.md');
-    expect(buildArtifactName(key, 'document.pdf')).toBe('document.de.md');
+    expect(buildArtifactName(key, 'audio.mp3')).toBe('audio.md');
+    expect(buildArtifactName(key, 'document.pdf')).toBe('document.md');
   });
 
   it('sollte Transformation-Dateinamen generieren', () => {
@@ -124,13 +124,13 @@ describe('buildArtifactName', () => {
     expect(() => buildArtifactName(key, 'audio.mp3')).toThrow('templateName is required');
   });
 
-  it('sollte Dateinamen mit Punkten behandeln', () => {
+  it('sollte Dateinamen mit Punkten behandeln (Transcript suffixlos)', () => {
     const key: ArtifactKey = {
       sourceId: 'source-123',
       kind: 'transcript',
       targetLanguage: 'de',
     };
-    expect(buildArtifactName(key, 'file.name.pdf')).toBe('file.name.de.md');
+    expect(buildArtifactName(key, 'file.name.pdf')).toBe('file.name.md');
   });
 });
 
@@ -145,9 +145,10 @@ describe('Parser/Builder Roundtrip', () => {
     
     const built = buildArtifactName(key, sourceFileName);
     const parsed = parseArtifactName(built, 'audio');
-    
+
     expect(parsed.kind).toBe(key.kind);
-    expect(parsed.targetLanguage).toBe(key.targetLanguage);
+    // Transkript ist sprach-neutral und suffixlos -> keine Zielsprache im Namen.
+    expect(parsed.targetLanguage).toBeNull();
     expect(parsed.templateName).toBeNull();
   });
 
@@ -188,7 +189,7 @@ describe('Eindeutigkeit', () => {
     const transformationName = buildArtifactName(transformationKey, 'audio.mp3');
     
     expect(transcriptName).not.toBe(transformationName);
-    expect(transcriptName).toBe('audio.de.md');
+    expect(transcriptName).toBe('audio.md');
     expect(transformationName).toBe('audio.Besprechung.de.md');
   });
 
@@ -213,23 +214,44 @@ describe('Eindeutigkeit', () => {
     expect(name1).not.toBe(name2);
   });
 
-  it('sollte verschiedene Sprachen unterscheiden', () => {
+  it('Transcript ist sprach-invariant (gleicher Name unabhängig von targetLanguage)', () => {
+    // Es gibt pro Quelle genau EIN Transkript (Originalsprache); die Zielsprache betrifft
+    // nur Transformationen. Daher liefert buildArtifactName für transcript denselben Namen.
     const key1: ArtifactKey = {
       sourceId: 'source-123',
       kind: 'transcript',
       targetLanguage: 'de',
     };
-    
+
     const key2: ArtifactKey = {
       sourceId: 'source-123',
       kind: 'transcript',
       targetLanguage: 'en',
     };
-    
+
     const name1 = buildArtifactName(key1, 'audio.mp3');
     const name2 = buildArtifactName(key2, 'audio.mp3');
-    
-    expect(name1).not.toBe(name2);
+
+    expect(name1).toBe('audio.md');
+    expect(name1).toBe(name2);
+  });
+
+  it('Transformation unterscheidet verschiedene Sprachen', () => {
+    const key1: ArtifactKey = {
+      sourceId: 'source-123',
+      kind: 'transformation',
+      targetLanguage: 'de',
+      templateName: 'Besprechung',
+    };
+
+    const key2: ArtifactKey = {
+      sourceId: 'source-123',
+      kind: 'transformation',
+      targetLanguage: 'en',
+      templateName: 'Besprechung',
+    };
+
+    expect(buildArtifactName(key1, 'audio.mp3')).not.toBe(buildArtifactName(key2, 'audio.mp3'));
   });
 });
 

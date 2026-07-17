@@ -598,6 +598,9 @@ export class StorageFactory {
   private static instance: StorageFactory;
   private libraries: ClientLibrary[] = [];
   private providers = new Map<string, StorageProvider>();
+  // Config-Fingerprint je gecachtem Provider: weicht er ab (z.B. neue Credentials
+  // oder geaenderter Pfad), wird der Provider neu gebaut statt wiederverwendet.
+  private providerConfigKeys = new Map<string, string>();
   private apiBaseUrl: string | null = null;
   private userEmail: string | null = null;
   // Server-Kontext: true → direkte Provider (WebDAV) statt HTTP-Proxies erstellen.
@@ -660,6 +663,7 @@ export class StorageFactory {
     
     if (hasChanges) {
       this.providers.clear();
+      this.providerConfigKeys.clear();
     }
   }
 
@@ -684,16 +688,28 @@ export class StorageFactory {
     }
     
     this.providers.delete(libraryId);
+    this.providerConfigKeys.delete(libraryId);
     console.log(`StorageFactory: Provider für ${libraryId} wurde aus dem Cache entfernt`);
   }
 
-  async getProvider(libraryId: string): Promise<StorageProvider> {
-    // Check if provider already exists
-    if (this.providers.has(libraryId)) {
-      return this.providers.get(libraryId)!;
-    }
+  /**
+   * Fingerprint aus den provider-relevanten Feldern (Typ, Pfad, Config inkl.
+   * Credentials, Server-/Client-Kontext). Aendert sich einer dieser Werte, weicht
+   * der Key ab und `getProvider` baut den Provider neu — statt den Cache vorsorglich
+   * bei jedem Aufruf zu leeren (siehe server-provider.ts).
+   */
+  private buildProviderConfigKey(library: ClientLibrary): string {
+    return JSON.stringify({
+      type: library.type,
+      path: library.path ?? '',
+      server: this.serverContext,
+      config: library.config ?? {},
+    });
+  }
 
-    // Find library
+  async getProvider(libraryId: string): Promise<StorageProvider> {
+    // Library zuerst aufloesen: der Cache ist config-bewusst, wir brauchen die
+    // aktuelle Config, um den gecachten Provider zu validieren.
     const library = this.libraries.find(lib => lib.id === libraryId);
     if (!library) {
       console.error(`StorageFactory: Bibliothek ${libraryId} nicht gefunden!`);
@@ -713,6 +729,15 @@ export class StorageFactory {
       typedError.errorCode = 'LIBRARY_NOT_FOUND';
       typedError.libraryId = libraryId;
       throw typedError;
+    }
+
+    // Config-bewusster Cache: gecachten Provider nur wiederverwenden, wenn Typ,
+    // Pfad, Config und Kontext unveraendert sind. So bleibt der Provider ueber den
+    // ganzen Batch erhalten, ohne dass veraltete Credentials zurueckkommen.
+    const configKey = this.buildProviderConfigKey(library);
+    const cached = this.providers.get(libraryId);
+    if (cached && this.providerConfigKeys.get(libraryId) === configKey) {
+      return cached;
     }
 
     // Create provider based on library type
@@ -811,8 +836,9 @@ export class StorageFactory {
         throw typedError;
     }
 
-    // Cache provider
+    // Cache provider + zugehoerigen Config-Fingerprint
     this.providers.set(libraryId, provider);
+    this.providerConfigKeys.set(libraryId, configKey);
     return provider;
   }
 

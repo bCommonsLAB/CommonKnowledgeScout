@@ -1,8 +1,16 @@
-# Offene Punkte & Hand-off — A4 + Plan 2 (Stand 2026-06-20)
+# Offene Punkte & Hand-off — A4 + Plan 2 (Stand 2026-06-20, aktualisiert 2026-06-22)
 
 > Begleitet `test-handbuch-a4-plan2-lokal.md`. Festgehalten vor dem Merge nach
 > `master` + Übergabe an die nächste Session. Branch:
 > `claude/library-verification-status-a1-cgg7qv`.
+>
+> **Update 2026-06-22:** Beide unter §2 gelisteten Bugs sind inzwischen behoben
+> und in `master`: §2a über PR #111 (detailViewType-Persistenz beim Promote),
+> §2b über den Größen-Guard 1b (Branch `claude/brave-galileo-i9z63s`). Der A1-
+> Verifikationsstatus (Plan 1) ist über PR #109 in `master`. Nächster Strang:
+> Plan 2 — generischer Assistent (2b / U-Reihe) + 2a Templates-Entflechten
+> (Hauptteil). Aktuelle Plan-Stände im
+> [`roadmap-…`](roadmap-formatunabhaengige-library-und-onboarding.md).
 
 ## 1) Fertig & grün
 
@@ -14,7 +22,10 @@
 
 ## 2) Offene Bugs (vorbestehend — NICHT A4/Plan-2-Code)
 
-### 2a) `detailViewType`-Persistenz: Event erscheint als „book"
+> **Beide GELÖST (2026-06-22):** 2a → PR #111, 2b → Größen-Guard 1b
+> (`claude/brave-galileo-i9z63s`). Befunde bleiben als Historie stehen.
+
+### 2a) ✅ GELÖST (PR #111) — `detailViewType`-Persistenz: Event erscheint als „book"
 - **Befund:** Die Library-Vorlage `event-creation-de` setzt `detailViewType:
   session` korrekt (Metadaten-Tab), aber der Wert landet **nicht** im
   veröffentlichten Dokument (`docMetaJson`) → die Galerie fällt auf den
@@ -30,12 +41,24 @@
 - **Wirkung:** Ohne `detailViewType` greifen weder Typ-Anzeige noch der
   A4a-Leitfilter real → **entsperrt A4a**, daher Prio.
 
-### 2b) Submission-Absturz beim Event
+### 2b) ✅ GELÖST (1b, `claude/brave-galileo-i9z63s`) — Submission-Absturz beim Event
 - **Befund:** `POST /api/submissions` → `ERR_EMPTY_RESPONSE`, danach überall
   `ERR_CONNECTION_REFUSED` = **Dev-Server abgestürzt**.
-- **Eingegrenzt:** Der Submission-/Inbox-Pfad nutzt **kein** A4/Plan-2-Modul
-  (per Suche verifiziert). Vermutlich Dev-OOM oder Inbox-Upload/OneDrive/Azure.
-- **Offen:** **Server-Terminal-Log** vom Crash-Zeitpunkt nötig.
+- **Ursache (verifiziert):** `captureWithBinary` → `uploadInboxBinary` puffert
+  große/mehrere Dateien vollständig im RAM (`formData()` + `Buffer.from(
+  arrayBuffer)` + erneutes `File`-Umpacken) → Dev-OOM. Es gab **kein**
+  Größenlimit.
+- **Fix (Variante A):** reiner Größen-Guard `src/lib/submissions/capture-size-guard.ts`
+  — Pre-Parse-Check über `Content-Length` (vor dem Puffern) + autoritativer
+  Post-Parse-Check pro Datei + Summe (vor dem Upload). Überschreitung →
+  **HTTP 413** statt Crash (kein Silent Fallback). Limits als dokumentierte
+  Konstanten, per ENV überschreibbar (`SUBMISSION_MAX_FILE_BYTES` /
+  `SUBMISSION_MAX_TOTAL_BYTES`).
+- **Fix (Variante C, Diagnose):** `src/lib/debug/process-error-logging.ts`
+  loggt idempotent `uncaughtExceptionMonitor` + `unhandledRejection` (echtes
+  Heap-OOM erreicht JS-Handler aber nicht — daher ist A der eigentliche Fix).
+- **Lokaler Realtest (durch den User):** großes Ordner-/Datei-Event erfassen →
+  erwartet sauberer 413-Hinweis statt Crash.
 
 ## 3) Offene lokale Tests
 
@@ -81,14 +104,23 @@ git push
 # dann PR/Merge nach master über euren üblichen Weg
 ```
 
-## 6) Empfohlener Einstieg nächste Session
+## 6) Empfohlener Einstieg nächste Session (aktualisiert 2026-06-22)
 
-1. **2a `detailViewType`-Persistenz fixen** (entsperrt A4a real) — Pipeline,
-   Modell **Opus**. Vorab: Frontmatter-Check (s. 2a) entscheidet Schreib- vs.
-   Lese-Fix.
-2. **D + Regression-Watch** abschließen.
-3. **W-G volle Extraktion** / **W-A Auto-Seed** (größer, lokal).
+Die ursprünglich hier gelisteten Punkte sind erledigt (2a → #111; A1 → #109;
+Submission-Crash → 1b). Nächster Strang ist **Plan 2** (siehe Roadmap):
+
+1. **2a — Templates entflechten (Hauptteil):** Schema-Einheit pro Inhaltstyp,
+   `extends`, generische Feld-Bindung (`kind`/`inputType`) auf dem schon
+   gemergten `editableContentFields`/Phase-3a-1 aufbauen. Kickoff: Umbauplan §8
+   (U0 zuerst). Modell **Opus**.
+2. **2b — der eine generische Assistent (U-Reihe):** geführter Flow gegen jedes
+   Schema, immer über den Wartekorb, Veröffentlichen = rechte-gateter Promote.
+   Fundament (U0–U4.1 #102, U5a #103, Inbox/Promote) liegt in `master`.
+3. **Rest-Feinschliff Plan 1:** A4c mobiler Feinschliff, A4-E2E lokal,
+   D + Regression-Watch.
 
 Start-Kontext für die neue Session: dieses Dokument +
-`test-handbuch-a4-plan2-lokal.md` + `plan1-a4-gemischte-galerie-story.md` +
-`plan-praezisierung-inhalte-erfassen-kuratierte-wizards.md`.
+`roadmap-formatunabhaengige-library-und-onboarding.md` +
+`docs/wizards/umbauplan-generischer-erfassungs-wizard.md` (U0–U8) +
+`docs/adr/0003-wizard-schema-template-trennen.md` +
+`docs/adr/0004-capture-publish-entkopplung-inbox-modell.md`.

@@ -128,6 +128,41 @@ describe('resolveArtifact', () => {
       expect(result?.shadowTwinFolderId).toBe(shadowTwinFolderId);
     });
 
+    it('sollte bei mehreren Transcript-Varianten die VOLLSTAENDIGSTE waehlen (Ökoniomie-Regression)', async () => {
+      const sourceName = 'document.pdf';
+      const parentId = 'parent-1';
+      const shadowTwinFolderId = 'shadow-folder-1';
+      const stale: StorageItem = {
+        id: 'stale', type: 'file', parentId: shadowTwinFolderId,
+        metadata: { name: 'document.de.md' } as StorageItem['metadata'],
+      };
+      const full: StorageItem = {
+        id: 'full', type: 'file', parentId: shadowTwinFolderId,
+        metadata: { name: 'document.en.md' } as StorageItem['metadata'],
+      };
+
+      const shadowTwinFolder: StorageItem = {
+        id: shadowTwinFolderId, type: 'folder', parentId,
+        metadata: { name: '.document.pdf' } as StorageItem['metadata'],
+      };
+      vi.mocked(findShadowTwinFolder).mockResolvedValue(shadowTwinFolder);
+      vi.mocked(mockProvider.listItemsById).mockResolvedValue([stale, full]);
+      vi.mocked(mockProvider.getBinary).mockImplementation(async (id: string) => {
+        // stale = eine Seite; full = mehrere Seiten -> full muss gewinnen.
+        const text = id === 'full'
+          ? '# page_001.jpeg\nSeite: 1\n\n# page_002.jpeg\nSeite: 2\n\n# page_003.jpeg\nSeite: 3'
+          : '# page_020.jpeg\nSeite: 20';
+        return { blob: new Blob([text]), mimeType: 'text/markdown' };
+      });
+
+      const result = await resolveArtifact(mockProvider, {
+        sourceItemId: 'source-1', sourceName, parentId, targetLanguage: 'de', preferredKind: 'transcript',
+      });
+
+      expect(result?.fileId).toBe('full');
+      expect(result?.fileName).toBe('document.en.md');
+    });
+
     it('sollte Transformation im dotFolder finden', async () => {
       const sourceName = 'audio.mp3';
       const parentId = 'parent-1';

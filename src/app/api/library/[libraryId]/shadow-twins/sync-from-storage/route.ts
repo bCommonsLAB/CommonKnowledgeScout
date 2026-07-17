@@ -18,10 +18,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { LibraryService } from '@/lib/services/library-service'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
-import { getShadowTwinsBySourceIds, type ShadowTwinDocument } from '@/lib/repositories/shadow-twin-repo'
+import { getShadowTwinsBySourceIds, readTranscriptRecord, type ShadowTwinDocument } from '@/lib/repositories/shadow-twin-repo'
 import { updateShadowTwinArtifactMarkdown } from '@/lib/repositories/shadow-twin-repo'
 import { getServerProvider } from '@/lib/storage/server-provider'
-import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
+import { buildArtifactName, parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
+import { selectFullestStorageVariant } from '@/lib/shadow-twin/select-fullest-storage-variant'
 import { findShadowTwinFolder } from '@/lib/storage/shadow-twin'
 import { FileLogger } from '@/lib/debug/logger'
 import type { StorageProvider, StorageItem } from '@/lib/storage/types'
@@ -88,6 +89,50 @@ async function findArtifactInStorage(
 }
 
 /**
+ * Listet ALLE Transkript-Varianten der Quelle im Storage ({base}.md + {base}.{lang}.md).
+ * Sucht — wie findArtifactInStorage — im Shadow-Twin-Ordner, dann Sibling-Ordner, dann Geschwister.
+ * Gibt die erste Fundstelle mit Kandidaten zurueck (die maßgebliche Ablage der Quelle).
+ */
+async function listTranscriptCandidates(
+  provider: StorageProvider,
+  parentId: string,
+  shadowTwinFolderId: string | null | undefined,
+  sourceName: string,
+  sourceBaseName: string,
+): Promise<StorageItem[]> {
+  const collect = (items: StorageItem[]): StorageItem[] =>
+    items.filter(
+      (it) =>
+        it.type === 'file' &&
+        it.metadata.name.toLowerCase().endsWith('.md') &&
+        // Nur echte Artefakte DIESER Quelle ({base}.…) — keine per-Seite-OCR-Dateien.
+        it.metadata.name.startsWith(`${sourceBaseName}.`) &&
+        parseArtifactName(it.metadata.name, sourceBaseName).kind === 'transcript',
+    )
+
+  if (shadowTwinFolderId) {
+    try {
+      const found = collect(await provider.listItemsById(shadowTwinFolderId))
+      if (found.length) return found
+    } catch { /* weiter */ }
+  }
+  if (parentId && sourceName) {
+    try {
+      const folder = await findShadowTwinFolder(parentId, sourceName, provider)
+      if (folder) {
+        const found = collect(await provider.listItemsById(folder.id))
+        if (found.length) return found
+      }
+    } catch { /* weiter */ }
+  }
+  try {
+    return collect(await provider.listItemsById(parentId))
+  } catch {
+    return []
+  }
+}
+
+/**
  * Prüft ob Storage-Datei neuer als MongoDB ist.
  * Toleranz: 5 Sekunden.
  */
@@ -136,6 +181,7 @@ export async function POST(
     const shadowTwinFolderId = doc.filesystemSync?.shadowTwinFolderId || null
     const parentId = body.parentId || doc.parentId || ''
     const sourceName = doc.sourceName || ''
+    const sourceBaseName = sourceName.replace(/\.[^.]+$/, '')
     const storageExpected =
       config.primaryStore === 'filesystem' || config.persistToFilesystem
 
@@ -148,54 +194,47 @@ export async function POST(
 
     const results: SyncResult[] = []
 
-    // Transcript-Artefakte synchronisieren
-    if (doc.artifacts?.transcript) {
-      for (const [lang, record] of Object.entries(doc.artifacts.transcript)) {
-        const fileName = buildArtifactName(
-          { sourceId: body.sourceId, kind: 'transcript', targetLanguage: lang },
-          sourceName,
-        )
-        const mongoDate = record.updatedAt ? new Date(record.updatedAt) : null
+    // Transcript ist sprach-neutral (max. ein Record). Mehrere Storage-Varianten?
+    // VOLLSTAENDIGSTER gewinnt (nicht suffixlos/neuer) – konsistent mit resolve/reconstruct.
+    {
+      const transcriptRecord = readTranscriptRecord(doc)
+      const canonicalName = buildArtifactName(
+        { sourceId: body.sourceId, kind: 'transcript', targetLanguage: '' },
+        sourceName,
+      )
+      const mongoDate = transcriptRecord?.updatedAt ? new Date(transcriptRecord.updatedAt) : null
+      const candidates = await listTranscriptCandidates(provider, parentId, shadowTwinFolderId, sourceName, sourceBaseName)
+      const sel = candidates.length > 0
+        ? await selectFullestStorageVariant(provider, candidates, canonicalName)
+        : null
 
-        const storageItem = await findArtifactInStorage(
-          provider, parentId, shadowTwinFolderId, sourceName, fileName,
-        )
-
-        if (!storageItem || !mongoDate) {
-          results.push({ kind: 'transcript', targetLanguage: lang, fileName, success: false, error: 'Datei nicht gefunden oder Mongo-Datum fehlt' })
-          continue
-        }
-
-        const storageMod = storageItem.metadata.modifiedAt instanceof Date
-          ? storageItem.metadata.modifiedAt
-          : new Date(storageItem.metadata.modifiedAt)
+      if (!sel || !sel.best || !mongoDate) {
+        results.push({ kind: 'transcript', targetLanguage: '', fileName: canonicalName, success: false, error: 'Datei nicht gefunden oder Mongo-Datum fehlt' })
+      } else if (sel.conflict) {
+        results.push({ kind: 'transcript', targetLanguage: '', fileName: canonicalName, success: false, error: 'Konflikt: mehrere gleich vollstaendige Varianten – manuell pruefen' })
+      } else {
+        const winner = sel.best.ref
+        const storageMod = winner.metadata.modifiedAt instanceof Date
+          ? winner.metadata.modifiedAt
+          : new Date(winner.metadata.modifiedAt)
 
         if (!isStorageNewer(mongoDate, storageMod)) {
-          results.push({ kind: 'transcript', targetLanguage: lang, fileName, success: true, error: 'Bereits synchron' })
-          continue
-        }
-
-        // Datei aus Storage lesen und in MongoDB speichern
-        try {
-          const { blob } = await provider.getBinary(storageItem.id)
-          const markdown = await blob.text()
-
-          if (!markdown.trim()) {
-            results.push({ kind: 'transcript', targetLanguage: lang, fileName, success: false, error: 'Leeres Markdown in Storage-Datei' })
-            continue
+          results.push({ kind: 'transcript', targetLanguage: '', fileName: winner.metadata.name, success: true, error: 'Bereits synchron' })
+        } else {
+          try {
+            const { blob } = await provider.getBinary(winner.id)
+            const markdown = await blob.text()
+            if (!markdown.trim()) {
+              results.push({ kind: 'transcript', targetLanguage: '', fileName: winner.metadata.name, success: false, error: 'Leeres Markdown in Storage-Datei' })
+            } else {
+              const artifactKey: ArtifactKey = { sourceId: body.sourceId, kind: 'transcript', targetLanguage: '' }
+              await updateShadowTwinArtifactMarkdown({ libraryId, sourceId: body.sourceId, artifactKey, markdown })
+              results.push({ kind: 'transcript', targetLanguage: '', fileName: winner.metadata.name, success: true })
+              FileLogger.info('shadow-twins/sync', 'Transcript (vollstaendigste Variante) synchronisiert', { sourceId: body.sourceId, fileName: winner.metadata.name })
+            }
+          } catch (err) {
+            results.push({ kind: 'transcript', targetLanguage: '', fileName: winner.metadata.name, success: false, error: err instanceof Error ? err.message : String(err) })
           }
-
-          const artifactKey: ArtifactKey = {
-            sourceId: body.sourceId,
-            kind: 'transcript',
-            targetLanguage: lang,
-          }
-          await updateShadowTwinArtifactMarkdown({ libraryId, sourceId: body.sourceId, artifactKey, markdown })
-
-          results.push({ kind: 'transcript', targetLanguage: lang, fileName, success: true })
-          FileLogger.info('shadow-twins/sync', `Transcript ${lang} von Storage nach MongoDB synchronisiert`, { sourceId: body.sourceId, fileName })
-        } catch (err) {
-          results.push({ kind: 'transcript', targetLanguage: lang, fileName, success: false, error: err instanceof Error ? err.message : String(err) })
         }
       }
     }

@@ -21,6 +21,9 @@ import { GraphControls } from './graph-controls'
 import { DocGraphScene } from './doc-graph-scene'
 import { DocGraphLegend } from './doc-graph-legend'
 import { DocGraphRelationsBar } from './doc-graph-relations-bar'
+import { DocGraphSimilarityBar } from './doc-graph-similarity-bar'
+import { GraphSumsPanel } from './graph-sums-panel'
+import { OverlapReportDialog } from '../overlap-report-dialog'
 import { readString } from './graph-encodings'
 import type { EdgeSourceSelection } from './graph-types'
 
@@ -254,6 +257,15 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
               }) : undefined}
             />
           )}
+          {/* Quelle C: Staleness-Hinweis + Recompute der persistierten Nachbarn. */}
+          {isSimilarity && (
+            <DocGraphSimilarityBar
+              libraryId={libraryId}
+              canManage={canManageRelations}
+              stale={similarity.stale}
+              computedAt={similarity.computedAt}
+            />
+          )}
           {/* Quelle A: Staleness-Hinweis + Recompute (Owner/Co-Creator). */}
           {isRelations && (
             <>
@@ -272,6 +284,11 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
                 />
                 {t('gallery.graph.showEnablers', { defaultValue: 'Enabler darstellen' })}
               </label>
+              {/* Stufe 4b: erklaerender Enabler-Bericht (deterministisch aus den
+                  Kanten; member-only API — Button daher nur fuer Owner/Co-Creator). */}
+              {libraryId && canManageRelations && (
+                <OverlapReportDialog libraryId={libraryId} canManage variant="enabler" />
+              )}
             </>
           )}
         </div>
@@ -347,6 +364,19 @@ export function DocGraph({ docs, graph, onOpenDocument, fieldLabels, libraryId, 
           nodeCount={data.nodes.length}
           edgeCount={data.links.length}
         />
+        {/* Summen-Panel (Plan summen-und-synergie-aggregation): nur bei aktiver
+            Aehnlichkeits-Quelle — die rohen Kanten sind die Datenbasis der
+            Greedy-Abzinsung. Rendert nichts, wenn der ViewType keine
+            Summenfelder definiert. */}
+        {isSimilarity && !similarity.loading && !similarity.error && (
+          <GraphSumsPanel
+            docs={docs}
+            edges={similarity.rawEdges}
+            fieldLabels={fieldLabels}
+            libraryId={libraryId}
+            canManageReport={canManageRelations}
+          />
+        )}
       </div>
     </div>
   )

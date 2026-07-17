@@ -43,13 +43,12 @@ const baseDoc = () => ({
     },
   ],
   artifacts: {
+    // Transkript ist sprach-neutral: ein Record pro Quelle (kein Sprach-Key).
     transcript: {
-      de: {
-        markdown:
-          'Erster Absatz.\n\n![](_Bericht.pdf/img-0.jpeg)\n\nZweiter Absatz.\n\n<img src="img-1.png" alt="logo">',
-        createdAt: '2026-01-01T00:00:00Z',
-        updatedAt: '2026-01-01T00:00:00Z',
-      },
+      markdown:
+        'Erster Absatz.\n\n![](_Bericht.pdf/img-0.jpeg)\n\nZweiter Absatz.\n\n<img src="img-1.png" alt="logo">',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
     },
     transformation: {
       'reise-bericht': {
@@ -74,8 +73,8 @@ describe('OCR -> Mongo -> Render Loop (deterministische Media-Strategie)', () =>
     expect(stats.totalReplacements).toBe(3)
     expect(stats.unresolved).toEqual([])
 
-    const newArtifacts = (newDoc as { artifacts: Record<string, Record<string, Record<string, { markdown: string }>>> }).artifacts
-    const transcriptDe = newArtifacts.transcript.de.markdown
+    const newArtifacts = (newDoc as { artifacts: { transcript: { markdown: string }; transformation: Record<string, Record<string, { markdown: string }>> } }).artifacts
+    const transcriptDe = newArtifacts.transcript.markdown
     const transformationDe = newArtifacts.transformation['reise-bericht'].de.markdown
 
     expect(transcriptDe).toContain(azureUrlImg0)
@@ -89,7 +88,7 @@ describe('OCR -> Mongo -> Render Loop (deterministische Media-Strategie)', () =>
   it('Render-Form: alle Bildpfade im Output starten mit https:// (Browser-Direktladung)', () => {
     const doc = baseDoc()
     const { newDoc } = migrateDocumentImages(doc)
-    const transcriptDe = (newDoc as { artifacts: { transcript: { de: { markdown: string } } } }).artifacts.transcript.de.markdown
+    const transcriptDe = (newDoc as { artifacts: { transcript: { markdown: string } } }).artifacts.transcript.markdown
 
     const mdImageRefs = Array.from(transcriptDe.matchAll(/!\[[^\]]*\]\(([^)]+)\)/g)).map((m) => m[1])
     const htmlImageRefs = Array.from(transcriptDe.matchAll(/<img[^>]+src=["']([^"']+)["']/g)).map((m) => m[1])
@@ -108,14 +107,14 @@ describe('OCR -> Mongo -> Render Loop (deterministische Media-Strategie)', () =>
 
   it('liefert unresolved fuer Bilder, die nicht in binaryFragments liegen', () => {
     const doc = baseDoc()
-    ;(doc.artifacts as { transcript: { de: { markdown: string } } }).transcript.de.markdown += '\n\n![](unbekannt.jpeg)'
+    ;(doc.artifacts as { transcript: { markdown: string } }).transcript.markdown += '\n\n![](unbekannt.jpeg)'
     const { stats } = migrateDocumentImages(doc)
     expect(stats.unresolved).toContain('unbekannt.jpeg')
   })
 
   it('aendert nichts, wenn das Markdown bereits absolute URLs enthaelt', () => {
     const doc = baseDoc()
-    ;(doc.artifacts as { transcript: { de: { markdown: string } } }).transcript.de.markdown =
+    ;(doc.artifacts as { transcript: { markdown: string } }).transcript.markdown =
       `Bereits gefroren: ![](${azureUrlImg0})`
     ;(doc.artifacts as { transformation: Record<string, Record<string, { markdown: string }>> }).transformation[
       'reise-bericht'

@@ -5,8 +5,8 @@ slug: {{slug|URL-freundlicher Slug (lowercase, Bindestriche, z.B. "nachhaltiger-
 massnahme_nr: {{massnahme_nr|Nummer der Maßnahme (nur Zahl, z.B. "345")}}
 arbeitsgruppe: {{arbeitsgruppe|Eine der 5 Arbeitsgruppen: Energie | Ernährung und Landnutzung | Konsum und Produktion | Mobilität | Wohnen}}
 category: {{category|Handlungsfeld (extraktiv, z.B. "Schwerverkehr und Warentransport")}}
-lv_zustaendigkeit: {{lv_zustaendigkeit|Zuständige Stelle (z.B. "Ressort Infrastrukturen und Mobilität")}}
-lv_bewertung: {{lv_bewertung| Wie ist die Einstufung der Landesregierung?}}
+lv_zustaendigkeit: {{lv_zustaendigkeit|ARRAY der zuständigen Stellen. Jede Stelle EXAKT aus der kanonischen Liste im systemprompt (Zeichen für Zeichen, vollständiger Name). Mehrere Zuständigkeiten = mehrere Array-Einträge, NIEMALS mit ";" oder "," zu einem String verketten}}
+lv_bewertung: {{lv_bewertung|EXAKT EINER dieser 7 Schlüssel (snake_case, nichts anderes): im_klimaplan | in_fachplaenen | in_umsetzung | neu_umsetzbar | nicht_umsetzbar | vertieft_pruefen | unklar — Mapping vom Originaltext s. systemprompt}}
 teaser: {{teaser|Kurzer Einleitungstext (1-2 Sätze, max. 200 Zeichen) für Vorschauansichten}}
 summary: {{summary|Zusammenfassung der Maßnahme (2-3 Sätze) für Übersichtsansichten}}
 vorschlag_quelle: {{vorschlag_quelle|Klimabürgerrat | Stakeholder Forum Klima}}
@@ -183,12 +183,12 @@ Strenge Regeln:
 Parsing-Regeln:
 - "Nr." → massnahme_nr (nur die Zahl)
 - "Handlungsfeld" → category (WICHTIG: Feld heißt "category", nicht "handlungsfeld")
-- "Zuständigkeit" → lv_zustaendigkeit
+- "Zuständigkeit" → lv_zustaendigkeit (als ARRAY, siehe Regeln unten)
 - "Vorschlag Klimabürgerrat" → vorschlag_text + vorschlag_quelle
 - "Rückmeldung Landesverwaltung" → lv_rueckmeldung
 - "Bewertung" → lv_bewertung
 
-LV-Einstufung Mapping:
+LV-Einstufung Mapping (lv_bewertung):
 - "bereits in Umsetzung" → "in_umsetzung"
 - "Im Klimaplan enthalten" → "im_klimaplan"
 - "In anderen Fachplänen" → "in_fachplaenen"
@@ -196,6 +196,43 @@ LV-Einstufung Mapping:
 - "nicht umsetzbar" → "nicht_umsetzbar"
 - "vertieft zu prüfen" → "vertieft_pruefen"
 - "Zuordnung unklar" → "unklar"
+- STRENG: Das Ergebnis ist IMMER exakt einer der 7 snake_case-Schlüssel rechts.
+  NIEMALS den Originaltext übernehmen (also nie "Im Klimaplan enthalten" oder
+  "nicht umsetzbar" mit Leerzeichen). Passt der Originaltext zu keiner Zeile
+  → "unklar".
+
+Kanonische Zuständigkeiten (lv_zustaendigkeit — NUR diese Werte, als ARRAY):
+- "Ressort Umwelt-, Natur- und Klimaschutz, Energie, Raumentwicklung und Sport"
+- "Ressort Infrastrukturen und Mobilität"
+- "Ressort Landwirtschaft, Forstwirtschaft und Tourismus"
+- "Ressort Italienische Kultur und Wirtschaftsentwicklung"
+- "Ressort Gesundheitsvorsorge und Gesundheit"
+- "Ressort Hochbau, Valorisierung des Vermögens, Grundbuch und Kataster"
+- "Ressort Wohnbau, Sicherheit und Gewaltprävention"
+- "Ressort Sozialer Zusammenhalt, Familie, Senioren, Genossenschaften und Ehrenamt"
+- "Ressort Europa, Arbeit und Personal"
+- "Ressort Innovation und Forschung, Museen, Denkmalpflege, Deutsche Kultur und Bildungsförderung"
+- "Generaldirektion - Ressort Finanzen, Digitaler Wandel und Bürgernahe Verwaltung"
+- "Generalsekretariat - Ressort Autonomie, Gemeinden, Institutionelle Angelegenheiten und Gesetzgebung"
+- "Gemeinden"
+- "Deutsche Bildungsdirektion"
+- "Direktion Italienische Bildung"
+- "Direktion Ladinische Bildung und Kultur"
+- "Keine Zuständigkeit der Landesverwaltung"
+- "Vorschlag unklar"
+
+Regeln für lv_zustaendigkeit:
+- Nennt das Dokument MEHRERE Stellen (getrennt durch ";" oder Aufzählung):
+  jede Stelle als EIGENER Array-Eintrag — NIEMALS zu einem String verketten.
+- Jeder Eintrag muss ZEICHENGENAU einem Wert der Liste oben entsprechen:
+  abgeschnittene oder leicht abweichende Namen auf den vollständigen
+  Listen-Wert vervollständigen (z.B. "Direktion Ladinische Bildung" →
+  "Direktion Ladinische Bildung und Kultur"); keine Doppelpunkte oder
+  Semikolons am Ende.
+- Die drei Bildungsdirektionen sind DREI getrennte Einträge, auch wenn sie im
+  Dokument mit Kommas in einer Zeile stehen.
+- Passt eine genannte Stelle zu KEINEM Listen-Wert: ["Vorschlag unklar"]
+  eintragen (nicht raten, keinen neuen Wert erfinden).
 
 Arbeitsgruppen-Erkennung:
 - Energie, Strom, Gas, Heizung, PV → "Energie"
@@ -212,8 +249,8 @@ Antwortschema:
   "massnahme_nr": "string",
   "arbeitsgruppe": "string",
   "category": "string (= Handlungsfeld, PFLICHTFELD für Facettenfilter)",
-  "lv_zustaendigkeit": "string",
-  "lv_bewertung": "string",
+  "lv_zustaendigkeit": "string[] (jeder Eintrag ZEICHENGENAU aus der kanonischen Liste im systemprompt; mehrere Stellen = mehrere Einträge, nie verketten)",
+  "lv_bewertung": "string (EXAKT einer von: im_klimaplan | in_fachplaenen | in_umsetzung | neu_umsetzbar | nicht_umsetzbar | vertieft_pruefen | unklar)",
   "teaser": "string",
   "summary": "string",
   "vorschlag_quelle": "string",

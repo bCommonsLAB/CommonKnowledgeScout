@@ -17,6 +17,8 @@ import type { ArtifactKind } from './artifact-types';
 import { findShadowTwinFolder } from '@/lib/storage/shadow-twin';
 import { parseArtifactName, buildArtifactName } from './artifact-naming';
 import { logArtifactResolve } from './artifact-logger';
+import { selectFullestStorageVariant } from './select-fullest-storage-variant';
+import { FileLogger } from '@/lib/debug/logger';
 import path from 'path';
 
 /**
@@ -128,12 +130,57 @@ async function resolveArtifactV2(
   // Bestimme ArtifactKind
   const kind: ArtifactKind = preferredKind || (templateName ? 'transformation' : 'transcript');
 
-  // Verwende zentrale buildArtifactName() Funktion für konsistente Namensgenerierung
+  // Verwende zentrale buildArtifactName() Funktion für konsistente Namensgenerierung.
+  // Transkripte sind sprach-neutral -> kein exakter Sprach-Dateiname; Auswahl via pickBestTranscript().
   const expectedFileName = kind === 'transformation'
     ? (templateName
       ? buildArtifactName({ sourceId: sourceItemId, kind: 'transformation', targetLanguage, templateName }, sourceName)
       : null)
-    : buildArtifactName({ sourceId: sourceItemId, kind: 'transcript', targetLanguage }, sourceName);
+    : null;
+
+  const asTime = (value: unknown): number => {
+    if (value instanceof Date) return value.getTime();
+    if (typeof value === 'string') {
+      const t = new Date(value).getTime();
+      return Number.isFinite(t) ? t : 0;
+    }
+    return 0;
+  };
+
+  /**
+   * Transkript-Auflösung ist sprach-neutral:
+   * - bevorzugt den sprach-neutralen Dateinamen `{base}.md`
+   * - toleriert Legacy `{base}.{lang}.md` (irgendeine Sprache)
+   * - schließt die Quelldatei selbst aus (z.B. Markdown-Quellen heißen ebenfalls `{base}.md`)
+   */
+  async function pickBestTranscript(items: StorageItem[]): Promise<StorageItem | null> {
+    const candidates: StorageItem[] = [];
+    for (const item of items) {
+      if (item.type !== 'file') continue;
+      if (item.id === sourceItemId) continue;
+      if (!item.metadata.name.toLowerCase().endsWith('.md')) continue;
+      // Nur echte Artefakte DIESER Quelle ({base}.…) — sonst werden per-Seite-OCR-Dateien
+      // (page_001.en.md) faelschlich als Transkript-Variante gewertet.
+      if (!item.metadata.name.startsWith(`${sourceBaseName}.`)) continue;
+      const parsed = parseArtifactName(item.metadata.name, sourceBaseName);
+      if (parsed.kind !== 'transcript') continue;
+      candidates.push(item);
+    }
+    if (candidates.length === 0) return null;
+    // Eine Variante: kein Inhalt-Read noetig.
+    if (candidates.length === 1) return candidates[0];
+
+    // Mehrere Varianten -> VOLLSTAENDIGSTER gewinnt (Inhalt laden), NICHT suffixlos/neuer.
+    // Genau hier hat die alte Heuristik die kaputte Einzelseite gewaehlt (Ökoniomie-Regression).
+    const { best, conflict } = await selectFullestStorageVariant(provider, candidates, `${sourceBaseName}.md`);
+    if (conflict) {
+      FileLogger.warn('artifact-resolver', 'Transkript-Konflikt: gleich vollstaendig, aber anderer Inhalt', {
+        sourceBaseName,
+        candidates: candidates.map((c) => c.metadata.name),
+      });
+    }
+    return best?.ref ?? null;
+  }
 
   /**
    * WICHTIG (v2): Transformationen benötigen i.d.R. `templateName` (Dateiformat: base.template.lang.md).
@@ -156,15 +203,6 @@ async function resolveArtifactV2(
     if (candidates.length === 0) return null;
     if (candidates.length === 1) return candidates[0];
 
-    const asTime = (value: unknown): number => {
-      if (value instanceof Date) return value.getTime();
-      if (typeof value === 'string') {
-        const t = new Date(value).getTime();
-        return Number.isFinite(t) ? t : 0;
-      }
-      return 0;
-    };
-
     // Neueste zuerst; bei Gleichstand: Name stabil sortieren
     candidates.sort((a, b) => {
       const at = asTime(a.metadata.modifiedAt);
@@ -182,14 +220,20 @@ async function resolveArtifactV2(
   if (shadowTwinFolder) {
     // PERFORMANCE: provider.listItemsById wird durch cachedProvider gecacht
     const items = await provider.listItemsById(shadowTwinFolder.id);
-    const artifactFile = expectedFileName
-      ? items.find(item => item.type === 'file' && item.metadata.name === expectedFileName)
-      : (kind === 'transformation' ? pickBestTransformation(items) : null);
+    const artifactFile = kind === 'transcript'
+      ? await pickBestTranscript(items)
+      : (expectedFileName
+        ? items.find(item => item.type === 'file' && item.metadata.name === expectedFileName)
+        : (kind === 'transformation' ? pickBestTransformation(items) : null));
 
     if (artifactFile) {
-      // Prüfe ob der Dateiname zur erwarteten Semantik passt
+      // Prüfe ob der Dateiname zur erwarteten Semantik passt.
+      // Transkripte sind sprach-neutral -> nur kind prüfen, Sprache ignorieren.
       const parsed = parseArtifactName(artifactFile.metadata.name, sourceBaseName);
-      if (parsed.kind === kind && parsed.targetLanguage === targetLanguage) {
+      const matches = kind === 'transcript'
+        ? parsed.kind === 'transcript'
+        : (parsed.kind === kind && parsed.targetLanguage === targetLanguage);
+      if (matches) {
         return {
           kind,
           fileId: artifactFile.id,
@@ -203,13 +247,18 @@ async function resolveArtifactV2(
 
   // 2. Fallback: Suche als Sibling-Datei
   const siblings = await provider.listItemsById(parentId);
-  const artifactFile = expectedFileName
-    ? siblings.find(item => item.type === 'file' && item.metadata.name === expectedFileName)
-    : (kind === 'transformation' ? pickBestTransformation(siblings) : null);
+  const artifactFile = kind === 'transcript'
+    ? await pickBestTranscript(siblings)
+    : (expectedFileName
+      ? siblings.find(item => item.type === 'file' && item.metadata.name === expectedFileName)
+      : (kind === 'transformation' ? pickBestTransformation(siblings) : null));
 
   if (artifactFile) {
     const parsed = parseArtifactName(artifactFile.metadata.name, sourceBaseName);
-    if (parsed.kind === kind && parsed.targetLanguage === targetLanguage) {
+    const matches = kind === 'transcript'
+      ? parsed.kind === 'transcript'
+      : (parsed.kind === kind && parsed.targetLanguage === targetLanguage);
+    if (matches) {
       return {
         kind,
         fileId: artifactFile.id,

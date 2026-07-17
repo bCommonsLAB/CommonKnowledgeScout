@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Trash2, Upload, Copy, Check, AlertTriangle, CheckCircle2, RotateCcw, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { getRequiredFields, getOptionalFields, isValidDetailViewType } from '@/lib/detail-view-types'
-import { isBaseFacetField } from '@/lib/detail-view-types/base-fields'
+import { isBaseFacetField, BASE_FACET_DEFS } from '@/lib/detail-view-types/base-fields'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // STANDARD-FACETTEN AUS REGISTRY GENERIEREN
@@ -199,7 +199,7 @@ export interface FacetDefsEditorProps {
 }
 
 export function FacetDefsEditor({ value, onChange, detailViewType }: FacetDefsEditorProps) {
-  const defs: FacetDefUi[] = (value || []).map(d => ({
+  const rawDefs: FacetDefUi[] = (value || []).map(d => ({
     ...d,
     multi: d?.multi ?? true,
     visible: d?.visible ?? true,
@@ -209,6 +209,24 @@ export function FacetDefsEditor({ value, onChange, detailViewType }: FacetDefsEd
     max: typeof (d as { max?: unknown }).max === 'number' ? (d as { max: number }).max : undefined,
     columns: typeof (d as { columns?: unknown }).columns === 'number' ? (d as { columns: number }).columns : 1,
   }))
+  // Fehlende Basis-Facetten voranstellen: sie existieren serverseitig immer
+  // (parseFacetDefs), fehlen aber oft in der gespeicherten Config — ohne sie
+  // hier koennte der Anwender ihre Sichtbarkeit nie umschalten (z.B. authors/
+  // source ausblenden). Werden erst durch ein Toggle persistiert (onChange).
+  const presentKeys = new Set(rawDefs.map((d) => d.metaKey))
+  const missingBase: FacetDefUi[] = BASE_FACET_DEFS
+    .filter((b) => !presentKeys.has(b.metaKey))
+    .map((b) => ({
+      metaKey: b.metaKey,
+      label: b.label,
+      type: b.type as FacetDefUi['type'],
+      multi: b.multi,
+      visible: b.visible,
+      showInTable: false,
+      sort: 'alpha' as const,
+      columns: 1,
+    }))
+  const defs: FacetDefUi[] = [...missingBase, ...rawDefs]
   const types: FacetDefUi['type'][] = ['string','number','boolean','string[]','date','integer-range']
   
   // ═══════════════════════════════════════════════════════════════════════════════
@@ -222,12 +240,15 @@ export function FacetDefsEditor({ value, onChange, detailViewType }: FacetDefsEd
     return new Set([...required, ...optional])
   }, [detailViewType])
   
-  // Prüfe welche Facetten-Keys nicht in der Registry sind
+  // Prüfe welche Facetten-Keys nicht in der Registry sind. Basis-Facetten
+  // (date/authors/source/tags) sind IMMER gueltig (library-uebergreifender
+  // Pflicht-Contract, siehe base-fields.ts) — sie duerfen nie als "nicht in
+  // Registry" gemeldet werden, obwohl sie in keinem ViewType-Registry stehen.
   const unknownFacets = useMemo(() => {
     if (!knownFields) return []
     return defs
       .map((d, index) => ({ metaKey: d.metaKey, index }))
-      .filter(({ metaKey }) => metaKey && !knownFields.has(metaKey))
+      .filter(({ metaKey }) => metaKey && !knownFields.has(metaKey) && !isBaseFacetField(metaKey))
   }, [defs, knownFields])
 
   function update(index: number, patch: Partial<FacetDefUi>) {
@@ -464,7 +485,11 @@ export function FacetDefsEditor({ value, onChange, detailViewType }: FacetDefsEd
                   <Switch checked={!!d.multi} disabled={locked} onCheckedChange={(v) => update(i, { multi: v })} />
                 </td>
                 <td className="px-1 py-2 align-middle">
-                  <Switch checked={!!d.visible} disabled={locked} onCheckedChange={(v) => update(i, { visible: v })} />
+                  {/* Sichtbarkeit ist AUCH fuer Basis-Facetten schaltbar: das Feld
+                      bleibt Pflicht (nicht loeschbar/umbenennbar), kann aber aus dem
+                      Filter ausgeblendet werden — z.B. wenn authors/source dieselben
+                      Werte wie eine spezifische Facette tragen (redundante Filter). */}
+                  <Switch checked={!!d.visible} onCheckedChange={(v) => update(i, { visible: v })} />
                 </td>
                 <td className="px-1 py-2 align-middle" title="Als Spalte in der Galerie-Tabellenansicht anzeigen">
                   <Switch checked={!!d.showInTable} onCheckedChange={(v) => update(i, { showInTable: v })} />

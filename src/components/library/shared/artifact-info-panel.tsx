@@ -1,13 +1,14 @@
 "use client"
 
 import * as React from "react"
-import { Trash2, X, RefreshCw, Download } from "lucide-react"
+import { Trash2, X, RefreshCw, Download, DownloadCloud, Wrench } from "lucide-react"
 import { toast } from "sonner"
 
 import { useSetAtom } from "jotai"
 
 import type { StorageItem } from "@/lib/storage/types"
 import { IngestionStatusCompact } from "@/components/library/shared/ingestion-status-compact"
+import { BinaryFragmentsSection } from "@/components/library/shared/artifact-info-panel/binary-fragments-section"
 import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom"
 import { Button } from "@/components/ui/button"
 import { fetchShadowTwinMarkdown } from "@/lib/shadow-twin/shadow-twin-mongo-client"
@@ -39,6 +40,8 @@ import {
   buildFileName,
   artifactKey,
 } from './artifact-info-panel/helpers'
+import { useSourceReconcile, reconcileHasChanges } from './artifact-info-panel/use-source-reconcile'
+import { useSourceArtifacts, useInvalidateSourceArtifacts } from '@/hooks/use-source-artifacts'
 
 export interface ArtifactInfoPanelProps {
   libraryId: string
@@ -53,35 +56,31 @@ export interface ArtifactInfoPanelProps {
 export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
   const base = React.useMemo(() => sourceBaseName(props.sourceFile.metadata.name), [props.sourceFile.metadata.name])
   const [isDeleting, setIsDeleting] = React.useState(false)
+  const [isImporting, setIsImporting] = React.useState(false)
   const [deletingKey, setDeletingKey] = React.useState<string | null>(null)
+  // Erhoeht sich nach Import/Loeschen, um die Binaries-Sektion neu laden zu lassen.
+  const [reloadSignal, setReloadSignal] = React.useState(0)
   const triggerShadowTwinAnalysis = useSetAtom(shadowTwinAnalysisTriggerAtom)
 
-  // Alle Artefakte aus MongoDB laden (nicht gefiltert, alle Sprachen/Templates)
-  const [allArtifacts, setAllArtifacts] = React.useState<MongoArtifact[]>([])
-  const [isLoading, setIsLoading] = React.useState(true)
+  // Alle Artefakte aus MongoDB laden (alle Sprachen/Templates) — geteilter
+  // React-Query-Cache (dedupliziert mit der Datei-Vorschau, siehe Re-Trace R2).
+  const artifactsQuery = useSourceArtifacts(props.libraryId, props.sourceFile?.id)
+  const invalidateSourceArtifacts = useInvalidateSourceArtifacts()
+  // useMemo: stabile Referenz, sonst rechnen die abgeleiteten Memos bei jedem Render neu.
+  const allArtifacts = React.useMemo(
+    () => (artifactsQuery.data ?? []) as MongoArtifact[],
+    [artifactsQuery.data]
+  )
+  // isFetching (statt isLoading): Spinner dreht auch beim erneuten Laden nach Invalidierung.
+  const isLoading = artifactsQuery.isFetching
   const [downloadingKey, setDownloadingKey] = React.useState<string | null>(null)
 
-  const fetchAllArtifacts = React.useCallback(async () => {
-    if (!props.libraryId || !props.sourceFile?.id) return
-    setIsLoading(true)
-    try {
-      const res = await fetch(
-        `/api/library/${encodeURIComponent(props.libraryId)}/shadow-twins/${encodeURIComponent(props.sourceFile.id)}`
-      )
-      if (res.ok) {
-        const data = await res.json() as { artifacts?: MongoArtifact[] }
-        setAllArtifacts(data.artifacts || [])
-      }
-    } catch {
-      // Fehler beim Laden – leer bleiben
-    } finally {
-      setIsLoading(false)
+  // Erzwingt frisches Laden bei allen Consumern (nach Loeschen/Import/Re-Analyse).
+  const refreshArtifacts = React.useCallback(async () => {
+    if (props.libraryId && props.sourceFile?.id) {
+      await invalidateSourceArtifacts(props.libraryId, props.sourceFile.id)
     }
-  }, [props.libraryId, props.sourceFile?.id])
-
-  React.useEffect(() => {
-    void fetchAllArtifacts()
-  }, [fetchAllArtifacts])
+  }, [invalidateSourceArtifacts, props.libraryId, props.sourceFile?.id])
 
   const transcripts = React.useMemo(
     () => allArtifacts.filter((a) => a.kind === "transcript"),
@@ -99,7 +98,7 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
 
   // Einzelnes Artefakt herunterladen (Frontmatter + Body als .md-Datei)
   // Quelle ist immer MongoDB: ArtifactInfoPanel listet auch nur Mongo-Artefakte
-  // (siehe fetchAllArtifacts oben). Damit umgehen wir den Provider-Pfad und
+  // (siehe artifactsQuery oben). Damit umgehen wir den Provider-Pfad und
   // muessen uns keine Sorgen ueber Storage-Backends machen.
   const handleDownloadSingle = React.useCallback(async (artifact: MongoArtifact) => {
     if (!props.libraryId || !props.sourceFile?.id) return
@@ -157,12 +156,12 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
       }
 
       const label = artifact.kind === "transcript"
-        ? `Transcript (${artifact.targetLanguage})`
+        ? `Transcript (Original)`
         : `Transformation (${artifact.targetLanguage}/${artifact.templateName})`
       toast.success("Artefakt geloescht", { description: label })
 
       // Liste und Shadow-Twin-Analyse aktualisieren
-      await fetchAllArtifacts()
+      await refreshArtifacts()
       triggerShadowTwinAnalysis((v) => v + 1)
       props.onArtifactsDeleted?.()
     } catch (error) {
@@ -172,7 +171,7 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
     } finally {
       setDeletingKey(null)
     }
-  }, [props.libraryId, props.sourceFile?.id, props.onArtifactsDeleted, triggerShadowTwinAnalysis, fetchAllArtifacts])
+  }, [props.libraryId, props.sourceFile?.id, props.onArtifactsDeleted, triggerShadowTwinAnalysis, refreshArtifacts])
 
   // Alle Artefakte loeschen
   const handleDeleteAll = React.useCallback(async () => {
@@ -198,7 +197,8 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
       }
 
       toast.success("Alle Artefakte geloescht")
-      await fetchAllArtifacts()
+      await refreshArtifacts()
+      setReloadSignal((v) => v + 1)
       triggerShadowTwinAnalysis((v) => v + 1)
       props.onArtifactsDeleted?.()
     } catch (error) {
@@ -208,7 +208,62 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
     } finally {
       setIsDeleting(false)
     }
-  }, [props.libraryId, props.sourceFile?.id, props.onArtifactsDeleted, triggerShadowTwinAnalysis, fetchAllArtifacts])
+  }, [props.libraryId, props.sourceFile?.id, props.onArtifactsDeleted, triggerShadowTwinAnalysis, refreshArtifacts])
+
+  // Alle Artefakte aus dem Storage in den Cache uebernehmen (Rekonstruktion).
+  // Nutzt den bestehenden reconstruct-Endpunkt: Markdown + Bilder (page_*/preview_*)
+  // werden nach Mongo/Azure uebernommen (siehe reconstruct-from-storage.ts, Variante 2).
+  const handleImportFromStorage = React.useCallback(async () => {
+    if (!props.libraryId || !props.sourceFile?.id || !props.sourceFile?.parentId) return
+    setIsImporting(true)
+    try {
+      const res = await fetch(
+        `/api/library/${encodeURIComponent(props.libraryId)}/shadow-twins/reconstruct`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sourceId: props.sourceFile.id, parentId: props.sourceFile.parentId }),
+        }
+      )
+      const data = await res.json().catch(() => ({})) as { reconstructed?: number; failed?: number; artifacts?: unknown[]; error?: string; message?: string }
+
+      if (!res.ok) {
+        toast.error("Übernahme fehlgeschlagen", { description: data.error || `HTTP ${res.status}` })
+        return
+      }
+
+      if (typeof data.reconstructed === "number" && data.reconstructed > 0) {
+        toast.success("Aus Speicher übernommen", {
+          description: `${data.reconstructed} Artefakt${data.reconstructed > 1 ? "e" : ""} in den Cache übernommen.`,
+        })
+      } else if (Array.isArray(data.artifacts) && data.artifacts.length === 0) {
+        toast.info("Nichts gefunden", { description: data.message || "Keine Artefakte im Speicher gefunden." })
+      } else {
+        toast.info("Übernahme abgeschlossen")
+      }
+
+      await refreshArtifacts()
+      setReloadSignal((v) => v + 1)
+      triggerShadowTwinAnalysis((v) => v + 1)
+      props.onArtifactsDeleted?.()
+    } catch (error) {
+      toast.error("Fehler bei der Übernahme", {
+        description: error instanceof Error ? error.message : "Unbekannter Fehler",
+      })
+    } finally {
+      setIsImporting(false)
+    }
+  }, [props.libraryId, props.sourceFile?.id, props.sourceFile?.parentId, props.onArtifactsDeleted, triggerShadowTwinAnalysis, refreshArtifacts])
+
+  // Reconcile (Transkript reparieren): vollstaendigste Version -> kanonische {base}.md + Mongo,
+  // unterlegene Varianten loeschen. Vorschau (Dry-Run) -> Bestaetigung -> Apply.
+  const handleReconcileApplied = React.useCallback(() => {
+    void refreshArtifacts()
+    setReloadSignal((v) => v + 1)
+    triggerShadowTwinAnalysis((v) => v + 1)
+    props.onArtifactsDeleted?.()
+  }, [refreshArtifacts, triggerShadowTwinAnalysis, props.onArtifactsDeleted])
+  const reconcile = useSourceReconcile(props.libraryId, props.sourceFile?.id, handleReconcileApplied)
 
   // Einzelne Artefakt-Zeile rendern
   const renderArtifactRow = React.useCallback((artifact: MongoArtifact) => {
@@ -221,7 +276,7 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
       <div key={key} className="group flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase">
-            {artifact.targetLanguage}
+            {artifact.kind === "transcript" ? "Original" : artifact.targetLanguage}
           </span>
           <span className="min-w-0 truncate text-xs text-muted-foreground">{fileName}</span>
         </div>
@@ -269,7 +324,7 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
             <button
               type="button"
               className="p-1 rounded hover:bg-muted text-muted-foreground"
-              onClick={() => void fetchAllArtifacts()}
+              onClick={() => void refreshArtifacts()}
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
             </button>
@@ -318,16 +373,50 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
         )}
       </div>
 
-      {/* Alle Artefakte loeschen */}
-      {hasArtifacts && (
-        <div className="border-t pt-4">
+      {/* Bilder & Binärdateien (Seiten-Renderings, Previews, OCR-Bilder) */}
+      <div className="space-y-2">
+        <div className="text-sm font-semibold">Bilder & Binärdateien</div>
+        <BinaryFragmentsSection
+          libraryId={props.libraryId}
+          sourceId={props.sourceFile.id}
+          reloadSignal={reloadSignal}
+        />
+      </div>
+
+      {/* Aktionen: aus Storage uebernehmen + alle loeschen */}
+      <div className="border-t pt-4 flex flex-wrap items-center gap-2">
+        {/* Aus Speicher uebernehmen: Markdown + Bilder aus dem Storage in den Cache rekonstruieren */}
+        {props.sourceFile.parentId && (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isImporting || isDeleting}
+            onClick={() => void handleImportFromStorage()}
+          >
+            <DownloadCloud className={`h-4 w-4 mr-2 ${isImporting ? "animate-pulse" : ""}`} />
+            {isImporting ? "Wird übernommen..." : "Alle Artefakte aus Storage übernehmen"}
+          </Button>
+        )}
+
+        {/* Transkript reparieren: vollstaendigste Version gewinnt (Vorschau -> Apply) */}
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={reconcile.isBusy || isImporting || isDeleting}
+          onClick={() => void reconcile.runPreview()}
+        >
+          <Wrench className={`h-4 w-4 mr-2 ${reconcile.isBusy ? "animate-pulse" : ""}`} />
+          {reconcile.isBusy ? "Prüfe…" : "Transkript reparieren"}
+        </Button>
+
+        {hasArtifacts && (
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
                 className="text-destructive hover:text-destructive"
-                disabled={isDeleting}
+                disabled={isDeleting || isImporting}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 {isDeleting ? "Wird geloescht..." : `Alle Artefakte loeschen (${allArtifacts.length})`}
@@ -352,8 +441,45 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-        </div>
-      )}
+        )}
+      </div>
+
+      {/* Reconcile-Vorschau / Bestätigung */}
+      <AlertDialog open={reconcile.open} onOpenChange={reconcile.setOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Transkript reparieren?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                {!reconcile.preview ? (
+                  <span>Keine Daten.</span>
+                ) : reconcile.preview.status === "conflict" ? (
+                  <span>Konflikt: mehrere gleich vollständige, aber unterschiedliche Versionen. Bitte manuell prüfen — es wird nichts geändert.</span>
+                ) : reconcile.preview.status === "needs-reextract" ? (
+                  <span>Alle gefundenen Versionen haben nur 1 Seite (mehr erwartet). Neu-Extraktion nötig — es wird nichts gelöscht.</span>
+                ) : !reconcileHasChanges(reconcile.preview) ? (
+                  <span>Bereits korrekt — nichts zu tun.</span>
+                ) : (
+                  <>
+                    <div>Vollständigste Version: <b>{reconcile.preview.winnerName}</b> ({reconcile.preview.winnerPages} Seiten, {reconcile.preview.winnerOrigin}).</div>
+                    <div>Wird als kanonische Version gesetzt (Storage + Datenbank).</div>
+                    {reconcile.preview.deleted.length > 0 && (
+                      <div>Wird gelöscht: {reconcile.preview.deleted.join(", ")}</div>
+                    )}
+                    <div className="text-muted-foreground">Diese Aktion kann nicht rückgängig gemacht werden.</div>
+                  </>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Schließen</AlertDialogCancel>
+            {reconcileHasChanges(reconcile.preview) && (
+              <AlertDialogAction onClick={() => void reconcile.runApply()}>Reparieren</AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="border-t pt-2">
         <div className="text-[11px] text-muted-foreground truncate">fileId: {props.sourceFile.id}</div>

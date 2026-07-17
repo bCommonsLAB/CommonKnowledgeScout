@@ -5,6 +5,7 @@ import type { DocCardMeta } from '@/lib/gallery/types'
 import type { ViewMode } from './gallery-sticky-header'
 import { VirtualizedItemsView } from './virtualized-items-view'
 import type { GalleryCardDensity } from '@/lib/gallery/gallery-card-density'
+import type { GallerySumsState } from '@/hooks/gallery/use-gallery-sums'
 
 export interface ItemsViewProps {
   /** View-Mode: 'grid' für Galerie-Ansicht, 'table' für Tabellen-Ansicht */
@@ -41,6 +42,10 @@ export interface ItemsViewProps {
    * ist (?sort=stars). Client-Sort entfaellt dann.
    */
   sortByStars?: boolean
+  /** Globale Spalten-Sortierung (serverseitig): aktueller Zustand. */
+  serverSort?: { column: string; dir: 'asc' | 'desc' } | null
+  /** Spaltenkopf-Klicks sortieren serverseitig (asc -> desc -> aus). */
+  onServerSortChange?: (next: { column: string; dir: 'asc' | 'desc' } | null) => void
   /**
    * Stern-Toggle: optimistischer Patch + POST. Wird von gallery-root
    * bereitgestellt; fehlt er, fallback nur API (ohne mutateDoc).
@@ -50,6 +55,8 @@ export interface ItemsViewProps {
   autoApplyConfidenceThreshold?: number
   /** Stufe 4: Reload-Callback nach erfolgreichem Bulk-Apply. */
   onGroupClassified?: () => void
+  /** Summen-Fusszeile (Table-Mode): Server-Aggregat ueber den gefilterten Bestand. */
+  tableSums?: GallerySumsState | null
 }
 
 /**
@@ -73,9 +80,12 @@ export function ItemsView({
   onPublishChanged,
   relationsEnabled,
   sortByStars,
+  serverSort,
+  onServerSortChange,
   onToggleFavorite,
   autoApplyConfidenceThreshold,
   onGroupClassified,
+  tableSums,
 }: ItemsViewProps) {
   return (
     <VirtualizedItemsView
@@ -95,9 +105,12 @@ export function ItemsView({
       onPublishChanged={onPublishChanged}
       relationsEnabled={relationsEnabled}
       sortByStars={sortByStars}
+      serverSort={serverSort}
+      onServerSortChange={onServerSortChange}
       onToggleFavorite={onToggleFavorite}
       autoApplyConfidenceThreshold={autoApplyConfidenceThreshold}
       onGroupClassified={onGroupClassified}
+      tableSums={tableSums}
     />
   )
 }

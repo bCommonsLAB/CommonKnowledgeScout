@@ -18,8 +18,11 @@ describe('FacetDefsEditor — Basis-Facetten-Sperre (A2)', () => {
     render(<FacetDefsEditor value={value} onChange={() => {}} />)
     const tagsInput = screen.getByDisplayValue('tags') as HTMLInputElement
     expect(tagsInput.disabled).toBe(true)
-    const lockedRemove = screen.getByTitle('Basis-Facette: nicht entfernbar') as HTMLButtonElement
-    expect(lockedRemove.disabled).toBe(true)
+    // Es erscheinen mehrere Basis-Facetten (date/authors/source vorangestellt +
+    // tags) — ALLE muessen als nicht entfernbar gesperrt sein.
+    const lockedRemoves = screen.getAllByTitle('Basis-Facette: nicht entfernbar') as HTMLButtonElement[]
+    expect(lockedRemoves.length).toBeGreaterThanOrEqual(2)
+    for (const btn of lockedRemoves) expect(btn.disabled).toBe(true)
   })
 
   it('laesst eine Nicht-Basis-Facette (region) editierbar', () => {
@@ -28,5 +31,13 @@ describe('FacetDefsEditor — Basis-Facetten-Sperre (A2)', () => {
     expect(regionInput.disabled).toBe(false)
     const removeBtn = screen.getByTitle('Entfernen') as HTMLButtonElement
     expect(removeBtn.disabled).toBe(false)
+  })
+
+  it('stellt fehlende Basis-Facetten voran, damit ihre Sichtbarkeit schaltbar ist', () => {
+    // value enthaelt NUR tags (Basis) + region — authors/source/date fehlen.
+    render(<FacetDefsEditor value={value} onChange={() => {}} />)
+    // authors + source werden ergaenzt und sind sichtbar (als Zeile vorhanden).
+    expect(screen.getByDisplayValue('authors')).toBeTruthy()
+    expect(screen.getByDisplayValue('source')).toBeTruthy()
   })
 })

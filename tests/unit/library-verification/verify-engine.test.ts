@@ -90,6 +90,23 @@ describe('runLibraryVerification', () => {
     expect(report.summary.issuesByCode['missing-base-field']).toBe(1)
   })
 
+  it('liefert das Detail-Log issuesByField (Code+Feld+Anzahl+Beispiel)', async () => {
+    const brokenB = book('b')
+    delete brokenB.docMetaJson.source
+    const brokenC = book('c')
+    delete brokenC.docMetaJson.source
+    delete brokenC.docMetaJson.date
+    const { report } = await drive(fakeSource([book('a'), brokenB, brokenC]), 'check')
+    const byField = report.summary.issuesByField ?? []
+    const source = byField.find((e) => e.code === 'missing-base-field' && e.field === 'source')
+    const date = byField.find((e) => e.code === 'missing-base-field' && e.field === 'date')
+    expect(source).toMatchObject({ count: 2 })
+    expect(source?.sampleMessage).toContain('source')
+    expect(date).toMatchObject({ count: 1 })
+    // Sortierung: haeufigster Befund zuerst
+    expect(byField[0].count).toBeGreaterThanOrEqual(byField[byField.length - 1].count)
+  })
+
   it('check-Modus repariert nichts', async () => {
     const src = fakeSource([book('a', { tags: 'x,y' })])
     const { report } = await drive(src, 'check')

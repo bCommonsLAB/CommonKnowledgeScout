@@ -242,6 +242,9 @@ export function convertMongoDocToDocCardMeta(
     grafik: typeof docMeta?.grafik === 'string' ? docMeta.grafik : undefined,
     gewicht: typeof docMeta?.gewicht === 'string' ? docMeta.gewicht : undefined,
     betriebssystem: typeof docMeta?.betriebssystem === 'string' ? docMeta.betriebssystem : undefined,
+    // Stufe 4c: persistierte Aehnlichkeits-Nachbarn (Top-K) + Stand fuer den Graph.
+    similarity_neighbors: parseSimilarityNeighbors(docMeta?.similarity_neighbors),
+    similarity_stand: typeof docMeta?.similarity_stand === 'string' ? docMeta.similarity_stand : undefined,
     // ─── Doc-Translations: Publish-/Translation-Status ───────────────────
     ...buildPublicationFields(rawDocMeta),
     // ─── Doc-Translations: Display-Labels fuer Facetten ──────────────────
@@ -251,6 +254,28 @@ export function convertMongoDocToDocCardMeta(
     // ─── Sterne-Aggregation aus dem $lookup ──────────────────────────────
     ...buildFavoriteFields(doc),
   }
+}
+
+/**
+ * Parst die persistierten Aehnlichkeits-Nachbarn (Stufe 4c). Nur Eintraege
+ * mit gueltiger fileId + numerischem weight; alles andere wird ausgelassen
+ * (defensiv gegen Alt-/Teilstaende — kein Throw im Read-Pfad).
+ */
+function parseSimilarityNeighbors(
+  raw: unknown,
+): Array<{ fileId: string; weight: number }> | undefined {
+  if (!Array.isArray(raw)) return undefined
+  const out: Array<{ fileId: string; weight: number }> = []
+  for (const n of raw) {
+    if (n && typeof n === 'object') {
+      const fid = (n as Record<string, unknown>).fileId
+      const w = (n as Record<string, unknown>).weight
+      if (typeof fid === 'string' && fid.length > 0 && typeof w === 'number' && Number.isFinite(w)) {
+        out.push({ fileId: fid, weight: w })
+      }
+    }
+  }
+  return out.length > 0 ? out : undefined
 }
 
 /**

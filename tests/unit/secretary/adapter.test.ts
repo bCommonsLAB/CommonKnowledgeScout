@@ -186,7 +186,7 @@ describe('callTextTranslate', () => {
 })
 
 describe('callTransformerChat', () => {
-  it('serialisiert messages als JSON in URLSearchParams-Body', async () => {
+  it('serialisiert messages als JSON-Body (application/json)', async () => {
     mockedFetch.mockResolvedValueOnce(makeOkResponse({ ok: true }))
     await callTransformerChat({
       url: 'http://test.invalid/api/transformer/chat',
@@ -195,14 +195,12 @@ describe('callTransformerChat', () => {
     })
     const init = mockedFetch.mock.calls[0][1] as RequestInit
     expect(init.headers).toMatchObject({
-      'Content-Type': 'application/x-www-form-urlencoded',
+      'Content-Type': 'application/json',
     })
-    const params = new URLSearchParams(String(init.body))
-    expect(JSON.parse(params.get('messages') ?? '[]')).toEqual([
-      { role: 'user', content: 'hi' },
-    ])
-    expect(params.get('model')).toBe('gpt-4')
-    expect(params.get('use_cache')).toBe('true')
+    const body = JSON.parse(String(init.body))
+    expect(body.messages).toEqual([{ role: 'user', content: 'hi' }])
+    expect(body.model).toBe('gpt-4')
+    expect(body.use_cache).toBe(true)
   })
 
   it('reichert HttpError-Message mit URL/Status an', async () => {

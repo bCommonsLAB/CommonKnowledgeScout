@@ -1,8 +1,21 @@
 # Fahrplan: erst formatunabhängige Library, dann Onboarding-Flow
 
-> Übersichts-Dokument (Stand 2026-06-14). EINE Quelle für die **Reihenfolge**,
-> damit (auch parallele) Sitzungen nicht doppelt bauen. Die Detail-Pläne bleiben
-> gültig und sind unten verlinkt. Sprache bewusst einfach gehalten.
+> Übersichts-Dokument (Stand 2026-06-14, Fortschritt 2026-06-22). EINE Quelle für
+> die **Reihenfolge**, damit (auch parallele) Sitzungen nicht doppelt bauen. Die
+> Detail-Pläne bleiben gültig und sind unten verlinkt. Sprache bewusst einfach.
+
+> **Fortschritt 2026-06-22 (was seither in `master` ist):**
+> - **Plan 1:** A1 Verifikationsstatus (PR #109) ✅; A1 Publish-Warnung ✅;
+>   A4-Folge formatgerechte Story-Verweise ✅; **detailViewType-Persistenz** beim
+>   Promote (PR #111) ✅ → entsperrt A4a real. Offen: A4-Feinschliff (mobil, E2E).
+> - **Plan 2 (Fundament):** Creation-Wizard U0–U4.1 (PR #102) ✅; U5a Compute-
+>   Modus-Weiche (PR #103) ✅; transcript-only B1/B2a/B2d + Architektur-Plan
+>   (PR #104) ✅; Promote Inbox→Ziel + RAG (Welle V/WP-6) ✅; U5e Multi-Binary-
+>   Inbox-Capture ✅; W-A Stufe 1 Auto-Seed (PR #112) ✅.
+> - **Stabilität:** Erfassungs-Crash (Datei-/Ordner-Upload, Dev-OOM) gehärtet —
+>   Größen-Guard + 413 statt Absturz (1b).
+> - **Nächster Strang:** Plan 2 — **2a Templates-Entflechten (Hauptteil)** +
+>   **2b generischer Assistent (U-Reihe)**. Kickoff: Umbauplan §8 (U0 zuerst).
 
 ## Grundsatz: nacheinander, nicht parallel
 
@@ -40,7 +53,8 @@ Ziel: eine Bibliothek = ein **Thema** mit gemischten Formaten; die Daten bleiben
 deterministisch und verlässlich (niemand kann die Ordnung aushebeln).
 
 - ✅ **A0** — Basis-Feld-Contract + Integritäts-Sperren (fertig, s.o.).
-- ▢ **A1** — „Geprüft"-Status pro Library + Prüfen/Reparieren. **Achtung:** die
+- ✅ **A1** — „Geprüft"-Status pro Library + Prüfen/Reparieren (PR #109, gemergt).
+  **Achtung:** die
   Veröffentlichungs-Sperre („nur Geprüfte dürfen publizieren") an den **Promote-
   Schritt** von Plan 2 hängen, keinen zweiten Publish-Pfad bauen (siehe Konflikte).
   *Integrationspunkt:* der Promote-Job entsteht in Plan 2 (ADR-0004 §E3 +
@@ -48,9 +62,10 @@ deterministisch und verlässlich (niemand kann die Ordnung aushebeln).
   nicht, baut A1 zunächst nur Status+Check+Repair; die Sperre wird dort angedockt.
 - ▢ **A2** — Experten-Ansicht (prüfen/reparieren) + Status-Abzeichen beim Öffnen +
   Basis-Filter in den Einstellungen sperren (nicht entfernbar).
-- ▢ **A4** — gemischte Galerie/Story aufpolieren: Filter als Vereinigung über
+- 🟡 **A4** — gemischte Galerie/Story aufpolieren: Filter als Vereinigung über
   Typen, Tabellen-Spalten je Typ, Story-Verweise je Dokument formatgerecht.
-  Detail-Bauplan (3 Wellen, Design-Konflikte, Reihenfolge):
+  Story-Verweise + Leitfilter erledigt (s. Fortschritt oben); **offen: A4c
+  mobiler Feinschliff + A4-Playwright-E2E lokal**. Detail-Bauplan:
   [`plan1-a4-gemischte-galerie-story.md`](plan1-a4-gemischte-galerie-story.md).
 - ⨯ **A3 entfällt hier** → wandert in Plan 2 (Wizard), siehe Konflikte.
 
@@ -84,7 +99,10 @@ vielen fast gleichen Kopien) werden **wiederverwendbare Bausteine**:
 - **Generische Feld-Bindung** über Feld-Eigenschaften (`kind=content`, `inputType`) — *O1*
   (baut auf dem schon gemergten `editableContentFields`/Phase 3a-1 auf).
 
-Status: **geplant + erster Baustein (3a-1) gemerged; Hauptteil offen.**
+Status (2026-06-22): **erster Baustein (3a-1) gemerged; Hauptteil weiterhin offen
+— NÄCHSTER STRANG.** Das Plan-2-Engine-Fundament (Step-Engine U0–U4.1, kanonischer
+Wizard-State, Wartekorb/Inbox, U5a Compute-Weiche, W-A Auto-Seed) liegt bereits in
+`master` und ist die Basis für das Entflechten.
 Kickoff für 2a/2b: **Umbauplan §8** („Kickoff … U0 zuerst") — derselbe Strang, neuer
 Agent pro Arbeitspaket.
 Detail: `docs/adr/0003-wizard-schema-template-trennen.md`,
@@ -99,7 +117,10 @@ Ein geführter Flow (**erklären → führen → rechnen → abnehmen**), der ge
 Schema läuft, **immer über den Wartekorb** schreibt (off-target, funktioniert immer)
 und bei dem **Veröffentlichen ein rechte-gateter Promote-Schritt** ist.
 
-Status: **offen** (U0 noch nicht begonnen; Fundament U0/Testlibrary aber vorhanden).
+Status (2026-06-22): **in Arbeit — Fundament gemergt, Hauptteil offen.** U0–U4.1
+(PR #102), U5a Compute-Weiche (PR #103) und der Promote-Pfad (Welle V/WP-6) sind
+in `master`; offen ist die durchgehende generische Schema-Bindung (U2/U3 dynamisch)
+und die Verdrahtung des Assistenten auf die gespeicherte Flow-Entität (W-A Stufe 2).
 Detail: `docs/wizards/umbauplan-generischer-erfassungs-wizard.md` (U0–U8),
 `docs/adr/0004-capture-publish-entkopplung-inbox-modell.md`,
 `docs/wizards/status-und-testplan-2026-06.md` (Inbox-WP-1/5/6).

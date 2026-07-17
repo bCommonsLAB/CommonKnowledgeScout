@@ -41,6 +41,7 @@ import { convertMongoDocToDocCardMeta, type MongoDocForConversion } from './doc-
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { buildFavoriteLookupStages } from './source-user-states-repo'
 import { buildCommentLookupStages } from './source-comments-repo'
+import { buildColumnSortStages, type GalleryColumnSortSpec } from '@/lib/gallery/column-sort'
 
 /**
  * Konstante für den Vector Search Index-Namen.
@@ -704,7 +705,14 @@ export async function queryVectors(
   topK: number,
   filter: Record<string, unknown>,
   dimension: number,
-  library: Library
+  library: Library,
+  /**
+   * `maxTimeMS`: hartes Server-Zeitlimit fuer die Aggregation. Ohne Limit
+   * blockiert eine haengende Vector-Suche die Pool-Connection minutenlang
+   * (Befund doc-neighbors 2026-07-08). Optional — Standard: kein Limit,
+   * bestehende Aufrufer (Chat-Retrieval) bleiben unveraendert.
+   */
+  opts?: { maxTimeMS?: number }
 ): Promise<QueryMatch[]> {
   validateDimension(dimension)
   validateLibrary(library)
@@ -814,7 +822,9 @@ export async function queryVectors(
   
   let results: Document[]
   try {
-    results = await col.aggregate(pipeline).toArray()
+    results = await col
+      .aggregate(pipeline, opts?.maxTimeMS ? { maxTimeMS: opts.maxTimeMS } : undefined)
+      .toArray()
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error)
     
@@ -944,11 +954,13 @@ export async function queryDocuments(
   topK: number,
   filter: Record<string, unknown> = {},
   dimension: number,
-  library: Library
+  library: Library,
+  /** Optionales Zeitlimit fuer die Aggregation — siehe `queryVectors`. */
+  opts?: { maxTimeMS?: number }
 ): Promise<QueryMatch[]> {
   validateDimension(dimension)
   validateLibrary(library)
-  
+
   return queryVectors(
     libraryKey,
     queryVector,
@@ -958,7 +970,8 @@ export async function queryDocuments(
       kind: 'meta', // Nur Meta-Dokumente
     },
     dimension,
-    library
+    library,
+    opts
   )
 }
 
@@ -1116,6 +1129,11 @@ function buildGalleryProjection(
     'docMetaJson.classification_locked': 1,
     'docMetaJson.classification_rejected': 1,
     'docMetaJson.needs_visual_refresh': 1,
+    // Stufe 4c: persistierte Aehnlichkeits-Nachbarn (Top-K je Doc) + Stand.
+    // Der Graph-Modus baut daraus die Similarity-Kanten OHNE Live-Vector-Suche
+    // (Plan summen-und-synergie-aggregation, Todo similarity-persist).
+    'docMetaJson.similarity_neighbors': 1,
+    'docMetaJson.similarity_stand': 1,
   }
 
   // Locale-spezifische Galerie-Translations (klein, nur title/topicsLabels/etc.).
@@ -1189,6 +1207,12 @@ export async function findDocs(
     limit?: number
     skip?: number
     sort?: GallerySort
+    /**
+     * Globale Spalten-Sortierung (Tabellenansicht): validierte Spec aus dem
+     * API-Layer. Hat Vorrang vor `sort`; leere Werte sortieren ans Ende
+     * (siehe lib/gallery/column-sort.ts).
+     */
+    columnSort?: GalleryColumnSortSpec
   } = {}
 ): Promise<{ items: DocCardMeta[]; total: number }> {
   // PERFORMANCE: Nutze direkt getCollection statt getVectorCollection, um Overhead (Dimension-Check, Index-Check) zu vermeiden
@@ -1233,13 +1257,21 @@ export async function findDocs(
     ...buildFavoriteLookupStages(libraryId, options.userEmail),
     ...buildCommentLookupStages(libraryId, options.userEmail),
   ]
-  const lookupBeforeSort = sortNeedsFavoriteLookup(options.sort)
+  const columnSort = options.columnSort
+  const lookupBeforeSort =
+    sortNeedsFavoriteLookup(options.sort) || columnSort?.source === 'favorites'
 
   // Prioritäts-Indikator ist ein PERSISTIERTES Feld (docMetaJson.prioritaets_index);
   // `sort=rating` sortiert direkt danach – keine $addFields-Laufzeitberechnung nötig.
-  const pipeline: Document[] = [{ $match: query }]
+  // columnSort (Tabellen-Spaltenkopf) hat Vorrang vor `sort` und sortiert
+  // global VOR $skip/$limit — leere Werte ans Ende (buildColumnSortStages).
+  // PERFORMANCE: Embedding (43KB/Doc) SOFORT ausschliessen — die Galerie
+  // braucht es nie, aber $sort haelt sonst die vollen Dokumente im Heap.
+  // Gemessen 2026-07-09 (606 Docs, Atlas): limit=200 4,7s -> 1,6s.
+  const pipeline: Document[] = [{ $match: query }, { $project: { embedding: 0 } }]
   if (lookupBeforeSort) pipeline.push(...lookupStages)
-  if (options.sort) pipeline.push({ $sort: options.sort })
+  if (columnSort) pipeline.push(...(buildColumnSortStages(columnSort) as Document[]))
+  else if (options.sort) pipeline.push({ $sort: options.sort })
   if (typeof options.skip === 'number' && options.skip > 0) pipeline.push({ $skip: options.skip })
   if (typeof options.limit === 'number' && options.limit > 0) pipeline.push({ $limit: options.limit })
   if (!lookupBeforeSort) pipeline.push(...lookupStages)
@@ -1412,6 +1444,8 @@ export async function findDocsGrouped(
     // in der Gruppen-Mitgliederliste verloren (Count gefiltert, Liste zeigt alle).
     const groupPipeline: Document[] = [
       { $match: { $and: [baseQuery, groupFilter] } },
+      // PERFORMANCE: Embedding vor Sort/Lookup ausschliessen (siehe findDocs).
+      { $project: { embedding: 0 } },
     ]
     if (lookupBeforeSort) groupPipeline.push(...lookupStages)
     if (sortWithinGroup) groupPipeline.push({ $sort: sortWithinGroup })
@@ -1449,52 +1483,73 @@ export async function aggregateFacets(
   libraryKey: string,
   libraryId: string,
   filter: Record<string, unknown>,
-  defs: Array<{ metaKey: string; type: string; label?: string }>
+  defs: Array<{ metaKey: string; type: string; label?: string }>,
+  /**
+   * Aktive Facetten-AUSWAHL je metaKey (disjunctive faceting): beim Zaehlen
+   * einer Facette werden alle Auswahlen AUSSER der eigenen angewendet. Sonst
+   * filtert sich eine Single-Wert-Facette nach dem ersten Klick selbst leer
+   * und Multi-Select ist im UI unmoeglich (Befund 2026-07-13). `filter`
+   * enthaelt dann nur noch die facetten-unabhaengigen Bedingungen
+   * (Typ-Filter, Publikation, Suche).
+   */
+  facetSelections: Record<string, unknown> = {}
 ): Promise<Record<string, Array<{ value: string; count: number }>>> {
   // PERFORMANCE: Nutze direkt getCollection statt getVectorCollection, um Overhead (Dimension-Check, Index-Check) zu vermeiden
   const col = await getCollection<Document>(libraryKey)
-  
+
   const match: Record<string, unknown> = {
     kind: 'meta', // Nur Meta-Dokumente!
     libraryId,
     ...filter,
   }
-  
+
+  const selectionKeys = Object.keys(facetSelections)
   const facetStages: Record<string, Document[]> = {}
-  
+
   for (const d of defs) {
     const key = d.metaKey
     if (!key) continue
-    
+
     const arr: Document[] = []
-    
+
+    // Disjunctive faceting: alle Facetten-Auswahlen AUSSER der eigenen —
+    // so bleiben die weiteren Werte der eigenen Gruppe anklickbar (Multi).
+    const others: Record<string, unknown> = {}
+    for (const sk of selectionKeys) {
+      if (sk !== key) others[sk] = facetSelections[sk]
+    }
+    if (Object.keys(others).length > 0) arr.push({ $match: others })
+
     // Suche sowohl auf Top-Level als auch in docMetaJson
     // Verwende $ifNull um den ersten vorhandenen Wert zu nehmen
     const topLevelField = `$${key}`
     const docMetaField = `$docMetaJson.${key}`
-    
+
     // Projektiere ein virtuelles Feld, das den Wert von Top-Level oder docMetaJson nimmt
-    arr.push({ 
-      $addFields: { 
-        [`__facet_${key}`]: { $ifNull: [topLevelField, docMetaField] } 
-      } 
+    arr.push({
+      $addFields: {
+        [`__facet_${key}`]: { $ifNull: [topLevelField, docMetaField] }
+      }
     })
-    
+
     // Null/fehlende ausschließen (auf dem virtuellen Feld)
     arr.push({ $match: { [`__facet_${key}`]: { $exists: true, $ne: null } } })
-    
+
     if (d.type === 'string[]') {
       arr.push({ $unwind: `$__facet_${key}` })
     }
-    
+
     arr.push({ $group: { _id: `$__facet_${key}`, count: { $sum: 1 } } })
     arr.push({ $sort: { _id: 1 } })
-    
+
     facetStages[key] = arr
   }
-  
+
   const pipeline: Document[] = [
     { $match: match },
+    // PERFORMANCE: Embedding (43KB/Doc) nicht durch die $facet-Stage schleppen
+    // (gleiche RAM-Falle wie in findDocs, Befund 2026-07-09).
+    { $project: { embedding: 0 } },
     { $facet: facetStages },
   ]
   

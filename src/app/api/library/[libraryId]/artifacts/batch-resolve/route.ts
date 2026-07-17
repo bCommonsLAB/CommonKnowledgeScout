@@ -16,7 +16,7 @@ import { resolveArtifact, type ResolvedArtifact } from '@/lib/shadow-twin/artifa
 import { LibraryService } from '@/lib/services/library-service';
 import type { StorageItem, StorageProvider } from '@/lib/storage/types';
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config';
-import { getShadowTwinsBySourceIds } from '@/lib/repositories/shadow-twin-repo';
+import { getShadowTwinsBySourceIds, readTranscriptRecord } from '@/lib/repositories/shadow-twin-repo';
 import { selectShadowTwinArtifact } from '@/lib/shadow-twin/shadow-twin-select';
 import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming';
 import { buildMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id';
@@ -323,17 +323,97 @@ export async function POST(
       // Lade beide Artefakt-Typen wenn includeBoth=true
       const shouldIncludeBoth = body.includeBoth === true;
 
+      // Filesystem-Fallback im Mongo-Pfad:
+      // Artefakte einer parallel laufenden Installation koennen nur im Storage
+      // (z.B. dasselbe Nextcloud) liegen, aber NICHT in der MongoDB DIESER Library.
+      // Wenn die Library Filesystem-Fallback erlaubt (allowFilesystemFallback) oder
+      // zusaetzlich ins Filesystem persistiert (persistToFilesystem), scannen wir den
+      // Storage als Fallback. Sonst bleibt der Mongo-Pfad rein DB-basiert (Performance).
+      const fsFallbackEnabled =
+        shadowTwinConfig.allowFilesystemFallback || shadowTwinConfig.persistToFilesystem;
+
+      // PERFORMANCE: Ordner-Cache fuer den Storage-Fallback.
+      // Ohne Cache listet jede resolveArtifact()-Aufloesung den Eltern-Ordner neu
+      // (WebDAV/Drive ~300ms pro Listing). Bei N Dateien × 2 Aufloesungen (Transcript +
+      // Transformation) summiert sich das auf Dutzende Sekunden. Wir laden die Eltern-
+      // Ordner einmalig vor und cachen jede weitere Auflistung (z.B. die Shadow-Twin-
+      // Unterordner) bei Erstzugriff. Nur noetig, wenn der Fallback ueberhaupt laeuft.
+      const fsFolderCache = new Map<string, StorageItem[]>();
+      const fsCachedProvider = {
+        ...provider,
+        listItemsById: async (folderId: string): Promise<StorageItem[]> => {
+          const cached = fsFolderCache.get(folderId);
+          if (cached) return cached;
+          const items = await provider.listItemsById(folderId);
+          fsFolderCache.set(folderId, items);
+          return items;
+        },
+      } as StorageProvider;
+
+      if (fsFallbackEnabled) {
+        const uniqueParentIds = Array.from(new Set(body.sources.map((s) => s.parentId)));
+        await Promise.all(
+          uniqueParentIds.map(async (parentId) => {
+            try {
+              fsFolderCache.set(parentId, await provider.listItemsById(parentId));
+            } catch (err) {
+              // Preload optional: leeres Array, damit Fallback nicht crasht.
+              FileLogger.warn('artifacts/batch-resolve', 'Preload (Mongo-Pfad) fehlgeschlagen', {
+                parentId,
+                error: err instanceof Error ? err.message : String(err),
+              });
+              fsFolderCache.set(parentId, []);
+            }
+          }),
+        );
+      }
+
+      const resolveFromStorageFallback = async (
+        source: BatchResolveRequest['sources'][number],
+        kind: 'transcript' | 'transformation',
+      ): Promise<ResolvedArtifactWithItem | null> => {
+        if (!fsFallbackEnabled) return null;
+        try {
+          // Gecachter Provider: Eltern-/Twin-Ordner werden nur einmal gelistet.
+          const resolved = await resolveArtifact(fsCachedProvider, {
+            sourceItemId: source.sourceId,
+            sourceName: source.sourceName,
+            parentId: source.parentId,
+            // Konfigurierte Library-Zielsprache (kein hardcodiertes 'de')
+            targetLanguage: targetLanguageBySource.get(source.sourceId) || 'de',
+            preferredKind: kind,
+          });
+          if (!resolved) return null;
+          // Artefakt-Item bevorzugt aus dem Ordner-Cache, sonst gezielt laden.
+          const cachedItem = (fsFolderCache.get(resolved.shadowTwinFolderId || source.parentId) || [])
+            .find((it) => it.id === resolved.fileId);
+          const item = cachedItem || await provider.getItemById(resolved.fileId);
+          if (!item) return null;
+          return { ...resolved, item };
+        } catch (err) {
+          // Storage-Fallback ist optional; ein Fehler darf die Liste nicht kippen.
+          FileLogger.debug('artifacts/batch-resolve', 'Storage-Fallback (Mongo-Pfad) fehlgeschlagen', {
+            sourceId: source.sourceId,
+            kind,
+            error: err instanceof Error ? err.message : String(err),
+          });
+          return null;
+        }
+      };
+
       for (const source of body.sources) {
         const doc = docs.get(source.sourceId);
         if (!doc) {
-          artifacts[source.sourceId] = null;
+          // Kein Mongo-Dokument: Storage-Fallback versuchen (cross-installation Artefakte)
+          artifacts[source.sourceId] = await resolveFromStorageFallback(source, preferredKind);
           if (shouldIncludeBoth) {
-            transcripts[source.sourceId] = null;
+            transcripts[source.sourceId] = await resolveFromStorageFallback(source, 'transcript');
           }
           // DIAGNOSE: Zeigt, welche sourceIds kein Mongo-Dokument haben
           FileLogger.debug('artifacts/batch-resolve', 'Kein Mongo-Dokument fuer Source', {
             sourceId: source.sourceId,
             sourceName: source.sourceName,
+            fsFallbackHit: !!artifacts[source.sourceId],
           });
           continue;
         }
@@ -354,8 +434,9 @@ export async function POST(
           selectedTemplate: selected?.templateName ?? null,
           hasRecord: !!selected?.record,
           docArtifactKeys: {
-            hasTranscript: !!doc.artifacts?.transcript,
-            transcriptLangs: doc.artifacts?.transcript ? Object.keys(doc.artifacts.transcript) : [],
+            // Transkript ist sprach-neutral: ein Record pro Quelle (Helper toleriert Legacy-Map).
+            hasTranscript: readTranscriptRecord(doc) !== null,
+            transcriptLangs: readTranscriptRecord(doc) ? [''] : [],
             hasTransformation: !!doc.artifacts?.transformation,
             transformationTemplates: doc.artifacts?.transformation ? Object.keys(doc.artifacts.transformation) : [],
           },
@@ -364,7 +445,8 @@ export async function POST(
         if (selected && (selected.kind === 'transcript' || selected.kind === 'transformation')) {
           artifacts[source.sourceId] = createArtifactItem(source, selected as { kind: 'transcript' | 'transformation'; targetLanguage: string; record: typeof selected.record; templateName?: string });
         } else {
-          artifacts[source.sourceId] = null;
+          // Mongo-Doc vorhanden, aber Artefakt fehlt → Storage-Fallback (z.B. nur FS-persistiert)
+          artifacts[source.sourceId] = await resolveFromStorageFallback(source, preferredKind);
         }
 
         // Transcript-Artefakt (wenn includeBoth=true)
@@ -374,7 +456,7 @@ export async function POST(
           if (transcriptSelected && (transcriptSelected.kind === 'transcript' || transcriptSelected.kind === 'transformation')) {
             transcripts[source.sourceId] = createArtifactItem(source, transcriptSelected as { kind: 'transcript' | 'transformation'; targetLanguage: string; record: typeof transcriptSelected.record; templateName?: string });
           } else {
-            transcripts[source.sourceId] = null;
+            transcripts[source.sourceId] = await resolveFromStorageFallback(source, 'transcript');
           }
         }
       }

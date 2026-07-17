@@ -27,7 +27,15 @@ export interface ShadowTwinDocument {
   parentId: string
   userEmail: string
   artifacts: {
-    transcript?: Record<string, ShadowTwinArtifactRecord>
+    /**
+     * Transkript ist sprach-neutral: genau EIN Record pro Quelle (= Originalsprache des Dokuments).
+     * Es kann pro Quelle nur ein Transkript geben (rohes OCR/Extraktion), daher kein Sprach-Key.
+     *
+     * Legacy-Dokumente koennen noch die alte sprach-gekeyte Form `Record<lang, record>` enthalten.
+     * Der Lesepfad toleriert beide Formen zentral ueber `readTranscriptRecord()`; beim naechsten
+     * Write wird die Legacy-Map durch den Single-Record ersetzt (Forward-Migration on Write).
+     */
+    transcript?: ShadowTwinArtifactRecord
     transformation?: Record<string, Record<string, ShadowTwinArtifactRecord>>
   }
   binaryFragments?: Array<Record<string, unknown>>
@@ -67,13 +75,49 @@ export async function ensureShadowTwinIndexes(libraryId: string): Promise<void> 
 
 export function buildArtifactPath(key: ArtifactKey): string {
   if (key.kind === 'transcript') {
-    return `artifacts.transcript.${key.targetLanguage}`
+    // Transkript ist sprach-neutral: EIN Pfad pro Quelle, unabhaengig von targetLanguage.
+    return `artifacts.transcript`
   }
   const templateName = key.templateName || 'unknown'
   return `artifacts.transformation.${templateName}.${key.targetLanguage}`
 }
 
+/**
+ * Liest den sprach-neutralen Transkript-Record aus einem Dokument.
+ *
+ * Toleriert zwei Formen (Rueckwaertskompatibilitaet ohne Batch-Migration):
+ * - NEU:    `artifacts.transcript` ist ein einzelner {@link ShadowTwinArtifactRecord}.
+ * - LEGACY: `artifacts.transcript` ist `Record<lang, ShadowTwinArtifactRecord>` (sprach-gekeyt)
+ *           -> es wird der neueste Eintrag (updatedAt desc) gewaehlt.
+ *
+ * @returns Den Transkript-Record oder null, wenn kein Transkript existiert.
+ */
+export function readTranscriptRecord(
+  doc: { artifacts?: { transcript?: unknown } | null } | null | undefined
+): ShadowTwinArtifactRecord | null {
+  const raw = doc?.artifacts?.transcript
+  if (!raw || typeof raw !== 'object') return null
+
+  // NEU: Single-Record erkennt man am String-Feld `markdown`.
+  if (typeof (raw as ShadowTwinArtifactRecord).markdown === 'string') {
+    return raw as ShadowTwinArtifactRecord
+  }
+
+  // LEGACY: sprach-gekeyte Map -> neuesten Eintrag waehlen.
+  const records = Object.values(raw as Record<string, ShadowTwinArtifactRecord>).filter(
+    (r): r is ShadowTwinArtifactRecord =>
+      !!r && typeof r === 'object' && typeof (r as ShadowTwinArtifactRecord).markdown === 'string'
+  )
+  if (records.length === 0) return null
+  records.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
+  return records[0]
+}
+
 function pickArtifact(doc: ShadowTwinDocument, key: ArtifactKey): ShadowTwinArtifactRecord | null {
+  // Transkript ist sprach-neutral und kann in Legacy-Form vorliegen -> zentral ueber Helper lesen.
+  if (key.kind === 'transcript') {
+    return readTranscriptRecord(doc)
+  }
   const path = buildArtifactPath(key).split('.')
   let current: unknown = doc
   for (const segment of path) {
@@ -158,6 +202,15 @@ export async function getShadowTwinsBySourceIds(args: {
     .toArray()
 
   return new Map(docs.map((doc) => [doc.sourceId, doc]))
+}
+
+/**
+ * Liest ALLE Shadow-Twin-Dokumente einer Library (fuer Reconcile/Wartung).
+ * Achtung: kann gross sein — nur fuer explizite Wartungs-Operationen nutzen.
+ */
+export async function getAllShadowTwins(libraryId: string): Promise<ShadowTwinDocument[]> {
+  const col = await getShadowTwinCollection(libraryId)
+  return col.find({ libraryId }).toArray()
 }
 
 export async function getShadowTwinArtifact(args: {
@@ -438,18 +491,17 @@ export async function getAllArtifacts(args: {
 
   const entries: FlatArtifactEntry[] = []
 
-  // Transcripts: artifacts.transcript.{lang}
-  if (doc.artifacts.transcript) {
-    for (const [lang, record] of Object.entries(doc.artifacts.transcript)) {
-      if (!record || typeof record !== 'object') continue
-      entries.push({
-        kind: 'transcript',
-        targetLanguage: lang,
-        updatedAt: record.updatedAt,
-        createdAt: record.createdAt,
-        markdownLength: record.markdown?.length || 0,
-      })
-    }
+  // Transcript: sprach-neutral -> genau EIN Eintrag (Helper toleriert Legacy-Map).
+  const transcriptRecord = readTranscriptRecord(doc)
+  if (transcriptRecord) {
+    entries.push({
+      kind: 'transcript',
+      // Sprach-neutral: keine Zielsprache. Leerstring signalisiert "Originalsprache".
+      targetLanguage: '',
+      updatedAt: transcriptRecord.updatedAt,
+      createdAt: transcriptRecord.createdAt,
+      markdownLength: transcriptRecord.markdown?.length || 0,
+    })
   }
 
   // Transformations: artifacts.transformation.{template}.{lang}
@@ -499,14 +551,12 @@ export async function deleteArtifactsByLanguage(args: {
   const col = await getShadowTwinCollection(libraryId)
   const lang = targetLanguage.toLowerCase()
 
-  // Alle Dokumente durchsuchen, die Artefakte in dieser Sprache haben
-  // MongoDB: Pruefen ob artifacts.transcript.{lang} oder artifacts.transformation.*.{lang} existiert
+  // Alle Dokumente durchsuchen, die Transformationen haben.
+  // WICHTIG: Transkripte sind sprach-neutral (ein Record pro Quelle, = Originalsprache) und
+  // werden daher NICHT per Zielsprache geloescht. Nur Transformationen sind sprach-spezifisch.
   const docs = await col.find({
     libraryId,
-    $or: [
-      { [`artifacts.transcript.${lang}`]: { $exists: true } },
-      { [`artifacts.transformation`]: { $exists: true } },
-    ],
+    [`artifacts.transformation`]: { $exists: true },
   }).toArray()
 
   const affectedFiles: LanguageDeleteResult['affectedFiles'] = []
@@ -514,11 +564,6 @@ export async function deleteArtifactsByLanguage(args: {
 
   for (const doc of docs) {
     const artifacts: Array<{ kind: ArtifactKind; templateName?: string }> = []
-
-    // Transcript in dieser Sprache?
-    if (doc.artifacts?.transcript?.[lang]) {
-      artifacts.push({ kind: 'transcript' })
-    }
 
     // Transformationen in dieser Sprache?
     if (doc.artifacts?.transformation) {
@@ -566,10 +611,11 @@ export async function deleteShadowTwinBySourceId(libraryId: string, sourceId: st
 }
 
 /**
- * Löscht ein einzelnes Artefakt (z.B. nur Transcript "de" oder Transformation "pdfanalyse.en")
+ * Löscht ein einzelnes Artefakt (z.B. das Transcript oder Transformation "pdfanalyse.en")
  * aus dem Shadow-Twin-Dokument, ohne andere Artefakte zu beeinflussen.
  *
- * Verwendet $unset mit dem Pfad aus buildArtifactPath (z.B. "artifacts.transcript.de").
+ * Verwendet $unset mit dem Pfad aus buildArtifactPath (Transcript: "artifacts.transcript",
+ * Transformation: "artifacts.transformation.{template}.{lang}").
  */
 export async function deleteShadowTwinArtifact(args: {
   libraryId: string
