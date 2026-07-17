@@ -4,6 +4,23 @@
 > Branch: `claude/relaxed-mendel-fhwj8r`. Datum: 2026-06-21.
 > Voraussetzung: A0-Feld-Contract + `detail-view-types`-Registry (auf `master`).
 
+> **UPDATE 2026-07-17 — Umsetzungsstand (auf `master`, PR #131).** Abweichungen/
+> Konkretisierungen zu diesem Konzept:
+> - **E4 (`web/`-Snapshot ersetzen): erledigt** — Legacy komplett entfernt
+>   (publish/depublish-Routen, Azure-Snapshot-Methoden, Config-Felder
+>   `sitePublished`/`siteUrl`/`siteVersion`/`sitePublishedAt`). Es bleibt nur
+>   `siteEnabled` = „Website-Landingpage am Slug".
+> - **E2 (Startseiten-Markierung):** Interim ueber den kleinsten `menu_order`
+>   (noch kein separates Startseiten-Config-Feld); `siteEnabled` steuert die Anzeige.
+> - **E7 (Root = eine Library):** umgesetzt (globale `rootLibrarySlug`) UND um
+>   **Variante B** erweitert — host-basiertes Domain->Slug-Mapping
+>   (ENV `PUBLIC_DOMAIN_LIBRARY_MAP`), damit mehrere Domains je eigene, shell-freie
+>   Library-Landingpage zeigen, ohne die KnowledgeScout-Startseite zu aendern.
+> - **Galerie-Filter:** `website`-Docs sind in der oeffentlichen Slug-Galerie
+>   ausgeblendet (`excludeDetailViewType`, serverseitig).
+>
+> Verbindlicher Contract: `.cursor/rules/website-landingpage.mdc`.
+
 ## 1. Ziel & Anforderungen
 
 Eine veröffentlichte Library soll wie eine eigene Webseite mit Landingpage

@@ -4,6 +4,27 @@
 > Branch: `claude/relaxed-mendel-fhwj8r` (alle Änderungen committet + gepusht).
 > Konzept (Single Source): `docs/analysis/landingpage-vereinfachung-webseite-detailviewtype.md`
 
+> **UPDATE 2026-07-17 — dieser Handover ist ueberholt.** Ueber Phase 0–2 hinaus
+> umgesetzt und nach `master` gemergt (PR #131). Wesentliche Aenderungen ggue.
+> dem Stand unten:
+> - **`siteEnabled`** schaltet die Website-Landingpage direkt am Slug
+>   (`/explore/<slug>`) als **Default-Ansicht** (Live-Docs, Menue nach
+>   `menu_order`). Die Galerie bleibt ueber Menue/`?view=gallery` erreichbar.
+> - **Legacy `web/`-Snapshot-Publishing komplett entfernt**: Routen
+>   `publish-site`/`depublish-site`, `AzureStorageService`-Snapshot-Methoden und
+>   die Felder `sitePublished`/`siteUrl`/`siteVersion`/`sitePublishedAt`. Es
+>   bleibt allein `siteEnabled`. Der Pilot unter `/explore/pilot` ist Wegwerf-Code.
+> - **Variante B (host-basiert):** Root `/` rendert pro Domain via ENV
+>   `PUBLIC_DOMAIN_LIBRARY_MAP` **shell-frei** die Landingpage der gemappten
+>   Library; `knowledgescout.org` bleibt unveraendert (siehe `.env.example`).
+> - **Galerie-Filter:** `website`-Docs sind in der oeffentlichen Slug-Galerie
+>   ausgeblendet (`excludeDetailViewType`, serverseitig -> konsistente Zaehlung).
+> - **Bilder** oeffentlicher Landingpages laden ueber direkte, anonym lesbare
+>   Azure-Blob-URLs (nicht die auth-gegatete `web/`-Route).
+>
+> Verbindlicher Contract: `.cursor/rules/website-landingpage.mdc`.
+> Alles darunter ist der historische Handover-Stand (2026-06-23).
+
 ## 1. Worum geht es
 
 Veröffentlichte Libraries sollen wie eine Webseite mit Landingpage wirken. Statt

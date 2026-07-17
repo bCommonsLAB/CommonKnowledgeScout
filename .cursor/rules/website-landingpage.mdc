@@ -1,0 +1,68 @@
+---
+description: Contract fuer die Website-Landingpage (detailViewType website) am Library-Slug + host-basierte Root-Landingpage (Variante B). Verhindert Wiedereinfuehrung des entfernten web/-Snapshot-Publishings.
+globs: src/app/page.tsx,src/app/layout.tsx,src/lib/root-landing.ts,src/components/library/website/**/*.tsx,src/app/explore/[slug]/**/*.tsx,src/components/settings/public/public-form.tsx,src/app/api/chat/[libraryId]/docs/route.ts
+alwaysApply: false
+---
+
+# Website-Landingpage & Root-Domain (Variante B)
+
+Verbindliche Architektur nach dem Umbau vom 2026-07. Wer an Landingpage,
+Explore-Slug, Root `/` oder Public-Settings arbeitet, haelt diese Punkte ein.
+
+## 1. `siteEnabled` = Website-Landingpage am Slug (KEIN web/-Snapshot mehr)
+
+- Ist `publicPublishing.siteEnabled === true`, rendert `/explore/<slug>` als
+  **Default-Ansicht** die Website-Landingpage (`WebsiteLandingLive`) statt der
+  Galerie. Inhalt kommt aus **Live-Dokumenten** mit `detailViewType: website`
+  (Menue sortiert nach `menu_order`).
+- Die Galerie bleibt ueber Tab/Menue erreichbar; der Wechsel nutzt **explizit**
+  `?view=gallery` (sonst faellt die leere URL wieder auf den Site-Default).
+
+## 2. Entferntes Legacy — NICHT wiedereinfuehren
+
+Das alte `web/`-Snapshot-Publishing (statischer HTML-Upload nach Azure, iframe-
+Einbettung) ist **entfernt**. Nicht neu anlegen:
+
+- Routen `publish-site` / `depublish-site` (geloescht).
+- `AzureStorageService.uploadPublicSiteFile / getPublicSiteFileUrl /
+  getPublicSiteBlobPath` (entfernt).
+- Config-Felder `sitePublished`, `siteUrl`, `siteVersion`, `sitePublishedAt`
+  (entfernt). Es bleibt allein `siteEnabled`.
+- Kein iframe-`siteViewSrc` mehr in `gallery-root` / Explore.
+
+## 3. Root `/` + Variante B (host-basiert)
+
+- `getRootLandingTargetForHost(host)` in `src/lib/root-landing.ts` entscheidet
+  pro **Host**: 1) Domain->Slug aus ENV `PUBLIC_DOMAIN_LIBRARY_MAP`,
+  2) Fallback globale `rootLibrarySlug` (app_config-Singleton).
+- Eine gemappte Domain (z. B. `oldiesforfuture.org`) rendert `/` **shell-frei**
+  (keine TopNav) die Landingpage ihrer Library. `knowledgescout.org` bleibt
+  **unveraendert** (Uebersicht bzw. globale Config).
+- **Layout UND Page MUSSEN denselben host-abhaengigen Wert lesen**
+  (`src/app/layout.tsx` fuer die Shell-Ausblendung, `src/app/page.tsx` fuer den
+  Inhalt) — sonst Shell/Content-Divergenz und TopNav-Flash.
+- `PUBLIC_DOMAIN_LIBRARY_MAP`: ungueltiges JSON wird **laut geloggt** und
+  ignoriert (kein stiller Fallback, siehe `no-silent-fallbacks.mdc`).
+
+## 4. website-Docs sind kein Galerie-Inhalt
+
+- In der **oeffentlichen Slug-Galerie** werden `website`-Docs ausgeblendet:
+  `/explore/<slug>` gibt `hideWebsiteDocs` -> `excludeDetailViewType=website` an
+  die Docs-API. **Serverseitig** gefiltert, damit Liste, Gruppierung UND Zaehlung
+  konsistent sind.
+- Die **interne** Galerie (`/library/gallery`, Owner) zeigt sie weiter
+  (Verwaltung/Bearbeitung).
+
+## 5. Bilder oeffentlicher Landingpages
+
+- Oeffentliche (anonyme) Landingpages laden Bilder ueber **direkte, anonym
+  lesbare Azure-Blob-URLs**, NICHT ueber die auth-gegatete `web/`-Route
+  (`/api/library/<id>/web/...` erfordert Login und ist damit fuer anonyme
+  Besucher ungeeignet).
+
+## Verwandte Rules
+
+- `no-silent-fallbacks.mdc` — ENV-/Typ-Validierung ohne stille Defaults
+- `library-config-field.mdc` — Checkliste fuer Per-Library-Config-Felder
+- `detail-view-type-checklist.mdc` — neuen detailViewType registrieren
+- `storage-abstraction.mdc` — Storage nur ueber Provider-Interface
