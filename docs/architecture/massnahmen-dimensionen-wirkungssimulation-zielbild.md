@@ -150,6 +150,82 @@ Statt eine feste Zahl vorzugeben, verwenden wir ein **Kriterium**:
 > Die Wahl der Dimensionszahl ist ein **Ergebnis der Analyse**, kein Input — sie
 > wird an Abdeckung/Redundanz kalibriert (siehe offene Frage §10).
 
+### 2.4 Kandidaten-Register (v0) — zum Weiterdenken
+
+> **Herkunft & Status.** Dieses v0-Register ist **strukturell abgeleitet** aus den
+> im Repo bekannten Fakten (5 Arbeitsgruppen, Südtiroler Sektor-Kennzahlen aus dem
+> Template-Systemprompt, Ressort-/Zuständigkeitsliste, SDG-17 + 4 Perspektiven) —
+> es ist **noch nicht empirisch** aus den 606 Maßnahmentexten geclustert. Es dient
+> als Denk-/Diskussionsgrundlage. Der **echte Lauf** (§2.2, ein Long-Context-LLM-Pass
+> über den Katalog nach dem Muster der bestehenden „Statistik-Dokumente" —
+> Overlap-/Enabler-Bericht) **ersetzt** dieses v0 und eicht es an Abdeckung/Redundanz.
+
+**E — Emissions-/Wirkungsdimensionen** (an den Südtiroler Sektoren)
+
+| key | Name | Kurzbeschreibung |
+|---|---|---|
+| `verkehr_pkw` | MIV/PKW-Emissionen | CO₂ aus motorisiertem Individualverkehr |
+| `verkehr_gueter_schwer` | Schwer-/Güterverkehr | CO₂ aus Waren-/Schwerverkehr (Brennerachse) |
+| `gebaeude_waermebedarf` | Gebäude-Wärmebedarf | Raumwärme-/Warmwasser-Energiebedarf |
+| `heizung_fossil_anteil` | Fossiler Heizanteil | Öl-/Gasanteil an Heizsystemen |
+| `strommix_emissionsfaktor` | Strommix-Emissionsfaktor | Emissionsintensität des Stromverbrauchs |
+| `industrie_prozess` | Industrie-/Prozessemissionen | Energie-/Prozessemissionen Gewerbe & Industrie |
+| `lw_methan_tierhaltung` | Methan Tierhaltung | CH₄ aus Nutztierhaltung |
+| `lw_lachgas_boden` | Lachgas Düngung/Boden | N₂O aus Düngung/Böden |
+| `wald_boden_senke` | CO₂-Senke Wald/Boden | Kohlenstoffsenke (Wirkung erhöht Senke) |
+| `abfall_emissionen` | Abfall-/Deponieemissionen | Emissionen Abfallwirtschaft |
+| `tourismus_emissionen` | Tourismusemissionen | Beherbergung, An-/Abreise, Betrieb |
+| `konsum_graue_emissionen` | Graue Emissionen Konsum | indirekte Emissionen aus Konsum/Beschaffung |
+
+**V — Enabler / Voraussetzungen** (Governance + Infrastruktur)
+
+| key | Name | Kurzbeschreibung |
+|---|---|---|
+| `rechtsrahmen_regulierung` | Rechtsrahmen | Landesgesetze/Verordnungen/Standards |
+| `foerder_budget` | Förderbudget | öffentliche Fördermittel/Budget |
+| `gemeinde_planungskapazitaet` | Gemeinde-Kapazität | Verwaltungs-/Planungskapazität Gemeinden |
+| `daten_monitoring` | Daten & Monitoring | Datengrundlage, Bilanzierung, Controlling |
+| `stromnetz_kapazitaet` | Stromnetz-Kapazität | Netzausbau/-kapazität Strom |
+| `ladeinfrastruktur` | Ladeinfrastruktur | Ladepunkte E-Mobilität |
+| `waermenetz` | Wärmenetze | Nah-/Fernwärme-Infrastruktur |
+| `ee_erzeugung_kapazitaet` | EE-Erzeugungskapazität | Ausbau PV/Wasser/Wind/Biomasse |
+| `fachkraefte_handwerk` | Fachkräfte/Handwerk | Kapazität Sanierung/Installation |
+| `oeffentliche_akzeptanz` | Öffentliche Akzeptanz | gesellschaftliche Zustimmung |
+| `beratung_bildung` | Beratung & Bildung | Informations-/Beratungs-/Bildungsangebote |
+| `interkommunale_koordination` | Koordination | Land–Gemeinden–Akteure abstimmen |
+| `oepnv_angebot` | ÖPNV-Angebot | Takt/Netz/Angebot öffentlicher Verkehr |
+| `rad_fuss_infrastruktur` | Rad-/Fußinfrastruktur | Wege-/Abstellinfrastruktur aktiv Mobilität |
+| `beschaffung_hebel` | Öffentliche Beschaffung | Nachfragehebel über Vergabe |
+
+**B — Verhaltens-/Bestandsgrößen** (langsam, mit Rückkopplung)
+
+| key | Name | Kurzbeschreibung |
+|---|---|---|
+| `modal_split_umweltverbund` | Modal Split Umweltverbund | Anteil ÖPNV/Rad/Fuß an Wegen |
+| `sanierungsrate` | Sanierungsrate | energetische Sanierungsquote Bestand |
+| `anteil_ee_waerme` | Anteil EE-Wärme | erneuerbarer Anteil an Wärme |
+| `flotte_elektrifizierung` | Flotten-Elektrifizierung | E-Anteil der Fahrzeugflotte |
+| `flaechenverbrauch` | Flächenverbrauch | Versiegelung/Bodenverbrauch |
+| `ernaehrung_pflanzlich_regional` | Ernährung pflanzlich/regional | Anteil pflanzlich/regionaler Ernährung |
+| `lebensmittelverschwendung` | Lebensmittelverschwendung | Menge Lebensmittelabfälle |
+| `kreislauf_reparatur` | Kreislauf/Reparatur | Wiederverwendungs-/Reparaturquote |
+| `geraete_effizienz` | Geräte-/Anlageneffizienz | Effizienz im Gerätebestand |
+| `tourismus_intensitaet` | Tourismus-Nachhaltigkeit | Intensität/Nachhaltigkeit des Tourismusmodells |
+
+**Umfang:** 12 E + 15 V + 10 B = **37 Dimensionen** (im Zielkorridor 30–60, §2.3).
+Abdeckung der 5 Arbeitsgruppen: *Energie* (Strommix, EE-Kapazität, Netz, EE-Wärme),
+*Mobilität* (MIV, Güter, Lade-/ÖPNV-/Rad-Infrastruktur, Modal Split, Flotte),
+*Wohnen* (Wärmebedarf, Heizung, Wärmenetz, Sanierung, Fläche), *Ernährung &
+Landnutzung* (Methan, Lachgas, Senke, Ernährung, Lebensmittel), *Konsum &
+Produktion* (Industrie, Abfall, Tourismus, graue Emissionen, Beschaffung,
+Kreislauf, Geräte). Die V-Dimensionen 13–16, 21–24 sind **querschnittlich** (sie
+ermöglichen Maßnahmen über alle Gruppen — genau die Enabler-Hebel aus §5).
+
+> **Nächster Schritt zum Eichen:** den Katalog-LLM-Lauf (§2.2) über die echten
+> Maßnahmen fahren (Kontext: `nr, title, summary, category, arbeitsgruppe` + die
+> bekannten `sdg_*`/`score_*` als Signal), das Ergebnis mit diesem v0 abgleichen
+> (fehlende/überzählige Dimensionen, Redundanz > 0,9) und v0 ersetzen.
+
 ---
 
 ## 3. Faktormodell pro Maßnahme (signiert, provides/requires)
