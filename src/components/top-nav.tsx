@@ -57,7 +57,18 @@ export function TopNav() {
   const webViewTestHref = activeLibrarySlug
     ? `/explore/${encodeURIComponent(activeLibrarySlug)}?view=site`
     : ''
-  
+
+  // Explore-Kontext: Auf `/explore/<slug>` bildet die TopNav die Modi der
+  // angezeigten Library dynamisch ab (Home bei siteEnabled | Inhalte | Story
+  // Mode) — fuer anonyme UND eingeloggte Nutzer. Die zweite Tab-Ebene in der
+  // Galerie entfaellt (Redundanz).
+  const exploreSlugMatch = pathname?.match(/^\/explore\/([^/]+)$/)
+  const exploreSlugFromPath = exploreSlugMatch ? decodeURIComponent(exploreSlugMatch[1]) : null
+  const exploreContext =
+    exploreSlugFromPath && exploreSlugFromPath !== 'pilot'
+      ? { slug: exploreSlugFromPath, siteEnabled: webViewEnabled }
+      : null
+
   // Prüfe ob Story-Modus aktiv ist
   const isStoryMode = searchParams?.get('mode') === 'story'
 
@@ -70,6 +81,18 @@ export function TopNav() {
 
   // Hilfsfunktion um zu prüfen, ob ein Nav-Item aktiv ist
   const isActiveNavItem = (href: string) => {
+    // Explore-Kontext: Modi-Punkte anhand der Query-Parameter der Explore-URL.
+    if (exploreContext && href.startsWith('/explore/')) {
+      const viewParam = searchParams?.get('view')
+      const modeParam = searchParams?.get('mode')
+      if (href.endsWith('?view=gallery')) return viewParam === 'gallery' && modeParam !== 'story'
+      if (href.endsWith('?mode=story')) return modeParam === 'story'
+      // Basis-Link: bei siteEnabled = Home (Website), sonst = Inhalte.
+      // Aktiv, wenn kein anderer Modus gewaehlt ist.
+      return exploreContext.siteEnabled
+        ? viewParam !== 'gallery' && modeParam !== 'story'
+        : modeParam !== 'story'
+    }
     if (href === '/docs/') {
       return pathname?.startsWith('/docs') ?? false
     }
@@ -105,6 +128,7 @@ export function TopNav() {
     isCreator,
     webViewEnabled,
     webViewTestHref,
+    exploreContext,
     t,
   })
 
@@ -145,7 +169,7 @@ export function TopNav() {
                     rel={item.newTab ? "noreferrer" : undefined}
                     className={cn(
                       "block rounded-md px-3 py-2 text-sm",
-                      pathname === navHref(item.href) ? "bg-muted text-primary" : "text-foreground hover:bg-muted"
+                      isActiveNavItem(item.href) ? "bg-muted text-primary" : "text-foreground hover:bg-muted"
                     )}
                   >
                     {item.name}

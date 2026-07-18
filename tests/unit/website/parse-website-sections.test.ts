@@ -21,6 +21,17 @@ Wir sind aktiv.
     expect(sections[0].markdown).not.toContain('![')
   })
 
+  it('parst eine video-Sektion und extrahiert die Video-URL', () => {
+    const body = `
+<!-- section layout=video bg=default -->
+https://player.vimeo.com/video/88026826
+<!-- /section -->`
+    const sections = parseWebsiteSections(body)
+    expect(sections).toHaveLength(1)
+    expect(sections[0].layout).toBe('video')
+    expect(sections[0].videoUrl).toBe('https://player.vimeo.com/video/88026826')
+  })
+
   it('parst mehrere Sektionen in Reihenfolge', () => {
     const body = `
 <!-- section layout=image-left bg=brand -->

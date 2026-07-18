@@ -333,6 +333,7 @@ export function mapToWebsiteDetail(input: unknown): WebsiteDetailData {
     heroSubtitle: toStr(docMetaJson.hero_subtitle),
     heroImageUrl: toStr(docMetaJson.hero_image) || toStr(docMetaJson.coverImageUrl),
     heroImageAlt: toStr(docMetaJson.hero_image_alt),
+    heroLayout: toStr(docMetaJson.hero_layout),
     videoUrl: toStr(docMetaJson.video_url),
     ctaLabel: toStr(docMetaJson.cta_label),
     ctaUrl: toStr(docMetaJson.cta_url),

@@ -7,10 +7,22 @@
  */
 
 /** Layout einer Inhalts-Sektion. */
-export type SectionLayout = 'image-left' | 'image-right' | 'full-image' | 'text-only'
+export type SectionLayout = 'image-left' | 'image-right' | 'full-image' | 'text-only' | 'video'
 
-/** Hintergrund-Variante einer Inhalts-Sektion. */
-export type SectionBg = 'default' | 'light' | 'dark' | 'brand'
+/**
+ * Hintergrund-Variante einer Inhalts-Sektion.
+ * Zusaetzlich zur generischen Basis (`default/light/dark/brand`) die konkreten
+ * Landingpage-Toene (Vorlage „Oldies for Future"): linen, mint, dark-green, neutral.
+ */
+export type SectionBg =
+  | 'default'
+  | 'light'
+  | 'dark'
+  | 'brand'
+  | 'linen'
+  | 'mint'
+  | 'dark-green'
+  | 'neutral'
 
 /** Eine aus dem Body geparste Inhalts-Sektion. */
 export interface WebsiteSection {
@@ -21,6 +33,8 @@ export interface WebsiteSection {
   /** Optionales Sektions-Bild (erstes Bild im Sektions-Markdown). */
   imageUrl?: string
   imageAlt?: string
+  /** Optionale Video-Embed-URL (nur bei layout=video; erste URL im Sektions-Markdown). */
+  videoUrl?: string
 }
 
 /** Eintrag im dynamischen Menue (spaeter: alle website-Dokumente). */

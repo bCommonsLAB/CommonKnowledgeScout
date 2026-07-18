@@ -22,8 +22,18 @@ const SECTION_LAYOUTS: readonly SectionLayout[] = [
   'image-right',
   'full-image',
   'text-only',
+  'video',
 ]
-const SECTION_BGS: readonly SectionBg[] = ['default', 'light', 'dark', 'brand']
+const SECTION_BGS: readonly SectionBg[] = [
+  'default',
+  'light',
+  'dark',
+  'brand',
+  'linen',
+  'mint',
+  'dark-green',
+  'neutral',
+]
 
 const DEFAULT_LAYOUT: SectionLayout = 'text-only'
 const DEFAULT_BG: SectionBg = 'default'
@@ -31,6 +41,9 @@ const DEFAULT_BG: SectionBg = 'default'
 const SECTION_RE = /<!--\s*section\b([^>]*?)-->([\s\S]*?)<!--\s*\/section\s*-->/g
 const ATTR_RE = /(\w+)\s*=\s*"?([\w-]+)"?/g
 const IMAGE_RE = /!\[([^\]]*)\]\(([^)\s]+)\)/
+// Video-URL: bevorzugt Markdown-Link [text](url), sonst erste nackte http(s)-URL.
+const VIDEO_LINK_RE = /\[[^\]]*\]\((https?:\/\/[^)\s]+)\)/
+const VIDEO_URL_RE = /(https?:\/\/[^\s)]+)/
 
 function isLayout(value: string): value is SectionLayout {
   return (SECTION_LAYOUTS as readonly string[]).includes(value)
@@ -78,6 +91,21 @@ function extractImage(markdown: string): {
   return { imageUrl: m[2], imageAlt: m[1] || undefined, rest }
 }
 
+/** Extrahiert die erste Video-URL (Markdown-Link oder nackte URL) aus einer video-Sektion. */
+function extractVideoUrl(markdown: string): { videoUrl?: string; rest: string } {
+  const link = markdown.match(VIDEO_LINK_RE)
+  if (link) {
+    const rest = markdown.replace(link[0], '').replace(/\n{3,}/g, '\n\n').trim()
+    return { videoUrl: link[1], rest }
+  }
+  const url = markdown.match(VIDEO_URL_RE)
+  if (url) {
+    const rest = markdown.replace(url[0], '').replace(/\n{3,}/g, '\n\n').trim()
+    return { videoUrl: url[1], rest }
+  }
+  return { rest: markdown.trim() }
+}
+
 /** Zerlegt den Body in Inhalts-Sektionen. */
 export function parseWebsiteSections(body: string): WebsiteSection[] {
   const sections: WebsiteSection[] = []
@@ -85,8 +113,13 @@ export function parseWebsiteSections(body: string): WebsiteSection[] {
   let match: RegExpExecArray | null
   while ((match = SECTION_RE.exec(body)) !== null) {
     const { layout, bg } = parseAttrs(match[1] ?? '')
-    const { imageUrl, imageAlt, rest } = extractImage(match[2] ?? '')
-    sections.push({ layout, bg, markdown: rest, imageUrl, imageAlt })
+    if (layout === 'video') {
+      const { videoUrl, rest } = extractVideoUrl(match[2] ?? '')
+      sections.push({ layout, bg, markdown: rest, videoUrl })
+    } else {
+      const { imageUrl, imageAlt, rest } = extractImage(match[2] ?? '')
+      sections.push({ layout, bg, markdown: rest, imageUrl, imageAlt })
+    }
   }
   if (sections.length === 0) {
     const { imageUrl, imageAlt, rest } = extractImage(body)

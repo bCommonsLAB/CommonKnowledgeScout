@@ -5,7 +5,7 @@ import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { activeLibraryIdAtom, librariesAtom } from '@/atoms/library-atom'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { chatReferencesAtom } from '@/atoms/chat-references-atom'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { FilterContextBar } from '@/components/library/filter-context-bar'
 import { StoryModeHeader } from '@/components/library/story/story-mode-header'
 import { GalleryStickyHeader } from '@/components/library/gallery/gallery-sticky-header'
@@ -65,9 +65,7 @@ import { WebsiteLandingLive } from '@/components/library/website/website-landing
 
 export interface GalleryRootProps {
   libraryIdProp?: string
-  /** Wenn true, werden die Tabs nicht gerendert (z.B. wenn sie bereits im Header sind) */
-  hideTabs?: boolean
-  /** Steuert, ob der Tab "Startseite" (Website-Landingpage) angeboten wird */
+  /** Steuert, ob der Site-Mode (Website-Landingpage) verfuegbar ist */
   showSiteTab?: boolean
   /** Wenn true, ist die Website-Landingpage die Standard-Ansicht (statt der Galerie). */
   defaultToSite?: boolean
@@ -98,7 +96,6 @@ const LazyDocGraph = dynamic(
 
 export function GalleryRoot({
   libraryIdProp,
-  hideTabs = false,
   showSiteTab = false,
   defaultToSite = false,
   hideWebsiteDocs = false,
@@ -1047,20 +1044,10 @@ export function GalleryRoot({
 
   return (
     <div ref={containerRef} className="flex-1 min-h-0 overflow-hidden flex flex-col">
-      {/* Tabs nur rendern, wenn sie nicht im Header sind */}
-      {!hideTabs && (
-        <div className='mb-3 flex items-center flex-shrink-0'>
-          <Tabs value={mode} onValueChange={(value) => setMode(value as 'site' | 'gallery' | 'story')} className="w-auto">
-            <TabsList>
-              {hasSiteView && (
-                <TabsTrigger value="site">{t('explore.homepage')}</TabsTrigger>
-              )}
-              <TabsTrigger value="gallery">{t('gallery.gallery')}</TabsTrigger>
-              <TabsTrigger value="story">{t('gallery.story')}</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-      )}
+      {/* Die fruehere Tab-Leiste (Startseite | Inhalte | Story Mode) entfaellt:
+         Die Modi werden dynamisch in der TopNav abgebildet (auch anonym) —
+         siehe buildTopNavConfig (exploreContext). Der Mode selbst bleibt
+         URL-gesteuert (view=/mode=-Parameter, useGalleryMode). */}
       <Tabs value={mode} className="flex-1 min-h-0 flex flex-col">
         {mode === 'site' && hasSiteView && (
         <TabsContent value="site" className="flex-1 min-h-0 m-0 mt-0 flex flex-col overflow-hidden data-[state=active]:flex">
