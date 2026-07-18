@@ -9,12 +9,13 @@ interface BuildTopNavConfigArgs {
   webViewEnabled: boolean
   webViewTestHref: string
   /**
-   * Site-Kontext: Slug der gerade angezeigten Explore-Library mit aktivierter
-   * Website (`siteEnabled`). Wenn gesetzt, uebernimmt die TopNav die Modi-
-   * Navigation der Website (Home | Inhalte | Story Mode) — die zweite
-   * Tab-Ebene in der Galerie entfaellt dann (Redundanz).
+   * Explore-Kontext: gerade angezeigte Library auf `/explore/<slug>`.
+   * Wenn gesetzt, bildet die TopNav die Modi der Library dynamisch ab
+   * (Inhalte | Story Mode; bei `siteEnabled` zusaetzlich Home = Website).
+   * Die fruehere zweite Tab-Ebene in der Galerie entfaellt (Redundanz).
+   * Gilt fuer anonyme UND eingeloggte Nutzer.
    */
-  siteExploreSlug?: string | null
+  exploreContext?: { slug: string; siteEnabled: boolean } | null
   t: (key: string) => string
 }
 
@@ -33,18 +34,23 @@ export function buildTopNavConfig({
   isCreator,
   webViewEnabled,
   webViewTestHref,
-  siteExploreSlug = null,
+  exploreContext = null,
   t,
 }: BuildTopNavConfigArgs): TopNavConfig {
-  // Site-Kontext (Explore-Ansicht einer Library mit eigener Website):
-  // Die TopNav bildet die Website-Modi ab — Home (Website), Inhalte (Galerie),
-  // Story Mode. Anonyme Besucher sehen NUR diese Punkte (kein KS-Home);
-  // Creator behalten zusaetzlich ihre App-Navigation (unten).
-  if (siteExploreSlug) {
-    const base = `/explore/${encodeURIComponent(siteExploreSlug)}`
+  // Explore-Kontext: Die TopNav bildet die Modi der angezeigten Library
+  // dynamisch ab — auch fuer anonyme Besucher. Bei Libraries MIT Website
+  // (siteEnabled) ist „Home" die Website; ohne Website startet die Liste
+  // direkt mit „Inhalte". Creator behalten zusaetzlich ihre App-Navigation.
+  if (exploreContext) {
+    const base = `/explore/${encodeURIComponent(exploreContext.slug)}`
     const publicNavItems: NavItem[] = [
-      { name: t('navigation.home'), href: base },
-      { name: t('gallery.gallery'), href: `${base}?view=gallery` },
+      ...(exploreContext.siteEnabled
+        ? [{ name: t('navigation.home'), href: base }]
+        : []),
+      {
+        name: t('gallery.gallery'),
+        href: exploreContext.siteEnabled ? `${base}?view=gallery` : base,
+      },
       { name: t('gallery.story'), href: `${base}?mode=story` },
     ]
     return {

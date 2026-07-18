@@ -415,7 +415,6 @@ export default function ExplorePage() {
         <div className="flex h-full min-h-0 flex-col overflow-hidden">
           <GalleryClient
             libraryIdProp={library.id}
-            hideTabs={false}
             showSiteTab={showSiteTab}
             defaultToSite={showSiteTab}
             hideWebsiteDocs={true}
