@@ -57,7 +57,17 @@ export function TopNav() {
   const webViewTestHref = activeLibrarySlug
     ? `/explore/${encodeURIComponent(activeLibrarySlug)}?view=site`
     : ''
-  
+
+  // Site-Kontext: Explore-Ansicht einer Library mit eigener Website (siteEnabled).
+  // Dann uebernimmt die TopNav die Modi-Navigation (Home | Inhalte | Story Mode)
+  // und die zweite Tab-Ebene in der Galerie entfaellt (Redundanz).
+  const exploreSlugMatch = pathname?.match(/^\/explore\/([^/]+)$/)
+  const exploreSlugFromPath = exploreSlugMatch ? decodeURIComponent(exploreSlugMatch[1]) : null
+  const siteExploreSlug =
+    exploreSlugFromPath && exploreSlugFromPath !== 'pilot' && webViewEnabled
+      ? exploreSlugFromPath
+      : null
+
   // Prüfe ob Story-Modus aktiv ist
   const isStoryMode = searchParams?.get('mode') === 'story'
 
@@ -70,6 +80,15 @@ export function TopNav() {
 
   // Hilfsfunktion um zu prüfen, ob ein Nav-Item aktiv ist
   const isActiveNavItem = (href: string) => {
+    // Site-Kontext: Modi-Punkte anhand der Query-Parameter der Explore-URL.
+    if (siteExploreSlug && href.startsWith(`/explore/`)) {
+      const viewParam = searchParams?.get('view')
+      const modeParam = searchParams?.get('mode')
+      if (href.endsWith('?view=gallery')) return viewParam === 'gallery'
+      if (href.endsWith('?mode=story')) return modeParam === 'story'
+      // Home (Website): aktiv, wenn weder Galerie- noch Story-Modus gewaehlt ist.
+      return viewParam !== 'gallery' && modeParam !== 'story'
+    }
     if (href === '/docs/') {
       return pathname?.startsWith('/docs') ?? false
     }
@@ -105,6 +124,7 @@ export function TopNav() {
     isCreator,
     webViewEnabled,
     webViewTestHref,
+    siteExploreSlug,
     t,
   })
 

@@ -26,6 +26,7 @@ const FILES = [
   'IMG-20230419-WA0003.jpg',
   'oldies-for-future-warum_web.jpg',
   'oldies-for-future-loesung-2K_web.webp',
+  'oldies-for-future-gemeinsamaktiv_web.jpg',
 ]
 
 function contentTypeFor(name: string): string {

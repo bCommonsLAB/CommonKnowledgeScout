@@ -37,7 +37,8 @@ interface WebsiteLandingLiveProps {
   exploreBaseHref?: string
 }
 
-const BANNER_LIMIT = 5
+// Zwei volle Reihen im 3-Spalten-Raster (md:grid-cols-3) -> 6 Karten.
+const BANNER_LIMIT = 6
 
 /** Sortiert website-Docs nach menu_order (fehlend ans Ende), dann nach Titel. */
 function sortByMenuOrder(a: DocCardMeta, b: DocCardMeta): number {

@@ -8,12 +8,27 @@ import * as React from 'react'
 import type { WebsiteSection } from '@/lib/website/types'
 import { md } from '@/components/library/markdown-preview/md-renderer'
 import { cn } from '@/lib/utils'
+import { isSafeVideoIframeSrc } from '@/lib/media/safe-video-iframe'
 
-const BG_CLASS: Record<WebsiteSection['bg'], string> = {
-  default: 'bg-background text-foreground',
-  light: 'bg-muted text-foreground',
-  dark: 'bg-slate-900 text-slate-50',
-  brand: 'bg-emerald-700 text-emerald-50',
+/**
+ * Pro Hintergrund-Variante: `wrapper` (Section-Hintergrund + Basis-Textfarbe) und
+ * `prose` (zusaetzliche Typografie-/Farb-Overrides fuer den Markdown-Container).
+ * Die konkreten Toene entsprechen der Vorlage „Oldies for Future".
+ */
+const SECTION_STYLE: Record<WebsiteSection['bg'], { wrapper: string; prose: string }> = {
+  default: { wrapper: 'bg-background text-foreground', prose: '' },
+  light: { wrapper: 'bg-muted text-foreground', prose: '' },
+  dark: { wrapper: 'bg-slate-900 text-slate-50', prose: 'prose-invert' },
+  // Teal (generischer Brand-Ton) – helle Schrift, Linen-Ueberschrift, Mint-Absaetze.
+  brand: { wrapper: 'bg-[#006b55] text-white', prose: 'prose-invert prose-headings:text-[#ebe4dd] [&_p]:text-[#6fc5ae]' },
+  // Linen: heller warmer Ton, dunkle Schrift, Ueberschrift in Primary-Gruen.
+  linen: { wrapper: 'bg-[#ebe4dd] text-[#202020]', prose: 'prose-headings:text-[#16ad8c]' },
+  // Mint: helles Gruen, dunkle Schrift, weisse Ueberschrift.
+  mint: { wrapper: 'bg-[#6fc5ae] text-[#0b3a30]', prose: 'prose-headings:text-white [&_p]:text-[#0b3a30]' },
+  // Dunkelgruen: helle Schrift, Linen-Ueberschrift, Mint-Absaetze.
+  'dark-green': { wrapper: 'bg-[#005140] text-white', prose: 'prose-invert prose-headings:text-[#ebe4dd] [&_p]:text-[#6fc5ae]' },
+  // Neutralgrau (Video-Sektion): dunkle Schrift, dunkelgruene Ueberschrift.
+  neutral: { wrapper: 'bg-[#bfc9c3] text-[#202020]', prose: 'prose-headings:text-[#005140]' },
 }
 
 /**
@@ -25,25 +40,58 @@ const BG_CLASS: Record<WebsiteSection['bg'], string> = {
  * Inhalt ist kuratiert/uebersetzt (vertrauenswuerdig) — gleiches Muster wie
  * die MarkdownPreview-Komponente.
  */
-export function renderMarkdownText(markdown: string, invert = false): React.ReactElement {
+export function renderMarkdownText(markdown: string, bg: WebsiteSection['bg']): React.ReactElement {
   return (
     <div
-      className={cn('prose prose-neutral max-w-none', invert && 'prose-invert')}
+      className={cn(
+        'prose prose-neutral max-w-none',
+        // Vorlage-Optik (`.h-serif-medium`): Ueberschrift NORMAL (400, nicht fett),
+        // capitalize, ~2.35rem; Lead-Absatz (erster) etwas groesser.
+        'prose-headings:font-normal prose-h2:mb-2.5 prose-h2:leading-snug prose-h2:text-[2rem] md:prose-h2:text-[2.35rem] [&_h2]:capitalize',
+        '[&_p:first-of-type]:text-lg [&_p:first-of-type]:leading-relaxed md:[&_p:first-of-type]:text-xl',
+        // Farb-/Invert-Overrides je Hintergrund-Variante (zentral in SECTION_STYLE).
+        SECTION_STYLE[bg].prose,
+      )}
       dangerouslySetInnerHTML={{ __html: md.render(markdown) }}
     />
   )
 }
 
 /** Eine Inhalts-Sektion gemaess Layout/Hintergrund. */
-export function SectionBlock({ section }: { section: WebsiteSection }): React.ReactElement {
+export function SectionBlock({ section }: { section: WebsiteSection }): React.ReactElement | null {
   const hasImage = Boolean(section.imageUrl) && section.layout !== 'text-only'
   const twoCol = section.layout === 'image-left' || section.layout === 'image-right'
   const imageFirst = section.layout === 'image-left'
-  // Helle Schrift auf dunklem/brand-Hintergrund -> prose-invert.
-  const invert = section.bg === 'dark' || section.bg === 'brand'
+
+  // Video-Sektion: sicheres Embed (nur Whitelist-URLs) im bg-abhaengigen Rahmen.
+  if (section.layout === 'video') {
+    const safeVideo =
+      section.videoUrl && isSafeVideoIframeSrc(section.videoUrl) ? section.videoUrl : null
+    return (
+      <section className={`px-6 py-14 ${SECTION_STYLE[section.bg].wrapper}`}>
+        <div className="mx-auto max-w-4xl">
+          {section.markdown && (
+            <div className="mb-6">{renderMarkdownText(section.markdown, section.bg)}</div>
+          )}
+          {safeVideo && (
+            <div className="aspect-video overflow-hidden rounded-xl bg-black/10">
+              <iframe
+                src={safeVideo}
+                className="h-full w-full"
+                allow="autoplay; fullscreen; picture-in-picture"
+                allowFullScreen
+                loading="lazy"
+                title="Video"
+              />
+            </div>
+          )}
+        </div>
+      </section>
+    )
+  }
 
   return (
-    <section className={`py-14 px-6 ${BG_CLASS[section.bg]}`}>
+    <section className={`py-14 px-6 ${SECTION_STYLE[section.bg].wrapper}`}>
       <div
         className={`max-w-5xl mx-auto gap-10 items-center ${
           twoCol && hasImage ? 'grid md:grid-cols-2' : 'flex flex-col'
@@ -78,7 +126,7 @@ export function SectionBlock({ section }: { section: WebsiteSection }): React.Re
               : 'mx-auto max-w-3xl'
           }
         >
-          {renderMarkdownText(section.markdown, invert)}
+          {renderMarkdownText(section.markdown, section.bg)}
         </div>
       </div>
     </section>

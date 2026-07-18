@@ -8,6 +8,13 @@ interface BuildTopNavConfigArgs {
   isCreator: boolean
   webViewEnabled: boolean
   webViewTestHref: string
+  /**
+   * Site-Kontext: Slug der gerade angezeigten Explore-Library mit aktivierter
+   * Website (`siteEnabled`). Wenn gesetzt, uebernimmt die TopNav die Modi-
+   * Navigation der Website (Home | Inhalte | Story Mode) — die zweite
+   * Tab-Ebene in der Galerie entfaellt dann (Redundanz).
+   */
+  siteExploreSlug?: string | null
   t: (key: string) => string
 }
 
@@ -26,8 +33,31 @@ export function buildTopNavConfig({
   isCreator,
   webViewEnabled,
   webViewTestHref,
+  siteExploreSlug = null,
   t,
 }: BuildTopNavConfigArgs): TopNavConfig {
+  // Site-Kontext (Explore-Ansicht einer Library mit eigener Website):
+  // Die TopNav bildet die Website-Modi ab — Home (Website), Inhalte (Galerie),
+  // Story Mode. Anonyme Besucher sehen NUR diese Punkte (kein KS-Home);
+  // Creator behalten zusaetzlich ihre App-Navigation (unten).
+  if (siteExploreSlug) {
+    const base = `/explore/${encodeURIComponent(siteExploreSlug)}`
+    const publicNavItems: NavItem[] = [
+      { name: t('navigation.home'), href: base },
+      { name: t('gallery.gallery'), href: `${base}?view=gallery` },
+      { name: t('gallery.story'), href: `${base}?mode=story` },
+    ]
+    return {
+      publicNavItems,
+      primaryProtectedNavItems: isCreator ? [
+        { name: t('navigation.library'), href: '/library' },
+        { name: 'Wartekorb', href: '/library/inbox' },
+      ] : [],
+      secondaryNavItems: [],
+      showMoreMenu: false,
+    }
+  }
+
   const publicNavItems: NavItem[] = [
     {
       name: t('navigation.home'),

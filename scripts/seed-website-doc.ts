@@ -28,7 +28,7 @@ const COLLECTION = process.env.SEED_COLLECTION || 'doc_meta__dadf3a40-3e00-4f1d-
 const IMG = process.env.SEED_IMG_BASE || `/api/library/${LIBRARY_ID}/web/web/images`
 
 const HOME_MARKDOWN = `
-<!-- section layout=image-right bg=light -->
+<!-- section layout=image-right bg=dark-green -->
 ## Wer sind wir?
 ![Gruppenfoto Oldies for Future](${IMG}/cover_gruppenbild1.jpg)
 
@@ -37,25 +37,44 @@ Wir „Oldies for Future" wollen uns mit den jungen Menschen solidarisieren und 
 Die Jugend findet mit ihren Zukunftsängsten bei unserer Generation der Verursacher dieser bedrohenden Entwicklung zu wenig Gehör. Wir möchten dabei nicht tatenlos zusehen und unseren Ruhestand genießen, sondern unsere Erfahrung und unser Engagement mit einbringen.
 <!-- /section -->
 
-<!-- section layout=image-left bg=brand -->
+<!-- section layout=video bg=neutral -->
+https://player.vimeo.com/video/820810243?h=a82492eeeb
+<!-- /section -->
+
+<!-- section layout=image-left bg=linen -->
 ## Warum machen wir das?
 ![](${IMG}/oldies-for-future-warum_web.jpg)
 
 Das gegebene kapitalistische Wirtschaftssystem weckt im Menschen unersättliche Bedürfnisse nach Konsum und Reichtum.
 
-Dies kann nur durch grenzenloses Wachstum, Ausbeutung von menschlichen und natürlichen Ressourcen befriedigt werden. Wir leben in einem Teufelskreis von manipulativen Einflüssen, gedankenlosem Konsumwahn und Konkurrenzdenken.
+Dies kann nur durch grenzenloses Wachstum, Ausbeutung von menschlichen und natürlichen Ressourcen befriedigt werden. Das kritische Denken und das selbstverständliche Bewusstsein eines großen Ganzen werden von der Gesellschaft zu wenig gefördert. Wir leben in einem Teufelskreis von manipulativen Einflüssen, gedankenlosem Konsumwahn und Konkurrenzdenken.
 <!-- /section -->
 
-<!-- section layout=image-right bg=light -->
+<!-- section layout=image-right bg=mint -->
 ## Was ist die Lösung?
 ![](${IMG}/oldies-for-future-loesung-2K_web.webp)
 
 Es braucht ein neues Bewusstsein von einem gerechten Leben für alle im Einklang mit Umwelt und Natur.
 
-Dem Menschen muss bewusst werden, dass er Teil der Natur ist und nicht über ihr steht. Die dringendsten Maßnahmen sind der Ausstieg aus den fossilen Energieträgern und der Erhalt der Biodiversität.
+Dem Menschen muss bewusst werden, dass er Teil der Natur ist und nicht über ihr steht. Ausgehend davon kann ein lebensfähiges Gesellschaftssystem entstehen, das allen sozialen, ökologischen und ökonomischen Anforderungen gerecht wird. Die dringendste und am schnellsten umzusetzenden Maßnahmen sind der Ausstieg aus den fossilen Energieträgern und der Erhalt der Biodiversität. Wir wollen in unserer Generation mehr Bewusstsein für die Zukunft unserer Kinder in einer l(i)ebenswerten Umwelt schaffen und unseren Respekt dadurch zeigen, indem wir jetzt aktiv werden und handeln.
 <!-- /section -->
 
-<!-- section layout=text-only bg=dark -->
+<!-- section layout=image-left bg=default -->
+## Was können wir gemeinsam machen?
+![](${IMG}/oldies-for-future-gemeinsamaktiv_web.jpg)
+
+Wir wollen der Jugend zeigen, dass wir ihre Anliegen verstehen.
+
+Indem wir bei ihren Aktionen mit ihnen gehen und so den Druck auf die Politik und andere VerantwortungsträgerInnen verstärken.
+<!-- /section -->
+
+<!-- section layout=text-only bg=mint -->
+## Alle sind aufgerufen Ihren Beitrag zu leisten!
+
+Jeder kann aktiv werden und sich in seiner Umgebung engagieren und andere Menschen informieren und sensibilisieren! Gemeinsam organisieren wir dringend notwendige Aktionen!
+<!-- /section -->
+
+<!-- section layout=text-only bg=mint -->
 > Was wir heute tun, entscheidet darüber, wie die Welt morgen aussieht.
 > — Marie von Ebner-Eschenbach
 <!-- /section -->
@@ -146,10 +165,13 @@ const DOCS: SeedDoc[] = [
       title: 'Oldies for Future',
       hero_subtitle:
         'Wir solidarisieren uns mit jungen Menschen für eine lebenswerte Zukunft – und werden gemeinsam aktiv.',
+      // Cover-Hero (Vorlage): grosser gestapelter Titel + kleineres, ueberlagertes Bild.
+      hero_layout: 'cover',
       hero_image: `${IMG}/oldies-for-future-headimage-2_web.jpg`,
       hero_image_alt: '2 Hände',
       coverImageUrl: `${IMG}/oldies-for-future-headimage-2_web.jpg`,
-      video_url: 'https://peertube.uno/videos/embed/aCkAAGUmJPd8XujxU7gZJq',
+      // Video liegt jetzt als eigene Sektion (layout=video) im Body — an der
+      // richtigen Position nach „Wer sind wir?" statt am Seitenende.
       cta_label: 'Jetzt mitmachen',
       cta_url: '#mitmachen',
       menu_order: 1,
