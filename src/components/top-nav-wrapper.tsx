@@ -13,7 +13,12 @@ import { TopNav } from './top-nav'
  * 
  * TopNav verwendet useSearchParams(), daher muss es in Suspense gewrappt werden
  */
-export function TopNavWrapper() {
+interface TopNavWrapperProps {
+  /** Domain-Root-Modus (Variante B): Slug der host-gemappten Root-Library. */
+  siteRootSlug?: string | null
+}
+
+export function TopNavWrapper({ siteRootSlug = null }: TopNavWrapperProps) {
   // Prüfen, ob Clerk verfügbar ist und ob wir nicht im Build-Modus sind
   const isDummyKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY === 'dummy_pk_test_placeholder';
   const hasValidClerk = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && !isDummyKey;
@@ -28,7 +33,7 @@ export function TopNavWrapper() {
   // Daher braucht der Fallback hier KEINE Höhe mehr — sonst entstünde doppelter Versatz.
   return (
     <Suspense fallback={null}>
-      <TopNav />
+      <TopNav siteRootSlug={siteRootSlug} />
     </Suspense>
   );
 } 
