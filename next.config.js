@@ -22,6 +22,21 @@ const nextConfig = {
       { protocol: 'https', hostname: 'ragtempproject.blob.core.windows.net', pathname: '/**' },
     ],
   },
+  // Kanonisierung: www -> Apex-Domain (permanenter Redirect). Bewusst PRO Domain
+  // explizit (kein generisches www.* -> vermeidet ungewollte Effekte auf andere
+  // Domains wie www.knowledgescout.org). Weitere Domains einfach als Eintrag ergaenzen.
+  // Voraussetzung: die www-Domain bleibt in Dokploy mit gueltigem Zertifikat, damit
+  // der Redirect ueber eine bereits sichere TLS-Verbindung erfolgt (keine Cert-Warnung).
+  async redirects() {
+    return [
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'www.oldiesforfuture.org' }],
+        destination: 'https://oldiesforfuture.org/:path*',
+        permanent: true, // 308 (permanent, von Browsern/SEO wie 301 behandelt)
+      },
+    ]
+  },
   webpack: (config, { isServer }) => {
     config.resolve.alias = {
       ...config.resolve.alias,
