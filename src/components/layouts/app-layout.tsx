@@ -65,9 +65,19 @@ export function AppLayout({ children, rootLandingSlug = null }: AppLayoutProps) 
     reserveTopNavSpace ? "pt-16" : "pt-0"
   )
 
-  // E7: Shell-frei (keine TopNav / kein Secretary-Jobs-Panel) — nach allen Hooks.
+  // E7 + Variante B: Domain-Root rendert die TopNav im Site-Modus (Home |
+  // Inhalte | Story Mode + Sprache/Theme/Anmelden) — aber ohne das restliche
+  // App-Chrome (kein Job-Monitor, kein Debug-Footer). So hat die eigene
+  // Domain von Anfang an eine Navigation, ohne KnowledgeScout-Menuepunkte.
   if (hideAppChrome) {
-    return <>{children}</>
+    return (
+      <>
+        <TopNavWrapper siteRootSlug={rootLandingSlug} />
+        <div className={cn("flex-1", navPadClass)}>
+          {children}
+        </div>
+      </>
+    )
   }
 
   if (isScrollablePage) {

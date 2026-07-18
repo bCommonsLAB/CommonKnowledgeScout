@@ -9,13 +9,14 @@ interface BuildTopNavConfigArgs {
   webViewEnabled: boolean
   webViewTestHref: string
   /**
-   * Explore-Kontext: gerade angezeigte Library auf `/explore/<slug>`.
+   * Explore-Kontext: gerade angezeigte Library auf `/explore/<slug>` ODER
+   * auf der Domain-Root (`/` mit host-gemappter Root-Library, Variante B).
    * Wenn gesetzt, bildet die TopNav die Modi der Library dynamisch ab
    * (Inhalte | Story Mode; bei `siteEnabled` zusaetzlich Home = Website).
-   * Die fruehere zweite Tab-Ebene in der Galerie entfaellt (Redundanz).
-   * Gilt fuer anonyme UND eingeloggte Nutzer.
+   * `homeHref` ueberschreibt das Home-Ziel (Domain-Root: `/` statt
+   * `/explore/<slug>`). Gilt fuer anonyme UND eingeloggte Nutzer.
    */
-  exploreContext?: { slug: string; siteEnabled: boolean } | null
+  exploreContext?: { slug: string; siteEnabled: boolean; homeHref?: string } | null
   t: (key: string) => string
 }
 
@@ -45,7 +46,7 @@ export function buildTopNavConfig({
     const base = `/explore/${encodeURIComponent(exploreContext.slug)}`
     const publicNavItems: NavItem[] = [
       ...(exploreContext.siteEnabled
-        ? [{ name: t('navigation.home'), href: base }]
+        ? [{ name: t('navigation.home'), href: exploreContext.homeHref ?? base }]
         : []),
       {
         name: t('gallery.gallery'),

@@ -37,7 +37,16 @@ import { useUserRole } from "@/hooks/use-user-role"
 import { buildTopNavConfig } from "@/components/top-nav-config"
 import { CreateLibraryWizard } from "@/components/flows/create-library-wizard"
 
-export function TopNav() {
+interface TopNavProps {
+  /**
+   * Domain-Root-Modus (Variante B): Slug der host-gemappten Root-Library.
+   * Auf `/` einer eigenen Domain rendert die TopNav dann die Website-Modi
+   * (Home = `/` | Inhalte | Story Mode) statt der KnowledgeScout-Navigation.
+   */
+  siteRootSlug?: string | null
+}
+
+export function TopNav({ siteRootSlug = null }: TopNavProps) {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -62,10 +71,14 @@ export function TopNav() {
   // angezeigten Library dynamisch ab (Home bei siteEnabled | Inhalte | Story
   // Mode) — fuer anonyme UND eingeloggte Nutzer. Die zweite Tab-Ebene in der
   // Galerie entfaellt (Redundanz).
+  // Domain-Root-Modus (siteRootSlug): `/` einer eigenen Domain — gleiche Modi,
+  // Home zeigt aber auf `/` (die shell-freie Landingpage der Domain).
   const exploreSlugMatch = pathname?.match(/^\/explore\/([^/]+)$/)
   const exploreSlugFromPath = exploreSlugMatch ? decodeURIComponent(exploreSlugMatch[1]) : null
-  const exploreContext =
-    exploreSlugFromPath && exploreSlugFromPath !== 'pilot'
+  const isDomainRoot = pathname === '/' && Boolean(siteRootSlug)
+  const exploreContext = isDomainRoot
+    ? { slug: siteRootSlug as string, siteEnabled: true, homeHref: '/' }
+    : exploreSlugFromPath && exploreSlugFromPath !== 'pilot'
       ? { slug: exploreSlugFromPath, siteEnabled: webViewEnabled }
       : null
 
@@ -77,7 +90,8 @@ export function TopNav() {
 
   // "Home" führt eingeloggte Creator auf das angemeldete Dashboard (/start),
   // anonyme Besucher weiterhin auf die Marketing-Startseite (/).
-  const navHref = (href: string) => (href === '/' && isCreator ? '/start' : href)
+  // AUSNAHME Domain-Root: Home ist die Landingpage der Domain — kein /start-Mapping.
+  const navHref = (href: string) => (href === '/' && isCreator && !isDomainRoot ? '/start' : href)
 
   // Hilfsfunktion um zu prüfen, ob ein Nav-Item aktiv ist
   const isActiveNavItem = (href: string) => {
