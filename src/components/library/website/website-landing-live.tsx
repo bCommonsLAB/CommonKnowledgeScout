@@ -153,7 +153,7 @@ export function WebsiteLandingLive({
   if (!loadingList && menuDocs.length === 0) {
     return (
       <div className="p-6 text-sm text-muted-foreground">
-        Noch keine Webseiten-Inhalte (detailViewType „website") in dieser Library.
+        Noch keine Webseiten-Inhalte (detailViewType „website“) in dieser Library.
       </div>
     )
   }

@@ -21,7 +21,7 @@ import {
 } from '@/components/library/gallery/gallery-root/helpers'
 
 describe('VALID_DETAIL_VIEW_TYPES', () => {
-  it('enthaelt alle 8 erwarteten DetailViewTypes', () => {
+  it('enthaelt alle 9 erwarteten DetailViewTypes', () => {
     expect(VALID_DETAIL_VIEW_TYPES).toEqual([
       'book',
       'session',
@@ -31,6 +31,7 @@ describe('VALID_DETAIL_VIEW_TYPES', () => {
       'divaDocument',
       'divaTexture',
       'refurbedDevice',
+      'website',
     ])
   })
 })
