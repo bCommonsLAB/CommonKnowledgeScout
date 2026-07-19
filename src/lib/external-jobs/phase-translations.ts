@@ -34,6 +34,7 @@ import {
   translateGenericData,
 } from '@/lib/chat/common/document-translation'
 import { mapToBookDetail, mapToSessionDetail, mapToRefurbedDeviceDetail } from '@/lib/mappers/doc-meta-mappers'
+import { checkWebsiteMarkdownTranslation } from '@/lib/website/website-translation-guard'
 import type { ExternalJob } from '@/types/external-job'
 import type { TargetLanguage } from '@/lib/chat/constants'
 
@@ -200,6 +201,24 @@ export async function runPhaseTranslations(job: ExternalJob): Promise<{
         galleryFields,
         detailFields,
       ))
+    }
+
+    // ── Marker-Guard (C4): website-Markdown muss Sektions-Marker + Bild-/
+    // Video-URLs unveraendert behalten. Verstoss -> Translation schlaegt fehl
+    // (Status 'failed'), statt eine kaputte Landingpage zu persistieren.
+    if (viewType === 'website') {
+      const originalMd = typeof docMetaJson.markdown === 'string' ? docMetaJson.markdown : undefined
+      const translatedMd = typeof llmDetail.markdown === 'string' ? llmDetail.markdown : undefined
+      if (originalMd && translatedMd) {
+        const violations = checkWebsiteMarkdownTranslation(originalMd, translatedMd)
+        if (violations.length > 0) {
+          throw new Error(
+            `Marker-Guard: Uebersetzung verletzt Website-Struktur — ${violations
+              .map((v) => v.message)
+              .join('; ')}`,
+          )
+        }
+      }
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
