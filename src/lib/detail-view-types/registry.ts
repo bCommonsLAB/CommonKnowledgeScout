@@ -531,6 +531,8 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
       'cta_label',
       'cta_url',
       'menu_order',
+      'menu_area',
+      'site_role',
       'prioritaets_index',
       'coverImageUrl',
       'markdown',

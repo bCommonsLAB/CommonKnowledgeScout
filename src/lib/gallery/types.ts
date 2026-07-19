@@ -85,6 +85,18 @@ export interface DocCardMeta {
   /** website (E6): Position im dynamischen Landingpage-Menue (kleiner = weiter vorne). */
   menu_order?: number
   /**
+   * website (Phase C1): Menue-Bereich des Docs — `main` (Default) | `footer`
+   * | `hidden`. Steuert, ob das Doc im Top-Menue, nur im Website-Footer oder
+   * gar nicht verlinkt wird (flaches Frontmatter-Feld).
+   */
+  menu_area?: string
+  /**
+   * website (Phase C1): Seiten-Rolle — `page` (Default) | `footer-content`.
+   * `footer-content`: Sektionen dieses Docs werden als Website-Fusszeile
+   * unter JEDER Website-Seite gerendert (flaches Frontmatter-Feld).
+   */
+  site_role?: string
+  /**
    * Roh-Rating (= co2 * durchsetzbarkeit / kosten), vom Server berechnet.
    * `null`/undefined = "Kosten unbekannt" oder zu wenig Daten (kein Silent
    * Fallback — sortiert mit `rating desc` ans Ende).
@@ -292,6 +304,8 @@ export function mapItemToDocCardMeta(item: Item): DocCardMeta {
     bewertung_stand: typeof item.meta.bewertung_stand === 'string' ? item.meta.bewertung_stand : undefined,
     prioritaets_index: typeof item.meta.prioritaets_index === 'number' ? item.meta.prioritaets_index : undefined,
     menu_order: typeof item.meta.menu_order === 'number' ? item.meta.menu_order : undefined,
+    menu_area: typeof item.meta.menu_area === 'string' ? item.meta.menu_area : undefined,
+    site_role: typeof item.meta.site_role === 'string' ? item.meta.site_role : undefined,
     // Session/Event-spezifische Felder
     organisation: item.meta.organisation as string | undefined,
     tags: Array.isArray(item.meta.tags) ? item.meta.tags as string[] : undefined,

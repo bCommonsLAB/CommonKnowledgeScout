@@ -1099,6 +1099,10 @@ function buildGalleryProjection(
     'docMetaJson.prioritaets_index': 1,
     // website (E6): Menue-Reihenfolge fuer das dynamische Landingpage-Menue.
     'docMetaJson.menu_order': 1,
+    // website (Phase C1): Menue-Bereich (main|footer|hidden) + Seiten-Rolle
+    // (page|footer-content) fuer dokumentgetriebene Navigation + Website-Footer.
+    'docMetaJson.menu_area': 1,
+    'docMetaJson.site_role': 1,
     'docMetaJson.organisation': 1,
     'docMetaJson.topics': 1,
     'docMetaJson.tags': 1,

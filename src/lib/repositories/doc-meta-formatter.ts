@@ -213,6 +213,9 @@ export function convertMongoDocToDocCardMeta(
     prioritaets_index: typeof docMeta?.prioritaets_index === 'number' ? docMeta.prioritaets_index : undefined,
     // website (E6): Position im dynamischen Landingpage-Menue.
     menu_order: typeof docMeta?.menu_order === 'number' ? docMeta.menu_order : undefined,
+    // website (Phase C1): Menue-Bereich + Seiten-Rolle (dokumentgetriebene Navigation).
+    menu_area: typeof docMeta?.menu_area === 'string' ? docMeta.menu_area : undefined,
+    site_role: typeof docMeta?.site_role === 'string' ? docMeta.site_role : undefined,
     // Roh-Rating aus dem $addFields-Stage (null = "Kosten unbekannt")
     rating: typeof doc.rating === 'number' ? doc.rating : (doc.rating === null ? null : undefined),
     // Session/Event-spezifische Felder
