@@ -34,6 +34,8 @@ interface ExploreLibraryPayload {
   /** Nur bei Member-Explore: ob die Library öffentlich geschaltet ist */
   isPublic?: boolean
   siteEnabled?: boolean
+  /** Website-Logo (Phase C2): oeffentliche URL fuer die TopNav im Site-Kontext */
+  logoUrl?: string
   exploreContext?: 'public' | 'member'
   chat?: {
     gallery?: {
@@ -103,6 +105,7 @@ export default function ExplorePage() {
           isPublic: ctx === 'public' ? true : (loadedLibrary.isPublic === true),
           requiresAuth: loadedLibrary.requiresAuth,
           siteEnabled: loadedLibrary.siteEnabled,
+          logoUrl: loadedLibrary.logoUrl,
         }
       }
     }

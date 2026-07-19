@@ -518,6 +518,8 @@ export class LibraryService {
           showOnHomepage: shouldShowOnHomepage(lib.config.publicPublishing.showOnHomepage),
           requiresAuth: lib.config.publicPublishing.requiresAuth,
           backgroundImageUrl: lib.config.publicPublishing.backgroundImageUrl,
+          // Website-Logo (Phase C2, kein Secret)
+          logoUrl: lib.config.publicPublishing.logoUrl,
           // Gallery-Texte übertragen
           gallery: lib.config.publicPublishing.gallery,
           // API-Key maskiert an den Client senden (letzte 4 Zeichen sichtbar)

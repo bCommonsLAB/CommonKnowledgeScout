@@ -63,6 +63,11 @@ const publicFormSchema = z.object({
     z.string().url("Bitte geben Sie eine gültige URL ein."),
     z.literal("")
   ]).optional(),
+  // Logo-URL der Website-Landingpage (TopNav im Site-Kontext, Phase C2)
+  logoUrl: z.union([
+    z.string().url("Bitte geben Sie eine gültige URL ein."),
+    z.literal("")
+  ]).optional(),
   // Gallery-Texte
   galleryHeadline: z.string().optional(),
   gallerySubtitle: z.string().optional(),
@@ -116,6 +121,7 @@ export function PublicForm() {
         siteEnabled: false,
         showOnHomepage: true,
         backgroundImageUrl: "",
+        logoUrl: "",
         // E2-Fix: keine SFSCon-Hardcodes mehr — leer = Galerie-Fallbacks
         galleryHeadline: "",
         gallerySubtitle: "",
@@ -135,6 +141,7 @@ export function PublicForm() {
       // Backwards-Compatibility: fehlend => true
       showOnHomepage: activeLibrary.config?.publicPublishing?.showOnHomepage !== false,
       backgroundImageUrl: activeLibrary.config?.publicPublishing?.backgroundImageUrl || "",
+      logoUrl: activeLibrary.config?.publicPublishing?.logoUrl || "",
       // Gallery-Texte: gespeicherte Werte; leer = Galerie-Fallbacks (E2-Fix)
       galleryHeadline: activeLibrary.config?.publicPublishing?.gallery?.headline || "",
       gallerySubtitle: activeLibrary.config?.publicPublishing?.gallery?.subtitle || "",
@@ -218,6 +225,7 @@ export function PublicForm() {
       siteEnabled: data.siteEnabled,
       showOnHomepage: data.showOnHomepage,
       backgroundImageUrl: data.backgroundImageUrl || undefined,
+      logoUrl: data.logoUrl || undefined,
       // E2-Fix: Galerie-Texte wurden bisher NIE gesendet (Schema ohne UI/Body)
       // — die API merged sie nach publicPublishing.gallery.
       gallery: {
@@ -733,6 +741,29 @@ export function PublicForm() {
                   </FormControl>
                   <FormDescription>
                     Optional: URL für ein Hintergrundbild, das auf der Homepage als Hintergrundbild der Library verwendet wird.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="logoUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Website-Logo-URL</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="url"
+                      placeholder="https://…/website/images/logo.png"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Optional: Logo für die Website-Landingpage — wird oben links in
+                    der Navigation angezeigt (Explore-Seite und eigene Domain).
+                    Muss eine öffentlich (anonym) ladbare URL sein.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

@@ -54,6 +54,8 @@ export async function GET(
       isPublic: pub?.isPublic === true,
       chat: library.config?.chat,
       siteEnabled: pub?.siteEnabled === true,
+      // Website-Logo (Phase C2): oeffentliche URL, kein Secret
+      logoUrl: pub?.logoUrl,
       exploreContext: 'member' as const,
     }
 

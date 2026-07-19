@@ -35,6 +35,7 @@ import { useTranslation } from "@/lib/i18n/hooks"
 import { useScrollVisibility } from "@/hooks/use-scroll-visibility"
 import { useUserRole } from "@/hooks/use-user-role"
 import { buildTopNavConfig } from "@/components/top-nav-config"
+import { SiteLogo } from "@/components/site-logo"
 import { CreateLibraryWizard } from "@/components/flows/create-library-wizard"
 
 interface TopNavProps {
@@ -258,6 +259,15 @@ export function TopNav({ siteRootSlug = null }: TopNavProps) {
               </div>
             </SheetContent>
           </Sheet>
+
+          {/* Website-Logo (Phase C2): nur im Site-Kontext; hoeher als die Bar,
+             ueberlappt den Folgeabschnitt. Ohne logoUrl rendert es nichts. */}
+          {exploreContext && (
+            <SiteLogo
+              slug={exploreContext.slug}
+              homeHref={exploreContext.homeHref ?? `/explore/${encodeURIComponent(exploreContext.slug)}`}
+            />
+          )}
 
           <ScrollArea className="max-w-[600px] lg:max-w-none hidden lg:block">
             <div className="flex items-center space-x-4">
