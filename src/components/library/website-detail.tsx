@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react"
 import { parseWebsiteSections } from "@/lib/website/parse-website-sections"
 import { isSafeVideoIframeSrc } from "@/lib/media/safe-video-iframe"
 import { SectionBlock, VideoEmbed } from "@/components/library/website/website-landing-blocks"
+import { WebsiteContactFormSection } from "@/components/library/website/website-contact-form"
 import { cn } from "@/lib/utils"
 
 /** Detail-Daten fuer detailViewType `website` (Landingpage als Dokument). */
@@ -24,6 +25,11 @@ export interface WebsiteDetailData {
   ctaUrl?: string
   /** Markdown-Body mit Sektions-Markern (siehe parse-website-sections). */
   markdown?: string
+  /**
+   * C3: Empfaenger-Adresse des Kontakt-Formulars (Frontmatter `contact_email`).
+   * Nur fuer die Aktiv/Inaktiv-Anzeige — der Versand liest sie serverseitig.
+   */
+  contactEmail?: string
   fileId?: string
   fileName?: string
   upsertedAt?: string
@@ -32,6 +38,11 @@ export interface WebsiteDetailData {
 interface WebsiteDetailProps {
   data: WebsiteDetailData
   showBackLink?: boolean
+  /**
+   * C3: Library-Slug fuer die oeffentliche Contact-API. Ohne Slug rendert die
+   * `contact-form`-Sektion einen Deaktiviert-Hinweis statt des Formulars.
+   */
+  contactApiSlug?: string | null
 }
 
 /**
@@ -41,7 +52,7 @@ interface WebsiteDetailProps {
  * Markdown-Body (Sektions-Marker) und ein eingebettetes Video — letzteres nur,
  * wenn die URL eine sichere Embed-URL ist (kein relativer Dateiname im iframe).
  */
-export function WebsiteDetail({ data, showBackLink = false }: WebsiteDetailProps): React.ReactElement {
+export function WebsiteDetail({ data, showBackLink = false, contactApiSlug = null }: WebsiteDetailProps): React.ReactElement {
   const sections = React.useMemo(
     () => (data.markdown ? parseWebsiteSections(data.markdown) : []),
     [data.markdown],
@@ -134,9 +145,20 @@ export function WebsiteDetail({ data, showBackLink = false }: WebsiteDetailProps
         </header>
       )}
 
-      {sections.map((s, i) => (
-        <SectionBlock key={i} section={s} />
-      ))}
+      {sections.map((s, i) =>
+        s.layout === "contact-form" ? (
+          // C3: Kontakt-Formular-Sektion (Versand ueber die Contact-API).
+          <WebsiteContactFormSection
+            key={i}
+            section={s}
+            librarySlug={contactApiSlug}
+            fileId={data.fileId}
+            contactEmail={data.contactEmail}
+          />
+        ) : (
+          <SectionBlock key={i} section={s} />
+        ),
+      )}
       {embeddableVideo && <VideoEmbed url={embeddableVideo} />}
     </div>
   )

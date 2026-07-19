@@ -138,6 +138,14 @@ Die Webseiten des Vereins „Oldies for Future" enthalten im Regelfall keine Wer
 <!-- /section -->
 `.trim()
 
+const KONTAKT_MARKDOWN = `
+<!-- section layout=contact-form bg=mint -->
+## Jetzt mitmachen
+
+Wir informieren dich regelmäßig über unsere Aktionen. Bringe deine Ideen mit ein!
+<!-- /section -->
+`.trim()
+
 const FOOTER_MARKDOWN = `
 <!-- section layout=text-only bg=dark-green -->
 ## #oldiesforfuture
@@ -187,7 +195,8 @@ const DOCS: SeedDoc[] = [
       // Video liegt jetzt als eigene Sektion (layout=video) im Body — an der
       // richtigen Position nach „Wer sind wir?" statt am Seitenende.
       cta_label: 'Jetzt mitmachen',
-      cta_url: '#mitmachen',
+      // C3: CTA zeigt auf die Kontakt-Seite (Website-Deep-Link, C1).
+      cta_url: '?site=kontakt',
       menu_order: 1,
       prioritaets_index: 90,
       language: 'de',
@@ -214,6 +223,27 @@ const DOCS: SeedDoc[] = [
       source_url: 'https://oldiesforfuture.org/impressum',
       docType: 'website',
       markdown: IMPRESSUM_MARKDOWN,
+    },
+  },
+  {
+    fileId: 'website-oldies-kontakt',
+    fileName: 'Kontakt.md',
+    docMetaJson: {
+      detailViewType: 'website',
+      title: 'Kontakt',
+      hero_subtitle:
+        'Wir informieren dich regelmäßig über unsere Aktionen. Bringe deine Ideen mit ein!',
+      // C3: letzter Menuepunkt (hoher menu_order); stabiler Slug fuer ?site=kontakt.
+      menu_order: 8,
+      slug: 'kontakt',
+      // Empfaenger des Kontakt-Formulars (dokumentgetrieben, oeffentlich
+      // sichtbar wie die Impressums-Adresse — Entscheidung Analyse §2.4).
+      contact_email: 'info@oldiesforfuture.org',
+      language: 'de',
+      targetLanguage: 'de',
+      source_url: 'https://oldiesforfuture.org/kontakt',
+      docType: 'website',
+      markdown: KONTAKT_MARKDOWN,
     },
   },
   {

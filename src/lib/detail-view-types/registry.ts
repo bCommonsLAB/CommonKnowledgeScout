@@ -533,6 +533,7 @@ export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
       'menu_order',
       'menu_area',
       'site_role',
+      'contact_email',
       'prioritaets_index',
       'coverImageUrl',
       'markdown',

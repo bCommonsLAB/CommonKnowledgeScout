@@ -17,7 +17,7 @@
  */
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useQueryState } from "nuqs"
 import { WebsiteDetail } from "@/components/library/website-detail"
 import { DocumentCard } from "@/components/library/gallery/document-card"
@@ -46,6 +46,11 @@ interface WebsiteLandingLiveProps {
    * Galerie-Modus zu wechseln. Banner-Karten oeffnen `…?doc=<slug>` dort.
    */
   exploreBaseHref?: string
+  /**
+   * C3: Library-Slug fuer die oeffentliche Contact-API (Root-Modus; im
+   * Site-Modus wird er aus dem `/explore/<slug>`-Pfad abgeleitet).
+   */
+  librarySlug?: string
 }
 
 // Zwei volle Reihen im 3-Spalten-Raster (md:grid-cols-3) -> 6 Karten.
@@ -56,9 +61,16 @@ export function WebsiteLandingLive({
   fallbackLocale,
   onShowGallery,
   exploreBaseHref,
+  librarySlug,
 }: WebsiteLandingLiveProps): React.ReactElement {
   const { t, locale } = useTranslation()
   const router = useRouter()
+  const pathname = usePathname()
+  // Slug fuer die Contact-API (C3): explizite Prop (Root-Modus) oder aus dem
+  // Explore-Pfad. null = kein Library-Kontext -> Formular zeigt Hinweis.
+  const exploreSlugMatch = pathname?.match(/^\/explore\/([^/]+)/)
+  const contactApiSlug =
+    librarySlug ?? (exploreSlugMatch ? decodeURIComponent(exploreSlugMatch[1]) : null)
   // Galerie-Ziel im Root-Modus: `/explore/<slug>` defaultet jetzt auf die
   // Website (Site-Mode). Fuer „mehr Inhalte"/Banner-Karten muss daher explizit
   // `?view=gallery` gesetzt werden, sonst landet man wieder auf der Website.
@@ -160,7 +172,7 @@ export function WebsiteLandingLive({
         </nav>
       )}
 
-      {detail && <WebsiteDetail data={detail} showBackLink={false} />}
+      {detail && <WebsiteDetail data={detail} showBackLink={false} contactApiSlug={contactApiSlug} />}
 
       {bannerDocs.length > 0 && (
         <section className="bg-muted px-4 py-12">

@@ -23,6 +23,7 @@ const SECTION_LAYOUTS: readonly SectionLayout[] = [
   'full-image',
   'text-only',
   'video',
+  'contact-form',
 ]
 const SECTION_BGS: readonly SectionBg[] = [
   'default',

@@ -32,6 +32,20 @@ https://player.vimeo.com/video/88026826
     expect(sections[0].videoUrl).toBe('https://player.vimeo.com/video/88026826')
   })
 
+  it('parst eine contact-form-Sektion (C3) mit Intro-Markdown', () => {
+    const body = `
+<!-- section layout=contact-form bg=mint -->
+## Jetzt mitmachen
+
+Bringe deine Ideen mit ein!
+<!-- /section -->`
+    const sections = parseWebsiteSections(body)
+    expect(sections).toHaveLength(1)
+    expect(sections[0].layout).toBe('contact-form')
+    expect(sections[0].bg).toBe('mint')
+    expect(sections[0].markdown).toContain('## Jetzt mitmachen')
+  })
+
   it('parst mehrere Sektionen in Reihenfolge', () => {
     const body = `
 <!-- section layout=image-left bg=brand -->
