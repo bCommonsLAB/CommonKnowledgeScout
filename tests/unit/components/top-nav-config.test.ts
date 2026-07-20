@@ -76,7 +76,7 @@ describe('buildTopNavConfig', () => {
     ])
   })
 
-  it('Explore-Kontext MIT Website: sitePages (z. B. Kontakt) direkt nach Home', () => {
+  it('Explore-Kontext MIT Website: sitePages (z. B. Kontakt) am ENDE der Liste', () => {
     const result = buildTopNavConfig({
       isCreator: false,
       webViewEnabled: true,
@@ -91,13 +91,13 @@ describe('buildTopNavConfig', () => {
 
     expect(result.publicNavItems.map((item) => item.href)).toEqual([
       '/explore/oldiesforfuture',
-      '/explore/oldiesforfuture?site=kontakt',
       '/explore/oldiesforfuture?view=gallery',
       '/explore/oldiesforfuture?mode=story',
+      '/explore/oldiesforfuture?site=kontakt',
     ])
   })
 
-  it('Domain-Root: homeHref `/` + sitePages mit `/?site=`-Links', () => {
+  it('Domain-Root: homeHref `/` + sitePages mit `/?site=`-Links am Ende', () => {
     const result = buildTopNavConfig({
       isCreator: false,
       webViewEnabled: false,
@@ -113,9 +113,9 @@ describe('buildTopNavConfig', () => {
 
     expect(result.publicNavItems.map((item) => item.href)).toEqual([
       '/',
-      '/?site=kontakt',
       '/explore/oldiesforfuture?view=gallery',
       '/explore/oldiesforfuture?mode=story',
+      '/?site=kontakt',
     ])
   })
 

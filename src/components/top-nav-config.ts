@@ -47,24 +47,24 @@ export function buildTopNavConfig({
 }: BuildTopNavConfigArgs): TopNavConfig {
   // Explore-Kontext: Die TopNav bildet die Modi der angezeigten Library
   // dynamisch ab — auch fuer anonyme Besucher. Bei Libraries MIT Website
-  // (siteEnabled) ist „Home" die Website, gefolgt von den Website-Seiten
-  // (sitePages, C1b). OHNE Website fuehrt „Home" zurueck auf die
-  // KnowledgeScout-Startseite (C1b: vorher gab es keinen Weg zurueck).
+  // (siteEnabled) ist „Home" die Website; die Website-Seiten (sitePages, C1b)
+  // stehen ANS ENDE der Liste — untereinander dokumentgetrieben sortiert
+  // (`menu_order`-Frontmatter, siehe useSiteMenuItems/selectMainMenuDocs).
+  // OHNE Website fuehrt „Home" zurueck auf die KnowledgeScout-Startseite
+  // (C1b: vorher gab es keinen Weg zurueck).
   // Creator behalten zusaetzlich ihre App-Navigation.
   if (exploreContext) {
     const base = `/explore/${encodeURIComponent(exploreContext.slug)}`
     const publicNavItems: NavItem[] = [
       ...(exploreContext.siteEnabled
-        ? [
-            { name: t('navigation.home'), href: exploreContext.homeHref ?? base },
-            ...(exploreContext.sitePages ?? []),
-          ]
+        ? [{ name: t('navigation.home'), href: exploreContext.homeHref ?? base }]
         : [{ name: t('navigation.home'), href: '/' }]),
       {
         name: t('gallery.gallery'),
         href: exploreContext.siteEnabled ? `${base}?view=gallery` : base,
       },
       { name: t('gallery.story'), href: `${base}?mode=story` },
+      ...(exploreContext.siteEnabled ? exploreContext.sitePages ?? [] : []),
     ]
     return {
       publicNavItems,
