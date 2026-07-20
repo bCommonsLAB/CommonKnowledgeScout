@@ -128,6 +128,96 @@ export function GalleryConfigSection({ form }: GalleryConfigSectionProps) {
         }}
       />
 
+      {/* Default-Sortierung: Feld + Richtung. Gilt innerhalb der Gruppen
+          (z.B. pro Jahr) bzw. fuer die flache Liste. `upsertedAt` = bisheriges
+          Verhalten (zuletzt aktualisiert zuerst). */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <FormField
+          control={form.control}
+          name="gallery.defaultSortField"
+          render={({ field }) => {
+            const facets = form.watch("gallery.facets") || [];
+            const sortableFacets = facets.filter((f: { type?: string; metaKey?: string }) =>
+              !!f.metaKey && f.metaKey.length > 0 &&
+              (f.type === 'string' || f.type === 'number' || f.type === 'date')
+            );
+            return (
+              <FormItem>
+                <FormLabel>
+                  {t('settings.chatForm.gallerySortField', { defaultValue: 'Sortieren nach' })}
+                </FormLabel>
+                <Select
+                  value={field.value || 'upsertedAt'}
+                  onValueChange={(value) => {
+                    if (!value) return;
+                    field.onChange(value);
+                  }}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="upsertedAt">
+                      {t('settings.chatForm.gallerySortStandard', { defaultValue: 'Standard (zuletzt aktualisiert)' })}
+                    </SelectItem>
+                    {sortableFacets.map((facet: { metaKey: string; label?: string }) => (
+                      <SelectItem key={facet.metaKey} value={facet.metaKey}>
+                        {facet.label || facet.metaKey}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  {t('settings.chatForm.gallerySortFieldDescription', {
+                    defaultValue: 'Reihenfolge der Karten innerhalb der Gruppen bzw. der Liste (z. B. Datum).',
+                  })}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            );
+          }}
+        />
+
+        <FormField
+          control={form.control}
+          name="gallery.defaultSortDirection"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>
+                {t('settings.chatForm.gallerySortDirection', { defaultValue: 'Sortierrichtung' })}
+              </FormLabel>
+              <Select
+                value={field.value || 'desc'}
+                onValueChange={(value) => {
+                  if (value !== 'asc' && value !== 'desc') {
+                    console.error('[GalleryConfigSection] Ungültige Sortierrichtung ignoriert:', value);
+                    return;
+                  }
+                  field.onChange(value);
+                }}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="desc">
+                    {t('settings.chatForm.gallerySortDesc', { defaultValue: 'Absteigend (Neuestes zuerst)' })}
+                  </SelectItem>
+                  <SelectItem value="asc">
+                    {t('settings.chatForm.gallerySortAsc', { defaultValue: 'Aufsteigend (Ältestes zuerst)' })}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+
       <p className="text-xs text-muted-foreground">
         Die Filter (Facetten) übernehmen Sie als Empfehlung im Archiv unter
         „Inhaltstyp“; die Feinjustierung einzelner Facetten liegt unter

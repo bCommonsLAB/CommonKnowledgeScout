@@ -4,40 +4,16 @@ import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { buildFilterFromQuery } from '@/lib/chat/dynamic-facets'
 import { resolveFacetScope } from '@/lib/chat/facet-scope'
 import { facetsSelectedToMongoFilter } from '@/lib/chat/common/filters'
-import { findDocs, findDocsGrouped, distinctViewTypes, getCollectionNameForLibrary, getCollectionOnly, type GallerySort } from '@/lib/repositories/vector-repo'
+import { findDocs, findDocsGrouped, distinctViewTypes, getCollectionNameForLibrary, getCollectionOnly } from '@/lib/repositories/vector-repo'
 import { maybePublicationFilter } from '@/lib/chat/publication-filter'
 import { isValidDetailViewType, getSummableFields } from '@/lib/detail-view-types/registry'
 import { aggregateDocFieldSums } from '@/lib/repositories/vector-repo-sums'
 import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
 import { isCoCreatorOrOwner } from '@/lib/repositories/library-members-repo'
 import { resolveColumnSort } from '@/lib/gallery/column-sort'
+import { buildGallerySort } from '@/lib/gallery/gallery-sort'
 import { getPreferredUserEmail } from '@/lib/auth/user-email'
 import type { Document } from 'mongodb'
-
-/**
- * Parsed den `?sort`-URL-Param und liefert das passende MongoDB-Sort-Objekt.
- *
- * - `sort=stars` -> `{ favoriteCount: -1, year: -1, upsertedAt: -1 }`
- *   (favoriteCount kommt durch den $lookup in vector-repo)
- * - `sort=rating` -> `{ 'docMetaJson.prioritaets_index': -1, year: -1, upsertedAt: -1 }`
- *   (persistierter Prioritäts-Indikator; fehlend/null sortiert in MongoDB-desc ans Ende)
- * - alles andere / fehlend -> Default `{ year: -1, upsertedAt: -1 }`
- *
- * Member-only: nur Owner und Co-Creators duerfen `sort=stars` nutzen.
- * Anonyme/Guest-User bekommen den Default-Sort, damit der Endpoint keine
- * weichen Privilege-Escalations zulaesst. `sort=rating` ist dagegen
- * oeffentlich (keine privilegierten Daten — die Bewertung ist Teil des
- * veroeffentlichten Dokuments).
- */
-function buildGallerySort(rawSort: string | null, isMember: boolean): GallerySort {
-  if (rawSort === 'stars' && isMember) {
-    return { favoriteCount: -1, year: -1, upsertedAt: -1 }
-  }
-  if (rawSort === 'rating') {
-    return { 'docMetaJson.prioritaets_index': -1, year: -1, upsertedAt: -1 }
-  }
-  return { year: -1, upsertedAt: -1 }
-}
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
   try {
@@ -242,6 +218,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
     const sortRaw = url.searchParams.get('sort')
     const memberUserEmail = isMember ? userEmail : ''
 
+    // Default-Sortierung der Library (Settings -> Wissensgalerie): z.B. `date`
+    // absteigend statt "zuletzt aktualisiert". URL-Sorts (stars/rating) und
+    // Spalten-Sortierung haben weiterhin Vorrang.
+    const galleryCfg = ctx.library.config?.chat?.gallery as
+      | { defaultSortField?: string; defaultSortDirection?: 'asc' | 'desc' }
+      | undefined
+    const gallerySort = buildGallerySort({
+      rawSort: sortRaw,
+      isMember,
+      config: galleryCfg,
+      facetDefs: defs,
+    })
+
     // Globale Spalten-Sortierung (Tabellenansicht): sortField/sortDir werden
     // gegen die Facetten-Whitelist validiert; ungültig -> expliziter Fehler
     // (kein Silent Fallback). Nur in der flachen Liste sinnvoll — kombiniert
@@ -269,7 +258,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
         groupBy: groupByParam,
         groupOffset,
         groupsLimit,
-        sortWithinGroup: buildGallerySort(sortRaw, isMember),
+        sortWithinGroup: gallerySort,
         locale: headerLocale,
         fallbackLocale,
         userEmail: memberUserEmail,
@@ -288,8 +277,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
     const result = await findDocs(libraryKey, libraryId, filter, {
       limit,
       skip,
-      // columnSort (Spaltenkopf) hat Vorrang; sonst Default/stars/rating.
-      sort: columnSort ? undefined : buildGallerySort(sortRaw, isMember),
+      // columnSort (Spaltenkopf) hat Vorrang; sonst Config-Default/stars/rating.
+      sort: columnSort ? undefined : gallerySort,
       columnSort,
       locale: headerLocale,
       fallbackLocale,
