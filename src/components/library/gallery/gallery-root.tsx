@@ -295,6 +295,14 @@ export function GalleryRoot({
   })
   const { isOwner } = useIsLibraryOwner(libraryId)
 
+  // Prioritaets-Indikator-Sortierung nur anbieten, wenn die geladenen Docs das
+  // persistierte Feld tragen (Klimamassnahmen-Feature) — sonst ist der Toggle
+  // wirkungslos und verwirrt (Befund Oldies-Galerie, 2026-07-20).
+  const showRatingSort = useMemo(
+    () => docs.some((d) => typeof d.prioritaets_index === 'number'),
+    [docs],
+  )
+
   // Summen-Fusszeile (Plan summen-und-synergie-aggregation): serverseitiges
   // Aggregat ueber den GESAMTEN gefilterten Bestand. Nur im Table-Mode und
   // nur, wenn der ViewType additive Summenfelder definiert. Bei aktiven
@@ -1115,6 +1123,7 @@ export function GalleryRoot({
                 hasTranslationTargets={(activeLibrary?.config?.translations?.targetLocales?.length ?? 0) > 0}
                 explicitBulkFileIds={explicitBulkFileIds}
                 relationsEnabled={graphConfig?.edgeSources?.relations?.enabled === true}
+                showRatingSort={showRatingSort}
               />
             </div>
 
@@ -1165,6 +1174,7 @@ export function GalleryRoot({
                     hasTranslationTargets={(activeLibrary?.config?.translations?.targetLocales?.length ?? 0) > 0}
                     explicitBulkFileIds={explicitBulkFileIds}
                     relationsEnabled={graphConfig?.edgeSources?.relations?.enabled === true}
+                    showRatingSort={showRatingSort}
                   />
                 </div>
 
@@ -1221,6 +1231,7 @@ export function GalleryRoot({
                     cardDensity={cardDensity}
                     onCardDensityChange={handleCardDensityChange}
                     mode="story"
+                    showRatingSort={showRatingSort}
                   />
                 </div>
               )}

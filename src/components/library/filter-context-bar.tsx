@@ -56,6 +56,12 @@ interface FilterContextBarProps {
    * "Nur Favoriten") aktiv sind, die der Server nicht kennt.
    */
   explicitBulkFileIds?: string[]
+  /**
+   * Prioritaets-Indikator-Sortierung anbieten? Nur sinnvoll, wenn die Docs
+   * einen persistierten `prioritaets_index` tragen (z.B. Klimamassnahmen) —
+   * der Aufrufer (gallery-root) berechnet das aus den geladenen Docs.
+   */
+  showRatingSort?: boolean
 }
 
 /**
@@ -89,6 +95,7 @@ export function FilterContextBar({
   hasTranslationTargets = false,
   explicitBulkFileIds,
   relationsEnabled = false,
+  showRatingSort = false,
 }: FilterContextBarProps) {
   // Hole Filter aus Atom (zentrale Verwaltung)
   const filters = useAtomValue(galleryFiltersAtom)
@@ -277,24 +284,28 @@ export function FilterContextBar({
             </span>
           </Button>
         )}
-        {/* Sortierung nach Rating (Prioritaets-Score): oeffentlich. */}
-        <Button
-          variant={sortByRatingActive ? 'secondary' : 'ghost'}
-          size="sm"
-          type="button"
-          onClick={toggleSortByRating}
-          aria-pressed={sortByRatingActive}
-          className={cn(
-            'h-7 px-2 shrink-0',
-            sortByRatingActive && 'text-green-700 dark:text-green-300',
-          )}
-          title={t('gallery.sortByRating', { defaultValue: 'Nach Prioritäts-Indikator sortieren' })}
-        >
-          <Gauge className="h-3.5 w-3.5 lg:mr-1" aria-hidden />
-          <span className="hidden lg:inline">
-            {t('gallery.sortByRating', { defaultValue: 'Nach Prioritäts-Indikator sortieren' })}
-          </span>
-        </Button>
+        {/* Sortierung nach Rating (Prioritaets-Score): oeffentlich, aber nur
+            wenn die Library das Feature nutzt (Docs mit prioritaets_index —
+            z.B. Klimamassnahmen). Sonst waere der Toggle wirkungslos. */}
+        {showRatingSort && (
+          <Button
+            variant={sortByRatingActive ? 'secondary' : 'ghost'}
+            size="sm"
+            type="button"
+            onClick={toggleSortByRating}
+            aria-pressed={sortByRatingActive}
+            className={cn(
+              'h-7 px-2 shrink-0',
+              sortByRatingActive && 'text-green-700 dark:text-green-300',
+            )}
+            title={t('gallery.sortByRating', { defaultValue: 'Nach Prioritäts-Indikator sortieren' })}
+          >
+            <Gauge className="h-3.5 w-3.5 lg:mr-1" aria-hidden />
+            <span className="hidden lg:inline">
+              {t('gallery.sortByRating', { defaultValue: 'Nach Prioritäts-Indikator sortieren' })}
+            </span>
+          </Button>
+        )}
       {/* Gefiltert-Badge - nur anzeigen wenn Filter aktiv sind */}
       {hasActiveFilters && (
         <div className="text-sm text-muted-foreground shrink-0">
