@@ -536,8 +536,9 @@ export async function translateRefurbedDeviceData(
  * - String (text-Feld, z.B. title)
  * - String[] (arrayOfText/topicLike-Feld, z.B. tags)
  * - undefined (Feld war im Original nicht gesetzt)
+ * - null (LLM setzt explizit „leer“ — wird vor dem Merge zu undefined normalisiert)
  */
-type GenericTranslatedFieldValue = string | string[] | undefined
+type GenericTranslatedFieldValue = string | string[] | undefined | null
 
 /**
  * Baut zur Laufzeit ein LLM-Template aus der `translatable`-Spec eines ViewTypes.
@@ -577,20 +578,26 @@ function buildGenericTranslationTemplate(
 /**
  * Baut ein Zod-Schema dynamisch aus den `translatable`-Feldern.
  *
- * Alle Felder sind optional - das Secretary darf einzelne Felder weglassen,
- * wenn sie im Original nicht vorhanden waren.
+ * Alle Felder sind optional. Secretary/LLM liefert fuer fehlende Texte oft
+ * explizit `null` statt das Feld wegzulassen — daher `.nullish()` plus Normalisierung.
  */
-function buildGenericTranslationSchema(
+export function buildGenericTranslationSchema(
   textKeys: string[],
   arrayKeys: string[],
   topicLikeKeys: string[],
 ): z.ZodType<Record<string, GenericTranslatedFieldValue>> {
   const shape: Record<string, z.ZodType<GenericTranslatedFieldValue>> = {}
   for (const key of textKeys) {
-    shape[key] = z.string().optional()
+    shape[key] = z
+      .string()
+      .nullish()
+      .transform((val) => (val === null || val === undefined ? undefined : val))
   }
   for (const key of [...arrayKeys, ...topicLikeKeys]) {
-    shape[key] = z.array(z.string()).optional()
+    shape[key] = z
+      .array(z.string())
+      .nullish()
+      .transform((val) => (val === null || val === undefined ? undefined : val))
   }
   return z.object(shape).passthrough() as z.ZodType<Record<string, GenericTranslatedFieldValue>>
 }
@@ -664,9 +671,21 @@ export async function translateGenericData<T extends Record<string, unknown>>(
   if (!baseUrl) throw new Error('SECRETARY_SERVICE_URL nicht konfiguriert')
   if (!effectiveApiKey) throw new Error('Secretary Service API-Key fehlt')
 
-  // 4) Template + Zod-Schema dynamisch bauen
-  const template = buildGenericTranslationTemplate(textKeys, arrayKeys, topicLikeKeys)
-  const schema = buildGenericTranslationSchema(textKeys, arrayKeys, topicLikeKeys)
+  // 4) Template + Zod-Schema nur fuer tatsaechlich gesendete Felder (spart Tokens,
+  // verhindert dass das LLM null fuer Hero/CTA zurueckgibt, die auf der Seite fehlen).
+  const presentTextKeys = textKeys.filter((k) => k in dataToTranslate)
+  const presentArrayKeys = arrayKeys.filter((k) => k in dataToTranslate)
+  const presentTopicKeys = topicLikeKeys.filter((k) => k in dataToTranslate)
+  const template = buildGenericTranslationTemplate(
+    presentTextKeys,
+    presentArrayKeys,
+    presentTopicKeys,
+  )
+  const schema = buildGenericTranslationSchema(
+    presentTextKeys,
+    presentArrayKeys,
+    presentTopicKeys,
+  )
 
   // 5) Secretary-Transformer aufrufen
   const transformerUrl = `${baseUrl}/transformer/template`
@@ -707,7 +726,7 @@ export async function translateGenericData<T extends Record<string, unknown>>(
   const merged: Record<string, unknown> = { ...data }
   for (const key of allKeys) {
     const v = validated[key]
-    if (v !== undefined) {
+    if (v !== undefined && v !== null) {
       merged[key] = v
     }
   }
