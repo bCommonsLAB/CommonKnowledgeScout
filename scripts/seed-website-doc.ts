@@ -1,4 +1,12 @@
 /**
+ * ABGELOEST (2026-07-20, C1c): Die Oldies-Website-Docs sind auf echte
+ * Markdown-Dateien im Library-Storage migriert (`Webseite/Seiten/*.md`,
+ * siehe `migrate-website-docs-to-files.ts`) und laufen seither ueber den
+ * regulaeren Pflege-Weg (Archiv-Frontmatter-Editor + Re-Publish).
+ * Dieses Skript NICHT mehr gegen die Oldies-Library ausfuehren — es wuerde
+ * wieder Mongo-only-Docs OHNE Quelldatei erzeugen (Konventionsbruch).
+ * Es bleibt als Vorlage fuer Wegwerf-/Test-Libraries erhalten.
+ *
  * Seed-Skript: legt kuratierte `website`-Dokumente in der Library
  * „OldiesForFuture" an, damit der produktive detailViewType-`website`-Renderer
  * (Phase 1) + die Live-Landingpage (Phase 3) getestet werden koennen — ohne
