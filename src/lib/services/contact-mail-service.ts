@@ -5,6 +5,8 @@
  * Request-Service ist bereits gross und das Kontakt-Formular hat einen
  * eigenen Kontext (oeffentlicher Absender, Reply-To = Formular-Email).
  * Versand + Mail-Log laufen zentral ueber `dispatchMail`.
+ * ENV wie gehabt: MAILJET_API_KEY, MAILJET_API_SECRET, MAILJET_FROM_EMAIL,
+ * MAILJET_FROM_NAME (werden in `mail-dispatch` genutzt).
  */
 
 import { dispatchMail } from '@/lib/services/mail-dispatch'
