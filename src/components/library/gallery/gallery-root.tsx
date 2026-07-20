@@ -406,6 +406,15 @@ export function GalleryRoot({
 
   const { facetDefs, viewTypes } = useGalleryFacets(libraryId, filters)
 
+  // Oeffentliche Slug-Galerie (hideWebsiteDocs): website-Docs sind aus der
+  // Liste ausgeschlossen — dann darf „Webseite" auch nicht als Inhaltstyp-
+  // Option erscheinen. Bleibt nur 1 Typ uebrig, blendet ViewTypeLeadFilter
+  // sich selbst aus (< 2 Optionen). Andere Libraries bleiben unveraendert.
+  const leadFilterViewTypes = React.useMemo(
+    () => (hideWebsiteDocs ? viewTypes.filter((vt) => vt !== 'website') : viewTypes),
+    [viewTypes, hideWebsiteDocs],
+  )
+
   // Graph-Modus (Welle 2): pro Library über config.chat.gallery.graph aktiviert.
   const graphConfig = activeLibrary?.config?.chat?.gallery?.graph
   const graphEnabled = graphConfig?.enabled === true
@@ -1117,7 +1126,7 @@ export function GalleryRoot({
               {/* Filters Panel (linke Spalte): Typ-Leitfilter zuerst (A4a), dann Facetten */}
               <div className="flex flex-col min-h-0 overflow-hidden">
                 <ViewTypeLeadFilter
-                  viewTypes={viewTypes}
+                  viewTypes={leadFilterViewTypes}
                   selected={selectedViewType}
                   onSelect={handleSelectViewType}
                 />
@@ -1238,7 +1247,7 @@ export function GalleryRoot({
         onChange={setFacet}
         title={t('gallery.filter')}
         description={texts.filterDescription}
-        viewTypes={viewTypes}
+        viewTypes={leadFilterViewTypes}
         selectedViewType={selectedViewType}
         onSelectViewType={handleSelectViewType}
       />
