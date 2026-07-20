@@ -15,8 +15,15 @@ interface BuildTopNavConfigArgs {
    * (Inhalte | Story Mode; bei `siteEnabled` zusaetzlich Home = Website).
    * `homeHref` ueberschreibt das Home-Ziel (Domain-Root: `/` statt
    * `/explore/<slug>`). Gilt fuer anonyme UND eingeloggte Nutzer.
+   * `sitePages` (C1b): dokumentgetriebene Website-Seiten (z. B. Kontakt),
+   * direkt nach „Home" — ersetzt die zweite Menue-Leiste der Website.
    */
-  exploreContext?: { slug: string; siteEnabled: boolean; homeHref?: string } | null
+  exploreContext?: {
+    slug: string
+    siteEnabled: boolean
+    homeHref?: string
+    sitePages?: NavItem[]
+  } | null
   t: (key: string) => string
 }
 
@@ -40,14 +47,19 @@ export function buildTopNavConfig({
 }: BuildTopNavConfigArgs): TopNavConfig {
   // Explore-Kontext: Die TopNav bildet die Modi der angezeigten Library
   // dynamisch ab — auch fuer anonyme Besucher. Bei Libraries MIT Website
-  // (siteEnabled) ist „Home" die Website; ohne Website startet die Liste
-  // direkt mit „Inhalte". Creator behalten zusaetzlich ihre App-Navigation.
+  // (siteEnabled) ist „Home" die Website, gefolgt von den Website-Seiten
+  // (sitePages, C1b). OHNE Website fuehrt „Home" zurueck auf die
+  // KnowledgeScout-Startseite (C1b: vorher gab es keinen Weg zurueck).
+  // Creator behalten zusaetzlich ihre App-Navigation.
   if (exploreContext) {
     const base = `/explore/${encodeURIComponent(exploreContext.slug)}`
     const publicNavItems: NavItem[] = [
       ...(exploreContext.siteEnabled
-        ? [{ name: t('navigation.home'), href: exploreContext.homeHref ?? base }]
-        : []),
+        ? [
+            { name: t('navigation.home'), href: exploreContext.homeHref ?? base },
+            ...(exploreContext.sitePages ?? []),
+          ]
+        : [{ name: t('navigation.home'), href: '/' }]),
       {
         name: t('gallery.gallery'),
         href: exploreContext.siteEnabled ? `${base}?view=gallery` : base,

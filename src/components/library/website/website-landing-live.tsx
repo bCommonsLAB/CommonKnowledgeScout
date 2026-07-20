@@ -28,7 +28,6 @@ import {
   selectFooterLinkDocs,
   findFooterContentDoc,
   resolveSiteParamDoc,
-  getSiteParamForDoc,
 } from "@/lib/website/site-navigation"
 import { useTranslation } from "@/lib/i18n/hooks"
 import { getEffectiveDocumentNavigationSlug } from "@/utils/document-slug"
@@ -129,14 +128,6 @@ export function WebsiteLandingLive({
     }
   }, [libraryId, locale])
 
-  const navigateToDoc = React.useCallback(
-    (doc: DocCardMeta) => {
-      const param = getSiteParamForDoc(doc)
-      if (param) void setSiteParam(param)
-    },
-    [setSiteParam],
-  )
-
   const error = listError ?? detailError
   if (error) {
     return <div className="p-6 text-sm text-destructive">{error}</div>
@@ -154,24 +145,9 @@ export function WebsiteLandingLive({
 
   return (
     // Root-Modus (`/`): natuerlicher Fluss (Window-Scroll). Site-Modus: innerer Scroll-Container.
+    // C1b: Die fruehere zweite Menue-Leiste (mainMenuDocs) entfaellt — die
+    // Website-Seiten liegen jetzt als NavItems in der TopNav (useSiteMenuItems).
     <div ref={containerRef} className={exploreBaseHref ? 'w-full' : 'h-full overflow-y-auto'}>
-      {mainMenuDocs.length > 1 && (
-        <nav className="sticky top-0 z-10 border-b bg-background/90 backdrop-blur">
-          <div className="mx-auto flex h-12 max-w-5xl items-center gap-4 overflow-x-auto px-4 text-sm">
-            {mainMenuDocs.map((d) => (
-              <button
-                key={d.fileId ?? d.id}
-                type="button"
-                onClick={() => navigateToDoc(d)}
-                className={`whitespace-nowrap hover:underline ${d.fileId === selectedFileId ? "font-bold" : ""}`}
-              >
-                {d.title ?? d.fileName ?? "—"}
-              </button>
-            ))}
-          </div>
-        </nav>
-      )}
-
       {detail && <WebsiteDetail data={detail} showBackLink={false} contactApiSlug={contactApiSlug} />}
 
       {bannerDocs.length > 0 && (
