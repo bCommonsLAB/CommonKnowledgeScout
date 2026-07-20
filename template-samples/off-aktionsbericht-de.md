@@ -17,6 +17,7 @@ topics: {{topics|Themen (Array, z.B. ["Klimagerechtigkeit", "Mobilität"])}}
 authors: {{authors|Array von Personen/Organisationen (z.B. ["Oldies for Future", "Stadtwerke Brixen"])}}
 authors_image_url: {{authors_image_url|Array von Bild-Dateinamen, index-parallel zu authors (z.B. ["oldies.jpg", "stadtwerke.jpg"]). Nur Dateinamen aus den verfuegbaren Medien verwenden, sonst [] oder "" pro Eintrag.}}
 organisation: Oldies for Future
+source: Oldies for Future
 video_url: {{video_url|Video-URL falls vorhanden (optional)}}
 coverImageUrl: {{coverImageUrl|Dateiname des Titelbilds. Nur aus "Verfügbare Medien im Verzeichnis" waehlen. Keine URL. Wenn unsicher: "".}}
 galleryImageUrls: {{galleryImageUrls|Array von Bild-Dateinamen fuer die Galerie (ohne Coverbild), nur aus "Verfügbare Medien im Verzeichnis". Keine URLs. Wenn keine passenden Bilder: [].}}
