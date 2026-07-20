@@ -62,7 +62,8 @@ async function main(): Promise<void> {
 
       patched += 1
       console.log(`${APPLY ? 'PATCH' : 'WUERDE PATCHEN'}: ${d.fileName ?? d.fileId} -> ${Object.keys(set).join(', ')}`)
-      if (APPLY) await col.updateOne({ _id: d._id }, { $set: set })
+      // doc_meta nutzt string-_ids (z.B. "<fileId>-meta"), nicht ObjectId
+      if (APPLY) await col.updateOne({ _id: d._id as never }, { $set: set })
     }
 
     console.log(
