@@ -65,7 +65,9 @@ export async function getDocMetaCollection(libraryKey: string): Promise<Collecti
       // Verbund-Index für Sortierung nach upsertedAt (häufig verwendet)
       col.createIndex({ year: 1, upsertedAt: -1 }, { name: 'year_upsertedAt_desc' }),
     ])
-  } catch {}
+  } catch {
+    // Index existiert bereits oder paralleler ensure — unkritisch
+  }
   colCache.set(libraryKey, col)
   return col
 }
