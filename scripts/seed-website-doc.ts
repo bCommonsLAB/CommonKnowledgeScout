@@ -178,6 +178,17 @@ interface SeedDoc {
   docMetaJson: Record<string, unknown>
 }
 
+// Basis-Feld-Contract (base-fields.ts): JEDES Dokument fuehrt
+// title/date/authors/language/source/tags — auch Website-Docs, sonst meldet
+// die Library-Verifikation missing-base-field. Werte bewusst einheitlich:
+// Herkunft ist der Verein (Konvention: source = herausgebende Institution).
+const BASE_FIELDS = {
+  date: '2026-07-20',
+  authors: ['Oldies for Future'],
+  source: 'Oldies for Future',
+  tags: ['Website'],
+}
+
 const DOCS: SeedDoc[] = [
   {
     fileId: 'website-oldies-home',
@@ -289,7 +300,8 @@ async function main(): Promise<void> {
         title: String(d.docMetaJson.title ?? d.fileId),
         year: 2026,
         upsertedAt: now,
-        docMetaJson: d.docMetaJson,
+        // Basis-Felder zuerst — per-Doc-Werte (falls gesetzt) haben Vorrang.
+        docMetaJson: { ...BASE_FIELDS, ...d.docMetaJson },
       }
       // _id nicht in $set (immutable) — kommt beim Upsert-Insert aus dem Filter.
       const { _id, ...fields } = metaDoc
