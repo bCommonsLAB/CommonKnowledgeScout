@@ -34,7 +34,9 @@ import { LanguageSwitcher } from "@/components/shared/language-switcher"
 import { useTranslation } from "@/lib/i18n/hooks"
 import { useScrollVisibility } from "@/hooks/use-scroll-visibility"
 import { useUserRole } from "@/hooks/use-user-role"
+import { useSiteMenuItems } from "@/hooks/use-site-menu-items"
 import { buildTopNavConfig } from "@/components/top-nav-config"
+import { SiteLogo } from "@/components/site-logo"
 import { CreateLibraryWizard } from "@/components/flows/create-library-wizard"
 
 interface TopNavProps {
@@ -51,7 +53,7 @@ export function TopNav({ siteRootSlug = null }: TopNavProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { theme, setTheme } = useTheme()
-  const { t } = useTranslation()
+  const { t, locale } = useTranslation()
   const { isCreator } = useUserRole()
   
   // Statt Events verwenden wir Jotai
@@ -82,6 +84,17 @@ export function TopNav({ siteRootSlug = null }: TopNavProps) {
       ? { slug: exploreSlugFromPath, siteEnabled: webViewEnabled }
       : null
 
+  // C1b: Website-Seiten (z. B. Kontakt) als TopNav-Punkte statt zweiter
+  // Menue-Leiste. Nur im Site-Kontext (siteEnabled); Hook liefert sonst [].
+  const siteMenuBaseHref = exploreContext?.siteEnabled
+    ? exploreContext.homeHref ?? `/explore/${encodeURIComponent(exploreContext.slug)}`
+    : null
+  const sitePages = useSiteMenuItems(
+    exploreContext?.siteEnabled ? exploreContext.slug : null,
+    siteMenuBaseHref,
+    locale,
+  )
+
   // Prüfe ob Story-Modus aktiv ist
   const isStoryMode = searchParams?.get('mode') === 'story'
 
@@ -96,16 +109,25 @@ export function TopNav({ siteRootSlug = null }: TopNavProps) {
   // Hilfsfunktion um zu prüfen, ob ein Nav-Item aktiv ist
   const isActiveNavItem = (href: string) => {
     // Explore-Kontext: Modi-Punkte anhand der Query-Parameter der Explore-URL.
-    if (exploreContext && href.startsWith('/explore/')) {
+    if (exploreContext) {
       const viewParam = searchParams?.get('view')
       const modeParam = searchParams?.get('mode')
-      if (href.endsWith('?view=gallery')) return viewParam === 'gallery' && modeParam !== 'story'
-      if (href.endsWith('?mode=story')) return modeParam === 'story'
-      // Basis-Link: bei siteEnabled = Home (Website), sonst = Inhalte.
-      // Aktiv, wenn kein anderer Modus gewaehlt ist.
-      return exploreContext.siteEnabled
-        ? viewParam !== 'gallery' && modeParam !== 'story'
-        : modeParam !== 'story'
+      const siteParam = searchParams?.get('site')
+      // C1b: Website-Seiten-Punkt (?site=<slug>) — aktiv bei passendem Param.
+      if (href.includes('?site=')) {
+        return siteParam === decodeURIComponent(href.split('?site=')[1] ?? '')
+      }
+      // Explore-Basis/Modi ODER Home der Domain-Root (homeHref `/`).
+      if (href.startsWith('/explore/') || href === exploreContext.homeHref) {
+        if (href.endsWith('?view=gallery')) return viewParam === 'gallery' && modeParam !== 'story'
+        if (href.endsWith('?mode=story')) return modeParam === 'story'
+        // Basis-Link: bei siteEnabled = Home (Website-Startseite), sonst =
+        // Inhalte. Aktiv, wenn kein Modus UND keine Website-Seite gewaehlt ist.
+        return exploreContext.siteEnabled
+          ? viewParam !== 'gallery' && modeParam !== 'story' && !siteParam
+          : modeParam !== 'story'
+      }
+      // Andere Links (z. B. Home -> `/`, /library) fallen zu den App-Checks durch.
     }
     if (href === '/docs/') {
       return pathname?.startsWith('/docs') ?? false
@@ -125,7 +147,8 @@ export function TopNav({ siteRootSlug = null }: TopNavProps) {
     if (href === '/library/gallery') {
       return pathname === '/library/gallery' && !isStoryMode
     }
-    return pathname === href
+    // navHref-Mapping beruecksichtigen (Home -> /start fuer Creator).
+    return pathname === href || pathname === navHref(href)
   }
   
   // Auto-Hide beim Scrollen - verwendet gemeinsamen Hook
@@ -142,7 +165,7 @@ export function TopNav({ siteRootSlug = null }: TopNavProps) {
     isCreator,
     webViewEnabled,
     webViewTestHref,
-    exploreContext,
+    exploreContext: exploreContext ? { ...exploreContext, sitePages } : null,
     t,
   })
 
@@ -259,6 +282,15 @@ export function TopNav({ siteRootSlug = null }: TopNavProps) {
             </SheetContent>
           </Sheet>
 
+          {/* Website-Logo (Phase C2): nur im Site-Kontext; hoeher als die Bar,
+             ueberlappt den Folgeabschnitt. Ohne logoUrl rendert es nichts. */}
+          {exploreContext && (
+            <SiteLogo
+              slug={exploreContext.slug}
+              homeHref={exploreContext.homeHref ?? `/explore/${encodeURIComponent(exploreContext.slug)}`}
+            />
+          )}
+
           <ScrollArea className="max-w-[600px] lg:max-w-none hidden lg:block">
             <div className="flex items-center space-x-4">
               {/* Öffentliche Navigationselemente - immer sichtbar */}
@@ -270,7 +302,7 @@ export function TopNav({ siteRootSlug = null }: TopNavProps) {
                   rel={item.newTab ? "noreferrer" : undefined}
                   className={cn(
                     "flex h-7 items-center justify-center rounded-full px-4 text-center text-sm font-medium transition-colors hover:text-primary",
-                    pathname === navHref(item.href)
+                    isActiveNavItem(item.href)
                       ? "bg-muted text-primary"
                       : "text-muted-foreground hover:text-primary"
                   )}

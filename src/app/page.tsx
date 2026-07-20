@@ -27,6 +27,7 @@ export default async function Home() {
           libraryId={target.libraryId}
           fallbackLocale={target.fallbackLocale}
           exploreBaseHref={`/explore/${encodeURIComponent(target.slug)}`}
+          librarySlug={target.slug}
         />
       </main>
     )

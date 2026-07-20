@@ -2,7 +2,9 @@
  * Seed-Skript: legt kuratierte `website`-Dokumente in der Library
  * „OldiesForFuture" an, damit der produktive detailViewType-`website`-Renderer
  * (Phase 1) + die Live-Landingpage (Phase 3) getestet werden koennen — ohne
- * Secretary/Import. Aktuell: Startseite (menu_order 1) + Impressum (menu_order 2).
+ * Secretary/Import. Aktuell: Startseite (menu_order 1), Impressum
+ * (menu_area footer, nur in der Website-Fusszeile verlinkt) und das
+ * Footer-Doc (site_role footer-content, Sektionen unter jeder Seite — C1).
  *
  * Bewusst eigenstaendig: nutzt den `mongodb`-Treiber direkt + `.env` (dieselbe
  * DB wie der Dev-Server). Bild-URLs sind absolut (root-relativ, ueber die
@@ -136,6 +138,26 @@ Die Webseiten des Vereins „Oldies for Future" enthalten im Regelfall keine Wer
 <!-- /section -->
 `.trim()
 
+const KONTAKT_MARKDOWN = `
+<!-- section layout=contact-form bg=mint -->
+## Jetzt mitmachen
+
+Wir informieren dich regelmäßig über unsere Aktionen. Bringe deine Ideen mit ein!
+<!-- /section -->
+`.trim()
+
+const FOOTER_MARKDOWN = `
+<!-- section layout=text-only bg=dark-green -->
+## #oldiesforfuture
+
+Was wir heute tun, entscheidet darüber, wie die Welt morgen aussieht.
+
+Verein OLDIES FOR FUTURE — Rienzdamm 20, I-39042 Brixen
+
+E-Mail: info@oldiesforfuture.org
+<!-- /section -->
+`.trim()
+
 /** Meta-Dokument-Form (String-_id wie im Vector-Repo, nicht ObjectId). */
 interface WebsiteMetaDoc {
   _id: string
@@ -173,7 +195,8 @@ const DOCS: SeedDoc[] = [
       // Video liegt jetzt als eigene Sektion (layout=video) im Body — an der
       // richtigen Position nach „Wer sind wir?" statt am Seitenende.
       cta_label: 'Jetzt mitmachen',
-      cta_url: '#mitmachen',
+      // C3: CTA zeigt auf die Kontakt-Seite (Website-Deep-Link, C1).
+      cta_url: '?site=kontakt',
       menu_order: 1,
       prioritaets_index: 90,
       language: 'de',
@@ -191,11 +214,53 @@ const DOCS: SeedDoc[] = [
       title: 'Impressum',
       hero_subtitle: 'Rechtliche Informationen & Datenschutz',
       menu_order: 2,
+      // C1: Impressum verschwindet aus dem Top-Menue und wird nur noch in der
+      // Website-Fusszeile verlinkt (?site=impressum, stabiler Slug).
+      menu_area: 'footer',
+      slug: 'impressum',
       language: 'de',
       targetLanguage: 'de',
       source_url: 'https://oldiesforfuture.org/impressum',
       docType: 'website',
       markdown: IMPRESSUM_MARKDOWN,
+    },
+  },
+  {
+    fileId: 'website-oldies-kontakt',
+    fileName: 'Kontakt.md',
+    docMetaJson: {
+      detailViewType: 'website',
+      title: 'Kontakt',
+      hero_subtitle:
+        'Wir informieren dich regelmäßig über unsere Aktionen. Bringe deine Ideen mit ein!',
+      // C3: letzter Menuepunkt (hoher menu_order); stabiler Slug fuer ?site=kontakt.
+      menu_order: 8,
+      slug: 'kontakt',
+      // Empfaenger des Kontakt-Formulars (dokumentgetrieben, oeffentlich
+      // sichtbar wie die Impressums-Adresse — Entscheidung Analyse §2.4).
+      contact_email: 'info@oldiesforfuture.org',
+      language: 'de',
+      targetLanguage: 'de',
+      source_url: 'https://oldiesforfuture.org/kontakt',
+      docType: 'website',
+      markdown: KONTAKT_MARKDOWN,
+    },
+  },
+  {
+    fileId: 'website-oldies-footer',
+    fileName: 'Footer.md',
+    docMetaJson: {
+      detailViewType: 'website',
+      title: '#oldiesforfuture',
+      // C1: Footer-Content-Doc — Sektionen werden als Website-Fusszeile unter
+      // JEDER Seite gerendert; taucht selbst in keinem Menue auf.
+      site_role: 'footer-content',
+      menu_area: 'hidden',
+      menu_order: 99,
+      language: 'de',
+      targetLanguage: 'de',
+      docType: 'website',
+      markdown: FOOTER_MARKDOWN,
     },
   },
 ]

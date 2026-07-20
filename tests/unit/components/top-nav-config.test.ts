@@ -58,7 +58,7 @@ describe('buildTopNavConfig', () => {
     expect(result.showMoreMenu).toBe(false)
   })
 
-  it('Explore-Kontext OHNE Website: Inhalte (Basis-Link) | Story Mode', () => {
+  it('Explore-Kontext OHNE Website: Home (KS-Startseite) | Inhalte (Basis-Link) | Story Mode', () => {
     const result = buildTopNavConfig({
       isCreator: false,
       webViewEnabled: false,
@@ -67,9 +67,55 @@ describe('buildTopNavConfig', () => {
       t,
     })
 
+    // C1b: „Home" fuehrt zurueck auf die KnowledgeScout-Startseite —
+    // vorher gab es aus einer Library keinen Weg zurueck.
     expect(result.publicNavItems.map((item) => item.href)).toEqual([
+      '/',
       '/explore/klimarat',
       '/explore/klimarat?mode=story',
+    ])
+  })
+
+  it('Explore-Kontext MIT Website: sitePages (z. B. Kontakt) am ENDE der Liste', () => {
+    const result = buildTopNavConfig({
+      isCreator: false,
+      webViewEnabled: true,
+      webViewTestHref: '/explore/oldiesforfuture?view=site',
+      exploreContext: {
+        slug: 'oldiesforfuture',
+        siteEnabled: true,
+        sitePages: [{ name: 'Kontakt', href: '/explore/oldiesforfuture?site=kontakt' }],
+      },
+      t,
+    })
+
+    expect(result.publicNavItems.map((item) => item.href)).toEqual([
+      '/explore/oldiesforfuture',
+      '/explore/oldiesforfuture?view=gallery',
+      '/explore/oldiesforfuture?mode=story',
+      '/explore/oldiesforfuture?site=kontakt',
+    ])
+  })
+
+  it('Domain-Root: homeHref `/` + sitePages mit `/?site=`-Links am Ende', () => {
+    const result = buildTopNavConfig({
+      isCreator: false,
+      webViewEnabled: false,
+      webViewTestHref: '',
+      exploreContext: {
+        slug: 'oldiesforfuture',
+        siteEnabled: true,
+        homeHref: '/',
+        sitePages: [{ name: 'Kontakt', href: '/?site=kontakt' }],
+      },
+      t,
+    })
+
+    expect(result.publicNavItems.map((item) => item.href)).toEqual([
+      '/',
+      '/explore/oldiesforfuture?view=gallery',
+      '/explore/oldiesforfuture?mode=story',
+      '/?site=kontakt',
     ])
   })
 

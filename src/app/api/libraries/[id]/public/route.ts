@@ -34,7 +34,7 @@ export async function PUT(
 
     // Request Body parsen
     const body = await request.json().catch(() => ({}));
-    const { slugName, publicName, description, icon, apiKey, isPublic, requiresAuth, showOnHomepage, backgroundImageUrl, gallery, siteEnabled } = body;
+    const { slugName, publicName, description, icon, apiKey, isPublic, requiresAuth, showOnHomepage, backgroundImageUrl, logoUrl, gallery, siteEnabled } = body;
 
     // Validierung
     if (isPublic === true) {
@@ -145,9 +145,14 @@ export async function PUT(
           showOnHomepage: showOnHomepage !== undefined ? showOnHomepage : (prevPub?.showOnHomepage ?? true),
           requiresAuth: requiresAuth !== undefined ? requiresAuth : (prevPub?.requiresAuth || false),
           // Hintergrundbild-URL: Wenn gesetzt, verwende neuen Wert, sonst behalte alten oder undefined
-          backgroundImageUrl: backgroundImageUrl !== undefined 
+          backgroundImageUrl: backgroundImageUrl !== undefined
             ? (backgroundImageUrl === '' ? undefined : backgroundImageUrl)
             : prevPub?.backgroundImageUrl,
+          // Website-Logo (Phase C2): gleiche Semantik wie backgroundImageUrl
+          // (undefined = unveraendert, '' = loeschen).
+          logoUrl: logoUrl !== undefined
+            ? (logoUrl === '' ? undefined : logoUrl)
+            : prevPub?.logoUrl,
           // Gallery-Texte mergen (nur wenn vorhanden)
           gallery: gallery ? {
             headline: gallery.headline !== undefined ? gallery.headline : prevPub?.gallery?.headline,

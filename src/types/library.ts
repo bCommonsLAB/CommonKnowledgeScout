@@ -449,6 +449,12 @@ export interface StorageConfig {
     requiresAuth?: boolean;
     /** URL für Hintergrundbild auf der Homepage */
     backgroundImageUrl?: string;
+    /**
+     * Logo-URL der Website-Landingpage (Phase C2). Wird in der TopNav im
+     * Site-Kontext (Explore-Slug/Domain-Root) links angezeigt. Muss anonym
+     * ladbar sein (oeffentliche Blob-URL, keine auth-gegatete Route).
+     */
+    logoUrl?: string;
     /** Gallery-spezifische Texte für die öffentliche Ansicht */
     gallery?: {
       /** Große Überschrift für die Gallery-Ansicht */
@@ -621,6 +627,8 @@ export interface ClientLibrary {
       requiresAuth?: boolean;
       /** URL für Hintergrundbild auf der Homepage */
       backgroundImageUrl?: string;
+      /** Logo-URL der Website-Landingpage (siehe serverseitiges Feld, Phase C2) */
+      logoUrl?: string;
       /** Maskierter API-Key (erste 6 und letzte 4 Zeichen sichtbar, z.B. "sk-proj....................abcd") */
       apiKey?: string;
       /** Gallery-spezifische Texte für die öffentliche Ansicht */

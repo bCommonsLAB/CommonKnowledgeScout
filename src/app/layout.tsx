@@ -145,7 +145,10 @@ export default async function RootLayout({
                             {children}
                           </AppLayout>
                         </NuqsAdapter>
-                        <ConditionalFooter />
+                        {/* Gleiche Host-Entscheidung wie AppLayout: auf der
+                            gemappten Domain-Root entfaellt der KS-Footer
+                            (die Website rendert ihre eigene Fusszeile). */}
+                        <ConditionalFooter rootLandingSlug={rootLandingSlug} />
                       </div>
                       <Toaster richColors />
                     </TooltipProvider>

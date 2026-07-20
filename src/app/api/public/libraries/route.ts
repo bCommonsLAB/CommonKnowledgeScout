@@ -49,6 +49,7 @@ export async function GET() {
         description: pub?.description,
         icon: pub?.icon,
         backgroundImageUrl: pub?.backgroundImageUrl,
+        logoUrl: pub?.logoUrl,
         requiresAuth: pub?.requiresAuth === true,
         chat: lib.config?.chat,
       }

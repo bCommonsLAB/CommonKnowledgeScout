@@ -57,6 +57,8 @@ export async function GET(
       icon: pub?.icon,
       requiresAuth: pub?.requiresAuth === true,
       siteEnabled: pub?.siteEnabled === true,
+      // Website-Logo (Phase C2): oeffentliche URL, kein Secret
+      logoUrl: pub?.logoUrl,
       // Chat-Config ist bereits öffentlich sicher (keine Secrets)
       chat: library.config?.chat,
     };

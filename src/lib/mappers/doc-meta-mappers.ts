@@ -338,6 +338,9 @@ export function mapToWebsiteDetail(input: unknown): WebsiteDetailData {
     ctaLabel: toStr(docMetaJson.cta_label),
     ctaUrl: toStr(docMetaJson.cta_url),
     markdown: toStr(docMetaJson.markdown),
+    // C3: Empfaenger-Adresse des Kontakt-Formulars (dokumentgetrieben, oeffentlich
+    // sichtbar wie eine Impressums-Adresse — bewusst kein Settings-Feld).
+    contactEmail: toStr(docMetaJson.contact_email),
     fileId: toStr(root.fileId),
     fileName: toStr(root.fileName),
     upsertedAt: toStr(root.upsertedAt),

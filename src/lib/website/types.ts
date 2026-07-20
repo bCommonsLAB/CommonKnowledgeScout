@@ -6,8 +6,18 @@
  * ueber HTML-Kommentar-Marker abgegrenzt (siehe parse-website-sections.ts).
  */
 
-/** Layout einer Inhalts-Sektion. */
-export type SectionLayout = 'image-left' | 'image-right' | 'full-image' | 'text-only' | 'video'
+/**
+ * Layout einer Inhalts-Sektion.
+ * `contact-form` (Phase C3): rendert unter dem Sektions-Markdown das
+ * Kontakt-Formular (Versand ueber die oeffentliche Contact-API).
+ */
+export type SectionLayout =
+  | 'image-left'
+  | 'image-right'
+  | 'full-image'
+  | 'text-only'
+  | 'video'
+  | 'contact-form'
 
 /**
  * Hintergrund-Variante einer Inhalts-Sektion.
