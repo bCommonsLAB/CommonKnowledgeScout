@@ -12,31 +12,18 @@
  * @module services
  * 
  * @dependencies
- * - node-mailjet: Mailjet API Client
- * - process.env: MAILJET_API_KEY, MAILJET_API_SECRET, MAILJET_FROM_EMAIL, MAILJET_FROM_NAME
+ * - mail-dispatch: zentraler Mailjet-Versand + Mail-Log (mail_log-Collection)
+ * - process.env: MAILJET_FROM_EMAIL, MAILJET_FROM_NAME
  */
 
-import Mailjet from 'node-mailjet';
+import { dispatchMail } from '@/lib/services/mail-dispatch';
 
-// Mailjet-Client lazy initialisieren (nur wenn benötigt)
-let mailjetInstance: Mailjet | null = null;
-
-function getMailjetClient(): Mailjet {
-  if (!mailjetInstance) {
-    const apiKey = process.env.MAILJET_API_KEY || '';
-    const apiSecret = process.env.MAILJET_API_SECRET || '';
-    
-    // Prüfe ob API-Keys vorhanden sind
-    if (!apiKey || !apiSecret) {
-      throw new Error('Mailjet API_KEY and API_SECRET are required');
-    }
-    
-    mailjetInstance = new Mailjet({
-      apiKey,
-      apiSecret,
-    });
-  }
-  return mailjetInstance;
+/** Gemeinsamer Absender fuer alle Access-/Invite-Mails. */
+function fromSender(): { Email?: string; Name: string } {
+  return {
+    Email: process.env.MAILJET_FROM_EMAIL,
+    Name: process.env.MAILJET_FROM_NAME || 'KnowledgeScout',
+  };
 }
 
 /**
@@ -51,32 +38,17 @@ export class MailjetService {
     userName: string,
     libraryName: string
   ): Promise<boolean> {
-    try {
-      const subject = `Ihre Zugriffsanfrage für "${libraryName}" wurde erhalten`;
-      
-      const mailjet = getMailjetClient();
-      await mailjet.post('send', { version: 'v3.1' }).request({
-        Messages: [{
-          From: {
-            Email: process.env.MAILJET_FROM_EMAIL,
-            Name: process.env.MAILJET_FROM_NAME || 'KnowledgeScout'
-          },
-          To: [{
-            Email: userEmail,
-            Name: userName
-          }],
-          Subject: subject,
-          HTMLPart: this.generateAccessRequestConfirmationHTML(userName, libraryName),
-          TextPart: this.generateAccessRequestConfirmationText(userName, libraryName)
-        }]
-      });
-      
-      console.log(`[MailjetService] Zugriffsanfrage-Bestätigung gesendet an ${userEmail}`);
-      return true;
-    } catch (error) {
-      console.error('[MailjetService] Fehler beim Versand der Zugriffsanfrage-Bestätigung:', error);
-      return false;
-    }
+    return dispatchMail(
+      'access-request-confirmation',
+      {
+        From: fromSender(),
+        To: [{ Email: userEmail, Name: userName }],
+        Subject: `Ihre Zugriffsanfrage für "${libraryName}" wurde erhalten`,
+        HTMLPart: this.generateAccessRequestConfirmationHTML(userName, libraryName),
+        TextPart: this.generateAccessRequestConfirmationText(userName, libraryName),
+      },
+      { libraryName },
+    );
   }
 
   /**
@@ -89,47 +61,32 @@ export class MailjetService {
     userName: string,
     libraryName: string
   ): Promise<boolean> {
-    try {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
-      const accessRequestsUrl = `${appUrl}/settings/public/access-requests`;
-      
-      const subject = `Neue Zugriffsanfrage für "${libraryName}"`;
-      
-      const mailjet = getMailjetClient();
-      await mailjet.post('send', { version: 'v3.1' }).request({
-        Messages: [{
-          From: {
-            Email: process.env.MAILJET_FROM_EMAIL,
-            Name: process.env.MAILJET_FROM_NAME || 'KnowledgeScout'
-          },
-          To: [{
-            Email: adminEmail,
-            Name: adminName
-          }],
-          Subject: subject,
-          HTMLPart: this.generateAccessRequestNotificationHTML(
-            adminName,
-            userName,
-            userEmail,
-            libraryName,
-            accessRequestsUrl
-          ),
-          TextPart: this.generateAccessRequestNotificationText(
-            adminName,
-            userName,
-            userEmail,
-            libraryName,
-            accessRequestsUrl
-          )
-        }]
-      });
-      
-      console.log(`[MailjetService] Zugriffsanfrage-Benachrichtigung gesendet an ${adminEmail}`);
-      return true;
-    } catch (error) {
-      console.error('[MailjetService] Fehler beim Versand der Admin-Benachrichtigung:', error);
-      return false;
-    }
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+    const accessRequestsUrl = `${appUrl}/settings/public/access-requests`;
+
+    return dispatchMail(
+      'access-request-admin-notification',
+      {
+        From: fromSender(),
+        To: [{ Email: adminEmail, Name: adminName }],
+        Subject: `Neue Zugriffsanfrage für "${libraryName}"`,
+        HTMLPart: this.generateAccessRequestNotificationHTML(
+          adminName,
+          userName,
+          userEmail,
+          libraryName,
+          accessRequestsUrl
+        ),
+        TextPart: this.generateAccessRequestNotificationText(
+          adminName,
+          userName,
+          userEmail,
+          libraryName,
+          accessRequestsUrl
+        ),
+      },
+      { libraryName, requestedBy: userEmail },
+    );
   }
 
   /**
@@ -143,32 +100,17 @@ export class MailjetService {
     invitedBy: string,
     inviteMessage?: string
   ): Promise<boolean> {
-    try {
-      const subject = `Sie wurden zu "${libraryName}" eingeladen`;
-      
-      const mailjet = getMailjetClient();
-      await mailjet.post('send', { version: 'v3.1' }).request({
-        Messages: [{
-          From: {
-            Email: process.env.MAILJET_FROM_EMAIL,
-            Name: process.env.MAILJET_FROM_NAME || 'KnowledgeScout'
-          },
-          To: [{
-            Email: invitedEmail,
-            Name: invitedName
-          }],
-          Subject: subject,
-          HTMLPart: this.generateInviteEmailHTML(invitedName, libraryName, inviteUrl, invitedBy, inviteMessage),
-          TextPart: this.generateInviteEmailText(invitedName, libraryName, inviteUrl, invitedBy, inviteMessage)
-        }]
-      });
-      
-      console.log(`[MailjetService] Einladungs-E-Mail gesendet an ${invitedEmail}`);
-      return true;
-    } catch (error) {
-      console.error('[MailjetService] Fehler beim Versand der Einladungs-E-Mail:', error);
-      return false;
-    }
+    return dispatchMail(
+      'invite',
+      {
+        From: fromSender(),
+        To: [{ Email: invitedEmail, Name: invitedName }],
+        Subject: `Sie wurden zu "${libraryName}" eingeladen`,
+        HTMLPart: this.generateInviteEmailHTML(invitedName, libraryName, inviteUrl, invitedBy, inviteMessage),
+        TextPart: this.generateInviteEmailText(invitedName, libraryName, inviteUrl, invitedBy, inviteMessage),
+      },
+      { libraryName, invitedBy },
+    );
   }
 
   /**
@@ -180,35 +122,20 @@ export class MailjetService {
     libraryName: string,
     librarySlug: string
   ): Promise<boolean> {
-    try {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
-      const libraryUrl = `${appUrl}/explore/${librarySlug}`;
-      
-      const subject = `Ihr Zugriff auf "${libraryName}" wurde genehmigt`;
-      
-      const mailjet = getMailjetClient();
-      await mailjet.post('send', { version: 'v3.1' }).request({
-        Messages: [{
-          From: {
-            Email: process.env.MAILJET_FROM_EMAIL,
-            Name: process.env.MAILJET_FROM_NAME || 'KnowledgeScout'
-          },
-          To: [{
-            Email: userEmail,
-            Name: userName
-          }],
-          Subject: subject,
-          HTMLPart: this.generateAccessApprovedHTML(userName, libraryName, libraryUrl),
-          TextPart: this.generateAccessApprovedText(userName, libraryName, libraryUrl)
-        }]
-      });
-      
-      console.log(`[MailjetService] Genehmigungs-E-Mail gesendet an ${userEmail}`);
-      return true;
-    } catch (error) {
-      console.error('[MailjetService] Fehler beim Versand der Genehmigungs-E-Mail:', error);
-      return false;
-    }
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+    const libraryUrl = `${appUrl}/explore/${librarySlug}`;
+
+    return dispatchMail(
+      'access-approved',
+      {
+        From: fromSender(),
+        To: [{ Email: userEmail, Name: userName }],
+        Subject: `Ihr Zugriff auf "${libraryName}" wurde genehmigt`,
+        HTMLPart: this.generateAccessApprovedHTML(userName, libraryName, libraryUrl),
+        TextPart: this.generateAccessApprovedText(userName, libraryName, libraryUrl),
+      },
+      { libraryName, librarySlug },
+    );
   }
 
   /**
@@ -223,33 +150,19 @@ export class MailjetService {
     inviteUrl: string,
     inviterName: string
   ): Promise<boolean> {
-    try {
-      const roleLabel = role === 'co-creator' ? 'Co-Creator' : role === 'contributor' ? 'Mitwirkender' : 'Moderator';
-      const subject = `Einladung als ${roleLabel} fuer "${libraryName}"`;
+    const roleLabel = role === 'co-creator' ? 'Co-Creator' : role === 'contributor' ? 'Mitwirkender' : 'Moderator';
 
-      const mailjet = getMailjetClient();
-      await mailjet.post('send', { version: 'v3.1' }).request({
-        Messages: [{
-          From: {
-            Email: process.env.MAILJET_FROM_EMAIL,
-            Name: process.env.MAILJET_FROM_NAME || 'KnowledgeScout'
-          },
-          To: [{
-            Email: recipientEmail,
-            Name: recipientName || recipientEmail
-          }],
-          Subject: subject,
-          HTMLPart: this.generateMemberInviteHTML(recipientName || recipientEmail, libraryName, roleLabel, inviteUrl, inviterName),
-          TextPart: this.generateMemberInviteText(recipientName || recipientEmail, libraryName, roleLabel, inviteUrl, inviterName)
-        }]
-      });
-
-      console.log(`[MailjetService] Mitglieder-Einladung gesendet an ${recipientEmail} (Rolle: ${roleLabel})`);
-      return true;
-    } catch (error) {
-      console.error('[MailjetService] Fehler beim Versand der Mitglieder-Einladung:', error);
-      return false;
-    }
+    return dispatchMail(
+      'member-invite',
+      {
+        From: fromSender(),
+        To: [{ Email: recipientEmail, Name: recipientName || recipientEmail }],
+        Subject: `Einladung als ${roleLabel} fuer "${libraryName}"`,
+        HTMLPart: this.generateMemberInviteHTML(recipientName || recipientEmail, libraryName, roleLabel, inviteUrl, inviterName),
+        TextPart: this.generateMemberInviteText(recipientName || recipientEmail, libraryName, roleLabel, inviteUrl, inviterName),
+      },
+      { libraryName, role, inviterName },
+    );
   }
 
   /**
@@ -260,32 +173,17 @@ export class MailjetService {
     userName: string,
     libraryName: string
   ): Promise<boolean> {
-    try {
-      const subject = `Ihre Zugriffsanfrage für "${libraryName}" wurde abgelehnt`;
-      
-      const mailjet = getMailjetClient();
-      await mailjet.post('send', { version: 'v3.1' }).request({
-        Messages: [{
-          From: {
-            Email: process.env.MAILJET_FROM_EMAIL,
-            Name: process.env.MAILJET_FROM_NAME || 'KnowledgeScout'
-          },
-          To: [{
-            Email: userEmail,
-            Name: userName
-          }],
-          Subject: subject,
-          HTMLPart: this.generateAccessRejectedHTML(userName, libraryName),
-          TextPart: this.generateAccessRejectedText(userName, libraryName)
-        }]
-      });
-      
-      console.log(`[MailjetService] Ablehnungs-E-Mail gesendet an ${userEmail}`);
-      return true;
-    } catch (error) {
-      console.error('[MailjetService] Fehler beim Versand der Ablehnungs-E-Mail:', error);
-      return false;
-    }
+    return dispatchMail(
+      'access-rejected',
+      {
+        From: fromSender(),
+        To: [{ Email: userEmail, Name: userName }],
+        Subject: `Ihre Zugriffsanfrage für "${libraryName}" wurde abgelehnt`,
+        HTMLPart: this.generateAccessRejectedHTML(userName, libraryName),
+        TextPart: this.generateAccessRejectedText(userName, libraryName),
+      },
+      { libraryName },
+    );
   }
 
   // HTML-Template-Generatoren

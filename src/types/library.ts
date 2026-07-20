@@ -217,6 +217,14 @@ export interface LibraryChatConfig {
     galleryCardDensity?: 'compact' | 'comfortable';
     /** Gruppierungsfeld für die Galerie-Ansicht: 'none', 'year', oder ein Facetten-Key (z.B. 'category') */
     groupByField?: string;
+    /**
+     * Default-Sortierfeld der Galerie-Liste (innerhalb der Gruppen bzw. der
+     * flachen Liste): 'upsertedAt' (Standard, zuletzt aktualisiert) oder ein
+     * Facetten-Key (z.B. 'date'). Sortiert wird auf `docMetaJson.<feld>`.
+     */
+    defaultSortField?: string;
+    /** Richtung der Default-Sortierung. Default: 'desc'. */
+    defaultSortDirection?: 'asc' | 'desc';
     /** Facetten-Definitionen für Filter */
     facets?: Array<{
       metaKey: string;

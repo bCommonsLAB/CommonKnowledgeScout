@@ -92,6 +92,22 @@ export const chatFormSchema = z.object({
       },
       z.string().default('year')
     ),
+    // Default-Sortierung: 'upsertedAt' = Standard (zuletzt aktualisiert),
+    // sonst ein Facetten-Key (z.B. 'date') — sortiert auf docMetaJson.<feld>.
+    defaultSortField: z.preprocess(
+      (val) => {
+        if (val === '' || val === undefined || val === null) return 'upsertedAt';
+        return val;
+      },
+      z.string().default('upsertedAt')
+    ),
+    defaultSortDirection: z.preprocess(
+      (val) => {
+        if (val === '' || val === undefined || val === null) return 'desc';
+        return val;
+      },
+      z.enum(['asc', 'desc']).default('desc')
+    ),
     facets: z.array(z.object({
       metaKey: z.string().min(1),
       label: z.string().optional(),
@@ -261,6 +277,8 @@ export function useChatForm(): UseChatFormResult {
       gallery: {
         detailViewType: 'book',
         groupByField: 'year',
+        defaultSortField: 'upsertedAt',
+        defaultSortDirection: 'desc',
         facets: getDefaultFacets().slice(0, 6),
         galleryCardDensity: 'comfortable',
         showSdgProfile: false,
@@ -283,6 +301,8 @@ export function useChatForm(): UseChatFormResult {
       const galleryConfig = c.gallery as {
         detailViewType?: unknown
         groupByField?: string
+        defaultSortField?: string
+        defaultSortDirection?: string
         facets?: unknown
         galleryCardDensity?: unknown
         showSdgProfile?: unknown
@@ -344,6 +364,10 @@ export function useChatForm(): UseChatFormResult {
         gallery: {
           detailViewType: finalViewType,
           groupByField: typeof galleryConfig?.groupByField === 'string' ? galleryConfig.groupByField : 'year',
+          defaultSortField: typeof galleryConfig?.defaultSortField === 'string' && galleryConfig.defaultSortField
+            ? galleryConfig.defaultSortField
+            : 'upsertedAt',
+          defaultSortDirection: galleryConfig?.defaultSortDirection === 'asc' ? 'asc' : 'desc',
           facets: facetsArray,
           galleryCardDensity: normalizeGalleryCardDensity(galleryConfig?.galleryCardDensity),
           showSdgProfile: galleryConfig?.showSdgProfile === true,

@@ -295,6 +295,14 @@ export function GalleryRoot({
   })
   const { isOwner } = useIsLibraryOwner(libraryId)
 
+  // Prioritaets-Indikator-Sortierung nur anbieten, wenn die geladenen Docs das
+  // persistierte Feld tragen (Klimamassnahmen-Feature) — sonst ist der Toggle
+  // wirkungslos und verwirrt (Befund Oldies-Galerie, 2026-07-20).
+  const showRatingSort = useMemo(
+    () => docs.some((d) => typeof d.prioritaets_index === 'number'),
+    [docs],
+  )
+
   // Summen-Fusszeile (Plan summen-und-synergie-aggregation): serverseitiges
   // Aggregat ueber den GESAMTEN gefilterten Bestand. Nur im Table-Mode und
   // nur, wenn der ViewType additive Summenfelder definiert. Bei aktiven
@@ -405,6 +413,15 @@ export function GalleryRoot({
   const docSlug = searchParams?.get('doc')
 
   const { facetDefs, viewTypes } = useGalleryFacets(libraryId, filters)
+
+  // Oeffentliche Slug-Galerie (hideWebsiteDocs): website-Docs sind aus der
+  // Liste ausgeschlossen — dann darf „Webseite" auch nicht als Inhaltstyp-
+  // Option erscheinen. Bleibt nur 1 Typ uebrig, blendet ViewTypeLeadFilter
+  // sich selbst aus (< 2 Optionen). Andere Libraries bleiben unveraendert.
+  const leadFilterViewTypes = React.useMemo(
+    () => (hideWebsiteDocs ? viewTypes.filter((vt) => vt !== 'website') : viewTypes),
+    [viewTypes, hideWebsiteDocs],
+  )
 
   // Graph-Modus (Welle 2): pro Library über config.chat.gallery.graph aktiviert.
   const graphConfig = activeLibrary?.config?.chat?.gallery?.graph
@@ -1106,6 +1123,7 @@ export function GalleryRoot({
                 hasTranslationTargets={(activeLibrary?.config?.translations?.targetLocales?.length ?? 0) > 0}
                 explicitBulkFileIds={explicitBulkFileIds}
                 relationsEnabled={graphConfig?.edgeSources?.relations?.enabled === true}
+                showRatingSort={showRatingSort}
               />
             </div>
 
@@ -1117,7 +1135,7 @@ export function GalleryRoot({
               {/* Filters Panel (linke Spalte): Typ-Leitfilter zuerst (A4a), dann Facetten */}
               <div className="flex flex-col min-h-0 overflow-hidden">
                 <ViewTypeLeadFilter
-                  viewTypes={viewTypes}
+                  viewTypes={leadFilterViewTypes}
                   selected={selectedViewType}
                   onSelect={handleSelectViewType}
                 />
@@ -1156,6 +1174,7 @@ export function GalleryRoot({
                     hasTranslationTargets={(activeLibrary?.config?.translations?.targetLocales?.length ?? 0) > 0}
                     explicitBulkFileIds={explicitBulkFileIds}
                     relationsEnabled={graphConfig?.edgeSources?.relations?.enabled === true}
+                    showRatingSort={showRatingSort}
                   />
                 </div>
 
@@ -1212,6 +1231,7 @@ export function GalleryRoot({
                     cardDensity={cardDensity}
                     onCardDensityChange={handleCardDensityChange}
                     mode="story"
+                    showRatingSort={showRatingSort}
                   />
                 </div>
               )}
@@ -1238,7 +1258,7 @@ export function GalleryRoot({
         onChange={setFacet}
         title={t('gallery.filter')}
         description={texts.filterDescription}
-        viewTypes={viewTypes}
+        viewTypes={leadFilterViewTypes}
         selectedViewType={selectedViewType}
         onSelectViewType={handleSelectViewType}
       />
