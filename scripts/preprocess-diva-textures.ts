@@ -2,10 +2,10 @@
  * @fileoverview Preprocess-Skript: DIVA-Liefersystem-Snapshots nach MongoDB.
  *
  * @description
- * Liest pro Ordner die Sidecar `api2_GetJsonOptionValues.json` ueber den
+ * Liest pro Ordner die Sidecar `optionvalues.json` (Grosseltern-Ordner) ueber den
  * StorageProvider (storage-unabhaengig), matcht die Basecolor-Dateien
  * deterministisch (KEIN LLM) und schreibt je Treffer einen DIVA-Snapshot in
- * `archive_item_properties__<libraryId>` (itemKey = VCodex). Dadurch weiss die
+ * `archive_item_properties__<libraryId>` (itemKey = PFTFile). Dadurch weiss die
  * App zur Laufzeit instant, welche Dateien DIVA-Texturen sind (Filter +
  * Instant-Info), ohne die grosse JSON pro Datei zu parsen.
  *

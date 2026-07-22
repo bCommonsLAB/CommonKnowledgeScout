@@ -3,7 +3,7 @@
  *
  * @description
  * Uebersetzt den deutschen `Material`-Wert aus den Liefersystem-Stammdaten
- * (Sidecar `api2_GetJsonOptionValues.json`, z.B. "STOFF") in die englische
+ * (Sidecar `optionvalues.json`, z.B. "STOFF") in die englische
  * `materialClass` des Material-Digital-Twin-Modells (z.B. "fabric").
  *
  * Rein deterministisch, KEIN LLM-Call, KEINE Seiteneffekte (kein Logging).

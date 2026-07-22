@@ -14,11 +14,12 @@ import type { OptionvalueEntry } from '@/lib/diva-texture/types'
 
 const META_ROWS: Array<{ key: keyof OptionvalueEntry; label: string }> = [
   { key: 'Name', label: 'Name' },
-  { key: 'GroupName', label: 'Stoffgruppe' },
-  { key: 'Material', label: 'Material' },
-  { key: 'VCodex', label: 'VCodex' },
-  { key: 'PFTFile', label: 'PFTFile' },
   { key: 'TextureName', label: 'TextureName' },
+  { key: 'GroupName', label: 'Stoffgruppe (GroupName)' },
+  { key: 'OPVGroupName', label: 'Stoffgruppe (OPVGroupName)' },
+  { key: 'Material', label: 'Material' },
+  { key: 'PFTFile', label: 'PFTFile' },
+  { key: 'VCodex', label: 'VCodex' },
 ]
 
 export function DivaSupplierMetadataTable({ entry }: { entry: OptionvalueEntry }) {

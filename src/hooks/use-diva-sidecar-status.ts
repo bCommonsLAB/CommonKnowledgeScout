@@ -4,8 +4,8 @@
  * @description
  * Holt `GET /api/diva-texture/sidecar-status?libraryId=X&parentId=Y` und
  * befuellt `divaSidecarStatusAtom`. Wird vom DivaToolsMenu konsumiert, um den
- * Toolbar-Button orange zu faerben, wenn `api2_GetJsonOptionValues.json` im
- * Verzeichnis liegt. Re-Fetch bei Ordner-/Library-Wechsel.
+ * Toolbar-Button orange zu faerben, wenn `optionvalues.json` im Grosseltern-
+ * Ordner liegt. Re-Fetch bei Ordner-/Library-Wechsel.
  *
  * Kein stiller Fallback: bei Fehlern wird `state: 'error'` gesetzt + geloggt.
  */
@@ -22,6 +22,7 @@ interface SidecarStatusApiResponse {
   found: boolean
   entryCount?: number
   sourceFileName?: string
+  modifiedAt?: string
 }
 
 export function useDivaSidecarStatus(enabled: boolean): void {
@@ -53,6 +54,9 @@ export function useDivaSidecarStatus(enabled: boolean): void {
           state: 'loaded',
           found: data.found === true,
           entryCount: typeof data.entryCount === 'number' ? data.entryCount : undefined,
+          sourceFileName:
+            typeof data.sourceFileName === 'string' ? data.sourceFileName : undefined,
+          modifiedAt: typeof data.modifiedAt === 'string' ? data.modifiedAt : undefined,
         })
       })
       .catch((error: unknown) => {

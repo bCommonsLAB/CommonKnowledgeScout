@@ -9,10 +9,10 @@
  *  - `iln_nummer`: 13-stellige Nummer aus dem Verzeichnispfad (auch bei
  *    DivaStandardMaterials gesetzt — der Pfad enthaelt sie trotzdem). Leer,
  *    wenn keine ILN im Pfad.
- *  - `textur_code`: Sidecar-VCodex hat VORRANG; sonst aus dem Dateinamen
- *    abgeleitet (Suffix `_basecolor`/`_normal`/… abschneiden, fuehrenden
- *    Zaehler entfernen, letzten Unterstrich vor der Endnummer auf "-"
- *    normalisieren).
+ *  - `textur_code`: Sidecar-PFTFile hat VORRANG; sonst VCodex; sonst aus dem
+ *    Dateinamen abgeleitet (Suffix `_basecolor`/`_normal`/… abschneiden,
+ *    fuehrenden Zaehler entfernen, letzten Unterstrich vor der Endnummer auf
+ *    "-" normalisieren).
  *  - `title`: Sidecar-`Name` hat VORRANG; sonst der Datei-Stamm ohne Suffix.
  *  - `slug`: ASCII-kebab-case-Form von `title` (max. 80 Zeichen).
  */
@@ -31,7 +31,7 @@ const MAX_SLUG_LENGTH = 80
 export interface PathDerivedFields {
   /** 13-stellige ILN aus dem Pfad (leer, wenn nicht im Pfad). */
   iln_nummer: string
-  /** Stabiler Material-Code (Sidecar-VCodex bevorzugt, sonst aus Filename). */
+  /** Stabiler Material-Code (Sidecar-PFTFile bevorzugt, sonst aus Filename). */
   textur_code: string
   /** Anzeige-Titel (Sidecar-Name bevorzugt, sonst Filename-Stamm). */
   title: string
@@ -52,7 +52,9 @@ export function derivePathFields(args: {
   const ilnMatch = (args.filePath ?? '').match(ILN_PATTERN)
   const iln_nummer = ilnMatch ? ilnMatch[1] : ''
 
-  const sidecarCode = nonEmpty(args.supplierEntry?.VCodex)
+  // PFTFile ist der stabile Textur-Schluessel; VCodex nur als optionaler Fallback.
+  const sidecarCode =
+    nonEmpty(args.supplierEntry?.PFTFile) ?? nonEmpty(args.supplierEntry?.VCodex)
   const textur_code = sidecarCode ?? extractTextureCodeFromFilename(args.fileName)
 
   const sidecarName = nonEmpty(args.supplierEntry?.Name)

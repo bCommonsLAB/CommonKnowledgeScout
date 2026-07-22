@@ -29,7 +29,8 @@ describe('derivePathFields — Sidecar-Hit (Standard-Fall)', () => {
     })
     expect(result).toEqual({
       iln_nummer: '0001445679013',
-      textur_code: 'ST_2031-0477',
+      // PFTFile hat Vorrang vor VCodex als Textur-Schluessel.
+      textur_code: '3_ST_2031_0477',
       title: 'Feincord thyme',
       slug: 'feincord-thyme',
     })

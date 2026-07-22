@@ -4,7 +4,8 @@
  * @description
  * Holt `GET /api/library/[id]/item-annotations?parentId=<folder>` und befuellt
  * `itemAnnotationsAtom` (keyed nach Dateiname) + `itemAnnotationsStatusAtom`.
- * Quelle ist MongoDB (storage-unabhaengig). Re-Fetch bei Ordner-/Library-Wechsel.
+ * Quelle ist Live-Match gegen optionvalues.json (kein Mongo-Preprocess noetig).
+ * Re-Fetch bei Ordner-/Library-Wechsel.
  *
  * Kein stiller Fallback: bei Fehlern wird der Status auf 'error' gesetzt und
  * geloggt, statt leise eine leere Annotationsliste vorzutaeuschen.

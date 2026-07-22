@@ -123,7 +123,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   // DIVA-Info-Filter: nur bei aktivierter Library-Option; laedt Annotationen des Ordners.
   const divaEnabled = activeLibrary?.config?.analyzeDivaTextureInfo === true;
   useItemAnnotations();
-  // Sidecar-Status (api2_GetJsonOptionValues.json im aktuellen Ordner) — wird
+  // Sidecar-Status (optionvalues.json im Grosseltern-Ordner) — wird
   // im DivaToolsMenu visualisiert (orange wenn gefunden).
   useDivaSidecarStatus(divaEnabled);
   // DIVA-Toolbar-Defaults aus der Library-Config in die Atoms uebernehmen

@@ -50,20 +50,56 @@ async function makeJpeg(widthPx: number, heightPx: number, density = 300): Promi
 const TEXTURE_FILE = '3_ST_2031_0477_basecolor.jpg'
 const PATH_ILN = 'S:\\DIVA3DARCHIV\\0001445679013\\textures\\_tex\\' + TEXTURE_FILE
 
-function sidecarFile(): StorageItem {
-  return {
-    id: 'sidecar-1',
-    parentId: 'folder',
-    type: 'file',
-    metadata: { name: SIDECAR_FILENAME, size: 0, modifiedAt: new Date(), mimeType: 'application/json' },
-  }
+/** Ordnerkette: ILN → textures → folder (_tex). Sidecar liegt im Grosseltern-Ordner. */
+function hierarchyItems(includeSidecar: boolean): StorageItem[] {
+  const folders: StorageItem[] = [
+    {
+      id: 'iln',
+      parentId: 'root',
+      type: 'folder',
+      metadata: { name: '0001445679013', size: 0, modifiedAt: new Date(), mimeType: 'application/folder' },
+    },
+    {
+      id: 'textures',
+      parentId: 'iln',
+      type: 'folder',
+      metadata: { name: 'textures', size: 0, modifiedAt: new Date(), mimeType: 'application/folder' },
+    },
+    {
+      id: 'folder',
+      parentId: 'textures',
+      type: 'folder',
+      metadata: { name: '_tex', size: 0, modifiedAt: new Date(), mimeType: 'application/folder' },
+    },
+  ]
+  if (!includeSidecar) return folders
+  return [
+    ...folders,
+    {
+      id: 'sidecar-1',
+      parentId: 'iln',
+      type: 'file',
+      metadata: {
+        name: SIDECAR_FILENAME,
+        size: 0,
+        modifiedAt: new Date(),
+        mimeType: 'application/json',
+      },
+    },
+  ]
 }
 
-/** Fake-Provider mit genau einer Sidecar-Datei und konfigurierbarem Inhalt. */
+/** Fake-Provider mit Sidecar im Grosseltern-Ordner und konfigurierbarem Inhalt. */
 function makeProvider(optionvalues: Record<string, unknown>): StorageProvider {
   const json = JSON.stringify({ Optionvalues: optionvalues })
+  const items = hierarchyItems(true)
   const provider: Partial<StorageProvider> = {
-    listItemsById: async () => [sidecarFile()],
+    listItemsById: async (folderId: string) => items.filter((it) => it.parentId === folderId),
+    getItemById: async (id: string) => {
+      const found = items.find((it) => it.id === id)
+      if (!found) throw new Error(`Item ${id} nicht gefunden`)
+      return found
+    },
     getBinary: async () => ({ blob: new Blob([json]), mimeType: 'application/json' }),
   }
   return provider as StorageProvider
@@ -71,8 +107,14 @@ function makeProvider(optionvalues: Record<string, unknown>): StorageProvider {
 
 /** Provider ohne Sidecar (kein Treffer-Szenario auf Loader-Ebene). */
 function makeProviderWithoutSidecar(): StorageProvider {
+  const items = hierarchyItems(false)
   const provider: Partial<StorageProvider> = {
-    listItemsById: async () => [],
+    listItemsById: async (folderId: string) => items.filter((it) => it.parentId === folderId),
+    getItemById: async (id: string) => {
+      const found = items.find((it) => it.id === id)
+      if (!found) throw new Error(`Item ${id} nicht gefunden`)
+      return found
+    },
     getBinary: async () => ({ blob: new Blob(['']), mimeType: 'application/json' }),
   }
   return provider as StorageProvider
@@ -138,7 +180,7 @@ describe('runDivaTextureFirstPass — Sidecar + Class-Treffer', () => {
     expect(meta.retailer_iln).toBe('0001445679013')
     // Punkt 4: Identitaets-Felder deterministisch aus Pfad + Sidecar.
     expect(meta.iln_nummer).toBe('0001445679013')
-    expect(meta.textur_code).toBe('ST_2031-0477')
+    expect(meta.textur_code).toBe('3_ST_2031_0477')
     expect(meta.title).toBe('Feincord thyme')
     expect(meta.slug).toBe('feincord-thyme')
     // Update 2: review_status wird gesetzt (kein Mismatch erkennbar ohne Preview)
@@ -325,7 +367,7 @@ describe('runDivaTextureFirstPass — Identitaets-Felder Hallu-Schutz (Punkt 4)'
     const result = await runDivaTextureFirstPass(await baseParams(makeProvider(STOFF_ENTRY), analyzeImages))
     const { meta } = parseFrontmatter(result.markdown)
     expect(meta.iln_nummer).toBe('0001445679013')
-    expect(meta.textur_code).toBe('ST_2031-0477')
+    expect(meta.textur_code).toBe('3_ST_2031_0477')
     expect(meta.title).toBe('Feincord thyme')
     expect(meta.slug).toBe('feincord-thyme')
   })
@@ -337,6 +379,7 @@ describe('runDivaTextureFirstPass — Identitaets-Felder Hallu-Schutz (Punkt 4)'
     )
     const { meta } = parseFrontmatter(result.markdown)
     expect(meta.iln_nummer).toBe('0001445679013')
+    // Ohne Sidecar: Filename-Ableitung (Counter weg, Endnummer mit "-").
     expect(meta.textur_code).toBe('ST_2031-0477')
     expect(meta.title).toBe('3_ST_2031_0477')
     expect(meta.slug).toBe('3-st-2031-0477')

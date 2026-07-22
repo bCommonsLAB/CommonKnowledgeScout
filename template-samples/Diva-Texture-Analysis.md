@@ -50,9 +50,11 @@ color_match_notes: {{color_match_notes|Kurze Begruendung (1 Satz) wenn color_mat
 #    Klassifizierer die Wahl nach dem Lauf aendert.)
 # group_name: string
 #   (Stoffgruppe aus LIEFERSYSTEM.GroupName; Stufe 4. Wird nach dem Pass-1-LLM-
-#    Call deterministisch in first-pass.ts gepatcht — NICHT vom LLM erwartet,
-#    damit "Nichts erfinden" nicht verletzt wird. Galerie gruppiert/filtert
-#    nach diesem Feld.)
+#    Call deterministisch in first-pass.ts gepatcht — NICHT vom LLM erwartet.
+#    Parallel zu opv_group_name — kein Fallback; GroupName kann verschleiern.)
+# opv_group_name: string
+#   (Stoffgruppe aus LIEFERSYSTEM.OPVGroupName; parallel zu group_name.
+#    Ebenfalls deterministisch aus dem Sidecar, nicht vom LLM.)
 # classification_locked: boolean
 #   (Stufe 4, Edge-Case #6: Override-Schutz fuer Einzelmaterialien. Wenn true,
 #    wird das Material vom Stoffgruppen-Bulk-Apply NICHT ueberschrieben. Wird

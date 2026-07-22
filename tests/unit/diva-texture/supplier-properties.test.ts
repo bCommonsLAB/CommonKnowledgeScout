@@ -21,6 +21,7 @@ const ENTRY: OptionvalueEntry = {
   GroupName: 'Feincord',
   Name: 'Feincord gold',
   RGB: 'C78E33',
+  PFTFile: '3_ST_2031_0332',
 }
 
 const NOW = '2026-05-27T10:00:00.000Z'
@@ -30,7 +31,7 @@ function buildArgs() {
     entry: ENTRY,
     file: { id: 'f1', name: '3_ST_2031_0332_basecolor.jpg' },
     parentId: 'folder-1',
-    sourceFile: 'api2_GetJsonOptionValues.json',
+    sourceFile: 'optionvalues.json',
     strategy: 'pftfile-exact',
     now: NOW,
   }
@@ -46,7 +47,7 @@ describe('buildDivaTextureProperties', () => {
     expect(props[DIVA_PROPERTY_KEYS.strategy]).toBe('pftfile-exact')
     expect(props[DIVA_PROPERTY_KEYS.preprocessedAt]).toBe(NOW)
     expect(props[DIVA_PROPERTY_KEYS.snapshot]).toEqual({
-      sourceFile: 'api2_GetJsonOptionValues.json',
+      sourceFile: 'optionvalues.json',
       fetchedAt: NOW,
       entry: ENTRY,
     })
@@ -62,6 +63,34 @@ describe('buildDivaTextureProperties', () => {
     expect(props[DIVA_ATTRIBUTE_KEYS.farbeHex]).toBe('#C78E33') // Sidecar liefert ohne "#"
   })
 
+  it('schreibt GroupName und OPVGroupName als parallele Attribute (kein Fallback)', () => {
+    const props = buildDivaTextureProperties({
+      ...buildArgs(),
+      entry: {
+        ...ENTRY,
+        GroupName: 'verschleiert',
+        OPVGroupName: 'PERLA-Kollektion (Stoff)',
+        Name: '10 perla stone',
+      },
+    })
+    expect(props[DIVA_ATTRIBUTE_KEYS.stoffgruppe]).toBe('verschleiert')
+    expect(props[DIVA_ATTRIBUTE_KEYS.opvGroupName]).toBe('PERLA-Kollektion (Stoff)')
+    expect(props[DIVA_ATTRIBUTE_KEYS.texturName]).toBe('10 perla stone')
+  })
+
+  it('laesst stoffgruppe weg, wenn nur OPVGroupName gesetzt ist', () => {
+    const props = buildDivaTextureProperties({
+      ...buildArgs(),
+      entry: {
+        ...ENTRY,
+        GroupName: '',
+        OPVGroupName: 'PERLA-Kollektion (Stoff)',
+      },
+    })
+    expect(props[DIVA_ATTRIBUTE_KEYS.stoffgruppe]).toBeUndefined()
+    expect(props[DIVA_ATTRIBUTE_KEYS.opvGroupName]).toBe('PERLA-Kollektion (Stoff)')
+  })
+
   it('nimmt den optionalen sourceFileHash in den Snapshot auf', () => {
     const props = buildDivaTextureProperties({ ...buildArgs(), sourceFileHash: 'sha256:abc' })
     expect((props[DIVA_PROPERTY_KEYS.snapshot] as { sourceFileHash?: string }).sourceFileHash).toBe('sha256:abc')
@@ -69,14 +98,15 @@ describe('buildDivaTextureProperties', () => {
 })
 
 describe('toDivaTextureRecord', () => {
-  function docFromProps(props: Record<string, unknown>, itemKey = ENTRY.VCodex): ArchiveItemPropertiesDocument {
+  function docFromProps(props: Record<string, unknown>, itemKey = ENTRY.PFTFile!): ArchiveItemPropertiesDocument {
     return { libraryId: 'lib', itemKey, properties: props, createdAt: NOW, updatedAt: NOW }
   }
 
   it('extrahiert den Laufzeit-Record inkl. Snapshot + generische Attribute', () => {
     const record = toDivaTextureRecord(docFromProps(buildDivaTextureProperties(buildArgs())))
     expect(record).not.toBeNull()
-    expect(record!.vcodex).toBe('ST_2031-0332')
+    // Historisches Feld `vcodex` enthaelt den PFTFile-ItemKey.
+    expect(record!.vcodex).toBe('3_ST_2031_0332')
     expect(record!.fileName).toBe('3_ST_2031_0332_basecolor.jpg')
     expect(record!.fileId).toBe('f1')
     expect(record!.parentId).toBe('folder-1')

@@ -256,8 +256,8 @@ export function LibraryAdvancedForm() {
                     </FormLabel>
                     <FormDescription>
                       Zeigt im Archiv-Detail einen Tab &quot;DIVA-Info&quot;, sobald eine
-                      Sidecar-Datei (api2_GetJsonOptionValues.json) im Texturverzeichnis liegt
-                      und ein Treffer fuer die Textur existiert.
+                      Sidecar-Datei (optionvalues.json) im Grosseltern-Ordner des
+                      Texturverzeichnisses liegt und ein Treffer fuer die Textur existiert.
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -324,9 +324,9 @@ export function LibraryAdvancedForm() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="all">Alle Dateien</SelectItem>
-                        <SelectItem value="with">Nur mit DIVA-Info</SelectItem>
-                        <SelectItem value="without">Nur ohne DIVA-Info</SelectItem>
+                        <SelectItem value="all">Alle *_basecolor</SelectItem>
+                        <SelectItem value="with">Nur *_basecolor mit DIVA-Info</SelectItem>
+                        <SelectItem value="without">Nur *_basecolor ohne DIVA-Info</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

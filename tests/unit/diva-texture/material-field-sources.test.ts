@@ -19,6 +19,8 @@ import {
 describe('MATERIAL_FIELD_SOURCES — Zuordnung', () => {
   const cases: Array<[string, string]> = [
     ['title', 'divadata'],
+    ['group_name', 'divadata'],
+    ['opv_group_name', 'divadata'],
     ['iln_nummer', 'path'],
     ['availability_scope', 'path'],
     ['material_class', 'ai_pass1'],

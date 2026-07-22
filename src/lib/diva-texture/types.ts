@@ -10,9 +10,11 @@
 /**
  * Ein einzelner Eintrag aus `Optionvalues` der Sidecar-Datei.
  * 1:1-Abbild der Liefersystem-Stammdaten (Felder optional, da extern).
+ * Stabiler Schluessel fuer Texturen ist `PFTFile` (nicht VCodex).
  */
 export interface OptionvalueEntry {
-  VCodex: string
+  /** Optional — Liefersystem liefert VCodex nicht immer. */
+  VCodex?: string
   Name?: string
   Image?: string
   ImageIndex?: string
@@ -22,9 +24,22 @@ export interface OptionvalueEntry {
   IsTexture: string
   RGB?: string
   UseMapping?: string
+  /**
+   * Stabiler Textur-Schluessel (Dateistamm ohne Map-Suffix).
+   * Pflicht fuer IsTexture==="True"-Eintraege im Loader.
+   */
   PFTFile?: string
   IsOPVG?: string
+  /**
+   * Stoffgruppe aus dem Liefersystem (kann Verschleierung sein).
+   * Parallel immer auch OPVGroupName auslesen — kein Fallback dazwischen.
+   */
   GroupName?: string
+  /**
+   * OPV-Stoffgruppe aus dem Liefersystem (z.B. "PERLA-Kollektion (Stoff)").
+   * Eigenstaendiges Feld neben GroupName — beide an UI und LLM.
+   */
+  OPVGroupName?: string
   TextureName?: string
   Material?: string
 }
@@ -63,6 +78,8 @@ export interface MatchResult {
 export interface SupplierData {
   /** Dateiname der Sidecar-Datei (fuer Logging/UI). */
   sourceFileName: string
+  /** Aenderungsdatum der Sidecar-Datei (Storage-Metadaten). */
+  modifiedAt: Date
   /** Nur Eintraege mit IsTexture === "True". */
   entries: SupplierEntry[]
   /** Anzahl ausgefilterter Eintraege mit IsTexture !== "True" (ignoriert). */
@@ -76,7 +93,7 @@ export type AnalysisSourceImage = 'basecolor' | 'supplier-preview'
 export interface ItemAnnotation {
   fileName: string
   fileId: string
-  /** Stabiler Item-Key (= VCodex bei DIVA-Texturen). */
+  /** Stabiler Item-Key (= PFTFile bei DIVA-Texturen). */
   itemKey: string
   /** Flache, gruppier-/filterbare Attribute (z.B. stoffgruppe, material, divaTexture). */
   attributes: Record<string, unknown>
@@ -103,7 +120,7 @@ export interface SupplierDataApiResponse {
   /** Anzahl IsTexture==="True"-Eintraege in der Sidecar (nur wenn sidecarFound). */
   entryCount?: number
   entry?: OptionvalueEntry
-  /** Stabile Material-ID (= VCodex des Treffers); Bindung der Bildwahl. */
+  /** Stabile Material-ID (= PFTFile des Treffers); Bindung der Bildwahl. */
   materialId?: string
   strategy?: string
   attempts: MatchAttempt[]
