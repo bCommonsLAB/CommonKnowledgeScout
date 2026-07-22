@@ -357,9 +357,9 @@ export interface StorageConfig {
   /**
    * Transformation: DIVA-Liefersystem-Daten auswerten.
    * Wenn true, erscheint im Archiv-File-Preview ein zusaetzlicher Tab
-   * "DIVA-Info", sobald eine Sidecar-Datei (api2_GetJsonOptionValues.json)
-   * im Texturverzeichnis liegt UND ein Match fuer die Textur existiert.
-   * Default: false.
+   * "DIVA-Info", sobald eine Sidecar-Datei (optionvalues.json) im
+   * Grosseltern-Ordner des Texturverzeichnisses liegt UND ein Match fuer
+   * die Textur existiert. Default: false.
    */
   analyzeDivaTextureInfo?: boolean;
 

@@ -167,9 +167,10 @@ export function buildFirstPassFrontmatter(args: BuildFirstPassArgs): Record<stri
     supplierEntry,
   })
 
-  // --- group_name (Stoffgruppe) deterministisch aus dem Sidecar-Treffer ---
-  // Ermoeglicht die Galerie-Gruppierung nach Stoffgruppe (Stufe 4). Leer ohne Treffer.
+  // --- Stoffgruppen deterministisch aus dem Sidecar (beide Felder parallel) ---
+  // GroupName kann OPVGroupName verschleiern — kein Fallback zwischen beiden.
   const groupName = nonEmptyString(supplierEntry?.GroupName) ?? ''
+  const opvGroupName = nonEmptyString(supplierEntry?.OPVGroupName) ?? ''
 
   // Update 2 (2026-05-28): Color-Match-Postprocessor + Review-Status mit
   // Override-Schutz. Beides muss VOR dem Frontmatter-Dictionary stehen, damit
@@ -203,6 +204,7 @@ export function buildFirstPassFrontmatter(args: BuildFirstPassArgs): Record<stri
     availability_scope,
     retailer_iln,
     group_name: groupName,
+    opv_group_name: opvGroupName,
     // Pipeline-/System-verwaltet (nicht vom LLM)
     last_pass: 1,
     pass1_status: needsHumanReview ? ('needs_review' satisfies Pass1Status) : ('done' satisfies Pass1Status),

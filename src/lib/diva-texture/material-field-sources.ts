@@ -57,6 +57,9 @@ export const MATERIAL_FIELD_SOURCES: Readonly<Record<string, MaterialFieldSource
   textur_code: 'path',
   availability_scope: 'path',
   retailer_iln: 'path',
+  // Deterministisch aus dem Sidecar (beide Gruppen-Felder parallel)
+  group_name: 'divadata',
+  opv_group_name: 'divadata',
   // 1. LLM-Pass: Klasse + Typ
   material_class: 'ai_pass1',
   material_type: 'ai_pass1',

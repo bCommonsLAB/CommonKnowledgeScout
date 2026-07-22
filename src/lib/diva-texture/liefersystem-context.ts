@@ -11,15 +11,21 @@
 
 import type { OptionvalueEntry } from './types'
 import { mapMaterialClass, type MaterialClass } from './material-class-mapping'
+import { resolveTextureItemKey } from './load-supplier-data'
 
 /**
  * Deterministischer Liefersystem-Block fuers LLM-Prompt-Context-Feld.
  * Feldnamen folgen dem System-Prompt (z.B. `LIEFERSYSTEM.materialClass`).
  */
 export interface LiefersystemBlock {
-  VCodex: string
+  /** Stabiler Textur-Schluessel aus den Stammdaten. */
+  PFTFile: string
+  /** Optional — Liefersystem liefert VCodex nicht immer. */
+  VCodex?: string
   Name?: string
+  TextureName?: string
   GroupName?: string
+  OPVGroupName?: string
   RGB?: string
   /** Roh-Materialwert aus den Stammdaten (deutsch, z.B. "STOFF"). */
   Material?: string
@@ -40,10 +46,15 @@ export function buildLiefersystemBlock(entry: OptionvalueEntry | null): Liefersy
 
   const mapping = mapMaterialClass(entry.Material)
 
+  // Beide Gruppen-Felder immer als String an das LLM — auch leer.
+  // GroupName kann OPVGroupName verschleiern; das LLM soll beide sehen.
   return {
-    VCodex: entry.VCodex,
-    Name: entry.Name,
-    GroupName: entry.GroupName,
+    PFTFile: resolveTextureItemKey(entry),
+    ...(entry.VCodex ? { VCodex: entry.VCodex } : {}),
+    Name: entry.Name ?? '',
+    TextureName: entry.TextureName ?? '',
+    GroupName: entry.GroupName ?? '',
+    OPVGroupName: entry.OPVGroupName ?? '',
     RGB: entry.RGB,
     Material: entry.Material,
     materialClass: mapping.materialClass,

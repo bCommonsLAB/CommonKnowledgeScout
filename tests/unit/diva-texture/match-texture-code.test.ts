@@ -40,6 +40,26 @@ describe('matchTextureCode — Fixture', () => {
     expect(entries[0].entry.VCodex).toBe('ST_2031-0477')
   })
 
+  it('PFTFile: 1008_light_blue_basecolor.jpg trifft 1008_light_blue (ohne VCodex)', () => {
+    // Realwelt-Fall Perla: kein VCodex, PFTFile = TextureName = Dateistamm.
+    const entries: SupplierEntry[] = [
+      {
+        key: 'OPV1008_LIGHT_BLUE',
+        entry: {
+          IsTexture: 'True',
+          PFTFile: '1008_light_blue',
+          TextureName: '1008_light_blue',
+          Name: '1008 light blue',
+          OPVGroupName: 'PERLA-Kollektion (Stoff)',
+          GroupName: '',
+        },
+      },
+    ]
+    const result = matchTextureCode('1008_light_blue_basecolor.jpg', entries)
+    expect(result.match?.entryKey).toBe('OPV1008_LIGHT_BLUE')
+    expect(result.match?.strategy).toBe('pftfile-exact')
+  })
+
   it('PFTFile-Strategie: Basecolor-Dateiname trifft exakt', () => {
     const result = matchTextureCode('3_ST_2031_0477_basecolor.jpg', entries)
     expect(result.match).not.toBeNull()

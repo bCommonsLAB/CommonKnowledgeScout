@@ -88,6 +88,7 @@ describe('Diva-Texture-Analysis.md — Struktur', () => {
     // group_name kommt deterministisch aus dem Sidecar (Post-Processor) — das LLM
     // soll es nicht halluzinieren (Lea-Regel "Nichts erfinden").
     expect(findField(template, 'group_name')).toBeUndefined()
+    expect(findField(template, 'opv_group_name')).toBeUndefined()
     // classification_locked/_rejected sind UI-Flags, nicht LLM-Felder.
     expect(findField(template, 'classification_locked')).toBeUndefined()
     expect(findField(template, 'classification_rejected')).toBeUndefined()
@@ -95,6 +96,7 @@ describe('Diva-Texture-Analysis.md — Struktur', () => {
     // Aber: im Template dokumentiert (auskommentiert), damit der Klassifizierer
     // weiss, dass die Pipeline diese Felder verwaltet.
     expect(content).toContain('group_name: string')
+    expect(content).toContain('opv_group_name: string')
     expect(content).toContain('classification_locked: boolean')
     expect(content).toContain('classification_rejected: boolean')
   })

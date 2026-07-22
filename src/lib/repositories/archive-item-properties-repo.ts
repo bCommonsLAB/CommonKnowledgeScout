@@ -7,9 +7,9 @@
  * DIVA-Texture-Welle; bewusst generisch gehalten fuer weitere Properties
  * (z.B. Favoriten o.ae.). Ein Dokument pro (libraryId, itemKey).
  *
- * Der `itemKey` ist eine STABILE, backend-unabhaengige ID (z.B. der
- * Liefersystem-VCodex), NICHT der filePath (Plan Edge-Case #18) — damit
- * Properties ein Umbenennen/Verschieben der Datei ueberleben.
+ * Der `itemKey` ist eine STABILE, backend-unabhaengige ID (bei DIVA-Texturen
+ * das PFTFile), NICHT der filePath (Plan Edge-Case #18) — damit Properties
+ * ein Umbenennen/Verschieben der Datei ueberleben.
  */
 
 import type { Collection } from 'mongodb'

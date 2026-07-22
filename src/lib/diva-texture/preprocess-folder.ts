@@ -111,8 +111,9 @@ export interface AttributeTally {
 
 /**
  * Zaehlt Treffer nach einem Sidecar-Attribut (generisch, fuer die Legende +
- * spaeter den generischen Gruppieren-Filter). Default-Attribut: GroupName
- * (Stoffgruppe). Leere Werte landen unter "(ohne Wert)".
+ * spaeter den generischen Gruppieren-Filter). Default-Attribut: GroupName.
+ * OPVGroupName ist ein eigenes Attribut — kein Fallback. Leere Werte landen
+ * unter "(ohne Wert)".
  *
  * @param matches Treffer aus buildFolderPreprocessPlan.
  * @param attribute Feldname im OptionvalueEntry (Default "GroupName").

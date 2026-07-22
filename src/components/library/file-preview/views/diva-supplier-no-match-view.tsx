@@ -26,7 +26,7 @@ export function DivaSupplierNoMatchView({
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="outline">Sidecar gefunden</Badge>
         <span className="text-xs text-muted-foreground">
-          {entryCount} Textur-Eintraege in api2_GetJsonOptionValues.json
+          {entryCount} Textur-Eintraege in optionvalues.json
         </span>
       </div>
 
@@ -34,7 +34,7 @@ export function DivaSupplierNoMatchView({
         <AlertTitle>Kein Liefersystem-Eintrag fuer diese Textur</AlertTitle>
         <AlertDescription className="space-y-2 text-sm">
           <p>
-            Die Sidecar-Datei liegt im selben Verzeichnis wie{' '}
+            Die Sidecar-Datei liegt im Grosseltern-Ordner von{' '}
             <span className="font-mono">{fileName}</span>, aber keiner der{' '}
             {entryCount} Textur-Eintraege (IsTexture=&quot;True&quot;) passt zum Dateinamen.
           </p>

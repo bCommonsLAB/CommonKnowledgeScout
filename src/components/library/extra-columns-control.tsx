@@ -42,12 +42,13 @@ import { cn } from '@/lib/utils'
 const AVAILABLE_COLUMNS: Array<{ key: string; label: string }> = [
   { key: '_thumbnail', label: 'Preview-Bitmap (Liefersystem)' },
   { key: 'Material', label: 'Material' },
-  { key: 'GroupName', label: 'Stoffgruppe (GroupName)' },
-  { key: 'TextureName', label: 'TextureName' },
   { key: 'Name', label: 'Name' },
+  { key: 'TextureName', label: 'TextureName' },
+  { key: 'GroupName', label: 'Stoffgruppe (GroupName)' },
+  { key: 'OPVGroupName', label: 'Stoffgruppe (OPVGroupName)' },
   { key: 'RGB', label: 'RGB (Farb-Swatch)' },
-  { key: 'VCodex', label: 'VCodex' },
   { key: 'PFTFile', label: 'PFTFile' },
+  { key: 'VCodex', label: 'VCodex' },
 ]
 
 export interface ExtraColumnsControlProps {

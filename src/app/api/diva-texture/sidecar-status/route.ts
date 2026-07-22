@@ -3,12 +3,12 @@
  *
  * @description
  * GET /api/diva-texture/sidecar-status?libraryId=X&parentId=Y
- * Antwort: { found: boolean, entryCount?: number, sourceFileName?: string }
+ * Antwort: { found, entryCount?, sourceFileName?, modifiedAt? }
  *
  * Wird vom Archiv-Frontend genutzt, um den DIVA-Toolbar-Button visuell zu
- * markieren, wenn im aktuellen Verzeichnis tatsaechlich eine
- * `api2_GetJsonOptionValues.json` liegt. Kein silent fallback: bei Fehlern
- * wird HTTP 500 mit klarer Fehlermeldung zurueckgegeben.
+ * markieren, wenn im Grosseltern-Ordner des aktuellen Verzeichnisses eine
+ * `optionvalues.json` liegt. Kein silent fallback: bei Fehlern wird HTTP 500
+ * mit klarer Fehlermeldung zurueckgegeben.
  *
  * Clerk-Auth + Library-Access-Check (LibraryService).
  */
@@ -24,6 +24,7 @@ interface SidecarStatusResponse {
   found: boolean
   entryCount?: number
   sourceFileName?: string
+  modifiedAt?: string
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -53,6 +54,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           found: true,
           entryCount: supplier.entries.length,
           sourceFileName: supplier.sourceFileName,
+          modifiedAt: supplier.modifiedAt.toISOString(),
         }
       : { found: false }
 

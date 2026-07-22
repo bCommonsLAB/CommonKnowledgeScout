@@ -28,6 +28,7 @@ export function logMatchAttempts(fileName: string, result: MatchResult): void {
     fileName,
     matched: result.match !== null,
     strategy: result.match?.strategy ?? null,
+    matchedPftFile: result.match?.entry.PFTFile ?? null,
     matchedVCodex: result.match?.entry.VCodex ?? null,
     attemptCount: result.attempts.length,
     attempts: result.attempts.map(formatAttempt),

@@ -37,6 +37,7 @@ import { StorageItem } from "@/lib/storage/types"
 import { ClientLibrary } from "@/types/library"
 import { fileCategoryFilterAtom, getFileCategory } from '@/atoms/transcription-options'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
+import { isBasecolorFileName } from '@/lib/diva-texture/preprocess-folder'
 
 // Basis-Typen für den Library-State
 export interface LibraryState {
@@ -300,7 +301,7 @@ itemAnnotationsAtom.debugLabel = "itemAnnotationsAtom"
 export const itemAnnotationsStatusAtom = atom<AnnotationsStatus>('idle')
 itemAnnotationsStatusAtom.debugLabel = "itemAnnotationsStatusAtom"
 
-// 3-Wege-Filter: alle / nur mit Annotation / nur ohne.
+// 3-Wege-Filter (bei DIVA aktiv): alle *_basecolor / mit Sidecar-Treffer / ohne.
 export const annotationFilterModeAtom = atom<AnnotationFilterMode>('all')
 annotationFilterModeAtom.debugLabel = "annotationFilterModeAtom"
 
@@ -319,14 +320,17 @@ itemSidecarEntriesAtom.debugLabel = "itemSidecarEntriesAtom"
 export const divaExtraColumnsAtom = atom<string[]>([])
 divaExtraColumnsAtom.debugLabel = "divaExtraColumnsAtom"
 
-// Sidecar-Status fuer das aktuelle DIVA-Verzeichnis (api2_GetJsonOptionValues.json).
-// Wird vom DivaToolsMenu in der Dateilisten-Toolbar visualisiert: orange wenn
-// der Sidecar gefunden wurde, neutral wenn nicht. Kein silent fallback —
-// 'error' wird separat ausgewiesen.
+// Sidecar-Status fuer das aktuelle DIVA-Verzeichnis (optionvalues.json im
+// Grosseltern-Ordner). Wird vom DivaToolsMenu in der Dateilisten-Toolbar
+// visualisiert: orange wenn der Sidecar gefunden wurde, neutral wenn nicht.
+// Kein silent fallback — 'error' wird separat ausgewiesen.
 export interface DivaSidecarStatus {
   state: 'idle' | 'loading' | 'loaded' | 'error'
   found: boolean
   entryCount?: number
+  sourceFileName?: string
+  /** ISO-Zeitstempel des Sidecar-Aenderungsdatums. */
+  modifiedAt?: string
 }
 export const divaSidecarStatusAtom = atom<DivaSidecarStatus>({ state: 'idle', found: false })
 divaSidecarStatusAtom.debugLabel = "divaSidecarStatusAtom"
@@ -347,6 +351,8 @@ export const sortedFilteredFilesAtom = atom((get) => {
   const categoryFilter = get(fileCategoryFilterAtom)
   const annotationFilter = get(annotationFilterModeAtom)
   const annotations = get(itemAnnotationsAtom)
+  const activeLibrary = get(activeLibraryAtom)
+  const divaEnabled = activeLibrary?.config?.analyzeDivaTextureInfo === true
 
   let filtered = files.filter(item => {
     // Basis-Filter
@@ -356,8 +362,14 @@ export const sortedFilteredFilesAtom = atom((get) => {
 
     if (!basicFilter) return false
 
-    // Annotation-Filter (mit/ohne DIVA-Info): Annotation existiert pro Dateiname.
-    if (annotationFilter !== 'all') {
+    // DIVA-Filter: immer nur *_basecolor, dann alle / mit / ohne Sidecar-Treffer.
+    if (divaEnabled) {
+      if (!isBasecolorFileName(item.metadata.name)) return false
+      const hasAnnotation = annotations.has(item.metadata.name)
+      if (annotationFilter === 'with' && !hasAnnotation) return false
+      if (annotationFilter === 'without' && hasAnnotation) return false
+    } else if (annotationFilter !== 'all') {
+      // Generischer Annotation-Filter ohne DIVA (kein Basecolor-Zwang).
       const hasAnnotation = annotations.has(item.metadata.name)
       if (annotationFilter === 'with' && !hasAnnotation) return false
       if (annotationFilter === 'without' && hasAnnotation) return false

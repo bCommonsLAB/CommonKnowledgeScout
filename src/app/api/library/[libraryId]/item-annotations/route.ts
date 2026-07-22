@@ -1,25 +1,26 @@
 /**
- * @fileoverview API-Route: Item-Annotationen eines Ordners (Performance-Welle).
+ * @fileoverview API-Route: Item-Annotationen eines Ordners (DIVA Live-Match).
  *
  * @description
- * Liefert pro Ordner die annotierten Items (aktuell DIVA-Texturen) mit ihren
- * flachen, gruppier-/filterbaren Attributen — die Laufzeit-Quelle fuer den
- * Dateilisten-Filter „mit/ohne DIVA-Info" + die Gruppierung nach `stoffgruppe`.
+ * Liefert pro Ordner die Dateien mit Sidecar-Treffer (Live-Match gegen
+ * optionvalues.json im Grosseltern-Ordner) inkl. flacher Attribute — Quelle
+ * fuer den Dateilisten-Filter „mit/ohne DIVA-Info" und Gruppierung.
  *
- * Storage-unabhaengig: liest ausschliesslich aus MongoDB (archive_item_properties),
- * nicht aus dem Storage-Backend.
+ * Bewusst Live (kein MongoDB-Preprocess noetig): Sidecar laden → Dateien
+ * listen → matchTextureCode. Storage nur ueber getServerProvider.
  *
  * - GET /api/library/[libraryId]/item-annotations?parentId=X
- *   -> { parentId, annotations: [{ fileName, fileId, itemKey, attributes }] }
+ *   -> { parentId, annotations: [{ fileName, fileId, itemKey, attributes, entry }] }
  *
- * Clerk-Auth + awaited params (Next.js 13+). Zugriffspruefung ueber
- * LibraryService.getLibrary (kein Zugriff => 404).
+ * Clerk-Auth + awaited params (Next.js 13+).
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { LibraryService } from '@/lib/services/library-service'
-import { getDivaTexturesByParent } from '@/lib/diva-texture/supplier-properties'
+import { getServerProvider } from '@/lib/storage/server-provider'
+import { loadSupplierData } from '@/lib/diva-texture/load-supplier-data'
+import { buildLiveFolderAnnotations } from '@/lib/diva-texture/folder-annotations'
 import type { ItemAnnotationsResponse } from '@/lib/diva-texture/types'
 import { FileLogger } from '@/lib/debug/logger'
 
@@ -52,20 +53,20 @@ export async function GET(
       return NextResponse.json({ error: 'parentId ist erforderlich' }, { status: 400 })
     }
 
-    const records = await getDivaTexturesByParent(libraryId, parentId)
-    const response: ItemAnnotationsResponse = {
-      parentId,
-      annotations: records.map((r) => ({
-        fileName: r.fileName,
-        fileId: r.fileId,
-        itemKey: r.vcodex,
-        attributes: r.attributes,
-        // Snapshot-Entry mitsenden, damit das Frontend Sidecar-Felder
-        // (Material, TextureName, Image, …) als Zusatzspalten in der
-        // Dateiliste rendern kann (Stufe 1+).
-        entry: r.snapshot?.entry,
-      })),
+    const provider = await getServerProvider(access.email, libraryId)
+    const supplier = await loadSupplierData(provider, parentId)
+    if (!supplier) {
+      const empty: ItemAnnotationsResponse = { parentId, annotations: [] }
+      return NextResponse.json(empty)
     }
+
+    const items = await provider.listItemsById(parentId)
+    const files = items
+      .filter((it) => it.type === 'file')
+      .map((it) => ({ id: it.id, name: it.metadata.name }))
+
+    const annotations = buildLiveFolderAnnotations(files, supplier.entries)
+    const response: ItemAnnotationsResponse = { parentId, annotations }
     return NextResponse.json(response)
   } catch (error) {
     FileLogger.error('item-annotations', 'GET fehlgeschlagen', error)

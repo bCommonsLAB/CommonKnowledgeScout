@@ -6,12 +6,13 @@
  * @description
  * Buendelt den 3-Wege-Filter (Alle/Mit/Ohne DIVA-Info) + die Gruppierung in
  * einem Popover, damit die Toolbar nicht ueberlaeuft. Der Trigger zeigt einen
- * Aktiv-Indikator, wenn Filter oder Gruppierung gesetzt sind.
+ * Aktiv-Indikator, wenn Filter oder Gruppierung gesetzt sind. Am Ende zeigt
+ * der Statusblock, ob optionvalues.json im Grosseltern-Ordner gefunden wurde.
  */
 
 import * as React from 'react'
 import { useAtomValue } from 'jotai'
-import { SlidersHorizontal } from 'lucide-react'
+import { Loader2, SlidersHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -24,6 +25,14 @@ import { cn } from '@/lib/utils'
 import { DivaInfoFilter } from './diva-info-filter'
 import { GroupByControl } from './group-by-control'
 import { ExtraColumnsControl } from './extra-columns-control'
+
+/** Formatiert ein ISO-Datum fuer die Sidecar-Statuszeile (de-DE, Datum). */
+function formatSidecarDate(iso: string | undefined): string | null {
+  if (!iso) return null
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return null
+  return date.toLocaleDateString('de-DE')
+}
 
 export function DivaToolsMenu(): React.ReactElement {
   const mode = useAtomValue(annotationFilterModeAtom)
@@ -40,11 +49,25 @@ export function DivaToolsMenu(): React.ReactElement {
         ? `Sidecar gefunden${
             typeof sidecar.entryCount === 'number' ? ` (${sidecar.entryCount} Eintraege)` : ''
           }`
-        : 'Sidecar fehlt — api2_GetJsonOptionValues.json nicht im Ordner',
+        : 'Sidecar fehlt — optionvalues.json nicht im Grosseltern-Ordner',
     )
   } else if (sidecar.state === 'error') {
     titleParts.push('Sidecar-Status konnte nicht geladen werden')
   }
+
+  const sidecarDate = formatSidecarDate(sidecar.modifiedAt)
+  const sidecarStatusLine = (() => {
+    if (sidecar.state === 'loading') return 'Sidecar-Status wird geladen…'
+    if (sidecar.state === 'error') return 'Sidecar-Status konnte nicht geladen werden'
+    if (sidecar.state !== 'loaded') return null
+    if (!sidecar.found) return 'Keine optionvalues.json im Grosseltern-Ordner'
+    const parts = [
+      sidecar.sourceFileName ?? 'optionvalues.json',
+      typeof sidecar.entryCount === 'number' ? `${sidecar.entryCount} Einträge` : null,
+      sidecarDate,
+    ].filter((part): part is string => typeof part === 'string' && part.length > 0)
+    return parts.join(' · ')
+  })()
 
   // Drei visuelle Zustaende:
   //  - Sidecar gefunden  → orange Tint, damit der Klassifizierer sofort sieht
@@ -69,7 +92,7 @@ export function DivaToolsMenu(): React.ReactElement {
           {isActive && <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-60 space-y-3">
+      <PopoverContent align="end" className="w-72 space-y-3">
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">Anzeigen</Label>
           <DivaInfoFilter stacked />
@@ -82,6 +105,18 @@ export function DivaToolsMenu(): React.ReactElement {
           <Label className="text-xs text-muted-foreground">Zusatzspalten</Label>
           <ExtraColumnsControl className="w-full" />
         </div>
+        {sidecarStatusLine ? (
+          <div className="border-t pt-2 text-[11px] leading-snug text-muted-foreground">
+            {sidecar.state === 'loading' ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                {sidecarStatusLine}
+              </span>
+            ) : (
+              sidecarStatusLine
+            )}
+          </div>
+        ) : null}
       </PopoverContent>
     </Popover>
   )

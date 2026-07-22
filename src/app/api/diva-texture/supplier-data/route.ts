@@ -14,7 +14,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { getServerProvider } from '@/lib/storage/server-provider'
-import { loadSupplierData, resolveTextureDirectoryId } from '@/lib/diva-texture/load-supplier-data'
+import {
+  loadSupplierData,
+  resolveTextureDirectoryId,
+  resolveTextureItemKey,
+} from '@/lib/diva-texture/load-supplier-data'
 import { matchTextureCode } from '@/lib/diva-texture/match-texture-code'
 import { logMatchAttempts } from '@/lib/diva-texture/diva-texture-logger'
 import type { SupplierDataApiResponse } from '@/lib/diva-texture/types'
@@ -55,7 +59,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           matched: true,
           ...sidecarMeta,
           entry: result.match.entry,
-          materialId: result.match.entry.VCodex,
+          materialId: resolveTextureItemKey(result.match.entry),
           strategy: result.match.strategy,
           attempts: result.attempts,
         }
