@@ -51,12 +51,18 @@ export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdown
   // DETERMINISTISCHE ARCHITEKTUR: Verwende einfach parentId, das bereits korrekt gesetzt wurde
   // Der Kontext wurde beim Job-Start bestimmt und im Job-State gespeichert
   // Jeder Job hat seinen eigenen isolierten Kontext - keine gegenseitige Beeinflussung
-  const targetParentId = parentId
   const shadowTwinFolderId: string | undefined = ctx.job.shadowTwinState?.shadowTwinFolderId
-  
+
+  // Ziel-Verzeichnis: Ist der Shadow-Twin-Ordner bereits bekannt, schreiben wir
+  // DIREKT hinein. Vorher wurde in diesem Fall `createFolder=false` gesetzt und
+  // weiterhin der Quell-Ordner als parentId uebergeben — writeArtifactV2 wertet
+  // `createFolder=false` aber als „Sibling schreiben", sodass Artefakte NEBEN der
+  // Quelldatei landeten statt im Twin-Ordner.
+  const targetParentId = shadowTwinFolderId || parentId
+
   // WICHTIG: Wenn parentId bereits das Shadow-Twin-Verzeichnis ist, sollte kein neues Verzeichnis erstellt werden
   // Wenn shadowTwinFolderId vorhanden ist, existiert das Verzeichnis bereits
-  const isParentShadowTwinFolder = shadowTwinFolderId && parentId === shadowTwinFolderId
+  const isParentShadowTwinFolder = Boolean(shadowTwinFolderId) && targetParentId === shadowTwinFolderId
   
   bufferLog(ctx.jobId, {
     phase: 'markdown_save',
@@ -113,10 +119,13 @@ export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdown
     }
   }
 
-  // WICHTIG: Wenn parentId bereits das Shadow-Twin-Verzeichnis ist (isParentShadowTwinFolder),
-  // oder wenn shadowTwinFolderId vorhanden ist (Verzeichnis existiert bereits),
-  // dann createFolder=false (keine verschachtelten Ordner).
-  // Wenn shadowTwinFolderId fehlt: createFolder=true, damit writeArtifact den Ordner erstellt und darin schreibt.
+  // createFolder steuert in writeArtifact NUR, ob dort ein Twin-Ordner ANGELEGT
+  // und hineingeschrieben wird:
+  // - Twin-Ordner bereits bekannt (targetParentId zeigt oben schon darauf)
+  //   => createFolder=false, writeArtifact schreibt direkt nach targetParentId.
+  // - Twin-Ordner unbekannt => createFolder=true, writeArtifact legt ihn an.
+  // Frueher fuehrte ein bekannter Ordner paradoxerweise dazu, dass NEBEN die
+  // Quelldatei geschrieben wurde (parentId zeigte weiter auf den Quell-Ordner).
   const createFolderValue = (ctx.job.shadowTwinState as { createFolder?: boolean | string } | undefined)?.createFolder;
   const createFolder = !isParentShadowTwinFolder && !shadowTwinFolderId && (createFolderValue !== false && createFolderValue !== 'false')
 
