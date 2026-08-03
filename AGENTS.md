@@ -15,12 +15,6 @@ Plan 2** (Onboarding-Flow: 2a Templates entflechten → 2b generischer Assistent
 A0-Fundament (Basis-Feld-Contract + Integritaets-Gates) ist bereits auf `master`. Der
 Kickoff fuer Plan 1 (neue/Online-Session) steht im Fahrplan-Dokument.
 
-## Setup
-
-- Package Manager: `pnpm@9.15.3`
-- Install: `pnpm install --frozen-lockfile`
-- Node-Version: laut `.nvmrc` / engines im `package.json`
-
 ## Pflicht-Lektuere zu Beginn jedes Tasks
 
 1. `.cursorrules`
