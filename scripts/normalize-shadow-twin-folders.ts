@@ -7,12 +7,18 @@
  * jemand. Dieses Skript zieht den Bestand nach, damit die Legacy-Toleranz im
  * Code danach entfallen kann.
  *
- * Read + Rename (kein Loeschen, kein Inhalt wird angefasst). TROCKENLAUF ist
- * Standard: ohne `--apply` wird nur berichtet, was passieren wuerde.
+ * Zusaetzlich werden verirrte Artefakte (Transformationen, die NEBEN der
+ * Quelldatei liegen) in den Twin-Ordner verschoben. TROCKENLAUF ist Standard:
+ * ohne `--apply` wird nur berichtet, was passieren wuerde.
+ *
+ * Geloescht wird NUR mit `--delete-superseded` und NUR, wenn im Twin-Ordner
+ * bereits eine gleichnamige, mindestens gleich aktuelle Datei liegt. Ist die
+ * verirrte Datei neuer, bleibt sie unangetastet und wird gemeldet.
  *
  * Aufruf:
  *   node --import tsx scripts/normalize-shadow-twin-folders.ts \
- *     --user <owner-email> --library <library-id> [--limit N] [--apply]
+ *     --user <owner-email> --library <library-id> \
+ *     [--limit N] [--apply] [--delete-superseded]
  */
 import * as dotenv from 'dotenv'
 dotenv.config()
@@ -28,6 +34,13 @@ interface CliArgs {
   library: string
   limit: number | null
   apply: boolean
+  /**
+   * Verirrte Artefakte LOESCHEN, wenn im Twin-Ordner bereits eine gleichnamige,
+   * mindestens gleich aktuelle Datei liegt (sie wird beim naechsten Lauf ohnehin
+   * neu berechnet). Ist die verirrte Datei NEUER, wird sie nie geloescht,
+   * sondern gemeldet.
+   */
+  deleteSuperseded: boolean
 }
 
 function parseArgs(argv: string[]): CliArgs {
@@ -45,7 +58,13 @@ function parseArgs(argv: string[]): CliArgs {
   if (limitRaw && (!Number.isFinite(limit) || (limit as number) <= 0)) {
     throw new Error(`--limit muss eine positive Zahl sein, war: "${limitRaw}"`)
   }
-  return { user, library, limit, apply: argv.includes('--apply') }
+  return {
+    user,
+    library,
+    limit,
+    apply: argv.includes('--apply'),
+    deleteSuperseded: argv.includes('--delete-superseded'),
+  }
 }
 
 interface Candidate {
@@ -67,6 +86,16 @@ interface Candidate {
  * Artefakt-Namensform (`.de.md`, `.<template>.de.md`). Andere Markdown-Dateien
  * bleiben unangetastet.
  */
+/** Zeitstempel als Zahl; null wenn nicht auswertbar (dann NIE loeschen). */
+function toTime(value: unknown): number | null {
+  if (value instanceof Date) return value.getTime()
+  if (typeof value === 'string' || typeof value === 'number') {
+    const t = new Date(value).getTime()
+    return Number.isFinite(t) ? t : null
+  }
+  return null
+}
+
 function findStrayArtifacts(itemsInFolder: StorageItem[], sourceName: string): StorageItem[] {
   const lastDot = sourceName.lastIndexOf('.')
   const baseName = lastDot > 0 ? sourceName.slice(0, lastDot) : sourceName
@@ -127,7 +156,7 @@ async function collectCandidates(
 }
 
 async function main(): Promise<void> {
-  const { user, library, limit, apply } = parseArgs(process.argv.slice(2))
+  const { user, library, limit, apply, deleteSuperseded } = parseArgs(process.argv.slice(2))
   const provider = await getServerProvider(user, library)
 
   console.log(apply ? '=== ANWENDEN (Ordner werden umbenannt) ===' : '=== TROCKENLAUF (keine Aenderung) ===')
@@ -169,6 +198,7 @@ async function main(): Promise<void> {
 
   let renamed = 0
   let moved = 0
+  let deleted = 0
   const failures: Array<{ path: string; message: string }> = []
   for (const c of selected) {
     try {
@@ -182,19 +212,36 @@ async function main(): Promise<void> {
 
     // Verirrte Artefakte in den (jetzt normalisierten) Twin-Ordner holen.
     if (c.strays.length > 0) {
-      let existingNames: Set<string>
+      let existingNames: Map<string, StorageItem>
       try {
         const inside = await provider.listItemsById(c.folder.id)
-        existingNames = new Set(inside.map((i) => i.metadata.name))
+        existingNames = new Map(inside.map((i) => [i.metadata.name, i]))
       } catch (e) {
         failures.push({ path: `${c.parentPath}/${c.newName}`, message: `Inhalt nicht lesbar: ${e instanceof Error ? e.message : String(e)}` })
         continue
       }
       for (const stray of c.strays) {
         const name = stray.metadata.name
-        if (existingNames.has(name)) {
-          // Gleichnamiges Artefakt liegt schon drin — nicht ueberschreiben.
-          failures.push({ path: `${c.parentPath}/${name}`, message: 'uebersprungen: gleichnamige Datei existiert im Twin-Ordner' })
+        const inTwin = existingNames.get(name)
+        if (inTwin) {
+          // Gleichnamiges Artefakt liegt schon drin — NIE ueberschreiben.
+          const twinTime = toTime(inTwin.metadata.modifiedAt)
+          const strayTime = toTime(stray.metadata.modifiedAt)
+          const twinIsNewerOrEqual = twinTime !== null && strayTime !== null && twinTime >= strayTime
+
+          if (deleteSuperseded && twinIsNewerOrEqual) {
+            try {
+              await provider.deleteItem(stray.id)
+              deleted++
+            } catch (e) {
+              failures.push({ path: `${c.parentPath}/${name}`, message: `Loeschen fehlgeschlagen: ${e instanceof Error ? e.message : String(e)}` })
+            }
+          } else if (twinIsNewerOrEqual) {
+            failures.push({ path: `${c.parentPath}/${name}`, message: 'uebersprungen: Twin-Ordner hat aktuellere Fassung (mit --delete-superseded loeschbar)' })
+          } else {
+            // Verirrte Datei ist JUENGER — nie automatisch anfassen.
+            failures.push({ path: `${c.parentPath}/${name}`, message: 'uebersprungen: verirrte Datei ist neuer als die im Twin-Ordner' })
+          }
           continue
         }
         try {
@@ -211,6 +258,7 @@ async function main(): Promise<void> {
 
   console.log(`\nUmbenannt: ${renamed}/${selected.length}`)
   console.log(`Artefakte verschoben: ${moved}/${strayTotal}`)
+  if (deleteSuperseded) console.log(`Veraltete Duplikate geloescht: ${deleted}`)
   if (failures.length > 0) {
     console.log(`Nicht verarbeitet: ${failures.length}`)
     for (const f of failures.slice(0, 15)) console.log(`  ! ${f.path}: ${f.message}`)
