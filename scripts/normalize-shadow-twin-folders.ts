@@ -55,6 +55,30 @@ interface Candidate {
   newName: string
   /** Ein Ordner mit dem Zielnamen existiert bereits — Umbenennen wuerde kollidieren. */
   collision: boolean
+  /** Markdown-Artefakte, die NEBEN der Quelldatei liegen statt im Twin-Ordner. */
+  strays: StorageItem[]
+}
+
+/**
+ * Findet Markdown-Artefakte, die NEBEN der Quelldatei liegen statt im
+ * Twin-Ordner (Folge des `createFolder`-Fehlers in external-jobs/storage.ts).
+ *
+ * Erkannt wird `<Basisname>.md` und `<Basisname>.<zusatz>.md` — also genau die
+ * Artefakt-Namensform (`.de.md`, `.<template>.de.md`). Andere Markdown-Dateien
+ * bleiben unangetastet.
+ */
+function findStrayArtifacts(itemsInFolder: StorageItem[], sourceName: string): StorageItem[] {
+  const lastDot = sourceName.lastIndexOf('.')
+  const baseName = lastDot > 0 ? sourceName.slice(0, lastDot) : sourceName
+  if (!baseName) return []
+
+  return itemsInFolder.filter((i) => {
+    if (i.type !== 'file') return false
+    const n = i.metadata.name
+    if (!n.toLowerCase().endsWith('.md')) return false
+    if (n === sourceName) return false
+    return n === `${baseName}.md` || n.startsWith(`${baseName}.`)
+  })
 }
 
 /**
@@ -91,6 +115,7 @@ async function collectCandidates(
         oldName: name,
         newName,
         collision: namesHere.has(newName),
+        strays: findStrayArtifacts(items, sourceName),
       })
       continue // Twin-Ordner nicht betreten
     }
@@ -127,11 +152,15 @@ async function main(): Promise<void> {
     console.log(`Begrenzt auf ${selected.length} (via --limit); ${renamable.length - selected.length} bleiben uebrig.`)
   }
 
+  const strayTotal = selected.reduce((sum, c) => sum + c.strays.length, 0)
+  console.log(`\nVerirrte Artefakte neben der Quelldatei (werden in den Twin-Ordner verschoben): ${strayTotal}`)
+
   console.log('\nBeispiele:')
-  for (const c of selected.slice(0, 10)) {
+  for (const c of selected.slice(0, 8)) {
     console.log(`  ${c.parentPath}/${c.oldName}\n    -> ${c.newName}`)
+    for (const s of c.strays) console.log(`       + verschiebe: ${s.metadata.name}`)
   }
-  if (selected.length > 10) console.log(`  … und ${selected.length - 10} weitere`)
+  if (selected.length > 8) console.log(`  … und ${selected.length - 8} weitere`)
 
   if (!apply) {
     console.log('\nTrockenlauf beendet. Zum Anwenden dasselbe Kommando mit --apply wiederholen.')
@@ -139,22 +168,53 @@ async function main(): Promise<void> {
   }
 
   let renamed = 0
+  let moved = 0
   const failures: Array<{ path: string; message: string }> = []
   for (const c of selected) {
     try {
       await provider.renameItem(c.folder.id, c.newName)
       renamed++
-      if (renamed % 25 === 0) console.log(`  … ${renamed}/${selected.length} umbenannt`)
     } catch (e) {
       // Kein stiller Fallback: jeder Fehlschlag wird gemeldet und am Ende gezaehlt.
       failures.push({ path: `${c.parentPath}/${c.oldName}`, message: e instanceof Error ? e.message : String(e) })
+      continue // Ohne umbenannten Ordner keine Artefakte verschieben
     }
+
+    // Verirrte Artefakte in den (jetzt normalisierten) Twin-Ordner holen.
+    if (c.strays.length > 0) {
+      let existingNames: Set<string>
+      try {
+        const inside = await provider.listItemsById(c.folder.id)
+        existingNames = new Set(inside.map((i) => i.metadata.name))
+      } catch (e) {
+        failures.push({ path: `${c.parentPath}/${c.newName}`, message: `Inhalt nicht lesbar: ${e instanceof Error ? e.message : String(e)}` })
+        continue
+      }
+      for (const stray of c.strays) {
+        const name = stray.metadata.name
+        if (existingNames.has(name)) {
+          // Gleichnamiges Artefakt liegt schon drin — nicht ueberschreiben.
+          failures.push({ path: `${c.parentPath}/${name}`, message: 'uebersprungen: gleichnamige Datei existiert im Twin-Ordner' })
+          continue
+        }
+        try {
+          await provider.moveItem(stray.id, c.folder.id)
+          moved++
+        } catch (e) {
+          failures.push({ path: `${c.parentPath}/${name}`, message: e instanceof Error ? e.message : String(e) })
+        }
+      }
+    }
+
+    if (renamed % 25 === 0) console.log(`  … ${renamed}/${selected.length} Ordner, ${moved} Artefakte verschoben`)
   }
 
   console.log(`\nUmbenannt: ${renamed}/${selected.length}`)
+  console.log(`Artefakte verschoben: ${moved}/${strayTotal}`)
   if (failures.length > 0) {
-    console.log(`Fehlgeschlagen: ${failures.length}`)
-    for (const f of failures.slice(0, 10)) console.log(`  ! ${f.path}: ${f.message}`)
+    console.log(`Nicht verarbeitet: ${failures.length}`)
+    for (const f of failures.slice(0, 15)) console.log(`  ! ${f.path}: ${f.message}`)
+    if (failures.length > 15) console.log(`  … und ${failures.length - 15} weitere`)
     process.exitCode = 1
   }
 }
