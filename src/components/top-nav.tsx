@@ -78,10 +78,17 @@ export function TopNav({ siteRootSlug = null }: TopNavProps) {
   const exploreSlugMatch = pathname?.match(/^\/explore\/([^/]+)$/)
   const exploreSlugFromPath = exploreSlugMatch ? decodeURIComponent(exploreSlugMatch[1]) : null
   const isDomainRoot = pathname === '/' && Boolean(siteRootSlug)
+  // Per-Library-Beschriftung des Galerie-Menüpunkts (z. B. „Unsere Aktionen"):
+  // Library im Atom über den Explore-Slug finden. Auf der anonymen Domain-Root
+  // ist das Atom ggf. leer — dann greift der Übersetzungs-Default („Inhalte").
+  const exploreSlug = isDomainRoot ? siteRootSlug : exploreSlugFromPath
+  const galleryMenuLabel = libraries.find(
+    (lib) => lib.config?.publicPublishing?.slugName === exploreSlug,
+  )?.config?.publicPublishing?.gallery?.menuLabel
   const exploreContext = isDomainRoot
-    ? { slug: siteRootSlug as string, siteEnabled: true, homeHref: '/' }
+    ? { slug: siteRootSlug as string, siteEnabled: true, homeHref: '/', galleryMenuLabel }
     : exploreSlugFromPath && exploreSlugFromPath !== 'pilot'
-      ? { slug: exploreSlugFromPath, siteEnabled: webViewEnabled }
+      ? { slug: exploreSlugFromPath, siteEnabled: webViewEnabled, galleryMenuLabel }
       : null
 
   // C1b: Website-Seiten (z. B. Kontakt) als TopNav-Punkte statt zweiter

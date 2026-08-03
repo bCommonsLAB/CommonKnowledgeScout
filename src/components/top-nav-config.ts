@@ -23,6 +23,8 @@ interface BuildTopNavConfigArgs {
     siteEnabled: boolean
     homeHref?: string
     sitePages?: NavItem[]
+    /** Per-Library-Beschriftung des Galerie-Menüpunkts (leer = t('gallery.gallery')). */
+    galleryMenuLabel?: string
   } | null
   t: (key: string) => string
 }
@@ -60,7 +62,8 @@ export function buildTopNavConfig({
         ? [{ name: t('navigation.home'), href: exploreContext.homeHref ?? base }]
         : [{ name: t('navigation.home'), href: '/' }]),
       {
-        name: t('gallery.gallery'),
+        // Per-Library-Label (z. B. „Unsere Aktionen") vor dem Übersetzungs-Default.
+        name: exploreContext.galleryMenuLabel || t('gallery.gallery'),
         href: exploreContext.siteEnabled ? `${base}?view=gallery` : base,
       },
       { name: t('gallery.story'), href: `${base}?mode=story` },

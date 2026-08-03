@@ -473,6 +473,10 @@ export interface StorageConfig {
       description?: string;
       /** Beschreibungstext für das Filter-Panel */
       filterDescription?: string;
+      /** Name des Galerie-Menüpunkts in der öffentlichen TopNav (leer = „Inhalte") */
+      menuLabel?: string;
+      /** Text des „mehr Inhalte"-Links auf der Website-Landingpage (leer = Standard) */
+      moreLinkLabel?: string;
     };
     /** Story-Modus-spezifische Texte für die öffentliche Ansicht */
     story?: {
@@ -649,6 +653,10 @@ export interface ClientLibrary {
         description?: string;
         /** Beschreibungstext für das Filter-Panel */
         filterDescription?: string;
+        /** Name des Galerie-Menüpunkts in der öffentlichen TopNav (leer = „Inhalte") */
+        menuLabel?: string;
+        /** Text des „mehr Inhalte"-Links auf der Website-Landingpage (leer = Standard) */
+        moreLinkLabel?: string;
       };
       /** Story-Modus-spezifische Texte für die öffentliche Ansicht */
       story?: {
