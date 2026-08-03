@@ -59,6 +59,8 @@ export async function GET(
       siteEnabled: pub?.siteEnabled === true,
       // Website-Logo (Phase C2): oeffentliche URL, kein Secret
       logoUrl: pub?.logoUrl,
+      // Galerie-Texte aus den Public-Settings (oeffentlicher Inhalt, keine Secrets)
+      gallery: pub?.gallery,
       // Chat-Config ist bereits öffentlich sicher (keine Secrets)
       chat: library.config?.chat,
     };

@@ -166,3 +166,19 @@ Wenn du im Modul `storage` Code anfasst:
       statt via `library.type === '...'`?
 - [ ] Liegen OneDrive-spezifische Erweiterungen unter
       `src/lib/storage/onedrive/`, nicht in einer Mega-Datei?
+
+## §8 Checkliste: Neues Storage-Backend hinzufuegen
+
+(verschoben aus `storage-abstraction.mdc`)
+
+1. `StorageProvider`-Interface implementieren (Server-seitiger Provider)
+2. Client-Proxy-Provider implementieren (HTTP-Proxy über API-Route)
+3. API-Route erstellen (`/api/storage/[typ]`)
+4. `StorageFactory.getProvider()` erweitern (Client + Server-Kontext)
+5. `StorageProviderType` in `src/types/library.ts` erweitern
+6. `SUPPORTED_LIBRARY_TYPES` in `src/lib/storage/supported-types.ts` erweitern
+7. Settings-Formulare anpassen (`storage-form.tsx`, `library-form.tsx`)
+8. `StorageContext` anpassen (Status-Handling)
+9. `getServerProvider` / `server-provider.ts` prüfen
+10. Filesystem-API-Route aktualisieren (Typ-Weiche)
+11. `library-service.ts` → `toClientLibraries` für neue Config-Felder erweitern

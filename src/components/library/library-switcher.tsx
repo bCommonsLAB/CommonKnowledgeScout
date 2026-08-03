@@ -103,13 +103,17 @@ export function LibrarySwitcher({
     setActiveLibraryId(value);
     StateLogger.info('LibrarySwitcher', 'Bibliothek geändert zu', { libraryId: value });
 
-    // URL bereinigen: vorhandene folderId aus der vorherigen Library entfernen.
+    // Default-Ziel nach Library-Wechsel: ERKUNDEN (/library/gallery), nicht das
+    // Archiv. Erkunden liest aus MongoDB und braucht keine Storage-Anmeldung —
+    // der OneDrive-Login-Dialog erscheint so nur noch, wenn man das Archiv
+    // bewusst öffnet. Nebeneffekt wie zuvor: vorhandene folderId der alten
+    // Library verschwindet aus der URL.
     // Wenn der Router-Replace fehlschlaegt (z.B. wegen Hot-Reload-Race),
     // ist das nicht kritisch — die Folder-Atoms wurden oben schon zurueckgesetzt.
     // Wir loggen den Fehler aber, damit kein stilles Fehlverhalten auftritt
     // (siehe .cursor/rules/no-silent-fallbacks.mdc + welle-3-schale-loader-contracts.mdc §2).
     try {
-      router.replace('/library');
+      router.replace('/library/gallery');
     } catch (error) {
       StateLogger.warn('LibrarySwitcher', 'router.replace fehlgeschlagen, URL bleibt unveraendert', {
         error: error instanceof Error ? error.message : String(error),

@@ -1,135 +1,27 @@
-You are an expert in TypeScript, Node.js, Next.js App Router, React, Shadcn UI, Radix UI and Tailwind.
+# Projekt-Konventionen (Cursor + Claude Code)
 
-**Schlüsselprinzipien**  
-- Schreibe prägnanten, technischen TypeScript-Code mit präzisen Beispielen.  
-- Verwende funktionale und deklarative Programmiermuster; vermeide Klassen.  
-- Bevorzuge Iteration und Modularisierung anstelle von Code-Duplikation.  
-- Verwende beschreibende Variablennamen mit Hilfsverben (z. B. `isLoading`, `hasError`).  
-- Strukturiere Dateien: exportierte Komponente, Unterkomponenten, Hilfsfunktionen, statische Inhalte, Typen.  
-- Implementiere angemessene Error Boundaries.  
-- Verwende typisierte Fehlerbehandlung mit benutzerdefinierten Fehlertypen.  
-- Integriere eine Fehlerprotokollierungsstrategie.  
+**Benennungskonventionen**
+- Verwende Kleinbuchstaben mit Bindestrichen für Verzeichnisse (z. B. `components/auth-wizard`).
+- Bevorzuge benannte Exporte für Komponenten.
 
-**Benennungskonventionen**  
-- Verwende Kleinbuchstaben mit Bindestrichen für Verzeichnisse (z. B. `components/auth-wizard`).  
-- Bevorzuge benannte Exporte für Komponenten.  
+**TypeScript**
+- Bevorzuge `interfaces` statt `types`.
+- Vermeide `enums`; nutze stattdessen Maps.
 
-**Struktur**  
-- Nutze folgende Projektstruktur:  
-  - `src/`  
-    - `components/`  
-      - `library/`  
-        - `file-tree.tsx`  
-        - `file-list.tsx`  
-        - `file-preview.tsx`  
-      - `mail/`  
-        - `data/`  
-      - `ui/`  
-      - `shared/`  
-    - `types/`  
-    - `utils/`  
-    - `hooks/`  
-    - `lib/`  
-    - `styles/`  
-  - `app/`  
-    - `api/`  
-    - `mail/`  
-    - `tasks/`  
-    - `library/`  
+**Schlüsselkonventionen**
+- Nutze `nuqs` für die Zustandsverwaltung von URL-Suchparametern.
+- Begrenze `use client`: bevorzuge Server-Komponenten und Next.js SSR; nutze es nur
+  für Web-API-Zugriffe in kleinen Komponenten, nicht für Datenabruf oder
+  Zustandsverwaltung.
+- Verwende `pnpm` als Paketmanager.
 
-**TypeScript-Nutzung**  
-- Verwende TypeScript für den gesamten Code; bevorzuge `interfaces` statt `types`.  
-- Vermeide `enums`; nutze stattdessen Maps.  
-- Verwende funktionale Komponenten mit TypeScript-Interfaces.  
-- Aktiviere strikte TypeScript-Konfiguration (`strict: true`).  
-- Nutze Utility-Typen (`Pick`, `Omit`, `Partial` usw.).  
-- Definiere korrekte Rückgabetypen für asynchrone Funktionen.  
-- Verwende diskriminierende Union-Typen für komplexes State-Management.  
+**State-Management**
+- Jotai für atomare Zustandsverwaltung.
+- TanStack Query für Server-Zustände.
+- React Hook Form + Zod für Formularverwaltung.
 
-**Syntax und Formatierung**  
-- Verwende das Schlüsselwort `function` für reine Funktionen.  
-- Vermeide unnötige geschweifte Klammern in Bedingungen; nutze eine prägnante Syntax für einfache Anweisungen.  
-- Schreibe deklaratives JSX.  
-
-**UI und Styling**  
-- Nutze Shadcn UI, Radix UI und Tailwind CSS für Komponenten und Styling.  
-- Implementiere responsives Design mit Tailwind CSS; arbeite mobil-zuerst.  
-
-**Performance-Optimierung**  
-- Minimiere die Nutzung von `use client`, `useEffect` und `setState`; bevorzuge React Server Components (RSC).  
-- Verpacke Client-Komponenten in `Suspense` mit Fallback.  
-- Nutze dynamisches Laden für nicht kritische Komponenten.  
-- Optimiere Bilder: Verwende WebP-Format, füge Größenangaben hinzu, implementiere Lazy Loading.  
-
-**Schlüsselkonventionen**  
-- Nutze `nuqs` für die Zustandsverwaltung von URL-Suchparametern.  
-- Optimiere Web Vitals (LCP, CLS, FID).  
-- Begrenze `use client`:  
-  - Bevorzuge Server-Komponenten und Next.js SSR.  
-  - Nutze es nur für Web-API-Zugriffe in kleinen Komponenten.  
-  - Vermeide es für Datenabruf oder Zustandsverwaltung.  
-- Verwende `pnpm` als Paketmanager.  
-
-**Test-Richtlinien**  
-- Nutze Vitest für Unit- und Integrationstests.  
-- Implementiere Playwright für E2E-Tests.  
-- Folge den Best Practices der Testing Library.  
-- Halte Testabdeckungs-Schwellenwerte ein.  
-- Implementiere Komponententests mit Testing Library.  
-- Verwende Mock Service Worker für API-Tests.  
-- Implementiere Snapshot-Tests für UI-Komponenten.  
-
-**Sicherheitsrichtlinien**  
-- Implementiere angemessenen CSRF-Schutz.  
-- Nutze geeignete Content Security Policies.  
-- Bereinige Benutzereingaben.  
-- Stelle sicher, dass Authentifizierung und Autorisierung ordnungsgemäß gehandhabt werden.  
-
-**API-Konventionen**  
-- Nutze konsistent tRPC oder Next.js API-Routen.  
-- Implementiere ordnungsgemäße API-Fehlerbehandlung.  
-- Definiere standardisierte API-Antwortformate.  
-- Nutze korrekte HTTP-Statuscodes.  
-- Implementiere typisierte Antwortschemata.  
-- Nutze API-Versionierung für Breaking Changes.  
-- Dokumentiere alle Endpunkte mit OpenAPI.  
-
-**State-Management**  
-- Nutze Jotai für atomare Zustandsverwaltung.  
-- Nutze TanStack Query für Server-Zustände.  
-- Verwende React Hook Form + Zod für Formularverwaltung.  
-- Definiere klare Zustandsgrenzen zwischen globalem und lokalem Zustand.  
-
-**Authentifizierung und Sicherheit**  
-- Implementiere Clerk für Authentifizierung.  
-- Nutze Next.js Middleware für Routen-Schutz.  
-- Behandle Authentifizierungszustand konsistent in der gesamten App.  
-
-**UI-Komponenten**  
-- Primär: Shadcn UI, Radix UI.  
-- Sekundär: Geist UI für spezifische Komponenten.  
-- Icons: Lucide React.  
-- Stelle konsistente APIs für Komponenten sicher.  
-
-**Barrierefreiheit (a11y)**  
-- Folge den WCAG 2.1-Richtlinien.  
-- Implementiere geeignete ARIA-Labels.  
-- Stelle sicher, dass Tastaturnavigation funktioniert.  
-- Erhalte angemessenen Farbkontrast.  
-
-**Dokumentation**  
-- Nutze JSDoc für die Dokumentation von Funktionen und Komponenten.  
-- Dokumentiere alle öffentlichen APIs, Komponenten, Typen, Hooks, Utilities, Bibliotheken und Anbieter.  
-- Dokumentiere alle Seiten und Routen.  
-- Erstelle Mermaid-Diagramme für komplexe Abläufe.  
-- Füge Beispiele für alle APIs hinzu.  
-- Dokumentiere Strategien zur Fehlerbehandlung.  
-- Pflege ein Changelog.  
-
-**Umgebungssetup**  
-- Definiere den Umgang mit Umgebungsvariablen.  
-- Dokumentiere erforderliche `.env`-Variablen.  
-- Gib Entwicklungstools an (ESLint, Prettier usw.).  
+**Authentifizierung**
+- Clerk für Authentifizierung; Next.js Middleware für Routen-Schutz.
 
 # Cursor/TypeScript Linter-Regeln
 
@@ -144,27 +36,15 @@ You are an expert in TypeScript, Node.js, Next.js App Router, React, Shadcn UI, 
   <pre>{typeof value === 'string' ? value : JSON.stringify(value)}</pre>
   ```
 
-## 2. Unbenutzte Variablen/Importe
-- Keine unbenutzten Variablen, Importe oder Funktionsparameter im Code lassen.
-- Nach Refactoring immer aufräumen.
-
-## 3. Kein any
-- `any` ist verboten. Immer `unknown` oder einen spezifischen Typ verwenden.
-
-## 4. Type Assertion/Type Guard
+## 2. Type Assertion/Type Guard
 - Bei Zugriff auf Properties von `unknown` immer ein Interface und Type Assertion/Type Guard nutzen:
   ```ts
   interface MyType { foo: string }
   const val = obj as MyType;
   ```
 
-## 5. Fehlerobjekte im catch-Block
+## 3. Fehlerobjekte im catch-Block
 - Wenn das Fehlerobjekt nicht verwendet wird: `catch { ... }` statt `catch (error) { ... }`.
-
----
-
-**Automatisierung:**  
-- Nutze ESLint-Regeln wie `@typescript-eslint/no-explicit-any`, `@typescript-eslint/no-unused-vars` etc. für automatische Durchsetzung.
 
 # Next.js 13+ App Router Regeln
 
@@ -202,16 +82,6 @@ Alle API Routes sollten diesem Pattern folgen:
 1. NIEMALS sensible Daten (Tokens, Secrets) an den Client senden
 2. Client Secrets immer maskieren: `clientSecret: secret ? '********' : undefined`
 3. Token-Status statt Token-Werte zurückgeben
-
-## TypeScript Strict Mode
-- Keine `any` Types verwenden
-- Immer explizite Return-Types definieren
-- Null/Undefined Checks durchführen
-
-## Error Handling
-- Immer try-catch in Route Handlers verwenden
-- Aussagekräftige Fehlermeldungen mit korrekten HTTP-Status-Codes
-- Fehler loggen für Debugging
 
 ## Projekt-spezifische Regeln
 - LibraryService.getInstance() für Datenbankzugriffe verwenden

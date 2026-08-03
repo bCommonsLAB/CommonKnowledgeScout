@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { toast } from "@/components/ui/use-toast"
+import { WebsiteImageField } from "@/components/settings/public/website-image-upload"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { AlertCircle, CheckCircle2, Copy, Globe, Loader2, Lock, ShieldCheck } from "lucide-react"
@@ -73,6 +74,9 @@ const publicFormSchema = z.object({
   gallerySubtitle: z.string().optional(),
   galleryDescription: z.string().optional(),
   galleryFilterDescription: z.string().optional(),
+  // Beschriftungen: Galerie-Menüpunkt (TopNav) und „mehr Inhalte"-Link (Website)
+  galleryMenuLabel: z.string().optional(),
+  galleryMoreLinkLabel: z.string().optional(),
 })
 
 type PublicFormValues = z.infer<typeof publicFormSchema>
@@ -127,6 +131,8 @@ export function PublicForm() {
         gallerySubtitle: "",
         galleryDescription: "",
         galleryFilterDescription: "",
+        galleryMenuLabel: "",
+        galleryMoreLinkLabel: "",
       }
     }
 
@@ -147,6 +153,8 @@ export function PublicForm() {
       gallerySubtitle: activeLibrary.config?.publicPublishing?.gallery?.subtitle || "",
       galleryDescription: activeLibrary.config?.publicPublishing?.gallery?.description || "",
       galleryFilterDescription: activeLibrary.config?.publicPublishing?.gallery?.filterDescription || "",
+      galleryMenuLabel: activeLibrary.config?.publicPublishing?.gallery?.menuLabel || "",
+      galleryMoreLinkLabel: activeLibrary.config?.publicPublishing?.gallery?.moreLinkLabel || "",
     }
   }, [activeLibrary])
 
@@ -231,6 +239,8 @@ export function PublicForm() {
       gallery: {
         headline: data.galleryHeadline || undefined,
         subtitle: data.gallerySubtitle || undefined,
+        menuLabel: data.galleryMenuLabel || undefined,
+        moreLinkLabel: data.galleryMoreLinkLabel || undefined,
         description: data.galleryDescription || undefined,
         filterDescription: data.galleryFilterDescription || undefined,
       },
@@ -731,16 +741,21 @@ export function PublicForm() {
               name="backgroundImageUrl"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Hintergrundbild-URL</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="url"
-                      placeholder="https://example.com/image.jpg"
-                      {...field}
+                  <FormLabel>Hintergrundbild</FormLabel>
+                  {activeLibrary && (
+                    <WebsiteImageField
+                      libraryId={activeLibrary.id}
+                      value={field.value ?? ""}
+                      imageAlt="Hintergrundbild"
+                      onChange={(url) =>
+                        form.setValue("backgroundImageUrl", url, { shouldDirty: true, shouldValidate: true })
+                      }
                     />
-                  </FormControl>
+                  )}
                   <FormDescription>
-                    Optional: URL für ein Hintergrundbild, das auf der Homepage als Hintergrundbild der Library verwendet wird.
+                    Optional: Wird auf der Homepage als Hintergrund des
+                    Library-Kärtchens angezeigt. Hochgeladene Bilder landen im
+                    öffentlichen Blob-Speicher.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -752,18 +767,22 @@ export function PublicForm() {
               name="logoUrl"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Website-Logo-URL</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="url"
-                      placeholder="https://…/website/images/logo.png"
-                      {...field}
+                  <FormLabel>Website-Logo</FormLabel>
+                  {activeLibrary && (
+                    <WebsiteImageField
+                      libraryId={activeLibrary.id}
+                      value={field.value ?? ""}
+                      imageAlt="Website-Logo"
+                      onChange={(url) =>
+                        form.setValue("logoUrl", url, { shouldDirty: true, shouldValidate: true })
+                      }
                     />
-                  </FormControl>
+                  )}
                   <FormDescription>
-                    Optional: Logo für die Website-Landingpage — wird oben links in
-                    der Navigation angezeigt (Explore-Seite und eigene Domain).
-                    Muss eine öffentlich (anonym) ladbare URL sein.
+                    Optional: Wird oben links in der Navigation der
+                    Website-Landingpage angezeigt (Explore-Seite und eigene
+                    Domain). Hochgeladene Bilder landen im öffentlichen
+                    Blob-Speicher.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -846,6 +865,49 @@ export function PublicForm() {
                         value={field.value ?? ""}
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="galleryMenuLabel"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Menüpunkt-Name der Galerie</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="z. B. Unsere Aktionen"
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Beschriftung des Galerie-Menüpunkts in der öffentlichen
+                      Navigation. Leer = „Inhalte&ldquo;.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="galleryMoreLinkLabel"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>„Mehr“-Link-Text</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="z. B. mehr Aktionen"
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Text des Links zur Galerie auf der Website-Landingpage
+                      (unter „Mehr aus dieser Bibliothek&ldquo;). Leer = „mehr
+                      Inhalte&ldquo;.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -19,6 +19,8 @@
 import * as React from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { useQueryState } from "nuqs"
+import { useAtomValue } from "jotai"
+import { libraryAtom } from "@/atoms/library-atom"
 import { WebsiteDetail } from "@/components/library/website-detail"
 import { DocumentCard } from "@/components/library/gallery/document-card"
 import { WebsiteSiteFooter } from "@/components/library/website/website-site-footer"
@@ -74,6 +76,14 @@ export function WebsiteLandingLive({
   // Website (Site-Mode). Fuer „mehr Inhalte"/Banner-Karten muss daher explizit
   // `?view=gallery` gesetzt werden, sonst landet man wieder auf der Website.
   const galleryBaseHref = exploreBaseHref ? `${exploreBaseHref}?view=gallery` : null
+
+  // Per-Library-Text des Galerie-Links (z. B. „mehr Aktionen"). Quelle: Atom
+  // (Explore-Seite laedt die Library dorthin). Auf der anonymen Domain-Root
+  // kann das Atom leer sein — dann greift der Standard-Text „mehr Inhalte".
+  const { libraries } = useAtomValue(libraryAtom)
+  const moreLinkLabel =
+    libraries.find((lib) => lib.id === libraryId)?.config?.publicPublishing?.gallery
+      ?.moreLinkLabel || "mehr Inhalte"
 
   const { allDocs, loadingList, listError } = useWebsiteDocs(libraryId, locale)
   const [bannerDocs, setBannerDocs] = React.useState<DocCardMeta[]>([])
@@ -160,7 +170,7 @@ export function WebsiteLandingLive({
                 onClick={() => (galleryBaseHref ? router.push(galleryBaseHref) : onShowGallery?.())}
                 className="whitespace-nowrap text-sm font-medium text-emerald-700 hover:underline"
               >
-                mehr Inhalte →
+                {moreLinkLabel} →
               </button>
             </div>
             <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
@@ -179,6 +189,17 @@ export function WebsiteLandingLive({
                   <DocumentCard key={d.fileId ?? d.id} doc={d} libraryId={libraryId} />
                 ),
               )}
+            </div>
+            {/* Galerie-Link nach dem Raster wiederholen — der dezente Link oben
+               wird leicht uebersehen; hier als deutlicher Button. */}
+            <div className="mt-8 flex justify-center">
+              <button
+                type="button"
+                onClick={() => (galleryBaseHref ? router.push(galleryBaseHref) : onShowGallery?.())}
+                className="rounded-full bg-emerald-700 px-6 py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-800"
+              >
+                {moreLinkLabel} →
+              </button>
             </div>
           </div>
         </section>

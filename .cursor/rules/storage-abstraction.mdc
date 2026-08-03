@@ -14,32 +14,6 @@ und die `StorageFactory`. Kein Code darf direkt auf ein konkretes Storage-Backen
 Unterstützte Backends: `local` (Filesystem), `onedrive`, `nextcloud` (WebDAV), weitere in Zukunft.
 Neuer Code darf NICHT von einem bestimmten Backend abhängen.
 
-## Architektur-Übersicht
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  UI-Komponenten / Hooks                                 │
-│  → Verwenden useStorageProvider() / StorageContext       │
-│  → Kennen NUR das StorageProvider-Interface              │
-└──────────────────┬──────────────────────────────────────┘
-                   │
-┌──────────────────▼──────────────────────────────────────┐
-│  StorageFactory  (Singleton)                            │
-│  → Erstellt Provider anhand library.type                │
-│  → Client-Kontext: HTTP-Proxy-Provider                  │
-│  → Server-Kontext (setServerContext): Direkte Provider  │
-└──────────────────┬──────────────────────────────────────┘
-                   │
-┌──────────────────▼──────────────────────────────────────┐
-│  StorageProvider-Implementierungen                      │
-│  ├─ LocalStorageProvider      (→ /api/storage/filesystem)│
-│  ├─ OneDriveProvider          (→ Microsoft Graph API)   │
-│  ├─ NextcloudClientProvider   (→ /api/storage/nextcloud)│
-│  ├─ NextcloudProvider         (→ WebDAV direkt, Server) │
-│  └─ [Zukünftige Provider]                               │
-└─────────────────────────────────────────────────────────┘
-```
-
 ## Regeln
 
 ### 1. NIEMALS direkt auf Storage-Backends zugreifen
@@ -112,36 +86,11 @@ factory.setServerContext(true)
 const provider = await factory.getProvider(libraryId)
 ```
 
-### 5. Neue Storage-Backends hinzufügen – Checkliste
+### 5. Interface-Vertrag & neue Backends
 
-Beim Hinzufügen eines neuen Storage-Backends:
-
-1. `StorageProvider`-Interface implementieren (Server-seitiger Provider)
-2. Client-Proxy-Provider implementieren (HTTP-Proxy über API-Route)
-3. API-Route erstellen (`/api/storage/[typ]`)
-4. `StorageFactory.getProvider()` erweitern (Client + Server-Kontext)
-5. `StorageProviderType` in `src/types/library.ts` erweitern
-6. `SUPPORTED_LIBRARY_TYPES` in `src/lib/storage/supported-types.ts` erweitern
-7. Settings-Formulare anpassen (`storage-form.tsx`, `library-form.tsx`)
-8. `StorageContext` anpassen (Status-Handling)
-9. `getServerProvider` / `server-provider.ts` prüfen
-10. Filesystem-API-Route aktualisieren (Typ-Weiche)
-11. `library-service.ts` → `toClientLibraries` für neue Config-Felder erweitern
-
-### 6. StorageProvider-Interface ist der Vertrag
-
-Alle Provider MÜSSEN das vollständige `StorageProvider`-Interface implementieren:
-
-- `listItemsById(folderId)` – Ordnerinhalt auflisten
-- `getItemById(id)` – Einzelnes Element abrufen
-- `createFolder(parentId, name)` – Ordner erstellen
-- `deleteItem(id)` – Element löschen
-- `moveItem(id, newParentId)` – Element verschieben
-- `renameItem(id, newName)` – Element umbenennen
-- `uploadFile(folderId, file)` – Datei hochladen
-- `getBinary(id)` – Binärdaten abrufen
-- `getPathById(id)` – Pfad eines Elements
-- `validateConfiguration()` – Konfiguration prüfen
+Alle Provider MÜSSEN das vollständige `StorageProvider`-Interface implementieren
+(Quelle: `src/lib/storage/types.ts`). Details und die Schritt-für-Schritt-Checkliste
+für neue Storage-Backends: `storage-contracts.mdc` (§1 und §8).
 
 ## Verwandte Rules
 

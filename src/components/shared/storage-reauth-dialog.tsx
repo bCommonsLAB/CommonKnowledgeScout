@@ -8,9 +8,9 @@
  * useStorage, um einen Import-Zyklus mit dem Context zu vermeiden).
  *
  * Verhalten:
- * - Erscheint, wenn der Storage-Zugriff Anmeldung verlangt
- *   (libraryStatus 'waitingForAuth' bzw. isAuthRequired) — z.B. beim
- *   Archiv-Einstieg nach Tagen mit abgelaufenem Token.
+ * - Erscheint NUR im Archiv (/library): Das ist die Ansicht, die den
+ *   Storage-Provider wirklich braucht. Erkunden/Story/Galerie lesen aus
+ *   MongoDB/Blob und sollen beim Library-Wechsel KEINEN Login erzwingen.
  * - NICHT in den Settings (dort fuehren Wizard/Zusammenfassung).
  * - Fuehrt NUR den Anmelde-Schritt aus und kehrt zur aktuellen Seite
  *   zurueck; die Token-Uebernahme nach der Rueckkehr passiert hier
@@ -38,12 +38,6 @@ interface StorageReauthDialogProps {
   isAuthRequired: boolean
   libraryStatus: string
   refreshAuthStatus: () => void
-  /**
-   * "Später": Bibliothek deselektieren (in den "keine Library gewählt"-Zustand
-   * wechseln), statt nur den Dialog lokal auszublenden. Verhindert, dass der
-   * Dialog bei jedem Seitenladen erneut blockiert.
-   */
-  onDismissLibrary?: (libraryId: string) => void
 }
 
 export function StorageReauthDialog({
@@ -51,7 +45,6 @@ export function StorageReauthDialog({
   isAuthRequired,
   libraryStatus,
   refreshAuthStatus,
-  onDismissLibrary,
 }: StorageReauthDialogProps) {
   const pathname = usePathname()
   const [dismissedForLibrary, setDismissedForLibrary] = useState<string | null>(null)
@@ -59,6 +52,13 @@ export function StorageReauthDialog({
   const [returnProcessed, setReturnProcessed] = useState(false)
 
   const inSettings = pathname?.startsWith("/settings") === true
+
+  // "Später" gilt nur fuer den AKTUELLEN Archiv-Besuch: Sobald das Archiv
+  // verlassen wird, wird die Entscheidung zurueckgesetzt — wer das Archiv
+  // spaeter erneut oeffnet, bekommt die Anmeldung wieder angeboten.
+  useEffect(() => {
+    if (pathname !== "/library") setDismissedForLibrary(null)
+  }, [pathname])
 
   // OAuth-Rueckkehr ausserhalb der Settings verarbeiten (in den
   // Settings uebernimmt use-storage-form.ts diese Aufgabe).
@@ -107,8 +107,13 @@ export function StorageReauthDialog({
     currentLibrary.type === "onedrive" &&
     (isAuthRequired || libraryStatus === "waitingForAuth")
 
+  // Nur im Archiv anzeigen: Erkunden (/library/gallery), Story & Co. kommen
+  // ohne Storage-Provider aus — dort darf der Wechsel auf eine
+  // OneDrive-Library nicht mit einem Login-Dialog blockieren.
+  const inArchive = pathname === "/library"
+
   const open =
-    needsAuth && !inSettings && dismissedForLibrary !== currentLibrary?.id
+    needsAuth && inArchive && !inSettings && dismissedForLibrary !== currentLibrary?.id
 
   const handleLogin = async () => {
     if (!currentLibrary) return
@@ -128,9 +133,10 @@ export function StorageReauthDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
+        // Schliessen = "Später" fuer diesen Archiv-Besuch; die Library bleibt
+        // gewaehlt, das Archiv zeigt den Auth-Hinweis.
         if (!next && currentLibrary) {
           setDismissedForLibrary(currentLibrary.id)
-          onDismissLibrary?.(currentLibrary.id)
         }
       }}
     >
@@ -152,7 +158,6 @@ export function StorageReauthDialog({
             onClick={() => {
               if (!currentLibrary) return
               setDismissedForLibrary(currentLibrary.id)
-              onDismissLibrary?.(currentLibrary.id)
             }}
           >
             Später

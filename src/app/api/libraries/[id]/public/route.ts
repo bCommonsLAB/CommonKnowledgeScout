@@ -159,6 +159,9 @@ export async function PUT(
             subtitle: gallery.subtitle !== undefined ? gallery.subtitle : prevPub?.gallery?.subtitle,
             description: gallery.description !== undefined ? gallery.description : prevPub?.gallery?.description,
             filterDescription: gallery.filterDescription !== undefined ? gallery.filterDescription : prevPub?.gallery?.filterDescription,
+            // Menü-/Link-Beschriftungen (leer = Standard-Übersetzung)
+            menuLabel: gallery.menuLabel !== undefined ? gallery.menuLabel : prevPub?.gallery?.menuLabel,
+            moreLinkLabel: gallery.moreLinkLabel !== undefined ? gallery.moreLinkLabel : prevPub?.gallery?.moreLinkLabel,
           } : prevPub?.gallery,
           // Website-Landingpage am Slug bewusst ein-/ausblenden. Fehlend => false,
           // damit keine Library ungefragt eine Webansicht bekommt.
