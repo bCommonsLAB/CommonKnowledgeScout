@@ -131,25 +131,34 @@ async function collectCandidates(
     if (item.type !== 'folder') continue
     const name = item.metadata.name
 
-    if (name.startsWith(LEGACY_PREFIX) && name.length > 1) {
-      const sourceName = name.slice(LEGACY_PREFIX.length)
+    // Twin-Ordner erkennen — Legacy (`.`) UND bereits normalisiert (`_`).
+    // Bereits normalisierte werden nicht umbenannt, koennen aber weiterhin
+    // verirrte Artefakte neben sich haben (Nachlauf nach der Umbenennung).
+    const isLegacy = name.startsWith(LEGACY_PREFIX) && name.length > 1
+    const isCurrent = name.startsWith(CURRENT_PREFIX) && name.length > 1
+
+    if (isLegacy || isCurrent) {
+      const sourceName = name.slice(1)
       if (!fileNamesHere.has(sourceName)) {
         // Kein Twin-Ordner (keine gleichnamige Quelldatei) -> unangetastet lassen.
         continue
       }
+      const strays = findStrayArtifacts(items, sourceName)
+      // Bereits normalisiert und nichts einzusammeln -> nichts zu tun.
+      if (isCurrent && strays.length === 0) continue
+
       const newName = generateShadowTwinFolderName(sourceName)
       out.push({
         folder: item,
         parentPath: folderPath,
         oldName: name,
         newName,
-        collision: namesHere.has(newName),
-        strays: findStrayArtifacts(items, sourceName),
+        // Nur Legacy-Ordner werden umbenannt; bei `_` ist newName === name.
+        collision: isLegacy && namesHere.has(newName),
+        strays,
       })
       continue // Twin-Ordner nicht betreten
     }
-
-    if (name.startsWith(CURRENT_PREFIX)) continue // bereits normalisiert
 
     await collectCandidates(provider, item.id, `${folderPath}/${name}`, out)
   }
@@ -169,7 +178,7 @@ async function main(): Promise<void> {
   const selected = limit ? renamable.slice(0, limit) : renamable
 
   console.log(`\nGefundene Legacy-Ordner (Praefix "."): ${candidates.length}`)
-  console.log(`Davon umbenennbar: ${renamable.length}`)
+  console.log(`Davon umzubenennen (Legacy-Praefix): ${renamable.filter((c) => c.oldName !== c.newName).length}`)
   if (collisions.length > 0) {
     console.log(`Davon KOLLISION (Zielname existiert bereits, uebersprungen): ${collisions.length}`)
     for (const c of collisions.slice(0, 10)) {
@@ -201,13 +210,16 @@ async function main(): Promise<void> {
   let deleted = 0
   const failures: Array<{ path: string; message: string }> = []
   for (const c of selected) {
-    try {
-      await provider.renameItem(c.folder.id, c.newName)
-      renamed++
-    } catch (e) {
-      // Kein stiller Fallback: jeder Fehlschlag wird gemeldet und am Ende gezaehlt.
-      failures.push({ path: `${c.parentPath}/${c.oldName}`, message: e instanceof Error ? e.message : String(e) })
-      continue // Ohne umbenannten Ordner keine Artefakte verschieben
+    // Bereits normalisierte Ordner (oldName === newName) nur zum Einsammeln.
+    if (c.oldName !== c.newName) {
+      try {
+        await provider.renameItem(c.folder.id, c.newName)
+        renamed++
+      } catch (e) {
+        // Kein stiller Fallback: jeder Fehlschlag wird gemeldet und am Ende gezaehlt.
+        failures.push({ path: `${c.parentPath}/${c.oldName}`, message: e instanceof Error ? e.message : String(e) })
+        continue // Ohne umbenannten Ordner keine Artefakte verschieben
+      }
     }
 
     // Verirrte Artefakte in den (jetzt normalisierten) Twin-Ordner holen.
