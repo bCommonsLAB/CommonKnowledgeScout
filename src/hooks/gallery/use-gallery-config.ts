@@ -1,6 +1,8 @@
 'use client'
 
 import { useMemo } from 'react'
+import { useAtomValue } from 'jotai'
+import { libraryAtom } from '@/atoms/library-atom'
 import type { GalleryTexts } from '@/lib/gallery/types'
 import { useTranslation } from '@/lib/i18n/hooks'
 
@@ -8,36 +10,43 @@ import { useTranslation } from '@/lib/i18n/hooks'
 type DetailViewType = 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog' | 'divaDocument' | 'divaTexture' | 'refurbedDevice' | 'website'
 
 /**
- * Hook für Gallery-Konfiguration
- * Verwendet Übersetzungen basierend auf detailViewType
- * 
+ * Hook für Gallery-Konfiguration.
+ *
+ * Textquelle in dieser Reihenfolge:
+ * 1. Per-Library-Texte aus `config.publicPublishing.gallery` (Settings →
+ *    Veröffentlichung → „Galerie-Texte“). Formular-Semantik: „Leer lassen für
+ *    die Standard-Texte“ — ein leeres Feld ist also die EXPLIZITE Wahl des
+ *    Übersetzungs-Defaults, kein stiller Fallback.
+ * 2. Übersetzungs-Defaults basierend auf detailViewType.
+ *
  * @param defaults - Nicht mehr verwendet, bleibt für Kompatibilität
- * @param libraryId - ID der Library (nicht mehr verwendet, bleibt für Kompatibilität)
+ * @param libraryId - ID der Library (für die per-Library-Texte aus dem Atom)
  * @param initialDetailViewType - Initialer detailViewType aus dem librariesAtom (verhindert Flackern)
  */
 export function useGalleryConfig(
-  defaults: GalleryTexts, 
+  defaults: GalleryTexts,
   libraryId?: string,
   initialDetailViewType?: DetailViewType
 ) {
   const { t } = useTranslation()
-  
+  const { libraries } = useAtomValue(libraryAtom)
+  const configured = libraries.find((lib) => lib.id === libraryId)?.config?.publicPublishing?.gallery
+
   // Verwende initialDetailViewType direkt - kein State-Management mehr nötig
   const detailViewType = initialDetailViewType || 'book'
 
-  // Verwende Übersetzungen basierend auf detailViewType
   // Fallback auf 'book' für neue ViewTypes ohne eigene Übersetzungen
   const texts = useMemo<GalleryTexts>(() => {
     const viewType = detailViewType === 'session' ? 'session' : 'book'
+    const pick = (value: string | undefined, key: string): string =>
+      value && value.trim().length > 0 ? value : t(`gallery.texts.${viewType}.${key}`)
     return {
-      headline: t(`gallery.texts.${viewType}.headline`),
-      subtitle: t(`gallery.texts.${viewType}.subtitle`),
-      description: t(`gallery.texts.${viewType}.description`),
-      filterDescription: t(`gallery.texts.${viewType}.filterDescription`),
+      headline: pick(configured?.headline, 'headline'),
+      subtitle: pick(configured?.subtitle, 'subtitle'),
+      description: pick(configured?.description, 'description'),
+      filterDescription: pick(configured?.filterDescription, 'filterDescription'),
     }
-  }, [detailViewType, t])
+  }, [configured, detailViewType, t])
 
   return { texts, detailViewType }
 }
-
-
