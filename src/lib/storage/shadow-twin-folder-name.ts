@@ -3,10 +3,18 @@
  */
 
 const SHADOW_TWIN_FOLDER_PREFIX = '_'
-const SHADOW_TWIN_FOLDER_PREFIX_LEGACY = '.'
 
+/**
+ * Twin-Ordner tragen ausschliesslich den Praefix `_`.
+ *
+ * Der frueher zusaetzlich tolerierte Legacy-Praefix `.` ist entfallen:
+ * Bestaende werden mit `scripts/normalize-shadow-twin-folders.ts` einmalig
+ * umbenannt. WICHTIG: Eine Library, die noch `.`-Ordner enthaelt, muss vorher
+ * normalisiert werden — sonst wird ihr Twin-Ordner nicht mehr gefunden und ein
+ * zweiter mit `_` angelegt.
+ */
 export function isShadowTwinFolderName(name: string): boolean {
-  return name.startsWith(SHADOW_TWIN_FOLDER_PREFIX) || name.startsWith(SHADOW_TWIN_FOLDER_PREFIX_LEGACY)
+  return name.startsWith(SHADOW_TWIN_FOLDER_PREFIX)
 }
 
 /**
