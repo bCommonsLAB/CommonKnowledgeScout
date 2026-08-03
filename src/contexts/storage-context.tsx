@@ -31,7 +31,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useAtom } from 'jotai';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { librariesAtom, activeLibraryIdAtom, libraryStatusAtom } from '@/atoms/library-atom';
 import { StorageFactory } from '@/lib/storage/storage-factory';
 import { ClientLibrary } from "@/types/library";
@@ -124,7 +124,6 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
   const { user, isLoaded: isUserLoaded } = useSafeUser();
   const { isCreator } = useUserRole();
   const pathname = usePathname();
-  const router = useRouter();
 
   // Auth-Debug-Logging entfernt (zu viele Logs bei jedem Auth-Status-Update)
   
@@ -852,22 +851,15 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
   return (
     <StorageContext.Provider value={value}>
       {children}
-      {/* App-weiter Re-Auth-Dialog (Welle 3-IV-UX-3c, F2): erscheint bei
-          abgelaufener/fehlender Storage-Anmeldung ausserhalb der Settings. */}
+      {/* Re-Auth-Dialog: erscheint nur noch beim Archiv-Einstieg (/library) —
+          der einzigen Ansicht, die den Storage-Provider braucht. "Später"
+          schliesst nur den Dialog fuer diesen Besuch; die Library bleibt
+          gewaehlt (Erkunden/Story funktionieren ohne Storage-Anmeldung). */}
       <StorageReauthDialog
         currentLibrary={currentLibrary}
         isAuthRequired={isAuthRequired}
         libraryStatus={libraryStatus}
         refreshAuthStatus={refreshAuthStatus}
-        onDismissLibrary={() => {
-          // "Später": Bibliothek deselektieren statt die UI zu blockieren.
-          // Der Nutzer landet im "keine Library gewählt"-Zustand auf dem
-          // Dashboard und kann dort eine andere Bibliothek wählen oder sich
-          // bei Bedarf neu anmelden.
-          setActiveLibraryId("");
-          if (typeof window !== 'undefined') localStorage.removeItem('activeLibraryId');
-          router.push('/start');
-        }}
       />
     </StorageContext.Provider>
   );
