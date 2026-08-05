@@ -196,7 +196,7 @@ async function validateShadowTwin(
   try {
     const library = await LibraryService.getInstance().getLibrary(job.userEmail, job.libraryId)
     const cfg = getShadowTwinConfig(library)
-    if (cfg.primaryStore === 'mongo' && !cfg.persistToFilesystem) {
+    if (!cfg.persistToFilesystem) {
       if (!state?.shadowTwinFolderId) {
         pushMessage(messages, 'info', 'Mongo-only Shadow‑Twin: shadowTwinFolderId ist optional (persistToFilesystem=false)')
       } else {

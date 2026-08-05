@@ -25,12 +25,9 @@ import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 export type LibraryLike = Pick<ClientLibrary, 'config'> & { config?: ClientLibrary['config'] | null }
 
 /**
- * Liefert `true`, wenn Shadow-Twin-Daten dieser Library auf einem
- * Filesystem-aehnlichen Provider persistiert werden:
- *
- * - `primaryStore === 'filesystem'` (Default), ODER
- * - `persistToFilesystem === true` (auch im `mongo`-Primary-Modus,
- *   wenn die Library bewusst zusaetzlich aufs Filesystem schreibt).
+ * Liefert `true`, wenn Shadow-Twin-Daten dieser Library zusaetzlich auf
+ * einem Filesystem-aehnlichen Provider persistiert werden
+ * (`persistToFilesystem`, der Backup-Spiegel — Mongo ist immer primaer).
  *
  * Der Helper kapselt die Logik aus `file-preview.tsx:1134`. Aufrufer
  * muessen die Logik nicht mehr selbst inlinen.
@@ -45,5 +42,5 @@ export function isFilesystemBacked(library: Library | ClientLibrary | null | und
   // getShadowTwinConfig kennt beide Library-Shapes. Cast nach Library, weil
   // Server-Library strenger typisiert ist; Runtime-Felder sind identisch.
   const config = getShadowTwinConfig(library as Library)
-  return config.primaryStore === 'filesystem' || config.persistToFilesystem
+  return config.persistToFilesystem
 }
