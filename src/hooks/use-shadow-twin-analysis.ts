@@ -99,13 +99,7 @@ export function useShadowTwinAnalysis(
   const libraryId = useAtomValue(activeLibraryIdAtom);
   const libraries = useAtomValue(librariesAtom);
   
-  // Ermittle, ob Binary-Uploads möglich sind (basierend auf Library-Konfiguration)
-  // MongoDB-Modus: Binary-Uploads sind immer möglich (Upload geht nach Azure)
-  // Filesystem-Modus: Binary-Uploads benötigen ein shadowTwinFolderId
   const activeLibrary = libraries.find(lib => lib.id === libraryId);
-  // Prüfe Shadow-Twin-Konfiguration (shadowTwin ist Teil von StorageConfig, nicht ClientLibrary)
-  const shadowTwinConfig = activeLibrary?.config?.shadowTwin as { primaryStore?: 'filesystem' | 'mongo' } | undefined;
-  const isMongoMode = shadowTwinConfig?.primaryStore === 'mongo';
 
   // Effektive Zielsprache der Library bestimmen (statt hardcodiert 'de').
   // Priorität: Verarbeitung (secretaryService) → Story (chat) → globaler Default.
@@ -379,7 +373,7 @@ export function useShadowTwinAnalysis(
               const shadowTwinFolderId = transformation?.shadowTwinFolderId || transcript?.shadowTwinFolderId
 
               // Storage-Fund erkennen: echte Storage-ID (keine virtuelle Mongo-ID).
-              if (isMongoMode && it.parentId) {
+              if (it.parentId) {
                 const foundFromStorage =
                   (transformation?.item && !isMongoShadowTwinId(transformation.item.id)) ||
                   (transcript?.item && !isMongoShadowTwinId(transcript.item.id))
@@ -388,10 +382,8 @@ export function useShadowTwinAnalysis(
                 }
               }
 
-              // Binary-Uploads sind möglich wenn:
-              // - MongoDB-Modus aktiv ist (Upload geht direkt nach Azure), ODER
-              // - Ein shadowTwinFolderId vorhanden ist (Filesystem-Modus)
-              const binaryUploadEnabled = isMongoMode || Boolean(shadowTwinFolderId)
+              // Binary-Uploads sind immer möglich (Mongo ist primaer, Upload geht nach Azure)
+              const binaryUploadEnabled = true
               
               const merged: FrontendShadowTwinState = {
                 baseItem: it,

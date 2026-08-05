@@ -1030,14 +1030,15 @@ export class TransformService {
     let cleanSourceName = originalItem.metadata.name;
     cleanSourceName = cleanSourceName.replace(/^["']|["']$/g, '').trim();
 
+    // Mongo ist immer primaerer Store; die Config steuert nur noch den
+    // optionalen Filesystem-Spiegel.
     const shadowTwinConfig = await TransformService.getShadowTwinConfig(libraryId);
-    const useMongo = shadowTwinConfig?.primaryStore === 'mongo';
     const persistToFilesystem = shadowTwinConfig?.persistToFilesystem ?? true;
 
-    // Mongo-Path: Speichere zuerst in Mongo, um konsistenten Content zu erhalten.
+    // Speichere zuerst in Mongo, um konsistenten Content zu erhalten.
     let mongoMarkdown = content;
     let virtualItem: StorageItem | undefined = undefined;
-    if (useMongo && libraryId) {
+    if (libraryId) {
       const shadowTwinFolderId = parentId && parentId !== originalItem.parentId ? parentId : undefined;
       try {
         const res = await fetch(`/api/library/${libraryId}/shadow-twins/upsert`, {
