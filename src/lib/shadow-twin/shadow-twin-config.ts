@@ -3,9 +3,10 @@
  *
  * @description
  * Liefert stabile Default-Werte fuer Shadow-Twin-Flags pro Library.
- * MongoDB ist der primaere Store; das Dateisystem ist nur Backup-Spiegel
- * und Lese-Fallback. `primaryStore: 'filesystem'` existiert nur noch fuer
- * den Inbox-Kontrakt (ADR-0004 II) und explizit so konfigurierte Alt-Libraries.
+ * MongoDB ist IMMER der primaere Store fuer echte Libraries; das Dateisystem
+ * ist nur Backup-Spiegel und Lese-Fallback. `primaryStore: 'filesystem'`
+ * existiert ausschliesslich als interner Inbox-Kontrakt (ADR-0004 II) —
+ * das gleichnamige Config-Feld der Library wird NICHT mehr gelesen.
  */
 
 import type { Library } from '@/types/library'
@@ -40,7 +41,7 @@ export function getShadowTwinConfig(library: Library | null | undefined): Shadow
   const cfg = library.config?.shadowTwin
 
   return {
-    primaryStore: cfg?.primaryStore || 'mongo',
+    primaryStore: 'mongo',
     persistToFilesystem: cfg?.persistToFilesystem ?? true,
     cleanupFilesystemOnMigrate: cfg?.cleanupFilesystemOnMigrate ?? false,
     allowFilesystemFallback: cfg?.allowFilesystemFallback ?? true,
