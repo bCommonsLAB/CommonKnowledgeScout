@@ -54,13 +54,11 @@ describe('isFilesystemBacked', () => {
     ).toBe(false)
   })
 
-  it('liefert true bei primaryStore="filesystem", auch wenn persistToFilesystem explizit false ist (Original-OR-Semantik)', () => {
-    // Beobachtetes Verhalten aus dem Original-Inline-Check in file-preview.tsx:1134:
-    //   primaryStore === 'filesystem' || persistToFilesystem
-    // Ein Filesystem-Primary "ueberschreibt" die explizite false-Setzung.
-    // Diese Char-Test-Erwartung schuetzt vor versehentlicher Aenderung der Semantik.
+  it('explizites persistToFilesystem=false gewinnt auch gegen Legacy-Wert primaryStore="filesystem"', () => {
+    // Welle 2: das Config-Feld primaryStore wird nicht mehr gelesen —
+    // massgeblich ist allein der Backup-Spiegel-Schalter.
     expect(
       isFilesystemBacked(makeLibrary({ primaryStore: 'filesystem', persistToFilesystem: false })),
-    ).toBe(true)
+    ).toBe(false)
   })
 })
