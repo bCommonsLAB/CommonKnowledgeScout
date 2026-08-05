@@ -151,7 +151,7 @@ export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogP
       // Shadow-Twin-Ordner nur überspringen, wenn Filesystem-Persistierung aktiv ist.
       // Ohne FS-Persistierung sind `_`-Ordner reguläre Benutzer-Verzeichnisse.
       const hideTwinFolders = shouldFilterShadowTwinFolders(
-        activeLibrary?.config?.shadowTwin as { primaryStore?: string; persistToFilesystem?: boolean } | undefined
+        activeLibrary?.config?.shadowTwin as { persistToFilesystem?: boolean } | undefined
       );
       const folders = items.filter(
         (i) => i.type === 'folder' && (!hideTwinFolders || !isShadowTwinFolderName(i.metadata.name))
