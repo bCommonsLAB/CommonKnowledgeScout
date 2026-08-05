@@ -8,7 +8,6 @@ import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/m
 import { getShadowTwinArtifact, getShadowTwinsBySourceIds, toArtifactKey } from '@/lib/repositories/shadow-twin-repo'
 import { selectShadowTwinArtifact } from '@/lib/shadow-twin/shadow-twin-select'
 import { LibraryService } from '@/lib/services/library-service'
-import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 
 const bodySchema = z.object({
   fileId: z.string().min(1),
@@ -51,16 +50,10 @@ export async function POST(
         return NextResponse.json({ error: 'Ungültige MongoDB Shadow-Twin ID' }, { status: 400 })
       }
       
-      // Prüfe, ob MongoDB als primärer Store aktiviert ist
       const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
       if (!library) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
-      
-      const shadowTwinConfig = getShadowTwinConfig(library)
-      if (shadowTwinConfig.primaryStore !== 'mongo') {
-        return NextResponse.json({ error: 'MongoDB ist nicht als primärer Store aktiviert' }, { status: 400 })
-      }
-      
-      // Lade Artefakt direkt aus MongoDB
+
+      // Lade Artefakt direkt aus MongoDB (Mongo ist immer primaerer Store)
       const artifact = await getShadowTwinArtifact({
         libraryId,
         sourceId: parts.sourceId,
@@ -90,12 +83,11 @@ export async function POST(
         markdownLength: markdown.length
       })
     } else {
-      // Provider-ID: Prüfe ob Mongo-Mode aktiv – wenn ja, aus MongoDB laden statt Filesystem.
+      // Provider-ID: aus MongoDB laden (Mongo ist immer primaerer Store).
       // Siehe docs/rules/ingest-mongo-only.md: Alle ingestierten Artefakte MÜSSEN in MongoDB existieren.
       const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
-      const shadowTwinConfig = library ? getShadowTwinConfig(library) : null
 
-      if (shadowTwinConfig?.primaryStore === 'mongo') {
+      if (library) {
         // Mongo-Mode: fileId ist sourceId – Transformation aus MongoDB laden
         const docsMap = await getShadowTwinsBySourceIds({ libraryId, sourceIds: [fileId] })
         const doc = docsMap.get(fileId)
@@ -121,7 +113,7 @@ export async function POST(
           markdownLength: markdown.length,
         })
       } else {
-        // Filesystem-Mode: Lade über Provider (unveraendert)
+        // Library nicht gefunden: letzter Versuch ueber den Provider (unveraendert)
         const provider = await getServerProvider(userEmail, libraryId)
         item = await provider.getItemById(fileId)
         const bin = await provider.getBinary(fileId)

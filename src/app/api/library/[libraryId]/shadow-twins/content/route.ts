@@ -49,11 +49,6 @@ export async function GET(
     const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
     if (!library) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
 
-    const shadowTwinConfig = getShadowTwinConfig(library)
-    if (shadowTwinConfig.primaryStore !== 'mongo') {
-      return NextResponse.json({ error: 'Mongo ist nicht aktiv' }, { status: 400 })
-    }
-
     const record = await getShadowTwinArtifact({
       libraryId,
       sourceId,
@@ -116,9 +111,6 @@ export async function POST(
     if (!library) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
 
     const shadowTwinConfig = getShadowTwinConfig(library)
-    if (shadowTwinConfig.primaryStore !== 'mongo') {
-      return NextResponse.json({ error: 'Mongo ist nicht aktiv' }, { status: 400 })
-    }
 
     const artifactKey: ArtifactKey = toArtifactKey({
       sourceId: body.sourceId,
