@@ -33,6 +33,7 @@ import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver'
 import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
+import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { LibraryService } from '@/lib/services/library-service'
 import type { Library } from '@/types/library'
 
@@ -637,10 +638,10 @@ export async function loadShadowTwinMarkdown(
     }
 
     // Priorität 3: resolveArtifact (Filesystem/Provider)
-    // NUR bei Filesystem-Mode ausführen. Bei Mongo-Mode reichen Priorität 1+2.
+    // Nur ohne Library (Inbox-Kontrakt) ausfuehren — echte Libraries sind
+    // Mongo-primaer, dort reichen Prioritaet 1+2.
     // Siehe docs/rules/ingest-mongo-only.md: Kein Filesystem-Fallback bei Mongo-Mode.
-    const primaryStore = (libraryForLoader?.config?.shadowTwin as { primaryStore?: string } | undefined)?.primaryStore
-    if (primaryStore !== 'mongo') {
+    if (getShadowTwinConfig(libraryForLoader).primaryStore !== 'mongo') {
       let resolved = templateName
         ? await resolveArtifact(provider, {
             sourceItemId,

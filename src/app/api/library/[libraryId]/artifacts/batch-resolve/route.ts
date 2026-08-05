@@ -21,7 +21,6 @@ import { selectShadowTwinArtifact } from '@/lib/shadow-twin/shadow-twin-select';
 import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming';
 import { buildMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id';
 import { getCollectionNameForLibrary, getByFileIds } from '@/lib/repositories/vector-repo';
-import { parseFrontmatter } from '@/lib/markdown/frontmatter';
 
 /**
  * Extrahiert ListMeta aus Transformations-Frontmatter für die Dateiliste.
@@ -47,37 +46,6 @@ function listMetaFromFrontmatter(frontmatter: Record<string, unknown> | undefine
     ...(typeof coverImageUrl === 'string' && coverImageUrl.trim() ? { coverImageUrl: coverImageUrl.trim() } : {}),
     ...(typeof coverThumbnailUrl === 'string' && coverThumbnailUrl.trim() ? { coverThumbnailUrl: coverThumbnailUrl.trim() } : {}),
   };
-}
-
-/**
- * Self-Reference für Wizard-Dateien (transformationSource: true):
- * Die Source-Datei selbst ist die Transformation – kein Shadow-Twin nötig.
- * Analog zur resolve-Route.
- * @returns Artefakt oder null; bei Erfolg optional frontmatter für listMeta
- */
-async function trySelfReferenceTransformation(
-  provider: StorageProvider,
-  source: { sourceId: string; sourceName: string; parentId: string },
-  kind: 'transcript' | 'transformation'
-): Promise<{ artifact: ResolvedArtifactWithItem; frontmatter?: Record<string, unknown> } | null> {
-  try {
-    const item = await provider.getItemById(source.sourceId);
-    if (!item || item.type !== 'file') return null;
-    const bin = await provider.getBinary(source.sourceId);
-    const content = await bin.blob.text();
-    const { meta } = parseFrontmatter(content);
-    if (meta?.transformationSource !== true) return null;
-    const artifact: ResolvedArtifactWithItem = {
-      fileId: source.sourceId,
-      fileName: source.sourceName,
-      location: 'sibling',
-      kind: kind === 'transformation' || kind === 'transcript' ? kind : 'transformation',
-      item,
-    };
-    return { artifact, frontmatter: meta as Record<string, unknown> };
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -240,17 +208,15 @@ export async function POST(
     const preferredKind = body.preferredKind || 'transformation';
     const shadowTwinConfig = getShadowTwinConfig(library);
 
-    // DIAGNOSE: Zeigt, welcher Pfad (mongo/filesystem) aktiv ist
     FileLogger.info('artifacts/batch-resolve', 'Config-Diagnose', {
       libraryId,
-      primaryStore: shadowTwinConfig.primaryStore,
-      rawShadowTwinConfig: library?.config?.shadowTwin,
       sourcesCount: body.sources.length,
       preferredKind,
     });
 
-    // MongoDB-Pfad: Artefakte direkt aus Mongo laden (kein Filesystem-Scan).
-    if (shadowTwinConfig.primaryStore === 'mongo') {
+    // Artefakte direkt aus Mongo laden (Mongo ist immer primaerer Store);
+    // Storage dient nur noch als optionaler Fallback (s.u.).
+    {
       const targetLanguageBySource = new Map(
         body.sources.map((source) => [source.sourceId, source.targetLanguage || 'de'])
       );
@@ -524,261 +490,6 @@ export async function POST(
       return NextResponse.json(response, { status: 200 });
     }
 
-    // PERFORMANCE-OPTIMIERUNG: Cache für listItemsById-Aufrufe
-    // Viele Quellen haben den gleichen parentId - vermeide doppelte Storage-Calls
-    const folderItemsCache = new Map<string, StorageItem[]>();
-    const cacheStartTime = performance.now();
-
-    // Preload: Lade alle benötigten Ordner-Inhalte einmalig
-    const uniqueParentIds = Array.from(new Set(body.sources.map(s => s.parentId)));
-    const preloadPromises = uniqueParentIds.map(async (parentId) => {
-      try {
-        const items = await provider.listItemsById(parentId);
-        folderItemsCache.set(parentId, items);
-      } catch (error) {
-        FileLogger.warn('artifacts/batch-resolve', 'Fehler beim Preload von Ordner-Inhalten', {
-          parentId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        folderItemsCache.set(parentId, []); // Leeres Array als Fallback
-      }
-    });
-    await Promise.all(preloadPromises);
-    const cacheDuration = performance.now() - cacheStartTime;
-    FileLogger.info('artifacts/batch-resolve', 'Ordner-Cache geladen', {
-      uniqueParentIds: uniqueParentIds.length,
-      cacheDuration: `${cacheDuration.toFixed(2)}ms`,
-      avgTimePerFolder: uniqueParentIds.length > 0 ? `${(cacheDuration / uniqueParentIds.length).toFixed(2)}ms` : '0ms',
-    });
-
-    // Erstelle einen optimierten Resolver mit Cache
-    const resolveArtifactWithCache = async (
-      source: typeof body.sources[0]
-    ): Promise<{ sourceId: string; artifact: ResolvedArtifactWithItem | null }> => {
-      try {
-        // Verwende gecachte Ordner-Inhalte statt direkter Storage-Calls
-        const cachedSiblings = folderItemsCache.get(source.parentId) || [];
-        
-        // Erstelle einen temporären Provider-Wrapper, der den Cache nutzt
-        // PERFORMANCE: Alle listItemsById-Aufrufe werden gecacht
-        const cachedProvider = {
-          ...provider,
-          listItemsById: async (folderId: string): Promise<StorageItem[]> => {
-            // Prüfe Cache zuerst
-            if (folderItemsCache.has(folderId)) {
-              return folderItemsCache.get(folderId)!;
-            }
-            // Lade und cache für zukünftige Verwendung
-            const items = await provider.listItemsById(folderId);
-            folderItemsCache.set(folderId, items);
-            return items;
-          },
-        } as StorageProvider;
-
-        const resolved = await resolveArtifact(cachedProvider, {
-          sourceItemId: source.sourceId,
-          sourceName: source.sourceName,
-          parentId: source.parentId,
-          targetLanguage: source.targetLanguage || 'de',
-          preferredKind,
-        });
-
-        if (!resolved) {
-          // Self-Reference: Wizard-Dateien (transformationSource: true) – Source selbst ist Transformation
-          const selfRef = await trySelfReferenceTransformation(provider, source, preferredKind);
-          if (selfRef) {
-            return { sourceId: source.sourceId, artifact: selfRef.artifact };
-          }
-          return { sourceId: source.sourceId, artifact: null };
-        }
-
-        // Hole vollständiges StorageItem-Objekt für das Artefakt
-        // OPTIMIERUNG: Versuche zuerst aus Cache zu holen
-        const cachedItem = cachedSiblings.find(item => item.id === resolved.fileId);
-        let artifactItem: StorageItem | null = cachedItem || null;
-        
-        if (!artifactItem) {
-          try {
-            artifactItem = await provider.getItemById(resolved.fileId);
-          } catch (itemError) {
-            FileLogger.warn('artifacts/batch-resolve', 'Artefakt-Item nicht gefunden', {
-              sourceId: source.sourceId,
-              fileId: resolved.fileId,
-              error: itemError instanceof Error ? itemError.message : String(itemError),
-            });
-            return { sourceId: source.sourceId, artifact: null };
-          }
-        }
-
-        if (!artifactItem) {
-          FileLogger.warn('artifacts/batch-resolve', 'Artefakt-Item nicht gefunden', {
-            sourceId: source.sourceId,
-            fileId: resolved.fileId,
-          });
-          return { sourceId: source.sourceId, artifact: null };
-        }
-
-        return {
-          sourceId: source.sourceId,
-          artifact: {
-            ...resolved,
-            item: artifactItem,
-          } as ResolvedArtifactWithItem,
-        };
-      } catch (error) {
-        FileLogger.error('artifacts/batch-resolve', 'Fehler bei Artefakt-Auflösung', {
-          sourceId: source.sourceId,
-          sourceName: source.sourceName,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        return { sourceId: source.sourceId, artifact: null };
-      }
-    };
-
-    // Löse alle Artefakte parallel auf (nutzt jetzt Cache)
-    const resolveStartTime = performance.now();
-    
-    // Wenn includeBoth=true, löse beide Artefakt-Typen auf
-    const shouldIncludeBoth = body.includeBoth === true;
-    const resolvePromises = body.sources.map(resolveArtifactWithCache);
-    const results = await Promise.all(resolvePromises);
-    
-    // Wenn includeBoth=true, löse auch Transcripts auf
-    let transcriptResults: Array<{ sourceId: string; artifact: ResolvedArtifactWithItem | null }> = [];
-    if (shouldIncludeBoth) {
-      const resolveTranscriptWithCache = async (
-        source: typeof body.sources[0]
-      ): Promise<{ sourceId: string; artifact: ResolvedArtifactWithItem | null }> => {
-        try {
-          const cachedSiblings = folderItemsCache.get(source.parentId) || [];
-          const cachedProvider = {
-            ...provider,
-            listItemsById: async (folderId: string): Promise<StorageItem[]> => {
-              if (folderItemsCache.has(folderId)) {
-                return folderItemsCache.get(folderId)!;
-              }
-              const items = await provider.listItemsById(folderId);
-              folderItemsCache.set(folderId, items);
-              return items;
-            },
-          } as StorageProvider;
-
-          const resolved = await resolveArtifact(cachedProvider, {
-            sourceItemId: source.sourceId,
-            sourceName: source.sourceName,
-            parentId: source.parentId,
-            targetLanguage: source.targetLanguage || 'de',
-            preferredKind: 'transcript',
-          });
-
-          if (!resolved) {
-            // Self-Reference: Wizard-Dateien (transformationSource: true) – Source selbst ist auch als Transcript nutzbar
-            const selfRef = await trySelfReferenceTransformation(provider, source, 'transcript');
-            if (selfRef) {
-              return { sourceId: source.sourceId, artifact: selfRef.artifact };
-            }
-            return { sourceId: source.sourceId, artifact: null };
-          }
-
-          const cachedItem = cachedSiblings.find(item => item.id === resolved.fileId);
-          let artifactItem: StorageItem | null = cachedItem || null;
-          
-          if (!artifactItem) {
-            try {
-              artifactItem = await provider.getItemById(resolved.fileId);
-            } catch {
-              return { sourceId: source.sourceId, artifact: null };
-            }
-          }
-
-          if (!artifactItem) {
-            return { sourceId: source.sourceId, artifact: null };
-          }
-
-          return {
-            sourceId: source.sourceId,
-            artifact: {
-              ...resolved,
-              item: artifactItem,
-            } as ResolvedArtifactWithItem,
-          };
-        } catch {
-          return { sourceId: source.sourceId, artifact: null };
-        }
-      };
-      
-      transcriptResults = await Promise.all(body.sources.map(resolveTranscriptWithCache));
-    }
-    
-    const resolveDuration = performance.now() - resolveStartTime;
-    
-    FileLogger.info('artifacts/batch-resolve', 'Artefakt-Auflösung abgeschlossen', {
-      totalSources: body.sources.length,
-      resolveDuration: `${resolveDuration.toFixed(2)}ms`,
-      cacheHits: uniqueParentIds.length,
-      cacheSize: folderItemsCache.size,
-      avgTimePerSource: `${(resolveDuration / body.sources.length).toFixed(2)}ms`,
-      includeBoth: shouldIncludeBoth,
-    });
-
-    // Konvertiere zu Record für einfachen Zugriff
-    const artifacts: Record<string, ResolvedArtifactWithItem | null> = {};
-    for (const result of results) {
-      artifacts[result.sourceId] = result.artifact;
-    }
-
-    const transcripts: Record<string, ResolvedArtifactWithItem | null> = {};
-    if (shouldIncludeBoth) {
-      for (const result of transcriptResults) {
-        transcripts[result.sourceId] = result.artifact;
-      }
-    }
-
-    // Ingestion-Status prüfen (wenn includeIngestionStatus=true)
-    let ingestionStatus: Record<string, IngestionStatus> | undefined;
-    if (body.includeIngestionStatus === true) {
-      try {
-        const libraryKey = getCollectionNameForLibrary(library);
-        const fileIds = body.sources.map(s => s.sourceId);
-        const ingestionMap = await getByFileIds(libraryKey, libraryId, fileIds);
-        
-        ingestionStatus = {};
-        for (const source of body.sources) {
-          const docMeta = ingestionMap.get(source.sourceId);
-          ingestionStatus[source.sourceId] = {
-            exists: !!docMeta,
-            chunkCount: docMeta?.chunkCount,
-            chaptersCount: docMeta?.chaptersCount,
-          };
-        }
-      } catch (error) {
-        FileLogger.warn('artifacts/batch-resolve', 'Fehler beim Laden des Ingestion-Status', {
-          error: error instanceof Error ? error.message : String(error),
-        });
-        ingestionStatus = {};
-        for (const source of body.sources) {
-          ingestionStatus[source.sourceId] = { exists: false };
-        }
-      }
-    }
-
-    FileLogger.debug('artifacts/batch-resolve', 'Bulk-Auflösung abgeschlossen', {
-      libraryId,
-      totalSources: body.sources.length,
-      resolvedCount: Object.values(artifacts).filter(a => a !== null).length,
-      transcriptCount: shouldIncludeBoth ? Object.values(transcripts).filter(a => a !== null).length : 0,
-      ingestionCount: ingestionStatus ? Object.values(ingestionStatus).filter(s => s.exists).length : 0,
-    });
-
-    const response: BatchResolveResponse = { artifacts };
-    if (shouldIncludeBoth) {
-      response.transcripts = transcripts;
-    }
-    if (ingestionStatus) {
-      response.ingestionStatus = ingestionStatus;
-    }
-
-    return NextResponse.json(response, { status: 200 });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     FileLogger.error('artifacts/batch-resolve', 'Fehler bei Bulk-Artefakt-Auflösung', { error: msg });
