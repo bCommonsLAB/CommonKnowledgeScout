@@ -22,10 +22,39 @@ import {
   THUMBNAIL_QUALITY,
 } from './thumbnail-generator'
 import { AzureStorageService, calculateImageHash } from '@/lib/services/azure-storage-service'
-import { getAzureStorageConfig } from '@/lib/config/azure-storage'
+import { resolveAzureStorageConfig } from '@/lib/config/azure-storage'
 import { FileLogger } from '@/lib/debug/logger'
 import { patchFrontmatter } from '@/lib/markdown/frontmatter-patch'
 import type { BinaryFragment } from '@/lib/shadow-twin/store/shadow-twin-store'
+import type { StorageConfig } from '@/types/library'
+
+/**
+ * EIN Kriterium fuer alle Pfade (Statistik, Reparatur, Regenerierung) —
+ * historisch nutzten die drei Pfade unterschiedliche Erkennungen
+ * (Name-Regex vs. variant-Feld), wodurch Statistik und Buttons einander
+ * widersprachen.
+ */
+
+/** Fragment gilt als Thumbnail: variant-Feld ODER Namens-Praefix. */
+const THUMBNAIL_ELEM = {
+  kind: 'image',
+  $or: [{ variant: 'thumbnail' }, { name: { $regex: /^thumb_/i } }],
+}
+
+/** Fragment gilt als Original-Bild: hat URL und ist kein Thumbnail. */
+const ORIGINAL_ELEM = {
+  kind: 'image',
+  url: { $exists: true, $ne: null },
+  variant: { $ne: 'thumbnail' },
+  name: { $not: /^thumb_/i },
+}
+
+/** Original-Bild eines Twins im Speicher-Dokument finden (gleiches Kriterium wie ORIGINAL_ELEM). */
+function findOriginalImage(fragments: BinaryFragment[] | undefined): BinaryFragment | undefined {
+  return fragments?.find(
+    (f) => f.kind === 'image' && !!f.url && f.variant !== 'thumbnail' && !/^thumb_/i.test(f.name ?? ''),
+  )
+}
 
 /**
  * Fortschritt der Thumbnail-Reparatur
@@ -83,51 +112,20 @@ interface ShadowTwinForRepair {
 export async function countMissingThumbnails(libraryId: string): Promise<ThumbnailRepairStats> {
   const collectionName = getShadowTwinCollectionName(libraryId)
   const col = await getCollection(collectionName)
-  
-  // Zähle alle Shadow-Twins
+
   const total = await col.countDocuments({})
-  
-  // Zähle Shadow-Twins mit coverImageUrl in irgendeinem Artefakt
-  // Suche in binaryFragments nach Bildern mit kind === 'image'
-  const withCoverImagePipeline = [
-    {
-      $match: {
-        'binaryFragments': { 
-          $elemMatch: { 
-            kind: 'image',
-            url: { $exists: true, $ne: null }
-          }
-        }
-      }
-    },
-    { $count: 'count' }
-  ]
-  
-  const withCoverImageResult = await col.aggregate(withCoverImagePipeline).toArray()
-  const withCoverImage = withCoverImageResult[0]?.count ?? 0
-  
-  // Zähle Shadow-Twins mit Thumbnail in binaryFragments
-  // Ein Thumbnail hat einen Namen der mit "thumb_" beginnt
-  const withThumbnailPipeline = [
-    {
-      $match: {
-        'binaryFragments': { 
-          $elemMatch: { 
-            kind: 'image',
-            name: { $regex: /^thumb_/i }
-          }
-        }
-      }
-    },
-    { $count: 'count' }
-  ]
-  
-  const withThumbnailResult = await col.aggregate(withThumbnailPipeline).toArray()
-  const alreadyRepaired = withThumbnailResult[0]?.count ?? 0
-  
-  // Fehlende Thumbnails = mit Cover-Bild aber ohne Thumbnail
-  const missingThumbnails = Math.max(0, withCoverImage - alreadyRepaired)
-  
+  const withCoverImage = await col.countDocuments({ binaryFragments: { $elemMatch: ORIGINAL_ELEM } })
+  const alreadyRepaired = await col.countDocuments({ binaryFragments: { $elemMatch: THUMBNAIL_ELEM } })
+
+  // Echte Mengen-Differenz statt Arithmetik: ein Twin mit Thumbnail aber ohne
+  // Original wuerde sonst echte Luecken maskieren.
+  const missingThumbnails = await col.countDocuments({
+    $and: [
+      { binaryFragments: { $elemMatch: ORIGINAL_ELEM } },
+      { binaryFragments: { $not: { $elemMatch: THUMBNAIL_ELEM } } },
+    ],
+  })
+
   return {
     total,
     withCoverImage,
@@ -145,51 +143,20 @@ export async function countMissingThumbnails(libraryId: string): Promise<Thumbna
 async function findShadowTwinsWithMissingThumbnails(libraryId: string): Promise<ShadowTwinForRepair[]> {
   const collectionName = getShadowTwinCollectionName(libraryId)
   const col = await getCollection(collectionName)
-  
-  // Finde Shadow-Twins die:
-  // 1. Ein Bild in binaryFragments haben (kind: 'image', url vorhanden)
-  // 2. KEIN Thumbnail in binaryFragments haben (name beginnt nicht mit 'thumb_')
-  const pipeline = [
-    {
-      $match: {
-        'binaryFragments': { 
-          $elemMatch: { 
-            kind: 'image',
-            url: { $exists: true, $ne: null }
-          }
-        }
-      }
-    },
-    {
-      // Filtere nach Shadow-Twins ohne Thumbnail
-      $match: {
-        $or: [
-          // Kein Thumbnail-Fragment
-          {
-            'binaryFragments': {
-              $not: {
-                $elemMatch: {
-                  name: { $regex: /^thumb_/i }
-                }
-              }
-            }
-          },
-          // Keine binaryFragments (sollte durch obigen Match ausgeschlossen sein, aber sicher ist sicher)
-          { 'binaryFragments': { $exists: false } }
-        ]
-      }
-    },
-    {
-      $project: {
-        sourceId: 1,
-        sourceName: 1,
-        binaryFragments: 1,
-        artifacts: 1,
-      }
-    }
-  ]
-  
-  const docs = await col.aggregate(pipeline).toArray()
+
+  // Gleiche Menge wie countMissingThumbnails().missingThumbnails —
+  // Statistik und Reparatur duerfen sich nie widersprechen.
+  const docs = await col
+    .find(
+      {
+        $and: [
+          { binaryFragments: { $elemMatch: ORIGINAL_ELEM } },
+          { binaryFragments: { $not: { $elemMatch: THUMBNAIL_ELEM } } },
+        ],
+      },
+      { projection: { sourceId: 1, sourceName: 1, binaryFragments: 1, artifacts: 1 } },
+    )
+    .toArray()
   return docs as unknown as ShadowTwinForRepair[]
 }
 
@@ -214,10 +181,13 @@ async function downloadImageFromUrl(imageUrl: string): Promise<Buffer> {
  * Gibt einen AsyncGenerator zurück, der Fortschritts-Updates liefert.
  * 
  * @param libraryId Library-ID
+ * @param libraryConfig Library-Config — noetig, damit Library-eigene
+ * Azure-Zugangsdaten (ingestionStorage) statt der Prozess-ENV greifen.
  * @yields ThumbnailRepairProgress mit aktuellem Fortschritt
  */
 export async function* repairThumbnailsForLibrary(
-  libraryId: string
+  libraryId: string,
+  libraryConfig?: StorageConfig | null
 ): AsyncGenerator<ThumbnailRepairProgress> {
   // 1. Finde alle Shadow-Twins mit fehlenden Thumbnails
   const shadowTwins = await findShadowTwinsWithMissingThumbnails(libraryId)
@@ -238,13 +208,13 @@ export async function* repairThumbnailsForLibrary(
     count: shadowTwins.length,
   })
   
-  // Azure Storage initialisieren
-  const azureConfig = getAzureStorageConfig()
+  // Azure Storage initialisieren — Library-Config gewinnt vor Prozess-ENV
+  const azureConfig = resolveAzureStorageConfig(libraryConfig)
   if (!azureConfig) {
     throw new Error('Azure Storage nicht konfiguriert')
   }
-  
-  const azureStorage = new AzureStorageService()
+
+  const azureStorage = new AzureStorageService(libraryConfig)
   if (!azureStorage.isConfigured()) {
     throw new Error('Azure Storage Service nicht konfiguriert')
   }
@@ -265,11 +235,9 @@ export async function* repairThumbnailsForLibrary(
     }
     
     try {
-      // Finde das Original-Bild in binaryFragments
-      const originalImage = twin.binaryFragments?.find(
-        f => f.kind === 'image' && f.url && !f.name?.startsWith('thumb_')
-      )
-      
+      // Finde das Original-Bild in binaryFragments (gleiches Kriterium wie die Statistik)
+      const originalImage = findOriginalImage(twin.binaryFragments)
+
       if (!originalImage?.url) {
         yield {
           current: i,
@@ -468,56 +436,42 @@ export interface VariantRepairStats {
 export async function countMissingVariants(libraryId: string): Promise<VariantRepairStats> {
   const collectionName = getShadowTwinCollectionName(libraryId)
   const col = await getCollection(collectionName)
-  
-  // Zähle Shadow-Twins mit binaryFragments (die Bilder enthalten)
-  const withImageFragmentsPipeline = [
-    {
-      $match: {
-        'binaryFragments': { 
-          $elemMatch: { kind: 'image' }
-        }
-      }
+
+  // EIN Durchlauf statt drei (frueher 2x $unwind ueber die ganze Collection —
+  // das war der "Lade Statistik…"-Haenger bei grossen Libraries).
+  const isImage = (cond: object) => ({
+    $size: {
+      $filter: {
+        input: { $ifNull: ['$binaryFragments', []] },
+        as: 'f',
+        cond: { $and: [{ $eq: ['$$f.kind', 'image'] }, cond] },
+      },
     },
-    { $count: 'count' }
-  ]
-  
-  const withFragmentsResult = await col.aggregate(withImageFragmentsPipeline).toArray()
-  const total = withFragmentsResult[0]?.count ?? 0
-  
-  // Zähle Bild-Fragments ohne variant Feld
-  const missingVariantPipeline = [
-    { $unwind: '$binaryFragments' },
-    {
-      $match: {
-        'binaryFragments.kind': 'image',
-        'binaryFragments.variant': { $exists: false }
-      }
-    },
-    { $count: 'count' }
-  ]
-  
-  const missingVariantResult = await col.aggregate(missingVariantPipeline).toArray()
-  const missingVariant = missingVariantResult[0]?.count ?? 0
-  
-  // Zähle Bild-Fragments mit variant Feld
-  const withVariantPipeline = [
-    { $unwind: '$binaryFragments' },
-    {
-      $match: {
-        'binaryFragments.kind': 'image',
-        'binaryFragments.variant': { $exists: true }
-      }
-    },
-    { $count: 'count' }
-  ]
-  
-  const withVariantResult = await col.aggregate(withVariantPipeline).toArray()
-  const alreadyCorrect = withVariantResult[0]?.count ?? 0
-  
+  })
+  const result = await col
+    .aggregate([
+      { $match: { binaryFragments: { $elemMatch: { kind: 'image' } } } },
+      {
+        $project: {
+          missing: isImage({ $eq: [{ $type: '$$f.variant' }, 'missing'] }),
+          withVariant: isImage({ $ne: [{ $type: '$$f.variant' }, 'missing'] }),
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          missingVariant: { $sum: '$missing' },
+          alreadyCorrect: { $sum: '$withVariant' },
+        },
+      },
+    ])
+    .toArray()
+
   return {
-    total,
-    missingVariant,
-    alreadyCorrect,
+    total: result[0]?.total ?? 0,
+    missingVariant: result[0]?.missingVariant ?? 0,
+    alreadyCorrect: result[0]?.alreadyCorrect ?? 0,
   }
 }
 
@@ -653,18 +607,20 @@ export async function repairBinaryFragmentVariants(libraryId: string): Promise<{
  * existierende Thumbnails neu berechnet.
  * 
  * @param libraryId Library-ID
+ * @param libraryConfig Library-Config (Library-eigene Azure-Zugangsdaten)
  * @yields Fortschritts-Updates für SSE
  */
 export async function* regenerateAllThumbnails(
-  libraryId: string
+  libraryId: string,
+  libraryConfig?: StorageConfig | null
 ): AsyncGenerator<ThumbnailRepairProgress> {
   FileLogger.info('thumbnail-regenerate', 'Starte Thumbnail-Regenerierung für Library', { libraryId })
-  
+
   const collectionName = getShadowTwinCollectionName(libraryId)
   const col = await getCollection(collectionName)
-  
-  // Azure Storage konfigurieren
-  const azureConfig = getAzureStorageConfig()
+
+  // Azure Storage konfigurieren — Library-Config gewinnt vor Prozess-ENV
+  const azureConfig = resolveAzureStorageConfig(libraryConfig)
   if (!azureConfig) {
     yield {
       current: 0,
@@ -676,7 +632,7 @@ export async function* regenerateAllThumbnails(
     return
   }
   
-  const azureStorage = new AzureStorageService()
+  const azureStorage = new AzureStorageService(libraryConfig)
   if (!azureStorage.isConfigured()) {
     yield {
       current: 0,
@@ -687,10 +643,11 @@ export async function* regenerateAllThumbnails(
     }
     return
   }
-  
-  // Finde alle Shadow-Twins mit Cover-Bildern (Original-Bilder)
+
+  // Finde alle Shadow-Twins mit Original-Bildern — gleiches Kriterium wie
+  // die Statistik (withCoverImage), nicht nur Fragmente mit variant-Feld.
   const shadowTwins = await col.find({
-    'binaryFragments.variant': 'original'
+    binaryFragments: { $elemMatch: ORIGINAL_ELEM }
   }).toArray() as unknown as ShadowTwinForRepair[]
   
   if (shadowTwins.length === 0) {
@@ -722,10 +679,11 @@ export async function* regenerateAllThumbnails(
     
     try {
       const fragments = twin.binaryFragments || []
-      
-      // Finde das Original-Bild
-      const originalImage = fragments.find(f => f.variant === 'original' && f.url)
-      
+
+      // Finde das Original-Bild (gleiches Kriterium wie die Statistik;
+      // variant='original' ist dank ORIGINAL_ELEM nicht mehr Voraussetzung)
+      const originalImage = findOriginalImage(fragments)
+
       if (!originalImage?.url) {
         yield {
           current: i,
