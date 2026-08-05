@@ -111,12 +111,19 @@ export function ShadowTwinConfigSection({
     }
   };
 
-  /** Leitet die Strategie clientseitig aus den Flags + azureConfigured ab (v2: Cache ist primär) */
+  /**
+   * Leitet die Strategie clientseitig ab: echte Library-Config, ueberlagert
+   * mit den (ggf. ungespeicherten) Schalter-Werten. Kein erfundener
+   * primaryStore — das Defaulting kommt aus getShadowTwinConfig und ist
+   * damit identisch mit dem, was der Server rechnet.
+   */
   const computeStrategy = () => {
     const previewLib = {
+      ...activeLibrary,
       config: {
+        ...activeLibrary?.config,
         shadowTwin: {
-          primaryStore: "mongo",
+          ...(activeLibrary?.config?.shadowTwin ?? {}),
           persistToFilesystem: shadowTwinPersistToFilesystem,
           allowFilesystemFallback: shadowTwinAllowFilesystemFallback,
         },
