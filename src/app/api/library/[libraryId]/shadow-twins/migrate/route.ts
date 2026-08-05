@@ -15,7 +15,6 @@ export const maxDuration = 600 // 10 Minuten
 import type { StorageItem, StorageProvider } from '@/lib/storage/types'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { LibraryService } from '@/lib/services/library-service'
-import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { generateShadowTwinFolderNameVariants } from '@/lib/storage/shadow-twin'
 import { isShadowTwinFolderName } from '@/lib/storage/shadow-twin-folder-name'
 import { parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
@@ -214,11 +213,6 @@ export async function POST(
 
     const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
     if (!library) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
-
-    const shadowTwinConfig = getShadowTwinConfig(library)
-    if (shadowTwinConfig.primaryStore !== 'mongo') {
-      return NextResponse.json({ error: 'Mongo ist nicht aktiv' }, { status: 400 })
-    }
 
     // Client darf eine runId vorgeben (für sofortiges Polling/Abbrechen). Sonst generieren.
     runId = typeof body.runId === 'string' && body.runId.trim().length > 0 ? body.runId.trim() : randomUUID()
