@@ -65,13 +65,9 @@ export function shouldFilterShadowTwinFolders(shadowTwinConfig?: {
   primaryStore?: string;
   persistToFilesystem?: boolean;
 }): boolean {
-  const primaryStore = shadowTwinConfig?.primaryStore || 'filesystem'
-  const persistToFilesystem =
-    typeof shadowTwinConfig?.persistToFilesystem === 'boolean'
-      ? shadowTwinConfig.persistToFilesystem
-      : primaryStore === 'filesystem'
-
-  return persistToFilesystem
+  // Gleiches Defaulting wie getShadowTwinConfig: Backup-Spiegel ist an,
+  // bis er explizit abgeschaltet wird — primaryStore spielt keine Rolle mehr.
+  return shadowTwinConfig?.persistToFilesystem ?? true
 }
 
 export function parseTwinRelativeImageRef(ref: string): { twinFolderName: string; imageFileName: string } | null {
