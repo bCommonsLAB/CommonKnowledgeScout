@@ -13,28 +13,20 @@ export {
 } from './shadow-twin-folder-name';
 
 /**
- * Generiert alle möglichen Varianten des Shadow-Twin-Verzeichnisnamens
- * für die Erkennungslogik. Berücksichtigt:
- * - Neues Format: Unterstrich-Prefix (_name)
- * - Legacy-Format: Punkt-Prefix (.name) für Rückwärtskompatibilität
- * 
+ * Generiert die möglichen Varianten des Shadow-Twin-Verzeichnisnamens
+ * für die Erkennungslogik.
+ *
+ * Seit dem Legacy-Cleanup gibt es nur noch das Unterstrich-Format (`_name`).
+ * Das frühere Punkt-Format (`.name`) wird NICHT mehr erkannt — Altbestände
+ * werden einmalig mit `scripts/normalize-shadow-twin-folders.ts` umbenannt.
+ * Die Funktion liefert weiterhin ein Array, damit künftige Varianten
+ * (z. B. Längen-Kürzungen) ohne Aufrufer-Änderung ergänzt werden können.
+ *
  * @param originalName Der ursprüngliche Dateiname
- * @returns Array von möglichen Verzeichnisnamen-Varianten (Unterstrich zuerst, dann Punkt)
+ * @returns Array mit dem kanonischen Verzeichnisnamen
  */
 export function generateShadowTwinFolderNameVariants(originalName: string): string[] {
-  const cleanName = originalName.trim().replace(/^\/+|\/+$/g, '');
-  
-  // Neues Format (Unterstrich) – zuerst prüfen
-  const underscoreName = generateShadowTwinFolderName(originalName, 255);
-  const variants: string[] = [underscoreName];
-  
-  // Legacy-Format (Punkt) – für bestehende Ordner
-  const dotName = `.${cleanName}`;
-  if (dotName.length <= 255 && dotName !== underscoreName) {
-    variants.push(dotName);
-  }
-  
-  return variants;
+  return [generateShadowTwinFolderName(originalName, 255)];
 }
 
 /**
