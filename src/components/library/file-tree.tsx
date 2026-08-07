@@ -44,7 +44,7 @@ export const FileTree = forwardRef<FileTreeRef, object>(function FileTree({
   const libraryState = useAtomValue(libraryAtom);
 
   const hideShadowTwinFolders = shouldFilterShadowTwinFolders(
-    activeLibrary?.config?.shadowTwin as { primaryStore?: string; persistToFilesystem?: boolean } | undefined
+    activeLibrary?.config?.shadowTwin as { persistToFilesystem?: boolean } | undefined
   );
   
   // Refs um aktuelle Werte im Timeout zu prüfen (Closure-Problem vermeiden)

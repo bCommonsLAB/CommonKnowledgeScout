@@ -72,12 +72,12 @@ export interface MediaStorageStrategy {
  * - `azureConfigured`: Laufzeit-Flag, ob Azure tatsaechlich konfiguriert ist.
  *   Bewusst als Parameter, damit diese Funktion keine I/O-Abhaengigkeiten hat und in Tests deterministisch bleibt.
  *
- * Ableitungslogik:
- * - `primaryStore=mongo` + `persistToFilesystem=false` + Azure  ⇒ `azure-only`
- * - `primaryStore=mongo` + `persistToFilesystem=true`  + Azure  ⇒ `azure-with-fs-backup`
- * - `primaryStore=mongo` + `persistToFilesystem=false` + kein Azure ⇒ `unavailable` (harter Fehler bei Schreibversuch)
- * - `primaryStore=filesystem` ⇒ immer `filesystem-only` (auch wenn Azure verfuegbar)
- * - alle anderen Kombinationen ⇒ `filesystem-only` (Defensive Default)
+ * Ableitungslogik (echte Libraries sind immer Mongo-primaer):
+ * - `persistToFilesystem=false` + Azure      ⇒ `azure-only`
+ * - `persistToFilesystem=true`  + Azure      ⇒ `azure-with-fs-backup`
+ * - `persistToFilesystem=false` + kein Azure ⇒ `unavailable` (harter Fehler bei Schreibversuch)
+ * - `persistToFilesystem=true`  + kein Azure ⇒ `filesystem-only`
+ * - Inbox-Scope (library=null, ADR-0004 II)  ⇒ `filesystem-only` (Provider-Schreibpfad)
  */
 export function getMediaStorageStrategy(
   library: Library | null | undefined,
@@ -145,9 +145,8 @@ export function getMediaStorageStrategy(
     }
   }
 
-  // Fall 3: primaryStore=filesystem (Legacy/lokal).
-  // Hier bleibt der heutige Filesystem-First-Pfad. Azure-Spiegel optional moeglich,
-  // aber nicht von dieser Strategie erzwungen.
+  // Fall 3: Inbox-/Quarantaene-Scope (library=null, ADR-0004 II).
+  // Ohne Library gibt es keinen Mongo-Shadow-Twin — es gilt der Provider-Schreibpfad.
   return {
     mode: 'filesystem-only',
     writeToAzure: false,
@@ -155,7 +154,7 @@ export function getMediaStorageStrategy(
     readPreferredSource: 'filesystem',
     allowFilesystemFallbackOnRead: true,
     rationale:
-      `primaryStore=${cfg.primaryStore}. ` +
-      'Bilder werden ins Filesystem geschrieben und von dort gelesen (Legacy-Pfad).',
+      'Inbox-Scope (keine Library): Bilder werden ueber den Provider ins Filesystem ' +
+      'geschrieben und von dort gelesen.',
   }
 }

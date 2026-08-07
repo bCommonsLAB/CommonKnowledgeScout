@@ -2198,12 +2198,9 @@ export function CreationWizard({ typeId, templateId, libraryId, resumeFileId, se
       // MongoDB-Persistenz: Wizard-Output als Shadow-Twin-Artefakte in MongoDB speichern.
       // Zwei Artefakte: Transkript (Korpus mit Quellen-Referenzen) + Transformation (Wizard-Output).
       // Siehe docs/rules/ingest-mongo-only.md: Alle ingestierten Artefakte MÜSSEN in MongoDB existieren.
-      // Nur bei primaryStore === 'mongo'. Die API lehnt bei Filesystem-Mode ab.
       // BLOCKIEREND: Bei Fehler wird der Speichervorgang abgebrochen.
       if (savedItemId && libraryId && markdownContent) {
-        const library = libraries.find((lib) => lib.id === libraryId)
-        const shadowTwinConfig = library?.config?.shadowTwin as { primaryStore?: 'filesystem' | 'mongo' } | undefined
-        if (shadowTwinConfig?.primaryStore === 'mongo') {
+        {
           const templateNameForArtifact = (template?.name || templateId || '').trim() || 'creation'
           const upsertUrl = `/api/library/${encodeURIComponent(libraryId)}/shadow-twins/upsert`
 

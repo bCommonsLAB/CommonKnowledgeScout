@@ -9,7 +9,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { LibraryService } from '@/lib/services/library-service'
-import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { getShadowTwinsBySourceIds, readTranscriptRecord, type ShadowTwinArtifactRecord } from '@/lib/repositories/shadow-twin-repo'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { isAbsoluteLoopbackMediaUrl } from '@/lib/storage/non-portable-media-url'
@@ -37,11 +36,6 @@ export async function POST(
 
     const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
     if (!library) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
-
-    const shadowTwinConfig = getShadowTwinConfig(library)
-    if (shadowTwinConfig.primaryStore !== 'mongo') {
-      return NextResponse.json({ error: 'Mongo ist nicht aktiv' }, { status: 400 })
-    }
 
     // Lade Shadow-Twin-Dokumente für alle sourceIds
     const docs = await getShadowTwinsBySourceIds({

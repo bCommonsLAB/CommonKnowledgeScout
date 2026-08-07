@@ -207,7 +207,7 @@ export async function POST(
     const failed = results.filter((r) => !r.success).length
 
     // Wenn persistToFilesystem nicht aktiv ist, warnen
-    if (!config.persistToFilesystem && config.primaryStore !== 'filesystem') {
+    if (!config.persistToFilesystem) {
       FileLogger.warn('shadow-twins/sync-to-storage', 'persistToFilesystem ist deaktiviert – manueller Sync ausgeführt', {
         sourceId: body.sourceId,
       })

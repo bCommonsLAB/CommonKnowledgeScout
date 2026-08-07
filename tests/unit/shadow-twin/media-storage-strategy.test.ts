@@ -87,18 +87,16 @@ describe('getMediaStorageStrategy', () => {
     })
   })
 
-  describe('primaryStore=filesystem (Legacy)', () => {
-    it('Azure verfuegbar -> filesystem-only (kein Auto-Upgrade)', () => {
+  describe('primaryStore=filesystem im Config-Feld (Legacy-Wert wird ignoriert)', () => {
+    it('Library mit Alt-Wert wird wie Mongo-primaer behandelt', () => {
       const lib = makeLibrary({ primaryStore: 'filesystem' })
       const s = getMediaStorageStrategy(lib, true)
-      expect(s.mode).toBe<MediaStorageMode>('filesystem-only')
-      expect(s.writeToAzure).toBe(false)
-      expect(s.writeToFilesystem).toBe(true)
-      expect(s.readPreferredSource).toBe('filesystem')
-      expect(s.allowFilesystemFallbackOnRead).toBe(true)
+      // Welle 2: das Config-Feld wird nicht mehr gelesen; persistToFilesystem
+      // fehlt -> Default true -> Backup-Spiegel.
+      expect(s.mode).toBe<MediaStorageMode>('azure-with-fs-backup')
     })
 
-    it('Azure NICHT verfuegbar -> filesystem-only', () => {
+    it('Alt-Wert + kein Azure -> filesystem-only (weil persist=true, Azure fehlt)', () => {
       const lib = makeLibrary({ primaryStore: 'filesystem' })
       const s = getMediaStorageStrategy(lib, false)
       expect(s.mode).toBe<MediaStorageMode>('filesystem-only')

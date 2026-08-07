@@ -468,7 +468,7 @@ export async function POST(
     if (!library) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
 
     const config = getShadowTwinConfig(library)
-    const storageExpected = config.primaryStore === 'filesystem' || config.persistToFilesystem
+    const storageExpected = config.persistToFilesystem
 
     const provider = await getServerProvider(userEmail, libraryId)
     if (!provider) {

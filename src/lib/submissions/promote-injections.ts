@@ -5,7 +5,7 @@
  * Baut die storage-nahen Abhaengigkeiten, die `promoteSubmission` rein halten:
  * - `loadOriginal`: laedt Original-Binaries aus der Inbox (B1).
  * - `writeTranscriptArtifact`: legt das Transkript als Shadow-Twin der Ziel-Quelle
- *   ab — FS-Dot-Folder (`writeArtifact`) vs. Mongo (`ShadowTwinService`) je Config (B2a).
+ *   ab — Mongo (`ShadowTwinService`), Mongo ist immer primaerer Store (B2a).
  * - `mirrorAssets`: spiegelt die Extract-Bilder aus der Inbox ueber den Ziel-
  *   `ShadowTwinService` ins Archiv (B2d V2, FS/Mongo an EINER Stelle).
  *
@@ -25,8 +25,6 @@ import type {
 } from '@/lib/submissions/promotion';
 import { getInboxProvider } from '@/lib/storage/inbox/inbox-provider-entry';
 import { LibraryService } from '@/lib/services/library-service';
-import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config';
-import { writeArtifact } from '@/lib/shadow-twin/artifact-writer';
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service';
 import { mirrorInboxAssetsToTarget } from '@/lib/submissions/promotion-assets';
 
@@ -66,8 +64,7 @@ export async function buildPromotionInjections(args: {
     : undefined;
 
   // B2a: Transcript-only legt das Transkript als Shadow-Twin der Ziel-Quelle ab —
-  // kanonisch ueber die bestehenden Primitive, KEINE Doppellogik. Die Store-Wahl
-  // folgt `getShadowTwinConfig` (storage-agnostisch).
+  // kanonisch ueber den ShadowTwinService (Mongo ist immer primaerer Store).
   const writeTranscriptArtifact: WriteTranscriptArtifactFn = async ({
     sourceId,
     sourceName,
@@ -77,20 +74,9 @@ export async function buildPromotionInjections(args: {
   }) => {
     const library = await LibraryService.getInstance().getLibraryById(submission.libraryId);
     if (!library) throw new Error(`Promotion: Library nicht gefunden: ${submission.libraryId}`);
-    const cfg = getShadowTwinConfig(library);
-    if (cfg.primaryStore === 'mongo') {
-      const svc = await ShadowTwinService.create({ library, userEmail: email, sourceId, sourceName, parentId });
-      const res = await svc.upsertMarkdown({ kind: 'transcript', targetLanguage, markdown });
-      return { artifactId: res.id, artifactName: res.name };
-    }
-    const res = await writeArtifact(provider, {
-      key: { sourceId, kind: 'transcript', targetLanguage },
-      sourceName,
-      parentId,
-      content: markdown,
-      createFolder: true,
-    });
-    return { artifactId: res.file.id, artifactName: res.file.metadata.name };
+    const svc = await ShadowTwinService.create({ library, userEmail: email, sourceId, sourceName, parentId });
+    const res = await svc.upsertMarkdown({ kind: 'transcript', targetLanguage, markdown });
+    return { artifactId: res.id, artifactName: res.name };
   };
 
   // B2d V2: Extract-Bilder aus dem Inbox-Shadow-Twin ueber den Ziel-

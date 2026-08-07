@@ -62,11 +62,10 @@ export function buildTwinRelativeMediaRef(sourceFileName: string, fragmentFileNa
  * Ohne Filesystem-Persistierung sind `_`-Ordner reguläre Benutzer-Verzeichnisse.
  */
 export function shouldFilterShadowTwinFolders(shadowTwinConfig?: {
-  primaryStore?: string;
   persistToFilesystem?: boolean;
 }): boolean {
   // Gleiches Defaulting wie getShadowTwinConfig: Backup-Spiegel ist an,
-  // bis er explizit abgeschaltet wird — primaryStore spielt keine Rolle mehr.
+  // bis er explizit abgeschaltet wird.
   return shadowTwinConfig?.persistToFilesystem ?? true
 }
 

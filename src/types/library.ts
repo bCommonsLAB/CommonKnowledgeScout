@@ -404,7 +404,12 @@ export interface StorageConfig {
   shadowTwin?: {
     /** Modus: 'legacy' (alte Heuristik) oder 'v2' (neue Namenskonventionen) */
     mode?: 'legacy' | 'v2';
-    /** Primärer Store fuer Shadow-Twins */
+    /**
+     * @deprecated Wird seit Welle 2 (Legacy-Ausbau) NICHT mehr gelesen —
+     * Mongo ist immer primaerer Store. Das Feld bleibt nur fuer
+     * DB-/Rollback-Kompatibilitaet im Typ und wird weiterhin mit 'mongo'
+     * geschrieben.
+     */
     primaryStore?: 'filesystem' | 'mongo';
     /** Shadow-Twins zusaetzlich ins Filesystem schreiben */
     persistToFilesystem?: boolean;
