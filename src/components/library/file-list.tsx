@@ -59,6 +59,8 @@ import { isShadowTwinFolderName } from "@/lib/storage/shadow-twin";
 import { shouldFilterShadowTwinFolders } from "@/lib/storage/shadow-twin-folder-name";
 import { isImageMediaFromName } from "@/lib/media-types";
 import { CompositeMultiCreateDialog, deriveCompositeMultiDefaultFilename } from "./composite-multi-create-dialog";
+import { FolderSyncDialog } from "./folder-sync-dialog";
+import type { SyncReportView } from "@/components/settings/shadow-twin-sync-report-view";
 import {
   CompositeTransformationsCreateDialog,
   deriveCompositeTransformationsDefaultFilename,
@@ -107,6 +109,9 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   const activeLibrary = useAtomValue(activeLibraryAtom);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [isFolderSyncing, setIsFolderSyncing] = React.useState(false);
+  // Zweistufiger Ordner-Abgleich: Pruef-Report + Bestaetigungs-Dialog (Welle 4).
+  const [folderSyncReport, setFolderSyncReport] = React.useState<SyncReportView | null>(null);
+  const [isFolderSyncDialogOpen, setIsFolderSyncDialogOpen] = React.useState(false);
   // Mobile-Flag wurde entfernt, FileList lädt unabhängig vom View
   const [selectedBatchItems, setSelectedBatchItems] = useAtom(selectedBatchItemsAtom);
   const [selectedTransformationItems, setSelectedTransformationItems] = useAtom(selectedTransformationItemsAtom);
@@ -680,52 +685,60 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     }
   }, [currentFolderId, refreshItems, setFolderItems, setShadowTwinAnalysisTrigger, shadowTwinAnalysisTrigger]);
 
-  // Verzeichnis-Sync: Änderungen im aktuellen Ordner (und Unterordner) abgleichen
+  // Verzeichnis-Abgleich (Welle 4, zweistufig): erst Pruefen (check), dann im
+  // Dialog bestaetigtes Reparieren desselben Plans — kein Schreiben ohne Vorschau.
+  const callFolderSync = useCallback(async (mode: 'check' | 'repair'): Promise<SyncReportView> => {
+    const res = await fetch(`/api/library/${encodeURIComponent(activeLibraryId ?? '')}/shadow-twins/reconcile`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode, preset: 'repair', scope: { folderId: currentFolderId, recursive: true } }),
+    });
+    const json = await res.json().catch(() => ({})) as SyncReportView & { error?: string };
+    if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+    return json;
+  }, [activeLibraryId, currentFolderId]);
+
   const handleFolderSync = useCallback(async () => {
     if (!currentFolderId || !activeLibraryId) return;
     setIsFolderSyncing(true);
     try {
-      const res = await fetch(`/api/library/${encodeURIComponent(activeLibraryId)}/shadow-twins/sync-all`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folderId: currentFolderId, recursive: true }),
-      });
-      const json = await res.json().catch(() => ({})) as {
-        report?: { scanned?: number; markdownToCache?: number; markdownToStorage?: number; imagesWritten?: number; sourceNewer?: number; errors?: number };
-        error?: string;
-      };
-      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
-
-      const r = json.report;
-      if (r) {
-        const changes = (r.markdownToCache || 0) + (r.markdownToStorage || 0) + (r.imagesWritten || 0);
-        if (changes > 0) {
-          toast.success(`${changes} Artefakt${changes > 1 ? 'e' : ''} abgeglichen`, {
-            description: [
-              r.markdownToCache ? `${r.markdownToCache} → Cache` : '',
-              r.markdownToStorage ? `${r.markdownToStorage} → Storage` : '',
-              r.imagesWritten ? `${r.imagesWritten} Bilder` : '',
-            ].filter(Boolean).join(', '),
-          });
-          // Dateiliste + Shadow-Twin-Analyse neu laden
-          setShadowTwinAnalysisTrigger((v) => v + 1);
-        } else {
-          toast.info('Alles synchron', { description: `${r.scanned || 0} Dateien geprüft.` });
-        }
-        if (r.sourceNewer && r.sourceNewer > 0) {
-          toast.warning(`${r.sourceNewer} Quelldatei${r.sourceNewer > 1 ? 'en' : ''} neuer`, {
-            description: 'Pipeline-Verarbeitung nötig.',
-          });
-        }
-      }
+      setFolderSyncReport(await callFolderSync('check'));
+      setIsFolderSyncDialogOpen(true);
     } catch (error) {
-      toast.error('Abgleich fehlgeschlagen', {
+      toast.error('Prüfen fehlgeschlagen', {
         description: error instanceof Error ? error.message : String(error),
       });
     } finally {
       setIsFolderSyncing(false);
     }
-  }, [currentFolderId, activeLibraryId, setShadowTwinAnalysisTrigger]);
+  }, [currentFolderId, activeLibraryId, callFolderSync]);
+
+  const handleFolderRepair = useCallback(async () => {
+    if (!currentFolderId || !activeLibraryId) return;
+    setIsFolderSyncing(true);
+    try {
+      const r = await callFolderSync('repair');
+      if (r.changed > 0) {
+        toast.success(`${r.changed} Datei${r.changed > 1 ? 'en' : ''} repariert`, {
+          description: r.errors > 0 ? `${r.errors} Fehler — Details im Log.` : undefined,
+        });
+        setShadowTwinAnalysisTrigger((v) => v + 1);
+      } else {
+        toast.info('Alles synchron', { description: `${r.totalSources} Dateien geprüft.` });
+      }
+      if (r.needsPipeline > 0) {
+        toast.warning(`${r.needsPipeline} Quelldatei${r.needsPipeline > 1 ? 'en' : ''} neuer`, {
+          description: 'Pipeline-Verarbeitung nötig.',
+        });
+      }
+    } catch (error) {
+      toast.error('Reparieren fehlgeschlagen', {
+        description: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setIsFolderSyncing(false);
+    }
+  }, [currentFolderId, activeLibraryId, callFolderSync, setShadowTwinAnalysisTrigger]);
 
   // Globales Ordner-Refresh-Ereignis (z. B. nach Shadow‑Twin Speicherung)
   React.useEffect(() => {
@@ -1364,10 +1377,18 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Änderungen in diesem Verzeichnis abgleichen</p>
+                  <p>Änderungen in diesem Verzeichnis prüfen und abgleichen</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+
+            {/* Zweistufiger Ordner-Abgleich: Pruef-Report → bestaetigtes Reparieren */}
+            <FolderSyncDialog
+              open={isFolderSyncDialogOpen}
+              onOpenChange={setIsFolderSyncDialogOpen}
+              report={folderSyncReport}
+              onRepair={() => void handleFolderRepair()}
+            />
 
             {/* Dateikategorie-Filter (Icon-only Variante) */}
             <FileCategoryFilter iconOnly />

@@ -7,9 +7,11 @@
  *
  * Zuständigkeiten:
  * - runShadowTwinMigration: Liest Artefakte aus dem Dateisystem in den Cache
- * - runDirectionalSync: Sync in eine Richtung (to-storage | to-cache | both)
  * - runLanguageCleanup: Löscht Artefakte einer bestimmten Sprache
  * - loadMigrationRuns: Lädt Migration-Runs aus der API
+ *
+ * Analyse und Richtungs-Sync (sync-all) sind seit Welle 4 in der Sync-Engine
+ * konsolidiert (Pruefen & Reparieren, shadow-twin-reconcile-panel.tsx).
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -83,19 +85,6 @@ export interface MigrationRun {
   };
 }
 
-/** Typ für den Analysis-Report */
-export interface AnalysisReport {
-  scanned: number;
-  withShadowTwin: number;
-  markdownToCache: number;
-  markdownToStorage: number;
-  imagesWritten: number;
-  imagesSkipped: number;
-  alreadySynced: number;
-  sourceNewer: number;
-  errors: number;
-}
-
 /** Props für den useShadowTwinMigration Hook */
 interface UseShadowTwinMigrationProps {
   activeLibraryId: string | null | undefined;
@@ -108,9 +97,6 @@ interface UseShadowTwinMigrationProps {
   setDryRunError: (v: string | null) => void;
   setMigrationRuns: (runs: MigrationRun[]) => void;
   setSelectedRunId: (id: string | null) => void;
-  setIsSyncRunning: (v: boolean) => void;
-  setIsAnalyzing: (v: boolean) => void;
-  setAnalysisReport: (report: AnalysisReport | null) => void;
   setIsLangAnalyzing: (v: boolean) => void;
   setIsLangDeleting: (v: boolean) => void;
   setLangCleanupResult: (result: LangCleanupResult | null) => void;
@@ -143,9 +129,6 @@ export function useShadowTwinMigration({
   setDryRunError,
   setMigrationRuns,
   setSelectedRunId,
-  setIsSyncRunning,
-  setIsAnalyzing,
-  setAnalysisReport,
   setIsLangAnalyzing,
   setIsLangDeleting,
   setLangCleanupResult,
@@ -462,126 +445,6 @@ export function useShadowTwinMigration({
   }, [activeLibraryId, currentRunId]);
 
   /**
-   * Sync mit Richtungswahl: Export (to-storage), Import (to-cache), oder bidirektional.
-   */
-  const runDirectionalSync = useCallback(
-    async (direction: "to-storage" | "to-cache" | "both") => {
-      if (!activeLibraryId) {
-        toast({
-          title: "Fehler",
-          description: "Keine aktive Bibliothek gewählt.",
-          variant: "destructive",
-        });
-        return;
-      }
-      setIsSyncRunning(true);
-      try {
-        const res = await fetch(
-          `/api/library/${activeLibraryId}/shadow-twins/sync-all`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ folderId: "root", recursive: true, direction }),
-          }
-        );
-        const json = (await res.json().catch(() => ({}))) as {
-          success?: boolean;
-          report?: AnalysisReport;
-          error?: string;
-        };
-        if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
-
-        const r = json.report;
-        if (r) {
-          const parts: string[] = [];
-          if (r.markdownToCache > 0) parts.push(`${r.markdownToCache} Markdown → Cache`);
-          if (r.markdownToStorage > 0) parts.push(`${r.markdownToStorage} Markdown → Storage`);
-          if (r.imagesWritten > 0) parts.push(`${r.imagesWritten} Bilder → Storage`);
-          if (r.sourceNewer > 0) parts.push(`${r.sourceNewer} Pipeline nötig`);
-          if (r.errors > 0) parts.push(`${r.errors} Fehler`);
-
-          const label =
-            direction === "to-storage"
-              ? "Export"
-              : direction === "to-cache"
-              ? "Import"
-              : "Sync";
-          toast({
-            title: parts.length > 0 ? `${label} abgeschlossen` : "Alles synchron",
-            description:
-              parts.length > 0
-                ? parts.join(", ")
-                : `${r.scanned} Dateien geprüft, alle synchron.`,
-          });
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        toast({
-          title: "Sync fehlgeschlagen",
-          description: message,
-          variant: "destructive",
-        });
-      } finally {
-        setIsSyncRunning(false);
-      }
-    },
-    [activeLibraryId, setIsSyncRunning]
-  );
-
-  /**
-   * Analyse: DryRun von sync-all — scannt Storage + Cache und zeigt was synchronisiert würde.
-   */
-  const runAnalysis = useCallback(async () => {
-    if (!activeLibraryId) {
-      toast({
-        title: "Fehler",
-        description: "Keine aktive Bibliothek gewählt.",
-        variant: "destructive",
-      });
-      return;
-    }
-    setIsAnalyzing(true);
-    setAnalysisReport(null);
-    try {
-      const res = await fetch(
-        `/api/library/${activeLibraryId}/shadow-twins/sync-all`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            folderId: "root",
-            recursive: true,
-            dryRun: true,
-            direction: "both",
-          }),
-        }
-      );
-      const json = (await res.json().catch(() => ({}))) as {
-        report?: AnalysisReport;
-        error?: string;
-      };
-      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
-
-      if (json.report) {
-        setAnalysisReport(json.report);
-      }
-      toast({
-        title: "Analyse abgeschlossen",
-        description: "Storage und Cache wurden verglichen.",
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      toast({
-        title: "Analyse fehlgeschlagen",
-        description: message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsAnalyzing(false);
-    }
-  }, [activeLibraryId, setIsAnalyzing, setAnalysisReport]);
-
-  /**
    * Sprach-Bereinigung: Analyse (Dry-Run) oder tatsächliches Löschen.
    */
   const runLanguageCleanup = useCallback(
@@ -632,8 +495,6 @@ export function useShadowTwinMigration({
 
   return {
     runShadowTwinMigration,
-    runDirectionalSync,
-    runAnalysis,
     runLanguageCleanup,
     // Verzeichnis-Auswahl + Live-Fortschritt + Abbruch
     selectedFolderId,

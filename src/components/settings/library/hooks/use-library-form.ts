@@ -163,9 +163,6 @@ export function useLibraryForm(createNew: boolean) {
   const [dryRunRunning, setDryRunRunning] = useState(false);
   const [dryRunError, setDryRunError] = useState<string | null>(null);
 
-  // Sync State
-  const [isSyncRunning, setIsSyncRunning] = useState(false);
-
   // Sprach-Bereinigung State
   const [isLangCleanupOpen, setIsLangCleanupOpen] = useState(false);
   const [langCleanupLang, setLangCleanupLang] = useState("");
@@ -181,20 +178,6 @@ export function useLibraryForm(createNew: boolean) {
       sourceName: string;
       artifacts: Array<{ kind: string; templateName: string | null }>;
     }>;
-  } | null>(null);
-
-  // Analyse State
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisReport, setAnalysisReport] = useState<{
-    scanned: number;
-    withShadowTwin: number;
-    markdownToCache: number;
-    markdownToStorage: number;
-    imagesWritten: number;
-    imagesSkipped: number;
-    alreadySynced: number;
-    sourceNewer: number;
-    errors: number;
   } | null>(null);
 
   // Migration-Runs State
@@ -788,9 +771,6 @@ export function useLibraryForm(createNew: boolean) {
     setDryRunRunning,
     dryRunError,
     setDryRunError,
-    // Sync
-    isSyncRunning,
-    setIsSyncRunning,
     // Sprach-Bereinigung
     isLangCleanupOpen,
     setIsLangCleanupOpen,
@@ -802,11 +782,6 @@ export function useLibraryForm(createNew: boolean) {
     setIsLangDeleting,
     langCleanupResult,
     setLangCleanupResult,
-    // Analyse
-    isAnalyzing,
-    setIsAnalyzing,
-    analysisReport,
-    setAnalysisReport,
     // Migration Runs
     migrationRuns,
     setMigrationRuns,
