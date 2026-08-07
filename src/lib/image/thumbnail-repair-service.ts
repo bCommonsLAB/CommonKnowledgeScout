@@ -41,18 +41,29 @@ const THUMBNAIL_ELEM = {
   $or: [{ variant: 'thumbnail' }, { name: { $regex: /^thumb_/i } }],
 }
 
-/** Fragment gilt als Original-Bild: hat URL und ist kein Thumbnail. */
+/**
+ * Fragment gilt als Original-Bild: hat URL, ist kein Thumbnail, und der
+ * MIME-Typ ist ein Bild (manche Alt-Daten registrieren PDF-Anhaenge als
+ * kind='image' — die kann kein Thumbnail bekommen und darf daher auch
+ * nicht als "fehlend" zaehlen).
+ */
 const ORIGINAL_ELEM = {
   kind: 'image',
   url: { $exists: true, $ne: null },
   variant: { $ne: 'thumbnail' },
   name: { $not: /^thumb_/i },
+  $or: [{ mimeType: { $exists: false } }, { mimeType: { $regex: /^image\// } }],
 }
 
 /** Original-Bild eines Twins im Speicher-Dokument finden (gleiches Kriterium wie ORIGINAL_ELEM). */
 function findOriginalImage(fragments: BinaryFragment[] | undefined): BinaryFragment | undefined {
   return fragments?.find(
-    (f) => f.kind === 'image' && !!f.url && f.variant !== 'thumbnail' && !/^thumb_/i.test(f.name ?? ''),
+    (f) =>
+      f.kind === 'image' &&
+      !!f.url &&
+      f.variant !== 'thumbnail' &&
+      !/^thumb_/i.test(f.name ?? '') &&
+      (!f.mimeType || f.mimeType.startsWith('image/')),
   )
 }
 
