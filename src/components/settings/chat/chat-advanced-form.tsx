@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button"
 import { Form } from "@/components/ui/form"
 import { IndexDefinitionDialog } from '@/components/settings/index-definition-dialog'
 import { SearchIndexDialog } from '@/components/settings/search-index-dialog'
-import { toast } from "@/components/ui/use-toast"
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useChatForm } from './hooks/use-chat-form'
 import { RetrievalConfigSection } from './retrieval-config-section'
@@ -66,6 +65,19 @@ export function ChatAdvancedForm() {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <RetrievalConfigSection form={form} defaultEmbeddings={defaultEmbeddings} />
 
+        {/* Such-Index gehoert fachlich zur Suche — nicht in die Speichern-Zeile */}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium">Such-Index</p>
+            <p className="text-xs text-muted-foreground">
+              Zustand des Vektor-Index prüfen, anlegen oder löschen.
+            </p>
+          </div>
+          <Button type="button" variant="outline" onClick={() => setShowSearchIndexDialog(true)}>
+            Such-Index verwalten
+          </Button>
+        </div>
+
         <LlmModelSection form={form} />
 
         {/* Facetten im Detail (Petra-Review Punkt 3: aus Explore hierher) */}
@@ -108,24 +120,7 @@ export function ChatAdvancedForm() {
           handleRepairVariants={handleRepairVariants}
         />
 
-        <div className="flex items-center justify-between gap-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              if (activeLibrary) {
-                setShowSearchIndexDialog(true)
-              } else {
-                toast({
-                  title: t('settings.chatForm.error'),
-                  description: t('settings.chatForm.noLibrarySelected'),
-                  variant: 'destructive'
-                })
-              }
-            }}
-          >
-            SearchIndex
-          </Button>
+        <div className="flex items-center justify-end gap-4">
           <Button type="submit" disabled={isLoading}>
             {isLoading ? t('settings.chatForm.saving') : t('settings.chatForm.save')}
           </Button>

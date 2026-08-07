@@ -14,14 +14,18 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
-import { 
-  countMissingThumbnails, 
+import {
+  countMissingThumbnails,
   repairThumbnailsForLibrary,
   regenerateAllThumbnails,
   countMissingVariants,
   repairBinaryFragmentVariants,
 } from '@/lib/image/thumbnail-repair-service'
+import { LibraryService } from '@/lib/services/library-service'
 import { FileLogger } from '@/lib/debug/logger'
+
+// Reparatur/Regenerierung laedt und konvertiert Bilder fuer die ganze Library
+export const maxDuration = 600 // 10 Minuten
 
 interface RouteParams {
   params: Promise<{ libraryId: string }>
@@ -128,6 +132,14 @@ export async function POST(
       })
     }
     
+    // Library laden: die Engines brauchen die Library-Config, damit
+    // Library-eigene Azure-Zugangsdaten (ingestionStorage) greifen —
+    // vorher schrieben sie stur in den ENV-Container.
+    const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
+    if (!library) {
+      return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
+    }
+
     // Default: Thumbnail-Reparatur oder Regenerierung mit SSE
     const operationType = regenerate ? 'regenerate' : 'repair'
     FileLogger.info('repair-thumbnails', `Starte Thumbnail-${operationType} via API`, {
@@ -147,9 +159,9 @@ export async function POST(
           
           // Führe Reparatur oder Regenerierung durch und sende Fortschritts-Updates
           // Bei regenerate=true werden ALLE Thumbnails neu berechnet
-          const generator = regenerate 
-            ? regenerateAllThumbnails(libraryId) 
-            : repairThumbnailsForLibrary(libraryId)
+          const generator = regenerate
+            ? regenerateAllThumbnails(libraryId, library.config)
+            : repairThumbnailsForLibrary(libraryId, library.config)
           
           for await (const progress of generator) {
             const event = {

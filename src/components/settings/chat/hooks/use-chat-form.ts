@@ -418,14 +418,20 @@ export function useChatForm(): UseChatFormResult {
         fetch(`/api/library/${encodeURIComponent(activeLibrary.id)}/repair-thumbnails?type=variants`),
       ])
 
+      // Kein stiller Fallback: eine 500 hiess frueher "Keine Statistik
+      // verfuegbar" — der Fehler muss sichtbar sein.
       if (thumbResponse.ok) {
         const data = await thumbResponse.json()
         setThumbnailStats(data)
+      } else {
+        setStatsError(`Statistik fehlgeschlagen (HTTP ${thumbResponse.status})`)
       }
 
       if (variantResponse.ok) {
         const data = await variantResponse.json()
         setVariantStats(data)
+      } else {
+        setStatsError(`Metadaten-Statistik fehlgeschlagen (HTTP ${variantResponse.status})`)
       }
     } catch (error) {
       console.error('Fehler beim Laden der Statistiken:', error)
@@ -493,7 +499,11 @@ export function useChatForm(): UseChatFormResult {
                   loadThumbnailStats()
                 }
               } else if (event.type === 'error') {
-                console.error('Reparatur-Fehler:', event.error)
+                toast({
+                  title: 'Fehler bei der Reparatur',
+                  description: typeof event.error === 'string' ? event.error : 'Unbekannter Fehler',
+                  variant: 'destructive',
+                })
               }
             } catch (err) {
               // H7-Fix: SSE-Event JSON-Parse-Fehler — defensives Fallback, kein User-Impact
@@ -551,12 +561,21 @@ export function useChatForm(): UseChatFormResult {
                 if (event.type === 'progress') {
                   setRegenerateProgress(event.current || 0)
                   setRegenerateTotal(event.total || 0)
-                } else if (event.type === 'complete') {
+                  // Die Route sendet 'progress' mit status='completed' —
+                  // ein eigenes 'complete'-Event gab es nie (Toast kam nie).
+                  if (event.status === 'completed') {
+                    toast({
+                      title: 'Regenerierung abgeschlossen',
+                      description: event.message || `${event.total} Thumbnails neu berechnet`,
+                    })
+                    loadThumbnailStats()
+                  }
+                } else if (event.type === 'error') {
                   toast({
-                    title: 'Regenerierung abgeschlossen',
-                    description: event.message || `${event.total} Thumbnails neu berechnet`,
+                    title: 'Fehler bei der Regenerierung',
+                    description: typeof event.error === 'string' ? event.error : 'Unbekannter Fehler',
+                    variant: 'destructive',
                   })
-                  loadThumbnailStats()
                 }
               } catch (err) {
                 // H8-Fix: SSE-Event JSON-Parse-Fehler — defensives Fallback, kein User-Impact

@@ -38,9 +38,12 @@ export default function AdvancedSettingsPage() {
         </AlertDescription>
       </Alert>
 
-      {/* KI & Suche + Binary Storage (Chat-Config) */}
+      {/* KI & Suche + Bild-Speicher (Chat-Config) */}
       <section className="space-y-2">
-        <h4 className="text-base font-semibold">KI, Suche & Binary Storage</h4>
+        <h4 className="text-base font-semibold">KI, Suche & Bilder</h4>
+        <p className="text-sm text-muted-foreground">
+          Wie die Bibliothek sucht und antwortet — und wo Bilder liegen.
+        </p>
         <Suspense fallback={<div className="text-center text-muted-foreground">Lädt...</div>}>
           <ChatAdvancedForm />
         </Suspense>
@@ -48,18 +51,22 @@ export default function AdvancedSettingsPage() {
 
       <Separator />
 
-      {/* Verifikation: Status + Prüfen/Reparieren (Welle A1/A2) */}
+      {/* Pruefen & Reparieren: Metadaten (Verifikation) + Speicher-Abgleich (Reconcile) */}
       <section className="space-y-2">
-        <h4 className="text-base font-semibold">Verifikation</h4>
-        <LibraryVerificationPanel />
-      </section>
-
-      <Separator />
-
-      {/* Speicher synchronisieren: Library-weiter Shadow-Twin-Reconcile (Transkripte + Bilder/B1) */}
-      <section className="space-y-2">
-        <h4 className="text-base font-semibold">Mit Speicher synchronisieren</h4>
-        <ShadowTwinReconcilePanel />
+        <h4 className="text-base font-semibold">Prüfen & Reparieren</h4>
+        <p className="text-sm text-muted-foreground">
+          Zwei getrennte Prüfungen: erst die <strong>Dokument-Angaben</strong>{' '}
+          (fehlende Pflichtfelder u.&nbsp;ä.), dann der <strong>Speicher-Abgleich</strong>{' '}
+          (stimmen Datenbank und Dateien überein).
+        </p>
+        <div className="space-y-1">
+          <h5 className="text-sm font-semibold pt-2">Dokument-Angaben prüfen</h5>
+          <LibraryVerificationPanel />
+        </div>
+        <div className="space-y-1">
+          <h5 className="text-sm font-semibold pt-4">Mit Speicher abgleichen</h5>
+          <ShadowTwinReconcilePanel />
+        </div>
       </section>
 
       <Separator />
@@ -67,6 +74,10 @@ export default function AdvancedSettingsPage() {
       {/* Cache/Speicherstrategie, Migration, DIVA, Import/Export (Library-Config) */}
       <section className="space-y-2">
         <h4 className="text-base font-semibold">Daten & Wartung</h4>
+        <p className="text-sm text-muted-foreground">
+          Selten gebrauchte Werkzeuge: Backup ins Dateisystem, Wiederherstellung,
+          Import/Export.
+        </p>
         <Suspense fallback={<div className="text-center text-muted-foreground">Lädt...</div>}>
           <LibraryAdvancedForm />
         </Suspense>
