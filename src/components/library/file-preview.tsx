@@ -1031,29 +1031,40 @@ export function FilePreview({
     if (!activeLibraryId || !displayFile || isSyncing) return
 
     autoSyncRef.current = syncKey
-    const direction = status === 'storage-newer' ? 'from-storage' : 'to-storage'
-    const endpoint = direction === 'from-storage'
-      ? `/api/library/${encodeURIComponent(activeLibraryId)}/shadow-twins/sync-from-storage`
-      : `/api/library/${encodeURIComponent(activeLibraryId)}/shadow-twins/sync-to-storage`
 
+    // Sync-Engine (Welle 4): preset=auto-sync erlaubt nur gefahrlose Operationen
+    // (Fehlendes spiegeln, Neueres uebernehmen — nie ueberschreiben, nie loeschen).
     setIsSyncing(true)
-    fetch(endpoint, {
+    fetch(`/api/library/${encodeURIComponent(activeLibraryId)}/shadow-twins/reconcile`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sourceId: displayFile.id, parentId: displayFile.parentId }),
+      body: JSON.stringify({ mode: 'repair', preset: 'auto-sync', scope: { sourceIds: [displayFile.id] } }),
     })
       .then(async (res) => {
-        if (!res.ok) return
-        const result = await res.json()
-        const count = result[direction === 'from-storage' ? 'synced' : 'written'] || 0
-        if (count > 0) {
-          toast.info(
-            direction === 'from-storage' ? 'Auto-Sync: Cache aktualisiert' : 'Auto-Sync: In Storage geschrieben',
-            { description: `${count} Artefakt${count > 1 ? 'e' : ''} synchronisiert.`, duration: 3000 },
-          )
+        const report = (await res.json().catch(() => ({}))) as {
+          changed?: number; errors?: number; error?: string
+          executed?: Record<string, number>
+        }
+        if (!res.ok) throw new Error(report.error || `HTTP ${res.status}`)
+        const executed = Object.values(report.executed ?? {}).reduce((a, b) => a + b, 0)
+        if (executed > 0) {
+          toast.info('Auto-Sync: Datei abgeglichen', {
+            description: `${executed} Artefakt${executed > 1 ? 'e' : ''} synchronisiert.`, duration: 3000,
+          })
+        }
+        if ((report.errors ?? 0) > 0) {
+          throw new Error(`${report.errors} Operation(en) fehlgeschlagen`)
         }
       })
-      .catch(() => { /* Stiller Fehler – nicht kritisch */ })
+      .catch((err: unknown) => {
+        // Fehler nicht mehr verschlucken (Welle-4-Entscheid): einmal pro Datei melden.
+        FileLogger.warn('file-preview/auto-sync', 'Auto-Sync fehlgeschlagen', {
+          sourceId: displayFile.id, error: err instanceof Error ? err.message : String(err),
+        })
+        toast.error('Automatischer Abgleich fehlgeschlagen', {
+          description: err instanceof Error ? err.message : 'Unbekannter Fehler', duration: 4000,
+        })
+      })
       .finally(() => setIsSyncing(false))
   }, [freshness.status, activeLibraryId, displayFile, isSyncing])
 

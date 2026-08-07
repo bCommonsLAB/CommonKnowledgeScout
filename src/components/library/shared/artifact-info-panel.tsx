@@ -398,7 +398,7 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
           </Button>
         )}
 
-        {/* Transkript reparieren: vollstaendigste Version gewinnt (Vorschau -> Apply) */}
+        {/* Datei reparieren: Sync-Engine-Plan pruefen -> bestaetigt ausfuehren */}
         <Button
           variant="outline"
           size="sm"
@@ -406,7 +406,7 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
           onClick={() => void reconcile.runPreview()}
         >
           <Wrench className={`h-4 w-4 mr-2 ${reconcile.isBusy ? "animate-pulse" : ""}`} />
-          {reconcile.isBusy ? "Prüfe…" : "Transkript reparieren"}
+          {reconcile.isBusy ? "Prüfe…" : "Datei reparieren"}
         </Button>
 
         {hasArtifacts && (
@@ -444,29 +444,40 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
         )}
       </div>
 
-      {/* Reconcile-Vorschau / Bestätigung */}
+      {/* Reconcile-Vorschau / Bestätigung (Sync-Engine: Transkript + weitere Abgleiche) */}
       <AlertDialog open={reconcile.open} onOpenChange={reconcile.setOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Transkript reparieren?</AlertDialogTitle>
+            <AlertDialogTitle>Datei reparieren?</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2 text-sm">
                 {!reconcile.preview ? (
-                  <span>Keine Daten.</span>
-                ) : reconcile.preview.status === "conflict" ? (
-                  <span>Konflikt: mehrere gleich vollständige, aber unterschiedliche Versionen. Bitte manuell prüfen — es wird nichts geändert.</span>
-                ) : reconcile.preview.status === "needs-reextract" ? (
-                  <span>Alle gefundenen Versionen haben nur 1 Seite (mehr erwartet). Neu-Extraktion nötig — es wird nichts gelöscht.</span>
-                ) : !reconcileHasChanges(reconcile.preview) ? (
-                  <span>Bereits korrekt — nichts zu tun.</span>
+                  <span>Keine Daten — für diese Datei gibt es noch keinen Eintrag.</span>
                 ) : (
                   <>
-                    <div>Vollständigste Version: <b>{reconcile.preview.winnerName}</b> ({reconcile.preview.winnerPages} Seiten, {reconcile.preview.winnerOrigin}).</div>
-                    <div>Wird als kanonische Version gesetzt (Storage + Datenbank).</div>
+                    {reconcile.preview.status === "conflict" && (
+                      <div>Transkript uneindeutig: mehrere gleich vollständige, aber unterschiedliche Versionen. Bitte manuell prüfen — am Transkript wird nichts geändert.</div>
+                    )}
+                    {reconcile.preview.status === "needs-reextract" && (
+                      <div>Alle gefundenen Versionen haben nur 1 Seite (mehr erwartet). Neu-Extraktion nötig — es wird nichts gelöscht.</div>
+                    )}
+                    {(reconcile.preview.wroteCanonical || reconcile.preview.updatedMongo) && (
+                      <>
+                        <div>Vollständigste Version: <b>{reconcile.preview.winnerName}</b> ({reconcile.preview.winnerPages} Seiten, {reconcile.preview.winnerOrigin}).</div>
+                        <div>Wird als kanonische Version gesetzt (Storage + Datenbank).</div>
+                      </>
+                    )}
                     {reconcile.preview.deleted.length > 0 && (
                       <div>Wird gelöscht: {reconcile.preview.deleted.join(", ")}</div>
                     )}
-                    <div className="text-muted-foreground">Diese Aktion kann nicht rückgängig gemacht werden.</div>
+                    {reconcile.preview.otherOps > 0 && (
+                      <div>Weitere Abgleiche (Transformationen, Spiegel, Bilder): {reconcile.preview.otherOps}</div>
+                    )}
+                    {!reconcileHasChanges(reconcile.preview) ? (
+                      <div>Bereits korrekt — nichts zu tun.</div>
+                    ) : (
+                      <div className="text-muted-foreground">Diese Aktion kann nicht rückgängig gemacht werden.</div>
+                    )}
                   </>
                 )}
               </div>

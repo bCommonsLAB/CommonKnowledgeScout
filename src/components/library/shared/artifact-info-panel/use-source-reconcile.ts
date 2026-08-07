@@ -1,21 +1,33 @@
 "use client"
 
 /**
- * @fileoverview Hook fuer die per-Quelle Shadow-Twin-Reconcile aus der Uebersicht.
+ * @fileoverview Hook fuer den per-Quelle Shadow-Twin-Abgleich aus der Uebersicht.
  *
  * @description
- * Kapselt den Aufruf des Reconcile-Endpoints (`/shadow-twins/reconcile`):
- * - runPreview: Dry-Run (apply=false) -> zeigt, was passieren WUERDE.
- * - runApply: Apply (apply=true) -> schreibt kanonische {base}.md + Mongo, loescht
- *   strikt unterlegene Varianten. Danach onApplied() (Ansicht neu laden).
- *
- * Haelt die UI-Datei schlank; die eigentliche Logik liegt serverseitig.
+ * Spricht die Sync-Engine (Welle 4): runPreview = mode=check, runApply =
+ * mode=repair — beide mit preset=repair und scope auf genau diese Quelle.
+ * Der Dialog zeigt den Transkript-Plan (Gewinner, Loeschungen) plus eine
+ * Kurzzeile fuer weitere Abgleiche (Transformationen, Spiegel, Bilder),
+ * damit die Vorschau exakt dem entspricht, was Reparieren ausfuehrt.
  */
 
 import * as React from "react"
 import { toast } from "sonner"
 
-/** Pro-Quelle-Ergebnis aus dem Reconcile-Report (Teilmenge fuer die UI). */
+/** Engine-Report-Zeile (Teilmenge, die dieser Hook konsumiert). */
+interface EngineSourceRow {
+  sourceId: string
+  sourceName: string
+  transcriptStatus: string
+  winnerName: string | null
+  winnerOrigin: string | null
+  winnerPages: number
+  operations: Array<{ type: string; fileName: string; selected: boolean; executed?: boolean; error?: string }>
+  notes: string[]
+  error?: string
+}
+
+/** View-Model fuer den Dialog (per-Quelle). */
 export interface ReconcileSourceResult {
   sourceId: string
   sourceName: string
@@ -26,33 +38,56 @@ export interface ReconcileSourceResult {
   wroteCanonical: boolean
   updatedMongo: boolean
   deleted: string[]
+  /** Weitere ausgewaehlte Abgleiche jenseits des Transkripts. */
+  otherOps: number
   note?: string
 }
 
-async function callReconcile(
+const DELETE_TYPES = new Set(["delete-inferior-variant", "delete-dead-page-md"])
+const TRANSCRIPT_TYPES = new Set(["write-canonical-transcript", "update-mongo-transcript", ...DELETE_TYPES])
+
+function toViewModel(row: EngineSourceRow): ReconcileSourceResult {
+  const selected = row.operations.filter((op) => op.selected)
+  return {
+    sourceId: row.sourceId,
+    sourceName: row.sourceName,
+    status: row.transcriptStatus,
+    winnerName: row.winnerName,
+    winnerOrigin: row.winnerOrigin,
+    winnerPages: row.winnerPages,
+    wroteCanonical: selected.some((op) => op.type === "write-canonical-transcript"),
+    updatedMongo: selected.some((op) => op.type === "update-mongo-transcript"),
+    deleted: selected.filter((op) => DELETE_TYPES.has(op.type)).map((op) => op.fileName),
+    otherOps: selected.filter((op) => !TRANSCRIPT_TYPES.has(op.type)).length,
+    note: [row.error, ...row.notes].filter(Boolean).join("; ") || undefined,
+  }
+}
+
+async function callSyncEngine(
   libraryId: string,
   sourceId: string,
-  apply: boolean,
+  mode: "check" | "repair",
 ): Promise<ReconcileSourceResult | null> {
   const res = await fetch(
     `/api/library/${encodeURIComponent(libraryId)}/shadow-twins/reconcile`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sourceIds: [sourceId], apply }),
+      body: JSON.stringify({ mode, preset: "repair", scope: { sourceIds: [sourceId] } }),
     },
   )
   const data = (await res.json().catch(() => ({}))) as {
-    results?: ReconcileSourceResult[]
+    sources?: EngineSourceRow[]
     error?: string
   }
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
-  return data.results?.[0] ?? null
+  const row = data.sources?.[0]
+  return row ? toViewModel(row) : null
 }
 
 /** Liefert true, wenn der Plan tatsaechlich etwas aendern wuerde. */
 export function reconcileHasChanges(r: ReconcileSourceResult | null): boolean {
-  return !!r && r.status === "ok" && (r.wroteCanonical || r.updatedMongo || r.deleted.length > 0)
+  return !!r && (r.wroteCanonical || r.updatedMongo || r.deleted.length > 0 || r.otherOps > 0)
 }
 
 export function useSourceReconcile(
@@ -68,7 +103,7 @@ export function useSourceReconcile(
     if (!libraryId || !sourceId) return
     setIsBusy(true)
     try {
-      setPreview(await callReconcile(libraryId, sourceId, false))
+      setPreview(await callSyncEngine(libraryId, sourceId, "check"))
       setOpen(true)
     } catch (e) {
       toast.error("Vorschau fehlgeschlagen", {
@@ -83,11 +118,12 @@ export function useSourceReconcile(
     if (!libraryId || !sourceId) return
     setIsBusy(true)
     try {
-      const r = await callReconcile(libraryId, sourceId, true)
-      toast.success("Transkript repariert", {
+      const r = await callSyncEngine(libraryId, sourceId, "repair")
+      toast.success("Datei repariert", {
         description: r
           ? `Gewinner: ${r.winnerName ?? "—"} (${r.winnerPages} Seiten)` +
-            (r.deleted.length ? `, ${r.deleted.length} Datei(en) geloescht` : "")
+            (r.deleted.length ? `, ${r.deleted.length} Datei(en) geloescht` : "") +
+            (r.otherOps ? `, ${r.otherOps} weitere Abgleiche` : "")
           : undefined,
       })
       setOpen(false)
