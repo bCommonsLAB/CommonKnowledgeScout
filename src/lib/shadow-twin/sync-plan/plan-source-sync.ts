@@ -40,7 +40,7 @@ export interface SourceSyncInput {
   /** Alle Transformations-Slots (Union aus Mongo-Records und Storage-Dateien). */
   transformations?: TransformationSyncInput[]
   /** Mongo-`binaryFragments`, die im Storage-Twin-Ordner fehlen (Export-Spiegel). */
-  imagesMissingInStorage?: Array<{ name: string }>
+  imagesMissingInStorage?: Array<{ name: string; url?: string }>
   /** Anzahl rekonstruierbarer `page_*`/`preview_*`-Bilder ohne Mongo-Fragmente (B1). */
   reconstructablePageImages?: number
 }
@@ -125,7 +125,7 @@ export function planSourceSync(input: SourceSyncInput): SourceSyncPlan {
 
   // ── Bilder ───────────────────────────────────────────────────────────
   for (const image of input.imagesMissingInStorage ?? []) {
-    operations.push({ type: 'mirror-image-to-storage', kind: 'image', targetLanguage: '', fileName: image.name })
+    operations.push({ type: 'mirror-image-to-storage', kind: 'image', targetLanguage: '', fileName: image.name, url: image.url })
   }
   if ((input.reconstructablePageImages ?? 0) > 0) {
     operations.push({

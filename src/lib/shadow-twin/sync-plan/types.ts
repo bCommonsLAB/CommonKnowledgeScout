@@ -80,6 +80,8 @@ export interface SyncOperation {
   overwrite?: boolean
   /** Anzahl betroffener Dateien bei Sammel-Operationen (register-image-fragments). */
   count?: number
+  /** Quell-URL fuer mirror-image-to-storage (Azure-Blob des Fragments). */
+  url?: string
   /** Klartext-Begruendung fuer den Report (Konflikt-Grund, Verweigerung). */
   note?: string
 }
