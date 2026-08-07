@@ -1,20 +1,23 @@
 'use client'
 
 /**
- * Experten-Panel: Library-weite Shadow-Twin-Reparatur (Transkripte + Bilder).
+ * @fileoverview Settings-Panel „Mit Speicher abgleichen": Pruefen / Reparieren.
  *
- * Ruft den per-Library-Reconcile-Endpoint OHNE sourceIds auf (ganze Bibliothek):
- * - Vorschau = Dry-Run (apply=false) -> zeigt nur, was passieren WUERDE.
- * - Synchronisieren = Apply (apply=true) -> schreibt gueltige Fassung je Datei,
- *   loescht ueberzaehlige Varianten, registriert fehlende Bilder (B1). Mit Bestaetigung.
+ * @description
+ * DIE zwei Einstiege der konsolidierten Sync-Engine (Welle 4, Design §2):
+ * - „Prüfen" (mode=check): EIN Report, nichts wird veraendert.
+ * - „Reparieren" (mode=repair, preset=repair): fuehrt exakt den geprueften
+ *   Plan aus (gueltige Fassung je Datei, Aufraeumen, Bilder registrieren).
+ * - Disclosure „Erweiterte Aktionen": „Ins Dateisystem exportieren"
+ *   (preset=export — nur Storage-Spiegel, keine Datenbank-Aenderung).
  *
- * Klartext nach aussen (keine Reconcile-/Konflikt-Fachsprache). Die UI kennt nur die API.
+ * Klartext nach aussen; die UI kennt nur die API (storage-abstraction.mdc).
  */
 
 import * as React from 'react'
 import { useAtomValue } from 'jotai'
 import { toast } from 'sonner'
-import { Loader2, RefreshCw, Wrench } from 'lucide-react'
+import { HardDriveDownload, Loader2, Search, Wrench } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   AlertDialog,
@@ -28,66 +31,60 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { activeLibraryAtom } from '@/atoms/library-atom'
+import { ShadowTwinSyncReportView, type SyncReportView } from './shadow-twin-sync-report-view'
 
-/** Teilmenge des Reconcile-Reports, die das Panel anzeigt. */
-interface ReconcileReportView {
-  apply: boolean
-  totalSources: number
-  changed: number
-  conflicts: number
-  needsReextract: number
-  images: number
-}
+type PanelAction = 'check' | 'repair' | 'export'
 
-async function callReconcile(libraryId: string, apply: boolean): Promise<ReconcileReportView> {
+async function callSyncEngine(
+  libraryId: string,
+  mode: 'check' | 'repair',
+  preset: 'repair' | 'export',
+): Promise<SyncReportView> {
   const res = await fetch(`/api/library/${encodeURIComponent(libraryId)}/shadow-twins/reconcile`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ apply }),
+    // Ohne scope = ganze Bibliothek (erfasst auch Eintraege, deren Datei fehlt).
+    body: JSON.stringify({ mode, preset }),
   })
-  const data = (await res.json().catch(() => ({}))) as ReconcileReportView & { error?: string }
+  const data = (await res.json().catch(() => ({}))) as SyncReportView & { error?: string }
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
   return data
-}
-
-function ReportView({ report }: { report: ReconcileReportView }) {
-  return (
-    <div className="rounded-md border p-3 text-sm">
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground">
-        <span>Dateien: <strong className="text-foreground">{report.totalSources}</strong></span>
-        <span>{report.apply ? 'Aktualisiert' : 'Würde ändern'}: <strong className="text-foreground">{report.changed}</strong></span>
-        <span>Bilder {report.apply ? 'registriert' : 'fehlend'}: <strong className="text-foreground">{report.images}</strong></span>
-        {report.conflicts > 0 && (
-          <span>Uneindeutig (übersprungen): <strong className="text-foreground">{report.conflicts}</strong></span>
-        )}
-        {report.needsReextract > 0 && (
-          <span>Neu-Erstellung nötig: <strong className="text-foreground">{report.needsReextract}</strong></span>
-        )}
-      </div>
-    </div>
-  )
 }
 
 export function ShadowTwinReconcilePanel() {
   const activeLibrary = useAtomValue(activeLibraryAtom)
   const libraryId = activeLibrary?.id
-  const [busy, setBusy] = React.useState<'preview' | 'apply' | null>(null)
-  const [report, setReport] = React.useState<ReconcileReportView | null>(null)
+  const [busy, setBusy] = React.useState<PanelAction | null>(null)
+  const [report, setReport] = React.useState<SyncReportView | null>(null)
 
   const run = React.useCallback(
-    async (apply: boolean) => {
+    async (action: PanelAction) => {
       if (!libraryId) return
-      setBusy(apply ? 'apply' : 'preview')
+      setBusy(action)
       try {
-        const r = await callReconcile(libraryId, apply)
+        const r = await callSyncEngine(
+          libraryId,
+          action === 'check' ? 'check' : 'repair',
+          action === 'export' ? 'export' : 'repair',
+        )
         setReport(r)
-        if (apply) {
-          toast.success('Mit Speicher synchronisiert', {
-            description: `${r.changed} Datei(en) aktualisiert, ${r.images} Bild(er) registriert.`,
+        if (action === 'repair') {
+          toast.success('Reparatur abgeschlossen', {
+            description: `${r.changed} Datei(en) repariert, ${r.errors} Fehler.`,
+          })
+        }
+        if (action === 'export') {
+          toast.success('Export abgeschlossen', {
+            description: `${r.changed} Datei(en) ins Dateisystem geschrieben, ${r.errors} Fehler.`,
           })
         }
       } catch (e) {
-        toast.error(apply ? 'Synchronisieren fehlgeschlagen' : 'Vorschau fehlgeschlagen', {
+        const titles: Record<PanelAction, string> = {
+          check: 'Prüfen fehlgeschlagen',
+          repair: 'Reparieren fehlgeschlagen',
+          export: 'Export fehlgeschlagen',
+        }
+        toast.error(titles[action], {
           description: e instanceof Error ? e.message : 'Unbekannter Fehler',
         })
       } finally {
@@ -104,52 +101,82 @@ export function ShadowTwinReconcilePanel() {
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        Bringt die ganze Bibliothek mit dem Speicher in Einklang: setzt je Datei das
-        vollständigste Transkript als gültige Fassung, räumt überzählige bzw. veraltete
-        Varianten weg und registriert fehlende Seitenbilder. „Vorschau“ zeigt nur, was
-        passieren würde; „Mit Speicher synchronisieren“ führt es aus.
+        Gleicht Datenbank und Dateisystem ab: setzt je Datei das vollständigste Transkript
+        als gültige Fassung, übernimmt außen bearbeitete Texte, räumt überzählige Varianten
+        weg und registriert fehlende Seitenbilder. „Prüfen“ zeigt nur, was zu tun wäre;
+        „Reparieren“ führt genau das aus.
       </p>
 
       <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" disabled={busy !== null} onClick={() => void run(false)}>
-          {busy === 'preview' ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <RefreshCw className="h-4 w-4 mr-2" />
-          )}
-          Vorschau
+        <Button type="button" variant="outline" disabled={busy !== null} onClick={() => void run('check')}>
+          {busy === 'check' ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
+          Prüfen
         </Button>
 
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button type="button" variant="outline" disabled={busy !== null}>
-              {busy === 'apply' ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Wrench className="h-4 w-4 mr-2" />
-              )}
-              Mit Speicher synchronisieren
+              {busy === 'repair' ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Wrench className="h-4 w-4 mr-2" />}
+              Reparieren
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Ganze Bibliothek synchronisieren?</AlertDialogTitle>
+              <AlertDialogTitle>Ganze Bibliothek reparieren?</AlertDialogTitle>
               <AlertDialogDescription>
                 Schreibt die gültige Fassung je Datei, löscht überzählige bzw. veraltete
                 Varianten und registriert fehlende Bilder. Das lässt sich nicht automatisch
                 rückgängig machen — bei großen Bibliotheken vorher ein Datenbank-Backup
-                empfohlen. Tipp: erst „Vorschau“ prüfen.
+                empfohlen. Tipp: erst „Prüfen“.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-              <AlertDialogAction onClick={() => void run(true)}>Ja, synchronisieren</AlertDialogAction>
+              <AlertDialogAction onClick={() => void run('repair')}>Ja, reparieren</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
       </div>
 
-      {report && <ReportView report={report} />}
+      {report && <ShadowTwinSyncReportView report={report} />}
+
+      <details className="text-sm">
+        <summary className="cursor-pointer text-muted-foreground select-none">Erweiterte Aktionen</summary>
+        <div className="mt-2 flex items-start justify-between gap-4 rounded border p-3">
+          <div>
+            <div className="text-sm font-medium">Ins Dateisystem exportieren</div>
+            <p className="text-xs text-muted-foreground">
+              Schreibt alle Texte und Bilder aus der Datenbank ins Dateisystem — als Backup
+              oder für ein neues System. Die Datenbank bleibt unverändert.
+            </p>
+          </div>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button type="button" variant="outline" size="sm" disabled={busy !== null}>
+                {busy === 'export' ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <HardDriveDownload className="h-4 w-4 mr-2" />
+                )}
+                Exportieren
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Alles ins Dateisystem exportieren?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Schreibt alle Texte und Bilder aus der Datenbank ins Dateisystem.
+                  Vorhandene Artefakt-Dateien werden dabei überschrieben.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                <AlertDialogAction onClick={() => void run('export')}>Exportieren</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </details>
     </div>
   )
 }

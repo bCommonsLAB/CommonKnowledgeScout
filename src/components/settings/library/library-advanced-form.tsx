@@ -67,8 +67,6 @@ export function LibraryAdvancedForm() {
     setDryRunRunning,
     dryRunError,
     setDryRunError,
-    isSyncRunning,
-    setIsSyncRunning,
     isLangCleanupOpen,
     setIsLangCleanupOpen,
     langCleanupLang,
@@ -79,10 +77,6 @@ export function LibraryAdvancedForm() {
     setIsLangDeleting,
     langCleanupResult,
     setLangCleanupResult,
-    isAnalyzing,
-    setIsAnalyzing,
-    analysisReport,
-    setAnalysisReport,
     migrationRuns,
     setMigrationRuns,
     selectedRunId,
@@ -98,8 +92,6 @@ export function LibraryAdvancedForm() {
   // Migration-Callbacks
   const {
     runShadowTwinMigration,
-    runDirectionalSync,
-    runAnalysis,
     runLanguageCleanup,
     selectedFolderPath,
     setSelectedFolder,
@@ -116,9 +108,6 @@ export function LibraryAdvancedForm() {
       setDryRunError,
       setMigrationRuns,
       setSelectedRunId,
-      setIsSyncRunning,
-      setIsAnalyzing,
-      setAnalysisReport,
       setIsLangAnalyzing,
       setIsLangDeleting,
       setLangCleanupResult,
@@ -163,11 +152,6 @@ export function LibraryAdvancedForm() {
               shadowTwinAllowFilesystemFallback={shadowTwinAllowFilesystemFallback}
               setShadowTwinAllowFilesystemFallback={setShadowTwinAllowFilesystemFallback}
               azureConfigured={azureConfigured}
-              isSyncRunning={isSyncRunning}
-              runDirectionalSync={runDirectionalSync}
-              isAnalyzing={isAnalyzing}
-              analysisReport={analysisReport}
-              runAnalysis={runAnalysis}
             />
 
             <MigrationWizardSection

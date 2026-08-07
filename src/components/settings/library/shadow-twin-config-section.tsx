@@ -7,7 +7,8 @@
  * Seit dem Alt-Logik-Cleanup (2026-06-12, v2-only Runtime) stark gekuerzt:
  * Modus-Anzeige und Primary-Store-Auswahl sind entfernt — es gilt immer
  * v2 mit Cache als primaerem Speicher. Sichtbar bleiben die optionalen
- * Dateisystem-Flags, Strategie-Vorschau, Analyse und Export; Bestands-
+ * Dateisystem-Flags und die Strategie-Vorschau; Analyse/Export wanderten
+ * mit Welle 4 ins Reconcile-Panel (Pruefen & Reparieren). Bestands-
  * Libraries mit legacy-Flag erhalten einen Upgrade-Banner.
  *
  * Hinweis: library.type-Branches in Settings sind gemäß storage-abstraction.mdc
@@ -21,12 +22,9 @@ import {
 } from "@/components/ui/form"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "@/components/ui/use-toast"
-import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog"
-import { Search } from "lucide-react"
 import { useState } from "react"
 import { type Library, type ClientLibrary } from "@/types/library"
 import { getMediaStorageStrategy } from "@/lib/shadow-twin/media-storage-strategy"
-import type { AnalysisReport } from "./hooks/use-shadow-twin-migration"
 
 interface ShadowTwinConfigSectionProps {
   activeLibraryId: string | null | undefined;
@@ -37,15 +35,11 @@ interface ShadowTwinConfigSectionProps {
   shadowTwinAllowFilesystemFallback: boolean;
   setShadowTwinAllowFilesystemFallback: (v: boolean) => void;
   azureConfigured: boolean | null;
-  isSyncRunning: boolean;
-  runDirectionalSync: (direction: "to-storage" | "to-cache" | "both") => Promise<void>;
-  isAnalyzing: boolean;
-  analysisReport: AnalysisReport | null;
-  runAnalysis: () => Promise<void>;
 }
 
 /**
- * Section-Komponente: Shadow-Twin-Konfiguration + Strategie-Vorschau + Analyse.
+ * Section-Komponente: Shadow-Twin-Konfiguration + Strategie-Vorschau.
+ * Analyse/Export sind seit Welle 4 im Reconcile-Panel (Pruefen & Reparieren).
  * Wird nur angezeigt wenn !isNew && activeLibrary vorhanden.
  */
 export function ShadowTwinConfigSection({
@@ -56,11 +50,6 @@ export function ShadowTwinConfigSection({
   shadowTwinAllowFilesystemFallback,
   setShadowTwinAllowFilesystemFallback,
   azureConfigured,
-  isSyncRunning,
-  runDirectionalSync,
-  isAnalyzing,
-  analysisReport,
-  runAnalysis,
 }: ShadowTwinConfigSectionProps) {
   const [isUpgradingShadowTwinMode, setIsUpgradingShadowTwinMode] = useState(false);
   const [justUpgraded, setJustUpgraded] = useState(false);
@@ -253,127 +242,8 @@ export function ShadowTwinConfigSection({
         )}
       </div>
 
-      {/* Analyse */}
-      <div className="border-t pt-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h4 className="text-sm font-medium">Analyse</h4>
-            <p className="text-xs text-muted-foreground">
-              Vergleicht Storage und Cache und zeigt, was synchronisiert werden müsste – ohne etwas
-              zu verändern.
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!activeLibraryId || isAnalyzing}
-            onClick={() => void runAnalysis()}
-          >
-            <Search className={`h-4 w-4 mr-2 ${isAnalyzing ? "animate-pulse" : ""}`} />
-            {isAnalyzing ? "Analysiert…" : "Analysieren"}
-          </Button>
-        </div>
-        {analysisReport && (
-          <div className="mt-2 rounded border p-3 text-xs space-y-2">
-            <div className="font-medium">Analyse-Ergebnis</div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground">
-              <span>Dateien im Storage:</span>
-              <span className="font-mono">{analysisReport.scanned}</span>
-              <span>Davon mit Cache-Eintrag:</span>
-              <span className="font-mono">{analysisReport.withShadowTwin}</span>
-            </div>
-            {(analysisReport.markdownToStorage > 0 || analysisReport.imagesWritten > 0) && (
-              <div className="border-t pt-1.5">
-                <div className="text-xs font-medium text-muted-foreground mb-0.5">
-                  Cache → Dateisystem (Export)
-                </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground">
-                  {analysisReport.markdownToStorage > 0 && (
-                    <>
-                      <span>Markdown-Dateien:</span>
-                      <span className="font-mono text-green-600">
-                        {analysisReport.markdownToStorage}
-                      </span>
-                    </>
-                  )}
-                  {analysisReport.imagesWritten > 0 && (
-                    <>
-                      <span>Bilder:</span>
-                      <span className="font-mono text-green-600">
-                        {analysisReport.imagesWritten}
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-            {analysisReport.markdownToCache > 0 && (
-              <div className="border-t pt-1.5">
-                <div className="text-xs font-medium text-muted-foreground mb-0.5">
-                  Dateisystem → Cache (Import)
-                </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground">
-                  <span>Markdown-Dateien:</span>
-                  <span className="font-mono text-blue-600">
-                    {analysisReport.markdownToCache}
-                  </span>
-                </div>
-              </div>
-            )}
-            {analysisReport.sourceNewer > 0 && (
-              <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground border-t pt-1.5">
-                <span>Quelldatei neuer (Pipeline nötig):</span>
-                <span className="font-mono text-amber-600">{analysisReport.sourceNewer}</span>
-              </div>
-            )}
-            {analysisReport.errors > 0 && (
-              <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground">
-                <span>Fehler:</span>
-                <span className="font-mono text-red-600">{analysisReport.errors}</span>
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground">
-              <span>Bereits synchron:</span>
-              <span className="font-mono">{analysisReport.alreadySynced}</span>
-              {analysisReport.imagesSkipped > 0 && (
-                <>
-                  <span>Bilder bereits vorhanden:</span>
-                  <span className="font-mono">{analysisReport.imagesSkipped}</span>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Ins Dateisystem exportieren */}
-      <div className="border-t pt-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h4 className="text-sm font-medium">Ins Dateisystem exportieren</h4>
-            <p className="text-xs text-muted-foreground">
-              Schreibt alle Artefakte und Bilder aus dem Cache ins Dateisystem. Geeignet als Backup
-              oder für die Einrichtung auf einem neuen System.
-            </p>
-          </div>
-          <ConfirmActionDialog
-            title="Alle Artefakte ins Dateisystem exportieren?"
-            description="Schreibt alle Artefakte und Bilder aus dem Cache ins Dateisystem. Vorhandene Artefakt-Dateien werden dabei überschrieben."
-            confirmLabel="Exportieren"
-            onConfirm={() => void runDirectionalSync("to-storage")}
-            trigger={
-              <Button
-                type="button"
-                variant="outline"
-                disabled={!activeLibraryId || isSyncRunning}
-              >
-                <Search className={`h-4 w-4 mr-2 ${isSyncRunning ? "animate-spin" : ""}`} />
-                {isSyncRunning ? "Exportiert…" : "Exportieren"}
-              </Button>
-            }
-          />
-        </div>
-      </div>
+      {/* Analyse und Export sind seit Welle 4 im Panel „Mit Speicher abgleichen"
+          (Pruefen & Reparieren) konsolidiert — siehe shadow-twin-reconcile-panel.tsx. */}
     </div>
   );
 }
