@@ -106,21 +106,24 @@ describe('getMediaStorageStrategy', () => {
   })
 
   describe('Edge Cases', () => {
-    it('null library -> Defaults (filesystem-only) auch ohne Azure', () => {
+    it('null library (Inbox-Kontrakt) -> filesystem-only auch ohne Azure', () => {
       const s = getMediaStorageStrategy(null, false)
-      // Default primaryStore ist 'filesystem' (siehe shadow-twin-config.ts).
+      // Ohne Library gilt der Inbox-Kontrakt: Provider-Schreibpfad
+      // (siehe shadow-twin-config.ts).
       expect(s.mode).toBe<MediaStorageMode>('filesystem-only')
     })
 
-    it('undefined library -> Defaults', () => {
+    it('undefined library (Inbox-Kontrakt) -> filesystem-only', () => {
       const s = getMediaStorageStrategy(undefined, true)
       expect(s.mode).toBe<MediaStorageMode>('filesystem-only')
     })
 
-    it('Library ohne shadowTwin-Block -> Defaults', () => {
+    it('Library ohne shadowTwin-Block -> Mongo primaer + Backup-Spiegel', () => {
       const lib = { config: {} } as unknown as Library
       const s = getMediaStorageStrategy(lib, true)
-      expect(s.mode).toBe<MediaStorageMode>('filesystem-only')
+      expect(s.mode).toBe<MediaStorageMode>('azure-with-fs-backup')
+      expect(s.writeToAzure).toBe(true)
+      expect(s.writeToFilesystem).toBe(true)
     })
   })
 

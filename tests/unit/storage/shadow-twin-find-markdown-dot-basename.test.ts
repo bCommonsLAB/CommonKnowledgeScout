@@ -7,7 +7,7 @@ vi.mock('@/lib/storage/shadow-twin', () => ({
 }))
 
 describe('resolveArtifact (baseName with dots)', () => {
-  it('findet Transcript im dotFolder, wenn baseName Punkte enthält', async () => {
+  it('findet Transcript im Twin-Ordner, wenn baseName Punkte enthält', async () => {
     const items = [
       { id: 'x1', type: 'file' as const, metadata: { name: 'Commoning vs. Kommerz.de.md' } },
       { id: 'x2', type: 'file' as const, metadata: { name: 'Commoning vs.de.md' } },
@@ -16,13 +16,16 @@ describe('resolveArtifact (baseName with dots)', () => {
 
     const provider = {
       listItemsById: vi.fn(async () => items),
+      // "Vollstaendigster gewinnt" laedt Inhalte: gleicher Inhalt -> kanonischer
+      // (suffixloser) Name entscheidet.
+      getBinary: vi.fn(async () => ({ blob: new Blob(['# Transkript\n\nInhalt.']) })),
     } as any
 
     vi.mocked(findShadowTwinFolder).mockResolvedValue({
       id: 'folder-1',
       type: 'folder',
       parentId: 'parent-1',
-      metadata: { name: '.Commoning vs. Kommerz.pdf' },
+      metadata: { name: '_Commoning vs. Kommerz.pdf' },
     } as any)
 
     const found = await resolveArtifact(provider, {

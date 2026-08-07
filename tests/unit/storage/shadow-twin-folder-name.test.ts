@@ -28,18 +28,18 @@ describe('shadow-twin-folder-name', () => {
 })
 
 describe('shouldFilterShadowTwinFolders', () => {
-  it('filtert bei primaryStore=filesystem (Default)', () => {
+  it('filtert per Default (Backup-Spiegel ist an, primaryStore egal)', () => {
     expect(shouldFilterShadowTwinFolders(undefined)).toBe(true)
     expect(shouldFilterShadowTwinFolders({})).toBe(true)
     expect(shouldFilterShadowTwinFolders({ primaryStore: 'filesystem' })).toBe(true)
+    expect(shouldFilterShadowTwinFolders({ primaryStore: 'mongo' })).toBe(true)
   })
 
   it('filtert bei explizitem persistToFilesystem=true', () => {
     expect(shouldFilterShadowTwinFolders({ primaryStore: 'mongo', persistToFilesystem: true })).toBe(true)
   })
 
-  it('filtert NICHT bei primaryStore=mongo ohne Filesystem-Persistierung', () => {
-    expect(shouldFilterShadowTwinFolders({ primaryStore: 'mongo' })).toBe(false)
+  it('filtert NICHT bei explizitem persistToFilesystem=false', () => {
     expect(shouldFilterShadowTwinFolders({ primaryStore: 'mongo', persistToFilesystem: false })).toBe(false)
   })
 

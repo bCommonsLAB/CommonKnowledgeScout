@@ -14,6 +14,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, renderHook } from '@testing-library/react'
 import { Provider, createStore } from 'jotai'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import * as React from 'react'
 import { useStoryStatus } from '@/components/library/shared/use-story-status'
 import type { StorageItem } from '@/lib/storage/types'
@@ -48,7 +49,14 @@ function makeFile(): StorageItem {
 
 function wrapper({ children }: { children: React.ReactNode }) {
   const store = createStore()
-  return <Provider store={store}>{children}</Provider>
+  // useStoryStatus nutzt inzwischen TanStack Query (useInvalidateIngestionStatus)
+  // und braucht deshalb einen QueryClientProvider im Test-Baum.
+  const queryClient = new QueryClient()
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Provider store={store}>{children}</Provider>
+    </QueryClientProvider>
+  )
 }
 
 describe('useStoryStatus', () => {

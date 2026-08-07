@@ -29,7 +29,7 @@ describe('isFilesystemBacked', () => {
     expect(isFilesystemBacked(undefined)).toBe(false)
   })
 
-  it('liefert true bei Default (kein shadowTwin-Config -> primaryStore="filesystem")', () => {
+  it('liefert true bei Default (kein shadowTwin-Config -> Mongo primaer + Backup-Spiegel an)', () => {
     expect(isFilesystemBacked(makeLibrary(undefined))).toBe(true)
     expect(isFilesystemBacked(makeLibrary({}))).toBe(true)
   })
@@ -44,8 +44,11 @@ describe('isFilesystemBacked', () => {
     ).toBe(true)
   })
 
-  it('liefert false bei primaryStore="mongo" ohne persistToFilesystem', () => {
-    expect(isFilesystemBacked(makeLibrary({ primaryStore: 'mongo' }))).toBe(false)
+  it('liefert true bei primaryStore="mongo" ohne persistToFilesystem (Backup-Spiegel ist Default an)', () => {
+    expect(isFilesystemBacked(makeLibrary({ primaryStore: 'mongo' }))).toBe(true)
+  })
+
+  it('liefert false nur bei explizitem persistToFilesystem=false', () => {
     expect(
       isFilesystemBacked(makeLibrary({ primaryStore: 'mongo', persistToFilesystem: false })),
     ).toBe(false)
