@@ -46,7 +46,10 @@ export function ShadowTwinSyncReportView({ report }: { report: SyncReportView })
   const images = counts['register-image-fragments'] ?? 0
 
   const rows: Array<{ label: string; value: number; tone?: 'ok' | 'warn' | 'error' }> = [
-    { label: 'Dateien geprüft', value: report.totalSources },
+    // Bei Ordner-Scope: gescannte Dateien zeigen (sonst wirkt „0 geprüft" falsch,
+    // wenn der Ordner nur Dateien ohne Datenbank-Eintrag enthaelt).
+    { label: 'Dateien geprüft', value: report.scannedFiles ?? report.totalSources },
+    { label: 'Ohne Datenbank-Eintrag (übersprungen)', value: report.skippedWithoutDoc },
     { label: isRepair ? 'Repariert' : 'Würde reparieren', value: report.changed },
     { label: isRepair ? 'In Datenbank übernommen' : 'Würde in Datenbank übernehmen', value: adopted },
     { label: isRepair ? 'Ins Dateisystem geschrieben' : 'Würde ins Dateisystem schreiben', value: mirrored },

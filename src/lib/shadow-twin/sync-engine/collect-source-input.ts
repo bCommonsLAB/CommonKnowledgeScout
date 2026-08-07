@@ -71,6 +71,19 @@ export async function collectSourceInput(args: {
   const canonicalName = `${sourceBaseName}.md`
   const parentId = doc.parentId || ''
 
+  // Kaputte Dokumente (ohne Dateiname/Ordner) NICHT planen: ein Spiegel wuerde
+  // sonst Muell-Dateien wie `.{template}.{lang}.md` in einen "_"-Ordner schreiben.
+  if (!sourceName || !parentId) {
+    return {
+      input: {
+        sourceId: doc.sourceId, sourceName, canonicalTranscriptName: canonicalName,
+        transcriptCandidates: [], transformations: [],
+      },
+      shadowTwinFolderId: null, twinFolderItems: [], sourceItem, parentId,
+      collectNotes: ['Datenbank-Eintrag ohne Dateinamen oder Ordner — nichts geplant (Bestand pruefen)'],
+    }
+  }
+
   // Twin-Ordner: erst Mongo-Verweis, dann Storage-Suche.
   let folderId = doc.filesystemSync?.shadowTwinFolderId || null
   if (!folderId && parentId && sourceName) {
