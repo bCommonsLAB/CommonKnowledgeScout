@@ -50,6 +50,10 @@ export interface SourceSyncPlan {
   sourceName: string
   /** Transkript-Gesamtstatus ('empty' = keine nicht-leeren Kandidaten). */
   transcriptStatus: ReconcileStatus
+  /** Gewinner-Transkript (fuer per-Datei-Dialog: Name, Herkunft, Seitenzahl). */
+  winnerName: string | null
+  winnerOrigin: 'storage' | 'mongo' | null
+  winnerPages: number
   /** Einzel-Ergebnisse der Transformations-Planung (fuer Report-Detail). */
   transformationPlans: TransformationSyncPlan[]
   /** Alle geplanten Operationen (inkl. Report-only: conflict, needs-pipeline). */
@@ -151,6 +155,9 @@ export function planSourceSync(input: SourceSyncInput): SourceSyncPlan {
     sourceId: input.sourceId,
     sourceName: input.sourceName,
     transcriptStatus: transcriptPlan.status,
+    winnerName: transcriptPlan.winnerName,
+    winnerOrigin: transcriptPlan.winnerOrigin,
+    winnerPages: transcriptPlan.winnerPages,
     transformationPlans,
     operations,
     notes,

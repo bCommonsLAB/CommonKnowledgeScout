@@ -37,6 +37,10 @@ export interface SourceSyncReportRow {
   sourceId: string
   sourceName: string
   transcriptStatus: ReconcileStatus
+  /** Gewinner-Transkript (per-Datei-Dialog: Name, Herkunft, Seitenzahl). */
+  winnerName: string | null
+  winnerOrigin: 'storage' | 'mongo' | null
+  winnerPages: number
   operations: SourceOperationReport[]
   notes: string[]
   /** Quell-Ebene-Fehler (z.B. Twin-Ordner nicht lesbar → Quelle uebersprungen). */

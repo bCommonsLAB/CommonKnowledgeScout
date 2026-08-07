@@ -180,14 +180,18 @@ export async function runLibrarySync(args: {
 
       row = {
         sourceId: doc.sourceId, sourceName: collected.input.sourceName,
-        transcriptStatus: plan.transcriptStatus, operations,
+        transcriptStatus: plan.transcriptStatus,
+        winnerName: plan.winnerName, winnerOrigin: plan.winnerOrigin, winnerPages: plan.winnerPages,
+        operations,
         notes: [...collected.collectNotes, ...plan.notes],
       }
     } catch (err) {
       report.errors++
       row = {
         sourceId: doc.sourceId, sourceName: doc.sourceName || '',
-        transcriptStatus: 'empty', operations: [], notes: [],
+        transcriptStatus: 'empty',
+        winnerName: null, winnerOrigin: null, winnerPages: 0,
+        operations: [], notes: [],
         error: err instanceof Error ? err.message : String(err),
       }
     }
