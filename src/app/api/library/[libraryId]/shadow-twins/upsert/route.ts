@@ -8,7 +8,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { LibraryService } from '@/lib/services/library-service'
-import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { persistShadowTwinToMongo } from '@/lib/shadow-twin/shadow-twin-mongo-writer'
 import { buildMongoShadowTwinItem } from '@/lib/shadow-twin/mongo-shadow-twin-item'
@@ -40,11 +39,6 @@ export async function POST(
 
     const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
     if (!library) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
-
-    const shadowTwinConfig = getShadowTwinConfig(library)
-    if (shadowTwinConfig.primaryStore !== 'mongo') {
-      return NextResponse.json({ error: 'Mongo ist nicht aktiv' }, { status: 400 })
-    }
 
     const provider = await getServerProvider(userEmail, libraryId)
     const sourceItem = await provider.getItemById(body.sourceId)

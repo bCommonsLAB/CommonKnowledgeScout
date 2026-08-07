@@ -226,9 +226,7 @@ export async function buildCompositeReference(
 
   // Obsidian: zweite Zeile „Transkript prüfen“ nur, wenn Transkript-Artefakte im Vault/Storage liegen.
   const st = getShadowTwinConfig(libraryDoc ?? null)
-  const includeTranscriptWikiLinks =
-    libraryDoc != null &&
-    (st.primaryStore === 'filesystem' || st.persistToFilesystem === true)
+  const includeTranscriptWikiLinks = libraryDoc != null && st.persistToFilesystem
 
   // Wiki-Link-Markdown zusammenbauen
   const markdown = assembleReferenceMarkdown({

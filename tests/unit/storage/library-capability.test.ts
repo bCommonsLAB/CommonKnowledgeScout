@@ -29,7 +29,7 @@ describe('isFilesystemBacked', () => {
     expect(isFilesystemBacked(undefined)).toBe(false)
   })
 
-  it('liefert true bei Default (kein shadowTwin-Config -> primaryStore="filesystem")', () => {
+  it('liefert true bei Default (kein shadowTwin-Config -> Mongo primaer + Backup-Spiegel an)', () => {
     expect(isFilesystemBacked(makeLibrary(undefined))).toBe(true)
     expect(isFilesystemBacked(makeLibrary({}))).toBe(true)
   })
@@ -44,20 +44,21 @@ describe('isFilesystemBacked', () => {
     ).toBe(true)
   })
 
-  it('liefert false bei primaryStore="mongo" ohne persistToFilesystem', () => {
-    expect(isFilesystemBacked(makeLibrary({ primaryStore: 'mongo' }))).toBe(false)
+  it('liefert true bei primaryStore="mongo" ohne persistToFilesystem (Backup-Spiegel ist Default an)', () => {
+    expect(isFilesystemBacked(makeLibrary({ primaryStore: 'mongo' }))).toBe(true)
+  })
+
+  it('liefert false nur bei explizitem persistToFilesystem=false', () => {
     expect(
       isFilesystemBacked(makeLibrary({ primaryStore: 'mongo', persistToFilesystem: false })),
     ).toBe(false)
   })
 
-  it('liefert true bei primaryStore="filesystem", auch wenn persistToFilesystem explizit false ist (Original-OR-Semantik)', () => {
-    // Beobachtetes Verhalten aus dem Original-Inline-Check in file-preview.tsx:1134:
-    //   primaryStore === 'filesystem' || persistToFilesystem
-    // Ein Filesystem-Primary "ueberschreibt" die explizite false-Setzung.
-    // Diese Char-Test-Erwartung schuetzt vor versehentlicher Aenderung der Semantik.
+  it('explizites persistToFilesystem=false gewinnt auch gegen Legacy-Wert primaryStore="filesystem"', () => {
+    // Welle 2: das Config-Feld primaryStore wird nicht mehr gelesen —
+    // massgeblich ist allein der Backup-Spiegel-Schalter.
     expect(
       isFilesystemBacked(makeLibrary({ primaryStore: 'filesystem', persistToFilesystem: false })),
-    ).toBe(true)
+    ).toBe(false)
   })
 })

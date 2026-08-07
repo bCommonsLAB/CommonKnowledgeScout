@@ -2,8 +2,7 @@
  * @fileoverview API-Route für Folder-Artifact-Discovery
  *
  * @description
- * Entdeckt transkribierte Artefakte in einem Verzeichnis.
- * Unterstützt sowohl MongoDB- als auch Filesystem-basierte Shadow-Twin-Speicherung.
+ * Entdeckt transkribierte Artefakte in einem Verzeichnis (aus MongoDB).
  * Die client-seitige discoverFolderArtifacts nutzt nur den Provider und findet
  * daher keine MongoDB-Artefakte – diese Route löst das Problem.
  *
@@ -14,8 +13,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { getMediaKind } from '@/lib/media-types'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
-import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver'
-import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { getShadowTwinsBySourceIds } from '@/lib/repositories/shadow-twin-repo'
 import { selectShadowTwinArtifact } from '@/lib/shadow-twin/shadow-twin-select'
 import { LibraryService } from '@/lib/services/library-service'
@@ -116,7 +113,6 @@ export async function POST(
 
     const provider = await getServerProvider(userEmail, libraryId)
     const targetLanguage = body.targetLanguage || 'de'
-    const shadowTwinConfig = getShadowTwinConfig(library)
 
     const items = await provider.listItemsById(body.folderId)
     const sources: WizardSource[] = []
@@ -132,8 +128,8 @@ export async function POST(
       return NextResponse.json({ sources: [] } as FolderDiscoveryResponse, { status: 200 })
     }
 
-    // MongoDB-Pfad: Artefakte direkt aus Mongo laden
-    if (shadowTwinConfig.primaryStore === 'mongo') {
+    // Artefakte direkt aus Mongo laden (Mongo ist immer primaerer Store)
+    {
       const sourceIds = supportedFiles.map((f) => f.id)
       const docs = await getShadowTwinsBySourceIds({ libraryId, sourceIds })
 
@@ -186,93 +182,6 @@ export async function POST(
           createdAt,
         })
       }
-    } else {
-      // Filesystem-Pfad: resolveArtifact + getBinary
-      for (const item of supportedFiles) {
-        const fileName = item.metadata?.name || 'unbekannt'
-        const parentId = item.parentId || body.folderId
-
-        let extractedText = ''
-        let summary = ''
-
-        try {
-          let sourceMetadata: Record<string, unknown> | undefined
-
-          if (getMediaKind(item) === 'markdown') {
-            const { blob } = await provider.getBinary(item.id)
-            const raw = await blob.text()
-            const { meta, body } = parseFrontmatter(raw)
-            extractedText = body.trim()
-            summary = extractedText.length > 150 ? `${extractedText.slice(0, 150)}...` : extractedText
-            if (meta && typeof meta === 'object' && !Array.isArray(meta)) {
-              sourceMetadata = extractSourceMetadata(meta as Record<string, unknown>)
-            }
-          } else {
-            // Bevorzuge Transcript, Fallback auf Transformation
-            let resolved = await resolveArtifact(provider, {
-              sourceItemId: item.id,
-              sourceName: fileName,
-              parentId,
-              targetLanguage,
-              preferredKind: 'transcript',
-            })
-            if (!resolved?.fileId) {
-              resolved = await resolveArtifact(provider, {
-                sourceItemId: item.id,
-                sourceName: fileName,
-                parentId,
-                targetLanguage,
-                preferredKind: 'transformation',
-              })
-            }
-
-            if (resolved?.fileId) {
-              const { blob } = await provider.getBinary(resolved.fileId)
-              const raw = await blob.text()
-              const { meta, body } = parseFrontmatter(raw)
-              extractedText = body.trim()
-              summary = extractedText.length > 150 ? `${extractedText.slice(0, 150)}...` : extractedText
-              if (meta && typeof meta === 'object' && !Array.isArray(meta)) {
-                sourceMetadata = extractSourceMetadata(meta as Record<string, unknown>)
-              }
-            }
-          }
-
-          if (!extractedText.trim()) continue
-
-          if (sourceMetadata && Object.keys(sourceMetadata).length > 0) {
-            FileLogger.debug('artifacts/folder-discovery', 'Shadow-Twin-Metadaten für Secretary-Kontext (FS)', {
-              fileName,
-              sourceMetadata,
-              keys: Object.keys(sourceMetadata),
-            })
-            console.debug('[folder-discovery] Shadow-Twin-Metadaten für', fileName, ':', sourceMetadata)
-          }
-
-          const modifiedAt = item.metadata?.modifiedAt
-          const createdAt =
-            modifiedAt instanceof Date
-              ? modifiedAt
-              : typeof modifiedAt === 'string'
-                ? new Date(modifiedAt)
-                : new Date()
-
-          sources.push({
-            id: `file-${item.id}`,
-            kind: 'file',
-            fileName,
-            extractedText,
-            sourceMetadata:
-              sourceMetadata && Object.keys(sourceMetadata).length > 0 ? sourceMetadata : undefined,
-            summary: summary || fileName,
-            createdAt,
-          })
-        } catch (err) {
-          FileLogger.warn('artifacts/folder-discovery', `Überspringe ${fileName}`, {
-            error: err instanceof Error ? err.message : String(err),
-          })
-        }
-      }
     }
 
     // Chronologisch sortieren (älteste zuerst). createdAt kann Date oder ISO-String sein.
@@ -284,7 +193,6 @@ export async function POST(
       folderId: body.folderId,
       totalFiles: supportedFiles.length,
       foundSources: sources.length,
-      primaryStore: shadowTwinConfig.primaryStore,
     })
 
     return NextResponse.json({ sources } as FolderDiscoveryResponse, { status: 200 })

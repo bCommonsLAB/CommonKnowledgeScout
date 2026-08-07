@@ -8,7 +8,9 @@
  * Thumbnail-Statistik, Reparatur- und Regenerierungs-Aktionen.
  */
 
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Cloud, Wrench, Loader2, RefreshCw } from "lucide-react"
 import {
   FormControl,
@@ -91,12 +93,32 @@ export function BinaryStorageSection({
   handleRegenerateThumbnails,
   handleRepairVariants,
 }: BinaryStorageSectionProps) {
+  const [regenerateAll, setRegenerateAll] = useState(false)
+  const isBusy = isRepairingThumbnails || isRegeneratingThumbnails || isRepairingVariants
+
+  // Ohne "alle neu" braucht es fehlende Vorschaubilder; mit braucht es Cover-Bilder.
+  const runDisabled = regenerateAll
+    ? (thumbnailStats?.withCoverImage ?? 0) === 0
+    : (thumbnailStats?.missingThumbnails ?? 0) === 0 && (variantStats?.missingVariant ?? 0) === 0
+
+  /** Eine Aktion: erst noetige Metadaten-Reparatur, dann ergaenzen bzw. alles neu. */
+  const handleRun = async () => {
+    if ((variantStats?.missingVariant ?? 0) > 0) {
+      await handleRepairVariants()
+    }
+    if (regenerateAll) {
+      await handleRegenerateThumbnails()
+    } else {
+      await handleRepairThumbnails()
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="border-b pb-2">
-        <h3 className="text-lg font-semibold">Binary Storage</h3>
+        <h3 className="text-lg font-semibold">Bild-Speicher</h3>
         <p className="text-sm text-muted-foreground">
-          Speicherort für Bilder und andere Binärdateien (Azure Blob bei Ingestion). Optional eigene Zugangsdaten pro Bibliothek — sonst gelten{' '}
+          Bilder und andere Binärdateien liegen in Azure Blob Storage. Optional eigene Zugangsdaten pro Bibliothek — sonst gelten{' '}
           <code className="text-xs">AZURE_STORAGE_*</code>-Umgebungsvariablen.
         </p>
       </div>
@@ -191,7 +213,7 @@ export function BinaryStorageSection({
         </p>
       </div>
 
-      {/* Thumbnail-Statistik */}
+      {/* Vorschaubild-Statistik */}
       {isLoadingStats ? (
         <div className="rounded-md border p-4 bg-muted/30 text-center">
           <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
@@ -215,7 +237,7 @@ export function BinaryStorageSection({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
             <div>
               <div className="text-2xl font-bold">{thumbnailStats.total ?? '-'}</div>
-              <div className="text-xs text-muted-foreground">Shadow-Twins</div>
+              <div className="text-xs text-muted-foreground">Dokumente</div>
             </div>
             <div>
               <div className="text-2xl font-bold">{thumbnailStats.withCoverImage ?? '-'}</div>
@@ -223,11 +245,11 @@ export function BinaryStorageSection({
             </div>
             <div>
               <div className="text-2xl font-bold text-orange-600">{thumbnailStats.missingThumbnails ?? '-'}</div>
-              <div className="text-xs text-muted-foreground">fehlende Thumbnails</div>
+              <div className="text-xs text-muted-foreground">ohne Vorschaubild</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-green-600">{thumbnailStats.alreadyRepaired ?? '-'}</div>
-              <div className="text-xs text-muted-foreground">repariert</div>
+              <div className="text-xs text-muted-foreground">mit Vorschaubild</div>
             </div>
           </div>
         </div>
@@ -246,93 +268,44 @@ export function BinaryStorageSection({
         </div>
       )}
 
-      {/* Thumbnail-Reparatur */}
-      <div className="flex items-center justify-between">
+      {/* EINE Aktion fuer Vorschaubilder: fehlende ergaenzen, optional alle neu.
+          Eine noetige Metadaten-Reparatur (variant-Felder) laeuft automatisch vorweg —
+          frueher war sie ein eigener, nur manchmal sichtbarer dritter Button. */}
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-medium">Thumbnails reparieren</p>
+          <p className="text-sm font-medium">Vorschaubilder erneuern</p>
           <p className="text-xs text-muted-foreground">
-            Generiert fehlende Thumbnails für alle Cover-Bilder.
+            Erzeugt fehlende Vorschaubilder für alle Cover-Bilder.
+            {(variantStats?.missingVariant ?? 0) > 0 &&
+              ` Vorab werden ${variantStats?.missingVariant} Bild-Einträge ohne Typ-Markierung repariert.`}
           </p>
+          <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+            <Checkbox
+              checked={regenerateAll}
+              onCheckedChange={(v) => setRegenerateAll(v === true)}
+              disabled={isBusy}
+            />
+            Alle neu berechnen (auch vorhandene, 640×640&nbsp;px)
+          </label>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleRepairThumbnails}
-          disabled={isRepairingThumbnails || isRegeneratingThumbnails || (thumbnailStats?.missingThumbnails ?? 0) === 0}
-        >
-          {isRepairingThumbnails ? (
+        <Button type="button" variant="outline" onClick={() => void handleRun()} disabled={isBusy || runDisabled}>
+          {isBusy ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Repariere... ({repairProgress}/{repairTotal})
+              {isRepairingVariants
+                ? 'Repariere Metadaten...'
+                : isRegeneratingThumbnails
+                ? `Berechne... (${regenerateProgress}/${regenerateTotal})`
+                : `Erneuere... (${repairProgress}/${repairTotal})`}
             </>
           ) : (
             <>
-              <Wrench className="h-4 w-4 mr-2" />
-              Thumbnails reparieren
+              {regenerateAll ? <RefreshCw className="h-4 w-4 mr-2" /> : <Wrench className="h-4 w-4 mr-2" />}
+              Vorschaubilder erneuern
             </>
           )}
         </Button>
       </div>
-
-      {/* Thumbnail-Regenerierung */}
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium">Thumbnails neu berechnen</p>
-          <p className="text-xs text-muted-foreground">
-            Regeneriert alle Thumbnails mit der aktuellen Größe (640×640px).
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleRegenerateThumbnails}
-          disabled={isRepairingThumbnails || isRegeneratingThumbnails || (thumbnailStats?.withCoverImage ?? 0) === 0}
-        >
-          {isRegeneratingThumbnails ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Berechne... ({regenerateProgress}/{regenerateTotal})
-            </>
-          ) : (
-            <>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Thumbnails neu berechnen
-            </>
-          )}
-        </Button>
-      </div>
-
-      {/* Variant-Statistik und Reparatur */}
-      {variantStats && (variantStats.missingVariant ?? 0) > 0 && (
-        <div className="rounded-md border p-4 bg-amber-50/50 dark:bg-amber-950/20">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
-                Metadaten-Reparatur erforderlich
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {variantStats.missingVariant ?? 0} Fragment(e) ohne Typ-Markierung gefunden.
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleRepairVariants}
-              disabled={isRepairingVariants}
-            >
-              {isRepairingVariants ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <Wrench className="h-4 w-4 mr-2" />
-                  Metadaten reparieren
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

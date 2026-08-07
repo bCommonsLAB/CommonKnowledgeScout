@@ -203,9 +203,8 @@ export async function POST(
 
     const artifacts: ArtifactFreshness[] = []
 
-    // Ob wir eine Storage-Datei erwarten (persistToFilesystem oder primaryStore=filesystem)
-    const storageExpected =
-      shadowTwinConfig.primaryStore === 'filesystem' || shadowTwinConfig.persistToFilesystem
+    // Ob wir eine Storage-Datei erwarten (Backup-Spiegel aktiv)
+    const storageExpected = shadowTwinConfig.persistToFilesystem
 
     // Shadow-Twin-Ordner-ID (aus dem Dokument oder parentId)
     const shadowTwinFolderId = doc?.filesystemSync?.shadowTwinFolderId || null

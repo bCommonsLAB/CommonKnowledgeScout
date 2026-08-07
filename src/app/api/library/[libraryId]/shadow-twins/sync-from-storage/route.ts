@@ -182,8 +182,7 @@ export async function POST(
     const parentId = body.parentId || doc.parentId || ''
     const sourceName = doc.sourceName || ''
     const sourceBaseName = sourceName.replace(/\.[^.]+$/, '')
-    const storageExpected =
-      config.primaryStore === 'filesystem' || config.persistToFilesystem
+    const storageExpected = config.persistToFilesystem
 
     if (!storageExpected) {
       return NextResponse.json(

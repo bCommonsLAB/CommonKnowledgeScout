@@ -18,7 +18,6 @@ import { upsertShadowTwinArtifact } from '@/lib/repositories/shadow-twin-repo'
 import { persistShadowTwinToMongo } from '@/lib/shadow-twin/shadow-twin-mongo-writer'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import { LibraryService } from '@/lib/services/library-service'
-import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { FileLogger } from '@/lib/debug/logger'
 import type { StorageItem, StorageProvider } from '@/lib/storage/types'
 import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
@@ -263,9 +262,6 @@ export async function reconstructPageImages(args: {
 
   const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
   if (!library) return 0
-
-  // Gate: Nur Mongo-Primaer spiegelt nach Azure. Filesystem-Primaer braucht das nicht.
-  if (getShadowTwinConfig(library).primaryStore !== 'mongo') return 0
 
   const imageFiles = items.filter((it) => it.type === 'file' && isReconstructablePageImage(it.metadata.name))
   if (imageFiles.length === 0) return 0

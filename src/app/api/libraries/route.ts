@@ -157,12 +157,17 @@ export async function POST(request: NextRequest) {
     const libraryService = LibraryService.getInstance();
     const existingLibrary = await libraryService.getLibrary(email, libraryData.id);
     
-    // Neue Libraries bekommen automatisch v2-Modus
+    // Neue Libraries bekommen die vollstaendige Shadow-Twin-Config:
+    // Mongo ist primaerer Store, Dateisystem nur Backup-Spiegel + Lese-Fallback.
     if (!existingLibrary && !libraryData.config?.shadowTwin?.mode) {
       libraryData.config = {
         ...libraryData.config,
         shadowTwin: {
+          ...libraryData.config?.shadowTwin,
           mode: 'v2',
+          primaryStore: 'mongo',
+          persistToFilesystem: libraryData.config?.shadowTwin?.persistToFilesystem ?? true,
+          allowFilesystemFallback: libraryData.config?.shadowTwin?.allowFilesystemFallback ?? true,
         },
       };
     }

@@ -210,7 +210,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   const [sortOrder, setSortOrder] = useAtom(sortOrderAtom);
 
   const hideShadowTwinFolders = shouldFilterShadowTwinFolders(
-    activeLibrary?.config?.shadowTwin as { primaryStore?: string; persistToFilesystem?: boolean } | undefined
+    activeLibrary?.config?.shadowTwin as { persistToFilesystem?: boolean } | undefined
   );
 
   const folders = useMemo(() => {

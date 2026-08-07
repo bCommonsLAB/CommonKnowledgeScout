@@ -3,7 +3,10 @@
  *
  * @description
  * Liefert stabile Default-Werte fuer Shadow-Twin-Flags pro Library.
- * Diese Defaults sind bewusst konservativ, um Legacy-Verhalten nicht zu brechen.
+ * MongoDB ist IMMER der primaere Store fuer echte Libraries; das Dateisystem
+ * ist nur Backup-Spiegel und Lese-Fallback. `primaryStore: 'filesystem'`
+ * existiert ausschliesslich als interner Inbox-Kontrakt (ADR-0004 II) —
+ * das gleichnamige Config-Feld der Library wird NICHT mehr gelesen.
  */
 
 import type { Library } from '@/types/library'
@@ -19,19 +22,27 @@ export interface ShadowTwinConfigDefaults {
 
 /**
  * Liefert die effektive Shadow-Twin-Konfiguration fuer eine Library.
+ *
+ * Ohne Library (Inbox-/Quarantaene-Scope, ADR-0004 II) gibt es keinen
+ * Mongo-Shadow-Twin: Es gilt immer der Provider-Schreibpfad. Dieser Fall
+ * ist hier explizit, damit der Mongo-Default fuer echte Libraries die
+ * Inbox-Jobs nicht umleitet.
  */
 export function getShadowTwinConfig(library: Library | null | undefined): ShadowTwinConfigDefaults {
-  const cfg = library?.config?.shadowTwin
+  if (!library) {
+    return {
+      primaryStore: 'filesystem',
+      persistToFilesystem: true,
+      cleanupFilesystemOnMigrate: false,
+      allowFilesystemFallback: true,
+    }
+  }
 
-  const primaryStore: ShadowTwinPrimaryStore = cfg?.primaryStore || 'filesystem'
-  const persistToFilesystem =
-    typeof cfg?.persistToFilesystem === 'boolean'
-      ? cfg.persistToFilesystem
-      : primaryStore === 'filesystem'
+  const cfg = library.config?.shadowTwin
 
   return {
-    primaryStore,
-    persistToFilesystem,
+    primaryStore: 'mongo',
+    persistToFilesystem: cfg?.persistToFilesystem ?? true,
     cleanupFilesystemOnMigrate: cfg?.cleanupFilesystemOnMigrate ?? false,
     allowFilesystemFallback: cfg?.allowFilesystemFallback ?? true,
   }
