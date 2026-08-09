@@ -15,6 +15,7 @@
  * @module shadow-twin/sync-plan
  */
 
+import { planNameMigration, type NameMigrationInput } from './plan-name-migration'
 import type { SourceSyncPlan } from './plan-source-sync'
 import type { AdoptableArtifact, SyncOperation } from './types'
 
@@ -23,25 +24,38 @@ export interface StorageAdoptionInput {
   sourceName: string
   /** Aus Dateinamen erkannte Artefakte (Twin-Ordner + Geschwister). */
   artifacts: AdoptableArtifact[]
+  /** Namens-Migration (Welle 5c): Rename/Split laufen VOR der Adoption. */
+  nameMigration?: NameMigrationInput
 }
 
 /**
  * Plant die Adoption EINER Storage-only-Quelle.
- * Ohne Artefakte: leerer Plan (Quelle ist eine gewoehnliche, unverarbeitete Datei).
+ * Welle 5c: Namens-Migrations-Operationen stehen VOR der Adoption im Plan
+ * (der Executor arbeitet in Plan-Reihenfolge; der Migrations-Writer scannt
+ * beim Ausfuehren frisch und sieht die umbenannten Dateien) — deren neue
+ * Namen werden direkt mit-adoptiert („Aus Alt mach Neu" in EINEM Lauf).
+ * Ohne Artefakte und ohne Befunde: leerer Plan (gewoehnliche Datei).
  */
 export function planStorageAdoption(input: StorageAdoptionInput): SourceSyncPlan {
   const operations: SyncOperation[] = []
   const notes: string[] = []
 
-  if (input.artifacts.length > 0) {
-    const note = `Quelle ohne Datenbank-Eintrag — ${input.artifacts.length} Artefakt(e) aus dem Storage uebernehmen`
+  const nameMigrationPlan = input.nameMigration ? planNameMigration(input.nameMigration) : null
+  if (nameMigrationPlan) {
+    operations.push(...nameMigrationPlan.operations)
+    notes.push(...nameMigrationPlan.notes)
+  }
+
+  const artifacts = [...input.artifacts, ...(nameMigrationPlan?.adoptableAfterMigration ?? [])]
+  if (artifacts.length > 0) {
+    const note = `Quelle ohne Datenbank-Eintrag — ${artifacts.length} Artefakt(e) aus dem Storage uebernehmen`
     operations.push({
       type: 'adopt-storage-only-source',
       kind: 'source',
       targetLanguage: '',
       fileName: input.sourceName,
-      count: input.artifacts.length,
-      artifacts: input.artifacts,
+      count: artifacts.length,
+      artifacts,
       note,
     })
     notes.push(note)

@@ -19,6 +19,7 @@
  */
 
 import { buildTranscriptReconcilePlan, type ReconcileCandidate, type ReconcileStatus } from '../reconcile-plan'
+import { planNameMigration, type NameMigrationInput } from './plan-name-migration'
 import { planTransformationSync, TIMESTAMP_TOLERANCE_MS, type TransformationSyncInput, type TransformationSyncPlan } from './plan-transformation-sync'
 import type { SyncOperation } from './types'
 
@@ -43,6 +44,8 @@ export interface SourceSyncInput {
   imagesMissingInStorage?: Array<{ name: string; url?: string }>
   /** Anzahl rekonstruierbarer `page_*`/`preview_*`-Bilder ohne Mongo-Fragmente (B1). */
   reconstructablePageImages?: number
+  /** Namens-Migration (Welle 5c): Legacy-Namen + Pfad-Budget dieser Quelle. */
+  nameMigration?: NameMigrationInput
 }
 
 export interface SourceSyncPlan {
@@ -136,6 +139,13 @@ export function planSourceSync(input: SourceSyncInput): SourceSyncPlan {
       type: 'register-image-fragments', kind: 'image', targetLanguage: '',
       fileName: '', count: input.reconstructablePageImages,
     })
+  }
+
+  // ── Namens-Migration (Welle 5c): Legacy-Namen, Kombi-Datei, Pfad-Budget ──
+  if (input.nameMigration) {
+    const nameMigrationPlan = planNameMigration(input.nameMigration)
+    operations.push(...nameMigrationPlan.operations)
+    notes.push(...nameMigrationPlan.notes)
   }
 
   // ── needs-pipeline: Quelldatei neuer als alle Artefakte ──────────────
