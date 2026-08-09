@@ -157,7 +157,9 @@ export async function reconstructFromFolder(args: {
       continue
     }
 
-    if (!parsed.kind || !parsed.targetLanguage) {
+    // Transkript ist sprach-neutral: das kanonische {base}.md parst mit
+    // targetLanguage null und ist GUELTIG (Guard-Bug-Fix Welle 5a).
+    if (!parsed.kind || (parsed.kind !== 'transcript' && !parsed.targetLanguage)) {
       FileLogger.warn('shadow-twins/reconstruct', 'Artefakt-Datei konnte nicht zugeordnet werden', {
         fileName, parsed, sourceId,
       })
@@ -187,7 +189,9 @@ export async function reconstructFromFolder(args: {
       const artifactKey: ArtifactKey = {
         sourceId,
         kind: parsed.kind,
-        targetLanguage: parsed.targetLanguage,
+        // '' = sprach-neutral (kanonisches Transkript); Mongo-Pfad ignoriert
+        // die Sprache bei kind='transcript' ohnehin (buildArtifactPath).
+        targetLanguage: parsed.targetLanguage ?? '',
         templateName: parsed.templateName || undefined,
       }
 

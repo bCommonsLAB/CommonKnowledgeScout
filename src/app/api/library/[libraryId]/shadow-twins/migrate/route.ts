@@ -8,7 +8,6 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
-import path from 'path'
 
 // Migration kann bei grossen Libraries (100+ Dateien ueber WebDAV) sehr lange dauern
 export const maxDuration = 600 // 10 Minuten
@@ -17,7 +16,7 @@ import { getServerProvider } from '@/lib/storage/server-provider'
 import { LibraryService } from '@/lib/services/library-service'
 import { generateShadowTwinFolderNameVariants } from '@/lib/storage/shadow-twin'
 import { isShadowTwinFolderName } from '@/lib/storage/shadow-twin-folder-name'
-import { parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
+import { collectStorageArtifactsForSource } from '@/lib/shadow-twin/collect-storage-artifacts'
 import { prepareSourceArtifacts, upsertArtifactFromPrepared, type PreparedSource } from '@/lib/shadow-twin/shadow-twin-migration-writer'
 import { FileLogger } from '@/lib/debug/logger'
 import { startMigrationRun, appendMigrationStep, finishMigrationRun, isCancelRequested } from '@/lib/repositories/shadow-twin-migration-repo'
@@ -128,48 +127,6 @@ async function collectAllFilesInFolder(
   }
 
   return files
-}
-
-function collectArtifactsForSource(args: {
-  source: StorageItem
-  parentItems: StorageItem[]
-  shadowTwinFolderItems: StorageItem[]
-}): Array<{ item: StorageItem; key: { sourceId: string; kind: 'transcript' | 'transformation'; targetLanguage: string; templateName?: string } }> {
-  const { source, parentItems, shadowTwinFolderItems } = args
-  const sourceBaseName = path.parse(source.metadata.name).name
-  const seen = new Set<string>()
-  const artifacts: Array<{ item: StorageItem; key: { sourceId: string; kind: 'transcript' | 'transformation'; targetLanguage: string; templateName?: string } }> = []
-
-  const consider = (item: StorageItem) => {
-    if (item.type !== 'file') return
-    if (seen.has(item.id)) return
-    // WICHTIG: Nur Dateien akzeptieren, deren Name tatsächlich zum Quell-Basisnamen gehört
-    // ({base}.{lang}.md, {base}.{template}.{lang}.md, …). Andernfalls würden rohe Seiten-OCR-
-    // Dateien wie "page_001.en.md" über den konservativen Parser-Fallback fälschlich als
-    // Transkript des PDFs erkannt — und könnten im selben Artefakt-Slot (transcript.{lang})
-    // das echte, zusammenhängende Transkript überschreiben. Diese Seiten-Markdowns werden
-    // bewusst ignoriert (sie sind reine Zwischendaten).
-    if (!item.metadata.name.toLowerCase().startsWith(`${sourceBaseName.toLowerCase()}.`)) return
-    const parsed = parseArtifactName(item.metadata.name, sourceBaseName)
-    if (!parsed.kind || !parsed.targetLanguage) return
-    // Nur 'transcript' und 'transformation' Artefakte migrieren, 'raw' überspringen
-    if (parsed.kind !== 'transcript' && parsed.kind !== 'transformation') return
-    seen.add(item.id)
-    artifacts.push({
-      item,
-      key: {
-        sourceId: source.id,
-        kind: parsed.kind,
-        targetLanguage: parsed.targetLanguage,
-        templateName: parsed.templateName || undefined,
-      },
-    })
-  }
-
-  for (const item of shadowTwinFolderItems) consider(item)
-  for (const item of parentItems) consider(item)
-
-  return artifacts
 }
 
 export async function POST(
@@ -311,7 +268,9 @@ export async function POST(
 
         const shadowTwinFolderItems = shadowTwinFolder ? await cache.list(shadowTwinFolder.id) : []
 
-        const artifacts = collectArtifactsForSource({
+        // Gemeinsame Namens-Analyse (Welle 5a): akzeptiert auch das kanonische
+        // sprach-neutrale Transkript {base}.md (frueher hier faelschlich verworfen).
+        const artifacts = collectStorageArtifactsForSource({
           source,
           parentItems,
           shadowTwinFolderItems,
