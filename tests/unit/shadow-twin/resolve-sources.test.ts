@@ -1,7 +1,8 @@
 /**
  * @fileoverview Unit-Tests fuer resolveSources + collectStorageOnlySource
- * (Welle 5a): Ordner-Scope liefert doc-lose Dateien als Adoptions-Kandidaten,
- * Library-Scope = Root-Scan ∪ Mongo-Reste, Sibling-Artefakte sind keine Quellen.
+ * (Welle 5a/5b): Ordner-Scope liefert doc-lose Dateien als Adoptions-Kandidaten,
+ * Library-Scope = Root-Scan ∪ Mongo-Reste, Sibling-Artefakte sind keine Quellen,
+ * sourceIds-Scope adoptiert doc-lose Quellen mit Storage-Datei (Welle 5b).
  */
 
 import { describe, it, expect, vi } from 'vitest'
@@ -26,6 +27,11 @@ function folder(id: string, name: string, parentId: string): StorageItem {
 function makeProvider(tree: Record<string, StorageItem[]>): StorageProvider {
   return {
     listItemsById: vi.fn(async (id: string) => tree[id] ?? []),
+    getItemById: vi.fn(async (id: string) => {
+      const item = Object.values(tree).flat().find((it) => it.id === id)
+      if (!item) throw new Error(`Item nicht gefunden: ${id}`)
+      return item
+    }),
   } as unknown as StorageProvider
 }
 function doc(sourceId: string): ShadowTwinDocument {
@@ -73,6 +79,45 @@ describe('resolveSources (Welle 5a)', () => {
     expect(pairs[0].sourceItem?.id).toBe('pdf-1')
     expect(pairs[1].doc?.sourceId).toBe('gone-1')
     expect(pairs[1].sourceItem).toBeNull()
+  })
+})
+
+describe('resolveSources sourceIds-Scope (Welle 5b)', () => {
+  it('mit Doc: Paar aus Doc + Quell-Item (wie bisher)', async () => {
+    const tree = { top: [file('pdf-1', 'a.pdf', 'top')] }
+    repoMocks.getShadowTwinsBySourceIds.mockResolvedValueOnce(new Map([['pdf-1', doc('pdf-1')]]))
+    const provider = makeProvider(tree)
+    const { pairs, skippedWithoutDoc } = await resolveSources({
+      libraryId: 'lib-1', scope: { sourceIds: ['pdf-1'] }, folderCache: new FolderCache(provider), provider,
+    })
+    expect(pairs).toHaveLength(1)
+    expect(pairs[0].doc?.sourceId).toBe('pdf-1')
+    expect(pairs[0].sourceItem?.id).toBe('pdf-1')
+    expect(skippedWithoutDoc).toBe(0)
+  })
+
+  it('ohne Doc, Datei im Storage: Adoptions-Kandidat (doc=null)', async () => {
+    const tree = { top: [file('pdf-2', 'b.pdf', 'top')] }
+    repoMocks.getShadowTwinsBySourceIds.mockResolvedValueOnce(new Map())
+    const provider = makeProvider(tree)
+    const { pairs, skippedWithoutDoc } = await resolveSources({
+      libraryId: 'lib-1', scope: { sourceIds: ['pdf-2'] }, folderCache: new FolderCache(provider), provider,
+    })
+    expect(pairs).toHaveLength(1)
+    expect(pairs[0].doc).toBeNull()
+    expect(pairs[0].sourceItem?.id).toBe('pdf-2')
+    expect(skippedWithoutDoc).toBe(0)
+  })
+
+  it('ohne Doc und ohne Datei (bzw. Ordner-Id): uebersprungen', async () => {
+    const tree = { top: [folder('twin-a', '_a.pdf', 'top')] }
+    repoMocks.getShadowTwinsBySourceIds.mockResolvedValueOnce(new Map())
+    const provider = makeProvider(tree)
+    const { pairs, skippedWithoutDoc } = await resolveSources({
+      libraryId: 'lib-1', scope: { sourceIds: ['gone-1', 'twin-a'] }, folderCache: new FolderCache(provider), provider,
+    })
+    expect(pairs).toHaveLength(0)
+    expect(skippedWithoutDoc).toBe(2)
   })
 })
 
