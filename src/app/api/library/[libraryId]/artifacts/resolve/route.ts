@@ -13,12 +13,46 @@ import { auth, currentUser } from '@clerk/nextjs/server';
 import { FileLogger } from '@/lib/debug/logger';
 import { getServerProvider } from '@/lib/storage/server-provider';
 import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver';
-import { reconstructFromFolder } from '@/lib/shadow-twin/reconstruct-from-storage';
-import { findShadowTwinFolder } from '@/lib/storage/shadow-twin';
+import { runLibrarySync } from '@/lib/shadow-twin/sync-engine/run-library-sync';
 import { LibraryService } from '@/lib/services/library-service';
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service';
 import { isMongoShadowTwinId } from '@/lib/shadow-twin/mongo-shadow-twin-id';
 import { parseFrontmatter } from '@/lib/markdown/frontmatter';
+
+/**
+ * Lazy-Repair (Welle 5b): Artefakt lag im Storage, aber nicht (vollstaendig) in
+ * MongoDB — EIN Engine-Repair im sourceIds-Scope fuehrt Mongo nach (inkl.
+ * Adoption doc-loser Quellen). Fehler sind nicht kritisch: die Aufloesung hat
+ * bereits ein Ergebnis, der naechste Zugriff versucht es erneut.
+ */
+async function lazyRepairViaEngine(args: {
+  libraryId: string
+  userEmail: string
+  sourceId: string
+  pathLabel: string
+}): Promise<void> {
+  const { libraryId, userEmail, sourceId, pathLabel } = args
+  try {
+    const report = await runLibrarySync({
+      libraryId, userEmail, mode: 'repair', preset: 'repair', scope: { sourceIds: [sourceId] },
+    })
+    const executed = Object.values(report.executed).reduce((sum, n) => sum + (n ?? 0), 0)
+    if (executed > 0) {
+      FileLogger.info('artifacts/resolve', `Lazy-Repair (${pathLabel}): ${executed} Operation(en) ausgefuehrt`, {
+        sourceId, errors: report.errors,
+      })
+    }
+    if (report.errors > 0) {
+      FileLogger.warn('artifacts/resolve', `Lazy-Repair (${pathLabel}): ${report.errors} Fehler im Report`, {
+        sourceId, failed: report.failed,
+      })
+    }
+  } catch (err) {
+    FileLogger.warn('artifacts/resolve', `Lazy-Repair (${pathLabel}) fehlgeschlagen (nicht kritisch)`, {
+      sourceId, error: err instanceof Error ? err.message : String(err),
+    })
+  }
+}
 
 /**
  * GET /api/library/[libraryId]/artifacts/resolve
@@ -100,26 +134,7 @@ export async function GET(
         // Wenn das Artefakt NICHT aus MongoDB kommt (z.B. primaryStore='filesystem'),
         // muessen wir es in MongoDB nachfuehren, damit die Uebersicht korrekte Daten zeigt.
         if (!fromMongo) {
-          try {
-            const provider = await getServerProvider(userEmail, libraryId)
-            const folder = await findShadowTwinFolder(parentId, sourceName, provider)
-            if (folder) {
-              const results = await reconstructFromFolder({
-                provider, libraryId, userEmail, sourceId, sourceName, parentId,
-                shadowTwinFolderId: folder.id,
-              })
-              const ok = results.filter((r) => r.success).length
-              if (ok > 0) {
-                FileLogger.info('artifacts/resolve', `Lazy Reconstruction (service-path): ${ok} Artefakt(e) in MongoDB nachgefuehrt`, {
-                  sourceId, sourceName,
-                })
-              }
-            }
-          } catch (reconstructErr) {
-            FileLogger.warn('artifacts/resolve', 'Lazy Reconstruction (service-path) fehlgeschlagen', {
-              sourceId, error: reconstructErr instanceof Error ? reconstructErr.message : String(reconstructErr),
-            })
-          }
+          await lazyRepairViaEngine({ libraryId, userEmail, sourceId, pathLabel: 'service-path' })
         }
         
         return NextResponse.json(
@@ -151,42 +166,11 @@ export async function GET(
         });
 
         if (resolved) {
-          // Lazy Reconstruction: Artefakt im Storage gefunden, aber nicht in MongoDB.
-          // Alle Artefakte im Shadow-Twin-Ordner in MongoDB rekonstruieren.
+          // Lazy-Repair: Artefakt im Storage gefunden, aber nicht in MongoDB.
           // WICHTIG: Muss awaited werden, da Next.js fire-and-forget Promises
-          // nach Response-Ende abbricht (Serverless-Umgebung).
-          try {
-            if (resolved.shadowTwinFolderId) {
-              const results = await reconstructFromFolder({
-                provider, libraryId, userEmail, sourceId, sourceName, parentId,
-                shadowTwinFolderId: resolved.shadowTwinFolderId,
-              })
-              const ok = results.filter((r) => r.success).length
-              if (ok > 0) {
-                FileLogger.info('artifacts/resolve', `Lazy Reconstruction: ${ok} Artefakt(e) in MongoDB nachgefuehrt`, {
-                  sourceId, sourceName,
-                })
-              }
-            } else if (resolved.location === 'sibling') {
-              const folder = await findShadowTwinFolder(parentId, sourceName, provider)
-              if (folder) {
-                const results = await reconstructFromFolder({
-                  provider, libraryId, userEmail, sourceId, sourceName, parentId,
-                  shadowTwinFolderId: folder.id,
-                })
-                const ok = results.filter((r) => r.success).length
-                if (ok > 0) {
-                  FileLogger.info('artifacts/resolve', `Lazy Reconstruction (sibling): ${ok} Artefakt(e) nachgefuehrt`, {
-                    sourceId, sourceName,
-                  })
-                }
-              }
-            }
-          } catch (reconstructErr) {
-            FileLogger.warn('artifacts/resolve', 'Lazy Reconstruction fehlgeschlagen (nicht kritisch)', {
-              sourceId, error: reconstructErr instanceof Error ? reconstructErr.message : String(reconstructErr),
-            })
-          }
+          // nach Response-Ende abbricht (Serverless-Umgebung). Die Engine findet
+          // Twin-Ordner UND Sibling-Artefakte selbst (kein Folder-Lookup noetig).
+          await lazyRepairViaEngine({ libraryId, userEmail, sourceId, pathLabel: 'provider-fallback' })
 
           return NextResponse.json(
             { artifact: resolved },

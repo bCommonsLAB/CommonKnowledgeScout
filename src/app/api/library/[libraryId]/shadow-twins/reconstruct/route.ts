@@ -1,28 +1,30 @@
 /**
- * @fileoverview Shadow-Twin aus Storage rekonstruieren (API-Route)
+ * @fileoverview Shadow-Twin aus Storage uebernehmen (API-Route, Welle 5b: Engine)
  *
  * @description
- * API-Route fuer manuelle Rekonstruktion via Banner-Button.
- * Die eigentliche Logik liegt in reconstruct-from-storage.ts.
+ * "Alle Artefakte aus Storage uebernehmen" (per Datei) laeuft ueber die
+ * konsolidierte Sync-Engine: EIN repair-Lauf im sourceIds-Scope. Quellen ohne
+ * Mongo-Dokument adoptiert die Engine (adopt-storage-only-source), Quellen mit
+ * Dokument bekommen den regulaeren Reparatur-Plan (Transkript/Transformationen/
+ * Bild-Registrierung). Die Response behaelt die Legacy-Form der UI-Aufrufer
+ * (reconstructed/failed/artifacts).
  *
  * @module api/library
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
-import { LibraryService } from '@/lib/services/library-service'
-import { getServerProvider } from '@/lib/storage/server-provider'
-import { findShadowTwinFolder } from '@/lib/storage/shadow-twin'
-import { reconstructFromFolder } from '@/lib/shadow-twin/reconstruct-from-storage'
+import { runLibrarySync } from '@/lib/shadow-twin/sync-engine/run-library-sync'
 import { FileLogger } from '@/lib/debug/logger'
 
-// Rekonstruktion laedt Seiten-Renderings/Previews nach Azure (Variante 2) –
-// das kann bei vielen Bildern dauern. Zeitlimit grosszuegig setzen.
+// Uebernahme laedt Seiten-Renderings/Previews nach Azure – das kann bei vielen
+// Bildern dauern. Zeitlimit grosszuegig setzen.
 export const maxDuration = 300
 
 interface ReconstructRequest {
   sourceId: string
-  parentId: string
+  /** Vom UI weiterhin gesendet; die Engine loest den Parent selbst auf. */
+  parentId?: string
 }
 
 export async function POST(
@@ -40,70 +42,47 @@ export async function POST(
     const { libraryId } = await params
     const body = (await request.json()) as ReconstructRequest
 
-    if (!body?.sourceId || !body?.parentId) {
-      return NextResponse.json(
-        { error: 'sourceId und parentId sind erforderlich' },
-        { status: 400 },
-      )
+    if (!body?.sourceId) {
+      return NextResponse.json({ error: 'sourceId ist erforderlich' }, { status: 400 })
     }
 
-    const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
-    if (!library) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
-
-    const provider = await getServerProvider(userEmail, libraryId)
-    if (!provider) {
-      return NextResponse.json({ error: 'Storage-Provider nicht verfügbar' }, { status: 500 })
-    }
-
-    // Quelldatei-Informationen laden (Name fuer parseArtifactName)
-    let sourceName = ''
-    try {
-      const sourceItem = await provider.getItemById(body.sourceId)
-      sourceName = sourceItem?.metadata?.name || ''
-    } catch {
-      FileLogger.warn('shadow-twins/reconstruct', 'Quelldatei konnte nicht geladen werden', {
-        sourceId: body.sourceId,
-      })
-    }
-
-    if (!sourceName) {
-      return NextResponse.json(
-        { error: 'Quelldatei nicht im Storage gefunden' },
-        { status: 404 },
-      )
-    }
-
-    // Shadow-Twin-Ordner suchen
-    const shadowTwinFolder = await findShadowTwinFolder(body.parentId, sourceName, provider)
-
-    if (!shadowTwinFolder) {
-      return NextResponse.json({
-        success: false,
-        message: 'Kein Shadow-Twin-Ordner im Storage gefunden',
-        artifacts: [],
-      })
-    }
-
-    // Artefakte rekonstruieren
-    const artifacts = await reconstructFromFolder({
-      provider,
-      libraryId,
-      userEmail,
-      sourceId: body.sourceId,
-      sourceName,
-      parentId: body.parentId,
-      shadowTwinFolderId: shadowTwinFolder.id,
+    const report = await runLibrarySync({
+      libraryId, userEmail, mode: 'repair', preset: 'repair',
+      scope: { sourceIds: [body.sourceId] },
     })
 
-    const succeeded = artifacts.filter((a) => a.success).length
-    const failed = artifacts.filter((a) => !a.success).length
+    const row = report.sources[0]
+    if (!row) {
+      // Weder Mongo-Dokument noch adoptierbare Artefakte im Storage.
+      return NextResponse.json({
+        success: false, reconstructed: 0, failed: 0, artifacts: [],
+        message: 'Keine Artefakte im Storage gefunden',
+      })
+    }
+    if (row.error) {
+      // Quell-Ebene-Fehler (z.B. Twin-Ordner nicht lesbar) — wie frueher als 500.
+      return NextResponse.json({ error: row.error }, { status: 500 })
+    }
+
+    const selected = row.operations.filter((op) => op.selected)
+    const executedOps = selected.filter((op) => op.executed === true)
+    const failedOps = selected.filter((op) => op.executed === false)
+    // Toast-Zaehlung wie frueher: Markdown-Artefakte, keine Bilder. Die
+    // Adoptions-Operation zaehlt mit ihrer Artefakt-Anzahl (op.count).
+    const reconstructed = executedOps
+      .filter((op) => op.kind !== 'image')
+      .reduce((sum, op) => sum + (op.count ?? 1), 0)
+
+    FileLogger.info('shadow-twins/reconstruct', 'Engine-Repair (per Datei) abgeschlossen', {
+      sourceId: row.sourceId, executed: executedOps.length, failed: failedOps.length,
+    })
 
     return NextResponse.json({
-      success: failed === 0 && succeeded > 0,
-      reconstructed: succeeded,
-      failed,
-      shadowTwinFolder: shadowTwinFolder.metadata.name,
-      artifacts,
+      success: failedOps.length === 0 && executedOps.length > 0,
+      reconstructed,
+      failed: failedOps.length,
+      artifacts: row.operations,
+      notes: row.notes,
     })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
