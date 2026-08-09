@@ -23,6 +23,10 @@ const ALL_OPS: SyncOperation[] = [
   op('register-image-fragments', { kind: 'image', fileName: '', count: 3 }),
   op('delete-inferior-variant', { fileId: 'f1', fileName: 'doc.en.md' }),
   op('delete-dead-page-md', { fileId: 'f2', fileName: 'page_001.md' }),
+  op('adopt-storage-only-source', {
+    kind: 'source', fileName: 'doc.pdf', count: 1,
+    artifacts: [{ fileName: 'doc.md', kind: 'transcript', targetLanguage: '' }],
+  }),
   op('needs-pipeline', { kind: 'source', fileName: 'doc.pdf' }),
   op('conflict'),
 ]
@@ -45,6 +49,7 @@ describe('isOperationAllowed / filterAllowedOperations', () => {
       'mirror-artifact-to-storage', 'mirror-artifact-to-storage',
       'register-image-fragments',
       'delete-inferior-variant', 'delete-dead-page-md',
+      'adopt-storage-only-source',
     ])
   })
 
@@ -54,7 +59,17 @@ describe('isOperationAllowed / filterAllowedOperations', () => {
       'update-mongo-transcript', 'update-mongo-transformation',
       'register-image-fragments',
       'delete-inferior-variant', 'delete-dead-page-md',
+      'adopt-storage-only-source',
     ])
+  })
+
+  it('adopt-storage-only-source: NUR repair (Mongo-Write — nie export/auto-sync)', () => {
+    const adopt = op('adopt-storage-only-source', { kind: 'source', fileName: 'doc.pdf' })
+    for (const persistToFilesystem of [true, false]) {
+      expect(isOperationAllowed(adopt, 'repair', { persistToFilesystem })).toBe(true)
+      expect(isOperationAllowed(adopt, 'export', { persistToFilesystem })).toBe(false)
+      expect(isOperationAllowed(adopt, 'auto-sync', { persistToFilesystem })).toBe(false)
+    }
   })
 
   it('export: NUR Storage-Spiegel (auch ohne persistToFilesystem), nie Mongo, nie Loeschen', () => {

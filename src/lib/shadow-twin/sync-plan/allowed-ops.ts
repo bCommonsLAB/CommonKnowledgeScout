@@ -45,6 +45,8 @@ export function isOperationAllowed(
         case 'register-image-fragments':
         case 'delete-inferior-variant':
         case 'delete-dead-page-md':
+        // Welle 5a: Quellen ohne Mongo-Dokument aus dem Storage uebernehmen.
+        case 'adopt-storage-only-source':
           return true
         case 'write-canonical-transcript':
         case 'mirror-artifact-to-storage':
@@ -62,6 +64,9 @@ export function isOperationAllowed(
         case 'mirror-image-to-storage':
           // Expliziter Export ignoriert persistToFilesystem bewusst (User will exportieren).
           return true
+        case 'adopt-storage-only-source':
+          // Export schreibt NIE nach Mongo — Adoption ist ein Mongo-Write.
+          return false
         default:
           return false
       }
@@ -70,6 +75,10 @@ export function isOperationAllowed(
         case 'update-mongo-transcript':
         case 'update-mongo-transformation':
           return true
+        case 'adopt-storage-only-source':
+          // Unbeaufsichtigt keine Voll-Adoption (Bild-Uploads nach Azure);
+          // per-Datei-Adoption kommt mit Welle 5b (C auf Engine).
+          return false
         case 'write-canonical-transcript':
         case 'mirror-artifact-to-storage':
           // Unbeaufsichtigt nur Fehlendes ergaenzen — nie bestehende Dateien ersetzen.

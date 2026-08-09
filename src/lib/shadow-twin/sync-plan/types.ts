@@ -31,6 +31,9 @@
  * - `delete-inferior-variant`: strikt unterlegene/redundante Transkript-Variante
  *   loeschen (nur nach persistiertem Gewinner; nie die vollste Kopie).
  * - `delete-dead-page-md`: tote `page_NNN.md` loeschen.
+ * - `adopt-storage-only-source`: Quelle OHNE Mongo-Dokument — alle im Storage
+ *   gefundenen Artefakte (Transkript/Transformationen/Bilder) uebernehmen
+ *   (Welle 5a; nutzt den Migrations-Writer als Executor).
  * - `needs-pipeline`: Quelldatei neuer als Artefakte → nur melden (Report-only).
  * - `conflict`: nicht entscheidbar → nur melden (Report-only).
  */
@@ -43,6 +46,7 @@ export type SyncOperationType =
   | 'register-image-fragments'
   | 'delete-inferior-variant'
   | 'delete-dead-page-md'
+  | 'adopt-storage-only-source'
   | 'needs-pipeline'
   | 'conflict'
 
@@ -54,6 +58,17 @@ export const REPORT_ONLY_OPERATION_TYPES: ReadonlySet<SyncOperationType> = new S
 
 /** Artefakt-Familie, auf die sich eine Operation bezieht. */
 export type SyncOperationKind = 'transcript' | 'transformation' | 'image' | 'source'
+
+/**
+ * Eine aus dem Dateinamen erkannte Artefakt-Datei fuer die Adoption
+ * (adopt-storage-only-source). targetLanguage '' = sprach-neutrales Transkript.
+ */
+export interface AdoptableArtifact {
+  fileName: string
+  kind: 'transcript' | 'transformation'
+  targetLanguage: string
+  templateName?: string
+}
 
 /**
  * Eine geplante Operation. Traegt alles, was die Ausfuehrung braucht
@@ -82,6 +97,8 @@ export interface SyncOperation {
   count?: number
   /** Quell-URL fuer mirror-image-to-storage (Azure-Blob des Fragments). */
   url?: string
+  /** Nur adopt-storage-only-source: die zu uebernehmenden Artefakt-Dateien. */
+  artifacts?: AdoptableArtifact[]
   /** Klartext-Begruendung fuer den Report (Konflikt-Grund, Verweigerung). */
   note?: string
 }
