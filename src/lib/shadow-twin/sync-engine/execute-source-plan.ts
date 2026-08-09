@@ -15,6 +15,7 @@
 import { updateShadowTwinArtifactMarkdown } from '@/lib/repositories/shadow-twin-repo'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import { reconstructPageImages } from '@/lib/shadow-twin/reconstruct-from-storage'
+import { prepareSourceArtifacts, upsertArtifactFromPrepared } from '@/lib/shadow-twin/shadow-twin-migration-writer'
 import { findShadowTwinFolder, generateShadowTwinFolderName } from '@/lib/storage/shadow-twin'
 import type { Library } from '@/types/library'
 import type { StorageItem, StorageProvider } from '@/lib/storage/types'
@@ -114,6 +115,31 @@ async function executeOperation(ctx: ExecuteSourceContext, op: SyncOperation): P
         provider: ctx.provider, libraryId: ctx.libraryId, userEmail: ctx.userEmail,
         sourceItem: ctx.sourceItem, parentId: ctx.parentId, items: ctx.twinFolderItems,
       })
+      return
+    }
+    case 'adopt-storage-only-source': {
+      // Welle 5a: Quelle ohne Mongo-Dokument — Artefakte (Markdown + Bilder)
+      // ueber den bewaehrten Migrations-Writer uebernehmen. EIN prepare pro
+      // Quelle (laedt Inhalte, spiegelt Bilder nach Azure), dann je Artefakt
+      // ein Upsert in den jeweiligen Slot.
+      if (!ctx.sourceItem) throw new Error('adopt-storage-only-source ohne Quell-Item (Scan-Kontext fehlt)')
+      if (!op.artifacts?.length) throw new Error('adopt-storage-only-source ohne Artefakt-Liste')
+      const prepared = await prepareSourceArtifacts({
+        libraryId: ctx.libraryId, userEmail: ctx.userEmail,
+        sourceItem: ctx.sourceItem, provider: ctx.provider,
+        shadowTwinFolderId: ctx.shadowTwinFolderId ?? undefined,
+      })
+      for (const artifact of op.artifacts) {
+        await upsertArtifactFromPrepared({
+          libraryId: ctx.libraryId, userEmail: ctx.userEmail, sourceItem: ctx.sourceItem,
+          artifactKey: {
+            sourceId: ctx.sourceId, kind: artifact.kind,
+            targetLanguage: artifact.targetLanguage, templateName: artifact.templateName,
+          },
+          prepared,
+          artifactFileName: artifact.fileName,
+        })
+      }
       return
     }
     case 'delete-inferior-variant':

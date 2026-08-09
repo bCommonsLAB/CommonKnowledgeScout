@@ -54,11 +54,11 @@ export interface LibrarySyncReport {
   libraryId: string
   mode: SyncMode
   preset: SyncPreset
-  /** Verarbeitete Quellen (mit Shadow-Twin-Dokument). */
+  /** Verarbeitete Quellen (mit Shadow-Twin-Dokument ODER adoptierbaren Artefakten). */
   totalSources: number
-  /** Gescannte Storage-Dateien (nur bei folder-Scope). */
+  /** Gescannte Storage-Dateien (folder- und Library-Scope). */
   scannedFiles?: number
-  /** Dateien ohne Shadow-Twin-Dokument (uebersprungen; Import ist migrate-Sache). */
+  /** Dateien ohne Shadow-Twin-Dokument UND ohne adoptierbare Artefakte (Welle 5a). */
   skippedWithoutDoc: number
   /** Quellen mit mindestens einer ausgewaehlten Operation. */
   changed: number
