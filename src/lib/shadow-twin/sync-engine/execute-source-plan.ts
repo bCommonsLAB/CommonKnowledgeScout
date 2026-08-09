@@ -15,6 +15,7 @@
 import { updateShadowTwinArtifactMarkdown } from '@/lib/repositories/shadow-twin-repo'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import { reconstructPageImages } from '@/lib/shadow-twin/reconstruct-from-storage'
+import { executeAdoption } from './execute-adoption'
 import { findShadowTwinFolder, generateShadowTwinFolderName } from '@/lib/storage/shadow-twin'
 import type { Library } from '@/types/library'
 import type { StorageItem, StorageProvider } from '@/lib/storage/types'
@@ -116,6 +117,14 @@ async function executeOperation(ctx: ExecuteSourceContext, op: SyncOperation): P
       })
       return
     }
+    case 'adopt-storage-only-source':
+      // Welle 5a: Quelle ohne Mongo-Dokument — Uebernahme via Migrations-Writer.
+      await executeAdoption({
+        libraryId: ctx.libraryId, userEmail: ctx.userEmail, provider: ctx.provider,
+        sourceId: ctx.sourceId, sourceItem: ctx.sourceItem,
+        shadowTwinFolderId: ctx.shadowTwinFolderId, operation: op,
+      })
+      return
     case 'delete-inferior-variant':
     case 'delete-dead-page-md': {
       if (!op.fileId) throw new Error(`${op.type} ohne fileId`)

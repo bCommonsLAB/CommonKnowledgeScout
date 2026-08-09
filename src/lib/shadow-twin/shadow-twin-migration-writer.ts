@@ -430,12 +430,16 @@ export async function upsertArtifactFromPrepared(args: {
   sourceItem: StorageItem
   artifactKey: ArtifactKey
   prepared: PreparedSource
+  /** Tatsaechlicher Dateiname, falls er vom kanonischen Namen abweicht (Legacy). */
+  artifactFileName?: string
 }): Promise<{ imageFiles: number }> {
-  const { libraryId, userEmail, sourceItem, artifactKey, prepared } = args
+  const { libraryId, userEmail, sourceItem, artifactKey, prepared, artifactFileName } = args
 
   // Exakten Dateinamen ueber buildArtifactName konstruieren (verhindert Verwechslung
   // zwischen Transcript "...de.md" und Transformation "...template.de.md").
-  const expectedFileName = buildArtifactName(artifactKey, sourceItem.metadata.name)
+  // Bei Legacy-Namen ({base}.{lang}.md) liefert der Aufrufer den echten Namen mit,
+  // sonst wuerde der Inhalt unter dem kanonischen Namen nicht gefunden.
+  const expectedFileName = artifactFileName ?? buildArtifactName(artifactKey, sourceItem.metadata.name)
   let markdownContent = prepared.markdownByName.get(expectedFileName)
   if (markdownContent === undefined) {
     // Case-insensitiver Fallback (OneDrive normalisiert ggf. Gross-/Kleinschreibung)

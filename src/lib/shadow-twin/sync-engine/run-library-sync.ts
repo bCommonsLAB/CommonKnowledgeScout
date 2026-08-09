@@ -4,14 +4,17 @@
  * @description
  * EIN Einstieg fuer alle Faelle (Design §3/§6/§7):
  * - Scope `sourceIds` (per-Datei aus der Archiv-UI), `folderId` (Explorer/Settings,
- *   Storage-getrieben, ueberspringt Twin-Ordner) oder ganze Library (Mongo-getrieben).
+ *   Storage-getrieben, ueberspringt Twin-Ordner) oder ganze Library (Welle 5a:
+ *   Root-Scan VEREINT mit Mongo-Dokumenten ohne Quelldatei — storage-vollstaendig).
  * - Modus `check` = Plan als Report (KEINE Schreib-/Loesch-Operationen);
  *   `repair` = denselben Plan ausfuehren (nur die vom Preset erlaubten Operationen).
  * - Quellen werden batch-weise geladen und einzeln verarbeitet (kein
  *   Alles-in-den-Speicher wie das alte reconcileLibrary).
  *
- * Dateien ohne Shadow-Twin-Dokument werden uebersprungen und gezaehlt —
- * Neu-Import aus dem Dateisystem bleibt Sache von „Aus Dateisystem laden" (migrate).
+ * Welle 5a: Dateien ohne Shadow-Twin-Dokument werden nicht mehr uebersprungen —
+ * tragen sie Artefakte im Storage, plant die Engine `adopt-storage-only-source`
+ * (Uebernahme via Migrations-Writer). Nur Dateien ohne Artefakte zaehlen als
+ * `skippedWithoutDoc`.
  *
  * @module shadow-twin/sync-engine
  */
@@ -19,87 +22,22 @@
 import { LibraryService } from '@/lib/services/library-service'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
-import { getAllShadowTwins, getShadowTwinsBySourceIds, type ShadowTwinDocument } from '@/lib/repositories/shadow-twin-repo'
-import { isShadowTwinFolderName } from '@/lib/storage/shadow-twin-folder-name'
-import { planSourceSync } from '@/lib/shadow-twin/sync-plan/plan-source-sync'
+import { planSourceSync, type SourceSyncPlan } from '@/lib/shadow-twin/sync-plan/plan-source-sync'
 import { filterAllowedOperations, type SyncPreset } from '@/lib/shadow-twin/sync-plan/allowed-ops'
 import { REPORT_ONLY_OPERATION_TYPES, type SyncOperation } from '@/lib/shadow-twin/sync-plan/types'
-import type { StorageItem, StorageProvider } from '@/lib/storage/types'
-import { collectSourceInput } from './collect-source-input'
+import { collectSourceInput, type CollectedSource } from './collect-source-input'
+import { collectStorageOnlySource } from './collect-storage-only-source'
 import { executeSourcePlan, type OperationOutcome } from './execute-source-plan'
 import { FolderCache } from './folder-cache'
+import { resolveSources, type LibrarySyncScope } from './resolve-sources'
 import type { LibrarySyncReport, OperationCounts, SourceOperationReport, SourceSyncReportRow, SyncMode } from './report-types'
 
-export interface LibrarySyncScope {
-  /** Teilmenge konkreter Quellen (per-Datei-Aufrufe der Archiv-UI). */
-  sourceIds?: string[]
-  /** Storage-getriebener Scan ab diesem Ordner (Explorer, Settings-Pruefen). */
-  folderId?: string
-  recursive?: boolean
-}
+export type { LibrarySyncScope } from './resolve-sources'
 
 const DEFAULT_MAX_SOURCE_DETAILS = 500
-const DOC_BATCH_SIZE = 100
 
 function bump(counts: OperationCounts, type: SyncOperation['type']): void {
   counts[type] = (counts[type] ?? 0) + 1
-}
-
-/** Quellen-Liste aufloesen: [doc, ggf. Quell-Item aus dem Scan]. */
-async function resolveSources(args: {
-  libraryId: string
-  scope: LibrarySyncScope
-  folderCache: FolderCache
-  provider: StorageProvider
-}): Promise<{ pairs: Array<{ doc: ShadowTwinDocument; sourceItem: StorageItem | null }>; scannedFiles?: number; skippedWithoutDoc: number }> {
-  const { libraryId, scope, folderCache, provider } = args
-
-  if (scope.sourceIds?.length) {
-    const docs = await getShadowTwinsBySourceIds({ libraryId, sourceIds: scope.sourceIds })
-    const pairs: Array<{ doc: ShadowTwinDocument; sourceItem: StorageItem | null }> = []
-    for (const sourceId of scope.sourceIds) {
-      const doc = docs.get(sourceId)
-      if (!doc) continue
-      let sourceItem: StorageItem | null = null
-      try {
-        sourceItem = await provider.getItemById(sourceId)
-      } catch {
-        // Quelle nicht (mehr) aufloesbar → needs-pipeline entfaellt, Plan laeuft trotzdem.
-      }
-      pairs.push({ doc, sourceItem })
-    }
-    return { pairs, skippedWithoutDoc: scope.sourceIds.length - pairs.length }
-  }
-
-  if (scope.folderId) {
-    // Storage-getrieben: Dateien rekursiv sammeln, Twin-Ordner NICHT als Quellen scannen.
-    const files: StorageItem[] = []
-    const queue: string[] = [scope.folderId]
-    while (queue.length > 0) {
-      const current = queue.shift() as string
-      for (const item of await folderCache.list(current)) {
-        if (item.type === 'folder') {
-          if (scope.recursive !== false && !isShadowTwinFolderName(item.metadata.name)) queue.push(item.id)
-          continue
-        }
-        files.push(item)
-      }
-    }
-    const pairs: Array<{ doc: ShadowTwinDocument; sourceItem: StorageItem | null }> = []
-    for (let i = 0; i < files.length; i += DOC_BATCH_SIZE) {
-      const batch = files.slice(i, i + DOC_BATCH_SIZE)
-      const docs = await getShadowTwinsBySourceIds({ libraryId, sourceIds: batch.map((f) => f.id) })
-      for (const file of batch) {
-        const doc = docs.get(file.id)
-        if (doc) pairs.push({ doc, sourceItem: file })
-      }
-    }
-    return { pairs, scannedFiles: files.length, skippedWithoutDoc: files.length - pairs.length }
-  }
-
-  // Ganze Library, Mongo-getrieben (erfasst auch Quellen, deren Datei weg ist).
-  const docs = await getAllShadowTwins(libraryId)
-  return { pairs: docs.map((doc) => ({ doc, sourceItem: null })), skippedWithoutDoc: 0 }
 }
 
 /** Fuehrt einen Sync-Lauf aus (check ODER repair) und liefert den Report. */
@@ -133,15 +71,31 @@ export async function runLibrarySync(args: {
   for (const { doc, sourceItem } of pairs) {
     let row: SourceSyncReportRow
     try {
-      const collected = await collectSourceInput({ doc, provider, folderCache, sourceItem })
-      const plan = planSourceSync(collected.input)
+      // Doc-Pfad wie bisher; Storage-only-Quellen (Welle 5a) liefern dieselben
+      // Formen (CollectedSource + Plan) und laufen durch identisches Reporting.
+      let collected: CollectedSource
+      let plan: SourceSyncPlan
+      if (doc) {
+        collected = await collectSourceInput({ doc, provider, folderCache, sourceItem })
+        plan = planSourceSync(collected.input)
+      } else {
+        const adoption = sourceItem ? await collectStorageOnlySource({ sourceItem, folderCache }) : null
+        if (!adoption) {
+          // Ohne Doc und ohne adoptierbare Artefakte: gewoehnliche Datei.
+          report.totalSources--
+          report.skippedWithoutDoc++
+          continue
+        }
+        collected = adoption.collected
+        plan = adoption.plan
+      }
       const selectedOps = filterAllowedOperations(plan.operations, preset, { persistToFilesystem })
       const selectedSet = new Set(selectedOps)
 
       const outcomes: OperationOutcome[] = mode === 'repair' && selectedOps.length > 0
         ? await executeSourcePlan(selectedOps, {
             library, libraryId, userEmail, provider, folderCache,
-            sourceId: doc.sourceId, sourceName: collected.input.sourceName,
+            sourceId: plan.sourceId, sourceName: collected.input.sourceName,
             parentId: collected.parentId, shadowTwinFolderId: collected.shadowTwinFolderId,
             twinFolderItems: collected.twinFolderItems, sourceItem: collected.sourceItem,
           })
@@ -179,7 +133,7 @@ export async function runLibrarySync(args: {
       if (selectedOps.length > 0) report.changed++
 
       row = {
-        sourceId: doc.sourceId, sourceName: collected.input.sourceName,
+        sourceId: plan.sourceId, sourceName: collected.input.sourceName,
         transcriptStatus: plan.transcriptStatus,
         winnerName: plan.winnerName, winnerOrigin: plan.winnerOrigin, winnerPages: plan.winnerPages,
         operations,
@@ -188,7 +142,7 @@ export async function runLibrarySync(args: {
     } catch (err) {
       report.errors++
       row = {
-        sourceId: doc.sourceId, sourceName: doc.sourceName || '',
+        sourceId: doc?.sourceId ?? sourceItem?.id ?? '', sourceName: doc?.sourceName || sourceItem?.metadata.name || '',
         transcriptStatus: 'empty',
         winnerName: null, winnerOrigin: null, winnerPages: 0,
         operations: [], notes: [],
