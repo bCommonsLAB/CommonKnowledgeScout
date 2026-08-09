@@ -2,9 +2,9 @@
  * @fileoverview Quellen-Aufloesung der Sync-Engine (Scope → Quell-Paare).
  *
  * @description
- * Aus run-library-sync.ts extrahiert und fuer Welle 5a erweitert:
- * - `sourceIds`: Mongo-getrieben (per-Datei-Aufrufe); ohne Doc → uebersprungen
- *   (per-Datei-Adoption kommt mit Welle 5b).
+ * Aus run-library-sync.ts extrahiert und fuer Welle 5a/5b erweitert:
+ * - `sourceIds`: per-Datei-Aufrufe; ohne Mongo-Doc wird die Quelldatei aus dem
+ *   Storage geladen und als Adoptions-Kandidat (doc=null) geliefert (Welle 5b).
  * - `folderId`: Storage-getriebener Scan; Dateien OHNE Mongo-Doc werden nicht
  *   mehr verworfen, sondern als Adoptions-Kandidaten (doc=null) geliefert.
  * - Ganze Library: Root-Scan (storage-getrieben, wie folderId='root') VEREINT
@@ -64,18 +64,24 @@ export async function resolveSources(args: {
   if (scope.sourceIds?.length) {
     const docs = await getShadowTwinsBySourceIds({ libraryId, sourceIds: scope.sourceIds })
     const pairs: SourcePair[] = []
+    let skippedWithoutDoc = 0
     for (const sourceId of scope.sourceIds) {
-      const doc = docs.get(sourceId)
-      if (!doc) continue
+      const doc = docs.get(sourceId) ?? null
       let sourceItem: StorageItem | null = null
       try {
         sourceItem = await provider.getItemById(sourceId)
       } catch {
         // Quelle nicht (mehr) aufloesbar → needs-pipeline entfaellt, Plan laeuft trotzdem.
       }
+      // Ohne Doc UND ohne Storage-Datei gibt es nichts zu planen; mit Datei wird
+      // die Quelle Adoptions-Kandidat (doc=null, Welle 5b — per-Datei-Adoption).
+      if (!doc && sourceItem?.type !== 'file') {
+        skippedWithoutDoc++
+        continue
+      }
       pairs.push({ doc, sourceItem })
     }
-    return { pairs, skippedWithoutDoc: scope.sourceIds.length - pairs.length }
+    return { pairs, skippedWithoutDoc }
   }
 
   // Storage-getrieben: Dateien rekursiv sammeln, Twin-Ordner NICHT als Quellen scannen.

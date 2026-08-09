@@ -77,7 +77,8 @@ export function isOperationAllowed(
           return true
         case 'adopt-storage-only-source':
           // Unbeaufsichtigt keine Voll-Adoption (Bild-Uploads nach Azure);
-          // per-Datei-Adoption kommt mit Welle 5b (C auf Engine).
+          // per-Datei-Adoption laeuft ueber das repair-Preset (Welle 5b:
+          // reconstruct-Route + Lazy-Resolve im sourceIds-Scope).
           return false
         case 'write-canonical-transcript':
         case 'mirror-artifact-to-storage':

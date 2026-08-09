@@ -211,8 +211,8 @@ export function ArtifactInfoPanel(props: ArtifactInfoPanelProps) {
   }, [props.libraryId, props.sourceFile?.id, props.onArtifactsDeleted, triggerShadowTwinAnalysis, refreshArtifacts])
 
   // Alle Artefakte aus dem Storage in den Cache uebernehmen (Rekonstruktion).
-  // Nutzt den bestehenden reconstruct-Endpunkt: Markdown + Bilder (page_*/preview_*)
-  // werden nach Mongo/Azure uebernommen (siehe reconstruct-from-storage.ts, Variante 2).
+  // Der reconstruct-Endpunkt faehrt seit Welle 5b einen Engine-Repair im
+  // sourceIds-Scope: Markdown + Bilder (page_*/preview_*) nach Mongo/Azure.
   const handleImportFromStorage = React.useCallback(async () => {
     if (!props.libraryId || !props.sourceFile?.id || !props.sourceFile?.parentId) return
     setIsImporting(true)
