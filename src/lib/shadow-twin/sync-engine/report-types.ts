@@ -23,6 +23,8 @@ export interface SourceOperationReport {
   targetLanguage: string
   templateName?: string
   fileName: string
+  /** Ziel-Dateiname der Namens-Migration (Rename/Split, Welle 5c). */
+  newFileName?: string
   overwrite?: boolean
   count?: number
   note?: string

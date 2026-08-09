@@ -129,7 +129,7 @@ describe('collectStorageOnlySource (Welle 5a)', () => {
       'twin-a': [file('t-1', 'a.md', 'twin-a'), file('t-2', 'a.alpha.de.md', 'twin-a'), file('img', 'page_001.jpeg', 'twin-a')],
     }
     const provider = makeProvider(tree)
-    const adoption = await collectStorageOnlySource({ sourceItem: source, folderCache: new FolderCache(provider) })
+    const adoption = await collectStorageOnlySource({ sourceItem: source, folderCache: new FolderCache(provider), provider })
     expect(adoption).not.toBeNull()
     expect(adoption?.plan.operations).toHaveLength(1)
     expect(adoption?.plan.operations[0].type).toBe('adopt-storage-only-source')
@@ -141,7 +141,7 @@ describe('collectStorageOnlySource (Welle 5a)', () => {
   it('ohne adoptierbare Artefakte: null (Quelle bleibt uebersprungen)', async () => {
     const source = file('pdf-1', 'a.pdf', 'top')
     const provider = makeProvider({ top: [source] })
-    const adoption = await collectStorageOnlySource({ sourceItem: source, folderCache: new FolderCache(provider) })
+    const adoption = await collectStorageOnlySource({ sourceItem: source, folderCache: new FolderCache(provider), provider })
     expect(adoption).toBeNull()
   })
 })
