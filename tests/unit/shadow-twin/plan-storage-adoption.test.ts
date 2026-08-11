@@ -32,4 +32,22 @@ describe('planStorageAdoption', () => {
     expect(plan.notes).toEqual([])
     expect(plan.transcriptStatus).toBe('empty')
   })
+
+  it('Namens-Migration (Welle 5c): Rename steht VOR der Adoption, neuer Name wird mit-adoptiert', () => {
+    const plan = planStorageAdoption({
+      sourceId: 'src-1', sourceName: 'doc.pdf', artifacts: [ARTIFACTS[0]],
+      nameMigration: {
+        sourceBaseName: 'doc',
+        legacyNamed: [{ fileId: 'f-1', fileName: 'doc.de.md', targetLanguage: 'de', hasFrontmatter: true, pathLength: null, inTwinFolder: true }],
+        combined: null, existingFiles: [],
+        templateName: 'pdfanalyse', splitTargetLanguage: 'de', pathBudget: 347,
+      },
+    })
+    expect(plan.operations.map((op) => op.type)).toEqual(['migrate-legacy-artifact-name', 'adopt-storage-only-source'])
+    const adopt = plan.operations[1]
+    expect(adopt.count).toBe(2)
+    expect(adopt.artifacts).toContainEqual({
+      fileName: 'doc.pdfanalyse.de.md', kind: 'transformation', targetLanguage: 'de', templateName: 'pdfanalyse',
+    })
+  })
 })

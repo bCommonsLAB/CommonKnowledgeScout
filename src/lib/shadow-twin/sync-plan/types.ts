@@ -34,8 +34,17 @@
  * - `adopt-storage-only-source`: Quelle OHNE Mongo-Dokument — alle im Storage
  *   gefundenen Artefakte (Transkript/Transformationen/Bilder) uebernehmen
  *   (Welle 5a; nutzt den Migrations-Writer als Executor).
+ * - `migrate-legacy-artifact-name`: Legacy-Transformation `{base}.{lang}.md`
+ *   (MIT Frontmatter) auf `{base}.{template}.{lang}.md` umbenennen (Welle 5c).
+ * - `split-combined-artifact`: Kombi-Datei `{base}.md` (Transformations-
+ *   Frontmatter + Transkript-Body) als Transformation kopieren; das Original
+ *   bleibt Transkript (Welle 5c).
  * - `needs-pipeline`: Quelldatei neuer als Artefakte → nur melden (Report-only).
  * - `conflict`: nicht entscheidbar → nur melden (Report-only).
+ * - `legacy-transcript-name`: altes Transkript `{base}.{lang}.md` OHNE
+ *   Frontmatter → nur melden (Report-only, Welle 5c).
+ * - `path-too-long`: relativer Pfad ueber dem Budget (OneDrive-Limit) → nur
+ *   melden (Report-only, Welle 5c).
  */
 export type SyncOperationType =
   | 'write-canonical-transcript'
@@ -47,13 +56,19 @@ export type SyncOperationType =
   | 'delete-inferior-variant'
   | 'delete-dead-page-md'
   | 'adopt-storage-only-source'
+  | 'migrate-legacy-artifact-name'
+  | 'split-combined-artifact'
   | 'needs-pipeline'
   | 'conflict'
+  | 'legacy-transcript-name'
+  | 'path-too-long'
 
 /** Report-only-Operationen: werden geplant und gemeldet, aber NIE ausgefuehrt. */
 export const REPORT_ONLY_OPERATION_TYPES: ReadonlySet<SyncOperationType> = new Set([
   'needs-pipeline',
   'conflict',
+  'legacy-transcript-name',
+  'path-too-long',
 ])
 
 /** Artefakt-Familie, auf die sich eine Operation bezieht. */
@@ -85,6 +100,8 @@ export interface SyncOperation {
   fileName: string
   /** Storage-Datei-Id (Loeschungen, Ueberschreiben bestehender Dateien). */
   fileId?: string
+  /** Ziel-Dateiname der Namens-Migration (Rename bzw. Split-Kopie, Welle 5c). */
+  newFileName?: string
   /** Zu schreibender Markdown-Inhalt (write-/mirror-/update-Operationen). */
   markdown?: string
   /**

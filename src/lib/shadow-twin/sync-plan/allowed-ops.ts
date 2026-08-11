@@ -50,6 +50,10 @@ export function isOperationAllowed(
           return true
         case 'write-canonical-transcript':
         case 'mirror-artifact-to-storage':
+        // Welle 5c: Namens-Migration (Rename/Split) schreibt Storage-Dateien —
+        // nur mit gepflegtem Spiegel; export/auto-sync fuehren sie NIE aus.
+        case 'migrate-legacy-artifact-name':
+        case 'split-combined-artifact':
           return ctx.persistToFilesystem
         case 'mirror-image-to-storage':
           // Bilder-Spiegel ist Export-Sache (grosse Downloads), nicht Standard-Reparatur.

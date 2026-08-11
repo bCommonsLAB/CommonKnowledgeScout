@@ -72,6 +72,21 @@ describe('isOperationAllowed / filterAllowedOperations', () => {
     }
   })
 
+  it('Namens-Migration (Welle 5c): NUR repair mit persistToFilesystem; Befunde nie', () => {
+    const rename = op('migrate-legacy-artifact-name', { kind: 'transformation', templateName: 't', targetLanguage: 'de', fileId: 'f1', newFileName: 'doc.t.de.md' })
+    const split = op('split-combined-artifact', { kind: 'transformation', templateName: 't', targetLanguage: 'de', fileId: 'f2', newFileName: 'doc.t.de.md', markdown: '---\nx: 1\n---\nBody' })
+    for (const executable of [rename, split]) {
+      expect(isOperationAllowed(executable, 'repair', { persistToFilesystem: true })).toBe(true)
+      expect(isOperationAllowed(executable, 'repair', { persistToFilesystem: false })).toBe(false)
+      expect(isOperationAllowed(executable, 'export', { persistToFilesystem: true })).toBe(false)
+      expect(isOperationAllowed(executable, 'auto-sync', { persistToFilesystem: true })).toBe(false)
+    }
+    for (const preset of ['repair', 'export', 'auto-sync'] as const) {
+      expect(isOperationAllowed(op('legacy-transcript-name'), preset, { persistToFilesystem: true })).toBe(false)
+      expect(isOperationAllowed(op('path-too-long', { kind: 'source' }), preset, { persistToFilesystem: true })).toBe(false)
+    }
+  })
+
   it('export: NUR Storage-Spiegel (auch ohne persistToFilesystem), nie Mongo, nie Loeschen', () => {
     for (const persistToFilesystem of [true, false]) {
       const allowed = filterAllowedOperations(ALL_OPS, 'export', { persistToFilesystem })

@@ -36,6 +36,12 @@ export interface LibrarySyncScope {
 export interface SourcePair {
   doc: ShadowTwinDocument | null
   sourceItem: StorageItem | null
+  /**
+   * Relative Pfadlaenge des Quell-Ordners (inkl. Trennzeichen) aus dem Scan —
+   * Basis fuer den Pfad-Budget-Check (Welle 5c). undefined = unbekannt
+   * (sourceIds-Scope, Mongo-Ergaenzung ohne Scan-Fund).
+   */
+  parentPathLength?: number
 }
 
 const DOC_BATCH_SIZE = 100
@@ -85,20 +91,30 @@ export async function resolveSources(args: {
   }
 
   // Storage-getrieben: Dateien rekursiv sammeln, Twin-Ordner NICHT als Quellen scannen.
-  // Ohne folderId (ganze Library) beginnt der Scan an der Wurzel.
+  // Ohne folderId (ganze Library) beginnt der Scan an der Wurzel. Der Scan traegt
+  // relative Pfadlaengen mit (Welle 5c, Pfad-Budget) — relativ zur Scan-Wurzel,
+  // beim Library-Scope also zur Library-Wurzel.
   const files: StorageItem[] = []
-  const queue: string[] = [scope.folderId ?? 'root']
+  const rootId = scope.folderId ?? 'root'
+  const queue: string[] = [rootId]
+  const folderPathLength = new Map<string, number>([[rootId, 0]])
+  const filePathLength = new Map<string, number>()
   while (queue.length > 0) {
     const current = queue.shift() as string
+    const currentPathLength = folderPathLength.get(current) ?? 0
     const items = await folderCache.list(current)
     const folderFiles = items.filter((it) => it.type === 'file')
     for (const item of items) {
       if (item.type === 'folder') {
-        if (scope.recursive !== false && !isShadowTwinFolderName(item.metadata.name)) queue.push(item.id)
+        if (scope.recursive !== false && !isShadowTwinFolderName(item.metadata.name)) {
+          folderPathLength.set(item.id, currentPathLength + item.metadata.name.length + 1)
+          queue.push(item.id)
+        }
         continue
       }
       // Sibling-Artefakte sind keine eigenen Quellen (sie haengen an ihrer Quelle).
       if (isArtifactOfSibling(item, folderFiles)) continue
+      filePathLength.set(item.id, currentPathLength)
       files.push(item)
     }
   }
@@ -108,7 +124,7 @@ export async function resolveSources(args: {
     const batch = files.slice(i, i + DOC_BATCH_SIZE)
     const docs = await getShadowTwinsBySourceIds({ libraryId, sourceIds: batch.map((f) => f.id) })
     for (const file of batch) {
-      pairs.push({ doc: docs.get(file.id) ?? null, sourceItem: file })
+      pairs.push({ doc: docs.get(file.id) ?? null, sourceItem: file, parentPathLength: filePathLength.get(file.id) })
     }
   }
 

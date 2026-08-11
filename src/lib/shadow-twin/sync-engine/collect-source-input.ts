@@ -21,6 +21,8 @@ import type { ReconcileCandidate } from '@/lib/shadow-twin/reconcile-plan'
 import type { SourceSyncInput } from '@/lib/shadow-twin/sync-plan/plan-source-sync'
 import type { StorageItem, StorageProvider } from '@/lib/storage/types'
 import { FileLogger } from '@/lib/debug/logger'
+import type { NameMigrationInput } from '@/lib/shadow-twin/sync-plan/plan-name-migration'
+import { buildNameMigrationInput, classifyTranscriptCandidates, type NameMigrationContext } from './collect-name-migration'
 import { collectTransformations } from './collect-transformations'
 import { FolderCache } from './folder-cache'
 import { toDate } from './to-date'
@@ -64,8 +66,10 @@ export async function collectSourceInput(args: {
   folderCache: FolderCache
   /** Quelldatei-Item, falls vom Scan bekannt (sonst wird nicht nachgeladen). */
   sourceItem?: StorageItem | null
+  /** Namens-Migration (Welle 5c); ohne Kontext wird nicht klassifiziert. */
+  nameMigrationCtx?: NameMigrationContext
 }): Promise<CollectedSource> {
-  const { doc, provider, folderCache, sourceItem = null } = args
+  const { doc, provider, folderCache, sourceItem = null, nameMigrationCtx } = args
   const sourceName = doc.sourceName || ''
   const sourceBaseName = sourceName.replace(/\.[^.]+$/, '')
   const canonicalName = `${sourceBaseName}.md`
@@ -121,10 +125,23 @@ export async function collectSourceInput(args: {
       return { fileId: it.id, name: it.metadata.name, markdown, origin: 'storage' as const }
     }),
   )
+  // Namens-Migration (Welle 5c): Muster-A-Dateien ({base}.{lang}.md MIT
+  // Frontmatter) sind Transformationen — raus aus der Transkript-Reconcile.
+  let nameMigration: NameMigrationInput | undefined
+  let classifiedStorageCandidates = storageCandidates
+  if (nameMigrationCtx) {
+    const classified = classifyTranscriptCandidates({
+      storageCandidates, sourceBaseName, sourceName, twinFolderItems,
+      parentPathLength: nameMigrationCtx.parentPathLength,
+    })
+    classifiedStorageCandidates = classified.transcriptCandidates
+    nameMigration = buildNameMigrationInput(sourceBaseName, classified, nameMigrationCtx)
+  }
+
   const mongoRecord = readTranscriptRecord(doc)
   const transcriptCandidates: ReconcileCandidate[] = mongoRecord
-    ? [...storageCandidates, { name: canonicalName, markdown: mongoRecord.markdown, origin: 'mongo' }]
-    : storageCandidates
+    ? [...classifiedStorageCandidates, { name: canonicalName, markdown: mongoRecord.markdown, origin: 'mongo' }]
+    : classifiedStorageCandidates
 
   // Tote page_NNN.md (Schutz fuer Quellen, die selbst page_NNN.* heissen).
   const deadPageMd = twinFolderItems
@@ -166,6 +183,7 @@ export async function collectSourceInput(args: {
     transformations,
     imagesMissingInStorage,
     reconstructablePageImages,
+    nameMigration,
   }
   return { input, shadowTwinFolderId: folderId, twinFolderItems, sourceItem, parentId, collectNotes: notes }
 }

@@ -16,6 +16,7 @@ import { updateShadowTwinArtifactMarkdown } from '@/lib/repositories/shadow-twin
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import { reconstructPageImages } from '@/lib/shadow-twin/reconstruct-from-storage'
 import { executeAdoption } from './execute-adoption'
+import { executeNameMigration } from './execute-name-migration'
 import { findShadowTwinFolder, generateShadowTwinFolderName } from '@/lib/storage/shadow-twin'
 import type { Library } from '@/types/library'
 import type { StorageItem, StorageProvider } from '@/lib/storage/types'
@@ -137,8 +138,15 @@ async function executeOperation(ctx: ExecuteSourceContext, op: SyncOperation): P
       if (ctx.shadowTwinFolderId) ctx.folderCache.invalidate(ctx.shadowTwinFolderId)
       return
     }
+    case 'migrate-legacy-artifact-name':
+    case 'split-combined-artifact':
+      // Welle 5c: Rename/Split laufen in Plan-Reihenfolge VOR der Adoption.
+      await executeNameMigration(ctx, op)
+      return
     case 'needs-pipeline':
     case 'conflict':
+    case 'legacy-transcript-name':
+    case 'path-too-long':
       throw new Error(`Report-only-Operation darf nicht ausgefuehrt werden: ${op.type}`)
     default: {
       const exhaustive: never = op.type

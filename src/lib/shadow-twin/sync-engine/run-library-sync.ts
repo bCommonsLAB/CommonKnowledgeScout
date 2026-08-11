@@ -25,6 +25,8 @@ import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
 import { planSourceSync, type SourceSyncPlan } from '@/lib/shadow-twin/sync-plan/plan-source-sync'
 import { filterAllowedOperations, type SyncPreset } from '@/lib/shadow-twin/sync-plan/allowed-ops'
 import { REPORT_ONLY_OPERATION_TYPES, type SyncOperation } from '@/lib/shadow-twin/sync-plan/types'
+import { DEFAULT_PATH_BUDGET } from '@/lib/shadow-twin/sync-plan/plan-name-migration'
+import type { NameMigrationContext } from './collect-name-migration'
 import { collectSourceInput, type CollectedSource } from './collect-source-input'
 import { collectStorageOnlySource } from './collect-storage-only-source'
 import { executeSourcePlan, type OperationOutcome } from './execute-source-plan'
@@ -48,14 +50,24 @@ export async function runLibrarySync(args: {
   preset?: SyncPreset
   scope?: LibrarySyncScope
   maxSourceDetails?: number
+  /** Pfad-Budget der Namens-Migration in Zeichen (Default {@link DEFAULT_PATH_BUDGET}). */
+  pathBudget?: number
 }): Promise<LibrarySyncReport> {
-  const { libraryId, userEmail, mode, preset = 'repair', scope = {}, maxSourceDetails = DEFAULT_MAX_SOURCE_DETAILS } = args
+  const { libraryId, userEmail, mode, preset = 'repair', scope = {}, maxSourceDetails = DEFAULT_MAX_SOURCE_DETAILS, pathBudget = DEFAULT_PATH_BUDGET } = args
 
   const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
   if (!library) throw new Error(`Library nicht gefunden: ${libraryId}`)
   const provider = await getServerProvider(userEmail, libraryId)
   if (!provider) throw new Error('Storage-Provider nicht verfuegbar')
   const persistToFilesystem = getShadowTwinConfig(library).persistToFilesystem
+  // Namens-Migration (Welle 5c): Template + Zielsprache aus der Library-Config;
+  // ohne Template plant die Engine Report-Befunde statt Renames.
+  const secretaryConfig = library.config?.secretaryService
+  const baseNameMigrationCtx: Omit<NameMigrationContext, 'parentPathLength'> = {
+    templateName: secretaryConfig?.template?.trim() || null,
+    splitTargetLanguage: secretaryConfig?.targetLanguage || 'de',
+    pathBudget,
+  }
 
   const folderCache = new FolderCache(provider)
   const { pairs, scannedFiles, skippedWithoutDoc } = await resolveSources({ libraryId, scope, folderCache, provider })
@@ -68,18 +80,21 @@ export async function runLibrarySync(args: {
     errors: 0, sources: [], sourcesTruncated: false,
   }
 
-  for (const { doc, sourceItem } of pairs) {
+  for (const { doc, sourceItem, parentPathLength } of pairs) {
     let row: SourceSyncReportRow
     try {
+      const nameMigrationCtx: NameMigrationContext = { ...baseNameMigrationCtx, parentPathLength: parentPathLength ?? null }
       // Doc-Pfad wie bisher; Storage-only-Quellen (Welle 5a) liefern dieselben
       // Formen (CollectedSource + Plan) und laufen durch identisches Reporting.
       let collected: CollectedSource
       let plan: SourceSyncPlan
       if (doc) {
-        collected = await collectSourceInput({ doc, provider, folderCache, sourceItem })
+        collected = await collectSourceInput({ doc, provider, folderCache, sourceItem, nameMigrationCtx })
         plan = planSourceSync(collected.input)
       } else {
-        const adoption = sourceItem ? await collectStorageOnlySource({ sourceItem, folderCache }) : null
+        const adoption = sourceItem
+          ? await collectStorageOnlySource({ sourceItem, folderCache, provider, nameMigrationCtx })
+          : null
         if (!adoption) {
           // Ohne Doc und ohne adoptierbare Artefakte: gewoehnliche Datei.
           report.totalSources--
@@ -106,7 +121,7 @@ export async function runLibrarySync(args: {
         const outcome = outcomeByOp.get(op)
         return {
           type: op.type, kind: op.kind, targetLanguage: op.targetLanguage,
-          templateName: op.templateName, fileName: op.fileName,
+          templateName: op.templateName, fileName: op.fileName, newFileName: op.newFileName,
           overwrite: op.overwrite, count: op.count, note: op.note,
           selected: selectedSet.has(op),
           ...(mode === 'repair' && selectedSet.has(op)

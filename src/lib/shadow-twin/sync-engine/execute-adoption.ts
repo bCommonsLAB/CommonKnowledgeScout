@@ -8,10 +8,17 @@
  * jeweiligen Slot — mit dem ECHTEN Dateinamen, damit auch Legacy-Namen
  * ({base}.{lang}.md) ihren Inhalt finden.
  *
+ * Guard (Welle 5c): Artefakte, deren Datei beim Ausfuehren NICHT im Twin-Ordner
+ * liegt, werden uebersprungen und geloggt statt mit LEEREM Inhalt upsertet.
+ * Das betrifft Namens-Migrations-Ziele, deren Rename/Split nicht lief
+ * (z.B. import-Preset oder Rename-Fehler), und Sibling-Artefakte (der
+ * Migrations-Writer laedt nur Twin-Ordner-Inhalte).
+ *
  * @module shadow-twin/sync-engine
  */
 
 import { prepareSourceArtifacts, upsertArtifactFromPrepared } from '@/lib/shadow-twin/shadow-twin-migration-writer'
+import { FileLogger } from '@/lib/debug/logger'
 import type { StorageItem, StorageProvider } from '@/lib/storage/types'
 import type { SyncOperation } from '@/lib/shadow-twin/sync-plan/types'
 
@@ -33,7 +40,15 @@ export async function executeAdoption(args: {
     libraryId, userEmail, sourceItem, provider,
     shadowTwinFolderId: shadowTwinFolderId ?? undefined,
   })
-  for (const artifact of operation.artifacts) {
+  const availableLower = new Set(Array.from(prepared.markdownByName.keys(), (n) => n.toLowerCase()))
+  const adoptable = operation.artifacts.filter((a) => availableLower.has(a.fileName.toLowerCase()))
+  const skipped = operation.artifacts.filter((a) => !availableLower.has(a.fileName.toLowerCase()))
+  if (skipped.length > 0) {
+    FileLogger.warn('shadow-twins/sync-engine', 'Adoption: Artefakt-Datei(en) nicht im Twin-Ordner — uebersprungen (kein Leer-Upsert)', {
+      sourceId, skipped: skipped.map((a) => a.fileName),
+    })
+  }
+  for (const artifact of adoptable) {
     await upsertArtifactFromPrepared({
       libraryId, userEmail, sourceItem,
       artifactKey: {
