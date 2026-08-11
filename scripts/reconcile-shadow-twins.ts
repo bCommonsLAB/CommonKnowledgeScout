@@ -16,7 +16,7 @@
  *   pnpm tsx scripts/reconcile-shadow-twins.ts --libraryId=<id> --email=<owner>            # Check, ganze Library
  *   pnpm tsx scripts/reconcile-shadow-twins.ts --libraryId=<id> --email=<owner> --sourceId=<id>  # nur eine Quelle
  *   pnpm tsx scripts/reconcile-shadow-twins.ts --libraryId=<id> --email=<owner> --apply    # Reparatur (schreibt/loescht)
- *   Optional: --preset=repair|export|auto-sync (Default: repair)
+ *   Optional: --preset=repair|export|auto-sync|import (Default: repair)
  */
 
 import * as dotenv from 'dotenv'
@@ -39,8 +39,8 @@ async function main(): Promise<void> {
   const apply = flag('apply')
   const sourceId = arg('sourceId')
   const presetArg = arg('preset') ?? 'repair'
-  if (!['repair', 'export', 'auto-sync'].includes(presetArg)) {
-    console.error(`Ungueltiges Preset: ${presetArg} (erlaubt: repair, export, auto-sync)`)
+  if (!['repair', 'export', 'auto-sync', 'import'].includes(presetArg)) {
+    console.error(`Ungueltiges Preset: ${presetArg} (erlaubt: repair, export, auto-sync, import)`)
     process.exit(2)
   }
   const preset = presetArg as SyncPreset

@@ -156,13 +156,6 @@ export function useLibraryForm(createNew: boolean) {
     allowFilesystemFallback: true,
   });
 
-  // Migration-Dialog State
-  const [isDryRunOpen, setIsDryRunOpen] = useState(false);
-  const [dryRunRecursive, setDryRunRecursive] = useState(true);
-  const [dryRunCleanupFilesystem, setDryRunCleanupFilesystem] = useState(false);
-  const [dryRunRunning, setDryRunRunning] = useState(false);
-  const [dryRunError, setDryRunError] = useState<string | null>(null);
-
   // Sprach-Bereinigung State
   const [isLangCleanupOpen, setIsLangCleanupOpen] = useState(false);
   const [langCleanupLang, setLangCleanupLang] = useState("");
@@ -179,60 +172,6 @@ export function useLibraryForm(createNew: boolean) {
       artifacts: Array<{ kind: string; templateName: string | null }>;
     }>;
   } | null>(null);
-
-  // Migration-Runs State
-  const [migrationRuns, setMigrationRuns] = useState<
-    Array<{
-      runId: string;
-      status: "running" | "completed" | "failed";
-      params: {
-        folderId?: string;
-        recursive?: boolean;
-        dryRun?: boolean;
-        cleanupFilesystem?: boolean;
-        limit?: number;
-      };
-      startedAt: string;
-      finishedAt?: string;
-      steps?: Array<{ name: string; at: string; meta?: Record<string, unknown> }>;
-      report?: {
-        upsertedArtifacts?: Array<{
-          sourceId: string;
-          sourceName: string;
-          artifactFileName: string;
-          kind: "transcript" | "transformation";
-          targetLanguage: string;
-          templateName?: string;
-          mongoUpserted: boolean;
-          blobImages?: number;
-          blobErrors?: number;
-          binaryFragmentsCount?: number;
-          markdownFiles?: number;
-          imageFiles?: number;
-          audioFiles?: number;
-          videoFiles?: number;
-          otherFiles?: number;
-          filesystemDeleted: boolean;
-        }>;
-        upsertedArtifactsTruncated?: boolean;
-      };
-    }>
-  >([]);
-  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
-  const [binaryFragments, setBinaryFragments] = useState<
-    Array<{
-      sourceId: string;
-      sourceName: string;
-      name: string;
-      kind: string;
-      url?: string;
-      hash?: string;
-      mimeType?: string;
-      size?: number;
-      createdAt: string;
-    }>
-  >([]);
-  const [loadingFragments, setLoadingFragments] = useState(false);
 
   // Aktuelle Library
   const activeLibrary = libraries.find((lib) => lib.id === activeLibraryId);
@@ -760,17 +699,6 @@ export function useLibraryForm(createNew: boolean) {
     azureConfigured,
     isShadowTwinConfigDirty,
     shadowTwinConfigRef,
-    // Migration Dialog
-    isDryRunOpen,
-    setIsDryRunOpen,
-    dryRunRecursive,
-    setDryRunRecursive,
-    dryRunCleanupFilesystem,
-    setDryRunCleanupFilesystem,
-    dryRunRunning,
-    setDryRunRunning,
-    dryRunError,
-    setDryRunError,
     // Sprach-Bereinigung
     isLangCleanupOpen,
     setIsLangCleanupOpen,
@@ -782,15 +710,6 @@ export function useLibraryForm(createNew: boolean) {
     setIsLangDeleting,
     langCleanupResult,
     setLangCleanupResult,
-    // Migration Runs
-    migrationRuns,
-    setMigrationRuns,
-    selectedRunId,
-    setSelectedRunId,
-    binaryFragments,
-    setBinaryFragments,
-    loadingFragments,
-    setLoadingFragments,
     // Handlers
     handleCreateNew,
     handleCancelNew,

@@ -34,9 +34,7 @@ import { Button } from "@/components/ui/button"
 
 import { useLibraryForm } from "./hooks/use-library-form"
 import { useShadowTwinMigration } from "./hooks/use-shadow-twin-migration"
-import { useMigrationRunsLoader, useBinaryFragmentsLoader } from "./hooks/use-shadow-twin-analysis"
 import { ShadowTwinConfigSection } from "./shadow-twin-config-section"
-import { MigrationWizardSection } from "./migration-wizard-section"
 import { LanguageCleanupSection } from "./language-cleanup-section"
 import { ImportExportSection } from "./import-export-section"
 import { CaptureWizardsEditor } from "./capture-wizards-editor"
@@ -57,16 +55,6 @@ export function LibraryAdvancedForm() {
     setShadowTwinAllowFilesystemFallback,
     azureConfigured,
     isShadowTwinConfigDirty,
-    isDryRunOpen,
-    setIsDryRunOpen,
-    dryRunRecursive,
-    setDryRunRecursive,
-    dryRunCleanupFilesystem,
-    setDryRunCleanupFilesystem,
-    dryRunRunning,
-    setDryRunRunning,
-    dryRunError,
-    setDryRunError,
     isLangCleanupOpen,
     setIsLangCleanupOpen,
     langCleanupLang,
@@ -77,57 +65,18 @@ export function LibraryAdvancedForm() {
     setIsLangDeleting,
     langCleanupResult,
     setLangCleanupResult,
-    migrationRuns,
-    setMigrationRuns,
-    selectedRunId,
-    setSelectedRunId,
-    binaryFragments,
-    setBinaryFragments,
-    loadingFragments,
-    setLoadingFragments,
     handleExportLibrary,
     handleImportLibrary,
   } = useLibraryForm(false)
 
-  // Migration-Callbacks
-  const {
-    runShadowTwinMigration,
-    runLanguageCleanup,
-    selectedFolderPath,
-    setSelectedFolder,
-    migrationProgress,
-    isCancelling,
-    cancelMigration,
-  } = useShadowTwinMigration({
-      activeLibraryId,
-      isDryRunOpen,
-      dryRunRecursive,
-      dryRunCleanupFilesystem,
-      langCleanupLang,
-      setDryRunRunning,
-      setDryRunError,
-      setMigrationRuns,
-      setSelectedRunId,
-      setIsLangAnalyzing,
-      setIsLangDeleting,
-      setLangCleanupResult,
-    })
-
-  const migrationRunsArray = Array.isArray(migrationRuns) ? migrationRuns : []
-  const selectedRun = migrationRunsArray.find((run) => run.runId === selectedRunId) ?? null
-
-  useMigrationRunsLoader({
-    isDryRunOpen,
+  // Sprach-Bereinigung; „Aus Dateisystem laden" laeuft seit Welle 5d ueber die
+  // Sync-Engine im Reconcile-Panel (Daten & Wartung), nicht mehr hier.
+  const { runLanguageCleanup } = useShadowTwinMigration({
     activeLibraryId,
-    setMigrationRuns,
-    setSelectedRunId,
-  })
-
-  useBinaryFragmentsLoader({
-    selectedRun,
-    activeLibraryId,
-    setBinaryFragments,
-    setLoadingFragments,
+    langCleanupLang,
+    setIsLangAnalyzing,
+    setIsLangDeleting,
+    setLangCleanupResult,
   })
 
   if (!activeLibrary || isNew) {
@@ -152,30 +101,6 @@ export function LibraryAdvancedForm() {
               shadowTwinAllowFilesystemFallback={shadowTwinAllowFilesystemFallback}
               setShadowTwinAllowFilesystemFallback={setShadowTwinAllowFilesystemFallback}
               azureConfigured={azureConfigured}
-            />
-
-            <MigrationWizardSection
-              activeLibraryId={activeLibraryId}
-              isDryRunOpen={isDryRunOpen}
-              setIsDryRunOpen={setIsDryRunOpen}
-              dryRunRecursive={dryRunRecursive}
-              setDryRunRecursive={setDryRunRecursive}
-              dryRunCleanupFilesystem={dryRunCleanupFilesystem}
-              setDryRunCleanupFilesystem={setDryRunCleanupFilesystem}
-              dryRunRunning={dryRunRunning}
-              dryRunError={dryRunError}
-              migrationRunsArray={migrationRunsArray}
-              selectedRunId={selectedRunId}
-              setSelectedRunId={setSelectedRunId}
-              selectedRun={selectedRun}
-              binaryFragments={binaryFragments}
-              loadingFragments={loadingFragments}
-              runShadowTwinMigration={runShadowTwinMigration}
-              selectedFolderPath={selectedFolderPath}
-              setSelectedFolder={setSelectedFolder}
-              migrationProgress={migrationProgress}
-              isCancelling={isCancelling}
-              cancelMigration={cancelMigration}
             />
 
             <LanguageCleanupSection

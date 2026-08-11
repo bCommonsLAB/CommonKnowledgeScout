@@ -31,7 +31,7 @@ interface ReconcileRequest {
 }
 
 const VALID_MODES: ReadonlySet<string> = new Set(['check', 'repair'])
-const VALID_PRESETS: ReadonlySet<string> = new Set(['repair', 'export', 'auto-sync'])
+const VALID_PRESETS: ReadonlySet<string> = new Set(['repair', 'export', 'auto-sync', 'import'])
 
 export async function POST(
   request: NextRequest,

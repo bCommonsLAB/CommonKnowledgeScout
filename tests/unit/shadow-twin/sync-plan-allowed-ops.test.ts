@@ -33,7 +33,7 @@ const ALL_OPS: SyncOperation[] = [
 
 describe('isOperationAllowed / filterAllowedOperations', () => {
   it('Report-only (conflict, needs-pipeline) ist in KEINEM Preset erlaubt', () => {
-    for (const preset of ['repair', 'export', 'auto-sync'] as const) {
+    for (const preset of ['repair', 'export', 'auto-sync', 'import'] as const) {
       for (const persistToFilesystem of [true, false]) {
         expect(isOperationAllowed(op('conflict'), preset, { persistToFilesystem })).toBe(false)
         expect(isOperationAllowed(op('needs-pipeline'), preset, { persistToFilesystem })).toBe(false)
@@ -111,5 +111,18 @@ describe('isOperationAllowed / filterAllowedOperations', () => {
   it('auto-sync ohne persistToFilesystem: nur Mongo-Uebernahme', () => {
     const allowed = filterAllowedOperations(ALL_OPS, 'auto-sync', { persistToFilesystem: false })
     expect(allowed.map((o) => o.type)).toEqual(['update-mongo-transcript', 'update-mongo-transformation'])
+  })
+
+  it('import (Welle 5d): NUR Storage→Datenbank — nie Storage-Writes, Loeschen oder Renames', () => {
+    for (const persistToFilesystem of [true, false]) {
+      const allowed = filterAllowedOperations(ALL_OPS, 'import', { persistToFilesystem })
+      expect(allowed.map((o) => o.type)).toEqual([
+        'update-mongo-transcript', 'update-mongo-transformation',
+        'register-image-fragments',
+        'adopt-storage-only-source',
+      ])
+    }
+    const rename = op('migrate-legacy-artifact-name', { kind: 'transformation', templateName: 't', targetLanguage: 'de', fileId: 'f1', newFileName: 'doc.t.de.md' })
+    expect(isOperationAllowed(rename, 'import', { persistToFilesystem: true })).toBe(false)
   })
 })

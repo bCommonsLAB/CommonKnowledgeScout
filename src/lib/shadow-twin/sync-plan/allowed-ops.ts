@@ -14,15 +14,21 @@
  *   (Markdown + Bilder), unabhaengig von der Config — nie Mongo-Writes, nie Loeschen.
  * - `auto-sync` (stiller Abgleich beim Datei-Oeffnen): nur gefahrlose Operationen —
  *   Mongo-Uebernahme + fehlende Spiegel ergaenzen (kein Overwrite), nie Loeschen.
+ * - `import` („Aus Dateisystem laden", Welle 5d): NUR Storage→Datenbank
+ *   (Mongo-Uebernahme, Bild-Registrierung, Adoption) — keine Storage-Writes,
+ *   keine Loeschungen, keine Renames. Bewusste Abweichung von der alten
+ *   Migration („Storage gewinnt bedingungslos"): der Plan ist inhalts-bewusst;
+ *   ist die Datenbank-Fassung vollstaendiger, wird sie NICHT ueberschrieben,
+ *   und Konflikte werden gemeldet statt still ueberschrieben.
  *
- * Report-only-Operationen (conflict, needs-pipeline) sind in KEINEM Preset erlaubt.
+ * Report-only-Operationen sind in KEINEM Preset erlaubt.
  *
  * @module shadow-twin/sync-plan
  */
 
 import { REPORT_ONLY_OPERATION_TYPES, type SyncOperation } from './types'
 
-export type SyncPreset = 'repair' | 'export' | 'auto-sync'
+export type SyncPreset = 'repair' | 'export' | 'auto-sync' | 'import'
 
 export interface AllowedOpsContext {
   /** Library-Config: Storage-Spiegel wird gepflegt (`persistToFilesystem`). */
@@ -72,6 +78,18 @@ export function isOperationAllowed(
           // Export schreibt NIE nach Mongo — Adoption ist ein Mongo-Write.
           return false
         default:
+          return false
+      }
+    case 'import':
+      switch (op.type) {
+        case 'update-mongo-transcript':
+        case 'update-mongo-transformation':
+        case 'register-image-fragments':
+        case 'adopt-storage-only-source':
+          return true
+        default:
+          // Import schreibt/loescht NIE im Storage (auch keine Renames) und
+          // ignoriert persistToFilesystem bewusst (reine Datenbank-Fuellung).
           return false
       }
     case 'auto-sync':
