@@ -25,7 +25,7 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { getLocale, SUPPORTED_LOCALES, type Locale } from '@/lib/i18n';
-import { getDomainLibraryMap, resolveForeignExploreRedirect } from '@/lib/domain-library-map';
+import { getDomainLibraryMap, resolveForeignExploreRedirect, isLandingRedirectCandidate } from '@/lib/domain-library-map';
 
 // Startup-Log um zu bestätigen, dass Middleware geladen wird (nur in Development)
 if (process.env.NODE_ENV === 'development') {
@@ -67,14 +67,15 @@ export default clerkMiddleware(async (auth, req) => {
   // Domain (z.B. oldiesforfuture.org) darf NUR ihre eigene Library ausliefern.
   // Fremde /explore/<slug>-Anfragen werden zur Hauptplattform umgeleitet
   // (NEXT_PUBLIC_APP_URL), statt fremde Inhalte unter falscher Domain zu zeigen.
+  const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host')
+  const domainMap = getDomainLibraryMap()
   {
-    const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host')
     const redirectTarget = resolveForeignExploreRedirect({
       host,
       pathname: req.nextUrl.pathname,
       search: req.nextUrl.search,
       appUrl: process.env.NEXT_PUBLIC_APP_URL,
-      map: getDomainLibraryMap(),
+      map: domainMap,
     })
     if (redirectTarget) {
       return NextResponse.redirect(new URL(redirectTarget, req.url), 307)
@@ -220,6 +221,21 @@ export default clerkMiddleware(async (auth, req) => {
   // console.debug(`[Middleware] isPublicRoute: ${isPublic}`);
   
   if (isPublic) return response;
+
+  // Alt-Link-Auffang auf gekoppelten Domains (z.B. oldiesforfuture.org):
+  // Unbekannte/private Seiten-Pfade schicken anonyme Besucher NICHT zum Login
+  // (sonst indexiert Google Sign-in-URLs), sondern dauerhaft zur Landingpage.
+  // Eingeloggte Nutzer sind nicht betroffen — fuer sie gilt weiter auth.protect().
+  if (isLandingRedirectCandidate({ host, pathname: path, method: req.method, map: domainMap })) {
+    const { userId } = await auth();
+    if (!userId) {
+      const redirect = NextResponse.redirect(new URL('/', req.url), 301);
+      // Browser cachen 301 aggressiv — no-store verhindert, dass ein spaeter
+      // eingeloggter Nutzer auf einem App-Pfad im gecachten Redirect haengt.
+      redirect.headers.set('Cache-Control', 'no-store');
+      return redirect;
+    }
+  }
 
   try {
     await auth();
