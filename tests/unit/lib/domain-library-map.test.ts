@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeHost, resolveForeignExploreRedirect } from '@/lib/domain-library-map'
+import { normalizeHost, resolveForeignExploreRedirect, isLandingRedirectCandidate } from '@/lib/domain-library-map'
 
 const MAP = { 'oldiesforfuture.org': 'oldiesforfuture' }
 const APP_URL = 'https://knowledgescout.org'
@@ -81,5 +81,49 @@ describe('resolveForeignExploreRedirect (Domain-Kopplung)', () => {
       appUrl: undefined,
       map: MAP,
     })).toBe('/')
+  })
+})
+
+describe('isLandingRedirectCandidate (Alt-Link-Auffang)', () => {
+  it('greift fuer GET-Seiten-Pfade auf gemappten Domains (inkl. www/Port)', () => {
+    expect(isLandingRedirectCandidate({
+      host: 'oldiesforfuture.org',
+      pathname: '/Home-it',
+      method: 'GET',
+      map: MAP,
+    })).toBe(true)
+    expect(isLandingRedirectCandidate({
+      host: 'www.OldiesForFuture.org:443',
+      pathname: '/alte-seite/unterseite',
+      method: 'GET',
+      map: MAP,
+    })).toBe(true)
+  })
+
+  it('greift NICHT fuer API-Pfade, Nicht-GET, fremde Hosts oder fehlenden Host', () => {
+    expect(isLandingRedirectCandidate({
+      host: 'oldiesforfuture.org',
+      pathname: '/api/library/xyz',
+      method: 'GET',
+      map: MAP,
+    })).toBe(false)
+    expect(isLandingRedirectCandidate({
+      host: 'oldiesforfuture.org',
+      pathname: '/Home-it',
+      method: 'POST',
+      map: MAP,
+    })).toBe(false)
+    expect(isLandingRedirectCandidate({
+      host: 'knowledgescout.org',
+      pathname: '/Home-it',
+      method: 'GET',
+      map: MAP,
+    })).toBe(false)
+    expect(isLandingRedirectCandidate({
+      host: null,
+      pathname: '/Home-it',
+      method: 'GET',
+      map: MAP,
+    })).toBe(false)
   })
 })

@@ -60,6 +60,31 @@ export function getDomainLibraryMap(): Record<string, string> {
  *
  * Reine Funktion (unit-testbar), Map wird explizit uebergeben.
  */
+/**
+ * Alt-Link-Auffang (SEO): Prueft, ob ein Request auf einer gemappten Domain
+ * fuer die Landingpage-Umleitung in Frage kommt — also ein Seiten-Aufruf
+ * (GET, kein `/api/`-Pfad) auf einer Domain, die an eine Library gekoppelt ist.
+ *
+ * Hintergrund: Alte URLs der frueheren Website (z.B. `/Home-it`) existieren in
+ * der App nicht und wuerden anonyme Besucher zum Clerk-Login schicken — Google
+ * indexiert dann Sign-in-URLs. Solche Pfade sollen stattdessen auf `/` landen.
+ *
+ * Reine Funktion: Auth-Status und Public-Route-Pruefung entscheidet die
+ * Middleware; hier zaehlt nur Host/Pfad/Methode.
+ */
+export function isLandingRedirectCandidate(args: {
+  host: string | null
+  pathname: string
+  method: string
+  map: Record<string, string>
+}): boolean {
+  const { host, pathname, method, map } = args
+  if (!host) return false
+  if (method !== 'GET') return false
+  if (pathname.startsWith('/api/')) return false
+  return Boolean(map[normalizeHost(host)])
+}
+
 export function resolveForeignExploreRedirect(args: {
   host: string | null
   pathname: string
