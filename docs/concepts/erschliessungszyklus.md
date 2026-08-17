@@ -13,9 +13,16 @@ Ziel: dasselbe Verfahren läuft stabil auf OneDrive wie auf Nextcloud.
 | # | Schritt | Wer | Werkzeug | Ergebnis |
 |---|---|---|---|---|
 | 1 | **Strukturieren** | Cowork-Session (mit Peter) | Filesystem | Klassen-Entscheid pro Fund (Original/Beleg/Ableitung, Zielbild §7): Ableitungen gelöscht, Belege ins Kaltarchiv; Dateinamen repariert und gekürzt; Struktur nach Modell C; `_INDEX.md` angelegt (+ Stub-`BERICHT.md`); Umzugsprotokoll geführt |
-| 2 | **Erschließen** | KS-Pipeline; Peter prüft stichprobenartig | KnowledgeScout | Twins in Mongo + `_`-Spiegelordner (Transkript, Transformationen, Twin-Kern). Peters Prüfung ist eine **Qualitäts-Stichprobe** (richtiges Template? OCR brauchbar? sonst Re-Run) — **keine Verifikation** |
+| 2 | **Erschließen** | KS-Pipeline; Peter prüft stichprobenartig | KnowledgeScout | Twins in Mongo + `_`-Spiegelordner (Transkript, Transformationen, Twin-Kern). Peters Prüfung ist eine **Qualitäts-Stichprobe** (richtiges Template? OCR brauchbar? Felder der Transformation plausibel? sonst Re-Run) — **keine Verifikation** |
 | 3 | **Berichten** | Cowork-Session | Filesystem, liest Twins | `BERICHT.md` auf Twin-Basis aktualisiert (zitiert Transkripte statt Rohmedien); erkannte Transkript-Schwächen direkt im `_`-Ordner korrigiert; Unklares als offene Punkte im `_INDEX.md` |
 | 4 | **Abnehmen** | Peter | KnowledgeScout | Erst **„Prüfen"** (Import holt die Cowork-Korrekturen nach Mongo oder meldet Konflikt), dann Verifikation: `verified_by: human:peter`, `verified_at`, `twin_status: stable`. Eigene kleine Korrekturen davor direkt in KS oder Obsidian (nach Obsidian-Änderung erneut „Prüfen"). Danach `aktuell.py`/`projekte.py` laufen lassen |
+
+Innerhalb der Twin-Familie gilt die Lese- und Korrektur-Ordnung aus dem
+Contract §2b: **Die Transformation führt** — sie trägt Felder, Verdichtung und
+Status, Cowork liest sie zuerst, Berichte verweisen auf sie, und die Abnahme
+in Schritt 4 gilt ihr. **Das Transkript belegt** — Zitate und Detailfragen;
+Wortlautfehler werden dort korrigiert (die Transformation wird daraus neu
+erzeugt), nie im Transformations-Body.
 
 Der Zyklus läuft **pro Vorhaben** — ein Ordner, ein Durchlauf, nichts wird
 doppelt angefasst. Die Pipeline darf innerhalb eines Schritts beliebig bündeln;
