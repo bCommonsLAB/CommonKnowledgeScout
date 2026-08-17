@@ -77,7 +77,8 @@ Registry. Die Ordner-Konventionen (`JJ.MM`-Präfix, BERICHT-Pflicht) sind
 **Archiv-Konvention, nicht Plattform-Wissen** — Muster und Aktivierung werden
 pro Library konfiguriert, nicht hartkodiert.
 
-**Gap-Budget:** Ordner mit `_INDEX.md`-Vermerk `ungesichtet` erzeugen einen
+**Gap-Budget:** Ordner mit `bearbeitungsstand: ungesichtet` im `_INDEX.md`
+(Feld aus dem [Erschließungszyklus](erschliessungszyklus.md)) erzeugen einen
 Sammel-Gap statt tausend Einzel-Gaps; Ausschluss-Globs (Welle 0) halten `temp/`
 u. Ä. ganz draußen. Ordnerknoten aggregieren die Lückenzähler ihrer Teilbäume.
 

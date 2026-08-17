@@ -47,6 +47,12 @@ Die verbindlichen Fassungen liegen im Repo `CommonKnowledgeScout` unter
 
 ## 2. Verhaltensregeln für Sessions im Archiv
 
+- **Der Takt pro Vorhaben** steht im Erschließungszyklus
+  (`docs/concepts/erschliessungszyklus.md`): Ihr macht Schritt 1
+  (Strukturieren) und Schritt 3 (Berichten auf Twin-Basis) und schreibt danach
+  den `bearbeitungsstand` im `_INDEX.md` fort (`strukturiert` bzw.
+  `berichtet`). Umbenennen und Umsortieren gehören in Schritt 1 — **vor** der
+  Erschließung; danach gilt die Familien-Regel strikt.
 - **Twins lesen statt Rohmedien.** Existiert ein Twin, wertet ein Bericht nie
   selbst PDF/Audio aus; er zitiert Transkript/Transformation im
   Verweise-Abschnitt. (Eure Regel — bleibt.)
@@ -66,7 +72,9 @@ Die verbindlichen Fassungen liegen im Repo `CommonKnowledgeScout` unter
 
 a) **`Organisation/Aufraeumen/Konventionen.md` ergänzen** um einen Abschnitt
    „Twin-Familien und Erschließung": Layout und Discovery-Regel aus §1.1, die
-   Verhaltensregeln aus §2, die Feldkern-Tabelle aus §1.4.
+   Verhaltensregeln aus §2, die Feldkern-Tabelle aus §1.4 — plus den
+   Vier-Schritte-Takt und das Feld `bearbeitungsstand` aus dem
+   Erschließungszyklus.
 b) **Die zehn `BERICHT.md` mechanisch nachziehen:** `type: bericht` ergänzen
    (`typ:` darf übergangsweise als Alias stehen bleiben),
    `generated_by`/`generated_at` ergänzen, `quelle: erschlossen` durch die
@@ -95,5 +103,6 @@ prüft — niemand verifiziert die eigene Arbeit.
 ## 5. Pflichtlektüre
 
 - `docs/concepts/twin-datei-contract.md` (Repo CommonKnowledgeScout)
+- `docs/concepts/erschliessungszyklus.md` (Repo — der Vier-Schritte-Takt pro Vorhaben)
 - `docs/concepts/bruchstellen-katalog.md` (Repo CommonKnowledgeScout)
 - `Organisation/Aufraeumen/Konventionen.md` (Archiv; nach Auftrag a aktuell)
