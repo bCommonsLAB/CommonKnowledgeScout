@@ -63,7 +63,9 @@ bearbeitungsstand_seit: 2026-08-17 # Datum, an dem der Stand gesetzt wurde
   aktuell") und erzeugt ein Todo für den zuständigen Akteur — sie stuft das
   Feld nie still zurück. Aufgelöst wird explizit: bestätigen (Stand neu
   datieren) oder zurückstufen. Grün ist ein Vorhaben erst, wenn Soll und Ist
-  übereinstimmen.
+  übereinstimmen. Zum Ist-Abgleich gehört auch der **Verweis-Audit** der
+  Berichte (Projektauftrag F2): tote oder veraltete Verweise und Unerwähntes
+  machen ein `berichtet`/`abgenommen` ebenso rückfällig wie Datei-Änderungen.
 - Die Agentensicht liest das Feld: `ungesichtet` erzeugt einen Sammel-Gap statt
   tausend Einzel-Gaps (Gap-Budget im Projektauftrag), und nach Stand lässt sich
   filtern, welche Vorhaben in welchem Schritt stecken.

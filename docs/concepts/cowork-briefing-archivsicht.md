@@ -55,7 +55,10 @@ Die verbindlichen Fassungen liegen im Repo `CommonKnowledgeScout` unter
   Erschließung; danach gilt die Familien-Regel strikt.
 - **Twins lesen statt Rohmedien.** Existiert ein Twin, wertet ein Bericht nie
   selbst PDF/Audio aus; er zitiert Transkript/Transformation im
-  Verweise-Abschnitt. (Eure Regel — bleibt.)
+  Verweise-Abschnitt. (Eure Regel — bleibt.) **Verweise als echte Links**
+  setzen (Wikilink `[[…]]` oder relativer Markdown-Link) — KnowledgeScout
+  parst und auditiert sie: tote oder veraltete Verweise und Unerwähntes werden
+  Befunde. Fließtext wie „siehe Datei X" kann nicht geprüft werden.
 - **Unerschlossene Quelle = offener Punkt im `_INDEX.md`**, kein Anlass, selbst
   zu transkribieren. Twins erzeugen nur auf expliziten Auftrag — dann exakt
   contract-konform und **in den `_`-Ordner**.

@@ -42,13 +42,17 @@ davon versteht — und was ihm fehlt.*
    Coverage-API und kennt nie Provider oder `primaryStore`.
 5. **Anzeigen und beauftragen, nie selbst füllen.** Einzige Schreiboperation
    ist der Kurations-Patch (Welle 4) über die Route aus Contract §4.
-6. **Doppelte Buchhaltung (Soll gegen Ist).** Der Bestand führt zwei
-   unabhängige Bücher: den **erklärten** Stand (`bearbeitungsstand` im
-   `_INDEX.md`, gesetzt von Menschen und Agenten) und den **berechneten**
-   Befund (Scan über Mongo + Storage). Die Sicht gleicht beide ab: „Grün" ist
-   ein Vorhaben erst, wenn beide übereinstimmen; jede Abweichung ist ein
-   Befund mit zuständigem Akteur. Erklärte Stände werden **nie still
-   zurückgestuft** — die Sicht zeigt den Widerspruch und erzeugt das Todo.
+6. **Doppelte Buchhaltung (Agenten-Werk gegen Bestand).** Der Bestand führt
+   zwei unabhängige Bücher. Das eine schreiben die Akteure: Berichte und
+   Indizes **mit ihren Verweisen** auf Dateien und Twins, dazu der erklärte
+   `bearbeitungsstand`. Das andere errechnet KnowledgeScout: das tatsächliche
+   Inventar aus dem Scan über Mongo + Storage. Die Sicht auditiert Buch 1
+   gegen Buch 2 — **Verweis für Verweis** (F2, Verweis-Audit) und Stand für
+   Stand. „Grün" ist ein Vorhaben erst, wenn beide übereinstimmen; jede
+   Abweichung ist ein Befund mit zuständigem Akteur. Erklärte Stände und
+   Berichte werden **nie still korrigiert** — die Sicht zeigt den Widerspruch
+   und erzeugt das Todo. Und die Gegenrichtung gehört dazu: Jede
+   Cowork-Session auditiert ihrerseits die Coverage (F3, Konsistenz-Rückmeldung).
 
 ## 3. Funktionsumfang
 
@@ -90,6 +94,18 @@ der Maschine, die sie liefert:
 | `index_missing` | Strukturebene ohne `_INDEX.md` | neu, konfigurierbar |
 | `bericht_veraltet` | `BERICHT.md` älter als die jüngste Twin-/Datei-Änderung seines Vorhabens | neu, konfigurierbar |
 | `stand_widerspruch` | erklärter `bearbeitungsstand` durch Befunde widerlegt (z. B. `abgenommen`, aber Änderungen seit `bearbeitungsstand_seit` oder offene Gaps im Teilbaum) | neu |
+| `verweis_tot` | Bericht/Index verweist auf eine Datei oder einen Twin, die es nicht (mehr) gibt | neu — Verweis-Audit |
+| `verweis_veraltet` | ein verwiesener Twin wurde nach dem Stand des Berichts neu erzeugt oder geändert | neu — Verweis-Audit |
+| `bericht_unvollstaendig` | erschlossene Quellen/Ereignisordner des Vorhabens, die der Bericht nicht erwähnt | neu — Verweis-Audit, informativ |
+
+**Verweis-Audit — der Kern der doppelten Buchhaltung:** Die Bodies von
+`BERICHT.md` und `_INDEX.md` werden auf Verweise geparst (Wikilinks `[[…]]`
+und relative Markdown-Links; reine Funktion, ohne LLM). Jeder Verweis wird
+gegen das gescannte Inventar aufgelöst — existiert das Ziel, ist es jünger als
+der Bericht? Umgekehrt wird geprüft, was der Bericht unerwähnt lässt. Die
+**semantische** Gegenkontrolle (sagt der Bericht, was das Transkript sagt?)
+ist bewusst nicht KS-Sache in v1 — sie leistet die jeweils nächste
+Cowork-Session über den Konsistenz-Rückmeldungsblock (F3).
 
 Neue Regeln sind reine Funktionen `(node) => Gap | null` in einer erweiterbaren
 Registry. Die Ordner-Konventionen (`JJ.MM`-Präfix, BERICHT-Pflicht) sind
@@ -104,7 +120,8 @@ u. Ä. ganz draußen. Ordnerknoten aggregieren die Lückenzähler ihrer Teilbäu
 **Todo-Routing:** Jeder Gap-Typ trägt zuständigen Akteur und Zyklus-Schritt
 (Erschließungszyklus §1). Daraus entstehen drei Todo-Listen: **Mensch**
 (z. B. `twin_unverified` → Schritt 4), **Cowork** (`report_missing`,
-`bericht_veraltet`, `index_missing` → Schritt 1/3, über den
+`bericht_veraltet`, `verweis_tot`, `verweis_veraltet`,
+`bericht_unvollstaendig`, `index_missing` → Schritt 1/3, über den
 Auftrags-Generator), **KnowledgeScout** (`source_without_twin`, `conflict`,
 `twin_stale` → Schritt 2/4, verlinkt auf die vorhandenen Buttons).
 `stand_widerspruch` routet auf den Schritt, hinter den das Vorhaben
@@ -146,7 +163,9 @@ hat keinen eigenen Schreibpfad.
 Write-Through, Move-/Familien-API, `readonly`-Marker, Umbau der Archiv-Ansicht,
 Template-Namens-Invarianten (eigener ADR-Kandidat der Template-Verwaltung),
 automatisches Ausführen von Aufträgen, Chat-Integration, Twin-Body-Editor
-(dafür gibt es Obsidian und die Vorschau), Coverage-Verlauf über Zeit.
+(dafür gibt es Obsidian und die Vorschau), Coverage-Verlauf über Zeit, sowie
+LLM-gestützte semantische Bericht-Prüfung (die inhaltliche Gegenkontrolle
+leistet die jeweils nächste Cowork-Session über den Rückmeldungsblock).
 
 ## 4. Technische Leitplanken
 
@@ -171,7 +190,7 @@ automatisches Ausführen von Aufträgen, Chat-Integration, Twin-Body-Editor
 | Welle | Inhalt | Ergebnis |
 |---|---|---|
 | 0 | Twin-Kern-Feldsatz (`TWIN_CORE_FIELDS`; Pipeline-Writer setzt `generated_*`) · Ausschluss-Globs als Library-Config-Feld (Checkliste `library-config-field.mdc`) | Fundament: Pipeline schreibt den Kern, Scans haben einen Zaun |
-| 1 | Coverage-Service als Komposition + neue Gap-Regeln inkl. Soll/Ist (`stand_widerspruch`, `bericht_veraltet`) + Report-Cache + API (ohne UI) | Coverage als JSON; Unit-Test je neuem Gap-Typ |
+| 1 | Coverage-Service als Komposition + neue Gap-Regeln inkl. Soll/Ist und Verweis-Audit (`stand_widerspruch`, `bericht_veraltet`, `verweis_tot`, `verweis_veraltet`, `bericht_unvollstaendig`) + Report-Cache + API (ohne UI) | Coverage als JSON; Unit-Test je neuem Gap-Typ |
 | 2 | Baum-UI read-only (Ampeln, Zähler, Sammel-Gaps) + Zyklus-Board (F1b) neben „Archiv" | Sicht sichtbar |
 | 3 | Auftrags-Generator (Vorlage je Gap-Typ, Clipboard) + Todo-Listen nach Akteur | Lücke → Auftrag in < 1 Min |
 | 4 | Kurations-Patch-Route (Contract §4: Feld-Patch, Erhalt unbekannter Felder, Drift-Guard) + Inline-Verifikation | Kuration im Baum |
@@ -223,6 +242,10 @@ sechs Augen, ein Bestand.
 8. Rückfall-Test: Eine Datei unter einem abgenommenen Vorhaben wird geändert →
    der nächste Scan zeigt `stand_widerspruch` mit Todo für den richtigen
    Akteur, ohne dass die Sicht eine Datei anfasst.
+9. Verweis-Audit nachgewiesen: Ein Bericht mit einem toten und einem
+   veralteten Verweis erzeugt genau die Befunde `verweis_tot` und
+   `verweis_veraltet`; nach Korrektur des Berichts sind beide im Re-Scan
+   verschwunden.
 
 ## 8. Offene Punkte zur Abnahme
 
