@@ -73,8 +73,9 @@ _10_GordischerKnoten_2025-20-10_DW.pdf/
   lesbar, nie Vorbild für eigene Dateien.
 
 **Discovery-Regel für Agenten:** Wer `X.pdf` findet, prüft den Ordner `_X.pdf/`.
-Ordner mit Transkript vorhanden → Quelle gilt als erschlossen. Ordner fehlt oder
-leer → unerschlossen; das ist ein **offener Punkt im `_INDEX.md`**, kein
+Ordner mit Transkript vorhanden → Quelle gilt als erschlossen; **voll
+erschlossen** ist sie erst mit der führenden Transformation (§2b). Ordner fehlt
+oder leer → unerschlossen; das ist ein **offener Punkt im `_INDEX.md`**, kein
 Auftrag, ad hoc selbst zu transkribieren (§6).
 
 **Alt-Formen:** `X.<lang>.md` neben der Quelle (Sidecar) und Kombi-Dateien sind
@@ -91,6 +92,36 @@ Berichte und Indizes sind Contract-Dateien ohne Quelldatei, direkt im Projektord
 | `BERICHT.md` | `bericht` | Cowork/Peter |
 | `_INDEX.md` | `index` | Cowork/Peter |
 | `auftraege/*.md` | `auftrag` | Agentensicht (spätere Ausbaustufe) |
+
+### 2b. Rollen in der Familie: die Transformation führt, das Transkript belegt
+
+Eine Familie hat zwei sehr verschiedene Markdown-Twins, und die Unterscheidung
+ist verbindlich:
+
+- Das **Transkript** (`X.md`) ist die Treue-Ebene: die vollständige Textfassung
+  der Quelle. Bei einem 600-Seiten-Buch liest es niemand am Stück — es ist
+  Rohstoff und Beleg, nicht Lektüre.
+- Die **Transformation** (`X.<template>.<lang>.md`) ist das Wissensobjekt: nach
+  Template verdichtet, trägt die Basis- und Template-Felder (`title`, `date`,
+  `authors`, …, `summary`, `topics`) und speist Galerie, Facetten und
+  Detailansicht. Status- und Sichtbarkeitsfelder (z. B. Relevanz,
+  Veröffentlichung) sind Template-Felder **dieser** Datei.
+- **Führendes Artefakt** einer Familie ist die Transformation nach dem
+  Standard-Template der Library (in deren Standardsprache); fehlt sie, führt
+  das Transkript. Ampel und Verifikation der Familie hängen am führenden
+  Artefakt — ein unverifiziertes Transkript neben geprüfter Transformation ist
+  Normalzustand, kein Befund.
+- **Lese-Ordnung für Agenten:** Transformation zuerst (Felder + Verdichtung);
+  das Transkript gezielt für Zitate und Detailfragen; die Quelle nur, wenn
+  keine Twins existieren — und dann ist das ein Gap, kein Leseauftrag.
+  Berichte verweisen primär auf die Transformation.
+- **Korrektur-Ordnung:** Wortlaut- und Transkriptionsfehler werden **im
+  Transkript** korrigiert — die Transformation wird daraus erzeugt
+  (Re-Transformation nur, wenn der Fehler in der Verdichtung sichtbar ist).
+  Verdichtungs-, Feld- und Statuskorrekturen passieren **in der
+  Transformation** (Felder per Patch). Handänderungen am Transformations-Body
+  sind gegenüber einer Re-Transformation flüchtig (§4.4) — deshalb gehört
+  Wortlaut nie dorthin.
 
 ## 3. Feld-Contract
 
@@ -146,6 +177,10 @@ verifiziert die eigene Generierung (prüfbar; Gap-Typ `self_verified`).
 **Namenskollision entschieden:** Das Feld heißt `twin_status`, nicht `status`,
 weil `status` im Archiv den Projektlebenszyklus meint
 (`aktiv | ruhend | abgeschlossen`). Berichte behalten ihr `status`-Feld unverändert.
+
+**Verifiziert wird primär das führende Artefakt** der Familie (§2b) — die
+Abnahme der Transformation ist menschengroß (Felder und Verdichtung prüfen);
+das Transkript wird stichprobenhaft geprüft, nicht seitenweise.
 
 ### 3.3 Alles Weitere ist Template-Sache
 
