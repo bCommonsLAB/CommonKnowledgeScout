@@ -600,6 +600,8 @@ export async function runExtractOnly(
         shadowTwinFolderId: currentShadowTwinFolderId || undefined,
         zipArchives: zipArchives.length > 0 ? zipArchives : undefined,
         jobId,
+        // Extraktion ist ein Generierungsereignis → Twin-Kern stempeln (Contract §4.1)
+        generatedBy: 'knowledgescout/pipeline',
       })
 
       // WICHTIG (Global Contract):
