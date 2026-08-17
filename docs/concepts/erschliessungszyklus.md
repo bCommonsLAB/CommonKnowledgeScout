@@ -48,11 +48,22 @@ alte Verifikation wird durch die temporale Regel von selbst als ungültig sichtb
 Jedes `_INDEX.md` trägt den Stand seines Ordners als ein flaches Feld:
 
 ```yaml
-bearbeitungsstand: ungesichtet   # ungesichtet | strukturiert | erschlossen | berichtet | abgenommen
+bearbeitungsstand: abgenommen      # ungesichtet | strukturiert | erschlossen | berichtet | abgenommen
+bearbeitungsstand_seit: 2026-08-17 # Datum, an dem der Stand gesetzt wurde
 ```
 
 - Gesetzt von dem, der den Schritt abschließt: Cowork nach 1 und 3
-  (`strukturiert`, `berichtet`), Peter nach 2 und 4 (`erschlossen`, `abgenommen`).
+  (`strukturiert`, `berichtet`), Peter nach 2 und 4 (`erschlossen`,
+  `abgenommen`); dabei wird `bearbeitungsstand_seit` neu datiert.
+- **Der Stand ist eine Behauptung, keine Wahrheit** — das Soll-Buch der
+  doppelten Buchhaltung. Die Agentensicht rechnet das Ist-Buch dagegen (Scan
+  über Mongo + Storage): Ändert sich unterhalb eines abgenommenen Vorhabens
+  etwas nach `bearbeitungsstand_seit`, oder überholen jüngere Twins den
+  `BERICHT.md`, zeigt die Sicht den Widerspruch („abgenommen, aber nicht mehr
+  aktuell") und erzeugt ein Todo für den zuständigen Akteur — sie stuft das
+  Feld nie still zurück. Aufgelöst wird explizit: bestätigen (Stand neu
+  datieren) oder zurückstufen. Grün ist ein Vorhaben erst, wenn Soll und Ist
+  übereinstimmen.
 - Die Agentensicht liest das Feld: `ungesichtet` erzeugt einen Sammel-Gap statt
   tausend Einzel-Gaps (Gap-Budget im Projektauftrag), und nach Stand lässt sich
   filtern, welche Vorhaben in welchem Schritt stecken.

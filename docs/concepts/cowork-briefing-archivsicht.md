@@ -51,7 +51,7 @@ Die verbindlichen Fassungen liegen im Repo `CommonKnowledgeScout` unter
   (`docs/concepts/erschliessungszyklus.md`): Ihr macht Schritt 1
   (Strukturieren) und Schritt 3 (Berichten auf Twin-Basis) und schreibt danach
   den `bearbeitungsstand` im `_INDEX.md` fort (`strukturiert` bzw.
-  `berichtet`). Umbenennen und Umsortieren gehören in Schritt 1 — **vor** der
+  `berichtet`, jeweils mit `bearbeitungsstand_seit: <Datum>`). Umbenennen und Umsortieren gehören in Schritt 1 — **vor** der
   Erschließung; danach gilt die Familien-Regel strikt.
 - **Twins lesen statt Rohmedien.** Existiert ein Twin, wertet ein Bericht nie
   selbst PDF/Audio aus; er zitiert Transkript/Transformation im

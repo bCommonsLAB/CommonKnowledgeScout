@@ -42,6 +42,13 @@ davon versteht — und was ihm fehlt.*
    Coverage-API und kennt nie Provider oder `primaryStore`.
 5. **Anzeigen und beauftragen, nie selbst füllen.** Einzige Schreiboperation
    ist der Kurations-Patch (Welle 4) über die Route aus Contract §4.
+6. **Doppelte Buchhaltung (Soll gegen Ist).** Der Bestand führt zwei
+   unabhängige Bücher: den **erklärten** Stand (`bearbeitungsstand` im
+   `_INDEX.md`, gesetzt von Menschen und Agenten) und den **berechneten**
+   Befund (Scan über Mongo + Storage). Die Sicht gleicht beide ab: „Grün" ist
+   ein Vorhaben erst, wenn beide übereinstimmen; jede Abweichung ist ein
+   Befund mit zuständigem Akteur. Erklärte Stände werden **nie still
+   zurückgestuft** — die Sicht zeigt den Widerspruch und erzeugt das Todo.
 
 ## 3. Funktionsumfang
 
@@ -53,6 +60,16 @@ Baumansicht der Library aus Contract-Perspektive: pro Ordner der
 werden zusammengefasst („17 weitere Dateien"). Jeder Knoten zeigt die
 Vertrauensampel aus den Kurations-Feldern (unverifiziert / maschinell bestätigt /
 von Mensch geprüft, gültig nur bei `verified_at >= generated_at`) plus `twin_status`.
+
+### F1b — Zyklus-Board: Soll/Ist je Vorhaben
+
+Zweite Darstellung neben dem Baum: alle Vorhaben nach `bearbeitungsstand`
+(fünf Spalten von `ungesichtet` bis `abgenommen`). Jede Karte zeigt den
+erklärten Stand, den berechneten Befund und die offenen Todos nach Akteur.
+Fällt ein Vorhaben hinter seinen erklärten Stand zurück (`stand_widerspruch`,
+F2), wechselt die Karte sichtbar in den Widerspruchszustand — „abgenommen,
+aber nicht mehr aktuell" — ohne dass eine Datei angefasst wird. Das Board
+beantwortet auf einen Blick: Was ist zu tun, wer ist dran, was ist wirklich grün.
 
 ### F2 — Lückenmodell mit Herkunft
 
@@ -71,6 +88,8 @@ der Maschine, die sie liefert:
 | `self_verified` | `generated_by` == `verified_by` (Actor-Ebene) | neu |
 | `report_missing` | Vorhabensordner ohne `BERICHT.md` | neu, konfigurierbar |
 | `index_missing` | Strukturebene ohne `_INDEX.md` | neu, konfigurierbar |
+| `bericht_veraltet` | `BERICHT.md` älter als die jüngste Twin-/Datei-Änderung seines Vorhabens | neu, konfigurierbar |
+| `stand_widerspruch` | erklärter `bearbeitungsstand` durch Befunde widerlegt (z. B. `abgenommen`, aber Änderungen seit `bearbeitungsstand_seit` oder offene Gaps im Teilbaum) | neu |
 
 Neue Regeln sind reine Funktionen `(node) => Gap | null` in einer erweiterbaren
 Registry. Die Ordner-Konventionen (`JJ.MM`-Präfix, BERICHT-Pflicht) sind
@@ -81,6 +100,18 @@ pro Library konfiguriert, nicht hartkodiert.
 (Feld aus dem [Erschließungszyklus](erschliessungszyklus.md)) erzeugen einen
 Sammel-Gap statt tausend Einzel-Gaps; Ausschluss-Globs (Welle 0) halten `temp/`
 u. Ä. ganz draußen. Ordnerknoten aggregieren die Lückenzähler ihrer Teilbäume.
+
+**Todo-Routing:** Jeder Gap-Typ trägt zuständigen Akteur und Zyklus-Schritt
+(Erschließungszyklus §1). Daraus entstehen drei Todo-Listen: **Mensch**
+(z. B. `twin_unverified` → Schritt 4), **Cowork** (`report_missing`,
+`bericht_veraltet`, `index_missing` → Schritt 1/3, über den
+Auftrags-Generator), **KnowledgeScout** (`source_without_twin`, `conflict`,
+`twin_stale` → Schritt 2/4, verlinkt auf die vorhandenen Buttons).
+`stand_widerspruch` routet auf den Schritt, hinter den das Vorhaben
+zurückgefallen ist; aufgelöst wird er nur explizit — bestätigen (Stand neu
+datieren) oder zurückstufen, beides am `_INDEX.md`. Mtime-basierte
+Rückfall-Verdachte sind ein Prüfauftrag, kein Urteil (Sync-Werkzeuge können
+Zeitstempel anfassen).
 
 ### F3 — Auftrags-Generator (der eigentliche Zweck)
 
@@ -97,6 +128,10 @@ Cowork-Session:
 - Ausgabe in v1: **Clipboard only** — keine `auftraege/`-Dateien, keine
   API-Kopplung. Der Transport ist bewusst Copy-Paste; eine spätere Dateiablage
   läuft über kontrollierte Schreibwege (Richtung ADR-0004).
+- Jeder Auftrag endet mit einem **Konsistenz-Rückmeldungsblock**: „Melde
+  zurück, wo deine Sicht der Dateien dieser Coverage widerspricht." So prüft
+  jede Cowork-Session die Sicht gegen, wie die Sicht die Dateien prüft — die
+  Gegenkontrolle aus dem Briefing (§3e) wird Standard, nicht Sonderfall.
 
 ### F4 — Verifikation inline (setzt die Patch-Route voraus)
 
@@ -136,9 +171,9 @@ automatisches Ausführen von Aufträgen, Chat-Integration, Twin-Body-Editor
 | Welle | Inhalt | Ergebnis |
 |---|---|---|
 | 0 | Twin-Kern-Feldsatz (`TWIN_CORE_FIELDS`; Pipeline-Writer setzt `generated_*`) · Ausschluss-Globs als Library-Config-Feld (Checkliste `library-config-field.mdc`) | Fundament: Pipeline schreibt den Kern, Scans haben einen Zaun |
-| 1 | Coverage-Service als Komposition + neue Gap-Regeln + Report-Cache + API (ohne UI) | Coverage als JSON; Unit-Test je neuem Gap-Typ |
-| 2 | Baum-UI read-only (Ampeln, Zähler, Sammel-Gaps) neben „Archiv" | Sicht sichtbar |
-| 3 | Auftrags-Generator (Vorlage je Gap-Typ, Clipboard) | Lücke → Auftrag in < 1 Min |
+| 1 | Coverage-Service als Komposition + neue Gap-Regeln inkl. Soll/Ist (`stand_widerspruch`, `bericht_veraltet`) + Report-Cache + API (ohne UI) | Coverage als JSON; Unit-Test je neuem Gap-Typ |
+| 2 | Baum-UI read-only (Ampeln, Zähler, Sammel-Gaps) + Zyklus-Board (F1b) neben „Archiv" | Sicht sichtbar |
+| 3 | Auftrags-Generator (Vorlage je Gap-Typ, Clipboard) + Todo-Listen nach Akteur | Lücke → Auftrag in < 1 Min |
 | 4 | Kurations-Patch-Route (Contract §4: Feld-Patch, Erhalt unbekannter Felder, Drift-Guard) + Inline-Verifikation | Kuration im Baum |
 
 Branch-, Diff- und PR-Regeln nach `AGENTS.md` (eine PR pro Welle,
@@ -182,6 +217,12 @@ sechs Augen, ein Bestand.
 5. Kein UI-Code kennt `primaryStore` oder das Storage-Backend.
 6. Report-Wegwerf-Test: Report löschen → der nächste Scan rekonstruiert ihn
    vollständig.
+7. Grün-Definition nachgewiesen: Ein Vorhaben zeigt erst dann durchgehend
+   Grün, wenn der erklärte Stand `abgenommen` ist UND der Scan keinen offenen
+   Befund im Teilbaum liefert.
+8. Rückfall-Test: Eine Datei unter einem abgenommenen Vorhaben wird geändert →
+   der nächste Scan zeigt `stand_widerspruch` mit Todo für den richtigen
+   Akteur, ohne dass die Sicht eine Datei anfasst.
 
 ## 8. Offene Punkte zur Abnahme
 
