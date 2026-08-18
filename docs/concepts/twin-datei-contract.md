@@ -106,9 +106,11 @@ ist verbindlich:
   `authors`, …, `summary`, `topics`) und speist Galerie, Facetten und
   Detailansicht. Status- und Sichtbarkeitsfelder (z. B. Relevanz,
   Veröffentlichung) sind Template-Felder **dieser** Datei.
-- **Führendes Artefakt** einer Familie ist die Transformation nach dem
-  Standard-Template der Library (in deren Standardsprache); fehlt sie, führt
-  das Transkript. Ampel und Verifikation der Familie hängen am führenden
+- **Führendes Artefakt** einer Familie ist die Transformation nach dem zum
+  **Inhaltstyp passenden** Standard-Template (Typ-Template-Registry der
+  Library, Welle 0f: `doc_type → Template`; solange nur das eine
+  Einzel-Template konfiguriert ist, gilt dieses). Fehlt sie, führt das
+  Transkript. Ampel und Verifikation der Familie hängen am führenden
   Artefakt — ein unverifiziertes Transkript neben geprüfter Transformation ist
   Normalzustand, kein Befund.
 - **Lese-Ordnung für Agenten:** Transformation zuerst (Felder + Verdichtung);
@@ -249,8 +251,14 @@ So bleibt nachvollziehbar, was maschinell entstand und was davon geprüft ist.
 - Die Identität von Twins hängt an der `sourceId` = Provider-Item-ID; bei
   OneDrive (Graph) überleben IDs Umbenennen und Verschieben. **Kein `uid`-Feld
   im Frontmatter** — Begründung im Bruchstellen-Katalog §2.
-- **Familien-Regel (Konvention):** Quelle und ihr `_`-Ordner ziehen immer
-  gemeinsam um; nie den Basename nur einer Seite ändern. Umzugsprotokoll wie gehabt.
+- **Familien-Umzug:** Quelle und ihr `_`-Ordner ziehen immer gemeinsam um;
+  nie den Basename nur einer Seite ändern. Umzugsprotokoll wie gehabt.
+  Ab Welle 0e ist das eine **Funktion** (`familie_umziehen`) in fester
+  Reihenfolge: erst Import (keine Handkorrektur verlieren), dann Quelle
+  verschieben/umbenennen, Namen in der Datenbank nachziehen, alten
+  Spiegelordner löschen, Export regeneriert den Spiegel am neuen Ort.
+  Umzüge NACH der Erschließung sind damit Normalfall, kein Risiko
+  (Zyklus v2 §3).
 - Vorbehalt Nextcloud: Der heutige Nextcloud-Provider bildet IDs aus Pfaden.
   Vor einer Migration der heißen Schicht (Zielbild Etappe 7) ist der Provider
   auf Nextclouds stabile `fileid` umzustellen — eigener Arbeitspunkt, nicht

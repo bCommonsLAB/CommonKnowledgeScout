@@ -1,10 +1,22 @@
-# Der Erschließungszyklus: vier Schritte pro Vorhaben
+# Der Erschließungszyklus: vier Schritte pro Vorhaben (v2)
 
-Stand: 2026-08-17 · Ergänzung zum Konzept-Set (Twin-Datei-Contract,
+Stand: 2026-08-18 · v2 nach dem ersten vollständigen Pilot-Durchlauf
+(`25.01 Common Secretary`). Ergänzung zum Konzept-Set (Twin-Datei-Contract,
 Projektauftrag Agentensicht, Bruchstellen-Katalog, Cowork-Briefing).
 Zweck: das operative Verfahren, mit dem das Archiv ordnerweise aufgeräumt und
-erschlossen wird — der Takt für die Zielbild-Etappen 3, 4 und 6.
-Ziel: dasselbe Verfahren läuft stabil auf OneDrive wie auf Nextcloud.
+erschlossen wird. Ziel: dasselbe Verfahren läuft stabil auf OneDrive wie auf
+Nextcloud.
+
+**Was sich in v2 ändert — und warum.** v1 verlangte „erst Strukturieren, dann
+Erschließen" (Namens-Fenster). Der Pilot hat gezeigt: Für den eigentlichen
+Aufräumfall — den wilden Haufen alter Dateien — ist das die falsche
+Reihenfolge. Niemand kann Aufnahmen und PDFs sinnvoll einsortieren, deren
+Inhalt er nicht kennt. **v2 dreht die Schritte: erst lesen, dann einräumen.**
+Möglich ist das, weil die Identität der Twins an den umzugsstabilen
+Speicher-IDs des Providers hängt (nicht an Pfaden) und die `_`-Spiegelordner
+abgeleitete, jederzeit regenerierbare Kopien sind — ein Umzug nach der
+Erschließung ist damit kein Bruch, sondern eine **Familien-Operation**
+(Welle 0e macht daraus eine Funktion).
 
 ---
 
@@ -12,114 +24,145 @@ Ziel: dasselbe Verfahren läuft stabil auf OneDrive wie auf Nextcloud.
 
 | # | Schritt | Wer | Werkzeug | Ergebnis |
 |---|---|---|---|---|
-| 1 | **Strukturieren** | Cowork-Session (mit Peter) | Filesystem | Klassen-Entscheid pro Fund (Original/Beleg/Ableitung, Zielbild §7): Ableitungen gelöscht, Belege ins Kaltarchiv; Dateinamen repariert und gekürzt; Struktur nach Modell C; `_INDEX.md` angelegt (+ Stub-`BERICHT.md`); Umzugsprotokoll geführt |
-| 2 | **Erschließen** | KS-Pipeline; Peter prüft stichprobenartig | KnowledgeScout | Twins in Mongo + `_`-Spiegelordner (Transkript, Transformationen, Twin-Kern). Peters Prüfung ist eine **Qualitäts-Stichprobe** (richtiges Template? OCR brauchbar? Felder der Transformation plausibel? sonst Re-Run) — **keine Verifikation** |
-| 3 | **Berichten** | Cowork-Session | Filesystem, liest Twins | `BERICHT.md` auf Twin-Basis aktualisiert (zitiert Transkripte statt Rohmedien); erkannte Transkript-Schwächen direkt im `_`-Ordner korrigiert; Unklares als offene Punkte im `_INDEX.md` |
-| 4 | **Abnehmen** | Peter | KnowledgeScout | Erst **„Prüfen"** (Import holt die Cowork-Korrekturen nach Mongo oder meldet Konflikt), dann Verifikation: `verified_by: human:peter`, `verified_at`, `twin_status: stable`. Eigene kleine Korrekturen davor direkt in KS oder Obsidian (nach Obsidian-Änderung erneut „Prüfen"). Danach `aktuell.py`/`projekte.py` laufen lassen |
+| 1 | **Sichten** (Erschließen) | KS-Pipeline; Peter prüft stichprobenartig | KnowledgeScout | Für jede unbekannte Quelle: Transkript + **Typ-Erkennung** (§2) + Transformation mit dem **zum Typ passenden Standard-Template**. Peters Prüfung ist eine Qualitäts-Stichprobe (Typ richtig erkannt? Felder plausibel?) — keine Verifikation |
+| 2 | **Strukturieren** | Cowork-Session (mit Peter) | Filesystem + KS-Funktion | Liest die Transformationen — weiß jetzt, was Konzept, E-Mail-Diktat oder Besprechung ist und was veraltet —, entwirft die Ordnerwelt, zieht **Familien** um (Quelle + `_`-Ordner, Welle 0e), Klassen-Entscheid (Original/Beleg/Ableitung), `_INDEX.md` + Stub-`BERICHT.md`, Umzugsprotokoll |
+| 3 | **Berichten** | Cowork-Session | Filesystem, liest Twins | `BERICHT.md` auf Twin-Basis (zitiert Transformationen, verweist als echte Links); erkannte Transkript-Schwächen direkt im `_`-Ordner korrigiert; Chronologie aus den Datums-Feldern; Unklares als offene Punkte |
+| 4 | **Abnehmen** | Peter | KnowledgeScout | Erst **„Prüfen"** (Import holt Korrekturen — seit Welle 0d gewinnen Handänderungen zuverlässig), dann Verifikation am führenden Artefakt: `verified_by: human:peter`, `verified_at`, `twin_status: stable`. Danach `aktuell.py`/`projekte.py`/`erschliessung.py` |
 
-Innerhalb der Twin-Familie gilt die Lese- und Korrektur-Ordnung aus dem
-Contract §2b: **Die Transformation führt** — sie trägt Felder, Verdichtung und
-Status, Cowork liest sie zuerst, Berichte verweisen auf sie, und die Abnahme
-in Schritt 4 gilt ihr. **Das Transkript belegt** — Zitate und Detailfragen;
-Wortlautfehler werden dort korrigiert (die Transformation wird daraus neu
-erzeugt), nie im Transformations-Body.
+Der Zyklus läuft **pro Vorhaben** — ein Ordner, ein Durchlauf. Die Pipeline
+darf innerhalb eines Schritts beliebig bündeln; der Zyklus ist der Takt,
+nicht die Batchgröße.
 
-Der Zyklus läuft **pro Vorhaben** — ein Ordner, ein Durchlauf, nichts wird
-doppelt angefasst. Die Pipeline darf innerhalb eines Schritts beliebig bündeln;
-der Zyklus ist der Takt, nicht die Batchgröße.
+Innerhalb der Twin-Familie gilt weiter die Lese- und Korrektur-Ordnung aus
+dem Contract §2b: **Die Transformation führt** (Felder, Verdichtung, Status;
+Cowork liest sie zuerst, Berichte verweisen auf sie, die Abnahme gilt ihr),
+**das Transkript belegt** (Zitate; Wortlautfehler werden dort korrigiert).
 
-## 2. Warum diese Reihenfolge trägt
+## 2. Die Typ-Erkennung: erst verstehen, dann das richtige Template
 
-1. **Schritt 1 vor Schritt 2 ist das Namens-Fenster.** Solange keine Twins
-   existieren, sind Umbenennen und Umsortieren gratis. Sobald erschlossen ist,
-   hängen `_`-Ordner und Twin-Dateinamen am Quellnamen — dann gilt die
-   Familien-Regel, und ein halber Rename (Bruchstelle B2) ist der teuerste
-   Fehler. Weil alle identitätskritischen Operationen vor der Erschließung
-   liegen, verlässt sich das Verfahren im Normalfall **gar nicht** auf
-   umzugsstabile Speicher-IDs — das macht es provider-stabil per Konstruktion.
-2. **Verifikation ist der letzte Schritt.** `verified_by` wird genau einmal
-   gesetzt, wenn am Inhalt nichts mehr passiert (temporale Regel:
-   `verified_at >= generated_at`). Eine Verifikation schon in Schritt 2 wäre
-   nach den Cowork-Korrekturen aus Schritt 3 entweder veraltet oder doppelte
-   Arbeit.
-3. **Zwischen Schritt 3 und der Abnahme steht immer „Prüfen".** Sonst nimmt
-   Schritt 4 in KS einen Stand ab, der die Datei-Korrekturen noch nicht
-   enthält. Ein gemeldeter Konflikt ist dabei ein Befund, kein Fehler.
+Ein Transkript sagt noch nicht, *was* die Datei ist. Eine Aufnahme kann ein
+Konzept-Monolog sein, ein diktierter E-Mail-Entwurf, eine Besprechung, ein
+Vortrag; ein PDF ein Papier, ein Angebot, ein Protokoll. **Jeder Typus
+braucht eine andere Verdichtung** — eine Besprechungsanalyse mit
+„Teilnehmende / Entscheidungen / nächste Schritte" ist für ein diktiertes
+Konzept die falsche Brille.
 
-Korrekturen **nach** der Abnahme sind erlaubt — sie starten für die betroffene
-Datei einen Mini-Zyklus 3→4 (korrigieren → „Prüfen" → neu verifizieren). Die
-alte Verifikation wird durch die temporale Regel von selbst als ungültig sichtbar.
+Deshalb wird die Transformation zweistufig:
 
-## 3. Der Ordner-Stand im `_INDEX.md`
+1. **Typ bestimmen.** Nach dem Transkript entscheidet ein Agent (kleiner,
+   billiger LLM-Schritt), welcher Typus vorliegt. Das Ergebnis steht als
+   `doc_type` im Frontmatter — nachvollziehbar und korrigierbar.
+2. **Typ-Template anwenden.** Die Library hält je Typus ein
+   Standard-Template (Registry in der Library-Config, Welle 0f):
 
-Jedes `_INDEX.md` trägt den Stand seines Ordners als ein flaches Feld:
+   | `doc_type` | Standard-Template (Beispiel) |
+   |---|---|
+   | `besprechung` | standard-meeting |
+   | `konzept` | standard-konzept |
+   | `email-diktat` | standard-email-diktat |
+   | `vortrag` | standard-session |
+   | `notiz` | standard-notiz |
+
+   Nicht zuordenbar → `other` + das Fallback-Template der Library; die
+   Entscheidung wird nie geraten, sondern als Feld sichtbar gemacht
+   (`no-silent-fallbacks`).
+
+Das ersetzt das bisherige EINE `secretaryService.template` pro Library durch
+eine kleine Map — das eine Template bleibt als Fallback bestehen
+(rückwärtskompatibel). Die Kostenlogik bleibt gestuft: Transkript + billige
+Typ-Erkennung für alles; die Voll-Transformation nach Typ; besonders teure
+Auswertungen nur für das, was der Klassen-/Relevanz-Entscheid in Schritt 2
+als Kern einstuft.
+
+## 3. Umzüge: Familien-Operation statt Namens-Fenster
+
+v1 sagte: „Alles Umbenennen passiert vor der Erschließung, danach ist das
+Fenster zu." Das war zu konservativ — und stand dem Aufräumen im Weg. Richtig
+ist:
+
+- **Die Datenbank-Verbindung bricht bei Umzügen nicht** (OneDrive-IDs sind
+  umzugsstabil; die Twins hängen an der ID, nicht am Pfad).
+- **Spiegel sind wegwerfbar**: Ein veralteter `_`-Ordner wird gelöscht und
+  per Export am neuen Ort mit neuem Namen regeneriert.
+- **`familie_umziehen` (Welle 0e)** macht daraus einen Handgriff, in fester
+  Reihenfolge: erst Import (keine Handkorrektur verlieren), dann Quelle
+  verschieben/umbenennen, Namen in der Datenbank nachziehen, alten
+  Spiegelordner löschen, Export. Bis die Funktion existiert, gilt die
+  Konvention: Quelle und `_`-Ordner immer gemeinsam bewegen, danach „Prüfen".
+
+Umbenennen bleibt am billigsten, solange es noch keine Twins gibt — aber es
+ist kein Tor mehr, das sich schließt.
+
+## 4. Der Ordner-Stand im `_INDEX.md`
 
 ```yaml
-bearbeitungsstand: abgenommen      # ungesichtet | strukturiert | erschlossen | berichtet | abgenommen
-bearbeitungsstand_seit: 2026-08-17 # Datum, an dem der Stand gesetzt wurde
+bearbeitungsstand: abgenommen      # ungesichtet | erschlossen | strukturiert | berichtet | abgenommen
+bearbeitungsstand_seit: 2026-08-18 # Datum, an dem der Stand gesetzt wurde
 ```
 
-- Gesetzt von dem, der den Schritt abschließt: Cowork nach 1 und 3
-  (`strukturiert`, `berichtet`), Peter nach 2 und 4 (`erschlossen`,
-  `abgenommen`); dabei wird `bearbeitungsstand_seit` neu datiert.
+- Reihenfolge in v2: `ungesichtet → erschlossen → strukturiert → berichtet →
+  abgenommen`. (Bestand aus v1, der `strukturiert` vor der Erschließung
+  trägt, bleibt gültig — die Werte sind dieselben, nur die erwartete Abfolge
+  hat sich gedreht.)
+- Gesetzt von dem, der den Schritt abschließt: Peter nach 1 und 4, Cowork
+  nach 2 und 3; dabei wird `bearbeitungsstand_seit` neu datiert.
 - **Der Stand ist eine Behauptung, keine Wahrheit** — das Soll-Buch der
-  doppelten Buchhaltung. Die Agentensicht rechnet das Ist-Buch dagegen (Scan
-  über Mongo + Storage): Ändert sich unterhalb eines abgenommenen Vorhabens
-  etwas nach `bearbeitungsstand_seit`, oder überholen jüngere Twins den
-  `BERICHT.md`, zeigt die Sicht den Widerspruch („abgenommen, aber nicht mehr
-  aktuell") und erzeugt ein Todo für den zuständigen Akteur — sie stuft das
-  Feld nie still zurück. Aufgelöst wird explizit: bestätigen (Stand neu
-  datieren) oder zurückstufen. Grün ist ein Vorhaben erst, wenn Soll und Ist
-  übereinstimmen. Zum Ist-Abgleich gehört auch der **Verweis-Audit** der
-  Berichte (Projektauftrag F2): tote oder veraltete Verweise und Unerwähntes
-  machen ein `berichtet`/`abgenommen` ebenso rückfällig wie Datei-Änderungen.
-- Die Agentensicht liest das Feld: `ungesichtet` erzeugt einen Sammel-Gap statt
-  tausend Einzel-Gaps (Gap-Budget im Projektauftrag), und nach Stand lässt sich
-  filtern, welche Vorhaben in welchem Schritt stecken.
-- Kein neues Werkzeug nötig: ein Frontmatter-Feld, flach, Obsidian-kompatibel.
+  doppelten Buchhaltung. Die Agentensicht rechnet das Ist-Buch dagegen:
+  Änderungen nach `bearbeitungsstand_seit`, tote/veraltete Verweise oder von
+  jüngeren Twins überholte Berichte machen einen Stand sichtbar rückfällig —
+  nie still zurückgestuft, immer als Befund mit Todo. Grün ist ein Vorhaben
+  erst, wenn Soll und Ist übereinstimmen.
 
-## 4. Die Nahtstellen (Übergaben)
+## 5. Die Nahtstellen (Übergaben)
 
-- **1 → 2:** Auslöser ist `bearbeitungsstand: strukturiert`. Verarbeitet wird,
-  was nach dem Klassen-Entscheid übrig ist (Originale mit Relevanz
-  Kern/Kontext) — Ableitungen sind gelöscht, Belege liegen außerhalb des Scans
-  (Kaltarchiv bzw. Ausschluss-Glob).
-- **2 → 3:** Ein Auftragstext an die Cowork-Session — später aus dem
-  Auftrags-Generator der Agentensicht, bis dahin von Hand nach dem Muster im
-  Cowork-Briefing.
-- **3 → 4:** Die Session meldet zurück: was geändert wurde, welche Dateien im
-  `_`-Ordner korrigiert sind, was offen bleibt. Peter drückt „Prüfen" und nimmt ab.
+- **1 → 2:** Auslöser ist `erschlossen`. Cowork bekommt einen Auftrag (heute
+  Copy-Paste, künftig MCP — siehe §7) und liest die Typ-Transformationen als
+  Sortiergrundlage.
+- **2 → 3:** Struktur steht, Familien sind umgezogen, Indizes angelegt →
+  `strukturiert`.
+- **3 → 4:** Die Session meldet zurück (Änderungen, Korrekturen, offene
+  Punkte, **Widersprüche zur Coverage** — die Gegenkontrolle bleibt Pflicht).
+  Peter drückt „Prüfen" und nimmt ab.
 
-## 5. Provider-Stabilität: OneDrive heute, Nextcloud morgen
+## 6. Provider-Stabilität: OneDrive heute, Nextcloud morgen
 
-Das Verfahren selbst ist provider-agnostisch: Es besteht aus
-Datei-Konventionen (Schritte 1 und 3) und KS-Funktionen hinter der
-Storage-Abstraktion (Schritte 2 und 4). Konkrete Randbedingungen:
+- **OneDrive (heute):** lauffähig und im Pilot bewiesen. IDs umzugsstabil —
+  Familien-Umzüge erschlossener Bestände sind sicher.
+- **Nextcloud (Ziel):** eine harte Voraussetzung — der Provider bildet IDs
+  heute aus Pfaden und muss auf Nextclouds stabile `fileid` umgestellt
+  werden. Durch v2 (Umzüge NACH der Erschließung sind der Normalfall) wird
+  dieser Punkt wichtiger, nicht unwichtiger. Danach den Pilot einmal auf
+  Nextcloud wiederholen.
+- **Pfadlängen:** `_`-Spiegelordner verdoppeln die Namenslänge; lange
+  Quellnamen beim Strukturieren kürzen (per `familie_umziehen`); die Engine
+  meldet Überläufe als `path-too-long` (Budget ≈ 347 Zeichen).
 
-- **OneDrive (heute):** lauffähig. Bekannte Randbedingung ist die
-  Auth-Stabilität der OneDrive-Anbindung (Anmeldung fällt nach 1–2 Wochen aus;
-  Neuaufsetzen ist ohnehin vor dem 30.09 geplant). Speicher-IDs sind
-  umzugsstabil — auch spätere Familien-Umzüge bereits erschlossener Bestände
-  (z. B. Modell-C-Konsolidierungen) sind sicher.
-- **Nextcloud (Ziel):** eine harte Voraussetzung — der Nextcloud-Provider
-  bildet IDs heute aus Pfaden und muss auf Nextclouds stabile `fileid`
-  umgestellt werden, sonst verlieren spätere Umzüge erschlossener Bestände die
-  Twin-Zuordnung (Plattform-Backlog, Bruchstellen-Katalog §2). Danach den
-  Pilot einmal auf Nextcloud wiederholen — das ist das Akzeptanzkriterium für
-  „stabil auf beiden".
-- **Pfadlängen:** `_`-Spiegelordner verdoppeln die Namenslänge im Pfad. Lange
-  Quellnamen deshalb in Schritt 1 kürzen; die Engine meldet Überläufe als
-  `path-too-long`-Befund (Budget ≈ 347 Zeichen).
+## 7. Orchestrierung: von Copy-Paste zu MCP
 
-## 6. Was heute schon geht — und was auf Wellen wartet
+Heute transportiert Peter Aufträge per Copy-Paste zwischen KnowledgeScout und
+Cowork. Zielbild (eigene Welle, siehe Projektauftrag §5): **KnowledgeScout
+wird MCP-Server**, der Agent orchestriert. Der Agent hat das Urteil (Was ist
+das? Wohin gehört es?), KnowledgeScout die deterministischen Fähigkeiten als
+Werkzeuge: `erschliessen`, `pruefen/reparieren/import/export`,
+`familie_umziehen`, später `abdeckung_lesen`. Damit wird „Räum diesen Ordner
+auf" EIN Auftrag an eine Cowork-Session — und die doppelte Buchhaltung bleibt
+vollständig bestehen: Der Agent bekommt Werkzeuge, kein Vertrauen;
+KnowledgeScout auditiert weiterhin jeden Verweis und jeden Stand; Peter nimmt
+ab. Die Umkehrrichtung (KnowledgeScout startet Sessions per Agent-SDK aus der
+Agentensicht heraus) ist die spätere Komfortschicht auf derselben Topologie.
+
+## 8. Was heute schon geht — und was auf Wellen wartet
 
 | Baustein | Stand |
 |---|---|
-| Schritt 1 und 3 (Konventionen, Cowork) | sofort — Briefing liegt vor |
-| Schritt 2 (Pipeline + Spiegelordner) | vorhanden; Twin-Kern-Felder kommen mit Welle 0 automatisch, bis dahin werden sie bei Reparatur/Export nachgezogen |
-| „Prüfen"/Import (Schritt 4, erster Teil) | vorhanden (Sync-Engine, Buttons pro Datei/Ordner/Library) |
-| Abnahme-UI in KS (Schritt 4, zweiter Teil) | Welle 4 des Projektauftrags; bis dahin: Frontmatter in Obsidian setzen — gleiche Felder, gleicher Effekt |
-| Ordner-Stand-Filter, Sammel-Gaps, Auftrags-Generator | Wellen 1–3 des Projektauftrags |
+| Schritt 1 Transkription + Transformation, Twin-Kern-Stempel | vorhanden (Wellen 0a/0c/0d gemerged, im Pilot bewiesen) |
+| Handkorrektur-Rückweg (Import gewinnt bei jüngerer Datei) | vorhanden (Welle 0d) |
+| Typ-Erkennung + Typ-Template-Registry | **Welle 0f** |
+| `familie_umziehen` | **Welle 0e** |
+| Ausschluss-Globs (`temp/` u. Ä.) | Welle 0b |
+| Coverage/Zyklus-Board/Auftrags-Generator/Abnahme-UI | Wellen 1–4 des Projektauftrags |
+| MCP-Brücke | eigene Welle (Projektauftrag §5) |
 
-Der Zyklus ist damit ab sofort fahrbar; die Agentensicht macht ihn schrittweise
-bequemer, ändert ihn aber nicht.
+Der Zyklus ist ab sofort in v2 fahrbar; bis Welle 0f wählt die Cowork-Session
+das Template je Datei von Hand (ein Satz im Auftrag), bis Welle 0e gilt die
+Familien-Konvention.
