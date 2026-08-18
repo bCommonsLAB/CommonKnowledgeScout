@@ -97,6 +97,12 @@ export function buildTopNavConfig({
       href: '/library',
     },
     {
+      // Agentensicht (Projektauftrag Welle 2): steht bewusst NEBEN „Archiv" —
+      // dieselbe Library, andere Frage („was versteht ein Agent davon?").
+      name: 'Agentensicht',
+      href: '/library/agent-view',
+    },
+    {
       name: t('navigation.gallery'),
       href: '/library/gallery',
     },
