@@ -122,7 +122,11 @@ export async function collectSourceInput(args: {
           fileName: it.metadata.name, error: err instanceof Error ? err.message : String(err),
         })
       }
-      return { fileId: it.id, name: it.metadata.name, markdown, origin: 'storage' as const }
+      // modifiedAt speist den Handkorrektur-Vorrang (Welle 0d, reconcile-plan.ts).
+      return {
+        fileId: it.id, name: it.metadata.name, markdown, origin: 'storage' as const,
+        modifiedAt: toDate(it.metadata.modifiedAt),
+      }
     }),
   )
   // Namens-Migration (Welle 5c): Muster-A-Dateien ({base}.{lang}.md MIT
@@ -140,7 +144,10 @@ export async function collectSourceInput(args: {
 
   const mongoRecord = readTranscriptRecord(doc)
   const transcriptCandidates: ReconcileCandidate[] = mongoRecord
-    ? [...classifiedStorageCandidates, { name: canonicalName, markdown: mongoRecord.markdown, origin: 'mongo' }]
+    ? [...classifiedStorageCandidates, {
+        name: canonicalName, markdown: mongoRecord.markdown, origin: 'mongo',
+        modifiedAt: toDate(mongoRecord.updatedAt),
+      }]
     : classifiedStorageCandidates
 
   // Tote page_NNN.md (Schutz fuer Quellen, die selbst page_NNN.* heissen).
