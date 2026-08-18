@@ -364,6 +364,13 @@ export interface StorageConfig {
   analyzeDivaTextureInfo?: boolean;
 
   /**
+   * Ausschluss-Muster fuer Storage-Scans (Welle 0b). Library-relative Globs:
+   * ohne `/` = jeder Pfad-Abschnitt (`temp`, `*.tmp`), mit `/` = Pfad ab
+   * Wurzel (`alt/archiv/**`). Uebersprungenes wird im Report gezaehlt.
+   */
+  scanExcludeGlobs?: string[];
+
+  /**
    * Plan 2 · W-C (Δ2): Per-Library-Kuratierung der „Inhalte erfassen"-Wizards.
    * Fehlt das Feld, gilt das Bestandsverhalten; gesetzt → kuratierte Auswahl/
    * Reihenfolge (siehe `curateCreationTypes`). KEIN Secret.
@@ -605,6 +612,8 @@ export interface ClientLibrary {
     chat?: LibraryChatConfig;
     /** Transformation: DIVA-Liefersystem-Daten auswerten (DIVA-Info-Tab). Default false. */
     analyzeDivaTextureInfo?: boolean;
+    /** Ausschluss-Muster fuer Storage-Scans (Welle 0b). */
+    scanExcludeGlobs?: string[];
     /** Plan 2 · W-C: Kuratierung der „Inhalte erfassen"-Wizards (kein Secret). */
     captureWizards?: CaptureWizardsConfig;
     /**

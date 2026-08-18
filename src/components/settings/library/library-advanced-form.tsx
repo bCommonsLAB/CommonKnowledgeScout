@@ -21,6 +21,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -141,6 +142,34 @@ export function LibraryAdvancedForm() {
                       value={field.value}
                       onChange={field.onChange}
                     />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Scan-Ausschluss (Welle 0b) */}
+        <Card>
+          <CardContent className="space-y-3 pt-6">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Speicher-Abgleich
+            </h3>
+            <FormField
+              control={form.control}
+              name="scanExcludeGlobs"
+              render={({ field }) => (
+                <FormItem className="rounded-lg border p-4">
+                  <FormLabel className="text-base">Ausschluss-Muster fuer Scans</FormLabel>
+                  <FormDescription>
+                    Ein Muster pro Zeile. Ohne Schraegstrich wirkt es auf jeden
+                    Ordner-/Dateinamen (z.&nbsp;B. <code>temp</code>, <code>*.tmp</code>),
+                    mit Schraegstrich auf den Pfad ab Bibliothekswurzel
+                    (z.&nbsp;B. <code>alt/archiv/**</code>). Uebersprungenes wird im
+                    Abgleich-Bericht gezaehlt, nie still ausgelassen.
+                  </FormDescription>
+                  <FormControl>
+                    <Textarea rows={3} placeholder={"temp\n*.tmp"} {...field} />
                   </FormControl>
                 </FormItem>
               )}

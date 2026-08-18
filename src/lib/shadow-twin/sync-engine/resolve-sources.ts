@@ -20,6 +20,7 @@
 
 import { getAllShadowTwins, getShadowTwinsBySourceIds, type ShadowTwinDocument } from '@/lib/repositories/shadow-twin-repo'
 import { parseArtifactName } from '@/lib/shadow-twin/artifact-naming'
+import { compileExcludeGlobs, isExcludedPath } from './scan-exclude'
 import { isShadowTwinFolderName } from '@/lib/storage/shadow-twin-folder-name'
 import type { StorageItem, StorageProvider } from '@/lib/storage/types'
 import type { FolderCache } from './folder-cache'
@@ -64,8 +65,12 @@ export async function resolveSources(args: {
   scope: LibrarySyncScope
   folderCache: FolderCache
   provider: StorageProvider
-}): Promise<{ pairs: SourcePair[]; scannedFiles?: number; skippedWithoutDoc: number }> {
+  /** Ausschluss-Muster der Library (Welle 0b, `config.scanExcludeGlobs`). */
+  excludeGlobs?: readonly string[]
+}): Promise<{ pairs: SourcePair[]; scannedFiles?: number; skippedWithoutDoc: number; skippedExcluded: number }> {
   const { libraryId, scope, folderCache, provider } = args
+  const exclude = compileExcludeGlobs(args.excludeGlobs)
+  let skippedExcluded = 0
 
   if (scope.sourceIds?.length) {
     const docs = await getShadowTwinsBySourceIds({ libraryId, sourceIds: scope.sourceIds })
@@ -87,7 +92,7 @@ export async function resolveSources(args: {
       }
       pairs.push({ doc, sourceItem })
     }
-    return { pairs, skippedWithoutDoc }
+    return { pairs, skippedWithoutDoc, skippedExcluded: 0 }
   }
 
   // Storage-getrieben: Dateien rekursiv sammeln, Twin-Ordner NICHT als Quellen scannen.
@@ -98,18 +103,32 @@ export async function resolveSources(args: {
   const rootId = scope.folderId ?? 'root'
   const queue: string[] = [rootId]
   const folderPathLength = new Map<string, number>([[rootId, 0]])
+  // Relative Pfade nur fuer den Ausschluss-Abgleich mitfuehren (Wurzel = '').
+  const folderRelPath = new Map<string, string>([[rootId, '']])
   const filePathLength = new Map<string, number>()
   while (queue.length > 0) {
     const current = queue.shift() as string
     const currentPathLength = folderPathLength.get(current) ?? 0
+    const currentRelPath = folderRelPath.get(current) ?? ''
     const items = await folderCache.list(current)
     const folderFiles = items.filter((it) => it.type === 'file')
     for (const item of items) {
+      const relPath = currentRelPath ? `${currentRelPath}/${item.metadata.name}` : item.metadata.name
       if (item.type === 'folder') {
         if (scope.recursive !== false && !isShadowTwinFolderName(item.metadata.name)) {
+          // Ausschluss-Muster (Welle 0b): Teilbaum ueberspringen, aber ZAEHLEN.
+          if (isExcludedPath(relPath, exclude)) {
+            skippedExcluded++
+            continue
+          }
           folderPathLength.set(item.id, currentPathLength + item.metadata.name.length + 1)
+          folderRelPath.set(item.id, relPath)
           queue.push(item.id)
         }
+        continue
+      }
+      if (isExcludedPath(relPath, exclude)) {
+        skippedExcluded++
         continue
       }
       // Sibling-Artefakte sind keine eigenen Quellen (sie haengen an ihrer Quelle).
@@ -139,5 +158,5 @@ export async function resolveSources(args: {
 
   // skippedWithoutDoc zaehlt der Orchestrator: erst nach der Artefakt-Suche ist
   // klar, ob eine doc-lose Datei adoptierbar ist oder wirklich nichts traegt.
-  return { pairs, scannedFiles: files.length, skippedWithoutDoc: 0 }
+  return { pairs, scannedFiles: files.length, skippedWithoutDoc: 0, skippedExcluded }
 }
