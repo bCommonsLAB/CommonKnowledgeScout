@@ -10,7 +10,7 @@
  */
 
 import { GAP_REGISTRY } from './gap-registry'
-import { BEARBEITUNGSSTAND_VALUES, type Bearbeitungsstand, type CoverageGapType, type GapActor } from './types'
+import { BEARBEITUNGSSTAND_VALUES, type Bearbeitungsstand, type CoverageGapType, type GapActor, type ZyklusSchritt } from './types'
 
 const ACTOR_LABELS: Record<GapActor, string> = {
   mensch: 'Mensch',
@@ -21,6 +21,20 @@ const ACTOR_LABELS: Record<GapActor, string> = {
 export function actorLabel(actor: GapActor): string {
   const label = ACTOR_LABELS[actor]
   if (!label) throw new Error(`Unbekannter Akteur: ${String(actor)}`)
+  return label
+}
+
+/** Schritte des Erschliessungszyklus (`erschliessungszyklus.md` §1). */
+const ZYKLUS_LABELS: Record<ZyklusSchritt, string> = {
+  1: 'Schritt 1 — Sichten',
+  2: 'Schritt 2 — Strukturieren',
+  3: 'Schritt 3 — Berichten',
+  4: 'Schritt 4 — Abnehmen',
+}
+
+export function zyklusSchrittLabel(schritt: ZyklusSchritt): string {
+  const label = ZYKLUS_LABELS[schritt]
+  if (!label) throw new Error(`Unbekannter Zyklus-Schritt: ${String(schritt)}`)
   return label
 }
 
