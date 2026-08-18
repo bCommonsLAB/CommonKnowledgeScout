@@ -15,6 +15,7 @@ import { LibraryService } from '@/lib/services/library-service'
 import { FileLogger } from '@/lib/debug/logger'
 import { generateShadowTwinFolderName } from '@/lib/storage/shadow-twin'
 import { persistOcrImages, freezeMarkdownImageUrls } from '@/lib/shadow-twin/media-persistence-service'
+import { stampTwinCoreFrontmatter } from '@/lib/shadow-twin/twin-core-stamp'
 import path from 'path'
 
 /** Letztes URL-Segment ohne Query (Azure-Blob-Name / Dateiname) */
@@ -207,13 +208,20 @@ export async function persistShadowTwinToMongo(args: {
   zipArchives?: Array<{ base64Data: string; fileName: string; variantHint?: 'page-render' }>
   /** Optional: Job-ID für Logging */
   jobId?: string
+  /**
+   * Optional: Actor des Generierungsereignisses (OKF-Schreibweise, z. B.
+   * `knowledgescout/pipeline`). Wenn gesetzt, stempelt der Writer den
+   * Twin-Kern ins Frontmatter (Twin-Datei-Contract §4.1). Ohne Angabe kein
+   * Stempel — Uebernahme-/Editier-Pfade sind keine Generierung.
+   */
+  generatedBy?: string
 }): Promise<{
   markdown: string
   imageCount: number
   imageErrorsCount: number
   diagnostics: PersistShadowTwinDiagnostics
 }> {
-  const { libraryId, userEmail, sourceItem, provider, artifactKey, markdown, shadowTwinFolderId, zipArchives, jobId } = args
+  const { libraryId, userEmail, sourceItem, provider, artifactKey, markdown, shadowTwinFolderId, zipArchives, jobId, generatedBy } = args
 
   // Bild-Persistenz ist seit Phase 2 vollstaendig in `persistOcrImages` zentralisiert.
   // Die Funktion entscheidet auf Basis der `MediaStorageStrategy` (azure-only, azure-with-fs-backup,
@@ -404,6 +412,20 @@ export async function persistShadowTwinToMongo(args: {
     }
   } else {
     markdownToPersist = rewriteMarkdownAzureUrlsToCanonicalFileNames(processed.markdown, urlToCanonical)
+  }
+
+  // Twin-Kern-Stempel (Contract §4.1) — nur bei echten Generierungsereignissen
+  // (generatedBy gesetzt) und VOR dem Persist: Die Rueckgabe fliesst beim
+  // Aufrufer in den Dateisystem-Spiegel (writeArtifact), damit Mongo und
+  // Spiegel dieselbe gestempelte Fassung tragen.
+  if (generatedBy) {
+    markdownToPersist = stampTwinCoreFrontmatter(markdownToPersist, {
+      kind: artifactKey.kind,
+      targetLanguage: artifactKey.targetLanguage,
+      templateName: artifactKey.templateName,
+      sourceFileName: sourceItem.metadata.name,
+      generatedBy,
+    })
   }
 
   // Verwende ShadowTwinService für zentrale Store-Entscheidung

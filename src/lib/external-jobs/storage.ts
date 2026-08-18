@@ -231,6 +231,8 @@ export async function saveMarkdown(args: SaveMarkdownArgs): Promise<SaveMarkdown
         shadowTwinFolderId: shadowTwinFolderId || undefined,
         zipArchives: zipArchives && zipArchives.length > 0 ? zipArchives : undefined,
         jobId: jobId || ctx.jobId,
+        // Pipeline-Save ist ein Generierungsereignis → Twin-Kern stempeln (Contract §4.1)
+        generatedBy: 'knowledgescout/pipeline',
       })
       mongoMarkdown = mongoResult.markdown
       
