@@ -18,9 +18,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCoverageReport } from '@/hooks/agent-view/use-coverage-report'
 import { CoverageSummary } from './coverage-summary'
 import { CoverageTree } from './coverage-tree'
+import { TodoListsPanel } from './todo-lists-panel'
 import { ZyklusBoard } from './zyklus-board'
 
-export function AgentViewPanel({ libraryId }: { libraryId: string | undefined }) {
+export interface AgentViewPanelProps {
+  libraryId: string | undefined
+  /** Anzeigename der Library (Kontextkopf des Auftrags-Generators). */
+  libraryLabel?: string
+  /** `config.agentView.localRootPath` — absolute Pfade im Auftrag (F3). */
+  localRootPath?: string | null
+}
+
+export function AgentViewPanel({ libraryId, libraryLabel, localRootPath }: AgentViewPanelProps) {
   const { data, isLoading, isScanning, neverScanned, error, scan } = useCoverageReport(libraryId)
 
   if (!libraryId) {
@@ -77,12 +86,21 @@ export function AgentViewPanel({ libraryId }: { libraryId: string | undefined })
             <TabsList>
               <TabsTrigger value="baum">Baum</TabsTrigger>
               <TabsTrigger value="board">Zyklus-Board</TabsTrigger>
+              <TabsTrigger value="todos">Todos &amp; Auftrag</TabsTrigger>
             </TabsList>
             <TabsContent value="baum" className="mt-3">
               <CoverageTree report={data.report} />
             </TabsContent>
             <TabsContent value="board" className="mt-3">
               <ZyklusBoard report={data.report} />
+            </TabsContent>
+            <TabsContent value="todos" className="mt-3">
+              <TodoListsPanel
+                report={data.report}
+                generatedAt={data.generatedAt}
+                libraryLabel={libraryLabel ?? libraryId}
+                localRootPath={localRootPath ?? null}
+              />
             </TabsContent>
           </Tabs>
         </>
