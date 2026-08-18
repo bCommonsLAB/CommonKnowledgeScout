@@ -14,6 +14,7 @@ import { upsertShadowTwinArtifact, getShadowTwinBinaryFragments } from '@/lib/re
 import { AzureStorageService, calculateImageHash } from '@/lib/services/azure-storage-service'
 import { getAzureStorageConfig } from '@/lib/config/azure-storage'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
+import { stampTwinCoreFrontmatter } from '@/lib/shadow-twin/twin-core-stamp'
 import { FileLogger } from '@/lib/debug/logger'
 import { getFileKind, getMimeTypeFromFileName } from '@/lib/shadow-twin/file-kind'
 import path from 'path'
@@ -491,6 +492,21 @@ export async function upsertArtifactFromPrepared(args: {
   // Relative Bild-Pfade -> Azure-URLs
   if (markdownContent && prepared.imageUrlMap.size > 0) {
     markdownContent = rewriteMarkdownImageUrls(markdownContent, prepared.imageUrlMap)
+  }
+
+  // Twin-Kern-Stempel (Welle 0g): Adoption ist das Ereignis, das dieses
+  // Mongo-Artefakt erzeugt — Producer `knowledgescout/adoption` (die
+  // urspruengliche Herkunft der Legacy-Datei ist unbekannt und wird nicht
+  // erfunden). Strukturfelder nur fuellen, wenn sie fehlen; canonical/raw
+  // bleiben unangetastet (stampTwinCoreFrontmatter selbst ist die Wache).
+  if (markdownContent) {
+    markdownContent = stampTwinCoreFrontmatter(markdownContent, {
+      kind: artifactKey.kind,
+      sourceFileName: sourceItem.metadata.name,
+      targetLanguage: artifactKey.targetLanguage,
+      templateName: artifactKey.templateName,
+      generatedBy: 'knowledgescout/adoption',
+    })
   }
 
   await upsertShadowTwinArtifact({
