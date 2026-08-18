@@ -496,6 +496,8 @@ export class LibraryService {
         // Transformation: DIVA-Liefersystem-Auswertung (Feature-Flag, kein Secret)
         analyzeDivaTextureInfo: lib.config?.analyzeDivaTextureInfo === true,
         scanExcludeGlobs: Array.isArray(lib.config?.scanExcludeGlobs) ? lib.config.scanExcludeGlobs : [],
+        // Agentensicht-Konventionen (Welle 1/3): reine Scan-/Anzeige-Regeln, kein Secret.
+        agentView: lib.config?.agentView,
         // Plan 2 · W-C: Kuratierung der „Inhalte erfassen"-Wizards (kein Secret).
         captureWizards: lib.config?.captureWizards,
         // Stufe 4: Schwellwert fuer Auto-Uebernahme der Stoffgruppen-
