@@ -89,7 +89,7 @@ der Maschine, die sie liefert:
 | `orphan_twin` | Twin ohne Quelle (Mongo ohne Storage-Fund oder verwaister `_`-Ordner) | Engine-Scan (vorhanden) |
 | `conflict` | Spiegel und Mongo divergieren | Engine-Check (vorhanden) |
 | `twin_stale` | Quelle jünger als ihr Twin | Freshness-Prüfung (vorhanden) |
-| `transformation_missing` | Quelle mit Transkript, aber ohne Transformation nach dem Standard-Template der Library | neu |
+| `transformation_missing` | Quelle mit Transkript, aber ohne Transformation nach dem zum Typ passenden Standard-Template (Typ-Registry, Welle 0f; bis dahin das Einzel-Template) | neu |
 | `transformation_stale` | Transkript jünger als die Transformation (z. B. nach Wortlaut-Korrektur) | neu, informativ |
 | `core_fields_missing` | A0-Pflichtfelder fehlen | Library-Verifikation A1 (vorhanden) |
 | `twin_core_missing` | Twin-Kern (Contract §3.1) fehlt | neu (Regel-Registry) |
@@ -150,7 +150,9 @@ Cowork-Session:
   „Danach verschwinden die Gaps X, Y im nächsten Scan."
 - Ausgabe in v1: **Clipboard only** — keine `auftraege/`-Dateien, keine
   API-Kopplung. Der Transport ist bewusst Copy-Paste; eine spätere Dateiablage
-  läuft über kontrollierte Schreibwege (Richtung ADR-0004).
+  läuft über kontrollierte Schreibwege (Richtung ADR-0004). **Welle 5 (MCP)
+  ersetzt den Copy-Paste-Transport**: Der Agent holt sich Auftrag und
+  Werkzeuge dann selbst; der Generator bleibt als menschenlesbare Fassung.
 - Jeder Auftrag endet mit einem **Konsistenz-Rückmeldungsblock**: „Melde
   zurück, wo deine Sicht der Dateien dieser Coverage widerspricht." So prüft
   jede Cowork-Session die Sicht gegen, wie die Sicht die Dateien prüft — die
@@ -195,11 +197,16 @@ leistet die jeweils nächste Cowork-Session über den Rückmeldungsblock).
 
 | Welle | Inhalt | Ergebnis |
 |---|---|---|
-| 0 | Twin-Kern-Feldsatz (`TWIN_CORE_FIELDS`; Pipeline-Writer setzt `generated_*`) · Ausschluss-Globs als Library-Config-Feld (Checkliste `library-config-field.mdc`) | Fundament: Pipeline schreibt den Kern, Scans haben einen Zaun |
+| 0a ✓ | Twin-Kern-Feldsatz + Writer-Stempel am Pipeline-Engpass (PR #162) | umgesetzt, im Pilot bewiesen |
+| 0b | Ausschluss-Globs als Library-Config-Feld (Checkliste `library-config-field.mdc`) | Scans haben einen Zaun |
+| 0c ✓ / 0d ✓ | Sidecar-Adoption (PR #163) · Handkorrektur-Vorrang + Kombi-Fehlerkennung (PR #164) | umgesetzt, im Pilot bewiesen |
+| 0e | `familie_umziehen` als Funktion: Import → Quelle verschieben/umbenennen → DB-Namen nachziehen → alten Spiegel löschen → Export (Engine-Op + API) | Umzüge nach der Erschließung sind ein Handgriff (Zyklus v2 §3) |
+| 0f | Typ-Template-Registry: Library-Config-Map `doc_type → Template` (Fallback: bisheriges Einzel-Template), Typ-Erkennungsschritt nach dem Transkript, Standard-Typ-Templates (konzept, email-diktat, besprechung, notiz) | richtige Vorlage je Inhaltstyp (Zyklus v2 §2) |
 | 1 | Coverage-Service als Komposition + neue Gap-Regeln (vollständige Tabelle in F2 — inkl. Soll/Ist, Verweis-Audit, Familien-Regeln) + Report-Cache + API (ohne UI) | Coverage als JSON; Unit-Test je neuem Gap-Typ |
 | 2 | Baum-UI read-only (Ampeln, Zähler, Sammel-Gaps) + Zyklus-Board (F1b) neben „Archiv" | Sicht sichtbar |
 | 3 | Auftrags-Generator (Vorlage je Gap-Typ, Clipboard) + Todo-Listen nach Akteur | Lücke → Auftrag in < 1 Min |
 | 4 | Kurations-Patch-Route (Contract §4: Feld-Patch, Erhalt unbekannter Felder, Drift-Guard) + Inline-Verifikation | Kuration im Baum |
+| 5 | **MCP-Brücke**: KnowledgeScout als MCP-Server — Werkzeuge `erschliessen` (Jobs + Status), `pruefen`/`reparieren`/`import`/`export`, `familie_umziehen`, `abdeckung_lesen`; dünne Schicht über den bestehenden Services, Auth per API-Key | „Räum diesen Ordner auf" als EIN Cowork-Auftrag statt Copy-Paste (Zyklus v2 §7) |
 
 Branch-, Diff- und PR-Regeln nach `AGENTS.md` (eine PR pro Welle,
 Hand-off-Block). Welle 3 kommt vor 4, weil der Generator keinen Schreibweg
