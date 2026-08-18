@@ -120,10 +120,15 @@ async function executeOperation(ctx: ExecuteSourceContext, op: SyncOperation): P
     }
     case 'adopt-storage-only-source':
       // Welle 5a: Quelle ohne Mongo-Dokument — Uebernahme via Migrations-Writer.
+      // Welle 0c: Ordner der Quelle mitgeben (Folder-Cache, kein Extra-Call),
+      // damit auch Sidecar-Artefakte des Legacy-Layouts geladen werden. Nach
+      // Rename/Split ist der Cache invalidiert -> die Liste ist aktuell.
       await executeAdoption({
         libraryId: ctx.libraryId, userEmail: ctx.userEmail, provider: ctx.provider,
         sourceId: ctx.sourceId, sourceItem: ctx.sourceItem,
-        shadowTwinFolderId: ctx.shadowTwinFolderId, operation: op,
+        shadowTwinFolderId: ctx.shadowTwinFolderId,
+        parentItems: await ctx.folderCache.list(ctx.parentId),
+        operation: op,
       })
       return
     case 'delete-inferior-variant':

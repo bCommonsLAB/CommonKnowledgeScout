@@ -145,12 +145,12 @@ export function planNameMigration(input: NameMigrationInput): NameMigrationPlan 
       newFileName: target, note,
     })
     notes.push(note)
-    if (file.inTwinFolder) {
-      adoptableAfterMigration.push({
-        fileName: target, kind: 'transformation',
-        targetLanguage: file.targetLanguage, templateName: input.templateName as string,
-      })
-    }
+    // Welle 0c: auch Sidecar-Ziele sind adoptierbar (der Executor laedt jetzt
+    // Twin-Ordner UND Nachbardateien der Quelle) — kein `inTwinFolder`-Gate mehr.
+    adoptableAfterMigration.push({
+      fileName: target, kind: 'transformation',
+      targetLanguage: file.targetLanguage, templateName: input.templateName as string,
+    })
   }
 
   if (input.combined) {
@@ -168,12 +168,11 @@ export function planNameMigration(input: NameMigrationInput): NameMigrationPlan 
         newFileName: target, markdown: input.combined.markdown, note,
       })
       notes.push(note)
-      if (input.combined.inTwinFolder) {
-        adoptableAfterMigration.push({
-          fileName: target, kind: 'transformation',
-          targetLanguage: input.splitTargetLanguage, templateName: input.templateName as string,
-        })
-      }
+      // Welle 0c: siehe oben — Sidecar-Kopien sind ebenfalls adoptierbar.
+      adoptableAfterMigration.push({
+        fileName: target, kind: 'transformation',
+        targetLanguage: input.splitTargetLanguage, templateName: input.templateName as string,
+      })
     }
   }
 

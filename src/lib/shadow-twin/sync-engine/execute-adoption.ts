@@ -8,11 +8,16 @@
  * jeweiligen Slot — mit dem ECHTEN Dateinamen, damit auch Legacy-Namen
  * ({base}.{lang}.md) ihren Inhalt finden.
  *
- * Guard (Welle 5c): Artefakte, deren Datei beim Ausfuehren NICHT im Twin-Ordner
- * liegt, werden uebersprungen und geloggt statt mit LEEREM Inhalt upsertet.
+ * Guard (Welle 5c): Artefakte, deren Datei beim Ausfuehren NICHT geladen werden
+ * konnte, werden uebersprungen und geloggt statt mit LEEREM Inhalt upsertet.
  * Das betrifft Namens-Migrations-Ziele, deren Rename/Split nicht lief
- * (z.B. import-Preset oder Rename-Fehler), und Sibling-Artefakte (der
- * Migrations-Writer laedt nur Twin-Ordner-Inhalte).
+ * (z.B. import-Preset oder Rename-Fehler).
+ *
+ * Welle 0c: Sidecar-Artefakte (Legacy-Layout `X.md` neben `X.pdf`, ohne
+ * `_`-Twin-Ordner) werden jetzt MIT adoptiert — der Aufrufer reicht die
+ * Dateien des Quell-Ordners durch, damit der Migrations-Writer sie laden kann.
+ * Vorher kannte der Planer sie, der Executor nicht: Die Adoption meldete
+ * Erfolg, uebernahm aber nichts.
  *
  * @module shadow-twin/sync-engine
  */
@@ -30,21 +35,24 @@ export async function executeAdoption(args: {
   sourceId: string
   sourceItem: StorageItem | null
   shadowTwinFolderId: string | null
+  /** Dateien im Ordner der Quelle (Welle 0c) — Quelle der Sidecar-Artefakte. */
+  parentItems: StorageItem[]
   operation: SyncOperation
 }): Promise<void> {
-  const { libraryId, userEmail, provider, sourceId, sourceItem, shadowTwinFolderId, operation } = args
+  const { libraryId, userEmail, provider, sourceId, sourceItem, shadowTwinFolderId, parentItems, operation } = args
   if (!sourceItem) throw new Error('adopt-storage-only-source ohne Quell-Item (Scan-Kontext fehlt)')
   if (!operation.artifacts?.length) throw new Error('adopt-storage-only-source ohne Artefakt-Liste')
 
   const prepared = await prepareSourceArtifacts({
     libraryId, userEmail, sourceItem, provider,
     shadowTwinFolderId: shadowTwinFolderId ?? undefined,
+    siblingItems: parentItems,
   })
   const availableLower = new Set(Array.from(prepared.markdownByName.keys(), (n) => n.toLowerCase()))
   const adoptable = operation.artifacts.filter((a) => availableLower.has(a.fileName.toLowerCase()))
   const skipped = operation.artifacts.filter((a) => !availableLower.has(a.fileName.toLowerCase()))
   if (skipped.length > 0) {
-    FileLogger.warn('shadow-twins/sync-engine', 'Adoption: Artefakt-Datei(en) nicht im Twin-Ordner — uebersprungen (kein Leer-Upsert)', {
+    FileLogger.warn('shadow-twins/sync-engine', 'Adoption: Artefakt-Datei(en) weder im Twin-Ordner noch neben der Quelle ladbar — uebersprungen (kein Leer-Upsert)', {
       sourceId, skipped: skipped.map((a) => a.fileName),
     })
   }
