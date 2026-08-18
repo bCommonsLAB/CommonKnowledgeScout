@@ -90,6 +90,19 @@ export async function resolveSources(args: {
         skippedWithoutDoc++
         continue
       }
+      // Welle 0g: Artefakt-Dateien sind KEINE eigenen Quellen — sonst erzeugt
+      // der Datei-Oeffnen-Abgleich (Lazy-Resolve/auto-sync) Rausch-Twins fuer
+      // `X.md` neben `X.pdf` bzw. fuer Dateien im `_`-Twin-Ordner. Der
+      // Ordner-Scan filtert das seit jeher; hier zog die Pruefung nie mit.
+      if (!doc && sourceItem && sourceItem.metadata.name.toLowerCase().endsWith('.md')) {
+        const parentItems = await folderCache.list(sourceItem.parentId)
+        const parentFolder = await provider.getItemById(sourceItem.parentId).catch(() => null)
+        const inTwinFolder = !!parentFolder && isShadowTwinFolderName(parentFolder.metadata.name)
+        if (inTwinFolder || isArtifactOfSibling(sourceItem, parentItems.filter((it) => it.type === 'file'))) {
+          skippedWithoutDoc++
+          continue
+        }
+      }
       pairs.push({ doc, sourceItem })
     }
     return { pairs, skippedWithoutDoc, skippedExcluded: 0 }

@@ -4,6 +4,7 @@ import * as React from "react"
 import { useSearchParams } from "next/navigation"
 import {
   RefreshCw,
+  ClipboardPaste,
   Trash2,
   Folder as FolderIcon,
   FolderSync,
@@ -897,72 +898,127 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
     }
   }, [provider, handleRefresh, fileGroupsWithShadowTwinFolders, setSelectedFile, setSelectedBatchItems, findFileGroup]);
 
-  const handleRename = React.useCallback(async (item: StorageItem, newName: string) => {
-    if (!provider) {
-      toast.error("Fehler", {
-        description: "Storage Provider nicht verfügbar"
-      });
+  // ── Familien-Umzug (Welle 0e): Umbenennen/Verschieben inkl. Twin-Ordner + DB ──
+  // Dateien laufen ueber die move-family-Route (Import → bewegen → DB → Export);
+  // Ordner haben keine Twin-Familie und nutzen den Provider direkt.
+  const moveFamilyRequest = React.useCallback(async (
+    target: { id: string; type: string; name: string },
+    change: { newName?: string; newParentId?: string },
+  ) => {
+    if (target.type === 'folder') {
+      if (!provider) throw new Error('Storage Provider nicht verfügbar');
+      if (change.newName) await provider.renameItem(target.id, change.newName);
+      if (change.newParentId) await provider.moveItem(target.id, change.newParentId);
       return;
     }
+    if (!activeLibraryId) throw new Error('Keine aktive Bibliothek');
+    const res = await fetch(`/api/library/${encodeURIComponent(activeLibraryId)}/shadow-twins/move-family`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sourceId: target.id, ...change }),
+    });
+    const json = await res.json().catch(() => ({})) as { error?: string };
+    if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+  }, [provider, activeLibraryId]);
 
+  const handleRename = React.useCallback(async (item: StorageItem, newName: string) => {
+    // Der Familien-Umzug dauert Sekunden (Import -> Umbenennen -> Export):
+    // ohne sichtbares Feedback klickt man weg und loest Doppel-Aktionen aus.
+    const loadingToast = item.type === 'file'
+      ? toast.loading('Familie zieht um …', { description: 'Sichern, Umbenennen, Spiegel neu aufbauen — kann einen Moment dauern.' })
+      : undefined;
     try {
-      // Finde die FileGroup für dieses Item
-      const itemStem = getBaseName(item.metadata.name);
-      const fileGroup = findFileGroup(fileGroupsWithShadowTwinFolders, itemStem);
-
-      if (fileGroup && item.id === fileGroup.baseItem?.id) {
-        // Dies ist die Basis-Datei - benenne auch abhängige Dateien um
-        const oldStem = getBaseName(item.metadata.name);
-        const newStem = getBaseName(newName);
-        // Benenne die Basis-Datei um
-        await provider.renameItem(item.id, newName);
-        // Benenne alle Transkripte um, falls vorhanden
-        if (fileGroup.transcriptFiles) {
-          for (const transcript of fileGroup.transcriptFiles) {
-            const transcriptName = transcript.metadata.name;
-            const newTranscriptName = transcriptName.replace(oldStem, newStem);
-            try {
-              await provider.renameItem(transcript.id, newTranscriptName);
-            } catch (error) {
-              FileLogger.error('FileList', 'Fehler beim Umbenennen des Transkripts', error);
-              toast.warning("Hinweis", {
-                description: "Einige Transkripte konnten nicht umbenannt werden"
-              });
-            }
-          }
-        }
-        // Benenne die transformierte Datei um, falls vorhanden
-        if (fileGroup.transformed) {
-          const transformedName = fileGroup.transformed.metadata.name;
-          const newTransformedName = transformedName.replace(oldStem, newStem);
-          try {
-            await provider.renameItem(fileGroup.transformed.id, newTransformedName);
-          } catch (error) {
-            FileLogger.error('FileList', 'Fehler beim Umbenennen der transformierten Datei', error);
-            toast.warning("Hinweis", {
-              description: "Die transformierte Datei konnte nicht umbenannt werden"
-            });
-          }
-        }
-        toast.success("Dateien umbenannt", {
-          description: `${item.metadata.name} und zugehörige Dateien wurden umbenannt.`
-        });
-      } else {
-        // Dies ist eine abhängige Datei oder keine Gruppe - nur diese Datei umbenennen
-        await provider.renameItem(item.id, newName);
-        toast.success("Datei umbenannt", {
-          description: `${item.metadata.name} wurde zu ${newName} umbenannt.`
-        });
-      }
+      await moveFamilyRequest(
+        { id: item.id, type: item.type, name: item.metadata.name },
+        { newName },
+      );
+      toast.success("Umbenannt", {
+        description: item.type === 'file'
+          ? `${item.metadata.name} wurde mitsamt Twin-Familie zu ${newName} umbenannt.`
+          : `${item.metadata.name} wurde zu ${newName} umbenannt.`,
+      });
       await handleRefresh();
     } catch (error) {
-      FileLogger.error('FileList', 'Fehler beim Umbenennen', error);
+      FileLogger.error('FileList', 'Fehler beim Umbenennen (Familien-Umzug)', error);
       toast.error("Fehler", {
-        description: `Die Datei konnte nicht umbenannt werden: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`
+        description: `Umbenennen fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`
       });
       throw error;
+    } finally {
+      if (loadingToast !== undefined) toast.dismiss(loadingToast);
     }
-  }, [provider, handleRefresh, fileGroupsWithShadowTwinFolders, findFileGroup]);
+  }, [moveFamilyRequest, handleRefresh]);
+
+  // Ausschneiden/Einfuegen: gemerkte Datei landet per Familien-Umzug im Zielordner.
+  const [cutItem, setCutItem] = React.useState<StorageItem | null>(null);
+
+  const handlePasteInto = React.useCallback(async (targetFolderId: string | null) => {
+    if (!cutItem || !targetFolderId) return;
+    if (cutItem.parentId === targetFolderId) { setCutItem(null); return; }
+    const loadingToast = toast.loading('Familie zieht um …', { description: 'Sichern, Verschieben, Spiegel neu aufbauen — kann einen Moment dauern.' });
+    try {
+      await moveFamilyRequest(
+        { id: cutItem.id, type: cutItem.type, name: cutItem.metadata.name },
+        { newParentId: targetFolderId },
+      );
+      toast.success("Verschoben", { description: `${cutItem.metadata.name} wurde mitsamt Twin-Familie verschoben.` });
+      setCutItem(null);
+      await handleRefresh();
+    } catch (error) {
+      FileLogger.error('FileList', 'Fehler beim Einfuegen (Familien-Umzug)', error);
+      toast.error("Fehler beim Verschieben", {
+        description: error instanceof Error ? error.message : 'Unbekannter Fehler'
+      });
+    } finally {
+      toast.dismiss(loadingToast);
+    }
+  }, [cutItem, moveFamilyRequest, handleRefresh]);
+
+  // Tastatur: Strg/Cmd+X merkt die aktive Datei, Strg/Cmd+V fuegt im aktuellen Ordner ein.
+  React.useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      if (!(e.ctrlKey || e.metaKey)) return;
+      if (e.key.toLowerCase() === 'x' && activeFile) {
+        setCutItem(activeFile);
+        toast.info("Zum Verschieben gemerkt", { description: `${activeFile.metadata.name} — mit Strg+V im Zielordner einfuegen.` });
+      } else if (e.key.toLowerCase() === 'v' && cutItem) {
+        void handlePasteInto(currentFolderId);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [activeFile, cutItem, currentFolderId, handlePasteInto]);
+
+  // Drag & Drop: FileRow setzt die Drag-Daten (application/json) — hier ist der Empfaenger.
+  const handleDropOnFolder = React.useCallback(async (e: React.DragEvent, folderId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const raw = e.dataTransfer.getData('application/json');
+      if (!raw) return;
+      const payload = JSON.parse(raw) as { items?: Array<{ itemId: string; itemName: string; itemType: string; parentId: string }> };
+      const first = payload.items?.[0];
+      if (!first || first.parentId === folderId || first.itemId === folderId) return;
+      const loadingToast = toast.loading('Familie zieht um …', { description: 'Sichern, Verschieben, Spiegel neu aufbauen — kann einen Moment dauern.' });
+      try {
+        await moveFamilyRequest(
+          { id: first.itemId, type: first.itemType, name: first.itemName },
+          { newParentId: folderId },
+        );
+        toast.success("Verschoben", { description: `${first.itemName} wurde mitsamt Twin-Familie verschoben.` });
+        await handleRefresh();
+      } finally {
+        toast.dismiss(loadingToast);
+      }
+    } catch (error) {
+      FileLogger.error('FileList', 'Fehler beim Drag&Drop (Familien-Umzug)', error);
+      toast.error("Fehler beim Verschieben", {
+        description: error instanceof Error ? error.message : 'Unbekannter Fehler'
+      });
+    }
+  }, [moveFamilyRequest, handleRefresh]);
 
   // Sammel-Transkript aus allen ausgewählten Dateien erstellen
   const [isCreatingComposite, setIsCreatingComposite] = React.useState(false);
@@ -1362,6 +1418,19 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
               <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
             </Button>
 
+            {cutItem && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => void handlePasteInto(currentFolderId)}
+                title={`"${cutItem.metadata.name}" hier einfuegen (Strg+V)`}
+                aria-label="Ausgeschnittene Datei hier einfuegen"
+              >
+                <ClipboardPaste className="h-4 w-4" />
+              </Button>
+            )}
+
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -1549,6 +1618,8 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                 tabIndex={0}
                 onClick={() => navigateToFolder(folder.id)}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigateToFolder(folder.id) }}
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }}
+                onDrop={(e) => void handleDropOnFolder(e, folder.id)}
                 className="w-full px-2 py-1 text-xs hover:bg-muted/50 grid grid-cols-[24px_minmax(0,1fr)] gap-2 items-center cursor-pointer"
               >
                 <Checkbox
@@ -1577,6 +1648,8 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
                 tabIndex={0}
                 onClick={() => navigateToFolder(folder.id)}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigateToFolder(folder.id) }}
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }}
+                onDrop={(e) => void handleDropOnFolder(e, folder.id)}
                 style={{ gridTemplateColumns: divaGridTemplate }}
                 className="w-full px-4 py-2 text-xs hover:bg-muted/50 grid gap-2 items-center cursor-pointer"
               >
