@@ -83,7 +83,6 @@ export const FileRow = React.memo(function FileRow({
   const [editName, setEditName] = React.useState(item.metadata.name);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const longPressTimerRef = React.useRef<NodeJS.Timeout | null>(null);
-  const lastClickTimeRef = React.useRef<number>(0);
 
   // Zusaetzliche Validierung der Metadaten (defensive gegen Provider-Drift)
   const metadata = React.useMemo(() => ({
@@ -96,12 +95,6 @@ export const FileRow = React.memo(function FileRow({
 
   const handleClick = React.useCallback(() => {
     if (!isEditing) {
-      onSelect();
-    }
-  }, [onSelect, isEditing]);
-
-  const handleKeyDown = React.useCallback((e: React.KeyboardEvent) => {
-    if (!isEditing && (e.key === 'Enter' || e.key === ' ')) {
       onSelect();
     }
   }, [onSelect, isEditing]);
@@ -125,20 +118,30 @@ export const FileRow = React.memo(function FileRow({
     }
   }, [onRename, item, fileGroup]);
 
-  // Doppelklick-Erkennung auf den Datei-Namen.
+  const handleKeyDown = React.useCallback((e: React.KeyboardEvent) => {
+    if (!isEditing && (e.key === 'Enter' || e.key === ' ')) {
+      onSelect();
+    }
+    // F2 = Umbenennen (Explorer-Konvention) — unabhaengig vom Doppelklick.
+    if (!isEditing && e.key === 'F2') {
+      e.preventDefault();
+      startRename();
+    }
+  }, [onSelect, isEditing, startRename]);
+
+
+  // Doppelklick-Erkennung auf den Datei-Namen — ueber den NATIVEN Klickzaehler
+  // (e.detail), nicht ueber eigene Zeitmessung: Der erste Klick oeffnet die
+  // Vorschau (teuer, blockiert oft >300ms), womit eine JS-seitige
+  // Zeitmessung den zweiten Klick faelschlich als neuen Erstklick wertete
+  // und immer wieder nur die Vorschau oeffnete.
   const handleNameClick = React.useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-
-    const currentTime = Date.now();
-    const timeSinceLastClick = currentTime - lastClickTimeRef.current;
-
-    if (timeSinceLastClick < 300) {
+    if (e.detail >= 2) {
       startRename();
     } else {
       onSelect();
     }
-
-    lastClickTimeRef.current = currentTime;
   }, [startRename, onSelect]);
 
   // Long-Press auf Touch-Geraeten (500ms) → Rename-Modus.
