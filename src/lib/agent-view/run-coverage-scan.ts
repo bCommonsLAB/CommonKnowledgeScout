@@ -10,6 +10,9 @@
  * @module agent-view
  */
 
+import { parseFacetDefs } from '@/lib/chat/dynamic-facets'
+import { createMongoDocumentSource } from '@/lib/library-verification/document-source'
+import { runLibraryVerification } from '@/lib/library-verification/verify-engine'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { getAllShadowTwins, readTranscriptRecord, type ShadowTwinArtifactRecord, type ShadowTwinDocument } from '@/lib/repositories/shadow-twin-repo'
 import { LibraryService } from '@/lib/services/library-service'
@@ -96,6 +99,20 @@ export async function scanLibraryCoverage(args: ScanLibraryCoverageArgs): Promis
         scope: folderId ? { folderId } : {},
       }),
     loadTwinFamilies: async () => (await getAllShadowTwins(libraryId)).map(toRawTwinFamily),
+    // A1 unveraendert wiederverwenden (check-Modus, ohne SSE): der Generator
+    // wird bis zum Ende gefahren, der Rueckgabewert ist der Bericht.
+    runFieldVerification: async () => {
+      const generator = runLibraryVerification({
+        libraryId,
+        mode: 'check',
+        libraryDetailViewType: library.config?.chat?.gallery?.detailViewType,
+        facetDefs: parseFacetDefs(library),
+        source: createMongoDocumentSource(library),
+      })
+      let next = await generator.next()
+      while (!next.done) next = await generator.next()
+      return next.value.documents
+    },
     now: args.now ?? (() => new Date().toISOString()),
   }
 

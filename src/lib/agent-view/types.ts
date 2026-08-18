@@ -37,6 +37,8 @@ export type CoverageGapType =
   | 'twin_stale'
   | 'legacy_twin_name'
   | 'path_too_long'
+  // — Library-Verifikation A1 (vorhanden, wird nur uebersetzt) —
+  | 'core_fields_missing'
   // — Twin-Kern-/Verifikations-Regeln (Contract §3) —
   | 'twin_core_missing'
   | 'twin_unverified'

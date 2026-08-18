@@ -4,6 +4,7 @@ import type { ArchiveFolderNode, ArchiveScanResult } from '@/lib/agent-view/arch
 import type { RawTwinFamily } from '@/lib/agent-view/coverage-inputs'
 import type { LibrarySyncReport, SourceSyncReportRow } from '@/lib/shadow-twin/sync-engine/report-types'
 import type { CoverageConventions } from '@/lib/agent-view/types'
+import type { DocumentVerificationResult } from '@/lib/library-verification/types'
 
 const STANDARD = 'standard-konzept'
 const NOW = '2026-08-18T12:00:00.000Z'
@@ -100,11 +101,17 @@ function makePorts(args: {
   archive: ArchiveScanResult
   report: LibrarySyncReport
   families: RawTwinFamily[]
+  fieldDocuments?: DocumentVerificationResult[]
+  fieldError?: string
 }): CoverageScanPorts {
   return {
     scanArchive: async () => args.archive,
     runSyncCheck: async () => args.report,
     loadTwinFamilies: async () => args.families,
+    runFieldVerification: async () => {
+      if (args.fieldError) throw new Error(args.fieldError)
+      return args.fieldDocuments ?? []
+    },
     now: () => NOW,
   }
 }
@@ -120,6 +127,8 @@ async function scan(overrides: {
   berichtBody?: string
   rows?: SourceSyncReportRow[]
   families?: RawTwinFamily[]
+  fieldDocuments?: DocumentVerificationResult[]
+  fieldError?: string
 } = {}) {
   const archive: ArchiveScanResult = {
     folders: folders({
@@ -129,7 +138,16 @@ async function scan(overrides: {
     skippedExcluded: 3,
   }
   const rows = overrides.rows ?? [syncRow({}), syncRow({ sourceId: 'src-2', sourceName: 'Rest.pdf', transcriptStatus: 'empty' })]
-  return runCoverageScan(REQUEST, makePorts({ archive, report: syncReport(rows), families: overrides.families ?? [verifiedFamily()] }))
+  return runCoverageScan(
+    REQUEST,
+    makePorts({
+      archive,
+      report: syncReport(rows),
+      families: overrides.families ?? [verifiedFamily()],
+      fieldDocuments: overrides.fieldDocuments,
+      fieldError: overrides.fieldError,
+    }),
+  )
 }
 
 describe('coverage-service — Komposition', () => {
@@ -188,6 +206,31 @@ describe('coverage-service — Komposition', () => {
     const [erster, zweiter] = [await scan(), await scan()]
     expect(zweiter).toEqual(erster)
     expect(JSON.stringify(zweiter)).toBe(JSON.stringify(erster))
+  })
+
+  it('uebersetzt A1-Basisfeld-Befunde in core_fields_missing und isoliert A1-Fehler', async () => {
+    const fieldDocuments: DocumentVerificationResult[] = [
+      {
+        fileId: 'src-1',
+        fileName: 'Aufnahme.m4a',
+        issues: [
+          { code: 'missing-base-field', severity: 'error', field: 'authors', message: 'fehlt', autoFixable: false },
+          { code: 'facet-type-mismatch', severity: 'warning', field: 'tags', message: 'anders', autoFixable: false },
+        ],
+        ok: false,
+      },
+    ]
+    const report = await scan({ fieldDocuments })
+    const fieldGaps = report.gaps.filter((g) => g.type === 'core_fields_missing')
+    expect(fieldGaps).toHaveLength(1)
+    expect(fieldGaps[0].folderId).toBe('f-pilot')
+    expect(fieldGaps[0].detail).toBe('authors')
+
+    // A1-Fehler bricht den Scan nicht ab, sondern wird als scan_error sichtbar.
+    const kaputt = await scan({ fieldError: 'Mongo nicht erreichbar' })
+    const scanErrors = kaputt.gaps.filter((g) => g.type === 'scan_error')
+    expect(scanErrors.some((g) => g.detail === 'Mongo nicht erreichbar')).toBe(true)
+    expect(kaputt.tree.length).toBeGreaterThan(0)
   })
 
   it('routet Befunde an den zustaendigen Akteur (Todo-Routing F2)', async () => {

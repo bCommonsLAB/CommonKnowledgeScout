@@ -21,19 +21,22 @@
  * @module agent-view
  */
 
+import type { DocumentVerificationResult } from '@/lib/library-verification/types'
 import type { LibrarySyncReport } from '@/lib/shadow-twin/sync-engine/report-types'
 import { compileVorhabenPattern, evaluateArchiveRules } from './archive-rules'
 import type { ArchiveScanResult } from './archive-types'
 import { buildFileIndex, buildNewestChangeBySubtree, locateFamilies, type RawTwinFamily } from './coverage-inputs'
 import { auditAllDocuments } from './document-audit'
 import { gapsFromSyncReport, type SourceLocation } from './engine-gaps'
+import { gapsFromFieldVerification } from './field-gaps'
 import { applyGapBudget } from './gap-budget'
-import { sortGaps } from './gap-registry'
+import { createGap, sortGaps } from './gap-registry'
 import { orphanTwinDocuments, orphanTwinFolders } from './inventory-gaps'
 import { checkStandWiderspruch } from './stand-widerspruch'
 import { buildTree } from './tree-builder'
 import { evaluateTwinRules, type TwinFamilyView } from './twin-rules'
-import type { CoverageConventions, CoverageGap, CoverageGapType, CoverageReport, CoverageTotals, GapCountByActor, GapCountByType } from './types'
+import { buildTotals } from './coverage-totals'
+import type { CoverageConventions, CoverageGap, CoverageGapType, CoverageReport } from './types'
 import { buildVorhabenCards } from './vorhaben-board'
 
 /** Aussenzugriffe des Scans — in Tests vollstaendig ersetzbar. */
@@ -41,6 +44,12 @@ export interface CoverageScanPorts {
   scanArchive(args: { rootFolderId: string; excludeGlobs: readonly string[] }): Promise<ArchiveScanResult>
   runSyncCheck(args: { folderId: string | null }): Promise<LibrarySyncReport>
   loadTwinFamilies(): Promise<RawTwinFamily[]>
+  /**
+   * Library-Verifikation A1 im check-Modus (nur die Befund-Dokumente).
+   * Die Feld-Pruefung bleibt bei A1 — die Sicht uebersetzt nur
+   * `missing-base-field` (F2: `core_fields_missing`).
+   */
+  runFieldVerification(): Promise<DocumentVerificationResult[]>
   /** Zeitquelle (injiziert, damit Reports reproduzierbar testbar sind). */
   now(): string
 }
@@ -54,16 +63,6 @@ export interface CoverageScanRequest {
   conventions: CoverageConventions
 }
 
-function tally(gaps: readonly CoverageGap[]): { byType: GapCountByType; byActor: GapCountByActor } {
-  const byType: GapCountByType = {}
-  const byActor: GapCountByActor = { mensch: 0, cowork: 0, knowledgescout: 0 }
-  for (const gap of gaps) {
-    byType[gap.type] = (byType[gap.type] ?? 0) + 1
-    byActor[gap.actor] += 1
-  }
-  return { byType, byActor }
-}
-
 /** Fuehrt EINEN Coverage-Scan aus und liefert den (wegwerfbaren) Report. */
 export async function runCoverageScan(
   request: CoverageScanRequest,
@@ -72,10 +71,19 @@ export async function runCoverageScan(
   const { conventions } = request
   const vorhabenPattern = compileVorhabenPattern(conventions.vorhabenFolderPattern)
 
-  const [archive, syncReport, rawFamilies] = await Promise.all([
+  // A1 separat isolieren: Ein Feld-Pruefungs-Fehler bricht den Scan nicht ab,
+  // sondern wird als scan_error ausgewiesen (`no-silent-fallbacks`).
+  const [archive, syncReport, rawFamilies, fieldVerification] = await Promise.all([
     ports.scanArchive({ rootFolderId: request.rootFolderId, excludeGlobs: conventions.scanExcludeGlobs }),
     ports.runSyncCheck({ folderId: request.scopeFolderId }),
     ports.loadTwinFamilies(),
+    ports
+      .runFieldVerification()
+      .then((documents) => ({ documents, error: null as string | null }))
+      .catch((error: unknown) => ({
+        documents: [] as DocumentVerificationResult[],
+        error: error instanceof Error ? error.message : String(error),
+      })),
   ])
 
   const folders = archive.folders
@@ -90,6 +98,21 @@ export async function runCoverageScan(
 
   const gaps: CoverageGap[] = [
     ...gapsFromSyncReport({ report: syncReport, locations, rootFolderId: request.rootFolderId }),
+    ...gapsFromFieldVerification({ documents: fieldVerification.documents, locations, rootFolderId: request.rootFolderId }),
+    ...(fieldVerification.error === null
+      ? []
+      : [
+          createGap({
+            type: 'scan_error',
+            scope: 'library',
+            targetId: request.rootFolderId,
+            targetName: '(Library)',
+            folderId: request.rootFolderId,
+            path: '',
+            message: 'Feld-Verifikation (A1) fehlgeschlagen — core_fields_missing unvollstaendig',
+            detail: fieldVerification.error,
+          }),
+        ]),
     ...families.flatMap((family) => evaluateTwinRules(family, conventions.standardTemplate)),
     ...orphanTwinFolders(folders),
     // Twin-Dokumente ohne Scan-Fund sind nur beim Library-weiten Scan
@@ -151,28 +174,4 @@ function countSourcesByFolder(families: readonly TwinFamilyView[]): Map<string, 
 
 function flattenNodes(nodes: ReturnType<typeof buildTree>): ReturnType<typeof buildTree> {
   return nodes.flatMap((node) => [node, ...flattenNodes(node.children)])
-}
-
-function buildTotals(args: {
-  folders: ArchiveScanResult['folders']
-  families: readonly TwinFamilyView[]
-  gaps: readonly CoverageGap[]
-  archive: ArchiveScanResult
-  budget: number
-  /** Ausschluesse, die die Sync-Engine gezaehlt hat (Welle 0b). */
-  engineSkippedExcluded: number
-}): CoverageTotals {
-  const { byType, byActor } = tally(args.gaps)
-  return {
-    folders: args.folders.length,
-    files: args.folders.reduce((sum, folder) => sum + folder.files.length, 0),
-    sources: args.families.length,
-    twins: args.families.reduce((sum, family) => sum + family.artifacts.length, 0),
-    gaps: args.gaps.length,
-    gapsByType: byType,
-    gapsByActor: byActor,
-    skippedExcluded: { archive: args.archive.skippedExcluded, engine: args.engineSkippedExcluded },
-    collapsedGaps: args.budget,
-    scanErrors: args.gaps.filter((gap) => gap.type === 'scan_error').length,
-  }
 }

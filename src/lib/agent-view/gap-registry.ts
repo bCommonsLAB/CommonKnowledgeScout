@@ -20,7 +20,13 @@ import type {
 } from './types'
 
 /** Woher der Befund kommt — Nachweis der Komposition (kein Doppel-Pruefsystem). */
-export type GapOrigin = 'sync-engine' | 'twin-contract' | 'archiv-konvention' | 'verweis-audit' | 'budget'
+export type GapOrigin =
+  | 'sync-engine'
+  | 'library-verification'
+  | 'twin-contract'
+  | 'archiv-konvention'
+  | 'verweis-audit'
+  | 'budget'
 
 export interface GapDefinition {
   actor: GapActor
@@ -39,6 +45,9 @@ export const GAP_REGISTRY: Record<CoverageGapType, GapDefinition> = {
   twin_stale: { actor: 'knowledgescout', zyklusSchritt: 1, severity: 'warning', origin: 'sync-engine', label: 'Quelle juenger als ihr Twin' },
   legacy_twin_name: { actor: 'knowledgescout', zyklusSchritt: 2, severity: 'warning', origin: 'sync-engine', label: 'Alt-Name eines Twins' },
   path_too_long: { actor: 'cowork', zyklusSchritt: 2, severity: 'warning', origin: 'sync-engine', label: 'Pfad ueber dem Budget' },
+
+  // — Library-Verifikation A1 (vorhanden) —
+  core_fields_missing: { actor: 'knowledgescout', zyklusSchritt: 1, severity: 'error', origin: 'library-verification', label: 'A0-Pflichtfelder fehlen' },
 
   // — Twin-Kern / Verifikation (Contract §3) —
   twin_core_missing: { actor: 'knowledgescout', zyklusSchritt: 2, severity: 'warning', origin: 'twin-contract', label: 'Twin-Kern unvollstaendig' },
