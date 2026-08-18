@@ -70,11 +70,15 @@ export async function runLibrarySync(args: {
   }
 
   const folderCache = new FolderCache(provider)
-  const { pairs, scannedFiles, skippedWithoutDoc } = await resolveSources({ libraryId, scope, folderCache, provider })
+  const { pairs, scannedFiles, skippedWithoutDoc, skippedExcluded } = await resolveSources({
+    libraryId, scope, folderCache, provider,
+    // Welle 0b: Ausschluss-Muster der Library (temp/ u. Ae. bleiben draussen, aber sichtbar gezaehlt).
+    excludeGlobs: library.config?.scanExcludeGlobs,
+  })
 
   const report: LibrarySyncReport = {
     libraryId, mode, preset,
-    totalSources: pairs.length, scannedFiles, skippedWithoutDoc,
+    totalSources: pairs.length, scannedFiles, skippedWithoutDoc, skippedExcluded,
     changed: 0, conflicts: 0, needsPipeline: 0, needsReextract: 0,
     planned: {}, selected: {}, executed: {}, failed: {},
     errors: 0, sources: [], sourcesTruncated: false,

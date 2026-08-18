@@ -58,6 +58,8 @@ export const libraryFormSchema = z.object({
     .default("book"),
   // Transformation: DIVA-Liefersystem-Daten auswerten (DIVA-Info-Tab). Default false.
   analyzeDivaTextureInfo: z.boolean().default(false),
+  // Welle 0b: eine Zeile pro Muster (Form als Text, Persistenz als Array)
+  scanExcludeGlobs: z.string().default(""),
   // Plan 2 · W-C: Kuratierung der „Inhalte erfassen"-Wizards (optional).
   captureWizards: z
     .object({
@@ -184,6 +186,7 @@ export function useLibraryForm(createNew: boolean) {
       isEnabled: true,
       detailViewType: "book",
       analyzeDivaTextureInfo: false,
+      scanExcludeGlobs: "",
       captureWizards: undefined,
       autoApplyConfidenceThreshold: 0.9,
       divaArchiveFilterMode: 'all' as const,
@@ -279,6 +282,7 @@ export function useLibraryForm(createNew: boolean) {
         type: toLibraryFormStorageType(activeLibrary.type),
         isEnabled: activeLibrary.isEnabled,
         analyzeDivaTextureInfo: activeLibrary.config?.analyzeDivaTextureInfo === true,
+        scanExcludeGlobs: (activeLibrary.config?.scanExcludeGlobs ?? []).join("\n"),
         captureWizards: activeLibrary.config?.captureWizards,
         autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
           activeLibrary.config?.autoApplyConfidenceThreshold,
@@ -313,6 +317,7 @@ export function useLibraryForm(createNew: boolean) {
         type: toLibraryFormStorageType(activeLibrary.type),
         isEnabled: activeLibrary.isEnabled,
         analyzeDivaTextureInfo: activeLibrary.config?.analyzeDivaTextureInfo === true,
+        scanExcludeGlobs: (activeLibrary.config?.scanExcludeGlobs ?? []).join("\n"),
         captureWizards: activeLibrary.config?.captureWizards,
         autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
           activeLibrary.config?.autoApplyConfidenceThreshold,
@@ -403,6 +408,7 @@ export function useLibraryForm(createNew: boolean) {
               ? { chat: { gallery: { detailViewType: data.detailViewType ?? "book" } } }
               : {}),
             analyzeDivaTextureInfo: data.analyzeDivaTextureInfo,
+            scanExcludeGlobs: data.scanExcludeGlobs.split(/\r?\n/).map((g) => g.trim()).filter(Boolean),
             captureWizards: data.captureWizards,
             autoApplyConfidenceThreshold: data.autoApplyConfidenceThreshold,
             divaArchiveDefaults: {
@@ -585,6 +591,7 @@ export function useLibraryForm(createNew: boolean) {
           type: importedLibrary.type as "local" | "onedrive" | "gdrive" | "nextcloud",
           isEnabled: importedLibrary.isEnabled as boolean,
           analyzeDivaTextureInfo: ((importedLibrary as { config?: Record<string, unknown> }).config?.analyzeDivaTextureInfo as boolean) === true,
+          scanExcludeGlobs: (((importedLibrary as { config?: Record<string, unknown> }).config?.scanExcludeGlobs as string[] | undefined) ?? []).join("\n"),
           captureWizards: (importedLibrary as { config?: Record<string, unknown> }).config?.captureWizards as CaptureWizardsConfig | undefined,
           autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
             (importedLibrary as { config?: Record<string, unknown> }).config?.autoApplyConfidenceThreshold,

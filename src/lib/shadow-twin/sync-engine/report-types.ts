@@ -62,6 +62,8 @@ export interface LibrarySyncReport {
   scannedFiles?: number
   /** Dateien ohne Shadow-Twin-Dokument UND ohne adoptierbare Artefakte (Welle 5a). */
   skippedWithoutDoc: number
+  /** Durch Ausschluss-Muster uebersprungene Ordner/Dateien (Welle 0b, sichtbar statt still). */
+  skippedExcluded?: number
   /** Quellen mit mindestens einer ausgewaehlten Operation. */
   changed: number
   conflicts: number

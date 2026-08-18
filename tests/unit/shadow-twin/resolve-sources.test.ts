@@ -145,3 +145,38 @@ describe('collectStorageOnlySource (Welle 5a)', () => {
     expect(adoption).toBeNull()
   })
 })
+
+describe('resolveSources — Ausschluss-Muster (Welle 0b)', () => {
+  it('ausgeschlossene Teilbaeume und Dateien werden uebersprungen und GEZAEHLT', async () => {
+    const tree = {
+      top: [
+        file('pdf-1', 'a.pdf', 'top'),
+        file('tmp-1', 'entwurf.tmp', 'top'),
+        folder('tempdir', 'temp', 'top'),
+        folder('sub', 'projekte', 'top'),
+      ],
+      tempdir: [file('t-1', 'muell1.md', 'tempdir'), file('t-2', 'muell2.md', 'tempdir')],
+      sub: [file('pdf-2', 'b.pdf', 'sub')],
+    }
+    const provider = makeProvider(tree)
+    const { pairs, scannedFiles, skippedExcluded } = await resolveSources({
+      libraryId: 'lib-1', scope: { folderId: 'top' }, folderCache: new FolderCache(provider), provider,
+      excludeGlobs: ['temp', '*.tmp'],
+    })
+    // temp/ (1 Ordner, inkl. Inhalt ungescannt) + entwurf.tmp = 2 gezaehlte Ausschluesse
+    expect(skippedExcluded).toBe(2)
+    expect(scannedFiles).toBe(2)
+    expect(pairs.map((p) => p.sourceItem?.id).sort()).toEqual(['pdf-1', 'pdf-2'])
+    // Der ausgeschlossene Ordner wurde NICHT gelistet (kein Provider-Aufruf verschwendet)
+    expect((provider.listItemsById as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0])).not.toContain('tempdir')
+  })
+
+  it('ohne Muster bleibt alles wie bisher (skippedExcluded = 0)', async () => {
+    const tree = { top: [file('pdf-1', 'a.pdf', 'top')] }
+    const provider = makeProvider(tree)
+    const { skippedExcluded } = await resolveSources({
+      libraryId: 'lib-1', scope: { folderId: 'top' }, folderCache: new FolderCache(provider), provider,
+    })
+    expect(skippedExcluded).toBe(0)
+  })
+})
