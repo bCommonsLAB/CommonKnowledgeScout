@@ -1,0 +1,125 @@
+import { describe, it, expect } from 'vitest'
+import {
+  actorLevel,
+  checkLeadingVerification,
+  checkTransformationState,
+  checkTwinCoreMissing,
+  evaluateTwinRules,
+  type TwinArtifactView,
+  type TwinFamilyView,
+} from '@/lib/agent-view/twin-rules'
+
+const STANDARD = 'standard-konzept'
+
+function transcript(fm: Record<string, unknown> = {}, updatedAt = '2026-08-01T10:00:00.000Z'): TwinArtifactView {
+  return {
+    kind: 'transcript',
+    targetLanguage: '',
+    updatedAt,
+    frontmatter: {
+      type: 'transcript',
+      source_file: 'Aufnahme.m4a',
+      generated_by: 'knowledgescout/gemini-2.5-pro',
+      generated_at: '2026-08-01T10:00:00.000Z',
+      ...fm,
+    },
+  }
+}
+
+function transformation(fm: Record<string, unknown> = {}, updatedAt = '2026-08-02T10:00:00.000Z'): TwinArtifactView {
+  return {
+    kind: 'transformation',
+    templateName: STANDARD,
+    targetLanguage: 'de',
+    updatedAt,
+    frontmatter: {
+      type: 'transformation',
+      source_file: 'Aufnahme.m4a',
+      template: STANDARD,
+      language: 'de',
+      generated_by: 'knowledgescout/gemini-2.5-pro',
+      generated_at: '2026-08-02T10:00:00.000Z',
+      ...fm,
+    },
+  }
+}
+
+function family(artifacts: TwinArtifactView[]): TwinFamilyView {
+  return { sourceId: 's1', sourceName: 'Aufnahme.m4a', folderId: 'f1', path: '25.01 Pilot/Aufnahme.m4a', artifacts }
+}
+
+describe('twin-rules — Actor-Ebene', () => {
+  it('kuerzt Produzenten auf die Actor-Ebene und laesst human:/process: ganz', () => {
+    expect(actorLevel('knowledgescout/gemini-2.5-pro')).toBe('knowledgescout')
+    expect(actorLevel('human:peter')).toBe('human:peter')
+    expect(actorLevel('  ')).toBeNull()
+  })
+})
+
+describe('twin-rules — twin_core_missing', () => {
+  it('meldet fehlende Kernfelder (Positivfall)', () => {
+    const gap = checkTwinCoreMissing(family([transcript({ generated_by: undefined })]))
+    expect(gap?.type).toBe('twin_core_missing')
+    expect(gap?.detail).toContain('generated_by')
+  })
+
+  it('meldet nichts bei vollstaendigem Kern (Negativfall)', () => {
+    expect(checkTwinCoreMissing(family([transcript(), transformation()]))).toBeNull()
+  })
+})
+
+describe('twin-rules — twin_unverified / self_verified', () => {
+  it('meldet twin_unverified ohne verified_by (Positivfall)', () => {
+    const gaps = checkLeadingVerification(family([transcript(), transformation()]), STANDARD)
+    expect(gaps.map((g) => g.type)).toEqual(['twin_unverified'])
+    expect(gaps[0].actor).toBe('mensch')
+    expect(gaps[0].zyklusSchritt).toBe(4)
+  })
+
+  it('meldet nichts bei gueltiger Verifikation am fuehrenden Artefakt (Negativfall)', () => {
+    const verified = transformation({ verified_by: 'human:peter', verified_at: '2026-08-02' })
+    expect(checkLeadingVerification(family([transcript(), verified]), STANDARD)).toEqual([])
+  })
+
+  it('wertet ein unverifiziertes Transkript neben geprueffter Transformation NICHT ab (Contract §2b)', () => {
+    const verified = transformation({ verified_by: 'human:peter', verified_at: '2026-08-03' })
+    expect(evaluateTwinRules(family([transcript(), verified]), STANDARD)).toEqual([])
+  })
+
+  it('meldet twin_unverified, wenn die Verifikation aelter als die Generierung ist', () => {
+    const stale = transformation({ verified_by: 'human:peter', verified_at: '2026-07-01' })
+    const gaps = checkLeadingVerification(family([stale]), STANDARD)
+    expect(gaps.map((g) => g.type)).toEqual(['twin_unverified'])
+  })
+
+  it('meldet self_verified, wenn Erzeuger und Pruefer derselbe Akteur sind', () => {
+    const self = transformation({ verified_by: 'knowledgescout/gemini-2.5-pro', verified_at: '2026-08-03' })
+    const gaps = checkLeadingVerification(family([self]), STANDARD)
+    expect(gaps.map((g) => g.type)).toEqual(['self_verified'])
+    expect(gaps[0].severity).toBe('error')
+  })
+})
+
+describe('twin-rules — transformation_missing / transformation_stale', () => {
+  it('meldet transformation_missing, wenn das Standard-Template fehlt (Positivfall)', () => {
+    const gaps = checkTransformationState(family([transcript()]), STANDARD)
+    expect(gaps.map((g) => g.type)).toEqual(['transformation_missing'])
+  })
+
+  it('meldet nichts, wenn die Standard-Transformation da ist (Negativfall)', () => {
+    expect(checkTransformationState(family([transcript(), transformation()]), STANDARD)).toEqual([])
+  })
+
+  it('ist ohne konfiguriertes Standard-Template inaktiv (kein Raten)', () => {
+    expect(checkTransformationState(family([transcript()]), null)).toEqual([])
+  })
+
+  it('meldet transformation_stale, wenn das Transkript juenger ist (informativ)', () => {
+    const gaps = checkTransformationState(
+      family([transcript({}, '2026-08-05T10:00:00.000Z'), transformation({}, '2026-08-02T10:00:00.000Z')]),
+      STANDARD,
+    )
+    expect(gaps.map((g) => g.type)).toEqual(['transformation_stale'])
+    expect(gaps[0].severity).toBe('info')
+  })
+})
