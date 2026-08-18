@@ -180,3 +180,40 @@ describe('resolveSources — Ausschluss-Muster (Welle 0b)', () => {
     expect(skippedExcluded).toBe(0)
   })
 })
+
+describe('resolveSources — sourceIds-Scope filtert Artefakt-Dateien (Welle 0g)', () => {
+  it('X.md neben X.pdf wird beim Einzeldatei-Abgleich KEINE eigene Quelle', async () => {
+    const tree = {
+      top: [file('pdf-1', 'a.pdf', 'top'), file('md-1', 'a.md', 'top')],
+    }
+    const provider = makeProvider(tree)
+    const { pairs, skippedWithoutDoc } = await resolveSources({
+      libraryId: 'lib-1', scope: { sourceIds: ['md-1'] }, folderCache: new FolderCache(provider), provider,
+    })
+    expect(pairs).toHaveLength(0)
+    expect(skippedWithoutDoc).toBe(1)
+  })
+
+  it('Datei im _-Twin-Ordner wird ebenfalls uebersprungen', async () => {
+    const tree = {
+      top: [folder('twin-a', '_a.pdf', 'top')],
+      'twin-a': [file('t-1', 'a.template.de.md', 'twin-a')],
+    }
+    const provider = makeProvider(tree)
+    const { pairs, skippedWithoutDoc } = await resolveSources({
+      libraryId: 'lib-1', scope: { sourceIds: ['t-1'] }, folderCache: new FolderCache(provider), provider,
+    })
+    expect(pairs).toHaveLength(0)
+    expect(skippedWithoutDoc).toBe(1)
+  })
+
+  it('eine ECHTE Markdown-Quelle ohne Doc bleibt Adoptions-Kandidat', async () => {
+    const tree = { top: [file('md-solo', 'notizen.md', 'top')] }
+    const provider = makeProvider(tree)
+    const { pairs } = await resolveSources({
+      libraryId: 'lib-1', scope: { sourceIds: ['md-solo'] }, folderCache: new FolderCache(provider), provider,
+    })
+    expect(pairs).toHaveLength(1)
+    expect(pairs[0].doc).toBeNull()
+  })
+})
