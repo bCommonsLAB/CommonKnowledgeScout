@@ -28,6 +28,12 @@ export interface ReconcileCandidate {
   markdown: string
   /** Herkunft. */
   origin: 'storage' | 'mongo'
+  /**
+   * Zeitpunkt der letzten Aenderung (Storage: Datei-mtime, Mongo: updatedAt).
+   * Basis fuer den Handkorrektur-Vorrang (Welle 0d); undefined/null = unbekannt,
+   * dann greift ausschliesslich die Score-Logik.
+   */
+  modifiedAt?: Date | null
 }
 
 /** Eine zu loeschende Storage-Datei mit Begruendung. */
@@ -57,6 +63,47 @@ export interface SourceReconcilePlan {
 
 function normalize(markdown: string): string {
   return markdown.replace(/\r\n/g, '\n').trim()
+}
+
+/**
+ * Handkorrektur-Vorrang (Welle 0d).
+ *
+ * `selectBestArtifactVariant` waehlt nach Score (Seiten, dann Laenge). Das
+ * erkennt Migrations-Verluste (abgeschnittene Transkripte), aber KEINE
+ * inhaltlichen Korrekturen: Wer im Spiegel „Superbase" zu „Supabase"
+ * verbessert, macht den Text nicht laenger — die Mongo-Fassung gewinnt, und
+ * der naechste Lauf schreibt die Korrektur zurueck. Genau diesen Rueckweg
+ * verspricht der Twin-Datei-Contract §4.5 aber.
+ *
+ * Regel: Eine Storage-Variante, die NACH dem Mongo-Stand geaendert wurde,
+ * inhaltlich abweicht und dabei KEINE Seite verliert, ist der Gewinner.
+ * Die Seiten-Bedingung schuetzt den Migrationsfall: Eine abgeschnittene
+ * Datei bekommt nie Vorrang, nur weil sie neuer ist.
+ *
+ * Ohne Zeitstempel (aeltere Aufrufer, Mongo-Record ohne `updatedAt`) greift
+ * die Regel nicht — dann bleibt es bei der Score-Logik.
+ */
+function pickHandEditedWinner(candidates: ReconcileCandidate[]): ReconcileCandidate | null {
+  const mongo = candidates.find((c) => c.origin === 'mongo')
+  const mongoTime = mongo?.modifiedAt ? mongo.modifiedAt.getTime() : null
+  if (!mongo || mongoTime === null) return null
+
+  const mongoContent = normalize(mongo.markdown)
+  const mongoPages = countDistinctPages(mongoContent)
+
+  let winner: ReconcileCandidate | null = null
+  let winnerTime = mongoTime
+  for (const candidate of candidates) {
+    if (candidate.origin !== 'storage' || !candidate.modifiedAt) continue
+    const time = candidate.modifiedAt.getTime()
+    if (time <= winnerTime) continue
+    const content = normalize(candidate.markdown)
+    if (!content || content === mongoContent) continue
+    if (countDistinctPages(content) < mongoPages) continue
+    winner = candidate
+    winnerTime = time
+  }
+  return winner
 }
 
 /**
@@ -98,14 +145,17 @@ export function buildTranscriptReconcilePlan(args: {
     canonicalName,
   )
 
-  if (!sel.best) return base
+  // Handkorrektur im Spiegel schlaegt den Score (siehe pickHandEditedWinner).
+  const handEdited = pickHandEditedWinner(transcriptCandidates)
+  if (!handEdited && !sel.best) return base
 
-  const winner = sel.best.ref
+  const winner = handEdited ?? (sel.best as { ref: ReconcileCandidate }).ref
   const winnerContent = normalize(winner.markdown)
   const winnerPages = countDistinctPages(winnerContent)
 
   // Konflikt: nichts an den Transkripten anfassen (nur tote page_NNN.md duerfen weg).
-  if (sel.conflict) {
+  // Bei einer Handkorrektur ist die Lage eindeutig — die juengere Fassung gilt.
+  if (sel.conflict && !handEdited) {
     return { ...base, status: 'conflict', winnerOrigin: winner.origin, winnerName: winner.name, winnerPages }
   }
 
@@ -130,9 +180,13 @@ export function buildTranscriptReconcilePlan(args: {
   const mongoCandidate = transcriptCandidates.find((c) => c.origin === 'mongo')
   const mongoNeedsUpdate = !mongoCandidate || normalize(mongoCandidate.markdown) !== winnerContent
 
-  const transcriptDeletions: ReconcileDeletion[] = transcriptCandidates
-    .filter((c) => c.origin === 'storage' && !!c.fileId && c.name !== canonicalName)
-    .map((c) => ({ fileId: c.fileId as string, name: c.name, reason: 'inferior-or-redundant' as const }))
+  // Bei Handkorrektur-Vorrang konservativ NICHTS loeschen: Der Score-Gewinner
+  // war ein anderer, also ist die Unterlegenheits-Aussage hier nicht gedeckt.
+  const transcriptDeletions: ReconcileDeletion[] = handEdited
+    ? []
+    : transcriptCandidates
+        .filter((c) => c.origin === 'storage' && !!c.fileId && c.name !== canonicalName)
+        .map((c) => ({ fileId: c.fileId as string, name: c.name, reason: 'inferior-or-redundant' as const }))
 
   return {
     status: 'ok',
