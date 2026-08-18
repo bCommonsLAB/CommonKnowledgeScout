@@ -1,3 +1,10 @@
+> **ERLEDIGT (2026-08-18, gleiche PR wie Wellen 1+2):** Welle 3 wurde auf
+> Peters Wunsch direkt in der Cloud-Session der Wellen 1+2 umgesetzt —
+> inklusive der beiden offenen Punkte (Settings-Formular `config.agentView`,
+> A1-Anbindung `core_fields_missing`). Dieses Dokument bleibt als
+> Kontext-Archiv stehen; NAECHSTE Welle ist 4 (Kurations-Patch-Route +
+> Inline-Verifikation, Contract §4) — siehe Hand-off-Block der PR.
+
 # Handover 2026-08-18: Welle 3 — Auftrags-Generator + Todo-Listen
 
 Für eine **Online-/Cloud-Session**. Es gelten die Cloud-Regeln aus `AGENTS.md`:

@@ -85,9 +85,12 @@ der Maschine, die sie liefert. **Umgesetzt in Welle 1** als Registry
 (`src/lib/agent-view/gap-registry.ts`); dort tragen zusätzlich die
 Engine-Namensbefunde (`legacy_twin_name`, `path_too_long`), der Sammel-Gap
 `teilbaum_ungesichtet` und `scan_error` ihre Akteur-/Schritt-Zuordnung.
-`core_fields_missing` (Library-Verifikation A1) ist bewusst noch nicht
-angeschlossen — A1 hat eine eigene Route und UI; die Einbindung ist offener
-Punkt der nächsten Welle.
+`core_fields_missing` (Library-Verifikation A1) ist seit dem Nachzug zur
+Wellen-1/2-PR angeschlossen (`field-gaps.ts`): übersetzt wird ausschließlich
+`missing-base-field`; alle weiteren A1-Codes behalten ihre eigene Route und UI.
+Die Konventionen (Vorhaben-Muster, `_INDEX.md`-Pflichttiefe, Bericht-Frische,
+lokaler Wurzelpfad) sind in den Library-Einstellungen (Erweitert →
+Agentensicht) pflegbar.
 
 | Gap-Typ | Regel | Prüft |
 |---|---|---|
@@ -210,7 +213,7 @@ leistet die jeweils nächste Cowork-Session über den Rückmeldungsblock).
 | 0f | Typ-Template-Registry: Library-Config-Map `doc_type → Template` (Fallback: bisheriges Einzel-Template), Typ-Erkennungsschritt nach dem Transkript, Standard-Typ-Templates (konzept, email-diktat, besprechung, notiz) | richtige Vorlage je Inhaltstyp (Zyklus v2 §2) |
 | 1 ✓ | Coverage-Service als Komposition + neue Gap-Regeln (vollständige Tabelle in F2 — inkl. Soll/Ist, Verweis-Audit, Familien-Regeln) + Report-Cache + API (ohne UI) | umgesetzt: `src/lib/agent-view/`, `GET/POST /api/library/{id}/agent-view/*`, Unit-Test je neuem Gap-Typ |
 | 2 ✓ | Baum-UI read-only (Ampeln, Zähler, Sammel-Gaps) + Zyklus-Board (F1b) neben „Archiv" | umgesetzt: `/library/agent-view` (Menüpunkt „Agentensicht") |
-| 3 | Auftrags-Generator (Vorlage je Gap-Typ, Clipboard) + Todo-Listen nach Akteur | Lücke → Auftrag in < 1 Min |
+| 3 ✓ | Auftrags-Generator (Vorlage je Gap-Typ, Clipboard) + Todo-Listen nach Akteur | umgesetzt: Tab „Todos & Auftrag" (`todo-lists.ts`, `auftrag-generator.ts`) |
 | 4 | Kurations-Patch-Route (Contract §4: Feld-Patch, Erhalt unbekannter Felder, Drift-Guard) + Inline-Verifikation | Kuration im Baum |
 | 5 | **MCP-Brücke**: KnowledgeScout als MCP-Server — Werkzeuge `erschliessen` (Jobs + Status), `pruefen`/`reparieren`/`import`/`export`, `familie_umziehen`, `abdeckung_lesen`; dünne Schicht über den bestehenden Services, Auth per API-Key | „Räum diesen Ordner auf" als EIN Cowork-Auftrag statt Copy-Paste (Zyklus v2 §7) |
 
