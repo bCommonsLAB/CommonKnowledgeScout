@@ -922,6 +922,11 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   }, [provider, activeLibraryId]);
 
   const handleRename = React.useCallback(async (item: StorageItem, newName: string) => {
+    // Der Familien-Umzug dauert Sekunden (Import -> Umbenennen -> Export):
+    // ohne sichtbares Feedback klickt man weg und loest Doppel-Aktionen aus.
+    const loadingToast = item.type === 'file'
+      ? toast.loading('Familie zieht um …', { description: 'Sichern, Umbenennen, Spiegel neu aufbauen — kann einen Moment dauern.' })
+      : undefined;
     try {
       await moveFamilyRequest(
         { id: item.id, type: item.type, name: item.metadata.name },
@@ -939,6 +944,8 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
         description: `Umbenennen fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`
       });
       throw error;
+    } finally {
+      if (loadingToast !== undefined) toast.dismiss(loadingToast);
     }
   }, [moveFamilyRequest, handleRefresh]);
 
@@ -948,6 +955,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   const handlePasteInto = React.useCallback(async (targetFolderId: string | null) => {
     if (!cutItem || !targetFolderId) return;
     if (cutItem.parentId === targetFolderId) { setCutItem(null); return; }
+    const loadingToast = toast.loading('Familie zieht um …', { description: 'Sichern, Verschieben, Spiegel neu aufbauen — kann einen Moment dauern.' });
     try {
       await moveFamilyRequest(
         { id: cutItem.id, type: cutItem.type, name: cutItem.metadata.name },
@@ -961,6 +969,8 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
       toast.error("Fehler beim Verschieben", {
         description: error instanceof Error ? error.message : 'Unbekannter Fehler'
       });
+    } finally {
+      toast.dismiss(loadingToast);
     }
   }, [cutItem, moveFamilyRequest, handleRefresh]);
 
@@ -991,12 +1001,17 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
       const payload = JSON.parse(raw) as { items?: Array<{ itemId: string; itemName: string; itemType: string; parentId: string }> };
       const first = payload.items?.[0];
       if (!first || first.parentId === folderId || first.itemId === folderId) return;
-      await moveFamilyRequest(
-        { id: first.itemId, type: first.itemType, name: first.itemName },
-        { newParentId: folderId },
-      );
-      toast.success("Verschoben", { description: `${first.itemName} wurde mitsamt Twin-Familie verschoben.` });
-      await handleRefresh();
+      const loadingToast = toast.loading('Familie zieht um …', { description: 'Sichern, Verschieben, Spiegel neu aufbauen — kann einen Moment dauern.' });
+      try {
+        await moveFamilyRequest(
+          { id: first.itemId, type: first.itemType, name: first.itemName },
+          { newParentId: folderId },
+        );
+        toast.success("Verschoben", { description: `${first.itemName} wurde mitsamt Twin-Familie verschoben.` });
+        await handleRefresh();
+      } finally {
+        toast.dismiss(loadingToast);
+      }
     } catch (error) {
       FileLogger.error('FileList', 'Fehler beim Drag&Drop (Familien-Umzug)', error);
       toast.error("Fehler beim Verschieben", {

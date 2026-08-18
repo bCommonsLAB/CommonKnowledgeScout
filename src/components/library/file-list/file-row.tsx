@@ -179,14 +179,25 @@ export const FileRow = React.memo(function FileRow({
     };
   }, []);
 
+  // Doppel-Abschick-Wache: Enter UND onBlur feuern beide diesen Handler —
+  // und der Familien-Umzug dauert Sekunden. Ohne Wache liefen zwei Umzuege
+  // parallel; der zweite fand die Dateien schon umbenannt vor und warf
+  // "Item not found" / "Ziel ist identisch" als Fehler-Toasts.
+  const isSubmittingRenameRef = React.useRef(false);
+
   const handleRenameSubmit = React.useCallback(async () => {
+    if (isSubmittingRenameRef.current) return;
     if (onRename && editName.trim() && editName !== item.metadata.name) {
+      isSubmittingRenameRef.current = true;
+      setIsEditing(false);
       try {
         await onRename(item, editName.trim());
       } catch (error) {
         FileLogger.error('FileRow', 'Fehler beim Umbenennen', error);
         // Bei Fehler den urspruenglichen Namen wiederherstellen
         setEditName(item.metadata.name);
+      } finally {
+        isSubmittingRenameRef.current = false;
       }
     }
     setIsEditing(false);
