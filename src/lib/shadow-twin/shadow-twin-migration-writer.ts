@@ -279,26 +279,61 @@ export interface PreparedSource {
  *
  * Das Ergebnis wird von `upsertArtifactFromPrepared` pro Artefakt wiederverwendet.
  */
+/**
+ * Sidecar-Artefakte einer Quelle (Welle 0c): Markdown-Dateien im ORDNER DER
+ * QUELLE, deren Name mit `{Basisname}.` beginnt — das Legacy-Layout vor dem
+ * `_`-Twin-Ordner (`X.md`, `X.{lang}.md` neben `X.pdf`).
+ *
+ * Bewusst NUR Markdown: Bilder und Medien neben der Quelle gehoeren nicht zur
+ * Twin-Familie (die liegen im Twin-Ordner). Die Quelldatei ist nie ihr eigenes
+ * Artefakt — dieselbe Regel wie in `collectStorageArtifactsForSource`, das der
+ * PLANER nutzt; ohne diese Auswahl kennt der Planer Sidecars, der Executor
+ * aber nicht, und die Adoption laeuft ins Leere.
+ */
+export function selectSiblingArtifactFiles(
+  source: StorageItem,
+  items: StorageItem[] | undefined,
+): StorageItem[] {
+  if (!items?.length) return []
+  const prefixLower = `${path.parse(source.metadata.name).name.toLowerCase()}.`
+  return items.filter(
+    (item) =>
+      item.type === 'file' &&
+      item.id !== source.id &&
+      item.metadata.name.toLowerCase().startsWith(prefixLower) &&
+      getFileKind(item.metadata.name, item.metadata.mimeType) === 'markdown',
+  )
+}
+
 export async function prepareSourceArtifacts(args: {
   libraryId: string
   userEmail: string
   sourceItem: StorageItem
   provider: StorageProvider
   shadowTwinFolderId?: string
+  /**
+   * Dateien im Ordner der Quelle (Welle 0c). Daraus werden Sidecar-Artefakte
+   * des Legacy-Layouts mitgeladen. Der Aufrufer liefert die bereits gescannte
+   * Liste (Folder-Cache), damit kein zusaetzlicher Provider-Aufruf entsteht.
+   */
+  siblingItems?: StorageItem[]
   /** Max. parallele Bild-Operationen (WebDAV/Azure). Default 6. */
   concurrency?: number
 }): Promise<PreparedSource> {
-  const { libraryId, sourceItem, provider, shadowTwinFolderId, concurrency = 6 } = args
+  const { libraryId, sourceItem, provider, shadowTwinFolderId, siblingItems, concurrency = 6 } = args
 
   const counts = { markdownFiles: 0, imageFiles: 0, audioFiles: 0, videoFiles: 0, otherFiles: 0 }
   const binaryFragments: MigrationBinaryFragment[] = []
   const markdownFiles: StorageItem[] = []
   const imageFiles: StorageItem[] = []
 
-  // Sammle alle Dateien im Shadow-Twin-Ordner (einmal pro Quelle)
-  const allFiles = shadowTwinFolderId
+  // Sammle alle Dateien im Shadow-Twin-Ordner (einmal pro Quelle) UND die
+  // Sidecar-Artefakte neben der Quelle (Legacy-Layout, Welle 0c).
+  const twinFolderFiles = shadowTwinFolderId
     ? await collectAllFilesInFolder(provider, shadowTwinFolderId)
     : []
+  const siblingFiles = selectSiblingArtifactFiles(sourceItem, siblingItems)
+  const allFiles = [...twinFolderFiles, ...siblingFiles]
 
   for (const file of allFiles) {
     const fileName = file.metadata.name

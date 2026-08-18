@@ -44,6 +44,15 @@ Die verbindlichen Fassungen liegen im Repo `CommonKnowledgeScout` unter
 5. **Verifikation mit Zeitregel:** Eine Verifikation zählt nur, wenn
    `verified_at >= generated_at`. Wird ein Twin neu erzeugt, ist die alte
    Verifikation automatisch sichtbar ungültig — nichts muss gelöscht werden.
+6. **Lese- und Korrektur-Ordnung in der Familie (Contract §2b, neu):** Die
+   **Transformation** (`X.<template>.<lang>.md`) ist das Wissensobjekt —
+   Felder, Verdichtung, Statusangaben; sie führt die Familie, ihr liest sie
+   zuerst, und Berichte verweisen primär auf sie. Das **Transkript** (`X.md`)
+   ist die Beleg-Ebene für Zitate und Detailfragen. Korrekturen:
+   Wortlaut-/Transkriptionsfehler ins **Transkript** (die Transformation wird
+   daraus neu erzeugt); Verdichtungs-, Feld- und Statuskorrekturen in die
+   **Transformation**. Den Body einer Transformation von Hand umzuschreiben
+   ist flüchtig — eine Re-Transformation überschreibt ihn.
 
 ## 2. Verhaltensregeln für Sessions im Archiv
 
@@ -91,6 +100,11 @@ e) **Widerspruch erwünscht:** Gebt eine Liste zurück, wo diese Regeln euren
    Beobachtungen im Bestand widersprechen. Ihr seid die redundante Sicht auf
    denselben Inhalt — sechs Augen sehen mehr als zwei; Abweichungen sind
    Befunde, keine Störung.
+f) **Nachtrag Lese-Ordnung (2026-08-17):** `Konventionen.md` um die Lese- und
+   Korrektur-Ordnung aus §1.6 ergänzen; `erschliessung.py` um eine zweite
+   Stufe erweitern — „teil-erschlossen": Transkript vorhanden, aber keine
+   Transformation (`X.<template>.<lang>.md`) daneben; bestehende Berichte bei
+   Gelegenheit auf Transformations-Verweise umstellen, wo vorhanden.
 
 ## 4. Der gemeinsame Pilot (zur Kenntnis)
 

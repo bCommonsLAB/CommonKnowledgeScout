@@ -31,6 +31,29 @@ export function hasLeadingFrontmatter(markdown: string): boolean {
   return /^---\r?\n/.test(markdown)
 }
 
+/**
+ * Traegt das Frontmatter den Twin-Kern eines TRANSKRIPTS (`type: transcript`)?
+ *
+ * Die Legacy-Erkennung nutzt „hat Frontmatter" als Signal fuer „alte
+ * Transformation bzw. Kombi-Datei". Seit dem Writer-Stempel tragen aber ALLE
+ * neu erzeugten Transkripte Frontmatter — ohne diese Pruefung haelt die
+ * Erkennung jedes davon fuer eine Kombi-Datei, plant einen Split, dessen Ziel
+ * bereits existiert, und meldet einen Konflikt (Welle 0d).
+ *
+ * Bewusst nur die eine Feld-Pruefung, kein voller Parser: Ein gestempeltes
+ * Transkript sagt selbst, was es ist.
+ */
+export function isStampedTranscript(markdown: string): boolean {
+  if (!hasLeadingFrontmatter(markdown)) return false
+  const type = markdown.match(/^type:\s*"?([a-z]+)"?\s*$/im)?.[1]
+  return type?.toLowerCase() === 'transcript'
+}
+
+/** Frontmatter, das eine Legacy-Transformation/Kombi-Datei markiert. */
+function hasTransformationFrontmatter(markdown: string): boolean {
+  return hasLeadingFrontmatter(markdown) && !isStampedTranscript(markdown)
+}
+
 type CollectedNameMigration = Pick<NameMigrationInput, 'legacyNamed' | 'combined' | 'existingFiles'>
 
 /** Library-weite Vorgaben der Namens-Migration (einmal pro Lauf ermittelt). */
@@ -92,7 +115,7 @@ export function classifyTranscriptCandidates(args: {
     const pathLength = twinPrefix === null ? null : twinPrefix + candidate.name.length
     const legacyLanguage = parseLegacyLanguage(candidate.name, sourceBaseName)
     if (legacyLanguage && candidate.fileId) {
-      const withFrontmatter = hasLeadingFrontmatter(candidate.markdown)
+      const withFrontmatter = hasTransformationFrontmatter(candidate.markdown)
       legacyNamed.push({
         fileId: candidate.fileId, fileName: candidate.name,
         targetLanguage: legacyLanguage, hasFrontmatter: withFrontmatter, pathLength,
@@ -103,7 +126,7 @@ export function classifyTranscriptCandidates(args: {
     } else if (
       candidate.fileId &&
       candidate.name.toLowerCase() === canonicalLower &&
-      hasLeadingFrontmatter(candidate.markdown)
+      hasTransformationFrontmatter(candidate.markdown)
     ) {
       combined = { fileId: candidate.fileId, fileName: candidate.name, markdown: candidate.markdown, pathLength, inTwinFolder: true }
     }
@@ -168,7 +191,7 @@ export async function collectAdoptionNameMigration(args: {
 
     const legacyLanguage = parseLegacyLanguage(name, sourceBaseName)
     if (legacyLanguage) {
-      const withFrontmatter = hasLeadingFrontmatter(await readText(item.id))
+      const withFrontmatter = hasTransformationFrontmatter(await readText(item.id))
       legacyNamed.push({
         fileId: item.id, fileName: name, targetLanguage: legacyLanguage,
         hasFrontmatter: withFrontmatter, pathLength, inTwinFolder: !isSibling,
@@ -176,7 +199,7 @@ export async function collectAdoptionNameMigration(args: {
       if (withFrontmatter) musterAFileIds.add(item.id)
     } else if (!combined && name.toLowerCase() === canonicalLower) {
       const markdown = await readText(item.id)
-      if (hasLeadingFrontmatter(markdown)) {
+      if (hasTransformationFrontmatter(markdown)) {
         combined = { fileId: item.id, fileName: name, markdown, pathLength, inTwinFolder: !isSibling }
       }
     }

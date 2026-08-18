@@ -64,6 +64,9 @@ Baumansicht der Library aus Contract-Perspektive: pro Ordner der
 werden zusammengefasst („17 weitere Dateien"). Jeder Knoten zeigt die
 Vertrauensampel aus den Kurations-Feldern (unverifiziert / maschinell bestätigt /
 von Mensch geprüft, gültig nur bei `verified_at >= generated_at`) plus `twin_status`.
+Die Ampel einer Twin-Familie hängt am **führenden Artefakt** (Standard-Transformation,
+sonst Transkript — Contract §2b); ein unverifiziertes Transkript neben geprüfter
+Transformation ist kein Befund.
 
 ### F1b — Zyklus-Board: Soll/Ist je Vorhaben
 
@@ -86,9 +89,11 @@ der Maschine, die sie liefert:
 | `orphan_twin` | Twin ohne Quelle (Mongo ohne Storage-Fund oder verwaister `_`-Ordner) | Engine-Scan (vorhanden) |
 | `conflict` | Spiegel und Mongo divergieren | Engine-Check (vorhanden) |
 | `twin_stale` | Quelle jünger als ihr Twin | Freshness-Prüfung (vorhanden) |
+| `transformation_missing` | Quelle mit Transkript, aber ohne Transformation nach dem Standard-Template der Library | neu |
+| `transformation_stale` | Transkript jünger als die Transformation (z. B. nach Wortlaut-Korrektur) | neu, informativ |
 | `core_fields_missing` | A0-Pflichtfelder fehlen | Library-Verifikation A1 (vorhanden) |
 | `twin_core_missing` | Twin-Kern (Contract §3.1) fehlt | neu (Regel-Registry) |
-| `twin_unverified` | `generated_by` ohne gültiges `verified_by` | neu |
+| `twin_unverified` | führendes Artefakt mit `generated_by` ohne gültiges `verified_by` | neu |
 | `self_verified` | `generated_by` == `verified_by` (Actor-Ebene) | neu |
 | `report_missing` | Vorhabensordner ohne `BERICHT.md` | neu, konfigurierbar |
 | `index_missing` | Strukturebene ohne `_INDEX.md` | neu, konfigurierbar |
@@ -122,8 +127,9 @@ u. Ä. ganz draußen. Ordnerknoten aggregieren die Lückenzähler ihrer Teilbäu
 (z. B. `twin_unverified` → Schritt 4), **Cowork** (`report_missing`,
 `bericht_veraltet`, `verweis_tot`, `verweis_veraltet`,
 `bericht_unvollstaendig`, `index_missing` → Schritt 1/3, über den
-Auftrags-Generator), **KnowledgeScout** (`source_without_twin`, `conflict`,
-`twin_stale` → Schritt 2/4, verlinkt auf die vorhandenen Buttons).
+Auftrags-Generator), **KnowledgeScout** (`source_without_twin`,
+`transformation_missing`, `transformation_stale`, `conflict`, `twin_stale` →
+Schritt 2/4, verlinkt auf die vorhandenen Buttons).
 `stand_widerspruch` routet auf den Schritt, hinter den das Vorhaben
 zurückgefallen ist; aufgelöst wird er nur explizit — bestätigen (Stand neu
 datieren) oder zurückstufen, beides am `_INDEX.md`. Mtime-basierte
@@ -190,7 +196,7 @@ leistet die jeweils nächste Cowork-Session über den Rückmeldungsblock).
 | Welle | Inhalt | Ergebnis |
 |---|---|---|
 | 0 | Twin-Kern-Feldsatz (`TWIN_CORE_FIELDS`; Pipeline-Writer setzt `generated_*`) · Ausschluss-Globs als Library-Config-Feld (Checkliste `library-config-field.mdc`) | Fundament: Pipeline schreibt den Kern, Scans haben einen Zaun |
-| 1 | Coverage-Service als Komposition + neue Gap-Regeln inkl. Soll/Ist und Verweis-Audit (`stand_widerspruch`, `bericht_veraltet`, `verweis_tot`, `verweis_veraltet`, `bericht_unvollstaendig`) + Report-Cache + API (ohne UI) | Coverage als JSON; Unit-Test je neuem Gap-Typ |
+| 1 | Coverage-Service als Komposition + neue Gap-Regeln (vollständige Tabelle in F2 — inkl. Soll/Ist, Verweis-Audit, Familien-Regeln) + Report-Cache + API (ohne UI) | Coverage als JSON; Unit-Test je neuem Gap-Typ |
 | 2 | Baum-UI read-only (Ampeln, Zähler, Sammel-Gaps) + Zyklus-Board (F1b) neben „Archiv" | Sicht sichtbar |
 | 3 | Auftrags-Generator (Vorlage je Gap-Typ, Clipboard) + Todo-Listen nach Akteur | Lücke → Auftrag in < 1 Min |
 | 4 | Kurations-Patch-Route (Contract §4: Feld-Patch, Erhalt unbekannter Felder, Drift-Guard) + Inline-Verifikation | Kuration im Baum |

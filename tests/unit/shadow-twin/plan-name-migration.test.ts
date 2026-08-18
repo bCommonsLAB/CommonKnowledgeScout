@@ -70,10 +70,13 @@ describe('planNameMigration — Muster A (Rename)', () => {
     expect(plan.operations[0].newFileName).toBe('doc.pdfanalyse.de.md')
   })
 
-  it('Sibling-Datei wird umbenannt, aber NICHT im selben Lauf adoptiert', () => {
+  it('Sibling-Datei wird umbenannt UND im selben Lauf adoptiert (Welle 0c)', () => {
     const plan = planNameMigration(input({ legacyNamed: [{ ...LEGACY_TRANSFORMATION, inTwinFolder: false }] }))
     expect(plan.operations.map((op) => op.type)).toEqual(['migrate-legacy-artifact-name'])
-    expect(plan.adoptableAfterMigration).toEqual([])
+    // Vor Welle 0c blieb das hier leer: Der Executor konnte Sidecars nicht laden.
+    expect(plan.adoptableAfterMigration).toEqual([
+      { fileName: 'doc.pdfanalyse.de.md', kind: 'transformation', targetLanguage: 'de', templateName: 'pdfanalyse' },
+    ])
   })
 
   it('zwei Legacy-Dateien mit demselben Ziel: zweite wird conflict (kein Doppel-Ziel)', () => {
