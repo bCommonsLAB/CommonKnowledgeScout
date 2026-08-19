@@ -29,6 +29,8 @@ describe('buildTopNavConfig', () => {
 
     expect(result.publicNavItems.map((item) => item.href)).toEqual(['/', '/docs/'])
     expect(result.primaryProtectedNavItems.map((item) => item.href)).toContain('/library')
+    // Agentensicht steht direkt neben dem Archiv (Projektauftrag Welle 2).
+    expect(result.primaryProtectedNavItems.map((item) => item.href)).toContain('/library/agent-view')
     expect(result.primaryProtectedNavItems.map((item) => item.href)).toContain('/library/gallery')
     expect(result.primaryProtectedNavItems.map((item) => item.href)).toContain('/library/inbox')
     expect(result.primaryProtectedNavItems.map((item) => item.href)).toContain('/explore/test?view=site')

@@ -1,0 +1,76 @@
+'use client'
+
+/**
+ * @fileoverview Zyklus-Board (F1b): Soll/Ist je Vorhaben in fuenf Spalten.
+ *
+ * @description
+ * Jede Karte zeigt den ERKLAERTEN Stand (Soll-Buch) neben dem BERECHNETEN
+ * Befund (Ist-Buch). Faellt ein Vorhaben hinter seinen Stand zurueck, wechselt
+ * die Karte sichtbar in den Widerspruchszustand — „abgenommen, aber nicht mehr
+ * aktuell" —, ohne dass eine Datei angefasst wird.
+ *
+ * @module components/library/agent-view
+ */
+
+import { AlertTriangle, FileText } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { actorSummary, BOARD_COLUMNS, gapCountLabel, standLabel } from '@/lib/agent-view/labels'
+import type { CoverageReport, VorhabenCard } from '@/lib/agent-view/types'
+
+function VorhabenKarte({ card }: { card: VorhabenCard }) {
+  return (
+    <Card className={card.widerspruch ? 'border-red-500/60' : undefined}>
+      <CardHeader className="p-3 pb-1">
+        <CardTitle className="flex items-start gap-1.5 text-sm">
+          {card.widerspruch && <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" aria-hidden />}
+          <span className="break-words">{card.name}</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-1 p-3 pt-0 text-xs text-muted-foreground">
+        <p className="break-words">{card.path || '(Wurzel)'}</p>
+        {card.widerspruch && (
+          <p className="font-medium text-red-500">
+            {standLabel(card.bearbeitungsstand)}, aber nicht mehr aktuell
+          </p>
+        )}
+        <p>{gapCountLabel(card.totalGaps)} · {actorSummary(card.gapsByActor)}</p>
+        <p className="flex items-center gap-1">
+          {card.hasBericht ? <FileText className="h-3 w-3" aria-hidden /> : null}
+          {card.hasBericht ? 'BERICHT.md vorhanden' : 'ohne BERICHT.md'}
+          {card.bearbeitungsstandSeit && <span> · seit {card.bearbeitungsstandSeit.slice(0, 10)}</span>}
+        </p>
+      </CardContent>
+    </Card>
+  )
+}
+
+export function ZyklusBoard({ report }: { report: CoverageReport }) {
+  if (report.vorhaben.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Kein Vorhaben erkannt. Vorhaben sind Ordner mit `bearbeitungsstand` im `_INDEX.md` oder Ordner,
+        die auf das konfigurierte Vorhaben-Muster der Library passen.
+      </p>
+    )
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      {BOARD_COLUMNS.map((stand) => {
+        const cards = report.vorhaben.filter((card) => card.bearbeitungsstand === stand)
+        return (
+          <section key={stand ?? 'undeklariert'} className="space-y-2">
+            <header className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold">{standLabel(stand)}</h3>
+              <Badge variant="secondary">{cards.length}</Badge>
+            </header>
+            {cards.map((card) => (
+              <VorhabenKarte key={card.folderId} card={card} />
+            ))}
+          </section>
+        )
+      })}
+    </div>
+  )
+}

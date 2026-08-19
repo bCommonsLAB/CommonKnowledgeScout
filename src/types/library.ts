@@ -371,6 +371,29 @@ export interface StorageConfig {
   scanExcludeGlobs?: string[];
 
   /**
+   * Agentensicht (Welle 1): Archiv-Konventionen sind ARCHIV-Wissen, nicht
+   * Plattform-Wissen — deshalb pro Library konfigurierbar statt hartkodiert
+   * (Projektauftrag F2). Fehlt das Feld, gelten die dokumentierten Defaults:
+   * Vorhaben erkennt die Sicht dann ausschliesslich an der Selbstdeklaration
+   * (`_INDEX.md` mit `bearbeitungsstand`), `_INDEX.md`-Pflicht ist inaktiv und
+   * `bericht_veraltet` ist aktiv. KEIN Secret.
+   */
+  agentView?: {
+    /** Regex fuer Vorhabensordner (z. B. `^\\d{2}\\.\\d{2} `). Leer = nur Selbstdeklaration. */
+    vorhabenFolderPattern?: string;
+    /** Bis zu dieser Ordnertiefe ist `_INDEX.md` Pflicht; fehlt = Regel inaktiv. */
+    indexRequiredMaxDepth?: number;
+    /** `bericht_veraltet` pruefen (Default: true). */
+    berichtFreshness?: boolean;
+    /**
+     * Lokaler Wurzelpfad des Archivs (F3): rendert im Auftrags-Generator
+     * absolute Pfade fuer die Cowork-Session. Leer = archiv-relative Pfade.
+     * KS kennt nur Provider-Pfade — dieser Wert ist reine Anzeige-Hilfe.
+     */
+    localRootPath?: string;
+  };
+
+  /**
    * Plan 2 · W-C (Δ2): Per-Library-Kuratierung der „Inhalte erfassen"-Wizards.
    * Fehlt das Feld, gilt das Bestandsverhalten; gesetzt → kuratierte Auswahl/
    * Reihenfolge (siehe `curateCreationTypes`). KEIN Secret.
@@ -614,6 +637,13 @@ export interface ClientLibrary {
     analyzeDivaTextureInfo?: boolean;
     /** Ausschluss-Muster fuer Storage-Scans (Welle 0b). */
     scanExcludeGlobs?: string[];
+    /** Agentensicht-Konventionen (Welle 1/3) — kein Secret, siehe StorageConfig.agentView. */
+    agentView?: {
+      vorhabenFolderPattern?: string;
+      indexRequiredMaxDepth?: number;
+      berichtFreshness?: boolean;
+      localRootPath?: string;
+    };
     /** Plan 2 · W-C: Kuratierung der „Inhalte erfassen"-Wizards (kein Secret). */
     captureWizards?: CaptureWizardsConfig;
     /**

@@ -39,6 +39,7 @@ import { ShadowTwinConfigSection } from "./shadow-twin-config-section"
 import { LanguageCleanupSection } from "./language-cleanup-section"
 import { ImportExportSection } from "./import-export-section"
 import { CaptureWizardsEditor } from "./capture-wizards-editor"
+import { AgentViewConfigSection } from "./agent-view-config-section"
 
 export function LibraryAdvancedForm() {
   const {
@@ -176,6 +177,9 @@ export function LibraryAdvancedForm() {
             />
           </CardContent>
         </Card>
+
+        {/* Agentensicht-Konventionen (Welle 1/3) */}
+        <AgentViewConfigSection form={form} />
 
         {/* DIVA & Auto-Klassifikation */}
         <Card>
