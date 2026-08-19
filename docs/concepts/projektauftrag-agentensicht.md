@@ -221,7 +221,7 @@ leistet die jeweils nächste Cowork-Session über den Rückmeldungsblock).
 | 2 ✓ | Baum-UI read-only (Ampeln, Zähler, Sammel-Gaps) + Zyklus-Board (F1b) neben „Archiv" | umgesetzt: `/library/agent-view` (Menüpunkt „Agentensicht") |
 | 3 ✓ | Auftrags-Generator (Vorlage je Gap-Typ, Clipboard) + Todo-Listen nach Akteur | umgesetzt: Tab „Todos & Auftrag" (`todo-lists.ts`, `auftrag-generator.ts`) |
 | 4 ✓ | Kurations-Patch-Route (Contract §4: Feld-Patch, Erhalt unbekannter Felder, Drift-Guard) + Inline-Verifikation | umgesetzt: `POST /api/library/{id}/shadow-twins/curation` (`curation-plan.ts`/`curation-patch.ts`), Twin-Knoten mit `twin_status`-Dropdown + Verify im Baum; Nachzug W1: `GET .../agent-view/coverage` |
-| 5 | **MCP-Brücke**: KnowledgeScout als MCP-Server — Werkzeuge `erschliessen` (Jobs + Status), `pruefen`/`reparieren`/`import`/`export`, `familie_umziehen`, `abdeckung_lesen`; dünne Schicht über den bestehenden Services, Auth per API-Key | „Räum diesen Ordner auf" als EIN Cowork-Auftrag statt Copy-Paste (Zyklus v2 §7) |
+| 5 ✓ (v1) | **MCP-Brücke**: KnowledgeScout als MCP-Server — Werkzeuge `erschliessen` (Jobs + Status), `pruefen`/`reparieren`/`import`/`export`, `familie_umziehen`, `abdeckung_lesen`; dünne Schicht über den bestehenden Services, Auth per API-Key | v1 umgesetzt: `/api/mcp/mcp` (`src/lib/mcp/`), Werkzeuge `bibliotheken_auflisten`, `abdeckung_lesen`/`_scannen`, `twins_pruefen`/`_synchronisieren`; `erschliessen` bewusst Mensch-Checkpoint, `familie_umziehen` wartet auf 0e — Szenario + Checkpoints: [`welle-5-mcp-testszenario.md`](welle-5-mcp-testszenario.md); offen: Pilot-Durchlauf |
 
 Branch-, Diff- und PR-Regeln nach `AGENTS.md` (eine PR pro Welle,
 Hand-off-Block). Welle 3 kommt vor 4, weil der Generator keinen Schreibweg

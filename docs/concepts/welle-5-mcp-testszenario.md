@@ -14,8 +14,8 @@ Peter gefragt.
 
 ## 1. Was die MCP-Brücke ist
 
-KnowledgeScout wird MCP-Server: ein HTTP-Endpunkt (`/api/mcp`), an dem sich
-Claude (Cowork, Claude Code, Claude Desktop) anmeldet und Werkzeuge bekommt.
+KnowledgeScout wird MCP-Server: ein HTTP-Endpunkt (`/api/mcp/mcp`), an dem
+sich Claude (Cowork, Claude Code, Claude Desktop) anmeldet und Werkzeuge bekommt.
 Die Werkzeuge sind eine **dünne Schicht über den bestehenden Services**
 (Coverage-Scan, Sync-Engine-Presets) — kein neues Prüfsystem, keine neuen
 Schreibpfade. Damit ersetzt Welle 5 den Copy-Paste-Transport des
@@ -60,8 +60,9 @@ was fehlt, was divergiert) und die Engine-Knöpfe, nicht einen Datei-Editor.
    Standard-Template gesetzt (sonst bleibt `transformation_missing` blind und
    das führende Artefakt ist immer das Transkript) und `scanExcludeGlobs`
    gefüllt (`.obsidian`, `.trash`, `.ck-meta`, `.wizard-sources`, `temp`).
-3. **MCP-Verbindung einrichten:**
-   - Claude Code: `claude mcp add knowledgescout --transport http http://localhost:3000/api/mcp --header "Authorization: Bearer <MCP_API_KEY>"`
+3. **MCP-Verbindung einrichten** (Endpunkt: `http://localhost:3000/api/mcp/mcp`
+   — Streamable HTTP; das doppelte `mcp` kommt vom Transport-Segment der Route):
+   - Claude Code: `claude mcp add knowledgescout --transport http http://localhost:3000/api/mcp/mcp --header "Authorization: Bearer <MCP_API_KEY>"`
    - Cowork/Claude Desktop (falls keine Header-Eingabe möglich): über den
      stdio-Proxy `mcp-remote` mit `--header "Authorization: Bearer …"` —
      dasselbe Muster wie beim Stitch-MCP-Setup.
@@ -122,14 +123,18 @@ was fehlt, was divergiert) und die Engine-Knöpfe, nicht einen Datei-Editor.
    Contract §4.3/§4.5).
 4. Die adressierten Gaps sind im Abschluss-Scan verschwunden; die
    Verifikation aus Checkpoint 5 ist in der Sicht UND in Obsidian sichtbar.
-5. Falscher/fehlender API-Key → 401, kein Werkzeug ausführbar (Auth-Test).
+5. Falscher/fehlender API-Key → **404** (die Clerk-Middleware maskiert den
+   Endpunkt ohne validen Key; erst MIT Key übernimmt die Routen-Auth —
+   Defense in depth). Kein Werkzeug ausführbar (Auth-Test).
 
 ## 6. Leitplanken der Implementierung
 
-- **Transport:** Streamable HTTP unter `/api/mcp` (offizielles
+- **Transport:** Streamable HTTP unter `/api/mcp/mcp` (offizielles
   TypeScript-SDK via `mcp-handler`), Auth als Bearer-Key-Vergleich VOR dem
   Handler — dasselbe Env-Token-Muster wie `x-internal-token` der
-  External-Jobs.
+  External-Jobs. Zusätzlich lässt die Clerk-Middleware `/api/mcp/*` nur mit
+  validem Key passieren (Muster der Integration-Tests-Ausnahme): ohne Key
+  bleibt der Endpunkt eine maskierte 404.
 - **Dünn bleiben:** Werkzeuge rufen `scanLibraryCoverage`,
   `getCoverageReport`, `runLibrarySync` — dieselben Funktionen wie die
   Routen. Keine eigene Logik außer der **kompakten Ausgabe** (Agenten
