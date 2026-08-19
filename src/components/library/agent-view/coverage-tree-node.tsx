@@ -1,12 +1,13 @@
 'use client'
 
 /**
- * @fileoverview Ein Knoten des Agenten-Baums (F1) — read-only.
+ * @fileoverview Ein Knoten des Agenten-Baums (F1).
  *
  * @description
  * Zeigt je Ordner: Ampel, Name, erklaerten Stand, Zaehler (Quellen, Dateien,
- * Befunde) und die Befunde des Ordners selbst. Es gibt bewusst KEINE Aktion
- * an diesem Knoten — Welle 2 zeigt nur; geschrieben wird erst ab Welle 4.
+ * Befunde), die Befunde des Ordners und — seit Welle 4 — die Twin-Familien
+ * mit Inline-Kuration (F4). Geschrieben wird ausschliesslich ueber die
+ * Kurations-Patch-Route (via `useTwinCuration`), nie direkt.
  *
  * @module components/library/agent-view
  */
@@ -14,20 +15,31 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronRight, FileText, ListTree } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import type { UseTwinCurationResult } from '@/hooks/agent-view/use-twin-curation'
 import { gapLabel, standLabel } from '@/lib/agent-view/labels'
-import type { CoverageGap, CoverageTreeNode } from '@/lib/agent-view/types'
+import type { CoverageGap, CoverageTreeNode, TwinFamilySummary } from '@/lib/agent-view/types'
 import { CoverageAmpel, GapCountBadge } from './coverage-ampel'
+import { TwinFamilyRow } from './twin-family-row'
 
 export interface CoverageTreeNodeRowProps {
   node: CoverageTreeNode
   gapsByFolder: Map<string, CoverageGap[]>
+  familiesByFolder: Map<string, TwinFamilySummary[]>
+  curation: UseTwinCurationResult
   defaultOpen?: boolean
 }
 
-export function CoverageTreeNodeRow({ node, gapsByFolder, defaultOpen = false }: CoverageTreeNodeRowProps) {
+export function CoverageTreeNodeRow({
+  node,
+  gapsByFolder,
+  familiesByFolder,
+  curation,
+  defaultOpen = false,
+}: CoverageTreeNodeRowProps) {
   const [open, setOpen] = useState(defaultOpen)
   const ownGaps = gapsByFolder.get(node.folderId) ?? []
-  const hasChildren = node.children.length > 0 || ownGaps.length > 0
+  const ownFamilies = familiesByFolder.get(node.folderId) ?? []
+  const hasChildren = node.children.length > 0 || ownGaps.length > 0 || ownFamilies.length > 0
 
   return (
     <div className="border-l border-border/60 pl-3">
@@ -65,6 +77,16 @@ export function CoverageTreeNodeRow({ node, gapsByFolder, defaultOpen = false }:
 
       {open && (
         <div className="ml-2">
+          {ownFamilies.map((family) => (
+            <TwinFamilyRow
+              key={family.sourceId}
+              family={family}
+              pending={curation.pendingSourceId === family.sourceId}
+              error={curation.errorBySource.get(family.sourceId) ?? null}
+              onSetStatus={(twinStatus) => void curation.setTwinStatus(family, twinStatus)}
+              onVerify={() => void curation.verify(family)}
+            />
+          ))}
           {ownGaps.map((gap, index) => (
             <div key={`${gap.type}-${gap.targetId}-${index}`} className="py-0.5 text-xs">
               <span className="font-medium">{gapLabel(gap.type)}</span>
@@ -73,7 +95,13 @@ export function CoverageTreeNodeRow({ node, gapsByFolder, defaultOpen = false }:
             </div>
           ))}
           {node.children.map((child) => (
-            <CoverageTreeNodeRow key={child.folderId} node={child} gapsByFolder={gapsByFolder} />
+            <CoverageTreeNodeRow
+              key={child.folderId}
+              node={child}
+              gapsByFolder={gapsByFolder}
+              familiesByFolder={familiesByFolder}
+              curation={curation}
+            />
           ))}
         </div>
       )}
