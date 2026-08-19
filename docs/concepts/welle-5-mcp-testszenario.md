@@ -67,13 +67,15 @@ was fehlt, was divergiert) und die Engine-Knöpfe, nicht einen Datei-Editor.
      lädt lokale MCP-Server als Extension (MCPB), nicht über die
      `claude_desktop_config.json` (die überschreibt die App laufend mit ihren
      Preferences; Handbearbeitung geht verloren). Das Bundle liegt im Repo
-     unter [`extensions/knowledgescout/`](../../extensions/knowledgescout/):
-     einmal `npm install` in diesem Ordner (bündelt den stdio-Proxy
-     `mcp-remote`), dann Einstellungen → Erweiterungen → „Erweiterte
+     unter [`extensions/knowledgescout/`](../../extensions/knowledgescout/)
+     und ist **abhängigkeitsfrei** (eigener stdio-Proxy `server/proxy.js`,
+     kein npm install): Einstellungen → Erweiterungen → „Erweiterte
      Einstellungen" → **„Entpackte Erweiterung installieren"** → den Ordner
      wählen → im Konfigurieren-Dialog MCP-URL (Default passt) und API-Key
      eintragen. Die Werkzeuge erscheinen in Cowork über die
-     remote-devices-Brücke.
+     remote-devices-Brücke. Diagnose bei Problemen:
+     `%APPDATA%\Claude\logs\mcp-server-KnowledgeScout.log` — der Proxy
+     meldet Verbindungs-/Key-Fehler dort im Klartext.
 4. **Pilot-Ordner** mit bekannten Lücken, z. B.
    `6. bCommonsLab prototyping/25.01 Common Secretary` (Projektauftrag §6).
 5. **Cowork hat den lokalen Archiv-Mount** (OneDrive) für `BERICHT.md`/
