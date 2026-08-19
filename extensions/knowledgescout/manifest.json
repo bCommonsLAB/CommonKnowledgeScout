@@ -2,31 +2,25 @@
   "manifest_version": "0.3",
   "name": "KnowledgeScout",
   "display_name": "KnowledgeScout",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Agentensicht-Werkzeuge von KnowledgeScout: Coverage lesen/scannen, Twins pruefen/synchronisieren.",
   "author": {
     "name": "bCommonsLAB"
   },
   "server": {
     "type": "node",
-    "entry_point": "node_modules/mcp-remote/dist/proxy.js",
+    "entry_point": "server/proxy.js",
     "mcp_config": {
       "command": "node",
       "args": [
-        "${__dirname}/node_modules/mcp-remote/dist/proxy.js",
+        "${__dirname}/server/proxy.js",
         "${user_config.server_url}",
-        "--header",
-        "Authorization:${AUTH_HEADER}",
-        "--transport",
-        "http-only"
-      ],
-      "env": {
-        "AUTH_HEADER": "Bearer ${user_config.api_key}"
-      }
+        "${user_config.api_key}"
+      ]
     }
   },
   "license": "Apache-2.0",
-  "long_description": "Verbindet Cowork/Claude Desktop mit der MCP-Bruecke von KnowledgeScout (Welle 5). Die Werkzeuge sind eine duenne Schicht ueber den bestehenden Services: Coverage-Report der Agentensicht lesen und neu scannen, Sync-Engine pruefen (check) und synchronisieren (repair/import/export). Der KnowledgeScout-Dev-Server muss laufen (Standard: Port 3001, Endpunkt /api/mcp/mcp); Szenario und Checkpoints: docs/concepts/welle-5-mcp-testszenario.md im Repo.",
+  "long_description": "Verbindet Cowork/Claude Desktop mit der MCP-Bruecke von KnowledgeScout (Welle 5) ueber einen abhaengigkeitsfreien stdio-Proxy (server/proxy.js, kein npm install noetig). Die Werkzeuge sind eine duenne Schicht ueber den bestehenden Services: Coverage-Report der Agentensicht lesen und neu scannen, Sync-Engine pruefen (check) und synchronisieren (repair/import/export). Der KnowledgeScout-Dev-Server muss laufen (Standard: Port 3001, Endpunkt /api/mcp/mcp); Szenario und Checkpoints: docs/concepts/welle-5-mcp-testszenario.md im Repo.",
   "tools": [
     { "name": "bibliotheken_auflisten", "description": "Listet die KnowledgeScout-Libraries des Users (Id + Name). Liest nur." },
     { "name": "abdeckung_lesen", "description": "Juengsten Coverage-Report lesen (Befunde, Twin-Familien), optional auf einen Pfad gefiltert. Liest nur." },

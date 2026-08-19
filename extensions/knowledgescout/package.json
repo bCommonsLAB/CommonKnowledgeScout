@@ -1,9 +1,6 @@
 {
   "name": "knowledgescout-mcpb",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
-  "description": "Claude-Desktop-Erweiterung (MCPB): stdio-Proxy zur KnowledgeScout-MCP-Bruecke (Welle 5). Vor der Installation: npm install in DIESEM Ordner (buendelt mcp-remote).",
-  "dependencies": {
-    "mcp-remote": "^0.1.29"
-  }
+  "description": "Claude-Desktop-Erweiterung (MCPB) fuer die KnowledgeScout-MCP-Bruecke (Welle 5). Abhaengigkeitsfrei - der stdio-Proxy liegt in server/proxy.js, KEIN npm install noetig. Installation: Einstellungen -> Erweiterungen -> Erweiterte Einstellungen -> 'Entpackte Erweiterung installieren' -> diesen Ordner waehlen."
 }
