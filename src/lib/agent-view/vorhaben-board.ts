@@ -29,6 +29,12 @@ export function buildVorhabenCards(args: {
   tree: readonly CoverageTreeNode[]
   gaps: readonly CoverageGap[]
   vorhabenPattern: RegExp | null
+  /**
+   * Ordner-Id der BIBLIOTHEKS-Wurzel (null bei Teilbaum-Scans). Die Wurzel
+   * ist kein Vorhaben (Entscheid 2026-08-19: sie braucht keinen BERICHT) —
+   * ihre Karte wuerde nur alle Befunde der Library doppeln.
+   */
+  libraryRootFolderId: string | null
 }): VorhabenCard[] {
   const nodes = new Map<string, CoverageTreeNode>()
   flatten(args.tree, nodes)
@@ -38,6 +44,7 @@ export function buildVorhabenCards(args: {
 
   const cards: VorhabenCard[] = []
   for (const folder of args.folders) {
+    if (folder.folderId === args.libraryRootFolderId) continue
     if (!isVorhaben(folder, args.vorhabenPattern)) continue
     const node = nodes.get(folder.folderId)
     if (!node) throw new Error(`Vorhaben ohne Baumknoten: ${folder.folderId}`)

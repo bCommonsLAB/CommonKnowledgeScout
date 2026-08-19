@@ -20,9 +20,17 @@ const CONVENTIONS: CoverageConventions = {
 function folders(args: { aufnahmeModifiedAt: string; berichtBody: string }): ArchiveFolderNode[] {
   return [
     {
+      // Wurzel deklariert einen Stand (wie Peters Archiv) — sie ist trotzdem
+      // KEIN Vorhaben und braucht keinen BERICHT (Entscheid 2026-08-19).
       folderId: 'root', name: '', path: '', parentFolderId: null, depth: 0,
-      files: [], twinFolders: [], index: null, bericht: null,
-      bearbeitungsstand: null, bearbeitungsstandSeit: null,
+      files: [{ fileId: 'idx-root', name: '_INDEX.md', path: '_INDEX.md', modifiedAt: '2026-08-01T08:00:00.000Z' }],
+      twinFolders: [],
+      index: {
+        fileId: 'idx-root', name: '_INDEX.md', path: '_INDEX.md', modifiedAt: '2026-08-01T08:00:00.000Z',
+        meta: { bearbeitungsstand: 'strukturiert' }, body: '',
+      },
+      bericht: null,
+      bearbeitungsstand: 'strukturiert', bearbeitungsstandSeit: null,
     },
     {
       folderId: 'f-pilot', name: '25.01 Pilot', path: '25.01 Pilot', parentFolderId: 'root', depth: 1,
@@ -231,6 +239,14 @@ describe('coverage-service — Komposition', () => {
     const scanErrors = kaputt.gaps.filter((g) => g.type === 'scan_error')
     expect(scanErrors.some((g) => g.detail === 'Mongo nicht erreichbar')).toBe(true)
     expect(kaputt.tree.length).toBeGreaterThan(0)
+  })
+
+  it('behandelt die Bibliotheks-Wurzel nicht als Vorhaben — kein BERICHT noetig (Entscheid 2026-08-19)', async () => {
+    const report = await scan()
+    expect(report.gaps.some((g) => g.type === 'report_missing' && g.folderId === 'root')).toBe(false)
+    expect(report.vorhaben.some((v) => v.folderId === 'root')).toBe(false)
+    // Der erklaerte Stand der Wurzel bleibt im Baum sichtbar (nur die Pflicht faellt).
+    expect(report.tree[0].bearbeitungsstand).toBe('strukturiert')
   })
 
   it('meldet Quellen, die die Engine still ueberspringt, als source_without_twin (W1-Nachzug)', async () => {

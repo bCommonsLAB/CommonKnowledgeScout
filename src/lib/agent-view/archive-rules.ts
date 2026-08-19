@@ -38,6 +38,13 @@ export interface ArchiveRuleContext {
   vorhabenPattern: RegExp | null
   /** Juengste Aenderung im Teilbaum (Dateien + Twins) als ISO, null = unbekannt. */
   newestChangeInSubtree: string | null
+  /**
+   * Ist dieser Ordner die BIBLIOTHEKS-Wurzel? Die ist per Konvention kein
+   * Vorhaben und braucht keinen BERICHT (Entscheid Peter, 2026-08-19) — ihr
+   * `bearbeitungsstand` beschreibt das Gesamtarchiv, nicht ein Projekt.
+   * Bei Teilbaum-Scans ist die Scan-Wurzel ein normaler Ordner (false).
+   */
+  isLibraryRoot: boolean
 }
 
 /** Kompiliert das Vorhaben-Muster einmal; ungueltige Regex wirft laut. */
@@ -73,7 +80,14 @@ function gapBase(folder: ArchiveFolderNode) {
 }
 
 /** `report_missing`: Vorhabensordner ohne `BERICHT.md`. */
-export function checkReportMissing(folder: ArchiveFolderNode, pattern: RegExp | null): CoverageGap | null {
+export function checkReportMissing(
+  folder: ArchiveFolderNode,
+  pattern: RegExp | null,
+  isLibraryRoot = false,
+): CoverageGap | null {
+  // Die Bibliotheks-Wurzel ist kein Vorhaben — kein BERICHT noetig
+  // (siehe ArchiveRuleContext.isLibraryRoot).
+  if (isLibraryRoot) return null
   if (!isVorhaben(folder, pattern)) return null
   if (folder.bericht !== null) return null
   // `ungesichtet` ist per Definition noch nicht berichtet — das faengt der
@@ -138,7 +152,7 @@ export function evaluateArchiveRules(folder: ArchiveFolderNode, ctx: ArchiveRule
   const gaps = [
     checkScanError(folder),
     checkIndexMissing(folder, pattern, ctx.conventions.indexRequiredMaxDepth),
-    checkReportMissing(folder, pattern),
+    checkReportMissing(folder, pattern, ctx.isLibraryRoot),
     checkBerichtVeraltet(folder, ctx),
   ]
   return gaps.filter((gap): gap is CoverageGap => gap !== null)

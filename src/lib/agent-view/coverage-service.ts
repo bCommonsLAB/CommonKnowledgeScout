@@ -90,6 +90,9 @@ export async function runCoverageScan(
 
   const folders = archive.folders
   const folderIds = new Set(folders.map((folder) => folder.folderId))
+  // Bibliotheks-Wurzel: kein Vorhaben, kein BERICHT noetig (Entscheid
+  // 2026-08-19). Bei Teilbaum-Scans ist die Scan-Wurzel ein normaler Ordner.
+  const libraryRootFolderId = request.scopeFolderId === null ? request.rootFolderId : null
   const fileIndex = buildFileIndex(folders)
   const families = locateFamilies({ families: rawFamilies, fileIndex, folderIds, rootFolderId: request.rootFolderId })
   const newestChange = buildNewestChangeBySubtree({ folders, families })
@@ -135,6 +138,7 @@ export async function runCoverageScan(
         conventions,
         vorhabenPattern,
         newestChangeInSubtree: newestChange.get(folder.folderId) ?? null,
+        isLibraryRoot: folder.folderId === libraryRootFolderId,
       }),
     ),
     ...auditAllDocuments({ folders, families, fileIndex, vorhabenPattern }),
@@ -174,7 +178,7 @@ export async function runCoverageScan(
     totals,
     gaps: effectiveGaps,
     tree,
-    vorhaben: buildVorhabenCards({ folders, tree, gaps: effectiveGaps, vorhabenPattern }),
+    vorhaben: buildVorhabenCards({ folders, tree, gaps: effectiveGaps, vorhabenPattern, libraryRootFolderId }),
     families: familySummaries.families,
     familiesTruncated: familySummaries.truncated,
   }
