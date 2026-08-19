@@ -195,16 +195,20 @@ Oberhalb des Kerns definieren Templates frei Felder (`summary`, `topics`,
 1. **Kern setzt der Writer, nicht das LLM.** `generated_by/at` stammen aus dem
    Pipeline-Kontext (Job/Modell), Kurations-Felder aus der Kurations-Aktion.
 2. **Patch statt Neuschreiben.** Kuration läuft über einen Feld-Patch
-   (`patchArtifactFrontmatter` im `ShadowTwinService` existiert; es fehlt die
-   Kurations-Route). Regel: **unbekannte Frontmatter-Felder und der Body bleiben
+   (`patchArtifactFrontmatter` im `ShadowTwinService`; Kurations-Route seit
+   Welle 4: `POST /api/library/{id}/shadow-twins/curation`). Regel:
+   **unbekannte Frontmatter-Felder und der Body bleiben
    beim Schreiben erhalten** — nur so überlebt eine Obsidian-Handkorrektur oder
    Agenten-Ergänzung den nächsten KS-Schreibvorgang.
 3. **Konfliktschutz gegen Spiegel-Drift.** Vor Patch/Export prüfen, ob der
-   Spiegel seit dem letzten Abgleich extern geändert wurde (mtime/etag gegen
-   `filesystemSync.lastSyncedAt`; dasselbe Muster wie der
-   `expectedMtimeMs`-Guard der Cowork-Bridge). Wenn ja: nicht überschreiben,
-   sondern Befund „erst importieren" — der `conflict`-Befund der Engine ist die
-   vorhandene Sprache dafür. Kein stiller Fallback (`no-silent-fallbacks.mdc`).
+   Spiegel seit dem letzten Abgleich extern geändert wurde. Wenn ja: nicht
+   überschreiben, sondern Befund „erst importieren" — der `conflict`-Befund der
+   Engine ist die vorhandene Sprache dafür. Kein stiller Fallback
+   (`no-silent-fallbacks.mdc`). Umgesetzt (Welle 4, Kurations-Route) als
+   **Inhalts-Vergleich** Spiegel ↔ Mongo mit derselben Normalisierung wie der
+   Engine-Konfliktvergleich — stärker als der ursprünglich skizzierte
+   mtime-Guard, weil `filesystemSync.lastSyncedAt` im Bestand nie gepflegt
+   wurde; Antwort ist HTTP 409 `mirror_drift`.
 4. **Body-Hoheit.** Der Body gehört dem Generator; Twin-Kern und
    Kurations-Felder gehören der Kuration; Template-Felder dem Extractor.
    Re-Transformation erzeugt Body und Template-Felder neu und wendet §3.2 an.
