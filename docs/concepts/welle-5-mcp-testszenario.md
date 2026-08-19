@@ -56,6 +56,12 @@ was fehlt, was divergiert) und die Engine-Knöpfe, nicht einen Datei-Editor.
    (Peters KS-Login-Email — der Key handelt als dieser User).
    Pilot-Entscheidung: EIN Key, env-basiert; per-User-Keys mit Verwaltung
    sind eine Ausbaustufe.
+   **Stolperstein (Live-Befund):** Läuft der Server auf einem anderen Port
+   als 3000, müssen `NEXT_PUBLIC_APP_URL` **und** `INTERNAL_SELF_BASE_URL`
+   in der `.env` auf diesen Port zeigen — sonst laufen interne
+   Selbst-Aufrufe (OneDrive-Token-Refresh) ins Leere und genau die
+   Provider-Werkzeuge (`abdeckung_scannen`, `twins_pruefen`) scheitern mit
+   „fetch failed", während die Mongo-Werkzeuge funktionieren.
 2. **Library konfiguriert** (Befund aus dem Live-Test der Wellen 1–3):
    Standard-Template gesetzt (sonst bleibt `transformation_missing` blind und
    das führende Artefakt ist immer das Transkript) und `scanExcludeGlobs`
