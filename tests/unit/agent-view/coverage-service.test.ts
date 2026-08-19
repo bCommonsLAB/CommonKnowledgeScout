@@ -233,6 +233,20 @@ describe('coverage-service — Komposition', () => {
     expect(kaputt.tree.length).toBeGreaterThan(0)
   })
 
+  it('meldet Quellen, die die Engine still ueberspringt, als source_without_twin (W1-Nachzug)', async () => {
+    // Keine Engine-Zeilen, keine Familien: Aufnahme.m4a (f-pilot) und Rest.pdf
+    // (f-alt) sind die stille skippedWithoutDoc-Menge des Engine-Laufs.
+    const report = await scan({ rows: [], families: [] })
+    const quellen = report.gaps.filter((g) => g.type === 'source_without_twin')
+    expect(quellen.map((g) => g.targetId)).toEqual(['src-1'])
+    expect(quellen[0].folderId).toBe('f-pilot')
+    // Rest.pdf liegt im ungesichteten Teilbaum → im Sammel-Gap, kein Einzelbefund.
+    const alt = report.tree[0].children.find((n) => n.folderId === 'f-alt')
+    expect(alt?.gapsByType.teilbaum_ungesichtet).toBe(1)
+    // Markdown-Dateien (_INDEX.md, BERICHT.md) erzeugen KEINE Quellen-Befunde.
+    expect(report.gaps.some((g) => g.type === 'source_without_twin' && g.targetName.endsWith('.md'))).toBe(false)
+  })
+
   it('routet Befunde an den zustaendigen Akteur (Todo-Routing F2)', async () => {
     const report = await scan({
       rows: [syncRow({ transcriptStatus: 'empty' })],

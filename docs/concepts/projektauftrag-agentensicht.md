@@ -94,7 +94,7 @@ Agentensicht) pflegbar.
 
 | Gap-Typ | Regel | Prüft |
 |---|---|---|
-| `source_without_twin` | Quelle ohne `_`-Ordner mit Transkript | Engine-Scan (vorhanden) |
+| `source_without_twin` | Quelle ohne `_`-Ordner mit Transkript | Engine-Scan + Archiv-Abgleich (`source-gaps.ts`, W1-Nachzug: die Engine überspringt Dateien ohne Mongo-Doc und ohne adoptierbare Artefakte still; Quell-Typen eng am Contract §1 — PDF/DOC(X)/Audio/Video) |
 | `orphan_twin` | Twin ohne Quelle (Mongo ohne Storage-Fund oder verwaister `_`-Ordner) | Engine-Scan (vorhanden) |
 | `conflict` | Spiegel und Mongo divergieren | Engine-Check (vorhanden) |
 | `twin_stale` | Quelle jünger als ihr Twin | Freshness-Prüfung (vorhanden) |

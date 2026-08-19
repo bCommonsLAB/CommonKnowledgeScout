@@ -33,6 +33,7 @@ import { applyGapBudget } from './gap-budget'
 import { buildFamilySummaries } from './family-summaries'
 import { createGap, sortGaps } from './gap-registry'
 import { orphanTwinDocuments, orphanTwinFolders } from './inventory-gaps'
+import { sourcesWithoutTwin } from './source-gaps'
 import { checkStandWiderspruch } from './stand-widerspruch'
 import { buildTree } from './tree-builder'
 import { evaluateTwinRules, type TwinFamilyView } from './twin-rules'
@@ -99,6 +100,13 @@ export async function runCoverageScan(
 
   const gaps: CoverageGap[] = [
     ...gapsFromSyncReport({ report: syncReport, locations, rootFolderId: request.rootFolderId }),
+    // W1-Nachzug: Quellen, die die Engine still uebersprungen hat
+    // (skippedWithoutDoc — keine Report-Zeile) und die auch Mongo nicht kennt.
+    ...sourcesWithoutTwin({
+      folders,
+      engineSourceIds: new Set(syncReport.sources.map((row) => row.sourceId)),
+      familySourceIds: new Set(families.map((family) => family.sourceId)),
+    }),
     ...gapsFromFieldVerification({ documents: fieldVerification.documents, locations, rootFolderId: request.rootFolderId }),
     ...(fieldVerification.error === null
       ? []
