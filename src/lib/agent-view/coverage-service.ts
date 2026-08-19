@@ -30,6 +30,7 @@ import { auditAllDocuments } from './document-audit'
 import { gapsFromSyncReport, type SourceLocation } from './engine-gaps'
 import { gapsFromFieldVerification } from './field-gaps'
 import { applyGapBudget } from './gap-budget'
+import { buildFamilySummaries } from './family-summaries'
 import { createGap, sortGaps } from './gap-registry'
 import { orphanTwinDocuments, orphanTwinFolders } from './inventory-gaps'
 import { checkStandWiderspruch } from './stand-widerspruch'
@@ -153,6 +154,9 @@ export async function runCoverageScan(
     engineSkippedExcluded: syncReport.skippedExcluded ?? 0,
   })
 
+  // Twin-Knoten des Baums (Welle 4, F4): fuehrendes Artefakt + Kurationszustand.
+  const familySummaries = buildFamilySummaries({ families, standardTemplate: conventions.standardTemplate })
+
   return {
     libraryId: request.libraryId,
     generatedAt: ports.now(),
@@ -163,6 +167,8 @@ export async function runCoverageScan(
     gaps: effectiveGaps,
     tree,
     vorhaben: buildVorhabenCards({ folders, tree, gaps: effectiveGaps, vorhabenPattern }),
+    families: familySummaries.families,
+    familiesTruncated: familySummaries.truncated,
   }
 }
 

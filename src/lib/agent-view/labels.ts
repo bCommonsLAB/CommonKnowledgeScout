@@ -9,8 +9,16 @@
  * @module agent-view
  */
 
+import { TWIN_STATUS_VALUES } from '@/lib/shadow-twin/twin-core-fields'
 import { GAP_REGISTRY } from './gap-registry'
-import { BEARBEITUNGSSTAND_VALUES, type Bearbeitungsstand, type CoverageGapType, type GapActor, type ZyklusSchritt } from './types'
+import {
+  BEARBEITUNGSSTAND_VALUES,
+  type Bearbeitungsstand,
+  type CoverageGapType,
+  type GapActor,
+  type VerificationState,
+  type ZyklusSchritt,
+} from './types'
 
 const ACTOR_LABELS: Record<GapActor, string> = {
   mensch: 'Mensch',
@@ -60,6 +68,35 @@ export function gapLabel(type: CoverageGapType): string {
   const def = GAP_REGISTRY[type]
   if (!def) throw new Error(`Unbekannter Gap-Typ: ${String(type)}`)
   return def.label
+}
+
+const VERIFICATION_LABELS: Record<VerificationState, string> = {
+  unverifiziert: 'Unverifiziert',
+  maschinell: 'Maschinell bestaetigt',
+  mensch: 'Von Mensch geprueft',
+  ungueltig: 'Verifikation ungueltig (aelter als die Generierung)',
+}
+
+/** Vertrauensampel-Text des fuehrenden Artefakts (F1/F4). */
+export function verificationLabel(state: VerificationState): string {
+  const label = VERIFICATION_LABELS[state]
+  if (!label) throw new Error(`Unbekannter Verifikationszustand: ${String(state)}`)
+  return label
+}
+
+const TWIN_STATUS_LABELS: Record<(typeof TWIN_STATUS_VALUES)[number], string> = {
+  draft: 'Entwurf',
+  stable: 'Stabil',
+  deprecated: 'Veraltet',
+}
+
+/**
+ * Anzeigename eines `twin_status`-Werts. Unbekannte Werte aus dem Bestand
+ * bleiben roh sichtbar (kein stilles Umdeuten); null = Feld fehlt.
+ */
+export function twinStatusLabel(status: string | null): string {
+  if (status === null) return 'Ohne Status'
+  return TWIN_STATUS_LABELS[status as keyof typeof TWIN_STATUS_LABELS] ?? `Unbekannt: ${status}`
 }
 
 /** „3 Befunde" / „1 Befund" / „ohne Befund" — fuer Zaehler am Knoten. */
