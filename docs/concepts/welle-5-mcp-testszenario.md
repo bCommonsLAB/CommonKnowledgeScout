@@ -63,9 +63,17 @@ was fehlt, was divergiert) und die Engine-Knöpfe, nicht einen Datei-Editor.
 3. **MCP-Verbindung einrichten** (Endpunkt: `http://localhost:3000/api/mcp/mcp`
    — Streamable HTTP; das doppelte `mcp` kommt vom Transport-Segment der Route):
    - Claude Code: `claude mcp add knowledgescout --transport http http://localhost:3000/api/mcp/mcp --header "Authorization: Bearer <MCP_API_KEY>"`
-   - Cowork/Claude Desktop (falls keine Header-Eingabe möglich): über den
-     stdio-Proxy `mcp-remote` mit `--header "Authorization: Bearer …"` —
-     dasselbe Muster wie beim Stitch-MCP-Setup.
+   - **Cowork/Claude Desktop: als Erweiterung installieren** — die Desktop-App
+     lädt lokale MCP-Server als Extension (MCPB), nicht über die
+     `claude_desktop_config.json` (die überschreibt die App laufend mit ihren
+     Preferences; Handbearbeitung geht verloren). Das Bundle liegt im Repo
+     unter [`extensions/knowledgescout/`](../../extensions/knowledgescout/):
+     einmal `npm install` in diesem Ordner (bündelt den stdio-Proxy
+     `mcp-remote`), dann Einstellungen → Erweiterungen → „Erweiterte
+     Einstellungen" → **„Entpackte Erweiterung installieren"** → den Ordner
+     wählen → im Konfigurieren-Dialog MCP-URL (Default passt) und API-Key
+     eintragen. Die Werkzeuge erscheinen in Cowork über die
+     remote-devices-Brücke.
 4. **Pilot-Ordner** mit bekannten Lücken, z. B.
    `6. bCommonsLab prototyping/25.01 Common Secretary` (Projektauftrag §6).
 5. **Cowork hat den lokalen Archiv-Mount** (OneDrive) für `BERICHT.md`/
