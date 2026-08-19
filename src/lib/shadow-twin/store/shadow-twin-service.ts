@@ -74,6 +74,13 @@ export interface UpsertMarkdownOptions {
   binaryFragments?: BinaryFragment[]
   /** Optional: Shadow-Twin-Ordner-ID für Filesystem-Write. Wenn gesetzt, wird ins Verzeichnis geschrieben statt neben die Quelle. */
   shadowTwinFolderId?: string
+  /**
+   * Unterdrückt den Filesystem-Spiegel-Write trotz persistToFilesystem.
+   * Für Aufrufer, die KEIN gültiges Spiegel-Ziel haben (kein `_`-Ordner,
+   * Alt-Form-Sidecar) — sonst entstünde eine Datei neben der Quelle,
+   * die der Contract verbietet (Twin-Datei-Contract §2).
+   */
+  skipFilesystemMirror?: boolean
 }
 
 export interface ResolveSavedItemIdOptions {
@@ -319,7 +326,7 @@ export class ShadowTwinService {
     const result = await this.primaryStore.upsertArtifact(key, opts.markdown, opts.binaryFragments, context)
 
     // 2. Wenn persistToFilesystem=true, auch im Filesystem speichern (im Shadow-Twin-Ordner)
-    if (this.config.persistToFilesystem && this.config.primaryStore === 'mongo' && this.fallbackStore) {
+    if (this.config.persistToFilesystem && this.config.primaryStore === 'mongo' && this.fallbackStore && !opts.skipFilesystemMirror) {
       try {
         // WICHTIG: shadowTwinFolderId als Ziel-Parent, sonst landet die Datei neben der Quelle statt im Ordner
         const fsContext = opts.shadowTwinFolderId
@@ -671,6 +678,10 @@ export class ShadowTwinService {
     targetLanguage: string
     templateName?: string
     patches: Record<string, unknown>
+    /** Spiegel-Ziel (`_`-Ordner) für den Filesystem-Write — siehe UpsertMarkdownOptions. */
+    shadowTwinFolderId?: string
+    /** Spiegel-Write unterdrücken (kein gültiges Ziel) — siehe UpsertMarkdownOptions. */
+    skipFilesystemMirror?: boolean
   }): Promise<{ markdown: string; id: string }> {
     const { kind, targetLanguage, patches } = opts
     let { templateName } = opts
@@ -741,6 +752,8 @@ export class ShadowTwinService {
       targetLanguage,
       templateName,
       markdown: updatedMarkdown,
+      shadowTwinFolderId: opts.shadowTwinFolderId,
+      skipFilesystemMirror: opts.skipFilesystemMirror,
     })
 
     FileLogger.info('shadow-twin-service', 'Artefakt-Frontmatter gepatcht', {

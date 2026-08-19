@@ -94,7 +94,7 @@ Agentensicht) pflegbar.
 
 | Gap-Typ | Regel | Prüft |
 |---|---|---|
-| `source_without_twin` | Quelle ohne `_`-Ordner mit Transkript | Engine-Scan (vorhanden) |
+| `source_without_twin` | Quelle ohne `_`-Ordner mit Transkript | Engine-Scan + Archiv-Abgleich (`source-gaps.ts`, W1-Nachzug: die Engine überspringt Dateien ohne Mongo-Doc und ohne adoptierbare Artefakte still; Quell-Typen eng am Contract §1 — PDF/DOC(X)/Audio/Video) |
 | `orphan_twin` | Twin ohne Quelle (Mongo ohne Storage-Fund oder verwaister `_`-Ordner) | Engine-Scan (vorhanden) |
 | `conflict` | Spiegel und Mongo divergieren | Engine-Check (vorhanden) |
 | `twin_stale` | Quelle jünger als ihr Twin | Freshness-Prüfung (vorhanden) |
@@ -172,7 +172,13 @@ Cowork-Session:
 Am Twin-Knoten: Dropdown für `twin_status`, Verify-Aktion setzt
 `verified_by: human:<user>` + `verified_at` — über die Kurations-Patch-Route aus
 Contract §4 (Erhalt unbekannter Felder, Spiegel-Drift-Guard). Die Agentensicht
-hat keinen eigenen Schreibpfad.
+hat keinen eigenen Schreibpfad. **Umgesetzt in Welle 4:** Route
+`POST /api/library/{id}/shadow-twins/curation` (Domäne Shadow-Twin, nicht
+Agent-View — die Sicht ruft sie nur); der Report trägt dafür je Quelle eine
+`TwinFamilySummary` (führendes Artefakt + Kurationszustand), frisch kuratierte
+Zustände überlagern den Report lokal bis zum nächsten expliziten Scan.
+Verify-Identität ist `human:<user-email>`; Selbst-Verifikation und
+Spiegel-Drift beantwortet die Route mit 409 statt zu schreiben.
 
 ### F5 — Nicht-Ziele
 
@@ -214,8 +220,8 @@ leistet die jeweils nächste Cowork-Session über den Rückmeldungsblock).
 | 1 ✓ | Coverage-Service als Komposition + neue Gap-Regeln (vollständige Tabelle in F2 — inkl. Soll/Ist, Verweis-Audit, Familien-Regeln) + Report-Cache + API (ohne UI) | umgesetzt: `src/lib/agent-view/`, `GET/POST /api/library/{id}/agent-view/*`, Unit-Test je neuem Gap-Typ |
 | 2 ✓ | Baum-UI read-only (Ampeln, Zähler, Sammel-Gaps) + Zyklus-Board (F1b) neben „Archiv" | umgesetzt: `/library/agent-view` (Menüpunkt „Agentensicht") |
 | 3 ✓ | Auftrags-Generator (Vorlage je Gap-Typ, Clipboard) + Todo-Listen nach Akteur | umgesetzt: Tab „Todos & Auftrag" (`todo-lists.ts`, `auftrag-generator.ts`) |
-| 4 | Kurations-Patch-Route (Contract §4: Feld-Patch, Erhalt unbekannter Felder, Drift-Guard) + Inline-Verifikation | Kuration im Baum |
-| 5 | **MCP-Brücke**: KnowledgeScout als MCP-Server — Werkzeuge `erschliessen` (Jobs + Status), `pruefen`/`reparieren`/`import`/`export`, `familie_umziehen`, `abdeckung_lesen`; dünne Schicht über den bestehenden Services, Auth per API-Key | „Räum diesen Ordner auf" als EIN Cowork-Auftrag statt Copy-Paste (Zyklus v2 §7) |
+| 4 ✓ | Kurations-Patch-Route (Contract §4: Feld-Patch, Erhalt unbekannter Felder, Drift-Guard) + Inline-Verifikation | umgesetzt: `POST /api/library/{id}/shadow-twins/curation` (`curation-plan.ts`/`curation-patch.ts`), Twin-Knoten mit `twin_status`-Dropdown + Verify im Baum; Nachzug W1: `GET .../agent-view/coverage` |
+| 5 ✓ (v1) | **MCP-Brücke**: KnowledgeScout als MCP-Server — Werkzeuge `erschliessen` (Jobs + Status), `pruefen`/`reparieren`/`import`/`export`, `familie_umziehen`, `abdeckung_lesen`; dünne Schicht über den bestehenden Services, Auth per API-Key | v1 umgesetzt: `/api/mcp/mcp` (`src/lib/mcp/`), Werkzeuge `bibliotheken_auflisten`, `abdeckung_lesen`/`_scannen`, `twins_pruefen`/`_synchronisieren`; `erschliessen` bewusst Mensch-Checkpoint, `familie_umziehen` wartet auf 0e — Szenario + Checkpoints: [`welle-5-mcp-testszenario.md`](welle-5-mcp-testszenario.md); offen: Pilot-Durchlauf |
 
 Branch-, Diff- und PR-Regeln nach `AGENTS.md` (eine PR pro Welle,
 Hand-off-Block). Welle 3 kommt vor 4, weil der Generator keinen Schreibweg

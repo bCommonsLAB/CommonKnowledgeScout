@@ -30,8 +30,10 @@ import { auditAllDocuments } from './document-audit'
 import { gapsFromSyncReport, type SourceLocation } from './engine-gaps'
 import { gapsFromFieldVerification } from './field-gaps'
 import { applyGapBudget } from './gap-budget'
+import { buildFamilySummaries } from './family-summaries'
 import { createGap, sortGaps } from './gap-registry'
 import { orphanTwinDocuments, orphanTwinFolders } from './inventory-gaps'
+import { sourcesWithoutTwin } from './source-gaps'
 import { checkStandWiderspruch } from './stand-widerspruch'
 import { buildTree } from './tree-builder'
 import { evaluateTwinRules, type TwinFamilyView } from './twin-rules'
@@ -88,6 +90,9 @@ export async function runCoverageScan(
 
   const folders = archive.folders
   const folderIds = new Set(folders.map((folder) => folder.folderId))
+  // Bibliotheks-Wurzel: kein Vorhaben, kein BERICHT noetig (Entscheid
+  // 2026-08-19). Bei Teilbaum-Scans ist die Scan-Wurzel ein normaler Ordner.
+  const libraryRootFolderId = request.scopeFolderId === null ? request.rootFolderId : null
   const fileIndex = buildFileIndex(folders)
   const families = locateFamilies({ families: rawFamilies, fileIndex, folderIds, rootFolderId: request.rootFolderId })
   const newestChange = buildNewestChangeBySubtree({ folders, families })
@@ -98,6 +103,13 @@ export async function runCoverageScan(
 
   const gaps: CoverageGap[] = [
     ...gapsFromSyncReport({ report: syncReport, locations, rootFolderId: request.rootFolderId }),
+    // W1-Nachzug: Quellen, die die Engine still uebersprungen hat
+    // (skippedWithoutDoc — keine Report-Zeile) und die auch Mongo nicht kennt.
+    ...sourcesWithoutTwin({
+      folders,
+      engineSourceIds: new Set(syncReport.sources.map((row) => row.sourceId)),
+      familySourceIds: new Set(families.map((family) => family.sourceId)),
+    }),
     ...gapsFromFieldVerification({ documents: fieldVerification.documents, locations, rootFolderId: request.rootFolderId }),
     ...(fieldVerification.error === null
       ? []
@@ -126,6 +138,7 @@ export async function runCoverageScan(
         conventions,
         vorhabenPattern,
         newestChangeInSubtree: newestChange.get(folder.folderId) ?? null,
+        isLibraryRoot: folder.folderId === libraryRootFolderId,
       }),
     ),
     ...auditAllDocuments({ folders, families, fileIndex, vorhabenPattern }),
@@ -153,6 +166,9 @@ export async function runCoverageScan(
     engineSkippedExcluded: syncReport.skippedExcluded ?? 0,
   })
 
+  // Twin-Knoten des Baums (Welle 4, F4): fuehrendes Artefakt + Kurationszustand.
+  const familySummaries = buildFamilySummaries({ families, standardTemplate: conventions.standardTemplate })
+
   return {
     libraryId: request.libraryId,
     generatedAt: ports.now(),
@@ -162,7 +178,9 @@ export async function runCoverageScan(
     totals,
     gaps: effectiveGaps,
     tree,
-    vorhaben: buildVorhabenCards({ folders, tree, gaps: effectiveGaps, vorhabenPattern }),
+    vorhaben: buildVorhabenCards({ folders, tree, gaps: effectiveGaps, vorhabenPattern, libraryRootFolderId }),
+    families: familySummaries.families,
+    familiesTruncated: familySummaries.truncated,
   }
 }
 

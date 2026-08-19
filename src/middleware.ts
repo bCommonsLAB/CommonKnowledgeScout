@@ -218,8 +218,25 @@ export default clerkMiddleware(async (auth, req) => {
     }
   }
 
+  // Dynamische Ausnahme (MCP-Bruecke, Welle 5): /api/mcp/* nur mit validem
+  // Bearer-Key (MCP_API_KEY) zulassen — dasselbe Muster wie die
+  // Integration-Tests-Ausnahme oben. Die Route prueft den Key selbst nochmal
+  // (Defense in depth); ohne validen Key bleibt die Route fuer Anonyme die
+  // von Clerk maskierte 404.
+  if (!isPublic) {
+    const path = req.nextUrl.pathname;
+    if (path.startsWith('/api/mcp/')) {
+      const bearer = String(req.headers.get('authorization') || '').trim();
+      const expected = String(process.env.MCP_API_KEY || '').trim();
+      const token = /^bearer\s+/i.test(bearer) ? bearer.replace(/^bearer\s+/i, '').trim() : '';
+      if (expected.length > 0 && token === expected) {
+        isPublic = true;
+      }
+    }
+  }
+
   // console.debug(`[Middleware] isPublicRoute: ${isPublic}`);
-  
+
   if (isPublic) return response;
 
   // Alt-Link-Auffang auf gekoppelten Domains (z.B. oldiesforfuture.org):

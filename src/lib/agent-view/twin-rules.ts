@@ -17,6 +17,7 @@
 
 import type { ArtifactKind } from '@/lib/shadow-twin/artifact-types'
 import {
+  actorLevel,
   isVerificationValid,
   missingTwinCoreFields,
   selectLeadingArtifact,
@@ -44,19 +45,6 @@ export interface TwinFamilyView {
   /** Library-relativer Pfad der Quelle ('' wenn der Scan sie nicht fand). */
   path: string
   artifacts: TwinArtifactView[]
-}
-
-/**
- * Actor-Ebene einer OKF-Actor-Angabe: `knowledgescout/gemini-2.5-pro` →
- * `knowledgescout`, `human:peter` → `human:peter`. Die Invariante
- * „niemand verifiziert die eigene Generierung" gilt auf DIESER Ebene
- * (Contract §3.2).
- */
-export function actorLevel(value: unknown): string | null {
-  if (typeof value !== 'string') return null
-  const trimmed = value.trim()
-  if (trimmed === '') return null
-  return trimmed.split('/')[0].trim().toLowerCase()
 }
 
 function familyGapBase(family: TwinFamilyView) {

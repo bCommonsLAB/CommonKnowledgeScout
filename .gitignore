@@ -5,7 +5,10 @@ node_modules
 .pnp.js
 
 # testing
-coverage
+# Nur das Test-Coverage-Output im Wurzelverzeichnis — ein unverankertes
+# `coverage` hat die API-Route `.../agent-view/coverage/route.ts` verschluckt
+# (deshalb fehlte die GET-Route aus Welle 1 im Repo).
+/coverage/
 test-results/
 playwright-report/
 playwright/.cache/

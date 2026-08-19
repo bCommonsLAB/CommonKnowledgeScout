@@ -54,10 +54,16 @@ export interface TransformationSyncPlan {
   note?: string
 }
 
-/** Normalisiert Inhalt fuer den Gleichheits-Vergleich (CRLF + Rand-Whitespace). */
-function normalize(markdown: string): string {
+/**
+ * Normalisiert Inhalt fuer den Gleichheits-Vergleich (CRLF + Rand-Whitespace).
+ * Auch der Spiegel-Drift-Guard der Kurations-Route (`curation-plan.ts`) nutzt
+ * GENAU diese Gleichheit — Drift heisst dort dasselbe wie hier.
+ */
+export function normalizeMarkdownForComparison(markdown: string): string {
   return markdown.replace(/\r\n/g, '\n').trim()
 }
+
+const normalize = normalizeMarkdownForComparison
 
 /** Plant den Abgleich EINES Transformations-Artefakts (siehe Datei-Kommentar). */
 export function planTransformationSync(

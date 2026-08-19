@@ -35,6 +35,7 @@ const CTX = {
   conventions: { vorhabenFolderPattern: null, indexRequiredMaxDepth: null, berichtFreshness: true },
   vorhabenPattern: null,
   newestChangeInSubtree: null,
+  isLibraryRoot: false,
 }
 
 describe('archive-rules — Vorhaben-Erkennung', () => {
@@ -69,6 +70,13 @@ describe('archive-rules — report_missing', () => {
 
   it('meldet nichts fuer ungesichtete Ordner (Gap-Budget uebernimmt)', () => {
     expect(checkReportMissing(folder({ bearbeitungsstand: 'ungesichtet' }), null)).toBeNull()
+  })
+
+  it('die Bibliotheks-Wurzel braucht keinen BERICHT (Entscheid 2026-08-19)', () => {
+    const wurzel = folder({ folderId: 'root', name: '', path: '', parentFolderId: null, depth: 0, bearbeitungsstand: 'strukturiert' })
+    expect(checkReportMissing(wurzel, null, true)).toBeNull()
+    // Bei Teilbaum-Scans ist die Scan-Wurzel ein normaler Vorhabensordner.
+    expect(checkReportMissing(wurzel, null, false)?.type).toBe('report_missing')
   })
 })
 

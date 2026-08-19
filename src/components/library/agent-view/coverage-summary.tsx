@@ -13,7 +13,7 @@
  */
 
 import { Badge } from '@/components/ui/badge'
-import { actorSummary, gapCountLabel } from '@/lib/agent-view/labels'
+import { actorSummary } from '@/lib/agent-view/labels'
 import type { CoverageReport } from '@/lib/agent-view/types'
 
 function Kennzahl({ label, value, title }: { label: string; value: string | number; title?: string }) {
@@ -34,7 +34,8 @@ export function CoverageSummary({ report, generatedAt }: { report: CoverageRepor
         <Kennzahl label="Dateien" value={totals.files} />
         <Kennzahl label="Quellen" value={totals.sources} title="Quellen mit Twin-Familie" />
         <Kennzahl label="Twin-Artefakte" value={totals.twins} />
-        <Kennzahl label={gapCountLabel(totals.gaps)} value={totals.gaps} title={actorSummary(totals.gapsByActor)} />
+        {/* Statisches Label — gapCountLabel wuerde die Zahl doppeln („438 / 438 Befunde"). */}
+        <Kennzahl label="Befunde" value={totals.gaps} title={actorSummary(totals.gapsByActor)} />
         <Kennzahl
           label="ausgeschlossen"
           value={totals.skippedExcluded.archive + totals.skippedExcluded.engine}

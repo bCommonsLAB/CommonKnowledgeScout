@@ -138,6 +138,38 @@ export interface VorhabenCard {
   widerspruch: boolean
 }
 
+/**
+ * Vertrauensampel des fuehrenden Artefakts (F1/F4): Verifikation zaehlt nur
+ * bei `verified_at >= generated_at` (Contract §3.2) — sonst `ungueltig`.
+ */
+export type VerificationState = 'unverifiziert' | 'maschinell' | 'mensch' | 'ungueltig'
+
+/** Fuehrendes Artefakt einer Twin-Familie mit Kurationszustand (F4). */
+export interface LeadingArtifactSummary {
+  kind: 'transcript' | 'transformation'
+  templateName: string | null
+  targetLanguage: string
+  /** Roher `twin_status`-Wert (ungueltige Werte bleiben sichtbar, kein stilles null). */
+  twinStatus: string | null
+  generatedBy: string | null
+  generatedAt: string | null
+  verifiedBy: string | null
+  verifiedAt: string | null
+  verification: VerificationState
+}
+
+/** Eine Twin-Familie im Report — der Twin-Knoten des Baums (F1, F4). */
+export interface TwinFamilySummary {
+  sourceId: string
+  sourceName: string
+  folderId: string
+  path: string
+  /** Artefakte der Familie (Transkript + Transformationen). */
+  artifactCount: number
+  /** null = Familie ohne fuehrendes Artefakt (weder Transkript noch Standard-Transformation). */
+  leading: LeadingArtifactSummary | null
+}
+
 /** Konventionen, unter denen der Scan lief (sichtbar statt hartkodiert). */
 export interface CoverageConventions {
   /** Standard-Template der Library (fuehrendes Artefakt, Contract §2b). */
@@ -186,4 +218,12 @@ export interface CoverageReport {
   gaps: CoverageGap[]
   tree: CoverageTreeNode[]
   vorhaben: VorhabenCard[]
+  /**
+   * Twin-Familien mit Kurationszustand (Welle 4, F4). OPTIONAL, weil Reports
+   * aus Scans vor Welle 4 das Feld nicht tragen — die UI benennt diesen
+   * Zustand („neu scannen") statt still nichts zu zeigen.
+   */
+  families?: TwinFamilySummary[]
+  /** true, wenn `families` am Budget gekappt wurde (sichtbar statt still). */
+  familiesTruncated?: boolean
 }

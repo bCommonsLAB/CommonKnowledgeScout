@@ -4,7 +4,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { CoverageTree } from '@/components/library/agent-view/coverage-tree'
 import { createGap } from '@/lib/agent-view/gap-registry'
-import type { CoverageReport, CoverageTreeNode } from '@/lib/agent-view/types'
+import type { CoverageReport, CoverageTreeNode, TwinFamilySummary } from '@/lib/agent-view/types'
 
 afterEach(() => cleanup())
 
@@ -67,6 +67,28 @@ describe('CoverageTree', () => {
     const rot = render(<CoverageTree report={report([node({ ampel: 'rot', totalGaps: 3 })])} />)
     expect(rot.container.querySelector('[aria-label="Offene Befunde im Teilbaum"]')).toBeTruthy()
     expect(screen.getByText('3 Befunde')).toBeTruthy()
+  })
+
+  it('zeigt Twin-Familien mit Inline-Kuration unter ihrem Ordner (Welle 4, F4)', () => {
+    const familie: TwinFamilySummary = {
+      sourceId: 's1', sourceName: 'Aufnahme.m4a', folderId: 'f-pilot',
+      path: '25.01 Pilot/Aufnahme.m4a', artifactCount: 2,
+      leading: {
+        kind: 'transformation', templateName: 'standard-konzept', targetLanguage: 'de',
+        twinStatus: 'draft', generatedBy: 'knowledgescout/gemini-2.5-pro',
+        generatedAt: '2026-08-01T10:00:00.000Z', verifiedBy: null, verifiedAt: null,
+        verification: 'unverifiziert',
+      },
+    }
+    render(<CoverageTree report={{ ...report([node()]), families: [familie] }} />)
+    expect(screen.getByText('Aufnahme.m4a')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Verifizieren/ })).toBeTruthy()
+    expect(screen.queryByText(/Scan vor Welle 4/)).toBeNull()
+  })
+
+  it('benennt Reports aus Scans vor Welle 4, statt still keine Familien zu zeigen', () => {
+    render(<CoverageTree report={report([node()])} />)
+    expect(screen.getByText(/Scan vor Welle 4/)).toBeTruthy()
   })
 
   it('zeigt den Sammel-Gap eines ungesichteten Teilbaums statt vieler Einzelbefunde', () => {

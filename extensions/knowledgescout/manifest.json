@@ -1,0 +1,55 @@
+{
+  "manifest_version": "0.3",
+  "name": "KnowledgeScout",
+  "display_name": "KnowledgeScout",
+  "version": "1.0.1",
+  "description": "Agentensicht-Werkzeuge von KnowledgeScout: Coverage lesen/scannen, Twins pruefen/synchronisieren.",
+  "author": {
+    "name": "bCommonsLAB"
+  },
+  "server": {
+    "type": "node",
+    "entry_point": "server/proxy.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/server/proxy.js",
+        "${user_config.server_url}",
+        "${user_config.api_key}"
+      ]
+    }
+  },
+  "license": "Apache-2.0",
+  "long_description": "Verbindet Cowork/Claude Desktop mit der MCP-Bruecke von KnowledgeScout (Welle 5) ueber einen abhaengigkeitsfreien stdio-Proxy (server/proxy.js, kein npm install noetig). Die Werkzeuge sind eine duenne Schicht ueber den bestehenden Services: Coverage-Report der Agentensicht lesen und neu scannen, Sync-Engine pruefen (check) und synchronisieren (repair/import/export). Der KnowledgeScout-Dev-Server muss laufen (Standard: Port 3001, Endpunkt /api/mcp/mcp); Szenario und Checkpoints: docs/concepts/welle-5-mcp-testszenario.md im Repo.",
+  "tools": [
+    { "name": "bibliotheken_auflisten", "description": "Listet die KnowledgeScout-Libraries des Users (Id + Name). Liest nur." },
+    { "name": "abdeckung_lesen", "description": "Juengsten Coverage-Report lesen (Befunde, Twin-Familien), optional auf einen Pfad gefiltert. Liest nur." },
+    { "name": "abdeckung_scannen", "description": "Expliziter Coverage-Scan; schreibt nur den wegwerfbaren Report-Cache." },
+    { "name": "twins_pruefen", "description": "Sync-Engine im check-Modus - Plan-Vorschau, es wird nichts geschrieben." },
+    { "name": "twins_synchronisieren", "description": "Sync-Engine im repair-Modus (Preset repair/import/export). SCHREIBT - nur nach Bestaetigung ausfuehren." }
+  ],
+  "keywords": ["knowledgescout", "agentensicht", "shadow-twin"],
+  "compatibility": {
+    "claude_desktop": ">=0.10.0",
+    "platforms": ["win32", "darwin", "linux"],
+    "runtimes": {
+      "node": ">=18.0.0"
+    }
+  },
+  "user_config": {
+    "server_url": {
+      "type": "string",
+      "title": "KnowledgeScout MCP-URL",
+      "description": "Streamable-HTTP-Endpunkt der MCP-Bruecke (laufender Dev-Server noetig).",
+      "required": true,
+      "default": "http://localhost:3001/api/mcp/mcp"
+    },
+    "api_key": {
+      "type": "string",
+      "title": "API-Key",
+      "description": "Wert von MCP_API_KEY aus der .env des KnowledgeScout-Servers.",
+      "sensitive": true,
+      "required": true
+    }
+  }
+}
