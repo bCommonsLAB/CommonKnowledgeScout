@@ -74,6 +74,19 @@ export function missingTwinCoreFields(
   return requiredTwinCoreFields(kind).filter((field) => isMissingValue(meta[field]))
 }
 
+/**
+ * Actor-Ebene einer OKF-Actor-Angabe (Contract §3.1):
+ * `knowledgescout/gemini-2.5-pro` → `knowledgescout`, `human:peter` →
+ * `human:peter`. Die Invariante „niemand verifiziert die eigene Generierung"
+ * (Contract §3.2) gilt auf DIESER Ebene.
+ */
+export function actorLevel(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (trimmed === '') return null
+  return trimmed.split('/')[0].trim().toLowerCase()
+}
+
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/
 
 /**

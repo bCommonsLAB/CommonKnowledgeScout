@@ -11,6 +11,7 @@ import {
   TWIN_CORE_FIELDS,
   TWIN_CURATION_FIELDS,
   TWIN_STATUS_VALUES,
+  actorLevel,
   requiredTwinCoreFields,
   missingTwinCoreFields,
   parseTwinCoreTimestamp,
@@ -72,6 +73,15 @@ describe('missingTwinCoreFields', () => {
       summary: 'frei nach Template',
     }
     expect(missingTwinCoreFields(meta, 'transformation')).toEqual([])
+  })
+})
+
+describe('actorLevel — OKF-Actor-Ebene (Contract §3.1/§3.2)', () => {
+  it('kuerzt Produzenten auf die Actor-Ebene und laesst human:/process: ganz', () => {
+    expect(actorLevel('knowledgescout/gemini-2.5-pro')).toBe('knowledgescout')
+    expect(actorLevel('human:peter')).toBe('human:peter')
+    expect(actorLevel('  ')).toBeNull()
+    expect(actorLevel(undefined)).toBeNull()
   })
 })
 

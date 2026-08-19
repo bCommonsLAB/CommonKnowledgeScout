@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import {
-  actorLevel,
   checkLeadingVerification,
   checkTransformationState,
   checkTwinCoreMissing,
@@ -47,14 +46,6 @@ function transformation(fm: Record<string, unknown> = {}, updatedAt = '2026-08-0
 function family(artifacts: TwinArtifactView[]): TwinFamilyView {
   return { sourceId: 's1', sourceName: 'Aufnahme.m4a', folderId: 'f1', path: '25.01 Pilot/Aufnahme.m4a', artifacts }
 }
-
-describe('twin-rules — Actor-Ebene', () => {
-  it('kuerzt Produzenten auf die Actor-Ebene und laesst human:/process: ganz', () => {
-    expect(actorLevel('knowledgescout/gemini-2.5-pro')).toBe('knowledgescout')
-    expect(actorLevel('human:peter')).toBe('human:peter')
-    expect(actorLevel('  ')).toBeNull()
-  })
-})
 
 describe('twin-rules — twin_core_missing', () => {
   it('meldet fehlende Kernfelder (Positivfall)', () => {
