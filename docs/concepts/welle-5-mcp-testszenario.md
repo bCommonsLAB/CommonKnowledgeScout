@@ -38,17 +38,20 @@ was fehlt, was divergiert) und die Engine-Knöpfe, nicht einen Datei-Editor.
 | `twins_synchronisieren` | Sync-Engine im repair-Modus mit Preset `repair` \| `import` \| `export` | **schreibt** (Mongo + Spiegel) | **je Aufruf einzeln** |
 | `familie_umziehen` | Quelldatei umbenennen/verschieben MIT Twin-Familie (Welle-0e-Service: Import → Siblings → Quelle → Mongo → Spiegel neu); Dateien ohne Twin werden einfach bewegt | **schreibt** (Storage + Mongo) | **je Aufruf einzeln** |
 | `ordner_umbenennen` | Ordner umbenennen (Storage-only, Mongo-transparent — Ids stabil, `_`-Ordner wandern mit) | **schreibt** (Storage) | **je Aufruf einzeln** |
+| `ordner_erstellen` | Neuen Ordner anlegen (z. B. als Umzugsziel) | **schreibt** (Storage) | je Aufruf |
+| `quelle_erschliessen` | Pipeline für EINE Quelle ohne Twin: Audio/Video transkribieren, mit Template auch Transformation+Ingest — antwortet sofort mit `jobId` (Worker arbeitet im Hintergrund); PDF/Office = Ausbaustufe | **schreibt** (Mongo + Spiegel), langlaufend | **je Aufruf einzeln** |
+| `transformation_starten` | Standard-Template auf eine Familie MIT Transkript (Text aus MongoDB, Job hängt an der Quelle) — antwortet sofort mit `jobId` | **schreibt** (Mongo + Spiegel), langlaufend | **je Aufruf einzeln** |
+| `job_status` | Status eines gestarteten Jobs (queued/running/completed/failed) | liest | einmalig erlauben |
 
 Umbenennen/Verschieben läuft IMMER über diese Werkzeuge, nie über direkte
 Dateisystem-Zugriffe des Agenten — sonst zeigen die Mongo-Dokumente ins
 Leere und aus 2 Befunden werden 20.
 
-**Bewusst NICHT in v1:**
+**Bewusst NICHT (Stand Stufe 2):**
 
-- `erschliessen` (Pipeline-Jobs starten): Der Job-Start bleibt in v1 ein
-  **Mensch-Checkpoint im KS-UI** — das passt zur Rollenverteilung („Buttons
-  drückt Peter", Contract §5) und vermeidet, den Job-Erzeugungs-Contract im
-  ersten Wurf nachzubauen. Ausbaustufe, sobald das Szenario einmal rund lief.
+- `quelle_erschliessen` für **PDF/Office**: anderer Upload-Contract
+  (FormData direkt an Secretary) — Ausbaustufe; solange im KS-UI
+  erschließen. Audio/Video laufen über die Brücke.
 - `loeschen`: bewusst kein Werkzeug (destruktivster Fall, Papierkorb-Semantik
   providerabhängig). Solange: per `familie_umziehen` in einen Klär-Ordner
   (z. B. „zu klären") verschieben statt löschen — reversibel und sichtbar.

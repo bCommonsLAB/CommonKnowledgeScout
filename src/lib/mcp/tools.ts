@@ -7,10 +7,8 @@
  * Coverage lesen/scannen, Engine pruefen/synchronisieren; dazu die
  * Umzugs-Werkzeuge aus `tools-umzug.ts` (Welle 0e). Jedes Werkzeug ruft
  * DIESELBEN Funktionen wie die API-Routen — kein drittes Pruefsystem, keine
- * neuen Schreibpfade. Bewusst NICHT dabei: erschliessen (Job-Start bleibt
- * Mensch-Checkpoint), loeschen (Ausbaustufe; solange in „zu klaeren"
- * verschieben), verifizieren (bleibt Mensch, F4).
- *
+ * neuen Schreibpfade. Bewusst NICHT dabei: loeschen (Ausbaustufe; solange in
+ * einen Klaer-Ordner verschieben), verifizieren (bleibt Mensch, F4).
  * @module mcp
  */
 
@@ -32,11 +30,13 @@ import {
   requireLibrary,
   resolveScope,
 } from './tool-shared'
+import { registerErschliessenTools } from './tools-erschliessen'
 import { registerUmzugTools } from './tools-umzug'
 
 /** Registriert alle Werkzeuge der Bruecke auf dem MCP-Server. */
 export function registerKnowledgeScoutTools(server: McpServer): void {
   registerUmzugTools(server)
+  registerErschliessenTools(server)
   server.registerTool(
     'bibliotheken_auflisten',
     {

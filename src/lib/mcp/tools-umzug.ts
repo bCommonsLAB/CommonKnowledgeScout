@@ -93,6 +93,36 @@ export function registerUmzugTools(server: McpServer): void {
   )
 
   server.registerTool(
+    'ordner_erstellen',
+    {
+      title: 'Ordner erstellen (SCHREIBT)',
+      description:
+        'Legt einen neuen Ordner an (z. B. als Umzugsziel fuer familie_umziehen). ' +
+        'SCHREIBT im Storage; nur nach Bestaetigung durch den Menschen ausfuehren.',
+      inputSchema: {
+        libraryId: LIBRARY_ID,
+        elternOrdnerId: z.string().min(1).optional().describe('Id des Eltern-Ordners; weglassen + kein elternPfad = Library-Wurzel'),
+        elternPfad: z.string().min(1).optional().describe('ALTERNATIVE: library-relativer Pfad des Eltern-Ordners'),
+        name: z.string().min(1).describe('Name des neuen Ordners'),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false },
+    },
+    async ({ libraryId, elternOrdnerId, elternPfad, name }) => {
+      try {
+        const userEmail = mcpUserEmail()
+        await requireLibrary(userEmail, libraryId)
+        const provider = await requireProvider(userEmail, libraryId)
+        if (elternOrdnerId && elternPfad) throw new Error('Entweder elternOrdnerId ODER elternPfad — nicht beides')
+        const parentId = elternPfad ? await resolveFolderIdByPath(provider, elternPfad) : elternOrdnerId ?? 'root'
+        const folder = await provider.createFolder(parentId, name)
+        return jsonResult({ ok: true, folderId: folder.id, name: folder.metadata.name, elternOrdnerId: parentId })
+      } catch (error) {
+        return errorResult(error)
+      }
+    },
+  )
+
+  server.registerTool(
     'ordner_umbenennen',
     {
       title: 'Ordner umbenennen (SCHREIBT)',
