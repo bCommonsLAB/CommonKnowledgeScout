@@ -168,7 +168,12 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
         const userEmail = mcpUserEmail()
         await requireLibrary(userEmail, libraryId)
         const scope = await resolveScope({ userEmail, libraryId, folderId, pfad })
-        const report = await scanLibraryCoverage({ libraryId, userEmail, folderId: scope ?? null })
+        const report = await scanLibraryCoverage({
+          libraryId, userEmail, folderId: scope ?? null,
+          // Bei pfad-Aufruf kennt der Report seinen library-relativen Scope —
+          // damit koennen spaetere library-relative Filter abgebildet werden.
+          scopePath: pfad ?? null,
+        })
         const stored = await saveCoverageReport(report)
         return jsonResult(
           summarizeCoverageReport({

@@ -53,6 +53,35 @@ export function isSourceFile(name: string): boolean {
  * NOCH MongoDB (Twin-Familie) kennt — die stille `skippedWithoutDoc`-Menge
  * des Engine-Laufs, gefiltert auf Quell-Dateitypen.
  */
+/**
+ * `datei_ohne_endung`: Dateien ganz ohne Endung sind im Archiv fast immer
+ * abgeschnittene Sync-Reste (OneDrive kappt lange Namen) — genau das will
+ * man gemeldet haben (Cowork-Befund aus dem Pilot). Dotfiles (`.gitignore`)
+ * zaehlen nicht: verstecktes Werkzeug, kein Inhalt.
+ */
+export function filesWithoutExtension(folders: readonly ArchiveFolderNode[]): CoverageGap[] {
+  const gaps: CoverageGap[] = []
+  for (const folder of folders) {
+    for (const file of folder.files) {
+      if (file.name.startsWith('.')) continue
+      if (file.name.includes('.')) continue
+      gaps.push(
+        createGap({
+          type: 'datei_ohne_endung',
+          scope: 'source',
+          targetId: file.fileId,
+          targetName: file.name,
+          folderId: folder.folderId,
+          path: file.path,
+          message: 'Datei ohne Endung — vermutlich abgeschnittener Sync-Rest',
+          detail: 'pruefen, umbenennen oder loeschen; ohne Endung erschliesst die Pipeline nichts',
+        }),
+      )
+    }
+  }
+  return gaps
+}
+
 export function sourcesWithoutTwin(args: {
   folders: readonly ArchiveFolderNode[]
   /** sourceIds mit Report-Zeile im Engine-Check (deren Urteil zaehlt). */

@@ -8,7 +8,7 @@
 import { describe, it, expect } from 'vitest'
 import { createGap } from '@/lib/agent-view/gap-registry'
 import type { CoverageGap, CoverageReport, CoverageTreeNode, TwinFamilySummary } from '@/lib/agent-view/types'
-import { isInSubtree, summarizeCoverageReport } from '@/lib/mcp/coverage-view'
+import { isInSubtree, mapPrefixToScope, summarizeCoverageReport } from '@/lib/mcp/coverage-view'
 
 function treeNode(path: string, overrides: Partial<CoverageTreeNode> = {}): CoverageTreeNode {
   return {
@@ -127,6 +127,25 @@ describe('summarizeCoverageReport', () => {
     expect(gekappt.filter.ordner).toHaveLength(1)
     expect(gekappt.filter.ordnerGekappt).toBe(true)
     expect(gekappt.filter.ordnerAnzahl).toBe(4)
+  })
+
+  it('bildet library-relative Filter auf Teilbaum-Reports ab (Cowork-Befund: scope-relative Pfade)', () => {
+    expect(mapPrefixToScope('A/B/Pilot', 'A/B')).toBe('Pilot')
+    expect(mapPrefixToScope('A/B', 'A/B')).toBe('')
+    expect(mapPrefixToScope('A', 'A/B')).toBe('')
+    expect(mapPrefixToScope('Pilot', 'A/B')).toBe('Pilot')
+
+    const view = summarize(
+      { scope: { folderId: 'fid-scope', path: '4. Aktivismus/26.01 Klima' } },
+      { pathPrefix: '4. Aktivismus/26.01 Klima/Pilot' },
+    )
+    expect(view.filter.pfad).toBe('Pilot')
+    expect(view.filter.pfadAngefragt).toBe('4. Aktivismus/26.01 Klima/Pilot')
+    expect(view.filter.befundAnzahl).toBe(1)
+    expect(view.scopeHinweis).toContain('26.01 Klima')
+
+    // Ohne Scope bleibt alles wie bisher.
+    expect(summarize().scopeHinweis).toBeNull()
   })
 
   it('weist die Kappung des GESPEICHERTEN Reports aus', () => {

@@ -70,6 +70,9 @@ export const GAP_REGISTRY: Record<CoverageGapType, GapDefinition> = {
   // — Budget + Betrieb —
   teilbaum_ungesichtet: { actor: 'knowledgescout', zyklusSchritt: 1, severity: 'info', origin: 'budget', label: 'Ungesichteter Teilbaum' },
   scan_error: { actor: 'knowledgescout', zyklusSchritt: 1, severity: 'error', origin: 'budget', label: 'Scan-Fehler' },
+
+  // — Archiv-Hygiene (W5-Nachzug, Cowork-Befund: abgeschnittene Sync-Reste) —
+  datei_ohne_endung: { actor: 'mensch', zyklusSchritt: 1, severity: 'warning', origin: 'archiv-konvention', label: 'Datei ohne Endung (Sync-Rest?)' },
 }
 
 /**

@@ -57,6 +57,8 @@ export type CoverageGapType =
   // — Budget + Betrieb —
   | 'teilbaum_ungesichtet'
   | 'scan_error'
+  // — Archiv-Hygiene (W5-Nachzug) —
+  | 'datei_ohne_endung'
 
 /** Ebene, auf die sich ein Befund bezieht. */
 export type GapScope = 'library' | 'folder' | 'source'
@@ -212,7 +214,13 @@ export interface CoverageReport {
   generatedAt: string
   /** Bewusst redundante Kennzeichnung: dieser Report ist kein Wahrheitstraeger. */
   derived: true
-  scope: { folderId: string | null }
+  /**
+   * Teilbaum-Scope des Scans. `path` ist der library-relative Pfad der
+   * Scan-Wurzel, WENN der Aufrufer ihn kennt (z. B. MCP-Scan per `pfad`) —
+   * Baum- und Befund-Pfade im Report sind SCOPE-relativ; mit `path` koennen
+   * Konsumenten library-relative Filter darauf abbilden.
+   */
+  scope: { folderId: string | null; path?: string | null }
   conventions: CoverageConventions
   totals: CoverageTotals
   gaps: CoverageGap[]

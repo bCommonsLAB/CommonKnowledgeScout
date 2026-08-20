@@ -111,6 +111,7 @@ Agentensicht) pflegbar.
 | `verweis_tot` | Bericht/Index verweist auf eine Datei oder einen Twin, die es nicht (mehr) gibt | neu — Verweis-Audit |
 | `verweis_veraltet` | ein verwiesener Twin wurde nach dem Stand des Berichts neu erzeugt oder geändert | neu — Verweis-Audit |
 | `bericht_unvollstaendig` | erschlossene Quellen/Ereignisordner des Vorhabens, die der Bericht nicht erwähnt | neu — Verweis-Audit, informativ |
+| `datei_ohne_endung` | Datei ganz ohne Endung (Dotfiles ausgenommen) — meist abgeschnittener Sync-Rest | neu — Archiv-Hygiene (W5-Nachtrag, Cowork-Befund) |
 
 **Verweis-Audit — der Kern der doppelten Buchhaltung:** Die Bodies von
 `BERICHT.md` und `_INDEX.md` werden auf Verweise geparst (Wikilinks `[[…]]`

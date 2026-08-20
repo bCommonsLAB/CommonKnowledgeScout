@@ -263,6 +263,36 @@ describe('coverage-service — Komposition', () => {
     expect(report.gaps.some((g) => g.type === 'source_without_twin' && g.targetName.endsWith('.md'))).toBe(false)
   })
 
+  it('Teilbaum-Scope: fremde Mongo-Familien fliegen raus statt an die Scope-Wurzel (Cowork-Befund)', async () => {
+    const scopedFolders: ArchiveFolderNode[] = [
+      {
+        folderId: 'f-pilot', name: '25.01 Pilot', path: '', parentFolderId: null, depth: 0,
+        files: [{ fileId: 'src-1', name: 'Aufnahme.m4a', path: 'Aufnahme.m4a', modifiedAt: '2026-08-16T10:00:00.000Z' }],
+        twinFolders: [], index: null, bericht: null,
+        bearbeitungsstand: null, bearbeitungsstandSeit: null,
+      },
+    ]
+    const fremd: RawTwinFamily = {
+      sourceId: 'fremd-1', sourceName: 'Fremd.m4a', parentId: 'irgendwo-anders',
+      artifacts: verifiedFamily().artifacts,
+    }
+    const report = await runCoverageScan(
+      {
+        libraryId: 'lib-1', rootFolderId: 'f-pilot', scopeFolderId: 'f-pilot',
+        scopePath: '4. Aktivismus/25.01 Pilot', conventions: CONVENTIONS,
+      },
+      makePorts({
+        archive: { folders: scopedFolders, skippedExcluded: 0 },
+        report: syncReport([syncRow({})]),
+        families: [verifiedFamily(), fremd],
+      }),
+    )
+    expect(report.scope).toEqual({ folderId: 'f-pilot', path: '4. Aktivismus/25.01 Pilot' })
+    expect(report.families?.some((f) => f.sourceId === 'src-1')).toBe(true)
+    expect(report.families?.some((f) => f.sourceId === 'fremd-1')).toBe(false)
+    expect(report.gaps.filter((g) => g.targetId === 'fremd-1')).toEqual([])
+  })
+
   it('routet Befunde an den zustaendigen Akteur (Todo-Routing F2)', async () => {
     const report = await scan({
       rows: [syncRow({ transcriptStatus: 'empty' })],

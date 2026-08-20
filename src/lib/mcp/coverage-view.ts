@@ -41,6 +41,19 @@ export function isInSubtree(path: string, prefix: string): boolean {
   return path === prefix || path.startsWith(`${prefix}/`)
 }
 
+/**
+ * Bildet einen LIBRARY-relativen Filter auf einen Teilbaum-Report ab, dessen
+ * Pfade SCOPE-relativ sind (Cowork-Befund: beides zusammen ergab still 0
+ * Treffer). Kennt der Report seinen Scope-Pfad, wird gekuerzt; sonst wird
+ * der Filter unveraendert (scope-relativ) interpretiert.
+ */
+export function mapPrefixToScope(prefix: string, scopePath: string): string {
+  if (prefix === '' || scopePath === '') return prefix
+  if (prefix === scopePath || isInSubtree(scopePath, prefix)) return ''
+  if (isInSubtree(prefix, scopePath)) return prefix.slice(scopePath.length + 1)
+  return prefix
+}
+
 function countBy<T extends string>(values: readonly T[]): Partial<Record<T, number>> {
   const counts: Partial<Record<T, number>> = {}
   for (const value of values) counts[value] = (counts[value] ?? 0) + 1
@@ -112,7 +125,10 @@ function compactFamily(family: TwinFamilySummary) {
  * die Werkzeug-Schicht liefert die Eingaben aus dem Report-Cache.
  */
 export function summarizeCoverageReport(args: CoverageViewArgs) {
-  const prefix = normalizePrefix(args.pathPrefix)
+  const requestedPrefix = normalizePrefix(args.pathPrefix)
+  const scoped = args.report.scope.folderId != null
+  const scopePath = normalizePrefix(args.report.scope.path ?? '')
+  const prefix = scoped ? mapPrefixToScope(requestedPrefix, scopePath) : requestedPrefix
   const maxGaps = args.maxGaps ?? DEFAULT_MAX_GAPS
   const maxFamilies = args.maxFamilies ?? DEFAULT_MAX_FAMILIES
   const maxFolders = args.maxFolders ?? DEFAULT_MAX_FOLDERS
@@ -134,6 +150,12 @@ export function summarizeCoverageReport(args: CoverageViewArgs) {
     scope: args.report.scope,
     hinweis:
       'Report ist ABGELEITET (berechnet, nicht Wahrheit); Zeitpunkt beachten und bei Bedarf abdeckung_scannen ausfuehren.',
+    scopeHinweis: scoped
+      ? `TEILBAUM-Report${scopePath ? ` (Scope: ${scopePath})` : ' (Scope-Pfad unbekannt)'} — Pfade im Report sind SCOPE-relativ; ` +
+        (scopePath
+          ? 'library-relative Filter werden automatisch auf den Scope gekuerzt.'
+          : 'Filter scope-relativ angeben oder weglassen.')
+      : null,
     conventions: args.report.conventions,
     totalsLibraryWeit: args.report.totals,
     gespeicherterReportGekappt: args.storedGapsTruncated
@@ -141,6 +163,7 @@ export function summarizeCoverageReport(args: CoverageViewArgs) {
       : null,
     filter: {
       pfad: prefix === '' ? null : prefix,
+      pfadAngefragt: requestedPrefix === '' ? null : requestedPrefix,
       /** folderId hier fuer Teilbaum-Scans/-Checks verwenden (statt ganzer Library). */
       ordner: folders.slice(0, maxFolders),
       ordnerAnzahl: folders.length,
