@@ -158,6 +158,13 @@ was fehlt, was divergiert) und die Engine-Knöpfe, nicht einen Datei-Editor.
   explizit ausgewiesen, nie still.
 - **Kein Werkzeug für Dinge, die es nicht gibt** (Stop-Bedingung): kein
   `erschliessen`-Job-Start, kein `familie_umziehen`, kein Verifizieren.
+- **~60-Sekunden-Grenze (Live-Befund):** Der MCP-Client bricht Aufrufe nach
+  ca. 60 s ab (Client-Standard, serverseitig nicht beeinflussbar). Deshalb:
+  `abdeckung_lesen` zuerst (Cache, sofort); `abdeckung_scannen`/`twins_pruefen`
+  IMMER auf Teilbäume begrenzen — per `folderId` (aus der Ordnerliste von
+  `abdeckung_lesen`) oder per `pfad` (Pfad→folderId-Resolver direkt gegen den
+  Storage, braucht keinen Report — löst das Henne-Ei frischer Libraries).
+  Der eine große Erst-Scan gehört in die KS-Oberfläche („Neu scannen").
 - Storage-Abstraktion unberührt: Die Werkzeuge kennen Provider nur über die
   bestehenden Services.
 

@@ -22,8 +22,10 @@ import { FileLogger } from '@/lib/debug/logger'
 import { getCoverageReport, saveCoverageReport } from '@/lib/repositories/agent-view-coverage-repo'
 import { LibraryService } from '@/lib/services/library-service'
 import { runLibrarySync } from '@/lib/shadow-twin/sync-engine/run-library-sync'
+import { getServerProvider } from '@/lib/storage/server-provider'
 import type { Library } from '@/types/library'
 import { summarizeCoverageReport } from './coverage-view'
+import { resolveFolderIdByPath } from './resolve-folder'
 import { summarizeSyncReport } from './sync-view'
 
 interface ToolResult {
@@ -60,7 +62,31 @@ const FOLDER_ID = z
   .string()
   .min(1)
   .optional()
-  .describe('Storage-Ordner-Id fuer einen Teilbaum; weglassen = ganze Library')
+  .describe('Storage-Ordner-Id fuer einen Teilbaum (aus der Ordnerliste von abdeckung_lesen)')
+const SCOPE_PFAD = z
+  .string()
+  .min(1)
+  .optional()
+  .describe('ALTERNATIVE zu folderId: library-relativer Ordnerpfad (z. B. "26.01 Klima/Berichte") — wird direkt gegen den Storage aufgeloest, braucht KEINEN Report')
+
+/**
+ * Teilbaum-Scope aufloesen: folderId direkt, oder pfad billig gegen den
+ * Storage (ein Listing pro Segment) — funktioniert auch ohne Report.
+ */
+async function resolveScope(args: {
+  userEmail: string
+  libraryId: string
+  folderId?: string
+  pfad?: string
+}): Promise<string | undefined> {
+  if (args.folderId && args.pfad) {
+    throw new Error('Entweder folderId ODER pfad angeben — nicht beides')
+  }
+  if (!args.pfad) return args.folderId
+  const provider = await getServerProvider(args.userEmail, args.libraryId)
+  if (!provider) throw new Error('Storage-Provider nicht verfuegbar — Pfad nicht aufloesbar')
+  return resolveFolderIdByPath(provider, args.pfad)
+}
 
 /** Registriert alle Werkzeuge der Bruecke auf dem MCP-Server. */
 export function registerKnowledgeScoutTools(server: McpServer): void {
@@ -131,17 +157,18 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
       title: 'Coverage neu scannen',
       description:
         'Expliziter Coverage-Scan — berechnet Befunde und Twin-Familien neu und speichert den ' +
-        'wegwerfbaren Report. TEUER: ein Storage-API-Call pro Ordner; Library-weite Scans dauern ' +
-        'Minuten und reissen Timeouts. Bei grossen Libraries IMMER mit folderId (aus der ' +
-        'Ordnerliste von abdeckung_lesen) auf einen Teilbaum begrenzen; nur auf Wunsch des Users ' +
-        'library-weit. Schreibt NUR den Report-Cache.',
-      inputSchema: { libraryId: LIBRARY_ID, folderId: FOLDER_ID },
+        'wegwerfbaren Report. TEUER: ein Storage-API-Call pro Ordner, und der MCP-Client bricht ' +
+        'Aufrufe nach ~60 Sekunden ab. Deshalb IMMER auf einen Teilbaum begrenzen — per folderId ' +
+        'ODER per pfad (braucht keinen Report). Der grosse Erst-Scan einer Library gehoert in die ' +
+        'KS-Oberflaeche (Agentensicht → „Neu scannen"). Schreibt NUR den Report-Cache.',
+      inputSchema: { libraryId: LIBRARY_ID, folderId: FOLDER_ID, pfad: SCOPE_PFAD },
     },
-    async ({ libraryId, folderId }) => {
+    async ({ libraryId, folderId, pfad }) => {
       try {
         const userEmail = mcpUserEmail()
         await requireLibrary(userEmail, libraryId)
-        const report = await scanLibraryCoverage({ libraryId, userEmail, folderId: folderId ?? null })
+        const scope = await resolveScope({ userEmail, libraryId, folderId, pfad })
+        const report = await scanLibraryCoverage({ libraryId, userEmail, folderId: scope ?? null })
         const stored = await saveCoverageReport(report)
         return jsonResult(
           summarizeCoverageReport({
@@ -164,18 +191,19 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
       description:
         'Sync-Engine im check-Modus: Konflikte, Alt-Namen, fehlende Spiegel, Pipeline-Bedarf — ' +
         'als Plan-Vorschau. Es wird NICHTS geschrieben, aber es ist ein LIVE-Lauf gegen den ' +
-        'Storage (kein Cache): bei grossen Libraries IMMER mit folderId (aus abdeckung_lesen) ' +
-        'auf einen Teilbaum begrenzen. Liest nur.',
-      inputSchema: { libraryId: LIBRARY_ID, folderId: FOLDER_ID },
+        'Storage (kein Cache), und der MCP-Client bricht nach ~60 Sekunden ab: IMMER auf einen ' +
+        'Teilbaum begrenzen — per folderId ODER per pfad (braucht keinen Report). Liest nur.',
+      inputSchema: { libraryId: LIBRARY_ID, folderId: FOLDER_ID, pfad: SCOPE_PFAD },
       annotations: { readOnlyHint: true },
     },
-    async ({ libraryId, folderId }) => {
+    async ({ libraryId, folderId, pfad }) => {
       try {
         const userEmail = mcpUserEmail()
         await requireLibrary(userEmail, libraryId)
+        const scope = await resolveScope({ userEmail, libraryId, folderId, pfad })
         const report = await runLibrarySync({
           libraryId, userEmail, mode: 'check', preset: 'repair',
-          scope: folderId ? { folderId } : {},
+          scope: scope ? { folderId: scope } : {},
         })
         return jsonResult(summarizeSyncReport(report))
       } catch (error) {
@@ -197,16 +225,18 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
         libraryId: LIBRARY_ID,
         preset: z.enum(['repair', 'import', 'export']).describe('Welcher Knopf gedrueckt wird'),
         folderId: FOLDER_ID,
+        pfad: SCOPE_PFAD,
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
-    async ({ libraryId, preset, folderId }) => {
+    async ({ libraryId, preset, folderId, pfad }) => {
       try {
         const userEmail = mcpUserEmail()
         await requireLibrary(userEmail, libraryId)
+        const scope = await resolveScope({ userEmail, libraryId, folderId, pfad })
         const report = await runLibrarySync({
           libraryId, userEmail, mode: 'repair', preset,
-          scope: folderId ? { folderId } : {},
+          scope: scope ? { folderId: scope } : {},
         })
         return jsonResult(summarizeSyncReport(report))
       } catch (error) {
