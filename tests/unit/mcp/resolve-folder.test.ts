@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from 'vitest'
 import type { StorageProvider } from '@/lib/storage/types'
-import { FolderPathNotFoundError, resolveFolderIdByPath } from '@/lib/mcp/resolve-folder'
+import { FolderPathNotFoundError, resolveFolderIdByPath, resolveItemByPath } from '@/lib/mcp/resolve-folder'
 
 function fakeProvider(tree: Record<string, Array<{ id: string; type: 'file' | 'folder'; name: string }>>): StorageProvider {
   return {
@@ -47,5 +47,20 @@ describe('resolveFolderIdByPath', () => {
 
   it('leerer Pfad ist ein Fehler, kein stiller Library-Volllauf', async () => {
     await expect(resolveFolderIdByPath(PROVIDER, '  /  ')).rejects.toThrow(FolderPathNotFoundError)
+  })
+})
+
+describe('resolveItemByPath — Datei-Ziele fuer familie_umziehen', () => {
+  it('die erwartete Art entscheidet bei Namensgleichheit von Datei und Ordner (kein Raten)', async () => {
+    const alsDatei = await resolveItemByPath(PROVIDER, '26.01 Klima', 'file')
+    expect(alsDatei).toMatchObject({ id: 'x-datei', type: 'file', parentFolderId: 'root' })
+    const alsOrdner = await resolveItemByPath(PROVIDER, '26.01 Klima', 'folder')
+    expect(alsOrdner).toMatchObject({ id: 'f-klima', type: 'folder' })
+  })
+
+  it('Datei erwartet, aber nur Ordner vorhanden → Fehler mit Hinweis (Negativfall)', async () => {
+    await expect(resolveItemByPath(PROVIDER, '26.01 Klima/Berichte', 'file')).rejects.toThrow(
+      FolderPathNotFoundError,
+    )
   })
 })

@@ -2,15 +2,14 @@
  * @fileoverview Werkzeuge der MCP-Bruecke (Welle 5) — duenn ueber den Services.
  *
  * @description
- * Genau die fuenf Werkzeuge aus dem Testszenario
+ * Lese-/Sync-Werkzeuge aus dem Testszenario
  * (`docs/concepts/welle-5-mcp-testszenario.md` §2): Bibliotheken auflisten,
- * Coverage lesen/scannen, Engine pruefen/synchronisieren. Jedes Werkzeug ruft
+ * Coverage lesen/scannen, Engine pruefen/synchronisieren; dazu die
+ * Umzugs-Werkzeuge aus `tools-umzug.ts` (Welle 0e). Jedes Werkzeug ruft
  * DIESELBEN Funktionen wie die API-Routen — kein drittes Pruefsystem, keine
  * neuen Schreibpfade. Bewusst NICHT dabei: erschliessen (Job-Start bleibt
- * Mensch-Checkpoint), familie_umziehen (Welle 0e fehlt), verifizieren
- * (bleibt Mensch, F4 — ein Agent verifiziert nie sich selbst).
- *
- * Fehler werden als `isError`-Ergebnis gemeldet (Klartext), nie verschluckt.
+ * Mensch-Checkpoint), loeschen (Ausbaustufe; solange in „zu klaeren"
+ * verschieben), verifizieren (bleibt Mensch, F4).
  *
  * @module mcp
  */
@@ -18,78 +17,26 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { scanLibraryCoverage } from '@/lib/agent-view/run-coverage-scan'
-import { FileLogger } from '@/lib/debug/logger'
 import { getCoverageReport, saveCoverageReport } from '@/lib/repositories/agent-view-coverage-repo'
 import { LibraryService } from '@/lib/services/library-service'
 import { runLibrarySync } from '@/lib/shadow-twin/sync-engine/run-library-sync'
-import { getServerProvider } from '@/lib/storage/server-provider'
-import type { Library } from '@/types/library'
 import { summarizeCoverageReport } from './coverage-view'
-import { resolveFolderIdByPath } from './resolve-folder'
 import { summarizeSyncReport } from './sync-view'
-
-interface ToolResult {
-  content: Array<{ type: 'text'; text: string }>
-  isError?: boolean
-  [key: string]: unknown
-}
-
-function jsonResult(value: unknown): ToolResult {
-  return { content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] }
-}
-
-function errorResult(error: unknown): ToolResult {
-  const message = error instanceof Error ? error.message : String(error)
-  FileLogger.error('mcp-tools', 'Werkzeug fehlgeschlagen', { error: message })
-  return { content: [{ type: 'text', text: `Fehler: ${message}` }], isError: true }
-}
-
-/** User der Bruecke (Pilot: EIN Key ↔ EIN User, siehe `auth.ts`). */
-function mcpUserEmail(): string {
-  const email = process.env.MCP_USER_EMAIL?.trim() ?? ''
-  if (email === '') throw new Error('MCP_USER_EMAIL nicht konfiguriert')
-  return email
-}
-
-async function requireLibrary(userEmail: string, libraryId: string): Promise<Library> {
-  const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
-  if (!library) throw new Error(`Bibliothek nicht gefunden oder kein Zugriff: ${libraryId}`)
-  return library
-}
-
-const LIBRARY_ID = z.string().min(1).describe('Id der Library (aus bibliotheken_auflisten)')
-const FOLDER_ID = z
-  .string()
-  .min(1)
-  .optional()
-  .describe('Storage-Ordner-Id fuer einen Teilbaum (aus der Ordnerliste von abdeckung_lesen)')
-const SCOPE_PFAD = z
-  .string()
-  .min(1)
-  .optional()
-  .describe('ALTERNATIVE zu folderId: library-relativer Ordnerpfad (z. B. "26.01 Klima/Berichte") — wird direkt gegen den Storage aufgeloest, braucht KEINEN Report')
-
-/**
- * Teilbaum-Scope aufloesen: folderId direkt, oder pfad billig gegen den
- * Storage (ein Listing pro Segment) — funktioniert auch ohne Report.
- */
-async function resolveScope(args: {
-  userEmail: string
-  libraryId: string
-  folderId?: string
-  pfad?: string
-}): Promise<string | undefined> {
-  if (args.folderId && args.pfad) {
-    throw new Error('Entweder folderId ODER pfad angeben — nicht beides')
-  }
-  if (!args.pfad) return args.folderId
-  const provider = await getServerProvider(args.userEmail, args.libraryId)
-  if (!provider) throw new Error('Storage-Provider nicht verfuegbar — Pfad nicht aufloesbar')
-  return resolveFolderIdByPath(provider, args.pfad)
-}
+import {
+  FOLDER_ID,
+  LIBRARY_ID,
+  SCOPE_PFAD,
+  errorResult,
+  jsonResult,
+  mcpUserEmail,
+  requireLibrary,
+  resolveScope,
+} from './tool-shared'
+import { registerUmzugTools } from './tools-umzug'
 
 /** Registriert alle Werkzeuge der Bruecke auf dem MCP-Server. */
 export function registerKnowledgeScoutTools(server: McpServer): void {
+  registerUmzugTools(server)
   server.registerTool(
     'bibliotheken_auflisten',
     {

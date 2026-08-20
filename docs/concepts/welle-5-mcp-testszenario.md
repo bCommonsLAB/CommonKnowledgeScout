@@ -36,6 +36,12 @@ was fehlt, was divergiert) und die Engine-Knöpfe, nicht einen Datei-Editor.
 | `abdeckung_scannen` | Expliziter Neu-Scan (optional Teilbaum), speichert den wegwerfbaren Report | rechnet; schreibt NUR den Report-Cache | je Aufruf |
 | `twins_pruefen` | Sync-Engine im check-Modus (Konflikte, Alt-Namen, fehlende Spiegel) — kompakte Zusammenfassung | liest | einmalig erlauben |
 | `twins_synchronisieren` | Sync-Engine im repair-Modus mit Preset `repair` \| `import` \| `export` | **schreibt** (Mongo + Spiegel) | **je Aufruf einzeln** |
+| `familie_umziehen` | Quelldatei umbenennen/verschieben MIT Twin-Familie (Welle-0e-Service: Import → Siblings → Quelle → Mongo → Spiegel neu); Dateien ohne Twin werden einfach bewegt | **schreibt** (Storage + Mongo) | **je Aufruf einzeln** |
+| `ordner_umbenennen` | Ordner umbenennen (Storage-only, Mongo-transparent — Ids stabil, `_`-Ordner wandern mit) | **schreibt** (Storage) | **je Aufruf einzeln** |
+
+Umbenennen/Verschieben läuft IMMER über diese Werkzeuge, nie über direkte
+Dateisystem-Zugriffe des Agenten — sonst zeigen die Mongo-Dokumente ins
+Leere und aus 2 Befunden werden 20.
 
 **Bewusst NICHT in v1:**
 
@@ -43,8 +49,9 @@ was fehlt, was divergiert) und die Engine-Knöpfe, nicht einen Datei-Editor.
   **Mensch-Checkpoint im KS-UI** — das passt zur Rollenverteilung („Buttons
   drückt Peter", Contract §5) und vermeidet, den Job-Erzeugungs-Contract im
   ersten Wurf nachzubauen. Ausbaustufe, sobald das Szenario einmal rund lief.
-- `familie_umziehen`: Welle 0e ist noch nicht gebaut — nichts exponieren, was
-  es nicht gibt.
+- `loeschen`: bewusst kein Werkzeug (destruktivster Fall, Papierkorb-Semantik
+  providerabhängig). Solange: per `familie_umziehen` in einen Klär-Ordner
+  (z. B. „zu klären") verschieben statt löschen — reversibel und sichtbar.
 - `kuratieren`/`verifizieren`: Verifikation bleibt **Mensch** (F4 in der
   Agentensicht). Ein Agent verifiziert nie sich selbst (Contract §3.2/§5);
   deshalb bekommt er dieses Werkzeug gar nicht erst.

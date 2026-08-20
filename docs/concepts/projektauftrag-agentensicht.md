@@ -216,7 +216,7 @@ leistet die jeweils nächste Cowork-Session über den Rückmeldungsblock).
 | 0a ✓ | Twin-Kern-Feldsatz + Writer-Stempel am Pipeline-Engpass (PR #162) | umgesetzt, im Pilot bewiesen |
 | 0b | Ausschluss-Globs als Library-Config-Feld (Checkliste `library-config-field.mdc`) | Scans haben einen Zaun |
 | 0c ✓ / 0d ✓ | Sidecar-Adoption (PR #163) · Handkorrektur-Vorrang + Kombi-Fehlerkennung (PR #164) | umgesetzt, im Pilot bewiesen |
-| 0e | `familie_umziehen` als Funktion: Import → Quelle verschieben/umbenennen → DB-Namen nachziehen → alten Spiegel löschen → Export (Engine-Op + API) | Umzüge nach der Erschließung sind ein Handgriff (Zyklus v2 §3) |
+| 0e ✓ | `familie_umziehen` als Funktion: Import → Quelle verschieben/umbenennen → DB-Namen nachziehen → alten Spiegel löschen → Export (Engine-Op + API) | umgesetzt: `src/lib/shadow-twin/move-family.ts` + `POST /shadow-twins/move-family`; seit W5-Nachtrag auch als MCP-Werkzeuge `familie_umziehen` + `ordner_umbenennen` |
 | 0f | Typ-Template-Registry: Library-Config-Map `doc_type → Template` (Fallback: bisheriges Einzel-Template), Typ-Erkennungsschritt nach dem Transkript, Standard-Typ-Templates (konzept, email-diktat, besprechung, notiz) | richtige Vorlage je Inhaltstyp (Zyklus v2 §2) |
 | 1 ✓ | Coverage-Service als Komposition + neue Gap-Regeln (vollständige Tabelle in F2 — inkl. Soll/Ist, Verweis-Audit, Familien-Regeln) + Report-Cache + API (ohne UI) | umgesetzt: `src/lib/agent-view/`, `GET/POST /api/library/{id}/agent-view/*`, Unit-Test je neuem Gap-Typ |
 | 2 ✓ | Baum-UI read-only (Ampeln, Zähler, Sammel-Gaps) + Zyklus-Board (F1b) neben „Archiv" | umgesetzt: `/library/agent-view` (Menüpunkt „Agentensicht") |
