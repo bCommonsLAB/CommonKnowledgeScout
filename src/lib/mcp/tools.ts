@@ -86,9 +86,10 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
     {
       title: 'Coverage lesen',
       description:
-        'Liest den JUENGSTEN Coverage-Report der Agentensicht (Befunde, Twin-Familien, Zaehler), ' +
-        'optional auf einen library-relativen Pfad gefiltert. Rechnet nichts neu — bei veraltetem ' +
-        'Report zuerst abdeckung_scannen. Liest nur.',
+        'IMMER ZUERST verwenden: liest den GESPEICHERTEN Coverage-Report (Befunde, Twin-Familien, ' +
+        'Ordnerliste mit folderIds) — antwortet sofort, ohne den Storage anzufassen. Optional auf ' +
+        'einen library-relativen Pfad gefiltert. Die gelieferten folderIds sind der Schluessel fuer ' +
+        'Teilbaum-Scans/-Checks. Neu gerechnet wird nur mit abdeckung_scannen (explizit). Liest nur.',
       inputSchema: {
         libraryId: LIBRARY_ID,
         pfad: z.string().optional().describe('Library-relativer Ordnerpfad, z. B. "6. bCommonsLab prototyping/25.01 Common Secretary"'),
@@ -129,9 +130,11 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
     {
       title: 'Coverage neu scannen',
       description:
-        'Expliziter Coverage-Scan (Agentensicht) — berechnet Befunde und Twin-Familien neu und ' +
-        'speichert den wegwerfbaren Report. Library-weite Scans koennen Minuten dauern; fuer das ' +
-        'Aufraeum-Szenario einen Teilbaum (folderId) scannen. Schreibt NUR den Report-Cache.',
+        'Expliziter Coverage-Scan — berechnet Befunde und Twin-Familien neu und speichert den ' +
+        'wegwerfbaren Report. TEUER: ein Storage-API-Call pro Ordner; Library-weite Scans dauern ' +
+        'Minuten und reissen Timeouts. Bei grossen Libraries IMMER mit folderId (aus der ' +
+        'Ordnerliste von abdeckung_lesen) auf einen Teilbaum begrenzen; nur auf Wunsch des Users ' +
+        'library-weit. Schreibt NUR den Report-Cache.',
       inputSchema: { libraryId: LIBRARY_ID, folderId: FOLDER_ID },
     },
     async ({ libraryId, folderId }) => {
@@ -160,7 +163,9 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
       title: 'Twins pruefen (check)',
       description:
         'Sync-Engine im check-Modus: Konflikte, Alt-Namen, fehlende Spiegel, Pipeline-Bedarf — ' +
-        'als Plan-Vorschau. Es wird NICHTS geschrieben. Liest nur.',
+        'als Plan-Vorschau. Es wird NICHTS geschrieben, aber es ist ein LIVE-Lauf gegen den ' +
+        'Storage (kein Cache): bei grossen Libraries IMMER mit folderId (aus abdeckung_lesen) ' +
+        'auf einen Teilbaum begrenzen. Liest nur.',
       inputSchema: { libraryId: LIBRARY_ID, folderId: FOLDER_ID },
       annotations: { readOnlyHint: true },
     },

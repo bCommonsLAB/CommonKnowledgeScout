@@ -7,8 +7,19 @@
 
 import { describe, it, expect } from 'vitest'
 import { createGap } from '@/lib/agent-view/gap-registry'
-import type { CoverageGap, CoverageReport, TwinFamilySummary } from '@/lib/agent-view/types'
+import type { CoverageGap, CoverageReport, CoverageTreeNode, TwinFamilySummary } from '@/lib/agent-view/types'
 import { isInSubtree, summarizeCoverageReport } from '@/lib/mcp/coverage-view'
+
+function treeNode(path: string, overrides: Partial<CoverageTreeNode> = {}): CoverageTreeNode {
+  return {
+    folderId: `id-${path || 'root'}`, name: path.split('/').pop() ?? '', path,
+    depth: path === '' ? 0 : path.split('/').length,
+    bearbeitungsstand: null, bearbeitungsstandSeit: null, hasIndex: false, hasBericht: false,
+    sourceCount: 0, fileCount: 0, ownGaps: 0, totalGaps: 0, gapsByType: {},
+    gapsByActor: { mensch: 0, cowork: 0, knowledgescout: 0 },
+    ampel: 'gruen', children: [], ...overrides,
+  }
+}
 
 function gap(path: string, type: CoverageGap['type'] = 'source_without_twin'): CoverageGap {
   return createGap({
@@ -43,7 +54,16 @@ function report(overrides: Partial<CoverageReport> = {}): CoverageReport {
       skippedExcluded: { archive: 0, engine: 0 }, collapsedGaps: 0, scanErrors: 0,
     },
     gaps: [gap('Pilot/A.pdf'), gap('Anderswo/B.pdf')],
-    tree: [], vorhaben: [],
+    tree: [
+      treeNode('', {
+        totalGaps: 2,
+        children: [
+          treeNode('Pilot', { totalGaps: 1, sourceCount: 1 }),
+          treeNode('Anderswo', { totalGaps: 1, children: [treeNode('Anderswo/Tief')] }),
+        ],
+      }),
+    ],
+    vorhaben: [],
     families: [family('Pilot/A.pdf'), family('Anderswo/B.pdf')],
     ...overrides,
   }
@@ -88,6 +108,25 @@ describe('summarizeCoverageReport', () => {
     const view = summarize({ families: undefined })
     expect(view.filter.familien).toContain('vor Welle 4')
     expect(view.filter.familienAnzahl).toBeNull()
+  })
+
+  it('liefert die Ordnerliste mit folderIds fuer Teilbaum-Scans (nach Befunden sortiert)', () => {
+    const alle = summarize()
+    expect(alle.filter.ordner[0]).toMatchObject({ path: '(Wurzel)', folderId: 'id-root', befundeImTeilbaum: 2 })
+    expect(alle.filter.ordner.map((o) => o.path)).toContain('Anderswo/Tief')
+
+    // Pfad-Filter: Teilbaum-Ordner UND die Vorfahren (fuer den Kontext) bleiben.
+    const gefiltert = summarize({}, { pathPrefix: 'Anderswo' })
+    const pfade = gefiltert.filter.ordner.map((o) => o.path)
+    expect(pfade).toContain('Anderswo')
+    expect(pfade).toContain('Anderswo/Tief')
+    expect(pfade).not.toContain('Pilot')
+
+    // Kappung ist explizit.
+    const gekappt = summarize({}, { maxFolders: 1 })
+    expect(gekappt.filter.ordner).toHaveLength(1)
+    expect(gekappt.filter.ordnerGekappt).toBe(true)
+    expect(gekappt.filter.ordnerAnzahl).toBe(4)
   })
 
   it('weist die Kappung des GESPEICHERTEN Reports aus', () => {

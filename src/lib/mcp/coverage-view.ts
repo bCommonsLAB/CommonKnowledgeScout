@@ -11,11 +11,12 @@
  * @module mcp
  */
 
-import type { CoverageGap, CoverageReport, TwinFamilySummary } from '@/lib/agent-view/types'
+import type { CoverageGap, CoverageReport, CoverageTreeNode, TwinFamilySummary } from '@/lib/agent-view/types'
 
 /** Standard-Budgets der Werkzeug-Ausgabe (per Argument erhoehbar). */
 export const DEFAULT_MAX_GAPS = 100
 export const DEFAULT_MAX_FAMILIES = 100
+export const DEFAULT_MAX_FOLDERS = 200
 
 export interface CoverageViewArgs {
   report: CoverageReport
@@ -27,6 +28,7 @@ export interface CoverageViewArgs {
   pathPrefix?: string | null
   maxGaps?: number
   maxFamilies?: number
+  maxFolders?: number
 }
 
 function normalizePrefix(pathPrefix: string | null | undefined): string {
@@ -43,6 +45,34 @@ function countBy<T extends string>(values: readonly T[]): Partial<Record<T, numb
   const counts: Partial<Record<T, number>> = {}
   for (const value of values) counts[value] = (counts[value] ?? 0) + 1
   return counts
+}
+
+/**
+ * Ordner des Teilbaums (Pfad + folderId + Prioritaets-Zahlen) — damit kann
+ * der Agent `abdeckung_scannen`/`twins_pruefen` gezielt auf einen Teilbaum
+ * begrenzen, statt die ganze Library zu laufen (OneDrive: ein API-Call pro
+ * Ordner). Reihenfolge: die meisten Befunde zuerst.
+ */
+function collectFolders(nodes: readonly CoverageTreeNode[], prefix: string): Array<{
+  path: string
+  folderId: string
+  quellen: number
+  befundeImTeilbaum: number
+}> {
+  const result: Array<{ path: string; folderId: string; quellen: number; befundeImTeilbaum: number }> = []
+  const walk = (node: CoverageTreeNode) => {
+    if (isInSubtree(node.path, prefix) || (prefix !== '' && isInSubtree(prefix, node.path))) {
+      result.push({
+        path: node.path || '(Wurzel)',
+        folderId: node.folderId,
+        quellen: node.sourceCount,
+        befundeImTeilbaum: node.totalGaps,
+      })
+    }
+    for (const child of node.children) walk(child)
+  }
+  for (const node of nodes) walk(node)
+  return result.sort((a, b) => b.befundeImTeilbaum - a.befundeImTeilbaum)
 }
 
 function compactGap(gap: CoverageGap) {
@@ -85,6 +115,8 @@ export function summarizeCoverageReport(args: CoverageViewArgs) {
   const prefix = normalizePrefix(args.pathPrefix)
   const maxGaps = args.maxGaps ?? DEFAULT_MAX_GAPS
   const maxFamilies = args.maxFamilies ?? DEFAULT_MAX_FAMILIES
+  const maxFolders = args.maxFolders ?? DEFAULT_MAX_FOLDERS
+  const folders = collectFolders(args.report.tree, prefix)
 
   const gapsInScope = prefix === ''
     ? args.report.gaps
@@ -109,6 +141,10 @@ export function summarizeCoverageReport(args: CoverageViewArgs) {
       : null,
     filter: {
       pfad: prefix === '' ? null : prefix,
+      /** folderId hier fuer Teilbaum-Scans/-Checks verwenden (statt ganzer Library). */
+      ordner: folders.slice(0, maxFolders),
+      ordnerAnzahl: folders.length,
+      ordnerGekappt: folders.length > maxFolders,
       befundAnzahl: gapsInScope.length,
       befundeNachTyp: countBy(gapsInScope.map((gap) => gap.type)),
       befundeNachAkteur: countBy(gapsInScope.map((gap) => gap.actor)),
