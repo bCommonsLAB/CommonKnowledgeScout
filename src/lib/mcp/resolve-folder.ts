@@ -34,7 +34,8 @@ export interface ResolvedPathItem {
   parentFolderId: string
 }
 
-function matchSegment(candidates: StorageItem[], segment: string, walked: string[]): StorageItem {
+/** Findet das Segment; `null` = nicht da (Retry-Kandidat), wirft nur bei Mehrdeutigkeit. */
+function findSegment(candidates: StorageItem[], segment: string, walked: string[]): StorageItem | null {
   const exact = candidates.find((item) => item.metadata.name === segment)
   if (exact) return exact
   const caseInsensitive = candidates.filter(
@@ -47,13 +48,26 @@ function matchSegment(candidates: StorageItem[], segment: string, walked: string
         `(${caseInsensitive.map((item) => item.metadata.name).join(', ')}) — exakte Schreibweise angeben`,
     )
   }
+  return null
+}
+
+function notFoundError(candidates: StorageItem[], segment: string, walked: string[]): FolderPathNotFoundError {
   const available = candidates.map((item) => item.metadata.name)
   const hint = available.slice(0, MAX_HINT_ITEMS).join(', ')
   const more = available.length > MAX_HINT_ITEMS ? ` … (+${available.length - MAX_HINT_ITEMS} weitere)` : ''
-  throw new FolderPathNotFoundError(
-    `"${segment}" nicht gefunden unter "${walked.join('/') || '(Wurzel)'}". Vorhanden: ${hint || '(nichts)'}${more}`,
+  return new FolderPathNotFoundError(
+    `"${segment}" auch nach Wartezeit nicht gefunden unter "${walked.join('/') || '(Wurzel)'}". ` +
+      `Vorhanden: ${hint || '(nichts)'}${more}`,
   )
 }
+
+/**
+ * Pilot-Wunschliste B6: Frisch angelegte Items sind fuer die OneDrive-API
+ * teils erst nach ~45 s sichtbar. Fehlt ein Segment, wird die Ebene nach
+ * kurzen Wartezeiten neu gelistet, bevor der Resolver aufgibt — Mehrdeutigkeit
+ * wirft sofort (Warten macht sie nicht eindeutig).
+ */
+const SEGMENT_RETRY_DELAYS_MS = [3000, 5000]
 
 /**
  * Loest `pfad` auf ein Storage-Item der erwarteten Art auf (siehe
@@ -64,6 +78,8 @@ export async function resolveItemByPath(
   provider: StorageProvider,
   path: string,
   expectedKind: 'file' | 'folder',
+  /** Testbar: Wartezeiten der Segment-Retries (Default {@link SEGMENT_RETRY_DELAYS_MS}). */
+  retryDelaysMs?: readonly number[],
 ): Promise<ResolvedPathItem> {
   const segments = path
     .replace(/^\/+|\/+$/g, '')
@@ -74,15 +90,23 @@ export async function resolveItemByPath(
     throw new FolderPathNotFoundError('Leerer Pfad — einen library-relativen Pfad angeben')
   }
 
+  const retryDelays = retryDelaysMs ?? SEGMENT_RETRY_DELAYS_MS
   let currentId = 'root'
   const walked: string[] = []
   for (let index = 0; index < segments.length; index++) {
     const segment = segments[index]
     const isLast = index === segments.length - 1
-    const items = await provider.listItemsById(currentId)
-    // Zwischensegmente: nur Ordner; letztes Segment: die erwartete Art.
-    const candidates = items.filter((item) => item.type === (isLast ? expectedKind : 'folder'))
-    const match = matchSegment(candidates, segment, walked)
+    let match: StorageItem | null = null
+    let candidates: StorageItem[] = []
+    for (let attempt = 0; attempt <= retryDelays.length; attempt++) {
+      if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, retryDelays[attempt - 1]))
+      const items = await provider.listItemsById(currentId)
+      // Zwischensegmente: nur Ordner; letztes Segment: die erwartete Art.
+      candidates = items.filter((item) => item.type === (isLast ? expectedKind : 'folder'))
+      match = findSegment(candidates, segment, walked)
+      if (match) break
+    }
+    if (!match) throw notFoundError(candidates, segment, walked)
     if (isLast) {
       return {
         id: match.id,
@@ -99,6 +123,10 @@ export async function resolveItemByPath(
 }
 
 /** Loest `pfad` auf eine Ordner-Id auf. */
-export async function resolveFolderIdByPath(provider: StorageProvider, path: string): Promise<string> {
-  return (await resolveItemByPath(provider, path, 'folder')).id
+export async function resolveFolderIdByPath(
+  provider: StorageProvider,
+  path: string,
+  retryDelaysMs?: readonly number[],
+): Promise<string> {
+  return (await resolveItemByPath(provider, path, 'folder', retryDelaysMs)).id
 }
