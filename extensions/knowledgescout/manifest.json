@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "KnowledgeScout",
   "display_name": "KnowledgeScout",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Agentensicht-Werkzeuge von KnowledgeScout: Coverage lesen/scannen, Twins pruefen/synchronisieren.",
   "author": {
     "name": "bCommonsLAB"
@@ -65,6 +65,18 @@
     {
       "name": "job_status",
       "description": "Status eines gestarteten Jobs (queued/running/completed/failed). Liest nur."
+    },
+    {
+      "name": "quelle_verwerfen",
+      "description": "Reversibler Loesch-Ersatz: Quelle + Twin-Familie in den Unterordner 'zu klaeren' ihres Ordners verschieben. SCHREIBT - nur nach Bestaetigung."
+    },
+    {
+      "name": "job_liste",
+      "description": "Offene Jobs einer Library (Default queued+running) - nach Sessionabbruch die verlorenen jobIds wiederfinden. Liest nur."
+    },
+    {
+      "name": "bruecke_info",
+      "description": "Werkzeugsatz-Version + Soll-Toolliste des Servers - erkennt veraltete Client-Toollisten. Liest nur."
     }
   ],
   "keywords": [

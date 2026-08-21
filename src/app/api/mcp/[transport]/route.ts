@@ -21,6 +21,7 @@ import { createMcpHandler } from 'mcp-handler'
 import { checkMcpRequestAuthWithAccountKeys, mcpAuthFailureResponse } from '@/lib/mcp/auth'
 import { runWithMcpUser } from '@/lib/mcp/request-context'
 import { registerKnowledgeScoutTools } from '@/lib/mcp/tools'
+import { TOOLSET_VERSION } from '@/lib/mcp/tools-info'
 
 /** Grosszuegig: Coverage-Scans und Engine-Laeufe koennen Minuten dauern. */
 export const maxDuration = 600
@@ -29,7 +30,8 @@ const handler = createMcpHandler(
   (server) => {
     registerKnowledgeScoutTools(server)
   },
-  { serverInfo: { name: 'knowledgescout', version: '1.0.0' } },
+  // A2: Version = Werkzeugsatz-Version — macht veraltete Client-Toollisten im Handshake sichtbar.
+  { serverInfo: { name: 'knowledgescout', version: TOOLSET_VERSION } },
   {
     basePath: '/api/mcp',
     maxDuration,
