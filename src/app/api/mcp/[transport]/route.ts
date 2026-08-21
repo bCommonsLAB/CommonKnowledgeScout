@@ -7,9 +7,10 @@
  * bestehenden Services (Coverage-Scan, Sync-Engine-Presets). Szenario und
  * Leitplanken: `docs/concepts/welle-5-mcp-testszenario.md`.
  *
- * Auth VOR dem Handler: Bearer-Key gegen `MCP_API_KEY`, der Key handelt als
- * `MCP_USER_EMAIL` (Pilot: ein Key ↔ ein User). Ohne Konfiguration ist die
- * Bruecke ZU (503), nicht offen. SSE-Transport ist bewusst nicht
+ * Auth VOR dem Handler (Stufe 2): Legacy-Env-Key ODER signierter
+ * Account-Key aus der Datenbank (`auth.ts`); der Request handelt als der
+ * aufgeloeste User (AsyncLocalStorage, `request-context.ts`). Ohne
+ * Konfiguration ist die Bruecke ZU (503), nicht offen. SSE-Transport ist bewusst nicht
  * konfiguriert (kein Redis) — moderne Clients nutzen Streamable HTTP;
  * stdio-Clients gehen ueber `mcp-remote`.
  *
@@ -17,7 +18,8 @@
  */
 
 import { createMcpHandler } from 'mcp-handler'
-import { checkMcpRequestAuth, mcpAuthFailureResponse } from '@/lib/mcp/auth'
+import { checkMcpRequestAuthWithAccountKeys, mcpAuthFailureResponse } from '@/lib/mcp/auth'
+import { runWithMcpUser } from '@/lib/mcp/request-context'
 import { registerKnowledgeScoutTools } from '@/lib/mcp/tools'
 
 /** Grosszuegig: Coverage-Scans und Engine-Laeufe koennen Minuten dauern. */
@@ -35,9 +37,9 @@ const handler = createMcpHandler(
 )
 
 async function authenticated(request: Request): Promise<Response> {
-  const auth = checkMcpRequestAuth(request)
+  const auth = await checkMcpRequestAuthWithAccountKeys(request)
   if (!auth.ok) return mcpAuthFailureResponse(auth.reason)
-  return handler(request)
+  return runWithMcpUser(auth.userEmail, () => handler(request))
 }
 
 export { authenticated as GET, authenticated as POST, authenticated as DELETE }

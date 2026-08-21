@@ -17,6 +17,7 @@ import { getServerProvider } from '@/lib/storage/server-provider'
 import type { StorageProvider } from '@/lib/storage/types'
 import type { Library } from '@/types/library'
 import { resolveFolderIdByPath } from './resolve-folder'
+import { currentMcpUserEmail } from './request-context'
 
 export interface ToolResult {
   content: Array<{ type: 'text'; text: string }>
@@ -34,11 +35,12 @@ export function errorResult(error: unknown): ToolResult {
   return { content: [{ type: 'text', text: `Fehler: ${message}` }], isError: true }
 }
 
-/** User der Bruecke (Pilot: EIN Key ↔ EIN User, siehe `auth.ts`). */
+/**
+ * Der handelnde User des laufenden Requests (Stufe 2: aus dem Auth-Kontext
+ * der Route — Account-Key-Inhaber oder Legacy-`MCP_USER_EMAIL`).
+ */
 export function mcpUserEmail(): string {
-  const email = process.env.MCP_USER_EMAIL?.trim() ?? ''
-  if (email === '') throw new Error('MCP_USER_EMAIL nicht konfiguriert')
-  return email
+  return currentMcpUserEmail()
 }
 
 export async function requireLibrary(userEmail: string, libraryId: string): Promise<Library> {
