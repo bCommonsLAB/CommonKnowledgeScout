@@ -13,7 +13,7 @@
  * - `transformation_starten`: Standard-Template auf eine Familie MIT
  *   Transkript — Text kommt aus MongoDB (Wahrheit), der Job haengt an der
  *   Quelle, dort landet die Transformation.
- * - `job_status`: kompakter Blick auf einen Job.
+ * - Job-Beobachtung (`job_status`/`job_liste`): eigene Datei `tools-jobs.ts`.
  *
  * @module mcp
  */
@@ -21,7 +21,6 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { enqueueSourceTranscribeJob, enqueueTemplateOnTextJob } from '@/lib/external-jobs/enqueue-secretary-job'
-import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { getFileKind } from '@/lib/shadow-twin/file-kind'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
 import type { StorageProvider } from '@/lib/storage/types'
@@ -148,37 +147,6 @@ export function registerErschliessenTools(server: McpServer): void {
           extractedText: transcript.markdown,
         })
         return jsonResult({ ok: true, jobId, quelle: source.name, template: effectiveTemplate, hinweis: JOB_HINWEIS })
-      } catch (error) {
-        return errorResult(error)
-      }
-    },
-  )
-
-  server.registerTool(
-    'job_status',
-    {
-      title: 'Job-Status',
-      description:
-        'Status eines mit quelle_erschliessen/transformation_starten gestarteten Jobs: ' +
-        'queued/running/completed/failed plus letzte Meldung. Liest nur.',
-      inputSchema: { jobId: z.string().min(1).describe('jobId aus der Start-Antwort') },
-      annotations: { readOnlyHint: true },
-    },
-    async ({ jobId }) => {
-      try {
-        mcpUserEmail()
-        const job = await new ExternalJobsRepository().get(jobId)
-        if (!job) return jsonResult({ jobId, status: 'unbekannt', hinweis: 'Kein Job mit dieser Id gefunden' })
-        return jsonResult({
-          jobId,
-          status: job.status,
-          jobTyp: job.job_type,
-          datei: job.correlation?.source?.name ?? null,
-          fortschritt: (job as { progress?: number }).progress ?? null,
-          meldung: (job as { message?: string }).message ?? null,
-          fehler: (job as { error?: string }).error ?? null,
-          aktualisiert: job.updatedAt ?? null,
-        })
       } catch (error) {
         return errorResult(error)
       }

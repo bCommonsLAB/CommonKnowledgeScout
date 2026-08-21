@@ -31,6 +31,7 @@ import {
   resolveScope,
 } from './tool-shared'
 import { registerErschliessenTools } from './tools-erschliessen'
+import { registerJobTools } from './tools-jobs'
 import { registerOrdnerTools } from './tools-ordner'
 import { registerUmzugTools } from './tools-umzug'
 
@@ -39,6 +40,7 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerUmzugTools(server)
   registerOrdnerTools(server)
   registerErschliessenTools(server)
+  registerJobTools(server)
   server.registerTool(
     'bibliotheken_auflisten',
     {
