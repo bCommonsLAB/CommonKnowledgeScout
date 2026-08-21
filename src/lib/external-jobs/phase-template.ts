@@ -905,6 +905,23 @@ export async function runTemplatePhase(args: TemplatePhaseArgs): Promise<Templat
     // availableMedia in CONTEXT aufnehmen — gibt dem LLM den Existenz-Kontext
     // (siehe docs/refactor/cover-image-deterministic-flow/01-analysis.md §4)
     // ─────────────────────────────────────────────────────────────────────
+    // E1 (Pilot-Wunschliste): Bekannte Namen der Library in den LLM-Kontext —
+    // die Extraktion gleicht authors/participants/tags dagegen ab. Strukturierte
+    // Felder verstaerken Hoerfehler („Eichner“ statt Aichner wird gefiltert und
+    // verknuepft) — die Liste gibt dem LLM die verbindlichen Schreibweisen.
+    const knownNames = library?.config?.extractionKnownNames ?? []
+    if (knownNames.length > 0) {
+      sourceContext.knownNames = knownNames
+      sourceContext.knownNamesHint =
+        'Verbindliche Schreibweisen dieser Library: Namen in authors/participants/tags EXAKT aus ' +
+        'dieser Liste uebernehmen und erkennbare Hoerfehler dagegen korrigieren; Namen ohne ' +
+        'Listen-Treffer unveraendert lassen.'
+      bufferLog(jobId, {
+        phase: 'transform_context',
+        message: `knownNames: ${knownNames.length} Namen fuer den LLM-CONTEXT geladen (E1)`,
+      })
+    }
+
     const sourceItemIdForMedia = job.correlation?.source?.itemId
     if (sourceItemIdForMedia) {
       try {

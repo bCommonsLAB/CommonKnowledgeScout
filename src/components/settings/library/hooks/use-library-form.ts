@@ -60,6 +60,7 @@ export const libraryFormSchema = z.object({
   analyzeDivaTextureInfo: z.boolean().default(false),
   // Welle 0b: eine Zeile pro Muster (Form als Text, Persistenz als Array)
   scanExcludeGlobs: z.string().default(""),
+  extractionKnownNames: z.string().default(""),
   // Agentensicht (Welle 1/3): Archiv-Konventionen der Library. Das Muster wird
   // clientseitig als Regex validiert — sonst wirft erst der Scan (laut, aber spaet).
   agentViewVorhabenPattern: z
@@ -235,6 +236,7 @@ export function useLibraryForm(createNew: boolean) {
       detailViewType: "book",
       analyzeDivaTextureInfo: false,
       scanExcludeGlobs: "",
+      extractionKnownNames: "",
       agentViewEnabled: false,
       agentViewVorhabenPattern: "",
       agentViewIndexDepth: "",
@@ -336,6 +338,7 @@ export function useLibraryForm(createNew: boolean) {
         isEnabled: activeLibrary.isEnabled,
         analyzeDivaTextureInfo: activeLibrary.config?.analyzeDivaTextureInfo === true,
         scanExcludeGlobs: (activeLibrary.config?.scanExcludeGlobs ?? []).join("\n"),
+        extractionKnownNames: (activeLibrary.config?.extractionKnownNames ?? []).join("\n"),
         ...readAgentViewForm(activeLibrary.config as Record<string, unknown> | undefined),
         captureWizards: activeLibrary.config?.captureWizards,
         autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
@@ -372,6 +375,7 @@ export function useLibraryForm(createNew: boolean) {
         isEnabled: activeLibrary.isEnabled,
         analyzeDivaTextureInfo: activeLibrary.config?.analyzeDivaTextureInfo === true,
         scanExcludeGlobs: (activeLibrary.config?.scanExcludeGlobs ?? []).join("\n"),
+        extractionKnownNames: (activeLibrary.config?.extractionKnownNames ?? []).join("\n"),
         ...readAgentViewForm(activeLibrary.config as Record<string, unknown> | undefined),
         captureWizards: activeLibrary.config?.captureWizards,
         autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(
@@ -464,6 +468,7 @@ export function useLibraryForm(createNew: boolean) {
               : {}),
             analyzeDivaTextureInfo: data.analyzeDivaTextureInfo,
             scanExcludeGlobs: data.scanExcludeGlobs.split(/\r?\n/).map((g) => g.trim()).filter(Boolean),
+            extractionKnownNames: data.extractionKnownNames.split(/\r?\n/).map((n) => n.trim()).filter(Boolean),
             agentView: {
               enabled: data.agentViewEnabled,
               ...(data.agentViewVorhabenPattern.trim() !== ""
@@ -660,6 +665,7 @@ export function useLibraryForm(createNew: boolean) {
           isEnabled: importedLibrary.isEnabled as boolean,
           analyzeDivaTextureInfo: ((importedLibrary as { config?: Record<string, unknown> }).config?.analyzeDivaTextureInfo as boolean) === true,
           scanExcludeGlobs: (((importedLibrary as { config?: Record<string, unknown> }).config?.scanExcludeGlobs as string[] | undefined) ?? []).join("\n"),
+          extractionKnownNames: (((importedLibrary as { config?: Record<string, unknown> }).config?.extractionKnownNames as string[] | undefined) ?? []).join("\n"),
           ...readAgentViewForm((importedLibrary as { config?: Record<string, unknown> }).config),
           captureWizards: (importedLibrary as { config?: Record<string, unknown> }).config?.captureWizards as CaptureWizardsConfig | undefined,
           autoApplyConfidenceThreshold: coerceAutoApplyConfidenceThreshold(

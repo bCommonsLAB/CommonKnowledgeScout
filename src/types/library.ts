@@ -371,6 +371,13 @@ export interface StorageConfig {
   scanExcludeGlobs?: string[];
 
   /**
+   * E1 (Pilot-Wunschliste): Bekannte Namen/Organisationen der Library —
+   * die Extraktion gleicht authors/participants/tags dagegen ab
+   * (Hoerfehler wie „Eichner“ statt Aichner). KEIN Secret.
+   */
+  extractionKnownNames?: string[];
+
+  /**
    * Agentensicht (Welle 1): Archiv-Konventionen sind ARCHIV-Wissen, nicht
    * Plattform-Wissen — deshalb pro Library konfigurierbar statt hartkodiert
    * (Projektauftrag F2). Fehlt das Feld, gelten die dokumentierten Defaults:
@@ -639,6 +646,8 @@ export interface ClientLibrary {
     analyzeDivaTextureInfo?: boolean;
     /** Ausschluss-Muster fuer Storage-Scans (Welle 0b). */
     scanExcludeGlobs?: string[];
+    /** E1: Bekannte Namen fuer die Extraktion (kein Secret). */
+    extractionKnownNames?: string[];
     /** Agentensicht-Konventionen (Welle 1/3) — kein Secret, siehe StorageConfig.agentView. */
     agentView?: {
       enabled?: boolean;

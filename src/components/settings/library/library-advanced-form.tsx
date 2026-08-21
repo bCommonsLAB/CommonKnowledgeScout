@@ -178,6 +178,25 @@ export function LibraryAdvancedForm() {
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="extractionKnownNames"
+              render={({ field }) => (
+                <FormItem className="rounded-lg border p-4">
+                  <FormLabel className="text-base">Bekannte Namen (Extraktion)</FormLabel>
+                  <FormDescription>
+                    Ein Name pro Zeile (Personen, Organisationen, Abkuerzungen).
+                    Die Extraktion gleicht <code>authors</code>, <code>participants</code>{" "}
+                    und <code>tags</code> gegen diese Liste ab und korrigiert
+                    Hoerfehler aus Transkripten (z.&nbsp;B. &bdquo;Eichner&ldquo; &rarr;
+                    Aichner). Leer = kein Abgleich.
+                  </FormDescription>
+                  <FormControl>
+                    <Textarea rows={4} placeholder={"Peter Aichner\nThomas Egger\nPOW"} {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
           </CardContent>
         </Card>
 
