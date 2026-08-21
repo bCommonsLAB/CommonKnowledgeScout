@@ -22,6 +22,7 @@
 import type { Library } from '@/types/library'
 import type { StorageProvider } from '@/lib/storage/types'
 import { findShadowTwinFolder } from '@/lib/storage/shadow-twin'
+import { isShadowTwinFolderName } from '@/lib/storage/shadow-twin-folder-name'
 import { getShadowTwinsBySourceIds } from '@/lib/repositories/shadow-twin-repo'
 import { updateShadowTwinSourceLocation } from '@/lib/repositories/shadow-twin-location'
 import { selectSiblingArtifactFiles } from '@/lib/shadow-twin/shadow-twin-migration-writer'
@@ -68,6 +69,29 @@ export async function moveFamily(args: MoveFamilyArgs): Promise<MoveFamilyResult
   const oldParentId = sourceItem.parentId
   if (newName === oldName && (!newParentId || newParentId === oldParentId)) {
     throw new Error('moveFamily: Ziel ist identisch mit dem Ist-Zustand')
+  }
+
+  // SCHUTZ (Contract §2): Inhalte von Twin-Ordnern ziehen nie einzeln um,
+  // und ein Twin-Ordner ist nie ein Umzugsziel — beides zerlegt Familien
+  // (Nachzug zum Verschachtelungs-Befund vom 2026-08-21).
+  const sourceParent = await provider.getItemById(oldParentId).catch(() => null)
+  if (sourceParent && sourceParent.type === 'folder' && isShadowTwinFolderName(sourceParent.metadata.name)) {
+    throw new Error(
+      `Quelle liegt im Twin-Ordner "${sourceParent.metadata.name}" — Artefakte ziehen mit ihrer ` +
+        'QUELLE um (moveFamily auf die Quelldatei), nie einzeln',
+    )
+  }
+  if (newParentId) {
+    const target = await provider.getItemById(newParentId).catch(() => null)
+    if (!target || target.type !== 'folder') {
+      throw new Error(`Ziel (newParentId=${newParentId}) ist kein existierender Ordner`)
+    }
+    if (isShadowTwinFolderName(target.metadata.name)) {
+      throw new Error(
+        `Twin-Ordner "${target.metadata.name}" ist kein Umzugsziel — Quelle im normalen Ordner ` +
+          'ablegen, der Export baut den Spiegel daneben',
+      )
+    }
   }
 
   const result: MoveFamilyResult = {

@@ -34,9 +34,17 @@ vi.mock('@/lib/storage/shadow-twin', async (importOriginal) => ({
 const item = (id: string, name: string, type: 'file' | 'folder' = 'file', parentId = 'alt'): StorageItem =>
   ({ id, type, parentId, metadata: { name } }) as unknown as StorageItem
 
-function makeProvider(siblings: StorageItem[]): StorageProvider {
+function makeProvider(siblings: StorageItem[], byId: Record<string, StorageItem> = {}): StorageProvider {
+  // Quelle als Datei, Ordner-Ids als normale Ordner — die Twin-Schutz-Guards
+  // laden Quell-Parent und Ziel per getItemById.
+  const items: Record<string, StorageItem> = {
+    'src-1': item('src-1', 'Besprechung.m4a'),
+    alt: item('alt', 'Altordner', 'folder', 'root'),
+    neu: item('neu', 'Neuordner', 'folder', 'root'),
+    ...byId,
+  }
   return {
-    getItemById: vi.fn(async () => item('src-1', 'Besprechung.m4a')),
+    getItemById: vi.fn(async (id: string) => items[id] ?? item(id, `Ordner-${id}`, 'folder', 'root')),
     listItemsById: vi.fn(async () => siblings),
     renameItem: vi.fn(async (id: string, n: string) => { calls.push(`rename:${id}:${n}`); return item(id, n) }),
     moveItem: vi.fn(async (id: string, p: string) => { calls.push(`move:${id}:${p}`) }),
@@ -84,6 +92,34 @@ describe('moveFamily — mit Twin-Familie', () => {
     expect(locationMocks.updateShadowTwinSourceLocation).toHaveBeenCalledWith({
       libraryId: 'lib-1', sourceId: 'src-1', sourceName: 'Team-Besprechung.m4a', parentId: 'neu',
     })
+  })
+})
+
+describe('moveFamily — Twin-Schutz (Contract §2, Nachzug 2026-08-21)', () => {
+  it('verweigert Quellen, die IN einem Twin-Ordner liegen (Artefakte ziehen nie einzeln um)', async () => {
+    repoMocks.getShadowTwinsBySourceIds.mockResolvedValue(new Map())
+    folderMocks.findShadowTwinFolder.mockResolvedValue(null)
+    const provider = makeProvider([], {
+      'src-1': item('src-1', 'Besprechung.md', 'file', 'twin-1'),
+      'twin-1': item('twin-1', '_Besprechung.m4a', 'folder', 'alt'),
+    })
+    await expect(moveFamily({ ...BASE, provider, newName: 'Neu.md' })).rejects.toThrow(/Twin-Ordner/)
+    expect(calls).toEqual([])
+  })
+
+  it('verweigert Twin-Ordner als Umzugsziel', async () => {
+    repoMocks.getShadowTwinsBySourceIds.mockResolvedValue(new Map())
+    folderMocks.findShadowTwinFolder.mockResolvedValue(null)
+    const provider = makeProvider([], { neu: item('neu', '_Ziel.m4a', 'folder', 'root') })
+    await expect(moveFamily({ ...BASE, provider, newParentId: 'neu' })).rejects.toThrow(/kein Umzugsziel/)
+    expect(calls).toEqual([])
+  })
+
+  it('verweigert Ziele, die kein existierender Ordner sind', async () => {
+    repoMocks.getShadowTwinsBySourceIds.mockResolvedValue(new Map())
+    folderMocks.findShadowTwinFolder.mockResolvedValue(null)
+    const provider = makeProvider([], { neu: item('neu', 'Datei.pdf', 'file', 'root') })
+    await expect(moveFamily({ ...BASE, provider, newParentId: 'neu' })).rejects.toThrow(/kein existierender Ordner/)
   })
 })
 

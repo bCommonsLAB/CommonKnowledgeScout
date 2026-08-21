@@ -31,11 +31,13 @@ import {
   resolveScope,
 } from './tool-shared'
 import { registerErschliessenTools } from './tools-erschliessen'
+import { registerOrdnerTools } from './tools-ordner'
 import { registerUmzugTools } from './tools-umzug'
 
 /** Registriert alle Werkzeuge der Bruecke auf dem MCP-Server. */
 export function registerKnowledgeScoutTools(server: McpServer): void {
   registerUmzugTools(server)
+  registerOrdnerTools(server)
   registerErschliessenTools(server)
   server.registerTool(
     'bibliotheken_auflisten',
