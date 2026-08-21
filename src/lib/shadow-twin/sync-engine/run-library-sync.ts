@@ -19,6 +19,7 @@
  * @module shadow-twin/sync-engine
  */
 
+import { effectiveScanExcludeGlobs } from './scan-exclude'
 import { LibraryService } from '@/lib/services/library-service'
 import { getServerProvider } from '@/lib/storage/server-provider'
 import { getShadowTwinConfig } from '@/lib/shadow-twin/shadow-twin-config'
@@ -73,7 +74,8 @@ export async function runLibrarySync(args: {
   const { pairs, scannedFiles, skippedWithoutDoc, skippedExcluded } = await resolveSources({
     libraryId, scope, folderCache, provider,
     // Welle 0b: Ausschluss-Muster der Library (temp/ u. Ae. bleiben draussen, aber sichtbar gezaehlt).
-    excludeGlobs: library.config?.scanExcludeGlobs,
+    // D3: leer konfiguriert -> dokumentierter Plattform-Default (scan-exclude.ts).
+    excludeGlobs: effectiveScanExcludeGlobs(library.config?.scanExcludeGlobs),
   })
 
   const report: LibrarySyncReport = {

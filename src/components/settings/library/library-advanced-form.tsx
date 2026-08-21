@@ -167,7 +167,10 @@ export function LibraryAdvancedForm() {
                     Ordner-/Dateinamen (z.&nbsp;B. <code>temp</code>, <code>*.tmp</code>),
                     mit Schraegstrich auf den Pfad ab Bibliothekswurzel
                     (z.&nbsp;B. <code>alt/archiv/**</code>). Uebersprungenes wird im
-                    Abgleich-Bericht gezaehlt, nie still ausgelassen.
+                    Abgleich-Bericht gezaehlt, nie still ausgelassen. Leer =
+                    Standard-Ausschluesse (<code>.obsidian</code>, <code>.trash</code>,{" "}
+                    <code>.ck-meta</code>, <code>.wizard-sources</code>, <code>temp</code>);
+                    eigene Muster ersetzen die Standardliste komplett.
                   </FormDescription>
                   <FormControl>
                     <Textarea rows={3} placeholder={"temp\n*.tmp"} {...field} />
