@@ -17,6 +17,7 @@
 import type { Collection } from 'mongodb'
 import { getCollection } from '@/lib/mongodb-service'
 import type { CoverageReport } from '@/lib/agent-view/types'
+import { computeCoverageDelta, type CoverageDelta } from '@/lib/agent-view/coverage-delta'
 
 /**
  * Obergrenze gespeicherter Einzel-Befunde (16-MB-Dokumentgrenze von MongoDB).
@@ -34,6 +35,10 @@ export interface CoverageReportDoc {
   gapsTruncated: boolean
   /** Gesamtzahl der Befunde VOR dem Kappen. */
   totalGaps: number
+  /** D1: erledigt/neu seit dem letzten Scan GLEICHEN Scopes; null = siehe deltaHinweis. */
+  delta?: CoverageDelta | null
+  /** Warum es kein Delta gibt (erster Scan, anderer Scope, gekappter Vorlauf). */
+  deltaHinweis?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -68,6 +73,14 @@ export async function saveCoverageReport(report: CoverageReport): Promise<Covera
   await ensureIndexes(report.libraryId)
   const col = await getCol(report.libraryId)
   const now = new Date().toISOString()
+  // D1: Fortschritt seit dem letzten Scan festhalten, BEVOR er ueberschrieben wird.
+  const previous = await col.findOne({ libraryId: report.libraryId })
+  const { delta, hinweis: deltaHinweis } = computeCoverageDelta({
+    previous: previous
+      ? { report: previous.report, generatedAt: previous.generatedAt, gapsTruncated: previous.gapsTruncated }
+      : null,
+    next: report,
+  })
   const totalGaps = report.gaps.length
   const gapsTruncated = totalGaps > MAX_STORED_GAPS
   const stored: CoverageReport = gapsTruncated ? { ...report, gaps: report.gaps.slice(0, MAX_STORED_GAPS) } : report
@@ -78,6 +91,8 @@ export async function saveCoverageReport(report: CoverageReport): Promise<Covera
     generatedAt: report.generatedAt,
     gapsTruncated,
     totalGaps,
+    delta,
+    deltaHinweis,
     updatedAt: now,
   }
   await col.updateOne(

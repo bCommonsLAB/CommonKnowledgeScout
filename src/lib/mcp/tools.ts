@@ -97,6 +97,8 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
             generatedAt: stored.generatedAt,
             storedGapsTruncated: stored.gapsTruncated,
             totalGaps: stored.totalGaps,
+            delta: stored.delta ?? null,
+            deltaHinweis: stored.deltaHinweis ?? null,
             pathPrefix: pfad ?? null,
             akteur: akteur ?? null,
             zyklusSchritt: zyklusSchritt ?? null,
@@ -141,6 +143,8 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
             generatedAt: stored.generatedAt,
             storedGapsTruncated: stored.gapsTruncated,
             totalGaps: stored.totalGaps,
+            delta: stored.delta ?? null,
+            deltaHinweis: stored.deltaHinweis ?? null,
           }),
         )
       } catch (error) {

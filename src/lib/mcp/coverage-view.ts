@@ -12,6 +12,7 @@
  */
 
 import type { CoverageReport } from '@/lib/agent-view/types'
+import type { CoverageDelta } from '@/lib/agent-view/coverage-delta'
 import { describeEmptyFilter } from './coverage-filter-warning'
 import { collectFolders, compactFamily, compactGap } from './coverage-view-compact'
 
@@ -26,6 +27,9 @@ export interface CoverageViewArgs {
   /** true, wenn schon der GESPEICHERTE Report gekappt war. */
   storedGapsTruncated: boolean
   totalGaps: number
+  /** D1: Delta des gespeicherten Reports (library-weit, nicht pfad-gefiltert). */
+  delta?: CoverageDelta | null
+  deltaHinweis?: string | null
   /** Library-relativer Pfad-Filter (Ordner); null/'' = ganze Library. */
   pathPrefix?: string | null
   /** C5 (Pilot-Wunschliste): nur Befunde dieses Akteurs. */
@@ -117,6 +121,9 @@ export function summarizeCoverageReport(args: CoverageViewArgs) {
           : 'Filter scope-relativ angeben oder weglassen.')
       : null,
     conventions: args.report.conventions,
+    /** D1: Fortschritt seit dem letzten Scan gleichen Scopes (Befunde wandern — die Gesamtzahl misst nichts). */
+    deltaSeitLetztemScan: args.delta ?? null,
+    deltaHinweis: args.deltaHinweis ?? null,
     totalsLibraryWeit: args.report.totals,
     gespeicherterReportGekappt: args.storedGapsTruncated
       ? { gespeicherteGaps: args.report.gaps.length, totalGaps: args.totalGaps }
