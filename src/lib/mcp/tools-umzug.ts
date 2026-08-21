@@ -11,8 +11,11 @@
  * Storage-only und Mongo-transparent (Provider-Ids bleiben stabil, die
  * `_`-Ordner wandern mit ihrem Ordner mit).
  *
- * Loeschen ist BEWUSST kein Werkzeug (Ausbaustufe): solange in einen
- * Klaer-Ordner verschieben statt loeschen.
+ * Loeschen ist BEWUSST kein Werkzeug — `quelle_verwerfen` (Pilot-Wunschliste
+ * C4) ist der reversible Ersatz: Quelle + Familie ziehen in einen
+ * „zu klären“-Unterordner ihres Elternordners (wird bei Bedarf angelegt);
+ * Mongo bleibt konsistent (derselbe moveFamily-Weg). Ein eigenes
+ * verworfen-Flag am Dokument ist eine dokumentierte Ausbaustufe.
  *
  * @module mcp
  */
@@ -23,6 +26,9 @@ import { moveFamily } from '@/lib/shadow-twin/move-family'
 import type { StorageProvider } from '@/lib/storage/types'
 import { resolveFolderIdByPath, resolveItemByPath } from './resolve-folder'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from './tool-shared'
+
+/** Name des Klaer-Ordners (C4) — bewusst deutsch und sichtbar, kein .trash. */
+const KLAER_ORDNER = 'zu klären'
 
 async function resolveSourceId(provider: StorageProvider, sourceId?: string, quellPfad?: string): Promise<string> {
   if (sourceId && quellPfad) throw new Error('Entweder sourceId ODER quellPfad angeben — nicht beides')
@@ -92,4 +98,58 @@ export function registerUmzugTools(server: McpServer): void {
     },
   )
 
+  server.registerTool(
+    'quelle_verwerfen',
+    {
+      title: 'Quelle verwerfen (SCHREIBT, reversibel)',
+      description:
+        'Reversibler Loesch-Ersatz (C4): verschiebt eine Quelle MIT ihrer Twin-Familie in den ' +
+        `Unterordner „${KLAER_ORDNER}“ ihres Elternordners (wird bei Bedarf angelegt). Nichts wird ` +
+        'geloescht — Mongo zieht mit (moveFamily), rueckgaengig = familie_umziehen zurueck. ' +
+        'SCHREIBT in Storage und MongoDB; nur nach Bestaetigung durch den Menschen ausfuehren.',
+      inputSchema: {
+        libraryId: LIBRARY_ID,
+        sourceId: z.string().min(1).optional().describe('Storage-Id der Quelldatei (targetId aus Befunden)'),
+        quellPfad: z.string().min(1).optional().describe('ALTERNATIVE: library-relativer Pfad der Quelldatei'),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: true },
+    },
+    async ({ libraryId, sourceId, quellPfad }) => {
+      try {
+        const userEmail = mcpUserEmail()
+        const library = await requireLibrary(userEmail, libraryId)
+        const provider = await requireProvider(userEmail, libraryId)
+        const resolvedSourceId = await resolveSourceId(provider, sourceId, quellPfad)
+        const source = await provider.getItemById(resolvedSourceId)
+        if (!source || source.type !== 'file') throw new Error(`${resolvedSourceId} ist keine Datei`)
+
+        const parent = await provider.getItemById(source.parentId).catch(() => null)
+        if (parent && parent.metadata.name.toLowerCase() === KLAER_ORDNER.toLowerCase()) {
+          throw new Error(`"${source.metadata.name}" liegt bereits in „${KLAER_ORDNER}“ — nichts zu tun`)
+        }
+
+        // „zu klaeren“ im Elternordner finden oder anlegen (Entscheid Peter 2026-08-21).
+        const siblings = await provider.listItemsById(source.parentId)
+        const existing = siblings.find(
+          (item) => item.type === 'folder' && item.metadata.name.toLowerCase() === KLAER_ORDNER.toLowerCase(),
+        )
+        const klaerFolder = existing ?? (await provider.createFolder(source.parentId, KLAER_ORDNER))
+
+        const result = await moveFamily({
+          library, libraryId, userEmail, provider,
+          sourceId: resolvedSourceId, newParentId: klaerFolder.id,
+        })
+        return jsonResult({
+          ok: true,
+          verschobenNach: { folderId: klaerFolder.id, name: klaerFolder.metadata.name },
+          result,
+          hinweis:
+            'Reversibel: familie_umziehen mit dem alten Ordner als Ziel macht es rueckgaengig. ' +
+            'Danach abdeckung_scannen (Teilbaum).',
+        })
+      } catch (error) {
+        return errorResult(error)
+      }
+    },
+  )
 }
