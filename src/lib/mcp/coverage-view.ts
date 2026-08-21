@@ -11,7 +11,7 @@
  * @module mcp
  */
 
-import type { CoverageGap, CoverageReport, CoverageTreeNode, TwinFamilySummary } from '@/lib/agent-view/types'
+import type { CoverageReport } from '@/lib/agent-view/types'
 import { describeEmptyFilter } from './coverage-filter-warning'
 import { collectFolders, compactFamily, compactGap } from './coverage-view-compact'
 
