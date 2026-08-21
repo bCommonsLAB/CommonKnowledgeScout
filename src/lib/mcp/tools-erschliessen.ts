@@ -7,9 +7,9 @@
  * laufen laenger als das ~60s-Client-Limit, deshalb kommt sofort eine jobId
  * zurueck und `job_status` schaut nach:
  *
- * - `quelle_erschliessen`: Audio/Video ueber den External-Jobs-Worker
- *   (Transkript, mit Template auch Transformation+Ingest). PDF/Office sind
- *   Ausbaustufe (anderer Upload-Contract) — Fehler sagt das ehrlich.
+ * - `quelle_erschliessen`: Audio/Video (Transkript, mit Template auch
+ *   Transformation+Ingest) UND — seit A1 — PDF/Office ueber die Job-Form der
+ *   Pipeline-Route (upload-frei, der Worker laedt das Binary selbst).
  * - `transformation_starten`: Standard-Template auf eine Familie MIT
  *   Transkript — Text kommt aus MongoDB (Wahrheit), der Job haengt an der
  *   Quelle, dort landet die Transformation.
@@ -22,6 +22,7 @@
 
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { documentMediaKindFromName, enqueueSourceDocumentJob } from '@/lib/external-jobs/enqueue-document-job'
 import { enqueueSourceTranscribeJob, enqueueTemplateOnTextJob } from '@/lib/external-jobs/enqueue-secretary-job'
 import { getFileKind } from '@/lib/shadow-twin/file-kind'
 import { ShadowTwinService } from '@/lib/shadow-twin/store/shadow-twin-service'
@@ -43,10 +44,10 @@ export function registerErschliessenTools(server: McpServer): void {
       title: 'Quelle erschliessen (SCHREIBT, langlaufend)',
       description:
         'Startet die Pipeline fuer Quellen ohne Twin (Befund source_without_twin): Audio/Video ' +
-        'wird transkribiert; mit template (Default: Standard-Template der Library) entstehen auch ' +
-        'Transformation + Galerie-Eintrag. Antwortet SOFORT mit jobId(s) — Verarbeitung dauert ' +
-        'Minuten, Status mit job_status/job_liste. Stapel via sourceIds. PDF/Office: noch nicht ' +
-        'ueber die Bruecke — im KS-UI erschliessen (Ausbaustufe). SCHREIBT; nur nach Bestaetigung.',
+        'wird transkribiert, PDF/DOCX/XLSX/PPTX extrahiert (A1); mit template (Default: ' +
+        'Standard-Template der Library) entstehen auch Transformation + Galerie-Eintrag. ' +
+        'Antwortet SOFORT mit jobId(s) — Status mit job_status/job_liste. Stapel via sourceIds. ' +
+        'SCHREIBT; nur nach Bestaetigung.',
       inputSchema: {
         libraryId: LIBRARY_ID,
         ...SOURCE_INPUTS,
@@ -65,17 +66,25 @@ export function registerErschliessenTools(server: McpServer): void {
           provider, sourceId, quellPfad, sourceIds,
           start: async (source) => {
             const kind = getFileKind(source.name)
-            if (kind !== 'audio' && kind !== 'video') {
-              throw new Error(
-                `"${source.name}" ist ${kind} — quelle_erschliessen kann in v1 nur Audio/Video; ` +
-                  'PDF/Office/Markdown bitte im KS-UI erschliessen (Ausbaustufe der Bruecke)',
-              )
+            if (kind === 'audio' || kind === 'video') {
+              const { jobId } = await enqueueSourceTranscribeJob({
+                libraryId, userEmail, source, mediaType: kind,
+                template: effectiveTemplate, targetLanguage: zielsprache,
+              })
+              return jobId
             }
-            const { jobId } = await enqueueSourceTranscribeJob({
-              libraryId, userEmail, source, mediaType: kind,
-              template: effectiveTemplate, targetLanguage: zielsprache,
-            })
-            return jobId
+            const documentKind = documentMediaKindFromName(source.name)
+            if (documentKind) {
+              const { jobId } = await enqueueSourceDocumentJob({
+                libraryId, userEmail, source, mediaKind: documentKind,
+                template: effectiveTemplate, targetLanguage: zielsprache,
+              })
+              return jobId
+            }
+            throw new Error(
+              `"${source.name}" ist ${kind} — quelle_erschliessen kann Audio/Video/PDF/DOCX/XLSX/PPTX; ` +
+                'Markdown-Familien laufen ueber transformation_starten',
+            )
           },
         })
         return jsonResult({
