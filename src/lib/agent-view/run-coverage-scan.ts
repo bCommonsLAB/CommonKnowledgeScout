@@ -70,6 +70,8 @@ export interface ScanLibraryCoverageArgs {
   userEmail: string
   /** Teilbaum-Scope; fehlt = ganze Library. */
   folderId?: string | null
+  /** Library-relativer Pfad des Scopes, wenn der Aufrufer ihn kennt (MCP). */
+  scopePath?: string | null
   /** Zeitquelle (Tests injizieren eine feste Uhr). */
   now?: () => string
 }
@@ -117,7 +119,11 @@ export async function scanLibraryCoverage(args: ScanLibraryCoverageArgs): Promis
   }
 
   return runCoverageScan(
-    { libraryId, rootFolderId, scopeFolderId, conventions: readConventions(library) },
+    {
+      libraryId, rootFolderId, scopeFolderId,
+      scopePath: scopeFolderId === null ? null : args.scopePath ?? null,
+      conventions: readConventions(library),
+    },
     ports,
   )
 }

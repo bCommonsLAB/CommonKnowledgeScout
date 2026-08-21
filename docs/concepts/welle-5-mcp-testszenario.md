@@ -36,15 +36,25 @@ was fehlt, was divergiert) und die Engine-Knöpfe, nicht einen Datei-Editor.
 | `abdeckung_scannen` | Expliziter Neu-Scan (optional Teilbaum), speichert den wegwerfbaren Report | rechnet; schreibt NUR den Report-Cache | je Aufruf |
 | `twins_pruefen` | Sync-Engine im check-Modus (Konflikte, Alt-Namen, fehlende Spiegel) — kompakte Zusammenfassung | liest | einmalig erlauben |
 | `twins_synchronisieren` | Sync-Engine im repair-Modus mit Preset `repair` \| `import` \| `export` | **schreibt** (Mongo + Spiegel) | **je Aufruf einzeln** |
+| `familie_umziehen` | Quelldatei umbenennen/verschieben MIT Twin-Familie (Welle-0e-Service: Import → Siblings → Quelle → Mongo → Spiegel neu); Dateien ohne Twin werden einfach bewegt | **schreibt** (Storage + Mongo) | **je Aufruf einzeln** |
+| `ordner_umbenennen` | Ordner umbenennen (Storage-only, Mongo-transparent — Ids stabil, `_`-Ordner wandern mit) | **schreibt** (Storage) | **je Aufruf einzeln** |
+| `ordner_erstellen` | Neuen Ordner anlegen (z. B. als Umzugsziel) | **schreibt** (Storage) | je Aufruf |
+| `quelle_erschliessen` | Pipeline für EINE Quelle ohne Twin: Audio/Video transkribieren, mit Template auch Transformation+Ingest — antwortet sofort mit `jobId` (Worker arbeitet im Hintergrund); PDF/Office = Ausbaustufe | **schreibt** (Mongo + Spiegel), langlaufend | **je Aufruf einzeln** |
+| `transformation_starten` | Standard-Template auf eine Familie MIT Transkript (Text aus MongoDB, Job hängt an der Quelle) — antwortet sofort mit `jobId` | **schreibt** (Mongo + Spiegel), langlaufend | **je Aufruf einzeln** |
+| `job_status` | Status eines gestarteten Jobs (queued/running/completed/failed) | liest | einmalig erlauben |
 
-**Bewusst NICHT in v1:**
+Umbenennen/Verschieben läuft IMMER über diese Werkzeuge, nie über direkte
+Dateisystem-Zugriffe des Agenten — sonst zeigen die Mongo-Dokumente ins
+Leere und aus 2 Befunden werden 20.
 
-- `erschliessen` (Pipeline-Jobs starten): Der Job-Start bleibt in v1 ein
-  **Mensch-Checkpoint im KS-UI** — das passt zur Rollenverteilung („Buttons
-  drückt Peter", Contract §5) und vermeidet, den Job-Erzeugungs-Contract im
-  ersten Wurf nachzubauen. Ausbaustufe, sobald das Szenario einmal rund lief.
-- `familie_umziehen`: Welle 0e ist noch nicht gebaut — nichts exponieren, was
-  es nicht gibt.
+**Bewusst NICHT (Stand Stufe 2):**
+
+- `quelle_erschliessen` für **PDF/Office**: anderer Upload-Contract
+  (FormData direkt an Secretary) — Ausbaustufe; solange im KS-UI
+  erschließen. Audio/Video laufen über die Brücke.
+- `loeschen`: bewusst kein Werkzeug (destruktivster Fall, Papierkorb-Semantik
+  providerabhängig). Solange: per `familie_umziehen` in einen Klär-Ordner
+  (z. B. „zu klären") verschieben statt löschen — reversibel und sichtbar.
 - `kuratieren`/`verifizieren`: Verifikation bleibt **Mensch** (F4 in der
   Agentensicht). Ein Agent verifiziert nie sich selbst (Contract §3.2/§5);
   deshalb bekommt er dieses Werkzeug gar nicht erst.
@@ -158,6 +168,13 @@ was fehlt, was divergiert) und die Engine-Knöpfe, nicht einen Datei-Editor.
   explizit ausgewiesen, nie still.
 - **Kein Werkzeug für Dinge, die es nicht gibt** (Stop-Bedingung): kein
   `erschliessen`-Job-Start, kein `familie_umziehen`, kein Verifizieren.
+- **~60-Sekunden-Grenze (Live-Befund):** Der MCP-Client bricht Aufrufe nach
+  ca. 60 s ab (Client-Standard, serverseitig nicht beeinflussbar). Deshalb:
+  `abdeckung_lesen` zuerst (Cache, sofort); `abdeckung_scannen`/`twins_pruefen`
+  IMMER auf Teilbäume begrenzen — per `folderId` (aus der Ordnerliste von
+  `abdeckung_lesen`) oder per `pfad` (Pfad→folderId-Resolver direkt gegen den
+  Storage, braucht keinen Report — löst das Henne-Ei frischer Libraries).
+  Der eine große Erst-Scan gehört in die KS-Oberfläche („Neu scannen").
 - Storage-Abstraktion unberührt: Die Werkzeuge kennen Provider nur über die
   bestehenden Services.
 

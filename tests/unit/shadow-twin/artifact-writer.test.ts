@@ -141,6 +141,35 @@ describe('writeArtifact', () => {
       expect(mockProvider.uploadFile).toHaveBeenCalledTimes(1);
     });
 
+    it('legt NIE einen Twin-Ordner in einem Twin-Ordner an — parentId ist bereits der _-Ordner (Contract §2)', async () => {
+      // Befund transformation_starten-Pilot 2026-08-21: Callback-Pfade reichen
+      // nach dem Transkript-Write den Twin-Ordner als parentId weiter; frueher
+      // entstand dann `_X/_X/` mit duplizierter Transformation.
+      const twinFolder: StorageItem = {
+        id: 'twin-1',
+        type: 'folder',
+        metadata: { name: '_Aufnahme.m4a' },
+        parentId: 'src-folder',
+      };
+      vi.mocked(mockProvider.getItemById).mockResolvedValue(twinFolder);
+      vi.mocked(mockProvider.listItemsById).mockResolvedValue([]);
+
+      const result = await writeArtifact(mockProvider, {
+        key: { sourceId: 'source-1', kind: 'transformation', targetLanguage: 'de', templateName: 'standard-meeting' },
+        sourceName: 'Aufnahme.m4a',
+        parentId: 'twin-1',
+        content: '# Transformation',
+        createFolder: true,
+      });
+
+      expect(findShadowTwinFolder).not.toHaveBeenCalled();
+      expect(mockProvider.createFolder).not.toHaveBeenCalled();
+      expect(result.location).toBe('dotFolder');
+      expect(result.shadowTwinFolderId).toBe('twin-1');
+      expect(result.file.parentId).toBe('twin-1');
+      expect(result.file.metadata.name).toBe('Aufnahme.standard-meeting.de.md');
+    });
+
     it('sollte existierendes Transcript im dotFolder überschreiben (dedupliziert)', async () => {
       const sourceName = 'document.pdf';
       const parentId = 'parent-1';

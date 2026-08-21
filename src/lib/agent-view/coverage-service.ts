@@ -33,7 +33,7 @@ import { applyGapBudget } from './gap-budget'
 import { buildFamilySummaries } from './family-summaries'
 import { createGap, sortGaps } from './gap-registry'
 import { orphanTwinDocuments, orphanTwinFolders } from './inventory-gaps'
-import { sourcesWithoutTwin } from './source-gaps'
+import { filesWithoutExtension, sourcesWithoutTwin } from './source-gaps'
 import { checkStandWiderspruch } from './stand-widerspruch'
 import { buildTree } from './tree-builder'
 import { evaluateTwinRules, type TwinFamilyView } from './twin-rules'
@@ -62,6 +62,8 @@ export interface CoverageScanRequest {
   rootFolderId: string
   /** Gesetzt, wenn nur ein Teilbaum gescannt wurde (Scope-Kennzeichnung). */
   scopeFolderId: string | null
+  /** Library-relativer Pfad der Scan-Wurzel, wenn der Aufrufer ihn kennt. */
+  scopePath?: string | null
   conventions: CoverageConventions
 }
 
@@ -94,7 +96,16 @@ export async function runCoverageScan(
   // 2026-08-19). Bei Teilbaum-Scans ist die Scan-Wurzel ein normaler Ordner.
   const libraryRootFolderId = request.scopeFolderId === null ? request.rootFolderId : null
   const fileIndex = buildFileIndex(folders)
-  const families = locateFamilies({ families: rawFamilies, fileIndex, folderIds, rootFolderId: request.rootFolderId })
+  // Teilbaum-Scope gilt auch fuer Buch 2 (Mongo): Familien, deren Quelle der
+  // Scan nicht fand UND deren Elternordner nicht im Teilbaum liegt, gehoeren
+  // nicht in diesen Report — sonst kippen library-weite Twins gesammelt an
+  // die Scope-Wurzel und verseuchen Regeln und Verweis-Audit (Cowork-Befund).
+  // Library-weit bleibt alles (Orphan-Erkennung braucht die volle Menge).
+  const familiesForScope =
+    request.scopeFolderId === null
+      ? rawFamilies
+      : rawFamilies.filter((family) => fileIndex.has(family.sourceId) || folderIds.has(family.parentId))
+  const families = locateFamilies({ families: familiesForScope, fileIndex, folderIds, rootFolderId: request.rootFolderId })
   const newestChange = buildNewestChangeBySubtree({ folders, families })
 
   const locations = new Map<string, SourceLocation>(
@@ -110,6 +121,9 @@ export async function runCoverageScan(
       engineSourceIds: new Set(syncReport.sources.map((row) => row.sourceId)),
       familySourceIds: new Set(families.map((family) => family.sourceId)),
     }),
+    // Archiv-Hygiene: endungslose Dateien sind meist abgeschnittene
+    // Sync-Reste — genau das will man gemeldet haben (Cowork-Befund).
+    ...filesWithoutExtension(folders),
     ...gapsFromFieldVerification({ documents: fieldVerification.documents, locations, rootFolderId: request.rootFolderId }),
     ...(fieldVerification.error === null
       ? []
@@ -173,7 +187,7 @@ export async function runCoverageScan(
     libraryId: request.libraryId,
     generatedAt: ports.now(),
     derived: true,
-    scope: { folderId: request.scopeFolderId },
+    scope: { folderId: request.scopeFolderId, path: request.scopePath ?? null },
     conventions,
     totals,
     gaps: effectiveGaps,

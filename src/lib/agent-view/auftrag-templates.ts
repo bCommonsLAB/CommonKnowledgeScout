@@ -70,6 +70,10 @@ export const AUFTRAG_TEMPLATES: Record<CoverageGapType, AuftragTemplate> = {
     `Teilbaum ${pfad} ist als ungesichtet erklaert${detail(gap)} — erst sichten (Zyklus Schritt 1), dann einzeln bewerten.`,
   scan_error: (gap, pfad) =>
     `Scan-Problem an ${pfad} beheben: ${gap.message}${detail(gap)}.`,
+
+  // — Archiv-Hygiene —
+  datei_ohne_endung: (gap, pfad) =>
+    `Peter: Datei ohne Endung ${pfad} pruefen${detail(gap)} — vermutlich abgeschnittener Sync-Rest: umbenennen (richtige Endung) oder loeschen.`,
 }
 
 /** Rendert die Aufgabenzeile fuer einen Befund. */

@@ -11,11 +11,12 @@
  * @module mcp
  */
 
-import type { CoverageGap, CoverageReport, TwinFamilySummary } from '@/lib/agent-view/types'
+import type { CoverageGap, CoverageReport, CoverageTreeNode, TwinFamilySummary } from '@/lib/agent-view/types'
 
 /** Standard-Budgets der Werkzeug-Ausgabe (per Argument erhoehbar). */
 export const DEFAULT_MAX_GAPS = 100
 export const DEFAULT_MAX_FAMILIES = 100
+export const DEFAULT_MAX_FOLDERS = 200
 
 export interface CoverageViewArgs {
   report: CoverageReport
@@ -27,6 +28,7 @@ export interface CoverageViewArgs {
   pathPrefix?: string | null
   maxGaps?: number
   maxFamilies?: number
+  maxFolders?: number
 }
 
 function normalizePrefix(pathPrefix: string | null | undefined): string {
@@ -39,10 +41,51 @@ export function isInSubtree(path: string, prefix: string): boolean {
   return path === prefix || path.startsWith(`${prefix}/`)
 }
 
+/**
+ * Bildet einen LIBRARY-relativen Filter auf einen Teilbaum-Report ab, dessen
+ * Pfade SCOPE-relativ sind (Cowork-Befund: beides zusammen ergab still 0
+ * Treffer). Kennt der Report seinen Scope-Pfad, wird gekuerzt; sonst wird
+ * der Filter unveraendert (scope-relativ) interpretiert.
+ */
+export function mapPrefixToScope(prefix: string, scopePath: string): string {
+  if (prefix === '' || scopePath === '') return prefix
+  if (prefix === scopePath || isInSubtree(scopePath, prefix)) return ''
+  if (isInSubtree(prefix, scopePath)) return prefix.slice(scopePath.length + 1)
+  return prefix
+}
+
 function countBy<T extends string>(values: readonly T[]): Partial<Record<T, number>> {
   const counts: Partial<Record<T, number>> = {}
   for (const value of values) counts[value] = (counts[value] ?? 0) + 1
   return counts
+}
+
+/**
+ * Ordner des Teilbaums (Pfad + folderId + Prioritaets-Zahlen) — damit kann
+ * der Agent `abdeckung_scannen`/`twins_pruefen` gezielt auf einen Teilbaum
+ * begrenzen, statt die ganze Library zu laufen (OneDrive: ein API-Call pro
+ * Ordner). Reihenfolge: die meisten Befunde zuerst.
+ */
+function collectFolders(nodes: readonly CoverageTreeNode[], prefix: string): Array<{
+  path: string
+  folderId: string
+  quellen: number
+  befundeImTeilbaum: number
+}> {
+  const result: Array<{ path: string; folderId: string; quellen: number; befundeImTeilbaum: number }> = []
+  const walk = (node: CoverageTreeNode) => {
+    if (isInSubtree(node.path, prefix) || (prefix !== '' && isInSubtree(prefix, node.path))) {
+      result.push({
+        path: node.path || '(Wurzel)',
+        folderId: node.folderId,
+        quellen: node.sourceCount,
+        befundeImTeilbaum: node.totalGaps,
+      })
+    }
+    for (const child of node.children) walk(child)
+  }
+  for (const node of nodes) walk(node)
+  return result.sort((a, b) => b.befundeImTeilbaum - a.befundeImTeilbaum)
 }
 
 function compactGap(gap: CoverageGap) {
@@ -82,9 +125,14 @@ function compactFamily(family: TwinFamilySummary) {
  * die Werkzeug-Schicht liefert die Eingaben aus dem Report-Cache.
  */
 export function summarizeCoverageReport(args: CoverageViewArgs) {
-  const prefix = normalizePrefix(args.pathPrefix)
+  const requestedPrefix = normalizePrefix(args.pathPrefix)
+  const scoped = args.report.scope.folderId != null
+  const scopePath = normalizePrefix(args.report.scope.path ?? '')
+  const prefix = scoped ? mapPrefixToScope(requestedPrefix, scopePath) : requestedPrefix
   const maxGaps = args.maxGaps ?? DEFAULT_MAX_GAPS
   const maxFamilies = args.maxFamilies ?? DEFAULT_MAX_FAMILIES
+  const maxFolders = args.maxFolders ?? DEFAULT_MAX_FOLDERS
+  const folders = collectFolders(args.report.tree, prefix)
 
   const gapsInScope = prefix === ''
     ? args.report.gaps
@@ -102,6 +150,12 @@ export function summarizeCoverageReport(args: CoverageViewArgs) {
     scope: args.report.scope,
     hinweis:
       'Report ist ABGELEITET (berechnet, nicht Wahrheit); Zeitpunkt beachten und bei Bedarf abdeckung_scannen ausfuehren.',
+    scopeHinweis: scoped
+      ? `TEILBAUM-Report${scopePath ? ` (Scope: ${scopePath})` : ' (Scope-Pfad unbekannt)'} — Pfade im Report sind SCOPE-relativ; ` +
+        (scopePath
+          ? 'library-relative Filter werden automatisch auf den Scope gekuerzt.'
+          : 'Filter scope-relativ angeben oder weglassen.')
+      : null,
     conventions: args.report.conventions,
     totalsLibraryWeit: args.report.totals,
     gespeicherterReportGekappt: args.storedGapsTruncated
@@ -109,6 +163,11 @@ export function summarizeCoverageReport(args: CoverageViewArgs) {
       : null,
     filter: {
       pfad: prefix === '' ? null : prefix,
+      pfadAngefragt: requestedPrefix === '' ? null : requestedPrefix,
+      /** folderId hier fuer Teilbaum-Scans/-Checks verwenden (statt ganzer Library). */
+      ordner: folders.slice(0, maxFolders),
+      ordnerAnzahl: folders.length,
+      ordnerGekappt: folders.length > maxFolders,
       befundAnzahl: gapsInScope.length,
       befundeNachTyp: countBy(gapsInScope.map((gap) => gap.type)),
       befundeNachAkteur: countBy(gapsInScope.map((gap) => gap.actor)),
