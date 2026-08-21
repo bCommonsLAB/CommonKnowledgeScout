@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "KnowledgeScout",
   "display_name": "KnowledgeScout",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Agentensicht-Werkzeuge von KnowledgeScout: Coverage lesen/scannen, Twins pruefen/synchronisieren.",
   "author": {
     "name": "bCommonsLAB"

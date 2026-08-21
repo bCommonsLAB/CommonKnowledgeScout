@@ -87,6 +87,24 @@ describe('executeSourcePlan', () => {
     expect(outcomes.map((o) => o.executed)).toEqual([true, true])
   })
 
+  it('Twin-Ordner-Aufloesung nutzt den Live-Parent des Scan-Funds statt des Mongo-Verweises (B1)', async () => {
+    // Mongo sagt parent-1 (veraltet), der Scan fand die Quelle in parent-live.
+    const ctx = makeCtx()
+    ctx.shadowTwinFolderId = null
+    ctx.sourceItem = { id: 'src-1', parentId: 'parent-live', type: 'file', metadata: { name: 'doc.pdf' } } as never
+    mocks.findShadowTwinFolder.mockResolvedValueOnce(null)
+    await executeSourcePlan([op('write-canonical-transcript', { markdown: '# t' })], ctx)
+    expect(mocks.findShadowTwinFolder).toHaveBeenCalledWith('parent-live', 'doc.pdf', ctx.provider)
+    expect(ctx.provider.createFolder).toHaveBeenCalledWith('parent-live', expect.any(String))
+
+    // Ohne Scan-Fund bleibt der Mongo-Verweis die einzige Quelle.
+    const ohneFund = makeCtx()
+    ohneFund.shadowTwinFolderId = null
+    mocks.findShadowTwinFolder.mockResolvedValueOnce(null)
+    await executeSourcePlan([op('write-canonical-transcript', { markdown: '# t' })], ohneFund)
+    expect(mocks.findShadowTwinFolder).toHaveBeenLastCalledWith('parent-1', 'doc.pdf', ohneFund.provider)
+  })
+
   it('nur update-mongo-transcript → reiner Repo-Write, kein Service, kein Storage-Write', async () => {
     const ctx = makeCtx()
     await executeSourcePlan([op('update-mongo-transcript', { markdown: 'W' })], ctx)

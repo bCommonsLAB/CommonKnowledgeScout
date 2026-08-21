@@ -36,6 +36,32 @@ function writeOut(json) {
   process.stdout.write(json + '\n');
 }
 
+/**
+ * POST mit EINEM Retry bei Verbindungsfehlern (Pilot-Befund B5: der erste
+ * Aufruf nach Serverstart scheiterte mit connection timeout, der zweite lief).
+ * Ein fetch-Reject heisst: die Anfrage hat den Server NIE erreicht — der
+ * Retry ist darum auch fuer tools/call gefahrlos. HTTP-Fehlantworten werden
+ * bewusst NICHT wiederholt (zugestellt = moeglicherweise ausgefuehrt).
+ */
+async function postWithConnectRetry(body) {
+  const doFetch = () => fetch(serverUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json, text/event-stream',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body,
+  });
+  try {
+    return await doFetch();
+  } catch (error) {
+    console.error(`[knowledgescout-proxy] Verbindungsfehler (${error.message}) — ein Retry in 1,5 s`);
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    return doFetch();
+  }
+}
+
 async function forward(line) {
   let message;
   try {
@@ -47,15 +73,7 @@ async function forward(line) {
   const hasId = message && typeof message === 'object' && 'id' in message && message.id !== null;
 
   try {
-    const response = await fetch(serverUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json, text/event-stream',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(message),
-    });
+    const response = await postWithConnectRetry(JSON.stringify(message));
 
     if (!response.ok) {
       const text = await response.text().catch(() => '');
