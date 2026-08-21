@@ -33,6 +33,12 @@ const sidebarGroups: SidebarNavGroup[] = [
     items: [{ title: "Personen", href: "/settings/public/members" }],
   },
   {
+    id: "account",
+    title: "Mein Konto",
+    description: "Gilt für dich als Person — unabhängig von der ausgewählten Bibliothek.",
+    items: [{ title: "Mein Zugang", href: "/settings/account" }],
+  },
+  {
     id: "usspace",
     title: "usSpace · Veröffentlichen",
     description: "Die Bibliothek öffentlich machen und den Zugang steuern.",

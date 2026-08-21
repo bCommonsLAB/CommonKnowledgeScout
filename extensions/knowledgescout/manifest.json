@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "KnowledgeScout",
   "display_name": "KnowledgeScout",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Agentensicht-Werkzeuge von KnowledgeScout: Coverage lesen/scannen, Twins pruefen/synchronisieren.",
   "author": {
     "name": "bCommonsLAB"
@@ -22,16 +22,63 @@
   "license": "Apache-2.0",
   "long_description": "Verbindet Cowork/Claude Desktop mit der MCP-Bruecke von KnowledgeScout (Welle 5) ueber einen abhaengigkeitsfreien stdio-Proxy (server/proxy.js, kein npm install noetig). Die Werkzeuge sind eine duenne Schicht ueber den bestehenden Services: Coverage-Report der Agentensicht lesen und neu scannen, Sync-Engine pruefen (check) und synchronisieren (repair/import/export). Der KnowledgeScout-Dev-Server muss laufen (Standard: Port 3001, Endpunkt /api/mcp/mcp); Szenario und Checkpoints: docs/concepts/welle-5-mcp-testszenario.md im Repo.",
   "tools": [
-    { "name": "bibliotheken_auflisten", "description": "Listet die KnowledgeScout-Libraries des Users (Id + Name). Liest nur." },
-    { "name": "abdeckung_lesen", "description": "Juengsten Coverage-Report lesen (Befunde, Twin-Familien), optional auf einen Pfad gefiltert. Liest nur." },
-    { "name": "abdeckung_scannen", "description": "Expliziter Coverage-Scan; schreibt nur den wegwerfbaren Report-Cache." },
-    { "name": "twins_pruefen", "description": "Sync-Engine im check-Modus - Plan-Vorschau, es wird nichts geschrieben." },
-    { "name": "twins_synchronisieren", "description": "Sync-Engine im repair-Modus (Preset repair/import/export). SCHREIBT - nur nach Bestaetigung ausfuehren." }
+    {
+      "name": "bibliotheken_auflisten",
+      "description": "Listet die KnowledgeScout-Libraries des Users (Id + Name). Liest nur."
+    },
+    {
+      "name": "abdeckung_lesen",
+      "description": "Juengsten Coverage-Report lesen (Befunde, Twin-Familien, Ordnerliste mit folderIds), optional auf einen Pfad gefiltert. Liest nur."
+    },
+    {
+      "name": "abdeckung_scannen",
+      "description": "Expliziter Coverage-Scan (Teilbaum per folderId oder pfad); schreibt nur den wegwerfbaren Report-Cache."
+    },
+    {
+      "name": "twins_pruefen",
+      "description": "Sync-Engine im check-Modus - Plan-Vorschau, es wird nichts geschrieben."
+    },
+    {
+      "name": "twins_synchronisieren",
+      "description": "Sync-Engine im repair-Modus (Preset repair/import/export). SCHREIBT - nur nach Bestaetigung ausfuehren."
+    },
+    {
+      "name": "familie_umziehen",
+      "description": "Quelldatei MIT Twin-Familie umbenennen/verschieben. SCHREIBT (Storage + Mongo) - nur nach Bestaetigung."
+    },
+    {
+      "name": "ordner_erstellen",
+      "description": "Neuen Ordner anlegen (Storage-only). SCHREIBT - nur nach Bestaetigung."
+    },
+    {
+      "name": "ordner_umbenennen",
+      "description": "Ordner umbenennen (Storage-only, Ids stabil). SCHREIBT - nur nach Bestaetigung."
+    },
+    {
+      "name": "quelle_erschliessen",
+      "description": "Pipeline fuer EINE Audio/Video-Quelle ohne Twin (mit Template voll erschliessen). SCHREIBT, langlaufend - antwortet sofort mit jobId."
+    },
+    {
+      "name": "transformation_starten",
+      "description": "Standard-Template auf eine Familie MIT Transkript anwenden. SCHREIBT, langlaufend - antwortet sofort mit jobId."
+    },
+    {
+      "name": "job_status",
+      "description": "Status eines gestarteten Jobs (queued/running/completed/failed). Liest nur."
+    }
   ],
-  "keywords": ["knowledgescout", "agentensicht", "shadow-twin"],
+  "keywords": [
+    "knowledgescout",
+    "agentensicht",
+    "shadow-twin"
+  ],
   "compatibility": {
     "claude_desktop": ">=0.10.0",
-    "platforms": ["win32", "darwin", "linux"],
+    "platforms": [
+      "win32",
+      "darwin",
+      "linux"
+    ],
     "runtimes": {
       "node": ">=18.0.0"
     }
