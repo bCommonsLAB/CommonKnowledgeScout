@@ -6,6 +6,11 @@ export interface NavItem {
 
 interface BuildTopNavConfigArgs {
   isCreator: boolean
+  /**
+   * Agentensicht der AKTIVEN Library (config.agentView.enabled, Default aus):
+   * Der Menuepunkt ist ein Opt-in pro Library, kein Plattform-Standard.
+   */
+  agentViewEnabled: boolean
   webViewEnabled: boolean
   webViewTestHref: string
   /**
@@ -42,6 +47,7 @@ interface TopNavConfig {
  */
 export function buildTopNavConfig({
   isCreator,
+  agentViewEnabled,
   webViewEnabled,
   webViewTestHref,
   exploreContext = null,
@@ -96,12 +102,13 @@ export function buildTopNavConfig({
       name: t('navigation.library'),
       href: '/library',
     },
-    {
+    ...(agentViewEnabled ? [{
       // Agentensicht (Projektauftrag Welle 2): steht bewusst NEBEN „Archiv" —
       // dieselbe Library, andere Frage („was versteht ein Agent davon?").
+      // Nur wenn die aktive Library es aktiviert hat (Opt-in, Default aus).
       name: 'Agentensicht',
       href: '/library/agent-view',
-    },
+    }] : []),
     {
       name: t('navigation.gallery'),
       href: '/library/gallery',

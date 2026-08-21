@@ -9,6 +9,7 @@ describe('buildTopNavConfig', () => {
   it('zeigt fuer anonyme Nutzer nur die minimale oeffentliche Navigation und kein Zahnrad-Menue', () => {
     const result = buildTopNavConfig({
       isCreator: false,
+      agentViewEnabled: false,
       webViewEnabled: false,
       webViewTestHref: '',
       t,
@@ -22,6 +23,7 @@ describe('buildTopNavConfig', () => {
   it('zeigt fuer Creator die erweiterten Bereiche weiterhin an', () => {
     const result = buildTopNavConfig({
       isCreator: true,
+      agentViewEnabled: true,
       webViewEnabled: true,
       webViewTestHref: '/explore/test?view=site',
       t,
@@ -42,9 +44,24 @@ describe('buildTopNavConfig', () => {
     expect(result.showMoreMenu).toBe(true)
   })
 
+  it('verbirgt die Agentensicht, wenn die aktive Library sie nicht aktiviert hat (Default aus)', () => {
+    const result = buildTopNavConfig({
+      isCreator: true,
+      agentViewEnabled: false,
+      webViewEnabled: false,
+      webViewTestHref: '',
+      t,
+    })
+
+    expect(result.primaryProtectedNavItems.map((item) => item.href)).not.toContain('/library/agent-view')
+    // Die uebrige Creator-Navigation bleibt unveraendert.
+    expect(result.primaryProtectedNavItems.map((item) => item.href)).toContain('/library')
+  })
+
   it('Explore-Kontext MIT Website: Home | Inhalte | Story Mode (auch anonym)', () => {
     const result = buildTopNavConfig({
       isCreator: false,
+      agentViewEnabled: false,
       webViewEnabled: true,
       webViewTestHref: '/explore/oldiesforfuture?view=site',
       exploreContext: { slug: 'oldiesforfuture', siteEnabled: true },
@@ -63,6 +80,7 @@ describe('buildTopNavConfig', () => {
   it('Explore-Kontext OHNE Website: Home (KS-Startseite) | Inhalte (Basis-Link) | Story Mode', () => {
     const result = buildTopNavConfig({
       isCreator: false,
+      agentViewEnabled: false,
       webViewEnabled: false,
       webViewTestHref: '',
       exploreContext: { slug: 'klimarat', siteEnabled: false },
@@ -81,6 +99,7 @@ describe('buildTopNavConfig', () => {
   it('Explore-Kontext MIT Website: sitePages (z. B. Kontakt) am ENDE der Liste', () => {
     const result = buildTopNavConfig({
       isCreator: false,
+      agentViewEnabled: false,
       webViewEnabled: true,
       webViewTestHref: '/explore/oldiesforfuture?view=site',
       exploreContext: {
@@ -102,6 +121,7 @@ describe('buildTopNavConfig', () => {
   it('Domain-Root: homeHref `/` + sitePages mit `/?site=`-Links am Ende', () => {
     const result = buildTopNavConfig({
       isCreator: false,
+      agentViewEnabled: false,
       webViewEnabled: false,
       webViewTestHref: '',
       exploreContext: {
@@ -124,6 +144,7 @@ describe('buildTopNavConfig', () => {
   it('Explore-Kontext: Creator behalten Archiv + Wartekorb als geschuetzte Punkte', () => {
     const result = buildTopNavConfig({
       isCreator: true,
+      agentViewEnabled: false,
       webViewEnabled: true,
       webViewTestHref: '/explore/oldiesforfuture?view=site',
       exploreContext: { slug: 'oldiesforfuture', siteEnabled: true },

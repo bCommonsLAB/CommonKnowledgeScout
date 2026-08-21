@@ -379,6 +379,8 @@ export interface StorageConfig {
    * `bericht_veraltet` ist aktiv. KEIN Secret.
    */
   agentView?: {
+    /** Agentensicht sichtbar/nutzbar (Menuepunkt + Seite). Default: false. */
+    enabled?: boolean;
     /** Regex fuer Vorhabensordner (z. B. `^\\d{2}\\.\\d{2} `). Leer = nur Selbstdeklaration. */
     vorhabenFolderPattern?: string;
     /** Bis zu dieser Ordnertiefe ist `_INDEX.md` Pflicht; fehlt = Regel inaktiv. */
@@ -639,6 +641,7 @@ export interface ClientLibrary {
     scanExcludeGlobs?: string[];
     /** Agentensicht-Konventionen (Welle 1/3) — kein Secret, siehe StorageConfig.agentView. */
     agentView?: {
+      enabled?: boolean;
       vorhabenFolderPattern?: string;
       indexRequiredMaxDepth?: number;
       berichtFreshness?: boolean;

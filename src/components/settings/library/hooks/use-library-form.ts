@@ -79,6 +79,7 @@ export const libraryFormSchema = z.object({
     .string()
     .default("")
     .refine((value) => value.trim() === "" || /^\d+$/.test(value.trim()), "Ganze Zahl (0, 1, 2, ...) oder leer."),
+  agentViewEnabled: z.boolean().default(false),
   agentViewBerichtFreshness: z.boolean().default(true),
   agentViewLocalRootPath: z.string().default(""),
   // Plan 2 · W-C: Kuratierung der „Inhalte erfassen"-Wizards (optional).
@@ -119,16 +120,19 @@ export type LibraryFormValues = z.infer<typeof libraryFormSchema>;
  * fehlende Werte fallen sichtbar auf die dokumentierten Defaults.
  */
 function readAgentViewForm(config: Record<string, unknown> | undefined): {
+  agentViewEnabled: boolean;
   agentViewVorhabenPattern: string;
   agentViewIndexDepth: string;
   agentViewBerichtFreshness: boolean;
   agentViewLocalRootPath: string;
 } {
   const agentView = (config?.agentView ?? null) as
-    | { vorhabenFolderPattern?: unknown; indexRequiredMaxDepth?: unknown; berichtFreshness?: unknown; localRootPath?: unknown }
+    | { enabled?: unknown; vorhabenFolderPattern?: unknown; indexRequiredMaxDepth?: unknown; berichtFreshness?: unknown; localRootPath?: unknown }
     | null;
   const depth = agentView?.indexRequiredMaxDepth;
   return {
+    // Default AUS: Agentensicht ist ein Opt-in pro Library (Pilot-Entscheid 2026-08-21).
+    agentViewEnabled: agentView?.enabled === true,
     agentViewVorhabenPattern: typeof agentView?.vorhabenFolderPattern === "string" ? agentView.vorhabenFolderPattern : "",
     agentViewIndexDepth: typeof depth === "number" && Number.isFinite(depth) ? String(depth) : "",
     agentViewBerichtFreshness: agentView?.berichtFreshness !== false,
@@ -231,6 +235,7 @@ export function useLibraryForm(createNew: boolean) {
       detailViewType: "book",
       analyzeDivaTextureInfo: false,
       scanExcludeGlobs: "",
+      agentViewEnabled: false,
       agentViewVorhabenPattern: "",
       agentViewIndexDepth: "",
       agentViewBerichtFreshness: true,
@@ -460,6 +465,7 @@ export function useLibraryForm(createNew: boolean) {
             analyzeDivaTextureInfo: data.analyzeDivaTextureInfo,
             scanExcludeGlobs: data.scanExcludeGlobs.split(/\r?\n/).map((g) => g.trim()).filter(Boolean),
             agentView: {
+              enabled: data.agentViewEnabled,
               ...(data.agentViewVorhabenPattern.trim() !== ""
                 ? { vorhabenFolderPattern: data.agentViewVorhabenPattern.trim() }
                 : {}),
