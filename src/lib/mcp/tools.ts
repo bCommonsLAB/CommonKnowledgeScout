@@ -68,12 +68,18 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
       inputSchema: {
         libraryId: LIBRARY_ID,
         pfad: z.string().optional().describe('Library-relativer Ordnerpfad, z. B. "6. bCommonsLab prototyping/25.01 Common Secretary"'),
+        akteur: z.enum(['mensch', 'cowork', 'knowledgescout']).optional()
+          .describe('Nur Befunde dieses Akteurs („was ist meine Arbeit?“)'),
+        zyklusSchritt: z.number().int().min(1).max(4).optional()
+          .describe('Nur Befunde dieses Zyklus-Schritts (1-4)'),
+        nurZaehler: z.boolean().optional()
+          .describe('Nur Zaehler + Ordnerliste liefern (Befund-/Familienlisten leer) — fuer grosse Reports'),
         maxBefunde: z.number().int().min(1).max(1000).optional(),
         maxFamilien: z.number().int().min(1).max(1000).optional(),
       },
       annotations: { readOnlyHint: true },
     },
-    async ({ libraryId, pfad, maxBefunde, maxFamilien }) => {
+    async ({ libraryId, pfad, akteur, zyklusSchritt, nurZaehler, maxBefunde, maxFamilien }) => {
       try {
         await requireLibrary(mcpUserEmail(), libraryId)
         const stored = await getCoverageReport(libraryId)
@@ -90,6 +96,9 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
             storedGapsTruncated: stored.gapsTruncated,
             totalGaps: stored.totalGaps,
             pathPrefix: pfad ?? null,
+            akteur: akteur ?? null,
+            zyklusSchritt: zyklusSchritt ?? null,
+            nurZaehler: nurZaehler === true,
             maxGaps: maxBefunde,
             maxFamilies: maxFamilien,
           }),

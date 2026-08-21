@@ -171,6 +171,44 @@ describe('summarizeCoverageReport', () => {
     expect(summarize({ gaps: [] }, { pathPrefix: 'Pilot' }).filter.warnung).toBeNull()
   })
 
+  it('Befunde tragen targetId/folderId/scope (C1 — Befund → Aktion als Feldzugriff)', () => {
+    const view = summarize()
+    const befund = view.filter.befunde[0] as { targetId?: string; folderId?: string; scope?: string }
+    expect(befund.targetId).toBe('id-Pilot/A.pdf')
+    expect(befund.folderId).toBe('f1')
+    expect(befund.scope).toBe('source')
+  })
+
+  it('filtert nach Akteur/Zyklus-Schritt und liefert nurZaehler ohne Listen (C5)', () => {
+    // Alle Test-Gaps sind knowledgescout/Schritt 1 — mensch-Filter leert die Liste,
+    // ohne die Pfad-Leerlauf-Warnung auszuloesen (die gilt nur dem Pfad-Filter).
+    const nurMensch = summarize({}, { akteur: 'mensch' })
+    expect(nurMensch.filter.befundAnzahl).toBe(0)
+    expect(nurMensch.filter.warnung).toBeNull()
+
+    const schritt1 = summarize({}, { zyklusSchritt: 1 })
+    expect(schritt1.filter.befundAnzahl).toBe(2)
+
+    const zaehler = summarize({}, { nurZaehler: true })
+    expect(zaehler.filter.befunde).toEqual([])
+    expect(zaehler.filter.familien).toEqual([])
+    expect(zaehler.filter.nurZaehler).toContain('bewusst leer')
+    expect(zaehler.filter.befundeNachTyp).toEqual({ source_without_twin: 2 })
+  })
+
+  it('benennt „bereit zur Abnahme“: null maschinelle Befunde, alles wartet auf F4 (D2)', () => {
+    const gemischt = summarize()
+    expect(gemischt.filter.bereitZurAbnahme).toBe(false)
+
+    const nurMensch = summarize({
+      gaps: [gap('Pilot/A.pdf', 'twin_unverified')],
+    })
+    expect(nurMensch.filter.bereitZurAbnahme).toBe(true)
+
+    // Leerer Scope ist NICHT „bereit“ — dort gibt es nichts abzunehmen.
+    expect(summarize({ gaps: [] }).filter.bereitZurAbnahme).toBe(false)
+  })
+
   it('weist die Kappung des GESPEICHERTEN Reports aus', () => {
     const view = summarize({}, { storedGapsTruncated: true, totalGaps: 9999 })
     expect(view.gespeicherterReportGekappt).toEqual({ gespeicherteGaps: 2, totalGaps: 9999 })
