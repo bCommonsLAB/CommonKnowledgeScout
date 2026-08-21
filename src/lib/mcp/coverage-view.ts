@@ -12,6 +12,7 @@
  */
 
 import type { CoverageGap, CoverageReport, CoverageTreeNode, TwinFamilySummary } from '@/lib/agent-view/types'
+import { describeEmptyFilter } from './coverage-filter-warning'
 
 /** Standard-Budgets der Werkzeug-Ausgabe (per Argument erhoehbar). */
 export const DEFAULT_MAX_GAPS = 100
@@ -164,6 +165,15 @@ export function summarizeCoverageReport(args: CoverageViewArgs) {
     filter: {
       pfad: prefix === '' ? null : prefix,
       pfadAngefragt: requestedPrefix === '' ? null : requestedPrefix,
+      /** Gesetzt, wenn der Filter ins Leere griff — nie stille 0 (Pilot-Befund). */
+      warnung: describeEmptyFilter({
+        requestedPrefix, scoped, scopePath,
+        // Nur ECHTE Teilbaum-Treffer: collectFolders liefert auch Vorfahren
+        // (die Wurzel matcht immer) — die sind kein Beleg fuer einen Treffer.
+        matchedFolders: folders.filter((f) => f.path !== '(Wurzel)' && isInSubtree(f.path, prefix)).length,
+        matchedGaps: gapsInScope.length,
+        reportGaps: args.report.gaps.length,
+      }),
       /** folderId hier fuer Teilbaum-Scans/-Checks verwenden (statt ganzer Library). */
       ordner: folders.slice(0, maxFolders),
       ordnerAnzahl: folders.length,

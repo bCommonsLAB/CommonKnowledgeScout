@@ -148,6 +148,29 @@ describe('summarizeCoverageReport', () => {
     expect(summarize().scopeHinweis).toBeNull()
   })
 
+  it('meldet einen Pfad-Filter, der ins Leere greift, statt still 0 Befunde (Pilot-Befund)', () => {
+    // Teilbaum-Scan per folderId: Report kennt seinen library-relativen Pfad NICHT.
+    const blind = summarize(
+      { scope: { folderId: 'fid-scope', path: null } },
+      { pathPrefix: '4. Aktivismus/26.01 Klima' },
+    )
+    expect(blind.filter.befundAnzahl).toBe(0)
+    expect(blind.filter.warnung).toContain('traf NICHTS')
+    expect(blind.filter.warnung).toContain('KEINE Entwarnung')
+    expect(blind.filter.warnung).toContain('Teilbaum-Scan per folderId'.replace('Teilbaum', 'TEILBAUM'))
+
+    // Tippfehler im Pfad bei vollem Report: andere Ursache, andere Empfehlung.
+    const tippfehler = summarize({}, { pathPrefix: 'Piloot' })
+    expect(tippfehler.filter.warnung).toContain('Pfad pruefen')
+
+    // Treffer -> keine Warnung; kein Filter -> keine Warnung.
+    expect(summarize({}, { pathPrefix: 'Pilot' }).filter.warnung).toBeNull()
+    expect(summarize().filter.warnung).toBeNull()
+
+    // Leerer Report: „nichts gefunden" ist hier die Wahrheit, keine Warnung.
+    expect(summarize({ gaps: [] }, { pathPrefix: 'Pilot' }).filter.warnung).toBeNull()
+  })
+
   it('weist die Kappung des GESPEICHERTEN Reports aus', () => {
     const view = summarize({}, { storedGapsTruncated: true, totalGaps: 9999 })
     expect(view.gespeicherterReportGekappt).toEqual({ gespeicherteGaps: 2, totalGaps: 9999 })
