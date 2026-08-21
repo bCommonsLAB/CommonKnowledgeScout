@@ -18,6 +18,7 @@ import type { StorageItem } from '@/lib/storage/types';
 import type { ArtifactKey } from './artifact-types';
 import { buildArtifactName } from './artifact-naming';
 import { findShadowTwinFolder, generateShadowTwinFolderName } from '@/lib/storage/shadow-twin';
+import { isShadowTwinFolderName } from '@/lib/storage/shadow-twin-folder-name';
 import { FileLogger } from '@/lib/debug/logger';
 import { logArtifactWrite } from './artifact-logger';
 
@@ -117,9 +118,27 @@ async function writeArtifactV2(
   const shouldUseFolder = createFolder || false; // Kann später erweitert werden (z.B. bei Bildern)
 
   if (shouldUseFolder) {
+    // INVARIANTE (Contract §2): In einen Twin-Ordner wird NIE ein weiterer
+    // Twin-Ordner gelegt. Callback-Pfade reichen nach dem Transkript-Write
+    // teils den Twin-Ordner selbst als parentId weiter (veralteter
+    // Job-State-Snapshot) — frueher entstand dann `_X/_X/` (verschachtelter
+    // Spiegel, Befund transformation_starten-Pilot 2026-08-21). Zeigt
+    // parentId bereits auf einen `_`-Ordner, schreiben wir direkt hinein.
+    let shadowTwinFolder: StorageItem | null = null;
+    const parentItem = await provider.getItemById(parentId).catch(() => null);
+    if (parentItem && parentItem.type === 'folder' && isShadowTwinFolderName(parentItem.metadata.name)) {
+      shadowTwinFolder = parentItem;
+      FileLogger.info('artifact-writer', 'parentId ist bereits der Twin-Ordner — schreibe direkt hinein', {
+        folderId: parentItem.id,
+        folderName: parentItem.metadata.name,
+      });
+    }
+
     // 1. Finde oder erstelle Shadow-Twin-Verzeichnis
-    let shadowTwinFolder = await findShadowTwinFolder(parentId, sourceName, provider);
-    
+    if (!shadowTwinFolder) {
+      shadowTwinFolder = await findShadowTwinFolder(parentId, sourceName, provider);
+    }
+
     if (!shadowTwinFolder) {
       const folderName = generateShadowTwinFolderName(sourceName);
       shadowTwinFolder = await provider.createFolder(parentId, folderName);
