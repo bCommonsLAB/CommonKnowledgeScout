@@ -446,6 +446,16 @@ export async function updateShadowTwinArtifactMarkdown(args: {
   const parsed = parseFrontmatter(markdown)
   const path = buildArtifactPath(artifactKey)
 
+  // Pilot-Befund B4: Identischer Inhalt bumpt updatedAt NICHT — sonst altern
+  // Import-/Spiegel-Laeufe ohne Inhaltsaenderung den BERICHT (bericht_veraltet
+  // feuerte direkt nach jedem frisch geschriebenen Bericht).
+  const existing = await col.findOne({ libraryId, sourceId }, { projection: { [`${path}.markdown`]: 1, _id: 0 } })
+  const stored = path.split('.').reduce<unknown>(
+    (node, key) => (node && typeof node === 'object' ? (node as Record<string, unknown>)[key] : undefined),
+    existing,
+  ) as { markdown?: unknown } | undefined
+  if (stored?.markdown === markdown) return
+
   await col.updateOne(
     { libraryId, sourceId },
     {
