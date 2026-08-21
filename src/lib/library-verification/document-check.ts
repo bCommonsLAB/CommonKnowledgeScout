@@ -143,6 +143,11 @@ export function checkDocument(
 ): DocumentVerificationResult {
   const docMetaJson = doc.docMetaJson ?? {}
   const present = new Set(Object.keys(docMetaJson).filter((k) => hasValue(docMetaJson[k])))
+  // Entscheid 2026-08-21 (Pilot-Wunschliste B3/E2): `authors: []` ist die
+  // EHRLICHE Antwort der Extraktion („Sprecher unbekannt“) und gilt als
+  // vorhanden — nur ein ganz FEHLENDER Key bleibt ein A0-Befund. Bewusst nur
+  // fuer authors; ein leeres tags-Array bleibt ein Mangel.
+  if (Array.isArray(docMetaJson.authors)) present.add('authors')
 
   const { viewType, issues: typeIssues } = resolveDetailViewType(
     docMetaJson,

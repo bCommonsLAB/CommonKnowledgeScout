@@ -124,7 +124,10 @@ export async function runCoverageScan(
     // Archiv-Hygiene: endungslose Dateien sind meist abgeschnittene
     // Sync-Reste — genau das will man gemeldet haben (Cowork-Befund).
     ...filesWithoutExtension(folders),
-    ...gapsFromFieldVerification({ documents: fieldVerification.documents, locations, rootFolderId: request.rootFolderId }),
+    ...gapsFromFieldVerification({
+      documents: fieldVerification.documents, locations, rootFolderId: request.rootFolderId,
+      scoped: request.scopeFolderId !== null,
+    }),
     ...(fieldVerification.error === null
       ? []
       : [
