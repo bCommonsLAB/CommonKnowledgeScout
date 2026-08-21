@@ -131,7 +131,7 @@ export function McpBridgeSection() {
             <li>Datei herunterladen (Knopf oben) — sie heißt <code>knowledgescout.mcpb</code>.</li>
             <li>Claude-Desktop-App öffnen: Einstellungen → Erweiterungen.</li>
             <li>
-              <strong>„Erweiterung installieren"</strong> wählen und die heruntergeladene
+              <strong>„Erweiterung installieren“</strong> wählen und die heruntergeladene
               Datei auswählen (oder die Datei ins Fenster ziehen).
             </li>
             <li>Fertig — Server-Adresse und Schlüssel sind schon eingetragen.</li>
