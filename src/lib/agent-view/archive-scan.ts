@@ -16,13 +16,12 @@
  * @module agent-view
  */
 
-import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { collectTwinFolder, readDoc, toFileEntry } from './archive-scan-readers'
 import { compileExcludeGlobs, isExcludedPath } from '@/lib/shadow-twin/sync-engine/scan-exclude'
-import { generateShadowTwinFolderName, isShadowTwinFolderName } from '@/lib/storage/shadow-twin-folder-name'
+import { isShadowTwinFolderName } from '@/lib/storage/shadow-twin-folder-name'
 import type { StorageItem } from '@/lib/storage/types'
 import { readBearbeitungsstand } from './bearbeitungsstand'
-import type { ArchiveDocEntry, ArchiveFileEntry, ArchiveFolderNode, ArchiveScanResult, ArchiveTwinFolderEntry } from './archive-types'
+import type { ArchiveFolderNode, ArchiveScanResult } from './archive-types'
 
 /** Minimal-Port auf den Storage (nur Lesen) — haelt den Scan testbar. */
 export interface ArchiveScanProvider {
