@@ -1,0 +1,743 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Werkbank-Mockup</title>
+<!-- Statisches Mockup zum Konzept docs/concepts/projektauftrag-agentensicht-v2-werkbank.md.
+     Ohne Build-Abhaengigkeit direkt im Browser zu oeffnen. Kein Produktions-Code. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --bg: #ffffff;
+    --page: #f1f5f9;
+    --panel: #f8fafc;
+    --panel2: #eef2f6;
+    --border: #e2e8f0;
+    --text: #0f172a;
+    --muted: #64748b;
+    --primary: #0f172a;
+    --primary-fg: #ffffff;
+    --green: #16a34a;
+    --green-bg: #f0fdf4;
+    --green-border: #bbf7d0;
+    --amber: #d97706;
+    --red: #dc2626;
+    --red-soft: #fef2f2;
+    --link: #2563eb;
+    --sel: #eef2ff;
+    --annot: #7c3aed;
+    --annot-fg: #ffffff;
+    --shadow: 0 1px 3px rgba(15, 23, 42, .08), 0 8px 24px rgba(15, 23, 42, .06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f172a;
+      --page: #020817;
+      --panel: #131c31;
+      --panel2: #1e293b;
+      --border: #283548;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --primary: #e2e8f0;
+      --primary-fg: #0f172a;
+      --green: #4ade80;
+      --green-bg: rgba(34, 197, 94, .12);
+      --green-border: rgba(74, 222, 128, .35);
+      --amber: #fbbf24;
+      --red: #f87171;
+      --red-soft: rgba(248, 113, 113, .12);
+      --link: #60a5fa;
+      --sel: rgba(99, 102, 241, .18);
+      --annot: #a78bfa;
+      --annot-fg: #1e1b4b;
+      --shadow: 0 1px 3px rgba(0, 0, 0, .5), 0 8px 24px rgba(0, 0, 0, .35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f172a;
+    --page: #020817;
+    --panel: #131c31;
+    --panel2: #1e293b;
+    --border: #283548;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --primary: #e2e8f0;
+    --primary-fg: #0f172a;
+    --green: #4ade80;
+    --green-bg: rgba(34, 197, 94, .12);
+    --green-border: rgba(74, 222, 128, .35);
+    --amber: #fbbf24;
+    --red: #f87171;
+    --red-soft: rgba(248, 113, 113, .12);
+    --link: #60a5fa;
+    --sel: rgba(99, 102, 241, .18);
+    --annot: #a78bfa;
+    --annot-fg: #1e1b4b;
+    --shadow: 0 1px 3px rgba(0, 0, 0, .5), 0 8px 24px rgba(0, 0, 0, .35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--text);
+    font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 32px 24px 64px; }
+
+  /* ---------- Kopf + Zustands-Umschalter ---------- */
+  .intro h1 { font-size: 26px; font-weight: 700; margin: 0 0 6px; letter-spacing: -.02em; text-wrap: balance; }
+  .intro p { margin: 0; color: var(--muted); max-width: 72ch; }
+  .intro code {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    font-size: 12px; background: var(--panel2); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1px 5px;
+  }
+  .states-nav {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    margin: 20px 0 28px; position: sticky; top: 12px; z-index: 20;
+  }
+  .states-nav button {
+    font: inherit; font-weight: 600; font-size: 13px;
+    color: var(--text); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 999px;
+    padding: 8px 16px; cursor: pointer; box-shadow: var(--shadow);
+  }
+  .states-nav button[aria-pressed="true"] { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
+  .states-nav button:focus-visible { outline: 2px solid var(--annot); outline-offset: 2px; }
+
+  section.state { display: none; }
+  section.state.active { display: block; }
+
+  .state-head { margin: 0 0 14px; }
+  .state-head h2 { font-size: 18px; font-weight: 700; margin: 0 0 4px; letter-spacing: -.01em; }
+  .state-head p { margin: 0; color: var(--muted); max-width: 80ch; }
+
+  /* ---------- Annotations-Ebene (violett, klar vom Produkt-UI getrennt) ---------- */
+  .annot {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 17px; height: 17px; border-radius: 50%;
+    background: var(--annot); color: var(--annot-fg);
+    font-size: 11px; font-weight: 700; line-height: 1;
+    vertical-align: middle; margin-left: 6px; flex: none;
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  }
+  .legend {
+    margin: 14px 0 0; padding: 12px 16px;
+    border: 1px dashed var(--annot); border-radius: 10px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 6px 24px; font-size: 13px; color: var(--text); background: transparent;
+  }
+  .legend div { display: flex; gap: 8px; align-items: baseline; }
+  .legend .annot { margin: 2px 0 0; }
+
+  /* ---------- App-Rahmen ---------- */
+  .frame {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
+    box-shadow: var(--shadow); overflow: hidden;
+  }
+  .app { padding: 18px 20px 20px; }
+  .app-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  .app-head h3 { font-size: 19px; font-weight: 700; margin: 0; letter-spacing: -.01em; }
+  .app-head .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .btn {
+    font: inherit; font-size: 13px; font-weight: 600;
+    border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text);
+    padding: 7px 14px; cursor: pointer; white-space: nowrap;
+  }
+  .btn:focus-visible { outline: 2px solid var(--annot); outline-offset: 2px; }
+  .btn.primary { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
+  .btn.green { background: var(--green); border-color: var(--green); color: #fff; }
+  .btn[disabled] { opacity: .45; cursor: not-allowed; }
+  .btn.small { padding: 4px 10px; font-size: 12px; }
+
+  .summary {
+    display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center;
+    color: var(--muted); font-size: 12.5px;
+    border: 1px solid var(--border); border-radius: 10px;
+    background: var(--panel); padding: 8px 14px; margin: 14px 0;
+  }
+  .summary b { color: var(--text); font-weight: 600; }
+  .chip {
+    display: inline-block; border-radius: 999px; padding: 1px 9px;
+    font-size: 12px; font-weight: 600; border: 1px solid transparent;
+  }
+  .chip.m { background: #fef3c7; color: #92400e; }
+  .chip.c { background: #dbeafe; color: #1e40af; }
+  .chip.k { background: #ede9fe; color: #5b21b6; }
+
+  .tabs { display: inline-flex; gap: 2px; background: var(--panel2); border-radius: 10px; padding: 3px; margin-bottom: 14px; }
+  .tabs span { padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--muted); }
+  .tabs span.on { background: var(--bg); color: var(--text); box-shadow: 0 1px 2px rgba(15,23,42,.12); }
+
+  /* ---------- Werkbank: Split ---------- */
+  .split { display: grid; grid-template-columns: minmax(330px, 34%) 6px 1fr; min-height: 520px; }
+  .gutter { background: var(--border); width: 2px; margin: 0 auto; border-radius: 2px; align-self: stretch; }
+  .pane-left { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .pane-right { min-width: 0; padding-left: 18px; }
+
+  /* Filterleiste */
+  .filterbar { display: flex; flex-direction: column; gap: 8px; }
+  .seg { display: inline-flex; gap: 2px; background: var(--panel2); border-radius: 9px; padding: 3px; align-self: flex-start; }
+  .seg span { padding: 4px 11px; border-radius: 7px; font-size: 12.5px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+  .seg span.on { background: var(--bg); color: var(--text); box-shadow: 0 1px 2px rgba(15,23,42,.12); }
+  .filter-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .fchip {
+    font-size: 12px; font-weight: 500; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; background: var(--bg);
+  }
+  .search {
+    flex: 1; min-width: 120px; font-size: 12.5px; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px; background: var(--bg);
+  }
+
+  /* Fortschrittskopf (Arbeitsliste) */
+  .progress-head {
+    border: 1px solid var(--border); border-radius: 10px; background: var(--panel);
+    padding: 10px 12px; display: flex; flex-direction: column; gap: 7px;
+  }
+  .progress-head .line1 { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+  .progress-head b { font-size: 13px; }
+  .progress-head .nums { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .pbar { display: flex; height: 7px; border-radius: 999px; overflow: hidden; background: var(--panel2); }
+  .pbar .done { background: var(--green); }
+  .pbar .ready { background: var(--amber); }
+
+  /* Vorhaben-Liste */
+  .vlist { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .vgroup {
+    display: flex; justify-content: space-between; gap: 10px;
+    background: var(--panel); color: var(--muted);
+    font-size: 11.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+    padding: 6px 12px; border-bottom: 1px solid var(--border);
+  }
+  .vrow {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 8px 12px; border-bottom: 1px solid var(--border); background: var(--bg);
+  }
+  .vrow:last-child { border-bottom: 0; }
+  .vrow.sel { background: var(--sel); box-shadow: inset 3px 0 0 var(--primary); }
+  .vrow.dead { background: var(--panel); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; margin-top: 5px; }
+  .dot.g { background: var(--green); } .dot.y { background: var(--amber); } .dot.r { background: var(--red); }
+  .dot.n { background: transparent; border: 1.5px dashed var(--muted); }
+  .vmain { min-width: 0; flex: 1; }
+  .vname { font-weight: 600; font-size: 13.5px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .vname .warn { color: var(--red); font-size: 12px; font-weight: 700; }
+  .vsub { color: var(--muted); font-size: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 1px; font-variant-numeric: tabular-nums; }
+  .badge {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    border: 1px solid var(--border); border-radius: 999px; padding: 0 8px; color: var(--muted); background: var(--bg);
+  }
+  .badge.green { color: var(--green); border-color: var(--green-border); background: var(--green-bg); }
+  .badge.red { color: var(--red); border-color: var(--red); background: var(--red-soft); }
+  .pin { color: var(--muted); font-size: 13px; flex: none; margin-top: 2px; }
+  .pin.on { color: var(--amber); }
+
+  /* ---------- Detail ---------- */
+  .d-head { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+  .d-head .crumb { color: var(--muted); font-size: 12px; }
+  .d-head h4 { margin: 2px 0 4px; font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+  .d-meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 12px; color: var(--muted); }
+  .d-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ready-bar {
+    margin: 14px 0; border: 1px solid var(--green-border); background: var(--green-bg);
+    border-radius: 10px; padding: 10px 14px;
+    display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  .ready-bar b { color: var(--green); font-size: 13.5px; }
+  .ready-bar span { color: var(--muted); font-size: 12.5px; }
+
+  .doc { border: 1px solid var(--border); border-radius: 10px; margin-top: 14px; overflow: hidden; }
+  .doc-head {
+    display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    padding: 7px 14px; font-size: 12px; color: var(--muted);
+  }
+  .doc-head .file { font-weight: 600; color: var(--text); }
+  .doc-head a { color: var(--link); text-decoration: none; }
+  .doc-body { padding: 16px 20px 18px; max-width: 75ch; }
+  .doc-body h5 { font-size: 16px; margin: 0 0 8px; letter-spacing: -.01em; }
+  .doc-body h6 { font-size: 13px; margin: 16px 0 6px; text-transform: none; }
+  .doc-body p { margin: 0 0 10px; font-size: 13.5px; }
+  .doc-body ul { margin: 0; padding-left: 4px; list-style: none; font-size: 13.5px; }
+  .doc-body li { margin: 3px 0; }
+  .cb { display: inline-block; width: 12px; height: 12px; border: 1.5px solid var(--muted); border-radius: 3px; margin-right: 7px; vertical-align: -1px; }
+
+  .gaps { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .ggroup { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .ggroup > .ghead {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    padding: 8px 14px; background: var(--panel); font-size: 13px; font-weight: 600;
+  }
+  .ghead .cnt { color: var(--muted); font-weight: 500; font-size: 12px; }
+  .gitem { display: flex; gap: 10px; padding: 8px 14px; border-top: 1px solid var(--border); font-size: 13px; align-items: baseline; }
+  .gitem .typ { font-weight: 600; white-space: nowrap; }
+  .gitem .msg { color: var(--muted); }
+  .sev { width: 7px; height: 7px; border-radius: 50%; flex: none; align-self: center; }
+  .sev.e { background: var(--red); } .sev.w { background: var(--amber); } .sev.i { background: var(--muted); }
+
+  .fam { border: 1px solid var(--border); border-radius: 10px; margin-top: 16px; overflow: hidden; }
+  .fam .ghead { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: var(--panel); font-size: 13px; font-weight: 600; }
+  .fitem { display: flex; justify-content: space-between; gap: 10px; padding: 8px 14px; border-top: 1px solid var(--border); font-size: 13px; align-items: center; flex-wrap: wrap; }
+  .fitem .fmeta { color: var(--muted); font-size: 12px; }
+  .fitem .fctl { display: flex; gap: 8px; align-items: center; }
+  .select {
+    font-size: 12px; border: 1px solid var(--border); border-radius: 7px;
+    padding: 3px 8px; color: var(--text); background: var(--bg);
+  }
+
+  .d-foot { margin-top: 16px; color: var(--muted); font-size: 12px; display: flex; gap: 16px; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+  .d-foot code { font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 11px; background: var(--panel2); border-radius: 4px; padding: 1px 5px; }
+
+  .empty {
+    border: 1px dashed var(--border); border-radius: 12px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; gap: 6px; min-height: 420px; color: var(--muted); padding: 24px;
+  }
+  .empty b { color: var(--text); font-size: 15px; }
+  .empty .totals { font-size: 12.5px; }
+
+  .note { color: var(--muted); font-size: 12.5px; margin-top: 22px; max-width: 80ch; }
+  .note a { color: var(--link); }
+
+  @media (max-width: 860px) {
+    .split { grid-template-columns: 1fr; }
+    .gutter { display: none; }
+    .pane-right { padding-left: 0; margin-top: 16px; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .states-nav button, .btn { transition: background .12s ease, color .12s ease; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="intro">
+    <h1>Werkbank — Mockup zur Agentensicht v2</h1>
+    <p>Drei Zustände des neuen Master-Detail-Tabs. Violette Marker <span class="annot" style="margin:0 2px;">n</span>
+    sind Annotationen dieses Mockups, kein Produkt-UI. Konzept:
+    <code>docs/concepts/projektauftrag-agentensicht-v2-werkbank.md</code></p>
+  </header>
+
+  <nav class="states-nav" aria-label="Mockup-Zustand wählen">
+    <button type="button" data-state="a" aria-pressed="true">A · Zu-tun-Liste</button>
+    <button type="button" data-state="b" aria-pressed="false">B · Arbeitsliste mit Fortschritt</button>
+    <button type="button" data-state="c" aria-pressed="false">C · Detail mit Bericht &amp; Abnahme</button>
+  </nav>
+
+  <!-- ======================= ZUSTAND A ======================= -->
+  <section class="state active" id="state-a">
+    <div class="state-head">
+      <h2>A · Die Werkbank öffnet auf der Arbeit</h2>
+      <p>Default-Filter „Zu tun": nur Vorhaben mit offenen Befunden. Noch nichts gewählt —
+      rechts der Leerzustand mit den Library-Totalen.</p>
+    </div>
+    <div class="frame"><div class="app">
+
+      <div class="app-head">
+        <div>
+          <h3>Agentensicht</h3>
+          <div class="sub">Das Archiv zeigt die Dateien — diese Sicht zeigt, was ein Agent davon versteht und was ihm fehlt.</div>
+        </div>
+        <button class="btn primary" type="button">⟳&nbsp; Neu scannen</button>
+      </div>
+
+      <div class="summary">
+        <span><b>Wessen Arbeit?</b></span>
+        <span class="chip m">Mensch 28</span><span class="chip c">Cowork 1</span><span class="chip k">KnowledgeScout 1</span>
+        <span><b>12</b> Ordner · <b>70</b> Dateien · <b>28</b> Quellen · <b>30</b> Befunde</span>
+        <span>Scan 22.8.2026, 09:20 · berechnet, nicht Wahrheit</span>
+        <span>seit letztem Scan: 2 erledigt · 0 neu</span>
+      </div>
+
+      <div class="tabs"><span class="on">Werkbank</span><span>Zyklus-Board</span><span>Todos &amp; Auftrag</span></div>
+
+      <div class="split">
+        <div class="pane-left">
+          <div class="filterbar">
+            <div class="seg" aria-label="Filter">
+              <span>Alle</span><span class="on">Zu tun<span class="annot">1</span></span><span>Bereit</span><span>Liste ▾</span>
+            </div>
+            <div class="filter-row">
+              <span class="fchip">Akteur: alle</span>
+              <span class="fchip">Schritt: alle</span>
+              <span class="search">Suchen in 10 Vorhaben …</span>
+              <span class="annot">2</span>
+            </div>
+          </div>
+
+          <div class="vlist">
+            <div class="vgroup"><span>(Wurzel) · Onedrive Test</span><span>8 Vorhaben · 29 Befunde</span></div>
+            <div class="vrow">
+              <span class="dot r"></span>
+              <div class="vmain">
+                <div class="vname">2026-08-04 Besprechung Klimaclub<span class="annot">3</span></div>
+                <div class="vsub"><span class="badge">—</span><span>M 5 · C 1 · K 1</span><span>kein Bericht</span></div>
+              </div>
+              <span class="pin">☆</span>
+            </div>
+            <div class="vrow">
+              <span class="dot r"></span>
+              <div class="vmain">
+                <div class="vname">2026-03-10 Auftritt Workshop Klimagesetz</div>
+                <div class="vsub"><span class="badge">—</span><span>M 5</span><span>📄 Bericht</span></div>
+              </div>
+              <span class="pin">☆</span>
+            </div>
+            <div class="vrow">
+              <span class="dot r"></span>
+              <div class="vmain">
+                <div class="vname">2026-09-30 Auftritt Vortragsreihe Brixen</div>
+                <div class="vsub"><span class="badge">—</span><span>M 6</span><span>📄 Bericht</span></div>
+              </div>
+              <span class="pin">☆</span>
+            </div>
+            <div class="vrow">
+              <span class="dot r"></span>
+              <div class="vmain">
+                <div class="vname">2026-07 Besprechung Arbeitstreffen Roland</div>
+                <div class="vsub"><span class="badge">—</span><span>M 5</span><span>📄 Bericht</span></div>
+              </div>
+              <span class="pin">☆</span>
+            </div>
+            <div class="vrow">
+              <span class="dot y"></span>
+              <div class="vmain">
+                <div class="vname">2026-08-20 Besprechung Arbeitstreffen Roland</div>
+                <div class="vsub"><span class="badge">erschlossen · seit 20.08.</span><span>M 1</span><span>📄 Bericht</span></div>
+              </div>
+              <span class="pin on">★</span>
+            </div>
+            <div class="vgroup"><span>6. bCommonsLab prototyping</span><span>1 Vorhaben · 3 Befunde</span></div>
+            <div class="vrow">
+              <span class="dot y"></span>
+              <div class="vmain">
+                <div class="vname">25.01 Common Secretary <span class="badge green">bereit zur Abnahme</span></div>
+                <div class="vsub"><span class="badge">strukturiert · seit 19.08.</span><span>M 3</span><span>📄 Bericht</span></div>
+              </div>
+              <span class="pin on">★</span>
+            </div>
+            <div class="vrow">
+              <span class="dot y"></span>
+              <div class="vmain">
+                <div class="vname">Außerhalb von Vorhaben<span class="annot">4</span></div>
+                <div class="vsub"><span>3 Befunde an Strukturebenen und Wurzel</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="gutter" role="separator" aria-label="Teiler"></div>
+
+        <div class="pane-right">
+          <div class="empty">
+            <b>Vorhaben links wählen<span class="annot">5</span></b>
+            <span>Der Bericht, die Befunde und die Aktionen des Vorhabens erscheinen hier.</span>
+            <span class="totals">Library gesamt: 12 Ordner · 28 Quellen · 56 Twin-Artefakte · 30 Befunde (Mensch 28 · Cowork 1 · KnowledgeScout 1)</span>
+          </div>
+        </div>
+      </div>
+
+    </div></div>
+
+    <div class="legend" aria-label="Legende Zustand A">
+      <div><span class="annot">1</span><span>Segmented-Filter, Default „Zu tun" (Ampel ≠ grün oder Widerspruch). Zustand liegt in der URL (nuqs) und übersteht Reload.</span></div>
+      <div><span class="annot">2</span><span>Akteur-/Schritt-Chips + Suche — dieselbe Filter-Semantik wie die MCP-Kompaktsicht (geteilte Funktionen). Leere Treffer nennen immer den Grund.</span></div>
+      <div><span class="annot">3</span><span>Zweizeilige Vorhaben-Zeile: Ampel, Name, Stand-Badge, Befunde je Akteur (M/C/K), Bericht-Indikator, Pin. Liste ist virtualisiert (skaliert auf hunderte Vorhaben).</span></div>
+      <div><span class="annot">4</span><span>Pseudo-Zeile für Befunde außerhalb von Vorhaben — sichtbar statt still verschluckt.</span></div>
+      <div><span class="annot">5</span><span>Leerzustand des Details mit Library-Totalen statt leerer Fläche.</span></div>
+    </div>
+  </section>
+
+  <!-- ======================= ZUSTAND B ======================= -->
+  <section class="state" id="state-b">
+    <div class="state-head">
+      <h2>B · Arbeitsliste: sich Projekte vornehmen und abarbeiten</h2>
+      <p>Die Liste „Aktuelle Projekte" ist aktiv — der Fortschrittskopf zeigt, was davon erledigt
+      ist. Gewählt ist ein Vorhaben ohne Bericht: das Detail macht daraus den Cowork-Auftrag.</p>
+    </div>
+    <div class="frame"><div class="app">
+
+      <div class="app-head">
+        <div>
+          <h3>Agentensicht</h3>
+          <div class="sub">Das Archiv zeigt die Dateien — diese Sicht zeigt, was ein Agent davon versteht und was ihm fehlt.</div>
+        </div>
+        <button class="btn primary" type="button">⟳&nbsp; Neu scannen</button>
+      </div>
+
+      <div class="tabs"><span class="on">Werkbank</span><span>Zyklus-Board</span><span>Todos &amp; Auftrag</span></div>
+
+      <div class="split">
+        <div class="pane-left">
+          <div class="filterbar">
+            <div class="seg" aria-label="Filter">
+              <span>Alle</span><span>Zu tun</span><span>Bereit</span><span class="on">Liste: Aktuelle Projekte ▾<span class="annot">1</span></span>
+            </div>
+          </div>
+
+          <div class="progress-head">
+            <div class="line1">
+              <b>Aktuelle Projekte<span class="annot">2</span></b>
+              <span class="nums">1 von 5 abgenommen · 1 bereit · offen M 9 · C 1 · K 1</span>
+            </div>
+            <div class="pbar"><span class="done" style="width:20%"></span><span class="ready" style="width:20%"></span></div>
+          </div>
+
+          <div class="vlist">
+            <div class="vrow sel">
+              <span class="dot r"></span>
+              <div class="vmain">
+                <div class="vname">2026-08-04 Besprechung Klimaclub</div>
+                <div class="vsub"><span class="badge">—</span><span>M 5 · C 1 · K 1</span><span>kein Bericht</span></div>
+              </div>
+              <span class="pin on">★</span>
+            </div>
+            <div class="vrow">
+              <span class="dot y"></span>
+              <div class="vmain">
+                <div class="vname">25.01 Common Secretary <span class="badge green">bereit zur Abnahme</span></div>
+                <div class="vsub"><span class="badge">strukturiert · seit 19.08.</span><span>M 3</span><span>📄 Bericht</span></div>
+              </div>
+              <span class="pin on">★</span>
+            </div>
+            <div class="vrow">
+              <span class="dot y"></span>
+              <div class="vmain">
+                <div class="vname">2026-08-20 Besprechung Arbeitstreffen Roland</div>
+                <div class="vsub"><span class="badge">erschlossen · seit 20.08.</span><span>M 1</span><span>📄 Bericht</span></div>
+              </div>
+              <span class="pin on">★</span>
+            </div>
+            <div class="vrow">
+              <span class="dot g"></span>
+              <div class="vmain">
+                <div class="vname">2026-01-27 Besprechung Klimaland Toggenburg</div>
+                <div class="vsub"><span class="badge">abgenommen · seit 30.01.</span><span>keine offenen Befunde</span><span>📄 Bericht</span></div>
+              </div>
+              <span class="pin on">★</span>
+            </div>
+            <div class="vrow dead">
+              <span class="dot n"></span>
+              <div class="vmain">
+                <div class="vname">23.05 Website Relaunch <span class="badge red">nicht im letzten Scan</span><span class="annot">3</span></div>
+                <div class="vsub"><span>gemerkter Pfad: 6. bCommonsLab prototyping/23.05 Website Relaunch</span><span style="color:var(--link)">entfernen</span></div>
+              </div>
+              <span class="pin on">★</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="gutter" role="separator" aria-label="Teiler"></div>
+
+        <div class="pane-right">
+          <div class="d-head">
+            <div>
+              <div class="crumb">(Wurzel) / 2026-08-04 Besprechung Klimaclub</div>
+              <h4>2026-08-04 Besprechung Klimaclub</h4>
+              <div class="d-meta"><span class="badge">Stand: — (kein _INDEX.md-Feld)</span><span>Ampel: rot</span><span>6 Dateien · 6 Quellen</span></div>
+            </div>
+            <div class="d-actions">
+              <button class="btn" type="button">Im Archiv öffnen</button>
+              <button class="btn" type="button">★ In Liste</button>
+              <button class="btn" type="button">Stand ▾</button>
+              <button class="btn green" type="button" disabled title="2 maschinelle Befunde offen">Abnehmen</button>
+            </div>
+          </div>
+
+          <div class="doc">
+            <div class="doc-head">
+              <span class="file">BERICHT.md</span>
+              <span>kein Bericht vorhanden</span>
+            </div>
+            <div class="doc-body">
+              <p><b>Dieses Vorhaben hat keinen BERICHT.md<span class="annot">4</span></b></p>
+              <p style="color:var(--muted)">Das ist ein Cowork-Befund (Schritt 3 — Berichten). Auftrag für die
+              nächste Cowork-Session direkt hier erzeugen:</p>
+              <button class="btn small" type="button">⎘ Auftrag kopieren (dieses Vorhaben)</button>
+            </div>
+          </div>
+
+          <div class="gaps">
+            <div class="ggroup">
+              <div class="ghead"><span>Mensch — Schritt 4 · Abnehmen</span><span class="cnt">5 Befunde</span></div>
+              <div class="gitem"><span class="sev w"></span><span class="typ">Führendes Artefakt unverifiziert</span><span class="msg">Email Rudi Tagliavini_1.pdf — nicht (mehr) gültig verifiziert</span></div>
+              <div class="gitem"><span class="sev w"></span><span class="typ">Führendes Artefakt unverifiziert</span><span class="msg">Aufnahme Klimaclub 2026-08-04.m4a</span></div>
+              <div class="gitem"><span class="sev i"></span><span class="msg">… 3 weitere</span></div>
+            </div>
+            <div class="ggroup">
+              <div class="ghead"><span>Cowork — Schritt 3 · Berichten</span><span class="cnt">1 Befund</span></div>
+              <div class="gitem"><span class="sev w"></span><span class="typ">BERICHT.md fehlt</span><span class="msg">Vorhabensordner ohne Bericht</span></div>
+            </div>
+            <div class="ggroup">
+              <div class="ghead"><span>KnowledgeScout — Schritt 1 · Sichten</span><span class="cnt">1 Befund</span></div>
+              <div class="gitem"><span class="sev e"></span><span class="typ">A0-Pflichtfelder fehlen</span><span class="msg">Email Rudi Tagliavini_1.pdf (1 Feld)</span></div>
+            </div>
+          </div>
+
+          <div class="d-foot"><span>Scan 22.8.2026, 09:20</span><span>folderId <code>01HZK…QF3</code></span></div>
+        </div>
+      </div>
+
+    </div></div>
+
+    <div class="legend" aria-label="Legende Zustand B">
+      <div><span class="annot">1</span><span>Arbeitsliste als Filterwert — Buch 3: persönlicher Arbeitsvorrat pro User, in MongoDB, unabhängig vom wegwerfbaren Report.</span></div>
+      <div><span class="annot">2</span><span>Fortschrittskopf: abgenommen (grün) · bereit zur Abnahme (gelb) · Rest offen — clientseitig aus dem Report gerechnet.</span></div>
+      <div><span class="annot">3</span><span>Toter Eintrag bleibt sichtbar (gemerkter Pfad) statt still zu verschwinden; dort entfernbar.</span></div>
+      <div><span class="annot">4</span><span>„Kein Bericht" ist ein Domänenzustand, kein Fehler: das Detail zeigt den Cowork-Befund und erzeugt den Auftrag für genau dieses Vorhaben.</span></div>
+    </div>
+  </section>
+
+  <!-- ======================= ZUSTAND C ======================= -->
+  <section class="state" id="state-c">
+    <div class="state-head">
+      <h2>C · Detail: Bericht lesen, mit einem Klick abnehmen</h2>
+      <p>„25.01 Common Secretary" ist bereit zur Abnahme: keine maschinellen Befunde offen. Der
+      Bericht wird gerendert, der Abnehmen-Button ist aktiv — die Route prüft vor dem Schreiben
+      mit einem frischen, ungespeicherten Teilbaum-Scan.</p>
+    </div>
+    <div class="frame"><div class="app">
+
+      <div class="app-head">
+        <div>
+          <h3>Agentensicht</h3>
+          <div class="sub">Das Archiv zeigt die Dateien — diese Sicht zeigt, was ein Agent davon versteht und was ihm fehlt.</div>
+        </div>
+        <button class="btn primary" type="button">⟳&nbsp; Neu scannen</button>
+      </div>
+
+      <div class="tabs"><span class="on">Werkbank</span><span>Zyklus-Board</span><span>Todos &amp; Auftrag</span></div>
+
+      <div class="split">
+        <div class="pane-left">
+          <div class="filterbar">
+            <div class="seg" aria-label="Filter">
+              <span>Alle</span><span>Zu tun</span><span class="on">Bereit</span><span>Liste ▾</span>
+            </div>
+          </div>
+          <div class="vlist">
+            <div class="vgroup"><span>6. bCommonsLab prototyping</span><span>1 von 10 Vorhaben bereit</span></div>
+            <div class="vrow sel">
+              <span class="dot y"></span>
+              <div class="vmain">
+                <div class="vname">25.01 Common Secretary <span class="badge green">bereit zur Abnahme</span></div>
+                <div class="vsub"><span class="badge">strukturiert · seit 19.08.</span><span>M 3</span><span>📄 Bericht</span></div>
+              </div>
+              <span class="pin on">★</span>
+            </div>
+          </div>
+          <p style="color:var(--muted);font-size:12px;margin:4px 2px 0;">Filter „Bereit": keine maschinellen
+          Befunde offen, Mensch-Punkte warten. 9 weitere Vorhaben sind ausgeblendet.</p>
+        </div>
+
+        <div class="gutter" role="separator" aria-label="Teiler"></div>
+
+        <div class="pane-right">
+          <div class="d-head">
+            <div>
+              <div class="crumb">6. bCommonsLab prototyping / 25.01 Common Secretary</div>
+              <h4>25.01 Common Secretary</h4>
+              <div class="d-meta"><span class="badge">Stand: strukturiert · seit 19.08.2026</span><span>Ampel: gelb</span><span>4 Quellen · 11 Dateien</span></div>
+            </div>
+            <div class="d-actions">
+              <button class="btn" type="button">Im Archiv öffnen<span class="annot">6</span></button>
+              <button class="btn" type="button">★ In Liste</button>
+              <button class="btn" type="button">Stand ▾<span class="annot">2</span></button>
+              <button class="btn green" type="button">Abnehmen</button>
+            </div>
+          </div>
+
+          <div class="ready-bar">
+            <b>Bereit zur Abnahme<span class="annot">1</span></b>
+            <span>Keine maschinellen Befunde offen — 3 Punkte warten auf dich.</span>
+            <button class="btn green small" type="button">Abnehmen</button>
+          </div>
+
+          <div class="doc">
+            <div class="doc-head">
+              <span class="file">BERICHT.md<span class="annot">3</span></span>
+              <span>geändert 20.08.2026 · <a href="#state-c" onclick="return false">im Archiv öffnen</a></span>
+            </div>
+            <div class="doc-body">
+              <h5>Common Secretary — Prototyp eines gemeinsamen Sekretariats</h5>
+              <p>Das Vorhaben erprobt, wie ein geteilter Sekretariatsdienst Besprechungen erfasst,
+              transkribiert und in die Wissensbasis der beteiligten Projekte zurückspielt. Vier
+              Aufnahmen sind erschlossen, die Transformationen liegen als Twins vor.</p>
+              <h6>## Nächste Schritte</h6>
+              <ul>
+                <li><span class="cb"></span>Transkript der Aufnahme vom 12.08. gegenhören (Namen der Beteiligten)</li>
+                <li><span class="cb"></span>Begriffsklärung „Dienst vs. Rolle" mit Roland festhalten</li>
+                <li><span class="cb"></span>Verweis auf 2026-07 Arbeitstreffen ergänzen</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="gaps">
+            <div class="ggroup">
+              <div class="ghead"><span>Mensch — Schritt 4 · Abnehmen<span class="annot">4</span></span><span class="cnt">3 Befunde</span></div>
+              <div class="gitem"><span class="sev w"></span><span class="typ">Führendes Artefakt unverifiziert</span><span class="msg">Aufnahme 2026-08-12.m4a — Transformation ohne gültige Verifikation</span></div>
+              <div class="gitem"><span class="sev w"></span><span class="typ">Führendes Artefakt unverifiziert</span><span class="msg">Aufnahme 2026-07-28.m4a</span></div>
+              <div class="gitem"><span class="sev w"></span><span class="typ">Führendes Artefakt unverifiziert</span><span class="msg">Skizze Secretary-Fluss.pdf</span></div>
+            </div>
+          </div>
+
+          <div class="fam">
+            <div class="ghead"><span>Twin-Familien<span class="annot">5</span></span><span class="cnt">4 Quellen</span></div>
+            <div class="fitem">
+              <div><b>Aufnahme 2026-08-12.m4a</b><div class="fmeta">führend: besprechung (de) · erzeugt pipeline · 3 Artefakte</div></div>
+              <div class="fctl"><span class="select">twin_status: fertig ▾</span><button class="btn small" type="button">Verifizieren</button></div>
+            </div>
+            <div class="fitem">
+              <div><b>Skizze Secretary-Fluss.pdf</b><div class="fmeta">führend: konzept (de) · erzeugt pipeline · 2 Artefakte</div></div>
+              <div class="fctl"><span class="select">twin_status: fertig ▾</span><button class="btn small" type="button">Verifizieren</button></div>
+            </div>
+          </div>
+
+          <div class="d-foot"><span>Scan 22.8.2026, 09:20</span><span>folderId <code>01HZK…B7N</code></span></div>
+        </div>
+      </div>
+
+    </div></div>
+
+    <div class="legend" aria-label="Legende Zustand C">
+      <div><span class="annot">1</span><span>„Bereit zur Abnahme"-Leiste + aktiver Abnehmen-Button. Die Stand-Route prüft serverseitig mit einem frischen, ungespeicherten Teilbaum-Scan und antwortet 409 statt blind zu beurkunden.</span></div>
+      <div><span class="annot">2</span><span>Stand-Menü: „Stand bestätigen" (löst Widerspruch nach Prüfung) und „Zurückstufen auf …" — beides menschliche Selbstdeklaration ins _INDEX.md.</span></div>
+      <div><span class="annot">3</span><span>Gerenderter BERICHT.md über die neue Lese-Route (Body on demand, nie im Report persistiert); Meta-Zeile mit Änderungsdatum und Archiv-Link.</span></div>
+      <div><span class="annot">4</span><span>Befunde nach Akteur und Zyklus-Schritt gruppiert — hier nur noch Mensch-Punkte (Verifikationen).</span></div>
+      <div><span class="annot">5</span><span>Twin-Familien mit Verifizieren — der bestehende Kurations-Schreibweg bleibt unverändert.</span></div>
+      <div><span class="annot">6</span><span>Deep-Links: Ordner und Bericht öffnen im Archiv (<code style="font-size:11px">/library?folderId=…</code> / <code style="font-size:11px">?openFileId=…</code>).</span></div>
+    </div>
+  </section>
+
+  <p class="note">Mockup, kein Produkt-Code. Layout und Wortlaut sind Vorschläge zur Abnahme —
+  Datenwerte sind der Test-Library „Onedrive Test" nachempfunden, „25.01 Common Secretary" ist
+  der Pilotkandidat aus dem v1-Projektauftrag §6. Umsetzung: Wellenplan W1–W7 im Konzeptdokument.</p>
+
+</div>
+<script>
+  (function () {
+    var buttons = document.querySelectorAll('.states-nav button');
+    function show(state) {
+      document.querySelectorAll('section.state').forEach(function (s) {
+        s.classList.toggle('active', s.id === 'state-' + state);
+      });
+      buttons.forEach(function (b) {
+        b.setAttribute('aria-pressed', String(b.dataset.state === state));
+      });
+    }
+    buttons.forEach(function (b) {
+      b.addEventListener('click', function () { show(b.dataset.state); });
+    });
+  })();
+</script>
+</body>
+</html>
