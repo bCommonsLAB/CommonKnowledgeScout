@@ -33,6 +33,7 @@ import {
 import { registerErschliessenTools } from './tools-erschliessen'
 import { registerJobTools } from './tools-jobs'
 import { registerInfoTool } from './tools-info'
+import { registerSichtenTools } from './tools-sichten'
 import { registerOrdnerTools } from './tools-ordner'
 import { registerUmzugTools } from './tools-umzug'
 
@@ -42,6 +43,7 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerOrdnerTools(server)
   registerErschliessenTools(server)
   registerJobTools(server)
+  registerSichtenTools(server)
   registerInfoTool(server)
   server.registerTool(
     'bibliotheken_auflisten',

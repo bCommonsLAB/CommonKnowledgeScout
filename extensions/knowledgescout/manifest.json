@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "KnowledgeScout",
   "display_name": "KnowledgeScout",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "Agentensicht-Werkzeuge von KnowledgeScout: Coverage lesen/scannen, Twins pruefen/synchronisieren, Quellen erschliessen (Audio/Video/PDF/Office), Jobs verfolgen.",
   "author": {
     "name": "bCommonsLAB"
@@ -20,7 +20,7 @@
     }
   },
   "license": "Apache-2.0",
-  "long_description": "Verbindet Cowork/Claude Desktop mit der MCP-Bruecke von KnowledgeScout (Welle 5) ueber einen abhaengigkeitsfreien stdio-Proxy (server/proxy.js, kein npm install noetig). Die 14 Werkzeuge sind eine duenne Schicht ueber den bestehenden Services: Coverage-Report der Agentensicht lesen und neu scannen, Sync-Engine pruefen (check) und synchronisieren (repair/import/export), Familien umziehen oder verwerfen, Ordner anlegen/umbenennen, Quellen erschliessen (Audio/Video/PDF/Office) und Transformationen starten, Jobs verfolgen. Die Server-Adresse ist im Bundle aus „Mein Zugang\" bereits eingetragen (sie folgt NEXT_PUBLIC_APP_URL des KnowledgeScout-Servers, Standard http://localhost:3000); bei der entpackten Entwickler-Variante im Konfigurieren-Dialog setzen. Der KnowledgeScout-Server muss laufen. Szenario und Checkpoints: docs/concepts/welle-5-mcp-testszenario.md im Repo.",
+  "long_description": "Verbindet Cowork/Claude Desktop mit der MCP-Bruecke von KnowledgeScout (Welle 5) ueber einen abhaengigkeitsfreien stdio-Proxy (server/proxy.js, kein npm install noetig). Die 15 Werkzeuge sind eine duenne Schicht ueber den bestehenden Services: Coverage-Report der Agentensicht lesen und neu scannen, Sync-Engine pruefen (check) und synchronisieren (repair/import/export), Familien umziehen oder verwerfen, Ordner anlegen/umbenennen, Quellen erschliessen (Audio/Video/PDF/Office) und Transformationen starten, Jobs verfolgen, Sichten (AKTUELL/PROJEKTE) regenerieren. Die Server-Adresse ist im Bundle aus „Mein Zugang\" bereits eingetragen (sie folgt NEXT_PUBLIC_APP_URL des KnowledgeScout-Servers, Standard http://localhost:3000); bei der entpackten Entwickler-Variante im Konfigurieren-Dialog setzen. Der KnowledgeScout-Server muss laufen. Szenario und Checkpoints: docs/concepts/welle-5-mcp-testszenario.md im Repo.",
   "tools": [
     {
       "name": "bibliotheken_auflisten",
@@ -73,6 +73,10 @@
     {
       "name": "job_liste",
       "description": "Offene Jobs einer Library (Default queued+running) - nach Sessionabbruch die verlorenen jobIds wiederfinden. Liest nur."
+    },
+    {
+      "name": "sichten_regenerieren",
+      "description": "AKTUELL.md + PROJEKTE.md aus allen BERICHT.md erzeugen und nach Organisation/ schreiben (Abloesung aktuell.py/projekte.py); nurVorschau=true rendert ohne zu schreiben. SCHREIBT - nur nach Bestaetigung."
     },
     {
       "name": "bruecke_info",
