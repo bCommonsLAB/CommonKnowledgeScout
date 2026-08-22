@@ -61,13 +61,18 @@ function groupedOperation(members: SourceOperationReport[]) {
   }
 }
 
+type CompactOperation = ReturnType<typeof compactOperation>
+type GroupedOperation = ReturnType<typeof groupedOperation>
+/** Eine Operation in der Agenten-Sicht: einzeln oder verdichtete Gruppe. */
+export type AgentOperation = CompactOperation | GroupedOperation
+
 /** Nur „stumme" Operationen sind gruppierbar — alles mit Aussage bleibt einzeln. */
 function isGroupable(op: SourceOperationReport): boolean {
   return !op.note && !op.error && !op.newFileName
 }
 
 /** Verdichtet die Operationen EINER Quelle; Reihenfolge = erstes Auftreten. */
-export function compactOperations(operations: readonly SourceOperationReport[]) {
+export function compactOperations(operations: readonly SourceOperationReport[]): AgentOperation[] {
   const groups = new Map<string, SourceOperationReport[]>()
   const order: Array<{ key: string } | { single: SourceOperationReport }> = []
   for (const op of operations) {
@@ -84,7 +89,7 @@ export function compactOperations(operations: readonly SourceOperationReport[]) 
       order.push({ key })
     }
   }
-  return order.flatMap((entry) => {
+  return order.flatMap((entry): AgentOperation[] => {
     if ('single' in entry) return [compactOperation(entry.single)]
     const members = groups.get(entry.key) ?? []
     return members.length >= GROUP_THRESHOLD ? [groupedOperation(members)] : members.map(compactOperation)
