@@ -57,6 +57,22 @@ describe('checkDocument', () => {
     expect(r.detailViewType).toBe('book')
   })
 
+  it('akzeptiert authors: [] als ehrliches „Sprecher unbekannt“, nicht aber einen fehlenden Key (B3/E2)', () => {
+    // Leeres Array = die Extraktion hat geantwortet — kein A0-Befund.
+    const leer = checkDocument(cleanBook({ authors: [] }), ctx)
+    expect(leer.issues.filter((i) => i.code === 'missing-base-field' && i.field === 'authors')).toHaveLength(0)
+
+    // Fehlender Key = nie beantwortet — bleibt ein Befund.
+    const doc = cleanBook()
+    delete (doc.docMetaJson as Record<string, unknown>).authors
+    const fehlt = checkDocument(doc, ctx)
+    expect(fehlt.issues.filter((i) => i.code === 'missing-base-field' && i.field === 'authors')).toHaveLength(1)
+
+    // tags: [] bleibt bewusst ein Mangel — die Ausnahme gilt nur fuer authors.
+    const tagsLeer = checkDocument(cleanBook({ tags: [] }), ctx)
+    expect(tagsLeer.issues.filter((i) => i.code === 'missing-base-field' && i.field === 'tags')).toHaveLength(1)
+  })
+
   it('meldet fehlendes Basis-Feld als Fehler', () => {
     const doc = cleanBook()
     delete doc.docMetaJson.source

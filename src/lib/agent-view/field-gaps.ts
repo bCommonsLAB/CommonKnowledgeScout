@@ -28,6 +28,8 @@ export function gapsFromFieldVerification(args: {
   documents: readonly DocumentVerificationResult[]
   locations: ReadonlyMap<string, SourceLocation>
   rootFolderId: string
+  /** true bei Teilbaum-Scans — die Feld-Verifikation laeuft library-weit. */
+  scoped?: boolean
 }): CoverageGap[] {
   const gaps: CoverageGap[] = []
   for (const doc of args.documents) {
@@ -35,7 +37,13 @@ export function gapsFromFieldVerification(args: {
       .filter((issue) => issue.code === 'missing-base-field')
       .map((issue) => issue.field ?? '(unbenannt)')
     if (missingFields.length === 0) continue
-    const where = args.locations.get(doc.fileId) ?? { folderId: args.rootFolderId, path: doc.fileName ?? doc.fileId }
+    const located = args.locations.get(doc.fileId)
+    // Teilbaum-Scope: Dokumente, deren Datei der Scan nicht fand, liegen in
+    // ANDEREN Teilbaeumen — sie gehoeren nicht in diesen Report. Das
+    // Wurzel-Anheften gilt nur library-weit (Pilot-Befund B2: ein fremdes
+    // Dokument klebte an der Wurzel JEDES Teilbaum-Reports).
+    if (located === undefined && args.scoped === true) continue
+    const where = located ?? { folderId: args.rootFolderId, path: doc.fileName ?? doc.fileId }
     gaps.push(
       createGap({
         type: 'core_fields_missing',

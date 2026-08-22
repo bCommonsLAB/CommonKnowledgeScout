@@ -37,6 +37,26 @@ export function AgentViewConfigSection({ form }: { form: UseFormReturn<LibraryFo
 
         <FormField
           control={form.control}
+          name="agentViewEnabled"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <FormLabel className="text-base">Agentensicht aktivieren</FormLabel>
+                <FormDescription>
+                  Zeigt den Menuepunkt &bdquo;Agentensicht&ldquo; und die
+                  Coverage-Seite fuer diese Bibliothek. Standard: aus &mdash;
+                  die Sicht ist ein Opt-in pro Bibliothek.
+                </FormDescription>
+              </div>
+              <FormControl>
+                <Switch checked={field.value} onCheckedChange={field.onChange} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
           name="agentViewVorhabenPattern"
           render={({ field }) => (
             <FormItem className="rounded-lg border p-4">

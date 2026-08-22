@@ -52,6 +52,9 @@ export async function GET(
       generatedAt: stored.generatedAt,
       gapsTruncated: stored.gapsTruncated,
       totalGaps: stored.totalGaps,
+      // D1: Fortschritt seit dem letzten Scan (null = deltaHinweis sagt warum).
+      delta: stored.delta ?? null,
+      deltaHinweis: stored.deltaHinweis ?? null,
     })
   } catch (error) {
     FileLogger.error('agent-view-coverage', 'GET fehlgeschlagen', {

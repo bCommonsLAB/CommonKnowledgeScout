@@ -64,4 +64,27 @@ describe('field-gaps — core_fields_missing', () => {
     expect(gaps[0].folderId).toBe('root')
     expect(gaps[0].path).toBe('Fremd.pdf')
   })
+
+  it('laesst unbekannte Dokumente bei Teilbaum-Scans weg (Pilot-Befund B2: Fremddokument an jeder Wurzel)', () => {
+    const fremd = doc({
+      fileId: 'unbekannt',
+      fileName: 'Fremd.pdf',
+      ok: false,
+      issues: [{ code: 'missing-base-field', severity: 'error', field: 'date', message: 'fehlt', autoFixable: false }],
+    })
+    const scoped = gapsFromFieldVerification({
+      documents: [fremd], locations: LOCATIONS, rootFolderId: 'scope-root', scoped: true,
+    })
+    expect(scoped).toHaveLength(0)
+
+    // Bekannte Dokumente bleiben auch im Teilbaum-Scope Befunde.
+    const bekannt = doc({
+      ok: false,
+      issues: [{ code: 'missing-base-field', severity: 'error', field: 'date', message: 'fehlt', autoFixable: false }],
+    })
+    const scopedBekannt = gapsFromFieldVerification({
+      documents: [bekannt], locations: LOCATIONS, rootFolderId: 'scope-root', scoped: true,
+    })
+    expect(scopedBekannt).toHaveLength(1)
+  })
 })

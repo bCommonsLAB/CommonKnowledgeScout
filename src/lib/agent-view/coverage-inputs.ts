@@ -10,6 +10,7 @@
  * @module agent-view
  */
 
+import { BERICHT_FILE_NAME, INDEX_FILE_NAME } from './archive-scan'
 import type { ArchiveFileEntry, ArchiveFolderNode } from './archive-types'
 import type { InventoryTarget } from './reference-audit'
 import type { TwinArtifactView, TwinFamilyView } from './twin-rules'
@@ -75,7 +76,12 @@ export function buildNewestChangeBySubtree(args: {
   const own = new Map<string, string | null>()
   for (const folder of args.folders) {
     let value: string | null = null
-    for (const file of folder.files) value = newest(value, file.modifiedAt)
+    for (const file of folder.files) {
+      // Pilot-Befund B4: BERICHT.md/_INDEX.md sind META ueber den Inhalt,
+      // nicht Inhalt — sonst altert jede Index-Pflege den frischen Bericht.
+      if (file.name === BERICHT_FILE_NAME || file.name === INDEX_FILE_NAME) continue
+      value = newest(value, file.modifiedAt)
+    }
     own.set(folder.folderId, value)
   }
   for (const family of args.families) {

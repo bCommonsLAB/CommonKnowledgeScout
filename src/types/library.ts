@@ -371,6 +371,13 @@ export interface StorageConfig {
   scanExcludeGlobs?: string[];
 
   /**
+   * E1 (Pilot-Wunschliste): Bekannte Namen/Organisationen der Library —
+   * die Extraktion gleicht authors/participants/tags dagegen ab
+   * (Hoerfehler wie „Eichner“ statt Aichner). KEIN Secret.
+   */
+  extractionKnownNames?: string[];
+
+  /**
    * Agentensicht (Welle 1): Archiv-Konventionen sind ARCHIV-Wissen, nicht
    * Plattform-Wissen — deshalb pro Library konfigurierbar statt hartkodiert
    * (Projektauftrag F2). Fehlt das Feld, gelten die dokumentierten Defaults:
@@ -379,6 +386,8 @@ export interface StorageConfig {
    * `bericht_veraltet` ist aktiv. KEIN Secret.
    */
   agentView?: {
+    /** Agentensicht sichtbar/nutzbar (Menuepunkt + Seite). Default: false. */
+    enabled?: boolean;
     /** Regex fuer Vorhabensordner (z. B. `^\\d{2}\\.\\d{2} `). Leer = nur Selbstdeklaration. */
     vorhabenFolderPattern?: string;
     /** Bis zu dieser Ordnertiefe ist `_INDEX.md` Pflicht; fehlt = Regel inaktiv. */
@@ -637,8 +646,11 @@ export interface ClientLibrary {
     analyzeDivaTextureInfo?: boolean;
     /** Ausschluss-Muster fuer Storage-Scans (Welle 0b). */
     scanExcludeGlobs?: string[];
+    /** E1: Bekannte Namen fuer die Extraktion (kein Secret). */
+    extractionKnownNames?: string[];
     /** Agentensicht-Konventionen (Welle 1/3) — kein Secret, siehe StorageConfig.agentView. */
     agentView?: {
+      enabled?: boolean;
       vorhabenFolderPattern?: string;
       indexRequiredMaxDepth?: number;
       berichtFreshness?: boolean;

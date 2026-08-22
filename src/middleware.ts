@@ -22,6 +22,7 @@
  * - @/lib/i18n: Locale detection and supported locales
  */
 
+import { verifyMcpAccountKey } from '@/lib/mcp/account-key';
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { getLocale, SUPPORTED_LOCALES, type Locale } from '@/lib/i18n';
@@ -219,18 +220,21 @@ export default clerkMiddleware(async (auth, req) => {
   }
 
   // Dynamische Ausnahme (MCP-Bruecke, Welle 5): /api/mcp/* nur mit validem
-  // Bearer-Key (MCP_API_KEY) zulassen — dasselbe Muster wie die
-  // Integration-Tests-Ausnahme oben. Die Route prueft den Key selbst nochmal
-  // (Defense in depth); ohne validen Key bleibt die Route fuer Anonyme die
-  // von Clerk maskierte 404.
+  // Bearer-Key zulassen — Legacy-Env-Key ODER signierter Account-Key
+  // (Stufe 2). Die Edge hat keinen Mongo-Zugriff, deshalb prueft sie bei
+  // Account-Keys NUR die HMAC-Signatur (Secret = MCP_API_KEY); die Route
+  // bleibt die Autoritaet und prueft zusaetzlich Hash/Rotation gegen die
+  // Datenbank. Ohne validen Key bleibt die Route die Clerk-maskierte 404.
   if (!isPublic) {
     const path = req.nextUrl.pathname;
     if (path.startsWith('/api/mcp/')) {
       const bearer = String(req.headers.get('authorization') || '').trim();
       const expected = String(process.env.MCP_API_KEY || '').trim();
       const token = /^bearer\s+/i.test(bearer) ? bearer.replace(/^bearer\s+/i, '').trim() : '';
-      if (expected.length > 0 && token === expected) {
-        isPublic = true;
+      if (expected.length > 0 && token.length > 0) {
+        if (token === expected || (await verifyMcpAccountKey(token, expected)) !== null) {
+          isPublic = true;
+        }
       }
     }
   }

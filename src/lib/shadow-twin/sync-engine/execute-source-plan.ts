@@ -47,11 +47,25 @@ function message(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
 }
 
+/**
+ * Wahrer Eltern-Ordner fuer Storage-Writes: der Live-Scan-Fund schlaegt den
+ * Mongo-Verweis. Pilot-Befund B1 (2026-08-21): `doc.parentId` kann nach
+ * Umzuegen/Neuanlagen veraltet sein — dann scheiterte der Export mit
+ * „The resource could not be found“, waehrend der Job-Pfad (loest die Quelle
+ * live auf) durchlief. Ohne Scan-Fund bleibt der Mongo-Verweis die einzige
+ * Quelle.
+ */
+function effectiveParentId(ctx: ExecuteSourceContext): string {
+  const live = ctx.sourceItem?.parentId?.trim() ?? ''
+  return live !== '' ? live : ctx.parentId
+}
+
 /** Twin-Ordner sicherstellen (finden oder anlegen); cached die Id im Kontext. */
 async function ensureTwinFolderId(ctx: ExecuteSourceContext): Promise<string> {
   if (ctx.shadowTwinFolderId) return ctx.shadowTwinFolderId
-  const existing = await findShadowTwinFolder(ctx.parentId, ctx.sourceName, ctx.provider)
-  const folder = existing ?? (await ctx.provider.createFolder(ctx.parentId, generateShadowTwinFolderName(ctx.sourceName)))
+  const parentId = effectiveParentId(ctx)
+  const existing = await findShadowTwinFolder(parentId, ctx.sourceName, ctx.provider)
+  const folder = existing ?? (await ctx.provider.createFolder(parentId, generateShadowTwinFolderName(ctx.sourceName)))
   ctx.shadowTwinFolderId = folder.id
   return folder.id
 }
@@ -181,7 +195,7 @@ export async function executeSourcePlan(
     try {
       await new ShadowTwinService({
         library: ctx.library, userEmail: ctx.userEmail, sourceId: ctx.sourceId,
-        sourceName: ctx.sourceName, parentId: ctx.parentId, provider: ctx.provider,
+        sourceName: ctx.sourceName, parentId: effectiveParentId(ctx), provider: ctx.provider,
       }).upsertMarkdown({
         kind: 'transcript', targetLanguage: '', markdown: mongoOp.markdown ?? '',
         shadowTwinFolderId: ctx.shadowTwinFolderId ?? undefined,

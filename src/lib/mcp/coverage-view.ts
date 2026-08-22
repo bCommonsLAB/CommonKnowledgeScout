@@ -11,7 +11,10 @@
  * @module mcp
  */
 
-import type { CoverageGap, CoverageReport, CoverageTreeNode, TwinFamilySummary } from '@/lib/agent-view/types'
+import type { CoverageReport } from '@/lib/agent-view/types'
+import type { CoverageDelta } from '@/lib/agent-view/coverage-delta'
+import { describeEmptyFilter } from './coverage-filter-warning'
+import { collectFolders, compactFamily, compactGap } from './coverage-view-compact'
 
 /** Standard-Budgets der Werkzeug-Ausgabe (per Argument erhoehbar). */
 export const DEFAULT_MAX_GAPS = 100
@@ -24,8 +27,17 @@ export interface CoverageViewArgs {
   /** true, wenn schon der GESPEICHERTE Report gekappt war. */
   storedGapsTruncated: boolean
   totalGaps: number
+  /** D1: Delta des gespeicherten Reports (library-weit, nicht pfad-gefiltert). */
+  delta?: CoverageDelta | null
+  deltaHinweis?: string | null
   /** Library-relativer Pfad-Filter (Ordner); null/'' = ganze Library. */
   pathPrefix?: string | null
+  /** C5 (Pilot-Wunschliste): nur Befunde dieses Akteurs. */
+  akteur?: 'mensch' | 'cowork' | 'knowledgescout' | null
+  /** C5: nur Befunde dieses Zyklus-Schritts (1-4). */
+  zyklusSchritt?: number | null
+  /** C5: nur Zaehler liefern — Befund-/Familienlisten bleiben leer (ausgewiesen). */
+  nurZaehler?: boolean
   maxGaps?: number
   maxFamilies?: number
   maxFolders?: number
@@ -61,66 +73,6 @@ function countBy<T extends string>(values: readonly T[]): Partial<Record<T, numb
 }
 
 /**
- * Ordner des Teilbaums (Pfad + folderId + Prioritaets-Zahlen) — damit kann
- * der Agent `abdeckung_scannen`/`twins_pruefen` gezielt auf einen Teilbaum
- * begrenzen, statt die ganze Library zu laufen (OneDrive: ein API-Call pro
- * Ordner). Reihenfolge: die meisten Befunde zuerst.
- */
-function collectFolders(nodes: readonly CoverageTreeNode[], prefix: string): Array<{
-  path: string
-  folderId: string
-  quellen: number
-  befundeImTeilbaum: number
-}> {
-  const result: Array<{ path: string; folderId: string; quellen: number; befundeImTeilbaum: number }> = []
-  const walk = (node: CoverageTreeNode) => {
-    if (isInSubtree(node.path, prefix) || (prefix !== '' && isInSubtree(prefix, node.path))) {
-      result.push({
-        path: node.path || '(Wurzel)',
-        folderId: node.folderId,
-        quellen: node.sourceCount,
-        befundeImTeilbaum: node.totalGaps,
-      })
-    }
-    for (const child of node.children) walk(child)
-  }
-  for (const node of nodes) walk(node)
-  return result.sort((a, b) => b.befundeImTeilbaum - a.befundeImTeilbaum)
-}
-
-function compactGap(gap: CoverageGap) {
-  return {
-    type: gap.type,
-    actor: gap.actor,
-    zyklusSchritt: gap.zyklusSchritt,
-    severity: gap.severity,
-    path: gap.path,
-    targetName: gap.targetName,
-    message: gap.message,
-    ...(gap.detail ? { detail: gap.detail } : {}),
-  }
-}
-
-function compactFamily(family: TwinFamilySummary) {
-  return {
-    path: family.path,
-    sourceName: family.sourceName,
-    sourceId: family.sourceId,
-    artifactCount: family.artifactCount,
-    leading: family.leading
-      ? {
-          kind: family.leading.kind,
-          templateName: family.leading.templateName,
-          targetLanguage: family.leading.targetLanguage,
-          twinStatus: family.leading.twinStatus,
-          verification: family.leading.verification,
-          verifiedBy: family.leading.verifiedBy,
-        }
-      : null,
-  }
-}
-
-/**
  * Baut die kompakte Agenten-Sicht auf den juengsten Report. Reine Funktion —
  * die Werkzeug-Schicht liefert die Eingaben aus dem Report-Cache.
  */
@@ -134,9 +86,21 @@ export function summarizeCoverageReport(args: CoverageViewArgs) {
   const maxFolders = args.maxFolders ?? DEFAULT_MAX_FOLDERS
   const folders = collectFolders(args.report.tree, prefix)
 
-  const gapsInScope = prefix === ''
+  const gapsInPath = prefix === ''
     ? args.report.gaps
     : args.report.gaps.filter((gap) => isInSubtree(gap.path, prefix))
+  const akteur = args.akteur ?? null
+  const zyklusSchritt = args.zyklusSchritt ?? null
+  const gapsInScope = gapsInPath.filter(
+    (gap) =>
+      (akteur === null || gap.actor === akteur) &&
+      (zyklusSchritt === null || gap.zyklusSchritt === zyklusSchritt),
+  )
+  // D2 (Pilot-Wunschliste): „bereit zur Abnahme“ = im Pfad-Scope wartet alles
+  // auf den Menschen — null maschinelle Befunde, mindestens ein F4-Befund.
+  // Das erreichbare Ziel eines Agentenlaufs; gruen kann nur der Mensch machen.
+  const maschinell = gapsInPath.filter((gap) => gap.actor !== 'mensch').length
+  const bereitZurAbnahme = maschinell === 0 && gapsInPath.length > 0
   const familiesAll = args.report.families
   const familiesInScope = familiesAll === undefined
     ? undefined
@@ -157,6 +121,9 @@ export function summarizeCoverageReport(args: CoverageViewArgs) {
           : 'Filter scope-relativ angeben oder weglassen.')
       : null,
     conventions: args.report.conventions,
+    /** D1: Fortschritt seit dem letzten Scan gleichen Scopes (Befunde wandern — die Gesamtzahl misst nichts). */
+    deltaSeitLetztemScan: args.delta ?? null,
+    deltaHinweis: args.deltaHinweis ?? null,
     totalsLibraryWeit: args.report.totals,
     gespeicherterReportGekappt: args.storedGapsTruncated
       ? { gespeicherteGaps: args.report.gaps.length, totalGaps: args.totalGaps }
@@ -164,6 +131,19 @@ export function summarizeCoverageReport(args: CoverageViewArgs) {
     filter: {
       pfad: prefix === '' ? null : prefix,
       pfadAngefragt: requestedPrefix === '' ? null : requestedPrefix,
+      akteur,
+      zyklusSchritt,
+      /** D2: null maschinelle Befunde im Pfad-Scope — alles wartet auf F4/Abnahme. */
+      bereitZurAbnahme,
+      /** Gesetzt, wenn der Filter ins Leere griff — nie stille 0 (Pilot-Befund). */
+      warnung: describeEmptyFilter({
+        requestedPrefix, scoped, scopePath,
+        // Nur ECHTE Teilbaum-Treffer: collectFolders liefert auch Vorfahren
+        // (die Wurzel matcht immer) — die sind kein Beleg fuer einen Treffer.
+        matchedFolders: folders.filter((f) => f.path !== '(Wurzel)' && isInSubtree(f.path, prefix)).length,
+        matchedGaps: gapsInPath.length,
+        reportGaps: args.report.gaps.length,
+      }),
       /** folderId hier fuer Teilbaum-Scans/-Checks verwenden (statt ganzer Library). */
       ordner: folders.slice(0, maxFolders),
       ordnerAnzahl: folders.length,
@@ -171,10 +151,14 @@ export function summarizeCoverageReport(args: CoverageViewArgs) {
       befundAnzahl: gapsInScope.length,
       befundeNachTyp: countBy(gapsInScope.map((gap) => gap.type)),
       befundeNachAkteur: countBy(gapsInScope.map((gap) => gap.actor)),
-      befunde: gapsInScope.slice(0, maxGaps).map(compactGap),
-      befundeGekappt: gapsInScope.length > maxGaps,
-      familien:
-        familiesInScope === undefined
+      befunde: args.nurZaehler === true ? [] : gapsInScope.slice(0, maxGaps).map(compactGap),
+      befundeGekappt: args.nurZaehler === true ? false : gapsInScope.length > maxGaps,
+      nurZaehler: args.nurZaehler === true
+        ? 'Listen bewusst leer (nurZaehler) — Zaehler und Ordnerliste sind vollstaendig'
+        : null,
+      familien: args.nurZaehler === true
+        ? []
+        : familiesInScope === undefined
           ? 'Report stammt aus einem Scan vor Welle 4 — Familien erst nach neuem Scan'
           : familiesInScope.slice(0, maxFamilies).map(compactFamily),
       familienAnzahl: familiesInScope?.length ?? null,

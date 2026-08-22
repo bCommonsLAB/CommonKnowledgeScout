@@ -31,6 +31,10 @@ import {
   resolveScope,
 } from './tool-shared'
 import { registerErschliessenTools } from './tools-erschliessen'
+import { registerJobTools } from './tools-jobs'
+import { registerInfoTool } from './tools-info'
+import { registerSichtenTools } from './tools-sichten'
+import { registerAenderungenTools } from './tools-aenderungen'
 import { registerOrdnerTools } from './tools-ordner'
 import { registerUmzugTools } from './tools-umzug'
 
@@ -39,6 +43,10 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerUmzugTools(server)
   registerOrdnerTools(server)
   registerErschliessenTools(server)
+  registerJobTools(server)
+  registerSichtenTools(server)
+  registerAenderungenTools(server)
+  registerInfoTool(server)
   server.registerTool(
     'bibliotheken_auflisten',
     {
@@ -68,12 +76,18 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
       inputSchema: {
         libraryId: LIBRARY_ID,
         pfad: z.string().optional().describe('Library-relativer Ordnerpfad, z. B. "6. bCommonsLab prototyping/25.01 Common Secretary"'),
+        akteur: z.enum(['mensch', 'cowork', 'knowledgescout']).optional()
+          .describe('Nur Befunde dieses Akteurs („was ist meine Arbeit?“)'),
+        zyklusSchritt: z.number().int().min(1).max(4).optional()
+          .describe('Nur Befunde dieses Zyklus-Schritts (1-4)'),
+        nurZaehler: z.boolean().optional()
+          .describe('Nur Zaehler + Ordnerliste liefern (Befund-/Familienlisten leer) — fuer grosse Reports'),
         maxBefunde: z.number().int().min(1).max(1000).optional(),
         maxFamilien: z.number().int().min(1).max(1000).optional(),
       },
       annotations: { readOnlyHint: true },
     },
-    async ({ libraryId, pfad, maxBefunde, maxFamilien }) => {
+    async ({ libraryId, pfad, akteur, zyklusSchritt, nurZaehler, maxBefunde, maxFamilien }) => {
       try {
         await requireLibrary(mcpUserEmail(), libraryId)
         const stored = await getCoverageReport(libraryId)
@@ -89,7 +103,12 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
             generatedAt: stored.generatedAt,
             storedGapsTruncated: stored.gapsTruncated,
             totalGaps: stored.totalGaps,
+            delta: stored.delta ?? null,
+            deltaHinweis: stored.deltaHinweis ?? null,
             pathPrefix: pfad ?? null,
+            akteur: akteur ?? null,
+            zyklusSchritt: zyklusSchritt ?? null,
+            nurZaehler: nurZaehler === true,
             maxGaps: maxBefunde,
             maxFamilies: maxFamilien,
           }),
@@ -130,6 +149,8 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
             generatedAt: stored.generatedAt,
             storedGapsTruncated: stored.gapsTruncated,
             totalGaps: stored.totalGaps,
+            delta: stored.delta ?? null,
+            deltaHinweis: stored.deltaHinweis ?? null,
           }),
         )
       } catch (error) {

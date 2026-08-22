@@ -17,12 +17,16 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import type { CoverageReport } from '@/lib/agent-view/types'
+import type { CoverageDelta } from '@/lib/agent-view/coverage-delta'
 
 export interface CoverageResponse {
   report: CoverageReport
   generatedAt: string
   gapsTruncated: boolean
   totalGaps: number
+  /** D1: erledigt/neu seit dem letzten Scan; null = deltaHinweis sagt warum. */
+  delta: CoverageDelta | null
+  deltaHinweis: string | null
 }
 
 export interface UseCoverageReportResult {

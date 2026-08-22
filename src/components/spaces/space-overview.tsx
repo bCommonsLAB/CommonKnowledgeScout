@@ -12,7 +12,7 @@
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { BookOpen, Users, Globe, ChevronRight, Plus } from "lucide-react"
+import { BookOpen, Users, Globe, ChevronRight, KeyRound, Plus } from "lucide-react"
 
 const spaceCards = [
   {
@@ -56,6 +56,17 @@ const spaceCards = [
       { title: "Öffentlicher Auftritt", href: "/settings/public" },
       { title: "Zugriffsanfragen", href: "/settings/public/access-requests" },
     ],
+  },
+  {
+    id: "account",
+    icon: KeyRound,
+    space: "Mein Konto",
+    title: "Mein Zugang",
+    description:
+      "Einstellungen für Sie als Person — unabhängig von der ausgewählten " +
+      "Bibliothek: der Claude-Zugang (MCP) mit fertiger Erweiterung zum " +
+      "Herunterladen.",
+    links: [{ title: "Mein Zugang", href: "/settings/account" }],
   },
 ]
 

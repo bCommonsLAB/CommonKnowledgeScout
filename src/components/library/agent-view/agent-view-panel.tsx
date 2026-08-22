@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCoverageReport } from '@/hooks/agent-view/use-coverage-report'
 import { CoverageSummary } from './coverage-summary'
+import { CoverageProgress } from './coverage-progress'
 import { CoverageTree } from './coverage-tree'
 import { TodoListsPanel } from './todo-lists-panel'
 import { ZyklusBoard } from './zyklus-board'
@@ -81,6 +82,8 @@ export function AgentViewPanel({ libraryId, libraryLabel, localRootPath }: Agent
 
       {data && (
         <>
+          {/* D1: Hauptanzeige zuerst — wessen Arbeit, welcher Schritt, was ist neu. */}
+          <CoverageProgress report={data.report} delta={data.delta} deltaHinweis={data.deltaHinweis} />
           <CoverageSummary report={data.report} generatedAt={data.generatedAt} />
           <Tabs defaultValue="baum" className="flex-1">
             <TabsList>

@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { compileExcludeGlobs, isExcludedPath } from '@/lib/shadow-twin/sync-engine/scan-exclude'
+import { DEFAULT_SCAN_EXCLUDE_GLOBS, compileExcludeGlobs, effectiveScanExcludeGlobs, isExcludedPath } from '@/lib/shadow-twin/sync-engine/scan-exclude'
 
 const compiled = (globs: string[]) => compileExcludeGlobs(globs)
 
@@ -65,5 +65,21 @@ describe('compileExcludeGlobs — Randfaelle', () => {
     const c = compiled(['a+b (alt)'])
     expect(isExcludedPath('x/a+b (alt)/y.md', c)).toBe(true)
     expect(isExcludedPath('x/aab (alt)/y.md', c)).toBe(false)
+  })
+})
+
+describe('effectiveScanExcludeGlobs (D3)', () => {
+  it('leer/fehlend -> Plattform-Default; eigene Muster ersetzen die Liste komplett', () => {
+    expect(effectiveScanExcludeGlobs(undefined)).toBe(DEFAULT_SCAN_EXCLUDE_GLOBS)
+    expect(effectiveScanExcludeGlobs([])).toBe(DEFAULT_SCAN_EXCLUDE_GLOBS)
+    expect(effectiveScanExcludeGlobs(['  ', ''])).toBe(DEFAULT_SCAN_EXCLUDE_GLOBS)
+    expect(effectiveScanExcludeGlobs(['nur-dies'])).toEqual(['nur-dies'])
+  })
+
+  it('der Default schliesst die bekannten Werkzeug-Ordner aus, media/ aber nicht', () => {
+    const compiled = compileExcludeGlobs(DEFAULT_SCAN_EXCLUDE_GLOBS)
+    expect(isExcludedPath('.obsidian/workspace.json', compiled)).toBe(true)
+    expect(isExcludedPath('Vorhaben/.trash/alt.md', compiled)).toBe(true)
+    expect(isExcludedPath('Vorhaben/media/bild.png', compiled)).toBe(false)
   })
 })

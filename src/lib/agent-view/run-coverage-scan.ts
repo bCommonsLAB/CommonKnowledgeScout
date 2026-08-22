@@ -10,6 +10,7 @@
  * @module agent-view
  */
 
+import { effectiveScanExcludeGlobs } from '@/lib/shadow-twin/sync-engine/scan-exclude'
 import { parseFacetDefs } from '@/lib/chat/dynamic-facets'
 import { createMongoDocumentSource } from '@/lib/library-verification/document-source'
 import { runLibraryVerification } from '@/lib/library-verification/verify-engine'
@@ -38,7 +39,8 @@ export function readConventions(library: Library): CoverageConventions {
     vorhabenFolderPattern: pattern ? pattern : null,
     indexRequiredMaxDepth: typeof depth === 'number' && Number.isFinite(depth) ? depth : null,
     berichtFreshness: agentView?.berichtFreshness !== false,
-    scanExcludeGlobs: library.config?.scanExcludeGlobs ?? [],
+    // D3: leer konfiguriert -> dokumentierter Plattform-Default; der Report zeigt die wirksame Liste.
+    scanExcludeGlobs: [...effectiveScanExcludeGlobs(library.config?.scanExcludeGlobs)],
   }
 }
 

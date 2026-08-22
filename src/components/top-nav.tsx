@@ -170,6 +170,8 @@ export function TopNav({ siteRootSlug = null }: TopNavProps) {
     showMoreMenu,
   } = buildTopNavConfig({
     isCreator,
+    // Opt-in pro Library (Default aus) — siehe BuildTopNavConfigArgs.
+    agentViewEnabled: activeLibrary?.config?.agentView?.enabled === true,
     webViewEnabled,
     webViewTestHref,
     exploreContext: exploreContext ? { ...exploreContext, sitePages } : null,

@@ -2,10 +2,12 @@
  * @fileoverview Auth der MCP-Bruecke (Welle 5) — Bearer-Key gegen Env.
  *
  * @description
- * Pilot-Entscheidung (Testszenario §3): EIN API-Key aus `MCP_API_KEY`, der
- * als der User aus `MCP_USER_EMAIL` handelt — dasselbe Env-Token-Muster wie
- * `x-internal-token` der External-Jobs. Per-User-Keys mit Verwaltung sind
- * eine dokumentierte Ausbaustufe.
+ * Stufe 2 (Account-Keys): Bearer-Token ist ENTWEDER der Legacy-Pilot-Key
+ * aus `MCP_API_KEY` (handelt als `MCP_USER_EMAIL` — dokumentierter
+ * Uebergangs-Key, damit bestehende Erweiterungen weiterlaufen) ODER ein
+ * signierter Account-Key aus der Datenbank (`account-key-service.ts`), der
+ * als sein Inhaber handelt. `MCP_API_KEY` bleibt Pflicht: er ist zugleich
+ * das Signatur-Secret der Account-Keys.
  *
  * Kein stiller Fallback: Fehlt die Konfiguration, ist die Bruecke NICHT
  * offen, sondern antwortet 503 „nicht konfiguriert" (`no-silent-fallbacks`).
@@ -42,13 +44,39 @@ export function checkMcpAuth(args: {
   return { ok: true, userEmail }
 }
 
-/** Pruefung gegen die Prozess-Umgebung (Route-Aufrufer). */
+/** Pruefung gegen die Prozess-Umgebung (nur Legacy-Env-Key, sync). */
 export function checkMcpRequestAuth(request: Request): McpAuthCheck {
   return checkMcpAuth({
     authorizationHeader: request.headers.get('authorization'),
     configuredKey: process.env.MCP_API_KEY,
     configuredUserEmail: process.env.MCP_USER_EMAIL,
   })
+}
+
+/**
+ * Volle Pruefung der Route (Stufe 2): erst Legacy-Env-Key, dann Account-Key
+ * aus der Datenbank. Reihenfolge bewusst — der Env-Vergleich ist billig und
+ * haelt den Pilot am Leben; alles andere muss ein gueltiger, NICHT rotierter
+ * Account-Key sein.
+ */
+export async function checkMcpRequestAuthWithAccountKeys(request: Request): Promise<McpAuthCheck> {
+  const key = process.env.MCP_API_KEY?.trim() ?? ''
+  if (key === '') return { ok: false, reason: 'not_configured' }
+
+  const token = readBearerToken(request.headers.get('authorization'))
+  if (token === null) return { ok: false, reason: 'missing_token' }
+
+  const envEmail = process.env.MCP_USER_EMAIL?.trim() ?? ''
+  if (token === key) {
+    // Legacy-Pfad: der Env-Key handelt als MCP_USER_EMAIL — ohne die Email
+    // ist er unbrauchbar (kein stiller Default-User).
+    return envEmail === '' ? { ok: false, reason: 'not_configured' } : { ok: true, userEmail: envEmail }
+  }
+
+  const { resolveMcpAccountKey } = await import('./account-key-service')
+  const accountEmail = await resolveMcpAccountKey(token)
+  if (accountEmail === null) return { ok: false, reason: 'invalid_token' }
+  return { ok: true, userEmail: accountEmail }
 }
 
 const FAILURE_RESPONSES: Record<McpAuthFailure, { status: number; error: string }> = {

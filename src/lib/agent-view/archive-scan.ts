@@ -16,12 +16,12 @@
  * @module agent-view
  */
 
-import { parseFrontmatter } from '@/lib/markdown/frontmatter'
+import { collectTwinFolder, readDoc, toFileEntry } from './archive-scan-readers'
 import { compileExcludeGlobs, isExcludedPath } from '@/lib/shadow-twin/sync-engine/scan-exclude'
-import { generateShadowTwinFolderName, isShadowTwinFolderName } from '@/lib/storage/shadow-twin-folder-name'
+import { isShadowTwinFolderName } from '@/lib/storage/shadow-twin-folder-name'
 import type { StorageItem } from '@/lib/storage/types'
 import { readBearbeitungsstand } from './bearbeitungsstand'
-import type { ArchiveDocEntry, ArchiveFileEntry, ArchiveFolderNode, ArchiveScanResult, ArchiveTwinFolderEntry } from './archive-types'
+import type { ArchiveFolderNode, ArchiveScanResult } from './archive-types'
 
 /** Minimal-Port auf den Storage (nur Lesen) — haelt den Scan testbar. */
 export interface ArchiveScanProvider {
@@ -31,30 +31,6 @@ export interface ArchiveScanProvider {
 
 export const INDEX_FILE_NAME = '_INDEX.md'
 export const BERICHT_FILE_NAME = 'BERICHT.md'
-
-/** Obergrenze fuer gelesene Contract-Dateien (Kosten-Zaun, sichtbar im Report). */
-const MAX_DOC_BYTES = 512 * 1024
-
-function toIso(value: Date | undefined): string | null {
-  if (!(value instanceof Date) || Number.isNaN(value.getTime())) return null
-  return value.toISOString()
-}
-
-function toFileEntry(item: StorageItem, path: string): ArchiveFileEntry {
-  return { fileId: item.id, name: item.metadata.name, path, modifiedAt: toIso(item.metadata.modifiedAt) }
-}
-
-async function readDoc(
-  provider: ArchiveScanProvider,
-  item: StorageItem,
-  path: string,
-): Promise<ArchiveDocEntry> {
-  const { blob } = await provider.getBinary(item.id)
-  const raw = await blob.text()
-  const markdown = raw.length > MAX_DOC_BYTES ? raw.slice(0, MAX_DOC_BYTES) : raw
-  const { meta, body } = parseFrontmatter(markdown)
-  return { ...toFileEntry(item, path), meta, body }
-}
 
 interface QueueEntry {
   folderId: string
@@ -76,37 +52,53 @@ export async function scanArchive(args: {
   excludeGlobs?: readonly string[]
   /** Sicherheitsnetz gegen Endlosbaeume (Report weist Abbruch als Fehler aus). */
   maxFolders?: number
+  /**
+   * Tiefenbegrenzung (Wunschliste 2, W1): Berichte liegen auf Ebene 2-3
+   * (Bereich/Projekt bzw. Bereich/Jahrgang/Projekt) — tiefer liegen die
+   * Ereignisordner mit Tausenden Dateien, die fuer Sichten irrelevant sind.
+   * Unterordner jenseits der Tiefe werden nicht betreten (kein Fehler).
+   */
+  maxDepth?: number
+  /**
+   * Parallele Ordner-Listings je Stapel (W1-Befund: 369 Ordner seriell = 80 s
+   * auf OneDrive). Default 1 = exakt das bisherige serielle Verhalten; der
+   * Provider behandelt 429/Retry-After selbst. Bei concurrency > 1 ist die
+   * Reihenfolge von `folders` antwortzeitabhaengig — Konsumenten sortieren;
+   * der Coverage-Scan bleibt bei 1 (deterministischer Report).
+   */
+  concurrency?: number
+  /**
+   * W1: Praedikat, unter welchen Ordnern NICHT weiter abgestiegen wird —
+   * z. B. unter Projektordnern (BERICHT.md vorhanden oder Name passt auf das
+   * konfigurierte Vorhaben-Muster): dort liegen keine Projekte mehr, nur
+   * datierte Ereignisordner. Spart beim Berichte-Lauf genau die Listings, die
+   * nichts beitragen. Der Coverage-Scan setzt es nicht (dort zaehlt jede Datei).
+   */
+  stopDescent?: (node: ArchiveFolderNode) => boolean
+  /**
+   * Welche Contract-Dateien gelesen werden: 'alle' (Default, Coverage) oder
+   * 'nur-bericht' (W1-Sichten: _INDEX.md-Reads sind dort reine Kosten —
+   * je Ordner zwei API-Calls, bei 332 Ordnern der Loewenanteil der Laufzeit).
+   */
+  docs?: 'alle' | 'nur-bericht'
 }): Promise<ArchiveScanResult> {
-  const { provider, rootFolderId, maxFolders = 5000 } = args
+  const { provider, rootFolderId, maxFolders = 5000, maxDepth = Number.POSITIVE_INFINITY } = args
+  const concurrency = Math.max(1, Math.floor(args.concurrency ?? 1))
   const exclude = compileExcludeGlobs(args.excludeGlobs)
   const folders: ArchiveFolderNode[] = []
   const queue: QueueEntry[] = [{ folderId: rootFolderId, name: '', path: '', parentFolderId: null, depth: 0 }]
   const seen = new Set<string>([rootFolderId])
   let skippedExcluded = 0
 
-  while (queue.length > 0) {
-    const current = queue.shift() as QueueEntry
-    const node: ArchiveFolderNode = {
-      folderId: current.folderId,
-      name: current.name,
-      path: current.path,
-      parentFolderId: current.parentFolderId,
-      depth: current.depth,
-      files: [],
-      twinFolders: [],
-      index: null,
-      bericht: null,
-      bearbeitungsstand: null,
-      bearbeitungsstandSeit: null,
-    }
-    folders.push(node)
-
+  /** Einen Ordner listen/lesen; liefert die Kinder-Eintraege (noch nicht in der Queue). */
+  const scanFolder = async (current: QueueEntry, node: ArchiveFolderNode): Promise<QueueEntry[]> => {
+    const children: QueueEntry[] = []
     let items: StorageItem[]
     try {
       items = await provider.listItemsById(current.folderId)
     } catch (error) {
       node.error = error instanceof Error ? error.message : String(error)
-      continue
+      return children
     }
 
     const fileNames = new Set(items.filter((it) => it.type === 'file').map((it) => it.metadata.name))
@@ -121,17 +113,19 @@ export async function scanArchive(args: {
           node.twinFolders.push(await collectTwinFolder(provider, item, path, fileNames, node))
           continue
         }
-        if (folders.length + queue.length >= maxFolders) {
+        if (folders.length + queue.length + children.length >= maxFolders) {
           node.error = `Ordner-Limit ${maxFolders} erreicht — Teilbaum ${path} nicht gescannt`
           continue
         }
         if (seen.has(item.id)) continue
         seen.add(item.id)
-        queue.push({ folderId: item.id, name: item.metadata.name, path, parentFolderId: current.folderId, depth: current.depth + 1 })
+        if (current.depth + 1 > maxDepth) continue // Tiefengrenze: Unterordner bewusst nicht betreten
+        children.push({ folderId: item.id, name: item.metadata.name, path, parentFolderId: current.folderId, depth: current.depth + 1 })
         continue
       }
       node.files.push(toFileEntry(item, path))
-      if (item.metadata.name === INDEX_FILE_NAME || item.metadata.name === BERICHT_FILE_NAME) {
+      const isIndex = item.metadata.name === INDEX_FILE_NAME
+      if ((isIndex && args.docs !== 'nur-bericht') || item.metadata.name === BERICHT_FILE_NAME) {
         try {
           const doc = await readDoc(provider, item, path)
           if (item.metadata.name === INDEX_FILE_NAME) node.index = doc
@@ -148,40 +142,50 @@ export async function scanArchive(args: {
       node.bearbeitungsstandSeit = stand.bearbeitungsstandSeit
       if (stand.error) node.error = node.error ? `${node.error}; ${stand.error}` : stand.error
     }
+    // Prune (stopDescent): unter einem Projektordner liegen keine Projekte mehr.
+    if (args.stopDescent?.(node) === true) return []
+    return children
   }
+
+  const makeNode = (current: QueueEntry): ArchiveFolderNode => ({
+    folderId: current.folderId,
+    name: current.name,
+    path: current.path,
+    parentFolderId: current.parentFolderId,
+    depth: current.depth,
+    files: [],
+    twinFolders: [],
+    index: null,
+    bericht: null,
+    bearbeitungsstand: null,
+    bearbeitungsstandSeit: null,
+  })
+
+  // Worker-Pool: bis zu `concurrency` Ordner gleichzeitig in Arbeit, ohne
+  // Rundenschranke (ein Stapel wartete sonst auf seinen langsamsten Ordner).
+  // Bei concurrency 1 exakt der bisherige serielle BFS; bei > 1 haengt die
+  // Reihenfolge von `folders` von der Antwortzeit ab — Konsumenten sortieren.
+  await new Promise<void>((resolve, reject) => {
+    let active = 0
+    const pump = (): void => {
+      while (active < concurrency && queue.length > 0) {
+        const current = queue.shift() as QueueEntry
+        const node = makeNode(current)
+        folders.push(node)
+        active += 1
+        scanFolder(current, node).then(
+          (children) => {
+            queue.push(...children)
+            active -= 1
+            pump()
+          },
+          reject,
+        )
+      }
+      if (active === 0 && queue.length === 0) resolve()
+    }
+    pump()
+  })
 
   return { folders, skippedExcluded }
-}
-
-/** Erfasst einen `_`-Twin-Ordner, ohne ihn als Archiv-Ordner zu behandeln. */
-async function collectTwinFolder(
-  provider: ArchiveScanProvider,
-  item: StorageItem,
-  path: string,
-  siblingFileNames: ReadonlySet<string>,
-  node: ArchiveFolderNode,
-): Promise<ArchiveTwinFolderEntry> {
-  // Twin-Ordnernamen sind auf 255 Zeichen gekuerzt — die Quelle wird deshalb
-  // ueber DIESELBE Namensfunktion zurueckgerechnet, nicht per `slice(1)`
-  // (sonst gilt eine lange Quelle faelschlich als verschwunden).
-  const matchedSource = [...siblingFileNames].find(
-    (name) => generateShadowTwinFolderName(name) === item.metadata.name,
-  )
-  const expectedSourceName = matchedSource ?? item.metadata.name.slice(1)
-  let artifactNames: string[] = []
-  try {
-    artifactNames = (await provider.listItemsById(item.id))
-      .filter((child) => child.type === 'file')
-      .map((child) => child.metadata.name)
-  } catch (error) {
-    node.error = `Twin-Ordner ${item.metadata.name} nicht lesbar: ${error instanceof Error ? error.message : String(error)}`
-  }
-  return {
-    folderId: item.id,
-    name: item.metadata.name,
-    path,
-    expectedSourceName,
-    sourcePresent: matchedSource !== undefined,
-    artifactNames: artifactNames.sort((a, b) => a.localeCompare(b)),
-  }
 }

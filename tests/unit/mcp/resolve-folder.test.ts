@@ -38,7 +38,7 @@ describe('resolveFolderIdByPath', () => {
   })
 
   it('nennt bei unbekanntem Segment Ebene und vorhandene Ordner (Dateien zaehlen nicht)', async () => {
-    const fehler = await resolveFolderIdByPath(PROVIDER, '26.01 Klima/Gibtsnicht').catch((e: unknown) => e)
+    const fehler = await resolveFolderIdByPath(PROVIDER, '26.01 Klima/Gibtsnicht', []).catch((e: unknown) => e)
     expect(fehler).toBeInstanceOf(FolderPathNotFoundError)
     expect((fehler as Error).message).toContain('Gibtsnicht')
     expect((fehler as Error).message).toContain('26.01 Klima')
@@ -47,6 +47,33 @@ describe('resolveFolderIdByPath', () => {
 
   it('leerer Pfad ist ein Fehler, kein stiller Library-Volllauf', async () => {
     await expect(resolveFolderIdByPath(PROVIDER, '  /  ')).rejects.toThrow(FolderPathNotFoundError)
+  })
+
+  it('listet bei fehlendem Segment erneut (B6: OneDrive-Sync-Latenz frischer Ordner)', async () => {
+    // Erster Aufruf: Ebene noch leer; zweiter: der frische Ordner ist sichtbar.
+    let calls = 0
+    const provider = {
+      listItemsById: async () => {
+        calls += 1
+        return calls < 2 ? [] : [{ id: 'f-neu', type: 'folder', metadata: { name: 'Neu' } }]
+      },
+    } as unknown as StorageProvider
+    expect(await resolveFolderIdByPath(provider, 'Neu', [0])).toBe('f-neu')
+    expect(calls).toBe(2)
+
+    // Mehrdeutigkeit wirft SOFORT — Warten macht sie nicht eindeutig.
+    let ambigCalls = 0
+    const ambig = {
+      listItemsById: async () => {
+        ambigCalls += 1
+        return [
+          { id: 'a', type: 'folder', metadata: { name: 'notizen' } },
+          { id: 'b', type: 'folder', metadata: { name: 'Notizen' } },
+        ]
+      },
+    } as unknown as StorageProvider
+    await expect(resolveFolderIdByPath(ambig, 'NOTIZEN', [0, 0])).rejects.toThrow(/mehrdeutig/)
+    expect(ambigCalls).toBe(1)
   })
 })
 
@@ -59,7 +86,7 @@ describe('resolveItemByPath — Datei-Ziele fuer familie_umziehen', () => {
   })
 
   it('Datei erwartet, aber nur Ordner vorhanden → Fehler mit Hinweis (Negativfall)', async () => {
-    await expect(resolveItemByPath(PROVIDER, '26.01 Klima/Berichte', 'file')).rejects.toThrow(
+    await expect(resolveItemByPath(PROVIDER, '26.01 Klima/Berichte', 'file', [])).rejects.toThrow(
       FolderPathNotFoundError,
     )
   })

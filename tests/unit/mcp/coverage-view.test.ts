@@ -148,6 +148,67 @@ describe('summarizeCoverageReport', () => {
     expect(summarize().scopeHinweis).toBeNull()
   })
 
+  it('meldet einen Pfad-Filter, der ins Leere greift, statt still 0 Befunde (Pilot-Befund)', () => {
+    // Teilbaum-Scan per folderId: Report kennt seinen library-relativen Pfad NICHT.
+    const blind = summarize(
+      { scope: { folderId: 'fid-scope', path: null } },
+      { pathPrefix: '4. Aktivismus/26.01 Klima' },
+    )
+    expect(blind.filter.befundAnzahl).toBe(0)
+    expect(blind.filter.warnung).toContain('traf NICHTS')
+    expect(blind.filter.warnung).toContain('KEINE Entwarnung')
+    expect(blind.filter.warnung).toContain('Teilbaum-Scan per folderId'.replace('Teilbaum', 'TEILBAUM'))
+
+    // Tippfehler im Pfad bei vollem Report: andere Ursache, andere Empfehlung.
+    const tippfehler = summarize({}, { pathPrefix: 'Piloot' })
+    expect(tippfehler.filter.warnung).toContain('Pfad pruefen')
+
+    // Treffer -> keine Warnung; kein Filter -> keine Warnung.
+    expect(summarize({}, { pathPrefix: 'Pilot' }).filter.warnung).toBeNull()
+    expect(summarize().filter.warnung).toBeNull()
+
+    // Leerer Report: „nichts gefunden" ist hier die Wahrheit, keine Warnung.
+    expect(summarize({ gaps: [] }, { pathPrefix: 'Pilot' }).filter.warnung).toBeNull()
+  })
+
+  it('Befunde tragen targetId/folderId/scope (C1 — Befund → Aktion als Feldzugriff)', () => {
+    const view = summarize()
+    const befund = view.filter.befunde[0] as { targetId?: string; folderId?: string; scope?: string }
+    expect(befund.targetId).toBe('id-Pilot/A.pdf')
+    expect(befund.folderId).toBe('f1')
+    expect(befund.scope).toBe('source')
+  })
+
+  it('filtert nach Akteur/Zyklus-Schritt und liefert nurZaehler ohne Listen (C5)', () => {
+    // Alle Test-Gaps sind knowledgescout/Schritt 1 — mensch-Filter leert die Liste,
+    // ohne die Pfad-Leerlauf-Warnung auszuloesen (die gilt nur dem Pfad-Filter).
+    const nurMensch = summarize({}, { akteur: 'mensch' })
+    expect(nurMensch.filter.befundAnzahl).toBe(0)
+    expect(nurMensch.filter.warnung).toBeNull()
+
+    const schritt1 = summarize({}, { zyklusSchritt: 1 })
+    expect(schritt1.filter.befundAnzahl).toBe(2)
+
+    const zaehler = summarize({}, { nurZaehler: true })
+    expect(zaehler.filter.befunde).toEqual([])
+    expect(zaehler.filter.familien).toEqual([])
+    expect(zaehler.filter.nurZaehler).toContain('bewusst leer')
+    expect(zaehler.filter.befundeNachTyp).toEqual({ source_without_twin: 2 })
+  })
+
+  it('benennt „bereit zur Abnahme“: null maschinelle Befunde, alles wartet auf F4 (D2)', () => {
+    const gemischt = summarize()
+    expect(gemischt.filter.bereitZurAbnahme).toBe(false)
+
+    const nurMensch = summarize({
+      gaps: [gap('Pilot/A.pdf', 'twin_unverified')],
+    })
+    expect(nurMensch.filter.bereitZurAbnahme).toBe(true)
+
+    // Leerer Scope ist NICHT „bereit“ — dort gibt es nichts abzunehmen.
+    expect(summarize({ gaps: [] }).filter.bereitZurAbnahme).toBe(false)
+  })
+
   it('weist die Kappung des GESPEICHERTEN Reports aus', () => {
     const view = summarize({}, { storedGapsTruncated: true, totalGaps: 9999 })
     expect(view.gespeicherterReportGekappt).toEqual({ gespeicherteGaps: 2, totalGaps: 9999 })
