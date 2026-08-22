@@ -2,8 +2,8 @@
   "manifest_version": "0.3",
   "name": "KnowledgeScout",
   "display_name": "KnowledgeScout",
-  "version": "1.2.0",
-  "description": "Agentensicht-Werkzeuge von KnowledgeScout: Coverage lesen/scannen, Twins pruefen/synchronisieren.",
+  "version": "1.2.1",
+  "description": "Agentensicht-Werkzeuge von KnowledgeScout: Coverage lesen/scannen, Twins pruefen/synchronisieren, Quellen erschliessen (Audio/Video/PDF/Office), Jobs verfolgen.",
   "author": {
     "name": "bCommonsLAB"
   },
@@ -20,7 +20,7 @@
     }
   },
   "license": "Apache-2.0",
-  "long_description": "Verbindet Cowork/Claude Desktop mit der MCP-Bruecke von KnowledgeScout (Welle 5) ueber einen abhaengigkeitsfreien stdio-Proxy (server/proxy.js, kein npm install noetig). Die Werkzeuge sind eine duenne Schicht ueber den bestehenden Services: Coverage-Report der Agentensicht lesen und neu scannen, Sync-Engine pruefen (check) und synchronisieren (repair/import/export). Der KnowledgeScout-Dev-Server muss laufen (Standard: Port 3001, Endpunkt /api/mcp/mcp); Szenario und Checkpoints: docs/concepts/welle-5-mcp-testszenario.md im Repo.",
+  "long_description": "Verbindet Cowork/Claude Desktop mit der MCP-Bruecke von KnowledgeScout (Welle 5) ueber einen abhaengigkeitsfreien stdio-Proxy (server/proxy.js, kein npm install noetig). Die 14 Werkzeuge sind eine duenne Schicht ueber den bestehenden Services: Coverage-Report der Agentensicht lesen und neu scannen, Sync-Engine pruefen (check) und synchronisieren (repair/import/export), Familien umziehen oder verwerfen, Ordner anlegen/umbenennen, Quellen erschliessen (Audio/Video/PDF/Office) und Transformationen starten, Jobs verfolgen. Die Server-Adresse ist im Bundle aus „Mein Zugang\" bereits eingetragen (sie folgt NEXT_PUBLIC_APP_URL des KnowledgeScout-Servers, Standard http://localhost:3000); bei der entpackten Entwickler-Variante im Konfigurieren-Dialog setzen. Der KnowledgeScout-Server muss laufen. Szenario und Checkpoints: docs/concepts/welle-5-mcp-testszenario.md im Repo.",
   "tools": [
     {
       "name": "bibliotheken_auflisten",
@@ -99,9 +99,9 @@
     "server_url": {
       "type": "string",
       "title": "KnowledgeScout MCP-URL",
-      "description": "Streamable-HTTP-Endpunkt der MCP-Bruecke (laufender Dev-Server noetig).",
+      "description": "Streamable-HTTP-Endpunkt der MCP-Bruecke — Port des laufenden KnowledgeScout-Servers (Standard 3000).",
       "required": true,
-      "default": "http://localhost:3001/api/mcp/mcp"
+      "default": "http://localhost:3000/api/mcp/mcp"
     },
     "api_key": {
       "type": "string",

@@ -83,7 +83,7 @@ async function forward(line) {
           jsonrpc: '2.0', id: message.id,
           error: {
             code: -32000,
-            message: `KnowledgeScout antwortet HTTP ${response.status} — laeuft der Dev-Server (pnpm dev -p 3001)? Stimmt der API-Key?`,
+            message: `KnowledgeScout antwortet HTTP ${response.status} unter ${serverUrl} — laeuft der KnowledgeScout-Server auf diesem Port? Stimmt der API-Key?`,
           },
         }));
       }
@@ -116,7 +116,7 @@ async function forward(line) {
         jsonrpc: '2.0', id: message.id,
         error: {
           code: -32001,
-          message: `KnowledgeScout nicht erreichbar (${error.message}) — Dev-Server starten: pnpm dev -p 3001`,
+          message: `KnowledgeScout nicht erreichbar unter ${serverUrl} (${error.message}) — laeuft der Server auf diesem Port?`,
         },
       }));
     }
