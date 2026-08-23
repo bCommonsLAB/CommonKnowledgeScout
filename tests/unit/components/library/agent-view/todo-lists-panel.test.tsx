@@ -2,11 +2,18 @@
 
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { NuqsTestingAdapter, type UrlUpdateEvent } from 'nuqs/adapters/testing'
+import type { ReactElement } from 'react'
 import { TodoListsPanel } from '@/components/library/agent-view/todo-lists-panel'
 import { createGap } from '@/lib/agent-view/gap-registry'
 import type { CoverageGap, CoverageReport } from '@/lib/agent-view/types'
 
 afterEach(() => cleanup())
+
+// Seit W4 navigieren Todo-Zeilen via nuqs — der Testing-Adapter stellt den Kontext.
+function renderPanel(ui: ReactElement, onUrlUpdate?: (event: UrlUpdateEvent) => void) {
+  return render(<NuqsTestingAdapter searchParams="" onUrlUpdate={onUrlUpdate}>{ui}</NuqsTestingAdapter>)
+}
 
 function gap(type: CoverageGap['type'], path: string): CoverageGap {
   return createGap({ type, scope: 'folder', targetId: path, targetName: path, folderId: 'f', path, message: `Befund ${type}` })
@@ -37,7 +44,7 @@ const PROPS = { generatedAt: '2026-08-18T12:00:00.000Z', libraryLabel: 'Onedrive
 
 describe('TodoListsPanel', () => {
   it('zeigt die drei Akteur-Spalten mit Zaehlern und Zyklus-Schritten', () => {
-    render(
+    renderPanel(
       <TodoListsPanel
         report={report([gap('twin_unverified', 'a'), gap('report_missing', 'b'), gap('source_without_twin', 'c')])}
         {...PROPS}
@@ -54,7 +61,7 @@ describe('TodoListsPanel', () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     Object.assign(navigator, { clipboard: { writeText } })
 
-    render(<TodoListsPanel report={report([gap('report_missing', '25.01 Pilot')])} {...PROPS} />)
+    renderPanel(<TodoListsPanel report={report([gap('report_missing', '25.01 Pilot')])} {...PROPS} />)
     const button = screen.getByRole('button', { name: /Auftrag kopieren/ })
     expect(button.hasAttribute('disabled')).toBe(true)
 
@@ -70,7 +77,18 @@ describe('TodoListsPanel', () => {
   })
 
   it('sagt es klar, wenn es nichts zu beauftragen gibt', () => {
-    render(<TodoListsPanel report={report([])} {...PROPS} />)
+    renderPanel(<TodoListsPanel report={report([])} {...PROPS} />)
     expect(screen.getByText(/nichts zu beauftragen/)).toBeTruthy()
+  })
+
+  it('Pfad-Klick navigiert ins Werkbank-Detail (?tab=werkbank&vorhaben=…, W4)', async () => {
+    const onUrlUpdate = vi.fn()
+    renderPanel(<TodoListsPanel report={report([gap('report_missing', '25.01 Pilot')])} {...PROPS} />, onUrlUpdate)
+    fireEvent.click(screen.getByRole('button', { name: '25.01 Pilot' }))
+    await vi.waitFor(() => {
+      const letzter = onUrlUpdate.mock.calls.at(-1)?.[0] as UrlUpdateEvent | undefined
+      expect(letzter?.searchParams.get('tab')).toBe('werkbank')
+      expect(letzter?.searchParams.get('vorhaben')).toBe('f')
+    })
   })
 })

@@ -7,21 +7,33 @@
  * Jede Karte zeigt den ERKLAERTEN Stand (Soll-Buch) neben dem BERECHNETEN
  * Befund (Ist-Buch). Faellt ein Vorhaben hinter seinen Stand zurueck, wechselt
  * die Karte sichtbar in den Widerspruchszustand — „abgenommen, aber nicht mehr
- * aktuell" —, ohne dass eine Datei angefasst wird.
+ * aktuell" —, ohne dass eine Datei angefasst wird. Seit W4 navigiert ein
+ * Klick auf die Karte ins Werkbank-Detail (`?tab=werkbank&vorhaben=…`, §F6);
+ * das Board selbst bleibt sonst unveraendert.
  *
  * @module components/library/agent-view
  */
 
 import { AlertTriangle, FileText } from 'lucide-react'
+import { parseAsString, useQueryState } from 'nuqs'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { actorSummary, BOARD_COLUMNS, gapCountLabel, standLabel } from '@/lib/agent-view/labels'
 import { karteOhneWerkbankFelder } from '@/lib/agent-view/vorhaben-board'
 import type { CoverageReport, VorhabenCard } from '@/lib/agent-view/types'
 
-function VorhabenKarte({ card }: { card: VorhabenCard }) {
+function VorhabenKarte({ card, onOpen }: { card: VorhabenCard; onOpen: (folderId: string) => void }) {
   return (
-    <Card className={card.widerspruch ? 'border-red-500/60' : undefined}>
+    <Card
+      role="button"
+      tabIndex={0}
+      aria-label={`${card.name} im Werkbank-Detail oeffnen`}
+      onClick={() => onOpen(card.folderId)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') onOpen(card.folderId)
+      }}
+      className={`cursor-pointer hover:border-primary/50 ${card.widerspruch ? 'border-red-500/60' : ''}`}
+    >
       <CardHeader className="p-3 pb-1">
         <CardTitle className="flex items-start gap-1.5 text-sm">
           {card.widerspruch && <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" aria-hidden />}
@@ -52,6 +64,13 @@ function VorhabenKarte({ card }: { card: VorhabenCard }) {
 }
 
 export function ZyklusBoard({ report }: { report: CoverageReport }) {
+  const [, setTab] = useQueryState('tab', parseAsString)
+  const [, setVorhaben] = useQueryState('vorhaben', parseAsString)
+  const openVorhaben = (folderId: string) => {
+    void setTab('werkbank')
+    void setVorhaben(folderId)
+  }
+
   if (report.vorhaben.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -80,7 +99,7 @@ export function ZyklusBoard({ report }: { report: CoverageReport }) {
                 <Badge variant="secondary">{cards.length}</Badge>
               </header>
               {cards.map((card) => (
-                <VorhabenKarte key={card.folderId} card={card} />
+                <VorhabenKarte key={card.folderId} card={card} onOpen={openVorhaben} />
               ))}
             </section>
           )

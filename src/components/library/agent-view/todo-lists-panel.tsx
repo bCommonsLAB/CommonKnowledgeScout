@@ -15,6 +15,7 @@
 
 import { useMemo, useState } from 'react'
 import { ClipboardCopy } from 'lucide-react'
+import { parseAsString, useQueryState } from 'nuqs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/use-toast'
@@ -41,6 +42,13 @@ export interface TodoListsPanelProps {
 export function TodoListsPanel({ report, generatedAt, libraryLabel, localRootPath }: TodoListsPanelProps) {
   const { toast } = useToast()
   const [selected, setSelected] = useState<ReadonlySet<number>>(new Set())
+  // W4 (§F6): Todo-Zeilen navigieren ins Werkbank-Detail; das Panel bleibt sonst unveraendert.
+  const [, setTab] = useQueryState('tab', parseAsString)
+  const [, setVorhaben] = useQueryState('vorhaben', parseAsString)
+  const openVorhaben = (folderId: string) => {
+    void setTab('werkbank')
+    void setVorhaben(folderId)
+  }
 
   // Index in report.gaps ist die stabile Kennung innerhalb EINES Reports.
   const keyByGap = useMemo(() => new Map(report.gaps.map((gap, index) => [gap, index])), [report.gaps])
@@ -105,7 +113,14 @@ export function TodoListsPanel({ report, generatedAt, libraryLabel, localRootPat
                     const gapKey = keyByGap.get(gap)
                     if (gapKey === undefined) throw new Error('Befund ohne Report-Index')
                     return (
-                      <TodoGapRow key={gapKey} gap={gap} gapKey={gapKey} selected={selected.has(gapKey)} onToggle={toggle} />
+                      <TodoGapRow
+                        key={gapKey}
+                        gap={gap}
+                        gapKey={gapKey}
+                        selected={selected.has(gapKey)}
+                        onToggle={toggle}
+                        onOpenVorhaben={openVorhaben}
+                      />
                     )
                   })}
                 </div>
