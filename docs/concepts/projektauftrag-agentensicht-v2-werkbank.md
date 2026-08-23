@@ -222,7 +222,9 @@ der Route (Akzeptanzkriterium 5 aus v1 hält).
    „Im Archiv öffnen" (`/library?folderId=…`), „Zu Liste hinzufügen",
    Stand-Menü (F8); ab F10 zusätzlich „Teilbaum neu scannen".
 2. „Bereit zur Abnahme"-Leiste (grün, nur wenn Prädikat wahr): „Keine
-   maschinellen Befunde offen — n Punkte warten auf dich" + Abnehmen-Button.
+   maschinellen Befunde offen — n Punkte warten auf dich" — reiner Status,
+   ohne eigenen Button. Abnehmen wohnt allein im Detail-Kopf (ein CTA;
+   Feedback vom 23.08.2026: kein doppelter Call-to-Action).
 3. **BERICHT.md gerendert** (`MarkdownPreview` compact, lazy via
    TanStack Query): Kopfzeile „BERICHT.md · geändert … · im Archiv öffnen
    (`?openFileId=<berichtFileId>`)", „veraltet"-Badge bei

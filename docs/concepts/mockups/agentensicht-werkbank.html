@@ -423,11 +423,9 @@
       </div>
 
       <div class="summary">
-        <span><b>Wessen Arbeit?</b></span>
-        <span class="chip m">Mensch 28</span><span class="chip c">Cowork 1</span><span class="chip k">KnowledgeScout 1</span>
-        <span><b>12</b> Ordner · <b>70</b> Dateien · <b>28</b> Quellen · <b>30</b> Befunde</span>
-        <span>Scan 22.8.2026, 09:20 · berechnet, nicht Wahrheit</span>
-        <span>seit letztem Scan: 2 erledigt · 0 neu</span>
+        <span>Scan 22.8.2026, 09:20 · <b>berechnet, nicht Wahrheit</b></span>
+        <span>seit letztem Scan: <b>2 erledigt</b> · 0 neu</span>
+        <span class="annot" style="margin-left:auto">6</span>
       </div>
 
       <div class="tabs"><span class="on">Werkbank</span><span>Zyklus-Board</span><span>Todos &amp; Auftrag</span></div>
@@ -546,7 +544,7 @@
               <div class="bcard"><svg class="bi"><use href="#i-file"/></svg><b>70</b><span>Dateien</span></div>
               <div class="bcard accent"><svg class="bi"><use href="#i-alert"/></svg><b>30</b><span>Befunde</span></div>
             </div>
-            <span class="totals">Mensch 28 · Cowork 1 · KnowledgeScout 1 — Scan 22.8.2026, 09:20</span>
+            <span class="totals"><span class="chip m">Mensch 28</span> <span class="chip c">Cowork 1</span> <span class="chip k">KnowledgeScout 1</span></span>
           </div>
         </div>
       </div>
@@ -558,7 +556,8 @@
       <div><span class="annot">2</span><span>Akteur-/Schritt-Chips + Suche — dieselbe Filter-Semantik wie die MCP-Kompaktsicht (geteilte Funktionen). Leere Treffer nennen immer den Grund.</span></div>
       <div><span class="annot">3</span><span>Zweizeilige Vorhaben-Zeile: Ampel, Name, Stand-Badge, Akteur-Chips mit Symbol (Mensch/Cowork/KnowledgeScout), Bericht-Indikator, Pin. Liste ist virtualisiert (skaliert auf hunderte Vorhaben).</span></div>
       <div><span class="annot">4</span><span>Pseudo-Zeile für Befunde außerhalb von Vorhaben — sichtbar statt still verschluckt.</span></div>
-      <div><span class="annot">5</span><span>Leerzustand mit Kennzahlen-Karten statt leerer Fläche; „Befunde" ist die Arbeits-Kennzahl und darum betont. Kein „Scan Status: aktiv" — der Scan ist ein expliziter Button, die Sicht eine Momentaufnahme.</span></div>
+      <div><span class="annot">5</span><span>Leerzustand mit Kennzahlen-Karten statt leerer Fläche; „Befunde" ist die Arbeits-Kennzahl und darum betont. Die Library-Totale und die Akteur-Chips wohnen NUR hier — nicht noch einmal im Kopf.</span></div>
+      <div><span class="annot">6</span><span>Schlanke Scan-Zeile in allen Zuständen: nur Zeitpunkt, „berechnet, nicht Wahrheit" und das Delta seit dem letzten Scan — kein Duplikat der Kennzahlen. Kein „Scan Status: aktiv" — der Scan ist ein expliziter Button, die Sicht eine Momentaufnahme.</span></div>
     </div>
   </section>
 
@@ -577,6 +576,11 @@
           <div class="sub">Das Archiv zeigt die Dateien — diese Sicht zeigt, was ein Agent davon versteht und was ihm fehlt.</div>
         </div>
         <button class="btn primary" type="button">⟳&nbsp; Neu scannen</button>
+      </div>
+
+      <div class="summary">
+        <span>Scan 22.8.2026, 09:20 · <b>berechnet, nicht Wahrheit</b></span>
+        <span>seit letztem Scan: <b>2 erledigt</b> · 0 neu</span>
       </div>
 
       <div class="tabs"><span class="on">Werkbank</span><span>Zyklus-Board</span><span>Todos &amp; Auftrag</span></div>
@@ -741,6 +745,11 @@
         <button class="btn primary" type="button">⟳&nbsp; Neu scannen</button>
       </div>
 
+      <div class="summary">
+        <span>Scan 22.8.2026, 09:20 · <b>berechnet, nicht Wahrheit</b></span>
+        <span>seit letztem Scan: <b>2 erledigt</b> · 0 neu</span>
+      </div>
+
       <div class="tabs"><span class="on">Werkbank</span><span>Zyklus-Board</span><span>Todos &amp; Auftrag</span></div>
 
       <div class="split">
@@ -789,7 +798,6 @@
           <div class="ready-bar">
             <b>Bereit zur Abnahme<span class="annot">1</span></b>
             <span>Keine maschinellen Befunde offen — 3 Punkte warten auf dich.</span>
-            <button class="btn green small" type="button">Abnehmen</button>
           </div>
 
           <div class="doc">
@@ -844,7 +852,7 @@
     </div></div>
 
     <div class="legend" aria-label="Legende Zustand C">
-      <div><span class="annot">1</span><span>„Bereit zur Abnahme"-Leiste + aktiver Abnehmen-Button. Die Stand-Route prüft serverseitig mit einem frischen, ungespeicherten Teilbaum-Scan und antwortet 409 statt blind zu beurkunden.</span></div>
+      <div><span class="annot">1</span><span>„Bereit zur Abnahme"-Leiste als reiner Status — der einzige Abnehmen-Button sitzt im Detail-Kopf (ein CTA, kein Duplikat). Die Stand-Route prüft serverseitig mit einem frischen, ungespeicherten Teilbaum-Scan und antwortet 409 statt blind zu beurkunden.</span></div>
       <div><span class="annot">2</span><span>Stand-Menü: „Stand bestätigen" (löst Widerspruch nach Prüfung) und „Zurückstufen auf …" — beides menschliche Selbstdeklaration ins _INDEX.md. Es gibt genau fünf Stände (ungesichtet…abgenommen), keine erfundenen wie „blockiert" oder „archiviert".</span></div>
       <div><span class="annot">3</span><span>Gerenderter BERICHT.md über die neue Lese-Route (Body on demand, nie im Report persistiert); Meta-Zeile mit Änderungsdatum und Archiv-Link.</span></div>
       <div><span class="annot">4</span><span>Befunde nach Akteur und Zyklus-Schritt gruppiert, als zweizeilige Karten — hier nur noch Mensch-Punkte (Verifikationen).</span></div>
@@ -866,6 +874,15 @@
   erfundene Stände wie „in Bearbeitung/blockiert/archiviert" (das Stand-Vokabular ist
   Contract), „+ New Project" (die Sicht legt nie Vorhaben an) sowie IDs und Zeitstempel in
   den Listenzeilen (folderId nur im Detail-Footer, Scan-Zeitpunkt einmal global).</p>
+
+  <p class="note"><b>Stand 3 (23.08.2026)</b> — zwei Artifact-Kommentare umgesetzt:
+  (1) Der doppelte Abnehmen-CTA in Zustand C ist entfernt — die „Bereit zur
+  Abnahme"-Leiste ist reiner Status, Abnehmen wohnt nur noch im Detail-Kopf (B
+  deaktiviert mit Blocker-Tooltip, C aktiv), damit die Aktion einen festen Ort hat.
+  (2) Die Kopf-Zusammenfassung duplizierte die Kennzahlen des Leerzustands — sie ist
+  jetzt eine schlanke Scan-Zeile (Zeitpunkt · „berechnet, nicht Wahrheit" · Delta) in
+  allen drei Zuständen; Library-Totale und Akteur-Chips wohnen nur noch in den
+  Kennzahlen-Karten des Leerzustands.</p>
 
 </div>
 <script>
