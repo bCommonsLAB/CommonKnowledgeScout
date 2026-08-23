@@ -11,6 +11,7 @@
  * @module mcp
  */
 
+import { istBereitZurAbnahme, zaehleGapsNachAkteur } from '@/lib/agent-view/abnahme'
 import type { CoverageReport } from '@/lib/agent-view/types'
 import type { CoverageDelta } from '@/lib/agent-view/coverage-delta'
 import { describeEmptyFilter } from './coverage-filter-warning'
@@ -97,10 +98,9 @@ export function summarizeCoverageReport(args: CoverageViewArgs) {
       (zyklusSchritt === null || gap.zyklusSchritt === zyklusSchritt),
   )
   // D2 (Pilot-Wunschliste): „bereit zur Abnahme“ = im Pfad-Scope wartet alles
-  // auf den Menschen — null maschinelle Befunde, mindestens ein F4-Befund.
-  // Das erreichbare Ziel eines Agentenlaufs; gruen kann nur der Mensch machen.
-  const maschinell = gapsInPath.filter((gap) => gap.actor !== 'mensch').length
-  const bereitZurAbnahme = maschinell === 0 && gapsInPath.length > 0
+  // auf den Menschen. Geteiltes Praedikat (Werkbank W1) — MCP und UI
+  // urteilen identisch, kein Drift.
+  const bereitZurAbnahme = istBereitZurAbnahme(zaehleGapsNachAkteur(gapsInPath))
   const familiesAll = args.report.families
   const familiesInScope = familiesAll === undefined
     ? undefined
