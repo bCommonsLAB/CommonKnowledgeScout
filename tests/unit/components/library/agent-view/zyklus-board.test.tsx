@@ -19,7 +19,30 @@ function card(overrides: Partial<VorhabenCard> = {}): VorhabenCard {
     gapsByActor: { mensch: 0, cowork: 0, knowledgescout: 0 },
     gapsByType: {},
     widerspruch: false,
+    // Werkbank-Felder (W1) — Karten frischer Scans tragen sie immer.
+    ampel: 'gruen',
+    berichtTitel: null,
+    berichtFileId: null,
+    berichtModifiedAt: null,
+    berichtStatus: null,
+    themen: [],
     ...overrides,
+  }
+}
+
+/** Karte, wie sie ein GESPEICHERTER Report aus einem Scan vor W1 traegt (ohne Werkbank-Felder). */
+function altKarte(): VorhabenCard {
+  return {
+    folderId: 'f-alt',
+    name: 'Altbestand',
+    path: 'Altbestand',
+    bearbeitungsstand: 'abgenommen',
+    bearbeitungsstandSeit: null,
+    hasBericht: true,
+    totalGaps: 0,
+    gapsByActor: { mensch: 0, cowork: 0, knowledgescout: 0 },
+    gapsByType: {},
+    widerspruch: false,
   }
 }
 
@@ -64,5 +87,17 @@ describe('ZyklusBoard', () => {
   it('erklaert die Vorhaben-Erkennung, wenn kein Vorhaben gefunden wurde', () => {
     render(<ZyklusBoard report={report([])} />)
     expect(screen.getByText(/Kein Vorhaben erkannt/)).toBeTruthy()
+  })
+
+  it('benennt Reports aus Scans vor Werkbank-W1 sichtbar, statt Titel/Status still wegzulassen', () => {
+    render(<ZyklusBoard report={report([altKarte()])} />)
+    expect(screen.getByText(/Scan vor Werkbank-Welle W1/)).toBeTruthy()
+  })
+
+  it('zeigt Bericht-Titel und -Status, sobald der Scan die W1-Felder gefuellt hat — ohne Alt-Hinweis', () => {
+    render(<ZyklusBoard report={report([card({ berichtTitel: 'Pilotprojekt Klima', berichtStatus: 'aktiv' })])} />)
+    expect(screen.getByText('Pilotprojekt Klima')).toBeTruthy()
+    expect(screen.getByText('Status: aktiv')).toBeTruthy()
+    expect(screen.queryByText(/Scan vor Werkbank-Welle W1/)).toBeNull()
   })
 })

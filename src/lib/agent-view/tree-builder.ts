@@ -15,6 +15,7 @@
 import type { ArchiveFolderNode } from './archive-types'
 import type {
   Bearbeitungsstand,
+  CoverageAmpel,
   CoverageGap,
   CoverageGapType,
   CoverageTreeNode,
@@ -26,7 +27,7 @@ function emptyActorCounts(): GapCountByActor {
   return { mensch: 0, cowork: 0, knowledgescout: 0 }
 }
 
-function ampelOf(node: CoverageTreeNode, blockingGaps: number): 'gruen' | 'gelb' | 'rot' {
+function ampelOf(node: CoverageTreeNode, blockingGaps: number): CoverageAmpel {
   if (blockingGaps > 0) return 'rot'
   if (node.totalGaps > 0) return 'gelb'
   return 'gruen'

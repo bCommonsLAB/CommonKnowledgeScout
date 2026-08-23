@@ -14,6 +14,7 @@
  */
 
 import { Badge } from '@/components/ui/badge'
+import { istBereitZurAbnahme } from '@/lib/agent-view/abnahme'
 import { actorLabel, zyklusSchrittLabel } from '@/lib/agent-view/labels'
 import type { CoverageDelta } from '@/lib/agent-view/coverage-delta'
 import type { CoverageReport, GapActor, ZyklusSchritt } from '@/lib/agent-view/types'
@@ -41,8 +42,8 @@ export function CoverageProgress({
   deltaHinweis: string | null
 }) {
   const byActor = report.totals.gapsByActor
-  const maschinell = byActor.cowork + byActor.knowledgescout
-  const bereitZurAbnahme = maschinell === 0 && byActor.mensch > 0
+  // Geteiltes Praedikat (Werkbank W1): dieselbe Definition wie die MCP-Sicht.
+  const bereitZurAbnahme = istBereitZurAbnahme(byActor)
   const bySchritt = countBySchritt(report)
 
   return (

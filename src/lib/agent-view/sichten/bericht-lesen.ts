@@ -14,7 +14,8 @@
 import type { ArchiveFolderNode } from '../archive-types'
 import { sauber, type ProjektDatensatz } from './types'
 
-function asString(value: unknown): string | null {
+/** Frontmatter-Wert als String; null = fehlt/leer/kein Skalar. Auch W1-Kartenfelder nutzen DIESEN Leser (kein zweiter Parser). */
+export function asString(value: unknown): string | null {
   if (value instanceof Date) return value.toISOString().slice(0, 10)
   if (typeof value === 'number') return String(value)
   if (typeof value !== 'string') return null
@@ -22,7 +23,8 @@ function asString(value: unknown): string | null {
   return trimmed === '' ? null : trimmed
 }
 
-function asList(value: unknown): string[] {
+/** Frontmatter-Wert als Liste (YAML-Array oder `[a, b]`-String der Skripte). */
+export function asList(value: unknown): string[] {
   if (Array.isArray(value)) return value.map((v) => asString(v)).filter((v): v is string => v !== null)
   const single = asString(value)
   if (single === null) return []

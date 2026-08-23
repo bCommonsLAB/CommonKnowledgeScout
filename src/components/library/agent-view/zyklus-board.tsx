@@ -16,6 +16,7 @@ import { AlertTriangle, FileText } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { actorSummary, BOARD_COLUMNS, gapCountLabel, standLabel } from '@/lib/agent-view/labels'
+import { karteOhneWerkbankFelder } from '@/lib/agent-view/vorhaben-board'
 import type { CoverageReport, VorhabenCard } from '@/lib/agent-view/types'
 
 function VorhabenKarte({ card }: { card: VorhabenCard }) {
@@ -29,6 +30,11 @@ function VorhabenKarte({ card }: { card: VorhabenCard }) {
       </CardHeader>
       <CardContent className="space-y-1 p-3 pt-0 text-xs text-muted-foreground">
         <p className="break-words">{card.path || '(Wurzel)'}</p>
+        {/* Werkbank W1 (F9): Bericht-Titel + erklaerter Status aus der Karte. */}
+        {typeof card.berichtTitel === 'string' && card.berichtTitel !== '' && (
+          <p className="break-words font-medium text-foreground">{card.berichtTitel}</p>
+        )}
+        {typeof card.berichtStatus === 'string' && <p>Status: {card.berichtStatus}</p>}
         {card.widerspruch && (
           <p className="font-medium text-red-500">
             {standLabel(card.bearbeitungsstand)}, aber nicht mehr aktuell
@@ -56,21 +62,30 @@ export function ZyklusBoard({ report }: { report: CoverageReport }) {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
-      {BOARD_COLUMNS.map((stand) => {
-        const cards = report.vorhaben.filter((card) => card.bearbeitungsstand === stand)
-        return (
-          <section key={stand ?? 'undeklariert'} className="space-y-2">
-            <header className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold">{standLabel(stand)}</h3>
-              <Badge variant="secondary">{cards.length}</Badge>
-            </header>
-            {cards.map((card) => (
-              <VorhabenKarte key={card.folderId} card={card} />
-            ))}
-          </section>
-        )
-      })}
+    <div className="space-y-2">
+      {/* Alte Reports tragen die W1-Felder nicht — benennen statt Luecke (Muster „Scan vor Welle 4"). */}
+      {report.vorhaben.some(karteOhneWerkbankFelder) && (
+        <p className="text-xs text-muted-foreground">
+          Dieser Report stammt aus einem Scan vor Werkbank-Welle W1 — Bericht-Titel, -Status und
+          Themen erscheinen nach &bdquo;Neu scannen&ldquo;.
+        </p>
+      )}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        {BOARD_COLUMNS.map((stand) => {
+          const cards = report.vorhaben.filter((card) => card.bearbeitungsstand === stand)
+          return (
+            <section key={stand ?? 'undeklariert'} className="space-y-2">
+              <header className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold">{standLabel(stand)}</h3>
+                <Badge variant="secondary">{cards.length}</Badge>
+              </header>
+              {cards.map((card) => (
+                <VorhabenKarte key={card.folderId} card={card} />
+              ))}
+            </section>
+          )
+        })}
+      </div>
     </div>
   )
 }
