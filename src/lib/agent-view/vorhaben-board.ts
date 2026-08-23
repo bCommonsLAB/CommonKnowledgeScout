@@ -14,6 +14,7 @@
 
 import type { ArchiveFolderNode } from './archive-types'
 import { isVorhaben } from './archive-rules'
+import { asList, asString, titelLesen } from './sichten/bericht-lesen'
 import type { CoverageGap, CoverageTreeNode, VorhabenCard } from './types'
 
 function flatten(nodes: readonly CoverageTreeNode[], into: Map<string, CoverageTreeNode>): void {
@@ -21,6 +22,40 @@ function flatten(nodes: readonly CoverageTreeNode[], into: Map<string, CoverageT
     into.set(node.folderId, node)
     flatten(node.children, into)
   }
+}
+
+/**
+ * Kleinst-Skalare des Berichts fuer die Karte (F9, Werkbank W1) — aus den beim
+ * Scan OHNEHIN gelesenen Contract-Dateien, via `titelLesen`/`asString`/`asList`
+ * (kein zweiter Parser). `themen` folgt F12: `BERICHT.md` ist fuehrend; das
+ * `_INDEX.md` zaehlt nur fuer Vorhaben OHNE Bericht.
+ */
+function berichtFelder(folder: ArchiveFolderNode): Pick<
+  VorhabenCard,
+  'berichtTitel' | 'berichtFileId' | 'berichtModifiedAt' | 'berichtStatus' | 'themen'
+> {
+  const bericht = folder.bericht
+  if (bericht === null) {
+    return {
+      berichtTitel: null,
+      berichtFileId: null,
+      berichtModifiedAt: null,
+      berichtStatus: null,
+      themen: asList(folder.index?.meta.themen),
+    }
+  }
+  return {
+    berichtTitel: titelLesen(bericht.body),
+    berichtFileId: bericht.fileId,
+    berichtModifiedAt: bericht.modifiedAt,
+    berichtStatus: asString(bericht.meta.status),
+    themen: asList(bericht.meta.themen),
+  }
+}
+
+/** true, wenn die Karte aus einem gespeicherten Report vor Werkbank-W1 stammt (Felder fehlen). */
+export function karteOhneWerkbankFelder(card: VorhabenCard): boolean {
+  return card.ampel === undefined || card.themen === undefined
 }
 
 /** Baut die Karten des Zyklus-Boards aus Baum + Ordnerliste. */
@@ -59,6 +94,10 @@ export function buildVorhabenCards(args: {
       gapsByActor: { ...node.gapsByActor },
       gapsByType: { ...node.gapsByType },
       widerspruch: widerspruch.has(node.folderId),
+      // Werkbank W1 (F9): Ampel vom Baumknoten uebernommen, Bericht-Skalare
+      // aus den beim Scan gelesenen Contract-Dateien.
+      ampel: node.ampel,
+      ...berichtFelder(folder),
     })
   }
 

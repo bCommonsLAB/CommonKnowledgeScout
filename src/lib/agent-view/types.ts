@@ -99,6 +99,9 @@ export type Bearbeitungsstand = (typeof BEARBEITUNGSSTAND_VALUES)[number]
 export type GapCountByType = Partial<Record<CoverageGapType, number>>
 export type GapCountByActor = Record<GapActor, number>
 
+/** Ampelfarbe: gruen nur ohne Befund im Teilbaum (Akzeptanzkriterium 7). */
+export type CoverageAmpel = 'gruen' | 'gelb' | 'rot'
+
 /** Knoten des Agenten-Baums (F1) — Ordner mit aggregierten Zaehlern. */
 export interface CoverageTreeNode {
   folderId: string
@@ -121,7 +124,7 @@ export interface CoverageTreeNode {
   gapsByType: GapCountByType
   gapsByActor: GapCountByActor
   /** Ampel: gruen nur ohne Befund im Teilbaum (Akzeptanzkriterium 7). */
-  ampel: 'gruen' | 'gelb' | 'rot'
+  ampel: CoverageAmpel
   children: CoverageTreeNode[]
 }
 
@@ -138,6 +141,24 @@ export interface VorhabenCard {
   gapsByType: GapCountByType
   /** Erklaerter Stand ist durch Befunde widerlegt (`stand_widerspruch`). */
   widerspruch: boolean
+  /*
+   * Werkbank-Felder (F9, Welle W1) — Kleinst-Skalare aus den beim Scan
+   * ohnehin gelesenen Bericht-Daten. OPTIONAL, weil gespeicherte Reports aus
+   * Scans vor W1 sie nicht tragen: Konsumenten benennen diesen Zustand
+   * sichtbar (Muster „Scan vor Welle 4"), statt still zu raten.
+   */
+  /** Ampel des Baumknotens (uebernommen, nicht neu gerechnet). */
+  ampel?: CoverageAmpel
+  /** H1 des BERICHT.md via `titelLesen`; '' = Bericht ohne H1, null = kein Bericht. */
+  berichtTitel?: string | null
+  /** Storage-Id des BERICHT.md (Deep-Link `?openFileId=`); null = kein Bericht. */
+  berichtFileId?: string | null
+  /** `modifiedAt` des BERICHT.md als ISO; null = kein Bericht/unbekannt. */
+  berichtModifiedAt?: string | null
+  /** Frontmatter `status` des BERICHT.md; null = kein Bericht/kein Feld. */
+  berichtStatus?: string | null
+  /** `themen` aus dem BERICHT.md-Frontmatter (fuehrend); `_INDEX.md` zaehlt nur fuer Vorhaben OHNE Bericht (F12). */
+  themen?: string[]
 }
 
 /**
