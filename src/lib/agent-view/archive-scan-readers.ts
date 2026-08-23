@@ -14,10 +14,16 @@ import type { StorageItem } from '@/lib/storage/types'
 import type { ArchiveScanProvider } from './archive-scan'
 import type { ArchiveDocEntry, ArchiveFileEntry, ArchiveFolderNode, ArchiveTwinFolderEntry } from './archive-types'
 
-/** Obergrenze fuer gelesene Contract-Dateien (Kosten-Zaun, sichtbar im Report). */
-const MAX_DOC_BYTES = 512 * 1024
+/**
+ * Obergrenze fuer gelesene Contract-Dateien (Kosten-Zaun, sichtbar im Report).
+ * EIN Budget fuer beide Leser: der Scan KUERZT daran (slice), die
+ * Bericht-Lese-Route (W2) verweigert den Body (`zu_gross`) — dieselbe Zahl,
+ * zwei benannte Verhalten.
+ */
+export const MAX_DOC_BYTES = 512 * 1024
 
-function toIso(value: Date | undefined): string | null {
+/** ISO-Zeitstempel aus Provider-Metadaten; null = unbekannt/ungueltig. */
+export function toIso(value: Date | undefined): string | null {
   if (!(value instanceof Date) || Number.isNaN(value.getTime())) return null
   return value.toISOString()
 }
