@@ -52,6 +52,24 @@ export function datumLesbar(iso: string | null): string {
   return match[3] ? `${Number(match[3])}. ${monat} ${match[1]}` : `${monat} ${match[1]}`
 }
 
+/** Lokales Tagesdatum `JJJJ-MM-TT` (wie `datumKurz`: lokale Zeit, nicht UTC). */
+export function isoHeute(date: Date): string {
+  const monat = String(date.getMonth() + 1).padStart(2, '0')
+  const tag = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${monat}-${tag}`
+}
+
+/**
+ * Liegt der Termin (`JJJJ-MM-TT` oder `JJJJ-MM`) vor `heute`? Monatsangaben
+ * gelten erst ab dem Folgemonat als ueberfaellig; Fremdformate nie (kein Raten).
+ */
+export function istUeberfaellig(iso: string | null, heute: string): boolean {
+  if (iso === null) return false
+  const match = iso.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?$/)
+  if (!match) return false
+  return match[3] ? iso < heute : iso < heute.slice(0, 7)
+}
+
 /** Markdown-Auszeichnung entfernen und Whitespace glaetten (wie `sauber()` im Skript). */
 export function sauber(text: string): string {
   return text.replace(/\*\*|`|\*/g, '').replace(/\s+/g, ' ').trim()
