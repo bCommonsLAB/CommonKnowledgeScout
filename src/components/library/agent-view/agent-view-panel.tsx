@@ -1,17 +1,21 @@
 'use client'
 
 /**
- * @fileoverview Agentensicht (Welle 2): Baum + Zyklus-Board, read-only.
+ * @fileoverview Agentensicht: Werkbank + Baum + Zyklus-Board, read-only.
  *
  * @description
  * Konsumiert AUSSCHLIESSLICH die Coverage-API — kein Provider, kein
  * `primaryStore`, kein Storage-Backend (Akzeptanzkriterium 5). Der Scan ist
- * ein expliziter Vorgang (Knopf), kein Watcher.
+ * ein expliziter Vorgang (Knopf), kein Watcher. Seit Welle W3 ist die
+ * Werkbank (F6) der Default-Tab; der Tab-Zustand wohnt in der URL (`?tab=`,
+ * nuqs) statt in einem unkontrollierten `defaultValue` — Deep-Links wie
+ * `?tab=werkbank&vorhaben=…` ueberstehen Reload (v2-Akzeptanzkriterium 5).
  *
  * @module components/library/agent-view
  */
 
 import { Loader2, RefreshCw } from 'lucide-react'
+import { parseAsStringLiteral, useQueryState } from 'nuqs'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -20,7 +24,11 @@ import { CoverageSummary } from './coverage-summary'
 import { CoverageProgress } from './coverage-progress'
 import { CoverageTree } from './coverage-tree'
 import { TodoListsPanel } from './todo-lists-panel'
+import { WerkbankPanel } from './werkbank/werkbank-panel'
 import { ZyklusBoard } from './zyklus-board'
+
+const TAB_WERTE = ['werkbank', 'baum', 'board', 'todos'] as const
+type AgentViewTab = (typeof TAB_WERTE)[number]
 
 export interface AgentViewPanelProps {
   libraryId: string | undefined
@@ -32,6 +40,7 @@ export interface AgentViewPanelProps {
 
 export function AgentViewPanel({ libraryId, libraryLabel, localRootPath }: AgentViewPanelProps) {
   const { data, isLoading, isScanning, neverScanned, error, scan } = useCoverageReport(libraryId)
+  const [tab, setTab] = useQueryState('tab', parseAsStringLiteral(TAB_WERTE).withDefault('werkbank'))
 
   if (!libraryId) {
     return <p className="p-6 text-sm text-muted-foreground">Bitte zuerst eine Library auswaehlen.</p>
@@ -85,12 +94,16 @@ export function AgentViewPanel({ libraryId, libraryLabel, localRootPath }: Agent
           {/* D1: Hauptanzeige zuerst — wessen Arbeit, welcher Schritt, was ist neu. */}
           <CoverageProgress report={data.report} delta={data.delta} deltaHinweis={data.deltaHinweis} />
           <CoverageSummary report={data.report} generatedAt={data.generatedAt} />
-          <Tabs defaultValue="baum" className="flex-1">
+          <Tabs value={tab} onValueChange={(wert) => void setTab(wert as AgentViewTab)} className="flex-1">
             <TabsList>
+              <TabsTrigger value="werkbank">Werkbank</TabsTrigger>
               <TabsTrigger value="baum">Baum</TabsTrigger>
               <TabsTrigger value="board">Zyklus-Board</TabsTrigger>
               <TabsTrigger value="todos">Todos &amp; Auftrag</TabsTrigger>
             </TabsList>
+            <TabsContent value="werkbank" className="mt-3">
+              <WerkbankPanel report={data.report} />
+            </TabsContent>
             <TabsContent value="baum" className="mt-3">
               <CoverageTree report={data.report} />
             </TabsContent>
