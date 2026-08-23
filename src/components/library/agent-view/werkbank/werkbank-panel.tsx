@@ -27,7 +27,7 @@ import { karteOhneWerkbankFelder } from '@/lib/agent-view/vorhaben-board'
 import { filtereVorhaben, sortiereVorhaben, type BefundFilter } from '@/lib/agent-view/werkbank-filter'
 import { beschreibeLeereWerkbankListe } from '@/lib/agent-view/werkbank-leer'
 import { VorhabenListe } from './vorhaben-liste'
-import { WerkbankDetailPlatzhalter } from './werkbank-detail-platzhalter'
+import { WerkbankDetail } from './werkbank-detail'
 import { WerkbankFilterLeiste } from './werkbank-filter-leiste'
 
 const STATUS_WERTE = ['alle', 'zu_tun', 'bereit'] as const
@@ -35,7 +35,16 @@ const SORT_WERTE = ['pfad', 'stand', 'befunde'] as const
 const AKTEUR_WERTE = ['mensch', 'cowork', 'knowledgescout'] as const
 const SCHRITT_WERTE = [1, 2, 3, 4] as const
 
-export function WerkbankPanel({ report }: { report: CoverageReport }) {
+export interface WerkbankPanelProps {
+  report: CoverageReport
+  /** Zeitstempel des gespeicherten Reports (Fusszeile + Auftragskontext). */
+  generatedAt: string
+  libraryLabel: string
+  /** `config.agentView.localRootPath` — absolute Pfade im Auftrag (F3). */
+  localRootPath: string | null
+}
+
+export function WerkbankPanel({ report, generatedAt, libraryLabel, localRootPath }: WerkbankPanelProps) {
   const [prefs, setPrefs] = useAtom(uiPanePrefsAtom)
   const [vorhabenId, setVorhabenId] = useQueryState('vorhaben', parseAsString)
   const [statusFilter, setStatusFilter] = useQueryState(
@@ -105,7 +114,14 @@ export function WerkbankPanel({ report }: { report: CoverageReport }) {
     </div>
   )
   const detail = (
-    <WerkbankDetailPlatzhalter karte={karte} vorhabenId={vorhabenId} totals={report.totals} />
+    <WerkbankDetail
+      karte={karte}
+      vorhabenId={vorhabenId}
+      report={report}
+      generatedAt={generatedAt}
+      libraryLabel={libraryLabel}
+      localRootPath={localRootPath}
+    />
   )
 
   return (

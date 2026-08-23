@@ -1,11 +1,18 @@
 // @vitest-environment jsdom
 
-import { describe, it, expect, afterEach } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { describe, it, expect, afterEach, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { NuqsTestingAdapter, type UrlUpdateEvent } from 'nuqs/adapters/testing'
+import type { ReactElement } from 'react'
 import { ZyklusBoard } from '@/components/library/agent-view/zyklus-board'
 import type { CoverageReport, VorhabenCard } from '@/lib/agent-view/types'
 
 afterEach(() => cleanup())
+
+// Seit W4 navigieren Board-Karten via nuqs — der Testing-Adapter stellt den Kontext.
+function renderBoard(ui: ReactElement, onUrlUpdate?: (event: UrlUpdateEvent) => void) {
+  return render(<NuqsTestingAdapter searchParams="" onUrlUpdate={onUrlUpdate}>{ui}</NuqsTestingAdapter>)
+}
 
 function card(overrides: Partial<VorhabenCard> = {}): VorhabenCard {
   return {
@@ -72,32 +79,43 @@ function report(vorhaben: VorhabenCard[]): CoverageReport {
 
 describe('ZyklusBoard', () => {
   it('zeigt alle fuenf Staende plus die undeklarierten Ordner als Spalten', () => {
-    render(<ZyklusBoard report={report([card()])} />)
+    renderBoard(<ZyklusBoard report={report([card()])} />)
     for (const label of ['Ungesichtet', 'Erschlossen', 'Strukturiert', 'Berichtet', 'Abgenommen', 'Ohne erklaerten Stand']) {
       expect(screen.getByText(label)).toBeTruthy()
     }
   })
 
   it('macht den Widerspruchszustand sichtbar, ohne eine Datei anzufassen', () => {
-    render(<ZyklusBoard report={report([card({ widerspruch: true, totalGaps: 2, gapsByActor: { mensch: 1, cowork: 1, knowledgescout: 0 } })])} />)
+    renderBoard(<ZyklusBoard report={report([card({ widerspruch: true, totalGaps: 2, gapsByActor: { mensch: 1, cowork: 1, knowledgescout: 0 } })])} />)
     expect(screen.getByText('Abgenommen, aber nicht mehr aktuell')).toBeTruthy()
     expect(screen.getByText(/2 Befunde · Mensch 1 · Cowork 1/)).toBeTruthy()
   })
 
   it('erklaert die Vorhaben-Erkennung, wenn kein Vorhaben gefunden wurde', () => {
-    render(<ZyklusBoard report={report([])} />)
+    renderBoard(<ZyklusBoard report={report([])} />)
     expect(screen.getByText(/Kein Vorhaben erkannt/)).toBeTruthy()
   })
 
   it('benennt Reports aus Scans vor Werkbank-W1 sichtbar, statt Titel/Status still wegzulassen', () => {
-    render(<ZyklusBoard report={report([altKarte()])} />)
+    renderBoard(<ZyklusBoard report={report([altKarte()])} />)
     expect(screen.getByText(/Scan vor Werkbank-Welle W1/)).toBeTruthy()
   })
 
   it('zeigt Bericht-Titel und -Status, sobald der Scan die W1-Felder gefuellt hat — ohne Alt-Hinweis', () => {
-    render(<ZyklusBoard report={report([card({ berichtTitel: 'Pilotprojekt Klima', berichtStatus: 'aktiv' })])} />)
+    renderBoard(<ZyklusBoard report={report([card({ berichtTitel: 'Pilotprojekt Klima', berichtStatus: 'aktiv' })])} />)
     expect(screen.getByText('Pilotprojekt Klima')).toBeTruthy()
     expect(screen.getByText('Status: aktiv')).toBeTruthy()
     expect(screen.queryByText(/Scan vor Werkbank-Welle W1/)).toBeNull()
+  })
+
+  it('Karten-Klick navigiert ins Werkbank-Detail (?tab=werkbank&vorhaben=…, W4)', async () => {
+    const onUrlUpdate = vi.fn()
+    renderBoard(<ZyklusBoard report={report([card()])} />, onUrlUpdate)
+    fireEvent.click(screen.getByRole('button', { name: /25\.01 Pilot im Werkbank-Detail oeffnen/ }))
+    await vi.waitFor(() => {
+      const letzter = onUrlUpdate.mock.calls.at(-1)?.[0] as UrlUpdateEvent | undefined
+      expect(letzter?.searchParams.get('tab')).toBe('werkbank')
+      expect(letzter?.searchParams.get('vorhaben')).toBe('f-pilot')
+    })
   })
 })

@@ -102,7 +102,12 @@ export function AgentViewPanel({ libraryId, libraryLabel, localRootPath }: Agent
               <TabsTrigger value="todos">Todos &amp; Auftrag</TabsTrigger>
             </TabsList>
             <TabsContent value="werkbank" className="mt-3">
-              <WerkbankPanel report={data.report} />
+              <WerkbankPanel
+                report={data.report}
+                generatedAt={data.generatedAt}
+                libraryLabel={libraryLabel ?? libraryId}
+                localRootPath={localRootPath ?? null}
+              />
             </TabsContent>
             <TabsContent value="baum" className="mt-3">
               <CoverageTree report={data.report} />

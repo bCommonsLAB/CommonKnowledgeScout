@@ -12,6 +12,7 @@
  */
 
 import { istBereitZurAbnahme, zaehleGapsNachAkteur } from '@/lib/agent-view/abnahme'
+import { isInSubtree } from '@/lib/agent-view/teilbaum'
 import { matchtBefundFilter } from '@/lib/agent-view/werkbank-filter'
 import type { CoverageReport } from '@/lib/agent-view/types'
 import type { CoverageDelta } from '@/lib/agent-view/coverage-delta'
@@ -49,11 +50,12 @@ function normalizePrefix(pathPrefix: string | null | undefined): string {
   return (pathPrefix ?? '').replace(/^\/+|\/+$/g, '').trim()
 }
 
-/** Liegt `path` im Teilbaum von `prefix`? Leerer Prefix matcht alles. */
-export function isInSubtree(path: string, prefix: string): boolean {
-  if (prefix === '') return true
-  return path === prefix || path.startsWith(`${prefix}/`)
-}
+/**
+ * Seit W4 wohnt `isInSubtree` in `@/lib/agent-view/teilbaum` (geteilte
+ * Funktion fuer MCP und Werkbank, §7) — Re-Export haelt bestehende Importe
+ * dieser Datei stabil.
+ */
+export { isInSubtree } from '@/lib/agent-view/teilbaum'
 
 /**
  * Bildet einen LIBRARY-relativen Filter auf einen Teilbaum-Report ab, dessen

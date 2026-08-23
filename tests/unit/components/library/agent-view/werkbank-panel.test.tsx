@@ -10,13 +10,24 @@
  * testet `vorhaben-zeile.test.tsx` isoliert.
  */
 
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { NuqsTestingAdapter } from 'nuqs/adapters/testing'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WerkbankPanel } from '@/components/library/agent-view/werkbank/werkbank-panel'
 import type { CoverageReport, VorhabenCard } from '@/lib/agent-view/types'
 
 afterEach(() => cleanup())
+
+beforeEach(() => {
+  // Detail laedt den Bericht ueber die W2-Route — hier immer „kein Bericht".
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ bericht: null, grund: 'kein_bericht' }), { status: 200 }),
+    ),
+  )
+})
 
 function card(path: string, overrides: Partial<VorhabenCard> = {}): VorhabenCard {
   return {
@@ -64,10 +75,13 @@ function report(vorhaben: VorhabenCard[], overrides: Partial<CoverageReport> = {
 }
 
 function renderPanel(r: CoverageReport, searchParams = '') {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
-    <NuqsTestingAdapter searchParams={searchParams}>
-      <WerkbankPanel report={r} />
-    </NuqsTestingAdapter>,
+    <QueryClientProvider client={queryClient}>
+      <NuqsTestingAdapter searchParams={searchParams}>
+        <WerkbankPanel report={r} generatedAt={r.generatedAt} libraryLabel="Testarchiv" localRootPath={null} />
+      </NuqsTestingAdapter>
+    </QueryClientProvider>,
   )
 }
 
@@ -107,12 +121,13 @@ describe('WerkbankPanel — Detail-Platzhalter', () => {
     expect(screen.getAllByText(/Nicht im letzten Scan/).length).toBeGreaterThan(0)
   })
 
-  it('gewaehltes Vorhaben zeigt Kopf mit Name, Stand und W4-Hinweis', () => {
+  it('gewaehltes Vorhaben zeigt das Detail: Kopf mit Status, Bericht-, Befund- und Familien-Abschnitt', () => {
     const pilot = card('1. Arbeit/Pilot', { berichtTitel: 'Pilotprojekt Klima', berichtStatus: 'aktiv' })
     renderPanel(report([pilot]), `?vorhaben=${pilot.folderId}&filter=alle`)
-    expect(screen.getAllByText('Pilotprojekt Klima').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Status: aktiv').length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/Welle W4/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Befunde des Teilbaums').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Twin-Familien').length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/folderId kopieren/).length).toBeGreaterThan(0)
   })
 })
 
