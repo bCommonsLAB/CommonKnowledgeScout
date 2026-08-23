@@ -12,6 +12,7 @@
  */
 
 import { istBereitZurAbnahme, zaehleGapsNachAkteur } from '@/lib/agent-view/abnahme'
+import { matchtBefundFilter } from '@/lib/agent-view/werkbank-filter'
 import type { CoverageReport } from '@/lib/agent-view/types'
 import type { CoverageDelta } from '@/lib/agent-view/coverage-delta'
 import { describeEmptyFilter } from './coverage-filter-warning'
@@ -92,11 +93,8 @@ export function summarizeCoverageReport(args: CoverageViewArgs) {
     : args.report.gaps.filter((gap) => isInSubtree(gap.path, prefix))
   const akteur = args.akteur ?? null
   const zyklusSchritt = args.zyklusSchritt ?? null
-  const gapsInScope = gapsInPath.filter(
-    (gap) =>
-      (akteur === null || gap.actor === akteur) &&
-      (zyklusSchritt === null || gap.zyklusSchritt === zyklusSchritt),
-  )
+  // C5-Filter ueber die geteilte Werkbank-Funktion (W3) — UI und MCP driften nicht.
+  const gapsInScope = gapsInPath.filter((gap) => matchtBefundFilter(gap, { akteur, zyklusSchritt }))
   // D2 (Pilot-Wunschliste): „bereit zur Abnahme“ = im Pfad-Scope wartet alles
   // auf den Menschen. Geteiltes Praedikat (Werkbank W1) — MCP und UI
   // urteilen identisch, kein Drift.
