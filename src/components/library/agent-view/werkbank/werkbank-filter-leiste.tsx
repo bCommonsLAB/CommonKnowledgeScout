@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input'
 import { actorLabel } from '@/lib/agent-view/labels'
 import type { GapActor, ZyklusSchritt } from '@/lib/agent-view/types'
 import type { BefundFilter, WerkbankSortierung, WerkbankStatusFilter } from '@/lib/agent-view/werkbank-filter'
+import type { WerkbankGruppierung } from '@/lib/agent-view/werkbank-gruppen'
 
 const STATUS_SEGMENTE: ReadonlyArray<{ wert: WerkbankStatusFilter; label: string }> = [
   { wert: 'alle', label: 'Alle' },
@@ -31,6 +32,12 @@ const SORTIERUNGEN: ReadonlyArray<{ wert: WerkbankSortierung; label: string }> =
   { wert: 'pfad', label: 'Pfad' },
   { wert: 'stand', label: 'Stand' },
   { wert: 'befunde', label: 'Befunde' },
+]
+
+/** F12 (W5): zweite Denk-Ebene — gruppieren nach Bereich oder Thema. */
+const GRUPPIERUNGEN: ReadonlyArray<{ wert: WerkbankGruppierung; label: string }> = [
+  { wert: 'bereich', label: 'Bereich' },
+  { wert: 'thema', label: 'Thema' },
 ]
 
 function chipKlasse(aktiv: boolean): string {
@@ -48,6 +55,8 @@ export function WerkbankFilterLeiste({
   onSuche,
   sortierung,
   onSortierung,
+  gruppierung,
+  onGruppierung,
 }: {
   statusFilter: WerkbankStatusFilter
   onStatusFilter: (wert: WerkbankStatusFilter) => void
@@ -57,6 +66,8 @@ export function WerkbankFilterLeiste({
   onSuche: (wert: string) => void
   sortierung: WerkbankSortierung
   onSortierung: (wert: WerkbankSortierung) => void
+  gruppierung: WerkbankGruppierung
+  onGruppierung: (wert: WerkbankGruppierung) => void
 }) {
   return (
     <div className="space-y-2 border-b p-2">
@@ -75,6 +86,24 @@ export function WerkbankFilterLeiste({
               {segment.label}
             </button>
           ))}
+        </div>
+        <div role="group" aria-label="Gruppieren nach" className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+          Gruppieren:
+          <span className="inline-flex rounded-md border p-0.5">
+            {GRUPPIERUNGEN.map((option) => (
+              <button
+                key={option.wert}
+                type="button"
+                aria-pressed={gruppierung === option.wert}
+                onClick={() => onGruppierung(option.wert)}
+                className={`rounded px-2 py-0.5 text-xs font-medium ${
+                  gruppierung === option.wert ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </span>
         </div>
         <label className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
           Sortierung

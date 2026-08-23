@@ -139,4 +139,13 @@ describe('WerkbankPanel — Filterleiste', () => {
     const alle = screen.getAllByRole('button', { name: 'Alle' })
     expect(alle[0].getAttribute('aria-pressed')).toBe('false')
   })
+
+  it('Gruppierung: „Bereich" ist Default, ?gruppierung=thema steuert per Deep-Link (F12, W5)', () => {
+    renderPanel(report([card('1. Arbeit/Pilot')]))
+    expect(screen.getAllByRole('button', { name: 'Bereich' })[0].getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getAllByRole('button', { name: 'Thema' })[0].getAttribute('aria-pressed')).toBe('false')
+    cleanup()
+    renderPanel(report([card('1. Arbeit/Pilot')]), '?gruppierung=thema')
+    expect(screen.getAllByRole('button', { name: 'Thema' })[0].getAttribute('aria-pressed')).toBe('true')
+  })
 })
