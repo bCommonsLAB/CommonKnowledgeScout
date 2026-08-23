@@ -95,7 +95,8 @@ Ordner, ein Durchlauf"), und von ~1200 Ordnern sind die meisten Ereignis- oder
 Strukturordner, also Navigationsrauschen. Ein Umschalter `Vorhaben | Baum`
 behält den bestehenden `CoverageTree` als Zweitmodus (F1 bleibt erfüllt),
 dessen Zeilen jetzt ebenfalls ein Vorhaben ins Detail wählen; Default-Tiefe
-im Baum: 2 aufgeklappt statt heute alles.
+im Baum: 2 aufgeklappt statt heute alles. Die Gruppierung der Liste ist
+ihrerseits umschaltbar: „Gruppieren nach: Bereich | Thema" (F12, Welle W5).
 
 **Listenzeile** (zweizeilig): Ampel · Name (Bericht-Titel als Zweitzeile bzw.
 Tooltip) · Widerspruch-Symbol · Pin (Arbeitslisten-Mitgliedschaft). Darunter
@@ -199,7 +200,7 @@ korrigieren" heißt „nie blind beurkunden".
 verwirft sie; es kommen nur Kleinst-Skalare in die `VorhabenCard`): `ampel`
 (vom Baumknoten übernommen), `berichtTitel` (H1 via vorhandenem
 `titelLesen`), `berichtFileId`, `berichtModifiedAt`, `berichtStatus`
-(Frontmatter `status`). Alte Reports ohne die Felder → sichtbarer Hinweis
+(Frontmatter `status`), `themen` (Frontmatter-Liste, für F12/W5). Alte Reports ohne die Felder → sichtbarer Hinweis
 „für Titel/Status neu scannen" (Muster „Scan vor Welle 4"). Der volle Body
 bleibt draußen — 512 KB × 100+ Vorhaben sprengte das eine Mongo-Dokument.
 
@@ -267,7 +268,8 @@ würde die Werkbank-Liste zerstören. Deshalb gestuft:
 Kein Coverage-Verlauf über Zeit, keine LLM-Prüfung, kein Umbau der
 Archiv-Ansicht, kein Watcher und kein Progress-Streaming (SSE), kein
 virtualisierter Baum (der Baum-Modus skaliert über Einklappen), keine
-geteilten Arbeitslisten, keine Themen-Gruppierung (nur Ausblick §11), kein
+geteilten Arbeitslisten, kein Themen-Editor in der Sicht (Pflege nur im
+Frontmatter — die Themen-**Gruppierung** selbst ist seit 23.08. Scope, F12), kein
 Ordner-Umzug/-Merge (nur Ausblick §12), keine i18n-Umstellung (die Sicht
 bleibt durchgängig deutsch wie v1).
 
@@ -343,17 +345,21 @@ doppeltes Hinzufügen ist idempotent und sagt das (`unchanged: true`).
 
 | Welle | Inhalt | Ergebnis/Test |
 |---|---|---|
-| W1 | `VorhabenCard`-Erweiterung (`ampel`, `berichtTitel`, `berichtFileId`, `berichtModifiedAt`, `berichtStatus`) + geteiltes Prädikat „bereit zur Abnahme" (MCP + `coverage-progress` umgestellt) | Unit-Tests Karte + Prädikat; alte Reports zeigen Hinweis statt Lücke |
+| W1 | `VorhabenCard`-Erweiterung (`ampel`, `berichtTitel`, `berichtFileId`, `berichtModifiedAt`, `berichtStatus`, `themen`) + geteiltes Prädikat „bereit zur Abnahme" (MCP + `coverage-progress` umgestellt) | Unit-Tests Karte + Prädikat; alte Reports zeigen Hinweis statt Lücke |
 | W2 | Bericht-Lese-Route (F9) inkl. serverseitigem `kopf` | Routen-Test: 404 · `kein_bericht` · `zu_gross` |
 | W3 | Werkbank-Gerüst: Tab + nuqs-URL-Zustand + Resizable + virtualisierte Vorhaben-Liste (Alle/Zu tun/Bereit, Chips, Suche, Sortierung, Leer-Begründungen) + Auswahl | UI-Smoke + Leerzustand-Tests |
 | W4 | Detail-Panel: Kopf, Bericht-Render, Befunde je Akteur + Auftrag je Vorhaben, Familien, Deep-Links; Board-Karten + Todo-Zeilen verlinken | Bestehende Board-/Todo-Tests bleiben grün |
-| W5 | Arbeitslisten: Repo + Routen + Pin/Filter + Fortschrittskopf + tote Einträge | Repo-/Routen-Tests; Kreuztest Liste↔Report |
-| W6 | Stand-Route + `stand-plan` (409-Katalog inkl. ungespeichertem Precheck) + Abnehmen-UI + lokale Überlagerung | Unit `stand-plan`; alle 409-Fälle |
-| W7 | Teilbaum-Scan-Merge + Detail-Button + Scan-`concurrency` | Merge-Test: Voll-Scan ≡ Merge |
+| W5 | Themen-Gruppierung (F12, vorgezogen 23.08.): Gruppier-Umschalter „Bereich \| Thema", ein Vorhaben je Thema, benannte „Ohne Thema"-Gruppe, URL-State `?gruppierung=` | Unit Gruppierung (mehrfach/leer/unbekannt); Leergruppen-Benennung |
+| W6 | Arbeitslisten: Repo + Routen + Pin/Filter + Fortschrittskopf + tote Einträge | Repo-/Routen-Tests; Kreuztest Liste↔Report |
+| W7 | Stand-Route + `stand-plan` (409-Katalog inkl. ungespeichertem Precheck) + Abnehmen-UI + lokale Überlagerung | Unit `stand-plan`; alle 409-Fälle |
+| W8 | Teilbaum-Scan-Merge + Detail-Button + Scan-`concurrency` | Merge-Test: Voll-Scan ≡ Merge |
 
 Branch-, Diff- und PR-Regeln nach `AGENTS.md` (eine PR pro Welle, Hand-off-
-Block). W1/W2 sind reine Backend-Wellen und parallel zu W3 unschädlich; W6
-setzt W1 (Prädikat) voraus, W7 ist bewusst letzte.
+Block). W1/W2 sind reine Backend-Wellen und parallel zu W3 unschädlich; W5
+setzt W1 (`themen` in der Karte) und W3 (Liste) voraus, W7 setzt W1
+(Prädikat) voraus, W8 ist bewusst letzte. Die Themen-Welle wurde am
+23.08.2026 aus dem Ausblick vorgezogen (Peters Feedback: Orientierung in
+hunderten Ordnern braucht die Denk-Ebene, nicht nur die Ordner-Ebene).
 
 ## 9. Akzeptanzkriterien
 
@@ -370,9 +376,12 @@ setzt W1 (Prädikat) voraus, W7 ist bewusst letzte.
    Bericht-Body kommt ausschließlich über die Lese-Route.
 7. Bericht-Leerzustände nachgewiesen: `kein_bericht` rendert den
    Cowork-Befund + Auftrag, `zu_gross` verweist ins Archiv.
-8. Merge-Report und Voll-Scan-Report sind ununterscheidbar (W7-Test).
+8. Merge-Report und Voll-Scan-Report sind ununterscheidbar (W8-Test).
 9. Alte Reports (vor W1) funktionieren mit sichtbarem Hinweis, ohne Absturz
    und ohne stillen Fallback.
+10. Themen-Gruppierung nachgewiesen: ein Vorhaben mit zwei Themen erscheint
+    unter beiden; Vorhaben ohne `themen` landen in einer benannten
+    „Ohne Thema"-Gruppe, nie unsichtbar.
 
 ## 10. Zusammenspiel mit der MCP-Brücke
 
@@ -385,19 +394,34 @@ und nimmt ab. Die Abnahme selbst bleibt bewusst ein UI-Akt des Menschen —
 es gibt kein MCP-Werkzeug `stand_setzen` (Erweiterung wäre ein eigener
 Beschluss).
 
-## 11. Ausblick: Themen als zweite Gruppierung
+## 11. F12 — Themen als zweite Gruppierung (Welle W5, vorgezogen 23.08.2026)
 
 Peters Denken ist nicht deckungsgleich mit der Ordnerstruktur: Themen wie
 „Commoning" oder „Secretary Service" laufen quer durch mehrere Vorhaben.
-Bestandsaufnahme: das Feld `themen` **existiert bereits** im
-`BERICHT.md`-Frontmatter (flach, Obsidian-kompatibel) und wird vom
-Sichten-Modul (`bericht-lesen.ts`) geparst und in `PROJEKTE.md` als
-Themenregister aggregiert. Skizze für eine spätere Welle: `BERICHT.md`-
-`themen` ist die führende Quelle je Vorhaben (`_INDEX.md` nur als Fallback
-für Vorhaben ohne Bericht); der Scan übernimmt die Liste in die
-`VorhabenCard`; die Werkbank bekommt im Gruppier-Umschalter den dritten Wert
-„Gruppieren nach: **Bereich | Thema**" — ein Vorhaben erscheint dann unter
-jedem seiner Themen. Kein v2-Scope; braucht Peters Bestätigung des Feldorts.
+Ursprünglich als Ausblick geführt, am 23.08.2026 nach Peters Feedback in
+den v2-Scope gezogen („Orientierung in hunderten Verzeichnissen braucht
+meine Denk-Ebene, nicht nur die Ordner-Ebene") — als Welle W5, direkt nach
+dem Werkbank-Gerüst.
+
+- **Datenquelle:** das Feld `themen` **existiert bereits** im
+  `BERICHT.md`-Frontmatter (flach, Obsidian-kompatibel) und wird vom
+  Sichten-Modul (`bericht-lesen.ts`) geparst und in `PROJEKTE.md` als
+  Themenregister aggregiert. `BERICHT.md`-`themen` ist die führende Quelle
+  je Vorhaben; `_INDEX.md`-`themen` zählt nur als Fallback für Vorhaben
+  ohne Bericht. Der Scan übernimmt die Liste in die `VorhabenCard` (W1).
+- **UI:** der Gruppier-Umschalter der Werkbank-Liste bekommt den zweiten
+  Wert „Gruppieren nach: **Bereich | Thema**" (URL-State `?gruppierung=`).
+  Ein Vorhaben erscheint unter **jedem** seiner Themen; Vorhaben ohne
+  `themen` landen in einer benannten Gruppe „Ohne Thema" — sichtbar, nie
+  still verschluckt. Fortschrittsköpfe und Filter wirken unverändert auf
+  die gruppierten Zeilen.
+- **Pflege:** die Zuordnung Verzeichnis→Thema geschieht ausschließlich im
+  Frontmatter (Cowork beim Berichten oder von Hand in Obsidian) — bewusst
+  **kein Themen-Editor** in der Sicht und keine zweite Datenbank: die
+  Wahrheit bleibt im erklärten Buch, die Werkbank gruppiert nur danach.
+- **Grenzen v2:** keine Themen-Hierarchie, kein Umbenennen/Zusammenlegen
+  von Themen aus der Sicht (das wäre ein Schreibweg über viele Berichte —
+  Cowork-Auftrag, kein UI-Feature).
 
 ## 12. Ausblick: Ordner-Umzug und Zusammenführung
 
@@ -429,10 +453,13 @@ spätes eigenes Feature, **nach** der Verarbeitung der bestehenden Struktur:
 3. **Abnahme-Precheck-Kosten:** frischer Teilbaum-Scan je Abnahme (Sekunden;
    429-Risiko bei Serien-Abnahmen auf OneDrive) — akzeptiert, oder schwächere
    Variante (nur Report-Frische) bewusst wählen?
-4. **Themen-Feldort** (§11): `BERICHT.md` führend bestätigen?
+4. ~~Themen-Feldort~~ — entschieden 23.08.2026: Themen-Welle vorgezogen
+   (jetzt W5/F12, §11); `BERICHT.md`-`themen` führend, `_INDEX.md` nur
+   Fallback ohne Bericht.
 5. **Scan-`concurrency`:** Wert (Vorschlag 6–10 wie Sichten-Lauf) und ob als
    Library-Config-Feld oder Konstante.
 6. **Berechtigung Stand-Schreiben:** alle Library-Mitglieder oder
    Owner/Co-Creator (Präzedenz `source_user_states`)?
 7. **Gap-Budget 5000** fürs Voll-Archiv belassen oder erhöhen?
-8. **Übergangs-UX bis W7:** genügt das Scope-Banner bei Teilbaum-Reports?
+8. **Übergangs-UX bis W8 (Merge):** genügt das Scope-Banner bei
+   Teilbaum-Reports?
