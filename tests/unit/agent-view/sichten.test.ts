@@ -11,7 +11,7 @@ import type { ArchiveFolderNode } from '@/lib/agent-view/archive-types'
 import { offenePunkte, projektAusBericht, sammleProjekte, zaehleProjektordner } from '@/lib/agent-view/sichten/bericht-lesen'
 import { renderAktuell } from '@/lib/agent-view/sichten/aktuell-render'
 import { renderProjekte, themenregister } from '@/lib/agent-view/sichten/projekte-render'
-import { datumLesbar } from '@/lib/agent-view/sichten/types'
+import { datumLesbar, istUeberfaellig } from '@/lib/agent-view/sichten/types'
 
 const NOW = new Date('2026-08-22T10:00:00.000Z')
 
@@ -108,6 +108,28 @@ describe('renderAktuell', () => {
     expect(out).not.toContain('Dritter Punkt')
     expect(out).toContain('- 23.01 Buch — ruhend, zuletzt 1. September 2024')
     expect(out).toContain('**Abdeckung:** 3 Projekte haben einen Bericht.')
+    expect(out).not.toContain('überfällig')
+  })
+
+  it('markiert vergangene Termine als überfällig statt sie still als „nächste" zu führen (B2)', () => {
+    const VERGANGEN = berichtFolder('2. Wertephase/25.03 DIVA', {
+      projekt: '25.03 DIVA', status: 'aktiv', rolle: 'anwendung', bereich: 'werte',
+      letzte_aktivitaet: '2026-08-10', naechster_termin: '2026-08-17',
+    }, '# DIVA\n\nTexturen.\n')
+    const out = renderAktuell(sammleProjekte([VERGANGEN, KLIMA]), NOW)
+    expect(out).toContain('- **17. August 2026** · DIVA  ⚠️ *überfällig*')
+    expect(out).toContain('- **25. August 2026** · Klimamaßnahmen Südtirol  ⚠️ *noch nicht fixiert* — 25.08 Zoom')
+    expect(out).toContain('> Termine mit ⚠️ *überfällig* liegen vor dem Erzeugungstag')
+    expect(out).toContain('| anwendung | 10. August 2026 | 17. August 2026 ⚠️ überfällig |')
+  })
+
+  it('istUeberfaellig: Tag, Monat (erst ab Folgemonat) und Fremdformat', () => {
+    expect(istUeberfaellig('2026-08-21', '2026-08-22')).toBe(true)
+    expect(istUeberfaellig('2026-08-22', '2026-08-22')).toBe(false)
+    expect(istUeberfaellig('2026-08', '2026-08-22')).toBe(false)
+    expect(istUeberfaellig('2026-07', '2026-08-22')).toBe(true)
+    expect(istUeberfaellig('Herbst 2026', '2026-08-22')).toBe(false)
+    expect(istUeberfaellig(null, '2026-08-22')).toBe(false)
   })
 })
 

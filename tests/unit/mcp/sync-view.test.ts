@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest'
 import type { LibrarySyncReport, SourceSyncReportRow } from '@/lib/shadow-twin/sync-engine/report-types'
-import { summarizeSyncReport } from '@/lib/mcp/sync-view'
+import { GROUP_THRESHOLD, compactOperations, summarizeSyncReport } from '@/lib/mcp/sync-view'
 
 function row(overrides: Partial<SourceSyncReportRow> = {}): SourceSyncReportRow {
   return {
@@ -65,5 +65,44 @@ describe('summarizeSyncReport', () => {
     expect(view.hinweis).toContain('Preset')
     expect(view.zeilen[0].operationen[0]).toMatchObject({ imPreset: true, ausgefuehrt: true })
     expect(view.operationen.ausgefuehrt).toEqual({ 'mirror-artifact-to-storage': 1 })
+  })
+
+  it('verdichtet gleichartige stumme Operationen je Quelle ab GROUP_THRESHOLD (B1)', () => {
+    const deadPages = Array.from({ length: 17 }, (_, index) => ({
+      type: 'delete-dead-page-md' as const, kind: 'transcript' as const, targetLanguage: '',
+      fileName: `page_${String(index + 1).padStart(3, '0')}.de.md`, selected: true,
+    }))
+    const view = summarizeSyncReport(
+      engineReport([row({
+        operations: [
+          ...deadPages,
+          { type: 'register-image-fragments', kind: 'image', targetLanguage: '', fileName: '', selected: true },
+          { type: 'mirror-image-to-storage', kind: 'image', targetLanguage: '', fileName: 'a.jpeg', selected: false },
+          { type: 'mirror-image-to-storage', kind: 'image', targetLanguage: '', fileName: 'b.jpeg', selected: false, note: 'nur Export' },
+        ],
+      })]),
+    )
+    const ops = view.zeilen[0].operationen
+    expect(ops).toHaveLength(4)
+    expect(ops[0]).toEqual({
+      type: 'delete-dead-page-md', imPreset: true, verdichtet: true, anzahl: 17,
+      dateien: ['page_001.de.md', 'page_002.de.md', 'page_003.de.md'], weitereDateien: 14,
+    })
+    // Einzelne und „sprechende" Operationen (Notiz) bleiben unveraendert sichtbar.
+    expect(ops[1]).toMatchObject({ type: 'register-image-fragments', imPreset: true })
+    expect(ops[2]).toMatchObject({ type: 'mirror-image-to-storage', fileName: 'a.jpeg' })
+    expect(ops[3]).toMatchObject({ type: 'mirror-image-to-storage', fileName: 'b.jpeg', note: 'nur Export' })
+    expect(view.verdichtungAb).toBe(GROUP_THRESHOLD)
+  })
+
+  it('laesst wenige gleichartige Operationen (unter GROUP_THRESHOLD) einzeln', () => {
+    const ops = compactOperations(
+      Array.from({ length: GROUP_THRESHOLD - 1 }, (_, index) => ({
+        type: 'delete-dead-page-md' as const, kind: 'transcript' as const, targetLanguage: '',
+        fileName: `page_00${index + 1}.de.md`, selected: true,
+      })),
+    )
+    expect(ops).toHaveLength(GROUP_THRESHOLD - 1)
+    expect(ops.every((op) => !('verdichtet' in op))).toBe(true)
   })
 })

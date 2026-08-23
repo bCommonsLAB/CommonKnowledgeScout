@@ -7,10 +7,15 @@
  * Status. Wortlaut und Reihenfolge wie im Skript — nur die Herkunftszeile
  * nennt jetzt KnowledgeScout. Reine Funktion.
  *
+ * Abend-Befund 22.08. (B2): Das Skript fuehrte vergangene `naechster_termin`
+ * kommentarlos als „naechste Termine". Termine vor dem Erzeugungstag tragen
+ * jetzt die Marke *ueberfaellig* — der Hinweis, dass der Bericht nachzuziehen
+ * ist (nicht die Sicht). Explizit statt still.
+ *
  * @module agent-view/sichten
  */
 
-import { berichtLink, datumKurz, datumLesbar, type ProjektDatensatz } from './types'
+import { berichtLink, datumKurz, datumLesbar, isoHeute, istUeberfaellig, type ProjektDatensatz } from './types'
 
 /** Flaches Frontmatter der erzeugten Sicht (AGENTS.md: snake_case, eine Ebene). */
 export function sichtFrontmatter(sicht: 'aktuell' | 'projekte', now: Date): string {
@@ -35,6 +40,7 @@ export function renderAktuell(projekte: readonly ProjektDatensatz[], now: Date):
     )
   const ruhend = projekte.filter((p) => p.status !== null && p.status !== 'aktiv')
   const ohne = projekte.filter((p) => p.status === null)
+  const heute = isoHeute(now)
   const z: string[] = []
 
   z.push('# AKTUELL', '')
@@ -50,12 +56,17 @@ export function renderAktuell(projekte: readonly ProjektDatensatz[], now: Date):
     for (const p of termine) {
       const offen = p.schritte.length > 0 ? ` — ${p.schritte[0]}` : ''
       const marke = p.terminFixiert ? '' : '  ⚠️ *noch nicht fixiert*'
-      z.push(`- **${datumLesbar(p.naechsterTermin)}** · ${p.titel || p.projekt}${marke}${offen}`)
+      const verzug = istUeberfaellig(p.naechsterTermin, heute) ? '  ⚠️ *überfällig*' : ''
+      z.push(`- **${datumLesbar(p.naechsterTermin)}** · ${p.titel || p.projekt}${marke}${verzug}${offen}`)
     }
     z.push('')
     if (termine.some((p) => !p.terminFixiert)) {
       z.push('> Termine mit ⚠️ sind noch nicht vereinbart — bis dahin ist alles,')
       z.push('> was daran hängt, unsicher.', '')
+    }
+    if (termine.some((p) => istUeberfaellig(p.naechsterTermin, heute))) {
+      z.push('> Termine mit ⚠️ *überfällig* liegen vor dem Erzeugungstag — `naechster_termin`')
+      z.push('> im jeweiligen BERICHT.md nachziehen (Befund `bericht_veraltet`).', '')
     }
   }
 
@@ -63,6 +74,7 @@ export function renderAktuell(projekte: readonly ProjektDatensatz[], now: Date):
   for (const p of aktiv) {
     let termin = p.naechsterTermin ? datumLesbar(p.naechsterTermin) : '—'
     if (p.naechsterTermin && !p.terminFixiert) termin += ' ⚠️'
+    if (istUeberfaellig(p.naechsterTermin, heute)) termin += ' ⚠️ überfällig'
     const zuletzt = p.letzteAktivitaet ? datumLesbar(p.letzteAktivitaet) : '—'
     z.push(`| ${berichtLink(p, p.projekt)} | ${p.rolle ?? '—'} | ${zuletzt} | ${termin} |`)
   }
