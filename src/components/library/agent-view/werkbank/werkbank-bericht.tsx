@@ -104,9 +104,13 @@ export function WerkbankBericht({
   return (
     <div className="space-y-2">
       {kopfzeile}
-      <div className="rounded-md border p-2">
-        {/* Bestehender Markdown-Viewer, kompakt — kein zweiter Renderer. */}
-        <MarkdownPreview content={data.bericht.body} compact />
+      <div className="rounded-md border">
+        {/* Bestehender Markdown-Viewer, kompakt — kein zweiter Renderer.
+            max-h ist PFLICHT: die Preview hat ein h-full-Root mit innerem
+            Scroll-Container und braucht eine Hoehengrenze vom Aufrufer
+            (Muster artifact-markdown-panel) — ohne sie war der Bericht nicht
+            scrollbar und verdeckte die Abschnitte darunter (Test-Befund 24.08.). */}
+        <MarkdownPreview content={data.bericht.body} compact className="max-h-[60vh]" />
       </div>
     </div>
   )
