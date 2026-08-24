@@ -116,11 +116,13 @@ export function WerkbankDetail({ karte, vorhabenId, report, generatedAt, library
           </span>
         </div>
         {karte.themen !== undefined && karte.themen.length > 0 && (
-          <p className="flex flex-wrap gap-1">
+          // div statt p: die Badge-Komponente rendert ein div, und ein div in
+          // einem p ist invalides HTML (React validateDOMNesting, Test-Befund 24.08.).
+          <div className="flex flex-wrap gap-1">
             {karte.themen.map((thema) => (
               <Badge key={thema} variant="outline" className="text-xs">{thema}</Badge>
             ))}
-          </p>
+          </div>
         )}
         {karte.widerspruch && (
           <p className="text-sm font-medium text-red-500">
