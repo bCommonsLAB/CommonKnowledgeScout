@@ -20,7 +20,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { OrdnerNichtGefundenError } from '@/lib/agent-view/bericht-laden'
-import { scanLibraryCoverage } from '@/lib/agent-view/run-coverage-scan'
 import {
   KeinIndexError,
   NichtBereitError,
@@ -29,7 +28,7 @@ import {
   StandValidationError,
   parseStandRequest,
 } from '@/lib/agent-view/stand-plan'
-import { setzeStand } from '@/lib/agent-view/stand-schreiben'
+import { fuehreStandAus } from '@/lib/agent-view/stand-ausfuehren'
 import { FileLogger } from '@/lib/debug/logger'
 import { getCoverageReport } from '@/lib/repositories/agent-view-coverage-repo'
 import { LibraryService } from '@/lib/services/library-service'
@@ -59,36 +58,11 @@ export async function POST(
     const provider = await getServerProvider(userEmail, libraryId)
     const gespeichert = await getCoverageReport(libraryId)
 
-    const ergebnis = await setzeStand(
-      {
-        request: standRequest,
-        gespeicherterGeneratedAt: gespeichert?.generatedAt ?? null,
-        // Stufe 4: frisch gerechnet, NIE gespeichert (§F10: Rechnung ≠ Cache).
-        scanTeilbaum: async () =>
-          (await scanLibraryCoverage({ libraryId, userEmail, folderId: standRequest.folderId })).gaps,
-        now: () => new Date().toISOString(),
-      },
-      {
-        listFolder: (id) => provider.listItemsById(id),
-        readText: async (id) => (await provider.getBinary(id)).blob.text(),
-        deleteFile: (id) => provider.deleteItem(id),
-        uploadMarkdown: async (folderId, name, content) => {
-          const uploaded = await provider.uploadFile(
-            folderId,
-            new File([content], name, { type: 'text/markdown' }),
-          )
-          return { fileId: uploaded.id }
-        },
-        folderName: async () => {
-          try {
-            return (await provider.getItemById(standRequest.folderId)).metadata.name
-          } catch {
-            // Lookup dient nur der Anzeige — scheitert er, ist die Id die beste Aussage.
-            return standRequest.folderId
-          }
-        },
-      },
-    )
+    const ergebnis = await fuehreStandAus({
+      libraryId, userEmail, provider,
+      request: standRequest,
+      gespeicherterGeneratedAt: gespeichert?.generatedAt ?? null,
+    })
 
     FileLogger.info('agent-view-stand', 'Stand gesetzt', {
       libraryId, folderId: standRequest.folderId,

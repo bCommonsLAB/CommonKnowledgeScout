@@ -19,11 +19,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
-import { mergeTeilbaumReport } from '@/lib/agent-view/report-merge'
-import { scanLibraryCoverage } from '@/lib/agent-view/run-coverage-scan'
-import type { CoverageReport } from '@/lib/agent-view/types'
+import { scanneUndSpeichere } from '@/lib/agent-view/scan-speichern'
 import { FileLogger } from '@/lib/debug/logger'
-import { getCoverageReport, saveCoverageReport } from '@/lib/repositories/agent-view-coverage-repo'
 
 /** Grosszuegig: Library-weite Scans laufen ueber Engine-Check UND Archiv-Walk. */
 export const maxDuration = 600
@@ -67,36 +64,15 @@ export async function POST(
     }
 
     const folderId = readFolderId(body)
-    const report = await scanLibraryCoverage({ libraryId, userEmail, folderId })
 
     // W8 (F10): Ein Teilbaum-Scan MERGED in den gespeicherten Voll-Report,
-    // statt ihn zu ersetzen — die Werkbank-Liste bleibt vollstaendig. Nicht
-    // mergebare Lagen sind benannte Fallbacks: dann ersetzt der Teil-Report
-    // wie vor W8 (Scope-Banner zeigt das an).
-    let zuSpeichern: CoverageReport = report
-    let merged = false
-    let mergeHinweis: string | null = null
-    if (folderId !== null) {
-      const gespeichert = await getCoverageReport(libraryId)
-      if (gespeichert === null) {
-        mergeHinweis = 'Kein gespeicherter Report vorhanden — der Teilbaum-Report wird direkt gespeichert.'
-      } else if (gespeichert.gapsTruncated) {
-        mergeHinweis =
-          'Die gespeicherte Befundliste ist gekappt — Merge nicht beweisbar, der Teilbaum-Report ersetzt sie (einmal voll scannen).'
-      } else {
-        const ergebnis = mergeTeilbaumReport({ voll: gespeichert.report, teil: report })
-        if (ergebnis.merged) {
-          zuSpeichern = ergebnis.report
-          merged = true
-        } else {
-          mergeHinweis = ergebnis.erklaerung
-          FileLogger.info('agent-view-scan', 'Teilbaum-Merge fiel zurueck', {
-            libraryId, folderId, grund: ergebnis.grund,
-          })
-        }
-      }
+    // statt ihn zu ersetzen — die Werkbank-Liste bleibt vollstaendig. Der
+    // Ablauf wohnt in `scan-speichern.ts`, damit die MCP-Bruecke exakt
+    // denselben nimmt (kein Drift, Live-Befund 24.08.2026).
+    const { stored, merged, mergeHinweis } = await scanneUndSpeichere({ libraryId, userEmail, folderId })
+    if (mergeHinweis !== null && folderId !== null) {
+      FileLogger.info('agent-view-scan', 'Teilbaum-Merge fiel zurueck', { libraryId, folderId, mergeHinweis })
     }
-    const stored = await saveCoverageReport(zuSpeichern)
 
     return NextResponse.json({
       report: stored.report,

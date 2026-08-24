@@ -14,8 +14,8 @@
 
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { scanLibraryCoverage } from '@/lib/agent-view/run-coverage-scan'
-import { getCoverageReport, saveCoverageReport } from '@/lib/repositories/agent-view-coverage-repo'
+import { scanneUndSpeichere } from '@/lib/agent-view/scan-speichern'
+import { getCoverageReport } from '@/lib/repositories/agent-view-coverage-repo'
 import { LibraryService } from '@/lib/services/library-service'
 import { runLibrarySync } from '@/lib/shadow-twin/sync-engine/run-library-sync'
 import { summarizeCoverageReport } from './coverage-view'
@@ -35,6 +35,7 @@ import { registerJobTools } from './tools-jobs'
 import { registerInfoTool } from './tools-info'
 import { registerSichtenTools } from './tools-sichten'
 import { registerAenderungenTools } from './tools-aenderungen'
+import { registerStandTool } from './tools-stand'
 import { registerOrdnerTools } from './tools-ordner'
 import { registerUmzugTools } from './tools-umzug'
 
@@ -46,6 +47,7 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerJobTools(server)
   registerSichtenTools(server)
   registerAenderungenTools(server)
+  registerStandTool(server)
   registerInfoTool(server)
   server.registerTool(
     'bibliotheken_auflisten',
@@ -128,7 +130,9 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
         'wegwerfbaren Report. TEUER: ein Storage-API-Call pro Ordner, und der MCP-Client bricht ' +
         'Aufrufe nach ~60 Sekunden ab. Deshalb IMMER auf einen Teilbaum begrenzen — per folderId ' +
         'ODER per pfad (braucht keinen Report). Der grosse Erst-Scan einer Library gehoert in die ' +
-        'KS-Oberflaeche (Agentensicht → „Neu scannen"). Schreibt NUR den Report-Cache.',
+        'KS-Oberflaeche (Agentensicht → „Neu scannen"). Ein Teilbaum-Scan MERGED in den gespeicherten ' +
+        'Voll-Report (die Gesamtsicht bleibt vollstaendig); ist der Merge nicht beweisbar, ersetzt der ' +
+        'Teil-Report ihn und inVollReportGemergt=false nennt den Grund. Schreibt NUR den Report-Cache.',
       inputSchema: { libraryId: LIBRARY_ID, folderId: FOLDER_ID, pfad: SCOPE_PFAD },
     },
     async ({ libraryId, folderId, pfad }) => {
@@ -136,15 +140,18 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
         const userEmail = mcpUserEmail()
         await requireLibrary(userEmail, libraryId)
         const scope = await resolveScope({ userEmail, libraryId, folderId, pfad })
-        const report = await scanLibraryCoverage({
+        // W8-Nachzug: derselbe Weg wie der Knopf in der Agentensicht — ein
+        // Teilbaum-Scan MERGED in den gespeicherten Voll-Report, statt ihn zu
+        // ersetzen. Vorher liess ein MCP-Teilbaum-Scan die Werkbank mit einem
+        // einzigen Vorhaben zurueck (Live-Befund 24.08.2026).
+        const { stored, merged, mergeHinweis } = await scanneUndSpeichere({
           libraryId, userEmail, folderId: scope ?? null,
           // Bei pfad-Aufruf kennt der Report seinen library-relativen Scope —
           // damit koennen spaetere library-relative Filter abgebildet werden.
           scopePath: pfad ?? null,
         })
-        const stored = await saveCoverageReport(report)
-        return jsonResult(
-          summarizeCoverageReport({
+        return jsonResult({
+          ...summarizeCoverageReport({
             report: stored.report,
             generatedAt: stored.generatedAt,
             storedGapsTruncated: stored.gapsTruncated,
@@ -152,7 +159,10 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
             delta: stored.delta ?? null,
             deltaHinweis: stored.deltaHinweis ?? null,
           }),
-        )
+          /** true = in den Voll-Report gemergt; false + Hinweis = ersetzt (benannt). */
+          inVollReportGemergt: merged,
+          mergeHinweis,
+        })
       } catch (error) {
         return errorResult(error)
       }
