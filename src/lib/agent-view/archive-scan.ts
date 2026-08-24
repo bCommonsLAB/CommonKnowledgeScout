@@ -63,8 +63,9 @@ export async function scanArchive(args: {
    * Parallele Ordner-Listings je Stapel (W1-Befund: 369 Ordner seriell = 80 s
    * auf OneDrive). Default 1 = exakt das bisherige serielle Verhalten; der
    * Provider behandelt 429/Retry-After selbst. Bei concurrency > 1 ist die
-   * Reihenfolge von `folders` antwortzeitabhaengig — Konsumenten sortieren;
-   * der Coverage-Scan bleibt bei 1 (deterministischer Report).
+   * Reihenfolge von `folders` antwortzeitabhaengig — Konsumenten sortieren
+   * (der Coverage-Scan tut das seit W8 und faehrt mit
+   * `COVERAGE_SCAN_CONCURRENCY`; der Report bleibt reproduzierbar).
    */
   concurrency?: number
   /**

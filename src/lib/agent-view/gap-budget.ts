@@ -25,21 +25,24 @@ const NEVER_COLLAPSED: ReadonlySet<CoverageGapType> = new Set<CoverageGapType>([
   'stand_widerspruch',
 ])
 
-/** Ordner-Id → Id des naechsten `ungesichtet`-Vorfahren (inkl. sich selbst). */
+/**
+ * Ordner-Id → Id des AEUSSERSTEN `ungesichtet`-Vorfahren (inkl. sich selbst).
+ * Der Blick geht ausschliesslich NACH OBEN: Vorfahren eines ungesichteten
+ * Ordners liegen nicht in dessen Teilbaum und werden nie mitkollabiert
+ * (W8-Invarianz-Befund: die alte Ketten-Zuordnung verschluckte Befunde an
+ * Bereichen und Wurzel im Sammel-Gap eines tiefen Ordners).
+ */
 export function collapseRootByFolder(folders: readonly ArchiveFolderNode[]): Map<string, string> {
   const byId = new Map(folders.map((folder) => [folder.folderId, folder]))
   const result = new Map<string, string>()
   for (const folder of folders) {
     let current: ArchiveFolderNode | undefined = folder
-    const chain: string[] = []
     let root: string | null = null
     while (current) {
-      chain.push(current.folderId)
       if (current.bearbeitungsstand === 'ungesichtet') root = current.folderId
       current = current.parentFolderId === null ? undefined : byId.get(current.parentFolderId)
     }
-    // Der AEUSSERSTE ungesichtete Vorfahre gewinnt (ein Sammel-Gap je Teilbaum).
-    if (root !== null) for (const id of chain) if (!result.has(id)) result.set(id, root)
+    if (root !== null) result.set(folder.folderId, root)
   }
   return result
 }
@@ -76,8 +79,8 @@ export function applyGapBudget(
     const folder = byId.get(folderId)
     if (!folder) throw new Error(`Sammel-Gap ohne Ordner: ${folderId}`)
     collapsed += count
-    kept.push(
-      createGap({
+    kept.push({
+      ...createGap({
         type: 'teilbaum_ungesichtet',
         scope: 'folder',
         targetId: folder.folderId,
@@ -87,7 +90,8 @@ export function applyGapBudget(
         message: `Ungesichteter Teilbaum — ${count} Einzelbefund(e) zusammengefasst`,
         detail: 'bearbeitungsstand: ungesichtet — erst sichten (Zyklus Schritt 1), dann einzeln bewerten',
       }),
-    )
+      anzahl: count,
+    })
   }
   return { gaps: kept, collapsed }
 }

@@ -18,26 +18,20 @@
 import { useMemo } from 'react'
 import { useAtom } from 'jotai'
 import { ArrowLeft } from 'lucide-react'
-import { parseAsNumberLiteral, parseAsString, parseAsStringLiteral, useQueryState } from 'nuqs'
 import { uiPanePrefsAtom } from '@/atoms/ui-prefs-atom'
 import { Button } from '@/components/ui/button'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { useWerkbankListe } from '@/hooks/agent-view/use-werkbank-liste'
+import { useWerkbankUrlState } from '@/hooks/agent-view/use-werkbank-url-state'
 import type { CoverageReport } from '@/lib/agent-view/types'
 import { karteOhneWerkbankFelder } from '@/lib/agent-view/vorhaben-board'
 import { filtereVorhaben, sortiereVorhaben, type BefundFilter } from '@/lib/agent-view/werkbank-filter'
 import { beschreibeLeereWerkbankListe } from '@/lib/agent-view/werkbank-leer'
-import type { WerkbankGruppierung } from '@/lib/agent-view/werkbank-gruppen'
 import { VorhabenListe } from './vorhaben-liste'
+import type { TeilbaumScanProps } from './teilbaum-scan-knopf'
 import { WerkbankDetail } from './werkbank-detail'
 import { WerkbankFilterLeiste } from './werkbank-filter-leiste'
 import { WerkbankListenBereich } from './werkbank-listen-bereich'
-
-const STATUS_WERTE = ['alle', 'zu_tun', 'bereit', 'liste'] as const
-const SORT_WERTE = ['pfad', 'stand', 'befunde'] as const
-const AKTEUR_WERTE = ['mensch', 'cowork', 'knowledgescout'] as const
-const SCHRITT_WERTE = [1, 2, 3, 4] as const
-const GRUPPIERUNG_WERTE: readonly WerkbankGruppierung[] = ['bereich', 'thema'] as const
 
 export interface WerkbankPanelProps {
   report: CoverageReport
@@ -46,32 +40,17 @@ export interface WerkbankPanelProps {
   libraryLabel: string
   /** `config.agentView.localRootPath` — absolute Pfade im Auftrag (F3). */
   localRootPath: string | null
+  /** W8 (F10): Teilbaum-Scan aus dem Detail — merged in den Voll-Report. */
+  teilbaumScan?: TeilbaumScanProps
 }
 
-export function WerkbankPanel({ report, generatedAt, libraryLabel, localRootPath }: WerkbankPanelProps) {
+export function WerkbankPanel({ report, generatedAt, libraryLabel, localRootPath, teilbaumScan }: WerkbankPanelProps) {
   const [prefs, setPrefs] = useAtom(uiPanePrefsAtom)
-  const [vorhabenId, setVorhabenId] = useQueryState('vorhaben', parseAsString)
-  const [statusFilter, setStatusFilter] = useQueryState(
-    'filter',
-    parseAsStringLiteral(STATUS_WERTE).withDefault('zu_tun'),
-  )
-  const [akteur, setAkteur] = useQueryState('akteur', parseAsStringLiteral(AKTEUR_WERTE))
-  const [schritt, setSchritt] = useQueryState('schritt', parseAsNumberLiteral(SCHRITT_WERTE))
-  const [suche, setSuche] = useQueryState(
-    'q',
-    parseAsString.withDefault('').withOptions({ throttleMs: 300 }),
-  )
-  const [sortierung, setSortierung] = useQueryState(
-    'sort',
-    parseAsStringLiteral(SORT_WERTE).withDefault('pfad'),
-  )
-  // F12 (W5): zweite Gruppierungs-Ebene „Thema" — teilbar wie alle Filter.
-  const [gruppierung, setGruppierung] = useQueryState(
-    'gruppierung',
-    parseAsStringLiteral(GRUPPIERUNG_WERTE).withDefault('bereich'),
-  )
-  // W6 (F7): aktive Arbeitsliste im Filter-Modus „liste".
-  const [listeId, setListeId] = useQueryState('liste', parseAsString)
+  const {
+    vorhabenId, setVorhabenId, statusFilter, setStatusFilter, akteur, setAkteur,
+    schritt, setSchritt, suche, setSuche, sortierung, setSortierung,
+    gruppierung, setGruppierung, listeId, setListeId,
+  } = useWerkbankUrlState()
   const arbeitsliste = useWerkbankListe({
     libraryId: report.libraryId,
     vorhaben: report.vorhaben,
@@ -154,6 +133,7 @@ export function WerkbankPanel({ report, generatedAt, libraryLabel, localRootPath
       generatedAt={generatedAt}
       libraryLabel={libraryLabel}
       localRootPath={localRootPath}
+      teilbaumScan={teilbaumScan}
     />
   )
 

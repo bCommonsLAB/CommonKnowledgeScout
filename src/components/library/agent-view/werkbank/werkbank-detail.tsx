@@ -33,6 +33,7 @@ import {
 import type { CoverageReport, VorhabenCard } from '@/lib/agent-view/types'
 import { CoverageAmpel } from '../coverage-ampel'
 import { StandAktionen } from './stand-aktionen'
+import { TeilbaumScanKnopf, type TeilbaumScanProps } from './teilbaum-scan-knopf'
 import { WerkbankBefunde } from './werkbank-befunde'
 import { WerkbankBericht } from './werkbank-bericht'
 import { WerkbankFamilien } from './werkbank-familien'
@@ -46,9 +47,10 @@ export interface WerkbankDetailProps {
   generatedAt: string
   libraryLabel: string
   localRootPath: string | null
+  teilbaumScan?: TeilbaumScanProps
 }
 
-export function WerkbankDetail({ karte, vorhabenId, report, generatedAt, libraryLabel, localRootPath }: WerkbankDetailProps) {
+export function WerkbankDetail({ karte, vorhabenId, report, generatedAt, libraryLabel, localRootPath, teilbaumScan }: WerkbankDetailProps) {
   const { toast } = useToast()
   const curation = useTwinCuration(report.libraryId)
   const stand = useStand(report.libraryId)
@@ -106,6 +108,9 @@ export function WerkbankDetail({ karte, vorhabenId, report, generatedAt, library
             {karte.widerspruch && <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" aria-hidden />}
           </h2>
           <span className="ml-auto flex items-center gap-2">
+            {teilbaumScan && (
+              <TeilbaumScanKnopf folderId={karte.folderId} onTeilbaumScan={teilbaumScan.onScan} isScanning={teilbaumScan.isScanning} />
+            )}
             <ZuListeKnopf libraryId={report.libraryId} karte={karte} />
             <a href={archivHref} className="inline-flex items-center gap-1 text-xs underline-offset-2 hover:underline">
               Im Archiv oeffnen <ExternalLink className="h-3 w-3" aria-hidden />
@@ -140,6 +145,11 @@ export function WerkbankDetail({ karte, vorhabenId, report, generatedAt, library
           </p>
         )}
         <StandAktionen karte={karte} generatedAt={generatedAt} stand={stand} />
+        {teilbaumScan?.hinweis && (
+          <p className="rounded-md bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-400">
+            Nicht gemergt: {teilbaumScan.hinweis}
+          </p>
+        )}
         {bereit && (
           <p className="rounded-md bg-emerald-600/10 px-2 py-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400">
             Bereit zur Abnahme — keine maschinellen Befunde offen, {karte.gapsByActor.mensch} Punkt(e) warten

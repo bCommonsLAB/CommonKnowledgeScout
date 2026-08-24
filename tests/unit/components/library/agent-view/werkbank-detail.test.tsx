@@ -190,6 +190,27 @@ describe('WerkbankDetail — Kopf, Befunde, Familien, Fusszeile', () => {
     expect(writeText.mock.calls[0][0]).toContain('1. Arbeit/Pilot')
   })
 
+  it('Teilbaum-Scan (W8): Knopf nur mit Handler, meldet die folderId; Fallback-Hinweis sichtbar', () => {
+    renderDetail(report())
+    expect(screen.queryByRole('button', { name: /Teilbaum neu scannen/ })).toBeNull()
+    cleanup()
+
+    const onScan = vi.fn()
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <WerkbankDetail
+          karte={karte()} vorhabenId="f-pilot" report={report()} generatedAt="2026-08-23T12:00:00.000Z"
+          libraryLabel="Testarchiv" localRootPath={null}
+          teilbaumScan={{ onScan, isScanning: false, hinweis: 'Der gespeicherte Report stammt von vor W8' }}
+        />
+      </QueryClientProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Teilbaum neu scannen/ }))
+    expect(onScan).toHaveBeenCalledWith('f-pilot')
+    expect(screen.getByText(/Nicht gemergt: Der gespeicherte Report stammt von vor W8/)).toBeTruthy()
+  })
+
   it('Abnehmen (W7) ueberlagert den Stand lokal und sagt dazu, dass der Report alt ist', async () => {
     renderDetail(report())
     fireEvent.click(screen.getByRole('button', { name: 'Abnehmen' }))
