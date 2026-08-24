@@ -58,10 +58,17 @@ Live-Test entstanden sind und **vor** diesem Auftrag gemergt gehören:
 
 ---
 
-## Welle A1 — Kopf entlasten, Leerzustand füllen
+## Welle A1 — Kopf entlasten, Leerzustand füllen — ERLEDIGT
 
 **Mockup: Zustand C.** Diese Welle holt nach, was Mockup Stand 3
 (23.08.2026) bereits vorsah und was nie gebaut wurde.
+
+**Stand:** umgesetzt auf `claude/welle-a1-agent-header-uscocv`. Der Kopf ist
+`agent-view-kopf.tsx` (eine Zeile), die Konventionen und das Gap-Budget
+wohnen im Aufklapp-Element `agent-view-scan-details.tsx`, der Leerzustand in
+`werkbank/werkbank-leerzustand.tsx`. `coverage-progress.tsx` und
+`coverage-summary.tsx` sind aufgelöst. „Wartet auf dich" ist kein neues
+Prädikat, sondern `zaehleWorklistFortschritt(...).bereit`.
 
 - Der Seitenkopf schrumpft auf **eine Zeile**: Scan-Zeitpunkt ·
   „berechnet, nicht Wahrheit" · Fortschritt seit dem letzten Scan.

@@ -9,8 +9,9 @@
  * gerenderter BERICHT.md (W2-Route + bestehende `MarkdownPreview`), Befunde
  * je Akteur mit Vorhaben-Auftrag, Twin-Familien (bestehende Kuration) und
  * die Fusszeile mit Teilbaum-Zaehlern + kopierbarer folderId. Leerzustaende
- * sind benannt: nichts gewaehlt → Auswahl-Hinweis + Library-Totalen;
- * unbekannte folderId → „Nicht im letzten Scan".
+ * sind benannt: nichts gewaehlt → {@link WerkbankLeerzustand} (A1: vier
+ * Karten, die betonte nennt die wartenden Vorhaben); unbekannte folderId →
+ * „Nicht im letzten Scan".
  *
  * @module components/library/agent-view
  */
@@ -37,6 +38,7 @@ import { TeilbaumScanKnopf, type TeilbaumScanProps } from './teilbaum-scan-knopf
 import { WerkbankBefunde } from './werkbank-befunde'
 import { WerkbankBerichtBlock } from './werkbank-bericht-block'
 import { WerkbankFamilien } from './werkbank-familien'
+import { WerkbankLeerzustand } from './werkbank-leerzustand'
 import { ZuListeKnopf } from './zu-liste-knopf'
 
 export interface WerkbankDetailProps {
@@ -68,15 +70,7 @@ export function WerkbankDetail({ karte, vorhabenId, report, generatedAt, library
     )
   }
   if (karte === null) {
-    return (
-      <div className="p-4 text-sm text-muted-foreground">
-        <p>Vorhaben links waehlen.</p>
-        <p className="mt-2">
-          Library gesamt: {report.totals.folders} Ordner · {report.totals.files} Dateien ·{' '}
-          {report.totals.sources} Quellen · {report.totals.twins} Twins · {gapCountLabel(report.totals.gaps)}
-        </p>
-      </div>
-    )
+    return <WerkbankLeerzustand report={report} />
   }
 
   const standOverride = stand.overrides.get(karte.folderId)

@@ -140,7 +140,9 @@ export function WerkbankPanel({ report, generatedAt, libraryLabel, localRootPath
   return (
     // Feste Hoehe: der Virtualizer braucht einen messbaren Scroll-Container,
     // der Panel-Wurzelcontainer waechst aber frei (overflow-auto am Tab).
-    <div className="flex h-[calc(100dvh-16rem)] min-h-[420px] flex-col gap-2">
+    // A1: ueber der Arbeitsflaeche stehen nur noch Kopfzeile und Tab-Leiste —
+    // der Abzug schrumpft entsprechend (vorher 16rem mit Kennzahlen-Bloecken).
+    <div className="flex h-[calc(100dvh-11rem)] min-h-[420px] flex-col gap-2">
       {report.vorhaben.some(karteOhneWerkbankFelder) && (
         <p className="text-xs text-muted-foreground">
           Dieser Report stammt aus einem Scan vor Werkbank-Welle W1 — Ampel, Bericht-Titel/-Status und Themen
