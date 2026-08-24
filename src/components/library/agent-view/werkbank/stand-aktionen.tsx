@@ -21,17 +21,20 @@
 
 import { Button } from '@/components/ui/button'
 import type { UseStandResult } from '@/hooks/agent-view/use-stand'
-import { istBereitZurAbnahme } from '@/lib/agent-view/abnahme'
+import { istAbnehmbar } from '@/lib/agent-view/abnahme'
 import { standRank } from '@/lib/agent-view/bearbeitungsstand'
 import { standLabel } from '@/lib/agent-view/labels'
 import { BEARBEITUNGSSTAND_VALUES, type Bearbeitungsstand, type VorhabenCard } from '@/lib/agent-view/types'
 
+/**
+ * Warum der Knopf gesperrt ist. Nur maschinelle Befunde blockieren
+ * ({@link istAbnehmbar}) — offene Menschen-Punkte tun es ausdruecklich NICHT.
+ */
 function blockerText(karte: VorhabenCard): string {
   const teile: string[] = []
   const { cowork, knowledgescout } = karte.gapsByActor
   if (cowork > 0) teile.push(`${cowork} Cowork-Befund${cowork === 1 ? '' : 'e'}`)
   if (knowledgescout > 0) teile.push(`${knowledgescout} KnowledgeScout-Befund${knowledgescout === 1 ? '' : 'e'}`)
-  if (teile.length === 0) return 'Kein Befund wartet auf den Menschen — es gibt nichts abzunehmen.'
   return `${teile.join(' und ')} offen`
 }
 
@@ -50,14 +53,17 @@ export function StandAktionen({ karte, generatedAt, stand }: {
   const aktuellerStand = override ? override.bearbeitungsstand : karte.bearbeitungsstand
   const fehler = stand.fehlerByFolder.get(karte.folderId)
   const pending = stand.pendingFolderId === karte.folderId
-  const bereit = istBereitZurAbnahme(karte.gapsByActor)
+  const bereit = istAbnehmbar(karte.gapsByActor)
   const abgenommen = aktuellerStand === 'abgenommen'
 
+  const offeneMenschPunkte = karte.gapsByActor.mensch
   const abnehmenTitle = abgenommen
     ? 'Bereits abgenommen — „Stand bestaetigen" erneuert das Datum.'
-    : bereit
-      ? 'Abnahme beurkunden — die Route prueft zuerst mit einem frischen Teilbaum-Scan.'
-      : `Blockiert: ${blockerText(karte)}`
+    : !bereit
+      ? `Blockiert: ${blockerText(karte)}`
+      : offeneMenschPunkte > 0
+        ? `Abnahme beurkunden — ${offeneMenschPunkte} Punkt(e) warten noch auf deine Pruefung. Die Route prueft zuerst mit einem frischen Teilbaum-Scan.`
+        : 'Abnahme beurkunden — nichts mehr offen. Die Route prueft zuerst mit einem frischen Teilbaum-Scan.'
 
   const setze = (ziel: Bearbeitungsstand, bestaetigen: boolean) =>
     void stand.setzeStand({

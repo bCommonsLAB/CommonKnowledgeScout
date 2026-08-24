@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { istBereitZurAbnahme, zaehleGapsNachAkteur } from '@/lib/agent-view/abnahme'
+import { istAbnehmbar, istBereitZurAbnahme, zaehleGapsNachAkteur } from '@/lib/agent-view/abnahme'
 import type { GapActor } from '@/lib/agent-view/types'
 
 function gaps(...actors: GapActor[]): Array<{ actor: GapActor }> {
@@ -45,5 +45,22 @@ describe('zaehleGapsNachAkteur', () => {
     expect(istBereitZurAbnahme(zaehleGapsNachAkteur(gaps('mensch')))).toBe(true)
     expect(istBereitZurAbnahme(zaehleGapsNachAkteur(gaps('mensch', 'knowledgescout')))).toBe(false)
     expect(istBereitZurAbnahme(zaehleGapsNachAkteur([]))).toBe(false)
+  })
+})
+
+describe('istAbnehmbar (Befund 24.08.2026)', () => {
+  it('bleibt wahr, wenn der Mensch seine Punkte gerade erledigt hat', () => {
+    // Genau der Fall, der den Knopf bisher sperrte: alles verifiziert.
+    expect(istAbnehmbar({ mensch: 0, cowork: 0, knowledgescout: 0 })).toBe(true)
+    expect(istBereitZurAbnahme({ mensch: 0, cowork: 0, knowledgescout: 0 })).toBe(false)
+  })
+
+  it('ist wahr, solange nur Menschen-Punkte offen sind', () => {
+    expect(istAbnehmbar({ mensch: 28, cowork: 0, knowledgescout: 0 })).toBe(true)
+  })
+
+  it('ist falsch, sobald eine Maschine noch etwas offen hat', () => {
+    expect(istAbnehmbar({ mensch: 28, cowork: 1, knowledgescout: 0 })).toBe(false)
+    expect(istAbnehmbar({ mensch: 0, cowork: 0, knowledgescout: 1 })).toBe(false)
   })
 })
