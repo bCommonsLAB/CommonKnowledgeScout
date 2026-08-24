@@ -215,6 +215,17 @@ export interface TwinFamilySummary {
   artifactCount: number
   /** null = Familie ohne fuehrendes Artefakt (weder Transkript noch Standard-Transformation). */
   leading: LeadingArtifactSummary | null
+  /*
+   * Pruefbare Artefakte (Welle A2): Der Baum und die Tabs des Details tragen
+   * je Artefakt ein eigenes Haekchen (Entscheidung 4, 24.08.2026) — dafuer
+   * braucht der Report BEIDE Kurationszustaende, nicht nur den fuehrenden.
+   * OPTIONAL, weil Reports aus Scans vor A2 die Felder nicht tragen:
+   * Konsumenten benennen diesen Zustand („neu scannen"), statt zu raten.
+   */
+  /** Transkript-Artefakt; null = Familie ohne Transkript. Fehlt in Reports vor A2. */
+  transkript?: LeadingArtifactSummary | null
+  /** Standard-Transformation („Zusammenfassung"); null = keine (auch: kein Standard-Template). */
+  zusammenfassung?: LeadingArtifactSummary | null
 }
 
 /** Konventionen, unter denen der Scan lief (sichtbar statt hartkodiert). */

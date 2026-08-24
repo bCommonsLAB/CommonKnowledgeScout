@@ -24,6 +24,9 @@ const GRUPPIERUNG_WERTE: readonly WerkbankGruppierung[] = ['bereich', 'thema'] a
 
 export function useWerkbankUrlState() {
   const [vorhabenId, setVorhabenId] = useQueryState('vorhaben', parseAsString)
+  // A2: das gewaehlte Artefakt (sourceId der Twin-Familie) steht MIT in der
+  // URL — Deep-Links bis zur Artefakt-Ebene ueberstehen Reload.
+  const [artefaktId, setArtefaktId] = useQueryState('artefakt', parseAsString)
   const [statusFilter, setStatusFilter] = useQueryState(
     'filter',
     parseAsStringLiteral(STATUS_WERTE).withDefault('zu_tun'),
@@ -47,7 +50,7 @@ export function useWerkbankUrlState() {
   const [listeId, setListeId] = useQueryState('liste', parseAsString)
 
   return {
-    vorhabenId, setVorhabenId, statusFilter, setStatusFilter, akteur, setAkteur,
+    vorhabenId, setVorhabenId, artefaktId, setArtefaktId, statusFilter, setStatusFilter, akteur, setAkteur,
     schritt, setSchritt, suche, setSuche, sortierung, setSortierung,
     gruppierung, setGruppierung, listeId, setListeId,
   }

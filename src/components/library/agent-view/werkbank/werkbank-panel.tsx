@@ -12,15 +12,15 @@
  * gestapelt: Auswahl wechselt in die Detail-Ansicht, „Zur Liste" fuehrt
  * zurueck. Reports aus Scans vor W1 werden sichtbar benannt.
  *
+ * Welle A2: Die Liste ist ein Baum bis zum Artefakt (Bereich → Vorhaben →
+ * Ordner → Artefakt); das gewaehlte Artefakt steht als `?artefakt=` mit in
+ * der URL. Die Baum-Daten rechnet `useWerkbankBaum`.
+ *
  * @module components/library/agent-view
  */
 
 import { useMemo } from 'react'
-import { useAtom } from 'jotai'
-import { ArrowLeft } from 'lucide-react'
-import { uiPanePrefsAtom } from '@/atoms/ui-prefs-atom'
-import { Button } from '@/components/ui/button'
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
+import { useWerkbankBaum } from '@/hooks/agent-view/use-werkbank-baum'
 import { useWerkbankListe } from '@/hooks/agent-view/use-werkbank-liste'
 import { useWerkbankUrlState } from '@/hooks/agent-view/use-werkbank-url-state'
 import type { CoverageReport } from '@/lib/agent-view/types'
@@ -31,6 +31,7 @@ import { VorhabenListe } from './vorhaben-liste'
 import type { TeilbaumScanProps } from './teilbaum-scan-knopf'
 import { WerkbankDetail } from './werkbank-detail'
 import { WerkbankFilterLeiste } from './werkbank-filter-leiste'
+import { WerkbankLayout } from './werkbank-layout'
 import { WerkbankListenBereich } from './werkbank-listen-bereich'
 
 export interface WerkbankPanelProps {
@@ -45,12 +46,12 @@ export interface WerkbankPanelProps {
 }
 
 export function WerkbankPanel({ report, generatedAt, libraryLabel, localRootPath, teilbaumScan }: WerkbankPanelProps) {
-  const [prefs, setPrefs] = useAtom(uiPanePrefsAtom)
   const {
-    vorhabenId, setVorhabenId, statusFilter, setStatusFilter, akteur, setAkteur,
-    schritt, setSchritt, suche, setSuche, sortierung, setSortierung,
+    vorhabenId, setVorhabenId, artefaktId, setArtefaktId, statusFilter, setStatusFilter,
+    akteur, setAkteur, schritt, setSchritt, suche, setSuche, sortierung, setSortierung,
     gruppierung, setGruppierung, listeId, setListeId,
   } = useWerkbankUrlState()
+  const baum = useWerkbankBaum(report)
   const arbeitsliste = useWerkbankListe({
     libraryId: report.libraryId,
     vorhaben: report.vorhaben,
@@ -118,9 +119,21 @@ export function WerkbankPanel({ report, generatedAt, libraryLabel, localRootPath
           gruppierung={gruppierung}
           leerText={leerText}
           auswahlId={vorhabenId}
-          onSelect={(folderId) => void setVorhabenId(folderId)}
+          onSelect={(folderId) => {
+            void setVorhabenId(folderId)
+            void setArtefaktId(null)
+          }}
           gepinnteIds={arbeitsliste.mitglieder}
           onPin={(card) => void arbeitsliste.pinToggle(card)}
+          baum={{
+            zeilenFuer: baum.zeilenFuer,
+            zaehlerFuer: baum.zaehlerFuer,
+            artefaktAuswahlId: artefaktId,
+            onSelectArtefakt: (ownerId, familie) => {
+              void setVorhabenId(ownerId)
+              void setArtefaktId(familie.sourceId)
+            },
+          }}
         />
       </div>
     </div>
@@ -149,41 +162,15 @@ export function WerkbankPanel({ report, generatedAt, libraryLabel, localRootPath
           erscheinen nach &bdquo;Neu scannen&ldquo;; der Filter &bdquo;Zu tun&ldquo; ist bis dahin nicht auswertbar.
         </p>
       )}
-
-      <div className="hidden min-h-0 flex-1 md:block">
-        <ResizablePanelGroup
-          direction="horizontal"
-          className="h-full rounded-lg border"
-          onLayout={(sizes) => setPrefs({ werkbankListeSize: sizes[0] })}
-        >
-          <ResizablePanel defaultSize={prefs.werkbankListeSize} minSize={20} className="min-h-0">
-            {liste}
-          </ResizablePanel>
-          <ResizableHandle withHandle />
-          <ResizablePanel defaultSize={100 - prefs.werkbankListeSize} minSize={30} className="min-h-0">
-            {/* Der Scroll-Container muss INNEN sitzen: react-resizable-panels
-                setzt `overflow: hidden` als Inline-Style aufs Panel, das jede
-                overflow-Klasse schlaegt (Befund 24.08.2026 — 2342 px des
-                Details waren unerreichbar, u.a. die Verifizieren-Knoepfe). */}
-            <div className="h-full overflow-y-auto">{detail}</div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </div>
-
-      <div className="flex min-h-0 flex-1 flex-col rounded-lg border md:hidden">
-        {vorhabenId === null ? (
-          liste
-        ) : (
-          <div className="flex h-full min-h-0 flex-col">
-            <div className="border-b p-1">
-              <Button variant="ghost" size="sm" onClick={() => void setVorhabenId(null)}>
-                <ArrowLeft className="mr-1 h-4 w-4" aria-hidden /> Zur Liste
-              </Button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto">{detail}</div>
-          </div>
-        )}
-      </div>
+      <WerkbankLayout
+        liste={liste}
+        detail={detail}
+        detailAktiv={vorhabenId !== null}
+        onZurListe={() => {
+          void setVorhabenId(null)
+          void setArtefaktId(null)
+        }}
+      />
     </div>
   )
 }
