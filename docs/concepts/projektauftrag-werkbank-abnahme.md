@@ -85,9 +85,16 @@ Prädikat, sondern `zaehleWorklistFortschritt(...).bereit`.
 Zeilen trägt und der Leerzustand die Frage „was muss ich tun?" ohne
 Klick beantwortet.
 
-## Welle A2 — Baum-Navigation bis zum Artefakt
+## Welle A2 — Baum-Navigation bis zum Artefakt — ERLEDIGT
 
 **Mockup: linke Spalte in allen drei Zuständen.**
+
+**Stand:** umgesetzt (`werkbank-baum.ts`, `werkbank-baum-zeilen.tsx`,
+`useWerkbankBaum`, `?artefakt=` in der URL). Der Report trägt je Familie
+jetzt `transkript` und `zusammenfassung` einzeln (optional; Scans vor A2
+werden als `?` benannt). **Entschieden (offene Frage):** Filter blenden
+leere Äste GANZ aus — deckungsgleich mit dem bisherigen Listen-Verhalten
+und der Formulierung dieses Auftrags.
 
 - Vier Ebenen: Bereich → Vorhaben → Ordner → Artefakt (Entscheidung 1).
 - Jede Ebene mit Aufklapp-Pfeil und Zähler `n/m` (Entscheidung 2).
@@ -100,12 +107,20 @@ Klick beantwortet.
 - Die Auswahl steht in der URL, wie bisher — jetzt zusätzlich mit dem
   gewählten Artefakt.
 
-**Offene Frage an Peter vor dem Bau:** Sollen die Filter leere Äste ganz
-ausblenden oder ausgegraut stehen lassen?
+~~Offene Frage an Peter vor dem Bau: Sollen die Filter leere Äste ganz
+ausblenden oder ausgegraut stehen lassen?~~ → Entschieden: ganz ausblenden
+(siehe oben).
 
-## Welle A3 — Detail als Dokument-Ansicht
+## Welle A3 — Detail als Dokument-Ansicht — ERLEDIGT
 
 **Mockup: Zustände A und B, rechte Spalte.**
+
+**Stand:** umgesetzt (`werkbank-vorhaben-dokument.tsx`,
+`werkbank-artefakt-dokument.tsx`, `werkbank-original.tsx`; Bericht-Route
+liest per `?datei=index` die Ordner-Beschreibung). Word hat im Browser
+keine eingebettete Vorschau — benannter Zustand mit Archiv-Link. Die
+Befunde-Liste samt Vorhaben-Auftrag lebt im Menü „Befunde & Auftrag" des
+Kopfes (A4) weiter.
 
 - Rechts steht immer **genau ein Dokument**. Die heutigen Abschnitte
   (Bericht · Befunde · Twin-Familien) als gestapelte Blöcke entfallen.
@@ -118,9 +133,18 @@ ausblenden oder ausgegraut stehen lassen?
 - Die Befunde des Vorhabens verschwinden nicht, sondern werden zur
   **Kennzeichnung am Baum** und zum Inhalt des Kopfes (siehe A4).
 
-## Welle A4 — Einheitlicher Abnahme-Kopf
+## Welle A4 — Einheitlicher Abnahme-Kopf — ERLEDIGT
 
 **Mockup: `.dhead` in Zustand A und B — identisch aufgebaut.**
+
+**Stand:** umgesetzt (`abnahme-kopf.tsx`, `vorhaben-kopf.tsx`,
+`vorhaben-menue.tsx`, `artefakt-kopf.tsx`, `werkbank-sammelaktionen.tsx`,
+`useArtefaktKuration`). Aus A5 vorgezogen, damit die Kopf-Elemente nicht
+lügen: die Sammelaktionen WIRKEN (Rückfrage nennt die Zahl,
+Entscheidung 3) und der Sprung zum nächsten offenen Artefakt nach der
+Verifikation (Entscheidung 5; halb geprüfte Familie wechselt erst den
+Tab). Für A5 verbleiben: Hinweis am Ordner-Ende + Sprung zum nächsten
+Ordner mit offenen Punkten.
 
 - Zeile 1: Titel · Zustands-Chip · **ein** primärer Knopf · Menü `⋯`.
   Der Knopf heißt „Vorhaben abnehmen" bzw. „Verifizieren", je nachdem,
