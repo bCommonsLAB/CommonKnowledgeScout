@@ -25,7 +25,17 @@ function antwort(overrides: Partial<BerichtAntwort> = {}): BerichtAntwort {
 }
 
 function stubBericht(data: BerichtAntwort) {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(data), { status: 200 })))
+  // Pro Aufruf eine FRISCHE Response (Bodies sind einmal lesbar) und URL-Routing:
+  // das Detail fragt seit W6 auch die Worklists-Route (ZuListeKnopf).
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockImplementation(async (eingabe: RequestInfo | URL) => {
+      if (String(eingabe).includes('/agent-view/worklists')) {
+        return new Response(JSON.stringify({ lists: [] }), { status: 200 })
+      }
+      return new Response(JSON.stringify(data), { status: 200 })
+    }),
+  )
 }
 
 beforeEach(() => stubBericht(antwort()))

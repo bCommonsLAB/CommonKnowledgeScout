@@ -23,6 +23,8 @@ const STATUS_SEGMENTE: ReadonlyArray<{ wert: WerkbankStatusFilter; label: string
   { wert: 'alle', label: 'Alle' },
   { wert: 'zu_tun', label: 'Zu tun' },
   { wert: 'bereit', label: 'Bereit' },
+  // F6/W6: oeffnet die Arbeitslisten des Users (Steuerung in der Listen-Leiste).
+  { wert: 'liste', label: 'Liste ▾' },
 ]
 
 const AKTEURE: readonly GapActor[] = ['mensch', 'cowork', 'knowledgescout']

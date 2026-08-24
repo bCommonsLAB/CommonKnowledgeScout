@@ -22,6 +22,7 @@ import { parseAsNumberLiteral, parseAsString, parseAsStringLiteral, useQueryStat
 import { uiPanePrefsAtom } from '@/atoms/ui-prefs-atom'
 import { Button } from '@/components/ui/button'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
+import { useWerkbankListe } from '@/hooks/agent-view/use-werkbank-liste'
 import type { CoverageReport } from '@/lib/agent-view/types'
 import { karteOhneWerkbankFelder } from '@/lib/agent-view/vorhaben-board'
 import { filtereVorhaben, sortiereVorhaben, type BefundFilter } from '@/lib/agent-view/werkbank-filter'
@@ -30,8 +31,9 @@ import type { WerkbankGruppierung } from '@/lib/agent-view/werkbank-gruppen'
 import { VorhabenListe } from './vorhaben-liste'
 import { WerkbankDetail } from './werkbank-detail'
 import { WerkbankFilterLeiste } from './werkbank-filter-leiste'
+import { WerkbankListenBereich } from './werkbank-listen-bereich'
 
-const STATUS_WERTE = ['alle', 'zu_tun', 'bereit'] as const
+const STATUS_WERTE = ['alle', 'zu_tun', 'bereit', 'liste'] as const
 const SORT_WERTE = ['pfad', 'stand', 'befunde'] as const
 const AKTEUR_WERTE = ['mensch', 'cowork', 'knowledgescout'] as const
 const SCHRITT_WERTE = [1, 2, 3, 4] as const
@@ -68,14 +70,22 @@ export function WerkbankPanel({ report, generatedAt, libraryLabel, localRootPath
     'gruppierung',
     parseAsStringLiteral(GRUPPIERUNG_WERTE).withDefault('bereich'),
   )
+  // W6 (F7): aktive Arbeitsliste im Filter-Modus „liste".
+  const [listeId, setListeId] = useQueryState('liste', parseAsString)
+  const arbeitsliste = useWerkbankListe({
+    libraryId: report.libraryId,
+    vorhaben: report.vorhaben,
+    aktiv: statusFilter === 'liste',
+    listeId,
+  })
 
   const befundFilter: BefundFilter = useMemo(
     () => ({ akteur, zyklusSchritt: schritt }),
     [akteur, schritt],
   )
   const gefiltert = useMemo(
-    () => filtereVorhaben(report.vorhaben, { statusFilter, befundFilter, suche }),
-    [report.vorhaben, statusFilter, befundFilter, suche],
+    () => filtereVorhaben(report.vorhaben, { statusFilter, befundFilter, suche, listenMitglieder: arbeitsliste.mitglieder }),
+    [report.vorhaben, statusFilter, befundFilter, suche, arbeitsliste.mitglieder],
   )
   const sortiert = useMemo(
     () => sortiereVorhaben(gefiltert.zeilen, sortierung),
@@ -90,6 +100,14 @@ export function WerkbankPanel({ report, generatedAt, libraryLabel, localRootPath
     nichtAuswertbar: gefiltert.nichtAuswertbar,
     scoped: report.scope.folderId !== null,
     scopePath: report.scope.path ?? null,
+    liste:
+      statusFilter === 'liste'
+        ? {
+            name: arbeitsliste.aktiveListe?.name ?? null,
+            mitglieder: arbeitsliste.aktiveListe?.folders.length ?? 0,
+            tote: arbeitsliste.kreuzung?.tote.length ?? 0,
+          }
+        : undefined,
   })
   const karte = vorhabenId === null
     ? null
@@ -112,6 +130,9 @@ export function WerkbankPanel({ report, generatedAt, libraryLabel, localRootPath
         gruppierung={gruppierung}
         onGruppierung={(wert) => void setGruppierung(wert)}
       />
+      {statusFilter === 'liste' && (
+        <WerkbankListenBereich arbeitsliste={arbeitsliste} onWaehleListe={(id) => void setListeId(id)} />
+      )}
       <div className="min-h-0 flex-1">
         <VorhabenListe
           karten={sortiert}
@@ -119,6 +140,8 @@ export function WerkbankPanel({ report, generatedAt, libraryLabel, localRootPath
           leerText={leerText}
           auswahlId={vorhabenId}
           onSelect={(folderId) => void setVorhabenId(folderId)}
+          gepinnteIds={arbeitsliste.mitglieder}
+          onPin={(card) => void arbeitsliste.pinToggle(card)}
         />
       </div>
     </div>

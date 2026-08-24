@@ -29,6 +29,8 @@ export function VorhabenListe({
   leerText,
   auswahlId,
   onSelect,
+  gepinnteIds,
+  onPin,
 }: {
   /** Bereits gefiltert und sortiert (werkbank-filter.ts). */
   karten: readonly VorhabenCard[]
@@ -38,6 +40,9 @@ export function VorhabenListe({
   leerText: string | null
   auswahlId: string | null
   onSelect: (folderId: string) => void
+  /** W6 (F7): Mitglieder der aktiven Arbeitsliste; null = kein Pin sichtbar. */
+  gepinnteIds?: ReadonlySet<string> | null
+  onPin?: (card: VorhabenCard) => void
 }) {
   const [eingeklappt, setEingeklappt] = useState<ReadonlySet<string>>(new Set())
   const zeilen = useMemo(
@@ -88,6 +93,8 @@ export function VorhabenListe({
                   card={zeile.card}
                   ausgewaehlt={zeile.card.folderId === auswahlId}
                   onSelect={onSelect}
+                  gepinnt={gepinnteIds?.has(zeile.card.folderId) ?? false}
+                  onPin={gepinnteIds == null ? undefined : onPin}
                 />
               )}
             </div>

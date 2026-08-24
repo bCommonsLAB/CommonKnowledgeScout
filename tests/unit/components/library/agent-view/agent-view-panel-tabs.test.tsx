@@ -9,9 +9,10 @@
  * ueberstehen damit Reload (v2-Akzeptanzkriterium 5).
  */
 
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { NuqsTestingAdapter } from 'nuqs/adapters/testing'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { CoverageReport } from '@/lib/agent-view/types'
 
 const report: CoverageReport = {
@@ -49,11 +50,23 @@ import { AgentViewPanel } from '@/components/library/agent-view/agent-view-panel
 
 afterEach(() => cleanup())
 
+beforeEach(() => {
+  // Werkbank-Tab laedt seit W6 die Worklists-Route beim Mount — stubben,
+  // damit kein echter fetch ins Leere laeuft (frische Response je Aufruf).
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockImplementation(async () => new Response(JSON.stringify({ lists: [] }), { status: 200 })),
+  )
+})
+
 function renderPanel(searchParams = '') {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
-    <NuqsTestingAdapter searchParams={searchParams}>
-      <AgentViewPanel libraryId="lib-1" />
-    </NuqsTestingAdapter>,
+    <QueryClientProvider client={queryClient}>
+      <NuqsTestingAdapter searchParams={searchParams}>
+        <AgentViewPanel libraryId="lib-1" />
+      </NuqsTestingAdapter>
+    </QueryClientProvider>,
   )
 }
 
