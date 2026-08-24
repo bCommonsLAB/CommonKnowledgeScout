@@ -4,7 +4,11 @@
  * @description
  * Ordnerknoten aggregieren die Lueckenzaehler ihrer Teilbaeume; die Ampel ist
  * erst gruen, wenn der GESAMTE Teilbaum ohne Befund ist (Akzeptanzkriterium 7).
- * Das Gap-Budget (Sammel-Gaps) laeuft vorher in `gap-budget.ts`.
+ * Seit dem Beschluss vom 24.08.2026 ist die Ampel AKTEUR-basiert (eine
+ * Geschichte mit „bereit zur Abnahme", kein zweites Urteil): rot = maschinelle
+ * Befunde (Cowork/KnowledgeScout) offen, gelb = alles wartet auf den Menschen,
+ * gruen = kein Befund. Das Gap-Budget (Sammel-Gaps) laeuft vorher in
+ * `gap-budget.ts`.
  *
  * Reine Funktionen, kein I/O; die Reihenfolge ist deterministisch, damit der
  * Report reproduzierbar bleibt (Akzeptanzkriterium 6).
@@ -12,6 +16,7 @@
  * @module agent-view
  */
 
+import { istBereitZurAbnahme } from './abnahme'
 import type { ArchiveFolderNode } from './archive-types'
 import type {
   Bearbeitungsstand,
@@ -27,9 +32,18 @@ function emptyActorCounts(): GapCountByActor {
   return { mensch: 0, cowork: 0, knowledgescout: 0 }
 }
 
-function ampelOf(node: CoverageTreeNode, blockingGaps: number): CoverageAmpel {
-  if (blockingGaps > 0) return 'rot'
-  if (node.totalGaps > 0) return 'gelb'
+/**
+ * Akteur-basierte Ampel (Beschluss 24.08.2026, Test-Befund: die alte
+ * Severity-Regel machte im Voll-Archiv alle 148 Vorhaben rot und
+ * unterschied nichts): rot = maschinelle Befunde offen — unabhaengig von
+ * der Severity, auch `info` (die Maschine hat noch Arbeit); gelb = das
+ * geteilte Praedikat „bereit zur Abnahme" (nur Mensch-Befunde offen);
+ * gruen = kein Befund im Teilbaum. Der strengere F8/W7-Precheck (nur
+ * error/warning, frischer Scan) bleibt davon getrennt.
+ */
+function ampelOf(byActor: GapCountByActor): CoverageAmpel {
+  if (byActor.cowork + byActor.knowledgescout > 0) return 'rot'
+  if (istBereitZurAbnahme(byActor)) return 'gelb'
   return 'gruen'
 }
 
@@ -44,7 +58,6 @@ export function buildTree(args: {
   sourceCountByFolder: ReadonlyMap<string, number>
 }): CoverageTreeNode[] {
   const nodes = new Map<string, CoverageTreeNode>()
-  const blocking = new Map<string, number>()
 
   for (const folder of args.folders) {
     nodes.set(folder.folderId, {
@@ -99,18 +112,15 @@ export function buildTree(args: {
     const node = nodes.get(folder.folderId)
     if (!node) continue
     let total = 0
-    let blockingCount = 0
     const byType: GapCountByType = {}
     const byActor = emptyActorCounts()
     for (const gap of gapsByFolder.get(folder.folderId) ?? []) {
       total += 1
       byType[gap.type] = (byType[gap.type] ?? 0) + 1
       byActor[gap.actor] += 1
-      if (gap.severity !== 'info') blockingCount += 1
     }
     for (const child of node.children) {
       total += child.totalGaps
-      blockingCount += blocking.get(child.folderId) ?? 0
       for (const [type, count] of Object.entries(child.gapsByType)) {
         const key = type as CoverageGapType
         byType[key] = (byType[key] ?? 0) + (count ?? 0)
@@ -122,8 +132,7 @@ export function buildTree(args: {
     node.totalGaps = total
     node.gapsByType = byType
     node.gapsByActor = byActor
-    blocking.set(folder.folderId, blockingCount)
-    node.ampel = ampelOf(node, blockingCount)
+    node.ampel = ampelOf(byActor)
   }
 
   return roots

@@ -4,9 +4,11 @@
  * @fileoverview Vertrauensampel und Befund-Abzeichen der Agentensicht.
  *
  * @description
- * Gruen ist ein Knoten erst, wenn der GESAMTE Teilbaum ohne blockierenden
- * Befund ist (Akzeptanzkriterium 7) — die Farbe kommt fertig aus dem Report,
- * die UI rechnet nichts nach.
+ * Die Ampel ist AKTEUR-basiert (Beschluss 24.08.2026): rot = maschinelle
+ * Befunde (Cowork/KnowledgeScout) offen, gelb = alles wartet auf den
+ * Menschen („bereit zur Abnahme"), gruen = kein Befund im GESAMTEN Teilbaum
+ * (Akzeptanzkriterium 7). Die Farbe kommt fertig aus dem Report, die UI
+ * rechnet nichts nach.
  *
  * @module components/library/agent-view
  */
@@ -23,8 +25,8 @@ const AMPEL_CLASS: Record<CoverageTreeNode['ampel'], string> = {
 
 const AMPEL_TITLE: Record<CoverageTreeNode['ampel'], string> = {
   gruen: 'Kein Befund im Teilbaum',
-  gelb: 'Nur informative Befunde im Teilbaum',
-  rot: 'Offene Befunde im Teilbaum',
+  gelb: 'Bereit zur Abnahme — alles im Teilbaum wartet auf den Menschen',
+  rot: 'Maschinelle Befunde offen (Cowork/KnowledgeScout)',
 }
 
 export function CoverageAmpel({ ampel }: { ampel: CoverageTreeNode['ampel'] }) {

@@ -21,7 +21,11 @@ export type GapActor = 'mensch' | 'cowork' | 'knowledgescout'
 /** Schritt des Erschliessungszyklus (`docs/concepts/erschliessungszyklus.md` §1). */
 export type ZyklusSchritt = 1 | 2 | 3 | 4
 
-/** Schweregrad. `info` zaehlt nicht gegen „gruen", `warning`/`error` schon. */
+/**
+ * Schweregrad. Fuer die AMPEL zaehlt seit dem Beschluss vom 24.08.2026 der
+ * Akteur, nicht die Severity (siehe {@link CoverageAmpel}); der strengere
+ * F8-Abnahme-Precheck (W7) filtert weiterhin auf `error`/`warning`.
+ */
 export type GapSeverity = 'error' | 'warning' | 'info'
 
 /**
@@ -99,7 +103,12 @@ export type Bearbeitungsstand = (typeof BEARBEITUNGSSTAND_VALUES)[number]
 export type GapCountByType = Partial<Record<CoverageGapType, number>>
 export type GapCountByActor = Record<GapActor, number>
 
-/** Ampelfarbe: gruen nur ohne Befund im Teilbaum (Akzeptanzkriterium 7). */
+/**
+ * Ampelfarbe — AKTEUR-basiert (Beschluss 24.08.2026): `rot` = maschinelle
+ * Befunde (cowork/knowledgescout) offen, `gelb` = nur noch Mensch-Befunde
+ * (das geteilte Praedikat „bereit zur Abnahme"), `gruen` nur ohne Befund im
+ * Teilbaum (Akzeptanzkriterium 7 bleibt unangetastet).
+ */
 export type CoverageAmpel = 'gruen' | 'gelb' | 'rot'
 
 /** Knoten des Agenten-Baums (F1) — Ordner mit aggregierten Zaehlern. */

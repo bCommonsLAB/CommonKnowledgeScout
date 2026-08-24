@@ -60,12 +60,12 @@ describe('CoverageTree', () => {
     expect(screen.getByText('5 Dateien')).toBeTruthy()
   })
 
-  it('faerbt die Ampel gruen nur ohne Befund im Teilbaum', () => {
+  it('faerbt die Ampel gruen nur ohne Befund im Teilbaum (rot = Maschine offen, seit 24.08. akteur-basiert)', () => {
     const { container } = render(<CoverageTree report={report([node()])} />)
     expect(container.querySelector('[aria-label="Kein Befund im Teilbaum"]')).toBeTruthy()
     cleanup()
     const rot = render(<CoverageTree report={report([node({ ampel: 'rot', totalGaps: 3 })])} />)
-    expect(rot.container.querySelector('[aria-label="Offene Befunde im Teilbaum"]')).toBeTruthy()
+    expect(rot.container.querySelector('[aria-label="Maschinelle Befunde offen (Cowork/KnowledgeScout)"]')).toBeTruthy()
     expect(screen.getByText('3 Befunde')).toBeTruthy()
   })
 
