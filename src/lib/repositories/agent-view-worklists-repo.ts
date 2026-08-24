@@ -173,14 +173,17 @@ export async function removeFolderFromWorklist(
   folderId: string,
 ): Promise<{ list: WorklistDoc; unchanged: boolean } | null> {
   const col = await getCol(libraryId)
+  // Mitgliedschaft gehoert in den Query (Bauart wie addFolderToWorklist):
+  // modifiedCount taugt nicht als unchanged-Signal, weil das $set auf
+  // updatedAt sonst JEDEN Aufruf als Aenderung zaehlt — und ein Entfernen
+  // ohne Treffer darf auch kein neues updatedAt stempeln.
   const result = await col.updateOne(
-    { userEmail, listId },
+    { userEmail, listId, 'folders.folderId': folderId },
     { $pull: { folders: { folderId } }, $set: { updatedAt: new Date().toISOString() } },
   )
-  if (result.matchedCount === 0) return null
   const list = await getWorklist(libraryId, userEmail, listId)
   if (list === null) return null
-  return { list, unchanged: result.modifiedCount === 0 }
+  return { list, unchanged: result.matchedCount === 0 }
 }
 
 /** Loescht die Liste; false = unbekannt (Route: 404). Report und Archiv bleiben unberuehrt. */
