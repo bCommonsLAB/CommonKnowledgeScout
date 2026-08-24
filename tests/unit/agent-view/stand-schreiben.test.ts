@@ -18,6 +18,8 @@ import type { CoverageGap } from '@/lib/agent-view/types'
 
 const INDEX_MD = [
   '---',
+  'type: index',
+  '# von Hand gepflegt',
   'bearbeitungsstand: berichtet',
   'bearbeitungsstand_seit: 2026-08-18',
   'projekt: Pilotprojekt Klima',
@@ -48,6 +50,7 @@ function fakePorts(overrides: Partial<{ [K in keyof StandSchreibenPorts]: Return
     readText: overrides.readText ?? vi.fn().mockResolvedValue(INDEX_MD),
     deleteFile: overrides.deleteFile ?? vi.fn().mockResolvedValue(undefined),
     uploadMarkdown: overrides.uploadMarkdown ?? vi.fn().mockResolvedValue({ fileId: 'id-neu' }),
+    folderName: overrides.folderName ?? vi.fn().mockResolvedValue('18.05 Escher'),
   }
 }
 
@@ -72,8 +75,9 @@ describe('setzeStand — Schutzstufen in §F8-Reihenfolge', () => {
     await expect(setzeStand(args(), ports)).rejects.toBeInstanceOf(OrdnerNichtGefundenError)
   })
 
-  it('Stufe 1: ohne _INDEX.md wirft kein_index — gelesen/geschrieben wird nichts', async () => {
+  it('Stufe 1: ohne _INDEX.md wirft kein_index MIT Ordnernamen — gelesen/geschrieben wird nichts', async () => {
     const ports = fakePorts({ listFolder: vi.fn().mockResolvedValue([item('BERICHT.md')]) })
+    await expect(setzeStand(args(), ports)).rejects.toThrow(/„18\.05 Escher" hat kein _INDEX\.md/)
     await expect(setzeStand(args(), ports)).rejects.toBeInstanceOf(KeinIndexError)
     expect(ports.readText).not.toHaveBeenCalled()
     expect(ports.deleteFile).not.toHaveBeenCalled()
@@ -128,6 +132,11 @@ describe('setzeStand — Schreiben', () => {
     expect(String(meta.bearbeitungsstand_seit)).toBe('2026-08-24')
     expect(meta.projekt).toBe('Pilotprojekt Klima')
     expect(body).toContain('Handgeschriebener Inhalt bleibt.')
+    // Zeilen-Chirurgie (Test-Befund 24.08.): fremde Zeilen behalten ihre
+    // Schreibweise — kein Umquoten, Kommentare bleiben.
+    expect(content).toContain('type: index')
+    expect(content).not.toContain('"index"')
+    expect(content).toContain('# von Hand gepflegt')
 
     // Antwort wie der Reader liest: Datum grosszuegig als Tagesende.
     expect(ergebnis).toEqual({ bearbeitungsstand: 'abgenommen', bearbeitungsstandSeit: '2026-08-24T23:59:59.999Z' })

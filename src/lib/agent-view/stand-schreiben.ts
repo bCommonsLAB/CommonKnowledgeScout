@@ -3,9 +3,10 @@
  *
  * @description
  * Fuehrt die Schutzstufen aus `stand-plan.ts` in §F8-Reihenfolge aus und
- * schreibt dann NUR `bearbeitungsstand` + `bearbeitungsstand_seit` ueber den
- * gemeinsamen Frontmatter-Patch (`patchFrontmatter`, Single-Serializer,
- * flaches snake_case) — Body und unbekannte Felder bleiben unangetastet.
+ * schreibt dann NUR `bearbeitungsstand` + `bearbeitungsstand_seit` — seit dem
+ * W7-Live-Test zeilen-chirurgisch (`stand-zeilen-patch.ts`): fremde Zeilen
+ * des von Hand gepflegten `_INDEX.md` behalten Byte fuer Byte ihre
+ * Schreibweise, mit Ruecklese-Pruefung vor dem Schreiben.
  *
  * Der Storage kennt kein Update-in-place: Ersetzen heisst loeschen + neu
  * hochladen (Muster `regenerate-sichten.ts`; deshalb ist die neue fileId
@@ -21,7 +22,6 @@
  * @module agent-view
  */
 
-import { patchFrontmatter } from '@/lib/markdown/frontmatter-patch'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import type { StorageItem } from '@/lib/storage/types'
 import { INDEX_FILE_NAME } from './archive-scan'
@@ -36,6 +36,7 @@ import {
   pruefeStandGeaendert,
   type StandRequest,
 } from './stand-plan'
+import { patchStandZeilen } from './stand-zeilen-patch'
 import type { Bearbeitungsstand, CoverageGap } from './types'
 
 /** Aussenzugriffe der Schreiboperation — in Tests vollstaendig ersetzbar. */
@@ -46,6 +47,11 @@ export interface StandSchreibenPorts {
   readText(fileId: string): Promise<string>
   deleteFile(fileId: string): Promise<void>
   uploadMarkdown(folderId: string, name: string, content: string): Promise<{ fileId: string }>
+  /**
+   * Anzeigename des Vorhabens-Ordners — nur fuer die `kein_index`-Meldung
+   * (sie richtet sich an einen Menschen, nicht an eine Id) und deshalb lazy.
+   */
+  folderName(): Promise<string>
 }
 
 export interface StandSchreibenArgs {
@@ -120,7 +126,7 @@ export async function setzeStand(
 
   // Stufe 1: Matching EXAKT wie im Archiv-Scan (INDEX_FILE_NAME, kein Drift).
   const index = items.find((item) => item.type === 'file' && item.metadata.name === INDEX_FILE_NAME)
-  if (!index) throw new KeinIndexError(request.folderId)
+  if (!index) throw new KeinIndexError(await ports.folderName())
 
   // Stufe 2: der Storage ist die Wahrheit ueber den aktuell erklaerten Stand.
   const original = await ports.readText(index.id)
@@ -135,13 +141,20 @@ export async function setzeStand(
     pruefeBereitschaft(await args.scanTeilbaum())
   }
 
-  const gepatcht = patchFrontmatter(original, baueStandPatch(request.stand, args.now()))
+  // Zeilen-chirurgisch statt patchFrontmatter: das _INDEX.md ist von Hand
+  // gepflegt, fremde Zeilen behalten ihre Schreibweise (Test-Befund 24.08.).
+  // Ruecklese-Pruefung VOR dem Schreiben: misslingt die Chirurgie, wird
+  // nichts geloescht und nichts hochgeladen.
+  const gepatcht = patchStandZeilen(original, baueStandPatch(request.stand, args.now()))
+  const gelesen = readBearbeitungsstand(parseFrontmatter(gepatcht).meta)
+  if (gelesen.bearbeitungsstand !== request.stand) {
+    throw new Error(
+      `Gepatchtes _INDEX.md traegt nicht den gesetzten Stand „${request.stand}" — ` +
+        `abgebrochen, nichts geschrieben (${gelesen.error ?? 'Frontmatter unlesbar'})`,
+    )
+  }
   await ersetzeIndex(ports, request.folderId, index.id, original, gepatcht)
 
-  const gelesen = readBearbeitungsstand(parseFrontmatter(gepatcht).meta)
-  if (gelesen.bearbeitungsstand === null) {
-    throw new Error(`Gepatchtes _INDEX.md traegt keinen lesbaren Stand — ${gelesen.error ?? 'unbekannt'}`)
-  }
   return {
     bearbeitungsstand: gelesen.bearbeitungsstand,
     bearbeitungsstandSeit: gelesen.bearbeitungsstandSeit,
