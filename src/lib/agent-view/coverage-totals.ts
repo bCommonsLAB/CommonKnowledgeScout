@@ -13,7 +13,8 @@ import type { ArchiveScanResult } from './archive-types'
 import type { TwinFamilyView } from './twin-rules'
 import type { CoverageGap, CoverageTotals, GapCountByActor, GapCountByType } from './types'
 
-function tally(gaps: readonly CoverageGap[]): { byType: GapCountByType; byActor: GapCountByActor } {
+/** Befunde je Typ/Akteur zaehlen — auch der W8-Merge zaehlt hierueber (kein Drift). */
+export function tally(gaps: readonly CoverageGap[]): { byType: GapCountByType; byActor: GapCountByActor } {
   const byType: GapCountByType = {}
   const byActor: GapCountByActor = { mensch: 0, cowork: 0, knowledgescout: 0 }
   for (const gap of gaps) {

@@ -57,7 +57,7 @@ function gapAt(folderId: string, type: CoverageGap['type'] = 'source_without_twi
 }
 
 function cardsFor(folders: ArchiveFolderNode[], gaps: CoverageGap[] = []): VorhabenCard[] {
-  const tree = buildTree({ folders, gaps, sourceCountByFolder: new Map() })
+  const tree = buildTree({ folders, gaps, sourceCountByFolder: new Map(), ownChangeByFolder: new Map() })
   return buildVorhabenCards({ folders, tree, gaps, vorhabenPattern: null, libraryRootFolderId: 'f-root' })
 }
 

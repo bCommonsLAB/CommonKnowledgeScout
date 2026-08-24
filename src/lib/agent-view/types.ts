@@ -86,6 +86,12 @@ export interface CoverageGap {
   message: string
   /** Optionales Detail (fehlende Felder, Verweis-Ziel, Zaehler). */
   detail?: string
+  /**
+   * Nur Sammel-Gaps (`teilbaum_ungesichtet`): Anzahl zusammengefasster
+   * Einzel-Befunde — strukturiert (W8), damit der Merge `collapsedGaps`
+   * exakt rekonstruiert, statt den eigenen Message-Text zu parsen.
+   */
+  anzahl?: number
 }
 
 /** Erklaerter Ordner-Stand aus dem `_INDEX.md` (Zyklus §4). */
@@ -134,6 +140,15 @@ export interface CoverageTreeNode {
   gapsByActor: GapCountByActor
   /** Ampel: gruen nur ohne Befund im Teilbaum (Akzeptanzkriterium 7). */
   ampel: CoverageAmpel
+  /**
+   * Juengste EIGENE Aenderung des Ordners (Dateien ohne Contract-Dateien +
+   * Twin-Artefakte; W8-Merge-Grundlage: Teilbaum-Maxima sind daraus bottom-up
+   * ableitbar). Fehlt in Reports vor W8 — der Merge weist das benannt zurueck.
+   */
+  neuesteEigeneAenderung?: string | null
+  /** Bericht-Skalare fuer die Merge-Neubewertung von `bericht_veraltet` (W8). */
+  berichtFileId?: string | null
+  berichtModifiedAt?: string | null
   children: CoverageTreeNode[]
 }
 

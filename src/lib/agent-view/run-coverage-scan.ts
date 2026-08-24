@@ -29,6 +29,15 @@ import type { CoverageConventions, CoverageReport } from './types'
 /** Nur der Kopf einer Markdown-Datei traegt Frontmatter (Kosten-Zaun). */
 const FRONTMATTER_HEAD_CHARS = 8192
 
+/**
+ * Parallele Ordner-Listings des Coverage-Scans (W8; offener Punkt 5 des
+ * Projektauftrags: Vorschlag 6–10 wie der Sichten-Lauf, als Konstante —
+ * ein Library-Config-Feld kann folgen, wenn ein Archiv es braucht). Der
+ * Report bleibt reproduzierbar: der Service sortiert die Ordner nach Pfad,
+ * bevor irgendeine Regel laeuft.
+ */
+export const COVERAGE_SCAN_CONCURRENCY = 8
+
 /** Liest die Konventionen der Library — sichtbar im Report, nie hartkodiert. */
 export function readConventions(library: Library): CoverageConventions {
   const agentView = library.config?.agentView
@@ -93,7 +102,7 @@ export async function scanLibraryCoverage(args: ScanLibraryCoverageArgs): Promis
   const rootFolderId = scopeFolderId ?? 'root'
 
   const ports: CoverageScanPorts = {
-    scanArchive: (scanArgs) => scanArchive({ provider, ...scanArgs }),
+    scanArchive: (scanArgs) => scanArchive({ provider, concurrency: COVERAGE_SCAN_CONCURRENCY, ...scanArgs }),
     runSyncCheck: ({ folderId }) =>
       runLibrarySync({
         libraryId,

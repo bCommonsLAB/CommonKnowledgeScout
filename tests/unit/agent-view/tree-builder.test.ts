@@ -40,7 +40,7 @@ function gapAt(folderId: string, type: CoverageGap['type']): CoverageGap {
 
 function baue(gaps: CoverageGap[]) {
   const folders = [folder('', null), folder('A', 'f-root'), folder('A/Tief', 'f-A'), folder('B', 'f-root')]
-  const roots = buildTree({ folders, gaps, sourceCountByFolder: new Map() })
+  const roots = buildTree({ folders, gaps, sourceCountByFolder: new Map(), ownChangeByFolder: new Map() })
   const flach = new Map<string, (typeof roots)[number]>()
   const walk = (nodes: typeof roots) => nodes.forEach((n) => { flach.set(n.folderId, n); walk(n.children) })
   walk(roots)
@@ -80,5 +80,26 @@ describe('buildTree — akteur-basierte Ampel', () => {
     const flach = baue([gapAt('f-A/Tief', 'twin_unverified')])
     expect(flach.get('f-A')?.ampel).toBe('gelb')
     expect(flach.get('f-root')?.ampel).toBe('gelb')
+  })
+})
+
+describe('buildTree — W8-Merge-Skalare', () => {
+  it('schreibt eigene Aenderung und Bericht-Skalare in jeden Knoten (Merge-Grundlage)', () => {
+    const folders = [folder('', null), folder('A', 'f-root')]
+    folders[1].bericht = {
+      fileId: 'ber-A', name: 'BERICHT.md', path: 'A/BERICHT.md',
+      modifiedAt: '2026-08-20T10:00:00.000Z', meta: {}, body: '# A',
+    }
+    const roots = buildTree({
+      folders, gaps: [], sourceCountByFolder: new Map(),
+      ownChangeByFolder: new Map([['f-A', '2026-08-21T09:00:00.000Z']]),
+    })
+    const a = roots[0].children[0]
+    expect(a.neuesteEigeneAenderung).toBe('2026-08-21T09:00:00.000Z')
+    expect(a.berichtFileId).toBe('ber-A')
+    expect(a.berichtModifiedAt).toBe('2026-08-20T10:00:00.000Z')
+    // Ohne Eintrag/Bericht: explizit null, kein undefined-Raten.
+    expect(roots[0].neuesteEigeneAenderung).toBeNull()
+    expect(roots[0].berichtFileId).toBeNull()
   })
 })

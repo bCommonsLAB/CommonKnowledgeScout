@@ -118,20 +118,45 @@ export function checkIndexMissing(
   })
 }
 
+/**
+ * Kern von `bericht_veraltet`, entkoppelt vom Scan-Ordnerknoten: der W8-Merge
+ * bewertet die Regel fuer ALLE Baumknoten neu (die Teilbaum-Aenderung wandert
+ * ueber Vorfahren hinweg) — EINE Regel, zwei Aufrufer, kein Drift.
+ */
+export function berichtVeraltetGap(args: {
+  folderId: string
+  path: string
+  berichtFileId: string
+  berichtModifiedAt: string | null
+  newestChangeInSubtree: string | null
+  berichtFreshness: boolean
+}): CoverageGap | null {
+  if (!args.berichtFreshness) return null
+  if (args.berichtModifiedAt === null || args.newestChangeInSubtree === null) return null
+  if (Date.parse(args.newestChangeInSubtree) <= Date.parse(args.berichtModifiedAt)) return null
+  return createGap({
+    scope: 'folder',
+    folderId: args.folderId,
+    path: args.path,
+    type: 'bericht_veraltet',
+    targetName: BERICHT_FILE_NAME,
+    targetId: args.berichtFileId,
+    message: `${BERICHT_FILE_NAME} ist aelter als die juengste Aenderung im Vorhaben`,
+    detail: `Bericht ${args.berichtModifiedAt}, juengste Aenderung ${args.newestChangeInSubtree}`,
+  })
+}
+
 /** `bericht_veraltet`: `BERICHT.md` aelter als die juengste Aenderung im Vorhaben. */
 export function checkBerichtVeraltet(folder: ArchiveFolderNode, ctx: ArchiveRuleContext): CoverageGap | null {
-  if (!ctx.conventions.berichtFreshness) return null
   const bericht = folder.bericht
-  if (bericht === null || bericht.modifiedAt === null) return null
-  if (ctx.newestChangeInSubtree === null) return null
-  if (Date.parse(ctx.newestChangeInSubtree) <= Date.parse(bericht.modifiedAt)) return null
-  return createGap({
-    ...gapBase(folder),
-    type: 'bericht_veraltet',
-    targetName: bericht.name,
-    targetId: bericht.fileId,
-    message: `${BERICHT_FILE_NAME} ist aelter als die juengste Aenderung im Vorhaben`,
-    detail: `Bericht ${bericht.modifiedAt}, juengste Aenderung ${ctx.newestChangeInSubtree}`,
+  if (bericht === null) return null
+  return berichtVeraltetGap({
+    folderId: folder.folderId,
+    path: folder.path,
+    berichtFileId: bericht.fileId,
+    berichtModifiedAt: bericht.modifiedAt,
+    newestChangeInSubtree: ctx.newestChangeInSubtree,
+    berichtFreshness: ctx.conventions.berichtFreshness,
   })
 }
 

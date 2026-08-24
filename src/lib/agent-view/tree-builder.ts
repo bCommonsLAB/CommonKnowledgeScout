@@ -48,14 +48,73 @@ function ampelOf(byActor: GapCountByActor): CoverageAmpel {
 }
 
 /**
+ * Setzt die Zaehler eines BESTEHENDEN Baums neu: `ownGaps`, `totalGaps`,
+ * `gapsByType`, `gapsByActor`, `ampel` — bottom-up (Post-Order). Auch der
+ * W8-Merge nutzt genau diese Funktion, damit Voll-Scan und Merge dasselbe
+ * Urteil faellen (keine zweite Aggregation, kein Drift).
+ */
+export function aggregiereZaehler(
+  roots: readonly CoverageTreeNode[],
+  gaps: readonly CoverageGap[],
+): void {
+  const gapsByFolder = new Map<string, CoverageGap[]>()
+  for (const gap of gaps) {
+    const bucket = gapsByFolder.get(gap.folderId)
+    if (bucket) bucket.push(gap)
+    else gapsByFolder.set(gap.folderId, [gap])
+  }
+
+  const bekannt = new Set<string>()
+  const walk = (node: CoverageTreeNode): void => {
+    bekannt.add(node.folderId)
+    let total = 0
+    const byType: GapCountByType = {}
+    const byActor = emptyActorCounts()
+    const eigene = gapsByFolder.get(node.folderId) ?? []
+    node.ownGaps = eigene.length
+    for (const gap of eigene) {
+      total += 1
+      byType[gap.type] = (byType[gap.type] ?? 0) + 1
+      byActor[gap.actor] += 1
+    }
+    for (const child of node.children) {
+      walk(child)
+      total += child.totalGaps
+      for (const [type, count] of Object.entries(child.gapsByType)) {
+        const key = type as CoverageGapType
+        byType[key] = (byType[key] ?? 0) + (count ?? 0)
+      }
+      byActor.mensch += child.gapsByActor.mensch
+      byActor.cowork += child.gapsByActor.cowork
+      byActor.knowledgescout += child.gapsByActor.knowledgescout
+    }
+    node.totalGaps = total
+    node.gapsByType = byType
+    node.gapsByActor = byActor
+    node.ampel = ampelOf(byActor)
+  }
+  for (const root of roots) walk(root)
+
+  // Kein stiller Verlust: Jeder Befund MUSS an einem Ordner des Baums haengen
+  // (der Service loest unbekannte Quellen auf die Wurzel auf).
+  for (const gap of gaps) {
+    if (!bekannt.has(gap.folderId)) {
+      throw new Error(`Befund ohne Ordner im Baum: ${gap.type} @ ${gap.folderId}`)
+    }
+  }
+}
+
+/**
  * Baut den Baum und aggregiert die Zaehler von den Blaettern nach oben.
  * `sourceCountByFolder` kommt aus der Twin-Familien-Liste (Quellen, nicht
- * beliebige Dateien).
+ * beliebige Dateien); `ownChangeByFolder` traegt die juengste eigene
+ * Aenderung in die Knoten (W8-Merge-Grundlage).
  */
 export function buildTree(args: {
   folders: readonly ArchiveFolderNode[]
   gaps: readonly CoverageGap[]
   sourceCountByFolder: ReadonlyMap<string, number>
+  ownChangeByFolder: ReadonlyMap<string, string | null>
 }): CoverageTreeNode[] {
   const nodes = new Map<string, CoverageTreeNode>()
 
@@ -76,16 +135,11 @@ export function buildTree(args: {
       gapsByType: {},
       gapsByActor: emptyActorCounts(),
       ampel: 'gruen',
+      neuesteEigeneAenderung: args.ownChangeByFolder.get(folder.folderId) ?? null,
+      berichtFileId: folder.bericht?.fileId ?? null,
+      berichtModifiedAt: folder.bericht?.modifiedAt ?? null,
       children: [],
     })
-  }
-
-  for (const gap of args.gaps) {
-    const node = nodes.get(gap.folderId)
-    // Kein stiller Verlust: Jeder Befund MUSS an einem gescannten Ordner
-    // haengen (der Service loest unbekannte Quellen auf die Wurzel auf).
-    if (!node) throw new Error(`Befund ohne Ordner im Baum: ${gap.type} @ ${gap.folderId}`)
-    node.ownGaps += 1
   }
 
   // Kinder verknuepfen (Reihenfolge: Pfad, deterministisch).
@@ -99,41 +153,6 @@ export function buildTree(args: {
     else roots.push(node)
   }
 
-  // Zaehler von unten nach oben: Ordner absteigend nach Tiefe verarbeiten.
-  const byDepth = [...args.folders].sort((a, b) => b.depth - a.depth || b.path.localeCompare(a.path))
-  const gapsByFolder = new Map<string, CoverageGap[]>()
-  for (const gap of args.gaps) {
-    const bucket = gapsByFolder.get(gap.folderId)
-    if (bucket) bucket.push(gap)
-    else gapsByFolder.set(gap.folderId, [gap])
-  }
-
-  for (const folder of byDepth) {
-    const node = nodes.get(folder.folderId)
-    if (!node) continue
-    let total = 0
-    const byType: GapCountByType = {}
-    const byActor = emptyActorCounts()
-    for (const gap of gapsByFolder.get(folder.folderId) ?? []) {
-      total += 1
-      byType[gap.type] = (byType[gap.type] ?? 0) + 1
-      byActor[gap.actor] += 1
-    }
-    for (const child of node.children) {
-      total += child.totalGaps
-      for (const [type, count] of Object.entries(child.gapsByType)) {
-        const key = type as CoverageGapType
-        byType[key] = (byType[key] ?? 0) + (count ?? 0)
-      }
-      byActor.mensch += child.gapsByActor.mensch
-      byActor.cowork += child.gapsByActor.cowork
-      byActor.knowledgescout += child.gapsByActor.knowledgescout
-    }
-    node.totalGaps = total
-    node.gapsByType = byType
-    node.gapsByActor = byActor
-    node.ampel = ampelOf(byActor)
-  }
-
+  aggregiereZaehler(roots, args.gaps)
   return roots
 }

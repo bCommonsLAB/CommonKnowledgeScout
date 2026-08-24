@@ -25,7 +25,7 @@ import type { DocumentVerificationResult } from '@/lib/library-verification/type
 import type { LibrarySyncReport } from '@/lib/shadow-twin/sync-engine/report-types'
 import { compileVorhabenPattern, evaluateArchiveRules } from './archive-rules'
 import type { ArchiveScanResult } from './archive-types'
-import { buildFileIndex, buildNewestChangeBySubtree, locateFamilies, type RawTwinFamily } from './coverage-inputs'
+import { buildFileIndex, buildNewestChangeBySubtree, buildOwnChangeByFolder, locateFamilies, type RawTwinFamily } from './coverage-inputs'
 import { auditAllDocuments } from './document-audit'
 import { gapsFromSyncReport, type SourceLocation } from './engine-gaps'
 import { gapsFromFieldVerification } from './field-gaps'
@@ -90,7 +90,10 @@ export async function runCoverageScan(
       })),
   ])
 
-  const folders = archive.folders
+  // Pfad-Sortierung entkoppelt den Report von der Scan-Reihenfolge: mit
+  // concurrency > 1 (W8) haengt `archive.folders` von Antwortzeiten ab —
+  // der Report bleibt trotzdem reproduzierbar (Akzeptanzkriterium 6).
+  const folders = [...archive.folders].sort((a, b) => a.path.localeCompare(b.path))
   const folderIds = new Set(folders.map((folder) => folder.folderId))
   // Bibliotheks-Wurzel: kein Vorhaben, kein BERICHT noetig (Entscheid
   // 2026-08-19). Bei Teilbaum-Scans ist die Scan-Wurzel ein normaler Ordner.
@@ -163,7 +166,8 @@ export async function runCoverageScan(
 
   const budget = applyGapBudget(folders, gaps)
   const sourceCountByFolder = countSourcesByFolder(families)
-  const firstPass = buildTree({ folders, gaps: budget.gaps, sourceCountByFolder })
+  const ownChangeByFolder = buildOwnChangeByFolder({ folders, families })
+  const firstPass = buildTree({ folders, gaps: budget.gaps, sourceCountByFolder, ownChangeByFolder })
 
   const standGaps: CoverageGap[] = []
   for (const node of flattenNodes(firstPass)) {
@@ -176,7 +180,7 @@ export async function runCoverageScan(
   }
 
   const effectiveGaps = sortGaps([...budget.gaps, ...standGaps])
-  const tree = buildTree({ folders, gaps: effectiveGaps, sourceCountByFolder })
+  const tree = buildTree({ folders, gaps: effectiveGaps, sourceCountByFolder, ownChangeByFolder })
   const totals = buildTotals({
     folders, families, gaps: effectiveGaps, archive,
     budget: budget.collapsed,

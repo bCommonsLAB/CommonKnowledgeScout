@@ -59,17 +59,20 @@ export function locateFamilies(args: {
   })
 }
 
-function newest(a: string | null, b: string | null): string | null {
+/** Juengerer von zwei ISO-Zeitpunkten — auch der W8-Merge maximiert hierueber. */
+export function newest(a: string | null, b: string | null): string | null {
   if (a === null) return b
   if (b === null) return a
   return Date.parse(a) >= Date.parse(b) ? a : b
 }
 
 /**
- * Juengste Aenderung je Teilbaum (Dateien + Twin-Artefakte), bottom-up.
- * Grundlage fuer `bericht_veraltet` und `stand_widerspruch`.
+ * Juengste EIGENE Aenderung je Ordner (Dateien + Twin-Artefakte, OHNE
+ * Teilbaum). Wandert als Kleinst-Skalar in die Baumknoten (W8): der Merge
+ * leitet daraus die Teilbaum-Maxima fuer `stand_widerspruch` und
+ * `bericht_veraltet` ab, ohne den Storage erneut zu lesen.
  */
-export function buildNewestChangeBySubtree(args: {
+export function buildOwnChangeByFolder(args: {
   folders: readonly ArchiveFolderNode[]
   families: readonly TwinFamilyView[]
 }): Map<string, string | null> {
@@ -89,7 +92,18 @@ export function buildNewestChangeBySubtree(args: {
     for (const artifact of family.artifacts) value = newest(value, artifact.updatedAt)
     own.set(family.folderId, value)
   }
+  return own
+}
 
+/**
+ * Juengste Aenderung je Teilbaum (Dateien + Twin-Artefakte), bottom-up.
+ * Grundlage fuer `bericht_veraltet` und `stand_widerspruch`.
+ */
+export function buildNewestChangeBySubtree(args: {
+  folders: readonly ArchiveFolderNode[]
+  families: readonly TwinFamilyView[]
+}): Map<string, string | null> {
+  const own = buildOwnChangeByFolder(args)
   const result = new Map<string, string | null>(own)
   const byDepth = [...args.folders].sort((a, b) => b.depth - a.depth)
   for (const folder of byDepth) {
