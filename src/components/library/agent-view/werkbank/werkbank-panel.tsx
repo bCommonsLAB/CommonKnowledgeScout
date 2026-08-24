@@ -158,8 +158,12 @@ export function WerkbankPanel({ report, generatedAt, libraryLabel, localRootPath
             {liste}
           </ResizablePanel>
           <ResizableHandle withHandle />
-          <ResizablePanel defaultSize={100 - prefs.werkbankListeSize} minSize={30} className="min-h-0 overflow-y-auto">
-            {detail}
+          <ResizablePanel defaultSize={100 - prefs.werkbankListeSize} minSize={30} className="min-h-0">
+            {/* Der Scroll-Container muss INNEN sitzen: react-resizable-panels
+                setzt `overflow: hidden` als Inline-Style aufs Panel, das jede
+                overflow-Klasse schlaegt (Befund 24.08.2026 — 2342 px des
+                Details waren unerreichbar, u.a. die Verifizieren-Knoepfe). */}
+            <div className="h-full overflow-y-auto">{detail}</div>
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>

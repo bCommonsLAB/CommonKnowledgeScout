@@ -35,7 +35,7 @@ import { CoverageAmpel } from '../coverage-ampel'
 import { StandAktionen } from './stand-aktionen'
 import { TeilbaumScanKnopf, type TeilbaumScanProps } from './teilbaum-scan-knopf'
 import { WerkbankBefunde } from './werkbank-befunde'
-import { WerkbankBericht } from './werkbank-bericht'
+import { WerkbankBerichtBlock } from './werkbank-bericht-block'
 import { WerkbankFamilien } from './werkbank-familien'
 import { ZuListeKnopf } from './zu-liste-knopf'
 
@@ -158,14 +158,11 @@ export function WerkbankDetail({ karte, vorhabenId, report, generatedAt, library
         )}
       </header>
 
-      <section className="space-y-2">
-        <h3 className="text-sm font-semibold">Bericht</h3>
-        <WerkbankBericht
-          libraryId={report.libraryId}
-          folderId={karte.folderId}
-          veraltet={istBerichtVeraltet(befunde, karte.folderId)}
-        />
-      </section>
+      <WerkbankBerichtBlock
+        libraryId={report.libraryId}
+        folderId={karte.folderId}
+        veraltet={istBerichtVeraltet(befunde, karte.folderId)}
+      />
 
       <section className="space-y-2">
         <h3 className="text-sm font-semibold">Befunde des Teilbaums</h3>

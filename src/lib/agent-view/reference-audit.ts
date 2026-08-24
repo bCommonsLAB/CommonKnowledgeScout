@@ -115,7 +115,7 @@ export function auditReferences(args: ReferenceAuditArgs): CoverageGap[] {
           targetName: doc.name,
           folderId,
           path: doc.path,
-          message: `Verweis ohne Ziel: „${ref.target}"`,
+          message: `Der Verweis auf „${ref.target}" zeigt ins Leere`,
           detail: `${ref.syntax}, Anzeigetext „${ref.label}"`,
         }),
       )
@@ -132,7 +132,7 @@ export function auditReferences(args: ReferenceAuditArgs): CoverageGap[] {
         targetName: doc.name,
         folderId,
         path: doc.path,
-        message: `Verwiesenes Ziel ist juenger als das Dokument: „${ref.target}"`,
+        message: `„${ref.target}" wurde nach diesem Dokument geaendert — stimmt der Verweis noch?`,
         detail: `Ziel ${hit.modifiedAt} (${hit.kind}), Dokument ${doc.modifiedAt}`,
       }),
     )
@@ -157,7 +157,7 @@ export function auditReferences(args: ReferenceAuditArgs): CoverageGap[] {
           targetName: doc.name,
           folderId,
           path: doc.path,
-          message: `${missing.length} erschlossene Quelle(n) im Dokument nicht erwaehnt`,
+          message: `${missing.length} ausgewertete Datei(en) kommen im Text nicht vor`,
           detail: missing
             .map((source) => source.name)
             .sort((a, b) => a.localeCompare(b))

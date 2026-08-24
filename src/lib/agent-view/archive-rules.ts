@@ -96,7 +96,7 @@ export function checkReportMissing(
   return createGap({
     ...gapBase(folder),
     type: 'report_missing',
-    message: `Vorhaben ohne ${BERICHT_FILE_NAME}`,
+    message: `Zu diesem Vorhaben gibt es keinen Bericht (${BERICHT_FILE_NAME} fehlt)`,
   })
 }
 
@@ -113,7 +113,7 @@ export function checkIndexMissing(
   return createGap({
     ...gapBase(folder),
     type: 'index_missing',
-    message: `Ordner ohne ${INDEX_FILE_NAME}`,
+    message: `Dieser Ordner beschreibt nicht, was in ihm liegt (${INDEX_FILE_NAME} fehlt)`,
     detail: requiredByPattern ? 'Vorhabensordner (Muster)' : `Strukturebene bis Tiefe ${String(indexRequiredMaxDepth)}`,
   })
 }
@@ -166,7 +166,7 @@ export function checkScanError(folder: ArchiveFolderNode): CoverageGap | null {
   return createGap({
     ...gapBase(folder),
     type: 'scan_error',
-    message: 'Teilbaum konnte nicht vollstaendig gelesen werden',
+    message: 'Dieser Ordner liess sich nicht vollstaendig lesen — die Zahlen darunter sind unvollstaendig',
     detail: folder.error,
   })
 }

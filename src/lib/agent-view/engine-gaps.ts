@@ -70,7 +70,7 @@ export function gapsFromSyncRow(
   const gaps: CoverageGap[] = []
 
   if (row.error) {
-    gaps.push(createGap({ ...base, type: 'scan_error', message: 'Quelle konnte nicht geprueft werden', detail: row.error }))
+    gaps.push(createGap({ ...base, type: 'scan_error', message: 'Diese Datei liess sich nicht pruefen', detail: row.error }))
   }
 
   const seen = new Set<CoverageGapType>()
@@ -84,7 +84,7 @@ export function gapsFromSyncRow(
       createGap({
         ...base,
         type: gapType,
-        message: `Sync-Engine meldet: ${op.type}`,
+        message: `Die Ablage muss aufgeraeumt werden (${op.type})`,
         detail: op.note ?? `${op.kind} ${op.fileName}`,
       }),
     )
@@ -97,7 +97,7 @@ export function gapsFromSyncRow(
       createGap({
         ...base,
         type: 'source_without_twin',
-        message: 'Quelle ohne Transkript im Twin-Ordner',
+        message: 'Zu dieser Datei gibt es noch kein Transkript',
         detail: 'Discovery-Regel: `_<Quelle>/` fehlt oder enthaelt kein Transkript',
       }),
     )
@@ -122,7 +122,7 @@ export function gapsFromSyncReport(args: {
         targetName: '(Library)',
         folderId: args.rootFolderId,
         path: '',
-        message: 'Engine-Report gekappt — nicht alle Quellen sind im Befund enthalten',
+        message: 'Die Pruefliste wurde gekuerzt — nicht alle Dateien sind enthalten',
         detail: `${args.report.sources.length} von ${args.report.totalSources} Quellen im Detail`,
       }),
     )

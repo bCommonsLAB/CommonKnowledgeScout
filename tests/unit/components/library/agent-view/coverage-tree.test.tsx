@@ -103,7 +103,7 @@ describe('CoverageTree', () => {
     })
     const tree = [node({ folderId: 'f-alt', name: 'Alt', path: 'Alt', bearbeitungsstand: 'ungesichtet', ampel: 'gelb', totalGaps: 1 })]
     render(<CoverageTree report={report(tree, [sammel])} />)
-    expect(screen.getByText('Ungesichteter Teilbaum')).toBeTruthy()
+    expect(screen.getByText('Ordner noch ungesichtet')).toBeTruthy()
     expect(screen.getByText(/42 Einzelbefund/)).toBeTruthy()
   })
 })

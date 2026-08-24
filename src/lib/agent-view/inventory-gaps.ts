@@ -35,7 +35,7 @@ export function orphanTwinFolders(folders: readonly ArchiveFolderNode[]): Covera
           targetName: twin.name,
           folderId: folder.folderId,
           path: twin.path,
-          message: `Spiegelordner ohne Quelldatei „${twin.expectedSourceName}"`,
+          message: `Auswertungen ohne ihr Original: „${twin.expectedSourceName}" fehlt`,
           detail: twin.artifactNames.length > 0 ? `Artefakte: ${twin.artifactNames.join(', ')}` : 'Ordner ist leer',
         }),
       )
@@ -62,7 +62,7 @@ export function orphanTwinDocuments(args: {
         targetName: family.sourceName,
         folderId: args.rootFolderId,
         path: family.path || family.sourceName,
-        message: 'Twin-Dokument ohne Quelldatei im Scan',
+        message: 'Auswertung vorhanden, aber das Original liegt nicht (mehr) im Archiv',
         detail: `${family.artifacts.length} Artefakt(e) in MongoDB`,
       }),
     )

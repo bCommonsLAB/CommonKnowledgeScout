@@ -39,40 +39,40 @@ export interface GapDefinition {
 
 export const GAP_REGISTRY: Record<CoverageGapType, GapDefinition> = {
   // — Sync-Engine-Check (vorhanden) —
-  source_without_twin: { actor: 'knowledgescout', zyklusSchritt: 1, severity: 'error', origin: 'sync-engine', label: 'Quelle ohne Twin' },
-  orphan_twin: { actor: 'knowledgescout', zyklusSchritt: 2, severity: 'warning', origin: 'sync-engine', label: 'Twin ohne Quelle' },
-  conflict: { actor: 'knowledgescout', zyklusSchritt: 4, severity: 'error', origin: 'sync-engine', label: 'Spiegel und Datenbank divergieren' },
-  twin_stale: { actor: 'knowledgescout', zyklusSchritt: 1, severity: 'warning', origin: 'sync-engine', label: 'Quelle juenger als ihr Twin' },
-  legacy_twin_name: { actor: 'knowledgescout', zyklusSchritt: 2, severity: 'warning', origin: 'sync-engine', label: 'Alt-Name eines Twins' },
-  path_too_long: { actor: 'cowork', zyklusSchritt: 2, severity: 'warning', origin: 'sync-engine', label: 'Pfad ueber dem Budget' },
+  source_without_twin: { actor: 'knowledgescout', zyklusSchritt: 1, severity: 'error', origin: 'sync-engine', label: 'Noch nicht erschlossen' },
+  orphan_twin: { actor: 'knowledgescout', zyklusSchritt: 2, severity: 'warning', origin: 'sync-engine', label: 'Auswertung ohne Originaldatei' },
+  conflict: { actor: 'knowledgescout', zyklusSchritt: 4, severity: 'error', origin: 'sync-engine', label: 'Ablage und Datenbank uneins' },
+  twin_stale: { actor: 'knowledgescout', zyklusSchritt: 1, severity: 'warning', origin: 'sync-engine', label: 'Original neuer als die Auswertung' },
+  legacy_twin_name: { actor: 'knowledgescout', zyklusSchritt: 2, severity: 'warning', origin: 'sync-engine', label: 'Alte Namensform' },
+  path_too_long: { actor: 'cowork', zyklusSchritt: 2, severity: 'warning', origin: 'sync-engine', label: 'Pfad zu lang' },
 
   // — Library-Verifikation A1 (vorhanden) —
-  core_fields_missing: { actor: 'knowledgescout', zyklusSchritt: 1, severity: 'error', origin: 'library-verification', label: 'A0-Pflichtfelder fehlen' },
+  core_fields_missing: { actor: 'knowledgescout', zyklusSchritt: 1, severity: 'error', origin: 'library-verification', label: 'Pflichtangaben fehlen' },
 
   // — Twin-Kern / Verifikation (Contract §3) —
-  twin_core_missing: { actor: 'knowledgescout', zyklusSchritt: 2, severity: 'warning', origin: 'twin-contract', label: 'Twin-Kern unvollstaendig' },
-  twin_unverified: { actor: 'mensch', zyklusSchritt: 4, severity: 'warning', origin: 'twin-contract', label: 'Fuehrendes Artefakt unverifiziert' },
-  self_verified: { actor: 'mensch', zyklusSchritt: 4, severity: 'error', origin: 'twin-contract', label: 'Selbst-Verifikation' },
-  transformation_missing: { actor: 'knowledgescout', zyklusSchritt: 1, severity: 'error', origin: 'twin-contract', label: 'Transformation fehlt' },
-  transformation_stale: { actor: 'knowledgescout', zyklusSchritt: 1, severity: 'info', origin: 'twin-contract', label: 'Transformation aelter als Transkript' },
+  twin_core_missing: { actor: 'knowledgescout', zyklusSchritt: 2, severity: 'warning', origin: 'twin-contract', label: 'Angaben in der Auswertung fehlen' },
+  twin_unverified: { actor: 'mensch', zyklusSchritt: 4, severity: 'warning', origin: 'twin-contract', label: 'Von dir noch nicht geprueft' },
+  self_verified: { actor: 'mensch', zyklusSchritt: 4, severity: 'error', origin: 'twin-contract', label: 'Von der Maschine selbst geprueft' },
+  transformation_missing: { actor: 'knowledgescout', zyklusSchritt: 1, severity: 'error', origin: 'twin-contract', label: 'Zusammenfassung fehlt' },
+  transformation_stale: { actor: 'knowledgescout', zyklusSchritt: 1, severity: 'info', origin: 'twin-contract', label: 'Zusammenfassung veraltet' },
 
   // — Archiv-Konventionen —
-  report_missing: { actor: 'cowork', zyklusSchritt: 3, severity: 'warning', origin: 'archiv-konvention', label: 'BERICHT.md fehlt' },
-  index_missing: { actor: 'cowork', zyklusSchritt: 2, severity: 'warning', origin: 'archiv-konvention', label: '_INDEX.md fehlt' },
-  bericht_veraltet: { actor: 'cowork', zyklusSchritt: 3, severity: 'warning', origin: 'archiv-konvention', label: 'BERICHT.md veraltet' },
-  stand_widerspruch: { actor: 'mensch', zyklusSchritt: 4, severity: 'error', origin: 'archiv-konvention', label: 'Erklaerter Stand widerlegt' },
+  report_missing: { actor: 'cowork', zyklusSchritt: 3, severity: 'warning', origin: 'archiv-konvention', label: 'Kein Bericht' },
+  index_missing: { actor: 'cowork', zyklusSchritt: 2, severity: 'warning', origin: 'archiv-konvention', label: 'Keine Ordner-Beschreibung' },
+  bericht_veraltet: { actor: 'cowork', zyklusSchritt: 3, severity: 'warning', origin: 'archiv-konvention', label: 'Bericht ueberholt' },
+  stand_widerspruch: { actor: 'mensch', zyklusSchritt: 4, severity: 'error', origin: 'archiv-konvention', label: 'Stand passt nicht zum Inhalt' },
 
   // — Verweis-Audit —
-  verweis_tot: { actor: 'cowork', zyklusSchritt: 3, severity: 'error', origin: 'verweis-audit', label: 'Toter Verweis' },
-  verweis_veraltet: { actor: 'cowork', zyklusSchritt: 3, severity: 'warning', origin: 'verweis-audit', label: 'Veralteter Verweis' },
-  bericht_unvollstaendig: { actor: 'cowork', zyklusSchritt: 3, severity: 'info', origin: 'verweis-audit', label: 'Bericht laesst Quellen unerwaehnt' },
+  verweis_tot: { actor: 'cowork', zyklusSchritt: 3, severity: 'error', origin: 'verweis-audit', label: 'Verweis ins Leere' },
+  verweis_veraltet: { actor: 'cowork', zyklusSchritt: 3, severity: 'warning', origin: 'verweis-audit', label: 'Verweis womoeglich ueberholt' },
+  bericht_unvollstaendig: { actor: 'cowork', zyklusSchritt: 3, severity: 'info', origin: 'verweis-audit', label: 'Bericht erwaehnt nicht alles' },
 
   // — Budget + Betrieb —
-  teilbaum_ungesichtet: { actor: 'knowledgescout', zyklusSchritt: 1, severity: 'info', origin: 'budget', label: 'Ungesichteter Teilbaum' },
-  scan_error: { actor: 'knowledgescout', zyklusSchritt: 1, severity: 'error', origin: 'budget', label: 'Scan-Fehler' },
+  teilbaum_ungesichtet: { actor: 'knowledgescout', zyklusSchritt: 1, severity: 'info', origin: 'budget', label: 'Ordner noch ungesichtet' },
+  scan_error: { actor: 'knowledgescout', zyklusSchritt: 1, severity: 'error', origin: 'budget', label: 'Konnte nicht gelesen werden' },
 
   // — Archiv-Hygiene (W5-Nachzug, Cowork-Befund: abgeschnittene Sync-Reste) —
-  datei_ohne_endung: { actor: 'mensch', zyklusSchritt: 1, severity: 'warning', origin: 'archiv-konvention', label: 'Datei ohne Endung (Sync-Rest?)' },
+  datei_ohne_endung: { actor: 'mensch', zyklusSchritt: 1, severity: 'warning', origin: 'archiv-konvention', label: 'Datei ohne Endung' },
 }
 
 /**

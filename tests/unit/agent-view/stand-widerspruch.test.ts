@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { checkStandWiderspruch } from '@/lib/agent-view/stand-widerspruch'
+import { checkStandWiderspruch, widerlegendeTypen } from '@/lib/agent-view/stand-widerspruch'
 import type { Bearbeitungsstand, CoverageTreeNode } from '@/lib/agent-view/types'
 
 function node(overrides: Partial<CoverageTreeNode> = {}): CoverageTreeNode {
@@ -55,5 +55,64 @@ describe('stand-widerspruch', () => {
   it('ignoriert einen bereits gemeldeten Widerspruch als eigenen Ausloeser', () => {
     const gap = checkStandWiderspruch({ node: node(), newestChangeInSubtree: null, subtreeGapTypes: ['stand_widerspruch'] })
     expect(gap).toBeNull()
+  })
+
+  // Befund 24.08.2026 (Live-Lauf ueber die Bruecke): Ein Ordner auf
+  // „berichtet" mit 28 offenen `twin_unverified` bekam einen Widerspruch —
+  // obwohl genau das der Zustand ist, auf den die Abnahme wartet.
+  describe('der Zyklus-Schritt entscheidet', () => {
+    it('„berichtet" wird NICHT von Schritt-4-Befunden widerlegt (twin_unverified)', () => {
+      const berichtet = node({ bearbeitungsstand: 'berichtet' })
+      const gap = checkStandWiderspruch({
+        node: berichtet, newestChangeInSubtree: null, subtreeGapTypes: ['twin_unverified'],
+      })
+      expect(gap).toBeNull()
+    })
+
+    it('„abgenommen" wird sehr wohl von Schritt-4-Befunden widerlegt', () => {
+      const gap = checkStandWiderspruch({
+        node: node(), newestChangeInSubtree: null, subtreeGapTypes: ['twin_unverified'],
+      })
+      expect(gap?.type).toBe('stand_widerspruch')
+      expect(gap?.detail).toContain('twin_unverified')
+    })
+
+    it('„berichtet" wird von frueheren Schritten weiterhin widerlegt', () => {
+      const berichtet = node({ bearbeitungsstand: 'berichtet' })
+      const gap = checkStandWiderspruch({
+        node: berichtet, newestChangeInSubtree: null, subtreeGapTypes: ['source_without_twin'],
+      })
+      expect(gap?.zyklusSchritt).toBe(1)
+    })
+
+    it('nennt im Detail nur die widerlegenden Typen, nicht die spaeteren', () => {
+      const berichtet = node({ bearbeitungsstand: 'berichtet' })
+      const gap = checkStandWiderspruch({
+        node: berichtet, newestChangeInSubtree: null,
+        subtreeGapTypes: ['twin_unverified', 'report_missing'],
+      })
+      expect(gap?.detail).toContain('report_missing')
+      expect(gap?.detail).not.toContain('twin_unverified')
+    })
+
+    it('der Aenderungs-Verdacht bleibt unabhaengig vom Schritt bestehen', () => {
+      const berichtet = node({ bearbeitungsstand: 'berichtet' })
+      const gap = checkStandWiderspruch({
+        node: berichtet,
+        newestChangeInSubtree: '2026-08-20T10:00:00.000Z',
+        subtreeGapTypes: ['twin_unverified'],
+      })
+      expect(gap?.detail).toContain('Pruefauftrag')
+    })
+  })
+
+  describe('widerlegendeTypen', () => {
+    it('schneidet je Stand bei dessen behauptetem Schritt ab', () => {
+      const alle = ['source_without_twin', 'index_missing', 'report_missing', 'twin_unverified'] as const
+      expect(widerlegendeTypen(alle, 'erschlossen')).toEqual(['source_without_twin'])
+      expect(widerlegendeTypen(alle, 'strukturiert')).toEqual(['source_without_twin', 'index_missing'])
+      expect(widerlegendeTypen(alle, 'berichtet')).toEqual(['source_without_twin', 'index_missing', 'report_missing'])
+      expect(widerlegendeTypen(alle, 'abgenommen')).toEqual([...alle])
+    })
   })
 })
