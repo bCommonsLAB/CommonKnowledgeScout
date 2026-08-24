@@ -79,6 +79,14 @@ export async function POST(
           )
           return { fileId: uploaded.id }
         },
+        folderName: async () => {
+          try {
+            return (await provider.getItemById(standRequest.folderId)).metadata.name
+          } catch {
+            // Lookup dient nur der Anzeige — scheitert er, ist die Id die beste Aussage.
+            return standRequest.folderId
+          }
+        },
       },
     )
 
