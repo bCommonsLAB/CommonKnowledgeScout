@@ -27,6 +27,10 @@ export interface CoverageResponse {
   /** D1: erledigt/neu seit dem letzten Scan; null = deltaHinweis sagt warum. */
   delta: CoverageDelta | null
   deltaHinweis: string | null
+  /** Nur Scan-Antworten (W8): wurde der Teilbaum-Scan in den Voll-Report gemergt? */
+  merged?: boolean
+  /** Benannter Grund, wenn NICHT gemergt wurde (Fallback: Teil-Report ersetzt). */
+  mergeHinweis?: string | null
 }
 
 export interface UseCoverageReportResult {
@@ -38,6 +42,8 @@ export interface UseCoverageReportResult {
   /** true, wenn die Library noch nie gescannt wurde. */
   neverScanned: boolean
   error: string | null
+  /** Benannter Hinweis des letzten Scans (W8: Merge-Fallback) — null = nichts zu sagen. */
+  scanHinweis: string | null
   reload: () => Promise<void>
   scan: (folderId?: string) => Promise<void>
 }
@@ -58,6 +64,7 @@ export function useCoverageReport(libraryId: string | undefined): UseCoverageRep
   const [isScanning, setIsScanning] = useState(false)
   const [neverScanned, setNeverScanned] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [scanHinweis, setScanHinweis] = useState<string | null>(null)
 
   const reload = useCallback(async () => {
     if (!libraryId) return
@@ -85,6 +92,7 @@ export function useCoverageReport(libraryId: string | undefined): UseCoverageRep
       if (!libraryId) return
       setIsScanning(true)
       setError(null)
+      setScanHinweis(null)
       try {
         const response = await fetch(`/api/library/${encodeURIComponent(libraryId)}/agent-view/scan`, {
           method: 'POST',
@@ -92,7 +100,9 @@ export function useCoverageReport(libraryId: string | undefined): UseCoverageRep
           body: JSON.stringify(folderId ? { scope: { folderId } } : {}),
         })
         if (!response.ok) throw new Error(await readError(response))
-        setData((await response.json()) as CoverageResponse)
+        const antwort = (await response.json()) as CoverageResponse
+        setData(antwort)
+        setScanHinweis(antwort.mergeHinweis ?? null)
         setNeverScanned(false)
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
@@ -107,5 +117,5 @@ export function useCoverageReport(libraryId: string | undefined): UseCoverageRep
     void reload()
   }, [reload])
 
-  return { data, isLoading, isScanning, neverScanned, error, reload, scan }
+  return { data, isLoading, isScanning, neverScanned, error, scanHinweis, reload, scan }
 }

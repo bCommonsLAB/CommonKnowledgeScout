@@ -269,6 +269,16 @@ würde die Werkbank-Liste zerstören. Deshalb gestuft:
   erscheint der Button im Detail; bis dahin gibt es nur das globale
   „Neu scannen" plus ein Scope-Banner, wenn der gespeicherte Report ein
   Teilbaum-Report ist.
+- **Geliefert mit W8** (24.08.2026): `report-merge.ts` (+ Guards/Umbau),
+  Invarianz per Deep-Equal-Test bewiesen (`report-merge.test.ts`) — auch die
+  teilbaum-uebergreifenden Regeln `stand_widerspruch`/`bericht_veraltet` an
+  Scope-VORFAHREN, moeglich durch neue Knoten-Skalare (eigene juengste
+  Aenderung, Bericht-Frische; Reports vor W8 brauchen einmal einen
+  Voll-Scan). Nicht mergebare Lagen sind benannte Fallbacks (u. a.
+  ungesichteter Vorfahr, gekappte Listen) — dann ersetzt der Teil-Report wie
+  zuvor, die UI sagt warum. Bekannte, dokumentierte Grenzen des
+  Teilbaum-Scans selbst: das Verweis-Audit loest ueber die Scope-Grenze in
+  beide Richtungen erst der naechste Voll-Scan sauber auf.
 
 ### F11 — Nicht-Ziele v2
 
