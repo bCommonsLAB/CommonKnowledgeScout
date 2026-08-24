@@ -22,7 +22,8 @@ import { GAP_REGISTRY } from './gap-registry'
 import { BOARD_COLUMNS } from './labels'
 import type { CoverageGap, CoverageGapType, GapActor, VorhabenCard, ZyklusSchritt } from './types'
 
-export type WerkbankStatusFilter = 'alle' | 'zu_tun' | 'bereit'
+/** `liste` (W6, F7): nur Mitglieder der aktiven Arbeitsliste. */
+export type WerkbankStatusFilter = 'alle' | 'zu_tun' | 'bereit' | 'liste'
 export type WerkbankSortierung = 'pfad' | 'stand' | 'befunde'
 
 /** Chip-Filter der UI — dieselbe Form wie die MCP-Argumente `akteur`/`zyklusSchritt`. */
@@ -90,6 +91,12 @@ export interface WerkbankFilterArgs {
   befundFilter: BefundFilter
   /** Suchtext ueber Name + Pfad + Bericht-Titel; leer = keine Suche. */
   suche: string
+  /**
+   * folderIds der aktiven Arbeitsliste (W6) — Pflicht bei `statusFilter:
+   * 'liste'`; `null` heisst „keine Liste gewaehlt" und ergibt eine BENANNT
+   * leere Liste, kein stilles Alles.
+   */
+  listenMitglieder?: ReadonlySet<string> | null
 }
 
 export interface WerkbankFilterErgebnis {
@@ -109,6 +116,7 @@ export function filtereVorhaben(
   const sucheKlein = args.suche.trim().toLowerCase()
   const zeilen: VorhabenCard[] = []
   let nichtAuswertbar = 0
+  const mitglieder = args.listenMitglieder ?? null
   for (const card of cards) {
     if (sucheKlein !== '' && !sucheMatcht(card, sucheKlein)) continue
     if (!karteHatBefundZu(card, args.befundFilter)) continue
@@ -121,6 +129,8 @@ export function filtereVorhaben(
       if (!status) continue
     } else if (args.statusFilter === 'bereit') {
       if (!istBereitZurAbnahme(card.gapsByActor)) continue
+    } else if (args.statusFilter === 'liste') {
+      if (mitglieder === null || !mitglieder.has(card.folderId)) continue
     }
     zeilen.push(card)
   }

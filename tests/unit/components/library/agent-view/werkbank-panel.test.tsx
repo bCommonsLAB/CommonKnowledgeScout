@@ -19,15 +19,21 @@ import type { CoverageReport, VorhabenCard } from '@/lib/agent-view/types'
 
 afterEach(() => cleanup())
 
-beforeEach(() => {
-  // Detail laedt den Bericht ueber die W2-Route — hier immer „kein Bericht".
+/** Antworten je Route: Bericht (W2) immer „kein Bericht", Worklists (W6) stubbar. */
+function stubRouten(lists: unknown[] = []) {
   vi.stubGlobal(
     'fetch',
-    vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ bericht: null, grund: 'kein_bericht' }), { status: 200 }),
-    ),
+    vi.fn().mockImplementation(async (eingabe: RequestInfo | URL) => {
+      const url = String(eingabe)
+      if (url.includes('/agent-view/worklists')) {
+        return new Response(JSON.stringify({ lists }), { status: 200 })
+      }
+      return new Response(JSON.stringify({ bericht: null, grund: 'kein_bericht' }), { status: 200 })
+    }),
   )
-})
+}
+
+beforeEach(() => stubRouten())
 
 function card(path: string, overrides: Partial<VorhabenCard> = {}): VorhabenCard {
   return {
@@ -138,6 +144,27 @@ describe('WerkbankPanel — Filterleiste', () => {
     expect(zuTun[0].getAttribute('aria-pressed')).toBe('true')
     const alle = screen.getAllByRole('button', { name: 'Alle' })
     expect(alle[0].getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('Filter „Liste ▾" ohne gewaehlte Liste nennt den Grund (W6, Akzeptanzkriterium 4)', async () => {
+    renderPanel(report([card('1. Arbeit/Pilot')]), '?filter=liste')
+    expect((await screen.findAllByText(/Keine Arbeitsliste gewaehlt/)).length).toBeGreaterThan(0)
+  })
+
+  it('aktive Liste zeigt Fortschrittskopf und tote Eintraege sichtbar (W6, F7)', async () => {
+    stubRouten([
+      {
+        listId: 'l-1', name: 'Aktuelle Projekte', position: 0,
+        folders: [
+          { folderId: 'f-1. Arbeit/Pilot', pathSnapshot: '1. Arbeit/Pilot', name: 'Pilot', addedAt: 'x' },
+          { folderId: 'f-weg', pathSnapshot: 'Alt/Geloescht', name: 'Geloescht', addedAt: 'x' },
+        ],
+      },
+    ])
+    renderPanel(report([card('1. Arbeit/Pilot')]), '?filter=liste&liste=l-1')
+    expect((await screen.findAllByText(/0 von 1 abgenommen/)).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Nicht im letzten Scan \(1\)/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Alt\/Geloescht/).length).toBeGreaterThan(0)
   })
 
   it('Gruppierung: „Bereich" ist Default, ?gruppierung=thema steuert per Deep-Link (F12, W5)', () => {

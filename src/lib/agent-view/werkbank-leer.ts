@@ -20,6 +20,7 @@ const STATUS_LABEL: Record<WerkbankStatusFilter, string> = {
   alle: 'Alle',
   zu_tun: 'Zu tun',
   bereit: 'Bereit zur Abnahme',
+  liste: 'Arbeitsliste',
 }
 
 export interface WerkbankLeerArgs {
@@ -35,6 +36,13 @@ export interface WerkbankLeerArgs {
   /** Teilbaum-Report? `scopePath` = Scope, wenn der Report ihn kennt. */
   scoped: boolean
   scopePath: string | null
+  /** W6, nur bei `statusFilter: 'liste'`: Zustand der aktiven Arbeitsliste. */
+  liste?: {
+    /** null = keine Liste gewaehlt/vorhanden. */
+    name: string | null
+    mitglieder: number
+    tote: number
+  }
 }
 
 function aktiveEinschraenkungen(args: WerkbankLeerArgs): string[] {
@@ -64,6 +72,20 @@ export function beschreibeLeereWerkbankListe(args: WerkbankLeerArgs): string | n
       'Kein Vorhaben im Report. Vorhaben sind Ordner mit `bearbeitungsstand` im `_INDEX.md` ' +
       `oder Ordner, die auf das Vorhaben-Muster der Library passen.${scopeHinweis}`
     )
+  }
+
+  if (args.statusFilter === 'liste') {
+    const liste = args.liste
+    if (!liste || liste.name === null) {
+      return 'Keine Arbeitsliste gewaehlt — oben eine Liste waehlen oder eine neue anlegen.'
+    }
+    if (liste.mitglieder === 0) {
+      return `Arbeitsliste „${liste.name}" ist leer — Vorhaben ueber den Pin oder „Zu Liste hinzufuegen" im Detail aufnehmen.`
+    }
+    if (liste.tote === liste.mitglieder) {
+      return `Kein Mitglied von „${liste.name}" ist im letzten Scan — alle ${liste.tote} Eintraege stehen unten als „nicht im letzten Scan".`
+    }
+    // Mitglieder vorhanden, aber Suche/Chips filtern alles weg → unten weiter.
   }
 
   if (args.statusFilter === 'zu_tun' && args.nichtAuswertbar > 0) {

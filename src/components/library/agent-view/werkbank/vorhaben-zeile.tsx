@@ -13,7 +13,7 @@
  * @module components/library/agent-view
  */
 
-import { AlertTriangle, ChevronDown, ChevronRight, FileText } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronRight, FileText, Pin, PinOff } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { istBereitZurAbnahme } from '@/lib/agent-view/abnahme'
 import { actorSummary, standLabel } from '@/lib/agent-view/labels'
@@ -37,45 +37,63 @@ export function VorhabenZeile({
   card,
   ausgewaehlt,
   onSelect,
+  gepinnt,
+  onPin,
 }: {
   card: VorhabenCard
   ausgewaehlt: boolean
   onSelect: (folderId: string) => void
+  /** Mitglied der aktiven Arbeitsliste? Nur relevant, wenn `onPin` gesetzt ist. */
+  gepinnt?: boolean
+  /** W6 (F7): Pin togglet die Mitgliedschaft in der AKTIVEN Liste. */
+  onPin?: (card: VorhabenCard) => void
 }) {
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(card.folderId)}
-      aria-current={ausgewaehlt ? 'true' : undefined}
-      className={`flex w-full flex-col gap-0.5 rounded-md px-2 py-1.5 text-left hover:bg-accent ${
-        ausgewaehlt ? 'bg-accent' : ''
-      }`}
+    <div
+      className={`flex w-full items-start gap-0.5 rounded-md hover:bg-accent ${ausgewaehlt ? 'bg-accent' : ''}`}
     >
-      <span className="flex items-center gap-1.5">
-        <AmpelOderHinweis card={card} />
-        <span className="truncate text-sm font-medium" title={card.path}>
-          {card.name}
-        </span>
-        {card.widerspruch && (
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-500" aria-label="Widerspruch: Stand nicht mehr aktuell" />
-        )}
-        {typeof card.berichtTitel === 'string' && card.berichtTitel !== '' && (
-          <span className="truncate text-xs text-muted-foreground" title={card.berichtTitel}>
-            {card.berichtTitel}
+      <button
+        type="button"
+        onClick={() => onSelect(card.folderId)}
+        aria-current={ausgewaehlt ? 'true' : undefined}
+        className="flex min-w-0 flex-1 flex-col gap-0.5 py-1.5 pl-2 text-left"
+      >
+        <span className="flex items-center gap-1.5">
+          <AmpelOderHinweis card={card} />
+          <span className="truncate text-sm font-medium" title={card.path}>
+            {card.name}
           </span>
-        )}
-      </span>
-      <span className="flex items-center gap-2 text-xs text-muted-foreground">
-        <span>{card.bearbeitungsstand === null ? '—' : standLabel(card.bearbeitungsstand)}</span>
-        <span title={actorSummary(card.gapsByActor)}>
-          M {card.gapsByActor.mensch} · C {card.gapsByActor.cowork} · K {card.gapsByActor.knowledgescout}
+          {card.widerspruch && (
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-500" aria-label="Widerspruch: Stand nicht mehr aktuell" />
+          )}
+          {typeof card.berichtTitel === 'string' && card.berichtTitel !== '' && (
+            <span className="truncate text-xs text-muted-foreground" title={card.berichtTitel}>
+              {card.berichtTitel}
+            </span>
+          )}
         </span>
-        {card.hasBericht && <FileText className="h-3 w-3" aria-label="BERICHT.md vorhanden" />}
-        {istBereitZurAbnahme(card.gapsByActor) && (
-          <Badge className="h-4 bg-emerald-600 px-1.5 text-[10px] text-white hover:bg-emerald-600">bereit</Badge>
-        )}
-      </span>
-    </button>
+        <span className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>{card.bearbeitungsstand === null ? '—' : standLabel(card.bearbeitungsstand)}</span>
+          <span title={actorSummary(card.gapsByActor)}>
+            M {card.gapsByActor.mensch} · C {card.gapsByActor.cowork} · K {card.gapsByActor.knowledgescout}
+          </span>
+          {card.hasBericht && <FileText className="h-3 w-3" aria-label="BERICHT.md vorhanden" />}
+          {istBereitZurAbnahme(card.gapsByActor) && (
+            <Badge className="h-4 bg-emerald-600 px-1.5 text-[10px] text-white hover:bg-emerald-600">bereit</Badge>
+          )}
+        </span>
+      </button>
+      {onPin && (
+        <button
+          type="button"
+          onClick={() => onPin(card)}
+          aria-label={gepinnt ? `${card.name} aus der Arbeitsliste entfernen` : `${card.name} in die Arbeitsliste aufnehmen`}
+          className="p-1.5 text-muted-foreground hover:text-foreground"
+        >
+          {gepinnt ? <PinOff className="h-3.5 w-3.5" aria-hidden /> : <Pin className="h-3.5 w-3.5" aria-hidden />}
+        </button>
+      )}
+    </div>
   )
 }
 

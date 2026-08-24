@@ -74,6 +74,21 @@ describe('VorhabenZeile', () => {
     render(<VorhabenZeile card={card({ widerspruch: true })} ausgewaehlt={false} onSelect={() => {}} />)
     expect(screen.getByLabelText(/Widerspruch/)).toBeTruthy()
   })
+
+  it('Pin (W6): erscheint nur mit onPin, togglet Label je Mitgliedschaft und meldet die Karte', () => {
+    render(<VorhabenZeile card={card()} ausgewaehlt={false} onSelect={() => {}} />)
+    expect(screen.queryByLabelText(/Arbeitsliste/)).toBeNull()
+    cleanup()
+
+    const onPin = vi.fn()
+    render(<VorhabenZeile card={card()} ausgewaehlt={false} onSelect={() => {}} gepinnt={false} onPin={onPin} />)
+    fireEvent.click(screen.getByLabelText('Pilot in die Arbeitsliste aufnehmen'))
+    expect(onPin).toHaveBeenCalledWith(expect.objectContaining({ folderId: 'f-pilot' }))
+    cleanup()
+
+    render(<VorhabenZeile card={card()} ausgewaehlt={false} onSelect={() => {}} gepinnt onPin={onPin} />)
+    expect(screen.getByLabelText('Pilot aus der Arbeitsliste entfernen')).toBeTruthy()
+  })
 })
 
 describe('BereichKopfZeile', () => {

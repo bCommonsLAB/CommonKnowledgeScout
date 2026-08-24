@@ -34,6 +34,7 @@ import { CoverageAmpel } from '../coverage-ampel'
 import { WerkbankBefunde } from './werkbank-befunde'
 import { WerkbankBericht } from './werkbank-bericht'
 import { WerkbankFamilien } from './werkbank-familien'
+import { ZuListeKnopf } from './zu-liste-knopf'
 
 export interface WerkbankDetailProps {
   /** Karte zur gewaehlten folderId; null = nichts gewaehlt oder nicht im Report. */
@@ -98,9 +99,12 @@ export function WerkbankDetail({ karte, vorhabenId, report, generatedAt, library
             <span className="break-words">{karte.name}</span>
             {karte.widerspruch && <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" aria-hidden />}
           </h2>
-          <a href={archivHref} className="ml-auto inline-flex items-center gap-1 text-xs underline-offset-2 hover:underline">
-            Im Archiv oeffnen <ExternalLink className="h-3 w-3" aria-hidden />
-          </a>
+          <span className="ml-auto flex items-center gap-2">
+            <ZuListeKnopf libraryId={report.libraryId} karte={karte} />
+            <a href={archivHref} className="inline-flex items-center gap-1 text-xs underline-offset-2 hover:underline">
+              Im Archiv oeffnen <ExternalLink className="h-3 w-3" aria-hidden />
+            </a>
+          </span>
         </div>
         <p className="break-words text-xs text-muted-foreground">{karte.path.split('/').join(' / ')}</p>
         <div className="flex flex-wrap items-center gap-2 text-sm">
