@@ -112,13 +112,22 @@ export function WerkbankBefunde({
                     {zyklusSchrittLabel(group.zyklusSchritt)}
                   </h4>
                   {group.gaps.map((gap, index) => (
-                    <p key={`${gap.type}-${gap.targetId}-${index}`} className="text-xs">
-                      <span className="font-medium">{gapLabel(gap.type)}</span>
-                      <span className="text-muted-foreground"> — {gap.message}</span>
-                      <span className="block truncate text-muted-foreground/80" title={gap.path || '(Wurzel)'}>
-                        {gap.path || '(Archiv-Wurzel)'}
-                      </span>
-                    </p>
+                    // Der BELEG gehoert dazu: `detail` nennt den konkreten Grund
+                    // (Test-Befund 24.08. — ohne ihn liest sich der Befund als
+                    // blosse Behauptung). Der Pfad ist als „Betrifft" benannt,
+                    // weil er auf die QUELLE zeigt, nicht auf das Artefakt.
+                    <div key={`${gap.type}-${gap.targetId}-${index}`} className="text-xs">
+                      <p>
+                        <span className="font-medium">{gapLabel(gap.type)}</span>
+                        <span className="text-muted-foreground"> — {gap.message}</span>
+                      </p>
+                      {typeof gap.detail === 'string' && gap.detail !== '' && (
+                        <p className="text-muted-foreground/80">{gap.detail}</p>
+                      )}
+                      <p className="truncate text-muted-foreground/70" title={gap.path || '(Wurzel)'}>
+                        Betrifft: {gap.path || '(Archiv-Wurzel)'}
+                      </p>
+                    </div>
                   ))}
                 </div>
               ))}

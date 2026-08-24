@@ -1,0 +1,381 @@
+<title>Abnahme-Werkbank</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --bg: #ffffff;
+    --page: #f1f5f9;
+    --panel: #f8fafc;
+    --panel2: #eef2f6;
+    --border: #e2e8f0;
+    --text: #0f172a;
+    --muted: #64748b;
+    --primary: #0f172a;
+    --primary-fg: #ffffff;
+    --green: #16a34a;
+    --green-bg: #f0fdf4;
+    --green-border: #bbf7d0;
+    --amber: #d97706;
+    --amber-bg: rgba(217, 119, 6, .08);
+    --red: #dc2626;
+    --red-soft: #fef2f2;
+    --link: #2563eb;
+    --sel: #eef2ff;
+    --annot: #7c3aed;
+    --annot-fg: #ffffff;
+    --chip-m-bg: #fef3c7; --chip-m-fg: #92400e;
+    --chip-c-bg: #dbeafe; --chip-c-fg: #1e40af;
+    --chip-k-bg: #ede9fe; --chip-k-fg: #5b21b6;
+    --shadow: 0 1px 3px rgba(15, 23, 42, .08), 0 8px 24px rgba(15, 23, 42, .06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f172a; --page: #020817; --panel: #131c31; --panel2: #1e293b;
+      --border: #283548; --text: #e2e8f0; --muted: #94a3b8;
+      --primary: #e2e8f0; --primary-fg: #0f172a;
+      --green: #4ade80; --green-bg: rgba(34, 197, 94, .12); --green-border: rgba(74, 222, 128, .35);
+      --amber: #fbbf24; --amber-bg: rgba(251, 191, 36, .1);
+      --red: #f87171; --red-soft: rgba(248, 113, 113, .12);
+      --link: #60a5fa; --sel: rgba(99, 102, 241, .18);
+      --annot: #a78bfa; --annot-fg: #1e1b4b;
+      --chip-m-bg: rgba(251, 191, 36, .16); --chip-m-fg: #fcd34d;
+      --chip-c-bg: rgba(96, 165, 250, .16); --chip-c-fg: #93c5fd;
+      --chip-k-bg: rgba(167, 139, 250, .16); --chip-k-fg: #c4b5fd;
+      --shadow: 0 1px 3px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f172a; --page: #020817; --panel: #131c31; --panel2: #1e293b;
+    --border: #283548; --text: #e2e8f0; --muted: #94a3b8;
+    --primary: #e2e8f0; --primary-fg: #0f172a;
+    --green: #4ade80; --green-bg: rgba(34, 197, 94, .12); --green-border: rgba(74, 222, 128, .35);
+    --amber: #fbbf24; --amber-bg: rgba(251, 191, 36, .1);
+    --red: #f87171; --red-soft: rgba(248, 113, 113, .12);
+    --link: #60a5fa; --sel: rgba(99, 102, 241, .18);
+    --annot: #a78bfa; --annot-fg: #1e1b4b;
+    --chip-m-bg: rgba(251, 191, 36, .16); --chip-m-fg: #fcd34d;
+    --chip-c-bg: rgba(96, 165, 250, .16); --chip-c-fg: #93c5fd;
+    --chip-k-bg: rgba(167, 139, 250, .16); --chip-k-fg: #c4b5fd;
+    --shadow: 0 1px 3px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .3);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--text);
+    font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 40px 24px 72px; display: flex; flex-direction: column; gap: 40px; }
+
+  .intro h1 { font-size: 30px; line-height: 1.15; margin: 0 0 8px; letter-spacing: -.02em; text-wrap: balance; }
+  .intro p { margin: 0; color: var(--muted); max-width: 68ch; }
+  .intro .meta { margin-top: 12px; font-size: 12.5px; color: var(--muted); }
+
+  h2 { font-size: 19px; margin: 0 0 4px; letter-spacing: -.01em; }
+  .sub { margin: 0 0 16px; color: var(--muted); font-size: 13.5px; max-width: 68ch; }
+
+  .frame {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .frame-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px;
+    background: var(--panel2);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px; color: var(--muted);
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--border); }
+
+  /* ---------- Detail-Kopf ---------- */
+  .head { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+  .head-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .ampel { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .ampel.gelb { background: var(--amber); }
+  .title { font-size: 16px; font-weight: 600; }
+  .crumb { font-size: 12px; color: var(--muted); font-family: ui-monospace, "SF Mono", Consolas, monospace; }
+  .spacer { margin-left: auto; }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    border-radius: 999px; padding: 2px 9px;
+    font-size: 11.5px; font-weight: 500; white-space: nowrap;
+  }
+  .chip.stand { background: var(--panel2); color: var(--text); border: 1px solid var(--border); }
+  .chip.m { background: var(--chip-m-bg); color: var(--chip-m-fg); }
+  .chip.c { background: var(--chip-c-bg); color: var(--chip-c-fg); }
+  .chip.k { background: var(--chip-k-bg); color: var(--chip-k-fg); }
+
+  .btn {
+    border: 1px solid var(--border); background: var(--bg); color: var(--text);
+    border-radius: 8px; padding: 6px 12px; font: inherit; font-size: 13px; font-weight: 500;
+    cursor: default; white-space: nowrap;
+  }
+  .btn.primary { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
+  .btn.small { padding: 3px 9px; font-size: 12px; border-radius: 6px; }
+  .btn.ghost { background: transparent; border-color: transparent; color: var(--muted); }
+  .btn[disabled] { opacity: .45; }
+
+  /* ---------- Arbeitsblock ---------- */
+  .work { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+  .work-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .work-head b { font-size: 14.5px; }
+  .work-head span { font-size: 12.5px; color: var(--muted); }
+  .bar { height: 5px; border-radius: 999px; background: var(--panel2); overflow: hidden; display: flex; }
+  .bar i { display: block; height: 100%; background: var(--green); }
+
+  .rows { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 8px 11px; border-bottom: 1px solid var(--border); background: var(--bg); }
+  .row:last-child { border-bottom: 0; }
+  .row.done { background: var(--green-bg); }
+  .row .name { font-size: 13.5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .where { font-size: 11.5px; color: var(--muted); font-family: ui-monospace, "SF Mono", Consolas, monospace; }
+  .row .act { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+  .tick { color: var(--green); font-size: 13px; font-weight: 600; }
+
+  .more { padding: 7px 11px; font-size: 12.5px; color: var(--muted); background: var(--panel); border-top: 1px solid var(--border); }
+
+  /* ---------- Klappblöcke ---------- */
+  .fold { border-bottom: 1px solid var(--border); }
+  .fold:last-of-type { border-bottom: 0; }
+  .fold-head { display: flex; align-items: center; gap: 9px; padding: 11px 16px; font-size: 13.5px; }
+  .fold-head .caret { color: var(--muted); font-size: 11px; }
+  .fold-head .count { margin-left: auto; font-size: 12px; color: var(--muted); }
+  .fold-body { padding: 0 16px 14px; font-size: 13px; color: var(--muted); }
+  .report-preview {
+    border: 1px solid var(--border); border-radius: 9px; padding: 13px 15px;
+    background: var(--panel); max-height: 132px; overflow: hidden; position: relative;
+  }
+  .report-preview h4 { margin: 0 0 6px; font-size: 15px; color: var(--text); }
+  .report-preview p { margin: 0 0 8px; font-size: 13px; }
+  .fade { position: absolute; left: 0; right: 0; bottom: 0; height: 46px; background: linear-gradient(to bottom, transparent, var(--panel)); }
+
+  /* ---------- „heute" ---------- */
+  .today { display: flex; flex-direction: column; }
+  .band { padding: 11px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; font-size: 13.5px; }
+  .band:last-child { border-bottom: 0; }
+  .band .px { margin-left: auto; font-size: 11.5px; color: var(--muted); font-family: ui-monospace, "SF Mono", Consolas, monospace; font-variant-numeric: tabular-nums; }
+  .band.tall { padding-top: 22px; padding-bottom: 22px; }
+  .band.taller { padding-top: 38px; padding-bottom: 38px; }
+  .band.hidden-zone { background: var(--red-soft); }
+  .cut { display: flex; align-items: center; gap: 10px; padding: 5px 16px; background: var(--panel2); font-size: 11.5px; color: var(--muted); border-bottom: 1px solid var(--border); }
+  .cut b { color: var(--red); font-weight: 600; }
+
+  /* ---------- Anmerkungen ---------- */
+  .annot {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 17px; height: 17px; border-radius: 50%;
+    background: var(--annot); color: var(--annot-fg);
+    font-size: 10.5px; font-weight: 700; font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    flex: none; vertical-align: 1px;
+  }
+  .legend { margin-top: 14px; display: flex; flex-direction: column; gap: 9px; font-size: 13.5px; }
+  .legend div { display: flex; gap: 9px; align-items: baseline; }
+  .legend p { margin: 0; color: var(--muted); max-width: 74ch; }
+  .legend b { color: var(--text); font-weight: 600; }
+
+  .note {
+    border-left: 3px solid var(--annot); background: var(--panel);
+    padding: 12px 15px; border-radius: 0 9px 9px 0; font-size: 13.5px; color: var(--muted);
+    max-width: 74ch;
+  }
+  .note b { color: var(--text); }
+
+  .ask { border: 1px solid var(--border); border-radius: 11px; background: var(--panel); padding: 16px 18px; }
+  .ask h2 { margin-bottom: 10px; }
+  .ask ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 9px; }
+  .ask li { color: var(--muted); }
+  .ask li b { color: var(--text); }
+
+  @media (max-width: 640px) {
+    .wrap { padding: 28px 16px 56px; }
+    .intro h1 { font-size: 25px; }
+    .row .where { display: none; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="intro">
+    <h1>Abnahme-Werkbank</h1>
+    <p>Vorschlag für das Detail eines Vorhabens, das auf die Abnahme wartet. Anlass:
+      Die 28 zu prüfenden Artefakte liegen heute unterhalb von zwei langen Blöcken
+      und sind praktisch nicht erreichbar.</p>
+    <p class="meta">Stand 5 · 24.08.2026 · Ergänzung zum Werkbank-Mockup ·
+      gemessen an „26.01 Klimamaßnahmen Südtirol", 28 offene Punkte ·
+      Scroll-Fehler und Zuklappen sind seit heute behoben</p>
+  </header>
+
+  <section>
+    <h2>Heute</h2>
+    <p class="sub">Gemessen im laufenden Betrieb: Das Detail war 3150 px hoch, sichtbar sind 808 px.
+      Was zu tun ist, begann bei Pixel 2462.</p>
+
+    <p class="note" style="margin-bottom: 16px;"><b>Am 24.08. bereits repariert:</b> Das Detail liess sich
+      gar nicht scrollen — die Panel-Bibliothek setzte <code>overflow: hidden</code> per Inline-Style,
+      2342 px waren unerreichbar. Behoben. Der Bericht ist jetzt zuklappbar (spart 672 px, Zustand wird
+      gemerkt), und „Abnehmen" sperrt sich nicht mehr selbst, wenn alle Punkte erledigt sind.
+      Der Vorschlag unten betrifft das, was danach bleibt: die Anordnung.</p>
+
+    <div class="frame">
+      <div class="frame-bar"><span class="dot"></span> Detail — heute</div>
+      <div class="today">
+        <div class="band">
+          <span class="ampel gelb"></span>
+          <b>Kopf</b> — Name, Pfad, Stand, 8 Themen-Chips, „Abnehmen", Stand-Menü, „Teilbaum neu scannen", „Zu Liste hinzufügen"
+          <span class="px">0–511</span>
+        </div>
+        <div class="band tall">
+          <b>Bericht</b> — vollständig gerendert, eigener Scrollbereich
+          <span class="px">511–1219</span>
+        </div>
+        <div class="band taller">
+          <b>Befunde des Teilbaums</b> — dieselben 28 Punkte, aber nur zum Lesen<span class="annot">1</span>
+          <span class="px">1219–2462</span>
+        </div>
+        <div class="cut"><b>▲ Sichtbarer Bereich endet weit oberhalb</b> — ab hier nur mit langem Scrollen</div>
+        <div class="band hidden-zone">
+          <b>Twin-Familien</b> — hier sitzen die 28 Knöpfe „Verifizieren"<span class="annot">2</span>
+          <span class="px">2462–3150</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div><span class="annot">1</span><p><b>Doppelt.</b> Die 28 Punkte erscheinen zweimal — oben als Befundtext, unten als Zeile mit Knopf. Zwischen beiden gibt es keine Verbindung.</p></div>
+      <div><span class="annot">2</span><p><b>Die Arbeit liegt zuunterst.</b> Was du tun sollst, steht hinter allem, was dich nur informiert.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Vorschlag</h2>
+    <p class="sub">Die Arbeit steht oben, das Nachschlagen klappt auf. Ein Vorhaben, ein Ziel:
+      die offenen Punkte abarbeiten und abnehmen.</p>
+
+    <div class="frame">
+      <div class="frame-bar"><span class="dot"></span> Detail — Vorschlag</div>
+
+      <div class="head">
+        <div class="head-row">
+          <span class="ampel gelb"></span>
+          <span class="title">26.01 Klimamaßnahmen Südtirol</span>
+          <span class="chip stand">Berichtet</span>
+          <span class="spacer"></span>
+          <button class="btn primary">Abnehmen</button><span class="annot">3</span>
+          <button class="btn ghost small">⋯</button><span class="annot">4</span>
+        </div>
+        <div class="head-row">
+          <span class="crumb">4. Ökosozialer Aktivismus / 26.01 Klimamaßnahmen Südtirol</span>
+        </div>
+      </div>
+
+      <div class="work">
+        <div class="work-head">
+          <b>Deine 28 Punkte</b>
+          <span>0 geprüft · 28 offen — führende Artefakte, die auf deine Verifikation warten</span>
+          <span class="spacer"></span>
+          <button class="btn small">Alle im Blick prüfen …</button><span class="annot">5</span>
+        </div>
+        <div class="bar"><i style="width: 0%"></i></div>
+
+        <div class="rows">
+          <div class="row done">
+            <span class="tick">✓</span>
+            <span class="name">Vortrag climateAction.m4a</span>
+            <span class="where">2026-02-06 Auftritt Vortrag ClimateAction</span>
+            <span class="act"><span class="chip stand">geprüft</span></span>
+          </div>
+          <div class="row">
+            <span class="name">Klimamaßnahmen heute.docx</span>
+            <span class="where">2026-03-10 Auftritt Workshop Klimagesetz</span>
+            <span class="act">
+              <button class="btn small ghost">Ansehen</button><span class="annot">6</span>
+              <button class="btn small">Verifizieren</button>
+            </span>
+          </div>
+          <div class="row">
+            <span class="name">2026-07-13 Besprechung Roland.m4a</span>
+            <span class="where">2026-07 Besprechung Arbeitstreffen Roland</span>
+            <span class="act">
+              <button class="btn small ghost">Ansehen</button>
+              <button class="btn small">Verifizieren</button>
+            </span>
+          </div>
+          <div class="row">
+            <span class="name">Treffen Thomas Egger.m4a</span>
+            <span class="where">2026-08-04 Besprechung Klimaclub</span>
+            <span class="act">
+              <button class="btn small ghost">Ansehen</button>
+              <button class="btn small">Verifizieren</button>
+            </span>
+          </div>
+          <div class="more">… 24 weitere, nach Ordner gruppiert</div>
+        </div>
+      </div>
+
+      <div class="fold">
+        <div class="fold-head">
+          <span class="caret">▸</span> <b>Maschinen-Befunde</b>
+          <span class="count">keine offen — nichts blockiert die Abnahme<span class="annot">7</span></span>
+        </div>
+      </div>
+
+      <div class="fold">
+        <div class="fold-head">
+          <span class="caret">▾</span> <b>Bericht</b>
+          <span class="count">BERICHT.md · geändert 24.08.2026 · im Archiv öffnen</span>
+        </div>
+        <div class="fold-body">
+          <div class="report-preview">
+            <h4>Klimamaßnahmen Südtirol</h4>
+            <p>Ein öffentlich zugängliches Portal, das die Klimamaßnahmen für Südtirol
+              erschließbar macht: bewertbar, filterbar, mit CO₂-Einsparung, Kosten,
+              Durchsetzbarkeit und den Wechselwirkungen zwischen den Maßnahmen.</p>
+            <p>Fachlicher Partner ist Roland Plank. Das Portal ist zugleich das
+              Demonstrationsobjekt, mit dem die Idee der Echtzeitwissensbegleitung
+              überall vorgestellt wird.</p>
+            <div class="fade"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fold">
+        <div class="fold-head">
+          <span class="caret">▸</span> <b>Twin-Familien</b>
+          <span class="count">28 Familien · 56 Artefakte</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div><span class="annot">3</span><p><b>Ein Knopf, immer am selben Platz.</b> Aktiv, sobald keine Maschinen-Befunde mehr offen sind — auch dann noch, wenn du alle 28 schon geprüft hast. Genau das war bisher gesperrt.</p></div>
+      <div><span class="annot">4</span><p><b>Alles Seltene wandert ins Menü:</b> Stand ändern, Teilbaum neu scannen, zu einer Liste hinzufügen, im Archiv öffnen. Der Kopf trägt nur, was du täglich brauchst.</p></div>
+      <div><span class="annot">5</span><p><b>Sammelaktion mit Bremse.</b> Prüft nur, was gerade sichtbar ist, und fragt einmal nach. Verifikation bleibt eine bewusste Aussage — aber 28 einzelne Klicks quer über die Seite sind keine.</p></div>
+      <div><span class="annot">6</span><p><b>Ansehen, bevor du bestätigst.</b> Öffnet das Artefakt in einer Seitenspalte, ohne den Platz zu verlassen. Ohne das ist „Verifizieren" ein Blindklick.</p></div>
+      <div><span class="annot">7</span><p><b>Leere Blöcke bleiben zu und sagen warum.</b> Der Zustand „nichts offen" ist eine gute Nachricht und braucht eine Zeile, keinen Abschnitt.</p></div>
+    </div>
+
+    <p class="note" style="margin-top: 18px;"><b>Themen sind hier bewusst weg.</b> Die acht Chips im heutigen Kopf
+      stammen aus dem Feld <code>themen</code> der BERICHT.md und beschreiben Bausteine dieses einen Projekts —
+      sie helfen beim Abnehmen nicht. Sie gehören dorthin, wo du Themen selbst vergibst.</p>
+  </section>
+
+  <section class="ask">
+    <h2>Offene Entscheidungen</h2>
+    <ol>
+      <li><b>Reihenfolge.</b> Erst prüfen, dann abnehmen — oder soll „Abnehmen" die ungeprüften Punkte mit abhaken?</li>
+      <li><b>Sammelaktion.</b> „Alle im Blick prüfen" — oder bleibt jede Verifikation ein Einzelklick?</li>
+      <li><b>Ansehen.</b> Seitenspalte, Überlagerung oder Sprung ins Archiv?</li>
+      <li><b>Gruppierung der Punkte.</b> Nach Ordner wie hier, oder flach nach Dateiname?</li>
+      <li><b>Der Bericht.</b> Aufgeklappt mit Vorschau wie hier, oder ganz zu?</li>
+    </ol>
+  </section>
+
+</div>

@@ -75,7 +75,7 @@ export function checkTwinCoreMissing(family: TwinFamilyView): CoverageGap | null
   return createGap({
     ...familyGapBase(family),
     type: 'twin_core_missing',
-    message: `Twin-Kern unvollstaendig (${details.length} Artefakt(e))`,
+    message: `In ${details.length} Auswertung(en) fehlen Pflichtangaben`,
     detail: details.sort((a, b) => a.localeCompare(b)).join(' | '),
   })
 }
@@ -99,8 +99,8 @@ export function checkLeadingVerification(
       createGap({
         ...familyGapBase(family),
         type: 'self_verified',
-        message: 'Erzeuger und Pruefer sind derselbe Akteur',
-        detail: `${describeArtifact(leading)}: generated_by/verified_by = ${generatedBy}`,
+        message: 'Erzeugt und geprueft von derselben Maschine — eine menschliche Pruefung fehlt',
+        detail: `Die Zusammenfassung (${describeArtifact(leading)}) wurde von ${generatedBy} erzeugt UND von ${generatedBy} bestaetigt.`,
       }),
     )
     return gaps
@@ -114,11 +114,13 @@ export function checkLeadingVerification(
       createGap({
         ...familyGapBase(family),
         type: 'twin_unverified',
-        message: 'Fuehrendes Artefakt ist nicht (mehr) gueltig verifiziert',
+        message: 'Die Zusammenfassung wartet auf deinen Blick: gibt sie das Original richtig wieder?',
+        // Der Beleg nennt AUCH, welches Artefakt gemeint ist — der Pfad des
+        // Befunds zeigt auf die Quelle, geprueft wird die Auswertung daneben.
         detail:
           verifiedBy === null
-            ? `${describeArtifact(leading)}: kein verified_by`
-            : `${describeArtifact(leading)}: verified_at ${String(fm['verified_at'] ?? '—')} < generated_at ${String(fm['generated_at'] ?? '—')}`,
+            ? `Die Zusammenfassung (${describeArtifact(leading)}) traegt noch keine Pruefung.`
+            : `Die Zusammenfassung (${describeArtifact(leading)}) wurde am ${String(fm['generated_at'] ?? '—').slice(0, 10)} neu erzeugt — deine Pruefung vom ${String(fm['verified_at'] ?? '—').slice(0, 10)} galt der aelteren Fassung.`,
       }),
     )
   }
@@ -142,7 +144,7 @@ export function checkTransformationState(
       createGap({
         ...familyGapBase(family),
         type: 'transformation_missing',
-        message: `Transformation nach Standard-Template „${standardTemplate}" fehlt`,
+        message: `Aus dieser Datei wurde noch keine Zusammenfassung erzeugt (Vorlage „${standardTemplate}")`,
         detail: `vorhandene Artefakte: ${family.artifacts.map(describeArtifact).sort((a, b) => a.localeCompare(b)).join(', ')}`,
       }),
     ]
@@ -155,7 +157,7 @@ export function checkTransformationState(
     createGap({
       ...familyGapBase(family),
       type: 'transformation_stale',
-      message: 'Transkript ist juenger als die Transformation',
+      message: 'Das Transkript wurde nach der Zusammenfassung geaendert — sie gibt es nicht mehr wieder',
       detail: `Transkript ${transcript.updatedAt}, Transformation ${standard.updatedAt}`,
     }),
   ]

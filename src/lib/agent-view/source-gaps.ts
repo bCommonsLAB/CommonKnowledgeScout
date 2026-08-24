@@ -73,7 +73,7 @@ export function filesWithoutExtension(folders: readonly ArchiveFolderNode[]): Co
           targetName: file.name,
           folderId: folder.folderId,
           path: file.path,
-          message: 'Datei ohne Endung — vermutlich abgeschnittener Sync-Rest',
+          message: 'Datei ohne Endung — vermutlich ein Rest aus einem abgebrochenen Sync',
           detail: 'pruefen, umbenennen oder loeschen; ohne Endung erschliesst die Pipeline nichts',
         }),
       )
@@ -103,7 +103,7 @@ export function sourcesWithoutTwin(args: {
           targetName: file.name,
           folderId: folder.folderId,
           path: file.path,
-          message: 'Quelle ohne Twin-Familie — weder Transkript noch Mongo-Dokument',
+          message: 'Zu dieser Datei gibt es noch gar nichts: kein Transkript, keine Zusammenfassung',
           detail: `Discovery-Regel: \`_${file.name}/\` fehlt oder ist leer; ueber die Pipeline erschliessen`,
         }),
       )

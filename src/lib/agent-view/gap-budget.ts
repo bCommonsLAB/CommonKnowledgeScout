@@ -87,7 +87,7 @@ export function applyGapBudget(
         targetName: folder.name || '(Wurzel)',
         folderId: folder.folderId,
         path: folder.path,
-        message: `Ungesichteter Teilbaum — ${count} Einzelbefund(e) zusammengefasst`,
+        message: `Noch ungesichtet — ${count} Einzelpunkt(e) hier zusammengefasst`,
         detail: 'bearbeitungsstand: ungesichtet — erst sichten (Zyklus Schritt 1), dann einzeln bewerten',
       }),
       anzahl: count,

@@ -105,7 +105,7 @@ export function checkStandWiderspruch(args: StandCheckArgs): CoverageGap | null 
     targetName: node.name || '(Wurzel)',
     folderId: node.folderId,
     path: node.path,
-    message: `Erklaerter Stand „${node.bearbeitungsstand}" ist durch Befunde widerlegt`,
+    message: `Der eingetragene Stand „${node.bearbeitungsstand}" passt nicht zu dem, was der Ordner zeigt`,
     detail: reasons.join('; '),
     actorOverride: routing.actor,
     zyklusSchrittOverride: routing.zyklusSchritt,

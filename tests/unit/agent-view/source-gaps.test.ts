@@ -80,7 +80,7 @@ describe('filesWithoutExtension — abgeschnittene Sync-Reste (Cowork-Befund)', 
     const gaps = filesWithoutExtension([folder([{ fileId: 'r1', name: 'Vorstellung Klimamassnahm' }])])
     expect(gaps).toHaveLength(1)
     expect(gaps[0]).toMatchObject({ type: 'datei_ohne_endung', targetId: 'r1', actor: 'mensch' })
-    expect(gaps[0].message).toContain('Sync-Rest')
+    expect(gaps[0].message).toContain('Sync')
   })
 
   it('Dotfiles und Dateien mit Endung sind keine Befunde (Negativfall)', () => {
