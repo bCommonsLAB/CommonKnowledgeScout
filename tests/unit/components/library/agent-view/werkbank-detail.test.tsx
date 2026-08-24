@@ -26,12 +26,19 @@ function antwort(overrides: Partial<BerichtAntwort> = {}): BerichtAntwort {
 
 function stubBericht(data: BerichtAntwort) {
   // Pro Aufruf eine FRISCHE Response (Bodies sind einmal lesbar) und URL-Routing:
-  // das Detail fragt seit W6 auch die Worklists-Route (ZuListeKnopf).
+  // das Detail fragt seit W6 auch die Worklists-Route (ZuListeKnopf), seit W7
+  // schreibt es ueber die Stand-Route (StandAktionen).
   vi.stubGlobal(
     'fetch',
     vi.fn().mockImplementation(async (eingabe: RequestInfo | URL) => {
       if (String(eingabe).includes('/agent-view/worklists')) {
         return new Response(JSON.stringify({ lists: [] }), { status: 200 })
+      }
+      if (String(eingabe).includes('/agent-view/stand')) {
+        return new Response(
+          JSON.stringify({ stand: { bearbeitungsstand: 'abgenommen', bearbeitungsstandSeit: '2026-08-24T23:59:59.999Z' } }),
+          { status: 200 },
+        )
       }
       return new Response(JSON.stringify(data), { status: 200 })
     }),
@@ -181,6 +188,14 @@ describe('WerkbankDetail — Kopf, Befunde, Familien, Fusszeile', () => {
     await vi.waitFor(() => expect(writeText).toHaveBeenCalledTimes(1))
     expect(writeText.mock.calls[0][0]).toContain('# Cowork-Auftrag: Testarchiv')
     expect(writeText.mock.calls[0][0]).toContain('1. Arbeit/Pilot')
+  })
+
+  it('Abnehmen (W7) ueberlagert den Stand lokal und sagt dazu, dass der Report alt ist', async () => {
+    renderDetail(report())
+    fireEvent.click(screen.getByRole('button', { name: 'Abnehmen' }))
+    expect(await screen.findByText(/Report zeigt noch den alten Scan/)).toBeTruthy()
+    expect(screen.getByText('Abgenommen')).toBeTruthy()
+    expect(screen.getByText(/seit 2026-08-24/)).toBeTruthy()
   })
 
   it('Fusszeile summiert Quellen/Dateien des Teilbaums und bietet die folderId an', () => {

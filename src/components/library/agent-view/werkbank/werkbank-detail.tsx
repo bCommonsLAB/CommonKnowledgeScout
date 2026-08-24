@@ -19,6 +19,7 @@ import { AlertTriangle, ClipboardCopy, ExternalLink } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/use-toast'
+import { useStand } from '@/hooks/agent-view/use-stand'
 import { useTwinCuration } from '@/hooks/agent-view/use-twin-curation'
 import { istBereitZurAbnahme } from '@/lib/agent-view/abnahme'
 import { actorSummary, gapCountLabel, standLabel } from '@/lib/agent-view/labels'
@@ -31,6 +32,7 @@ import {
 } from '@/lib/agent-view/teilbaum'
 import type { CoverageReport, VorhabenCard } from '@/lib/agent-view/types'
 import { CoverageAmpel } from '../coverage-ampel'
+import { StandAktionen } from './stand-aktionen'
 import { WerkbankBefunde } from './werkbank-befunde'
 import { WerkbankBericht } from './werkbank-bericht'
 import { WerkbankFamilien } from './werkbank-familien'
@@ -49,6 +51,7 @@ export interface WerkbankDetailProps {
 export function WerkbankDetail({ karte, vorhabenId, report, generatedAt, libraryLabel, localRootPath }: WerkbankDetailProps) {
   const { toast } = useToast()
   const curation = useTwinCuration(report.libraryId)
+  const stand = useStand(report.libraryId)
 
   if (karte === null && vorhabenId !== null) {
     return (
@@ -74,6 +77,9 @@ export function WerkbankDetail({ karte, vorhabenId, report, generatedAt, library
     )
   }
 
+  const standOverride = stand.overrides.get(karte.folderId)
+  const angezeigterStand = standOverride ? standOverride.bearbeitungsstand : karte.bearbeitungsstand
+  const angezeigtSeit = standOverride ? standOverride.bearbeitungsstandSeit : karte.bearbeitungsstandSeit
   const befunde = teilbaumBefunde(report.gaps, karte.path)
   const familien = familienImTeilbaum(report.families, karte.path)
   const knoten = findeKnoten(report.tree, karte.folderId)
@@ -108,9 +114,9 @@ export function WerkbankDetail({ karte, vorhabenId, report, generatedAt, library
         </div>
         <p className="break-words text-xs text-muted-foreground">{karte.path.split('/').join(' / ')}</p>
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <Badge variant="secondary">{standLabel(karte.bearbeitungsstand)}</Badge>
-          {karte.bearbeitungsstandSeit && (
-            <span className="text-xs text-muted-foreground">seit {karte.bearbeitungsstandSeit.slice(0, 10)}</span>
+          <Badge variant="secondary">{standLabel(angezeigterStand)}</Badge>
+          {angezeigtSeit && (
+            <span className="text-xs text-muted-foreground">seit {angezeigtSeit.slice(0, 10)}</span>
           )}
           {typeof karte.berichtStatus === 'string' && (
             <span className="text-xs text-muted-foreground">Status: {karte.berichtStatus}</span>
@@ -133,10 +139,11 @@ export function WerkbankDetail({ karte, vorhabenId, report, generatedAt, library
             {standLabel(karte.bearbeitungsstand)}, aber nicht mehr aktuell
           </p>
         )}
+        <StandAktionen karte={karte} generatedAt={generatedAt} stand={stand} />
         {bereit && (
           <p className="rounded-md bg-emerald-600/10 px-2 py-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400">
             Bereit zur Abnahme — keine maschinellen Befunde offen, {karte.gapsByActor.mensch} Punkt(e) warten
-            auf dich. (Abnehmen kommt mit Welle W7.)
+            auf dich.
           </p>
         )}
       </header>
