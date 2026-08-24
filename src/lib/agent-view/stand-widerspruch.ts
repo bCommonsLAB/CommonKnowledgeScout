@@ -5,7 +5,16 @@
  * Die doppelte Buchhaltung als Regel (Erschliessungszyklus §4): Der
  * `bearbeitungsstand` ist eine BEHAUPTUNG (Soll-Buch). Widerlegt wird sie,
  * wenn seit `bearbeitungsstand_seit` etwas im Teilbaum geaendert wurde oder
- * offene Befunde im Teilbaum liegen.
+ * offene Befunde im Teilbaum liegen, die zu einem BEREITS BEHAUPTETEN Schritt
+ * gehoeren.
+ *
+ * Der Schritt entscheidet (Befund 24.08.2026): Ein Stand behauptet, die
+ * Schritte bis zu seinem eigenen seien fertig — `berichtet` heisst „Schritt 3
+ * erledigt, Schritt 4 steht aus". Ein Befund aus einem SPAETEREN Schritt
+ * widerlegt diese Behauptung darum nicht, er beschreibt die noch offene
+ * Arbeit. Konkret: die 28 `twin_unverified` (Schritt 4) sind unter
+ * `berichtet` der ERWARTETE Zustand, nicht ein Widerspruch; unter
+ * `abgenommen` (Schritt 4 behauptet) widerlegen sie sehr wohl.
  *
  * Die Sicht korrigiert dabei NIE eine Datei — sie zeigt den Widerspruch und
  * erzeugt das Todo (Leitprinzip 6). Mtime-basierte Rueckfall-Verdachte sind
@@ -17,12 +26,38 @@
  * @module agent-view
  */
 
-import { isAtLeast } from './bearbeitungsstand'
-import { createGap, routeStandWiderspruch } from './gap-registry'
-import type { CoverageGap, CoverageGapType, CoverageTreeNode } from './types'
+import { isAtLeast, standRank } from './bearbeitungsstand'
+import { GAP_REGISTRY, createGap, routeStandWiderspruch } from './gap-registry'
+import type { Bearbeitungsstand, CoverageGap, CoverageGapType, CoverageTreeNode } from './types'
 
 /** Ab diesem Stand gilt ein Vorhaben als „fertig behauptet". */
 const CLAIMED_DONE = 'berichtet' as const
+
+/**
+ * Welchen Zyklus-Schritt ein Stand als erledigt BEHAUPTET. `ungesichtet`
+ * behauptet nichts (0) — es wird ohnehin nie geprueft (siehe CLAIMED_DONE).
+ * Die Reihenfolge ist die von `BEARBEITUNGSSTAND_VALUES`, also faellt der
+ * Schritt mit `standRank` zusammen.
+ */
+function behaupteterSchritt(stand: Bearbeitungsstand): number {
+  return standRank(stand)
+}
+
+/**
+ * Befunde, die den behaupteten Stand widerlegen: alles bis einschliesslich
+ * des behaupteten Schritts. Spaetere Schritte sind offene Arbeit, kein
+ * Widerspruch. `stand_widerspruch` selbst zaehlt nie (sonst haelt er sich
+ * selbst am Leben).
+ */
+export function widerlegendeTypen(
+  typen: readonly CoverageGapType[],
+  stand: Bearbeitungsstand,
+): CoverageGapType[] {
+  const grenze = behaupteterSchritt(stand)
+  return typen.filter(
+    (type) => type !== 'stand_widerspruch' && GAP_REGISTRY[type].zyklusSchritt <= grenze,
+  )
+}
 
 export interface StandCheckArgs {
   node: CoverageTreeNode
@@ -54,7 +89,7 @@ export function checkStandWiderspruch(args: StandCheckArgs): CoverageGap | null 
     }
   }
 
-  const blockingTypes = args.subtreeGapTypes.filter((type) => type !== 'stand_widerspruch')
+  const blockingTypes = widerlegendeTypen(args.subtreeGapTypes, node.bearbeitungsstand as Bearbeitungsstand)
   if (blockingTypes.length > 0) {
     const distinct = [...new Set(blockingTypes)].sort((a, b) => a.localeCompare(b))
     reasons.push(`offene Befunde im Teilbaum: ${distinct.join(', ')}`)
