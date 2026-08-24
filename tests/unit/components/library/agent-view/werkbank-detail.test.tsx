@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 
 /**
- * @fileoverview Unit-Tests: Werkbank-Detail (F9, Welle W4).
+ * @fileoverview Unit-Tests: Werkbank-Detail (F9, W4 + A3).
  *
- * Geprueft werden die benannten Zustaende des Details: Bericht-Render ueber
- * die W2-Route mit der BESTEHENDEN MarkdownPreview (Happy-Path), `zu_gross`
- * mit Archiv-Verweis, „veraltet"-Badge aus dem Report, die „Bereit zur
- * Abnahme"-Leiste, der Kappungshinweis der Befundliste, der
- * Vor-Welle-4-Hinweis der Familien und der Vorhaben-Auftrag (Clipboard).
+ * Seit A3 steht rechts genau EIN Dokument: beim Vorhaben die Tabs
+ * Bericht/Ordner-Beschreibung (W2-Route, `datei=`), beim Artefakt die drei
+ * Tabs des Artefakt-Dokuments. Geprueft werden Bericht-Render (Happy-Path),
+ * `zu_gross`, „veraltet"-Badge, `kein_bericht`, der Ordner-Beschreibungs-Tab,
+ * die „Bereit"-Leiste, Teilbaum-Scan, Abnehmen und der Artefakt-Dispatch.
  */
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
@@ -101,6 +101,8 @@ function renderDetail(r: CoverageReport, k: VorhabenCard | null = karte(), vorha
       <WerkbankDetail
         karte={k}
         vorhabenId={vorhabenId}
+        artefaktId={null}
+        familie={null}
         report={r}
         generatedAt={r.generatedAt}
         libraryLabel="Testarchiv"
@@ -156,11 +158,20 @@ describe('WerkbankDetail — Bericht (W2-Route + bestehende MarkdownPreview)', (
   it('kein_bericht ist ein Cowork-Befund mit Auftrags-Hinweis, kein Fehler', async () => {
     renderDetail(report())
     expect(await screen.findByText('Kein BERICHT.md')).toBeTruthy()
-    expect(screen.getByText(/Auftrag\s+fuer dieses Vorhaben kopieren/)).toBeTruthy()
+    expect(screen.getByText(/Auftrag fuer dieses Vorhaben/)).toBeTruthy()
+  })
+
+  it('A3: der Tab „Ordner-Beschreibung" laedt datei=index und benennt das Fehlen', async () => {
+    renderDetail(report())
+    fireEvent.click(await screen.findByRole('tab', { name: 'Ordner-Beschreibung' }))
+    expect(await screen.findByText('Kein _INDEX.md')).toBeTruthy()
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    const indexCalls = fetchMock.mock.calls.filter((call) => String(call[0]).includes('datei=index'))
+    expect(indexCalls.length).toBeGreaterThan(0)
   })
 })
 
-describe('WerkbankDetail — Kopf, Befunde, Familien, Fusszeile', () => {
+describe('WerkbankDetail — Kopf und Aktionen', () => {
   it('zeigt die „Bereit zur Abnahme"-Leiste nur beim geteilten Praedikat', () => {
     renderDetail(report())
     expect(screen.getByText(/Bereit zur Abnahme — keine maschinellen Befunde offen/)).toBeTruthy()
@@ -169,26 +180,8 @@ describe('WerkbankDetail — Kopf, Befunde, Familien, Fusszeile', () => {
     expect(screen.queryByText(/Bereit zur Abnahme — keine/)).toBeNull()
   })
 
-  it('weist die Kappung aus, wenn der Report mehr Befunde zaehlt als er listet', () => {
-    renderDetail(report(), karte({ totalGaps: 5 }))
-    expect(screen.getByText(/4 weitere Befunde sind gezaehlt, aber nicht gelistet/)).toBeTruthy()
-  })
 
-  it('benennt Reports vor Welle 4 im Familien-Abschnitt statt still leer zu bleiben', () => {
-    renderDetail(report({ families: undefined }))
-    expect(screen.getByText(/Scan vor Welle 4/)).toBeTruthy()
-  })
 
-  it('kopiert den Vorhaben-Auftrag der Cowork-Gruppe in die Zwischenablage', async () => {
-    const writeText = vi.fn().mockResolvedValue(undefined)
-    Object.assign(navigator, { clipboard: { writeText } })
-    const r = report({ gaps: [gapAt('1. Arbeit/Pilot', 'f-pilot', 'report_missing')] })
-    renderDetail(r, karte({ gapsByType: { report_missing: 1 }, gapsByActor: { mensch: 0, cowork: 1, knowledgescout: 0 } }))
-    fireEvent.click(screen.getByRole('button', { name: /Auftrag kopieren \(dieses Vorhaben\)/ }))
-    await vi.waitFor(() => expect(writeText).toHaveBeenCalledTimes(1))
-    expect(writeText.mock.calls[0][0]).toContain('# Cowork-Auftrag: Testarchiv')
-    expect(writeText.mock.calls[0][0]).toContain('1. Arbeit/Pilot')
-  })
 
   it('Teilbaum-Scan (W8): Knopf nur mit Handler, meldet die folderId; Fallback-Hinweis sichtbar', () => {
     renderDetail(report())
@@ -200,7 +193,8 @@ describe('WerkbankDetail — Kopf, Befunde, Familien, Fusszeile', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <WerkbankDetail
-          karte={karte()} vorhabenId="f-pilot" report={report()} generatedAt="2026-08-23T12:00:00.000Z"
+          karte={karte()} vorhabenId="f-pilot" artefaktId={null} familie={null}
+          report={report()} generatedAt="2026-08-23T12:00:00.000Z"
           libraryLabel="Testarchiv" localRootPath={null}
           teilbaumScan={{ onScan, isScanning: false, hinweis: 'Der gespeicherte Report stammt von vor W8' }}
         />
@@ -219,9 +213,4 @@ describe('WerkbankDetail — Kopf, Befunde, Familien, Fusszeile', () => {
     expect(screen.getByText(/seit 2026-08-24/)).toBeTruthy()
   })
 
-  it('Fusszeile summiert Quellen/Dateien des Teilbaums und bietet die folderId an', () => {
-    renderDetail(report())
-    expect(screen.getByText(/2 Quellen · 3 Dateien im Teilbaum/)).toBeTruthy()
-    expect(screen.getByRole('button', { name: /folderId kopieren/ })).toBeTruthy()
-  })
 })

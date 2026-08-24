@@ -122,3 +122,18 @@ describe('istStorageNotFound', () => {
     expect(istStorageNotFound(null)).toBe(false)
   })
 })
+
+describe('ladeBericht — datei=index (A3, Ordner-Beschreibung)', () => {
+  it('liest den _INDEX.md statt des BERICHT.md', async () => {
+    const p = ports([item('BERICHT.md'), item('_INDEX.md')], '# Ordner-Beschreibung\n\nSelbstdeklaration.')
+    const antwort = await ladeBericht('f-1', p, 'index')
+    expect(antwort.bericht?.name).toBe('_INDEX.md')
+    expect(p.readText).toHaveBeenCalledWith('id-_INDEX.md')
+    expect(antwort.bericht?.kopf?.titel).toBe('Ordner-Beschreibung')
+  })
+
+  it('fehlender _INDEX.md ist der benannte Zustand kein_bericht, kein Fehler', async () => {
+    const antwort = await ladeBericht('f-1', ports([item('BERICHT.md')]), 'index')
+    expect(antwort).toEqual({ bericht: null, grund: 'kein_bericht' })
+  })
+})

@@ -127,13 +127,14 @@ describe('WerkbankPanel — Detail-Platzhalter', () => {
     expect(screen.getAllByText(/Nicht im letzten Scan/).length).toBeGreaterThan(0)
   })
 
-  it('gewaehltes Vorhaben zeigt das Detail: Kopf mit Status, Bericht-, Befund- und Familien-Abschnitt', () => {
+  it('gewaehltes Vorhaben zeigt das EINE Dokument: Kopf + Tabs Bericht/Ordner-Beschreibung (A3)', () => {
     const pilot = card('1. Arbeit/Pilot', { berichtTitel: 'Pilotprojekt Klima', berichtStatus: 'aktiv' })
     renderPanel(report([pilot]), `?vorhaben=${pilot.folderId}&filter=alle`)
-    expect(screen.getAllByText('Status: aktiv').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Befunde des Teilbaums').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Twin-Familien').length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/folderId kopieren/).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('tab', { name: 'Bericht' }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('tab', { name: 'Ordner-Beschreibung' }).length).toBeGreaterThan(0)
+    // Die gestapelten Bloecke sind aufgeloest (Mockup-Leitidee: EIN Dokument).
+    expect(screen.queryByText('Befunde des Teilbaums')).toBeNull()
+    expect(screen.queryByText('Twin-Familien')).toBeNull()
   })
 })
 

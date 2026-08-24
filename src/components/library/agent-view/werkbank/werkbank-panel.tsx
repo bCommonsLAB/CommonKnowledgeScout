@@ -142,6 +142,8 @@ export function WerkbankPanel({ report, generatedAt, libraryLabel, localRootPath
     <WerkbankDetail
       karte={karte}
       vorhabenId={vorhabenId}
+      artefaktId={artefaktId}
+      familie={baum.familieZu(artefaktId)}
       report={report}
       generatedAt={generatedAt}
       libraryLabel={libraryLabel}

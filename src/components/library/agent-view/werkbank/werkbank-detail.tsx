@@ -1,50 +1,44 @@
 'use client'
 
 /**
- * @fileoverview Werkbank-Detail (F9, Welle W4): das Vorhaben im Ganzen.
+ * @fileoverview Werkbank-Detail (F9, W4 + A3): rechts genau EIN Dokument.
  *
  * @description
- * Kopf (Name, Breadcrumb, Ampel, Stand, Widerspruch, „Im Archiv oeffnen"),
- * „Bereit zur Abnahme"-Leiste (reiner Status, Abnehmen kommt mit W7),
- * gerenderter BERICHT.md (W2-Route + bestehende `MarkdownPreview`), Befunde
- * je Akteur mit Vorhaben-Auftrag, Twin-Familien (bestehende Kuration) und
- * die Fusszeile mit Teilbaum-Zaehlern + kopierbarer folderId. Leerzustaende
- * sind benannt: nichts gewaehlt → {@link WerkbankLeerzustand} (A1: vier
- * Karten, die betonte nennt die wartenden Vorhaben); unbekannte folderId →
- * „Nicht im letzten Scan".
+ * Dispatcher der rechten Seite (Mockup-Leitidee): bei gewaehltem VORHABEN
+ * der Kopf + das Dokument Bericht/Ordner-Beschreibung, bei gewaehltem
+ * ARTEFAKT der Kopf + das Dokument Original/Transkript/Zusammenfassung.
+ * Die frueheren gestapelten Bloecke (Befunde · Twin-Familien) sind mit A3
+ * aufgeloest: Befunde sind Kennzeichnung am Baum und Inhalt des Kopfes
+ * (A4), die Familien SIND die Artefakt-Ebene des Baums. Leerzustaende sind
+ * benannt: nichts gewaehlt → {@link WerkbankLeerzustand}; unbekannte
+ * folderId/sourceId → „Nicht im letzten Scan".
  *
  * @module components/library/agent-view
  */
 
-import { AlertTriangle, ClipboardCopy, ExternalLink } from 'lucide-react'
+import { useState } from 'react'
+import { AlertTriangle, ExternalLink } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { useToast } from '@/components/ui/use-toast'
 import { useStand } from '@/hooks/agent-view/use-stand'
-import { useTwinCuration } from '@/hooks/agent-view/use-twin-curation'
 import { istBereitZurAbnahme } from '@/lib/agent-view/abnahme'
 import { actorSummary, gapCountLabel, standLabel } from '@/lib/agent-view/labels'
-import {
-  familienImTeilbaum,
-  findeKnoten,
-  istBerichtVeraltet,
-  teilbaumBefunde,
-  teilbaumZaehler,
-} from '@/lib/agent-view/teilbaum'
-import type { CoverageReport, VorhabenCard } from '@/lib/agent-view/types'
+import { istBerichtVeraltet, teilbaumBefunde } from '@/lib/agent-view/teilbaum'
+import type { CoverageReport, TwinFamilySummary, VorhabenCard } from '@/lib/agent-view/types'
 import { CoverageAmpel } from '../coverage-ampel'
 import { StandAktionen } from './stand-aktionen'
 import { TeilbaumScanKnopf, type TeilbaumScanProps } from './teilbaum-scan-knopf'
-import { WerkbankBefunde } from './werkbank-befunde'
-import { WerkbankBerichtBlock } from './werkbank-bericht-block'
-import { WerkbankFamilien } from './werkbank-familien'
+import { standardTab, WerkbankArtefaktDokument, type ArtefaktTab } from './werkbank-artefakt-dokument'
 import { WerkbankLeerzustand } from './werkbank-leerzustand'
+import { WerkbankVorhabenDokument } from './werkbank-vorhaben-dokument'
 import { ZuListeKnopf } from './zu-liste-knopf'
 
 export interface WerkbankDetailProps {
   /** Karte zur gewaehlten folderId; null = nichts gewaehlt oder nicht im Report. */
   karte: VorhabenCard | null
   vorhabenId: string | null
+  /** A2/A3: gewaehltes Artefakt (sourceId) + effektive Familie dazu. */
+  artefaktId: string | null
+  familie: TwinFamilySummary | null
   report: CoverageReport
   generatedAt: string
   libraryLabel: string
@@ -52,10 +46,57 @@ export interface WerkbankDetailProps {
   teilbaumScan?: TeilbaumScanProps
 }
 
-export function WerkbankDetail({ karte, vorhabenId, report, generatedAt, libraryLabel, localRootPath, teilbaumScan }: WerkbankDetailProps) {
-  const { toast } = useToast()
-  const curation = useTwinCuration(report.libraryId)
+function archivHref(libraryId: string, folderId: string): string {
+  return `/library?activeLibraryId=${encodeURIComponent(libraryId)}&folderId=${encodeURIComponent(folderId)}`
+}
+
+/** Artefakt-Zweig: Kopf (A4 vereinheitlicht ihn) + Dokument mit drei Tabs. */
+function ArtefaktDetail({ familie, report }: { familie: TwinFamilySummary; report: CoverageReport }) {
+  const [tab, setTab] = useState<ArtefaktTab>(() => standardTab(familie))
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <header className="space-y-1 border-b p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="break-words text-base font-semibold">{familie.sourceName}</h2>
+          <a
+            href={archivHref(report.libraryId, familie.folderId)}
+            className="ml-auto inline-flex items-center gap-1 text-xs underline-offset-2 hover:underline"
+          >
+            Im Archiv oeffnen <ExternalLink className="h-3 w-3" aria-hidden />
+          </a>
+        </div>
+        <p className="break-words text-xs text-muted-foreground">{familie.path.split('/').join(' / ')}</p>
+      </header>
+      <WerkbankArtefaktDokument
+        libraryId={report.libraryId}
+        familie={familie}
+        archivHref={archivHref(report.libraryId, familie.folderId)}
+        tab={tab}
+        onTab={setTab}
+      />
+    </div>
+  )
+}
+
+export function WerkbankDetail({ karte, vorhabenId, artefaktId, familie, report, generatedAt, teilbaumScan }: WerkbankDetailProps) {
   const stand = useStand(report.libraryId)
+
+  // Artefakt-Zweig zuerst: die tiefere Auswahl gewinnt.
+  if (artefaktId !== null) {
+    if (familie === null) {
+      return (
+        <div className="p-4 text-sm text-muted-foreground">
+          <p className="font-medium text-foreground">Artefakt nicht im letzten Scan</p>
+          <p className="mt-1">
+            Die gewaehlte Quelle (<code className="text-xs">{artefaktId}</code>) kommt im gespeicherten Report
+            nicht vor — geloescht, verschoben oder der Report ist aelter. &bdquo;Neu scannen&ldquo; oben
+            rechnet den Report neu.
+          </p>
+        </div>
+      )
+    }
+    return <ArtefaktDetail key={familie.sourceId} familie={familie} report={report} />
+  }
 
   if (karte === null && vorhabenId !== null) {
     return (
@@ -77,24 +118,11 @@ export function WerkbankDetail({ karte, vorhabenId, report, generatedAt, library
   const angezeigterStand = standOverride ? standOverride.bearbeitungsstand : karte.bearbeitungsstand
   const angezeigtSeit = standOverride ? standOverride.bearbeitungsstandSeit : karte.bearbeitungsstandSeit
   const befunde = teilbaumBefunde(report.gaps, karte.path)
-  const familien = familienImTeilbaum(report.families, karte.path)
-  const knoten = findeKnoten(report.tree, karte.folderId)
-  const zaehler = knoten === null ? null : teilbaumZaehler(knoten)
   const bereit = istBereitZurAbnahme(karte.gapsByActor)
-  const archivHref = `/library?activeLibraryId=${encodeURIComponent(report.libraryId)}&folderId=${encodeURIComponent(karte.folderId)}`
-
-  const copyFolderId = async () => {
-    try {
-      await navigator.clipboard.writeText(karte.folderId)
-      toast({ title: 'folderId kopiert', description: 'Fuer MCP-/Teilbaum-Werkzeuge.' })
-    } catch (error) {
-      toast({ title: 'Kopieren fehlgeschlagen', description: error instanceof Error ? error.message : String(error), variant: 'destructive' })
-    }
-  }
 
   return (
-    <div className="space-y-4 p-4">
-      <header className="space-y-1">
+    <div className="flex h-full min-h-0 flex-col">
+      <header className="space-y-1 border-b p-3">
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="flex items-center gap-2 text-base font-semibold">
             {karte.ampel !== undefined && <CoverageAmpel ampel={karte.ampel} />}
@@ -106,7 +134,7 @@ export function WerkbankDetail({ karte, vorhabenId, report, generatedAt, library
               <TeilbaumScanKnopf folderId={karte.folderId} onTeilbaumScan={teilbaumScan.onScan} isScanning={teilbaumScan.isScanning} />
             )}
             <ZuListeKnopf libraryId={report.libraryId} karte={karte} />
-            <a href={archivHref} className="inline-flex items-center gap-1 text-xs underline-offset-2 hover:underline">
+            <a href={archivHref(report.libraryId, karte.folderId)} className="inline-flex items-center gap-1 text-xs underline-offset-2 hover:underline">
               Im Archiv oeffnen <ExternalLink className="h-3 w-3" aria-hidden />
             </a>
           </span>
@@ -117,22 +145,10 @@ export function WerkbankDetail({ karte, vorhabenId, report, generatedAt, library
           {angezeigtSeit && (
             <span className="text-xs text-muted-foreground">seit {angezeigtSeit.slice(0, 10)}</span>
           )}
-          {typeof karte.berichtStatus === 'string' && (
-            <span className="text-xs text-muted-foreground">Status: {karte.berichtStatus}</span>
-          )}
           <span className="text-xs text-muted-foreground">
             {gapCountLabel(karte.totalGaps)} · {actorSummary(karte.gapsByActor)}
           </span>
         </div>
-        {karte.themen !== undefined && karte.themen.length > 0 && (
-          // div statt p: die Badge-Komponente rendert ein div, und ein div in
-          // einem p ist invalides HTML (React validateDOMNesting, Test-Befund 24.08.).
-          <div className="flex flex-wrap gap-1">
-            {karte.themen.map((thema) => (
-              <Badge key={thema} variant="outline" className="text-xs">{thema}</Badge>
-            ))}
-          </div>
-        )}
         {karte.widerspruch && (
           <p className="text-sm font-medium text-red-500">
             {standLabel(karte.bearbeitungsstand)}, aber nicht mehr aktuell
@@ -152,37 +168,11 @@ export function WerkbankDetail({ karte, vorhabenId, report, generatedAt, library
         )}
       </header>
 
-      <WerkbankBerichtBlock
+      <WerkbankVorhabenDokument
         libraryId={report.libraryId}
         folderId={karte.folderId}
         veraltet={istBerichtVeraltet(befunde, karte.folderId)}
       />
-
-      <section className="space-y-2">
-        <h3 className="text-sm font-semibold">Befunde des Teilbaums</h3>
-        <WerkbankBefunde
-          befunde={befunde}
-          totalGaps={karte.totalGaps}
-          auftragContext={{ libraryLabel, localRootPath, generatedAt }}
-        />
-      </section>
-
-      <section className="space-y-2">
-        <h3 className="text-sm font-semibold">Twin-Familien</h3>
-        <WerkbankFamilien familien={familien} truncated={report.familiesTruncated === true} curation={curation} />
-      </section>
-
-      <footer className="flex flex-wrap items-center gap-2 border-t pt-2 text-xs text-muted-foreground">
-        <span>
-          {zaehler === null
-            ? 'Teilbaum-Zaehler nicht verfuegbar (Knoten fehlt im Baum des Reports)'
-            : `${zaehler.quellen} Quellen · ${zaehler.dateien} Dateien im Teilbaum`}
-        </span>
-        <span>· Scan {generatedAt.slice(0, 16).replace('T', ' ')}</span>
-        <Button variant="ghost" size="sm" className="ml-auto h-6 text-xs" onClick={() => void copyFolderId()}>
-          <ClipboardCopy className="mr-1 h-3 w-3" aria-hidden /> folderId kopieren
-        </Button>
-      </footer>
     </div>
   )
 }

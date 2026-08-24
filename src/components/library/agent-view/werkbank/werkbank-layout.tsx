@@ -48,7 +48,9 @@ export function WerkbankLayout({
           </ResizablePanel>
           <ResizableHandle withHandle />
           <ResizablePanel defaultSize={100 - prefs.werkbankListeSize} minSize={30} className="min-h-0">
-            <div className="flex h-full flex-col overflow-y-auto">{detail}</div>
+            {/* A3: das Dokument scrollt in SEINEM Bereich, der Kopf steht fest —
+                der Scroll-Container bleibt INNEN (Befund 24.08.2026). */}
+            <div className="flex h-full flex-col overflow-hidden">{detail}</div>
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
@@ -63,7 +65,7 @@ export function WerkbankLayout({
                 <ArrowLeft className="mr-1 h-4 w-4" aria-hidden /> Zur Liste
               </Button>
             </div>
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{detail}</div>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{detail}</div>
           </div>
         )}
       </div>
