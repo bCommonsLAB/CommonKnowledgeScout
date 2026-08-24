@@ -72,7 +72,14 @@ ergänzt zwei:
 - **Arbeitsliste** — benannte, von Hand kuratierte Menge von Vorhaben eines
   Users („Aktuelle Projekte", „Aufräumen 2019", …). Buch 3.
 - **Zu tun** — Vorhaben mit `ampel ≠ grün` oder `widerspruch` (Grün-Definition
-  aus v1, Akzeptanzkriterium 7; `info`-Befunde zählen nicht).
+  aus v1, Akzeptanzkriterium 7).
+- **Ampel** (präzisiert 24.08.2026, Befund aus Peters Live-Test: die alte
+  Severity-Regel machte im Voll-Archiv alle 148 Vorhaben rot und unterschied
+  nichts) — AKTEUR-basiert, dieselbe Geschichte wie „bereit zur Abnahme":
+  **rot** = maschinelle Befunde (Cowork/KnowledgeScout) offen, unabhängig von
+  der Severity; **gelb** = nur noch Mensch-Befunde offen (= das geteilte
+  Prädikat); **grün** = kein Befund im Teilbaum. Der F8-Abnahme-Precheck (W7)
+  urteilt weiterhin strenger über Severity `error`/`warning`.
 - **Bereit zur Abnahme** — keine maschinellen Befunde (Akteur ≠ Mensch) offen,
   mindestens ein Mensch-Befund wartet. Ein geteiltes Prädikat für UI und MCP
   (heute doppelt: `coverage-progress.tsx` und `mcp/coverage-view.ts`).
