@@ -120,6 +120,25 @@
   .doc .fm b { color: var(--text); font-weight: 600; }
   .doc .warn { color: var(--red); font-weight: 600; }
 
+
+  /* ---------- Seitenkopf schlank + Leerzustand ---------- */
+  .pagehead { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .pagehead h3 { margin: 0; font-size: 17px; letter-spacing: -.01em; }
+  .pagehead .scan { font-size: 12px; color: var(--muted); }
+  .pagehead .scan b { color: var(--text); font-weight: 500; }
+  .ptabs { display: flex; gap: 3px; padding: 8px 14px 0; background: var(--panel); border-bottom: 1px solid var(--border); }
+
+  .empty { padding: 26px 24px; display: flex; flex-direction: column; gap: 16px; align-items: flex-start; }
+  .empty b { font-size: 15px; }
+  .empty > span { font-size: 13.5px; color: var(--muted); }
+  .bento { display: grid; grid-template-columns: repeat(4, minmax(96px, 1fr)); gap: 10px; width: 100%; max-width: 520px; }
+  .bcard { border: 1px solid var(--border); border-radius: 10px; padding: 11px 12px; background: var(--panel); }
+  .bcard b { display: block; font-size: 21px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .bcard span { font-size: 11.5px; color: var(--muted); }
+  .bcard.accent { border-color: var(--amber); background: var(--amber-bg); }
+  .bcard.accent b { color: var(--amber); }
+  .akteure { display: flex; gap: 7px; flex-wrap: wrap; font-size: 12px; }
+
   /* ---------- Anmerkungen ---------- */
   .annot {
     display: inline-flex; align-items: center; justify-content: center;
@@ -157,7 +176,7 @@
     <p>Eine Bildschirmgliederung, zwei Inhalte: Links wählst du aus — ein Vorhaben oder
       ein einzelnes Artefakt. Rechts steht immer genau ein Dokument. Oben steht immer
       derselbe Kopf, mit dem du abnimmst.</p>
-    <p class="meta">Stand 6 · 24.08.2026 · Master-Detail, ersetzt den einspaltigen Entwurf ·
+    <p class="meta">Stand 7 · 24.08.2026 · Master-Detail, alle sechs Entscheidungen eingearbeitet ·
       Daten aus „26.01 Klimamaßnahmen Südtirol", 28 Familien · 56 Artefakte</p>
   </header>
 
@@ -208,7 +227,8 @@
               <span class="dcrumb">4. Ökosozialer Aktivismus / 26.01 Klimamaßnahmen Südtirol</span>
               <span class="spacer"></span>
               <span class="chip open">0 von 28 geprüft</span>
-              <button class="btn small">Alle 28 verifizieren …</button><span class="annot">2</span>
+              <button class="btn small">28 Transkripte prüfen …</button>
+              <button class="btn small">28 Zusammenfassungen prüfen …</button><span class="annot">2</span>
             </div>
           </div>
 
@@ -232,8 +252,8 @@
     </div>
 
     <div class="legend">
-      <div><span class="annot">1</span><p><b>Der Kopf nimmt ab, was rechts steht.</b> Hier das Vorhaben. Ein Knopf, immer an derselben Stelle — bei Artefakten heißt er nur anders.</p></div>
-      <div><span class="annot">2</span><p><b>Sammelaktion auf Gruppenebene.</b> „Alle 28 verifizieren" mit einer Rückfrage; über das Menü auch feiner: nur die Transkripte oder nur die Zusammenfassungen. So werden ganze Ordner in wenigen Klicks fertig.</p></div>
+      <div><span class="annot">1</span><p><b>Der Kopf nimmt ab, was rechts steht.</b> Hier das Vorhaben. Der Knopf geht auch dann, wenn noch Punkte offen sind — früher abzunehmen bleibt deine Entscheidung (24.08.).</p></div>
+      <div><span class="annot">2</span><p><b>Sammelaktion getrennt nach Art</b> (Entscheidung 24.08.): je ein Knopf für alle Transkripte und alle Zusammenfassungen, jeder mit einer Rückfrage. Ein Ordner wird so mit zwei Klicks fertig, ohne dass beides in einem Rutsch durchgewunken wird.</p></div>
       <div><span class="annot">3</span><p><b>Die Tabs tragen die Dokumente dieser Ebene.</b> Beim Vorhaben sind das Bericht und Ordner-Beschreibung, beim Artefakt Transkript und Zusammenfassung. Gleiche Mechanik, anderer Inhalt.</p></div>
     </div>
   </section>
@@ -284,12 +304,12 @@
             <div class="dhead-row">
               <span class="dcrumb">… / 26.01 Klimamaßnahmen Südtirol / 2026-08-04 Besprechung Klimaclub</span>
               <span class="spacer"></span>
-              <button class="btn small ghost">Original anhören</button><span class="annot">5</span>
-              <button class="btn small ghost">◂ ▸ nächstes offenes</button><span class="annot">6</span>
+              <span class="chip stand">nach dem Bestätigen: nächstes offenes</span><span class="annot">6</span>
             </div>
           </div>
 
           <div class="tabs">
+            <span class="tab">Original</span><span class="annot">5</span>
             <span class="tab"><span class="mark open">○</span>Transkript</span>
             <span class="tab on"><span class="mark open">○</span>Zusammenfassung</span><span class="annot">7</span>
           </div>
@@ -313,8 +333,8 @@
 
     <div class="legend">
       <div><span class="annot">4</span><p><b>Derselbe Platz, andere Aufgabe.</b> Hier bestätigst du dieses eine Artefakt. Die Gliederung bleibt gleich — du musst nichts Neues lernen.</p></div>
-      <div><span class="annot">5</span><p><b>Das Original bleibt erreichbar,</b> aber es belegt keine Spalte: Bei Audio ein Abspieler, bei PDF und Word die Vorschau. Geprüft wird der Text daneben, nicht das Original.</p></div>
-      <div><span class="annot">6</span><p><b>Weiterspringen ohne Umweg.</b> Nach dem Bestätigen direkt zum nächsten offenen Artefakt — sonst sind 28 Punkte 28 Wege durch den Baum.</p></div>
+      <div><span class="annot">5</span><p><b>Das Original ist der erste Tab</b> (Entscheidung 24.08.): Bei Audio ein Abspieler, bei PDF und Word die Vorschau. Es trägt kein Häkchen — geprüft werden Transkript und Zusammenfassung, das Original ist die Referenz, gegen die du prüfst.</p></div>
+      <div><span class="annot">6</span><p><b>Nach dem Bestätigen springt die Sicht weiter</b> zum nächsten offenen Artefakt (Entscheidung 24.08.) — sonst sind 28 Punkte 28 Wege durch den Baum. Der Baum links zieht mit.</p></div>
       <div><span class="annot">7</span><p><b>Zwei Tabs statt zwei Spalten.</b> Transkript und Zusammenfassung tragen je ein eigenes Häkchen; so siehst du im Tab, was noch fehlt, und liest trotzdem in voller Breite.</p></div>
     </div>
 
@@ -324,15 +344,73 @@
       und verknüpft wird.</p>
   </section>
 
+  <section>
+    <h2>C — nichts gewählt</h2>
+    <p class="sub">Der Einstieg. Der Seitenkopf trägt nur noch eine Zeile; die Zahlen wohnen dort,
+      wo sonst nichts stünde — und sagen, was zu tun ist, nicht was im Archiv liegt.</p>
+
+    <div class="frame">
+      <div class="frame-bar"><span class="dot"></span> Werkbank — <b>Einstieg</b></div>
+
+      <div class="pagehead">
+        <h3>Agentensicht</h3>
+        <span class="scan">Scan <b>24.8.2026, 17:24</b> · berechnet, nicht Wahrheit · seit dem letzten Scan: 2 erledigt · 1 neu</span><span class="annot">8</span>
+      </div>
+      <div class="ptabs">
+        <span class="tab on">Werkbank</span>
+        <span class="tab">Baum</span>
+        <span class="tab">Zyklus-Board</span>
+        <span class="tab">Todos &amp; Auftrag</span>
+      </div>
+
+      <div class="md">
+        <div class="pane-left">
+          <div class="filters">
+            <span class="seg"><span>Alle</span><span class="on">Zu tun</span><span>Bereit</span></span>
+            <span class="seg"><span class="on">Baum</span><span>Thema</span></span>
+          </div>
+          <div class="tree">
+            <div class="tnode grp"><span class="nm">1. Orientierungsphase</span><span class="cnt">4</span></div>
+            <div class="tnode lvl1"><span class="caret">▸</span><span class="mark open">●</span><span class="nm">18.05 Escher</span><span class="cnt">0/2</span></div>
+            <div class="tnode lvl1"><span class="caret">▸</span><span class="mark open">●</span><span class="nm">19.01 FAST AI</span><span class="cnt">0/2</span></div>
+            <div class="tnode grp"><span class="nm">4. Ökosozialer Aktivismus</span><span class="cnt">71</span></div>
+            <div class="tnode lvl1"><span class="caret">▸</span><span class="mark open">◐</span><span class="nm">26.01 Klimamaßnahmen Südtirol</span><span class="cnt">0/28</span></div>
+            <div class="tnode lvl1"><span class="caret">▸</span><span class="mark open">●</span><span class="nm">26.05 SHF Nachhaltigkeit</span><span class="cnt">0/21</span></div>
+          </div>
+        </div>
+
+        <div class="pane-right">
+          <div class="empty">
+            <b>Vorhaben links wählen<span class="annot">9</span></b>
+            <span>Der Bericht, die Artefakte und die Abnahme erscheinen hier.</span>
+            <div class="bento">
+              <div class="bcard accent"><b>1</b><span>wartet auf dich</span></div>
+              <div class="bcard"><b>32</b><span>deine Punkte</span></div>
+              <div class="bcard"><b>279</b><span>Cowork</span></div>
+              <div class="bcard"><b>1383</b><span>KnowledgeScout</span></div>
+            </div>
+            <span class="akteure">Archiv: 1100 Ordner · 7263 Dateien · 98 Quellen · 135 Artefakte</span><span class="annot">10</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div><span class="annot">8</span><p><b>Der Kopf ist eine Zeile.</b> Zeitpunkt, „berechnet, nicht Wahrheit", Fortschritt seit dem letzten Scan. Die acht Kennzahlen und die Akteur-Chips verschwinden von hier — so war es schon in Mockup Stand 3 vorgesehen, gebaut wurde es nie.</p></div>
+      <div><span class="annot">9</span><p><b>Der Leerzustand arbeitet.</b> Statt einer leeren Fläche vier Karten — und die betonte zuerst: wie viele Vorhaben JETZT auf dich warten. Das ist die Zahl, wegen der du die Sicht öffnest.</p></div>
+      <div><span class="annot">10</span><p><b>Bestandszahlen bleiben,</b> aber als Nebensatz. Sie beschreiben das Archiv, nicht deine Arbeit — sie gehören nicht in die erste Zeile des Bildschirms.</p></div>
+    </div>
+  </section>
+
   <section class="ask">
-    <h2>Offene Entscheidungen</h2>
+    <h2>Entschieden am 24.08.2026</h2>
     <ol>
-      <li><b>Baumtiefe.</b> Hier: Bereich → Vorhaben → Ordner → Artefakt. Ist die Ordner-Ebene nötig oder sollen die Artefakte direkt unter dem Vorhaben hängen?</li>
-      <li><b>Zählerform.</b> „0/28" wie hier, oder lieber nur die offenen als Zahl?</li>
-      <li><b>Sammelaktion.</b> Eine Rückfrage für alle 28 — oder getrennt nach Transkripten und Zusammenfassungen, wie im Menü angedeutet?</li>
-      <li><b>Original.</b> Als Knopf im Kopf wie hier, oder als dritter Tab neben Transkript und Zusammenfassung?</li>
-      <li><b>Nach dem Verifizieren.</b> Automatisch zum nächsten offenen Artefakt springen, oder stehen bleiben?</li>
-      <li><b>Vorhaben abnehmen.</b> Soll der Knopf erst angehen, wenn alle 28 geprüft sind — oder bleibt es deine Entscheidung, früher abzunehmen?</li>
+      <li><b>Baumtiefe:</b> Bereich → Vorhaben → Ordner → Artefakt. Alle vier Ebenen bleiben — so wird das Archiv umstrukturiert. Das Vorhaben IST das Thema und wird von Hand vergeben.</li>
+      <li><b>Zählerform:</b> „0/28" je Ebene.</li>
+      <li><b>Sammelaktion:</b> getrennt nach Transkripten und Zusammenfassungen.</li>
+      <li><b>Original:</b> erster Tab neben Transkript und Zusammenfassung.</li>
+      <li><b>Nach dem Verifizieren:</b> automatisch zum nächsten offenen Artefakt.</li>
+      <li><b>Vorhaben abnehmen:</b> bleibt jederzeit möglich — früher abzunehmen ist Peters Entscheidung.</li>
     </ol>
   </section>
 
