@@ -26,6 +26,7 @@ import type { CoverageReport } from '@/lib/agent-view/types'
 import { karteOhneWerkbankFelder } from '@/lib/agent-view/vorhaben-board'
 import { filtereVorhaben, sortiereVorhaben, type BefundFilter } from '@/lib/agent-view/werkbank-filter'
 import { beschreibeLeereWerkbankListe } from '@/lib/agent-view/werkbank-leer'
+import type { WerkbankGruppierung } from '@/lib/agent-view/werkbank-gruppen'
 import { VorhabenListe } from './vorhaben-liste'
 import { WerkbankDetail } from './werkbank-detail'
 import { WerkbankFilterLeiste } from './werkbank-filter-leiste'
@@ -34,6 +35,7 @@ const STATUS_WERTE = ['alle', 'zu_tun', 'bereit'] as const
 const SORT_WERTE = ['pfad', 'stand', 'befunde'] as const
 const AKTEUR_WERTE = ['mensch', 'cowork', 'knowledgescout'] as const
 const SCHRITT_WERTE = [1, 2, 3, 4] as const
+const GRUPPIERUNG_WERTE: readonly WerkbankGruppierung[] = ['bereich', 'thema'] as const
 
 export interface WerkbankPanelProps {
   report: CoverageReport
@@ -60,6 +62,11 @@ export function WerkbankPanel({ report, generatedAt, libraryLabel, localRootPath
   const [sortierung, setSortierung] = useQueryState(
     'sort',
     parseAsStringLiteral(SORT_WERTE).withDefault('pfad'),
+  )
+  // F12 (W5): zweite Gruppierungs-Ebene „Thema" — teilbar wie alle Filter.
+  const [gruppierung, setGruppierung] = useQueryState(
+    'gruppierung',
+    parseAsStringLiteral(GRUPPIERUNG_WERTE).withDefault('bereich'),
   )
 
   const befundFilter: BefundFilter = useMemo(
@@ -102,10 +109,13 @@ export function WerkbankPanel({ report, generatedAt, libraryLabel, localRootPath
         onSuche={(wert) => void setSuche(wert)}
         sortierung={sortierung}
         onSortierung={(wert) => void setSortierung(wert)}
+        gruppierung={gruppierung}
+        onGruppierung={(wert) => void setGruppierung(wert)}
       />
       <div className="min-h-0 flex-1">
         <VorhabenListe
           karten={sortiert}
+          gruppierung={gruppierung}
           leerText={leerText}
           auswahlId={vorhabenId}
           onSelect={(folderId) => void setVorhabenId(folderId)}
