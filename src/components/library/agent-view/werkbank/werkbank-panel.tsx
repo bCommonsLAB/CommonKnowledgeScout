@@ -20,6 +20,7 @@
  */
 
 import { useMemo } from 'react'
+import { useArtefaktKuration } from '@/hooks/agent-view/use-artefakt-kuration'
 import { useWerkbankBaum } from '@/hooks/agent-view/use-werkbank-baum'
 import { useWerkbankListe } from '@/hooks/agent-view/use-werkbank-liste'
 import { useWerkbankUrlState } from '@/hooks/agent-view/use-werkbank-url-state'
@@ -51,7 +52,10 @@ export function WerkbankPanel({ report, generatedAt, libraryLabel, localRootPath
     akteur, setAkteur, schritt, setSchritt, suche, setSuche, sortierung, setSortierung,
     gruppierung, setGruppierung, listeId, setListeId,
   } = useWerkbankUrlState()
-  const baum = useWerkbankBaum(report)
+  // A4: Kuration wohnt im Panel — Baum-Kennung, Zaehler und Kopf lesen
+  // dieselben frischen Overrides (Verifikationen seit dem letzten Scan).
+  const kuration = useArtefaktKuration(report.libraryId)
+  const baum = useWerkbankBaum(report, kuration.overrides)
   const arbeitsliste = useWerkbankListe({
     libraryId: report.libraryId,
     vorhaben: report.vorhaben,
@@ -144,6 +148,9 @@ export function WerkbankPanel({ report, generatedAt, libraryLabel, localRootPath
       vorhabenId={vorhabenId}
       artefaktId={artefaktId}
       familie={baum.familieZu(artefaktId)}
+      familien={vorhabenId === null ? undefined : baum.familienFuer(vorhabenId)}
+      kuration={kuration}
+      onWaehleArtefakt={(sourceId) => void setArtefaktId(sourceId)}
       report={report}
       generatedAt={generatedAt}
       libraryLabel={libraryLabel}

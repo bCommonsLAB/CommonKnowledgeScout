@@ -1,15 +1,16 @@
 'use client'
 
 /**
- * @fileoverview Werkbank-Detail (F9, W4 + A3): rechts genau EIN Dokument.
+ * @fileoverview Werkbank-Detail (W4 + A3 + A4): EIN Kopf, EIN Dokument.
  *
  * @description
- * Dispatcher der rechten Seite (Mockup-Leitidee): bei gewaehltem VORHABEN
- * der Kopf + das Dokument Bericht/Ordner-Beschreibung, bei gewaehltem
- * ARTEFAKT der Kopf + das Dokument Original/Transkript/Zusammenfassung.
- * Die frueheren gestapelten Bloecke (Befunde · Twin-Familien) sind mit A3
- * aufgeloest: Befunde sind Kennzeichnung am Baum und Inhalt des Kopfes
- * (A4), die Familien SIND die Artefakt-Ebene des Baums. Leerzustaende sind
+ * Dispatcher der rechten Seite (Mockup-Leitidee): oben IMMER der gleich
+ * gebaute Abnahme-Kopf (A4) — er nimmt ab, was rechts steht —, darunter
+ * genau EIN Dokument (A3). Vorhaben: {@link VorhabenKopf} + Tabs
+ * Bericht/Ordner-Beschreibung. Artefakt: {@link ArtefaktKopf} + Tabs
+ * Original/Transkript/Zusammenfassung. Nach einer Verifikation springt die
+ * Auswahl zum naechsten offenen Artefakt (Entscheidung 5); ist derselbe
+ * Twin nur halb geprueft, wechselt erst der Tab. Leerzustaende sind
  * benannt: nichts gewaehlt → {@link WerkbankLeerzustand}; unbekannte
  * folderId/sourceId → „Nicht im letzten Scan".
  *
@@ -17,20 +18,23 @@
  */
 
 import { useState } from 'react'
-import { AlertTriangle, ExternalLink } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 import { useStand } from '@/hooks/agent-view/use-stand'
-import { istBereitZurAbnahme } from '@/lib/agent-view/abnahme'
-import { actorSummary, gapCountLabel, standLabel } from '@/lib/agent-view/labels'
+import type { UseArtefaktKurationResult } from '@/hooks/agent-view/use-artefakt-kuration'
 import { istBerichtVeraltet, teilbaumBefunde } from '@/lib/agent-view/teilbaum'
-import type { CoverageReport, TwinFamilySummary, VorhabenCard } from '@/lib/agent-view/types'
-import { CoverageAmpel } from '../coverage-ampel'
-import { StandAktionen } from './stand-aktionen'
-import { TeilbaumScanKnopf, type TeilbaumScanProps } from './teilbaum-scan-knopf'
+import type { CoverageReport, LeadingArtifactSummary, TwinFamilySummary, VorhabenCard } from '@/lib/agent-view/types'
+import {
+  andererOffenerTab,
+  naechstesOffenes,
+  patchFamilie,
+  type PruefbareArt,
+} from '@/lib/agent-view/werkbank-abnahme'
+import { familienPruefstand } from '@/lib/agent-view/werkbank-baum'
+import { ArtefaktKopf } from './artefakt-kopf'
+import type { TeilbaumScanProps } from './teilbaum-scan-knopf'
+import { VorhabenKopf } from './vorhaben-kopf'
 import { standardTab, WerkbankArtefaktDokument, type ArtefaktTab } from './werkbank-artefakt-dokument'
 import { WerkbankLeerzustand } from './werkbank-leerzustand'
 import { WerkbankVorhabenDokument } from './werkbank-vorhaben-dokument'
-import { ZuListeKnopf } from './zu-liste-knopf'
 
 export interface WerkbankDetailProps {
   /** Karte zur gewaehlten folderId; null = nichts gewaehlt oder nicht im Report. */
@@ -39,6 +43,11 @@ export interface WerkbankDetailProps {
   /** A2/A3: gewaehltes Artefakt (sourceId) + effektive Familie dazu. */
   artefaktId: string | null
   familie: TwinFamilySummary | null
+  /** Effektive Familien des gewaehlten Vorhabens (Sprung-Reihenfolge, Zaehler). */
+  familien: readonly TwinFamilySummary[] | undefined
+  kuration: UseArtefaktKurationResult
+  /** A5-Vorgriff (Entscheidung 5): Auswahl zum naechsten offenen Artefakt bewegen. */
+  onWaehleArtefakt: (sourceId: string) => void
   report: CoverageReport
   generatedAt: string
   libraryLabel: string
@@ -46,31 +55,48 @@ export interface WerkbankDetailProps {
   teilbaumScan?: TeilbaumScanProps
 }
 
-function archivHref(libraryId: string, folderId: string): string {
+function archivHrefFuer(libraryId: string, folderId: string): string {
   return `/library?activeLibraryId=${encodeURIComponent(libraryId)}&folderId=${encodeURIComponent(folderId)}`
 }
 
-/** Artefakt-Zweig: Kopf (A4 vereinheitlicht ihn) + Dokument mit drei Tabs. */
-function ArtefaktDetail({ familie, report }: { familie: TwinFamilySummary; report: CoverageReport }) {
+/** Artefakt-Zweig: einheitlicher Kopf + Dokument mit drei Tabs. */
+function ArtefaktDetail({ familie, familien, kuration, report, onWaehleArtefakt }: {
+  familie: TwinFamilySummary
+  familien: readonly TwinFamilySummary[] | undefined
+  kuration: UseArtefaktKurationResult
+  report: CoverageReport
+  onWaehleArtefakt: (sourceId: string) => void
+}) {
   const [tab, setTab] = useState<ArtefaktTab>(() => standardTab(familie))
+
+  const verifiziert = (art: PruefbareArt, frisch: LeadingArtifactSummary) => {
+    const gepatcht = patchFamilie(familie, art, frisch)
+    if (familienPruefstand(gepatcht) !== 'geprueft') {
+      // Derselbe Twin ist noch halb offen: erst den anderen Tab pruefen.
+      const anderer = andererOffenerTab(gepatcht, art)
+      if (anderer !== null) setTab(anderer)
+      return
+    }
+    const liste = (familien ?? [gepatcht]).map((eintrag) =>
+      eintrag.sourceId === gepatcht.sourceId ? gepatcht : eintrag,
+    )
+    const naechstes = naechstesOffenes(liste, gepatcht.sourceId)
+    if (naechstes !== null) onWaehleArtefakt(naechstes.sourceId)
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="space-y-1 border-b p-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="break-words text-base font-semibold">{familie.sourceName}</h2>
-          <a
-            href={archivHref(report.libraryId, familie.folderId)}
-            className="ml-auto inline-flex items-center gap-1 text-xs underline-offset-2 hover:underline"
-          >
-            Im Archiv oeffnen <ExternalLink className="h-3 w-3" aria-hidden />
-          </a>
-        </div>
-        <p className="break-words text-xs text-muted-foreground">{familie.path.split('/').join(' / ')}</p>
-      </header>
+      <ArtefaktKopf
+        familie={familie}
+        tab={tab}
+        kuration={kuration}
+        libraryId={report.libraryId}
+        onVerifiziert={verifiziert}
+      />
       <WerkbankArtefaktDokument
         libraryId={report.libraryId}
         familie={familie}
-        archivHref={archivHref(report.libraryId, familie.folderId)}
+        archivHref={archivHrefFuer(report.libraryId, familie.folderId)}
         tab={tab}
         onTab={setTab}
       />
@@ -78,7 +104,10 @@ function ArtefaktDetail({ familie, report }: { familie: TwinFamilySummary; repor
   )
 }
 
-export function WerkbankDetail({ karte, vorhabenId, artefaktId, familie, report, generatedAt, teilbaumScan }: WerkbankDetailProps) {
+export function WerkbankDetail({
+  karte, vorhabenId, artefaktId, familie, familien, kuration, onWaehleArtefakt,
+  report, generatedAt, libraryLabel, localRootPath, teilbaumScan,
+}: WerkbankDetailProps) {
   const stand = useStand(report.libraryId)
 
   // Artefakt-Zweig zuerst: die tiefere Auswahl gewinnt.
@@ -95,7 +124,16 @@ export function WerkbankDetail({ karte, vorhabenId, artefaktId, familie, report,
         </div>
       )
     }
-    return <ArtefaktDetail key={familie.sourceId} familie={familie} report={report} />
+    return (
+      <ArtefaktDetail
+        key={familie.sourceId}
+        familie={familie}
+        familien={familien}
+        kuration={kuration}
+        report={report}
+        onWaehleArtefakt={onWaehleArtefakt}
+      />
+    )
   }
 
   if (karte === null && vorhabenId !== null) {
@@ -114,60 +152,21 @@ export function WerkbankDetail({ karte, vorhabenId, artefaktId, familie, report,
     return <WerkbankLeerzustand report={report} />
   }
 
-  const standOverride = stand.overrides.get(karte.folderId)
-  const angezeigterStand = standOverride ? standOverride.bearbeitungsstand : karte.bearbeitungsstand
-  const angezeigtSeit = standOverride ? standOverride.bearbeitungsstandSeit : karte.bearbeitungsstandSeit
   const befunde = teilbaumBefunde(report.gaps, karte.path)
-  const bereit = istBereitZurAbnahme(karte.gapsByActor)
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="space-y-1 border-b p-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="flex items-center gap-2 text-base font-semibold">
-            {karte.ampel !== undefined && <CoverageAmpel ampel={karte.ampel} />}
-            <span className="break-words">{karte.name}</span>
-            {karte.widerspruch && <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" aria-hidden />}
-          </h2>
-          <span className="ml-auto flex items-center gap-2">
-            {teilbaumScan && (
-              <TeilbaumScanKnopf folderId={karte.folderId} onTeilbaumScan={teilbaumScan.onScan} isScanning={teilbaumScan.isScanning} />
-            )}
-            <ZuListeKnopf libraryId={report.libraryId} karte={karte} />
-            <a href={archivHref(report.libraryId, karte.folderId)} className="inline-flex items-center gap-1 text-xs underline-offset-2 hover:underline">
-              Im Archiv oeffnen <ExternalLink className="h-3 w-3" aria-hidden />
-            </a>
-          </span>
-        </div>
-        <p className="break-words text-xs text-muted-foreground">{karte.path.split('/').join(' / ')}</p>
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <Badge variant="secondary">{standLabel(angezeigterStand)}</Badge>
-          {angezeigtSeit && (
-            <span className="text-xs text-muted-foreground">seit {angezeigtSeit.slice(0, 10)}</span>
-          )}
-          <span className="text-xs text-muted-foreground">
-            {gapCountLabel(karte.totalGaps)} · {actorSummary(karte.gapsByActor)}
-          </span>
-        </div>
-        {karte.widerspruch && (
-          <p className="text-sm font-medium text-red-500">
-            {standLabel(karte.bearbeitungsstand)}, aber nicht mehr aktuell
-          </p>
-        )}
-        <StandAktionen karte={karte} generatedAt={generatedAt} stand={stand} />
-        {teilbaumScan?.hinweis && (
-          <p className="rounded-md bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-400">
-            Nicht gemergt: {teilbaumScan.hinweis}
-          </p>
-        )}
-        {bereit && (
-          <p className="rounded-md bg-emerald-600/10 px-2 py-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400">
-            Bereit zur Abnahme — keine maschinellen Befunde offen, {karte.gapsByActor.mensch} Punkt(e) warten
-            auf dich.
-          </p>
-        )}
-      </header>
-
+      <VorhabenKopf
+        karte={karte}
+        stand={stand}
+        generatedAt={generatedAt}
+        libraryId={report.libraryId}
+        familien={familien}
+        kuration={kuration}
+        teilbaumScan={teilbaumScan}
+        befunde={befunde}
+        auftragContext={{ libraryLabel, localRootPath, generatedAt }}
+      />
       <WerkbankVorhabenDokument
         libraryId={report.libraryId}
         folderId={karte.folderId}

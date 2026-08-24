@@ -14,6 +14,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WerkbankDetail } from '@/components/library/agent-view/werkbank/werkbank-detail'
+import type { UseArtefaktKurationResult } from '@/hooks/agent-view/use-artefakt-kuration'
 import { createGap } from '@/lib/agent-view/gap-registry'
 import type { CoverageGap, CoverageReport, CoverageTreeNode, VorhabenCard } from '@/lib/agent-view/types'
 import type { BerichtAntwort } from '@/lib/agent-view/bericht-laden'
@@ -46,6 +47,16 @@ function stubBericht(data: BerichtAntwort) {
 }
 
 beforeEach(() => stubBericht(antwort()))
+
+function fakeKuration(): UseArtefaktKurationResult {
+  return {
+    overrides: new Map(), pendingKey: null, fehler: new Map(),
+    verifiziere: vi.fn().mockResolvedValue(null),
+    setzeTwinStatus: vi.fn().mockResolvedValue(undefined),
+    sammelVerifiziere: vi.fn().mockResolvedValue({ erledigt: 0, gesamt: 0, fehler: [] }),
+    sammelLaeuft: false,
+  }
+}
 
 function gapAt(path: string, folderId: string, type: CoverageGap['type']): CoverageGap {
   return createGap({ type, scope: 'folder', targetId: folderId, targetName: path, folderId, path, message: 'Test' })
@@ -103,6 +114,9 @@ function renderDetail(r: CoverageReport, k: VorhabenCard | null = karte(), vorha
         vorhabenId={vorhabenId}
         artefaktId={null}
         familie={null}
+        familien={[]}
+        kuration={fakeKuration()}
+        onWaehleArtefakt={vi.fn()}
         report={r}
         generatedAt={r.generatedAt}
         libraryLabel="Testarchiv"
@@ -172,12 +186,12 @@ describe('WerkbankDetail — Bericht (W2-Route + bestehende MarkdownPreview)', (
 })
 
 describe('WerkbankDetail — Kopf und Aktionen', () => {
-  it('zeigt die „Bereit zur Abnahme"-Leiste nur beim geteilten Praedikat', () => {
+  it('A4: „Vorhaben abnehmen" folgt Entscheidung 6 — nur Maschinen-Befunde sperren', () => {
     renderDetail(report())
-    expect(screen.getByText(/Bereit zur Abnahme — keine maschinellen Befunde offen/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Vorhaben abnehmen' }).hasAttribute('disabled')).toBe(false)
     cleanup()
     renderDetail(report(), karte({ gapsByActor: { mensch: 1, cowork: 1, knowledgescout: 0 } }))
-    expect(screen.queryByText(/Bereit zur Abnahme — keine/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Vorhaben abnehmen' }).hasAttribute('disabled')).toBe(true)
   })
 
 
@@ -185,6 +199,7 @@ describe('WerkbankDetail — Kopf und Aktionen', () => {
 
   it('Teilbaum-Scan (W8): Knopf nur mit Handler, meldet die folderId; Fallback-Hinweis sichtbar', () => {
     renderDetail(report())
+    fireEvent.click(screen.getByRole('button', { name: 'Menue zu Pilot' }))
     expect(screen.queryByRole('button', { name: /Teilbaum neu scannen/ })).toBeNull()
     cleanup()
 
@@ -194,12 +209,15 @@ describe('WerkbankDetail — Kopf und Aktionen', () => {
       <QueryClientProvider client={queryClient}>
         <WerkbankDetail
           karte={karte()} vorhabenId="f-pilot" artefaktId={null} familie={null}
+          familien={[]} kuration={fakeKuration()} onWaehleArtefakt={vi.fn()}
           report={report()} generatedAt="2026-08-23T12:00:00.000Z"
           libraryLabel="Testarchiv" localRootPath={null}
           teilbaumScan={{ onScan, isScanning: false, hinweis: 'Der gespeicherte Report stammt von vor W8' }}
         />
       </QueryClientProvider>,
     )
+    // A4: der Knopf wohnt im Menue ⋯ (alles Seltene).
+    fireEvent.click(screen.getByRole('button', { name: 'Menue zu Pilot' }))
     fireEvent.click(screen.getByRole('button', { name: /Teilbaum neu scannen/ }))
     expect(onScan).toHaveBeenCalledWith('f-pilot')
     expect(screen.getByText(/Nicht gemergt: Der gespeicherte Report stammt von vor W8/)).toBeTruthy()
@@ -207,10 +225,11 @@ describe('WerkbankDetail — Kopf und Aktionen', () => {
 
   it('Abnehmen (W7) ueberlagert den Stand lokal und sagt dazu, dass der Report alt ist', async () => {
     renderDetail(report())
-    fireEvent.click(screen.getByRole('button', { name: 'Abnehmen' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Vorhaben abnehmen' }))
     expect(await screen.findByText(/Report zeigt noch den alten Scan/)).toBeTruthy()
     expect(screen.getByText('Abgenommen')).toBeTruthy()
-    expect(screen.getByText(/seit 2026-08-24/)).toBeTruthy()
+    // Das seit-Datum wohnt im Chip-Titel (A4: Zeile 1 bleibt eine Zeile).
+    expect(screen.getByTitle('seit 2026-08-24')).toBeTruthy()
   })
 
 })
