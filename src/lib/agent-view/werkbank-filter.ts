@@ -138,22 +138,35 @@ export function filtereVorhaben(
 }
 
 /**
- * Sortiert deterministisch (Sekundaerschluessel immer Pfad, wie der Report):
- * `pfad` = Report-Reihenfolge · `stand` = Zyklus-Reihenfolge der Board-Spalten
- * (ohne erklaerten Stand zuletzt) · `befunde` = offene Befunde absteigend.
+ * Bereich AUFSTEIGEND, darin der Vorhabens-Pfad ABSTEIGEND.
+ *
+ * Die Vorhabensordner sind mit Jahr/Monat benannt (`26.01 Klimamassnahmen
+ * …`), darum heisst absteigend: NEUESTE ZUERST (Befund Testsession
+ * 25.08.2026). Der Bereich bleibt aufsteigend — sonst stuenden die Phasen
+ * 7…1 verkehrt herum, was niemand verlangt hat.
+ */
+function vergleichePfad(a: VorhabenCard, b: VorhabenCard): number {
+  return bereichVon(a).localeCompare(bereichVon(b)) || b.path.localeCompare(a.path)
+}
+
+/**
+ * Sortiert deterministisch (Sekundaerschluessel immer {@link vergleichePfad}):
+ * `pfad` = Bereich aufsteigend, darin neueste zuerst · `stand` =
+ * Zyklus-Reihenfolge der Board-Spalten (ohne erklaerten Stand zuletzt) ·
+ * `befunde` = offene Befunde absteigend.
  */
 export function sortiereVorhaben(
   cards: readonly VorhabenCard[],
   sortierung: WerkbankSortierung,
 ): VorhabenCard[] {
   const sorted = [...cards]
-  if (sortierung === 'pfad') return sorted.sort((a, b) => a.path.localeCompare(b.path))
+  if (sortierung === 'pfad') return sorted.sort(vergleichePfad)
   if (sortierung === 'stand') {
     return sorted.sort(
       (a, b) =>
         BOARD_COLUMNS.indexOf(a.bearbeitungsstand) - BOARD_COLUMNS.indexOf(b.bearbeitungsstand) ||
-        a.path.localeCompare(b.path),
+        vergleichePfad(a, b),
     )
   }
-  return sorted.sort((a, b) => b.totalGaps - a.totalGaps || a.path.localeCompare(b.path))
+  return sorted.sort((a, b) => b.totalGaps - a.totalGaps || vergleichePfad(a, b))
 }

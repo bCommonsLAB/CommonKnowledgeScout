@@ -124,6 +124,19 @@ function familienImKnoten(node: CoverageTreeNode, nachOrdner: Map<string, TwinFa
 }
 
 /**
+ * Ordner NEUESTE ZUERST: die Ordnernamen beginnen mit Jahr/Monat
+ * (`2026-04-02 Besprechung …`), darum ist absteigend alphabetisch zugleich
+ * chronologisch rueckwaerts (Befund Testsession 25.08.2026). Dieselbe Regel
+ * wie in der Vorhaben-Liste (`sortiereVorhaben`).
+ *
+ * Die Artefakte INNERHALB eines Ordners behalten die Report-Reihenfolge —
+ * Dateinamen tragen kein Datum, dort brauchte die Umkehr niemand.
+ */
+export function neuesteZuerst(children: readonly CoverageTreeNode[]): CoverageTreeNode[] {
+  return [...children].sort((a, b) => b.name.localeCompare(a.name))
+}
+
+/**
  * Zeilen UNTER einem aufgeklappten Vorhaben: erst dessen direkte Artefakte,
  * dann rekursiv die Ordner mit Familien im Teilbaum (zugeklappte Ordner
  * behalten die Zeile, lassen den Inhalt aus). Jeder Leerzustand ist benannt.
@@ -157,7 +170,7 @@ export function baueTeilbaumZeilen(args: {
   }
 
   const ordnerZeilen = (node: CoverageTreeNode, tiefe: number) => {
-    for (const child of node.children) {
+    for (const child of neuesteZuerst(node.children)) {
       const imTeilbaum = familienImKnoten(child, nachOrdner)
       if (imTeilbaum.length === 0) continue
       const aufgeklappt = !ordnerZu.has(child.folderId)

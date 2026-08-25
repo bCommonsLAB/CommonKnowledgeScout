@@ -8,7 +8,9 @@
  * A2, Entscheidung 1). Virtualisiert bleibt Pflicht — mit Artefakten traegt
  * die Liste ein Vielfaches der 148 Vorhaben. Vorhaben starten zugeklappt
  * (Mockup Zustand C); Auswaehlen klappt auf, der Pfeil klappt unabhaengig.
- * Ordner starten aufgeklappt. Die Teilbaum-Zeilen kommen aus dem puren
+ * Ordner starten aufgeklappt. Auch die BEREICHE starten bei langen Listen
+ * zugeklappt (`berechneEingeklappt`) — kurze Listen wie Suchtreffer bleiben
+ * offen, damit der Baum sein eigenes Ergebnis nicht versteckt. Die Teilbaum-Zeilen kommen aus dem puren
  * `werkbank-baum.ts`; ein leerer Zustand rendert IMMER die uebergebene
  * Begruendung (Akzeptanzkriterium 4) — nie eine stumme Flaeche.
  *
@@ -23,7 +25,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { TwinFamilySummary, VorhabenCard } from '@/lib/agent-view/types'
 import type { BaumZeile, PruefZaehler } from '@/lib/agent-view/werkbank-baum'
-import { baueWerkbankZeilen, type WerkbankGruppierung, type WerkbankZeile } from '@/lib/agent-view/werkbank-gruppen'
+import {
+  baueWerkbankZeilen,
+  berechneEingeklappt,
+  type WerkbankGruppierung,
+  type WerkbankZeile,
+} from '@/lib/agent-view/werkbank-gruppen'
 import { ArtefaktZeile, BaumHinweis, OrdnerZeile } from './werkbank-baum-zeilen'
 import { BereichKopfZeile, VorhabenZeile } from './vorhaben-zeile'
 
@@ -58,12 +65,21 @@ export function VorhabenListe({
   onPin?: (card: VorhabenCard) => void
   baum?: VorhabenListeBaum
 }) {
-  const [eingeklappt, setEingeklappt] = useState<ReadonlySet<string>>(new Set())
+  // Nicht die eingeklappten Gruppen selbst, sondern nur die HANDGRIFFE des
+  // Menschen: welche Gruppe er bewusst auf- oder zugeklappt hat. Alles andere
+  // entscheidet `berechneEingeklappt` aus der Laenge der aktuellen Liste — so
+  // klappt eine Suche ihre Treffer auf, ohne den Handgriff zu vergessen.
+  const [gruppenHandgriff, setGruppenHandgriff] = useState<ReadonlyMap<string, boolean>>(new Map())
   // Aufgeklappte Vorhaben: Deep-Links mit Artefakt oeffnen ihr Vorhaben sofort.
   const [vorhabenAuf, setVorhabenAuf] = useState<ReadonlySet<string>>(
     () => new Set(auswahlId !== null ? [auswahlId] : []),
   )
   const [ordnerZu, setOrdnerZu] = useState<ReadonlySet<string>>(new Set())
+
+  const eingeklappt = useMemo(
+    () => berechneEingeklappt(karten, gruppierung, { manuell: gruppenHandgriff, auswahlId }),
+    [karten, gruppierung, gruppenHandgriff, auswahlId],
+  )
 
   const zeilen = useMemo<(WerkbankZeile | BaumZeile)[]>(() => {
     const basis = baueWerkbankZeilen(karten, gruppierung, eingeklappt)
@@ -112,7 +128,7 @@ export function VorhabenListe({
     return <p className="p-3 text-sm text-muted-foreground">{leerText}</p>
   }
 
-  const toggleIn = (setter: typeof setEingeklappt) => (schluessel: string) => {
+  const toggleIn = (setter: typeof setVorhabenAuf) => (schluessel: string) => {
     setter((prev) => {
       const next = new Set(prev)
       if (next.has(schluessel)) next.delete(schluessel)
@@ -120,7 +136,10 @@ export function VorhabenListe({
       return next
     })
   }
-  const toggleBereich = toggleIn(setEingeklappt)
+  const toggleBereich = (gruppe: string) => {
+    const zuJetzt = eingeklappt.has(gruppe)
+    setGruppenHandgriff((prev) => new Map(prev).set(gruppe, !zuJetzt))
+  }
   const toggleVorhaben = toggleIn(setVorhabenAuf)
   const toggleOrdner = toggleIn(setOrdnerZu)
 

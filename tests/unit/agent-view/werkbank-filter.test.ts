@@ -144,6 +144,26 @@ describe('sortiereVorhaben', () => {
     expect(sortiereVorhaben([a, b, c], 'stand').map((k) => k.path)).toEqual(['C/x', 'A/x', 'B/x'])
     expect(sortiereVorhaben([a, b, c], 'befunde').map((k) => k.totalGaps)).toEqual([5, 3, 1])
   })
+
+  it('innerhalb eines Bereichs stehen die neuesten zuerst (Namen beginnen mit Jahr/Monat)', () => {
+    const alt2018 = card('4. Aktivismus/18.05 Escher')
+    const dez2025 = card('4. Aktivismus/25.12 KnowledgeScout')
+    const jan2026 = card('4. Aktivismus/26.01 Klimamassnahmen')
+    expect(sortiereVorhaben([alt2018, jan2026, dez2025], 'pfad').map((k) => k.name)).toEqual([
+      '26.01 Klimamassnahmen',
+      '25.12 KnowledgeScout',
+      '18.05 Escher',
+    ])
+  })
+
+  it('die Bereiche selbst bleiben aufsteigend — Phasen 1..7, nicht 7..1', () => {
+    const phase1 = card('1. Orientierung/26.01 Neu')
+    const phase7 = card('7. Buchprojekt/18.01 Alt')
+    expect(sortiereVorhaben([phase7, phase1], 'pfad').map((k) => k.path)).toEqual([
+      '1. Orientierung/26.01 Neu',
+      '7. Buchprojekt/18.01 Alt',
+    ])
+  })
 })
 
 describe('beschreibeLeereWerkbankListe (Akzeptanzkriterium 4)', () => {
