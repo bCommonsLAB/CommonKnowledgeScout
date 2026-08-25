@@ -99,6 +99,16 @@ Detail (warum, Symptome, Ausnahmen):
   Shared Libraries; SiteConfig pro Deployment; Core- vs. Modul-APIs mit
   Route-Handler-Fabriken; Detail: `docs/architecture/modul-landkarte.md` +
   `docs/architecture/einsatz-szenarien.md` — Start erst NACH Plan 1/Plan 2
+- Vorgeschlagen: `docs/adr/0007-deployment-ziele.md` — Ein Deployment, viele
+  Sites (Host→SiteConfig zur Laufzeit, `next/dynamic` je Modul); eigene
+  Compilate nur bei anderer Laufzeit (Electron, npm-Embed); Module exportieren
+  montierbare Wurzelkomponenten
+- Vorgeschlagen: `docs/adr/0008-library-foederation.md` — mehrere Libraries
+  pro Site (primary + federated); Frage- und Inhalts-Bruecken auf Basis des
+  Perspektiven-Bruecken-Zielbilds; Inhalts-Bruecken vorberechnet
+- Vorgeschlagen: `docs/adr/0009-retrieval-profile.md` — Profile pro Library
+  (UI-Variante + pluggbare Retrieval-Strategie + Sprachen), Laie/Experte;
+  Ingestion-Post-Prozesse (z.B. Geo-Normalisierung) als Pipeline-Phasen
 
 ## Branching, Commits, PRs (Kurz)
 

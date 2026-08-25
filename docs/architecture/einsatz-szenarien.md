@@ -1,191 +1,191 @@
-# Einsatz-Szenarien — produktive Libraries als Konfigurationsfälle
+# Einsatz-Muster — Konfigurationsszenarien aus den Library-Steckbriefen
 
-Ergänzung zu [ADR 0006](../adr/0006-modularisierung-monorepo-schale-module.md)
-und [`modul-landkarte.md`](modul-landkarte.md): Die realen Libraries der
-Prod-Umgebung, je Fall isoliert beschrieben und mit einem konkreten
-`SiteConfig`-Szenario versehen. Zweck: belegen, dass das Konfigurationsmodell
-ALLE Fälle ohne Sonderlocken trägt — und Lücken benennen, wo nicht.
+Abgeleitet aus [`library-steckbriefe.md`](library-steckbriefe.md) (den
+Beschreibungen des Owners — dort steht das WAS, hier das WIE als
+Konfiguration). Architektur-Grundlagen: ADR
+[0006](../adr/0006-modularisierung-monorepo-schale-module.md) (Pakete/SiteConfig),
+[0007](../adr/0007-deployment-ziele.md) (eine Instanz, viele Sites; Hüllen),
+[0008](../adr/0008-library-foederation.md) (Föderation),
+[0009](../adr/0009-retrieval-profile.md) (Profile).
 
-Personas/Rollen-Grundlagen: [`use-cases-and-personas.md`](use-cases-and-personas.md).
-Die Library-Namen/Slugs sind aus dem Repo abgeleitet (Template-Samples,
-Domain-Mapping); vor dem M5-Start gegen die Prod-Datenbank verifizieren.
+Jedes Muster: Zweck · tragende Libraries · Module · Hülle/Datenzugang · Auth ·
+Konfigurationsskizze · was es vom Konzept fordert. SiteConfig-Schema:
+[`modul-landkarte.md` §2](modul-landkarte.md).
 
-## Szenario 1 — Oldies for Future (Kampagnen-/Vereins-Website)
+## P1 — Öffentliche Projekt-/Kampagnen-Website
 
-**Zweck & Zielgruppe.** Öffentliche Kampagnen-Website unter eigener Domain
-(`oldiesforfuture.org`, heute via `PUBLIC_DOMAIN_LIBRARY_MAP` +
-`src/lib/root-landing.ts`): Website-Seiten aus Live-Dokumenten
-(`detailViewType: website`, `menu_order`), Galerie „Unsere Aktionen"
-(Aktionsberichte), Story-Modus, Testimonials, Kontakt. Besucher sind anonym;
-wenige Vereins-Creator pflegen Inhalte in der Zentral-App.
-
-**Module.** `shell` (TopNav zeigt das LIBRARY-Menü, nicht das KS-Menü — heute
-`exploreContext` in `buildTopNavConfig()`) + `module-explorer`.
-NICHT dabei: archive, agent-view, creation (perspektivisch doch: Aktions-
-berichte mobil erfassen → Ausbau mit `module-creation`), templates, jobs,
-settings.
-
-**APIs.** Core (nur Lese-Teil: `public/libraries/[slug]`, Kontakt) +
-Explorer-Lese-APIs (`chat/[slug]/docs|facets|doc-by-slug`, `public/testimonials`).
-Kein Schreibpfad.
-
-**Auth.** `public` — komplett anonym lesbar.
-
-**SiteConfig-Szenario.**
+Eigene URL/Domain, Startseite aus Library-Inhalten, Galerie + Story, anonym.
+**Libraries**: Oldies for Future (das erklärte Muster), Klimamaßnahmen
+(Endkunden-Sicht), SwapToLearn (nuvola), Tamera.
+**Module**: `explorer`. **Hülle**: Site auf der einen Instanz (Host-Mapping).
+**Auth**: public (P1-Variante Klimamaßnahmen: Login schaltet ins
+Experten-Profil, siehe P3).
 
 ```ts
-const oldiesForFuture: SiteConfig = {
+site('oldiesforfuture.org', {
   modules: ['explorer'],
-  library: { mode: 'fixed', slug: 'oldiesforfuture' },
-  chrome: { topNav: true, footer: false },   // Library-Menü ja, KS-Chrome nein
+  libraries: { primary: { slug: 'oldiesforfuture' } },
+  chrome: { topNav: 'library-menu', footer: 'site' },
   auth: { mode: 'public' },
-  api: { mode: 'remote', baseUrl: 'https://knowledgescout.org' },
-  domains: ['oldiesforfuture.org'],
-}
+})
 ```
 
-**Aufgedeckte Anforderungen.** (a) TopNav muss „Library-Menü statt App-Menü"
-als SiteConfig-Fall können (existiert als `exploreContext`, wird formalisiert);
-(b) Remote-Modus braucht anonymen, CORS-fähigen Lese-Zugriff auf öffentliche
-Libraries; (c) Domain-Mapping wandert perspektivisch aus der ENV-Variable in
-die SiteConfig der jeweiligen Site.
+**Fordert**: Host→SiteConfig-Resolver; Library-Menü statt App-Menü;
+clientseitig nur Explorer-Chunks (`next/dynamic`).
 
-## Szenario 2 — Commoning / Ecosocial / Umweltarchiv (Wissensarchiv + Chat)
+## P2 — Eingebettete Inhalts-Komponente in einer Fremdseite
 
-**Zweck & Zielgruppe.** Recherche-Archive über PDF-/Dokumentbestände
-(Commoning-Methoden, Ecosocial, Umweltarchiv, Tamera): Explorer mit Facetten,
-Dokument-Detail mit Markdown/PDF-Viewer, Chat/RAG über den Bestand.
-Nutzer: Forschende/Interessierte, je Library öffentlich ODER
-zugangsbeschränkt. Pflege (Ingestion, Shadow Twins, Transformationen)
-geschieht durch Creator in der Zentral-App — NICHT in der schlanken Site.
+Galerie/Story laufen INNERHALB einer fremden Webseite — als React-Komponente
+(npm) oder iframe; Daten kommen remote von der Zentral-Instanz.
+**Libraries**: AECED (React-Komponente, Pilot M5), SFSCON, CAST, Naturmuseum
+(Museums-Website), Tamera.
+**Module**: `explorer` (Wurzelkomponente). **Hülle**: `embed` ×
+Datenzugang `remote`. **Auth**: public lesend; Site-Token für geschützte
+Inhalte (offen, M5/M7).
 
-**Module.** `shell` + `module-explorer` (inkl. Chat). NICHT dabei: archive
-(Ingestion bleibt zentral), creation, agent-view, jobs, templates, settings.
+```tsx
+<KnowledgeScoutExplorer
+  baseUrl="https://knowledgescout.org"
+  library="aeced" view="gallery" locale={locale}
+/>
+```
 
-**APIs.** Core + Explorer inkl. Chat-Laufzeit (`chat/[libraryId]/stream`,
-`queries`, `adhoc`, `config`) und `llm-models`. Die Ingestion-Routen des
-`chat/*`-Namespace werden NICHT gemountet — genau der in der Landkarte (§3)
-markierte Schnitt „Lese-Explorer vs. Ingestion".
+**Fordert**: montierbare Wurzelkomponenten (ADR 0007 §4); CORS + anonymer
+Lese-Zugriff; Mehrsprachigkeit als Prop.
 
-**Auth.** Je Library: `public` oder `clerk` (Zugriff über bestehendes
-`libraries/[id]/access-check`/Invite-Modell).
+## P3 — Fach-/Forschungsarchiv mit Laien- UND Experten-Zugang
 
-**SiteConfig-Szenario.**
+Ein Bestand, zwei Profile: vereinfachter Zugang für Endanwender, spezifischer
+für Experten — unterschiedlich in UI und Retrieval (ADR 0009). Kollektive
+Pflege durch Eingeladene.
+**Libraries**: Umweltarchiv/Naturmuseum, Pluriversum, Klimamaßnahmen
+(Experten-Seite mit eigenen Beiträgen).
+**Module**: `explorer` (+ `archive` für Pfleger in der Zentral-App).
+**Hülle**: Site auf der Instanz + `pwa`-Flag (Naturmuseum) + `electron` für
+Vielnutzer. **Auth**: public lesend, `clerk` ⇒ Experten-Profil/Pflege.
 
 ```ts
-const commoningArchiv: SiteConfig = {
+site('archiv.naturmuseum.example', {
   modules: ['explorer'],
-  library: { mode: 'fixed', slug: 'commoning' },
-  chrome: { topNav: true, footer: true },
-  auth: { mode: 'clerk', optional: true },   // anonym lesen, eingeloggt mehr
-  api: { mode: 'local' },                    // eigener Chat-/RAG-Backend-Teil
-}
+  libraries: { primary: { slug: 'umweltarchiv' } },
+  chrome: { topNav: 'library-menu' },
+  auth: { mode: 'clerk', optional: true },   // anonym = simple-Profil
+  pwa: true,
+})
+// Profile (simple/expert, geo-prefilter) liegen in der LIBRARY-Config (ADR 0009)
 ```
 
-**Aufgedeckte Anforderungen.** (a) Chat braucht serverseitige Secrets
-(LLM-Keys, Mongo-Vektorsuche) → solche Sites laufen `api: local` oder brauchen
-im Remote-Modus einen Site-Token gegen die Zentral-Instanz; (b) der
-Ingestion-Teil von `chat/*` muss vom Lese-/Chat-Teil trennbar sein
-(Handler-Fabriken getrennt schneiden).
+**Fordert**: Profil-Mechanik + pluggbare Retrieval-Strategien; Ingestion-
+Post-Prozesse (Geo-/Autoren-Normalisierung); PWA pro Site.
 
-## Szenario 3 — Diva-Texturen & Kataloge (Produktkatalog B2B)
+## P4 — Geschütztes Team-Archiv
 
-**Zweck & Zielgruppe.** Geschlossene B2B-Kataloge: Diva-Texturen/-Dokumente,
-Gaderform (Betten/Holzarten), Refurbed-Geräte, PC-Steckbriefe. Facetten-Katalog
-mit SPEZIAL-Detailansichten (`detailViewType: divaTexture | divaDocument |
-refurbedDevice`, Registry in `src/lib/detail-view-types/registry.ts`),
-Lieferanten-/Preisdaten. Nutzer: Fachhändler/Partner, eingeladen (Clerk/Invite),
-kein anonymer Zugriff.
-
-**Module.** `shell` + `module-explorer` (mit registrierten Spezial-Renderern).
-Für die Pflege-Rolle optional zusätzlich `module-archive` in einer eigenen
-internen Site (oder Pflege bleibt in der Zentral-App). NICHT dabei: creation,
-jobs, templates.
-
-**APIs.** Core + Explorer + die Spezial-Routen des jeweiligen Katalogs
-(`diva-texture/*` — in der Landkarte §3 als zuordnungsbedürftig markiert;
-Ziel: als Site-/Modul-Erweiterung mountbar, nicht global).
-
-**Auth.** `clerk` (Pflicht), Mitglieder über Invites
-(`libraries/[id]/invites|members`).
-
-**SiteConfig-Szenario.**
+Arbeitsverzeichnis eines festen Teams: schnell ablegen, damit interagieren;
+kein öffentlicher Zugang. **Libraries**: Stakeholder Klimaarchiv.
+**Module**: `explorer` + `archive` (Ablage!). **Hülle**: Site auf der Instanz
+oder direkt die Voll-App. **Auth**: `clerk` Pflicht (Invites).
 
 ```ts
-const divaKatalog: SiteConfig = {
-  modules: ['explorer'],
-  library: { mode: 'fixed', slug: 'diva-katalog' },
-  chrome: { topNav: true, footer: false },
-  auth: { mode: 'clerk' },                   // geschlossener Nutzerkreis
-  api: { mode: 'local' },
-}
+site('stakeholder.knowledgescout.org', {
+  modules: ['explorer', 'archive'],
+  libraries: { primary: { slug: 'stakeholder-klimaarchiv' } },
+  auth: { mode: 'clerk' },
+})
 ```
 
-**Aufgedeckte Anforderungen.** (a) Detail-View-Registry muss ERWEITERBAR pro
-Site sein (Schnittstelle in `@ks/contracts`, Renderer als Site-Plugin) — sonst
-lädt jede schlanke Site alle Spezialansichten; (b) katalogspezifische
-API-Routen (`diva-texture/*`) brauchen denselben Fabrik-Mechanismus wie
-Modul-APIs; (c) Auth-Modus `clerk` ohne öffentliche Landing muss von der
-Schale getragen werden (Login-first).
+**Fordert**: Login-first-Schale (keine öffentliche Landing).
 
-## Szenario 4 — Dialogräume & Events (Erfassung + Secretary)
+## P5 — Niederschwellige Feld-Erfassung (audio-first, mehrsprachig)
 
-**Zweck & Zielgruppe.** Mobile/Feld-Erfassung: Dialogräume, Event-Berichte,
-Testimonials, Meeting-Analysen (Templates `dialograum-creation-de`,
-`event-creation-de`, `meeting_analyse-de` …). Nicht-technische Wizard-User
-erfassen Audio/Foto/Text unterwegs; Submissions landen im Wartekorb/Inbox
-(ADR 0004) und werden von Moderatoren geprüft und promotet. Ergebnis erscheint
-im Explorer der Ziel-Library.
-
-**Module.** `shell` + `module-creation` (Wizard, Upload, eigener Wartekorb-
-Blick „meine Einreichungen"). Optional `module-explorer` fürs veröffentlichte
-Ergebnis. NICHT dabei: archive (dank ADR 0004 kein Ziel-Storage-Zugriff nötig),
-agent-view, jobs, templates, settings.
-
-**APIs.** Core + Creation (`secretary/process-*`, `wizard-sessions/*`,
-`submissions/*`, `stream-ingest/*`, `creation/upload-image`). Moderation/
-Promotion (`submissions/[id]/approve|promote`) bleibt der Zentral-App
-vorbehalten.
-
-**Auth.** `clerk` mit Capture-Rolle (`libraries/[id]/me/capture`), oder
-`public` für offene Erfassungsaktionen (z. B. Testimonial-Kampagne via
-`public/secretary/process-audio`).
-
-**SiteConfig-Szenario.**
+Menschen diktieren unterwegs/im Treffen Botschaften; Transkription auch in
+Oromo/Amharisch; Ergebnis wird sichtbar und im Story Mode beauskunftbar —
+in denselben Sprachen. **Libraries**: Tapping into Abundance, MCS Ethiopia,
+SwapToLearn (beide), Peters Archiv (mobiles Diktat).
+**Module**: `creation` (+ `explorer` fürs Ergebnis). **Hülle**: Site auf der
+Instanz, mobil (ggf. `pwa`). **Auth**: Capture-Rolle oder offene Kampagne.
 
 ```ts
-const dialograumErfassung: SiteConfig = {
-  modules: ['creation'],
-  library: { mode: 'fixed', slug: 'dialograeume' },
-  chrome: { topNav: false, footer: false },  // nur der Wizard, kein Menü
-  auth: { mode: 'clerk', optional: true },   // Kampagnen ggf. anonym
-  api: { mode: 'local' },                    // Uploads/Jobs serverseitig
-}
+site('stimmen.tappingintoabundance.example', {
+  modules: ['creation', 'explorer'],
+  libraries: { primary: { slug: 'tapping-into-abundance' } },
+  chrome: { topNav: 'none' },                 // nur der Erfassungs-Flow
+  auth: { mode: 'clerk', optional: true },
+})
+// languages: ['om','am','en','de'] im Library-Profil (ADR 0009 §4)
 ```
 
-**Aufgedeckte Anforderungen.** (a) Erfassungs-Site darf KEINEN Explorer-/
-Archiv-Code laden — der wichtigste Beleg für den Modul-Schnitt; (b) Wizard
-muss ohne sichtbares Menü als Vollbild-Flow laufen (`chrome.topNav: false`);
-(c) Submission-Promotion braucht einen klaren Ort (Zentral-App), damit die
-schlanke Site keinen Moderations-Code enthält.
+**Fordert**: Erfassungs-Site ohne Archiv-/Explorer-Zwang (ADR 0004-Inbox);
+Vollbild-Wizard ohne Menü; Transkriptionssprachen aus dem Profil.
+
+## P6 — Privates lokales Archiv mit Agenten-Zugang
+
+Sehr private Daten; Verarbeitung lokal; Agenten (Cowork) arbeiten über MCP
+mit dem Archiv. **Libraries**: Peters Archiv.
+**Module**: `archive` + `agent-view`. **Hülle**: `electron` ×
+`local-first`; MCP-Oberfläche aktiv. **Auth**: lokaler Besitzer.
+
+**Fordert**: Electron lädt Module als Wurzelkomponenten; MCP-Tools als
+Modul-Export (heute `src/lib/mcp/`); klare Grenze, was das Gerät nie verlässt.
+
+## P7 — Lokale Massenverarbeitungs-Werkbank
+
+Scraping + JSON-Annotation + Bild-LLM-Klassifikation großer Bestände;
+Übersicht, Suche, Ähnlichkeit. **Libraries**: Diva-Texturen.
+**Module**: `workbench` (neuer Modul-Kandidat, Landkarte §1) + `archive`.
+**Hülle**: `electron` × `local-first`. **Auth**: lokaler Anwender.
+
+**Fordert**: fließender Massen-Workflow (Queue-UI); Ähnlichkeitsdarstellung
+(nutzt `src/lib/graph/`-Bausteine); Bild-LLM-Aufrufe aus der Werkbank.
+
+## P8 — Headless-API für eine Fremdanwendung
+
+Eine externe Anwendung fragt Library-Inhalte strukturiert ab — keine
+KnowledgeScout-UI beteiligt. **Libraries**: AECED.
+**Module**: keine UI; Explorer-Lese-Handler + Token. **Hülle**: `headless`
+auf der bestehenden Instanz. **Auth**: API-Token pro Konsument
+(vorhandener Baustein: `api/libraries/[id]/tokens`).
+
+**Fordert**: stabiler, versionierter Lese-Vertrag in `@ks/contracts`
+(Dokumente + Frontmatter-Metadaten + Facetten); Token-Scopes read-only.
+
+## P9 — Konferenz-/Event-Aufbereitung aus Multi-Quellen
+
+Eine Session entsteht (semi-)automatisch aus Video (YouTube u. a.) +
+PowerPoint + Webseite; vor Ort schnell aufgebaut; Ergebnis als Galerie/Story
+eingebettet (P2). **Libraries**: SFSCON (inkl. Ablösung der alten
+Sessionverwaltung), CAST.
+**Module**: `import` (neuer Modul-Kandidat) + `explorer`.
+**Hülle**: Erfassung in der Voll-App/vor Ort; Ausspielung als P2-Embed.
+**Auth**: Creator erfassen, Öffentlichkeit liest.
+
+**Fordert**: Import-Flow Video+Slides+Web ⇒ Session-Dokumente (Secretary-
+Bausteine `secretary/process-video|pdf` wiederverwenden); „schnell vor Ort"
+als Messlatte.
 
 ## Abdeckungs-Matrix
 
-| Szenario | Module | API-Namespaces (gemountet) | Auth | API-Modus | Menü |
+| Muster | Module | Hülle | Datenzugang | Auth | Libraries |
 |---|---|---|---|---|---|
-| Oldies for Future | explorer | Core (Lese), `public/*`, `chat/*` (Lese) | public | remote | Library-Menü |
-| Commoning/Ecosocial/Umweltarchiv | explorer | Core, `chat/*` (Lese+Chat), `llm-models` | clerk optional | local | Library-Menü |
-| Diva/Gaderform/Refurbed/PC | explorer (+archive intern) | Core, `chat/*` (Lese), `diva-texture/*` | clerk | local | Library-Menü |
-| Dialogräume/Events | creation (+explorer optional) | Core, `secretary/*`, `submissions/*`, `wizard-sessions/*` | clerk optional | local | keins |
-| Voll-App knowledgescout.org | alle | alle | clerk optional | local | KS-Menü |
+| P1 Kampagnen-Website | explorer | Site auf Instanz | local | public | Oldies, Klima (Endkunden), SwapToLearn, Tamera |
+| P2 Embed-Komponente | explorer | embed (npm/iframe) | remote | public/Token | AECED, SFSCON, CAST, Naturmuseum, Tamera |
+| P3 Laie+Experte-Archiv | explorer (+archive) | Site (+pwa, +electron) | local | public→clerk | Umweltarchiv, Pluriversum, Klima (Experten) |
+| P4 Team-Archiv | explorer+archive | Site/Voll-App | local | clerk | Stakeholder Klimaarchiv |
+| P5 Feld-Erfassung | creation (+explorer) | Site, mobil | local | capture/offen | Judith-Libraries, SwapToLearn, Peters Archiv |
+| P6 Privates Agenten-Archiv | archive+agent-view | electron+mcp | local-first | Besitzer | Peters Archiv |
+| P7 Werkbank | workbench+archive | electron | local-first | Anwender | Diva-Texturen |
+| P8 Headless-API | — (Lese-Handler) | headless | Token | Token | AECED |
+| P9 Multi-Quellen-Import | import+explorer | Voll-App → P2 | local | Creator | SFSCON, CAST |
 
-**Ergebnis.** Alle vier Fälle sind mit dem SiteConfig-Modell (Module ×
-Library-Bindung × Chrome × Auth × API-Modus) beschreibbar. Verbleibende
-Konzept-Lücken, die vor M5 zu schließen sind:
+Jede beschriebene Library trägt mindestens ein Muster; Klimamaßnahmen
+kombiniert P1+P3 plus Föderation (ADR 0008); AECED kombiniert P2+P8.
 
-1. **Site-Token für Remote-Modus** (Szenario 1; für 2 im Remote-Fall) —
-   Detail-Design in Welle M7, Minimalfall „anonym + public library" schon in M5.
-2. **Detail-View-Registry als Site-Plugin** (Szenario 3) — Schnittstelle in
-   `@ks/contracts` ab M2 mitdenken.
-3. **Trennung Lese-/Ingestion-Teil im `chat/*`-Namespace** (Szenario 2) —
-   beim Handler-Schnitt in M4 vollziehen.
+## Verbleibende Konzept-Lücken (vor der jeweiligen Welle zu schließen)
+
+1. **Site-/Embed-Token** für Remote-Zugriff auf nicht-öffentliche Inhalte
+   (P2/P8) — Minimalfall „anonym + öffentliche Library" reicht für M5-Start.
+2. **Detail-View-Registry als Site-Plugin** (P1/P3: Klimamaßnahmen-Widgets
+   wie CO2-Rechner; Spezialansichten) — Schnittstelle ab M2 in `@ks/contracts`.
+3. **Trennung Lese-/Ingestion-Teil im `chat/*`-Namespace** — beim
+   Handler-Schnitt in M4 (siehe Landkarte §3), Umzug später mit Aliassen.
+4. **Modul-Kandidaten `import` (P9) und `workbench` (P7)** — Zuschnitt erst
+   bei Projektstart SFSCON/CAST bzw. Diva konkretisieren.

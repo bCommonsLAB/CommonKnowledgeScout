@@ -10,6 +10,20 @@
   und [`docs/architecture/einsatz-szenarien.md`](../architecture/einsatz-szenarien.md)
 - **Entscheider**: Repo-Owner
 
+> **Korrekturen (2026-08-25, nach den Library-Steckbriefen):** Drei Punkte
+> dieses ADR sind durch Folge-ADRs präzisiert bzw. überholt:
+> (a) §3 band EINE Library pro Site — Klimamaßnahmen braucht mehrere
+> gekoppelte Libraries, siehe [ADR 0008](0008-library-foederation.md);
+> (b) §5 verschob Embed ans Ende — mit AECED als Pilot ist der
+> React-Komponenten-Embed in Welle M5 vorgezogen, siehe
+> [ADR 0007](0007-deployment-ziele.md);
+> (c) „schlanke Site = eigenes Deployment (`apps/<site>`)" ist ersetzt durch
+> „ein Deployment, viele Sites" (Laufzeit-SiteConfig pro Host), siehe
+> [ADR 0007](0007-deployment-ziele.md) §1 und
+> [`migrations-strategie.md`](../architecture/migrations-strategie.md).
+> Die Schichten-, Paket- und API-Entscheidungen (§1, §2, §4, §6) gelten
+> unverändert.
+
 ## Kontext
 
 KnowledgeScout ist zu einer komplexen Anwendung mit vielen fachlichen Modulen

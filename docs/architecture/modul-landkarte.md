@@ -1,10 +1,14 @@
 # Modul-Landkarte — Zielbild der Modularisierung
 
-Konzeption zu [ADR 0006](../adr/0006-modularisierung-monorepo-schale-module.md):
-Welche Pakete es geben soll, was aus dem heutigen Code hineinwandert, wie der
-API-Schnitt aussieht und in welchen Wellen migriert wird. Die realen
-Einsatzfälle, die dieses Zielbild tragen muss, stehen in
-[`einsatz-szenarien.md`](einsatz-szenarien.md).
+Konzeption zu ADR [0006](../adr/0006-modularisierung-monorepo-schale-module.md)
+(Pakete), [0007](../adr/0007-deployment-ziele.md) (eine Instanz, viele Sites),
+[0008](../adr/0008-library-foederation.md) (Föderation),
+[0009](../adr/0009-retrieval-profile.md) (Profile): Welche Pakete es geben
+soll, was aus dem heutigen Code hineinwandert, wie der API-Schnitt aussieht
+und in welchen Wellen migriert wird. Die realen Einsatzfälle stehen in
+[`library-steckbriefe.md`](library-steckbriefe.md) (Beschreibung des Owners)
+und [`einsatz-szenarien.md`](einsatz-szenarien.md) (abgeleitete Muster);
+die Umbau-Garantien in [`migrations-strategie.md`](migrations-strategie.md).
 
 Status: Zielbild (vorgeschlagen). Quell-Pfade beschreiben den Stand 2026-08-25.
 
@@ -41,51 +45,75 @@ Namenskonvention: Workspace-intern `@ks/*`; bei späterer Veröffentlichung
 | `@ks/module-jobs` | Event-Monitor, Session-Manager, External Jobs (Admin) | `src/app/{event-monitor,session-manager}/`, `src/components/{event-monitor,session}/`, `src/lib/{events,external-jobs}*` | `event-job/*`, `external/*`, `sessions/*` |
 | `@ks/module-settings` | Library-/Account-/Storage-Settings | `src/app/settings/`, `src/components/settings/` | `settings/*`, `admin/*`, `auth/onedrive/*` |
 
-### Apps (Deployments)
+**Modul-Kandidaten aus den Steckbriefen** (Zuschnitt erst bei Projektstart,
+Muster P7/P9 in [`einsatz-szenarien.md`](einsatz-szenarien.md)):
+
+- `@ks/module-import` — Session/Event aus Multi-Quellen (Video + Slides +
+  Webseite) aufbauen; wiederverwendet `secretary/process-video|pdf` (SFSCON, CAST).
+- `@ks/module-workbench` — Massen-Annotation/-Klassifikation mit Queue-UI und
+  Ähnlichkeitsansicht (Diva-Texturen; nutzt `src/lib/graph/`-Bausteine).
+
+**MCP als Modul-Oberfläche** (ADR 0007 §4): `@ks/module-agent-view` exportiert
+neben UI und HTTP-Handlern auch seine MCP-Tools (heute `src/lib/mcp/tools-*.ts`);
+Sites aktivieren sie per SiteConfig.
+
+### Apps (Laufzeit-Hüllen, NICHT „eine App pro Site")
+
+Per ADR 0007 gilt „ein Deployment, viele Sites": Sites sind
+SiteConfig-Einträge auf der einen Instanz. `apps/` enthält nur je Laufzeit-
+Hülle einen Eintrag:
 
 | App | Inhalt |
 |---|---|
-| `apps/knowledgescout` | Voll-App: Schale + ALLE Module, heutige URLs und heutiges Verhalten. Ist nur „die größte SiteConfig". |
-| `apps/<site>` | Schlanke Site: Schale + SiteConfig + 1–n Module. Beispiele in [`einsatz-szenarien.md`](einsatz-szenarien.md). |
+| `apps/knowledgescout` | Die EINE Multi-Site-Instanz: Schale + alle Module + Host→SiteConfig-Resolver. Voll-App = Default-Site; heutige URLs und heutiges Verhalten unverändert. |
+| `apps/electron` | Electron-Hülle (heute `electron/`): lädt Module als Wurzelkomponenten, `local-first` (Peters Archiv, Diva-Werkbank). |
+| `apps/embed-demo` | Demo-/Testseite für die npm-Embed-Komponente (`@ks/embed`, AECED) — kein Produktions-Deployment. |
 
-## 2. SiteConfig — Konfiguration pro Deployment/URL
+## 2. SiteConfig — Laufzeit-Konfiguration pro Site (Host)
+
+SiteConfigs sind DATEN, keine Build-Artefakte (ADR 0007 §1): Die eine Instanz
+löst pro Request den Host gegen eine Host→SiteConfig-Registry auf —
+Verallgemeinerung von `PUBLIC_DOMAIN_LIBRARY_MAP` +
+`getRootLandingTargetForHost()` (`src/lib/root-landing.ts`). Die Schale lädt
+die aktivierten Module per `next/dynamic`; nicht aktivierte Module liefern im
+Client keine Chunks und in der API 404.
 
 ```ts
-/** Eine Datei pro Deployment, z. B. apps/oldiesforfuture/site.config.ts */
 interface SiteConfig {
-  /** Aktive Module — bestimmt UI-Routen UND gemountete API-Handler. */
-  modules: Array<'explorer' | 'archive' | 'agent-view' | 'creation' | 'templates' | 'jobs' | 'settings'>
-  /** Library-Bindung: fest (Slug) oder frei (User wählt, wie heute). */
-  library: { mode: 'fixed'; slug: string } | { mode: 'user-selected' }
-  /** Schale: Menü/Chrome sichtbar? Eine vorkonfigurierte Site braucht keins. */
-  chrome: { topNav: boolean; footer: boolean }
-  /** Auth: öffentlich (anonym lesbar) oder Clerk-geschützt. */
+  /** Aktive Module — bestimmt geladene Client-Chunks UND freigeschaltete API-Handler. */
+  modules: Array<'explorer' | 'archive' | 'agent-view' | 'creation'
+    | 'templates' | 'jobs' | 'settings' | 'import' | 'workbench'>
+  /** Library-Bindung: Primär-Library + optional föderierte Libraries (ADR 0008). */
+  libraries: {
+    primary: { slug: string } | { mode: 'user-selected' }   // Voll-App: user-selected
+    federated?: Array<{
+      slug: string
+      role: 'question-bridge' | 'content-bridge' | 'capture-target'
+    }>
+  }
+  /** Schale: App-Menü, Library-Menü oder gar keins (vorkonfigurierte Site). */
+  chrome: { topNav: 'app-menu' | 'library-menu' | 'none'; footer?: 'site' | 'none' }
+  /** Auth: öffentlich, Clerk optional (Login schaltet Profil/Pflege frei) oder Pflicht. */
   auth: { mode: 'public' } | { mode: 'clerk'; optional?: boolean }
-  /** API: eigene Route-Handler oder zentrale Instanz (Fundament für Embed). */
-  api: { mode: 'local' } | { mode: 'remote'; baseUrl: string }
-  /** Optionales Host-Mapping (heute PUBLIC_DOMAIN_LIBRARY_MAP). */
+  /** Datenzugang (ADR 0007 §3): local = diese Instanz; remote nur für embed/electron-Hüllen. */
+  api?: { mode: 'local' } | { mode: 'remote'; baseUrl: string }
+  /** PWA-Flag: Manifest + Service Worker für diese Site (Naturmuseum). */
+  pwa?: boolean
+  /** Hosts, die auf diese Site auflösen (ersetzt PUBLIC_DOMAIN_LIBRARY_MAP). */
   domains?: string[]
 }
 ```
 
-Beispiel „nur Explorer, Menü aus, anonym, API remote":
-
-```ts
-const config: SiteConfig = {
-  modules: ['explorer'],
-  library: { mode: 'fixed', slug: 'commoning' },
-  chrome: { topNav: false, footer: false },
-  auth: { mode: 'public' },
-  api: { mode: 'remote', baseUrl: 'https://knowledgescout.org' },
-}
-```
+Beispiele je Einsatz-Muster: [`einsatz-szenarien.md`](einsatz-szenarien.md).
+Die Voll-App ist die Default-Site der Registry:
+`{ modules: [alle], libraries: { primary: { mode: 'user-selected' } }, chrome: { topNav: 'app-menu' } }`.
 
 Abgrenzung zur **Library-Config** (MongoDB, `src/types/library.ts`): Die
 Library-Config beschreibt EINE Library (Facetten, `detailViewType`,
-`agentViewEnabled`, Galerie-Texte …) und bleibt unverändert die Quelle für
-Inhalts-Verhalten. Die SiteConfig beschreibt EIN Deployment (welche Module,
-welche Library-Bindung, welches Chrome). `buildTopNavConfig()` konsumiert
-künftig beide.
+`agentViewEnabled`, Galerie-Texte, künftig Profile nach ADR 0009) und bleibt
+die Quelle für Inhalts-Verhalten — auf jeder Site gleich. Die SiteConfig
+beschreibt EINE Site (Module, Library-Bindung, Chrome, Auth).
+`buildTopNavConfig()` konsumiert künftig beide.
 
 ## 3. API-Schnitt
 
@@ -98,22 +126,24 @@ Gemountet in JEDER App; Vertrag gehört zu `@ks/contracts`, Client-Seite zu
 - `user*`, `user-info` — Identität, Rollen, Pending Invites
 - `llm-models*`, `public/llm-models` — Modell-Katalog
 
-### Modul-APIs (nur gemountet, wenn das Modul aktiv ist)
+### Modul-APIs (per SiteConfig freigeschaltet)
 
 Zuordnung siehe Paket-Tabelle §1. Prinzip: **die Route-Handler liegen im
-Modul-Paket** und werden von der App in dünnen `route.ts`-Dateien
-re-exportiert:
+Modul-Paket** und werden von der Multi-Site-Instanz in dünnen
+`route.ts`-Dateien re-exportiert; ein SiteConfig-Gate prüft pro Request, ob
+das Modul für die angefragte Site aktiv ist (inaktiv ⇒ 404):
 
 ```ts
 // packages/module-explorer/src/api/index.ts
 export function createExplorerApiHandlers(deps: ExplorerApiDeps) { /* … */ }
 
-// apps/<site>/app/api/chat/[libraryId]/stream/route.ts
-export const { POST } = explorerHandlers.stream
+// apps/knowledgescout/app/api/chat/[libraryId]/stream/route.ts
+export const POST = withSiteGate('explorer', explorerHandlers.stream)
 ```
 
-Im Remote-Modus entfällt das Mounten komplett; `@ks/api-client` zeigt auf die
-zentrale Instanz (CORS + Token nötig — Detail-Design in der Embed-Welle M7).
+Embed-/Electron-Hüllen mounten selbst gar nichts; ihr `@ks/api-client` zeigt
+auf die zentrale Instanz (`remote`, CORS + Token — Detail-Design in Welle M5)
+bzw. auf den lokalen Serverteil (`local-first`).
 
 ### Bekannte Unschärfen (Umbenennungs-/Verschiebe-Kandidaten, NICHT sofort umbauen)
 
@@ -150,20 +180,28 @@ graph TD
 
 ## 5. Migrationspfad in Wellen
 
-Jede Welle eine PR nach den Diff-Limits aus `AGENTS.md`; Wellen-Naming nach
+Zwei Phasen nach [`migrations-strategie.md`](migrations-strategie.md):
+**Phase A** modularisiert die bestehende Anwendung IN PLACE (nur ein
+Deployment, jede Welle verhaltensneutral), **Phase B** liefert die
+Spezial-Ziele additiv — ohne neue Deploy-Infrastruktur. Jede Welle eine PR
+nach den Diff-Limits aus `AGENTS.md`; Wellen-Naming nach
 [`refactor-naming-konvention.mdc`](../../.cursor/rules/refactor-naming-konvention.mdc).
 Start ERST nach Plan 1/Plan 2 des aktuellen Fahrplans
 ([Roadmap](../roadmap-formatunabhaengige-library-und-onboarding.md)).
 
-| Welle | Inhalt | Beweis-Ziel |
-|---|---|---|
-| M1 | `pnpm-workspace.yaml` + erstes risikoarmes Paket `@ks/viewers` (Start: Markdown-Viewer) | Workspace-Build + Voll-App unverändert |
-| M2 | `@ks/contracts` + `@ks/api-client` (zunächst Core-API) | ein Modul konsumiert den Client statt roher `fetch`es |
-| M3 | `@ks/shell` (Provider, TopNav, Bootstrap) + SiteConfig-Schema | Voll-App läuft als „größte SiteConfig" |
-| M4 | `@ks/module-explorer` inkl. Route-Handler-Export | Explorer-Routen aus dem Paket gemountet |
-| M5 | erste schlanke Beispiel-Site `apps/<site>` (Szenario aus [`einsatz-szenarien.md`](einsatz-szenarien.md)) | Deployment ohne Archiv-/Jobs-Code |
-| M6 | `@ks/module-agent-view`; weitere Module nach Bedarf | zweites Modul bestätigt den Schnitt |
-| M7 | Embed-Ausbaustufe `@ks/embed` (Web Component/iframe, Token-Auth, CORS) | Modul in fremder Seite |
+| Phase | Welle | Inhalt | Beweis-Ziel |
+|---|---|---|---|
+| A | M1 | `pnpm-workspace.yaml` + `transpilePackages` + `@ks/viewers` (Start: Markdown-Viewer) | Workspace-Build, Voll-App unverändert |
+| A | M2 | `@ks/contracts` + `@ks/api-client` (zunächst Core-API) | ein Modul konsumiert den Client statt roher `fetch`es |
+| A | M3 | `@ks/shell` (Provider, TopNav, Bootstrap) + Host→SiteConfig-Resolver | Voll-App läuft als Default-Site der Registry |
+| A | M4 | `@ks/module-explorer` als **montierbare Wurzelkomponente** (ADR 0007 §4) inkl. Handler-Export + SiteConfig-Gate | Voll-App mountet Explorer aus dem Paket |
+| B | M5 | **AECED-Pilot**: `@ks/embed` (npm-React-Komponente) + Headless-Lese-API mit Token auf der bestehenden Instanz | Galerie/Story in der Fremdanwendung, KEIN neues Deployment |
+| B | M6 | „Oldies for Future" als erster SiteConfig-Eintrag der Multi-Site-Runtime | schlanker Client (nur Explorer-Chunks) ohne zweites Deployment |
+| B | M7 | `@ks/module-agent-view` inkl. MCP-Export; Electron-Hülle auf Paketbasis (Peters Archiv, Diva-Werkbank) | zweites Modul + `local-first`-Hülle |
+| B | M8 | Föderation (ADR 0008, Klimamaßnahmen) + Retrieval-Profile (ADR 0009, Naturmuseum) | Multi-Library-Site + Laie/Experte-Profil |
+
+Übergang A→B nur, wenn die Voll-App nachweislich auf den extrahierten Paketen
+läuft (Kriterien in der Migrationsstrategie).
 
 ## 6. Offene Fragen
 
@@ -175,10 +213,13 @@ Start ERST nach Plan 1/Plan 2 des aktuellen Fahrplans
   `@ks/module-archive` schieben.
 - **Electron- und `build:package`-Builds**: müssen auf `apps/knowledgescout`
   zeigen; klären in M1.
-- **Remote-Modus-Auth**: Token-Modell für anonyme öffentliche Sites vs.
-  eingeloggte Nutzer gegen die Zentral-Instanz — Detail-Design in M7,
-  Anforderungen aus den Einsatz-Szenarien.
+- **Remote-Modus-Auth**: Token-Modell für Embed/Headless gegen die
+  Zentral-Instanz (anonym-öffentlich vs. Site-Token) — Detail-Design in M5
+  (AECED), Anforderungen aus den Einsatz-Mustern P2/P8.
 - **Detail-View-Registry** (`src/lib/detail-view-types/registry.ts`):
-  Spezialansichten (Diva, Refurbed …) müssen pro Site registrierbar sein,
-  ohne dass jede Site alle Renderer lädt — Schnittstelle in `@ks/contracts`,
-  Implementierungen bei den Modulen/Sites.
+  Spezialansichten (Klimamaßnahmen-Widgets, Diva, Refurbed …) müssen pro Site
+  registrierbar sein, ohne dass jede Site alle Renderer lädt — Schnittstelle
+  in `@ks/contracts` (ab M2), Implementierungen bei den Modulen/Sites.
+- **SiteConfig-Registry-Ablage**: Datei im Repo vs. MongoDB-Collection (per
+  Settings-UI pflegbar) — zu entscheiden in M3; Startpunkt Datei, da
+  auditierbar und ohne Migrations-Aufwand.
