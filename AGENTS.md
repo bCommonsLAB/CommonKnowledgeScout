@@ -94,6 +94,11 @@ Detail (warum, Symptome, Ausnahmen):
   Co-Creator mit „Zugriff Archiv" nutzen kuenftig EIGENE Storage-Auth
   (OneDrive/Nextcloud) statt der Owner-Credentials; Galerie/Erkunden (MongoDB)
   vs. Archiv (Storage) trennen; Auth bei Invite eingeben + testen — spaeterer Schritt
+- Vorgeschlagen: `docs/adr/0006-modularisierung-monorepo-schale-module.md` —
+  pnpm-Monorepo mit Schale (`@ks/shell`), Modul-Paketen (`@ks/module-*`) und
+  Shared Libraries; SiteConfig pro Deployment; Core- vs. Modul-APIs mit
+  Route-Handler-Fabriken; Detail: `docs/architecture/modul-landkarte.md` +
+  `docs/architecture/einsatz-szenarien.md` — Start erst NACH Plan 1/Plan 2
 
 ## Branching, Commits, PRs (Kurz)
 
