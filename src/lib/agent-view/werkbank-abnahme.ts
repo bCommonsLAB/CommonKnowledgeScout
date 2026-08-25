@@ -75,3 +75,72 @@ export function andererOffenerTab(familie: TwinFamilySummary, art: PruefbareArt)
   if (artefakt == null) return null
   return artefaktGeprueft(artefakt) ? null : andere
 }
+
+/** Ergebnis des Sprungs nach einer Verifikation (Entscheidung 5 + A5). */
+export interface SprungErgebnis {
+  /** Naechstes offenes Artefakt; null = nichts mehr offen. */
+  naechste: TwinFamilySummary | null
+  /** Der DIREKTE Ordner der verifizierten Familie ist komplett geprueft. */
+  ordnerFertig: boolean
+  /** Das Ziel liegt in einem anderen Ordner. */
+  ordnerGewechselt: boolean
+  /** Kein offenes Artefakt mehr im Teilbaum — das Vorhaben wartet auf die Abnahme. */
+  vorhabenFertig: boolean
+}
+
+/**
+ * Rechnet den Sprung NACH einer Verifikation: `gepatcht` ersetzt seine
+ * Familie in der Liste, dann gilt {@link naechstesOffenes}. Der
+ * Ordner-Fertig-Blick zaehlt nur den DIREKTEN Ordner (`folderId`) — dort
+ * haengen die Artefakt-Zeilen des Baums; Unterordner melden ihr Ende selbst,
+ * wenn ihr letztes Artefakt bestaetigt wird.
+ */
+export function sprungNachVerifikation(
+  familien: readonly TwinFamilySummary[],
+  gepatcht: TwinFamilySummary,
+): SprungErgebnis {
+  const liste = familien.some((familie) => familie.sourceId === gepatcht.sourceId)
+    ? familien.map((familie) => (familie.sourceId === gepatcht.sourceId ? gepatcht : familie))
+    : [gepatcht]
+  const naechste = naechstesOffenes(liste, gepatcht.sourceId)
+  const ordnerFertig = liste
+    .filter((familie) => familie.folderId === gepatcht.folderId)
+    .every((familie) => familienPruefstand(familie) === 'geprueft')
+  return {
+    naechste,
+    ordnerFertig,
+    ordnerGewechselt: naechste !== null && naechste.folderId !== gepatcht.folderId,
+    vorhabenFertig: naechste === null && familienPruefstand(gepatcht) === 'geprueft',
+  }
+}
+
+/** Ordnername einer Familie aus ihrem Pfad (vorletztes Segment). */
+function ordnerNameVon(familie: TwinFamilySummary): string {
+  const teile = familie.path.split('/')
+  return teile.length >= 2 ? teile[teile.length - 2] : ''
+}
+
+/**
+ * Hinweistext zum Sprung (A5): am Ordner-Ende sagt die Werkbank, dass der
+ * Ordner fertig ist und wohin es weitergeht; am Vorhaben-Ende, dass die
+ * Abnahme wartet. null = gewoehnlicher Sprung, kein Hinweis noetig.
+ */
+export function sprungHinweis(
+  ergebnis: SprungErgebnis,
+  gepatcht: TwinFamilySummary,
+): { titel: string; beschreibung: string } | null {
+  if (ergebnis.vorhabenFertig) {
+    return {
+      titel: 'Alle Artefakte geprueft',
+      beschreibung: 'Nichts mehr offen in diesem Vorhaben — es wartet auf die Abnahme (Knopf oben).',
+    }
+  }
+  if (ergebnis.ordnerFertig && ergebnis.ordnerGewechselt && ergebnis.naechste !== null) {
+    const ordner = ordnerNameVon(gepatcht)
+    return {
+      titel: ordner === '' ? 'Ordner fertig' : `Ordner „${ordner}“ ist fertig`,
+      beschreibung: `Weiter mit „${ergebnis.naechste.sourceName}“ im naechsten Ordner mit offenen Punkten.`,
+    }
+  }
+  return null
+}

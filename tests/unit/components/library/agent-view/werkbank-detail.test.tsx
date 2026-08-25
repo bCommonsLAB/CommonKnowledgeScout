@@ -14,7 +14,13 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WerkbankDetail } from '@/components/library/agent-view/werkbank/werkbank-detail'
+import type { LeadingArtifactSummary, TwinFamilySummary } from '@/lib/agent-view/types'
 import type { UseArtefaktKurationResult } from '@/hooks/agent-view/use-artefakt-kuration'
+
+const toastMock = vi.fn()
+vi.mock('@/components/ui/use-toast', () => ({
+  useToast: () => ({ toast: toastMock }),
+}))
 import { createGap } from '@/lib/agent-view/gap-registry'
 import type { CoverageGap, CoverageReport, CoverageTreeNode, VorhabenCard } from '@/lib/agent-view/types'
 import type { BerichtAntwort } from '@/lib/agent-view/bericht-laden'
@@ -34,6 +40,9 @@ function stubBericht(data: BerichtAntwort) {
     vi.fn().mockImplementation(async (eingabe: RequestInfo | URL) => {
       if (String(eingabe).includes('/agent-view/worklists')) {
         return new Response(JSON.stringify({ lists: [] }), { status: 200 })
+      }
+      if (String(eingabe).includes('/shadow-twins/content')) {
+        return new Response(JSON.stringify({ markdown: '# Transkript\n\nInhalt.' }), { status: 200 })
       }
       if (String(eingabe).includes('/agent-view/stand')) {
         return new Response(
@@ -232,4 +241,50 @@ describe('WerkbankDetail — Kopf und Aktionen', () => {
     expect(screen.getByTitle('seit 2026-08-24')).toBeTruthy()
   })
 
+})
+
+describe('WerkbankDetail — Verifizieren im Fluss (A5)', () => {
+  function artefaktSummary(overrides: Partial<LeadingArtifactSummary> = {}): LeadingArtifactSummary {
+    return {
+      kind: 'transcript', templateName: null, targetLanguage: 'de', twinStatus: null,
+      generatedBy: null, generatedAt: null, verifiedBy: null, verifiedAt: null,
+      verification: 'unverifiziert', ...overrides,
+    }
+  }
+  function twinFamilie(sourceId: string, overrides: Partial<TwinFamilySummary> = {}): TwinFamilySummary {
+    return {
+      sourceId, sourceName: `${sourceId}.m4a`, folderId: 'f-eins', path: `1. Arbeit/Pilot/Ordner Eins/${sourceId}.m4a`,
+      artifactCount: 1, leading: artefaktSummary(),
+      transkript: artefaktSummary(), zusammenfassung: null,
+      ...overrides,
+    }
+  }
+
+  it('letztes Artefakt eines Ordners: Ordner-fertig-Hinweis + Sprung in den naechsten Ordner', async () => {
+    toastMock.mockClear()
+    const aktuelle = twinFamilie('s-a')
+    const naechste = twinFamilie('s-b', { folderId: 'f-zwei', path: '1. Arbeit/Pilot/Ordner Zwei/s-b.m4a' })
+    const frisch = artefaktSummary({ verification: 'mensch', verifiedBy: 'human:peter' })
+    const kuration: UseArtefaktKurationResult = {
+      overrides: new Map(), pendingKey: null, fehler: new Map(),
+      verifiziere: vi.fn().mockResolvedValue(frisch),
+      setzeTwinStatus: vi.fn(), sammelVerifiziere: vi.fn(), sammelLaeuft: false,
+    }
+    const onWaehleArtefakt = vi.fn()
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <WerkbankDetail
+          karte={karte()} vorhabenId="f-pilot" artefaktId="s-a" familie={aktuelle}
+          familien={[aktuelle, naechste]} kuration={kuration} onWaehleArtefakt={onWaehleArtefakt}
+          report={report()} generatedAt="G1" libraryLabel="Testarchiv" localRootPath={null}
+        />
+      </QueryClientProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Verifizieren' }))
+    await vi.waitFor(() => expect(onWaehleArtefakt).toHaveBeenCalledWith('s-b'))
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: expect.stringContaining('Ordner Eins') }),
+    )
+  })
 })

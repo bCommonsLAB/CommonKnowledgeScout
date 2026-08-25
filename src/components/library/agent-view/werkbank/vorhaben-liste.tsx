@@ -12,10 +12,14 @@
  * `werkbank-baum.ts`; ein leerer Zustand rendert IMMER die uebergebene
  * Begruendung (Akzeptanzkriterium 4) — nie eine stumme Flaeche.
  *
+ * A5 („der Baum zieht mit", Entscheidung 5): Springt die Auswahl auf ein
+ * Artefakt, dessen Ordner zugeklappt ist, klappt die Liste die Ordner des
+ * Vorhabens auf und scrollt die Ziel-Zeile in Sicht.
+ *
  * @module components/library/agent-view
  */
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { TwinFamilySummary, VorhabenCard } from '@/lib/agent-view/types'
 import type { BaumZeile, PruefZaehler } from '@/lib/agent-view/werkbank-baum'
@@ -81,6 +85,28 @@ export function VorhabenListe({
     estimateSize: (index) => HOEHEN[zeilen[index].art],
     overscan: 10,
   })
+
+  // A5: Der Baum zieht mit. Nur bei GEAENDERTER Artefakt-Auswahl (Ref),
+  // damit manuelles Scrollen und Auf-/Zuklappen nicht zurueckspringen.
+  const artefaktAuswahlId = baum?.artefaktAuswahlId ?? null
+  const gescrolltZu = useRef<string | null>(null)
+  useEffect(() => {
+    if (artefaktAuswahlId === null || gescrolltZu.current === artefaktAuswahlId) return
+    const index = zeilen.findIndex(
+      (zeile) => zeile.art === 'baum-artefakt' && zeile.familie.sourceId === artefaktAuswahlId,
+    )
+    if (index < 0) {
+      // Ziel-Zeile nicht im Zeilenmodell: ihr Ordner ist zugeklappt —
+      // aufklappen; der naechste Lauf dieses Effekts scrollt dann hin.
+      setOrdnerZu((prev) => (prev.size === 0 ? prev : new Set()))
+      return
+    }
+    // jsdom kennt kein element.scrollTo — im Browser immer vorhanden.
+    if (typeof scrollRef.current?.scrollTo === 'function') {
+      virtualizer.scrollToIndex(index, { align: 'auto' })
+    }
+    gescrolltZu.current = artefaktAuswahlId
+  }, [artefaktAuswahlId, zeilen, virtualizer])
 
   if (leerText !== null) {
     return <p className="p-3 text-sm text-muted-foreground">{leerText}</p>

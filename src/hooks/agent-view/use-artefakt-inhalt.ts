@@ -36,7 +36,12 @@ async function fetchInhalt(
     const body = (await response.json().catch(() => null)) as { error?: string } | null
     throw new Error(body?.error ?? `Content-Route antwortete ${response.status}`)
   }
-  const body = (await response.json()) as { markdown: string }
+  const body = (await response.json()) as { markdown?: unknown }
+  // Kein stilles undefined bis in den Renderer: eine 200-Antwort ohne
+  // markdown-Feld ist ein Fehler der Route, kein Leerzustand.
+  if (typeof body.markdown !== 'string') {
+    throw new Error('Content-Route antwortete ohne markdown-Feld')
+  }
   return { markdown: body.markdown, grund: null }
 }
 

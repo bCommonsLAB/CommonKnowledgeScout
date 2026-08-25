@@ -18,14 +18,16 @@
  */
 
 import { useState } from 'react'
+import { useToast } from '@/components/ui/use-toast'
 import { useStand } from '@/hooks/agent-view/use-stand'
 import type { UseArtefaktKurationResult } from '@/hooks/agent-view/use-artefakt-kuration'
 import { istBerichtVeraltet, teilbaumBefunde } from '@/lib/agent-view/teilbaum'
 import type { CoverageReport, LeadingArtifactSummary, TwinFamilySummary, VorhabenCard } from '@/lib/agent-view/types'
 import {
   andererOffenerTab,
-  naechstesOffenes,
   patchFamilie,
+  sprungHinweis,
+  sprungNachVerifikation,
   type PruefbareArt,
 } from '@/lib/agent-view/werkbank-abnahme'
 import { familienPruefstand } from '@/lib/agent-view/werkbank-baum'
@@ -67,6 +69,7 @@ function ArtefaktDetail({ familie, familien, kuration, report, onWaehleArtefakt 
   report: CoverageReport
   onWaehleArtefakt: (sourceId: string) => void
 }) {
+  const { toast } = useToast()
   const [tab, setTab] = useState<ArtefaktTab>(() => standardTab(familie))
 
   const verifiziert = (art: PruefbareArt, frisch: LeadingArtifactSummary) => {
@@ -77,11 +80,13 @@ function ArtefaktDetail({ familie, familien, kuration, report, onWaehleArtefakt 
       if (anderer !== null) setTab(anderer)
       return
     }
-    const liste = (familien ?? [gepatcht]).map((eintrag) =>
-      eintrag.sourceId === gepatcht.sourceId ? gepatcht : eintrag,
-    )
-    const naechstes = naechstesOffenes(liste, gepatcht.sourceId)
-    if (naechstes !== null) onWaehleArtefakt(naechstes.sourceId)
+    // A5: Sprung zum naechsten offenen Artefakt; am Ordner-Ende sagt die
+    // Werkbank, dass der Ordner fertig ist, am Vorhaben-Ende, dass die
+    // Abnahme wartet — kein stilles Stehenbleiben.
+    const ergebnis = sprungNachVerifikation(familien ?? [], gepatcht)
+    const hinweis = sprungHinweis(ergebnis, gepatcht)
+    if (hinweis !== null) toast({ title: hinweis.titel, description: hinweis.beschreibung })
+    if (ergebnis.naechste !== null) onWaehleArtefakt(ergebnis.naechste.sourceId)
   }
 
   return (

@@ -62,8 +62,8 @@ const karte: VorhabenCard = {
   berichtFileId: null, berichtModifiedAt: null, berichtStatus: null, themen: [],
 }
 
-function renderListe(onSelectArtefakt = vi.fn()) {
-  render(
+function listeElement(onSelectArtefakt: ReturnType<typeof vi.fn>, artefaktAuswahlId: string | null) {
+  return (
     <VorhabenListe
       karten={[karte]}
       gruppierung="bereich"
@@ -74,12 +74,16 @@ function renderListe(onSelectArtefakt = vi.fn()) {
         zeilenFuer: (vorhabenId, ordnerZu) =>
           baueTeilbaumZeilen({ vorhabenFolderId: vorhabenId, knoten, familien: [familie], ordnerZu }),
         zaehlerFuer: () => zaehlePruefstand([familie]),
-        artefaktAuswahlId: null,
+        artefaktAuswahlId,
         onSelectArtefakt,
       }}
-    />,
+    />
   )
-  return { onSelectArtefakt }
+}
+
+function renderListe(onSelectArtefakt = vi.fn()) {
+  const ergebnis = render(listeElement(onSelectArtefakt, null))
+  return { onSelectArtefakt, rerender: ergebnis.rerender }
 }
 
 describe('VorhabenListe — Baum bis zum Artefakt (A2)', () => {
@@ -110,5 +114,29 @@ describe('VorhabenListe — Baum bis zum Artefakt (A2)', () => {
     fireEvent.click(screen.getByLabelText(/Teilbaum von 26.01 Klima aufklappen/))
     fireEvent.click(screen.getByText('Treffen Thomas Egger.m4a'))
     expect(onSelectArtefakt).toHaveBeenCalledWith('f-klima', expect.objectContaining({ sourceId: 's-egger' }))
+  })
+})
+
+describe('VorhabenListe — der Baum zieht mit (A5)', () => {
+  it('springende Auswahl klappt einen zugeklappten Ordner wieder auf', () => {
+    const onSelectArtefakt = vi.fn()
+    const { rerender } = render(listeElement(onSelectArtefakt, null))
+    fireEvent.click(screen.getByLabelText(/Teilbaum von 26.01 Klima aufklappen/))
+    fireEvent.click(screen.getByText('2026-08-04 Klimaclub'))
+    expect(screen.queryByText('Treffen Thomas Egger.m4a')).toBeNull()
+    // Sprung (z. B. nach Verifikation): Auswahl kommt von aussen per URL.
+    rerender(listeElement(onSelectArtefakt, 's-egger'))
+    expect(screen.getByText('Treffen Thomas Egger.m4a')).toBeTruthy()
+  })
+
+  it('scrollt die Ziel-Zeile in Sicht, wenn die Umgebung scrollen kann', () => {
+    const scrollTo = vi.fn()
+    Object.defineProperty(HTMLElement.prototype, 'scrollTo', { configurable: true, value: scrollTo })
+    const onSelectArtefakt = vi.fn()
+    const { rerender } = render(listeElement(onSelectArtefakt, null))
+    fireEvent.click(screen.getByLabelText(/Teilbaum von 26.01 Klima aufklappen/))
+    rerender(listeElement(onSelectArtefakt, 's-egger'))
+    expect(scrollTo).toHaveBeenCalled()
+    Reflect.deleteProperty(HTMLElement.prototype, 'scrollTo')
   })
 })

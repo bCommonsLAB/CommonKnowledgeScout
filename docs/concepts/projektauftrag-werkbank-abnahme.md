@@ -143,8 +143,8 @@ Kopfes (A4) weiter.
 lügen: die Sammelaktionen WIRKEN (Rückfrage nennt die Zahl,
 Entscheidung 3) und der Sprung zum nächsten offenen Artefakt nach der
 Verifikation (Entscheidung 5; halb geprüfte Familie wechselt erst den
-Tab). Für A5 verbleiben: Hinweis am Ordner-Ende + Sprung zum nächsten
-Ordner mit offenen Punkten.
+Tab). Der Rest von A5 (Ordner-Ende-Hinweis, Baum zieht mit) folgte
+direkt danach — siehe A5.
 
 - Zeile 1: Titel · Zustands-Chip · **ein** primärer Knopf · Menü `⋯`.
   Der Knopf heißt „Vorhaben abnehmen" bzw. „Verifizieren", je nachdem,
@@ -156,7 +156,16 @@ Ordner mit offenen Punkten.
 - Der Abnehmen-Knopf folgt Entscheidung 6 — er sperrt nur bei offenen
   **maschinellen** Befunden (`istAbnehmbar`, liegt bereits vor).
 
-## Welle A5 — Verifizieren im Fluss
+## Welle A5 — Verifizieren im Fluss — ERLEDIGT
+
+**Stand:** komplett. Sammelaktionen und der Basis-Sprung kamen mit A4;
+A5 ergänzt den Rest: Am Ordner-Ende sagt ein Hinweis, dass der Ordner
+fertig ist, und die Auswahl springt in den nächsten Ordner mit offenen
+Punkten (`sprungNachVerifikation`/`sprungHinweis`); sind alle Artefakte
+geprüft, verweist der Hinweis auf die Abnahme. Der Baum zieht mit:
+zugeklappte Ziel-Ordner klappen auf, die Ziel-Zeile scrollt in Sicht.
+Schreibfehler stehen als Klartext am Ort der Aktion (Einzel: unter dem
+Kopf; Sammelaktion: Ergebnis mit Fehlern je Datei).
 
 - Sammelaktionen auf Vorhaben-Ebene, **getrennt** nach Transkripten und
   Zusammenfassungen, je mit einer Rückfrage, die die Zahl nennt
