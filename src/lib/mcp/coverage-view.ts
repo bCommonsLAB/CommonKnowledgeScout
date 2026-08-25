@@ -17,7 +17,7 @@ import { matchtBefundFilter } from '@/lib/agent-view/werkbank-filter'
 import type { CoverageReport } from '@/lib/agent-view/types'
 import type { CoverageDelta } from '@/lib/agent-view/coverage-delta'
 import { describeEmptyFilter } from './coverage-filter-warning'
-import { collectFolders, compactFamily, compactGap } from './coverage-view-compact'
+import { collectFolders, collectVorhabenThemen, compactFamily, compactGap } from './coverage-view-compact'
 
 /** Standard-Budgets der Werkzeug-Ausgabe (per Argument erhoehbar). */
 export const DEFAULT_MAX_GAPS = 100
@@ -41,6 +41,8 @@ export interface CoverageViewArgs {
   zyklusSchritt?: number | null
   /** C5: nur Zaehler liefern — Befund-/Familienlisten bleiben leer (ausgewiesen). */
   nurZaehler?: boolean
+  /** A6: Themen-Vokabular der Library (`config.agentView.themen`) — Werkzeug-Schicht liefert. */
+  themenVokabular?: readonly string[] | null
   maxGaps?: number
   maxFamilies?: number
   maxFolders?: number
@@ -74,6 +76,19 @@ function countBy<T extends string>(values: readonly T[]): Partial<Record<T, numb
   const counts: Partial<Record<T, number>> = {}
   for (const value of values) counts[value] = (counts[value] ?? 0) + 1
   return counts
+}
+
+/** A6: Vokabular + vergebene Themen je Vorhaben im Pfad-Scope (gekappt = ausgewiesen). */
+function buildThemenBlock(args: CoverageViewArgs, prefix: string, maxFolders: number) {
+  const jeVorhaben = collectVorhabenThemen(args.report.vorhaben, prefix)
+  return {
+    /** null = kein Vokabular konfiguriert (Einstellungen → Agentensicht → Themen-Vokabular). */
+    vokabular: args.themenVokabular ?? null,
+    jeVorhaben: args.nurZaehler === true ? [] : jeVorhaben.slice(0, maxFolders),
+    jeVorhabenAnzahl: jeVorhaben.length,
+    jeVorhabenGekappt: args.nurZaehler !== true && jeVorhaben.length > maxFolders,
+    ohneThema: jeVorhaben.filter((eintrag) => eintrag.themen !== null && eintrag.themen.length === 0).length,
+  }
 }
 
 /**
@@ -121,6 +136,12 @@ export function summarizeCoverageReport(args: CoverageViewArgs) {
           : 'Filter scope-relativ angeben oder weglassen.')
       : null,
     conventions: args.report.conventions,
+    /**
+     * A6: Vokabular + vergebene Themen je Vorhaben — Grundlage fuer
+     * `themen_setzen`. Ordnernamen sind Ereignisnamen und verraten das Thema
+     * NICHT; die Zuordnung verlangt den Blick in den Bericht.
+     */
+    themen: buildThemenBlock(args, prefix, maxFolders),
     /** D1: Fortschritt seit dem letzten Scan gleichen Scopes (Befunde wandern — die Gesamtzahl misst nichts). */
     deltaSeitLetztemScan: args.delta ?? null,
     deltaHinweis: args.deltaHinweis ?? null,

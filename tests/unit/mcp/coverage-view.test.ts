@@ -213,4 +213,40 @@ describe('summarizeCoverageReport', () => {
     const view = summarize({}, { storedGapsTruncated: true, totalGaps: 9999 })
     expect(view.gespeicherterReportGekappt).toEqual({ gespeicherteGaps: 2, totalGaps: 9999 })
   })
+
+  it('liefert Vokabular + gepflegte Themen je Vorhaben (A6 — sonst raet der Agent)', () => {
+    const vorhaben = [
+      { folderId: 'v1', name: '26.01 Klima', path: 'Pilot/26.01 Klima', bearbeitungsstand: null,
+        bearbeitungsstandSeit: null, hasBericht: true, totalGaps: 0,
+        gapsByActor: { mensch: 0, cowork: 0, knowledgescout: 0 }, gapsByType: {},
+        widerspruch: false, gepflegteThemen: ['ACT-Klima', 'DEV-Klimamassnahmen'] },
+      { folderId: 'v2', name: '26.02 Ohne', path: 'Anderswo/26.02 Ohne', bearbeitungsstand: null,
+        bearbeitungsstandSeit: null, hasBericht: false, totalGaps: 0,
+        gapsByActor: { mensch: 0, cowork: 0, knowledgescout: 0 }, gapsByType: {},
+        widerspruch: false, gepflegteThemen: [] },
+      { folderId: 'v3', name: '26.03 Alt', path: 'Anderswo/26.03 Alt', bearbeitungsstand: null,
+        bearbeitungsstandSeit: null, hasBericht: false, totalGaps: 0,
+        gapsByActor: { mensch: 0, cowork: 0, knowledgescout: 0 }, gapsByType: {},
+        widerspruch: false },
+    ]
+    const view = summarize({ vorhaben }, { themenVokabular: ['ACT-Klima', 'LIB-Klimamassnahmen'] })
+    expect(view.themen.vokabular).toEqual(['ACT-Klima', 'LIB-Klimamassnahmen'])
+    expect(view.themen.jeVorhaben).toEqual([
+      { path: 'Pilot/26.01 Klima', folderId: 'v1', themen: ['ACT-Klima', 'DEV-Klimamassnahmen'] },
+      { path: 'Anderswo/26.02 Ohne', folderId: 'v2', themen: [] },
+      // Report vor A6: null (benannt, nicht geraten).
+      { path: 'Anderswo/26.03 Alt', folderId: 'v3', themen: null },
+    ])
+    expect(view.themen.ohneThema).toBe(1)
+
+    // Pfad-Filter grenzt auch die Themen-Sicht ein; ohne Vokabular steht null.
+    const gefiltert = summarize({ vorhaben }, { pathPrefix: 'Pilot' })
+    expect(gefiltert.themen.vokabular).toBeNull()
+    expect(gefiltert.themen.jeVorhaben.map((v) => v.folderId)).toEqual(['v1'])
+
+    // nurZaehler laesst die Liste bewusst leer, Zaehler bleiben.
+    const zaehler = summarize({ vorhaben }, { nurZaehler: true })
+    expect(zaehler.themen.jeVorhaben).toEqual([])
+    expect(zaehler.themen.jeVorhabenAnzahl).toBe(3)
+  })
 })

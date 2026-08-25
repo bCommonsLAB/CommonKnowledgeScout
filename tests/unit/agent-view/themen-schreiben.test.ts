@@ -14,6 +14,7 @@ import {
   pruefeThemen,
   setzeThemen,
   ThemaUngueltigError,
+  ThemenWiderspruchError,
 } from '@/lib/agent-view/themen-schreiben'
 import { KeinIndexError } from '@/lib/agent-view/stand-plan'
 import type { StandSchreibenPorts } from '@/lib/agent-view/stand-schreiben'
@@ -109,5 +110,42 @@ describe('setzeThemen', () => {
     const p = ports('---\nkaputt ohne Ende')
     await expect(setzeThemen('f-1', ['A'], p)).rejects.toThrow(/nicht eindeutig abgrenzbar/)
     expect(p.deleteFile).not.toHaveBeenCalled()
+  })
+})
+
+describe('setzeThemen mit erwarteteThemen (Riegel der MCP-Bruecke)', () => {
+  it('schreibt, wenn die gesehenen Themen dem Ist-Stand entsprechen', async () => {
+    const p = ports('---\nthemen: [Alt A, Alt B]\n---\nBody.')
+    await setzeThemen('f-1', ['Neu'], p, { erwarteteThemen: ['Alt A', 'Alt B'] })
+    expect(hochgeladen(p)).toBe('---\nthemen: [Neu]\n---\nBody.')
+  })
+
+  it('null heisst: der Ordner deklariert keine Themen', async () => {
+    const p = ports('---\nbearbeitungsstand: berichtet\n---\nBody.')
+    await setzeThemen('f-1', ['Neu'], p, { erwarteteThemen: null })
+    expect(hochgeladen(p)).toBe('---\nbearbeitungsstand: berichtet\nthemen: [Neu]\n---\nBody.')
+  })
+
+  it('abweichender Ist-Stand: ThemenWiderspruchError, nichts geschrieben', async () => {
+    const p = ports('---\nthemen: [Konkurrent]\n---\nBody.')
+    await expect(
+      setzeThemen('f-1', ['Neu'], p, { erwarteteThemen: ['Alt A'] }),
+    ).rejects.toThrow(ThemenWiderspruchError)
+    expect(p.deleteFile).not.toHaveBeenCalled()
+    expect(p.uploadMarkdown).not.toHaveBeenCalled()
+  })
+
+  it('erwartet null, aber der Ordner traegt Themen: Widerspruch', async () => {
+    const p = ports('---\nthemen: [Konkurrent]\n---\nBody.')
+    await expect(
+      setzeThemen('f-1', ['Neu'], p, { erwarteteThemen: null }),
+    ).rejects.toThrow(/traegt aktuell \[Konkurrent\]/)
+    expect(p.uploadMarkdown).not.toHaveBeenCalled()
+  })
+
+  it('ohne Optionen greift kein Riegel (UI-Weg unveraendert)', async () => {
+    const p = ports('---\nthemen: [Konkurrent]\n---\nBody.')
+    await setzeThemen('f-1', ['Neu'], p)
+    expect(hochgeladen(p)).toBe('---\nthemen: [Neu]\n---\nBody.')
   })
 })
