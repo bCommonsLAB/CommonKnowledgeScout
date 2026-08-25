@@ -95,6 +95,52 @@ export function baueWerkbankZeilen(
 }
 
 /**
+ * Ab wie vielen Karten die Gruppen ZUGEKLAPPT starten. Unterhalb bleibt alles
+ * offen — eine kurze Liste ist keine Wand, und ein Suchtreffer, der sich hinter
+ * einem Gruppenkopf versteckt, waere schlechter als zu viel Text.
+ */
+export const AUTO_ZU_AB_KARTEN = 20
+
+/**
+ * Welche Gruppen sind eingeklappt? Lange Listen starten zu — der Mensch klappt
+ * auf, was ihn interessiert (Befund Testsession 25.08.2026: 148 Vorhaben in
+ * offenen Gruppen sind unlesbar). Drei Regeln, in dieser Reihenfolge:
+ *
+ * 1. Ein Handgriff des Menschen (`manuell`) gilt immer — die Automatik
+ *    ueberstimmt nie eine bewusste Entscheidung.
+ * 2. Die Gruppe der aktuellen Auswahl bleibt offen, sonst zeigt die Liste ihre
+ *    eigene Auswahl nicht (Deep-Link `?vorhaben=…`).
+ * 3. Sonst: zu ab {@link AUTO_ZU_AB_KARTEN} Karten, darunter offen.
+ */
+export function berechneEingeklappt(
+  karten: readonly VorhabenCard[],
+  gruppierung: WerkbankGruppierung,
+  args: { manuell: ReadonlyMap<string, boolean>; auswahlId: string | null },
+): Set<string> {
+  const autoZu = karten.length > AUTO_ZU_AB_KARTEN
+
+  const auswahlGruppen = new Set<string>()
+  if (args.auswahlId !== null) {
+    const gewaehlt = karten.find((karte) => karte.folderId === args.auswahlId)
+    if (gewaehlt) for (const gruppe of gruppenVon(gewaehlt, gruppierung)) auswahlGruppen.add(gruppe)
+  }
+
+  const eingeklappt = new Set<string>()
+  for (const karte of karten) {
+    for (const gruppe of gruppenVon(karte, gruppierung)) {
+      const handgriff = args.manuell.get(gruppe)
+      if (handgriff !== undefined) {
+        if (handgriff) eingeklappt.add(gruppe)
+        continue
+      }
+      if (auswahlGruppen.has(gruppe)) continue
+      if (autoZu) eingeklappt.add(gruppe)
+    }
+  }
+  return eingeklappt
+}
+
+/**
  * Themen-Vokabular der Library (A6): alle gepflegten Themen der Karten,
  * dedupliziert und alphabetisch — der Vorrat des Normalisierungs-Dropdowns.
  */

@@ -46,14 +46,22 @@ function tabMark(artefakt: LeadingArtifactSummary | null | undefined): string {
   return artefaktGeprueft(artefakt) ? '✓' : '○'
 }
 
+/**
+ * Frontmatter als ZWEISPALTIGE Liste: Schluessel links, Werte alle auf
+ * derselben Kante. Vorher lief jede Zeile als eigener Flex-Container, so
+ * dass der Wert hinter dem jeweiligen Schluessel begann und die Wertespalte
+ * ausfranste (Befund Testsession 25.08.2026). `max-content` gibt der
+ * Schluesselspalte die Breite des laengsten Schluessels; `contents` laesst
+ * dt/dd direkt im Grid des `dl` liegen, statt in einer Zwischen-Box.
+ */
 function FrontmatterBlock({ meta }: { meta: Record<string, unknown> }) {
   const eintraege = Object.entries(meta)
   if (eintraege.length === 0) return null
   return (
-    <dl className="rounded-md bg-muted/40 px-3 py-2 font-mono text-[11px] text-muted-foreground">
+    <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-0.5 rounded-md bg-muted/40 px-3 py-2 font-mono text-[11px] text-muted-foreground">
       {eintraege.map(([key, value]) => (
-        <div key={key} className="flex gap-2">
-          <dt className="shrink-0 font-semibold text-foreground">{key}:</dt>
+        <div key={key} className="contents">
+          <dt className="font-semibold text-foreground">{key}:</dt>
           <dd className="min-w-0 break-words">{typeof value === 'string' ? value : JSON.stringify(value)}</dd>
         </div>
       ))}
@@ -114,7 +122,7 @@ function ArtefaktInhalt({ libraryId, familie, artefakt, label }: {
           Hoerfehler in authors/participants auf, im Fliesstext nicht. */}
       <FrontmatterBlock meta={meta} />
       <div className="rounded-md border">
-        <MarkdownPreview content={data.markdown} compact className="max-h-[60vh]" />
+        <MarkdownPreview content={data.markdown} compact schriftstufe="sehr-klein" className="max-h-[60vh]" />
       </div>
     </div>
   )

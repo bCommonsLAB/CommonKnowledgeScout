@@ -27,9 +27,13 @@ export function useWerkbankUrlState() {
   // A2: das gewaehlte Artefakt (sourceId der Twin-Familie) steht MIT in der
   // URL — Deep-Links bis zur Artefakt-Ebene ueberstehen Reload.
   const [artefaktId, setArtefaktId] = useQueryState('artefakt', parseAsString)
+  // Default „bereit“: die Werkbank oeffnet auf DEINER Arbeit — dieselbe Menge,
+  // die der Leerzustand als „wartet auf dich“ betont (geteiltes Praedikat
+  // `istBereitZurAbnahme`). „zu_tun“ zeigte auch fremde Befunde und liess Kopf
+  // und Liste auseinanderlaufen (Befund Testsession 25.08.2026).
   const [statusFilter, setStatusFilter] = useQueryState(
     'filter',
-    parseAsStringLiteral(STATUS_WERTE).withDefault('zu_tun'),
+    parseAsStringLiteral(STATUS_WERTE).withDefault('bereit'),
   )
   const [akteur, setAkteur] = useQueryState('akteur', parseAsStringLiteral(AKTEUR_WERTE))
   const [schritt, setSchritt] = useQueryState('schritt', parseAsNumberLiteral(SCHRITT_WERTE))

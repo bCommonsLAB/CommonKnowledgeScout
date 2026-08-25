@@ -13,7 +13,9 @@ import { describe, it, expect } from 'vitest'
 import type { VorhabenCard } from '@/lib/agent-view/types'
 import {
   alleGepflegtenThemen,
+  AUTO_ZU_AB_KARTEN,
   baueWerkbankZeilen,
+  berechneEingeklappt,
   gruppenVon,
   OHNE_THEMA_GRUPPE,
   ueberlagereThemen,
@@ -137,5 +139,59 @@ describe('alleGepflegtenThemen + ueberlagereThemen (A6)', () => {
     const frisch = ueberlagereThemen(karten, new Map([[karten[0].folderId, ['Neu']]]))
     expect(frisch[0].gepflegteThemen).toEqual(['Neu'])
     expect(karten[0].gepflegteThemen).toEqual(['Alt'])
+  })
+})
+
+describe('berechneEingeklappt — lange Listen starten zu (Befund Testsession 25.08.2026)', () => {
+  const keine = new Map<string, boolean>()
+
+  /** `anzahl` Karten, gleichmaessig auf zwei Bereiche verteilt. */
+  function viele(anzahl: number): VorhabenCard[] {
+    return Array.from({ length: anzahl }, (_, i) =>
+      card(`${(i % 2) + 1}. Bereich${(i % 2) + 1}/V${i}`),
+    )
+  }
+
+  it('kurze Liste bleibt offen — ein Suchtreffer versteckt sich nicht', () => {
+    const karten = viele(AUTO_ZU_AB_KARTEN)
+    expect(berechneEingeklappt(karten, 'bereich', { manuell: keine, auswahlId: null }).size).toBe(0)
+  })
+
+  it('lange Liste startet zugeklappt', () => {
+    const karten = viele(AUTO_ZU_AB_KARTEN + 1)
+    const zu = berechneEingeklappt(karten, 'bereich', { manuell: keine, auswahlId: null })
+    expect([...zu].sort()).toEqual(['1. Bereich1', '2. Bereich2'])
+  })
+
+  it('die Gruppe der Auswahl bleibt offen (Deep-Link zeigt seine Auswahl)', () => {
+    const karten = viele(AUTO_ZU_AB_KARTEN + 1)
+    const zu = berechneEingeklappt(karten, 'bereich', { manuell: keine, auswahlId: karten[0].folderId })
+    expect(zu.has('1. Bereich1')).toBe(false)
+    expect(zu.has('2. Bereich2')).toBe(true)
+  })
+
+  it('ein Handgriff des Menschen ueberstimmt die Automatik in BEIDE Richtungen', () => {
+    const lang = viele(AUTO_ZU_AB_KARTEN + 1)
+    const aufgeklappt = berechneEingeklappt(lang, 'bereich', {
+      manuell: new Map([['1. Bereich1', false]]),
+      auswahlId: null,
+    })
+    expect(aufgeklappt.has('1. Bereich1')).toBe(false)
+
+    const kurz = viele(4)
+    const zugeklappt = berechneEingeklappt(kurz, 'bereich', {
+      manuell: new Map([['1. Bereich1', true]]),
+      auswahlId: null,
+    })
+    expect(zugeklappt.has('1. Bereich1')).toBe(true)
+  })
+
+  it('der Handgriff schlaegt auch die Auswahl — sonst springt die Gruppe zurueck auf', () => {
+    const karten = viele(AUTO_ZU_AB_KARTEN + 1)
+    const zu = berechneEingeklappt(karten, 'bereich', {
+      manuell: new Map([['1. Bereich1', true]]),
+      auswahlId: karten[0].folderId,
+    })
+    expect(zu.has('1. Bereich1')).toBe(true)
   })
 })

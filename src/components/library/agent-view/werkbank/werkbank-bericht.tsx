@@ -126,7 +126,7 @@ export function WerkbankBericht({
             Scroll-Container und braucht eine Hoehengrenze vom Aufrufer
             (Muster artifact-markdown-panel) — ohne sie war der Bericht nicht
             scrollbar und verdeckte die Abschnitte darunter (Test-Befund 24.08.). */}
-        <MarkdownPreview content={data.bericht.body} compact className="max-h-[60vh]" />
+        <MarkdownPreview content={data.bericht.body} compact schriftstufe="sehr-klein" className="max-h-[60vh]" />
       </div>
     </div>
   )

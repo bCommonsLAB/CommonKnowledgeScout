@@ -58,11 +58,45 @@ interface MarkdownPreviewProps {
   onRefreshFolder?: (folderId: string, items: StorageItem[], selectFileAfterRefresh?: StorageItem) => void;
   onRegisterApi?: (api: { scrollToText: (q: string) => void; scrollToPage: (n: number | string) => void; setQueryAndSearch: (q: string) => void; getVisiblePage: () => number | null }) => void;
   compact?: boolean; // Kompakte Ansicht: ohne Schnellsuche, minimale Ränder
+  /**
+   * Schriftstufe des gerenderten Markdowns — Opt-in, `normal` laesst alles
+   * wie bisher. Dichte Leseflaechen wie die Werkbank, wo Dokument und Baum
+   * nebeneinander stehen, waehlen kleiner (Befund Testsession 25.08.2026).
+   *
+   * Umgesetzt als Schriftgroesse auf dem `prose`-Container statt ueber
+   * `prose-sm`: Tailwind-Typography bemisst Ueberschriften, Abstaende und
+   * Listen in `em`, also skaliert EINE Wurzel-Groesse das ganze Dokument
+   * stimmig mit — und es gibt keinen Wettlauf zweier Klassen um `font-size`.
+   */
+  schriftstufe?: Schriftstufe;
   /** Callback für Bearbeiten-Button - wenn gesetzt, wird der Bearbeiten-Button angezeigt */
   onEdit?: () => void;
   /** Sammeltranskript: Wikilinks auflösen, PDF-Fragmente als Bilder, Navigation zu Quellen */
   compositeWikiPreview?: CompositeWikiPreviewOptions | null;
 }
+
+/** Schriftstufen des Markdown-Renderers (Wurzel-Groesse, Rest skaliert in `em`). */
+export type Schriftstufe = 'normal' | 'klein' | 'kleiner' | 'sehr-klein';
+
+const SCHRIFTSTUFEN: Record<Schriftstufe, string | undefined> = {
+  normal: undefined, // Tailwind-`prose`-Default (1rem) — nichts ueberschreiben.
+  klein: '0.875rem',
+  kleiner: '0.8125rem',
+  'sehr-klein': '0.75rem',
+};
+
+/**
+ * Flachere Ueberschriften-Skala fuer die kleinen Stufen. Tailwind-Typography
+ * bemisst `h1` mit 2.25em — bei kleinem Fliesstext bleibt die Ueberschrift
+ * damit dreimal so gross und dominiert die Leseflaeche (Befund Testsession
+ * 25.08.2026). Auf einer dichten Arbeitsflaeche genuegt ein leichter
+ * Groessensprung; fett bleiben sie ohnehin. Die Abstaende ziehen mit, sonst
+ * reisst die flachere Ueberschrift ein Loch in den Text.
+ */
+const FLACHE_UEBERSCHRIFTEN = [
+  '[&_h1]:text-[1.5em] [&_h2]:text-[1.25em] [&_h3]:text-[1.1em] [&_h4]:text-[1em]',
+  '[&_h1]:mt-4 [&_h1]:mb-2 [&_h2]:mt-4 [&_h2]:mb-1.5 [&_h3]:mt-3 [&_h3]:mb-1',
+].join(' ');
 
 // TextTransform-Komponente wurde in
 // src/components/library/markdown-preview/text-transform.tsx
@@ -90,9 +124,13 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
   onRefreshFolder,
   onRegisterApi,
   compact = false,
+  schriftstufe = 'normal',
   onEdit,
   compositeWikiPreview = null,
 }: MarkdownPreviewProps) {
+  const proseGroesse = SCHRIFTSTUFEN[schriftstufe];
+  const proseStil = proseGroesse === undefined ? undefined : { fontSize: proseGroesse };
+  const proseUeberschriften = schriftstufe === 'normal' ? undefined : FLACHE_UEBERSCHRIFTEN;
   const currentItem = useAtomValue(selectedFileAtom);
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   const [activeTab, setActiveTab] = React.useState<string>("preview");
@@ -708,10 +746,12 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
             ref={!isFullscreen ? contentRef : undefined}
             className={cn(
               "prose dark:prose-invert max-w-none w-full overflow-x-hidden [&>*]:max-w-full [&>*]:overflow-x-hidden",
+              proseUeberschriften,
               compact ? "p-1 pt-0 [&>*:first-child]:!mt-0" : "p-4 [&>*:first-child]:!mt-0",
               compositeWikiPreview &&
                 "[&_h3]:mt-4 [&_h3]:mb-2 [&_h3]:rounded-md [&_h3]:border-l-4 [&_h3]:border-primary/35 [&_h3]:bg-muted/45 [&_h3]:pl-3 [&_h3]:py-2 [&_h3]:text-base [&_h3]:font-semibold [&_ul]:my-1"
             )}
+            style={proseStil}
             dangerouslySetInnerHTML={{ __html: renderedContent }}
           />
         </TabsContent>
@@ -770,10 +810,12 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
                 ref={contentRef}
                 className={cn(
                   "prose dark:prose-invert max-w-none w-full overflow-x-hidden [&>*]:max-w-full [&>*]:overflow-x-hidden",
+                  proseUeberschriften,
                   compact ? "p-1 pt-0 [&>*:first-child]:!mt-0" : "p-4 [&>*:first-child]:!mt-0",
                   compositeWikiPreview &&
                     "[&_h3]:mt-4 [&_h3]:mb-2 [&_h3]:rounded-md [&_h3]:border-l-4 [&_h3]:border-primary/35 [&_h3]:bg-muted/45 [&_h3]:pl-3 [&_h3]:py-2 [&_h3]:text-base [&_h3]:font-semibold [&_ul]:my-1"
                 )}
+                style={proseStil}
                 dangerouslySetInnerHTML={{ __html: renderedContent }}
               />
             </div>
@@ -804,6 +846,7 @@ export const MarkdownPreview = React.memo(function MarkdownPreview({
     prevProps.onRefreshFolder === nextProps.onRefreshFolder &&
     prevProps.compositeWikiPreview === nextProps.compositeWikiPreview &&
     prevProps.onEdit === nextProps.onEdit &&
-    prevProps.compact === nextProps.compact
+    prevProps.compact === nextProps.compact &&
+    prevProps.schriftstufe === nextProps.schriftstufe
   );
 }); 

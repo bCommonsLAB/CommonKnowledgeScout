@@ -11,7 +11,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   artefaktGeprueft, artefaktKey, baueTeilbaumZeilen, effektiveFamilie,
-  familienPruefstand, zaehlePruefstand,
+  familienPruefstand, neuesteZuerst, zaehlePruefstand,
 } from '@/lib/agent-view/werkbank-baum'
 import type { CoverageTreeNode, LeadingArtifactSummary, TwinFamilySummary } from '@/lib/agent-view/types'
 
@@ -138,5 +138,35 @@ describe('baueTeilbaumZeilen', () => {
       familien: [familie('verwaist', 'f-unbekannt')], ordnerZu: new Set(),
     })
     expect(zeilen.map((z) => z.art)).toEqual(['baum-artefakt'])
+  })
+})
+
+describe('neuesteZuerst — Ordner absteigend (Befund Testsession 25.08.2026)', () => {
+  it('Ordnernamen mit Jahr/Monat stehen chronologisch rueckwaerts', () => {
+    const kinder = [knoten('2026-02 Beispiel'), knoten('2026-04-02 Besprechung'), knoten('2026-03-10 Workshop')]
+    expect(neuesteZuerst(kinder).map((k) => k.name)).toEqual([
+      '2026-04-02 Besprechung',
+      '2026-03-10 Workshop',
+      '2026-02 Beispiel',
+    ])
+  })
+
+  it('laesst die Eingabe unangetastet (pur)', () => {
+    const kinder = [knoten('a'), knoten('b')]
+    neuesteZuerst(kinder)
+    expect(kinder.map((k) => k.name)).toEqual(['a', 'b'])
+  })
+
+  it('baueTeilbaumZeilen ordnet die Ordner-Zeilen neueste zuerst', () => {
+    const alt = knoten('2026-02 Alt')
+    const neu = knoten('2026-04 Neu')
+    const zeilen = baueTeilbaumZeilen({
+      vorhabenFolderId: 'V',
+      knoten: knoten('V', [alt, neu]),
+      familien: [familie('s-alt', '2026-02 Alt'), familie('s-neu', '2026-04 Neu')],
+      ordnerZu: new Set<string>(),
+    })
+    const ordner = zeilen.filter((z) => z.art === 'ordner').map((z) => (z.art === 'ordner' ? z.node.name : ''))
+    expect(ordner).toEqual(['2026-04 Neu', '2026-02 Alt'])
   })
 })
