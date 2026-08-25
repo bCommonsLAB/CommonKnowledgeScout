@@ -153,3 +153,28 @@ describe('karteOhneWerkbankFelder', () => {
     expect(karteOhneWerkbankFelder(card)).toBe(false)
   })
 })
+
+describe('buildVorhabenCards — gepflegte Themen (A6)', () => {
+  const root = folder('')
+
+  it('liest gepflegteThemen IMMER aus dem _INDEX.md (`themen:`), auch mit Bericht', () => {
+    const mitBeidem = folder('Pilot', {
+      index: doc('_INDEX.md', 'Pilot/_INDEX.md', { meta: { themen: ['Commoning', 'KI'] } }),
+      bericht: doc('BERICHT.md', 'Pilot/BERICHT.md', { meta: { themen: ['Technik-Baustein'] }, body: '# P' }),
+    })
+    const cards = cardsFor([root, mitBeidem])
+    expect(cards[0].gepflegteThemen).toEqual(['Commoning', 'KI'])
+    // BERICHT-themen bleiben getrennt im W1-Feld — sie gruppieren nicht mehr.
+    expect(cards[0].themen).toEqual(['Technik-Baustein'])
+  })
+
+  it('Einzelwert zaehlt als Liste mit einem Element; ohne Feld bleibt sie leer', () => {
+    const einzel = folder('Einzel', {
+      index: doc('_INDEX.md', 'Einzel/_INDEX.md', { meta: { themen: 'Commoning' } }),
+    })
+    const ohne = folder('Ohne', { index: doc('_INDEX.md', 'Ohne/_INDEX.md') })
+    const cards = cardsFor([root, einzel, ohne])
+    expect(cards.find((c) => c.name === 'Einzel')?.gepflegteThemen).toEqual(['Commoning'])
+    expect(cards.find((c) => c.name === 'Ohne')?.gepflegteThemen).toEqual([])
+  })
+})

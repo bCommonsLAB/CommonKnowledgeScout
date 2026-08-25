@@ -74,8 +74,9 @@ export interface StandErgebnis {
  * Ersetzt das `_INDEX.md` durch die gepatchte Fassung. Schlaegt der Upload
  * nach dem Loeschen fehl, wird das Original zurueckgeschrieben — der Fehler
  * bleibt in JEDEM Fall ein Fehler und benennt den Wiederherstellungs-Stand.
+ * Exportiert seit A6: das Themen-Schreiben nutzt DIESELBE Logik.
  */
-async function ersetzeIndex(
+export async function ersetzeIndex(
   ports: StandSchreibenPorts,
   folderId: string,
   indexFileId: string,

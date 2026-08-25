@@ -15,11 +15,11 @@
  */
 
 import { useQuery } from '@tanstack/react-query'
-import type { BerichtAntwort } from '@/lib/agent-view/bericht-laden'
+import type { BerichtAntwort, VorhabenDokumentArt } from '@/lib/agent-view/bericht-laden'
 
-async function fetchBericht(libraryId: string, folderId: string): Promise<BerichtAntwort> {
+async function fetchBericht(libraryId: string, folderId: string, datei: VorhabenDokumentArt): Promise<BerichtAntwort> {
   const response = await fetch(
-    `/api/library/${encodeURIComponent(libraryId)}/agent-view/bericht?folderId=${encodeURIComponent(folderId)}`,
+    `/api/library/${encodeURIComponent(libraryId)}/agent-view/bericht?folderId=${encodeURIComponent(folderId)}&datei=${datei}`,
   )
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string } | null
@@ -28,11 +28,14 @@ async function fetchBericht(libraryId: string, folderId: string): Promise<Berich
   return (await response.json()) as BerichtAntwort
 }
 
-/** Laedt den Bericht des gewaehlten Vorhabens; `folderId: null` laedt nichts. */
-export function useBericht(libraryId: string, folderId: string | null) {
+/**
+ * Laedt ein Vorhabens-Dokument (A3: BERICHT.md oder `_INDEX.md` als
+ * Ordner-Beschreibung); `folderId: null` laedt nichts.
+ */
+export function useBericht(libraryId: string, folderId: string | null, datei: VorhabenDokumentArt = 'bericht') {
   return useQuery({
-    queryKey: ['agent-view-bericht', libraryId, folderId],
-    queryFn: () => fetchBericht(libraryId, folderId as string),
+    queryKey: ['agent-view-bericht', libraryId, folderId, datei],
+    queryFn: () => fetchBericht(libraryId, folderId as string, datei),
     enabled: folderId !== null,
     staleTime: 30_000,
     retry: 1,

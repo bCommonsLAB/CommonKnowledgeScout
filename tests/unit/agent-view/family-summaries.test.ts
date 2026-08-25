@@ -68,6 +68,24 @@ describe('buildFamilySummaries — fuehrendes Artefakt (Contract §2b)', () => {
     expect(families[1].leading).toBeNull()
   })
 
+  it('A2: traegt Transkript und Zusammenfassung (Standard-Transformation) einzeln', () => {
+    const { families } = buildFamilySummaries({
+      families: [family([transcript({ verified_by: 'human:peter', verified_at: '2026-08-03T10:00:00.000Z' }), transformation()])],
+      standardTemplate: STANDARD,
+    })
+    expect(families[0].transkript).toMatchObject({ kind: 'transcript', verification: 'mensch' })
+    expect(families[0].zusammenfassung).toMatchObject({ kind: 'transformation', templateName: STANDARD, verification: 'unverifiziert' })
+  })
+
+  it('A2: ohne Standard-Template bleibt die Zusammenfassung null — kein Raten', () => {
+    const { families } = buildFamilySummaries({
+      families: [family([transcript(), transformation()])],
+      standardTemplate: null,
+    })
+    expect(families[0].zusammenfassung).toBeNull()
+    expect(families[0].transkript).not.toBeNull()
+  })
+
   it('sortiert stabil nach Pfad und kappt am Budget mit explizitem Flag', () => {
     const many = Array.from({ length: MAX_FAMILY_SUMMARIES + 1 }, (_, index) =>
       family([transcript()], { sourceId: `s${index}`, path: `Ordner/${String(index).padStart(5, '0')}.pdf` }),

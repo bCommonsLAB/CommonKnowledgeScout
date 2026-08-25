@@ -40,6 +40,7 @@ export default function AgentViewPage() {
         libraryId={activeLibraryId ?? undefined}
         libraryLabel={activeLibrary?.label}
         localRootPath={activeLibrary?.config?.agentView?.localRootPath ?? null}
+        konfigurierteThemen={activeLibrary?.config?.agentView?.themen ?? []}
       />
     </div>
   )

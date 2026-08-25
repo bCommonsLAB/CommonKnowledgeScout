@@ -181,8 +181,19 @@ export interface VorhabenCard {
   berichtModifiedAt?: string | null
   /** Frontmatter `status` des BERICHT.md; null = kein Bericht/kein Feld. */
   berichtStatus?: string | null
-  /** `themen` aus dem BERICHT.md-Frontmatter (fuehrend); `_INDEX.md` zaehlt nur fuer Vorhaben OHNE Bericht (F12). */
+  /**
+   * `themen` aus dem BERICHT.md-Frontmatter (F12). Seit A6 NICHT mehr die
+   * Grundlage der Gruppierung „Thema" — das Feld enthaelt technische
+   * Bausteine und bleibt nur fuer die W1-Erkennung und die Sichten.
+   */
   themen?: string[]
+  /**
+   * A6 (Entscheidung Peter, 25.08.2026): die VON HAND gepflegten Themen aus
+   * dem `_INDEX.md`-Frontmatter (`themen:`, flache YAML-Liste,
+   * Obsidian-kompatibel; ein Einzelwert zaehlt als Liste mit einem Element).
+   * [] = kein Thema vergeben („Ohne Thema"); fehlt in Reports vor A6.
+   */
+  gepflegteThemen?: string[]
 }
 
 /**
@@ -215,6 +226,17 @@ export interface TwinFamilySummary {
   artifactCount: number
   /** null = Familie ohne fuehrendes Artefakt (weder Transkript noch Standard-Transformation). */
   leading: LeadingArtifactSummary | null
+  /*
+   * Pruefbare Artefakte (Welle A2): Der Baum und die Tabs des Details tragen
+   * je Artefakt ein eigenes Haekchen (Entscheidung 4, 24.08.2026) — dafuer
+   * braucht der Report BEIDE Kurationszustaende, nicht nur den fuehrenden.
+   * OPTIONAL, weil Reports aus Scans vor A2 die Felder nicht tragen:
+   * Konsumenten benennen diesen Zustand („neu scannen"), statt zu raten.
+   */
+  /** Transkript-Artefakt; null = Familie ohne Transkript. Fehlt in Reports vor A2. */
+  transkript?: LeadingArtifactSummary | null
+  /** Standard-Transformation („Zusammenfassung"); null = keine (auch: kein Standard-Template). */
+  zusammenfassung?: LeadingArtifactSummary | null
 }
 
 /** Konventionen, unter denen der Scan lief (sichtbar statt hartkodiert). */

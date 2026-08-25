@@ -10,6 +10,11 @@
  * neutralen Ampel-Platzhalter mit Erklaerung (kein geratenes Gruen).
  * Gruppenkoepfe (Bereich = erstes Pfadsegment) sind gewoehnliche Zeilen (§6).
  *
+ * Seit Welle A2 traegt die Zeile den Aufklapp-Pfeil in den Teilbaum
+ * (Ordner → Artefakt) und den Pruef-Zaehler `n/m` (Entscheidung 2) —
+ * `null` = Report ohne Familien (Scan vor Welle 4), dann fehlt der Zaehler
+ * sichtbar statt eine geratene 0/0 zu zeigen.
+ *
  * @module components/library/agent-view
  */
 
@@ -17,8 +22,10 @@ import { AlertTriangle, ChevronDown, ChevronRight, FileText, Pin, PinOff } from 
 import { Badge } from '@/components/ui/badge'
 import { istBereitZurAbnahme } from '@/lib/agent-view/abnahme'
 import { actorSummary, standLabel } from '@/lib/agent-view/labels'
+import type { PruefZaehler } from '@/lib/agent-view/werkbank-baum'
 import type { VorhabenCard } from '@/lib/agent-view/types'
 import { CoverageAmpel } from '../coverage-ampel'
+import { ZaehlerText } from './werkbank-baum-zeilen'
 
 function AmpelOderHinweis({ card }: { card: VorhabenCard }) {
   if (card.ampel === undefined) {
@@ -39,6 +46,9 @@ export function VorhabenZeile({
   onSelect,
   gepinnt,
   onPin,
+  zaehler,
+  aufgeklappt,
+  onToggle,
 }: {
   card: VorhabenCard
   ausgewaehlt: boolean
@@ -47,11 +57,27 @@ export function VorhabenZeile({
   gepinnt?: boolean
   /** W6 (F7): Pin togglet die Mitgliedschaft in der AKTIVEN Liste. */
   onPin?: (card: VorhabenCard) => void
+  /** A2: Pruef-Zaehler `n/m`; null = Report ohne Familien (Scan vor W4). */
+  zaehler?: PruefZaehler | null
+  /** A2: Teilbaum (Ordner → Artefakt) auf-/zugeklappt. */
+  aufgeklappt?: boolean
+  onToggle?: (folderId: string) => void
 }) {
   return (
     <div
       className={`flex w-full items-start gap-0.5 rounded-md hover:bg-accent ${ausgewaehlt ? 'bg-accent' : ''}`}
     >
+      {onToggle && (
+        <button
+          type="button"
+          onClick={() => onToggle(card.folderId)}
+          aria-expanded={aufgeklappt === true}
+          aria-label={`Teilbaum von ${card.name} ${aufgeklappt ? 'zuklappen' : 'aufklappen'}`}
+          className="mt-2 shrink-0 pl-1 text-muted-foreground hover:text-foreground"
+        >
+          {aufgeklappt ? <ChevronDown className="h-3.5 w-3.5" aria-hidden /> : <ChevronRight className="h-3.5 w-3.5" aria-hidden />}
+        </button>
+      )}
       <button
         type="button"
         onClick={() => onSelect(card.folderId)}
@@ -71,6 +97,7 @@ export function VorhabenZeile({
               {card.berichtTitel}
             </span>
           )}
+          {zaehler != null && <ZaehlerText zaehler={zaehler} />}
         </span>
         <span className="flex items-center gap-2 text-xs text-muted-foreground">
           <span>{card.bearbeitungsstand === null ? '—' : standLabel(card.bearbeitungsstand)}</span>

@@ -24,7 +24,7 @@
 
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { StorageError, type StorageItem } from '@/lib/storage/types'
-import { BERICHT_FILE_NAME } from './archive-scan'
+import { BERICHT_FILE_NAME, INDEX_FILE_NAME } from './archive-scan'
 import { MAX_DOC_BYTES, toIso } from './archive-scan-readers'
 import { ersterAbsatz, offenePunkte, titelLesen } from './sichten/bericht-lesen'
 
@@ -92,12 +92,26 @@ function toDetailBase(item: StorageItem): Pick<BerichtDetail, 'fileId' | 'name' 
   }
 }
 
+/** Dokumente des Vorhabens, die die Route lesen darf (A3: Ordner-Beschreibung). */
+export type VorhabenDokumentArt = 'bericht' | 'index'
+
+const DOKUMENT_DATEI: Record<VorhabenDokumentArt, string> = {
+  bericht: BERICHT_FILE_NAME,
+  index: INDEX_FILE_NAME,
+}
+
 /**
- * Laedt den BERICHT.md des Ordners nach der §F9-Semantik. Matching ist
- * EXAKT wie im Archiv-Scan (`BERICHT_FILE_NAME`) — dieselbe Regel, kein
- * Drift zwischen Scan und Route.
+ * Laedt den BERICHT.md — oder seit A3 den `_INDEX.md` (Ordner-Beschreibung,
+ * `datei: 'index'`) — des Ordners nach der §F9-Semantik. Matching ist EXAKT
+ * wie im Archiv-Scan (`BERICHT_FILE_NAME`/`INDEX_FILE_NAME`) — dieselbe
+ * Regel, kein Drift zwischen Scan und Route. `grund: 'kein_bericht'` heisst
+ * fuer beide Arten: die Datei fehlt im Ordner.
  */
-export async function ladeBericht(folderId: string, ports: BerichtLadenPorts): Promise<BerichtAntwort> {
+export async function ladeBericht(
+  folderId: string,
+  ports: BerichtLadenPorts,
+  datei: VorhabenDokumentArt = 'bericht',
+): Promise<BerichtAntwort> {
   let items: StorageItem[]
   try {
     items = await ports.listFolder(folderId)
@@ -108,7 +122,7 @@ export async function ladeBericht(folderId: string, ports: BerichtLadenPorts): P
     throw error
   }
 
-  const bericht = items.find((item) => item.type === 'file' && item.metadata.name === BERICHT_FILE_NAME)
+  const bericht = items.find((item) => item.type === 'file' && item.metadata.name === DOKUMENT_DATEI[datei])
   if (!bericht) return { bericht: null, grund: 'kein_bericht' }
 
   const base = toDetailBase(bericht)
