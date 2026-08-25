@@ -1,22 +1,26 @@
 /**
- * @fileoverview Unit-Tests: Themen-Gruppierung der Werkbank (F12, Welle W5).
+ * @fileoverview Unit-Tests: Themen-Gruppierung der Werkbank (F12/W5, A6).
  *
- * Akzeptanzkriterium 10 als Vertrag: ein Vorhaben mit zwei Themen erscheint
- * unter BEIDEN; Vorhaben ohne `themen` (leer oder — bei Karten aus Scans vor
- * W1 — undefined) landen in der benannten Gruppe „Ohne Thema", nie
- * unsichtbar. Bereichs-Gruppierung behaelt das W3-Verhalten.
+ * Seit A6 speist sich die Gruppierung AUSSCHLIESSLICH aus den von Hand
+ * gepflegten Themen (`themen:` im _INDEX.md, `card.gepflegteThemen`) — die
+ * BERICHT-`themen` zaehlen nicht mehr. Akzeptanzkriterium 10 bleibt: ein
+ * Vorhaben mit zwei Themen erscheint unter BEIDEN Gruppen; ohne Themen
+ * (leer oder — bei Karten aus Scans vor A6 — undefined) benannt in
+ * „Ohne Thema", nie unsichtbar. Bereichs-Gruppierung behaelt W3.
  */
 
 import { describe, it, expect } from 'vitest'
 import type { VorhabenCard } from '@/lib/agent-view/types'
 import {
+  alleGepflegtenThemen,
   baueWerkbankZeilen,
   gruppenVon,
   OHNE_THEMA_GRUPPE,
+  ueberlagereThemen,
   type WerkbankZeile,
 } from '@/lib/agent-view/werkbank-gruppen'
 
-function card(path: string, themen?: string[]): VorhabenCard {
+function card(path: string, gepflegteThemen?: string[]): VorhabenCard {
   const basis: VorhabenCard = {
     folderId: `f-${path}`,
     name: path.split('/').pop() ?? path,
@@ -34,13 +38,14 @@ function card(path: string, themen?: string[]): VorhabenCard {
     berichtModifiedAt: null,
     berichtStatus: null,
     themen: [],
+    gepflegteThemen: [],
   }
-  // themen === undefined simuliert eine Karte aus einem Scan vor W1.
-  if (themen === undefined) {
-    const { themen: _weg, ...alt } = basis
+  // gepflegteThemen === undefined simuliert eine Karte aus einem Scan vor A6.
+  if (gepflegteThemen === undefined) {
+    const { gepflegteThemen: _weg, ...alt } = basis
     return alt
   }
-  return { ...basis, themen }
+  return { ...basis, gepflegteThemen }
 }
 
 function koepfe(zeilen: WerkbankZeile[]): string[] {
@@ -63,9 +68,14 @@ describe('gruppenVon', () => {
     expect(gruppenVon(card('1. Arbeit/Pilot', ['Commoning', 'KI']), 'thema')).toEqual(['Commoning', 'KI'])
   })
 
-  it('leere und fehlende themen (Scan vor W1) landen benannt in „Ohne Thema"', () => {
+  it('leere und fehlende gepflegte Themen (Scan vor A6) landen benannt in „Ohne Thema"', () => {
     expect(gruppenVon(card('A/x', []), 'thema')).toEqual([OHNE_THEMA_GRUPPE])
     expect(gruppenVon(card('A/x', undefined), 'thema')).toEqual([OHNE_THEMA_GRUPPE])
+  })
+
+  it('A6: BERICHT-themen zaehlen NICHT mehr — nur das gepflegte Feld gruppiert', () => {
+    const mitBerichtThemen = { ...card('A/x', []), themen: ['Technik-Baustein'] }
+    expect(gruppenVon(mitBerichtThemen, 'thema')).toEqual([OHNE_THEMA_GRUPPE])
   })
 })
 
@@ -110,5 +120,22 @@ describe('baueWerkbankZeilen — Bereich (W3-Verhalten unveraendert)', () => {
     )
     expect(koepfe(zeilen)).toEqual(['2. Privat', '1. Arbeit'])
     expect(kartenIn(zeilen, '2. Privat')).toEqual(['2. Privat/Steuer', '2. Privat/Ablage'])
+  })
+})
+
+describe('alleGepflegtenThemen + ueberlagereThemen (A6)', () => {
+  it('sammelt das Vokabular dedupliziert und alphabetisch', () => {
+    expect(alleGepflegtenThemen([
+      card('A/x', ['KI', 'Commoning']),
+      card('A/y', ['KI']),
+      card('A/z', undefined),
+    ])).toEqual(['Commoning', 'KI'])
+  })
+
+  it('ueberlagert frisch geschriebene Themen bis zum naechsten Scan', () => {
+    const karten = [card('A/x', ['Alt'])]
+    const frisch = ueberlagereThemen(karten, new Map([[karten[0].folderId, ['Neu']]]))
+    expect(frisch[0].gepflegteThemen).toEqual(['Neu'])
+    expect(karten[0].gepflegteThemen).toEqual(['Alt'])
   })
 })
