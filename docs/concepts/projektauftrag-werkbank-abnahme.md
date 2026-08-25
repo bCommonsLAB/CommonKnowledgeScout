@@ -7,6 +7,10 @@
 Grundlage sind ein Live-Test des ganzen Wellenplans W1–W8 am 24.08.2026 und
 die Entscheidungen, die Peter im Anschluss getroffen hat.
 
+**Stand 25.08.2026: Alle sechs Wellen sind umgesetzt** (PR #194). Die
+Anleitung fuer den lokalen Live-Test:
+[`testsession-werkbank-abnahme-a1-a6.md`](testsession-werkbank-abnahme-a1-a6.md).
+
 ---
 
 ## Verbindliche Vorlage: das Mockup
