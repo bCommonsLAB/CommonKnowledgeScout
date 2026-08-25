@@ -162,15 +162,13 @@ async function writeArtifactV2(
         location: 'dotFolder',
       });
 
-      // WICHTIG: Viele Provider unterstützen kein "overwrite-by-id".
-      // Um Duplikate zu verhindern, löschen wir die bestehende Datei und laden sie neu hoch.
-      await provider.deleteItem(existingFile.id)
-
-      // Erstelle neuen Blob mit aktualisiertem Inhalt
+      // Inhalts-Update ohne Lücke (Testsession 25.08.2026 §2.3): uploadFile
+      // überschreibt namensgleich im selben Ordner bei allen Providern
+      // (OneDrive PUT :/content, fs.writeFile, WebDAV overwrite: true).
+      // Das frühere DELETE + PUT ließ die Datei zwischen beiden Runden
+      // NICHT existieren — ein Absturz genau dort verlor sie.
       const fileBlob = new Blob([content], { type: 'text/markdown' });
       const file = new File([fileBlob], fileName, { type: 'text/markdown' });
-
-      // Upload überschreibt die Datei (Provider-spezifisch)
       const updatedFile = await provider.uploadFile(shadowTwinFolder.id, file);
 
       return {
@@ -214,13 +212,10 @@ async function writeArtifactV2(
         location: 'sibling',
       });
 
-      // WICHTIG: Viele Provider unterstützen kein "overwrite-by-id".
-      // Um Duplikate zu verhindern, löschen wir die bestehende Datei und laden sie neu hoch.
-      await provider.deleteItem(existingFile.id)
-
+      // Inhalts-Update ohne Lücke (Testsession §2.3, wie im dotFolder-Zweig):
+      // kein deleteItem — uploadFile überschreibt namensgleich.
       const fileBlob = new Blob([content], { type: 'text/markdown' });
       const file = new File([fileBlob], fileName, { type: 'text/markdown' });
-
       const updatedFile = await provider.uploadFile(parentId, file);
 
       return {

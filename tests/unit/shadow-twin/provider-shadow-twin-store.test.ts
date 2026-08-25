@@ -78,6 +78,40 @@ describe('ProviderShadowTwinStore — Aufloesung je Request', () => {
     expect(ergebnis.name).toBe('audio.md')
   })
 
+  it('Update ist ein Inhalts-Update ohne Luecke: kein deleteItem, vorhandener Name bleibt (§2.3)', async () => {
+    // DELETE + PUT liess die Spiegeldatei zwischen beiden Runden nicht
+    // existieren — ein Absturz genau dort verlor sie (Datenverlust-Risiko).
+    const provider = mockProvider()
+    const store = new ProviderShadowTwinStore(provider, 'audio.m4a', 'parent-1')
+
+    await store.upsertArtifact(KEY, '# Patch', undefined, {
+      libraryId: 'lib', userEmail: 'p@x', sourceName: 'audio.m4a', parentId: 'twin-1',
+      // Legacy-Name: das Inhalts-Update benennt NICHT um (Namens-Migration = Engine).
+      knownMirrorFile: { fileId: 'file-alt', fileName: 'audio.de.md' },
+    })
+
+    expect(provider.deleteItem).not.toHaveBeenCalled()
+    const [parentId, file] = vi.mocked(provider.uploadFile).mock.calls[0] as [string, File]
+    expect(parentId).toBe('twin-1')
+    expect(file.name).toBe('audio.de.md')
+  })
+
+  it('selbst aufgeloestes dotFolder-Ziel wird IM Twin-Ordner ueberschrieben, ohne deleteItem', async () => {
+    vi.mocked(resolveArtifact).mockResolvedValue({
+      kind: 'transcript', fileId: 'file-alt', fileName: 'audio.md', location: 'dotFolder', shadowTwinFolderId: 'twin-1',
+    })
+    const provider = mockProvider()
+    const store = new ProviderShadowTwinStore(provider, 'audio.m4a', 'parent-1')
+
+    await store.upsertArtifact(KEY, '# Patch', undefined, {
+      libraryId: 'lib', userEmail: 'p@x', sourceName: 'audio.m4a', parentId: 'parent-1',
+    })
+
+    expect(provider.deleteItem).not.toHaveBeenCalled()
+    // Geschrieben wird an den Fundort (Twin-Ordner), nicht neben die Quelle.
+    expect(vi.mocked(provider.uploadFile).mock.calls[0][0]).toBe('twin-1')
+  })
+
   it('knownMirrorFile: null legt ohne Suche neu an', async () => {
     const provider = mockProvider()
     const store = new ProviderShadowTwinStore(provider, 'audio.m4a', 'parent-1')

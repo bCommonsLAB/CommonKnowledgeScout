@@ -208,6 +208,9 @@ describe('writeArtifact', () => {
       expect(result.location).toBe('dotFolder');
       expect(result.wasUpdated).toBe(true);
       expect(mockProvider.uploadFile).toHaveBeenCalledTimes(1);
+      // Testsession §2.3: Inhalts-Update ohne Luecke — kein DELETE vor dem PUT,
+      // die Spiegeldatei existiert zu jedem Zeitpunkt.
+      expect(mockProvider.deleteItem).not.toHaveBeenCalled();
     });
 
     it('sollte neues Transcript als Sibling erstellen wenn createFolder=false', async () => {
@@ -274,6 +277,8 @@ describe('writeArtifact', () => {
       expect(result.location).toBe('sibling');
       expect(result.wasUpdated).toBe(true);
       expect(mockProvider.uploadFile).toHaveBeenCalledTimes(1);
+      // Testsession §2.3: auch der Sibling-Zweig ueberschreibt ohne deleteItem.
+      expect(mockProvider.deleteItem).not.toHaveBeenCalled();
     });
 
     it('sollte Transformation mit Template-Name erstellen', async () => {

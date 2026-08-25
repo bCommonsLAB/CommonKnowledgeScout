@@ -114,19 +114,36 @@ export class ProviderShadowTwinStore implements ShadowTwinStore {
     // Testsession §2.2: Hat der Aufrufer bereits aufgelöst (Drift-Guard der
     // Kuration), entfällt die erneute Suche komplett — `null` heißt dabei
     // ausdrücklich „aufgelöst, keine vorhanden" (Neuanlage ohne Listings).
-    const existing = context?.knownMirrorFile !== undefined
-      ? context.knownMirrorFile
-      : await this.resolveCached(key, context?.sourceName || this.sourceName, targetParentId)
+    const known = context?.knownMirrorFile
+    const resolved = known === undefined
+      ? await this.resolveCached(key, context?.sourceName || this.sourceName, targetParentId)
+      : null
 
     try {
-      if (existing) {
-        // Aktualisiere Inhalt: Lösche alte Datei und erstelle neue
-        await this.provider.deleteItem(existing.fileId)
-        const newFile = await this.provider.uploadFile(
+      // Update: Inhalts-Update statt DELETE + PUT (Testsession §2.3 — zwischen
+      // Löschen und Neu-Hochladen existierte die Spiegeldatei NICHT; ein
+      // Absturz genau dort verlor sie). uploadFile überschreibt bei allen
+      // Providern namensgleich im selben Ordner (OneDrive PUT :/content,
+      // fs.writeFile, WebDAV overwrite) — die Datei ist zu keinem Zeitpunkt weg.
+      // Geschrieben wird unter dem VORHANDENEN Namen an ihrem Fundort;
+      // Alt-Namen überführt weiterhin die Namens-Migration der Engine.
+      if (known) {
+        const updated = await this.provider.uploadFile(
           targetParentId,
-          new File([markdown], fileName, { type: 'text/markdown' })
+          new File([markdown], known.fileName, { type: 'text/markdown' })
         )
-        return { id: newFile.id, name: fileName }
+        return { id: updated.id, name: known.fileName }
+      }
+      if (resolved) {
+        const overwriteParentId =
+          resolved.location === 'dotFolder' && resolved.shadowTwinFolderId
+            ? resolved.shadowTwinFolderId
+            : targetParentId
+        const updated = await this.provider.uploadFile(
+          overwriteParentId,
+          new File([markdown], resolved.fileName, { type: 'text/markdown' })
+        )
+        return { id: updated.id, name: resolved.fileName }
       }
 
       // Create: Neue Datei erstellen mit uploadFile
