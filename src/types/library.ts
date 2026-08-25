@@ -400,6 +400,12 @@ export interface StorageConfig {
      * KS kennt nur Provider-Pfade — dieser Wert ist reine Anzeige-Hilfe.
      */
     localRootPath?: string;
+    /**
+     * A6: kuratiertes Themen-Vokabular der Werkbank — hier organisiert und
+     * normalisiert der Mensch seine Themen; der Themen-Editor bietet sie im
+     * Dropdown an. Je Vorhaben wohnen die zugewiesenen Themen im `_INDEX.md`.
+     */
+    themen?: string[];
   };
 
   /**
@@ -655,6 +661,8 @@ export interface ClientLibrary {
       indexRequiredMaxDepth?: number;
       berichtFreshness?: boolean;
       localRootPath?: string;
+      /** A6: kuratiertes Themen-Vokabular (Dropdown des Themen-Editors). */
+      themen?: string[];
     };
     /** Plan 2 · W-C: Kuratierung der „Inhalte erfassen"-Wizards (kein Secret). */
     captureWizards?: CaptureWizardsConfig;

@@ -39,9 +39,11 @@ export interface AgentViewPanelProps {
   libraryLabel?: string
   /** `config.agentView.localRootPath` — absolute Pfade im Auftrag (F3). */
   localRootPath?: string | null
+  /** A6: kuratiertes Themen-Vokabular (`config.agentView.themen`). */
+  konfigurierteThemen?: string[]
 }
 
-export function AgentViewPanel({ libraryId, libraryLabel, localRootPath }: AgentViewPanelProps) {
+export function AgentViewPanel({ libraryId, libraryLabel, localRootPath, konfigurierteThemen }: AgentViewPanelProps) {
   const { data, isLoading, isScanning, neverScanned, error, scanHinweis, scan } = useCoverageReport(libraryId)
   const [tab, setTab] = useQueryState('tab', parseAsStringLiteral(TAB_WERTE).withDefault('werkbank'))
 
@@ -97,6 +99,7 @@ export function AgentViewPanel({ libraryId, libraryLabel, localRootPath }: Agent
               libraryLabel={libraryLabel ?? libraryId}
               localRootPath={localRootPath ?? null}
               teilbaumScan={{ onScan: (folderId) => void scan(folderId), isScanning, hinweis: scanHinweis }}
+              konfigurierteThemen={konfigurierteThemen}
             />
           </TabsContent>
           <TabsContent value="baum" className="mt-3">

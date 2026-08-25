@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
 import type { LibraryFormValues } from "./hooks/use-library-form"
 
 export function AgentViewConfigSection({ form }: { form: UseFormReturn<LibraryFormValues> }) {
@@ -109,6 +110,27 @@ export function AgentViewConfigSection({ form }: { form: UseFormReturn<LibraryFo
               <FormControl>
                 <Switch checked={field.value} onCheckedChange={field.onChange} />
               </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="agentViewThemen"
+          render={({ field }) => (
+            <FormItem className="rounded-lg border p-4">
+              <FormLabel className="text-base">Themen-Vokabular (Werkbank)</FormLabel>
+              <FormDescription>
+                Eine Zeile pro Thema &mdash; hier organisierst und normalisierst du
+                deine Themen. Der Themen-Editor der Werkbank bietet sie im
+                Dropdown an; je Vorhaben wohnen die zugewiesenen Themen im{" "}
+                <code>themen:</code>-Feld des <code>_INDEX.md</code>. Kommas und
+                eckige Klammern sind nicht erlaubt.
+              </FormDescription>
+              <FormControl>
+                <Textarea rows={5} placeholder={"Commoning\nKlima\nKI"} {...field} />
+              </FormControl>
+              <FormMessage />
             </FormItem>
           )}
         />

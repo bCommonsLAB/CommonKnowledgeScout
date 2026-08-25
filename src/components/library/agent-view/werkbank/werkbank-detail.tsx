@@ -21,6 +21,7 @@ import { useState } from 'react'
 import { useToast } from '@/components/ui/use-toast'
 import { useStand } from '@/hooks/agent-view/use-stand'
 import type { UseArtefaktKurationResult } from '@/hooks/agent-view/use-artefakt-kuration'
+import type { UseThemenResult } from '@/hooks/agent-view/use-themen'
 import { istBerichtVeraltet, teilbaumBefunde } from '@/lib/agent-view/teilbaum'
 import type { CoverageReport, LeadingArtifactSummary, TwinFamilySummary, VorhabenCard } from '@/lib/agent-view/types'
 import {
@@ -48,6 +49,9 @@ export interface WerkbankDetailProps {
   /** Effektive Familien des gewaehlten Vorhabens (Sprung-Reihenfolge, Zaehler). */
   familien: readonly TwinFamilySummary[] | undefined
   kuration: UseArtefaktKurationResult
+  /** A6: Themen-Editor des Vorhaben-Kopfs (Vokabular + Schreib-Hook). */
+  themenVokabular: readonly string[]
+  themenHook: UseThemenResult
   /** A5-Vorgriff (Entscheidung 5): Auswahl zum naechsten offenen Artefakt bewegen. */
   onWaehleArtefakt: (sourceId: string) => void
   report: CoverageReport
@@ -110,8 +114,8 @@ function ArtefaktDetail({ familie, familien, kuration, report, onWaehleArtefakt 
 }
 
 export function WerkbankDetail({
-  karte, vorhabenId, artefaktId, familie, familien, kuration, onWaehleArtefakt,
-  report, generatedAt, libraryLabel, localRootPath, teilbaumScan,
+  karte, vorhabenId, artefaktId, familie, familien, kuration, themenVokabular, themenHook,
+  onWaehleArtefakt, report, generatedAt, libraryLabel, localRootPath, teilbaumScan,
 }: WerkbankDetailProps) {
   const stand = useStand(report.libraryId)
 
@@ -168,6 +172,8 @@ export function WerkbankDetail({
         libraryId={report.libraryId}
         familien={familien}
         kuration={kuration}
+        themenVokabular={themenVokabular}
+        themenHook={themenHook}
         teilbaumScan={teilbaumScan}
         befunde={befunde}
         auftragContext={{ libraryLabel, localRootPath, generatedAt }}

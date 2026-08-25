@@ -16,7 +16,7 @@
 import type { StorageProvider } from '@/lib/storage/types'
 import { scanLibraryCoverage } from './run-coverage-scan'
 import type { StandRequest } from './stand-plan'
-import { setzeStand, type StandErgebnis } from './stand-schreiben'
+import { setzeStand, type StandErgebnis, type StandSchreibenPorts } from './stand-schreiben'
 
 export interface StandAusfuehrenArgs {
   libraryId: string
@@ -44,25 +44,34 @@ export async function fuehreStandAus(
         (await scanLibraryCoverage({ libraryId, userEmail, folderId: request.folderId })).gaps,
       now: () => new Date().toISOString(),
     },
-    {
-      listFolder: (id) => provider.listItemsById(id),
-      readText: async (id) => (await provider.getBinary(id)).blob.text(),
-      deleteFile: (id) => provider.deleteItem(id),
-      uploadMarkdown: async (folderId, name, content) => {
-        const uploaded = await provider.uploadFile(
-          folderId,
-          new File([content], name, { type: 'text/markdown' }),
-        )
-        return { fileId: uploaded.id }
-      },
-      folderName: async () => {
-        try {
-          return (await provider.getItemById(request.folderId)).metadata.name
-        } catch {
-          // Lookup dient nur der Anzeige — scheitert er, ist die Id die beste Aussage.
-          return request.folderId
-        }
-      },
-    },
+    baueIndexPorts(provider, request.folderId),
   )
+}
+
+/**
+ * Echte Storage-Ports fuer die _INDEX.md-Schreiboperationen — geteilt von
+ * Stand (F8) und Themen (A6): dieselbe Chirurgie, derselbe
+ * Wiederherstellungs-Pfad, kein Drift.
+ */
+export function baueIndexPorts(provider: StorageProvider, folderId: string): StandSchreibenPorts {
+  return {
+    listFolder: (id) => provider.listItemsById(id),
+    readText: async (id) => (await provider.getBinary(id)).blob.text(),
+    deleteFile: (id) => provider.deleteItem(id),
+    uploadMarkdown: async (ordnerId, name, content) => {
+      const uploaded = await provider.uploadFile(
+        ordnerId,
+        new File([content], name, { type: 'text/markdown' }),
+      )
+      return { fileId: uploaded.id }
+    },
+    folderName: async () => {
+      try {
+        return (await provider.getItemById(folderId)).metadata.name
+      } catch {
+        // Lookup dient nur der Anzeige — scheitert er, ist die Id die beste Aussage.
+        return folderId
+      }
+    },
+  }
 }

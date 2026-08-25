@@ -83,6 +83,15 @@ export const libraryFormSchema = z.object({
   agentViewEnabled: z.boolean().default(false),
   agentViewBerichtFreshness: z.boolean().default(true),
   agentViewLocalRootPath: z.string().default(""),
+  // A6: Themen-Vokabular — eine Zeile pro Thema (Persistenz als Array,
+  // Muster scanExcludeGlobs). Kommas/Klammern trennen die _INDEX-Liste.
+  agentViewThemen: z
+    .string()
+    .default("")
+    .refine(
+      (value) => !/[,\[\]]/.test(value),
+      "Ein Thema darf kein Komma und keine eckigen Klammern enthalten.",
+    ),
   // Plan 2 · W-C: Kuratierung der „Inhalte erfassen"-Wizards (optional).
   captureWizards: z
     .object({
@@ -126,9 +135,10 @@ function readAgentViewForm(config: Record<string, unknown> | undefined): {
   agentViewIndexDepth: string;
   agentViewBerichtFreshness: boolean;
   agentViewLocalRootPath: string;
+  agentViewThemen: string;
 } {
   const agentView = (config?.agentView ?? null) as
-    | { enabled?: unknown; vorhabenFolderPattern?: unknown; indexRequiredMaxDepth?: unknown; berichtFreshness?: unknown; localRootPath?: unknown }
+    | { enabled?: unknown; vorhabenFolderPattern?: unknown; indexRequiredMaxDepth?: unknown; berichtFreshness?: unknown; localRootPath?: unknown; themen?: unknown }
     | null;
   const depth = agentView?.indexRequiredMaxDepth;
   return {
@@ -138,6 +148,9 @@ function readAgentViewForm(config: Record<string, unknown> | undefined): {
     agentViewIndexDepth: typeof depth === "number" && Number.isFinite(depth) ? String(depth) : "",
     agentViewBerichtFreshness: agentView?.berichtFreshness !== false,
     agentViewLocalRootPath: typeof agentView?.localRootPath === "string" ? agentView.localRootPath : "",
+    agentViewThemen: Array.isArray(agentView?.themen)
+      ? agentView.themen.filter((thema): thema is string => typeof thema === "string").join("\n")
+      : "",
   };
 }
 
@@ -242,6 +255,7 @@ export function useLibraryForm(createNew: boolean) {
       agentViewIndexDepth: "",
       agentViewBerichtFreshness: true,
       agentViewLocalRootPath: "",
+      agentViewThemen: "",
       captureWizards: undefined,
       autoApplyConfidenceThreshold: 0.9,
       divaArchiveFilterMode: 'all' as const,
@@ -481,6 +495,7 @@ export function useLibraryForm(createNew: boolean) {
               ...(data.agentViewLocalRootPath.trim() !== ""
                 ? { localRootPath: data.agentViewLocalRootPath.trim() }
                 : {}),
+              themen: data.agentViewThemen.split(/\r?\n/).map((thema) => thema.trim()).filter(Boolean),
             },
             captureWizards: data.captureWizards,
             autoApplyConfidenceThreshold: data.autoApplyConfidenceThreshold,

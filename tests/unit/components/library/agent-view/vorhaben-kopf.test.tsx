@@ -69,6 +69,15 @@ function fakeStand(overrides: {
   }
 }
 
+function fakeThemen() {
+  return {
+    overrides: new Map<string, string[]>(),
+    pendingFolderId: null,
+    fehlerByFolder: new Map<string, string>(),
+    setzeThemen: vi.fn().mockResolvedValue(true),
+  }
+}
+
 function fakeKuration(overrides: Partial<UseArtefaktKurationResult> = {}): UseArtefaktKurationResult {
   return {
     overrides: new Map(), pendingKey: null, fehler: new Map(),
@@ -96,6 +105,8 @@ function renderKopf(args: {
         libraryId="lib-1"
         familien={'familien' in args ? args.familien : []}
         kuration={args.kuration ?? fakeKuration()}
+        themenVokabular={[]}
+        themenHook={fakeThemen()}
         befunde={[]}
         auftragContext={{ libraryLabel: 'Testarchiv', localRootPath: null, generatedAt: 'G1' }}
       />

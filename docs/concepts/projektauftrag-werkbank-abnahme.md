@@ -180,7 +180,21 @@ Kopf; Sammelaktion: Ergebnis mit Fehlern je Datei).
 Rückfrage der Sammelaktion ist kein Formalismus, sondern die Stelle, an
 der Peter bestätigt, dass er die Gruppe wirklich gesehen hat.
 
-## Welle A6 — Thema als eigenes Feld
+## Welle A6 — Thema als eigenes Feld — ERLEDIGT
+
+**Entschieden (Peter, 25.08.2026):** Die gepflegten Themen wohnen als
+`themen:`-Feld (flache YAML-Liste, mehrere Themen möglich) im `_INDEX.md`
+des Vorhabens — das Vorhaben erscheint unter JEDER seiner Themen-Gruppen.
+Das **Themen-Vokabular** wird in den Library-Einstellungen (Agentensicht →
+„Themen-Vokabular", eine Zeile pro Thema) organisiert und normalisiert;
+der Themen-Editor im Vorhaben-Kopf bietet es im Dropdown an
+(Vokabular ∪ bereits vergebene Themen) und schreibt zeilen-chirurgisch
+über die neue Themen-Route ins `_INDEX.md` (gleiche Chirurgie und
+Wiederherstellung wie das Stand-Schreiben). Die Gruppierung „Thema"
+stützt sich NUR noch auf dieses Feld — die BERICHT-`themen` (technische
+Bausteine) gruppieren nicht mehr. Reports aus Scans vor A6 werden benannt;
+dort ist das Speichern gesperrt, bis „Neu scannen" die Bestands-Themen
+kennt.
 
 - Die Gruppierung „Thema" stützt sich heute auf `themen` aus dem
   BERICHT.md-Frontmatter. Das Feld enthält technische Bausteine eines

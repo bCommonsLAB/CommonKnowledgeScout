@@ -57,6 +57,15 @@ function stubBericht(data: BerichtAntwort) {
 
 beforeEach(() => stubBericht(antwort()))
 
+function fakeThemen() {
+  return {
+    overrides: new Map<string, string[]>(),
+    pendingFolderId: null,
+    fehlerByFolder: new Map<string, string>(),
+    setzeThemen: vi.fn().mockResolvedValue(true),
+  }
+}
+
 function fakeKuration(): UseArtefaktKurationResult {
   return {
     overrides: new Map(), pendingKey: null, fehler: new Map(),
@@ -125,6 +134,8 @@ function renderDetail(r: CoverageReport, k: VorhabenCard | null = karte(), vorha
         familie={null}
         familien={[]}
         kuration={fakeKuration()}
+        themenVokabular={[]}
+        themenHook={fakeThemen()}
         onWaehleArtefakt={vi.fn()}
         report={r}
         generatedAt={r.generatedAt}
@@ -218,7 +229,7 @@ describe('WerkbankDetail — Kopf und Aktionen', () => {
       <QueryClientProvider client={queryClient}>
         <WerkbankDetail
           karte={karte()} vorhabenId="f-pilot" artefaktId={null} familie={null}
-          familien={[]} kuration={fakeKuration()} onWaehleArtefakt={vi.fn()}
+          familien={[]} kuration={fakeKuration()} themenVokabular={[]} themenHook={fakeThemen()} onWaehleArtefakt={vi.fn()}
           report={report()} generatedAt="2026-08-23T12:00:00.000Z"
           libraryLabel="Testarchiv" localRootPath={null}
           teilbaumScan={{ onScan, isScanning: false, hinweis: 'Der gespeicherte Report stammt von vor W8' }}
@@ -276,7 +287,8 @@ describe('WerkbankDetail — Verifizieren im Fluss (A5)', () => {
       <QueryClientProvider client={queryClient}>
         <WerkbankDetail
           karte={karte()} vorhabenId="f-pilot" artefaktId="s-a" familie={aktuelle}
-          familien={[aktuelle, naechste]} kuration={kuration} onWaehleArtefakt={onWaehleArtefakt}
+          familien={[aktuelle, naechste]} kuration={kuration}
+          themenVokabular={[]} themenHook={fakeThemen()} onWaehleArtefakt={onWaehleArtefakt}
           report={report()} generatedAt="G1" libraryLabel="Testarchiv" localRootPath={null}
         />
       </QueryClientProvider>,

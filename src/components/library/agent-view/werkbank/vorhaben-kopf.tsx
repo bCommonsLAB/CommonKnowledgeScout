@@ -19,6 +19,7 @@ import { AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { UseArtefaktKurationResult } from '@/hooks/agent-view/use-artefakt-kuration'
 import type { UseStandResult } from '@/hooks/agent-view/use-stand'
+import type { UseThemenResult } from '@/hooks/agent-view/use-themen'
 import { istAbnehmbar } from '@/lib/agent-view/abnahme'
 import type { AuftragContext } from '@/lib/agent-view/auftrag-generator'
 import { standLabel } from '@/lib/agent-view/labels'
@@ -27,6 +28,7 @@ import { zaehlePruefstand } from '@/lib/agent-view/werkbank-baum'
 import { CoverageAmpel } from '../coverage-ampel'
 import { AbnahmeKopfRahmen, KopfBreadcrumb, KopfChip } from './abnahme-kopf'
 import type { TeilbaumScanProps } from './teilbaum-scan-knopf'
+import { ThemenEditor } from './themen-editor'
 import { VorhabenMenue } from './vorhaben-menue'
 import { WerkbankSammelaktionen } from './werkbank-sammelaktionen'
 
@@ -39,7 +41,7 @@ function blockerText(karte: VorhabenCard): string {
   return `${teile.join(' und ')} offen`
 }
 
-export function VorhabenKopf({ karte, stand, generatedAt, libraryId, familien, kuration, teilbaumScan, befunde, auftragContext }: {
+export function VorhabenKopf({ karte, stand, generatedAt, libraryId, familien, kuration, themenVokabular, themenHook, teilbaumScan, befunde, auftragContext }: {
   karte: VorhabenCard
   stand: UseStandResult
   generatedAt: string
@@ -47,6 +49,9 @@ export function VorhabenKopf({ karte, stand, generatedAt, libraryId, familien, k
   /** Effektive Familien des Teilbaums; undefined = Report vor Welle 4. */
   familien: readonly TwinFamilySummary[] | undefined
   kuration: UseArtefaktKurationResult
+  /** A6: Themen-Editor (Vokabular aus Einstellungen ∪ vergebenen Themen). */
+  themenVokabular: readonly string[]
+  themenHook: UseThemenResult
   teilbaumScan?: TeilbaumScanProps
   befunde: readonly CoverageGap[]
   auftragContext: AuftragContext
@@ -109,6 +114,12 @@ export function VorhabenKopf({ karte, stand, generatedAt, libraryId, familien, k
         <>
           <KopfBreadcrumb path={karte.path} />
           <span className="ml-auto flex flex-wrap items-center gap-1.5">
+            <ThemenEditor
+              folderId={karte.folderId}
+              aktuelle={karte.gepflegteThemen}
+              vokabular={themenVokabular}
+              themen={themenHook}
+            />
             {zaehler === null ? (
               <KopfChip ton="stand" title={'Report aus einem Scan vor Welle 4 — "Neu scannen" ergaenzt die Artefakte.'}>
                 Pruefstand: neu scannen
