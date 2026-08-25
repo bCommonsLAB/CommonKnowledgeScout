@@ -102,7 +102,12 @@ async function checkMirrorAndResolveTarget(args: {
   doc: ShadowTwinDocument
   artifact: CurationArtifactRef
   mongoMarkdown: string
-}): Promise<{ mirror: CurationMirrorTarget; shadowTwinFolderId?: string }> {
+}): Promise<{
+  mirror: CurationMirrorTarget
+  shadowTwinFolderId?: string
+  /** Aufgeloeste Spiegel-Datei fuer den Write (Testsession §2.2 — keine zweite Suche); null = Neuanlage. */
+  mirrorFile?: { fileId: string; fileName: string } | null
+}> {
   const { provider, doc, artifact } = args
   const resolved = await resolveArtifact(provider, {
     sourceItemId: doc.sourceId,
@@ -120,7 +125,11 @@ async function checkMirrorAndResolveTarget(args: {
       throw new MirrorDriftError(resolved.fileName)
     }
     if (resolved.location === 'dotFolder' && resolved.shadowTwinFolderId) {
-      return { mirror: 'twin_folder', shadowTwinFolderId: resolved.shadowTwinFolderId }
+      return {
+        mirror: 'twin_folder',
+        shadowTwinFolderId: resolved.shadowTwinFolderId,
+        mirrorFile: { fileId: resolved.fileId, fileName: resolved.fileName },
+      }
     }
     // Alt-Form neben der Quelle: driftfrei, aber nie fortschreiben (Contract §2) —
     // die Namens-Migration der Engine ueberfuehrt sie in den `_`-Ordner.
@@ -128,7 +137,8 @@ async function checkMirrorAndResolveTarget(args: {
   }
 
   const folder = await findShadowTwinFolder(doc.parentId, doc.sourceName, provider)
-  if (folder) return { mirror: 'twin_folder', shadowTwinFolderId: folder.id }
+  // mirrorFile: null = ausdruecklich aufgeloest, KEINE vorhanden (Neuanlage ohne zweite Suche).
+  if (folder) return { mirror: 'twin_folder', shadowTwinFolderId: folder.id, mirrorFile: null }
   return { mirror: 'skipped_no_folder' }
 }
 
@@ -176,6 +186,9 @@ export async function applyCurationPatch(args: CurationPatchArgs): Promise<Curat
     patches,
     shadowTwinFolderId: mirror === 'twin_folder' ? target.shadowTwinFolderId : undefined,
     skipFilesystemMirror: mirror !== 'twin_folder',
+    // Testsession §2.2: der Drift-Guard hat die Spiegel-Datei bereits aufgeloest —
+    // der Provider-Store braucht keine zweite Suche (2 Storage-Listings gespart).
+    knownMirrorFile: mirror === 'twin_folder' ? target.mirrorFile : undefined,
   })
 
   const patchedMeta = parseFrontmatter(patched.markdown).meta

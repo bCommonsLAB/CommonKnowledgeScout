@@ -764,15 +764,22 @@ export class StorageFactory {
           //console.log(`StorageFactory: User-Email an LocalStorageProvider gesetzt`);
         }
         break;
-      case 'onedrive':
-        provider = new OneDriveProvider(library, this.apiBaseUrl || undefined);
-        //console.log(`StorageFactory: OneDriveProvider erstellt`);
+      case 'onedrive': {
+        const oneDrive = new OneDriveProvider(library, this.apiBaseUrl || undefined);
         // Set user email if available
-        if (this.userEmail && 'setUserEmail' in (provider as unknown as { setUserEmail?: (e: string) => void })) {
-          (provider as unknown as { setUserEmail?: (e: string) => void }).setUserEmail?.(this.userEmail);
-          //console.log(`StorageFactory: User-Email an OneDriveProvider gesetzt`);
+        if (this.userEmail) {
+          oneDrive.setUserEmail(this.userEmail);
         }
+        // Server-Kontext: Token-Laden/-Speichern als direkter DB-Zugriff statt
+        // HTTP-Selbst-Aufruf (Testsession 25.08.2026 §2.1). Dynamischer Import,
+        // damit MongoDB nicht im Client-Bundle landet (Muster wie 'local'/'nextcloud').
+        if (this.serverContext && this.userEmail) {
+          const { createDbTokenStore } = await import('./onedrive/token-db');
+          oneDrive.setTokenStore(createDbTokenStore(this.userEmail, library.id));
+        }
+        provider = oneDrive;
         break;
+      }
       case 'nextcloud':
         if (this.serverContext) {
           // Server-Kontext: Direkt den WebDAV-Provider erstellen (kein HTTP-Proxy nötig).

@@ -81,6 +81,12 @@ export interface UpsertMarkdownOptions {
    * die der Contract verbietet (Twin-Datei-Contract §2).
    */
   skipFilesystemMirror?: boolean
+  /**
+   * Bereits aufgelöste Spiegel-Datei (Testsession §2.2): Der Provider-Store
+   * überspringt dann seine eigene resolveArtifact-Suche. `null` = aufgelöst,
+   * keine vorhanden (Neuanlage); `undefined` = nicht aufgelöst.
+   */
+  knownMirrorFile?: { fileId: string; fileName: string } | null
 }
 
 export interface ResolveSavedItemIdOptions {
@@ -332,7 +338,12 @@ export class ShadowTwinService {
         const fsContext = opts.shadowTwinFolderId
           ? { ...context, parentId: opts.shadowTwinFolderId }
           : context
-        await this.fallbackStore.upsertArtifact(key, opts.markdown, opts.binaryFragments, fsContext)
+        await this.fallbackStore.upsertArtifact(key, opts.markdown, opts.binaryFragments, {
+          ...fsContext,
+          // Testsession §2.2: bereits aufgelöstes Spiegel-Ziel durchreichen —
+          // der Provider-Store spart sich dann die erneute Storage-Suche.
+          knownMirrorFile: opts.knownMirrorFile,
+        })
       } catch {
         // Fehler beim Filesystem-Write nicht kritisch, wenn Primary erfolgreich war
         // Logging könnte hier sinnvoll sein
@@ -682,6 +693,8 @@ export class ShadowTwinService {
     shadowTwinFolderId?: string
     /** Spiegel-Write unterdrücken (kein gültiges Ziel) — siehe UpsertMarkdownOptions. */
     skipFilesystemMirror?: boolean
+    /** Bereits aufgelöste Spiegel-Datei — siehe UpsertMarkdownOptions. */
+    knownMirrorFile?: { fileId: string; fileName: string } | null
   }): Promise<{ markdown: string; id: string }> {
     const { kind, targetLanguage, patches } = opts
     let { templateName } = opts
@@ -754,6 +767,7 @@ export class ShadowTwinService {
       markdown: updatedMarkdown,
       shadowTwinFolderId: opts.shadowTwinFolderId,
       skipFilesystemMirror: opts.skipFilesystemMirror,
+      knownMirrorFile: opts.knownMirrorFile,
     })
 
     FileLogger.info('shadow-twin-service', 'Artefakt-Frontmatter gepatcht', {
