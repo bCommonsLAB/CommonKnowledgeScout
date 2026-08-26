@@ -8,7 +8,7 @@
  * @module shadow-twin/store
  */
 
-import type { ShadowTwinStore, ArtifactMarkdownResult, UpsertArtifactResult, BinaryFragment } from './shadow-twin-store'
+import type { ShadowTwinStore, ArtifactMarkdownResult, UpsertArtifactResult, UpsertArtifactContext, BinaryFragment } from './shadow-twin-store'
 import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
 import {
   getShadowTwinArtifact,
@@ -129,12 +129,7 @@ export class MongoShadowTwinStore implements ShadowTwinStore {
     key: ArtifactKey,
     markdown: string,
     binaryFragments?: BinaryFragment[],
-    context?: {
-      libraryId: string
-      userEmail: string
-      sourceName: string
-      parentId: string
-    }
+    context?: UpsertArtifactContext
   ): Promise<UpsertArtifactResult> {
     // Defense in depth: selbst wenn jemand den Store direkt nutzt, verhindern wir leere Writes.
     if (typeof markdown !== 'string' || markdown.trim().length === 0) {

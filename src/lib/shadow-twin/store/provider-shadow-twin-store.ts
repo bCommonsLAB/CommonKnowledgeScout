@@ -3,48 +3,61 @@
  *
  * @description
  * Implementiert ShadowTwinStore für Filesystem/OneDrive/Drive über StorageProvider.
- * Nutzt resolveArtifact() für die Artefakt-Auflösung.
+ * Nutzt resolveArtifact() für die Artefakt-Auflösung — MEMOISIERT je
+ * Store-Instanz (= je Request, Testsession 25.08.2026 §2.2): dieselbe
+ * Auflösung lief vorher bis zu dreimal pro Verifizieren (Drift-Guard,
+ * existsArtifact, upsertArtifact) mit je 2 Storage-Listings. Nach jedem
+ * Write wird der Memo geleert (der Storage hat sich geändert — kein
+ * stiller veralteter Treffer).
  *
  * @module shadow-twin/store
  */
 
-import type { ShadowTwinStore, ArtifactMarkdownResult, UpsertArtifactResult, BinaryFragment } from './shadow-twin-store'
+import type { ShadowTwinStore, ArtifactMarkdownResult, UpsertArtifactResult, UpsertArtifactContext, BinaryFragment } from './shadow-twin-store'
 import type { ArtifactKey } from '@/lib/shadow-twin/artifact-types'
 import type { StorageProvider } from '@/lib/storage/types'
-import { resolveArtifact } from '@/lib/shadow-twin/artifact-resolver'
+import { resolveArtifact, type ResolvedArtifact } from '@/lib/shadow-twin/artifact-resolver'
 import { buildArtifactName } from '@/lib/shadow-twin/artifact-naming'
 
 /**
  * Provider/Filesystem Shadow-Twin Store Implementation.
  */
 export class ProviderShadowTwinStore implements ShadowTwinStore {
+  /** Auflösungs-Memo je Request (Key: Zielort + Artefakt-Identität). */
+  private readonly resolved = new Map<string, Promise<ResolvedArtifact | null>>()
+
   constructor(
     private readonly provider: StorageProvider,
     private readonly sourceName: string,
     private readonly parentId: string
   ) {}
 
-  async existsArtifact(key: ArtifactKey): Promise<boolean> {
-    const resolved = await resolveArtifact(this.provider, {
+  /** resolveArtifact mit Request-Memo — identische Anfragen laufen nur einmal. */
+  private resolveCached(key: ArtifactKey, sourceName: string, parentId: string): Promise<ResolvedArtifact | null> {
+    const memoKey = `${parentId}|${sourceName}|${key.kind}|${key.templateName ?? ''}|${key.targetLanguage}`
+    const cached = this.resolved.get(memoKey)
+    if (cached) return cached
+    const pending = resolveArtifact(this.provider, {
       sourceItemId: key.sourceId,
-      sourceName: this.sourceName,
-      parentId: this.parentId,
+      sourceName,
+      parentId,
       targetLanguage: key.targetLanguage,
       templateName: key.templateName,
       preferredKind: key.kind,
     })
+    this.resolved.set(memoKey, pending)
+    // Fehlgeschlagene Auflösungen nicht memoisieren — der nächste Aufruf darf es erneut versuchen.
+    pending.catch(() => this.resolved.delete(memoKey))
+    return pending
+  }
+
+  async existsArtifact(key: ArtifactKey): Promise<boolean> {
+    const resolved = await this.resolveCached(key, this.sourceName, this.parentId)
     return resolved !== null
   }
 
   async getArtifactMarkdown(key: ArtifactKey): Promise<ArtifactMarkdownResult | null> {
-    const resolved = await resolveArtifact(this.provider, {
-      sourceItemId: key.sourceId,
-      sourceName: this.sourceName,
-      parentId: this.parentId,
-      targetLanguage: key.targetLanguage,
-      templateName: key.templateName,
-      preferredKind: key.kind,
-    })
+    const resolved = await this.resolveCached(key, this.sourceName, this.parentId)
 
     if (!resolved) return null
 
@@ -80,12 +93,7 @@ export class ProviderShadowTwinStore implements ShadowTwinStore {
     key: ArtifactKey,
     markdown: string,
     binaryFragments?: BinaryFragment[],
-    context?: {
-      libraryId: string
-      userEmail: string
-      sourceName: string
-      parentId: string
-    }
+    context?: UpsertArtifactContext
   ): Promise<UpsertArtifactResult> {
     // Defense in depth: Provider-Store schreibt in Dateien – leere Dateien sollen nicht entstehen.
     if (typeof markdown !== 'string' || markdown.trim().length === 0) {
@@ -103,46 +111,51 @@ export class ProviderShadowTwinStore implements ShadowTwinStore {
     const fileName = buildArtifactName(key, context?.sourceName || this.sourceName)
     const targetParentId = context?.parentId || this.parentId
 
-    // Prüfe, ob Datei bereits existiert
-    const existing = await this.existsArtifact(key)
-    let fileId: string
+    // Testsession §2.2: Hat der Aufrufer bereits aufgelöst (Drift-Guard der
+    // Kuration), entfällt die erneute Suche komplett — `null` heißt dabei
+    // ausdrücklich „aufgelöst, keine vorhanden" (Neuanlage ohne Listings).
+    const known = context?.knownMirrorFile
+    const resolved = known === undefined
+      ? await this.resolveCached(key, context?.sourceName || this.sourceName, targetParentId)
+      : null
 
-    if (existing) {
-      // Update: Lade bestehende Datei und aktualisiere Inhalt
-      const resolved = await resolveArtifact(this.provider, {
-        sourceItemId: key.sourceId,
-        sourceName: context?.sourceName || this.sourceName,
-        parentId: targetParentId,
-        targetLanguage: key.targetLanguage,
-        templateName: key.templateName,
-        preferredKind: key.kind,
-      })
-
-      if (resolved) {
-        fileId = resolved.fileId
-        // Aktualisiere Inhalt: Lösche alte Datei und erstelle neue
-        await this.provider.deleteItem(fileId)
-        // Erstelle die Datei neu mit uploadFile
-        const newFile = await this.provider.uploadFile(
+    try {
+      // Update: Inhalts-Update statt DELETE + PUT (Testsession §2.3 — zwischen
+      // Löschen und Neu-Hochladen existierte die Spiegeldatei NICHT; ein
+      // Absturz genau dort verlor sie). uploadFile überschreibt bei allen
+      // Providern namensgleich im selben Ordner (OneDrive PUT :/content,
+      // fs.writeFile, WebDAV overwrite) — die Datei ist zu keinem Zeitpunkt weg.
+      // Geschrieben wird unter dem VORHANDENEN Namen an ihrem Fundort;
+      // Alt-Namen überführt weiterhin die Namens-Migration der Engine.
+      if (known) {
+        const updated = await this.provider.uploadFile(
           targetParentId,
-          new File([markdown], fileName, { type: 'text/markdown' })
+          new File([markdown], known.fileName, { type: 'text/markdown' })
         )
-        fileId = newFile.id
-      } else {
-        throw new Error(`Artefakt existiert, konnte aber nicht aufgelöst werden: ${fileName}`)
+        return { id: updated.id, name: known.fileName }
       }
-    } else {
+      if (resolved) {
+        const overwriteParentId =
+          resolved.location === 'dotFolder' && resolved.shadowTwinFolderId
+            ? resolved.shadowTwinFolderId
+            : targetParentId
+        const updated = await this.provider.uploadFile(
+          overwriteParentId,
+          new File([markdown], resolved.fileName, { type: 'text/markdown' })
+        )
+        return { id: updated.id, name: resolved.fileName }
+      }
+
       // Create: Neue Datei erstellen mit uploadFile
       const item = await this.provider.uploadFile(
         targetParentId,
         new File([markdown], fileName, { type: 'text/markdown' })
       )
-      fileId = item.id
-    }
-
-    return {
-      id: fileId,
-      name: fileName,
+      return { id: item.id, name: fileName }
+    } finally {
+      // Nach jedem Write ist der Storage-Zustand neu — Memo leeren, damit
+      // spätere Auflösungen im selben Request nichts Veraltetes sehen.
+      this.resolved.clear()
     }
   }
 

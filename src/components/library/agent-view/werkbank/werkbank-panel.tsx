@@ -21,10 +21,13 @@
 
 import { useMemo } from 'react'
 import { useArtefaktKuration } from '@/hooks/agent-view/use-artefakt-kuration'
+import { useKurationNachladen } from '@/hooks/agent-view/use-kuration-nachladen'
 import { useWerkbankBaum } from '@/hooks/agent-view/use-werkbank-baum'
 import { useWerkbankThemen } from '@/hooks/agent-view/use-werkbank-themen'
 import { useWerkbankListe } from '@/hooks/agent-view/use-werkbank-liste'
 import { useWerkbankUrlState } from '@/hooks/agent-view/use-werkbank-url-state'
+import { mergeOverrides } from '@/lib/agent-view/kuration-overlay'
+import { familienImTeilbaum } from '@/lib/agent-view/teilbaum'
 import type { CoverageReport } from '@/lib/agent-view/types'
 import { filtereVorhaben, sortiereVorhaben, type BefundFilter } from '@/lib/agent-view/werkbank-filter'
 import { beschreibeLeereWerkbankListe } from '@/lib/agent-view/werkbank-leer'
@@ -58,7 +61,19 @@ export function WerkbankPanel({ report, generatedAt, libraryLabel, localRootPath
   // A4: Kuration wohnt im Panel — Baum-Kennung, Zaehler und Kopf lesen
   // dieselben frischen Overrides (Verifikationen seit dem letzten Scan).
   const kuration = useArtefaktKuration(report.libraryId)
-  const baum = useWerkbankBaum(report, kuration.overrides)
+  // K1: Beim gewaehlten Vorhaben den Kurationszustand frisch aus MongoDB
+  // ueberlagern (eine Abfrage, kein Scan) — Verifikationen ueberleben den
+  // Reload; die Session-Overrides gewinnen gegen den Snapshot.
+  const vorhabenFamilien = useMemo(() => {
+    const pfad = report.vorhaben.find((karte) => karte.folderId === vorhabenId)?.path
+    return pfad === undefined ? undefined : familienImTeilbaum(report.families, pfad)
+  }, [report.vorhaben, report.families, vorhabenId])
+  const nachgeladen = useKurationNachladen(report.libraryId, vorhabenFamilien)
+  const overrides = useMemo(
+    () => mergeOverrides(nachgeladen.basis, kuration.overrides),
+    [nachgeladen.basis, kuration.overrides],
+  )
+  const baum = useWerkbankBaum(report, overrides)
   // A6: frisch geschriebene Themen ueberlagern die Karten bis zum Scan.
   const themen = useWerkbankThemen(report, konfigurierteThemen ?? [])
   const arbeitsliste = useWerkbankListe({
@@ -173,6 +188,12 @@ export function WerkbankPanel({ report, generatedAt, libraryLabel, localRootPath
     // der Abzug schrumpft entsprechend (vorher 16rem mit Kennzahlen-Bloecken).
     <div className="flex h-[calc(100dvh-11rem)] min-h-[420px] flex-col gap-2">
       <WerkbankAltReportHinweise karten={themen.karten} gruppierung={gruppierung} />
+      {nachgeladen.fehler !== null && (
+        <p className="text-xs text-amber-600 dark:text-amber-500">
+          Kurationszustand konnte nicht nachgeladen werden ({nachgeladen.fehler}) — die Anzeige
+          folgt dem gespeicherten Report und kann hinter frischen Verifikationen zurückliegen.
+        </p>
+      )}
       <WerkbankLayout
         liste={liste}
         detail={detail}

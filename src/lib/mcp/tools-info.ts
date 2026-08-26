@@ -20,7 +20,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { jsonResult } from './tool-shared'
 
 /** Version des Werkzeugsatzes — bei jeder Werkzeug-/Schema-Aenderung erhoehen. */
-export const TOOLSET_VERSION = '2.3.0'
+export const TOOLSET_VERSION = '2.4.0'
 
 /** Soll-Liste der Werkzeuge (Reihenfolge = Registrierung in tools.ts). */
 export const TOOL_NAMES = [
@@ -41,6 +41,7 @@ export const TOOL_NAMES = [
   'aenderungen_seit',
   'erschliessung_block_schreiben',
   'stand_setzen',
+  'themen_setzen',
   'bruecke_info',
 ] as const
 

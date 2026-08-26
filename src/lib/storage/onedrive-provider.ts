@@ -26,6 +26,7 @@ import { ClientLibrary } from '@/types/library';
 import { FileLogger } from '@/lib/debug/logger';
 import * as process from 'process';
 import { extractGraphEndpoint, parseRetryAfter } from './onedrive/errors';
+import type { OneDriveTokenStore } from './onedrive/token-store';
 
 interface OneDriveFile {
   id: string;
@@ -144,6 +145,16 @@ export class OneDriveProvider implements StorageProvider {
     this.userEmail = email;
   }
 
+  // Server-Kontext: direkter DB-Zugriff auf die Token-Ablage (Testsession
+  // 25.08.2026 §2.1 — vorher lief jedes Token-Laden/-Speichern als
+  // HTTP-Selbst-Aufruf durch den eigenen Next-Server). Injiziert die
+  // StorageFactory; ohne Injektion bleibt der HTTP-Weg als benannter Rueckfall.
+  private tokenStore: OneDriveTokenStore | null = null;
+
+  setTokenStore(store: OneDriveTokenStore) {
+    this.tokenStore = store;
+  }
+
   private normalizeBasePath(input: string | undefined): string {
     if (!input) return '';
     const trimmed = input.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
@@ -242,80 +253,53 @@ export class OneDriveProvider implements StorageProvider {
           accessToken?: string; refreshToken?: string; tokenExpiry?: number | string
         } | undefined;
         
-        // WICHTIG: Im Server-Kontext IMMER die Token-API verwenden, nicht library.config
+        // WICHTIG: Im Server-Kontext IMMER frisch aus der DB lesen, nicht library.config
         // Grund: library.config kann veraltet sein, wenn Client die Tokens refreshed hat
-        // Die Token-API liefert immer die neuesten Tokens aus der DB
-        // Fallback auf library.config nur, wenn Token-API fehlschlägt
-        
-        // Versuche zuerst Token-API (immer aktuell)
-        console.log('[OneDriveProvider][loadTokens] Server-Kontext: Lade Tokens aus DB (Token-API für aktuelle Tokens)...', {
-          libraryId: this.library.id,
-          userEmail: effectiveEmail,
-          baseUrl: this.baseUrl,
-          apiUrl: `${this.baseUrl}/api/libraries/${this.library.id}/tokens${effectiveEmail ? `?email=${encodeURIComponent(effectiveEmail)}` : ''}`
-        });
+        // Fallback auf library.config nur, wenn der DB-Zugriff fehlschlägt
         try {
-          // Verwende userEmail aus dem Kontext, falls verfügbar
-          const emailParam = effectiveEmail ? `?email=${encodeURIComponent(effectiveEmail)}` : '';
-          const apiUrl = `${this.baseUrl}/api/libraries/${this.library.id}/tokens${emailParam}`;
-          console.log('[OneDriveProvider][loadTokens] Rufe Token-API auf:', { apiUrl: apiUrl.replace(/token=[^&]+/g, 'token=[REDACTED]') });
-          
-          const response = await fetch(apiUrl, {
-            method: 'GET',
-            headers: { 'X-Internal-Request': '1' }
-          });
-          
-          console.log('[OneDriveProvider][loadTokens] Token-API Response:', {
-            status: response.status,
-            statusText: response.statusText,
-            ok: response.ok,
-            headers: Object.fromEntries(response.headers.entries())
-          });
-          
-          if (response.ok) {
-            const tokenData = await response.json();
-            console.log('[OneDriveProvider][loadTokens] Token-Daten aus DB erhalten:', {
-              hasAccessToken: !!tokenData.accessToken,
-              hasRefreshToken: !!tokenData.refreshToken,
-              hasTokenExpiry: !!tokenData.tokenExpiry,
-              tokenExpiryValue: tokenData.tokenExpiry,
-              debug: tokenData.debug,
-              keys: Object.keys(tokenData)
-            });
-            
-            if (tokenData.accessToken && tokenData.refreshToken) {
-              this.accessToken = tokenData.accessToken;
-              this.refreshToken = tokenData.refreshToken;
-              // tokenExpiry kommt als Unix-Timestamp in Sekunden aus der DB
-              // Konvertiere zu Millisekunden für internen Gebrauch
-              const expirySeconds = Number(tokenData.tokenExpiry || 0);
-              this.tokenExpiry = expirySeconds > 1000000000000 ? expirySeconds : expirySeconds * 1000; // Prüfe ob bereits Millisekunden
+          if (this.tokenStore) {
+            // Direkter Funktionsaufruf (Testsession 25.08.2026 §2.1) — kein
+            // HTTP-Roundtrip durch den eigenen Server, kein INTERNAL_SELF_BASE_URL.
+            const tokens = await this.tokenStore.load();
+            if (tokens) {
+              this.accessToken = tokens.accessToken;
+              this.refreshToken = tokens.refreshToken;
+              // tokenExpiry liegt als Unix-Sekunden in der DB → intern Millisekunden
+              const expirySeconds = Number(tokens.tokenExpiry || 0);
+              this.tokenExpiry = expirySeconds > 1000000000000 ? expirySeconds : expirySeconds * 1000;
               this.authenticated = true;
-              console.log('[OneDriveProvider][loadTokens] ✅ Tokens erfolgreich aus DB geladen', {
-                tokenExpiryRaw: tokenData.tokenExpiry,
-                tokenExpirySeconds: expirySeconds,
-                tokenExpiry: new Date(this.tokenExpiry).toISOString(),
-                hasAccessToken: !!this.accessToken,
-                hasRefreshToken: !!this.refreshToken,
-                authenticated: this.authenticated
-              });
               return;
+            }
+            console.warn('[OneDriveProvider][loadTokens] Keine Tokens in der DB (direkter Zugriff)', {
+              libraryId: this.library.id, userEmail: effectiveEmail,
+            });
+          } else {
+            // Benannter Rueckfall: Provider ohne injizierten Store (z.B. ausserhalb
+            // der Factory erzeugt) geht weiter ueber die interne Token-Route.
+            console.warn('[OneDriveProvider][loadTokens] Kein Token-Store injiziert — HTTP-Selbst-Aufruf als Rueckfall', {
+              libraryId: this.library.id,
+            });
+            const emailParam = effectiveEmail ? `?email=${encodeURIComponent(effectiveEmail)}` : '';
+            const response = await fetch(`${this.baseUrl}/api/libraries/${this.library.id}/tokens${emailParam}`, {
+              method: 'GET',
+              headers: { 'X-Internal-Request': '1' }
+            });
+            if (response.ok) {
+              const tokenData = await response.json();
+              if (tokenData.accessToken && tokenData.refreshToken) {
+                this.accessToken = tokenData.accessToken;
+                this.refreshToken = tokenData.refreshToken;
+                const expirySeconds = Number(tokenData.tokenExpiry || 0);
+                this.tokenExpiry = expirySeconds > 1000000000000 ? expirySeconds : expirySeconds * 1000;
+                this.authenticated = true;
+                return;
+              }
             } else {
-              console.warn('[OneDriveProvider][loadTokens] ⚠️ Token-Daten unvollständig:', {
-                hasAccessToken: !!tokenData.accessToken,
-                hasRefreshToken: !!tokenData.refreshToken,
-                tokenDataKeys: Object.keys(tokenData)
+              const errorData = await response.json().catch(() => ({}));
+              console.warn('[OneDriveProvider][loadTokens] ❌ Fehler beim Laden der Tokens aus DB:', {
+                status: response.status, error: errorData.error,
               });
             }
-          } else {
-            const errorData = await response.json().catch(() => ({}));
-            console.warn('[OneDriveProvider][loadTokens] ❌ Fehler beim Laden der Tokens aus DB:', {
-              status: response.status,
-              statusText: response.statusText,
-              error: errorData.error,
-              debug: errorData.debug,
-              errorData: errorData
-            });
           }
         } catch (dbError) {
           console.error('[OneDriveProvider][loadTokens] ❌ Exception beim Laden der Tokens aus DB:', {
@@ -444,11 +428,16 @@ export class OneDriveProvider implements StorageProvider {
     // Server-Kontext: Tokens in der Library-Konfiguration persistieren (DB)
     if (typeof window === 'undefined') {
       try {
-        await fetch(this.getApiUrl(`/api/libraries/${this.library.id}/tokens`), {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', 'X-Internal-Request': '1' },
-          body: JSON.stringify({ accessToken, refreshToken, tokenExpiry: Math.floor(expiry / 1000).toString() })
-        });
+        if (this.tokenStore) {
+          // Direkter Funktionsaufruf statt PATCH-Selbst-Aufruf (Testsession §2.1).
+          await this.tokenStore.save({ accessToken, refreshToken, tokenExpiry: Math.floor(expiry / 1000) });
+        } else {
+          await fetch(this.getApiUrl(`/api/libraries/${this.library.id}/tokens`), {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'X-Internal-Request': '1' },
+            body: JSON.stringify({ accessToken, refreshToken, tokenExpiry: Math.floor(expiry / 1000).toString() })
+          });
+        }
       } catch (error) {
         console.error('[OneDriveProvider] Fehler beim Speichern der Tokens in der DB:', error);
       }
@@ -477,7 +466,12 @@ export class OneDriveProvider implements StorageProvider {
     // Server: DB-Eintrag löschen
     if (typeof window === 'undefined') {
       try {
-        await fetch(this.getApiUrl(`/api/libraries/${this.library.id}/tokens`), { method: 'DELETE', headers: { 'X-Internal-Request': '1' } });
+        if (this.tokenStore) {
+          // Direkter Funktionsaufruf statt DELETE-Selbst-Aufruf (Testsession §2.1).
+          await this.tokenStore.clear();
+        } else {
+          await fetch(this.getApiUrl(`/api/libraries/${this.library.id}/tokens`), { method: 'DELETE', headers: { 'X-Internal-Request': '1' } });
+        }
       } catch (error) {
         console.error('[OneDriveProvider] Fehler beim Entfernen der Tokens in der DB:', error);
       }

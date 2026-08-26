@@ -36,6 +36,7 @@ import { registerInfoTool } from './tools-info'
 import { registerSichtenTools } from './tools-sichten'
 import { registerAenderungenTools } from './tools-aenderungen'
 import { registerStandTool } from './tools-stand'
+import { registerThemenTool } from './tools-themen'
 import { registerOrdnerTools } from './tools-ordner'
 import { registerUmzugTools } from './tools-umzug'
 
@@ -48,6 +49,7 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerSichtenTools(server)
   registerAenderungenTools(server)
   registerStandTool(server)
+  registerThemenTool(server)
   registerInfoTool(server)
   server.registerTool(
     'bibliotheken_auflisten',
@@ -91,7 +93,7 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
     },
     async ({ libraryId, pfad, akteur, zyklusSchritt, nurZaehler, maxBefunde, maxFamilien }) => {
       try {
-        await requireLibrary(mcpUserEmail(), libraryId)
+        const library = await requireLibrary(mcpUserEmail(), libraryId)
         const stored = await getCoverageReport(libraryId)
         if (!stored) {
           return jsonResult({
@@ -111,6 +113,7 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
             akteur: akteur ?? null,
             zyklusSchritt: zyklusSchritt ?? null,
             nurZaehler: nurZaehler === true,
+            themenVokabular: library.config?.agentView?.themen ?? null,
             maxGaps: maxBefunde,
             maxFamilies: maxFamilien,
           }),
@@ -138,7 +141,7 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
     async ({ libraryId, folderId, pfad }) => {
       try {
         const userEmail = mcpUserEmail()
-        await requireLibrary(userEmail, libraryId)
+        const library = await requireLibrary(userEmail, libraryId)
         const scope = await resolveScope({ userEmail, libraryId, folderId, pfad })
         // W8-Nachzug: derselbe Weg wie der Knopf in der Agentensicht — ein
         // Teilbaum-Scan MERGED in den gespeicherten Voll-Report, statt ihn zu
@@ -158,6 +161,7 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
             totalGaps: stored.totalGaps,
             delta: stored.delta ?? null,
             deltaHinweis: stored.deltaHinweis ?? null,
+            themenVokabular: library.config?.agentView?.themen ?? null,
           }),
           /** true = in den Voll-Report gemergt; false + Hinweis = ersetzt (benannt). */
           inVollReportGemergt: merged,

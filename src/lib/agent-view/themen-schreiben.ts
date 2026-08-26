@@ -35,6 +35,11 @@ export class ThemaUngueltigError extends Error {
   readonly code = 'thema_ungueltig' as const
 }
 
+/** Der Ordner traegt andere Themen, als der Aufrufer sah — nichts geschrieben. */
+export class ThemenWiderspruchError extends Error {
+  readonly code = 'themen_widerspruch' as const
+}
+
 /**
  * Prueft und normalisiert die Themenliste: getrimmt, nicht leer, einzeilig,
  * ohne Duplikate — und ohne Komma/eckige Klammern (die Trennzeichen der
@@ -75,6 +80,29 @@ export interface ThemenErgebnis {
   themen: string[]
 }
 
+export interface ThemenOptionen {
+  /**
+   * Riegel gegen konkurrierende Schreiber (MCP-Bruecke, analog
+   * `erwarteterStand` beim Stand): die Themen, die der Aufrufer aktuell am
+   * Vorhaben sieht — explizit `null`, wenn der Ordner keine deklariert.
+   * Weicht der Stand im Storage ab: {@link ThemenWiderspruchError}, nichts
+   * geschrieben. Die UI (Mensch klickt auf dem sichtbaren Stand) laesst die
+   * Optionen weg.
+   */
+  erwarteteThemen: readonly string[] | null
+}
+
+/** Riegel: gelesener Ist-Stand gegen die Sicht des Aufrufers (reihenfolgetreu). */
+function pruefeErwarteteThemen(aktuell: readonly string[], erwartet: readonly string[] | null): void {
+  const gesehen = (erwartet ?? []).map((thema) => thema.trim())
+  if (JSON.stringify(aktuell) === JSON.stringify(gesehen)) return
+  const zeige = (liste: readonly string[]) => (liste.length === 0 ? 'keine Themen' : `[${liste.join(', ')}]`)
+  throw new ThemenWiderspruchError(
+    `Der Ordner traegt aktuell ${zeige(aktuell)}, der Aufruf erwartete ${zeige(gesehen)} — ` +
+      'nichts geschrieben. Stand neu lesen und mit den gesehenen Themen erneut aufrufen.',
+  )
+}
+
 /**
  * Setzt die gepflegten Themen eines Vorhabens: `_INDEX.md` lesen, `themen:`
  * zeilen-chirurgisch ersetzen (JSON-Flow-Liste), ruecklesen, ersetzen.
@@ -85,6 +113,7 @@ export async function setzeThemen(
   folderId: string,
   themen: readonly string[],
   ports: StandSchreibenPorts,
+  optionen?: ThemenOptionen,
 ): Promise<ThemenErgebnis> {
   const geprueft = pruefeThemen(themen)
 
@@ -102,6 +131,9 @@ export async function setzeThemen(
   if (!index) throw new KeinIndexError(await ports.folderName())
 
   const original = await ports.readText(index.id)
+  if (optionen !== undefined) {
+    pruefeErwarteteThemen(asList(parseFrontmatter(original).meta.themen), optionen.erwarteteThemen)
+  }
   // Unquoted Flow-Liste (EINE Zeile) — die Schreibweise, die Scan-Parser
   // und Obsidian gleichermassen lesen; verbotene Zeichen prueft pruefeThemen.
   const wert = `[${geprueft.join(', ')}]`

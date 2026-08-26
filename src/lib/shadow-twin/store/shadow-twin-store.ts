@@ -103,6 +103,25 @@ export interface BinaryFragment {
 }
 
 /**
+ * Zusätzlicher Kontext für upsertArtifact (libraryId, userEmail, Zielort).
+ */
+export interface UpsertArtifactContext {
+  libraryId: string
+  userEmail: string
+  sourceName: string
+  parentId: string
+  /**
+   * Bereits aufgelöste Spiegel-Datei (Testsession 25.08.2026 §2.2 —
+   * Artefakt-Auflösung je Request nur EINMAL): Wenn gesetzt, überspringt der
+   * Provider-Store die resolveArtifact-Suche (2 Storage-Listings) und
+   * aktualisiert exakt diese Datei. `null` = der Aufrufer HAT aufgelöst und
+   * weiß, dass es keine gibt (Neuanlage ohne Suche). `undefined` = nicht
+   * aufgelöst — der Store sucht selbst. Der Mongo-Store ignoriert das Feld.
+   */
+  knownMirrorFile?: { fileId: string; fileName: string } | null
+}
+
+/**
  * Interface für Shadow-Twin Storage-Implementierungen.
  *
  * Jede Implementierung (MongoDB, Filesystem/Provider) muss diese Methoden bereitstellen.
@@ -137,12 +156,7 @@ export interface ShadowTwinStore {
     key: ArtifactKey,
     markdown: string,
     binaryFragments?: BinaryFragment[],
-    context?: {
-      libraryId: string
-      userEmail: string
-      sourceName: string
-      parentId: string
-    }
+    context?: UpsertArtifactContext
   ): Promise<UpsertArtifactResult>
 
   /**

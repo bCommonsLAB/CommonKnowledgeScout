@@ -125,7 +125,32 @@ entstehen sollte, und an der richtigen Stelle. So kamen im Pilot ein
 verschachtelter Twin-Ordner und der leere Rest eines gescheiterten Jobs ans
 Licht.
 
-### 5 — Neu scannen, berichten, Stand setzen
+### 5 — Themen zuordnen
+
+Die Themen-Zuordnung ist Aufgabe des Aufräum-Agenten, nicht des Menschen im
+Dropdown — beim Aufräumen liegt die Übersicht ohnehin hier (Entscheidung
+25.08.2026). Ein Vorhaben kann mehrere Themen tragen.
+
+- **Quelle:** `abdeckung_lesen` liefert den `themen`-Block — `vokabular`
+  (kuratierte Liste aus den Library-Einstellungen) und `jeVorhaben`
+  (vergebene Themen; `null` = Report vor A6, `[]` = noch ohne Thema). Nur
+  Namen aus dem Vokabular vergeben; fehlt ein passendes, Peter vorschlagen
+  statt erfinden.
+- **Präfix sagt die Art der Arbeit:** `ACT-` Aktivismus · `DEV-` Entwicklung
+  an einem Projekt · `KS-` Querschnitt KnowledgeScout · `LIB-` Inhaltsarbeit
+  für eine Library · `SEC-` Querschnitt Secretary Service.
+- **Die Ordnernamen geben das Thema nicht her** — sie sind Ereignisnamen.
+  „26.04 Klimabotschafter Treffen" gehört zu `ACT-Klima`, ohne dass ein Wort
+  darauf hinweist. Die Zuordnung verlangt den Blick in den Bericht
+  (`BERICHT.md`/`_INDEX.md`), der in Schritt 4 ohnehin offen war.
+- **Schreiben mit `themen_setzen`:** `themen` ersetzt die komplette Liste;
+  `erwarteteThemen` ist Pflicht — exakt die Themen, die gerade am Vorhaben
+  zu sehen sind, explizit `null`, wenn der Ordner keine deklariert. Weicht
+  der Stand im Storage ab, wird nichts geschrieben (Riegel gegen
+  konkurrierende Schreiber). Wie jeder Schreibvorgang: vorher fragen, bei
+  mehreren Vorhaben einmal pro Gruppe.
+
+### 6 — Neu scannen, berichten, Stand setzen
 
 `abdeckung_scannen` mit `pfad` oder `folderId`.
 
@@ -210,7 +235,7 @@ die Jobs korrekt starten — dann rettet `job_liste` die verlorenen Ids.
 **Toolliste veraltet.** `bruecke_info` nennt Version und Soll-Liste. Weicht die
 eigene Sicht ab, hilft kein Refresh — Peter bitten, die Erweiterung in den
 Einstellungen aus- und wieder einzuschalten. Fehlt `stand_setzen`, ist die
-Liste älter als Werkzeugsatz 2.3.0.
+Liste älter als Werkzeugsatz 2.3.0; fehlt `themen_setzen`, älter als 2.4.0.
 
 **Zwei getrennte Bericht-Regeln.** `bericht_veraltet` prüft, ob der Bericht
 älter ist als die jüngste Änderung im Vorhaben — er kommt nach jedem
