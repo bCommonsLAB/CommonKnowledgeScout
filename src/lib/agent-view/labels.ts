@@ -88,6 +88,7 @@ const TWIN_STATUS_LABELS: Record<(typeof TWIN_STATUS_VALUES)[number], string> = 
   draft: 'Entwurf',
   stable: 'Stabil',
   deprecated: 'Veraltet',
+  flagged: 'Als fehlerhaft markiert',
 }
 
 /**

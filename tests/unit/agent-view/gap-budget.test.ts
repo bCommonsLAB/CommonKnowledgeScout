@@ -43,7 +43,7 @@ describe('gap-budget', () => {
     const result = applyGapBudget(FOLDERS, [
       gap('source_without_twin', 'alt'),
       gap('source_without_twin', 'alt-2024'),
-      gap('twin_unverified', 'alt-2024'),
+      gap('twin_flagged', 'alt-2024'),
       gap('report_missing', 'pilot'),
     ])
     expect(result.collapsed).toBe(3)

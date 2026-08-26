@@ -31,7 +31,7 @@ function karte(overrides: Partial<VorhabenCard> = {}): VorhabenCard {
     folderId: 'f-pilot', name: 'Pilot', path: '1. Arbeit/Pilot',
     bearbeitungsstand: 'berichtet', bearbeitungsstandSeit: null, hasBericht: true,
     totalGaps: 1, gapsByActor: { mensch: 1, cowork: 0, knowledgescout: 0 },
-    gapsByType: { twin_unverified: 1 }, widerspruch: false,
+    gapsByType: { stand_widerspruch: 1 }, widerspruch: false,
     ampel: 'gelb', berichtTitel: null, berichtFileId: null,
     berichtModifiedAt: null, berichtStatus: null, themen: [],
     ...overrides,

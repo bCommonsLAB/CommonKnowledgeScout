@@ -42,7 +42,7 @@ describe('computeCoverageDelta (D1)', () => {
     ])
     // A wurde transformiert: der alte Befund weg, ein Verifikations-Befund NEU.
     const next = report([
-      gap('A.m4a', 'twin_unverified'),
+      gap('A.m4a', 'twin_flagged'),
       gap('B.pdf', 'source_without_twin'),
     ])
     const { delta, hinweis } = computeCoverageDelta({
@@ -53,7 +53,7 @@ describe('computeCoverageDelta (D1)', () => {
     expect(delta).toMatchObject({
       erledigt: 1, neu: 1,
       erledigtNachTyp: { transformation_missing: 1 },
-      neuNachTyp: { twin_unverified: 1 },
+      neuNachTyp: { twin_flagged: 1 },
       vorherigerScan: '2026-08-21T09:00:00.000Z',
     })
   })

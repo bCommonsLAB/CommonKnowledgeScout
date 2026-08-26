@@ -12,7 +12,7 @@
  * @module agent-view
  */
 
-import { istBereitZurAbnahme } from './abnahme'
+import { wartetAufAbnahme } from './abnahme'
 import type { GapCountByActor, VorhabenCard } from './types'
 
 /** Minimale Mitglieds-Form (strukturkompatibel zum Repo-`WorklistFolderEntry`). */
@@ -63,7 +63,7 @@ export function zaehleWorklistFortschritt(karten: readonly VorhabenCard[]): Work
   const offeneBefunde: GapCountByActor = { mensch: 0, cowork: 0, knowledgescout: 0 }
   for (const karte of karten) {
     if (karte.bearbeitungsstand === 'abgenommen' && !karte.widerspruch) fertig += 1
-    else if (istBereitZurAbnahme(karte.gapsByActor)) bereit += 1
+    else if (wartetAufAbnahme(karte)) bereit += 1
     offeneBefunde.mensch += karte.gapsByActor.mensch
     offeneBefunde.cowork += karte.gapsByActor.cowork
     offeneBefunde.knowledgescout += karte.gapsByActor.knowledgescout

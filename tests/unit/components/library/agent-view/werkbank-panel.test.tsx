@@ -97,8 +97,11 @@ describe('WerkbankPanel — Leerzustaende (Akzeptanzkriterium 4)', () => {
     expect(screen.getAllByText(/Kein Vorhaben im Report/).length).toBeGreaterThan(0)
   })
 
-  it('Default „Bereit": nichts wartet auf den Menschen ⇒ benannte Begruendung, keine stumme Flaeche', () => {
-    renderPanel(report([card('1. Arbeit/Pilot'), card('2. Privat/Steuer')]))
+  it('Default „Bereit": ueberall Widerstand ⇒ benannte Begruendung, keine stumme Flaeche', () => {
+    // ADR 0006: Befundfreie Vorhaben SIND jetzt bereit — fuer den Leerzustand
+    // braucht es darum Karten mit echtem Widerstand.
+    const mitWiderstand = { totalGaps: 1, gapsByType: { source_without_twin: 1 }, gapsByActor: { mensch: 0, cowork: 0, knowledgescout: 1 }, ampel: 'rot' as const }
+    renderPanel(report([card('1. Arbeit/Pilot', mitWiderstand), card('2. Privat/Steuer', mitWiderstand)]))
     expect(screen.getAllByText(/Kein Vorhaben ist bereit zur Abnahme \(2 im Report\)/).length).toBeGreaterThan(0)
   })
 

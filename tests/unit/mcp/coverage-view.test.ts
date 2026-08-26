@@ -196,17 +196,24 @@ describe('summarizeCoverageReport', () => {
     expect(zaehler.filter.befundeNachTyp).toEqual({ source_without_twin: 2 })
   })
 
-  it('benennt „bereit zur Abnahme“: null maschinelle Befunde, alles wartet auf F4 (D2)', () => {
+  it('benennt „bereit zur Abnahme“: kein Widerstand offen (D2, ADR 0006)', () => {
     const gemischt = summarize()
     expect(gemischt.filter.bereitZurAbnahme).toBe(false)
 
+    // Nicht-sperrender Mensch-Befund: bereit.
     const nurMensch = summarize({
-      gaps: [gap('Pilot/A.pdf', 'twin_unverified')],
+      gaps: [gap('Pilot/A.pdf', 'stand_widerspruch')],
     })
     expect(nurMensch.filter.bereitZurAbnahme).toBe(true)
 
-    // Leerer Scope ist NICHT „bereit“ — dort gibt es nichts abzunehmen.
-    expect(summarize({ gaps: [] }).filter.bereitZurAbnahme).toBe(false)
+    // Fehler-Markierung sperrt — sie ist ein benannter Widerstand.
+    const markiert = summarize({
+      gaps: [gap('Pilot/A.pdf', 'twin_flagged')],
+    })
+    expect(markiert.filter.bereitZurAbnahme).toBe(false)
+
+    // Leerer Scope: nichts steht im Weg.
+    expect(summarize({ gaps: [] }).filter.bereitZurAbnahme).toBe(true)
   })
 
   it('weist die Kappung des GESPEICHERTEN Reports aus', () => {

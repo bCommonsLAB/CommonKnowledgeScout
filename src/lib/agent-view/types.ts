@@ -45,7 +45,7 @@ export type CoverageGapType =
   | 'core_fields_missing'
   // — Twin-Kern-/Verifikations-Regeln (Contract §3) —
   | 'twin_core_missing'
-  | 'twin_unverified'
+  | 'twin_flagged'
   | 'self_verified'
   | 'transformation_missing'
   | 'transformation_stale'

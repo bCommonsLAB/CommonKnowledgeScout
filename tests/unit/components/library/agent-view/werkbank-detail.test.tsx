@@ -85,7 +85,7 @@ function karte(overrides: Partial<VorhabenCard> = {}): VorhabenCard {
     folderId: 'f-pilot', name: 'Pilot', path: '1. Arbeit/Pilot',
     bearbeitungsstand: 'berichtet', bearbeitungsstandSeit: null, hasBericht: true,
     totalGaps: 1, gapsByActor: { mensch: 1, cowork: 0, knowledgescout: 0 },
-    gapsByType: { twin_unverified: 1 }, widerspruch: false,
+    gapsByType: { stand_widerspruch: 1 }, widerspruch: false,
     ampel: 'rot', berichtTitel: 'Pilotbericht', berichtFileId: 'id-b1',
     berichtModifiedAt: null, berichtStatus: 'aktiv', themen: [],
     ...overrides,
@@ -114,7 +114,7 @@ function report(overrides: Partial<CoverageReport> = {}): CoverageReport {
       gapsByType: {}, gapsByActor: { mensch: 1, cowork: 0, knowledgescout: 0 },
       skippedExcluded: { archive: 0, engine: 0 }, collapsedGaps: 0, scanErrors: 0,
     },
-    gaps: [gapAt('1. Arbeit/Pilot', 'f-pilot', 'twin_unverified')],
+    gaps: [gapAt('1. Arbeit/Pilot', 'f-pilot', 'stand_widerspruch')],
     // Pilot-Knoten traegt die folderId der Karte — die Fusszeile findet ihn darueber.
     tree: [{ ...knoten('1. Arbeit'), children: [{ ...knoten('1. Arbeit/Pilot'), folderId: 'f-pilot' }] }],
     vorhaben: [karte()],
@@ -206,11 +206,15 @@ describe('WerkbankDetail — Bericht (W2-Route + bestehende MarkdownPreview)', (
 })
 
 describe('WerkbankDetail — Kopf und Aktionen', () => {
-  it('A4: „Vorhaben abnehmen" folgt Entscheidung 6 — nur Maschinen-Befunde sperren', () => {
+  it('A4: „Vorhaben abnehmen" sperrt bei Widerstaenden — Maschine ODER Fehler-Markierung (ADR 0006)', () => {
     renderDetail(report())
     expect(screen.getByRole('button', { name: 'Vorhaben abnehmen' }).hasAttribute('disabled')).toBe(false)
     cleanup()
     renderDetail(report(), karte({ gapsByActor: { mensch: 1, cowork: 1, knowledgescout: 0 } }))
+    expect(screen.getByRole('button', { name: 'Vorhaben abnehmen' }).hasAttribute('disabled')).toBe(true)
+    cleanup()
+    // Neu: Was der Mensch als fehlerhaft markiert hat, sperrt ebenfalls.
+    renderDetail(report(), karte({ gapsByType: { twin_flagged: 1 } }))
     expect(screen.getByRole('button', { name: 'Vorhaben abnehmen' }).hasAttribute('disabled')).toBe(true)
   })
 

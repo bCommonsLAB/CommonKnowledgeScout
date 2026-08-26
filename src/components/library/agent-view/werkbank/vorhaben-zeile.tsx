@@ -20,7 +20,7 @@
 
 import { AlertTriangle, ChevronDown, ChevronRight, FileText, Pin, PinOff } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { istBereitZurAbnahme } from '@/lib/agent-view/abnahme'
+import { wartetAufAbnahme } from '@/lib/agent-view/abnahme'
 import { actorSummary, standLabel } from '@/lib/agent-view/labels'
 import type { PruefZaehler } from '@/lib/agent-view/werkbank-baum'
 import type { VorhabenCard } from '@/lib/agent-view/types'
@@ -105,7 +105,7 @@ export function VorhabenZeile({
             M {card.gapsByActor.mensch} · C {card.gapsByActor.cowork} · K {card.gapsByActor.knowledgescout}
           </span>
           {card.hasBericht && <FileText className="h-3 w-3" aria-label="BERICHT.md vorhanden" />}
-          {istBereitZurAbnahme(card.gapsByActor) && (
+          {wartetAufAbnahme(card) && (
             <Badge className="h-4 bg-emerald-600 px-1.5 text-[10px] text-white hover:bg-emerald-600">bereit</Badge>
           )}
         </span>

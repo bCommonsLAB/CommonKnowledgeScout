@@ -40,7 +40,7 @@ describe('stand-widerspruch', () => {
     const gap = checkStandWiderspruch({
       node: node(),
       newestChangeInSubtree: null,
-      subtreeGapTypes: ['twin_unverified', 'source_without_twin'],
+      subtreeGapTypes: ['twin_flagged', 'source_without_twin'],
     })
     // Fruehester betroffener Schritt gewinnt: source_without_twin (Schritt 1, KS).
     expect(gap?.zyklusSchritt).toBe(1)
@@ -58,23 +58,23 @@ describe('stand-widerspruch', () => {
   })
 
   // Befund 24.08.2026 (Live-Lauf ueber die Bruecke): Ein Ordner auf
-  // „berichtet" mit 28 offenen `twin_unverified` bekam einen Widerspruch —
+  // „berichtet" mit 28 offenen `twin_flagged` bekam einen Widerspruch —
   // obwohl genau das der Zustand ist, auf den die Abnahme wartet.
   describe('der Zyklus-Schritt entscheidet', () => {
-    it('„berichtet" wird NICHT von Schritt-4-Befunden widerlegt (twin_unverified)', () => {
+    it('„berichtet" wird NICHT von Schritt-4-Befunden widerlegt (twin_flagged)', () => {
       const berichtet = node({ bearbeitungsstand: 'berichtet' })
       const gap = checkStandWiderspruch({
-        node: berichtet, newestChangeInSubtree: null, subtreeGapTypes: ['twin_unverified'],
+        node: berichtet, newestChangeInSubtree: null, subtreeGapTypes: ['twin_flagged'],
       })
       expect(gap).toBeNull()
     })
 
     it('„abgenommen" wird sehr wohl von Schritt-4-Befunden widerlegt', () => {
       const gap = checkStandWiderspruch({
-        node: node(), newestChangeInSubtree: null, subtreeGapTypes: ['twin_unverified'],
+        node: node(), newestChangeInSubtree: null, subtreeGapTypes: ['twin_flagged'],
       })
       expect(gap?.type).toBe('stand_widerspruch')
-      expect(gap?.detail).toContain('twin_unverified')
+      expect(gap?.detail).toContain('twin_flagged')
     })
 
     it('„berichtet" wird von frueheren Schritten weiterhin widerlegt', () => {
@@ -89,10 +89,10 @@ describe('stand-widerspruch', () => {
       const berichtet = node({ bearbeitungsstand: 'berichtet' })
       const gap = checkStandWiderspruch({
         node: berichtet, newestChangeInSubtree: null,
-        subtreeGapTypes: ['twin_unverified', 'report_missing'],
+        subtreeGapTypes: ['twin_flagged', 'report_missing'],
       })
       expect(gap?.detail).toContain('report_missing')
-      expect(gap?.detail).not.toContain('twin_unverified')
+      expect(gap?.detail).not.toContain('twin_flagged')
     })
 
     it('der Aenderungs-Verdacht bleibt unabhaengig vom Schritt bestehen', () => {
@@ -100,7 +100,7 @@ describe('stand-widerspruch', () => {
       const gap = checkStandWiderspruch({
         node: berichtet,
         newestChangeInSubtree: '2026-08-20T10:00:00.000Z',
-        subtreeGapTypes: ['twin_unverified'],
+        subtreeGapTypes: ['twin_flagged'],
       })
       expect(gap?.detail).toContain('Pruefauftrag')
     })
@@ -108,7 +108,7 @@ describe('stand-widerspruch', () => {
 
   describe('widerlegendeTypen', () => {
     it('schneidet je Stand bei dessen behauptetem Schritt ab', () => {
-      const alle = ['source_without_twin', 'index_missing', 'report_missing', 'twin_unverified'] as const
+      const alle = ['source_without_twin', 'index_missing', 'report_missing', 'twin_flagged'] as const
       expect(widerlegendeTypen(alle, 'erschlossen')).toEqual(['source_without_twin'])
       expect(widerlegendeTypen(alle, 'strukturiert')).toEqual(['source_without_twin', 'index_missing'])
       expect(widerlegendeTypen(alle, 'berichtet')).toEqual(['source_without_twin', 'index_missing', 'report_missing'])

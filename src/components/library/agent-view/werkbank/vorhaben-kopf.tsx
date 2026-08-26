@@ -7,7 +7,8 @@
  * Zeile 1: Titel · Stand-Chip · EIN primaerer Knopf „Vorhaben abnehmen" ·
  * Menue `⋯`. Zeile 2: Breadcrumb · Fortschritt `n von m geprueft` ·
  * Sammelaktionen (Entscheidung 3). Der Knopf folgt Entscheidung 6: er
- * sperrt NUR bei offenen maschinellen Befunden ({@link istAbnehmbar}) —
+ * sperrt bei offenen Widerstaenden ({@link istAbnehmbar}): maschinelle
+ * Befunde ODER Fehler-Markierungen (ADR 0006) —
  * offene Menschen-Punkte sperren ausdruecklich nicht, frueher abzunehmen
  * bleibt Peters Entscheidung. Stand-Fehler (409 mit Befundliste), Override-
  * und Merge-Hinweise stehen benannt unter den zwei Zeilen.
@@ -61,7 +62,7 @@ export function VorhabenKopf({ karte, stand, generatedAt, libraryId, familien, k
   const aktuellSeit = override ? override.bearbeitungsstandSeit : karte.bearbeitungsstandSeit
   const fehler = stand.fehlerByFolder.get(karte.folderId)
   const pending = stand.pendingFolderId === karte.folderId
-  const bereit = istAbnehmbar(karte.gapsByActor)
+  const bereit = istAbnehmbar(karte.gapsByActor, karte.gapsByType)
   const abgenommen = aktuellerStand === 'abgenommen'
   const zaehler = familien === undefined ? null : zaehlePruefstand(familien)
   const archivHref = `/library?activeLibraryId=${encodeURIComponent(libraryId)}&folderId=${encodeURIComponent(karte.folderId)}`
