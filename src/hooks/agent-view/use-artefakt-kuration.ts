@@ -32,9 +32,18 @@ interface CurationRouteResponse {
     generatedAt: string | null
     verifiedBy: string | null
     verifiedAt: string | null
+    flaggedBy: string | null
+    flaggedAt: string | null
+    flaggedNote: string | null
     verificationValid: boolean
   }
 }
+
+/** Body-Formen der Kurations-Route — genau eine Aktion je Aufruf. */
+type KurationsAktion =
+  | { set: { twin_status: string } }
+  | { verify: true }
+  | { markiere: { notiz: string } }
 
 export interface SammelErgebnis {
   erledigt: number
@@ -51,6 +60,15 @@ export interface UseArtefaktKurationResult {
   fehler: ReadonlyMap<string, string>
   /** Verifiziert EIN Artefakt; liefert den frischen Zustand oder null (Fehler). */
   verifiziere: (familie: TwinFamilySummary, artefakt: LeadingArtifactSummary) => Promise<LeadingArtifactSummary | null>
+  /**
+   * Markiert EIN Artefakt als fehlerhaft (ADR 0006). Die Notiz ist Pflicht —
+   * eine leere lehnt der Server ab, der Befund erscheint in {@link fehler}.
+   */
+  markiere: (
+    familie: TwinFamilySummary,
+    artefakt: LeadingArtifactSummary,
+    notiz: string,
+  ) => Promise<LeadingArtifactSummary | null>
   setzeTwinStatus: (familie: TwinFamilySummary, artefakt: LeadingArtifactSummary, twinStatus: string) => Promise<void>
   /** Sammel-Verifikation (sequenziell); liefert das benannte Ergebnis. */
   sammelVerifiziere: (
@@ -80,6 +98,9 @@ function mergeArtefakt(
     generatedAt: curation.generatedAt,
     verifiedBy: curation.verifiedBy,
     verifiedAt: curation.verifiedAt,
+    flaggedBy: curation.flaggedBy,
+    flaggedAt: curation.flaggedAt,
+    flaggedNote: curation.flaggedNote,
     verification: verificationStateOf({
       generated_at: curation.generatedAt ?? undefined,
       verified_by: curation.verifiedBy ?? undefined,
@@ -98,7 +119,7 @@ export function useArtefaktKuration(libraryId: string): UseArtefaktKurationResul
     async (
       familie: TwinFamilySummary,
       artefakt: LeadingArtifactSummary,
-      body: { set?: { twin_status: string }; verify?: boolean },
+      body: KurationsAktion,
     ): Promise<LeadingArtifactSummary> => {
       const response = await fetch(
         `/api/library/${encodeURIComponent(libraryId)}/shadow-twins/curation`,
@@ -129,7 +150,7 @@ export function useArtefaktKuration(libraryId: string): UseArtefaktKurationResul
     async (
       familie: TwinFamilySummary,
       artefakt: LeadingArtifactSummary,
-      body: { set?: { twin_status: string }; verify?: boolean },
+      body: KurationsAktion,
     ): Promise<LeadingArtifactSummary | null> => {
       const key = artefaktKey(familie.sourceId, artefakt)
       setPendingKey(key)
@@ -152,6 +173,11 @@ export function useArtefaktKuration(libraryId: string): UseArtefaktKurationResul
 
   const verifiziere = useCallback(
     (familie: TwinFamilySummary, artefakt: LeadingArtifactSummary) => einzel(familie, artefakt, { verify: true }),
+    [einzel],
+  )
+  const markiere = useCallback(
+    (familie: TwinFamilySummary, artefakt: LeadingArtifactSummary, notiz: string) =>
+      einzel(familie, artefakt, { markiere: { notiz } }),
     [einzel],
   )
   const setzeTwinStatus = useCallback(
@@ -183,5 +209,5 @@ export function useArtefaktKuration(libraryId: string): UseArtefaktKurationResul
     [patch],
   )
 
-  return { overrides, pendingKey, fehler, verifiziere, setzeTwinStatus, sammelVerifiziere, sammelLaeuft }
+  return { overrides, pendingKey, fehler, verifiziere, markiere, setzeTwinStatus, sammelVerifiziere, sammelLaeuft }
 }

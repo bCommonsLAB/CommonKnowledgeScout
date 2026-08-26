@@ -216,6 +216,10 @@ export interface LeadingArtifactSummary {
   generatedAt: string | null
   verifiedBy: string | null
   verifiedAt: string | null
+  /** Fehler-Markierung (ADR 0006): wer, wann, was stimmt nicht. */
+  flaggedBy: string | null
+  flaggedAt: string | null
+  flaggedNote: string | null
   verification: VerificationState
 }
 

@@ -67,7 +67,9 @@ function reportFamilie(): TwinFamilySummary {
   const unverifiziert = (kind: 'transcript' | 'transformation', templateName: string | null, lang: string): LeadingArtifactSummary => ({
     kind, templateName, targetLanguage: lang,
     twinStatus: null, generatedBy: 'knowledgescout/x', generatedAt: GENERIERT,
-    verifiedBy: null, verifiedAt: null, verification: 'unverifiziert',
+    verifiedBy: null, verifiedAt: null,
+    flaggedBy: null, flaggedAt: null, flaggedNote: null,
+    verification: 'unverifiziert',
   })
   return {
     sourceId: 'src-1', sourceName: 'Aufnahme.m4a', folderId: 'ordner-1', path: 'Vorhaben/Aufnahme.m4a',

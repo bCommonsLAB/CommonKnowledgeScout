@@ -36,6 +36,7 @@ import {
   buildCurationPatches,
   hasMirrorDrift,
   type CurationArtifactRef,
+  type FehlerMarkierung,
 } from './curation-plan'
 import { getShadowTwinConfig } from './shadow-twin-config'
 import { ShadowTwinService } from './store/shadow-twin-service'
@@ -57,6 +58,8 @@ export interface CurationPatchArgs {
   set?: Record<string, unknown> | null
   /** Verify-Aktion: `verified_by: human:<userEmail>` + `verified_at`. */
   verify: boolean
+  /** Markier-Aktion (ADR 0006): `twin_status: flagged` + Urheber/Zeit/Notiz. */
+  markiere?: FehlerMarkierung | null
   /** Zeitquelle (Tests injizieren eine feste Uhr). */
   now?: () => string
 }
@@ -70,6 +73,10 @@ export interface CurationPatchResult {
     generatedAt: string | null
     verifiedBy: string | null
     verifiedAt: string | null
+    /** Fehler-Markierung nach dem Patch (ADR 0006); null = keine. */
+    flaggedBy: string | null
+    flaggedAt: string | null
+    flaggedNote: string | null
     /** Temporale Regel §3.2: `verified_at >= generated_at`. */
     verificationValid: boolean
   }
@@ -160,6 +167,8 @@ export async function applyCurationPatch(args: CurationPatchArgs): Promise<Curat
   const patches = buildCurationPatches({
     set: args.set,
     verify: args.verify,
+    markiere: args.markiere,
+    aktuellerTwinStatus: meta['twin_status'],
     userEmail,
     generatedBy: meta['generated_by'],
     now: now(),
@@ -205,6 +214,9 @@ export async function applyCurationPatch(args: CurationPatchArgs): Promise<Curat
       generatedAt: stringOrNull(patchedMeta['generated_at']),
       verifiedBy: stringOrNull(patchedMeta['verified_by']),
       verifiedAt: stringOrNull(patchedMeta['verified_at']),
+      flaggedBy: stringOrNull(patchedMeta['flagged_by']),
+      flaggedAt: stringOrNull(patchedMeta['flagged_at']),
+      flaggedNote: stringOrNull(patchedMeta['flagged_note']),
       verificationValid:
         stringOrNull(patchedMeta['verified_by']) !== null &&
         isVerificationValid({

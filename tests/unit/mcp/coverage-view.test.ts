@@ -35,7 +35,9 @@ function family(path: string): TwinFamilySummary {
     leading: {
       kind: 'transcript', templateName: null, targetLanguage: '', twinStatus: null,
       generatedBy: 'knowledgescout/x', generatedAt: '2026-08-01T10:00:00.000Z',
-      verifiedBy: null, verifiedAt: null, verification: 'unverifiziert',
+      verifiedBy: null, verifiedAt: null,
+      flaggedBy: null, flaggedAt: null, flaggedNote: null,
+      verification: 'unverifiziert',
     },
   }
 }
