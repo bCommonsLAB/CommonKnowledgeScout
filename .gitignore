@@ -51,8 +51,5 @@ template-samples/diva sample content/*
 # Original-Website-Dump (Webflow-HTML + Fremd-Libs + grosse Bilder) — nur lokale Referenz
 template-samples/oldiesforfuture-original/
 
-# Windows junction: .cursor/skills/ → .claude/skills/ (lokal pro Maschine)
-.cursor/skills
-
 # Reparatur-/Migrations-Backups (enthalten Prod-Daten, nie committen)
 backups/

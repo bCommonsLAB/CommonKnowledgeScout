@@ -150,8 +150,8 @@ Detail: `docs/wizards/umbauplan-generischer-erfassungs-wizard.md` (U0–U8),
 
 ```
 Branch von `master` (z.B. `feature/plan1-a1-verifikationsstatus`). Pflichtlektüre:
-docs/roadmap-formatunabhaengige-library-und-onboarding.md, .cursorrules, alle
-.cursor/rules/*.mdc mit alwaysApply, AGENTS.md, docs/adr/0004-capture-publish-
+docs/roadmap-formatunabhaengige-library-und-onboarding.md, CLAUDE.md, alle
+die immer geltenden Contracts (@-Import in CLAUDE.md), AGENTS.md, docs/adr/0004-capture-publish-
 entkopplung-inbox-modell.md (Promote/Inbox).
 
 Kontext A0 (Fundament, schon auf master, NICHT neu bauen):

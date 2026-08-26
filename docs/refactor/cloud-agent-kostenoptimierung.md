@@ -51,7 +51,7 @@ Lies VOR dem Start (in dieser Reihenfolge):
 2. ../contracts/cloud-agent-cost-strategy.md
 3. ../contracts/refactor-batch-strategy.md
 4. ../contracts/refactor-naming-konvention.md
-5. .cursor/rules/welle-<MODUL>-contracts.mdc
+5. docs/contracts/welle-<MODUL>-contracts.md
 6. docs/refactor/<MODUL>/AGENT-BRIEF.md (Sektion "<SUB-WELLE>")
 7. docs/refactor/<MODUL>/04-altlast-pass.md (Hot-Spot-Liste)
 8. docs/refactor/<MODUL>/06-acceptance-<VOR-WELLE>.md (Vorgaenger-Bilanz)

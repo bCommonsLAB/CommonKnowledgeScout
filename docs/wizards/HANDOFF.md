@@ -57,13 +57,13 @@ cloud-tauglich.
 - **Modell:** Sonnet mit „think" reicht für 3a-2/3a-3 und W1 (klar abgegrenzt,
   testgetrieben). Opus nur, falls das Inbox-Datenmodell größer/architektonisch wird.
 - **Agent-Typ:** **neuer Agent** (frischer Kontext). Pflichtlektüre zu Beginn:
-  `.cursorrules`, alle `.cursor/rules/*.mdc` mit `alwaysApply`, `AGENTS.md`,
+  `CLAUDE.md`, alle `../contracts/*.md` mit `alwaysApply`, `AGENTS.md`,
   `docs/adr/0003`, `docs/adr/0004`, dieses Hand-off, `docs/wizards/abnahme-inbox-plan.md`.
 
 ## 5. Start-Prompt für die Cloud-Session (kopierbar)
 
 > Branch `claude/knowledge-scout-wizard-ux-yjOwS` (auschecken + pullen).
-> Pflichtlektüre: `.cursorrules`, `.cursor/rules/*.mdc` (alwaysApply), `AGENTS.md`,
+> Pflichtlektüre: `CLAUDE.md`, `../contracts/*.md` (alwaysApply), `AGENTS.md`,
 > `docs/wizards/HANDOFF.md`, `docs/adr/0003` + `0004`,
 > `docs/wizards/abnahme-inbox-plan.md`.
 > Ziel: **Inbox W1** umsetzen — Submission-Datenmodell + MongoDB-Repo (CRUD +

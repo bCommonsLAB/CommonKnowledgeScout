@@ -92,7 +92,7 @@ Output: `docs/refactor/<modul>/00-audit.md` mit drei Tabellen.
 
 | Rule-Datei | Bezug zum Modul | Status | Aktion | Begruendung |
 |---|---|---|---|---|
-| `.cursor/rules/example.mdc` | direkt | aktuell | keep | dokumentiert geltende Regel |
+| `docs/contracts/example.md` | direkt | aktuell | keep | dokumentiert geltende Regel |
 
 ## B. Tests
 
@@ -126,7 +126,7 @@ Tabelle pro Modul: Datei, Zeilen, hat Test ja/nein, `any`-Anzahl, leere Catches,
 
 ## Schritt 2 — Contracts fixieren
 
-Pro Modul `.cursor/rules/<modul>-contracts.mdc`. Vorbild: [../contracts/contracts-story-pipeline.md](../contracts/contracts-story-pipeline.md).
+Pro Modul `../contracts/<modul>-contracts.md`. Vorbild: [../contracts/contracts-story-pipeline.md](../contracts/contracts-story-pipeline.md).
 
 ### Vorlage Contract-Rule
 
@@ -206,7 +206,7 @@ Commit pro Datei fuer saubere History.
 **Audit-Findings beachten** (Cleanup von Bestands-Artefakten):
 
 - Tests mit Status `delete` aus Schritt 0 hier entfernen
-- Rules mit Status `delete` aus `.cursor/rules/` entfernen
+- Rules mit Status `delete` aus `../contracts/` entfernen
 - Docs mit Status `delete` oder `archive` aus `docs/` entfernen oder nach `docs/archive/` verschieben
 
 ## Schritt 7 — Abnahme

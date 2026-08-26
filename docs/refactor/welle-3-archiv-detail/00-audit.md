@@ -50,7 +50,7 @@ Galerie/Story/Chat ist Welle 3-III.
 
 ## A. Cursor Rules
 
-11 von 19 `.cursor/rules/*.mdc`-Dateien haben Bezug zur Welle 3-II.
+11 von 19 `../../contracts/*.md`-Dateien haben Bezug zur Welle 3-II.
 
 | Rule-Datei | Bezug | Status | Aktion | Begruendung |
 |---|---|---|---|---|

@@ -1,17 +1,15 @@
 # Claude Code – Projektkontext CommonKnowledgeScout
 
-Diese Datei ist die Einstiegspunkt-Memory für Claude Code. Sie importiert die
-bestehenden Cursor-Konventionen, damit beide Tools dieselbe Quelle nutzen.
+Einstiegs-Memory für Claude Code. Was ein Agent bei JEDEM Task wissen muss,
+hängt an dieser Datei — direkt oder über die `@`-Importe unten. Das Projekt
+wird ausschließlich mit Claude Code entwickelt; frühere Cursor-Konventionen
+sind hierher bzw. nach `docs/contracts/` überführt.
 
-## Universelle Agent-Regeln (Cursor + Claude Code)
+## Universelle Agent-Regeln
 
 @AGENTS.md
 
-## Generelle Coding-Konventionen (Cursor-Legacy)
-
-@.cursorrules
-
-## Architektur-Contracts (alwaysApply)
+## Architektur-Contracts (gelten immer)
 
 @docs/contracts/no-silent-fallbacks.md
 @docs/contracts/storage-abstraction.md
@@ -64,16 +62,112 @@ Wiederkehrende Muster — lesen, statt Referenz-Code komplett zu reverse-enginee
 
 ## Skills
 
-Skills liegen unter [.claude/skills/](.claude/skills/). Cursor erreicht sie
-über eine Windows-Junction `.cursor/skills/` → `.claude/skills/` (lokal,
-nicht in Git — siehe `.gitignore`). Wenn die Junction fehlt, kann sie neu
-erzeugt werden:
+Skills liegen unter [.claude/skills/](.claude/skills/) und werden anhand ihrer
+`description` automatisch geladen, wenn ein Task dazu passt.
 
-```powershell
-New-Item -ItemType Junction -Path ".cursor\skills" -Target "$PWD\.claude\skills"
-```
+**Contract-Skills** — fassen die Regeln eines Bereichs zusammen und verweisen
+auf `docs/contracts/` (Zuordnung siehe Routing-Index oben):
+`contracts-pipeline`, `contracts-storage-twin`, `contracts-ingestion-chat`,
+`contracts-templates-media`, `contracts-ui`, `checklisten-erweiterung`.
+
+**Aufgaben-Skills** — führen eine konkrete Tätigkeit aus:
+`archiv-aufraeumen`, `integration-test`, `shadow-twin-verify`,
+`website-publishing`.
 
 ## Pläne
 
-Aktive Cursor-Pläne liegen unter [docs/plans/](docs/plans/). Aktiver
-Plan ist in `AGENTS.md` referenziert.
+Aktive Pläne liegen unter [docs/plans/](docs/plans/), erledigte unter
+[docs/plans/archiv/](docs/plans/archiv/). Der aktive Plan ist in `AGENTS.md`
+benannt. Die `status:`-Marker in den Plan-Dateien sind nicht verlässlich
+gepflegt — im Zweifel gegen den Code prüfen.
+
+## Coding-Konventionen
+
+**Benennungskonventionen**
+- Verwende Kleinbuchstaben mit Bindestrichen für Verzeichnisse (z. B. `components/auth-wizard`).
+- Bevorzuge benannte Exporte für Komponenten.
+
+**TypeScript**
+- Bevorzuge `interfaces` statt `types`.
+- Vermeide `enums`; nutze stattdessen Maps.
+
+**Schlüsselkonventionen**
+- Nutze `nuqs` für die Zustandsverwaltung von URL-Suchparametern.
+- Begrenze `use client`: bevorzuge Server-Komponenten und Next.js SSR; nutze es nur
+  für Web-API-Zugriffe in kleinen Komponenten, nicht für Datenabruf oder
+  Zustandsverwaltung.
+- Verwende `pnpm` als Paketmanager.
+
+**State-Management**
+- Jotai für atomare Zustandsverwaltung.
+- TanStack Query für Server-Zustände.
+- React Hook Form + Zod für Formularverwaltung.
+
+**Authentifizierung**
+- Clerk für Authentifizierung; Next.js Middleware für Routen-Schutz.
+
+### TypeScript-Linter-Regeln
+
+#### 1. unknown/any in JSX
+- Niemals `unknown` oder `any` direkt als JSX-Child verwenden.
+- Immer vorher in einen String umwandeln:
+  ```tsx
+  <pre>{value !== undefined && value !== null ? String(value) : ''}</pre>
+  ```
+  oder
+  ```tsx
+  <pre>{typeof value === 'string' ? value : JSON.stringify(value)}</pre>
+  ```
+
+#### 2. Type Assertion/Type Guard
+- Bei Zugriff auf Properties von `unknown` immer ein Interface und Type Assertion/Type Guard nutzen:
+  ```ts
+  interface MyType { foo: string }
+  const val = obj as MyType;
+  ```
+
+#### 3. Fehlerobjekte im catch-Block
+- Wenn das Fehlerobjekt nicht verwendet wird: `catch { ... }` statt `catch (error) { ... }`.
+
+### Next.js 13+ App Router Regeln
+
+#### Route Handler Parameter
+In Next.js 13+ App Router müssen dynamische Route-Parameter IMMER awaited werden:
+
+```typescript
+// ❌ FALSCH
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const id = params.id; // FEHLER!
+}
+
+// ✅ RICHTIG
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params; // Params müssen awaited werden!
+}
+```
+
+#### API Route Pattern
+Alle API Routes sollten diesem Pattern folgen:
+1. Params als Promise typisieren: `{ params: Promise<{ paramName: string }> }`
+2. Params awaiten: `const { paramName } = await params;`
+3. Authentifizierung prüfen
+4. Request-Body parsen (wenn nötig)
+5. Business-Logik ausführen
+6. Response zurückgeben
+
+#### Sicherheitsregeln
+1. NIEMALS sensible Daten (Tokens, Secrets) an den Client senden
+2. Client Secrets immer maskieren: `clientSecret: secret ? '********' : undefined`
+3. Token-Status statt Token-Werte zurückgeben
+
+#### Projekt-spezifische Regeln
+- LibraryService.getInstance() für Datenbankzugriffe verwenden
+- Clerk für Authentifizierung (auth() und currentUser())
+- MongoDB für Datenpersistierung
+- Immer User-Email statt User-ID verwenden

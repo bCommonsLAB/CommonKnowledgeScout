@@ -63,7 +63,7 @@ Hooks-Future-Work (Welle 3-II-Hooks) ebenfalls.
 
 ## A. Cursor Rules
 
-13 von 23 `.cursor/rules/*.mdc`-Dateien haben Bezug zur Welle 3-III.
+13 von 23 `../../contracts/*.md`-Dateien haben Bezug zur Welle 3-III.
 
 | Rule-Datei | Bezug | Status | Aktion | Begruendung |
 |---|---|---|---|---|

@@ -1,6 +1,6 @@
 # Agent Instructions for CommonKnowledgeScout
 
-Verbindliche Kurz-Regeln fuer alle Agenten (lokal und Cursor Cloud).
+Verbindliche Kurz-Regeln fuer alle Agenten (lokal und in Remote-Sessions).
 Detaillierte Begruendungen + Beispiele:
 [`docs/agents-handbuch.md`](docs/agents-handbuch.md).
 
@@ -17,8 +17,10 @@ Kickoff fuer Plan 1 (neue/Online-Session) steht im Fahrplan-Dokument.
 
 ## Pflicht-Lektuere zu Beginn jedes Tasks
 
-1. `.cursorrules`
-2. Alle `.cursor/rules/*.mdc` mit `alwaysApply: true`
+1. `CLAUDE.md` (Einstiegs-Memory: Routing-Index, Coding-Konventionen;
+   laedt die immer geltenden Contracts per `@`-Import)
+2. Fuer den bearbeiteten Pfad: die im Routing-Index genannten Contracts
+   unter `docs/contracts/` — der passende Contract-Skill fasst sie zusammen
 3. Diese Datei — insb. den Abschnitt „Aktueller Fahrplan"
 4. [`docs/roadmap-formatunabhaengige-library-und-onboarding.md`](docs/roadmap-formatunabhaengige-library-und-onboarding.md) (Reihenfolge + Plan-1-Kickoff)
 5. Bei Refactor-Tasks: `docs/refactor/<modul>/00-audit.md` (Bestands-

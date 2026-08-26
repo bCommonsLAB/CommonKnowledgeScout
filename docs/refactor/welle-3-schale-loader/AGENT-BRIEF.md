@@ -29,7 +29,7 @@ Code-Aenderungen landen direkt in `src/components/library/`, `src/app/library/`,
 
 - File: `docs/refactor/welle-3-schale-loader/00-audit.md`
 - 3 Tabellen (Rules, Tests, Docs) wie in [Pilot-Vorlage](../external-jobs/00-audit.md)
-- **Rules**: Mindestens pruefen `storage-abstraction.mdc`, `no-silent-fallbacks.mdc`, `media-lifecycle.mdc`, plus alle `.cursor/rules/*.mdc`, die UI/Library-Schale erwaehnen.
+- **Rules**: Mindestens pruefen `storage-abstraction.mdc`, `no-silent-fallbacks.mdc`, `media-lifecycle.mdc`, plus alle `../../contracts/*.md`, die UI/Library-Schale erwaehnen.
 - **Tests**: Alle 5 Tests in `tests/unit/components/` pruefen, Aktion (`keep` fuer alle ausser ggf. testimonial-list — verifizieren).
 - **Docs**: `docs/architecture/*.md`, `docs/reference/*.md` — Doku, die App-Schale oder Library-Loader beschreibt.
 - **Vorab-Bestaetigung** (vom IDE-Agenten geklaert): es gibt aktuell **0 Vitest-Tests** fuer die 16 Welle-3-I-Files (siehe `01-inventory.md` Sektion 2). Das ist der Char-Test-Backlog fuer Schritt 3.

@@ -58,7 +58,7 @@ isProject: false
 ## 1. Ist-Zustand (Fakten aus dem Repo)
 
 - 30+ Module unter [src/lib/](src/lib/), 8 Top-Dateien zwischen 1.854 und 3.947 Zeilen, ~90 Vitest-Unit-Tests in [tests/unit/](tests/unit/).
-- 13 `.cursor/rules/*.mdc` und [.cursorrules](.cursorrules) bereits formuliert, aber im Code nicht durchgängig durchgesetzt.
+- 13 `../contracts/*.md` und [CLAUDE.md](../../CLAUDE.md) bereits formuliert, aber im Code nicht durchgängig durchgesetzt.
 - Konkrete Drift-Symptome bereits gefunden:
   - Silent Fallback in [src/lib/external-jobs-repository.ts](src/lib/external-jobs-repository.ts) Zeile 320 (`} catch { return undefined }`)
   - UI kennt Storage in [src/components/library/file-preview.tsx](src/components/library/file-preview.tsx) Zeile 1129 (`primaryStore === 'filesystem'`)
@@ -91,7 +91,7 @@ Output unter `docs/refactor/<modul>/00-audit.md` mit drei Tabellen:
 **A. Cursor Rules**
 | Rule-Datei | Bezug zum Modul | Status | Aktion |
 |---|---|---|---|
-| `.cursor/rules/<name>.mdc` | direkt / indirekt / global | aktuell / veraltet / widerspruechlich | keep / update / merge / delete |
+| `../contracts/<name>.md` | direkt / indirekt / global | aktuell / veraltet / widerspruechlich | keep / update / merge / delete |
 
 **B. Tests**
 | Test-Datei | Testet welchen Code | Code existiert? | Vertrag korrekt? | Aktion |
@@ -113,7 +113,7 @@ Skript [scripts/module-health.mjs](scripts/module-health.mjs) (neu) erzeugt pro 
 Output unter `docs/refactor/<modul>/01-inventory.md`.
 
 ### Schritt 2 - Contracts fixieren
-Pro Modul `.cursor/rules/<modul>-contracts.mdc` mit harten Invarianten (Vorbild: bestehende [../contracts/contracts-story-pipeline.md](../contracts/contracts-story-pipeline.md)).
+Pro Modul `../contracts/<modul>-contracts.md` mit harten Invarianten (Vorbild: bestehende [../contracts/contracts-story-pipeline.md](../contracts/contracts-story-pipeline.md)).
 Format: §1 Determinismus, §2 Fehler-Semantik, §3 erlaubte/verbotene Abhängigkeiten, §4 Skip-/Default-Semantik.
 **Audit-Findings beachten**: Rules mit Status `update`/`merge` aus Schritt 0 werden hier aktualisiert; Rules mit Status `delete` werden in Schritt 6 entfernt (nicht hier).
 
@@ -133,7 +133,7 @@ Jede Datei wird gegen diese 8 Punkte geprüft, Funde direkt gefixt:
 - (1) **Fehlende Tests** - in Schritt 3 abgedeckt
 - (2) **Silent Fallbacks** (`catch {}`, `?? []`) - durch `throw` oder bewusstes Default mit Begründung + Logging via [src/lib/logging/](src/lib/logging/) ersetzen
 - (3) **UI/Storage-Branches** - in Service-Layer verschieben (siehe [../contracts/storage-abstraction.md](../contracts/storage-abstraction.md))
-- (4) **`any`-Drift** - `unknown` + Type-Guard (siehe [.cursorrules](.cursorrules) §4)
+- (4) **`any`-Drift** - `unknown` + Type-Guard (siehe [CLAUDE.md](../../CLAUDE.md) §4)
 - (5) **Duplikate** - eine Implementierung wird kanonisch, andere via Strangler-Fig in Schritt 5 ablösen
 - (6) **Toter Code** - in Schritt 6
 - (7) **Datei > 200 Zeilen** - in Sub-Module aufsplitten (z.B. `phase-template/` Ordner mit `index.ts`, `extract-meta.ts`, `transform.ts`, `validate.ts`)
@@ -153,7 +153,7 @@ Findings prüfen, dann löschen. Commit pro Datei für saubere History.
 
 **Audit-Findings beachten** (Cleanup von Bestands-Artefakten):
 - Tests mit Status `delete` aus Schritt 0 hier entfernen (z.B. Tests fuer entfernten Code)
-- Rules mit Status `delete` aus `.cursor/rules/` entfernen
+- Rules mit Status `delete` aus `../contracts/` entfernen
 - Docs mit Status `delete` oder `archive` aus `docs/` entfernen oder nach `docs/archive/` verschieben
 
 ### Schritt 7 - Abnahme
@@ -472,7 +472,7 @@ Konkret:
 2. Verzeichnis docs/refactor/external-jobs/ anlegen
 3. Datei docs/refactor/external-jobs/00-audit.md schreiben mit drei Tabellen:
 
-   A. Cursor Rules - alle .cursor/rules/*.mdc, die external-jobs betreffen
+   A. Cursor Rules - alle ../contracts/*.md, die external-jobs betreffen
       (NICHT event-job, das ist separate Domaene per ADR 0001).
       Mindestens pruefen: external-jobs-integration-tests.mdc,
       contracts-story-pipeline.mdc, no-silent-fallbacks.mdc, storage-abstraction.mdc.

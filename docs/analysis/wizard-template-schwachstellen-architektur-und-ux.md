@@ -58,7 +58,7 @@ Probleme.
   `creation-wizard.tsx:1852-1865`. In keinem Moment ist eindeutig, welche
   Quelle gültig ist → Datenverlust/-vermischung möglich.
 - **Projektregeln verlangen Jotai + React Hook Form + Zod** für State/Forms
-  (`.cursorrules`, Abschnitt State-Management). Der Wizard nutzt stattdessen
+  (`CLAUDE.md`, Abschnitt State-Management). Der Wizard nutzt stattdessen
   rohes `useState` ohne Form-Library; Eingabefelder müssen manuell mit
   `draftMetadata` synchron gehalten werden.
 

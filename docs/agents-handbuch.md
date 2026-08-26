@@ -1,9 +1,20 @@
 # Agents-Handbuch CommonKnowledgeScout
 
-Detaillierte Anleitung fuer Agenten (lokal und Cursor Cloud), die in
+Detaillierte Anleitung fuer Agenten (lokal und in Remote-Sessions), die in
 diesem Repo arbeiten. `AGENTS.md` im Repo-Root ist die schlanke
 Index-Version — diese Datei enthaelt die Begruendungen, Tabellen und
 Code-Beispiele.
+
+## 0. Remote-Environment (Setup-Befehl)
+
+Remote-Sessions installieren die Abhaengigkeiten mit:
+
+```bash
+corepack enable && corepack prepare pnpm@9.15.3 --activate && pnpm install --frozen-lockfile
+```
+
+(Frueher in `.cursor/environment.json` hinterlegt; hier gesichert, damit der
+Befehl beim Aufraeumen der Cursor-Artefakte nicht verloren geht.)
 
 ## 1. Test- und Build-Strategie
 

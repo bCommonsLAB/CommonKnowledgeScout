@@ -125,7 +125,7 @@ verhindert ganze Bug-Klassen. Pro Eintrag möglichst eigener Commit; bei größe
 
 ### [S3] 200-Zeilen-Regel ehrlich machen
 - **Warum:** Eine ignorierte Regel untergräbt alle Regeln.
-- **Wo:** `AGENTS.md` / `.cursorrules`.
+- **Wo:** `AGENTS.md` / `CLAUDE.md`.
 - **Aufwand:** XS.
 - **Akzeptanz:** Formuliert als „neue Dateien ≤ 200; Bestand wird beim Anfassen
   gesplittet" + optional Lint-Warn-Schwelle für *neue* Dateien.
