@@ -1,8 +1,6 @@
----
-description: Alle ingestierten Artefakte müssen in MongoDB vorhanden sein. Kein Fallback auf Filesystem.
-globs: src/lib/external-jobs/phase-shadow-twin-loader.ts,src/app/api/external/jobs/**/start/route.ts,src/components/creation-wizard/**/*
-alwaysApply: false
----
+> Alle ingestierten Artefakte müssen in MongoDB vorhanden sein. Kein Fallback auf Filesystem.
+>
+> **Gilt für:** `src/lib/external-jobs/phase-shadow-twin-loader.ts`, `src/app/api/external/jobs/**/start/route.ts`, `src/components/creation-wizard/**/*`
 
 # Ingest: MongoDB-only (kein Fallback)
 

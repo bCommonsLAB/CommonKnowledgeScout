@@ -1,14 +1,12 @@
----
-description: Harte technische Invarianten fuer das Modul `ingestion` (Embeddings, Bilder, Vektoren, Meta-Dokumente)
-globs: src/lib/ingestion/**/*.ts,tests/unit/ingestion/**/*.ts
-alwaysApply: false
----
+> Harte technische Invarianten fuer das Modul `ingestion` (Embeddings, Bilder, Vektoren, Meta-Dokumente)
+>
+> **Gilt für:** `src/lib/ingestion/**/*.ts`, `tests/unit/ingestion/**/*.ts`
 
 # Contracts: `ingestion`
 
 Diese Regel ergaenzt die globalen Pipeline-Rules
-[`contracts-story-pipeline.mdc`](mdc:.cursor/rules/contracts-story-pipeline.mdc)
-und [`ingest-mongo-only.mdc`](mdc:.cursor/rules/ingest-mongo-only.mdc)
+[`contracts-story-pipeline.mdc`](contracts-story-pipeline.md)
+und [`ingest-mongo-only.mdc`](ingest-mongo-only.md)
 um **harte technische Invarianten** auf Code-Ebene fuer das Modul
 `src/lib/ingestion/`. Sie ist der Vertrag, gegen den
 `tests/unit/ingestion/**` und kuenftige Helper implementiert werden.
@@ -58,7 +56,7 @@ sie einen klassen-statischen Cache `imageCache` haelt. Tests **MUESSEN**
 
 ### Pflicht: kein silent fallback fuer Ingest-Quellen
 
-Die Pipeline-Rule [`ingest-mongo-only.mdc`](mdc:.cursor/rules/ingest-mongo-only.mdc)
+Die Pipeline-Rule [`ingest-mongo-only.mdc`](ingest-mongo-only.md)
 gilt auch fuer Code in `src/lib/ingestion/`:
 
 - **Verboten**: Filesystem- oder Provider-Fallback fuer Ingest-Quellen,

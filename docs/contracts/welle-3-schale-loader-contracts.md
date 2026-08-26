@@ -1,8 +1,6 @@
----
-description: Harte Invarianten fuer App-Schale + Library-Loader (Welle 3-I)
-globs: src/components/library/library*.tsx,src/components/library/file-list/**/*.tsx,src/components/library/file-list/**/*.ts,src/components/library/file-list.tsx,src/components/library/file-tree.tsx,src/components/library/upload-dialog.tsx,src/components/library/upload-area.tsx,src/components/library/create-library-dialog.tsx,src/app/library/**/*.tsx
-alwaysApply: false
----
+> Harte Invarianten fuer App-Schale + Library-Loader (Welle 3-I)
+>
+> **Gilt für:** `src/components/library/library*.tsx`, `src/components/library/file-list/**/*.tsx`, `src/components/library/file-list/**/*.ts`, `src/components/library/file-list.tsx`, `src/components/library/file-tree.tsx`, `src/components/library/upload-dialog.tsx`, `src/components/library/upload-area.tsx`, `src/components/library/create-library-dialog.tsx`, `src/app/library/**/*.tsx`
 
 # Contracts: Welle 3-I — App-Schale + Library-Loader
 
@@ -12,9 +10,9 @@ den Library-Loader (`file-list.tsx`, `file-tree.tsx`, `upload-dialog.tsx`,
 `upload-area.tsx`, `create-library-dialog.tsx`).
 
 Sie ergaenzt die globalen Architektur-Rules
-[`storage-abstraction.mdc`](mdc:.cursor/rules/storage-abstraction.mdc),
-[`no-silent-fallbacks.mdc`](mdc:.cursor/rules/no-silent-fallbacks.mdc),
-[`media-lifecycle.mdc`](mdc:.cursor/rules/media-lifecycle.mdc) um
+[`storage-abstraction.mdc`](storage-abstraction.md),
+[`no-silent-fallbacks.mdc`](no-silent-fallbacks.md),
+[`media-lifecycle.mdc`](media-lifecycle.md) um
 **konkrete Code-Invarianten** fuer die UI-Container-Schicht.
 
 ## Quellen der Wahrheit (zuerst lesen)
@@ -141,7 +139,7 @@ Sie ergaenzt die globalen Architektur-Rules
 ## §5 Storage-Branches im UI verboten — Helper sind erlaubt
 
 Konform mit
-[`storage-abstraction.mdc`](mdc:.cursor/rules/storage-abstraction.mdc) §3:
+[`storage-abstraction.mdc`](storage-abstraction.md) §3:
 
 - **Verboten** in Welle-3-I-Komponenten:
   - `if (library.type === 'local') ...`

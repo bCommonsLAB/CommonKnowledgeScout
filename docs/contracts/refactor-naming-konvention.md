@@ -1,8 +1,6 @@
----
-description: Naming-Konvention fuer Refactoring-Wellen und Sub-Wellen — verhindert Namens-Kollisionen zwischen Plan-Wellen und Future-Work-Wellen
-globs: docs/refactor/**/*.md,docs/refactor/**/*,.cursor/plans/**/*.md
-alwaysApply: false
----
+> Naming-Konvention fuer Refactoring-Wellen und Sub-Wellen — verhindert Namens-Kollisionen zwischen Plan-Wellen und Future-Work-Wellen
+>
+> **Gilt für:** `docs/refactor/**/*.md`, `docs/refactor/**/*`, `.cursor/plans/**/*.md`
 
 # Naming-Konvention: Wellen, Sub-Wellen, Future-Work-Wellen
 
@@ -116,6 +114,6 @@ gestartet wurde (Fehler) und der Konflikt sichtbar wird:
 ## Verweise
 
 - Plan-File: `.cursor/plans/refactor-strategie-drift-eliminieren_*.plan.md`
-- Methodik: `.cursor/rules/refactor-batch-strategy.mdc`
+- Methodik: `refactor-batch-strategy.md`
 - Playbook: `docs/refactor/playbook.md`
 - AGENTS.md (Branching/Stop-Bedingungen)

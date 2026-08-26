@@ -1,13 +1,11 @@
----
-description: Harte technische Invarianten fuer das Modul `shadow-twin` (Service, Store, Artifacts)
-globs: src/lib/shadow-twin/**/*.ts,tests/unit/shadow-twin/**/*.ts
-alwaysApply: false
----
+> Harte technische Invarianten fuer das Modul `shadow-twin` (Service, Store, Artifacts)
+>
+> **Gilt für:** `src/lib/shadow-twin/**/*.ts`, `tests/unit/shadow-twin/**/*.ts`
 
 # Contracts: `shadow-twin`
 
 Diese Regel ergaenzt die Architektur-Rule
-[`shadow-twin-architecture.mdc`](mdc:.cursor/rules/shadow-twin-architecture.mdc)
+[`shadow-twin-architecture.mdc`](shadow-twin-architecture.md)
 um **harte technische Invarianten** auf Code-Ebene. Sie ist der Vertrag,
 gegen den `tests/unit/shadow-twin/**` und kuenftige Stores/Writer
 implementiert werden.

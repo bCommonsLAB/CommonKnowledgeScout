@@ -1,8 +1,6 @@
----
-description: External Jobs Pipeline und Integrationstests - Architektur, Phasen, Contracts
-globs: src/lib/external-jobs/**/*,src/lib/integration-tests/**/*,src/app/api/external/jobs/**/*,tests/unit/external-jobs/**/*
-alwaysApply: false
----
+> External Jobs Pipeline und Integrationstests - Architektur, Phasen, Contracts
+>
+> **Gilt für:** `src/lib/external-jobs/**/*`, `src/lib/integration-tests/**/*`, `src/app/api/external/jobs/**/*`, `tests/unit/external-jobs/**/*`
 
 # External Jobs & Integrationstests
 

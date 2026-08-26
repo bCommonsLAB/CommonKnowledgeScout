@@ -1,8 +1,6 @@
----
-description: Contract fuer die Website-Landingpage (detailViewType website) am Library-Slug + host-basierte Root-Landingpage (Variante B). Verhindert Wiedereinfuehrung des entfernten web/-Snapshot-Publishings.
-globs: src/app/page.tsx,src/app/layout.tsx,src/lib/root-landing.ts,src/components/library/website/**/*.tsx,src/app/explore/[slug]/**/*.tsx,src/components/settings/public/public-form.tsx,src/app/api/chat/[libraryId]/docs/route.ts
-alwaysApply: false
----
+> Contract fuer die Website-Landingpage (detailViewType website) am Library-Slug + host-basierte Root-Landingpage (Variante B). Verhindert Wiedereinfuehrung des entfernten web/-Snapshot-Publishings.
+>
+> **Gilt für:** `src/app/page.tsx`, `src/app/layout.tsx`, `src/lib/root-landing.ts`, `src/components/library/website/**/*.tsx`, `src/app/explore/[slug]/**/*.tsx`, `src/components/settings/public/public-form.tsx`, `src/app/api/chat/[libraryId]/docs/route.ts`
 
 # Website-Landingpage & Root-Domain (Variante B)
 

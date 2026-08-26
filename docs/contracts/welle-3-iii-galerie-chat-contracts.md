@@ -1,8 +1,6 @@
----
-description: Harte Invarianten fuer Welle 3-III — Galerie + Story-Mode + Chat
-globs: src/components/library/gallery/**/*.tsx,src/components/library/gallery/**/*.ts,src/components/library/chat/**/*.tsx,src/components/library/chat/**/*.ts,src/components/library/story/**/*.tsx,src/components/library/story/**/*.ts,src/components/library/shared/perspective-page-content.tsx,src/components/library/shared/perspective-display.tsx,src/components/library/filter-context-bar.tsx,src/components/library/file-category-filter.tsx
-alwaysApply: false
----
+> Harte Invarianten fuer Welle 3-III — Galerie + Story-Mode + Chat
+>
+> **Gilt für:** `src/components/library/gallery/**/*.tsx`, `src/components/library/gallery/**/*.ts`, `src/components/library/chat/**/*.tsx`, `src/components/library/chat/**/*.ts`, `src/components/library/story/**/*.tsx`, `src/components/library/story/**/*.ts`, `src/components/library/shared/perspective-page-content.tsx`, `src/components/library/shared/perspective-display.tsx`, `src/components/library/filter-context-bar.tsx`, `src/components/library/file-category-filter.tsx`
 
 # Contracts: Welle 3-III — Galerie + Story-Mode + Chat
 
@@ -10,13 +8,13 @@ Diese Rule kodifiziert die Invarianten fuer die UI-Bereiche
 **Galerie**, **Story-Mode** und **Chat** sowie die zugehoerigen
 Filter-Komponenten. Sie ergaenzt:
 
-- [`storage-abstraction.mdc`](mdc:.cursor/rules/storage-abstraction.mdc)
-- [`no-silent-fallbacks.mdc`](mdc:.cursor/rules/no-silent-fallbacks.mdc)
-- [`media-lifecycle.mdc`](mdc:.cursor/rules/media-lifecycle.mdc)
-- [`chat-contracts.mdc`](mdc:.cursor/rules/chat-contracts.mdc) (Backend, UI ist Konsument)
-- [`shadow-twin-architecture.mdc`](mdc:.cursor/rules/shadow-twin-architecture.mdc)
-- [`welle-3-archiv-detail-contracts.mdc`](mdc:.cursor/rules/welle-3-archiv-detail-contracts.mdc) (Welle 3-II)
-- [`welle-3-schale-loader-contracts.mdc`](mdc:.cursor/rules/welle-3-schale-loader-contracts.mdc) (Welle 3-I)
+- [`storage-abstraction.mdc`](storage-abstraction.md)
+- [`no-silent-fallbacks.mdc`](no-silent-fallbacks.md)
+- [`media-lifecycle.mdc`](media-lifecycle.md)
+- [`chat-contracts.mdc`](chat-contracts.md) (Backend, UI ist Konsument)
+- [`shadow-twin-architecture.mdc`](shadow-twin-architecture.md)
+- [`welle-3-archiv-detail-contracts.mdc`](welle-3-archiv-detail-contracts.md) (Welle 3-II)
+- [`welle-3-schale-loader-contracts.mdc`](welle-3-schale-loader-contracts.md) (Welle 3-I)
 
 ## Quellen der Wahrheit (zuerst lesen)
 
@@ -91,7 +89,7 @@ Filter-Komponenten. Sie ergaenzt:
 ## §2 Fehler-Semantik
 
 - **Kein leerer `catch {}`**. Konform zu
-  [`no-silent-fallbacks.mdc`](mdc:.cursor/rules/no-silent-fallbacks.mdc).
+  [`no-silent-fallbacks.mdc`](no-silent-fallbacks.md).
   Aktuell **0 Verstoesse** in Welle 3-III — diese Welle muss diesen
   sauberen Stand halten.
 - Jeder Catch in Welle-3-III-Komponenten muss entweder:
@@ -209,7 +207,7 @@ alle 3 Sub-Wellen:
 ## §7 Storage-Branches verboten — Helper sind erlaubt
 
 Konform mit
-[`storage-abstraction.mdc`](mdc:.cursor/rules/storage-abstraction.mdc).
+[`storage-abstraction.mdc`](storage-abstraction.md).
 **Aktuell 0 Verstoesse** in Welle 3-III. Diese Welle muss den
 sauberen Stand halten.
 

@@ -1,14 +1,12 @@
----
-description: Harte technische Invarianten fuer das Modul `chat` (RAG-Konsum, Retriever, Ingestion-Service)
-globs: src/lib/chat/**/*.ts,tests/unit/chat/**/*.ts
-alwaysApply: false
----
+> Harte technische Invarianten fuer das Modul `chat` (RAG-Konsum, Retriever, Ingestion-Service)
+>
+> **Gilt für:** `src/lib/chat/**/*.ts`, `tests/unit/chat/**/*.ts`
 
 # Contracts: `chat`
 
 Diese Regel definiert **harte technische Invarianten** auf Code-Ebene
 fuer das Modul `src/lib/chat/`. Sie ergaenzt
-[`contracts-story-pipeline.mdc`](mdc:.cursor/rules/contracts-story-pipeline.mdc)
+[`contracts-story-pipeline.mdc`](contracts-story-pipeline.md)
 um Wrapper-/Helper-spezifische Vertraege.
 
 ## Quellen der Wahrheit

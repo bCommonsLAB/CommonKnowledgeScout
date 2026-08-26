@@ -1,8 +1,6 @@
----
-description: Architekturprinzipien für Shadow-Twin-System und Storage-Abstraktion
-globs: src/lib/shadow-twin/**/*,src/components/library/**/*,src/hooks/use-shadow-twin*,src/atoms/shadow-twin*
-alwaysApply: false
----
+> Architekturprinzipien für Shadow-Twin-System und Storage-Abstraktion
+>
+> **Gilt für:** `src/lib/shadow-twin/**/*`, `src/components/library/**/*`, `src/hooks/use-shadow-twin*`, `src/atoms/shadow-twin*`
 
 # Shadow-Twin Architektur
 

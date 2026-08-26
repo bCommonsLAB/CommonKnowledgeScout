@@ -1,7 +1,6 @@
----
-description: Keine stillen Fallbacks – immer explizit oder Fehlermeldung
-alwaysApply: true
----
+> Keine stillen Fallbacks – immer explizit oder Fehlermeldung
+>
+> **Gilt für:** immer — diese Datei wird in `CLAUDE.md` per `@`-Import geladen.
 
 # Keine stillen Fallbacks
 

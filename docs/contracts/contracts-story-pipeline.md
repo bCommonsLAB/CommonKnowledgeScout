@@ -1,8 +1,6 @@
----
-description: Globale Contracts für „Datei → Shadow‑Twin → Ingestion → Story/Explorer → Chat (RAG)“
-globs: src/app/api/pipeline/**/*,src/app/api/external/jobs/**/*,src/app/api/chat/**/*,src/lib/external-jobs/**/*,src/lib/shadow-twin/**/*,src/lib/chat/**/*,src/lib/repositories/vector-repo.ts,src/components/library/**/*
-alwaysApply: false
----
+> Globale Contracts für „Datei → Shadow‑Twin → Ingestion → Story/Explorer → Chat (RAG)“
+>
+> **Gilt für:** `src/app/api/pipeline/**/*`, `src/app/api/external/jobs/**/*`, `src/app/api/chat/**/*`, `src/lib/external-jobs/**/*`, `src/lib/shadow-twin/**/*`, `src/lib/chat/**/*`, `src/lib/repositories/vector-repo.ts`, `src/components/library/**/*`
 
 # Contracts: Datei → Story Pipeline
 

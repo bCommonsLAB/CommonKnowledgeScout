@@ -1,7 +1,6 @@
----
-description: Checkliste und Architektur für DetailViewType-Erweiterungen
-globs: ["**/detail-view*.tsx", "**/doc-meta-mappers.ts", "**/registry.ts", "**/validation.ts"]
----
+> Checkliste und Architektur für DetailViewType-Erweiterungen
+>
+> **Gilt für:** `**/detail-view*.tsx`, `**/doc-meta-mappers.ts`, `**/registry.ts`, `**/validation.ts`
 
 # DetailViewType Architektur und Checkliste
 

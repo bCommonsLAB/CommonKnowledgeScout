@@ -1,13 +1,11 @@
----
-description: Harte technische Invarianten fuer das Modul `storage` (Provider, Factory, Helper)
-globs: src/lib/storage/**/*.ts,src/app/api/storage/**/*.ts,tests/unit/storage/**/*.ts
-alwaysApply: false
----
+> Harte technische Invarianten fuer das Modul `storage` (Provider, Factory, Helper)
+>
+> **Gilt für:** `src/lib/storage/**/*.ts`, `src/app/api/storage/**/*.ts`, `tests/unit/storage/**/*.ts`
 
 # Contracts: `storage`
 
 Diese Regel ergaenzt die Architektur-Rule
-[`storage-abstraction.mdc`](mdc:.cursor/rules/storage-abstraction.mdc)
+[`storage-abstraction.mdc`](storage-abstraction.md)
 um **harte technische Invarianten** auf Code-Ebene. Sie ist der Vertrag,
 gegen den `tests/unit/storage/**` und kuenftige Provider implementiert werden.
 

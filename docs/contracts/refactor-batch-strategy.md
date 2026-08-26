@@ -1,8 +1,6 @@
----
-description: Batch-Strategie fuer Refactoring-Wellen — 1 PR pro Welle mit mehreren kohaerenten Commits
-globs: docs/refactor/**/*.md,.cursor/plans/refactor-*.plan.md
-alwaysApply: false
----
+> Batch-Strategie fuer Refactoring-Wellen — 1 PR pro Welle mit mehreren kohaerenten Commits
+>
+> **Gilt für:** `docs/refactor/**/*.md`, `.cursor/plans/refactor-*.plan.md`
 
 # Refactor-Batch-Strategie: 1 PR pro Welle
 
@@ -133,7 +131,7 @@ Der Agent stoppt und meldet im PR/Comment, wenn:
 ## Verweise
 
 - `AGENTS.md` Sektion "Branching, Commits, PRs" und "Stop-Bedingungen"
-- `.cursor/rules/no-silent-fallbacks.mdc`
-- `.cursor/rules/storage-abstraction.mdc`
+- `no-silent-fallbacks.md`
+- `storage-abstraction.md`
 - `docs/refactor/welle-3-archiv-detail/06-acceptance-3-ii-a-2d.md`
   (Bilanz Welle 3-II-a, Lehre fuer diese Strategie)

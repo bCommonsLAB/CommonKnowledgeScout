@@ -1,8 +1,6 @@
----
-description: Checkliste zum Hinzufuegen eines neuen Per-Library-Config-Felds (Typ -> ClientLibrary -> Form)
-globs: src/types/library.ts,src/lib/services/library-service.ts,src/components/settings/library/**/*.ts,src/components/settings/library/**/*.tsx
-alwaysApply: false
----
+> Checkliste zum Hinzufuegen eines neuen Per-Library-Config-Felds (Typ -> ClientLibrary -> Form)
+>
+> **Gilt für:** `src/types/library.ts`, `src/lib/services/library-service.ts`, `src/components/settings/library/**/*.ts`, `src/components/settings/library/**/*.tsx`
 
 # Per-Library-Config-Feld hinzufuegen
 

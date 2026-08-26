@@ -1,8 +1,6 @@
----
-description: Harte Invarianten fuer Archiv-Detail (Welle 3-II)
-globs: src/components/library/file-preview.tsx,src/components/library/file-preview/**/*.tsx,src/components/library/file-preview/**/*.ts,src/components/library/markdown-preview.tsx,src/components/library/markdown-preview/**/*.tsx,src/components/library/markdown-preview/**/*.ts,src/components/library/job-report-tab.tsx,src/components/library/job-report-tab/**/*.tsx,src/components/library/job-report-tab/**/*.ts,src/components/library/media-tab.tsx,src/components/library/media-tab/**/*.tsx,src/components/library/media-tab/**/*.ts,src/components/library/*-detail.tsx,src/components/library/audio-*.tsx,src/components/library/video-*.tsx,src/components/library/image-*.tsx,src/components/library/pdf-*.tsx,src/components/library/text-editor.tsx,src/components/library/markdown-*.tsx,src/components/library/chapter-accordion.tsx,src/components/library/slide-accordion.tsx,src/components/library/event-details-accordion.tsx,src/components/library/transform-*.tsx,src/components/library/document-preview.tsx,src/components/library/cover-image-generator-dialog.tsx,src/components/library/ingestion-status.tsx,src/components/library/phase-stepper.tsx,src/components/library/detail-view-renderer.tsx,src/components/library/flow/**/*.tsx,src/components/library/shared/**/*.tsx,src/components/library/shared/**/*.ts
-alwaysApply: false
----
+> Harte Invarianten fuer Archiv-Detail (Welle 3-II)
+>
+> **Gilt für:** `src/components/library/file-preview.tsx`, `src/components/library/file-preview/**/*.tsx`, `src/components/library/file-preview/**/*.ts`, `src/components/library/markdown-preview.tsx`, `src/components/library/markdown-preview/**/*.tsx`, `src/components/library/markdown-preview/**/*.ts`, `src/components/library/job-report-tab.tsx`, `src/components/library/job-report-tab/**/*.tsx`, `src/components/library/job-report-tab/**/*.ts`, `src/components/library/media-tab.tsx`, `src/components/library/media-tab/**/*.tsx`, `src/components/library/media-tab/**/*.ts`, `src/components/library/*-detail.tsx`, `src/components/library/audio-*.tsx`, `src/components/library/video-*.tsx`, `src/components/library/image-*.tsx`, `src/components/library/pdf-*.tsx`, `src/components/library/text-editor.tsx`, `src/components/library/markdown-*.tsx`, `src/components/library/chapter-accordion.tsx`, `src/components/library/slide-accordion.tsx`, `src/components/library/event-details-accordion.tsx`, `src/components/library/transform-*.tsx`, `src/components/library/document-preview.tsx`, `src/components/library/cover-image-generator-dialog.tsx`, `src/components/library/ingestion-status.tsx`, `src/components/library/phase-stepper.tsx`, `src/components/library/detail-view-renderer.tsx`, `src/components/library/flow/**/*.tsx`, `src/components/library/shared/**/*.tsx`, `src/components/library/shared/**/*.ts`
 
 # Contracts: Welle 3-II — Archiv-Detail
 
@@ -12,12 +10,12 @@ Diese Rule kodifiziert die Invarianten fuer den Archiv-Detail-Bereich:
 Markdown-Sub-Komponenten, `flow/*` und `shared/*` (ohne `perspective-*`).
 
 Sie ergaenzt:
-- [`storage-abstraction.mdc`](mdc:.cursor/rules/storage-abstraction.mdc)
-- [`no-silent-fallbacks.mdc`](mdc:.cursor/rules/no-silent-fallbacks.mdc)
-- [`media-lifecycle.mdc`](mdc:.cursor/rules/media-lifecycle.mdc)
-- [`detail-view-type-checklist.mdc`](mdc:.cursor/rules/detail-view-type-checklist.mdc)
-- [`shadow-twin-architecture.mdc`](mdc:.cursor/rules/shadow-twin-architecture.mdc)
-- [`welle-3-schale-loader-contracts.mdc`](mdc:.cursor/rules/welle-3-schale-loader-contracts.mdc) (Welle 3-I)
+- [`storage-abstraction.mdc`](storage-abstraction.md)
+- [`no-silent-fallbacks.mdc`](no-silent-fallbacks.md)
+- [`media-lifecycle.mdc`](media-lifecycle.md)
+- [`detail-view-type-checklist.mdc`](detail-view-type-checklist.md)
+- [`shadow-twin-architecture.mdc`](shadow-twin-architecture.md)
+- [`welle-3-schale-loader-contracts.mdc`](welle-3-schale-loader-contracts.md) (Welle 3-I)
 
 ## Quellen der Wahrheit (zuerst lesen)
 
@@ -74,7 +72,7 @@ Sie ergaenzt:
 ## §2 Fehler-Semantik
 
 - **Kein leerer `catch {}`**. Konform zu
-  [`no-silent-fallbacks.mdc`](mdc:.cursor/rules/no-silent-fallbacks.mdc):
+  [`no-silent-fallbacks.mdc`](no-silent-fallbacks.md):
   jeder Catch in Welle-3-II-Komponenten muss entweder:
   - explizit loggen (`StateLogger.warn`, `FileLogger.warn`,
     `UILogger.warn`) **mit Begruendungs-Kommentar**, oder
@@ -130,11 +128,11 @@ Sie ergaenzt:
 
 - Wenn eine Quelldatei kein passender Detail-View-Typ vorhanden ist:
   Fallback auf `book` per Default-Logik (`detail-view-type-utils.ts`,
-  konform zu [`detail-view-type-checklist.mdc`](mdc:.cursor/rules/detail-view-type-checklist.mdc)).
+  konform zu [`detail-view-type-checklist.mdc`](detail-view-type-checklist.md)).
 - Wenn Pflichtfelder eines `detailViewType` fehlen:
   `<Alert>`-Warning **vor** dem Detail-Content rendern (siehe
   Architektur-Diagramm in
-  [`detail-view-type-checklist.mdc`](mdc:.cursor/rules/detail-view-type-checklist.mdc)).
+  [`detail-view-type-checklist.mdc`](detail-view-type-checklist.md)).
 - Wenn ein Tab keine Daten hat (z.B. Story-Tab, Transcript-Tab):
   freundlicher Empty-State (`<div>Noch keine ...</div>`).
 - **Verboten**: stiller leerer State (`return null` ohne Indikator) ausser
@@ -143,7 +141,7 @@ Sie ergaenzt:
 ## §5 DetailViewType-Erweiterung
 
 Strikte Einhaltung der Checkliste in
-[`detail-view-type-checklist.mdc`](mdc:.cursor/rules/detail-view-type-checklist.mdc).
+[`detail-view-type-checklist.mdc`](detail-view-type-checklist.md).
 Zusaetzlich fuer Welle 3-II:
 
 - **`detail-view-renderer.tsx` ist der zentrale Switch**. Char-Test
@@ -184,7 +182,7 @@ alle 4 Sub-Wellen:
 ## §7 Storage-Branches verboten — Helper sind erlaubt
 
 Konform mit
-[`storage-abstraction.mdc`](mdc:.cursor/rules/storage-abstraction.mdc) §3.
+[`storage-abstraction.mdc`](storage-abstraction.md) §3.
 **Aktuell 1 Verstoss** (vor diesem Refactor) in
 `shared/freshness-comparison-panel.tsx:145`:
 
@@ -257,7 +255,7 @@ Wenn du Welle-3-II-Code anfasst:
       gerendert?
 - [ ] Bleibt die Composer-Fassade nach Modul-Split exportiert?
 - [ ] Ist ein neuer DetailViewType vollstaendig nach
-      [`detail-view-type-checklist.mdc`](mdc:.cursor/rules/detail-view-type-checklist.mdc)
+      [`detail-view-type-checklist.mdc`](detail-view-type-checklist.md)
       registriert?
 - [ ] Sind neu hinzugefuegte Sub-Komponenten in einem `index.ts`
       re-exportiert oder direkt importierbar?

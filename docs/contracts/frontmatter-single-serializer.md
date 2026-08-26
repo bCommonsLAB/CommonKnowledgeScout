@@ -1,8 +1,6 @@
----
-description: Frontmatter wird ausschliesslich ueber den zentralen Serializer geschrieben (idempotent, symmetrisch zum Parser) — kein hand-rolled Escaping
-globs: src/lib/markdown/**/*.ts,src/lib/external-jobs/**/*.ts,src/lib/shadow-twin/**/*.ts,src/lib/secretary/**/*.ts
-alwaysApply: false
----
+> Frontmatter wird ausschliesslich ueber den zentralen Serializer geschrieben (idempotent, symmetrisch zum Parser) — kein hand-rolled Escaping
+>
+> **Gilt für:** `src/lib/markdown/**/*.ts`, `src/lib/external-jobs/**/*.ts`, `src/lib/shadow-twin/**/*.ts`, `src/lib/secretary/**/*.ts`
 
 # Frontmatter: ein Serializer, idempotent
 
@@ -49,7 +47,7 @@ mehrfach maskiert.
   → `createMarkdownWithFrontmatter` muss identisch sein, auch fuer Werte mit `"` UND `\`.
   Referenz: `tests/unit/markdown/frontmatter-roundtrip.test.ts`.
 - Bei echten Daten ist der gespeicherte MongoDB-Datensatz der Beweis
-  (siehe [Verifikations-Playbook](mdc:docs/guides/verification-playbook.md), Regel 1).
+  (siehe [Verifikations-Playbook](../guides/verification-playbook.md), Regel 1).
 
 ## §5 Code-Review-Checkliste
 

@@ -1,8 +1,6 @@
----
-description: Transform-/Extraktionsergebnisse vor dem Persistieren validieren — Fehlermeldungen des Extraktors duerfen kein Artefakt werden
-globs: src/lib/external-jobs/**/*.ts,src/lib/transform/**/*.ts,src/lib/shadow-twin/**/*.ts
-alwaysApply: false
----
+> Transform-/Extraktionsergebnisse vor dem Persistieren validieren — Fehlermeldungen des Extraktors duerfen kein Artefakt werden
+>
+> **Gilt für:** `src/lib/external-jobs/**/*.ts`, `src/lib/transform/**/*.ts`, `src/lib/shadow-twin/**/*.ts`
 
 # Kein Fehler-Text als Artefakt
 
@@ -42,4 +40,4 @@ inhaltlich eine Fehlermeldung".
 - [ ] Ist der Inhalts-Guard konservativ (mehrere spezifische Marker), um Falsch-Positive
       bei legitimen Inhalten zu vermeiden?
 - [ ] Verifikation: nach „Neu generieren" zeigt der gespeicherte MongoDB-Datensatz
-      echten Inhalt (siehe [Verifikations-Playbook](mdc:docs/guides/verification-playbook.md)).
+      echten Inhalt (siehe [Verifikations-Playbook](../guides/verification-playbook.md)).

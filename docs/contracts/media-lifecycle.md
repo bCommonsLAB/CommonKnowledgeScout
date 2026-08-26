@@ -1,8 +1,6 @@
----
-description: Medien-Lebenszyklus, Frontmatter-Referenzierung und Multi-Source-Architektur
-globs: src/lib/templates/**,src/lib/external-jobs/**,src/lib/shadow-twin/**,src/app/api/secretary/**,src/app/api/external/**,src/app/api/library/*/shadow-twins/**,src/components/creation-wizard/**
-alwaysApply: false
----
+> Medien-Lebenszyklus, Frontmatter-Referenzierung und Multi-Source-Architektur
+>
+> **Gilt für:** `src/lib/templates/**`, `src/lib/external-jobs/**`, `src/lib/shadow-twin/**`, `src/app/api/secretary/**`, `src/app/api/external/**`, `src/app/api/library/*/shadow-twins/**`, `src/components/creation-wizard/**`
 
 # Medien-Lebenszyklus: Frontmatter enthält NUR Dateinamen
 

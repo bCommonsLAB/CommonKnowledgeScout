@@ -1,8 +1,6 @@
----
-description: Template-Struktur und Syntax für Transform-by-Template
-globs: template-samples/**/*,src/components/templates/**/*,src/lib/external-jobs/template-*.ts,src/app/templates/**/*
-alwaysApply: false
----
+> Template-Struktur und Syntax für Transform-by-Template
+>
+> **Gilt für:** `template-samples/**/*`, `src/components/templates/**/*`, `src/lib/external-jobs/template-*.ts`, `src/app/templates/**/*`
 
 # Template-Struktur
 

@@ -1,8 +1,6 @@
----
-description: Harte technische Invarianten fuer das Modul `secretary` (HTTP-Wrapper zum externen Secretary-Service)
-globs: src/lib/secretary/**/*.ts,tests/unit/secretary/**/*.ts
-alwaysApply: false
----
+> Harte technische Invarianten fuer das Modul `secretary` (HTTP-Wrapper zum externen Secretary-Service)
+>
+> **Gilt für:** `src/lib/secretary/**/*.ts`, `tests/unit/secretary/**/*.ts`
 
 # Contracts: `secretary`
 

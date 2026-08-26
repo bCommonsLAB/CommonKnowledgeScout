@@ -1,8 +1,6 @@
----
-description: Harte technische Invarianten fuer das Modul `templates` (Template-Parser, Frontmatter-Utils, Service-Layer)
-globs: src/lib/templates/**/*.ts,tests/unit/templates/**/*.ts
-alwaysApply: false
----
+> Harte technische Invarianten fuer das Modul `templates` (Template-Parser, Frontmatter-Utils, Service-Layer)
+>
+> **Gilt für:** `src/lib/templates/**/*.ts`, `tests/unit/templates/**/*.ts`
 
 # Contracts: `templates`
 

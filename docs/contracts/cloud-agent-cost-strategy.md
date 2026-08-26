@@ -1,8 +1,6 @@
----
-description: Kosten-Strategie fuer Cloud-Agents — Hand-off-Pflicht am Welle-Ende, Modellwahl, lokale Verifikation
-globs: docs/refactor/**/*.md,.cursor/plans/**/*.md,scripts/welle-pre-merge-check.sh,AGENTS.md
-alwaysApply: false
----
+> Kosten-Strategie fuer Cloud-Agents — Hand-off-Pflicht am Welle-Ende, Modellwahl, lokale Verifikation
+>
+> **Gilt für:** `docs/refactor/**/*.md`, `.cursor/plans/**/*.md`, `scripts/welle-pre-merge-check.sh`, `AGENTS.md`
 
 # Cloud-Agent-Kosten-Strategie
 
@@ -68,9 +66,9 @@ fixed nach.
 ```
 Lies VOR dem Start (in dieser Reihenfolge):
 1. AGENTS.md
-2. .cursor/rules/cloud-agent-cost-strategy.mdc
-3. .cursor/rules/refactor-batch-strategy.mdc
-4. .cursor/rules/welle-<modul>-contracts.mdc
+2. cloud-agent-cost-strategy.md
+3. refactor-batch-strategy.md
+4. docs/contracts/welle-<modul>-contracts.md
 5. docs/refactor/<modul>/AGENT-BRIEF.md (Sektion "<sub-welle>")
 6. docs/refactor/<modul>/04-altlast-pass.md (Hot-Spot-Liste)
 
@@ -204,5 +202,5 @@ Stoppe sofort und melde dem User, wenn:
 
 - Lokales Pre-Merge-Script: `scripts/welle-pre-merge-check.sh`
 - Hand-off-Templates: `docs/refactor/cloud-agent-kostenoptimierung.md`
-- Methodik: `.cursor/rules/refactor-batch-strategy.mdc`
+- Methodik: `refactor-batch-strategy.md`
 - AGENTS.md (Pflicht-Block am Welle-Ende)

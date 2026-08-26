@@ -1,7 +1,6 @@
----
-description: Zentrale Architektur-Rule – Storage-unabhängige Programmierung über StorageFactory
-alwaysApply: true
----
+> Zentrale Architektur-Rule – Storage-unabhängige Programmierung über StorageFactory
+>
+> **Gilt für:** immer — diese Datei wird in `CLAUDE.md` per `@`-Import geladen.
 
 # Storage-Abstraktion: Zentrale Architektur-Rule
 

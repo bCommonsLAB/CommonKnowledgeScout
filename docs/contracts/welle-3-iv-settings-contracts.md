@@ -1,8 +1,6 @@
----
-description: Contracts für Welle 3-IV Settings — erlaubte Client-Direktiven, Fehler-Semantik, API-Pfade, Storage-Branches
-globs: src/components/settings/**/*.tsx,src/components/settings/**/*.ts,src/hooks/use-safe-user.ts,src/app/settings/**/*.tsx
-alwaysApply: false
----
+> Contracts für Welle 3-IV Settings — erlaubte Client-Direktiven, Fehler-Semantik, API-Pfade, Storage-Branches
+>
+> **Gilt für:** `src/components/settings/**/*.tsx`, `src/components/settings/**/*.ts`, `src/hooks/use-safe-user.ts`, `src/app/settings/**/*.tsx`
 
 # Contracts: Welle 3-IV — Settings (Sub-Wellen 3-IV-a bis 3-IV-c)
 

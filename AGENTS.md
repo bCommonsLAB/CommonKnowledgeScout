@@ -30,12 +30,12 @@ Kickoff fuer Plan 1 (neue/Online-Session) steht im Fahrplan-Dokument.
 - Dateien max. 200 Zeilen, sonst aufsplitten
 - Kein `any`, kein leeres `catch {}` — beides ist Lint-Error
 - Silent Fallbacks verboten — siehe
-  [`no-silent-fallbacks.mdc`](.cursor/rules/no-silent-fallbacks.mdc)
+  [`no-silent-fallbacks.md`](docs/contracts/no-silent-fallbacks.md)
 - UI darf Storage-Backend nicht kennen — siehe
-  [`storage-abstraction.mdc`](.cursor/rules/storage-abstraction.mdc)
+  [`storage-abstraction.md`](docs/contracts/storage-abstraction.md)
 - TypeScript-Strict-Mode bleibt aktiv, `unknown` + Type-Guard statt `any`
 - Pipeline-Aenderungen muessen die Contracts in
-  [`contracts-story-pipeline.mdc`](.cursor/rules/contracts-story-pipeline.mdc) einhalten
+  [`contracts-story-pipeline.md`](docs/contracts/contracts-story-pipeline.md) einhalten
 - **Frontmatter-Format**: Template-/Material-Frontmatter ist FLACH und
   Obsidian-kompatibel — `snake_case`-Keys auf EINER Ebene, KEINE Dot-Notation
   (`a.b:`) und KEINE verschachtelten YAML-Objekte. Verschachtelte Datenmodelle
@@ -48,7 +48,7 @@ Kickoff fuer Plan 1 (neue/Online-Session) steht im Fahrplan-Dokument.
 - MongoDB-Repos: [`mongodb-repository-pattern.md`](docs/architecture/mongodb-repository-pattern.md)
 - API-Routes: [`api-route-conventions.md`](docs/architecture/api-route-conventions.md)
 - File-Preview-Tabs: [`file-preview-tab-architecture.md`](docs/architecture/file-preview-tab-architecture.md)
-- Neues Per-Library-Config-Feld: [`library-config-field.mdc`](.cursor/rules/library-config-field.mdc)
+- Neues Per-Library-Config-Feld: [`library-config-field.md`](docs/contracts/library-config-field.md)
 - Lokale Live-Verifikation (ohne Zeit zu verlieren): [`verification-playbook.md`](docs/guides/verification-playbook.md)
 
 ## Test- und Lint-Commands (Kurz)
@@ -120,11 +120,11 @@ Detail (warum, Symptome, Ausnahmen):
 - Cleanup-Commits gehoeren ZWINGEND in den PR ihrer Ursache
 - Wellen-Naming: Plan-Wellen-Nummern sind reserviert, Future-Work
   bekommt Mutter-Name + Suffix — siehe
-  [`refactor-naming-konvention.mdc`](.cursor/rules/refactor-naming-konvention.mdc)
+  [`refactor-naming-konvention.md`](docs/contracts/refactor-naming-konvention.md)
 
 Detail-Regeln:
 [`docs/agents-handbuch.md` §3](docs/agents-handbuch.md#3-branching-commits-prs-detail)
-und [`refactor-batch-strategy.mdc`](.cursor/rules/refactor-batch-strategy.mdc).
+und [`refactor-batch-strategy.md`](docs/contracts/refactor-batch-strategy.md).
 
 ## Stop-Bedingungen (Kurz)
 
