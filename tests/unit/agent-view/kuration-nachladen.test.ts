@@ -104,13 +104,14 @@ describe('baueNachladeOverrides + mergeOverrides', () => {
     const familie = reportFamilie()
 
     // Vorher: Report kennt die Verifikation nicht.
-    expect(familienPruefstand(familie)).toBe('offen')
+    expect(familienPruefstand(familie)).toBe('angenommen')
     expect(familie.transkript?.verification).toBe('unverifiziert')
 
     const effektiv = effektiveFamilie(familie, mergeOverrides(basis, new Map()))
     expect(effektiv.transkript?.verification).toBe('mensch')
-    // Zusammenfassung ist in Mongo weiter unverifiziert — Familie bleibt offen (korrekt).
-    expect(familienPruefstand(effektiv)).toBe('offen')
+    // Die Zusammenfassung ist in Mongo weiter unbestaetigt — das ist seit
+    // ADR 0006 kein Mangel, die Familie bleibt „angenommen".
+    expect(familienPruefstand(effektiv)).toBe('angenommen')
   })
 
   it('Session-Overrides gewinnen gegen den nachgeladenen Snapshot', () => {

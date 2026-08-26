@@ -4,14 +4,16 @@
  * @fileoverview Abnahme-Kopf des Artefakts (Welle A4, Mockup Zustand B).
  *
  * @description
- * Derselbe Platz, andere Aufgabe: Zeile 1 traegt Titel · Pruef-Chip ·
- * „Verifizieren" · Menue `⋯`; Zeile 2 Breadcrumb · Sprung-Hinweis. Der
- * Knopf verifiziert das Artefakt des AKTIVEN Tabs (Transkript ODER
- * Zusammenfassung); auf dem Original-Tab ist er benannt gesperrt — das
- * Original traegt kein Haekchen (Entscheidung 4). Nach dem Bestaetigen
- * meldet `onVerifiziert` den frischen Zustand nach oben — dort springt die
- * Auswahl weiter (Entscheidung 5). 409-Befunde stehen als Klartext unter
- * dem Kopf.
+ * Zeile 1 traegt Titel · Zustands-Chip · „stimmt nicht" · „Verifizieren" ·
+ * Menue `⋯`; Zeile 2 den Breadcrumb. Beide Aktionen betreffen das Artefakt
+ * des AKTIVEN Tabs (Transkript ODER Zusammenfassung); auf dem Original-Tab
+ * sind sie benannt gesperrt — das Original ist die Referenz.
+ *
+ * ADR 0006 (Modell B): Der Chip ist eine AUSKUNFT, keine Mahnung —
+ * „angenommen" (Maschinenarbeit, niemand hat widersprochen), „geprueft"
+ * (ein Mensch hat hingesehen) oder „stimmt nicht" (markierter Fehler,
+ * sperrt die Abnahme). Verifizieren bleibt moeglich, ist aber freiwillig.
+ * Nach jeder Aktion meldet `onKuriert` den frischen Zustand nach oben.
  *
  * @module components/library/agent-view
  */
@@ -22,20 +24,21 @@ import { useToast } from '@/components/ui/use-toast'
 import type { UseArtefaktKurationResult } from '@/hooks/agent-view/use-artefakt-kuration'
 import { twinStatusLabel, verificationLabel } from '@/lib/agent-view/labels'
 import type { LeadingArtifactSummary, TwinFamilySummary } from '@/lib/agent-view/types'
-import { artefaktGeprueft, artefaktKey } from '@/lib/agent-view/werkbank-baum'
+import { artefaktKey, artefaktZustand } from '@/lib/agent-view/werkbank-baum'
 import type { PruefbareArt } from '@/lib/agent-view/werkbank-abnahme'
 import { TWIN_STATUS_VALUES } from '@/lib/shadow-twin/twin-core-fields'
 import { AbnahmeKopfRahmen, KopfBreadcrumb, KopfChip, KopfMenue } from './abnahme-kopf'
+import { MarkierHinweis, MarkierKnopf } from './artefakt-markieren'
 import type { ArtefaktTab } from './werkbank-artefakt-dokument'
 
-export function ArtefaktKopf({ familie, tab, kuration, libraryId, onVerifiziert }: {
+export function ArtefaktKopf({ familie, tab, kuration, libraryId, onKuriert }: {
   /** Effektive Familie (Report + Overrides). */
   familie: TwinFamilySummary
   tab: ArtefaktTab
   kuration: UseArtefaktKurationResult
   libraryId: string
-  /** Nach erfolgreicher Verifikation: Art + frischer Zustand (Sprung, Entscheidung 5). */
-  onVerifiziert: (art: PruefbareArt, frisch: LeadingArtifactSummary) => void
+  /** Nach jeder erfolgreichen Kuration: Art + frischer Zustand (Sprung). */
+  onKuriert: (art: PruefbareArt, frisch: LeadingArtifactSummary) => void
 }) {
   const { toast } = useToast()
   const art: PruefbareArt | null = tab === 'original' ? null : tab
@@ -43,7 +46,9 @@ export function ArtefaktKopf({ familie, tab, kuration, libraryId, onVerifiziert 
   const key = art !== null && artefakt != null ? artefaktKey(familie.sourceId, artefakt) : null
   const pending = key !== null && kuration.pendingKey === key
   const fehler = key === null ? undefined : kuration.fehler.get(key)
-  const geprueft = artefakt != null && artefaktGeprueft(artefakt)
+  const zustand = artefakt == null ? null : artefaktZustand(artefakt)
+  const geprueft = zustand === 'geprueft'
+  const markiert = zustand === 'markiert'
   const archivHref = `/library?activeLibraryId=${encodeURIComponent(libraryId)}&folderId=${encodeURIComponent(familie.folderId)}`
 
   const verifizierenTitle =
@@ -55,12 +60,20 @@ export function ArtefaktKopf({ familie, tab, kuration, libraryId, onVerifiziert 
           ? `Kein ${tab === 'transkript' ? 'Transkript' : 'Zusammenfassung'} vorhanden — hier fehlt das Artefakt, nicht die Pruefung.`
           : geprueft
             ? `Bereits geprueft von ${artefakt.verifiedBy ?? '—'}.`
-            : 'Setzt verified_by: human:<user> + verified_at ueber die Kurations-Patch-Route.'
+            : markiert
+              ? 'Verifizieren loest die Fehler-Markierung auf — erst reparieren (lassen), dann bestaetigen.'
+              : 'Freiwillig: bestaetigt, dass du diesen Teil wirklich angesehen hast (verified_by + verified_at).'
 
   const verifiziere = async () => {
     if (art === null || artefakt == null) return
     const frisch = await kuration.verifiziere(familie, artefakt)
-    if (frisch !== null) onVerifiziert(art, frisch)
+    if (frisch !== null) onKuriert(art, frisch)
+  }
+
+  const markiere = async (notiz: string) => {
+    if (art === null || artefakt == null) return
+    const frisch = await kuration.markiere(familie, artefakt, notiz)
+    if (frisch !== null) onKuriert(art, frisch)
   }
 
   const copySourceId = async () => {
@@ -84,11 +97,23 @@ export function ArtefaktKopf({ familie, tab, kuration, libraryId, onVerifiziert 
           ) : artefakt == null ? (
             <KopfChip ton="stand">{artefakt === undefined ? 'Stand unbekannt' : 'kein Artefakt'}</KopfChip>
           ) : (
-            <KopfChip ton={geprueft ? 'ok' : 'open'} title={`verified_by: ${artefakt.verifiedBy ?? '—'}`}>
-              {geprueft ? 'geprueft' : verificationLabel(artefakt.verification)}
+            <KopfChip
+              ton={markiert ? 'blockiert' : geprueft ? 'ok' : 'open'}
+              title={
+                markiert
+                  ? `Als fehlerhaft markiert: ${artefakt.flaggedNote ?? '(ohne Notiz)'}`
+                  : geprueft
+                    ? `verified_by: ${artefakt.verifiedBy ?? '—'}`
+                    : `Von der Maschine erzeugt (${artefakt.generatedBy ?? '—'}), von niemandem beanstandet — Vertrauensstufe: ${verificationLabel(artefakt.verification)}`
+              }
+            >
+              {markiert ? 'stimmt nicht' : geprueft ? 'geprueft' : 'angenommen'}
             </KopfChip>
           )}
           <span className="ml-auto flex items-center gap-1.5">
+            {!markiert && art !== null && (
+              <MarkierKnopf artefakt={artefakt} pending={pending} onMarkiere={markiere} />
+            )}
             <span title={verifizierenTitle} className="inline-flex">
               <Button size="sm" className="h-7" disabled={artefakt == null || geprueft || pending} onClick={() => void verifiziere()}>
                 {pending && <Loader2 className="mr-1 h-3 w-3 animate-spin" aria-hidden />}
@@ -129,18 +154,21 @@ export function ArtefaktKopf({ familie, tab, kuration, libraryId, onVerifiziert 
         <>
           <KopfBreadcrumb path={familie.path} />
           <span className="ml-auto">
-            <KopfChip ton="stand" title="Entscheidung 5 (24.08.2026): nach der Verifikation springt die Auswahl zum naechsten offenen Artefakt, der Baum zieht mit.">
-              nach dem Bestaetigen: naechstes offenes
+            <KopfChip ton="stand" title="ADR 0006: Der Sprung sucht den naechsten markierten Fehler. Ist keiner mehr offen, bleibt die Auswahl stehen — Lesen erzeugt keine Schuld.">
+              Sprung: naechster Widerstand
             </KopfChip>
           </span>
         </>
       }
       kinder={
-        fehler ? (
-          <p className="rounded-md bg-red-600/10 px-2 py-1.5 text-sm text-red-700 dark:text-red-400" role="alert">
-            {fehler}
-          </p>
-        ) : undefined
+        <>
+          {markiert && artefakt != null && <MarkierHinweis artefakt={artefakt} />}
+          {fehler && (
+            <p className="rounded-md bg-red-600/10 px-2 py-1.5 text-sm text-red-700 dark:text-red-400" role="alert">
+              {fehler}
+            </p>
+          )}
+        </>
       }
     />
   )

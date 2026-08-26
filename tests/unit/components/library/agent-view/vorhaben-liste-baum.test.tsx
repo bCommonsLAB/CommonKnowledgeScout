@@ -87,19 +87,25 @@ function renderListe(onSelectArtefakt = vi.fn()) {
 }
 
 describe('VorhabenListe — Baum bis zum Artefakt (A2)', () => {
-  it('startet zugeklappt und traegt den Zaehler n/m an der Vorhaben-Zeile', () => {
+  it('startet zugeklappt und traegt die Zahl der Quellen an der Vorhaben-Zeile', () => {
     renderListe()
-    expect(screen.getByText('0/1')).toBeTruthy()
+    // ADR 0006: keine Erledigungs-Quote mehr — ohne Markierung nur die Menge.
+    const zaehler = screen.getAllByTitle(/Quelle/)
+    expect(zaehler.length).toBeGreaterThan(0)
+    expect(zaehler[0].textContent).toBe('1')
     expect(screen.queryByText('Treffen Thomas Egger.m4a')).toBeNull()
   })
 
-  it('der Pfeil klappt Ordner- und Artefakt-Zeilen auf, mit Pruef-Kennung ○', () => {
+  it('der Pfeil klappt Ordner- und Artefakt-Zeilen auf, mit Kennung ✓', () => {
     renderListe()
     fireEvent.click(screen.getByLabelText(/Teilbaum von 26.01 Klima aufklappen/))
     expect(screen.getByText('2026-08-04 Klimaclub')).toBeTruthy()
     expect(screen.getByText('Treffen Thomas Egger.m4a')).toBeTruthy()
-    // Transkript mensch-verifiziert, Zusammenfassung offen ⇒ Familie offen.
-    expect(screen.getByText('○')).toBeTruthy()
+    // Transkript mensch-verifiziert, Zusammenfassung unbestaetigt ⇒ angenommen,
+    // also der ORANGE Haken (ADR 0006) — kein Mangel-Zeichen mehr.
+    const marke = screen.getAllByText('✓')[0]
+    expect(marke.className).toContain('amber')
+    expect(marke.getAttribute('title')).toContain('Hoechstwahrscheinlich OK')
   })
 
   it('Ordner-Zeile klappt ihren Inhalt zu', () => {

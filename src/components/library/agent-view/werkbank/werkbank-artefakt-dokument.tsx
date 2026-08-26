@@ -21,7 +21,7 @@ import { MarkdownPreview } from '@/components/library/markdown-preview'
 import { useArtefaktInhalt } from '@/hooks/agent-view/use-artefakt-inhalt'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import type { LeadingArtifactSummary, TwinFamilySummary } from '@/lib/agent-view/types'
-import { artefaktGeprueft } from '@/lib/agent-view/werkbank-baum'
+import { artefaktMarkiert } from '@/lib/agent-view/werkbank-baum'
 import { WerkbankOriginal } from './werkbank-original'
 
 export type ArtefaktTab = 'original' | 'transkript' | 'zusammenfassung'
@@ -32,18 +32,30 @@ export const ARTEFAKT_TAB_LABEL: Record<ArtefaktTab, string> = {
   zusammenfassung: 'Zusammenfassung',
 }
 
-/** Startwert: das pruefbare Artefakt zuerst — Zusammenfassung vor Transkript, sonst Original. */
+/**
+ * Startwert: Wo etwas zu tun ist, zuerst — ein markierter Fehler schlaegt
+ * alles (ADR 0006), sonst Zusammenfassung vor Transkript, sonst Original.
+ *
+ * Befund aus dem Testlauf 26.08.2026: Der starre Vorrang der Zusammenfassung
+ * liess die Auswahl auf einem bereits erledigten Reiter landen.
+ */
 export function standardTab(familie: TwinFamilySummary): ArtefaktTab {
+  if (familie.zusammenfassung != null && artefaktMarkiert(familie.zusammenfassung)) return 'zusammenfassung'
+  if (familie.transkript != null && artefaktMarkiert(familie.transkript)) return 'transkript'
   if (familie.zusammenfassung != null) return 'zusammenfassung'
   if (familie.transkript != null) return 'transkript'
   return 'original'
 }
 
-/** Pruef-Kennung im Tab: ✓/○; '?' = Report aus einem Scan vor A2. */
+/**
+ * Kennung im Tab (ADR 0006, gleiche Sprache wie der Baum): `⊘` markiert,
+ * `✓` angenommen oder geprueft (die Farbe unterscheidet, nicht das Zeichen),
+ * `—` kein Artefakt, `?` Report aus einem Scan vor A2.
+ */
 function tabMark(artefakt: LeadingArtifactSummary | null | undefined): string {
   if (artefakt === undefined) return '?'
   if (artefakt === null) return '—'
-  return artefaktGeprueft(artefakt) ? '✓' : '○'
+  return artefaktMarkiert(artefakt) ? '⊘' : '✓'
 }
 
 /**

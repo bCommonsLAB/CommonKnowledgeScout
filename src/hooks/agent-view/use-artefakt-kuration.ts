@@ -4,18 +4,19 @@
  * @fileoverview Kuration je Artefakt (Welle A4) — Verifizieren + twin_status.
  *
  * @description
- * Nachfolger der Familien-Kuration fuer die Werkbank: Der Abnahme-Kopf
- * verifiziert das Artefakt des AKTIVEN Tabs (Transkript ODER
- * Zusammenfassung, Entscheidung 4), die Sammelaktion eine ganze Art auf
- * einmal (Entscheidung 3). EINZIGER Schreibweg bleibt die bestehende
- * Kurations-Patch-Route (Contract §4). Overrides sind je {@link artefaktKey}
- * abgelegt und ueberlagern den Report bis zum naechsten Scan — Baum-Kennung,
- * Zaehler und Tabs lesen sie ueber `useWerkbankBaum`.
+ * Kuration je Artefakt fuer die Werkbank: Der Kopf verifiziert oder markiert
+ * das Artefakt des AKTIVEN Tabs (Transkript ODER Zusammenfassung).
+ * EINZIGER Schreibweg bleibt die bestehende Kurations-Patch-Route
+ * (Contract §4). Overrides sind je {@link artefaktKey} abgelegt und
+ * ueberlagern den Report bis zum naechsten Scan — Baum-Kennung, Zaehler und
+ * Tabs lesen sie ueber `useWerkbankBaum`.
+ *
+ * Sammelaktionen gibt es seit ADR 0006 nicht mehr: In Modell B ist nichts
+ * massenhaft zu bestaetigen — genau ihre Existenz war das Symptom der
+ * Zustimmungspflicht.
  *
  * 409-Antworten sind BEFUNDE (Spiegel-Drift, Selbst-Verifikation): sie
  * erscheinen als Klartext am Ort der Aktion, nichts wurde ueberschrieben.
- * Die Sammelaktion arbeitet SEQUENZIELL und sammelt Fehler je Datei —
- * kein stilles Weiterlaufen.
  *
  * @module hooks/agent-view
  */
@@ -45,13 +46,6 @@ type KurationsAktion =
   | { verify: true }
   | { markiere: { notiz: string } }
 
-export interface SammelErgebnis {
-  erledigt: number
-  gesamt: number
-  /** Klartext je fehlgeschlagener Datei — sichtbar, nie still. */
-  fehler: string[]
-}
-
 export interface UseArtefaktKurationResult {
   overrides: ReadonlyMap<string, LeadingArtifactSummary>
   /** artefaktKey der laufenden Einzel-Aktion. */
@@ -70,11 +64,6 @@ export interface UseArtefaktKurationResult {
     notiz: string,
   ) => Promise<LeadingArtifactSummary | null>
   setzeTwinStatus: (familie: TwinFamilySummary, artefakt: LeadingArtifactSummary, twinStatus: string) => Promise<void>
-  /** Sammel-Verifikation (sequenziell); liefert das benannte Ergebnis. */
-  sammelVerifiziere: (
-    ziele: readonly { familie: TwinFamilySummary; artefakt: LeadingArtifactSummary }[],
-  ) => Promise<SammelErgebnis>
-  sammelLaeuft: boolean
 }
 
 async function readError(response: Response): Promise<string> {
@@ -113,7 +102,6 @@ export function useArtefaktKuration(libraryId: string): UseArtefaktKurationResul
   const [overrides, setOverrides] = useState<Map<string, LeadingArtifactSummary>>(new Map())
   const [pendingKey, setPendingKey] = useState<string | null>(null)
   const [fehler, setFehler] = useState<Map<string, string>>(new Map())
-  const [sammelLaeuft, setSammelLaeuft] = useState(false)
 
   const patch = useCallback(
     async (
@@ -187,27 +175,5 @@ export function useArtefaktKuration(libraryId: string): UseArtefaktKurationResul
     [einzel],
   )
 
-  const sammelVerifiziere = useCallback(
-    async (ziele: readonly { familie: TwinFamilySummary; artefakt: LeadingArtifactSummary }[]) => {
-      setSammelLaeuft(true)
-      const ergebnis: SammelErgebnis = { erledigt: 0, gesamt: ziele.length, fehler: [] }
-      try {
-        // Sequenziell: gentle zum Storage-Provider, Fehler bleiben zuordenbar.
-        for (const { familie, artefakt } of ziele) {
-          try {
-            await patch(familie, artefakt, { verify: true })
-            ergebnis.erledigt += 1
-          } catch (err) {
-            ergebnis.fehler.push(`${familie.sourceName}: ${err instanceof Error ? err.message : String(err)}`)
-          }
-        }
-      } finally {
-        setSammelLaeuft(false)
-      }
-      return ergebnis
-    },
-    [patch],
-  )
-
-  return { overrides, pendingKey, fehler, verifiziere, markiere, setzeTwinStatus, sammelVerifiziere, sammelLaeuft }
+  return { overrides, pendingKey, fehler, verifiziere, markiere, setzeTwinStatus }
 }

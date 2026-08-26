@@ -3,10 +3,11 @@
 /**
  * @fileoverview Unit-Tests: Abnahme-Kopf des Artefakts (Welle A4, Zustand B).
  *
- * Der Kopf verifiziert das Artefakt des AKTIVEN Tabs; auf dem Original-Tab
- * ist der Knopf benannt gesperrt (Entscheidung 4). Nach Erfolg meldet
- * `onVerifiziert` Art + frischen Zustand (Sprung, Entscheidung 5); der
- * Sprung-Hinweis steht in Zeile 2, 409-Befunde als Klartext darunter.
+ * Der Kopf verifiziert ODER markiert das Artefakt des AKTIVEN Tabs; auf dem
+ * Original-Tab sind beide Aktionen benannt gesperrt. Nach Erfolg meldet
+ * `onKuriert` Art + frischen Zustand (Sprung); der Sprung-Hinweis steht in
+ * Zeile 2, 409-Befunde als Klartext darunter. Zeichensprache nach ADR 0006:
+ * angenommen / geprueft / stimmt nicht.
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
@@ -23,6 +24,7 @@ function artefakt(overrides: Partial<LeadingArtifactSummary> = {}): LeadingArtif
   return {
     kind: 'transcript', templateName: null, targetLanguage: 'de', twinStatus: null,
     generatedBy: null, generatedAt: null, verifiedBy: null, verifiedAt: null,
+    flaggedBy: null, flaggedAt: null, flaggedNote: null,
     verification: 'unverifiziert', ...overrides,
   }
 }
@@ -41,9 +43,8 @@ function fakeKuration(overrides: Partial<UseArtefaktKurationResult> = {}): UseAr
   return {
     overrides: new Map(), pendingKey: null, fehler: new Map(),
     verifiziere: vi.fn().mockResolvedValue(null),
+    markiere: vi.fn().mockResolvedValue(null),
     setzeTwinStatus: vi.fn().mockResolvedValue(undefined),
-    sammelVerifiziere: vi.fn().mockResolvedValue({ erledigt: 0, gesamt: 0, fehler: [] }),
-    sammelLaeuft: false,
     ...overrides,
   }
 }
@@ -52,30 +53,67 @@ function renderKopf(args: {
   f?: TwinFamilySummary
   tab?: ArtefaktTab
   kuration?: UseArtefaktKurationResult
-  onVerifiziert?: ReturnType<typeof vi.fn>
+  onKuriert?: ReturnType<typeof vi.fn>
 } = {}) {
-  const onVerifiziert = args.onVerifiziert ?? vi.fn()
+  const onKuriert = args.onKuriert ?? vi.fn()
   render(
     <ArtefaktKopf
       familie={args.f ?? familie()}
       tab={args.tab ?? 'transkript'}
       kuration={args.kuration ?? fakeKuration()}
       libraryId="lib-1"
-      onVerifiziert={onVerifiziert}
+      onKuriert={onKuriert}
     />,
   )
-  return { onVerifiziert }
+  return { onKuriert }
 }
 
 describe('ArtefaktKopf (A4)', () => {
   it('verifiziert das Artefakt des aktiven Tabs und meldet den frischen Zustand', async () => {
     const frisch = artefakt({ verification: 'mensch', verifiedBy: 'human:peter' })
     const kuration = fakeKuration({ verifiziere: vi.fn().mockResolvedValue(frisch) })
-    const { onVerifiziert } = renderKopf({ kuration })
+    const { onKuriert } = renderKopf({ kuration })
     fireEvent.click(screen.getByRole('button', { name: 'Verifizieren' }))
-    await vi.waitFor(() => expect(onVerifiziert).toHaveBeenCalledWith('transkript', frisch))
+    await vi.waitFor(() => expect(onKuriert).toHaveBeenCalledWith('transkript', frisch))
     const aufruf = (kuration.verifiziere as ReturnType<typeof vi.fn>).mock.calls[0]
     expect(aufruf[1].kind).toBe('transcript')
+  })
+
+  it('unangetastete Maschinenarbeit traegt den Chip „angenommen", nicht „Unverifiziert"', () => {
+    renderKopf()
+    expect(screen.getByText('angenommen')).toBeTruthy()
+    expect(screen.queryByText('Unverifiziert')).toBeNull()
+  })
+
+  it('markieren verlangt eine Notiz und meldet danach den frischen Zustand', async () => {
+    const frisch = artefakt({ twinStatus: 'flagged', flaggedNote: 'Sprecher vertauscht', flaggedBy: 'human:peter' })
+    const kuration = fakeKuration({ markiere: vi.fn().mockResolvedValue(frisch) })
+    const { onKuriert } = renderKopf({ kuration })
+    fireEvent.click(screen.getByRole('button', { name: 'stimmt nicht' }))
+    // Ohne Notiz bleibt der Knopf gesperrt — kein stilles Absenden.
+    expect(screen.getByRole('button', { name: 'Markieren' }).hasAttribute('disabled')).toBe(true)
+    fireEvent.change(screen.getByLabelText('Was stimmt nicht?'), { target: { value: 'Sprecher vertauscht' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Markieren' }))
+    await vi.waitFor(() => expect(onKuriert).toHaveBeenCalledWith('transkript', frisch))
+    expect(kuration.markiere).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceId: 's-egger' }),
+      expect.objectContaining({ kind: 'transcript' }),
+      'Sprecher vertauscht',
+    )
+  })
+
+  it('markiertes Artefakt: Chip „stimmt nicht", Notiz und Urheber sichtbar, kein Markier-Knopf', () => {
+    renderKopf({
+      f: familie({
+        transkript: artefakt({ twinStatus: 'flagged', flaggedNote: 'Zahlen falsch', flaggedBy: 'human:peter', flaggedAt: '2026-08-26T09:00:00.000Z' }),
+      }),
+    })
+    expect(screen.getByText('stimmt nicht')).toBeTruthy()
+    expect(screen.getByText(/Zahlen falsch/)).toBeTruthy()
+    expect(screen.getByText(/human:peter, 2026-08-26/)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'stimmt nicht' })).toBeNull()
+    // Verifizieren bleibt moeglich — es loest die Markierung auf.
+    expect(screen.getByRole('button', { name: 'Verifizieren' }).hasAttribute('disabled')).toBe(false)
   })
 
   it('auf dem Original-Tab ist der Knopf benannt gesperrt — das Original traegt kein Haekchen', () => {
@@ -94,9 +132,9 @@ describe('ArtefaktKopf (A4)', () => {
     expect(screen.getByTitle(/Bereits geprueft von human:peter/)).toBeTruthy()
   })
 
-  it('Zeile 2 traegt Breadcrumb und den Sprung-Hinweis (Entscheidung 5)', () => {
+  it('Zeile 2 traegt Breadcrumb und den Sprung-Hinweis', () => {
     renderKopf()
-    expect(screen.getByText('nach dem Bestaetigen: naechstes offenes')).toBeTruthy()
+    expect(screen.getByText('Sprung: naechster Widerstand')).toBeTruthy()
     expect(screen.getByTitle(/26.01 Klima\/Klimaclub/)).toBeTruthy()
   })
 

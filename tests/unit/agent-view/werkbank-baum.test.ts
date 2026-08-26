@@ -19,6 +19,7 @@ function artefakt(overrides: Partial<LeadingArtifactSummary> = {}): LeadingArtif
   return {
     kind: 'transcript', templateName: null, targetLanguage: 'de', twinStatus: null,
     generatedBy: null, generatedAt: null, verifiedBy: null, verifiedAt: null,
+    flaggedBy: null, flaggedAt: null, flaggedNote: null,
     verification: 'unverifiziert',
     ...overrides,
   }
@@ -53,8 +54,21 @@ describe('familienPruefstand', () => {
       zusammenfassung: artefakt({ kind: 'transformation', templateName: 'standard', verification: 'mensch' }),
     })
     expect(familienPruefstand(beide)).toBe('geprueft')
+    // ADR 0006: Halb geprueft ist kein Mangel mehr — der Rest gilt als angenommen.
     const halb = familie('s2', 'f1', { transkript: artefakt({ verification: 'mensch' }) })
-    expect(familienPruefstand(halb)).toBe('offen')
+    expect(familienPruefstand(halb)).toBe('angenommen')
+  })
+
+  it('markiert schlaegt alles — auch neben einer gueltigen Verifikation (ADR 0006)', () => {
+    const gemischt = familie('s1', 'f1', {
+      transkript: artefakt({ verification: 'mensch' }),
+      zusammenfassung: artefakt({ kind: 'transformation', templateName: 'standard', twinStatus: 'flagged' }),
+    })
+    expect(familienPruefstand(gemischt)).toBe('markiert')
+  })
+
+  it('unangetastete Maschinenarbeit ist angenommen, kein Mangel', () => {
+    expect(familienPruefstand(familie('s1', 'f1'))).toBe('angenommen')
   })
 
   it('nur ein Transkript vorhanden und geprueft ⇒ geprueft (fehlende Zusammenfassung blockiert nicht)', () => {
@@ -62,8 +76,8 @@ describe('familienPruefstand', () => {
     expect(familienPruefstand(nurTranskript)).toBe('geprueft')
   })
 
-  it('ohne pruefbares Artefakt bleibt die Familie offen — dort fehlt das Artefakt', () => {
-    expect(familienPruefstand(familie('s1', 'f1', { transkript: null, zusammenfassung: null }))).toBe('offen')
+  it('ohne pruefbares Artefakt ist die Familie leer — nicht „OK", sondern unerschlossen', () => {
+    expect(familienPruefstand(familie('s1', 'f1', { transkript: null, zusammenfassung: null }))).toBe('leer')
   })
 
   it('maschinelle Verifikation zaehlt nicht als geprueft', () => {
@@ -73,13 +87,14 @@ describe('familienPruefstand', () => {
 })
 
 describe('zaehlePruefstand', () => {
-  it('zaehlt geprueft/gesamt/unbekannt getrennt', () => {
+  it('zaehlt markiert/geprueft/gesamt/unbekannt getrennt', () => {
     const zaehler = zaehlePruefstand([
       familie('a', 'f1', { transkript: artefakt({ verification: 'mensch' }), zusammenfassung: null }),
       familie('b', 'f1'),
       familie('c', 'f1', { transkript: undefined, zusammenfassung: undefined }),
+      familie('d', 'f1', { transkript: artefakt({ twinStatus: 'flagged' }), zusammenfassung: null }),
     ])
-    expect(zaehler).toEqual({ geprueft: 1, gesamt: 3, unbekannt: 1 })
+    expect(zaehler).toEqual({ markiert: 1, geprueft: 1, gesamt: 4, unbekannt: 1 })
   })
 })
 

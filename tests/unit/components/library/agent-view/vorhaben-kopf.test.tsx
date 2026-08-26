@@ -82,9 +82,8 @@ function fakeKuration(overrides: Partial<UseArtefaktKurationResult> = {}): UseAr
   return {
     overrides: new Map(), pendingKey: null, fehler: new Map(),
     verifiziere: vi.fn().mockResolvedValue(null),
+    markiere: vi.fn().mockResolvedValue(null),
     setzeTwinStatus: vi.fn().mockResolvedValue(undefined),
-    sammelVerifiziere: vi.fn().mockResolvedValue({ erledigt: 0, gesamt: 0, fehler: [] }),
-    sammelLaeuft: false,
     ...overrides,
   }
 }
@@ -165,35 +164,38 @@ describe('VorhabenKopf — Menue ⋯ (alles Seltene)', () => {
   })
 })
 
-describe('VorhabenKopf — Zeile 2: Fortschritt + Sammelaktion', () => {
-  it('zeigt n von m geprueft aus den effektiven Familien', () => {
+describe('VorhabenKopf — Zeile 2: Widerstands-Chip (ADR 0006)', () => {
+  it('sagt „keine Widerstaende", wenn nichts sperrt — auch ohne jede Verifikation', () => {
     renderKopf({
-      familien: [
-        familie('a', { transkript: artefakt({ verification: 'mensch' }) }),
-        familie('b'),
-      ],
+      familien: [familie('a'), familie('b')],
+      k: { ...karte(), gapsByActor: { mensch: 0, cowork: 0, knowledgescout: 0 }, gapsByType: {} },
     })
-    expect(screen.getByText('1 von 2 geprueft')).toBeTruthy()
+    expect(screen.getByText('keine Widerstaende')).toBeTruthy()
   })
 
-  it('Sammelaktion fragt mit der Zahl zurueck und verifiziert erst nach Bestaetigung', async () => {
-    const kuration = fakeKuration({
-      sammelVerifiziere: vi.fn().mockResolvedValue({ erledigt: 2, gesamt: 2, fehler: [] }),
+  it('zaehlt maschinelle Befunde und Fehler-Markierungen zusammen', () => {
+    renderKopf({
+      familien: [familie('a', { transkript: artefakt({ twinStatus: 'flagged' }) }), familie('b')],
+      k: {
+        ...karte(),
+        gapsByActor: { mensch: 1, cowork: 2, knowledgescout: 0 },
+        gapsByType: { twin_flagged: 1, report_missing: 2 },
+      },
     })
-    renderKopf({ familien: [familie('a'), familie('b')], kuration })
-    fireEvent.click(screen.getByRole('button', { name: /2 Transkripte pruefen/ }))
-    expect(screen.getByText('2 Transkripte als geprueft bestaetigen?')).toBeTruthy()
-    expect(kuration.sammelVerifiziere).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: /Ja, 2 verifizieren/ }))
-    await vi.waitFor(() => expect(kuration.sammelVerifiziere).toHaveBeenCalledTimes(1))
-    const ziele = (kuration.sammelVerifiziere as ReturnType<typeof vi.fn>).mock.calls[0][0]
-    expect(ziele).toHaveLength(2)
-    expect(await screen.findByText(/2 von 2 verifiziert/)).toBeTruthy()
+    expect(screen.getByText('3 Widerstaende offen')).toBeTruthy()
+  })
+
+  it('nennt im Titel die Herkunft der Sperre und was ein Mensch angesehen hat', () => {
+    renderKopf({
+      familien: [familie('a', { transkript: artefakt({ twinStatus: 'flagged' }) })],
+      k: { ...karte(), gapsByActor: { mensch: 1, cowork: 0, knowledgescout: 0 }, gapsByType: { twin_flagged: 1 } },
+    })
+    expect(screen.getByText('1 Widerstand offen').getAttribute('title')).toContain('als fehlerhaft markiert')
   })
 
   it('Report vor Welle 4: Chip benennt den Zustand statt 0/0 zu raten', () => {
     renderKopf({ familien: undefined })
-    expect(screen.getByText('Pruefstand: neu scannen')).toBeTruthy()
+    expect(screen.getByText('Stand: neu scannen')).toBeTruthy()
   })
 })
 

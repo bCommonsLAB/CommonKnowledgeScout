@@ -25,7 +25,6 @@ import type { UseThemenResult } from '@/hooks/agent-view/use-themen'
 import { istBerichtVeraltet, teilbaumBefunde } from '@/lib/agent-view/teilbaum'
 import type { CoverageReport, LeadingArtifactSummary, TwinFamilySummary, VorhabenCard } from '@/lib/agent-view/types'
 import {
-  andererOffenerTab,
   patchFamilie,
   sprungHinweis,
   sprungNachVerifikation,
@@ -76,17 +75,11 @@ function ArtefaktDetail({ familie, familien, kuration, report, onWaehleArtefakt 
   const { toast } = useToast()
   const [tab, setTab] = useState<ArtefaktTab>(() => standardTab(familie))
 
-  const verifiziert = (art: PruefbareArt, frisch: LeadingArtifactSummary) => {
+  const kuriert = (art: PruefbareArt, frisch: LeadingArtifactSummary) => {
     const gepatcht = patchFamilie(familie, art, frisch)
-    if (familienPruefstand(gepatcht) !== 'geprueft') {
-      // Derselbe Twin ist noch halb offen: erst den anderen Tab pruefen.
-      const anderer = andererOffenerTab(gepatcht, art)
-      if (anderer !== null) setTab(anderer)
-      return
-    }
-    // A5: Sprung zum naechsten offenen Artefakt; am Ordner-Ende sagt die
-    // Werkbank, dass der Ordner fertig ist, am Vorhaben-Ende, dass die
-    // Abnahme wartet — kein stilles Stehenbleiben.
+    // ADR 0006: Der Sprung sucht den naechsten WIDERSTAND. Wer nur verifiziert
+    // hat, bleibt stehen, wenn nichts markiert ist — keine Weiterreich-Kette
+    // mehr, die zum Abarbeiten draengt.
     const ergebnis = sprungNachVerifikation(familien ?? [], gepatcht)
     const hinweis = sprungHinweis(ergebnis, gepatcht)
     if (hinweis !== null) toast({ title: hinweis.titel, description: hinweis.beschreibung })
@@ -100,7 +93,7 @@ function ArtefaktDetail({ familie, familien, kuration, report, onWaehleArtefakt 
         tab={tab}
         kuration={kuration}
         libraryId={report.libraryId}
-        onVerifiziert={verifiziert}
+        onKuriert={kuriert}
       />
       <WerkbankArtefaktDokument
         libraryId={report.libraryId}

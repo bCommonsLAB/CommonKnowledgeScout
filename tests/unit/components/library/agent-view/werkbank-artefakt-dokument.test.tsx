@@ -69,10 +69,19 @@ describe('WerkbankArtefaktDokument (A3)', () => {
     expect(standardTab(familie({ zusammenfassung: null, transkript: null }))).toBe('original')
   })
 
-  it('traegt drei Tabs — Original ohne Haekchen, die anderen mit Pruef-Kennung', () => {
+  it('traegt drei Tabs — Original ohne Kennung, die anderen mit Zustands-Zeichen', () => {
     renderDokument(familie())
     const tabs = screen.getAllByRole('tab')
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Original', '✓Transkript', '○Zusammenfassung'])
+    // ADR 0006: `✓` fuer alles Unbeanstandete (angenommen ODER geprueft) —
+    // das Mangel-Zeichen `○` gibt es nicht mehr.
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Original', '✓Transkript', '✓Zusammenfassung'])
+  })
+
+  it('markiertes Artefakt traegt im Tab das Stopp-Zeichen', () => {
+    const f = familie()
+    renderDokument({ ...f, zusammenfassung: { ...f.zusammenfassung!, twinStatus: 'flagged' } })
+    const tabs = screen.getAllByRole('tab')
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Original', '✓Transkript', '⊘Zusammenfassung'])
   })
 
   it('rendert Inhalt mit Frontmatter sichtbar UEBER dem Text', async () => {

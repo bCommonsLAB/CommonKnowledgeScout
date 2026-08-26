@@ -70,9 +70,8 @@ function fakeKuration(): UseArtefaktKurationResult {
   return {
     overrides: new Map(), pendingKey: null, fehler: new Map(),
     verifiziere: vi.fn().mockResolvedValue(null),
+    markiere: vi.fn().mockResolvedValue(null),
     setzeTwinStatus: vi.fn().mockResolvedValue(undefined),
-    sammelVerifiziere: vi.fn().mockResolvedValue({ erledigt: 0, gesamt: 0, fehler: [] }),
-    sammelLaeuft: false,
   }
 }
 
@@ -275,15 +274,21 @@ describe('WerkbankDetail — Verifizieren im Fluss (A5)', () => {
     }
   }
 
-  it('letztes Artefakt eines Ordners: Ordner-fertig-Hinweis + Sprung in den naechsten Ordner', async () => {
+  it('Markierung aufgeloest: Sprung zum naechsten Widerstand im anderen Ordner', async () => {
     toastMock.mockClear()
+    // Der eigene Fehler ist geklaert, im Ordner Zwei wartet der naechste.
     const aktuelle = twinFamilie('s-a')
-    const naechste = twinFamilie('s-b', { folderId: 'f-zwei', path: '1. Arbeit/Pilot/Ordner Zwei/s-b.m4a' })
+    const naechste = twinFamilie('s-b', {
+      folderId: 'f-zwei',
+      path: '1. Arbeit/Pilot/Ordner Zwei/s-b.m4a',
+      transkript: artefaktSummary({ twinStatus: 'flagged', flaggedNote: 'Zahlen falsch' }),
+    })
     const frisch = artefaktSummary({ verification: 'mensch', verifiedBy: 'human:peter' })
     const kuration: UseArtefaktKurationResult = {
       overrides: new Map(), pendingKey: null, fehler: new Map(),
       verifiziere: vi.fn().mockResolvedValue(frisch),
-      setzeTwinStatus: vi.fn(), sammelVerifiziere: vi.fn(), sammelLaeuft: false,
+      markiere: vi.fn().mockResolvedValue(null),
+      setzeTwinStatus: vi.fn(),
     }
     const onWaehleArtefakt = vi.fn()
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -301,6 +306,37 @@ describe('WerkbankDetail — Verifizieren im Fluss (A5)', () => {
     await vi.waitFor(() => expect(onWaehleArtefakt).toHaveBeenCalledWith('s-b'))
     expect(toastMock).toHaveBeenCalledWith(
       expect.objectContaining({ title: expect.stringContaining('Ordner Eins') }),
+    )
+  })
+
+  it('ohne Widerstand bleibt die Auswahl stehen — Verifizieren treibt nichts weiter', async () => {
+    toastMock.mockClear()
+    const aktuelle = twinFamilie('s-a')
+    const andere = twinFamilie('s-b', { folderId: 'f-zwei', path: '1. Arbeit/Pilot/Ordner Zwei/s-b.m4a' })
+    const frisch = artefaktSummary({ verification: 'mensch', verifiedBy: 'human:peter' })
+    const kuration: UseArtefaktKurationResult = {
+      overrides: new Map(), pendingKey: null, fehler: new Map(),
+      verifiziere: vi.fn().mockResolvedValue(frisch),
+      markiere: vi.fn().mockResolvedValue(null),
+      setzeTwinStatus: vi.fn(),
+    }
+    const onWaehleArtefakt = vi.fn()
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <WerkbankDetail
+          karte={karte()} vorhabenId="f-pilot" artefaktId="s-a" familie={aktuelle}
+          familien={[aktuelle, andere]} kuration={kuration}
+          themenVokabular={[]} themenHook={fakeThemen()} onWaehleArtefakt={onWaehleArtefakt}
+          report={report()} generatedAt="G1" libraryLabel="Testarchiv" localRootPath={null}
+        />
+      </QueryClientProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Verifizieren' }))
+    await vi.waitFor(() => expect(kuration.verifiziere).toHaveBeenCalledTimes(1))
+    expect(onWaehleArtefakt).not.toHaveBeenCalled()
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: expect.stringContaining('Kein Widerstand') }),
     )
   })
 })
