@@ -16,19 +16,43 @@ bestehenden Cursor-Konventionen, damit beide Tools dieselbe Quelle nutzen.
 @docs/contracts/no-silent-fallbacks.md
 @docs/contracts/storage-abstraction.md
 
-## On-Demand-Regeln
+## Routing-Index: welcher Pfad, welche Regel
 
-Weitere Contract-Dateien unter [docs/contracts/](docs/contracts/) sind bei Bedarf
-zu lesen — sie sind in Cursor an Globs/Tasks gebunden und in `AGENTS.md`
-referenziert. Beispiele:
+**Verbindlich.** Wer eine Datei aus der linken Spalte ändert, liest vorher die
+zugehörigen Contracts unter [docs/contracts/](docs/contracts/) — der genannte
+Skill fasst sie zusammen. Die ADR-Spalte nennt Entscheidungen, die für diesen
+Bereich bereits getroffen sind (`docs/adr/`); Status **Aktiv** heißt bindend,
+**Vorgeschlagen** heißt Richtung, aber noch nicht in Kraft.
 
-- [contracts-story-pipeline.md](docs/contracts/contracts-story-pipeline.md) – Pipeline-Änderungen
-- [library-config-field.md](docs/contracts/library-config-field.md) – neues Per-Library-Config-Feld (Checkliste)
-- [shadow-twin-architecture.md](docs/contracts/shadow-twin-architecture.md) / [shadow-twin-contracts.md](docs/contracts/shadow-twin-contracts.md)
-- [storage-contracts.md](docs/contracts/storage-contracts.md) – Storage-Implementierungen
-- [ingestion-contracts.md](docs/contracts/ingestion-contracts.md) / [ingest-mongo-only.md](docs/contracts/ingest-mongo-only.md)
-- [refactor-batch-strategy.md](docs/contracts/refactor-batch-strategy.md) / [refactor-naming-konvention.md](docs/contracts/refactor-naming-konvention.md)
-- Welle-3-Contracts: [archiv-detail](docs/contracts/welle-3-archiv-detail-contracts.md), [galerie-chat](docs/contracts/welle-3-iii-galerie-chat-contracts.md), [settings](docs/contracts/welle-3-iv-settings-contracts.md), [schale-loader](docs/contracts/welle-3-schale-loader-contracts.md)
+| Pfad-Muster | Contracts (`docs/contracts/`) | Skill | ADR |
+|---|---|---|---|
+| `src/lib/external-jobs/**`, `src/app/api/external/jobs/**`, `src/app/api/pipeline/**`, `src/lib/transform/**`, `src/lib/markdown/**` | contracts-story-pipeline, external-jobs-integration-tests, ingest-mongo-only, no-error-as-artifact, frontmatter-single-serializer | `contracts-pipeline` | 0001 |
+| `src/lib/storage/**`, `src/app/api/storage/**` | storage-abstraction, storage-contracts | `contracts-storage-twin` | 0005 |
+| `src/lib/shadow-twin/**`, `src/hooks/use-shadow-twin*` | shadow-twin-architecture, shadow-twin-contracts | `contracts-storage-twin` | — |
+| `src/lib/ingestion/**` | ingestion-contracts | `contracts-ingestion-chat` | — |
+| `src/lib/chat/**`, `src/app/api/chat/**` | chat-contracts, contracts-story-pipeline | `contracts-ingestion-chat` | 0009 |
+| `src/lib/pipeline/**` | contracts-story-pipeline | `contracts-pipeline` | 0009 |
+| `src/lib/templates/**`, `template-samples/**`, `src/components/templates/**` | templates-contracts, template-structure, media-lifecycle | `contracts-templates-media` | 0003 |
+| `src/lib/secretary/**`, `src/app/api/secretary/**` | secretary-contracts, media-lifecycle | `contracts-templates-media` | — |
+| `src/components/creation-wizard/**`, `src/components/submissions/**`, `src/lib/submissions/**`, `src/app/api/submissions/**` | ingest-mongo-only, media-lifecycle | `contracts-templates-media` | 0003, 0004 |
+| `src/components/library/**` | welle-3-schale-loader-contracts, welle-3-archiv-detail-contracts, welle-3-iii-galerie-chat-contracts, shadow-twin-architecture | `contracts-ui` | 0002 |
+| `src/components/settings/**` | welle-3-iv-settings-contracts | `contracts-ui` | — |
+| `src/app/page.tsx`, `src/app/layout.tsx`, `src/lib/root-landing.ts` | website-landingpage | `contracts-ui` | 0007 |
+| `src/types/library.ts`, `src/lib/services/library-service.ts`, `src/components/settings/library/**` | library-config-field | `checklisten-erweiterung` | — |
+| `**/detail-view*.tsx`, `**/registry.ts`, `**/doc-meta-mappers.ts`, `**/validation.ts` | detail-view-type-checklist | `checklisten-erweiterung` | 0009 |
+| `src/lib/events/**`, `src/app/api/event-job/**`, `src/components/event-monitor/**` | — | — | **0001 (Aktiv)** |
+| `src/lib/gallery/**`, `src/app/api/library/*/favorites/**` | welle-3-iii-galerie-chat-contracts | `contracts-ui` | **0002 (Aktiv)** |
+| `src/lib/library-access/**`, `src/app/api/libraries/*/members/**`, `.../invites/**` | — | — | 0005 |
+| `src/lib/graph/**`, `src/app/api/library/*/doc-relations/**` | — | — | 0008 |
+| `pnpm-workspace.yaml`, `packages/**`, `apps/**`, `next.config.js` | — | — | 0006, 0007 |
+| `docs/refactor/**`, `docs/plans/**`, `scripts/welle-pre-merge-check.sh` | refactor-batch-strategy, refactor-naming-konvention, cloud-agent-cost-strategy | — | — |
+
+Steht ein Bereich nicht in der Tabelle, gelten weiterhin die beiden immer
+aktiven Contracts oben (`no-silent-fallbacks`, `storage-abstraction`) sowie die
+Repo-Konventionen in `AGENTS.md`.
+
+**Pflege:** Neuer Contract oder neues ADR ⇒ Zeile hier ergänzen (und das ADR
+zusätzlich in der ADR-Liste in `AGENTS.md` eintragen).
 
 ## Querschnitt-Konventionen (Docs)
 
