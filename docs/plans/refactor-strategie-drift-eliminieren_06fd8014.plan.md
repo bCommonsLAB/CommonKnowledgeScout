@@ -401,7 +401,7 @@ Sequentiell, weil jeder Schritt auf dem vorigen aufbaut: Tooling vor Audit (fuer
 ### 8.2 Pre-Flight-Checkliste (einmalig vor Agent 1)
 
 - [x] `AGENTS.md` im Repo-Root existiert
-- [x] Plan-File [docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md) liegt im Workspace
+- [x] Plan-File [docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](refactor-strategie-drift-eliminieren_06fd8014.plan.md) liegt im Workspace
 - [x] ADR [docs/adr/0001-event-job-vs-external-jobs.md](docs/adr/0001-event-job-vs-external-jobs.md) angelegt (Entscheidung: zwei getrennte Domaenen)
 - [ ] Plan-File, AGENTS.md und ADR committen + pushen (manueller Schritt durch User)
 - [ ] Cursor Cloud-Dashboard (`cursor.com/dashboard/cloud-agents`) → Tab "Secrets": MongoDB-URI, Azure-Credentials, Clerk-Keys, OpenAI/Mistral-API-Keys hinterlegt
