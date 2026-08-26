@@ -39,7 +39,7 @@ todos:
     content: "Welle 3-II Archiv-Detail (ABGESCHLOSSEN 2026-05-01): file-preview.tsx + markdown-preview.tsx + markdown-metadata.tsx + job-report-tab.tsx + media-tab.tsx + flow/pipeline-sheet.tsx + shared/* aufgeteilt. 9 PRs (#27-#39), -4.733z (-39.7%) ueber 6 Hauptdateien, 20 neue Sub-Module, 82 neue Char-Tests. Doku: docs/refactor/welle-3-archiv-detail/06-acceptance-3-ii-GESAMT.md."
     status: completed
   - id: welle-3ii-hooks-future
-    content: "Welle 3-II-Hooks (Future-Work aus Welle 3-II, ABGESCHLOSSEN 2026-05-01): Hook-Extraktion fuer media-tab, job-report-tab, session-detail, cover-image-generator-dialog. 4 PRs (#40-#43), -513z (-10.9%) ueber 4 Files, 4 neue Hooks, 35 neue Char-Tests. Doku: docs/refactor/welle-3-ii-hooks/06-acceptance-3-ii-hooks-GESAMT.md. Naming-Hinweis: initial als 'Welle 3-III' gestartet, am 2026-05-01 zu 'Welle 3-II-Hooks' umbenannt (Naming-Konflikt mit Plan-Welle 3-III). Naming-Konvention: .cursor/rules/refactor-naming-konvention.mdc."
+    content: "Welle 3-II-Hooks (Future-Work aus Welle 3-II, ABGESCHLOSSEN 2026-05-01): Hook-Extraktion fuer media-tab, job-report-tab, session-detail, cover-image-generator-dialog. 4 PRs (#40-#43), -513z (-10.9%) ueber 4 Files, 4 neue Hooks, 35 neue Char-Tests. Doku: docs/refactor/welle-3-ii-hooks/06-acceptance-3-ii-hooks-GESAMT.md. Naming-Hinweis: initial als 'Welle 3-III' gestartet, am 2026-05-01 zu 'Welle 3-II-Hooks' umbenannt (Naming-Konflikt mit Plan-Welle 3-III). Naming-Konvention: ../contracts/refactor-naming-konvention.md."
     status: completed
   - id: welle-3iv-settings-und-ux
     content: "Welle 3-IV Settings (ABGESCHLOSSEN 2026-05-03 als Refactor, 2026-06-12 als UX-Redesign): Refactor-Doku unter docs/refactor/welle-3-iv-settings/. Anschliessend user-getriebenes UX-Redesign Welle 3-IV-UX (me/we/usSpace, App-Nav-Gliederung Library/Archive/Explore/Story, Quelle-Wizard mit Re-Auth, Inhaltstyp-Assistent, Experten-Ebene, Gefahren-UX, weSpace-Personen, usSpace-Status und Galerie-Texte, Sicherheits-Fixes D4/D5). Konzept und Stand: docs/settings-ux/README.md. Offen dort: F7-Index-Automatisierung, D7-Server-Token-Check, Produkt-TODOs T1/T2."
@@ -64,7 +64,7 @@ isProject: false
   - UI kennt Storage in [src/components/library/file-preview.tsx](src/components/library/file-preview.tsx) Zeile 1129 (`primaryStore === 'filesystem'`)
   - **Zwei getrennte Job-Domaenen** (siehe ADR `docs/adr/0001-event-job-vs-external-jobs.md`): `event-job` fuer Session-/Event-Monitor-Welt (eigene UI in `src/app/event-monitor/`), `external-jobs` fuer Secretary-/Pipeline-/Chat-Welt. Beide werden separat refaktoriert (kein Strangler-Fig zwischen ihnen).
   - 27 React-Hooks in einer 3.947-Zeilen-Datei [src/components/creation-wizard/creation-wizard.tsx](src/components/creation-wizard/creation-wizard.tsx) inklusive `Window`-Hack
-- Pilot: `external-jobs` (Contracts in [.cursor/rules/contracts-story-pipeline.mdc](.cursor/rules/contracts-story-pipeline.mdc) + [.cursor/rules/external-jobs-integration-tests.mdc](.cursor/rules/external-jobs-integration-tests.mdc) bereits da, Integrationstests in [src/lib/integration-tests/](src/lib/integration-tests/)).
+- Pilot: `external-jobs` (Contracts in [../contracts/contracts-story-pipeline.md](../contracts/contracts-story-pipeline.md) + [../contracts/external-jobs-integration-tests.md](../contracts/external-jobs-integration-tests.md) bereits da, Integrationstests in [src/lib/integration-tests/](src/lib/integration-tests/)).
 
 ## 2. Methodik: Refactor-Playbook (8 Schritte je Modul)
 
@@ -113,7 +113,7 @@ Skript [scripts/module-health.mjs](scripts/module-health.mjs) (neu) erzeugt pro 
 Output unter `docs/refactor/<modul>/01-inventory.md`.
 
 ### Schritt 2 - Contracts fixieren
-Pro Modul `.cursor/rules/<modul>-contracts.mdc` mit harten Invarianten (Vorbild: bestehende [.cursor/rules/contracts-story-pipeline.mdc](.cursor/rules/contracts-story-pipeline.mdc)).
+Pro Modul `.cursor/rules/<modul>-contracts.mdc` mit harten Invarianten (Vorbild: bestehende [../contracts/contracts-story-pipeline.md](../contracts/contracts-story-pipeline.md)).
 Format: §1 Determinismus, §2 Fehler-Semantik, §3 erlaubte/verbotene Abhängigkeiten, §4 Skip-/Default-Semantik.
 **Audit-Findings beachten**: Rules mit Status `update`/`merge` aus Schritt 0 werden hier aktualisiert; Rules mit Status `delete` werden in Schritt 6 entfernt (nicht hier).
 
@@ -132,7 +132,7 @@ Jede Datei wird gegen diese 8 Punkte geprüft, Funde direkt gefixt:
 
 - (1) **Fehlende Tests** - in Schritt 3 abgedeckt
 - (2) **Silent Fallbacks** (`catch {}`, `?? []`) - durch `throw` oder bewusstes Default mit Begründung + Logging via [src/lib/logging/](src/lib/logging/) ersetzen
-- (3) **UI/Storage-Branches** - in Service-Layer verschieben (siehe [.cursor/rules/storage-abstraction.mdc](.cursor/rules/storage-abstraction.mdc))
+- (3) **UI/Storage-Branches** - in Service-Layer verschieben (siehe [../contracts/storage-abstraction.md](../contracts/storage-abstraction.md))
 - (4) **`any`-Drift** - `unknown` + Type-Guard (siehe [.cursorrules](.cursorrules) §4)
 - (5) **Duplikate** - eine Implementierung wird kanonisch, andere via Strangler-Fig in Schritt 5 ablösen
 - (6) **Toter Code** - in Schritt 6
@@ -188,12 +188,12 @@ Modul gilt erst dann als "grün", wenn alle Punkte erfüllt:
 
 ### Pilot-Schritte konkret
 0. **Bestands-Audit** als `docs/refactor/external-jobs/00-audit.md`:
-   - **Rules**: `.cursor/rules/external-jobs-integration-tests.mdc`, `.cursor/rules/contracts-story-pipeline.mdc` (beide direkt), plus globale Rules (`no-silent-fallbacks.mdc`, `storage-abstraction.mdc`)
+   - **Rules**: `../contracts/external-jobs-integration-tests.md`, `../contracts/contracts-story-pipeline.md` (beide direkt), plus globale Rules (`no-silent-fallbacks.mdc`, `storage-abstraction.mdc`)
    - **Tests**: alle 7 Files unter `tests/unit/external-jobs/` plus `tests/unit/jobs-worker-pool.test.ts` (falls external-jobs-bezogen). `tests/unit/events/` gehoert zur event-job-Domaene und wird im **eigenen** event-job-Modul auditiert (NICHT hier mit pruefen)
    - **Docs**: `docs/analyse-worker-start-route-hang.md` und alle anderen `docs/*.md`, die `external-jobs` erwaehnen. Docs, die `event-job` beschreiben, gehoeren zur event-job-Domaene
    - Pro Eintrag: Status (aktuell / veraltet / widerspruechlich) + Aktion (keep / update / merge / delete)
 1. **Inventur** als `docs/refactor/external-jobs/01-inventory.md`
-2. **Contracts**: bestehende [.cursor/rules/external-jobs-integration-tests.mdc](.cursor/rules/external-jobs-integration-tests.mdc) um harte Invarianten erweitern (sofern noch nötig); Audit-Status `update`/`merge` umsetzen
+2. **Contracts**: bestehende [../contracts/external-jobs-integration-tests.md](../contracts/external-jobs-integration-tests.md) um harte Invarianten erweitern (sofern noch nötig); Audit-Status `update`/`merge` umsetzen
 3. **Characterization Tests** für `phase-template.ts` plus Audit-Status `migrate` umsetzen:
    - `tests/unit/external-jobs/phase-template-happy-path.test.ts`
    - `tests/unit/external-jobs/phase-template-skip-paths.test.ts`
@@ -226,7 +226,7 @@ Priorisierung **bottom-up von der Datenquelle Richtung UX**: zuerst Backend-Laye
 
 Reihenfolge entlang der **User-Frequenz**, nicht Datei-Groesse: zuerst die UX-Welten, die der User taeglich nutzt (Schale, Archiv-Detail, Galerie/Chat); Settings und Monitor zuletzt, weil seltener Use-Case; Creation-Wizard ganz zum Schluss wegen hoechster Komplexitaet.
 
-**Wellen-Naming-Konvention (PFLICHT)**: Plan-Wellen-Nummern sind reserviert (auch fuer noch nicht begonnene Wellen). Future-Work-Wellen, die aus einer Mutter-Welle entstehen, bekommen den Mutter-Namen mit Suffix (z.B. "Welle 3-II-Hooks" als Future-Work aus Welle 3-II), KEINE neue Wellen-Nummer. Siehe [.cursor/rules/refactor-naming-konvention.mdc](.cursor/rules/refactor-naming-konvention.mdc).
+**Wellen-Naming-Konvention (PFLICHT)**: Plan-Wellen-Nummern sind reserviert (auch fuer noch nicht begonnene Wellen). Future-Work-Wellen, die aus einer Mutter-Welle entstehen, bekommen den Mutter-Namen mit Suffix (z.B. "Welle 3-II-Hooks" als Future-Work aus Welle 3-II), KEINE neue Wellen-Nummer. Siehe [../contracts/refactor-naming-konvention.md](../contracts/refactor-naming-konvention.md).
 
 **Stand 2026-05-01**:
 - Welle 3-I, 3-II abgeschlossen
@@ -311,7 +311,7 @@ Konsum-Sicht / RAG-UX. Profitiert von Welle 2 (`chat`-Backend bereits refaktorie
 
 #### Welle 3-IV - Settings (~16 Files, ~10.000 Zeilen) — niedrigere User-Frequenz
 
-Settings-Forms werden vom User selten geöffnet → spätere Prio. Bezug zur Ausnahme in [.cursor/rules/storage-abstraction.mdc](.cursor/rules/storage-abstraction.mdc): "Settings-Formulare dürfen `library.type` lesen".
+Settings-Forms werden vom User selten geöffnet → spätere Prio. Bezug zur Ausnahme in [../contracts/storage-abstraction.md](../contracts/storage-abstraction.md): "Settings-Formulare dürfen `library.type` lesen".
 
 - [src/components/settings/library-form.tsx](src/components/settings/library-form.tsx) (2.234 Zeilen, 39 Hooks, 2 Storage-Branches — erlaubt!)
 - [src/components/settings/chat-form.tsx](src/components/settings/chat-form.tsx) (1.518 Zeilen)
@@ -401,7 +401,7 @@ Sequentiell, weil jeder Schritt auf dem vorigen aufbaut: Tooling vor Audit (fuer
 ### 8.2 Pre-Flight-Checkliste (einmalig vor Agent 1)
 
 - [x] `AGENTS.md` im Repo-Root existiert
-- [x] Plan-File [.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md) liegt im Workspace
+- [x] Plan-File [docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md) liegt im Workspace
 - [x] ADR [docs/adr/0001-event-job-vs-external-jobs.md](docs/adr/0001-event-job-vs-external-jobs.md) angelegt (Entscheidung: zwei getrennte Domaenen)
 - [ ] Plan-File, AGENTS.md und ADR committen + pushen (manueller Schritt durch User)
 - [ ] Cursor Cloud-Dashboard (`cursor.com/dashboard/cloud-agents`) → Tab "Secrets": MongoDB-URI, Azure-Credentials, Clerk-Keys, OpenAI/Mistral-API-Keys hinterlegt
@@ -420,7 +420,7 @@ Folgende Prompts kopiert man direkt ins Cloud-Eingabefeld (Cursor Desktop "Cloud
 #### Prompt für Agent 1 — Tooling-Setup
 
 ```
-Lies zuerst die Datei .cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md
+Lies zuerst die Datei docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md
 und die Datei AGENTS.md im Repo-Root.
 
 Aufgabe: Todo "cloud-agent-1-tooling" aus dem Plan abarbeiten.
@@ -455,7 +455,7 @@ Antworte und kommentiere auf Deutsch.
 #### Prompt für Agent 2 — Bestands-Audit + Inventur (external-jobs)
 
 ```
-Lies zuerst die Datei .cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md
+Lies zuerst die Datei docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md
 und die Datei AGENTS.md im Repo-Root.
 
 Aufgabe: Todo "cloud-agent-2-audit" aus dem Plan abarbeiten.

@@ -90,9 +90,9 @@ Mocks: Storage-Provider als Fake-Provider mocken (siehe Welle 1 `storage`), kein
 
 ## 6. Zentrale Architektur-Rules (potentiell betroffen)
 
-- [`storage-abstraction.mdc`](../../../.cursor/rules/storage-abstraction.mdc) — UI darf Storage-Backend nicht kennen. Befund: 0 Storage-Branches in dieser Welle (gut). Cloud-Agent verifiziert im Audit nochmal mit `rg "primaryStore|library\.type ===" src/app/library src/components/library/library*.tsx src/components/library/file-list.tsx src/components/library/file-tree.tsx`.
-- [`no-silent-fallbacks.mdc`](../../../.cursor/rules/no-silent-fallbacks.mdc) — 3 leere Catches in dieser Welle, müssen weg.
-- Neue Rule wird angelegt: `.cursor/rules/welle-3-schale-loader-contracts.mdc` (siehe AGENT-BRIEF Schritt 2).
+- [`storage-abstraction.mdc`](../../contracts/storage-abstraction.md) — UI darf Storage-Backend nicht kennen. Befund: 0 Storage-Branches in dieser Welle (gut). Cloud-Agent verifiziert im Audit nochmal mit `rg "primaryStore|library\.type ===" src/app/library src/components/library/library*.tsx src/components/library/file-list.tsx src/components/library/file-tree.tsx`.
+- [`no-silent-fallbacks.mdc`](../../contracts/no-silent-fallbacks.md) — 3 leere Catches in dieser Welle, müssen weg.
+- Neue Rule wird angelegt: `../../contracts/welle-3-schale-loader-contracts.md` (siehe AGENT-BRIEF Schritt 2).
 
 ## 7. Bekannte Risiken / Watchpoints
 

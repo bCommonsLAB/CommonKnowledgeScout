@@ -22,7 +22,7 @@
 > - **Bilder** oeffentlicher Landingpages laden ueber direkte, anonym lesbare
 >   Azure-Blob-URLs (nicht die auth-gegatete `web/`-Route).
 >
-> Verbindlicher Contract: `.cursor/rules/website-landingpage.mdc`.
+> Verbindlicher Contract: `contracts/website-landingpage.md`.
 > Alles darunter ist der historische Handover-Stand (2026-06-23).
 
 ## 1. Worum geht es

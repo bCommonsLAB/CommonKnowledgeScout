@@ -4,7 +4,7 @@ Stand: 2026-04-27. Welle 2.1, Schritt 2.
 
 ## Output
 
-Neue Modul-Rule: [`.cursor/rules/secretary-contracts.mdc`](../../../.cursor/rules/secretary-contracts.mdc).
+Neue Modul-Rule: [`../../contracts/secretary-contracts.md`](../../contracts/secretary-contracts.md).
 
 `alwaysApply: false`, Globs: `src/lib/secretary/**/*.ts` und
 `tests/unit/secretary/**/*.ts`. Damit greift die Rule in beiden
@@ -38,14 +38,14 @@ Verzeichnissen — analog zu `shadow-twin-contracts.mdc` und
 
 Diese Rule **ergaenzt**, ueberschreibt nicht:
 
-- [`no-silent-fallbacks.mdc`](../../../.cursor/rules/no-silent-fallbacks.mdc)
+- [`no-silent-fallbacks.mdc`](../../contracts/no-silent-fallbacks.md)
   → diese Rule konkretisiert §2.
-- [`storage-abstraction.mdc`](../../../.cursor/rules/storage-abstraction.mdc)
+- [`storage-abstraction.mdc`](../../contracts/storage-abstraction.md)
   → diese Rule konkretisiert §3 (Abhaengigkeiten).
-- [`contracts-story-pipeline.mdc`](../../../.cursor/rules/contracts-story-pipeline.mdc)
+- [`contracts-story-pipeline.mdc`](../../contracts/contracts-story-pipeline.md)
   → globale Pipeline-Vertraege bleiben gueltig; diese Rule fuegt
   Wrapper-spezifische Verfeinerungen hinzu.
-- [`shadow-twin-contracts.mdc`](../../../.cursor/rules/shadow-twin-contracts.mdc)
+- [`shadow-twin-contracts.mdc`](../../contracts/shadow-twin-contracts.md)
   Z. 75 erwaehnt `secretary/response-parser` → bleibt unveraendert.
-- [`external-jobs-integration-tests.mdc`](../../../.cursor/rules/external-jobs-integration-tests.mdc)
+- [`external-jobs-integration-tests.mdc`](../../contracts/external-jobs-integration-tests.md)
   Z. 59-69 beschreibt den externen Service → bleibt unveraendert.

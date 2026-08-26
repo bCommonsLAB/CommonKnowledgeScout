@@ -2,7 +2,7 @@
 
 **Stand**: 2026-05-01
 **Status**: ABGESCHLOSSEN (alle 4 Sub-Wellen merged)
-**Strategie**: 1 PR pro Sub-Welle (siehe `.cursor/rules/refactor-batch-strategy.mdc`)
+**Strategie**: 1 PR pro Sub-Welle (siehe `../../contracts/refactor-batch-strategy.md`)
 
 > **Naming-Hinweis (2026-05-01)**: Diese Welle hieß ursprünglich
 > "Welle 3-III". Sie wurde umbenannt zu **Welle 3-II-Hooks**, weil sie
@@ -11,7 +11,7 @@
 > Welle "Galerie + Story-Mode + Chat" reserviert ist.
 >
 > Die neue Naming-Konvention ist in
-> `.cursor/rules/refactor-naming-konvention.mdc` festgehalten.
+> `../../contracts/refactor-naming-konvention.md` festgehalten.
 
 ## Kontext
 
@@ -57,6 +57,6 @@ Wie in 3-II:
 ## Verweise
 
 - Welle 3-II Gesamt-Acceptance: `../welle-3-archiv-detail/06-acceptance-3-ii-GESAMT.md`
-- Naming-Konvention: `../../../.cursor/rules/refactor-naming-konvention.mdc`
-- Methodik-Strategie: `.cursor/rules/refactor-batch-strategy.mdc`
+- Naming-Konvention: `../../contracts/refactor-naming-konvention.md`
+- Methodik-Strategie: `../../contracts/refactor-batch-strategy.md`
 - AGENTS.md (Branching, Stop-Bedingungen)

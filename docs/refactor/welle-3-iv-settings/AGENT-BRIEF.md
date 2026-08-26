@@ -9,16 +9,16 @@ Stand: 2026-05-02. Erstellt vom Cloud-Agent (Vorbereitungs-PR).
 1. **Methodik & Workflow-Regeln**: [`docs/refactor/playbook.md`](../playbook.md)
 2. **Vorbild-Welle**: [`docs/refactor/welle-3-archiv-detail/`](../welle-3-archiv-detail/) —
    komplette Doku-Serie + Modul-Split-Pattern (insb. Welle 3-II-a für große Forms)
-3. **Plan-Bezug**: [`.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md`](../../../.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md)
+3. **Plan-Bezug**: [`docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md`](../../plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md)
    Sektion 5 (Welle 3-IV)
 4. **Architektur-Rules** (alle relevant):
-   - [`storage-abstraction.mdc`](../../../.cursor/rules/storage-abstraction.mdc) — `library.type`-Branches in Settings **erlaubt**
-   - [`no-silent-fallbacks.mdc`](../../../.cursor/rules/no-silent-fallbacks.mdc) — 9 leere Catches fixen
-   - [`shadow-twin-architecture.mdc`](../../../.cursor/rules/shadow-twin-architecture.mdc) — relevant für `library-form.tsx`
-   - [`chat-contracts.mdc`](../../../.cursor/rules/chat-contracts.mdc) — relevant für `chat-form.tsx`
-   - [`refactor-batch-strategy.mdc`](../../../.cursor/rules/refactor-batch-strategy.mdc) — 1 PR pro Sub-Welle
-   - [`refactor-naming-konvention.mdc`](../../../.cursor/rules/refactor-naming-konvention.mdc) — Wellen-Naming
-   - [`cloud-agent-cost-strategy.mdc`](../../../.cursor/rules/cloud-agent-cost-strategy.mdc) — Kosten-Regeln
+   - [`storage-abstraction.mdc`](../../contracts/storage-abstraction.md) — `library.type`-Branches in Settings **erlaubt**
+   - [`no-silent-fallbacks.mdc`](../../contracts/no-silent-fallbacks.md) — 9 leere Catches fixen
+   - [`shadow-twin-architecture.mdc`](../../contracts/shadow-twin-architecture.md) — relevant für `library-form.tsx`
+   - [`chat-contracts.mdc`](../../contracts/chat-contracts.md) — relevant für `chat-form.tsx`
+   - [`refactor-batch-strategy.mdc`](../../contracts/refactor-batch-strategy.md) — 1 PR pro Sub-Welle
+   - [`refactor-naming-konvention.mdc`](../../contracts/refactor-naming-konvention.md) — Wellen-Naming
+   - [`cloud-agent-cost-strategy.mdc`](../../contracts/cloud-agent-cost-strategy.md) — Kosten-Regeln
 5. **Audit + Inventur**: [`00-audit.md`](./00-audit.md), [`01-inventory.md`](./01-inventory.md)
 6. **Hot-Spots**: [`04-altlast-pass.md`](./04-altlast-pass.md) — alle 9 Catches + 3 Modul-Split-Pläne
 7. **AGENTS.md** im Repo-Root
@@ -60,7 +60,7 @@ plus Altlast-Pass (9 Catches, `useSafeUser`-Extraktion).
 
 ### Commit-Reihenfolge (verbindlich)
 
-1. **Contracts-Rule** anlegen: `.cursor/rules/welle-3-iv-settings-contracts.mdc`
+1. **Contracts-Rule** anlegen: `../../contracts/welle-3-iv-settings-contracts.md`
    (~50z, enthält §1 Client-Direktive, §2 Fehler-Semantik, §3 erlaubte
    API-Pfade, §4 Storage-Branch-Erlaubnis)
 2. **Char-Tests** für `useSafeUser`-Hook + Shadow-Twin-Config-Parser
@@ -143,9 +143,9 @@ Hook-Extraktion für `members-list.tsx`, `access-requests-list.tsx`,
 ```
 Lies VOR dem Start (in dieser Reihenfolge):
 1. AGENTS.md
-2. .cursor/rules/cloud-agent-cost-strategy.mdc
-3. .cursor/rules/refactor-batch-strategy.mdc
-4. .cursor/rules/storage-abstraction.mdc (storage-branch in Settings erlaubt!)
+2. ../../contracts/cloud-agent-cost-strategy.md
+3. ../../contracts/refactor-batch-strategy.md
+4. ../../contracts/storage-abstraction.md (storage-branch in Settings erlaubt!)
 5. docs/refactor/welle-3-iv-settings/AGENT-BRIEF.md (Sektion "Sub-Welle 3-IV-a")
 6. docs/refactor/welle-3-iv-settings/04-altlast-pass.md (Hot-Spots H1-H9, M1-M3)
 7. docs/refactor/welle-3-iv-settings/01-inventory.md (Health-Zahlen)

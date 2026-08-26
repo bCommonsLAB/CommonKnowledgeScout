@@ -6,12 +6,12 @@ Stand: 2026-04-27. Welle 2.2, Schritt 0.
 
 | Rule-Datei | Bezug | Status | Aktion | Begruendung |
 |---|---|---|---|---|
-| `.cursor/rules/template-structure.mdc` | direkt (Template-Format-Vertrag) | aktuell | keep | Beschreibt Template-Datei-Format (Frontmatter, creation-Block, systemprompt). Kein Code-Vertrag, eher Datenformat |
-| `.cursor/rules/external-jobs-integration-tests.mdc` | indirekt (Pipeline nutzt Templates) | aktuell | keep | Beschreibt Pipeline, nicht Templates direkt |
-| `.cursor/rules/detail-view-type-checklist.mdc` | indirekt (Detail-View-Type aus Template) | aktuell | keep | UI-Checkliste |
-| `.cursor/rules/no-silent-fallbacks.mdc` | global | aktuell | keep | gilt fuer 5 catch{} in template-service.ts |
-| `.cursor/rules/storage-abstraction.mdc` | global | aktuell | keep | template-service-client.ts darf nicht direkt fs nutzen |
-| `.cursor/rules/templates-contracts.mdc` (NEU) | direkt | wird in Schritt 2 erstellt | create | Modul-Invarianten |
+| `../../contracts/template-structure.md` | direkt (Template-Format-Vertrag) | aktuell | keep | Beschreibt Template-Datei-Format (Frontmatter, creation-Block, systemprompt). Kein Code-Vertrag, eher Datenformat |
+| `../../contracts/external-jobs-integration-tests.md` | indirekt (Pipeline nutzt Templates) | aktuell | keep | Beschreibt Pipeline, nicht Templates direkt |
+| `../../contracts/detail-view-type-checklist.md` | indirekt (Detail-View-Type aus Template) | aktuell | keep | UI-Checkliste |
+| `../../contracts/no-silent-fallbacks.md` | global | aktuell | keep | gilt fuer 5 catch{} in template-service.ts |
+| `../../contracts/storage-abstraction.md` | global | aktuell | keep | template-service-client.ts darf nicht direkt fs nutzen |
+| `../../contracts/templates-contracts.md` (NEU) | direkt | wird in Schritt 2 erstellt | create | Modul-Invarianten |
 
 ## B. Tests
 

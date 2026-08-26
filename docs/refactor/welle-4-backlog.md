@@ -98,7 +98,7 @@ verhindert ganze Bug-Klassen. Pro Eintrag möglichst eigener Commit; bei größe
 ### [R7] Checkliste `library-config-field.mdc` ergänzen
 - **Warum:** Führt offenbar nicht „beide DocCardMeta-Mapper" + „Schreibpfade",
   sonst wäre der Bug nicht passiert.
-- **Wo:** `.cursor/rules/library-config-field.mdc`.
+- **Wo:** `../contracts/library-config-field.md`.
 - **Aufwand:** XS.
 - **Akzeptanz:** Checkliste nennt beide Mapper + `buildMetaDocument` + Projektion.
 

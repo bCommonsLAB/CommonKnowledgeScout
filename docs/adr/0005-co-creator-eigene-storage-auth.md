@@ -5,7 +5,7 @@
 - **Datum**: 2026-06-03
 - **Entscheider**: Repo-Owner
 - **Verwandt**: ADR-0004 (Storage-Verfuegbarkeit/Token-Handling),
-  [`storage-abstraction.mdc`](../../.cursor/rules/storage-abstraction.mdc),
+  [`storage-abstraction.mdc`](../contracts/storage-abstraction.md),
   `LibraryMember.localPathOverride` (per-Member-Storage-Pfad — bereits vorhanden,
   `src/types/library-members.ts`)
 
@@ -76,7 +76,7 @@ Inbox-Strang (ADR-0003/0004) — keine Vermischung der Domaenen.
 - Invite-/Membership-Flow: `library-members-repo.ts`,
   `src/app/api/libraries/[id]/members/route.ts`, `members-list.tsx`,
   Invite-/Accept-Seiten (Storage-Auth eingeben + testen).
-- `.cursor/rules/storage-abstraction.mdc` — Member-Kontext in der
+- `../contracts/storage-abstraction.md` — Member-Kontext in der
   Storage-Aufloesung dokumentieren.
 
 ## Nachtrag 2026-06-03 — Storage-verwaltete Rechte + ID-/Sicht-Konsistenz (deponiert)

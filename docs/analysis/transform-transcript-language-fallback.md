@@ -159,5 +159,5 @@ ca. Zeile 419) einen Fallback ergänzen:
 - `src/lib/repositories/shadow-twin-repo.ts` (`getAllArtifacts`, `buildArtifactPath`)
 - `src/lib/shadow-twin/store/shadow-twin-service.ts` (`getMarkdown`)
 - `src/app/api/external/jobs/[jobId]/start/route.ts` (Template-only-Pfad, 404)
-- `.cursor/rules/no-silent-fallbacks.mdc` (Fallback muss geloggt werden)
-- `.cursor/rules/external-jobs-integration-tests.mdc` (Contracts/Skip-Semantik)
+- `../contracts/no-silent-fallbacks.md` (Fallback muss geloggt werden)
+- `../contracts/external-jobs-integration-tests.md` (Contracts/Skip-Semantik)

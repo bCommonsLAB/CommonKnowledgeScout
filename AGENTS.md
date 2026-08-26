@@ -66,12 +66,15 @@ bash scripts/welle-pre-merge-check.sh
 Detail (warum, Symptome, Ausnahmen):
 [`docs/agents-handbuch.md` §1](docs/agents-handbuch.md#1-test--und-build-strategie).
 
-## Cursor-Plans
+## Pläne
 
-- Verbindliche Plaene liegen unter `.cursor/plans/`
-- Aktiver Plan: `.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md`
-- Bei jedem Cloud-Task: zuerst den referenzierten Plan komplett lesen,
-  dann das genannte Todo abarbeiten
+- Aktive Plaene liegen unter [`docs/plans/`](docs/plans/)
+- Aktiver Plan: `docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md`
+- Erledigte/gegenstandslose Plaene: [`docs/plans/archiv/`](docs/plans/archiv/)
+  (mit Begruendung je Plan in der dortigen README)
+- Bei jedem Task: zuerst den referenzierten Plan komplett lesen,
+  dann das genannte Todo abarbeiten. Die `status:`-Marker in den Plan-Dateien
+  sind NICHT verlaesslich gepflegt — im Zweifel gegen den Code pruefen.
 
 ## Architecture Decision Records (ADR)
 

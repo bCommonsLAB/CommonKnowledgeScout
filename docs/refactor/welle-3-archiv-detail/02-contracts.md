@@ -1,7 +1,7 @@
 # Contracts: Welle 3-II — Archiv-Detail
 
 Stand: 2026-04-29. Zugehoerige Cursor-Rule:
-[`.cursor/rules/welle-3-archiv-detail-contracts.mdc`](../../../.cursor/rules/welle-3-archiv-detail-contracts.mdc).
+[`../../contracts/welle-3-archiv-detail-contracts.md`](../../contracts/welle-3-archiv-detail-contracts.md).
 
 Diese Datei ist die **menschenlesbare Begleit-Doku** zur Contract-Rule.
 Sie erklaert, **warum** die §-Klauseln so formuliert sind und **welche
@@ -11,12 +11,12 @@ Bestands-Findings** sie adressieren.
 
 | Globale Rule | Was sie sagt | Wie diese Welle dazu beitraegt |
 |---|---|---|
-| [`storage-abstraction.mdc`](../../../.cursor/rules/storage-abstraction.mdc) | UI darf Storage-Backend nicht kennen | §3, §7 — der 1 Verstoss in `freshness-comparison-panel.tsx` wird in dieser PR gefixt |
-| [`no-silent-fallbacks.mdc`](../../../.cursor/rules/no-silent-fallbacks.mdc) | `catch {}` und `?? default` ohne Begruendung verboten | §2 — alle 7 leeren Catches in dieser PR gefixt |
-| [`media-lifecycle.mdc`](../../../.cursor/rules/media-lifecycle.mdc) | Frontmatter enthaelt nur Dateinamen | §1 verbietet Frontmatter-Schreib-Logik in Detail-View-Komponenten |
-| [`detail-view-type-checklist.mdc`](../../../.cursor/rules/detail-view-type-checklist.mdc) | DetailViewType-Architektur | §5 fixiert das fuer Welle 3-II konkret |
-| [`shadow-twin-architecture.mdc`](../../../.cursor/rules/shadow-twin-architecture.mdc) | UI fragt nur abstrakte Faehigkeiten ab | §3, §7 |
-| [`welle-3-schale-loader-contracts.mdc`](../../../.cursor/rules/welle-3-schale-loader-contracts.mdc) | Schale-Vertrag (Welle 3-I) | bleibt unangetastet, Welle 3-II baut darauf auf |
+| [`storage-abstraction.mdc`](../../contracts/storage-abstraction.md) | UI darf Storage-Backend nicht kennen | §3, §7 — der 1 Verstoss in `freshness-comparison-panel.tsx` wird in dieser PR gefixt |
+| [`no-silent-fallbacks.mdc`](../../contracts/no-silent-fallbacks.md) | `catch {}` und `?? default` ohne Begruendung verboten | §2 — alle 7 leeren Catches in dieser PR gefixt |
+| [`media-lifecycle.mdc`](../../contracts/media-lifecycle.md) | Frontmatter enthaelt nur Dateinamen | §1 verbietet Frontmatter-Schreib-Logik in Detail-View-Komponenten |
+| [`detail-view-type-checklist.mdc`](../../contracts/detail-view-type-checklist.md) | DetailViewType-Architektur | §5 fixiert das fuer Welle 3-II konkret |
+| [`shadow-twin-architecture.mdc`](../../contracts/shadow-twin-architecture.md) | UI fragt nur abstrakte Faehigkeiten ab | §3, §7 |
+| [`welle-3-schale-loader-contracts.mdc`](../../contracts/welle-3-schale-loader-contracts.md) | Schale-Vertrag (Welle 3-I) | bleibt unangetastet, Welle 3-II baut darauf auf |
 
 ## §1 Determinismus — Detail-Komponenten sind Renderer
 

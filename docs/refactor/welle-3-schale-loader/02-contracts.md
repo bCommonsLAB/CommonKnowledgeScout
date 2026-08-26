@@ -1,7 +1,7 @@
 # Contracts: Welle 3-I — App-Schale + Library-Loader
 
 Stand: 2026-04-28. Zugehoerige Cursor-Rule:
-[`.cursor/rules/welle-3-schale-loader-contracts.mdc`](../../../.cursor/rules/welle-3-schale-loader-contracts.mdc).
+[`../../contracts/welle-3-schale-loader-contracts.md`](../../contracts/welle-3-schale-loader-contracts.md).
 
 Diese Datei ist die **menschenlesbare Begleit-Doku** zur Contract-Rule.
 Sie erklaert, **warum** die §-Klauseln so formuliert sind und **welche
@@ -11,12 +11,12 @@ Bestands-Findings** sie adressieren.
 
 | Globale Rule | Was sie sagt | Wie diese Welle dazu beitraegt |
 |---|---|---|
-| [`storage-abstraction.mdc`](../../../.cursor/rules/storage-abstraction.mdc) | UI darf Storage-Backend nicht kennen | §3, §5 verbieten direkte Provider-Imports und `library.type`-Branches |
-| [`no-silent-fallbacks.mdc`](../../../.cursor/rules/no-silent-fallbacks.mdc) | `catch {}` und `?? default` ohne Begruendung verboten | §2 macht das fuer Welle 3-I konkret und benennt erlaubte Ausnahmen |
-| [`media-lifecycle.mdc`](../../../.cursor/rules/media-lifecycle.mdc) | Frontmatter enthaelt nur Dateinamen | §1 verbietet Frontmatter-Manipulation in UI-Containern |
-| [`contracts-story-pipeline.mdc`](../../../.cursor/rules/contracts-story-pipeline.mdc) | Storage-Decisions in Service/Route-Layer | §1 verbietet Service-Logik in UI-Containern |
-| [`shadow-twin-architecture.mdc`](../../../.cursor/rules/shadow-twin-architecture.mdc) | UI fragt nur abstrakte Faehigkeiten ab | §5 verbietet `primaryStore`-Branches |
-| [`reorganizing-components.mdc`](../../../.cursor/rules/reorganizing-components.mdc) | Datei < 200 Zeilen | §6 fixiert das fuer den `file-list.tsx`-Split |
+| [`storage-abstraction.mdc`](../../contracts/storage-abstraction.md) | UI darf Storage-Backend nicht kennen | §3, §5 verbieten direkte Provider-Imports und `library.type`-Branches |
+| [`no-silent-fallbacks.mdc`](../../contracts/no-silent-fallbacks.md) | `catch {}` und `?? default` ohne Begruendung verboten | §2 macht das fuer Welle 3-I konkret und benennt erlaubte Ausnahmen |
+| [`media-lifecycle.mdc`](../../contracts/media-lifecycle.md) | Frontmatter enthaelt nur Dateinamen | §1 verbietet Frontmatter-Manipulation in UI-Containern |
+| [`contracts-story-pipeline.mdc`](../../contracts/contracts-story-pipeline.md) | Storage-Decisions in Service/Route-Layer | §1 verbietet Service-Logik in UI-Containern |
+| [`shadow-twin-architecture.mdc`](../../contracts/shadow-twin-architecture.md) | UI fragt nur abstrakte Faehigkeiten ab | §5 verbietet `primaryStore`-Branches |
+| [`reorganizing-components.mdc`](../../plans/archiv/reorganizing-components.md) | Datei < 200 Zeilen | §6 fixiert das fuer den `file-list.tsx`-Split |
 
 ## §1 Determinismus — UI-Container ohne Business-Logik
 

@@ -4,7 +4,7 @@ Stand: 2026-04-27. Erstellt vom Cloud-Agent (Welle 2, Plan-Schritt 4).
 
 Bezug:
 - Audit: [`00-audit.md`](./00-audit.md) (Hot-Spots)
-- Contracts: [`02-contracts.md`](./02-contracts.md), [`shadow-twin-contracts.mdc`](../../../.cursor/rules/shadow-twin-contracts.mdc)
+- Contracts: [`02-contracts.md`](./02-contracts.md), [`shadow-twin-contracts.mdc`](../../contracts/shadow-twin-contracts.md)
 - Char-Tests: [`03-tests.md`](./03-tests.md)
 - Welle-1-Vorbild: [`docs/refactor/storage/04-altlast-pass.md`](../storage/04-altlast-pass.md)
 

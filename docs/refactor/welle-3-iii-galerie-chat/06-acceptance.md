@@ -12,12 +12,12 @@ Reine Doku/Char-Tests/Contracts. **Kein Production-Code wird angefasst.**
 |---|---|---|---:|
 | 0 | Bestands-Audit | `00-audit.md` | ~250 |
 | 1 | Inventur (Stats-Skript + Tabelle) | `01-inventory.md` + `scripts/ui-welle-3iii-stats.mjs` | ~400 |
-| 2 | Contracts neu | `.cursor/rules/welle-3-iii-galerie-chat-contracts.mdc` + `02-contracts.md` | ~300 |
+| 2 | Contracts neu | `../../contracts/welle-3-iii-galerie-chat-contracts.md` + `02-contracts.md` | ~300 |
 | 3 | Char-Tests (6 Files, 48 Test-Cases) | `tests/unit/components/library/chat/*.{ts,tsx}` (3 Files) + `tests/unit/components/library/gallery/*.tsx` (2 Files) + `tests/unit/components/library/file-category-filter.test.tsx` | ~580 |
 | 4 | Altlast-Pass-Backlog | `04-altlast-pass.md` | ~150 |
 | 5 | User-Test-Plan | `05-user-test-plan.md` | ~150 |
 | 6 | AGENT-BRIEF + README | `AGENT-BRIEF.md` + `README.md` | ~400 |
-| 7 | Acceptance-Doc + Naming-Konvention update | `06-acceptance.md` (folgt) + `.cursor/rules/refactor-naming-konvention.mdc` (Update Welle 3-III auf "in Arbeit") | ~150 |
+| 7 | Acceptance-Doc + Naming-Konvention update | `06-acceptance.md` (folgt) + `../../contracts/refactor-naming-konvention.md` (Update Welle 3-III auf "in Arbeit") | ~150 |
 
 **Brutto-Diff Gesamt**: ~2.380 Zeilen — gut unter 5.000-Limit, da
 **KEIN Code-Refactor** in dieser PR.
@@ -93,5 +93,5 @@ Wenn OK: PR mergen, dann starte ich Welle 3-III-a (Gallery).
 - Welle 3-III README: `README.md`
 - AGENT-BRIEF fuer Sub-Wellen: `AGENT-BRIEF.md`
 - Vorbild-Welle: `../welle-3-archiv-detail/06-acceptance.md` (Welle 3-II Vorbereitung)
-- Naming-Konvention: `../../../.cursor/rules/refactor-naming-konvention.mdc`
-- Methodik: `../../../.cursor/rules/refactor-batch-strategy.mdc`
+- Naming-Konvention: `../../contracts/refactor-naming-konvention.md`
+- Methodik: `../../contracts/refactor-batch-strategy.md`

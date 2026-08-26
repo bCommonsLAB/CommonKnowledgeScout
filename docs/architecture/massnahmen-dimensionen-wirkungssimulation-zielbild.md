@@ -6,7 +6,7 @@
 > (Provides/Requires-Idee, direkte Vorstufe),
 > [`massnahmen-bewertung-und-graph-zielbild.md`](./massnahmen-bewertung-und-graph-zielbild.md)
 > (Bausteine A/B/C, bestehende Bewertungsfelder),
-> Plan [`summen-und-synergie-aggregation`](../../.cursor/plans/summen-und-synergie-aggregation_a7c3e912.plan.md)
+> Plan [`summen-und-synergie-aggregation`](../plans/summen-und-synergie-aggregation_a7c3e912.plan.md)
 > (Overlap-/Enabler-Mathe), ADR [`0001`](../adr/0001-event-job-vs-external-jobs.md).
 
 ---
@@ -520,7 +520,7 @@ RETURN p;
 Ein **Export-Job** (MongoDB → Neo4j, ETL) projiziert Register + Vektoren + die
 abgeleiteten Kanten. Läuft nach jeder Neuberechnung, ist idempotent, und ist die
 **einzige** Schreibrichtung — Neo4j wird nie zur eigenständigen Quelle. Damit bleibt
-die [Storage-Abstraktion](../../.cursor/rules/storage-abstraction.mdc) gewahrt.
+die [Storage-Abstraktion](../contracts/storage-abstraction.md) gewahrt.
 
 ```mermaid
 flowchart LR
@@ -562,7 +562,7 @@ flowchart LR
 - **Flaches Frontmatter** ([AGENTS.md](../../AGENTS.md)): dichte Vektoren + Register
   leben **downstream** in MongoDB (§3.2), nie im Template-Frontmatter.
 - **Keine Silent Fallbacks**
-  ([no-silent-fallbacks.mdc](../../.cursor/rules/no-silent-fallbacks.mdc)): fehlende
+  ([no-silent-fallbacks.mdc](../contracts/no-silent-fallbacks.md)): fehlende
   Dimensionswerte, `kosten=0`, nicht-gezündete Maßnahmen → **explizit** ausweisen,
   nicht als 0 verschlucken.
 - **Domänen-Trennung** ([ADR 0001](../adr/0001-event-job-vs-external-jobs.md)):

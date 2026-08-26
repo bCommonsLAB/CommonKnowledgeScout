@@ -33,7 +33,7 @@ Wenn der Agent einen konkreten Verdacht auf einen Build-Fehler hat
 verboten.
 
 Bei Pipeline-Aenderungen zusaetzlich: `pnpm test:integration:api`
-(siehe `.cursor/rules/external-jobs-integration-tests.mdc`).
+(siehe `contracts/external-jobs-integration-tests.md`).
 
 ### Galerie-Sterne (Read vs. Write)
 
@@ -93,7 +93,7 @@ Vor jedem Refactor eines Moduls existiert ein Audit-File
 
 ### Pro Welle EINE PR
 
-Siehe `.cursor/rules/refactor-batch-strategy.mdc`.
+Siehe `contracts/refactor-batch-strategy.md`.
 
 - Mehrere kohaerente Commits, max **1.000 Zeilen Diff pro Commit** (hart)
 - Max **5.000 Zeilen Brutto-Diff pro PR** (weich, mit Begruendung mehr OK)
@@ -145,7 +145,7 @@ Branch-Mismatch, nicht ein Bug — siehe
 ## 5. Hand-off am Welle-Ende (PFLICHT)
 
 Verbindlich seit 2026-05-02. Quelle:
-[`.cursor/rules/cloud-agent-cost-strategy.mdc`](../.cursor/rules/cloud-agent-cost-strategy.mdc).
+[`contracts/cloud-agent-cost-strategy.md`](contracts/cloud-agent-cost-strategy.md).
 
 Jede Welle-PR endet im PR-Body und in der Antwort an den User mit
 einem **Hand-off-Block**, der genau die Anweisungen enthaelt, die
@@ -192,7 +192,7 @@ den Mutter-Namen mit Suffix (z.B. **Welle 3-II-Hooks** als Future-
 Work aus Welle 3-II), KEINE neue Wellen-Nummer.
 
 Verbindliche Regel:
-[`.cursor/rules/refactor-naming-konvention.mdc`](../.cursor/rules/refactor-naming-konvention.mdc).
+[`contracts/refactor-naming-konvention.md`](contracts/refactor-naming-konvention.md).
 
 Vor dem Anlegen eines neuen `docs/refactor/welle-X-Y/`-Verzeichnisses
 immer im Plan-File pruefen, ob die Nummer bereits reserviert ist.

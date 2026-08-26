@@ -3,7 +3,7 @@
 Stand: 2026-04-26. Erstellt vom Cloud-Agent (Welle 1, Plan-Schritt 3).
 
 Bezug:
-- Contracts: [`02-contracts.md`](./02-contracts.md), [`storage-contracts.mdc`](../../../.cursor/rules/storage-contracts.mdc)
+- Contracts: [`02-contracts.md`](./02-contracts.md), [`storage-contracts.mdc`](../../contracts/storage-contracts.md)
 - Audit: [`00-audit.md`](./00-audit.md) — alle 6 Bestands-Tests `keep`
 - Vorbild: [external-jobs/03-tests.md](../external-jobs/) (war als
   `02-tests.md` Teil von PR #15 in der Pilot-Welle)

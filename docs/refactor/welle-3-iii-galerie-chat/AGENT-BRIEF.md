@@ -6,16 +6,16 @@ Stand: 2026-05-02. Erstellt vom Cloud-Agent als Pre-Flight in einem.
 
 1. **Methodik & Workflow-Regeln**: [`docs/refactor/playbook.md`](../playbook.md) — Workflow-Regeln R1-R5.
 2. **Vorbild-Welle**: [`docs/refactor/welle-3-archiv-detail/`](../welle-3-archiv-detail/) — komplette Doku-Serie + Modul-Split-Pattern; und [`docs/refactor/welle-3-ii-hooks/`](../welle-3-ii-hooks/) — Hooks-Pattern.
-3. **Plan-Bezug**: [.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../../.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md) Sektion 5 (Welle 3-III).
+3. **Plan-Bezug**: [docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md) Sektion 5 (Welle 3-III).
 4. **Architektur-Rules** (alle relevant):
-   - [`storage-abstraction.mdc`](../../../.cursor/rules/storage-abstraction.mdc) — UI darf Storage-Backend nicht kennen
-   - [`no-silent-fallbacks.mdc`](../../../.cursor/rules/no-silent-fallbacks.mdc) — keine leeren Catches, keine Comment-only-Catches
-   - [`media-lifecycle.mdc`](../../../.cursor/rules/media-lifecycle.mdc) — Frontmatter enthaelt nur Dateinamen
-   - [`shadow-twin-architecture.mdc`](../../../.cursor/rules/shadow-twin-architecture.mdc)
-   - [`chat-contracts.mdc`](../../../.cursor/rules/chat-contracts.mdc) — Backend-Contracts, UI ist Konsument
-   - [`welle-3-iii-galerie-chat-contracts.mdc`](../../../.cursor/rules/welle-3-iii-galerie-chat-contracts.mdc) — UI-Welle-3-III-Contracts
-   - [`refactor-batch-strategy.mdc`](../../../.cursor/rules/refactor-batch-strategy.mdc) — 1 PR pro Welle
-   - [`refactor-naming-konvention.mdc`](../../../.cursor/rules/refactor-naming-konvention.mdc) — Naming
+   - [`storage-abstraction.mdc`](../../contracts/storage-abstraction.md) — UI darf Storage-Backend nicht kennen
+   - [`no-silent-fallbacks.mdc`](../../contracts/no-silent-fallbacks.md) — keine leeren Catches, keine Comment-only-Catches
+   - [`media-lifecycle.mdc`](../../contracts/media-lifecycle.md) — Frontmatter enthaelt nur Dateinamen
+   - [`shadow-twin-architecture.mdc`](../../contracts/shadow-twin-architecture.md)
+   - [`chat-contracts.mdc`](../../contracts/chat-contracts.md) — Backend-Contracts, UI ist Konsument
+   - [`welle-3-iii-galerie-chat-contracts.mdc`](../../contracts/welle-3-iii-galerie-chat-contracts.md) — UI-Welle-3-III-Contracts
+   - [`refactor-batch-strategy.mdc`](../../contracts/refactor-batch-strategy.md) — 1 PR pro Welle
+   - [`refactor-naming-konvention.mdc`](../../contracts/refactor-naming-konvention.md) — Naming
 5. **Audit + Inventur**: [`00-audit.md`](./00-audit.md), [`01-inventory.md`](./01-inventory.md) — verifizierte Health-Zahlen + Hot-Spots.
 6. **AGENTS.md** im Repo-Root.
 
@@ -50,7 +50,7 @@ Schritte 0, 1, 2, 3 (Char-Tests fuer kleine Files), 4 (Backlog), 5 (entfaellt), 
 
 ### Schritt 2 — Contracts
 
-- Neue Rule: `.cursor/rules/welle-3-iii-galerie-chat-contracts.mdc` — bereits angelegt
+- Neue Rule: `../../contracts/welle-3-iii-galerie-chat-contracts.md` — bereits angelegt
 - Sieht mindestens vor:
   - **§1 Determinismus**: Galerie-/Chat-/Story-Komponenten sind UI-Renderer
   - **§2 Fehler-Semantik**: Keine leeren Catches, keine Comment-only-Catches
@@ -106,7 +106,7 @@ Entfaellt in Vorbereitung.
 ## Sub-Wellen-Briefs (fuer Folge-Cloud-Lauefe)
 
 **Strategie ab 2026-04-30**: Pro Sub-Welle EINE PR mit mehreren
-kohaerenten Commits — siehe [`refactor-batch-strategy.mdc`](../../../.cursor/rules/refactor-batch-strategy.mdc).
+kohaerenten Commits — siehe [`refactor-batch-strategy.mdc`](../../contracts/refactor-batch-strategy.md).
 
 ### Cloud-Auftrag fuer 3-III-a (Gallery) — 1 PR
 
@@ -114,8 +114,8 @@ kohaerenten Commits — siehe [`refactor-batch-strategy.mdc`](../../../.cursor/r
 Lies VOR dem Start:
 - docs/refactor/welle-3-iii-galerie-chat/AGENT-BRIEF.md (Sektion "3-III-a")
 - docs/refactor/welle-3-iii-galerie-chat/04-altlast-pass.md (Hot-Spot-Liste)
-- .cursor/rules/welle-3-iii-galerie-chat-contracts.mdc
-- .cursor/rules/refactor-batch-strategy.mdc (1 PR pro Welle)
+- ../../contracts/welle-3-iii-galerie-chat-contracts.md
+- ../../contracts/refactor-batch-strategy.md (1 PR pro Welle)
 - AGENTS.md (Branching/Stop-Bedingungen)
 
 Aufgabe: gallery-root.tsx (994z, 49 Hooks!) + document-card.tsx (639z) +
@@ -179,9 +179,9 @@ Antworte auf Deutsch.
 Lies VOR dem Start:
 - docs/refactor/welle-3-iii-galerie-chat/AGENT-BRIEF.md (Sektion "3-III-b")
 - docs/refactor/welle-3-iii-galerie-chat/04-altlast-pass.md (Hot-Spot-Liste)
-- .cursor/rules/welle-3-iii-galerie-chat-contracts.mdc
-- .cursor/rules/chat-contracts.mdc (Backend, UI ist Konsument)
-- .cursor/rules/refactor-batch-strategy.mdc
+- ../../contracts/welle-3-iii-galerie-chat-contracts.md
+- ../../contracts/chat-contracts.md (Backend, UI ist Konsument)
+- ../../contracts/refactor-batch-strategy.md
 - AGENTS.md
 
 Aufgabe: chat-panel.tsx (1.268z, 36 Hooks!) + chat-reference-list.tsx (527z) +
@@ -250,8 +250,8 @@ Antworte auf Deutsch.
 Lies VOR dem Start:
 - docs/refactor/welle-3-iii-galerie-chat/AGENT-BRIEF.md (Sektion "3-III-c")
 - docs/refactor/welle-3-iii-galerie-chat/04-altlast-pass.md
-- .cursor/rules/welle-3-iii-galerie-chat-contracts.mdc
-- .cursor/rules/refactor-batch-strategy.mdc
+- ../../contracts/welle-3-iii-galerie-chat-contracts.md
+- ../../contracts/refactor-batch-strategy.md
 - AGENTS.md
 
 Aufgabe: shared/perspective-page-content.tsx (926z, 13 Hooks) +
@@ -300,7 +300,7 @@ Antworte auf Deutsch.
 
 - Eigener Branch pro Sub-Welle: `cursor/refactor-welle-3-iii-<sub>-<suffix>`
 - Mehrere kohaerente Commits, jeder unter 1.000 Zeilen Diff
-- **Eine PR pro Sub-Welle** (siehe `.cursor/rules/refactor-batch-strategy.mdc`)
+- **Eine PR pro Sub-Welle** (siehe `../../contracts/refactor-batch-strategy.md`)
 - Kein Auto-Merge — User reviewt, smoke-testet, merged dann selbst.
 
 ## Stop-Bedingungen

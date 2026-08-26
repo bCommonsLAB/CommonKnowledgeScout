@@ -6,11 +6,11 @@ Stand: 2026-04-28. Erstellt vom IDE-Agenten (Pre-Flight, erste UI-Welle).
 
 1. **Methodik & Workflow-Regeln**: [`docs/refactor/playbook.md`](../playbook.md) — Workflow-Regeln R1-R5 (kein Parallelismus, ein Test-Cycle, User-Verifikation Pflicht).
 2. **Pilot-Vorlage**: [`docs/refactor/external-jobs/`](../external-jobs/) und [`docs/refactor/storage/`](../storage/) — komplette Doku-Serie als Muster.
-3. **Plan-Bezug**: [.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../../.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md) Sektion 5 (Welle 3-I).
+3. **Plan-Bezug**: [docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md) Sektion 5 (Welle 3-I).
 4. **Architektur-Rules** (alle `alwaysApply: true`):
-   - [`storage-abstraction.mdc`](../../../.cursor/rules/storage-abstraction.mdc) — UI darf Storage-Backend nicht kennen
-   - [`no-silent-fallbacks.mdc`](../../../.cursor/rules/no-silent-fallbacks.mdc) — keine leeren Catches
-   - [`media-lifecycle.mdc`](../../../.cursor/rules/media-lifecycle.mdc) — Frontmatter enthaelt nur Dateinamen
+   - [`storage-abstraction.mdc`](../../contracts/storage-abstraction.md) — UI darf Storage-Backend nicht kennen
+   - [`no-silent-fallbacks.mdc`](../../contracts/no-silent-fallbacks.md) — keine leeren Catches
+   - [`media-lifecycle.mdc`](../../contracts/media-lifecycle.md) — Frontmatter enthaelt nur Dateinamen
 5. **Inventur** (schon erstellt): [`01-inventory.md`](./01-inventory.md) — verifizierte Health-Zahlen + Hot-Spots.
 6. **AGENTS.md** im Repo-Root — verbindliche Regeln fuer alle Agenten.
 7. **Erste UI-Welle**: Es gibt noch keine UI-Refactor-Vorlage. Backend-Vorlagen (`storage`, `chat`) sind die Methodik-Vorlage; Test-Setup orientiert sich an `tests/unit/components/app-layout.test.tsx`.
@@ -21,7 +21,7 @@ Du bist **EIN** Cloud-Agent (kein Parallelismus, R2). Du arbeitest die 8 Schritt
 
 Output landet in `docs/refactor/welle-3-schale-loader/00-audit.md`, `02-contracts.md`, `03-tests.md`, `04-altlast-pass.md`, `05-user-test-plan.md`, `06-acceptance.md` (Nummerierung 02-06, weil 01 schon existiert).
 
-Code-Aenderungen landen direkt in `src/components/library/`, `src/app/library/`, neue Tests in `tests/unit/components/library/`. Eine modul-spezifische Contract-Rule `.cursor/rules/welle-3-schale-loader-contracts.mdc` wird neu erstellt.
+Code-Aenderungen landen direkt in `src/components/library/`, `src/app/library/`, neue Tests in `tests/unit/components/library/`. Eine modul-spezifische Contract-Rule `../../contracts/welle-3-schale-loader-contracts.md` wird neu erstellt.
 
 ## Schritt-fuer-Schritt-Ablauf
 
@@ -41,7 +41,7 @@ Code-Aenderungen landen direkt in `src/components/library/`, `src/app/library/`,
 
 ### Schritt 2 — Contracts
 
-- Neue Rule: `.cursor/rules/welle-3-schale-loader-contracts.mdc`
+- Neue Rule: `../../contracts/welle-3-schale-loader-contracts.md`
 - Globs: `["src/components/library/library*.tsx", "src/components/library/file-list.tsx", "src/components/library/file-tree.tsx", "src/components/library/upload*.tsx", "src/components/library/create-library-dialog.tsx", "src/app/library/**/*.tsx"]`
 - Mindestens definieren:
   - **§1 Determinismus**: App-Schale und Library-Loader sind UI-Container. Keine Business-Logik (gehört in `src/lib/library`, `src/lib/storage`, `src/lib/services/library-service.ts`).

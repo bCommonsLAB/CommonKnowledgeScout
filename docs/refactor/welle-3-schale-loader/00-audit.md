@@ -25,7 +25,7 @@ gehoert zu Welle 3-II. Galerie/Story/Chat ist Welle 3-III.
   `node scripts/ui-welle-3i-stats.mjs`). Char-Test-Backlog → Schritt 3.
 - **F2 — 3 leere Catches** in der Welle (`library-switcher.tsx:89`,
   `app/library/page.tsx:41`, `file-list.tsx:1391`). Verstoss gegen
-  [`no-silent-fallbacks.mdc`](../../../.cursor/rules/no-silent-fallbacks.mdc).
+  [`no-silent-fallbacks.mdc`](../../contracts/no-silent-fallbacks.md).
   Fix in Schritt 4a (Library-Switcher + Page) und Schritt 4b
   (File-List im Modul-Split).
 - **F3 — `file-list.tsx` mit 89 Hooks und 2.217 Zeilen** ist Verstoss gegen
@@ -35,7 +35,7 @@ gehoert zu Welle 3-II. Galerie/Story/Chat ist Welle 3-III.
   **delegiert** an den zentralen Helper
   `shouldFilterShadowTwinFolders` aus
   [`src/lib/storage/shadow-twin-folder-name.ts`](../../../src/lib/storage/shadow-twin-folder-name.ts).
-  Das ist konform zu [`storage-contracts.mdc`](../../../.cursor/rules/storage-contracts.mdc)
+  Das ist konform zu [`storage-contracts.mdc`](../../contracts/storage-contracts.md)
   §5 (Helper statt direkter `library.type`-Branch). Wird in Schritt 2
   (Contracts) explizit erlaubt.
 - **F5 — Doku-Drift in `docs/reference/file-index.md`** (Zeile 41,42,43:
@@ -59,18 +59,18 @@ aufgelistet, weil sie Welle 3-I nicht beruehren.
 
 | Rule-Datei | Bezug | Status | Aktion | Begruendung |
 |---|---|---|---|---|
-| [.cursor/rules/storage-abstraction.mdc](../../../.cursor/rules/storage-abstraction.mdc) | global, **direkt** | aktuell | keep | Definiert Vertrag, dass UI kein Storage-Backend kennt. Welle 3-I respektiert das (0 Storage-Branches verifiziert). Kein Update noetig. |
-| [.cursor/rules/no-silent-fallbacks.mdc](../../../.cursor/rules/no-silent-fallbacks.mdc) | global, **direkt** | aktuell | keep | Verbietet `catch {}` und stille Defaults. 3 Verstoesse in dieser Welle (siehe F2). Rule selbst bleibt unveraendert; Verstoesse werden in Schritt 4 gefixt. |
-| [.cursor/rules/media-lifecycle.mdc](../../../.cursor/rules/media-lifecycle.mdc) | global, indirekt | aktuell | keep | `upload-dialog.tsx` und `upload-area.tsx` laden Medien hoch. Beide Files leiten Uploads an Hooks/APIs weiter, schreiben keine Frontmatter direkt. Konform. |
-| [.cursor/rules/contracts-story-pipeline.mdc](../../../.cursor/rules/contracts-story-pipeline.mdc) | global, indirekt | aktuell | keep | Definiert Storage-Abstraktion fuer UI vs. Service-Layer (§2). Welle 3-I kapselt Storage-Detail in Helper. Konform. |
-| [.cursor/rules/shadow-twin-architecture.mdc](../../../.cursor/rules/shadow-twin-architecture.mdc) | global, indirekt | aktuell | keep | Erklaert, wann `library.config.shadowTwin` in UI erlaubt ist (Helper, nicht Branch). `file-list.tsx:902-904` ist konform. |
-| [.cursor/rules/reorganizing-components.mdc](../../../.cursor/rules/reorganizing-components.mdc) | direkt | aktuell | keep | Modul-Split-Empfehlung (Datei < 200 Zeilen). Welle 3-I setzt das in Schritt 4b um. |
-| [.cursor/rules/prio1-state-caching-navigation.mdc](../../../.cursor/rules/prio1-state-caching-navigation.mdc) | direkt | aktuell | keep | Reglementiert Library-State und Folder-Navigation. `library.tsx` und `file-list.tsx` halten sich daran (`folderItemsAtom`, `useFolderNavigation`). |
-| [.cursor/rules/prio2-logging-errorhandling.mdc](../../../.cursor/rules/prio2-logging-errorhandling.mdc) | direkt | aktuell | keep | Vorgabe fuer Logging in UI-Komponenten. Welle 3-I nutzt `StateLogger` / `FileLogger` / `NavigationLogger`. Konform. |
-| [.cursor/rules/prio3-init-grundfunktion.mdc](../../../.cursor/rules/prio3-init-grundfunktion.mdc) | direkt | aktuell | keep | Init-Reihenfolge bei Library-Wechsel. `library.tsx` (useEffect-Reset bei Library-Switch) und `library-switcher.tsx` (Cache-Clear) sind konform. |
+| [../../contracts/storage-abstraction.md](../../contracts/storage-abstraction.md) | global, **direkt** | aktuell | keep | Definiert Vertrag, dass UI kein Storage-Backend kennt. Welle 3-I respektiert das (0 Storage-Branches verifiziert). Kein Update noetig. |
+| [../../contracts/no-silent-fallbacks.md](../../contracts/no-silent-fallbacks.md) | global, **direkt** | aktuell | keep | Verbietet `catch {}` und stille Defaults. 3 Verstoesse in dieser Welle (siehe F2). Rule selbst bleibt unveraendert; Verstoesse werden in Schritt 4 gefixt. |
+| [../../contracts/media-lifecycle.md](../../contracts/media-lifecycle.md) | global, indirekt | aktuell | keep | `upload-dialog.tsx` und `upload-area.tsx` laden Medien hoch. Beide Files leiten Uploads an Hooks/APIs weiter, schreiben keine Frontmatter direkt. Konform. |
+| [../../contracts/contracts-story-pipeline.md](../../contracts/contracts-story-pipeline.md) | global, indirekt | aktuell | keep | Definiert Storage-Abstraktion fuer UI vs. Service-Layer (§2). Welle 3-I kapselt Storage-Detail in Helper. Konform. |
+| [../../contracts/shadow-twin-architecture.md](../../contracts/shadow-twin-architecture.md) | global, indirekt | aktuell | keep | Erklaert, wann `library.config.shadowTwin` in UI erlaubt ist (Helper, nicht Branch). `file-list.tsx:902-904` ist konform. |
+| [../../plans/archiv/reorganizing-components.md](../../plans/archiv/reorganizing-components.md) | direkt | aktuell | keep | Modul-Split-Empfehlung (Datei < 200 Zeilen). Welle 3-I setzt das in Schritt 4b um. |
+| [../../plans/archiv/prio1-state-caching-navigation.md](../../plans/archiv/prio1-state-caching-navigation.md) | direkt | aktuell | keep | Reglementiert Library-State und Folder-Navigation. `library.tsx` und `file-list.tsx` halten sich daran (`folderItemsAtom`, `useFolderNavigation`). |
+| [../../plans/archiv/prio2-logging-errorhandling.md](../../plans/archiv/prio2-logging-errorhandling.md) | direkt | aktuell | keep | Vorgabe fuer Logging in UI-Komponenten. Welle 3-I nutzt `StateLogger` / `FileLogger` / `NavigationLogger`. Konform. |
+| [../../plans/archiv/prio3-init-grundfunktion.md](../../plans/archiv/prio3-init-grundfunktion.md) | direkt | aktuell | keep | Init-Reihenfolge bei Library-Wechsel. `library.tsx` (useEffect-Reset bei Library-Switch) und `library-switcher.tsx` (Cache-Clear) sind konform. |
 
 **Output dieser Welle (neue Rule)**:
-[`.cursor/rules/welle-3-schale-loader-contracts.mdc`](../../../.cursor/rules/welle-3-schale-loader-contracts.mdc) —
+[`../../contracts/welle-3-schale-loader-contracts.md`](../../contracts/welle-3-schale-loader-contracts.md) —
 wird in Schritt 2 angelegt.
 
 ## B. Tests

@@ -13,7 +13,7 @@ und nach Merge von PR #294 (composite-multi-image).
    - [`docs/refactor/storage/`](../storage/) (Welle 1.1)
    - [`docs/refactor/shadow-twin/`](../shadow-twin/) (Welle 1.2)
    - [`docs/refactor/ingestion/`](../ingestion/) (Welle 1.3, **direktestes Vorbild** — gleiche Modul-Groesse, gleicher Helper-Extract-Stil)
-3. **Plan-Bezug**: [.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../../.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md)
+3. **Plan-Bezug**: [docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md)
    Sektion 5 Welle 2 Verarbeitung (Modul `secretary` als 1. von 3 Verarbeitungs-Modulen).
 4. **Repo-Konventionen**: [`AGENTS.md`](../../../AGENTS.md).
 5. **Inventur** (schon erstellt): [`01-inventory.md`](./01-inventory.md).
@@ -36,7 +36,7 @@ Output landet in:
 Code-Aenderungen landen direkt in `src/lib/secretary/`, neue Tests in
 `tests/unit/secretary/` (Verzeichnis existiert mit 4 Bestands-Tests).
 Eine modul-spezifische Contract-Rule
-`.cursor/rules/secretary-contracts.mdc` wird neu erstellt.
+`../../contracts/secretary-contracts.md` wird neu erstellt.
 
 ## Vorab-Entscheidungen (vom IDE-Agent vor Start geklaert)
 
@@ -180,7 +180,7 @@ File: [`01-inventory.md`](./01-inventory.md) **existiert bereits**
 
 ### Schritt 2 — Contracts
 
-- Neue Rule: `.cursor/rules/secretary-contracts.mdc`
+- Neue Rule: `../../contracts/secretary-contracts.md`
 - Globs: `["src/lib/secretary/**/*.ts"]`
 - `alwaysApply: true` (analog `shadow-twin-contracts.mdc` und
   `ingestion-contracts.mdc`).

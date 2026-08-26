@@ -1,12 +1,12 @@
 > Naming-Konvention fuer Refactoring-Wellen und Sub-Wellen — verhindert Namens-Kollisionen zwischen Plan-Wellen und Future-Work-Wellen
 >
-> **Gilt für:** `docs/refactor/**/*.md`, `docs/refactor/**/*`, `.cursor/plans/**/*.md`
+> **Gilt für:** `docs/refactor/**/*.md`, `docs/refactor/**/*`, `docs/plans/**/*.md`
 
 # Naming-Konvention: Wellen, Sub-Wellen, Future-Work-Wellen
 
 ## Kontext
 
-Im Plan-File `.cursor/plans/refactor-strategie-drift-eliminieren_*.plan.md`
+Im Plan-File `docs/plans/refactor-strategie-drift-eliminieren_*.plan.md`
 sind die Refactoring-**Wellen** durchnummeriert (Welle 0, 1, 2, 3-I,
 3-II, 3-III, ...). Diese Nummern sind **Plan-Reservierungen**.
 
@@ -39,7 +39,7 @@ Welle-Nummern (`0`, `1`, `2`, `3-I`, `3-II`, `3-III`, `3-IV`, `3-V`,
 Anlegen eines Welle-Verzeichnisses immer im Plan-File prüfen:
 
 ```bash
-grep -n "Welle 3-" .cursor/plans/refactor-strategie-drift-eliminieren_*.plan.md
+grep -n "Welle 3-" docs/plans/refactor-strategie-drift-eliminieren_*.plan.md
 ```
 
 Wenn die Nummer im Plan reserviert ist (auch für noch nicht begonnene
@@ -113,7 +113,7 @@ gestartet wurde (Fehler) und der Konflikt sichtbar wird:
 
 ## Verweise
 
-- Plan-File: `.cursor/plans/refactor-strategie-drift-eliminieren_*.plan.md`
+- Plan-File: `docs/plans/refactor-strategie-drift-eliminieren_*.plan.md`
 - Methodik: `refactor-batch-strategy.md`
 - Playbook: `docs/refactor/playbook.md`
 - AGENTS.md (Branching/Stop-Bedingungen)

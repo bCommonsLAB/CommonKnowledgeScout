@@ -1234,7 +1234,7 @@ Soll ich mit der Implementierung beginnen, oder möchten Sie den Plan erst noch 
 
 **User**
 
-@.cursor/rules/external-jobs-integration-tests.mdc 
+@../contracts/external-jobs-integration-tests.md 
 Ja, bei diesen, bei der Erstellung von diesen Shadow Twins, diese Policy Contracts, speziell am Ende der Transformationsphase, könnten wir das auch als Policy einbauen und prüfen, ob dieses generierte Frontmatter die Felder enthält, die wir für diesen Facetten brauchen. Für diesen Schuh, der hier ja schon im Frontmatter mitgespeichert ist.
 
 ---
@@ -1331,7 +1331,7 @@ Die Implementierung des Plans ist abgeschlossen. Hier eine Zusammenfassung der e
 - `src/lib/detail-view-types/registry.ts` - Zentrale Registry mit allen ViewTypes und Pflichtfeldern
 - `src/lib/detail-view-types/validation.ts` - Validierungsfunktionen für Pflichtfeld-Prüfung
 - `src/lib/detail-view-types/index.ts` - Re-Exports für einfachen Import
-- `.cursor/rules/detail-view-type-checklist.mdc` - Cursor Rule mit Architektur und Checkliste
+- `../contracts/detail-view-type-checklist.md` - Cursor Rule mit Architektur und Checkliste
 
 **Geänderte Dateien:**
 - `src/lib/external-jobs/phase-template.ts` - Pipeline-Contract hinzugefügt: Warnung wenn Pflichtfelder für detailViewType fehlen (Soft-Validation, kein Hard-Fail)
@@ -2646,7 +2646,7 @@ Bitte die Seite neu laden, um die Änderung zu sehen.
 
 **User**
 
-@.cursor/rules/detail-view-type-checklist.mdc OK, haben wir diese letzten korrekturen in dieser Rule erwähnt?
+@../contracts/detail-view-type-checklist.md OK, haben wir diese letzten korrekturen in dieser Rule erwähnt?
 
 ---
 

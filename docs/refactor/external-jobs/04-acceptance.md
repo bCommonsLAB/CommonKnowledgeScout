@@ -2,7 +2,7 @@
 
 Stand: 2026-04-23. Erstellt von Cloud-Agent (Pilot-Welle, Plan-Schritt 7).
 
-Bezug: [.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../../.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md) Sektion 4.7 ("Abnahme") und Sektion 7 ("Definition of Done").
+Bezug: [docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md) Sektion 4.7 ("Abnahme") und Sektion 7 ("Definition of Done").
 
 ## Zusammenfassung
 
@@ -24,7 +24,7 @@ Aus Plan-Sektion 7:
 
 | Kriterium | Status | Detail |
 |---|---|---|
-| Eigene Contract-Rule existiert | ✅ | `.cursor/rules/external-jobs-integration-tests.mdc` ist die Modul-Rule und wurde in PR #15 geschaerft (Skip-Semantik §3) |
+| Eigene Contract-Rule existiert | ✅ | `../../contracts/external-jobs-integration-tests.md` ist die Modul-Rule und wurde in PR #15 geschaerft (Skip-Semantik §3) |
 | Mindestens 1 Test je oeffentlicher Funktion | 🟡 | 7 Test-Files vorhanden + 3 neue Char-Tests fuer `phase-template.ts` (PR #15). **Nicht jede oeffentliche Funktion** ist abgedeckt — Folge-PRs fuer `extract-only.ts`, `phase-shadow-twin-loader.ts`, `phase-ingest.ts`, `chapters.ts`, `images.ts` empfohlen. |
 | `pnpm test` gruen | ✅ | 97 Files, 451 Tests, alle gruen (vorher 431 Tests, +20 Char-Tests) |
 | `pnpm lint` ohne neue Warnings | 🟡 | Keine **neuen** Errors, aber Tooling-Setup hat `no-empty: warn` aktiviert → 191 neue Warnings (75 davon in `external-jobs/`). Folge-PRs raeumen pro Datei auf. |

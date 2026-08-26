@@ -9,14 +9,14 @@ Vorbild-Format: [`docs/refactor/ingestion/00-audit.md`](../ingestion/00-audit.md
 
 | Rule-Datei | Bezug zum Modul | Status | Aktion | Begruendung |
 |---|---|---|---|---|
-| `.cursor/rules/no-silent-fallbacks.mdc` | global | aktuell | keep | gilt fuer den `catch {}` in `client.ts:731`, der in Schritt 4 gefixt wird |
-| `.cursor/rules/storage-abstraction.mdc` | global | aktuell | keep | UI darf Storage nicht kennen — `secretary` darf erst recht nicht |
-| `.cursor/rules/contracts-story-pipeline.mdc` | indirekt (Pipeline-Context) | aktuell | keep | Secretary ist Vertragspartner der Pipeline, aber nicht selbst Pipeline-Code |
-| `.cursor/rules/external-jobs-integration-tests.mdc` | indirekt (Z. 59-69 beschreiben Secretary-Service) | aktuell | keep | Beschreibt den externen Service, nicht den Wrapper. Bleibt unveraendert |
-| `.cursor/rules/shadow-twin-contracts.mdc` | indirekt (Z. 75 erwaehnt `response-parser`) | aktuell | keep | Pflicht-Aufruf von `parseSecretaryMarkdownStrict` ist hier verankert |
-| `.cursor/rules/template-structure.mdc` | indirekt (Z. 11/248 erwaehnen Secretary) | aktuell | keep | Beschreibt Template-Vertrag, nicht Wrapper |
-| `.cursor/rules/detail-view-type-checklist.mdc` | indirekt (Z. 226 erwaehnt Secretary-Serialisierung) | aktuell | keep | UI-Doku, kein Wrapper-Bezug |
-| `.cursor/rules/secretary-contracts.mdc` (NEU) | direkt | wird in Schritt 2 erstellt | create | Modul-spezifische Invarianten — Pflicht-Output dieser Welle |
+| `../../contracts/no-silent-fallbacks.md` | global | aktuell | keep | gilt fuer den `catch {}` in `client.ts:731`, der in Schritt 4 gefixt wird |
+| `../../contracts/storage-abstraction.md` | global | aktuell | keep | UI darf Storage nicht kennen — `secretary` darf erst recht nicht |
+| `../../contracts/contracts-story-pipeline.md` | indirekt (Pipeline-Context) | aktuell | keep | Secretary ist Vertragspartner der Pipeline, aber nicht selbst Pipeline-Code |
+| `../../contracts/external-jobs-integration-tests.md` | indirekt (Z. 59-69 beschreiben Secretary-Service) | aktuell | keep | Beschreibt den externen Service, nicht den Wrapper. Bleibt unveraendert |
+| `../../contracts/shadow-twin-contracts.md` | indirekt (Z. 75 erwaehnt `response-parser`) | aktuell | keep | Pflicht-Aufruf von `parseSecretaryMarkdownStrict` ist hier verankert |
+| `../../contracts/template-structure.md` | indirekt (Z. 11/248 erwaehnen Secretary) | aktuell | keep | Beschreibt Template-Vertrag, nicht Wrapper |
+| `../../contracts/detail-view-type-checklist.md` | indirekt (Z. 226 erwaehnt Secretary-Serialisierung) | aktuell | keep | UI-Doku, kein Wrapper-Bezug |
+| `../../contracts/secretary-contracts.md` (NEU) | direkt | wird in Schritt 2 erstellt | create | Modul-spezifische Invarianten — Pflicht-Output dieser Welle |
 
 **Audit-Ergebnis Rules**: Keine bestehende Rule muss veraendert oder
 geloescht werden. Eine neue Rule wird erstellt (Schritt 2).
@@ -73,7 +73,7 @@ nicht von dieser Welle angefasst (E1: Externer Service ist Tabu).
 
 **Kritische Findings fuer Folge-Schritte**:
 
-1. **Schritt 2** (Contracts): neue Rule `.cursor/rules/secretary-contracts.mdc` anlegen.
+1. **Schritt 2** (Contracts): neue Rule `../../contracts/secretary-contracts.md` anlegen.
 2. **Schritt 3** (Char-Tests): bestehende Tests bleiben, **mind. 15-25 neue** Tests fuer `client.ts` + `adapter.ts`.
 3. **Schritt 4** (Altlast):
    - `catch {}` in `client.ts:731` fixen (Logging + Kommentar).

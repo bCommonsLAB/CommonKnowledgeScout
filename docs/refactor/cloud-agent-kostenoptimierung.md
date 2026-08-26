@@ -1,7 +1,7 @@
 # Cloud-Agent-Kostenoptimierung — Strategie und Hand-off-Templates
 
 **Stand**: 2026-05-02
-**Verbindliche Rule**: `.cursor/rules/cloud-agent-cost-strategy.mdc`
+**Verbindliche Rule**: `../contracts/cloud-agent-cost-strategy.md`
 
 ## Hintergrund
 
@@ -48,9 +48,9 @@ Pro Sub-Welle einen **neuen Cloud-Agent** im Cursor-Dashboard starten.
 Lies VOR dem Start (in dieser Reihenfolge):
 
 1. AGENTS.md
-2. .cursor/rules/cloud-agent-cost-strategy.mdc
-3. .cursor/rules/refactor-batch-strategy.mdc
-4. .cursor/rules/refactor-naming-konvention.mdc
+2. ../contracts/cloud-agent-cost-strategy.md
+3. ../contracts/refactor-batch-strategy.md
+4. ../contracts/refactor-naming-konvention.md
 5. .cursor/rules/welle-<MODUL>-contracts.mdc
 6. docs/refactor/<MODUL>/AGENT-BRIEF.md (Sektion "<SUB-WELLE>")
 7. docs/refactor/<MODUL>/04-altlast-pass.md (Hot-Spot-Liste)
@@ -77,7 +77,7 @@ Antworte auf Deutsch.
 
 Am Ende der Welle: liefere im PR-Body und in der Antwort den
 Hand-off-Block fuer die naechste Welle (Format siehe
-.cursor/rules/cloud-agent-cost-strategy.mdc R1).
+../contracts/cloud-agent-cost-strategy.md R1).
 ```
 
 ### Wann Resume statt neuer Agent
@@ -242,10 +242,10 @@ bash scripts/welle-pre-merge-check.sh
 ```
 Lies VOR dem Start (in dieser Reihenfolge):
 1. AGENTS.md
-2. .cursor/rules/cloud-agent-cost-strategy.mdc
-3. .cursor/rules/refactor-batch-strategy.mdc
-4. .cursor/rules/welle-3-iii-galerie-chat-contracts.mdc
-5. .cursor/rules/chat-contracts.mdc (Backend-Contracts, UI ist Konsument)
+2. ../contracts/cloud-agent-cost-strategy.md
+3. ../contracts/refactor-batch-strategy.md
+4. ../contracts/welle-3-iii-galerie-chat-contracts.md
+5. ../contracts/chat-contracts.md (Backend-Contracts, UI ist Konsument)
 6. docs/refactor/welle-3-iii-galerie-chat/AGENT-BRIEF.md (Sektion "3-III-b")
 7. docs/refactor/welle-3-iii-galerie-chat/04-altlast-pass.md (Hot-Spot-Liste)
 8. docs/refactor/welle-3-iii-galerie-chat/06-acceptance-3-iii-a.md
@@ -276,8 +276,8 @@ Am Ende: Hand-off-Block fuer Welle 3-III-c liefern.
 
 ## Verweise
 
-- Verbindliche Rule: `.cursor/rules/cloud-agent-cost-strategy.mdc`
+- Verbindliche Rule: `../contracts/cloud-agent-cost-strategy.md`
 - Pre-Merge-Script: `scripts/welle-pre-merge-check.sh`
-- Methodik: `.cursor/rules/refactor-batch-strategy.mdc`
-- Naming-Konvention: `.cursor/rules/refactor-naming-konvention.mdc`
+- Methodik: `../contracts/refactor-batch-strategy.md`
+- Naming-Konvention: `../contracts/refactor-naming-konvention.md`
 - AGENTS.md (Pflicht-Block am Welle-Ende)

@@ -3,7 +3,7 @@
 Stand: 2026-04-27. Erstellt vom **IDE-Agent** (Welle 3, Plan-Schritt 7).
 
 Bezug:
-- Plan: [.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../../.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md) §5 Welle 3
+- Plan: [docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md) §5 Welle 3
 - AGENT-BRIEF: [`AGENT-BRIEF.md`](./AGENT-BRIEF.md)
 - Welle-2-Vorbild: [`docs/refactor/shadow-twin/06-acceptance.md`](../shadow-twin/06-acceptance.md)
 - Workflow-Regeln: [`docs/refactor/playbook.md`](../playbook.md) R1-R5
@@ -36,7 +36,7 @@ Kein Commit ueberschritt die Stop-Bedingung "1.000 Zeilen Diff".
 |---|---|---|
 | Audit-File `00-audit.md` mit allen 3 Tabellen | ✅ | Rules (5), Tests (0 direkte!), Docs (5) |
 | Inventur-File `01-inventory.md` | ✅ | Pre-Flight |
-| Contracts-File `02-contracts.md` + Modul-Rule `.cursor/rules/ingestion-contracts.mdc` | ✅ | Neue Rule mit 7 Sektionen |
+| Contracts-File `02-contracts.md` + Modul-Rule `../../contracts/ingestion-contracts.md` | ✅ | Neue Rule mit 7 Sektionen |
 | Char-Tests-File `03-tests.md` + 67 + 16 = **83 Tests** | ✅ | 7 Test-Files |
 | Altlast-Pass-File `04-altlast-pass.md` | ✅ | 1 Sub-Commit (Helper-Extract aus `image-processor.ts`) |
 | User-Test-Plan-File `05-user-test-plan.md` | ✅ | Phase A/B/C/D analog Welle 1+2 |

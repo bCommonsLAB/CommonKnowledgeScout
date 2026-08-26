@@ -3,8 +3,8 @@
 Stand: 2026-04-26. Erstellt vom Cloud-Agent (Welle 1, Plan-Schritt 2).
 
 Bezug:
-- Neue Rule: [.cursor/rules/storage-contracts.mdc](../../../.cursor/rules/storage-contracts.mdc)
-- Architektur-Rule (alwaysApply): [.cursor/rules/storage-abstraction.mdc](../../../.cursor/rules/storage-abstraction.mdc)
+- Neue Rule: [../../contracts/storage-contracts.md](../../contracts/storage-contracts.md)
+- Architektur-Rule (alwaysApply): [../../contracts/storage-abstraction.md](../../contracts/storage-abstraction.md)
 - Audit-Vorlage: [`00-audit.md`](./00-audit.md)
 - Pilot-Vorbild: keine `02-contracts.md` in external-jobs (dort wurde Rule
   in-place geupdated). Hier neu erstellt, weil noch keine Modul-Contract-Rule
@@ -12,7 +12,7 @@ Bezug:
 
 ## Was wurde gemacht
 
-Die neue Rule [`storage-contracts.mdc`](../../../.cursor/rules/storage-contracts.mdc)
+Die neue Rule [`storage-contracts.mdc`](../../contracts/storage-contracts.md)
 definiert harte technische Invarianten auf Code-Ebene und ergaenzt die
 bereits existierende Architektur-Rule (`storage-abstraction.mdc`).
 

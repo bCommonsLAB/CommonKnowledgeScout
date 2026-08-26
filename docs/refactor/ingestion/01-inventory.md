@@ -49,17 +49,17 @@ Sortiert nach Zeilen, absteigend.
 
 Keine modul-spezifische Rule existiert. Verwandte Rules:
 
-- [`ingest-mongo-only.mdc`](../../../.cursor/rules/ingest-mongo-only.mdc)
+- [`ingest-mongo-only.mdc`](../../contracts/ingest-mongo-only.md)
   (alwaysApply: false, globs auf `phase-shadow-twin-loader.ts`,
   Wizard-API). Erzwingt: **Alle ingestierten Artefakte muessen in MongoDB
   vorhanden sein, kein Fallback**.
-- [`contracts-story-pipeline.mdc`](../../../.cursor/rules/contracts-story-pipeline.mdc)
+- [`contracts-story-pipeline.mdc`](../../contracts/contracts-story-pipeline.md)
   (alwaysApply: false). Globaler Pipeline-Contract.
-- [`detail-view-type-checklist.mdc`](../../../.cursor/rules/detail-view-type-checklist.mdc)
+- [`detail-view-type-checklist.mdc`](../../contracts/detail-view-type-checklist.md)
   — erwaehnt Ingestion am Rande.
 
 **Status fuer Audit**: keine bestehende ingestion-spezifische Rule. Eine
-neue `.cursor/rules/ingestion-contracts.mdc` wird in Schritt 2 angelegt.
+neue `../../contracts/ingestion-contracts.md` wird in Schritt 2 angelegt.
 
 ## 5. Hot-Spots fuer Welle 3
 

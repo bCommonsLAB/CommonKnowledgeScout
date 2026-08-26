@@ -2,7 +2,7 @@
 
 Dieses Verzeichnis enthaelt die Refactor-Dokumentation fuer das Pilot-Modul der Initiative gegen Strategie-Drift.
 
-Quelle: [.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../../.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md)
+Quelle: [docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md)
 Methodik: [docs/refactor/playbook.md](../playbook.md)
 Architektur-Grenze zu `event-job`: [docs/adr/0001-event-job-vs-external-jobs.md](../../adr/0001-event-job-vs-external-jobs.md)
 

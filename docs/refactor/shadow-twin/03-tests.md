@@ -3,7 +3,7 @@
 Stand: 2026-04-27. Erstellt vom Cloud-Agent (Welle 2, Plan-Schritt 3).
 
 Bezug:
-- Contracts: [`02-contracts.md`](./02-contracts.md), [`shadow-twin-contracts.mdc`](../../../.cursor/rules/shadow-twin-contracts.mdc)
+- Contracts: [`02-contracts.md`](./02-contracts.md), [`shadow-twin-contracts.mdc`](../../contracts/shadow-twin-contracts.md)
 - Audit: [`00-audit.md`](./00-audit.md) — alle 13 Bestands-Tests + 2 Cross-Modul-Tests `keep`
 - Welle-1-Vorbild: [`docs/refactor/storage/03-tests.md`](../storage/03-tests.md)
 

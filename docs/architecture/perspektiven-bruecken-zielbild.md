@@ -332,12 +332,12 @@ Kommentar-Endpoint von A, ergänzt um den `origin`-Block.
 
 ### 9.4 Konformität mit Projektregeln
 
-- **Keine Silent Fallbacks** ([Regel](../../.cursor/rules/no-silent-fallbacks.mdc)):
+- **Keine Silent Fallbacks** ([Regel](../contracts/no-silent-fallbacks.md)):
   Zustimmung fehlt, kein Zugriff, keine Treffer, B gelöscht → jeweils **expliziter**
   Zustand.
-- **Storage-Abstraktion** ([Regel](../../.cursor/rules/storage-abstraction.mdc)):
+- **Storage-Abstraktion** ([Regel](../contracts/storage-abstraction.md)):
   A fasst B's Storage nie an; alles läuft über `libraryId` + B's API.
-- **Per-Library-Config-Feld** ([Checkliste](../../.cursor/rules/library-config-field.mdc)):
+- **Per-Library-Config-Feld** ([Checkliste](../contracts/library-config-field.md)):
   `perspectiveOffer` (B) und `perspectiveBridges` (A) folgen dem 6-Schritte-Muster
   (Typ → Server→Client-Mapping → Form-Schema/Defaults → Reset-Stellen → Submit → UI).
 

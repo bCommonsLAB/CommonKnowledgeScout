@@ -15,7 +15,7 @@ Modul-Splits für `library-form.tsx`, `chat-form.tsx`, `storage-form.tsx`
 
 ### Commit 1 — Contracts-Rule
 
-`.cursor/rules/welle-3-iv-settings-contracts.mdc` angelegt:
+`../../contracts/welle-3-iv-settings-contracts.md` angelegt:
 - §1 Client-Direktive (use client erlaubt in Settings)
 - §2 Fehler-Semantik (leere Catches verboten)
 - §3 Erlaubte API-Pfade
@@ -105,7 +105,7 @@ src/components/settings/storage/
 tests/unit/settings/
   use-safe-user.test.ts
   shadow-twin-config-parser.test.ts
-.cursor/rules/welle-3-iv-settings-contracts.mdc
+../../contracts/welle-3-iv-settings-contracts.md
 ```
 
 ---

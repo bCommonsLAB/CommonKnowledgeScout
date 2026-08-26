@@ -1,7 +1,7 @@
 # Acceptance: Welle 1 — Bewertungsmodell (Baustein A)
 
 > Stand: 2026-05-30 · Branch: `claude/modest-noether-m6DVR`
-> Plan: [`.cursor/plans/massnahmen-bewertung-und-graph_b4e9f1a7.plan.md`](../../.cursor/plans/massnahmen-bewertung-und-graph_b4e9f1a7.plan.md)
+> Plan: [`docs/plans/archiv/massnahmen-bewertung-und-graph_b4e9f1a7.plan.md`](../plans/archiv/massnahmen-bewertung-und-graph_b4e9f1a7.plan.md)
 > Zielbild §4: [`massnahmen-bewertung-und-graph-zielbild.md`](./massnahmen-bewertung-und-graph-zielbild.md)
 
 ## Was wurde umgesetzt

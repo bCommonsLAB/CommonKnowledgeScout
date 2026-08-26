@@ -23,7 +23,7 @@ Welle 2.1 hat im `secretary`-Modul:
 | 1 | OneDrive-Token-Sync aus `transformPdf` extrahiert in neuen Helper `syncOneDriveTokensToServer`. Aufrufer-Stelle in `client.ts` ersetzt 38 Zeilen Inline-Code durch 1 Funktionsaufruf. Logik **unveraendert**, aber jetzt mit explizitem Logging im Fehler-Pfad statt `catch {}`. | `src/lib/secretary/client-helpers.ts` (neu, +174 Z.), `src/lib/secretary/client.ts` (-38/+5 Z.) | gering — char-test-gruen mit 18 Helper-Tests |
 | 2 | 4 neue Char-Test-Files (42 Tests) fuer `secretary`: `adapter.test.ts`, `client-pdf-image.test.ts`, `client-audio-video-text.test.ts`, `client-session-rag.test.ts`. Bestehende Tests bleiben unveraendert. | `tests/unit/secretary/` | keine — nur Tests |
 | 3 | API-Route-Test verschoben | `tests/unit/api/secretary/process-video-job-defaults.test.ts` (neu, 100% Rename von `tests/unit/secretary/`) | keine — Test wurde verschoben, Inhalt unveraendert |
-| 4 | Neue Cursor-Rule `.cursor/rules/secretary-contracts.mdc` (7 Sektionen) | `.cursor/rules/` | keine — nur Regelwerk |
+| 4 | Neue Cursor-Rule `../../contracts/secretary-contracts.md` (7 Sektionen) | `.cursor/rules/` | keine — nur Regelwerk |
 | 5 | Welle-Doku unter `docs/refactor/secretary/` (8 Files) | `docs/refactor/secretary/` | keine — nur Doku |
 
 **Was NICHT geaendert wurde (Folge-PRs):**

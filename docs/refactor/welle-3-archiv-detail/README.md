@@ -81,5 +81,5 @@ AGENT-BRIEF eine eigene Sektion mit konkretem Cloud-Agent-Auftrag.
 
 - **Vorherige Welle**: [`../welle-3-schale-loader/`](../welle-3-schale-loader/) — Methodik-Vorbild
 - **Pilot**: [`../external-jobs/`](../external-jobs/)
-- **Plan-Bezug**: Welle 3-II in [.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../../.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md) Sektion 5
-- **Detail-View-Rule**: [`detail-view-type-checklist.mdc`](../../../.cursor/rules/detail-view-type-checklist.mdc) (relevant fuer 3-II-a)
+- **Plan-Bezug**: Welle 3-II in [docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md) Sektion 5
+- **Detail-View-Rule**: [`detail-view-type-checklist.mdc`](../../contracts/detail-view-type-checklist.md) (relevant fuer 3-II-a)

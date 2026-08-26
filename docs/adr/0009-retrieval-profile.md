@@ -93,7 +93,7 @@ ein UI-Locale (`@ks/i18n` liefert die Mechanik, das Profil die Vorgabe).
   `@ks/contracts` spezifiziert werden; die Explorer-UI braucht zwei
   Darstellungsstufen (`guided`/`expert`); Pipeline-Phasen brauchen ein
   Konfigurations-Schema (Checkliste
-  [`library-config-field.mdc`](../../.cursor/rules/library-config-field.mdc)
+  [`library-config-field.mdc`](../contracts/library-config-field.md)
   gilt).
 - Umsetzung frühestens Welle M8; das Naturmuseum-Geo-Projekt läuft als
   eigenes Vorhaben auf diesem Fundament (siehe

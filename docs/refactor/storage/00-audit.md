@@ -20,7 +20,7 @@ Bezug:
 
 **Kritische Findings**:
 
-- Modul-Architektur-Rule [`storage-abstraction.mdc`](../../../.cursor/rules/storage-abstraction.mdc)
+- Modul-Architektur-Rule [`storage-abstraction.mdc`](../../contracts/storage-abstraction.md)
   ist `alwaysApply: true`, ausfuehrlich (151 Zeilen) und unveraendert gueltig.
   Sie wird nicht doppelt gepflegt; die neue `storage-contracts.mdc` setzt
   ergaenzende technische Invarianten (Welle-Schritt 2) und verweist auf sie.
@@ -46,12 +46,12 @@ direkt auf `src/lib/storage/**` verweisen.
 
 | Rule-Datei | Bezug zum Modul | Status | Aktion | Begruendung |
 |---|---|---|---|---|
-| [.cursor/rules/storage-abstraction.mdc](../../../.cursor/rules/storage-abstraction.mdc) | direkt (Architektur-Rule, `alwaysApply: true`) | aktuell | **keep** | Hauptquelle der Wahrheit fuer Provider-Abstraktion. Inhalt deckt sich mit aktuellem Code (Factory + 3 Provider-Backends). Update-Bedarf nur kosmetisch (Beispiel-Imports), nicht in Welle 1. |
-| [.cursor/rules/no-silent-fallbacks.mdc](../../../.cursor/rules/no-silent-fallbacks.mdc) | global, deckt `storage` mit ab | aktuell | **keep** | Direkt relevant fuer Schritt 4: `onedrive-provider.ts:2092` (`} catch {}`) ist exakt der Anti-Pattern-Fall, der dort verboten wird. |
-| [.cursor/rules/contracts-story-pipeline.mdc](../../../.cursor/rules/contracts-story-pipeline.mdc) | indirekt (§2 Storage-Abstraktions-Contract) | aktuell | **keep** | Pipeline-Contract bestaetigt: UI darf kein Storage-Backend kennen. Bezug zu Welle 9d (file-preview), nicht Pflicht-Update fuer Welle 1. |
-| [.cursor/rules/shadow-twin-architecture.mdc](../../../.cursor/rules/shadow-twin-architecture.mdc) | indirekt (Storage-Abstraktion in Shadow-Twin-System) | aktuell | **keep** | Verweist auf `useStorageProvider()`/`useStorage()`-Hooks; bleibt unveraendert in Welle 1. |
-| [.cursor/rules/media-lifecycle.mdc](../../../.cursor/rules/media-lifecycle.mdc) | indirekt (Storage als Persistenz-Layer fuer Medien) | aktuell | **keep** | Erwaehnt `binaryFragments` und Storage-Filesystem als Fallback; kein Update-Bedarf. |
-| [.cursor/rules/external-jobs-integration-tests.mdc](../../../.cursor/rules/external-jobs-integration-tests.mdc) | indirekt (Pipeline nutzt Storage-Provider) | aktuell | **update** | Erwaehnt Storage als Quelle fuer Phase 1; minimaler Verweis-Update auf neue `storage-contracts.mdc` empfohlen, **aber nicht Pflicht in Welle 1** — nur falls beim Schreiben der neuen Rule sinnvoll. Kein Code-Bezug. |
+| [../../contracts/storage-abstraction.md](../../contracts/storage-abstraction.md) | direkt (Architektur-Rule, `alwaysApply: true`) | aktuell | **keep** | Hauptquelle der Wahrheit fuer Provider-Abstraktion. Inhalt deckt sich mit aktuellem Code (Factory + 3 Provider-Backends). Update-Bedarf nur kosmetisch (Beispiel-Imports), nicht in Welle 1. |
+| [../../contracts/no-silent-fallbacks.md](../../contracts/no-silent-fallbacks.md) | global, deckt `storage` mit ab | aktuell | **keep** | Direkt relevant fuer Schritt 4: `onedrive-provider.ts:2092` (`} catch {}`) ist exakt der Anti-Pattern-Fall, der dort verboten wird. |
+| [../../contracts/contracts-story-pipeline.md](../../contracts/contracts-story-pipeline.md) | indirekt (§2 Storage-Abstraktions-Contract) | aktuell | **keep** | Pipeline-Contract bestaetigt: UI darf kein Storage-Backend kennen. Bezug zu Welle 9d (file-preview), nicht Pflicht-Update fuer Welle 1. |
+| [../../contracts/shadow-twin-architecture.md](../../contracts/shadow-twin-architecture.md) | indirekt (Storage-Abstraktion in Shadow-Twin-System) | aktuell | **keep** | Verweist auf `useStorageProvider()`/`useStorage()`-Hooks; bleibt unveraendert in Welle 1. |
+| [../../contracts/media-lifecycle.md](../../contracts/media-lifecycle.md) | indirekt (Storage als Persistenz-Layer fuer Medien) | aktuell | **keep** | Erwaehnt `binaryFragments` und Storage-Filesystem als Fallback; kein Update-Bedarf. |
+| [../../contracts/external-jobs-integration-tests.md](../../contracts/external-jobs-integration-tests.md) | indirekt (Pipeline nutzt Storage-Provider) | aktuell | **update** | Erwaehnt Storage als Quelle fuer Phase 1; minimaler Verweis-Update auf neue `storage-contracts.mdc` empfohlen, **aber nicht Pflicht in Welle 1** — nur falls beim Schreiben der neuen Rule sinnvoll. Kein Code-Bezug. |
 
 ### Update-Detail fuer `external-jobs-integration-tests.mdc`
 
@@ -65,7 +65,7 @@ Wird in Schritt 2 entschieden; bei Zeitknappheit nicht Pflicht (Audit-Action `up
 
 ### Neu zu erstellen (Schritt 2)
 
-- `.cursor/rules/storage-contracts.mdc` — modul-spezifische Contract-Rule,
+- `../../contracts/storage-contracts.md` — modul-spezifische Contract-Rule,
   Globs `["src/lib/storage/**/*.ts"]`. **Nicht im Audit gelistet**, weil sie
   in Schritt 2 entsteht.
 

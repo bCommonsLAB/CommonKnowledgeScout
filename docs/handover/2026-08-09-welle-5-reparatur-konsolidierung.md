@@ -4,7 +4,7 @@ Basis-Session: Live-Test + Legacy-Migration Umweltarchiv (2026-08-07 … 08-09).
 Pflicht-Lektüre vor Start:
 1. [01-bestandsaufnahme-reparatur-redundanzen.md](../refactor/shadow-twin-sync-konsolidierung/01-bestandsaufnahme-reparatur-redundanzen.md) (Befund + Wellen-Plan)
 2. [00-design-vorschlag.md](../refactor/shadow-twin-sync-konsolidierung/00-design-vorschlag.md) (Welle-4-Design: EIN Plan, zwei Modi)
-3. `.cursor/rules/shadow-twin-contracts.mdc`, `no-silent-fallbacks.mdc`
+3. `../contracts/shadow-twin-contracts.md`, `no-silent-fallbacks.mdc`
 
 ## 1. Ziel (User-Entscheid, wörtlich)
 

@@ -1,6 +1,6 @@
 # Refactor-Playbook (8 Schritte je Modul)
 
-Quelle: [.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md) Sektion 2.
+Quelle: [docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md) Sektion 2.
 
 Das Playbook ist die wiederholbare Methodik gegen Strategie-Drift.
 Jedes Modul wird in dieser Reihenfolge bearbeitet. **Tests vor Refactor.**
@@ -126,7 +126,7 @@ Tabelle pro Modul: Datei, Zeilen, hat Test ja/nein, `any`-Anzahl, leere Catches,
 
 ## Schritt 2 — Contracts fixieren
 
-Pro Modul `.cursor/rules/<modul>-contracts.mdc`. Vorbild: [.cursor/rules/contracts-story-pipeline.mdc](../../.cursor/rules/contracts-story-pipeline.mdc).
+Pro Modul `.cursor/rules/<modul>-contracts.mdc`. Vorbild: [../contracts/contracts-story-pipeline.md](../contracts/contracts-story-pipeline.md).
 
 ### Vorlage Contract-Rule
 
@@ -178,7 +178,7 @@ Jede Datei wird gegen die 8 Punkte geprueft, Funde direkt gefixt:
 
 1. **Fehlende Tests** — in Schritt 3 abgedeckt
 2. **Silent Fallbacks** (`catch {}`, `?? []`) → durch `throw` oder bewusstes Default mit Kommentar + Logging via `src/lib/logging`
-3. **UI/Storage-Branches** in Komponenten → in Service-Layer verschieben (siehe [.cursor/rules/storage-abstraction.mdc](../../.cursor/rules/storage-abstraction.mdc))
+3. **UI/Storage-Branches** in Komponenten → in Service-Layer verschieben (siehe [../contracts/storage-abstraction.md](../contracts/storage-abstraction.md))
 4. **`any`-Drift** → `unknown` + Type-Guard
 5. **Duplikate** → eine Implementierung wird kanonisch, andere via Strangler-Fig in Schritt 5 abloesen
 6. **Toter Code** → in Schritt 6
@@ -234,7 +234,7 @@ Modul gilt als "gruen", wenn alle Punkte erfuellt sind:
 ## Schritt 8 — Hand-off (Cloud-Agent-Kostenstrategie)
 
 Pflicht-Schritt am Welle-Ende. Verbindlich seit 2026-05-02 (siehe
-[`.cursor/rules/cloud-agent-cost-strategy.mdc`](../../.cursor/rules/cloud-agent-cost-strategy.mdc)).
+[`../contracts/cloud-agent-cost-strategy.md`](../contracts/cloud-agent-cost-strategy.md)).
 
 Jede Welle-PR endet mit einem **Hand-off-Block** im PR-Body und in der
 Antwort-Zusammenfassung. Der Block enthaelt genau die Anweisungen, die

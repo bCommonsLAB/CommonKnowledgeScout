@@ -26,7 +26,7 @@
    `indexCache`) und wird vor dem ersten schreibenden Zugriff aufgerufen.
 5. **Dokument-Interface** mit `_id?: string`, `libraryId: string`, fachlichem
    Key, `createdAt`/`updatedAt` als ISO-Strings.
-6. **Kein stiller Fallback** (siehe `.cursor/rules/no-silent-fallbacks.mdc`):
+6. **Kein stiller Fallback** (siehe `../contracts/no-silent-fallbacks.md`):
    Domain-Verletzungen werfen, statt leise „nichts zu tun".
 
 ## Kanonisches Minimal-Beispiel

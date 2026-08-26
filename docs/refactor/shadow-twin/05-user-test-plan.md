@@ -17,7 +17,7 @@ ergaenzt — der Risiko-Footprint ist **sehr klein**.
 |---|---|---|---|
 | 1 | Pure Helper `getFileKind` und `getMimeType` aus `shadow-twin-migration-writer.ts` extrahiert in neue Datei `src/lib/shadow-twin/file-kind.ts`. Aufrufer-Stelle nutzt lokalen Alias, Diff klein. Logik unveraendert. | `src/lib/shadow-twin/file-kind.ts` (neu, +51 Z.), `src/lib/shadow-twin/shadow-twin-migration-writer.ts` (-49/+5 Z.) | sehr gering — Pure Funktion, char-test-gruen mit 15 Tests |
 | 2 | 2 neue Char-Test-Files (21 Tests): `file-kind.test.ts`, `mongo-shadow-twin-item.test.ts` | `tests/unit/shadow-twin/` | gering — nur Tests, kein Produktcode geaendert |
-| 3 | Neue Cursor-Rule `.cursor/rules/shadow-twin-contracts.mdc` (7 Sektionen) | `.cursor/rules/` | keine — nur Regelwerk |
+| 3 | Neue Cursor-Rule `../../contracts/shadow-twin-contracts.md` (7 Sektionen) | `.cursor/rules/` | keine — nur Regelwerk |
 | 4 | Welle-2-Doku unter `docs/refactor/shadow-twin/` (6 Files) | `docs/refactor/shadow-twin/` | keine — nur Doku |
 
 **Was NICHT geaendert wurde (Folge-PRs):**

@@ -75,5 +75,5 @@ New-Item -ItemType Junction -Path ".cursor\skills" -Target "$PWD\.claude\skills"
 
 ## Pläne
 
-Aktive Cursor-Pläne liegen unter [.cursor/plans/](.cursor/plans/). Aktiver
+Aktive Cursor-Pläne liegen unter [docs/plans/](docs/plans/). Aktiver
 Plan ist in `AGENTS.md` referenziert.

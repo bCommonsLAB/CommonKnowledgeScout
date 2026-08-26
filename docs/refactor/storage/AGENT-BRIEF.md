@@ -9,9 +9,9 @@ Stand: 2026-04-26. Erstellt vom IDE-Agenten (Pre-Flight, Welle 1, R1+R2 der Meth
 2. **Pilot-Erfahrung**: [`docs/refactor/external-jobs/`](../external-jobs/)
    — komplette 5-File-Doku-Serie (`00-audit.md` bis `05-user-test-plan.md`)
    ist die Vorlage fuer dieses Modul.
-3. **Plan-Bezug**: [.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../../.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md)
+3. **Plan-Bezug**: [docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md)
    Sektion 5 (Welle 1).
-4. **Architektur-Rule**: [.cursor/rules/storage-abstraction.mdc](../../../.cursor/rules/storage-abstraction.mdc)
+4. **Architektur-Rule**: [../../contracts/storage-abstraction.md](../../contracts/storage-abstraction.md)
    ist `alwaysApply: true` — ALLE Aenderungen muessen sie respektieren.
 5. **Inventur** (schon erstellt): [`01-inventory.md`](./01-inventory.md)
    — Du hast die Health-Zahlen + Hot-Spots als Startpunkt.
@@ -28,7 +28,7 @@ Output landet in `docs/refactor/storage/00-audit.md`, `02-contracts.md`,
 
 Code-Aenderungen landen direkt in `src/lib/storage/`, neue Tests in
 `tests/unit/storage/`. Eine modul-spezifische Contract-Rule
-`.cursor/rules/storage-contracts.mdc` wird neu erstellt.
+`../../contracts/storage-contracts.md` wird neu erstellt.
 
 ## Schritt-fuer-Schritt-Ablauf
 
@@ -45,7 +45,7 @@ Code-Aenderungen landen direkt in `src/lib/storage/`, neue Tests in
 - Du kannst Spalten ergaenzen, falls du Details findest, die jetzt fehlen.
 
 ### Schritt 2 — Contracts
-- Neue Rule: `.cursor/rules/storage-contracts.mdc`
+- Neue Rule: `../../contracts/storage-contracts.md`
 - Globs: `["src/lib/storage/**/*.ts"]`
 - Mindestens definieren:
   - **§1 Determinismus**: `StorageProvider`-Interface ist Vertrag (siehe `storage-abstraction.mdc` §6)

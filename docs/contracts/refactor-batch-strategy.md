@@ -1,6 +1,6 @@
 > Batch-Strategie fuer Refactoring-Wellen — 1 PR pro Welle mit mehreren kohaerenten Commits
 >
-> **Gilt für:** `docs/refactor/**/*.md`, `.cursor/plans/refactor-*.plan.md`
+> **Gilt für:** `docs/refactor/**/*.md`, `docs/plans/refactor-*.plan.md`
 
 # Refactor-Batch-Strategie: 1 PR pro Welle
 

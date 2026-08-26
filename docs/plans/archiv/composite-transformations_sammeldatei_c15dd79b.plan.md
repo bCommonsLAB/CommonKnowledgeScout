@@ -82,7 +82,7 @@ flowchart LR
 
 ### Determinismus (Contract)
 
-`templateName` ist Pflicht für `kind='transformation'` (siehe [`shadow-twin-contracts.mdc`](.cursor/rules/shadow-twin-contracts.mdc)). Wir nehmen daher beim Erstellen EIN Template + Sprache (Variante A: Single-Template-Dialog) und schreiben den Templatenamen explizit in jeden Wikilink-Suffix. Quellen, die das gewählte Template nicht haben, landen vor der Erstellung in einer Warnliste; der User kann sie weglassen oder das Erstellen abbrechen. Kein „pick latest", kein Auto-Fallback.
+`templateName` ist Pflicht für `kind='transformation'` (siehe [`shadow-twin-contracts.mdc`](../../contracts/shadow-twin-contracts.md)). Wir nehmen daher beim Erstellen EIN Template + Sprache (Variante A: Single-Template-Dialog) und schreiben den Templatenamen explizit in jeden Wikilink-Suffix. Quellen, die das gewählte Template nicht haben, landen vor der Erstellung in einer Warnliste; der User kann sie weglassen oder das Erstellen abbrechen. Kein „pick latest", kein Auto-Fallback.
 
 ### Wichtige bestehende Dateien (Touchpoints)
 

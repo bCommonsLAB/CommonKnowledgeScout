@@ -23,7 +23,7 @@ The Storage module provides an abstraction layer for file storage operations acr
 - **`src/lib/storage/server-provider.ts`**: Server-side provider helper (`getServerProvider`)
 
 ### Helper / Capability
-- **`src/lib/storage/library-capability.ts`**: Storage-agnostische Capability-Helper (`isFilesystemBacked`); siehe `.cursor/rules/storage-contracts.mdc` §5
+- **`src/lib/storage/library-capability.ts`**: Storage-agnostische Capability-Helper (`isFilesystemBacked`); siehe `../../contracts/storage-contracts.md` §5
 - **`src/lib/storage/onedrive/errors.ts`**: Pure Helper fuer OneDrive (`extractGraphEndpoint`, `parseRetryAfter`)
 - **`src/lib/storage/provider-request-cache.ts`**: Per-Request-Cache-Wrapper fuer Provider
 - **`src/lib/storage/request-deduplicator.ts`**: Deduplizierungs-Helper

@@ -18,7 +18,7 @@ Die offenen Future-Work-Splits aus Welle 3-IV (`public-form`,
 `secretary-service-form`, `FacetDefsEditor`, `search-index-dialog`,
 Shim-Ablösung) werden NICHT vorab umgesetzt; der UX-Umbau ersetzt sie.
 
-Wellen-Naming nach [`refactor-naming-konvention.mdc`](../../.cursor/rules/refactor-naming-konvention.mdc):
+Wellen-Naming nach [`refactor-naming-konvention.mdc`](../contracts/refactor-naming-konvention.md):
 **Welle 3-IV-UX** (Future-Work aus Mutter-Welle 3-IV).
 
 ## 2. Leitstruktur: die drei Räume

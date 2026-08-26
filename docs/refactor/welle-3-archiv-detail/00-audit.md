@@ -28,12 +28,12 @@ Galerie/Story/Chat ist Welle 3-III.
   - `audio-transform.tsx:136`
   - `video-transform.tsx:136`
   - `pdf-transform.tsx:164`
-  Verstoss gegen [`no-silent-fallbacks.mdc`](../../../.cursor/rules/no-silent-fallbacks.mdc).
+  Verstoss gegen [`no-silent-fallbacks.mdc`](../../contracts/no-silent-fallbacks.md).
   **Alle** in dieser PR (Schritt 4a) gefixt.
 - **F3 — 1 Storage-Branch** in
   `src/components/library/shared/freshness-comparison-panel.tsx:145`:
   `data.config.primaryStore === "filesystem" || data.config.persistToFilesystem`.
-  Verstoss gegen [`storage-abstraction.mdc`](../../../.cursor/rules/storage-abstraction.mdc).
+  Verstoss gegen [`storage-abstraction.mdc`](../../contracts/storage-abstraction.md).
   **In dieser PR** (Schritt 4a) gefixt — durch Helper aus Welle 1 ersetzen
   oder API-Response-Flag.
 - **F4 — `file-preview.tsx` mit 66 Hooks und 3.701 Zeilen** ist der groesste
@@ -54,20 +54,20 @@ Galerie/Story/Chat ist Welle 3-III.
 
 | Rule-Datei | Bezug | Status | Aktion | Begruendung |
 |---|---|---|---|---|
-| [.cursor/rules/storage-abstraction.mdc](../../../.cursor/rules/storage-abstraction.mdc) | global, **direkt** (1 Verstoss in `freshness-comparison-panel`) | aktuell | keep | Wird in dieser PR durch Code-Fix befolgt; Rule selbst bleibt |
-| [.cursor/rules/no-silent-fallbacks.mdc](../../../.cursor/rules/no-silent-fallbacks.mdc) | global, **direkt** (7 Verstoesse) | aktuell | keep | Wird in dieser PR durch Code-Fix befolgt |
-| [.cursor/rules/media-lifecycle.mdc](../../../.cursor/rules/media-lifecycle.mdc) | global, **direkt** (cover-image-generator-dialog, media-tab, markdown-metadata schreiben Frontmatter) | aktuell | keep | Wird in Sub-Wellen 3-II-c/d eingehalten |
-| [.cursor/rules/contracts-story-pipeline.mdc](../../../.cursor/rules/contracts-story-pipeline.mdc) | global, **direkt** (file-preview, markdown-preview, job-report-tab konsumieren Pipeline-Output) | aktuell | keep | Bleibt als Vertrag |
-| [.cursor/rules/shadow-twin-architecture.mdc](../../../.cursor/rules/shadow-twin-architecture.mdc) | global, **direkt** (alle Detail-Tabs konsumieren Shadow-Twin-State) | aktuell | keep | Bleibt als Vertrag |
-| [.cursor/rules/detail-view-type-checklist.mdc](../../../.cursor/rules/detail-view-type-checklist.mdc) | direkt (`detail-view-renderer.tsx`, `*-detail.tsx`-Familie, `job-report-tab.tsx`) | aktuell | **update** | Punkt 9 verweist auf `job-report-tab.tsx`. Nach 3-II-c-Modul-Split muss `job-report-tab/teaser-card.tsx` als neuer Pfad ergaenzt werden |
-| [.cursor/rules/welle-3-schale-loader-contracts.mdc](../../../.cursor/rules/welle-3-schale-loader-contracts.mdc) | indirekt (Schale ist Vorbedingung) | aktuell | keep | Globs decken Welle-3-I ab, keine Aenderung noetig |
-| [.cursor/rules/reorganizing-components.mdc](../../../.cursor/rules/reorganizing-components.mdc) | direkt (Modul-Split-Empfehlung) | aktuell | keep | Welle 3-II setzt das in Sub-Wellen um |
-| [.cursor/rules/prio1-state-caching-navigation.mdc](../../../.cursor/rules/prio1-state-caching-navigation.mdc) | indirekt | aktuell | keep | – |
-| [.cursor/rules/prio2-logging-errorhandling.mdc](../../../.cursor/rules/prio2-logging-errorhandling.mdc) | direkt (Logging-Vorgabe) | aktuell | keep | Wird in Schritt 4a durch Catch-Fixes erfuellt |
-| [.cursor/rules/prio3-init-grundfunktion.mdc](../../../.cursor/rules/prio3-init-grundfunktion.mdc) | indirekt | aktuell | keep | – |
+| [../../contracts/storage-abstraction.md](../../contracts/storage-abstraction.md) | global, **direkt** (1 Verstoss in `freshness-comparison-panel`) | aktuell | keep | Wird in dieser PR durch Code-Fix befolgt; Rule selbst bleibt |
+| [../../contracts/no-silent-fallbacks.md](../../contracts/no-silent-fallbacks.md) | global, **direkt** (7 Verstoesse) | aktuell | keep | Wird in dieser PR durch Code-Fix befolgt |
+| [../../contracts/media-lifecycle.md](../../contracts/media-lifecycle.md) | global, **direkt** (cover-image-generator-dialog, media-tab, markdown-metadata schreiben Frontmatter) | aktuell | keep | Wird in Sub-Wellen 3-II-c/d eingehalten |
+| [../../contracts/contracts-story-pipeline.md](../../contracts/contracts-story-pipeline.md) | global, **direkt** (file-preview, markdown-preview, job-report-tab konsumieren Pipeline-Output) | aktuell | keep | Bleibt als Vertrag |
+| [../../contracts/shadow-twin-architecture.md](../../contracts/shadow-twin-architecture.md) | global, **direkt** (alle Detail-Tabs konsumieren Shadow-Twin-State) | aktuell | keep | Bleibt als Vertrag |
+| [../../contracts/detail-view-type-checklist.md](../../contracts/detail-view-type-checklist.md) | direkt (`detail-view-renderer.tsx`, `*-detail.tsx`-Familie, `job-report-tab.tsx`) | aktuell | **update** | Punkt 9 verweist auf `job-report-tab.tsx`. Nach 3-II-c-Modul-Split muss `job-report-tab/teaser-card.tsx` als neuer Pfad ergaenzt werden |
+| [../../contracts/welle-3-schale-loader-contracts.md](../../contracts/welle-3-schale-loader-contracts.md) | indirekt (Schale ist Vorbedingung) | aktuell | keep | Globs decken Welle-3-I ab, keine Aenderung noetig |
+| [../../plans/archiv/reorganizing-components.md](../../plans/archiv/reorganizing-components.md) | direkt (Modul-Split-Empfehlung) | aktuell | keep | Welle 3-II setzt das in Sub-Wellen um |
+| [../../plans/archiv/prio1-state-caching-navigation.md](../../plans/archiv/prio1-state-caching-navigation.md) | indirekt | aktuell | keep | – |
+| [../../plans/archiv/prio2-logging-errorhandling.md](../../plans/archiv/prio2-logging-errorhandling.md) | direkt (Logging-Vorgabe) | aktuell | keep | Wird in Schritt 4a durch Catch-Fixes erfuellt |
+| [../../plans/archiv/prio3-init-grundfunktion.md](../../plans/archiv/prio3-init-grundfunktion.md) | indirekt | aktuell | keep | – |
 
 **Output dieser Welle (neue Rule)**:
-[`.cursor/rules/welle-3-archiv-detail-contracts.mdc`](../../../.cursor/rules/welle-3-archiv-detail-contracts.mdc) —
+[`../../contracts/welle-3-archiv-detail-contracts.md`](../../contracts/welle-3-archiv-detail-contracts.md) —
 wird in Schritt 2 angelegt.
 
 ## B. Tests

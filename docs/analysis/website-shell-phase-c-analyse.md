@@ -4,7 +4,7 @@
 > Kontext: Landingpage „Oldies for Future" (detailViewType `website`) laeuft auf
 > `oldiesforfuture.org` (Variante B, host-gemappt). Phase A+B (Original-Treue,
 > Sektionen, Video, TopNav-Modi, Domain-Kopplung) sind auf `master`.
-> Verbindlicher Contract: `.cursor/rules/website-landingpage.mdc`.
+> Verbindlicher Contract: `../contracts/website-landingpage.md`.
 
 ## 0. Offene Punkte (User-Anforderung)
 

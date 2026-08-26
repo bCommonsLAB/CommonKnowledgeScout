@@ -4,7 +4,7 @@ Stand: 2026-04-26. Erstellt vom Cloud-Agent (Welle 1, Plan-Schritt 4).
 
 Bezug:
 - Audit: [`00-audit.md`](./00-audit.md) (Hot-Spots)
-- Contracts: [`02-contracts.md`](./02-contracts.md), [`storage-contracts.mdc`](../../../.cursor/rules/storage-contracts.mdc)
+- Contracts: [`02-contracts.md`](./02-contracts.md), [`storage-contracts.mdc`](../../contracts/storage-contracts.md)
 - Char-Tests: [`03-tests.md`](./03-tests.md)
 - Vorbild: [`docs/refactor/external-jobs/02-altlast-pass.md`](../external-jobs/02-altlast-pass.md)
 
@@ -72,7 +72,7 @@ ebenfalls dokumentiert (`void jsonErr` mit erklaerendem Kommentar).
 
 ### 4.2 OneDrive-Sub-Modul-Skeleton
 
-Geplant in [`storage-contracts.mdc`](../../../.cursor/rules/storage-contracts.mdc) §6
+Geplant in [`storage-contracts.mdc`](../../contracts/storage-contracts.md) §6
 sind 5 Sub-Module (`auth.ts`, `items.ts`, `binary.ts`, `cache.ts`, `errors.ts`).
 
 In dieser Welle umgesetzt:

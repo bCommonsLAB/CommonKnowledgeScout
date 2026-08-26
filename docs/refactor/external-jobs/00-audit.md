@@ -23,10 +23,10 @@ Stand: 2026-04-23. Erstellt von Cloud-Agent 2 (Pilot-Welle, Plan-Schritt 0).
 
 | Rule-Datei | Bezug zum Modul | Status | Aktion | Begruendung |
 |---|---|---|---|---|
-| [.cursor/rules/external-jobs-integration-tests.mdc](../../../.cursor/rules/external-jobs-integration-tests.mdc) | direkt (`src/lib/external-jobs/**` + `src/app/api/external/jobs/**` + `tests/unit/external-jobs/**`) | aktuell | **update** | gepflegt und detailliert; nur kleine Erweiterung um Skip-Semantik bzgl. `details.skipped=true` (Plan-Schritt 2) |
-| [.cursor/rules/contracts-story-pipeline.mdc](../../../.cursor/rules/contracts-story-pipeline.mdc) | direkt (deckt `src/lib/external-jobs/**` mit ab) | aktuell | keep | bereits sehr klar formulierte globale Pipeline-Contracts |
-| [.cursor/rules/no-silent-fallbacks.mdc](../../../.cursor/rules/no-silent-fallbacks.mdc) | global (gilt fuer alle Module, also auch fuer external-jobs) | aktuell | keep | konkrete Quelle fuer den Pilot-Altlast-Fix in `external-jobs-repository.ts:320` |
-| [.cursor/rules/storage-abstraction.mdc](../../../.cursor/rules/storage-abstraction.mdc) | global (UI/Storage-Trennung) | aktuell | keep | nur indirekt fuer Pilot relevant (external-jobs ist Service-Layer, nicht UI); voller Bezug erst in Welle 3b file-preview |
+| [../../contracts/external-jobs-integration-tests.md](../../contracts/external-jobs-integration-tests.md) | direkt (`src/lib/external-jobs/**` + `src/app/api/external/jobs/**` + `tests/unit/external-jobs/**`) | aktuell | **update** | gepflegt und detailliert; nur kleine Erweiterung um Skip-Semantik bzgl. `details.skipped=true` (Plan-Schritt 2) |
+| [../../contracts/contracts-story-pipeline.md](../../contracts/contracts-story-pipeline.md) | direkt (deckt `src/lib/external-jobs/**` mit ab) | aktuell | keep | bereits sehr klar formulierte globale Pipeline-Contracts |
+| [../../contracts/no-silent-fallbacks.md](../../contracts/no-silent-fallbacks.md) | global (gilt fuer alle Module, also auch fuer external-jobs) | aktuell | keep | konkrete Quelle fuer den Pilot-Altlast-Fix in `external-jobs-repository.ts:320` |
+| [../../contracts/storage-abstraction.md](../../contracts/storage-abstraction.md) | global (UI/Storage-Trennung) | aktuell | keep | nur indirekt fuer Pilot relevant (external-jobs ist Service-Layer, nicht UI); voller Bezug erst in Welle 3b file-preview |
 
 ### Update-Detail fuer `external-jobs-integration-tests.mdc`
 

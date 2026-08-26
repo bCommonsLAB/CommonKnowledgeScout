@@ -4,7 +4,7 @@ Stand: 2026-04-27. Erstellt vom IDE-Agent (Welle 3, Plan-Schritt 3).
 
 Bezug:
 - Audit: [`00-audit.md`](./00-audit.md)
-- Contracts-Rule: [`.cursor/rules/ingestion-contracts.mdc`](../../../.cursor/rules/ingestion-contracts.mdc)
+- Contracts-Rule: [`../../contracts/ingestion-contracts.md`](../../contracts/ingestion-contracts.md)
 - Contracts-Doku: [`02-contracts.md`](./02-contracts.md)
 - Welle-2-Vorbild: [`docs/refactor/shadow-twin/03-tests.md`](../shadow-twin/03-tests.md)
 

@@ -3,15 +3,15 @@
 Stand: 2026-04-27. Erstellt vom Cloud-Agent (Welle 2, Plan-Schritt 2).
 
 Bezug:
-- Neue Rule: [.cursor/rules/shadow-twin-contracts.mdc](../../../.cursor/rules/shadow-twin-contracts.mdc)
-- Architektur-Rule: [.cursor/rules/shadow-twin-architecture.mdc](../../../.cursor/rules/shadow-twin-architecture.mdc)
+- Neue Rule: [../../contracts/shadow-twin-contracts.md](../../contracts/shadow-twin-contracts.md)
+- Architektur-Rule: [../../contracts/shadow-twin-architecture.md](../../contracts/shadow-twin-architecture.md)
 - Audit: [`00-audit.md`](./00-audit.md)
 - Welle-1-Vorbild: [`docs/refactor/storage/02-contracts.md`](../storage/02-contracts.md)
 
 ## Was wurde gemacht
 
 Die neue Rule
-[`shadow-twin-contracts.mdc`](../../../.cursor/rules/shadow-twin-contracts.mdc)
+[`shadow-twin-contracts.mdc`](../../contracts/shadow-twin-contracts.md)
 definiert harte technische Invarianten auf Code-Ebene und ergaenzt die
 bereits existierende Architektur-Rule (`shadow-twin-architecture.mdc`).
 

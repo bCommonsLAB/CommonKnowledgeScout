@@ -79,7 +79,7 @@ Berechtigungen pro Feature:
 
 ## Datenmodell (MongoDB)
 
-Stabiler Quellen-Schluessel: `fileId` (Top-Level in der Vector-Meta-Doc, storage-agnostisch laut [`contracts-story-pipeline.mdc`](.cursor/rules/contracts-story-pipeline.mdc) §4).
+Stabiler Quellen-Schluessel: `fileId` (Top-Level in der Vector-Meta-Doc, storage-agnostisch laut [`contracts-story-pipeline.mdc`](../../contracts/contracts-story-pipeline.md) §4).
 
 ```mermaid
 erDiagram
@@ -202,7 +202,7 @@ Diese Routen muessen **nicht** in der Public-Matcher-Liste in [`src/middleware.t
 ### Filter "Nur Favoriten"
 
 - [`src/components/library/gallery/gallery-root.tsx`](src/components/library/gallery/gallery-root.tsx)
-  - Lokaler URL-State per `nuqs`/`useSearchParams`: `?favorites=1` (konform §5 [`welle-3-iii-galerie-chat-contracts.mdc`](.cursor/rules/welle-3-iii-galerie-chat-contracts.mdc)).
+  - Lokaler URL-State per `nuqs`/`useSearchParams`: `?favorites=1` (konform §5 [`welle-3-iii-galerie-chat-contracts.mdc`](../../contracts/welle-3-iii-galerie-chat-contracts.md)).
   - Vor Uebergabe an `VirtualizedItemsView` filtern: `docs.filter(d => favoriteIds.has(d.fileId))` wenn Toggle aktiv.
   - URL-Param `?favorites=1` wird ignoriert/entfernt, wenn `!isMember` (Gast hat keine Favoriten-Sicht).
 - [`src/components/library/filter-context-bar.tsx`](src/components/library/filter-context-bar.tsx)
@@ -238,9 +238,9 @@ Diese Routen muessen **nicht** in der Public-Matcher-Liste in [`src/middleware.t
 
 ## Konformitaet zu Workspace-Rules
 
-- [`storage-abstraction.mdc`](.cursor/rules/storage-abstraction.mdc): Persistenz nutzt nur `fileId` (kein Provider-Pfad, kein `library.type`-Branch).
-- [`no-silent-fallbacks.mdc`](.cursor/rules/no-silent-fallbacks.mdc): Repos werfen bei fehlenden Pflicht-Feldern; API-Routen liefern explizite 401/403/404; UI rendert Toast bei Fehler statt stiller Fallbacks.
-- [`welle-3-iii-galerie-chat-contracts.mdc`](.cursor/rules/welle-3-iii-galerie-chat-contracts.mdc) §1, §3: UI-Komponenten reden nur ueber `/api/...`, kein Direktimport von Repos in Client-Code; URL-Parameter `?favorites=1` konform §5; jede Datei < 200 Zeilen ([`AGENTS.md`](AGENTS.md)).
+- [`storage-abstraction.mdc`](../../contracts/storage-abstraction.md): Persistenz nutzt nur `fileId` (kein Provider-Pfad, kein `library.type`-Branch).
+- [`no-silent-fallbacks.mdc`](../../contracts/no-silent-fallbacks.md): Repos werfen bei fehlenden Pflicht-Feldern; API-Routen liefern explizite 401/403/404; UI rendert Toast bei Fehler statt stiller Fallbacks.
+- [`welle-3-iii-galerie-chat-contracts.mdc`](../../contracts/welle-3-iii-galerie-chat-contracts.md) §1, §3: UI-Komponenten reden nur ueber `/api/...`, kein Direktimport von Repos in Client-Code; URL-Parameter `?favorites=1` konform §5; jede Datei < 200 Zeilen ([`AGENTS.md`](AGENTS.md)).
 - ADR-Konformitaet: keine Vermischung mit `external-jobs`/`event-job` ([`docs/adr/0001-event-job-vs-external-jobs.md`](docs/adr/0001-event-job-vs-external-jobs.md)).
 
 ## Test-/Lint-Strategie

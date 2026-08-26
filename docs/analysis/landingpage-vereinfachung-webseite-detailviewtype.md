@@ -19,7 +19,7 @@
 > - **Galerie-Filter:** `website`-Docs sind in der oeffentlichen Slug-Galerie
 >   ausgeblendet (`excludeDetailViewType`, serverseitig).
 >
-> Verbindlicher Contract: `.cursor/rules/website-landingpage.mdc`.
+> Verbindlicher Contract: `../contracts/website-landingpage.md`.
 
 ## 1. Ziel & Anforderungen
 

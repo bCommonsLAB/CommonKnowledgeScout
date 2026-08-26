@@ -46,7 +46,7 @@ Heute ist das nicht möglich, ohne die gesamte Anwendung zu deployen:
   Config-Funktion (`buildTopNavConfig()`), Host→Library-Mapping
   (`src/lib/domain-library-map.ts`, `src/lib/root-landing.ts`), Per-Library-
   Feature-Flags (`agentViewEnabled`, `siteEnabled`), Schale/Loader-Contracts
-  (`.cursor/rules/welle-3-schale-loader-contracts.mdc`).
+  (`../contracts/welle-3-schale-loader-contracts.md`).
 
 ## Entscheidung
 

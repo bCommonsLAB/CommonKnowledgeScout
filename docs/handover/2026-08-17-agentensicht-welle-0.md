@@ -42,7 +42,7 @@ Für die nächste KnowledgeScout-Session (Cloud oder lokal). Konzept-Grundlage:
 
 ### 0b: Ausschluss-Globs pro Library
 
-- Library-Config-Feld nach Checkliste `.cursor/rules/library-config-field.mdc`
+- Library-Config-Feld nach Checkliste `../contracts/library-config-field.md`
   (Typ, Settings-UI, Persistenz, Default leer).
 - Konsumenten: Sync-Engine-Root-Scan
   (`src/lib/shadow-twin/sync-engine/resolve-sources.ts`) und der künftige
@@ -83,7 +83,7 @@ Lies zuerst AGENTS.md (Pflicht-Lektüre + Stop-Bedingungen), dann:
 - docs/concepts/twin-datei-contract.md (§2b, §3, §4)
 - docs/concepts/projektauftrag-agentensicht.md (§4 Leitplanken, §5 Welle 0)
 - docs/handover/2026-08-17-agentensicht-welle-0.md (dieses Dokument, Abschnitt 0a)
-- .cursor/rules/shadow-twin-contracts.mdc
+- ../contracts/shadow-twin-contracts.md
 
 Aufgabe: Welle 0a des Agentensicht-Projekts — Twin-Kern-Feldsatz.
 1. src/lib/shadow-twin/twin-core-fields.ts: TWIN_CORE_FIELDS (type,

@@ -9,7 +9,7 @@ Stand: 2026-05-03. Erstellt in Sub-Welle 3-V-a (Vorbereitungs-PR).
 1. **ADR 0001** (PFLICHT): [`docs/adr/0001-event-job-vs-external-jobs.md`](../../adr/0001-event-job-vs-external-jobs.md)
    — `event-job` und `external-jobs` sind GETRENNTE Domänen. KEINE Vermischung!
 2. **Methodik**: [`docs/refactor/playbook.md`](../playbook.md)
-3. **Plan-Bezug**: `.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md` Sektion "Welle 3-V"
+3. **Plan-Bezug**: `docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md` Sektion "Welle 3-V"
 4. **Vorbild-Welle**: Welle 3-IV-Settings (Hook-Extraktion, Section-Split)
 5. **Audit + Inventur**: `00-audit.md`, `01-inventory.md`
 6. **Hot-Spots**: `04-altlast-pass.md` — 15 Catches H1-H15, 1 any A1, 3 Modul-Split-Pläne M1-M3
@@ -81,8 +81,8 @@ Stand: 2026-05-03. Erstellt in Sub-Welle 3-V-a (Vorbereitungs-PR).
 ```
 Lies VOR dem Start (in dieser Reihenfolge):
 1. AGENTS.md
-2. .cursor/rules/cloud-agent-cost-strategy.mdc
-3. .cursor/rules/refactor-batch-strategy.mdc
+2. ../../contracts/cloud-agent-cost-strategy.md
+3. ../../contracts/refactor-batch-strategy.md
 4. docs/adr/0001-event-job-vs-external-jobs.md (ADR PFLICHT!)
 5. docs/refactor/welle-3-v-job-monitor/AGENT-BRIEF.md (Sektion "3-V-b")
 6. docs/refactor/welle-3-v-job-monitor/04-altlast-pass.md (M1-Plan)
@@ -112,8 +112,8 @@ NUR event-job-Domäne. KEINE external-jobs-Änderungen.
 ```
 Lies VOR dem Start (in dieser Reihenfolge):
 1. AGENTS.md
-2. .cursor/rules/cloud-agent-cost-strategy.mdc
-3. .cursor/rules/refactor-batch-strategy.mdc
+2. ../../contracts/cloud-agent-cost-strategy.md
+3. ../../contracts/refactor-batch-strategy.md
 4. docs/adr/0001-event-job-vs-external-jobs.md (ADR PFLICHT!)
 5. docs/refactor/welle-3-v-job-monitor/AGENT-BRIEF.md (Sektion "3-V-c")
 6. docs/refactor/welle-3-v-job-monitor/04-altlast-pass.md (H14, H15, A1, M2, M3)

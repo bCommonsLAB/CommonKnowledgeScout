@@ -61,7 +61,7 @@ Zu bauen:
 - **Settings-Formular für `library.config.agentView`.** Typ und Auswertung
   sind da (`vorhabenFolderPattern`, `indexRequiredMaxDepth`,
   `berichtFreshness`); die Form-Schritte 3–6 aus
-  `.cursor/rules/library-config-field.mdc` fehlen noch. Ohne Konfiguration
+  `../contracts/library-config-field.md` fehlen noch. Ohne Konfiguration
   gelten die Defaults: Vorhaben = Ordner mit `bearbeitungsstand` im
   `_INDEX.md`, `_INDEX.md`-Pflicht inaktiv, Bericht-Frische aktiv.
 - **`twin_stale` kommt aus dem Engine-Befund `needs-pipeline`**, nicht aus der

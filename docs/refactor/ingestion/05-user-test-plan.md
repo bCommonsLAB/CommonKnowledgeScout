@@ -17,7 +17,7 @@ ergaenzt — der Risiko-Footprint ist **sehr klein**.
 |---|---|---|---|
 | 1 | Drei pure Helper (`getImageCacheKey`, `normalizeImagePath`, `formatImageError`) aus `image-processor.ts` extrahiert in neue Datei `src/lib/ingestion/image-processor-helpers.ts`. Aufrufer-Stellen (7 in derselben Datei) auf importierte Funktionen umgestellt. Logik unveraendert. | `src/lib/ingestion/image-processor-helpers.ts` (neu, +53 Z.), `src/lib/ingestion/image-processor.ts` (-40/+13 Z.) | sehr gering — Pure Funktionen, char-test-gruen mit 16 Tests |
 | 2 | 7 neue Char-Test-Files (83 Tests) fuer `ingestion`-Modul: `page-split.test.ts`, `metadata-formatter.test.ts`, `document-text-builder.test.ts`, `meta-document-builder.test.ts`, `vector-builder.test.ts`, `image-processor.test.ts`, `image-processor-helpers.test.ts` | `tests/unit/ingestion/` (neu) | gering — nur Tests, kein Produktcode geaendert |
-| 3 | Neue Cursor-Rule `.cursor/rules/ingestion-contracts.mdc` (7 Sektionen) | `.cursor/rules/` | keine — nur Regelwerk |
+| 3 | Neue Cursor-Rule `../../contracts/ingestion-contracts.md` (7 Sektionen) | `.cursor/rules/` | keine — nur Regelwerk |
 | 4 | Welle-3-Doku unter `docs/refactor/ingestion/` (5 Files: Audit, Contracts, Tests, Altlast, User-Test-Plan, Acceptance) | `docs/refactor/ingestion/` | keine — nur Doku |
 
 **Was NICHT geaendert wurde (Folge-PRs):**

@@ -9,9 +9,9 @@ direkt nach erfolgreicher Welle 1 (`storage`).
    - insbesondere R1-R5 (kein Push auf master ohne User-OK, kein Parallelismus).
 2. **Pilot-Erfahrung**: [`docs/refactor/external-jobs/`](../external-jobs/) (Pilot)
    und [`docs/refactor/storage/`](../storage/) (Welle 1).
-3. **Plan-Bezug**: [.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../../.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md)
+3. **Plan-Bezug**: [docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md)
    Sektion 5 (Welle 2).
-4. **Architektur-Rule**: [.cursor/rules/shadow-twin-architecture.mdc](../../../.cursor/rules/shadow-twin-architecture.mdc)
+4. **Architektur-Rule**: [../../contracts/shadow-twin-architecture.md](../../contracts/shadow-twin-architecture.md)
    ist die zentrale Architektur-Rule (alwaysApply: false, aber pipeline-Globs).
 5. **Inventur** (schon erstellt): [`01-inventory.md`](./01-inventory.md).
 
@@ -25,7 +25,7 @@ Output landet in `docs/refactor/shadow-twin/00-audit.md`, `02-contracts.md`,
 
 Code-Aenderungen landen direkt in `src/lib/shadow-twin/`, neue Tests in
 `tests/unit/shadow-twin/`. Eine modul-spezifische Contract-Rule
-`.cursor/rules/shadow-twin-contracts.mdc` wird neu erstellt
+`../../contracts/shadow-twin-contracts.md` wird neu erstellt
 (komplementaer zu `shadow-twin-architecture.mdc`).
 
 ## Vorab-Entscheidungen (vom Cloud-Agent vor Start geklaert)
@@ -78,7 +78,7 @@ Wegen besserem Bestandszustand kann Welle 2 ambitionierter sein:
 - File: [`01-inventory.md`](./01-inventory.md) **existiert bereits** (Cloud-Agent Pre-Flight).
 
 ### Schritt 2 - Contracts
-- Neue Rule: `.cursor/rules/shadow-twin-contracts.mdc`
+- Neue Rule: `../../contracts/shadow-twin-contracts.md`
 - Globs: `["src/lib/shadow-twin/**/*.ts"]`
 - Mindestens definieren:
   - **§1 ArtifactKey-Determinismus** (technische Pflicht-Felder, Parsing-Vertrag)

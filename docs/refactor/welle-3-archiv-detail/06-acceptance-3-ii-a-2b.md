@@ -83,5 +83,5 @@ Verifiziert: 80s, kein Error. Insbesondere kein
 - Welle 3-II-a Phase 2a Acceptance: `06-acceptance-3-ii-a-2.md`
 - Welle 3-II-a Phase 1 Acceptance: `06-acceptance-3-ii-a.md`
 - AGENT-BRIEF: `AGENT-BRIEF.md`
-- Contracts: `.cursor/rules/welle-3-archiv-detail-contracts.mdc` §6
+- Contracts: `../../contracts/welle-3-archiv-detail-contracts.md` §6
 - Lehre `pnpm build`-Pflicht: `AGENTS.md` (seit PR #31)

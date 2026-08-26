@@ -6,13 +6,13 @@ Stand: 2026-04-29. Erstellt vom Cloud-Agent als Pre-Flight + Lauf in einem.
 
 1. **Methodik & Workflow-Regeln**: [`docs/refactor/playbook.md`](../playbook.md) — Workflow-Regeln R1-R5.
 2. **Vorbild-Welle**: [`docs/refactor/welle-3-schale-loader/`](../welle-3-schale-loader/) — komplette Doku-Serie + Modul-Split-Pattern.
-3. **Plan-Bezug**: [.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../../.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md) Sektion 5 (Welle 3-II).
+3. **Plan-Bezug**: [docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md) Sektion 5 (Welle 3-II).
 4. **Architektur-Rules** (alle relevant):
-   - [`storage-abstraction.mdc`](../../../.cursor/rules/storage-abstraction.mdc) — UI darf Storage-Backend nicht kennen
-   - [`no-silent-fallbacks.mdc`](../../../.cursor/rules/no-silent-fallbacks.mdc) — keine leeren Catches
-   - [`media-lifecycle.mdc`](../../../.cursor/rules/media-lifecycle.mdc) — Frontmatter enthaelt nur Dateinamen
-   - [`detail-view-type-checklist.mdc`](../../../.cursor/rules/detail-view-type-checklist.mdc) — DetailViewType-Architektur
-   - [`shadow-twin-architecture.mdc`](../../../.cursor/rules/shadow-twin-architecture.mdc)
+   - [`storage-abstraction.mdc`](../../contracts/storage-abstraction.md) — UI darf Storage-Backend nicht kennen
+   - [`no-silent-fallbacks.mdc`](../../contracts/no-silent-fallbacks.md) — keine leeren Catches
+   - [`media-lifecycle.mdc`](../../contracts/media-lifecycle.md) — Frontmatter enthaelt nur Dateinamen
+   - [`detail-view-type-checklist.mdc`](../../contracts/detail-view-type-checklist.md) — DetailViewType-Architektur
+   - [`shadow-twin-architecture.mdc`](../../contracts/shadow-twin-architecture.md)
 5. **Inventur**: [`01-inventory.md`](./01-inventory.md) — verifizierte Health-Zahlen + Hot-Spots.
 6. **AGENTS.md** im Repo-Root.
 
@@ -48,7 +48,7 @@ Keine Modul-Splits fuer die 4 grossen Files (kommen in 3-II-a/b/c/d).
 
 ### Schritt 2 — Contracts
 
-- Neue Rule: `.cursor/rules/welle-3-archiv-detail-contracts.mdc`
+- Neue Rule: `../../contracts/welle-3-archiv-detail-contracts.md`
 - Globs: `["src/components/library/file-preview.tsx", "src/components/library/file-preview/**", "src/components/library/markdown-preview.tsx", "src/components/library/markdown-preview/**", "src/components/library/job-report-tab.tsx", "src/components/library/job-report-tab/**", "src/components/library/media-tab.tsx", "src/components/library/media-tab/**", "src/components/library/*-detail.tsx", "src/components/library/audio-*.tsx", "src/components/library/video-*.tsx", "src/components/library/image-*.tsx", "src/components/library/pdf-*.tsx", "src/components/library/text-editor.tsx", "src/components/library/markdown-*.tsx", "src/components/library/chapter-accordion.tsx", "src/components/library/slide-accordion.tsx", "src/components/library/event-details-accordion.tsx", "src/components/library/transform-*.tsx", "src/components/library/document-preview.tsx", "src/components/library/cover-image-generator-dialog.tsx", "src/components/library/ingestion-status.tsx", "src/components/library/phase-stepper.tsx", "src/components/library/detail-view-renderer.tsx", "src/components/library/flow/**", "src/components/library/shared/**"]`
 - Mindestens definieren:
   - **§1 Determinismus**: Detail-View-Komponenten sind UI-Renderer. Keine Frontmatter-Schreib-Logik.
@@ -115,7 +115,7 @@ Entfaellt in Vorbereitung.
 ## Sub-Wellen-Briefs (fuer Folge-Cloud-Lauefe)
 
 **Strategie ab 2026-04-30**: Pro Sub-Welle EINE PR mit mehreren
-kohaerenten Commits — siehe [`refactor-batch-strategy.mdc`](mdc:.cursor/rules/refactor-batch-strategy.mdc).
+kohaerenten Commits — siehe [`refactor-batch-strategy.mdc`](../../contracts/refactor-batch-strategy.md).
 
 Diese Briefs werden im Folge-Cloud-Lauf separat gestartet, sobald die
 jeweils vorherige Sub-Welle gemerged ist (R2: seriell).
@@ -133,8 +133,8 @@ Ab Welle 3-II-b gilt die neue Strategie (1 PR pro Sub-Welle).
 ```
 Lies VOR dem Start:
 - docs/refactor/welle-3-archiv-detail/AGENT-BRIEF.md (Sektion "3-II-b")
-- .cursor/rules/welle-3-archiv-detail-contracts.mdc
-- .cursor/rules/refactor-batch-strategy.mdc (NEU — 1 PR pro Welle)
+- ../../contracts/welle-3-archiv-detail-contracts.md
+- ../../contracts/refactor-batch-strategy.md (NEU — 1 PR pro Welle)
 - AGENTS.md (Branching/Stop-Bedingungen)
 
 Aufgabe: markdown-preview.tsx (2.054 Zeilen, 41 Hooks) + markdown-metadata.tsx
@@ -189,9 +189,9 @@ Antworte auf Deutsch.
 ```
 Lies VOR dem Start:
 - docs/refactor/welle-3-archiv-detail/AGENT-BRIEF.md (Sektion "3-II-c")
-- .cursor/rules/welle-3-archiv-detail-contracts.mdc
-- .cursor/rules/detail-view-type-checklist.mdc
-- .cursor/rules/refactor-batch-strategy.mdc
+- ../../contracts/welle-3-archiv-detail-contracts.md
+- ../../contracts/detail-view-type-checklist.md
+- ../../contracts/refactor-batch-strategy.md
 - AGENTS.md
 
 Aufgabe: job-report-tab.tsx (2.284z, 30 Hooks) + media-tab.tsx (1.147z, 13 Hooks)
@@ -220,7 +220,7 @@ Zielstruktur:
 
 Detail-View-Type-Erweiterungs-Vertrag bleibt stabil:
 job-report-tab/index.tsx exportiert weiter dieselbe Komponente unter
-demselben Pfad, sonst bricht .cursor/rules/detail-view-type-checklist.mdc
+demselben Pfad, sonst bricht ../../contracts/detail-view-type-checklist.md
 Punkt 9.
 
 Empfohlene Commit-Reihenfolge:
@@ -248,9 +248,9 @@ Antworte auf Deutsch.
 ```
 Lies VOR dem Start:
 - docs/refactor/welle-3-archiv-detail/AGENT-BRIEF.md (Sektion "3-II-d")
-- .cursor/rules/welle-3-archiv-detail-contracts.mdc
-- .cursor/rules/detail-view-type-checklist.mdc
-- .cursor/rules/refactor-batch-strategy.mdc
+- ../../contracts/welle-3-archiv-detail-contracts.md
+- ../../contracts/detail-view-type-checklist.md
+- ../../contracts/refactor-batch-strategy.md
 - AGENTS.md
 
 Aufgabe: session-detail.tsx (1.042z, 19 Hooks) + flow/pipeline-sheet.tsx (671z) +
@@ -285,7 +285,7 @@ Antworte auf Deutsch.
 
 - Eigener Branch pro Sub-Welle: `cursor/refactor-welle-3-ii-<sub>-<suffix>`
 - Mehrere kohaerente Commits, jeder unter 1.000 Zeilen Diff
-- **Eine PR pro Sub-Welle** (siehe `.cursor/rules/refactor-batch-strategy.mdc`)
+- **Eine PR pro Sub-Welle** (siehe `../../contracts/refactor-batch-strategy.md`)
 - Kein Auto-Merge — User reviewt, smoke-testet, merged dann selbst.
 
 ## Stop-Bedingungen

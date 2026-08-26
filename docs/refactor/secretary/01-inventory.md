@@ -74,15 +74,15 @@ in Schritt 0 (Audit) bewertet.
 
 Keine modul-spezifische Rule existiert. Verwandte Rules:
 
-- [`shadow-twin-contracts.mdc`](../../../.cursor/rules/shadow-twin-contracts.mdc)
+- [`shadow-twin-contracts.mdc`](../../contracts/shadow-twin-contracts.md)
   — erwaehnt `secretary` am Rande als Vertragspartner.
-- [`contracts-story-pipeline.mdc`](../../../.cursor/rules/contracts-story-pipeline.mdc)
+- [`contracts-story-pipeline.mdc`](../../contracts/contracts-story-pipeline.md)
   — Pipeline-Contract (deckt Secretary indirekt ab).
-- [`no-silent-fallbacks.mdc`](../../../.cursor/rules/no-silent-fallbacks.mdc)
+- [`no-silent-fallbacks.mdc`](../../contracts/no-silent-fallbacks.md)
   — global; relevant fuer den `catch {}` in `client.ts:731`.
 
 **Status fuer Audit**: keine bestehende secretary-spezifische Rule. Eine
-neue `.cursor/rules/secretary-contracts.mdc` wird in Schritt 2 angelegt.
+neue `../../contracts/secretary-contracts.md` wird in Schritt 2 angelegt.
 
 ## 5. Hot-Spots fuer Welle 2.1
 

@@ -2,12 +2,12 @@
 
 **Stand**: 2026-05-02
 **Status**: VORBEREITUNG (PR offen)
-**Strategie**: 1 PR pro Sub-Welle ab Sub-Welle 3-III-a (siehe `.cursor/rules/refactor-batch-strategy.mdc`)
+**Strategie**: 1 PR pro Sub-Welle ab Sub-Welle 3-III-a (siehe `../../contracts/refactor-batch-strategy.md`)
 
 > **Naming-Hinweis**: Der Welle-3-III-Slot war zwischen 2026-05-01 kurz
 > belegt durch eine Future-Work-Welle aus 3-II ("Hooks-Extraktion"),
 > die auf **Welle 3-II-Hooks** umbenannt wurde (siehe PR #44 und
-> `.cursor/rules/refactor-naming-konvention.mdc`). Welle 3-III bleibt
+> `../../contracts/refactor-naming-konvention.md`). Welle 3-III bleibt
 > wie im Plan-File reserviert fuer **Galerie + Story-Mode + Chat**.
 
 ## Kontext
@@ -73,10 +73,10 @@ Reihenfolge nach Methodik (R2: 1 Cloud-Agent seriell):
 
 ## Verweise
 
-- Plan-File: `.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md` (Sektion 5, Welle 3-III)
+- Plan-File: `docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md` (Sektion 5, Welle 3-III)
 - Welle 3-II Gesamt-Acceptance: `../welle-3-archiv-detail/06-acceptance-3-ii-GESAMT.md`
 - Welle 3-II-Hooks Gesamt-Acceptance: `../welle-3-ii-hooks/06-acceptance-3-ii-hooks-GESAMT.md`
-- Methodik-Strategie: `.cursor/rules/refactor-batch-strategy.mdc`
-- Naming-Konvention: `.cursor/rules/refactor-naming-konvention.mdc`
-- Backend-Chat-Contracts: `.cursor/rules/chat-contracts.mdc` (UI konsumiert)
+- Methodik-Strategie: `../../contracts/refactor-batch-strategy.md`
+- Naming-Konvention: `../../contracts/refactor-naming-konvention.md`
+- Backend-Chat-Contracts: `../../contracts/chat-contracts.md` (UI konsumiert)
 - AGENTS.md (Branching/Stop-Bedingungen)

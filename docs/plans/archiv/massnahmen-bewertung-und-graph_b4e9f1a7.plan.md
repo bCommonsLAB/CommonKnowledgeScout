@@ -122,7 +122,7 @@ Galerie kann nach Rating sortieren und filtern; Detail/Karte zeigen die Werte.
 Kanten aus gemeinsamen Metadaten; Navigation per Klick.
 
 - **Config-Feld** `config.chat.gallery.graph` (Zielbild §8) nach der Checkliste
-  [`.cursor/rules/library-config-field.mdc`](.cursor/rules/library-config-field.mdc):
+  [`../../contracts/library-config-field.md`](../../contracts/library-config-field.md):
   [`src/types/library.ts`](src/types/library.ts),
   [`src/lib/services/library-service.ts`](src/lib/services/library-service.ts) (toClientLibraries),
   [`src/components/settings/library/hooks/use-library-form.ts`](src/components/settings/library/hooks/use-library-form.ts) (Schema + Defaults + **alle** Reset-Stellen),
@@ -232,12 +232,12 @@ flowchart LR
   Graph-Modell lebt in `doc_relations__<libraryId>` (downstream).
 - **Domänen-Trennung** ([ADR 0001](docs/adr/0001-event-job-vs-external-jobs.md)):
   Recompute = `external-jobs`, keine Vermischung mit `event-job`.
-- **Keine Silent Fallbacks** ([no-silent-fallbacks.mdc](.cursor/rules/no-silent-fallbacks.mdc)):
+- **Keine Silent Fallbacks** ([no-silent-fallbacks.mdc](../../contracts/no-silent-fallbacks.md)):
   fehlende Zahlen, `kosten=0`, unbekannte Kanten-Referenzen → explizit.
-- **Storage-Abstraktion** ([storage-abstraction.mdc](.cursor/rules/storage-abstraction.mdc)):
+- **Storage-Abstraktion** ([storage-abstraction.mdc](../../contracts/storage-abstraction.md)):
   Viz liest aus `GET .../docs` + Relations-Collection, nie aus dem Storage.
 - **Dateien < 200 Zeilen**; D3-Komponenten entsprechend splitten.
-- **1 PR pro Welle** ([refactor-batch-strategy.mdc](.cursor/rules/refactor-batch-strategy.mdc));
+- **1 PR pro Welle** ([refactor-batch-strategy.mdc](../../contracts/refactor-batch-strategy.md));
   Diff-Limits 1.000z/Commit (hart), 5.000z/PR (weich), 15 Commits/PR (weich).
 
 ## Test-/Lint-Strategie
@@ -272,13 +272,13 @@ bash scripts/welle-pre-merge-check.sh
 ```
 Lies VOR dem Start (in dieser Reihenfolge):
 1. AGENTS.md
-2. .cursor/rules/cloud-agent-cost-strategy.mdc
-3. .cursor/rules/refactor-batch-strategy.mdc
-4. .cursor/rules/no-silent-fallbacks.mdc
-5. .cursor/rules/contracts-story-pipeline.mdc (Template/Transformation)
-6. .cursor/rules/welle-3-iii-galerie-chat-contracts.mdc (Facetten/Docs)
+2. ../../contracts/cloud-agent-cost-strategy.md
+3. ../../contracts/refactor-batch-strategy.md
+4. ../../contracts/no-silent-fallbacks.md
+5. ../../contracts/contracts-story-pipeline.md (Template/Transformation)
+6. ../../contracts/welle-3-iii-galerie-chat-contracts.md (Facetten/Docs)
 7. docs/architecture/massnahmen-bewertung-und-graph-zielbild.md (Zielbild §4)
-8. .cursor/plans/massnahmen-bewertung-und-graph_b4e9f1a7.plan.md (Sektion "Welle 1")
+8. docs/plans/archiv/massnahmen-bewertung-und-graph_b4e9f1a7.plan.md (Sektion "Welle 1")
 
 Aufgabe (Welle 1): Klimamaßnahmen-Template um LLM-Bewertungsfelder MIT
 Begründung erweitern (co2_einsparung_kt, durchsetzbarkeit, kosten_eur, vier

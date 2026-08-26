@@ -174,8 +174,8 @@ graph TD
   `@ks/contracts` oder URL-Navigation.
 - Shared Libraries importieren weder Shell noch Module.
 - Durchsetzung: ESLint-Import-Regeln pro Paket + `knip`; die bestehenden
-  Architektur-Rules ([`storage-abstraction.mdc`](../../.cursor/rules/storage-abstraction.mdc),
-  [`no-silent-fallbacks.mdc`](../../.cursor/rules/no-silent-fallbacks.mdc))
+  Architektur-Rules ([`storage-abstraction.mdc`](../contracts/storage-abstraction.md),
+  [`no-silent-fallbacks.mdc`](../contracts/no-silent-fallbacks.md))
   gelten paketübergreifend weiter.
 
 ## 5. Migrationspfad in Wellen
@@ -185,7 +185,7 @@ Zwei Phasen nach [`migrations-strategie.md`](migrations-strategie.md):
 Deployment, jede Welle verhaltensneutral), **Phase B** liefert die
 Spezial-Ziele additiv — ohne neue Deploy-Infrastruktur. Jede Welle eine PR
 nach den Diff-Limits aus `AGENTS.md`; Wellen-Naming nach
-[`refactor-naming-konvention.mdc`](../../.cursor/rules/refactor-naming-konvention.mdc).
+[`refactor-naming-konvention.mdc`](../contracts/refactor-naming-konvention.md).
 Start ERST nach Plan 1/Plan 2 des aktuellen Fahrplans
 ([Roadmap](../roadmap-formatunabhaengige-library-und-onboarding.md)).
 

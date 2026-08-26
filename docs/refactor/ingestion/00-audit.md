@@ -24,7 +24,7 @@ Bezug:
   `splitByPages` aus `src/lib/ingestion/page-split.ts`. Das ist ein
   potenzielles Duplikat — siehe Abschnitt "Doppelte Implementierung".
 - Es gibt **keine modul-spezifische Contract-Rule** fuer `ingestion`. Die
-  bestehende [`ingest-mongo-only.mdc`](../../../.cursor/rules/ingest-mongo-only.mdc)
+  bestehende [`ingest-mongo-only.mdc`](../../contracts/ingest-mongo-only.md)
   ist Pipeline-Ebene (Wizard, External-Jobs), nicht modul-spezifisch.
 - **`image-processor.ts` ist 781 Zeilen** und hat mehrere bewusste
   `try/catch`-Bloecke mit Logging (z.B. MongoDB-Fragment-Lookup-Fehler in
@@ -43,11 +43,11 @@ unter `src/lib/ingestion/` referenzieren.
 
 | Rule-Datei | Bezug zum Modul | Status | Aktion | Begruendung |
 |---|---|---|---|---|
-| [.cursor/rules/ingest-mongo-only.mdc](../../../.cursor/rules/ingest-mongo-only.mdc) | indirekt (Pipeline-Ebene; Globs auf Wizard/External-Jobs, nicht auf `src/lib/ingestion/**`) | aktuell | **update** (optional) | Glob-Liste koennte um `src/lib/ingestion/**/*.ts` erweitert werden, damit Code-Aenderungen in `image-processor.ts` o.ae. die Rule triggern. Nicht Pflicht in Welle 3. |
-| [.cursor/rules/contracts-story-pipeline.mdc](../../../.cursor/rules/contracts-story-pipeline.mdc) | indirekt (deckt Pipeline mit ab, ingestion-Phase darin) | aktuell | **keep** | Globaler Pipeline-Contract; bleibt unangetastet. |
-| [.cursor/rules/external-jobs-integration-tests.mdc](../../../.cursor/rules/external-jobs-integration-tests.mdc) | indirekt (Phase `phase-ingest.ts` nutzt ingestion) | aktuell | **keep** | Bleibt unangetastet. |
-| [.cursor/rules/media-lifecycle.mdc](../../../.cursor/rules/media-lifecycle.mdc) | indirekt (Bilder in `image-processor.ts` durchlaufen Lifecycle) | aktuell | **keep** | Bleibt unangetastet. |
-| [.cursor/rules/detail-view-type-checklist.mdc](../../../.cursor/rules/detail-view-type-checklist.mdc) | indirekt (erwaehnt Ingestion am Rande) | aktuell | **keep** | UI-Checklist; bleibt unangetastet. |
+| [../../contracts/ingest-mongo-only.md](../../contracts/ingest-mongo-only.md) | indirekt (Pipeline-Ebene; Globs auf Wizard/External-Jobs, nicht auf `src/lib/ingestion/**`) | aktuell | **update** (optional) | Glob-Liste koennte um `src/lib/ingestion/**/*.ts` erweitert werden, damit Code-Aenderungen in `image-processor.ts` o.ae. die Rule triggern. Nicht Pflicht in Welle 3. |
+| [../../contracts/contracts-story-pipeline.md](../../contracts/contracts-story-pipeline.md) | indirekt (deckt Pipeline mit ab, ingestion-Phase darin) | aktuell | **keep** | Globaler Pipeline-Contract; bleibt unangetastet. |
+| [../../contracts/external-jobs-integration-tests.md](../../contracts/external-jobs-integration-tests.md) | indirekt (Phase `phase-ingest.ts` nutzt ingestion) | aktuell | **keep** | Bleibt unangetastet. |
+| [../../contracts/media-lifecycle.md](../../contracts/media-lifecycle.md) | indirekt (Bilder in `image-processor.ts` durchlaufen Lifecycle) | aktuell | **keep** | Bleibt unangetastet. |
+| [../../contracts/detail-view-type-checklist.md](../../contracts/detail-view-type-checklist.md) | indirekt (erwaehnt Ingestion am Rande) | aktuell | **keep** | UI-Checklist; bleibt unangetastet. |
 
 ### Update-Detail (optional in Welle 3)
 
@@ -58,7 +58,7 @@ Wird in Schritt 2 entschieden; bei Zeitknappheit nicht Pflicht.
 
 ### Neu zu erstellen (Schritt 2)
 
-- `.cursor/rules/ingestion-contracts.mdc` — modul-spezifische
+- `../../contracts/ingestion-contracts.md` — modul-spezifische
   Contract-Rule, Globs `["src/lib/ingestion/**/*.ts"]`. Komplementaer
   zu den oben genannten Pipeline-/Lifecycle-Rules.
 

@@ -11,7 +11,7 @@ direkt nach erfolgreicher Welle 2 (`shadow-twin`).
    [`docs/refactor/storage/`](../storage/) (Welle 1) und
    [`docs/refactor/shadow-twin/`](../shadow-twin/) (Welle 2). Welle 2 ist die
    **direkteste Vorlage** — gleicher Ablauf, gleiche Doku-Struktur.
-3. **Plan-Bezug**: [.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../../.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md)
+3. **Plan-Bezug**: [docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md)
    Sektion 5 Welle 1 Backend (Modul `ingestion` als 3. von 3 Backend-Modulen).
 4. **Repo-Konventionen**: [`AGENTS.md`](../../../AGENTS.md).
 5. **Inventur** (schon erstellt): [`01-inventory.md`](./01-inventory.md).
@@ -31,14 +31,14 @@ Output landet in:
 
 Code-Aenderungen landen direkt in `src/lib/ingestion/`, neue Tests in
 `tests/unit/ingestion/` (Verzeichnis existiert noch nicht). Eine
-modul-spezifische Contract-Rule `.cursor/rules/ingestion-contracts.mdc`
+modul-spezifische Contract-Rule `../../contracts/ingestion-contracts.md`
 wird neu erstellt.
 
 ## Vorab-Entscheidungen (vom IDE-Agent vor Start geklaert)
 
 ### E1: Verhaeltnis zu `ingest-mongo-only.mdc`
 
-Die bestehende [`ingest-mongo-only.mdc`](../../../.cursor/rules/ingest-mongo-only.mdc)
+Die bestehende [`ingest-mongo-only.mdc`](../../contracts/ingest-mongo-only.md)
 beschreibt das **Warum** auf Pipeline-Ebene (kein Fallback fuer Ingest).
 Die neue `ingestion-contracts.mdc` beschreibt das **Wie genau** auf
 Funktions-/Fehler-Ebene fuer die Module unter `src/lib/ingestion/`.
@@ -111,7 +111,7 @@ Pre-Flight).
 
 ### Schritt 2 — Contracts
 
-- Neue Rule: `.cursor/rules/ingestion-contracts.mdc`
+- Neue Rule: `../../contracts/ingestion-contracts.md`
 - Globs: `["src/lib/ingestion/**/*.ts"]`
 - `alwaysApply: true` (analog `shadow-twin-contracts.mdc`).
 - Mindestens definieren:

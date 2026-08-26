@@ -4,7 +4,7 @@ Stand: 2026-04-27. Welle 2.2, Schritt 2.
 
 ## Output
 
-Neue Modul-Rule: [`.cursor/rules/templates-contracts.mdc`](../../../.cursor/rules/templates-contracts.mdc).
+Neue Modul-Rule: [`../../contracts/templates-contracts.md`](../../contracts/templates-contracts.md).
 
 `alwaysApply: false`, Globs: `src/lib/templates/**/*.ts` und
 `tests/unit/templates/**/*.ts`.
