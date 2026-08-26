@@ -60,6 +60,8 @@ export const AUFTRAG_TEMPLATES: Record<CoverageGapType, AuftragTemplate> = {
   // — Mensch-Aufgaben —
   twin_flagged: (gap, pfad) =>
     `Peter: Fehler-Markierung an ${pfad} aufloesen${detail(gap)} — reparieren (lassen) und danach verifizieren.`,
+  twin_unverified: (_gap, pfad) =>
+    `(Alter Scan) ${pfad} galt als ungeprueft — seit ADR 0006 keine Aufgabe mehr; der naechste Scan raeumt den Befund weg.`,
   self_verified: (gap, pfad) =>
     `Peter: Selbst-Verifikation an ${pfad} aufheben${detail(gap)} — ein anderer Akteur muss pruefen.`,
   stand_widerspruch: (gap, pfad) =>

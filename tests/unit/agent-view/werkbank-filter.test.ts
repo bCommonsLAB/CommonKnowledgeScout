@@ -89,6 +89,13 @@ describe('karteHatBefundZu (Chips via GAP_REGISTRY)', () => {
     expect(karteHatBefundZu(card('B'), KEIN_CHIP)).toBe(true)
   })
 
+  it('kennt den Alt-Bestand `twin_unverified` weiter — gespeicherte Reports werfen nicht', () => {
+    // ADR 0006: Der Typ wird nicht mehr erzeugt, steht aber bis zum naechsten
+    // Voll-Scan in jedem gespeicherten Report (im Pruefarchiv 28-mal).
+    const alt = card('Y', { gapsByType: { twin_unverified: 28 } })
+    expect(karteHatBefundZu(alt, { akteur: 'mensch', zyklusSchritt: null })).toBe(true)
+  })
+
   it('wirft bei unbekanntem Gap-Typ statt ihn still zu verschlucken', () => {
     const kaputt = card('X', { gapsByType: { zukunftstyp: 1 } as VorhabenCard['gapsByType'] })
     expect(() => karteHatBefundZu(kaputt, { akteur: 'mensch', zyklusSchritt: null })).toThrow('Unbekannter Gap-Typ')

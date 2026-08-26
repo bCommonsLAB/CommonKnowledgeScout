@@ -46,6 +46,9 @@ export type CoverageGapType =
   // — Twin-Kern-/Verifikations-Regeln (Contract §3) —
   | 'twin_core_missing'
   | 'twin_flagged'
+  /** Alt-Bestand: wird seit ADR 0006 nicht mehr erzeugt, steht aber in
+   *  gespeicherten Reports, bis der naechste Voll-Scan sie ersetzt. */
+  | 'twin_unverified'
   | 'self_verified'
   | 'transformation_missing'
   | 'transformation_stale'
