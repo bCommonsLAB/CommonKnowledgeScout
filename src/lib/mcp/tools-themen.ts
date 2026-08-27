@@ -14,6 +14,7 @@
  */
 
 import { z } from 'zod'
+import { BEGRUENDUNG, mitProtokoll } from './protokoll'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { baueIndexPorts } from '@/lib/agent-view/stand-ausfuehren'
 import { setzeThemen } from '@/lib/agent-view/themen-schreiben'
@@ -42,23 +43,26 @@ export function registerThemenTool(server: McpServer): void {
           .describe('Vollstaendige neue Themenliste; [] entfernt alle. Kein Komma / keine eckige Klammer im Namen'),
         erwarteteThemen: z.union([z.array(z.string()), z.null()])
           .describe('Themen, die der Aufrufer aktuell am Vorhaben sieht; explizit null = Ordner deklariert keine'),
+        begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
-    async ({ libraryId, folderId, themen, erwarteteThemen }) => {
+    async ({ libraryId, folderId, themen, erwarteteThemen , begruendung }) => {
       try {
-        const userEmail = mcpUserEmail()
-        const library = await requireLibrary(userEmail, libraryId)
-        const provider = await requireProvider(userEmail, libraryId)
-        const ergebnis = await setzeThemen(folderId, themen, baueIndexPorts(provider, folderId), {
-          erwarteteThemen,
-        })
-        return jsonResult({
-          gesetzt: ergebnis,
-          vokabular: library.config?.agentView?.themen ?? null,
-          hinweis:
-            'Der gespeicherte Report zeigt die alten Themen, bis erneut gescannt wird — ' +
-            'abdeckung_scannen auf denselben Teilbaum zieht sie nach.',
+        return await mitProtokoll({ werkzeug: 'themen_setzen', libraryId, akteur: mcpUserEmail(), begruendung, folderId }, async () => {
+          const userEmail = mcpUserEmail()
+          const library = await requireLibrary(userEmail, libraryId)
+          const provider = await requireProvider(userEmail, libraryId)
+          const ergebnis = await setzeThemen(folderId, themen, baueIndexPorts(provider, folderId), {
+            erwarteteThemen,
+          })
+          return jsonResult({
+            gesetzt: ergebnis,
+            vokabular: library.config?.agentView?.themen ?? null,
+            hinweis:
+              'Der gespeicherte Report zeigt die alten Themen, bis erneut gescannt wird — ' +
+              'abdeckung_scannen auf denselben Teilbaum zieht sie nach.',
+          })
         })
       } catch (error) {
         return errorResult(error)

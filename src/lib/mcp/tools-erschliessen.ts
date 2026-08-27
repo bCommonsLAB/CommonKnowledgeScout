@@ -21,6 +21,7 @@
  */
 
 import { z } from 'zod'
+import { BEGRUENDUNG, mitProtokoll } from './protokoll'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { documentMediaKindFromName, enqueueSourceDocumentJob } from '@/lib/external-jobs/enqueue-document-job'
 import { enqueueSourceTranscribeJob, enqueueTemplateOnTextJob } from '@/lib/external-jobs/enqueue-secretary-job'
@@ -53,47 +54,50 @@ export function registerErschliessenTools(server: McpServer): void {
         ...SOURCE_INPUTS,
         template: z.string().min(1).optional().describe('Transformations-Template; weglassen = Standard-Template der Library; "nur_transkript" = bewusst ohne Transformation'),
         zielsprache: z.string().min(2).max(5).optional().describe('Zielsprache (Default de)'),
+        begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
-    async ({ libraryId, sourceId, quellPfad, sourceIds, template, zielsprache }) => {
+    async ({ libraryId, sourceId, quellPfad, sourceIds, template, zielsprache , begruendung }) => {
       try {
-        const userEmail = mcpUserEmail()
-        const library = await requireLibrary(userEmail, libraryId)
-        const provider = await requireProvider(userEmail, libraryId)
-        const effectiveTemplate = template === 'nur_transkript' ? undefined : template ?? standardTemplate(library)
-        const batch = await runForSources({
-          provider, sourceId, quellPfad, sourceIds,
-          start: async (source) => {
-            const kind = getFileKind(source.name)
-            if (kind === 'audio' || kind === 'video') {
-              const { jobId } = await enqueueSourceTranscribeJob({
-                libraryId, userEmail, source, mediaType: kind,
-                template: effectiveTemplate, targetLanguage: zielsprache,
-              })
-              return jobId
-            }
-            const documentKind = documentMediaKindFromName(source.name)
-            if (documentKind) {
-              const { jobId } = await enqueueSourceDocumentJob({
-                libraryId, userEmail, source, mediaKind: documentKind,
-                template: effectiveTemplate, targetLanguage: zielsprache,
-              })
-              return jobId
-            }
-            throw new Error(
-              `"${source.name}" ist ${kind} — quelle_erschliessen kann Audio/Video/PDF/DOCX/XLSX/PPTX; ` +
-                'Markdown-Familien laufen ueber transformation_starten',
-            )
-          },
-        })
-        return jsonResult({
-          ok: batch.gescheitert === 0,
-          gestartet: batch.gestartet,
-          gescheitert: batch.gescheitert,
-          jobs: batch.zeilen,
-          template: effectiveTemplate ?? null,
-          hinweis: JOB_HINWEIS,
+        return await mitProtokoll({ werkzeug: 'quelle_erschliessen', libraryId, akteur: mcpUserEmail(), begruendung, sourceId }, async () => {
+          const userEmail = mcpUserEmail()
+          const library = await requireLibrary(userEmail, libraryId)
+          const provider = await requireProvider(userEmail, libraryId)
+          const effectiveTemplate = template === 'nur_transkript' ? undefined : template ?? standardTemplate(library)
+          const batch = await runForSources({
+            provider, sourceId, quellPfad, sourceIds,
+            start: async (source) => {
+              const kind = getFileKind(source.name)
+              if (kind === 'audio' || kind === 'video') {
+                const { jobId } = await enqueueSourceTranscribeJob({
+                  libraryId, userEmail, source, mediaType: kind,
+                  template: effectiveTemplate, targetLanguage: zielsprache,
+                })
+                return jobId
+              }
+              const documentKind = documentMediaKindFromName(source.name)
+              if (documentKind) {
+                const { jobId } = await enqueueSourceDocumentJob({
+                  libraryId, userEmail, source, mediaKind: documentKind,
+                  template: effectiveTemplate, targetLanguage: zielsprache,
+                })
+                return jobId
+              }
+              throw new Error(
+                `"${source.name}" ist ${kind} — quelle_erschliessen kann Audio/Video/PDF/DOCX/XLSX/PPTX; ` +
+                  'Markdown-Familien laufen ueber transformation_starten',
+              )
+            },
+          })
+          return jsonResult({
+            ok: batch.gescheitert === 0,
+            gestartet: batch.gestartet,
+            gescheitert: batch.gescheitert,
+            jobs: batch.zeilen,
+            template: effectiveTemplate ?? null,
+            hinweis: JOB_HINWEIS,
+          })
         })
       } catch (error) {
         return errorResult(error)
@@ -115,42 +119,45 @@ export function registerErschliessenTools(server: McpServer): void {
         ...SOURCE_INPUTS,
         template: z.string().min(1).optional().describe('Template; weglassen = Standard-Template der Library'),
         zielsprache: z.string().min(2).max(5).optional().describe('Zielsprache (Default de)'),
+        begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
-    async ({ libraryId, sourceId, quellPfad, sourceIds, template, zielsprache }) => {
+    async ({ libraryId, sourceId, quellPfad, sourceIds, template, zielsprache , begruendung }) => {
       try {
-        const userEmail = mcpUserEmail()
-        const library = await requireLibrary(userEmail, libraryId)
-        const provider = await requireProvider(userEmail, libraryId)
-        const effectiveTemplate = template ?? standardTemplate(library)
-        const batch = await runForSources({
-          provider, sourceId, quellPfad, sourceIds,
-          start: async (source) => {
-            const service = new ShadowTwinService({
-              library, userEmail, sourceId: source.itemId, sourceName: source.name, parentId: source.parentId, provider,
-            })
-            const transcript = await service.getMarkdown({ kind: 'transcript', targetLanguage: '' })
-            if (!transcript?.markdown?.trim()) {
-              throw new Error(
-                `Kein Transkript fuer "${source.name}" — zuerst quelle_erschliessen (oder Pipeline im KS-UI)`,
-              )
-            }
-            const { jobId } = await enqueueTemplateOnTextJob({
-              libraryId, userEmail, source,
-              template: effectiveTemplate, targetLanguage: zielsprache,
-              extractedText: transcript.markdown,
-            })
-            return jobId
-          },
-        })
-        return jsonResult({
-          ok: batch.gescheitert === 0,
-          gestartet: batch.gestartet,
-          gescheitert: batch.gescheitert,
-          jobs: batch.zeilen,
-          template: effectiveTemplate,
-          hinweis: JOB_HINWEIS,
+        return await mitProtokoll({ werkzeug: 'transformation_starten', libraryId, akteur: mcpUserEmail(), begruendung, sourceId }, async () => {
+          const userEmail = mcpUserEmail()
+          const library = await requireLibrary(userEmail, libraryId)
+          const provider = await requireProvider(userEmail, libraryId)
+          const effectiveTemplate = template ?? standardTemplate(library)
+          const batch = await runForSources({
+            provider, sourceId, quellPfad, sourceIds,
+            start: async (source) => {
+              const service = new ShadowTwinService({
+                library, userEmail, sourceId: source.itemId, sourceName: source.name, parentId: source.parentId, provider,
+              })
+              const transcript = await service.getMarkdown({ kind: 'transcript', targetLanguage: '' })
+              if (!transcript?.markdown?.trim()) {
+                throw new Error(
+                  `Kein Transkript fuer "${source.name}" — zuerst quelle_erschliessen (oder Pipeline im KS-UI)`,
+                )
+              }
+              const { jobId } = await enqueueTemplateOnTextJob({
+                libraryId, userEmail, source,
+                template: effectiveTemplate, targetLanguage: zielsprache,
+                extractedText: transcript.markdown,
+              })
+              return jobId
+            },
+          })
+          return jsonResult({
+            ok: batch.gescheitert === 0,
+            gestartet: batch.gestartet,
+            gescheitert: batch.gescheitert,
+            jobs: batch.zeilen,
+            template: effectiveTemplate,
+            hinweis: JOB_HINWEIS,
+          })
         })
       } catch (error) {
         return errorResult(error)

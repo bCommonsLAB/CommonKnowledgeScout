@@ -13,6 +13,8 @@
  */
 
 import { z } from 'zod'
+import { BEGRUENDUNG, mitProtokoll } from './protokoll'
+import { registerProtokollTool } from './tools-protokoll'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { scanneUndSpeichere } from '@/lib/agent-view/scan-speichern'
 import { getCoverageReport } from '@/lib/repositories/agent-view-coverage-repo'
@@ -51,6 +53,7 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerAenderungenTools(server)
   registerStandTool(server)
   registerThemenTool(server)
+  registerProtokollTool(server)
   registerInfoTool(server)
   server.registerTool(
     'bibliotheken_auflisten',
@@ -227,19 +230,22 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
         preset: z.enum(['repair', 'import', 'export']).describe('Welcher Knopf gedrueckt wird'),
         folderId: FOLDER_ID,
         pfad: SCOPE_PFAD,
+        begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
-    async ({ libraryId, preset, folderId, pfad }) => {
+    async ({ libraryId, preset, folderId, pfad , begruendung }) => {
       try {
-        const userEmail = mcpUserEmail()
-        await requireLibrary(userEmail, libraryId)
-        const scope = await resolveScope({ userEmail, libraryId, folderId, pfad })
-        const report = await runLibrarySync({
-          libraryId, userEmail, mode: 'repair', preset,
-          scope: scope ? { folderId: scope } : {},
+        return await mitProtokoll({ werkzeug: 'twins_synchronisieren', libraryId, akteur: mcpUserEmail(), begruendung, folderId }, async () => {
+          const userEmail = mcpUserEmail()
+          await requireLibrary(userEmail, libraryId)
+          const scope = await resolveScope({ userEmail, libraryId, folderId, pfad })
+          const report = await runLibrarySync({
+            libraryId, userEmail, mode: 'repair', preset,
+            scope: scope ? { folderId: scope } : {},
+          })
+          return jsonResult(summarizeSyncReport(report))
         })
-        return jsonResult(summarizeSyncReport(report))
       } catch (error) {
         return errorResult(error)
       }

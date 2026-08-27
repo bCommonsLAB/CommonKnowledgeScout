@@ -21,6 +21,7 @@
  */
 
 import { z } from 'zod'
+import { BEGRUENDUNG, mitProtokoll } from './protokoll'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { moveFamily } from '@/lib/shadow-twin/move-family'
 import type { StorageProvider } from '@/lib/storage/types'
@@ -70,27 +71,30 @@ export function registerUmzugTools(server: McpServer): void {
         neuerName: z.string().min(1).optional().describe('Neuer Dateiname INKL. Endung'),
         neuerOrdnerId: z.string().min(1).optional().describe('Ziel-Ordner-Id (aus der Ordnerliste von abdeckung_lesen)'),
         neuerOrdnerPfad: z.string().min(1).optional().describe('ALTERNATIVE: library-relativer Pfad des Ziel-Ordners'),
+        begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
-    async ({ libraryId, sourceId, quellPfad, neuerName, neuerOrdnerId, neuerOrdnerPfad }) => {
+    async ({ libraryId, sourceId, quellPfad, neuerName, neuerOrdnerId, neuerOrdnerPfad , begruendung }) => {
       try {
-        const userEmail = mcpUserEmail()
-        const library = await requireLibrary(userEmail, libraryId)
-        const provider = await requireProvider(userEmail, libraryId)
-        const resolvedSourceId = await resolveSourceId(provider, sourceId, quellPfad)
-        const newParentId = await resolveTargetFolder(provider, neuerOrdnerId, neuerOrdnerPfad)
-        if (!neuerName && !newParentId) {
-          throw new Error('neuerName und/oder ein Ziel-Ordner (neuerOrdnerId/neuerOrdnerPfad) ist Pflicht')
-        }
-        const result = await moveFamily({
-          library, libraryId, userEmail, provider,
-          sourceId: resolvedSourceId, newName: neuerName, newParentId,
-        })
-        return jsonResult({
-          ok: true,
-          result,
-          hinweis: 'Danach abdeckung_scannen (Teilbaum), damit der Report den neuen Stand zeigt.',
+        return await mitProtokoll({ werkzeug: 'familie_umziehen', libraryId, akteur: mcpUserEmail(), begruendung, sourceId }, async () => {
+          const userEmail = mcpUserEmail()
+          const library = await requireLibrary(userEmail, libraryId)
+          const provider = await requireProvider(userEmail, libraryId)
+          const resolvedSourceId = await resolveSourceId(provider, sourceId, quellPfad)
+          const newParentId = await resolveTargetFolder(provider, neuerOrdnerId, neuerOrdnerPfad)
+          if (!neuerName && !newParentId) {
+            throw new Error('neuerName und/oder ein Ziel-Ordner (neuerOrdnerId/neuerOrdnerPfad) ist Pflicht')
+          }
+          const result = await moveFamily({
+            library, libraryId, userEmail, provider,
+            sourceId: resolvedSourceId, newName: neuerName, newParentId,
+          })
+          return jsonResult({
+            ok: true,
+            result,
+            hinweis: 'Danach abdeckung_scannen (Teilbaum), damit der Report den neuen Stand zeigt.',
+          })
         })
       } catch (error) {
         return errorResult(error)
@@ -111,41 +115,44 @@ export function registerUmzugTools(server: McpServer): void {
         libraryId: LIBRARY_ID,
         sourceId: z.string().min(1).optional().describe('Storage-Id der Quelldatei (targetId aus Befunden)'),
         quellPfad: z.string().min(1).optional().describe('ALTERNATIVE: library-relativer Pfad der Quelldatei'),
+        begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
-    async ({ libraryId, sourceId, quellPfad }) => {
+    async ({ libraryId, sourceId, quellPfad , begruendung }) => {
       try {
-        const userEmail = mcpUserEmail()
-        const library = await requireLibrary(userEmail, libraryId)
-        const provider = await requireProvider(userEmail, libraryId)
-        const resolvedSourceId = await resolveSourceId(provider, sourceId, quellPfad)
-        const source = await provider.getItemById(resolvedSourceId)
-        if (!source || source.type !== 'file') throw new Error(`${resolvedSourceId} ist keine Datei`)
+        return await mitProtokoll({ werkzeug: 'quelle_verwerfen', libraryId, akteur: mcpUserEmail(), begruendung, sourceId }, async () => {
+          const userEmail = mcpUserEmail()
+          const library = await requireLibrary(userEmail, libraryId)
+          const provider = await requireProvider(userEmail, libraryId)
+          const resolvedSourceId = await resolveSourceId(provider, sourceId, quellPfad)
+          const source = await provider.getItemById(resolvedSourceId)
+          if (!source || source.type !== 'file') throw new Error(`${resolvedSourceId} ist keine Datei`)
 
-        const parent = await provider.getItemById(source.parentId).catch(() => null)
-        if (parent && parent.metadata.name.toLowerCase() === KLAER_ORDNER.toLowerCase()) {
-          throw new Error(`"${source.metadata.name}" liegt bereits in „${KLAER_ORDNER}“ — nichts zu tun`)
-        }
+          const parent = await provider.getItemById(source.parentId).catch(() => null)
+          if (parent && parent.metadata.name.toLowerCase() === KLAER_ORDNER.toLowerCase()) {
+            throw new Error(`"${source.metadata.name}" liegt bereits in „${KLAER_ORDNER}“ — nichts zu tun`)
+          }
 
-        // „zu klaeren“ im Elternordner finden oder anlegen (Entscheid Peter 2026-08-21).
-        const siblings = await provider.listItemsById(source.parentId)
-        const existing = siblings.find(
-          (item) => item.type === 'folder' && item.metadata.name.toLowerCase() === KLAER_ORDNER.toLowerCase(),
-        )
-        const klaerFolder = existing ?? (await provider.createFolder(source.parentId, KLAER_ORDNER))
+          // „zu klaeren“ im Elternordner finden oder anlegen (Entscheid Peter 2026-08-21).
+          const siblings = await provider.listItemsById(source.parentId)
+          const existing = siblings.find(
+            (item) => item.type === 'folder' && item.metadata.name.toLowerCase() === KLAER_ORDNER.toLowerCase(),
+          )
+          const klaerFolder = existing ?? (await provider.createFolder(source.parentId, KLAER_ORDNER))
 
-        const result = await moveFamily({
-          library, libraryId, userEmail, provider,
-          sourceId: resolvedSourceId, newParentId: klaerFolder.id,
-        })
-        return jsonResult({
-          ok: true,
-          verschobenNach: { folderId: klaerFolder.id, name: klaerFolder.metadata.name },
-          result,
-          hinweis:
-            'Reversibel: familie_umziehen mit dem alten Ordner als Ziel macht es rueckgaengig. ' +
-            'Danach abdeckung_scannen (Teilbaum).',
+          const result = await moveFamily({
+            library, libraryId, userEmail, provider,
+            sourceId: resolvedSourceId, newParentId: klaerFolder.id,
+          })
+          return jsonResult({
+            ok: true,
+            verschobenNach: { folderId: klaerFolder.id, name: klaerFolder.metadata.name },
+            result,
+            hinweis:
+              'Reversibel: familie_umziehen mit dem alten Ordner als Ziel macht es rueckgaengig. ' +
+              'Danach abdeckung_scannen (Teilbaum).',
+          })
         })
       } catch (error) {
         return errorResult(error)
