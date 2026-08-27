@@ -92,6 +92,15 @@ behoben. **Rest-Schuld**: `FileLogger` (`@/lib/debug/logger`) bleibt App-Import
 („@ks/contracts + @ks/api-client", siehe Auftrag). Löst eine spätere Welle,
 sobald `@ks/util` (oder Injection des Loggers) ansteht.
 
+> **ERLEDIGT in Welle M2b** (2026-08-27): Die Rest-Schuld ist aufgelöst — per
+> Injection, nicht per `@ks/util`. `@ks/viewers` definiert nur noch das
+> `ViewerLogger`-Interface (`packages/viewers/src/logger.ts`) mit stillem
+> No-op-Default; die App reicht den `FileLogger` über
+> `src/components/providers/viewer-logger-bridge.tsx` herein. Damit greift
+> **kein** Paket mehr in die App zurück. Zusätzlich bewacht seit M2b von zwei
+> Seiten: `pnpm lint` (Grenzregel in `.eslintrc.json`, greift jetzt auch für
+> `packages/`) und `pnpm typecheck:packages` (isolierter Typecheck je Paket).
+
 ## Ablauf
 
 1. `packages/contracts/` anlegen (`package.json` `@ks/contracts`,

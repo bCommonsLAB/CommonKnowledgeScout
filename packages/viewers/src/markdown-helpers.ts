@@ -5,12 +5,13 @@
  * wurden (Welle 3-II-b, Schritt 2/8), nach `@ks/viewers` verschoben (Welle M1).
  *
  * Importierte in M1 noch App-Pfade (`@/lib/storage/types`, `@/lib/debug/logger`)
- * — benannte Schuld, siehe AGENT-BRIEF.md. Welle M2 loest den Storage-Typ
- * ueber `@ks/contracts` auf; `FileLogger` bleibt App-Import (kein `@ks/util`
- * in M2 — siehe AGENT-BRIEF-M2.md, dort als Rest-Schuld benannt).
+ * — benannte Schuld, siehe AGENT-BRIEF.md. Welle M2 loeste den Storage-Typ
+ * ueber `@ks/contracts` auf, Welle M2b den Logger ueber `./logger` (Injection
+ * statt App-Import). Das Paket greift damit nicht mehr in die App zurueck.
  *
  * Alle Funktionen sind reine Transformationen ohne Seiteneffekte —
- * keine React-Hooks, kein DOM-Zugriff, kein Logging.
+ * keine React-Hooks, kein DOM-Zugriff. Einzige Ausnahme: `resolveImageUrl`
+ * gibt zwei Debug-Meldungen aus; ohne injizierten Logger sind sie still.
  *
  * Enthaelt:
  * - `injectPageAnchors` — Marker fuer "— Seite N —" Zeilen
@@ -24,7 +25,7 @@
  */
 
 import type { StorageProvider } from '@ks/contracts'
-import { FileLogger } from '@/lib/debug/logger'
+import { viewerLogger } from './logger'
 
 /**
  * Fuegt unsichtbare Anker vor Zeilen wie "— Seite 12 —" ein, damit
@@ -128,7 +129,7 @@ export function resolveImageUrl(
   }
 
   if (currentFolderId === 'root') {
-    FileLogger.debug('markdown-helpers', 'Bild-URL-Aufloesung mit root', {
+    viewerLogger().debug('markdown-helpers', 'Bild-URL-Aufloesung mit root', {
       imagePath,
       currentFolderId,
       normalizedPath,
@@ -151,7 +152,7 @@ export function resolveImageUrl(
     const resolvedUrl = `/api/storage/streaming-url?libraryId=${encodeURIComponent(libraryId)}&fileId=${encodeURIComponent(fileId)}${sourceIdParam}`
 
     if (currentFolderId !== 'root') {
-      FileLogger.debug('markdown-helpers', 'Bild-URL erfolgreich aufgeloest', {
+      viewerLogger().debug('markdown-helpers', 'Bild-URL erfolgreich aufgeloest', {
         imagePath,
         currentFolderId,
         fullPath,

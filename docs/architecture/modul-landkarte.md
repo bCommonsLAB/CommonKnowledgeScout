@@ -173,9 +173,21 @@ graph TD
 - Module importieren NIE andere Module; Austausch nur über Core-API,
   `@ks/contracts` oder URL-Navigation.
 - Shared Libraries importieren weder Shell noch Module.
-- Durchsetzung: ESLint-Import-Regeln pro Paket + `knip`; die bestehenden
-  Architektur-Rules ([`storage-abstraction.mdc`](../contracts/storage-abstraction.md),
-  [`no-silent-fallbacks.mdc`](../contracts/no-silent-fallbacks.md))
+- **Durchsetzung (aktiv seit Welle M2b)** — zwei Wächter, die automatisch laufen:
+  1. `pnpm lint` — `no-restricted-imports` für `packages/**` in `.eslintrc.json`
+     verbietet `@/*` und `../../src/*`. **Wichtig**: `next lint` scannt nur
+     Next-Standardverzeichnisse; das `lint`-Script trägt deshalb
+     `--dir src --dir packages`. Ohne diese Flags wäre die Regel wirkungslos.
+  2. `pnpm typecheck:packages` — typecheckt jedes Paket **isoliert** gegen sein
+     eigenes `tsconfig.json` (ohne die Root-`paths`). Das ist der schärfere
+     Nachweis: Ein Rückwärts-Import scheitert hier mit `TS2307`, auch wenn der
+     Gesamt-Build ihn über die Root-Pfade auflösen würde.
+- Muster, wenn ein Paket etwas aus der App braucht: **Injection**, nicht Import
+  — siehe `packages/viewers/src/logger.ts` (Interface + Setter mit
+  No-op-Default) und `src/components/providers/viewer-logger-bridge.tsx`.
+- Ergänzend `knip` für tote Exporte; die bestehenden Architektur-Contracts
+  ([`storage-abstraction.md`](../contracts/storage-abstraction.md),
+  [`no-silent-fallbacks.md`](../contracts/no-silent-fallbacks.md))
   gelten paketübergreifend weiter.
 
 ## 5. Migrationspfad in Wellen
