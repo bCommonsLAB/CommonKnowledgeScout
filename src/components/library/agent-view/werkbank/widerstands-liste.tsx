@@ -99,7 +99,7 @@ export function WiderstandsListe({ befunde, familien, maschinellGesamt, onWaehle
       {fehlend > 0 && (
         <p className="font-medium">
           {fehlend} weitere(r) maschinelle(r) Befund(e) sind gezaehlt, aber nicht im gespeicherten Report
-          gelistet (Gap-Budget) — „Neu scannen" holt sie.
+          gelistet (Gap-Budget) — &bdquo;Neu scannen&ldquo; holt sie.
         </p>
       )}
 
@@ -120,7 +120,7 @@ export function WiderstandsListe({ befunde, familien, maschinellGesamt, onWaehle
           </ul>
           <p className="mt-1 text-muted-foreground">
             Im Menue `⋯` liegt derselbe Text als kopierbarer Auftrag fuer Cowork. Erledigt? Der Befund
-            verschwindet, sobald der Stand neu erhoben ist — dafuer genuegt „Teilbaum neu scannen"
+            verschwindet, sobald der Stand neu erhoben ist — dafuer genuegt &bdquo;Teilbaum neu scannen&ldquo;
             im Menue `⋯`, kein Voll-Scan.
           </p>
         </div>
