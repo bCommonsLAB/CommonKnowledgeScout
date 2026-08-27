@@ -9,8 +9,15 @@
  */
 
 import { useEffect, useState, useCallback } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  Button,
+} from '@ks/ui'
 import { Image as ImageIcon, Check, Loader2, FolderOpen } from 'lucide-react'
 import { useStorage } from '@/contexts/storage-context'
 import type { StorageItem } from '@/lib/storage/types'

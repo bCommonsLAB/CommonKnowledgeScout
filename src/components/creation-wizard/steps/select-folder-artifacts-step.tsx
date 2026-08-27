@@ -1,8 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Checkbox } from '@ks/ui'
 import { Loader2, FileText } from "lucide-react"
 import type { WizardSource } from "@/lib/creation/corpus"
 import { discoverFolderArtifactsViaApi } from "@/lib/creation/folder-artifact-discovery"

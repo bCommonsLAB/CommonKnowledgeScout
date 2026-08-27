@@ -15,14 +15,12 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from '@ks/ui'
 import { useTranslation } from '@/lib/i18n/hooks'
 import type { UseFormReturn } from "react-hook-form"
 import type { chatFormSchema } from "./hooks/use-chat-form"

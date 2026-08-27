@@ -4,13 +4,45 @@ import { useState, useEffect, useCallback } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  useToast,
+  Checkbox,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Textarea,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@ks/ui'
 import { StructuredTemplateEditor } from "@/components/templates/structured-template-editor"
-import { useToast } from "@/components/ui/use-toast"
 import { Loader2, Save, Eye, Play, FolderOpen, Info, Upload, Download } from "lucide-react"
 import { useAtom, useAtomValue } from "jotai"
 import { activeLibraryAtom, libraryStatusAtom } from "@/atoms/library-atom"
@@ -27,13 +59,8 @@ import {
 import { useStorage } from "@/contexts/storage-context"
 import { templateContextDocsAtom } from '@/atoms/template-context-atom'
 import { useRootItems } from '@/hooks/use-root-items'
-import { Checkbox } from "@/components/ui/checkbox"
 import { MarkdownPreview } from "@/components/library/markdown-preview"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { JobReportTab } from "@/components/library/job-report-tab"
-import { Textarea } from "@/components/ui/textarea"
-import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import type { TemplateCreationConfig, TemplateMetadataSchema } from '@/lib/templates/template-types'
 import { injectCreationIntoFrontmatter } from '@/lib/templates/template-frontmatter-utils'
 // Separator ungenutzt entfernt

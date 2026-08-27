@@ -5,7 +5,7 @@
  */
 
 import type { ReactNode } from "react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from '@ks/ui'
 import { resolveEditableFields } from "@/lib/creation/editable-fields"
 import { EditDraftStep } from "../../steps/edit-draft-step"
 import type { StepRenderContext } from "../step-render-context"

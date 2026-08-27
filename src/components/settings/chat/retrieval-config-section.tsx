@@ -15,8 +15,8 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
+  Input,
+} from '@ks/ui'
 import type { UseFormReturn } from "react-hook-form"
 import type { chatFormSchema } from "./hooks/use-chat-form"
 import type { z } from "zod"

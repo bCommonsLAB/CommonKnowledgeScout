@@ -1,6 +1,6 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@ks/ui'
 import { MarkdownPreview } from "@/components/library/markdown-preview"
 
 interface WelcomeStepProps {

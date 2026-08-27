@@ -13,7 +13,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react'
-import { useToast } from '@/components/ui/use-toast'
+import { useToast } from '@ks/ui'
 import type { LibraryMember, LibraryRole } from '@/types/library-members'
 
 interface UseMembersActionsOptions {

@@ -1,6 +1,6 @@
 "use client"
 
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent } from '@ks/ui'
 import { CheckCircle2 } from "lucide-react"
 
 /**

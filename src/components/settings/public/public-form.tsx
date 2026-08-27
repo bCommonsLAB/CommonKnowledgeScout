@@ -7,8 +7,8 @@ import { useState, useEffect, useMemo } from "react"
 import { useAtom } from "jotai"
 import { useRouter } from "next/navigation"
 
-import { Button } from "@/components/ui/button"
 import {
+  Button,
   Form,
   FormControl,
   FormDescription,
@@ -16,21 +16,21 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import {
+  Input,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { toast } from "@/components/ui/use-toast"
+  toast,
+  Textarea,
+  Switch,
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@ks/ui'
 import { WebsiteImageField } from "@/components/settings/public/website-image-upload"
-import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
 import { AlertCircle, CheckCircle2, Copy, Globe, Loader2, Lock, ShieldCheck } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { librariesAtom, activeLibraryIdAtom } from "@/atoms/library-atom"
 import { useSafeUser } from "@/hooks/use-safe-user"
 import { LibraryVerificationWarning } from "@/components/library/library-verification-warning"

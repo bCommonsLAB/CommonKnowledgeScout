@@ -3,15 +3,18 @@
 import { useState, useEffect, type ReactNode } from "react"
 import { Upload, Loader2, X } from "lucide-react"
 import { toast } from "sonner"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Button } from "@/components/ui/button"
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Button,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from '@ks/ui'
 import type { TemplateMetadataSchema } from "@/lib/templates/template-types"
 import type { WizardSource } from "@/lib/creation/corpus"
 import { CompactSourcesInfo } from "@/components/creation-wizard/components/compact-sources-info"

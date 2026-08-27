@@ -2,8 +2,7 @@
 
 import * as React from "react"
 import { ChevronUp, ChevronDown } from "lucide-react"
-import { Switch } from "@/components/ui/switch"
-import { Button } from "@/components/ui/button"
+import { Switch, Button } from '@ks/ui'
 import type { CaptureWizardsConfig } from "@/types/library"
 import {
   buildEditableRows,

@@ -10,8 +10,7 @@
  * Aenderungen eine neue Atlas-Index-Definition ausloesen koennen.
  */
 
-import { Button } from "@/components/ui/button"
-import { Form } from "@/components/ui/form"
+import { Button, Form } from '@ks/ui'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useChatForm } from './hooks/use-chat-form'
 import { GalleryConfigSection } from './gallery-config-section'

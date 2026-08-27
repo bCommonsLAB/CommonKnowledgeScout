@@ -6,8 +6,7 @@
 
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from '@ks/ui'
 import { Trash2, FileText, Link, Mic } from "lucide-react"
 import type { WizardSource } from "@/lib/creation/corpus"
 import { buildSourceSummary } from "@/lib/creation/corpus"

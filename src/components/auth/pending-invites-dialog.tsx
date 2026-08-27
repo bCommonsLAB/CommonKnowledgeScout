@@ -18,8 +18,8 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+  Button,
+} from '@ks/ui'
 import { Check, X, Loader2, UserPlus } from 'lucide-react'
 import type { PendingInvite } from '@/app/api/user/accept-pending-invites/route'
 

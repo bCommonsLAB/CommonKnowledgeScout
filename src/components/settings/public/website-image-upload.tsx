@@ -2,9 +2,7 @@
 
 import * as React from "react"
 import { Loader2, Upload } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { toast } from "@/components/ui/use-toast"
+import { Button, Input, toast } from '@ks/ui'
 
 interface WebsiteImageUploadProps {
   libraryId: string

@@ -15,10 +15,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { Badge, Input, Label, Textarea } from '@ks/ui'
 import {
   CONFIDENCE_TONE_BADGE,
   confidencePercent,

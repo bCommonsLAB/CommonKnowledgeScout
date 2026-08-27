@@ -7,11 +7,11 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
+  Button,
+  ScrollArea,
+  toast,
+} from '@ks/ui'
 import { Copy, Check, ExternalLink } from 'lucide-react'
-import { toast } from '@/components/ui/use-toast'
 import { useTranslation } from '@/lib/i18n/hooks'
 
 interface IndexDefinitionDialogProps {

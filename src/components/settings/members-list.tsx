@@ -13,19 +13,17 @@
 
 "use client"
 
-import { Button } from "@/components/ui/button"
-import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog"
 import {
+  Button,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import {
+  Badge,
+  Alert,
+  AlertDescription,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -33,10 +31,15 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@ks/ui'
+import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog"
 import { Loader2, Trash2, Shield, Users, AlertCircle, Mail, Clock, CheckCircle2 } from "lucide-react"
 import type { LibraryRole } from "@/types/library-members"
 import { useMembersActions } from "@/components/settings/hooks/use-members-actions"

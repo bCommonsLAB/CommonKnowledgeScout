@@ -13,8 +13,8 @@
  */
 
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
 import {
+  Button,
   Form,
   FormControl,
   FormDescription,
@@ -22,8 +22,8 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Textarea } from "@/components/ui/textarea"
+  Textarea,
+} from '@ks/ui'
 import { useSecretaryServiceForm } from "./hooks/use-secretary-service-form"
 import { isBuiltinDefaultTemplateName } from "@/lib/templates/default-templates"
 import {

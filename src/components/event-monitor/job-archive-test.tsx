@@ -1,10 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label } from '@ks/ui'
 import { Download, Loader2 } from 'lucide-react';
 
 export default function JobArchiveTest() {

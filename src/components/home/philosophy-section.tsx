@@ -1,6 +1,6 @@
 'use client'
 
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent } from '@ks/ui'
 import { Shield, Eye, Users2, FileText } from "lucide-react"
 import { useTranslation } from "@/lib/i18n/hooks"
 

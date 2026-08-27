@@ -11,10 +11,13 @@
  * - D2: "Abmelden" (OneDrive) verlangt eine Bestaetigung.
  */
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
+  Button,
+  Card,
+  CardContent,
+  Alert,
+  AlertDescription,
+  AlertTitle,
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -24,14 +27,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from '@ks/ui'
 import { AlertTriangle, Check, Cloud, FolderOpen, Server } from "lucide-react"
 import { TestResultTable } from "./test-result-table"
 import type { UseStorageFormResult } from "./hooks/use-storage-form"

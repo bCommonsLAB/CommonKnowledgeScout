@@ -2,22 +2,36 @@
 
 import * as React from 'react'
 // Button nicht mehr benötigt
-import { Label } from '@/components/ui/label'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Label,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Button,
+  Textarea,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Card,
+  Checkbox,
+} from '@ks/ui'
 import { 
   GripVertical, Plus, Minus, Trash2, Mic, Link as LinkIcon, FileText, Upload, ChevronRight, Settings, Eye, EyeOff,
   Calendar, MessageSquare, Briefcase, BookOpen, Presentation, Users, Building2, Code2, Leaf, Globe, GraduationCap,
   Lightbulb, Library, Zap, Heart, Star, Target, Video, Image, File, Folder, Link
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 // removed Select imports after removing Typ-Spalte
 import { MarkdownPreview } from '@/components/library/markdown-preview'
-import { Textarea } from '@/components/ui/textarea'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Card } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
 import type { TemplateCreationConfig, TemplateMetadataSchema, TemplateMetadataField, TemplatePreviewDetailViewType } from '@/lib/templates/template-types'
 import { buildCreationFileName } from '@/lib/creation/file-name'
 import { isTemplateCreationConfig } from '@/lib/creation/creation-flow-validation'

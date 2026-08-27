@@ -1,7 +1,6 @@
 'use client'
 
-import { Button } from "@/components/ui/button"
-import { TooltipProvider } from "@/components/ui/tooltip"
+import { Button, TooltipProvider } from '@ks/ui'
 import { Compass, Mail, Eye } from "lucide-react"
 import { useTranslation } from "@/lib/i18n/hooks"
 

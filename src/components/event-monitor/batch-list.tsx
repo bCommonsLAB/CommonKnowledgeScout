@@ -2,23 +2,37 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import {
+  Card,
+  Button,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Badge } from '@/components/ui/badge';
+  Badge,
+  Checkbox,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Label,
+} from '@ks/ui'
 import { 
   MoreHorizontal, 
   CheckCircle2, 
@@ -38,21 +52,9 @@ import {
   Download,
   AlertTriangle
 } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Batch, BatchStatus, Job, JobStatus } from '@/types/event-job';
 import { formatDateTime } from '@/lib/utils';
 import React from 'react';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter
-} from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
 import { createTrackSummary, SecretaryServiceError } from '@/lib/secretary/client';
 import { useAtom } from 'jotai';
 import { activeLibraryIdAtom } from '@/atoms/library-atom';

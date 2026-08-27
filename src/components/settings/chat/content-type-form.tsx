@@ -9,8 +9,7 @@
  * Config wie das fruehere Gesamtformular — kein Merge-Risiko.
  */
 
-import { Button } from "@/components/ui/button"
-import { Form } from "@/components/ui/form"
+import { Button, Form } from '@ks/ui'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useChatForm } from './hooks/use-chat-form'
 import { ContentTypeSection } from './content-type-section'

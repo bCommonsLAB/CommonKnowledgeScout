@@ -13,7 +13,7 @@
 
 import { useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { Badge } from '@ks/ui'
 import type {
   DocumentVerificationResult,
   VerificationSummary,

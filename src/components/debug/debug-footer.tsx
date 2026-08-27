@@ -2,15 +2,23 @@
 
 import * as React from 'react';
 import { useAtom, useAtomValue } from 'jotai';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Button,
+  Checkbox,
+  ScrollArea,
+  ScrollBar,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from '@ks/ui'
 import { ChevronUp, Maximize2, Minimize2, Copy } from 'lucide-react';
 import { debugStateAtom, toggleComponentAtom, toggleAreaAtom, clearLogsAtom, addLogAtom } from '@/atoms/debug-atom';
 import { cn } from '@/lib/utils';
 import { subscribeToLogs } from '@/lib/debug/logger';
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { toast } from 'sonner';
 import { activeLibraryAtom, activeLibraryIdAtom, currentFolderIdAtom, selectedFileAtom } from '@/atoms/library-atom';
 import { useStorage } from '@/contexts/storage-context';

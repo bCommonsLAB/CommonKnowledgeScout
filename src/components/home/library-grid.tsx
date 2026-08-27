@@ -1,14 +1,22 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Button,
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  useToast,
+} from '@ks/ui'
 import { ArrowRight, BookOpen, Presentation, AlertCircle, RefreshCw, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import * as LucideIcons from "lucide-react"
 import { useTranslation } from "@/lib/i18n/hooks"
-import { useToast } from "@/components/ui/use-toast"
 import type { Character, SocialContext, TargetLanguage } from '@/lib/chat/constants'
 
 interface PublicLibrary {

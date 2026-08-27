@@ -1,23 +1,27 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
+  Button,
+  Input,
+  Label,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter
-} from '@/components/ui/dialog';
+  DialogFooter,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Alert,
+  AlertDescription,
+  Progress,
+  ScrollArea,
+} from '@ks/ui'
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, AlertCircle, CheckCircle, Globe, Download, FileStack, Link } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Progress } from '@/components/ui/progress';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { importSessionFromUrl, SecretaryServiceError } from '@/lib/secretary/client';
 import { StructuredSessionData } from '@/lib/secretary/types';
 

@@ -7,8 +7,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -17,12 +15,12 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Badge } from '@/components/ui/badge'
+  Button,
+  ScrollArea,
+  Badge,
+  toast,
+} from '@ks/ui'
 import { CheckCircle2, XCircle, AlertCircle, Loader2, Trash2, Plus } from 'lucide-react'
-import { toast } from '@/components/ui/use-toast'
 
 interface ExtendedIndexStatus {
   vectorIndex: {

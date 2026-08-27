@@ -6,8 +6,7 @@
  * die App. Bewusst ohne Storage-Details (UI kennt das Backend nicht).
  */
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from '@ks/ui'
 import { ArrowRight, BookOpen, Share2 } from "lucide-react"
 import type { ClientLibrary } from "@/types/library"
 

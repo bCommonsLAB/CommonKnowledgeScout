@@ -5,11 +5,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Progress } from '@/components/ui/progress'
-import { Separator } from '@/components/ui/separator'
+import { Button, Input, Label, Progress, Separator } from '@ks/ui'
 
 export function TeamsStreamRelayPanel() {
   const [isElectron, setIsElectron] = useState(false)

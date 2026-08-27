@@ -19,7 +19,7 @@ import * as z from "zod"
 import { useState, useEffect } from "react"
 import { useAtom } from "jotai"
 import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from '@ks/ui'
 import { mergeTemplateNames } from "@/lib/templates/template-options"
 import {
   checkTemplateConsistency,

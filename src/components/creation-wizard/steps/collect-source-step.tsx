@@ -1,11 +1,18 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Textarea } from "@/components/ui/textarea"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Textarea,
+  Input,
+  Label,
+  Button,
+  Progress,
+} from '@ks/ui'
 import type { CreationSource } from "@/lib/templates/template-types"
 import { Link, Upload, Plus, Loader2, FileText, Mic, FolderOpen } from "lucide-react"
 import { toast } from "sonner"
@@ -18,7 +25,6 @@ import type { TemplateMetadataSchema } from "@/lib/templates/template-types"
 import { cn } from "@/lib/utils"
 import { X } from "lucide-react"
 import type { StorageProvider } from "@/lib/storage/types"
-import { Progress } from "@/components/ui/progress"
 import { flowComputesFileInSchemaTypeStep } from "@/lib/creation/file-flow"
 
 interface CollectSourceStepProps {

@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from "@/components/ui/button"
+import { Button } from '@ks/ui'
 import { ArrowRight, BookOpen } from "lucide-react"
 import Link from "next/link"
 import { useTranslation } from "@/lib/i18n/hooks"

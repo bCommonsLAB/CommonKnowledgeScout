@@ -15,7 +15,7 @@
  */
 
 import { useMemo } from 'react'
-import { useToast } from '@/components/ui/use-toast'
+import { useToast } from '@ks/ui'
 import {
   kreuzeListeMitReport,
   zaehleWorklistFortschritt,

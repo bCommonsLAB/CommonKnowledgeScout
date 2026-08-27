@@ -12,16 +12,17 @@
  */
 
 import { useCallback, useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
 import {
+  Button,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+  Alert,
+  AlertDescription,
+} from '@ks/ui'
 import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog"
 import { Loader2, RefreshCw, Trash2 } from "lucide-react"
 import { toast } from "sonner"

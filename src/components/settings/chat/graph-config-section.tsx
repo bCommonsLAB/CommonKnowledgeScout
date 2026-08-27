@@ -10,14 +10,7 @@
  * Reset durchgereicht und gehen beim Speichern nicht verloren.
  */
 
-import {
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-} from "@/components/ui/form"
-import { Switch } from "@/components/ui/switch"
+import { FormControl, FormDescription, FormField, FormItem, FormLabel, Switch } from '@ks/ui'
 import { useTranslation } from '@/lib/i18n/hooks'
 import type { UseFormReturn } from "react-hook-form"
 import type { chatFormSchema } from "./hooks/use-chat-form"

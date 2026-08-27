@@ -1,9 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
-import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Progress, Button } from '@ks/ui'
 import { CheckCircle2, Loader2 } from "lucide-react"
 
 interface PublishStepProps {

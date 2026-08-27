@@ -23,12 +23,11 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent } from "@/components/ui/card"
-import { Switch } from "@/components/ui/switch"
-import { Button } from "@/components/ui/button"
-import {
+  Input,
+  Card,
+  CardContent,
+  Switch,
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -36,7 +35,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from '@ks/ui'
 import { AlertCircle, Plus, Trash2 } from "lucide-react"
 import { CreateLibraryDialog } from "@/components/library/create-library-dialog"
 import { CORE_CONTENT_TYPES } from "@/components/settings/chat/content-type-section"

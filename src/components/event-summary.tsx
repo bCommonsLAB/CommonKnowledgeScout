@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Card } from "@/components/ui/card";
+import { Card } from '@ks/ui'
 import { MarkdownPreview } from "@/components/library/markdown-preview";
 import type { StorageProvider } from "@/lib/storage/types";
 import { isSafeVideoIframeSrc } from "@/lib/media/safe-video-iframe";

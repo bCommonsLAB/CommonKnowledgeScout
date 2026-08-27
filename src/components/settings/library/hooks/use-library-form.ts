@@ -17,7 +17,7 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { useAtom } from "jotai";
 import { useRouter } from "next/navigation";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from '@ks/ui'
 import { librariesAtom, activeLibraryIdAtom } from "@/atoms/library-atom";
 import { StorageProviderType } from "@/types/library";
 import type { CaptureWizardsConfig } from "@/types/library";

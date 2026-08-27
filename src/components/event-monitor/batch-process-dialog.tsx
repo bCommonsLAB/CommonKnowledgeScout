@@ -1,9 +1,16 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  Button,
+  Progress,
+} from '@ks/ui'
 import { Loader2, PlayCircle, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 import { Job, JobParameters } from '@/types/event-job';
 import { processSession } from '@/lib/secretary/client';

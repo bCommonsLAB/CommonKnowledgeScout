@@ -15,13 +15,7 @@
  * und welle-3-iv-settings-contracts.mdc §4 explizit erlaubt.
  */
 
-import { Button } from "@/components/ui/button"
-import {
-  FormDescription,
-  FormLabel,
-} from "@/components/ui/form"
-import { Switch } from "@/components/ui/switch"
-import { toast } from "@/components/ui/use-toast"
+import { Button, FormDescription, FormLabel, Switch, toast } from '@ks/ui'
 import { useState } from "react"
 import { type Library, type ClientLibrary } from "@/types/library"
 import { getMediaStorageStrategy } from "@/lib/shadow-twin/media-storage-strategy"
