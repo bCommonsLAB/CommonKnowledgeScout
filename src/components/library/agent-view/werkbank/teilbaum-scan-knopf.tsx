@@ -13,7 +13,7 @@
  */
 
 import { RefreshCw } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@ks/ui'
 
 /** Prop-Buendel des Teilbaum-Scans (Panel → Detail); `hinweis` = benannter Merge-Fallback. */
 export interface TeilbaumScanProps {

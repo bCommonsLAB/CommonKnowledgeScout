@@ -1,6 +1,6 @@
 'use client'
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@ks/ui'
 import { ChatSelector } from './chat-selector'
 import type { Character, TargetLanguage, SocialContext, AccessPerspective } from '@/lib/chat/constants'
 import {

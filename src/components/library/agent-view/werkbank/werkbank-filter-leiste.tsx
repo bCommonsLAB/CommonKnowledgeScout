@@ -14,7 +14,7 @@
  * @module components/library/agent-view
  */
 
-import { Input } from '@/components/ui/input'
+import { Input } from '@ks/ui'
 import { actorLabel } from '@/lib/agent-view/labels'
 import type { GapActor, ZyklusSchritt } from '@/lib/agent-view/types'
 import type { BefundFilter, WerkbankSortierung, WerkbankStatusFilter } from '@/lib/agent-view/werkbank-filter'

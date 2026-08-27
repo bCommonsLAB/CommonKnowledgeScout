@@ -6,8 +6,7 @@
  * Rendert ein einzelnes Thema als AccordionItem mit klickbaren Fragen.
  */
 
-import { AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
-import { Button } from '@/components/ui/button'
+import { AccordionContent, AccordionItem, AccordionTrigger, Button } from '@ks/ui'
 import type { StoryTopic, StoryQuestion } from '@/types/story-topics'
 
 interface TopicCardProps {

@@ -20,9 +20,7 @@
 
 import { useState } from 'react'
 import { ChevronDown, ChevronRight, ClipboardCopy } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { useToast } from '@/components/ui/use-toast'
+import { Badge, Button, useToast } from '@ks/ui'
 import { buildAuftrag, type AuftragContext } from '@/lib/agent-view/auftrag-generator'
 import { actorLabel, gapLabel, zyklusSchrittLabel } from '@/lib/agent-view/labels'
 import { buildTodoLists, TODO_ACTORS } from '@/lib/agent-view/todo-lists'

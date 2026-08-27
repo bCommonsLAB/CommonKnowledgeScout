@@ -2,13 +2,7 @@
 
 import React from 'react'
 import { FolderOpen } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { tryDecodeRelativePathFromFileId } from '@/utils/decode-storage-file-id'
 

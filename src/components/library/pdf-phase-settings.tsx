@@ -3,11 +3,20 @@
 import * as React from "react";
 import { useAtomValue } from "jotai";
 import { activeLibraryAtom, activeLibraryIdAtom } from "@/atoms/library-atom";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Checkbox,
+  Button,
+} from '@ks/ui'
 import { loadPdfDefaults, savePdfDefaults } from "@/lib/pdf-defaults";
 import { useStorage } from "@/contexts/storage-context";
 import { useAtom } from "jotai";

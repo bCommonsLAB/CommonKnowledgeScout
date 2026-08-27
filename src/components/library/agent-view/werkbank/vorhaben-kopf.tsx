@@ -18,7 +18,7 @@
 
 import { useState } from 'react'
 import { AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@ks/ui'
 import type { UseStandResult } from '@/hooks/agent-view/use-stand'
 import type { UseThemenResult } from '@/hooks/agent-view/use-themen'
 import { zaehleWiderstaende } from '@/lib/agent-view/abnahme'

@@ -4,8 +4,7 @@ import * as React from "react";
 import { useAtom } from "jotai";
 import { currentPdfPageAtom } from "@/atoms/pdf-viewer";
 import "@/lib/pdfjs-worker-setup";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button, Input } from '@ks/ui'
 import { Maximize2, X as CloseIcon } from "lucide-react";
 
 // Lade pdf.js ausschließlich lokal (ESM) und setze Worker-Pfad bundler-freundlich

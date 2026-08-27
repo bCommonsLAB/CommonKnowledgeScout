@@ -12,11 +12,9 @@
 
 import { useState } from 'react'
 import { useSetAtom } from 'jotai'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { Button, Badge, toast } from '@ks/ui'
 import { RefreshCw, AlertTriangle } from 'lucide-react'
 import { jobMonitorPanelOpenAtom } from '@/atoms/job-monitor-panel-open-atom'
-import { toast } from '@/components/ui/use-toast'
 import { useTranslation } from '@/lib/i18n/hooks'
 
 interface DocGraphSimilarityBarProps {

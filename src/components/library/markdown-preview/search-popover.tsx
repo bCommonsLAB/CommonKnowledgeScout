@@ -14,10 +14,8 @@
  */
 
 import * as React from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Button, Input, Popover, PopoverContent, PopoverTrigger } from '@ks/ui'
 import { Search, ChevronDown, ChevronUp } from 'lucide-react'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 interface SearchPopoverProps {
   onSearchFirst: (query: string) => void

@@ -15,13 +15,7 @@
  */
 
 import * as React from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, Badge } from '@ks/ui'
 import { divaCmToCssPx } from './diva-basecolor-1to1'
 
 interface DivaBasecolorFullscreenDialogProps {

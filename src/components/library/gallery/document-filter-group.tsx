@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@ks/ui'
 import { X } from 'lucide-react'
 import { useTranslation } from '@/lib/i18n/hooks'
 

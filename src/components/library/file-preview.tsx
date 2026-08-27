@@ -2,7 +2,20 @@
 
 import * as React from 'react';
 import { cn } from "@/lib/utils";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Alert,
+  AlertDescription,
+  Button,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@ks/ui'
 import { AlertCircle, ExternalLink, RefreshCw } from "lucide-react";
 // Nach Phase 2d werden MarkdownPreview, Tabs, FileText, Sparkles, Upload,
 // extractFrontmatter, ArtifactInfoPanel, IngestionDataProvider,
@@ -21,12 +34,10 @@ import type { Library } from '@/types/library'
 import { FileLogger } from "@/lib/debug/logger"
 // PdfPhasesView ist bewusst NICHT mehr Teil der File-Preview (zu heavy). Flow-View ist der Expertenmodus.
 import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom';
-import { Button } from '@/components/ui/button';
 import { toast } from 'sonner'
 import { useResolvedTranscriptItem } from "@/components/library/shared/use-resolved-transcript-item"
 import { useStoryStatus } from "@/components/library/shared/use-story-status"
 import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import type { StoryStepStatus } from "@/components/library/shared/story-status"
 import type { PipelinePolicies, CoverImageOptions, LlmModelOption } from "@/components/library/flow/pipeline-sheet"
 import { runPipelineForFile, getMediaKind, type MediaKind } from "@/lib/pipeline/run-pipeline"
@@ -42,7 +53,6 @@ import { loadPdfDefaults } from "@/lib/pdf-defaults"
 import { getEffectivePdfDefaults } from "@/atoms/pdf-defaults"
 import { TARGET_LANGUAGE_DEFAULT } from "@/lib/chat/constants"
 import { jobInfoByItemIdAtom } from "@/atoms/job-status"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 // extractTranscriptLang, getTransformationLabel und TRANSCRIPT_LANG_LABELS
 // wurden in src/components/library/file-preview/extension-map.ts ausgegliedert

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Image from "next/image"
-import { Button } from "@/components/ui/button"
+import { Button } from '@ks/ui'
 import type { StorageItem, StorageProvider } from "@/lib/storage/types"
 import { FileLogger } from "@/lib/debug/logger"
 import { getMediaKind } from "@/lib/media-types"

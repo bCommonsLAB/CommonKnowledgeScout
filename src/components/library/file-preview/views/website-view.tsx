@@ -25,9 +25,7 @@
 
 import * as React from 'react'
 import { ExternalLink, FileText, Sparkles, Upload, RefreshCw } from 'lucide-react'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger, Alert, AlertDescription, Button } from '@ks/ui'
 import { ArtifactInfoPanel } from '@/components/library/shared/artifact-info-panel'
 import { ArtifactMarkdownPanel } from '@/components/library/shared/artifact-markdown-panel'
 import { IngestionDetailPanel } from '@/components/library/shared/ingestion-detail-panel'

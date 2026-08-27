@@ -19,7 +19,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+} from '@ks/ui'
 import { ShadowTwinSyncReportView, type SyncReportView } from '@/components/settings/shadow-twin-sync-report-view'
 
 interface FolderSyncDialogProps {

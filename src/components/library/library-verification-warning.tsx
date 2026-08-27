@@ -14,7 +14,7 @@
 
 import { useAtomValue } from 'jotai'
 import { AlertTriangle } from 'lucide-react'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle } from '@ks/ui'
 import { activeLibraryIdAtom } from '@/atoms/library-atom'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
 import { useLibraryVerificationStatus } from '@/hooks/library-verification/use-library-verification-status'

@@ -6,12 +6,7 @@ import { cn } from '@/lib/utils'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
 import { useUserStates } from '@/hooks/gallery/use-user-states'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
 import type { FavoriteVoter } from '@/types/source-user-state'
 
 export interface SourceStarsBadgeProps {

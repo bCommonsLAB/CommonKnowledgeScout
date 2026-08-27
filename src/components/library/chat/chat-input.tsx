@@ -1,10 +1,17 @@
 'use client'
 
 import { useRef, useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Card, CardContent } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Card,
+  CardContent,
+  Checkbox,
+} from '@ks/ui'
 import { Loader2, Send } from 'lucide-react'
 import type { AnswerLength } from '@/lib/chat/constants'
 import { ANSWER_LENGTH_VALUES } from '@/lib/chat/constants'

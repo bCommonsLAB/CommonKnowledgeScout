@@ -1,9 +1,15 @@
 'use client'
 
-import { Button } from '@/components/ui/button'
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
-import { Switch } from '@/components/ui/switch'
+import {
+  Button,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  Switch,
+} from '@ks/ui'
 import { Settings } from 'lucide-react'
 import type { Character, AnswerLength, Retriever, TargetLanguage, SocialContext } from '@/lib/chat/constants'
 import {

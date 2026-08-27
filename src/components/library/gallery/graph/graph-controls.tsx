@@ -10,14 +10,20 @@
  */
 
 import { useState } from 'react'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select'
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Button,
+  Badge,
+  Label,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@ks/ui'
 import { Settings2, X } from 'lucide-react'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { colorForValue } from './graph-encodings'

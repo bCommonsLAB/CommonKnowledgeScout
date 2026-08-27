@@ -8,7 +8,7 @@ import { currentPathAtom, currentFolderIdAtom, activeLibraryAtom } from "@/atoms
 import { useCallback } from "react";
 import { useFolderNavigation } from '@/hooks/use-folder-navigation';
 import { loadFavorites, toggleFavorite } from "@/lib/library/favorites";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@ks/ui'
 import { ChevronDown, ChevronUp, Star, StarOff } from "lucide-react";
 
 interface BreadcrumbProps {

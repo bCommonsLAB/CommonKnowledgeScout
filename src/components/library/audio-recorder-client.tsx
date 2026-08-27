@@ -1,8 +1,7 @@
 "use client"
 
 import { useCallback, useState, useRef, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@ks/ui'
 import { Mic, MicOff, Pause, Play, Square, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStorage } from '@/contexts/storage-context';

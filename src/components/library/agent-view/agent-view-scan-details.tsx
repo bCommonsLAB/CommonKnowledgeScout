@@ -15,8 +15,7 @@
  */
 
 import { ChevronDown } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Button, Popover, PopoverContent, PopoverTrigger } from '@ks/ui'
 import { zyklusSchrittLabel } from '@/lib/agent-view/labels'
 import type { CoverageReport, ZyklusSchritt } from '@/lib/agent-view/types'
 

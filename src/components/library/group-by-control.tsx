@@ -12,13 +12,7 @@
 
 import * as React from 'react'
 import { useAtom, useAtomValue } from 'jotai'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@ks/ui'
 import { groupByAttributeAtom, itemAnnotationsAtom } from '@/atoms/library-atom'
 
 const NONE = '__none__'

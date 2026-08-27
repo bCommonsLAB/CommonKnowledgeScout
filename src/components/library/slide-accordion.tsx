@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@ks/ui'
 import { Presentation } from "lucide-react";
 import { MarkdownPreview } from "@/components/library/markdown-preview";
 

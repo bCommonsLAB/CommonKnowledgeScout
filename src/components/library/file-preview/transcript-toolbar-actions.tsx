@@ -20,8 +20,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
 import type { StorageItem, StorageProvider } from '@/lib/storage/types'
 
 interface TranscriptToolbarActionsProps {

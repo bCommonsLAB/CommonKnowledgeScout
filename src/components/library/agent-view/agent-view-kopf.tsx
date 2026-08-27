@@ -19,7 +19,7 @@
  */
 
 import { Loader2, RefreshCw } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@ks/ui'
 import type { CoverageResponse } from '@/hooks/agent-view/use-coverage-report'
 import { AgentViewScanDetails } from './agent-view-scan-details'
 

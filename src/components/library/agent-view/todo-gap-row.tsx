@@ -11,7 +11,7 @@
  * @module components/library/agent-view
  */
 
-import { Checkbox } from '@/components/ui/checkbox'
+import { Checkbox } from '@ks/ui'
 import { gapLabel } from '@/lib/agent-view/labels'
 import type { CoverageGap } from '@/lib/agent-view/types'
 

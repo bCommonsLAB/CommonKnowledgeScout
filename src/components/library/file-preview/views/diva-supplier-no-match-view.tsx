@@ -4,8 +4,7 @@
  * @fileoverview DIVA-Info ohne Sidecar-Match: Sidecar vorhanden, aber kein Eintrag fuer die Textur.
  */
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription, AlertTitle, Badge } from '@ks/ui'
 import type { MatchAttempt } from '@/lib/diva-texture/types'
 
 interface DivaSupplierNoMatchViewProps {

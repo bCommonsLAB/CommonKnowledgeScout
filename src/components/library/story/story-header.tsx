@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@/components/ui/button'
+import { Button } from '@ks/ui'
 import { Settings2, ChevronLeft } from 'lucide-react'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from '@ks/ui'
 import { StorageItem } from "@/lib/storage/types";
 import { useStorageProvider } from "@/hooks/use-storage-provider";
 import { useAtomValue } from "jotai";

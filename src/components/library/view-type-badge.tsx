@@ -6,7 +6,7 @@
  * oder fehlender Typ → kein Abzeichen (kein falsches Label).
  */
 
-import { Badge } from '@/components/ui/badge'
+import { Badge } from '@ks/ui'
 import { getViewTypeLabel } from '@/lib/detail-view-types/view-type-display'
 
 export interface ViewTypeBadgeProps {

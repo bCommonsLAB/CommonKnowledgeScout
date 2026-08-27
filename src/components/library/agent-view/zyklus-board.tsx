@@ -16,8 +16,7 @@
 
 import { AlertTriangle, FileText } from 'lucide-react'
 import { parseAsString, useQueryState } from 'nuqs'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge, Card, CardContent, CardHeader, CardTitle } from '@ks/ui'
 import { actorSummary, BOARD_COLUMNS, gapCountLabel, standLabel } from '@/lib/agent-view/labels'
 import { karteOhneWerkbankFelder } from '@/lib/agent-view/vorhaben-board'
 import type { CoverageReport, VorhabenCard } from '@/lib/agent-view/types'

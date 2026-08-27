@@ -6,21 +6,21 @@ import { activeLibraryIdAtom, currentFolderIdAtom, activeLibraryAtom } from '@/a
 import { selectedBatchItemsAtom, selectedTransformationItemsAtom } from '@/atoms/transcription-options';
 import { useStorage } from '@/contexts/storage-context';
 import { StorageItem } from '@/lib/storage/types';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 import {
+  Button,
+  Checkbox,
+  Label,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
+  ScrollArea,
+  Separator,
+  toast,
+} from '@ks/ui'
 import { FileLogger } from '@/lib/debug/logger';
-import { toast } from '@/components/ui/use-toast';
 import { loadPdfDefaults } from '@/lib/pdf-defaults';
 import { pdfOverridesAtom, getEffectivePdfDefaults } from '@/atoms/pdf-defaults';
 import { PdfPhaseSettings } from '@/components/library/pdf-phase-settings';

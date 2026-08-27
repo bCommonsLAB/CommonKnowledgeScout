@@ -7,9 +7,8 @@ import { FileLogger } from "@/lib/debug/logger";
 import { memo, useEffect, useRef, useState } from 'react';
 import { StorageItem, StorageProvider } from '@/lib/storage/types';
 import { AudioTransform } from './audio-transform';
-import { Button } from '@/components/ui/button';
+import { Button, Tabs } from '@ks/ui'
 import { Wand2 } from 'lucide-react';
-import { Tabs } from '@/components/ui/tabs';
 
 
 interface AudioPlayerProps {

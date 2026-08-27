@@ -7,9 +7,9 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
+  ScrollArea,
+} from '@ks/ui'
 import { ProcessingStatus } from './processing-status'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Loader2 } from 'lucide-react'
 import type { ChatProcessingStep } from '@/types/chat-processing'
 

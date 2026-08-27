@@ -1,9 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Badge,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@ks/ui'
 
 interface ChapterRow {
   order?: number;

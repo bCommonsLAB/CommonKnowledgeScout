@@ -1,13 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Button } from '@/components/ui/button'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
 import { LayoutGrid, StretchHorizontal } from 'lucide-react'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { cn } from '@/lib/utils'

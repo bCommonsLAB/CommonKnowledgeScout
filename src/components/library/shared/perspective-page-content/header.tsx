@@ -9,10 +9,7 @@
  * - Info-Banner ("Warum diese Seite?")
  */
 
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Separator } from '@/components/ui/separator'
+import { Button, Card, CardContent, Tabs, TabsList, TabsTrigger, Separator } from '@ks/ui'
 import { ArrowLeft, Sparkles, X } from 'lucide-react'
 import { useTranslation } from '@/lib/i18n/hooks'
 

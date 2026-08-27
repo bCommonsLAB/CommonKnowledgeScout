@@ -16,8 +16,7 @@
 
 import type { ReactNode } from 'react'
 import { MoreHorizontal } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Button, Popover, PopoverContent, PopoverTrigger } from '@ks/ui'
 
 /** Zustands-Chip des Kopfs — `ton` folgt den Mockup-Chips (stand/ok/open). */
 export function KopfChip({ ton, title, children }: { ton: 'stand' | 'ok' | 'open' | 'blockiert'; title?: string; children: ReactNode }) {

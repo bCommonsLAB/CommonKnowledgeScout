@@ -1,6 +1,6 @@
 'use client'
 
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@ks/ui'
 import type { ChatResponse } from '@/types/chat-response'
 import type { QueryLog } from '@/types/query-log'
 import { ChatReferenceList } from '@/components/library/chat/chat-reference-list'

@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@ks/ui'
 import { ChatReferenceList } from '@/components/library/chat/chat-reference-list'
 import { X } from 'lucide-react'
 import type { ChatResponse } from '@/types/chat-response'

@@ -18,7 +18,7 @@
  */
 
 import { useState } from 'react'
-import { useToast } from '@/components/ui/use-toast'
+import { useToast } from '@ks/ui'
 import { useStand } from '@/hooks/agent-view/use-stand'
 import type { UseArtefaktKurationResult } from '@/hooks/agent-view/use-artefakt-kuration'
 import type { UseThemenResult } from '@/hooks/agent-view/use-themen'

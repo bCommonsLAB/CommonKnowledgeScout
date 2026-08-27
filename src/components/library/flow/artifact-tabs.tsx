@@ -5,8 +5,7 @@ import type { StorageItem, StorageProvider } from "@/lib/storage/types"
 import { resolveArtifactClient } from "@/lib/shadow-twin/artifact-client"
 import type { ResolvedArtifact } from "@/lib/shadow-twin/artifact-resolver"
 import { JobReportTab } from "@/components/library/job-report-tab"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Alert, AlertDescription, AlertTitle, Skeleton } from '@ks/ui'
 import { FileLogger } from "@/lib/debug/logger"
 
 interface ArtifactTabsProps {

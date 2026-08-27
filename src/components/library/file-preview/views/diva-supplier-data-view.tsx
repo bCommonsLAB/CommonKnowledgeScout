@@ -17,8 +17,7 @@
  */
 
 import * as React from 'react'
-import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge, Alert, AlertDescription } from '@ks/ui'
 import { FileLogger } from '@/lib/debug/logger'
 import type { StorageProvider, StorageItem } from '@/lib/storage/types'
 import type { OptionvalueEntry } from '@/lib/diva-texture/types'

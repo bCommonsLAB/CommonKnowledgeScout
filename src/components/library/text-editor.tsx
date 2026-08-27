@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { Button, Textarea } from '@ks/ui'
 import { StorageProvider } from '@/lib/storage/types';
 import { toast } from 'sonner';
 import { FileLogger } from "@/lib/debug/logger"

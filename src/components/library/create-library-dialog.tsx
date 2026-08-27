@@ -13,12 +13,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
-import { toast } from "@/components/ui/use-toast"
+  Button,
+  Input,
+  Label,
+  Checkbox,
+  toast,
+} from '@ks/ui'
 
 import {
   activeLibraryAtom,

@@ -14,7 +14,7 @@
  */
 
 import { BadgeCheck, Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@ks/ui'
 import { twinStatusLabel, verificationLabel } from '@/lib/agent-view/labels'
 import type { TwinFamilySummary, VerificationState } from '@/lib/agent-view/types'
 import { TWIN_STATUS_VALUES } from '@/lib/shadow-twin/twin-core-fields'

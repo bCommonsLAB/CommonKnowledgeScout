@@ -2,13 +2,13 @@
 
 import React from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { Button } from '@/components/ui/button'
 import {
+  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+} from '@ks/ui'
 import { Share2, Twitter, Linkedin, Facebook, Copy, Check } from 'lucide-react'
 import { useTranslation } from '@/lib/i18n/hooks'
 import type { DocCardMeta } from '@/lib/gallery/types'

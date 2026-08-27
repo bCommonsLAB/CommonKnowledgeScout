@@ -13,9 +13,7 @@
 import * as React from 'react'
 import { useAtomValue } from 'jotai'
 import { Loader2, SlidersHorizontal } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Button, Label, Popover, PopoverContent, PopoverTrigger } from '@ks/ui'
 import {
   annotationFilterModeAtom,
   divaSidecarStatusAtom,

@@ -14,7 +14,7 @@
 'use client'
 
 import React from 'react'
-import { Badge } from '@/components/ui/badge'
+import { Badge } from '@ks/ui'
 import { useTranslation } from '@/lib/i18n/hooks'
 import type { DocCardMeta } from '@/lib/gallery/types'
 

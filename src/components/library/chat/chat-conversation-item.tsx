@@ -2,8 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { User, Trash2, RotateCcw } from 'lucide-react'
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
-import { Button } from '@/components/ui/button'
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent, Button } from '@ks/ui'
 import { ChatMessage } from './chat-message'
 import type { ChatResponse } from '@/types/chat-response'
 import type { Character } from '@/lib/chat/constants'

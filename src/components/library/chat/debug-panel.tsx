@@ -1,7 +1,7 @@
 "use client"
 
 import type { QueryLog, QueryRetrievalStep } from '@/types/query-log'
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@ks/ui'
 import { DebugStepTable } from './debug-step-table'
 import { DebugTrace } from './debug-trace'
 import { computeKpis, hasFilterDiff } from '@/lib/chat/debug-stats'

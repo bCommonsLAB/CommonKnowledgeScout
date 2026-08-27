@@ -16,8 +16,7 @@
 
 import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Button, Input } from '@ks/ui'
 import type { useWorklists, Worklist } from '@/hooks/agent-view/use-worklists'
 import type { WorklistFolderEntry } from '@/lib/repositories/agent-view-worklists-repo'
 

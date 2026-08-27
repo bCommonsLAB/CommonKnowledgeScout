@@ -17,9 +17,7 @@
 
 import { useState } from 'react'
 import { ClipboardCopy, ExternalLink } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { useToast } from '@/components/ui/use-toast'
+import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, useToast } from '@ks/ui'
 import type { UseStandResult } from '@/hooks/agent-view/use-stand'
 import type { AuftragContext } from '@/lib/agent-view/auftrag-generator'
 import { standRank } from '@/lib/agent-view/bearbeitungsstand'

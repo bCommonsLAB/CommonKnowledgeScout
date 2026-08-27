@@ -2,8 +2,7 @@
 
 import React from 'react'
 import { Send, Info } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
+import { Button, Textarea } from '@ks/ui'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
 import { useSourceComments } from '@/hooks/gallery/use-source-comments'

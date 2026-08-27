@@ -17,7 +17,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { ExternalLink, Loader2 } from 'lucide-react'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle } from '@ks/ui'
 import { originalUrl, vorschauArt } from '@/lib/agent-view/artefakt-vorschau'
 import type { TwinFamilySummary } from '@/lib/agent-view/types'
 

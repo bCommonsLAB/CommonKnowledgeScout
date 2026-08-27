@@ -20,15 +20,15 @@
 import * as React from 'react'
 import { useAtom } from 'jotai'
 import { Columns3, Check } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import {
+  Button,
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+} from '@ks/ui'
 import { divaExtraColumnsAtom } from '@/atoms/library-atom'
 import { cn } from '@/lib/utils'
 

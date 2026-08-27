@@ -2,10 +2,19 @@
 
 import * as React from "react";
 import { createPortal } from "react-dom";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Badge,
+  Card,
+  Button,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  Separator,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@ks/ui'
 import { ArrowLeft, ExternalLink, FileText, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
 import { EventSlides } from "@/components/event-slides";
@@ -16,10 +25,8 @@ import { useTranslation } from "@/lib/i18n/hooks";
 import type { StorageProvider } from "@/lib/storage/types";
 import QRCode from "react-qr-code";
 import { useLibraryRole } from "@/hooks/use-library-role";
-import { Separator } from "@/components/ui/separator";
 import { Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { TestimonialList } from "@/components/shared/testimonial-list";
 import { useTestimonials } from "@/hooks/use-testimonials";
 import { ReferenceList } from "@/components/library/story/reference-list";

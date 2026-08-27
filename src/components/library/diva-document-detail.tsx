@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from '@ks/ui'
 import { ArrowLeft, FileText, Package, Tag, Building2, Store, Calendar, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { AIGeneratedNotice } from "@/components/shared/ai-generated-notice";

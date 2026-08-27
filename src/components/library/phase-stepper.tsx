@@ -5,7 +5,7 @@ import { useAtom } from "jotai";
 import { activePdfPhaseAtom, type PdfPhase } from "@/atoms/pdf-phases";
 import { cn } from "@/lib/utils";
 import { Settings2, Play } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from '@ks/ui'
 import { useAtomValue } from "jotai";
 import { activeLibraryIdAtom, selectedFileAtom, activeLibraryAtom } from "@/atoms/library-atom";
 import { loadPdfDefaults } from "@/lib/pdf-defaults";
