@@ -64,6 +64,19 @@ describe('berechneZyklusFortschritt', () => {
     expect(fortschritt.schritte.find((s) => s.schritt === 4)?.offen).toBe(2)
   })
 
+  it('zaehlt den Alt-Befund `twin_unverified` NICHT mit (ADR 0006)', () => {
+    // Live-Befund 27.08.2026: der gespeicherte Report des Pruefarchivs traegt
+    // 28 solcher Befunde — sie liessen Schritt 4 auf „29" springen, obwohl
+    // fehlende Verifikation laengst keine Aufgabe mehr ist.
+    const fortschritt = berechneZyklusFortschritt({
+      gapsByType: { twin_unverified: 28, stand_widerspruch: 1 },
+      bearbeitungsstand: 'berichtet',
+      ...OHNE_MARKIERUNG,
+    })
+    expect(fortschritt.schritte.find((s) => s.schritt === 4)?.offen).toBe(1)
+    expect(fortschritt.offenGesamt).toBe(1)
+  })
+
   it('stellt den erklaerten Stand daneben, statt ihn hineinzurechnen', () => {
     // Stand behauptet „berichtet" (Schritte 1-3 erledigt), obwohl Schritt 1
     // offene Punkte hat — genau der Widerspruch, den ein eigener Befund meldet.
