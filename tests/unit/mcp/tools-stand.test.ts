@@ -17,6 +17,13 @@ const h = vi.hoisted(() => ({
   registriert: new Map<string, { schema: Record<string, unknown>; handler: (args: never) => Promise<unknown> }>(),
 }))
 
+// `stand_setzen` laeuft seit dem Aktions-Protokoll durch `mitProtokoll` und
+// damit in eine echte MongoDB-Verbindung — im Test nicht vorhanden, der Lauf
+// lief ins Timeout. Gemockt wie in protokoll.test.ts.
+vi.mock('@/lib/repositories/aktions-protokoll-repo', () => ({
+  protokolliereAktion: vi.fn().mockResolvedValue(undefined),
+  MAX_BEGRUENDUNG: 500,
+}))
 vi.mock('@/lib/agent-view/stand-ausfuehren', () => ({ fuehreStandAus: h.ausfuehren }))
 vi.mock('@/lib/repositories/agent-view-coverage-repo', () => ({ getCoverageReport: h.getReport }))
 vi.mock('@/lib/mcp/tool-shared', async () => {
