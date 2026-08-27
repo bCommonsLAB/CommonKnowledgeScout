@@ -23,6 +23,7 @@ import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import type { LeadingArtifactSummary, TwinFamilySummary } from '@/lib/agent-view/types'
 import { artefaktMarkiert } from '@/lib/agent-view/werkbank-baum'
 import { WerkbankOriginal } from './werkbank-original'
+import { SpeicherFehler } from './speicher-fehler'
 
 export type ArtefaktTab = 'original' | 'transkript' | 'zusammenfassung'
 
@@ -110,14 +111,7 @@ function ArtefaktInhalt({ libraryId, familie, artefakt, label }: {
   if (isLoading) {
     return <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Lade {label}...</p>
   }
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertTitle>{label} nicht ladbar</AlertTitle>
-        <AlertDescription>{error instanceof Error ? error.message : String(error)}</AlertDescription>
-      </Alert>
-    )
-  }
+  if (error) return <SpeicherFehler titel={`${label} nicht ladbar`} error={error} />
   if (!data || data.grund === 'nicht_in_mongo' || data.markdown === null) {
     return (
       <Alert>

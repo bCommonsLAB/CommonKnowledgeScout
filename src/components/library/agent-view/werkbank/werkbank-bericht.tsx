@@ -21,6 +21,7 @@ import { Badge } from '@/components/ui/badge'
 import { MarkdownPreview } from '@/components/library/markdown-preview'
 import { useBericht } from '@/hooks/agent-view/use-bericht'
 import type { VorhabenDokumentArt } from '@/lib/agent-view/bericht-laden'
+import { SpeicherFehler } from './speicher-fehler'
 
 function archivHref(libraryId: string, folderId: string, openFileId?: string): string {
   const openTeil = openFileId === undefined ? '' : `&openFileId=${encodeURIComponent(openFileId)}`
@@ -50,14 +51,7 @@ export function WerkbankBericht({
     )
   }
 
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertTitle>Bericht nicht ladbar</AlertTitle>
-        <AlertDescription>{error instanceof Error ? error.message : String(error)}</AlertDescription>
-      </Alert>
-    )
-  }
+  if (error) return <SpeicherFehler titel="Bericht nicht ladbar" error={error} />
   if (!data) return null
 
   if (data.grund === 'kein_bericht' || data.bericht === null) {

@@ -17,7 +17,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { VorhabenKopf } from '@/components/library/agent-view/werkbank/vorhaben-kopf'
 import type { UseArtefaktKurationResult } from '@/hooks/agent-view/use-artefakt-kuration'
 import type { StandFehler, StandOverride, UseStandResult } from '@/hooks/agent-view/use-stand'
-import type { LeadingArtifactSummary, TwinFamilySummary, VorhabenCard } from '@/lib/agent-view/types'
+import type { CoverageGap, LeadingArtifactSummary, TwinFamilySummary, VorhabenCard } from '@/lib/agent-view/types'
 
 afterEach(() => cleanup())
 
@@ -93,9 +93,12 @@ function renderKopf(args: {
   stand?: UseStandResult
   familien?: TwinFamilySummary[] | undefined
   kuration?: UseArtefaktKurationResult
+  befunde?: CoverageGap[]
+  onWaehleArtefakt?: ReturnType<typeof vi.fn>
 } = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
+  const onWaehleArtefakt = args.onWaehleArtefakt ?? vi.fn()
+  const ergebnis = render(
     <QueryClientProvider client={queryClient}>
       <VorhabenKopf
         karte={args.k ?? karte()}
@@ -106,11 +109,13 @@ function renderKopf(args: {
         kuration={args.kuration ?? fakeKuration()}
         themenVokabular={[]}
         themenHook={fakeThemen()}
-        befunde={[]}
+        befunde={args.befunde ?? []}
+        onWaehleArtefakt={onWaehleArtefakt}
         auftragContext={{ libraryLabel: 'Testarchiv', localRootPath: null, generatedAt: 'G1' }}
       />
     </QueryClientProvider>,
   )
+  return Object.assign(ergebnis, { onWaehleArtefakt })
 }
 
 describe('VorhabenKopf — primaerer Knopf (Entscheidung 6)', () => {
@@ -190,7 +195,41 @@ describe('VorhabenKopf — Zeile 2: Widerstands-Chip (ADR 0006)', () => {
       familien: [familie('a', { transkript: artefakt({ twinStatus: 'flagged' }) })],
       k: { ...karte(), gapsByActor: { mensch: 1, cowork: 0, knowledgescout: 0 }, gapsByType: { twin_flagged: 1 } },
     })
-    expect(screen.getByText('1 Widerstand offen').getAttribute('title')).toContain('als fehlerhaft markiert')
+    expect(screen.getByRole('button', { name: /1 Widerstand offen/ }).getAttribute('title')).toContain(
+      'als fehlerhaft markiert',
+    )
+  })
+
+  it('der Chip klappt auf und nennt die maschinellen Befunde beim Namen (Befund 27.08.2026)', () => {
+    renderKopf({
+      k: { ...karte(), gapsByActor: { mensch: 0, cowork: 2, knowledgescout: 0 }, gapsByType: { report_missing: 2 } },
+      befunde: [
+        { type: 'report_missing', actor: 'cowork', severity: 'warning', path: '1. Arbeit/Pilot', message: 'Kein BERICHT.md', scope: 'folder', targetId: 'f-pilot', targetName: 'Pilot', folderId: 'f-pilot', zyklusSchritt: 3 } as unknown as CoverageGap,
+      ],
+    })
+    // Zugeklappt ist nichts davon sichtbar — erst der Klick loest die Zahl auf.
+    expect(screen.queryByText(/Kein BERICHT.md/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /2 Widerstaende offen/ }))
+    expect(screen.getByText(/Kein BERICHT.md/)).toBeTruthy()
+  })
+
+  it('markierte Artefakte stehen in der Liste und fuehren per Klick zum Artefakt', () => {
+    const markiert = familie('a', {
+      transkript: artefakt({ twinStatus: 'flagged', flaggedNote: 'Sprecher vertauscht' }),
+    })
+    const { onWaehleArtefakt } = renderKopf({
+      familien: [markiert],
+      k: { ...karte(), gapsByActor: { mensch: 1, cowork: 0, knowledgescout: 0 }, gapsByType: { twin_flagged: 1 } },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /1 Widerstand offen/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Sprecher vertauscht/ }))
+    expect(onWaehleArtefakt).toHaveBeenCalledWith('a')
+  })
+
+  it('ohne Widerstand sagt die Liste das ausdruecklich', () => {
+    renderKopf({ k: { ...karte(), gapsByActor: { mensch: 0, cowork: 0, knowledgescout: 0 }, gapsByType: {} } })
+    fireEvent.click(screen.getByRole('button', { name: /keine Widerstaende/ }))
+    expect(screen.getByText(/Nichts sperrt die Abnahme/)).toBeTruthy()
   })
 
   it('Report vor Welle 4: Chip benennt den Zustand statt 0/0 zu raten', () => {

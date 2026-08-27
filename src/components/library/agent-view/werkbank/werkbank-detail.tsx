@@ -169,6 +169,7 @@ export function WerkbankDetail({
         themenHook={themenHook}
         teilbaumScan={teilbaumScan}
         befunde={befunde}
+        onWaehleArtefakt={onWaehleArtefakt}
         auftragContext={{ libraryLabel, localRootPath, generatedAt }}
       />
       <WerkbankVorhabenDokument

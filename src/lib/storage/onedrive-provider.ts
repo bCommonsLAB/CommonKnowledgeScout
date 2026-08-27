@@ -21,7 +21,7 @@
  * - @/types/library: ClientLibrary type definition
  */
 
-import { StorageProvider, StorageItem, StorageValidationResult, StorageError, StorageItemMetadata } from './types';
+import { StorageProvider, StorageItem, StorageValidationResult, StorageError, StorageItemMetadata, SPEICHER_NICHT_VERBUNDEN } from './types';
 import { ClientLibrary } from '@/types/library';
 import { FileLogger } from '@/lib/debug/logger';
 import * as process from 'process';
@@ -737,7 +737,8 @@ export class OneDriveProvider implements StorageProvider {
     if (!this.accessToken) {
       console.error('[OneDriveProvider][ensureAccessToken] ❌ Kein Access-Token vorhanden - Authentifizierung erforderlich');
       throw new StorageError(
-        "Nicht authentifiziert",
+        `${SPEICHER_NICHT_VERBUNDEN}: Die Anmeldung bei OneDrive fehlt oder ist abgelaufen. ` +
+          'Bitte in den Einstellungen unter „Archiv" neu anmelden — deine Dateien bleiben unberuehrt.',
         "AUTH_REQUIRED",
         this.id
       );

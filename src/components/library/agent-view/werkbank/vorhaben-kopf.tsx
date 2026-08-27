@@ -16,7 +16,8 @@
  * @module components/library/agent-view
  */
 
-import { AlertTriangle } from 'lucide-react'
+import { useState } from 'react'
+import { AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { UseArtefaktKurationResult } from '@/hooks/agent-view/use-artefakt-kuration'
 import type { UseStandResult } from '@/hooks/agent-view/use-stand'
@@ -31,6 +32,7 @@ import { AbnahmeKopfRahmen, KopfBreadcrumb, KopfChip } from './abnahme-kopf'
 import type { TeilbaumScanProps } from './teilbaum-scan-knopf'
 import { ThemenEditor } from './themen-editor'
 import { VorhabenMenue } from './vorhaben-menue'
+import { WiderstandsListe } from './widerstands-liste'
 
 /** Warum der Knopf gesperrt ist — nur maschinelle Befunde sperren (Entscheidung 6). */
 function blockerText(karte: VorhabenCard): string {
@@ -56,7 +58,7 @@ function widerstandsTitel(karte: VorhabenCard, zaehler: PruefZaehler): string {
   return teile.join(' · ')
 }
 
-export function VorhabenKopf({ karte, stand, generatedAt, libraryId, familien, kuration, themenVokabular, themenHook, teilbaumScan, befunde, auftragContext }: {
+export function VorhabenKopf({ karte, stand, generatedAt, libraryId, familien, kuration, themenVokabular, themenHook, teilbaumScan, befunde, auftragContext, onWaehleArtefakt }: {
   karte: VorhabenCard
   stand: UseStandResult
   generatedAt: string
@@ -69,6 +71,8 @@ export function VorhabenKopf({ karte, stand, generatedAt, libraryId, familien, k
   themenHook: UseThemenResult
   teilbaumScan?: TeilbaumScanProps
   befunde: readonly CoverageGap[]
+  /** Sprung zum markierten Artefakt aus der Widerstands-Liste. */
+  onWaehleArtefakt: (sourceId: string) => void
   auftragContext: AuftragContext
 }) {
   const override = stand.overrides.get(karte.folderId)
@@ -76,6 +80,7 @@ export function VorhabenKopf({ karte, stand, generatedAt, libraryId, familien, k
   const aktuellSeit = override ? override.bearbeitungsstandSeit : karte.bearbeitungsstandSeit
   const fehler = stand.fehlerByFolder.get(karte.folderId)
   const pending = stand.pendingFolderId === karte.folderId
+  const [zeigeWiderstaende, setZeigeWiderstaende] = useState(false)
   const widerstaende = zaehleWiderstaende(karte.gapsByActor, karte.gapsByType)
   const bereit = widerstaende === 0
   const abgenommen = aktuellerStand === 'abgenommen'
@@ -141,22 +146,30 @@ export function VorhabenKopf({ karte, stand, generatedAt, libraryId, familien, k
                 Stand: neu scannen
               </KopfChip>
             ) : (
-              <KopfChip
-                ton={widerstaende > 0 ? 'open' : 'ok'}
-                title={widerstandsTitel(karte, zaehler)}
+              <button
+                type="button"
+                onClick={() => setZeigeWiderstaende((vorher) => !vorher)}
+                title={`${widerstandsTitel(karte, zaehler)} — anklicken zeigt, was genau`}
+                aria-expanded={zeigeWiderstaende}
               >
-                {widerstaende === 0
-                  ? 'keine Widerstaende'
-                  : widerstaende === 1
-                    ? '1 Widerstand offen'
-                    : `${widerstaende} Widerstaende offen`}
-              </KopfChip>
+                <KopfChip ton={widerstaende > 0 ? 'open' : 'ok'}>
+                  {zeigeWiderstaende ? <ChevronDown className="h-3 w-3" aria-hidden /> : <ChevronRight className="h-3 w-3" aria-hidden />}
+                  {widerstaende === 0
+                    ? 'keine Widerstaende'
+                    : widerstaende === 1
+                      ? '1 Widerstand offen'
+                      : `${widerstaende} Widerstaende offen`}
+                </KopfChip>
+              </button>
             )}
           </span>
         </>
       }
       kinder={
         <>
+          {zeigeWiderstaende && (
+            <WiderstandsListe befunde={befunde} familien={familien} onWaehleArtefakt={onWaehleArtefakt} />
+          )}
           {pending && <p className="text-xs text-muted-foreground">wird geprueft …</p>}
           {karte.widerspruch && (
             <p className="text-sm font-medium text-red-500">{standLabel(karte.bearbeitungsstand)}, aber nicht mehr aktuell</p>
