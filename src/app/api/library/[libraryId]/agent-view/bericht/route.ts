@@ -2,7 +2,7 @@
  * @fileoverview API-Route: BERICHT.md eines Vorhabens lesen (F9, Werkbank W2).
  *
  * @description
- * GET /api/library/[libraryId]/agent-view/bericht?folderId=…
+ * GET /api/library/[libraryId]/agent-view/bericht?folderId=…&datei=bericht|index
  * → `{ bericht: { fileId, name, modifiedAt, sizeBytes, body, kopf } | null,
  *      grund?: 'kein_bericht' | 'zu_gross' }`
  *
@@ -20,7 +20,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
-import { ladeBericht, OrdnerNichtGefundenError } from '@/lib/agent-view/bericht-laden'
+import { ladeBericht, OrdnerNichtGefundenError, type VorhabenDokumentArt } from '@/lib/agent-view/bericht-laden'
 import { FileLogger } from '@/lib/debug/logger'
 import { LibraryService } from '@/lib/services/library-service'
 import { getServerProvider } from '@/lib/storage/server-provider'
@@ -45,15 +45,27 @@ export async function GET(
       return NextResponse.json({ error: 'folderId ist erforderlich' }, { status: 400 })
     }
 
+    // A3: welches Dokument des Vorhabens — BERICHT.md (Default) oder die
+    // Ordner-Beschreibung `_INDEX.md`. Unbekannte Werte sind ein Fehler,
+    // kein stiller Fallback auf den Bericht.
+    const datei = request.nextUrl.searchParams.get('datei') ?? 'bericht'
+    if (datei !== 'bericht' && datei !== 'index') {
+      return NextResponse.json({ error: `Unbekanntes Dokument: ${datei} (erlaubt: bericht, index)` }, { status: 400 })
+    }
+
     // Zugriffspruefung: Library muss fuer diesen User sichtbar sein.
     const library = await LibraryService.getInstance().getLibrary(userEmail, libraryId)
     if (!library) return NextResponse.json({ error: 'Bibliothek nicht gefunden' }, { status: 404 })
 
     const provider = await getServerProvider(userEmail, libraryId)
-    const antwort = await ladeBericht(folderId, {
-      listFolder: (id) => provider.listItemsById(id),
-      readText: async (id) => (await provider.getBinary(id)).blob.text(),
-    })
+    const antwort = await ladeBericht(
+      folderId,
+      {
+        listFolder: (id) => provider.listItemsById(id),
+        readText: async (id) => (await provider.getBinary(id)).blob.text(),
+      },
+      datei as VorhabenDokumentArt,
+    )
 
     return NextResponse.json(antwort)
   } catch (error) {

@@ -58,8 +58,10 @@ export const AUFTRAG_TEMPLATES: Record<CoverageGapType, AuftragTemplate> = {
     `KnowledgeScout: A0-Pflichtfelder von ${pfad} ergaenzen${detail(gap)} — Library-Verifikation (Reparieren) bzw. Re-Transformation.`,
 
   // — Mensch-Aufgaben —
-  twin_unverified: (gap, pfad) =>
-    `Peter: fuehrendes Artefakt von ${pfad} pruefen und verifizieren (verified_by: human:…, verified_at)${detail(gap)}.`,
+  twin_flagged: (gap, pfad) =>
+    `Peter: Fehler-Markierung an ${pfad} aufloesen${detail(gap)} — reparieren (lassen) und danach verifizieren.`,
+  twin_unverified: (_gap, pfad) =>
+    `(Alter Scan) ${pfad} galt als ungeprueft — seit ADR 0006 keine Aufgabe mehr; der naechste Scan raeumt den Befund weg.`,
   self_verified: (gap, pfad) =>
     `Peter: Selbst-Verifikation an ${pfad} aufheben${detail(gap)} — ein anderer Akteur muss pruefen.`,
   stand_widerspruch: (gap, pfad) =>

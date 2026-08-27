@@ -1,13 +1,17 @@
 /**
- * @fileoverview Gruppierung der Werkbank-Liste (F12, Welle W5) — pur.
+ * @fileoverview Gruppierung der Werkbank-Liste (F12/W5, umgebaut in A6) — pur.
  *
  * @description
  * Zweite Denk-Ebene neben der Ordnerstruktur (§11): die Liste gruppiert nach
  * **Bereich** (erstes Pfadsegment, W3-Verhalten unveraendert) oder nach
- * **Thema** (`themen` aus der VorhabenCard, W1). Bei Thema erscheint ein
- * Vorhaben unter JEDEM seiner Themen; Vorhaben ohne Themen — auch Karten aus
- * Scans vor W1 (`themen === undefined`) — landen in der benannten Gruppe
- * „Ohne Thema", sichtbar statt still verschluckt (Akzeptanzkriterium 10).
+ * **Thema**. Seit A6 ist die einzige Quelle das VON HAND gepflegte Feld
+ * `themen:` im `_INDEX.md` (`card.gepflegteThemen`) — die BERICHT-`themen`
+ * (technische Bausteine) erzeugten fast nur Ein-Element-Gruppen und
+ * fuehrten in die Irre (Stand 24.08.: 138 von 148 „Ohne Thema"). Ein
+ * Vorhaben erscheint unter JEDEM seiner gepflegten Themen; ohne Themen —
+ * auch bei Karten aus Scans vor A6 (`gepflegteThemen === undefined`) —
+ * landet es in der benannten Gruppe „Ohne Thema", sichtbar statt still
+ * verschluckt (Akzeptanzkriterium 10 gilt unveraendert).
  * Themen-Gruppen sind alphabetisch sortiert, „Ohne Thema" steht zuletzt;
  * Bereichs-Gruppen folgen dem Erst-Auftreten in der (bereits sortierten)
  * Kartenliste. Gruppenkoepfe sind gewoehnliche Zeilen (§6.3).
@@ -22,7 +26,7 @@ import { bereichVon } from './werkbank-filter'
 
 export type WerkbankGruppierung = 'bereich' | 'thema'
 
-/** Benannte Gruppe fuer Vorhaben ohne `themen` — nie unsichtbar (F12). */
+/** Benannte Gruppe fuer Vorhaben ohne gepflegtes `thema:` — nie unsichtbar. */
 export const OHNE_THEMA_GRUPPE = 'Ohne Thema'
 
 export interface WerkbankZeileKopf {
@@ -40,11 +44,11 @@ export interface WerkbankZeileKarte {
 
 export type WerkbankZeile = WerkbankZeileKopf | WerkbankZeileKarte
 
-/** Gruppen einer Karte — bei `thema` eine je Thema, sonst genau der Bereich. */
+/** Gruppen einer Karte — der Bereich, oder je gepflegtem Thema eine (A6). */
 export function gruppenVon(card: VorhabenCard, gruppierung: WerkbankGruppierung): string[] {
   if (gruppierung === 'bereich') return [bereichVon(card)]
-  if (card.themen === undefined || card.themen.length === 0) return [OHNE_THEMA_GRUPPE]
-  return card.themen
+  if (card.gepflegteThemen === undefined || card.gepflegteThemen.length === 0) return [OHNE_THEMA_GRUPPE]
+  return card.gepflegteThemen
 }
 
 /**
@@ -88,4 +92,77 @@ export function baueWerkbankZeilen(
     }
   }
   return zeilen
+}
+
+/**
+ * Ab wie vielen Karten die Gruppen ZUGEKLAPPT starten. Unterhalb bleibt alles
+ * offen — eine kurze Liste ist keine Wand, und ein Suchtreffer, der sich hinter
+ * einem Gruppenkopf versteckt, waere schlechter als zu viel Text.
+ */
+export const AUTO_ZU_AB_KARTEN = 20
+
+/**
+ * Welche Gruppen sind eingeklappt? Lange Listen starten zu — der Mensch klappt
+ * auf, was ihn interessiert (Befund Testsession 25.08.2026: 148 Vorhaben in
+ * offenen Gruppen sind unlesbar). Drei Regeln, in dieser Reihenfolge:
+ *
+ * 1. Ein Handgriff des Menschen (`manuell`) gilt immer — die Automatik
+ *    ueberstimmt nie eine bewusste Entscheidung.
+ * 2. Die Gruppe der aktuellen Auswahl bleibt offen, sonst zeigt die Liste ihre
+ *    eigene Auswahl nicht (Deep-Link `?vorhaben=…`).
+ * 3. Sonst: zu ab {@link AUTO_ZU_AB_KARTEN} Karten, darunter offen.
+ */
+export function berechneEingeklappt(
+  karten: readonly VorhabenCard[],
+  gruppierung: WerkbankGruppierung,
+  args: { manuell: ReadonlyMap<string, boolean>; auswahlId: string | null },
+): Set<string> {
+  const autoZu = karten.length > AUTO_ZU_AB_KARTEN
+
+  const auswahlGruppen = new Set<string>()
+  if (args.auswahlId !== null) {
+    const gewaehlt = karten.find((karte) => karte.folderId === args.auswahlId)
+    if (gewaehlt) for (const gruppe of gruppenVon(gewaehlt, gruppierung)) auswahlGruppen.add(gruppe)
+  }
+
+  const eingeklappt = new Set<string>()
+  for (const karte of karten) {
+    for (const gruppe of gruppenVon(karte, gruppierung)) {
+      const handgriff = args.manuell.get(gruppe)
+      if (handgriff !== undefined) {
+        if (handgriff) eingeklappt.add(gruppe)
+        continue
+      }
+      if (auswahlGruppen.has(gruppe)) continue
+      if (autoZu) eingeklappt.add(gruppe)
+    }
+  }
+  return eingeklappt
+}
+
+/**
+ * Themen-Vokabular der Library (A6): alle gepflegten Themen der Karten,
+ * dedupliziert und alphabetisch — der Vorrat des Normalisierungs-Dropdowns.
+ */
+export function alleGepflegtenThemen(karten: readonly VorhabenCard[]): string[] {
+  const themen = new Set<string>()
+  for (const karte of karten) {
+    for (const thema of karte.gepflegteThemen ?? []) themen.add(thema)
+  }
+  return [...themen].sort((a, b) => a.localeCompare(b))
+}
+
+/**
+ * Ueberlagert frisch geschriebene Themen (Route-Erfolg) auf die Karten des
+ * gespeicherten Reports — bis zum naechsten Scan, Muster Stand-Overrides.
+ */
+export function ueberlagereThemen(
+  karten: readonly VorhabenCard[],
+  overrides: ReadonlyMap<string, string[]>,
+): VorhabenCard[] {
+  if (overrides.size === 0) return [...karten]
+  return karten.map((karte) => {
+    const frisch = overrides.get(karte.folderId)
+    return frisch === undefined ? karte : { ...karte, gepflegteThemen: frisch }
+  })
 }

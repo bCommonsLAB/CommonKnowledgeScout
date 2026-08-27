@@ -47,10 +47,15 @@ export async function POST(req: NextRequest) {
     if (!resp.ok) {
       const txt = await resp.text()
       let errorDetails = txt.slice(0, 500)
-      
+      // Fehlercode von Microsoft (OAuth-Standard). `invalid_grant` heisst: das
+      // Refresh-Token selbst ist tot — NUR dann darf der Aufrufer die
+      // gespeicherte Anmeldung wegwerfen (Befund 27.08.2026).
+      let code: string | null = null
+
       // Prüfe auf häufigen Fehler: Invalid client secret
       try {
         const errorJson = JSON.parse(txt)
+        code = typeof errorJson.error === 'string' ? errorJson.error : null
         if (errorJson.error === 'invalid_client' || errorJson.error_description?.includes('AADSTS7000215')) {
           errorDetails = `Ungültiges Client Secret. Bitte verwenden Sie den Client Secret VALUE (nicht die ID). 
           
@@ -71,7 +76,7 @@ Original-Fehler: ${errorJson.error_description || txt.slice(0, 200)}`
         clientSecretPreview: clientSecret ? `${clientSecret.substring(0, 4)}...${clientSecret.substring(clientSecret.length - 4)}` : 'N/A'
       })
       
-      return NextResponse.json({ error: 'Token-Refresh fehlgeschlagen', details: errorDetails }, { status: 502 })
+      return NextResponse.json({ error: 'Token-Refresh fehlgeschlagen', details: errorDetails, code }, { status: 502 })
     }
     const data = await resp.json()
     return NextResponse.json({

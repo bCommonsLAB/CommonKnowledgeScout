@@ -4,6 +4,10 @@
  * @fileoverview Befunde des Teilbaums im Werkbank-Detail (F9, Welle W4).
  *
  * @description
+ * Alt-Befunde abgeschaffter Regeln (ADR 0006) sind hier NICHT gelistet: Sie
+ * fluteten die Liste mit 28 gleichlautenden Zeilen, die niemand mehr abarbeiten
+ * soll (Befund 27.08.2026). Ihre Zahl wird benannt, nicht verschwiegen.
+ *
  * Drei einklappbare Akteur-Gruppen mit Zaehlern, darin nach Zyklus-Schritt —
  * gruppiert ueber das BESTEHENDE Todo-Routing (`buildTodoLists`, F2, keine
  * zweite Gruppierungslogik). Die Cowork-Gruppe traegt „Auftrag kopieren
@@ -22,7 +26,16 @@ import { useToast } from '@/components/ui/use-toast'
 import { buildAuftrag, type AuftragContext } from '@/lib/agent-view/auftrag-generator'
 import { actorLabel, gapLabel, zyklusSchrittLabel } from '@/lib/agent-view/labels'
 import { buildTodoLists, TODO_ACTORS } from '@/lib/agent-view/todo-lists'
+import { istAltBefund } from '@/lib/agent-view/zyklus-fortschritt'
 import type { CoverageGap, GapActor } from '@/lib/agent-view/types'
+
+/** Ein Satz statt einer Liste — der Alt-Bestand ist keine Aufgabe mehr. */
+function altBestandText(anzahl: number): string {
+  return (
+    `${anzahl} Befund(e) aus einer abgeschafften Regel („noch nicht geprueft", ADR 0006) sind ` +
+    'ausgeblendet — sie sind keine Aufgabe mehr und verschwinden beim naechsten Scan.'
+  )
+}
 
 export function WerkbankBefunde({
   befunde,
@@ -37,7 +50,9 @@ export function WerkbankBefunde({
 }) {
   const { toast } = useToast()
   const [zu, setZu] = useState<ReadonlySet<GapActor>>(new Set())
-  const lists = buildTodoLists(befunde)
+  const aktuelle = befunde.filter((gap) => !istAltBefund(gap.type))
+  const altBestand = befunde.length - aktuelle.length
+  const lists = buildTodoLists(aktuelle)
 
   const toggle = (actor: GapActor) => {
     setZu((prev) => {
@@ -62,12 +77,18 @@ export function WerkbankBefunde({
     }
   }
 
-  if (befunde.length === 0) {
-    return <p className="text-sm text-muted-foreground">Keine Befunde im Teilbaum dieses Vorhabens.</p>
+  if (aktuelle.length === 0) {
+    return (
+      <div className="space-y-1 text-sm text-muted-foreground">
+        <p>Keine offenen Befunde im Teilbaum dieses Vorhabens.</p>
+        {altBestand > 0 && <p className="text-xs">{altBestandText(altBestand)}</p>}
+      </div>
+    )
   }
 
   return (
     <div className="space-y-2">
+      {altBestand > 0 && <p className="text-xs text-muted-foreground">{altBestandText(altBestand)}</p>}
       {totalGaps > befunde.length && (
         <p className="text-xs text-muted-foreground">
           {totalGaps - befunde.length} weitere Befunde sind gezaehlt, aber nicht gelistet (Gap-Budget des

@@ -55,11 +55,16 @@ describe('buildTree — akteur-basierte Ampel', () => {
     expect(baue([gapAt('f-A', 'report_missing')]).get('f-A')?.ampel).toBe('rot') // cowork
   })
 
-  it('gelb, wenn NUR Mensch-Befunde offen sind — deckungsgleich mit „bereit zur Abnahme"', () => {
-    const flach = baue([gapAt('f-A', 'twin_unverified')]) // mensch/warning
+  it('gelb, wenn nur nicht-sperrende Mensch-Befunde offen sind', () => {
+    const flach = baue([gapAt('f-A', 'stand_widerspruch')]) // mensch, kein Widerstand
     expect(flach.get('f-A')?.ampel).toBe('gelb')
     // Mensch + Maschine gemischt → die Maschine gewinnt: rot.
-    expect(baue([gapAt('f-A', 'twin_unverified'), gapAt('f-A', 'report_missing')]).get('f-A')?.ampel).toBe('rot')
+    expect(baue([gapAt('f-A', 'stand_widerspruch'), gapAt('f-A', 'report_missing')]).get('f-A')?.ampel).toBe('rot')
+  })
+
+  it('rot, sobald der Mensch etwas als fehlerhaft markiert hat (ADR 0006)', () => {
+    // Der einzige Mensch-Befund, der sperrt — er faerbt wie ein Maschinen-Befund.
+    expect(baue([gapAt('f-A', 'twin_flagged')]).get('f-A')?.ampel).toBe('rot')
   })
 
   it('gruen nur ohne Befund im Teilbaum (Akzeptanzkriterium 7 unveraendert)', () => {
@@ -77,7 +82,7 @@ describe('buildTree — akteur-basierte Ampel', () => {
   })
 
   it('Mensch-Befund im Kind macht die Eltern gelb, solange keine Maschine offen ist', () => {
-    const flach = baue([gapAt('f-A/Tief', 'twin_unverified')])
+    const flach = baue([gapAt('f-A/Tief', 'stand_widerspruch')])
     expect(flach.get('f-A')?.ampel).toBe('gelb')
     expect(flach.get('f-root')?.ampel).toBe('gelb')
   })

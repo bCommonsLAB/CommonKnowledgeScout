@@ -13,7 +13,7 @@
  * @module mcp
  */
 
-import type { CoverageGap, CoverageTreeNode, TwinFamilySummary } from '@/lib/agent-view/types'
+import type { CoverageGap, CoverageTreeNode, TwinFamilySummary, VorhabenCard } from '@/lib/agent-view/types'
 import { isInSubtree } from './coverage-view'
 
 /**
@@ -42,6 +42,25 @@ export function collectFolders(nodes: readonly CoverageTreeNode[], prefix: strin
   }
   for (const node of nodes) walk(node)
   return result.sort((a, b) => b.befundeImTeilbaum - a.befundeImTeilbaum)
+}
+
+/**
+ * Gepflegte Themen je Vorhaben (A6, `_INDEX.md` → `themen:`) — ohne diese
+ * Sicht muesste der Agent raten, welche Vorhaben noch kein Thema tragen.
+ * `themen: null` heisst: Report aus einem Scan vor A6 (benannt, nicht
+ * geraten); `[]` heisst: bewusst ohne Thema.
+ */
+export function collectVorhabenThemen(
+  vorhaben: readonly VorhabenCard[],
+  prefix: string,
+): Array<{ path: string; folderId: string; themen: string[] | null }> {
+  return vorhaben
+    .filter((karte) => prefix === '' || isInSubtree(karte.path, prefix))
+    .map((karte) => ({
+      path: karte.path,
+      folderId: karte.folderId,
+      themen: karte.gepflegteThemen ?? null,
+    }))
 }
 
 export function compactGap(gap: CoverageGap) {

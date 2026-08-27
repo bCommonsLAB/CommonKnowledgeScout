@@ -51,7 +51,10 @@ export const GAP_REGISTRY: Record<CoverageGapType, GapDefinition> = {
 
   // — Twin-Kern / Verifikation (Contract §3) —
   twin_core_missing: { actor: 'knowledgescout', zyklusSchritt: 2, severity: 'warning', origin: 'twin-contract', label: 'Angaben in der Auswertung fehlen' },
-  twin_unverified: { actor: 'mensch', zyklusSchritt: 4, severity: 'warning', origin: 'twin-contract', label: 'Von dir noch nicht geprueft' },
+  twin_flagged: { actor: 'mensch', zyklusSchritt: 4, severity: 'error', origin: 'twin-contract', label: 'Von dir als fehlerhaft markiert' },
+  // Alt-Bestand (ADR 0006): nicht mehr erzeugt, aber in gespeicherten
+  // Reports vorhanden — ohne Eintrag wuerde der Chip-Filter darauf werfen.
+  twin_unverified: { actor: 'mensch', zyklusSchritt: 4, severity: 'info', origin: 'twin-contract', label: 'Von dir noch nicht geprueft (alter Scan)' },
   self_verified: { actor: 'mensch', zyklusSchritt: 4, severity: 'error', origin: 'twin-contract', label: 'Von der Maschine selbst geprueft' },
   transformation_missing: { actor: 'knowledgescout', zyklusSchritt: 1, severity: 'error', origin: 'twin-contract', label: 'Zusammenfassung fehlt' },
   transformation_stale: { actor: 'knowledgescout', zyklusSchritt: 1, severity: 'info', origin: 'twin-contract', label: 'Zusammenfassung veraltet' },

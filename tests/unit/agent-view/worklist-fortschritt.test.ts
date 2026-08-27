@@ -57,11 +57,14 @@ describe('zaehleWorklistFortschritt', () => {
       karte('f-bereit', { gapsByActor: { mensch: 2, cowork: 0, knowledgescout: 0 } }),
       karte('f-offen', { gapsByActor: { mensch: 1, cowork: 3, knowledgescout: 0 } }),
     ])
+    // ADR 0006: „bereit" heisst „kein Widerstand offen". Das abgenommene
+    // Vorhaben MIT Widerspruch faellt damit in bereit (es wartet erneut auf
+    // die Beurkundung), nicht mehr in offen.
     expect(fortschritt).toEqual({
       gesamt: 4,
       fertig: 1,
-      bereit: 1,
-      offen: 2,
+      bereit: 2,
+      offen: 1,
       offeneBefunde: { mensch: 3, cowork: 3, knowledgescout: 0 },
     })
   })

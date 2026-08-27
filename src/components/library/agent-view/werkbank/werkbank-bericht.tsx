@@ -4,8 +4,9 @@
  * @fileoverview Bericht-Abschnitt des Werkbank-Details (F9, Welle W4).
  *
  * @description
- * Laedt den BERICHT.md lazy ueber die W2-Lese-Route (`use-bericht`, TanStack
- * Query) und rendert ihn mit der BESTEHENDEN `MarkdownPreview` (compact) —
+ * Laedt den BERICHT.md — oder die Ordner-Beschreibung `_INDEX.md` (A3) —
+ * lazy ueber die W2-Lese-Route (`use-bericht`, TanStack Query) und rendert
+ * mit der BESTEHENDEN `MarkdownPreview` (compact) —
  * bewusst KEIN eigener Markdown-Renderer (Peters Vorgabe + §F9). Jeder
  * Zustand ist benannt: `kein_bericht` ist ein Cowork-Befund (Bericht
  * beauftragen), `zu_gross` verweist ins Archiv statt abgeschnittener
@@ -19,6 +20,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { MarkdownPreview } from '@/components/library/markdown-preview'
 import { useBericht } from '@/hooks/agent-view/use-bericht'
+import type { VorhabenDokumentArt } from '@/lib/agent-view/bericht-laden'
+import { SpeicherFehler } from './speicher-fehler'
 
 function archivHref(libraryId: string, folderId: string, openFileId?: string): string {
   const openTeil = openFileId === undefined ? '' : `&openFileId=${encodeURIComponent(openFileId)}`
@@ -29,13 +32,16 @@ export function WerkbankBericht({
   libraryId,
   folderId,
   veraltet,
+  datei = 'bericht',
 }: {
   libraryId: string
   folderId: string
   /** `bericht_veraltet`-Befund am Vorhabensordner (aus dem Report). */
   veraltet: boolean
+  /** A3: BERICHT.md (Default) oder `_INDEX.md` (Ordner-Beschreibung). */
+  datei?: VorhabenDokumentArt
 }) {
-  const { data, isLoading, error } = useBericht(libraryId, folderId)
+  const { data, isLoading, error } = useBericht(libraryId, folderId, datei)
 
   if (isLoading) {
     return (
@@ -45,23 +51,27 @@ export function WerkbankBericht({
     )
   }
 
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertTitle>Bericht nicht ladbar</AlertTitle>
-        <AlertDescription>{error instanceof Error ? error.message : String(error)}</AlertDescription>
-      </Alert>
-    )
-  }
+  if (error) return <SpeicherFehler titel="Bericht nicht ladbar" error={error} />
   if (!data) return null
 
   if (data.grund === 'kein_bericht' || data.bericht === null) {
+    if (datei === 'index') {
+      return (
+        <Alert>
+          <AlertTitle>Kein _INDEX.md</AlertTitle>
+          <AlertDescription>
+            Dieser Ordner traegt keine Ordner-Beschreibung — sie ist die Selbstdeklaration des Vorhabens
+            (Bearbeitungsstand, Beschreibung) und Teil der Archiv-Konventionen.
+          </AlertDescription>
+        </Alert>
+      )
+    }
     return (
       <Alert>
         <AlertTitle>Kein BERICHT.md</AlertTitle>
         <AlertDescription>
-          Dieses Vorhaben hat noch keinen Bericht — Cowork-Arbeit: unten in der Cowork-Gruppe den Auftrag
-          fuer dieses Vorhaben kopieren und den Bericht schreiben lassen.
+          Dieses Vorhaben hat noch keinen Bericht — Cowork-Arbeit: den Auftrag fuer dieses Vorhaben
+          (Menue &bdquo;Befunde &amp; Auftrag&ldquo;) kopieren und den Bericht schreiben lassen.
         </AlertDescription>
       </Alert>
     )
@@ -110,7 +120,7 @@ export function WerkbankBericht({
             Scroll-Container und braucht eine Hoehengrenze vom Aufrufer
             (Muster artifact-markdown-panel) — ohne sie war der Bericht nicht
             scrollbar und verdeckte die Abschnitte darunter (Test-Befund 24.08.). */}
-        <MarkdownPreview content={data.bericht.body} compact className="max-h-[60vh]" />
+        <MarkdownPreview content={data.bericht.body} compact schriftstufe="sehr-klein" className="max-h-[60vh]" />
       </div>
     </div>
   )

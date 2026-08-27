@@ -7,8 +7,10 @@
  * `@/lib/shadow-twin/twin-core-fields` (Contract §2b/§3). Diese Datei
  * uebersetzt deren Ergebnisse nur in Befunde.
  *
- * Ampel und Verifikation haengen am FUEHRENDEN Artefakt — ein unverifiziertes
- * Transkript neben geprueffter Transformation ist Normalzustand, kein Befund.
+ * ADR 0006 (Modell B): Fehlende menschliche Pruefung ist KEIN Befund mehr —
+ * Maschinenarbeit gilt als angenommen. Befund ist nur, was jemand als falsch
+ * benennt: die Fehler-Markierung eines Menschen (`twin_flagged`) und die
+ * Selbst-Verifikation der Maschine (`self_verified`).
  *
  * Reine Funktionen, kein I/O.
  *
@@ -18,7 +20,6 @@
 import type { ArtifactKind } from '@/lib/shadow-twin/artifact-types'
 import {
   actorLevel,
-  isVerificationValid,
   missingTwinCoreFields,
   selectLeadingArtifact,
 } from '@/lib/shadow-twin/twin-core-fields'
@@ -45,6 +46,55 @@ export interface TwinFamilyView {
   /** Library-relativer Pfad der Quelle ('' wenn der Scan sie nicht fand). */
   path: string
   artifacts: TwinArtifactView[]
+}
+
+/**
+ * Zeitfenster, in dem eine Datei-Aenderung noch dem Kurations-Stempel
+ * zugerechnet wird. Der Stempel und der Write passieren in derselben
+ * Sekunde; zwei Minuten sind grosszuegig und lassen Uhr-Drift zu.
+ */
+const KURATIONS_FENSTER_MS = 2 * 60 * 1000
+
+function textOderNull(wert: unknown): string | null {
+  return typeof wert === 'string' && wert.trim() !== '' ? wert : null
+}
+
+/**
+ * Zeitpunkt, zu dem der INHALT eines Artefakts entstand — nicht der letzte
+ * Schreibvorgang.
+ *
+ * Befund 27.08.2026 („die Tretmuehle"): Verifizieren schreibt das Artefakt
+ * (`verified_by`/`verified_at`), also wandert sein `updatedAt` nach vorn.
+ * Regeln, die Zeitstempel vergleichen, lasen darin eine INHALTS-Aenderung:
+ * jeder Pruef-Klick machte den Bericht veraltet (`bericht_veraltet`, daraus
+ * `stand_widerspruch`) und liess die Zusammenfassung ueberholt aussehen
+ * (`transformation_stale`) — was zu einer Re-Transformation fuehrte, die
+ * genau die eben gesetzte Verifikation wieder ungueltig machte. Eine
+ * Schleife, die sich durch Arbeiten nicht schliessen laesst.
+ *
+ * Dieselbe Unterscheidung galt schon fuer Dateien: BERICHT.md/_INDEX.md sind
+ * META ueber den Inhalt und altern den Bericht nicht (`coverage-inputs.ts`).
+ * Ein Kurations-Stempel ist genauso Meta.
+ *
+ * Faellt die letzte Aenderung mit einem Kurations-Stempel zusammen, zaehlt
+ * darum `generated_at`. Handkorrekturen am Twin (Cowork korrigiert Transkripte
+ * im `_`-Ordner, Zyklus Schritt 3) bleiben Inhalts-Aenderungen — sie tragen
+ * keinen Stempel.
+ */
+export function inhaltsZeitpunkt(artifact: TwinArtifactView): string {
+  // Altbestand aus Mongo kann ohne Frontmatter kommen; dann bleibt nur der
+  // Write-Zeitpunkt — das fehlende Feld meldet `twin_core_missing`.
+  const fm: Record<string, unknown> = artifact.frontmatter ?? {}
+  const stempel = textOderNull(fm['verified_at']) ?? textOderNull(fm['flagged_at'])
+  if (stempel === null) return artifact.updatedAt
+
+  const abstand = Math.abs(Date.parse(artifact.updatedAt) - Date.parse(stempel))
+  if (Number.isNaN(abstand) || abstand > KURATIONS_FENSTER_MS) return artifact.updatedAt
+
+  // Der letzte Write war die Kuration — der Inhalt ist so alt wie seine
+  // Erzeugung. Fehlt `generated_at`, bleibt es beim Write-Zeitpunkt; das
+  // fehlende Feld meldet `twin_core_missing` als eigener Befund.
+  return textOderNull(fm['generated_at']) ?? artifact.updatedAt
 }
 
 function familyGapBase(family: TwinFamilyView) {
@@ -80,7 +130,14 @@ export function checkTwinCoreMissing(family: TwinFamilyView): CoverageGap | null
   })
 }
 
-/** `twin_unverified` + `self_verified` am fuehrenden Artefakt. */
+/**
+ * `self_verified` am fuehrenden Artefakt (Contract §3.2): Erzeuger und Pruefer
+ * sind dieselbe Maschine. Das bleibt ein Befund — es behauptet eine Pruefung,
+ * die niemand vorgenommen hat.
+ *
+ * Kein `twin_unverified` mehr (ADR 0006): Eine fehlende menschliche Pruefung
+ * ist der Normalzustand, keine Schuld.
+ */
 export function checkLeadingVerification(
   family: TwinFamilyView,
   standardTemplate: string | null,
@@ -92,39 +149,51 @@ export function checkLeadingVerification(
   if (generatedBy === null) return []
 
   const verifiedBy = actorLevel(fm['verified_by'])
-  const gaps: CoverageGap[] = []
+  if (verifiedBy === null || verifiedBy !== generatedBy) return []
 
-  if (verifiedBy !== null && verifiedBy === generatedBy) {
-    gaps.push(
-      createGap({
-        ...familyGapBase(family),
-        type: 'self_verified',
-        message: 'Erzeugt und geprueft von derselben Maschine — eine menschliche Pruefung fehlt',
-        detail: `Die Zusammenfassung (${describeArtifact(leading)}) wurde von ${generatedBy} erzeugt UND von ${generatedBy} bestaetigt.`,
-      }),
-    )
-    return gaps
-  }
+  return [
+    createGap({
+      ...familyGapBase(family),
+      type: 'self_verified',
+      message: 'Erzeugt und geprueft von derselben Maschine — eine menschliche Pruefung fehlt',
+      detail: `Die Zusammenfassung (${describeArtifact(leading)}) wurde von ${generatedBy} erzeugt UND von ${generatedBy} bestaetigt.`,
+    }),
+  ]
+}
 
-  const valid =
-    verifiedBy !== null &&
-    isVerificationValid({ generatedAt: fm['generated_at'], verifiedAt: fm['verified_at'] })
-  if (!valid) {
-    gaps.push(
-      createGap({
-        ...familyGapBase(family),
-        type: 'twin_unverified',
-        message: 'Die Zusammenfassung wartet auf deinen Blick: gibt sie das Original richtig wieder?',
-        // Der Beleg nennt AUCH, welches Artefakt gemeint ist — der Pfad des
-        // Befunds zeigt auf die Quelle, geprueft wird die Auswertung daneben.
-        detail:
-          verifiedBy === null
-            ? `Die Zusammenfassung (${describeArtifact(leading)}) traegt noch keine Pruefung.`
-            : `Die Zusammenfassung (${describeArtifact(leading)}) wurde am ${String(fm['generated_at'] ?? '—').slice(0, 10)} neu erzeugt — deine Pruefung vom ${String(fm['verified_at'] ?? '—').slice(0, 10)} galt der aelteren Fassung.`,
-      }),
-    )
-  }
-  return gaps
+/** Beschreibt EINE Fehler-Markierung fuer den Beleg des Befunds. */
+function beschreibeMarkierung(artifact: TwinArtifactView): string {
+  const fm = artifact.frontmatter
+  const notiz = typeof fm['flagged_note'] === 'string' ? fm['flagged_note'].trim() : ''
+  const wer = typeof fm['flagged_by'] === 'string' ? fm['flagged_by'] : '—'
+  const wann = typeof fm['flagged_at'] === 'string' ? fm['flagged_at'].slice(0, 10) : '—'
+  // Fehlende Notiz wird BENANNT, nicht ergaenzt: Altbestand kann sie nicht
+  // haben, der Schreibweg erzwingt sie (no-silent-fallbacks).
+  return `${describeArtifact(artifact)}: ${notiz === '' ? '(ohne Notiz)' : notiz} — ${wer}, ${wann}`
+}
+
+/**
+ * `twin_flagged` (ADR 0006): Ein Mensch hat ein Artefakt der Familie als
+ * fehlerhaft markiert (`twin_status: flagged`). Das ist der einzige
+ * menschliche Widerstand, den die Sicht kennt — er sperrt die Abnahme, bis
+ * er aufgeloest ist (Reparatur + Verifizieren).
+ *
+ * Anders als die Verifikations-Regeln zaehlt hier JEDES Artefakt der Familie,
+ * nicht nur das fuehrende: Wer ein Transkript als falsch markiert, meint das
+ * Transkript.
+ */
+export function checkFlagged(family: TwinFamilyView): CoverageGap | null {
+  const markiert = family.artifacts.filter((artifact) => artifact.frontmatter['twin_status'] === 'flagged')
+  if (markiert.length === 0) return null
+  return createGap({
+    ...familyGapBase(family),
+    type: 'twin_flagged',
+    message:
+      markiert.length === 1
+        ? 'Von dir als fehlerhaft markiert — die Abnahme bleibt gesperrt, bis das geklaert ist'
+        : `${markiert.length} Artefakte von dir als fehlerhaft markiert — die Abnahme bleibt gesperrt`,
+    detail: markiert.map(beschreibeMarkierung).sort((a, b) => a.localeCompare(b)).join(' | '),
+  })
 }
 
 /** `transformation_missing`/`transformation_stale` (Contract §2b). */
@@ -150,15 +219,20 @@ export function checkTransformationState(
     ]
   }
 
-  const transcriptTime = Date.parse(transcript.updatedAt)
-  const standardTime = Date.parse(standard.updatedAt)
+  // Verglichen wird der INHALTS-Zeitpunkt, nicht der letzte Write: Sonst macht
+  // eine Verifikation des Transkripts die Zusammenfassung „ueberholt" und
+  // loest eine Re-Transformation aus, die die Verifikation wieder entwertet.
+  const transkriptInhalt = inhaltsZeitpunkt(transcript)
+  const standardInhalt = inhaltsZeitpunkt(standard)
+  const transcriptTime = Date.parse(transkriptInhalt)
+  const standardTime = Date.parse(standardInhalt)
   if (Number.isNaN(transcriptTime) || Number.isNaN(standardTime) || transcriptTime <= standardTime) return []
   return [
     createGap({
       ...familyGapBase(family),
       type: 'transformation_stale',
       message: 'Das Transkript wurde nach der Zusammenfassung geaendert — sie gibt es nicht mehr wieder',
-      detail: `Transkript ${transcript.updatedAt}, Transformation ${standard.updatedAt}`,
+      detail: `Transkript ${transkriptInhalt}, Transformation ${standardInhalt}`,
     }),
   ]
 }
@@ -166,8 +240,10 @@ export function checkTransformationState(
 /** Alle Twin-Regeln fuer EINE Familie. */
 export function evaluateTwinRules(family: TwinFamilyView, standardTemplate: string | null): CoverageGap[] {
   const core = checkTwinCoreMissing(family)
+  const markiert = checkFlagged(family)
   return [
     ...(core ? [core] : []),
+    ...(markiert ? [markiert] : []),
     ...checkLeadingVerification(family, standardTemplate),
     ...checkTransformationState(family, standardTemplate),
   ]

@@ -36,6 +36,7 @@ import {
   buildCurationPatches,
   hasMirrorDrift,
   type CurationArtifactRef,
+  type FehlerMarkierung,
 } from './curation-plan'
 import { getShadowTwinConfig } from './shadow-twin-config'
 import { ShadowTwinService } from './store/shadow-twin-service'
@@ -57,6 +58,10 @@ export interface CurationPatchArgs {
   set?: Record<string, unknown> | null
   /** Verify-Aktion: `verified_by: human:<userEmail>` + `verified_at`. */
   verify: boolean
+  /** Markier-Aktion (ADR 0006): `twin_status: flagged` + Urheber/Zeit/Notiz. */
+  markiere?: FehlerMarkierung | null
+  /** Verifikation zuruecknehmen (Uebergangs-Skript, ADR 0006). */
+  entferneVerifikation?: boolean
   /** Zeitquelle (Tests injizieren eine feste Uhr). */
   now?: () => string
 }
@@ -70,6 +75,10 @@ export interface CurationPatchResult {
     generatedAt: string | null
     verifiedBy: string | null
     verifiedAt: string | null
+    /** Fehler-Markierung nach dem Patch (ADR 0006); null = keine. */
+    flaggedBy: string | null
+    flaggedAt: string | null
+    flaggedNote: string | null
     /** Temporale Regel §3.2: `verified_at >= generated_at`. */
     verificationValid: boolean
   }
@@ -102,7 +111,12 @@ async function checkMirrorAndResolveTarget(args: {
   doc: ShadowTwinDocument
   artifact: CurationArtifactRef
   mongoMarkdown: string
-}): Promise<{ mirror: CurationMirrorTarget; shadowTwinFolderId?: string }> {
+}): Promise<{
+  mirror: CurationMirrorTarget
+  shadowTwinFolderId?: string
+  /** Aufgeloeste Spiegel-Datei fuer den Write (Testsession §2.2 — keine zweite Suche); null = Neuanlage. */
+  mirrorFile?: { fileId: string; fileName: string } | null
+}> {
   const { provider, doc, artifact } = args
   const resolved = await resolveArtifact(provider, {
     sourceItemId: doc.sourceId,
@@ -120,7 +134,11 @@ async function checkMirrorAndResolveTarget(args: {
       throw new MirrorDriftError(resolved.fileName)
     }
     if (resolved.location === 'dotFolder' && resolved.shadowTwinFolderId) {
-      return { mirror: 'twin_folder', shadowTwinFolderId: resolved.shadowTwinFolderId }
+      return {
+        mirror: 'twin_folder',
+        shadowTwinFolderId: resolved.shadowTwinFolderId,
+        mirrorFile: { fileId: resolved.fileId, fileName: resolved.fileName },
+      }
     }
     // Alt-Form neben der Quelle: driftfrei, aber nie fortschreiben (Contract §2) —
     // die Namens-Migration der Engine ueberfuehrt sie in den `_`-Ordner.
@@ -128,7 +146,8 @@ async function checkMirrorAndResolveTarget(args: {
   }
 
   const folder = await findShadowTwinFolder(doc.parentId, doc.sourceName, provider)
-  if (folder) return { mirror: 'twin_folder', shadowTwinFolderId: folder.id }
+  // mirrorFile: null = ausdruecklich aufgeloest, KEINE vorhanden (Neuanlage ohne zweite Suche).
+  if (folder) return { mirror: 'twin_folder', shadowTwinFolderId: folder.id, mirrorFile: null }
   return { mirror: 'skipped_no_folder' }
 }
 
@@ -150,6 +169,9 @@ export async function applyCurationPatch(args: CurationPatchArgs): Promise<Curat
   const patches = buildCurationPatches({
     set: args.set,
     verify: args.verify,
+    markiere: args.markiere,
+    entferneVerifikation: args.entferneVerifikation,
+    aktuellerTwinStatus: meta['twin_status'],
     userEmail,
     generatedBy: meta['generated_by'],
     now: now(),
@@ -176,6 +198,9 @@ export async function applyCurationPatch(args: CurationPatchArgs): Promise<Curat
     patches,
     shadowTwinFolderId: mirror === 'twin_folder' ? target.shadowTwinFolderId : undefined,
     skipFilesystemMirror: mirror !== 'twin_folder',
+    // Testsession §2.2: der Drift-Guard hat die Spiegel-Datei bereits aufgeloest —
+    // der Provider-Store braucht keine zweite Suche (2 Storage-Listings gespart).
+    knownMirrorFile: mirror === 'twin_folder' ? target.mirrorFile : undefined,
   })
 
   const patchedMeta = parseFrontmatter(patched.markdown).meta
@@ -192,6 +217,9 @@ export async function applyCurationPatch(args: CurationPatchArgs): Promise<Curat
       generatedAt: stringOrNull(patchedMeta['generated_at']),
       verifiedBy: stringOrNull(patchedMeta['verified_by']),
       verifiedAt: stringOrNull(patchedMeta['verified_at']),
+      flaggedBy: stringOrNull(patchedMeta['flagged_by']),
+      flaggedAt: stringOrNull(patchedMeta['flagged_at']),
+      flaggedNote: stringOrNull(patchedMeta['flagged_note']),
       verificationValid:
         stringOrNull(patchedMeta['verified_by']) !== null &&
         isVerificationValid({

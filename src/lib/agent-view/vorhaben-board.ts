@@ -97,6 +97,9 @@ export function buildVorhabenCards(args: {
       // Werkbank W1 (F9): Ampel vom Baumknoten uebernommen, Bericht-Skalare
       // aus den beim Scan gelesenen Contract-Dateien.
       ampel: node.ampel,
+      // A6: die gepflegten Themen kommen IMMER aus dem _INDEX.md (`themen:`)
+      // — unabhaengig vom Bericht; leer = sichtbar „Ohne Thema".
+      gepflegteThemen: asList(folder.index?.meta.themen),
       ...berichtFelder(folder),
     })
   }

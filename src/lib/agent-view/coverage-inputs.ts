@@ -13,6 +13,7 @@
 import { BERICHT_FILE_NAME, INDEX_FILE_NAME } from './archive-scan'
 import type { ArchiveFileEntry, ArchiveFolderNode } from './archive-types'
 import type { InventoryTarget } from './reference-audit'
+import { inhaltsZeitpunkt } from './twin-rules'
 import type { TwinArtifactView, TwinFamilyView } from './twin-rules'
 
 /** Fundort einer Datei im Archiv-Scan. */
@@ -89,7 +90,11 @@ export function buildOwnChangeByFolder(args: {
   }
   for (const family of args.families) {
     let value = own.get(family.folderId) ?? null
-    for (const artifact of family.artifacts) value = newest(value, artifact.updatedAt)
+    // Kurations-Stempel altern den Bericht NICHT (Befund 27.08.2026): Ein
+    // Verifizieren schreibt das Artefakt, ist aber Meta ueber den Inhalt —
+    // dieselbe Unterscheidung, die oben BERICHT.md/_INDEX.md ausnimmt. Sonst
+    // macht jeder Pruef-Klick den frischen Bericht veraltet.
+    for (const artifact of family.artifacts) value = newest(value, inhaltsZeitpunkt(artifact))
     own.set(family.folderId, value)
   }
   return own

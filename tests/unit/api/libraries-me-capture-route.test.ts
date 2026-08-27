@@ -11,6 +11,7 @@ const h = vi.hoisted(() => ({
   currentUser: vi.fn(),
   getPreferredUserEmail: vi.fn(),
   resolveCaptureRole: vi.fn(),
+  seedStandardCaptureFlowForLibrary: vi.fn(),
 }));
 
 vi.mock('@clerk/nextjs/server', () => ({ auth: h.auth, currentUser: h.currentUser }));
@@ -19,6 +20,11 @@ vi.mock('@/lib/auth/user-email', async (importActual) => ({
   getPreferredUserEmail: h.getPreferredUserEmail,
 }));
 vi.mock('@/lib/submissions/capture-access', () => ({ resolveCaptureRole: h.resolveCaptureRole }));
+// W-A Stufe 1: Die Route seedet bei Erfass-Recht den Standard-Ablauf — ohne
+// Mock lief hier der ECHTE Seed gegen MongoDB und hing bis zum Test-Timeout.
+vi.mock('@/lib/creation/flow-seed', () => ({
+  seedStandardCaptureFlowForLibrary: h.seedStandardCaptureFlowForLibrary,
+}));
 
 import { GET } from '@/app/api/libraries/[id]/me/capture/route';
 
@@ -44,15 +50,28 @@ describe('GET /api/libraries/[id]/me/capture', () => {
     expect((await GET(req(), { params })).status).toBe(400);
   });
 
-  it('canCapture=true mit Rolle, wenn erfass-berechtigt', async () => {
+  it('canCapture=true mit Rolle, wenn erfass-berechtigt (Seed idempotent angestossen)', async () => {
     h.auth.mockResolvedValue({ userId: 'user-1' });
     h.currentUser.mockResolvedValue({});
     h.getPreferredUserEmail.mockReturnValue('u@example.com');
     h.resolveCaptureRole.mockResolvedValue('contributor');
+    h.seedStandardCaptureFlowForLibrary.mockResolvedValue(undefined);
     const res = await GET(req(), { params });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ canCapture: true, role: 'contributor' });
     expect(h.resolveCaptureRole).toHaveBeenCalledWith('u@example.com', 'lib-1');
+    expect(h.seedStandardCaptureFlowForLibrary).toHaveBeenCalledWith('lib-1', 'u@example.com');
+  });
+
+  it('Seed-Fehler blockiert die Berechtigungs-Antwort nicht', async () => {
+    h.auth.mockResolvedValue({ userId: 'user-1' });
+    h.currentUser.mockResolvedValue({});
+    h.getPreferredUserEmail.mockReturnValue('u@example.com');
+    h.resolveCaptureRole.mockResolvedValue('owner');
+    h.seedStandardCaptureFlowForLibrary.mockRejectedValue(new Error('Mongo down'));
+    const res = await GET(req(), { params });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ canCapture: true, role: 'owner' });
   });
 
   it('canCapture=false ohne Recht (kein stiller Fallback auf erlaubt)', async () => {
@@ -63,5 +82,7 @@ describe('GET /api/libraries/[id]/me/capture', () => {
     const res = await GET(req(), { params });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ canCapture: false, role: null });
+    // Ohne Erfass-Recht wird auch nichts geseedet.
+    expect(h.seedStandardCaptureFlowForLibrary).not.toHaveBeenCalled();
   });
 });

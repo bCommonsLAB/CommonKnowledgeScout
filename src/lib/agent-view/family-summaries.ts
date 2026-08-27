@@ -53,6 +53,9 @@ function toLeadingSummary(artifact: TwinArtifactView): LeadingArtifactSummary {
     generatedAt: stringOrNull(fm['generated_at']),
     verifiedBy: stringOrNull(fm['verified_by']),
     verifiedAt: stringOrNull(fm['verified_at']),
+    flaggedBy: stringOrNull(fm['flagged_by']),
+    flaggedAt: stringOrNull(fm['flagged_at']),
+    flaggedNote: stringOrNull(fm['flagged_note']),
     verification: verificationStateOf(fm),
   }
 }
@@ -73,6 +76,18 @@ export function buildFamilySummaries(args: {
   const summaries = args.families
     .map((family): TwinFamilySummary => {
       const leading = selectLeadingArtifact(family.artifacts, args.standardTemplate)
+      // A2: beide pruefbaren Artefakte einzeln — der Baum und die Detail-Tabs
+      // tragen je ein eigenes Haekchen (Entscheidung 4, 24.08.2026). Die
+      // „Zusammenfassung" ist EXAKT die Standard-Transformation; ohne
+      // konfiguriertes Standard-Template bleibt sie null (kein Raten).
+      const transkript = family.artifacts.find((artifact) => artifact.kind === 'transcript') ?? null
+      const standardTemplate = args.standardTemplate
+      const zusammenfassung =
+        standardTemplate === null
+          ? null
+          : family.artifacts.find(
+              (artifact) => artifact.kind === 'transformation' && artifact.templateName === standardTemplate,
+            ) ?? null
       return {
         sourceId: family.sourceId,
         sourceName: family.sourceName,
@@ -80,6 +95,8 @@ export function buildFamilySummaries(args: {
         path: family.path || family.sourceName,
         artifactCount: family.artifacts.length,
         leading: leading ? toLeadingSummary(leading) : null,
+        transkript: transkript ? toLeadingSummary(transkript) : null,
+        zusammenfassung: zusammenfassung ? toLeadingSummary(zusammenfassung) : null,
       }
     })
     .sort((a, b) => a.path.localeCompare(b.path))

@@ -95,6 +95,11 @@ Detail (warum, Symptome, Ausnahmen):
   Creation-Wizard schreibt bei Erfassung nie direkt in den Ziel-Provider;
   Submissions landen in interner Inbox (MongoDB + Azure Blob), Publikation
   ist ein rechte-gateter, idempotenter Promotion-Job
+- Aktiv: `docs/adr/0006-beweislast-umdrehen-werkbank-kuration.md` —
+  Werkbank-Kuration: Modell B angenommen (2026-08-26). Maschinenarbeit gilt als
+  angenommen (oranger Haken), der Mensch markiert nur Fehler (Stopp-Zeichen,
+  `twin_status: fehlerhaft` + `flagged_by/at/note`); Sammelaktionen werden
+  zurueckgebaut, Zaehler zaehlt Widerstaende statt Bestaetigungen
 - Vorgeschlagen (deponiert): `docs/adr/0005-co-creator-eigene-storage-auth.md` —
   Co-Creator mit „Zugriff Archiv" nutzen kuenftig EIGENE Storage-Auth
   (OneDrive/Nextcloud) statt der Owner-Credentials; Galerie/Erkunden (MongoDB)

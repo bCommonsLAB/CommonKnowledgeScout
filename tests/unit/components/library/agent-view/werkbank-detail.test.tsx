@@ -1,19 +1,26 @@
 // @vitest-environment jsdom
 
 /**
- * @fileoverview Unit-Tests: Werkbank-Detail (F9, Welle W4).
+ * @fileoverview Unit-Tests: Werkbank-Detail (F9, W4 + A3).
  *
- * Geprueft werden die benannten Zustaende des Details: Bericht-Render ueber
- * die W2-Route mit der BESTEHENDEN MarkdownPreview (Happy-Path), `zu_gross`
- * mit Archiv-Verweis, „veraltet"-Badge aus dem Report, die „Bereit zur
- * Abnahme"-Leiste, der Kappungshinweis der Befundliste, der
- * Vor-Welle-4-Hinweis der Familien und der Vorhaben-Auftrag (Clipboard).
+ * Seit A3 steht rechts genau EIN Dokument: beim Vorhaben die Tabs
+ * Bericht/Ordner-Beschreibung (W2-Route, `datei=`), beim Artefakt die drei
+ * Tabs des Artefakt-Dokuments. Geprueft werden Bericht-Render (Happy-Path),
+ * `zu_gross`, „veraltet"-Badge, `kein_bericht`, der Ordner-Beschreibungs-Tab,
+ * die „Bereit"-Leiste, Teilbaum-Scan, Abnehmen und der Artefakt-Dispatch.
  */
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WerkbankDetail } from '@/components/library/agent-view/werkbank/werkbank-detail'
+import type { LeadingArtifactSummary, TwinFamilySummary } from '@/lib/agent-view/types'
+import type { UseArtefaktKurationResult } from '@/hooks/agent-view/use-artefakt-kuration'
+
+const toastMock = vi.fn()
+vi.mock('@/components/ui/use-toast', () => ({
+  useToast: () => ({ toast: toastMock }),
+}))
 import { createGap } from '@/lib/agent-view/gap-registry'
 import type { CoverageGap, CoverageReport, CoverageTreeNode, VorhabenCard } from '@/lib/agent-view/types'
 import type { BerichtAntwort } from '@/lib/agent-view/bericht-laden'
@@ -34,6 +41,9 @@ function stubBericht(data: BerichtAntwort) {
       if (String(eingabe).includes('/agent-view/worklists')) {
         return new Response(JSON.stringify({ lists: [] }), { status: 200 })
       }
+      if (String(eingabe).includes('/shadow-twins/content')) {
+        return new Response(JSON.stringify({ markdown: '# Transkript\n\nInhalt.' }), { status: 200 })
+      }
       if (String(eingabe).includes('/agent-view/stand')) {
         return new Response(
           JSON.stringify({ stand: { bearbeitungsstand: 'abgenommen', bearbeitungsstandSeit: '2026-08-24T23:59:59.999Z' } }),
@@ -47,6 +57,24 @@ function stubBericht(data: BerichtAntwort) {
 
 beforeEach(() => stubBericht(antwort()))
 
+function fakeThemen() {
+  return {
+    overrides: new Map<string, string[]>(),
+    pendingFolderId: null,
+    fehlerByFolder: new Map<string, string>(),
+    setzeThemen: vi.fn().mockResolvedValue(true),
+  }
+}
+
+function fakeKuration(): UseArtefaktKurationResult {
+  return {
+    overrides: new Map(), pendingKey: null, fehler: new Map(),
+    verifiziere: vi.fn().mockResolvedValue(null),
+    markiere: vi.fn().mockResolvedValue(null),
+    setzeTwinStatus: vi.fn().mockResolvedValue(undefined),
+  }
+}
+
 function gapAt(path: string, folderId: string, type: CoverageGap['type']): CoverageGap {
   return createGap({ type, scope: 'folder', targetId: folderId, targetName: path, folderId, path, message: 'Test' })
 }
@@ -56,7 +84,7 @@ function karte(overrides: Partial<VorhabenCard> = {}): VorhabenCard {
     folderId: 'f-pilot', name: 'Pilot', path: '1. Arbeit/Pilot',
     bearbeitungsstand: 'berichtet', bearbeitungsstandSeit: null, hasBericht: true,
     totalGaps: 1, gapsByActor: { mensch: 1, cowork: 0, knowledgescout: 0 },
-    gapsByType: { twin_unverified: 1 }, widerspruch: false,
+    gapsByType: { stand_widerspruch: 1 }, widerspruch: false,
     ampel: 'rot', berichtTitel: 'Pilotbericht', berichtFileId: 'id-b1',
     berichtModifiedAt: null, berichtStatus: 'aktiv', themen: [],
     ...overrides,
@@ -85,7 +113,7 @@ function report(overrides: Partial<CoverageReport> = {}): CoverageReport {
       gapsByType: {}, gapsByActor: { mensch: 1, cowork: 0, knowledgescout: 0 },
       skippedExcluded: { archive: 0, engine: 0 }, collapsedGaps: 0, scanErrors: 0,
     },
-    gaps: [gapAt('1. Arbeit/Pilot', 'f-pilot', 'twin_unverified')],
+    gaps: [gapAt('1. Arbeit/Pilot', 'f-pilot', 'stand_widerspruch')],
     // Pilot-Knoten traegt die folderId der Karte — die Fusszeile findet ihn darueber.
     tree: [{ ...knoten('1. Arbeit'), children: [{ ...knoten('1. Arbeit/Pilot'), folderId: 'f-pilot' }] }],
     vorhaben: [karte()],
@@ -101,6 +129,13 @@ function renderDetail(r: CoverageReport, k: VorhabenCard | null = karte(), vorha
       <WerkbankDetail
         karte={k}
         vorhabenId={vorhabenId}
+        artefaktId={null}
+        familie={null}
+        familien={[]}
+        kuration={fakeKuration()}
+        themenVokabular={[]}
+        themenHook={fakeThemen()}
+        onWaehleArtefakt={vi.fn()}
         report={r}
         generatedAt={r.generatedAt}
         libraryLabel="Testarchiv"
@@ -156,42 +191,38 @@ describe('WerkbankDetail — Bericht (W2-Route + bestehende MarkdownPreview)', (
   it('kein_bericht ist ein Cowork-Befund mit Auftrags-Hinweis, kein Fehler', async () => {
     renderDetail(report())
     expect(await screen.findByText('Kein BERICHT.md')).toBeTruthy()
-    expect(screen.getByText(/Auftrag\s+fuer dieses Vorhaben kopieren/)).toBeTruthy()
+    expect(screen.getByText(/Auftrag fuer dieses Vorhaben/)).toBeTruthy()
+  })
+
+  it('A3: der Tab „Ordner-Beschreibung" laedt datei=index und benennt das Fehlen', async () => {
+    renderDetail(report())
+    fireEvent.click(await screen.findByRole('tab', { name: 'Ordner-Beschreibung' }))
+    expect(await screen.findByText('Kein _INDEX.md')).toBeTruthy()
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    const indexCalls = fetchMock.mock.calls.filter((call) => String(call[0]).includes('datei=index'))
+    expect(indexCalls.length).toBeGreaterThan(0)
   })
 })
 
-describe('WerkbankDetail — Kopf, Befunde, Familien, Fusszeile', () => {
-  it('zeigt die „Bereit zur Abnahme"-Leiste nur beim geteilten Praedikat', () => {
+describe('WerkbankDetail — Kopf und Aktionen', () => {
+  it('A4: „Vorhaben abnehmen" sperrt bei Widerstaenden — Maschine ODER Fehler-Markierung (ADR 0006)', () => {
     renderDetail(report())
-    expect(screen.getByText(/Bereit zur Abnahme — keine maschinellen Befunde offen/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Vorhaben abnehmen' }).hasAttribute('disabled')).toBe(false)
     cleanup()
     renderDetail(report(), karte({ gapsByActor: { mensch: 1, cowork: 1, knowledgescout: 0 } }))
-    expect(screen.queryByText(/Bereit zur Abnahme — keine/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Vorhaben abnehmen' }).hasAttribute('disabled')).toBe(true)
+    cleanup()
+    // Neu: Was der Mensch als fehlerhaft markiert hat, sperrt ebenfalls.
+    renderDetail(report(), karte({ gapsByType: { twin_flagged: 1 } }))
+    expect(screen.getByRole('button', { name: 'Vorhaben abnehmen' }).hasAttribute('disabled')).toBe(true)
   })
 
-  it('weist die Kappung aus, wenn der Report mehr Befunde zaehlt als er listet', () => {
-    renderDetail(report(), karte({ totalGaps: 5 }))
-    expect(screen.getByText(/4 weitere Befunde sind gezaehlt, aber nicht gelistet/)).toBeTruthy()
-  })
 
-  it('benennt Reports vor Welle 4 im Familien-Abschnitt statt still leer zu bleiben', () => {
-    renderDetail(report({ families: undefined }))
-    expect(screen.getByText(/Scan vor Welle 4/)).toBeTruthy()
-  })
 
-  it('kopiert den Vorhaben-Auftrag der Cowork-Gruppe in die Zwischenablage', async () => {
-    const writeText = vi.fn().mockResolvedValue(undefined)
-    Object.assign(navigator, { clipboard: { writeText } })
-    const r = report({ gaps: [gapAt('1. Arbeit/Pilot', 'f-pilot', 'report_missing')] })
-    renderDetail(r, karte({ gapsByType: { report_missing: 1 }, gapsByActor: { mensch: 0, cowork: 1, knowledgescout: 0 } }))
-    fireEvent.click(screen.getByRole('button', { name: /Auftrag kopieren \(dieses Vorhaben\)/ }))
-    await vi.waitFor(() => expect(writeText).toHaveBeenCalledTimes(1))
-    expect(writeText.mock.calls[0][0]).toContain('# Cowork-Auftrag: Testarchiv')
-    expect(writeText.mock.calls[0][0]).toContain('1. Arbeit/Pilot')
-  })
 
   it('Teilbaum-Scan (W8): Knopf nur mit Handler, meldet die folderId; Fallback-Hinweis sichtbar', () => {
     renderDetail(report())
+    fireEvent.click(screen.getByRole('button', { name: 'Menue zu Pilot' }))
     expect(screen.queryByRole('button', { name: /Teilbaum neu scannen/ })).toBeNull()
     cleanup()
 
@@ -200,12 +231,16 @@ describe('WerkbankDetail — Kopf, Befunde, Familien, Fusszeile', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <WerkbankDetail
-          karte={karte()} vorhabenId="f-pilot" report={report()} generatedAt="2026-08-23T12:00:00.000Z"
+          karte={karte()} vorhabenId="f-pilot" artefaktId={null} familie={null}
+          familien={[]} kuration={fakeKuration()} themenVokabular={[]} themenHook={fakeThemen()} onWaehleArtefakt={vi.fn()}
+          report={report()} generatedAt="2026-08-23T12:00:00.000Z"
           libraryLabel="Testarchiv" localRootPath={null}
           teilbaumScan={{ onScan, isScanning: false, hinweis: 'Der gespeicherte Report stammt von vor W8' }}
         />
       </QueryClientProvider>,
     )
+    // A4: der Knopf wohnt im Menue ⋯ (alles Seltene).
+    fireEvent.click(screen.getByRole('button', { name: 'Menue zu Pilot' }))
     fireEvent.click(screen.getByRole('button', { name: /Teilbaum neu scannen/ }))
     expect(onScan).toHaveBeenCalledWith('f-pilot')
     expect(screen.getByText(/Nicht gemergt: Der gespeicherte Report stammt von vor W8/)).toBeTruthy()
@@ -213,15 +248,95 @@ describe('WerkbankDetail — Kopf, Befunde, Familien, Fusszeile', () => {
 
   it('Abnehmen (W7) ueberlagert den Stand lokal und sagt dazu, dass der Report alt ist', async () => {
     renderDetail(report())
-    fireEvent.click(screen.getByRole('button', { name: 'Abnehmen' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Vorhaben abnehmen' }))
     expect(await screen.findByText(/Report zeigt noch den alten Scan/)).toBeTruthy()
     expect(screen.getByText('Abgenommen')).toBeTruthy()
-    expect(screen.getByText(/seit 2026-08-24/)).toBeTruthy()
+    // Das seit-Datum wohnt im Chip-Titel (A4: Zeile 1 bleibt eine Zeile).
+    expect(screen.getByTitle('seit 2026-08-24')).toBeTruthy()
   })
 
-  it('Fusszeile summiert Quellen/Dateien des Teilbaums und bietet die folderId an', () => {
-    renderDetail(report())
-    expect(screen.getByText(/2 Quellen · 3 Dateien im Teilbaum/)).toBeTruthy()
-    expect(screen.getByRole('button', { name: /folderId kopieren/ })).toBeTruthy()
+})
+
+describe('WerkbankDetail — Verifizieren im Fluss (A5)', () => {
+  function artefaktSummary(overrides: Partial<LeadingArtifactSummary> = {}): LeadingArtifactSummary {
+    return {
+      kind: 'transcript', templateName: null, targetLanguage: 'de', twinStatus: null,
+      generatedBy: null, generatedAt: null, verifiedBy: null, verifiedAt: null,
+      verification: 'unverifiziert', ...overrides,
+    }
+  }
+  function twinFamilie(sourceId: string, overrides: Partial<TwinFamilySummary> = {}): TwinFamilySummary {
+    return {
+      sourceId, sourceName: `${sourceId}.m4a`, folderId: 'f-eins', path: `1. Arbeit/Pilot/Ordner Eins/${sourceId}.m4a`,
+      artifactCount: 1, leading: artefaktSummary(),
+      transkript: artefaktSummary(), zusammenfassung: null,
+      ...overrides,
+    }
+  }
+
+  it('Markierung aufgeloest: Sprung zum naechsten Widerstand im anderen Ordner', async () => {
+    toastMock.mockClear()
+    // Der eigene Fehler ist geklaert, im Ordner Zwei wartet der naechste.
+    const aktuelle = twinFamilie('s-a')
+    const naechste = twinFamilie('s-b', {
+      folderId: 'f-zwei',
+      path: '1. Arbeit/Pilot/Ordner Zwei/s-b.m4a',
+      transkript: artefaktSummary({ twinStatus: 'flagged', flaggedNote: 'Zahlen falsch' }),
+    })
+    const frisch = artefaktSummary({ verification: 'mensch', verifiedBy: 'human:peter' })
+    const kuration: UseArtefaktKurationResult = {
+      overrides: new Map(), pendingKey: null, fehler: new Map(),
+      verifiziere: vi.fn().mockResolvedValue(frisch),
+      markiere: vi.fn().mockResolvedValue(null),
+      setzeTwinStatus: vi.fn(),
+    }
+    const onWaehleArtefakt = vi.fn()
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <WerkbankDetail
+          karte={karte()} vorhabenId="f-pilot" artefaktId="s-a" familie={aktuelle}
+          familien={[aktuelle, naechste]} kuration={kuration}
+          themenVokabular={[]} themenHook={fakeThemen()} onWaehleArtefakt={onWaehleArtefakt}
+          report={report()} generatedAt="G1" libraryLabel="Testarchiv" localRootPath={null}
+        />
+      </QueryClientProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Verifizieren' }))
+    await vi.waitFor(() => expect(onWaehleArtefakt).toHaveBeenCalledWith('s-b'))
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: expect.stringContaining('Ordner Eins') }),
+    )
+  })
+
+  it('ohne Widerstand bleibt die Auswahl stehen — Verifizieren treibt nichts weiter', async () => {
+    toastMock.mockClear()
+    const aktuelle = twinFamilie('s-a')
+    const andere = twinFamilie('s-b', { folderId: 'f-zwei', path: '1. Arbeit/Pilot/Ordner Zwei/s-b.m4a' })
+    const frisch = artefaktSummary({ verification: 'mensch', verifiedBy: 'human:peter' })
+    const kuration: UseArtefaktKurationResult = {
+      overrides: new Map(), pendingKey: null, fehler: new Map(),
+      verifiziere: vi.fn().mockResolvedValue(frisch),
+      markiere: vi.fn().mockResolvedValue(null),
+      setzeTwinStatus: vi.fn(),
+    }
+    const onWaehleArtefakt = vi.fn()
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <WerkbankDetail
+          karte={karte()} vorhabenId="f-pilot" artefaktId="s-a" familie={aktuelle}
+          familien={[aktuelle, andere]} kuration={kuration}
+          themenVokabular={[]} themenHook={fakeThemen()} onWaehleArtefakt={onWaehleArtefakt}
+          report={report()} generatedAt="G1" libraryLabel="Testarchiv" localRootPath={null}
+        />
+      </QueryClientProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Verifizieren' }))
+    await vi.waitFor(() => expect(kuration.verifiziere).toHaveBeenCalledTimes(1))
+    expect(onWaehleArtefakt).not.toHaveBeenCalled()
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: expect.stringContaining('Kein Widerstand') }),
+    )
   })
 })

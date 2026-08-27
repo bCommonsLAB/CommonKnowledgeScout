@@ -35,7 +35,9 @@ function family(path: string): TwinFamilySummary {
     leading: {
       kind: 'transcript', templateName: null, targetLanguage: '', twinStatus: null,
       generatedBy: 'knowledgescout/x', generatedAt: '2026-08-01T10:00:00.000Z',
-      verifiedBy: null, verifiedAt: null, verification: 'unverifiziert',
+      verifiedBy: null, verifiedAt: null,
+      flaggedBy: null, flaggedAt: null, flaggedNote: null,
+      verification: 'unverifiziert',
     },
   }
 }
@@ -196,21 +198,64 @@ describe('summarizeCoverageReport', () => {
     expect(zaehler.filter.befundeNachTyp).toEqual({ source_without_twin: 2 })
   })
 
-  it('benennt „bereit zur Abnahme“: null maschinelle Befunde, alles wartet auf F4 (D2)', () => {
+  it('benennt „bereit zur Abnahme“: kein Widerstand offen (D2, ADR 0006)', () => {
     const gemischt = summarize()
     expect(gemischt.filter.bereitZurAbnahme).toBe(false)
 
+    // Nicht-sperrender Mensch-Befund: bereit.
     const nurMensch = summarize({
-      gaps: [gap('Pilot/A.pdf', 'twin_unverified')],
+      gaps: [gap('Pilot/A.pdf', 'stand_widerspruch')],
     })
     expect(nurMensch.filter.bereitZurAbnahme).toBe(true)
 
-    // Leerer Scope ist NICHT „bereit“ — dort gibt es nichts abzunehmen.
-    expect(summarize({ gaps: [] }).filter.bereitZurAbnahme).toBe(false)
+    // Fehler-Markierung sperrt — sie ist ein benannter Widerstand.
+    const markiert = summarize({
+      gaps: [gap('Pilot/A.pdf', 'twin_flagged')],
+    })
+    expect(markiert.filter.bereitZurAbnahme).toBe(false)
+
+    // Leerer Scope: nichts steht im Weg.
+    expect(summarize({ gaps: [] }).filter.bereitZurAbnahme).toBe(true)
   })
 
   it('weist die Kappung des GESPEICHERTEN Reports aus', () => {
     const view = summarize({}, { storedGapsTruncated: true, totalGaps: 9999 })
     expect(view.gespeicherterReportGekappt).toEqual({ gespeicherteGaps: 2, totalGaps: 9999 })
+  })
+
+  it('liefert Vokabular + gepflegte Themen je Vorhaben (A6 — sonst raet der Agent)', () => {
+    const vorhaben = [
+      { folderId: 'v1', name: '26.01 Klima', path: 'Pilot/26.01 Klima', bearbeitungsstand: null,
+        bearbeitungsstandSeit: null, hasBericht: true, totalGaps: 0,
+        gapsByActor: { mensch: 0, cowork: 0, knowledgescout: 0 }, gapsByType: {},
+        widerspruch: false, gepflegteThemen: ['ACT-Klima', 'DEV-Klimamassnahmen'] },
+      { folderId: 'v2', name: '26.02 Ohne', path: 'Anderswo/26.02 Ohne', bearbeitungsstand: null,
+        bearbeitungsstandSeit: null, hasBericht: false, totalGaps: 0,
+        gapsByActor: { mensch: 0, cowork: 0, knowledgescout: 0 }, gapsByType: {},
+        widerspruch: false, gepflegteThemen: [] },
+      { folderId: 'v3', name: '26.03 Alt', path: 'Anderswo/26.03 Alt', bearbeitungsstand: null,
+        bearbeitungsstandSeit: null, hasBericht: false, totalGaps: 0,
+        gapsByActor: { mensch: 0, cowork: 0, knowledgescout: 0 }, gapsByType: {},
+        widerspruch: false },
+    ]
+    const view = summarize({ vorhaben }, { themenVokabular: ['ACT-Klima', 'LIB-Klimamassnahmen'] })
+    expect(view.themen.vokabular).toEqual(['ACT-Klima', 'LIB-Klimamassnahmen'])
+    expect(view.themen.jeVorhaben).toEqual([
+      { path: 'Pilot/26.01 Klima', folderId: 'v1', themen: ['ACT-Klima', 'DEV-Klimamassnahmen'] },
+      { path: 'Anderswo/26.02 Ohne', folderId: 'v2', themen: [] },
+      // Report vor A6: null (benannt, nicht geraten).
+      { path: 'Anderswo/26.03 Alt', folderId: 'v3', themen: null },
+    ])
+    expect(view.themen.ohneThema).toBe(1)
+
+    // Pfad-Filter grenzt auch die Themen-Sicht ein; ohne Vokabular steht null.
+    const gefiltert = summarize({ vorhaben }, { pathPrefix: 'Pilot' })
+    expect(gefiltert.themen.vokabular).toBeNull()
+    expect(gefiltert.themen.jeVorhaben.map((v) => v.folderId)).toEqual(['v1'])
+
+    // nurZaehler laesst die Liste bewusst leer, Zaehler bleiben.
+    const zaehler = summarize({ vorhaben }, { nurZaehler: true })
+    expect(zaehler.themen.jeVorhaben).toEqual([])
+    expect(zaehler.themen.jeVorhabenAnzahl).toBe(3)
   })
 })

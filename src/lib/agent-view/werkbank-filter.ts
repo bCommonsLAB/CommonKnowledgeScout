@@ -7,7 +7,8 @@
  * - „Zu tun" = `ampel ≠ gruen` ODER `widerspruch` (Begriffsdefinition §3).
  *   Karten aus Scans vor W1 tragen keine `ampel` — sie sind NICHT auswertbar
  *   und werden sichtbar gezaehlt statt still einsortiert.
- * - „Bereit" = geteiltes Praedikat {@link istBereitZurAbnahme} (W1).
+ * - „Bereit" = geteiltes Praedikat {@link wartetAufAbnahme} (W1, ADR 0006):
+ *   kein Widerstand offen und noch nicht abgenommen.
  * - Akteur-/Schritt-Chips = EXAKT die Filter-Semantik der MCP-Kompaktsicht:
  *   {@link matchtBefundFilter} ist die gemeinsame Funktion, die MCP auf
  *   Befunde und die UI (ueber die `GAP_REGISTRY`) auf Karten anwendet.
@@ -17,7 +18,7 @@
  * @module agent-view
  */
 
-import { istBereitZurAbnahme } from './abnahme'
+import { wartetAufAbnahme } from './abnahme'
 import { GAP_REGISTRY } from './gap-registry'
 import { BOARD_COLUMNS } from './labels'
 import type { CoverageGap, CoverageGapType, GapActor, VorhabenCard, ZyklusSchritt } from './types'
@@ -128,7 +129,7 @@ export function filtereVorhaben(
       }
       if (!status) continue
     } else if (args.statusFilter === 'bereit') {
-      if (!istBereitZurAbnahme(card.gapsByActor)) continue
+      if (!wartetAufAbnahme(card)) continue
     } else if (args.statusFilter === 'liste') {
       if (mitglieder === null || !mitglieder.has(card.folderId)) continue
     }
@@ -138,22 +139,35 @@ export function filtereVorhaben(
 }
 
 /**
- * Sortiert deterministisch (Sekundaerschluessel immer Pfad, wie der Report):
- * `pfad` = Report-Reihenfolge · `stand` = Zyklus-Reihenfolge der Board-Spalten
- * (ohne erklaerten Stand zuletzt) · `befunde` = offene Befunde absteigend.
+ * Bereich AUFSTEIGEND, darin der Vorhabens-Pfad ABSTEIGEND.
+ *
+ * Die Vorhabensordner sind mit Jahr/Monat benannt (`26.01 Klimamassnahmen
+ * …`), darum heisst absteigend: NEUESTE ZUERST (Befund Testsession
+ * 25.08.2026). Der Bereich bleibt aufsteigend — sonst stuenden die Phasen
+ * 7…1 verkehrt herum, was niemand verlangt hat.
+ */
+function vergleichePfad(a: VorhabenCard, b: VorhabenCard): number {
+  return bereichVon(a).localeCompare(bereichVon(b)) || b.path.localeCompare(a.path)
+}
+
+/**
+ * Sortiert deterministisch (Sekundaerschluessel immer {@link vergleichePfad}):
+ * `pfad` = Bereich aufsteigend, darin neueste zuerst · `stand` =
+ * Zyklus-Reihenfolge der Board-Spalten (ohne erklaerten Stand zuletzt) ·
+ * `befunde` = offene Befunde absteigend.
  */
 export function sortiereVorhaben(
   cards: readonly VorhabenCard[],
   sortierung: WerkbankSortierung,
 ): VorhabenCard[] {
   const sorted = [...cards]
-  if (sortierung === 'pfad') return sorted.sort((a, b) => a.path.localeCompare(b.path))
+  if (sortierung === 'pfad') return sorted.sort(vergleichePfad)
   if (sortierung === 'stand') {
     return sorted.sort(
       (a, b) =>
         BOARD_COLUMNS.indexOf(a.bearbeitungsstand) - BOARD_COLUMNS.indexOf(b.bearbeitungsstand) ||
-        a.path.localeCompare(b.path),
+        vergleichePfad(a, b),
     )
   }
-  return sorted.sort((a, b) => b.totalGaps - a.totalGaps || a.path.localeCompare(b.path))
+  return sorted.sort((a, b) => b.totalGaps - a.totalGaps || vergleichePfad(a, b))
 }

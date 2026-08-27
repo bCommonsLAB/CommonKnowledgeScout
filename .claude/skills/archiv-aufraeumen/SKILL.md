@@ -49,6 +49,16 @@ wie viel.
 Sekunden. `abdeckung_scannen` läuft live gegen den Storage und gehört ans Ende
 eines Arbeitsschritts.
 
+**3b. Jobs anstoßen und weiterarbeiten — nicht warten.**
+`transformation_starten` und `quelle_erschliessen` antworten **sofort** mit
+`jobId`s; die Rechenarbeit (LLM, Einbettungen, Schreiben) läuft im Hintergrund,
+bis zu sechs Jobs parallel. Nimm den **Stapel** (`sourceIds`), nicht sechs
+Einzelaufrufe, und frag den Fortschritt danach mit `job_liste`/`job_status` ab.
+
+*Bis zum 27.08.2026 war das anders:* Der Aufruf wartete ~36 s je Datei und riss
+bei Stapeln das 60-Sekunden-Limit der Brücke. Wenn du ein solches Verhalten noch
+siehst, läuft eine alte Fassung — melde es, statt auf Einzelaufrufe auszuweichen.
+
 ## Der Ablauf
 
 ### 1 — Lage feststellen
@@ -75,7 +85,7 @@ Jeder Befund trägt `actor`, `zyklusSchritt`, `severity`, `targetId` und
 |---|---|---|
 | `source_without_twin` | KS · error | `quelle_erschliessen` |
 | `transformation_missing` | KS · error | `transformation_starten` |
-| `transformation_stale` | KS · **info** | `transformation_starten` — blockiert die Abnahme nicht |
+| `transformation_stale` | KS · **info** | `transformation_starten` — blockiert die Abnahme nicht. Verglichen wird seit 27.08.2026 der **Inhalts**-Zeitpunkt (`generated_at`), nicht der letzte Write: Peters Verifizieren am Transkript macht die Zusammenfassung NICHT mehr „ueberholt" |
 | `twin_core_missing` | KS · warning | meist mit der Transformation erledigt |
 | `legacy_twin_name` | KS · warning | `twins_synchronisieren`: erst `import`, dann `repair` (deckt auch `split-combined-artifact` ab — das ist eine Migrations-Operation, kein eigener Befund) |
 | `orphan_twin` | KS · warning | Twin ohne Quelle — Ursache prüfen, meist `familie_umziehen` oder `repair` |
@@ -87,14 +97,16 @@ Jeder Befund trägt `actor`, `zyklusSchritt`, `severity`, `targetId` und
 | `index_missing` | Cowork · warning | `_INDEX.md` nach Vorlage anlegen |
 | `report_missing` | Cowork · warning | `BERICHT.md` nach Vorlage anlegen |
 | `bericht_veraltet` | Cowork · warning | Bericht nachziehen (siehe Stolpersteine) |
+> Auch hier zaehlt seit 27.08.2026 nur eine **Inhalts**-Aenderung: Ein Kurations-Stempel (Verifizieren, Markieren) altert den Bericht nicht mehr. Frueher liess jeder Pruef-Klick `bericht_veraltet` und damit `stand_widerspruch` neu aufpoppen — eine Schleife, die sich durch Arbeiten nicht schliessen liess.
 | `verweis_veraltet` | Cowork · warning | verwiesenes Ziel ist jünger — Verweis prüfen, dann Bericht neu speichern |
 | `verweis_tot` | Cowork · error | Verweis zeigt ins Leere — Ziel suchen oder Verweis entfernen |
 | `bericht_unvollstaendig` | Cowork · **info** | Bericht lässt Quellen unerwähnt — ergänzen, blockiert nichts |
 | `teilbaum_ungesichtet` | KS · **info** | Sammel-Befund unter ungesichtetem Ordner — erst strukturieren |
 | `scan_error` | KS · error | Teilbaum nicht lesbar — Ursache melden, nie übergehen |
-| `twin_unverified` | Mensch · warning | **nichts tun** — Peters Verifikation |
+| `twin_flagged` | Mensch · error | Peter hat das Artefakt als **fehlerhaft markiert** — Notiz in `flagged_note` lesen, reparieren; die Abnahme bleibt gesperrt, bis Peter danach verifiziert |
+| `twin_unverified` | *(Alt-Bestand)* | **ignorieren** — seit ADR 0006 abgeschafft. Steht noch in Reports vor dem 27.08.2026 und verschwindet beim nächsten Scan. Nicht auflisten, nicht beauftragen |
 | `self_verified` | Mensch · error | **nichts tun** — Erzeuger und Prüfer sind derselbe |
-| `stand_widerspruch` | Mensch · error | erklärter Stand ist widerlegt — Peter melden, nicht selbst zurückstufen |
+| `stand_widerspruch` | **wandernd** · error | erklärter Stand ist widerlegt — Peter melden, nicht selbst zurückstufen. Der Akteur ist **absichtlich nicht fest**: Der Befund wird auf den Akteur des *frühesten* auslösenden Befunds geroutet (`routeStandWiderspruch`), zeigt also auf den, der zuerst handeln muss. Derselbe Befund kann darum mal `cowork`, mal `knowledgescout`, mal `mensch` sein |
 
 Die Schwere zählt: Der Abnahme-Precheck blockiert nur bei `error` und
 `warning`. `info`-Befunde sind Orientierung — sie müssen nicht weg, bevor
@@ -125,7 +137,32 @@ entstehen sollte, und an der richtigen Stelle. So kamen im Pilot ein
 verschachtelter Twin-Ordner und der leere Rest eines gescheiterten Jobs ans
 Licht.
 
-### 5 — Neu scannen, berichten, Stand setzen
+### 5 — Themen zuordnen
+
+Die Themen-Zuordnung ist Aufgabe des Aufräum-Agenten, nicht des Menschen im
+Dropdown — beim Aufräumen liegt die Übersicht ohnehin hier (Entscheidung
+25.08.2026). Ein Vorhaben kann mehrere Themen tragen.
+
+- **Quelle:** `abdeckung_lesen` liefert den `themen`-Block — `vokabular`
+  (kuratierte Liste aus den Library-Einstellungen) und `jeVorhaben`
+  (vergebene Themen; `null` = Report vor A6, `[]` = noch ohne Thema). Nur
+  Namen aus dem Vokabular vergeben; fehlt ein passendes, Peter vorschlagen
+  statt erfinden.
+- **Präfix sagt die Art der Arbeit:** `ACT-` Aktivismus · `DEV-` Entwicklung
+  an einem Projekt · `KS-` Querschnitt KnowledgeScout · `LIB-` Inhaltsarbeit
+  für eine Library · `SEC-` Querschnitt Secretary Service.
+- **Die Ordnernamen geben das Thema nicht her** — sie sind Ereignisnamen.
+  „26.04 Klimabotschafter Treffen" gehört zu `ACT-Klima`, ohne dass ein Wort
+  darauf hinweist. Die Zuordnung verlangt den Blick in den Bericht
+  (`BERICHT.md`/`_INDEX.md`), der in Schritt 4 ohnehin offen war.
+- **Schreiben mit `themen_setzen`:** `themen` ersetzt die komplette Liste;
+  `erwarteteThemen` ist Pflicht — exakt die Themen, die gerade am Vorhaben
+  zu sehen sind, explizit `null`, wenn der Ordner keine deklariert. Weicht
+  der Stand im Storage ab, wird nichts geschrieben (Riegel gegen
+  konkurrierende Schreiber). Wie jeder Schreibvorgang: vorher fragen, bei
+  mehreren Vorhaben einmal pro Gruppe.
+
+### 6 — Neu scannen, berichten, Stand setzen
 
 `abdeckung_scannen` mit `pfad` oder `folderId`.
 
@@ -145,6 +182,12 @@ Dann `BERICHT.md` und `_INDEX.md` nach den Vorlagen aus `Konventionen.md`
 fortschreiben. **Den Erschließungsstand in die `_INDEX.md`**, nicht in den
 Bericht — dort steht `bearbeitungsstand` im Frontmatter, und der Bericht
 verweist nur darauf.
+
+**Schreibreihenfolge beachten (Befund 27.08.2026).** `stand_setzen` schreibt in
+die `_INDEX.md` — und macht damit **jeden Verweis darauf veraltet**. Wer den
+Bericht vor dem Stand schreibt, erzeugt `verweis_veraltet` neu und schließt den
+Befund nie. Richtige Reihenfolge: **erst `stand_setzen` bzw. die `_INDEX.md`,
+der `BERICHT.md` zuletzt.**
 
 **Den Stand setzt `stand_setzen`**, nicht die Datei-Bridge. Das Werkzeug geht
 denselben geschützten Weg wie die Oberfläche: kein `_INDEX.md` vorhanden (wird
@@ -179,10 +222,22 @@ Immer nach **Akteur** berichten:
 30 Befunde: 28 Mensch ·  1 Maschine · 1 Cowork     (Ende)
 ```
 
-Der Zielzustand eines Agentenlaufs ist **„bereit zur Abnahme"**: null
-maschinelle Befunde, und mindestens einer wartet noch auf Peter. Beides gehört
-dazu — ein Ordner ganz ohne offene Befunde ist **nicht** „bereit", dort gibt es
-nichts abzunehmen. Grün kann nur Peter machen.
+Der Zielzustand eines Agentenlaufs ist **„bereit zur Abnahme"** — seit
+ADR 0006 heißt das: **kein Widerstand offen** (weder maschinelle Befunde noch
+Fehler-Markierungen) und noch nicht abgenommen. Ein Ordner ganz ohne offene
+Befunde IST damit bereit; die frühere Zusatzbedingung „mindestens einer wartet
+auf Peter" ist weggefallen. Grün kann weiterhin nur Peter machen.
+
+**Fehlende Verifikation ist kein Befund mehr.** Maschinenarbeit gilt als
+angenommen; Peter markiert nur noch, was falsch ist. Zwei Folgen für dich:
+
+- Wird ein geprüftes Artefakt neu erzeugt, fällt seine Verifikation auf
+  `ungueltig` zurück. Das ist **kein Mangel und kein Befund** — nicht als Lücke
+  melden. Ein Hinweis im Bericht („diese sechs wurden neu erzeugt") ist
+  trotzdem nützlich.
+- Ein Ordner kann `befundAnzahl: 0` und `bereitZurAbnahme: true` melden, obwohl
+  Artefakte auf `verification: "ungueltig"` stehen. Das ist der Zielzustand,
+  kein Widerspruch.
 
 Was gemeldet wird, ist beobachtet, nicht geschlossen: Verschwindet ein
 Befundtyp, heißt das nicht, dass die Regel abgeschafft wurde. Zwei Regeln
@@ -210,7 +265,7 @@ die Jobs korrekt starten — dann rettet `job_liste` die verlorenen Ids.
 **Toolliste veraltet.** `bruecke_info` nennt Version und Soll-Liste. Weicht die
 eigene Sicht ab, hilft kein Refresh — Peter bitten, die Erweiterung in den
 Einstellungen aus- und wieder einzuschalten. Fehlt `stand_setzen`, ist die
-Liste älter als Werkzeugsatz 2.3.0.
+Liste älter als Werkzeugsatz 2.3.0; fehlt `themen_setzen`, älter als 2.4.0.
 
 **Zwei getrennte Bericht-Regeln.** `bericht_veraltet` prüft, ob der Bericht
 älter ist als die jüngste Änderung im Vorhaben — er kommt nach jedem

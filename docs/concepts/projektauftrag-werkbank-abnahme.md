@@ -7,6 +7,10 @@
 Grundlage sind ein Live-Test des ganzen Wellenplans W1–W8 am 24.08.2026 und
 die Entscheidungen, die Peter im Anschluss getroffen hat.
 
+**Stand 25.08.2026: Alle sechs Wellen sind umgesetzt** (PR #194). Die
+Anleitung fuer den lokalen Live-Test:
+[`testsession-werkbank-abnahme-a1-a6.md`](testsession-werkbank-abnahme-a1-a6.md).
+
 ---
 
 ## Verbindliche Vorlage: das Mockup
@@ -58,10 +62,17 @@ Live-Test entstanden sind und **vor** diesem Auftrag gemergt gehören:
 
 ---
 
-## Welle A1 — Kopf entlasten, Leerzustand füllen
+## Welle A1 — Kopf entlasten, Leerzustand füllen — ERLEDIGT
 
 **Mockup: Zustand C.** Diese Welle holt nach, was Mockup Stand 3
 (23.08.2026) bereits vorsah und was nie gebaut wurde.
+
+**Stand:** umgesetzt auf `claude/welle-a1-agent-header-uscocv`. Der Kopf ist
+`agent-view-kopf.tsx` (eine Zeile), die Konventionen und das Gap-Budget
+wohnen im Aufklapp-Element `agent-view-scan-details.tsx`, der Leerzustand in
+`werkbank/werkbank-leerzustand.tsx`. `coverage-progress.tsx` und
+`coverage-summary.tsx` sind aufgelöst. „Wartet auf dich" ist kein neues
+Prädikat, sondern `zaehleWorklistFortschritt(...).bereit`.
 
 - Der Seitenkopf schrumpft auf **eine Zeile**: Scan-Zeitpunkt ·
   „berechnet, nicht Wahrheit" · Fortschritt seit dem letzten Scan.
@@ -78,9 +89,16 @@ Live-Test entstanden sind und **vor** diesem Auftrag gemergt gehören:
 Zeilen trägt und der Leerzustand die Frage „was muss ich tun?" ohne
 Klick beantwortet.
 
-## Welle A2 — Baum-Navigation bis zum Artefakt
+## Welle A2 — Baum-Navigation bis zum Artefakt — ERLEDIGT
 
 **Mockup: linke Spalte in allen drei Zuständen.**
+
+**Stand:** umgesetzt (`werkbank-baum.ts`, `werkbank-baum-zeilen.tsx`,
+`useWerkbankBaum`, `?artefakt=` in der URL). Der Report trägt je Familie
+jetzt `transkript` und `zusammenfassung` einzeln (optional; Scans vor A2
+werden als `?` benannt). **Entschieden (offene Frage):** Filter blenden
+leere Äste GANZ aus — deckungsgleich mit dem bisherigen Listen-Verhalten
+und der Formulierung dieses Auftrags.
 
 - Vier Ebenen: Bereich → Vorhaben → Ordner → Artefakt (Entscheidung 1).
 - Jede Ebene mit Aufklapp-Pfeil und Zähler `n/m` (Entscheidung 2).
@@ -93,12 +111,20 @@ Klick beantwortet.
 - Die Auswahl steht in der URL, wie bisher — jetzt zusätzlich mit dem
   gewählten Artefakt.
 
-**Offene Frage an Peter vor dem Bau:** Sollen die Filter leere Äste ganz
-ausblenden oder ausgegraut stehen lassen?
+~~Offene Frage an Peter vor dem Bau: Sollen die Filter leere Äste ganz
+ausblenden oder ausgegraut stehen lassen?~~ → Entschieden: ganz ausblenden
+(siehe oben).
 
-## Welle A3 — Detail als Dokument-Ansicht
+## Welle A3 — Detail als Dokument-Ansicht — ERLEDIGT
 
 **Mockup: Zustände A und B, rechte Spalte.**
+
+**Stand:** umgesetzt (`werkbank-vorhaben-dokument.tsx`,
+`werkbank-artefakt-dokument.tsx`, `werkbank-original.tsx`; Bericht-Route
+liest per `?datei=index` die Ordner-Beschreibung). Word hat im Browser
+keine eingebettete Vorschau — benannter Zustand mit Archiv-Link. Die
+Befunde-Liste samt Vorhaben-Auftrag lebt im Menü „Befunde & Auftrag" des
+Kopfes (A4) weiter.
 
 - Rechts steht immer **genau ein Dokument**. Die heutigen Abschnitte
   (Bericht · Befunde · Twin-Familien) als gestapelte Blöcke entfallen.
@@ -111,9 +137,18 @@ ausblenden oder ausgegraut stehen lassen?
 - Die Befunde des Vorhabens verschwinden nicht, sondern werden zur
   **Kennzeichnung am Baum** und zum Inhalt des Kopfes (siehe A4).
 
-## Welle A4 — Einheitlicher Abnahme-Kopf
+## Welle A4 — Einheitlicher Abnahme-Kopf — ERLEDIGT
 
 **Mockup: `.dhead` in Zustand A und B — identisch aufgebaut.**
+
+**Stand:** umgesetzt (`abnahme-kopf.tsx`, `vorhaben-kopf.tsx`,
+`vorhaben-menue.tsx`, `artefakt-kopf.tsx`, `werkbank-sammelaktionen.tsx`,
+`useArtefaktKuration`). Aus A5 vorgezogen, damit die Kopf-Elemente nicht
+lügen: die Sammelaktionen WIRKEN (Rückfrage nennt die Zahl,
+Entscheidung 3) und der Sprung zum nächsten offenen Artefakt nach der
+Verifikation (Entscheidung 5; halb geprüfte Familie wechselt erst den
+Tab). Der Rest von A5 (Ordner-Ende-Hinweis, Baum zieht mit) folgte
+direkt danach — siehe A5.
 
 - Zeile 1: Titel · Zustands-Chip · **ein** primärer Knopf · Menü `⋯`.
   Der Knopf heißt „Vorhaben abnehmen" bzw. „Verifizieren", je nachdem,
@@ -125,7 +160,16 @@ ausblenden oder ausgegraut stehen lassen?
 - Der Abnehmen-Knopf folgt Entscheidung 6 — er sperrt nur bei offenen
   **maschinellen** Befunden (`istAbnehmbar`, liegt bereits vor).
 
-## Welle A5 — Verifizieren im Fluss
+## Welle A5 — Verifizieren im Fluss — ERLEDIGT
+
+**Stand:** komplett. Sammelaktionen und der Basis-Sprung kamen mit A4;
+A5 ergänzt den Rest: Am Ordner-Ende sagt ein Hinweis, dass der Ordner
+fertig ist, und die Auswahl springt in den nächsten Ordner mit offenen
+Punkten (`sprungNachVerifikation`/`sprungHinweis`); sind alle Artefakte
+geprüft, verweist der Hinweis auf die Abnahme. Der Baum zieht mit:
+zugeklappte Ziel-Ordner klappen auf, die Ziel-Zeile scrollt in Sicht.
+Schreibfehler stehen als Klartext am Ort der Aktion (Einzel: unter dem
+Kopf; Sammelaktion: Ergebnis mit Fehlern je Datei).
 
 - Sammelaktionen auf Vorhaben-Ebene, **getrennt** nach Transkripten und
   Zusammenfassungen, je mit einer Rückfrage, die die Zahl nennt
@@ -140,7 +184,21 @@ ausblenden oder ausgegraut stehen lassen?
 Rückfrage der Sammelaktion ist kein Formalismus, sondern die Stelle, an
 der Peter bestätigt, dass er die Gruppe wirklich gesehen hat.
 
-## Welle A6 — Thema als eigenes Feld
+## Welle A6 — Thema als eigenes Feld — ERLEDIGT
+
+**Entschieden (Peter, 25.08.2026):** Die gepflegten Themen wohnen als
+`themen:`-Feld (flache YAML-Liste, mehrere Themen möglich) im `_INDEX.md`
+des Vorhabens — das Vorhaben erscheint unter JEDER seiner Themen-Gruppen.
+Das **Themen-Vokabular** wird in den Library-Einstellungen (Agentensicht →
+„Themen-Vokabular", eine Zeile pro Thema) organisiert und normalisiert;
+der Themen-Editor im Vorhaben-Kopf bietet es im Dropdown an
+(Vokabular ∪ bereits vergebene Themen) und schreibt zeilen-chirurgisch
+über die neue Themen-Route ins `_INDEX.md` (gleiche Chirurgie und
+Wiederherstellung wie das Stand-Schreiben). Die Gruppierung „Thema"
+stützt sich NUR noch auf dieses Feld — die BERICHT-`themen` (technische
+Bausteine) gruppieren nicht mehr. Reports aus Scans vor A6 werden benannt;
+dort ist das Speichern gesperrt, bis „Neu scannen" die Bestands-Themen
+kennt.
 
 - Die Gruppierung „Thema" stützt sich heute auf `themen` aus dem
   BERICHT.md-Frontmatter. Das Feld enthält technische Bausteine eines

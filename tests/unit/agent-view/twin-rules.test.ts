@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  checkFlagged,
   checkLeadingVerification,
   checkTransformationState,
   checkTwinCoreMissing,
@@ -59,15 +60,12 @@ describe('twin-rules — twin_core_missing', () => {
   })
 })
 
-describe('twin-rules — twin_unverified / self_verified', () => {
-  it('meldet twin_unverified ohne verified_by (Positivfall)', () => {
-    const gaps = checkLeadingVerification(family([transcript(), transformation()]), STANDARD)
-    expect(gaps.map((g) => g.type)).toEqual(['twin_unverified'])
-    expect(gaps[0].actor).toBe('mensch')
-    expect(gaps[0].zyklusSchritt).toBe(4)
+describe('twin-rules — Verifikation ist keine Schuld mehr (ADR 0006)', () => {
+  it('meldet NICHTS ohne verified_by — Maschinenarbeit gilt als angenommen', () => {
+    expect(checkLeadingVerification(family([transcript(), transformation()]), STANDARD)).toEqual([])
   })
 
-  it('meldet nichts bei gueltiger Verifikation am fuehrenden Artefakt (Negativfall)', () => {
+  it('meldet nichts bei gueltiger Verifikation am fuehrenden Artefakt', () => {
     const verified = transformation({ verified_by: 'human:peter', verified_at: '2026-08-02' })
     expect(checkLeadingVerification(family([transcript(), verified]), STANDARD)).toEqual([])
   })
@@ -77,10 +75,9 @@ describe('twin-rules — twin_unverified / self_verified', () => {
     expect(evaluateTwinRules(family([transcript(), verified]), STANDARD)).toEqual([])
   })
 
-  it('meldet twin_unverified, wenn die Verifikation aelter als die Generierung ist', () => {
+  it('meldet auch bei ueberholter Verifikation nichts — sie faellt auf „angenommen" zurueck', () => {
     const stale = transformation({ verified_by: 'human:peter', verified_at: '2026-07-01' })
-    const gaps = checkLeadingVerification(family([stale]), STANDARD)
-    expect(gaps.map((g) => g.type)).toEqual(['twin_unverified'])
+    expect(checkLeadingVerification(family([stale]), STANDARD)).toEqual([])
   })
 
   it('meldet self_verified, wenn Erzeuger und Pruefer derselbe Akteur sind', () => {
@@ -88,6 +85,48 @@ describe('twin-rules — twin_unverified / self_verified', () => {
     const gaps = checkLeadingVerification(family([self]), STANDARD)
     expect(gaps.map((g) => g.type)).toEqual(['self_verified'])
     expect(gaps[0].severity).toBe('error')
+  })
+})
+
+describe('twin-rules — twin_flagged (Fehler-Markierung, ADR 0006)', () => {
+  const markiert = {
+    twin_status: 'flagged',
+    flagged_by: 'human:peter@example.org',
+    flagged_at: '2026-08-26T09:00:00.000Z',
+    flagged_note: 'Sprecher vertauscht',
+  }
+
+  it('meldet die Markierung als Mensch-Befund mit Schritt 4 und Severity error', () => {
+    const gap = checkFlagged(family([transcript(), transformation(markiert)]))
+    expect(gap?.type).toBe('twin_flagged')
+    expect(gap?.actor).toBe('mensch')
+    expect(gap?.zyklusSchritt).toBe(4)
+    expect(gap?.severity).toBe('error')
+  })
+
+  it('nennt Notiz und Urheber im Beleg — der Widerstand muss lesbar sein', () => {
+    const gap = checkFlagged(family([transformation(markiert)]))
+    expect(gap?.detail).toContain('Sprecher vertauscht')
+    expect(gap?.detail).toContain('human:peter@example.org')
+  })
+
+  it('benennt eine fehlende Notiz, statt sie zu erfinden (Altbestand)', () => {
+    const ohneNotiz = { twin_status: 'flagged', flagged_by: 'human:peter' }
+    expect(checkFlagged(family([transformation(ohneNotiz)]))?.detail).toContain('(ohne Notiz)')
+  })
+
+  it('zaehlt JEDES markierte Artefakt, nicht nur das fuehrende', () => {
+    const gap = checkFlagged(family([transcript(markiert), transformation(markiert)]))
+    expect(gap?.message).toContain('2 Artefakte')
+  })
+
+  it('meldet nichts ohne Markierung (Negativfall)', () => {
+    expect(checkFlagged(family([transcript(), transformation()]))).toBeNull()
+  })
+
+  it('haengt in der Familien-Auswertung mit drin', () => {
+    const typen = evaluateTwinRules(family([transcript(), transformation(markiert)]), STANDARD).map((g) => g.type)
+    expect(typen).toContain('twin_flagged')
   })
 })
 

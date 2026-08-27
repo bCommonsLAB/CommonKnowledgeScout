@@ -32,8 +32,17 @@ describe('Twin-Kern — Feldlisten (Contract §3)', () => {
   })
 
   it('Kurations-Felder und twin_status-Werte sind exakt definiert', () => {
-    expect([...TWIN_CURATION_FIELDS]).toEqual(['twin_status', 'verified_by', 'verified_at'])
-    expect([...TWIN_STATUS_VALUES]).toEqual(['draft', 'stable', 'deprecated'])
+    // ADR 0006: `flagged` + die Herkunft der Fehler-Markierung kommen dazu —
+    // Muster wie verified_by/verified_at, flach im Frontmatter.
+    expect([...TWIN_CURATION_FIELDS]).toEqual([
+      'twin_status',
+      'verified_by',
+      'verified_at',
+      'flagged_by',
+      'flagged_at',
+      'flagged_note',
+    ])
+    expect([...TWIN_STATUS_VALUES]).toEqual(['draft', 'stable', 'deprecated', 'flagged'])
   })
 
   it('Pflichtfelder je Art: Transformation braucht template+language, Transkript nicht', () => {
