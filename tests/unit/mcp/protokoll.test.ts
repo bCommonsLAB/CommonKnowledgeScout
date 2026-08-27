@@ -59,6 +59,19 @@ describe('mitProtokoll', () => {
     )
   })
 
+  it('markiert den Kanal — der Schluessel-Inhaber ist nicht der Handelnde', async () => {
+    // Cowork-Befund 27.08.2026: Beide Eintraege standen auf Peters Mailadresse,
+    // obwohl ein Agent gehandelt hat. `kanal` beantwortet die Frage, fuer die
+    // das Protokoll gebaut wurde.
+    await mitProtokoll(KOPF, async () => ({ ok: true }))
+    expect(protokolliereAktion).toHaveBeenCalledWith(expect.objectContaining({ kanal: 'bruecke' }))
+  })
+
+  it('reicht den Vorschau-Modus durch — eine Vorschau aendert nichts', async () => {
+    await mitProtokoll({ ...KOPF, modus: 'vorschau' }, async () => ({ geschrieben: [] }))
+    expect(protokolliereAktion).toHaveBeenCalledWith(expect.objectContaining({ modus: 'vorschau' }))
+  })
+
   it('haelt auch den Fehlversuch fest und wirft unveraendert weiter', async () => {
     await expect(
       mitProtokoll(KOPF, async () => {

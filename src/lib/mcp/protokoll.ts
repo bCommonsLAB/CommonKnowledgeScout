@@ -11,6 +11,11 @@
  * Die Pflicht trifft ausdruecklich NUR die Bruecke — die Knoepfe der Werkbank
  * laufen nicht hier durch. Der Mensch fuellt nichts aus, der Agent begruendet.
  *
+ * Grenze, die das Protokoll NICHT ueberschreiten kann (Cowork-Befund
+ * 27.08.2026): Eine Eingabe, die schon an der Schema-Pruefung scheitert —
+ * etwa ein Aufruf OHNE `begruendung` — erreicht diesen Code nie und steht
+ * darum nicht im Protokoll. Erfasst sind Fehler NACH der Validierung.
+ *
  * @module mcp
  */
 
@@ -36,6 +41,8 @@ export interface ProtokollKopf {
   folderId?: string
   pfad?: string
   sourceId?: string
+  /** Setzen, wenn die Aktion nur rendert/prueft und nichts schreibt. */
+  modus?: 'vorschau'
 }
 
 /**
@@ -48,6 +55,7 @@ export async function mitProtokoll<T>(kopf: ProtokollKopf, ausfuehren: () => Pro
     const ergebnis = await ausfuehren()
     await protokolliereAktion({
       ...kopf,
+      kanal: 'bruecke',
       status: 'ok',
       ergebnis: zusammenfassung(ergebnis),
     })
@@ -57,6 +65,7 @@ export async function mitProtokoll<T>(kopf: ProtokollKopf, ausfuehren: () => Pro
     // dasselbe versucht wurde, findet es hier.
     await protokolliereAktion({
       ...kopf,
+      kanal: 'bruecke',
       status: 'fehler',
       fehler: fehler instanceof Error ? fehler.message : String(fehler),
     })

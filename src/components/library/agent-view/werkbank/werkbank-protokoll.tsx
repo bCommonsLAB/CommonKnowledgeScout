@@ -46,7 +46,14 @@ function Eintrag({ eintrag }: { eintrag: AktionsProtokollEintrag }) {
       <div className="flex flex-wrap items-baseline gap-x-2 text-xs">
         <code className="font-medium text-foreground">{eintrag.werkzeug}</code>
         <Zeitpunkt iso={eintrag.createdAt} />
-        <span className="text-muted-foreground">{eintrag.akteur}</span>
+        {/* „Agent" statt der Mail-Adresse: Der Schluessel gehoert Peter, gehandelt
+            hat ein Agent ueber die Bruecke (Cowork-Befund 27.08.2026). */}
+        <span className="text-muted-foreground" title={`Schluessel-Inhaber: ${eintrag.akteur}`}>
+          Agent über die Brücke
+        </span>
+        {eintrag.modus === 'vorschau' && (
+          <span className="rounded border px-1 text-muted-foreground">Vorschau — nichts geändert</span>
+        )}
         {fehlgeschlagen && <span className="font-medium text-red-600">fehlgeschlagen</span>}
       </div>
       <p className="mt-1 text-sm">{eintrag.begruendung}</p>
@@ -78,7 +85,8 @@ export function WerkbankProtokoll({ libraryId, folderId }: { libraryId: string; 
         <p>Für dieses Vorhaben ist noch nichts protokolliert.</p>
         <p className="text-xs">
           Das Protokoll entsteht, sobald ein Agent über die Brücke schreibt — jede Aktion trägt dort
-          eine Begründung. Deine eigenen Klicks in der Werkbank stehen bewusst nicht darin.
+          eine Begründung. Deine eigenen Klicks in der Werkbank stehen bewusst nicht darin, und ein
+          Aufruf, der schon an der Eingabeprüfung scheitert, erreicht es nicht.
         </p>
       </div>
     )

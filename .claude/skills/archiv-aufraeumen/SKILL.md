@@ -358,10 +358,14 @@ Werkzeug **ohne** `begruendung` aufrufen. Kommt
 mindestens 2.6.0 — auch wenn die Werkzeugbeschreibung das Feld nicht zeigt.
 Dann `begruendung` trotzdem mitgeben; die Brücke reicht sie durch.
 
-**Der Skill liegt bei Claude Desktop als hochgeladenes Paket**, nicht im Repo.
-Kein `git`-Vorgang aktualisiert ihn — die Fassung muss in den Einstellungen
-ersetzt werden. Deine Zeilenzahl ist die Probe: Nenne sie, wenn eine Regel
-strittig ist.
+**Der Skill hat zwei Orte — Quelle und Verteilweg.** Gepflegt wird er im Repo
+(`.claude/skills/archiv-aufraeumen/SKILL.md`); dorthin gehören Korrekturen.
+Bei Claude Desktop liegt er als **hochgeladenes Paket** — und nur diese Kopie
+liest du. Ein `git pull` aktualisiert die Quelle, nicht deine Fassung: Dafür
+muss jemand ein neues Paket bauen und es in den Einstellungen ersetzen.
+
+Deine Zeilenzahl ist die Probe. Nenne sie, wenn eine Regel strittig ist —
+weicht sie vom Repo-Stand ab, arbeitest du mit einer alten Anleitung.
 
 **Zwei getrennte Bericht-Regeln.** `bericht_veraltet` prüft, ob der Bericht
 älter ist als die jüngste Änderung im Vorhaben — er kommt nach jedem
