@@ -48,6 +48,55 @@ export interface TwinFamilyView {
   artifacts: TwinArtifactView[]
 }
 
+/**
+ * Zeitfenster, in dem eine Datei-Aenderung noch dem Kurations-Stempel
+ * zugerechnet wird. Der Stempel und der Write passieren in derselben
+ * Sekunde; zwei Minuten sind grosszuegig und lassen Uhr-Drift zu.
+ */
+const KURATIONS_FENSTER_MS = 2 * 60 * 1000
+
+function textOderNull(wert: unknown): string | null {
+  return typeof wert === 'string' && wert.trim() !== '' ? wert : null
+}
+
+/**
+ * Zeitpunkt, zu dem der INHALT eines Artefakts entstand — nicht der letzte
+ * Schreibvorgang.
+ *
+ * Befund 27.08.2026 („die Tretmuehle"): Verifizieren schreibt das Artefakt
+ * (`verified_by`/`verified_at`), also wandert sein `updatedAt` nach vorn.
+ * Regeln, die Zeitstempel vergleichen, lasen darin eine INHALTS-Aenderung:
+ * jeder Pruef-Klick machte den Bericht veraltet (`bericht_veraltet`, daraus
+ * `stand_widerspruch`) und liess die Zusammenfassung ueberholt aussehen
+ * (`transformation_stale`) — was zu einer Re-Transformation fuehrte, die
+ * genau die eben gesetzte Verifikation wieder ungueltig machte. Eine
+ * Schleife, die sich durch Arbeiten nicht schliessen laesst.
+ *
+ * Dieselbe Unterscheidung galt schon fuer Dateien: BERICHT.md/_INDEX.md sind
+ * META ueber den Inhalt und altern den Bericht nicht (`coverage-inputs.ts`).
+ * Ein Kurations-Stempel ist genauso Meta.
+ *
+ * Faellt die letzte Aenderung mit einem Kurations-Stempel zusammen, zaehlt
+ * darum `generated_at`. Handkorrekturen am Twin (Cowork korrigiert Transkripte
+ * im `_`-Ordner, Zyklus Schritt 3) bleiben Inhalts-Aenderungen — sie tragen
+ * keinen Stempel.
+ */
+export function inhaltsZeitpunkt(artifact: TwinArtifactView): string {
+  // Altbestand aus Mongo kann ohne Frontmatter kommen; dann bleibt nur der
+  // Write-Zeitpunkt — das fehlende Feld meldet `twin_core_missing`.
+  const fm: Record<string, unknown> = artifact.frontmatter ?? {}
+  const stempel = textOderNull(fm['verified_at']) ?? textOderNull(fm['flagged_at'])
+  if (stempel === null) return artifact.updatedAt
+
+  const abstand = Math.abs(Date.parse(artifact.updatedAt) - Date.parse(stempel))
+  if (Number.isNaN(abstand) || abstand > KURATIONS_FENSTER_MS) return artifact.updatedAt
+
+  // Der letzte Write war die Kuration — der Inhalt ist so alt wie seine
+  // Erzeugung. Fehlt `generated_at`, bleibt es beim Write-Zeitpunkt; das
+  // fehlende Feld meldet `twin_core_missing` als eigener Befund.
+  return textOderNull(fm['generated_at']) ?? artifact.updatedAt
+}
+
 function familyGapBase(family: TwinFamilyView) {
   return {
     scope: 'source' as const,
@@ -170,15 +219,20 @@ export function checkTransformationState(
     ]
   }
 
-  const transcriptTime = Date.parse(transcript.updatedAt)
-  const standardTime = Date.parse(standard.updatedAt)
+  // Verglichen wird der INHALTS-Zeitpunkt, nicht der letzte Write: Sonst macht
+  // eine Verifikation des Transkripts die Zusammenfassung „ueberholt" und
+  // loest eine Re-Transformation aus, die die Verifikation wieder entwertet.
+  const transkriptInhalt = inhaltsZeitpunkt(transcript)
+  const standardInhalt = inhaltsZeitpunkt(standard)
+  const transcriptTime = Date.parse(transkriptInhalt)
+  const standardTime = Date.parse(standardInhalt)
   if (Number.isNaN(transcriptTime) || Number.isNaN(standardTime) || transcriptTime <= standardTime) return []
   return [
     createGap({
       ...familyGapBase(family),
       type: 'transformation_stale',
       message: 'Das Transkript wurde nach der Zusammenfassung geaendert — sie gibt es nicht mehr wieder',
-      detail: `Transkript ${transcript.updatedAt}, Transformation ${standard.updatedAt}`,
+      detail: `Transkript ${transkriptInhalt}, Transformation ${standardInhalt}`,
     }),
   ]
 }
