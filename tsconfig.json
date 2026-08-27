@@ -25,7 +25,8 @@
       "@ks/contracts": ["./packages/contracts/src/index.ts"],
       "@ks/api-client": ["./packages/api-client/src/index.ts"],
       "@ks/shell": ["./packages/shell/src/index.ts"],
-      "@ks/shell/providers": ["./packages/shell/src/providers/index.ts"]
+      "@ks/shell/providers": ["./packages/shell/src/providers/index.ts"],
+      "@ks/module-explorer": ["./packages/module-explorer/src/index.ts"]
     },
     "types": ["node"]
   },

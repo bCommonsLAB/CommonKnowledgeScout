@@ -29,6 +29,9 @@ importers:
       '@ks/contracts':
         specifier: workspace:*
         version: link:packages/contracts
+      '@ks/module-explorer':
+        specifier: workspace:*
+        version: link:packages/module-explorer
       '@ks/shell':
         specifier: workspace:*
         version: link:packages/shell
@@ -392,6 +395,15 @@ importers:
         version: 18.2.0
 
   packages/contracts: {}
+
+  packages/module-explorer:
+    dependencies:
+      '@ks/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@ks/shell':
+        specifier: workspace:*
+        version: link:../shell
 
   packages/shell:
     dependencies:

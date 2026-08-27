@@ -7,5 +7,7 @@
  */
 
 export * from './site'
+export { siteGate, getRequestHost, isModuleActiveForHost } from './api/site-gate'
+export type { SiteGateRequest } from './api/site-gate'
 export { buildTopNavConfig } from './nav/top-nav-config'
 export type { NavItem } from './nav/top-nav-config'

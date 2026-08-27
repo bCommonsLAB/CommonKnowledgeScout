@@ -1,0 +1,12 @@
+{
+  "name": "@ks/module-explorer",
+  "version": "0.0.0",
+  "private": true,
+  "description": "KnowledgeScout — Modul Explorer (Galerie, Story, Chat/RAG, Website): API-Namensraum und Site-Gate",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@ks/contracts": "workspace:*",
+    "@ks/shell": "workspace:*"
+  }
+}

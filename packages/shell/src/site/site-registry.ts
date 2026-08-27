@@ -92,9 +92,24 @@ export function buildSiteRegistry(domainMap: Record<string, string>): SiteRegist
   return { defaultSite: DEFAULT_SITE_CONFIG, byHost }
 }
 
+/**
+ * Memoisierte Registry der Laufzeit-Umgebung. Der Cache-Schluessel ist der
+ * ENV-Rohwert: Aendert er sich (Tests, Neustart mit anderer Konfiguration),
+ * wird neu gebaut — es gibt also keinen Zustand, der still veraltet.
+ *
+ * Ohne den Cache wuerde jeder Aufrufer denselben JSON-String pro Request neu
+ * parsen; seit Welle M4 haengt an der Registry das API-Gate und damit jeder
+ * Modul-Route-Aufruf.
+ */
+let cachedRegistry: { key: string | undefined; registry: SiteRegistry } | null = null
+
 /** Registry aus der Laufzeit-Umgebung (`PUBLIC_DOMAIN_LIBRARY_MAP`). */
 export function getSiteRegistry(): SiteRegistry {
-  return buildSiteRegistry(getDomainLibraryMap())
+  const key = process.env.PUBLIC_DOMAIN_LIBRARY_MAP
+  if (cachedRegistry && cachedRegistry.key === key) return cachedRegistry.registry
+  const registry = buildSiteRegistry(getDomainLibraryMap())
+  cachedRegistry = { key, registry }
+  return registry
 }
 
 /**
