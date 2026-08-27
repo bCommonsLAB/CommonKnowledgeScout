@@ -21,7 +21,7 @@ import { useAtomValue } from "jotai"
 import { libraryAtom } from "@/atoms/library-atom"
 import { fetchDocs } from "@/components/library/website/use-website-landing-data"
 import { selectMainMenuDocs, getSiteParamForDoc } from "@/lib/website/site-navigation"
-import type { NavItem } from "@/components/top-nav-config"
+import type { NavItem } from "@ks/shell"
 
 /**
  * Liefert die Website-Seiten (ohne Homepage-Doc) als NavItems.

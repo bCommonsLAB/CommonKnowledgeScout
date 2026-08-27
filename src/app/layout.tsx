@@ -18,7 +18,7 @@
  * 
  * @dependencies
  * - @clerk/nextjs: Clerk authentication provider
- * - @/components/theme-provider: Theme management
+ * - @ks/shell: Theme-/Locale-/Query-Provider-Kette
  * - @/contexts/storage-context: Storage context provider
  * - @/components/layouts/app-layout: Main application layout
  * - @/components/layouts/home-layout: Home page layout
@@ -26,7 +26,6 @@
 
 import "@/styles/globals.css"
 import { GeistSans } from 'geist/font/sans';
-import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Toaster } from "sonner"
 // Die App hat ZWEI Meldungssysteme: `sonner` und den shadcn-Hook
@@ -37,9 +36,7 @@ import { Toaster } from "sonner"
 import { Toaster as HookToaster } from "@/components/ui/toaster"
 import { ClerkProvider } from "@clerk/nextjs"
 import { StorageContextProvider } from '@/contexts/storage-context'
-import { JotaiLocaleProvider } from '@/components/providers/jotai-locale-provider'
-import { LocaleGate } from '@/components/providers/locale-gate'
-import { QueryProvider } from '@/components/providers/query-provider'
+import { ThemeProvider, JotaiLocaleProvider, LocaleGate, QueryProvider } from '@ks/shell'
 import { AppLayout } from "@/components/layouts/app-layout"
 import { HomeLayout } from "@/components/layouts/home-layout"
 import { getRootLandingTargetForHost } from "@/lib/root-landing"

@@ -29,6 +29,9 @@ importers:
       '@ks/contracts':
         specifier: workspace:*
         version: link:packages/contracts
+      '@ks/shell':
+        specifier: workspace:*
+        version: link:packages/shell
       '@ks/viewers':
         specifier: workspace:*
         version: link:packages/viewers
@@ -389,6 +392,24 @@ importers:
         version: 18.2.0
 
   packages/contracts: {}
+
+  packages/shell:
+    dependencies:
+      '@ks/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@tanstack/react-query':
+        specifier: ^5.101.1
+        version: 5.101.1(react@18.2.0)
+      jotai:
+        specifier: ^2.11.0
+        version: 2.12.5(@types/react@18.3.23)(react@18.2.0)
+      next-themes:
+        specifier: ^0.4.4
+        version: 0.4.6(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      react:
+        specifier: ^18.2.0
+        version: 18.2.0
 
   packages/viewers:
     dependencies:

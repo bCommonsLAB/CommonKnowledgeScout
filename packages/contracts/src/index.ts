@@ -13,3 +13,4 @@ export {
 export type { LlmModelDto } from './llm-model'
 export type { UserInfoDto, UserInfoEmailDto } from './user-info'
 export type { LibraryIdentityDto } from './library-identity'
+export type { SiteConfig, SiteModule, FederatedLibraryRole } from './site-config'

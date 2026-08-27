@@ -70,6 +70,7 @@
     "@clerk/nextjs": "^6.21.0",
     "@ks/api-client": "workspace:*",
     "@ks/contracts": "workspace:*",
+    "@ks/shell": "workspace:*",
     "@ks/viewers": "workspace:*",
     "@heroicons/react": "^2.2.0",
     "@hookform/resolvers": "^3.10.0",

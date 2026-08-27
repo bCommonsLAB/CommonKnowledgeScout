@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeHost, resolveForeignExploreRedirect, isLandingRedirectCandidate } from '@/lib/domain-library-map'
+import { normalizeHost, resolveForeignExploreRedirect, isLandingRedirectCandidate } from '@ks/shell'
 
 const MAP = { 'oldiesforfuture.org': 'oldiesforfuture' }
 const APP_URL = 'https://knowledgescout.org'

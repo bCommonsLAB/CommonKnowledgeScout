@@ -2,8 +2,8 @@
 
 import { useLayoutEffect } from 'react'
 import { Provider, useSetAtom } from 'jotai'
-import { localeAtom } from '@/atoms/i18n-atom'
-import { LocaleProvider } from '@/components/providers/locale-provider'
+import { localeAtom } from '../atoms/i18n-atom'
+import { LocaleProvider } from './locale-provider'
 import type { Locale } from '@/lib/i18n'
 
 interface JotaiLocaleProviderProps {

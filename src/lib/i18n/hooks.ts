@@ -9,7 +9,7 @@
 
 import { useAtomValue, useSetAtom } from 'jotai'
 import { useMemo } from 'react'
-import { localeAtom } from '@/atoms/i18n-atom'
+import { localeAtom } from '@ks/shell'
 import { t, type Locale } from './index'
 
 /**

@@ -13,7 +13,7 @@
 import { unstable_cache } from 'next/cache'
 import { getAppConfig } from '@/lib/repositories/app-config-repo'
 import { LibraryService } from '@/lib/services/library-service'
-import { getDomainLibraryMap, normalizeHost } from '@/lib/domain-library-map'
+import { getDomainLibraryMap, normalizeHost } from '@ks/shell'
 
 // Re-Export fuer Bestandsnutzer (Host-Normalisierung lebt jetzt edge-tauglich
 // in domain-library-map.ts, damit auch die Middleware sie nutzen kann).

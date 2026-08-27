@@ -7,7 +7,7 @@ import { HowItWorks } from "@/components/home/how-it-works"
 import { PhilosophySection } from "@/components/home/philosophy-section"
 import { CTASection } from "@/components/home/cta-section"
 import { useSetAtom } from "jotai"
-import { localeAtom } from "@/atoms/i18n-atom"
+import { localeAtom } from "@ks/shell"
 import { getLocale, type Locale } from "@/lib/i18n"
 
 /**
