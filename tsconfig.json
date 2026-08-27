@@ -21,7 +21,9 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@ks/viewers": ["./packages/viewers/src/index.ts"]
+      "@ks/viewers": ["./packages/viewers/src/index.ts"],
+      "@ks/contracts": ["./packages/contracts/src/index.ts"],
+      "@ks/api-client": ["./packages/api-client/src/index.ts"]
     },
     "types": ["node"]
   },

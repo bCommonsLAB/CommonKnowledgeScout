@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useLlmModels } from "@ks/api-client"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Label } from "@/components/ui/label"
@@ -62,45 +63,27 @@ export function LlmModelSelector({
   disabled = false,
   variant = 'compact',
 }: LlmModelSelectorProps) {
-  // Interne States für automatisches Laden
-  const [internalModels, setInternalModels] = React.useState<LlmModelOption[]>([])
-  const [internalLoading, setInternalLoading] = React.useState(false)
-
-  // Verwende externe Modelle wenn vorhanden, sonst interne
-  const models = externalModels ?? internalModels
-  const isLoading = externalLoading ?? internalLoading
-
-  // Automatisches Laden der Modelle, wenn keine externen übergeben wurden
+  // Automatisches Laden der Modelle ueber @ks/api-client, wenn keine externen
+  // Modelle uebergeben wurden (Welle M2 — Beweis-Ziel fuer den Core-API-Client).
+  const modelsQuery = useLlmModels('public', { enabled: externalModels === undefined })
   React.useEffect(() => {
-    // Nur laden, wenn keine externen Modelle übergeben wurden
-    if (externalModels !== undefined) return
-
-    let cancelled = false
-    async function loadModels() {
-      setInternalLoading(true)
-      try {
-        const response = await fetch('/api/public/llm-models')
-        if (!response.ok) {
-          console.warn('[LlmModelSelector] Fehler beim Laden der LLM-Modelle:', response.status)
-          return
-        }
-        const data = await response.json()
-        if (!cancelled && Array.isArray(data)) {
-          setInternalModels(data.map((m: { modelId?: string; name?: string; strengths?: string }) => ({
-            modelId: m.modelId || '',
-            name: m.name || m.modelId || '',
-            strengths: m.strengths || undefined,
-          })))
-        }
-      } catch (error) {
-        console.error('[LlmModelSelector] Fehler beim Laden der LLM-Modelle:', error)
-      } finally {
-        if (!cancelled) setInternalLoading(false)
-      }
+    if (externalModels === undefined && modelsQuery.isError) {
+      console.error('[LlmModelSelector] Fehler beim Laden der LLM-Modelle:', modelsQuery.error)
     }
-    void loadModels()
-    return () => { cancelled = true }
-  }, [externalModels])
+  }, [externalModels, modelsQuery.isError, modelsQuery.error])
+
+  const internalModels = React.useMemo<LlmModelOption[]>(
+    () => (modelsQuery.data ?? []).map((m) => ({
+      modelId: m.modelId || '',
+      name: m.name || m.modelId || '',
+      strengths: m.strengths || undefined,
+    })),
+    [modelsQuery.data],
+  )
+
+  // Verwende externe Modelle wenn vorhanden, sonst die per Client geladenen
+  const models = externalModels ?? internalModels
+  const isLoading = externalLoading ?? (externalModels === undefined && modelsQuery.isLoading)
 
   // Wenn keine Modelle verfügbar, nichts rendern
   if (!isLoading && models.length === 0) {
