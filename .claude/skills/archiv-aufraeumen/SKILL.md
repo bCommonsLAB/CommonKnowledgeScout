@@ -47,7 +47,10 @@ wie viel.
 
 **3. Zuerst lesen, dann rechnen.** `abdeckung_lesen` antwortet aus dem Cache in
 Sekunden. `abdeckung_scannen` läuft live gegen den Storage und gehört ans Ende
-eines Arbeitsschritts.
+eines Arbeitsschritts. Seine **Antwort ist so weit wie die Frage**: Mit
+`folderId`/`pfad` beschreibt sie nur diesen Teilbaum (`antwortFuerTeilbaum`
+nennt ihn) — der gespeicherte Voll-Report bleibt trotzdem vollständig, der
+Teilbaum-Scan merged hinein.
 
 **3b. Jobs anstoßen und weiterarbeiten — nicht warten.**
 `transformation_starten` und `quelle_erschliessen` antworten **sofort** mit
@@ -266,6 +269,8 @@ die Jobs korrekt starten — dann rettet `job_liste` die verlorenen Ids.
 eigene Sicht ab, hilft kein Refresh — Peter bitten, die Erweiterung in den
 Einstellungen aus- und wieder einzuschalten. Fehlt `stand_setzen`, ist die
 Liste älter als Werkzeugsatz 2.3.0; fehlt `themen_setzen`, älter als 2.4.0.
+Gibt `abdeckung_scannen` bei einem Teilbaum-Scan kein `antwortFuerTeilbaum`
+zurück (sondern die ganze Library), ist die Fassung älter als 2.5.0.
 
 **Zwei getrennte Bericht-Regeln.** `bericht_veraltet` prüft, ob der Bericht
 älter ist als die jüngste Änderung im Vorhaben — er kommt nach jedem
