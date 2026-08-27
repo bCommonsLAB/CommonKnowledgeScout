@@ -22,6 +22,7 @@
 
 import crypto from 'crypto'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
+import { FileLogger } from '@/lib/debug/logger'
 import { getSelfBaseUrl } from '@/lib/env'
 import type { PhasePolicies } from '@/lib/processing/phase-policy'
 import type { ExternalJob } from '@/types/external-job'
@@ -154,9 +155,64 @@ export async function enqueueSourceTranscribeJob(args: {
 }
 
 /**
- * Reiht einen Template-auf-Text-Job ein und fuettert den Callback mit dem
- * Text (wie die text-Job-Route). Schlaegt das Fuettern fehl, wird das LAUT
- * gemeldet — der Job bliebe sonst ewig `queued`.
+ * Fuettert den Text-Callback des Jobs — die Route rechnet dabei den GANZEN
+ * Job (LLM, Einbettungen, Spiegel-Writes) und antwortet erst danach.
+ *
+ * Bewusst NICHT awaited vom Aufrufer (Befund 27.08.2026): Frueher wartete
+ * `enqueueTemplateOnTextJob` hier ~36 s pro Datei. Ein Stapel von sechs
+ * Quellen lief damit 3,6 Minuten und riss das 60-Sekunden-Limit der
+ * MCP-Bruecke — obwohl die Werkzeug-Beschreibung „antwortet SOFORT mit
+ * jobId" verspricht und der Job-Worker sechs Jobs parallel fahren koennte.
+ *
+ * Ein Fehlschlag wird darum HIER behandelt: Der Job faellt sichtbar auf
+ * `failed` mit Begruendung, statt still `queued` zu bleiben.
+ */
+async function fuettereTextImHintergrund(args: {
+  jobId: string
+  jobSecret: string
+  extractedText: string
+}): Promise<void> {
+  const callbackUrl = `${getSelfBaseUrl().replace(/\/$/, '')}/api/external/jobs/${args.jobId}`
+  try {
+    const response = await fetch(callbackUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${args.jobSecret}`,
+        'X-Internal-Token': process.env.INTERNAL_TEST_TOKEN || '',
+      },
+      body: JSON.stringify({ data: { extracted_text: args.extractedText } }),
+    })
+    if (response.ok) return
+    const text = await response.text().catch(() => '')
+    await meldeFuetterFehler(args.jobId, `Text-Feed schlug fehl (HTTP ${response.status}): ${text.slice(0, 200)}`)
+  } catch (fehler) {
+    await meldeFuetterFehler(
+      args.jobId,
+      `Text-Feed nicht zustellbar: ${fehler instanceof Error ? fehler.message : String(fehler)}`,
+    )
+  }
+}
+
+/** Fehlschlag im Job festhalten — nichts bleibt still stehen. */
+async function meldeFuetterFehler(jobId: string, meldung: string): Promise<void> {
+  FileLogger.error('enqueue-secretary-job', 'Text-Feed fehlgeschlagen', { jobId, meldung })
+  try {
+    await new ExternalJobsRepository().setStatus(jobId, 'failed', {
+      error: { code: 'text_feed_failed', message: meldung },
+    })
+  } catch (fehler) {
+    FileLogger.error('enqueue-secretary-job', 'Job liess sich nicht auf failed setzen', {
+      jobId,
+      fehler: fehler instanceof Error ? fehler.message : String(fehler),
+    })
+  }
+}
+
+/**
+ * Reiht einen Template-auf-Text-Job ein und stoesst das Fuettern an. Die
+ * Funktion kehrt SOFORT mit der `jobId` zurueck; der Fortschritt steht in
+ * `job_status`/`job_liste`.
  */
 export async function enqueueTemplateOnTextJob(args: {
   libraryId: string
@@ -172,21 +228,8 @@ export async function enqueueTemplateOnTextJob(args: {
   const job = buildTemplateOnTextJob({ ...args, jobId, jobSecretHash })
   await repo.create(job)
 
-  const callbackUrl = `${getSelfBaseUrl().replace(/\/$/, '')}/api/external/jobs/${jobId}`
-  const response = await fetch(callbackUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${jobSecret}`,
-      'X-Internal-Token': process.env.INTERNAL_TEST_TOKEN || '',
-    },
-    body: JSON.stringify({ data: { extracted_text: args.extractedText } }),
-  })
-  if (!response.ok) {
-    const text = await response.text().catch(() => '')
-    throw new Error(
-      `Job ${jobId} angelegt, aber der Text-Feed schlug fehl (HTTP ${response.status}): ${text.slice(0, 200)}`,
-    )
-  }
+  // Kein `await`: Der Aufrufer bekommt die jobId sofort, die Rechenarbeit
+  // laeuft weiter. Fehler landen im Job, nicht in einer verlorenen Promise.
+  void fuettereTextImHintergrund({ jobId, jobSecret, extractedText: args.extractedText })
   return { jobId }
 }
