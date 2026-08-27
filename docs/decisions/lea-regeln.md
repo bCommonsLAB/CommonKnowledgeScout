@@ -10,7 +10,7 @@ Status von Architektur-Contracts: Folge-Stufen müssen sie respektieren,
 Code-Kommentare verweisen explizit darauf (`Lea-Regel #N`).
 
 **Master-Quelle:**
-`.cursor/plans/diva-texture-liefersystem-integration_e7c2a98f.plan.md`,
+`docs/plans/archiv/diva-texture-liefersystem-integration_e7c2a98f.plan.md`,
 Sektion 4 — dieses Dokument ist die navigierbare Aufschlüsselung.
 
 **Domain-Quelle:**
@@ -296,7 +296,7 @@ konstant, `basecolor_crop_px` variiert 113–512.
 ## Wie neue Lea-Regeln entstehen
 
 1. User-Entscheid wird im Plan-File festgehalten
-   (`.cursor/plans/diva-texture-liefersystem-integration_e7c2a98f.plan.md`,
+   (`docs/plans/archiv/diva-texture-liefersystem-integration_e7c2a98f.plan.md`,
    Sektion 4 + Änderungs-Log).
 2. Nächstfolgende Nummer wird vergeben, **alte Regeln bleiben in der
    Liste** (auch wenn abgelöst — als historischer Anker für Code-Kommentare).

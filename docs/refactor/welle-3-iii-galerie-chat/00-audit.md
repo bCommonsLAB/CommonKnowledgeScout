@@ -63,27 +63,27 @@ Hooks-Future-Work (Welle 3-II-Hooks) ebenfalls.
 
 ## A. Cursor Rules
 
-13 von 23 `.cursor/rules/*.mdc`-Dateien haben Bezug zur Welle 3-III.
+13 von 23 `../../contracts/*.md`-Dateien haben Bezug zur Welle 3-III.
 
 | Rule-Datei | Bezug | Status | Aktion | Begruendung |
 |---|---|---|---|---|
-| [.cursor/rules/storage-abstraction.mdc](../../../.cursor/rules/storage-abstraction.mdc) | global, **direkt** (0 Verstoesse) | aktuell | keep | Wird in Welle 3-III bereits eingehalten |
-| [.cursor/rules/no-silent-fallbacks.mdc](../../../.cursor/rules/no-silent-fallbacks.mdc) | global, **direkt** (0 Verstoesse) | aktuell | keep | Wird in Welle 3-III bereits eingehalten |
-| [.cursor/rules/media-lifecycle.mdc](../../../.cursor/rules/media-lifecycle.mdc) | indirekt (Galerie konsumiert Frontmatter-Felder) | aktuell | keep | Galerie-Komponenten lesen Frontmatter, schreiben nicht |
-| [.cursor/rules/chat-contracts.mdc](../../../.cursor/rules/chat-contracts.mdc) | direkt (UI konsumiert chat-Backend) | aktuell | keep | Backend-Contracts, bleiben unangetastet |
-| [.cursor/rules/contracts-story-pipeline.mdc](../../../.cursor/rules/contracts-story-pipeline.mdc) | indirekt (Galerie zeigt Pipeline-Outputs) | aktuell | keep | – |
-| [.cursor/rules/shadow-twin-architecture.mdc](../../../.cursor/rules/shadow-twin-architecture.mdc) | direkt (gallery-root und chat-panel lesen Shadow-Twin-State) | aktuell | keep | Bleibt als Vertrag |
-| [.cursor/rules/welle-3-archiv-detail-contracts.mdc](../../../.cursor/rules/welle-3-archiv-detail-contracts.mdc) | indirekt (`detail-overlay.tsx` ruft Detail-Komponenten auf) | aktuell | keep | Globs decken Welle 3-II ab, nicht 3-III |
-| [.cursor/rules/welle-3-schale-loader-contracts.mdc](../../../.cursor/rules/welle-3-schale-loader-contracts.mdc) | indirekt (App-Schale ist Vorbedingung) | aktuell | keep | Globs decken Welle 3-I ab |
-| [.cursor/rules/reorganizing-components.mdc](../../../.cursor/rules/reorganizing-components.mdc) | direkt (Modul-Split-Empfehlung) | aktuell | keep | Welle 3-III setzt das in Sub-Wellen um |
-| [.cursor/rules/prio1-state-caching-navigation.mdc](../../../.cursor/rules/prio1-state-caching-navigation.mdc) | direkt (Galerie nutzt URL-State, nuqs) | aktuell | keep | – |
-| [.cursor/rules/prio2-logging-errorhandling.mdc](../../../.cursor/rules/prio2-logging-errorhandling.mdc) | direkt (Logging-Vorgabe fuer Chat-Fehler) | aktuell | keep | Wird in Sub-Wellen eingehalten |
-| [.cursor/rules/prio3-init-grundfunktion.mdc](../../../.cursor/rules/prio3-init-grundfunktion.mdc) | indirekt | aktuell | keep | – |
-| [.cursor/rules/refactor-batch-strategy.mdc](../../../.cursor/rules/refactor-batch-strategy.mdc) | direkt (Methodik fuer Sub-Wellen) | aktuell | keep | Wird in 3-III-a/b/c verwendet |
-| [.cursor/rules/refactor-naming-konvention.mdc](../../../.cursor/rules/refactor-naming-konvention.mdc) | direkt (Welle 3-III ist Plan-Welle) | aktuell | **update** | Tabelle in §"Wellen-Stand" um Welle 3-III "in Arbeit" markieren (mache ich im Update-Commit dieser PR) |
+| [../../contracts/storage-abstraction.md](../../contracts/storage-abstraction.md) | global, **direkt** (0 Verstoesse) | aktuell | keep | Wird in Welle 3-III bereits eingehalten |
+| [../../contracts/no-silent-fallbacks.md](../../contracts/no-silent-fallbacks.md) | global, **direkt** (0 Verstoesse) | aktuell | keep | Wird in Welle 3-III bereits eingehalten |
+| [../../contracts/media-lifecycle.md](../../contracts/media-lifecycle.md) | indirekt (Galerie konsumiert Frontmatter-Felder) | aktuell | keep | Galerie-Komponenten lesen Frontmatter, schreiben nicht |
+| [../../contracts/chat-contracts.md](../../contracts/chat-contracts.md) | direkt (UI konsumiert chat-Backend) | aktuell | keep | Backend-Contracts, bleiben unangetastet |
+| [../../contracts/contracts-story-pipeline.md](../../contracts/contracts-story-pipeline.md) | indirekt (Galerie zeigt Pipeline-Outputs) | aktuell | keep | – |
+| [../../contracts/shadow-twin-architecture.md](../../contracts/shadow-twin-architecture.md) | direkt (gallery-root und chat-panel lesen Shadow-Twin-State) | aktuell | keep | Bleibt als Vertrag |
+| [../../contracts/welle-3-archiv-detail-contracts.md](../../contracts/welle-3-archiv-detail-contracts.md) | indirekt (`detail-overlay.tsx` ruft Detail-Komponenten auf) | aktuell | keep | Globs decken Welle 3-II ab, nicht 3-III |
+| [../../contracts/welle-3-schale-loader-contracts.md](../../contracts/welle-3-schale-loader-contracts.md) | indirekt (App-Schale ist Vorbedingung) | aktuell | keep | Globs decken Welle 3-I ab |
+| [../../plans/archiv/reorganizing-components.md](../../plans/archiv/reorganizing-components.md) | direkt (Modul-Split-Empfehlung) | aktuell | keep | Welle 3-III setzt das in Sub-Wellen um |
+| [../../plans/archiv/prio1-state-caching-navigation.md](../../plans/archiv/prio1-state-caching-navigation.md) | direkt (Galerie nutzt URL-State, nuqs) | aktuell | keep | – |
+| [../../plans/archiv/prio2-logging-errorhandling.md](../../plans/archiv/prio2-logging-errorhandling.md) | direkt (Logging-Vorgabe fuer Chat-Fehler) | aktuell | keep | Wird in Sub-Wellen eingehalten |
+| [../../plans/archiv/prio3-init-grundfunktion.md](../../plans/archiv/prio3-init-grundfunktion.md) | indirekt | aktuell | keep | – |
+| [../../contracts/refactor-batch-strategy.md](../../contracts/refactor-batch-strategy.md) | direkt (Methodik fuer Sub-Wellen) | aktuell | keep | Wird in 3-III-a/b/c verwendet |
+| [../../contracts/refactor-naming-konvention.md](../../contracts/refactor-naming-konvention.md) | direkt (Welle 3-III ist Plan-Welle) | aktuell | **update** | Tabelle in §"Wellen-Stand" um Welle 3-III "in Arbeit" markieren (mache ich im Update-Commit dieser PR) |
 
 **Output dieser Welle (neue Rule)**:
-[`.cursor/rules/welle-3-iii-galerie-chat-contracts.mdc`](../../../.cursor/rules/welle-3-iii-galerie-chat-contracts.mdc) —
+[`../../contracts/welle-3-iii-galerie-chat-contracts.md`](../../contracts/welle-3-iii-galerie-chat-contracts.md) —
 wird in Schritt 2 angelegt.
 
 ## B. Tests

@@ -1,6 +1,6 @@
 # Rules-Gap-Analyse
 
-Diese Datei erklärt in **einfacher Sprache**, wie gut die wichtigen `.cursor/rules` zum aktuellen Code passen.
+Diese Datei erklärt in **einfacher Sprache**, wie gut die wichtigen Contracts unter `docs/contracts/` zum aktuellen Code passen.
 
 Die Idee dahinter:
 

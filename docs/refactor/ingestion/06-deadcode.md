@@ -28,7 +28,7 @@ Die drei Result-Interfaces (`ImageProcessingError`,
 **vertragsrelevant**:
 
 - Sie kodifizieren das **Result-Object-Pattern** (siehe
-  [`.cursor/rules/ingestion-contracts.mdc`](../../../.cursor/rules/ingestion-contracts.mdc) §2).
+  [`../../contracts/ingestion-contracts.md`](../../contracts/ingestion-contracts.md) §2).
 - Sie sind Return-Typen oeffentlich exportierter Klassen-Methoden.
 - Aufrufer **koennen** sie als Type-Annotation verwenden — auch wenn
   TypeScript Inference das aktuell nicht erfordert. Das Entfernen

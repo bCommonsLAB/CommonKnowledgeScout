@@ -19,7 +19,7 @@ loggt.
 | `template-service.ts:208` `} catch {}` (template_fallback_used) | dito |
 | `template-service.ts:237` `} catch {}` (template_selected) | dito |
 
-Bezug: [`templates-contracts.mdc`](../../../.cursor/rules/templates-contracts.mdc) §2.
+Bezug: [`templates-contracts.mdc`](../../contracts/templates-contracts.md) §2.
 
 Code-Reduktion: ~50 Zeilen Inline-Code zu 5 Funktionsaufrufen +
 ~20 Zeilen Helper-Definition. Lesbarkeit deutlich besser.

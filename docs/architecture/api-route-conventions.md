@@ -1,7 +1,7 @@
 # API-Route-Konventionen (Next.js App Router)
 
 > Konvention fuer Route-Handler unter `src/app/api/**/route.ts`. Ergaenzt die
-> Kurzregeln in `.cursorrules` (Abschnitt „Next.js 13+ App Router Regeln") um den
+> Kurzregeln in `CLAUDE.md` (Abschnitt „Next.js 13+ App Router Regeln") um den
 > tatsaechlich im Repo gelebten End-to-End-Aufbau.
 
 ## Standard-Aufbau eines Handlers
@@ -43,7 +43,7 @@ export async function GET(
 
 - **Auth**: immer `auth()` (Clerk) fuer das Gate; `currentUser()` fuer die
   **User-Email**. Im Datenzugriff wird die **Email** verwendet, nicht die
-  Clerk-User-ID (projektweite Konvention, siehe `.cursorrules`).
+  Clerk-User-ID (projektweite Konvention, siehe `CLAUDE.md`).
 - **Dynamische Params**: als `Promise<{…}>` typisieren und **awaiten**.
 - **Status-Codes**: `401` (nicht eingeloggt), `400` (fehlende/ungueltige Eingabe),
   `404` (Ressource/kein Zugriff), `500` (unerwarteter Fehler).

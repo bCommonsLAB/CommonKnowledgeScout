@@ -84,7 +84,7 @@ bei Storage-Fehlern (no-silent-fallbacks.mdc).
 
 ### Altlast-Pass: 5 Comment-only-Catches gefixt (Commit 2)
 
-Konform zu `.cursor/rules/no-silent-fallbacks.mdc`:
+Konform zu `../../contracts/no-silent-fallbacks.md`:
 
 | Datei | Catches | Loesung |
 |---|---:|---|
@@ -183,5 +183,5 @@ Wenn OK: PR mergen, dann starte ich Welle 3-III-b (Chat).
 - Welle 3-III Vorbereitung: `06-acceptance.md`
 - Welle 3-III README: `README.md`
 - AGENT-BRIEF Sub-Welle 3-III-a: `AGENT-BRIEF.md` Sektion "3-III-a"
-- Methodik: `.cursor/rules/refactor-batch-strategy.mdc`
-- Welle 3-III Contracts: `.cursor/rules/welle-3-iii-galerie-chat-contracts.mdc`
+- Methodik: `../../contracts/refactor-batch-strategy.md`
+- Welle 3-III Contracts: `../../contracts/welle-3-iii-galerie-chat-contracts.md`

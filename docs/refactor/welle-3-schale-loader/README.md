@@ -2,7 +2,7 @@
 
 Refactor-Welle 3-I nach Methodik [`docs/refactor/playbook.md`](../playbook.md).
 
-Erste UX-Welle nach Abschluss von Welle 0-2 (Backend). Reihenfolge der UX-Wellen wurde am 2026-04-28 vom User fachlich nach **UX-Welten** statt nach Datei-Groesse priorisiert (siehe [Plan-Sektion 5](../../../.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md)).
+Erste UX-Welle nach Abschluss von Welle 0-2 (Backend). Reihenfolge der UX-Wellen wurde am 2026-04-28 vom User fachlich nach **UX-Welten** statt nach Datei-Groesse priorisiert (siehe [Plan-Sektion 5](../../plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md)).
 
 ## Stand
 
@@ -59,7 +59,7 @@ Siehe [`AGENT-BRIEF.md`](./AGENT-BRIEF.md) — der Cloud-Agent arbeitet seriell 
 - **Pilot-Vorlage**: [`../external-jobs/`](../external-jobs/)
 - **Backend-Welle 1 als UX-Vorlage gibt es nicht** — diese Welle ist die **erste UI-Welle**, also gilt erhöhte Aufmerksamkeit fuer:
   - `'use client'`-Direktiven (sind UI-Code, dürfen Client sein, aber begründen falls Server-Komponente möglich)
-  - Storage-Branches (Verstoss gegen [`storage-abstraction.mdc`](../../../.cursor/rules/storage-abstraction.mdc))
+  - Storage-Branches (Verstoss gegen [`storage-abstraction.mdc`](../../contracts/storage-abstraction.md))
   - Pflicht: Sichtbare Smoke-Tests im Browser durch User vor Merge
-- **Plan-Bezug**: Welle 3-I in [.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../../.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md)
+- **Plan-Bezug**: Welle 3-I in [docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md)
 - **Backend-Drift-Befund**: Plan-Sektion 5 dokumentiert offene Drift in Wellen 0-2 (78 leere Catches in external-jobs etc.). Welle 3-I startet trotzdem (User-Entscheidung 2026-04-28).

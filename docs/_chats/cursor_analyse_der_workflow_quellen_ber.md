@@ -4025,7 +4025,7 @@ Gute Idee! Lass mich zuerst die bestehenden Rules prüfen, um den Stil zu verste
 
 Ich erstelle eine neue Rule-Datei für die Shadow-Twin-Architektur und UI-Abstraktionsprinzipien.
 
-Ich habe eine neue Rule-Datei erstellt: `.cursor/rules/shadow-twin-architecture.mdc`
+Ich habe eine neue Rule-Datei erstellt: `../contracts/shadow-twin-architecture.md`
 
 **Inhalt:**
 
@@ -4090,7 +4090,7 @@ Ich prüfe zuerst die bestehende Dokumentation zu External Jobs und Integrations
 
 Jetzt erstelle ich die Rule für External Jobs und Integrationstests.
 
-Rule erstellt: `.cursor/rules/external-jobs-integration-tests.mdc`
+Rule erstellt: `../contracts/external-jobs-integration-tests.md`
 
 **Inhalt:**
 
@@ -4184,7 +4184,7 @@ Ich analysiere die Template-Struktur und Beispiele.
 
 Jetzt erstelle ich die Rule für die Template-Logik.
 
-Rule erstellt: `.cursor/rules/template-structure.mdc`
+Rule erstellt: `../contracts/template-structure.md`
 
 **Inhalt:**
 

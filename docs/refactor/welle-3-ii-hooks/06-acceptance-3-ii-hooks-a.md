@@ -10,7 +10,7 @@ vor Naming-Update)
 > (Naming-Konflikt mit der noch nicht begonnenen Plan-Welle 3-III
 > "Galerie + Story-Mode + Chat"). Branch- und PR-Titel bleiben
 > historisch unverändert. Siehe
-> `.cursor/rules/refactor-naming-konvention.mdc`.
+> `../../contracts/refactor-naming-konvention.md`.
 
 ## Inhalt
 
@@ -114,4 +114,4 @@ Wenn OK: PR mergen, dann starte ich Welle 3-III-b (job-report-tab Hooks).
 
 - Welle 3-II-Hooks README: `docs/refactor/welle-3-ii-hooks/README.md`
 - Welle 3-II Gesamt-Acceptance: `../welle-3-archiv-detail/06-acceptance-3-ii-GESAMT.md`
-- Methodik: `.cursor/rules/refactor-batch-strategy.mdc`
+- Methodik: `../../contracts/refactor-batch-strategy.md`

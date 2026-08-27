@@ -235,7 +235,7 @@ danach laufen.
 
 ## Regeln für die Umsetzung
 
-Es gelten `AGENTS.md`, `.cursorrules` und die `alwaysApply`-Regeln
+Es gelten `AGENTS.md`, `CLAUDE.md` und die `alwaysApply`-Regeln
 unverändert. Besonders:
 
 - Dateien max. 200 Zeilen. Das Werkbank-Panel liegt bei 183, das Detail

@@ -126,8 +126,8 @@ Wenn OK: PR mergen. Welle 3-III ist abgeschlossen.
 - Welle 3-III-a Acceptance: `06-acceptance-3-iii-a.md`
 - Welle 3-III-b Acceptance: `06-acceptance-3-iii-b.md`
 - AGENT-BRIEF Sub-Welle 3-III-c: `AGENT-BRIEF.md` Sektion "3-III-c"
-- Methodik: `.cursor/rules/refactor-batch-strategy.mdc`
-- Welle 3-III Contracts: `.cursor/rules/welle-3-iii-galerie-chat-contracts.mdc`
+- Methodik: `../../contracts/refactor-batch-strategy.md`
+- Welle 3-III Contracts: `../../contracts/welle-3-iii-galerie-chat-contracts.md`
 
 ## Hand-off fuer die naechste Welle
 
@@ -154,9 +154,9 @@ Erwartung: alles gruen. Falls rot: Befund im PR-Comment, Agent fixed nach.
 ```
 Lies VOR dem Start (in dieser Reihenfolge):
 1. AGENTS.md
-2. .cursor/rules/cloud-agent-cost-strategy.mdc
-3. .cursor/rules/refactor-batch-strategy.mdc
-4. .cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md (Sektion "Welle 3-IV")
+2. ../../contracts/cloud-agent-cost-strategy.md
+3. ../../contracts/refactor-batch-strategy.md
+4. docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md (Sektion "Welle 3-IV")
 
 Aufgabe: Vorbereitung fuer Welle 3-IV (Settings).
 - Audit-File anlegen: docs/refactor/welle-3-iv-settings/00-audit.md

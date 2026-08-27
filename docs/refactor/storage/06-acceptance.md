@@ -3,7 +3,7 @@
 Stand: 2026-04-26. Erstellt vom Cloud-Agent (Welle 1, Plan-Schritt 7).
 
 Bezug:
-- Plan: [.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../../.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md) §5 Welle 1
+- Plan: [docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md) §5 Welle 1
 - AGENT-BRIEF: [`AGENT-BRIEF.md`](./AGENT-BRIEF.md)
 - Pilot-Vorbild: [`docs/refactor/external-jobs/04-acceptance.md`](../external-jobs/04-acceptance.md)
 - Workflow-Regeln: [`docs/refactor/playbook.md`](../playbook.md) R1-R5
@@ -35,7 +35,7 @@ Kein Commit ueberschritt die Stop-Bedingung "1.000 Zeilen Diff".
 |---|---|---|
 | Audit-File `00-audit.md` mit allen 3 Tabellen | ✅ | Rules (6), Tests (6), Docs (5). Erstellt in Commit 1. |
 | Inventur-File `01-inventory.md` | ✅ | Bereits vom IDE-Agenten erstellt; Cloud-Agent reverifiziert via `pnpm health`. |
-| Contracts-File `02-contracts.md` + Modul-Rule `.cursor/rules/storage-contracts.mdc` | ✅ | Neue Rule mit 7 Sektionen (Determinismus, Fehler-Semantik, Abhaengigkeiten, Skip-/Default-Semantik, Helper, OneDrive-Sub-Module, Review-Checkliste). |
+| Contracts-File `02-contracts.md` + Modul-Rule `../../contracts/storage-contracts.md` | ✅ | Neue Rule mit 7 Sektionen (Determinismus, Fehler-Semantik, Abhaengigkeiten, Skip-/Default-Semantik, Helper, OneDrive-Sub-Module, Review-Checkliste). |
 | Char-Tests-File `03-tests.md` + 23 Tests | ✅ | 4 Test-Files: list-items (5), binary (5), error-paths (6), factory-selection (7). |
 | Altlast-Pass-File `04-altlast-pass.md` | ✅ | 3 Sub-Commits dokumentiert. |
 | User-Test-Plan-File `05-user-test-plan.md` | ✅ | Phase A (autom. Tests), Phase B (Build-Sanity), Phase C (UI-Smoke fuer Filesystem/OneDrive/Nextcloud), Phase D (Befund). |

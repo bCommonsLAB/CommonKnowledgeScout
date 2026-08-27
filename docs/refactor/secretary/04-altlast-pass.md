@@ -14,7 +14,7 @@ einen extrahierten Helper `syncOneDriveTokensToServer` mit
 |---|---|
 | `client.ts:731` `} catch {}` (kommentarlos schluckt JEDEN Fehler) | `client-helpers.ts` `syncOneDriveTokensToServer` mit `console.warn` + Doc-Kommentar warum best-effort |
 
-Bezug: [`secretary-contracts.mdc`](../../../.cursor/rules/secretary-contracts.mdc) §2 + §4.
+Bezug: [`secretary-contracts.mdc`](../../contracts/secretary-contracts.md) §2 + §4.
 
 ### 2. Helper-Extract `client-helpers.ts` ✅
 
@@ -38,7 +38,7 @@ Neue Datei `src/lib/secretary/client-helpers.ts` (174 Zeilen) mit:
 
 Begruendung: Test prueft API-Route (`src/app/api/secretary/process-video/job/route.ts`),
 nicht `src/lib/secretary/`-Code. Verankert in
-[`secretary-contracts.mdc`](../../../.cursor/rules/secretary-contracts.mdc) §7.
+[`secretary-contracts.mdc`](../../contracts/secretary-contracts.md) §7.
 
 ### 4. Char-Tests fuer Helper hinzugefuegt ✅
 

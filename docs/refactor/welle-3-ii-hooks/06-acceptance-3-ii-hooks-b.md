@@ -7,7 +7,7 @@ vor Naming-Update)
 
 > **Naming-Hinweis**: Initial als "Welle 3-III-b" gestartet, am
 > 2026-05-01 zu **Welle 3-II-Hooks-b** umbenannt. Siehe
-> `.cursor/rules/refactor-naming-konvention.mdc`.
+> `../../contracts/refactor-naming-konvention.md`.
 
 ## Plan-Anpassung gegenueber Welle-3-II-Hooks-Plan
 
@@ -110,5 +110,5 @@ Wenn OK: PR mergen, dann Welle 3-II-Hooks-c (session-detail).
 
 - Welle 3-II-Hooks-a (Vorgaenger): PR #40
 - Welle 3-II-Hooks README: `docs/refactor/welle-3-ii-hooks/README.md`
-- Naming-Konvention: `.cursor/rules/refactor-naming-konvention.mdc`
-- Methodik: `.cursor/rules/refactor-batch-strategy.mdc`
+- Naming-Konvention: `../../contracts/refactor-naming-konvention.md`
+- Methodik: `../../contracts/refactor-batch-strategy.md`

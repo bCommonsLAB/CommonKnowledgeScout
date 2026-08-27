@@ -154,11 +154,11 @@ Catches. Modul-Splits dominieren — daher 5 Cloud-Lauefe (Vorbereitung +
 
 ## 5. Zentrale Architektur-Rules (potentiell betroffen)
 
-- [`storage-abstraction.mdc`](../../../.cursor/rules/storage-abstraction.mdc) — 1 Verstoss in `freshness-comparison-panel.tsx`, wird in dieser PR gefixt
-- [`no-silent-fallbacks.mdc`](../../../.cursor/rules/no-silent-fallbacks.mdc) — 7 Verstoesse, alle in dieser PR gefixt
-- [`media-lifecycle.mdc`](../../../.cursor/rules/media-lifecycle.mdc) — `cover-image-generator-dialog.tsx`, `media-tab.tsx`, `markdown-metadata.tsx` muessen Frontmatter-Vertrag respektieren
-- [`shadow-twin-architecture.mdc`](../../../.cursor/rules/shadow-twin-architecture.mdc) — viele Detail-Tabs konsumieren Shadow-Twin-State
-- [`detail-view-type-checklist.mdc`](../../../.cursor/rules/detail-view-type-checklist.mdc) — `detail-view-renderer.tsx`, `job-report-tab.tsx`, alle `*-detail.tsx`
+- [`storage-abstraction.mdc`](../../contracts/storage-abstraction.md) — 1 Verstoss in `freshness-comparison-panel.tsx`, wird in dieser PR gefixt
+- [`no-silent-fallbacks.mdc`](../../contracts/no-silent-fallbacks.md) — 7 Verstoesse, alle in dieser PR gefixt
+- [`media-lifecycle.mdc`](../../contracts/media-lifecycle.md) — `cover-image-generator-dialog.tsx`, `media-tab.tsx`, `markdown-metadata.tsx` muessen Frontmatter-Vertrag respektieren
+- [`shadow-twin-architecture.mdc`](../../contracts/shadow-twin-architecture.md) — viele Detail-Tabs konsumieren Shadow-Twin-State
+- [`detail-view-type-checklist.mdc`](../../contracts/detail-view-type-checklist.md) — `detail-view-renderer.tsx`, `job-report-tab.tsx`, alle `*-detail.tsx`
 - Neue Rule: `welle-3-archiv-detail-contracts.mdc` (Schritt 2)
 
 ## 6. Bekannte Risiken / Watchpoints

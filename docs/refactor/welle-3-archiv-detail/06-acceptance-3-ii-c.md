@@ -3,7 +3,7 @@
 **Branch**: `cursor/refactor-welle-3-ii-c-detail-tabs-a03a`
 **Stand**: 2026-05-01
 **PR**: (folgt nach Push)
-**Strategie**: 1 PR pro Welle (siehe `.cursor/rules/refactor-batch-strategy.mdc`)
+**Strategie**: 1 PR pro Welle (siehe `../../contracts/refactor-batch-strategy.md`)
 
 ## Plan-Anpassung gegenueber AGENT-BRIEF.md
 
@@ -143,5 +143,5 @@ Wenn OK: PR mergen, dann Welle 3-II-d (detail + flow + shared).
 ## Verweise
 
 - Welle 3-II-b Acceptance: `06-acceptance-3-ii-b.md`
-- Methodik: `.cursor/rules/refactor-batch-strategy.mdc` (PR #35)
+- Methodik: `../../contracts/refactor-batch-strategy.md` (PR #35)
 - Methodik-Lehre `pnpm build`-Pflicht: PR #31

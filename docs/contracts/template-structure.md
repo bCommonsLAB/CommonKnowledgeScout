@@ -1,0 +1,276 @@
+> Template-Struktur und Syntax für Transform-by-Template
+>
+> **Gilt für:** `template-samples/**/*`, `src/components/templates/**/*`, `src/lib/external-jobs/template-*.ts`, `src/app/templates/**/*`
+
+# Template-Struktur
+
+## Was ist ein Template?
+
+Ein **Template** definiert, wie der Secretary Service einen Quelltext (z.B. PDF-Extrakt, Audio-Transkript) in strukturiertes Markdown mit Frontmatter transformiert. Es besteht aus drei Teilen:
+
+1. **Frontmatter** - YAML-Block mit Feld-Definitionen
+2. **Body** - Markdown-Struktur für den Output
+3. **Systemprompt** - LLM-Rolle und Parsing-Regeln
+
+## Template-Anatomie
+
+```markdown
+---
+# FRONTMATTER: Feld-Definitionen mit Placeholder-Syntax
+title: {{title|Beschreibung für das LLM, was extrahiert werden soll}}
+summary: {{summary|Zusammenfassung des Dokuments (2-3 Sätze)}}
+tags: {{tags|Array von Tags, lowercase, kebab-case}}
+---
+
+# BODY: Markdown-Struktur mit Placeholder-Referenzen
+## {{title}}
+
+{{summary}}
+
+## Kapitel 1
+{{kapitel1_inhalt}}
+
+--- systemprompt
+# SYSTEMPROMPT: LLM-Rolle und Parsing-Regeln
+
+Rolle:
+- Du bist ein...
+
+Strenge Regeln:
+- Verwende ausschließlich Inhalte, die EXPLIZIT im Text vorkommen
+- Keine Halluzinationen
+...
+
+Antwortschema (JSON):
+{ "title": "string", ... }
+```
+
+## Placeholder-Syntax
+
+### Im Frontmatter: `{{feldname|Beschreibung}}`
+
+```yaml
+title: {{title|Vollständiger Titel des Dokuments (extraktiv)}}
+#       ↑       ↑
+#       Feld    Anweisung für das LLM
+```
+
+- **feldname**: Name des JSON-Feldes im Output
+- **Beschreibung**: Anweisung für das LLM, wie der Wert extrahiert/generiert werden soll
+
+### Im Body: `{{feldname}}` oder `{{feldname|Anweisung}}`
+
+```markdown
+## {{title}}
+
+{{summary}}
+```
+
+- Kann ein Feld aus dem Frontmatter referenzieren (`{{feldname}}`)
+- Oder ein reines Body-Feld mit eigener Anweisung definieren (`{{feldname|Anweisung}}`)
+- Wird im Output durch den generierten Wert ersetzt
+
+### Body-only Felder (ohne Frontmatter-Spiegelung)
+
+Nicht jedes im Body verwendete Feld muss im Frontmatter definiert sein.
+
+- **Frontmatter** enthaelt nur Meta-/Strukturfelder, die als Metadaten persistiert oder separat dargestellt werden.
+- **Body-only Felder** sind fuer den Inhaltsblock und muessen nicht im Frontmatter dupliziert werden.
+- Das Antwortschema im `systemprompt` muss trotzdem **alle** vom LLM erwarteten Output-Felder enthalten (inkl. Body-only Felder).
+
+Beispiel:
+
+```markdown
+---
+title: {{title|Titel}}
+summary: {{summary|Kurze Zusammenfassung in 2-3 Sätzen}}
+---
+
+## Blogartikel
+{{blogartikel|Vollständiger Artikel in Markdown}}
+```
+
+Hier ist `blogartikel` bewusst **nicht** im Frontmatter.
+
+## Feldtypen: Dynamisch vs. Fest
+
+Im Frontmatter gibt es zwei grundsätzlich verschiedene Feldtypen:
+
+### 🔵 Dynamische Felder (LLM füllt aus)
+
+Syntax: `feldname: {{variable|Anweisung für das LLM}}`
+
+Das LLM extrahiert oder generiert den Wert basierend auf dem Quelltext.
+
+```yaml
+# Dynamische Felder - LLM liefert den Wert
+title: {{title|Vollständiger Titel des Dokuments (extraktiv)}}
+summary: {{summary|Zusammenfassung in 2-3 Sätzen}}
+tags: {{tags|Array von Tags, lowercase, kebab-case}}
+year: {{year|Jahr (YYYY) oder null wenn nicht erkennbar}}
+```
+
+**Varianten dynamischer Felder:**
+
+| Typ | Syntax | Beispiel |
+|-----|--------|----------|
+| String | `{{feld\|Beschreibung}}` | `title: {{title\|Titel des Dokuments}}` |
+| Array | `{{feld\|Array von...}}` | `tags: {{tags\|Array von Tags}}` |
+| Boolean | `{{feld\|boolean: true/false}}` | `isScan: {{isScan\|boolean; true wenn...}}` |
+| Nullable | `{{feld\|... oder null}}` | `year: {{year\|YYYY oder null}}` |
+| Enum | `{{feld\|Eine aus: a, b, c}}` | `status: {{status\|Eine aus: geplant, in_umsetzung, umgesetzt}}` |
+
+### ⚪ Feste Felder (fixe Werte)
+
+Syntax: `feldname: wert` (ohne `{{...}}`)
+
+Der Wert wird 1:1 in jedes transformierte Dokument übernommen. Nützlich für:
+- Dokumenttyp/Format-Identifier
+- Sprachkennzeichnung
+- Feste Kategorien
+- Prompts für Bildgenerierung
+
+```yaml
+# Feste Felder - immer derselbe Wert
+sprache: de
+docType: klimamassnahme
+detailViewType: climateAction
+region: Südtirol
+coverImagePrompt: Erstelle ein Hintergrundbild für einen Blogartikel...
+```
+
+### Mischbeispiel
+
+```yaml
+---
+# DYNAMISCH: LLM extrahiert/generiert
+title: {{title|Kurzer Titel der Maßnahme (max. 80 Zeichen)}}
+summary: {{summary|Zusammenfassung für Bürger:innen (2-3 Sätze)}}
+tags: {{tags|Array von relevanten Keywords}}
+
+# FEST: Immer gleicher Wert
+sprache: de
+docType: klimamassnahme
+detailViewType: climateAction
+coverImagePrompt: Erstelle ein Hintergrundbild ohne Text...
+---
+```
+
+## Systemprompt-Abschnitte
+
+Der Systemprompt (nach `--- systemprompt`) definiert das LLM-Verhalten:
+
+### 1. Rolle
+```markdown
+Rolle:
+- Du bist ein penibler, rein EXTRAKTIVER Sachbearbeiter...
+- Deine Aufgabe ist es, formale Beschreibungen in verständliche Texte zu übersetzen
+```
+
+### 2. Strenge Regeln
+```markdown
+Strenge Regeln:
+- Verwende ausschließlich Inhalte, die EXPLIZIT im Text vorkommen
+- Keine Halluzinationen
+- Wenn Information nicht sicher vorliegt: gib "" oder null zurück
+- Antworte AUSSCHLIESSLICH mit einem gültigen JSON-Objekt
+```
+
+### 3. Parsing-Regeln (optional)
+```markdown
+Parsing-Regeln für Markdown-Quelle:
+- Erkenne Felder anhand der im Text vorkommenden Marker:
+  * "Nr." → Massnahme_Nr (nur die Zahl extrahieren)
+  * "Handlungsfeld" → handlungsfeld
+```
+
+### 4. Formatierungsregeln (optional)
+```markdown
+Formatierungsregeln:
+- Absätze max. 4-6 Zeilen
+- Keine Aufzählungsorgien
+- Sprache: klar, ruhig, sachlich
+```
+
+### 5. Antwortschema (PFLICHT)
+```markdown
+Antwortschema (MUSS exakt ein JSON-Objekt sein):
+{
+  "title": "string",
+  "summary": "string",
+  "tags": "string[]",
+  ...
+}
+```
+
+## Template-Typen
+
+### Extraktive Templates
+- Extrahieren Informationen direkt aus dem Quelltext
+- Beispiel: `pdfanalyse.md` - wissenschaftliche Dokumente katalogisieren
+
+```yaml
+title: {{title|Vollständiger Titel (extraktiv, aus Heading)}}
+authors: {{authors|Array von Autoren (extraktiv, aus Impressum)}}
+```
+
+### Generative Templates
+- Generieren neue Texte basierend auf dem Quelltext
+- Beispiel: `klimamassnahme-detail-de.md` - Blogartikel aus Verwaltungsdokumenten
+
+```yaml
+intro: {{intro|Blogtext: 2-3 Sätze. Warum betrifft diese Maßnahme den Alltag?}}
+worum: {{worum|Blogtext: Ziel der Maßnahme, gesellschaftlicher Kontext}}
+```
+
+## Wichtige Felder (Standard)
+
+Diese Felder sind in den meisten Templates enthalten:
+
+| Feld | Beschreibung |
+|------|--------------|
+| `title` | Haupttitel des Dokuments/Artikels |
+| `shortTitle` | Kurztitel für Listen (max. 50 Zeichen) |
+| `slug` | URL-freundlicher Identifier |
+| `summary` | Zusammenfassung (2-3 Sätze) |
+| `teaser` | Kurzer Anreißer (max. 200 Zeichen) |
+| `tags` | Keywords für Suche/Kategorisierung |
+| `sprache` | Dokumentsprache (de, en, it) |
+| `format` | Template-Identifier (z.B. `klimamassnahme-detail`) |
+| `coverImagePrompt` | Prompt für Bildgenerierung |
+
+## Datenfluss
+
+```
+┌────────────────────┐     ┌────────────────────┐     ┌────────────────────┐
+│  Quelldokument     │     │  Template          │     │  Secretary Service │
+│  (PDF/Audio/MD)    │────▶│  (Frontmatter +    │────▶│  (LLM)             │
+│                    │     │   Body + Prompt)   │     │                    │
+└────────────────────┘     └────────────────────┘     └────────────────────┘
+                                                              │
+                                                              ▼
+                                                     ┌────────────────────┐
+                                                     │  Output            │
+                                                     │  (Markdown +       │
+                                                     │   Frontmatter)     │
+                                                     └────────────────────┘
+```
+
+## Checkliste für neue Templates
+
+- [ ] Frontmatter enthält nur Metadaten-Felder (keine unnötige Spiegelung von Body-only Feldern)
+- [ ] Body verwendet Felder mit `{{feld}}` oder definiert Body-only Felder mit `{{feld|Anweisung}}`
+- [ ] Systemprompt definiert klare Rolle
+- [ ] Strenge Regeln verbieten Halluzinationen
+- [ ] Antwortschema ist vollständig und korrekt
+- [ ] Feste Felder (`sprache`, `format`) sind ohne Placeholder gesetzt
+- [ ] `coverImagePrompt` ist definiert (falls Bildgenerierung gewünscht)
+
+## Beispiel-Templates
+
+| Template | Zweck | Typ |
+|----------|-------|-----|
+| `pdfanalyse.md` | Wissenschaftliche Dokumente katalogisieren | Extraktiv |
+| `klimamassnahme-detail-de.md` | Klimamaßnahmen als Blogartikel | Generativ |
+| `testimonial-creation-de.md` | Testimonials aus Events erstellen | Generativ |
+| `event-creation-de.md` | Event-Dokumentation | Hybrid |

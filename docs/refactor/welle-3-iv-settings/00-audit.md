@@ -72,23 +72,23 @@ sonst kaum mit den anderen 3-x-Wellen.
 
 | Rule-Datei | Bezug zum Modul | Status | Aktion |
 |---|---|---|---|
-| `.cursor/rules/storage-abstraction.mdc` | Direkt: Settings-Forms lesen `library.type` — explizit erlaubt | aktuell | **keep** |
-| `.cursor/rules/no-silent-fallbacks.mdc` | Direkt: 9 leere/stille Catches in 5 Settings-Dateien | aktuell | **keep** (Catches fixen in Schritt 4) |
-| `.cursor/rules/shadow-twin-architecture.mdc` | Direkt: `library-form.tsx` verwaltet Shadow-Twin-Konfig | aktuell | **keep** |
-| `.cursor/rules/shadow-twin-contracts.mdc` | Indirekt: Shadow-Twin-Config-API wird in `library-form.tsx` aufgerufen | aktuell | **keep** |
-| `.cursor/rules/storage-contracts.mdc` | Indirekt: Storage-Konfig via `storage-form.tsx` | aktuell | **keep** |
-| `.cursor/rules/chat-contracts.mdc` | Indirekt: `chat-form.tsx` konfiguriert Chat-Backend | aktuell | **keep** |
-| `.cursor/rules/contracts-story-pipeline.mdc` | Indirekt: Secretary-Service-Form tangiert Pipeline | aktuell | **keep** |
-| `.cursor/rules/secretary-contracts.mdc` | Direkt: `secretary-service-form.tsx` | aktuell | **keep** |
-| `.cursor/rules/media-lifecycle.mdc` | Indirekt (über Upload-Pfade in `library-form.tsx`) | aktuell | **keep** |
-| `.cursor/rules/refactor-batch-strategy.mdc` | Global: Prozess-Rule für diese Welle | aktuell | **keep** |
-| `.cursor/rules/refactor-naming-konvention.mdc` | Global: Wellen-Naming | aktuell | **keep** |
-| `.cursor/rules/cloud-agent-cost-strategy.mdc` | Global: Kosten-Strategie | aktuell | **keep** |
-| `.cursor/rules/welle-3-archiv-detail-contracts.mdc` | Keinen direkten Bezug zu Settings | aktuell | **keep** (unveraendert) |
-| `.cursor/rules/reorganizing-components.mdc` | Direkt: Component-Reorganisation in Settings-Splits | aktuell | **update** (Welle-3-IV-Scope erwaehnen) |
-| `.cursor/rules/welle-3-schale-loader-contracts.mdc` | Indirekt: App-Schale ist Wrapper um Settings-Routen | aktuell | **keep** |
+| `../../contracts/storage-abstraction.md` | Direkt: Settings-Forms lesen `library.type` — explizit erlaubt | aktuell | **keep** |
+| `../../contracts/no-silent-fallbacks.md` | Direkt: 9 leere/stille Catches in 5 Settings-Dateien | aktuell | **keep** (Catches fixen in Schritt 4) |
+| `../../contracts/shadow-twin-architecture.md` | Direkt: `library-form.tsx` verwaltet Shadow-Twin-Konfig | aktuell | **keep** |
+| `../../contracts/shadow-twin-contracts.md` | Indirekt: Shadow-Twin-Config-API wird in `library-form.tsx` aufgerufen | aktuell | **keep** |
+| `../../contracts/storage-contracts.md` | Indirekt: Storage-Konfig via `storage-form.tsx` | aktuell | **keep** |
+| `../../contracts/chat-contracts.md` | Indirekt: `chat-form.tsx` konfiguriert Chat-Backend | aktuell | **keep** |
+| `../../contracts/contracts-story-pipeline.md` | Indirekt: Secretary-Service-Form tangiert Pipeline | aktuell | **keep** |
+| `../../contracts/secretary-contracts.md` | Direkt: `secretary-service-form.tsx` | aktuell | **keep** |
+| `../../contracts/media-lifecycle.md` | Indirekt (über Upload-Pfade in `library-form.tsx`) | aktuell | **keep** |
+| `../../contracts/refactor-batch-strategy.md` | Global: Prozess-Rule für diese Welle | aktuell | **keep** |
+| `../../contracts/refactor-naming-konvention.md` | Global: Wellen-Naming | aktuell | **keep** |
+| `../../contracts/cloud-agent-cost-strategy.md` | Global: Kosten-Strategie | aktuell | **keep** |
+| `../../contracts/welle-3-archiv-detail-contracts.md` | Keinen direkten Bezug zu Settings | aktuell | **keep** (unveraendert) |
+| `../../plans/archiv/reorganizing-components.md` | Direkt: Component-Reorganisation in Settings-Splits | aktuell | **update** (Welle-3-IV-Scope erwaehnen) |
+| `../../contracts/welle-3-schale-loader-contracts.md` | Indirekt: App-Schale ist Wrapper um Settings-Routen | aktuell | **keep** |
 
-**Neue Rule nötig**: `.cursor/rules/welle-3-iv-settings-contracts.mdc` — muss
+**Neue Rule nötig**: `../../contracts/welle-3-iv-settings-contracts.md` — muss
 in Schritt 2 angelegt werden. Hält Invarianten für Settings-Modul-Splits fest
 (§1 Forms sind Client-Komponenten, §2 Fehler-Semantik, §3 erlaubte API-
 Pfade, §4 Storage-Branch-Erlaubnis explizit festhalten).

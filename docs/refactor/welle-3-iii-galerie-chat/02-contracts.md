@@ -1,11 +1,11 @@
 # Contracts: Welle 3-III — Galerie + Story-Mode + Chat
 
-Stand: 2026-05-02. Quelle: [`.cursor/rules/welle-3-iii-galerie-chat-contracts.mdc`](../../../.cursor/rules/welle-3-iii-galerie-chat-contracts.mdc).
+Stand: 2026-05-02. Quelle: [`../../contracts/welle-3-iii-galerie-chat-contracts.md`](../../contracts/welle-3-iii-galerie-chat-contracts.md).
 
 ## Verweis auf die neue Rule
 
 Die harten Invarianten fuer diese Welle stehen in der Rule-Datei
-[`welle-3-iii-galerie-chat-contracts.mdc`](../../../.cursor/rules/welle-3-iii-galerie-chat-contracts.mdc).
+[`welle-3-iii-galerie-chat-contracts.mdc`](../../contracts/welle-3-iii-galerie-chat-contracts.md).
 
 ## Inhalt der Rule (Kurzfassung)
 
@@ -23,11 +23,11 @@ Die harten Invarianten fuer diese Welle stehen in der Rule-Datei
 
 ## Verbindung zu globalen Rules
 
-- [`storage-abstraction.mdc`](../../../.cursor/rules/storage-abstraction.mdc) — Welle haelt sich daran (0 Verstoesse)
-- [`no-silent-fallbacks.mdc`](../../../.cursor/rules/no-silent-fallbacks.mdc) — Welle haelt sich daran (0 Verstoesse)
-- [`media-lifecycle.mdc`](../../../.cursor/rules/media-lifecycle.mdc) — Galerie ist Read-Only-Konsument von Frontmatter
-- [`chat-contracts.mdc`](../../../.cursor/rules/chat-contracts.mdc) — Backend-Contracts; UI ist Konsument
-- [`shadow-twin-architecture.mdc`](../../../.cursor/rules/shadow-twin-architecture.mdc) — gallery-root und chat-panel lesen Shadow-Twin-State
-- [`prio1-state-caching-navigation.mdc`](../../../.cursor/rules/prio1-state-caching-navigation.mdc) — URL-State-Verträge
-- [`refactor-batch-strategy.mdc`](../../../.cursor/rules/refactor-batch-strategy.mdc) — 1 PR pro Welle
-- [`refactor-naming-konvention.mdc`](../../../.cursor/rules/refactor-naming-konvention.mdc) — Welle 3-III ist Plan-Welle, NICHT Future-Work-Welle
+- [`storage-abstraction.mdc`](../../contracts/storage-abstraction.md) — Welle haelt sich daran (0 Verstoesse)
+- [`no-silent-fallbacks.mdc`](../../contracts/no-silent-fallbacks.md) — Welle haelt sich daran (0 Verstoesse)
+- [`media-lifecycle.mdc`](../../contracts/media-lifecycle.md) — Galerie ist Read-Only-Konsument von Frontmatter
+- [`chat-contracts.mdc`](../../contracts/chat-contracts.md) — Backend-Contracts; UI ist Konsument
+- [`shadow-twin-architecture.mdc`](../../contracts/shadow-twin-architecture.md) — gallery-root und chat-panel lesen Shadow-Twin-State
+- [`prio1-state-caching-navigation.mdc`](../../plans/archiv/prio1-state-caching-navigation.md) — URL-State-Verträge
+- [`refactor-batch-strategy.mdc`](../../contracts/refactor-batch-strategy.md) — 1 PR pro Welle
+- [`refactor-naming-konvention.mdc`](../../contracts/refactor-naming-konvention.md) — Welle 3-III ist Plan-Welle, NICHT Future-Work-Welle

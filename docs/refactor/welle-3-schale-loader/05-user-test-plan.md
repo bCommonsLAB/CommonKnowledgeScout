@@ -23,7 +23,7 @@ verifizieren, dass:
 | 1 | 3 leere Catches durch Logging ersetzt | `library-switcher.tsx:109`, `app/library/page.tsx:41`, `file-list.tsx:1391` | sehr gering — beobachtbares Verhalten identisch, nur Console-Logs koennen jetzt erscheinen |
 | 2 | `TreeItem` aus `file-tree.tsx` in eigene Datei `tree-item.tsx` ausgegliedert | `file-tree.tsx` (-151z), `tree-item.tsx` (+188z, neu) | gering — identische Render-Logik, Char-Test gruen |
 | 3 | `file-list.tsx`-Modul-Split Phase 1: 5 Sub-Komponenten in `file-list/` | `file-list.tsx` (-742z), `file-list/list-utils.ts`, `file-list/cover-thumbnail.tsx`, `file-list/file-icon.tsx`, `file-list/sortable-header-cell.tsx`, `file-list/file-row.tsx` (alle neu) | mittel — `FileRow` enthaelt Drag&Drop, Long-Press, Rename, Bulk-Selection. Char-Tests pruefen Filter+Selection-Vertraege via Atoms, aber das Render-Verhalten muss visuell verifiziert werden |
-| 4 | Neue Cursor-Rule `welle-3-schale-loader-contracts.mdc` | `.cursor/rules/welle-3-schale-loader-contracts.mdc` | keiner — nur Rule, kein Code-Verhalten |
+| 4 | Neue Cursor-Rule `welle-3-schale-loader-contracts.mdc` | `../../contracts/welle-3-schale-loader-contracts.md` | keiner — nur Rule, kein Code-Verhalten |
 
 **Was NICHT geaendert wurde (Folge-Wellen):**
 

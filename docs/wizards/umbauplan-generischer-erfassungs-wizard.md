@@ -194,8 +194,8 @@ schon als `feat/inbox-promote`).
 Branch von master (z.B. feature/wizard-u5c-compute-wiring). Pflichtlektüre:
 docs/wizards/umbauplan-generischer-erfassungs-wizard.md (§3 Compute-Pfade, §5 U5),
 docs/adr/0003-wizard-schema-template-trennen.md, docs/adr/0004-capture-publish-
-entkopplung-inbox-modell.md, docs/wizards/status-und-testplan-2026-06.md, .cursorrules,
-alle .cursor/rules/*.mdc mit alwaysApply, AGENTS.md.
+entkopplung-inbox-modell.md, docs/wizards/status-und-testplan-2026-06.md, CLAUDE.md,
+alle die immer geltenden Contracts (@-Import in CLAUDE.md), AGENTS.md.
 
 Ziel U5c: Die zwei Compute-Pfade versöhnen. Der Wizard transformiert heute ALLES
 synchron über POST /api/secretary/process-text (generate-draft-step.tsx). Künftig:

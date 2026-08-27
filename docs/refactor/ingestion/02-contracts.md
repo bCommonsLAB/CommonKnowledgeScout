@@ -3,15 +3,15 @@
 Stand: 2026-04-27. Erstellt vom IDE-Agent (Welle 3, Plan-Schritt 2).
 
 Bezug:
-- Neue Rule: [.cursor/rules/ingestion-contracts.mdc](../../../.cursor/rules/ingestion-contracts.mdc)
-- Pipeline-Rule (Verbindung): [.cursor/rules/ingest-mongo-only.mdc](../../../.cursor/rules/ingest-mongo-only.mdc)
+- Neue Rule: [../../contracts/ingestion-contracts.md](../../contracts/ingestion-contracts.md)
+- Pipeline-Rule (Verbindung): [../../contracts/ingest-mongo-only.md](../../contracts/ingest-mongo-only.md)
 - Audit: [`00-audit.md`](./00-audit.md)
 - Welle-2-Vorbild: [`docs/refactor/shadow-twin/02-contracts.md`](../shadow-twin/02-contracts.md)
 
 ## Was wurde gemacht
 
 Die neue Rule
-[`ingestion-contracts.mdc`](../../../.cursor/rules/ingestion-contracts.mdc)
+[`ingestion-contracts.mdc`](../../contracts/ingestion-contracts.md)
 definiert harte technische Invarianten auf Code-Ebene fuer das Modul
 `src/lib/ingestion/` und ergaenzt die bestehenden Pipeline-Rules
 `ingest-mongo-only.mdc` und `contracts-story-pipeline.mdc`.

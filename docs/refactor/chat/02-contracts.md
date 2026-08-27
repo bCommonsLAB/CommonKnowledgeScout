@@ -4,7 +4,7 @@ Stand: 2026-04-27. Welle 2.3, Schritt 2.
 
 ## Output
 
-Neue Modul-Rule: [`.cursor/rules/chat-contracts.mdc`](../../../.cursor/rules/chat-contracts.mdc).
+Neue Modul-Rule: [`../../contracts/chat-contracts.md`](../../contracts/chat-contracts.md).
 
 ## Sektionen
 

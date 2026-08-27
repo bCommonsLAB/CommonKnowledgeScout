@@ -58,7 +58,7 @@ direkten Test** — Hauptkandidaten fuer Char-Tests in Schritt 3.
 
 ## 4. Zentrale Architektur-Rule
 
-[`.cursor/rules/storage-abstraction.mdc`](../../../.cursor/rules/storage-abstraction.mdc)
+[`../../contracts/storage-abstraction.md`](../../contracts/storage-abstraction.md)
 (151 Zeilen) ist die Hauptquelle der Wahrheit. Sie ist `alwaysApply: true`
 und sehr ausfuehrlich. Inhalt: 6 Regeln, ASCII-Architektur-Diagramm,
 Beispiele (verboten/richtig). **Status fuer Audit: vermutlich `keep`** —

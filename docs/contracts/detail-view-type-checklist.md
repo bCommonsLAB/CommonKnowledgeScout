@@ -1,0 +1,236 @@
+> Checkliste und Architektur für DetailViewType-Erweiterungen
+>
+> **Gilt für:** `**/detail-view*.tsx`, `**/doc-meta-mappers.ts`, `**/registry.ts`, `**/validation.ts`
+
+# DetailViewType Architektur und Checkliste
+
+## Architektur-Übersicht
+
+```
+Template-Editor        Pipeline (Template)    Story-Vorschau      Galerie
+       │                      │                   │                │
+       ▼                      ▼                   ▼                ▼
+┌─────────────┐        ┌─────────────┐     ┌─────────────┐  ┌─────────────┐
+│ Template    │        │ LLM füllt   │     │ Validierung │  │ Validierung │
+│ definiert   │───────▶│ Metadaten   │────▶│ gegen       │──│ gegen       │
+│ Felder      │        │ aus         │     │ Registry    │  │ Registry    │
+└─────────────┘        └─────────────┘     └─────────────┘  └─────────────┘
+       │                      │                   │                │
+       ▼                      ▼                   ▼                ▼
+┌─────────────┐        ┌─────────────┐     ┌─────────────┐  ┌─────────────┐
+│ Warnung:    │        │ CONTRACT:   │     │ Warnung:    │  │ Fallback    │
+│ "Für View-  │        │ Warnung in  │     │ "Fehlende   │  │ Rendering   │
+│ Type X      │        │ job.result  │     │ Felder: Y"  │  │ wenn Felder │
+│ fehlen..."  │        │ .warnings[] │     │             │  │ fehlen      │
+└─────────────┘        └─────────────┘     └─────────────┘  └─────────────┘
+```
+
+## Existierende ViewTypes
+
+| ViewType | Pflichtfelder | Beschreibung |
+|----------|--------------|--------------|
+| `book` | title | Klassische Dokumente mit Kapiteln |
+| `session` | title | Events, Präsentationen, Slides |
+| `testimonial` | title, author_name | Erfahrungsberichte |
+| `blog` | title | Blog-Artikel |
+| `climateAction` | title, category | Klimamaßnahmen |
+| `divaDocument` | title, dokumentTyp, produktname, lieferant | Katalogdokumente (Möbelbranche: Preislisten, Produktdatenblätter, Materialkollektionen) |
+
+## Zentrale Dateien
+
+| Datei | Zweck |
+|-------|-------|
+| `src/lib/detail-view-types/registry.ts` | Zentrale Definition aller ViewTypes mit Pflichtfeldern |
+| `src/lib/detail-view-types/validation.ts` | Validierungsfunktionen für Pflichtfelder |
+| `src/lib/detail-view-types/index.ts` | Re-Exports für einfachen Import |
+| `src/lib/templates/template-types.ts` | TypeScript-Typen für ViewTypes |
+| `src/lib/mappers/doc-meta-mappers.ts` | Mapper für DB-Dokumente zu DetailData |
+| `src/components/library/detail-view-renderer.tsx` | Zentraler Renderer mit Validierung |
+| `src/components/library/shared/ingestion-detail-panel.tsx` | Story-Tab: Welche Detail-Komponente wird gerendert |
+| `src/components/library/job-report-tab.tsx` | Transformation-Vorschau: Teaser-Card + Preview Felder-Mapping |
+| `src/components/library/gallery/detail-overlay.tsx` | Galerie: Detail-Modal Render-Logik |
+
+## Checkliste: Neuer DetailViewType
+
+### Pflicht (sonst bricht es)
+
+1. **Registry erweitern**
+   - [ ] `src/lib/detail-view-types/registry.ts` → `DETAIL_VIEW_TYPES` Array
+   - [ ] `src/lib/detail-view-types/registry.ts` → `VIEW_TYPE_REGISTRY` mit Pflichtfeldern
+
+2. **Type-Definition hinzufügen**
+   - [ ] `src/lib/templates/template-types.ts` → `TemplatePreviewDetailViewType`
+
+3. **Zod-Schemas erweitern**
+   - [ ] `src/lib/chat/config.ts` → `detailViewType: z.enum([...])`
+   - [ ] `src/components/settings/chat-form.tsx` → Schema (`z.enum(...)` + `validDetailViewTypes` + `if-Bedingung` + `<SelectItem>`)
+
+4. **Detail-Komponente erstellen**
+   - [ ] `src/components/library/{name}-detail.tsx` → DetailData Interface + Komponente
+   - [ ] `src/components/library/ingestion-{name}-detail.tsx` → MongoDB-Loader-Wrapper (für Galerie + Story-Tab)
+
+5. **Mapper erstellen**
+   - [ ] `src/lib/mappers/doc-meta-mappers.ts` → `mapTo{Name}Detail()` + Import des DetailData-Typs
+
+6. **DetailViewRenderer erweitern**
+   - [ ] `src/components/library/detail-view-renderer.tsx` → Import + if-Statement
+
+7. **DetailOverlay erweitern** (für Galerie)
+   - [ ] `src/components/library/gallery/detail-overlay.tsx` → Import, ViewType-Union, State-Typen, Render-Block
+
+8. **IngestionDetailPanel erweitern** (für Story-Tab)
+   - [ ] `src/components/library/shared/ingestion-detail-panel.tsx` → Import + if-Statement
+
+9. **JobReportTab erweitern** (für Transformation-Vorschau Teaser)
+   - [ ] `src/components/library/job-report-tab.tsx` → `requiredFieldsByType` Record + `<SelectItem>`
+
+### Pflicht: Hardcodierte ViewType-Listen aktualisieren
+
+WICHTIG: Diese Dateien enthalten hardcodierte Arrays/Unions mit allen ViewTypes.
+Wenn ein neuer ViewType hinzugefügt wird, MÜSSEN sie ALLE aktualisiert werden!
+
+10. **ViewType-Utils (Fallback-Logik)**
+    - [ ] `src/lib/templates/detail-view-type-utils.ts` → BEIDE `validTypes`-Arrays (Frontmatter + Library-Config)
+
+11. **Galerie-Root (Initialisierung + Overlay-Routing)**
+    - [ ] `src/components/library/gallery/gallery-root.tsx` → `validTypes` Array (Initialisierung)
+    - [ ] `src/components/library/gallery/gallery-root.tsx` → `validDetailViewTypes` Array (Overlay-Routing)
+
+12. **Chat-Panel (ViewType-Bestimmung)**
+    - [ ] `src/components/library/chat/chat-panel.tsx` → `validDetailViewTypes` Array
+
+13. **TypeScript-Typdefinitionen**
+    - [ ] `src/types/library.ts` → `detailViewType?: '...'` Union im `gallery`-Objekt
+    - [ ] `src/hooks/gallery/use-gallery-config.ts` → `type DetailViewType = '...'` Union
+
+14. **Übersetzungen (Doc-Translations Refactor)**
+    - [ ] `src/lib/detail-view-types/registry.ts` → `translatable`-Block (`text` / `arrayOfText` / `topicLike` / `nested`) im neuen ViewType ergänzen, damit `phase-translations` weiß, welche Felder zu übersetzen sind. (Der frühere Hook `use-document-translation.ts` wurde durch den Backend-Worker abgelöst und existiert nicht mehr.)
+
+15. **Translator (`phase-translations` Worker)**
+    - [ ] Klären, ob ein **spezialisierter Translator** in `src/lib/chat/common/document-translation.ts` benötigt wird. **Pflicht** wenn der ViewType `nested`-Strukturen hat (z.B. `book.chapters`, `session.slides`) oder spezielle Mapper-Logik braucht.
+    - [ ] **Standardfall** (nur flache text/array-Felder): Der **generische Translator** `translateGenericData(data, viewType, ...)` deckt das automatisch ab. Er liest die `translatable`-Spec aus der Registry und baut Template + Schema dynamisch. Du musst NICHTS implementieren - **nur sicherstellen, dass der `translatable`-Block in der Registry korrekt ist**.
+    - [ ] **Sonderfall** (`nested` oder Sub-Strukturen): Eigenen Translator analog zu `translateBookData` / `translateSessionData` schreiben + im Switch von `src/lib/external-jobs/phase-translations.ts` einen `else if (viewType === '...')`-Branch hinzufügen.
+    - [ ] **Sprachneutrale ViewTypes** (z.B. `divaTexture` mit reinen PBR-Daten): `translatable: { text: [], arrayOfText: [], topicLike: [] }` setzen. Der generische Translator erkennt das und macht no-op.
+    - [ ] Kein neuer Switch-Branch nötig wenn der generische Fallback ausreicht.
+
+16. **Template-Editor (Dropdown)**
+    - [ ] `src/components/templates/structured-template-editor.tsx` → `<SelectItem>`
+
+### Optional (verbessert UX)
+
+1. **DocumentCard (Teaser)**
+   - [ ] `src/components/library/gallery/document-card.tsx` → Spezielles Card-Layout
+
+2. **Übersetzungen**
+   - [ ] `src/lib/i18n/translations/de.json` → Label + Description
+   - [ ] `src/lib/i18n/translations/en.json` → Label + Description
+
+### DB/API
+
+1. **MongoDB Projection** (für spezifische Felder)
+   - [ ] `src/lib/repositories/vector-repo.ts`
+
+2. **DocCardMeta Type** (für neue Felder)
+   - [ ] `src/lib/gallery/types.ts`
+   - [ ] `src/lib/repositories/doc-meta-formatter.ts`
+
+## Beispiel: divaDocument (Referenzimplementierung)
+
+```typescript
+// 1. Registry erweitern (src/lib/detail-view-types/registry.ts)
+export const DETAIL_VIEW_TYPES = [
+  'book', 'session', 'testimonial', 'blog', 'climateAction', 
+  'divaDocument' // NEU: Katalogdokumente Möbelbranche
+] as const
+
+export const VIEW_TYPE_REGISTRY: Record<DetailViewType, ViewTypeConfig> = {
+  // ... bestehende
+  divaDocument: {
+    requiredFields: ['title', 'dokumentTyp', 'produktname', 'lieferant'],
+    optionalFields: [
+      'summary', 'haendler', 'produktkategorien', 'gueltigAb',
+      'istVeraltet', 'dokumentFormat', 'materialgruppen',
+      'waehrung', 'preistyp', 'zertifizierungen', 'tags', 'coverImageUrl',
+    ],
+    labelKey: 'gallery.detailViewTypeDivaDocument',
+    descriptionKey: 'gallery.detailViewTypeDivaDocumentDescription',
+  },
+}
+
+// 2. Type-Definition (src/lib/templates/template-types.ts)
+export type TemplatePreviewDetailViewType = 
+  'book' | 'session' | 'testimonial' | 'blog' | 'climateAction' | 'divaDocument'
+
+// 3. Mapper (src/lib/mappers/doc-meta-mappers.ts)
+export function mapToDivaDocumentDetail(input: unknown): DivaDocumentDetailData {
+  const root = (input && typeof input === 'object') ? input as Record<string, unknown> : {};
+  const docMetaJson = (root.docMetaJson && typeof root.docMetaJson === 'object') 
+    ? root.docMetaJson as Record<string, unknown> : {};
+  return {
+    title: toStr(docMetaJson.title) || '—',
+    dokumentTyp: toStr(docMetaJson.dokumentTyp),
+    produktname: toStr(docMetaJson.produktname),
+    lieferant: toStr(docMetaJson.lieferant),
+    // ... weitere Felder
+  }
+}
+
+// 4. DetailViewRenderer erweitern
+if (detailViewType === "divaDocument") {
+  return (
+    <>
+      {MissingFieldsWarning}
+      <DivaDocumentDetail data={mapToDivaDocumentDetail(docMetaJson)} showBackLink={showBackLink} />
+    </>
+  )
+}
+```
+
+## divaDocument: Dateien-Übersicht
+
+| Datei | Typ |
+|-------|-----|
+| `src/components/library/diva-document-detail.tsx` | Detail-Komponente + DivaDocumentDetailData Interface |
+| `src/components/library/ingestion-diva-document-detail.tsx` | Ingestion-Wrapper (MongoDB-Loader) |
+| `template-samples/divaKatalog-detail-de.md` | Template mit `detailViewType: divaDocument` |
+| `template-samples/divaKatalog-facets-config.json` | Facetten-Config (8 Facetten, importierbar) |
+
+## Pflichtfeld-Validierung
+
+Die Validierung erfolgt an drei Stellen:
+
+1. **Template-Editor**: Warnung beim Auswählen des ViewType
+2. **Pipeline (Template-Phase)**: Soft-Contract, loggt Warnung wenn Felder fehlen
+3. **Story-Vorschau/Galerie**: Warnung vor dem Detail-Content
+4. **Facetten-Editor**: Gelbe Warnung wenn Facetten-metaKeys nicht in der Registry sind
+
+```typescript
+import { validateMetadataForViewType, formatValidationWarning } from '@/lib/detail-view-types'
+
+const validation = validateMetadataForViewType(metadata, 'divaDocument')
+if (!validation.isValid) {
+  console.warn(formatValidationWarning(validation))
+  // → "Fehlende Pflichtfelder für divaDocument: dokumentTyp"
+}
+```
+
+## Hinweise
+
+- Pflichtfeld-Validierung ist **Soft-Validation**: Jobs werden nicht abgebrochen
+- Warnungen werden in UI angezeigt und in Logs protokolliert
+- Neue ViewTypes sollten immer `title` als Pflichtfeld haben
+- Fallback-Logik: Wenn ein ViewType nicht erkannt wird, wird `book` verwendet (Default in detail-view-type-utils.ts)
+- **Facetten-Prüfung**: Der FacetDefsEditor validiert metaKeys gegen die Registry des aktuellen ViewType und zeigt gelbe Warnungen für unbekannte Felder
+- **Hardcodierte Listen**: Es gibt ~8 Dateien mit hardcodierten ViewType-Arrays/Unions, die ALLE aktualisiert werden müssen (siehe Checkliste Punkt 10-15)
+
+## Automatisches Antwortschema
+
+Das LLM-Antwortschema wird **automatisch** aus den Template-Metadaten-Feldern generiert:
+
+- **Datei:** `src/lib/templates/template-service-mongodb.ts`
+- **Funktion:** `generateResponseSchemaFromFields()` + `appendGeneratedResponseSchema()`
+- **Wann:** Beim Serialisieren für Secretary Service (`serializeTemplateToMarkdown(template, false)`)
+
+Der manuell im Systemprompt geschriebene Schema-Block wird **nicht** entfernt, aber das generierte Schema wird am Ende angehängt mit der Anweisung "Verwende EXAKT diese Feldnamen". Das LLM priorisiert typischerweise die letzte Anweisung.
+
+**Vorteil:** Keine Inkonsistenzen zwischen Frontmatter-Feldern und Antwortschema mehr (z.B. `category` vs `handlungsfeld`).

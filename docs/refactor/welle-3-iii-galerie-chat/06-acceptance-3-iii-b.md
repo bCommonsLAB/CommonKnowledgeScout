@@ -73,7 +73,7 @@ src/components/library/chat/
 
 ## Altlast-Pass: 12 Comment-only-Catches gefixt
 
-Konform zu `.cursor/rules/no-silent-fallbacks.mdc`:
+Konform zu `../../contracts/no-silent-fallbacks.md`:
 
 | Datei | Catches | Loesung |
 |---|---:|---|
@@ -148,5 +148,5 @@ Wenn OK: PR mergen, dann Welle 3-III-c (Story + Perspective).
 - Welle 3-III Vorbereitung: `06-acceptance.md`
 - Welle 3-III-a Acceptance: `06-acceptance-3-iii-a.md`
 - AGENT-BRIEF Sub-Welle 3-III-b: `AGENT-BRIEF.md` Sektion "3-III-b"
-- Methodik: `.cursor/rules/refactor-batch-strategy.mdc`
-- Welle 3-III Contracts: `.cursor/rules/welle-3-iii-galerie-chat-contracts.mdc`
+- Methodik: `../../contracts/refactor-batch-strategy.md`
+- Welle 3-III Contracts: `../../contracts/welle-3-iii-galerie-chat-contracts.md`

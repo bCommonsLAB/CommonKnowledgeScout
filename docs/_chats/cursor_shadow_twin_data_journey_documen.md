@@ -284,7 +284,7 @@ Plan: Ich lege eine neue, kurze Project Rule `contracts-story-pipeline.mdc` an, 
 ### Erledigt: neue Project Rule für eure Contracts
 Ich habe eine neue Rule angelegt:
 
-- **`/.cursor/rules/contracts-story-pipeline.mdc`**
+- **`/../contracts/contracts-story-pipeline.md`**
 
 ### Was drin steht (kurz)
 - **Determinismus‑Contract** (ArtifactKey, `templateName` Pflicht bei Transformationen, Mongo‑IDs sind virtuell)

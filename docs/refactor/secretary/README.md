@@ -42,4 +42,4 @@ Der Welle-Agent (Default: 1 Cloud-Agent, R2) arbeitet seriell durch die
 - **Architektur-Bezug**: `secretary` ist Adapter zu einem externen
   Service. Eingebettet in die Story-Pipeline via `external-jobs`.
 - **Plan-Bezug**: Welle 2 in
-  [.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../../.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md)
+  [docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md)

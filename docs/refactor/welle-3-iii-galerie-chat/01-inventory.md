@@ -186,12 +186,12 @@ Vertraegen, die sich ohne Mock-Marathon testen lassen.
 
 ## 5. Zentrale Architektur-Rules (potentiell betroffen)
 
-- [`storage-abstraction.mdc`](../../../.cursor/rules/storage-abstraction.mdc) — 0 Verstoesse, bleibt einzuhalten
-- [`no-silent-fallbacks.mdc`](../../../.cursor/rules/no-silent-fallbacks.mdc) — 0 Verstoesse, bleibt einzuhalten
-- [`chat-contracts.mdc`](../../../.cursor/rules/chat-contracts.mdc) — Backend-Contracts, UI ist Konsument
-- [`shadow-twin-architecture.mdc`](../../../.cursor/rules/shadow-twin-architecture.mdc) — `gallery/gallery-root.tsx` und `chat/chat-panel.tsx` lesen Shadow-Twin-State
-- [`reorganizing-components.mdc`](../../../.cursor/rules/reorganizing-components.mdc) — Modul-Split-Empfehlung
-- [`prio1-state-caching-navigation.mdc`](../../../.cursor/rules/prio1-state-caching-navigation.mdc) — Galerie nutzt URL-State
+- [`storage-abstraction.mdc`](../../contracts/storage-abstraction.md) — 0 Verstoesse, bleibt einzuhalten
+- [`no-silent-fallbacks.mdc`](../../contracts/no-silent-fallbacks.md) — 0 Verstoesse, bleibt einzuhalten
+- [`chat-contracts.mdc`](../../contracts/chat-contracts.md) — Backend-Contracts, UI ist Konsument
+- [`shadow-twin-architecture.mdc`](../../contracts/shadow-twin-architecture.md) — `gallery/gallery-root.tsx` und `chat/chat-panel.tsx` lesen Shadow-Twin-State
+- [`reorganizing-components.mdc`](../../plans/archiv/reorganizing-components.md) — Modul-Split-Empfehlung
+- [`prio1-state-caching-navigation.mdc`](../../plans/archiv/prio1-state-caching-navigation.md) — Galerie nutzt URL-State
 - Neue Rule: `welle-3-iii-galerie-chat-contracts.mdc` (Schritt 2)
 
 ## 6. Bekannte Risiken / Watchpoints

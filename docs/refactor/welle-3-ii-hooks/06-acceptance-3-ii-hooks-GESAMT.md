@@ -2,7 +2,7 @@
 
 **Stand**: 2026-05-01
 **Status**: ABGESCHLOSSEN
-**Strategie**: 1 PR pro Sub-Welle (siehe `.cursor/rules/refactor-batch-strategy.mdc`)
+**Strategie**: 1 PR pro Sub-Welle (siehe `../../contracts/refactor-batch-strategy.md`)
 
 > **Naming-Hinweis (2026-05-01)**: Diese Welle hieß ursprünglich
 > "Welle 3-III". Sie wurde umbenannt zu **Welle 3-II-Hooks**, weil sie
@@ -13,7 +13,7 @@
 > Branch-Namen und PR-Titel der bereits gemergten PRs (#40-#43) bleiben
 > unverändert (Git-Historie). Nur die Doku-Bezeichnung wurde angepasst.
 >
-> Naming-Konvention: `.cursor/rules/refactor-naming-konvention.mdc`
+> Naming-Konvention: `../../contracts/refactor-naming-konvention.md`
 
 ## Bilanz auf einen Blick
 
@@ -135,7 +135,7 @@ mit der Plan-Welle 3-III ("Galerie + Story-Mode + Chat"). Lehre:
 den Mutter-Namen mit Suffix** (3-II → 3-II-Hooks), nicht eine neue
 Wellen-Nummer.
 
-Diese Konvention ist nun in `.cursor/rules/refactor-naming-konvention.mdc`
+Diese Konvention ist nun in `../../contracts/refactor-naming-konvention.md`
 festgehalten.
 
 ## Methodik-Lehre PR #31 hat 9 Mal in Folge funktioniert
@@ -205,7 +205,7 @@ spaeterer Cycle.
 ## Verweise
 
 - Welle 3-II Gesamt-Acceptance: `../welle-3-archiv-detail/06-acceptance-3-ii-GESAMT.md`
-- Methodik-Strategie: `.cursor/rules/refactor-batch-strategy.mdc`
-- Naming-Konvention: `.cursor/rules/refactor-naming-konvention.mdc`
+- Methodik-Strategie: `../../contracts/refactor-batch-strategy.md`
+- Naming-Konvention: `../../contracts/refactor-naming-konvention.md`
 - Methodik-Lehre `pnpm build`-Pflicht: PR #31
-- Plan-Datei: `.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md`
+- Plan-Datei: `docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md`

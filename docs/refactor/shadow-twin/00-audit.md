@@ -18,7 +18,7 @@ Bezug:
 
 **Kritische Findings**:
 
-- Modul-Architektur-Rule [`shadow-twin-architecture.mdc`](../../../.cursor/rules/shadow-twin-architecture.mdc)
+- Modul-Architektur-Rule [`shadow-twin-architecture.mdc`](../../contracts/shadow-twin-architecture.md)
   ist gepflegt und gueltig. Sie wird nicht doppelt gepflegt; die neue
   `shadow-twin-contracts.mdc` setzt ergaenzende technische Invarianten
   (Welle-Schritt 2) und verweist auf sie.
@@ -39,13 +39,13 @@ oder im Body shadow-twin-Architektur normieren.
 
 | Rule-Datei | Bezug zum Modul | Status | Aktion | Begruendung |
 |---|---|---|---|---|
-| [.cursor/rules/shadow-twin-architecture.mdc](../../../.cursor/rules/shadow-twin-architecture.mdc) | direkt (Architektur-Rule, alwaysApply: false aber pipeline-Globs) | aktuell | **keep** | Hauptquelle der Wahrheit; ArtifactKey-Determinismus, Storage-Abstraktion, Mongo-IDs. Inhalt deckt sich mit aktuellem Code. |
-| [.cursor/rules/contracts-story-pipeline.mdc](../../../.cursor/rules/contracts-story-pipeline.mdc) | direkt (deckt shadow-twin-Pipeline mit ab) | aktuell | **keep** | Globaler Pipeline-Contract; bleibt unangetastet in Welle 2. |
-| [.cursor/rules/storage-abstraction.mdc](../../../.cursor/rules/storage-abstraction.mdc) | indirekt (shadow-twin nutzt Storage-Provider) | aktuell | **keep** | Aus Welle 1; bleibt unveraendert. |
-| [.cursor/rules/storage-contracts.mdc](../../../.cursor/rules/storage-contracts.mdc) | indirekt (Welle-1-Modul-Contract) | aktuell | **keep** | Aus Welle 1; bleibt unveraendert. |
-| [.cursor/rules/media-lifecycle.mdc](../../../.cursor/rules/media-lifecycle.mdc) | indirekt (Persistenz/Lifecycle von Binary-Fragments) | aktuell | **keep** | Bleibt unangetastet. |
-| [.cursor/rules/ingest-mongo-only.mdc](../../../.cursor/rules/ingest-mongo-only.mdc) | indirekt (Mongo-Only-Ingestion fuer shadow-twin-Artefakte) | aktuell | **keep** | Bleibt unangetastet. |
-| [.cursor/rules/external-jobs-integration-tests.mdc](../../../.cursor/rules/external-jobs-integration-tests.mdc) | indirekt (Pipeline nutzt shadow-twin) | aktuell | **update** | Optional Cross-Reference auf neue `shadow-twin-contracts.mdc` ergaenzen. **Nicht Pflicht in Welle 2** — analog Welle 1. |
+| [../../contracts/shadow-twin-architecture.md](../../contracts/shadow-twin-architecture.md) | direkt (Architektur-Rule, alwaysApply: false aber pipeline-Globs) | aktuell | **keep** | Hauptquelle der Wahrheit; ArtifactKey-Determinismus, Storage-Abstraktion, Mongo-IDs. Inhalt deckt sich mit aktuellem Code. |
+| [../../contracts/contracts-story-pipeline.md](../../contracts/contracts-story-pipeline.md) | direkt (deckt shadow-twin-Pipeline mit ab) | aktuell | **keep** | Globaler Pipeline-Contract; bleibt unangetastet in Welle 2. |
+| [../../contracts/storage-abstraction.md](../../contracts/storage-abstraction.md) | indirekt (shadow-twin nutzt Storage-Provider) | aktuell | **keep** | Aus Welle 1; bleibt unveraendert. |
+| [../../contracts/storage-contracts.md](../../contracts/storage-contracts.md) | indirekt (Welle-1-Modul-Contract) | aktuell | **keep** | Aus Welle 1; bleibt unveraendert. |
+| [../../contracts/media-lifecycle.md](../../contracts/media-lifecycle.md) | indirekt (Persistenz/Lifecycle von Binary-Fragments) | aktuell | **keep** | Bleibt unangetastet. |
+| [../../contracts/ingest-mongo-only.md](../../contracts/ingest-mongo-only.md) | indirekt (Mongo-Only-Ingestion fuer shadow-twin-Artefakte) | aktuell | **keep** | Bleibt unangetastet. |
+| [../../contracts/external-jobs-integration-tests.md](../../contracts/external-jobs-integration-tests.md) | indirekt (Pipeline nutzt shadow-twin) | aktuell | **update** | Optional Cross-Reference auf neue `shadow-twin-contracts.mdc` ergaenzen. **Nicht Pflicht in Welle 2** — analog Welle 1. |
 
 ### Update-Detail (optional)
 
@@ -55,7 +55,7 @@ Schritt 2 entschieden; bei Zeitknappheit nicht Pflicht.
 
 ### Neu zu erstellen (Schritt 2)
 
-- `.cursor/rules/shadow-twin-contracts.mdc` — modul-spezifische
+- `../../contracts/shadow-twin-contracts.md` — modul-spezifische
   Contract-Rule, Globs `["src/lib/shadow-twin/**/*.ts"]`. Komplementaer
   zu `shadow-twin-architecture.mdc`.
 

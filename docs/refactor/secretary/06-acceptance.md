@@ -4,7 +4,7 @@ Stand: 2026-04-27. Erstellt vom Cloud-Agent (Welle 2.1, Plan-Schritt 7).
 
 Bezug:
 
-- Plan: [.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../../.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md) §5 Welle 2
+- Plan: [docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md) §5 Welle 2
 - AGENT-BRIEF: [`AGENT-BRIEF.md`](./AGENT-BRIEF.md)
 - Vorbild: [`docs/refactor/ingestion/06-acceptance.md`](../ingestion/06-acceptance.md)
 - Workflow-Regeln: [`docs/refactor/playbook.md`](../playbook.md) R1-R5
@@ -36,7 +36,7 @@ Kein Commit ueberschritt die Stop-Bedingung "1.000 Zeilen Diff".
 |---|---|---|
 | Audit-File `00-audit.md` mit allen 3 Tabellen | ✅ | Rules (7), Tests (4), Docs (14+) |
 | Inventur-File `01-inventory.md` | ✅ | Pre-Flight |
-| Contracts-File `02-contracts.md` + Modul-Rule `.cursor/rules/secretary-contracts.mdc` | ✅ | Neue Rule mit 7 Sektionen |
+| Contracts-File `02-contracts.md` + Modul-Rule `../../contracts/secretary-contracts.md` | ✅ | Neue Rule mit 7 Sektionen |
 | Char-Tests-File `03-tests.md` + 42 + 18 = **60 neue Tests** | ✅ | 5 neue Test-Files |
 | Altlast-Pass-File `04-altlast-pass.md` | ✅ | Helper-Extract + Catch-Fix + Test-Migration |
 | User-Test-Plan-File `05-user-test-plan.md` | ✅ | Phase A/B/C/D analog Welle 1.3 |

@@ -20,7 +20,7 @@ Optionale Verifikation:
 1. `git diff master --stat docs/` — alle neuen Doku-Files sichtbar
 2. `node scripts/ui-welle-3iii-stats.mjs` — Stats-Output erscheint
 3. `pnpm test --run tests/unit/components/library/{chat,gallery}/` — neue Char-Tests grün
-4. `pnpm lint .cursor/rules/welle-3-iii-galerie-chat-contracts.mdc` — Rule wird vom Linter akzeptiert
+4. `pnpm lint ../../contracts/welle-3-iii-galerie-chat-contracts.md` — Rule wird vom Linter akzeptiert
 
 ## Sub-Welle 3-III-a (Gallery, folgt)
 

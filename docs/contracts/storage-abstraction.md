@@ -1,0 +1,98 @@
+> Zentrale Architektur-Rule – Storage-unabhängige Programmierung über StorageFactory
+>
+> **Gilt für:** immer — diese Datei wird in `CLAUDE.md` per `@`-Import geladen.
+
+# Storage-Abstraktion: Zentrale Architektur-Rule
+
+## Kernprinzip
+
+**Alle Frontend- und Server-Anwendungen müssen storage-unabhängig programmiert werden.**
+Der Zugriff auf Dateien und Ordner erfolgt ausschließlich über das `StorageProvider`-Interface
+und die `StorageFactory`. Kein Code darf direkt auf ein konkretes Storage-Backend zugreifen.
+
+Unterstützte Backends: `local` (Filesystem), `onedrive`, `nextcloud` (WebDAV), weitere in Zukunft.
+Neuer Code darf NICHT von einem bestimmten Backend abhängen.
+
+## Regeln
+
+### 1. NIEMALS direkt auf Storage-Backends zugreifen
+
+**VERBOTEN:**
+```typescript
+// Direkter Filesystem-Zugriff in Frontend oder Hooks
+import fs from 'fs'
+const files = fs.readdirSync('/some/path')
+
+// Direkter WebDAV-Aufruf in Komponenten
+import { createClient } from 'webdav'
+const client = createClient(url, { username, password })
+
+// Direkter OneDrive-API-Aufruf in UI-Code
+fetch('https://graph.microsoft.com/v1.0/me/drive/root/children')
+```
+
+**RICHTIG:**
+```typescript
+// Immer über StorageProvider-Interface
+const provider = useStorageProvider()
+const items = await provider.listItemsById('root')
+const binary = await provider.getBinary(itemId)
+await provider.uploadFile(folderId, file)
+```
+
+### 2. StorageFactory ist der einzige Einstiegspunkt
+
+- **Client-seitig:** `useStorageProvider()` Hook oder `StorageContext`
+- **Server-seitig:** `getServerProvider(userEmail, libraryId)` aus `src/lib/storage/server-provider.ts`
+- **Beide** gehen intern über `StorageFactory.getInstance().getProvider(libraryId)`
+
+Niemals Provider manuell instanziieren (außer in der Factory selbst oder in Tests).
+
+### 3. UI darf keinen Storage-Typ abfragen für Feature-Entscheidungen
+
+**VERBOTEN:**
+```typescript
+// Feature-Logik basierend auf Storage-Typ
+if (library.type === 'nextcloud') {
+  // Nextcloud-spezifisches Verhalten
+}
+if (library.type === 'local') {
+  // Nur für lokalen Storage
+}
+```
+
+**RICHTIG:**
+```typescript
+// Abstrakte Fähigkeiten abfragen (über Provider-Interface oder Config-Flags)
+const provider = useStorageProvider()
+const validation = await provider.validateConfiguration()
+if (validation.isValid) { /* ... */ }
+```
+
+**Ausnahme:** Settings-/Konfigurationsformulare dürfen `library.type` lesen,
+um die richtigen Eingabefelder anzuzeigen (z.B. WebDAV-URL nur bei Nextcloud).
+
+### 4. Server-Kontext: Factory mit setServerContext(true)
+
+Server-seitige Aufrufe (API-Routes, External Jobs) müssen `setServerContext(true)` setzen.
+Dadurch erstellt die Factory direkte Provider (z.B. `NextcloudProvider` via WebDAV)
+statt HTTP-Proxies, die eine Clerk-Session benötigen würden.
+
+```typescript
+// In getServerProvider (bereits implementiert):
+const factory = StorageFactory.getInstance()
+factory.setServerContext(true)
+const provider = await factory.getProvider(libraryId)
+```
+
+### 5. Interface-Vertrag & neue Backends
+
+Alle Provider MÜSSEN das vollständige `StorageProvider`-Interface implementieren
+(Quelle: `src/lib/storage/types.ts`). Details und die Schritt-für-Schritt-Checkliste
+für neue Storage-Backends: `storage-contracts.mdc` (§1 und §8).
+
+## Verwandte Rules
+
+- `shadow-twin-architecture.mdc` → Storage-Abstraktion im Shadow-Twin-System
+- `contracts-story-pipeline.mdc` → Storage-Contract für Story-Pipeline
+- `no-silent-fallbacks.mdc` → Keine stillen Fallbacks bei unbekannten Storage-Typen

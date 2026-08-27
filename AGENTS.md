@@ -1,24 +1,46 @@
 # Agent Instructions for CommonKnowledgeScout
 
-Verbindliche Kurz-Regeln fuer alle Agenten (lokal und Cursor Cloud).
+Verbindliche Kurz-Regeln fuer alle Agenten (lokal und in Remote-Sessions).
 Detaillierte Begruendungen + Beispiele:
 [`docs/agents-handbuch.md`](docs/agents-handbuch.md).
 
 ## Aktueller Fahrplan (zuerst lesen)
 
-Verbindliche **Reihenfolge** der aktuellen Arbeit (Stand 2026-06-14) — EINE Quelle,
-damit Sessions nicht doppelt bauen:
-[`docs/roadmap-formatunabhaengige-library-und-onboarding.md`](docs/roadmap-formatunabhaengige-library-und-onboarding.md).
+**Laufender Strang (Stand 2026-08-27): Modularisierung.** EINE Quelle, damit
+Sessions nicht doppelt bauen:
 
-Kurz: **Plan 1** (Library formatunabhaengig & konsistent: A1/A2/A4) ZUERST, **danach
-Plan 2** (Onboarding-Flow: 2a Templates entflechten → 2b generischer Assistent). Das
-A0-Fundament (Basis-Feld-Contract + Integritaets-Gates) ist bereits auf `master`. Der
-Kickoff fuer Plan 1 (neue/Online-Session) steht im Fahrplan-Dokument.
+- **Was**: KnowledgeScout in Pakete schneiden (Schale + Module + Shared
+  Libraries), damit einzelne Bereiche in fremde Seiten einbettbar sind, ohne
+  doppelten Code und ohne unnoetige Client-Chunks.
+- **Grundlage**: ADR [0007](docs/adr/0007-modularisierung-monorepo-schale-module.md)
+  bis [0010](docs/adr/0010-retrieval-profile.md); Zuschnitt und Wellenplan in
+  [`docs/architecture/modul-landkarte.md`](docs/architecture/modul-landkarte.md) §5;
+  Umbau-Garantien in
+  [`docs/architecture/migrations-strategie.md`](docs/architecture/migrations-strategie.md).
+- **Agent-Brief M1**: [`docs/refactor/modularisierung/AGENT-BRIEF.md`](docs/refactor/modularisierung/AGENT-BRIEF.md)
+  (Zuschnitt, Ablauf, DoD, Stop-Bedingungen)
+- **Naechster Schritt**: Welle **M1** — `pnpm-workspace.yaml` +
+  `transpilePackages`, erstes Paket `@ks/viewers`. Voll-App bleibt
+  unveraendert (Verhaltensneutralitaet ist Abnahmekriterium jeder A-Welle).
+
+**Abgeschlossene Straenge** (nicht neu aufgreifen):
+
+- **Werkbank/Agentensicht**: Wellen W1–W8 und A1–A6 sind umgesetzt
+  ([`docs/concepts/projektauftrag-werkbank-abnahme.md`](docs/concepts/projektauftrag-werkbank-abnahme.md),
+  Testsession dokumentiert). Kuration laeuft nach ADR 0006 (Modell B).
+
+**Ruhender Strang**: Die Juni-Roadmap
+[`docs/roadmap-formatunabhaengige-library-und-onboarding.md`](docs/roadmap-formatunabhaengige-library-und-onboarding.md)
+(Plan 1 Library-Konsistenz, Plan 2 Onboarding-Flow) bleibt gueltig, wurde aber
+zugunsten der Werkbank zurueckgestellt. Plan 1 ist bis auf A4-Feinschliff
+erledigt. Erst wieder aufgreifen, wenn der Owner es sagt.
 
 ## Pflicht-Lektuere zu Beginn jedes Tasks
 
-1. `.cursorrules`
-2. Alle `.cursor/rules/*.mdc` mit `alwaysApply: true`
+1. `CLAUDE.md` (Einstiegs-Memory: Routing-Index, Coding-Konventionen;
+   laedt die immer geltenden Contracts per `@`-Import)
+2. Fuer den bearbeiteten Pfad: die im Routing-Index genannten Contracts
+   unter `docs/contracts/` — der passende Contract-Skill fasst sie zusammen
 3. Diese Datei — insb. den Abschnitt „Aktueller Fahrplan"
 4. [`docs/roadmap-formatunabhaengige-library-und-onboarding.md`](docs/roadmap-formatunabhaengige-library-und-onboarding.md) (Reihenfolge + Plan-1-Kickoff)
 5. Bei Refactor-Tasks: `docs/refactor/<modul>/00-audit.md` (Bestands-
@@ -30,12 +52,12 @@ Kickoff fuer Plan 1 (neue/Online-Session) steht im Fahrplan-Dokument.
 - Dateien max. 200 Zeilen, sonst aufsplitten
 - Kein `any`, kein leeres `catch {}` — beides ist Lint-Error
 - Silent Fallbacks verboten — siehe
-  [`no-silent-fallbacks.mdc`](.cursor/rules/no-silent-fallbacks.mdc)
+  [`no-silent-fallbacks.md`](docs/contracts/no-silent-fallbacks.md)
 - UI darf Storage-Backend nicht kennen — siehe
-  [`storage-abstraction.mdc`](.cursor/rules/storage-abstraction.mdc)
+  [`storage-abstraction.md`](docs/contracts/storage-abstraction.md)
 - TypeScript-Strict-Mode bleibt aktiv, `unknown` + Type-Guard statt `any`
 - Pipeline-Aenderungen muessen die Contracts in
-  [`contracts-story-pipeline.mdc`](.cursor/rules/contracts-story-pipeline.mdc) einhalten
+  [`contracts-story-pipeline.md`](docs/contracts/contracts-story-pipeline.md) einhalten
 - **Frontmatter-Format**: Template-/Material-Frontmatter ist FLACH und
   Obsidian-kompatibel — `snake_case`-Keys auf EINER Ebene, KEINE Dot-Notation
   (`a.b:`) und KEINE verschachtelten YAML-Objekte. Verschachtelte Datenmodelle
@@ -48,7 +70,7 @@ Kickoff fuer Plan 1 (neue/Online-Session) steht im Fahrplan-Dokument.
 - MongoDB-Repos: [`mongodb-repository-pattern.md`](docs/architecture/mongodb-repository-pattern.md)
 - API-Routes: [`api-route-conventions.md`](docs/architecture/api-route-conventions.md)
 - File-Preview-Tabs: [`file-preview-tab-architecture.md`](docs/architecture/file-preview-tab-architecture.md)
-- Neues Per-Library-Config-Feld: [`library-config-field.mdc`](.cursor/rules/library-config-field.mdc)
+- Neues Per-Library-Config-Feld: [`library-config-field.md`](docs/contracts/library-config-field.md)
 - Lokale Live-Verifikation (ohne Zeit zu verlieren): [`verification-playbook.md`](docs/guides/verification-playbook.md)
 
 ## Test- und Lint-Commands (Kurz)
@@ -66,12 +88,15 @@ bash scripts/welle-pre-merge-check.sh
 Detail (warum, Symptome, Ausnahmen):
 [`docs/agents-handbuch.md` §1](docs/agents-handbuch.md#1-test--und-build-strategie).
 
-## Cursor-Plans
+## Pläne
 
-- Verbindliche Plaene liegen unter `.cursor/plans/`
-- Aktiver Plan: `.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md`
-- Bei jedem Cloud-Task: zuerst den referenzierten Plan komplett lesen,
-  dann das genannte Todo abarbeiten
+- Aktive Plaene liegen unter [`docs/plans/`](docs/plans/)
+- Aktiver Plan: `docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md`
+- Erledigte/gegenstandslose Plaene: [`docs/plans/archiv/`](docs/plans/archiv/)
+  (mit Begruendung je Plan in der dortigen README)
+- Bei jedem Task: zuerst den referenzierten Plan komplett lesen,
+  dann das genannte Todo abarbeiten. Die `status:`-Marker in den Plan-Dateien
+  sind NICHT verlaesslich gepflegt — im Zweifel gegen den Code pruefen.
 
 ## Architecture Decision Records (ADR)
 
@@ -90,15 +115,30 @@ Detail (warum, Symptome, Ausnahmen):
   Creation-Wizard schreibt bei Erfassung nie direkt in den Ziel-Provider;
   Submissions landen in interner Inbox (MongoDB + Azure Blob), Publikation
   ist ein rechte-gateter, idempotenter Promotion-Job
+- Vorgeschlagen (deponiert): `docs/adr/0005-co-creator-eigene-storage-auth.md` —
+  Co-Creator mit „Zugriff Archiv" nutzen kuenftig EIGENE Storage-Auth
+  (OneDrive/Nextcloud) statt der Owner-Credentials; Galerie/Erkunden (MongoDB)
+  vs. Archiv (Storage) trennen; Auth bei Invite eingeben + testen — spaeterer Schritt
 - Aktiv: `docs/adr/0006-beweislast-umdrehen-werkbank-kuration.md` —
   Werkbank-Kuration: Modell B angenommen (2026-08-26). Maschinenarbeit gilt als
   angenommen (oranger Haken), der Mensch markiert nur Fehler (Stopp-Zeichen,
   `twin_status: fehlerhaft` + `flagged_by/at/note`); Sammelaktionen werden
   zurueckgebaut, Zaehler zaehlt Widerstaende statt Bestaetigungen
-- Vorgeschlagen (deponiert): `docs/adr/0005-co-creator-eigene-storage-auth.md` —
-  Co-Creator mit „Zugriff Archiv" nutzen kuenftig EIGENE Storage-Auth
-  (OneDrive/Nextcloud) statt der Owner-Credentials; Galerie/Erkunden (MongoDB)
-  vs. Archiv (Storage) trennen; Auth bei Invite eingeben + testen — spaeterer Schritt
+- Vorgeschlagen: `docs/adr/0007-modularisierung-monorepo-schale-module.md` —
+  pnpm-Monorepo mit Schale (`@ks/shell`), Modul-Paketen (`@ks/module-*`) und
+  Shared Libraries; SiteConfig pro Deployment; Core- vs. Modul-APIs mit
+  Route-Handler-Fabriken; Detail: `docs/architecture/modul-landkarte.md` +
+  `docs/architecture/einsatz-szenarien.md` + `migrations-strategie.md`
+- Vorgeschlagen: `docs/adr/0008-deployment-ziele.md` — Ein Deployment, viele
+  Sites (Host→SiteConfig zur Laufzeit, `next/dynamic` je Modul); eigene
+  Compilate nur bei anderer Laufzeit (Electron, npm-Embed); Module exportieren
+  montierbare Wurzelkomponenten
+- Vorgeschlagen: `docs/adr/0009-library-foederation.md` — mehrere Libraries
+  pro Site (primary + federated); Frage- und Inhalts-Bruecken auf Basis des
+  Perspektiven-Bruecken-Zielbilds; Inhalts-Bruecken vorberechnet
+- Vorgeschlagen: `docs/adr/0010-retrieval-profile.md` — Profile pro Library
+  (UI-Variante + pluggbare Retrieval-Strategie + Sprachen), Laie/Experte;
+  Ingestion-Post-Prozesse (z.B. Geo-Normalisierung) als Pipeline-Phasen
 
 ## Branching, Commits, PRs (Kurz)
 
@@ -110,11 +150,11 @@ Detail (warum, Symptome, Ausnahmen):
 - Cleanup-Commits gehoeren ZWINGEND in den PR ihrer Ursache
 - Wellen-Naming: Plan-Wellen-Nummern sind reserviert, Future-Work
   bekommt Mutter-Name + Suffix — siehe
-  [`refactor-naming-konvention.mdc`](.cursor/rules/refactor-naming-konvention.mdc)
+  [`refactor-naming-konvention.md`](docs/contracts/refactor-naming-konvention.md)
 
 Detail-Regeln:
 [`docs/agents-handbuch.md` §3](docs/agents-handbuch.md#3-branching-commits-prs-detail)
-und [`refactor-batch-strategy.mdc`](.cursor/rules/refactor-batch-strategy.mdc).
+und [`refactor-batch-strategy.md`](docs/contracts/refactor-batch-strategy.md).
 
 ## Stop-Bedingungen (Kurz)
 

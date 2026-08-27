@@ -2,7 +2,7 @@
 
 > Status: **Entwurf zur Schärfung** · Letzte Aktualisierung: 2026-05-30
 > Verwandt: [`docs/adr/0002-galerie-sterne-ohne-clerk-read.md`](../adr/0002-galerie-sterne-ohne-clerk-read.md),
-> [`.cursor/plans/quell-favoriten_und_kommentare_f294a0fd.plan.md`](../../.cursor/plans/quell-favoriten_und_kommentare_f294a0fd.plan.md)
+> [`docs/plans/archiv/quell-favoriten_und_kommentare_f294a0fd.plan.md`](../plans/archiv/quell-favoriten_und_kommentare_f294a0fd.plan.md)
 
 ## 1. Kontext & Zweck
 

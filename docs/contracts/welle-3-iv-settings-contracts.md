@@ -1,0 +1,132 @@
+> Contracts für Welle 3-IV Settings — erlaubte Client-Direktiven, Fehler-Semantik, API-Pfade, Storage-Branches
+>
+> **Gilt für:** `src/components/settings/**/*.tsx`, `src/components/settings/**/*.ts`, `src/hooks/use-safe-user.ts`, `src/app/settings/**/*.tsx`
+
+# Contracts: Welle 3-IV — Settings (Sub-Wellen 3-IV-a bis 3-IV-c)
+
+## §1 — Client-Direktive
+
+Settings-Formulare sind Client-Komponenten (Event-Handler, React-Hook-Form).
+`'use client'` ist **erlaubt** in:
+- `src/components/settings/**/*.tsx` wenn Event-Handler, Formulare oder
+  interaktive UI-Elemente vorhanden sind
+- `src/app/settings/**/page.tsx` darf NICHT `'use client'` haben (Server-Route)
+
+Sub-Module (Section-Komponenten) erben `'use client'` vom Eltern-File oder
+deklarieren es selbst, wenn sie eigenständig interaktiv sind.
+
+## §2 — Fehler-Semantik (No Silent Fallbacks)
+
+Jeder `catch`-Block MUSS mindestens eine dieser Aktionen ausführen:
+1. **`console.error()`** bei API-Fehlern (Netzwerk, Server-Fehler)
+2. **`console.warn()`** bei erwartbaren Fallbacks (Browser-API, Build-Zeit)
+3. **`console.debug()`** bei ungültigem Input (Base64, JSON-Parse)
+4. **`form.setError()`** bei Validierungsfehlern in React-Hook-Form
+
+Ausnahme (muss explizit kommentiert sein):
+- Browser-API-Fehler mit User-sichtigem Toast/Alert (H6 Clipboard-Copy)
+
+Verboten:
+```tsx
+// ❌ Leeres Catch — VERBOTEN
+} catch {
+  setState([]);
+}
+
+// ✅ Minimaler Fix
+} catch (err) {
+  console.error('[ComponentName] Beschreibung:', err);
+  setState([]);
+}
+```
+
+## §3 — Erlaubte API-Pfade in Settings
+
+Settings-Formulare dürfen diese API-Endpunkte aufrufen:
+
+### Library-Form (`/api/library/[id]/...`)
+- `GET/PUT /api/library/[id]` — Library-Config lesen/schreiben
+- `GET/POST /api/library/[id]/shadow-twin/migrate` — Migration starten
+- `GET /api/library/[id]/shadow-twin/analysis` — Analyse starten
+- `GET /api/library/[id]/shadow-twin/migration-runs` — Runs auflisten
+- `POST /api/library/[id]/export`, `POST /api/library/[id]/import` — Export/Import
+
+### Chat-Form (`/api/library/[id]/chat-config`)
+- `GET/PUT /api/library/[id]/chat-config` — Chat-Konfiguration
+
+### Storage-Form (`/api/library/[id]/storage`)
+- `GET/PUT /api/library/[id]/storage` — Storage-Konfiguration
+
+### Public-Form
+- `GET/PUT /api/library/[id]/public` — Öffentliche Einstellungen
+- `GET /api/library/check-slug?slug=...` — Slug-Verfügbarkeit prüfen
+
+## §4 — Storage-Branch-Erlaubnis
+
+`library.type`-Branches in Settings-Formularen sind **EXPLIZIT ERLAUBT**
+(Ausnahme von `storage-abstraction.mdc`):
+
+```tsx
+// ✅ ERLAUBT in Settings-Formularen
+if (library.type === 'local') { /* ... */ }
+if (library.type === 'onedrive') { /* ... */ }
+if (library.type === 'nextcloud') { /* ... */ }
+```
+
+Begründung: Settings-Formulare müssen typspezifische Eingabefelder anzeigen.
+Der Vertrag mit `storage-abstraction.mdc` gilt für Feature-Logik, nicht
+für Konfigurationsformulare.
+
+**Diese Branches DÜRFEN** beim Modul-Split in Section-Komponenten verschoben
+werden (z.B. `local-storage-section.tsx`, `onedrive-section.tsx`).
+
+## §5 — Sub-Modul-Struktur (Ziel nach 3-IV-a)
+
+```
+src/components/settings/
+├── library/
+│   ├── index.ts                          (Re-Export)
+│   ├── library-form.tsx                  (~400z Haupt-Render)
+│   ├── shadow-twin-config-section.tsx    (Shadow-Twin-Flags)
+│   ├── migration-wizard-section.tsx      (Dry-Run + Migration-Runs)
+│   ├── language-cleanup-section.tsx      (Lang-Cleanup-Dialog)
+│   ├── import-export-section.tsx         (Import/Export + Quellen-Tabelle)
+│   └── hooks/
+│       ├── use-library-form.ts
+│       ├── use-shadow-twin-migration.ts
+│       └── use-shadow-twin-analysis.ts
+├── chat/
+│   ├── index.ts
+│   ├── chat-form.tsx                     (~350z Haupt-Render)
+│   ├── model-config-section.tsx
+│   ├── retrieval-config-section.tsx
+│   ├── custom-headers-section.tsx
+│   └── hooks/
+│       └── use-chat-form.ts
+└── storage/
+    ├── index.ts
+    ├── storage-form.tsx                  (~300z Haupt-Render)
+    ├── local-storage-section.tsx
+    ├── onedrive-section.tsx
+    ├── nextcloud-section.tsx
+    └── hooks/
+        └── use-storage-form.ts
+```
+
+## §6 — useSafeUser-Kontrakt
+
+`useSafeUser` ist in `src/hooks/use-safe-user.ts` definiert.
+
+```ts
+// Einzige Verwendung — kein Duplikat in anderen Dateien
+import { useSafeUser } from "@/hooks/use-safe-user";
+```
+
+Verboten: Inline-Kopien von `useSafeUser` in Komponenten-Dateien.
+
+## Verweise
+
+- `storage-abstraction.mdc` — Basis-Rule (§4 ist Ausnahme davon)
+- `no-silent-fallbacks.mdc` — Fehler-Semantik (§2 konkretisiert)
+- `docs/refactor/welle-3-iv-settings/04-altlast-pass.md` — Hot-Spots H1–H9
+- `docs/refactor/welle-3-iv-settings/AGENT-BRIEF.md` — Sub-Wellen-Plan

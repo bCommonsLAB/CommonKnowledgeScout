@@ -152,7 +152,7 @@ ihre Imports nicht aendern. **Pattern fuer alle kommenden Wellen.**
 |---|---|---|
 | 8-Step-Methodik durchgefuehrt | OK | Audit + Inventur + Contracts + Char-Tests + Altlast-Pass + Strangler-Fig + Dead-Code + Abnahme |
 | Alle 5 Sub-Wellen mit eigener Acceptance-Doku | OK | 06-acceptance.md, 06-acceptance-3-ii-{a, a-2, a-2b, a-2c, a-2d, b, c, d}.md |
-| Modul-spezifische Contract-Rule | OK | `.cursor/rules/welle-3-archiv-detail-contracts.mdc` |
+| Modul-spezifische Contract-Rule | OK | `../../contracts/welle-3-archiv-detail-contracts.md` |
 | Char-Tests vor Code-Aenderungen | OK | 82 Cases ueber alle Sub-Wellen |
 | Pro Schritt eigener Commit | OK | siehe einzelne Acceptance-Docs |
 | `pnpm test` gruen am Ende | OK | 1.124 Tests / 175 Files |
@@ -229,6 +229,6 @@ Dokumentation: `../welle-3-ii-hooks/06-acceptance-3-ii-hooks-GESAMT.md`.
 ## Verweise
 
 - Welle 3-I (App-Schale + Library-Loader): `docs/refactor/welle-3-schale-loader/06-acceptance.md`
-- Methodik-Strategie: `.cursor/rules/refactor-batch-strategy.mdc`
+- Methodik-Strategie: `../../contracts/refactor-batch-strategy.md`
 - Methodik-Lehre `pnpm build`-Pflicht: PR #31 / `AGENTS.md`
-- Plan-Datei: `.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md`
+- Plan-Datei: `docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md`

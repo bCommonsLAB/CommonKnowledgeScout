@@ -23,6 +23,6 @@ seriell durch die 8 Methodik-Schritte (R1, R2).
 ## Kontext
 
 - **Pilot-Vorlage**: [`../external-jobs/`](../external-jobs/)
-- **Architektur-Rule**: [.cursor/rules/storage-abstraction.mdc](../../../.cursor/rules/storage-abstraction.mdc)
+- **Architektur-Rule**: [../../contracts/storage-abstraction.md](../../contracts/storage-abstraction.md)
 - **Plan-Bezug**: Welle 1 in
-  [.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../../.cursor/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md)
+  [docs/plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md](../../plans/refactor-strategie-drift-eliminieren_06fd8014.plan.md)

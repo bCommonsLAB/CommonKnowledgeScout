@@ -6,11 +6,11 @@ Stand: 2026-04-27. Welle 2.3, Schritt 0.
 
 | Rule-Datei | Bezug | Status | Aktion | Begruendung |
 |---|---|---|---|---|
-| `.cursor/rules/contracts-story-pipeline.mdc` | direkt (§4 Ingestion Input Contract, §5 Vector Search) | aktuell | keep | bleibt unveraendert; chat-contracts.mdc verfeinert auf Code-Ebene |
-| `.cursor/rules/ingest-mongo-only.mdc` | indirekt (chat ingest-service nutzt Pipeline) | aktuell | keep | |
-| `.cursor/rules/no-silent-fallbacks.mdc` | global | aktuell | keep | gilt fuer 9 catch{} |
-| `.cursor/rules/storage-abstraction.mdc` | global | aktuell | keep | |
-| `.cursor/rules/chat-contracts.mdc` (NEU) | direkt | wird in Schritt 2 erstellt | create | Modul-Invarianten |
+| `../../contracts/contracts-story-pipeline.md` | direkt (§4 Ingestion Input Contract, §5 Vector Search) | aktuell | keep | bleibt unveraendert; chat-contracts.mdc verfeinert auf Code-Ebene |
+| `../../contracts/ingest-mongo-only.md` | indirekt (chat ingest-service nutzt Pipeline) | aktuell | keep | |
+| `../../contracts/no-silent-fallbacks.md` | global | aktuell | keep | gilt fuer 9 catch{} |
+| `../../contracts/storage-abstraction.md` | global | aktuell | keep | |
+| `../../contracts/chat-contracts.md` (NEU) | direkt | wird in Schritt 2 erstellt | create | Modul-Invarianten |
 
 ## B. Tests
 

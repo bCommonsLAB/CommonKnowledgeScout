@@ -86,7 +86,7 @@ Plus zwei Cross-Modul-Tests in `tests/unit/storage/`:
 
 ## 4. Zentrale Architektur-Rule
 
-[`.cursor/rules/shadow-twin-architecture.mdc`](../../../.cursor/rules/shadow-twin-architecture.mdc)
+[`../../contracts/shadow-twin-architecture.md`](../../contracts/shadow-twin-architecture.md)
 ist die Hauptquelle der Wahrheit. Status:
 
 - `alwaysApply: false`, aber an pipeline-Globs gebunden.

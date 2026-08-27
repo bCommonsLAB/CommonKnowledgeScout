@@ -15,7 +15,7 @@ Beobachtetes Symptom (User):
 
 Bestaetigtes Problem:
 - Das LLM erfindet/extrahiert Dateinamen aus dem Quell-Freitext und Template-Beispielen, ohne dass eine Existenz-Pruefung stattfindet
-- Verstoss gegen [`media-lifecycle.mdc`](../../.cursor/rules/media-lifecycle.mdc): _"Frontmatter-Felder fuer Medien enthalten ausschliesslich Dateinamen, die sich auf Dateien im selben Verzeichnis oder in `binaryFragments` des Shadow-Twins beziehen."_
+- Verstoss gegen [`media-lifecycle.mdc`](../../contracts/media-lifecycle.md): _"Frontmatter-Felder fuer Medien enthalten ausschliesslich Dateinamen, die sich auf Dateien im selben Verzeichnis oder in `binaryFragments` des Shadow-Twins beziehen."_
 
 ## 1) Inventory: Schreibpfade fuer Medien-Frontmatter-Felder
 

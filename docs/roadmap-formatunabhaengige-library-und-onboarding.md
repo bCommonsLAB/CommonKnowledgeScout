@@ -4,6 +4,11 @@
 > die **Reihenfolge**, damit (auch parallele) Sitzungen nicht doppelt bauen. Die
 > Detail-Pläne bleiben gültig und sind unten verlinkt. Sprache bewusst einfach.
 
+> **RUHEND (Stand 2026-08-27).** Dieser Fahrplan wurde zugunsten des
+> Werkbank-Strangs (W1–W8, A1–A6 — abgeschlossen) und danach der
+> Modularisierung zurueckgestellt. Inhalt bleibt gueltig; der laufende Strang
+> steht in `AGENTS.md` §Aktueller Fahrplan.
+
 > **Fortschritt 2026-06-22 (was seither in `master` ist):**
 > - **Plan 1:** A1 Verifikationsstatus (PR #109) ✅; A1 Publish-Warnung ✅;
 >   A4-Folge formatgerechte Story-Verweise ✅; **detailViewType-Persistenz** beim
@@ -150,8 +155,8 @@ Detail: `docs/wizards/umbauplan-generischer-erfassungs-wizard.md` (U0–U8),
 
 ```
 Branch von `master` (z.B. `feature/plan1-a1-verifikationsstatus`). Pflichtlektüre:
-docs/roadmap-formatunabhaengige-library-und-onboarding.md, .cursorrules, alle
-.cursor/rules/*.mdc mit alwaysApply, AGENTS.md, docs/adr/0004-capture-publish-
+docs/roadmap-formatunabhaengige-library-und-onboarding.md, CLAUDE.md, alle
+die immer geltenden Contracts (@-Import in CLAUDE.md), AGENTS.md, docs/adr/0004-capture-publish-
 entkopplung-inbox-modell.md (Promote/Inbox).
 
 Kontext A0 (Fundament, schon auf master, NICHT neu bauen):

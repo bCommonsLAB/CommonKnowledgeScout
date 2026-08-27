@@ -4,17 +4,17 @@ Stand: 2026-05-26. Erstellt als Setup-Doku fuer die mehrstufige Welle.
 
 ## Kontext (lies das ZUERST — verbindlich)
 
-1. **Plan**: [.cursor/plans/diva-texture-liefersystem-integration_e7c2a98f.plan.md](../../../.cursor/plans/diva-texture-liefersystem-integration_e7c2a98f.plan.md) — komplette Welle, alle Stufen, Edge-Cases, Stolperfallen, User-Journey.
+1. **Plan**: [docs/plans/archiv/diva-texture-liefersystem-integration_e7c2a98f.plan.md](../../plans/archiv/diva-texture-liefersystem-integration_e7c2a98f.plan.md) — komplette Welle, alle Stufen, Edge-Cases, Stolperfallen, User-Journey.
 2. **Spec — Datenmodell**: [docs/diva-texture-analysen/material-digital-twin.md](../../diva-texture-analysen/material-digital-twin.md) — Material Digital Twin Modell von Lea. WICHTIG: liefert die FELD-HERKUNFT + Enum-Werte (Stufe 2/3/5), ist aber das spaetere verschachtelte MongoDB-Objekt. Das Preprocess-Template ist FLACH (snake_case, Obsidian-kompatibel) — siehe Plan Lea-Regel #8 + Quellen-Map `src/lib/diva-texture/material-field-sources.ts`.
 3. **Spec — Besprechung mit Lea**: [docs/diva-texture-analysen/besprechung-lea-materialien.md](../../diva-texture-analysen/besprechung-lea-materialien.md) — Transkript, aus dem die Regeln in Plan-Section 4 extrahiert sind.
 4. **Sample-Daten**: [docs/diva-texture-analysen/api2_GetJsonOptionValues_sample.json](../../diva-texture-analysen/api2_GetJsonOptionValues_sample.json) — Beispiel-Sidecar, Basis fuer Loader-Tests in Stufe 1.
 5. **Aktuelles Template** (wird in Stufe 2 ersetzt): [template-samples/Diva-Texture-Analysis.md](../../../template-samples/Diva-Texture-Analysis.md).
-6. **AGENTS.md** im Repo-Root + alle `.cursor/rules/*.mdc` mit `alwaysApply: true`.
+6. **AGENTS.md** im Repo-Root + alle die immer geltenden Contracts (per `@`-Import in `CLAUDE.md`).
 7. **Architektur-Rules** (alle relevant):
-   - [storage-abstraction.mdc](../../../.cursor/rules/storage-abstraction.mdc) — UI darf Storage-Backend nicht kennen
-   - [no-silent-fallbacks.mdc](../../../.cursor/rules/no-silent-fallbacks.mdc) — keine leeren Catches
-   - [media-lifecycle.mdc](../../../.cursor/rules/media-lifecycle.mdc) — Frontmatter enthaelt nur Dateinamen
-   - [contracts-story-pipeline.mdc](../../../.cursor/rules/contracts-story-pipeline.mdc) — Pipeline-Aenderungen (Stufe 3 + 5)
+   - [storage-abstraction.mdc](../../contracts/storage-abstraction.md) — UI darf Storage-Backend nicht kennen
+   - [no-silent-fallbacks.mdc](../../contracts/no-silent-fallbacks.md) — keine leeren Catches
+   - [media-lifecycle.mdc](../../contracts/media-lifecycle.md) — Frontmatter enthaelt nur Dateinamen
+   - [contracts-story-pipeline.mdc](../../contracts/contracts-story-pipeline.md) — Pipeline-Aenderungen (Stufe 3 + 5)
 
 ## Welle-Struktur
 

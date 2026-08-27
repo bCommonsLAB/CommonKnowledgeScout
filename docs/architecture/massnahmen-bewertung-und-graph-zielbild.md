@@ -118,7 +118,7 @@ rating_raw = ( co2_einsparung_kt × durchsetzbarkeit ) / max(kosten_eur, ε)
 
 - Anzeige als **Prioritäts-Score 0..100** (Perzentil über die Library).
 - **Guards (keine Silent Fallbacks):** `kosten_eur` fehlt/0 → „Kosten unbekannt",
-  nicht verschlucken ([no-silent-fallbacks.mdc](../../.cursor/rules/no-silent-fallbacks.mdc)).
+  nicht verschlucken ([no-silent-fallbacks.mdc](../contracts/no-silent-fallbacks.md)).
 - **Enabler bleiben sichtbar:** Maßnahmen mit `co2 ≈ 0`, die viele andere
   *ermöglichen*, ranken niedrig — ihre Bedeutung zeigt der **Graph** (viele
   ausgehende Kanten). Rating = direkte Wirkung, Graph = systemische Wirkung.
@@ -328,7 +328,7 @@ flowchart LR
 ## 8. Per-Library-Konfiguration (macht es generisch)
 
 Neuer Block unter `config.chat.gallery.graph` (Per-Library-Config-Feld nach der
-[Checkliste](../../.cursor/rules/library-config-field.mdc)):
+[Checkliste](../contracts/library-config-field.md)):
 
 ```
 graph: {

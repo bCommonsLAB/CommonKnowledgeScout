@@ -23,7 +23,7 @@ in der Galerie-Settings-UI kein passender Eintrag angezeigt (siehe Anwender-Scre
 ## Vorbild
 
 `divaDocument` ist die juengste DetailViewType-Erweiterung im Repo und folgt der Checkliste
-[`detail-view-type-checklist.mdc`](../../.cursor/rules/detail-view-type-checklist.mdc) vollstaendig.
+[`detail-view-type-checklist.mdc`](../../contracts/detail-view-type-checklist.md) vollstaendig.
 
 ## Betroffene Dateien (Aktion pro Datei)
 

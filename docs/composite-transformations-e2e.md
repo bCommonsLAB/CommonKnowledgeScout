@@ -141,4 +141,4 @@ aller Steckbrief-Analysen und kann z. B. eine Zusammenfassung erstellen.
 - API-Route: [`src/app/api/library/[libraryId]/composite-transformations/route.ts`](../src/app/api/library/%5BlibraryId%5D/composite-transformations/route.ts)
 - Dialog: [`src/components/library/composite-transformations-create-dialog.tsx`](../src/components/library/composite-transformations-create-dialog.tsx)
 - Toolbar-Integration: [`src/components/library/file-list.tsx`](../src/components/library/file-list.tsx)
-- Determinismus-Contract: [`.cursor/rules/shadow-twin-contracts.mdc`](../.cursor/rules/shadow-twin-contracts.mdc)
+- Determinismus-Contract: [`contracts/shadow-twin-contracts.md`](contracts/shadow-twin-contracts.md)
