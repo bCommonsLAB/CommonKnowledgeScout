@@ -78,6 +78,13 @@ export interface BuildCurationPatchesArgs {
   markiere?: FehlerMarkierung | null
   /** `twin_status` des Zielartefakts VOR dem Patch (fuer das Aufloesen). */
   aktuellerTwinStatus?: unknown
+  /**
+   * Verifikation zuruecknehmen (ADR 0006, Uebergang): `verified_by` und
+   * `verified_at` fallen weg. Gedacht fuer Stempel aus Sammelaktionen, die
+   * unter der neuen Bedeutung etwas Unwahres behaupten — nicht fuer den
+   * Alltag, darum ohne Knopf in der Oberflaeche.
+   */
+  entferneVerifikation?: boolean
   /** Email des angemeldeten Users (wird zu `human:<email>`). */
   userEmail: string
   /** `generated_by` des Zielartefakts (Invariante §3.2). */
@@ -146,6 +153,16 @@ export function buildCurationPatches(args: BuildCurationPatchesArgs): Record<str
     )
   }
 
+  if (args.entferneVerifikation === true) {
+    if (args.verify || args.markiere != null) {
+      throw new CurationValidationError(
+        'Verifikation zuruecknehmen laesst sich nicht mit Verifizieren oder Markieren verbinden',
+      )
+    }
+    patches.verified_by = null
+    patches.verified_at = null
+  }
+
   if (args.markiere != null) {
     patches.twin_status = 'flagged' satisfies TwinStatus
     patches.flagged_by = humanActor(args.userEmail)
@@ -177,7 +194,7 @@ export function buildCurationPatches(args: BuildCurationPatchesArgs): Record<str
 
   if (Object.keys(patches).length === 0) {
     throw new CurationValidationError(
-      'Leerer Kurations-Patch: weder twin_status noch verify noch markiere angegeben',
+      'Leerer Kurations-Patch: weder twin_status noch verify, markiere oder entferneVerifikation angegeben',
     )
   }
   return patches

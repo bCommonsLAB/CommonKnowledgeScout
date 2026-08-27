@@ -21,6 +21,24 @@ import {
 const NOW = '2026-08-19T10:00:00.000Z'
 const USER = 'peter@example.org'
 
+describe('buildCurationPatches — Verifikation zuruecknehmen (ADR 0006, Uebergang)', () => {
+  const basis = { verify: false, userEmail: USER, generatedBy: 'knowledgescout/gemini-2.5-pro', now: NOW }
+
+  it('entfernt verified_by und verified_at (null laesst das Feld weg)', () => {
+    const patches = buildCurationPatches({ ...basis, entferneVerifikation: true })
+    expect(patches).toEqual({ verified_by: null, verified_at: null })
+  })
+
+  it('laesst sich nicht mit Verifizieren oder Markieren verbinden', () => {
+    expect(() => buildCurationPatches({ ...basis, verify: true, entferneVerifikation: true })).toThrow(
+      CurationValidationError,
+    )
+    expect(() =>
+      buildCurationPatches({ ...basis, markiere: { notiz: 'x' }, entferneVerifikation: true }),
+    ).toThrow(CurationValidationError)
+  })
+})
+
 describe('buildCurationPatches — Fehler-Markierung (ADR 0006)', () => {
   const basis = { verify: false, userEmail: USER, generatedBy: 'knowledgescout/gemini-2.5-pro', now: NOW }
 

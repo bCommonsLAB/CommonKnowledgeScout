@@ -60,6 +60,8 @@ export interface CurationPatchArgs {
   verify: boolean
   /** Markier-Aktion (ADR 0006): `twin_status: flagged` + Urheber/Zeit/Notiz. */
   markiere?: FehlerMarkierung | null
+  /** Verifikation zuruecknehmen (Uebergangs-Skript, ADR 0006). */
+  entferneVerifikation?: boolean
   /** Zeitquelle (Tests injizieren eine feste Uhr). */
   now?: () => string
 }
@@ -168,6 +170,7 @@ export async function applyCurationPatch(args: CurationPatchArgs): Promise<Curat
     set: args.set,
     verify: args.verify,
     markiere: args.markiere,
+    entferneVerifikation: args.entferneVerifikation,
     aktuellerTwinStatus: meta['twin_status'],
     userEmail,
     generatedBy: meta['generated_by'],
