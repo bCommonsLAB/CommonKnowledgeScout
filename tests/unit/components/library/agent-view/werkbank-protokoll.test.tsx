@@ -36,7 +36,7 @@ function antwort(eintraege: unknown[]) {
 }
 
 describe('WerkbankProtokoll', () => {
-  it('zeigt Werkzeug, Urheber und die Begruendung', async () => {
+  it('zeigt Werkzeug, Herkunft und die Begruendung', async () => {
     fetchMock.mockResolvedValue(antwort([
       {
         werkzeug: 'transformation_starten',
@@ -50,7 +50,27 @@ describe('WerkbankProtokoll', () => {
     zeige()
     expect(await screen.findByText('transformation_starten')).toBeTruthy()
     expect(screen.getByText(/Hoerfehler-Korrektur/)).toBeTruthy()
-    expect(screen.getByText('peter@example.org')).toBeTruthy()
+    // Cowork-Befund 27.08.2026: Die Mailadresse gehoert dem Schluessel, nicht
+    // dem Handelnden — die Zeile sagt jetzt, dass ein Agent gehandelt hat.
+    const herkunft = screen.getByText(/Agent über die Brücke/)
+    expect(herkunft.getAttribute('title')).toContain('peter@example.org')
+  })
+
+  it('markiert eine Vorschau als das, was sie ist — nichts geaendert', async () => {
+    fetchMock.mockResolvedValue(antwort([
+      {
+        werkzeug: 'sichten_regenerieren',
+        libraryId: 'lib-1',
+        akteur: 'peter@example.org',
+        kanal: 'bruecke',
+        modus: 'vorschau',
+        begruendung: 'Sichten vor dem Schreiben angesehen',
+        status: 'ok',
+        createdAt: '2026-08-27T16:20:00.000Z',
+      },
+    ]))
+    zeige()
+    expect(await screen.findByText(/Vorschau — nichts geändert/)).toBeTruthy()
   })
 
   it('haelt Fehlversuche fest — samt Grund', async () => {

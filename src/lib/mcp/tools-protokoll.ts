@@ -44,7 +44,10 @@ export function registerProtokollTool(server: McpServer): void {
           hinweis:
             eintraege.length === 0
               ? 'Noch kein Protokoll — es entsteht erst mit schreibenden Aktionen ueber die Bruecke (ab Werkzeugsatz 2.6.0).'
-              : 'Juengste zuerst. Fehlversuche stehen mit status "fehler" drin — auch sie sind Geschichte.',
+              : 'Juengste zuerst. `kanal: "bruecke"` heisst: ein Agent hat gehandelt, nicht der Mensch am Knopf ' +
+                '(`akteur` ist der Schluessel-Inhaber, nicht der Agent). `modus: "vorschau"` markiert Aufrufe, die ' +
+                'NICHTS geaendert haben. Fehlversuche stehen mit status "fehler" drin — allerdings nur solche NACH ' +
+                'der Eingabepruefung: Ein Aufruf ohne `begruendung` scheitert am Schema und erreicht das Protokoll nie.',
         })
       } catch (error) {
         return errorResult(error)

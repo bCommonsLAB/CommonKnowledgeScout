@@ -36,8 +36,24 @@ export interface AktionsProtokollEintrag {
   /** Werkzeugname der Bruecke, z. B. `stand_setzen`. */
   werkzeug: string
   libraryId: string
-  /** Handelnder — bei der Bruecke der Account-User des Schluessels. */
+  /**
+   * Handelnder laut Account-Schluessel. ACHTUNG: Das ist der Inhaber des
+   * Schluessels, NICHT der Agent, der ihn benutzt — die Bruecke kennt keine
+   * Agenten-Identitaet. Wer gehandelt hat, sagt darum {@link kanal}.
+   */
   akteur: string
+  /**
+   * Woher die Aktion kam (Cowork-Befund 27.08.2026: „Der Akteur sagt nicht,
+   * wer gehandelt hat"). `bruecke` = ein Agent ueber MCP; die Knoepfe der
+   * Werkbank schreiben hier gar nicht.
+   */
+  kanal: 'bruecke'
+  /**
+   * `vorschau` = die Aktion hat NICHTS geaendert (z. B. `nurVorschau: true`).
+   * Ohne diese Unterscheidung behauptet das Protokoll Aenderungen, die es
+   * nicht gab.
+   */
+  modus?: 'vorschau'
   /** Vorhaben/Ordner der Aktion, soweit bekannt. */
   folderId?: string
   /** Library-relativer Pfad, soweit bekannt (fuer die Anzeige je Vorhaben). */

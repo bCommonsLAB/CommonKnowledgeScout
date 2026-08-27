@@ -40,7 +40,10 @@ export function registerSichtenTools(server: McpServer): void {
     },
     async ({ libraryId, nurVorschau , begruendung }) => {
       try {
-        return await mitProtokoll({ werkzeug: 'sichten_regenerieren', libraryId, akteur: mcpUserEmail(), begruendung }, async () => {
+        return await mitProtokoll({
+          werkzeug: 'sichten_regenerieren', libraryId, akteur: mcpUserEmail(), begruendung,
+          modus: nurVorschau === true ? 'vorschau' : undefined,
+        }, async () => {
           const userEmail = mcpUserEmail()
           const library = await requireLibrary(userEmail, libraryId)
           const provider = await requireProvider(userEmail, libraryId)
