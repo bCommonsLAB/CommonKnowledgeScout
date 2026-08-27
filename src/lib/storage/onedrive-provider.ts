@@ -22,6 +22,9 @@
  */
 
 import { StorageProvider, StorageItem, StorageValidationResult, StorageError, StorageItemMetadata, SPEICHER_NICHT_VERBUNDEN } from './types';
+import type { StorageUpdateOptions, StorageUpdateResult, StorageVersioning } from './types';
+import type { StorageCapabilities, StorageCapabilityInfo } from './types';
+import { StorageVersionConflictError } from './types';
 import { ClientLibrary } from '@/types/library';
 import { FileLogger } from '@/lib/debug/logger';
 import * as process from 'process';
@@ -33,6 +36,14 @@ interface OneDriveFile {
   name: string;
   size: number;
   lastModifiedDateTime: string;
+  /**
+   * Concurrency-Token von Graph. Aendert sich bei JEDER Aenderung (Inhalt
+   * ODER Metadaten) und ist der Wert, den `If-Match` akzeptiert. Der `cTag`
+   * traefe die reine Inhaltsaenderung genauer, taugt aber nicht als
+   * If-Match-Bedingung — die Trennung Inhalt/Metadaten (Q4) gehoert deshalb
+   * in `stat`, nicht in die Sperre.
+   */
+  eTag?: string;
   file?: { mimeType: string };
   folder?: { childCount: number };
   parentReference?: {
@@ -54,10 +65,22 @@ interface TokenResponse {
 }
 
 /**
+ * Vereinheitlicht eTag-Schreibweisen (Anfuehrungszeichen, schwache eTags).
+ *
+ * Graph liefert den eTag typischerweise als `"{GUID},{n}"` — mit
+ * Anfuehrungszeichen im Wert. Verglichen wird nur auf Gleichheit; ohne
+ * Normalisierung waere derselbe Stand je nach Aufrufpfad mal gleich, mal
+ * ungleich.
+ */
+function normalizeEtag(etag: string): string {
+  return etag.replace(/^W\//, '').replace(/^"|"$/g, '');
+}
+
+/**
  * OneDrive Provider
  * Implementiert die StorageProvider-Schnittstelle für Microsoft OneDrive
  */
-export class OneDriveProvider implements StorageProvider {
+export class OneDriveProvider implements StorageProvider, StorageVersioning, StorageCapabilities {
   private library: ClientLibrary;
   private baseUrl: string;
   private userEmail: string | null = null;
@@ -1137,6 +1160,10 @@ export class OneDriveProvider implements StorageProvider {
       size: file.size,
       modifiedAt: new Date(file.lastModifiedDateTime),
       mimeType: file.file?.mimeType || (file.folder ? 'application/folder' : 'application/octet-stream'),
+      // Fehlt nur, wenn ein Aufrufpfad eTag nicht mit $select anfordert;
+      // dann ist versioniertes Schreiben fuer dieses Item nicht moeglich
+      // und der Aufrufer meldet das, statt ungeschuetzt zu schreiben.
+      ...(file.eTag ? { version: normalizeEtag(file.eTag) } : {}),
     };
 
     return {
@@ -1247,7 +1274,7 @@ export class OneDriveProvider implements StorageProvider {
       
       // URL für den API-Aufruf mit $select für optimierte Payload-Größe
       // Nur benötigte Felder abrufen: id, name, size, lastModifiedDateTime, file, folder, parentReference
-      const selectFields = 'id,name,size,lastModifiedDateTime,file,folder,parentReference';
+      const selectFields = 'id,name,size,lastModifiedDateTime,eTag,file,folder,parentReference';
       let url = `https://graph.microsoft.com/v1.0/me/drive/root/children?$select=${selectFields}`;
       if (folderId === 'root' && this.baseFolderId && this.baseFolderId !== 'root') {
         url = `https://graph.microsoft.com/v1.0/me/drive/items/${this.baseFolderId}/children?$select=${selectFields}`;
@@ -1327,7 +1354,7 @@ export class OneDriveProvider implements StorageProvider {
       const accessToken = await this.ensureAccessToken();
       
       // URL für den API-Aufruf mit $select für optimierte Payload-Größe
-      const selectFields = 'id,name,size,lastModifiedDateTime,file,folder,parentReference';
+      const selectFields = 'id,name,size,lastModifiedDateTime,eTag,file,folder,parentReference';
       let url = `https://graph.microsoft.com/v1.0/me/drive/root?$select=${selectFields}`;
       if (itemId && itemId !== 'root') {
         // URL-Encoding für itemId (falls es Sonderzeichen enthält)
@@ -1620,6 +1647,102 @@ export class OneDriveProvider implements StorageProvider {
         this.id
       );
     }
+  }
+
+  /**
+   * Ersetzt eine bestehende Datei unter Versionsbedingung (Welle ST1).
+   *
+   * Graph erzwingt die Bedingung per `if-match` und antwortet mit 412, ohne
+   * etwas zu schreiben. Adressiert wird ueber die itemId, nicht ueber
+   * Elternordner + Name — die Datei behaelt damit ihre Id, und gespeicherte
+   * fileIds laufen nicht ins Leere.
+   */
+  async updateFile(itemId: string, content: Blob, options: StorageUpdateOptions): Promise<StorageUpdateResult> {
+    const accessToken = await this.ensureAccessToken();
+    const arrayBuffer = await content.arrayBuffer();
+
+    const response = await this.fetchWithRetry(
+      `https://graph.microsoft.com/v1.0/me/drive/items/${itemId}/content`,
+      {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          // Wie uploadFile: octet-stream ist die einzige Wahl, die alle
+          // Tenants/Proxies zuverlaessig durchlassen.
+          'Content-Type': 'application/octet-stream',
+          'if-match': `"${options.ifVersion}"`,
+        },
+        body: arrayBuffer,
+      }
+    );
+
+    if (response.status === 412) {
+      const aktuell = await this.leseVersion(itemId);
+      throw new StorageVersionConflictError(
+        `Datei wurde zwischenzeitlich geaendert: ${itemId}`,
+        options.ifVersion,
+        aktuell,
+        this.id,
+      );
+    }
+
+    if (!response.ok) {
+      // Detail-Message ist optional — ein unlesbarer Fehlerkoerper darf die
+      // eigentliche Fehlermeldung nicht verschlucken.
+      const errorData = await response.json().catch(() => null) as { error?: { message?: string } } | null;
+      throw new StorageError(
+        `Fehler beim Schreiben der Datei: ${errorData?.error?.message || response.statusText}`,
+        'API_ERROR',
+        this.id,
+      );
+    }
+
+    const updated = await response.json() as OneDriveFile;
+    if (!updated.eTag) {
+      throw new StorageError(
+        `Graph lieferte nach dem Schreiben keinen eTag fuer ${itemId} — ` +
+        `der naechste versionierte Schreibvorgang haette keine Bedingung mehr.`,
+        'API_ERROR',
+        this.id,
+      );
+    }
+    return {
+      id: updated.id,
+      version: normalizeEtag(updated.eTag),
+      ...(updated.id === itemId ? {} : { idChanged: { from: itemId, to: updated.id } }),
+    };
+  }
+
+  /** Selbstauskunft (Welle ST4) — siehe `storage-capabilities.ts`. */
+  beschreibeFaehigkeiten(): StorageCapabilityInfo {
+    return {
+      provider: 'onedrive',
+      grossKleinSchreibungRelevant: false,
+      // SharePoint/OneDrive begrenzen den GESAMTEN Pfad, nicht nur den Namen.
+      pfadLimit: 400,
+      namensLimit: 255,
+      maxDateigroesse: 250 * 1024 * 1024 * 1024,
+      papierkorbVorhanden: true,
+      aufbewahrungTage: 93,
+      // Graph sichert keine Normalform zu, und geraten waere schlimmer als
+      // nicht gewusst: ein Agent wuerde darauf bauen und Dateien nicht
+      // finden, die da sind.
+      unicodeNormalisierung: null,
+      zeitstempelGenauigkeit: 'millisekunde',
+      // Graph fuehrt cTag (Inhalt) getrennt von eTag (Inhalt ODER Metadaten).
+      trenntInhaltVonMetadaten: true,
+      hinweise: [
+        'Pfadlimit gilt fuer den gesamten Pfad — "_"-Twin-Ordner verdoppeln den Dateinamen darin.',
+        'Unicode-Normalform nicht zugesichert: bei Umlauten im Namen exakte Schreibweise verwenden, nicht rekonstruieren.',
+        'Frisch angelegte Items sind fuer die API teils bis zu einer Minute unsichtbar.',
+      ],
+    };
+  }
+
+  /** Aktuelle Version eines Items — nur fuer die Konfliktmeldung. */
+  private async leseVersion(itemId: string): Promise<string | null> {
+    const item = await this.getItemById(itemId);
+    return item.metadata.version ?? null;
   }
 
   async uploadFile(parentId: string, file: File): Promise<StorageItem> {

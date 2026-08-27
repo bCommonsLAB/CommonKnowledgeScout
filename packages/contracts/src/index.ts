@@ -10,6 +10,20 @@ export {
   istAnmeldungNoetig,
 } from './storage-provider'
 
+export type {
+  StorageUpdateOptions,
+  StorageUpdateResult,
+  StorageVersioning,
+} from './storage-versioning'
+export {
+  StorageVersionConflictError,
+  isVersionConflict,
+  supportsVersioning,
+} from './storage-versioning'
+
+export type { StorageCapabilityInfo, StorageCapabilities } from './storage-capabilities'
+export { supportsCapabilities } from './storage-capabilities'
+
 export type { LlmModelDto } from './llm-model'
 export type { UserInfoDto, UserInfoEmailDto } from './user-info'
 export type { LibraryIdentityDto } from './library-identity'

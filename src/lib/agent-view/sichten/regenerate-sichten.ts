@@ -21,6 +21,7 @@ import { scanArchive } from '../archive-scan'
 import type { ArchiveFolderNode } from '../archive-types'
 import { effectiveScanExcludeGlobs } from '@/lib/shadow-twin/sync-engine/scan-exclude'
 import type { StorageProvider } from '@/lib/storage/types'
+import { ersetzeTextDatei } from '@/lib/storage/update-text-file'
 import type { Library } from '@/types/library'
 import { renderAktuell } from './aktuell-render'
 import { sammleProjekte, zaehleProjektordner } from './bericht-lesen'
@@ -55,7 +56,15 @@ export interface SichtenErgebnis {
   vorschau?: { aktuell: string; projekte: string }
 }
 
-/** Datei im Zielordner ersetzen (loeschen + hochladen, siehe Datei-Kommentar). */
+/**
+ * Datei im Zielordner ersetzen.
+ *
+ * Welle ST1: Existiert die Datei, wird sie an Ort und Stelle geschrieben
+ * (`ersetzeTextDatei`) statt geloescht und neu hochgeladen — die Sicht
+ * behaelt damit ihre itemId, und zwischen zwei Laeufen gibt es keinen
+ * Moment, in dem `AKTUELL.md` nicht existiert. Nur der erste Lauf legt
+ * ueber `uploadFile` an.
+ */
 async function ueberschreiben(
   provider: StorageProvider,
   organisation: ArchiveFolderNode,
@@ -63,7 +72,10 @@ async function ueberschreiben(
   content: string,
 ): Promise<{ name: string; fileId: string }> {
   const existing = organisation.files.find((file) => file.name === name)
-  if (existing) await provider.deleteItem(existing.fileId)
+  if (existing) {
+    const { fileId } = await ersetzeTextDatei({ provider, fileId: existing.fileId, inhalt: content })
+    return { name, fileId }
+  }
   const uploaded = await provider.uploadFile(
     organisation.folderId,
     new File([content], name, { type: 'text/markdown' }),

@@ -26,6 +26,7 @@ import { getAllShadowTwins } from '@/lib/repositories/shadow-twin-repo'
 import { effectiveScanExcludeGlobs } from '@/lib/shadow-twin/sync-engine/scan-exclude'
 import type { Library } from '@/types/library'
 import type { StorageProvider } from '@/lib/storage/types'
+import { ersetzeTextDatei } from '@/lib/storage/update-text-file'
 import { FOLDER_ID, LIBRARY_ID, SCOPE_PFAD, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider, resolveScope } from './tool-shared'
 
 const SCAN_CONCURRENCY = 10
@@ -118,8 +119,10 @@ export function registerAenderungenTools(server: McpServer): void {
               const text = await blob.text()
               const neu = indexMitBlock(text, b.block)
               if (neu === text) { unveraendert.push(b.path || '(Wurzel)'); continue }
-              await provider.deleteItem(index.fileId)
-              await provider.uploadFile(folder.folderId, new File([neu], index.name, { type: 'text/markdown' }))
+              // Welle ST1: an Ort und Stelle statt loeschen + hochladen. Die
+              // _INDEX.md behaelt ihre itemId — gespeicherte fileIds (Report,
+              // Twin-Familien) laufen danach nicht ins NOT_FOUND.
+              await ersetzeTextDatei({ provider, fileId: index.fileId, inhalt: neu })
               geschrieben.push(b.path || '(Wurzel)')
             }
           }

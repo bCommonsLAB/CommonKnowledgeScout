@@ -66,6 +66,41 @@ Werkzeuge). Was in einem vorhandenen `ORDNUNGSZUSTAND.md` an Begründungen
 steht, gehört beim nächsten Anfassen in die `begruendung` der jeweiligen
 Aktion — nicht in eine neue Zeile der Datei.
 
+**1c. Für alles Übrige gibt es seit Werkzeugsatz 2.9.0 die Storage-Schicht.**
+`ordner_listen`, `datei_lesen`, `stat`, `pfad_aufloesen`, `datei_patchen`,
+`datei_schreiben`, `datei_anlegen`, `ordner_anlegen`, `verschieben`,
+`loeschen`, `speicher_info` — dieselben Werkzeuge für **alle** Bibliotheken,
+auch die Nextcloud-Mounts, und ohne laufenden Desktop. Drei Gewohnheiten
+lohnen sich sofort:
+
+- **`datei_patchen` statt neu schreiben.** Für eine geänderte Zahl im
+  `BERICHT.md` reicht `modus: {art: "ersetze", altText, neuText}` — `altText`
+  muss genau einmal vorkommen. Ein Abschnitt geht über
+  `abschnitt_ersetzen`, ein Frontmatter-Feld über `frontmatter_setzen`
+  (Body und fremde Zeilen bleiben unangetastet).
+- **`ifVersion` kommt aus `datei_lesen`/`stat`** und ist bei jedem
+  Schreibvorgang Pflicht. Kommt ein `konflikt` zurück, liegt der aktuelle
+  Inhalt in der Antwort — mergen und mit `aktuelleVersion` erneut schreiben,
+  nicht neu lesen.
+- **`bereich: {art: "frontmatter"}`** liest ~300 Bytes statt der ganzen
+  Datei, wenn nur ein Feld zu prüfen ist.
+
+Fehler tragen jetzt einen Code (`nicht_gefunden`, `konflikt`, `pfad_zu_lang`,
+`kein_zugriff`, …) und ein `wiederholbar`-Feld — daran ablesen, ob ein
+zweiter Versuch Sinn hat, statt zu raten.
+
+**Was die Schicht NICHT tut:** `_INDEX.md` und Artefakte unter `_`-Ordnern
+sind für sie gesperrt — dafür bleiben `stand_setzen`, `themen_setzen` und
+`twins_synchronisieren` zuständig. `verschieben` zieht **keine Twin-Familien**
+mit; das bleibt `familie_umziehen`. Und `loeschen` verweigert den Dienst,
+wenn der Speicher keinen Papierkorb hat (Filesystem-Mounts) — für
+Archiv-Quellen gilt weiter `quelle_verwerfen`.
+
+**Vor Umlaut- oder Pfadlängen-kritischen Aktionen `speicher_info` lesen.**
+Es sagt Groß-/Kleinschreibung, Pfadlimit, Papierkorb und
+Unicode-Normalisierung je Bibliothek — und `null` heißt dort ausdrücklich
+„nicht sicher bekannt", nicht „egal".
+
 **2. Vor jedem Schreibvorgang fragen.** Besonders vor `quelle_erschliessen`
 und `transformation_starten` — das sind kostenpflichtige Jobs. Bei größeren
 Mengen einmal pro Gruppe fragen, nicht pro Datei; aber immer sagen, was und
@@ -350,7 +385,9 @@ Liste älter als Werkzeugsatz 2.3.0; fehlt `themen_setzen`, älter als 2.4.0.
 Gibt `abdeckung_scannen` bei einem Teilbaum-Scan kein `antwortFuerTeilbaum`
 zurück (sondern die ganze Library), ist die Fassung älter als 2.5.0.
 Verlangen die Schreib-Werkzeuge keine `begruendung` bzw. fehlt
-`protokoll_lesen`, ist sie älter als 2.6.0.
+`protokoll_lesen`, ist sie älter als 2.6.0. Fehlen `datei_patchen` und
+`speicher_info`, ist sie älter als 2.9.0 — dann läuft der Dateizugriff noch
+über die Datei-Bridge, und Nextcloud-Bibliotheken bleiben unerreichbar.
 
 Zweiter Test, wenn die Soll-Liste selbst verdächtig ist: Ein schreibendes
 Werkzeug **ohne** `begruendung` aufrufen. Kommt

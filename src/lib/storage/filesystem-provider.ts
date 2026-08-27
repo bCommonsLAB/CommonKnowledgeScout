@@ -24,6 +24,9 @@
  */
 
 import { StorageProvider, StorageItem, StorageValidationResult, StorageError } from './types';
+import type { StorageUpdateOptions, StorageUpdateResult, StorageVersioning } from './types';
+import type { StorageCapabilities, StorageCapabilityInfo } from './types';
+import { StorageVersionConflictError } from './types';
 import * as fs from 'fs/promises';
 import { Stats } from 'fs';
 import * as path from 'path';
@@ -44,7 +47,19 @@ import * as crypto from 'crypto';
  * - Cache wird bei Änderungen (move, delete) automatisch aktualisiert
  * - Verhindert wiederholte Hash-Berechnungen
  */
-export class FileSystemProvider implements StorageProvider {
+/**
+ * Version einer Datei im Dateisystem: Aenderungszeit + Groesse.
+ *
+ * Nur auf Gleichheit zu pruefen (Vertrag von `StorageItemMetadata.version`).
+ * `mtimeMs` allein reicht nicht — manche Dateisysteme runden auf Sekunden,
+ * und eine gleich grosse Ersetzung innerhalb derselben Sekunde bliebe dann
+ * unsichtbar.
+ */
+function fileVersion(stats: Stats): string {
+  return `${stats.mtimeMs}-${stats.size}`;
+}
+
+export class FileSystemProvider implements StorageProvider, StorageVersioning, StorageCapabilities {
   name = 'Local FileSystem';
   id = 'filesystem';
   private basePath: string;
@@ -234,7 +249,10 @@ export class FileSystemProvider implements StorageProvider {
         name: path.basename(absolutePath),
         size: stats.size,
         modifiedAt: stats.mtime,
-        mimeType: stats.isFile() ? mime.lookup(absolutePath) || 'application/octet-stream' : 'folder'
+        mimeType: stats.isFile() ? mime.lookup(absolutePath) || 'application/octet-stream' : 'folder',
+        // Kein eTag im Dateisystem — mtime+size ist die beste verfuegbare
+        // Aussage darueber, ob sich der Inhalt geaendert hat.
+        version: fileVersion(stats)
       }
     };
   }
@@ -358,6 +376,81 @@ export class FileSystemProvider implements StorageProvider {
     // Hole die neuen Stats und generiere das aktualisierte StorageItem
     const stats = await fs.stat(targetPath);
     return this.statsToStorageItem(targetPath, stats);
+  }
+
+  /**
+   * Selbstauskunft (Welle ST4) — siehe `storage-capabilities.ts`.
+   *
+   * Der wichtigste Satz hier ist `papierkorbVorhanden: false`. `deleteItem`
+   * ruft `fs.rm`/`fs.unlink`: geloescht ist geloescht. Die Archiv-Grundregel
+   * „Geloescht wird nie" haengt an dieser Angabe, deshalb steht sie hier
+   * ausdruecklich und wird nicht wohlwollend gerundet.
+   */
+  beschreibeFaehigkeiten(): StorageCapabilityInfo {
+    return {
+      provider: 'filesystem',
+      // Linux ja, macOS/Windows meist nein — der Prozess kennt das Dateisystem
+      // hinter basePath nicht zuverlaessig (Mounts, Netzlaufwerke).
+      grossKleinSchreibungRelevant: null,
+      pfadLimit: null,
+      namensLimit: 255,
+      maxDateigroesse: null,
+      papierkorbVorhanden: false,
+      aufbewahrungTage: null,
+      unicodeNormalisierung: null,
+      // Node liefert mtimeMs mit Nachkommastellen; wie fein das Dateisystem
+      // wirklich aufloest, ist damit nicht gesagt.
+      zeitstempelGenauigkeit: null,
+      trenntInhaltVonMetadaten: false,
+      hinweise: [
+        'KEIN Papierkorb: Loeschen ist endgueltig und nicht wiederherstellbar.',
+        'Gross-/Kleinschreibung und Unicode-Normalform haengen am Dateisystem hinter basePath.',
+        'Datei-Ids sind Hashes aus Name, Groesse und Zeitstempel — ueber Prozessgrenzen hinweg nicht stabil.',
+      ],
+    };
+  }
+
+  /**
+   * Ersetzt eine bestehende Datei unter Versionsbedingung (Welle ST1).
+   *
+   * Grenze, die ehrlich benannt gehoert: Zwischen der Pruefung und dem
+   * `writeFile` liegt ein kurzes Fenster, in dem ein anderer Prozess
+   * schreiben koennte — das Dateisystem bietet kein atomares
+   * „schreibe nur, wenn unveraendert". Fuer den lokalen Provider (ein
+   * Server, ein Prozess) ist das Fenster praktisch bedeutungslos; bei
+   * OneDrive und Nextcloud erzwingt der Server die Bedingung wirklich.
+   */
+  async updateFile(itemId: string, content: Blob, options: StorageUpdateOptions): Promise<StorageUpdateResult> {
+    const absolutePath = await this.findPathById(itemId);
+    const before = await fs.stat(absolutePath);
+    if (!before.isFile()) {
+      throw new StorageError(`Kein Datei-Item: ${itemId}`, 'INVALID_TYPE', this.id);
+    }
+
+    const aktuell = fileVersion(before);
+    if (aktuell !== options.ifVersion) {
+      throw new StorageVersionConflictError(
+        `Datei wurde zwischenzeitlich geaendert: ${path.basename(absolutePath)}`,
+        options.ifVersion,
+        aktuell,
+        this.id,
+      );
+    }
+
+    const buffer = Buffer.from(await content.arrayBuffer());
+    await fs.writeFile(absolutePath, buffer);
+    const after = await fs.stat(absolutePath);
+
+    // Die Id haengt am Pfad-Cache und bleibt deshalb dieselbe. Sie wird
+    // trotzdem neu erfragt, statt `itemId` durchzureichen: bliebe die
+    // Annahme unbelegt, faende der Aufrufer den Wechsel erst im naechsten
+    // NOT_FOUND.
+    const neueId = await this.generateFileId(absolutePath, after);
+    return {
+      id: neueId,
+      version: fileVersion(after),
+      ...(neueId === itemId ? {} : { idChanged: { from: itemId, to: neueId } }),
+    };
   }
 
   async uploadFile(parentId: string, file: File): Promise<StorageItem> {
