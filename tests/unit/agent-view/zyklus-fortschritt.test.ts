@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { berechneZyklusFortschritt } from '@/lib/agent-view/zyklus-fortschritt'
+import { berechneZyklusFortschritt, schrittVon } from '@/lib/agent-view/zyklus-fortschritt'
 
 const OHNE_MARKIERUNG = { markierungen: 0 }
 
@@ -99,6 +99,15 @@ describe('berechneZyklusFortschritt', () => {
       ...OHNE_MARKIERUNG,
     })
     expect(fortschritt.schritte.every((s) => !s.behauptetErledigt)).toBe(true)
+  })
+
+  it('schrittVon urteilt nach der Registry, nicht nach dem Report-Feld', () => {
+    // Der gespeicherte Report konserviert die Regel seines Scans. Wuerde der
+    // Auftrag danach filtern, sammelte er andere Befunde ein, als die Leiste
+    // zaehlt (Befund 27.08.2026).
+    expect(schrittVon({ type: 'stand_widerspruch' })).toBe(4)
+    expect(schrittVon({ type: 'verweis_veraltet' })).toBe(3)
+    expect(() => schrittVon({ type: 'zukunftstyp' as never })).toThrow(/Unbekannter Gap-Typ/)
   })
 
   it('wirft bei unbekanntem Gap-Typ, statt ihn still zu verschlucken', () => {

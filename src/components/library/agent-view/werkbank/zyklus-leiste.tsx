@@ -26,7 +26,7 @@
 import { useToast } from '@/components/ui/use-toast'
 import { buildAuftrag, type AuftragContext } from '@/lib/agent-view/auftrag-generator'
 import { zyklusSchrittLabel } from '@/lib/agent-view/labels'
-import { istAltBefund } from '@/lib/agent-view/zyklus-fortschritt'
+import { istAltBefund, schrittVon } from '@/lib/agent-view/zyklus-fortschritt'
 import type { Bearbeitungsstand, CoverageGap, GapCountByType, ZyklusSchritt } from '@/lib/agent-view/types'
 import {
   SCHRITT_WERKZEUG,
@@ -100,7 +100,7 @@ export function ZyklusLeiste({ gapsByType, bearbeitungsstand, markierungen, befu
   const dran = fortschritt.schritte.find((lage) => lage.istDran)
 
   const auftragKopieren = async (schritt: ZyklusSchritt) => {
-    const desSchritts = befunde.filter((gap) => gap.zyklusSchritt === schritt && !istAltBefund(gap.type))
+    const desSchritts = befunde.filter((gap) => schrittVon(gap) === schritt && !istAltBefund(gap.type))
     if (desSchritts.length === 0) {
       toast({
         title: `Kein Auftragstext fuer ${zyklusSchrittLabel(schritt)}`,

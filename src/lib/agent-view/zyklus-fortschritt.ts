@@ -40,6 +40,19 @@ export function istAltBefund(typ: CoverageGapType): boolean {
   return ALT_BEFUNDE.includes(typ)
 }
 
+/**
+ * Zyklus-Schritt eines Befunds — IMMER aus der Registry, nie aus dem im
+ * Report gespeicherten Feld. Beides kann auseinanderfallen (der Report
+ * konserviert die Regel seines Scans); dann zaehlte die Leiste anders als
+ * der Auftrag sie einsammelt (Befund 27.08.2026: Schritt 3 zeigte „1",
+ * lieferte aber zwei Aufgaben). Eine Quelle, kein Drift.
+ */
+export function schrittVon(gap: { type: CoverageGapType }): ZyklusSchritt {
+  const definition = GAP_REGISTRY[gap.type]
+  if (!definition) throw new Error(`Unbekannter Gap-Typ im Report: ${String(gap.type)}`)
+  return definition.zyklusSchritt
+}
+
 /** Wer den Schritt ausfuehrt — feste Ordnung aus dem Zyklus-Papier §1. */
 export const SCHRITT_ZUSTAENDIG: Record<ZyklusSchritt, string> = {
   1: 'KnowledgeScout',
