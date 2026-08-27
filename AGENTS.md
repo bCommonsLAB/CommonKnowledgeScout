@@ -17,10 +17,11 @@ Sessions nicht doppelt bauen:
   [`docs/architecture/modul-landkarte.md`](docs/architecture/modul-landkarte.md) §5;
   Umbau-Garantien in
   [`docs/architecture/migrations-strategie.md`](docs/architecture/migrations-strategie.md).
-- **Agent-Brief M1**: [`docs/refactor/modularisierung/AGENT-BRIEF.md`](docs/refactor/modularisierung/AGENT-BRIEF.md)
-  (Zuschnitt, Ablauf, DoD, Stop-Bedingungen)
-- **Naechster Schritt**: Welle **M1** — `pnpm-workspace.yaml` +
-  `transpilePackages`, erstes Paket `@ks/viewers`. Voll-App bleibt
+- **Agent-Brief M1** (abgeschlossen): [`docs/refactor/modularisierung/AGENT-BRIEF.md`](docs/refactor/modularisierung/AGENT-BRIEF.md)
+- **Agent-Brief M2**: [`docs/refactor/modularisierung/AGENT-BRIEF-M2.md`](docs/refactor/modularisierung/AGENT-BRIEF-M2.md)
+  (Zuschnitt, Ablauf, DoD, Stop-Bedingungen; Hand-off fuer M3 am Ende)
+- **Naechster Schritt**: Welle **M3** — `@ks/shell` (Provider-Kette, Auth,
+  Library-Bootstrap, TopNav) + Host→SiteConfig-Resolver. Voll-App bleibt
   unveraendert (Verhaltensneutralitaet ist Abnahmekriterium jeder A-Welle).
 
 **Abgeschlossene Straenge** (nicht neu aufgreifen):
