@@ -8,7 +8,8 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { supportsVersioning } from '@/lib/storage/types'
 import { BEGRUENDUNG, mitProtokoll } from '../protokoll'
-import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from '../tool-shared'
+import { LIBRARY_ID, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from '../tool-shared'
+import { storageFehler } from './fehler'
 import { ADRESSE_ID, ADRESSE_PFAD, loeseAdresse } from './adressierung'
 import { konfliktAntwort } from './konflikt'
 import { type PatchModus, wendePatchAn } from './patch'
@@ -128,7 +129,7 @@ export function registerStoragePatchTool(server: McpServer): void {
           },
         )
       } catch (error) {
-        return errorResult(error)
+        return storageFehler(error)
       }
     },
   )

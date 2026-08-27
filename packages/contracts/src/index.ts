@@ -24,3 +24,6 @@ export {
   isVersionConflict,
   supportsVersioning,
 } from './storage-versioning'
+
+export type { StorageCapabilityInfo, StorageCapabilities } from './storage-capabilities'
+export { supportsCapabilities } from './storage-capabilities'

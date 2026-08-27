@@ -6,7 +6,8 @@
 
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from '../tool-shared'
+import { LIBRARY_ID, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from '../tool-shared'
+import { storageFehler } from './fehler'
 import { ADRESSE_ID, ADRESSE_PFAD, loeseAdresse } from './adressierung'
 import { MAX_BYTES_VORGABE, type Bereich, begrenze, schneideBereich } from './bereich'
 
@@ -80,7 +81,7 @@ export function registerStorageLeseTools(server: McpServer): void {
           ...ausschnitt,
         })
       } catch (error) {
-        return errorResult(error)
+        return storageFehler(error)
       }
     },
   )
@@ -128,7 +129,7 @@ export function registerStorageLeseTools(server: McpServer): void {
           version: item.metadata.version ?? null,
         })
       } catch (error) {
-        return errorResult(error)
+        return storageFehler(error)
       }
     },
   )

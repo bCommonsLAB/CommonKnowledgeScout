@@ -7,6 +7,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { StorageVersionConflictError } from '@/lib/storage/types'
 
+/** Liest die Q5-Fehlerantwort (code + meldung + wiederholbar) aus. */
+function fehlerbild(ergebnis: unknown): { fehler: string; meldung: string; wiederholbar: boolean } {
+  return JSON.parse((ergebnis as { content: Array<{ text: string }> }).content[0].text)
+}
+
 const h = vi.hoisted(() => ({
   requireLibrary: vi.fn(),
   requireProvider: vi.fn(),
@@ -106,10 +111,9 @@ describe('datei_patchen', () => {
     const ergebnis = await patchen({
       libraryId: 'lib', pfad: 'BERICHT.md', ifVersion: 'v1', begruendung: 'x',
       modus: { art: 'ersetze', altText: 'x', neuText: 'y' },
-    }) as { ok: boolean; fehler: string }
+    }) as unknown
 
-    expect(ergebnis.ok).toBe(false)
-    expect(ergebnis.fehler).toMatch(/2-mal vor/)
+    expect(fehlerbild(ergebnis).meldung).toMatch(/2-mal vor/)
     expect(p.updateFile).not.toHaveBeenCalled()
   })
 
@@ -136,10 +140,9 @@ describe('datei_patchen', () => {
     const ergebnis = await patchen({
       libraryId: 'lib', pfad: 'BERICHT.md', ifVersion: 'v1', begruendung: 'x',
       modus: { art: 'abschnitt_ersetzen', ueberschrift: '## Befunde' },
-    }) as { ok: boolean; fehler: string }
+    }) as unknown
 
-    expect(ergebnis.ok).toBe(false)
-    expect(ergebnis.fehler).toMatch(/braucht `ueberschrift` und `neuerInhalt`/)
+    expect(fehlerbild(ergebnis).meldung).toMatch(/braucht `ueberschrift` und `neuerInhalt`/)
   })
 
   it('patcht keine _INDEX.md', async () => {
@@ -151,10 +154,9 @@ describe('datei_patchen', () => {
     const ergebnis = await patchen({
       libraryId: 'lib', pfad: '_INDEX.md', ifVersion: 'v1', begruendung: 'x',
       modus: { art: 'frontmatter_setzen', felder: { bearbeitungsstand: 'erschlossen' } },
-    }) as { ok: boolean; fehler: string }
+    }) as unknown
 
-    expect(ergebnis.ok).toBe(false)
-    expect(ergebnis.fehler).toMatch(/stand_setzen/)
+    expect(fehlerbild(ergebnis).meldung).toMatch(/stand_setzen/)
     expect(p.updateFile).not.toHaveBeenCalled()
   })
 })

@@ -23,6 +23,7 @@
 import { createClient, type WebDAVClient, type FileStat, type ResponseDataDetailed } from 'webdav'
 import { StorageProvider, StorageItem, StorageValidationResult } from './types'
 import type { StorageUpdateOptions, StorageUpdateResult, StorageVersioning } from './types'
+import type { StorageCapabilities, StorageCapabilityInfo } from './types'
 import { StorageVersionConflictError } from './types'
 
 /**
@@ -172,7 +173,7 @@ async function withRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
   throw lastError
 }
 
-export class NextcloudProvider implements StorageProvider, StorageVersioning {
+export class NextcloudProvider implements StorageProvider, StorageVersioning, StorageCapabilities {
   name = 'Nextcloud (WebDAV)'
   id: string
   private client: WebDAVClient
@@ -405,6 +406,34 @@ export class NextcloudProvider implements StorageProvider, StorageVersioning {
       )
     }
     return { id: itemId, version: normalizeEtag(stat.etag) }
+  }
+
+  /** Selbstauskunft (Welle ST4) — siehe `storage-capabilities.ts`. */
+  beschreibeFaehigkeiten(): StorageCapabilityInfo {
+    return {
+      provider: 'nextcloud',
+      // Haengt am Dateisystem des Servers (Linux meist ja, macOS meist nein)
+      // und ist von aussen nicht feststellbar.
+      grossKleinSchreibungRelevant: null,
+      pfadLimit: null,
+      namensLimit: 255,
+      maxDateigroesse: null,
+      // Nextcloud liefert die Papierkorb-App standardmaessig mit; ob sie
+      // aktiv ist, sagt WebDAV nicht. Der Hinweis nennt die Unsicherheit,
+      // statt sie zu verschweigen.
+      papierkorbVorhanden: true,
+      aufbewahrungTage: null,
+      unicodeNormalisierung: null,
+      // WebDAV `lastmod` ist ein HTTP-Datum — Sekundengenauigkeit.
+      zeitstempelGenauigkeit: 'sekunde',
+      trenntInhaltVonMetadaten: false,
+      hinweise: [
+        'Gross-/Kleinschreibung haengt am Dateisystem des Servers — im Zweifel exakte Schreibweise verwenden.',
+        'Papierkorb ist Standard, aber abschaltbar: vor endgueltigen Aktionen im Zweifel nachfragen.',
+        'Ids sind base64-kodierte PFADE: ein Umzug aendert die Id (ein In-Place-Schreibvorgang nicht).',
+        'Zeitstempel nur sekundengenau — zwei Aenderungen in derselben Sekunde sind nicht unterscheidbar.',
+      ],
+    }
   }
 
   /** Aktuelle Version einer Datei — nur fuer die Konfliktmeldung. */

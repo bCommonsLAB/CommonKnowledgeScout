@@ -23,6 +23,7 @@
 
 import { StorageProvider, StorageItem, StorageValidationResult, StorageError, StorageItemMetadata, SPEICHER_NICHT_VERBUNDEN } from './types';
 import type { StorageUpdateOptions, StorageUpdateResult, StorageVersioning } from './types';
+import type { StorageCapabilities, StorageCapabilityInfo } from './types';
 import { StorageVersionConflictError } from './types';
 import { ClientLibrary } from '@/types/library';
 import { FileLogger } from '@/lib/debug/logger';
@@ -79,7 +80,7 @@ function normalizeEtag(etag: string): string {
  * OneDrive Provider
  * Implementiert die StorageProvider-Schnittstelle für Microsoft OneDrive
  */
-export class OneDriveProvider implements StorageProvider, StorageVersioning {
+export class OneDriveProvider implements StorageProvider, StorageVersioning, StorageCapabilities {
   private library: ClientLibrary;
   private baseUrl: string;
   private userEmail: string | null = null;
@@ -1709,6 +1710,32 @@ export class OneDriveProvider implements StorageProvider, StorageVersioning {
       id: updated.id,
       version: normalizeEtag(updated.eTag),
       ...(updated.id === itemId ? {} : { idChanged: { from: itemId, to: updated.id } }),
+    };
+  }
+
+  /** Selbstauskunft (Welle ST4) — siehe `storage-capabilities.ts`. */
+  beschreibeFaehigkeiten(): StorageCapabilityInfo {
+    return {
+      provider: 'onedrive',
+      grossKleinSchreibungRelevant: false,
+      // SharePoint/OneDrive begrenzen den GESAMTEN Pfad, nicht nur den Namen.
+      pfadLimit: 400,
+      namensLimit: 255,
+      maxDateigroesse: 250 * 1024 * 1024 * 1024,
+      papierkorbVorhanden: true,
+      aufbewahrungTage: 93,
+      // Graph sichert keine Normalform zu, und geraten waere schlimmer als
+      // nicht gewusst: ein Agent wuerde darauf bauen und Dateien nicht
+      // finden, die da sind.
+      unicodeNormalisierung: null,
+      zeitstempelGenauigkeit: 'millisekunde',
+      // Graph fuehrt cTag (Inhalt) getrennt von eTag (Inhalt ODER Metadaten).
+      trenntInhaltVonMetadaten: true,
+      hinweise: [
+        'Pfadlimit gilt fuer den gesamten Pfad — "_"-Twin-Ordner verdoppeln den Dateinamen darin.',
+        'Unicode-Normalform nicht zugesichert: bei Umlauten im Namen exakte Schreibweise verwenden, nicht rekonstruieren.',
+        'Frisch angelegte Items sind fuer die API teils bis zu einer Minute unsichtbar.',
+      ],
     };
   }
 

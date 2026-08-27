@@ -28,3 +28,7 @@ export {
   isVersionConflict,
   supportsVersioning,
 } from '@ks/contracts'
+
+// Welle ST4: Selbstauskunft der Provider (`storage-capabilities.ts`).
+export type { StorageCapabilityInfo, StorageCapabilities } from '@ks/contracts'
+export { supportsCapabilities } from '@ks/contracts'

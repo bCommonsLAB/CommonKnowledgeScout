@@ -6,7 +6,8 @@
 
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from '../tool-shared'
+import { LIBRARY_ID, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from '../tool-shared'
+import { storageFehler } from './fehler'
 import { ADRESSE_ID, ADRESSE_PFAD, loeseAdresse } from './adressierung'
 import { MAX_LISTINGS, listeOrdner } from './listen'
 
@@ -56,7 +57,7 @@ export function registerStorageOrdnerTools(server: McpServer): void {
         })
         return jsonResult({ ordner: { pfad: adresse.pfad || '(Wurzel)', id: adresse.id }, ...ergebnis })
       } catch (error) {
-        return errorResult(error)
+        return storageFehler(error)
       }
     },
   )
@@ -87,7 +88,7 @@ export function registerStorageOrdnerTools(server: McpServer): void {
         })
         return jsonResult({ pfad: adresse.pfad, id: adresse.id, name: adresse.name, typ: erwartet })
       } catch (error) {
-        return errorResult(error)
+        return storageFehler(error)
       }
     },
   )

@@ -9,6 +9,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { StorageVersionConflictError } from '@/lib/storage/types'
 
+/** Liest die Q5-Fehlerantwort (code + meldung + wiederholbar) aus. */
+function fehlerbild(ergebnis: unknown): { fehler: string; meldung: string; wiederholbar: boolean } {
+  return JSON.parse((ergebnis as { content: Array<{ text: string }> }).content[0].text)
+}
+
 const h = vi.hoisted(() => ({
   requireLibrary: vi.fn(),
   requireProvider: vi.fn(),
@@ -137,10 +142,9 @@ describe('datei_schreiben', () => {
     const ergebnis = await schreiben({
       libraryId: 'lib', pfad: '26.01 Klima/_INDEX.md', inhalt: 'x',
       ifVersion: 'v1', begruendung: 'Stand setzen',
-    }) as { ok: boolean; fehler: string }
+    }) as unknown
 
-    expect(ergebnis.ok).toBe(false)
-    expect(ergebnis.fehler).toMatch(/stand_setzen/)
+    expect(fehlerbild(ergebnis).meldung).toMatch(/stand_setzen/)
     expect(p.updateFile).not.toHaveBeenCalled()
   })
 
@@ -151,9 +155,8 @@ describe('datei_schreiben', () => {
     const ergebnis = await schreiben({
       libraryId: 'lib', pfad: '26.01 Klima/BERICHT.md', inhalt: 'x',
       ifVersion: 'v1', begruendung: 'x',
-    }) as { ok: boolean; fehler: string }
+    }) as unknown
 
-    expect(ergebnis.ok).toBe(false)
-    expect(ergebnis.fehler).toMatch(/nicht versioniert schreiben/)
+    expect(fehlerbild(ergebnis).meldung).toMatch(/nicht versioniert schreiben/)
   })
 })

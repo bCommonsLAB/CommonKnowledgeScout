@@ -26,6 +26,7 @@ Bereich bereits getroffen sind (`docs/adr/`); Status **Aktiv** heißt bindend,
 |---|---|---|---|
 | `src/lib/external-jobs/**`, `src/app/api/external/jobs/**`, `src/app/api/pipeline/**`, `src/lib/transform/**`, `src/lib/markdown/**` | contracts-story-pipeline, external-jobs-integration-tests, ingest-mongo-only, no-error-as-artifact, frontmatter-single-serializer | `contracts-pipeline` | 0001 |
 | `src/lib/storage/**`, `src/app/api/storage/**` | storage-abstraction, storage-contracts | `contracts-storage-twin` | 0005 |
+| `src/lib/mcp/storage/**` | storage-abstraction, storage-contracts (§9) | `contracts-storage-twin` | — |
 | `src/lib/shadow-twin/**`, `src/hooks/use-shadow-twin*` | shadow-twin-architecture, shadow-twin-contracts | `contracts-storage-twin` | — |
 | `src/lib/ingestion/**` | ingestion-contracts | `contracts-ingestion-chat` | — |
 | `src/lib/chat/**`, `src/app/api/chat/**` | chat-contracts, contracts-story-pipeline | `contracts-ingestion-chat` | 0010 |

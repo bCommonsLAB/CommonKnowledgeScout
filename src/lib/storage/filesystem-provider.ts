@@ -25,6 +25,7 @@
 
 import { StorageProvider, StorageItem, StorageValidationResult, StorageError } from './types';
 import type { StorageUpdateOptions, StorageUpdateResult, StorageVersioning } from './types';
+import type { StorageCapabilities, StorageCapabilityInfo } from './types';
 import { StorageVersionConflictError } from './types';
 import * as fs from 'fs/promises';
 import { Stats } from 'fs';
@@ -58,7 +59,7 @@ function fileVersion(stats: Stats): string {
   return `${stats.mtimeMs}-${stats.size}`;
 }
 
-export class FileSystemProvider implements StorageProvider, StorageVersioning {
+export class FileSystemProvider implements StorageProvider, StorageVersioning, StorageCapabilities {
   name = 'Local FileSystem';
   id = 'filesystem';
   private basePath: string;
@@ -375,6 +376,38 @@ export class FileSystemProvider implements StorageProvider, StorageVersioning {
     // Hole die neuen Stats und generiere das aktualisierte StorageItem
     const stats = await fs.stat(targetPath);
     return this.statsToStorageItem(targetPath, stats);
+  }
+
+  /**
+   * Selbstauskunft (Welle ST4) — siehe `storage-capabilities.ts`.
+   *
+   * Der wichtigste Satz hier ist `papierkorbVorhanden: false`. `deleteItem`
+   * ruft `fs.rm`/`fs.unlink`: geloescht ist geloescht. Die Archiv-Grundregel
+   * „Geloescht wird nie" haengt an dieser Angabe, deshalb steht sie hier
+   * ausdruecklich und wird nicht wohlwollend gerundet.
+   */
+  beschreibeFaehigkeiten(): StorageCapabilityInfo {
+    return {
+      provider: 'filesystem',
+      // Linux ja, macOS/Windows meist nein — der Prozess kennt das Dateisystem
+      // hinter basePath nicht zuverlaessig (Mounts, Netzlaufwerke).
+      grossKleinSchreibungRelevant: null,
+      pfadLimit: null,
+      namensLimit: 255,
+      maxDateigroesse: null,
+      papierkorbVorhanden: false,
+      aufbewahrungTage: null,
+      unicodeNormalisierung: null,
+      // Node liefert mtimeMs mit Nachkommastellen; wie fein das Dateisystem
+      // wirklich aufloest, ist damit nicht gesagt.
+      zeitstempelGenauigkeit: null,
+      trenntInhaltVonMetadaten: false,
+      hinweise: [
+        'KEIN Papierkorb: Loeschen ist endgueltig und nicht wiederherstellbar.',
+        'Gross-/Kleinschreibung und Unicode-Normalform haengen am Dateisystem hinter basePath.',
+        'Datei-Ids sind Hashes aus Name, Groesse und Zeitstempel — ueber Prozessgrenzen hinweg nicht stabil.',
+      ],
+    };
   }
 
   /**

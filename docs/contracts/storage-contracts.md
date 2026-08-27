@@ -165,6 +165,51 @@ Wenn du im Modul `storage` Code anfasst:
 - [ ] Liegen OneDrive-spezifische Erweiterungen unter
       `src/lib/storage/onedrive/`, nicht in einer Mega-Datei?
 
+## §9 Versionierung, Selbstauskunft, generischer Schreibweg (ab Welle ST1/ST4)
+
+Zwei **optionale** Faehigkeiten ergaenzen das Pflicht-Interface. Beide liegen
+in eigenen Dateien unter `packages/contracts/src/` und werden per
+Feature-Detection abgefragt — nach §1 gehoeren optionale Zusatzmethoden nicht
+ins Pflicht-Interface.
+
+### `StorageVersioning` (`storage-versioning.ts`)
+
+- `StorageItemMetadata.version` ist ein **undurchsichtiger** Wert (OneDrive/
+  Nextcloud: eTag, Filesystem: mtime+size). Nur auf Gleichheit pruefen —
+  keine Ordnung, kein Zaehler, kein Parsen.
+- `updateFile(itemId, content, { ifVersion })` ersetzt eine BESTEHENDE Datei
+  an Ort und Stelle. `ifVersion` ist Pflicht, nicht optional.
+- Bei Nichtuebereinstimmung wirft der Provider `StorageVersionConflictError`
+  mit der aktuellen Version. Den aktuellen INHALT haengt die aufrufende
+  Schicht an (MCP: `konflikt.ts`) — er gehoert nicht in den Provider-Fehler.
+- **Kein Rueckfall auf `deleteItem` + `uploadFile`.** Das ist die stille
+  Ueberschreibung, gegen die die Faehigkeit gebaut ist; ausserdem wechselt die
+  itemId dabei (Befund: gespeicherte fileIds liefen danach in `NOT_FOUND`).
+- Wer `updateFile` ergaenzt, traegt es in die Mutations-Positivliste in
+  `provider-request-cache.ts` ein — sonst liefern Reads im selben Request den
+  Stand von VOR dem Schreiben.
+
+### `StorageCapabilities` (`storage-capabilities.ts`)
+
+- Jeder Provider beschreibt sich selbst. Aufrufer verzweigen ueber diese
+  Auskunft, **nicht** ueber `library.type` (§5, `storage-abstraction.md` §3).
+- **`null` heisst „weiss ich nicht" und ist eine erlaubte Antwort.** Eine
+  geratene Unicode-Normalform oder ein geratenes Pfadlimit ist schlimmer als
+  keines: der Agent baut darauf. Was unsicher ist, gehoert nach `hinweise`.
+- `papierkorbVorhanden` traegt die Archiv-Grundregel „Geloescht wird nie" und
+  darf nie wohlwollend gerundet werden. Der Filesystem-Provider hat KEINEN
+  Papierkorb; `loeschen` verweigert dort den Papierkorb-Modus.
+- Was der Provider kann, sagt der Provider; was die aufrufende SCHICHT daraus
+  macht (`unterstuetzt.patch/delta/binaer`), sagt die Schicht.
+
+### Schreibschutz auf Pfadmustern
+
+Der generische Schreibweg darf die Fachwerkzeuge nicht umgehen. `_INDEX.md`
+gehoert `stand_setzen`/`themen_setzen`, Artefakte unter `_`-Ordnern gehoeren
+`twins_synchronisieren`. Der Fehler NENNT das zustaendige Werkzeug und wirft,
+statt still zu ueberspringen (ein uebergangener Schreibvorgang saehe fuer den
+Aufrufer aus wie ein erfolgter).
+
 ## §8 Checkliste: Neues Storage-Backend hinzufuegen
 
 (verschoben aus `storage-abstraction.mdc`)

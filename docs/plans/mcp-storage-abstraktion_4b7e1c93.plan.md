@@ -33,13 +33,13 @@ todos:
     status: completed
   - id: st4-stufe2-fehler
     content: "Welle ST4 — Stufe 2 + Querschnitt: loeschen (aus ST2 hierher verschoben, siehe dort — untrennbar von der Papierkorb-Ehrlichkeit unten), datei_anlegen (nichtUeberschreiben default true), ordner_anlegen, verschieben (deckt Umbenennen ab; kennt KEINE Twin-Familien — die bleiben in familie_umziehen eine Ebene darüber), speicher_info (provider, grossKleinSchreibungRelevant, pfadLimit, maxDateigroesse, papierkorbVorhanden, unterstuetzt{patch,ifVersion,delta,binaer}, unicodeNormalisierung). Dazu die einheitlichen Fehlerbilder Q5 (nicht_gefunden, konflikt, zu_gross, pfad_zu_lang, kein_zugriff, nur_lesen, gesperrt, nicht_unterstuetzt, zeitueberschreitung) als Mapping-Schicht über die heterogenen Provider-Fehler."
-    status: pending
+    status: completed
   - id: st4-papierkorb-ehrlich
     content: "Welle ST4, Teil 2 — Papierkorb ehrlich melden statt vortäuschen. FilesystemProvider.deleteItem löscht heute HART (fs.rm/fs.unlink, filesystem-provider.ts:303-315); OneDrive und Nextcloud haben einen Papierkorb. speicher_info meldet papierkorbVorhanden je Provider wahrheitsgemäß, und loeschen verweigert bei papierkorbVorhanden=false den Default inPapierkorb:true, statt still hart zu löschen (no-silent-fallbacks). Archiv-Grundregel 'Gelöscht wird nie' bleibt damit prüfbar."
-    status: pending
+    status: completed
   - id: st4-doku
     content: "Welle ST4, Teil 3 — docs/contracts/storage-contracts.md um einen §9 'Versionierung & generischer Schreibweg' ergänzen (Capability-Interface, ifVersion-Semantik, Schreibschutz-Pfadmuster); CLAUDE.md Routing-Index um die Zeile src/lib/mcp/storage/** ergänzen; den Skill archiv-aufraeumen um die neuen Werkzeuge erweitern und den Werkzeugsatz in tools-info.ts hochziehen (TOOLSET_VERSION), damit bruecke_info veraltete Client-Toollisten weiter sichtbar macht."
-    status: pending
+    status: completed
   - id: verschoben-stufe3
     content: "BEWUSST NICHT in diesem Strang (Stufe 3 der Anforderungen): suchen (kein Provider kann es heute einheitlich — OneDrive per Graph-Search, Nextcloud/Filesystem nur per Scan; braucht zusätzlich indexStand in der Antwort), wiederherstellen aus dem Papierkorb, dateien_lesen (Stapel), binaer_lesen mit range, kopieren, sperren/entsperren, Job-Modus mit jobId für lange Läufe (Q7). aenderungen_seit existiert bereits scanbasiert. Erst aufgreifen, wenn ST1–ST4 stehen und ein konkreter Bedarf da ist (G3, bedarfsgetrieben)."
     status: pending
@@ -323,6 +323,47 @@ Weitere Punkte:
   nach — Kandidat für die Aufräum-Welle, zusammen mit dem toten
   `deleteFile`-Port.
 
+## 4e. Befunde aus ST4 (umgesetzt 2026-08-27)
+
+**`speicher_info` brauchte eine Provider-Selbstauskunft, keinen Typ-Switch.**
+Der Storage-Contract verbietet Feature-Entscheidungen über `library.type`.
+Also eine zweite optionale Fähigkeit, `StorageCapabilities`
+(`packages/contracts/src/storage-capabilities.ts`, wieder eine neue Datei —
+null Konfliktfläche): Jeder Provider beschreibt sich selbst, die Schicht
+verzweigt nicht.
+
+Die tragende Regel darin: **`null` heißt „weiß ich nicht", und das ist eine
+erlaubte Antwort.** Beispiele, wo ich bewusst `null` gesetzt habe statt zu
+raten:
+
+- Unicode-Normalisierung bei allen drei Providern. Graph sichert keine
+  Normalform zu; geraten wäre schlimmer als nicht gewusst, weil der Agent
+  darauf baut und Dateien nicht findet, die da sind — genau der Beleg aus den
+  Anforderungen.
+- Groß-/Kleinschreibung bei Nextcloud und Filesystem: hängt am Dateisystem des
+  Servers, von außen nicht feststellbar.
+
+Getrennt gehalten: Was der **Provider** kann, sagt der Provider; was **diese
+Schicht** daraus macht (`unterstuetzt.patch/delta/binaer`), sagt die Schicht.
+Sonst behauptete jeder Provider Werkzeuge, die es gar nicht gibt — `delta` ist
+`false`, weil `aenderungen_seit` scannt, und `binaer` ist `false`, weil
+bereichsweises Binärlesen Stufe 3 bleibt.
+
+**`loeschen` verweigert den Dienst ohne Papierkorb.** Der Filesystem-Provider
+hat keinen (`fs.rm`/`fs.unlink`). Ein `loeschen`, das dort „im Papierkorb"
+meldet, wäre die gefährlichste Antwort der ganzen Schicht — die Grundregel
+„Gelöscht wird nie" hängt daran. Ohne Papierkorb braucht es ein ausdrückliches
+`endgueltig: true`; die Meldung verweist auf `quelle_verwerfen`.
+
+**Q5: Unbekanntes wird nicht wohlwollend einsortiert.** Was sich nicht sicher
+zuordnen lässt, bekommt `unbekannt` + `wiederholbar: false` und die
+Originalmeldung — ein falsch einsortierter Fehler schickt den Agenten in genau
+die Schleife, die die Zuordnung verhindern soll. Ein generischer
+`StorageError` gilt ausdrücklich nicht als Konflikt.
+
+**`verschieben` zieht erst um, dann benennt es um.** Andersherum könnte der
+neue Name im ALTEN Ordner kollidieren.
+
 ## 5. Offene Entscheidungen — mit Empfehlung
 
 Die vier offenen Fragen aus §6 der Anforderungen, damit sie nicht jede Welle
@@ -343,14 +384,14 @@ Der Strang ist fertig, wenn:
 2. Zwei Sitzungen schreiben dieselbe Datei — die zweite bekommt einen
    Konflikt, keine stille Überschreibung. → ST1 ✓ (Konfliktantwort ST2)
 3. Derselbe Ablauf gegen Nextcloud wie gegen OneDrive, ohne eine Zeile
-   Sonderbehandlung. → ST1/ST2
+   Sonderbehandlung. → ST1/ST2 ✓ (im Code; live noch nicht verifiziert)
 4. Ordner mit 1.100 Unterordnern listen, ohne Zeitlimit und ohne 180.000
-   Zeichen. → ST2 (`limit`/`cursor` + Listing-Obergrenze; eine erreichte
+   Zeichen. → ST2 ✓ (`limit`/`cursor` + Listing-Obergrenze; eine erreichte
    Grenze wird gemeldet, nicht still gekappt)
-5. Datei löschen und wiederherstellen. → ST4 löschen; **wiederherstellen ist
-   verschoben** (Stufe 3), das ist ehrlich zu sagen
+5. Datei löschen und wiederherstellen. → ST4 löschen ✓ (mit Papierkorb-
+   Auskunft); **wiederherstellen bleibt offen** (Stufe 3) — halb erfüllt
 6. Nach jedem Schreibvorgang die Datei über **dieselbe Id** wiederfinden. →
-   ST1 (mit der benannten Nextcloud-Grenze)
+   ST1 ✓ (Wechsel wird als `idGeaendert` gemeldet)
 7. Vom Handy arbeiten, während der Desktop aus ist. → sobald der Endpunkt
    erreichbar deployt ist (Ops, nicht Code)
 
