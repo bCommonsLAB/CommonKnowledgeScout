@@ -5,6 +5,7 @@ import { parseFacetDefs, buildFilterFromQuery } from '@/lib/chat/dynamic-facets'
 import { facetsSelectedToMongoFilter } from '@/lib/chat/common/filters'
 import { getCollectionNameForLibrary, getCollectionOnly } from '@/lib/repositories/vector-repo'
 import { maybePublicationFilter } from '@/lib/chat/publication-filter'
+import { explorerGate } from '@ks/module-explorer'
 
 /**
  * GET /api/chat/[libraryId]/docs/ids
@@ -15,6 +16,11 @@ import { maybePublicationFilter } from '@/lib/chat/publication-filter'
  * Gibt Array von eindeutigen fileIds zurück für Bulk-Delete
  */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
+  // Site-Gate (Modul-Landkarte §3): Ist `explorer` fuer diese Site
+  // nicht aktiv, antwortet die Route mit 404.
+  const gated = explorerGate(req)
+  if (gated) return gated
+
   try {
     const { libraryId } = await params
     

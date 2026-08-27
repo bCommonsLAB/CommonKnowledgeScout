@@ -6,6 +6,7 @@ import { convertMongoDocToDocCardMeta, type MongoDocForConversion } from '@/lib/
 import { canSeeDrafts } from '@/lib/chat/publication-filter'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import type { Document } from 'mongodb'
+import { explorerGate } from '@ks/module-explorer'
 
 /**
  * GET /api/chat/[libraryId]/docs/by-fileids
@@ -23,6 +24,11 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ libraryId: string }> }
 ) {
+  // Site-Gate (Modul-Landkarte §3): Ist `explorer` fuer diese Site
+  // nicht aktiv, antwortet die Route mit 404.
+  const gated = explorerGate(request)
+  if (gated) return gated
+
   try {
     const { libraryId } = await params
     

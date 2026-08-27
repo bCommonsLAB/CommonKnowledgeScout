@@ -3,11 +3,17 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { getCollectionNameForLibrary, getCollectionOnly } from '@/lib/repositories/vector-repo'
 import { parseFacetDefs, buildFilterFromQuery } from '@/lib/chat/dynamic-facets'
+import { explorerGate } from '@ks/module-explorer'
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ libraryId: string }> }
 ) {
+  // Site-Gate (Modul-Landkarte §3): Ist `explorer` fuer diese Site
+  // nicht aktiv, antwortet die Route mit 404.
+  const gated = explorerGate(_request)
+  if (gated) return gated
+
   try {
     const { libraryId } = await params
     const { userId } = await auth()

@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { LibraryService } from '@/lib/services/library-service';
 import { shouldShowOnHomepage } from '@/lib/public-publishing';
+import { explorerGate } from '@ks/module-explorer'
 
 /**
  * Next.js Route Segment Config für Caching
@@ -23,7 +24,12 @@ export const revalidate = 0; // Cache für 0 Sekunden (temporär für Debugging)
  * - Next.js Route Segment Caching (60 Sekunden)
  * - Optimierte Aggregation-Pipeline statt alle Einträge zu laden
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Site-Gate (Modul-Landkarte §3): Ist `explorer` fuer diese Site
+  // nicht aktiv, antwortet die Route mit 404.
+  const gated = explorerGate(request)
+  if (gated) return gated
+
   try {
     // Während des Builds leere Liste zurückgeben (MongoDB ist nicht verfügbar)
     if (process.env.NEXT_RUNTIME === 'build') {

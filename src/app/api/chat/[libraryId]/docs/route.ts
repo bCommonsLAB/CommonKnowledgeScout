@@ -14,8 +14,14 @@ import { resolveColumnSort } from '@/lib/gallery/column-sort'
 import { buildGallerySort } from '@/lib/gallery/gallery-sort'
 import { getPreferredUserEmail } from '@/lib/auth/user-email'
 import type { Document } from 'mongodb'
+import { explorerGate } from '@ks/module-explorer'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
+  // Site-Gate (Modul-Landkarte §3): Ist `explorer` fuer diese Site
+  // nicht aktiv, antwortet die Route mit 404.
+  const gated = explorerGate(req)
+  if (gated) return gated
+
   try {
     const { libraryId } = await params
     

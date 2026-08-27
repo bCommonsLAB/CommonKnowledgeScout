@@ -4,6 +4,7 @@ import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { buildNeighborsPayload, MAX_SCOPE } from '@/lib/graph/doc-neighbors-service'
 import { getPreferredUserEmail } from '@/lib/auth/user-email'
 import type { Library } from '@/types/library'
+import { explorerGate } from '@ks/module-explorer'
 
 /**
  * GET/POST /api/chat/[libraryId]/doc-neighbors — Quelle C des Graph-Modus
@@ -54,6 +55,11 @@ async function resolveContext(
 }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
+  // Site-Gate (Modul-Landkarte §3): Ist `explorer` fuer diese Site
+  // nicht aktiv, antwortet die Route mit 404.
+  const gated = explorerGate(req)
+  if (gated) return gated
+
   try {
     const { libraryId } = await params
     const resolved = await resolveContext(libraryId)
@@ -74,6 +80,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ libr
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
+  // Site-Gate (Modul-Landkarte §3): Ist `explorer` fuer diese Site
+  // nicht aktiv, antwortet die Route mit 404.
+  const gated = explorerGate(req)
+  if (gated) return gated
+
   try {
     const { libraryId } = await params
     const resolved = await resolveContext(libraryId)

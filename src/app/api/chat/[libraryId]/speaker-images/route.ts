@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { getCollectionNameForLibrary, getCollectionOnly } from '@/lib/repositories/vector-repo'
 import type { Document } from 'mongodb'
+import { explorerGate } from '@ks/module-explorer'
 
 /**
  * API-Route für lazy-loading von Speaker-Image-URLs
@@ -14,6 +15,11 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ libraryId: string }> }
 ) {
+  // Site-Gate (Modul-Landkarte §3): Ist `explorer` fuer diese Site
+  // nicht aktiv, antwortet die Route mit 404.
+  const gated = explorerGate(req)
+  if (gated) return gated
+
   try {
     const { libraryId } = await params
     const { userId } = await auth()
