@@ -8,6 +8,7 @@ class ProtoProvider {
   calls = {
     list: 0,
     binary: 0,
+    update: 0,
   }
 
   isAuthenticated() { return true }
@@ -24,6 +25,11 @@ class ProtoProvider {
   async moveItem(itemId: string, newParentId: string) { throw new Error(`not needed: ${itemId} -> ${newParentId}`) }
   async renameItem(itemId: string, newName: string) { throw new Error(`not needed: ${itemId} -> ${newName}`) }
   async uploadFile(parentId: string, file: File) { throw new Error(`not needed: ${parentId}/${file.name}`) }
+
+  async updateFile(itemId: string, content: Blob, options: { ifVersion: string }) {
+    this.calls.update += 1
+    return { id: itemId, version: `v${this.calls.update}-${options.ifVersion}-${content.size}` }
+  }
 
   async getBinary(fileId: string) {
     this.calls.binary += 1
@@ -60,4 +66,34 @@ describe('withRequestStorageCache', () => {
   })
 })
 
+/**
+ * Welle ST1: Die Mutations-Liste im Cache ist eine POSITIVLISTE — eine
+ * Schreiboperation, die nicht darin steht, invalidiert nichts, und der
+ * naechste Read im selben Request liefert den Stand von VOR dem Schreiben.
+ * Beim Schreiben faellt das nicht auf, sondern erst dort, wo jemand dem
+ * Gelesenen vertraut. Dieser Test haelt `updateFile` in der Liste fest.
+ */
+describe('withRequestStorageCache: updateFile invalidiert', () => {
+  it('liest nach updateFile neu, statt den gecachten Stand zu wiederholen', async () => {
+    const p = new ProtoProvider()
+    const cached = withRequestStorageCache(p as any)
 
+    await cached.listItemsById('f1')
+    await cached.listItemsById('f1')
+    expect(p.calls.list).toBe(1) // gecacht
+
+    await (cached as any).updateFile('f1:x', new Blob(['neu']), { ifVersion: 'etag-alt' })
+
+    await cached.listItemsById('f1')
+    expect(p.calls.list).toBe(2) // Cache war invalidiert
+  })
+
+  it('reicht Argumente und Ergebnis unveraendert durch', async () => {
+    const p = new ProtoProvider()
+    const cached = withRequestStorageCache(p as any)
+
+    const ergebnis = await (cached as any).updateFile('id-1', new Blob(['abc']), { ifVersion: 'etag-alt' })
+
+    expect(ergebnis).toEqual({ id: 'id-1', version: 'v1-etag-alt-3' })
+  })
+})

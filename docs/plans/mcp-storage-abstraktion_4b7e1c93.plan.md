@@ -15,13 +15,13 @@ overview: >-
 todos:
   - id: st1-provider-versionierung
     content: "Welle ST1 — Versionierung im Provider-Vertrag. NEUE Datei packages/contracts/src/storage-versioning.ts mit dem Capability-Interface StorageVersioning (updateFile mit ifVersion, VersionsKonflikt-Fehler mit aktuellem Inhalt + Version). EIN angehängtes optionales Feld version?: string in StorageItemMetadata (storage-provider.ts, append-only). Implementierung in allen drei Providern: OneDrive (eTag — muss in selectFields ergänzt werden, fehlt heute), Nextcloud (eTag aus PROPFIND/FileStat), Filesystem (mtimeMs+size als synthetische Version). Feature-Detection statt Pflicht-Interface (storage-contracts §1). Kein neues Paket, keine Änderung an next.config.js/tsconfig/workspace."
-    status: pending
+    status: completed
   - id: st1-cache-invalidierung
     content: "Welle ST1, Teil 2 — provider-request-cache.ts kennt eine EXPLIZITE Mutations-Allowlist (createFolder/uploadFile/deleteItem/moveItem/renameItem). Ein neues updateFile würde dort still durchs Raster fallen und veraltete Reads liefern. updateFile in die Allowlist aufnehmen; Unit-Test, der genau das absichert (Read, updateFile, Read → zweiter Read sieht den neuen Stand)."
-    status: pending
+    status: completed
   - id: st1-beweisziel
-    content: "Welle ST1, Beweis-Ziel (Verhaltensneutralität nach G4-Vorbild): die zwei bestehenden delete+upload-Stellen auf updateFile umstellen — erschliessung_block_schreiben (src/lib/mcp/tools-aenderungen.ts:121-122) und baueIndexPorts.uploadMarkdown (src/lib/agent-view/stand-ausfuehren.ts:61-67). Damit behält die _INDEX.md ihre itemId strukturell, nicht per Sonderbehandlung. Sichtbares Verhalten sonst unverändert."
-    status: pending
+    content: "Welle ST1, Beweis-Ziel (Verhaltensneutralität nach G4-Vorbild): die bestehenden delete+upload-Stellen auf updateFile umstellen. KORREKTUR gegenüber der Planannahme: stand-ausfuehren.ts war bereits saniert (ersetzeIndex ruft nur noch uploadMarkdown, Befund 27.08.2026) — der deleteFile-Port dort ist seither totes Interface. Die zwei ECHTEN Stellen waren erschliessung_block_schreiben (src/lib/mcp/tools-aenderungen.ts) und ueberschreiben() in src/lib/agent-view/sichten/regenerate-sichten.ts. Beide laufen jetzt über den gemeinsamen Helfer src/lib/storage/update-text-file.ts."
+    status: completed
   - id: st2-tools-stufe1
     content: "Welle ST2 — MCP-Werkzeuge Stufe 1 in NEUEN Dateien unter src/lib/mcp/storage/ (tools-datei.ts, tools-ordner-storage.ts, adressierung.ts, fehler.ts): ordner_listen (limit/cursor Pflicht, Metadaten je Eintrag), datei_lesen (bereich: frontmatter|abschnitt|zeilen; maxBytes/offset Pflicht, gekuerzt-Flag), stat, pfad_aufloesen, datei_schreiben (ifVersion Pflichtfeld), loeschen (inPapierkorb default true). Jedes Werkzeug akzeptiert pfad ODER id (A2) und liefert BEIDE zurück (A1). Registrierung: EINE Zeile in src/lib/mcp/tools.ts."
     status: pending
@@ -235,6 +235,34 @@ Provider-Anfassen. Der wirtschaftliche Kern des ganzen Vorhabens.
 
 Siehe Todos. Der interessanteste Punkt ist der Papierkorb: er ist nicht
 überall da, und das gehört gemeldet statt kaschiert.
+
+## 4b. Befunde aus ST1 (umgesetzt 2026-08-27)
+
+Drei Dinge, die der Plan anders angenommen hatte:
+
+- **`stand-ausfuehren.ts` machte kein delete+upload mehr.** Das war am
+  27.08.2026 bereits saniert; `ersetzeIndex` ruft nur noch `uploadMarkdown`.
+  Der `deleteFile`-Port in `StandSchreibenPorts` ist seitdem **totes
+  Interface** — definiert, nie gerufen. Er bleibt vorerst stehen (Entfernen
+  zieht `themen-schreiben.ts` und Tests nach) und gehört in eine
+  Aufräum-Welle; solange er dasteht, lädt er zum Rückfall ein.
+- **Die zweite echte Stelle war `regenerate-sichten.ts`**, nicht die
+  `_INDEX.md`: `ueberschreiben()` löschte `AKTUELL.md`/`PROJEKTE.md` und lud
+  sie neu hoch. Jetzt In-Place; nur der erste Lauf legt noch an.
+- **Nicht nur Nextcloud hat ein Id-Problem.** Der Filesystem-Provider
+  erzeugt Datei-Ids als **Hash aus Name, Größe, mtime und Fingerprint**
+  (`generateFileId`) — die Id hängt also am Inhalt. Stabil bleibt sie nur,
+  weil `idCache` sie pro Pfad festhält, also innerhalb einer Prozess-
+  Lebensdauer. Nextcloud ist hier besser als gedacht: Ids sind base64-kodierte
+  **Pfade** und überleben ein In-Place-Schreiben unverändert. `updateFile`
+  meldet einen Wechsel über `idChanged` (A3), statt ihn zu verschweigen.
+
+Dazu ein Fund außerhalb des Zuschnitts: `tests/unit/mcp/tools-stand.test.ts`
+war auf `master` rot (3 Tests, je 15 s Timeout). Ursache ist nicht ST1,
+sondern der Protokoll-Commit — `stand_setzen` läuft seither durch
+`mitProtokoll` in eine echte MongoDB-Verbindung, die der Test nicht mockt.
+Drei Zeilen Mock, wie in `protokoll.test.ts`. Mitgenommen, weil die DoD
+grüne Tests verlangt.
 
 ## 5. Offene Entscheidungen — mit Empfehlung
 

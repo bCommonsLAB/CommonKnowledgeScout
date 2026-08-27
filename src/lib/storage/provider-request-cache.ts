@@ -80,6 +80,18 @@ export function withRequestStorageCache<T extends StorageProvider>(provider: T):
           return created
         }
       }
+      // Welle ST1: `updateFile` MUSS hier stehen. Die Liste ist eine
+      // Positivliste — eine Mutation, die nicht drinsteht, invalidiert
+      // nichts, und nachfolgende Reads im selben Request liefern den
+      // Stand von VOR dem Schreiben. Das faellt beim Schreiben nicht auf,
+      // sondern erst dort, wo jemand dem Gelesenen vertraut.
+      if (prop === 'updateFile') {
+        return async (itemId: string, content: Blob, options: unknown) => {
+          const result = await fn.call(target, itemId, content, options)
+          invalidateAll()
+          return result
+        }
+      }
       if (prop === 'deleteItem') {
         return async (itemId: string) => {
           await fn.call(target, itemId)

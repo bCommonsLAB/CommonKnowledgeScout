@@ -15,3 +15,16 @@ export {
   SPEICHER_NICHT_VERBUNDEN,
   istAnmeldungNoetig,
 } from '@ks/contracts'
+
+// Welle ST1: optimistische Sperre (`storage-versioning.ts`) — ueber dieselbe
+// Fassade erreichbar wie der Rest des Vertrags.
+export type {
+  StorageUpdateOptions,
+  StorageUpdateResult,
+  StorageVersioning,
+} from '@ks/contracts'
+export {
+  StorageVersionConflictError,
+  isVersionConflict,
+  supportsVersioning,
+} from '@ks/contracts'

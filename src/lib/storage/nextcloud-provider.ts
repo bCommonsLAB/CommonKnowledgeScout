@@ -22,6 +22,8 @@
 
 import { createClient, type WebDAVClient, type FileStat, type ResponseDataDetailed } from 'webdav'
 import { StorageProvider, StorageItem, StorageValidationResult } from './types'
+import type { StorageUpdateOptions, StorageUpdateResult, StorageVersioning } from './types'
+import { StorageVersionConflictError } from './types'
 
 /**
  * Normalisiert eine WebDAV-URL robust fuer den HTTP-Client.
@@ -90,6 +92,18 @@ function guessMimeType(filename: string): string {
 }
 
 /**
+ * Vereinheitlicht eTag-Schreibweisen.
+ *
+ * Nextcloud liefert den eTag je nach Server mal mit, mal ohne Anfuehrungs-
+ * zeichen und gelegentlich als schwachen eTag (`W/"..."`). Verglichen wird
+ * nur auf Gleichheit — ohne Normalisierung waere derselbe Stand mal gleich,
+ * mal ungleich, und die Sperre schluege zufaellig zu.
+ */
+function normalizeEtag(etag: string): string {
+  return etag.replace(/^W\//, '').replace(/^"|"$/g, '')
+}
+
+/**
  * Konvertiert ein WebDAV FileStat-Objekt in ein StorageItem.
  */
 function fileStatToStorageItem(stat: FileStat, parentPath: string): StorageItem {
@@ -110,6 +124,11 @@ function fileStatToStorageItem(stat: FileStat, parentPath: string): StorageItem 
       size: stat.size || 0,
       modifiedAt: new Date(stat.lastmod),
       mimeType: isDir ? 'application/folder' : (stat.mime || guessMimeType(name)),
+      // Der eTag ist Nextclouds Aussage ueber den Inhaltsstand und geht als
+      // If-Match zurueck. Nicht jeder WebDAV-Server liefert einen; fehlt er,
+      // bleibt `version` undefiniert und versioniertes Schreiben scheitert
+      // laut, statt ungeschuetzt zu ueberschreiben.
+      ...(stat.etag ? { version: normalizeEtag(stat.etag) } : {}),
     },
   }
 }
@@ -153,7 +172,7 @@ async function withRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
   throw lastError
 }
 
-export class NextcloudProvider implements StorageProvider {
+export class NextcloudProvider implements StorageProvider, StorageVersioning {
   name = 'Nextcloud (WebDAV)'
   id: string
   private client: WebDAVClient
@@ -336,6 +355,62 @@ export class NextcloudProvider implements StorageProvider {
     await withRetry(() => this.client.moveFile(webdavSource, webdavTarget), `renameItem(${newName})`)
     const stat = await withRetry(() => this.client.stat(webdavTarget), `renameItem.stat(${newName})`) as FileStat
     return fileStatToStorageItem(stat, parentRelPath)
+  }
+
+  /**
+   * Ersetzt eine bestehende Datei unter Versionsbedingung (Welle ST1).
+   *
+   * Die Bedingung erzwingt der Server per `If-Match`; scheitert sie,
+   * antwortet er mit 412 und hat NICHTS geschrieben. `withRetry` wiederholt
+   * nur 429/503, ein 412 kommt also unverfaelscht hier an — genau richtig,
+   * denn einen Konflikt zu wiederholen hiesse, ihn zu ueberfahren.
+   *
+   * Die Id bleibt stabil: sie ist der base64-kodierte Pfad, und der aendert
+   * sich beim Schreiben an Ort und Stelle nicht.
+   */
+  async updateFile(itemId: string, content: Blob, options: StorageUpdateOptions): Promise<StorageUpdateResult> {
+    const libraryRelPath = idToPath(itemId)
+    const webdavPath = this.toWebDavPath(libraryRelPath)
+    const buffer = Buffer.from(await content.arrayBuffer())
+
+    try {
+      await withRetry(
+        () => this.client.putFileContents(webdavPath, buffer, {
+          overwrite: true,
+          contentLength: buffer.length,
+          headers: { 'If-Match': `"${options.ifVersion}"` },
+        }),
+        `updateFile(${itemId})`
+      )
+    } catch (error) {
+      if ((error as { status?: number }).status === 412) {
+        // Aktuellen Stand mitgeben, damit der Aufrufer mergen kann, statt
+        // blind erneut zu schreiben.
+        const aktuell = await this.leseVersion(webdavPath)
+        throw new StorageVersionConflictError(
+          `Datei wurde zwischenzeitlich geaendert: ${libraryRelPath}`,
+          options.ifVersion,
+          aktuell,
+          this.id,
+        )
+      }
+      throw error
+    }
+
+    const stat = await withRetry(() => this.client.stat(webdavPath), `updateFile.stat(${itemId})`) as FileStat
+    if (!stat.etag) {
+      throw new Error(
+        `Nextcloud lieferte nach dem Schreiben keinen eTag fuer ${libraryRelPath} — ` +
+        `der naechste versionierte Schreibvorgang haette keine Bedingung mehr.`
+      )
+    }
+    return { id: itemId, version: normalizeEtag(stat.etag) }
+  }
+
+  /** Aktuelle Version einer Datei — nur fuer die Konfliktmeldung. */
+  private async leseVersion(webdavPath: string): Promise<string | null> {
+    const stat = await withRetry(() => this.client.stat(webdavPath), `leseVersion(${webdavPath})`) as FileStat
+    return stat.etag ? normalizeEtag(stat.etag) : null
   }
 
   async uploadFile(parentId: string, file: File): Promise<StorageItem> {
