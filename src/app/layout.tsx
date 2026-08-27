@@ -45,6 +45,7 @@ import { HomeLayout } from "@/components/layouts/home-layout"
 import { getRootLandingTargetForHost } from "@/lib/root-landing"
 import { ConditionalFooter } from "@/components/home/conditional-footer"
 import { AutoAcceptInvites } from "@/components/auth/auto-accept-invites"
+import { ViewerLoggerBridge } from "@/components/providers/viewer-logger-bridge"
 import { headers, cookies } from 'next/headers'
 import { getLocale, type Locale } from '@/lib/i18n'
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
@@ -102,6 +103,7 @@ export default async function RootLayout({
               <LocaleGate>
                 <StorageContextProvider>
                   <QueryProvider>
+                    <ViewerLoggerBridge />
                     <TooltipProvider>
                       <NuqsAdapter>
                         <HomeLayout>
@@ -145,6 +147,7 @@ export default async function RootLayout({
                 <StorageContextProvider>
                   <QueryProvider>
                     <AutoAcceptInvites />
+                    <ViewerLoggerBridge />
                     <TooltipProvider>
                       <div className="relative min-h-screen flex flex-col">
                         <NuqsAdapter>
