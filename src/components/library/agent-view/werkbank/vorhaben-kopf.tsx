@@ -33,6 +33,7 @@ import type { TeilbaumScanProps } from './teilbaum-scan-knopf'
 import { ThemenEditor } from './themen-editor'
 import { VorhabenMenue } from './vorhaben-menue'
 import { WiderstandsListe } from './widerstands-liste'
+import { ZyklusLeiste } from './zyklus-leiste'
 
 /** Warum der Knopf gesperrt ist — nur maschinelle Befunde sperren (Entscheidung 6). */
 function blockerText(karte: VorhabenCard): string {
@@ -167,6 +168,13 @@ export function VorhabenKopf({ karte, stand, generatedAt, libraryId, familien, k
       }
       kinder={
         <>
+          {zaehler !== null && (
+            <ZyklusLeiste
+              gapsByType={karte.gapsByType}
+              bearbeitungsstand={aktuellerStand}
+              markierungen={zaehler.markiert}
+            />
+          )}
           {zeigeWiderstaende && (
             <WiderstandsListe
               befunde={befunde}

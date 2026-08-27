@@ -169,6 +169,44 @@ describe('VorhabenKopf — Menue ⋯ (alles Seltene)', () => {
   })
 })
 
+describe('VorhabenKopf — Zyklus-Leiste (Rueckfrage 27.08.2026)', () => {
+  it('zeigt alle vier Schritte mit Zustaendigem', () => {
+    renderKopf({})
+    expect(screen.getByText('Sichten')).toBeTruthy()
+    expect(screen.getByText('Strukturieren')).toBeTruthy()
+    expect(screen.getByText('Berichten')).toBeTruthy()
+    expect(screen.getByText('Abnehmen')).toBeTruthy()
+    expect(screen.getAllByText('(Cowork)').length).toBe(2)
+  })
+
+  it('sagt, welcher Schritt dran ist und wo man ihn macht', () => {
+    renderKopf({
+      k: {
+        ...karte(),
+        bearbeitungsstand: 'strukturiert',
+        gapsByActor: { mensch: 0, cowork: 1, knowledgescout: 0 },
+        gapsByType: { report_missing: 1 },
+      },
+    })
+    expect(screen.getByText(/Schritt 3 — Berichten/)).toBeTruthy()
+    expect(screen.getByText(/Cowork-Sitzung am Dateisystem/)).toBeTruthy()
+  })
+
+  it('ist alles frei, verweist die Leiste auf die Abnahme', () => {
+    renderKopf({ k: { ...karte(), gapsByActor: { mensch: 0, cowork: 0, knowledgescout: 0 }, gapsByType: {} } })
+    expect(screen.getByText(/Alle vier Schritte sind frei/)).toBeTruthy()
+  })
+
+  it('eine frische Markierung schiebt die Arbeit auf Schritt 4 — zu dir', () => {
+    renderKopf({
+      familien: [familie('a', { transkript: artefakt({ twinStatus: 'flagged', flaggedNote: 'passt nicht' }) })],
+      k: { ...karte(), gapsByActor: { mensch: 0, cowork: 0, knowledgescout: 0 }, gapsByType: {} },
+    })
+    expect(screen.getByText(/Schritt 4 — Abnehmen/)).toBeTruthy()
+    expect(screen.getByText(/hier in der Werkbank/)).toBeTruthy()
+  })
+})
+
 describe('VorhabenKopf — Zeile 2: Widerstands-Chip (ADR 0006)', () => {
   it('sagt „keine Widerstaende", wenn nichts sperrt — auch ohne jede Verifikation', () => {
     renderKopf({
