@@ -4,10 +4,10 @@
  * Pure Helper-Funktionen, die aus `markdown-preview.tsx` ausgegliedert
  * wurden (Welle 3-II-b, Schritt 2/8), nach `@ks/viewers` verschoben (Welle M1).
  *
- * Importiert App-Pfade (`@/lib/storage/types`, `@/lib/debug/logger`) —
- * bewusste, benannte Schuld fuer M1 (siehe AGENT-BRIEF.md), da ein
- * Shared-Library-Paket eigentlich nicht in die App zurueckimportieren soll
- * (Modul-Landkarte §4). Aufloesung in M2 ueber `@ks/contracts`/`@ks/util`.
+ * Importierte in M1 noch App-Pfade (`@/lib/storage/types`, `@/lib/debug/logger`)
+ * — benannte Schuld, siehe AGENT-BRIEF.md. Welle M2 loest den Storage-Typ
+ * ueber `@ks/contracts` auf; `FileLogger` bleibt App-Import (kein `@ks/util`
+ * in M2 — siehe AGENT-BRIEF-M2.md, dort als Rest-Schuld benannt).
  *
  * Alle Funktionen sind reine Transformationen ohne Seiteneffekte —
  * keine React-Hooks, kein DOM-Zugriff, kein Logging.
@@ -23,7 +23,7 @@
  * Closure — beide bleiben in dieser Datei beisammen.
  */
 
-import type { StorageProvider } from '@/lib/storage/types'
+import type { StorageProvider } from '@ks/contracts'
 import { FileLogger } from '@/lib/debug/logger'
 
 /**

@@ -23,6 +23,12 @@ importers:
       '@hookform/resolvers':
         specifier: ^3.10.0
         version: 3.10.0(react-hook-form@7.57.0(react@18.2.0))
+      '@ks/api-client':
+        specifier: workspace:*
+        version: link:packages/api-client
+      '@ks/contracts':
+        specifier: workspace:*
+        version: link:packages/contracts
       '@ks/viewers':
         specifier: workspace:*
         version: link:packages/viewers
@@ -370,8 +376,25 @@ importers:
         specifier: ^2.1.9
         version: 2.1.9(@types/node@22.15.30)(jsdom@27.4.0)
 
+  packages/api-client:
+    dependencies:
+      '@ks/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@tanstack/react-query':
+        specifier: ^5.101.1
+        version: 5.101.1(react@18.2.0)
+      react:
+        specifier: ^18.2.0
+        version: 18.2.0
+
+  packages/contracts: {}
+
   packages/viewers:
     dependencies:
+      '@ks/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       highlight.js:
         specifier: ^11.11.1
         version: 11.11.1
@@ -2585,9 +2608,6 @@ packages:
     resolution: {integrity: sha512-p18dswChx6WnTSaJCSGx6lTmrGzNNvm2FtXmiO6AuA1V4U5REyoqwmT6kgAsIMdjo07QdAfYXHJ4hnMtfHzWgA==}
     peerDependencies:
       tailwindcss: '>=3.2.0'
-
-  '@tanstack/query-core@5.101.0':
-    resolution: {integrity: sha512-cQetA74EB+seWySv1TTKr828TnP0u39m6LykwDXIo84SNortpDkp30TMEjkqtYCNP9c40uT/iwl6MLiufEt0Ow==}
 
   '@tanstack/query-core@5.101.1':
     resolution: {integrity: sha512-Y6Y92dkXtNqx67m2pMSxUsA3zOCwv862JexZRP8/EPwvKXMPu9m8rv43spiXWzOUIggQ3SQApttALStzhA8B4g==}
@@ -7678,7 +7698,7 @@ snapshots:
 
   '@clerk/shared@4.17.1(react-dom@18.2.0(react@18.2.0))(react@18.2.0)':
     dependencies:
-      '@tanstack/query-core': 5.101.0
+      '@tanstack/query-core': 5.101.1
       dequal: 2.0.3
       glob-to-regexp: 0.4.1
       js-cookie: 3.0.7
@@ -9482,8 +9502,6 @@ snapshots:
   '@tailwindcss/container-queries@0.1.1(tailwindcss@3.4.17(ts-node@10.9.2(@types/node@22.15.30)(typescript@5.8.3)))':
     dependencies:
       tailwindcss: 3.4.17(ts-node@10.9.2(@types/node@22.15.30)(typescript@5.8.3))
-
-  '@tanstack/query-core@5.101.0': {}
 
   '@tanstack/query-core@5.101.1': {}
 
