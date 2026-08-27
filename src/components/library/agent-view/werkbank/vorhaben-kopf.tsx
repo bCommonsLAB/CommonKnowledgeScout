@@ -168,7 +168,12 @@ export function VorhabenKopf({ karte, stand, generatedAt, libraryId, familien, k
       kinder={
         <>
           {zeigeWiderstaende && (
-            <WiderstandsListe befunde={befunde} familien={familien} onWaehleArtefakt={onWaehleArtefakt} />
+            <WiderstandsListe
+              befunde={befunde}
+              familien={familien}
+              maschinellGesamt={karte.gapsByActor.cowork + karte.gapsByActor.knowledgescout}
+              onWaehleArtefakt={onWaehleArtefakt}
+            />
           )}
           {pending && <p className="text-xs text-muted-foreground">wird geprueft …</p>}
           {karte.widerspruch && (

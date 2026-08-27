@@ -35,17 +35,20 @@ function markierungenVon(familie: TwinFamilySummary): { teil: string; notiz: str
   return teile
 }
 
-export function WiderstandsListe({ befunde, familien, onWaehleArtefakt }: {
-  /** Befunde des Teilbaums (via `teilbaumBefunde`). */
+export function WiderstandsListe({ befunde, familien, maschinellGesamt, onWaehleArtefakt }: {
+  /** Befunde des Teilbaums (via `teilbaumBefunde`) — kann gekappt sein. */
   befunde: readonly CoverageGap[]
   /** Effektive Familien des Vorhabens; undefined = Report vor Welle 4. */
   familien: readonly TwinFamilySummary[] | undefined
+  /** Gezaehlte maschinelle Befunde der Karte — mehr als gelistet ⇒ Kappung. */
+  maschinellGesamt: number
   onWaehleArtefakt: (sourceId: string) => void
 }) {
   const maschinell = befunde.filter((gap) => gap.actor !== 'mensch')
+  const fehlend = Math.max(0, maschinellGesamt - maschinell.length)
   const markierte = (familien ?? []).filter((familie) => familienPruefstand(familie) === 'markiert')
 
-  if (maschinell.length === 0 && markierte.length === 0) {
+  if (maschinell.length === 0 && markierte.length === 0 && fehlend === 0) {
     return (
       <p className="text-xs text-muted-foreground">
         Nichts sperrt die Abnahme — weder ein maschineller Befund noch eine Fehler-Markierung.
@@ -75,6 +78,13 @@ export function WiderstandsListe({ befunde, familien, onWaehleArtefakt }: {
             )}
           </ul>
         </div>
+      )}
+
+      {fehlend > 0 && (
+        <p className="font-medium">
+          {fehlend} weitere(r) maschinelle(r) Befund(e) sind gezaehlt, aber nicht im gespeicherten Report
+          gelistet (Gap-Budget) — „Neu scannen" holt sie.
+        </p>
       )}
 
       {maschinell.length > 0 && (

@@ -226,6 +226,15 @@ describe('VorhabenKopf — Zeile 2: Widerstands-Chip (ADR 0006)', () => {
     expect(onWaehleArtefakt).toHaveBeenCalledWith('a')
   })
 
+  it('benennt gekappte Befunde, statt eine zu kurze Liste zu zeigen', () => {
+    renderKopf({
+      k: { ...karte(), gapsByActor: { mensch: 0, cowork: 9, knowledgescout: 0 }, gapsByType: { report_missing: 9 } },
+      befunde: [],
+    })
+    fireEvent.click(screen.getByRole('button', { name: /9 Widerstaende offen/ }))
+    expect(screen.getByText(/9 weitere\(r\) maschinelle\(r\) Befund/)).toBeTruthy()
+  })
+
   it('ohne Widerstand sagt die Liste das ausdruecklich', () => {
     renderKopf({ k: { ...karte(), gapsByActor: { mensch: 0, cowork: 0, knowledgescout: 0 }, gapsByType: {} } })
     fireEvent.click(screen.getByRole('button', { name: /keine Widerstaende/ }))
