@@ -5,16 +5,25 @@ import { useAtom, useAtomValue } from 'jotai';
 import { activeLibraryAtom, activeLibraryIdAtom, currentFolderIdAtom, currentPathAtom } from '@/atoms/library-atom';
 import { useSearchParams } from 'next/navigation';
 import { useStorage } from '@/contexts/storage-context';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Button,
+  Checkbox,
+  Label,
+  Input,
+  Badge,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@ks/ui'
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { integrationTestCases, type IntegrationTestCase } from '@/lib/integration-tests/test-cases';
 import type { ValidationMessage } from '@/lib/integration-tests/validators';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useEffect } from 'react';
 
 interface UiResultItem {

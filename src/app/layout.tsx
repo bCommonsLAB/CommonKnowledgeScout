@@ -27,14 +27,13 @@
 import "@/styles/globals.css"
 import { GeistSans } from 'geist/font/sans';
 import { ThemeProvider, QueryProvider } from "@ks/shell/providers"
-import { TooltipProvider } from "@/components/ui/tooltip"
+import { TooltipProvider, Toaster as HookToaster } from '@ks/ui'
 import { Toaster } from "sonner"
 // Die App hat ZWEI Meldungssysteme: `sonner` und den shadcn-Hook
 // `useToast`. Letzterer wird in 41 Dateien benutzt, seine Anzeige war
 // aber nie eingehaengt — jede Meldung daraus (kopiert, gespeichert,
 // Fehler) verschwand still (Befund 27.08.2026). Beide bleiben stehen,
 // bis eine Zusammenfuehrung ansteht.
-import { Toaster as HookToaster } from "@/components/ui/toaster"
 import { ClerkProvider } from "@clerk/nextjs"
 import { StorageContextProvider } from '@/contexts/storage-context'
 import { JotaiLocaleProvider } from '@/components/providers/jotai-locale-provider'

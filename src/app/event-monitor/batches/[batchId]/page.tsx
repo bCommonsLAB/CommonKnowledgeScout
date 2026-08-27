@@ -2,11 +2,31 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Button,
+  Badge,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@ks/ui'
 import { Batch, Job, JobStatus, BatchStatus } from '@/types/event-job';
 import { formatDateTime, cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
 import {
   ArrowLeft,
   RefreshCw,
@@ -21,23 +41,6 @@ import {
   ChevronDown,
   Download
 } from 'lucide-react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
 interface CollapsibleContentProps {

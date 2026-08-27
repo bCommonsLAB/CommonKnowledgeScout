@@ -1,6 +1,6 @@
 "use client"
 
-import { Separator } from "@/components/ui/separator"
+import { Separator } from '@ks/ui'
 import { SidebarNav, type SidebarNavGroup } from "@/components/settings/sidebar-nav"
 import { useAtomValue } from "jotai"
 import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom"

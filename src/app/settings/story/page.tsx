@@ -1,6 +1,6 @@
 import { Metadata } from "next"
 import { Suspense } from "react"
-import { Separator } from "@/components/ui/separator"
+import { Separator } from '@ks/ui'
 import { ChatForm } from "@/components/settings/chat-form"
 
 export const metadata: Metadata = {

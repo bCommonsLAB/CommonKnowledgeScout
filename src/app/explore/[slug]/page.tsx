@@ -4,11 +4,10 @@ import React, { useEffect, useState, useCallback } from "react"
 import { useParams } from "next/navigation"
 import { useSetAtom } from 'jotai'
 import { useUser, SignInButton } from "@clerk/nextjs"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle, Button } from '@ks/ui'
 import { AlertCircle, Loader2, Lock } from "lucide-react"
 import dynamic from "next/dynamic"
 import { useTranslation } from "@/lib/i18n/hooks"
-import { Button } from "@/components/ui/button"
 import { librariesAtom, activeLibraryIdAtom } from '@/atoms/library-atom'
 import { LibraryVerificationWarning } from '@/components/library/library-verification-warning'
 import type { ClientLibrary } from '@/types/library'

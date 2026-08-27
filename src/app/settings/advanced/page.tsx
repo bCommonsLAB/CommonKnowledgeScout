@@ -1,7 +1,6 @@
 import { Metadata } from "next"
 import { Suspense } from "react"
-import { Separator } from "@/components/ui/separator"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Separator, Alert, AlertDescription, AlertTitle } from '@ks/ui'
 import { AlertTriangle } from "lucide-react"
 import { LibraryAdvancedForm } from "@/components/settings/library"
 import { ChatAdvancedForm } from "@/components/settings/chat"

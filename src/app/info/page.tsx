@@ -2,7 +2,7 @@
 
 import { Suspense } from "react"
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
+import { Button } from '@ks/ui'
 import { ArrowLeft } from "lucide-react"
 import { MarkdownPreview } from "@/components/library/markdown-preview"
 import { useEffect, useState } from "react"

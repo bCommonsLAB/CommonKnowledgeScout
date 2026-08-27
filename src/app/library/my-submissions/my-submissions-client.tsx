@@ -18,7 +18,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAtomValue } from 'jotai';
 import { activeLibraryAtom, activeLibraryIdAtom } from '@/atoms/library-atom';
-import { Button } from '@/components/ui/button';
+import { Button } from '@ks/ui'
 import { SubmissionInboxList } from '@/components/submissions/submission-inbox-list';
 import { SubmissionEditPanel } from '@/components/submissions/submission-edit-panel';
 import { DetailViewRenderer } from '@/components/library/detail-view-renderer';
