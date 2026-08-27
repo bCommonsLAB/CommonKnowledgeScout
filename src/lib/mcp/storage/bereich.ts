@@ -69,12 +69,24 @@ function ebene(zeile: string): number {
   return treffer ? treffer[1].length : 0
 }
 
+/** Zeilengrenzen eines Markdown-Abschnitts (`ende` exklusiv). */
+export interface AbschnittGrenzen {
+  start: number
+  ende: number
+  zeilen: string[]
+}
+
 /**
- * Markdown-Abschnitt bis zur naechsten gleich- ODER hoeherrangigen
- * Ueberschrift. Eine tiefere Unterueberschrift gehoert zum Abschnitt —
- * sonst waere „## Befunde" ohne seine „### Details" nur ein Fragment.
+ * Findet den Abschnitt zu einer Ueberschrift: von ihr bis zur naechsten
+ * gleich- ODER hoeherrangigen Ueberschrift. Eine tiefere Unterueberschrift
+ * gehoert zum Abschnitt — sonst waere „## Befunde" ohne seine „### Details"
+ * nur ein Fragment.
+ *
+ * Geteilt von Lesen (`schneideBereich`) und Ersetzen (`patch.ts`): Beide
+ * MUESSEN dieselbe Grenze sehen, sonst schreibt ein Agent ueber etwas
+ * anderes, als er gelesen hat.
  */
-function schneideAbschnitt(text: string, ueberschrift: string): string {
+export function findeAbschnitt(text: string, ueberschrift: string): AbschnittGrenzen {
   const gesucht = ueberschrift.replace(/^#+\s*/, '').trim().toLowerCase()
   const zeilen = text.split('\n')
 
@@ -95,6 +107,11 @@ function schneideAbschnitt(text: string, ueberschrift: string): string {
     const stufe = ebene(zeilen[i])
     if (stufe > 0 && stufe <= startEbene) { ende = i; break }
   }
+  return { start, ende, zeilen }
+}
+
+function schneideAbschnitt(text: string, ueberschrift: string): string {
+  const { start, ende, zeilen } = findeAbschnitt(text, ueberschrift)
   return zeilen.slice(start, ende).join('\n').trimEnd()
 }
 

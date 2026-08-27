@@ -30,7 +30,7 @@ todos:
     status: completed
   - id: st3-patchen
     content: "Welle ST3 — datei_patchen, das teuerste fehlende Werkzeug (Beleg: 8 Voll-Rewrites von BERICHT.md/_INDEX.md an einem Tag, ~80 kB für ~400 Bytes echte Änderung). Drei Modi: ersetze {altText,neuText} mit Eindeutigkeits-Zwang (genau ein Treffer, sonst Fehler), abschnitt_ersetzen {ueberschrift,neuerInhalt} bis zur nächsten gleichrangigen Überschrift, frontmatter_setzen (ZWINGEND über den bestehenden Frontmatter-Single-Serializer, Contract frontmatter-single-serializer; flache snake_case-Keys, kein nested YAML). Alle mit ifVersion; bei Konflikt kommt der aktuelle Inhalt MIT zurück, damit der Aufrufer ohne zweiten Read mergen kann (Q1)."
-    status: pending
+    status: completed
   - id: st4-stufe2-fehler
     content: "Welle ST4 — Stufe 2 + Querschnitt: loeschen (aus ST2 hierher verschoben, siehe dort — untrennbar von der Papierkorb-Ehrlichkeit unten), datei_anlegen (nichtUeberschreiben default true), ordner_anlegen, verschieben (deckt Umbenennen ab; kennt KEINE Twin-Familien — die bleiben in familie_umziehen eine Ebene darüber), speicher_info (provider, grossKleinSchreibungRelevant, pfadLimit, maxDateigroesse, papierkorbVorhanden, unterstuetzt{patch,ifVersion,delta,binaer}, unicodeNormalisierung). Dazu die einheitlichen Fehlerbilder Q5 (nicht_gefunden, konflikt, zu_gross, pfad_zu_lang, kein_zugriff, nur_lesen, gesperrt, nicht_unterstuetzt, zeitueberschreitung) als Mapping-Schicht über die heterogenen Provider-Fehler."
     status: pending
@@ -282,6 +282,47 @@ grüne Tests verlangt.
   `tiefe: 2` findet Dateien in Unterordnern — ein Filter, der schon am
   Ordnernamen abbräche, fände nie etwas.
 
+## 4d. Befunde aus ST3 (umgesetzt 2026-08-27)
+
+**`frontmatter_setzen` geht NICHT über `patchFrontmatter`.** Der Plan schrieb
+„zwingend über den bestehenden Frontmatter-Single-Serializer" — das wäre hier
+der falsche der zwei vorhandenen Wege gewesen. Es gibt bereits eine bewusste
+Trennung:
+
+- `patchFrontmatter` (`src/lib/markdown/frontmatter-patch.ts`) schreibt das
+  GESAMTE Frontmatter neu und quotet jeden String (`type: index` →
+  `type: "index"`). Richtig für maschinen-eigene Dateien.
+- `stand-zeilen-patch.ts` ist zeilen-chirurgisch, weil genau diese
+  Requotierung im W7-Live-Test (24.08.2026) als sichtbare Änderung an Zeilen
+  auffiel, die niemand angefasst hatte — bei den von Hand gepflegten,
+  Obsidian-kompatiblen Archiv-Dateien.
+
+`frontmatter_setzen` zielt auf ebensolche Dateien und nutzt deshalb die
+Chirurgie. Das ist kein zweiter Serializer (Contract §2): dieselbe Funktion,
+dieselbe Rückles-Disziplin. Was `stand-zeilen-patch.ts` für den Stand-Patch
+über ein geschlossenes Vokabular garantiert, steht hier als **Prüfung**:
+flache `snake_case`-Keys, nur Skalare, symmetrische Wert-Formatierung, und
+danach eine Rückprobe mit dem echten Parser — weicht ein Feld ab, wird nichts
+geschrieben.
+
+Weitere Punkte:
+
+- **Listen und Objekte sind abgelehnt, nicht stillschweigend verbogen.**
+  `parseSecretaryMarkdownStrict` liest `tags: ["a"]` als Rohstring zurück,
+  nicht als Array — geschrieben und gelesen wären verschieden. Solche Felder
+  brauchen `datei_schreiben` oder ein Fachwerkzeug. (Kandidat für später:
+  Symmetrie im Parser herstellen, dann hier freigeben.)
+- **Ein Patch, der nichts ändert, wird nicht geschrieben.** Sonst altert die
+  Datei (`bericht_veraltet`) für eine Änderung, die es nicht gab — dieselbe
+  Tretmühle, die Q4 beschreibt.
+- **Lesen und Ersetzen teilen sich die Abschnittsgrenze** (`findeAbschnitt`).
+  Zwei Implementierungen hätten bedeutet, dass ein Agent über etwas anderes
+  schreibt, als er gelesen hat.
+- `stand-zeilen-patch.ts` heißt weiterhin stand-spezifisch, obwohl es jetzt
+  generisch genutzt wird. Umbenennen zieht `stand-schreiben.ts` und Tests
+  nach — Kandidat für die Aufräum-Welle, zusammen mit dem toten
+  `deleteFile`-Port.
+
 ## 5. Offene Entscheidungen — mit Empfehlung
 
 Die vier offenen Fragen aus §6 der Anforderungen, damit sie nicht jede Welle
@@ -298,9 +339,9 @@ neu aufmachen:
 
 Der Strang ist fertig, wenn:
 
-1. Eine Zeile in `BERICHT.md` ändern, ohne die Datei zu übertragen. → ST3
+1. Eine Zeile in `BERICHT.md` ändern, ohne die Datei zu übertragen. → ST3 ✓
 2. Zwei Sitzungen schreiben dieselbe Datei — die zweite bekommt einen
-   Konflikt, keine stille Überschreibung. → ST1
+   Konflikt, keine stille Überschreibung. → ST1 ✓ (Konfliktantwort ST2)
 3. Derselbe Ablauf gegen Nextcloud wie gegen OneDrive, ohne eine Zeile
    Sonderbehandlung. → ST1/ST2
 4. Ordner mit 1.100 Unterordnern listen, ohne Zeitlimit und ohne 180.000

@@ -14,6 +14,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { registerStorageLeseTools } from './tools-datei'
 import { registerStorageOrdnerTools } from './tools-ordner'
+import { registerStoragePatchTool } from './tools-patch'
 import { registerStorageSchreibTools } from './tools-schreiben'
 
 /** Registriert alle Storage-Werkzeuge auf dem MCP-Server. */
@@ -21,4 +22,5 @@ export function registerStorageTools(server: McpServer): void {
   registerStorageOrdnerTools(server)
   registerStorageLeseTools(server)
   registerStorageSchreibTools(server)
+  registerStoragePatchTool(server)
 }
