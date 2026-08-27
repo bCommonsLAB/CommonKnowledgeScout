@@ -206,12 +206,16 @@ läuft (Kriterien in der Migrationsstrategie).
 
 ## 6. Offene Fragen
 
-- **Jotai über Paketgrenzen**: `library-atom` u. a. werden Teil der
-  Shell-Oberfläche — Module lesen über Hooks, nicht über Atom-Importe?
-  Zu entscheiden in M3.
-- **`storage-context` / `use-storage-provider`**: gehört zur Shell, wird aber
-  fast nur vom Archiv gebraucht — evtl. erst in M4/M6 aus der Shell in
-  `@ks/module-archive` schieben.
+- **Jotai über Paketgrenzen** — **entschieden in M3**: Nur Atome mit
+  überschaubarer Importeur-Zahl wandern in `@ks/shell` (`i18n-atom.ts`, 6
+  Importeure). `library-atom.ts` (219 Importeure, laut M3-Recherche bereits
+  Archiv-/DIVA-lastig) bleibt in der App, bis `@ks/module-archive` ansteht —
+  eine Verschiebung jetzt würde sofort neue App→Shell-Rückimporte erzeugen
+  (siehe `AGENT-BRIEF-M3.md`).
+- **`storage-context` / `use-storage-provider`** — **entschieden in M3**:
+  bleibt in der App. Die M3-Recherche bestätigt: von 32 Importeuren sind
+  praktisch alle Archiv-Komponenten, nicht Schale/Chrome — verschieben, sobald
+  `@ks/module-archive` (M4/M6) ansteht, nicht vorher.
 - **Electron- und `build:package`-Builds**: müssen auf `apps/knowledgescout`
   zeigen; klären in M1.
 - **Remote-Modus-Auth**: Token-Modell für Embed/Headless gegen die
@@ -221,6 +225,11 @@ läuft (Kriterien in der Migrationsstrategie).
   Spezialansichten (Klimamaßnahmen-Widgets, Diva, Refurbed …) müssen pro Site
   registrierbar sein, ohne dass jede Site alle Renderer lädt — Schnittstelle
   in `@ks/contracts` (ab M2), Implementierungen bei den Modulen/Sites.
-- **SiteConfig-Registry-Ablage**: Datei im Repo vs. MongoDB-Collection (per
-  Settings-UI pflegbar) — zu entscheiden in M3; Startpunkt Datei, da
-  auditierbar und ohne Migrations-Aufwand.
+- **SiteConfig-Registry-Ablage** — **entschieden in M3**: Datei
+  (`packages/shell/src/site-config/registry.ts`), wie vorgeschlagen —
+  auditierbar, ohne Migrationsaufwand. MongoDB-Ablage bleibt spätere Option.
+- **Neu aus M3**: „Auth optional" (SiteConfig `auth.mode`) ist mit der
+  direkten Clerk-JSX-Kopplung in `TopNav` (`SignedIn`/`SignedOut`,
+  `UserButton`) verzahnt — braucht eine eigene Auth-Status-Abstraktion, bevor
+  `@ks/module-explorer` (M4) öffentliche Sites ohne Clerk bedienen kann.
+  Zu klären in der M3-Folgewelle (siehe `AGENT-BRIEF-M3.md`, Hand-off).
