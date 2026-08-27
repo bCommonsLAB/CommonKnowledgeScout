@@ -20,15 +20,15 @@
 import { useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
 import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from '@ks/ui'
 import { Cloud } from "lucide-react"
 import { startOneDriveReauth, processOneDriveAuthReturn } from "@/lib/storage/onedrive-reauth"
 import type { ClientLibrary } from "@/types/library"

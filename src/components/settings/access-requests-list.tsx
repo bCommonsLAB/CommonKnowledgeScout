@@ -1,17 +1,18 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
-import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog"
 import {
+  Button,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+  Badge,
+  Alert,
+  AlertDescription,
+} from '@ks/ui'
+import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog"
 import { Loader2, CheckCircle2, XCircle, Mail, Trash2, Send, RefreshCw } from "lucide-react"
 import { InviteUserDialog } from "@/components/settings/invite-user-dialog"
 import type { LibraryAccessRequest } from "@/types/library-access"

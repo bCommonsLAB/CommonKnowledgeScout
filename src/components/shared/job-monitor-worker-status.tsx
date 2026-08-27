@@ -1,8 +1,7 @@
 "use client";
 
 import { Info, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button, Popover, PopoverContent, PopoverTrigger } from '@ks/ui'
 import { cn } from "@/lib/utils";
 
 export type JobMonitorServerCounters = {

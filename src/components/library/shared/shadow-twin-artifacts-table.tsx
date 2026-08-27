@@ -14,13 +14,11 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from '@/components/ui/accordion'
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/ui/tooltip'
+} from '@ks/ui'
 
 // 3 Type-Definitionen wurden in
 // src/components/library/shared/shadow-twin-artifacts-table/types.ts

@@ -1,8 +1,6 @@
 'use client'
 
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Button, Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
 import { Filter, X, MessageCircle, ArrowRight, Star, ArrowDownWideNarrow, Users, Gauge } from 'lucide-react'
 import { useAtomValue } from 'jotai'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'

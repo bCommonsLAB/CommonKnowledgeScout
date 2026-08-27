@@ -1,7 +1,6 @@
 'use client'
 
-import { Card, CardContent } from "@/components/ui/card"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Card, CardContent, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
 import { Library, MessageSquare, Lightbulb, Copyright } from "lucide-react"
 import { useTranslation } from "@/lib/i18n/hooks"
 

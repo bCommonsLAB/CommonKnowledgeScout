@@ -3,9 +3,7 @@
 import { useAtomValue } from "jotai"
 import { activeLibraryAtom } from "@/atoms/library-atom"
 import { getLibraryCreationConfig } from "@/lib/templates/library-creation-config"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button } from '@ks/ui'
 import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, FileText, Mic } from "lucide-react"
 import Link from "next/link"

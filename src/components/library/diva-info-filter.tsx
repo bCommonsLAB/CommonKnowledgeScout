@@ -15,7 +15,7 @@
 import * as React from 'react'
 import { useAtom, useAtomValue } from 'jotai'
 import { Loader2, AlertCircle } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@ks/ui'
 import { cn } from '@/lib/utils'
 import {
   annotationFilterModeAtom,

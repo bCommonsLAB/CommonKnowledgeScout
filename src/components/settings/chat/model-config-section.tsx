@@ -15,14 +15,12 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from '@ks/ui'
 import {
   TARGET_LANGUAGE_DEFAULT,
   TARGET_LANGUAGE_VALUES,

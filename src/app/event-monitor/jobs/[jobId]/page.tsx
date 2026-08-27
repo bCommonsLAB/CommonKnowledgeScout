@@ -2,9 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle, Button, Badge } from '@ks/ui'
 import { Job, JobStatus } from '@/types/event-job';
 import { formatDateTime } from '@/lib/utils';
 import {

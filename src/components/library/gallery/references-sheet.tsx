@@ -1,9 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Button } from '@/components/ui/button'
+import { Sheet, SheetContent, SheetTitle, ScrollArea, Button } from '@ks/ui'
 import { X } from 'lucide-react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import type { ChatResponse } from '@/types/chat-response'

@@ -4,12 +4,7 @@ import { MessageCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
 
 export interface SourceCommentsBadgeProps {
   libraryId?: string

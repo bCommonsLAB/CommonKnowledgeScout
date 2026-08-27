@@ -9,12 +9,7 @@
 
 import { Info, Link, FileText, Mic } from "lucide-react"
 import type { WizardSource } from "@/lib/creation/corpus"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
 
 interface CompactSourcesInfoProps {
   sources: WizardSource[]

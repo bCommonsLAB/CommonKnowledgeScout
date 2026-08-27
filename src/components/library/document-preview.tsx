@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useAtomValue } from "jotai";
 import { selectedFileAtom } from "@/atoms/library-atom";
-import { Button } from "@/components/ui/button";
+import { Button } from '@ks/ui'
 import { Download, ExternalLink, FileText } from "lucide-react";
 import { FileLogger } from "@/lib/debug/logger";
 import { StorageProvider, StorageItem } from "@/lib/storage/types";

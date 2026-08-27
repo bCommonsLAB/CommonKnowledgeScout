@@ -18,7 +18,11 @@ import type { LeadingArtifactSummary, TwinFamilySummary } from '@/lib/agent-view
 import type { UseArtefaktKurationResult } from '@/hooks/agent-view/use-artefakt-kuration'
 
 const toastMock = vi.fn()
-vi.mock('@/components/ui/use-toast', () => ({
+// Teil-Mock: `useToast`/`toast` liegen seit Welle M4b im Barrel `@ks/ui`.
+// Das Barrel darf NICHT komplett ersetzt werden, sonst fehlen der
+// Komponente saemtliche UI-Primitives.
+vi.mock('@ks/ui', async (orig) => ({
+  ...(await orig<typeof import('@ks/ui')>()),
   useToast: () => ({ toast: toastMock }),
 }))
 import { createGap } from '@/lib/agent-view/gap-registry'

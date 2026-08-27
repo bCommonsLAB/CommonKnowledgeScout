@@ -9,7 +9,7 @@
 
 import type { LibraryVerificationStatus } from './types'
 
-/** Badge-Variante aus `@/components/ui/badge`. */
+/** Badge-Variante aus `@ks/ui` (badge). */
 export type StatusBadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline'
 
 export interface VerificationStatusDisplay {

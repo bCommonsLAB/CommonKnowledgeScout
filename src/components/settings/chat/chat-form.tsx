@@ -12,16 +12,16 @@
  * content-type-form.tsx — Submit sendet die vollstaendige Config).
  */
 
-import { Button } from "@/components/ui/button"
 import {
+  Button,
   Form,
   FormControl,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
+  Input,
+} from '@ks/ui'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useChatForm } from './hooks/use-chat-form'
 import { ModelConfigSection } from './model-config-section'

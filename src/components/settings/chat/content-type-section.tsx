@@ -14,11 +14,21 @@
 
 import Link from "next/link"
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { FormControl, FormDescription, FormField, FormItem, FormLabel } from "@/components/ui/form"
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Switch } from "@/components/ui/switch"
+import {
+  Button,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Alert,
+  AlertDescription,
+  Switch,
+} from '@ks/ui'
 import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog"
 import { generateDefaultFacets } from "@/components/settings/FacetDefsEditor"
 import { toast } from "sonner"

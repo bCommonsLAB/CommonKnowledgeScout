@@ -23,7 +23,7 @@
  * @module components/library/agent-view
  */
 
-import { useToast } from '@/components/ui/use-toast'
+import { useToast } from '@ks/ui'
 import { buildAuftrag, type AuftragContext } from '@/lib/agent-view/auftrag-generator'
 import { zyklusSchrittLabel } from '@/lib/agent-view/labels'
 import { istAltBefund, schrittVon } from '@/lib/agent-view/zyklus-fortschritt'

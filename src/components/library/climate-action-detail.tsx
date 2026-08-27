@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Badge } from "@/components/ui/badge";
+import { Badge, Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@ks/ui'
 import { ArrowLeft, Building2, Tag, Check, X, Clock, HelpCircle, Bug, Brain, Globe, Users } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -11,7 +11,6 @@ import { StakeholderPositions } from "./gallery/stakeholder-positions";
 import { SdgProfile } from "./gallery/sdg-profile";
 import { AiText, OriginalQuote } from "./gallery/provenance-text";
 import type { SdgValue } from "@/lib/gallery/sdg-meta";
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
 
 // Status-Mapping (wie im Teaser)

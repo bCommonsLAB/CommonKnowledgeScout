@@ -13,9 +13,14 @@
  */
 
 import {
-  Select, SelectContent, SelectGroup, SelectItem, SelectLabel,
-  SelectTrigger, SelectValue,
-} from '@/components/ui/select'
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@ks/ui'
 import { useTranslation } from '@/lib/i18n/hooks'
 import type { EdgeSourceSelection } from './graph-types'
 

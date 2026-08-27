@@ -8,34 +8,36 @@ import { useTheme } from "next-themes"
 import { useAtom, useAtomValue } from "jotai"
 
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 import {
+  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/sheet"
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
+  ScrollArea,
+  ScrollBar,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@ks/ui'
 import { SignInButton, UserButton, SignedIn, SignedOut } from "@clerk/nextjs"
 import { LibrarySwitcher } from "@/components/library/library-switcher"
 import { libraryAtom } from "@/atoms/library-atom"
 import { jobMonitorPanelOpenAtom } from "@/atoms/job-monitor-panel-open-atom"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { LanguageSwitcher } from "@/components/shared/language-switcher"
 import { useTranslation } from "@/lib/i18n/hooks"
 import { useScrollVisibility } from "@/hooks/use-scroll-visibility"
 import { useUserRole } from "@/hooks/use-user-role"
 import { useSiteMenuItems } from "@/hooks/use-site-menu-items"
-import { buildTopNavConfig } from "@/components/top-nav-config"
+import { buildTopNavConfig } from "@ks/shell"
 import { SiteLogo } from "@/components/site-logo"
 import { CreateLibraryWizard } from "@/components/flows/create-library-wizard"
 

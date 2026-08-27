@@ -1,5 +1,5 @@
 import { Metadata } from "next"
-import { Separator } from "@/components/ui/separator"
+import { Separator } from '@ks/ui'
 import { LibraryForm } from "@/components/settings/library-form"
 
 export const metadata: Metadata = {

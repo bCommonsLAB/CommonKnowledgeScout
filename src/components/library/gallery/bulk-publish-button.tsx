@@ -23,8 +23,8 @@
 
 import React, { useState } from 'react'
 import { Send } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import {
+  Button,
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -34,8 +34,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
-import { useToast } from '@/components/ui/use-toast'
+  useToast,
+} from '@ks/ui'
 import { useTranslation } from '@/lib/i18n/hooks'
 
 export interface BulkPublishButtonProps {

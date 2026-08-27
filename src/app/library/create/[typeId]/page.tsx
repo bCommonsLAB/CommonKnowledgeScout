@@ -7,7 +7,7 @@ import { CreationWizard } from "@/components/creation-wizard/creation-wizard"
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Skeleton } from '@ks/ui'
 import type { LibraryCreationType } from "@/lib/templates/library-creation-config"
 import { useSearchParams } from "next/navigation"
 

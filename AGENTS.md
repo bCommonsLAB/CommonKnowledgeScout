@@ -18,11 +18,19 @@ Sessions nicht doppelt bauen:
   Umbau-Garantien in
   [`docs/architecture/migrations-strategie.md`](docs/architecture/migrations-strategie.md).
 - **Agent-Brief M1** (abgeschlossen): [`docs/refactor/modularisierung/AGENT-BRIEF.md`](docs/refactor/modularisierung/AGENT-BRIEF.md)
-- **Agent-Brief M2**: [`docs/refactor/modularisierung/AGENT-BRIEF-M2.md`](docs/refactor/modularisierung/AGENT-BRIEF-M2.md)
-  (Zuschnitt, Ablauf, DoD, Stop-Bedingungen; Hand-off fuer M3 am Ende)
-- **Naechster Schritt**: Welle **M3** — `@ks/shell` (Provider-Kette, Auth,
-  Library-Bootstrap, TopNav) + Host→SiteConfig-Resolver. Voll-App bleibt
-  unveraendert (Verhaltensneutralitaet ist Abnahmekriterium jeder A-Welle).
+- **Agent-Brief M2** (abgeschlossen): [`docs/refactor/modularisierung/AGENT-BRIEF-M2.md`](docs/refactor/modularisierung/AGENT-BRIEF-M2.md)
+- **Agent-Brief M3** (abgeschlossen): [`docs/refactor/modularisierung/AGENT-BRIEF-M3.md`](docs/refactor/modularisierung/AGENT-BRIEF-M3.md)
+- **Agent-Brief M4** (abgeschlossen): [`docs/refactor/modularisierung/AGENT-BRIEF-M4.md`](docs/refactor/modularisierung/AGENT-BRIEF-M4.md)
+- **Agent-Brief M4b**: [`docs/refactor/modularisierung/AGENT-BRIEF-M4b.md`](docs/refactor/modularisierung/AGENT-BRIEF-M4b.md)
+  (`@ks/ui`; enthaelt die Korrektur zum `cn`-Schnitt: Teil-Extraktionen
+  koennen `git log --follow` NICHT halten)
+- **Naechster Schritt**: Welle **M4c** — `@ks/i18n` (`src/lib/i18n/` +
+  Locale-Provider/-Gate, 116 Importeure). Erst danach ist die montierbare
+  Explorer-Wurzelkomponente aus der Landkarten-Zeile M4 erreichbar, und die
+  in M3 blockierte TopNav ebenfalls. Vorab zu entscheiden: Locale-Atom
+  mitnehmen oder nur Hook-Oberflaeche exportieren — siehe Hand-off in
+  AGENT-BRIEF-M4b.md. Voll-App bleibt unveraendert (Verhaltensneutralitaet
+  ist Abnahmekriterium jeder A-Welle).
 
 **Abgeschlossene Straenge** (nicht neu aufgreifen):
 

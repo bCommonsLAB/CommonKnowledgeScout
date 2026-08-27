@@ -1,6 +1,6 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@ks/ui'
 import { cn } from "@/lib/utils"
 import { Check } from "lucide-react"
 import { DETAIL_VIEW_TYPES } from "@/lib/detail-view-types/registry"

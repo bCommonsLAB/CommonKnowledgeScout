@@ -18,9 +18,7 @@
 
 import * as React from 'react'
 import { ImageOff } from 'lucide-react'
-import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import { Badge } from '@/components/ui/badge'
+import { Label, Switch, Badge } from '@ks/ui'
 import { DivaBasecolor1to1 } from './diva-basecolor-1to1'
 import type { ImageTechnicalMetadata } from '@/lib/image/exif-metadata'
 import type { DivaBasecolorCropState } from '../use-diva-basecolor-crop'

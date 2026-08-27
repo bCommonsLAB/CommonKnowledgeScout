@@ -1,11 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Input,
+  Label,
+  Checkbox,
+  Card,
+  CardContent,
+} from '@ks/ui'
 import { SUPPORTED_LANGUAGES } from "@/lib/secretary/constants";
 import { buildArtifactName } from "@/lib/shadow-twin/artifact-naming";
 import type { ArtifactKey } from "@/lib/shadow-twin/artifact-types";

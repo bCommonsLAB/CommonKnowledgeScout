@@ -14,18 +14,19 @@
  */
 
 import type { UseFormReturn } from "react-hook-form"
-import { Card, CardContent } from "@/components/ui/card"
 import {
+  Card,
+  CardContent,
   FormControl,
   FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
-import { Textarea } from "@/components/ui/textarea"
+  Input,
+  Switch,
+  Textarea,
+} from '@ks/ui'
 import type { LibraryFormValues } from "./hooks/use-library-form"
 
 export function AgentViewConfigSection({ form }: { form: UseFormReturn<LibraryFormValues> }) {

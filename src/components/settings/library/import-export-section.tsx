@@ -11,9 +11,10 @@
  * - isNew=true: Nur Import (als Ausgangspunkt für neue Library)
  */
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import {
+  Button,
+  Card,
+  CardContent,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -21,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from '@ks/ui'
 import { Download, Upload } from "lucide-react"
 
 interface ImportExportSectionProps {

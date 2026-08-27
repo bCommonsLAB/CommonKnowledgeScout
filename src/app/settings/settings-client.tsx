@@ -5,11 +5,10 @@ import Link from "next/link"
 import { useSearchParams, useRouter } from "next/navigation"
 import { useAtomValue } from "jotai"
 import { librariesAtom, activeLibraryIdAtom } from "@/atoms/library-atom"
-import { Button } from "@/components/ui/button"
+import { Button, Alert, AlertDescription, AlertTitle } from '@ks/ui'
 import { Plus, BookOpen, Info } from "lucide-react"
 import { useUserRole } from "@/hooks/use-user-role"
 import { useStorage } from "@/contexts/storage-context"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { SpaceOverview } from "@/components/spaces/space-overview"
 import { CreateLibraryWizard } from "@/components/flows/create-library-wizard"
 

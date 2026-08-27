@@ -11,25 +11,23 @@
  */
 
 import React from 'react'
-import { Button } from '@/components/ui/button'
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import {
+  Input,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+  toast,
+} from '@ks/ui'
 import { Loader2 } from 'lucide-react'
-import { toast } from '@/components/ui/use-toast'
 
 /** Materialklassen-Enum laut Template (`Diva-Texture-Analysis.md`). */
 const MATERIAL_CLASSES = [

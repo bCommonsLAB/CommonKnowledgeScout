@@ -4,7 +4,7 @@
  */
 
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@ks/ui'
 import type { SubmissionStatus } from '@/types/wizard-submission';
 
 const STATUS_LABEL: Readonly<Record<SubmissionStatus, string>> = {

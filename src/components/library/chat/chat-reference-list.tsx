@@ -3,10 +3,17 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useAtomValue } from 'jotai'
 import { activeLibraryIdAtom } from '@/atoms/library-atom'
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+  Badge,
+  Button,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@ks/ui'
 import { FileText, ExternalLink } from 'lucide-react'
 import { ViewTypeBadge } from '@/components/library/view-type-badge'
 import type { ChatResponse } from '@/types/chat-response'

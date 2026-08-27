@@ -6,7 +6,7 @@
  */
 
 import type { ReactNode } from "react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from '@ks/ui'
 import { PreviewDetailStep } from "../../steps/preview-detail-step"
 import type { StepRenderContext } from "../step-render-context"
 import { selectCanonicalMetadata, selectCanonicalMarkdown } from "../wizard-metadata"

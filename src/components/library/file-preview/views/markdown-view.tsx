@@ -26,9 +26,7 @@
 
 import * as React from 'react'
 import { FileText, Sparkles, Upload, RefreshCw } from 'lucide-react'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger, Alert, AlertDescription, Button } from '@ks/ui'
 import { FileLogger } from '@/lib/debug/logger'
 import { MarkdownPreview } from '@/components/library/markdown-preview'
 import { extractFrontmatter } from '@/components/library/markdown-metadata'

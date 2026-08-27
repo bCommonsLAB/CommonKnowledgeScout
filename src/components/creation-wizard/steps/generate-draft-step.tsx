@@ -1,11 +1,20 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Button,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@ks/ui'
 import { Loader2, Wand2 } from "lucide-react"
 import { toast } from "sonner"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MarkdownMetadata } from "@/components/library/markdown-metadata"
 import { MarkdownPreview } from "@/components/library/markdown-preview"
 import { createMarkdownWithFrontmatter } from "@/lib/markdown/compose"

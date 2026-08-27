@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ChevronRight, ChevronDown, Clock, AlertCircle, CheckCircle2 } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
 import { cn } from "@/lib/utils";
 
 type SpanStatus = "running" | "completed" | "failed" | "skipped" | string;

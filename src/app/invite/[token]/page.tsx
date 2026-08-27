@@ -3,9 +3,17 @@
 import { useEffect, useState, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useUser, SignInButton, SignOutButton } from "@clerk/nextjs"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@ks/ui'
 import { Loader2, CheckCircle2, AlertCircle, LogOut, Mail } from "lucide-react"
 
 /**

@@ -1,9 +1,10 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+/**
+ * App-Helfer. `cn` lebt seit Welle M4b in `@ks/ui` (shadcn-Basis) und wird
+ * hier fuer die bestehenden Importeure re-exportiert — die Funktion existiert
+ * also weiterhin nur EINMAL.
+ */
 
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
-}
+export { cn } from '@ks/ui'
 
 export function formatFileSize(size?: number): string {
   if (!size) return '-';

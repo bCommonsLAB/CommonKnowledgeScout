@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from '@ks/ui'
 import { ArrowLeft, Calendar, FileText, MapPin, BookOpen, Tag, ExternalLink, Globe } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";

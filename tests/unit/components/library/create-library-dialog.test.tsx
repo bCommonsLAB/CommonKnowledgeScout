@@ -22,7 +22,11 @@ import {
 } from '@/atoms/library-atom'
 import type { ClientLibrary } from '@/types/library'
 
-vi.mock('@/components/ui/use-toast', () => ({
+// Teil-Mock: `useToast`/`toast` liegen seit Welle M4b im Barrel `@ks/ui`.
+// Das Barrel darf NICHT komplett ersetzt werden, sonst fehlen der
+// Komponente saemtliche UI-Primitives.
+vi.mock('@ks/ui', async (orig) => ({
+  ...(await orig<typeof import('@ks/ui')>()),
   toast: vi.fn(),
 }))
 

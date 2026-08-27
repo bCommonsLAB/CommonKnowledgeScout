@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { LibraryService } from '@/lib/services/library-service'
 import { getCollectionNameForLibrary, getByFileIds } from '@/lib/repositories/vector-repo'
 import { sendContactFormMail } from '@/lib/services/contact-mail-service'
+import { explorerGate } from '@ks/module-explorer'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -54,6 +55,11 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> },
 ) {
+  // Site-Gate (Modul-Landkarte §3): Ist `explorer` fuer diese Site
+  // nicht aktiv, antwortet die Route mit 404.
+  const gated = explorerGate(request)
+  if (gated) return gated
+
   try {
     const { slug } = await params
     if (!slug) {

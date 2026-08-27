@@ -1,5 +1,5 @@
 import { Suspense } from "react"
-import { Separator } from "@/components/ui/separator"
+import { Separator } from '@ks/ui'
 import { PublicForm } from "@/components/settings/public-form"
 import { TranslationsForm } from "@/components/settings/translations-form"
 

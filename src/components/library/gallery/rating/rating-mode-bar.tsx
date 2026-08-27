@@ -1,8 +1,7 @@
 'use client'
 
 import { ClipboardCheck, Star, EyeOff } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
+import { Button, Switch } from '@ks/ui'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { cn } from '@/lib/utils'
 

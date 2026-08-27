@@ -1,9 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Badge, Card, Avatar, AvatarImage, AvatarFallback } from '@ks/ui'
 import { ArrowLeft, User } from "lucide-react";
 import Link from "next/link";
 import { MarkdownPreview } from "@/components/library/markdown-preview";

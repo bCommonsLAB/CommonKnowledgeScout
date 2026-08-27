@@ -18,8 +18,7 @@ import type { ReactNode } from 'react'
 import { useAtom } from 'jotai'
 import { ArrowLeft } from 'lucide-react'
 import { uiPanePrefsAtom } from '@/atoms/ui-prefs-atom'
-import { Button } from '@/components/ui/button'
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
+import { Button, ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@ks/ui'
 
 export function WerkbankLayout({
   liste,

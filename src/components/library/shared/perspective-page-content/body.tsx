@@ -13,12 +13,24 @@
  * sowie der CTA-Button.
  */
 
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Card, CardContent } from '@/components/ui/card'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import {
+  Button,
+  Badge,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Card,
+  CardContent,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@ks/ui'
 import { ArrowRight, Globe, Compass, Eye, Users, Sparkles, AlertCircle, ExternalLink } from 'lucide-react'
 import { useTranslation } from '@/lib/i18n/hooks'
 import type { Character, SocialContext, TargetLanguage, AccessPerspective, LlmModelId } from '@/lib/chat/constants'

@@ -14,8 +14,7 @@
  */
 
 import { useState, useCallback, useMemo } from 'react'
-import { Button } from '@/components/ui/button'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Button, Alert, AlertDescription, AlertTitle } from '@ks/ui'
 import { Image as ImageIcon, User, Paperclip, X, Upload, FileText, Check, Globe, Link2, Sparkles, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { UILogger } from '@/lib/debug/logger'

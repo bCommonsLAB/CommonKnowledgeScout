@@ -1,8 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, Alert, AlertDescription } from '@ks/ui'
 import { TextEditor } from "@/components/library/text-editor"
 import type { StorageItem, StorageProvider } from "@/lib/storage/types"
 import { FileLogger } from "@/lib/debug/logger"

@@ -8,10 +8,9 @@ import {
   itemsGridClassForDensity,
   type GalleryCardDensity,
 } from '@/lib/gallery/gallery-card-density'
-import { Button } from '@/components/ui/button'
+import { Button, toast } from '@ks/ui'
 import { Sparkles, RefreshCw, Loader2 } from 'lucide-react'
 import { GroupClassifyDialog } from './group-classify-dialog'
-import { toast } from '@/components/ui/use-toast'
 
 export interface ItemsGridProps {
   docsByYear: Array<[number | string, DocCardMeta[]]>

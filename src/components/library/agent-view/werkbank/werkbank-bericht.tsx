@@ -16,8 +16,7 @@
  */
 
 import { ExternalLink, FileText, Loader2 } from 'lucide-react'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription, AlertTitle, Badge } from '@ks/ui'
 import { MarkdownPreview } from '@/components/library/markdown-preview'
 import { useBericht } from '@/hooks/agent-view/use-bericht'
 import type { VorhabenDokumentArt } from '@/lib/agent-view/bericht-laden'

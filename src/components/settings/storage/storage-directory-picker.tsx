@@ -11,8 +11,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Button, Input } from '@ks/ui'
 import { Folder, FolderPlus, Loader2, RefreshCw } from "lucide-react"
 import { StorageFactory } from "@/lib/storage/storage-factory"
 import type { StorageItem } from "@/lib/storage/types"

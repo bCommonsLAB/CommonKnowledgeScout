@@ -4,9 +4,8 @@ import { useEffect, useState } from "react"
 import { useAtom } from "jotai"
 import { activeLibraryIdAtom } from "@/atoms/library-atom"
 import { AccessRequestsList } from "@/components/settings/access-requests-list"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle, Separator } from '@ks/ui'
 import { AlertCircle, Loader2 } from "lucide-react"
-import { Separator } from "@/components/ui/separator"
 
 /**
  * Seite für Verwaltung von Zugriffsanfragen

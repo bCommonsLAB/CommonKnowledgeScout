@@ -3,7 +3,7 @@
 import * as React from "react"
 import { FileText, Wand2, Rss } from "lucide-react"
 
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
 import { cn } from "@/lib/utils"
 import type { StoryStepStatus, StoryStepState } from "@/components/library/shared/story-status"
 

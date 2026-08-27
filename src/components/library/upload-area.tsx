@@ -2,10 +2,9 @@
 
 import { useState, useCallback } from "react"
 import { useDropzone } from "react-dropzone"
-import { Button } from "@/components/ui/button"
+import { Button, Progress } from '@ks/ui'
 import { Upload, File, X, Loader2 } from "lucide-react"
 import { toast } from "sonner"
-import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
 import { formatFileSize } from "@/lib/utils"
 import { UploadAreaProps, UploadingFile } from "./types"

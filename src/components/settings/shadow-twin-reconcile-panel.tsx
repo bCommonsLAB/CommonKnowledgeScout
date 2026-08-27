@@ -21,8 +21,8 @@ import * as React from 'react'
 import { useAtomValue } from 'jotai'
 import { toast } from 'sonner'
 import { HardDriveDownload, HardDriveUpload, Loader2, Search, Wrench } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import {
+  Button,
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -32,7 +32,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
+} from '@ks/ui'
 import { activeLibraryAtom } from '@/atoms/library-atom'
 import { ShadowTwinSyncReportView, type SyncReportView } from './shadow-twin-sync-report-view'
 

@@ -19,7 +19,7 @@ import * as z from "zod"
 import { useEffect, useState, useCallback, useMemo } from "react"
 import { useAtom } from "jotai"
 import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from '@ks/ui'
 import { buildVectorSearchIndexDefinitionForLibrary, getCollectionNameForLibrary } from '@/lib/chat/vector-search-index'
 import {
   TARGET_LANGUAGE_ZOD_ENUM,

@@ -1,8 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, ScrollArea } from '@ks/ui'
 import { Filter } from 'lucide-react'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { DocumentFilterGroup } from './document-filter-group'

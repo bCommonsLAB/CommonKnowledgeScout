@@ -17,9 +17,7 @@
 
 import { useState } from 'react'
 import { Loader2, Tags, X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Button, Input, Popover, PopoverContent, PopoverTrigger } from '@ks/ui'
 import type { UseThemenResult } from '@/hooks/agent-view/use-themen'
 
 export function ThemenEditor({ folderId, aktuelle, vokabular, themen }: {

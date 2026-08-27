@@ -1,11 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Progress } from "@/components/ui/progress"
+import { Card, Button, Textarea, Checkbox, Progress } from '@ks/ui'
 import { MarkdownPreview } from "@/components/library/markdown-preview"
 import type { StorageProvider } from "@/lib/storage/types"
 

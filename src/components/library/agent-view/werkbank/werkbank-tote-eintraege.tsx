@@ -13,7 +13,7 @@
  */
 
 import { X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@ks/ui'
 import type { WorklistMitglied } from '@/lib/agent-view/worklist-fortschritt'
 
 export function WerkbankToteEintraege({

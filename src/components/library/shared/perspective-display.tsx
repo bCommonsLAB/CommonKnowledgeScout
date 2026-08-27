@@ -17,7 +17,7 @@ import {
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useStoryContext } from '@/hooks/use-story-context'
 import { Info } from 'lucide-react'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
 
 interface PerspectiveDisplayProps {
   /** Variante der Anzeige: 'header' zeigt "Deine Perspektive:" mit Labels, 'inline' zeigt kompakt mit · */

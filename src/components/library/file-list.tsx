@@ -17,10 +17,16 @@ import {
 } from "lucide-react"
 import { StorageItem } from "@/lib/storage/types"
 import { cn } from "@/lib/utils"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  Button,
+  Input,
+  Checkbox,
+} from '@ks/ui'
 import { useStorage } from "@/contexts/storage-context";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useAtomValue, useAtom } from 'jotai';
 import {
   activeLibraryIdAtom,
@@ -39,7 +45,6 @@ import {
   divaExtraColumnsAtom,
 } from '@/atoms/library-atom';
 import { toast } from "sonner";
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   selectedBatchItemsAtom,
   selectedTransformationItemsAtom,

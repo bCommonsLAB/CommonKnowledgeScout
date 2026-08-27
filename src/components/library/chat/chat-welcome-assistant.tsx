@@ -1,9 +1,7 @@
 "use client"
 
 import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, Switch } from '@ks/ui'
 import {
   TARGET_LANGUAGE_VALUES,
   TARGET_LANGUAGE_DEFAULT,

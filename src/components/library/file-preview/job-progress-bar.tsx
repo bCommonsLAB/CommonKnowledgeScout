@@ -11,7 +11,7 @@
  */
 
 import * as React from 'react'
-import { Progress } from '@/components/ui/progress'
+import { Progress } from '@ks/ui'
 
 export interface JobProgressBarProps {
   status: 'queued' | 'running' | 'completed' | 'failed'

@@ -2,23 +2,30 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Label,
+} from '@ks/ui'
 import { Loader2, RefreshCw, Plus, AlertTriangle, Clock, FileCheck, FileX, Files, BookOpenText, Filter } from 'lucide-react'; // 🆕 Filter Icon hinzugefügt
 import BatchList from '@/components/event-monitor/batch-list';
 import { Batch, Job, JobStatus } from '@/types/event-job';
 import JobDetailsPanel from '@/components/event-monitor/job-details-panel';
 import BatchArchiveDialog from '@/components/event-monitor/batch-archive-dialog';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription,
-  DialogFooter
-} from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
 import { createAllTrackSummaries, SecretaryServiceError } from '@/lib/secretary/client';
 import { useAtom } from 'jotai';
 import { activeLibraryIdAtom } from '@/atoms/library-atom';

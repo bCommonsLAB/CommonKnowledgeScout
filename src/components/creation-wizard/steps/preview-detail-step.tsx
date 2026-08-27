@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent } from '@ks/ui'
 import type { TemplatePreviewDetailViewType } from "@/lib/templates/template-types"
 import { DetailViewRenderer } from "@/components/library/detail-view-renderer"
 import type { StorageProvider } from "@/lib/storage/types"

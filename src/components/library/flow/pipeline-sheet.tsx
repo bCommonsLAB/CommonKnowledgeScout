@@ -5,13 +5,25 @@ import { toast } from "sonner"
 import { FileText, Sparkles, Upload, Check, ChevronDown, Settings, RefreshCw } from "lucide-react"
 import Link from "next/link"
 
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Switch } from "@/components/ui/switch"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  Button,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Skeleton,
+  Switch,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@ks/ui'
 import { cn } from "@/lib/utils"
 import { DictationTextarea } from "@/components/shared/dictation-textarea"
 // Helpers, Konstanten + Types wurden in

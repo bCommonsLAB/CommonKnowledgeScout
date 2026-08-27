@@ -15,7 +15,7 @@
  */
 
 import Link from 'next/link'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle } from '@ks/ui'
 import { istAnmeldungNoetig } from '@/lib/storage/types'
 
 /** Text eines unbekannten Fehlerwerts — ohne Raten. */

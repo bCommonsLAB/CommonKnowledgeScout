@@ -7,12 +7,20 @@ import { useAtom, useAtomValue } from "jotai";
 import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Skeleton,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@ks/ui'
 import { ExclamationTriangleIcon } from "@radix-ui/react-icons";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useStorage } from "@/contexts/storage-context";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, BookOpen } from "lucide-react";
 
 // Separate Client-Komponente für die URL-Parameter-Logik

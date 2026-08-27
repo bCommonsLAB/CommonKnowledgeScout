@@ -2,14 +2,7 @@
 
 import React, { useRef, useEffect } from 'react'
 import type { DocCardMeta } from '@/lib/gallery/types'
-import {
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  Table,
-} from '@/components/ui/table'
+import { TableBody, TableCell, TableHead, TableHeader, TableRow, Table } from '@ks/ui'
 // Badge Import entfernt - wurde nicht verwendet
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'

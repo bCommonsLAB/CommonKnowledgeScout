@@ -7,7 +7,7 @@
  * Zeigt ein Empty-State, wenn keine Themen vorhanden sind.
  */
 
-import { Accordion } from '@/components/ui/accordion'
+import { Accordion } from '@ks/ui'
 import { TopicCard } from './topic-card'
 import type { StoryTopicsData, StoryQuestion } from '@/types/story-topics'
 

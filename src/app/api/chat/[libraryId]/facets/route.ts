@@ -7,8 +7,14 @@ import { aggregateFacets, distinctViewTypes, getCollectionNameForLibrary } from 
 import { maybePublicationFilter } from '@/lib/chat/publication-filter'
 import { isValidDetailViewType } from '@/lib/detail-view-types/registry'
 import { getDetailViewType } from '@/lib/templates/detail-view-type-utils'
+import { explorerGate } from '@ks/module-explorer'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ libraryId: string }> }) {
+  // Site-Gate (Modul-Landkarte §3): Ist `explorer` fuer diese Site
+  // nicht aktiv, antwortet die Route mit 404.
+  const gated = explorerGate(_req)
+  if (gated) return gated
+
   try {
     const { userId } = await auth()
     const { libraryId } = await params

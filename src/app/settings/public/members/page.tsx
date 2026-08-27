@@ -15,9 +15,8 @@ import { useAtom } from "jotai"
 import { activeLibraryIdAtom } from "@/atoms/library-atom"
 import { MembersList } from "@/components/settings/members-list"
 import { ReadersList } from "@/components/settings/readers-list"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle, Separator } from '@ks/ui'
 import { AlertCircle, Loader2 } from "lucide-react"
-import { Separator } from "@/components/ui/separator"
 
 /**
  * Seite für Verwaltung von Library-Mitgliedern (Moderatoren)

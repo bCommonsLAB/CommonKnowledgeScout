@@ -3,7 +3,16 @@
 import * as React from "react"
 import { useState } from "react"
 import { useAtom } from "jotai"
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from '@ks/ui'
 import { cn } from "@/lib/utils"
 import { activeLibraryAtom, activeLibraryIdAtom, currentFolderIdAtom, folderItemsAtom, lastLoadedFolderAtom, librariesAtom, libraryAtom } from "@/atoms/library-atom"
 import { Plus, Share2 } from "lucide-react"

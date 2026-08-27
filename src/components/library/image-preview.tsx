@@ -13,7 +13,7 @@ import { useAtomValue } from "jotai";
 import { selectedFileAtom } from "@/atoms/library-atom";
 import { FileLogger } from "@/lib/debug/logger";
 import { StorageProvider, StorageItem } from "@/lib/storage/types";
-import { Button } from "@/components/ui/button";
+import { Button } from '@ks/ui'
 import { Wand2 } from "lucide-react";
 import { ImageTransform } from './image-transform';
 

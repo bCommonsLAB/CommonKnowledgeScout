@@ -13,8 +13,7 @@
 
 import React, { useState } from 'react'
 import { Globe2, RefreshCw, Send } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { useToast } from '@/components/ui/use-toast'
+import { Button, useToast } from '@ks/ui'
 import { useTranslation } from '@/lib/i18n/hooks'
 import type { DocCardMeta } from '@/lib/gallery/types'
 

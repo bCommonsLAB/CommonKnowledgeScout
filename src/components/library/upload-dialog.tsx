@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@ks/ui'
 import { UploadArea } from "@/components/library/upload-area"
 import { StorageProvider } from "@/lib/storage/types"
 import { Folder } from "lucide-react"

@@ -13,7 +13,7 @@
  */
 
 import { Suspense, useEffect, useState } from "react"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent } from '@ks/ui'
 import { useStorageForm } from "./hooks/use-storage-form"
 import { StorageWizard, WIZARD_RESUME_KEY } from "./storage-wizard"
 import { StorageSummary } from "./storage-summary"

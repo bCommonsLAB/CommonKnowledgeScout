@@ -1,10 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+  Card,
+  Badge,
+  Button,
+} from '@ks/ui'
 import { Calendar, Clock, MapPin, ExternalLink, FileText, Video } from "lucide-react";
 import type { SessionDetailData } from "./session-detail";
 import { useTranslation } from "@/lib/i18n/hooks";

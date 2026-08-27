@@ -15,17 +15,17 @@
 'use client'
 
 import React from 'react'
-import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
+  Button,
+  Switch,
+  Label,
+  Checkbox,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from '@ks/ui'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { SUPPORTED_LOCALES, type Locale } from '@/lib/i18n'
 import { useTranslationsForm } from '@/components/settings/hooks/use-translations-form'

@@ -1,11 +1,10 @@
 import * as React from "react"
 import { UILogger } from "@/lib/debug/logger"
-import { Button } from "@/components/ui/button"
+import { Button, Alert, AlertDescription } from '@ks/ui'
 import { Upload, AlertTriangle, ArrowLeft, FileStack, Sidebar, LayoutList, Plus } from "lucide-react"
 import { UploadDialog } from "./upload-dialog"
 import { StorageProvider } from "@/lib/storage/types"
 import { useCallback } from "react"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAtom, useAtomValue } from "jotai"
 import { currentFolderIdAtom, libraryAtom } from "@/atoms/library-atom"
 import { Breadcrumb } from "./breadcrumb"

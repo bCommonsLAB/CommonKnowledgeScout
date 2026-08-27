@@ -19,7 +19,7 @@
  */
 
 import { AlertTriangle, ChevronDown, ChevronRight, FileText, Pin, PinOff } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { Badge } from '@ks/ui'
 import { wartetAufAbnahme } from '@/lib/agent-view/abnahme'
 import { actorSummary, standLabel } from '@/lib/agent-view/labels'
 import type { PruefZaehler } from '@/lib/agent-view/werkbank-baum'

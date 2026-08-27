@@ -18,8 +18,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { buttonVariants } from "@/components/ui/button"
+  buttonVariants,
+} from '@ks/ui'
 import { cn } from "@/lib/utils"
 
 interface ConfirmActionDialogProps {

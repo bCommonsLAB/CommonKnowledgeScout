@@ -15,8 +15,7 @@
 
 import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Button, Input } from '@ks/ui'
 import type { LeadingArtifactSummary } from '@/lib/agent-view/types'
 
 /** Rote Zeile unter dem Kopf: was jemand als falsch benannt hat. */

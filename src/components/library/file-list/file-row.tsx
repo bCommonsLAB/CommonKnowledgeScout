@@ -27,10 +27,15 @@ import {
 import { useAtom } from 'jotai';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  Button,
+  Input,
+  Checkbox,
+} from '@ks/ui'
 import { FileLogger } from '@/lib/debug/logger';
 import {
   selectedBatchItemsAtom,

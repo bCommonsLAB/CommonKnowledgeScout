@@ -1,8 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import { Button, ScrollArea } from '@ks/ui'
 import { X, ExternalLink, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react'
 import { useUserStates } from '@/hooks/gallery/use-user-states'
 import { findDocMetaByFileId } from '@/lib/gallery/apply-favorite-optimistic'

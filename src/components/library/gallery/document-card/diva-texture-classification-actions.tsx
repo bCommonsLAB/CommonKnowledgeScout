@@ -21,8 +21,8 @@
  */
 
 import React from 'react'
-import { Button } from '@/components/ui/button'
 import {
+  Button,
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -30,9 +30,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  toast,
+} from '@ks/ui'
 import { MoreVertical, Lock, Ban, Pencil, RefreshCw } from 'lucide-react'
-import { toast } from '@/components/ui/use-toast'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { MaterialClassificationEditDialog } from './material-classification-edit-dialog'
 

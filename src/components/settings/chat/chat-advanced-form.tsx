@@ -9,8 +9,7 @@
  * content-type-form.tsx — Submit sendet die vollstaendige Config).
  */
 
-import { Button } from "@/components/ui/button"
-import { Form } from "@/components/ui/form"
+import { Button, Form } from '@ks/ui'
 import { IndexDefinitionDialog } from '@/components/settings/index-definition-dialog'
 import { SearchIndexDialog } from '@/components/settings/search-index-dialog'
 import { useTranslation } from '@/lib/i18n/hooks'

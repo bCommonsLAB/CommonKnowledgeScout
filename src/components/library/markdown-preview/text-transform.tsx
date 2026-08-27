@@ -24,17 +24,18 @@ import { useAtomValue } from 'jotai'
 import { activeLibraryAtom, libraryStatusAtom } from '@/atoms/library-atom'
 import { useStorage } from '@/contexts/storage-context'
 import { StorageItem, StorageProvider } from '@/lib/storage/types'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
 import {
+  Button,
+  Card,
+  CardContent,
+  Textarea,
+  Label,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from '@ks/ui'
 import { Wand2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { FileLogger } from '@/lib/debug/logger'

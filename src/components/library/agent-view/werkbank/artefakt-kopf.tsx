@@ -19,8 +19,7 @@
  */
 
 import { ClipboardCopy, ExternalLink, Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { useToast } from '@/components/ui/use-toast'
+import { Button, useToast } from '@ks/ui'
 import type { UseArtefaktKurationResult } from '@/hooks/agent-view/use-artefakt-kuration'
 import { twinStatusLabel, verificationLabel } from '@/lib/agent-view/labels'
 import type { LeadingArtifactSummary, TwinFamilySummary } from '@/lib/agent-view/types'

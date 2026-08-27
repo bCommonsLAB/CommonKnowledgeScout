@@ -7,14 +7,14 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Progress } from '@/components/ui/progress';
-import { Label } from '@/components/ui/label';
+  DialogFooter,
+  Button,
+  Checkbox,
+  Progress,
+  Label,
+  Badge,
+} from '@ks/ui'
 import { Loader2, FolderOpen, Download, AlertTriangle, Info } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Batch, Job } from '@/types/event-job';
 import { useAtom } from 'jotai';
 import { activeLibraryAtom, currentPathAtom, currentFolderIdAtom } from '@/atoms/library-atom';

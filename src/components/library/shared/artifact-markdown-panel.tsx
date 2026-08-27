@@ -2,8 +2,15 @@
 
 import * as React from "react"
 import { useAtomValue, useSetAtom } from "jotai"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
+import {
+  Alert,
+  AlertDescription,
+  Button,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@ks/ui'
 import { MarkdownPreview, type CompositeWikiPreviewOptions } from "@/components/library/markdown-preview"
 import type { StorageItem, StorageProvider } from "@/lib/storage/types"
 import type { Library } from "@/types/library"
@@ -11,7 +18,6 @@ import { FileLogger } from "@/lib/debug/logger"
 import { ArtifactEditDialog } from "@/components/library/shared/artifact-edit-dialog"
 import { cn } from "@/lib/utils"
 import { Pencil } from "lucide-react"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { fetchShadowTwinMarkdown } from "@/lib/shadow-twin/shadow-twin-mongo-client"
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from "@/lib/shadow-twin/mongo-shadow-twin-id"
 // parseFrontmatter wurde mit isCompositeContainerContent in helpers.ts

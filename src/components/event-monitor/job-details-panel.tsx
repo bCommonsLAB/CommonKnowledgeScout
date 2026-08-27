@@ -1,13 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Sheet, 
-  SheetContent, 
-  SheetHeader, 
-  SheetTitle, 
-  SheetClose
-} from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetClose,
+  Button,
+  Badge,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@ks/ui'
 import { Job, JobStatus } from '@/types/event-job';
 import { formatDateTime } from '@/lib/utils';
 import {
@@ -23,8 +30,6 @@ import {
   AlertTriangle,
   Download
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface JobDetailsPanelProps {
   isOpen: boolean;

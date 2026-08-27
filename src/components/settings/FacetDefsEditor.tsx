@@ -1,12 +1,23 @@
 "use client"
 
 import { useState, useCallback, useMemo } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
+import {
+  Button,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Switch,
+  Textarea,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@ks/ui'
 import { Trash2, Upload, Copy, Check, AlertTriangle, CheckCircle2, RotateCcw, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { getRequiredFields, getOptionalFields, isValidDetailViewType } from '@/lib/detail-view-types'

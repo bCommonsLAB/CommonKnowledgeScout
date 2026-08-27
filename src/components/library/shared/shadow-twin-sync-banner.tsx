@@ -18,8 +18,7 @@
 
 import * as React from "react"
 import { AlertTriangle, FileQuestion, FolderSearch, RefreshCw, Upload } from "lucide-react"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
+import { Alert, AlertDescription, Button } from '@ks/ui'
 import { toast } from "sonner"
 import type { FreshnessInfo, FreshnessStatus } from "@/hooks/use-shadow-twin-freshness"
 

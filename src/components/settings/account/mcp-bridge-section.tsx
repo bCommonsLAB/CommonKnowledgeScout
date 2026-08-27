@@ -11,8 +11,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Button, Card, CardContent } from '@ks/ui'
 
 interface KeyStatus {
   configured: boolean

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { Loader2, Mic } from "lucide-react"
-import { Textarea } from "@/components/ui/textarea"
+import { Textarea } from '@ks/ui'
 import { useDictationTranscription, mergeDictationText, type UseDictationTranscriptionOptions } from "./use-dictation-transcription"
 import { AudioOscilloscope } from "./audio-oscilloscope"
 

@@ -10,7 +10,7 @@
 
 import { useAtomValue } from 'jotai'
 import { Loader2, RefreshCw, Wrench } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@ks/ui'
 import { activeLibraryAtom } from '@/atoms/library-atom'
 import { LibraryVerificationBadgeView } from '@/components/library/library-verification-badge'
 import { LibraryVerificationDetails } from '@/components/settings/library-verification-details'

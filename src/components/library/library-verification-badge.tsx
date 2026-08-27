@@ -10,7 +10,7 @@
  */
 
 import { useAtomValue } from 'jotai'
-import { Badge } from '@/components/ui/badge'
+import { Badge } from '@ks/ui'
 import { activeLibraryIdAtom } from '@/atoms/library-atom'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
 import { useLibraryVerificationStatus } from '@/hooks/library-verification/use-library-verification-status'

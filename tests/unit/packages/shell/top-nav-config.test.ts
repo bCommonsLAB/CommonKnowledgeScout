@@ -1,0 +1,159 @@
+import { describe, it, expect } from 'vitest'
+import { buildTopNavConfig } from '@ks/shell'
+
+function t(key: string): string {
+  return key
+}
+
+describe('buildTopNavConfig', () => {
+  it('zeigt fuer anonyme Nutzer nur die minimale oeffentliche Navigation und kein Zahnrad-Menue', () => {
+    const result = buildTopNavConfig({
+      isCreator: false,
+      agentViewEnabled: false,
+      webViewEnabled: false,
+      webViewTestHref: '',
+      t,
+    })
+
+    expect(result.publicNavItems.map((item) => item.href)).toEqual(['/'])
+    expect(result.secondaryNavItems).toEqual([])
+    expect(result.showMoreMenu).toBe(false)
+  })
+
+  it('zeigt fuer Creator die erweiterten Bereiche weiterhin an', () => {
+    const result = buildTopNavConfig({
+      isCreator: true,
+      agentViewEnabled: true,
+      webViewEnabled: true,
+      webViewTestHref: '/explore/test?view=site',
+      t,
+    })
+
+    expect(result.publicNavItems.map((item) => item.href)).toEqual(['/', '/docs/'])
+    expect(result.primaryProtectedNavItems.map((item) => item.href)).toContain('/library')
+    // Agentensicht steht direkt neben dem Archiv (Projektauftrag Welle 2).
+    expect(result.primaryProtectedNavItems.map((item) => item.href)).toContain('/library/agent-view')
+    expect(result.primaryProtectedNavItems.map((item) => item.href)).toContain('/library/gallery')
+    expect(result.primaryProtectedNavItems.map((item) => item.href)).toContain('/library/inbox')
+    expect(result.primaryProtectedNavItems.map((item) => item.href)).toContain('/explore/test?view=site')
+    expect(result.secondaryNavItems.map((item) => item.href)).toEqual([
+      '/templates',
+      '/event-monitor',
+      '/session-manager',
+    ])
+    expect(result.showMoreMenu).toBe(true)
+  })
+
+  it('verbirgt die Agentensicht, wenn die aktive Library sie nicht aktiviert hat (Default aus)', () => {
+    const result = buildTopNavConfig({
+      isCreator: true,
+      agentViewEnabled: false,
+      webViewEnabled: false,
+      webViewTestHref: '',
+      t,
+    })
+
+    expect(result.primaryProtectedNavItems.map((item) => item.href)).not.toContain('/library/agent-view')
+    // Die uebrige Creator-Navigation bleibt unveraendert.
+    expect(result.primaryProtectedNavItems.map((item) => item.href)).toContain('/library')
+  })
+
+  it('Explore-Kontext MIT Website: Home | Inhalte | Story Mode (auch anonym)', () => {
+    const result = buildTopNavConfig({
+      isCreator: false,
+      agentViewEnabled: false,
+      webViewEnabled: true,
+      webViewTestHref: '/explore/oldiesforfuture?view=site',
+      exploreContext: { slug: 'oldiesforfuture', siteEnabled: true },
+      t,
+    })
+
+    expect(result.publicNavItems.map((item) => item.href)).toEqual([
+      '/explore/oldiesforfuture',
+      '/explore/oldiesforfuture?view=gallery',
+      '/explore/oldiesforfuture?mode=story',
+    ])
+    expect(result.primaryProtectedNavItems).toEqual([])
+    expect(result.showMoreMenu).toBe(false)
+  })
+
+  it('Explore-Kontext OHNE Website: Home (KS-Startseite) | Inhalte (Basis-Link) | Story Mode', () => {
+    const result = buildTopNavConfig({
+      isCreator: false,
+      agentViewEnabled: false,
+      webViewEnabled: false,
+      webViewTestHref: '',
+      exploreContext: { slug: 'klimarat', siteEnabled: false },
+      t,
+    })
+
+    // C1b: „Home" fuehrt zurueck auf die KnowledgeScout-Startseite —
+    // vorher gab es aus einer Library keinen Weg zurueck.
+    expect(result.publicNavItems.map((item) => item.href)).toEqual([
+      '/',
+      '/explore/klimarat',
+      '/explore/klimarat?mode=story',
+    ])
+  })
+
+  it('Explore-Kontext MIT Website: sitePages (z. B. Kontakt) am ENDE der Liste', () => {
+    const result = buildTopNavConfig({
+      isCreator: false,
+      agentViewEnabled: false,
+      webViewEnabled: true,
+      webViewTestHref: '/explore/oldiesforfuture?view=site',
+      exploreContext: {
+        slug: 'oldiesforfuture',
+        siteEnabled: true,
+        sitePages: [{ name: 'Kontakt', href: '/explore/oldiesforfuture?site=kontakt' }],
+      },
+      t,
+    })
+
+    expect(result.publicNavItems.map((item) => item.href)).toEqual([
+      '/explore/oldiesforfuture',
+      '/explore/oldiesforfuture?view=gallery',
+      '/explore/oldiesforfuture?mode=story',
+      '/explore/oldiesforfuture?site=kontakt',
+    ])
+  })
+
+  it('Domain-Root: homeHref `/` + sitePages mit `/?site=`-Links am Ende', () => {
+    const result = buildTopNavConfig({
+      isCreator: false,
+      agentViewEnabled: false,
+      webViewEnabled: false,
+      webViewTestHref: '',
+      exploreContext: {
+        slug: 'oldiesforfuture',
+        siteEnabled: true,
+        homeHref: '/',
+        sitePages: [{ name: 'Kontakt', href: '/?site=kontakt' }],
+      },
+      t,
+    })
+
+    expect(result.publicNavItems.map((item) => item.href)).toEqual([
+      '/',
+      '/explore/oldiesforfuture?view=gallery',
+      '/explore/oldiesforfuture?mode=story',
+      '/?site=kontakt',
+    ])
+  })
+
+  it('Explore-Kontext: Creator behalten Archiv + Wartekorb als geschuetzte Punkte', () => {
+    const result = buildTopNavConfig({
+      isCreator: true,
+      agentViewEnabled: false,
+      webViewEnabled: true,
+      webViewTestHref: '/explore/oldiesforfuture?view=site',
+      exploreContext: { slug: 'oldiesforfuture', siteEnabled: true },
+      t,
+    })
+
+    expect(result.primaryProtectedNavItems.map((item) => item.href)).toEqual([
+      '/library',
+      '/library/inbox',
+    ])
+  })
+})

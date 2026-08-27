@@ -5,12 +5,7 @@ import { cn } from "@/lib/utils";
 import { SDG_LIST, type SdgValue } from "@/lib/gallery/sdg-meta";
 import { SdgWheel, spokeAngleDeg, polarToCartesian } from "./sdg-wheel";
 import { SdgIcon } from "./sdg-icon";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
 
 /**
  * src/components/library/gallery/sdg-wheel-labeled.tsx

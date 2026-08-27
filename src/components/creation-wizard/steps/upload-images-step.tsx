@@ -2,10 +2,16 @@
 
 import * as React from "react"
 import { useRef, useState, useCallback } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Label,
+  Input,
+  Button,
+} from '@ks/ui'
 import { Image as ImageIcon, Loader2, Plus, X, FolderOpen } from "lucide-react"
 import type { TemplateCreationImageField } from "@/lib/templates/template-types"
 import { toast } from "sonner"

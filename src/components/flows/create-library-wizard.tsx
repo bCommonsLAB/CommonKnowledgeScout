@@ -13,16 +13,15 @@
  * getrennter Anlage-Pfade. Die Anlage-Logik selbst liegt in useLibraryForm.
  */
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import {
+  Button,
+  Card,
+  CardContent,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import {
   Form,
   FormControl,
   FormDescription,
@@ -30,8 +29,8 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
+  Input,
+} from '@ks/ui'
 import { CORE_CONTENT_TYPES } from "@/components/settings/chat/content-type-section"
 import { useLibraryForm } from "@/components/settings/library/hooks/use-library-form"
 

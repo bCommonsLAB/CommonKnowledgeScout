@@ -17,8 +17,7 @@
 
 import React from 'react'
 import Image from 'next/image'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge } from '@ks/ui'
 import { Calendar, MapPin, User, FileText } from 'lucide-react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { SpeakerOrAuthorIcons } from '../speaker-icons'

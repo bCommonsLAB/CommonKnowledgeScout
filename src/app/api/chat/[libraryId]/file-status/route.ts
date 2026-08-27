@@ -4,11 +4,17 @@ import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { LibraryService } from '@/lib/services/library-service'
 import { FileLogger } from '@/lib/debug/logger'
 import { getCollectionNameForLibrary, getMetaByFileId } from '@/lib/repositories/vector-repo'
+import { explorerGate } from '@ks/module-explorer'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ libraryId: string }> }
 ) {
+  // Site-Gate (Modul-Landkarte §3): Ist `explorer` fuer diese Site
+  // nicht aktiv, antwortet die Route mit 404.
+  const gated = explorerGate(request)
+  if (gated) return gated
+
   try {
     const { libraryId } = await params
     const { userId } = await auth()

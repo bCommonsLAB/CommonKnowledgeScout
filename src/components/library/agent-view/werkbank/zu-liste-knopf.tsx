@@ -13,7 +13,7 @@
  * @module components/library/agent-view
  */
 
-import { useToast } from '@/components/ui/use-toast'
+import { useToast } from '@ks/ui'
 import { useWorklists } from '@/hooks/agent-view/use-worklists'
 import type { VorhabenCard } from '@/lib/agent-view/types'
 

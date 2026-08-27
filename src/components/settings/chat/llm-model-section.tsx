@@ -8,8 +8,8 @@
  * "Erweitert"; ohne Auswahl gilt der System-Standard.
  */
 
-import { FormField, FormItem, FormMessage } from "@/components/ui/form"
-import { LlmModelSelector } from "@/components/ui/llm-model-selector"
+import { FormField, FormItem, FormMessage } from '@ks/ui'
+import { LlmModelSelector } from '@/components/shared/llm-model-selector'
 import type { UseFormReturn } from "react-hook-form"
 import type { chatFormSchema } from "./hooks/use-chat-form"
 import type { z } from "zod"

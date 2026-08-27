@@ -2,11 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
 import { getLocale } from '@/lib/i18n'
+import { explorerGate } from '@ks/module-explorer'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ libraryId: string }> }
 ) {
+  // Site-Gate (Modul-Landkarte §3): Ist `explorer` fuer diese Site
+  // nicht aktiv, antwortet die Route mit 404.
+  const gated = explorerGate(request)
+  if (gated) return gated
+
   try {
     const t0 = Date.now()
     const { libraryId } = await params

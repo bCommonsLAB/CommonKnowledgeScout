@@ -1,6 +1,6 @@
 import { Metadata } from "next"
 import { Suspense } from "react"
-import { Separator } from "@/components/ui/separator"
+import { Separator } from '@ks/ui'
 import { StorageForm } from "@/components/settings/storage-form"
 import { SecretaryServiceForm } from "@/components/settings/secretary-service-form"
 import { ContentTypeForm } from "@/components/settings/chat"

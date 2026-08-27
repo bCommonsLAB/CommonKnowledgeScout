@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { getChatById, updateChatTitle, deleteChat, createChat } from '@/lib/db/chats-repo'
+import { explorerGate } from '@ks/module-explorer'
 
 /**
  * GET /api/chat/[libraryId]/chats/[chatId]
@@ -10,6 +11,11 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ libraryId: string; chatId: string }> }
 ) {
+  // Site-Gate (Modul-Landkarte §3): Ist `explorer` fuer diese Site
+  // nicht aktiv, antwortet die Route mit 404.
+  const gated = explorerGate(request)
+  if (gated) return gated
+
   try {
     const { chatId } = await params
     const { userId } = await auth()
@@ -76,6 +82,11 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ libraryId: string; chatId: string }> }
 ) {
+  // Site-Gate (Modul-Landkarte §3): Ist `explorer` fuer diese Site
+  // nicht aktiv, antwortet die Route mit 404.
+  const gated = explorerGate(request)
+  if (gated) return gated
+
   try {
     const { chatId } = await params
     const { userId } = await auth()
@@ -154,6 +165,11 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ libraryId: string; chatId: string }> }
 ) {
+  // Site-Gate (Modul-Landkarte §3): Ist `explorer` fuer diese Site
+  // nicht aktiv, antwortet die Route mit 404.
+  const gated = explorerGate(request)
+  if (gated) return gated
+
   try {
     const { chatId } = await params
     const { userId } = await auth()

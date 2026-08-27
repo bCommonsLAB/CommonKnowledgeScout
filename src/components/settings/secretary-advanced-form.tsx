@@ -10,8 +10,8 @@
  * die vollstaendige secretaryService-Config).
  */
 
-import { Button } from "@/components/ui/button"
 import {
+  Button,
   Form,
   FormControl,
   FormDescription,
@@ -19,10 +19,10 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
-import { LlmModelSelector } from "@/components/ui/llm-model-selector"
+  Input,
+  Switch,
+} from '@ks/ui'
+import { LlmModelSelector } from '@/components/shared/llm-model-selector'
 import { useSecretaryServiceForm } from "./hooks/use-secretary-service-form"
 import { getDefaultTemplateNameForViewType } from "@/lib/templates/default-templates"
 import { checkTemplateConsistency } from "@/lib/templates/template-consistency"

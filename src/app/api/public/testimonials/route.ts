@@ -4,6 +4,7 @@ import { resolveOwnerForTestimonials } from '@/lib/public/public-library-owner'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'
 import { writeTestimonialArtifacts } from '@/lib/testimonials/testimonial-writer'
 import crypto from 'crypto'
+import { explorerGate } from '@ks/module-explorer'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -56,6 +57,11 @@ async function readEventWriteKeyIfAny(args: {
  * - If the event has `testimonialWriteKey` in its frontmatter, requests must provide the same key.
  */
 export async function GET(req: NextRequest) {
+  // Site-Gate (Modul-Landkarte §3): Ist `explorer` fuer diese Site
+  // nicht aktiv, antwortet die Route mit 404.
+  const gated = explorerGate(req)
+  if (gated) return gated
+
   try {
     const url = new URL(req.url)
     const libraryId = nonEmptyString(url.searchParams.get('libraryId'))
@@ -157,6 +163,11 @@ export async function GET(req: NextRequest) {
  * - consent?: string|boolean
  */
 export async function POST(req: NextRequest) {
+  // Site-Gate (Modul-Landkarte §3): Ist `explorer` fuer diese Site
+  // nicht aktiv, antwortet die Route mit 404.
+  const gated = explorerGate(req)
+  if (gated) return gated
+
   try {
     const form = await req.formData()
 

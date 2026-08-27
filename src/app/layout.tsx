@@ -18,7 +18,7 @@
  * 
  * @dependencies
  * - @clerk/nextjs: Clerk authentication provider
- * - @/components/theme-provider: Theme management
+ * - @ks/shell/providers: Theme- und Query-Provider der Schale
  * - @/contexts/storage-context: Storage context provider
  * - @/components/layouts/app-layout: Main application layout
  * - @/components/layouts/home-layout: Home page layout
@@ -26,20 +26,18 @@
 
 import "@/styles/globals.css"
 import { GeistSans } from 'geist/font/sans';
-import { ThemeProvider } from "@/components/theme-provider"
-import { TooltipProvider } from "@/components/ui/tooltip"
+import { ThemeProvider, QueryProvider } from "@ks/shell/providers"
+import { TooltipProvider, Toaster as HookToaster } from '@ks/ui'
 import { Toaster } from "sonner"
 // Die App hat ZWEI Meldungssysteme: `sonner` und den shadcn-Hook
 // `useToast`. Letzterer wird in 41 Dateien benutzt, seine Anzeige war
 // aber nie eingehaengt — jede Meldung daraus (kopiert, gespeichert,
 // Fehler) verschwand still (Befund 27.08.2026). Beide bleiben stehen,
 // bis eine Zusammenfuehrung ansteht.
-import { Toaster as HookToaster } from "@/components/ui/toaster"
 import { ClerkProvider } from "@clerk/nextjs"
 import { StorageContextProvider } from '@/contexts/storage-context'
 import { JotaiLocaleProvider } from '@/components/providers/jotai-locale-provider'
 import { LocaleGate } from '@/components/providers/locale-gate'
-import { QueryProvider } from '@/components/providers/query-provider'
 import { AppLayout } from "@/components/layouts/app-layout"
 import { HomeLayout } from "@/components/layouts/home-layout"
 import { getRootLandingTargetForHost } from "@/lib/root-landing"

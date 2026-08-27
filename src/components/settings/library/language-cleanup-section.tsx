@@ -9,9 +9,8 @@
  * Zwei Schritte: Analyse (Dry-Run) → dann Löschen.
  */
 
-import { Button } from "@/components/ui/button"
-import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog"
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -19,15 +18,14 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { FormLabel } from "@/components/ui/form"
-import {
+  FormLabel,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from '@ks/ui'
+import { ConfirmActionDialog } from "@/components/shared/confirm-action-dialog"
 import { Search, Languages } from "lucide-react"
 import type { LangCleanupResult } from "./hooks/use-shadow-twin-migration"
 

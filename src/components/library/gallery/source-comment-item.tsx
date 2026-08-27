@@ -2,8 +2,7 @@
 
 import React from 'react'
 import { Pencil, Trash2, History, X, Check } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
+import { Button, Textarea } from '@ks/ui'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { cn } from '@/lib/utils'
 import type { SourceComment } from '@/types/source-comment'

@@ -16,7 +16,7 @@
 import * as React from 'react'
 import { ExternalLink } from 'lucide-react'
 import type { StorageItem, StorageProvider } from '@/lib/storage/types'
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@ks/ui'
 import { SourceRenderer } from '@/components/library/flow/source-renderer'
 
 /** Nur die Quelle (PDF/Audio/Video/Office), ohne das untere Transkript aus SourceAndTranscriptPane. */

@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Input } from '@/components/ui/input'
+import { Input } from '@ks/ui'
 import { Search } from 'lucide-react'
 import { useScrollVisibility } from '@/hooks/use-scroll-visibility'
 import { ViewModeToggle } from './view-mode-toggle'

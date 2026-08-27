@@ -22,7 +22,7 @@ Namenskonvention: Workspace-intern `@ks/*`; bei späterer Veröffentlichung
 | Paket | Inhalt | Heutige Quellen (Auszug) |
 |---|---|---|
 | `@ks/contracts` | Types, DTOs, SiteConfig-Schema, Detail-View-Registry-Typen | `src/types/`, `src/lib/storage/types.ts`, `src/lib/detail-view-types/` |
-| `@ks/ui` | shadcn-Basis, Icons, Theme | `src/components/ui/`, `src/components/theme-provider.tsx`, `src/components/icons.tsx` |
+| `@ks/ui` | shadcn-Basis, Icons, Theme | `src/components/ui/`, `src/components/theme-provider.tsx`, `src/components/icons.tsx`<br>**M4b erledigt**: 39 shadcn-Dateien + `cn`. `theme-provider` liegt seit M3 in `@ks/shell/providers` (Provider-Kette); `icons.tsx` hat null Importeure und bleibt als Löschkandidat liegen; `llm-model-selector` ist kein Primitive und ging nach `src/components/shared/` |
 | `@ks/viewers` | Markdown-Viewer, PDF-Viewer, Audio-Player, Image-Preview | `src/components/library/markdown-preview/`, `src/lib/markdown/`, `src/lib/pdf/`, `src/components/library/audio-player.tsx`, `src/components/library/image-preview.tsx` |
 | `@ks/api-client` | typisierter Fetch-Client + TanStack-Query-Hooks für Core- und Modul-APIs, BaseURL/Token aus SiteConfig | heute verstreute `fetch`-Aufrufe in Komponenten/Hooks |
 | `@ks/i18n` | Locale-Ermittlung + Provider, Strings | `src/lib/i18n/`, `src/components/providers/*locale*`, `src/lib/strings/` |
@@ -31,7 +31,7 @@ Namenskonvention: Workspace-intern `@ks/*`; bei späterer Veröffentlichung
 
 | Paket | Inhalt | Heutige Quellen |
 |---|---|---|
-| `@ks/shell` | Provider-Kette (Theme, Jotai, QueryClient, Locale, Storage-Context), Auth (Clerk, abschaltbar), Library-Bootstrap (Libraries laden, aktive Library aus SiteConfig/URL), konfigurierbare TopNav, Host→Library-Mapping | `src/app/layout.tsx` (Logik), `src/components/layouts/`, `src/components/top-nav*.{ts,tsx}`, `src/atoms/library-atom.ts`, `src/contexts/storage-context.tsx`, `src/hooks/use-library-config.ts`, `src/lib/root-landing.ts`, `src/lib/domain-library-map.ts` |
+| `@ks/shell` | Provider-Kette (Theme, Jotai, QueryClient, Locale, Storage-Context), Auth (Clerk, abschaltbar), Library-Bootstrap (Libraries laden, aktive Library aus SiteConfig/URL), konfigurierbare TopNav, Host→Library-Mapping | `src/app/layout.tsx` (Logik), `src/components/layouts/`, `src/components/top-nav*.{ts,tsx}`, `src/atoms/library-atom.ts`, `src/contexts/storage-context.tsx`, `src/hooks/use-library-config.ts`, `src/lib/root-landing.ts`, `src/lib/domain-library-map.ts`<br>**M3 verschoben**: `top-nav-config.ts`, `domain-library-map.ts`, `theme-provider.tsx`, `query-provider.tsx`; Rest blockiert bis `@ks/ui`/`@ks/i18n` (Begruendung: `docs/refactor/modularisierung/AGENT-BRIEF-M3.md`) |
 
 ### Schicht 3 — Modul-Pakete (UI + Hooks + API-Handler)
 
@@ -80,6 +80,8 @@ Client keine Chunks und in der API 404.
 
 ```ts
 interface SiteConfig {
+  /** Stabile Kennung der Site — benennt Registry-Eintraege in Logs/Fehlern. */
+  id: string
   /** Aktive Module — bestimmt geladene Client-Chunks UND freigeschaltete API-Handler. */
   modules: Array<'explorer' | 'archive' | 'agent-view' | 'creation'
     | 'templates' | 'jobs' | 'settings' | 'import' | 'workbench'>
@@ -103,6 +105,13 @@ interface SiteConfig {
   domains?: string[]
 }
 ```
+
+**Umsetzungsstand (Welle M3)**: Das Schema liegt in `@ks/contracts`
+(`site-config.ts`, mit Type-Guard `isSitePrimaryBySlug`), der Resolver in
+`@ks/shell` (`site/site-registry.ts`). Ausgewertet wird bisher NUR
+`libraries.primary` — von `src/lib/root-landing.ts`. Die uebrigen Felder sind
+der deklarierte Vertrag fuer das Modul-Gate (M4) und die erste eigenstaendige
+Site (M6); sie jetzt zu konsumieren waere eine Verhaltensaenderung (G4).
 
 Beispiele je Einsatz-Muster: [`einsatz-szenarien.md`](einsatz-szenarien.md).
 Die Voll-App ist die Default-Site der Registry:
@@ -140,6 +149,35 @@ export function createExplorerApiHandlers(deps: ExplorerApiDeps) { /* … */ }
 // apps/knowledgescout/app/api/chat/[libraryId]/stream/route.ts
 export const POST = withSiteGate('explorer', explorerHandlers.stream)
 ```
+
+**Umsetzungsstand (Welle M4)**: Das Gate existiert, die Handler-Fabrik noch
+nicht. Die Handler-Rümpfe hängen an App-Modulen (`@/lib/chat/loader`,
+`vector-repo`, Clerk) und können erst umziehen, wenn diese extrahiert sind —
+ein Wrapper um einen App-Handler verlagert nichts. Deshalb liegt das Gate
+heute als **Guard am Anfang des Handlers**:
+
+```ts
+export async function GET(request: NextRequest) {
+  const gated = explorerGate(request)   // @ks/module-explorer → siteGate('explorer', …)
+  if (gated) return gated
+  // …
+}
+```
+
+Welche Routen zum Explorer gehören und welche nicht, steht als Code in
+`packages/module-explorer/src/api/namespaces.ts` (Präfixe + begründete
+Ausnahmen) und wird von
+`tests/unit/packages/module-explorer/api-gate-coverage.test.ts` gegen den
+echten Route-Baum geprüft — in beide Richtungen.
+
+> **Grundsatzfolge für M6 (Befund aus M4)**: Ein host-abhängiges Gate und eine
+> host-unabhängige Zwischenspeicherung schließen einander aus. Das Gate liest
+> den Host; in einer statisch optimierten oder per ISR gecachten Route
+> (`public/libraries/[slug]` mit `revalidate = 60`, `markdown/[...path]` ohne
+> Zugriff aufs Request-Objekt) würde dieser Zugriff die Route dynamisch machen.
+> Beide sind deshalb ausgenommen. Wer eine Site mit reduziertem Modul-Satz
+> schneidet, braucht dort einen host-abhängigen Cache-Schlüssel (Muster:
+> `getRootLandingTargetForHost`) oder den Verzicht auf die Zwischenspeicherung.
 
 Embed-/Electron-Hüllen mounten selbst gar nichts; ihr `@ks/api-client` zeigt
 auf die zentrale Instanz (`remote`, CORS + Token — Detail-Design in Welle M5)
@@ -207,7 +245,7 @@ Strang und beginnt mit M1.
 | A | M1 | `pnpm-workspace.yaml` + `transpilePackages` + `@ks/viewers` (Start: Markdown-Viewer) | Workspace-Build, Voll-App unverändert |
 | A | M2 | `@ks/contracts` + `@ks/api-client` (zunächst Core-API) | ein Modul konsumiert den Client statt roher `fetch`es |
 | A | M3 | `@ks/shell` (Provider, TopNav, Bootstrap) + Host→SiteConfig-Resolver | Voll-App läuft als Default-Site der Registry |
-| A | M4 | `@ks/module-explorer` als **montierbare Wurzelkomponente** (ADR 0008 §4) inkl. Handler-Export + SiteConfig-Gate | Voll-App mountet Explorer aus dem Paket |
+| A | M4 | `@ks/module-explorer` als **montierbare Wurzelkomponente** (ADR 0008 §4) inkl. Handler-Export + SiteConfig-Gate<br>**Stand**: Gate + API-Namensraum erledigt; Wurzelkomponente offen (braucht `@ks/ui`/`@ks/i18n` — Welle M4b) | Voll-App mountet Explorer aus dem Paket |
 | B | M5 | **AECED-Pilot**: `@ks/embed` (npm-React-Komponente) + Headless-Lese-API mit Token auf der bestehenden Instanz | Galerie/Story in der Fremdanwendung, KEIN neues Deployment |
 | B | M6 | „Oldies for Future" als erster SiteConfig-Eintrag der Multi-Site-Runtime | schlanker Client (nur Explorer-Chunks) ohne zweites Deployment |
 | B | M7 | `@ks/module-agent-view` inkl. MCP-Export; Electron-Hülle auf Paketbasis (Peters Archiv, Diva-Werkbank) | zweites Modul + `local-first`-Hülle |
@@ -218,12 +256,26 @@ läuft (Kriterien in der Migrationsstrategie).
 
 ## 6. Offene Fragen
 
-- **Jotai über Paketgrenzen**: `library-atom` u. a. werden Teil der
-  Shell-Oberfläche — Module lesen über Hooks, nicht über Atom-Importe?
-  Zu entscheiden in M3.
-- **`storage-context` / `use-storage-provider`**: gehört zur Shell, wird aber
-  fast nur vom Archiv gebraucht — evtl. erst in M4/M6 aus der Shell in
-  `@ks/module-archive` schieben.
+- ~~**Jotai über Paketgrenzen**~~ — **entschieden in M3**: Atome bleiben
+  vorerst in der App, `@ks/shell` exportiert keine. `library-atom` hängt an
+  `ClientLibrary` (`src/types/library.ts`, 824 Zeilen) — die Frage ist erst
+  beantwortbar, wenn dieser Typ in `@ks/contracts` liegt. Richtung steht
+  fest: Wenn die Atome umziehen, dann als **Hook-Oberfläche**
+  (`useActiveLibrary()`), nicht als exportierte Atome — ein exportiertes Atom
+  bindet jeden Konsumenten an dieselbe Jotai-Instanz und macht das Paket in
+  einer Fremdanwendung (AECED, M5) unbrauchbar.
+- ~~**`storage-context` / `use-storage-provider`**~~ — **entschieden in M3**:
+  gehört NICHT in die Schale. Der Kontext hängt an `StorageFactory`,
+  Clerk-Hooks und einem Reauth-Dialog; er ist die Zugriffsschicht des Archivs,
+  nicht Schalen-Infrastruktur. Er bleibt in der App und geht später direkt
+  nach `@ks/module-archive` — sonst trüge jede Site Storage-Code, die gar
+  kein Archiv aktiviert hat.
+- ~~**SiteConfig-Registry-Ablage**~~ — **entschieden in M3**: Startpunkt ist
+  die bestehende ENV-Zuordnung `PUBLIC_DOMAIN_LIBRARY_MAP`, aus der
+  `buildSiteRegistry()` die Sites ableitet. Keine neue MongoDB-Collection:
+  Die ENV-Variable existiert, ist auditierbar und deployment-nah; eine
+  DB-gestützte Registry bräuchte Settings-UI und Migration und wäre damit
+  eine Verhaltensänderung statt einer Extraktion.
 - **Electron- und `build:package`-Builds**: müssen auf `apps/knowledgescout`
   zeigen; klären in M1.
 - **Remote-Modus-Auth**: Token-Modell für Embed/Headless gegen die
@@ -233,6 +285,3 @@ läuft (Kriterien in der Migrationsstrategie).
   Spezialansichten (Klimamaßnahmen-Widgets, Diva, Refurbed …) müssen pro Site
   registrierbar sein, ohne dass jede Site alle Renderer lädt — Schnittstelle
   in `@ks/contracts` (ab M2), Implementierungen bei den Modulen/Sites.
-- **SiteConfig-Registry-Ablage**: Datei im Repo vs. MongoDB-Collection (per
-  Settings-UI pflegbar) — zu entscheiden in M3; Startpunkt Datei, da
-  auditierbar und ohne Migrations-Aufwand.

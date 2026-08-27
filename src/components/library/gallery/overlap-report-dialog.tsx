@@ -16,16 +16,16 @@
 
 import React from 'react'
 import { FileText, Loader2, Download, RefreshCw } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { toast } from '@/components/ui/use-toast'
+  toast,
+} from '@ks/ui'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { md } from '@ks/viewers'
 

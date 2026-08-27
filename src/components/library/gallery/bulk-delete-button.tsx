@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react'
 import { Trash2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import {
+  Button,
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -13,8 +13,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
-import { useToast } from '@/components/ui/use-toast'
+  useToast,
+} from '@ks/ui'
 import type { DocCardMeta } from '@/lib/gallery/types'
 
 export interface BulkDeleteButtonProps {

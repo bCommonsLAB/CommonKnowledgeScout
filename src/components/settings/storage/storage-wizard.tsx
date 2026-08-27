@@ -15,11 +15,25 @@
  */
 
 import { useEffect, useRef, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Button,
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  Input,
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@ks/ui'
 import { Check, ChevronDown, ChevronRight, Cloud, FolderOpen, Loader2, Server } from "lucide-react"
 import { TestResultTable } from "./test-result-table"
 import { StorageDirectoryPicker } from "./storage-directory-picker"

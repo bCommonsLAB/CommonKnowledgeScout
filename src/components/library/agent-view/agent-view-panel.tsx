@@ -21,8 +21,15 @@
  */
 
 import { parseAsStringLiteral, useQueryState } from 'nuqs'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@ks/ui'
 import { useCoverageReport } from '@/hooks/agent-view/use-coverage-report'
 import { AgentViewKopf } from './agent-view-kopf'
 import { CoverageTree } from './coverage-tree'

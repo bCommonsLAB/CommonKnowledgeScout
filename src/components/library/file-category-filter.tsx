@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@ks/ui'
 import { FileAudio, FileText, File, FolderOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAtom } from 'jotai';

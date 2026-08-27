@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@ks/ui'
 import { DocumentFilterGroup } from './document-filter-group'
 import { FacetsList } from './facets-list'
 import { ViewTypeLeadFilter } from './view-type-lead-filter'

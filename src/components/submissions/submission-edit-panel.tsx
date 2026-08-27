@@ -17,7 +17,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@ks/ui'
 import { SubmissionEditFields } from '@/components/submissions/submission-edit-fields';
 import { buildReviewFields } from '@/lib/submissions/submission-review';
 import type { WizardSubmission } from '@/types/wizard-submission';

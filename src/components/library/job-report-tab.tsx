@@ -6,8 +6,24 @@ import { IngestionBookDetail } from './ingestion-book-detail'
 import { UILogger } from '@/lib/debug/logger'
 import type { StorageProvider, StorageItem } from '@/lib/storage/types'
 import { MarkdownPreview } from '@/components/library/markdown-preview'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  TooltipProvider,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Textarea,
+  Input,
+} from '@ks/ui'
 import { parseSecretaryMarkdownStrict } from '@/lib/secretary/response-parser'
 import { shadowTwinStateAtom } from '@/atoms/shadow-twin-atom'
 import { librariesAtom } from '@/atoms/library-atom'
@@ -16,14 +32,10 @@ import { DETAIL_VIEW_TYPES, type DetailViewType } from '@/lib/detail-view-types/
 import { MediaTab } from './media-tab'
 import type { TemplatePreviewDetailViewType } from '@/lib/templates/template-types'
 import { DetailViewRenderer } from '@/components/library/detail-view-renderer'
-import { Button } from '@/components/ui/button'
 // Alert, AlertDescription entfernt (aktuell nicht verwendet)
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DocumentCard } from '@/components/library/gallery/document-card'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { AlertTriangle, X, Save } from 'lucide-react'
-import { Textarea } from '@/components/ui/textarea'
-import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { validateAndRepairShadowTwin } from '@/lib/shadow-twin/shared'
 import { resolveShadowTwinImageUrl } from '@/lib/storage/shadow-twin'

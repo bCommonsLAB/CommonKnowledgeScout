@@ -16,7 +16,7 @@
  */
 
 import { Loader2 } from 'lucide-react'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle } from '@ks/ui'
 import { MarkdownPreview } from '@/components/library/markdown-preview'
 import { useArtefaktInhalt } from '@/hooks/agent-view/use-artefakt-inhalt'
 import { parseFrontmatter } from '@/lib/markdown/frontmatter'

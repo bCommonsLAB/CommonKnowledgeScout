@@ -2,15 +2,7 @@
 
 import React from 'react'
 import type { DocCardMeta } from '@/lib/gallery/types'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Badge } from '@ks/ui'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { openDocumentBySlug } from '@/utils/document-navigation'

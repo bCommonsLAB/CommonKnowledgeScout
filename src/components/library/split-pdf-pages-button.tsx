@@ -33,7 +33,7 @@ import { useAtomValue } from 'jotai'
 import { ImageIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { Button } from '@/components/ui/button'
+import { Button } from '@ks/ui'
 import { activeLibraryIdAtom, selectedFileAtom } from '@/atoms/library-atom'
 import { UILogger } from '@/lib/debug/logger'
 

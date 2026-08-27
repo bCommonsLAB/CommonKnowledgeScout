@@ -10,9 +10,8 @@ import type { StorageItem } from "@/lib/storage/types"
 import { IngestionStatusCompact } from "@/components/library/shared/ingestion-status-compact"
 import { BinaryFragmentsSection } from "@/components/library/shared/artifact-info-panel/binary-fragments-section"
 import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom"
-import { Button } from "@/components/ui/button"
-import { fetchShadowTwinMarkdown } from "@/lib/shadow-twin/shadow-twin-mongo-client"
 import {
+  Button,
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -22,12 +21,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from '@ks/ui'
+import { fetchShadowTwinMarkdown } from "@/lib/shadow-twin/shadow-twin-mongo-client"
 
 // Typ aus der API – entspricht FlatArtifactEntry aus shadow-twin-repo
 // MongoArtifact-Type + 4 Pure-Helpers wurden in

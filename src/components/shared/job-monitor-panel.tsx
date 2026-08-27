@@ -9,10 +9,7 @@ import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom";
 import { cn } from "@/lib/utils";
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useFolderNavigation } from '@/hooks/use-folder-navigation';
-import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Progress, Button, ScrollArea, HoverCard, HoverCardContent, HoverCardTrigger } from '@ks/ui'
 import { TraceViewer } from '@/components/shared/trace-viewer';
 import {
   JobWorkerHealthBanner,

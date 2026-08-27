@@ -1,13 +1,14 @@
 "use client"
 
 import * as React from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import { RefreshCw, Trash2 } from "lucide-react"
-import { MarkdownPreview } from "@/components/library/markdown-preview"
-import { toast } from "sonner"
 import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Button,
+  Checkbox,
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -17,7 +18,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from '@ks/ui'
+import { RefreshCw, Trash2 } from "lucide-react"
+import { MarkdownPreview } from "@/components/library/markdown-preview"
+import { toast } from "sonner"
 import type { StorageProvider } from "@/lib/storage/types"
 
 /**

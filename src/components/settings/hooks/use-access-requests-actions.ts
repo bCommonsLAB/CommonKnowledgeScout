@@ -14,7 +14,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react'
-import { useToast } from '@/components/ui/use-toast'
+import { useToast } from '@ks/ui'
 import type { LibraryAccessRequest } from '@/types/library-access'
 
 type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected'

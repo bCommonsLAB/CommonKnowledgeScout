@@ -15,8 +15,17 @@
 
 import { useMemo, useState, useRef } from 'react'
 import { useAtomValue } from 'jotai'
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
-import { Button } from '@/components/ui/button'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+  Button,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@ks/ui'
 import { Loader2, RefreshCw, BookOpen, Bug, User } from 'lucide-react'
 import type { StoryTopicsData, StoryQuestion } from '@/types/story-topics'
 import { AIGeneratedNotice } from '@/components/shared/ai-generated-notice'
@@ -24,7 +33,6 @@ import { ChatConfigDisplay } from '@/components/library/chat/chat-config-display
 import { useTranslation } from '@/lib/i18n/hooks'
 import { librariesAtom } from '@/atoms/library-atom'
 import type { AnswerLength, Retriever, TargetLanguage, SocialContext, Character, AccessPerspective, LlmModelId } from '@/lib/chat/constants'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { QueryDetailsDialog } from '@/components/library/chat/query-details-dialog'
 import { ProcessingStatus } from '@/components/library/chat/processing-status'
 import { useUser } from '@clerk/nextjs'

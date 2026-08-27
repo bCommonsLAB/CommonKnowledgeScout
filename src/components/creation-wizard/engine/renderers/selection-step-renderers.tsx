@@ -4,7 +4,7 @@
  */
 
 import type { ReactNode } from "react"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent } from '@ks/ui'
 import { SelectRelatedTestimonialsStep } from "../../steps/select-related-testimonials-step"
 import { SelectFolderArtifactsStep } from "../../steps/select-folder-artifacts-step"
 import type { StepRenderContext } from "../step-render-context"

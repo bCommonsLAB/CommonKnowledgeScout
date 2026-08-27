@@ -13,7 +13,7 @@
  * @module components/library/agent-view
  */
 
-import { Badge } from '@/components/ui/badge'
+import { Badge } from '@ks/ui'
 import { actorSummary, gapCountLabel } from '@/lib/agent-view/labels'
 import type { CoverageTreeNode, GapActor } from '@/lib/agent-view/types'
 

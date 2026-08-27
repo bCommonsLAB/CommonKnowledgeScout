@@ -14,7 +14,7 @@
 
 import { useState } from 'react'
 import { ChevronDown, ChevronRight, FileText, ListTree } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { Badge } from '@ks/ui'
 import type { UseTwinCurationResult } from '@/hooks/agent-view/use-twin-curation'
 import { gapLabel, standLabel } from '@/lib/agent-view/labels'
 import type { CoverageGap, CoverageTreeNode, TwinFamilySummary } from '@/lib/agent-view/types'

@@ -16,17 +16,17 @@
  */
 
 import React from 'react'
-import { Button } from '@/components/ui/button'
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
+  toast,
+} from '@ks/ui'
 import { Loader2 } from 'lucide-react'
-import { toast } from '@/components/ui/use-toast'
 
 /** Klassifikations-Snapshot, der vom Server zurueckkommt. */
 interface ClassificationResult {

@@ -2,13 +2,7 @@
 
 import React from 'react'
 import { Star } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ks/ui'
 import { useTranslation } from '@/lib/i18n/hooks'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
 import { cn } from '@/lib/utils'

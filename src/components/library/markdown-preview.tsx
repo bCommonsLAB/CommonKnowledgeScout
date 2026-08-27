@@ -4,9 +4,8 @@ import * as React from 'react';
 // markdown-helpers). Im Mutterfile bleiben nur die fuer den Composer
 // (MarkdownPreview-Komponente) noetigen.
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
-import { Button } from '@/components/ui/button';
+import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@ks/ui'
 import { Wand2, Maximize2, X as CloseIcon, Copy, Check, Pencil } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useAtomValue } from "jotai";
 import { selectedFileAtom, activeLibraryIdAtom } from "@/atoms/library-atom";
