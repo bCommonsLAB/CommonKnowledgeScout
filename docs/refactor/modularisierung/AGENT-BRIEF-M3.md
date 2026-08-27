@@ -191,3 +191,32 @@ TopNav ist die heikelste Einzeländerung im gesamten Modularisierungs-Plan).
 
 **Kosten-Schätzung**: vergleichbar mit M3 (mittlere Welle), eher am oberen
 Ende wegen der Clerk-Abstraktion in TopNav.
+
+## Nachtrag: M3-Folge, Teil 1 — `useAuthStatus()` (Auth-Status-Abstraktion)
+
+Direkt im Anschluss umgesetzt (gleicher Branch), NACHDEM `top-nav.tsx`
+vollständig gelesen wurde: `packages/shell/src/auth/use-auth-status.ts`
+exportiert `useAuthStatus()` — spiegelt exakt das bestehende
+`useSafeAuth()`-Muster aus `storage-context.tsx` (try/catch um Clerks
+`useAuth()`), damit ein Komponenten-Status statt Clerk-spezifischer JSX-
+Wrapper abgefragt werden kann. `top-nav.tsx`s sechs `<SignedIn>`/
+`<SignedOut>`-Stellen sind auf `showSignedIn`/`showSignedOut` (aus dem Hook
+abgeleitet) umgestellt — Verhalten unverändert (G4), da Clerk immer dann
+Kontext hat, wenn `TopNav` heute rendert (`TopNavWrapper` gated bereits auf
+`hasValidClerk`).
+
+**Bewusst NICHT gemacht** (Scope-Korrektur gegenüber der ursprünglichen
+Formulierung oben): `top-nav.tsx` physisch nach `@ks/shell` verschieben.
+Grund: die Datei hat ~14 App-only-Importe (`@/components/ui/*` — Button,
+DropdownMenu, Sheet, ScrollArea, Tooltip —, `library-switcher`,
+`create-library-wizard`, `site-logo`, `language-switcher`,
+`use-user-role`, u.a.). `@ks/ui` (shadcn-Basis, Landkarte §1) existiert noch
+nicht — ohne dieses Paket würde ein Move 14 Rückimporte in die App erzeugen,
+mehr Schuld als die Clerk-Kopplung je war. Die eigentliche Design-Frage
+(Auth-Status ohne Clerk-Context-Crash abfragbar) ist damit gelöst, OHNE die
+riskante physische Verschiebung. `AppLayout`/`HomeLayout`/`TopNav`/
+`TopNavWrapper` bleiben deshalb weiterhin in der App.
+
+**Tatsächlicher Hand-off**: `@ks/ui` zuerst (eigene Welle, Landkarte §1
+Schicht 1) — danach ist der Move von `AppLayout`/`TopNav` ein reiner
+Pfad-Wechsel ohne neue Schulden.

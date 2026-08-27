@@ -9,6 +9,7 @@
     "@ks/contracts": "workspace:*"
   },
   "peerDependencies": {
+    "@clerk/nextjs": "^6.21.0",
     "@tanstack/react-query": "^5.101.1",
     "jotai": "^2.11.0",
     "next-themes": "^0.4.4",

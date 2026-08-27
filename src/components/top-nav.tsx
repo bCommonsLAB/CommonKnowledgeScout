@@ -25,7 +25,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
-import { SignInButton, UserButton, SignedIn, SignedOut } from "@clerk/nextjs"
+import { SignInButton, UserButton } from "@clerk/nextjs"
 import { LibrarySwitcher } from "@/components/library/library-switcher"
 import { libraryAtom } from "@/atoms/library-atom"
 import { jobMonitorPanelOpenAtom } from "@/atoms/job-monitor-panel-open-atom"
@@ -35,7 +35,7 @@ import { useTranslation } from "@/lib/i18n/hooks"
 import { useScrollVisibility } from "@/hooks/use-scroll-visibility"
 import { useUserRole } from "@/hooks/use-user-role"
 import { useSiteMenuItems } from "@/hooks/use-site-menu-items"
-import { buildTopNavConfig } from "@ks/shell"
+import { buildTopNavConfig, useAuthStatus } from "@ks/shell"
 import { SiteLogo } from "@/components/site-logo"
 import { CreateLibraryWizard } from "@/components/flows/create-library-wizard"
 
@@ -55,6 +55,12 @@ export function TopNav({ siteRootSlug = null }: TopNavProps) {
   const { theme, setTheme } = useTheme()
   const { t, locale } = useTranslation()
   const { isCreator } = useUserRole()
+  // Auth-Status-Abstraktion (M3-Folge) statt Clerks <SignedIn>/<SignedOut>:
+  // dieselbe Semantik (rendert erst nach isLoaded), aber Clerk-Context-
+  // sicher — Voraussetzung fuer SiteConfig.auth.mode: 'public' (kuenftig).
+  const { isLoaded: isAuthLoaded, isSignedIn } = useAuthStatus()
+  const showSignedIn = isAuthLoaded && isSignedIn
+  const showSignedOut = isAuthLoaded && !isSignedIn
   
   // Statt Events verwenden wir Jotai
   const [libraryContext] = useAtom(libraryAtom)
@@ -223,23 +229,21 @@ export function TopNav({ siteRootSlug = null }: TopNavProps) {
                 ))}
                 
                 {/* Geschützte Primärnavigation - nur für angemeldete Creator */}
-                <SignedIn>
-                  {primaryProtectedNavItems.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setOpen(false)}
-                      target={item.newTab ? "_blank" : undefined}
-                      rel={item.newTab ? "noreferrer" : undefined}
-                      className={cn(
-                        "block rounded-md px-3 py-2 text-sm",
-                        isActiveNavItem(item.href) ? "bg-muted text-primary" : "text-foreground hover:bg-muted"
-                      )}
-                    >
-                      {item.name}
-                    </Link>
-                  ))}
-                </SignedIn>
+                {showSignedIn && primaryProtectedNavItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    target={item.newTab ? "_blank" : undefined}
+                    rel={item.newTab ? "noreferrer" : undefined}
+                    className={cn(
+                      "block rounded-md px-3 py-2 text-sm",
+                      isActiveNavItem(item.href) ? "bg-muted text-primary" : "text-foreground hover:bg-muted"
+                    )}
+                  >
+                    {item.name}
+                  </Link>
+                ))}
                 
                 {secondaryNavItems.length > 0 && (
                   <>
@@ -265,7 +269,7 @@ export function TopNav({ siteRootSlug = null }: TopNavProps) {
 
                 <div className="pt-3 border-t" />
                 {/* Settings + Dark Mode im Menü - nur für Creators */}
-                <SignedIn>
+                {showSignedIn && (
                   <div className="space-y-2">
                     {isCreator && (
                       <Button
@@ -286,7 +290,7 @@ export function TopNav({ siteRootSlug = null }: TopNavProps) {
                       <span className="ml-6">Dark Mode</span>
                     </Button>
                   </div>
-                </SignedIn>
+                )}
               </div>
             </SheetContent>
           </Sheet>
@@ -321,32 +325,30 @@ export function TopNav({ siteRootSlug = null }: TopNavProps) {
               ))}
               
               {/* Geschützte Navigationselemente - nur für angemeldete Benutzer */}
-              <SignedIn>
-                {primaryProtectedNavItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    target={item.newTab ? "_blank" : undefined}
-                    rel={item.newTab ? "noreferrer" : undefined}
-                    className={cn(
-                      "flex h-7 items-center justify-center rounded-full px-4 text-center text-sm font-medium transition-colors hover:text-primary",
-                      isActiveNavItem(item.href)
-                        ? "bg-muted text-primary"
-                        : "text-muted-foreground hover:text-primary"
-                    )}
-                  >
-                    {item.name}
-                  </Link>
-                ))}
-              </SignedIn>
+              {showSignedIn && primaryProtectedNavItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  target={item.newTab ? "_blank" : undefined}
+                  rel={item.newTab ? "noreferrer" : undefined}
+                  className={cn(
+                    "flex h-7 items-center justify-center rounded-full px-4 text-center text-sm font-medium transition-colors hover:text-primary",
+                    isActiveNavItem(item.href)
+                      ? "bg-muted text-primary"
+                      : "text-muted-foreground hover:text-primary"
+                  )}
+                >
+                  {item.name}
+                </Link>
+              ))}
             </div>
             <ScrollBar orientation="horizontal" className="invisible" />
           </ScrollArea>
           <div className="ml-auto flex items-center space-x-2">
             {/* OPTIMIERUNG: Bibliotheks-Switcher nur wenn eingeloggt
                 Im anonymen Modus werden Libraries nicht geladen und sind nicht sichtbar */}
-            <SignedIn>
-              {libraries.length > 0 ? (
+            {showSignedIn && (
+              libraries.length > 0 ? (
                 <div className="flex items-center gap-2">
                   <div className="w-[160px] sm:w-[180px] md:w-[200px]">
                     <LibrarySwitcher />
@@ -374,8 +376,8 @@ export function TopNav({ siteRootSlug = null }: TopNavProps) {
                     </TooltipProvider>
                   </div>
                 )
-              )}
-            </SignedIn>
+              )
+            )}
 
             {showMoreMenu && (
               <DropdownMenu>
@@ -391,16 +393,14 @@ export function TopNav({ siteRootSlug = null }: TopNavProps) {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>Mehr</DropdownMenuLabel>
-                  <SignedIn>
-                    {isCreator && (
-                      <>
-                        <DropdownMenuItem onClick={() => router.push('/settings')}>
-                          Einstellungen
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                      </>
-                    )}
-                  </SignedIn>
+                  {showSignedIn && isCreator && (
+                    <>
+                      <DropdownMenuItem onClick={() => router.push('/settings')}>
+                        Einstellungen
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
                   {secondaryNavItems.map((item) => (
                     <DropdownMenuItem
                       key={item.href}
@@ -429,17 +429,15 @@ export function TopNav({ siteRootSlug = null }: TopNavProps) {
               <span className="sr-only">Toggle theme</span>
             </Button>
 
-            <SignedOut>
+            {showSignedOut && (
               <SignInButton mode="modal">
                 <Button variant="secondary" size="sm">
                   {t('common.signIn')}
                 </Button>
               </SignInButton>
-            </SignedOut>
+            )}
 
-            <SignedIn>
-              <UserButton afterSignOutUrl="/" />
-            </SignedIn>
+            {showSignedIn && <UserButton afterSignOutUrl="/" />}
           </div>
         </div>
       </div>

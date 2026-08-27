@@ -395,6 +395,9 @@ importers:
 
   packages/shell:
     dependencies:
+      '@clerk/nextjs':
+        specifier: ^6.21.0
+        version: 6.21.0(next@15.3.8(@playwright/test@1.60.0)(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       '@ks/contracts':
         specifier: workspace:*
         version: link:../contracts

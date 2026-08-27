@@ -228,8 +228,9 @@ läuft (Kriterien in der Migrationsstrategie).
 - **SiteConfig-Registry-Ablage** — **entschieden in M3**: Datei
   (`packages/shell/src/site-config/registry.ts`), wie vorgeschlagen —
   auditierbar, ohne Migrationsaufwand. MongoDB-Ablage bleibt spätere Option.
-- **Neu aus M3**: „Auth optional" (SiteConfig `auth.mode`) ist mit der
-  direkten Clerk-JSX-Kopplung in `TopNav` (`SignedIn`/`SignedOut`,
-  `UserButton`) verzahnt — braucht eine eigene Auth-Status-Abstraktion, bevor
-  `@ks/module-explorer` (M4) öffentliche Sites ohne Clerk bedienen kann.
-  Zu klären in der M3-Folgewelle (siehe `AGENT-BRIEF-M3.md`, Hand-off).
+- **„Auth optional" — teilweise entschieden in M3-Folge**: `useAuthStatus()`
+  (`@ks/shell`) kapselt Clerks Signed-in-Zustand hinter einem Hook statt
+  `<SignedIn>`/`<SignedOut>`-JSX; `TopNav` nutzt ihn bereits. Offen: `TopNav`
+  selbst (~14 App-only-Importe, u.a. `@/components/ui/*`) hängt an `@ks/ui`
+  (noch nicht extrahiert) — der physische Move nach `@ks/shell` wartet auf
+  diese Welle (siehe `AGENT-BRIEF-M3.md`, Nachtrag).
