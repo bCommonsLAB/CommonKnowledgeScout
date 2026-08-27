@@ -13,5 +13,27 @@
     "@typescript-eslint/no-explicit-any": "error",
     "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
     "no-empty": ["warn", { "allowEmptyCatch": false }]
-  }
+  },
+  "overrides": [
+    {
+      "files": ["packages/**/*.ts", "packages/**/*.tsx"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@/*"],
+                "message": "Paketgrenze: @ks/* darf nicht in die App (@/...) importieren. Was gebraucht wird, gehoert nach @ks/contracts — oder wird per Injection hereingereicht (Muster: packages/viewers/src/logger.ts)."
+              },
+              {
+                "group": ["../../src/*", "../../../src/*"],
+                "message": "Paketgrenze: @ks/* darf nicht relativ in die App (src/) importieren. Siehe Modul-Landkarte §4."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
 }
