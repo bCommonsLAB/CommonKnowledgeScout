@@ -97,14 +97,37 @@ kein Dokument mehr, sondern eine Zusicherung.
 lässt also jeden Request durch; es ist die Vorrichtung, die M6 braucht, um
 eine schlanke Site zu schneiden.
 
-## Definition of Done
+### Ein Befund, der den Zuschnitt verändert hat
 
-- `pnpm test` grün bis auf die vorbestehenden 3 roten
-  (`tests/unit/mcp/tools-stand.test.ts`, auch auf `master` rot).
+Drei Routen im Explorer-Namensraum werden heute **zwischengespeichert**:
+`public/libraries/[slug]` per ISR (`revalidate = 60`), `markdown/[...path]`
+statisch (das GET liest das Request-Objekt nicht an). Das Gate liest den Host —
+dieser Zugriff würde beide Routen dynamisch machen. Das ist eine
+Verhaltensänderung und damit nach G4 verboten; beide sind begründet
+ausgenommen (`public/libraries` mit `revalidate = 0` ist bereits dynamisch und
+wird gegatet).
+
+Dahinter steht eine Grundsatzfrage, die vor M4 nirgends stand und jetzt in
+Landkarte §3 und im Paket dokumentiert ist: **Ein host-abhängiges Gate und
+eine host-unabhängige Zwischenspeicherung schließen einander aus.** Wer in M6
+eine Site mit reduziertem Modul-Satz schneidet, braucht für solche Routen
+entweder einen host-abhängigen Cache-Schlüssel (Muster:
+`getRootLandingTargetForHost` nimmt den Host in den Cache-Schlüssel) oder den
+Verzicht auf die Zwischenspeicherung. Das ist keine Randnotiz — es betrifft
+genau die öffentlichen Lese-Routen, deren Cache die Site-Performance trägt.
+
+## Definition of Done — erreicht
+
+- `pnpm test`: **3329 grün, 3 rot** — nur `tests/unit/mcp/tools-stand.test.ts`
+  (Timeout, auch auf `master` rot). +52 Tests gegenüber dem Stand nach M3.
 - `pnpm lint`: 0 Errors.
 - `pnpm typecheck:packages`: grün, inkl. `packages/module-explorer`.
+- `npx tsc --noEmit -p tsconfig.json`: **0 Fehler in `src/` und `packages/`**
+  (die 129 Fehler in `tests/` sind vorbestehend und von dieser Welle unberührt).
 - Kein Paket greift in die App zurück (`@ks/module-explorer` kennt nur
   `@ks/shell` und `@ks/contracts`).
+- Der Abdeckungs-Test wurde gegengeprüft: Gate aus einer Route entfernt ⇒
+  Test rot, Gate zurück ⇒ grün. Er ist also wirklich tragend, nicht nur grün.
 - Lokal vor Merge: `bash scripts/welle-pre-merge-check.sh`.
 
 ## Stop-Bedingungen (zusätzlich zu AGENTS.md)

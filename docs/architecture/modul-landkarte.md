@@ -150,6 +150,35 @@ export function createExplorerApiHandlers(deps: ExplorerApiDeps) { /* … */ }
 export const POST = withSiteGate('explorer', explorerHandlers.stream)
 ```
 
+**Umsetzungsstand (Welle M4)**: Das Gate existiert, die Handler-Fabrik noch
+nicht. Die Handler-Rümpfe hängen an App-Modulen (`@/lib/chat/loader`,
+`vector-repo`, Clerk) und können erst umziehen, wenn diese extrahiert sind —
+ein Wrapper um einen App-Handler verlagert nichts. Deshalb liegt das Gate
+heute als **Guard am Anfang des Handlers**:
+
+```ts
+export async function GET(request: NextRequest) {
+  const gated = explorerGate(request)   // @ks/module-explorer → siteGate('explorer', …)
+  if (gated) return gated
+  // …
+}
+```
+
+Welche Routen zum Explorer gehören und welche nicht, steht als Code in
+`packages/module-explorer/src/api/namespaces.ts` (Präfixe + begründete
+Ausnahmen) und wird von
+`tests/unit/packages/module-explorer/api-gate-coverage.test.ts` gegen den
+echten Route-Baum geprüft — in beide Richtungen.
+
+> **Grundsatzfolge für M6 (Befund aus M4)**: Ein host-abhängiges Gate und eine
+> host-unabhängige Zwischenspeicherung schließen einander aus. Das Gate liest
+> den Host; in einer statisch optimierten oder per ISR gecachten Route
+> (`public/libraries/[slug]` mit `revalidate = 60`, `markdown/[...path]` ohne
+> Zugriff aufs Request-Objekt) würde dieser Zugriff die Route dynamisch machen.
+> Beide sind deshalb ausgenommen. Wer eine Site mit reduziertem Modul-Satz
+> schneidet, braucht dort einen host-abhängigen Cache-Schlüssel (Muster:
+> `getRootLandingTargetForHost`) oder den Verzicht auf die Zwischenspeicherung.
+
 Embed-/Electron-Hüllen mounten selbst gar nichts; ihr `@ks/api-client` zeigt
 auf die zentrale Instanz (`remote`, CORS + Token — Detail-Design in Welle M5)
 bzw. auf den lokalen Serverteil (`local-first`).
@@ -216,7 +245,7 @@ Strang und beginnt mit M1.
 | A | M1 | `pnpm-workspace.yaml` + `transpilePackages` + `@ks/viewers` (Start: Markdown-Viewer) | Workspace-Build, Voll-App unverändert |
 | A | M2 | `@ks/contracts` + `@ks/api-client` (zunächst Core-API) | ein Modul konsumiert den Client statt roher `fetch`es |
 | A | M3 | `@ks/shell` (Provider, TopNav, Bootstrap) + Host→SiteConfig-Resolver | Voll-App läuft als Default-Site der Registry |
-| A | M4 | `@ks/module-explorer` als **montierbare Wurzelkomponente** (ADR 0008 §4) inkl. Handler-Export + SiteConfig-Gate | Voll-App mountet Explorer aus dem Paket |
+| A | M4 | `@ks/module-explorer` als **montierbare Wurzelkomponente** (ADR 0008 §4) inkl. Handler-Export + SiteConfig-Gate<br>**Stand**: Gate + API-Namensraum erledigt; Wurzelkomponente offen (braucht `@ks/ui`/`@ks/i18n` — Welle M4b) | Voll-App mountet Explorer aus dem Paket |
 | B | M5 | **AECED-Pilot**: `@ks/embed` (npm-React-Komponente) + Headless-Lese-API mit Token auf der bestehenden Instanz | Galerie/Story in der Fremdanwendung, KEIN neues Deployment |
 | B | M6 | „Oldies for Future" als erster SiteConfig-Eintrag der Multi-Site-Runtime | schlanker Client (nur Explorer-Chunks) ohne zweites Deployment |
 | B | M7 | `@ks/module-agent-view` inkl. MCP-Export; Electron-Hülle auf Paketbasis (Peters Archiv, Diva-Werkbank) | zweites Modul + `local-first`-Hülle |

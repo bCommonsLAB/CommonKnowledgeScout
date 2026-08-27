@@ -19,13 +19,15 @@ Sessions nicht doppelt bauen:
   [`docs/architecture/migrations-strategie.md`](docs/architecture/migrations-strategie.md).
 - **Agent-Brief M1** (abgeschlossen): [`docs/refactor/modularisierung/AGENT-BRIEF.md`](docs/refactor/modularisierung/AGENT-BRIEF.md)
 - **Agent-Brief M2** (abgeschlossen): [`docs/refactor/modularisierung/AGENT-BRIEF-M2.md`](docs/refactor/modularisierung/AGENT-BRIEF-M2.md)
-- **Agent-Brief M3**: [`docs/refactor/modularisierung/AGENT-BRIEF-M3.md`](docs/refactor/modularisierung/AGENT-BRIEF-M3.md)
-  (Zuschnitt und warum er kleiner ist als die Landkarten-Zeile, DoD,
-  Stop-Bedingungen; Hand-off fuer M4 am Ende)
-- **Naechster Schritt**: Welle **M4** — `@ks/module-explorer` als montierbare
-  Wurzelkomponente inkl. Handler-Export + SiteConfig-Gate. Erste Entscheidung
-  der Welle: zuerst `@ks/ui`/`@ks/i18n` oder zuerst der serverseitige Teil
-  (Route-Handler-Fabrik + Gate) — siehe Hand-off in AGENT-BRIEF-M3.md.
+- **Agent-Brief M3** (abgeschlossen): [`docs/refactor/modularisierung/AGENT-BRIEF-M3.md`](docs/refactor/modularisierung/AGENT-BRIEF-M3.md)
+- **Agent-Brief M4**: [`docs/refactor/modularisierung/AGENT-BRIEF-M4.md`](docs/refactor/modularisierung/AGENT-BRIEF-M4.md)
+  (gewaehlt: serverseitiger Teil; die Messwerte zu `@ks/ui` stehen dort als
+  Vorarbeit im Hand-off)
+- **Naechster Schritt**: Welle **M4b** — `@ks/ui` (shadcn-Basis aus
+  `src/components/ui/` + `cn`), danach `@ks/i18n`. Erst damit wird die
+  montierbare Explorer-Wurzelkomponente aus der Landkarten-Zeile M4
+  erreichbar. Vorab zu entscheiden: Fassaden oder 798 Import-Zeilen in 321
+  Dateien umstellen — siehe Hand-off in AGENT-BRIEF-M4.md.
   Voll-App bleibt unveraendert (Verhaltensneutralitaet ist Abnahmekriterium
   jeder A-Welle).
 
