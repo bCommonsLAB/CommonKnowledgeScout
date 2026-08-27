@@ -7,29 +7,31 @@ import { Moon, Sun, Settings, Plus, Menu } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useAtom, useAtomValue } from "jotai"
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 import {
+  cn,
+  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/sheet"
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
+  ScrollArea,
+  ScrollBar,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ks/ui"
 import { SignInButton, UserButton } from "@clerk/nextjs"
 import { LibrarySwitcher } from "@/components/library/library-switcher"
 import { libraryAtom } from "@/atoms/library-atom"
 import { jobMonitorPanelOpenAtom } from "@/atoms/job-monitor-panel-open-atom"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { LanguageSwitcher } from "@/components/shared/language-switcher"
 import { useTranslation } from "@/lib/i18n/hooks"
 import { useScrollVisibility } from "@/hooks/use-scroll-visibility"

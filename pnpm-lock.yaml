@@ -32,6 +32,9 @@ importers:
       '@ks/shell':
         specifier: workspace:*
         version: link:packages/shell
+      '@ks/ui':
+        specifier: workspace:*
+        version: link:packages/ui
       '@ks/viewers':
         specifier: workspace:*
         version: link:packages/viewers
@@ -413,6 +416,39 @@ importers:
       react:
         specifier: ^18.2.0
         version: 18.2.0
+
+  packages/ui:
+    dependencies:
+      '@radix-ui/react-dialog':
+        specifier: ^1.1.4
+        version: 1.1.14(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      '@radix-ui/react-dropdown-menu':
+        specifier: ^2.1.4
+        version: 2.1.15(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      '@radix-ui/react-scroll-area':
+        specifier: ^1.2.2
+        version: 1.2.9(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      '@radix-ui/react-slot':
+        specifier: ^1.1.1
+        version: 1.2.3(@types/react@18.3.23)(react@18.2.0)
+      '@radix-ui/react-tooltip':
+        specifier: ^1.1.6
+        version: 1.2.7(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      class-variance-authority:
+        specifier: ^0.7.1
+        version: 0.7.1
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      lucide-react:
+        specifier: ^0.312.0
+        version: 0.312.0(react@18.2.0)
+      react:
+        specifier: ^18.2.0
+        version: 18.2.0
+      tailwind-merge:
+        specifier: ^2.6.0
+        version: 2.6.0
 
   packages/viewers:
     dependencies:

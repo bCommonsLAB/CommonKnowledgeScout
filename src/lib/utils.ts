@@ -1,9 +1,6 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
-}
+// `cn()` lebt jetzt in @ks/ui (shadcn-Basis) — Re-Export haelt die ~vielen
+// Bestandsimporteure von `@/lib/utils` unveraendert lauffaehig (G2-Fassade).
+export { cn } from "@ks/ui"
 
 export function formatFileSize(size?: number): string {
   if (!size) return '-';

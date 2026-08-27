@@ -220,3 +220,44 @@ riskante physische Verschiebung. `AppLayout`/`HomeLayout`/`TopNav`/
 **Tatsächlicher Hand-off**: `@ks/ui` zuerst (eigene Welle, Landkarte §1
 Schicht 1) — danach ist der Move von `AppLayout`/`TopNav` ein reiner
 Pfad-Wechsel ohne neue Schulden.
+
+## Nachtrag: M3-Folge, Teil 2 — `@ks/ui` (Erstschnitt)
+
+Direkt im Anschluss an Teil 1 umgesetzt (gleicher Branch): `@ks/ui`
+(shadcn-Basis, Landkarte §1 Schicht 1) angelegt — bewusst winziger
+Erstschnitt analog M1, NICHT alle 39 `src/components/ui/**`-Dateien
+(~3.620 Zeilen, vermutlich hunderte Importeure insgesamt).
+
+**Verschoben** (`git mv`, alle fünf waren bereits ohne App-Rückimporte —
+nur `cn` aus `@/lib/utils`, `react`, Radix-Primitives, `lucide-react`):
+`button.tsx` (echte Importeurzahl 199, nicht 79 — meine erste Zählung hat
+Single-Quote-Importe uebersehen), `tooltip.tsx` (37, nicht 18),
+`dropdown-menu.tsx` (6), `sheet.tsx` (3), `scroll-area.tsx` (14).
+
+**`cn()` aus `src/lib/utils.ts` extrahiert** nach `packages/ui/src/cn.ts`
+(eigenständige Funktion, keine Abhängigkeit zu den übrigen vier Exports der
+Datei — `formatFileSize`/`formatDateTime`/`getUserFriendly*ErrorMessage`
+bleiben in `lib/utils.ts`, das jetzt `cn` aus `@ks/ui` re-exportiert).
+
+**Fassaden an allen fünf alten Pfaden** (G2, wie `storage/types.ts` in M2) —
+die tatsächlichen Importeurzahlen (199 + 37 + 6 + 3 + 14 = 259) sind zu groß,
+um sie in dieser Welle einzeln umzustellen; eine Folgewelle kann das
+schrittweise tun (`knip` findet unbenutzte Fassaden). Vier Dateien, die ich
+ohnehin für den TopNav-Move anfassen musste, zeigen bereits direkt auf
+`@ks/ui`: `breadcrumb.tsx`, `job-details-panel.tsx`, `pipeline-sheet.tsx`,
+`job-monitor-panel.tsx`.
+
+**Beweis-Ziel**: `top-nav.tsx` importiert seine fünf shadcn-Primitives + `cn`
+jetzt direkt aus `@ks/ui` (nicht mehr aus den App-Fassaden) — die UI-
+Abhängigkeit, die einen künftigen Move von `TopNav` nach `@ks/shell`
+blockiert hätte, ist aufgelöst. **Was TopNav trotzdem noch an die App
+bindet** (nicht Teil dieser Welle, ehrlich dokumentiert statt stillschweigend
+übergangen): `library-switcher.tsx`, `create-library-wizard.tsx`,
+`site-logo.tsx`, `language-switcher.tsx`, `use-user-role.ts`,
+`use-site-menu-items.ts`, `libraryAtom` (219 Importeure, s.o.) — alles
+Library-/Archiv-Fachlogik, die eher zu einem künftigen `@ks/module-explorer`
+gehört als zur Schale. `TopNav` landet vermutlich NIE vollständig in
+`@ks/shell` — diese Erkenntnis ist wichtiger als der Move selbst.
+
+Tests/Lint: `pnpm test` → 3260/3260 grün (unverändert ggü. Teil 1 — reine
+Pfad-Verschiebung ohne neue/entfernte Tests), `pnpm lint` → 0 Errors.

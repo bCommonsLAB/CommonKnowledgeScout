@@ -24,7 +24,8 @@
       "@ks/viewers": ["./packages/viewers/src/index.ts"],
       "@ks/contracts": ["./packages/contracts/src/index.ts"],
       "@ks/api-client": ["./packages/api-client/src/index.ts"],
-      "@ks/shell": ["./packages/shell/src/index.ts"]
+      "@ks/shell": ["./packages/shell/src/index.ts"],
+      "@ks/ui": ["./packages/ui/src/index.ts"]
     },
     "types": ["node"]
   },
