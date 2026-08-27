@@ -24,12 +24,13 @@ import { replaceCompositeMultiPreviewBlock } from '@/lib/markdown/composite-mult
 // injectPageAnchors, getYouTubeId, resolveImageUrl,
 // encodeSpacesInRelativeMarkdownHrefs und processObsidianContent wurden
 // in src/components/library/markdown-preview/markdown-helpers.ts
-// ausgegliedert (Welle 3-II-b, Schritt 2/8).
+// ausgegliedert (Welle 3-II-b, Schritt 2/8), dann nach `@ks/viewers`
+// verschoben (Welle M1).
 import {
   injectPageAnchors,
   resolveImageUrl,
   processObsidianContent,
-} from './markdown-preview/markdown-helpers'
+} from '@ks/viewers'
 
 /** Optionen für Wikilink-/Fragment-Vorschau bei Sammeltranskripten (`kind: composite-transcript`). */
 export interface CompositeWikiPreviewOptions {
@@ -106,8 +107,9 @@ import { TextTransform } from './markdown-preview/text-transform'
 
 // Markdown-Renderer (Remarkable + highlight.js + Tailwind-Renderer-Rules)
 // wurde in src/components/library/markdown-preview/md-renderer.ts
-// ausgegliedert (Welle 3-II-b, Schritt 3/8).
-import { md } from './markdown-preview/md-renderer'
+// ausgegliedert (Welle 3-II-b, Schritt 3/8), dann nach `@ks/viewers`
+// verschoben (Welle M1).
+import { md } from '@ks/viewers'
 
 
 

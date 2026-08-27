@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/dialog'
 import { toast } from '@/components/ui/use-toast'
 import { useTranslation } from '@/lib/i18n/hooks'
-import { md } from '@/components/library/markdown-preview/md-renderer'
+import { md } from '@ks/viewers'
 
 interface LatestReport {
   markdown: string

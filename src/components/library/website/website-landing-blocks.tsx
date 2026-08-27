@@ -6,7 +6,7 @@
 
 import * as React from 'react'
 import type { WebsiteSection } from '@/lib/website/types'
-import { md } from '@/components/library/markdown-preview/md-renderer'
+import { md } from '@ks/viewers'
 import { cn } from '@/lib/utils'
 import { isSafeVideoIframeSrc } from '@/lib/media/safe-video-iframe'
 
