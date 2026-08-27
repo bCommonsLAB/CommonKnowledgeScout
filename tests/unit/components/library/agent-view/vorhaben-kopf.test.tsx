@@ -213,6 +213,21 @@ describe('VorhabenKopf — Zeile 2: Widerstands-Chip (ADR 0006)', () => {
     expect(screen.getByText(/Kein BERICHT.md/)).toBeTruthy()
   })
 
+  it('sagt je Befund, WAS zu tun ist und WER dran ist (Rueckfrage 27.08.2026)', () => {
+    renderKopf({
+      k: { ...karte(), gapsByActor: { mensch: 0, cowork: 1, knowledgescout: 0 }, gapsByType: { report_missing: 1 } },
+      befunde: [
+        { type: 'report_missing', actor: 'cowork', severity: 'warning', path: '1. Arbeit/Pilot', message: 'Kein BERICHT.md', scope: 'folder', targetId: 'f-pilot', targetName: 'Pilot', folderId: 'f-pilot', zyklusSchritt: 3 } as unknown as CoverageGap,
+      ],
+    })
+    fireEvent.click(screen.getByRole('button', { name: /1 Widerstand offen/ }))
+    // Der Handlungssatz kommt aus derselben Vorlage wie der Cowork-Auftrag.
+    expect(screen.getByText(/Was tun \(Cowork\)/)).toBeTruthy()
+    expect(screen.getByText(/Schreibe einen BERICHT.md/)).toBeTruthy()
+    // Und: kein Voll-Scan noetig, um den Befund loszuwerden.
+    expect(screen.getByText(/Teilbaum neu scannen/)).toBeTruthy()
+  })
+
   it('markierte Artefakte stehen in der Liste und fuehren per Klick zum Artefakt', () => {
     const markiert = familie('a', {
       transkript: artefakt({ twinStatus: 'flagged', flaggedNote: 'Sprecher vertauscht' }),

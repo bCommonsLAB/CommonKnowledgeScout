@@ -14,12 +14,24 @@
  * Menschen gesetzten Fehler-Markierungen. Markierungen sind anklickbar —
  * sie fuehren zum Artefakt.
  *
+ * Und sie sagt, WAS ZU TUN ist (Rueckfrage 27.08.2026: „muss ich neu scannen
+ * oder in Cowork arbeiten?"). Der Handlungssatz kommt aus den bestehenden
+ * {@link renderAuftragZeile} — dieselbe Quelle wie der kopierbare
+ * Cowork-Auftrag, keine zweite Formulierung, die auseinanderlaufen kann.
+ *
  * @module components/library/agent-view
  */
 
-import { gapLabel } from '@/lib/agent-view/labels'
+import { renderAuftragZeile } from '@/lib/agent-view/auftrag-templates'
+import { actorLabel, gapLabel } from '@/lib/agent-view/labels'
 import type { CoverageGap, TwinFamilySummary } from '@/lib/agent-view/types'
 import { artefaktMarkiert, familienPruefstand } from '@/lib/agent-view/werkbank-baum'
+
+/** Kurzer Ort fuer den Handlungssatz — der volle Pfad steht schon daneben. */
+function kurzerOrt(gap: CoverageGap): string {
+  const teile = gap.path.split('/')
+  return teile[teile.length - 1] || gap.path
+}
 
 /** Markierte Artefakte einer Familie mit ihrer Notiz — fuer die Zeile. */
 function markierungenVon(familie: TwinFamilySummary): { teil: string; notiz: string }[] {
@@ -61,6 +73,10 @@ export function WiderstandsListe({ befunde, familien, maschinellGesamt, onWaehle
       {markierte.length > 0 && (
         <div>
           <p className="font-medium">Von dir als fehlerhaft markiert</p>
+          <p className="text-muted-foreground">
+            Was tun: reparieren (lassen) und danach verifizieren — das loest die Markierung sofort auf,
+            ohne Scan.
+          </p>
           <ul className="mt-1 space-y-1">
             {markierte.map((familie) =>
               markierungenVon(familie).map(({ teil, notiz }) => (
@@ -95,11 +111,17 @@ export function WiderstandsListe({ befunde, familien, maschinellGesamt, onWaehle
               <li key={`${gap.type}-${gap.path}-${idx}`} className="text-muted-foreground">
                 <span className="text-foreground">{gapLabel(gap.type)}</span> · {gap.path}
                 {gap.message ? ` — ${gap.message}` : ''}
+                <p className="mt-0.5 pl-3">
+                  <span className="font-medium text-foreground">Was tun ({actorLabel(gap.actor)}):</span>{' '}
+                  {renderAuftragZeile(gap, kurzerOrt(gap))}
+                </p>
               </li>
             ))}
           </ul>
           <p className="mt-1 text-muted-foreground">
-            Diese erledigt die Maschine (Cowork/KnowledgeScout) — im Menue `⋯` liegt der fertige Auftragstext.
+            Im Menue `⋯` liegt derselbe Text als kopierbarer Auftrag fuer Cowork. Erledigt? Der Befund
+            verschwindet, sobald der Stand neu erhoben ist — dafuer genuegt „Teilbaum neu scannen"
+            im Menue `⋯`, kein Voll-Scan.
           </p>
         </div>
       )}
