@@ -45,7 +45,12 @@ describe('buildNewestChangeBySubtree (B4)', () => {
       families: [
         {
           folderId: 'f1',
-          artifacts: [{ updatedAt: '2026-08-20T09:00:00.000Z' }],
+          artifacts: [
+            {
+              updatedAt: '2026-08-20T09:00:00.000Z',
+              frontmatter: { generated_at: '2026-08-20T09:00:00.000Z' },
+            },
+          ],
         } as never,
       ],
     })

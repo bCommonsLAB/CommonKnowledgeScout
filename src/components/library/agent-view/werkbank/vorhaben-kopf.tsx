@@ -19,7 +19,6 @@
 import { useState } from 'react'
 import { AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import type { UseArtefaktKurationResult } from '@/hooks/agent-view/use-artefakt-kuration'
 import type { UseStandResult } from '@/hooks/agent-view/use-stand'
 import type { UseThemenResult } from '@/hooks/agent-view/use-themen'
 import { zaehleWiderstaende } from '@/lib/agent-view/abnahme'
@@ -59,14 +58,13 @@ function widerstandsTitel(karte: VorhabenCard, zaehler: PruefZaehler): string {
   return teile.join(' · ')
 }
 
-export function VorhabenKopf({ karte, stand, generatedAt, libraryId, familien, kuration, themenVokabular, themenHook, teilbaumScan, befunde, auftragContext, onWaehleArtefakt }: {
+export function VorhabenKopf({ karte, stand, generatedAt, libraryId, familien, themenVokabular, themenHook, teilbaumScan, befunde, auftragContext, onWaehleArtefakt }: {
   karte: VorhabenCard
   stand: UseStandResult
   generatedAt: string
   libraryId: string
   /** Effektive Familien des Teilbaums; undefined = Report vor Welle 4. */
   familien: readonly TwinFamilySummary[] | undefined
-  kuration: UseArtefaktKurationResult
   /** A6: Themen-Editor (Vokabular aus Einstellungen ∪ vergebenen Themen). */
   themenVokabular: readonly string[]
   themenHook: UseThemenResult

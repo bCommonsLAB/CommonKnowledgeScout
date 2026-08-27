@@ -30,7 +30,6 @@ import {
   sprungNachVerifikation,
   type PruefbareArt,
 } from '@/lib/agent-view/werkbank-abnahme'
-import { familienPruefstand } from '@/lib/agent-view/werkbank-baum'
 import { ArtefaktKopf } from './artefakt-kopf'
 import type { TeilbaumScanProps } from './teilbaum-scan-knopf'
 import { VorhabenKopf } from './vorhaben-kopf'
@@ -164,7 +163,6 @@ export function WerkbankDetail({
         generatedAt={generatedAt}
         libraryId={report.libraryId}
         familien={familien}
-        kuration={kuration}
         themenVokabular={themenVokabular}
         themenHook={themenHook}
         teilbaumScan={teilbaumScan}

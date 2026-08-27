@@ -85,7 +85,7 @@ Jeder Befund trägt `actor`, `zyklusSchritt`, `severity`, `targetId` und
 |---|---|---|
 | `source_without_twin` | KS · error | `quelle_erschliessen` |
 | `transformation_missing` | KS · error | `transformation_starten` |
-| `transformation_stale` | KS · **info** | `transformation_starten` — blockiert die Abnahme nicht |
+| `transformation_stale` | KS · **info** | `transformation_starten` — blockiert die Abnahme nicht. Verglichen wird seit 27.08.2026 der **Inhalts**-Zeitpunkt (`generated_at`), nicht der letzte Write: Peters Verifizieren am Transkript macht die Zusammenfassung NICHT mehr „ueberholt" |
 | `twin_core_missing` | KS · warning | meist mit der Transformation erledigt |
 | `legacy_twin_name` | KS · warning | `twins_synchronisieren`: erst `import`, dann `repair` (deckt auch `split-combined-artifact` ab — das ist eine Migrations-Operation, kein eigener Befund) |
 | `orphan_twin` | KS · warning | Twin ohne Quelle — Ursache prüfen, meist `familie_umziehen` oder `repair` |
@@ -97,6 +97,7 @@ Jeder Befund trägt `actor`, `zyklusSchritt`, `severity`, `targetId` und
 | `index_missing` | Cowork · warning | `_INDEX.md` nach Vorlage anlegen |
 | `report_missing` | Cowork · warning | `BERICHT.md` nach Vorlage anlegen |
 | `bericht_veraltet` | Cowork · warning | Bericht nachziehen (siehe Stolpersteine) |
+> Auch hier zaehlt seit 27.08.2026 nur eine **Inhalts**-Aenderung: Ein Kurations-Stempel (Verifizieren, Markieren) altert den Bericht nicht mehr. Frueher liess jeder Pruef-Klick `bericht_veraltet` und damit `stand_widerspruch` neu aufpoppen — eine Schleife, die sich durch Arbeiten nicht schliessen liess.
 | `verweis_veraltet` | Cowork · warning | verwiesenes Ziel ist jünger — Verweis prüfen, dann Bericht neu speichern |
 | `verweis_tot` | Cowork · error | Verweis zeigt ins Leere — Ziel suchen oder Verweis entfernen |
 | `bericht_unvollstaendig` | Cowork · **info** | Bericht lässt Quellen unerwähnt — ergänzen, blockiert nichts |
