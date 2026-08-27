@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * @fileoverview Vorhaben als Dokument: Bericht · Ordner-Beschreibung (A3).
+ * @fileoverview Vorhaben als Dokument: Bericht · Ordner-Beschreibung · Protokoll.
  *
  * @description
  * Mockup Zustand A: rechts steht genau EIN Dokument. Die frueheren
@@ -15,8 +15,9 @@
 
 import { useState } from 'react'
 import { WerkbankBericht } from './werkbank-bericht'
+import { WerkbankProtokoll } from './werkbank-protokoll'
 
-type VorhabenTab = 'bericht' | 'beschreibung'
+type VorhabenTab = 'bericht' | 'beschreibung' | 'protokoll'
 
 export function WerkbankVorhabenDokument({ libraryId, folderId, veraltet }: {
   libraryId: string
@@ -29,7 +30,7 @@ export function WerkbankVorhabenDokument({ libraryId, folderId, veraltet }: {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div role="tablist" className="flex gap-1 border-b px-3 pt-1">
-        {([['bericht', 'Bericht'], ['beschreibung', 'Ordner-Beschreibung']] as const).map(([wert, label]) => (
+        {([['bericht', 'Bericht'], ['beschreibung', 'Ordner-Beschreibung'], ['protokoll', 'Protokoll']] as const).map(([wert, label]) => (
           <button
             key={wert}
             role="tab"
@@ -43,11 +44,13 @@ export function WerkbankVorhabenDokument({ libraryId, folderId, veraltet }: {
         ))}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
-        {tab === 'bericht' ? (
+        {tab === 'bericht' && (
           <WerkbankBericht libraryId={libraryId} folderId={folderId} veraltet={veraltet} />
-        ) : (
+        )}
+        {tab === 'beschreibung' && (
           <WerkbankBericht libraryId={libraryId} folderId={folderId} veraltet={false} datei="index" />
         )}
+        {tab === 'protokoll' && <WerkbankProtokoll libraryId={libraryId} folderId={folderId} />}
       </div>
     </div>
   )
