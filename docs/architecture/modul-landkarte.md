@@ -31,7 +31,7 @@ Namenskonvention: Workspace-intern `@ks/*`; bei späterer Veröffentlichung
 
 | Paket | Inhalt | Heutige Quellen |
 |---|---|---|
-| `@ks/shell` | Provider-Kette (Theme, Jotai, QueryClient, Locale, Storage-Context), Auth (Clerk, abschaltbar), Library-Bootstrap (Libraries laden, aktive Library aus SiteConfig/URL), konfigurierbare TopNav, Host→Library-Mapping | `src/app/layout.tsx` (Logik), `src/components/layouts/`, `src/components/top-nav*.{ts,tsx}`, `src/atoms/library-atom.ts`, `src/contexts/storage-context.tsx`, `src/hooks/use-library-config.ts`, `src/lib/root-landing.ts`, `src/lib/domain-library-map.ts` |
+| `@ks/shell` | Provider-Kette (Theme, Jotai, QueryClient, Locale, Storage-Context), Auth (Clerk, abschaltbar), Library-Bootstrap (Libraries laden, aktive Library aus SiteConfig/URL), konfigurierbare TopNav, Host→Library-Mapping | `src/app/layout.tsx` (Logik), `src/components/layouts/`, `src/components/top-nav*.{ts,tsx}`, `src/atoms/library-atom.ts`, `src/contexts/storage-context.tsx`, `src/hooks/use-library-config.ts`, `src/lib/root-landing.ts`, `src/lib/domain-library-map.ts`<br>**M3 verschoben**: `top-nav-config.ts`, `domain-library-map.ts`, `theme-provider.tsx`, `query-provider.tsx`; Rest blockiert bis `@ks/ui`/`@ks/i18n` (Begruendung: `docs/refactor/modularisierung/AGENT-BRIEF-M3.md`) |
 
 ### Schicht 3 — Modul-Pakete (UI + Hooks + API-Handler)
 
@@ -80,6 +80,8 @@ Client keine Chunks und in der API 404.
 
 ```ts
 interface SiteConfig {
+  /** Stabile Kennung der Site — benennt Registry-Eintraege in Logs/Fehlern. */
+  id: string
   /** Aktive Module — bestimmt geladene Client-Chunks UND freigeschaltete API-Handler. */
   modules: Array<'explorer' | 'archive' | 'agent-view' | 'creation'
     | 'templates' | 'jobs' | 'settings' | 'import' | 'workbench'>
@@ -103,6 +105,13 @@ interface SiteConfig {
   domains?: string[]
 }
 ```
+
+**Umsetzungsstand (Welle M3)**: Das Schema liegt in `@ks/contracts`
+(`site-config.ts`, mit Type-Guard `isSitePrimaryBySlug`), der Resolver in
+`@ks/shell` (`site/site-registry.ts`). Ausgewertet wird bisher NUR
+`libraries.primary` — von `src/lib/root-landing.ts`. Die uebrigen Felder sind
+der deklarierte Vertrag fuer das Modul-Gate (M4) und die erste eigenstaendige
+Site (M6); sie jetzt zu konsumieren waere eine Verhaltensaenderung (G4).
 
 Beispiele je Einsatz-Muster: [`einsatz-szenarien.md`](einsatz-szenarien.md).
 Die Voll-App ist die Default-Site der Registry:
@@ -218,12 +227,26 @@ läuft (Kriterien in der Migrationsstrategie).
 
 ## 6. Offene Fragen
 
-- **Jotai über Paketgrenzen**: `library-atom` u. a. werden Teil der
-  Shell-Oberfläche — Module lesen über Hooks, nicht über Atom-Importe?
-  Zu entscheiden in M3.
-- **`storage-context` / `use-storage-provider`**: gehört zur Shell, wird aber
-  fast nur vom Archiv gebraucht — evtl. erst in M4/M6 aus der Shell in
-  `@ks/module-archive` schieben.
+- ~~**Jotai über Paketgrenzen**~~ — **entschieden in M3**: Atome bleiben
+  vorerst in der App, `@ks/shell` exportiert keine. `library-atom` hängt an
+  `ClientLibrary` (`src/types/library.ts`, 824 Zeilen) — die Frage ist erst
+  beantwortbar, wenn dieser Typ in `@ks/contracts` liegt. Richtung steht
+  fest: Wenn die Atome umziehen, dann als **Hook-Oberfläche**
+  (`useActiveLibrary()`), nicht als exportierte Atome — ein exportiertes Atom
+  bindet jeden Konsumenten an dieselbe Jotai-Instanz und macht das Paket in
+  einer Fremdanwendung (AECED, M5) unbrauchbar.
+- ~~**`storage-context` / `use-storage-provider`**~~ — **entschieden in M3**:
+  gehört NICHT in die Schale. Der Kontext hängt an `StorageFactory`,
+  Clerk-Hooks und einem Reauth-Dialog; er ist die Zugriffsschicht des Archivs,
+  nicht Schalen-Infrastruktur. Er bleibt in der App und geht später direkt
+  nach `@ks/module-archive` — sonst trüge jede Site Storage-Code, die gar
+  kein Archiv aktiviert hat.
+- ~~**SiteConfig-Registry-Ablage**~~ — **entschieden in M3**: Startpunkt ist
+  die bestehende ENV-Zuordnung `PUBLIC_DOMAIN_LIBRARY_MAP`, aus der
+  `buildSiteRegistry()` die Sites ableitet. Keine neue MongoDB-Collection:
+  Die ENV-Variable existiert, ist auditierbar und deployment-nah; eine
+  DB-gestützte Registry bräuchte Settings-UI und Migration und wäre damit
+  eine Verhaltensänderung statt einer Extraktion.
 - **Electron- und `build:package`-Builds**: müssen auf `apps/knowledgescout`
   zeigen; klären in M1.
 - **Remote-Modus-Auth**: Token-Modell für Embed/Headless gegen die
@@ -233,6 +256,3 @@ läuft (Kriterien in der Migrationsstrategie).
   Spezialansichten (Klimamaßnahmen-Widgets, Diva, Refurbed …) müssen pro Site
   registrierbar sein, ohne dass jede Site alle Renderer lädt — Schnittstelle
   in `@ks/contracts` (ab M2), Implementierungen bei den Modulen/Sites.
-- **SiteConfig-Registry-Ablage**: Datei im Repo vs. MongoDB-Collection (per
-  Settings-UI pflegbar) — zu entscheiden in M3; Startpunkt Datei, da
-  auditierbar und ohne Migrations-Aufwand.

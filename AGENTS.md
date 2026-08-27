@@ -18,11 +18,16 @@ Sessions nicht doppelt bauen:
   Umbau-Garantien in
   [`docs/architecture/migrations-strategie.md`](docs/architecture/migrations-strategie.md).
 - **Agent-Brief M1** (abgeschlossen): [`docs/refactor/modularisierung/AGENT-BRIEF.md`](docs/refactor/modularisierung/AGENT-BRIEF.md)
-- **Agent-Brief M2**: [`docs/refactor/modularisierung/AGENT-BRIEF-M2.md`](docs/refactor/modularisierung/AGENT-BRIEF-M2.md)
-  (Zuschnitt, Ablauf, DoD, Stop-Bedingungen; Hand-off fuer M3 am Ende)
-- **Naechster Schritt**: Welle **M3** — `@ks/shell` (Provider-Kette, Auth,
-  Library-Bootstrap, TopNav) + Host→SiteConfig-Resolver. Voll-App bleibt
-  unveraendert (Verhaltensneutralitaet ist Abnahmekriterium jeder A-Welle).
+- **Agent-Brief M2** (abgeschlossen): [`docs/refactor/modularisierung/AGENT-BRIEF-M2.md`](docs/refactor/modularisierung/AGENT-BRIEF-M2.md)
+- **Agent-Brief M3**: [`docs/refactor/modularisierung/AGENT-BRIEF-M3.md`](docs/refactor/modularisierung/AGENT-BRIEF-M3.md)
+  (Zuschnitt und warum er kleiner ist als die Landkarten-Zeile, DoD,
+  Stop-Bedingungen; Hand-off fuer M4 am Ende)
+- **Naechster Schritt**: Welle **M4** — `@ks/module-explorer` als montierbare
+  Wurzelkomponente inkl. Handler-Export + SiteConfig-Gate. Erste Entscheidung
+  der Welle: zuerst `@ks/ui`/`@ks/i18n` oder zuerst der serverseitige Teil
+  (Route-Handler-Fabrik + Gate) — siehe Hand-off in AGENT-BRIEF-M3.md.
+  Voll-App bleibt unveraendert (Verhaltensneutralitaet ist Abnahmekriterium
+  jeder A-Welle).
 
 **Abgeschlossene Straenge** (nicht neu aufgreifen):
 
