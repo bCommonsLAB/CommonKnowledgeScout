@@ -30,7 +30,19 @@ Aus `Konventionen.md` besonders beachten: der **Vier-Schritte-Takt**
 (Wortlautfehler ins Transkript, nie in den Transformations-Body) und dass
 **alle Umbenennungen vor die Erschließung gehören**.
 
-## Drei Grundregeln für die Brücke
+**Was in einem Vorhabensordner liegt (Stand 27.08.2026):**
+
+| Datei | Für wen | Ändert sich |
+|---|---|---|
+| `BERICHT.md` | Menschen | wenn ein Termin stattfand oder ein Ordner dazukommt |
+| `_INDEX.md` | Werkzeuge | bei jedem Pipeline-Lauf — geschrieben von `stand_setzen` und `erschliessung_block_schreiben` |
+
+**Eine dritte Datei gibt es nicht.** Ein Arbeitsprotokoll im Ordner ist
+abgelöst: Was gelaufen ist und warum, steht seit Werkzeugsatz 2.6.0 im
+Aktions-Protokoll von KnowledgeScout (`protokoll_lesen`). Vorhandene Dateien
+dieser Art werden beim nächsten Anfassen aufgelöst, nicht fortgeschrieben.
+
+## Grundregeln für die Brücke
 
 **1. Nie Dateien direkt im Dateisystem anfassen.** Umbenennen, Verschieben und
 Verwerfen laufen ausschließlich über `familie_umziehen`, `ordner_umbenennen`,
@@ -75,6 +87,25 @@ Einzelaufrufe, und frag den Fortschritt danach mit `job_liste`/`job_status` ab.
 *Bis zum 27.08.2026 war das anders:* Der Aufruf wartete ~36 s je Datei und riss
 bei Stapeln das 60-Sekunden-Limit der Brücke. Wenn du ein solches Verhalten noch
 siehst, läuft eine alte Fassung — melde es, statt auf Einzelaufrufe auszuweichen.
+
+## Archiv oder Asana — die Trennlinie ist die Zeit
+
+- **Archiv = Vergangenheit und Kontext.** Was war, mit wem, warum, wo der Beleg
+  liegt. Ist in zwei Jahren noch richtig.
+- **Asana = Zukunft und Zuteilung.** Was zu tun ist, bis wann. Ist in zwei
+  Wochen falsch.
+
+Der Test: „Die Ampel-Logik wirkt invertiert" ist ein **Befund** — datiert, mit
+Quelle, bleibt im Bericht. „Ampel-Logik mit Roland gegenprüfen" ist eine
+**Aufgabe** — die gehört nach Asana, nicht ins Archiv.
+
+Ein Punkt darf an beiden Orten vorkommen, aber nur als Verweis, nie als Kopie.
+Zahlen (Quellenzahl, offene Verifikationen) stehen ausschließlich im
+Maschinenblock der `_INDEX.md` und in der Agentensicht — nie zusätzlich im
+Bericht, sonst pflegst du sie an drei Stellen.
+
+Die Form (Frontmatter-Feld für die Projekt-URL, Aufbau des Berichts) steht in
+`Konventionen.md` — hier steht nur, WOHIN etwas gehört.
 
 ## Der Ablauf
 
@@ -231,9 +262,10 @@ ihn nach.
 Klick in der Werkbank, hinter dem ein frischer Prüfscan hängt. Das gilt auch,
 wenn ein Ordner fertig aussieht.
 
-Zum Schluss auf Peters Rechner `Organisation/Tools/aktuell.py` und
-`projekte.py` laufen lassen — sonst zeigen `AKTUELL.md` und `PROJEKTE.md`
-weiter den alten Stand. Läuft das nicht über die Bridge, Peter darauf hinweisen.
+Zum Schluss `sichten_regenerieren` aufrufen — es erzeugt `AKTUELL.md` und
+`PROJEKTE.md` aus allen `BERICHT.md` und löst die früheren Skripte
+`aktuell.py` / `projekte.py` ab. Dauert 20–40 s, schreibt zwei Dateien nach
+`Organisation/`, nur nach Bestätigung.
 
 ## Wie über Fortschritt berichtet wird
 
@@ -270,6 +302,14 @@ Was gemeldet wird, ist beobachtet, nicht geschlossen: Verschwindet ein
 Befundtyp, heißt das nicht, dass die Regel abgeschafft wurde. Zwei Regeln
 können nebeneinander laufen und bei einem Ordner nur eine greifen.
 
+**Null Befunde heißt nicht fertig.** Eine Verifikation, die durch eine
+Re-Transformation ungültig geworden ist, erzeugt **keinen Befund** (ADR 0006:
+sie fällt auf „angenommen" zurück, nicht auf „Mangel"). Der Teilbaum meldet
+dann `befundAnzahl: 0` und `bereitZurAbnahme: true`, während Artefakte auf
+einen Blick des Menschen warten. Deshalb nach jedem Scan die Familienliste auf
+`verification: "ungueltig"` prüfen und diese Zahl **getrennt** berichten — als
+Angebot, nicht als Schuld.
+
 ## Inhaltliche Prüfung
 
 Transformationen übernehmen Hörfehler aus Transkripten **ungeprüft in
@@ -283,11 +323,25 @@ und Abweichungen melden. Ohne zweite Quelle nicht raten. Korrigiert wird nach
 der Korrektur-Ordnung aus `Konventionen.md`: im **Transkript**, nie im
 Transformations-Body.
 
+Nach einer Re-Transformation gilt der Vorbehalt doppelt: Die neue
+Zusammenfassung stammt aus dem Transkript in seinem **aktuellen** Stand. Ist
+das Transkript nicht gegengelesen, ist es die Zusammenfassung erst recht
+nicht — auch wenn dieselbe Familie vorher schon einmal verifiziert war.
+
 ## Bekannte Stolpersteine
 
 **60-Sekunden-Limit der Brücke.** Gilt für jeden Aufruf. Scans und Prüfungen
 immer auf Teilbäume begrenzen. Auch ein Stapel-Start kann hineinlaufen, obwohl
 die Jobs korrekt starten — dann rettet `job_liste` die verlorenen Ids.
+
+**`eTag mismatch` beim Jobstart.** „The resource has changed since the caller
+last read it" — einmal unverändert wiederholen, dann geht es meist durch.
+
+**Eine Re-Transformation macht die Verifikation ungültig.** `verified_at` liegt
+danach vor `generated_at`, das Artefakt fällt auf `verification: "ungueltig"`
+zurück. **Vor der Freigabe ansagen, wie viele Verifikationen dadurch
+zurückfallen** — sonst kostet ein `info`-Befund den Menschen Arbeit, die er
+gerade erst erledigt hat.
 
 **Toolliste veraltet.** `bruecke_info` nennt Version und Soll-Liste. Weicht die
 eigene Sicht ab, hilft kein Refresh — Peter bitten, die Erweiterung in den
@@ -297,6 +351,17 @@ Gibt `abdeckung_scannen` bei einem Teilbaum-Scan kein `antwortFuerTeilbaum`
 zurück (sondern die ganze Library), ist die Fassung älter als 2.5.0.
 Verlangen die Schreib-Werkzeuge keine `begruendung` bzw. fehlt
 `protokoll_lesen`, ist sie älter als 2.6.0.
+
+Zweiter Test, wenn die Soll-Liste selbst verdächtig ist: Ein schreibendes
+Werkzeug **ohne** `begruendung` aufrufen. Kommt
+`Input validation error … path: ["begruendung"]`, läuft serverseitig
+mindestens 2.6.0 — auch wenn die Werkzeugbeschreibung das Feld nicht zeigt.
+Dann `begruendung` trotzdem mitgeben; die Brücke reicht sie durch.
+
+**Der Skill liegt bei Claude Desktop als hochgeladenes Paket**, nicht im Repo.
+Kein `git`-Vorgang aktualisiert ihn — die Fassung muss in den Einstellungen
+ersetzt werden. Deine Zeilenzahl ist die Probe: Nenne sie, wenn eine Regel
+strittig ist.
 
 **Zwei getrennte Bericht-Regeln.** `bericht_veraltet` prüft, ob der Bericht
 älter ist als die jüngste Änderung im Vorhaben — er kommt nach jedem
