@@ -71,37 +71,27 @@ export interface StandErgebnis {
 }
 
 /**
- * Ersetzt das `_INDEX.md` durch die gepatchte Fassung. Schlaegt der Upload
- * nach dem Loeschen fehl, wird das Original zurueckgeschrieben — der Fehler
- * bleibt in JEDEM Fall ein Fehler und benennt den Wiederherstellungs-Stand.
- * Exportiert seit A6: das Themen-Schreiben nutzt DIESELBE Logik.
+ * Schreibt die gepatchte Fassung des `_INDEX.md` — als INHALTS-Update, nicht
+ * als Loeschen und Neuanlegen.
+ *
+ * Befund 27.08.2026 (Cowork): Das fruehere `deleteFile` + `uploadMarkdown`
+ * gab der Datei eine NEUE itemId. Jede gespeicherte Id, die auf das
+ * `_INDEX.md` zeigte, lief danach in `NOT_FOUND` — KnowledgeScout entwertete
+ * seine eigenen Verweise. Dazu existierte die Datei zwischen beiden Schritten
+ * nicht; ein Absturz genau dort verlor sie.
+ *
+ * `uploadMarkdown` ueberschreibt bei allen Providern namensgleich im selben
+ * Ordner (OneDrive PUT :/content, fs.writeFile, WebDAV overwrite) — dieselbe
+ * Korrektur, die der Spiegel-Write schon traegt. Die Wiederherstellungs-Logik
+ * entfaellt damit ersatzlos: Schlaegt der Upload fehl, steht das Original
+ * unveraendert da, weil nie etwas geloescht wurde.
  */
 export async function ersetzeIndex(
   ports: StandSchreibenPorts,
   folderId: string,
-  indexFileId: string,
-  original: string,
   gepatcht: string,
 ): Promise<void> {
-  await ports.deleteFile(indexFileId)
-  try {
-    await ports.uploadMarkdown(folderId, INDEX_FILE_NAME, gepatcht)
-  } catch (uploadFehler) {
-    const grund = uploadFehler instanceof Error ? uploadFehler.message : String(uploadFehler)
-    try {
-      await ports.uploadMarkdown(folderId, INDEX_FILE_NAME, original)
-      throw new Error(`Stand-Schreiben fehlgeschlagen (${grund}) — Original-_INDEX.md wiederhergestellt.`)
-    } catch (restoreFehler) {
-      if (restoreFehler instanceof Error && restoreFehler.message.startsWith('Stand-Schreiben fehlgeschlagen')) {
-        throw restoreFehler
-      }
-      const restoreGrund = restoreFehler instanceof Error ? restoreFehler.message : String(restoreFehler)
-      throw new Error(
-        `Stand-Schreiben fehlgeschlagen (${grund}) UND Wiederherstellung fehlgeschlagen (${restoreGrund}) — ` +
-          `_INDEX.md fehlt jetzt im Ordner ${folderId}!`,
-      )
-    }
-  }
+  await ports.uploadMarkdown(folderId, INDEX_FILE_NAME, gepatcht)
 }
 
 /**
@@ -154,7 +144,7 @@ export async function setzeStand(
         `abgebrochen, nichts geschrieben (${gelesen.error ?? 'Frontmatter unlesbar'})`,
     )
   }
-  await ersetzeIndex(ports, request.folderId, index.id, original, gepatcht)
+  await ersetzeIndex(ports, request.folderId, gepatcht)
 
   return {
     bearbeitungsstand: gelesen.bearbeitungsstand,

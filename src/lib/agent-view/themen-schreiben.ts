@@ -147,6 +147,6 @@ export async function setzeThemen(
     )
   }
 
-  await ersetzeIndex(ports, folderId, index.id, original, gepatcht)
+  await ersetzeIndex(ports, folderId, gepatcht)
   return { themen: geprueft }
 }

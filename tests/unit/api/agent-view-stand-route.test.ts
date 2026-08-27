@@ -123,7 +123,10 @@ describe('POST /api/library/[libraryId]/agent-view/stand', () => {
     expect(json.stand.bearbeitungsstand).toBe('abgenommen')
     expect(typeof json.stand.bearbeitungsstandSeit).toBe('string')
     const provider = await h.getServerProvider.mock.results[0].value
-    expect(provider.deleteItem).toHaveBeenCalledWith('id-_INDEX.md')
+    // Befund 27.08.2026: namensgleich ueberschreiben statt loeschen — sonst
+    // bekommt das _INDEX.md eine neue itemId und gespeicherte Verweise
+    // darauf laufen ins Leere.
+    expect(provider.deleteItem).not.toHaveBeenCalled()
     expect(provider.uploadFile).toHaveBeenCalledTimes(1)
   })
 })

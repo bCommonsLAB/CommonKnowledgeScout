@@ -206,6 +206,16 @@ Bericht vor dem Stand schreibt, erzeugt `verweis_veraltet` neu und schließt den
 Befund nie. Richtige Reihenfolge: **erst `stand_setzen` bzw. die `_INDEX.md`,
 der `BERICHT.md` zuletzt.**
 
+**`bearbeitungsstandSeit` in der Antwort ist ein Tagesende.** Steht in der
+Datei `2026-08-27`, antwortet das Werkzeug `2026-08-27T23:59:59.999Z` — reine
+Datumsangaben werden großzügig als Tagesende gelesen, damit eine Änderung AM
+Stichtag den Stand nicht sofort widerlegt. Das ist kein Zeitstempel in der
+Zukunft und kein Fehler.
+
+**Die `_INDEX.md` behält ihre itemId** (seit 27.08.2026). Früher löschte
+`stand_setzen` die Datei und legte sie neu an — gespeicherte fileIds liefen
+danach in `NOT_FOUND`. Wenn das bei dir noch passiert, läuft eine alte Fassung.
+
 **Den Stand setzt `stand_setzen`**, nicht die Datei-Bridge. Das Werkzeug geht
 denselben geschützten Weg wie die Oberfläche: kein `_INDEX.md` vorhanden (wird
 nie angelegt), Stand im Storage weicht vom erwarteten ab, Report veraltet — in

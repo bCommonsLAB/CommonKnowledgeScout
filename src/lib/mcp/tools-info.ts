@@ -42,6 +42,7 @@ export const TOOL_NAMES = [
   'erschliessung_block_schreiben',
   'stand_setzen',
   'themen_setzen',
+  'protokoll_lesen',
   'bruecke_info',
 ] as const
 
