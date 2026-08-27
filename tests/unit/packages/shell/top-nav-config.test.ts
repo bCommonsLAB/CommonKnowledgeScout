@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildTopNavConfig } from '@/components/top-nav-config'
+import { buildTopNavConfig } from '@ks/shell'
 
 function t(key: string): string {
   return key

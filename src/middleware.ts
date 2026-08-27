@@ -26,7 +26,7 @@ import { verifyMcpAccountKey } from '@/lib/mcp/account-key';
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { getLocale, SUPPORTED_LOCALES, type Locale } from '@/lib/i18n';
-import { getDomainLibraryMap, resolveForeignExploreRedirect, isLandingRedirectCandidate } from '@/lib/domain-library-map';
+import { getDomainLibraryMap, resolveForeignExploreRedirect, isLandingRedirectCandidate } from '@ks/shell';
 
 // Startup-Log um zu bestätigen, dass Middleware geladen wird (nur in Development)
 if (process.env.NODE_ENV === 'development') {
