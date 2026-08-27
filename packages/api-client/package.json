@@ -1,0 +1,15 @@
+{
+  "name": "@ks/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "description": "KnowledgeScout — typisierter Fetch-Client + TanStack-Query-Hooks fuer die Core-API (libraries, user, llm-models)",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@ks/contracts": "workspace:*"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5.101.1",
+    "react": "^18.2.0"
+  }
+}
