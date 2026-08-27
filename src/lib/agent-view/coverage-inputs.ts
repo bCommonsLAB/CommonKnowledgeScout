@@ -139,13 +139,17 @@ export function buildInventoryTargets(args: {
     }
   }
   // Twin-Artefakte aus MongoDB tragen die Zeitstempel, an denen sich
-  // `verweis_veraltet` entscheidet (der Spiegel kann fehlen).
+  // `verweis_veraltet` entscheidet (der Spiegel kann fehlen). Auch hier zaehlt
+  // der INHALTS-Zeitpunkt: Sonst macht ein Verifizieren jeden Verweis auf den
+  // Twin „ueberholt" — der Bericht zitiert die Transformationen, also fiele er
+  // nach jedem Pruef-Klick erneut auf (dieselbe Tretmuehle wie bei
+  // `bericht_veraltet`, Befund 27.08.2026).
   for (const family of args.families) {
     const location = args.fileIndex.get(family.sourceId)
     const base = location ? location.path : family.sourceName
     for (const artifact of family.artifacts) {
       const name = artifactDisplayName(family.sourceName, artifact)
-      targets.push({ path: `_${base}/${name}`, name, modifiedAt: artifact.updatedAt, kind: 'twin' })
+      targets.push({ path: `_${base}/${name}`, name, modifiedAt: inhaltsZeitpunkt(artifact), kind: 'twin' })
     }
   }
   return targets
