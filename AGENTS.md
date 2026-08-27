@@ -17,6 +17,8 @@ Sessions nicht doppelt bauen:
   [`docs/architecture/modul-landkarte.md`](docs/architecture/modul-landkarte.md) §5;
   Umbau-Garantien in
   [`docs/architecture/migrations-strategie.md`](docs/architecture/migrations-strategie.md).
+- **Agent-Brief M1**: [`docs/refactor/modularisierung/AGENT-BRIEF.md`](docs/refactor/modularisierung/AGENT-BRIEF.md)
+  (Zuschnitt, Ablauf, DoD, Stop-Bedingungen)
 - **Naechster Schritt**: Welle **M1** — `pnpm-workspace.yaml` +
   `transpilePackages`, erstes Paket `@ks/viewers`. Voll-App bleibt
   unveraendert (Verhaltensneutralitaet ist Abnahmekriterium jeder A-Welle).
