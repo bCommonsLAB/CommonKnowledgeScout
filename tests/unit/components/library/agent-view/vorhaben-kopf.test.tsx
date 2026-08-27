@@ -16,6 +16,11 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { VorhabenKopf } from '@/components/library/agent-view/werkbank/vorhaben-kopf'
 import type { UseArtefaktKurationResult } from '@/hooks/agent-view/use-artefakt-kuration'
+
+const toastMock = vi.fn()
+vi.mock('@/components/ui/use-toast', () => ({
+  useToast: () => ({ toast: toastMock }),
+}))
 import type { StandFehler, StandOverride, UseStandResult } from '@/hooks/agent-view/use-stand'
 import type { CoverageGap, LeadingArtifactSummary, TwinFamilySummary, VorhabenCard } from '@/lib/agent-view/types'
 
@@ -190,6 +195,52 @@ describe('VorhabenKopf — Zyklus-Leiste (Rueckfrage 27.08.2026)', () => {
     })
     expect(screen.getByText(/Schritt 3 — Berichten/)).toBeTruthy()
     expect(screen.getByText(/Cowork-Sitzung am Dateisystem/)).toBeTruthy()
+  })
+
+  it('ein Schritt mit offenen Punkten ist ein Knopf und kopiert den Auftrag', async () => {
+    const schreib = vi.fn().mockResolvedValue(undefined)
+    Object.assign(navigator, { clipboard: { writeText: schreib } })
+    renderKopf({
+      k: {
+        ...karte(),
+        bearbeitungsstand: 'strukturiert',
+        gapsByActor: { mensch: 0, cowork: 1, knowledgescout: 0 },
+        gapsByType: { report_missing: 1 },
+      },
+      befunde: [
+        { type: 'report_missing', actor: 'cowork', severity: 'warning', path: '1. Arbeit/Pilot', message: 'Kein BERICHT.md', scope: 'folder', targetId: 'f-pilot', targetName: 'Pilot', folderId: 'f-pilot', zyklusSchritt: 3 } as unknown as CoverageGap,
+      ],
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Berichten/ }))
+    await vi.waitFor(() => expect(schreib).toHaveBeenCalledTimes(1))
+    const text = schreib.mock.calls[0][0] as string
+    expect(text).toContain('Cowork-Auftrag')
+    expect(text).toContain('Schreibe einen BERICHT.md')
+    // Der Hinweis sagt, wohin der Text gehoert.
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({ description: expect.stringContaining('Cowork-Sitzung am Dateisystem') }),
+    )
+  })
+
+  it('ein freier Schritt ist KEIN Knopf — er fuehrt nirgendwohin', () => {
+    renderKopf({ k: { ...karte(), gapsByActor: { mensch: 0, cowork: 0, knowledgescout: 0 }, gapsByType: {} } })
+    expect(screen.queryByRole('button', { name: /Sichten/ })).toBeNull()
+    expect(screen.getByText('Sichten')).toBeTruthy()
+  })
+
+  it('sagt es, wenn der Report zum Schritt keinen Befundtext hergibt', async () => {
+    // Zaehler kennt den Punkt (aus der Karten-Summe), die Liste nicht (Kappung).
+    renderKopf({
+      k: { ...karte(), gapsByActor: { mensch: 0, cowork: 3, knowledgescout: 0 }, gapsByType: { report_missing: 3 } },
+      befunde: [],
+    })
+    toastMock.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: /Berichten/ }))
+    await vi.waitFor(() =>
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({ title: expect.stringContaining('Kein Auftragstext') }),
+      ),
+    )
   })
 
   it('ist alles frei, verweist die Leiste auf die Abnahme', () => {

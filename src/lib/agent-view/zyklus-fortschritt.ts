@@ -29,6 +29,17 @@ import type { Bearbeitungsstand, CoverageGapType, GapCountByType, ZyklusSchritt 
 
 export const ZYKLUS_SCHRITTE: readonly ZyklusSchritt[] = [1, 2, 3, 4]
 
+/**
+ * Befund-Typen aus abgeschafften Regeln: Sie stehen in gespeicherten Reports,
+ * sind aber keine Aufgabe mehr (ADR 0006). Sie werden weder gezaehlt noch in
+ * einen Auftrag geschrieben — und beim naechsten Scan sind sie weg.
+ */
+const ALT_BEFUNDE: readonly CoverageGapType[] = ['twin_unverified']
+
+export function istAltBefund(typ: CoverageGapType): boolean {
+  return ALT_BEFUNDE.includes(typ)
+}
+
 /** Wer den Schritt ausfuehrt — feste Ordnung aus dem Zyklus-Papier §1. */
 export const SCHRITT_ZUSTAENDIG: Record<ZyklusSchritt, string> = {
   1: 'KnowledgeScout',
@@ -97,11 +108,10 @@ export function berechneZyklusFortschritt(args: {
     // `twin_flagged` kommt ueber `markierungen` herein (frischer Stand),
     // damit dieselbe Markierung nicht zweimal zaehlt.
     if (typ === 'twin_flagged') continue
-    // Alt-Bestand: `twin_unverified` steht in gespeicherten Reports, ist seit
-    // ADR 0006 aber KEINE Aufgabe mehr. Ohne diese Zeile blaeht der Befund
-    // Schritt 4 auf (im Pruefarchiv: 28 Phantom-Punkte) und die Leiste
-    // behauptete Arbeit, die niemand mehr tun soll.
-    if (typ === 'twin_unverified') continue
+    // Alt-Bestand zaehlt nicht mit: Ohne diese Zeile blaeht er Schritt 4 auf
+    // (im Pruefarchiv 28 Phantom-Punkte) und die Leiste behauptet Arbeit,
+    // die niemand mehr tun soll.
+    if (istAltBefund(typ as CoverageGapType)) continue
     proSchritt[definition.zyklusSchritt] += anzahl ?? 0
   }
   proSchritt[4] += args.markierungen

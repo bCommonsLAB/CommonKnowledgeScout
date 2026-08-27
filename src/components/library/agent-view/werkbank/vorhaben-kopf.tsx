@@ -173,6 +173,8 @@ export function VorhabenKopf({ karte, stand, generatedAt, libraryId, familien, k
               gapsByType={karte.gapsByType}
               bearbeitungsstand={aktuellerStand}
               markierungen={zaehler.markiert}
+              befunde={befunde}
+              auftragContext={auftragContext}
             />
           )}
           {zeigeWiderstaende && (
