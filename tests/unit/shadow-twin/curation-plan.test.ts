@@ -9,6 +9,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   CurationValidationError,
+  MAX_NOTIZ_LAENGE,
   MirrorDriftError,
   SelfVerificationError,
   buildCurationPatches,
@@ -19,6 +20,91 @@ import {
 
 const NOW = '2026-08-19T10:00:00.000Z'
 const USER = 'peter@example.org'
+
+describe('buildCurationPatches — Verifikation zuruecknehmen (ADR 0006, Uebergang)', () => {
+  const basis = { verify: false, userEmail: USER, generatedBy: 'knowledgescout/gemini-2.5-pro', now: NOW }
+
+  it('entfernt verified_by und verified_at (null laesst das Feld weg)', () => {
+    const patches = buildCurationPatches({ ...basis, entferneVerifikation: true })
+    expect(patches).toEqual({ verified_by: null, verified_at: null })
+  })
+
+  it('laesst sich nicht mit Verifizieren oder Markieren verbinden', () => {
+    expect(() => buildCurationPatches({ ...basis, verify: true, entferneVerifikation: true })).toThrow(
+      CurationValidationError,
+    )
+    expect(() =>
+      buildCurationPatches({ ...basis, markiere: { notiz: 'x' }, entferneVerifikation: true }),
+    ).toThrow(CurationValidationError)
+  })
+})
+
+describe('buildCurationPatches — Fehler-Markierung (ADR 0006)', () => {
+  const basis = { verify: false, userEmail: USER, generatedBy: 'knowledgescout/gemini-2.5-pro', now: NOW }
+
+  it('stempelt Status, Urheber und Zeit selbst; die Notiz kommt vom Aufrufer', () => {
+    const patches = buildCurationPatches({ ...basis, markiere: { notiz: 'Sprecher vertauscht' } })
+    expect(patches).toEqual({
+      twin_status: 'flagged',
+      flagged_by: `human:${USER}`,
+      flagged_at: NOW,
+      flagged_note: 'Sprecher vertauscht',
+    })
+  })
+
+  it('verlangt eine Notiz — leer oder nur Leerzeichen wird abgelehnt', () => {
+    expect(() => buildCurationPatches({ ...basis, markiere: { notiz: '' } })).toThrow(CurationValidationError)
+    expect(() => buildCurationPatches({ ...basis, markiere: { notiz: '   ' } })).toThrow(CurationValidationError)
+  })
+
+  it('haelt die Notiz einzeilig und begrenzt (flaches Frontmatter)', () => {
+    const mehrzeilig = ['Zeile eins', '', 'Zeile zwei'].join(String.fromCharCode(10))
+    const patches = buildCurationPatches({ ...basis, markiere: { notiz: mehrzeilig } })
+    expect(patches.flagged_note).toBe('Zeile eins Zeile zwei')
+    expect(() =>
+      buildCurationPatches({ ...basis, markiere: { notiz: 'x'.repeat(MAX_NOTIZ_LAENGE + 1) } }),
+    ).toThrow(/Notiz zu lang/)
+  })
+
+  it('lehnt `twin_status: flagged` ueber den Feld-Patch ab — sonst fehlt die Notiz', () => {
+    expect(() => buildCurationPatches({ ...basis, set: { twin_status: 'flagged' } })).toThrow(
+      /Markier-Aktion/,
+    )
+  })
+
+  it('lehnt Markieren und Verifizieren in einem Zug ab', () => {
+    expect(() =>
+      buildCurationPatches({ ...basis, verify: true, markiere: { notiz: 'passt nicht' } }),
+    ).toThrow(CurationValidationError)
+  })
+
+  it('loest die Markierung beim Verifizieren auf — die Felder fallen weg (null)', () => {
+    const patches = buildCurationPatches({
+      ...basis, verify: true, aktuellerTwinStatus: 'flagged',
+    })
+    expect(patches).toEqual({
+      verified_by: `human:${USER}`,
+      verified_at: NOW,
+      twin_status: null,
+      flagged_by: null,
+      flagged_at: null,
+      flagged_note: null,
+    })
+  })
+
+  it('laesst einen anderen twin_status beim Verifizieren unangetastet', () => {
+    const patches = buildCurationPatches({ ...basis, verify: true, aktuellerTwinStatus: 'stable' })
+    expect(patches).toEqual({ verified_by: `human:${USER}`, verified_at: NOW })
+  })
+
+  it('gibt einem ausdruecklich mitgesetzten twin_status den Vorrang', () => {
+    const patches = buildCurationPatches({
+      ...basis, verify: true, aktuellerTwinStatus: 'flagged', set: { twin_status: 'draft' },
+    })
+    expect(patches.twin_status).toBe('draft')
+    expect(patches.flagged_by).toBeUndefined()
+  })
+})
 
 describe('buildCurationPatches — Feld-Zaun (Contract §4.1/§4.4)', () => {
   it('patcht twin_status mit gueltigem Wert', () => {

@@ -76,10 +76,10 @@ describe('zuTun (§3: ampel ≠ gruen ODER widerspruch)', () => {
 })
 
 describe('karteHatBefundZu (Chips via GAP_REGISTRY)', () => {
-  const mitBefunden = card('A', { gapsByType: { source_without_twin: 2, twin_unverified: 1 } })
+  const mitBefunden = card('A', { gapsByType: { source_without_twin: 2, twin_flagged: 1 } })
 
   it('leitet Akteur und Schritt je Typ aus der Registry ab', () => {
-    // source_without_twin: knowledgescout/1 · twin_unverified: mensch/4
+    // source_without_twin: knowledgescout/1 · twin_flagged: mensch/4
     expect(karteHatBefundZu(mitBefunden, { akteur: 'knowledgescout', zyklusSchritt: null })).toBe(true)
     expect(karteHatBefundZu(mitBefunden, { akteur: 'cowork', zyklusSchritt: null })).toBe(false)
     expect(karteHatBefundZu(mitBefunden, { akteur: null, zyklusSchritt: 4 })).toBe(true)
@@ -87,6 +87,13 @@ describe('karteHatBefundZu (Chips via GAP_REGISTRY)', () => {
     expect(karteHatBefundZu(mitBefunden, { akteur: 'mensch', zyklusSchritt: 4 })).toBe(true)
     expect(karteHatBefundZu(card('B'), { akteur: 'mensch', zyklusSchritt: null })).toBe(false)
     expect(karteHatBefundZu(card('B'), KEIN_CHIP)).toBe(true)
+  })
+
+  it('kennt den Alt-Bestand `twin_unverified` weiter — gespeicherte Reports werfen nicht', () => {
+    // ADR 0006: Der Typ wird nicht mehr erzeugt, steht aber bis zum naechsten
+    // Voll-Scan in jedem gespeicherten Report (im Pruefarchiv 28-mal).
+    const alt = card('Y', { gapsByType: { twin_unverified: 28 } })
+    expect(karteHatBefundZu(alt, { akteur: 'mensch', zyklusSchritt: null })).toBe(true)
   })
 
   it('wirft bei unbekanntem Gap-Typ statt ihn still zu verschlucken', () => {
@@ -98,7 +105,8 @@ describe('karteHatBefundZu (Chips via GAP_REGISTRY)', () => {
 describe('filtereVorhaben + bereichVon', () => {
   const gruen = card('1. Arbeit/Pilot', { berichtTitel: 'Pilotprojekt Klima' })
   const rot = card('1. Arbeit/Chaos', { ampel: 'rot', totalGaps: 3, gapsByType: { source_without_twin: 3 }, gapsByActor: { mensch: 0, cowork: 0, knowledgescout: 3 } })
-  const bereit = card('2. Privat/Steuer', { ampel: 'rot', totalGaps: 1, gapsByType: { twin_unverified: 1 }, gapsByActor: { mensch: 1, cowork: 0, knowledgescout: 0 } })
+  const bereit = card('2. Privat/Steuer', { ampel: 'gelb', totalGaps: 1, gapsByType: { stand_widerspruch: 1 }, gapsByActor: { mensch: 1, cowork: 0, knowledgescout: 0 } })
+  const markiert = card('2. Privat/Miete', { ampel: 'rot', totalGaps: 1, gapsByType: { twin_flagged: 1 }, gapsByActor: { mensch: 1, cowork: 0, knowledgescout: 0 } })
   const alt = altKarte('3. Alt/Archiv')
 
   it('Suche matcht Name, Pfad und Bericht-Titel', () => {
@@ -113,10 +121,19 @@ describe('filtereVorhaben + bereichVon', () => {
     expect(ergebnis.nichtAuswertbar).toBe(1)
   })
 
-  it('„Bereit" nutzt das geteilte Praedikat — auch fuer Alt-Karten (gapsByActor existiert immer)', () => {
-    const ergebnis = filtereVorhaben([gruen, rot, bereit, alt], { statusFilter: 'bereit', befundFilter: KEIN_CHIP, suche: '' })
-    expect(ergebnis.zeilen).toEqual([bereit])
+  it('„Bereit" = kein Widerstand offen, noch nicht abgenommen (ADR 0006)', () => {
+    const ergebnis = filtereVorhaben([gruen, rot, bereit, markiert, alt], { statusFilter: 'bereit', befundFilter: KEIN_CHIP, suche: '' })
+    // Befundfreie und nur mit Mensch-Befunden behaftete Karten sind bereit —
+    // auch Alt-Karten (gapsByActor/gapsByType existieren immer). Draussen
+    // bleiben Maschinen-Befunde (rot) UND Fehler-Markierungen (markiert).
+    expect(ergebnis.zeilen).toEqual([gruen, bereit, alt])
     expect(ergebnis.nichtAuswertbar).toBe(0)
+  })
+
+  it('„Bereit" laesst abgenommene Vorhaben aus — dort wartet nichts mehr', () => {
+    const abgenommen = card('2. Privat/Fertig', { bearbeitungsstand: 'abgenommen' })
+    const ergebnis = filtereVorhaben([gruen, abgenommen], { statusFilter: 'bereit', befundFilter: KEIN_CHIP, suche: '' })
+    expect(ergebnis.zeilen).toEqual([gruen])
   })
 
   it('Chips wirken zusaetzlich zum Status-Filter', () => {
@@ -192,9 +209,11 @@ describe('beschreibeLeereWerkbankListe (Akzeptanzkriterium 4)', () => {
     expect(text).toContain('vor Werkbank-Welle W1')
   })
 
-  it('erklaert leere Status-Filter fachlich (gruen bzw. maschinelle Befunde)', () => {
+  it('erklaert leere Status-Filter fachlich (gruen bzw. Widerstand)', () => {
     expect(beschreibeLeereWerkbankListe(leerArgs({ statusFilter: 'zu_tun' }))).toContain('gruen')
-    expect(beschreibeLeereWerkbankListe(leerArgs({ statusFilter: 'bereit' }))).toContain('maschinellen Befunde')
+    const bereitText = beschreibeLeereWerkbankListe(leerArgs({ statusFilter: 'bereit' }))
+    expect(bereitText).toContain('kein Widerstand offen')
+    expect(bereitText).toContain('Fehler-Markierungen')
   })
 
   it('benennt bei Suche/Chips die aktiven Einschraenkungen', () => {

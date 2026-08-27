@@ -1,6 +1,6 @@
 # ADR 0006 — Beweislast umdrehen: Fehler markieren statt Zustimmung einsammeln
 
-- **Status**: Vorgeschlagen (Entscheidung liegt bei Peter — dieses Papier baut NICHTS um)
+- **Status**: Angenommen — Modell B (entschieden von Peter am 2026-08-26)
 - **Datum**: 2026-08-25
 - **Kontext**: Architektur-Einwand aus der Testsession Werkbank-Abnahme, §8 in
   [`testsession-werkbank-abnahme-ergebnis.md`](../concepts/testsession-werkbank-abnahme-ergebnis.md)
@@ -126,18 +126,86 @@ und Baum-Symbolik; die Sammelaktionen (Welle A4/A5) werden zurückgebaut; die
 Abnahme-Semantik muss neu erklärt werden. Der Schreibpfad (Kurations-Route,
 `twin_status`, Verify) bleibt — es ändert sich die Deutung, kaum der Speicher.
 
-## Offene Punkte (Teil dieser Entscheidung, hier NICHT festgelegt)
+## Entscheidung (2026-08-26)
 
-1. **Symbolik:** Welches Zeichen trägt ein angenommenes, ein geprüftes, ein
-   fehlerhaft markiertes Artefakt (`○`/`✓`/`◐`/neutral)? Betrifft auch den
-   offenen Wunsch „Halb-Zeichen für Twin-Familien" (Ergebnis §7).
-2. **Speicherform der Fehler-Markierung:** `twin_status`-Wert (vorhandenes
-   Feld, kein Schema-Umbau) oder eigenes Feld mit Zeitstempel/Autor?
-3. **Sprung-Ziel in Modell B:** nächster Widerstand, nächstes Ungelesenes,
-   oder gar kein automatischer Sprung?
-4. **Übergang:** Was bedeuten bestehende `verified_by`-Stempel aus der
-   Zustimmungs-Ära rückwirkend? (Vorschlag: unverändert als „geprüft"
-   anzeigen — sie schaden nicht.)
+**Modell B ist angenommen.** Die vier offenen Punkte sind damit festgelegt:
+
+### 1. Zeichensprache
+
+| Zeichen | Bedeutung | Wann |
+|---|---|---|
+| **Oranger Haken** | „höchstwahrscheinlich OK" | Standard — die Maschine hat geliefert, niemand hat widersprochen |
+| **Grüner Haken** | „geprüft — ein Mensch hat hingesehen" | nur nach echtem Verifizieren (`verified_by: human:…`) |
+| **Stopp-Zeichen** | „blockiert" | Fehler-Markierung eines Menschen ODER offener Maschinen-Befund |
+
+Der Default ist nicht mehr der Mangel: `○` entfällt. `?` (Report aus einem
+Scan vor A2) bleibt — dort liegt wirklich keine Auskunft vor.
+
+**Ein** Zeichen für „blockiert", nicht zwei: Maschinen-Befund und
+Fehler-Markierung tragen dasselbe Stopp-Zeichen, die Herkunft steht im Titel.
+Damit gibt es genau eine Sprache für „hier geht die Abnahme nicht".
+
+Der Wunsch „Halb-Zeichen für Twin-Familien" (Ergebnis §7) entfällt ersatzlos:
+Ohne Zustimmungspflicht gibt es kein „halb bestätigt" mehr.
+
+### 2. Speicherform der Fehler-Markierung
+
+Der vorhandene Wert `twin_status: fehlerhaft` trägt den Zustand, die Herkunft
+folgt dem Muster von `verified_by`/`verified_at`:
+
+- `flagged_by: human:<email>` — wer markiert hat (der **Server** stempelt, wie bei Verify)
+- `flagged_at: <ISO-Zeitstempel>` — wann
+- `flagged_note: <eine Zeile>` — **Pflicht**: was nicht stimmt
+
+Die Notiz ist Pflicht, weil die Markierung die Abnahme blockiert: Wer sie
+später auflöst — auch Peter selbst in drei Wochen — muss wissen, warum.
+Frontmatter bleibt flach (AGENTS.md), Schreibweg bleibt die bestehende
+Kurations-Route samt Spiegel-Drift-Guard.
+
+Auflösen: Reparatur + Verifizieren räumt `twin_status` weg und stempelt
+`verified_by` — dort steht das grüne Häkchen dann zu Recht.
+
+### 3. Sprung-Ziel
+
+Der Sprung bleibt, zielt aber auf den **nächsten Widerstand** (offener
+Maschinen-Befund oder Fehler-Markierung). Gibt es keinen, springt nichts —
+dann ist das Vorhaben abnehmbar. Lesen ohne Klicken hinterlässt keine Schuld.
+
+### 4. Übergang: Stempel aus der Zustimmungs-Ära
+
+**Stempel aus Sammelaktionen werden zurückgesetzt, Einzelklicks bleiben.**
+Begründung: Unter der neuen Bedeutung behauptet ein grüner Haken „ein Mensch
+hat hingesehen" — bei einer Massen-Bestätigung ist das unwahr. Der frühere
+Vorschlag (alles unverändert lassen) widerspräche der Umkehr.
+
+Die Messung im Prüfarchiv „26.01 Klimamassnahmen Südtirol" (2026-08-26) zeigt,
+dass beide Fälle sauber trennbar sind:
+
+| Schwung | Zeitraum | Stempel | Deutung |
+|---|---|---|---|
+| 1 | 25.08. 14:18:32–14:19:11 | 4, gemischte Art | Einzelklicks (~10 s Abstand) — bleiben |
+| 2 | 25.08. 14:21:57–14:23:02 | 26 Zusammenfassungen | Sammelaktion (~2,5 s Takt) — zurücksetzen |
+| 3 | 26.08. 07:26:09 | 1 Transkript | Einzelklick — bleibt |
+| 4 | 26.08. 07:29:35–07:30:05 | 4 Transkripte | Einzelklicks (~7 s Abstand) — bleiben |
+
+Regel für das Rücksetz-Skript: Stempel **einer** Art, die in einem Schwung im
+Gleichtakt entstanden sind (mehr als 5 Stück, Abstand unter 5 s), gelten als
+Sammelaktion. Das Skript zeigt im Trockenlauf, was es anfassen würde, und
+schreibt über den bestehenden Kurations-Weg — Mongo UND Spiegel, kein
+Direktschreiben am Drift-Guard vorbei.
+
+### Umbau-Umfang, der daraus zwingend folgt
+
+- Zähler: „k Widerstände offen" statt „n von m geprüft"
+- Sammelaktionen (Welle A4/A5) werden zurückgebaut — ihre Existenz war das Symptom
+- Zustands-Chip wird Herkunfts-Auskunft statt Pflichtanzeige
+- `artefaktGeprueft`/`familienPruefstand` behalten ihre Bedeutung, verlieren
+  aber die Gate-Rolle im Fluss
+- Abnehmen-Knopf: gesperrt durch Maschinen-Befunde **plus** offene
+  Fehler-Markierungen (`istAbnehmbar`)
+- Hinfällig: der Standardreiter-Nachzieher aus dem Testlauf 26.08.2026 (Sprung
+  landete auf dem bereits geprüften Zusammenfassungs-Reiter) — der Pflicht-Fluss,
+  in dem er stört, verschwindet
 
 ## Verweise
 

@@ -301,7 +301,9 @@ describe('coverage-service — Komposition', () => {
     const byType = new Map(report.gaps.map((g) => [g.type, g]))
     expect(byType.get('source_without_twin')?.actor).toBe('knowledgescout')
     expect(byType.get('transformation_missing')?.actor).toBe('knowledgescout')
-    expect(byType.get('twin_unverified')?.actor).toBe('mensch')
+    // ADR 0006: fehlende Verifikation ist kein Befund mehr — der Scan meldet
+    // sie nicht, und damit gibt es hier auch keine Mensch-Aufgabe.
+    expect(byType.has('twin_flagged')).toBe(false)
     expect(report.totals.gapsByActor.knowledgescout).toBeGreaterThan(0)
   })
 })

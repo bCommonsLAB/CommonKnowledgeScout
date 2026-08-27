@@ -21,7 +21,7 @@
  * - @/types/library: ClientLibrary type definition
  */
 
-import { StorageProvider, StorageItem, StorageValidationResult, StorageError, StorageItemMetadata } from './types';
+import { StorageProvider, StorageItem, StorageValidationResult, StorageError, StorageItemMetadata, SPEICHER_NICHT_VERBUNDEN } from './types';
 import { ClientLibrary } from '@/types/library';
 import { FileLogger } from '@/lib/debug/logger';
 import * as process from 'process';
@@ -652,8 +652,9 @@ export class OneDriveProvider implements StorageProvider {
       await this.saveTokens(data.access_token, data.refresh_token, data.expires_in);
       return true;
     } catch (error) {
+      // Ein gescheiterter Code-Austausch sagt nichts ueber bereits
+      // gespeicherte Tokens — sie bleiben stehen (Befund 27.08.2026).
       console.error('[OneDriveProvider] Authentifizierungsfehler:', error);
-      await this.clearTokens();
       throw error;
     }
   }
@@ -736,7 +737,8 @@ export class OneDriveProvider implements StorageProvider {
     if (!this.accessToken) {
       console.error('[OneDriveProvider][ensureAccessToken] ❌ Kein Access-Token vorhanden - Authentifizierung erforderlich');
       throw new StorageError(
-        "Nicht authentifiziert",
+        `${SPEICHER_NICHT_VERBUNDEN}: Die Anmeldung bei OneDrive fehlt oder ist abgelaufen. ` +
+          'Bitte in den Einstellungen unter „Archiv" neu anmelden — deine Dateien bleiben unberuehrt.',
         "AUTH_REQUIRED",
         this.id
       );
@@ -1091,9 +1093,20 @@ export class OneDriveProvider implements StorageProvider {
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
+          const errorData = await response.json().catch(() => ({} as Record<string, unknown>));
+          const meldung = `Token-Aktualisierung fehlgeschlagen: ${errorData.details || errorData.error || response.statusText}`;
+          // NUR `invalid_grant` heisst „das Refresh-Token ist tot" (Befund
+          // 27.08.2026: ein Netzwerkfehler loeschte die Anmeldung aus der DB).
+          if (errorData.code === 'invalid_grant') {
+            await this.clearTokens();
+            throw new StorageError(
+              `${meldung} — die gespeicherte Anmeldung wurde entfernt, OneDrive bitte neu verbinden.`,
+              "AUTH_REQUIRED",
+              this.id
+            );
+          }
           throw new StorageError(
-            `Token-Aktualisierung fehlgeschlagen: ${errorData.details || errorData.error || response.statusText}`,
+            `${meldung} — die gespeicherte Anmeldung BLEIBT erhalten.`,
             "AUTH_ERROR",
             this.id
           );
@@ -1103,8 +1116,10 @@ export class OneDriveProvider implements StorageProvider {
         await this.saveTokens(data.accessToken, data.refreshToken, data.expiresIn);
         console.log('[OneDriveProvider] Token erfolgreich über Server erneuert');
       } catch (error) {
+        // Bewusst OHNE clearTokens: Netzwerkfehler, falscher Port oder eine
+        // 500 der eigenen Route sagen NICHTS ueber die Gueltigkeit der
+        // Anmeldung. Geloescht wird nur oben, bei `invalid_grant`.
         console.error('[OneDriveProvider] Fehler bei Token-Aktualisierung:', error);
-        await this.clearTokens();
         throw error;
       } finally {
         // Lösche das Promise nach Abschluss

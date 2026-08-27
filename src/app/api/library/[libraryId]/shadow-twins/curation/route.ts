@@ -4,7 +4,8 @@
  * @description
  * POST /api/library/[libraryId]/shadow-twins/curation
  * Body: `{ sourceId, artifact: { kind, targetLanguage, templateName? },
- *          set?: { twin_status }, verify?: boolean }`
+ *          set?: { twin_status }, verify?: boolean,
+ *          markiere?: { notiz: string } }`
  * → `{ artifact, curation, mirror }`
  *
  * DIE Schreiboperation der Kuration (Agentensicht F4 ruft NUR diese Route):
@@ -12,6 +13,9 @@
  *   Body bleiben erhalten (§4.2).
  * - Verify stempelt der SERVER: `verified_by: human:<user>` + `verified_at`;
  *   Selbst-Verifikation wird verweigert (409, §3.2).
+ * - Markieren (ADR 0006) stempelt der SERVER ebenso: `twin_status: flagged` +
+ *   `flagged_by`/`flagged_at`; die Notiz ist Pflicht (400 ohne sie). Ein
+ *   spaeteres Verifizieren loest die Markierung wieder auf.
  * - Spiegel-Drift-Guard: weicht der Filesystem-Spiegel von MongoDB ab,
  *   antwortet die Route 409 `mirror_drift` („erst importieren") und
  *   ueberschreibt NICHTS (§4.3).
@@ -39,6 +43,20 @@ interface CurationBody {
   artifact?: unknown
   set?: unknown
   verify?: unknown
+  markiere?: unknown
+}
+
+/** `markiere` aus dem Body — Form hier, Inhalt in `buildCurationPatches`. */
+function parseMarkiere(value: unknown): { notiz: string } | null {
+  if (value === undefined || value === null) return null
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    throw new CurationValidationError('markiere muss ein Objekt { notiz } sein')
+  }
+  const notiz = (value as { notiz?: unknown }).notiz
+  if (typeof notiz !== 'string') {
+    throw new CurationValidationError('markiere.notiz muss ein String sein')
+  }
+  return { notiz }
 }
 
 export async function POST(
@@ -79,6 +97,7 @@ export async function POST(
       artifact: parseCurationArtifactRef(body.artifact),
       set: body.set as Record<string, unknown> | undefined,
       verify: body.verify === true,
+      markiere: parseMarkiere(body.markiere),
     })
 
     return NextResponse.json(result)

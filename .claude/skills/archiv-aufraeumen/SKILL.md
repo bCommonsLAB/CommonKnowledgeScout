@@ -49,6 +49,16 @@ wie viel.
 Sekunden. `abdeckung_scannen` läuft live gegen den Storage und gehört ans Ende
 eines Arbeitsschritts.
 
+**3b. Jobs anstoßen und weiterarbeiten — nicht warten.**
+`transformation_starten` und `quelle_erschliessen` antworten **sofort** mit
+`jobId`s; die Rechenarbeit (LLM, Einbettungen, Schreiben) läuft im Hintergrund,
+bis zu sechs Jobs parallel. Nimm den **Stapel** (`sourceIds`), nicht sechs
+Einzelaufrufe, und frag den Fortschritt danach mit `job_liste`/`job_status` ab.
+
+*Bis zum 27.08.2026 war das anders:* Der Aufruf wartete ~36 s je Datei und riss
+bei Stapeln das 60-Sekunden-Limit der Brücke. Wenn du ein solches Verhalten noch
+siehst, läuft eine alte Fassung — melde es, statt auf Einzelaufrufe auszuweichen.
+
 ## Der Ablauf
 
 ### 1 — Lage feststellen
@@ -92,9 +102,10 @@ Jeder Befund trägt `actor`, `zyklusSchritt`, `severity`, `targetId` und
 | `bericht_unvollstaendig` | Cowork · **info** | Bericht lässt Quellen unerwähnt — ergänzen, blockiert nichts |
 | `teilbaum_ungesichtet` | KS · **info** | Sammel-Befund unter ungesichtetem Ordner — erst strukturieren |
 | `scan_error` | KS · error | Teilbaum nicht lesbar — Ursache melden, nie übergehen |
-| `twin_unverified` | Mensch · warning | **nichts tun** — Peters Verifikation |
+| `twin_flagged` | Mensch · error | Peter hat das Artefakt als **fehlerhaft markiert** — Notiz in `flagged_note` lesen, reparieren; die Abnahme bleibt gesperrt, bis Peter danach verifiziert |
+| `twin_unverified` | *(Alt-Bestand)* | **ignorieren** — seit ADR 0006 abgeschafft. Steht noch in Reports vor dem 27.08.2026 und verschwindet beim nächsten Scan. Nicht auflisten, nicht beauftragen |
 | `self_verified` | Mensch · error | **nichts tun** — Erzeuger und Prüfer sind derselbe |
-| `stand_widerspruch` | Mensch · error | erklärter Stand ist widerlegt — Peter melden, nicht selbst zurückstufen |
+| `stand_widerspruch` | **wandernd** · error | erklärter Stand ist widerlegt — Peter melden, nicht selbst zurückstufen. Der Akteur ist **absichtlich nicht fest**: Der Befund wird auf den Akteur des *frühesten* auslösenden Befunds geroutet (`routeStandWiderspruch`), zeigt also auf den, der zuerst handeln muss. Derselbe Befund kann darum mal `cowork`, mal `knowledgescout`, mal `mensch` sein |
 
 Die Schwere zählt: Der Abnahme-Precheck blockiert nur bei `error` und
 `warning`. `info`-Befunde sind Orientierung — sie müssen nicht weg, bevor
@@ -171,6 +182,12 @@ fortschreiben. **Den Erschließungsstand in die `_INDEX.md`**, nicht in den
 Bericht — dort steht `bearbeitungsstand` im Frontmatter, und der Bericht
 verweist nur darauf.
 
+**Schreibreihenfolge beachten (Befund 27.08.2026).** `stand_setzen` schreibt in
+die `_INDEX.md` — und macht damit **jeden Verweis darauf veraltet**. Wer den
+Bericht vor dem Stand schreibt, erzeugt `verweis_veraltet` neu und schließt den
+Befund nie. Richtige Reihenfolge: **erst `stand_setzen` bzw. die `_INDEX.md`,
+der `BERICHT.md` zuletzt.**
+
 **Den Stand setzt `stand_setzen`**, nicht die Datei-Bridge. Das Werkzeug geht
 denselben geschützten Weg wie die Oberfläche: kein `_INDEX.md` vorhanden (wird
 nie angelegt), Stand im Storage weicht vom erwarteten ab, Report veraltet — in
@@ -204,10 +221,22 @@ Immer nach **Akteur** berichten:
 30 Befunde: 28 Mensch ·  1 Maschine · 1 Cowork     (Ende)
 ```
 
-Der Zielzustand eines Agentenlaufs ist **„bereit zur Abnahme"**: null
-maschinelle Befunde, und mindestens einer wartet noch auf Peter. Beides gehört
-dazu — ein Ordner ganz ohne offene Befunde ist **nicht** „bereit", dort gibt es
-nichts abzunehmen. Grün kann nur Peter machen.
+Der Zielzustand eines Agentenlaufs ist **„bereit zur Abnahme"** — seit
+ADR 0006 heißt das: **kein Widerstand offen** (weder maschinelle Befunde noch
+Fehler-Markierungen) und noch nicht abgenommen. Ein Ordner ganz ohne offene
+Befunde IST damit bereit; die frühere Zusatzbedingung „mindestens einer wartet
+auf Peter" ist weggefallen. Grün kann weiterhin nur Peter machen.
+
+**Fehlende Verifikation ist kein Befund mehr.** Maschinenarbeit gilt als
+angenommen; Peter markiert nur noch, was falsch ist. Zwei Folgen für dich:
+
+- Wird ein geprüftes Artefakt neu erzeugt, fällt seine Verifikation auf
+  `ungueltig` zurück. Das ist **kein Mangel und kein Befund** — nicht als Lücke
+  melden. Ein Hinweis im Bericht („diese sechs wurden neu erzeugt") ist
+  trotzdem nützlich.
+- Ein Ordner kann `befundAnzahl: 0` und `bereitZurAbnahme: true` melden, obwohl
+  Artefakte auf `verification: "ungueltig"` stehen. Das ist der Zielzustand,
+  kein Widerspruch.
 
 Was gemeldet wird, ist beobachtet, nicht geschlossen: Verschwindet ein
 Befundtyp, heißt das nicht, dass die Regel abgeschafft wurde. Zwei Regeln

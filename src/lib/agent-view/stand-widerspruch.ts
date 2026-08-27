@@ -12,9 +12,9 @@
  * Schritte bis zu seinem eigenen seien fertig — `berichtet` heisst „Schritt 3
  * erledigt, Schritt 4 steht aus". Ein Befund aus einem SPAETEREN Schritt
  * widerlegt diese Behauptung darum nicht, er beschreibt die noch offene
- * Arbeit. Konkret: die 28 `twin_unverified` (Schritt 4) sind unter
- * `berichtet` der ERWARTETE Zustand, nicht ein Widerspruch; unter
- * `abgenommen` (Schritt 4 behauptet) widerlegen sie sehr wohl.
+ * Arbeit. Konkret: eine Fehler-Markierung (`twin_flagged`, Schritt 4) ist
+ * unter `berichtet` noch kein Widerspruch — Schritt 4 steht dort ja aus;
+ * unter `abgenommen` (Schritt 4 behauptet) widerlegt sie den Stand sehr wohl.
  *
  * Die Sicht korrigiert dabei NIE eine Datei — sie zeigt den Widerspruch und
  * erzeugt das Todo (Leitprinzip 6). Mtime-basierte Rueckfall-Verdachte sind

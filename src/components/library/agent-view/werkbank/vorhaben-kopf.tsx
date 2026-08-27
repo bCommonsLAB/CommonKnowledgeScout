@@ -7,7 +7,8 @@
  * Zeile 1: Titel · Stand-Chip · EIN primaerer Knopf „Vorhaben abnehmen" ·
  * Menue `⋯`. Zeile 2: Breadcrumb · Fortschritt `n von m geprueft` ·
  * Sammelaktionen (Entscheidung 3). Der Knopf folgt Entscheidung 6: er
- * sperrt NUR bei offenen maschinellen Befunden ({@link istAbnehmbar}) —
+ * sperrt bei offenen Widerstaenden ({@link istAbnehmbar}): maschinelle
+ * Befunde ODER Fehler-Markierungen (ADR 0006) —
  * offene Menschen-Punkte sperren ausdruecklich nicht, frueher abzunehmen
  * bleibt Peters Entscheidung. Stand-Fehler (409 mit Befundliste), Override-
  * und Merge-Hinweise stehen benannt unter den zwei Zeilen.
@@ -15,22 +16,24 @@
  * @module components/library/agent-view
  */
 
-import { AlertTriangle } from 'lucide-react'
+import { useState } from 'react'
+import { AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { UseArtefaktKurationResult } from '@/hooks/agent-view/use-artefakt-kuration'
 import type { UseStandResult } from '@/hooks/agent-view/use-stand'
 import type { UseThemenResult } from '@/hooks/agent-view/use-themen'
-import { istAbnehmbar } from '@/lib/agent-view/abnahme'
+import { zaehleWiderstaende } from '@/lib/agent-view/abnahme'
 import type { AuftragContext } from '@/lib/agent-view/auftrag-generator'
 import { standLabel } from '@/lib/agent-view/labels'
 import type { CoverageGap, TwinFamilySummary, VorhabenCard } from '@/lib/agent-view/types'
-import { zaehlePruefstand } from '@/lib/agent-view/werkbank-baum'
+import { zaehlePruefstand, type PruefZaehler } from '@/lib/agent-view/werkbank-baum'
 import { CoverageAmpel } from '../coverage-ampel'
 import { AbnahmeKopfRahmen, KopfBreadcrumb, KopfChip } from './abnahme-kopf'
 import type { TeilbaumScanProps } from './teilbaum-scan-knopf'
 import { ThemenEditor } from './themen-editor'
 import { VorhabenMenue } from './vorhaben-menue'
-import { WerkbankSammelaktionen } from './werkbank-sammelaktionen'
+import { WiderstandsListe } from './widerstands-liste'
+import { ZyklusLeiste } from './zyklus-leiste'
 
 /** Warum der Knopf gesperrt ist — nur maschinelle Befunde sperren (Entscheidung 6). */
 function blockerText(karte: VorhabenCard): string {
@@ -41,7 +44,22 @@ function blockerText(karte: VorhabenCard): string {
   return `${teile.join(' und ')} offen`
 }
 
-export function VorhabenKopf({ karte, stand, generatedAt, libraryId, familien, kuration, themenVokabular, themenHook, teilbaumScan, befunde, auftragContext }: {
+/**
+ * Titel des Widerstands-Chips: nennt die Herkunft der Sperre und den
+ * freiwilligen Teil (was ein Mensch angesehen hat) — ADR 0006.
+ */
+function widerstandsTitel(karte: VorhabenCard, zaehler: PruefZaehler): string {
+  const teile: string[] = []
+  const maschinell = karte.gapsByActor.cowork + karte.gapsByActor.knowledgescout
+  if (maschinell > 0) teile.push(`${maschinell} maschinelle(r) Befund(e)`)
+  if (zaehler.markiert > 0) teile.push(`${zaehler.markiert} von dir als fehlerhaft markiert`)
+  if (teile.length === 0) teile.push('nichts sperrt die Abnahme')
+  if (zaehler.geprueft > 0) teile.push(`${zaehler.geprueft} von ${zaehler.gesamt} Quellen hast du geprueft`)
+  if (zaehler.unbekannt > 0) teile.push(`${zaehler.unbekannt} mit unbekanntem Stand (Scan vor A2)`)
+  return teile.join(' · ')
+}
+
+export function VorhabenKopf({ karte, stand, generatedAt, libraryId, familien, kuration, themenVokabular, themenHook, teilbaumScan, befunde, auftragContext, onWaehleArtefakt }: {
   karte: VorhabenCard
   stand: UseStandResult
   generatedAt: string
@@ -54,6 +72,8 @@ export function VorhabenKopf({ karte, stand, generatedAt, libraryId, familien, k
   themenHook: UseThemenResult
   teilbaumScan?: TeilbaumScanProps
   befunde: readonly CoverageGap[]
+  /** Sprung zum markierten Artefakt aus der Widerstands-Liste. */
+  onWaehleArtefakt: (sourceId: string) => void
   auftragContext: AuftragContext
 }) {
   const override = stand.overrides.get(karte.folderId)
@@ -61,7 +81,9 @@ export function VorhabenKopf({ karte, stand, generatedAt, libraryId, familien, k
   const aktuellSeit = override ? override.bearbeitungsstandSeit : karte.bearbeitungsstandSeit
   const fehler = stand.fehlerByFolder.get(karte.folderId)
   const pending = stand.pendingFolderId === karte.folderId
-  const bereit = istAbnehmbar(karte.gapsByActor)
+  const [zeigeWiderstaende, setZeigeWiderstaende] = useState(false)
+  const widerstaende = zaehleWiderstaende(karte.gapsByActor, karte.gapsByType)
+  const bereit = widerstaende === 0
   const abgenommen = aktuellerStand === 'abgenommen'
   const zaehler = familien === undefined ? null : zaehlePruefstand(familien)
   const archivHref = `/library?activeLibraryId=${encodeURIComponent(libraryId)}&folderId=${encodeURIComponent(karte.folderId)}`
@@ -71,7 +93,7 @@ export function VorhabenKopf({ karte, stand, generatedAt, libraryId, familien, k
     : !bereit
       ? `Blockiert: ${blockerText(karte)}`
       : karte.gapsByActor.mensch > 0
-        ? `Abnahme beurkunden — ${karte.gapsByActor.mensch} Punkt(e) warten noch auf deine Pruefung. Die Route prueft zuerst mit einem frischen Teilbaum-Scan.`
+        ? `Abnahme beurkunden — ${karte.gapsByActor.mensch} Hinweis(e) stehen noch offen, sperren aber nicht. Die Route prueft zuerst mit einem frischen Teilbaum-Scan.`
         : 'Abnahme beurkunden — nichts mehr offen. Die Route prueft zuerst mit einem frischen Teilbaum-Scan.'
 
   return (
@@ -122,22 +144,47 @@ export function VorhabenKopf({ karte, stand, generatedAt, libraryId, familien, k
             />
             {zaehler === null ? (
               <KopfChip ton="stand" title={'Report aus einem Scan vor Welle 4 — "Neu scannen" ergaenzt die Artefakte.'}>
-                Pruefstand: neu scannen
+                Stand: neu scannen
               </KopfChip>
             ) : (
-              <KopfChip
-                ton={zaehler.geprueft === zaehler.gesamt && zaehler.gesamt > 0 ? 'ok' : 'open'}
-                title={zaehler.unbekannt > 0 ? `${zaehler.unbekannt} Familie(n) mit unbekanntem Stand (Scan vor A2)` : undefined}
+              <button
+                type="button"
+                onClick={() => setZeigeWiderstaende((vorher) => !vorher)}
+                title={`${widerstandsTitel(karte, zaehler)} — anklicken zeigt, was genau`}
+                aria-expanded={zeigeWiderstaende}
               >
-                {zaehler.geprueft} von {zaehler.gesamt} geprueft
-              </KopfChip>
+                <KopfChip ton={widerstaende > 0 ? 'open' : 'ok'}>
+                  {zeigeWiderstaende ? <ChevronDown className="h-3 w-3" aria-hidden /> : <ChevronRight className="h-3 w-3" aria-hidden />}
+                  {widerstaende === 0
+                    ? 'keine Widerstaende'
+                    : widerstaende === 1
+                      ? '1 Widerstand offen'
+                      : `${widerstaende} Widerstaende offen`}
+                </KopfChip>
+              </button>
             )}
-            {familien !== undefined && <WerkbankSammelaktionen familien={familien} kuration={kuration} />}
           </span>
         </>
       }
       kinder={
         <>
+          {zaehler !== null && (
+            <ZyklusLeiste
+              gapsByType={karte.gapsByType}
+              bearbeitungsstand={aktuellerStand}
+              markierungen={zaehler.markiert}
+              befunde={befunde}
+              auftragContext={auftragContext}
+            />
+          )}
+          {zeigeWiderstaende && (
+            <WiderstandsListe
+              befunde={befunde}
+              familien={familien}
+              maschinellGesamt={karte.gapsByActor.cowork + karte.gapsByActor.knowledgescout}
+              onWaehleArtefakt={onWaehleArtefakt}
+            />
+          )}
           {pending && <p className="text-xs text-muted-foreground">wird geprueft …</p>}
           {karte.widerspruch && (
             <p className="text-sm font-medium text-red-500">{standLabel(karte.bearbeitungsstand)}, aber nicht mehr aktuell</p>

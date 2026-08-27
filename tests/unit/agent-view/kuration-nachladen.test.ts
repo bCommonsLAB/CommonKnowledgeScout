@@ -67,7 +67,9 @@ function reportFamilie(): TwinFamilySummary {
   const unverifiziert = (kind: 'transcript' | 'transformation', templateName: string | null, lang: string): LeadingArtifactSummary => ({
     kind, templateName, targetLanguage: lang,
     twinStatus: null, generatedBy: 'knowledgescout/x', generatedAt: GENERIERT,
-    verifiedBy: null, verifiedAt: null, verification: 'unverifiziert',
+    verifiedBy: null, verifiedAt: null,
+    flaggedBy: null, flaggedAt: null, flaggedNote: null,
+    verification: 'unverifiziert',
   })
   return {
     sourceId: 'src-1', sourceName: 'Aufnahme.m4a', folderId: 'ordner-1', path: 'Vorhaben/Aufnahme.m4a',
@@ -102,13 +104,14 @@ describe('baueNachladeOverrides + mergeOverrides', () => {
     const familie = reportFamilie()
 
     // Vorher: Report kennt die Verifikation nicht.
-    expect(familienPruefstand(familie)).toBe('offen')
+    expect(familienPruefstand(familie)).toBe('angenommen')
     expect(familie.transkript?.verification).toBe('unverifiziert')
 
     const effektiv = effektiveFamilie(familie, mergeOverrides(basis, new Map()))
     expect(effektiv.transkript?.verification).toBe('mensch')
-    // Zusammenfassung ist in Mongo weiter unverifiziert — Familie bleibt offen (korrekt).
-    expect(familienPruefstand(effektiv)).toBe('offen')
+    // Die Zusammenfassung ist in Mongo weiter unbestaetigt — das ist seit
+    // ADR 0006 kein Mangel, die Familie bleibt „angenommen".
+    expect(familienPruefstand(effektiv)).toBe('angenommen')
   })
 
   it('Session-Overrides gewinnen gegen den nachgeladenen Snapshot', () => {

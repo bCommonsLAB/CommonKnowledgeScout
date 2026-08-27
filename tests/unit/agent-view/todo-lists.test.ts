@@ -10,7 +10,7 @@ function gap(type: CoverageGapType, path: string) {
 describe('todo-lists', () => {
   it('verteilt Befunde auf die drei Akteur-Listen (Todo-Routing F2)', () => {
     const lists = buildTodoLists([
-      gap('twin_unverified', 'a'),
+      gap('twin_flagged', 'a'),
       gap('report_missing', 'b'),
       gap('verweis_tot', 'b'),
       gap('source_without_twin', 'c'),

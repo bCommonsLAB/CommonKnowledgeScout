@@ -28,12 +28,25 @@ export const TWIN_CORE_FIELDS = [
 export type TwinCoreField = (typeof TWIN_CORE_FIELDS)[number]
 
 /** Kurations-Felder (Contract §3.2) — gepflegt von der Verifikation, nie vom Generator. */
-export const TWIN_CURATION_FIELDS = ['twin_status', 'verified_by', 'verified_at'] as const
+export const TWIN_CURATION_FIELDS = [
+  'twin_status',
+  'verified_by',
+  'verified_at',
+  // ADR 0006: Herkunft der Fehler-Markierung — Muster wie verified_by/_at.
+  'flagged_by',
+  'flagged_at',
+  'flagged_note',
+] as const
 
 export type TwinCurationField = (typeof TWIN_CURATION_FIELDS)[number]
 
 /** Erlaubte Werte fuer `twin_status` (Const-Array statt Enum, siehe .cursorrules). */
-export const TWIN_STATUS_VALUES = ['draft', 'stable', 'deprecated'] as const
+/**
+ * `flagged` = ein Mensch hat das Artefakt als fehlerhaft markiert (ADR 0006,
+ * Modell B). Der Wert sperrt die Abnahme, bis die Markierung aufgeloest ist;
+ * die Herkunft steht in `flagged_by`/`flagged_at`/`flagged_note`.
+ */
+export const TWIN_STATUS_VALUES = ['draft', 'stable', 'deprecated', 'flagged'] as const
 
 export type TwinStatus = (typeof TWIN_STATUS_VALUES)[number]
 

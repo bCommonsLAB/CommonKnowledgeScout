@@ -46,7 +46,7 @@ describe('TodoListsPanel', () => {
   it('zeigt die drei Akteur-Spalten mit Zaehlern und Zyklus-Schritten', () => {
     renderPanel(
       <TodoListsPanel
-        report={report([gap('twin_unverified', 'a'), gap('report_missing', 'b'), gap('source_without_twin', 'c')])}
+        report={report([gap('twin_flagged', 'a'), gap('report_missing', 'b'), gap('source_without_twin', 'c')])}
         {...PROPS}
       />,
     )

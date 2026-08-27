@@ -11,7 +11,7 @@
  * @module mcp
  */
 
-import { istBereitZurAbnahme, zaehleGapsNachAkteur } from '@/lib/agent-view/abnahme'
+import { istAbnehmbar, zaehleGapsNachAkteur, zaehleGapsNachTyp } from '@/lib/agent-view/abnahme'
 import { isInSubtree } from '@/lib/agent-view/teilbaum'
 import { matchtBefundFilter } from '@/lib/agent-view/werkbank-filter'
 import type { CoverageReport } from '@/lib/agent-view/types'
@@ -112,10 +112,13 @@ export function summarizeCoverageReport(args: CoverageViewArgs) {
   const zyklusSchritt = args.zyklusSchritt ?? null
   // C5-Filter ueber die geteilte Werkbank-Funktion (W3) — UI und MCP driften nicht.
   const gapsInScope = gapsInPath.filter((gap) => matchtBefundFilter(gap, { akteur, zyklusSchritt }))
-  // D2 (Pilot-Wunschliste): „bereit zur Abnahme“ = im Pfad-Scope wartet alles
-  // auf den Menschen. Geteiltes Praedikat (Werkbank W1) — MCP und UI
-  // urteilen identisch, kein Drift.
-  const bereitZurAbnahme = istBereitZurAbnahme(zaehleGapsNachAkteur(gapsInPath))
+  // D2 (Pilot-Wunschliste): „bereit zur Abnahme“ = im Pfad-Scope steht kein
+  // Widerstand mehr offen (ADR 0006). Geteiltes Praedikat (Werkbank W1) —
+  // MCP und UI urteilen identisch, kein Drift.
+  const bereitZurAbnahme = istAbnehmbar(
+    zaehleGapsNachAkteur(gapsInPath),
+    zaehleGapsNachTyp(gapsInPath),
+  )
   const familiesAll = args.report.families
   const familiesInScope = familiesAll === undefined
     ? undefined

@@ -9,9 +9,9 @@
  *
  * „Wartet auf dich" ist kein neues Praedikat: es ist {@link
  * zaehleWorklistFortschritt}`.bereit`, also das geteilte
- * {@link istBereitZurAbnahme} MINUS der bereits abgenommenen Vorhaben —
- * dieselbe Definition wie Fortschrittskopf, Ampel und MCP-Kompaktsicht
- * (Projektauftrag §Regeln: geteilte Praedikate statt Kopien).
+ * {@link wartetAufAbnahme} — kein Widerstand offen und noch nicht abgenommen
+ * (ADR 0006). Dieselbe Definition wie Fortschrittskopf, Filter „Bereit" und
+ * MCP-Kompaktsicht (Projektauftrag §Regeln: geteilte Praedikate statt Kopien).
  *
  * Reine Funktion, kein I/O.
  *

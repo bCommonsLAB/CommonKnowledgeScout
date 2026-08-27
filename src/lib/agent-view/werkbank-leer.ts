@@ -102,7 +102,8 @@ export function beschreibeLeereWerkbankListe(args: WerkbankLeerArgs): string | n
   if (args.statusFilter === 'bereit' && teile.length === 1) {
     return (
       `Kein Vorhaben ist bereit zur Abnahme (${args.gesamt} im Report) — ` +
-      'bereit heisst: keine maschinellen Befunde offen, mindestens einer wartet auf den Menschen.'
+      'bereit heisst: kein Widerstand offen (weder maschinelle Befunde noch ' +
+      'Fehler-Markierungen) und noch nicht abgenommen.'
     )
   }
   // Kombination bzw. Suche/Chips allein: die aktiven Einschraenkungen benennen.

@@ -45,6 +45,9 @@ export type CoverageGapType =
   | 'core_fields_missing'
   // — Twin-Kern-/Verifikations-Regeln (Contract §3) —
   | 'twin_core_missing'
+  | 'twin_flagged'
+  /** Alt-Bestand: wird seit ADR 0006 nicht mehr erzeugt, steht aber in
+   *  gespeicherten Reports, bis der naechste Voll-Scan sie ersetzt. */
   | 'twin_unverified'
   | 'self_verified'
   | 'transformation_missing'
@@ -213,6 +216,10 @@ export interface LeadingArtifactSummary {
   generatedAt: string | null
   verifiedBy: string | null
   verifiedAt: string | null
+  /** Fehler-Markierung (ADR 0006): wer, wann, was stimmt nicht. */
+  flaggedBy: string | null
+  flaggedAt: string | null
+  flaggedNote: string | null
   verification: VerificationState
 }
 

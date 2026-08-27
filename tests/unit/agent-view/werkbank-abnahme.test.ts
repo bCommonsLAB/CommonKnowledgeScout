@@ -1,15 +1,14 @@
 /**
- * @fileoverview Unit-Tests: Abnahme-Fluss (Welle A4) — pur.
+ * @fileoverview Unit-Tests: Kurations-Fluss der Werkbank — pur.
  *
- * Ziele der Sammelaktion (nur offene Artefakte EINER Art, Entscheidung 3),
- * Einspielen frischer Verifikationen und der Sprung zum naechsten offenen
- * Artefakt (Entscheidung 5) inkl. Umlauf ans Listen-Ende.
+ * ADR 0006 (Modell B): Es gibt keine Sammelaktion und keine Pflichtkette
+ * mehr. Geprueft wird das Einspielen einer frischen Kuration und der Sprung
+ * zum naechsten WIDERSTAND (markierter Fehler) inkl. Umlauf ans Listen-Ende.
  */
 
 import { describe, it, expect } from 'vitest'
 import {
-  andererOffenerTab, naechstesOffenes, patchFamilie, sammelZiele,
-  sprungHinweis, sprungNachVerifikation,
+  naechsterWiderstand, patchFamilie, sprungHinweis, sprungNachVerifikation,
 } from '@/lib/agent-view/werkbank-abnahme'
 import type { LeadingArtifactSummary, TwinFamilySummary } from '@/lib/agent-view/types'
 
@@ -17,6 +16,7 @@ function artefakt(overrides: Partial<LeadingArtifactSummary> = {}): LeadingArtif
   return {
     kind: 'transcript', templateName: null, targetLanguage: 'de', twinStatus: null,
     generatedBy: null, generatedAt: null, verifiedBy: null, verifiedAt: null,
+    flaggedBy: null, flaggedAt: null, flaggedNote: null,
     verification: 'unverifiziert', ...overrides,
   }
 }
@@ -31,83 +31,59 @@ function familie(sourceId: string, overrides: Partial<TwinFamilySummary> = {}): 
   }
 }
 
-describe('sammelZiele', () => {
-  it('sammelt nur offene Artefakte der gewaehlten Art', () => {
-    const ziele = sammelZiele(
-      [
-        familie('offen'),
-        familie('geprueft', { transkript: artefakt({ verification: 'mensch' }) }),
-        familie('ohne', { transkript: null }),
-        familie('vor-a2', { transkript: undefined, zusammenfassung: undefined }),
-      ],
-      'transkript',
-    )
-    expect(ziele.map((ziel) => ziel.familie.sourceId)).toEqual(['offen'])
+/** Familie mit markiertem Transkript — der einzige Widerstand des Modells. */
+function markiert(sourceId: string, overrides: Partial<TwinFamilySummary> = {}): TwinFamilySummary {
+  return familie(sourceId, {
+    transkript: artefakt({ twinStatus: 'flagged', flaggedNote: 'Sprecher vertauscht' }),
+    ...overrides,
+  })
+}
+
+describe('naechsterWiderstand', () => {
+  it('findet die naechste markierte Familie vorwaerts, mit Umlauf', () => {
+    const liste = [markiert('a'), familie('b'), markiert('c')]
+    expect(naechsterWiderstand(liste, 'a')?.sourceId).toBe('c')
+    expect(naechsterWiderstand(liste, 'c')?.sourceId).toBe('a')
   })
 
-  it('trennt die Arten — Zusammenfassungen sind eine eigene Sammlung', () => {
-    const familien = [familie('a', { transkript: artefakt({ verification: 'mensch' }) })]
-    expect(sammelZiele(familien, 'transkript')).toHaveLength(0)
-    expect(sammelZiele(familien, 'zusammenfassung')).toHaveLength(1)
-  })
-})
-
-describe('naechstesOffenes', () => {
-  const geprueft = () => familie('x', {
-    transkript: artefakt({ verification: 'mensch' }),
-    zusammenfassung: artefakt({ kind: 'transformation', templateName: 'standard', verification: 'mensch' }),
+  it('ueberspringt unbestaetigte Familien — fehlende Pruefung ist kein Widerstand', () => {
+    const liste = [familie('a'), familie('b'), familie('c')]
+    expect(naechsterWiderstand(liste, 'a')).toBeNull()
   })
 
-  it('findet das naechste offene Artefakt vorwaerts, mit Umlauf', () => {
-    const liste = [familie('a'), { ...geprueft(), sourceId: 'b' }, familie('c')]
-    expect(naechstesOffenes(liste, 'a')?.sourceId).toBe('c')
-    expect(naechstesOffenes(liste, 'c')?.sourceId).toBe('a')
-  })
-
-  it('null, wenn nichts mehr offen ist — die Ausgangsfamilie zaehlt nicht', () => {
-    const liste = [{ ...geprueft(), sourceId: 'a' }, familie('b')]
-    expect(naechstesOffenes(liste, 'b')).toBeNull()
+  it('null, wenn nichts markiert ist — die Ausgangsfamilie zaehlt nicht', () => {
+    expect(naechsterWiderstand([markiert('a'), familie('b')], 'a')).toBeNull()
   })
 })
 
-describe('patchFamilie + andererOffenerTab', () => {
-  it('spielt die frische Verifikation ein; der andere offene Tab ist dran', () => {
-    const basis = familie('a')
-    const gepatcht = patchFamilie(basis, 'transkript', artefakt({ verification: 'mensch' }))
+describe('patchFamilie', () => {
+  it('spielt die frische Kuration in ihre Familie ein', () => {
+    const gepatcht = patchFamilie(familie('a'), 'transkript', artefakt({ verification: 'mensch' }))
     expect(gepatcht.transkript?.verification).toBe('mensch')
-    expect(andererOffenerTab(gepatcht, 'transkript')).toBe('zusammenfassung')
+    expect(gepatcht.zusammenfassung?.verification).toBe('unverifiziert')
   })
 
-  it('kein anderer Tab, wenn das zweite Artefakt fehlt oder geprueft ist', () => {
-    expect(andererOffenerTab(familie('a', { zusammenfassung: null }), 'transkript')).toBeNull()
-    expect(
-      andererOffenerTab(
-        familie('a', { zusammenfassung: artefakt({ kind: 'transformation', templateName: 'standard', verification: 'mensch' }) }),
-        'transkript',
-      ),
-    ).toBeNull()
+  it('traegt auch eine frische Markierung ein', () => {
+    const gepatcht = patchFamilie(familie('a'), 'zusammenfassung', artefakt({
+      kind: 'transformation', templateName: 'standard', twinStatus: 'flagged', flaggedNote: 'Zahlen falsch',
+    }))
+    expect(gepatcht.zusammenfassung?.twinStatus).toBe('flagged')
   })
 })
 
-describe('sprungNachVerifikation + sprungHinweis (A5)', () => {
-  const fertig = (sourceId: string, folderId = 'f1') => familie(sourceId, {
-    folderId,
-    transkript: artefakt({ verification: 'mensch' }),
-    zusammenfassung: artefakt({ kind: 'transformation', templateName: 'standard', verification: 'mensch' }),
-  })
-
-  it('gewoehnlicher Sprung im selben Ordner: kein Hinweis', () => {
-    const gepatcht = fertig('a')
-    const ergebnis = sprungNachVerifikation([familie('a'), familie('b')], gepatcht)
+describe('sprungNachVerifikation + sprungHinweis', () => {
+  it('springt zum naechsten markierten Fehler im selben Ordner: kein Hinweis', () => {
+    const gepatcht = familie('a')
+    const ergebnis = sprungNachVerifikation([markiert('a'), markiert('b')], gepatcht)
     expect(ergebnis.naechste?.sourceId).toBe('b')
     expect(ergebnis.ordnerFertig).toBe(false)
     expect(sprungHinweis(ergebnis, gepatcht)).toBeNull()
   })
 
-  it('Ordner fertig + Wechsel: Hinweis nennt Ordner und naechstes Artefakt', () => {
-    const gepatcht = { ...fertig('a'), path: 'V/Ordner Eins/a.m4a' }
+  it('Ordner frei + Wechsel: Hinweis nennt Ordner und naechstes Artefakt', () => {
+    const gepatcht = { ...familie('a'), path: 'V/Ordner Eins/a.m4a' }
     const ergebnis = sprungNachVerifikation(
-      [familie('a', { path: 'V/Ordner Eins/a.m4a' }), familie('b', { folderId: 'f2', path: 'V/Ordner Zwei/b.m4a' })],
+      [markiert('a', { path: 'V/Ordner Eins/a.m4a' }), markiert('b', { folderId: 'f2', path: 'V/Ordner Zwei/b.m4a' })],
       gepatcht,
     )
     expect(ergebnis).toMatchObject({ ordnerFertig: true, ordnerGewechselt: true, vorhabenFertig: false })
@@ -116,17 +92,18 @@ describe('sprungNachVerifikation + sprungHinweis (A5)', () => {
     expect(hinweis?.beschreibung).toContain('b.m4a')
   })
 
-  it('nichts mehr offen: vorhabenFertig, Hinweis auf die Abnahme', () => {
-    const gepatcht = fertig('a')
-    const ergebnis = sprungNachVerifikation([familie('a'), fertig('b')], gepatcht)
+  it('kein Widerstand mehr: vorhabenFertig, Hinweis auf die Abnahme', () => {
+    const gepatcht = familie('a')
+    const ergebnis = sprungNachVerifikation([markiert('a'), familie('b')], gepatcht)
     expect(ergebnis).toMatchObject({ naechste: null, vorhabenFertig: true })
     expect(sprungHinweis(ergebnis, gepatcht)?.beschreibung).toContain('Abnahme')
   })
 
-  it('Ordner fertig, aber naechstes offenes im SELBEN Ordner gibt es nicht — Wechsel gilt nur bei anderem Ordner', () => {
-    const gepatcht = fertig('a')
-    const ergebnis = sprungNachVerifikation([familie('a'), fertig('b'), familie('c', { folderId: 'f2' })], gepatcht)
-    expect(ergebnis.ordnerGewechselt).toBe(true)
-    expect(ergebnis.naechste?.sourceId).toBe('c')
+  it('bleibt stehen, wenn der eigene Fehler noch offen ist', () => {
+    // Verifizieren eines ANDEREN Teils raeumt die Markierung nicht weg.
+    const gepatcht = markiert('a')
+    const ergebnis = sprungNachVerifikation([markiert('a'), familie('b')], gepatcht)
+    expect(ergebnis).toMatchObject({ naechste: null, vorhabenFertig: false })
+    expect(sprungHinweis(ergebnis, gepatcht)).toBeNull()
   })
 })

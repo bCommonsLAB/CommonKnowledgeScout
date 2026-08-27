@@ -16,8 +16,13 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { VorhabenKopf } from '@/components/library/agent-view/werkbank/vorhaben-kopf'
 import type { UseArtefaktKurationResult } from '@/hooks/agent-view/use-artefakt-kuration'
+
+const toastMock = vi.fn()
+vi.mock('@/components/ui/use-toast', () => ({
+  useToast: () => ({ toast: toastMock }),
+}))
 import type { StandFehler, StandOverride, UseStandResult } from '@/hooks/agent-view/use-stand'
-import type { LeadingArtifactSummary, TwinFamilySummary, VorhabenCard } from '@/lib/agent-view/types'
+import type { CoverageGap, LeadingArtifactSummary, TwinFamilySummary, VorhabenCard } from '@/lib/agent-view/types'
 
 afterEach(() => cleanup())
 
@@ -31,7 +36,7 @@ function karte(overrides: Partial<VorhabenCard> = {}): VorhabenCard {
     folderId: 'f-pilot', name: 'Pilot', path: '1. Arbeit/Pilot',
     bearbeitungsstand: 'berichtet', bearbeitungsstandSeit: null, hasBericht: true,
     totalGaps: 1, gapsByActor: { mensch: 1, cowork: 0, knowledgescout: 0 },
-    gapsByType: { twin_unverified: 1 }, widerspruch: false,
+    gapsByType: { stand_widerspruch: 1 }, widerspruch: false,
     ampel: 'gelb', berichtTitel: null, berichtFileId: null,
     berichtModifiedAt: null, berichtStatus: null, themen: [],
     ...overrides,
@@ -82,9 +87,8 @@ function fakeKuration(overrides: Partial<UseArtefaktKurationResult> = {}): UseAr
   return {
     overrides: new Map(), pendingKey: null, fehler: new Map(),
     verifiziere: vi.fn().mockResolvedValue(null),
+    markiere: vi.fn().mockResolvedValue(null),
     setzeTwinStatus: vi.fn().mockResolvedValue(undefined),
-    sammelVerifiziere: vi.fn().mockResolvedValue({ erledigt: 0, gesamt: 0, fehler: [] }),
-    sammelLaeuft: false,
     ...overrides,
   }
 }
@@ -94,9 +98,12 @@ function renderKopf(args: {
   stand?: UseStandResult
   familien?: TwinFamilySummary[] | undefined
   kuration?: UseArtefaktKurationResult
+  befunde?: CoverageGap[]
+  onWaehleArtefakt?: ReturnType<typeof vi.fn>
 } = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
+  const onWaehleArtefakt = args.onWaehleArtefakt ?? vi.fn()
+  const ergebnis = render(
     <QueryClientProvider client={queryClient}>
       <VorhabenKopf
         karte={args.k ?? karte()}
@@ -107,11 +114,13 @@ function renderKopf(args: {
         kuration={args.kuration ?? fakeKuration()}
         themenVokabular={[]}
         themenHook={fakeThemen()}
-        befunde={[]}
+        befunde={args.befunde ?? []}
+        onWaehleArtefakt={onWaehleArtefakt}
         auftragContext={{ libraryLabel: 'Testarchiv', localRootPath: null, generatedAt: 'G1' }}
       />
     </QueryClientProvider>,
   )
+  return Object.assign(ergebnis, { onWaehleArtefakt })
 }
 
 describe('VorhabenKopf — primaerer Knopf (Entscheidung 6)', () => {
@@ -165,35 +174,180 @@ describe('VorhabenKopf — Menue ⋯ (alles Seltene)', () => {
   })
 })
 
-describe('VorhabenKopf — Zeile 2: Fortschritt + Sammelaktion', () => {
-  it('zeigt n von m geprueft aus den effektiven Familien', () => {
-    renderKopf({
-      familien: [
-        familie('a', { transkript: artefakt({ verification: 'mensch' }) }),
-        familie('b'),
-      ],
-    })
-    expect(screen.getByText('1 von 2 geprueft')).toBeTruthy()
+describe('VorhabenKopf — Zyklus-Leiste (Rueckfrage 27.08.2026)', () => {
+  it('zeigt alle vier Schritte mit Zustaendigem', () => {
+    renderKopf({})
+    expect(screen.getByText('Sichten')).toBeTruthy()
+    expect(screen.getByText('Strukturieren')).toBeTruthy()
+    expect(screen.getByText('Berichten')).toBeTruthy()
+    expect(screen.getByText('Abnehmen')).toBeTruthy()
+    expect(screen.getAllByText('(Cowork)').length).toBe(2)
   })
 
-  it('Sammelaktion fragt mit der Zahl zurueck und verifiziert erst nach Bestaetigung', async () => {
-    const kuration = fakeKuration({
-      sammelVerifiziere: vi.fn().mockResolvedValue({ erledigt: 2, gesamt: 2, fehler: [] }),
+  it('sagt, welcher Schritt dran ist und wo man ihn macht', () => {
+    renderKopf({
+      k: {
+        ...karte(),
+        bearbeitungsstand: 'strukturiert',
+        gapsByActor: { mensch: 0, cowork: 1, knowledgescout: 0 },
+        gapsByType: { report_missing: 1 },
+      },
     })
-    renderKopf({ familien: [familie('a'), familie('b')], kuration })
-    fireEvent.click(screen.getByRole('button', { name: /2 Transkripte pruefen/ }))
-    expect(screen.getByText('2 Transkripte als geprueft bestaetigen?')).toBeTruthy()
-    expect(kuration.sammelVerifiziere).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: /Ja, 2 verifizieren/ }))
-    await vi.waitFor(() => expect(kuration.sammelVerifiziere).toHaveBeenCalledTimes(1))
-    const ziele = (kuration.sammelVerifiziere as ReturnType<typeof vi.fn>).mock.calls[0][0]
-    expect(ziele).toHaveLength(2)
-    expect(await screen.findByText(/2 von 2 verifiziert/)).toBeTruthy()
+    expect(screen.getByText(/Schritt 3 — Berichten/)).toBeTruthy()
+    expect(screen.getByText(/Cowork-Sitzung am Dateisystem/)).toBeTruthy()
+  })
+
+  it('ein Schritt mit offenen Punkten ist ein Knopf und kopiert den Auftrag', async () => {
+    const schreib = vi.fn().mockResolvedValue(undefined)
+    Object.assign(navigator, { clipboard: { writeText: schreib } })
+    renderKopf({
+      k: {
+        ...karte(),
+        bearbeitungsstand: 'strukturiert',
+        gapsByActor: { mensch: 0, cowork: 1, knowledgescout: 0 },
+        gapsByType: { report_missing: 1 },
+      },
+      befunde: [
+        { type: 'report_missing', actor: 'cowork', severity: 'warning', path: '1. Arbeit/Pilot', message: 'Kein BERICHT.md', scope: 'folder', targetId: 'f-pilot', targetName: 'Pilot', folderId: 'f-pilot', zyklusSchritt: 3 } as unknown as CoverageGap,
+      ],
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Berichten/ }))
+    await vi.waitFor(() => expect(schreib).toHaveBeenCalledTimes(1))
+    const text = schreib.mock.calls[0][0] as string
+    expect(text).toContain('Cowork-Auftrag')
+    expect(text).toContain('Schreibe einen BERICHT.md')
+    // Der Hinweis sagt, wohin der Text gehoert.
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({ description: expect.stringContaining('Cowork-Sitzung am Dateisystem') }),
+    )
+  })
+
+  it('ein freier Schritt ist KEIN Knopf — er fuehrt nirgendwohin', () => {
+    renderKopf({ k: { ...karte(), gapsByActor: { mensch: 0, cowork: 0, knowledgescout: 0 }, gapsByType: {} } })
+    expect(screen.queryByRole('button', { name: /Sichten/ })).toBeNull()
+    expect(screen.getByText('Sichten')).toBeTruthy()
+  })
+
+  it('sagt es, wenn der Report zum Schritt keinen Befundtext hergibt', async () => {
+    // Zaehler kennt den Punkt (aus der Karten-Summe), die Liste nicht (Kappung).
+    renderKopf({
+      k: { ...karte(), gapsByActor: { mensch: 0, cowork: 3, knowledgescout: 0 }, gapsByType: { report_missing: 3 } },
+      befunde: [],
+    })
+    toastMock.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: /Berichten/ }))
+    await vi.waitFor(() =>
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({ title: expect.stringContaining('Kein Auftragstext') }),
+      ),
+    )
+  })
+
+  it('ist alles frei, verweist die Leiste auf die Abnahme', () => {
+    renderKopf({ k: { ...karte(), gapsByActor: { mensch: 0, cowork: 0, knowledgescout: 0 }, gapsByType: {} } })
+    expect(screen.getByText(/Alle vier Schritte sind frei/)).toBeTruthy()
+  })
+
+  it('eine frische Markierung schiebt die Arbeit auf Schritt 4 — zu dir', () => {
+    renderKopf({
+      familien: [familie('a', { transkript: artefakt({ twinStatus: 'flagged', flaggedNote: 'passt nicht' }) })],
+      k: { ...karte(), gapsByActor: { mensch: 0, cowork: 0, knowledgescout: 0 }, gapsByType: {} },
+    })
+    expect(screen.getByText(/Schritt 4 — Abnehmen/)).toBeTruthy()
+    expect(screen.getByText(/hier in der Werkbank/)).toBeTruthy()
+  })
+})
+
+describe('VorhabenKopf — Zeile 2: Widerstands-Chip (ADR 0006)', () => {
+  it('sagt „keine Widerstaende", wenn nichts sperrt — auch ohne jede Verifikation', () => {
+    renderKopf({
+      familien: [familie('a'), familie('b')],
+      k: { ...karte(), gapsByActor: { mensch: 0, cowork: 0, knowledgescout: 0 }, gapsByType: {} },
+    })
+    expect(screen.getByText('keine Widerstaende')).toBeTruthy()
+  })
+
+  it('zaehlt maschinelle Befunde und Fehler-Markierungen zusammen', () => {
+    renderKopf({
+      familien: [familie('a', { transkript: artefakt({ twinStatus: 'flagged' }) }), familie('b')],
+      k: {
+        ...karte(),
+        gapsByActor: { mensch: 1, cowork: 2, knowledgescout: 0 },
+        gapsByType: { twin_flagged: 1, report_missing: 2 },
+      },
+    })
+    expect(screen.getByText('3 Widerstaende offen')).toBeTruthy()
+  })
+
+  it('nennt im Titel die Herkunft der Sperre und was ein Mensch angesehen hat', () => {
+    renderKopf({
+      familien: [familie('a', { transkript: artefakt({ twinStatus: 'flagged' }) })],
+      k: { ...karte(), gapsByActor: { mensch: 1, cowork: 0, knowledgescout: 0 }, gapsByType: { twin_flagged: 1 } },
+    })
+    expect(screen.getByRole('button', { name: /1 Widerstand offen/ }).getAttribute('title')).toContain(
+      'als fehlerhaft markiert',
+    )
+  })
+
+  it('der Chip klappt auf und nennt die maschinellen Befunde beim Namen (Befund 27.08.2026)', () => {
+    renderKopf({
+      k: { ...karte(), gapsByActor: { mensch: 0, cowork: 2, knowledgescout: 0 }, gapsByType: { report_missing: 2 } },
+      befunde: [
+        { type: 'report_missing', actor: 'cowork', severity: 'warning', path: '1. Arbeit/Pilot', message: 'Kein BERICHT.md', scope: 'folder', targetId: 'f-pilot', targetName: 'Pilot', folderId: 'f-pilot', zyklusSchritt: 3 } as unknown as CoverageGap,
+      ],
+    })
+    // Zugeklappt ist nichts davon sichtbar — erst der Klick loest die Zahl auf.
+    expect(screen.queryByText(/Kein BERICHT.md/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /2 Widerstaende offen/ }))
+    expect(screen.getByText(/Kein BERICHT.md/)).toBeTruthy()
+  })
+
+  it('sagt je Befund, WAS zu tun ist und WER dran ist (Rueckfrage 27.08.2026)', () => {
+    renderKopf({
+      k: { ...karte(), gapsByActor: { mensch: 0, cowork: 1, knowledgescout: 0 }, gapsByType: { report_missing: 1 } },
+      befunde: [
+        { type: 'report_missing', actor: 'cowork', severity: 'warning', path: '1. Arbeit/Pilot', message: 'Kein BERICHT.md', scope: 'folder', targetId: 'f-pilot', targetName: 'Pilot', folderId: 'f-pilot', zyklusSchritt: 3 } as unknown as CoverageGap,
+      ],
+    })
+    fireEvent.click(screen.getByRole('button', { name: /1 Widerstand offen/ }))
+    // Der Handlungssatz kommt aus derselben Vorlage wie der Cowork-Auftrag.
+    expect(screen.getByText(/Was tun \(Cowork\)/)).toBeTruthy()
+    expect(screen.getByText(/Schreibe einen BERICHT.md/)).toBeTruthy()
+    // Und: kein Voll-Scan noetig, um den Befund loszuwerden.
+    expect(screen.getByText(/Teilbaum neu scannen/)).toBeTruthy()
+  })
+
+  it('markierte Artefakte stehen in der Liste und fuehren per Klick zum Artefakt', () => {
+    const markiert = familie('a', {
+      transkript: artefakt({ twinStatus: 'flagged', flaggedNote: 'Sprecher vertauscht' }),
+    })
+    const { onWaehleArtefakt } = renderKopf({
+      familien: [markiert],
+      k: { ...karte(), gapsByActor: { mensch: 1, cowork: 0, knowledgescout: 0 }, gapsByType: { twin_flagged: 1 } },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /1 Widerstand offen/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Sprecher vertauscht/ }))
+    expect(onWaehleArtefakt).toHaveBeenCalledWith('a')
+  })
+
+  it('benennt gekappte Befunde, statt eine zu kurze Liste zu zeigen', () => {
+    renderKopf({
+      k: { ...karte(), gapsByActor: { mensch: 0, cowork: 9, knowledgescout: 0 }, gapsByType: { report_missing: 9 } },
+      befunde: [],
+    })
+    fireEvent.click(screen.getByRole('button', { name: /9 Widerstaende offen/ }))
+    expect(screen.getByText(/9 weitere\(r\) maschinelle\(r\) Befund/)).toBeTruthy()
+  })
+
+  it('ohne Widerstand sagt die Liste das ausdruecklich', () => {
+    renderKopf({ k: { ...karte(), gapsByActor: { mensch: 0, cowork: 0, knowledgescout: 0 }, gapsByType: {} } })
+    fireEvent.click(screen.getByRole('button', { name: /keine Widerstaende/ }))
+    expect(screen.getByText(/Nichts sperrt die Abnahme/)).toBeTruthy()
   })
 
   it('Report vor Welle 4: Chip benennt den Zustand statt 0/0 zu raten', () => {
     renderKopf({ familien: undefined })
-    expect(screen.getByText('Pruefstand: neu scannen')).toBeTruthy()
+    expect(screen.getByText('Stand: neu scannen')).toBeTruthy()
   })
 })
 

@@ -26,7 +26,7 @@ function card(overrides: Partial<VorhabenCard> = {}): VorhabenCard {
     hasBericht: true,
     totalGaps: 1,
     gapsByActor: { mensch: 1, cowork: 0, knowledgescout: 0 },
-    gapsByType: { twin_unverified: 1 },
+    gapsByType: { stand_widerspruch: 1 },
     widerspruch: false,
     ampel: 'rot',
     berichtTitel: 'Pilotprojekt Klima',

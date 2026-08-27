@@ -208,6 +208,19 @@ export interface StorageProvider {
  * Custom error type for storage operations.
  * Provides additional context for storage-related errors.
  */
+/**
+ * Erkennungsmarke fuer „der Speicher ist nicht verbunden" (Befund 27.08.2026:
+ * „Nicht authentifiziert" und „fetch failed" lasen sich wie ein Programmfehler).
+ * Provider setzen sie in die Meldung, die Oberflaeche bietet daraufhin den Weg
+ * zur Anmeldung an — EIN Marker, keine zweite Fehlerliste.
+ */
+export const SPEICHER_NICHT_VERBUNDEN = 'Speicher nicht verbunden'
+
+/** True, wenn eine Fehlermeldung nach einer neuen Anmeldung verlangt. */
+export function istAnmeldungNoetig(meldung: string | null | undefined): boolean {
+  return typeof meldung === 'string' && meldung.includes(SPEICHER_NICHT_VERBUNDEN)
+}
+
 export class StorageError extends Error {
   /**
    * Creates a new storage error.

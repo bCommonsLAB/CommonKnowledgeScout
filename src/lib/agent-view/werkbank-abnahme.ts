@@ -2,12 +2,12 @@
  * @fileoverview Abnahme-Fluss der Werkbank (Welle A4) — pur.
  *
  * @description
- * Die Sammelaktion ist nach ART getrennt (Entscheidung 3, 24.08.2026): je
- * ein Knopf fuer alle Transkripte und alle Zusammenfassungen, jeder mit
- * einer Rueckfrage, die die Zahl nennt. Hier wohnen die reinen Zutaten:
- * welche Artefakte offen sind (Ziele der Sammelaktion), das Einspielen
- * eines frisch verifizierten Artefakts in seine Familie und der Sprung zum
- * naechsten offenen Artefakt (Entscheidung 5).
+ * ADR 0006 (Modell B): Die Sammelaktionen sind ersatzlos entfallen — es gibt
+ * nichts massenhaft zu bestaetigen; genau ihre Existenz war das Symptom der
+ * Zustimmungspflicht. Geblieben sind das Einspielen eines frisch kurierten
+ * Artefakts in seine Familie und der Sprung — der zielt jetzt auf den
+ * naechsten WIDERSTAND (Fehler-Markierung), nicht auf das naechste
+ * Unbestaetigte.
  *
  * Reine Funktionen, kein I/O.
  *
@@ -15,30 +15,9 @@
  */
 
 import type { LeadingArtifactSummary, TwinFamilySummary } from './types'
-import { artefaktGeprueft, familienPruefstand } from './werkbank-baum'
+import { familienPruefstand } from './werkbank-baum'
 
 export type PruefbareArt = 'transkript' | 'zusammenfassung'
-
-export interface SammelZiel {
-  familie: TwinFamilySummary
-  artefakt: LeadingArtifactSummary
-}
-
-/**
- * Offene Artefakte EINER Art im Teilbaum — die Ziele der Sammelaktion.
- * Familien ohne dieses Artefakt oder aus Scans vor A2 (`undefined`) fehlen
- * hier bewusst: Es gibt dort nichts Adressierbares zu verifizieren.
- */
-export function sammelZiele(familien: readonly TwinFamilySummary[], art: PruefbareArt): SammelZiel[] {
-  const ziele: SammelZiel[] = []
-  for (const familie of familien) {
-    const artefakt = familie[art]
-    if (artefakt == null) continue
-    if (artefaktGeprueft(artefakt)) continue
-    ziele.push({ familie, artefakt })
-  }
-  return ziele
-}
 
 /** Familie mit frisch verifiziertem Artefakt (Kind der Kurations-Antwort). */
 export function patchFamilie(
@@ -50,11 +29,11 @@ export function patchFamilie(
 }
 
 /**
- * Naechstes offenes Artefakt NACH `abSourceId` (Entscheidung 5) — vorwaerts
- * in Listen-Reihenfolge, am Ende von vorn; die Ausgangsfamilie selbst zaehlt
- * nicht. null = nichts mehr offen.
+ * Naechster WIDERSTAND nach `abSourceId` (ADR 0006) — vorwaerts in
+ * Listen-Reihenfolge, am Ende von vorn; die Ausgangsfamilie zaehlt nicht.
+ * null = kein markierter Fehler mehr im Teilbaum.
  */
-export function naechstesOffenes(
+export function naechsterWiderstand(
   familien: readonly TwinFamilySummary[],
   abSourceId: string,
 ): TwinFamilySummary | null {
@@ -63,37 +42,31 @@ export function naechstesOffenes(
   for (let schritt = 1; schritt <= anzahl; schritt += 1) {
     const familie = familien[(start + schritt + anzahl) % anzahl]
     if (familie === undefined || familie.sourceId === abSourceId) continue
-    if (familienPruefstand(familie) === 'offen') return familie
+    if (familienPruefstand(familie) === 'markiert') return familie
   }
   return null
 }
 
-/** Der jeweils ANDERE pruefbare Tab derselben Familie, wenn er noch offen ist. */
-export function andererOffenerTab(familie: TwinFamilySummary, art: PruefbareArt): PruefbareArt | null {
-  const andere: PruefbareArt = art === 'transkript' ? 'zusammenfassung' : 'transkript'
-  const artefakt = familie[andere]
-  if (artefakt == null) return null
-  return artefaktGeprueft(artefakt) ? null : andere
-}
-
-/** Ergebnis des Sprungs nach einer Verifikation (Entscheidung 5 + A5). */
+/** Ergebnis des Sprungs nach einer Kurations-Aktion (ADR 0006). */
 export interface SprungErgebnis {
-  /** Naechstes offenes Artefakt; null = nichts mehr offen. */
+  /** Naechster Widerstand; null = kein markierter Fehler mehr. */
   naechste: TwinFamilySummary | null
-  /** Der DIREKTE Ordner der verifizierten Familie ist komplett geprueft. */
+  /** Der DIREKTE Ordner der Familie traegt keine Markierung mehr. */
   ordnerFertig: boolean
   /** Das Ziel liegt in einem anderen Ordner. */
   ordnerGewechselt: boolean
-  /** Kein offenes Artefakt mehr im Teilbaum — das Vorhaben wartet auf die Abnahme. */
+  /** Kein Widerstand mehr im Teilbaum — nur noch die Abnahme fehlt. */
   vorhabenFertig: boolean
 }
 
 /**
- * Rechnet den Sprung NACH einer Verifikation: `gepatcht` ersetzt seine
- * Familie in der Liste, dann gilt {@link naechstesOffenes}. Der
- * Ordner-Fertig-Blick zaehlt nur den DIREKTEN Ordner (`folderId`) — dort
- * haengen die Artefakt-Zeilen des Baums; Unterordner melden ihr Ende selbst,
- * wenn ihr letztes Artefakt bestaetigt wird.
+ * Rechnet den Sprung NACH einer Kurations-Aktion: `gepatcht` ersetzt seine
+ * Familie in der Liste, dann gilt {@link naechsterWiderstand}. Der
+ * Ordner-Blick zaehlt nur den DIREKTEN Ordner (`folderId`) — dort haengen
+ * die Artefakt-Zeilen des Baums.
+ *
+ * Wer nur liest, loest keinen Sprung aus: Die Werkbank ruft das hier erst
+ * nach einer Aktion (markieren, Markierung aufloesen, verifizieren).
  */
 export function sprungNachVerifikation(
   familien: readonly TwinFamilySummary[],
@@ -102,15 +75,15 @@ export function sprungNachVerifikation(
   const liste = familien.some((familie) => familie.sourceId === gepatcht.sourceId)
     ? familien.map((familie) => (familie.sourceId === gepatcht.sourceId ? gepatcht : familie))
     : [gepatcht]
-  const naechste = naechstesOffenes(liste, gepatcht.sourceId)
+  const naechste = naechsterWiderstand(liste, gepatcht.sourceId)
   const ordnerFertig = liste
     .filter((familie) => familie.folderId === gepatcht.folderId)
-    .every((familie) => familienPruefstand(familie) === 'geprueft')
+    .every((familie) => familienPruefstand(familie) !== 'markiert')
   return {
     naechste,
     ordnerFertig,
     ordnerGewechselt: naechste !== null && naechste.folderId !== gepatcht.folderId,
-    vorhabenFertig: naechste === null && familienPruefstand(gepatcht) === 'geprueft',
+    vorhabenFertig: naechste === null && familienPruefstand(gepatcht) !== 'markiert',
   }
 }
 
@@ -121,9 +94,9 @@ function ordnerNameVon(familie: TwinFamilySummary): string {
 }
 
 /**
- * Hinweistext zum Sprung (A5): am Ordner-Ende sagt die Werkbank, dass der
- * Ordner fertig ist und wohin es weitergeht; am Vorhaben-Ende, dass die
- * Abnahme wartet. null = gewoehnlicher Sprung, kein Hinweis noetig.
+ * Hinweistext zum Sprung: am Vorhaben-Ende sagt die Werkbank, dass kein
+ * Widerstand mehr offen ist; beim Ordnerwechsel, wohin es weitergeht.
+ * null = gewoehnlicher Sprung, kein Hinweis noetig.
  */
 export function sprungHinweis(
   ergebnis: SprungErgebnis,
@@ -131,15 +104,15 @@ export function sprungHinweis(
 ): { titel: string; beschreibung: string } | null {
   if (ergebnis.vorhabenFertig) {
     return {
-      titel: 'Alle Artefakte geprueft',
-      beschreibung: 'Nichts mehr offen in diesem Vorhaben — es wartet auf die Abnahme (Knopf oben).',
+      titel: 'Kein Widerstand mehr offen',
+      beschreibung: 'In diesem Vorhaben ist nichts mehr als fehlerhaft markiert — es wartet auf die Abnahme (Knopf oben).',
     }
   }
   if (ergebnis.ordnerFertig && ergebnis.ordnerGewechselt && ergebnis.naechste !== null) {
     const ordner = ordnerNameVon(gepatcht)
     return {
-      titel: ordner === '' ? 'Ordner fertig' : `Ordner „${ordner}“ ist fertig`,
-      beschreibung: `Weiter mit „${ergebnis.naechste.sourceName}“ im naechsten Ordner mit offenen Punkten.`,
+      titel: ordner === '' ? 'Ordner ohne Markierung' : `Ordner „${ordner}“ ist frei von Markierungen`,
+      beschreibung: `Weiter mit „${ergebnis.naechste.sourceName}“ im naechsten Ordner mit einem markierten Fehler.`,
     }
   }
   return null

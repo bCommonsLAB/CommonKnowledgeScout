@@ -7,8 +7,10 @@
  * `@/lib/shadow-twin/twin-core-fields` (Contract §2b/§3). Diese Datei
  * uebersetzt deren Ergebnisse nur in Befunde.
  *
- * Ampel und Verifikation haengen am FUEHRENDEN Artefakt — ein unverifiziertes
- * Transkript neben geprueffter Transformation ist Normalzustand, kein Befund.
+ * ADR 0006 (Modell B): Fehlende menschliche Pruefung ist KEIN Befund mehr —
+ * Maschinenarbeit gilt als angenommen. Befund ist nur, was jemand als falsch
+ * benennt: die Fehler-Markierung eines Menschen (`twin_flagged`) und die
+ * Selbst-Verifikation der Maschine (`self_verified`).
  *
  * Reine Funktionen, kein I/O.
  *
@@ -18,7 +20,6 @@
 import type { ArtifactKind } from '@/lib/shadow-twin/artifact-types'
 import {
   actorLevel,
-  isVerificationValid,
   missingTwinCoreFields,
   selectLeadingArtifact,
 } from '@/lib/shadow-twin/twin-core-fields'
@@ -80,7 +81,14 @@ export function checkTwinCoreMissing(family: TwinFamilyView): CoverageGap | null
   })
 }
 
-/** `twin_unverified` + `self_verified` am fuehrenden Artefakt. */
+/**
+ * `self_verified` am fuehrenden Artefakt (Contract §3.2): Erzeuger und Pruefer
+ * sind dieselbe Maschine. Das bleibt ein Befund — es behauptet eine Pruefung,
+ * die niemand vorgenommen hat.
+ *
+ * Kein `twin_unverified` mehr (ADR 0006): Eine fehlende menschliche Pruefung
+ * ist der Normalzustand, keine Schuld.
+ */
 export function checkLeadingVerification(
   family: TwinFamilyView,
   standardTemplate: string | null,
@@ -92,39 +100,51 @@ export function checkLeadingVerification(
   if (generatedBy === null) return []
 
   const verifiedBy = actorLevel(fm['verified_by'])
-  const gaps: CoverageGap[] = []
+  if (verifiedBy === null || verifiedBy !== generatedBy) return []
 
-  if (verifiedBy !== null && verifiedBy === generatedBy) {
-    gaps.push(
-      createGap({
-        ...familyGapBase(family),
-        type: 'self_verified',
-        message: 'Erzeugt und geprueft von derselben Maschine — eine menschliche Pruefung fehlt',
-        detail: `Die Zusammenfassung (${describeArtifact(leading)}) wurde von ${generatedBy} erzeugt UND von ${generatedBy} bestaetigt.`,
-      }),
-    )
-    return gaps
-  }
+  return [
+    createGap({
+      ...familyGapBase(family),
+      type: 'self_verified',
+      message: 'Erzeugt und geprueft von derselben Maschine — eine menschliche Pruefung fehlt',
+      detail: `Die Zusammenfassung (${describeArtifact(leading)}) wurde von ${generatedBy} erzeugt UND von ${generatedBy} bestaetigt.`,
+    }),
+  ]
+}
 
-  const valid =
-    verifiedBy !== null &&
-    isVerificationValid({ generatedAt: fm['generated_at'], verifiedAt: fm['verified_at'] })
-  if (!valid) {
-    gaps.push(
-      createGap({
-        ...familyGapBase(family),
-        type: 'twin_unverified',
-        message: 'Die Zusammenfassung wartet auf deinen Blick: gibt sie das Original richtig wieder?',
-        // Der Beleg nennt AUCH, welches Artefakt gemeint ist — der Pfad des
-        // Befunds zeigt auf die Quelle, geprueft wird die Auswertung daneben.
-        detail:
-          verifiedBy === null
-            ? `Die Zusammenfassung (${describeArtifact(leading)}) traegt noch keine Pruefung.`
-            : `Die Zusammenfassung (${describeArtifact(leading)}) wurde am ${String(fm['generated_at'] ?? '—').slice(0, 10)} neu erzeugt — deine Pruefung vom ${String(fm['verified_at'] ?? '—').slice(0, 10)} galt der aelteren Fassung.`,
-      }),
-    )
-  }
-  return gaps
+/** Beschreibt EINE Fehler-Markierung fuer den Beleg des Befunds. */
+function beschreibeMarkierung(artifact: TwinArtifactView): string {
+  const fm = artifact.frontmatter
+  const notiz = typeof fm['flagged_note'] === 'string' ? fm['flagged_note'].trim() : ''
+  const wer = typeof fm['flagged_by'] === 'string' ? fm['flagged_by'] : '—'
+  const wann = typeof fm['flagged_at'] === 'string' ? fm['flagged_at'].slice(0, 10) : '—'
+  // Fehlende Notiz wird BENANNT, nicht ergaenzt: Altbestand kann sie nicht
+  // haben, der Schreibweg erzwingt sie (no-silent-fallbacks).
+  return `${describeArtifact(artifact)}: ${notiz === '' ? '(ohne Notiz)' : notiz} — ${wer}, ${wann}`
+}
+
+/**
+ * `twin_flagged` (ADR 0006): Ein Mensch hat ein Artefakt der Familie als
+ * fehlerhaft markiert (`twin_status: flagged`). Das ist der einzige
+ * menschliche Widerstand, den die Sicht kennt — er sperrt die Abnahme, bis
+ * er aufgeloest ist (Reparatur + Verifizieren).
+ *
+ * Anders als die Verifikations-Regeln zaehlt hier JEDES Artefakt der Familie,
+ * nicht nur das fuehrende: Wer ein Transkript als falsch markiert, meint das
+ * Transkript.
+ */
+export function checkFlagged(family: TwinFamilyView): CoverageGap | null {
+  const markiert = family.artifacts.filter((artifact) => artifact.frontmatter['twin_status'] === 'flagged')
+  if (markiert.length === 0) return null
+  return createGap({
+    ...familyGapBase(family),
+    type: 'twin_flagged',
+    message:
+      markiert.length === 1
+        ? 'Von dir als fehlerhaft markiert — die Abnahme bleibt gesperrt, bis das geklaert ist'
+        : `${markiert.length} Artefakte von dir als fehlerhaft markiert — die Abnahme bleibt gesperrt`,
+    detail: markiert.map(beschreibeMarkierung).sort((a, b) => a.localeCompare(b)).join(' | '),
+  })
 }
 
 /** `transformation_missing`/`transformation_stale` (Contract §2b). */
@@ -166,8 +186,10 @@ export function checkTransformationState(
 /** Alle Twin-Regeln fuer EINE Familie. */
 export function evaluateTwinRules(family: TwinFamilyView, standardTemplate: string | null): CoverageGap[] {
   const core = checkTwinCoreMissing(family)
+  const markiert = checkFlagged(family)
   return [
     ...(core ? [core] : []),
+    ...(markiert ? [markiert] : []),
     ...checkLeadingVerification(family, standardTemplate),
     ...checkTransformationState(family, standardTemplate),
   ]

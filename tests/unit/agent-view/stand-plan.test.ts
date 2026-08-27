@@ -98,7 +98,7 @@ describe('Stufe 4 — Precheck (nur abgenommen ohne bestaetigen)', () => {
       gap({ severity: 'error', actor: 'cowork' }),
       gap({ severity: 'warning', actor: 'knowledgescout' }),
       gap({ severity: 'info', actor: 'knowledgescout', type: 'transformation_stale' }),
-      gap({ severity: 'error', actor: 'mensch', type: 'twin_unverified' }),
+      gap({ severity: 'error', actor: 'mensch', type: 'twin_flagged' }),
     ]
     const blocker = blockierendeBefunde(gaps)
     expect(blocker.map((b) => b.actor)).toEqual(['cowork', 'knowledgescout'])

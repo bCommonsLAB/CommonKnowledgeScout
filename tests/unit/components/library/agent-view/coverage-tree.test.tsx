@@ -77,6 +77,7 @@ describe('CoverageTree', () => {
         kind: 'transformation', templateName: 'standard-konzept', targetLanguage: 'de',
         twinStatus: 'draft', generatedBy: 'knowledgescout/gemini-2.5-pro',
         generatedAt: '2026-08-01T10:00:00.000Z', verifiedBy: null, verifiedAt: null,
+        flaggedBy: null, flaggedAt: null, flaggedNote: null,
         verification: 'unverifiziert',
       },
     }

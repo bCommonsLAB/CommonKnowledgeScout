@@ -7,7 +7,8 @@
  * - „Zu tun" = `ampel ≠ gruen` ODER `widerspruch` (Begriffsdefinition §3).
  *   Karten aus Scans vor W1 tragen keine `ampel` — sie sind NICHT auswertbar
  *   und werden sichtbar gezaehlt statt still einsortiert.
- * - „Bereit" = geteiltes Praedikat {@link istBereitZurAbnahme} (W1).
+ * - „Bereit" = geteiltes Praedikat {@link wartetAufAbnahme} (W1, ADR 0006):
+ *   kein Widerstand offen und noch nicht abgenommen.
  * - Akteur-/Schritt-Chips = EXAKT die Filter-Semantik der MCP-Kompaktsicht:
  *   {@link matchtBefundFilter} ist die gemeinsame Funktion, die MCP auf
  *   Befunde und die UI (ueber die `GAP_REGISTRY`) auf Karten anwendet.
@@ -17,7 +18,7 @@
  * @module agent-view
  */
 
-import { istBereitZurAbnahme } from './abnahme'
+import { wartetAufAbnahme } from './abnahme'
 import { GAP_REGISTRY } from './gap-registry'
 import { BOARD_COLUMNS } from './labels'
 import type { CoverageGap, CoverageGapType, GapActor, VorhabenCard, ZyklusSchritt } from './types'
@@ -128,7 +129,7 @@ export function filtereVorhaben(
       }
       if (!status) continue
     } else if (args.statusFilter === 'bereit') {
-      if (!istBereitZurAbnahme(card.gapsByActor)) continue
+      if (!wartetAufAbnahme(card)) continue
     } else if (args.statusFilter === 'liste') {
       if (mitglieder === null || !mitglieder.has(card.folderId)) continue
     }

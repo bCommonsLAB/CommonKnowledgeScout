@@ -20,13 +20,15 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 /** Zustands-Chip des Kopfs — `ton` folgt den Mockup-Chips (stand/ok/open). */
-export function KopfChip({ ton, title, children }: { ton: 'stand' | 'ok' | 'open'; title?: string; children: ReactNode }) {
+export function KopfChip({ ton, title, children }: { ton: 'stand' | 'ok' | 'open' | 'blockiert'; title?: string; children: ReactNode }) {
   const klasse =
     ton === 'ok'
       ? 'border-emerald-300 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
       : ton === 'open'
         ? 'border-transparent bg-amber-500/10 text-amber-700 dark:text-amber-400'
-        : 'border-border bg-muted text-foreground'
+        : ton === 'blockiert'
+          ? 'border-red-300 bg-red-500/10 text-red-700 dark:text-red-400'
+          : 'border-border bg-muted text-foreground'
   return (
     <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-medium ${klasse}`} title={title}>
       {children}

@@ -53,6 +53,9 @@ function toLeadingSummary(artifact: TwinArtifactView): LeadingArtifactSummary {
     generatedAt: stringOrNull(fm['generated_at']),
     verifiedBy: stringOrNull(fm['verified_by']),
     verifiedAt: stringOrNull(fm['verified_at']),
+    flaggedBy: stringOrNull(fm['flagged_by']),
+    flaggedAt: stringOrNull(fm['flagged_at']),
+    flaggedNote: stringOrNull(fm['flagged_note']),
     verification: verificationStateOf(fm),
   }
 }

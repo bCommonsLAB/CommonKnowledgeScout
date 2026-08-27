@@ -5,11 +5,14 @@
  *
  * @description
  * Mockup `agentensicht-abnahme.html`, linke Spalte: kompakte Baumzeilen mit
- * Aufklapp-Pfeil und Zaehler `n/m` je Ordner (Entscheidung 2) und
- * Pruef-Kennung je Artefakt — `✓` geprueft, `○` offen (Entscheidung 4:
- * geprueft sind Transkript UND Zusammenfassung, das Original traegt kein
- * Haekchen). Ein unbekannter Pruefstand (Scan vor A2) ist als `?` sichtbar
- * und im Titel erklaert, nie geraten (`no-silent-fallbacks.mdc`).
+ * Aufklapp-Pfeil, Widerstands-Zaehler je Ordner und Kennung je Artefakt.
+ *
+ * Zeichensprache nach ADR 0006 (Modell B): oranger Haken = angenommen
+ * („hoechstwahrscheinlich OK", der Normalfall), gruener Haken = ein Mensch
+ * hat hingesehen, `⊘` = als fehlerhaft markiert und damit blockierend,
+ * `—` = gar kein pruefbares Artefakt (Sache der Maschine). Ein unbekannter
+ * Stand (Scan vor A2) bleibt `?` und im Titel erklaert, nie geraten
+ * (`no-silent-fallbacks.mdc`).
  *
  * @module components/library/agent-view
  */
@@ -24,23 +27,32 @@ export function baumEinrueckung(tiefe: number): { paddingLeft: string } {
   return { paddingLeft: `${8 + tiefe * 16}px` }
 }
 
-/** Zaehler `n/m`; unbekannte Familien stehen im Titel statt still in `n`. */
+/**
+ * Zaehler je Ordner (ADR 0006): sichtbar ist der WIDERSTAND. Ohne Markierung
+ * steht dort nur die Zahl der Quellen — keine Erledigungs-Quote, die zum
+ * Abarbeiten auffordert. Der Titel nennt den Rest (geprueft, unbekannt).
+ */
 export function ZaehlerText({ zaehler }: { zaehler: PruefZaehler }) {
-  const titel =
-    zaehler.unbekannt > 0
-      ? `${zaehler.geprueft} von ${zaehler.gesamt} geprueft — ${zaehler.unbekannt} mit unbekanntem Stand (Scan vor A2)`
-      : `${zaehler.geprueft} von ${zaehler.gesamt} geprueft`
+  const teile = [`${zaehler.gesamt} Quelle${zaehler.gesamt === 1 ? '' : 'n'}`]
+  if (zaehler.markiert > 0) teile.push(`${zaehler.markiert} als fehlerhaft markiert`)
+  if (zaehler.geprueft > 0) teile.push(`${zaehler.geprueft} von dir geprueft`)
+  if (zaehler.unbekannt > 0) teile.push(`${zaehler.unbekannt} mit unbekanntem Stand (Scan vor A2)`)
   return (
-    <span className="ml-auto pl-2 text-[11px] tabular-nums text-muted-foreground" title={titel}>
-      {zaehler.geprueft}/{zaehler.gesamt}
+    <span
+      className={`ml-auto pl-2 text-[11px] tabular-nums ${zaehler.markiert > 0 ? 'font-medium text-red-600' : 'text-muted-foreground'}`}
+      title={teile.join(' · ')}
+    >
+      {zaehler.markiert > 0 ? `⊘ ${zaehler.markiert}` : zaehler.gesamt}
     </span>
   )
 }
 
 const MARK: Record<FamilienPruefstand, { zeichen: string; className: string; titel: string }> = {
-  geprueft: { zeichen: '✓', className: 'text-emerald-600', titel: 'Geprueft — alle vorhandenen Artefakte menschlich verifiziert' },
-  offen: { zeichen: '○', className: 'text-amber-600', titel: 'Offen — Transkript oder Zusammenfassung noch nicht verifiziert' },
-  unbekannt: { zeichen: '?', className: 'text-muted-foreground', titel: 'Pruefstand unbekannt — Report aus einem Scan vor A2, „Neu scannen" ergaenzt ihn' },
+  markiert: { zeichen: '⊘', className: 'text-red-600', titel: 'Als fehlerhaft markiert — sperrt die Abnahme, bis das geklaert ist' },
+  geprueft: { zeichen: '✓', className: 'text-emerald-600', titel: 'Geprueft — ein Mensch hat alle vorhandenen Artefakte angesehen' },
+  angenommen: { zeichen: '✓', className: 'text-amber-500', titel: 'Hoechstwahrscheinlich OK — von der Maschine erzeugt, niemand hat widersprochen' },
+  leer: { zeichen: '—', className: 'text-muted-foreground', titel: 'Kein pruefbares Artefakt — hier fehlt die Auswertung (Sache der Maschine)' },
+  unbekannt: { zeichen: '?', className: 'text-muted-foreground', titel: 'Stand unbekannt — Report aus einem Scan vor A2, „Neu scannen" ergaenzt ihn' },
 }
 
 /** Pruef-Kennung einer Familie (auch die Tabs des Details nutzen sie, A3). */

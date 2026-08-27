@@ -4,18 +4,19 @@
  * @fileoverview Kuration je Artefakt (Welle A4) — Verifizieren + twin_status.
  *
  * @description
- * Nachfolger der Familien-Kuration fuer die Werkbank: Der Abnahme-Kopf
- * verifiziert das Artefakt des AKTIVEN Tabs (Transkript ODER
- * Zusammenfassung, Entscheidung 4), die Sammelaktion eine ganze Art auf
- * einmal (Entscheidung 3). EINZIGER Schreibweg bleibt die bestehende
- * Kurations-Patch-Route (Contract §4). Overrides sind je {@link artefaktKey}
- * abgelegt und ueberlagern den Report bis zum naechsten Scan — Baum-Kennung,
- * Zaehler und Tabs lesen sie ueber `useWerkbankBaum`.
+ * Kuration je Artefakt fuer die Werkbank: Der Kopf verifiziert oder markiert
+ * das Artefakt des AKTIVEN Tabs (Transkript ODER Zusammenfassung).
+ * EINZIGER Schreibweg bleibt die bestehende Kurations-Patch-Route
+ * (Contract §4). Overrides sind je {@link artefaktKey} abgelegt und
+ * ueberlagern den Report bis zum naechsten Scan — Baum-Kennung, Zaehler und
+ * Tabs lesen sie ueber `useWerkbankBaum`.
+ *
+ * Sammelaktionen gibt es seit ADR 0006 nicht mehr: In Modell B ist nichts
+ * massenhaft zu bestaetigen — genau ihre Existenz war das Symptom der
+ * Zustimmungspflicht.
  *
  * 409-Antworten sind BEFUNDE (Spiegel-Drift, Selbst-Verifikation): sie
  * erscheinen als Klartext am Ort der Aktion, nichts wurde ueberschrieben.
- * Die Sammelaktion arbeitet SEQUENZIELL und sammelt Fehler je Datei —
- * kein stilles Weiterlaufen.
  *
  * @module hooks/agent-view
  */
@@ -32,16 +33,18 @@ interface CurationRouteResponse {
     generatedAt: string | null
     verifiedBy: string | null
     verifiedAt: string | null
+    flaggedBy: string | null
+    flaggedAt: string | null
+    flaggedNote: string | null
     verificationValid: boolean
   }
 }
 
-export interface SammelErgebnis {
-  erledigt: number
-  gesamt: number
-  /** Klartext je fehlgeschlagener Datei — sichtbar, nie still. */
-  fehler: string[]
-}
+/** Body-Formen der Kurations-Route — genau eine Aktion je Aufruf. */
+type KurationsAktion =
+  | { set: { twin_status: string } }
+  | { verify: true }
+  | { markiere: { notiz: string } }
 
 export interface UseArtefaktKurationResult {
   overrides: ReadonlyMap<string, LeadingArtifactSummary>
@@ -51,12 +54,16 @@ export interface UseArtefaktKurationResult {
   fehler: ReadonlyMap<string, string>
   /** Verifiziert EIN Artefakt; liefert den frischen Zustand oder null (Fehler). */
   verifiziere: (familie: TwinFamilySummary, artefakt: LeadingArtifactSummary) => Promise<LeadingArtifactSummary | null>
+  /**
+   * Markiert EIN Artefakt als fehlerhaft (ADR 0006). Die Notiz ist Pflicht —
+   * eine leere lehnt der Server ab, der Befund erscheint in {@link fehler}.
+   */
+  markiere: (
+    familie: TwinFamilySummary,
+    artefakt: LeadingArtifactSummary,
+    notiz: string,
+  ) => Promise<LeadingArtifactSummary | null>
   setzeTwinStatus: (familie: TwinFamilySummary, artefakt: LeadingArtifactSummary, twinStatus: string) => Promise<void>
-  /** Sammel-Verifikation (sequenziell); liefert das benannte Ergebnis. */
-  sammelVerifiziere: (
-    ziele: readonly { familie: TwinFamilySummary; artefakt: LeadingArtifactSummary }[],
-  ) => Promise<SammelErgebnis>
-  sammelLaeuft: boolean
 }
 
 async function readError(response: Response): Promise<string> {
@@ -80,6 +87,9 @@ function mergeArtefakt(
     generatedAt: curation.generatedAt,
     verifiedBy: curation.verifiedBy,
     verifiedAt: curation.verifiedAt,
+    flaggedBy: curation.flaggedBy,
+    flaggedAt: curation.flaggedAt,
+    flaggedNote: curation.flaggedNote,
     verification: verificationStateOf({
       generated_at: curation.generatedAt ?? undefined,
       verified_by: curation.verifiedBy ?? undefined,
@@ -92,13 +102,12 @@ export function useArtefaktKuration(libraryId: string): UseArtefaktKurationResul
   const [overrides, setOverrides] = useState<Map<string, LeadingArtifactSummary>>(new Map())
   const [pendingKey, setPendingKey] = useState<string | null>(null)
   const [fehler, setFehler] = useState<Map<string, string>>(new Map())
-  const [sammelLaeuft, setSammelLaeuft] = useState(false)
 
   const patch = useCallback(
     async (
       familie: TwinFamilySummary,
       artefakt: LeadingArtifactSummary,
-      body: { set?: { twin_status: string }; verify?: boolean },
+      body: KurationsAktion,
     ): Promise<LeadingArtifactSummary> => {
       const response = await fetch(
         `/api/library/${encodeURIComponent(libraryId)}/shadow-twins/curation`,
@@ -129,7 +138,7 @@ export function useArtefaktKuration(libraryId: string): UseArtefaktKurationResul
     async (
       familie: TwinFamilySummary,
       artefakt: LeadingArtifactSummary,
-      body: { set?: { twin_status: string }; verify?: boolean },
+      body: KurationsAktion,
     ): Promise<LeadingArtifactSummary | null> => {
       const key = artefaktKey(familie.sourceId, artefakt)
       setPendingKey(key)
@@ -154,6 +163,11 @@ export function useArtefaktKuration(libraryId: string): UseArtefaktKurationResul
     (familie: TwinFamilySummary, artefakt: LeadingArtifactSummary) => einzel(familie, artefakt, { verify: true }),
     [einzel],
   )
+  const markiere = useCallback(
+    (familie: TwinFamilySummary, artefakt: LeadingArtifactSummary, notiz: string) =>
+      einzel(familie, artefakt, { markiere: { notiz } }),
+    [einzel],
+  )
   const setzeTwinStatus = useCallback(
     async (familie: TwinFamilySummary, artefakt: LeadingArtifactSummary, twinStatus: string) => {
       await einzel(familie, artefakt, { set: { twin_status: twinStatus } })
@@ -161,27 +175,5 @@ export function useArtefaktKuration(libraryId: string): UseArtefaktKurationResul
     [einzel],
   )
 
-  const sammelVerifiziere = useCallback(
-    async (ziele: readonly { familie: TwinFamilySummary; artefakt: LeadingArtifactSummary }[]) => {
-      setSammelLaeuft(true)
-      const ergebnis: SammelErgebnis = { erledigt: 0, gesamt: ziele.length, fehler: [] }
-      try {
-        // Sequenziell: gentle zum Storage-Provider, Fehler bleiben zuordenbar.
-        for (const { familie, artefakt } of ziele) {
-          try {
-            await patch(familie, artefakt, { verify: true })
-            ergebnis.erledigt += 1
-          } catch (err) {
-            ergebnis.fehler.push(`${familie.sourceName}: ${err instanceof Error ? err.message : String(err)}`)
-          }
-        }
-      } finally {
-        setSammelLaeuft(false)
-      }
-      return ergebnis
-    },
-    [patch],
-  )
-
-  return { overrides, pendingKey, fehler, verifiziere, setzeTwinStatus, sammelVerifiziere, sammelLaeuft }
+  return { overrides, pendingKey, fehler, verifiziere, markiere, setzeTwinStatus }
 }

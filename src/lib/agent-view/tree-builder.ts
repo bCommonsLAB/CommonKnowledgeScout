@@ -16,7 +16,7 @@
  * @module agent-view
  */
 
-import { istBereitZurAbnahme } from './abnahme'
+import { zaehleWiderstaende } from './abnahme'
 import type { ArchiveFolderNode } from './archive-types'
 import type {
   Bearbeitungsstand,
@@ -33,17 +33,16 @@ function emptyActorCounts(): GapCountByActor {
 }
 
 /**
- * Akteur-basierte Ampel (Beschluss 24.08.2026, Test-Befund: die alte
- * Severity-Regel machte im Voll-Archiv alle 148 Vorhaben rot und
- * unterschied nichts): rot = maschinelle Befunde offen — unabhaengig von
- * der Severity, auch `info` (die Maschine hat noch Arbeit); gelb = das
- * geteilte Praedikat „bereit zur Abnahme" (nur Mensch-Befunde offen);
- * gruen = kein Befund im Teilbaum. Der strengere F8/W7-Precheck (nur
- * error/warning, frischer Scan) bleibt davon getrennt.
+ * Ampel (Beschluss 24.08.2026, verschaerft durch ADR 0006): rot = Widerstand
+ * offen — maschinelle Befunde (auch `info`: die Maschine hat noch Arbeit)
+ * oder eine Fehler-Markierung des Menschen; gelb = kein Widerstand, aber ein
+ * Mensch-Befund will Aufmerksamkeit (z. B. `stand_widerspruch`); gruen = kein
+ * Befund im Teilbaum. Der strengere F8/W7-Precheck (nur error/warning,
+ * frischer Scan) bleibt davon getrennt.
  */
-function ampelOf(byActor: GapCountByActor): CoverageAmpel {
-  if (byActor.cowork + byActor.knowledgescout > 0) return 'rot'
-  if (istBereitZurAbnahme(byActor)) return 'gelb'
+function ampelOf(byActor: GapCountByActor, byType: GapCountByType): CoverageAmpel {
+  if (zaehleWiderstaende(byActor, byType) > 0) return 'rot'
+  if (byActor.mensch > 0) return 'gelb'
   return 'gruen'
 }
 
@@ -91,7 +90,7 @@ export function aggregiereZaehler(
     node.totalGaps = total
     node.gapsByType = byType
     node.gapsByActor = byActor
-    node.ampel = ampelOf(byActor)
+    node.ampel = ampelOf(byActor, byType)
   }
   for (const root of roots) walk(root)
 

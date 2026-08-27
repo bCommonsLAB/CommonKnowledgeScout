@@ -14,6 +14,12 @@
  * Artefakte, leere Ordner tragen nichts Pruefbares. Reports aus Scans vor
  * A2/W4 werden benannt, nie geraten (`no-silent-fallbacks.mdc`).
  *
+ * ADR 0006 (Modell B): Der Default ist nicht mehr der Mangel. Ein Artefakt
+ * gilt als ANGENOMMEN, sobald die Maschine geliefert hat; „geprueft" bleibt
+ * dem vorbehalten, was ein Mensch wirklich angesehen hat; „markiert" ist der
+ * benannte Fehler, der die Abnahme sperrt. Gezaehlt werden Widerstaende,
+ * nicht Bestaetigungen.
+ *
  * Reine Funktionen, kein I/O.
  *
  * @module agent-view
@@ -26,21 +32,42 @@ export function artefaktGeprueft(artefakt: LeadingArtifactSummary): boolean {
   return artefakt.verification === 'mensch'
 }
 
-export type FamilienPruefstand = 'geprueft' | 'offen' | 'unbekannt'
+/** Der Mensch hat das Artefakt als fehlerhaft markiert (ADR 0006). */
+export function artefaktMarkiert(artefakt: LeadingArtifactSummary): boolean {
+  return artefakt.twinStatus === 'flagged'
+}
+
+export type ArtefaktZustand = 'markiert' | 'geprueft' | 'angenommen'
 
 /**
- * Pruefstand einer Familie: `unbekannt` = Report aus einem Scan vor A2
- * (Felder fehlen); `geprueft` = mindestens ein pruefbares Artefakt vorhanden
- * und ALLE vorhandenen geprueft; sonst `offen` — auch die Familie ganz ohne
- * pruefbares Artefakt bleibt offen (dort fehlt das Artefakt, nicht die Pruefung).
+ * Zustand EINES Artefakts (ADR 0006). Die Markierung schlaegt alles: Wer
+ * einen Fehler benannt hat, hat hingesehen — der Widerstand zaehlt, nicht
+ * ein aelterer Haken.
+ */
+export function artefaktZustand(artefakt: LeadingArtifactSummary): ArtefaktZustand {
+  if (artefaktMarkiert(artefakt)) return 'markiert'
+  return artefaktGeprueft(artefakt) ? 'geprueft' : 'angenommen'
+}
+
+export type FamilienPruefstand = 'markiert' | 'geprueft' | 'angenommen' | 'leer' | 'unbekannt'
+
+/**
+ * Zustand einer Familie (ADR 0006):
+ * - `unbekannt` = Report aus einem Scan vor A2 (Felder fehlen),
+ * - `markiert` = mindestens ein Artefakt traegt eine Fehler-Markierung,
+ * - `geprueft` = ALLE vorhandenen Artefakte hat ein Mensch verifiziert,
+ * - `angenommen` = Maschinenarbeit liegt vor, niemand hat widersprochen,
+ * - `leer` = gar kein pruefbares Artefakt — hier fehlt die Auswertung, das
+ *   ist Sache der Maschine und wird nicht als „OK" gezeichnet.
  */
 export function familienPruefstand(familie: TwinFamilySummary): FamilienPruefstand {
   if (familie.transkript === undefined || familie.zusammenfassung === undefined) return 'unbekannt'
   const vorhanden = [familie.transkript, familie.zusammenfassung].filter(
     (artefakt): artefakt is LeadingArtifactSummary => artefakt !== null,
   )
-  if (vorhanden.length === 0) return 'offen'
-  return vorhanden.every(artefaktGeprueft) ? 'geprueft' : 'offen'
+  if (vorhanden.length === 0) return 'leer'
+  if (vorhanden.some(artefaktMarkiert)) return 'markiert'
+  return vorhanden.every(artefaktGeprueft) ? 'geprueft' : 'angenommen'
 }
 
 /** Schluessel eines Artefakts fuer Kurations-Overrides (eine Familie hat mehrere). */
@@ -62,22 +89,27 @@ export function effektiveFamilie(
 }
 
 export interface PruefZaehler {
+  /** Familien mit Fehler-Markierung — DAS ist die Zahl, die zaehlt (ADR 0006). */
+  markiert: number
+  /** Familien, die ein Mensch wirklich angesehen hat (Auskunft, keine Quote). */
   geprueft: number
   gesamt: number
   /** Familien mit unbekanntem Stand (Scan vor A2) — sichtbar, nicht geraten. */
   unbekannt: number
 }
 
-/** Zaehler `n/m` ueber Familien (Vorhaben-, Ordner- und Kopf-Ebene teilen ihn). */
+/** Zaehler ueber Familien (Vorhaben-, Ordner- und Kopf-Ebene teilen ihn). */
 export function zaehlePruefstand(familien: readonly TwinFamilySummary[]): PruefZaehler {
+  let markiert = 0
   let geprueft = 0
   let unbekannt = 0
   for (const familie of familien) {
     const stand = familienPruefstand(familie)
-    if (stand === 'geprueft') geprueft += 1
+    if (stand === 'markiert') markiert += 1
+    else if (stand === 'geprueft') geprueft += 1
     else if (stand === 'unbekannt') unbekannt += 1
   }
-  return { geprueft, gesamt: familien.length, unbekannt }
+  return { markiert, geprueft, gesamt: familien.length, unbekannt }
 }
 
 export interface BaumOrdnerZeile {

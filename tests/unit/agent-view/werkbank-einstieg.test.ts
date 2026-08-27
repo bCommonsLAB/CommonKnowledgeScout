@@ -33,19 +33,22 @@ function totals(overrides: Partial<CoverageTotals> = {}): CoverageTotals {
 }
 
 describe('zaehleEinstieg', () => {
-  it('zaehlt als „wartet auf dich" nur bereite, noch nicht abgenommene Vorhaben', () => {
+  it('zaehlt als „wartet auf dich" jedes widerstandsfreie, noch nicht abgenommene Vorhaben', () => {
     const zahlen = zaehleEinstieg({
       totals: totals(),
       vorhaben: [
-        karte('bereit', { mensch: 28, cowork: 0, knowledgescout: 0 }),
+        karte('offene-mensch-punkte', { mensch: 28, cowork: 0, knowledgescout: 0 }),
         karte('maschine-offen', { mensch: 2, cowork: 1, knowledgescout: 0 }),
+        // ADR 0006: Ein befundfreies Vorhaben wartet sehr wohl — es ist genau
+        // das, bei dem nur noch der Knopf fehlt. Frueher fiel es heraus, weil
+        // das Praedikat mindestens einen Mensch-Befund verlangte.
         karte('nichts-offen', { mensch: 0, cowork: 0, knowledgescout: 0 }),
         karte('schon-abgenommen', { mensch: 3, cowork: 0, knowledgescout: 0 }, {
           bearbeitungsstand: 'abgenommen',
         }),
       ],
     })
-    expect(zahlen.wartetAufDich).toBe(1)
+    expect(zahlen.wartetAufDich).toBe(2)
   })
 
   it('zaehlt ein abgenommenes Vorhaben MIT Widerspruch wieder als wartend', () => {
