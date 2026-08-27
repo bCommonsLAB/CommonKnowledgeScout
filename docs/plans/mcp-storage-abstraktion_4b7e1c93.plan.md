@@ -23,16 +23,16 @@ todos:
     content: "Welle ST1, Beweis-Ziel (Verhaltensneutralität nach G4-Vorbild): die bestehenden delete+upload-Stellen auf updateFile umstellen. KORREKTUR gegenüber der Planannahme: stand-ausfuehren.ts war bereits saniert (ersetzeIndex ruft nur noch uploadMarkdown, Befund 27.08.2026) — der deleteFile-Port dort ist seither totes Interface. Die zwei ECHTEN Stellen waren erschliessung_block_schreiben (src/lib/mcp/tools-aenderungen.ts) und ueberschreiben() in src/lib/agent-view/sichten/regenerate-sichten.ts. Beide laufen jetzt über den gemeinsamen Helfer src/lib/storage/update-text-file.ts."
     status: completed
   - id: st2-tools-stufe1
-    content: "Welle ST2 — MCP-Werkzeuge Stufe 1 in NEUEN Dateien unter src/lib/mcp/storage/ (tools-datei.ts, tools-ordner-storage.ts, adressierung.ts, fehler.ts): ordner_listen (limit/cursor Pflicht, Metadaten je Eintrag), datei_lesen (bereich: frontmatter|abschnitt|zeilen; maxBytes/offset Pflicht, gekuerzt-Flag), stat, pfad_aufloesen, datei_schreiben (ifVersion Pflichtfeld), loeschen (inPapierkorb default true). Jedes Werkzeug akzeptiert pfad ODER id (A2) und liefert BEIDE zurück (A1). Registrierung: EINE Zeile in src/lib/mcp/tools.ts."
-    status: pending
+    content: "Welle ST2 — MCP-Werkzeuge Stufe 1 unter src/lib/mcp/storage/: ordner_listen (limit/cursor Pflicht, Metadaten je Eintrag, Glob, begrenzte Tiefe), datei_lesen (bereich: frontmatter|abschnitt|zeilen; maxBytes/offset, gekuerzt+naechsterOffset), stat, pfad_aufloesen, datei_schreiben (ifVersion Pflicht, Konfliktantwort MIT aktuellem Inhalt nach Q1). Jedes Werkzeug akzeptiert pfad ODER id (A2) und liefert BEIDE zurück (A1). Registrierung: eine Zeile in tools.ts, TOOLSET_VERSION auf 2.7.0. ABWEICHUNG vom ursprünglichen Zuschnitt: loeschen ist nach ST4 verschoben — der Papierkorb ist je Provider verschieden (Filesystem hat keinen), und ein loeschen mit inPapierkorb:true als Default wäre bis zur ST4-Ehrlichkeit ein Versprechen, das ein Provider nicht hält."
+    status: completed
   - id: st2-schreibschutz
     content: "Welle ST2, Teil 2 — Schreibschutz auf Pfadmustern, damit die generische Schicht nicht an den Fachwerkzeugen vorbeischreibt (offene Frage §6 der Anforderungen). _INDEX.md ist für datei_schreiben/datei_patchen gesperrt (gehört stand_setzen/themen_setzen), Twin-Ordner (_*) sind gesperrt (gehören twins_synchronisieren). Fehlerbild nicht_unterstuetzt mit Nennung des zuständigen Fachwerkzeugs — kein stiller Skip."
-    status: pending
+    status: completed
   - id: st3-patchen
     content: "Welle ST3 — datei_patchen, das teuerste fehlende Werkzeug (Beleg: 8 Voll-Rewrites von BERICHT.md/_INDEX.md an einem Tag, ~80 kB für ~400 Bytes echte Änderung). Drei Modi: ersetze {altText,neuText} mit Eindeutigkeits-Zwang (genau ein Treffer, sonst Fehler), abschnitt_ersetzen {ueberschrift,neuerInhalt} bis zur nächsten gleichrangigen Überschrift, frontmatter_setzen (ZWINGEND über den bestehenden Frontmatter-Single-Serializer, Contract frontmatter-single-serializer; flache snake_case-Keys, kein nested YAML). Alle mit ifVersion; bei Konflikt kommt der aktuelle Inhalt MIT zurück, damit der Aufrufer ohne zweiten Read mergen kann (Q1)."
     status: pending
   - id: st4-stufe2-fehler
-    content: "Welle ST4 — Stufe 2 + Querschnitt: datei_anlegen (nichtUeberschreiben default true), ordner_anlegen, verschieben (deckt Umbenennen ab; kennt KEINE Twin-Familien — die bleiben in familie_umziehen eine Ebene darüber), speicher_info (provider, grossKleinSchreibungRelevant, pfadLimit, maxDateigroesse, papierkorbVorhanden, unterstuetzt{patch,ifVersion,delta,binaer}, unicodeNormalisierung). Dazu die einheitlichen Fehlerbilder Q5 (nicht_gefunden, konflikt, zu_gross, pfad_zu_lang, kein_zugriff, nur_lesen, gesperrt, nicht_unterstuetzt, zeitueberschreitung) als Mapping-Schicht über die heterogenen Provider-Fehler."
+    content: "Welle ST4 — Stufe 2 + Querschnitt: loeschen (aus ST2 hierher verschoben, siehe dort — untrennbar von der Papierkorb-Ehrlichkeit unten), datei_anlegen (nichtUeberschreiben default true), ordner_anlegen, verschieben (deckt Umbenennen ab; kennt KEINE Twin-Familien — die bleiben in familie_umziehen eine Ebene darüber), speicher_info (provider, grossKleinSchreibungRelevant, pfadLimit, maxDateigroesse, papierkorbVorhanden, unterstuetzt{patch,ifVersion,delta,binaer}, unicodeNormalisierung). Dazu die einheitlichen Fehlerbilder Q5 (nicht_gefunden, konflikt, zu_gross, pfad_zu_lang, kein_zugriff, nur_lesen, gesperrt, nicht_unterstuetzt, zeitueberschreitung) als Mapping-Schicht über die heterogenen Provider-Fehler."
     status: pending
   - id: st4-papierkorb-ehrlich
     content: "Welle ST4, Teil 2 — Papierkorb ehrlich melden statt vortäuschen. FilesystemProvider.deleteItem löscht heute HART (fs.rm/fs.unlink, filesystem-provider.ts:303-315); OneDrive und Nextcloud haben einen Papierkorb. speicher_info meldet papierkorbVorhanden je Provider wahrheitsgemäß, und loeschen verweigert bei papierkorbVorhanden=false den Default inPapierkorb:true, statt still hart zu löschen (no-silent-fallbacks). Archiv-Grundregel 'Gelöscht wird nie' bleibt damit prüfbar."
@@ -264,6 +264,24 @@ sondern der Protokoll-Commit — `stand_setzen` läuft seither durch
 Drei Zeilen Mock, wie in `protokoll.test.ts`. Mitgenommen, weil die DoD
 grüne Tests verlangt.
 
+## 4c. Befunde aus ST2 (umgesetzt 2026-08-27)
+
+- **Der Drift-Riegel war blind für Unterverzeichnisse.**
+  `tests/unit/mcp/toolliste-drift.test.ts` scannte nur die oberste Ebene von
+  `src/lib/mcp` — die Werkzeuge unter `storage/` wären für ihn unsichtbar
+  gewesen, und `bruecke_info` hätte wieder eine unvollständige Soll-Liste
+  gemeldet: genau der Befund vom 27.08.2026, der den Riegel ausgelöst hat,
+  nur eine Ebene tiefer. Der Riegel steigt jetzt ab; gegengeprüft, dass er
+  ein fehlendes Werkzeug im Unterverzeichnis auch wirklich meldet.
+- **`loeschen` nach ST4 verschoben.** Siehe Todo — Papierkorb-Ehrlichkeit und
+  Löschwerkzeug sind nicht trennbar.
+- **`stat` behandelt „existiert nicht" als Antwort, nicht als Fehler.** Genau
+  dafür fragt der Aufrufer (`bericht_veraltet`, `verweis_tot`). Andere Fehler
+  bleiben Fehler.
+- **Der Muster-Filter begrenzt die Ausgabe, nicht den Abstieg.** `*.md` mit
+  `tiefe: 2` findet Dateien in Unterordnern — ein Filter, der schon am
+  Ordnernamen abbräche, fände nie etwas.
+
 ## 5. Offene Entscheidungen — mit Empfehlung
 
 Die vier offenen Fragen aus §6 der Anforderungen, damit sie nicht jede Welle
@@ -286,7 +304,8 @@ Der Strang ist fertig, wenn:
 3. Derselbe Ablauf gegen Nextcloud wie gegen OneDrive, ohne eine Zeile
    Sonderbehandlung. → ST1/ST2
 4. Ordner mit 1.100 Unterordnern listen, ohne Zeitlimit und ohne 180.000
-   Zeichen. → ST2
+   Zeichen. → ST2 (`limit`/`cursor` + Listing-Obergrenze; eine erreichte
+   Grenze wird gemeldet, nicht still gekappt)
 5. Datei löschen und wiederherstellen. → ST4 löschen; **wiederherstellen ist
    verschoben** (Stufe 3), das ist ehrlich zu sagen
 6. Nach jedem Schreibvorgang die Datei über **dieselbe Id** wiederfinden. →
