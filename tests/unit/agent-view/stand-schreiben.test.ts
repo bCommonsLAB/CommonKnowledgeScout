@@ -118,11 +118,13 @@ describe('setzeStand — Schutzstufen in §F8-Reihenfolge', () => {
 })
 
 describe('setzeStand — Schreiben', () => {
-  it('patcht NUR die zwei Stand-Felder, erhaelt Body + fremde Felder, ersetzt die Datei', async () => {
+  it('patcht NUR die zwei Stand-Felder, erhaelt Body + fremde Felder, schreibt namensgleich', async () => {
     const ports = fakePorts()
     const ergebnis = await setzeStand(args(), ports)
 
-    expect(ports.deleteFile).toHaveBeenCalledWith('id-_INDEX.md')
+    // Befund 27.08.2026: KEIN Loeschen mehr — sonst bekommt die Datei eine
+    // neue itemId und jede gespeicherte Id darauf laeuft in NOT_FOUND.
+    expect(ports.deleteFile).not.toHaveBeenCalled()
     expect(ports.uploadMarkdown).toHaveBeenCalledTimes(1)
     const [folderId, name, content] = ports.uploadMarkdown.mock.calls[0]
     expect(folderId).toBe('f-pilot')
@@ -142,18 +144,13 @@ describe('setzeStand — Schreiben', () => {
     expect(ergebnis).toEqual({ bearbeitungsstand: 'abgenommen', bearbeitungsstandSeit: '2026-08-24T23:59:59.999Z' })
   })
 
-  it('stellt bei Upload-Fehler das Original wieder her und meldet beides laut', async () => {
-    const uploadMarkdown = vi.fn()
-      .mockRejectedValueOnce(new Error('Netz weg'))
-      .mockResolvedValueOnce({ fileId: 'id-restore' })
-    const ports = fakePorts({ uploadMarkdown })
-    await expect(setzeStand(args(), ports)).rejects.toThrow(/Netz weg.*wiederhergestellt/)
-    expect(uploadMarkdown.mock.calls[1][2]).toBe(INDEX_MD)
-  })
-
-  it('benennt den Datenverlust, wenn auch die Wiederherstellung scheitert', async () => {
+  it('reicht einen Upload-Fehler laut weiter — das Original steht unangetastet da', async () => {
+    // Ohne Loeschen braucht es keine Wiederherstellung mehr: Schlaegt der
+    // Upload fehl, ist die alte Datei nie weg gewesen.
     const uploadMarkdown = vi.fn().mockRejectedValue(new Error('Netz weg'))
     const ports = fakePorts({ uploadMarkdown })
-    await expect(setzeStand(args(), ports)).rejects.toThrow(/_INDEX\.md fehlt jetzt/)
+    await expect(setzeStand(args(), ports)).rejects.toThrow('Netz weg')
+    expect(ports.deleteFile).not.toHaveBeenCalled()
+    expect(uploadMarkdown).toHaveBeenCalledTimes(1)
   })
 })

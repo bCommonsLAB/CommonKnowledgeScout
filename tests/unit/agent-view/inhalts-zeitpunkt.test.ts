@@ -16,7 +16,7 @@ import {
   type TwinArtifactView,
   type TwinFamilyView,
 } from '@/lib/agent-view/twin-rules'
-import { buildOwnChangeByFolder } from '@/lib/agent-view/coverage-inputs'
+import { buildInventoryTargets, buildOwnChangeByFolder } from '@/lib/agent-view/coverage-inputs'
 
 const ERZEUGT = '2026-08-20T10:00:00.000Z'
 const GEPRUEFT = '2026-08-27T12:46:14.000Z'
@@ -72,6 +72,18 @@ describe('bericht_veraltet: die juengste Aenderung je Ordner', () => {
     })
     expect(nachher.get('f1')).toBe(vorher.get('f1'))
     expect(nachher.get('f1')).toBe(ERZEUGT)
+  })
+})
+
+describe('verweis_veraltet: ein Verweis auf den Twin veraltet nicht durch Pruefen', () => {
+  it('das Twin-Ziel traegt den Inhalts-, nicht den Write-Zeitpunkt', () => {
+    const ziele = buildInventoryTargets({
+      folders: [],
+      families: [familie([artefakt({ updatedAt: GEPRUEFT }, { verified_at: GEPRUEFT })])],
+      fileIndex: new Map(),
+    })
+    const twin = ziele.find((ziel) => ziel.kind === 'twin')
+    expect(twin?.modifiedAt).toBe(ERZEUGT)
   })
 })
 

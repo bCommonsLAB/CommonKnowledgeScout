@@ -13,6 +13,7 @@
  */
 
 import { z } from 'zod'
+import { BEGRUENDUNG, mitProtokoll } from './protokoll'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { regenerateSichten } from '@/lib/agent-view/sichten/regenerate-sichten'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary, requireProvider } from './tool-shared'
@@ -33,25 +34,28 @@ export function registerSichtenTools(server: McpServer): void {
         libraryId: LIBRARY_ID,
         nurVorschau: z.boolean().optional()
           .describe('true = nur rendern und zurueckgeben, nichts schreiben'),
+        begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
-    async ({ libraryId, nurVorschau }) => {
+    async ({ libraryId, nurVorschau , begruendung }) => {
       try {
-        const userEmail = mcpUserEmail()
-        const library = await requireLibrary(userEmail, libraryId)
-        const provider = await requireProvider(userEmail, libraryId)
-        const started = Date.now()
-        const ergebnis = await regenerateSichten({ library, provider, nurVorschau: nurVorschau === true })
-        return jsonResult({
-          ok: true,
-          modus: nurVorschau === true ? 'vorschau' : 'geschrieben',
-          dauerMs: Date.now() - started,
-          ...ergebnis,
-          hinweis:
-            nurVorschau === true
-              ? 'Nichts geschrieben — mit nurVorschau=false exportieren.'
-              : 'AKTUELL.md und PROJEKTE.md in Organisation/ ersetzt (Dateien tragen generated_by: knowledgescout/sichten).',
+        return await mitProtokoll({ werkzeug: 'sichten_regenerieren', libraryId, akteur: mcpUserEmail(), begruendung }, async () => {
+          const userEmail = mcpUserEmail()
+          const library = await requireLibrary(userEmail, libraryId)
+          const provider = await requireProvider(userEmail, libraryId)
+          const started = Date.now()
+          const ergebnis = await regenerateSichten({ library, provider, nurVorschau: nurVorschau === true })
+          return jsonResult({
+            ok: true,
+            modus: nurVorschau === true ? 'vorschau' : 'geschrieben',
+            dauerMs: Date.now() - started,
+            ...ergebnis,
+            hinweis:
+              nurVorschau === true
+                ? 'Nichts geschrieben — mit nurVorschau=false exportieren.'
+                : 'AKTUELL.md und PROJEKTE.md in Organisation/ ersetzt (Dateien tragen generated_by: knowledgescout/sichten).',
+          })
         })
       } catch (error) {
         return errorResult(error)

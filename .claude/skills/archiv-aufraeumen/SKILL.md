@@ -40,6 +40,20 @@ Datei-Bridge, sonst greifen die Schutzstufen nicht. Die Datei-Bridge
 (`device_*`) ist zum **Lesen und Gegenprüfen** da — und zum Schreiben von
 Berichten und Notizen, die keine KnowledgeScout-Quellen sind.
 
+**1b. Jede schreibende Aktion braucht eine `begruendung`.** Pflichtfeld ab
+Werkzeugsatz 2.6.0 — ein Satz, WARUM die Aktion nötig ist („Transkript nach
+Hörfehler-Korrektur neu transformiert"). KnowledgeScout schreibt sie in sein
+Aktions-Protokoll, samt Fehlversuchen. `protokoll_lesen` gibt sie je Vorhaben
+zurück.
+
+**Damit entfällt die Protokoll-Datei im Archiv.** Lege kein
+`ORDNUNGSZUSTAND.md` mehr an und pflege kein bestehendes fort: Job-Historie
+und Befunde führt KnowledgeScout ohnehin, das WARUM steht jetzt daneben. Im
+Ordner bleiben `BERICHT.md` (für Menschen) und `_INDEX.md` (für die
+Werkzeuge). Was in einem vorhandenen `ORDNUNGSZUSTAND.md` an Begründungen
+steht, gehört beim nächsten Anfassen in die `begruendung` der jeweiligen
+Aktion — nicht in eine neue Zeile der Datei.
+
 **2. Vor jedem Schreibvorgang fragen.** Besonders vor `quelle_erschliessen`
 und `transformation_starten` — das sind kostenpflichtige Jobs. Bei größeren
 Mengen einmal pro Gruppe fragen, nicht pro Datei; aber immer sagen, was und
@@ -47,7 +61,10 @@ wie viel.
 
 **3. Zuerst lesen, dann rechnen.** `abdeckung_lesen` antwortet aus dem Cache in
 Sekunden. `abdeckung_scannen` läuft live gegen den Storage und gehört ans Ende
-eines Arbeitsschritts.
+eines Arbeitsschritts. Seine **Antwort ist so weit wie die Frage**: Mit
+`folderId`/`pfad` beschreibt sie nur diesen Teilbaum (`antwortFuerTeilbaum`
+nennt ihn) — der gespeicherte Voll-Report bleibt trotzdem vollständig, der
+Teilbaum-Scan merged hinein.
 
 **3b. Jobs anstoßen und weiterarbeiten — nicht warten.**
 `transformation_starten` und `quelle_erschliessen` antworten **sofort** mit
@@ -189,6 +206,16 @@ Bericht vor dem Stand schreibt, erzeugt `verweis_veraltet` neu und schließt den
 Befund nie. Richtige Reihenfolge: **erst `stand_setzen` bzw. die `_INDEX.md`,
 der `BERICHT.md` zuletzt.**
 
+**`bearbeitungsstandSeit` in der Antwort ist ein Tagesende.** Steht in der
+Datei `2026-08-27`, antwortet das Werkzeug `2026-08-27T23:59:59.999Z` — reine
+Datumsangaben werden großzügig als Tagesende gelesen, damit eine Änderung AM
+Stichtag den Stand nicht sofort widerlegt. Das ist kein Zeitstempel in der
+Zukunft und kein Fehler.
+
+**Die `_INDEX.md` behält ihre itemId** (seit 27.08.2026). Früher löschte
+`stand_setzen` die Datei und legte sie neu an — gespeicherte fileIds liefen
+danach in `NOT_FOUND`. Wenn das bei dir noch passiert, läuft eine alte Fassung.
+
 **Den Stand setzt `stand_setzen`**, nicht die Datei-Bridge. Das Werkzeug geht
 denselben geschützten Weg wie die Oberfläche: kein `_INDEX.md` vorhanden (wird
 nie angelegt), Stand im Storage weicht vom erwarteten ab, Report veraltet — in
@@ -266,6 +293,10 @@ die Jobs korrekt starten — dann rettet `job_liste` die verlorenen Ids.
 eigene Sicht ab, hilft kein Refresh — Peter bitten, die Erweiterung in den
 Einstellungen aus- und wieder einzuschalten. Fehlt `stand_setzen`, ist die
 Liste älter als Werkzeugsatz 2.3.0; fehlt `themen_setzen`, älter als 2.4.0.
+Gibt `abdeckung_scannen` bei einem Teilbaum-Scan kein `antwortFuerTeilbaum`
+zurück (sondern die ganze Library), ist die Fassung älter als 2.5.0.
+Verlangen die Schreib-Werkzeuge keine `begruendung` bzw. fehlt
+`protokoll_lesen`, ist sie älter als 2.6.0.
 
 **Zwei getrennte Bericht-Regeln.** `bericht_veraltet` prüft, ob der Bericht
 älter ist als die jüngste Änderung im Vorhaben — er kommt nach jedem

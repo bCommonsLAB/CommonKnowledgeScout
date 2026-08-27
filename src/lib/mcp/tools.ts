@@ -13,11 +13,14 @@
  */
 
 import { z } from 'zod'
+import { BEGRUENDUNG, mitProtokoll } from './protokoll'
+import { registerProtokollTool } from './tools-protokoll'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { scanneUndSpeichere } from '@/lib/agent-view/scan-speichern'
 import { getCoverageReport } from '@/lib/repositories/agent-view-coverage-repo'
 import { LibraryService } from '@/lib/services/library-service'
 import { runLibrarySync } from '@/lib/shadow-twin/sync-engine/run-library-sync'
+import { findeKnoten } from '@/lib/agent-view/teilbaum'
 import { summarizeCoverageReport } from './coverage-view'
 import { summarizeSyncReport } from './sync-view'
 import {
@@ -50,6 +53,7 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
   registerAenderungenTools(server)
   registerStandTool(server)
   registerThemenTool(server)
+  registerProtokollTool(server)
   registerInfoTool(server)
   server.registerTool(
     'bibliotheken_auflisten',
@@ -135,7 +139,9 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
         'ODER per pfad (braucht keinen Report). Der grosse Erst-Scan einer Library gehoert in die ' +
         'KS-Oberflaeche (Agentensicht → „Neu scannen"). Ein Teilbaum-Scan MERGED in den gespeicherten ' +
         'Voll-Report (die Gesamtsicht bleibt vollstaendig); ist der Merge nicht beweisbar, ersetzt der ' +
-        'Teil-Report ihn und inVollReportGemergt=false nennt den Grund. Schreibt NUR den Report-Cache.',
+        'Teil-Report ihn und inVollReportGemergt=false nennt den Grund. Schreibt NUR den Report-Cache. ' +
+        'Die ANTWORT ist so weit wie die Frage: Bei folderId/pfad beschreibt sie NUR diesen Teilbaum ' +
+        '(antwortFuerTeilbaum nennt ihn) — die Gesamtsicht bleibt im gespeicherten Report erhalten.',
       inputSchema: { libraryId: LIBRARY_ID, folderId: FOLDER_ID, pfad: SCOPE_PFAD },
     },
     async ({ libraryId, folderId, pfad }) => {
@@ -153,6 +159,12 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
           // damit koennen spaetere library-relative Filter abgebildet werden.
           scopePath: pfad ?? null,
         })
+        // Antwort auf den GESCANNTEN Teilbaum begrenzen (Cowork-Befund
+        // 27.08.2026): Der Scan merged in den Voll-Report — ohne Prefix fasste
+        // er danach die ganze Library zusammen (~180.000 Zeichen), obwohl der
+        // Aufrufer einen Ordner gescannt hatte. Der Merge bleibt, nur die
+        // ANTWORT ist so weit wie die Frage.
+        const teilbaumPfad = pfad ?? (scope == null ? null : findeKnoten(stored.report.tree, scope)?.path ?? null)
         return jsonResult({
           ...summarizeCoverageReport({
             report: stored.report,
@@ -162,7 +174,10 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
             delta: stored.delta ?? null,
             deltaHinweis: stored.deltaHinweis ?? null,
             themenVokabular: library.config?.agentView?.themen ?? null,
+            pathPrefix: teilbaumPfad ?? undefined,
           }),
+          /** Worauf sich diese Antwort bezieht; null = ganze Library. */
+          antwortFuerTeilbaum: teilbaumPfad,
           /** true = in den Voll-Report gemergt; false + Hinweis = ersetzt (benannt). */
           inVollReportGemergt: merged,
           mergeHinweis,
@@ -215,19 +230,22 @@ export function registerKnowledgeScoutTools(server: McpServer): void {
         preset: z.enum(['repair', 'import', 'export']).describe('Welcher Knopf gedrueckt wird'),
         folderId: FOLDER_ID,
         pfad: SCOPE_PFAD,
+        begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
-    async ({ libraryId, preset, folderId, pfad }) => {
+    async ({ libraryId, preset, folderId, pfad , begruendung }) => {
       try {
-        const userEmail = mcpUserEmail()
-        await requireLibrary(userEmail, libraryId)
-        const scope = await resolveScope({ userEmail, libraryId, folderId, pfad })
-        const report = await runLibrarySync({
-          libraryId, userEmail, mode: 'repair', preset,
-          scope: scope ? { folderId: scope } : {},
+        return await mitProtokoll({ werkzeug: 'twins_synchronisieren', libraryId, akteur: mcpUserEmail(), begruendung, folderId }, async () => {
+          const userEmail = mcpUserEmail()
+          await requireLibrary(userEmail, libraryId)
+          const scope = await resolveScope({ userEmail, libraryId, folderId, pfad })
+          const report = await runLibrarySync({
+            libraryId, userEmail, mode: 'repair', preset,
+            scope: scope ? { folderId: scope } : {},
+          })
+          return jsonResult(summarizeSyncReport(report))
         })
-        return jsonResult(summarizeSyncReport(report))
       } catch (error) {
         return errorResult(error)
       }

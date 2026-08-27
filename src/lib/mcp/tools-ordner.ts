@@ -13,6 +13,7 @@
  */
 
 import { z } from 'zod'
+import { BEGRUENDUNG, mitProtokoll } from './protokoll'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { isShadowTwinFolderName } from '@/lib/storage/shadow-twin-folder-name'
 import { resolveFolderIdByPath, resolveItemByPath } from './resolve-folder'
@@ -42,24 +43,27 @@ export function registerOrdnerTools(server: McpServer): void {
         elternOrdnerId: z.string().min(1).optional().describe('Id des Eltern-Ordners; weglassen + kein elternPfad = Library-Wurzel'),
         elternPfad: z.string().min(1).optional().describe('ALTERNATIVE: library-relativer Pfad des Eltern-Ordners'),
         name: z.string().min(1).describe('Name des neuen Ordners'),
+        begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false, destructiveHint: false },
     },
-    async ({ libraryId, elternOrdnerId, elternPfad, name }) => {
+    async ({ libraryId, elternOrdnerId, elternPfad, name , begruendung }) => {
       try {
-        const userEmail = mcpUserEmail()
-        await requireLibrary(userEmail, libraryId)
-        const provider = await requireProvider(userEmail, libraryId)
-        if (elternOrdnerId && elternPfad) throw new Error('Entweder elternOrdnerId ODER elternPfad — nicht beides')
-        assertKeinTwinOrdnerName(name, 'neue Ordner duerfen nicht wie Twin-Ordner aussehen')
-        const parentId = elternPfad ? await resolveFolderIdByPath(provider, elternPfad) : elternOrdnerId ?? 'root'
-        if (parentId !== 'root') {
-          const parent = await provider.getItemById(parentId).catch(() => null)
-          if (!parent || parent.type !== 'folder') throw new Error(`${parentId} ist kein existierender Ordner`)
-          assertKeinTwinOrdnerName(parent.metadata.name, 'in Twin-Ordnern werden keine Unterordner angelegt')
-        }
-        const folder = await provider.createFolder(parentId, name)
-        return jsonResult({ ok: true, folderId: folder.id, name: folder.metadata.name, elternOrdnerId: parentId })
+        return await mitProtokoll({ werkzeug: 'ordner_erstellen', libraryId, akteur: mcpUserEmail(), begruendung }, async () => {
+          const userEmail = mcpUserEmail()
+          await requireLibrary(userEmail, libraryId)
+          const provider = await requireProvider(userEmail, libraryId)
+          if (elternOrdnerId && elternPfad) throw new Error('Entweder elternOrdnerId ODER elternPfad — nicht beides')
+          assertKeinTwinOrdnerName(name, 'neue Ordner duerfen nicht wie Twin-Ordner aussehen')
+          const parentId = elternPfad ? await resolveFolderIdByPath(provider, elternPfad) : elternOrdnerId ?? 'root'
+          if (parentId !== 'root') {
+            const parent = await provider.getItemById(parentId).catch(() => null)
+            if (!parent || parent.type !== 'folder') throw new Error(`${parentId} ist kein existierender Ordner`)
+            assertKeinTwinOrdnerName(parent.metadata.name, 'in Twin-Ordnern werden keine Unterordner angelegt')
+          }
+          const folder = await provider.createFolder(parentId, name)
+          return jsonResult({ ok: true, folderId: folder.id, name: folder.metadata.name, elternOrdnerId: parentId })
+        })
       } catch (error) {
         return errorResult(error)
       }
@@ -80,35 +84,38 @@ export function registerOrdnerTools(server: McpServer): void {
         folderId: z.string().min(1).optional().describe('Ordner-Id (aus der Ordnerliste von abdeckung_lesen)'),
         pfad: z.string().min(1).optional().describe('ALTERNATIVE: library-relativer Pfad des Ordners'),
         neuerName: z.string().min(1).describe('Neuer Ordnername'),
+        begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
-    async ({ libraryId, folderId, pfad, neuerName }) => {
+    async ({ libraryId, folderId, pfad, neuerName , begruendung }) => {
       try {
-        const userEmail = mcpUserEmail()
-        await requireLibrary(userEmail, libraryId)
-        const provider = await requireProvider(userEmail, libraryId)
-        if (folderId && pfad) throw new Error('Entweder folderId ODER pfad angeben — nicht beides')
-        let id = folderId
-        let alterName = ''
-        if (!id) {
-          if (!pfad) throw new Error('folderId oder pfad ist Pflicht')
-          const item = await resolveItemByPath(provider, pfad, 'folder')
-          id = item.id
-          alterName = item.name
-        } else {
-          const item = await provider.getItemById(id)
-          if (!item || item.type !== 'folder') throw new Error(`${id} ist kein Ordner`)
-          alterName = item.metadata.name
-        }
-        if (id === 'root') throw new Error('Die Library-Wurzel wird nicht umbenannt')
-        assertKeinTwinOrdnerName(alterName, 'Twin-Ordner werden nie umbenannt — ihr Name gehoert zur Quelle (familie_umziehen)')
-        assertKeinTwinOrdnerName(neuerName, 'normale Ordner duerfen nicht zu Twin-Ordner-Namen werden')
-        if (alterName === neuerName) throw new Error('Neuer Name ist identisch mit dem Ist-Zustand')
-        await provider.renameItem(id, neuerName)
-        return jsonResult({
-          ok: true, folderId: id, alterName, neuerName,
-          hinweis: 'Danach abdeckung_scannen (Teilbaum), damit der Report die neuen Pfade zeigt.',
+        return await mitProtokoll({ werkzeug: 'ordner_umbenennen', libraryId, akteur: mcpUserEmail(), begruendung, folderId }, async () => {
+          const userEmail = mcpUserEmail()
+          await requireLibrary(userEmail, libraryId)
+          const provider = await requireProvider(userEmail, libraryId)
+          if (folderId && pfad) throw new Error('Entweder folderId ODER pfad angeben — nicht beides')
+          let id = folderId
+          let alterName = ''
+          if (!id) {
+            if (!pfad) throw new Error('folderId oder pfad ist Pflicht')
+            const item = await resolveItemByPath(provider, pfad, 'folder')
+            id = item.id
+            alterName = item.name
+          } else {
+            const item = await provider.getItemById(id)
+            if (!item || item.type !== 'folder') throw new Error(`${id} ist kein Ordner`)
+            alterName = item.metadata.name
+          }
+          if (id === 'root') throw new Error('Die Library-Wurzel wird nicht umbenannt')
+          assertKeinTwinOrdnerName(alterName, 'Twin-Ordner werden nie umbenannt — ihr Name gehoert zur Quelle (familie_umziehen)')
+          assertKeinTwinOrdnerName(neuerName, 'normale Ordner duerfen nicht zu Twin-Ordner-Namen werden')
+          if (alterName === neuerName) throw new Error('Neuer Name ist identisch mit dem Ist-Zustand')
+          await provider.renameItem(id, neuerName)
+          return jsonResult({
+            ok: true, folderId: id, alterName, neuerName,
+            hinweis: 'Danach abdeckung_scannen (Teilbaum), damit der Report die neuen Pfade zeigt.',
+          })
         })
       } catch (error) {
         return errorResult(error)

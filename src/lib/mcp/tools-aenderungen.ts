@@ -16,6 +16,7 @@
  */
 
 import { z } from 'zod'
+import { BEGRUENDUNG, mitProtokoll } from './protokoll'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { aenderungenSeit } from '@/lib/agent-view/aenderungen-seit'
 import { scanArchive } from '@/lib/agent-view/archive-scan'
@@ -93,37 +94,40 @@ export function registerAenderungenTools(server: McpServer): void {
       inputSchema: {
         libraryId: LIBRARY_ID, folderId: FOLDER_ID, pfad: SCOPE_PFAD,
         nurVorschau: z.boolean().optional(),
+        begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
-    async ({ libraryId, folderId, pfad, nurVorschau }) => {
+    async ({ libraryId, folderId, pfad, nurVorschau , begruendung }) => {
       try {
-        const userEmail = mcpUserEmail()
-        const library = await requireLibrary(userEmail, libraryId)
-        const provider = await requireProvider(userEmail, libraryId)
-        const scope = await resolveScope({ userEmail, libraryId, folderId, pfad })
-        const { scan, families, dauerMs } = await scanScope(library, provider, scope, 'alle')
-        const bloecke = erschliessungsBloecke({ folders: scan.folders, families, heute: new Date().toISOString().slice(0, 10) })
-        const geschrieben: string[] = []
-        const unveraendert: string[] = []
-        if (nurVorschau !== true) {
-          for (const b of bloecke) {
-            const folder = scan.folders.find((f) => f.folderId === b.folderId)
-            const index = folder?.index
-            if (!folder || !index) continue
-            const { blob } = await provider.getBinary(index.fileId)
-            const text = await blob.text()
-            const neu = indexMitBlock(text, b.block)
-            if (neu === text) { unveraendert.push(b.path || '(Wurzel)'); continue }
-            await provider.deleteItem(index.fileId)
-            await provider.uploadFile(folder.folderId, new File([neu], index.name, { type: 'text/markdown' }))
-            geschrieben.push(b.path || '(Wurzel)')
+        return await mitProtokoll({ werkzeug: 'erschliessung_block_schreiben', libraryId, akteur: mcpUserEmail(), begruendung, folderId }, async () => {
+          const userEmail = mcpUserEmail()
+          const library = await requireLibrary(userEmail, libraryId)
+          const provider = await requireProvider(userEmail, libraryId)
+          const scope = await resolveScope({ userEmail, libraryId, folderId, pfad })
+          const { scan, families, dauerMs } = await scanScope(library, provider, scope, 'alle')
+          const bloecke = erschliessungsBloecke({ folders: scan.folders, families, heute: new Date().toISOString().slice(0, 10) })
+          const geschrieben: string[] = []
+          const unveraendert: string[] = []
+          if (nurVorschau !== true) {
+            for (const b of bloecke) {
+              const folder = scan.folders.find((f) => f.folderId === b.folderId)
+              const index = folder?.index
+              if (!folder || !index) continue
+              const { blob } = await provider.getBinary(index.fileId)
+              const text = await blob.text()
+              const neu = indexMitBlock(text, b.block)
+              if (neu === text) { unveraendert.push(b.path || '(Wurzel)'); continue }
+              await provider.deleteItem(index.fileId)
+              await provider.uploadFile(folder.folderId, new File([neu], index.name, { type: 'text/markdown' }))
+              geschrieben.push(b.path || '(Wurzel)')
+            }
           }
-        }
-        return jsonResult({
-          modus: nurVorschau === true ? 'vorschau' : 'geschrieben', scope: scope ?? '(Library)', dauerMs,
-          indizes: bloecke.map(({ block, ...rest }) => ({ ...rest, ...(nurVorschau === true ? { block } : {}) })),
-          geschrieben, unveraendert,
+          return jsonResult({
+            modus: nurVorschau === true ? 'vorschau' : 'geschrieben', scope: scope ?? '(Library)', dauerMs,
+            indizes: bloecke.map(({ block, ...rest }) => ({ ...rest, ...(nurVorschau === true ? { block } : {}) })),
+            geschrieben, unveraendert,
+          })
         })
       } catch (error) {
         return errorResult(error)

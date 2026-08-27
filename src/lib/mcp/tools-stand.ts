@@ -18,6 +18,7 @@
  */
 
 import { z } from 'zod'
+import { BEGRUENDUNG, mitProtokoll } from './protokoll'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { fuehreStandAus } from '@/lib/agent-view/stand-ausfuehren'
 import { parseStandRequest } from '@/lib/agent-view/stand-plan'
@@ -51,35 +52,38 @@ export function registerStandTool(server: McpServer): void {
           .describe('Stand, den der Aufrufer aktuell sieht; explizit null = Ordner deklariert keinen'),
         bestaetigen: z.boolean().optional()
           .describe('true = gleicher Stand, nur das Datum neu (loest einen Widerspruch nach Pruefung auf)'),
+        begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
-    async ({ libraryId, folderId, stand, erwarteterStand, bestaetigen }) => {
+    async ({ libraryId, folderId, stand, erwarteterStand, bestaetigen , begruendung }) => {
       try {
-        const userEmail = mcpUserEmail()
-        await requireLibrary(userEmail, libraryId)
-        const provider = await requireProvider(userEmail, libraryId)
-        const gespeichert = await getCoverageReport(libraryId)
-        if (gespeichert === null) {
-          return errorResult(new Error('Kein gespeicherter Report — erst abdeckung_scannen, dann Stand setzen.'))
-        }
-        // Der Client urteilt per Definition auf dem gespeicherten Report; die
-        // Stufe-3-Pruefung bleibt trotzdem drin (der Report kann zwischen
-        // Lesen und Schreiben neu gerechnet worden sein).
-        const request = parseStandRequest({
-          folderId, stand, erwarteterStand,
-          reportGeneratedAt: gespeichert.generatedAt,
-          bestaetigen,
-        })
-        const ergebnis = await fuehreStandAus({
-          libraryId, userEmail, provider, request,
-          gespeicherterGeneratedAt: gespeichert.generatedAt,
-        })
-        return jsonResult({
-          gesetzt: ergebnis,
-          hinweis:
-            'Der gespeicherte Report zeigt den alten Stand, bis erneut gescannt wird — ' +
-            'abdeckung_scannen auf denselben Teilbaum zieht ihn nach.',
+        return await mitProtokoll({ werkzeug: 'stand_setzen', libraryId, akteur: mcpUserEmail(), begruendung, folderId }, async () => {
+          const userEmail = mcpUserEmail()
+          await requireLibrary(userEmail, libraryId)
+          const provider = await requireProvider(userEmail, libraryId)
+          const gespeichert = await getCoverageReport(libraryId)
+          if (gespeichert === null) {
+            return errorResult(new Error('Kein gespeicherter Report — erst abdeckung_scannen, dann Stand setzen.'))
+          }
+          // Der Client urteilt per Definition auf dem gespeicherten Report; die
+          // Stufe-3-Pruefung bleibt trotzdem drin (der Report kann zwischen
+          // Lesen und Schreiben neu gerechnet worden sein).
+          const request = parseStandRequest({
+            folderId, stand, erwarteterStand,
+            reportGeneratedAt: gespeichert.generatedAt,
+            bestaetigen,
+          })
+          const ergebnis = await fuehreStandAus({
+            libraryId, userEmail, provider, request,
+            gespeicherterGeneratedAt: gespeichert.generatedAt,
+          })
+          return jsonResult({
+            gesetzt: ergebnis,
+            hinweis:
+              'Der gespeicherte Report zeigt den alten Stand, bis erneut gescannt wird — ' +
+              'abdeckung_scannen auf denselben Teilbaum zieht ihn nach.',
+          })
         })
       } catch (error) {
         return errorResult(error)
