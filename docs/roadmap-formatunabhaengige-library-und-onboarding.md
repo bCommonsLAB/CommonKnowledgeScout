@@ -4,6 +4,11 @@
 > die **Reihenfolge**, damit (auch parallele) Sitzungen nicht doppelt bauen. Die
 > Detail-Pläne bleiben gültig und sind unten verlinkt. Sprache bewusst einfach.
 
+> **RUHEND (Stand 2026-08-27).** Dieser Fahrplan wurde zugunsten des
+> Werkbank-Strangs (W1–W8, A1–A6 — abgeschlossen) und danach der
+> Modularisierung zurueckgestellt. Inhalt bleibt gueltig; der laufende Strang
+> steht in `AGENTS.md` §Aktueller Fahrplan.
+
 > **Fortschritt 2026-06-22 (was seither in `master` ist):**
 > - **Plan 1:** A1 Verifikationsstatus (PR #109) ✅; A1 Publish-Warnung ✅;
 >   A4-Folge formatgerechte Story-Verweise ✅; **detailViewType-Persistenz** beim

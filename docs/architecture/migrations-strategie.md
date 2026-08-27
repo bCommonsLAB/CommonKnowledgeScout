@@ -1,7 +1,7 @@
 # Migrationsstrategie — Bestehendes läuft weiter, nichts wird doppelt gebaut
 
 Verbindliche Regeln für den Umbau nach ADR
-[0006](../adr/0006-modularisierung-monorepo-schale-module.md)/[0007](../adr/0007-deployment-ziele.md).
+[0007](../adr/0007-modularisierung-monorepo-schale-module.md)/[0008](../adr/0008-deployment-ziele.md).
 Beantwortet die Owner-Fragen: *Funktionieren die bestehenden
 KnowledgeScout-Anwendungen weiter? Wie vermeiden wir doppelten Code? Erst die
 bestehende Anwendung modularisieren, dann die Spezialanwendungen?*
@@ -17,7 +17,7 @@ Anwendung (Phase A), verhaltensneutral und in kleinen Wellen; Spezial-Ziele
 Phase A (M1–M4) baut die Voll-App IN PLACE um. Es existiert durchgehend nur
 EIN Deployment: die heutige App mit gleichen URLs, gleichen API-Pfaden,
 gleichem Docker-/Electron-Build, gleicher DB, gleicher GitHub Action. Und das
-bleibt per ADR 0007 auch NACH dem Umbau der Default: neue Sites sind
+bleibt per ADR 0008 auch NACH dem Umbau der Default: neue Sites sind
 SiteConfig-Einträge auf derselben Instanz, keine neuen Deployments. Der
 AECED-Pilot (M5) ist ein npm-Paket-Publish plus Headless-API auf der
 bestehenden Instanz — kein zweiter Server. Kein Big-Bang, kein Parallel-Stack.
@@ -74,13 +74,13 @@ Wellen-Details und Paket-Zuschnitt: [`modul-landkarte.md` §5](modul-landkarte.m
   wird aus dem Paket gemountet).
 - **Phase B — Spezial-Ziele additiv (M5+)**: AECED-Embed + Headless-API,
   Oldies for Future als erster SiteConfig-Eintrag der Multi-Site-Runtime,
-  Agent-View/MCP + Electron/local-first, Föderation (ADR 0008) und
-  Retrieval-Profile (ADR 0009). Jedes Ziel nutzt dieselben Pakete; nichts
+  Agent-View/MCP + Electron/local-first, Föderation (ADR 0009) und
+  Retrieval-Profile (ADR 0010). Jedes Ziel nutzt dieselben Pakete; nichts
   wird für ein Ziel neu geschrieben.
 
 ## Nicht-Ziele dieser Migration
 
-- Kein Multi-Repo-Split (erst nach stabilen Contracts, siehe ADR 0006 §1).
+- Kein Multi-Repo-Split (erst nach stabilen Contracts, siehe ADR 0007 §1).
 - Keine API-Umbenennungen/-Umzüge während Phase A (G4).
-- Kein Deployment pro Site (ADR 0007 §1).
+- Kein Deployment pro Site (ADR 0008 §1).
 - Kein vorauseilendes Extrahieren von Modulen ohne konkretes Ziel (G3).

@@ -34,7 +34,7 @@ Diese Regeln sind **nicht verhandelbar**. Details je Bereich in `docs/contracts/
 
 - **ADR 0002**: Galerie-Sterne und Voter-Namen kommen aus MongoDB + `GET docs`,
   nicht aus Clerk-Routen (`docs/adr/0002-galerie-sterne-ohne-clerk-read.md`).
-- **ADR 0007** (vorgeschlagen): Module sollen künftig montierbare
+- **ADR 0008** (vorgeschlagen): Module sollen künftig montierbare
   React-Wurzelkomponenten exportieren und sich nicht auf Next.js-Datei-Routing
-  verlassen (`docs/adr/0007-deployment-ziele.md`).
+  verlassen (`docs/adr/0008-deployment-ziele.md`).
 - Tab-Architektur der Datei-Vorschau: `docs/architecture/file-preview-tab-architecture.md`.

@@ -1,8 +1,8 @@
-# ADR 0008 — Library-Föderation: mehrere Libraries in einer Anwendung
+# ADR 0009 — Library-Föderation: mehrere Libraries in einer Anwendung
 
 - **Status**: Vorgeschlagen
 - **Datum**: 2026-08-25
-- **Kontext**: Erweitert [ADR 0006](0006-modularisierung-monorepo-schale-module.md)
+- **Kontext**: Erweitert [ADR 0007](0007-modularisierung-monorepo-schale-module.md)
   (dessen SiteConfig band genau EINE Library — das reicht nicht). Getrieben vom
   Klimamaßnahmen-Steckbrief
   ([`library-steckbriefe.md` §5](../architecture/library-steckbriefe.md));
@@ -55,7 +55,7 @@ VORBERECHNET und persistiert; Live-Abfrage nur als expliziter Fallback.
 
 ### 4. SiteConfig bindet eine Primär-Library plus föderierte Libraries
 
-Schema-Änderung gegenüber ADR 0006 §3:
+Schema-Änderung gegenüber ADR 0007 §3:
 
 ```ts
 libraries: {
@@ -87,7 +87,7 @@ Rechtesystem.
   (Ingest in B ⇒ Neuberechnung betroffener A-Brücken); Navigations-Kontext
   „aus A kommend in B" muss die Schale tragen (Rücksprung, Breadcrumb);
   Berechtigungsprüfung je Brücke auf B-Seite.
-- Korrigiert ADR 0006 §3 (Single-Library-Annahme); dort ist eine
+- Korrigiert ADR 0007 §3 (Single-Library-Annahme); dort ist eine
   Korrektur-Notiz mit Verweis hierher ergänzt.
 - Umsetzung frühestens Welle M8 (siehe
   [`migrations-strategie.md`](../architecture/migrations-strategie.md)).

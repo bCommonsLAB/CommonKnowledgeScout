@@ -1,9 +1,9 @@
 # Modul-Landkarte — Zielbild der Modularisierung
 
-Konzeption zu ADR [0006](../adr/0006-modularisierung-monorepo-schale-module.md)
-(Pakete), [0007](../adr/0007-deployment-ziele.md) (eine Instanz, viele Sites),
-[0008](../adr/0008-library-foederation.md) (Föderation),
-[0009](../adr/0009-retrieval-profile.md) (Profile): Welche Pakete es geben
+Konzeption zu ADR [0007](../adr/0007-modularisierung-monorepo-schale-module.md)
+(Pakete), [0008](../adr/0008-deployment-ziele.md) (eine Instanz, viele Sites),
+[0009](../adr/0009-library-foederation.md) (Föderation),
+[0010](../adr/0010-retrieval-profile.md) (Profile): Welche Pakete es geben
 soll, was aus dem heutigen Code hineinwandert, wie der API-Schnitt aussieht
 und in welchen Wellen migriert wird. Die realen Einsatzfälle stehen in
 [`library-steckbriefe.md`](library-steckbriefe.md) (Beschreibung des Owners)
@@ -39,7 +39,7 @@ Namenskonvention: Workspace-intern `@ks/*`; bei späterer Veröffentlichung
 |---|---|---|---|
 | `@ks/module-explorer` | Galerie, Story, Chat/RAG, Doc-Detail, Website-Rendering | `src/app/explore/`, `src/components/library/{gallery,story,chat,website}/`, `src/components/public/`, `src/hooks/gallery/`, `src/lib/{chat,gallery,website}/` | `chat/[libraryId]/*` (Lese-Teil), `public/*`, `markdown/*` |
 | `@ks/module-archive` | Archiv: Datei-Liste/-Baum/-Vorschau, Shadow-Twin-UI, Upload, Ingestion | `src/components/library/{file-list,file-preview,…}/`, `src/lib/{shadow-twin,ingestion,storage}/` | `library/[libraryId]/*` (ohne `agent-view`), `storage/*`, `chat/[libraryId]/ingest*` (heute falsch einsortiert, s. §3) |
-| `@ks/module-agent-view` | Agentensicht (Coverage, Worklists, Bericht, MCP-Anbindung) | `src/components/library/agent-view/`, `src/hooks/agent-view/`, `src/lib/agent-view/`, `src/lib/mcp/` | `library/[libraryId]/agent-view/*`, `mcp/*`, `account/mcp-*` |
+| `@ks/module-agent-view` | Agentensicht/Werkbank — nach W1–W8 + A1–A6 das **größte** Modul (111 Dateien): Coverage-Scan, Vorhaben-Baum, Artefakt-Abnahme, Kuration nach ADR 0006, Themen, Worklists, MCP-Anbindung | `src/components/library/agent-view/`, `src/hooks/agent-view/`, `src/lib/agent-view/`, `src/lib/mcp/` | `library/[libraryId]/agent-view/*`, `mcp/*`, `account/mcp-*` |
 | `@ks/module-creation` | Creation-Wizard, Wartekorb/Submissions, Secretary-Erfassung | `src/components/creation-wizard/`, `src/components/submissions/`, `src/lib/{creation,secretary,submissions}/` | `secretary/*`, `submissions/*`, `wizard-sessions/*`, `creation/*`, `stream-ingest/*` |
 | `@ks/module-templates` | Template-Verwaltung | `src/app/templates/`, `src/components/templates/`, `src/lib/templates/` | `templates/*`, `metadata/template/*` |
 | `@ks/module-jobs` | Event-Monitor, Session-Manager, External Jobs (Admin) | `src/app/{event-monitor,session-manager}/`, `src/components/{event-monitor,session}/`, `src/lib/{events,external-jobs}*` | `event-job/*`, `external/*`, `sessions/*` |
@@ -53,13 +53,13 @@ Muster P7/P9 in [`einsatz-szenarien.md`](einsatz-szenarien.md)):
 - `@ks/module-workbench` — Massen-Annotation/-Klassifikation mit Queue-UI und
   Ähnlichkeitsansicht (Diva-Texturen; nutzt `src/lib/graph/`-Bausteine).
 
-**MCP als Modul-Oberfläche** (ADR 0007 §4): `@ks/module-agent-view` exportiert
+**MCP als Modul-Oberfläche** (ADR 0008 §4): `@ks/module-agent-view` exportiert
 neben UI und HTTP-Handlern auch seine MCP-Tools (heute `src/lib/mcp/tools-*.ts`);
 Sites aktivieren sie per SiteConfig.
 
 ### Apps (Laufzeit-Hüllen, NICHT „eine App pro Site")
 
-Per ADR 0007 gilt „ein Deployment, viele Sites": Sites sind
+Per ADR 0008 gilt „ein Deployment, viele Sites": Sites sind
 SiteConfig-Einträge auf der einen Instanz. `apps/` enthält nur je Laufzeit-
 Hülle einen Eintrag:
 
@@ -71,7 +71,7 @@ Hülle einen Eintrag:
 
 ## 2. SiteConfig — Laufzeit-Konfiguration pro Site (Host)
 
-SiteConfigs sind DATEN, keine Build-Artefakte (ADR 0007 §1): Die eine Instanz
+SiteConfigs sind DATEN, keine Build-Artefakte (ADR 0008 §1): Die eine Instanz
 löst pro Request den Host gegen eine Host→SiteConfig-Registry auf —
 Verallgemeinerung von `PUBLIC_DOMAIN_LIBRARY_MAP` +
 `getRootLandingTargetForHost()` (`src/lib/root-landing.ts`). Die Schale lädt
@@ -83,7 +83,7 @@ interface SiteConfig {
   /** Aktive Module — bestimmt geladene Client-Chunks UND freigeschaltete API-Handler. */
   modules: Array<'explorer' | 'archive' | 'agent-view' | 'creation'
     | 'templates' | 'jobs' | 'settings' | 'import' | 'workbench'>
-  /** Library-Bindung: Primär-Library + optional föderierte Libraries (ADR 0008). */
+  /** Library-Bindung: Primär-Library + optional föderierte Libraries (ADR 0009). */
   libraries: {
     primary: { slug: string } | { mode: 'user-selected' }   // Voll-App: user-selected
     federated?: Array<{
@@ -95,7 +95,7 @@ interface SiteConfig {
   chrome: { topNav: 'app-menu' | 'library-menu' | 'none'; footer?: 'site' | 'none' }
   /** Auth: öffentlich, Clerk optional (Login schaltet Profil/Pflege frei) oder Pflicht. */
   auth: { mode: 'public' } | { mode: 'clerk'; optional?: boolean }
-  /** Datenzugang (ADR 0007 §3): local = diese Instanz; remote nur für embed/electron-Hüllen. */
+  /** Datenzugang (ADR 0008 §3): local = diese Instanz; remote nur für embed/electron-Hüllen. */
   api?: { mode: 'local' } | { mode: 'remote'; baseUrl: string }
   /** PWA-Flag: Manifest + Service Worker für diese Site (Naturmuseum). */
   pwa?: boolean
@@ -110,7 +110,7 @@ Die Voll-App ist die Default-Site der Registry:
 
 Abgrenzung zur **Library-Config** (MongoDB, `src/types/library.ts`): Die
 Library-Config beschreibt EINE Library (Facetten, `detailViewType`,
-`agentViewEnabled`, Galerie-Texte, künftig Profile nach ADR 0009) und bleibt
+`agentViewEnabled`, Galerie-Texte, künftig Profile nach ADR 0010) und bleibt
 die Quelle für Inhalts-Verhalten — auf jeder Site gleich. Die SiteConfig
 beschreibt EINE Site (Module, Library-Bindung, Chrome, Auth).
 `buildTopNavConfig()` konsumiert künftig beide.
@@ -186,19 +186,20 @@ Deployment, jede Welle verhaltensneutral), **Phase B** liefert die
 Spezial-Ziele additiv — ohne neue Deploy-Infrastruktur. Jede Welle eine PR
 nach den Diff-Limits aus `AGENTS.md`; Wellen-Naming nach
 [`refactor-naming-konvention.mdc`](../contracts/refactor-naming-konvention.md).
-Start ERST nach Plan 1/Plan 2 des aktuellen Fahrplans
-([Roadmap](../roadmap-formatunabhaengige-library-und-onboarding.md)).
+**Start freigegeben (2026-08-27):** Der Werkbank-Strang (W1–W8, A1–A6) ist
+abgeschlossen, die Juni-Roadmap ruht — die Modularisierung ist der laufende
+Strang und beginnt mit M1.
 
 | Phase | Welle | Inhalt | Beweis-Ziel |
 |---|---|---|---|
 | A | M1 | `pnpm-workspace.yaml` + `transpilePackages` + `@ks/viewers` (Start: Markdown-Viewer) | Workspace-Build, Voll-App unverändert |
 | A | M2 | `@ks/contracts` + `@ks/api-client` (zunächst Core-API) | ein Modul konsumiert den Client statt roher `fetch`es |
 | A | M3 | `@ks/shell` (Provider, TopNav, Bootstrap) + Host→SiteConfig-Resolver | Voll-App läuft als Default-Site der Registry |
-| A | M4 | `@ks/module-explorer` als **montierbare Wurzelkomponente** (ADR 0007 §4) inkl. Handler-Export + SiteConfig-Gate | Voll-App mountet Explorer aus dem Paket |
+| A | M4 | `@ks/module-explorer` als **montierbare Wurzelkomponente** (ADR 0008 §4) inkl. Handler-Export + SiteConfig-Gate | Voll-App mountet Explorer aus dem Paket |
 | B | M5 | **AECED-Pilot**: `@ks/embed` (npm-React-Komponente) + Headless-Lese-API mit Token auf der bestehenden Instanz | Galerie/Story in der Fremdanwendung, KEIN neues Deployment |
 | B | M6 | „Oldies for Future" als erster SiteConfig-Eintrag der Multi-Site-Runtime | schlanker Client (nur Explorer-Chunks) ohne zweites Deployment |
 | B | M7 | `@ks/module-agent-view` inkl. MCP-Export; Electron-Hülle auf Paketbasis (Peters Archiv, Diva-Werkbank) | zweites Modul + `local-first`-Hülle |
-| B | M8 | Föderation (ADR 0008, Klimamaßnahmen) + Retrieval-Profile (ADR 0009, Naturmuseum) | Multi-Library-Site + Laie/Experte-Profil |
+| B | M8 | Föderation (ADR 0009, Klimamaßnahmen) + Retrieval-Profile (ADR 0010, Naturmuseum) | Multi-Library-Site + Laie/Experte-Profil |
 
 Übergang A→B nur, wenn die Voll-App nachweislich auf den extrahierten Paketen
 läuft (Kriterien in der Migrationsstrategie).

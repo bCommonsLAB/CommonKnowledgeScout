@@ -6,14 +6,32 @@ Detaillierte Begruendungen + Beispiele:
 
 ## Aktueller Fahrplan (zuerst lesen)
 
-Verbindliche **Reihenfolge** der aktuellen Arbeit (Stand 2026-06-14) — EINE Quelle,
-damit Sessions nicht doppelt bauen:
-[`docs/roadmap-formatunabhaengige-library-und-onboarding.md`](docs/roadmap-formatunabhaengige-library-und-onboarding.md).
+**Laufender Strang (Stand 2026-08-27): Modularisierung.** EINE Quelle, damit
+Sessions nicht doppelt bauen:
 
-Kurz: **Plan 1** (Library formatunabhaengig & konsistent: A1/A2/A4) ZUERST, **danach
-Plan 2** (Onboarding-Flow: 2a Templates entflechten → 2b generischer Assistent). Das
-A0-Fundament (Basis-Feld-Contract + Integritaets-Gates) ist bereits auf `master`. Der
-Kickoff fuer Plan 1 (neue/Online-Session) steht im Fahrplan-Dokument.
+- **Was**: KnowledgeScout in Pakete schneiden (Schale + Module + Shared
+  Libraries), damit einzelne Bereiche in fremde Seiten einbettbar sind, ohne
+  doppelten Code und ohne unnoetige Client-Chunks.
+- **Grundlage**: ADR [0007](docs/adr/0007-modularisierung-monorepo-schale-module.md)
+  bis [0010](docs/adr/0010-retrieval-profile.md); Zuschnitt und Wellenplan in
+  [`docs/architecture/modul-landkarte.md`](docs/architecture/modul-landkarte.md) §5;
+  Umbau-Garantien in
+  [`docs/architecture/migrations-strategie.md`](docs/architecture/migrations-strategie.md).
+- **Naechster Schritt**: Welle **M1** — `pnpm-workspace.yaml` +
+  `transpilePackages`, erstes Paket `@ks/viewers`. Voll-App bleibt
+  unveraendert (Verhaltensneutralitaet ist Abnahmekriterium jeder A-Welle).
+
+**Abgeschlossene Straenge** (nicht neu aufgreifen):
+
+- **Werkbank/Agentensicht**: Wellen W1–W8 und A1–A6 sind umgesetzt
+  ([`docs/concepts/projektauftrag-werkbank-abnahme.md`](docs/concepts/projektauftrag-werkbank-abnahme.md),
+  Testsession dokumentiert). Kuration laeuft nach ADR 0006 (Modell B).
+
+**Ruhender Strang**: Die Juni-Roadmap
+[`docs/roadmap-formatunabhaengige-library-und-onboarding.md`](docs/roadmap-formatunabhaengige-library-und-onboarding.md)
+(Plan 1 Library-Konsistenz, Plan 2 Onboarding-Flow) bleibt gueltig, wurde aber
+zugunsten der Werkbank zurueckgestellt. Plan 1 ist bis auf A4-Feinschliff
+erledigt. Erst wieder aufgreifen, wenn der Owner es sagt.
 
 ## Pflicht-Lektuere zu Beginn jedes Tasks
 
@@ -95,28 +113,28 @@ Detail (warum, Symptome, Ausnahmen):
   Creation-Wizard schreibt bei Erfassung nie direkt in den Ziel-Provider;
   Submissions landen in interner Inbox (MongoDB + Azure Blob), Publikation
   ist ein rechte-gateter, idempotenter Promotion-Job
+- Vorgeschlagen (deponiert): `docs/adr/0005-co-creator-eigene-storage-auth.md` —
+  Co-Creator mit „Zugriff Archiv" nutzen kuenftig EIGENE Storage-Auth
+  (OneDrive/Nextcloud) statt der Owner-Credentials; Galerie/Erkunden (MongoDB)
+  vs. Archiv (Storage) trennen; Auth bei Invite eingeben + testen — spaeterer Schritt
 - Aktiv: `docs/adr/0006-beweislast-umdrehen-werkbank-kuration.md` —
   Werkbank-Kuration: Modell B angenommen (2026-08-26). Maschinenarbeit gilt als
   angenommen (oranger Haken), der Mensch markiert nur Fehler (Stopp-Zeichen,
   `twin_status: fehlerhaft` + `flagged_by/at/note`); Sammelaktionen werden
   zurueckgebaut, Zaehler zaehlt Widerstaende statt Bestaetigungen
-- Vorgeschlagen (deponiert): `docs/adr/0005-co-creator-eigene-storage-auth.md` —
-  Co-Creator mit „Zugriff Archiv" nutzen kuenftig EIGENE Storage-Auth
-  (OneDrive/Nextcloud) statt der Owner-Credentials; Galerie/Erkunden (MongoDB)
-  vs. Archiv (Storage) trennen; Auth bei Invite eingeben + testen — spaeterer Schritt
-- Vorgeschlagen: `docs/adr/0006-modularisierung-monorepo-schale-module.md` —
+- Vorgeschlagen: `docs/adr/0007-modularisierung-monorepo-schale-module.md` —
   pnpm-Monorepo mit Schale (`@ks/shell`), Modul-Paketen (`@ks/module-*`) und
   Shared Libraries; SiteConfig pro Deployment; Core- vs. Modul-APIs mit
   Route-Handler-Fabriken; Detail: `docs/architecture/modul-landkarte.md` +
-  `docs/architecture/einsatz-szenarien.md` — Start erst NACH Plan 1/Plan 2
-- Vorgeschlagen: `docs/adr/0007-deployment-ziele.md` — Ein Deployment, viele
+  `docs/architecture/einsatz-szenarien.md` + `migrations-strategie.md`
+- Vorgeschlagen: `docs/adr/0008-deployment-ziele.md` — Ein Deployment, viele
   Sites (Host→SiteConfig zur Laufzeit, `next/dynamic` je Modul); eigene
   Compilate nur bei anderer Laufzeit (Electron, npm-Embed); Module exportieren
   montierbare Wurzelkomponenten
-- Vorgeschlagen: `docs/adr/0008-library-foederation.md` — mehrere Libraries
+- Vorgeschlagen: `docs/adr/0009-library-foederation.md` — mehrere Libraries
   pro Site (primary + federated); Frage- und Inhalts-Bruecken auf Basis des
   Perspektiven-Bruecken-Zielbilds; Inhalts-Bruecken vorberechnet
-- Vorgeschlagen: `docs/adr/0009-retrieval-profile.md` — Profile pro Library
+- Vorgeschlagen: `docs/adr/0010-retrieval-profile.md` — Profile pro Library
   (UI-Variante + pluggbare Retrieval-Strategie + Sprachen), Laie/Experte;
   Ingestion-Post-Prozesse (z.B. Geo-Normalisierung) als Pipeline-Phasen
 

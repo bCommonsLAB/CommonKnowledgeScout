@@ -1,8 +1,8 @@
-# ADR 0009 — Retrieval-Profile: eine Library, mehrere Zugänge
+# ADR 0010 — Retrieval-Profile: eine Library, mehrere Zugänge
 
 - **Status**: Vorgeschlagen
 - **Datum**: 2026-08-25
-- **Kontext**: Erweitert [ADR 0006](0006-modularisierung-monorepo-schale-module.md).
+- **Kontext**: Erweitert [ADR 0007](0007-modularisierung-monorepo-schale-module.md).
   Getrieben von den Steckbriefen Umweltarchiv/Naturmuseum (§3), Klimamaßnahmen
   (§5) und Tapping into Abundance / MCS Ethiopia (§7/§8) in
   [`library-steckbriefe.md`](../architecture/library-steckbriefe.md).

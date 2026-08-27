@@ -4,10 +4,10 @@ Quelle der Wahrheit für die Modularisierung: Was jede Library IST und WOHIN sie
 soll, beschrieben vom Owner (Session 2026-08-25). Die daraus abgeleiteten
 Konfigurations-Muster stehen in [`einsatz-szenarien.md`](einsatz-szenarien.md),
 die Architektur-Entscheidungen in ADR
-[0006](../adr/0006-modularisierung-monorepo-schale-module.md)/
-[0007](../adr/0007-deployment-ziele.md)/
-[0008](../adr/0008-library-foederation.md)/
-[0009](../adr/0009-retrieval-profile.md).
+[0007](../adr/0007-modularisierung-monorepo-schale-module.md)/
+[0008](../adr/0008-deployment-ziele.md)/
+[0009](../adr/0009-library-foederation.md)/
+[0010](../adr/0010-retrieval-profile.md).
 
 Schema je Steckbrief: **Zweck** · **Nutzerkreis** · **Tätigkeiten** ·
 **Inhalts-Zufluss** · **Laufzeit/Ort** · **Wunsch/Offen**.

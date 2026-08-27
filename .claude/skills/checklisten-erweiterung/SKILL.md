@@ -26,7 +26,7 @@ Validierung → Renderer-Komponente → Doc-Meta-Mapper. Architektur und Checkli
 
 - **Frontmatter-Format** (AGENTS.md): flach, `snake_case`, keine Dot-Notation,
   keine verschachtelten YAML-Objekte.
-- **ADR 0009** (vorgeschlagen): Detail-View-Registry soll pro Site erweiterbar
+- **ADR 0010** (vorgeschlagen): Detail-View-Registry soll pro Site erweiterbar
   werden, ohne dass jede Site alle Renderer lädt — bei neuen Spezialansichten
-  mitdenken (`docs/adr/0009-retrieval-profile.md`,
+  mitdenken (`docs/adr/0010-retrieval-profile.md`,
   `docs/architecture/modul-landkarte.md` §6).

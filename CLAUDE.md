@@ -28,21 +28,21 @@ Bereich bereits getroffen sind (`docs/adr/`); Status **Aktiv** heißt bindend,
 | `src/lib/storage/**`, `src/app/api/storage/**` | storage-abstraction, storage-contracts | `contracts-storage-twin` | 0005 |
 | `src/lib/shadow-twin/**`, `src/hooks/use-shadow-twin*` | shadow-twin-architecture, shadow-twin-contracts | `contracts-storage-twin` | — |
 | `src/lib/ingestion/**` | ingestion-contracts | `contracts-ingestion-chat` | — |
-| `src/lib/chat/**`, `src/app/api/chat/**` | chat-contracts, contracts-story-pipeline | `contracts-ingestion-chat` | 0009 |
-| `src/lib/pipeline/**` | contracts-story-pipeline | `contracts-pipeline` | 0009 |
+| `src/lib/chat/**`, `src/app/api/chat/**` | chat-contracts, contracts-story-pipeline | `contracts-ingestion-chat` | 0010 |
+| `src/lib/pipeline/**` | contracts-story-pipeline | `contracts-pipeline` | 0010 |
 | `src/lib/templates/**`, `template-samples/**`, `src/components/templates/**` | templates-contracts, template-structure, media-lifecycle | `contracts-templates-media` | 0003 |
 | `src/lib/secretary/**`, `src/app/api/secretary/**` | secretary-contracts, media-lifecycle | `contracts-templates-media` | — |
 | `src/components/creation-wizard/**`, `src/components/submissions/**`, `src/lib/submissions/**`, `src/app/api/submissions/**` | ingest-mongo-only, media-lifecycle | `contracts-templates-media` | 0003, 0004 |
 | `src/components/library/**` | welle-3-schale-loader-contracts, welle-3-archiv-detail-contracts, welle-3-iii-galerie-chat-contracts, shadow-twin-architecture | `contracts-ui` | 0002 |
 | `src/components/settings/**` | welle-3-iv-settings-contracts | `contracts-ui` | — |
-| `src/app/page.tsx`, `src/app/layout.tsx`, `src/lib/root-landing.ts` | website-landingpage | `contracts-ui` | 0007 |
+| `src/app/page.tsx`, `src/app/layout.tsx`, `src/lib/root-landing.ts` | website-landingpage | `contracts-ui` | 0008 |
 | `src/types/library.ts`, `src/lib/services/library-service.ts`, `src/components/settings/library/**` | library-config-field | `checklisten-erweiterung` | — |
-| `**/detail-view*.tsx`, `**/registry.ts`, `**/doc-meta-mappers.ts`, `**/validation.ts` | detail-view-type-checklist | `checklisten-erweiterung` | 0009 |
+| `**/detail-view*.tsx`, `**/registry.ts`, `**/doc-meta-mappers.ts`, `**/validation.ts` | detail-view-type-checklist | `checklisten-erweiterung` | 0010 |
 | `src/lib/events/**`, `src/app/api/event-job/**`, `src/components/event-monitor/**` | — | — | **0001 (Aktiv)** |
 | `src/lib/gallery/**`, `src/app/api/library/*/favorites/**` | welle-3-iii-galerie-chat-contracts | `contracts-ui` | **0002 (Aktiv)** |
 | `src/lib/library-access/**`, `src/app/api/libraries/*/members/**`, `.../invites/**` | — | — | 0005 |
-| `src/lib/graph/**`, `src/app/api/library/*/doc-relations/**` | — | — | 0008 |
-| `pnpm-workspace.yaml`, `packages/**`, `apps/**`, `next.config.js` | — | — | 0006, 0007 |
+| `src/lib/graph/**`, `src/app/api/library/*/doc-relations/**` | — | — | 0009 |
+| `pnpm-workspace.yaml`, `packages/**`, `apps/**`, `next.config.js` | — | — | 0007, 0008 |
 | `docs/refactor/**`, `docs/plans/**`, `scripts/welle-pre-merge-check.sh` | refactor-batch-strategy, refactor-naming-konvention, cloud-agent-cost-strategy | — | — |
 
 Steht ein Bereich nicht in der Tabelle, gelten weiterhin die beiden immer

@@ -1,4 +1,4 @@
-# ADR 0006 — Modularisierung: pnpm-Monorepo, Schale, Modul-Pakete
+# ADR 0007 — Modularisierung: pnpm-Monorepo, Schale, Modul-Pakete
 
 - **Status**: Vorgeschlagen
 - **Datum**: 2026-08-25
@@ -13,13 +13,13 @@
 > **Korrekturen (2026-08-25, nach den Library-Steckbriefen):** Drei Punkte
 > dieses ADR sind durch Folge-ADRs präzisiert bzw. überholt:
 > (a) §3 band EINE Library pro Site — Klimamaßnahmen braucht mehrere
-> gekoppelte Libraries, siehe [ADR 0008](0008-library-foederation.md);
+> gekoppelte Libraries, siehe [ADR 0009](0009-library-foederation.md);
 > (b) §5 verschob Embed ans Ende — mit AECED als Pilot ist der
 > React-Komponenten-Embed in Welle M5 vorgezogen, siehe
-> [ADR 0007](0007-deployment-ziele.md);
+> [ADR 0008](0008-deployment-ziele.md);
 > (c) „schlanke Site = eigenes Deployment (`apps/<site>`)" ist ersetzt durch
 > „ein Deployment, viele Sites" (Laufzeit-SiteConfig pro Host), siehe
-> [ADR 0007](0007-deployment-ziele.md) §1 und
+> [ADR 0008](0008-deployment-ziele.md) §1 und
 > [`migrations-strategie.md`](../architecture/migrations-strategie.md).
 > Die Schichten-, Paket- und API-Entscheidungen (§1, §2, §4, §6) gelten
 > unverändert.
@@ -125,10 +125,13 @@ importieren, nie andere Module; Shared Libraries importieren keine Module),
   `storage-context` müssen eine paketfähige Oberfläche bekommen; API-Handler
   müssen fabrikfähig werden (Dependency-Injection statt Direktimporte);
   Migration nur schrittweise (Wellen) möglich.
-- **Abgrenzung**: Ändert NICHT die Reihenfolge des aktuellen Fahrplans
-  ([`docs/roadmap-formatunabhaengige-library-und-onboarding.md`](../roadmap-formatunabhaengige-library-und-onboarding.md)
-  — Plan 1 vor Plan 2). Die Modularisierung ist eine eigene, danach beginnende
-  Wellen-Serie (Migrationspfad: Modul-Landkarte §Migration). Sie baut auf
+- **Einordnung** (Stand 2026-08-27): Die Modularisierung ist der **laufende
+  Strang**. Der Werkbank-Strang (Agentensicht, Wellen W1–W8 und A1–A6) ist
+  abgeschlossen; die Juni-Roadmap
+  ([`roadmap-formatunabhaengige-library-und-onboarding.md`](../roadmap-formatunabhaengige-library-und-onboarding.md),
+  Plan 1/Plan 2) ruht und wird später wieder aufgenommen. Migrationspfad:
+  Modul-Landkarte §5 und [`migrations-strategie.md`](../architecture/migrations-strategie.md).
+  Die Modularisierung baut auf
   ADR 0004 (Inbox-Modell: Erfassung ohne Ziel-Storage-Kopplung — Voraussetzung
   für eine isolierte Erfassungs-Site) und ADR 0005 (Co-Creator-Storage-Auth)
   auf und widerspricht ihnen nicht.

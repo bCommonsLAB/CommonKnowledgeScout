@@ -1,8 +1,8 @@
-# ADR 0007 — Deployment-Ziele: Eine Instanz, viele Sites; Compilate nur bei anderer Laufzeit
+# ADR 0008 — Deployment-Ziele: Eine Instanz, viele Sites; Compilate nur bei anderer Laufzeit
 
 - **Status**: Vorgeschlagen
 - **Datum**: 2026-08-25
-- **Kontext**: Erweitert [ADR 0006](0006-modularisierung-monorepo-schale-module.md).
+- **Kontext**: Erweitert [ADR 0007](0007-modularisierung-monorepo-schale-module.md).
   Grundlage: [`library-steckbriefe.md`](../architecture/library-steckbriefe.md)
   (Deployment-Anforderungen der realen Libraries) und die ausdrückliche
   Owner-Anforderung, die Deployment-Infrastruktur NICHT zu verkomplizieren

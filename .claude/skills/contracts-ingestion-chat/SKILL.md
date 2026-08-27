@@ -29,7 +29,7 @@ Diese Regeln sind **nicht verhandelbar**. Details je Thema in `docs/contracts/`.
 
 ## Zusätzlich beachten
 
-- **ADR 0009** (vorgeschlagen): Retrieval-Strategien sollen pluggbar werden
+- **ADR 0010** (vorgeschlagen): Retrieval-Strategien sollen pluggbar werden
   (Profile pro Library, z. B. Geo-Vorfilter statt rein semantisch) —
-  `docs/adr/0009-retrieval-profile.md`. Neue Retrieval-Wege bitte als Strategie
+  `docs/adr/0010-retrieval-profile.md`. Neue Retrieval-Wege bitte als Strategie
   denken, nicht als Sonderzweig.

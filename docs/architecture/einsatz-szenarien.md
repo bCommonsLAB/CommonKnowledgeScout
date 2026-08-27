@@ -3,10 +3,10 @@
 Abgeleitet aus [`library-steckbriefe.md`](library-steckbriefe.md) (den
 Beschreibungen des Owners — dort steht das WAS, hier das WIE als
 Konfiguration). Architektur-Grundlagen: ADR
-[0006](../adr/0006-modularisierung-monorepo-schale-module.md) (Pakete/SiteConfig),
-[0007](../adr/0007-deployment-ziele.md) (eine Instanz, viele Sites; Hüllen),
-[0008](../adr/0008-library-foederation.md) (Föderation),
-[0009](../adr/0009-retrieval-profile.md) (Profile).
+[0007](../adr/0007-modularisierung-monorepo-schale-module.md) (Pakete/SiteConfig),
+[0008](../adr/0008-deployment-ziele.md) (eine Instanz, viele Sites; Hüllen),
+[0009](../adr/0009-library-foederation.md) (Föderation),
+[0010](../adr/0010-retrieval-profile.md) (Profile).
 
 Jedes Muster: Zweck · tragende Libraries · Module · Hülle/Datenzugang · Auth ·
 Konfigurationsskizze · was es vom Konzept fordert. SiteConfig-Schema:
@@ -50,13 +50,13 @@ Inhalte (offen, M5/M7).
 />
 ```
 
-**Fordert**: montierbare Wurzelkomponenten (ADR 0007 §4); CORS + anonymer
+**Fordert**: montierbare Wurzelkomponenten (ADR 0008 §4); CORS + anonymer
 Lese-Zugriff; Mehrsprachigkeit als Prop.
 
 ## P3 — Fach-/Forschungsarchiv mit Laien- UND Experten-Zugang
 
 Ein Bestand, zwei Profile: vereinfachter Zugang für Endanwender, spezifischer
-für Experten — unterschiedlich in UI und Retrieval (ADR 0009). Kollektive
+für Experten — unterschiedlich in UI und Retrieval (ADR 0010). Kollektive
 Pflege durch Eingeladene.
 **Libraries**: Umweltarchiv/Naturmuseum, Pluriversum, Klimamaßnahmen
 (Experten-Seite mit eigenen Beiträgen).
@@ -72,7 +72,7 @@ site('archiv.naturmuseum.example', {
   auth: { mode: 'clerk', optional: true },   // anonym = simple-Profil
   pwa: true,
 })
-// Profile (simple/expert, geo-prefilter) liegen in der LIBRARY-Config (ADR 0009)
+// Profile (simple/expert, geo-prefilter) liegen in der LIBRARY-Config (ADR 0010)
 ```
 
 **Fordert**: Profil-Mechanik + pluggbare Retrieval-Strategien; Ingestion-
@@ -111,7 +111,7 @@ site('stimmen.tappingintoabundance.example', {
   chrome: { topNav: 'none' },                 // nur der Erfassungs-Flow
   auth: { mode: 'clerk', optional: true },
 })
-// languages: ['om','am','en','de'] im Library-Profil (ADR 0009 §4)
+// languages: ['om','am','en','de'] im Library-Profil (ADR 0010 §4)
 ```
 
 **Fordert**: Erfassungs-Site ohne Archiv-/Explorer-Zwang (ADR 0004-Inbox);
@@ -177,7 +177,7 @@ als Messlatte.
 | P9 Multi-Quellen-Import | import+explorer | Voll-App → P2 | local | Creator | SFSCON, CAST |
 
 Jede beschriebene Library trägt mindestens ein Muster; Klimamaßnahmen
-kombiniert P1+P3 plus Föderation (ADR 0008); AECED kombiniert P2+P8.
+kombiniert P1+P3 plus Föderation (ADR 0009); AECED kombiniert P2+P8.
 
 ## Verbleibende Konzept-Lücken (vor der jeweiligen Welle zu schließen)
 
