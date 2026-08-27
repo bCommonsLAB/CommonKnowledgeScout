@@ -13,18 +13,30 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { readFileSync, readdirSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { TOOL_NAMES } from '@/lib/mcp/tools-info'
 
 const MCP_VERZEICHNIS = join(process.cwd(), 'src', 'lib', 'mcp')
 
-/** Werkzeugnamen, die im Quelltext tatsaechlich registriert werden. */
-function registrierteWerkzeuge(): string[] {
+/**
+ * Werkzeugnamen, die im Quelltext tatsaechlich registriert werden.
+ *
+ * Steigt seit Welle ST2 in Unterverzeichnisse ab (`storage/`). Vorher sah der
+ * Riegel nur die oberste Ebene — ein Werkzeug in einem Unterordner waere fuer
+ * ihn unsichtbar gewesen, und der Selbsttest der Bruecke damit wieder blind,
+ * genau wie beim Befund, der ihn ausgeloest hat.
+ */
+function registrierteWerkzeuge(verzeichnis: string = MCP_VERZEICHNIS): string[] {
   const namen = new Set<string>()
-  for (const datei of readdirSync(MCP_VERZEICHNIS)) {
-    if (!datei.endsWith('.ts')) continue
-    const inhalt = readFileSync(join(MCP_VERZEICHNIS, datei), 'utf-8')
+  for (const eintrag of readdirSync(verzeichnis)) {
+    const pfad = join(verzeichnis, eintrag)
+    if (statSync(pfad).isDirectory()) {
+      for (const name of registrierteWerkzeuge(pfad)) namen.add(name)
+      continue
+    }
+    if (!eintrag.endsWith('.ts')) continue
+    const inhalt = readFileSync(pfad, 'utf-8')
     for (const treffer of inhalt.matchAll(/registerTool\(\s*'([a-z_]+)'/g)) {
       namen.add(treffer[1])
     }

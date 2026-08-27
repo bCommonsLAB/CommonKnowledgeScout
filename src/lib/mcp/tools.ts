@@ -42,11 +42,13 @@ import { registerStandTool } from './tools-stand'
 import { registerThemenTool } from './tools-themen'
 import { registerOrdnerTools } from './tools-ordner'
 import { registerUmzugTools } from './tools-umzug'
+import { registerStorageTools } from './storage'
 
 /** Registriert alle Werkzeuge der Bruecke auf dem MCP-Server. */
 export function registerKnowledgeScoutTools(server: McpServer): void {
   registerUmzugTools(server)
   registerOrdnerTools(server)
+  registerStorageTools(server)
   registerErschliessenTools(server)
   registerJobTools(server)
   registerSichtenTools(server)

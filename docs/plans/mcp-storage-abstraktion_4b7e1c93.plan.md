@@ -15,31 +15,31 @@ overview: >-
 todos:
   - id: st1-provider-versionierung
     content: "Welle ST1 — Versionierung im Provider-Vertrag. NEUE Datei packages/contracts/src/storage-versioning.ts mit dem Capability-Interface StorageVersioning (updateFile mit ifVersion, VersionsKonflikt-Fehler mit aktuellem Inhalt + Version). EIN angehängtes optionales Feld version?: string in StorageItemMetadata (storage-provider.ts, append-only). Implementierung in allen drei Providern: OneDrive (eTag — muss in selectFields ergänzt werden, fehlt heute), Nextcloud (eTag aus PROPFIND/FileStat), Filesystem (mtimeMs+size als synthetische Version). Feature-Detection statt Pflicht-Interface (storage-contracts §1). Kein neues Paket, keine Änderung an next.config.js/tsconfig/workspace."
-    status: pending
+    status: completed
   - id: st1-cache-invalidierung
     content: "Welle ST1, Teil 2 — provider-request-cache.ts kennt eine EXPLIZITE Mutations-Allowlist (createFolder/uploadFile/deleteItem/moveItem/renameItem). Ein neues updateFile würde dort still durchs Raster fallen und veraltete Reads liefern. updateFile in die Allowlist aufnehmen; Unit-Test, der genau das absichert (Read, updateFile, Read → zweiter Read sieht den neuen Stand)."
-    status: pending
+    status: completed
   - id: st1-beweisziel
-    content: "Welle ST1, Beweis-Ziel (Verhaltensneutralität nach G4-Vorbild): die zwei bestehenden delete+upload-Stellen auf updateFile umstellen — erschliessung_block_schreiben (src/lib/mcp/tools-aenderungen.ts:121-122) und baueIndexPorts.uploadMarkdown (src/lib/agent-view/stand-ausfuehren.ts:61-67). Damit behält die _INDEX.md ihre itemId strukturell, nicht per Sonderbehandlung. Sichtbares Verhalten sonst unverändert."
-    status: pending
+    content: "Welle ST1, Beweis-Ziel (Verhaltensneutralität nach G4-Vorbild): die bestehenden delete+upload-Stellen auf updateFile umstellen. KORREKTUR gegenüber der Planannahme: stand-ausfuehren.ts war bereits saniert (ersetzeIndex ruft nur noch uploadMarkdown, Befund 27.08.2026) — der deleteFile-Port dort ist seither totes Interface. Die zwei ECHTEN Stellen waren erschliessung_block_schreiben (src/lib/mcp/tools-aenderungen.ts) und ueberschreiben() in src/lib/agent-view/sichten/regenerate-sichten.ts. Beide laufen jetzt über den gemeinsamen Helfer src/lib/storage/update-text-file.ts."
+    status: completed
   - id: st2-tools-stufe1
-    content: "Welle ST2 — MCP-Werkzeuge Stufe 1 in NEUEN Dateien unter src/lib/mcp/storage/ (tools-datei.ts, tools-ordner-storage.ts, adressierung.ts, fehler.ts): ordner_listen (limit/cursor Pflicht, Metadaten je Eintrag), datei_lesen (bereich: frontmatter|abschnitt|zeilen; maxBytes/offset Pflicht, gekuerzt-Flag), stat, pfad_aufloesen, datei_schreiben (ifVersion Pflichtfeld), loeschen (inPapierkorb default true). Jedes Werkzeug akzeptiert pfad ODER id (A2) und liefert BEIDE zurück (A1). Registrierung: EINE Zeile in src/lib/mcp/tools.ts."
-    status: pending
+    content: "Welle ST2 — MCP-Werkzeuge Stufe 1 unter src/lib/mcp/storage/: ordner_listen (limit/cursor Pflicht, Metadaten je Eintrag, Glob, begrenzte Tiefe), datei_lesen (bereich: frontmatter|abschnitt|zeilen; maxBytes/offset, gekuerzt+naechsterOffset), stat, pfad_aufloesen, datei_schreiben (ifVersion Pflicht, Konfliktantwort MIT aktuellem Inhalt nach Q1). Jedes Werkzeug akzeptiert pfad ODER id (A2) und liefert BEIDE zurück (A1). Registrierung: eine Zeile in tools.ts, TOOLSET_VERSION auf 2.7.0. ABWEICHUNG vom ursprünglichen Zuschnitt: loeschen ist nach ST4 verschoben — der Papierkorb ist je Provider verschieden (Filesystem hat keinen), und ein loeschen mit inPapierkorb:true als Default wäre bis zur ST4-Ehrlichkeit ein Versprechen, das ein Provider nicht hält."
+    status: completed
   - id: st2-schreibschutz
     content: "Welle ST2, Teil 2 — Schreibschutz auf Pfadmustern, damit die generische Schicht nicht an den Fachwerkzeugen vorbeischreibt (offene Frage §6 der Anforderungen). _INDEX.md ist für datei_schreiben/datei_patchen gesperrt (gehört stand_setzen/themen_setzen), Twin-Ordner (_*) sind gesperrt (gehören twins_synchronisieren). Fehlerbild nicht_unterstuetzt mit Nennung des zuständigen Fachwerkzeugs — kein stiller Skip."
-    status: pending
+    status: completed
   - id: st3-patchen
     content: "Welle ST3 — datei_patchen, das teuerste fehlende Werkzeug (Beleg: 8 Voll-Rewrites von BERICHT.md/_INDEX.md an einem Tag, ~80 kB für ~400 Bytes echte Änderung). Drei Modi: ersetze {altText,neuText} mit Eindeutigkeits-Zwang (genau ein Treffer, sonst Fehler), abschnitt_ersetzen {ueberschrift,neuerInhalt} bis zur nächsten gleichrangigen Überschrift, frontmatter_setzen (ZWINGEND über den bestehenden Frontmatter-Single-Serializer, Contract frontmatter-single-serializer; flache snake_case-Keys, kein nested YAML). Alle mit ifVersion; bei Konflikt kommt der aktuelle Inhalt MIT zurück, damit der Aufrufer ohne zweiten Read mergen kann (Q1)."
-    status: pending
+    status: completed
   - id: st4-stufe2-fehler
-    content: "Welle ST4 — Stufe 2 + Querschnitt: datei_anlegen (nichtUeberschreiben default true), ordner_anlegen, verschieben (deckt Umbenennen ab; kennt KEINE Twin-Familien — die bleiben in familie_umziehen eine Ebene darüber), speicher_info (provider, grossKleinSchreibungRelevant, pfadLimit, maxDateigroesse, papierkorbVorhanden, unterstuetzt{patch,ifVersion,delta,binaer}, unicodeNormalisierung). Dazu die einheitlichen Fehlerbilder Q5 (nicht_gefunden, konflikt, zu_gross, pfad_zu_lang, kein_zugriff, nur_lesen, gesperrt, nicht_unterstuetzt, zeitueberschreitung) als Mapping-Schicht über die heterogenen Provider-Fehler."
-    status: pending
+    content: "Welle ST4 — Stufe 2 + Querschnitt: loeschen (aus ST2 hierher verschoben, siehe dort — untrennbar von der Papierkorb-Ehrlichkeit unten), datei_anlegen (nichtUeberschreiben default true), ordner_anlegen, verschieben (deckt Umbenennen ab; kennt KEINE Twin-Familien — die bleiben in familie_umziehen eine Ebene darüber), speicher_info (provider, grossKleinSchreibungRelevant, pfadLimit, maxDateigroesse, papierkorbVorhanden, unterstuetzt{patch,ifVersion,delta,binaer}, unicodeNormalisierung). Dazu die einheitlichen Fehlerbilder Q5 (nicht_gefunden, konflikt, zu_gross, pfad_zu_lang, kein_zugriff, nur_lesen, gesperrt, nicht_unterstuetzt, zeitueberschreitung) als Mapping-Schicht über die heterogenen Provider-Fehler."
+    status: completed
   - id: st4-papierkorb-ehrlich
     content: "Welle ST4, Teil 2 — Papierkorb ehrlich melden statt vortäuschen. FilesystemProvider.deleteItem löscht heute HART (fs.rm/fs.unlink, filesystem-provider.ts:303-315); OneDrive und Nextcloud haben einen Papierkorb. speicher_info meldet papierkorbVorhanden je Provider wahrheitsgemäß, und loeschen verweigert bei papierkorbVorhanden=false den Default inPapierkorb:true, statt still hart zu löschen (no-silent-fallbacks). Archiv-Grundregel 'Gelöscht wird nie' bleibt damit prüfbar."
-    status: pending
+    status: completed
   - id: st4-doku
     content: "Welle ST4, Teil 3 — docs/contracts/storage-contracts.md um einen §9 'Versionierung & generischer Schreibweg' ergänzen (Capability-Interface, ifVersion-Semantik, Schreibschutz-Pfadmuster); CLAUDE.md Routing-Index um die Zeile src/lib/mcp/storage/** ergänzen; den Skill archiv-aufraeumen um die neuen Werkzeuge erweitern und den Werkzeugsatz in tools-info.ts hochziehen (TOOLSET_VERSION), damit bruecke_info veraltete Client-Toollisten weiter sichtbar macht."
-    status: pending
+    status: completed
   - id: verschoben-stufe3
     content: "BEWUSST NICHT in diesem Strang (Stufe 3 der Anforderungen): suchen (kein Provider kann es heute einheitlich — OneDrive per Graph-Search, Nextcloud/Filesystem nur per Scan; braucht zusätzlich indexStand in der Antwort), wiederherstellen aus dem Papierkorb, dateien_lesen (Stapel), binaer_lesen mit range, kopieren, sperren/entsperren, Job-Modus mit jobId für lange Läufe (Q7). aenderungen_seit existiert bereits scanbasiert. Erst aufgreifen, wenn ST1–ST4 stehen und ein konkreter Bedarf da ist (G3, bedarfsgetrieben)."
     status: pending
@@ -236,6 +236,134 @@ Provider-Anfassen. Der wirtschaftliche Kern des ganzen Vorhabens.
 Siehe Todos. Der interessanteste Punkt ist der Papierkorb: er ist nicht
 überall da, und das gehört gemeldet statt kaschiert.
 
+## 4b. Befunde aus ST1 (umgesetzt 2026-08-27)
+
+Drei Dinge, die der Plan anders angenommen hatte:
+
+- **`stand-ausfuehren.ts` machte kein delete+upload mehr.** Das war am
+  27.08.2026 bereits saniert; `ersetzeIndex` ruft nur noch `uploadMarkdown`.
+  Der `deleteFile`-Port in `StandSchreibenPorts` ist seitdem **totes
+  Interface** — definiert, nie gerufen. Er bleibt vorerst stehen (Entfernen
+  zieht `themen-schreiben.ts` und Tests nach) und gehört in eine
+  Aufräum-Welle; solange er dasteht, lädt er zum Rückfall ein.
+- **Die zweite echte Stelle war `regenerate-sichten.ts`**, nicht die
+  `_INDEX.md`: `ueberschreiben()` löschte `AKTUELL.md`/`PROJEKTE.md` und lud
+  sie neu hoch. Jetzt In-Place; nur der erste Lauf legt noch an.
+- **Nicht nur Nextcloud hat ein Id-Problem.** Der Filesystem-Provider
+  erzeugt Datei-Ids als **Hash aus Name, Größe, mtime und Fingerprint**
+  (`generateFileId`) — die Id hängt also am Inhalt. Stabil bleibt sie nur,
+  weil `idCache` sie pro Pfad festhält, also innerhalb einer Prozess-
+  Lebensdauer. Nextcloud ist hier besser als gedacht: Ids sind base64-kodierte
+  **Pfade** und überleben ein In-Place-Schreiben unverändert. `updateFile`
+  meldet einen Wechsel über `idChanged` (A3), statt ihn zu verschweigen.
+
+Dazu ein Fund außerhalb des Zuschnitts: `tests/unit/mcp/tools-stand.test.ts`
+war auf `master` rot (3 Tests, je 15 s Timeout). Ursache ist nicht ST1,
+sondern der Protokoll-Commit — `stand_setzen` läuft seither durch
+`mitProtokoll` in eine echte MongoDB-Verbindung, die der Test nicht mockt.
+Drei Zeilen Mock, wie in `protokoll.test.ts`. Mitgenommen, weil die DoD
+grüne Tests verlangt.
+
+## 4c. Befunde aus ST2 (umgesetzt 2026-08-27)
+
+- **Der Drift-Riegel war blind für Unterverzeichnisse.**
+  `tests/unit/mcp/toolliste-drift.test.ts` scannte nur die oberste Ebene von
+  `src/lib/mcp` — die Werkzeuge unter `storage/` wären für ihn unsichtbar
+  gewesen, und `bruecke_info` hätte wieder eine unvollständige Soll-Liste
+  gemeldet: genau der Befund vom 27.08.2026, der den Riegel ausgelöst hat,
+  nur eine Ebene tiefer. Der Riegel steigt jetzt ab; gegengeprüft, dass er
+  ein fehlendes Werkzeug im Unterverzeichnis auch wirklich meldet.
+- **`loeschen` nach ST4 verschoben.** Siehe Todo — Papierkorb-Ehrlichkeit und
+  Löschwerkzeug sind nicht trennbar.
+- **`stat` behandelt „existiert nicht" als Antwort, nicht als Fehler.** Genau
+  dafür fragt der Aufrufer (`bericht_veraltet`, `verweis_tot`). Andere Fehler
+  bleiben Fehler.
+- **Der Muster-Filter begrenzt die Ausgabe, nicht den Abstieg.** `*.md` mit
+  `tiefe: 2` findet Dateien in Unterordnern — ein Filter, der schon am
+  Ordnernamen abbräche, fände nie etwas.
+
+## 4d. Befunde aus ST3 (umgesetzt 2026-08-27)
+
+**`frontmatter_setzen` geht NICHT über `patchFrontmatter`.** Der Plan schrieb
+„zwingend über den bestehenden Frontmatter-Single-Serializer" — das wäre hier
+der falsche der zwei vorhandenen Wege gewesen. Es gibt bereits eine bewusste
+Trennung:
+
+- `patchFrontmatter` (`src/lib/markdown/frontmatter-patch.ts`) schreibt das
+  GESAMTE Frontmatter neu und quotet jeden String (`type: index` →
+  `type: "index"`). Richtig für maschinen-eigene Dateien.
+- `stand-zeilen-patch.ts` ist zeilen-chirurgisch, weil genau diese
+  Requotierung im W7-Live-Test (24.08.2026) als sichtbare Änderung an Zeilen
+  auffiel, die niemand angefasst hatte — bei den von Hand gepflegten,
+  Obsidian-kompatiblen Archiv-Dateien.
+
+`frontmatter_setzen` zielt auf ebensolche Dateien und nutzt deshalb die
+Chirurgie. Das ist kein zweiter Serializer (Contract §2): dieselbe Funktion,
+dieselbe Rückles-Disziplin. Was `stand-zeilen-patch.ts` für den Stand-Patch
+über ein geschlossenes Vokabular garantiert, steht hier als **Prüfung**:
+flache `snake_case`-Keys, nur Skalare, symmetrische Wert-Formatierung, und
+danach eine Rückprobe mit dem echten Parser — weicht ein Feld ab, wird nichts
+geschrieben.
+
+Weitere Punkte:
+
+- **Listen und Objekte sind abgelehnt, nicht stillschweigend verbogen.**
+  `parseSecretaryMarkdownStrict` liest `tags: ["a"]` als Rohstring zurück,
+  nicht als Array — geschrieben und gelesen wären verschieden. Solche Felder
+  brauchen `datei_schreiben` oder ein Fachwerkzeug. (Kandidat für später:
+  Symmetrie im Parser herstellen, dann hier freigeben.)
+- **Ein Patch, der nichts ändert, wird nicht geschrieben.** Sonst altert die
+  Datei (`bericht_veraltet`) für eine Änderung, die es nicht gab — dieselbe
+  Tretmühle, die Q4 beschreibt.
+- **Lesen und Ersetzen teilen sich die Abschnittsgrenze** (`findeAbschnitt`).
+  Zwei Implementierungen hätten bedeutet, dass ein Agent über etwas anderes
+  schreibt, als er gelesen hat.
+- `stand-zeilen-patch.ts` heißt weiterhin stand-spezifisch, obwohl es jetzt
+  generisch genutzt wird. Umbenennen zieht `stand-schreiben.ts` und Tests
+  nach — Kandidat für die Aufräum-Welle, zusammen mit dem toten
+  `deleteFile`-Port.
+
+## 4e. Befunde aus ST4 (umgesetzt 2026-08-27)
+
+**`speicher_info` brauchte eine Provider-Selbstauskunft, keinen Typ-Switch.**
+Der Storage-Contract verbietet Feature-Entscheidungen über `library.type`.
+Also eine zweite optionale Fähigkeit, `StorageCapabilities`
+(`packages/contracts/src/storage-capabilities.ts`, wieder eine neue Datei —
+null Konfliktfläche): Jeder Provider beschreibt sich selbst, die Schicht
+verzweigt nicht.
+
+Die tragende Regel darin: **`null` heißt „weiß ich nicht", und das ist eine
+erlaubte Antwort.** Beispiele, wo ich bewusst `null` gesetzt habe statt zu
+raten:
+
+- Unicode-Normalisierung bei allen drei Providern. Graph sichert keine
+  Normalform zu; geraten wäre schlimmer als nicht gewusst, weil der Agent
+  darauf baut und Dateien nicht findet, die da sind — genau der Beleg aus den
+  Anforderungen.
+- Groß-/Kleinschreibung bei Nextcloud und Filesystem: hängt am Dateisystem des
+  Servers, von außen nicht feststellbar.
+
+Getrennt gehalten: Was der **Provider** kann, sagt der Provider; was **diese
+Schicht** daraus macht (`unterstuetzt.patch/delta/binaer`), sagt die Schicht.
+Sonst behauptete jeder Provider Werkzeuge, die es gar nicht gibt — `delta` ist
+`false`, weil `aenderungen_seit` scannt, und `binaer` ist `false`, weil
+bereichsweises Binärlesen Stufe 3 bleibt.
+
+**`loeschen` verweigert den Dienst ohne Papierkorb.** Der Filesystem-Provider
+hat keinen (`fs.rm`/`fs.unlink`). Ein `loeschen`, das dort „im Papierkorb"
+meldet, wäre die gefährlichste Antwort der ganzen Schicht — die Grundregel
+„Gelöscht wird nie" hängt daran. Ohne Papierkorb braucht es ein ausdrückliches
+`endgueltig: true`; die Meldung verweist auf `quelle_verwerfen`.
+
+**Q5: Unbekanntes wird nicht wohlwollend einsortiert.** Was sich nicht sicher
+zuordnen lässt, bekommt `unbekannt` + `wiederholbar: false` und die
+Originalmeldung — ein falsch einsortierter Fehler schickt den Agenten in genau
+die Schleife, die die Zuordnung verhindern soll. Ein generischer
+`StorageError` gilt ausdrücklich nicht als Konflikt.
+
+**`verschieben` zieht erst um, dann benennt es um.** Andersherum könnte der
+neue Name im ALTEN Ordner kollidieren.
+
 ## 5. Offene Entscheidungen — mit Empfehlung
 
 Die vier offenen Fragen aus §6 der Anforderungen, damit sie nicht jede Welle
@@ -252,17 +380,18 @@ neu aufmachen:
 
 Der Strang ist fertig, wenn:
 
-1. Eine Zeile in `BERICHT.md` ändern, ohne die Datei zu übertragen. → ST3
+1. Eine Zeile in `BERICHT.md` ändern, ohne die Datei zu übertragen. → ST3 ✓
 2. Zwei Sitzungen schreiben dieselbe Datei — die zweite bekommt einen
-   Konflikt, keine stille Überschreibung. → ST1
+   Konflikt, keine stille Überschreibung. → ST1 ✓ (Konfliktantwort ST2)
 3. Derselbe Ablauf gegen Nextcloud wie gegen OneDrive, ohne eine Zeile
-   Sonderbehandlung. → ST1/ST2
+   Sonderbehandlung. → ST1/ST2 ✓ (im Code; live noch nicht verifiziert)
 4. Ordner mit 1.100 Unterordnern listen, ohne Zeitlimit und ohne 180.000
-   Zeichen. → ST2
-5. Datei löschen und wiederherstellen. → ST4 löschen; **wiederherstellen ist
-   verschoben** (Stufe 3), das ist ehrlich zu sagen
+   Zeichen. → ST2 ✓ (`limit`/`cursor` + Listing-Obergrenze; eine erreichte
+   Grenze wird gemeldet, nicht still gekappt)
+5. Datei löschen und wiederherstellen. → ST4 löschen ✓ (mit Papierkorb-
+   Auskunft); **wiederherstellen bleibt offen** (Stufe 3) — halb erfüllt
 6. Nach jedem Schreibvorgang die Datei über **dieselbe Id** wiederfinden. →
-   ST1 (mit der benannten Nextcloud-Grenze)
+   ST1 ✓ (Wechsel wird als `idGeaendert` gemeldet)
 7. Vom Handy arbeiten, während der Desktop aus ist. → sobald der Endpunkt
    erreichbar deployt ist (Ops, nicht Code)
 

@@ -64,6 +64,19 @@ export interface StorageItemMetadata {
     /** Whether this file is the transcription (true) or the original (false) */
     isTranscription: boolean;
   };
+
+  /**
+   * Undurchsichtige Version des Inhalts (OneDrive/Nextcloud: eTag,
+   * Filesystem: mtime+size). Wird als `ifVersion` an
+   * `StorageVersioning.updateFile` zurueckgegeben und ist NUR auf
+   * Gleichheit zu pruefen — keine Ordnung, kein Zaehler, kein Parsen.
+   *
+   * Optional, weil nicht jeder Provider und nicht jeder Aufrufpfad einen
+   * Wert liefert; fehlt er, ist versioniertes Schreiben fuer dieses Item
+   * nicht moeglich (der Aufrufer meldet das, statt ungeschuetzt zu
+   * schreiben). Siehe `storage-versioning.ts`.
+   */
+  version?: string;
 }
 
 /**
