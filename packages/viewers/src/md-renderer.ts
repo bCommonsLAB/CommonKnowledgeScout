@@ -1,9 +1,10 @@
 /**
- * markdown-preview/md-renderer.ts
+ * @ks/viewers/md-renderer.ts
  *
  * Remarkable-Markdown-Renderer-Setup mit Tailwind-Klassen + highlight.js.
  *
- * Aus `markdown-preview.tsx` ausgegliedert (Welle 3-II-b, Schritt 3/8).
+ * Aus `markdown-preview.tsx` ausgegliedert (Welle 3-II-b, Schritt 3/8),
+ * nach `@ks/viewers` verschoben (Welle M1).
  *
  * Exportiert eine **Singleton-Instanz** `md`, die in der MarkdownPreview-
  * Komponente fuer das Rendern verwendet wird. Der Setup ist 1:1 portiert

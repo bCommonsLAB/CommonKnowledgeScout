@@ -8,7 +8,7 @@
  * richtigen Shadow-Twin scopen kann. Diese Tests fixieren genau dieses Anhaengen.
  */
 import { describe, it, expect } from 'vitest'
-import { resolveImageUrl } from '@/components/library/markdown-preview/markdown-helpers'
+import { resolveImageUrl } from '@ks/viewers'
 
 describe('resolveImageUrl – sourceId-Scoping', () => {
   const libraryId = 'lib-1'

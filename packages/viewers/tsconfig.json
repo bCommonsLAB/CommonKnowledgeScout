@@ -13,18 +13,11 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
-    "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
     "paths": {
-      "@/*": ["./src/*"],
-      "@ks/viewers": ["./packages/viewers/src/index.ts"]
+      "@/*": ["../../src/*"]
     },
     "types": ["node"]
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "src/types/**/*.d.ts", ".next/types/**/*.ts", "scripts/find-nextjs-route-params-issues.js"],
-  "exclude": ["node_modules", "docs", "public", "sampleapp"]
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["node_modules"]
 }

@@ -4,6 +4,9 @@ const path = require('path'); // eslint-disable-line @typescript-eslint/no-requi
 const nextConfig = {
   output: process.env.IS_PACKAGE_BUILD === 'true' && process.platform !== 'win32' ? 'standalone' : undefined,
   reactStrictMode: process.env.NODE_ENV === 'production',
+  // Workspace-Pakete (pnpm-workspace.yaml) werden als Source konsumiert,
+  // kein separater Paket-Build-Schritt im Deployment (Migrationsstrategie G1).
+  transpilePackages: ['@ks/viewers'],
   env: {
     BUILD_TARGET: process.env.BUILD_TARGET || 'web',
     IS_PACKAGE_BUILD: process.env.IS_PACKAGE_BUILD || 'false'
