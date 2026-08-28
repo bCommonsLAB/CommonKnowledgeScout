@@ -416,8 +416,8 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
             } else {
               // KEIN Auto-Select der ersten Bibliothek mehr: Ohne gueltige
               // gespeicherte Auswahl bleibt der Zustand bewusst "keine Library
-              // gewaehlt" (siehe noLibrarySelectedAtom). Das verhindert, dass eine
-              // Library mit abgelaufenem Token automatisch geladen wird und den
+              // gewaehlt" (siehe useNoLibrarySelected in @ks/shell/react). Das verhindert,
+              // dass eine Library mit abgelaufenem Token automatisch geladen wird und den
               // globalen Re-Auth-Dialog erzwingt. Die Auswahl trifft der Nutzer
               // auf dem Dashboard (/start) oder ueber den Library-Switcher.
               if (storedLibraryId) {
