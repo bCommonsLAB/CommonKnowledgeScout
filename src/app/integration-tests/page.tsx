@@ -1,8 +1,9 @@
 'use client';
 
 import React, { Suspense, useMemo, useState } from 'react';
-import { useAtom, useAtomValue } from 'jotai';
-import { activeLibraryAtom, activeLibraryIdAtom, currentFolderIdAtom, currentPathAtom } from '@/atoms/library-atom';
+import { useAtom } from 'jotai';
+import { activeLibraryAtom, activeLibraryIdAtom, currentFolderIdAtom } from '@/atoms/library-atom';
+import { useCurrentPath } from '@/hooks/use-file-list-view';
 import { useSearchParams } from 'next/navigation';
 import { useStorage } from '@/contexts/storage-context';
 import {
@@ -81,7 +82,7 @@ function IntegrationTestsPageContent() {
 
   const [activeLibrary] = useAtom(activeLibraryAtom);
   const [currentFolderId] = useAtom(currentFolderIdAtom);
-  const currentPathItems = useAtomValue(currentPathAtom);
+  const currentPathItems = useCurrentPath();
 
   const [selectedIds, setSelectedIds] = useState<string[]>(integrationTestCases.map(tc => tc.id));
   const [suiteFilter, setSuiteFilter] = useState<'all' | 'pdf' | 'audio' | 'image' | 'markdown' | 'txt' | 'website'>('all');

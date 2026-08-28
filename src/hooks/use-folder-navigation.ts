@@ -127,7 +127,7 @@ export function useFolderNavigation() {
       const newCache = { ...state.folderCache };
       // Alle Pfad-Items in den Cache schreiben (inkl. Root, falls vorhanden)
       finalPathItems.forEach(folder => {
-        // Root-Ordner wird nicht in den Cache geschrieben (wird in currentPathAtom dynamisch erzeugt)
+        // Root-Ordner wird nicht in den Cache geschrieben (buildCurrentPath erzeugt ihn)
         if (folder.id !== 'root') {
           newCache[folder.id] = folder;
         }

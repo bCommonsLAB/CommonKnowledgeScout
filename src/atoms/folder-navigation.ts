@@ -8,12 +8,16 @@
  * Archiv-Modul (Modul-Landkarte §1, Schicht 3). Ein gemeinsames Zustandsobjekt
  * haette beide Seiten aneinandergebunden.
  *
+ * Die Pfad-Berechnung (frueher `currentPathAtom`) steht seit dieser Welle als
+ * reine Funktion in `@/lib/file-list/current-path` mit `useCurrentPath()`
+ * davor — sie braucht den Namen der aktiven Bibliothek, und die ist nach dem
+ * Umzug in die Schale nur ueber Hooks erreichbar.
+ *
  * @module library
  */
 
 import { atom } from "jotai"
 import { StorageItem } from "@/lib/storage/types"
-import { activeLibraryAtom } from "@/atoms/library-selection"
 
 /** Wo man gerade steht — plus der Ordner-Cache, aus dem der Pfad gebaut wird. */
 export interface FolderNavigationState {
@@ -40,68 +44,6 @@ export const currentFolderIdAtom = atom(
   }
 )
 currentFolderIdAtom.debugLabel = "currentFolderIdAtom"
-
-// Automatische Pfad-Berechnung
-export const currentPathAtom = atom(
-  get => {
-    const currentLibrary = get(activeLibraryAtom);
-    const currentFolderId = get(currentFolderIdAtom);
-    const navState = get(folderNavigationAtom);
-
-    if (!currentLibrary || !currentFolderId) {
-      return [];
-    }
-
-    // Root-Item immer als erstes
-    const rootItem: StorageItem = {
-      id: 'root',
-      parentId: '',
-      type: 'folder',
-      metadata: {
-        name: currentLibrary.label || '/',
-        size: 0,
-        modifiedAt: new Date(),
-        mimeType: 'application/folder'
-      }
-    };
-
-    // Bei root nur das Root-Item zurückgeben
-    if (currentFolderId === 'root') {
-      return [rootItem];
-    }
-
-    // Pfad aus dem Ordner-Cache berechnen
-    const folderCache = navState.folderCache;
-    if (!folderCache) {
-      return [rootItem];
-    }
-
-    // Pfad aufbauen
-    const path: StorageItem[] = [];
-    let currentId = currentFolderId;
-    const missingIds: string[] = [];
-
-    while (currentId && currentId !== 'root') {
-      const folder = folderCache[currentId];
-      if (!folder) {
-        // Debug: Fehlende Ordner im Cache protokollieren
-        missingIds.push(currentId);
-        console.warn('[currentPathAtom] Ordner nicht im Cache gefunden', {
-          currentId,
-          currentFolderId,
-          cacheKeys: Object.keys(folderCache),
-          missingIds
-        });
-        break;
-      }
-      path.unshift(folder);
-      currentId = folder.parentId;
-    }
-
-    return [rootItem, ...path];
-  }
-)
-currentPathAtom.debugLabel = "currentPathAtom"
 
 // FileTree Ready Status
 export const fileTreeReadyAtom = atom<boolean>(false)

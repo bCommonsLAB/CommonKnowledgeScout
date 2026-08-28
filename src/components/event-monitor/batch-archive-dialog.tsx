@@ -17,7 +17,8 @@ import {
 import { Loader2, FolderOpen, Download, AlertTriangle, Info } from 'lucide-react';
 import { Batch, Job } from '@/types/event-job';
 import { useAtom } from 'jotai';
-import { activeLibraryAtom, currentPathAtom, currentFolderIdAtom } from '@/atoms/library-atom';
+import { activeLibraryAtom, currentFolderIdAtom } from '@/atoms/library-atom';
+import { useCurrentPath } from '@/hooks/use-file-list-view';
 import { useStorage } from '@/contexts/storage-context';
 
 interface ArchiveProgress {
@@ -63,7 +64,7 @@ export default function BatchArchiveDialog({
   isMultiBatch = false
 }: BatchArchiveDialogProps) {
   const [activeLibrary] = useAtom(activeLibraryAtom);
-  const [currentPath] = useAtom(currentPathAtom);
+  const currentPath = useCurrentPath();
   const [currentFolderId] = useAtom(currentFolderIdAtom);
   const { provider } = useStorage();
   const [preserveZipStructure, setPreserveZipStructure] = useState(true);

@@ -28,15 +28,12 @@ import {
 } from '@ks/ui'
 import { useStorage } from "@/contexts/storage-context";
 import { useAtomValue, useAtom } from 'jotai';
+import { useSearchTerm, useSortField, useSortOrder, useSortedFilteredFiles } from '@/hooks/use-file-list-view';
 import {
   activeLibraryIdAtom,
   activeLibraryAtom,
   selectedFileAtom,
   folderItemsAtom,
-  sortedFilteredFilesAtom,
-  sortFieldAtom,
-  sortOrderAtom,
-  searchTermAtom,
   selectedShadowTwinAtom,
   currentFolderIdAtom,
   itemAnnotationsAtom,
@@ -127,7 +124,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   const [activeFile, setSelectedFile] = useAtom(selectedFileAtom);
   const [, setFolderItems] = useAtom(folderItemsAtom);
   const currentCategoryFilter = useAtomValue(fileCategoryFilterAtom);
-  const [searchTerm, setSearchTerm] = useAtom(searchTermAtom);
+  const [searchTerm, setSearchTerm] = useSearchTerm();
   const allItemsInFolder = useAtomValue(folderItemsAtom);
   const currentFolderId = useAtomValue(currentFolderIdAtom);
   const navigateToFolder = useFolderNavigation();
@@ -201,7 +198,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   // Shadow-Twin-Analyse nur fuer die ANGEZEIGTEN (gefilterten) Dateien statt fuer
   // alle Ordner-Items. In der "Mit DIVA-Info"-Ansicht reduziert das den Bulk-Resolve
   // drastisch (z.B. 169 statt 5800); in "Alle" unveraendert.
-  const items = useAtomValue(sortedFilteredFilesAtom);
+  const items = useSortedFilteredFiles();
   useShadowTwinAnalysis(items, provider, shadowTwinAnalysisTrigger);
   const shadowTwinStates = useAtomValue(shadowTwinStateAtom);
   
@@ -217,8 +214,8 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   // Kein mobiles Flag mehr notwendig
 
   // Sortier-Atome VOR folders definieren, da folders diese referenziert
-  const [sortField, setSortField] = useAtom(sortFieldAtom);
-  const [sortOrder, setSortOrder] = useAtom(sortOrderAtom);
+  const [sortField, setSortField] = useSortField();
+  const [sortOrder, setSortOrder] = useSortOrder();
 
   const hideShadowTwinFolders = shouldFilterShadowTwinFolders(
     activeLibrary?.config?.shadowTwin as { persistToFilesystem?: boolean } | undefined
@@ -1467,7 +1464,7 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
             {/* Dateikategorie-Filter (Icon-only Variante) */}
             <FileCategoryFilter iconOnly />
 
-            {/* Dateiname-Suche (filtert ueber searchTermAtom -> sortedFilteredFilesAtom). */}
+            {/* Dateiname-Suche (filtert ueber useSearchTerm -> useSortedFilteredFiles). */}
             <div className="relative">
               <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input

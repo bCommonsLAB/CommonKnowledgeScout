@@ -1,33 +1,17 @@
-// @vitest-environment jsdom
-
 /**
  * Characterization Tests fuer den **Filter-Vertrag** der Dateiliste
  * (Welle 3-I, Schritt 3).
  *
- * Statt der vollstaendigen `FileList`-Komponente (89 Hooks) testen wir
- * den abgeleiteten Atom `sortedFilteredFilesAtom`, der nach dem Modul-
- * Split zentraler Bestandteil von `hooks/use-file-list-filter.ts` werden
- * soll. Das ist die kanonische Filter-/Sort-Logik der Liste.
- *
- * Wenn Schritt 4b den Atom umbenennt oder verschiebt, muss dieser Test
- * mitgehen — er definiert das Soll-Verhalten.
+ * Statt der vollstaendigen `FileList`-Komponente (89 Hooks) testen wir die
+ * kanonische Filter-/Sort-Regel der Liste. Sie lag bis zur Modularisierungs-
+ * Welle M4e im abgeleiteten Atom `sortedFilteredFilesAtom` und steht seither
+ * als reine Funktion in `@/lib/file-list/filter-sort` — der Hook
+ * `useSortedFilteredFiles()` reicht ihr nur die Atom-Werte herein. Der Test
+ * ist mitgewandert und definiert weiterhin das Soll-Verhalten.
  */
 
 import { describe, it, expect } from 'vitest'
-import { createStore } from 'jotai'
-import {
-  activeLibraryIdAtom,
-  annotationFilterModeAtom,
-  folderItemsAtom,
-  itemAnnotationsAtom,
-  librariesAtom,
-  searchTermAtom,
-  sortedFilteredFilesAtom,
-  sortFieldAtom,
-  sortOrderAtom,
-} from '@/atoms/library-atom'
-import type { ClientLibrary } from '@/types/library'
-import { fileCategoryFilterAtom } from '@/atoms/transcription-options'
+import { filterAndSortFiles, type FileListFilterInput } from '@/lib/file-list/filter-sort'
 import type { StorageItem } from '@/lib/storage/types'
 
 function makeFile(id: string, name: string, size = 100, modifiedAt = new Date('2026-01-01')): StorageItem {
@@ -58,130 +42,106 @@ function makeFolder(id: string, name: string): StorageItem {
   }
 }
 
-describe('sortedFilteredFilesAtom (FileList Filter-Vertrag)', () => {
+/**
+ * Der Hook filtert Verzeichnisse bereits ueber `filesOnlyAtom` heraus, bevor er
+ * die Regel aufruft — deshalb macht der Aufbau hier dasselbe.
+ */
+function run(items: StorageItem[], overrides: Partial<FileListFilterInput> = {}): StorageItem[] {
+  return filterAndSortFiles({
+    files: items.filter(item => item.type === 'file'),
+    searchTerm: '',
+    sortField: 'name',
+    sortOrder: 'asc',
+    categoryFilter: 'all',
+    annotationFilter: 'all',
+    annotations: new Map(),
+    divaEnabled: false,
+    ...overrides,
+  })
+}
+
+describe('filterAndSortFiles (FileList Filter-Vertrag)', () => {
   it('filtert Verzeichnisse heraus (nur Files)', () => {
-    const store = createStore()
-    store.set(activeLibraryIdAtom, 'lib-1')
-    store.set(folderItemsAtom, [
+    const result = run([
       makeFile('f1', 'document.pdf'),
       makeFolder('d1', 'Some Folder'),
     ])
-
-    const result = store.get(sortedFilteredFilesAtom)
 
     expect(result.map(i => i.id)).toEqual(['f1'])
   })
 
   it('filtert Dateien, die mit Punkt beginnen (Dotfiles)', () => {
-    const store = createStore()
-    store.set(activeLibraryIdAtom, 'lib-1')
-    store.set(folderItemsAtom, [
+    const result = run([
       makeFile('f1', '.hidden.pdf'),
       makeFile('f2', 'visible.pdf'),
     ])
-
-    const result = store.get(sortedFilteredFilesAtom)
 
     expect(result.map(i => i.id)).toEqual(['f2'])
   })
 
   it('filtert nach Suchbegriff (case-insensitive Substring)', () => {
-    const store = createStore()
-    store.set(activeLibraryIdAtom, 'lib-1')
-    store.set(folderItemsAtom, [
+    const result = run([
       makeFile('f1', 'Bericht 2026.pdf'),
       makeFile('f2', 'Foto urlaub.jpg'),
       makeFile('f3', 'BERICHT alt.md'),
-    ])
-    store.set(searchTermAtom, 'bericht')
-
-    const result = store.get(sortedFilteredFilesAtom)
+    ], { searchTerm: 'bericht' })
 
     expect(result.map(i => i.id).sort()).toEqual(['f1', 'f3'])
   })
 
   it('sortiert standardmaessig alphabetisch aufsteigend nach Name', () => {
-    const store = createStore()
-    store.set(activeLibraryIdAtom, 'lib-1')
-    store.set(folderItemsAtom, [
+    const result = run([
       makeFile('f1', 'zebra.pdf'),
       makeFile('f2', 'apfel.pdf'),
       makeFile('f3', 'mango.pdf'),
     ])
 
-    const result = store.get(sortedFilteredFilesAtom)
-
     expect(result.map(i => i.metadata.name)).toEqual(['apfel.pdf', 'mango.pdf', 'zebra.pdf'])
   })
 
   it('sortiert nach Groesse, wenn sortField=size + sortOrder=desc', () => {
-    const store = createStore()
-    store.set(activeLibraryIdAtom, 'lib-1')
-    store.set(folderItemsAtom, [
+    const result = run([
       makeFile('f1', 'klein.pdf', 100),
       makeFile('f2', 'gross.pdf', 5000),
       makeFile('f3', 'mittel.pdf', 1000),
-    ])
-    store.set(sortFieldAtom, 'size')
-    store.set(sortOrderAtom, 'desc')
-
-    const result = store.get(sortedFilteredFilesAtom)
+    ], { sortField: 'size', sortOrder: 'desc' })
 
     expect(result.map(i => i.metadata.size)).toEqual([5000, 1000, 100])
   })
 
   it('respektiert fileCategoryFilter (z.B. "all" liefert alles)', () => {
-    const store = createStore()
-    store.set(activeLibraryIdAtom, 'lib-1')
-    store.set(folderItemsAtom, [
+    const result = run([
       makeFile('f1', 'doc.pdf'),
       makeFile('f2', 'doc.md'),
-    ])
-    store.set(fileCategoryFilterAtom, 'all')
-
-    const result = store.get(sortedFilteredFilesAtom)
+    ], { categoryFilter: 'all' })
 
     expect(result).toHaveLength(2)
   })
 
   describe('DIVA-Filter (*_basecolor + Sidecar-Treffer)', () => {
-    function setupDiva() {
-      const store = createStore()
-      const lib = {
-        id: 'lib-1',
-        label: 'Diva',
-        type: 'local',
-        config: { analyzeDivaTextureInfo: true },
-      } as ClientLibrary
-      store.set(librariesAtom, [lib])
-      store.set(activeLibraryIdAtom, 'lib-1')
-      store.set(folderItemsAtom, [
-        makeFile('f1', '3_ST_2031_0332_basecolor.jpg'),
-        makeFile('f2', 'kein_muster_basecolor.jpg'),
-        makeFile('f3', '3_ST_2031_0332_normal.jpg'),
-        makeFile('f4', 'readme.txt'),
-      ])
-      // Nur f1 hat Sidecar-Treffer (keyed nach Dateiname).
-      store.set(itemAnnotationsAtom, new Map([['3_ST_2031_0332_basecolor.jpg', { stoffgruppe: 'Feincord' }]]))
-      return store
+    const divaItems = [
+      makeFile('f1', '3_ST_2031_0332_basecolor.jpg'),
+      makeFile('f2', 'kein_muster_basecolor.jpg'),
+      makeFile('f3', '3_ST_2031_0332_normal.jpg'),
+      makeFile('f4', 'readme.txt'),
+    ]
+    // Nur f1 hat Sidecar-Treffer (keyed nach Dateiname).
+    const annotations = new Map([['3_ST_2031_0332_basecolor.jpg', { stoffgruppe: 'Feincord' }]])
+
+    function runDiva(annotationFilter: FileListFilterInput['annotationFilter']) {
+      return run(divaItems, { divaEnabled: true, annotationFilter, annotations })
     }
 
     it('"all" liefert alle *_basecolor (keine anderen Maps)', () => {
-      const store = setupDiva()
-      store.set(annotationFilterModeAtom, 'all')
-      expect(store.get(sortedFilteredFilesAtom).map(i => i.id).sort()).toEqual(['f1', 'f2'])
+      expect(runDiva('all').map(i => i.id).sort()).toEqual(['f1', 'f2'])
     })
 
     it('"with" liefert nur *_basecolor mit DIVA-Info', () => {
-      const store = setupDiva()
-      store.set(annotationFilterModeAtom, 'with')
-      expect(store.get(sortedFilteredFilesAtom).map(i => i.id)).toEqual(['f1'])
+      expect(runDiva('with').map(i => i.id)).toEqual(['f1'])
     })
 
     it('"without" liefert nur *_basecolor ohne DIVA-Info', () => {
-      const store = setupDiva()
-      store.set(annotationFilterModeAtom, 'without')
-      expect(store.get(sortedFilteredFilesAtom).map(i => i.id)).toEqual(['f2'])
+      expect(runDiva('without').map(i => i.id)).toEqual(['f2'])
     })
   })
 })

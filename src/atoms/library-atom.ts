@@ -18,18 +18,20 @@
  * - src/components/library: Library components use atoms
  * - src/hooks/use-storage-provider.tsx: Uses library atoms
  *
+ * Die Filter-/Sortier-Regel und die Pfad-Berechnung sind seit dieser Welle
+ * keine Atome mehr, sondern reine Funktionen in `@/lib/file-list/` mit den
+ * Hooks in `@/hooks/use-file-list-view` davor — sie brauchen die aktive
+ * Bibliothek, und die ist nach dem Umzug in die Schale nur ueber Hooks
+ * erreichbar.
+ *
  * @dependencies
  * - jotai: State management library
  * - @/lib/storage/types: StorageItem type
- * - @/atoms/transcription-options: File category filter
  */
 
 import { atom } from "jotai"
 import { atomFamily } from "jotai/utils"
 import { StorageItem } from "@/lib/storage/types"
-import { activeLibraryAtom, activeLibraryIdAtom } from "@/atoms/library-selection"
-import { fileCategoryFilterAtom, getFileCategory } from '@/atoms/transcription-options'
-import { isBasecolorFileName } from '@/lib/diva-texture/preprocess-folder'
 
 // Fassade auf die ausgelagerten Nachbarn (G2) — bestehende Importe bleiben gueltig.
 export type { LibraryState } from "@/atoms/library-selection"
@@ -45,7 +47,6 @@ export type { FolderNavigationState, LoadingState } from "@/atoms/folder-navigat
 export {
   folderNavigationAtom,
   currentFolderIdAtom,
-  currentPathAtom,
   fileTreeReadyAtom,
   loadedChildrenAtom,
   expandedFoldersAtom,
@@ -75,49 +76,6 @@ export const librarySortFilterConfigAtom = atomFamily(
     sortField: 'name',
     sortOrder: 'asc'
   })
-)
-
-// Getter-Atome für die aktuelle Library
-export const searchTermAtom = atom(
-  (get) => {
-    const libraryId = get(activeLibraryIdAtom)
-    if (!libraryId) return ''
-    return get(librarySortFilterConfigAtom(libraryId)).searchTerm
-  },
-  (get, set, newSearchTerm: string) => {
-    const libraryId = get(activeLibraryIdAtom)
-    if (!libraryId) return
-    const config = get(librarySortFilterConfigAtom(libraryId))
-    set(librarySortFilterConfigAtom(libraryId), { ...config, searchTerm: newSearchTerm })
-  }
-)
-
-export const sortFieldAtom = atom(
-  (get) => {
-    const libraryId = get(activeLibraryIdAtom)
-    if (!libraryId) return 'name' as const
-    return get(librarySortFilterConfigAtom(libraryId)).sortField
-  },
-  (get, set, newSortField: 'name' | 'size' | 'date' | 'type') => {
-    const libraryId = get(activeLibraryIdAtom)
-    if (!libraryId) return
-    const config = get(librarySortFilterConfigAtom(libraryId))
-    set(librarySortFilterConfigAtom(libraryId), { ...config, sortField: newSortField })
-  }
-)
-
-export const sortOrderAtom = atom(
-  (get) => {
-    const libraryId = get(activeLibraryIdAtom)
-    if (!libraryId) return 'asc' as const
-    return get(librarySortFilterConfigAtom(libraryId)).sortOrder
-  },
-  (get, set, newSortOrder: 'asc' | 'desc') => {
-    const libraryId = get(activeLibraryIdAtom)
-    if (!libraryId) return
-    const config = get(librarySortFilterConfigAtom(libraryId))
-    set(librarySortFilterConfigAtom(libraryId), { ...config, sortOrder: newSortOrder })
-  }
 )
 
 // Nur Dateien, keine Verzeichnisse
@@ -180,70 +138,6 @@ divaSidecarStatusAtom.debugLabel = "divaSidecarStatusAtom"
 // null = keine Gruppierung. Generisch: jeder String-Attribut-Key ist moeglich.
 export const groupByAttributeAtom = atom<string | null>(null)
 groupByAttributeAtom.debugLabel = "groupByAttributeAtom"
-
-// Sortiert & gefiltert (nur Dateien)
-export const sortedFilteredFilesAtom = atom((get) => {
-  const files = get(filesOnlyAtom)
-  const searchTerm = get(searchTermAtom).toLowerCase()
-  const sortField = get(sortFieldAtom)
-  const sortOrder = get(sortOrderAtom)
-
-  // Importiere die Filter-Funktionen
-  const categoryFilter = get(fileCategoryFilterAtom)
-  const annotationFilter = get(annotationFilterModeAtom)
-  const annotations = get(itemAnnotationsAtom)
-  const activeLibrary = get(activeLibraryAtom)
-  const divaEnabled = activeLibrary?.config?.analyzeDivaTextureInfo === true
-
-  let filtered = files.filter(item => {
-    // Basis-Filter
-    const basicFilter = !item.metadata.name.startsWith('.') &&
-      !item.metadata.isTwin &&
-      (searchTerm === '' || item.metadata.name.toLowerCase().includes(searchTerm))
-
-    if (!basicFilter) return false
-
-    // DIVA-Filter: immer nur *_basecolor, dann alle / mit / ohne Sidecar-Treffer.
-    if (divaEnabled) {
-      if (!isBasecolorFileName(item.metadata.name)) return false
-      const hasAnnotation = annotations.has(item.metadata.name)
-      if (annotationFilter === 'with' && !hasAnnotation) return false
-      if (annotationFilter === 'without' && hasAnnotation) return false
-    } else if (annotationFilter !== 'all') {
-      // Generischer Annotation-Filter ohne DIVA (kein Basecolor-Zwang).
-      const hasAnnotation = annotations.has(item.metadata.name)
-      if (annotationFilter === 'with' && !hasAnnotation) return false
-      if (annotationFilter === 'without' && hasAnnotation) return false
-    }
-
-    // Kategorie-Filter
-    if (categoryFilter === 'all') return true
-
-    const itemCategory = getFileCategory(item)
-    return itemCategory === categoryFilter
-  })
-
-  filtered = filtered.sort((a, b) => {
-    let cmp = 0
-    switch (sortField) {
-      case 'type':
-        cmp = (a.metadata.mimeType || '').localeCompare(b.metadata.mimeType || '')
-        break
-      case 'name':
-        cmp = a.metadata.name.localeCompare(b.metadata.name)
-        break
-      case 'size':
-        cmp = (a.metadata.size || 0) - (b.metadata.size || 0)
-        break
-      case 'date':
-        cmp = new Date(a.metadata.modifiedAt ?? 0).getTime() - new Date(b.metadata.modifiedAt ?? 0).getTime()
-        break
-    }
-    return sortOrder === 'asc' ? cmp : -cmp
-  })
-
-  return filtered
-})
 
 // Review-Mode-Atoms für das neue Layout-Feature
 export const reviewModeAtom = atom<boolean>(false)
