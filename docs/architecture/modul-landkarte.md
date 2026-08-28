@@ -26,7 +26,7 @@ Namenskonvention: Workspace-intern `@ks/*`; bei späterer Veröffentlichung
 | `@ks/viewers` | Markdown-Viewer, PDF-Viewer, Audio-Player, Image-Preview | `src/components/library/markdown-preview/`, `src/lib/markdown/`, `src/lib/pdf/`, `src/components/library/audio-player.tsx`, `src/components/library/image-preview.tsx` |
 | `@ks/api-client` | typisierter Fetch-Client + TanStack-Query-Hooks für Core- und Modul-APIs, BaseURL/Token aus SiteConfig | heute verstreute `fetch`-Aufrufe in Komponenten/Hooks |
 | `@ks/util` | `cn` (clsx + tailwind-merge). **Nicht im urspruenglichen Zielbild** — entstanden aus einem Build-Befund in M4b: `cn` lag in `@ks/ui`, und jedes Server-Modul, das es brauchte, zog darueber den gesamten Client-Graph in den react-server-Layer. Regel: nur, was in JEDER Umgebung laeuft (Server, Client, Edge) | `src/lib/utils.ts` (Teil) |
-| `@ks/i18n` | Locale-Ermittlung + Provider, Strings | `src/lib/i18n/`, `src/components/providers/*locale*`, `src/lib/strings/` |
+| `@ks/i18n` | Locale-Ermittlung + Provider, Strings | `src/lib/i18n/`, `src/components/providers/*locale*`, `src/lib/strings/`<br>**M4c erledigt**, mit ZWEI Einstiegspunkten: `@ks/i18n` (frei von React/Jotai — Middleware, API-Routen, `layout.tsx`) und `@ks/i18n/react` (Hooks, Locale-Atom, Provider; alle `"use client"`). `get-localized.ts` bleibt in der App (haengt an `@/types/doc-meta`) |
 
 ### Schicht 2 — Schale
 
@@ -266,14 +266,14 @@ läuft (Kriterien in der Migrationsstrategie).
 
 ## 6. Offene Fragen
 
-- ~~**Jotai über Paketgrenzen**~~ — **entschieden in M3**: Atome bleiben
-  vorerst in der App, `@ks/shell` exportiert keine. `library-atom` hängt an
-  `ClientLibrary` (`src/types/library.ts`, 824 Zeilen) — die Frage ist erst
-  beantwortbar, wenn dieser Typ in `@ks/contracts` liegt. Richtung steht
-  fest: Wenn die Atome umziehen, dann als **Hook-Oberfläche**
-  (`useActiveLibrary()`), nicht als exportierte Atome — ein exportiertes Atom
-  bindet jeden Konsumenten an dieselbe Jotai-Instanz und macht das Paket in
-  einer Fremdanwendung (AECED, M5) unbrauchbar.
+- ~~**Jotai über Paketgrenzen**~~ — **entschieden in M3, umgesetzt in M4c**:
+  `@ks/i18n/react` hält `localeAtom` paketintern und exportiert ausschließlich
+  Hooks (`useTranslation`, `useSetLocale`, `useApplyLocale`). Damit ist die
+  Richtung nicht nur festgehalten, sondern einmal durchgezogen — das Muster für
+  jedes weitere Paket. Nachtrag zu M3: Die Locale-Provider gehören ins
+  i18n-Paket, NICHT in die Schale; läge `LocaleGate` in `@ks/shell`, müsste das
+  Atom doch exportiert werden. Weitere Atome bleiben vorerst in der App:
+  `library-atom` hängt an `ClientLibrary` (`src/types/library.ts`, 824 Zeilen).
 - ~~**`storage-context` / `use-storage-provider`**~~ — **entschieden in M3**:
   gehört NICHT in die Schale. Der Kontext hängt an `StorageFactory`,
   Clerk-Hooks und einem Reauth-Dialog; er ist die Zugriffsschicht des Archivs,

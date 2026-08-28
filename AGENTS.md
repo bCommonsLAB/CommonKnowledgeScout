@@ -21,16 +21,20 @@ Sessions nicht doppelt bauen:
 - **Agent-Brief M2** (abgeschlossen): [`docs/refactor/modularisierung/AGENT-BRIEF-M2.md`](docs/refactor/modularisierung/AGENT-BRIEF-M2.md)
 - **Agent-Brief M3** (abgeschlossen): [`docs/refactor/modularisierung/AGENT-BRIEF-M3.md`](docs/refactor/modularisierung/AGENT-BRIEF-M3.md)
 - **Agent-Brief M4** (abgeschlossen): [`docs/refactor/modularisierung/AGENT-BRIEF-M4.md`](docs/refactor/modularisierung/AGENT-BRIEF-M4.md)
-- **Agent-Brief M4b**: [`docs/refactor/modularisierung/AGENT-BRIEF-M4b.md`](docs/refactor/modularisierung/AGENT-BRIEF-M4b.md)
-  (`@ks/ui`; enthaelt die Korrektur zum `cn`-Schnitt: Teil-Extraktionen
-  koennen `git log --follow` NICHT halten)
-- **Naechster Schritt**: Welle **M4c** — `@ks/i18n` (`src/lib/i18n/` +
-  Locale-Provider/-Gate, 116 Importeure). Erst danach ist die montierbare
-  Explorer-Wurzelkomponente aus der Landkarten-Zeile M4 erreichbar, und die
-  in M3 blockierte TopNav ebenfalls. Vorab zu entscheiden: Locale-Atom
-  mitnehmen oder nur Hook-Oberflaeche exportieren — siehe Hand-off in
-  AGENT-BRIEF-M4b.md. Voll-App bleibt unveraendert (Verhaltensneutralitaet
-  ist Abnahmekriterium jeder A-Welle).
+- **Agent-Brief M4b** (abgeschlossen): [`docs/refactor/modularisierung/AGENT-BRIEF-M4b.md`](docs/refactor/modularisierung/AGENT-BRIEF-M4b.md)
+  (`@ks/ui`; enthaelt den Nachtrag zum Build-Fehler und die Korrektur zum
+  `cn`-Schnitt: Teil-Extraktionen koennen `git log --follow` NICHT halten)
+- **Agent-Brief M4c**: [`docs/refactor/modularisierung/AGENT-BRIEF-M4c.md`](docs/refactor/modularisierung/AGENT-BRIEF-M4c.md)
+  (`@ks/i18n` mit zwei Einstiegspunkten; Locale-Atom bleibt paketintern)
+- **Naechster Schritt**: Zurueck zur Landkarten-Zeile **M4** — die montierbare
+  Explorer-Wurzelkomponente. `@ks/ui` und `@ks/i18n` stehen jetzt, damit ist
+  sie erreichbar; ebenso die in M3 blockierte TopNav. Vorab zu entscheiden:
+  TopNav zuerst (kleiner, in `@ks/shell`) oder direkt die Explorer-Wurzel —
+  siehe Hand-off in AGENT-BRIEF-M4c.md. Voll-App bleibt unveraendert
+  (Verhaltensneutralitaet ist Abnahmekriterium jeder A-Welle).
+- **Pflicht seit dem Build-Fehler nach M4b**: Eine A-Welle wird NICHT gemergt,
+  bevor `pnpm build` lokal gruen ist. `check-build` (PR) faehrt den
+  Docker-Build nicht — gruene PR-Checks sind kein Beleg.
 
 **Abgeschlossene Straenge** (nicht neu aufgreifen):
 

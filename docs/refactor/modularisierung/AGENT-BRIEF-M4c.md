@@ -83,14 +83,53 @@ zu heben, würde ihn adeln; ihn in der App zu reparieren, würde Arbeit in Code
 stecken, den niemand aufruft. `server.ts` ist zudem kein Verlust — die
 serverseitige Locale-Ermittlung macht `layout.tsx` selbst über `getLocale()`.
 
-## Definition of Done
+## Definition of Done — erreicht
 
-- `pnpm test`, `pnpm lint`, `pnpm typecheck:packages` grün.
-- **`pnpm build` grün** — nach M4b nicht verhandelbar, und diese Welle fasst
-  genau die Server/Client-Grenze an.
+- `pnpm build`: **grün**, 101 Seiten. Der Beleg, dass der Schnitt sitzt:
+  **der Middleware-Bundle bleibt bei 141 kB** — das React-freie Wurzel-Barrel
+  zieht weder Jotai noch die Hooks in die Edge-Runtime.
+- `pnpm test`: 3402 grün, 0 rot.
+- `pnpm lint`: 0 Errors.
+- `pnpm typecheck:packages`: grün, inkl. `packages/i18n`.
+- `npx tsc --noEmit -p tsconfig.json`: 0 Fehler in `src/` und `packages/`.
 - Kein `@/lib/i18n`- oder `@/atoms/i18n-atom`-Import mehr (außer
   `get-localized`, das bleibt).
+- `git log --follow` trägt für alle verschobenen Dateien (Kern, Hooks, Atom,
+  Provider, Übersetzungs-JSONs) — echte Renames, keine Neuanlagen.
 - Lokal vor Merge: `bash scripts/welle-pre-merge-check.sh`.
+
+## Hand-off für die nächste Welle
+
+**Zurück zur Landkarten-Zeile M4**: die montierbare
+Explorer-Wurzelkomponente. `@ks/ui` (M4b) und `@ks/i18n` (M4c) stehen — der
+Grund, warum M3 und M4 dort gestoppt haben, ist weg.
+
+**Erste Entscheidung der nächsten Welle**: TopNav zuerst oder direkt die
+Explorer-Wurzel?
+
+- **TopNav** (`src/components/top-nav.tsx`, 450 Z.) ist der kleinere,
+  ehrlichere Test des Fundaments — sie war der namentlich genannte Blocker in
+  M3. Sie braucht jetzt noch: `library-atom` (hängt an `ClientLibrary`),
+  `use-user-role`, `use-site-menu-items`, `site-logo`, `create-library-wizard`,
+  Clerk. **Das ist immer noch zu viel** — also erst prüfen, ob eine
+  Props-Oberfläche (Schale reicht herein, was die TopNav braucht) den Schnitt
+  ermöglicht, statt die Abhängigkeiten mitzunehmen.
+- **Explorer-Wurzel** ist das eigentliche Ziel, aber breiter.
+
+**Der Engpass für beide ist derselbe**: `ClientLibrary` in
+`src/types/library.ts` (824 Zeilen, hängt an `@/lib/chat/constants`). Solange
+der Typ in der App liegt, kommt weder `library-atom` noch irgendeine
+Komponente heraus, die eine Library kennt. **Eine Welle, die `ClientLibrary`
+nach `@ks/contracts` bringt, ist vermutlich der nächste sinnvolle Schritt** —
+sie ist die Voraussetzung für alles Weitere, und die Frage aus Landkarte §6
+(`library-atom` als Hook-Oberfläche) wird erst danach beantwortbar.
+
+**Modellempfehlung**: Opus mit hohem Thinking-Level. Anders als M4b/M4c ist
+das keine mechanische Welle — `src/types/library.ts` zu schneiden ist
+Entwurfsarbeit.
+
+**Zwingend für jede weitere A-Welle** (Lehre aus M4b): `pnpm build` gehört vor
+den Merge, nicht danach. `check-build` fährt den Docker-Build nicht.
 
 ## Stop-Bedingungen (zusätzlich zu AGENTS.md)
 
