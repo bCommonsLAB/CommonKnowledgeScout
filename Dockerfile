@@ -104,6 +104,13 @@ COPY --from=builder /app/.next ./.next
 # Footer-Dateien wurden bereits im Builder-Stage nach dem Docs-Build wiederhergestellt
 COPY --from=builder --chown=node:node /app/public ./public
 COPY --from=builder /app/node_modules ./node_modules
+# Erweiterungs-Bausteine der MCP-Bruecke: `/api/account/mcp-extension` liest
+# manifest.json und server/proxy.js zur LAUFZEIT von der Platte
+# (process.cwd() + extensions/) und baut daraus das .mcpb-Bundle. Ohne diese
+# Zeile existiert der Ordner im Image nicht, und der Download scheitert erst
+# beim Nutzer mit ENOENT — im Repo und im Builder ist alles da, nur hier nicht
+# (Live-Befund 28.08.2026). Nicht entfernen, ohne die Route mit umzustellen.
+COPY --from=builder /app/extensions ./extensions
 
 # Optional: falls du eine .env.production hast
 # COPY .env.production .env
