@@ -27,7 +27,7 @@ import {
   folderItemsAtom,
   lastLoadedFolderAtom,
   librariesAtom,
-  libraryAtom,
+  folderNavigationAtom,
 } from "@/atoms/library-atom"
 import { StateLogger } from "@/lib/debug/logger"
 import { StorageProviderType } from "@/types/library"
@@ -72,7 +72,7 @@ export function CreateLibraryDialog({
   const [libraries, setLibraries] = useAtom(librariesAtom)
   const [activeLibrary] = useAtom(activeLibraryAtom)
   const [, setActiveLibraryId] = useAtom(activeLibraryIdAtom)
-  const [, setLibraryState] = useAtom(libraryAtom)
+  const [, setFolderNav] = useAtom(folderNavigationAtom)
   const [, setFolderItems] = useAtom(folderItemsAtom)
   const [, setLastLoadedFolder] = useAtom(lastLoadedFolderAtom)
   const [, setCurrentFolderId] = useAtom(currentFolderIdAtom)
@@ -94,11 +94,11 @@ export function CreateLibraryDialog({
     StateLogger.info('CreateLibraryDialog', 'Resetting library state for new library')
     
     // WICHTIG: Alle States synchron zurücksetzen
-    setLibraryState(state => ({ ...state, folderCache: {} }))
+    setFolderNav(state => ({ ...state, folderCache: {} }))
     setFolderItems([])
     setLastLoadedFolder(null)
     setCurrentFolderId('root')
-  }, [setLibraryState, setFolderItems, setLastLoadedFolder, setCurrentFolderId])
+  }, [setFolderNav, setFolderItems, setLastLoadedFolder, setCurrentFolderId])
 
   /**
    * Erstellt eine neue Bibliothek und führt einen sauberen Library-Wechsel durch.

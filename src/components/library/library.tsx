@@ -45,7 +45,7 @@ const FilePreviewLazy = dynamic(() => import('./file-preview').then(m => ({ defa
 })
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup, useToast } from '@ks/ui'
 import { 
-  libraryAtom, 
+  folderNavigationAtom, 
   folderItemsAtom,
   loadingStateAtom,
   lastLoadedFolderAtom,
@@ -69,7 +69,7 @@ export function Library() {
   const [, setLoadingState] = useAtom(loadingStateAtom);
   const [lastLoadedFolder, setLastLoadedFolder] = useAtom(lastLoadedFolderAtom);
   const [currentFolderId] = useAtom(currentFolderIdAtom);
-  const [libraryState, setLibraryState] = useAtom(libraryAtom);
+  const [folderNav, setFolderNav] = useAtom(folderNavigationAtom);
   const activeLibraryId = useAtomValue(activeLibraryIdAtom);
   
   // Review-Mode Atoms
@@ -234,9 +234,9 @@ export function Library() {
 
       // Bei force=true: Cache-Eintrag fuer aktuellen Folder zuerst loeschen,
       // damit waehrend des laufenden Reloads niemand mehr stale Items aus dem
-      // Cache zieht (z.B. das FileTree, das ueber libraryState.folderCache lebt).
+      // Cache zieht (z.B. das FileTree, das ueber folderNav.folderCache lebt).
       if (force) {
-        setLibraryState(state => {
+        setFolderNav(state => {
           if (!state.folderCache?.[currentFolderId]) return state;
           const next = { ...state.folderCache };
           delete next[currentFolderId];
@@ -247,10 +247,10 @@ export function Library() {
         });
       }
 
-      // Prüfe Cache zuerst (verwende aktuellen State über setLibraryState)
-      // WICHTIG: libraryState.folderCache wird über Closure verwendet, nicht über Dependencies
+      // Prüfe Cache zuerst (verwende aktuellen State über setFolderNav)
+      // WICHTIG: folderNav.folderCache wird über Closure verwendet, nicht über Dependencies
       // Bei force=true wird der Cache-Hit bewusst uebersprungen.
-      const currentState = libraryState;
+      const currentState = folderNav;
       if (!force && currentState.folderCache?.[currentFolderId]?.children) {
         const cachedItems = currentState.folderCache[currentFolderId].children;
         NavigationLogger.info('Library', 'Using cached items', {
@@ -335,7 +335,7 @@ export function Library() {
         }
       }
       
-          setLibraryState(state => ({
+          setFolderNav(state => ({
             ...state,
             folderCache: newFolderCache
           }));
@@ -404,12 +404,12 @@ export function Library() {
   }, [
     currentFolderId,
     listItems,
-    // WICHTIG: libraryState.folderCache NICHT in Dependencies, um Endlosschleife zu vermeiden!
-    // libraryState.folderCache wird innerhalb der Funktion über Closure verwendet
+    // WICHTIG: folderNav.folderCache NICHT in Dependencies, um Endlosschleife zu vermeiden!
+    // folderNav.folderCache wird innerhalb der Funktion über Closure verwendet
     // eslint-disable-next-line react-hooks/exhaustive-deps
     providerInstance,
     libraryStatus,
-    setLibraryState,
+    setFolderNav,
     setFolderItems,
     setLastLoadedFolder,
     setLoadingState,
@@ -488,34 +488,34 @@ export function Library() {
     if (libraryChanged) {
     setLastLoadedFolder(null);
     setFolderItems([]);
-    setLibraryState(state => ({ ...state, folderCache: {} }));
+    setFolderNav(state => ({ ...state, folderCache: {} }));
     // WICHTIG: Ordnerauswahl und Shadow-Twin zurücksetzen
     setSelectedFile(null);
     setSelectedShadowTwin(null);
     }
     
     prevActiveLibraryIdRef.current = activeLibraryId;
-  }, [activeLibraryId, setLastLoadedFolder, setFolderItems, setLibraryState, setSelectedFile, setSelectedShadowTwin]);
+  }, [activeLibraryId, setLastLoadedFolder, setFolderItems, setFolderNav, setSelectedFile, setSelectedShadowTwin]);
 
   // Reset Cache wenn sich die Library ändert
   useEffect(() => {
     setLastLoadedFolder(null);
-    setLibraryState(state => ({
+    setFolderNav(state => ({
       ...state,
       folderCache: {}
     }));
-  }, [libraryStatus, setLibraryState, setLastLoadedFolder]);
+  }, [libraryStatus, setFolderNav, setLastLoadedFolder]);
 
   // Manuelle Cache-Clear-Funktion für Review-Modus
   const clearCache = useCallback(() => {
     StateLogger.info('Library', 'Manually clearing cache for review mode');
     setLastLoadedFolder(null);
-    setLibraryState(state => ({
+    setFolderNav(state => ({
       ...state,
       folderCache: {}
     }));
     setFolderItems([]);
-  }, [setLibraryState, setLastLoadedFolder, setFolderItems]);
+  }, [setFolderNav, setLastLoadedFolder, setFolderItems]);
 
   // Reset selectedShadowTwin wenn Review-Modus verlassen wird
   useEffect(() => {
@@ -598,10 +598,10 @@ export function Library() {
                     setFolderItems(items);
                     
                     // Aktualisiere den Cache
-                    if (libraryState.folderCache?.[folderId]) {
-                      const cachedFolder = libraryState.folderCache[folderId];
+                    if (folderNav.folderCache?.[folderId]) {
+                      const cachedFolder = folderNav.folderCache[folderId];
                       if (cachedFolder) {
-                        setLibraryState(state => ({
+                        setFolderNav(state => ({
                           ...state,
                           folderCache: {
                             ...(state.folderCache || {}),
@@ -673,10 +673,10 @@ export function Library() {
                           hasSelectFile: !!selectFileAfterRefresh
                         });
                         setFolderItems(items);
-                        if (libraryState.folderCache?.[folderId]) {
-                          const cachedFolder = libraryState.folderCache[folderId];
+                        if (folderNav.folderCache?.[folderId]) {
+                          const cachedFolder = folderNav.folderCache[folderId];
                           if (cachedFolder) {
-                            setLibraryState(state => ({
+                            setFolderNav(state => ({
                               ...state,
                               folderCache: {
                                 ...(state.folderCache || {}),
@@ -742,10 +742,10 @@ export function Library() {
                         setFolderItems(items);
                         
                         // Aktualisiere den Cache
-                        if (libraryState.folderCache?.[folderId]) {
-                          const cachedFolder = libraryState.folderCache[folderId];
+                        if (folderNav.folderCache?.[folderId]) {
+                          const cachedFolder = folderNav.folderCache[folderId];
                           if (cachedFolder) {
-                            setLibraryState(state => ({
+                            setFolderNav(state => ({
                               ...state,
                               folderCache: {
                                 ...(state.folderCache || {}),

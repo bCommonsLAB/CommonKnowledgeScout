@@ -6,7 +6,7 @@ import { UploadDialog } from "./upload-dialog"
 import { StorageProvider } from "@/lib/storage/types"
 import { useCallback } from "react"
 import { useAtom, useAtomValue } from "jotai"
-import { currentFolderIdAtom, libraryAtom } from "@/atoms/library-atom"
+import { currentFolderIdAtom, folderNavigationAtom, libraryAtom } from "@/atoms/library-atom"
 import { Breadcrumb } from "./breadcrumb"
 import { AudioRecorderClient } from "./audio-recorder-client"
 import PdfBulkImportDialog from "./pdf-bulk-import-dialog"
@@ -39,6 +39,7 @@ export function LibraryHeader({
   const [isPdfBulkOpen, setIsPdfBulkOpen] = React.useState(false)
   const [currentFolderId] = useAtom(currentFolderIdAtom);
   const libraryState = useAtomValue(libraryAtom);
+  const folderNav = useAtomValue(folderNavigationAtom);
   const navigateToFolder = useFolderNavigation();
   const router = useRouter();
 
@@ -51,17 +52,17 @@ export function LibraryHeader({
   // Kompakter Pfadname (nur aktueller/übergeordneter Ordner), mobil mit Ellipsis
   const compactPathName = React.useMemo(() => {
     if (currentFolderId === 'root') return currentLibraryName;
-    const folder = libraryState.folderCache?.[currentFolderId];
+    const folder = folderNav.folderCache?.[currentFolderId];
     return folder?.metadata?.name ?? '';
-  }, [libraryState.folderCache, currentFolderId, currentLibraryName]);
+  }, [folderNav.folderCache, currentFolderId, currentLibraryName]);
 
   const parentId = React.useMemo(() => {
     if (currentFolderId === 'root') return null;
-    const folder = libraryState.folderCache?.[currentFolderId];
+    const folder = folderNav.folderCache?.[currentFolderId];
     const pid = folder?.parentId;
     if (pid && pid.length > 0) return pid;
     return 'root';
-  }, [libraryState.folderCache, currentFolderId]);
+  }, [folderNav.folderCache, currentFolderId]);
 
   const handleUploadComplete = useCallback(() => {
     UILogger.info('LibraryHeader', 'Upload completed');

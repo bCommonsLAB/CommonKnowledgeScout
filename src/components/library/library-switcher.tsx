@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from '@ks/ui'
 import { cn } from "@/lib/utils"
-import { activeLibraryAtom, activeLibraryIdAtom, currentFolderIdAtom, folderItemsAtom, lastLoadedFolderAtom, librariesAtom, libraryAtom } from "@/atoms/library-atom"
+import { activeLibraryAtom, activeLibraryIdAtom, currentFolderIdAtom, folderItemsAtom, folderNavigationAtom, lastLoadedFolderAtom, librariesAtom } from "@/atoms/library-atom"
 import { Plus, Share2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { StateLogger } from "@/lib/debug/logger"
@@ -36,7 +36,7 @@ export function LibrarySwitcher({
   const [, setCurrentFolderId] = useAtom(currentFolderIdAtom)
   const [, setFolderItems] = useAtom(folderItemsAtom)
   const [, setLastLoadedFolder] = useAtom(lastLoadedFolderAtom)
-  const [, setLibraryState] = useAtom(libraryAtom)
+  const [, setFolderNav] = useAtom(folderNavigationAtom)
   
   // Dialog-State für Neue Bibliothek erstellen
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
@@ -103,7 +103,7 @@ export function LibrarySwitcher({
     // WICHTIG: folderCache muss SYNCHRON vor dem Library-Wechsel geleert werden,
     // um Race Conditions zu vermeiden. Sonst kann loadItems() in library.tsx
     // noch den alten Cache der vorherigen Library verwenden.
-    setLibraryState(state => ({ ...state, folderCache: {} }))
+    setFolderNav(state => ({ ...state, folderCache: {} }))
     setFolderItems([])
     setLastLoadedFolder(null)
     setCurrentFolderId('root')

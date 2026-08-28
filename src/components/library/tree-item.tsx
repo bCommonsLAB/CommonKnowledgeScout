@@ -24,7 +24,7 @@ import {
   expandedFoldersAtom,
   loadedChildrenAtom,
   selectedFileAtom,
-  libraryAtom,
+  folderNavigationAtom,
 } from '@/atoms/library-atom';
 import { useStorage } from '@/contexts/storage-context';
 import { FileLogger, UILogger } from '@/lib/debug/logger';
@@ -51,7 +51,7 @@ export function TreeItem({
   const [expandedFolders, setExpandedFolders] = useAtom(expandedFoldersAtom);
   const [selectedFile, setSelectedFile] = useAtom(selectedFileAtom);
   const [loadedChildren, setLoadedChildren] = useAtom(loadedChildrenAtom);
-  const libraryState = useAtomValue(libraryAtom);
+  const folderNav = useAtomValue(folderNavigationAtom);
   const { provider, listItems } = useStorage();
   const navigateToFolder = useFolderNavigation();
   const itemRef = React.useRef<HTMLDivElement>(null);
@@ -65,7 +65,7 @@ export function TreeItem({
       // Ordnerinhalt laden, wenn noch nicht geladen
       if (!loadedChildren[folderId]) {
         // PERFORMANCE-OPTIMIERUNG: Verwende Cache statt API-Call wenn moeglich
-        const cachedFolder = libraryState.folderCache?.[folderId];
+        const cachedFolder = folderNav.folderCache?.[folderId];
         if (cachedFolder && cachedFolder.children) {
           setLoadedChildren(prev => ({
             ...prev,
@@ -98,7 +98,7 @@ export function TreeItem({
     } catch (error) {
       FileLogger.error('FileTree', 'Fehler beim Laden des Ordnerinhalts', error);
     }
-  }, [provider, loadedChildren, libraryState.folderCache, listItems, setLoadedChildren, setExpandedFolders]);
+  }, [provider, loadedChildren, folderNav.folderCache, listItems, setLoadedChildren, setExpandedFolders]);
 
   // Element auswaehlen: setzt Auswahl-Atom und navigiert in den Folder.
   const handleSelect = useCallback((selectedItem: StorageItem) => {

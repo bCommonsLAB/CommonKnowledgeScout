@@ -1,224 +1,65 @@
 /**
- * @fileoverview Library State Atoms - Jotai State Management for Libraries
- * 
+ * @fileoverview Datei-Listen- und Annotations-Zustand der Bibliothek.
+ *
  * @description
- * Provides Jotai atoms for managing library state across the application. Handles
- * active library selection, folder navigation, file caching, and library status.
- * Uses atomFamily for folder-specific state management and provides derived atoms
- * for computed values.
- * 
+ * Was die Dateiliste zeigt: geladene Items, Auswahl, Suche/Sortierung je
+ * Library, Annotationen (DIVA und generisch) und der Review-Modus.
+ *
+ * Zwei Nachbarn sind seit dieser Welle eigene Module — die Datei re-exportiert
+ * sie, damit bestehende Importpfade gueltig bleiben (Migrationsstrategie G2):
+ * - `@/atoms/library-selection` — welche Bibliotheken es gibt, welche aktiv ist
+ *   (Schalen-Zustand, wandert nach `@ks/shell`)
+ * - `@/atoms/folder-navigation` — aktueller Ordner, Pfad-Cache, Baumzustand
+ *
  * @module library
- * 
- * @exports
- * - libraryAtom: Main library state atom
- * - activeLibraryIdAtom: Active library ID atom
- * - librariesAtom: Libraries list atom
- * - activeLibraryAtom: Active library object atom
- * - currentFolderIdAtom: Current folder ID atom
- * - currentPathAtom: Current path atom
- * - libraryStatusAtom: Library loading status atom
- * - folderItemsAtom: Folder items atom family
- * 
+ *
  * @usedIn
  * - src/contexts/storage-context.tsx: Uses library atoms for state management
  * - src/components/library: Library components use atoms
  * - src/hooks/use-storage-provider.tsx: Uses library atoms
- * 
+ *
  * @dependencies
  * - jotai: State management library
  * - @/lib/storage/types: StorageItem type
- * - @/types/library: ClientLibrary type
  * - @/atoms/transcription-options: File category filter
  */
 
 import { atom } from "jotai"
 import { atomFamily } from "jotai/utils"
 import { StorageItem } from "@/lib/storage/types"
-import { ClientLibrary } from "@/types/library"
+import { activeLibraryAtom, activeLibraryIdAtom } from "@/atoms/library-selection"
 import { fileCategoryFilterAtom, getFileCategory } from '@/atoms/transcription-options'
-import { galleryFiltersAtom } from '@/atoms/gallery-filters'
 import { isBasecolorFileName } from '@/lib/diva-texture/preprocess-folder'
 
-// Basis-Typen für den Library-State
-export interface LibraryState {
-  libraries: ClientLibrary[];
-  activeLibraryId: string;
-  currentFolderId: string;
-  folderCache: Record<string, StorageItem>;
-}
-
-// Typen für den Loading-State
-export interface LoadingState {
-  isLoading: boolean;
-  loadingFolderId: string | null;
-}
-
-// Initialer State
-const initialState: LibraryState = {
-  libraries: [],
-  activeLibraryId: "",
-  currentFolderId: "root",
-  folderCache: {}
-}
-
-// Hauptatom für Library-State
-export const libraryAtom = atom<LibraryState>(initialState)
-libraryAtom.debugLabel = "libraryAtom"
-
-// Derivierte Atome für spezifische Eigenschaften
-export const activeLibraryIdAtom = atom(
-  get => get(libraryAtom).activeLibraryId,
-  (get, set, newId: string) => {
-    const prev = get(libraryAtom).activeLibraryId
-    set(libraryAtom, {
-      ...get(libraryAtom),
-      activeLibraryId: newId
-    })
-    // Galerie-/Story-Filter (Facetten, shortTitle, …) sind an die aktive Library gebunden.
-    // Beim Wechsel zurücksetzen, damit keine Filter der vorherigen Library „hängen bleiben“.
-    if (newId !== prev) {
-      set(galleryFiltersAtom, {})
-    }
-  }
-)
-activeLibraryIdAtom.debugLabel = "activeLibraryIdAtom"
-
-// Klares Signal fuer den "keine Library gewaehlt"-Zustand: true, solange keine
-// aktive Library gesetzt ist (z.B. nach dem Login ohne gespeicherte Auswahl oder
-// nach dem Deselektieren im Re-Auth-Dialog). UI/Guards pruefen dieses Atom statt
-// ueberall activeLibraryId === "" zu streuen.
-export const noLibrarySelectedAtom = atom(get => get(activeLibraryIdAtom) === "")
-noLibrarySelectedAtom.debugLabel = "noLibrarySelectedAtom"
-
-// Bibliotheken-Atom
-export const librariesAtom = atom(
-  get => get(libraryAtom).libraries,
-  (get, set, newLibraries: ClientLibrary[]) => {
-    set(libraryAtom, {
-      ...get(libraryAtom),
-      libraries: newLibraries
-    })
-  }
-)
-librariesAtom.debugLabel = "librariesAtom"
-
-// Aktive Bibliothek
-export const activeLibraryAtom = atom(
-  get => {
-    const state = get(libraryAtom)
-    return state.libraries.find(lib => lib.id === state.activeLibraryId)
-  }
-)
-activeLibraryAtom.debugLabel = "activeLibraryAtom"
-
-// Aktuelles Verzeichnis
-export const currentFolderIdAtom = atom(
-  get => get(libraryAtom).currentFolderId,
-  (get, set, newFolderId: string) => {
-    set(libraryAtom, {
-      ...get(libraryAtom),
-      currentFolderId: newFolderId
-    })
-  }
-)
-currentFolderIdAtom.debugLabel = "currentFolderIdAtom"
-
-// Automatische Pfad-Berechnung
-export const currentPathAtom = atom(
-  get => {
-    const currentLibrary = get(activeLibraryAtom);
-    const currentFolderId = get(currentFolderIdAtom);
-    const libraryState = get(libraryAtom);
-    
-    if (!currentLibrary || !currentFolderId) {
-      return [];
-    }
-
-    // Root-Item immer als erstes
-    const rootItem: StorageItem = {
-      id: 'root',
-      parentId: '',
-      type: 'folder',
-      metadata: {
-        name: currentLibrary.label || '/',
-        size: 0,
-        modifiedAt: new Date(),
-        mimeType: 'application/folder'
-      }
-    };
-
-    // Bei root nur das Root-Item zurückgeben
-    if (currentFolderId === 'root') {
-      return [rootItem];
-    }
-
-    // Pfad aus dem Ordner-Cache berechnen
-    const folderCache = libraryState.folderCache;
-    if (!folderCache) {
-      return [rootItem];
-    }
-
-    // Pfad aufbauen
-    const path: StorageItem[] = [];
-    let currentId = currentFolderId;
-    const missingIds: string[] = [];
-    
-    while (currentId && currentId !== 'root') {
-      const folder = folderCache[currentId];
-      if (!folder) {
-        // Debug: Fehlende Ordner im Cache protokollieren
-        missingIds.push(currentId);
-        console.warn('[currentPathAtom] Ordner nicht im Cache gefunden', {
-          currentId,
-          currentFolderId,
-          cacheKeys: Object.keys(folderCache),
-          missingIds
-        });
-        break;
-      }
-      path.unshift(folder);
-      currentId = folder.parentId;
-    }
-
-    return [rootItem, ...path];
-  }
-)
-currentPathAtom.debugLabel = "currentPathAtom"
+// Fassade auf die ausgelagerten Nachbarn (G2) — bestehende Importe bleiben gueltig.
+export type { LibraryState } from "@/atoms/library-selection"
+export {
+  libraryAtom,
+  activeLibraryIdAtom,
+  noLibrarySelectedAtom,
+  librariesAtom,
+  activeLibraryAtom,
+  libraryStatusAtom,
+} from "@/atoms/library-selection"
+export type { FolderNavigationState, LoadingState } from "@/atoms/folder-navigation"
+export {
+  folderNavigationAtom,
+  currentFolderIdAtom,
+  currentPathAtom,
+  fileTreeReadyAtom,
+  loadedChildrenAtom,
+  expandedFoldersAtom,
+  lastLoadedFolderAtom,
+  loadingStateAtom,
+} from "@/atoms/folder-navigation"
 
 // Ausgewählte Datei
 export const selectedFileAtom = atom<StorageItem | null>(null)
 selectedFileAtom.debugLabel = "selectedFileAtom"
 
-// FileTree Ready Status
-export const fileTreeReadyAtom = atom<boolean>(false)
-fileTreeReadyAtom.debugLabel = "fileTreeReadyAtom"
-
 // Ordner-Items
 export const folderItemsAtom = atom<StorageItem[]>([])
 folderItemsAtom.debugLabel = "folderItemsAtom"
-
-// Geladene Kinder im FileTree
-export const loadedChildrenAtom = atom<Record<string, StorageItem[]>>({})
-loadedChildrenAtom.debugLabel = "loadedChildrenAtom"
-
-// Lade-Status
-export const loadingStateAtom = atom<LoadingState>({
-  isLoading: false,
-  loadingFolderId: null
-})
-loadingStateAtom.debugLabel = "loadingStateAtom"
-
-// Expandierte Ordner im FileTree
-export const expandedFoldersAtom = atom<Set<string>>(new Set(['root']))
-expandedFoldersAtom.debugLabel = "expandedFoldersAtom"
-
-// Letzter geladener Ordner
-export const lastLoadedFolderAtom = atom<string | null>(null)
-lastLoadedFolderAtom.debugLabel = "lastLoadedFolderAtom"
-
-// Library Status (für Template Management)
-export const libraryStatusAtom = atom<'ready' | 'waitingForAuth' | 'loading'>('loading')
-libraryStatusAtom.debugLabel = "libraryStatusAtom"
 
 // Library-spezifische Sort/Filter-Konfiguration
 export interface SortFilterConfig {
@@ -402,7 +243,7 @@ export const sortedFilteredFilesAtom = atom((get) => {
   })
 
   return filtered
-}) 
+})
 
 // Review-Mode-Atoms für das neue Layout-Feature
 export const reviewModeAtom = atom<boolean>(false)
@@ -410,4 +251,4 @@ reviewModeAtom.debugLabel = "reviewModeAtom"
 
 // Ausgewähltes Shadow-Twin für Review-Modus
 export const selectedShadowTwinAtom = atom<StorageItem | null>(null)
-selectedShadowTwinAtom.debugLabel = "selectedShadowTwinAtom" 
+selectedShadowTwinAtom.debugLabel = "selectedShadowTwinAtom"

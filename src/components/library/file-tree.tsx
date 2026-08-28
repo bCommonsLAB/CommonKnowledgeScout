@@ -11,7 +11,7 @@ import {
   activeLibraryIdAtom,
   folderItemsAtom,
   currentFolderIdAtom,
-  libraryAtom
+  folderNavigationAtom
 } from '@/atoms/library-atom';
 import { useStorage } from '@/contexts/storage-context';
 import { FileLogger, UILogger } from "@/lib/debug/logger"
@@ -41,7 +41,7 @@ export const FileTree = forwardRef<FileTreeRef, object>(function FileTree({
   const [, setSelectedFile] = useAtom(selectedFileAtom);
   const folderItems = useAtomValue(folderItemsAtom);
   const currentFolderId = useAtomValue(currentFolderIdAtom);
-  const libraryState = useAtomValue(libraryAtom);
+  const folderNav = useAtomValue(folderNavigationAtom);
 
   const hideShadowTwinFolders = shouldFilterShadowTwinFolders(
     activeLibrary?.config?.shadowTwin as { persistToFilesystem?: boolean } | undefined
@@ -317,7 +317,7 @@ export const FileTree = forwardRef<FileTreeRef, object>(function FileTree({
   useEffect(() => {
     if (!provider || !isReady || currentFolderId === 'root') return;
     
-    const folderCache = libraryState.folderCache || {};
+    const folderCache = folderNav.folderCache || {};
     if (!folderCache || Object.keys(folderCache).length === 0) {
       // Cache noch nicht gefüllt - warte auf Cache-Update
       UILogger.debug('FileTree', 'Cache noch leer, warte auf Cache-Update', {
@@ -440,7 +440,7 @@ export const FileTree = forwardRef<FileTreeRef, object>(function FileTree({
     };
     
     expandPath();
-  }, [provider, isReady, currentFolderId, libraryState.folderCache, expandedFolders, setExpandedFolders, setLoadedChildren, loadedChildren]);
+  }, [provider, isReady, currentFolderId, folderNav.folderCache, expandedFolders, setExpandedFolders, setLoadedChildren, loadedChildren]);
 
   const items = (loadedChildren.root || []).filter(item => {
     if (item.type !== 'folder') return false;
