@@ -37,17 +37,20 @@ describe('standardLlmModell', () => {
 })
 
 describe('modellHinweis', () => {
-  it('nennt die Herkunft, damit der Agent sie nicht raten muss', () => {
-    expect(modellHinweis('google/gemini-2.5-flash', true)).toMatch(/aus dem Aufruf/)
-    expect(modellHinweis('google/gemini-2.5-flash', false)).toMatch(/aus der Library-Konfiguration/)
+  it('nennt die Konfiguration als einzige Quelle — und dass sie nicht je Aufruf waehlbar ist', () => {
+    // Owner-Entscheid 28.08.2026: Der Client waehlt die Vorlage, das Modell
+    // gehoert dem Betreiber der Library. Eine Aufruf-Herkunft gibt es nicht.
+    const hinweis = modellHinweis('google/gemini-2.5-flash')
+    expect(hinweis).toMatch(/aus der Library-Konfiguration/)
+    expect(hinweis).toMatch(/Nicht je Aufruf waehlbar/)
   })
 
-  it('warnt ausdruecklich, wenn NIEMAND ein Modell gesetzt hat', () => {
-    const hinweis = modellHinweis(undefined, false)
-    expect(hinweis).toMatch(/KEIN LLM-Modell gesetzt/)
+  it('warnt ausdruecklich, wenn die Library kein Modell konfiguriert hat', () => {
+    const hinweis = modellHinweis(undefined)
+    expect(hinweis).toMatch(/KEIN LLM-Modell in der Library konfiguriert/)
     // Der Vorfall gehoert in die Meldung — sonst sucht der naechste wieder
-    // bei den Vorlagen.
+    // bei den Vorlagen. Und die Zustaendigkeit auch: Betreiber, nicht Agent.
     expect(hinweis).toMatch(/28\.08\.2026/)
-    expect(hinweis).toMatch(/Einstellungen → Secretary/)
+    expect(hinweis).toMatch(/NUR der Betreiber/)
   })
 })

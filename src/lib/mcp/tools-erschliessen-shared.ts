@@ -47,8 +47,9 @@ export async function resolveSourceItem(
  * Standard-LLM-Modell der Library fuer die Template-Transformation.
  *
  * Dasselbe Feld, aus dem die Werkbank ihres zieht
- * (`file-preview.tsx` → `secretaryService.llmModel`) — die Bruecke soll sich
- * nicht anders verhalten als der Knopf.
+ * (`file-preview.tsx` → `secretaryService.llmModel`) — die Bruecke verhaelt
+ * sich exakt wie der Knopf, und zwar OHNE Wahlmoeglichkeit im Aufruf: Der
+ * Client entscheidet die Vorlage, der Betreiber das Modell.
  *
  * Kein Wurf bei fehlender Konfiguration: Bibliotheken ohne eigenes Modell
  * laufen heute ueber den Default des Secretary, und den abzuschneiden waere
@@ -62,20 +63,20 @@ export function standardLlmModell(library: Library): string | undefined {
 }
 
 /**
- * Sagt dem Aufrufer, WOHER das Modell kommt — und warnt, wenn es aus einer
- * Quelle kommt, die von hier aus niemand einsehen kann.
+ * Sagt dem Aufrufer, welches Modell die Library vorgibt — und warnt, wenn
+ * keines gesetzt ist. Eine Modellwahl im AUFRUF gibt es bewusst nicht
+ * (Owner-Entscheid 28.08.2026): Der Client waehlt die Vorlage, das Modell
+ * gehoert dem Betreiber der Library.
  */
-export function modellHinweis(modell: string | undefined, ausAufruf: boolean): string {
+export function modellHinweis(modell: string | undefined): string {
   if (modell) {
-    return ausAufruf
-      ? `LLM-Modell aus dem Aufruf: ${modell}`
-      : `LLM-Modell aus der Library-Konfiguration: ${modell}`
+    return `LLM-Modell aus der Library-Konfiguration: ${modell}. Nicht je Aufruf waehlbar.`
   }
   return (
-    'KEIN LLM-Modell gesetzt — weder im Aufruf noch in der Library ' +
-    '(Einstellungen → Secretary → Standard-LLM-Modell). Der Secretary nimmt seinen eigenen ' +
-    'Default, der von hier aus nicht einsehbar ist; am 28.08.2026 war er ungueltig und jede ' +
-    'Transformation starb nach ~100 ms. Bei `template_failed` zuerst `llmModel` setzen.'
+    'KEIN LLM-Modell in der Library konfiguriert (Einstellungen → Secretary → ' +
+    'Standard-LLM-Modell). Der Secretary nimmt dann seinen eigenen Default, der von hier aus ' +
+    'nicht einsehbar ist; am 28.08.2026 war er ungueltig und jede Transformation starb nach ' +
+    '~100 ms. Das behebt NUR der Betreiber in den Einstellungen — nicht der Agent.'
   )
 }
 

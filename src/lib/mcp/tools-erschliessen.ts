@@ -53,27 +53,26 @@ export function registerErschliessenTools(server: McpServer): void {
         libraryId: LIBRARY_ID,
         ...SOURCE_INPUTS,
         template: z.string().min(1).optional().describe('Transformations-Template; weglassen = Standard-Template der Library; "nur_transkript" = bewusst ohne Transformation'),
-        llmModel: z.string().min(1).optional().describe(
-          'LLM-Modell fuer die Transformation, z. B. "google/gemini-2.5-flash". Weglassen = das ' +
-          'Standard-Modell der Library (Einstellungen → Secretary) — dasselbe, das die Werkbank ' +
-          'nimmt. Ist auch dort keines gesetzt, entscheidet der Secretary allein, und das ist ' +
-          'von hier aus nicht einsehbar: Am 28.08.2026 stand sein Default auf einer ungueltigen ' +
-          'Modell-Id, jede Transformation starb nach ~100 ms mit HTTP 400. Die Antwort sagt ' +
-          'jeweils, woher das Modell kam.'),
         zielsprache: z.string().min(2).max(5).optional().describe('Zielsprache (Default de)'),
         begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
-    async ({ libraryId, sourceId, quellPfad, sourceIds, template, llmModel, zielsprache , begruendung }) => {
+    async ({ libraryId, sourceId, quellPfad, sourceIds, template, zielsprache , begruendung }) => {
       try {
         return await mitProtokoll({ werkzeug: 'quelle_erschliessen', libraryId, akteur: mcpUserEmail(), begruendung, sourceId }, async () => {
           const userEmail = mcpUserEmail()
           const library = await requireLibrary(userEmail, libraryId)
           const provider = await requireProvider(userEmail, libraryId)
           const effectiveTemplate = template === 'nur_transkript' ? undefined : template ?? standardTemplate(library)
-          // Wie beim Template: Aufruf schlaegt Library-Konfiguration.
-          const effectiveModell = llmModel ?? standardLlmModell(library)
+          // Das Modell kommt AUSSCHLIESSLICH aus der Library-Konfiguration
+          // (Owner-Entscheid 28.08.2026): Der Client waehlt die VORLAGE —
+          // eine fachliche Entscheidung. Welches Modell sie ausfuehrt, ist
+          // Infrastruktur und gehoert dem Betreiber der Library, nicht dem
+          // Agenten. Eine Modellwahl je Aufruf hiesse: zwei Laeufe derselben
+          // Vorlage koennten verschieden ausfallen, ohne dass das Archiv es
+          // einem ansieht.
+          const effectiveModell = standardLlmModell(library)
           const batch = await runForSources({
             provider, sourceId, quellPfad, sourceIds,
             start: async (source) => {
@@ -106,7 +105,7 @@ export function registerErschliessenTools(server: McpServer): void {
             jobs: batch.zeilen,
             template: effectiveTemplate ?? null,
             llmModell: effectiveModell ?? null,
-            modellHerkunft: modellHinweis(effectiveModell, Boolean(llmModel)),
+            modellHerkunft: modellHinweis(effectiveModell),
             hinweis: JOB_HINWEIS,
           })
         })
@@ -129,26 +128,20 @@ export function registerErschliessenTools(server: McpServer): void {
         libraryId: LIBRARY_ID,
         ...SOURCE_INPUTS,
         template: z.string().min(1).optional().describe('Template; weglassen = Standard-Template der Library'),
-        llmModel: z.string().min(1).optional().describe(
-          'LLM-Modell fuer die Transformation, z. B. "google/gemini-2.5-flash". Weglassen = das ' +
-          'Standard-Modell der Library (Einstellungen → Secretary) — dasselbe, das die Werkbank ' +
-          'nimmt. Ist auch dort keines gesetzt, entscheidet der Secretary allein, und das ist ' +
-          'von hier aus nicht einsehbar: Am 28.08.2026 stand sein Default auf einer ungueltigen ' +
-          'Modell-Id, jede Transformation starb nach ~100 ms mit HTTP 400. Die Antwort sagt ' +
-          'jeweils, woher das Modell kam.'),
         zielsprache: z.string().min(2).max(5).optional().describe('Zielsprache (Default de)'),
         begruendung: BEGRUENDUNG,
       },
       annotations: { readOnlyHint: false, destructiveHint: true },
     },
-    async ({ libraryId, sourceId, quellPfad, sourceIds, template, llmModel, zielsprache , begruendung }) => {
+    async ({ libraryId, sourceId, quellPfad, sourceIds, template, zielsprache , begruendung }) => {
       try {
         return await mitProtokoll({ werkzeug: 'transformation_starten', libraryId, akteur: mcpUserEmail(), begruendung, sourceId }, async () => {
           const userEmail = mcpUserEmail()
           const library = await requireLibrary(userEmail, libraryId)
           const provider = await requireProvider(userEmail, libraryId)
           const effectiveTemplate = template ?? standardTemplate(library)
-          const effectiveModell = llmModel ?? standardLlmModell(library)
+          // Modell nur aus der Library-Konfiguration — siehe quelle_erschliessen.
+          const effectiveModell = standardLlmModell(library)
           const batch = await runForSources({
             provider, sourceId, quellPfad, sourceIds,
             start: async (source) => {
@@ -176,7 +169,7 @@ export function registerErschliessenTools(server: McpServer): void {
             jobs: batch.zeilen,
             template: effectiveTemplate,
             llmModell: effectiveModell ?? null,
-            modellHerkunft: modellHinweis(effectiveModell, Boolean(llmModel)),
+            modellHerkunft: modellHinweis(effectiveModell),
             hinweis: JOB_HINWEIS,
           })
         })
