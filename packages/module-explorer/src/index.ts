@@ -1,10 +1,15 @@
 /**
  * `@ks/module-explorer` — Explorer-Modul (Galerie, Story, Chat/RAG, Website).
  *
- * Stand Welle M4: Das Paket besitzt bisher NUR seinen API-Namensraum und das
- * Site-Gate. Die montierbare Wurzelkomponente aus Landkarte §5 (Zeile M4)
- * fehlt noch — sie braucht `@ks/ui` und `@ks/i18n` (Begruendung und Messwerte:
- * `docs/refactor/modularisierung/AGENT-BRIEF-M4.md`).
+ * Dieses Barrel haelt den serverseitigen Teil: API-Namensraum und Site-Gate.
+ * Es ist BEWUSST frei von React — 22 API-Routen holen sich hier `explorerGate`,
+ * und Client-Code daneben zoege jede von ihnen in den react-server-Layer (der
+ * Build-Fehler aus M4b).
+ *
+ * Die montierbare Wurzelkomponente aus Landkarte §5 (Zeile M4) liegt unter
+ * `@ks/module-explorer/react`. Die Galerie selbst liegt weiterhin in der
+ * Anwendung und wird ihr als Slot hereingereicht — sie ist eine eigene Welle
+ * (`docs/refactor/modularisierung/AGENT-BRIEF-M4.md`, Nachtrag).
  */
 
 export { explorerGate, EXPLORER_MODULE } from './api/gate'
