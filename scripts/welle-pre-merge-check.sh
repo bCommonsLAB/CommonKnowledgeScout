@@ -10,6 +10,7 @@
 #   bash scripts/welle-pre-merge-check.sh
 #   bash scripts/welle-pre-merge-check.sh --skip-build       # nur test+lint
 #   bash scripts/welle-pre-merge-check.sh --only=test        # nur test
+#   (--only akzeptiert: test | typecheck | lint | build)
 #
 # Exit-Code: 0 wenn alles gruen, sonst != 0.
 
@@ -63,7 +64,25 @@ if [[ -z "$ONLY" || "$ONLY" == "test" ]]; then
   fi
 fi
 
-# --- 2. pnpm lint ---
+# --- 2. pnpm typecheck:packages ---
+# Der Waechter der Paketgrenze (seit Welle M2b): typecheckt jedes Paket ISOLIERT
+# gegen sein eigenes tsconfig. Ein Rueckwaerts-Import in die App scheitert hier
+# mit TS2307, auch wenn der Gesamt-Build ihn ueber die Root-paths aufloesen
+# wuerde. Laeuft vor lint/build, weil er Sekunden dauert und die
+# folgenschwerste Regel prueft.
+if [[ -z "$ONLY" || "$ONLY" == "typecheck" ]]; then
+  banner "pnpm typecheck:packages (Paketgrenze, isoliert je Paket)"
+  if pnpm typecheck:packages; then
+    green "OK pnpm typecheck:packages gruen — kein Paket greift in die App zurueck"
+  else
+    red "FEHLER typecheck:packages rot — Welle NICHT mergen"
+    red "Tipp: Braucht ein Paket etwas aus der App, gehoert es nach @ks/contracts"
+    red "      oder wird per Injection hereingereicht (packages/viewers/src/logger.ts)."
+    exit 1
+  fi
+fi
+
+# --- 3. pnpm lint ---
 if [[ -z "$ONLY" || "$ONLY" == "lint" ]]; then
   banner "pnpm lint (next lint)"
   if pnpm lint; then
@@ -74,7 +93,7 @@ if [[ -z "$ONLY" || "$ONLY" == "lint" ]]; then
   fi
 fi
 
-# --- 3. pnpm build ---
+# --- 4. pnpm build ---
 if [[ -z "$ONLY" || "$ONLY" == "build" ]]; then
   if [[ "$SKIP_BUILD" == "1" ]]; then
     banner "pnpm build (uebersprungen via --skip-build)"
@@ -84,8 +103,11 @@ if [[ -z "$ONLY" || "$ONLY" == "build" ]]; then
       green "OK pnpm build gruen"
     else
       red "FEHLER pnpm build rot — Welle NICHT mergen"
-      red "Tipp: Haeufigste Ursache nach Modul-Split: ungenutzte Imports."
-      red "      Nachpruefen mit: rg 'is defined but never used' im Build-Output."
+      red "Tipp 1: 'createContext is not a function' o.ae. => einer Paket-Datei"
+      red "        fehlt \"use client\". Ein Paket darf sich NICHT darauf verlassen,"
+      red "        dass seine Aufrufer die Client-Grenze fuer es ziehen (Befund M4b)."
+      red "Tipp 2: Haeufigste Ursache nach Modul-Split: ungenutzte Imports."
+      red "        Nachpruefen mit: rg 'is defined but never used' im Build-Output."
       exit 1
     fi
   fi
