@@ -1,6 +1,6 @@
 # KnowledgeScout-Schnittstelle: was trägt, was fehlt
 
-Stand 28.08.2026, Werkzeugsatz **2.11.0**.
+Stand 28.08.2026, Werkzeugsatz **2.12.0**.
 
 Grundlage sind zwei Quellen, die sich gegenseitig prüfen:
 
@@ -175,6 +175,18 @@ Zwei Ursachen, beide behoben:
 - Ob der Fehlschlag wirklich am unpassenden Template lag, ist damit
   **immer noch nicht bewiesen** — die verbesserte Meldung liefert beim
   nächsten Lauf die Antwort.
+- **Der Lauf ging gegen die Testbibliothek.** `libraryId: ID_OnedriveTest`
+  = „Onedrive Test", Pfad
+  `4. Ökosozialer Aktivismus/26.07 Naturmuseum Knowledgescout`. Die fünfzehn
+  bezahlten Jobs liefen also auf Testdaten — und der Ordner war im
+  produktiven Archiv nicht zu finden, weil er dort nicht liegt.
+
+**Nachgezogen mit 2.12.0:** `job_status` liefert bei gescheiterten Jobs die
+`fehlerDetails` aus dem Trace mit — Schritt, Code, Meldung des Dienstes,
+HTTP-Status, Antwort-Auszug. Genau die Auskunft, für die zuvor jemand in die
+Datenbank sehen musste. Und der Skill kennt jetzt den Zwei-Schritt-Takt:
+erst `nur_transkript`, dann das Transkript LESEN, und daraus die Vorlage
+ableiten — der Dateiname verrät die Dokumentart nicht.
 
 ## 5. Reihenfolge für das, was bleibt
 

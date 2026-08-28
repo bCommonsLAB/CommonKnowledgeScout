@@ -14,6 +14,24 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { ExternalJobsRepository } from '@/lib/external-jobs-repository'
 import { LIBRARY_ID, errorResult, jsonResult, mcpUserEmail, requireLibrary } from './tool-shared'
+import { fehlerDetailsAusTrace } from './job-fehler-details'
+
+/**
+ * Fehlerdetails eines gescheiterten Jobs — oder die ehrliche Auskunft,
+ * dass der Trace nichts hergibt (alte Jobs ohne Trace).
+ */
+function fehlerBlock(job: unknown): Record<string, unknown> {
+  const details = fehlerDetailsAusTrace(job)
+  if (details.length === 0) {
+    return {
+      fehlerDetails: [],
+      fehlerHinweis:
+        'Der Job ist gescheitert, sein Trace enthaelt aber keine Fehlerereignisse — ' +
+        'entweder ein alter Job ohne Trace oder der Fehlschlag lag ausserhalb der Schritte.',
+    }
+  }
+  return { fehlerDetails: details }
+}
 
 /** Registriert job_status + job_liste (siehe Datei-Kommentar). */
 export function registerJobTools(server: McpServer): void {
@@ -23,7 +41,11 @@ export function registerJobTools(server: McpServer): void {
       title: 'Job-Status',
       description:
         'Status eines mit quelle_erschliessen/transformation_starten gestarteten Jobs: ' +
-        'queued/running/completed/failed plus letzte Meldung. Liest nur.',
+        'queued/running/completed/failed plus letzte Meldung. Bei einem GESCHEITERTEN Job ' +
+        'kommen die Fehlerdetails aus dem Job-Trace automatisch mit (fehlerDetails): welcher ' +
+        'Schritt, welcher Code, die eigentliche Meldung des Dienstes, HTTP-Status und ein ' +
+        'Auszug der Antwort. Damit ist ein Fehlschlag OHNE Blick in die Datenbank zu ' +
+        'analysieren. Liest nur.',
       inputSchema: { jobId: z.string().min(1).describe('jobId aus der Start-Antwort') },
       annotations: { readOnlyHint: true },
     },
@@ -50,6 +72,13 @@ export function registerJobTools(server: McpServer): void {
             ...(step.durationMs !== undefined ? { dauerMs: step.durationMs } : {}),
           })),
           fehler: job.error?.message ?? null,
+          // Welle ST7: Bei einem Fehlschlag ist `job.error.message` der Satz,
+          // der das Scheitern benennt („Template-Transformation
+          // fehlgeschlagen") — erklaeren tut er nichts. Das WARUM steht im
+          // Trace und kam bisher nie heraus; genau dafuer musste jemand in
+          // die Datenbank. Ungefragt mitgeliefert, weil man sonst wissen
+          // muesste, dass man fragen kann.
+          ...(job.status === 'failed' ? fehlerBlock(job) : {}),
           erstellt: job.createdAt ?? null,
           aktualisiert: job.updatedAt ?? null,
         })
