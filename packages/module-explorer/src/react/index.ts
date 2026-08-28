@@ -1,5 +1,5 @@
 /**
- * `@ks/module-explorer/react` — Client-Oberflaeche des Explorer-Moduls.
+ * `@ks/module-explorer/react` — die montierbare Wurzelkomponente.
  *
  * BEWUSST ein eigener Einstiegspunkt, nicht das Wurzel-Barrel: Dort holen sich
  * 22 API-Routen `explorerGate` — laege React daneben, zoege jede von ihnen
@@ -8,9 +8,11 @@
  * `@ks/shell/react`).
  */
 
+export { ExplorerRoot } from './explorer-root'
 export { toClientLibrary } from './to-client-library'
 export { fetchAccessStatus, postAccessRequest } from './explorer-access'
 export type {
+  ExplorerRootProps,
   ExplorerViewer,
   ExplorerLibraryPayload,
   ExplorerContext,

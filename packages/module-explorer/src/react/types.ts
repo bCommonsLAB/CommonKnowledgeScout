@@ -1,10 +1,14 @@
 /**
- * Die Datentypen des Explorer-Eintritts: was die oeffentlichen Routen liefern
- * und was das Modul ueber den Betrachter wissen muss.
+ * Die Datentypen des Explorer-Eintritts und der Props-Vertrag der montierbaren
+ * Wurzelkomponente (ADR 0008 §4).
  *
- * `ExplorerViewer` ist der Grund, warum das Modul keinen Auth-Anbieter kennt —
- * es fragt nicht, WER da ist, sondern nur, ob jemand da ist.
+ * Alles, was das Modul NICHT selbst kennen darf, steht unten als Slot: die
+ * Anmelde-Aufforderung, die Galerie und ein optionaler Hinweis. Zusammen mit
+ * `ExplorerViewer` — zwei Booleans statt eines Nutzer-Objekts — haengt das
+ * Modul damit an keinem Auth-Anbieter und an keinem Next.js-Datei-Routing.
  */
+
+import type { ReactNode } from 'react'
 
 import type { Character, SocialContext, TargetLanguage } from '@ks/contracts'
 
@@ -88,4 +92,23 @@ export interface ExplorerAccessStatus {
   requiresAuth?: boolean
   message?: string
   rateLimited?: boolean
+}
+
+export interface ExplorerRootProps {
+  /** Welche Library gezeigt wird. Kommt NICHT aus dem Datei-Routing. */
+  slug: string
+  viewer: ExplorerViewer
+  /**
+   * Die Galerie. Sie liegt bis zu ihrer eigenen Welle in der Anwendung
+   * (1.319 Zeilen mit 38 App-Importen) und wird deshalb hereingereicht.
+   */
+  renderGallery: (opts: { libraryId: string; showSiteTab: boolean }) => ReactNode
+  /**
+   * Was zu zeigen ist, wenn Anmeldung noetig ist. Die Anwendung baut daraus
+   * ihren Clerk-Button; das Modul kennt keinen Auth-Anbieter. Die Rueckkehr-URL
+   * baut die Anwendung selbst — sie kennt ihre Routen.
+   */
+  renderSignInPrompt: (opts: { slug: string }) => ReactNode
+  /** Optionaler Hinweis unter dem Kopf (heute: die Verifikations-Warnung). */
+  renderNotice?: (opts: { libraryId: string }) => ReactNode
 }
