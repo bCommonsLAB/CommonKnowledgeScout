@@ -6,7 +6,7 @@ import { ArrowLeft, User } from "lucide-react";
 import Link from "next/link";
 import { MarkdownPreview } from "@/components/library/markdown-preview";
 import { AIGeneratedNotice } from "@/components/shared/ai-generated-notice";
-import { useTranslation } from "@/lib/i18n/hooks";
+import { useTranslation } from "@ks/i18n/react";
 
 /**
  * Interface für Testimonial-Detail-Daten

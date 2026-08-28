@@ -32,7 +32,7 @@ import {
   AlertTitle,
 } from '@ks/ui'
 import { ArrowRight, Globe, Compass, Eye, Users, Sparkles, AlertCircle, ExternalLink } from 'lucide-react'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import type { Character, SocialContext, TargetLanguage, AccessPerspective, LlmModelId } from '@/lib/chat/constants'
 import { CHARACTER_VALUES, ACCESS_PERSPECTIVE_VALUES, getLanguageCategory } from '@/lib/chat/constants'
 import type { MappedLlmModel } from './helpers'

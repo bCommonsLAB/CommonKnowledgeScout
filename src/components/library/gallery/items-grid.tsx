@@ -3,7 +3,7 @@
 import React from 'react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { DocumentCard } from './document-card'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import {
   itemsGridClassForDensity,
   type GalleryCardDensity,

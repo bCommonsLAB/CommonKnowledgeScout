@@ -18,7 +18,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { ItemsGrid } from '@/components/library/gallery/items-grid'
 import type { DocCardMeta } from '@/lib/gallery/types'
 
-vi.mock('@/lib/i18n/hooks', () => ({
+vi.mock('@ks/i18n/react', () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) => {
       if (opts && 'year' in opts) return `${key}:${String(opts.year)}`

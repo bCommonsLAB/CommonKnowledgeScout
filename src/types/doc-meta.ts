@@ -1,4 +1,4 @@
-import type { Locale } from '@/lib/i18n';
+import type { Locale } from '@ks/i18n';
 
 export interface ChapterMetaEntry {
   index: number;

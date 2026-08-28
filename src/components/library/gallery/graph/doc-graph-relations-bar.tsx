@@ -15,7 +15,7 @@ import { useSetAtom } from 'jotai'
 import { Button, Badge, toast } from '@ks/ui'
 import { RefreshCw, AlertTriangle } from 'lucide-react'
 import { jobMonitorPanelOpenAtom } from '@/atoms/job-monitor-panel-open-atom'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 
 interface DocGraphRelationsBarProps {
   libraryId?: string

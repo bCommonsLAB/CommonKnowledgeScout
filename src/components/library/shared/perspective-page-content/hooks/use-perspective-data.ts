@@ -13,7 +13,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useStoryContext, saveStoryContextToLocalStorage } from '@/hooks/use-story-context'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import { useUser } from '@clerk/nextjs'
 import type { Character, SocialContext, TargetLanguage, AccessPerspective, LlmModelId } from '@/lib/chat/constants'
 import { TARGET_LANGUAGE_VALUES } from '@/lib/chat/constants'

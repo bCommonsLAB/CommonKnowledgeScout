@@ -21,7 +21,7 @@ import { Waypoints } from 'lucide-react'
 import { Button, useToast } from '@ks/ui'
 import { jobMonitorPanelOpenAtom } from '@/atoms/job-monitor-panel-open-atom'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 
 export interface RecomputeAllRelationsButtonProps {
   libraryId: string

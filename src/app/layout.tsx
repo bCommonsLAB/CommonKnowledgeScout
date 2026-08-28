@@ -36,8 +36,7 @@ import { Toaster } from "sonner"
 // bis eine Zusammenfuehrung ansteht.
 import { ClerkProvider } from "@clerk/nextjs"
 import { StorageContextProvider } from '@/contexts/storage-context'
-import { JotaiLocaleProvider } from '@/components/providers/jotai-locale-provider'
-import { LocaleGate } from '@/components/providers/locale-gate'
+import { JotaiLocaleProvider, LocaleGate } from '@ks/i18n/react'
 import { AppLayout } from "@/components/layouts/app-layout"
 import { HomeLayout } from "@/components/layouts/home-layout"
 import { getRootLandingTargetForHost } from "@/lib/root-landing"
@@ -45,7 +44,7 @@ import { ConditionalFooter } from "@/components/home/conditional-footer"
 import { AutoAcceptInvites } from "@/components/auth/auto-accept-invites"
 import { ViewerLoggerBridge } from "@/components/providers/viewer-logger-bridge"
 import { headers, cookies } from 'next/headers'
-import { getLocale, type Locale } from '@/lib/i18n'
+import { getLocale, type Locale } from '@ks/i18n'
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
 
 export const metadata = {

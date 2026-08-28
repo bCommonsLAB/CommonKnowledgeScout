@@ -38,7 +38,7 @@ import {
 } from '@/lib/repositories/vector-repo'
 import { isModeratorOrOwner } from '@/lib/repositories/library-members-repo'
 import { enqueueTranslationJobsForLocales } from '@/lib/external-jobs/enqueue-translations'
-import type { Locale } from '@/lib/i18n'
+import type { Locale } from '@ks/i18n'
 
 interface BulkPublishRequestBody {
   fileIds?: unknown

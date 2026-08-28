@@ -12,7 +12,7 @@ vi.mock('next/link', () => ({
   ),
 }))
 
-vi.mock('@/lib/i18n/hooks', () => ({
+vi.mock('@ks/i18n/react', () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string>) => {
       const translations: Record<string, string> = {

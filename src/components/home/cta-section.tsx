@@ -2,7 +2,7 @@
 
 import { Button, TooltipProvider } from '@ks/ui'
 import { Compass, Mail, Eye } from "lucide-react"
-import { useTranslation } from "@/lib/i18n/hooks"
+import { useTranslation } from "@ks/i18n/react"
 
 export function CTASection() {
   const { t } = useTranslation()

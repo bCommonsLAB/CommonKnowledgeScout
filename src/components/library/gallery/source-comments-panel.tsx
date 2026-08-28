@@ -3,7 +3,7 @@
 import React from 'react'
 import { Send, Info } from 'lucide-react'
 import { Button, Textarea } from '@ks/ui'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
 import { useSourceComments } from '@/hooks/gallery/use-source-comments'
 import { SourceCommentItem } from './source-comment-item'

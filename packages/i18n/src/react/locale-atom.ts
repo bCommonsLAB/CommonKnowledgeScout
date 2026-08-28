@@ -12,7 +12,7 @@
  */
 
 import { atom } from 'jotai'
-import { getLocale, DEFAULT_LOCALE, type Locale } from '@/lib/i18n'
+import { getLocale, DEFAULT_LOCALE, type Locale } from '../core'
 
 /**
  * Ermittelt die initiale Locale aus URL-Parametern, Cookie oder Browser-Sprache

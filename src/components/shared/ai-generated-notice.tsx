@@ -2,7 +2,7 @@
 
 import { Info, Bot } from "lucide-react"
 import Link from "next/link"
-import { useTranslation } from "@/lib/i18n/hooks"
+import { useTranslation } from "@ks/i18n/react"
 
 /**
  * Props für die KI-Info-Komponente

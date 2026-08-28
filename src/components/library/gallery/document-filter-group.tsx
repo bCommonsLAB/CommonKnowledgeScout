@@ -3,7 +3,7 @@
 import React from 'react'
 import { Button } from '@ks/ui'
 import { X } from 'lucide-react'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 
 export interface DocumentFilterGroupProps {
   /** Array von shortTitles, die gefiltert werden sollen */

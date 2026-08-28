@@ -15,7 +15,7 @@
 
 import React from 'react'
 import { Badge } from '@ks/ui'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 
 export interface PublishStatusBadgeProps {

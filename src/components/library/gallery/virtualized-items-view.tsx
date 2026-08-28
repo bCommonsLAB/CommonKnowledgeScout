@@ -4,7 +4,7 @@ import React, { useRef, useEffect } from 'react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { TableBody, TableCell, TableHead, TableHeader, TableRow, Table } from '@ks/ui'
 // Badge Import entfernt - wurde nicht verwendet
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { openDocumentBySlug } from '@/utils/document-navigation'
 import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'

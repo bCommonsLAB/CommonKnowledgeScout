@@ -34,7 +34,7 @@ import {
   normalizeCharacterToArray,
   type Character,
 } from '@/lib/chat/constants'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import type { Library } from '@/types/library'
 import { getDefaultFacets, getDefaultEmbeddings } from '@/lib/chat/config'
 import { normalizeGalleryCardDensity } from '@/lib/gallery/gallery-card-density'

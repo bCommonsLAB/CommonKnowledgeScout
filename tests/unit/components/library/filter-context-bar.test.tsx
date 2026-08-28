@@ -34,7 +34,7 @@ vi.mock('@/hooks/gallery/use-library-role', () => ({
   }),
 }))
 
-vi.mock('@/lib/i18n/hooks', () => ({
+vi.mock('@ks/i18n/react', () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) => {
       if (opts && 'defaultValue' in opts) return String(opts.defaultValue)

@@ -26,7 +26,7 @@ import {
   TARGET_LANGUAGE_VALUES,
   TARGET_LANGUAGE_DEFAULT,
 } from "@/lib/chat/constants";
-import { useTranslation } from "@/lib/i18n/hooks";
+import { useTranslation } from "@ks/i18n/react";
 
 interface PdfPhaseSettingsProps {
   open: boolean;

@@ -6,7 +6,7 @@ import Image from "next/image";
 import { ArrowLeft, Cpu, MemoryStick, HardDrive, MonitorSmartphone, Weight, Tag, Laptop, Image as ImageIcon } from "lucide-react";
 import { Badge } from '@ks/ui'
 import { AIGeneratedNotice } from "@/components/shared/ai-generated-notice";
-import { useTranslation } from "@/lib/i18n/hooks";
+import { useTranslation } from "@ks/i18n/react";
 
 /**
  * Datenstruktur fuer RefurbedDevice Detail-Ansicht.

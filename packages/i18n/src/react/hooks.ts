@@ -9,8 +9,8 @@
 
 import { useAtomValue, useSetAtom } from 'jotai'
 import { useMemo } from 'react'
-import { localeAtom } from '@/atoms/i18n-atom'
-import { t, type Locale } from './index'
+import { localeAtom } from './locale-atom'
+import { t, type Locale } from '../core'
 
 /**
  * Hook zum Abrufen der aktuellen Sprache und Übersetzungsfunktion
@@ -39,9 +39,22 @@ export function useTranslation() {
 }
 
 /**
- * Hook zum Setzen der Sprache
+ * Spiegelt eine BEREITS ERMITTELTE Sprache in den State — mehr nicht.
+ *
+ * Abgrenzung zu `useSetLocale()`: Dort waehlt der NUTZER eine Sprache, deshalb
+ * schreibt es zusaetzlich das Cookie und laedt die Seite neu. Hier ist die
+ * Sprache schon bekannt (aus URL, Cookie oder Browser) und wird nur in den
+ * State uebernommen. Die beiden zu verwechseln erzeugt eine Reload-Schleife.
+ */
+export function useApplyLocale() {
+  return useSetAtom(localeAtom)
+}
+
+/**
+ * Hook zum Setzen der Sprache durch den NUTZER.
  * 
- * Setzt sowohl Jotai State als auch Cookie
+ * Setzt Jotai State, Cookie — und laedt die Seite neu, damit die Sprache
+ * ueberall greift. Wer nur den State spiegeln will, nimmt `useApplyLocale()`.
  */
 export function useSetLocale() {
   const setLocaleAtom = useSetAtom(localeAtom)

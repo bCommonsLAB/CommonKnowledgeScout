@@ -14,7 +14,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, render, screen, fireEvent } from '@testing-library/react'
 import { ViewModeToggle } from '@/components/library/gallery/view-mode-toggle'
 
-vi.mock('@/lib/i18n/hooks', () => ({
+vi.mock('@ks/i18n/react', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
   }),

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { DivaTextureDetail, type DivaTextureDetailData } from "./diva-texture-detail";
-import { useTranslation } from "@/lib/i18n/hooks";
+import { useTranslation } from "@ks/i18n/react";
 import { mapToDivaTextureDetail } from "@/lib/mappers/doc-meta-mappers";
 
 interface IngestionDivaTextureDetailProps {

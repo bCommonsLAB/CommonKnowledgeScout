@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@ks/ui'
 import { Share2, Twitter, Linkedin, Facebook, Copy, Check } from 'lucide-react'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import { getEffectiveDocumentNavigationSlug } from '@/utils/document-slug'
 

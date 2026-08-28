@@ -3,7 +3,7 @@
 import React from 'react'
 import { ChevronDown, ChevronRight, MessageSquare } from 'lucide-react'
 import { Button } from '@ks/ui'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import { cn } from '@/lib/utils'
 
 export interface SourceCommentToggleButtonProps {

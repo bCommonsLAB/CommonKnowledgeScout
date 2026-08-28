@@ -24,7 +24,7 @@ import React from 'react'
 import Image from 'next/image'
 import { Cpu, MemoryStick, HardDrive } from 'lucide-react'
 import type { DocCardMeta } from '@/lib/gallery/types'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import { SourceStarsBadge } from '../source-stars-badge'
 import { SourceCommentsBadge } from '../source-comments-badge'
 

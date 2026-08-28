@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { loadLibraryChatContext } from '@/lib/chat/loader'
-import { getLocale } from '@/lib/i18n'
+import { getLocale } from '@ks/i18n'
 import { explorerGate } from '@ks/module-explorer'
 
 export async function GET(

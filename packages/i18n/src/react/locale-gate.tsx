@@ -2,8 +2,8 @@
 
 import { useLayoutEffect, useState } from 'react'
 import { useAtomValue, useSetAtom } from 'jotai'
-import { localeAtom } from '@/atoms/i18n-atom'
-import { getLocale, type Locale } from '@/lib/i18n'
+import { localeAtom } from './locale-atom'
+import { getLocale, type Locale } from '../core'
 
 interface LocaleGateProps {
 	children: React.ReactNode

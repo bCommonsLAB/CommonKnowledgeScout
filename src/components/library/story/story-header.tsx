@@ -2,7 +2,7 @@
 
 import { Button } from '@ks/ui'
 import { Settings2, ChevronLeft } from 'lucide-react'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { PerspectiveDisplay } from '@/components/library/shared/perspective-display'
 import { useAtomValue } from 'jotai'

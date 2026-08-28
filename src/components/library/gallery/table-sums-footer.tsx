@@ -10,7 +10,7 @@
  * NICHT als 0 in die Summe eingeflossen (no-silent-fallbacks).
  */
 
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import type { GallerySumsState } from '@/hooks/gallery/use-gallery-sums'
 import { OverlapReportDialog } from './overlap-report-dialog'
 

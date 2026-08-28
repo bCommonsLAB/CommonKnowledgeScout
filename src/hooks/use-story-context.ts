@@ -39,7 +39,7 @@ import {
   storyAccessPerspectiveAtom,
   storyLlmModelAtom,
 } from '@/atoms/story-context-atom'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 
 const STORAGE_KEY_PREFIX = 'story-context-'
 

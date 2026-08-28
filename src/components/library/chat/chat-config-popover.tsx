@@ -17,7 +17,7 @@ import {
   RETRIEVER_VALUES,
   RETRIEVER_LABELS,
 } from '@/lib/chat/constants'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 
 interface ChatConfigPopoverProps {
   open: boolean

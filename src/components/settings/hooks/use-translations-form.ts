@@ -15,8 +15,8 @@ import { useState, useEffect } from 'react'
 import { useAtom } from 'jotai'
 import { activeLibraryIdAtom, librariesAtom } from '@/atoms/library-atom'
 import { toast } from '@ks/ui'
-import { useTranslation } from '@/lib/i18n/hooks'
-import { SUPPORTED_LOCALES, type Locale, DEFAULT_LOCALE } from '@/lib/i18n'
+import { useTranslation } from '@ks/i18n/react'
+import { SUPPORTED_LOCALES, type Locale, DEFAULT_LOCALE } from '@ks/i18n'
 import type { TranslationsConfig } from '@/types/library'
 
 interface UseTranslationsFormReturn {

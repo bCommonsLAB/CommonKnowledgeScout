@@ -17,7 +17,7 @@
  * @module i18n
  */
 
-import type { Locale } from '@/lib/i18n'
+import type { Locale } from '@ks/i18n'
 import type {
   DocTranslationsMeta,
   GalleryTranslatedFields,

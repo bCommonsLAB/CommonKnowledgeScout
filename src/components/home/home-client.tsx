@@ -6,9 +6,8 @@ import { LibraryGrid } from "@/components/home/library-grid"
 import { HowItWorks } from "@/components/home/how-it-works"
 import { PhilosophySection } from "@/components/home/philosophy-section"
 import { CTASection } from "@/components/home/cta-section"
-import { useSetAtom } from "jotai"
-import { localeAtom } from "@/atoms/i18n-atom"
-import { getLocale, type Locale } from "@/lib/i18n"
+import { useApplyLocale } from "@ks/i18n/react"
+import { getLocale, type Locale } from "@ks/i18n"
 
 /**
  * Client-only Home Wrapper
@@ -18,7 +17,7 @@ import { getLocale, type Locale } from "@/lib/i18n"
  * Hydration-Mismatch auf der Homepage.
  */
 export function HomeClient() {
-  const setLocale = useSetAtom(localeAtom)
+  const setLocale = useApplyLocale()
   const [ready, setReady] = useState(false)
 
   // Locale synchron vor dem ersten Paint bestimmen und setzen

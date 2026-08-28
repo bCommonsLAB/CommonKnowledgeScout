@@ -11,7 +11,7 @@
 
 import { Button, Card, CardContent, Tabs, TabsList, TabsTrigger, Separator } from '@ks/ui'
 import { ArrowLeft, Sparkles, X } from 'lucide-react'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 
 interface PerspectiveHeaderProps {
   library: { id: string; label: string } | null

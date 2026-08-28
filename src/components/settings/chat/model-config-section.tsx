@@ -29,7 +29,7 @@ import {
   SOCIAL_CONTEXT_DEFAULT,
   SOCIAL_CONTEXT_VALUES,
 } from '@/lib/chat/constants'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import { useStoryContext } from '@/hooks/use-story-context'
 import type { UseFormReturn } from "react-hook-form"
 import type { chatFormSchema } from "./hooks/use-chat-form"

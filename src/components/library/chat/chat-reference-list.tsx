@@ -19,7 +19,7 @@ import { ViewTypeBadge } from '@/components/library/view-type-badge'
 import type { ChatResponse } from '@/types/chat-response'
 import type { QueryLog } from '@/types/query-log'
 import { useSessionHeaders } from '@/hooks/use-session-headers'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import {
   getSourceTypeLabel,
   groupReferencesByFileId,

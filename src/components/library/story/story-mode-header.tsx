@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import { useAtomValue } from 'jotai'
 import { StoryHeader } from './story-header'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import { useScrollVisibility } from '@/hooks/use-scroll-visibility'
 import { librariesAtom } from '@/atoms/library-atom'
 

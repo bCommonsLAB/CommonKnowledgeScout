@@ -14,7 +14,7 @@
 import React, { useState } from 'react'
 import { Globe2, RefreshCw, Send } from 'lucide-react'
 import { Button, useToast } from '@ks/ui'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 
 export interface PublishDocumentButtonProps {

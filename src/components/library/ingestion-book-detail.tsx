@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { BookDetail, type BookDetailData } from "./book-detail";
-import { useTranslation } from "@/lib/i18n/hooks";
+import { useTranslation } from "@ks/i18n/react";
 import { mapToBookDetail } from "@/lib/mappers/doc-meta-mappers";
 import { localizeDocMetaJson } from "@/lib/i18n/get-localized";
 

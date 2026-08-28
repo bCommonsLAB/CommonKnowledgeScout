@@ -16,7 +16,7 @@ import { ArrowRight, BookOpen, Presentation, AlertCircle, RefreshCw, Loader2 } f
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import * as LucideIcons from "lucide-react"
-import { useTranslation } from "@/lib/i18n/hooks"
+import { useTranslation } from "@ks/i18n/react"
 import type { Character, SocialContext, TargetLanguage } from '@/lib/chat/constants'
 
 interface PublicLibrary {

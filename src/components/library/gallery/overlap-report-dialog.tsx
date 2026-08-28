@@ -26,7 +26,7 @@ import {
   DialogTitle,
   toast,
 } from '@ks/ui'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import { md } from '@ks/viewers'
 
 interface LatestReport {

@@ -26,8 +26,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@ks/ui'
-import { useTranslation } from '@/lib/i18n/hooks'
-import { SUPPORTED_LOCALES, type Locale } from '@/lib/i18n'
+import { useTranslation } from '@ks/i18n/react'
+import { SUPPORTED_LOCALES, type Locale } from '@ks/i18n'
 import { useTranslationsForm } from '@/components/settings/hooks/use-translations-form'
 
 /** Menschenlesbare Locale-Labels (kein zusaetzlicher i18n-Roundtrip noetig) */

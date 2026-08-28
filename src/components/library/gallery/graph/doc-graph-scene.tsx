@@ -12,7 +12,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { Maximize2, Minimize2, Focus } from 'lucide-react'
 import { Button } from '@ks/ui'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import type { DocCardMeta } from '@/lib/gallery/types'
 import type { GraphData, GraphNode } from './graph-types'
 import { endpointId } from './graph-types'

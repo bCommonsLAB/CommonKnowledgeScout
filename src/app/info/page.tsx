@@ -6,7 +6,7 @@ import { Button } from '@ks/ui'
 import { ArrowLeft } from "lucide-react"
 import { MarkdownPreview } from "@/components/library/markdown-preview"
 import { useEffect, useState } from "react"
-import { useTranslation } from "@/lib/i18n/hooks"
+import { useTranslation } from "@ks/i18n/react"
 import { useSearchParams } from "next/navigation"
 
 const MARKDOWN_FILES: Record<string, string> = {

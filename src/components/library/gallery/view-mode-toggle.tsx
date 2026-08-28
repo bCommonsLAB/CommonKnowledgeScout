@@ -3,7 +3,7 @@
 import React from 'react'
 import { Button } from '@ks/ui'
 import { Grid3x3, Table2, Network } from 'lucide-react'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslation } from '@ks/i18n/react'
 import { cn } from '@/lib/utils'
 import type { ViewMode } from './gallery-sticky-header'
 
