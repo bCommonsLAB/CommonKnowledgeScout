@@ -403,7 +403,11 @@ importers:
         specifier: ^18.2.0
         version: 18.2.0
 
-  packages/contracts: {}
+  packages/contracts:
+    dependencies:
+      '@ks/i18n':
+        specifier: workspace:*
+        version: link:../i18n
 
   packages/i18n:
     dependencies:

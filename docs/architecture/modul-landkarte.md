@@ -21,7 +21,7 @@ Namenskonvention: Workspace-intern `@ks/*`; bei späterer Veröffentlichung
 
 | Paket | Inhalt | Heutige Quellen (Auszug) |
 |---|---|---|
-| `@ks/contracts` | Types, DTOs, SiteConfig-Schema, Detail-View-Registry-Typen | `src/types/`, `src/lib/storage/types.ts`, `src/lib/detail-view-types/` |
+| `@ks/contracts` | Types, DTOs, SiteConfig-Schema, Detail-View-Registry-Typen | `src/types/`, `src/lib/storage/types.ts`, `src/lib/detail-view-types/`<br>**M4d erledigt**: Chat-Vokabular (vier String-Unions + `SOCIAL_CONTEXT_VALUES`) und der Library-Steckbrief in ZWEI Zuschnitten — `LibraryProfile` (kurz, oeffentliche Projektion) und `ClientLibrary` (voll). `LibraryIdentityDto` aus M2 ist damit abgeloest, nicht dupliziert. `src/types/library.ts` behaelt nur noch, was der Server kennt (`StorageConfig`, `Library`, `FileListItem`, `FilePreview`) und re-exportiert den Rest als Fassade. Paket haengt seither an `@ks/i18n` (nur `import type Locale`) |
 | `@ks/ui` | shadcn-Basis, Icons, Theme | `src/components/ui/`, `src/components/theme-provider.tsx`, `src/components/icons.tsx`<br>**M4b erledigt**: 39 shadcn-Dateien + `cn`. `theme-provider` liegt seit M3 in `@ks/shell/providers` (Provider-Kette); `icons.tsx` hat null Importeure und bleibt als Löschkandidat liegen; `llm-model-selector` ist kein Primitive und ging nach `src/components/shared/` |
 | `@ks/viewers` | Markdown-Viewer, PDF-Viewer, Audio-Player, Image-Preview | `src/components/library/markdown-preview/`, `src/lib/markdown/`, `src/lib/pdf/`, `src/components/library/audio-player.tsx`, `src/components/library/image-preview.tsx` |
 | `@ks/api-client` | typisierter Fetch-Client + TanStack-Query-Hooks für Core- und Modul-APIs, BaseURL/Token aus SiteConfig | heute verstreute `fetch`-Aufrufe in Komponenten/Hooks |
@@ -255,7 +255,7 @@ Strang und beginnt mit M1.
 | A | M1 | `pnpm-workspace.yaml` + `transpilePackages` + `@ks/viewers` (Start: Markdown-Viewer) | Workspace-Build, Voll-App unverändert |
 | A | M2 | `@ks/contracts` + `@ks/api-client` (zunächst Core-API) | ein Modul konsumiert den Client statt roher `fetch`es |
 | A | M3 | `@ks/shell` (Provider, TopNav, Bootstrap) + Host→SiteConfig-Resolver | Voll-App läuft als Default-Site der Registry |
-| A | M4 | `@ks/module-explorer` als **montierbare Wurzelkomponente** (ADR 0008 §4) inkl. Handler-Export + SiteConfig-Gate<br>**Stand**: Gate + API-Namensraum erledigt; Wurzelkomponente offen (braucht `@ks/ui`/`@ks/i18n` — Welle M4b) | Voll-App mountet Explorer aus dem Paket |
+| A | M4 | `@ks/module-explorer` als **montierbare Wurzelkomponente** (ADR 0008 §4) inkl. Handler-Export + SiteConfig-Gate<br>**Stand**: Gate + API-Namensraum erledigt; Wurzelkomponente offen. Fundament steht: `@ks/ui` (M4b), `@ks/i18n` (M4c), `ClientLibrary` in `@ks/contracts` (M4d) | Voll-App mountet Explorer aus dem Paket |
 | B | M5 | **AECED-Pilot**: `@ks/embed` (npm-React-Komponente) + Headless-Lese-API mit Token auf der bestehenden Instanz | Galerie/Story in der Fremdanwendung, KEIN neues Deployment |
 | B | M6 | „Oldies for Future" als erster SiteConfig-Eintrag der Multi-Site-Runtime | schlanker Client (nur Explorer-Chunks) ohne zweites Deployment |
 | B | M7 | `@ks/module-agent-view` inkl. MCP-Export; Electron-Hülle auf Paketbasis (Peters Archiv, Diva-Werkbank) | zweites Modul + `local-first`-Hülle |
@@ -272,8 +272,11 @@ läuft (Kriterien in der Migrationsstrategie).
   Richtung nicht nur festgehalten, sondern einmal durchgezogen — das Muster für
   jedes weitere Paket. Nachtrag zu M3: Die Locale-Provider gehören ins
   i18n-Paket, NICHT in die Schale; läge `LocaleGate` in `@ks/shell`, müsste das
-  Atom doch exportiert werden. Weitere Atome bleiben vorerst in der App:
-  `library-atom` hängt an `ClientLibrary` (`src/types/library.ts`, 824 Zeilen).
+  Atom doch exportiert werden. ~~Weitere Atome bleiben vorerst in der App:
+  `library-atom` hängt an `ClientLibrary`~~ — **der Grund ist mit M4d weg**:
+  `ClientLibrary` liegt in `@ks/contracts`, `library-atom` ist damit nicht mehr
+  an die App gebunden. Die Frage, ob es als Hook-Oberfläche in die Schale geht,
+  ist jetzt entscheidbar (nächste Welle).
 - ~~**`storage-context` / `use-storage-provider`**~~ — **entschieden in M3**:
   gehört NICHT in die Schale. Der Kontext hängt an `StorageFactory`,
   Clerk-Hooks und einem Reauth-Dialog; er ist die Zugriffsschicht des Archivs,

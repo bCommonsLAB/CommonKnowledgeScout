@@ -17,47 +17,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import * as LucideIcons from "lucide-react"
 import { useTranslation } from "@ks/i18n/react"
-import type { Character, SocialContext, TargetLanguage } from '@/lib/chat/constants'
-
-interface PublicLibrary {
-  id: string
-  label: string
-  slugName: string
-  description: string
-  icon?: string
-  backgroundImageUrl?: string
-  requiresAuth?: boolean
-  detailViewType?: 'book' | 'session'
-  // Vollständige Chat-Config (optional, für zukünftige Nutzung)
-  chat?: {
-    gallery?: {
-      detailViewType?: 'book' | 'session'
-      facets?: Array<{
-        metaKey: string
-        label?: string
-        type?: 'string' | 'number' | 'boolean' | 'string[]' | 'date' | 'integer-range'
-        multi?: boolean
-        visible?: boolean
-        buckets?: Array<{ label: string; min: number; max: number }>
-      }>
-    }
-    placeholder?: string
-    maxChars?: number
-    maxCharsWarningMessage?: string
-    footerText?: string
-    companyLink?: string
-    targetLanguage?: TargetLanguage
-    character?: Character[] // Array (kann leer sein)
-    socialContext?: SocialContext
-    genderInclusive?: boolean
-    userPreferences?: {
-      targetLanguage?: TargetLanguage
-      character?: Character[] // Array (kann leer sein)
-      socialContext?: SocialContext
-      genderInclusive?: boolean
-    }
-  }
-}
+import type { LibraryProfile } from '@ks/contracts'
 
 // Icon-Farben für verschiedene Libraries
 const ICON_COLORS = [
@@ -71,7 +31,7 @@ export function LibraryGrid() {
   const router = useRouter()
   const { t } = useTranslation()
   const { toast } = useToast()
-  const [libraries, setLibraries] = useState<PublicLibrary[]>([])
+  const [libraries, setLibraries] = useState<LibraryProfile[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -123,7 +83,7 @@ export function LibraryGrid() {
   }, [])
 
   // Icon-Komponente basierend auf Library-Typ oder explizitem Icon
-  function getIconComponent(library: PublicLibrary) {
+  function getIconComponent(library: LibraryProfile) {
     // Wenn ein explizites Icon gesetzt ist, hat dies Priorität
     if (library.icon) {
       const IconComponent = (LucideIcons as Record<string, unknown>)[library.icon] as React.ComponentType<{ className?: string }> | undefined

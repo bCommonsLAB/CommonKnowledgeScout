@@ -13,7 +13,6 @@
  * - LibraryChatConfig: Chat/RAG configuration per library
  * - StorageConfig: Storage provider configuration
  * - Library: Complete library type with all configurations
- * - ClientLibrary: Client-side library type
  * - PublicLibraryConfig: Public publishing configuration
  * 
  * @usedIn
@@ -24,13 +23,32 @@
  * - src/app/api/libraries: Library API routes use these types
  * 
  * @dependencies
- * - @/lib/chat/constants: Character and SocialContext types
+ * - @ks/contracts: Steckbrief (ClientLibrary, LibraryProfile) und dessen Bausteine
+ * - Keine React-Abhaengigkeit: Diese Datei muss serverseitig ladbar bleiben
  */
 
-import { ReactNode } from 'react';
-import type { Character, AccessPerspective, TargetLanguage } from '@/lib/chat/constants';
-import type { SocialContext } from '@/lib/chat/constants';
-import type { Locale } from '@ks/i18n';
+// Der Steckbrief einer Library liegt seit Welle M4d in @ks/contracts — kurz
+// (LibraryProfile) und voll (ClientLibrary). Hier bleibt, was nur der Server
+// kennt: StorageConfig mit den echten Zugangsdaten und der Library-Typ darum.
+import type {
+  StorageProviderType,
+  TranslationsConfig,
+  CaptureWizardsConfig,
+  LibraryChatConfig,
+} from '@ks/contracts';
+
+// Re-Export als G2-Fassade, damit die bestehenden Importeure von
+// '@/types/library' unveraendert bleiben.
+export type {
+  StorageProviderType,
+  TranslationsConfig,
+  CaptureWizardRef,
+  CaptureWizardsConfig,
+  GalleryGraphConfig,
+  LibraryChatConfig,
+  ClientLibrary,
+  LibraryProfile,
+} from '@ks/contracts';
 
 /**
  * Ein einzelner Favoriten-Eintrag (Ordner-Lesezeichen innerhalb einer Library).
@@ -45,226 +63,6 @@ export interface FavoriteEntry {
   path?: string[];
   /** ISO-Zeitstempel des Hinzufuegens */
   addedAt: string;
-}
-
-/**
- * Supported storage provider types.
- * Each type represents a different storage backend implementation.
- */
-export type StorageProviderType = 'local' | 'onedrive' | 'gdrive' | 'nextcloud' | 'inbox';
-// 'inbox' ist ein INTERNER, nur serverseitig konstruierter Provider (ADR-0004 II):
-// duenner, content-adressierter Blob-Bereich fuer die Quarantaene. Er ist KEIN vom
-// User waehlbarer Library-Typ — bewusst NICHT in den Settings-Formularen gelistet.
-
-/**
- * Konfiguration fuer Dokumenten-Uebersetzungen pro Library.
- *
- * - `targetLocales`: Liste der Sprachen, in die publizierte Dokumente uebersetzt werden sollen
- *   (Subset von `SUPPORTED_LOCALES`).
- * - `fallbackLocale`: Sprache, die im UI verwendet wird, wenn der Benutzer eine Locale waehlt,
- *   die nicht in `targetLocales` enthalten ist (z.B. weil noch keine Uebersetzung existiert).
- * - `autoTranslateOnPublish`: Wenn `true`, startet das Publish eines Dokuments automatisch
- *   parallele Uebersetzungsjobs fuer alle `targetLocales`.
- */
-export interface TranslationsConfig {
-  /** Zielsprachen fuer die Backend-Uebersetzungsjobs (Default: leer = keine automatische Uebersetzung) */
-  targetLocales?: Locale[];
-  /** Fallback-Locale, wenn die UI-Locale nicht in `targetLocales` ist (Default: 'en') */
-  fallbackLocale?: Locale;
-  /** Beim Publish automatisch alle Locales generieren (Default: true, sobald `targetLocales` gesetzt) */
-  autoTranslateOnPublish?: boolean;
-}
-
-/**
- * Generische Graph-Modus-Konfiguration pro Library
- * (Zielbild §8: `config.chat.gallery.graph`).
- *
- * Macht den Beziehungs-/Metadaten-Graphen GENERISCH: Knoten-Encodings
- * (Größe/Farbe/Deckkraft) und Kantenquellen sind reine Feldnamen-Verweise auf
- * `DocCardMeta`-Schlüssel — der Graph kennt keine Klima-Felder. Die Klima-
- * Belegung (co2_einsparung_kt=Größe, dominant_perspektive=Farbe,
- * durchsetzbarkeit=Deckkraft) ist nur die Konfiguration EINER Library.
- *
- * Flach im Sinne der Frontmatter-Regel ist hier NICHT gefordert: Dies ist
- * Library-Config (MongoDB, downstream), kein Template-Frontmatter.
- */
-export interface GalleryGraphConfig {
-  /** Graph-Modus als dritter ViewMode (`grid|table|graph`) aktivieren. */
-  enabled?: boolean;
-  /** Vorausgewählte Kantenquelle. */
-  defaultEdgeSource?: 'relations' | 'sharedMeta' | 'similarity';
-  /** Numerischer meta-Key → Knotengröße (z.B. `co2_einsparung_kt`). */
-  sizeField?: string;
-  /** `0..1` meta-Key → Knoten-Deckkraft (z.B. `durchsetzbarkeit`). */
-  opacityField?: string;
-  /** Kategorischer meta-Key → Knoten-Farbe (z.B. `dominant_perspektive`). */
-  colorField?: string;
-  /** Wert → Farbe (Hex/CSS) für `colorField`. */
-  colorMap?: Record<string, string>;
-  /** Anzeige-Begrenzung: max. Kanten pro Knoten (Hairball-Schutz). */
-  maxEdgesPerNode?: number;
-  /** Anzeige-Begrenzung: max. Kanten gesamt. */
-  maxEdgesTotal?: number;
-  /** Mindest-Gewicht, ab dem eine Kante gezeigt wird (`0..1`). */
-  minWeight?: number;
-  /** Umschaltbare Kantenquellen (Zielbild §5). */
-  edgeSources?: {
-    /** Quelle A — berechnete Beziehungen (LLM), ab Welle 4. */
-    relations?: { enabled?: boolean; relationType?: string; relationPrompt?: string };
-    /** Quelle B — gemeinsame Metadaten (Obsidian-Stil), ab Welle 2. */
-    sharedMeta?: {
-      enabled?: boolean;
-      /** Meta-Felder, über die sich Dokumente verbinden (z.B. `category`, `tags`). */
-      fields?: string[];
-      /** `hub` = bipartite Tag-Hubs, `projection` = Dokument↔Dokument. */
-      mode?: 'hub' | 'projection';
-      /** Projektion: Mindestanzahl geteilter Werte für eine Kante. */
-      minShared?: number;
-    };
-    /** Quelle C — Embedding-Ähnlichkeit, ab Welle 3. */
-    similarity?: { enabled?: boolean; topK?: number };
-  };
-}
-
-/**
- * Chat/RAG-spezifische Konfiguration pro Library.
- * UI-Parameter, Feature-Flags und optionale Modell-/Store-Overrides.
- * Der Vektor-Index leitet sich standardmäßig aus dem Library-Namen ab,
- * sofern kein expliziter Override gesetzt ist.
- */
-export interface LibraryChatConfig {
-  /** Platzhalter im Eingabefeld */
-  placeholder?: string;
-
-  /** Maximale Eingabelänge */
-  maxChars?: number;
-
-  /** Hinweistext bei Überschreitung der Eingabelänge */
-  maxCharsWarningMessage?: string;
-
-  /** Footer-Text unterhalb des Chats */
-  footerText?: string;
-
-  /** Link im Footer (z. B. Firmen-/Projektlink) */
-  companyLink?: string;
-
-  /** Modell-Overrides; Standardwerte über ENV konfigurierbar */
-  models?: {
-    chat?: string;
-    embeddings?: string;
-    temperature?: number;
-  };
-
-  /** Embedding-Provider-Konfiguration (Secretary Service RAG API) */
-  embeddings?: {
-    /** Embedding-Modell (z.B. 'voyage-3-large', 'text-embedding-3-large') */
-    embeddingModel?: string;
-    /** Chunk-Größe in Zeichen (Standard: 1000) */
-    chunkSize?: number;
-    /** Chunk-Overlap in Zeichen (Standard: 200) */
-    chunkOverlap?: number;
-    /** Embedding-Dimension (Standard: 2048 für voyage-3-large, 3072 für text-embedding-3-large) */
-    dimensions?: number;
-  };
-
-  /** Vektor-Store-Overrides; Index = Libraryname, außer es wird überschrieben */
-  vectorStore?: {
-    /** MongoDB Collection-Name (wird automatisch gesetzt bei Migration) */
-    collectionName?: string;
-  };
-
-  /** Zielsprache für Chat-Antworten */
-  targetLanguage?: TargetLanguage;
-
-  /** Charakter/Profil für die Antwort-Perspektive (Array mit max. 3 Werten, kann leer sein) */
-  character?: Character[];
-
-  /** Zugangsperspektive (Array mit max. 3 Werten, kann leer sein) */
-  accessPerspective?: AccessPerspective[];
-
-  /** Sozialer Kontext/Sprachebene */
-  socialContext?: SocialContext;
-
-  /** Gendergerechte Formulierung aktivieren/deaktivieren */
-  genderInclusive?: boolean;
-
-  /** Benutzer-Präferenzen für Chat-Einstellungen (werden beim Start gespeichert) */
-  userPreferences?: {
-    targetLanguage?: TargetLanguage;
-    /** Charakter/Profil für die Antwort-Perspektive (Array mit max. 3 Werten, kann leer sein) */
-    character?: Character[];
-    /** Zugangsperspektive (Array mit max. 3 Werten, kann leer sein) */
-    accessPerspective?: AccessPerspective[];
-    socialContext?: SocialContext;
-    genderInclusive?: boolean;
-  };
-
-  /** Gallery-Konfiguration für die Wissensgalerie */
-  gallery?: {
-    /** Typ der Detailansicht für verschiedene Dokumenttypen */
-    detailViewType?: 'book' | 'session' | 'climateAction' | 'testimonial' | 'blog' | 'divaDocument' | 'divaTexture' | 'refurbedDevice' | 'website';
-    /**
-     * Anzeige: Generisches SDG-Profil (SDG-Rad, 17 Nachhaltigkeitsziele) in der
-     * Detailansicht. Wenn true, wird das Rad gerendert, sofern die Felder
-     * `sdg_1..sdg_17` (+ optional `sdg_begruendung`) in `docMetaJson` vorhanden
-     * sind. Library-/Story-uebergreifend nutzbar. Default: false.
-     */
-    showSdgProfile?: boolean;
-    /**
-     * Raster der Karten in der Grid-Ansicht: kompakt (mehr Spalten) vs. komfortabel (weniger, größere Kacheln).
-     * Default in der App: comfortable, wenn nicht gesetzt.
-     */
-    galleryCardDensity?: 'compact' | 'comfortable';
-    /** Gruppierungsfeld für die Galerie-Ansicht: 'none', 'year', oder ein Facetten-Key (z.B. 'category') */
-    groupByField?: string;
-    /**
-     * Default-Sortierfeld der Galerie-Liste (innerhalb der Gruppen bzw. der
-     * flachen Liste): 'upsertedAt' (Standard, zuletzt aktualisiert) oder ein
-     * Facetten-Key (z.B. 'date'). Sortiert wird auf `docMetaJson.<feld>`.
-     */
-    defaultSortField?: string;
-    /** Richtung der Default-Sortierung. Default: 'desc'. */
-    defaultSortDirection?: 'asc' | 'desc';
-    /** Facetten-Definitionen für Filter */
-    facets?: Array<{
-      metaKey: string;
-      label?: string;
-      type?: 'string' | 'number' | 'boolean' | 'string[]' | 'date' | 'integer-range';
-      multi?: boolean;
-      visible?: boolean;
-      buckets?: Array<{ label: string; min: number; max: number }>;
-    }>;
-    /**
-     * Generische Graph-Modus-Konfiguration (Zielbild §8). Liegt unter
-     * `chat.gallery`, damit sie neben `detailViewType`/`facets` editierbar ist.
-     */
-    graph?: GalleryGraphConfig;
-  };
-
-  }
-
-/**
- * Ein kuratierter Wizard-Eintrag (Plan 2 · W-B/W-C, Δ2): Flow + optional festes
- * Schema. Steht hier (Types-Heimat); die Auswahl-Engine importiert von hier.
- */
-export interface CaptureWizardRef {
-  /** Referenz auf den Flow (Flow-Entitaet bzw. Creation-Typ-`id`/`templateId`). */
-  flowId: string;
-  /** Optional fest gebundenes Schema (sonst Laufzeit-Wahl via selectSchemaType). */
-  schemaRef?: string;
-  /** Optionaler Anzeigename (ueberschreibt den abgeleiteten). */
-  label?: string;
-  /** Optionales Icon (ueberschreibt das abgeleitete). */
-  icon?: string;
-  /** Nur aktivierte Eintraege erscheinen. */
-  enabled: boolean;
-}
-
-/** Per-Library-Kuratierung der „Inhalte erfassen"-Wizards (W-C, Δ2). */
-export interface CaptureWizardsConfig {
-  wizards: CaptureWizardRef[];
-  /** `flowId`, der zuerst/als Default erscheint (falls aufloesbar). */
-  defaultFlowId?: string;
 }
 
 /**
@@ -565,8 +363,8 @@ export interface Library {
   /** Base path for local filesystem providers */
   path: string;
   
-  /** Optional icon component for UI representation */
-  icon?: ReactNode;
+  /** Optionaler Lucide-Icon-Name (z. B. 'Globe'), aufgeloest von der aufrufenden UI */
+  icon?: string;
   
   /** Type of storage provider used */
   type: StorageProviderType;
@@ -585,185 +383,6 @@ export interface Library {
 
   /** Favorisierte Ordner (Lesezeichen) – in MongoDB persistiert */
   favorites?: FavoriteEntry[];
-}
-
-/**
- * Client-side library representation.
- * Excludes sensitive configuration data for security.
- */
-export interface ClientLibrary {
-  /** Unique identifier matching server-side library */
-  id: string;
-  
-  /** Display name shown in the UI */
-  label: string;
-  
-  /** Type of storage provider used */
-  type: StorageProviderType;
-  
-  /** Base path for local filesystem providers */
-  path: string;
-  
-  /** Whether the library is currently active */
-  isEnabled: boolean;
-  
-  /** Safe configuration data */
-  config: {
-    /** Secretary Service Konfiguration */
-    secretaryService?: {
-      /** Benutzerdefinierte Verbindung aktiv (Standard: false → ENV-Defaults) */
-      useCustomConfig?: boolean;
-
-      /** API-URL des Secretary Service */
-      apiUrl: string;
-      
-      /** API-Key für die Authentifizierung */
-      apiKey: string;
-
-      // === Phase 1: Transkription ===
-      /** Standard-Extraktionsmethode für PDF → Text (Default: mistral_ocr) */
-      pdfExtractionMethod?: 'mistral_ocr' | 'native' | 'ocr' | 'both' | 'preview' | 'preview_and_native' | 'llm' | 'llm_and_ocr';
-
-      // === Phase 2: Transformation ===
-      /** Standard-Template für strukturierte Ausgabe (ohne .md) */
-      template?: string;
-      /** Standard-LLM-Modell für Template-Transformation */
-      llmModel?: string;
-      /** Standard-Zielsprache für Transformation */
-      targetLanguage?: 'de' | 'en';
-      /** Automatisch Cover-Bild bei Transformation generieren */
-      generateCoverImage?: boolean;
-      /** Standard-Prompt für Cover-Bild-Generierung */
-      coverImagePrompt?: string;
-
-      // === Verbindungsmodus ===
-      /** Desktop-Modus: Ergebnisse aktiv abholen statt per Webhook. Nur relevant bei useCustomConfig=true. */
-      useDirectConnection?: boolean;
-    };
-    /** Azure Ingestion Storage — Pflege unter Story → Binary Storage */
-    ingestionStorage?: {
-      useCustomConfig?: boolean;
-      connectionString?: string;
-      containerName?: string;
-    };
-    /** Chat-/RAG-Konfiguration für die UI */
-    chat?: LibraryChatConfig;
-    /** Transformation: DIVA-Liefersystem-Daten auswerten (DIVA-Info-Tab). Default false. */
-    analyzeDivaTextureInfo?: boolean;
-    /** Ausschluss-Muster fuer Storage-Scans (Welle 0b). */
-    scanExcludeGlobs?: string[];
-    /** E1: Bekannte Namen fuer die Extraktion (kein Secret). */
-    extractionKnownNames?: string[];
-    /** Agentensicht-Konventionen (Welle 1/3) — kein Secret, siehe StorageConfig.agentView. */
-    agentView?: {
-      enabled?: boolean;
-      vorhabenFolderPattern?: string;
-      indexRequiredMaxDepth?: number;
-      berichtFreshness?: boolean;
-      localRootPath?: string;
-      /** A6: kuratiertes Themen-Vokabular (Dropdown des Themen-Editors). */
-      themen?: string[];
-    };
-    /** Plan 2 · W-C: Kuratierung der „Inhalte erfassen"-Wizards (kein Secret). */
-    captureWizards?: CaptureWizardsConfig;
-    /**
-     * Schwellwert fuer Auto-Uebernahme bei Stoffgruppen-Klassifikation (Stufe 4).
-     * Bereich [0, 1], Default 0.9.
-     */
-    autoApplyConfidenceThreshold?: number;
-
-    /** Defaults fuer das DIVA-Toolbar-Popover in der Archiv-Dateiliste. */
-    divaArchiveDefaults?: {
-      filterMode?: 'all' | 'with' | 'without';
-      groupByAttribute?: string | null;
-      extraColumns?: string[];
-    };
-    /** Doc-Translations-Konfiguration (clientseitig sichtbar, weil reine Sprach-Praeferenzen) */
-    translations?: TranslationsConfig;
-    /** Creation-Flow-Konfiguration für die UI */
-    creation?: {
-      types?: Array<{
-        id: string;
-        label: string;
-        description: string;
-        templateId: string;
-        icon?: string;
-      }>;
-    };
-    /** Public-Publishing-Daten (ohne API-Key) */
-    publicPublishing?: {
-      slugName: string;
-      publicName: string;
-      description: string;
-      icon?: string;
-      isPublic: boolean;
-      /** Siehe serverseitiges Feld `publicPublishing.showOnHomepage` (fehlend => true) */
-      showOnHomepage?: boolean;
-      /** Zugriff nur nach Freigabe/Einladung erforderlich */
-      requiresAuth?: boolean;
-      /** URL für Hintergrundbild auf der Homepage */
-      backgroundImageUrl?: string;
-      /** Logo-URL der Website-Landingpage (siehe serverseitiges Feld, Phase C2) */
-      logoUrl?: string;
-      /** Maskierter API-Key (erste 6 und letzte 4 Zeichen sichtbar, z.B. "sk-proj....................abcd") */
-      apiKey?: string;
-      /** Gallery-spezifische Texte für die öffentliche Ansicht */
-      gallery?: {
-        /** Große Überschrift für die Gallery-Ansicht */
-        headline?: string;
-        /** Untertitel unter der Überschrift */
-        subtitle?: string;
-        /** Beschreibungstext unter der Überschrift */
-        description?: string;
-        /** Beschreibungstext für das Filter-Panel */
-        filterDescription?: string;
-        /** Name des Galerie-Menüpunkts in der öffentlichen TopNav (leer = „Inhalte") */
-        menuLabel?: string;
-        /** Text des „mehr Inhalte"-Links auf der Website-Landingpage (leer = Standard) */
-        moreLinkLabel?: string;
-      };
-      /** Story-Modus-spezifische Texte für die öffentliche Ansicht */
-      story?: {
-        /** Überschrift im Story-Tab */
-        headline?: string;
-        /** Absatz unter der Headline */
-        intro?: string;
-        /** Titel „Themenübersicht" */
-        topicsTitle?: string;
-        /** Erklärungstext zur Themenübersicht */
-        topicsIntro?: string;
-      };
-      /** Website-Landingpage am Slug (siehe serverseitiges publicPublishing.siteEnabled) */
-      siteEnabled?: boolean;
-    };
-    /** Nextcloud/WebDAV-Konfiguration (maskiertes App-Passwort fuer die UI) */
-    nextcloud?: {
-      webdavUrl: string;
-      username: string;
-      /** Maskierter Wert ('********') oder leer – das echte Passwort bleibt server-seitig */
-      appPassword?: string;
-    };
-    [key: string]: unknown;
-  };
-  
-  /** Optional icon component for UI representation */
-  icon?: ReactNode;
-
-  /** Markiert Libraries, die ueber eine Einladung geteilt wurden (nicht im Besitz des Users) */
-  isShared?: boolean;
-
-  /** Slug fuer die Explore-Seite (bei geteilten Libraries fuer Navigation) */
-  slug?: string;
-
-  /**
-   * Zugriffsrolle des aktuellen Users fuer diese Library.
-   * - 'owner': Voller Zugriff inkl. Settings
-   * - 'co-creator': Voller Arbeitszugriff (Archiv, Explore, Story, Templates), kein Settings-Zugang
-   * - 'contributor': Darf erfassen (Submissions) + eigenen Preview sehen, nicht publizieren (ADR-0004 E2)
-   * - 'moderator': Zugriffsanfragen verwalten
-   * - 'reader': Nur Lese-Zugriff (ueber Einladung/Access Request)
-   */
-  accessRole?: 'owner' | 'co-creator' | 'contributor' | 'moderator' | 'reader';
 }
 
 /**

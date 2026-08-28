@@ -26,16 +26,17 @@ Sessions nicht doppelt bauen:
   `cn`-Schnitt: Teil-Extraktionen koennen `git log --follow` NICHT halten)
 - **Agent-Brief M4c** (abgeschlossen): [`docs/refactor/modularisierung/AGENT-BRIEF-M4c.md`](docs/refactor/modularisierung/AGENT-BRIEF-M4c.md)
   (`@ks/i18n` mit zwei Einstiegspunkten; Locale-Atom bleibt paketintern)
-- **Agent-Brief M4d**: [`docs/refactor/modularisierung/AGENT-BRIEF-M4d.md`](docs/refactor/modularisierung/AGENT-BRIEF-M4d.md)
-  (`ClientLibrary` → `@ks/contracts`; Owner-Entscheidungen zu `icon`,
-  Vokabular-Typen und Steckbrief-Zuschnitt sind dort festgehalten)
-- **Naechster Schritt**: Welle **M4d** — `ClientLibrary` nach `@ks/contracts`.
-  Der Blocker ist NICHT `@/lib/chat/constants` (nur 4 String-Unions), sondern
-  der `react`-Import in `src/types/library.ts`: `icon?: ReactNode` an Z. 569
-  und 750. Entschieden: TopNav zeigt kuenftig nur den Namen (kein Symbol),
-  danach ist die Datei React-frei. Erst danach sind `library-atom` und die
-  seit M3 blockierte TopNav erreichbar — und damit die Landkarten-Zeile M4
-  (montierbare Explorer-Wurzelkomponente). Voll-App bleibt unveraendert
+- **Agent-Brief M4d** (abgeschlossen): [`docs/refactor/modularisierung/AGENT-BRIEF-M4d.md`](docs/refactor/modularisierung/AGENT-BRIEF-M4d.md)
+  (`ClientLibrary` → `@ks/contracts`, in kurz und voll geteilt; TopNav ohne
+  Symbol; Chat-Vokabular samt Werteliste mitgewandert; `LibraryIdentityDto`
+  abgeloest)
+- **Naechster Schritt**: Zurueck zur Landkarten-Zeile **M4** — die montierbare
+  Explorer-Wurzelkomponente. Das Fundament steht jetzt vollstaendig: `@ks/ui`
+  (M4b), `@ks/i18n` (M4c) und der Library-Steckbrief in `@ks/contracts` (M4d).
+  Damit ist auch die seit M3 blockierte TopNav erreichbar, und `library-atom`
+  haengt nicht mehr an einem App-Typ. Vorab zu entscheiden: TopNav zuerst
+  (kleiner, in `@ks/shell`) oder direkt die Explorer-Wurzel — siehe Hand-off
+  in AGENT-BRIEF-M4d.md. Voll-App bleibt unveraendert
   (Verhaltensneutralitaet ist Abnahmekriterium jeder A-Welle).
   Namenshinweis: `M5` ist im Wellenplan fuer den AECED-Pilot reserviert.
 - **Pflicht seit dem Build-Fehler nach M4b**: Eine A-Welle wird NICHT gemergt,
