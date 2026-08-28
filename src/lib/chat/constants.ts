@@ -42,6 +42,21 @@
 
 import * as z from 'zod'
 
+// Das Vokabular selbst (die vier Aufzaehlungen) liegt seit Welle M4d in
+// @ks/contracts — es beschreibt eine Library, nicht den Chat. Hier bleiben
+// Labels, Defaults, Zod-Enums und Prompts, die damit rechnen.
+import type {
+  TargetLanguage,
+  Character,
+  SocialContext,
+  AccessPerspective,
+} from '@ks/contracts'
+import { SOCIAL_CONTEXT_VALUES } from '@ks/contracts'
+
+// Re-Export, damit die bestehenden Importeure unveraendert bleiben (G2-Fassade)
+export type { TargetLanguage, Character, SocialContext, AccessPerspective }
+export { SOCIAL_CONTEXT_VALUES }
+
 // ============================================================================
 // ANTWORTLÄNGE (AnswerLength)
 // ============================================================================
@@ -90,61 +105,6 @@ export const RETRIEVER_ZOD_ENUM = z.enum(['chunk', 'doc', 'summary'])
 // ============================================================================
 // ZIELSPRACHE (TargetLanguage)
 // ============================================================================
-
-/**
- * Verfügbare Zielsprachen für Chat-Antworten
- * 
- * Kategorien:
- * ✅ Vollständig unterstützt: Alle europäischen Hauptsprachen + große asiatische Sprachen
- * 🌐 Gut unterstützt: Funktionieren gut, aber mit etwas geringerer Präzision
- * 🌱 Grundkenntnisse: Einfache Texte möglich, komplexere Grammatik kann schwierig sein
- */
-
-export type TargetLanguage = 
-  // Globale Sprache (verwendet UI-Sprache)
-  | 'global'
-  // ✅ Vollständig unterstützt
-  | 'de' // Deutsch
-  | 'en' // Englisch
-  | 'it' // Italienisch
-  | 'fr' // Französisch
-  | 'es' // Spanisch
-  | 'pt' // Portugiesisch
-  | 'nl' // Niederländisch
-  | 'no' // Norwegisch
-  | 'da' // Dänisch
-  | 'sv' // Schwedisch
-  | 'fi' // Finnisch
-  | 'pl' // Polnisch
-  | 'cs' // Tschechisch
-  | 'hu' // Ungarisch
-  | 'ro' // Rumänisch
-  | 'bg' // Bulgarisch
-  | 'el' // Griechisch
-  | 'tr' // Türkisch
-  | 'ru' // Russisch
-  | 'uk' // Ukrainisch
-  | 'zh' // Chinesisch (Mandarin, traditionell & vereinfacht)
-  | 'ko' // Koreanisch
-  | 'ja' // Japanisch
-  // 🌐 Gut unterstützt (Alltagsniveau, gelegentlich Einschränkungen)
-  | 'hr' // Kroatisch
-  | 'sr' // Serbisch
-  | 'bs' // Bosnisch
-  | 'sl' // Slowenisch
-  | 'sk' // Slowakisch
-  | 'lt' // Litauisch
-  | 'lv' // Lettisch
-  | 'et' // Estnisch
-  | 'id' // Indonesisch
-  | 'ms' // Malaysisch
-  | 'hi' // Hindi
-  // 🌱 Grundkenntnisse / einfache Texte
-  | 'sw' // Swahili
-  | 'yo' // Yoruba
-  | 'zu' // Zulu
-  | 'am' // Amharisch
-  | 'om' // Oromo (Afaan Oromoo)
 
 /**
  * Sprachkategorien für Warnhinweise
@@ -266,23 +226,6 @@ export const TARGET_LANGUAGE_ZOD_ENUM = z.enum([
 // ============================================================================
 // CHARAKTER/PERSPEKTIVE (Character)
 // ============================================================================
-
-/**
- * Character-Typ für Chat-Perspektiven (Interessenprofile).
- * Definiert verschiedene Interessenprofile, aus denen der Chatbot antworten kann.
- * Unterstützt mehrere Werte (max. 3) für kombinierte Perspektiven.
- * 'undefined' ist der Standard-Wert, wenn nichts ausgewählt wurde.
- */
-export type Character =
-  | 'undefined'
-  | 'technical'
-  | 'social-cultural'
-  | 'ecology'
-  | 'business'
-  | 'educational'
-  | 'practical'
-  | 'research'
-  | 'creative'
 
 export const CHARACTER_VALUES: readonly Character[] = [
   'undefined',
@@ -423,10 +366,6 @@ export const characterIconColors: Record<Character, string> = {
 // SOZIALER KONTEXT (SocialContext)
 // ============================================================================
 
-export type SocialContext = 'undefined' | 'scientific' | 'general' | 'youth' | 'senior' | 'professional' | 'children' | 'easy_language' 
-
-export const SOCIAL_CONTEXT_VALUES: readonly SocialContext[] = ['undefined', 'scientific', 'general', 'youth', 'senior', 'professional', 'children', 'easy_language'] as const
-
 export const SOCIAL_CONTEXT_DEFAULT: SocialContext = 'undefined'
 
 export const SOCIAL_CONTEXT_LABELS: Record<SocialContext, string> = {
@@ -460,21 +399,6 @@ export const SOCIAL_CONTEXT_ZOD_ENUM = z.enum(['undefined', 'scientific', 'gener
 // ============================================================================
 // ZUGANGSPERSPEKTIVE (AccessPerspective)
 // ============================================================================
-
-/**
- * AccessPerspective-Typ für Zugangsperspektiven.
- * Definiert verschiedene Arten des Zugangs zu Inhalten (WIE schaust du auf Inhalte?).
- * Unterstützt mehrere Werte (max. 3) für kombinierte Perspektiven.
- * 'undefined' ist der Standard-Wert, wenn nichts ausgewählt wurde.
- */
-export type AccessPerspective =
-  | 'undefined'
-  | 'insight'
-  | 'community'
-  | 'sustainability'
-  | 'learning'
-  | 'practical_view'
-  | 'future_view'
 
 export const ACCESS_PERSPECTIVE_VALUES: readonly AccessPerspective[] = [
   'undefined',

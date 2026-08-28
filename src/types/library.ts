@@ -24,12 +24,16 @@
  * - src/app/api/libraries: Library API routes use these types
  * 
  * @dependencies
- * - @/lib/chat/constants: Character and SocialContext types
+ * - @ks/contracts: Chat-Vokabular (Character, SocialContext, ...)
  * - Keine React-Abhaengigkeit: Diese Datei muss serverseitig ladbar bleiben
  */
 
-import type { Character, AccessPerspective, TargetLanguage } from '@/lib/chat/constants';
-import type { SocialContext } from '@/lib/chat/constants';
+import type {
+  Character,
+  AccessPerspective,
+  TargetLanguage,
+  SocialContext,
+} from '@ks/contracts';
 import type { Locale } from '@ks/i18n';
 
 /**

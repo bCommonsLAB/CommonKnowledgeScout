@@ -29,6 +29,14 @@ export type { UserInfoDto, UserInfoEmailDto } from './user-info'
 export type { LibraryIdentityDto } from './library-identity'
 
 export type {
+  TargetLanguage,
+  Character,
+  SocialContext,
+  AccessPerspective,
+} from './chat-vocabulary'
+export { SOCIAL_CONTEXT_VALUES } from './chat-vocabulary'
+
+export type {
   SiteModule,
   SitePrimaryLibrary,
   SitePrimaryLibraryBySlug,
