@@ -11,11 +11,11 @@
  * zeigt den Hinweis NUR Mitgliedern (Owner/Co-Creator) — analog zum A2-Abzeichen
  * und zur authentifizierten Verify-API. Die UI kennt kein Storage-Backend.
  */
-
 import { useAtomValue } from 'jotai'
+
 import { AlertTriangle } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@ks/ui'
-import { activeLibraryIdAtom } from '@/atoms/library-atom'
+import { useActiveLibraryId } from '@ks/shell/react'
 import { useLibraryRole } from '@/hooks/gallery/use-library-role'
 import { useLibraryVerificationStatus } from '@/hooks/library-verification/use-library-verification-status'
 import {
@@ -53,7 +53,7 @@ export function LibraryVerificationWarning({
   context,
   libraryId: libraryIdProp,
 }: LibraryVerificationWarningProps) {
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom)
+  const activeLibraryId = useActiveLibraryId()
   const libraryId = libraryIdProp || activeLibraryId
   const { isMember, isLoading: roleLoading } = useLibraryRole(libraryId)
   const { status } = useLibraryVerificationStatus(libraryId, isMember && !roleLoading)

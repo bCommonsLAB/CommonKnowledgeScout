@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useAtom } from "jotai"
-import { activeLibraryIdAtom } from "@/atoms/library-atom"
+import { useActiveLibraryId } from '@ks/shell/react'
 import { AccessRequestsList } from "@/components/settings/access-requests-list"
 import { Alert, AlertDescription, AlertTitle, Separator } from '@ks/ui'
 import { AlertCircle, Loader2 } from "lucide-react"
@@ -14,7 +14,7 @@ import { AlertCircle, Loader2 } from "lucide-react"
  * Nur für Owner und Moderatoren zugänglich.
  */
 export default function AccessRequestsPage() {
-  const [activeLibraryId] = useAtom(activeLibraryIdAtom)
+  const activeLibraryId = useActiveLibraryId()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [hasPermission, setHasPermission] = useState<boolean | null>(null)

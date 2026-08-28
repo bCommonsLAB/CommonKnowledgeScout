@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import { useAtomValue } from 'jotai'
 import { useAuth } from '@clerk/nextjs'
-import { librariesAtom } from '@/atoms/library-atom'
+import { useLibraries } from '@ks/shell/react'
 
 /**
  * Hook zur Prüfung, ob der aktuelle User Owner einer bestimmten Library ist
@@ -15,7 +15,7 @@ import { librariesAtom } from '@/atoms/library-atom'
  */
 export function useIsLibraryOwner(libraryId?: string) {
   const { isLoaded, isSignedIn } = useAuth()
-  const libraries = useAtomValue(librariesAtom)
+  const libraries = useLibraries()
 
   const isOwner = useMemo(() => {
     // Wenn Auth noch nicht geladen oder User nicht angemeldet, ist er kein Owner

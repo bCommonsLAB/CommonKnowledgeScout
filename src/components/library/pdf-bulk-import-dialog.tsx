@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
-import { activeLibraryIdAtom, currentFolderIdAtom, activeLibraryAtom } from '@/atoms/library-atom';
+import { currentFolderIdAtom } from '@/atoms/library-atom';
+import { useActiveLibrary, useActiveLibraryId } from '@ks/shell/react'
 import { selectedBatchItemsAtom, selectedTransformationItemsAtom } from '@/atoms/transcription-options';
 import { useStorage } from '@/contexts/storage-context';
 import { StorageItem } from '@/lib/storage/types';
@@ -60,8 +61,8 @@ type CandidateSource = 'selection' | 'directory';
 export function PdfBulkImportDialog({ open, onOpenChange }: PdfBulkImportDialogProps) {
   const { provider } = useStorage();
   const rootFolderId = useAtomValue(currentFolderIdAtom);
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
-  const activeLibrary = useAtomValue(activeLibraryAtom);
+  const activeLibraryId = useActiveLibraryId();
+  const activeLibrary = useActiveLibrary();
   const pdfOverrides = useAtomValue(pdfOverridesAtom);
   // Markierte Dateien aus der File-List (Multi-Select-Checkboxen).
   // Die File-List trennt nach Medientyp in zwei Atome:

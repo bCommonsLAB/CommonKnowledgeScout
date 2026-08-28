@@ -6,7 +6,8 @@ import { Mic, MicOff, Pause, Play, Square, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStorage } from '@/contexts/storage-context';
 import { useAtomValue } from 'jotai';
-import { currentFolderIdAtom, activeLibraryIdAtom } from '@/atoms/library-atom';
+import { currentFolderIdAtom } from '@/atoms/library-atom';
+import { useActiveLibraryId } from '@ks/shell/react'
 
 // Samsung-Style Audio Visualizer - Minimal Working
 function StyleVisualizer({ stream, isPaused }: { stream: MediaStream; isPaused: boolean }) {
@@ -133,7 +134,7 @@ export function AudioRecorderClient({ onRecordingComplete, onUploadComplete }: A
   
   const { provider, refreshItems } = useStorage();
   const currentFolderId = useAtomValue(currentFolderIdAtom);
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
+  const activeLibraryId = useActiveLibraryId();
   
   // Check if storage provider is available
   const isStorageReady = Boolean(provider);

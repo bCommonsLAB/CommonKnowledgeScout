@@ -5,11 +5,11 @@
  * Was die Dateiliste zeigt: geladene Items, Auswahl, Suche/Sortierung je
  * Library, Annotationen (DIVA und generisch) und der Review-Modus.
  *
- * Zwei Nachbarn sind seit dieser Welle eigene Module — die Datei re-exportiert
- * sie, damit bestehende Importpfade gueltig bleiben (Migrationsstrategie G2):
- * - `@/atoms/library-selection` — welche Bibliotheken es gibt, welche aktiv ist
- *   (Schalen-Zustand, wandert nach `@ks/shell`)
- * - `@/atoms/folder-navigation` — aktueller Ordner, Pfad-Cache, Baumzustand
+ * Welche Bibliotheken es gibt und welche aktiv ist, steht seit dieser Welle
+ * NICHT mehr hier, sondern in `@ks/shell/react` — dort als Hooks, nicht als
+ * Atome. Die Ordner-Navigation liegt in `@/atoms/folder-navigation` und wird
+ * hier re-exportiert, damit bestehende Importpfade gueltig bleiben
+ * (Migrationsstrategie G2).
  *
  * @module library
  *
@@ -33,16 +33,7 @@ import { atom } from "jotai"
 import { atomFamily } from "jotai/utils"
 import { StorageItem } from "@/lib/storage/types"
 
-// Fassade auf die ausgelagerten Nachbarn (G2) — bestehende Importe bleiben gueltig.
-export type { LibraryState } from "@/atoms/library-selection"
-export {
-  libraryAtom,
-  activeLibraryIdAtom,
-  noLibrarySelectedAtom,
-  librariesAtom,
-  activeLibraryAtom,
-  libraryStatusAtom,
-} from "@/atoms/library-selection"
+// Fassade auf die Ordner-Navigation (G2) — bestehende Importe bleiben gueltig.
 export type { FolderNavigationState, LoadingState } from "@/atoms/folder-navigation"
 export {
   folderNavigationAtom,

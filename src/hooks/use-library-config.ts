@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from 'react'
 import { useAtomValue } from 'jotai'
-import { librariesAtom } from '@/atoms/library-atom'
+import { useLibraries } from '@ks/shell/react'
 import { characterArrayToString } from '@/lib/chat/constants'
 
 /**
@@ -62,7 +62,7 @@ interface UseLibraryConfigResult {
  * @returns Konfiguration, Loading-Status und Fehler
  */
 export function useLibraryConfig(libraryId: string): UseLibraryConfigResult {
-  const libraries = useAtomValue(librariesAtom)
+  const libraries = useLibraries()
   const [cfg, setCfg] = useState<ChatConfigResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

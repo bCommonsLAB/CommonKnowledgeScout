@@ -20,7 +20,8 @@ import { debugStateAtom, toggleComponentAtom, toggleAreaAtom, clearLogsAtom, add
 import { cn } from '@/lib/utils';
 import { subscribeToLogs } from '@/lib/debug/logger';
 import { toast } from 'sonner';
-import { activeLibraryAtom, activeLibraryIdAtom, currentFolderIdAtom, selectedFileAtom } from '@/atoms/library-atom';
+import { currentFolderIdAtom, selectedFileAtom } from '@/atoms/library-atom';
+import { useActiveLibrary, useActiveLibraryId } from '@ks/shell/react'
 import { useStorage } from '@/contexts/storage-context';
 import { galleryFiltersAtom } from '@/atoms/gallery-filters';
 import { usePathname, useRouter } from 'next/navigation';
@@ -67,8 +68,8 @@ export default function DebugFooter() {
   const [, setAddLog] = useAtom(addLogAtom);
 
   // Library State
-  const [activeLibrary] = useAtom(activeLibraryAtom);
-  const [activeLibraryId] = useAtom(activeLibraryIdAtom);
+  const activeLibrary = useActiveLibrary();
+  const activeLibraryId = useActiveLibraryId();
   const [currentFolderId] = useAtom(currentFolderIdAtom);
   const { provider, libraryStatus } = useStorage();
 
@@ -668,7 +669,7 @@ const FRESHNESS_LABELS: Record<FreshnessStatus, { label: string; color: string }
 function ShadowTwinDebugContent() {
   const shadowTwinStates = useAtomValue(shadowTwinStateAtom);
   const selectedFile = useAtomValue(selectedFileAtom);
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
+  const activeLibraryId = useActiveLibraryId();
   
   // State für binaryFragments aus MongoDB
   const [binaryFragments, setBinaryFragments] = React.useState<BinaryFragmentInfo[]>([]);

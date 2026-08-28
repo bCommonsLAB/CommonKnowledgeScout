@@ -17,7 +17,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { Provider, createStore } from 'jotai'
-import { activeLibraryIdAtom, librariesAtom } from '@/atoms/library-atom'
+import { seedLibrarySelection } from '@ks/shell/testing'
 import type { ClientLibrary } from '@/types/library'
 
 const mockUseStorage = vi.fn()
@@ -122,8 +122,7 @@ describe('Library (App-Schale)', () => {
       currentLibrary: null,
     })
     const store = createStore()
-    store.set(librariesAtom, [makeLibrary()])
-    store.set(activeLibraryIdAtom, 'lib-1')
+    seedLibrarySelection(store, { libraries: [makeLibrary()], activeLibraryId: 'lib-1' })
 
     render(
       <Provider store={store}>
@@ -143,8 +142,7 @@ describe('Library (App-Schale)', () => {
       currentLibrary: null,
     })
     const store = createStore()
-    store.set(librariesAtom, [makeLibrary()])
-    store.set(activeLibraryIdAtom, 'lib-1')
+    seedLibrarySelection(store, { libraries: [makeLibrary()], activeLibraryId: 'lib-1' })
 
     render(
       <Provider store={store}>
@@ -165,8 +163,7 @@ describe('Library (App-Schale)', () => {
       currentLibrary: lib,
     })
     const store = createStore()
-    store.set(librariesAtom, [lib])
-    store.set(activeLibraryIdAtom, 'lib-1')
+    seedLibrarySelection(store, { libraries: [lib], activeLibraryId: 'lib-1' })
 
     render(
       <Provider store={store}>

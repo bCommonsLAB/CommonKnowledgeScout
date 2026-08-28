@@ -7,11 +7,11 @@
  * Reparieren (auto-fixbare Fälle) mit Live-Fortschritt (SSE). Nach einem Lauf
  * wird der persistierte Status neu geladen. Die UI kennt nur die API.
  */
-
 import { useAtomValue } from 'jotai'
+
 import { Loader2, RefreshCw, Wrench } from 'lucide-react'
 import { Button } from '@ks/ui'
-import { activeLibraryAtom } from '@/atoms/library-atom'
+import { useActiveLibrary } from '@ks/shell/react'
 import { LibraryVerificationBadgeView } from '@/components/library/library-verification-badge'
 import { LibraryVerificationDetails } from '@/components/settings/library-verification-details'
 import { useLibraryVerificationStatus } from '@/hooks/library-verification/use-library-verification-status'
@@ -43,7 +43,7 @@ function SummaryView({ summary }: { summary: VerificationSummary }) {
 }
 
 export function LibraryVerificationPanel() {
-  const activeLibrary = useAtomValue(activeLibraryAtom)
+  const activeLibrary = useActiveLibrary()
   const libraryId = activeLibrary?.id
   const { status, summary, documents, lastRunAt, isLoading, error, refresh } =
     useLibraryVerificationStatus(libraryId, !!libraryId)

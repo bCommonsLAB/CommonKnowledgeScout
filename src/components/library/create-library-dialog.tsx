@@ -21,14 +21,12 @@ import {
 } from '@ks/ui'
 
 import {
-  activeLibraryAtom,
-  activeLibraryIdAtom,
   currentFolderIdAtom,
   folderItemsAtom,
   lastLoadedFolderAtom,
-  librariesAtom,
   folderNavigationAtom,
 } from "@/atoms/library-atom"
+import { useActiveLibrary, useLibraries, useSetActiveLibraryId, useSetLibraries } from '@ks/shell/react'
 import { StateLogger } from "@/lib/debug/logger"
 import { StorageProviderType } from "@/types/library"
 
@@ -69,9 +67,10 @@ export function CreateLibraryDialog({
   const [isLoading, setIsLoading] = useState(false)
 
   // Atoms für Library-Management
-  const [libraries, setLibraries] = useAtom(librariesAtom)
-  const [activeLibrary] = useAtom(activeLibraryAtom)
-  const [, setActiveLibraryId] = useAtom(activeLibraryIdAtom)
+  const libraries = useLibraries()
+  const setLibraries = useSetLibraries()
+  const activeLibrary = useActiveLibrary()
+  const setActiveLibraryId = useSetActiveLibraryId()
   const [, setFolderNav] = useAtom(folderNavigationAtom)
   const [, setFolderItems] = useAtom(folderItemsAtom)
   const [, setLastLoadedFolder] = useAtom(lastLoadedFolderAtom)

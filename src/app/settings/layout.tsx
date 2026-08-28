@@ -3,7 +3,7 @@
 import { Separator } from '@ks/ui'
 import { SidebarNav, type SidebarNavGroup } from "@/components/settings/sidebar-nav"
 import { useAtomValue } from "jotai"
-import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom"
+import { useActiveLibraryId, useLibraries } from '@ks/shell/react'
 import { useMemo } from "react"
 import { usePathname } from "next/navigation"
 import { Info } from "lucide-react"
@@ -64,8 +64,8 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom)
-  const libraries = useAtomValue(librariesAtom)
+  const activeLibraryId = useActiveLibraryId()
+  const libraries = useLibraries()
   const pathname = usePathname()
 
   const activeLibrary = libraries.find(lib => lib.id === activeLibraryId)

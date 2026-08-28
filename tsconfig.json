@@ -26,6 +26,8 @@
       "@ks/api-client": ["./packages/api-client/src/index.ts"],
       "@ks/shell": ["./packages/shell/src/index.ts"],
       "@ks/shell/providers": ["./packages/shell/src/providers/index.ts"],
+      "@ks/shell/react": ["./packages/shell/src/react/index.ts"],
+      "@ks/shell/testing": ["./packages/shell/src/testing/index.ts"],
       "@ks/module-explorer": ["./packages/module-explorer/src/index.ts"],
       "@ks/ui": ["./packages/ui/src/index.ts"],
       "@ks/util": ["./packages/util/src/index.ts"],

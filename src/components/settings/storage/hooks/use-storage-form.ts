@@ -17,9 +17,9 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { useAtom, useAtomValue } from "jotai"
-import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom"
+import { useActiveLibraryId, useLibraries, useSetLibraries } from '@ks/shell/react'
 import { toast } from "sonner"
-import { StorageProviderType } from "@/types/library"
+import { StorageProviderType, type ClientLibrary } from "@/types/library"
 import { useStorage } from "@/contexts/storage-context"
 import { StorageFactory } from "@/lib/storage/storage-factory"
 
@@ -85,7 +85,7 @@ export interface TestLogEntry {
 
 export interface UseStorageFormResult {
   form: ReturnType<typeof useForm<StorageFormValues>>
-  activeLibrary: ReturnType<typeof useAtomValue<typeof librariesAtom>>[number] | undefined
+  activeLibrary: ClientLibrary | undefined
   currentType: StorageProviderType | undefined
   isLoading: boolean
   isTesting: boolean
@@ -112,7 +112,8 @@ export interface UseStorageFormResult {
  * Kapselt den gesamten State und alle Handler-Funktionen.
  */
 export function useStorageForm(): UseStorageFormResult {
-  const [libraries, setLibraries] = useAtom(librariesAtom);
+  const libraries = useLibraries();
+  const setLibraries = useSetLibraries();
   const [isLoading, setIsLoading] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [testDialogOpen, setTestDialogOpen] = useState(false);
@@ -137,7 +138,7 @@ export function useStorageForm(): UseStorageFormResult {
     clientSecret: "",
   });
 
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
+  const activeLibraryId = useActiveLibraryId();
   const activeLibrary = libraries.find(lib => lib.id === activeLibraryId);
   const { refreshLibraries, refreshAuthStatus } = useStorage();
 

@@ -20,11 +20,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { Provider, createStore } from 'jotai'
 import {
-  activeLibraryIdAtom,
   currentFolderIdAtom,
   folderItemsAtom,
-  librariesAtom,
 } from '@/atoms/library-atom'
+import { seedLibrarySelection } from '@ks/shell/testing'
 import type { ClientLibrary } from '@/types/library'
 import type { StorageItem } from '@/lib/storage/types'
 
@@ -111,8 +110,7 @@ describe('FileList (Render)', () => {
 
   it('rendert ohne Crash bei leerem folderItemsAtom', () => {
     const store = createStore()
-    store.set(librariesAtom, [makeLibrary()])
-    store.set(activeLibraryIdAtom, 'lib-1')
+    seedLibrarySelection(store, { libraries: [makeLibrary()], activeLibraryId: 'lib-1' })
     store.set(currentFolderIdAtom, 'root')
     store.set(folderItemsAtom, [])
 
@@ -127,8 +125,7 @@ describe('FileList (Render)', () => {
 
   it('zeigt Datei-Eintrag aus folderItemsAtom in der Liste an', async () => {
     const store = createStore()
-    store.set(librariesAtom, [makeLibrary()])
-    store.set(activeLibraryIdAtom, 'lib-1')
+    seedLibrarySelection(store, { libraries: [makeLibrary()], activeLibraryId: 'lib-1' })
     store.set(currentFolderIdAtom, 'root')
     store.set(folderItemsAtom, [makeFile('file-1', 'mein-dokument.pdf')])
 
@@ -145,8 +142,7 @@ describe('FileList (Render)', () => {
 
   it('zeigt Refresh-Button im Standard-Modus (compact=false)', () => {
     const store = createStore()
-    store.set(librariesAtom, [makeLibrary()])
-    store.set(activeLibraryIdAtom, 'lib-1')
+    seedLibrarySelection(store, { libraries: [makeLibrary()], activeLibraryId: 'lib-1' })
     store.set(currentFolderIdAtom, 'root')
     store.set(folderItemsAtom, [])
 

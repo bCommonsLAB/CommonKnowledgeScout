@@ -32,7 +32,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useAtom } from 'jotai';
 import { usePathname } from 'next/navigation';
-import { librariesAtom, activeLibraryIdAtom, libraryStatusAtom } from '@/atoms/library-atom';
+import { useActiveLibraryId, useLibraries, useSetActiveLibraryId, useSetLibraries, useSetLibraryStatus } from '@ks/shell/react'
 import { StorageFactory } from '@/lib/storage/storage-factory';
 import { ClientLibrary } from "@/types/library";
 import { useStorageProvider } from "@/hooks/use-storage-provider";
@@ -127,13 +127,15 @@ export const StorageContextProvider = ({ children }: { children: React.ReactNode
 
   // Auth-Debug-Logging entfernt (zu viele Logs bei jedem Auth-Status-Update)
   
-  const [libraries, setLibraries] = useAtom(librariesAtom);
+  const libraries = useLibraries();
+  const setLibraries = useSetLibraries();
   const [currentLibrary, setCurrentLibrary] = useState<ClientLibrary | null>(null);
   const [provider, setProvider] = useState<ExtendedStorageProvider | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeLibraryId, setActiveLibraryId] = useAtom(activeLibraryIdAtom);
-  const [, setLibraryStatusAtom] = useAtom(libraryStatusAtom);
+  const activeLibraryId = useActiveLibraryId();
+  const setActiveLibraryId = useSetActiveLibraryId();
+  const setLibraryStatusAtom = useSetLibraryStatus();
   const providerFromHook = useStorageProvider();
   const [isProviderLoading, setIsProviderLoading] = useState(false);
   const previousProviderRef = React.useRef<ExtendedStorageProvider | null>(null);

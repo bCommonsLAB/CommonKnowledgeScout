@@ -21,7 +21,7 @@
 
 import * as React from 'react'
 import { useAtomValue } from 'jotai'
-import { activeLibraryAtom, libraryStatusAtom } from '@/atoms/library-atom'
+import { useActiveLibrary, useLibraryStatus } from '@ks/shell/react'
 import { useStorage } from '@/contexts/storage-context'
 import { StorageItem, StorageProvider } from '@/lib/storage/types'
 import {
@@ -65,8 +65,8 @@ export const TextTransform = ({ content, currentItem, provider, onTransform, onR
   
   // Template-Management Integration
   const [customTemplateNames, setCustomTemplateNames] = React.useState<string[]>([]);
-  const libraryStatus = useAtomValue(libraryStatusAtom);
-  const activeLibrary = useAtomValue(activeLibraryAtom);
+  const libraryStatus = useLibraryStatus();
+  const activeLibrary = useActiveLibrary();
   
   // Text State mit entferntem Frontmatter initialisieren (strikt)
   const [text, setText] = React.useState(() => {

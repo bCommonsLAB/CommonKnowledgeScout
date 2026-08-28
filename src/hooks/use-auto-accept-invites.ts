@@ -15,13 +15,13 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { useStorage } from '@/contexts/storage-context'
 import { useAtom } from 'jotai'
-import { activeLibraryIdAtom } from '@/atoms/library-atom'
+import { useSetActiveLibraryId } from '@ks/shell/react'
 import type { PendingInvite } from '@/app/api/user/accept-pending-invites/route'
 
 export function useAutoAcceptInvites() {
   const { user, isLoaded } = useUser()
   const { refreshLibraries } = useStorage()
-  const [, setActiveLibraryId] = useAtom(activeLibraryIdAtom)
+  const setActiveLibraryId = useSetActiveLibraryId()
   const hasCheckedRef = useRef(false)
   const lastUserIdRef = useRef<string | null>(null)
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([])

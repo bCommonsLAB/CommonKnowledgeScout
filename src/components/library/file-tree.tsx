@@ -3,22 +3,21 @@
 import * as React from 'react';
 import { useAtom } from 'jotai';
 import { useAtomValue } from 'jotai';
-import { 
-  fileTreeReadyAtom, 
+import {
+  fileTreeReadyAtom,
   loadedChildrenAtom,
   expandedFoldersAtom,
   selectedFileAtom,
-  activeLibraryIdAtom,
   folderItemsAtom,
   currentFolderIdAtom,
-  folderNavigationAtom
+  folderNavigationAtom,
 } from '@/atoms/library-atom';
 import { useStorage } from '@/contexts/storage-context';
 import { FileLogger, UILogger } from "@/lib/debug/logger"
 import { useCallback, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { toast } from "sonner";
 import { shouldFilterShadowTwinFolders } from '@/lib/storage/shadow-twin-folder-name';
-import { activeLibraryAtom } from '@/atoms/library-atom';
+import { useActiveLibrary, useActiveLibraryId } from '@ks/shell/react'
 import { isShadowTwinFolderName } from '@/lib/storage/shadow-twin';
 // TreeItem-Render-Logik liegt in eigener Datei (Welle 3-I, Schritt 4a-Split):
 import { TreeItem } from './tree-item';
@@ -36,8 +35,8 @@ export const FileTree = forwardRef<FileTreeRef, object>(function FileTree({
   const [expandedFolders, setExpandedFolders] = useAtom(expandedFoldersAtom);
   const [loadedChildren, setLoadedChildren] = useAtom(loadedChildrenAtom);
   const [isReady, setFileTreeReady] = useAtom(fileTreeReadyAtom);
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
-  const activeLibrary = useAtomValue(activeLibraryAtom);
+  const activeLibraryId = useActiveLibraryId();
+  const activeLibrary = useActiveLibrary();
   const [, setSelectedFile] = useAtom(selectedFileAtom);
   const folderItems = useAtomValue(folderItemsAtom);
   const currentFolderId = useAtomValue(currentFolderIdAtom);

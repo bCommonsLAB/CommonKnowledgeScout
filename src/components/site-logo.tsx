@@ -19,7 +19,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useAtomValue } from "jotai"
-import { libraryAtom } from "@/atoms/library-atom"
+import { useLibraries } from '@ks/shell/react'
 
 interface SiteLogoProps {
   /** Slug der Site-Library (exploreContext.slug bzw. siteRootSlug). */
@@ -29,7 +29,7 @@ interface SiteLogoProps {
 }
 
 export function SiteLogo({ slug, homeHref }: SiteLogoProps): React.ReactElement | null {
-  const { libraries } = useAtomValue(libraryAtom)
+  const libraries = useLibraries()
   const atomLibrary = libraries.find(
     (lib) => lib.config?.publicPublishing?.slugName === slug,
   )

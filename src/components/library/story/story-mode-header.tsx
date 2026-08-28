@@ -5,7 +5,7 @@ import { useAtomValue } from 'jotai'
 import { StoryHeader } from './story-header'
 import { useTranslation } from '@ks/i18n/react'
 import { useScrollVisibility } from '@/hooks/use-scroll-visibility'
-import { librariesAtom } from '@/atoms/library-atom'
+import { useLibraries } from '@ks/shell/react'
 
 interface StoryModeHeaderProps {
   libraryId: string
@@ -31,7 +31,7 @@ interface StoryConfig {
  */
 export function StoryModeHeader({ libraryId, onBackToGallery }: StoryModeHeaderProps) {
   const { t } = useTranslation()
-  const libraries = useAtomValue(librariesAtom)
+  const libraries = useLibraries()
   
   // Lese Story-Config direkt aus State statt API-Call
   const storyConfig = useMemo<StoryConfig | null>(() => {

@@ -20,7 +20,7 @@ import * as React from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { useQueryState } from "nuqs"
 import { useAtomValue } from "jotai"
-import { libraryAtom } from "@/atoms/library-atom"
+import { useLibraries } from '@ks/shell/react'
 import { WebsiteDetail } from "@/components/library/website-detail"
 import { DocumentCard } from "@/components/library/gallery/document-card"
 import { WebsiteSiteFooter } from "@/components/library/website/website-site-footer"
@@ -80,7 +80,7 @@ export function WebsiteLandingLive({
   // Per-Library-Text des Galerie-Links (z. B. „mehr Aktionen"). Quelle: Atom
   // (Explore-Seite laedt die Library dorthin). Auf der anonymen Domain-Root
   // kann das Atom leer sein — dann greift der Standard-Text „mehr Inhalte".
-  const { libraries } = useAtomValue(libraryAtom)
+  const libraries = useLibraries()
   const moreLinkLabel =
     libraries.find((lib) => lib.id === libraryId)?.config?.publicPublishing?.gallery
       ?.moreLinkLabel || "mehr Inhalte"

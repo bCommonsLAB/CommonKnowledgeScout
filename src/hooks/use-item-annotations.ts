@@ -14,16 +14,16 @@
 import { useEffect } from 'react'
 import { useAtomValue, useSetAtom } from 'jotai'
 import {
-  activeLibraryIdAtom,
   currentFolderIdAtom,
   itemAnnotationsAtom,
   itemAnnotationsStatusAtom,
   itemSidecarEntriesAtom,
 } from '@/atoms/library-atom'
+import { useActiveLibraryId } from '@ks/shell/react'
 import type { ItemAnnotationsResponse } from '@/lib/diva-texture/types'
 
 export function useItemAnnotations(): void {
-  const libraryId = useAtomValue(activeLibraryIdAtom)
+  const libraryId = useActiveLibraryId()
   const folderId = useAtomValue(currentFolderIdAtom)
   const setAnnotations = useSetAtom(itemAnnotationsAtom)
   const setEntries = useSetAtom(itemSidecarEntriesAtom)

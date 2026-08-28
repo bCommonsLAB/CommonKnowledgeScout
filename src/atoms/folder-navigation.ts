@@ -3,7 +3,7 @@
  *
  * @description
  * Zustand der Datei-/Ordner-Navigation. Bis zu dieser Welle lag er im selben
- * Atom wie die Library-Auswahl (`@/atoms/library-selection`); getrennt wurde er,
+ * Atom wie die Library-Auswahl (heute `@ks/shell/react`); getrennt wurde er,
  * weil die Auswahl in die Schale gehoert (`@ks/shell`), dieser Zustand aber ins
  * Archiv-Modul (Modul-Landkarte §1, Schicht 3). Ein gemeinsames Zustandsobjekt
  * haette beide Seiten aneinandergebunden.

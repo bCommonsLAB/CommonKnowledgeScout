@@ -19,8 +19,6 @@ import { useCallback, useMemo } from 'react'
 import { useAtom, useAtomValue } from 'jotai'
 import { StorageItem } from '@/lib/storage/types'
 import {
-  activeLibraryAtom,
-  activeLibraryIdAtom,
   annotationFilterModeAtom,
   filesOnlyAtom,
   folderNavigationAtom,
@@ -28,6 +26,7 @@ import {
   itemAnnotationsAtom,
   librarySortFilterConfigAtom,
 } from '@/atoms/library-atom'
+import { useActiveLibrary, useActiveLibraryId } from '@ks/shell/react'
 import { fileCategoryFilterAtom } from '@/atoms/transcription-options'
 import { filterAndSortFiles, type FileListSortField, type FileListSortOrder } from '@/lib/file-list/filter-sort'
 import { buildCurrentPath } from '@/lib/file-list/current-path'
@@ -39,7 +38,7 @@ import { buildCurrentPath } from '@/lib/file-list/current-path'
  * es gibt dann keinen Schluessel, unter dem der Wert gehoerte.
  */
 export function useSearchTerm(): [string, (value: string) => void] {
-  const libraryId = useAtomValue(activeLibraryIdAtom)
+  const libraryId = useActiveLibraryId()
   const [config, setConfig] = useAtom(librarySortFilterConfigAtom(libraryId))
 
   const setSearchTerm = useCallback((value: string) => {
@@ -52,7 +51,7 @@ export function useSearchTerm(): [string, (value: string) => void] {
 
 /** Sortierfeld der Dateiliste — je Bibliothek gemerkt. */
 export function useSortField(): [FileListSortField, (value: FileListSortField) => void] {
-  const libraryId = useAtomValue(activeLibraryIdAtom)
+  const libraryId = useActiveLibraryId()
   const [config, setConfig] = useAtom(librarySortFilterConfigAtom(libraryId))
 
   const setSortField = useCallback((value: FileListSortField) => {
@@ -65,7 +64,7 @@ export function useSortField(): [FileListSortField, (value: FileListSortField) =
 
 /** Sortierrichtung der Dateiliste — je Bibliothek gemerkt. */
 export function useSortOrder(): [FileListSortOrder, (value: FileListSortOrder) => void] {
-  const libraryId = useAtomValue(activeLibraryIdAtom)
+  const libraryId = useActiveLibraryId()
   const [config, setConfig] = useAtom(librarySortFilterConfigAtom(libraryId))
 
   const setSortOrder = useCallback((value: FileListSortOrder) => {
@@ -85,7 +84,7 @@ export function useSortedFilteredFiles(): StorageItem[] {
   const categoryFilter = useAtomValue(fileCategoryFilterAtom)
   const annotationFilter = useAtomValue(annotationFilterModeAtom)
   const annotations = useAtomValue(itemAnnotationsAtom)
-  const activeLibrary = useAtomValue(activeLibraryAtom)
+  const activeLibrary = useActiveLibrary()
   const divaEnabled = activeLibrary?.config?.analyzeDivaTextureInfo === true
 
   return useMemo(() => filterAndSortFiles({
@@ -102,7 +101,7 @@ export function useSortedFilteredFiles(): StorageItem[] {
 
 /** Breadcrumb-Pfad vom Wurzel-Item bis zum aktuellen Ordner. */
 export function useCurrentPath(): StorageItem[] {
-  const activeLibrary = useAtomValue(activeLibraryAtom)
+  const activeLibrary = useActiveLibrary()
   const currentFolderId = useAtomValue(currentFolderIdAtom)
   const { folderCache } = useAtomValue(folderNavigationAtom)
 

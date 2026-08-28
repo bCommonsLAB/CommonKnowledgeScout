@@ -10,14 +10,14 @@
  *
  * @see docs/concepts/projektauftrag-agentensicht.md (F1, F1b)
  */
-
 import { useAtomValue } from 'jotai'
-import { activeLibraryIdAtom, librariesAtom } from '@/atoms/library-atom'
+
+import { useActiveLibraryId, useLibraries } from '@ks/shell/react'
 import { AgentViewPanel } from '@/components/library/agent-view/agent-view-panel'
 
 export default function AgentViewPage() {
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom)
-  const libraries = useAtomValue(librariesAtom)
+  const activeLibraryId = useActiveLibraryId()
+  const libraries = useLibraries()
   const activeLibrary = libraries.find((library) => library.id === activeLibraryId)
 
   // Opt-in pro Library (Default aus): Direktaufrufe der URL bekommen einen

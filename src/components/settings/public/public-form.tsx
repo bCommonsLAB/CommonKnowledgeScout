@@ -31,7 +31,7 @@ import {
 } from '@ks/ui'
 import { WebsiteImageField } from "@/components/settings/public/website-image-upload"
 import { AlertCircle, CheckCircle2, Copy, Globe, Loader2, Lock, ShieldCheck } from "lucide-react"
-import { librariesAtom, activeLibraryIdAtom } from "@/atoms/library-atom"
+import { useActiveLibraryId, useLibraries, useSetLibraries } from '@ks/shell/react'
 import { useSafeUser } from "@/hooks/use-safe-user"
 import { LibraryVerificationWarning } from "@/components/library/library-verification-warning"
 
@@ -106,8 +106,9 @@ export function PublicForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingSlug, setIsCheckingSlug] = useState(false);
   const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
-  const [libraries, setLibraries] = useAtom(librariesAtom);
-  const [activeLibraryId] = useAtom(activeLibraryIdAtom);
+  const libraries = useLibraries();
+  const setLibraries = useSetLibraries();
+  const activeLibraryId = useActiveLibraryId();
 
   const activeLibrary = libraries.find(lib => lib.id === activeLibraryId);
 

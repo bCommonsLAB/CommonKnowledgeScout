@@ -28,7 +28,8 @@ import { AlertCircle, ExternalLink, RefreshCw } from "lucide-react";
 import type { CompositeWikiPreviewOptions } from './markdown-preview';
 import './markdown-audio';
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { activeLibraryIdAtom, selectedFileAtom, activeLibraryAtom, reviewModeAtom } from "@/atoms/library-atom";
+import { selectedFileAtom, reviewModeAtom } from "@/atoms/library-atom";
+import { useActiveLibrary, useActiveLibraryId } from '@ks/shell/react'
 import { StorageItem, StorageProvider } from "@/lib/storage/types";
 import type { Library } from '@/types/library'
 import { FileLogger } from "@/lib/debug/logger"
@@ -170,7 +171,7 @@ function PreviewContent({
   //   analyze?: { chapters?: Array<Record<string, unknown>>; toc?: Array<Record<string, unknown>> };
   // } | null>(null);
   const setSelectedFile = useSetAtom(selectedFileAtom);
-  const activeLibrary = useAtomValue(activeLibraryAtom)
+  const activeLibrary = useActiveLibrary()
   const [isReviewMode, setReviewMode] = useAtom(reviewModeAtom)
   /** Review/Vergleichen: vor dem Einschalten optional Cache leeren (Library übergibt clearCache). */
   const handleReviewModeToggle = React.useCallback(() => {
@@ -1007,7 +1008,7 @@ export function FilePreview({
   onRefreshFolder,
   onClearCacheBeforeReview,
 }: FilePreviewProps) {
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
+  const activeLibraryId = useActiveLibraryId();
   const selectedFileFromAtom = useAtomValue(selectedFileAtom);
   const shadowTwinStates = useAtomValue(shadowTwinStateAtom)
   const [, setShadowTwinAnalysisTrigger] = useAtom(shadowTwinAnalysisTriggerAtom)

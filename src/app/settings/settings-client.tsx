@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useSearchParams, useRouter } from "next/navigation"
 import { useAtomValue } from "jotai"
-import { librariesAtom, activeLibraryIdAtom } from "@/atoms/library-atom"
+import { useActiveLibraryId, useLibraries } from '@ks/shell/react'
 import { Button, Alert, AlertDescription, AlertTitle } from '@ks/ui'
 import { Plus, BookOpen, Info } from "lucide-react"
 import { useUserRole } from "@/hooks/use-user-role"
@@ -15,8 +15,8 @@ import { CreateLibraryWizard } from "@/components/flows/create-library-wizard"
 export function SettingsClient() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const libraries = useAtomValue(librariesAtom)
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom)
+  const libraries = useLibraries()
+  const activeLibraryId = useActiveLibraryId()
   const { isCreator, isLoaded: isRoleLoaded } = useUserRole()
   // isLoading: solange die Bibliotheken noch geladen werden, darf NICHT
   // weitergeleitet werden (sonst Cold-Load-Bounce, weil isCreator anfangs

@@ -22,7 +22,8 @@ import { fetchShadowTwinMarkdown } from "@/lib/shadow-twin/shadow-twin-mongo-cli
 import { isMongoShadowTwinId, parseMongoShadowTwinId } from "@/lib/shadow-twin/mongo-shadow-twin-id"
 // parseFrontmatter wurde mit isCompositeContainerContent in helpers.ts
 // ausgegliedert (Welle 3-II-d, Schritt 3/7).
-import { activeLibraryAtom, selectedFileAtom } from "@/atoms/library-atom"
+import { selectedFileAtom } from "@/atoms/library-atom"
+import { useActiveLibrary } from '@ks/shell/react'
 import { isFilesystemBacked } from "@/lib/storage/library-capability"
 
 interface ArtifactMarkdownPanelProps {
@@ -84,7 +85,7 @@ export function ArtifactMarkdownPanel({
   const [isEditOpen, setIsEditOpen] = React.useState(false)
   // Wir lesen die aktive Library aus dem Atom, um `injectMongoTranscriptLinks`
   // korrekt zu setzen (true bei Mongo-only, false bei Filesystem-backed).
-  const activeLibrary = useAtomValue(activeLibraryAtom)
+  const activeLibrary = useActiveLibrary()
   // Default-Navigationssetter: wenn kein onNavigateToFile-Prop uebergeben wird,
   // setzen wir die globale File-Selection. So funktionieren Composite-Klicks
   // auch ohne dass jeder Aufrufer ein Callback durchreicht.

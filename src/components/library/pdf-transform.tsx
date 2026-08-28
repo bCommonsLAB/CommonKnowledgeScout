@@ -5,7 +5,8 @@ import { Button } from '@ks/ui'
 import { StorageItem } from "@/lib/storage/types";
 import { useStorageProvider } from "@/hooks/use-storage-provider";
 import { useAtomValue } from "jotai";
-import { activeLibraryAtom, selectedFileAtom } from "@/atoms/library-atom";
+import { selectedFileAtom } from "@/atoms/library-atom";
+import { useActiveLibrary } from '@ks/shell/react'
 import { useStorage } from "@/contexts/storage-context";
 import { toast } from "sonner";
 import { TransformService, TransformResult, PdfTransformOptions } from "@/lib/transform/transform-service";
@@ -25,7 +26,7 @@ export function PdfTransform({ onTransformComplete, onRefreshFolder }: PdfTransf
   const item = useAtomValue(selectedFileAtom);
   const [isLoading, setIsLoading] = useState(false);
   const provider = useStorageProvider();
-  const activeLibrary = useAtomValue(activeLibraryAtom);
+  const activeLibrary = useActiveLibrary();
   const { refreshItems } = useStorage();
   const [templateOptions, setTemplateOptions] = useState<string[]>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);

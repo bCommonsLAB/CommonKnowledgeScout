@@ -8,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle, Button } from '@ks/ui'
 import { AlertCircle, Loader2, Lock } from "lucide-react"
 import dynamic from "next/dynamic"
 import { useTranslation } from "@ks/i18n/react"
-import { librariesAtom, activeLibraryIdAtom } from '@/atoms/library-atom'
+import { useSetActiveLibraryId, useSetLibraries } from '@ks/shell/react'
 import { LibraryVerificationWarning } from '@/components/library/library-verification-warning'
 import type { ClientLibrary } from '@/types/library'
 import type { Character, SocialContext, TargetLanguage } from '@/lib/chat/constants'
@@ -93,8 +93,8 @@ export default function ExplorePage() {
   } | null>(null)
   const [requestingAccess, setRequestingAccess] = useState(false)
 
-  const setLibraries = useSetAtom(librariesAtom)
-  const setActiveLibraryId = useSetAtom(activeLibraryIdAtom)
+  const setLibraries = useSetLibraries()
+  const setActiveLibraryId = useSetActiveLibraryId()
 
   const loadLibraryIntoState = useCallback((loadedLibrary: ExploreLibraryPayload, ctx: 'public' | 'member') => {
     const clientLibrary: ClientLibrary = {

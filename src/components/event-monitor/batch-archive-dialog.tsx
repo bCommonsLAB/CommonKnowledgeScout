@@ -17,7 +17,8 @@ import {
 import { Loader2, FolderOpen, Download, AlertTriangle, Info } from 'lucide-react';
 import { Batch, Job } from '@/types/event-job';
 import { useAtom } from 'jotai';
-import { activeLibraryAtom, currentFolderIdAtom } from '@/atoms/library-atom';
+import { currentFolderIdAtom } from '@/atoms/library-atom';
+import { useActiveLibrary } from '@ks/shell/react'
 import { useCurrentPath } from '@/hooks/use-file-list-view';
 import { useStorage } from '@/contexts/storage-context';
 
@@ -63,7 +64,7 @@ export default function BatchArchiveDialog({
   onArchiveComplete,
   isMultiBatch = false
 }: BatchArchiveDialogProps) {
-  const [activeLibrary] = useAtom(activeLibraryAtom);
+  const activeLibrary = useActiveLibrary();
   const currentPath = useCurrentPath();
   const [currentFolderId] = useAtom(currentFolderIdAtom);
   const { provider } = useStorage();

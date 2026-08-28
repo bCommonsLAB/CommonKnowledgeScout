@@ -57,7 +57,7 @@ import { formatDateTime } from '@/lib/utils';
 import React from 'react';
 import { createTrackSummary, SecretaryServiceError } from '@/lib/secretary/client';
 import { useAtom } from 'jotai';
-import { activeLibraryIdAtom } from '@/atoms/library-atom';
+import { useActiveLibraryId } from '@ks/shell/react'
 import { LANGUAGE_MAP, TEMPLATE_MAP } from '@/lib/secretary/constants';
 import BatchArchiveDialog from './batch-archive-dialog';
 import { BatchProcessDialog } from './batch-process-dialog';
@@ -89,8 +89,8 @@ export default function BatchList({ batches, onRefresh, isArchive = false, onJob
   const [selectedLanguage, setSelectedLanguage] = useState<string>("de");
   const [creatingSummary, setCreatingSummary] = useState(false);
   
-  // Aktive Bibliotheks-ID aus dem Atom-State mit useAtom
-  const [activeLibraryId] = useAtom(activeLibraryIdAtom);
+  // Aktive Bibliotheks-ID aus der Schale
+  const activeLibraryId = useActiveLibraryId();
   
   // Archive-Dialog-Zustände
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);

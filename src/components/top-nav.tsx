@@ -30,7 +30,7 @@ import {
 } from '@ks/ui'
 import { SignInButton, UserButton, SignedIn, SignedOut } from "@clerk/nextjs"
 import { LibrarySwitcher } from "@/components/library/library-switcher"
-import { libraryAtom } from "@/atoms/library-atom"
+import { useActiveLibrary, useLibraries } from "@ks/shell/react"
 import { jobMonitorPanelOpenAtom } from "@/atoms/job-monitor-panel-open-atom"
 import { LanguageSwitcher } from "@/components/shared/language-switcher"
 import { useTranslation } from "@ks/i18n/react"
@@ -59,9 +59,8 @@ export function TopNav({ siteRootSlug = null }: TopNavProps) {
   const { isCreator } = useUserRole()
   
   // Statt Events verwenden wir Jotai
-  const [libraryContext] = useAtom(libraryAtom)
-  const { libraries, activeLibraryId } = libraryContext
-  const activeLibrary = libraries.find((lib) => lib.id === activeLibraryId)
+  const libraries = useLibraries()
+  const activeLibrary = useActiveLibrary()
   const webViewEnabled = activeLibrary?.config?.publicPublishing?.siteEnabled === true
   const activeLibrarySlug =
     activeLibrary?.config?.publicPublishing?.slugName ||

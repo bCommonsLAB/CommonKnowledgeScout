@@ -30,8 +30,6 @@ import { useStorage } from "@/contexts/storage-context";
 import { useAtomValue, useAtom } from 'jotai';
 import { useSearchTerm, useSortField, useSortOrder, useSortedFilteredFiles } from '@/hooks/use-file-list-view';
 import {
-  activeLibraryIdAtom,
-  activeLibraryAtom,
   selectedFileAtom,
   folderItemsAtom,
   selectedShadowTwinAtom,
@@ -41,6 +39,7 @@ import {
   groupByAttributeAtom,
   divaExtraColumnsAtom,
 } from '@/atoms/library-atom';
+import { useActiveLibrary, useActiveLibraryId } from '@ks/shell/react'
 import { toast } from "sonner";
 import {
   selectedBatchItemsAtom,
@@ -108,8 +107,8 @@ export const FileList = React.memo(function FileList({ compact = false }: FileLi
   });
   
   const { provider, refreshItems, currentLibrary } = useStorage();
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
-  const activeLibrary = useAtomValue(activeLibraryAtom);
+  const activeLibraryId = useActiveLibraryId();
+  const activeLibrary = useActiveLibrary();
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [isFolderSyncing, setIsFolderSyncing] = React.useState(false);
   // Zweistufiger Ordner-Abgleich: Pruef-Report + Bestaetigungs-Dialog (Welle 4).

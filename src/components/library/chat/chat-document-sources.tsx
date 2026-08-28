@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import { useAtom, useAtomValue } from 'jotai'
 import { galleryFiltersAtom } from '@/atoms/gallery-filters'
-import { activeLibraryIdAtom } from '@/atoms/library-atom'
+import { useActiveLibraryId } from '@ks/shell/react'
 import { Button, Badge, Tooltip, TooltipContent, TooltipTrigger } from '@ks/ui'
 import { FileText, Filter } from 'lucide-react'
 import type { RetrievedSource } from '@/types/retriever'
@@ -24,7 +24,7 @@ interface ChatDocumentSourcesProps {
  */
 export function ChatDocumentSources({ sources, libraryId, onDocumentClick }: ChatDocumentSourcesProps) {
   const [, setFilters] = useAtom(galleryFiltersAtom)
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom)
+  const activeLibraryId = useActiveLibraryId()
 
   // Gruppiere Sources nach fileId
   const groupedDocs = useMemo(() => {

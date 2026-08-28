@@ -10,7 +10,7 @@ import { IngestionDivaDocumentDetail } from "@/components/library/ingestion-diva
 import { IngestionDivaTextureDetail } from "@/components/library/ingestion-diva-texture-detail"
 import { IngestionRefurbedDeviceDetail } from "@/components/library/ingestion-refurbed-device-detail"
 import { IngestionWebsiteDetail } from "@/components/library/ingestion-website-detail"
-import { librariesAtom } from "@/atoms/library-atom"
+import { useLibraries } from '@ks/shell/react'
 import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom"
 import { getDetailViewType } from "@/lib/templates/detail-view-type-utils"
 
@@ -24,7 +24,7 @@ interface DocMetaResponse {
 }
 
 export function IngestionDetailPanel({ libraryId, fileId }: IngestionDetailPanelProps) {
-  const libraries = useAtomValue(librariesAtom)
+  const libraries = useLibraries()
   const activeLibrary = libraries.find((lib) => lib.id === libraryId)
   const libraryConfig = activeLibrary?.config?.chat
 

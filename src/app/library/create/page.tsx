@@ -1,7 +1,7 @@
 "use client"
-
 import { useAtomValue } from "jotai"
-import { activeLibraryAtom } from "@/atoms/library-atom"
+
+import { useActiveLibrary } from '@ks/shell/react'
 import { getLibraryCreationConfig } from "@/lib/templates/library-creation-config"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button } from '@ks/ui'
 import { useRouter, useSearchParams } from "next/navigation"
@@ -38,7 +38,7 @@ function getIconComponent(iconName?: string) {
 }
 
 export default function CreateContentPage() {
-  const activeLibrary = useAtomValue(activeLibraryAtom)
+  const activeLibrary = useActiveLibrary()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [creationTypes, setCreationTypes] = useState<Awaited<ReturnType<typeof getLibraryCreationConfig>>>([])

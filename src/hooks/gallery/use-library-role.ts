@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import { useAtomValue } from 'jotai'
 import { useAuth, useUser } from '@clerk/nextjs'
-import { librariesAtom } from '@/atoms/library-atom'
+import { useLibraries } from '@ks/shell/react'
 import { getPreferredUserEmail } from '@/lib/auth/user-email'
 
 /**
@@ -46,7 +46,7 @@ export interface UseLibraryRoleResult {
 export function useLibraryRole(libraryId?: string): UseLibraryRoleResult {
   const { isLoaded, isSignedIn } = useAuth()
   const { user } = useUser()
-  const libraries = useAtomValue(librariesAtom)
+  const libraries = useLibraries()
 
   return useMemo<UseLibraryRoleResult>(() => {
     const userEmail = isSignedIn ? getPreferredUserEmail(user) : ''

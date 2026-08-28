@@ -2,18 +2,21 @@
   "name": "@ks/shell",
   "version": "0.0.0",
   "private": true,
-  "description": "KnowledgeScout — App-Schale: Provider-Kette, Navigations-Konfiguration, Host→SiteConfig-Resolver",
+  "description": "KnowledgeScout \u2014 App-Schale: Provider-Kette, Navigations-Konfiguration, Host\u2192SiteConfig-Resolver",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./providers": "./src/providers/index.ts"
+    "./providers": "./src/providers/index.ts",
+    "./react": "./src/react/index.ts",
+    "./testing": "./src/testing/index.ts"
   },
   "dependencies": {
     "@ks/contracts": "workspace:*"
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.101.1",
+    "jotai": "^2.11.0",
     "next-themes": "^0.4.4",
     "react": "^18.2.0"
   }

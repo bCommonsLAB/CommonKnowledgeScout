@@ -12,7 +12,7 @@
 
 import { useUser } from "@clerk/nextjs"
 import { useAtomValue } from "jotai"
-import { librariesAtom } from "@/atoms/library-atom"
+import { useLibraries } from '@ks/shell/react'
 
 export type UserRole = 'creator' | 'guest'
 
@@ -31,7 +31,7 @@ export type UserRole = 'creator' | 'guest'
  */
 export function useUserRole() {
   const { user, isLoaded } = useUser()
-  const libraries = useAtomValue(librariesAtom)
+  const libraries = useLibraries()
 
   if (!isLoaded || !user) {
     return {

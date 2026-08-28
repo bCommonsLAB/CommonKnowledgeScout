@@ -18,7 +18,7 @@
 
 import * as React from "react"
 import { useAtomValue } from "jotai"
-import { libraryAtom } from "@/atoms/library-atom"
+import { useLibraries } from '@ks/shell/react'
 import { fetchDocs } from "@/components/library/website/use-website-landing-data"
 import { selectMainMenuDocs, getSiteParamForDoc } from "@/lib/website/site-navigation"
 import type { NavItem } from "@ks/shell"
@@ -35,7 +35,7 @@ export function useSiteMenuItems(
   baseHref: string | null,
   locale: string,
 ): NavItem[] {
-  const { libraries } = useAtomValue(libraryAtom)
+  const libraries = useLibraries()
   // Eingeloggt: libraryId direkt aus dem Atom (spart den Slug-API-Roundtrip).
   const atomLibraryId =
     libraries.find((lib) => lib.config?.publicPublishing?.slugName === slug)?.id ?? null

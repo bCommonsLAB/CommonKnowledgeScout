@@ -54,7 +54,7 @@ import {
   selectedFileAtom,
   selectedShadowTwinAtom
 } from "@/atoms/library-atom"
-import { activeLibraryIdAtom } from "@/atoms/library-atom"
+import { useActiveLibraryId } from '@ks/shell/react'
 import { useStorage, isStorageError } from "@/contexts/storage-context"
 import { NavigationLogger, StateLogger } from "@/lib/debug/logger"
 import { Breadcrumb } from "./breadcrumb"
@@ -70,7 +70,7 @@ export function Library() {
   const [lastLoadedFolder, setLastLoadedFolder] = useAtom(lastLoadedFolderAtom);
   const [currentFolderId] = useAtom(currentFolderIdAtom);
   const [folderNav, setFolderNav] = useAtom(folderNavigationAtom);
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
+  const activeLibraryId = useActiveLibraryId();
   
   // Review-Mode Atoms
   const [isReviewMode] = useAtom(reviewModeAtom);

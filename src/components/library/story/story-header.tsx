@@ -6,7 +6,7 @@ import { useTranslation } from '@ks/i18n/react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { PerspectiveDisplay } from '@/components/library/shared/perspective-display'
 import { useAtomValue } from 'jotai'
-import { activeLibraryIdAtom } from '@/atoms/library-atom'
+import { useActiveLibraryId } from '@ks/shell/react'
 
 interface StoryHeaderProps {
   /** Wenn true, werden Border und Padding entfernt (für sticky Header) */
@@ -29,7 +29,7 @@ export function StoryHeader({ compact = false, onBackToGallery, libraryId: libra
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom)
+  const activeLibraryId = useActiveLibraryId()
   const libraryId = libraryIdProp || activeLibraryId
 
   /**

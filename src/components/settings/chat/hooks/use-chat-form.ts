@@ -18,7 +18,8 @@ import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { useEffect, useState, useCallback, useMemo } from "react"
 import { useAtom } from "jotai"
-import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom"
+import { useActiveLibraryId, useLibraries, useSetLibraries } from '@ks/shell/react'
+import type { ClientLibrary } from '@/types/library'
 import { toast } from '@ks/ui'
 import { buildVectorSearchIndexDefinitionForLibrary, getCollectionNameForLibrary } from '@/lib/chat/vector-search-index'
 import {
@@ -190,7 +191,7 @@ export interface VariantStats {
 /** Rückgabe-Typ von useChatForm */
 export interface UseChatFormResult {
   form: ReturnType<typeof useForm<ChatFormValues>>
-  activeLibrary: ReturnType<typeof useAtom<typeof librariesAtom>>[0][number] | undefined
+  activeLibrary: ClientLibrary | undefined
   isLoading: boolean
   showIndexDialog: boolean
   setShowIndexDialog: (v: boolean) => void
@@ -226,8 +227,9 @@ export interface UseChatFormResult {
  */
 export function useChatForm(): UseChatFormResult {
   const { t } = useTranslation()
-  const [libraries, setLibraries] = useAtom(librariesAtom)
-  const [activeLibraryId] = useAtom(activeLibraryIdAtom)
+  const libraries = useLibraries()
+  const setLibraries = useSetLibraries()
+  const activeLibraryId = useActiveLibraryId()
   const [isLoading, setIsLoading] = useState(false)
   const [showIndexDialog, setShowIndexDialog] = useState(false)
   const [showSearchIndexDialog, setShowSearchIndexDialog] = useState(false)

@@ -18,7 +18,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAtomValue } from 'jotai';
-import { activeLibraryAtom, activeLibraryIdAtom } from '@/atoms/library-atom';
+import { useActiveLibrary, useActiveLibraryId } from '@ks/shell/react'
 import { SubmissionInboxList } from '@/components/submissions/submission-inbox-list';
 import { SubmissionReviewPanel } from '@/components/submissions/submission-review-panel';
 import { DetailViewRenderer } from '@/components/library/detail-view-renderer';
@@ -35,8 +35,8 @@ async function readError(res: Response, label: string): Promise<string> {
 
 export function InboxClient() {
   const params = useSearchParams();
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
-  const activeLibrary = useAtomValue(activeLibraryAtom);
+  const activeLibraryId = useActiveLibraryId();
+  const activeLibrary = useActiveLibrary();
   const libraryId = params.get('libraryId') || activeLibraryId;
 
   const [submissions, setSubmissions] = useState<WizardSubmission[]>([]);

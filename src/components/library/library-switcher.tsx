@@ -14,7 +14,8 @@ import {
   SelectValue,
 } from '@ks/ui'
 import { cn } from "@/lib/utils"
-import { activeLibraryAtom, activeLibraryIdAtom, currentFolderIdAtom, folderItemsAtom, folderNavigationAtom, lastLoadedFolderAtom, librariesAtom } from "@/atoms/library-atom"
+import { currentFolderIdAtom, folderItemsAtom, folderNavigationAtom, lastLoadedFolderAtom } from "@/atoms/library-atom"
+import { useActiveLibrary, useActiveLibraryId, useLibraries, useSetActiveLibraryId } from '@ks/shell/react'
 import { Plus, Share2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { StateLogger } from "@/lib/debug/logger"
@@ -30,9 +31,10 @@ export function LibrarySwitcher({
   onLibraryChange
 }: LibrarySwitcherProps) {
   const router = useRouter();
-  const [libraries] = useAtom(librariesAtom)
-  const [activeLibraryId, setActiveLibraryId] = useAtom(activeLibraryIdAtom)
-  const [activeLibrary] = useAtom(activeLibraryAtom)
+  const libraries = useLibraries()
+  const activeLibraryId = useActiveLibraryId()
+  const setActiveLibraryId = useSetActiveLibraryId()
+  const activeLibrary = useActiveLibrary()
   const [, setCurrentFolderId] = useAtom(currentFolderIdAtom)
   const [, setFolderItems] = useAtom(folderItemsAtom)
   const [, setLastLoadedFolder] = useAtom(lastLoadedFolderAtom)

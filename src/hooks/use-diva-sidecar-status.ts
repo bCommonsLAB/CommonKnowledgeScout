@@ -13,10 +13,10 @@
 import { useEffect } from 'react'
 import { useAtomValue, useSetAtom } from 'jotai'
 import {
-  activeLibraryIdAtom,
   currentFolderIdAtom,
   divaSidecarStatusAtom,
 } from '@/atoms/library-atom'
+import { useActiveLibraryId } from '@ks/shell/react'
 
 interface SidecarStatusApiResponse {
   found: boolean
@@ -26,7 +26,7 @@ interface SidecarStatusApiResponse {
 }
 
 export function useDivaSidecarStatus(enabled: boolean): void {
-  const libraryId = useAtomValue(activeLibraryIdAtom)
+  const libraryId = useActiveLibraryId()
   const folderId = useAtomValue(currentFolderIdAtom)
   const setStatus = useSetAtom(divaSidecarStatusAtom)
 

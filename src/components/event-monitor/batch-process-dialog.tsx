@@ -17,7 +17,8 @@ import { processSession } from '@/lib/secretary/client';
 import { buildSessionPayload } from '@/lib/session/session-processor';
 import JSZip from 'jszip';
 import { useAtom } from 'jotai';
-import { activeLibraryAtom, currentFolderIdAtom } from '@/atoms/library-atom';
+import { currentFolderIdAtom } from '@/atoms/library-atom';
+import { useActiveLibrary } from '@ks/shell/react'
 import { useStorage } from '@/contexts/storage-context';
 
 interface Props {
@@ -27,7 +28,7 @@ interface Props {
 }
 
 export function BatchProcessDialog({ open, onOpenChange, jobs }: Props) {
-  const [activeLibrary] = useAtom(activeLibraryAtom);
+  const activeLibrary = useActiveLibrary();
   const [currentFolderId] = useAtom(currentFolderIdAtom);
   const { provider } = useStorage();
   const [running, setRunning] = useState(false);

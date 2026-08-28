@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useSetAtom, useAtomValue } from 'jotai';
 import { upsertJobStatusAtom, upsertJobInfoAtom, clearJobInfoAtom } from '@/atoms/job-status';
 import { jobMonitorPanelOpenAtom } from '@/atoms/job-monitor-panel-open-atom';
-import { activeLibraryIdAtom } from "@/atoms/library-atom";
+import { useActiveLibraryId } from '@ks/shell/react'
 import { shadowTwinAnalysisTriggerAtom } from "@/atoms/shadow-twin-atom";
 import { cn } from "@/lib/utils";
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
@@ -115,7 +115,7 @@ export function JobMonitorPanel() {
   const clearJobInfo = useSetAtom(clearJobInfoAtom);
   const triggerShadowTwinAnalysis = useSetAtom(shadowTwinAnalysisTriggerAtom);
   const shadowTwinRefreshTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const activeLibraryId = useAtomValue(activeLibraryIdAtom);
+  const activeLibraryId = useActiveLibraryId();
   const setJobMonitorPanelOpen = useSetAtom(jobMonitorPanelOpenAtom);
 
   const [isRefreshing, setIsRefreshing] = useState(false);

@@ -4,7 +4,7 @@ import React, { Suspense } from "react";
 import { Library } from "@/components/library/library";
 import { useAuth } from "@clerk/nextjs";
 import { useAtom, useAtomValue } from "jotai";
-import { activeLibraryIdAtom, librariesAtom } from "@/atoms/library-atom";
+import { useLibraries, useSetActiveLibraryId } from '@ks/shell/react'
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import {
@@ -27,7 +27,7 @@ import { Plus, BookOpen } from "lucide-react";
 function LibraryUrlHandler() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [, setActiveLibraryId] = useAtom(activeLibraryIdAtom);
+  const setActiveLibraryId = useSetActiveLibraryId();
   const { refreshAuthStatus } = useStorage();
 
   useEffect(() => {
@@ -64,7 +64,7 @@ function LibraryUrlHandler() {
 export default function LibraryPage() {
   const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
   const { isLoading, error } = useStorage();
-  const libraries = useAtomValue(librariesAtom);
+  const libraries = useLibraries();
   const router = useRouter();
 
   // Logging für Debugging: Auth-Status und Loading-State

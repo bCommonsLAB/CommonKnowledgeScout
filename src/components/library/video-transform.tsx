@@ -5,7 +5,8 @@ import { Button } from '@ks/ui'
 import { StorageItem } from "@/lib/storage/types";
 import { useStorageProvider } from "@/hooks/use-storage-provider";
 import { useAtomValue } from "jotai";
-import { activeLibraryAtom, selectedFileAtom } from "@/atoms/library-atom";
+import { selectedFileAtom } from "@/atoms/library-atom";
+import { useActiveLibrary } from '@ks/shell/react'
 import { toast } from "sonner";
 import type { TransformResult } from "@/lib/transform/transform-service";
 import type { TransformSaveOptions as SaveOptionsType } from "@/lib/transform/transform-save-options";
@@ -30,7 +31,7 @@ export function VideoTransform({
   const item = useAtomValue(selectedFileAtom);
   const [isLoading, setIsLoading] = useState(false);
   const provider = useStorageProvider();
-  const activeLibrary = useAtomValue(activeLibraryAtom);
+  const activeLibrary = useActiveLibrary();
   
   // Referenz für den TransformResultHandler
   const transformResultHandlerRef = useRef<(result: TransformResult) => void>(() => {});

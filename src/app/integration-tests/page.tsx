@@ -2,7 +2,8 @@
 
 import React, { Suspense, useMemo, useState } from 'react';
 import { useAtom } from 'jotai';
-import { activeLibraryAtom, activeLibraryIdAtom, currentFolderIdAtom } from '@/atoms/library-atom';
+import { currentFolderIdAtom } from '@/atoms/library-atom';
+import { useActiveLibrary, useSetActiveLibraryId } from '@ks/shell/react'
 import { useCurrentPath } from '@/hooks/use-file-list-view';
 import { useSearchParams } from 'next/navigation';
 import { useStorage } from '@/contexts/storage-context';
@@ -76,11 +77,11 @@ interface UiRunNote {
 function IntegrationTestsPageContent() {
   const searchParams = useSearchParams();
   const searchParamsKey = searchParams.toString();
-  const [, setActiveLibraryId] = useAtom(activeLibraryIdAtom);
+  const setActiveLibraryId = useSetActiveLibraryId();
   const [, setCurrentFolderId] = useAtom(currentFolderIdAtom);
   const { refreshAuthStatus } = useStorage();
 
-  const [activeLibrary] = useAtom(activeLibraryAtom);
+  const activeLibrary = useActiveLibrary();
   const [currentFolderId] = useAtom(currentFolderIdAtom);
   const currentPathItems = useCurrentPath();
 
