@@ -25,9 +25,9 @@
  * 
  * @dependencies
  * - @/lib/chat/constants: Character and SocialContext types
+ * - Keine React-Abhaengigkeit: Diese Datei muss serverseitig ladbar bleiben
  */
 
-import { ReactNode } from 'react';
 import type { Character, AccessPerspective, TargetLanguage } from '@/lib/chat/constants';
 import type { SocialContext } from '@/lib/chat/constants';
 import type { Locale } from '@ks/i18n';
@@ -565,8 +565,8 @@ export interface Library {
   /** Base path for local filesystem providers */
   path: string;
   
-  /** Optional icon component for UI representation */
-  icon?: ReactNode;
+  /** Optionaler Lucide-Icon-Name (z. B. 'Globe'), aufgeloest von der aufrufenden UI */
+  icon?: string;
   
   /** Type of storage provider used */
   type: StorageProviderType;
@@ -746,8 +746,8 @@ export interface ClientLibrary {
     [key: string]: unknown;
   };
   
-  /** Optional icon component for UI representation */
-  icon?: ReactNode;
+  /** Optionaler Lucide-Icon-Name (z. B. 'Globe'), aufgeloest von der aufrufenden UI */
+  icon?: string;
 
   /** Markiert Libraries, die ueber eine Einladung geteilt wurden (nicht im Besitz des Users) */
   isShared?: boolean;

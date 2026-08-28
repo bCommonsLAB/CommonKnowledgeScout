@@ -284,11 +284,7 @@ export function CreateLibraryDialog({
       }
 
       // Neue Library zum lokalen State hinzufügen
-      const newLibrary = {
-        ...libraryData,
-        icon: <Plus className="h-4 w-4" />,
-      }
-      setLibraries([...libraries, newLibrary])
+      setLibraries([...libraries, libraryData])
 
       // WICHTIG: State synchron zurücksetzen BEVOR der Library-Wechsel erfolgt
       resetLibraryState()

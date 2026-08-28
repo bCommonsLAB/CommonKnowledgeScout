@@ -145,8 +145,7 @@ export function LibrarySwitcher({
           aria-label="Bibliothek auswählen"
         >
           <SelectValue placeholder="Bibliothek auswählen">
-            {currentLibrary?.icon}
-            <span className={cn("ml-2", isCollapsed && "hidden")}>
+            <span className={cn(isCollapsed && "hidden")}>
               {currentLibrary?.label}
             </span>
           </SelectValue>
@@ -157,10 +156,7 @@ export function LibrarySwitcher({
             <SelectLabel>Meine Bibliotheken</SelectLabel>
             {ownLibraries.map((library) => (
               <SelectItem key={library.id} value={library.id}>
-                <div className="flex items-center gap-3 [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0 [&_svg]:text-foreground">
-                  {library.icon}
-                  {library.label}
-                </div>
+                {library.label}
               </SelectItem>
             ))}
           </SelectGroup>
@@ -176,10 +172,7 @@ export function LibrarySwitcher({
                 </SelectLabel>
                 {sharedLibraries.map((library) => (
                   <SelectItem key={library.id} value={library.id}>
-                    <div className="flex items-center gap-3 [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0 [&_svg]:text-foreground">
-                      {library.icon}
-                      {library.label}
-                    </div>
+                    {library.label}
                   </SelectItem>
                 ))}
               </SelectGroup>
