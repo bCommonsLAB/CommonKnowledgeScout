@@ -188,6 +188,46 @@ Datenbank sehen musste. Und der Skill kennt jetzt den Zwei-Schritt-Takt:
 erst `nur_transkript`, dann das Transkript LESEN, und daraus die Vorlage
 ableiten — der Dateiname verrät die Dokumentart nicht.
 
+## 4c. Die Transformation scheitert am Secretary, nicht an KnowledgeScout
+
+Zweiter Anlauf am 28.08.2026, mit `vorlagen_auflisten` und zwei Proben. Beide
+inhaltlichen Vorlagen (`standard-meeting`, `meeting_analyse-de`) scheitern
+**identisch**. Damit ist die Template-Hypothese widerlegt.
+
+Was die verbesserte Fehlermeldung zeigt:
+
+```
+Schluessel: [status, request, process, error, data, translation]
+status="success"
+data-Schluessel: [status, request, process, error, data, translation]
+KEIN `data.structured_data`.
+```
+
+Drei Befunde daraus:
+
+1. **Die Antwort trägt ein `error`-Feld** — und `template-run.ts` liest es
+   nicht. Es prüft ausschließlich auf `data.structured_data`.
+2. **Die `data`-Schlüssel sind identisch mit den Wurzel-Schlüsseln.** Die
+   Antwort ist verschachtelt; die Form entspricht nicht dem, was die
+   Pipeline erwartet.
+3. **Der Fehlschlag kam nach 924 ms bzw. 360 ms.** Eine LLM-Transformation
+   von 14.000 Zeichen dauert Sekunden. Der Dienst bricht ab, bevor er
+   rechnet — es ist keine Frage des Inhalts.
+
+**Das ist ein Vertragsbruch zwischen Secretary und KnowledgeScout**, nicht
+ein Fehler in der Vorlage oder im Dokument. Entweder hat sich die
+Antwortform von `/api/transformer/template` geändert, oder der Dienst lehnt
+die Anfrage ab und sagt das im `error`-Feld, das niemand liest.
+
+Nachgezogen: `beschreibeAntwort` gibt jetzt **die ganze Antwort außer dem
+`request`-Echo** wörtlich mit (auf 1.200 Zeichen begrenzt). Die erste Fassung
+gab nur Strings aus — ein `error: { code, message }` fiel durchs Raster,
+obwohl die Ursache darin stand. Das Echo bleibt draußen: es ist unsere eigene
+Eingabe und der einzige Teil, der nichts erklärt.
+
+Damit ist der nächste Lauf beweisend. Bis dahin gilt: **Transformationen über
+die Brücke sind nicht benutzbar**; `nur_transkript` funktioniert.
+
 ## 5. Reihenfolge für das, was bleibt
 
 Die beiden Blocker sind weg. Was übrig ist, nach Nutzen sortiert:
